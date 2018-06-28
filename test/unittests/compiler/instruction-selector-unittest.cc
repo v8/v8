@@ -618,41 +618,129 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_EQ(index, s.size());
 }
 
-// Helper to make calls to private InstructionSelector::TryMatch* functions.
+// Helper to make calls to private InstructionSelector shuffle functions.
 class InstructionSelectorShuffleTest : public ::testing::Test {
  public:
   using Shuffle = std::array<uint8_t, kSimd128Size>;
-  // Call private members
+
+  struct TestShuffle {
+    Shuffle non_canonical;
+    Shuffle canonical;
+    bool needs_swap;
+    bool is_swizzle;
+  };
+
+  // Call testing members in InstructionSelector.
+  static void CanonicalizeShuffle(bool inputs_equal, Shuffle* shuffle,
+                                  bool* needs_swap, bool* is_swizzle) {
+    InstructionSelector::CanonicalizeShuffleForTesting(
+        inputs_equal, &(*shuffle)[0], needs_swap, is_swizzle);
+  }
+
   static bool TryMatchIdentity(const Shuffle& shuffle) {
     return InstructionSelector::TryMatchIdentityForTesting(&shuffle[0]);
   }
-
   template <int LANES>
   static bool TryMatchDup(const Shuffle& shuffle, int* index) {
     return InstructionSelector::TryMatchDupForTesting<LANES>(&shuffle[0],
                                                              index);
   }
-
   static bool TryMatch32x4Shuffle(const Shuffle& shuffle,
                                   uint8_t* shuffle32x4) {
     return InstructionSelector::TryMatch32x4ShuffleForTesting(&shuffle[0],
                                                               shuffle32x4);
   }
-
   static bool TryMatch16x8Shuffle(const Shuffle& shuffle,
                                   uint8_t* shuffle16x8) {
     return InstructionSelector::TryMatch16x8ShuffleForTesting(&shuffle[0],
                                                               shuffle16x8);
   }
-
   static bool TryMatchConcat(const Shuffle& shuffle, uint8_t* offset) {
     return InstructionSelector::TryMatchConcatForTesting(&shuffle[0], offset);
   }
-
   static bool TryMatchBlend(const Shuffle& shuffle) {
     return InstructionSelector::TryMatchBlendForTesting(&shuffle[0]);
   }
 };
+
+bool operator==(const InstructionSelectorShuffleTest::Shuffle& a,
+                const InstructionSelectorShuffleTest::Shuffle& b) {
+  for (int i = 0; i < kSimd128Size; ++i) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
+TEST_F(InstructionSelectorShuffleTest, CanonicalizeShuffle) {
+  const bool kInputsEqual = true;
+  const bool kNeedsSwap = true;
+  const bool kIsSwizzle = true;
+
+  bool needs_swap;
+  bool is_swizzle;
+
+  // Test canonicalization driven by input shuffle.
+  TestShuffle test_shuffles[] = {
+      // Identity is canonical.
+      {{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
+       {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
+       !kNeedsSwap,
+       kIsSwizzle},
+      // Non-canonical identity requires a swap.
+      {{{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31}},
+       {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
+       kNeedsSwap,
+       kIsSwizzle},
+      // General shuffle, canonical is unchanged.
+      {{{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}},
+       {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}},
+       !kNeedsSwap,
+       !kIsSwizzle},
+      // Non-canonical shuffle requires a swap.
+      {{{16, 0, 17, 1, 18, 2, 19, 3, 20, 4, 21, 5, 22, 6, 23, 7}},
+       {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}},
+       kNeedsSwap,
+       !kIsSwizzle},
+  };
+  for (size_t i = 0; i < arraysize(test_shuffles); ++i) {
+    Shuffle shuffle = test_shuffles[i].non_canonical;
+    CanonicalizeShuffle(!kInputsEqual, &shuffle, &needs_swap, &is_swizzle);
+    EXPECT_EQ(shuffle, test_shuffles[i].canonical);
+    EXPECT_EQ(needs_swap, test_shuffles[i].needs_swap);
+    EXPECT_EQ(is_swizzle, test_shuffles[i].is_swizzle);
+  }
+
+  // Test canonicalization when inputs are equal (explicit swizzle).
+  TestShuffle test_swizzles[] = {
+      // Identity is canonical.
+      {{{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
+       {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
+       !kNeedsSwap,
+       kIsSwizzle},
+      // Non-canonical identity requires a swap.
+      {{{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31}},
+       {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}},
+       !kNeedsSwap,
+       kIsSwizzle},
+      // Canonicalized to swizzle.
+      {{{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}},
+       {{0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7}},
+       !kNeedsSwap,
+       kIsSwizzle},
+      // Canonicalized to swizzle.
+      {{{16, 0, 17, 1, 18, 2, 19, 3, 20, 4, 21, 5, 22, 6, 23, 7}},
+       {{0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7}},
+       !kNeedsSwap,
+       kIsSwizzle},
+  };
+  for (size_t i = 0; i < arraysize(test_swizzles); ++i) {
+    Shuffle shuffle = test_swizzles[i].non_canonical;
+    CanonicalizeShuffle(kInputsEqual, &shuffle, &needs_swap, &is_swizzle);
+    EXPECT_EQ(shuffle, test_swizzles[i].canonical);
+    EXPECT_EQ(needs_swap, test_swizzles[i].needs_swap);
+    EXPECT_EQ(is_swizzle, test_swizzles[i].is_swizzle);
+  }
+}
 
 TEST_F(InstructionSelectorShuffleTest, TryMatchIdentity) {
   // Match shuffle that returns first source operand.

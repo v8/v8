@@ -449,6 +449,12 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   }
 
   // Expose these SIMD helper functions for testing.
+  static void CanonicalizeShuffleForTesting(bool inputs_equal, uint8_t* shuffle,
+                                            bool* needs_swap,
+                                            bool* is_swizzle) {
+    CanonicalizeShuffle(inputs_equal, shuffle, needs_swap, is_swizzle);
+  }
+
   static bool TryMatchIdentityForTesting(const uint8_t* shuffle) {
     return TryMatchIdentity(shuffle);
   }
@@ -631,6 +637,22 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================
 
+  // Converts a shuffle into canonical form, meaning that the first lane index
+  // is in the range [0 .. 15]. Set |inputs_equal| true if this is an explicit
+  // swizzle. Returns canonicalized |shuffle|, |needs_swap|, and |is_swizzle|.
+  // If |needs_swap| is true, inputs must be swapped. If |is_swizzle| is true,
+  // the second input can be ignored.
+  static void CanonicalizeShuffle(bool inputs_equal, uint8_t* shuffle,
+                                  bool* needs_swap, bool* is_swizzle);
+
+  // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
+  // indices, and a boolean indicating if the shuffle is a swizzle (one input).
+  void CanonicalizeShuffle(Node* node, uint8_t* shuffle, bool* is_swizzle);
+
+  // Swaps the two first input operands of the node, to help match shuffles
+  // to specific architectural instructions.
+  void SwapShuffleInputs(Node* node);
+
   // Tries to match an 8x16 byte shuffle to the identity shuffle, which is
   // [0 1 ... 15]. This should be called after canonicalizing the shuffle, so
   // the second identity shuffle, [16 17 .. 31] is converted to the first one.
@@ -684,14 +706,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   // Packs 4 bytes of shuffle into a 32 bit immediate.
   static int32_t Pack4Lanes(const uint8_t* shuffle);
-
-  // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle
-  // indices, and a boolean indicating if the shuffle is a swizzle (one input).
-  void CanonicalizeShuffle(Node* node, uint8_t* shuffle, bool* is_swizzle);
-
-  // Swaps the two first input operands of the node, to help match shuffles
-  // to specific architectural instructions.
-  void SwapShuffleInputs(Node* node);
 
   // ===========================================================================
 
