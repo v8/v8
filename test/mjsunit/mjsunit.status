@@ -89,7 +89,7 @@
   'array-constructor': [PASS, SLOW, ['arch == arm and simulator == True', SKIP]],
 
   # Very slow test
-  'regress/regress-crbug-808192' : [PASS, SLOW, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', SKIP]],
+  'regress/regress-crbug-808192' : [PASS, SLOW, NO_VARIANTS, ['mode == debug or arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', SKIP]],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
   'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
@@ -199,6 +199,9 @@
   # TODO(vogelheim): big-object-literal exceeds the stack in debug builds,
   #                  which makes the test useless.
   'big-object-literal': [PASS, ['mode == debug', SKIP]],
+
+  # Runs out of stack space in debug builds.
+  'big-array-literal': [PASS, ['mode == debug', SKIP]],
 
   # BUG(v8:6306).
   'wasm/huge-memory': [SKIP],
