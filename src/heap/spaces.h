@@ -1414,9 +1414,9 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // and false otherwise.
   bool UncommitBlock(Address start, size_t size);
 
-  // Zaps a contiguous block of memory [start..(start+size)[ with
-  // a given zap value.
-  void ZapBlock(Address start, size_t size, uintptr_t zap_value);
+  // Zaps a contiguous block of memory [start..(start+size)[ thus
+  // filling it up with a recognizable non-nullptr bit pattern.
+  void ZapBlock(Address start, size_t size);
 
   V8_WARN_UNUSED_RESULT bool CommitExecutableMemory(VirtualMemory* vm,
                                                     Address start,

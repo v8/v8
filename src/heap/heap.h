@@ -710,13 +710,9 @@ class Heap {
 #ifdef VERIFY_HEAP
     return FLAG_verify_heap;
 #else
-    return FLAG_clear_free_memory;
+    return false;
 #endif
 #endif
-  }
-
-  static uintptr_t ZapValue() {
-    return FLAG_clear_free_memory ? kClearedFreeMemoryValue : kZapValue;
   }
 
   static inline bool IsYoungGenerationCollector(GarbageCollector collector) {
