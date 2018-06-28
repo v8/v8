@@ -536,7 +536,6 @@ class MapSpace;
 class MarkCompactCollector;
 class MaybeObject;
 class NewSpace;
-class NewLargeObjectSpace;
 class Object;
 class OldSpace;
 class ParameterCount;
@@ -571,16 +570,14 @@ typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, Object** pointer);
 enum AllocationSpace {
   // TODO(v8:7464): Actually map this space's memory as read-only.
   RO_SPACE,    // Immortal, immovable and immutable objects,
-  NEW_SPACE,   // Young generation semispaces for regular objects collected with
-               // Scavenger.
-  OLD_SPACE,   // Old generation regular object space.
-  CODE_SPACE,  // Old generation code object space, marked executable.
-  MAP_SPACE,   // Old generation map object space, non-movable.
-  LO_SPACE,    // Old generation large object space.
-  NEW_LO_SPACE,  // Young generation large object space.
+  NEW_SPACE,   // Semispaces collected with copying collector.
+  OLD_SPACE,   // May contain pointers to new space.
+  CODE_SPACE,  // No pointers to new space, marked executable.
+  MAP_SPACE,   // Only and all map objects.
+  LO_SPACE,    // Promoted large objects.
 
   FIRST_SPACE = RO_SPACE,
-  LAST_SPACE = NEW_LO_SPACE,
+  LAST_SPACE = LO_SPACE,
   FIRST_GROWABLE_PAGED_SPACE = OLD_SPACE,
   LAST_GROWABLE_PAGED_SPACE = MAP_SPACE
 };

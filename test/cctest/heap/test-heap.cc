@@ -5656,18 +5656,6 @@ TEST(Regress618958) {
          !heap->incremental_marking()->IsStopped()));
 }
 
-TEST(YoungGenerationLargeObjectAllocation) {
-  FLAG_young_generation_large_objects = true;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Heap* heap = CcTest::heap();
-  Isolate* isolate = heap->isolate();
-
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
-  MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
-  CHECK(chunk->owner()->identity() == NEW_LO_SPACE);
-}
-
 TEST(UncommitUnusedLargeObjectMemory) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());

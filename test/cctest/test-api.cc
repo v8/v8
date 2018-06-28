@@ -18922,9 +18922,6 @@ TEST(GetHeapSpaceStatistics) {
     v8::HeapSpaceStatistics space_statistics;
     isolate->GetHeapSpaceStatistics(&space_statistics, i);
     CHECK_NOT_NULL(space_statistics.space_name());
-    if (strcmp(space_statistics.space_name(), "new_large_object_space") == 0) {
-      continue;
-    }
     CHECK_GT(space_statistics.space_size(), 0u);
     total_size += space_statistics.space_size();
     CHECK_GT(space_statistics.space_used_size(), 0u);
