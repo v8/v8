@@ -7664,8 +7664,7 @@ v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
     // longer track it.
     //
     // TODO(eholk): Find a way to track this across externalization
-    isolate->wasm_engine()->memory_tracker()->ReleaseAllocation(
-        self->backing_store());
+    self->StopTrackingWasmMemory(isolate);
   }
   isolate->heap()->UnregisterArrayBuffer(*self);
 
@@ -7899,8 +7898,7 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
     // longer track it.
     //
     // TODO(eholk): Find a way to track this across externalization
-    isolate->wasm_engine()->memory_tracker()->ReleaseAllocation(
-        self->backing_store());
+    self->StopTrackingWasmMemory(isolate);
   }
   isolate->heap()->UnregisterArrayBuffer(*self);
 

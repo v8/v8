@@ -177,7 +177,10 @@ class SerializationData {
   shared_array_buffer_contents() {
     return shared_array_buffer_contents_;
   }
-
+  const std::vector<WasmCompiledModule::TransferrableModule>&
+  transferrable_modules() {
+    return transferrable_modules_;
+  }
 
  private:
   struct DataDeleter {
@@ -188,6 +191,7 @@ class SerializationData {
   size_t size_;
   std::vector<ArrayBuffer::Contents> array_buffer_contents_;
   std::vector<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
+  std::vector<WasmCompiledModule::TransferrableModule> transferrable_modules_;
 
  private:
   friend class Serializer;

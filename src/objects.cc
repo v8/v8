@@ -18481,6 +18481,12 @@ void JSArrayBuffer::Neuter() {
   }
 }
 
+void JSArrayBuffer::StopTrackingWasmMemory(Isolate* isolate) {
+  DCHECK(is_wasm_memory());
+  isolate->wasm_engine()->memory_tracker()->ReleaseAllocation(backing_store());
+  set_is_wasm_memory(false);
+}
+
 void JSArrayBuffer::FreeBackingStoreFromMainThread() {
   if (allocation_base() == nullptr) {
     return;
