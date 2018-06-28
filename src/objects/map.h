@@ -773,14 +773,8 @@ class Map : public HeapObject {
   inline bool IsJSGlobalObjectMap() const;
   inline bool IsJSTypedArrayMap() const;
   inline bool IsJSDataViewMap() const;
-
   inline bool IsSpecialReceiverMap() const;
-
   inline bool IsCustomElementsReceiverMap() const;
-
-  static void AddDependentCode(Isolate* isolate, Handle<Map> map,
-                               DependentCode::DependencyGroup group,
-                               Handle<Code> code);
 
   bool IsMapInArrayPrototypeChain(Isolate* isolate) const;
 

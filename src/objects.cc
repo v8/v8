@@ -4610,7 +4610,7 @@ void Map::GeneralizeField(Isolate* isolate, Handle<Map> map, int modify_index,
   Handle<FieldType> old_field_type(old_descriptors->GetFieldType(modify_index),
                                    isolate);
 
-  // Return if the current map is general enough to hold requested contness and
+  // Return if the current map is general enough to hold requested constness and
   // representation/field type.
   if (((FLAG_modify_map_inplace &&
         IsGeneralizableTo(new_constness, old_constness)) ||
@@ -14855,17 +14855,6 @@ void JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
     JSObject::NormalizeElements(array);
   }
   array->GetElementsAccessor()->SetLength(array, new_length);
-}
-
-
-// static
-void Map::AddDependentCode(Isolate* isolate, Handle<Map> map,
-                           DependentCode::DependencyGroup group,
-                           Handle<Code> code) {
-  Handle<WeakCell> cell = Code::WeakCellFor(code);
-  Handle<DependentCode> codes = DependentCode::InsertWeakCode(
-      Handle<DependentCode>(map->dependent_code(), isolate), group, cell);
-  if (*codes != map->dependent_code()) map->set_dependent_code(*codes);
 }
 
 
