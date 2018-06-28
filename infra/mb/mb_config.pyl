@@ -590,10 +590,14 @@
       'gn_args': 'is_debug=true v8_enable_backtrace=true',
     },
 
+    'v8_use_multi_snapshots': {
+      'gn_args': 'v8_use_multi_snapshots=true',
+    },
+
     'debug_bot': {
       'mixins': [
         'debug', 'shared', 'goma', 'v8_enable_slow_dchecks',
-        'v8_optimized_debug'],
+        'v8_use_multi_snapshots', 'v8_optimized_debug'],
     },
 
     'debug_trybot': {
@@ -680,7 +684,7 @@
     },
 
     'release_bot': {
-      'mixins': ['release', 'static', 'goma'],
+      'mixins': ['release', 'static', 'goma', 'v8_use_multi_snapshots'],
     },
 
     'release_trybot': {
