@@ -317,12 +317,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   bool use_trap_handler() const { return use_trap_handler_; }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
-  Vector<const byte> wire_bytes() const {
-    return {wire_bytes_.get(), wire_bytes_len_};
-  }
-  void set_wire_bytes(std::unique_ptr<const byte[]> wire_bytes, size_t length) {
+  Vector<const byte> wire_bytes() const { return wire_bytes_.as_vector(); }
+  void set_wire_bytes(OwnedVector<const byte> wire_bytes) {
     wire_bytes_ = std::move(wire_bytes);
-    wire_bytes_len_ = length;
   }
   const WasmModule* module() const;
 
@@ -377,8 +374,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   std::unique_ptr<WasmCode* []> code_table_;
 
-  size_t wire_bytes_len_;
-  std::unique_ptr<const byte[]> wire_bytes_;
+  OwnedVector<const byte> wire_bytes_;
 
   WasmCode* runtime_stub_table_[WasmCode::kRuntimeStubCount] = {nullptr};
 

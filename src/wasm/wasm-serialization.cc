@@ -533,14 +533,11 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   wasm::ModuleEnv env(module, use_trap_handler,
                       wasm::RuntimeExceptionSupport::kRuntimeExceptionSupport);
 
-  CHECK_LT(wire_bytes.size(), kMaxUInt32);
-  size_t wire_size = wire_bytes.size();
-  std::unique_ptr<uint8_t[]> wire_bytes_copy(new uint8_t[wire_size]);
-  memcpy(wire_bytes_copy.get(), wire_bytes.start(), wire_size);
+  OwnedVector<uint8_t> wire_bytes_copy = OwnedVector<uint8_t>::Of(wire_bytes);
 
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
       isolate, export_wrappers, std::move(decode_result.val), env,
-      std::move(wire_bytes_copy), wire_size, script, Handle<ByteArray>::null());
+      std::move(wire_bytes_copy), script, Handle<ByteArray>::null());
   NativeModule* native_module = module_object->native_module();
 
   if (FLAG_wasm_lazy_compilation) {

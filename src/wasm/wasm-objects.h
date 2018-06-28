@@ -135,8 +135,8 @@ class WasmModuleObject : public JSObject {
   static Handle<WasmModuleObject> New(
       Isolate* isolate, Handle<FixedArray> export_wrappers,
       std::shared_ptr<const wasm::WasmModule> module, wasm::ModuleEnv& env,
-      std::unique_ptr<const uint8_t[]> wire_bytes, size_t wire_bytes_len,
-      Handle<Script> script, Handle<ByteArray> asm_js_offset_table);
+      OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
+      Handle<ByteArray> asm_js_offset_table);
 
   // Set a breakpoint on the given byte position inside the given module.
   // This will affect all live and future instances of the module.

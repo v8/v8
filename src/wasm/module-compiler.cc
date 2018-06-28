@@ -965,10 +965,8 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   }
   // TODO(wasm): only save the sections necessary to deserialize a
   // {WasmModule}. E.g. function bodies could be omitted.
-  CHECK_GE(kMaxUInt32, wire_bytes.length());
-  size_t wire_bytes_len = wire_bytes.length();
-  std::unique_ptr<uint8_t[]> wire_bytes_copy(new uint8_t[wire_bytes_len]);
-  memcpy(wire_bytes_copy.get(), wire_bytes.start(), wire_bytes_len);
+  OwnedVector<uint8_t> wire_bytes_copy =
+      OwnedVector<uint8_t>::Of(wire_bytes.module_bytes());
 
   // Create the module object.
   // TODO(clemensh): For the same module (same bytes / same hash), we should
@@ -991,7 +989,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   // object.
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
       isolate, export_wrappers, std::move(module), env,
-      std::move(wire_bytes_copy), wire_bytes_len, script, asm_js_offset_table);
+      std::move(wire_bytes_copy), script, asm_js_offset_table);
   CompileNativeModule(isolate, thrower, module_object, wasm_module, &env);
   if (thrower->error()) return {};
 
@@ -2272,8 +2270,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 
   void OnFinishedChunk() override;
 
-  void OnFinishedStream(std::unique_ptr<uint8_t[]> bytes,
-                        size_t length) override;
+  void OnFinishedStream(OwnedVector<uint8_t> bytes) override;
 
   void OnError(DecodeResult result) override;
 
@@ -2505,7 +2502,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // Create the module object.
     job_->module_object_ = WasmModuleObject::New(
         job_->isolate_, export_wrappers, job_->module_, env,
-        std::move(job_->bytes_copy_), job_->wire_bytes_.length(), script,
+        {std::move(job_->bytes_copy_), job_->wire_bytes_.length()}, script,
         asm_js_offset_table);
     job_->native_module_ = job_->module_object_->native_module();
 
@@ -2806,13 +2803,11 @@ void AsyncStreamingProcessor::OnFinishedChunk() {
 }
 
 // Finish the processing of the stream.
-void AsyncStreamingProcessor::OnFinishedStream(std::unique_ptr<uint8_t[]> bytes,
-                                               size_t length) {
-  CHECK_LE(length, kMaxUInt32);
+void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   TRACE_STREAMING("Finish stream...\n");
   if (job_->native_module_) {
-    job_->wire_bytes_ = ModuleWireBytes(bytes.get(), bytes.get() + length);
-    job_->native_module_->set_wire_bytes(std::move(bytes), length);
+    job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
+    job_->native_module_->set_wire_bytes(std::move(bytes));
   }
   ModuleResult result = decoder_.FinishDecoding(false);
   DCHECK(result.ok());

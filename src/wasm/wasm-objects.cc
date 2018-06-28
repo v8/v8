@@ -177,8 +177,8 @@ enum DispatchTableElements : int {
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, Handle<FixedArray> export_wrappers,
     std::shared_ptr<const wasm::WasmModule> shared_module, wasm::ModuleEnv& env,
-    std::unique_ptr<const uint8_t[]> wire_bytes, size_t wire_bytes_len,
-    Handle<Script> script, Handle<ByteArray> asm_js_offset_table) {
+    OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
+    Handle<ByteArray> asm_js_offset_table) {
   DCHECK_EQ(shared_module.get(), env.module);
   // Now create the {WasmModuleObject}.
   Handle<JSFunction> module_cons(
@@ -206,7 +206,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
       isolate, native_memory_estimate,
       wasm::NativeModule::kCanAllocateMoreMemory, std::move(shared_module),
       env);
-  native_module->set_wire_bytes(std::move(wire_bytes), wire_bytes_len);
+  native_module->set_wire_bytes(std::move(wire_bytes));
   native_module->SetRuntimeStubs(isolate);
   Handle<Managed<wasm::NativeModule>> managed_native_module =
       Managed<wasm::NativeModule>::FromUniquePtr(isolate, memory_estimate,

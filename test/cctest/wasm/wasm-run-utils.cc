@@ -184,10 +184,10 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   // set", e.g. for function names.
   uint32_t bytes_offset = old_size ? old_size : 1;
   size_t new_size = bytes_offset + bytes.size();
-  std::unique_ptr<uint8_t[]> new_bytes(new uint8_t[new_size]);
-  memcpy(new_bytes.get(), old_bytes.start(), old_size);
-  memcpy(new_bytes.get() + bytes_offset, bytes.start(), bytes.length());
-  native_module_->set_wire_bytes(std::move(new_bytes), new_size);
+  OwnedVector<uint8_t> new_bytes = OwnedVector<uint8_t>::New(new_size);
+  memcpy(new_bytes.start(), old_bytes.start(), old_size);
+  memcpy(new_bytes.start() + bytes_offset, bytes.start(), bytes.length());
+  native_module_->set_wire_bytes(std::move(new_bytes));
   return bytes_offset;
 }
 
@@ -216,8 +216,8 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<FixedArray> export_wrappers = isolate_->factory()->NewFixedArray(0);
   ModuleEnv env = CreateModuleEnv();
   Handle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate_, export_wrappers, test_module_, env,
-                            nullptr, 0, script, Handle<ByteArray>::null());
+      WasmModuleObject::New(isolate_, export_wrappers, test_module_, env, {},
+                            script, Handle<ByteArray>::null());
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.
