@@ -81,7 +81,7 @@ NOT: '!';
 
 STRING_LITERAL : ('"' ( ESCAPE | ~('"' | '\\' | '\n' | '\r') ) * '"')
                | ('\'' ( ESCAPE | ~('\'' | '\\' | '\n' | '\r') ) * '\'');
-fragment ESCAPE : '\\' ( '\'' | '\\' | '"' );
+fragment ESCAPE : '\\' ( '\'' | '\\' | '"' | 'n' | 'r' );
 
 IDENTIFIER  :   [A-Za-z][0-9A-Za-z_]* ;
 

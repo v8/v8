@@ -219,4 +219,8 @@ module test {
     check(someVeryLongVariableNameThatWillCauseLineBreaks > 0
            && someVeryLongVariableNameThatWillCauseLineBreaks < 10);
   }
+
+  macro TestNewlineInString() {
+    Print('Hello, World!\n');
+  }
 }
