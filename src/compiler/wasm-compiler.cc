@@ -245,6 +245,10 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
   if (effect == nullptr) effect = effect_;
   if (control == nullptr) control = control_;
 
+  // This instruction sequence is matched in the instruction selector to
+  // load the stack pointer directly on some platforms. Hence, when modifying
+  // please also fix WasmStackCheckMatcher in node-matchers.h
+
   Node* limit_address = graph()->NewNode(
       mcgraph()->machine()->Load(MachineType::Pointer()), instance_node_.get(),
       mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(StackLimitAddress)),
