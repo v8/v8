@@ -444,10 +444,8 @@
       'minimal_symbols'],
     'release_x64_tsan_minimal_symbols': [
       'release_bot', 'x64', 'tsan', 'minimal_symbols'],
-    # TODO(machenbach): Remove nosnap config when test failures are resolved.
-    # https://crbug.com/v8/7860
     'release_x64_ubsan': [
-      'release_bot', 'x64', 'ubsan', 'v8_snapshot_none'],
+      'release_bot', 'x64', 'ubsan'],
     'release_x64_ubsan_vptr': [
       'release_bot', 'x64', 'ubsan_vptr'],
     'release_x64_ubsan_vptr_recover_edge': [
