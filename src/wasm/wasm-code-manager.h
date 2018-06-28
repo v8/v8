@@ -321,7 +321,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void set_wire_bytes(OwnedVector<const byte> wire_bytes) {
     wire_bytes_ = std::move(wire_bytes);
   }
-  const WasmModule* module() const;
+  const WasmModule* module() const { return module_.get(); }
 
   WasmCode* Lookup(Address) const;
 
