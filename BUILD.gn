@@ -1062,6 +1062,11 @@ template("run_mksnapshot") {
         "--no-turbo-rewrite-far-jumps",
         "--no-turbo-verify-allocation",
       ]
+
+      if (v8_enable_debugging_features && v8_enable_slow_dchecks) {
+        # mksnapshot only accepts this flag if ENABLE_SLOW_DCHECKS is defined.
+        args += [ "--no-enable-slow-asserts" ]
+      }
     }
   }
 }
