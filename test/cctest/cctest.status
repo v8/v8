@@ -269,9 +269,6 @@
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
-
-  # BUG(v8:7879) Flaky crash.
-  'test-run-wasm/RunWasmTurbofan_Int32DivS_trap_effect': [SKIP],
 }],  # 'system == windows and arch == x64 and mode == debug'
 
 ##############################################################################
