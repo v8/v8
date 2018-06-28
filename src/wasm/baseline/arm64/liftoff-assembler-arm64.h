@@ -834,14 +834,9 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   }
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code) {
-  ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(isolate());
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireX();
-  Mov(scratch, Operand(stack_limit));
-  Ldr(scratch, MemOperand(scratch));
-  Cmp(sp, scratch);
+void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
+  Ldr(limit_address, MemOperand(limit_address));
+  Cmp(sp, limit_address);
   B(ool_code, ls);
 }
 

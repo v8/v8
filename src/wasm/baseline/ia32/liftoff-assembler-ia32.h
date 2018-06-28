@@ -1460,9 +1460,8 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   liftoff::EmitFloatSetCond<&Assembler::ucomisd>(this, cond, dst, lhs, rhs);
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code) {
-  cmp(esp,
-      Operand(Immediate(ExternalReference::address_of_stack_limit(isolate()))));
+void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
+  cmp(esp, Operand(limit_address, 0));
   j(below_equal, ool_code);
 }
 

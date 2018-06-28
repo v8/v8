@@ -338,8 +338,10 @@ void LiftoffAssembler::CacheState::Split(const CacheState& source) {
 
 // TODO(clemensh): Provide a reasonably sized buffer, based on wasm function
 // size.
+// TODO(mstarzinger): The Isolate is not passed to the base class constructor
+// and only used to derive the default options. Remove the Isolate entirely.
 LiftoffAssembler::LiftoffAssembler(Isolate* isolate)
-    : TurboAssembler(isolate, Assembler::DefaultOptions(isolate), nullptr, 0,
+    : TurboAssembler(nullptr, Assembler::DefaultOptions(isolate), nullptr, 0,
                      CodeObjectRequired::kNo) {
   set_trap_on_abort(true);  // Avoid calls to Abort.
 }

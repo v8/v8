@@ -516,7 +516,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_f64_set_cond(Condition condition, Register dst,
                                 DoubleRegister lhs, DoubleRegister rhs);
 
-  inline void StackCheck(Label* ool_code);
+  inline void StackCheck(Label* ool_code, Register limit_address);
 
   inline void CallTrapCallbackForTesting();
 

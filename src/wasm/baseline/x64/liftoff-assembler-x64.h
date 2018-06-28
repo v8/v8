@@ -1307,10 +1307,8 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
                                                       rhs);
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code) {
-  Operand stack_limit = ExternalOperand(
-      ExternalReference::address_of_stack_limit(isolate()), kScratchRegister);
-  cmpp(rsp, stack_limit);
+void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
+  cmpp(rsp, Operand(limit_address, 0));
   j(below_equal, ool_code);
 }
 

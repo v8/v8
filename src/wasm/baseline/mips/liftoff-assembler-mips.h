@@ -1215,12 +1215,9 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   bind(&cont);
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code) {
-  LiftoffRegister tmp = GetUnusedRegister(kGpReg);
-  TurboAssembler::li(
-      tmp.gp(), Operand(ExternalReference::address_of_stack_limit(isolate())));
-  TurboAssembler::Ulw(tmp.gp(), MemOperand(tmp.gp()));
-  TurboAssembler::Branch(ool_code, ule, sp, Operand(tmp.gp()));
+void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
+  TurboAssembler::Ulw(limit_address, MemOperand(limit_address));
+  TurboAssembler::Branch(ool_code, ule, sp, Operand(limit_address));
 }
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {

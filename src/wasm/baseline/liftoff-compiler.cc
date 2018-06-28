@@ -290,7 +290,9 @@ class LiftoffCompiler {
     out_of_line_code_.push_back(
         OutOfLineCode::StackCheck(position, __ cache_state()->used_registers));
     OutOfLineCode& ool = out_of_line_code_.back();
-    __ StackCheck(ool.label.get());
+    LiftoffRegister limit_address = __ GetUnusedRegister(kGpReg);
+    LOAD_INSTANCE_FIELD(limit_address, StackLimitAddress, kPointerLoadType);
+    __ StackCheck(ool.label.get(), limit_address.gp());
     __ bind(ool.continuation.get());
   }
 
