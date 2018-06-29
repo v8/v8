@@ -2986,7 +2986,15 @@ VisitorId Map::GetVisitorId(Map* map) {
     case FIXED_ARRAY_TYPE:
     case BOILERPLATE_DESCRIPTION_TYPE:
     case HASH_TABLE_TYPE:
+    case ORDERED_HASH_MAP_TYPE:
+    case ORDERED_HASH_SET_TYPE:
+    case NAME_DICTIONARY_TYPE:
+    case GLOBAL_DICTIONARY_TYPE:
+    case NUMBER_DICTIONARY_TYPE:
+    case SIMPLE_NUMBER_DICTIONARY_TYPE:
+    case STRING_TABLE_TYPE:
     case SCOPE_INFO_TYPE:
+    case SCRIPT_CONTEXT_TABLE_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
     case DEBUG_EVALUATE_CONTEXT_TYPE:
@@ -3319,8 +3327,33 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case WITH_CONTEXT_TYPE:
       os << "<WithContext[" << FixedArray::cast(this)->length() << "]>";
       break;
+    case SCRIPT_CONTEXT_TABLE_TYPE:
+      os << "<ScriptContextTable[" << FixedArray::cast(this)->length() << "]>";
+      break;
     case HASH_TABLE_TYPE:
       os << "<HashTable[" << FixedArray::cast(this)->length() << "]>";
+      break;
+    case ORDERED_HASH_MAP_TYPE:
+      os << "<OrderedHashMap[" << FixedArray::cast(this)->length() << "]>";
+      break;
+    case ORDERED_HASH_SET_TYPE:
+      os << "<OrderedHashSet[" << FixedArray::cast(this)->length() << "]>";
+      break;
+    case NAME_DICTIONARY_TYPE:
+      os << "<NameDictionary[" << FixedArray::cast(this)->length() << "]>";
+      break;
+    case GLOBAL_DICTIONARY_TYPE:
+      os << "<GlobalDictionary[" << FixedArray::cast(this)->length() << "]>";
+      break;
+    case NUMBER_DICTIONARY_TYPE:
+      os << "<NumberDictionary[" << FixedArray::cast(this)->length() << "]>";
+      break;
+    case SIMPLE_NUMBER_DICTIONARY_TYPE:
+      os << "<SimpleNumberDictionary[" << FixedArray::cast(this)->length()
+         << "]>";
+      break;
+    case STRING_TABLE_TYPE:
+      os << "<StringTable[" << FixedArray::cast(this)->length() << "]>";
       break;
     case FIXED_ARRAY_TYPE:
       os << "<FixedArray[" << FixedArray::cast(this)->length() << "]>";
@@ -3625,11 +3658,16 @@ String* JSReceiver::class_name() {
 bool HeapObject::CanBeRehashed() const {
   DCHECK(NeedsRehashing());
   switch (map()->instance_type()) {
-    case HASH_TABLE_TYPE:
+    case ORDERED_HASH_MAP_TYPE:
+    case ORDERED_HASH_SET_TYPE:
       // TODO(yangguo): actually support rehashing OrderedHash{Map,Set}.
-      return IsNameDictionary() || IsGlobalDictionary() ||
-             IsNumberDictionary() || IsSimpleNumberDictionary() ||
-             IsStringTable();
+      return false;
+    case NAME_DICTIONARY_TYPE:
+    case GLOBAL_DICTIONARY_TYPE:
+    case NUMBER_DICTIONARY_TYPE:
+    case SIMPLE_NUMBER_DICTIONARY_TYPE:
+    case STRING_TABLE_TYPE:
+      return true;
     case DESCRIPTOR_ARRAY_TYPE:
       return true;
     case TRANSITION_ARRAY_TYPE:
@@ -3647,19 +3685,22 @@ bool HeapObject::CanBeRehashed() const {
 void HeapObject::RehashBasedOnMap() {
   switch (map()->instance_type()) {
     case HASH_TABLE_TYPE:
-      if (IsNameDictionary()) {
-        NameDictionary::cast(this)->Rehash();
-      } else if (IsNumberDictionary()) {
-        NumberDictionary::cast(this)->Rehash();
-      } else if (IsSimpleNumberDictionary()) {
-        SimpleNumberDictionary::cast(this)->Rehash();
-      } else if (IsGlobalDictionary()) {
-        GlobalDictionary::cast(this)->Rehash();
-      } else if (IsStringTable()) {
-        StringTable::cast(this)->Rehash();
-      } else {
-        UNREACHABLE();
-      }
+      UNREACHABLE();
+      break;
+    case NAME_DICTIONARY_TYPE:
+      NameDictionary::cast(this)->Rehash();
+      break;
+    case GLOBAL_DICTIONARY_TYPE:
+      GlobalDictionary::cast(this)->Rehash();
+      break;
+    case NUMBER_DICTIONARY_TYPE:
+      NumberDictionary::cast(this)->Rehash();
+      break;
+    case SIMPLE_NUMBER_DICTIONARY_TYPE:
+      SimpleNumberDictionary::cast(this)->Rehash();
+      break;
+    case STRING_TABLE_TYPE:
+      StringTable::cast(this)->Rehash();
       break;
     case DESCRIPTOR_ARRAY_TYPE:
       DCHECK_LE(1, DescriptorArray::cast(this)->number_of_descriptors());
@@ -6488,7 +6529,7 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
       elements = SloppyArgumentsElements::cast(elements)->arguments();
     }
 
-    if (elements->IsDictionary()) {
+    if (elements->IsNumberDictionary()) {
       return handle(NumberDictionary::cast(elements), isolate);
     }
   }
@@ -6552,7 +6593,7 @@ Object* SetHashAndUpdateProperties(HeapObject* properties, int hash) {
     return properties;
   }
 
-  DCHECK(properties->IsDictionary());
+  DCHECK(properties->IsNameDictionary());
   NameDictionary::cast(properties)->SetHash(hash);
   return properties;
 }
@@ -8013,7 +8054,8 @@ bool JSObject::ReferencesObject(Object* obj) {
       }
       // Check the arguments.
       FixedArray* arguments = elements->arguments();
-      kind = arguments->IsDictionary() ? DICTIONARY_ELEMENTS : HOLEY_ELEMENTS;
+      kind = arguments->IsNumberDictionary() ? DICTIONARY_ELEMENTS
+                                             : HOLEY_ELEMENTS;
       if (ReferencesObjectFromElements(arguments, kind, obj)) return true;
       break;
     }
@@ -12962,11 +13004,19 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case CODE_TYPE:
     case FILLER_TYPE:
     case FIXED_ARRAY_TYPE:
+    case SCRIPT_CONTEXT_TABLE_TYPE:
     case FIXED_DOUBLE_ARRAY_TYPE:
     case FEEDBACK_METADATA_TYPE:
     case FOREIGN_TYPE:
     case FREE_SPACE_TYPE:
     case HASH_TABLE_TYPE:
+    case ORDERED_HASH_MAP_TYPE:
+    case ORDERED_HASH_SET_TYPE:
+    case NAME_DICTIONARY_TYPE:
+    case GLOBAL_DICTIONARY_TYPE:
+    case NUMBER_DICTIONARY_TYPE:
+    case SIMPLE_NUMBER_DICTIONARY_TYPE:
+    case STRING_TABLE_TYPE:
     case HEAP_NUMBER_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:

@@ -708,8 +708,6 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
       ObjectStats::SCRIPT_LIST_TYPE);
 
   // HashTable.
-  RecordHashTableVirtualObjectStats(nullptr, heap_->string_table(),
-                                    ObjectStats::STRING_TABLE_TYPE);
   RecordHashTableVirtualObjectStats(nullptr, heap_->code_stubs(),
                                     ObjectStats::CODE_STUBS_TABLE_TYPE);
 }

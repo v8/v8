@@ -1683,7 +1683,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
 
   GotoIf(InstanceTypeEqual(properties_instance_type, PROPERTY_ARRAY_TYPE),
          &if_property_array);
-  Branch(InstanceTypeEqual(properties_instance_type, HASH_TABLE_TYPE),
+  Branch(InstanceTypeEqual(properties_instance_type, NAME_DICTIONARY_TYPE),
          &if_property_dictionary, &if_fixed_array);
 
   BIND(&if_fixed_array);
@@ -1926,13 +1926,9 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
     ParameterMode parameter_mode, LoadSensitivity needs_poisoning) {
   // This function is currently used for non-FixedArrays (e.g., PropertyArrays)
   // and thus the reasonable assert IsFixedArraySubclass(object) is
-  // untrue. TODO(marja): Fix.
+  // not always true. TODO(marja): Fix.
   CSA_SLOW_ASSERT(
-      this, Word32Or(IsHashTable(object),
-                     Word32Or(IsFixedArray(object),
-                              Word32Or(IsPropertyArray(object),
-                                       Word32Or(IsEphemeronHashTable(object),
-                                                IsContext(object))))));
+      this, Word32Or(IsFixedArraySubclass(object), IsPropertyArray(object)));
   CSA_ASSERT(this, IsNotWeakFixedArraySubclass(object));
   TNode<MaybeObject> element =
       LoadArrayElement(object, FixedArray::kHeaderSize, index_node,
@@ -2527,11 +2523,7 @@ Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
                                                 int additional_offset,
                                                 ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(
-      this, Word32Or(IsHashTable(object),
-                     Word32Or(IsFixedArray(object),
-                              Word32Or(IsPropertyArray(object),
-                                       Word32Or(IsEphemeronHashTable(object),
-                                                IsContext(object))))));
+      this, Word32Or(IsFixedArraySubclass(object), IsPropertyArray(object)));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER);
@@ -3471,7 +3463,7 @@ void CodeStubAssembler::InitializeJSObjectFromMap(
                          Heap::kEmptyFixedArrayRootIndex);
   } else {
     CSA_ASSERT(this, Word32Or(Word32Or(IsPropertyArray(properties),
-                                       IsDictionary(properties)),
+                                       IsNameDictionary(properties)),
                               IsEmptyFixedArray(properties)));
     StoreObjectFieldNoWriteBarrier(object, JSObject::kPropertiesOrHashOffset,
                                    properties);
@@ -5448,7 +5440,12 @@ TNode<BoolT> CodeStubAssembler::IsFixedDoubleArray(
 }
 
 TNode<BoolT> CodeStubAssembler::IsHashTable(SloppyTNode<HeapObject> object) {
-  return HasInstanceType(object, HASH_TABLE_TYPE);
+  Node* instance_type = LoadInstanceType(object);
+  return UncheckedCast<BoolT>(
+      Word32And(Int32GreaterThanOrEqual(instance_type,
+                                        Int32Constant(FIRST_HASH_TABLE_TYPE)),
+                Int32LessThanOrEqual(instance_type,
+                                     Int32Constant(LAST_HASH_TABLE_TYPE))));
 }
 
 TNode<BoolT> CodeStubAssembler::IsEphemeronHashTable(
@@ -5456,15 +5453,19 @@ TNode<BoolT> CodeStubAssembler::IsEphemeronHashTable(
   return HasInstanceType(object, EPHEMERON_HASH_TABLE_TYPE);
 }
 
-TNode<BoolT> CodeStubAssembler::IsDictionary(SloppyTNode<HeapObject> object) {
-  return UncheckedCast<BoolT>(
-      Word32Or(IsHashTable(object), IsNumberDictionary(object)));
+TNode<BoolT> CodeStubAssembler::IsNameDictionary(
+    SloppyTNode<HeapObject> object) {
+  return HasInstanceType(object, NAME_DICTIONARY_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsGlobalDictionary(
+    SloppyTNode<HeapObject> object) {
+  return HasInstanceType(object, GLOBAL_DICTIONARY_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsNumberDictionary(
     SloppyTNode<HeapObject> object) {
-  return WordEqual(LoadMap(object),
-                   LoadRoot(Heap::kNumberDictionaryMapRootIndex));
+  return HasInstanceType(object, NUMBER_DICTIONARY_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSGeneratorObject(
@@ -8089,7 +8090,7 @@ void CodeStubAssembler::LoadPropertyFromNameDictionary(Node* dictionary,
                                                        Variable* var_details,
                                                        Variable* var_value) {
   Comment("LoadPropertyFromNameDictionary");
-  CSA_ASSERT(this, IsDictionary(dictionary));
+  CSA_ASSERT(this, IsNameDictionary(dictionary));
 
   var_details->Bind(
       LoadDetailsByKeyIndex<NameDictionary>(dictionary, name_index));
@@ -8104,7 +8105,7 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(Node* dictionary,
                                                          Variable* var_value,
                                                          Label* if_deleted) {
   Comment("[ LoadPropertyFromGlobalDictionary");
-  CSA_ASSERT(this, IsDictionary(dictionary));
+  CSA_ASSERT(this, IsGlobalDictionary(dictionary));
 
   Node* property_cell = LoadFixedArrayElement(dictionary, name_index);
   CSA_ASSERT(this, IsPropertyCell(property_cell));

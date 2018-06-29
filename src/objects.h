@@ -413,8 +413,16 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(FIXED_ARRAY_TYPE)                                           \
   V(BOILERPLATE_DESCRIPTION_TYPE)                               \
   V(HASH_TABLE_TYPE)                                            \
+  V(ORDERED_HASH_MAP_TYPE)                                      \
+  V(ORDERED_HASH_SET_TYPE)                                      \
+  V(NAME_DICTIONARY_TYPE)                                       \
+  V(GLOBAL_DICTIONARY_TYPE)                                     \
+  V(NUMBER_DICTIONARY_TYPE)                                     \
+  V(SIMPLE_NUMBER_DICTIONARY_TYPE)                              \
+  V(STRING_TABLE_TYPE)                                          \
   V(EPHEMERON_HASH_TABLE_TYPE)                                  \
   V(SCOPE_INFO_TYPE)                                            \
+  V(SCRIPT_CONTEXT_TABLE_TYPE)                                  \
                                                                 \
   V(BLOCK_CONTEXT_TYPE)                                         \
   V(CATCH_CONTEXT_TYPE)                                         \
@@ -796,9 +804,17 @@ enum InstanceType : uint16_t {
   // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
   BOILERPLATE_DESCRIPTION_TYPE,
-  HASH_TABLE_TYPE,
+  HASH_TABLE_TYPE,        // FIRST_HASH_TABLE_TYPE
+  ORDERED_HASH_MAP_TYPE,  // FIRST_DICTIONARY_TYPE
+  ORDERED_HASH_SET_TYPE,
+  NAME_DICTIONARY_TYPE,
+  GLOBAL_DICTIONARY_TYPE,
+  NUMBER_DICTIONARY_TYPE,
+  SIMPLE_NUMBER_DICTIONARY_TYPE,  // LAST_DICTIONARY_TYPE
+  STRING_TABLE_TYPE,              // LAST_HASH_TABLE_TYPE
   EPHEMERON_HASH_TABLE_TYPE,
   SCOPE_INFO_TYPE,
+  SCRIPT_CONTEXT_TABLE_TYPE,
   BLOCK_CONTEXT_TYPE,  // FIRST_CONTEXT_TYPE
   CATCH_CONTEXT_TYPE,
   DEBUG_EVALUATE_CONTEXT_TYPE,
@@ -902,6 +918,12 @@ enum InstanceType : uint16_t {
   // Boundaries for testing if given HeapObject is a subclass of FixedArray.
   FIRST_FIXED_ARRAY_TYPE = FIXED_ARRAY_TYPE,
   LAST_FIXED_ARRAY_TYPE = WITH_CONTEXT_TYPE,
+  // Boundaries for testing if given HeapObject is a subclass of HashTable
+  FIRST_HASH_TABLE_TYPE = HASH_TABLE_TYPE,
+  LAST_HASH_TABLE_TYPE = STRING_TABLE_TYPE,
+  // Boundaries for testing if given HeapObject is a subclass of Dictionary
+  FIRST_DICTIONARY_TYPE = ORDERED_HASH_MAP_TYPE,
+  LAST_DICTIONARY_TYPE = SIMPLE_NUMBER_DICTIONARY_TYPE,
   // Boundaries for testing if given HeapObject is a subclass of WeakFixedArray.
   FIRST_WEAK_FIXED_ARRAY_TYPE = WEAK_FIXED_ARRAY_TYPE,
   LAST_WEAK_FIXED_ARRAY_TYPE = TRANSITION_ARRAY_TYPE,

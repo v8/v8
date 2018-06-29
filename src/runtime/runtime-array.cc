@@ -423,7 +423,7 @@ RUNTIME_FUNCTION(Runtime_EstimateNumberOfElements) {
   CONVERT_ARG_CHECKED(JSArray, array, 0);
   FixedArrayBase* elements = array->elements();
   SealHandleScope shs(isolate);
-  if (elements->IsDictionary()) {
+  if (elements->IsNumberDictionary()) {
     int result = NumberDictionary::cast(elements)->NumberOfElements();
     return Smi::FromInt(result);
   } else {

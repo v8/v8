@@ -110,9 +110,17 @@ void HeapObject::HeapObjectPrint(Isolate* isolate,
     case NATIVE_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
+    case SCRIPT_CONTEXT_TABLE_TYPE:
       FixedArray::cast(this)->FixedArrayPrint(os);
       break;
     case HASH_TABLE_TYPE:
+    case ORDERED_HASH_MAP_TYPE:
+    case ORDERED_HASH_SET_TYPE:
+    case NAME_DICTIONARY_TYPE:
+    case GLOBAL_DICTIONARY_TYPE:
+    case NUMBER_DICTIONARY_TYPE:
+    case SIMPLE_NUMBER_DICTIONARY_TYPE:
+    case STRING_TABLE_TYPE:
       ObjectHashTable::cast(this)->ObjectHashTablePrint(os);
       break;
     case EPHEMERON_HASH_TABLE_TYPE:
