@@ -49,30 +49,6 @@ typedef int8_t (*Int8ShiftOp)(int8_t, int);
   void RunWasm_##name##_Impl(LowerSimd lower_simd,              \
                              WasmExecutionMode execution_mode)
 
-#define WASM_SIMD_COMPILED_AND_LOWERED_TEST(name)               \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,              \
-                             WasmExecutionMode execution_mode); \
-  TEST(RunWasm_##name##_turbofan) {                             \
-    EXPERIMENTAL_FLAG_SCOPE(simd);                              \
-    RunWasm_##name##_Impl(kNoLowerSimd, kExecuteTurbofan);      \
-  }                                                             \
-  TEST(RunWasm_##name##_simd_lowered) {                         \
-    EXPERIMENTAL_FLAG_SCOPE(simd);                              \
-    RunWasm_##name##_Impl(kLowerSimd, kExecuteTurbofan);        \
-  }                                                             \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,              \
-                             WasmExecutionMode execution_mode)
-
-#define WASM_SIMD_COMPILED_TEST(name)                           \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,              \
-                             WasmExecutionMode execution_mode); \
-  TEST(RunWasm_##name##_turbofan) {                             \
-    EXPERIMENTAL_FLAG_SCOPE(simd);                              \
-    RunWasm_##name##_Impl(kNoLowerSimd, kExecuteTurbofan);      \
-  }                                                             \
-  void RunWasm_##name##_Impl(LowerSimd lower_simd,              \
-                             WasmExecutionMode execution_mode)
-
 // Generic expected value functions.
 template <typename T>
 T Negate(T a) {
@@ -1630,7 +1606,7 @@ WASM_SIMD_TEST(I8x16ShrU) {
 // rest false, and comparing for non-equality with zero to convert to a boolean
 // vector.
 #define WASM_SIMD_SELECT_TEST(format)                                        \
-  WASM_SIMD_COMPILED_AND_LOWERED_TEST(S##format##Select) {                   \
+  WASM_SIMD_TEST(S##format##Select) {                                        \
     WasmRunner<int32_t, int32_t, int32_t> r(execution_mode, lower_simd);     \
     byte val1 = 0;                                                           \
     byte val2 = 1;                                                           \
@@ -1670,7 +1646,7 @@ WASM_SIMD_SELECT_TEST(8x16)
 // Test Select by making a mask where the 0th and 3rd lanes are non-zero and the
 // rest 0. The mask is not the result of a comparison op.
 #define WASM_SIMD_NON_CANONICAL_SELECT_TEST(format)                           \
-  WASM_SIMD_COMPILED_AND_LOWERED_TEST(S##format##NonCanonicalSelect) {        \
+  WASM_SIMD_TEST(S##format##NonCanonicalSelect) {                             \
     WasmRunner<int32_t, int32_t, int32_t, int32_t> r(execution_mode,          \
                                                      lower_simd);             \
     byte val1 = 0;                                                            \
@@ -1738,17 +1714,17 @@ void RunBinaryLaneOpTest(
   }
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I32x4AddHoriz) {
+WASM_SIMD_TEST(I32x4AddHoriz) {
   RunBinaryLaneOpTest<int32_t>(execution_mode, lower_simd, kExprI32x4AddHoriz,
                                {{1, 5, 9, 13}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(I16x8AddHoriz) {
+WASM_SIMD_TEST(I16x8AddHoriz) {
   RunBinaryLaneOpTest<int16_t>(execution_mode, lower_simd, kExprI16x8AddHoriz,
                                {{1, 5, 9, 13, 17, 21, 25, 29}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(F32x4AddHoriz) {
+WASM_SIMD_TEST(F32x4AddHoriz) {
   RunBinaryLaneOpTest<float>(execution_mode, lower_simd, kExprF32x4AddHoriz,
                              {{1.0f, 5.0f, 9.0f, 13.0f}});
 }
@@ -1780,191 +1756,191 @@ void RunShuffleOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 // Test some regular shuffles that may have special handling on some targets.
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S32x4Dup) {
+WASM_SIMD_TEST(S32x4Dup) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{16, 17, 18, 19, 16, 17, 18, 19, 16, 17, 18, 19, 16, 17, 18, 19}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S32x4ZipLeft) {
+WASM_SIMD_TEST(S32x4ZipLeft) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S32x4ZipRight) {
+WASM_SIMD_TEST(S32x4ZipRight) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S32x4UnzipLeft) {
+WASM_SIMD_TEST(S32x4UnzipLeft) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S32x4UnzipRight) {
+WASM_SIMD_TEST(S32x4UnzipRight) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S32x4TransposeLeft) {
+WASM_SIMD_TEST(S32x4TransposeLeft) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{0, 1, 2, 3, 16, 17, 18, 19, 8, 9, 10, 11, 24, 25, 26, 27}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S32x4TransposeRight) {
+WASM_SIMD_TEST(S32x4TransposeRight) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{4, 5, 6, 7, 20, 21, 22, 23, 12, 13, 14, 15, 28, 29, 30, 31}});
 }
 
 // Reverses are only unary.
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S32x2Reverse) {
+WASM_SIMD_TEST(S32x2Reverse) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{4, 5, 6, 7, 0, 1, 2, 3, 12, 13, 14, 15, 8, 9, 10, 11}});
 }
 
 // Test irregular shuffle.
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S32x4Irregular) {
+WASM_SIMD_TEST(S32x4Irregular) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{0, 1, 2, 3, 16, 17, 18, 19, 16, 17, 18, 19, 20, 21, 22, 23}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S16x8Dup) {
+WASM_SIMD_TEST(S16x8Dup) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S16x8ZipLeft) {
+WASM_SIMD_TEST(S16x8ZipLeft) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S16x8ZipRight) {
+WASM_SIMD_TEST(S16x8ZipRight) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S16x8UnzipLeft) {
+WASM_SIMD_TEST(S16x8UnzipLeft) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S16x8UnzipRight) {
+WASM_SIMD_TEST(S16x8UnzipRight) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S16x8TransposeLeft) {
+WASM_SIMD_TEST(S16x8TransposeLeft) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{0, 1, 16, 17, 4, 5, 20, 21, 8, 9, 24, 25, 12, 13, 28, 29}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S16x8TransposeRight) {
+WASM_SIMD_TEST(S16x8TransposeRight) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{2, 3, 18, 19, 6, 7, 22, 23, 10, 11, 26, 27, 14, 15, 30, 31}});
 }
 
 // TODO(simd) 'Reverse' tests should be 2-operand shuffles, not swizzles.
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S16x4Reverse) {
+WASM_SIMD_TEST(S16x4Reverse) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{6, 7, 4, 5, 2, 3, 0, 1, 14, 15, 12, 13, 10, 11, 8, 9}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S16x2Reverse) {
+WASM_SIMD_TEST(S16x2Reverse) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{2, 3, 0, 1, 6, 7, 4, 5, 10, 11, 8, 9, 14, 15, 12, 13}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S16x8Irregular) {
+WASM_SIMD_TEST(S16x8Irregular) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{0, 1, 16, 17, 16, 17, 0, 1, 4, 5, 20, 21, 6, 7, 22, 23}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16Dup) {
+WASM_SIMD_TEST(S8x16Dup) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16ZipLeft) {
+WASM_SIMD_TEST(S8x16ZipLeft) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16ZipRight) {
+WASM_SIMD_TEST(S8x16ZipRight) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16UnzipLeft) {
+WASM_SIMD_TEST(S8x16UnzipLeft) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16UnzipRight) {
+WASM_SIMD_TEST(S8x16UnzipRight) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16TransposeLeft) {
+WASM_SIMD_TEST(S8x16TransposeLeft) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16TransposeRight) {
+WASM_SIMD_TEST(S8x16TransposeRight) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x8Reverse) {
+WASM_SIMD_TEST(S8x8Reverse) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x4Reverse) {
+WASM_SIMD_TEST(S8x4Reverse) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x2Reverse) {
+WASM_SIMD_TEST(S8x2Reverse) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14}});
 }
 
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16Irregular) {
+WASM_SIMD_TEST(S8x16Irregular) {
   RunShuffleOpTest<int8_t>(
       execution_mode, lower_simd, kExprS8x16Shuffle,
       {{0, 16, 0, 16, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}});
 }
 
 // Test shuffles that blend the two vectors (elements remain in their lanes.)
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16Blend) {
+WASM_SIMD_TEST(S8x16Blend) {
   static const int kLanes = 16;
   std::array<uint8_t, kLanes> expected;
   for (int bias = 1; bias < kLanes; bias++) {
@@ -1975,7 +1951,7 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16Blend) {
 }
 
 // Test shuffles that concatenate the two vectors.
-WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16Concat) {
+WASM_SIMD_TEST(S8x16Concat) {
   static const int kLanes = 16;
   std::array<uint8_t, kLanes> expected;
   // n is offset or bias of concatenation.
@@ -1997,7 +1973,7 @@ WASM_SIMD_COMPILED_AND_LOWERED_TEST(S8x16Concat) {
 // result. Use relational ops on numeric vectors to create the boolean vector
 // test inputs. Test inputs with all true, all false, one true, and one false.
 #define WASM_SIMD_BOOL_REDUCTION_TEST(format, lanes)                           \
-  WASM_SIMD_COMPILED_AND_LOWERED_TEST(ReductionTest##lanes) {                  \
+  WASM_SIMD_TEST(ReductionTest##lanes) {                                       \
     WasmRunner<int32_t> r(execution_mode, lower_simd);                         \
     byte zero = r.AllocateLocal(kWasmS128);                                    \
     byte one_one = r.AllocateLocal(kWasmS128);                                 \
@@ -2338,8 +2314,6 @@ WASM_SIMD_TEST(SimdLoadStoreLoad) {
 }
 
 #undef WASM_SIMD_TEST
-#undef WASM_SIMD_COMPILED_AND_LOWERED_TEST
-#undef WASM_SIMD_COMPILED_TEST
 #undef WASM_SIMD_CHECK_LANE
 #undef WASM_SIMD_CHECK4
 #undef WASM_SIMD_CHECK_SPLAT4

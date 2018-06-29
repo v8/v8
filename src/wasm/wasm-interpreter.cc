@@ -1917,6 +1917,67 @@ class ThreadImpl {
         PACK_CASE(I8x16UConvertI16x8, int8, i16x8, int16, 16, uint8_t, int8_t,
                   true)
 #undef PACK_CASE
+      case kExprS128Select: {
+        int4 v2 = Pop().to_s128().to_i32x4();
+        int4 v1 = Pop().to_s128().to_i32x4();
+        int4 bool_val = Pop().to_s128().to_i32x4();
+        int4 res;
+        for (size_t i = 0; i < 4; ++i) {
+          res.val[i] = v2.val[i] ^ ((v1.val[i] ^ v2.val[i]) & bool_val.val[i]);
+        }
+        Push(WasmValue(Simd128(res)));
+        return true;
+      }
+#define ADD_HORIZ_CASE(op, name, stype, count)                    \
+  case kExpr##op: {                                               \
+    WasmValue v2 = Pop();                                         \
+    WasmValue v1 = Pop();                                         \
+    stype s1 = v1.to_s128().to_##name();                          \
+    stype s2 = v2.to_s128().to_##name();                          \
+    stype res;                                                    \
+    for (size_t i = 0; i < count / 2; ++i) {                      \
+      res.val[i] = s1.val[i * 2] + s1.val[i * 2 + 1];             \
+      res.val[i + count / 2] = s2.val[i * 2] + s2.val[i * 2 + 1]; \
+    }                                                             \
+    Push(WasmValue(Simd128(res)));                                \
+    return true;                                                  \
+  }
+        ADD_HORIZ_CASE(I32x4AddHoriz, i32x4, int4, 4)
+        ADD_HORIZ_CASE(F32x4AddHoriz, f32x4, float4, 4)
+        ADD_HORIZ_CASE(I16x8AddHoriz, i16x8, int8, 8)
+#undef ADD_HORIZ_CASE
+      case kExprS8x16Shuffle: {
+        Simd8x16ShuffleImmediate<Decoder::kNoValidate> imm(decoder,
+                                                           code->at(pc));
+        len += 16;
+        int16 v2 = Pop().to_s128().to_i8x16();
+        int16 v1 = Pop().to_s128().to_i8x16();
+        int16 res;
+        for (size_t i = 0; i < kSimd128Size; ++i) {
+          int lane = imm.shuffle[i];
+          res.val[i] =
+              lane < kSimd128Size ? v1.val[lane] : v2.val[lane - kSimd128Size];
+        }
+        Push(WasmValue(Simd128(res)));
+        return true;
+      }
+#define REDUCTION_CASE(op, name, stype, count, operation) \
+  case kExpr##op: {                                       \
+    stype s = Pop().to_s128().to_##name();                \
+    int32_t res = s.val[0];                               \
+    for (size_t i = 1; i < count; ++i) {                  \
+      res = res operation static_cast<int32_t>(s.val[i]); \
+    }                                                     \
+    Push(WasmValue(res));                                 \
+    return true;                                          \
+  }
+        REDUCTION_CASE(S1x4AnyTrue, i32x4, int4, 4, |)
+        REDUCTION_CASE(S1x4AllTrue, i32x4, int4, 4, &)
+        REDUCTION_CASE(S1x8AnyTrue, i16x8, int8, 8, |)
+        REDUCTION_CASE(S1x8AllTrue, i16x8, int8, 8, &)
+        REDUCTION_CASE(S1x16AnyTrue, i8x16, int16, 16, |)
+        REDUCTION_CASE(S1x16AllTrue, i8x16, int16, 16, &)
+#undef REDUCTION_CASE
       default:
         return false;
     }

@@ -1160,6 +1160,7 @@ class WasmDecoder : public Decoder {
           FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(DECLARE_OPCODE_CASE)
             return {1, 1};
           FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(DECLARE_OPCODE_CASE)
+          FOREACH_SIMD_MASK_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
             return {2, 1};
           default: {
             sig = WasmOpcodes::Signature(opcode);
