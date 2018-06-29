@@ -929,6 +929,9 @@ class Heap {
     external_memory_concurrently_freed_ = 0;
   }
 
+  void ProcessMovedExternalString(Page* old_page, Page* new_page,
+                                  String* string);
+
   void CompactFixedArraysOfWeakCells();
 
   void AddRetainedMap(Handle<Map> map);

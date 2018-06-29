@@ -301,12 +301,22 @@ void Heap::UpdateAllocationsHash(uint32_t value) {
 
 
 void Heap::RegisterExternalString(String* string) {
+  DCHECK(string->IsExternalString());
   external_string_table_.AddString(string);
+  Page* page = Page::FromHeapObject(string);
+  ExternalString* ext_string = ExternalString::cast(string);
+
+  page->IncrementExternalBackingStoreBytes(
+      ExternalBackingStoreType::kExternalString,
+      ext_string->ExternalPayloadSize());
 }
 
 
 void Heap::FinalizeExternalString(String* string) {
   DCHECK(string->IsExternalString());
+  Page* page = Page::FromHeapObject(string);
+  ExternalString* ext_string = ExternalString::cast(string);
+
   v8::String::ExternalStringResourceBase** resource_addr =
       reinterpret_cast<v8::String::ExternalStringResourceBase**>(
           reinterpret_cast<byte*>(string) + ExternalString::kResourceOffset -
@@ -314,6 +324,10 @@ void Heap::FinalizeExternalString(String* string) {
 
   // Dispose of the C++ object if it has not already been disposed.
   if (*resource_addr != nullptr) {
+    page->DecrementExternalBackingStoreBytes(
+        ExternalBackingStoreType::kExternalString,
+        ext_string->ExternalPayloadSize());
+
     (*resource_addr)->Dispose();
     *resource_addr = nullptr;
   }

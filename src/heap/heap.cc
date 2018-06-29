@@ -2304,6 +2304,16 @@ void Heap::ProtectUnprotectedMemoryChunks() {
   unprotected_memory_chunks_.clear();
 }
 
+void Heap::ProcessMovedExternalString(Page* old_page, Page* new_page,
+                                      String* string) {
+  DCHECK(string->IsExternalString());
+  size_t size = ExternalString::cast(string)->ExternalPayloadSize();
+  old_page->DecrementExternalBackingStoreBytes(
+      ExternalBackingStoreType::kExternalString, size);
+  new_page->IncrementExternalBackingStoreBytes(
+      ExternalBackingStoreType::kExternalString, size);
+}
+
 String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
                                                                 Object** p) {
   MapWord first_word = HeapObject::cast(*p)->map_word();
@@ -2321,10 +2331,18 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
   }
 
   // String is still reachable.
-  String* string = String::cast(first_word.ToForwardingAddress());
-  if (string->IsThinString()) string = ThinString::cast(string)->actual();
+  String* new_string = String::cast(first_word.ToForwardingAddress());
+  if (new_string->IsThinString()) {
+    new_string = ThinString::cast(new_string)->actual();
+  } else if (new_string->IsExternalString()) {
+    heap->ProcessMovedExternalString(
+        Page::FromAddress(reinterpret_cast<Address>(*p)),
+        Page::FromHeapObject(new_string), new_string);
+    return new_string;
+  }
+
   // Internalization can replace external strings with non-external strings.
-  return string->IsExternalString() ? string : nullptr;
+  return new_string->IsExternalString() ? new_string : nullptr;
 }
 
 void Heap::ExternalStringTable::Verify() {
