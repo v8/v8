@@ -30,7 +30,6 @@ void LocalArrayBufferTracker::Process(Callback callback) {
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end(); ++it) {
     old_buffer = reinterpret_cast<JSArrayBuffer*>(it->first);
-    Page* old_page = Page::FromAddress(old_buffer->address());
     const CallbackResult result = callback(old_buffer, &new_buffer);
     if (result == kKeepEntry) {
       kept_array_buffers.insert(*it);
@@ -46,14 +45,9 @@ void LocalArrayBufferTracker::Process(Callback callback) {
         }
         DCHECK_NOT_NULL(tracker);
         const size_t size = NumberToSize(new_buffer->byte_length());
-        // We should decrement before adding to avoid potential overflows in
-        // the external memory counters.
-        old_page->DecrementExternalBackingStoreBytes(
-            ExternalBackingStoreType::kArrayBuffer, it->second.length);
         tracker->Add(new_buffer, size);
       }
       moved_memory += it->second.length;
-
     } else if (result == kRemoveEntry) {
       freed_memory += it->second.length;
       // We pass backing_store() and stored length to the collector for freeing
@@ -62,14 +56,14 @@ void LocalArrayBufferTracker::Process(Callback callback) {
       backing_stores_to_free.emplace_back(
           it->second.backing_store, it->second.length, it->second.backing_store,
           old_buffer->allocation_mode(), old_buffer->is_wasm_memory());
-      old_page->DecrementExternalBackingStoreBytes(
-          ExternalBackingStoreType::kArrayBuffer, it->second.length);
-
     } else {
       UNREACHABLE();
     }
   }
   if (moved_memory || freed_memory) {
+    // Update the Space with any moved or freed backing-store bytes.
+    space()->DecrementExternalBackingStoreBytes(freed_memory + moved_memory);
+
     // TODO(wez): Remove backing-store from external memory accounting.
     page_->heap()->update_external_memory_concurrently_freed(
         static_cast<intptr_t>(freed_memory));

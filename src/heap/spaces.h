@@ -143,6 +143,7 @@ enum FreeMode { kLinkCategory, kDoNotLinkCategory };
 enum class SpaceAccountingMode { kSpaceAccounted, kSpaceUnaccounted };
 
 enum ExternalBackingStoreType {
+  kOther,
   kArrayBuffer,
   kExternalString,
   kNumTypes
@@ -537,12 +538,13 @@ class MemoryChunk {
     }
   }
 
-  void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                          size_t amount);
-  void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                          size_t amount);
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) {
-    return external_backing_store_bytes_[type];
+  void IncrementExternalBackingStoreBytes(size_t amount,
+                                          ExternalBackingStoreType type) {
+    external_backing_store_bytes_[type] += amount;
+  }
+  void DecrementExternalBackingStoreBytes(size_t amount,
+                                          ExternalBackingStoreType type) {
+    external_backing_store_bytes_[type] -= amount;
   }
 
   inline uint32_t AddressToMarkbitIndex(Address addr) const {
@@ -911,6 +913,7 @@ class Space : public Malloced {
         max_committed_(0) {
     external_backing_store_bytes_ =
         new std::atomic<size_t>[ExternalBackingStoreType::kNumTypes];
+    external_backing_store_bytes_[ExternalBackingStoreType::kOther] = 0;
     external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] = 0;
     external_backing_store_bytes_[ExternalBackingStoreType::kExternalString] =
         0;
@@ -957,7 +960,7 @@ class Space : public Malloced {
 
   // Returns amount of off-heap memory in-use by objects in this Space.
   virtual size_t ExternalBackingStoreBytes(
-      ExternalBackingStoreType type) const {
+      ExternalBackingStoreType type = ExternalBackingStoreType::kOther) const {
     return external_backing_store_bytes_[type];
   }
 
@@ -990,13 +993,14 @@ class Space : public Malloced {
     committed_ -= bytes;
   }
 
-  void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                          size_t amount) {
+  void IncrementExternalBackingStoreBytes(
+      size_t amount,
+      ExternalBackingStoreType type = ExternalBackingStoreType::kOther) {
     external_backing_store_bytes_[type] += amount;
   }
-  void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                          size_t amount) {
-    DCHECK_GE(external_backing_store_bytes_[type], amount);
+  void DecrementExternalBackingStoreBytes(
+      size_t amount,
+      ExternalBackingStoreType type = ExternalBackingStoreType::kOther) {
     external_backing_store_bytes_[type] -= amount;
   }
 
@@ -2622,7 +2626,8 @@ class NewSpace : public SpaceWithLinearArea {
   }
 
   size_t ExternalBackingStoreBytes(
-      ExternalBackingStoreType type) const override {
+      ExternalBackingStoreType type =
+          ExternalBackingStoreType::kOther) const override {
     DCHECK_EQ(0, from_space_.ExternalBackingStoreBytes(type));
     return to_space_.ExternalBackingStoreBytes(type);
   }
