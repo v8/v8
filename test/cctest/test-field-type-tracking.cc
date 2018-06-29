@@ -1397,7 +1397,7 @@ struct CheckCopyGeneralizeAllFields {
     CHECK(!map->is_deprecated());
     CHECK_NE(*map, *new_map);
 
-    CHECK(new_map->GetBackPointer()->IsUndefined(map->GetIsolate()));
+    CHECK(new_map->GetBackPointer()->IsUndefined(isolate));
     for (int i = 0; i < kPropCount; i++) {
       expectations.GeneralizeField(i);
     }

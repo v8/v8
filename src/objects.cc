@@ -7977,7 +7977,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
 bool JSObject::ReferencesObjectFromElements(FixedArray* elements,
                                             ElementsKind kind,
                                             Object* object) {
-  Isolate* isolate = elements->GetIsolate();
+  Isolate* isolate = GetIsolate();
   if (IsObjectElementsKind(kind) || kind == FAST_STRING_WRAPPER_ELEMENTS) {
     int length = IsJSArray() ? Smi::ToInt(JSArray::cast(this)->length())
                              : elements->length();
@@ -10249,7 +10249,7 @@ void FixedArrayOfWeakCells::Set(Isolate* isolate,
   DCHECK(array->IsEmptySlot(index));  // Don't overwrite anything.
   Handle<WeakCell> cell =
       value->IsMap() ? Map::WeakCellForMap(isolate, Handle<Map>::cast(value))
-                     : array->GetIsolate()->factory()->NewWeakCell(value);
+                     : isolate->factory()->NewWeakCell(value);
   Handle<FixedArray>::cast(array)->set(index + kFirstIndex, *cell);
   array->set_last_used_index(index);
 }
@@ -10261,8 +10261,7 @@ Handle<FixedArrayOfWeakCells> FixedArrayOfWeakCells::Add(
     int* assigned_index) {
   Handle<FixedArrayOfWeakCells> array =
       (maybe_array.is_null() || !maybe_array->IsFixedArrayOfWeakCells())
-          ? Allocate(value->GetIsolate(), 1,
-                     Handle<FixedArrayOfWeakCells>::null())
+          ? Allocate(isolate, 1, Handle<FixedArrayOfWeakCells>::null())
           : Handle<FixedArrayOfWeakCells>::cast(maybe_array);
   // Try to store the new entry if there's room. Optimize for consecutive
   // accesses.
@@ -10283,7 +10282,7 @@ Handle<FixedArrayOfWeakCells> FixedArrayOfWeakCells::Add(
   // No usable slot found, grow the array.
   int new_length = length == 0 ? 1 : length + (length >> 1) + 4;
   Handle<FixedArrayOfWeakCells> new_array =
-      Allocate(array->GetIsolate(), new_length, array);
+      Allocate(isolate, new_length, array);
   FixedArrayOfWeakCells::Set(isolate, new_array, length, value);
   if (assigned_index != nullptr) *assigned_index = length;
   return new_array;
@@ -14834,7 +14833,7 @@ void BytecodeArray::Disassemble(Isolate* isolate, std::ostream& os) {
   Address base_address = GetFirstBytecodeAddress();
   SourcePositionTableIterator source_positions(SourcePositionTable());
 
-  interpreter::BytecodeArrayIterator iterator(handle(this, this->GetIsolate()));
+  interpreter::BytecodeArrayIterator iterator(handle(this, isolate));
   while (!iterator.done()) {
     if (!source_positions.done() &&
         iterator.current_offset() == source_positions.code_offset()) {

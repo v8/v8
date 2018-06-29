@@ -2964,8 +2964,8 @@ MaybeHandle<Object> Object::SetPropertyOrElement(Handle<Object> object,
 MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
                                                  Handle<Name> name,
                                                  Handle<JSReceiver> holder) {
-  LookupIterator it = LookupIterator::PropertyOrElement(
-      name->GetIsolate(), receiver, name, holder);
+  LookupIterator it = LookupIterator::PropertyOrElement(holder->GetIsolate(),
+                                                        receiver, name, holder);
   return GetProperty(&it);
 }
 
@@ -3039,7 +3039,7 @@ Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
 
 Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
     Handle<JSReceiver> object, Handle<Name> name) {
-  LookupIterator it = LookupIterator::PropertyOrElement(name->GetIsolate(),
+  LookupIterator it = LookupIterator::PropertyOrElement(object->GetIsolate(),
                                                         object, name, object);
   return GetPropertyAttributes(&it);
 }
@@ -3048,7 +3048,7 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
 Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
     Handle<JSReceiver> object, Handle<Name> name) {
   LookupIterator it = LookupIterator::PropertyOrElement(
-      name->GetIsolate(), object, name, object, LookupIterator::OWN);
+      object->GetIsolate(), object, name, object, LookupIterator::OWN);
   return GetPropertyAttributes(&it);
 }
 

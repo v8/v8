@@ -3939,7 +3939,7 @@ class JSMessageObject: public JSObject {
   typedef BodyDescriptor BodyDescriptorWeak;
 };
 
-class AllocationSite: public Struct {
+class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
  public:
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
   static const double kPretenureRatio;
@@ -3954,6 +3954,11 @@ class AllocationSite: public Struct {
     kZombie = 4,
     kLastPretenureDecisionValue = kZombie
   };
+
+  // Use the mixin methods over the HeapObject methods.
+  // TODO(v8:7786) Remove once the HeapObject methods are gone.
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
 
   const char* PretenureDecisionName(PretenureDecision decision);
 

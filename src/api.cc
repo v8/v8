@@ -6453,10 +6453,9 @@ i::Object** Context::GetDataFromSnapshotOnce(size_t index) {
 MaybeLocal<v8::Object> ObjectTemplate::NewInstance(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, ObjectTemplate, NewInstance, Object);
   auto self = Utils::OpenHandle(this);
-  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
   Local<Object> result;
   has_pending_exception = !ToLocal<Object>(
-      i::ApiNatives::InstantiateObject(i_isolate, self), &result);
+      i::ApiNatives::InstantiateObject(isolate, self), &result);
   RETURN_ON_FAILED_EXECUTION(Object);
   RETURN_ESCAPED(result);
 }

@@ -140,12 +140,15 @@ class FeedbackMetadata;
 //  - optimized code cell (weak cell or Smi marker)
 // followed by an array of feedback slots, of length determined by the feedback
 // metadata.
-class FeedbackVector : public HeapObject {
+class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
  public:
+  // Use the mixin methods over the HeapObject methods.
+  // TODO(v8:7786) Remove once the HeapObject methods are gone.
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   // Casting.
   static inline FeedbackVector* cast(Object* obj);
-
-  inline Isolate* GetIsolate() const;
 
   inline void ComputeCounts(int* with_type_info, int* generic,
                             int* vector_ic_count);
