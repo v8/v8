@@ -1012,7 +1012,6 @@ class Heap {
   CodeSpace* code_space() { return code_space_; }
   MapSpace* map_space() { return map_space_; }
   LargeObjectSpace* lo_space() { return lo_space_; }
-  NewLargeObjectSpace* new_lo_space() { return new_lo_space_; }
   ReadOnlySpace* read_only_space() { return read_only_space_; }
 
   inline PagedSpace* paged_space(int idx);
@@ -2291,7 +2290,6 @@ class Heap {
   CodeSpace* code_space_;
   MapSpace* map_space_;
   LargeObjectSpace* lo_space_;
-  NewLargeObjectSpace* new_lo_space_;
   ReadOnlySpace* read_only_space_;
   // Map from the space id to the space.
   Space* space_[LAST_SPACE + 1];

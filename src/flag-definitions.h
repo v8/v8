@@ -785,10 +785,6 @@ DEFINE_BOOL(optimize_ephemerons, true,
 DEFINE_NEG_NEG_IMPLICATION(optimize_ephemerons, parallel_ephemeron_marking)
 DEFINE_NEG_NEG_IMPLICATION(optimize_ephemerons, parallel_ephemeron_visiting)
 
-DEFINE_BOOL(young_generation_large_objects, false,
-            "allocates large objects by default in the young generation large "
-            "object space")
-
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
             "generate extra code (assertions) for debugging")
