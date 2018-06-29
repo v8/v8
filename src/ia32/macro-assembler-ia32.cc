@@ -625,6 +625,30 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   leave();
 }
 
+#ifdef V8_OS_WIN
+void TurboAssembler::AllocateStackFrame(Register bytes_scratch) {
+  // In windows, we cannot increment the stack size by more than one page
+  // (minimum page size is 4KB) without accessing at least one byte on the
+  // page. Check this:
+  // https://msdn.microsoft.com/en-us/library/aa227153(v=vs.60).aspx.
+  constexpr int kPageSize = 4 * 1024;
+  Label check_offset;
+  Label touch_next_page;
+  jmp(&check_offset);
+  bind(&touch_next_page);
+  sub(esp, Immediate(kPageSize));
+  // Just to touch the page, before we increment further.
+  mov(Operand(esp, 0), Immediate(0));
+  sub(bytes_scratch, Immediate(kPageSize));
+
+  bind(&check_offset);
+  cmp(bytes_scratch, kPageSize);
+  j(greater, &touch_next_page);
+
+  sub(esp, bytes_scratch);
+}
+#endif
+
 void MacroAssembler::EnterBuiltinFrame(Register context, Register target,
                                        Register argc) {
   Push(ebp);

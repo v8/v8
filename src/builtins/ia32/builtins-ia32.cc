@@ -1033,30 +1033,11 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
   Generate_StackOverflowCheck(masm, num_args, scratch1, scratch2,
                               stack_overflow, true);
 
-// Step 1 - Update the stack pointer. scratch1 already contains the required
-// increment to the stack. i.e. num_args + 1 stack slots. This is computed in
-// the Generate_StackOverflowCheck.
+  // Step 1 - Update the stack pointer. scratch1 already contains the required
+  // increment to the stack. i.e. num_args + 1 stack slots. This is computed in
+  // Generate_StackOverflowCheck.
 
-#ifdef _MSC_VER
-  // TODO(mythria): Move it to macro assembler.
-  // In windows, we cannot increment the stack size by more than one page
-  // (mimimum page size is 4KB) without accessing at least one byte on the
-  // page. Check this:
-  // https://msdn.microsoft.com/en-us/library/aa227153(v=vs.60).aspx.
-  const int page_size = 4 * 1024;
-  Label check_offset, update_stack_pointer;
-  __ bind(&check_offset);
-  __ cmp(scratch1, page_size);
-  __ j(less, &update_stack_pointer);
-  __ sub(esp, Immediate(page_size));
-  // Just to touch the page, before we increment further.
-  __ mov(Operand(esp, 0), Immediate(0));
-  __ sub(scratch1, Immediate(page_size));
-  __ jmp(&check_offset);
-  __ bind(&update_stack_pointer);
-#endif
-
-  __ sub(esp, scratch1);
+  __ AllocateStackFrame(scratch1);
 
   // Step 2 move return_address and slots above it to the correct locations.
   // Move from top to bottom, otherwise we may overwrite when num_args = 0 or 1,
