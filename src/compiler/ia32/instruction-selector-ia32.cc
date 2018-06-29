@@ -1891,8 +1891,8 @@ SIMD_I8X16_SHIFT_OPCODES(VISIT_SIMD_I8X16_SHIFT)
 
 void InstructionSelector::VisitI8x16Mul(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
-  InstructionOperand operand1 = g.UseRegister(node->InputAt(1));
+  InstructionOperand operand0 = g.UseUniqueRegister(node->InputAt(0));
+  InstructionOperand operand1 = g.UseUniqueRegister(node->InputAt(1));
   InstructionOperand temps[] = {g.TempSimd128Register(),
                                 g.TempSimd128Register()};
   if (IsSupported(AVX)) {

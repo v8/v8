@@ -2842,7 +2842,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // t1 = 00BB 00BB ... 00BB 00BB
       __ movaps(t0, left);
       __ movaps(t1, right);
-      __ Move(kScratchDoubleReg, static_cast<uint32_t>(0x00ff));
+      __ pcmpeqb(kScratchDoubleReg, kScratchDoubleReg);
       __ psrlw(t0, 8);
       __ psrlw(t1, 8);
 
@@ -2850,10 +2850,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       //    => __pp __pp ...  __pp  __pp
       // t0 = I16x8Mul(t0, t1)
       //    => __PP __PP ...  __PP  __PP
-      __ pshuflw(kScratchDoubleReg, kScratchDoubleReg, 0x0);
+      __ psrlw(kScratchDoubleReg, 8);
       __ pmullw(t0, t1);
       __ pmullw(left, right);
-      __ pshufd(kScratchDoubleReg, kScratchDoubleReg, 0x0);
 
       // t0 = I16x8Shl(t0, 8)
       //    => PP00 PP00 ...  PP00  PP00
@@ -2882,19 +2881,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       // t0 = 00AA 00AA ... 00AA 00AA
       // t1 = 00BB 00BB ... 00BB 00BB
-      __ Move(kScratchDoubleReg, static_cast<uint32_t>(0x00ff));
+      __ vpcmpeqb(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
       __ vpsrlw(t0, left, 8);
       __ vpsrlw(t1, right, 8);
 
       // dst = I16x8Mul(left, right)
       //    => __pp __pp ...  __pp  __pp
-      __ vpshuflw(kScratchDoubleReg, kScratchDoubleReg, 0x0);
+      __ vpsrlw(kScratchDoubleReg, kScratchDoubleReg, 8);
       __ vpmullw(dst, left, right);
 
       // t0 = I16x8Mul(t0, t1)
       //    => __PP __PP ...  __PP  __PP
       __ vpmullw(t0, t0, t1);
-      __ vpshufd(kScratchDoubleReg, kScratchDoubleReg, 0x0);
 
       // t0 = I16x8Shl(t0, 8)
       //    => PP00 PP00 ...  PP00  PP00
