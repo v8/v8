@@ -59,8 +59,7 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 
 V8_EXPORT_PRIVATE
 void CompileJsToWasmWrappers(Isolate* isolate,
-                             Handle<WasmModuleObject> module_object,
-                             Counters* counters);
+                             Handle<WasmModuleObject> module_object);
 
 V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
     Isolate* isolate, const ModuleWireBytes& wire_bytes);

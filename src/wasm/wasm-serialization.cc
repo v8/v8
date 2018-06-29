@@ -552,7 +552,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   // requires unlocking the code space here. This should eventually be moved
   // into the allocator.
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-  CompileJsToWasmWrappers(isolate, module_object, isolate->counters());
+  CompileJsToWasmWrappers(isolate, module_object);
 
   // Log the code within the generated module for profiling.
   native_module->LogWasmCodes(isolate);

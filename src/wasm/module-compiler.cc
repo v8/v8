@@ -244,7 +244,6 @@ class InstanceBuilder {
 
   Isolate* isolate_;
   const WasmModule* const module_;
-  const std::shared_ptr<Counters> async_counters_;
   ErrorThrower* thrower_;
   Handle<WasmModuleObject> module_object_;
   MaybeHandle<JSReceiver> ffi_;
@@ -255,12 +254,6 @@ class InstanceBuilder {
   Handle<WasmExportedFunction> start_function_;
   JSToWasmWrapperCache js_to_wasm_cache_;
   std::vector<SanitizedImport> sanitized_imports_;
-
-  const std::shared_ptr<Counters>& async_counters() const {
-    return async_counters_;
-  }
-
-  Counters* counters() const { return async_counters().get(); }
 
   wasm::UseTrapHandler use_trap_handler() const {
     return module_object_->native_module()->use_trap_handler() ? kUseTrapHandler
@@ -799,7 +792,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
     }
     if (thrower->error()) return;
 
-    RecordStats(native_module, isolate->async_counters().get());
+    RecordStats(native_module, isolate->counters());
   }
 }
 
@@ -918,9 +911,8 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
     Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
   const WasmModule* wasm_module = module.get();
-  TimedHistogramScope wasm_compile_module_time_scope(
-      SELECT_WASM_COUNTER(isolate->async_counters(), wasm_module->origin,
-                          wasm_compile, module_time));
+  TimedHistogramScope wasm_compile_module_time_scope(SELECT_WASM_COUNTER(
+      isolate->counters(), wasm_module->origin, wasm_compile, module_time));
   // TODO(6792): No longer needed once WebAssembly code is off heap. Use
   // base::Optional to be able to close the scope before notifying the debugger.
   base::Optional<CodeSpaceMemoryModificationScope> modification_scope(
@@ -971,8 +963,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   if (thrower->error()) return {};
 
   // Compile JS->wasm wrappers for exported functions.
-  CompileJsToWasmWrappers(isolate, module_object,
-                          isolate->async_counters().get());
+  CompileJsToWasmWrappers(isolate, module_object);
 
   // If we created a wasm script, finish it now and make it public to the
   // debugger.
@@ -995,7 +986,6 @@ InstanceBuilder::InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
                                  MaybeHandle<JSArrayBuffer> memory)
     : isolate_(isolate),
       module_(module_object->module()),
-      async_counters_(isolate->async_counters()),
       thrower_(thrower),
       module_object_(module_object),
       ffi_(ffi),
@@ -1022,7 +1012,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   DisallowJavascriptExecution no_js(isolate_);
   // Record build time into correct bucket, then build instance.
   TimedHistogramScope wasm_instantiate_module_time_scope(SELECT_WASM_COUNTER(
-      counters(), module_->origin, wasm_instantiate, module_time));
+      isolate_->counters(), module_->origin, wasm_instantiate, module_time));
 
   //--------------------------------------------------------------------------
   // Allocate the memory array buffer.
@@ -1030,8 +1020,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // We allocate the memory buffer before cloning or reusing the compiled module
   // so we will know whether we need to recompile with bounds checks.
   uint32_t initial_pages = module_->initial_pages;
-  auto initial_pages_counter = SELECT_WASM_COUNTER(counters(), module_->origin,
-                                                   wasm, min_mem_pages_count);
+  auto initial_pages_counter = SELECT_WASM_COUNTER(
+      isolate_->counters(), module_->origin, wasm, min_mem_pages_count);
   initial_pages_counter->AddSample(initial_pages);
   // Asm.js has memory_ already set at this point, so we don't want to
   // overwrite it.
@@ -1582,7 +1572,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
                   isolate_, js_receiver, expected_sig, func_index,
                   module_->origin, use_trap_handler())
                   .ToHandleChecked();
-          RecordStats(*wrapper_code, counters());
+          RecordStats(*wrapper_code, isolate_->counters());
 
           WasmCode* wasm_code = native_module->AddCodeCopy(
               wrapper_code, wasm::WasmCode::kWasmToJsWrapper, func_index);
@@ -2599,8 +2589,7 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
     // TODO(6792): No longer needed once WebAssembly code is off heap.
     CodeSpaceMemoryModificationScope modification_scope(job_->isolate_->heap());
     // Compile JS->wasm wrappers for exported functions.
-    CompileJsToWasmWrappers(job_->isolate_, job_->module_object_,
-                            job_->counters());
+    CompileJsToWasmWrappers(job_->isolate_, job_->module_object_);
     job_->DoSync<FinishModule>();
   }
 };
@@ -3066,8 +3055,7 @@ void CompilationState::NotifyOnEvent(CompilationEvent event,
 }
 
 void CompileJsToWasmWrappers(Isolate* isolate,
-                             Handle<WasmModuleObject> module_object,
-                             Counters* counters) {
+                             Handle<WasmModuleObject> module_object) {
   JSToWasmWrapperCache js_to_wasm_cache;
   int wrapper_index = 0;
   Handle<FixedArray> export_wrappers(module_object->export_wrappers(), isolate);
@@ -3084,7 +3072,7 @@ void CompileJsToWasmWrappers(Isolate* isolate,
     Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
         isolate, module, call_target, exp.index, use_trap_handler);
     export_wrappers->set(wrapper_index, *wrapper_code);
-    RecordStats(*wrapper_code, counters);
+    RecordStats(*wrapper_code, isolate->counters());
     ++wrapper_index;
   }
 }
