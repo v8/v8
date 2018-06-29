@@ -3729,8 +3729,9 @@ void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
   if (IsMipsArchVariant(kMips32r6) && bd == PROTECT) {
     uint32_t lui_offset, jic_offset;
     UnpackTargetAddressUnsigned(target, lui_offset, jic_offset);
-    DCHECK(MustUseReg(rmode));
-    RecordRelocInfo(rmode, target);
+    if (MustUseReg(rmode)) {
+      RecordRelocInfo(rmode, target);
+    }
     lui(t9, lui_offset);
     Jump(t9, jic_offset, al, zero_reg, Operand(zero_reg), bd);
   } else {
