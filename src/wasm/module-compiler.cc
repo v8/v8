@@ -111,19 +111,7 @@ class CompilationState {
   }
 
   CompileMode compile_mode() const { return compile_mode_; }
-
   ModuleEnv* module_env() { return &module_env_; }
-
-  const ModuleWireBytes& wire_bytes() const { return wire_bytes_; }
-
-  void SetWireBytes(const ModuleWireBytes& wire_bytes) {
-    DCHECK_NULL(bytes_copy_);
-    DCHECK_EQ(0, wire_bytes_.length());
-    bytes_copy_ = std::unique_ptr<byte[]>(new byte[wire_bytes.length()]);
-    memcpy(bytes_copy_.get(), wire_bytes.start(), wire_bytes.length());
-    wire_bytes_ = ModuleWireBytes(bytes_copy_.get(),
-                                  bytes_copy_.get() + wire_bytes.length());
-  }
 
  private:
   void NotifyOnEvent(CompilationEvent event, ErrorThrower* thrower);
@@ -139,11 +127,6 @@ class CompilationState {
   const size_t max_memory_;
   const CompileMode compile_mode_;
   bool baseline_compilation_finished_ = false;
-
-  // TODO(wasm): eventually we want to get rid of this
-  // additional copy (see AsyncCompileJob).
-  std::unique_ptr<byte[]> bytes_copy_;
-  ModuleWireBytes wire_bytes_;
 
   // This mutex protects all information of this CompilationState which is being
   // accessed concurrently.
@@ -608,8 +591,8 @@ bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state) {
   return true;
 }
 
-void InitializeCompilationUnits(NativeModule* native_module,
-                                const ModuleWireBytes& wire_bytes) {
+void InitializeCompilationUnits(NativeModule* native_module) {
+  ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const WasmModule* module = native_module->module();
   CompilationUnitBuilder builder(native_module);
   uint32_t start = module->num_imported_functions;
@@ -652,7 +635,6 @@ void FinishCompilationUnits(CompilationState* compilation_state,
 }
 
 void CompileInParallel(Isolate* isolate, NativeModule* native_module,
-                       const ModuleWireBytes& wire_bytes,
                        Handle<WasmModuleObject> module_object,
                        ErrorThrower* thrower) {
   // Data structures for the parallel compilation.
@@ -689,14 +671,13 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   uint32_t num_wasm_functions =
       native_module->num_functions() - native_module->num_imported_functions();
   compilation_state->SetNumberOfFunctionsToCompile(num_wasm_functions);
-  compilation_state->SetWireBytes(wire_bytes);
 
   // 1) The main thread allocates a compilation unit for each wasm function
   //    and stores them in the vector {compilation_units} within the
   //    {compilation_state}. By adding units to the {compilation_state}, new
   //    {BackgroundCompileTask} instances are spawned which run on
   //    background threads.
-  InitializeCompilationUnits(native_module, compilation_state->wire_bytes());
+  InitializeCompilationUnits(native_module);
 
   // 2.a) The background threads and the main thread pick one compilation
   //      unit at a time and execute the parallel phase of the compilation
@@ -737,10 +718,10 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
 }
 
 void CompileSequentially(Isolate* isolate, NativeModule* native_module,
-                         const ModuleWireBytes& wire_bytes,
                          ModuleEnv* module_env, ErrorThrower* thrower) {
   DCHECK(!thrower->error());
 
+  ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const WasmModule* module = module_env->module;
   for (uint32_t i = 0; i < module->functions.size(); ++i) {
     const WasmFunction& func = module->functions[i];
@@ -812,10 +793,9 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
         V8::GetCurrentPlatform()->NumberOfWorkerThreads() > 0;
 
     if (compile_parallel) {
-      CompileInParallel(isolate, native_module, wire_bytes, module_object,
-                        thrower);
+      CompileInParallel(isolate, native_module, module_object, thrower);
     } else {
-      CompileSequentially(isolate, native_module, wire_bytes, env, thrower);
+      CompileSequentially(isolate, native_module, env, thrower);
     }
     if (thrower->error()) return;
 
@@ -2586,7 +2566,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       compilation_state->SetNumberOfFunctionsToCompile(
           module->num_declared_functions);
       // Add compilation units and kick off compilation.
-      InitializeCompilationUnits(job_->native_module_, job_->wire_bytes_);
+      InitializeCompilationUnits(job_->native_module_);
     }
   }
 };
@@ -2855,7 +2835,6 @@ CompilationState::CompilationState(internal::Isolate* isolate,
       compile_mode_(FLAG_wasm_tier_up && env.module->origin == kWasmOrigin
                         ? CompileMode::kTiering
                         : CompileMode::kRegular),
-      wire_bytes_(ModuleWireBytes(nullptr, nullptr)),
       max_background_tasks_(std::max(
           1, std::min(FLAG_wasm_num_compilation_tasks,
                       V8::GetCurrentPlatform()->NumberOfWorkerThreads()))) {

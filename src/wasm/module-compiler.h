@@ -41,7 +41,7 @@ struct CompilationStateDeleter {
 };
 
 // Wrapper to create a CompilationState exists in order to avoid having
-// the the CompilationState in the header file.
+// the CompilationState in the header file.
 std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
     Isolate* isolate, const ModuleEnv& env);
 
