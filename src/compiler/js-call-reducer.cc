@@ -3428,6 +3428,12 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceArrayBufferViewAccessor(
           node, JS_DATA_VIEW_TYPE,
           AccessBuilder::ForJSArrayBufferViewByteOffset());
+    case Builtins::kDataViewPrototypeGetUint8:
+      return ReduceDataViewPrototypeGet(node,
+                                        ExternalArrayType::kExternalUint8Array);
+    case Builtins::kDataViewPrototypeGetInt8:
+      return ReduceDataViewPrototypeGet(node,
+                                        ExternalArrayType::kExternalInt8Array);
     case Builtins::kTypedArrayPrototypeByteLength:
       return ReduceArrayBufferViewAccessor(
           node, JS_TYPED_ARRAY_TYPE,
@@ -6657,12 +6663,11 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
           factory()->array_buffer_neutering_protector());
     } else {
       // Check if the {receiver}s buffer was neutered.
-      Node* receiver_buffer = effect = graph()->NewNode(
+      Node* buffer = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
           receiver, effect, control);
-      Node* check = effect =
-          graph()->NewNode(simplified()->ArrayBufferWasNeutered(),
-                           receiver_buffer, effect, control);
+      Node* check = effect = graph()->NewNode(
+          simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
 
       // Default to zero if the {receiver}s buffer was neutered.
       value = graph()->NewNode(
@@ -6673,6 +6678,172 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
+  return NoChange();
+}
+
+Reduction JSCallReducer::ReduceDataViewPrototypeGet(
+    Node* node, ExternalArrayType element_type) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+
+  CallParameters const& p = CallParametersOf(node->op());
+
+  Node* offset = node->op()->ValueInputCount() > 2
+                     ? NodeProperties::GetValueInput(node, 2)
+                     : jsgraph()->ZeroConstant();
+
+  Node* is_little_endian = node->op()->ValueInputCount() > 3
+                               ? NodeProperties::GetValueInput(node, 3)
+                               : jsgraph()->FalseConstant();
+
+  // Only do stuff if the {receiver} is really a DataView.
+  if (NodeProperties::HasInstanceTypeWitness(isolate(), receiver, effect,
+                                             JS_DATA_VIEW_TYPE)) {
+    // Check that the {offset} is a positive Smi.
+    offset = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
+                                       offset, effect, control);
+
+    Node* is_positive = graph()->NewNode(simplified()->NumberLessThanOrEqual(),
+                                         jsgraph()->ZeroConstant(), offset);
+
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kNotASmi, p.feedback()),
+        is_positive, effect, control);
+
+    // Coerce {is_little_endian} to boolean.
+    is_little_endian =
+        graph()->NewNode(simplified()->ToBoolean(), is_little_endian);
+
+    // Get the underlying buffer and check that it has not been neutered.
+    Node* buffer = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+        receiver, effect, control);
+
+    Node* check_neutered = effect = graph()->NewNode(
+        simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
+    Node* branch_neutered = graph()->NewNode(
+        common()->Branch(BranchHint::kFalse), check_neutered, control);
+
+    // Raise an error if it was neuteured.
+    Node* if_true_neutered =
+        graph()->NewNode(common()->IfTrue(), branch_neutered);
+    Node* etrue_neutered = effect;
+    {
+      if_true_neutered = etrue_neutered = graph()->NewNode(
+          javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
+          jsgraph()->Constant(MessageTemplate::kDetachedOperation),
+          jsgraph()->HeapConstant(
+              factory()->NewStringFromAsciiChecked("DataView.prototype.get")),
+          context, frame_state, etrue_neutered, if_true_neutered);
+    }
+
+    // Otherwise, proceed.
+    Node* if_false_neutered =
+        graph()->NewNode(common()->IfFalse(), branch_neutered);
+    Node* efalse_neutered = effect;
+
+    // Get the byte offset and byte length of the {receiver}.
+    Node* byte_offset = efalse_neutered =
+        graph()->NewNode(simplified()->LoadField(
+                             AccessBuilder::ForJSArrayBufferViewByteOffset()),
+                         receiver, efalse_neutered, if_false_neutered);
+
+    Node* byte_length = efalse_neutered =
+        graph()->NewNode(simplified()->LoadField(
+                             AccessBuilder::ForJSArrayBufferViewByteLength()),
+                         receiver, efalse_neutered, if_false_neutered);
+
+    // The end offset is the offset plus the element size
+    // of the type that we want to load.
+    // Since we only load int8 and uint8 for now, that size is 1.
+    Node* end_offset = graph()->NewNode(simplified()->NumberAdd(), offset,
+                                        jsgraph()->OneConstant());
+
+    // We need to check that {end_offset} <= {byte_length}, ie
+    // throw a RangeError if {byte_length} < {end_offset}.
+    Node* check_range = graph()->NewNode(simplified()->NumberLessThan(),
+                                         byte_length, end_offset);
+    Node* branch_range = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                          check_range, if_false_neutered);
+
+    Node* if_true_range = graph()->NewNode(common()->IfTrue(), branch_range);
+    Node* etrue_range = efalse_neutered;
+    {
+      if_true_range = etrue_range = graph()->NewNode(
+          javascript()->CallRuntime(Runtime::kThrowRangeError, 2),
+          jsgraph()->Constant(MessageTemplate::kInvalidDataViewAccessorOffset),
+          jsgraph()->HeapConstant(
+              factory()->NewStringFromAsciiChecked("DataView.prototype.get")),
+          context, frame_state, etrue_range, if_true_range);
+    }
+
+    Node* if_false_range = graph()->NewNode(common()->IfFalse(), branch_range);
+    Node* efalse_range = efalse_neutered;
+    Node* vfalse_range;
+    {
+      // Get the buffer's backing store.
+      Node* backing_store = efalse_range =
+          graph()->NewNode(simplified()->LoadField(
+                               AccessBuilder::ForJSArrayBufferBackingStore()),
+                           buffer, efalse_range, if_false_range);
+
+      // Compute the buffer index at which we'll read.
+      Node* buffer_index =
+          graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
+
+      // Perform the load.
+      vfalse_range = efalse_range = graph()->NewNode(
+          simplified()->LoadElement(AccessBuilder::ForTypedArrayElement(
+              element_type, true, LoadSensitivity::kCritical)),
+          backing_store, buffer_index, efalse_range, if_false_range);
+    }
+
+    // Rewire potential exception edges.
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+      // Create appropriate {IfException} and {IfSuccess} nodes.
+      Node* extrue_neutered = graph()->NewNode(
+          common()->IfException(), etrue_neutered,
+          if_true_neutered);  // We threw because the array was neutered.
+      if_true_neutered =
+          graph()->NewNode(common()->IfSuccess(), if_true_neutered);
+
+      Node* extrue_range =
+          graph()->NewNode(common()->IfException(), etrue_range,
+                           if_true_range);  // We threw because out of bounds.
+      if_true_range = graph()->NewNode(common()->IfSuccess(), if_true_range);
+
+      // We can't throw in LoadTypedElement(),
+      // so we don't need to handle that path here.
+
+      // Join the exception edges.
+      Node* merge =
+          graph()->NewNode(common()->Merge(2), extrue_neutered, extrue_range);
+      Node* ephi = graph()->NewNode(common()->EffectPhi(2), extrue_neutered,
+                                    extrue_range, merge);
+      Node* phi =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           extrue_neutered, extrue_range, merge);
+      ReplaceWithValue(on_exception, phi, ephi, merge);
+    }
+
+    // Connect the throwing paths to end.
+    if_true_neutered =
+        graph()->NewNode(common()->Throw(), etrue_neutered, if_true_neutered);
+    NodeProperties::MergeControlToEnd(graph(), common(), if_true_neutered);
+    if_true_range =
+        graph()->NewNode(common()->Throw(), etrue_range, if_true_range);
+    NodeProperties::MergeControlToEnd(graph(), common(), if_true_range);
+
+    // Continue on the regular path.
+    ReplaceWithValue(node, vfalse_range, efalse_range, if_false_range);
+    return Changed(vfalse_range);
+  }
+
   return NoChange();
 }
 
