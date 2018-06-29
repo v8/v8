@@ -30,6 +30,8 @@ class CallableTask;
 class CallbackTask;
 class CallHandlerInfo;
 class ConstantElementsPair;
+class Expression;
+class CompileTimeValue;
 class CoverageInfo;
 class DebugInfo;
 class EnumCache;
@@ -193,6 +195,9 @@ class V8_EXPORT_PRIVATE Factory {
   // Create a new ConstantElementsPair struct.
   Handle<ConstantElementsPair> NewConstantElementsPair(
       ElementsKind elements_kind, Handle<FixedArrayBase> constant_values);
+
+  // Create a new CompileTimeValue struct.
+  Handle<CompileTimeValue> NewCompileTimeValue(Expression* expression);
 
   // Create a new TemplateObjectDescription struct.
   Handle<TemplateObjectDescription> NewTemplateObjectDescription(

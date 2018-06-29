@@ -7,10 +7,10 @@
 #include "src/allocation-site-scopes.h"
 #include "src/arguments.h"
 #include "src/ast/ast.h"
-#include "src/ast/compile-time-value.h"
 #include "src/isolate-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -31,9 +31,9 @@ void PreInitializeLiteralSite(Handle<FeedbackVector> vector,
   vector->Set(slot, Smi::FromInt(1));
 }
 
-Handle<Object> InnerCreateBoilerplate(Isolate* isolate,
-                                      Handle<FixedArray> compile_time_value,
-                                      PretenureFlag pretenure_flag);
+Handle<Object> InnerCreateBoilerplate(
+    Isolate* isolate, Handle<CompileTimeValue> compile_time_value,
+    PretenureFlag pretenure_flag);
 
 enum DeepCopyHints { kNoHints = 0, kObjectIsShallow = 1 };
 
@@ -357,10 +357,11 @@ struct ObjectBoilerplate {
     for (int index = 0; index < length; index++) {
       Handle<Object> key(boilerplate_description->name(index), isolate);
       Handle<Object> value(boilerplate_description->value(index), isolate);
-      if (value->IsFixedArray()) {
+      if (value->IsCompileTimeValue()) {
         // The value contains the CompileTimeValue with the boilerplate
         // properties of a simple object or array literal.
-        Handle<FixedArray> compile_time_value = Handle<FixedArray>::cast(value);
+        Handle<CompileTimeValue> compile_time_value =
+            Handle<CompileTimeValue>::cast(value);
         value =
             InnerCreateBoilerplate(isolate, compile_time_value, pretenure_flag);
       }
@@ -429,12 +430,12 @@ struct ArrayBoilerplate {
         copied_elements_values = fixed_array_values_copy;
         FOR_WITH_HANDLE_SCOPE(
             isolate, int, i = 0, i, i < fixed_array_values->length(), i++, {
-              if (fixed_array_values->get(i)->IsFixedArray()) {
+              if (fixed_array_values->get(i)->IsCompileTimeValue()) {
                 // The value contains the CompileTimeValue with the
                 // boilerplate description of a simple object or
                 // array literal.
-                Handle<FixedArray> compile_time_value(
-                    FixedArray::cast(fixed_array_values->get(i)),
+                Handle<CompileTimeValue> compile_time_value(
+                    CompileTimeValue::cast(fixed_array_values->get(i)),
                     for_with_handle_isolate);
                 Handle<Object> result = InnerCreateBoilerplate(
                     isolate, compile_time_value, pretenure_flag);
@@ -450,12 +451,12 @@ struct ArrayBoilerplate {
   }
 };
 
-Handle<Object> InnerCreateBoilerplate(Isolate* isolate,
-                                      Handle<FixedArray> compile_time_value,
-                                      PretenureFlag pretenure_flag) {
-  Handle<HeapObject> elements =
-      CompileTimeValue::GetElements(compile_time_value);
-  int flags = CompileTimeValue::GetLiteralTypeFlags(compile_time_value);
+Handle<Object> InnerCreateBoilerplate(
+    Isolate* isolate, Handle<CompileTimeValue> compile_time_value,
+    PretenureFlag pretenure_flag) {
+  int flags = compile_time_value->literal_type_flag();
+  Handle<HeapObject> elements(
+      HeapObject::cast(compile_time_value->constant_elements()), isolate);
   if (flags == CompileTimeValue::kArrayLiteralFlag) {
     return ArrayBoilerplate::Create(isolate, elements, flags, pretenure_flag);
   }

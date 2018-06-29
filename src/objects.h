@@ -1072,6 +1072,7 @@ template <class C> inline bool Is(Object* obj);
   V(CompilationCacheTable)                     \
   V(ConsString)                                \
   V(ConstantElementsPair)                      \
+  V(CompileTimeValue)                          \
   V(Constructor)                               \
   V(Context)                                   \
   V(CoverageInfo)                              \

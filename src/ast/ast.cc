@@ -7,7 +7,6 @@
 #include <cmath>  // For isfinite.
 #include <vector>
 
-#include "src/ast/compile-time-value.h"
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
 #include "src/base/hashmap.h"
@@ -112,6 +111,13 @@ bool Expression::IsNullLiteral() const {
 
 bool Expression::IsTheHoleLiteral() const {
   return IsLiteral() && AsLiteral()->type() == Literal::kTheHole;
+}
+
+bool Expression::IsCompileTimeValue() {
+  if (IsLiteral()) return true;
+  MaterializedLiteral* literal = AsMaterializedLiteral();
+  if (literal == nullptr) return false;
+  return literal->IsSimple();
 }
 
 bool Expression::IsUndefinedLiteral() const {
@@ -334,8 +340,7 @@ ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
 
 bool ObjectLiteral::Property::IsCompileTimeValue() const {
   return kind_ == CONSTANT ||
-      (kind_ == MATERIALIZED_LITERAL &&
-       CompileTimeValue::IsCompileTimeValue(value_));
+         (kind_ == MATERIALIZED_LITERAL && value_->IsCompileTimeValue());
 }
 
 
@@ -445,7 +450,7 @@ int ObjectLiteral::InitDepthAndFlags() {
     Literal* key = property->key()->AsLiteral();
     Expression* value = property->value();
 
-    bool is_compile_time_value = CompileTimeValue::IsCompileTimeValue(value);
+    bool is_compile_time_value = value->IsCompileTimeValue();
     is_simple = is_simple && is_compile_time_value;
 
     // Keep track of the number of elements in the object literal and
@@ -568,7 +573,7 @@ int ArrayLiteral::InitDepthAndFlags() {
       if (subliteral_depth > depth_acc) depth_acc = subliteral_depth;
     }
 
-    if (!CompileTimeValue::IsCompileTimeValue(element)) {
+    if (!element->IsCompileTimeValue()) {
       is_simple = false;
     }
   }
@@ -662,8 +667,8 @@ Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
   if (expression->IsLiteral()) {
     return expression->AsLiteral()->BuildValue(isolate);
   }
-  if (CompileTimeValue::IsCompileTimeValue(expression)) {
-    return CompileTimeValue::GetValue(isolate, expression);
+  if (expression->IsCompileTimeValue()) {
+    return isolate->factory()->NewCompileTimeValue(expression);
   }
   return isolate->factory()->uninitialized_value();
 }

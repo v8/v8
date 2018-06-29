@@ -23,6 +23,7 @@
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
@@ -241,6 +242,27 @@ Handle<ConstantElementsPair> Factory::NewConstantElementsPair(
       Handle<ConstantElementsPair>::cast(NewStruct(TUPLE2_TYPE, TENURED));
   result->set_elements_kind(elements_kind);
   result->set_constant_values(*constant_values);
+  return result;
+}
+
+Handle<CompileTimeValue> Factory::NewCompileTimeValue(Expression* expression) {
+  DCHECK(expression->IsCompileTimeValue());
+  Handle<CompileTimeValue> result =
+      Handle<CompileTimeValue>::cast(NewStruct(TUPLE2_TYPE, TENURED));
+
+  if (expression->IsObjectLiteral()) {
+    ObjectLiteral* object_literal = expression->AsObjectLiteral();
+    DCHECK(object_literal->is_simple());
+    int literalTypeFlag = object_literal->EncodeLiteralType();
+    DCHECK_NE(CompileTimeValue::kArrayLiteralFlag, literalTypeFlag);
+    result->set_literal_type_flag(literalTypeFlag);
+    result->set_constant_elements(*object_literal->constant_properties());
+  } else {
+    ArrayLiteral* array_literal = expression->AsArrayLiteral();
+    DCHECK(array_literal->is_simple());
+    result->set_literal_type_flag(CompileTimeValue::kArrayLiteralFlag);
+    result->set_constant_elements(*array_literal->constant_elements());
+  }
   return result;
 }
 

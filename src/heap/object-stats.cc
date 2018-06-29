@@ -827,7 +827,8 @@ void ObjectStatsCollectorImpl::
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           array, HeapObject::cast(entry), type);
     }
-  } else if (MatchesConstantElementsPair(object)) {
+  } else if (MatchesConstantElementsPair(object) ||
+             object->IsCompileTimeValue()) {
     Tuple2* tuple = Tuple2::cast(object);
     RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
         tuple, HeapObject::cast(tuple->value2()), type);
@@ -844,7 +845,8 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
   FixedArray* constant_pool = FixedArray::cast(bytecode->constant_pool());
   for (int i = 0; i < constant_pool->length(); i++) {
     Object* entry = constant_pool->get(i);
-    if (entry->IsFixedArrayExact() || MatchesConstantElementsPair(entry)) {
+    if (entry->IsFixedArrayExact() || MatchesConstantElementsPair(entry) ||
+        entry->IsCompileTimeValue()) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           constant_pool, HeapObject::cast(entry),
           ObjectStats::EMBEDDED_OBJECT_TYPE);
@@ -906,7 +908,8 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code* code) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Object* target = it.rinfo()->target_object();
-      if (target->IsFixedArrayExact() || MatchesConstantElementsPair(target)) {
+      if (target->IsFixedArrayExact() || MatchesConstantElementsPair(target) ||
+          target->IsCompileTimeValue()) {
         RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
             code, HeapObject::cast(target), ObjectStats::EMBEDDED_OBJECT_TYPE);
       }

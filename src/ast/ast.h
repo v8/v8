@@ -241,6 +241,8 @@ class Expression : public AstNode {
   // that this also checks for loads of the global "undefined" variable.
   bool IsUndefinedLiteral() const;
 
+  bool IsCompileTimeValue();
+
  protected:
   Expression(int pos, NodeType type) : AstNode(pos, type) {}
 
@@ -1121,7 +1123,7 @@ class MaterializedLiteral : public Expression {
 
   // If the expression is a literal, return the literal value;
   // if the expression is a materialized literal and is simple return a
-  // compile time value as encoded by CompileTimeValue::GetValue().
+  // compile time value as encoded by CompileTimeValue
   // Otherwise, return undefined literal as the placeholder
   // in the object literal boilerplate.
   Handle<Object> GetBoilerplateValue(Expression* expression, Isolate* isolate);
