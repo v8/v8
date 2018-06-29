@@ -166,7 +166,8 @@ TEST(MemoryChunk) {
   size_t initial_commit_area_size;
 
   for (int i = 0; i < 100; i++) {
-    initial_commit_area_size = PseudorandomAreaSize();
+    initial_commit_area_size =
+        RoundUp(PseudorandomAreaSize(), CommitPageSize());
 
     // With CodeRange.
     const size_t code_range_size = 32 * MB;

@@ -785,6 +785,8 @@ DEFINE_BOOL(optimize_ephemerons, true,
 DEFINE_NEG_NEG_IMPLICATION(optimize_ephemerons, parallel_ephemeron_marking)
 DEFINE_NEG_NEG_IMPLICATION(optimize_ephemerons, parallel_ephemeron_visiting)
 
+DEFINE_BOOL(clear_free_memory, true, "initialize free memory with 0")
+
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
             "generate extra code (assertions) for debugging")

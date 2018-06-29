@@ -715,6 +715,10 @@ class Heap {
 #endif
   }
 
+  static uintptr_t ZapValue() {
+    return FLAG_clear_free_memory ? kClearedFreeMemoryValue : kZapValue;
+  }
+
   static inline bool IsYoungGenerationCollector(GarbageCollector collector) {
     return collector == SCAVENGER || collector == MINOR_MARK_COMPACTOR;
   }

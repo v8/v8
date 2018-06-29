@@ -854,8 +854,8 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     }
 
     if (Heap::ShouldZapGarbage()) {
-      ZapBlock(base, CodePageGuardStartOffset());
-      ZapBlock(base + CodePageAreaStartOffset(), commit_area_size);
+      ZapBlock(base, CodePageGuardStartOffset(), kZapValue);
+      ZapBlock(base + CodePageAreaStartOffset(), commit_area_size, kZapValue);
     }
 
     area_start = base + CodePageAreaStartOffset();
@@ -873,7 +873,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     if (base == kNullAddress) return nullptr;
 
     if (Heap::ShouldZapGarbage()) {
-      ZapBlock(base, Page::kObjectStartOffset + commit_area_size);
+      ZapBlock(base, Page::kObjectStartOffset + commit_area_size, kZapValue);
     }
 
     area_start = base + Page::kObjectStartOffset;
@@ -1173,7 +1173,7 @@ bool MemoryAllocator::CommitBlock(Address start, size_t size) {
   if (!CommitMemory(start, size)) return false;
 
   if (Heap::ShouldZapGarbage()) {
-    ZapBlock(start, size);
+    ZapBlock(start, size, kZapValue);
   }
 
   isolate_->counters()->memory_allocated()->Increment(static_cast<int>(size));
@@ -1187,10 +1187,12 @@ bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
   return true;
 }
 
-
-void MemoryAllocator::ZapBlock(Address start, size_t size) {
+void MemoryAllocator::ZapBlock(Address start, size_t size,
+                               uintptr_t zap_value) {
+  DCHECK_EQ(start % kPointerSize, 0);
+  DCHECK_EQ(size % kPointerSize, 0);
   for (size_t s = 0; s + kPointerSize <= size; s += kPointerSize) {
-    Memory::Address_at(start + s) = static_cast<Address>(kZapValue);
+    Memory::Address_at(start + s) = static_cast<Address>(zap_value);
   }
 }
 
