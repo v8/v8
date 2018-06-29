@@ -50,24 +50,28 @@ module array {
   }
 
   macro Store<ElementsAccessor : type>(
-      context: Context, receiver: Object, index: Smi, value: Object) {
+      context: Context, receiver: Object, index: Smi, value: Object)
+      labels Bailout {
     SetProperty(context, receiver, index, value, kStrict);
   }
 
   Store<FastPackedSmiElements>(
-      context: Context, elements: Object, index: Smi, value: Object) {
+      context: Context, elements: Object, index: Smi, value: Object)
+      labels Bailout {
     let elems: FixedArray = unsafe_cast<FixedArray>(elements);
     elems[index] = value;
   }
 
   Store<FastSmiOrObjectElements>(
-      context: Context, elements: Object, index: Smi, value: Object) {
+      context: Context, elements: Object, index: Smi, value: Object)
+      labels Bailout {
     let elems: FixedArray = unsafe_cast<FixedArray>(elements);
     elems[index] = value;
   }
 
   Store<FastDoubleElements>(
-      context: Context, elements: Object, index: Smi, value: Object) {
+      context: Context, elements: Object, index: Smi, value: Object)
+      labels Bailout {
     let elems: FixedDoubleArray = unsafe_cast<FixedDoubleArray>(elements);
     let heap_val: HeapNumber = unsafe_cast<HeapNumber>(value);
     // Make sure we do not store signalling NaNs into double arrays.
@@ -82,18 +86,13 @@ module array {
   }
 
   Store<DictionaryElements>(
-      context: Context, elements: Object, index: Smi, value: Object) {
-    try {
-      let dictionary: NumberDictionary =
-          unsafe_cast<NumberDictionary>(elements);
-      let intptr_index: intptr = convert<intptr>(index);
-      BasicStoreNumberDictionaryElement(dictionary, intptr_index, value)
-      otherwise Fail, Fail;
-      return;
-    }
-    label Fail {
-      unreachable;
-    }
+      context: Context, elements: Object, index: Smi, value: Object)
+      labels Bailout {
+    let dictionary: NumberDictionary = unsafe_cast<NumberDictionary>(elements);
+    let intptr_index: intptr = convert<intptr>(index);
+    BasicStoreNumberDictionaryElement(dictionary, intptr_index, value)
+    otherwise Bailout, Bailout;
+    return;
   }
 
   builtin SortCompareDefault(
@@ -208,12 +207,12 @@ module array {
             initialReceiverLength, userCmpFn, sortCompare, tmp, element)
         otherwise Bailout;
         if (order > 0) {
-          Store<E>(context, elements, j + 1, tmp);
+          Store<E>(context, elements, j + 1, tmp) otherwise Bailout;
         } else {
           break;
         }
       }
-      Store<E>(context, elements, j + 1, element);
+      Store<E>(context, elements, j + 1, element) otherwise Bailout;
     }
   }
 
@@ -328,8 +327,8 @@ module array {
     }
 
     // v0 <= v1 <= v2.
-    Store<E>(context, elements, from, v0);
-    Store<E>(context, elements, to - 1, v2);
+    Store<E>(context, elements, from, v0) otherwise Bailout;
+    Store<E>(context, elements, to - 1, v2) otherwise Bailout;
 
     // Move pivot element to a place on the left.
     Swap<E>(context, elements, from + 1, third_index, v1) otherwise Bailout;
@@ -347,8 +346,8 @@ module array {
       value: Object)
   labels Bailout {
     let tmp: Object = Load<E>(context, elements, indexA) otherwise Bailout;
-    Store<E>(context, elements, indexB, tmp);
-    Store<E>(context, elements, indexA, value);
+    Store<E>(context, elements, indexB, tmp) otherwise Bailout;
+    Store<E>(context, elements, indexA, value) otherwise Bailout;
   }
 
   macro ArrayQuickSortImpl<E : type>(
