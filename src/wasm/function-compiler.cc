@@ -129,8 +129,9 @@ void WasmCompilationUnit::SwitchMode(CompilationMode new_mode) {
 // static
 wasm::WasmCode* WasmCompilationUnit::CompileWasmFunction(
     wasm::NativeModule* native_module, wasm::ErrorThrower* thrower,
-    Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
-    const wasm::WasmFunction* function, CompilationMode mode) {
+    Isolate* isolate, ModuleEnv* env, const wasm::WasmFunction* function,
+    CompilationMode mode) {
+  ModuleWireBytes wire_bytes(native_module->wire_bytes());
   wasm::FunctionBody function_body{
       function->sig, function->code.offset(),
       wire_bytes.start() + function->code.offset(),

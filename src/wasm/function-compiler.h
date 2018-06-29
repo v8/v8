@@ -73,8 +73,7 @@ class WasmCompilationUnit final {
 
   static wasm::WasmCode* CompileWasmFunction(
       wasm::NativeModule* native_module, wasm::ErrorThrower* thrower,
-      Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
-      const wasm::WasmFunction* function,
+      Isolate* isolate, ModuleEnv* env, const wasm::WasmFunction* function,
       CompilationMode = GetDefaultCompilationMode());
 
   size_t memory_cost() const { return memory_cost_; }

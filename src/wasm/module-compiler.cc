@@ -608,21 +608,19 @@ bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state) {
   return true;
 }
 
-void InitializeCompilationUnits(const std::vector<WasmFunction>& functions,
-                                const ModuleWireBytes& wire_bytes,
-                                const WasmModule* wasm_module,
-                                NativeModule* native_module) {
-  uint32_t start = wasm_module->num_imported_functions;
-  uint32_t num_funcs = static_cast<uint32_t>(functions.size());
-
+void InitializeCompilationUnits(NativeModule* native_module,
+                                const ModuleWireBytes& wire_bytes) {
+  const WasmModule* module = native_module->module();
   CompilationUnitBuilder builder(native_module);
-  for (uint32_t i = start; i < num_funcs; ++i) {
-    const WasmFunction* func = &functions[i];
+  uint32_t start = module->num_imported_functions;
+  uint32_t end = start + module->num_declared_functions;
+  for (uint32_t i = start; i < end; ++i) {
+    const WasmFunction* func = &module->functions[i];
     uint32_t buffer_offset = func->code.offset();
     Vector<const uint8_t> bytes(wire_bytes.start() + func->code.offset(),
                                 func->code.end_offset() - func->code.offset());
 
-    WasmName name = wire_bytes.GetName(func, wasm_module);
+    WasmName name = wire_bytes.GetName(func, module);
     DCHECK_NOT_NULL(native_module);
     builder.AddUnit(func, buffer_offset, bytes, name);
   }
@@ -654,10 +652,9 @@ void FinishCompilationUnits(CompilationState* compilation_state,
 }
 
 void CompileInParallel(Isolate* isolate, NativeModule* native_module,
-                       const ModuleWireBytes& wire_bytes, ModuleEnv* module_env,
+                       const ModuleWireBytes& wire_bytes,
                        Handle<WasmModuleObject> module_object,
                        ErrorThrower* thrower) {
-  const WasmModule* module = module_env->module;
   // Data structures for the parallel compilation.
 
   //-----------------------------------------------------------------------
@@ -699,8 +696,7 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   //    {compilation_state}. By adding units to the {compilation_state}, new
   //    {BackgroundCompileTask} instances are spawned which run on
   //    background threads.
-  InitializeCompilationUnits(module->functions, compilation_state->wire_bytes(),
-                             module, native_module);
+  InitializeCompilationUnits(native_module, compilation_state->wire_bytes());
 
   // 2.a) The background threads and the main thread pick one compilation
   //      unit at a time and execute the parallel phase of the compilation
@@ -752,7 +748,7 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
 
     // Compile the function.
     wasm::WasmCode* code = WasmCompilationUnit::CompileWasmFunction(
-        native_module, thrower, isolate, wire_bytes, module_env, &func);
+        native_module, thrower, isolate, module_env, &func);
     if (code == nullptr) {
       TruncatedUserString<> name(wire_bytes.GetName(&func, module));
       thrower->CompileError("Compilation of #%d:%.*s failed.", i, name.length(),
@@ -762,11 +758,12 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
   }
 }
 
-void ValidateSequentially(Isolate* isolate, const ModuleWireBytes& wire_bytes,
-                          ModuleEnv* module_env, ErrorThrower* thrower) {
+void ValidateSequentially(Isolate* isolate, NativeModule* native_module,
+                          ErrorThrower* thrower) {
   DCHECK(!thrower->error());
 
-  const WasmModule* module = module_env->module;
+  ModuleWireBytes wire_bytes(native_module->wire_bytes());
+  const WasmModule* module = native_module->module();
   for (uint32_t i = 0; i < module->functions.size(); ++i) {
     const WasmFunction& func = module->functions[i];
     if (func.imported) continue;
@@ -801,7 +798,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
       // TODO(clemensh): According to the spec, we can actually skip validation
       // at module creation time, and return a function that always traps at
       // (lazy) compilation time.
-      ValidateSequentially(isolate, wire_bytes, env, thrower);
+      ValidateSequentially(isolate, native_module, thrower);
       if (thrower->error()) return;
     }
 
@@ -815,7 +812,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
         V8::GetCurrentPlatform()->NumberOfWorkerThreads() > 0;
 
     if (compile_parallel) {
-      CompileInParallel(isolate, native_module, wire_bytes, env, module_object,
+      CompileInParallel(isolate, native_module, wire_bytes, module_object,
                         thrower);
     } else {
       CompileSequentially(isolate, native_module, wire_bytes, env, thrower);
@@ -2589,8 +2586,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       compilation_state->SetNumberOfFunctionsToCompile(
           module->num_declared_functions);
       // Add compilation units and kick off compilation.
-      InitializeCompilationUnits(module->functions, job_->wire_bytes_, module,
-                                 job_->native_module_);
+      InitializeCompilationUnits(job_->native_module_, job_->wire_bytes_);
     }
   }
 };
