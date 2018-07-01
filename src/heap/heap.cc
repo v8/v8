@@ -5333,10 +5333,9 @@ void Heap::ExternalStringTable::CleanUpNewSpaceStrings() {
     if (o->IsTheHole(isolate)) {
       continue;
     }
-    if (o->IsThinString()) {
-      o = ThinString::cast(o)->actual();
-      if (!o->IsExternalString()) continue;
-    }
+    // The real external string is already in one of these vectors and was or
+    // will be processed. Re-processing it will add a duplicate to the vector.
+    if (o->IsThinString()) continue;
     DCHECK(o->IsExternalString());
     if (heap_->InNewSpace(o)) {
       new_space_strings_[last++] = o;
@@ -5356,10 +5355,9 @@ void Heap::ExternalStringTable::CleanUpAll() {
     if (o->IsTheHole(isolate)) {
       continue;
     }
-    if (o->IsThinString()) {
-      o = ThinString::cast(o)->actual();
-      if (!o->IsExternalString()) continue;
-    }
+    // The real external string is already in one of these vectors and was or
+    // will be processed. Re-processing it will add a duplicate to the vector.
+    if (o->IsThinString()) continue;
     DCHECK(o->IsExternalString());
     DCHECK(!heap_->InNewSpace(o));
     old_space_strings_[last++] = o;
