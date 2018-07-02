@@ -478,7 +478,7 @@ bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
   UseScratchRegisterScope temps(this);
   VRegister scratch = temps.AcquireV(kFormat8B);
-  Fmov(scratch, src.X());
+  Fmov(scratch.S(), src.W());
   Cnt(scratch, scratch);
   Addv(scratch.B(), scratch);
   Fmov(dst.W(), scratch.S());
