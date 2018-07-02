@@ -746,7 +746,7 @@ TEST(PreParserScopeAnalysis) {
       i::ParseInfo using_scope_data(isolate, shared);
       using_scope_data.set_lazy_compile();
       using_scope_data.consumed_preparsed_scope_data()->SetData(
-          produced_data_on_heap);
+          isolate, produced_data_on_heap);
       CHECK(i::parsing::ParseFunction(&using_scope_data, shared, isolate));
 
       // Verify that we skipped at least one function inside that scope.

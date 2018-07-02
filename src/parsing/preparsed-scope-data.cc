@@ -481,12 +481,15 @@ uint8_t ConsumedPreParsedScopeData::ByteData::ReadQuarter() {
 }
 
 ConsumedPreParsedScopeData::ConsumedPreParsedScopeData()
-    : scope_data_(new ByteData()), child_index_(0) {}
+    : isolate_(nullptr), scope_data_(new ByteData()), child_index_(0) {}
 
 ConsumedPreParsedScopeData::~ConsumedPreParsedScopeData() {}
 
-void ConsumedPreParsedScopeData::SetData(Handle<PreParsedScopeData> data) {
+void ConsumedPreParsedScopeData::SetData(Isolate* isolate,
+                                         Handle<PreParsedScopeData> data) {
+  DCHECK_NOT_NULL(isolate);
   DCHECK(data->IsPreParsedScopeData());
+  isolate_ = isolate;
   data_ = data;
 #ifdef DEBUG
   ByteData::ReadingScope reading_scope(this);
@@ -529,8 +532,7 @@ ConsumedPreParsedScopeData::GetDataForSkippableFunction(
     return nullptr;
   }
   Handle<PreParsedScopeData> child_data_handle(
-      PreParsedScopeData::cast(child_data),
-      PreParsedScopeData::cast(child_data)->GetIsolate());
+      PreParsedScopeData::cast(child_data), isolate_);
   return new (zone) ProducedPreParsedScopeData(child_data_handle, zone);
 }
 
