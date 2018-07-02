@@ -377,10 +377,6 @@ class Debug {
     return reinterpret_cast<Address>(&hook_on_function_call_);
   }
 
-  Address last_step_action_address() {
-    return reinterpret_cast<Address>(&thread_local_.last_step_action_);
-  }
-
   Address suspended_generator_address() {
     return reinterpret_cast<Address>(&thread_local_.suspended_generator_);
   }

@@ -57,8 +57,6 @@ namespace internal {
 
 constexpr double double_min_int_constant = kMinInt;
 constexpr double double_one_half_constant = 0.5;
-constexpr double double_minus_one_half_constant = -0.5;
-constexpr double double_negative_infinity_constant = -V8_INFINITY;
 constexpr uint64_t double_the_hole_nan_constant = kHoleNanInt64;
 constexpr double double_uint32_bias_constant =
     static_cast<double>(kMaxUInt32) + 1;
@@ -480,16 +478,6 @@ ExternalReference ExternalReference::address_of_one_half() {
       reinterpret_cast<Address>(&double_one_half_constant));
 }
 
-ExternalReference ExternalReference::address_of_minus_one_half() {
-  return ExternalReference(
-      reinterpret_cast<Address>(&double_minus_one_half_constant));
-}
-
-ExternalReference ExternalReference::address_of_negative_infinity() {
-  return ExternalReference(
-      reinterpret_cast<Address>(&double_negative_infinity_constant));
-}
-
 ExternalReference ExternalReference::address_of_the_hole_nan() {
   return ExternalReference(
       reinterpret_cast<Address>(&double_the_hole_nan_constant));
@@ -864,11 +852,6 @@ ExternalReference ExternalReference::debug_hook_on_function_call_address(
   return ExternalReference(isolate->debug()->hook_on_function_call_address());
 }
 
-ExternalReference ExternalReference::debug_execution_mode_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->debug_execution_mode_address());
-}
-
 ExternalReference ExternalReference::runtime_function_table_address(
     Isolate* isolate) {
   return ExternalReference(
@@ -936,11 +919,6 @@ ExternalReference ExternalReference::power_double_double_function() {
 ExternalReference ExternalReference::mod_two_doubles_operation() {
   return ExternalReference(
       Redirect(FUNCTION_ADDR(modulo_double_double), BUILTIN_FP_FP_CALL));
-}
-
-ExternalReference ExternalReference::debug_last_step_action_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->debug()->last_step_action_address());
 }
 
 ExternalReference ExternalReference::debug_suspended_generator_address(

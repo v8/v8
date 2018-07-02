@@ -1260,10 +1260,6 @@ class Isolate : private HiddenFactory {
     return reinterpret_cast<Address>(&handle_scope_implementer_);
   }
 
-  Address debug_execution_mode_address() {
-    return reinterpret_cast<Address>(&debug_execution_mode_);
-  }
-
   void SetAtomicsWaitCallback(v8::Isolate::AtomicsWaitCallback callback,
                               void* data);
   void RunAtomicsWaitCallback(v8::Isolate::AtomicsWaitEvent event,
