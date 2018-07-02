@@ -13,12 +13,12 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-uint32_t LiftoffAssembler::PrepareStackFrame() {
+int LiftoffAssembler::PrepareStackFrame() {
   BAILOUT("PrepareStackFrame");
   return 0;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
+void LiftoffAssembler::PatchPrepareStackFrame(int offset,
                                               uint32_t stack_slots) {
   BAILOUT("PatchPrepareStackFrame");
 }

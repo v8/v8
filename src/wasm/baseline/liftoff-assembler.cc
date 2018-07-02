@@ -487,7 +487,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
     const int num_lowered_params = is_pair ? 2 : 1;
     const uint32_t stack_idx = param_base + param;
     const VarState& slot = cache_state_.stack_state[stack_idx];
-    // Process both halfs of register pair separately, because they are passed
+    // Process both halfs of a register pair separately, because they are passed
     // as separate parameters. One or both of them could end up on the stack.
     for (int lowered_idx = 0; lowered_idx < num_lowered_params; ++lowered_idx) {
       const RegPairHalf half =

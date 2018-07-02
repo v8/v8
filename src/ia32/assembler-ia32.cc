@@ -1634,23 +1634,31 @@ void Assembler::call(CodeStub* stub) {
   emit(Immediate::EmbeddedCode(stub));
 }
 
-void Assembler::jmp(Label* L, Label::Distance distance) {
+void Assembler::jmp_rel(int offset) {
   EnsureSpace ensure_space(this);
+  const int short_size = 2;
+  const int long_size = 5;
+  if (is_int8(offset - short_size)) {
+    // 1110 1011 #8-bit disp.
+    EMIT(0xEB);
+    EMIT((offset - short_size) & 0xFF);
+  } else {
+    // 1110 1001 #32-bit disp.
+    EMIT(0xE9);
+    emit(offset - long_size);
+  }
+}
+
+void Assembler::jmp(Label* L, Label::Distance distance) {
   if (L->is_bound()) {
-    const int short_size = 2;
-    const int long_size  = 5;
-    int offs = L->pos() - pc_offset();
-    DCHECK_LE(offs, 0);
-    if (is_int8(offs - short_size)) {
-      // 1110 1011 #8-bit disp.
-      EMIT(0xEB);
-      EMIT((offs - short_size) & 0xFF);
-    } else {
-      // 1110 1001 #32-bit disp.
-      EMIT(0xE9);
-      emit(offs - long_size);
-    }
-  } else if (distance == Label::kNear) {
+    int offset = L->pos() - pc_offset();
+    DCHECK_LE(offset, 0);  // backward jump.
+    jmp_rel(offset);
+    return;
+  }
+
+  EnsureSpace ensure_space(this);
+  if (distance == Label::kNear) {
     EMIT(0xEB);
     emit_near_disp(L);
   } else {

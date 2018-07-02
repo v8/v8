@@ -344,8 +344,8 @@ class LiftoffAssembler : public TurboAssembler {
   // size of the stack frame is known. It returns an offset in the machine code
   // which can later be patched (via {PatchPrepareStackFrame)} when the size of
   // the frame is known.
-  inline uint32_t PrepareStackFrame();
-  inline void PatchPrepareStackFrame(uint32_t offset, uint32_t stack_slots);
+  inline int PrepareStackFrame();
+  inline void PatchPrepareStackFrame(int offset, uint32_t stack_slots);
   inline void FinishCode();
   inline void AbortCompilation();
 

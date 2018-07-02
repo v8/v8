@@ -417,10 +417,10 @@ class LiftoffCompiler {
     for (OutOfLineCode& ool : out_of_line_code_) {
       GenerateOutOfLineCode(ool);
     }
-    __ FinishCode();
-    safepoint_table_builder_.Emit(asm_, __ GetTotalFrameSlotCount());
     __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_,
                               __ GetTotalFrameSlotCount());
+    __ FinishCode();
+    safepoint_table_builder_.Emit(asm_, __ GetTotalFrameSlotCount());
     // The previous calls may have also generated a bailout.
     DidAssemblerBailout(decoder);
   }

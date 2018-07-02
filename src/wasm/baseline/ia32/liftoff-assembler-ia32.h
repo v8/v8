@@ -121,17 +121,20 @@ inline void SpillRegisters(LiftoffAssembler* assm, Regs... regs) {
   }
 }
 
+constexpr DoubleRegister kScratchDoubleReg = xmm7;
+
+constexpr int kSubSpSize = 6;  // 6 bytes for "sub esp, <imm32>"
+
 }  // namespace liftoff
 
-static constexpr DoubleRegister kScratchDoubleReg = xmm7;
-
-uint32_t LiftoffAssembler::PrepareStackFrame() {
-  uint32_t offset = static_cast<uint32_t>(pc_offset());
+int LiftoffAssembler::PrepareStackFrame() {
+  int offset = pc_offset();
   sub_sp_32(0);
+  DCHECK_EQ(liftoff::kSubSpSize, pc_offset() - offset);
   return offset;
 }
 
-void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
+void LiftoffAssembler::PatchPrepareStackFrame(int offset,
                                               uint32_t stack_slots) {
   uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
   DCHECK_LE(bytes, kMaxInt);
@@ -140,7 +143,35 @@ void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
   constexpr int kAvailableSpace = 64;
   Assembler patching_assembler(Assembler::Options{}, buffer_ + offset,
                                kAvailableSpace);
+#if V8_OS_WIN
+  constexpr int kPageSize = 4 * 1024;
+  if (bytes > kPageSize) {
+    // Generate OOL code (at the end of the function, where the current
+    // assembler is pointing) to do the explicit stack limit check (see
+    // https://docs.microsoft.com/en-us/previous-versions/visualstudio/
+    // visual-studio-6.0/aa227153(v=vs.60)).
+    // At the function start, emit a jump to that OOL code (from {offset} to
+    // {pc_offset()}).
+    int ool_offset = pc_offset() - offset;
+    patching_assembler.jmp_rel(ool_offset);
+    DCHECK_GE(liftoff::kSubSpSize, patching_assembler.pc_offset());
+    patching_assembler.Nop(liftoff::kSubSpSize -
+                           patching_assembler.pc_offset());
+
+    // Now generate the OOL code.
+    // Use {edi} as scratch register; it is not being used as parameter
+    // register (see wasm-linkage.h).
+    mov(edi, bytes);
+    AllocateStackFrame(edi);
+    // Jump back to the start of the function (from {pc_offset()} to {offset +
+    // kSubSpSize}).
+    int func_start_offset = offset + liftoff::kSubSpSize - pc_offset();
+    jmp_rel(func_start_offset);
+    return;
+  }
+#endif
   patching_assembler.sub_sp_32(bytes);
+  DCHECK_EQ(liftoff::kSubSpSize, patching_assembler.pc_offset());
 }
 
 void LiftoffAssembler::FinishCode() {}
@@ -884,9 +915,9 @@ void LiftoffAssembler::emit_f32_sub(DoubleRegister dst, DoubleRegister lhs,
     CpuFeatureScope scope(this, AVX);
     vsubss(dst, lhs, rhs);
   } else if (dst == rhs) {
-    movss(kScratchDoubleReg, rhs);
+    movss(liftoff::kScratchDoubleReg, rhs);
     movss(dst, lhs);
-    subss(dst, kScratchDoubleReg);
+    subss(dst, liftoff::kScratchDoubleReg);
   } else {
     if (dst != lhs) movss(dst, lhs);
     subss(dst, rhs);
@@ -912,9 +943,9 @@ void LiftoffAssembler::emit_f32_div(DoubleRegister dst, DoubleRegister lhs,
     CpuFeatureScope scope(this, AVX);
     vdivss(dst, lhs, rhs);
   } else if (dst == rhs) {
-    movss(kScratchDoubleReg, rhs);
+    movss(liftoff::kScratchDoubleReg, rhs);
     movss(dst, lhs);
-    divss(dst, kScratchDoubleReg);
+    divss(dst, liftoff::kScratchDoubleReg);
   } else {
     if (dst != lhs) movss(dst, lhs);
     divss(dst, rhs);
@@ -997,8 +1028,8 @@ void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
 void LiftoffAssembler::emit_f32_abs(DoubleRegister dst, DoubleRegister src) {
   static constexpr uint32_t kSignBit = uint32_t{1} << 31;
   if (dst == src) {
-    TurboAssembler::Move(kScratchDoubleReg, kSignBit - 1);
-    Andps(dst, kScratchDoubleReg);
+    TurboAssembler::Move(liftoff::kScratchDoubleReg, kSignBit - 1);
+    Andps(dst, liftoff::kScratchDoubleReg);
   } else {
     TurboAssembler::Move(dst, kSignBit - 1);
     Andps(dst, src);
@@ -1008,8 +1039,8 @@ void LiftoffAssembler::emit_f32_abs(DoubleRegister dst, DoubleRegister src) {
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   static constexpr uint32_t kSignBit = uint32_t{1} << 31;
   if (dst == src) {
-    TurboAssembler::Move(kScratchDoubleReg, kSignBit);
-    Xorps(dst, kScratchDoubleReg);
+    TurboAssembler::Move(liftoff::kScratchDoubleReg, kSignBit);
+    Xorps(dst, liftoff::kScratchDoubleReg);
   } else {
     TurboAssembler::Move(dst, kSignBit);
     Xorps(dst, src);
@@ -1060,9 +1091,9 @@ void LiftoffAssembler::emit_f64_sub(DoubleRegister dst, DoubleRegister lhs,
     CpuFeatureScope scope(this, AVX);
     vsubsd(dst, lhs, rhs);
   } else if (dst == rhs) {
-    movsd(kScratchDoubleReg, rhs);
+    movsd(liftoff::kScratchDoubleReg, rhs);
     movsd(dst, lhs);
-    subsd(dst, kScratchDoubleReg);
+    subsd(dst, liftoff::kScratchDoubleReg);
   } else {
     if (dst != lhs) movsd(dst, lhs);
     subsd(dst, rhs);
@@ -1088,9 +1119,9 @@ void LiftoffAssembler::emit_f64_div(DoubleRegister dst, DoubleRegister lhs,
     CpuFeatureScope scope(this, AVX);
     vdivsd(dst, lhs, rhs);
   } else if (dst == rhs) {
-    movsd(kScratchDoubleReg, rhs);
+    movsd(liftoff::kScratchDoubleReg, rhs);
     movsd(dst, lhs);
-    divsd(dst, kScratchDoubleReg);
+    divsd(dst, liftoff::kScratchDoubleReg);
   } else {
     if (dst != lhs) movsd(dst, lhs);
     divsd(dst, rhs);
@@ -1112,8 +1143,8 @@ void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
 void LiftoffAssembler::emit_f64_abs(DoubleRegister dst, DoubleRegister src) {
   static constexpr uint64_t kSignBit = uint64_t{1} << 63;
   if (dst == src) {
-    TurboAssembler::Move(kScratchDoubleReg, kSignBit - 1);
-    Andpd(dst, kScratchDoubleReg);
+    TurboAssembler::Move(liftoff::kScratchDoubleReg, kSignBit - 1);
+    Andpd(dst, liftoff::kScratchDoubleReg);
   } else {
     TurboAssembler::Move(dst, kSignBit - 1);
     Andpd(dst, src);
@@ -1123,8 +1154,8 @@ void LiftoffAssembler::emit_f64_abs(DoubleRegister dst, DoubleRegister src) {
 void LiftoffAssembler::emit_f64_neg(DoubleRegister dst, DoubleRegister src) {
   static constexpr uint64_t kSignBit = uint64_t{1} << 63;
   if (dst == src) {
-    TurboAssembler::Move(kScratchDoubleReg, kSignBit);
-    Xorpd(dst, kScratchDoubleReg);
+    TurboAssembler::Move(liftoff::kScratchDoubleReg, kSignBit);
+    Xorpd(dst, liftoff::kScratchDoubleReg);
   } else {
     TurboAssembler::Move(dst, kSignBit);
     Xorpd(dst, src);
@@ -1173,7 +1204,7 @@ inline void ConvertFloatToIntAndBack(LiftoffAssembler* assm, Register dst,
       assm->cvttsd2si(dst, src);
       assm->Cvtsi2sd(converted_back, dst);
     } else {  // f64 -> u32
-      assm->Cvttsd2ui(dst, src, kScratchDoubleReg);
+      assm->Cvttsd2ui(dst, src, liftoff::kScratchDoubleReg);
       assm->Cvtui2sd(converted_back, dst);
     }
   } else {                                  // f32
@@ -1181,7 +1212,7 @@ inline void ConvertFloatToIntAndBack(LiftoffAssembler* assm, Register dst,
       assm->cvttss2si(dst, src);
       assm->Cvtsi2ss(converted_back, dst);
     } else {  // f32 -> u32
-      assm->Cvttss2ui(dst, src, kScratchDoubleReg);
+      assm->Cvttss2ui(dst, src, liftoff::kScratchDoubleReg);
       assm->Cvtui2ss(converted_back, dst,
                      assm->GetUnusedRegister(kGpReg, pinned).gp());
     }
