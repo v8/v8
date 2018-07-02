@@ -181,6 +181,8 @@ class GlobalHandles {
   void Print();
 #endif  // DEBUG
 
+  void InvokeSecondPassPhantomCallbacks();
+
  private:
   // Internal node structures.
   class Node;
@@ -191,9 +193,7 @@ class GlobalHandles {
 
   explicit GlobalHandles(Isolate* isolate);
 
-  // Helpers for PostGarbageCollectionProcessing.
-  static void InvokeSecondPassPhantomCallbacks(
-      std::vector<PendingPhantomCallback>* callbacks, Isolate* isolate);
+  void InvokeSecondPassPhantomCallbacksFromTask();
   int PostScavengeProcessing(int initial_post_gc_processing_count);
   int PostMarkSweepProcessing(int initial_post_gc_processing_count);
   int DispatchPendingPhantomCallbacks(bool synchronous_second_pass);
@@ -224,6 +224,8 @@ class GlobalHandles {
   size_t number_of_phantom_handle_resets_;
 
   std::vector<PendingPhantomCallback> pending_phantom_callbacks_;
+  std::vector<PendingPhantomCallback> second_pass_callbacks_;
+  bool second_pass_callbacks_task_posted_ = false;
 
   friend class Isolate;
 

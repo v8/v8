@@ -483,5 +483,34 @@ TEST(GCFromWeakCallbacks) {
   }
 }
 
+namespace {
+
+void SecondPassCallback(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->flag = true;
+}
+
+void FirstPassCallback(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+  data.GetParameter()->handle.Reset();
+  data.SetSecondPassCallback(SecondPassCallback);
+}
+
+}  // namespace
+
+TEST(SecondPassPhantomCallbacks) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Locker locker(CcTest::isolate());
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+  FlagAndPersistent fp;
+  ConstructJSApiObject(isolate, context, &fp);
+  fp.flag = false;
+  fp.handle.SetWeak(&fp, FirstPassCallback, v8::WeakCallbackType::kParameter);
+  CHECK(!fp.flag);
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  CHECK(fp.flag);
+}
+
 }  // namespace internal
 }  // namespace v8

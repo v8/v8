@@ -1362,6 +1362,9 @@ bool Heap::CollectGarbage(AllocationSpace space,
     InvokeNearHeapLimitCallback();
   }
 
+  // Ensure that all pending phantom callbacks are invoked.
+  isolate()->global_handles()->InvokeSecondPassPhantomCallbacks();
+
   // The VM is in the GC state until exiting this function.
   VMState<GC> state(isolate());
 

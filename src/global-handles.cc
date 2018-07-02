@@ -509,30 +509,16 @@ class GlobalHandles::NodeIterator {
 class GlobalHandles::PendingPhantomCallbacksSecondPassTask
     : public v8::internal::CancelableTask {
  public:
-  // Takes ownership of the contents of pending_phantom_callbacks, leaving it in
-  // the same state it would be after a call to Clear().
-  PendingPhantomCallbacksSecondPassTask(
-      std::vector<PendingPhantomCallback>* pending_phantom_callbacks,
-      Isolate* isolate)
-      : CancelableTask(isolate), isolate_(isolate) {
-    pending_phantom_callbacks_.swap(*pending_phantom_callbacks);
-  }
+  PendingPhantomCallbacksSecondPassTask(GlobalHandles* global_handles,
+                                        Isolate* isolate)
+      : CancelableTask(isolate), global_handles_(global_handles) {}
 
   void RunInternal() override {
-    TRACE_EVENT0("v8", "V8.GCPhantomHandleProcessingCallback");
-    isolate()->heap()->CallGCPrologueCallbacks(
-        GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
-    InvokeSecondPassPhantomCallbacks(&pending_phantom_callbacks_, isolate());
-    isolate()->heap()->CallGCEpilogueCallbacks(
-        GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
+    global_handles_->InvokeSecondPassPhantomCallbacksFromTask();
   }
 
-  Isolate* isolate() { return isolate_; }
-
  private:
-  Isolate* isolate_;
-  std::vector<PendingPhantomCallback> pending_phantom_callbacks_;
-
+  GlobalHandles* global_handles_;
   DISALLOW_COPY_AND_ASSIGN(PendingPhantomCallbacksSecondPassTask);
 };
 
@@ -765,17 +751,26 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
   }
 }
 
-void GlobalHandles::InvokeSecondPassPhantomCallbacks(
-    std::vector<PendingPhantomCallback>* callbacks, Isolate* isolate) {
-  while (!callbacks->empty()) {
-    auto callback = callbacks->back();
-    callbacks->pop_back();
-    DCHECK_NULL(callback.node());
-    // Fire second pass callback
-    callback.Invoke(isolate);
-  }
+void GlobalHandles::InvokeSecondPassPhantomCallbacksFromTask() {
+  DCHECK(second_pass_callbacks_task_posted_);
+  second_pass_callbacks_task_posted_ = false;
+  TRACE_EVENT0("v8", "V8.GCPhantomHandleProcessingCallback");
+  isolate()->heap()->CallGCPrologueCallbacks(
+      GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
+  InvokeSecondPassPhantomCallbacks();
+  isolate()->heap()->CallGCEpilogueCallbacks(
+      GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
 }
 
+void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
+  while (!second_pass_callbacks_.empty()) {
+    auto callback = second_pass_callbacks_.back();
+    second_pass_callbacks_.pop_back();
+    DCHECK_NULL(callback.node());
+    // Fire second pass callback
+    callback.Invoke(isolate());
+  }
+}
 
 int GlobalHandles::PostScavengeProcessing(
     const int initial_post_gc_processing_count) {
@@ -864,28 +859,29 @@ void GlobalHandles::UpdateListOfNewSpaceNodes() {
 int GlobalHandles::DispatchPendingPhantomCallbacks(
     bool synchronous_second_pass) {
   int freed_nodes = 0;
-  std::vector<PendingPhantomCallback> second_pass_callbacks;
+  // Protect against callback modifying pending_phantom_callbacks_.
+  std::vector<PendingPhantomCallback> pending_phantom_callbacks;
+  pending_phantom_callbacks.swap(pending_phantom_callbacks_);
   {
     // The initial pass callbacks must simply clear the nodes.
-    for (auto callback : pending_phantom_callbacks_) {
+    for (auto callback : pending_phantom_callbacks) {
       // Skip callbacks that have already been processed once.
       if (callback.node() == nullptr) continue;
       callback.Invoke(isolate());
-      if (callback.callback()) second_pass_callbacks.push_back(callback);
+      if (callback.callback()) second_pass_callbacks_.push_back(callback);
       freed_nodes++;
     }
   }
-  pending_phantom_callbacks_.clear();
-  if (!second_pass_callbacks.empty()) {
+  if (!second_pass_callbacks_.empty()) {
     if (FLAG_optimize_for_size || FLAG_predictable || synchronous_second_pass) {
       isolate()->heap()->CallGCPrologueCallbacks(
           GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
-      InvokeSecondPassPhantomCallbacks(&second_pass_callbacks, isolate());
+      InvokeSecondPassPhantomCallbacks();
       isolate()->heap()->CallGCEpilogueCallbacks(
           GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
-    } else {
-      auto task = new PendingPhantomCallbacksSecondPassTask(
-          &second_pass_callbacks, isolate());
+    } else if (!second_pass_callbacks_task_posted_) {
+      second_pass_callbacks_task_posted_ = true;
+      auto task = new PendingPhantomCallbacksSecondPassTask(this, isolate());
       V8::GetCurrentPlatform()->CallOnForegroundThread(
           reinterpret_cast<v8::Isolate*>(isolate()), task);
     }
