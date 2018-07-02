@@ -386,6 +386,8 @@ void ProfileTree::TraverseDepthFirst(Callback* callback) {
 
 using v8::tracing::TracedValue;
 
+std::atomic<uint32_t> CpuProfile::last_id_;
+
 CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
                        bool record_samples, ProfilingMode mode)
     : title_(title),
@@ -394,12 +396,13 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, const char* title,
       start_time_(base::TimeTicks::HighResolutionNow()),
       top_down_(profiler->isolate()),
       profiler_(profiler),
-      streaming_next_sample_(0) {
+      streaming_next_sample_(0),
+      id_(++last_id_) {
   auto value = TracedValue::Create();
   value->SetDouble("startTime",
                    (start_time_ - base::TimeTicks()).InMicroseconds());
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "Profile", this, "data", std::move(value));
+                              "Profile", id_, "data", std::move(value));
 }
 
 void CpuProfile::AddPath(base::TimeTicks timestamp,
@@ -491,7 +494,7 @@ void CpuProfile::StreamPendingTraceEvents() {
   }
 
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "ProfileChunk", this, "data", std::move(value));
+                              "ProfileChunk", id_, "data", std::move(value));
 }
 
 void CpuProfile::FinishProfile() {
@@ -500,7 +503,7 @@ void CpuProfile::FinishProfile() {
   auto value = TracedValue::Create();
   value->SetDouble("endTime", (end_time_ - base::TimeTicks()).InMicroseconds());
   TRACE_EVENT_SAMPLE_WITH_ID1(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"),
-                              "ProfileChunk", this, "data", std::move(value));
+                              "ProfileChunk", id_, "data", std::move(value));
 }
 
 void CpuProfile::Print() {

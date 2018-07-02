@@ -5,6 +5,7 @@
 #ifndef V8_PROFILER_PROFILE_GENERATOR_H_
 #define V8_PROFILER_PROFILE_GENERATOR_H_
 
+#include <atomic>
 #include <deque>
 #include <limits>
 #include <map>
@@ -261,7 +262,6 @@ class ProfileNode {
   DISALLOW_COPY_AND_ASSIGN(ProfileNode);
 };
 
-
 class ProfileTree {
  public:
   explicit ProfileTree(Isolate* isolate);
@@ -354,6 +354,9 @@ class CpuProfile {
   ProfileTree top_down_;
   CpuProfiler* const profiler_;
   size_t streaming_next_sample_;
+  uint32_t id_;
+
+  static std::atomic<uint32_t> last_id_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfile);
 };
