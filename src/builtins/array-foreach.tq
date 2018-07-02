@@ -137,8 +137,7 @@ module array {
       let o: Object = ToObject(context, receiver);
 
       // 2. Let len be ? ToLength(? Get(O, "length")).
-      let len: Number =
-          ToLength_Inline(context, GetProperty(context, o, 'length'));
+      let len: Number = GetLengthProperty(context, o);
 
       // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
       if (arguments.length == 0) {

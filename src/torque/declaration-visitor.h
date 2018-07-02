@@ -24,8 +24,7 @@ class DeclarationVisitor : public FileVisitor {
  public:
   explicit DeclarationVisitor(GlobalContext& global_context)
       : FileVisitor(global_context),
-        scope_(declarations(), global_context.ast()->default_module()) {
-  }
+        scope_(declarations(), global_context.GetDefaultModule()) {}
 
   void Visit(Ast* ast) {
     Visit(ast->default_module());
@@ -38,7 +37,7 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(ModuleDeclaration* decl) {
     ScopedModuleActivator activator(this, decl->GetModule());
-    Declarations::NodeScopeActivator scope(declarations(), decl);
+    Declarations::ModuleScopeActivator scope(declarations(), decl->GetModule());
     for (Declaration* child : decl->declarations) Visit(child);
   }
   void Visit(DefaultModuleDeclaration* decl) {
@@ -170,7 +169,7 @@ class DeclarationVisitor : public FileVisitor {
                   const CallableNodeSignature* signature,
                   Statement* body) override;
 
-  Declarations::NodeScopeActivator scope_;
+  Declarations::ModuleScopeActivator scope_;
   std::vector<Builtin*> torque_builtins_;
   std::vector<LiveAndChanged> live_and_changed_variables_;
 };

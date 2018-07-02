@@ -157,7 +157,7 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
   Module* module = decl->GetModule();
   Module* saved_module = module_;
   module_ = module;
-  Declarations::NodeScopeActivator scope(declarations(), decl);
+  Declarations::ModuleScopeActivator scope(declarations(), decl->GetModule());
   for (auto& child : decl->declarations) Visit(child);
   module_ = saved_module;
 }

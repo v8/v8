@@ -26,7 +26,7 @@ type Code extends AbstractCode generates 'TNode<Code>';
 type JSReceiver extends HeapObject generates 'TNode<JSReceiver>';
 type Context extends HeapObject generates 'TNode<Context>';
 type String extends HeapObject generates
-    'TNode<String>' constexpr 'const char*';
+'TNode<String>' constexpr 'const char*';
 type Oddball extends HeapObject generates 'TNode<Oddball>';
 type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
 type Number = Smi|HeapNumber;
@@ -69,16 +69,16 @@ type HasPropertyLookupMode constexpr 'HasPropertyLookupMode';
 const NO_ELEMENTS: constexpr ElementsKind generates 'NO_ELEMENTS';
 
 const PACKED_SMI_ELEMENTS: constexpr ElementsKind generates
-    'PACKED_SMI_ELEMENTS';
+'PACKED_SMI_ELEMENTS';
 const HOLEY_SMI_ELEMENTS: constexpr ElementsKind generates 'HOLEY_SMI_ELEMENTS';
 const PACKED_ELEMENTS: constexpr ElementsKind generates 'PACKED_ELEMENTS';
 const HOLEY_ELEMENTS: constexpr ElementsKind generates 'HOLEY_ELEMENTS';
 const PACKED_DOUBLE_ELEMENTS: constexpr ElementsKind generates
-    'PACKED_DOUBLE_ELEMENTS';
+'PACKED_DOUBLE_ELEMENTS';
 const HOLEY_DOUBLE_ELEMENTS: constexpr ElementsKind generates
-    'HOLEY_DOUBLE_ELEMENTS';
+'HOLEY_DOUBLE_ELEMENTS';
 const DICTIONARY_ELEMENTS: constexpr ElementsKind generates
-    'DICTIONARY_ELEMENTS';
+'DICTIONARY_ELEMENTS';
 
 const UINT8_ELEMENTS: constexpr ElementsKind generates 'UINT8_ELEMENTS';
 const INT8_ELEMENTS: constexpr ElementsKind generates 'INT8_ELEMENTS';
@@ -89,7 +89,7 @@ const INT32_ELEMENTS: constexpr ElementsKind generates 'INT32_ELEMENTS';
 const FLOAT32_ELEMENTS: constexpr ElementsKind generates 'FLOAT32_ELEMENTS';
 const FLOAT64_ELEMENTS: constexpr ElementsKind generates 'FLOAT64_ELEMENTS';
 const UINT8_CLAMPED_ELEMENTS: constexpr ElementsKind generates
-    'UINT8_CLAMPED_ELEMENTS';
+'UINT8_CLAMPED_ELEMENTS';
 const BIGUINT64_ELEMENTS: constexpr ElementsKind generates 'BIGUINT64_ELEMENTS';
 const BIGINT64_ELEMENTS: constexpr ElementsKind generates 'BIGINT64_ELEMENTS';
 
@@ -344,7 +344,7 @@ extern macro SmiToInt32(Smi): int32;
 extern macro LoadHeapNumberValue(HeapNumber): float64;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro ChangeNumberToFloat64(Number): float64;
-extern macro ChangeInt32ToIntPtr(int32): intptr;  // Sign-extends.
+extern macro ChangeInt32ToIntPtr(int32): intptr;   // Sign-extends.
 extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
 
 extern macro NumberConstant(constexpr float64): Number;
@@ -683,13 +683,9 @@ macro NumberIsNaN(number: Number): bool {
 extern macro BranchIfToBooleanIsTrue(Object): never labels Taken, NotTaken;
 
 macro ToBoolean(obj: Object): bool {
-  try {
-    BranchIfToBooleanIsTrue(obj) otherwise Taken, NotTaken;
-  }
-  label Taken {
+  if (BranchIfToBooleanIsTrue(obj)) {
     return true;
-  }
-  label NotTaken {
+  } else {
     return false;
   }
 }

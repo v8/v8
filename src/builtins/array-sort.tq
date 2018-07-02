@@ -568,8 +568,7 @@ module array {
     }
     label slow {
       // 3. Let len be ? ToLength(? Get(obj, "length")).
-      let len: Number =
-          ToLength_Inline(context, GetProperty(context, obj, 'length'));
+      let len: Number = GetLengthProperty(context, obj);
 
       if (len < 2) return receiver;
       let nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);

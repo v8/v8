@@ -162,7 +162,7 @@ void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
   os << " labels ";
   for (size_t i = 0; i < sig.labels.size(); ++i) {
     if (i > 0) os << ", ";
-    os << sig.labels[i].name;
+    if (with_names) os << sig.labels[i].name;
 
     if (sig.labels[i].types.size() > 0) os << "(" << sig.labels[i].types << ")";
   }

@@ -9,6 +9,14 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+Scope* Declarations::GetModuleScope(const Module* module) {
+  auto i = module_scopes_.find(module);
+  if (i != module_scopes_.end()) return i->second;
+  Scope* result = chain_.NewScope();
+  module_scopes_[module] = result;
+  return result;
+}
+
 Scope* Declarations::GetNodeScope(const AstNode* node, bool reset_scope) {
   std::pair<const AstNode*, TypeVector> key(
       node, current_generic_specialization_ == nullptr

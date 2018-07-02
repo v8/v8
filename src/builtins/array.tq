@@ -3,6 +3,16 @@
 // found in the LICENSE file.
 
 module array {
+  macro GetLengthProperty(context: Context, o: Object): Number {
+    if (BranchIfFastJSArray(o, context)) {
+      let a: JSArray = unsafe_cast<JSArray>(o);
+      return a.length_fast;
+    } else
+      deferred {
+        return ToLength_Inline(context, GetProperty(context, o, 'length'));
+      }
+  }
+
   macro FastArraySplice(
       context: Context, args: constexpr Arguments, o: Object,
       originalLengthNumber: Number, actualStartNumber: Number, insertCount: Smi,
@@ -103,8 +113,7 @@ module array {
     let o: Object = ToObject(context, receiver);
 
     // 2. Let len be ? ToLength(? Get(O, "length")).
-    let len: Number =
-        ToLength_Inline(context, GetProperty(context, o, 'length'));
+    let len: Number = GetLengthProperty(context, o);
 
     // 3. Let relativeStart be ? ToInteger(start).
     let start: Object = arguments[0];

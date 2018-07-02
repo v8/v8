@@ -116,6 +116,7 @@ class Declarations {
 
   void PrintScopeChain() { chain_.Print(); }
 
+  class ModuleScopeActivator;
   class NodeScopeActivator;
   class CleanNodeScopeActivator;
   class GenericScopeActivator;
@@ -123,6 +124,7 @@ class Declarations {
   class ScopedGenericScopeChainSnapshot;
 
  private:
+  Scope* GetModuleScope(const Module* module);
   Scope* GetNodeScope(const AstNode* node, bool reset_scope = false);
   Scope* GetGenericScope(Generic* generic, const TypeVector& types);
 
@@ -152,6 +154,7 @@ class Declarations {
   Deduplicator<FunctionPointerType> function_pointer_types_;
   Deduplicator<UnionType> union_types_;
   std::vector<std::unique_ptr<Type>> nominal_types_;
+  std::map<const Module*, Scope*> module_scopes_;
   std::map<std::pair<const AstNode*, TypeVector>, Scope*> scopes_;
   std::map<Generic*, ScopeChain::Snapshot> generic_declaration_scopes_;
 };
@@ -160,6 +163,15 @@ class Declarations::NodeScopeActivator {
  public:
   NodeScopeActivator(Declarations* declarations, AstNode* node)
       : activator_(declarations->GetNodeScope(node)) {}
+
+ private:
+  Scope::Activator activator_;
+};
+
+class Declarations::ModuleScopeActivator {
+ public:
+  ModuleScopeActivator(Declarations* declarations, const Module* module)
+      : activator_(declarations->GetModuleScope(module)) {}
 
  private:
   Scope::Activator activator_;
