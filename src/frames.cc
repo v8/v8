@@ -1774,7 +1774,7 @@ void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
   int func_name_len = std::min(kMaxPrintedFunctionName, raw_func_name.length());
   memcpy(func_name, raw_func_name.start(), func_name_len);
   func_name[func_name_len] = '\0';
-  accumulator->Add("], function #%u ('%s'), pc=%p, pos=%d\n",
+  accumulator->Add("], function #%u ('%s'), pc=+0x%x, pos=%d\n",
                    this->function_index(), func_name, pc, this->position());
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
