@@ -67,7 +67,7 @@ endmacro
 /**
  * Adds bound method to the prototype of the given object.
  */
-function AddBoundMethod(obj, methodName, implementation, length, typename,
+function AddBoundMethod(obj, methodName, implementation, length, type,
                         compat) {
   %CheckIsBootstrapping();
   var internalName = %CreatePrivateSymbol(methodName);
@@ -75,7 +75,7 @@ function AddBoundMethod(obj, methodName, implementation, length, typename,
   DEFINE_METHOD(
     obj.prototype,
     get [methodName]() {
-      var receiver = Unwrap(this, typename, obj, methodName, compat);
+      var receiver = Unwrap(this, type, obj, methodName, compat);
       if (IS_UNDEFINED(receiver[internalName])) {
         var boundMethod;
         if (IS_UNDEFINED(length) || length === 2) {
@@ -120,11 +120,11 @@ function IntlConstruct(receiver, constructor, create, newTarget, args,
 
 
 
-function Unwrap(receiver, typename, constructor, method, compat) {
-  if (!%IsInitializedIntlObjectOfType(receiver, typename)) {
+function Unwrap(receiver, type, constructor, method, compat) {
+  if (!%IsInitializedIntlObjectOfType(receiver, type)) {
     if (compat && receiver instanceof constructor) {
       let fallback = receiver[IntlFallbackSymbol];
-      if (%IsInitializedIntlObjectOfType(fallback, typename)) {
+      if (%IsInitializedIntlObjectOfType(fallback, type)) {
         return fallback;
       }
     }
@@ -1053,7 +1053,7 @@ function CreateCollator(locales, options) {
 
   var collator = %CreateCollator(requestedLocale, internalOptions, resolved);
 
-  %MarkAsInitializedIntlObjectOfType(collator, 'collator');
+  %MarkAsInitializedIntlObjectOfType(collator, COLLATOR_TYPE);
   collator[resolvedSymbol] = resolved;
 
   return collator;
@@ -1079,8 +1079,8 @@ function CollatorConstructor() {
 DEFINE_METHOD(
   GlobalIntlCollator.prototype,
   resolvedOptions() {
-    var coll = Unwrap(this, 'collator', GlobalIntlCollator, 'resolvedOptions',
-                      false);
+    var coll = Unwrap(this, COLLATOR_TYPE, GlobalIntlCollator,
+                      'resolvedOptions', false);
     return {
       locale: coll[resolvedSymbol].locale,
       usage: coll[resolvedSymbol].usage,
@@ -1123,7 +1123,7 @@ function compare(collator, x, y) {
 };
 
 
-AddBoundMethod(GlobalIntlCollator, 'compare', compare, 2, 'collator', false);
+AddBoundMethod(GlobalIntlCollator, 'compare', compare, 2, COLLATOR_TYPE, false);
 
 function PluralRulesConstructor() {
   if (IS_UNDEFINED(new.target)) {
@@ -1166,7 +1166,7 @@ function PluralRulesConstructor() {
   var pluralRules = %CreatePluralRules(requestedLocale, internalOptions,
                                        resolved);
 
-  %MarkAsInitializedIntlObjectOfType(pluralRules, 'pluralrules');
+  %MarkAsInitializedIntlObjectOfType(pluralRules, PLURAL_RULES_TYPE);
   pluralRules[resolvedSymbol] = resolved;
 
   return pluralRules;
@@ -1176,7 +1176,7 @@ function PluralRulesConstructor() {
 DEFINE_METHOD(
   GlobalIntlPluralRules.prototype,
   resolvedOptions() {
-    if (!%IsInitializedIntlObjectOfType(this, 'pluralrules')) {
+    if (!%IsInitializedIntlObjectOfType(this, PLURAL_RULES_TYPE)) {
       throw %make_type_error(kIncompatibleMethodReceiver,
                              'Intl.PluralRules.prototype.resolvedOptions',
                              this);
@@ -1217,7 +1217,7 @@ DEFINE_METHOD(
 DEFINE_METHOD(
   GlobalIntlPluralRules.prototype,
   select(value) {
-    if (!%IsInitializedIntlObjectOfType(this, 'pluralrules')) {
+    if (!%IsInitializedIntlObjectOfType(this, PLURAL_RULES_TYPE)) {
       throw %make_type_error(kIncompatibleMethodReceiver,
                             'Intl.PluralRules.prototype.select',
                             this);
@@ -1378,7 +1378,7 @@ function CreateNumberFormat(locales, options) {
         {value: currencyDisplay, writable: true});
   }
 
-  %MarkAsInitializedIntlObjectOfType(numberFormat, 'numberformat');
+  %MarkAsInitializedIntlObjectOfType(numberFormat, NUMBER_FORMAT_TYPE);
   numberFormat[resolvedSymbol] = resolved;
 
   return numberFormat;
@@ -1404,7 +1404,7 @@ function NumberFormatConstructor() {
 DEFINE_METHOD(
   GlobalIntlNumberFormat.prototype,
   resolvedOptions() {
-    var format = Unwrap(this, 'numberformat', GlobalIntlNumberFormat,
+    var format = Unwrap(this, NUMBER_FORMAT_TYPE, GlobalIntlNumberFormat,
                         'resolvedOptions', true);
     var result = {
       locale: format[resolvedSymbol].locale,
@@ -1465,7 +1465,7 @@ function formatNumber(formatter, value) {
 
 
 AddBoundMethod(GlobalIntlNumberFormat, 'format', formatNumber, 1,
-               'numberformat', true);
+               NUMBER_FORMAT_TYPE, true);
 
 /**
  * Returns a string that matches LDML representation of the options object.
@@ -1740,7 +1740,7 @@ function CreateDateTimeFormat(locales, options) {
     throw %make_range_error(kUnsupportedTimeZone, tz);
   }
 
-  %MarkAsInitializedIntlObjectOfType(dateFormat, 'dateformat');
+  %MarkAsInitializedIntlObjectOfType(dateFormat, DATE_TIME_FORMAT_TYPE);
   dateFormat[resolvedSymbol] = resolved;
 
   return dateFormat;
@@ -1766,7 +1766,7 @@ function DateTimeFormatConstructor() {
 DEFINE_METHOD(
   GlobalIntlDateTimeFormat.prototype,
   resolvedOptions() {
-    var format = Unwrap(this, 'dateformat', GlobalIntlDateTimeFormat,
+    var format = Unwrap(this, DATE_TIME_FORMAT_TYPE, GlobalIntlDateTimeFormat,
                         'resolvedOptions', true);
 
     /**
@@ -1841,7 +1841,7 @@ function formatDate(formatter, dateValue) {
 }
 
 // Length is 1 as specified in ECMA 402 v2+
-AddBoundMethod(GlobalIntlDateTimeFormat, 'format', formatDate, 1, 'dateformat',
+AddBoundMethod(GlobalIntlDateTimeFormat, 'format', formatDate, 1, DATE_TIME_FORMAT_TYPE,
                true);
 
 
@@ -1911,7 +1911,7 @@ function CreateBreakIterator(locales, options) {
 
   var iterator = %CreateBreakIterator(locale.locale, internalOptions, resolved);
 
-  %MarkAsInitializedIntlObjectOfType(iterator, 'breakiterator');
+  %MarkAsInitializedIntlObjectOfType(iterator, BREAK_ITERATOR_TYPE);
   iterator[resolvedSymbol] = resolved;
 
   return iterator;
@@ -1941,7 +1941,7 @@ DEFINE_METHOD(
       throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
     }
 
-    var segmenter = Unwrap(this, 'breakiterator', GlobalIntlv8BreakIterator,
+    var segmenter = Unwrap(this, BREAK_ITERATOR_TYPE, GlobalIntlv8BreakIterator,
                            'resolvedOptions', false);
 
     return {
@@ -2012,13 +2012,15 @@ function breakType(iterator) {
 
 
 AddBoundMethod(GlobalIntlv8BreakIterator, 'adoptText', adoptText, 1,
-               'breakiterator');
-AddBoundMethod(GlobalIntlv8BreakIterator, 'first', first, 0, 'breakiterator');
-AddBoundMethod(GlobalIntlv8BreakIterator, 'next', next, 0, 'breakiterator');
+               BREAK_ITERATOR_TYPE);
+AddBoundMethod(GlobalIntlv8BreakIterator, 'first', first, 0,
+               BREAK_ITERATOR_TYPE);
+AddBoundMethod(GlobalIntlv8BreakIterator, 'next', next, 0,
+               BREAK_ITERATOR_TYPE);
 AddBoundMethod(GlobalIntlv8BreakIterator, 'current', current, 0,
-               'breakiterator');
+               BREAK_ITERATOR_TYPE);
 AddBoundMethod(GlobalIntlv8BreakIterator, 'breakType', breakType, 0,
-               'breakiterator');
+               BREAK_ITERATOR_TYPE);
 
 // Save references to Intl objects and methods we use, for added security.
 var savedObjects = {

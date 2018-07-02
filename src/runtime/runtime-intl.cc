@@ -20,6 +20,7 @@
 #include "src/intl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/intl-objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/utils.h"
 
@@ -172,36 +173,18 @@ RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
   return *factory->NewStringFromStaticChars("und");
 }
 
-RUNTIME_FUNCTION(Runtime_IsInitializedIntlObject) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(1, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-
-  if (!input->IsJSObject()) return isolate->heap()->false_value();
-  Handle<JSObject> obj = Handle<JSObject>::cast(input);
-
-  Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  Handle<Object> tag = JSReceiver::GetDataProperty(obj, marker);
-  return isolate->heap()->ToBoolean(!tag->IsUndefined(isolate));
-}
-
 RUNTIME_FUNCTION(Runtime_IsInitializedIntlObjectOfType) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, expected_type, 1);
+  CONVERT_SMI_ARG_CHECKED(expected_type_int, 1);
 
-  if (!input->IsJSObject()) return isolate->heap()->false_value();
-  Handle<JSObject> obj = Handle<JSObject>::cast(input);
+  Intl::Type expected_type = Intl::TypeFromInt(expected_type_int);
 
-  Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  Handle<Object> tag = JSReceiver::GetDataProperty(obj, marker);
-  return isolate->heap()->ToBoolean(tag->IsString() &&
-                                    String::cast(*tag)->Equals(*expected_type));
+  return isolate->heap()->ToBoolean(
+      Intl::IsObjectOfType(isolate, input, expected_type));
 }
 
 RUNTIME_FUNCTION(Runtime_MarkAsInitializedIntlObjectOfType) {
@@ -210,7 +193,13 @@ RUNTIME_FUNCTION(Runtime_MarkAsInitializedIntlObjectOfType) {
   DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, input, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, type, 1);
+
+#ifdef DEBUG
+  // TypeFromSmi does correctness checks.
+  Intl::Type type_intl = Intl::TypeFromSmi(*type);
+  USE(type_intl);
+#endif
 
   Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
   JSObject::SetProperty(input, marker, type, LanguageMode::kStrict).Assert();

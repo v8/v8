@@ -225,7 +225,6 @@ namespace internal {
   F(InternalCompare, 3, 1)                   \
   F(InternalDateFormat, 2, 1)                \
   F(InternalNumberFormat, 2, 1)              \
-  F(IsInitializedIntlObject, 1, 1)           \
   F(IsInitializedIntlObjectOfType, 2, 1)     \
   F(MarkAsInitializedIntlObjectOfType, 2, 1) \
   F(PluralRulesSelect, 2, 1)                 \

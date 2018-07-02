@@ -443,12 +443,8 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
   HandleScope handle_scope(isolate);
   CHECK_RECEIVER(JSObject, number_format_holder, method);
 
-  Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  Handle<Object> tag =
-      JSReceiver::GetDataProperty(number_format_holder, marker);
-  Handle<String> expected_tag =
-      isolate->factory()->NewStringFromStaticChars("numberformat");
-  if (!(tag->IsString() && String::cast(*tag)->Equals(*expected_tag))) {
+  if (!Intl::IsObjectOfType(isolate, number_format_holder,
+                            Intl::Type::kNumberFormat)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
@@ -478,10 +474,8 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
   CHECK_RECEIVER(JSObject, date_format_holder, method);
   Factory* factory = isolate->factory();
 
-  Handle<Symbol> marker = factory->intl_initialized_marker_symbol();
-  Handle<Object> tag = JSReceiver::GetDataProperty(date_format_holder, marker);
-  Handle<String> expected_tag = factory->NewStringFromStaticChars("dateformat");
-  if (!(tag->IsString() && String::cast(*tag)->Equals(*expected_tag))) {
+  if (!Intl::IsObjectOfType(isolate, date_format_holder,
+                            Intl::Type::kDateTimeFormat)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                               factory->NewStringFromAsciiChecked(method),

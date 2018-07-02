@@ -7,6 +7,7 @@
 #endif  // V8_INTL_SUPPORT
 
 #include "src/objects/intl-objects.h"
+#include "src/objects/intl-objects-inl.h"
 
 #include <memory>
 
@@ -1080,8 +1081,8 @@ void V8BreakIterator::DeleteBreakIterator(
 }
 
 // Build the shortened locale; eg, convert xx_Yyyy_ZZ  to xx_ZZ.
-bool IntlUtil::RemoveLocaleScriptTag(const std::string& icu_locale,
-                                     std::string* locale_less_script) {
+bool Intl::RemoveLocaleScriptTag(const std::string& icu_locale,
+                                 std::string* locale_less_script) {
   icu::Locale new_locale = icu::Locale::createCanonical(icu_locale.c_str());
   const char* icu_script = new_locale.getScript();
   if (icu_script == NULL || strlen(icu_script) == 0) {
@@ -1097,7 +1098,7 @@ bool IntlUtil::RemoveLocaleScriptTag(const std::string& icu_locale,
   return true;
 }
 
-std::set<std::string> IntlUtil::GetAvailableLocales(const IcuService& service) {
+std::set<std::string> Intl::GetAvailableLocales(const IcuService& service) {
   const icu::Locale* icu_available_locales = nullptr;
   int32_t count = 0;
 
@@ -1142,13 +1143,27 @@ std::set<std::string> IntlUtil::GetAvailableLocales(const IcuService& service) {
     locales.insert(locale);
 
     std::string shortened_locale;
-    if (IntlUtil::RemoveLocaleScriptTag(icu_name, &shortened_locale)) {
+    if (Intl::RemoveLocaleScriptTag(icu_name, &shortened_locale)) {
       std::replace(shortened_locale.begin(), shortened_locale.end(), '_', '-');
       locales.insert(shortened_locale);
     }
   }
 
   return locales;
+}
+
+bool Intl::IsObjectOfType(Isolate* isolate, Handle<Object> input,
+                          Intl::Type expected_type) {
+  if (!input->IsJSObject()) return false;
+  Handle<JSObject> obj = Handle<JSObject>::cast(input);
+
+  Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
+  Handle<Object> tag = JSReceiver::GetDataProperty(obj, marker);
+
+  if (!tag->IsSmi()) return false;
+
+  Intl::Type type = Intl::TypeFromSmi(Smi::cast(*tag));
+  return type == expected_type;
 }
 
 }  // namespace internal
