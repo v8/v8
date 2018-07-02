@@ -8,15 +8,15 @@
 namespace v8 {
 namespace internal {
 
-CallOptimization::CallOptimization(Handle<Object> function) {
+CallOptimization::CallOptimization(Isolate* isolate, Handle<Object> function) {
   constant_function_ = Handle<JSFunction>::null();
   is_simple_api_call_ = false;
   expected_receiver_type_ = Handle<FunctionTemplateInfo>::null();
   api_call_info_ = Handle<CallHandlerInfo>::null();
   if (function->IsJSFunction()) {
-    Initialize(Handle<JSFunction>::cast(function));
+    Initialize(isolate, Handle<JSFunction>::cast(function));
   } else if (function->IsFunctionTemplateInfo()) {
-    Initialize(Handle<FunctionTemplateInfo>::cast(function));
+    Initialize(isolate, Handle<FunctionTemplateInfo>::cast(function));
   }
 }
 
@@ -97,8 +97,7 @@ bool CallOptimization::IsCompatibleReceiverMap(Handle<Map> map,
 }
 
 void CallOptimization::Initialize(
-    Handle<FunctionTemplateInfo> function_template_info) {
-  Isolate* isolate = function_template_info->GetIsolate();
+    Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
   if (function_template_info->call_code()->IsUndefined(isolate)) return;
   api_call_info_ = handle(
       CallHandlerInfo::cast(function_template_info->call_code()), isolate);
@@ -111,17 +110,17 @@ void CallOptimization::Initialize(
   is_simple_api_call_ = true;
 }
 
-void CallOptimization::Initialize(Handle<JSFunction> function) {
+void CallOptimization::Initialize(Isolate* isolate,
+                                  Handle<JSFunction> function) {
   if (function.is_null() || !function->is_compiled()) return;
 
   constant_function_ = function;
-  AnalyzePossibleApiFunction(function);
+  AnalyzePossibleApiFunction(isolate, function);
 }
 
-
-void CallOptimization::AnalyzePossibleApiFunction(Handle<JSFunction> function) {
+void CallOptimization::AnalyzePossibleApiFunction(Isolate* isolate,
+                                                  Handle<JSFunction> function) {
   if (!function->shared()->IsApiFunction()) return;
-  Isolate* isolate = function->GetIsolate();
   Handle<FunctionTemplateInfo> info(function->shared()->get_api_func_data(),
                                     isolate);
 

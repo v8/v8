@@ -456,7 +456,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
                   : Handle<AccessorPair>::cast(accessors)->setter(),
               isolate());
           if (!accessor->IsJSFunction()) {
-            CallOptimization optimization(accessor);
+            CallOptimization optimization(isolate(), accessor);
             if (!optimization.is_simple_api_call()) return false;
             if (optimization.IsCrossContextLazyAccessorPair(*native_context_,
                                                             *map)) {

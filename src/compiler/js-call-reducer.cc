@@ -2874,7 +2874,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   }
 
   // See if we can constant-fold the compatible receiver checks.
-  CallOptimization call_optimization(function_template_info);
+  CallOptimization call_optimization(isolate(), function_template_info);
   if (!call_optimization.is_simple_api_call()) return NoChange();
   CallOptimization::HolderLookup lookup;
   Handle<JSObject> api_holder =
