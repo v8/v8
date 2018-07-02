@@ -1166,5 +1166,76 @@ bool Intl::IsObjectOfType(Isolate* isolate, Handle<Object> input,
   return type == expected_type;
 }
 
+namespace {
+
+// In ECMA 402 v1, Intl constructors supported a mode of operation
+// where calling them with an existing object as a receiver would
+// transform the receiver into the relevant Intl instance with all
+// internal slots. In ECMA 402 v2, this capability was removed, to
+// avoid adding internal slots on existing objects. In ECMA 402 v3,
+// the capability was re-added as "normative optional" in a mode
+// which chains the underlying Intl instance on any object, when the
+// constructor is called
+//
+// See ecma402/#legacy-constructor.
+MaybeHandle<Object> LegacyUnwrapReceiver(Isolate* isolate,
+                                         Handle<JSReceiver> receiver,
+                                         Handle<JSFunction> constructor,
+                                         Intl::Type type) {
+  bool has_initialized_slot = Intl::IsObjectOfType(isolate, receiver, type);
+
+  Handle<Object> obj_is_instance_of;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj_is_instance_of,
+                             Object::InstanceOf(isolate, receiver, constructor),
+                             Object);
+  bool is_instance_of = obj_is_instance_of->BooleanValue(isolate);
+
+  // 2. If receiver does not have an [[Initialized...]] internal slot
+  //    and ? InstanceofOperator(receiver, constructor) is true, then
+  if (!has_initialized_slot && is_instance_of) {
+    // 2. a. Let new_receiver be ? Get(receiver, %Intl%.[[FallbackSymbol]]).
+    Handle<Object> new_receiver;
+    Handle<Symbol> marker =
+        handle(isolate->heap()->intl_fallback_symbol(), isolate);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, new_receiver,
+        JSReceiver::GetProperty(isolate, receiver, marker), Object);
+    return new_receiver;
+  }
+
+  return receiver;
+}
+
+}  // namespace
+
+MaybeHandle<JSReceiver> Intl::UnwrapReceiver(Isolate* isolate,
+                                             Handle<JSReceiver> receiver,
+                                             Handle<JSFunction> constructor,
+                                             Intl::Type type,
+                                             Handle<String> method_name,
+                                             bool check_legacy_constructor) {
+  Handle<Object> new_receiver = receiver;
+  if (check_legacy_constructor) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, new_receiver,
+        LegacyUnwrapReceiver(isolate, receiver, constructor, type), JSReceiver);
+  }
+
+  // 3. If Type(new_receiver) is not Object or nf does not have an
+  //    [[Initialized...]]  internal slot, then
+  if (!new_receiver->IsJSReceiver() ||
+      !Intl::IsObjectOfType(isolate, new_receiver, type)) {
+    // 3. a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                                 method_name, receiver),
+                    JSReceiver);
+  }
+
+  // The above IsObjectOfType returns true only for JSObjects, which
+  // makes this cast safe.
+  return Handle<JSReceiver>::cast(new_receiver);
+}
+
 }  // namespace internal
 }  // namespace v8

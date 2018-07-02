@@ -75,7 +75,10 @@ function AddBoundMethod(obj, methodName, implementation, length, type,
   DEFINE_METHOD(
     obj.prototype,
     get [methodName]() {
-      var receiver = Unwrap(this, type, obj, methodName, compat);
+      if(!IS_RECEIVER(this)) {
+        throw %make_type_error(kIncompatibleMethodReceiver, methodName, this);
+      }
+      var receiver = %IntlUnwrapReceiver(this, type, obj, methodName, compat);
       if (IS_UNDEFINED(receiver[internalName])) {
         var boundMethod;
         if (IS_UNDEFINED(length) || length === 2) {
@@ -118,20 +121,6 @@ function IntlConstruct(receiver, constructor, create, newTarget, args,
   return instance;
 }
 
-
-
-function Unwrap(receiver, type, constructor, method, compat) {
-  if (!%IsInitializedIntlObjectOfType(receiver, type)) {
-    if (compat && receiver instanceof constructor) {
-      let fallback = receiver[IntlFallbackSymbol];
-      if (%IsInitializedIntlObjectOfType(fallback, type)) {
-        return fallback;
-      }
-    }
-    throw %make_type_error(kIncompatibleMethodReceiver, method, receiver);
-  }
-  return receiver;
-}
 
 
 // -------------------------------------------------------------------
@@ -1079,8 +1068,12 @@ function CollatorConstructor() {
 DEFINE_METHOD(
   GlobalIntlCollator.prototype,
   resolvedOptions() {
-    var coll = Unwrap(this, COLLATOR_TYPE, GlobalIntlCollator,
-                      'resolvedOptions', false);
+    var methodName = 'resolvedOptions';
+    if(!IS_RECEIVER(this)) {
+      throw %make_type_error(kIncompatibleMethodReceiver, methodName, this);
+    }
+    var coll = %IntlUnwrapReceiver(this, COLLATOR_TYPE, GlobalIntlCollator,
+                                   methodName, false);
     return {
       locale: coll[resolvedSymbol].locale,
       usage: coll[resolvedSymbol].usage,
@@ -1404,8 +1397,13 @@ function NumberFormatConstructor() {
 DEFINE_METHOD(
   GlobalIntlNumberFormat.prototype,
   resolvedOptions() {
-    var format = Unwrap(this, NUMBER_FORMAT_TYPE, GlobalIntlNumberFormat,
-                        'resolvedOptions', true);
+    var methodName = 'resolvedOptions';
+    if(!IS_RECEIVER(this)) {
+      throw %make_type_error(kIncompatibleMethodReceiver, methodName, this);
+    }
+    var format = %IntlUnwrapReceiver(this, NUMBER_FORMAT_TYPE,
+                                     GlobalIntlNumberFormat,
+                                     methodName, true);
     var result = {
       locale: format[resolvedSymbol].locale,
       numberingSystem: format[resolvedSymbol].numberingSystem,
@@ -1766,8 +1764,13 @@ function DateTimeFormatConstructor() {
 DEFINE_METHOD(
   GlobalIntlDateTimeFormat.prototype,
   resolvedOptions() {
-    var format = Unwrap(this, DATE_TIME_FORMAT_TYPE, GlobalIntlDateTimeFormat,
-                        'resolvedOptions', true);
+    var methodName = 'resolvedOptions';
+    if(!IS_RECEIVER(this)) {
+      throw %make_type_error(kIncompatibleMethodReceiver, methodName, this);
+    }
+    var format = %IntlUnwrapReceiver(this, DATE_TIME_FORMAT_TYPE,
+                                     GlobalIntlDateTimeFormat,
+                                     methodName, true);
 
     /**
      * Maps ICU calendar names to LDML/BCP47 types for key 'ca'.
@@ -1941,8 +1944,13 @@ DEFINE_METHOD(
       throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
     }
 
-    var segmenter = Unwrap(this, BREAK_ITERATOR_TYPE, GlobalIntlv8BreakIterator,
-                           'resolvedOptions', false);
+    var methodName = 'resolvedOptions';
+    if(!IS_RECEIVER(this)) {
+      throw %make_type_error(kIncompatibleMethodReceiver, methodName, this);
+    }
+    var segmenter = %IntlUnwrapReceiver(this, BREAK_ITERATOR_TYPE,
+                                        GlobalIntlv8BreakIterator, methodName,
+                                        false);
 
     return {
       locale: segmenter[resolvedSymbol].locale,
@@ -2012,15 +2020,15 @@ function breakType(iterator) {
 
 
 AddBoundMethod(GlobalIntlv8BreakIterator, 'adoptText', adoptText, 1,
-               BREAK_ITERATOR_TYPE);
+               BREAK_ITERATOR_TYPE, false);
 AddBoundMethod(GlobalIntlv8BreakIterator, 'first', first, 0,
-               BREAK_ITERATOR_TYPE);
+               BREAK_ITERATOR_TYPE, false);
 AddBoundMethod(GlobalIntlv8BreakIterator, 'next', next, 0,
-               BREAK_ITERATOR_TYPE);
+               BREAK_ITERATOR_TYPE, false);
 AddBoundMethod(GlobalIntlv8BreakIterator, 'current', current, 0,
-               BREAK_ITERATOR_TYPE);
+               BREAK_ITERATOR_TYPE, false);
 AddBoundMethod(GlobalIntlv8BreakIterator, 'breakType', breakType, 0,
-               BREAK_ITERATOR_TYPE);
+               BREAK_ITERATOR_TYPE, false);
 
 // Save references to Intl objects and methods we use, for added security.
 var savedObjects = {

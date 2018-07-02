@@ -688,5 +688,20 @@ RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
   return date_cache_version->get(0);
 }
 
+RUNTIME_FUNCTION(Runtime_IntlUnwrapReceiver) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_SMI_ARG_CHECKED(type_int, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, method, 3);
+  CONVERT_BOOLEAN_ARG_CHECKED(check_legacy_constructor, 4);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Intl::UnwrapReceiver(isolate, receiver, constructor,
+                                    Intl::TypeFromInt(type_int), method,
+                                    check_legacy_constructor));
+}
+
 }  // namespace internal
 }  // namespace v8

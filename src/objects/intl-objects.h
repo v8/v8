@@ -197,6 +197,15 @@ class Intl {
   // script else return false and an empty string
   static bool RemoveLocaleScriptTag(const std::string& icu_locale,
                                     std::string* locale_less_script);
+
+  // Returns the underlying Intl receiver for various methods which
+  // implement ECMA-402 v1 semantics for supporting initializing
+  // existing Intl objects.
+  static MaybeHandle<JSReceiver> UnwrapReceiver(
+      Isolate* isolate, Handle<JSReceiver> receiver,
+      Handle<JSFunction> constructor, Intl::Type type,
+      Handle<String> method_name /* TODO(gsathya): Make this char const* */,
+      bool check_legacy_constructor = false);
 };
 
 }  // namespace internal
