@@ -342,7 +342,11 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
   // result_turbofan. Therefore we do not check the equality of the results
   // if the execution may have produced a NaN at some point.
   if (!possible_nondeterminism) {
-    CHECK_EQ(expect_exception, i_isolate->has_pending_exception());
+    if (expect_exception != i_isolate->has_pending_exception()) {
+      const char* exception_text[] = {"no exception", "exception"};
+      FATAL("interpreter: %s; turbofan: %s", exception_text[expect_exception],
+            exception_text[i_isolate->has_pending_exception()]);
+    }
 
     if (!expect_exception) CHECK_EQ(result_interpreter, result_turbofan);
   }
@@ -365,7 +369,11 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
         "main", num_args, compiler_args.get());
   }
   if (!possible_nondeterminism) {
-    CHECK_EQ(expect_exception, i_isolate->has_pending_exception());
+    if (expect_exception != i_isolate->has_pending_exception()) {
+      const char* exception_text[] = {"no exception", "exception"};
+      FATAL("interpreter: %s; liftoff: %s", exception_text[expect_exception],
+            exception_text[i_isolate->has_pending_exception()]);
+    }
 
     if (!expect_exception) CHECK_EQ(result_interpreter, result_liftoff);
   }
