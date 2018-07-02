@@ -1306,11 +1306,7 @@ namespace internal {
   ASM(CallApiGetter)                                                           \
   ASM(DoubleToI)                                                               \
   TFC(GetProperty, GetProperty, 1)                                             \
-  ASM(MathPowInternal)                                                         \
-                                                                               \
-  /* Trace */                                                                  \
-  CPP(IsTraceCategoryEnabled)                                                  \
-  CPP(Trace)
+  ASM(MathPowInternal)
 
 #ifdef V8_INTL_SUPPORT
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)          \
