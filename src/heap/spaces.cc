@@ -1899,14 +1899,20 @@ void PagedSpace::Print() {}
 void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
   bool allocation_pointer_found_in_space =
       (allocation_info_.top() == allocation_info_.limit());
-  size_t external_backing_store_bytes[kNumTypes];
+  size_t external_space_bytes[kNumTypes];
+  size_t external_page_bytes[kNumTypes];
 
   for (int i = 0; i < kNumTypes; i++) {
-    external_backing_store_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
+    external_space_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
   }
 
   for (Page* page : *this) {
     CHECK(page->owner() == this);
+
+    for (int i = 0; i < kNumTypes; i++) {
+      external_page_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
+    }
+
     if (page == Page::FromAllocationAreaAddress(allocation_info_.top())) {
       allocation_pointer_found_in_space = true;
     }
@@ -1914,11 +1920,6 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
     HeapObjectIterator it(page);
     Address end_of_previous_object = page->area_start();
     Address top = page->area_end();
-
-    for (int i = 0; i < kNumTypes; i++) {
-      ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-      external_backing_store_bytes[t] += page->ExternalBackingStoreBytes(t);
-    }
 
     for (HeapObject* object = it.Next(); object != nullptr;
          object = it.Next()) {
@@ -1946,11 +1947,24 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
       object->IterateBody(map, size, visitor);
       CHECK(object->address() + size <= top);
       end_of_previous_object = object->address() + size;
+
+      if (object->IsJSArrayBuffer()) {
+        JSArrayBuffer* array_buffer = JSArrayBuffer::cast(object);
+        if (ArrayBufferTracker::IsTracked(array_buffer)) {
+          size_t size = NumberToSize(array_buffer->byte_length());
+          external_page_bytes[ExternalBackingStoreType::kArrayBuffer] += size;
+        }
+      }
+    }
+    for (int i = 0; i < kNumTypes; i++) {
+      ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
+      CHECK_EQ(external_page_bytes[t], page->ExternalBackingStoreBytes(t));
+      external_space_bytes[t] += external_page_bytes[t];
     }
   }
   for (int i = 0; i < kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
-    CHECK_EQ(external_backing_store_bytes[t], ExternalBackingStoreBytes(t));
+    CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
   }
   CHECK(allocation_pointer_found_in_space);
 #ifdef DEBUG
@@ -2386,6 +2400,11 @@ void NewSpace::Verify(Isolate* isolate) {
   Address current = to_space_.first_page()->area_start();
   CHECK_EQ(current, to_space_.space_start());
 
+  size_t external_space_bytes[kNumTypes];
+  for (int i = 0; i < kNumTypes; i++) {
+    external_space_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
+  }
+
   while (current != top()) {
     if (!Page::IsAlignedToPageSize(current)) {
       // The allocation pointer should not be in the middle of an object.
@@ -2413,12 +2432,25 @@ void NewSpace::Verify(Isolate* isolate) {
       int size = object->Size();
       object->IterateBody(map, size, &visitor);
 
+      if (object->IsJSArrayBuffer()) {
+        JSArrayBuffer* array_buffer = JSArrayBuffer::cast(object);
+        if (ArrayBufferTracker::IsTracked(array_buffer)) {
+          size_t size = NumberToSize(array_buffer->byte_length());
+          external_space_bytes[ExternalBackingStoreType::kArrayBuffer] += size;
+        }
+      }
+
       current += size;
     } else {
       // At end of page, switch to next page.
       Page* page = Page::FromAllocationAreaAddress(current)->next_page();
       current = page->area_start();
     }
+  }
+
+  for (int i = 0; i < kNumTypes; i++) {
+    ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
+    CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
   }
 
   // Check semi-spaces.
