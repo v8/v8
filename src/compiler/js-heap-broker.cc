@@ -450,6 +450,44 @@ double FixedDoubleArrayRef::get_scalar(int i) const {
   return object<FixedDoubleArray>()->get_scalar(i);
 }
 
+int SharedFunctionInfoRef::internal_formal_parameter_count() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<SharedFunctionInfo>()->internal_formal_parameter_count();
+}
+
+bool SharedFunctionInfoRef::has_duplicate_parameters() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<SharedFunctionInfo>()->has_duplicate_parameters();
+}
+
+MapRef NativeContextRef::fast_aliased_arguments_map(
+    const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(handle(object<Context>()->fast_aliased_arguments_map(),
+                       broker->isolate()));
+}
+
+MapRef NativeContextRef::sloppy_arguments_map(
+    const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(
+      handle(object<Context>()->sloppy_arguments_map(), broker->isolate()));
+}
+
+MapRef NativeContextRef::strict_arguments_map(
+    const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(
+      handle(object<Context>()->strict_arguments_map(), broker->isolate()));
+}
+
+MapRef NativeContextRef::js_array_fast_elements_map_index(
+    const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(handle(object<Context>()->js_array_fast_elements_map_index(),
+                       broker->isolate()));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

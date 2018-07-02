@@ -69,6 +69,7 @@ class HeapObjectType {
   V(Name)                        \
   V(NativeContext)               \
   V(ScriptContextTable)          \
+  V(SharedFunctionInfo)          \
   V(Map)
 
 #define HEAP_BROKER_KIND_LIST(V) \
@@ -194,7 +195,13 @@ class ContextRef : public HeapObjectRef {
 class NativeContextRef : public ContextRef {
  public:
   explicit NativeContextRef(Handle<Object> object);
+
   ScriptContextTableRef script_context_table(const JSHeapBroker* broker) const;
+
+  MapRef fast_aliased_arguments_map(const JSHeapBroker* broker) const;
+  MapRef sloppy_arguments_map(const JSHeapBroker* broker) const;
+  MapRef strict_arguments_map(const JSHeapBroker* broker) const;
+  MapRef js_array_fast_elements_map_index(const JSHeapBroker* broker) const;
 };
 
 class NameRef : public HeapObjectRef {
@@ -280,6 +287,15 @@ class JSArrayRef : public JSObjectRef {
 
   ElementsKind GetElementsKind() const;
   ObjectRef length(const JSHeapBroker* broker) const;
+};
+
+class SharedFunctionInfoRef : public HeapObjectRef {
+ public:
+  explicit SharedFunctionInfoRef(Handle<Object> object)
+      : HeapObjectRef(object) {}
+
+  int internal_formal_parameter_count() const;
+  bool has_duplicate_parameters() const;
 };
 
 }  // namespace compiler
