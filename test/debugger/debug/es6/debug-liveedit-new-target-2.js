@@ -43,8 +43,7 @@ function Replace(fun, original, patch) {
     try {
       %LiveEditPatchScript(fun, Debug.scriptSource(fun).replace(original, patch));
     } catch (e) {
-      // TODO(kozyatinskiy): message should be BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME.
-      assertEquals(e, 'LiveEdit failed: BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME');
+      assertEquals(e, 'LiveEdit failed: BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME');
       exceptions++;
     }
   });

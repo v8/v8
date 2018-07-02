@@ -1910,62 +1910,12 @@ bool Debug::CanBreakAtEntry(Handle<SharedFunctionInfo> shared) {
 }
 
 bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
-                            bool preview, debug::LiveEditResult* output) {
-  SaveContext save(isolate_);
-  StackFrame::Id frame_id = break_frame_id();
+                            bool preview, debug::LiveEditResult* result) {
   DebugScope debug_scope(this);
-  if (debug_scope.failed()) return false;
-  isolate_->set_context(*debug_context());
-
-  if (frame_id != StackFrame::NO_ID) {
-    thread_local_.break_frame_id_ = frame_id;
-  }
-
-  Handle<Object> script_wrapper = Script::GetWrapper(script);
-  Handle<Object> argv[] = {script_wrapper, source,
-                           isolate_->factory()->ToBoolean(preview),
-                           isolate_->factory()->NewJSArray(0)};
-  Handle<Object> result;
-  MaybeHandle<Object> maybe_exception;
   running_live_edit_ = true;
-  if (!CallFunction("SetScriptSource", arraysize(argv), argv, &maybe_exception)
-           .ToHandle(&result)) {
-    Handle<Object> pending_exception = maybe_exception.ToHandleChecked();
-    if (pending_exception->IsJSObject()) {
-      Handle<JSObject> exception = Handle<JSObject>::cast(pending_exception);
-      Handle<String> message = Handle<String>::cast(
-          JSReceiver::GetProperty(isolate_, exception, "message")
-              .ToHandleChecked());
-      Handle<String> blocked_message =
-          isolate_->factory()->NewStringFromAsciiChecked(
-              "Blocked by functions on stack");
-      if (blocked_message->Equals(*message)) {
-        output->status = debug::LiveEditResult::
-            BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME;
-      } else {
-        Handle<JSObject> details = Handle<JSObject>::cast(
-            JSReceiver::GetProperty(isolate_, exception, "details")
-                .ToHandleChecked());
-        Handle<String> error = Handle<String>::cast(
-            JSReceiver::GetProperty(isolate_, details, "syntaxErrorMessage")
-                .ToHandleChecked());
-        output->status = debug::LiveEditResult::COMPILE_ERROR;
-        output->line_number = kNoSourcePosition;
-        output->column_number = kNoSourcePosition;
-        output->message = Utils::ToLocal(error);
-      }
-    }
-    running_live_edit_ = false;
-    return false;
-  }
-  Handle<Object> stack_changed_value =
-      JSReceiver::GetProperty(isolate_, Handle<JSObject>::cast(result),
-                              "stack_modified")
-          .ToHandleChecked();
-  output->stack_changed = stack_changed_value->IsTrue(isolate_);
-  output->status = debug::LiveEditResult::OK;
+  LiveEdit::PatchScript(isolate_, script, source, preview, result);
   running_live_edit_ = false;
-  return true;
+  return result->status == debug::LiveEditResult::OK;
 }
 
 void Debug::OnCompileError(Handle<Script> script) {
@@ -1977,6 +1927,9 @@ void Debug::OnAfterCompile(Handle<Script> script) {
 }
 
 void Debug::ProcessCompileEvent(bool has_compile_error, Handle<Script> script) {
+  // TODO(kozyatinskiy): teach devtools to work with liveedit scripts better
+  // first and then remove this fast return.
+  if (running_live_edit_) return;
   // Attach the correct debug id to the script. The debug id is used by the
   // inspector to filter scripts by native context.
   script->set_context_data(isolate_->native_context()->debug_context_id());
@@ -1995,7 +1948,6 @@ void Debug::ProcessCompileEvent(bool has_compile_error, Handle<Script> script) {
   debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script),
                                   running_live_edit_, has_compile_error);
 }
-
 
 Handle<Context> Debug::GetDebugContext() {
   if (!is_loaded()) return Handle<Context>();

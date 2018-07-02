@@ -10,10 +10,10 @@ TestExpression(2,4) === 8
 Update current script source 'a * b' -> 'a # b'..
 {
     exceptionDetails : {
-        columnNumber : 0
+        columnNumber : 13
         exceptionId : <exceptionId>
-        lineNumber : 0
-        text : Invalid or unexpected token
+        lineNumber : 1
+        text : Uncaught SyntaxError: Invalid or unexpected token
     }
 }
 TestExpression(2,4) === 8
