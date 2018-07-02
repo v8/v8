@@ -165,6 +165,7 @@ Heap::Heap()
       code_space_(nullptr),
       map_space_(nullptr),
       lo_space_(nullptr),
+      new_lo_space_(nullptr),
       read_only_space_(nullptr),
       write_protect_code_memory_(false),
       code_space_memory_modification_scope_depth_(0),
@@ -673,6 +674,8 @@ const char* Heap::GetSpaceName(int idx) {
       return "code_space";
     case LO_SPACE:
       return "large_object_space";
+    case NEW_LO_SPACE:
+      return "new_large_object_space";
     case RO_SPACE:
       return "read_only_space";
     default:
@@ -3646,6 +3649,8 @@ bool Heap::InSpace(HeapObject* value, AllocationSpace space) {
       return map_space_->Contains(value);
     case LO_SPACE:
       return lo_space_->Contains(value);
+    case NEW_LO_SPACE:
+      return new_lo_space_->Contains(value);
     case RO_SPACE:
       return read_only_space_->Contains(value);
   }
@@ -3669,12 +3674,13 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) {
       return map_space_->ContainsSlow(addr);
     case LO_SPACE:
       return lo_space_->ContainsSlow(addr);
+    case NEW_LO_SPACE:
+      return new_lo_space_->ContainsSlow(addr);
     case RO_SPACE:
       return read_only_space_->ContainsSlow(addr);
   }
   UNREACHABLE();
 }
-
 
 bool Heap::IsValidAllocationSpace(AllocationSpace space) {
   switch (space) {
@@ -3683,6 +3689,7 @@ bool Heap::IsValidAllocationSpace(AllocationSpace space) {
     case CODE_SPACE:
     case MAP_SPACE:
     case LO_SPACE:
+    case NEW_LO_SPACE:
     case RO_SPACE:
       return true;
     default:
@@ -4591,6 +4598,7 @@ void Heap::SetUp() {
   space_[CODE_SPACE] = code_space_ = new CodeSpace(this);
   space_[MAP_SPACE] = map_space_ = new MapSpace(this);
   space_[LO_SPACE] = lo_space_ = new LargeObjectSpace(this);
+  space_[NEW_LO_SPACE] = new_lo_space_ = new NewLargeObjectSpace(this);
 
   // Set up the seed that is used to randomize the string hash function.
   DCHECK_EQ(Smi::kZero, hash_seed());
@@ -5525,6 +5533,8 @@ const char* AllocationSpaceName(AllocationSpace space) {
       return "MAP_SPACE";
     case LO_SPACE:
       return "LO_SPACE";
+    case NEW_LO_SPACE:
+      return "NEW_LO_SPACE";
     case RO_SPACE:
       return "RO_SPACE";
     default:
@@ -5598,6 +5608,7 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
       return dst == CODE_SPACE && type == CODE_TYPE;
     case MAP_SPACE:
     case LO_SPACE:
+    case NEW_LO_SPACE:
     case RO_SPACE:
       return false;
   }
