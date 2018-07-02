@@ -225,8 +225,7 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   const NativeModule* const native_module_;
   bool write_called_;
 
-  // wasm code targets reverse lookup
-  std::map<Address, uint32_t> wasm_targets_lookup_;
+  // Reverse lookup tables for embedded addresses.
   std::map<Address, uint32_t> wasm_stub_targets_lookup_;
   std::map<Address, uint32_t> reference_table_lookup_;
 
@@ -328,7 +327,8 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
     switch (mode) {
       case RelocInfo::WASM_CALL: {
         Address orig_target = orig_iter.rinfo()->wasm_call_address();
-        uint32_t tag = wasm_targets_lookup_[orig_target];
+        uint32_t tag =
+            native_module_->GetFunctionIndexFromJumpTableSlot(orig_target);
         SetWasmCalleeTag(iter.rinfo(), tag);
       } break;
       case RelocInfo::WASM_STUB_CALL: {

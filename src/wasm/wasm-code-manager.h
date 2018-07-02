@@ -281,7 +281,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return jump_table_->contains(address);
   }
 
-  uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address);
+  uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
 
   // Transition this module from code relying on trap handlers (i.e. without
   // explicit memory bounds checks) to code that does not require trap handlers

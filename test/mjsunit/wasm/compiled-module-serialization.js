@@ -309,3 +309,46 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(
       kTrapMemOutOfBounds, _ => instance.exports.main(kPageSize - 3));
 })();
+
+(function DirectCallAfterSerialization() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  var fun1 = builder.addFunction('fun1', kSig_i_v)
+      .addBody([kExprI32Const, 23]);
+  var fun2 = builder.addFunction('fun2', kSig_i_v)
+      .addBody([kExprI32Const, 42]);
+  builder.addFunction('main', kSig_i_v)
+      .addBody([kExprCallFunction, fun1.index,
+                kExprCallFunction, fun2.index,
+                kExprI32Add])
+      .exportFunc();
+
+  var wire_bytes = builder.toBuffer();
+  var module = new WebAssembly.Module(wire_bytes);
+  var buffer = %SerializeWasmModule(module);
+  module = %DeserializeWasmModule(buffer, wire_bytes);
+  var instance = new WebAssembly.Instance(module);
+
+  assertEquals(65, instance.exports.main());
+})();
+
+(function ImportCallAfterSerialization() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  var fun_import = builder.addImport("", "my_import", kSig_i_v);
+  var fun = builder.addFunction('fun', kSig_i_v)
+      .addBody([kExprI32Const, 23]);
+  builder.addFunction('main', kSig_i_v)
+      .addBody([kExprCallFunction, fun.index,
+                kExprCallFunction, fun_import,
+                kExprI32Add])
+      .exportFunc();
+
+  var wire_bytes = builder.toBuffer();
+  var module = new WebAssembly.Module(wire_bytes);
+  var buffer = %SerializeWasmModule(module);
+  module = %DeserializeWasmModule(buffer, wire_bytes);
+  var instance = new WebAssembly.Instance(module, {"": {my_import: () => 42 }});
+
+  assertEquals(65, instance.exports.main());
+})();

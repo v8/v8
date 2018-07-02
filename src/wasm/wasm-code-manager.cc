@@ -689,7 +689,8 @@ Address NativeModule::GetCallTargetForFunction(uint32_t func_index) const {
          slot_idx * JumpTableAssembler::kJumpTableSlotSize;
 }
 
-uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(Address slot_address) {
+uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(
+    Address slot_address) const {
   DCHECK(is_jump_table_slot(slot_address));
   uint32_t offset =
       static_cast<uint32_t>(slot_address - jump_table_->instruction_start());
