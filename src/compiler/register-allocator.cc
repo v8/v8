@@ -2742,19 +2742,10 @@ const char* RegisterAllocator::RegisterName(int register_code) const {
   }
 }
 
-// static
-LinearScanAllocator::LiveRangeQueue LinearScanAllocator::MakeLiveRangeQueue(
-    size_t capacity, Zone* local_zone) {
-  ZoneVector<LiveRange*> backing_store(local_zone);
-  backing_store.reserve(capacity);
-  return LiveRangeQueue(LiveRangeOrdering(), std::move(backing_store));
-}
-
 LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,
                                          RegisterKind kind, Zone* local_zone)
     : RegisterAllocator(data, kind),
-      unhandled_live_ranges_(MakeLiveRangeQueue(
-          static_cast<size_t>(code()->VirtualRegisterCount() * 2), local_zone)),
+      unhandled_live_ranges_(local_zone),
       active_live_ranges_(local_zone),
       inactive_live_ranges_(local_zone) {
   active_live_ranges().reserve(8);
@@ -2805,8 +2796,8 @@ void LinearScanAllocator::AllocateRegisters() {
   }
 
   while (!unhandled_live_ranges().empty()) {
-    LiveRange* current = unhandled_live_ranges().top();
-    unhandled_live_ranges().pop();
+    LiveRange* current = *unhandled_live_ranges().begin();
+    unhandled_live_ranges().erase(unhandled_live_ranges().begin());
     LifetimePosition position = current->Start();
 #ifdef DEBUG
     allocation_finger_ = position;
@@ -2897,7 +2888,7 @@ void LinearScanAllocator::AddToUnhandled(LiveRange* range) {
 
   TRACE("Add live range %d:%d to unhandled\n", range->TopLevel()->vreg(),
         range->relative_id());
-  unhandled_live_ranges().push(range);
+  unhandled_live_ranges().insert(range);
 }
 
 

@@ -1042,12 +1042,10 @@ class LinearScanAllocator final : public RegisterAllocator {
  private:
   struct LiveRangeOrdering {
     bool operator()(LiveRange* a, LiveRange* b) {
-      return b->ShouldBeAllocatedBefore(a);
+      return a->ShouldBeAllocatedBefore(b);
     }
   };
-  using LiveRangeQueue = std::priority_queue<LiveRange*, ZoneVector<LiveRange*>,
-                                             LiveRangeOrdering>;
-  static LiveRangeQueue MakeLiveRangeQueue(size_t capacity, Zone* local_zone);
+  using LiveRangeQueue = ZoneMultiset<LiveRange*, LiveRangeOrdering>;
   LiveRangeQueue& unhandled_live_ranges() { return unhandled_live_ranges_; }
   ZoneVector<LiveRange*>& active_live_ranges() { return active_live_ranges_; }
   ZoneVector<LiveRange*>& inactive_live_ranges() {
