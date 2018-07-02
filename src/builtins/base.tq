@@ -133,6 +133,8 @@ const kIncompatibleMethodReceiver: constexpr MessageTemplate generates
 'MessageTemplate::kIncompatibleMethodReceiver';
 const kInvalidDataViewAccessorOffset: constexpr MessageTemplate generates
 'MessageTemplate::kInvalidDataViewAccessorOffset';
+const kStrictReadOnlyProperty: constexpr MessageTemplate generates
+'MessageTemplate::kStrictReadOnlyProperty';
 
 const Hole: Oddball generates 'TheHoleConstant()';
 const Null: Oddball generates 'NullConstant()';
@@ -164,6 +166,8 @@ extern macro HasProperty(
 extern macro ThrowRangeError(Context, constexpr MessageTemplate): never;
 extern macro ThrowTypeError(Context, constexpr MessageTemplate): never;
 extern macro ThrowTypeError(Context, constexpr MessageTemplate, Object): never;
+extern macro ThrowTypeError(Context, constexpr MessageTemplate, Object, Object,
+    Object): never;
 extern macro ArraySpeciesCreate(Context, Object, Number): Object;
 extern macro EnsureArrayPushable(Map): ElementsKind labels Bailout;
 
@@ -587,10 +591,9 @@ macro StoreFixedDoubleArrayElementWithSmiIndex(
 }
 
 extern macro BasicLoadNumberDictionaryElement(NumberDictionary, intptr):
-    Object labels NotData,
-    IfHole;
+    Object labels NotData, IfHole;
 extern macro BasicStoreNumberDictionaryElement(NumberDictionary, intptr, Object)
-labels Fail, IfHole;
+labels NotData, IfHole, ReadOnly;
 
 extern macro IsFastElementsKind(ElementsKind): bool;
 extern macro IsDoubleElementsKind(ElementsKind): bool;
@@ -671,6 +674,7 @@ extern macro IsDetachedBuffer(JSArrayBuffer): bool;
 extern macro IsHeapNumber(HeapObject): bool;
 extern macro IsExtensibleMap(Map): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
+extern macro Typeof(Object): Object;
 
 // Return true iff number is NaN.
 macro NumberIsNaN(number: Number): bool {

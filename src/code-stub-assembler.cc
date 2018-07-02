@@ -7494,7 +7494,7 @@ TNode<Object> CodeStubAssembler::BasicLoadNumberDictionaryElement(
 
 void CodeStubAssembler::BasicStoreNumberDictionaryElement(
     TNode<NumberDictionary> dictionary, TNode<IntPtrT> intptr_index,
-    TNode<Object> value, Label* fail, Label* if_hole) {
+    TNode<Object> value, Label* not_data, Label* if_hole, Label* read_only) {
   TVARIABLE(IntPtrT, var_entry);
   Label if_found(this);
   NumberDictionaryLookup(dictionary, intptr_index, &if_found, &var_entry,
@@ -7507,10 +7507,11 @@ void CodeStubAssembler::BasicStoreNumberDictionaryElement(
       LoadDetailsByKeyIndex<NumberDictionary>(dictionary, index);
   TNode<Uint32T> kind = DecodeWord32<PropertyDetails::KindField>(details);
   // TODO(jkummerow): Support accessors without missing?
-  GotoIfNot(Word32Equal(kind, Int32Constant(kData)), fail);
+  GotoIfNot(Word32Equal(kind, Int32Constant(kData)), not_data);
 
   // Check that the property is writeable.
-  GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask), fail);
+  GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
+         read_only);
 
   // Finally, store the value.
   StoreValueByKeyIndex<NumberDictionary>(dictionary, index, value);

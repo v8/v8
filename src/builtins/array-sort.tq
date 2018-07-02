@@ -50,28 +50,32 @@ module array {
   }
 
   macro Store<ElementsAccessor : type>(
-      context: Context, receiver: Object, index: Smi, value: Object)
-      labels Bailout {
+      context: Context, receiver: Object, elements: Object, index: Smi,
+      value: Object)
+  labels Bailout {
     SetProperty(context, receiver, index, value, kStrict);
   }
 
   Store<FastPackedSmiElements>(
-      context: Context, elements: Object, index: Smi, value: Object)
-      labels Bailout {
+      context: Context, receiver: Object, elements: Object, index: Smi,
+      value: Object)
+  labels Bailout {
     let elems: FixedArray = unsafe_cast<FixedArray>(elements);
     elems[index] = value;
   }
 
   Store<FastSmiOrObjectElements>(
-      context: Context, elements: Object, index: Smi, value: Object)
-      labels Bailout {
+      context: Context, receiver: Object, elements: Object, index: Smi,
+      value: Object)
+  labels Bailout {
     let elems: FixedArray = unsafe_cast<FixedArray>(elements);
     elems[index] = value;
   }
 
   Store<FastDoubleElements>(
-      context: Context, elements: Object, index: Smi, value: Object)
-      labels Bailout {
+      context: Context, receiver: Object, elements: Object, index: Smi,
+      value: Object)
+  labels Bailout {
     let elems: FixedDoubleArray = unsafe_cast<FixedDoubleArray>(elements);
     let heap_val: HeapNumber = unsafe_cast<HeapNumber>(value);
     // Make sure we do not store signalling NaNs into double arrays.
@@ -86,12 +90,19 @@ module array {
   }
 
   Store<DictionaryElements>(
-      context: Context, elements: Object, index: Smi, value: Object)
-      labels Bailout {
+      context: Context, receiver: Object, elements: Object, index: Smi,
+      value: Object)
+  labels Bailout {
     let dictionary: NumberDictionary = unsafe_cast<NumberDictionary>(elements);
     let intptr_index: intptr = convert<intptr>(index);
-    BasicStoreNumberDictionaryElement(dictionary, intptr_index, value)
-    otherwise Bailout, Bailout;
+    try {
+      BasicStoreNumberDictionaryElement(dictionary, intptr_index, value)
+      otherwise Bailout, Bailout, ReadOnly;
+    }
+    label ReadOnly {
+      ThrowTypeError(context, kStrictReadOnlyProperty, index, Typeof(receiver),
+          receiver);
+    }
     return;
   }
 
@@ -207,12 +218,12 @@ module array {
             initialReceiverLength, userCmpFn, sortCompare, tmp, element)
         otherwise Bailout;
         if (order > 0) {
-          Store<E>(context, elements, j + 1, tmp) otherwise Bailout;
+          Store<E>(context, receiver, elements, j + 1, tmp) otherwise Bailout;
         } else {
           break;
         }
       }
-      Store<E>(context, elements, j + 1, element) otherwise Bailout;
+      Store<E>(context, receiver, elements, j + 1, element) otherwise Bailout;
     }
   }
 
@@ -327,11 +338,12 @@ module array {
     }
 
     // v0 <= v1 <= v2.
-    Store<E>(context, elements, from, v0) otherwise Bailout;
-    Store<E>(context, elements, to - 1, v2) otherwise Bailout;
+    Store<E>(context, receiver, elements, from, v0) otherwise Bailout;
+    Store<E>(context, receiver, elements, to - 1, v2) otherwise Bailout;
 
     // Move pivot element to a place on the left.
-    Swap<E>(context, elements, from + 1, third_index, v1) otherwise Bailout;
+    Swap<E>(context, receiver, elements, from + 1, third_index, v1)
+    otherwise Bailout;
     assert(CanUseSameAccessor<E>(
         context, receiver, elements, initialReceiverMap,
         initialReceiverLength));
@@ -342,12 +354,12 @@ module array {
   // elements[indexB] = elements[indexA].
   // elements[indexA] = value.
   macro Swap<E : type>(
-      context: Context, elements: Object, indexA: Smi, indexB: Smi,
-      value: Object)
+      context: Context, receiver: Object, elements: Object, indexA: Smi,
+      indexB: Smi, value: Object)
   labels Bailout {
     let tmp: Object = Load<E>(context, elements, indexA) otherwise Bailout;
-    Store<E>(context, elements, indexB, tmp) otherwise Bailout;
-    Store<E>(context, elements, indexA, value) otherwise Bailout;
+    Store<E>(context, receiver, elements, indexB, tmp) otherwise Bailout;
+    Store<E>(context, receiver, elements, indexA, value) otherwise Bailout;
   }
 
   macro ArrayQuickSortImpl<E : type>(
@@ -396,7 +408,8 @@ module array {
         otherwise Bailout;
 
         if (order < 0) {
-          Swap<E>(context, elements, low_end, idx, element) otherwise Bailout;
+          Swap<E>(context, receiver, elements, low_end, idx, element)
+          otherwise Bailout;
           low_end++;
         } else if (order > 0) {
           let break_for: bool = false;
@@ -426,13 +439,14 @@ module array {
             break;
           }
 
-          Swap<E>(context, elements, high_start, idx, element)
+          Swap<E>(context, receiver, elements, high_start, idx, element)
           otherwise Bailout;
 
           if (order < 0) {
             element = Load<E>(context, elements, idx) otherwise Bailout;
 
-            Swap<E>(context, elements, low_end, idx, element) otherwise Bailout;
+            Swap<E>(context, receiver, elements, low_end, idx, element)
+            otherwise Bailout;
             low_end++;
           }
         }
