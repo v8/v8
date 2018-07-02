@@ -589,6 +589,8 @@ class AbstractCode : public HeapObject {
 
 class DependentCode : public FixedArray {
  public:
+  DECL_CAST(DependentCode)
+
   enum DependencyGroup {
     // Group of code that embed a transition to this map, and depend on being
     // deoptimized when the transition is replaced by a new version.
@@ -615,17 +617,8 @@ class DependentCode : public FixedArray {
     kAllocationSiteTransitionChangedGroup
   };
 
-  static const int kGroupCount = kAllocationSiteTransitionChangedGroup + 1;
-  static const int kNextLinkIndex = 0;
-  static const int kFlagsIndex = 1;
-  static const int kCodesStartIndex = 2;
-
   bool Contains(DependencyGroup group, WeakCell* code_cell);
   bool IsEmpty(DependencyGroup group);
-
-  static Handle<DependentCode> InsertCompilationDependencies(
-      Handle<DependentCode> entries, DependencyGroup group,
-      Handle<Foreign> info);
 
   static Handle<DependentCode> InsertWeakCode(Handle<DependentCode> entries,
                                               DependencyGroup group,
@@ -640,36 +633,39 @@ class DependentCode : public FixedArray {
   bool MarkCodeForDeoptimization(Isolate* isolate,
                                  DependentCode::DependencyGroup group);
 
-  // The following low-level accessors should only be used by this class
-  // and the mark compact collector.
-  inline DependentCode* next_link();
-  inline void set_next_link(DependentCode* next);
-  inline int count();
-  inline void set_count(int value);
+  // The following low-level accessors are exposed only for tests.
   inline DependencyGroup group();
-  inline void set_group(DependencyGroup group);
   inline Object* object_at(int i);
-  inline void set_object_at(int i, Object* object);
-  inline void clear_at(int i);
-  inline void copy(int from, int to);
-  DECL_CAST(DependentCode)
-
-  static const char* DependencyGroupName(DependencyGroup group);
+  inline int count();
+  inline DependentCode* next_link();
 
  private:
-  static Handle<DependentCode> Insert(Handle<DependentCode> entries,
-                                      DependencyGroup group,
-                                      Handle<Object> object);
+  static const char* DependencyGroupName(DependencyGroup group);
+
   static Handle<DependentCode> New(DependencyGroup group, Handle<Object> object,
                                    Handle<DependentCode> next);
   static Handle<DependentCode> EnsureSpace(Handle<DependentCode> entries);
+
   // Compact by removing cleared weak cells and return true if there was
   // any cleared weak cell.
   bool Compact();
+
   static int Grow(int number_of_entries) {
     if (number_of_entries < 5) return number_of_entries + 1;
     return number_of_entries * 5 / 4;
   }
+
+  static const int kGroupCount = kAllocationSiteTransitionChangedGroup + 1;
+  static const int kNextLinkIndex = 0;
+  static const int kFlagsIndex = 1;
+  static const int kCodesStartIndex = 2;
+
+  inline void set_next_link(DependentCode* next);
+  inline void set_count(int value);
+  inline void set_object_at(int i, Object* object);
+  inline void clear_at(int i);
+  inline void copy(int from, int to);
+
   inline int flags();
   inline void set_flags(int flags);
   class GroupField : public BitField<int, 0, 3> {};
