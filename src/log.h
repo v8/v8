@@ -327,6 +327,10 @@ class Logger : public CodeEventListener {
   // Logs an IntPtrTEvent regardless of whether FLAG_log is true.
   void UncheckedIntPtrTEvent(const char* name, intptr_t value);
 
+  // Logs a scripts sources. Keeps track of all logged scripts to ensure that
+  // each script is logged only once.
+  bool EnsureLogScriptSource(Script* script);
+
   Isolate* isolate_;
 
   // The sampler used by the profiler and the sliding state window.

@@ -64,8 +64,47 @@ function timestampMin(list) {
 
 
 // ===========================================================================
-class Script {
+const kNoTimeMetrics = {
+  __proto__: null,
+  executionDuration: 0,
+  firstEventTimestamp: 0,
+  firstParseEventTimestamp: 0,
+  lastParseEventTimestamp: 0,
+  lastEventTimestamp: 0
+};
+
+class CompilationUnit {
+  constructor() {
+    // Lazily computed properties.
+    this.firstEventTimestamp = -1;
+    this.firstParseEventTimestamp = -1;
+    this.lastParseEventTimestamp = -1;
+    this.lastEventTimestamp = -1;
+
+    this.preparseTimestamp = -1;
+    this.parseTimestamp = -1;
+    this.parse2Timestamp = -1;
+    this.resolutionTimestamp = -1;
+    this.lazyCompileTimestamp = -1;
+    this.compileTimestamp = -1;
+    this.executionTimestamp = -1;
+
+    this.preparseDuration = -0.0;
+    this.parseDuration = -0.0;
+    this.parse2Duration = -0.0;
+    this.resolutionDuration = -0.0;
+    this.scopeResolutionDuration = -0.0;
+    this.lazyCompileDuration = -0.0;
+    this.compileDuration = -0.0;
+
+    this.ownBytes = -1;
+  }
+}
+
+// ===========================================================================
+class Script extends CompilationUnit {
   constructor(id) {
+    super();
     if (id === void 0 || id <= 0) {
       throw new Error(`Invalid id=${id} for script`);
     }
@@ -81,20 +120,11 @@ class Script {
     this.metrics = new Map();
     this.maxNestingLevel = 0;
 
-    this.firstEvent = -1;
-    this.firstParseEvent = -1;
-    this.lastParseEvent = -1;
-    this.executionTimestamp = -1;
-    this.compileTimestamp = -1;
-    this.lastEvent = -1;
-
-    this.compileTime = -0.0;
-
     this.width = 0;
     this.bytesTotal = -1;
-    this.ownBytes = -1;
     this.finalized = false;
     this.summary = '';
+    this.source = '';
   }
 
   setFile(name) {
@@ -107,7 +137,9 @@ class Script {
   }
 
   funktionAtPosition(start) {
-    if (start === 0) throw "position 0 is reserved for the script";
+    if (!this.isEval && start === 0) {
+      throw 'position 0 is reserved for the script';
+    }
     if (this.finalized) throw 'Finalized script has no source position!';
     return this.funktions[start];
   }
@@ -153,18 +185,42 @@ class Script {
         }
         parent = fn;
       }
-      this.firstParseEvent = this.firstParseEvent === -1 ?
-        fn.getFirstParseEvent() :
-        Math.min(this.firstParseEvent, fn.getFirstParseEvent());
-      this.lastParseEvent =
-        Math.max(this.lastParseEvent, fn.getLastParseEvent());
-      fn.getFirstEvent();
-      if (Number.isNaN(this.lastEvent)) throw "Invalid lastEvent";
-      this.lastEvent = Math.max(this.lastEvent, fn.getLastEvent());
-      if (Number.isNaN(this.lastEvent)) throw "Invalid lastEvent";
+      this.firstParseEventTimestamp = this.firstParseEventTimestamp === -1 ?
+          fn.getFirstParseEventTimestamp() :
+          Math.min(
+              this.firstParseEventTimestamp, fn.getFirstParseEventTimestamp());
+      this.lastParseEventTimestamp = Math.max(
+          this.lastParseEventTimestamp, fn.getLastParseEventTimestamp());
+      fn.getFirstEventTimestamp();
+      if (Number.isNaN(this.lastEventTimestamp)) {
+        throw 'Invalid lastEventTimestamp';
+      }
+      this.lastEventTimestamp =
+          Math.max(this.lastEventTimestamp, fn.getLastEventTimestamp());
+      if (Number.isNaN(this.lastEventTimestamp)) {
+        throw 'Invalid lastEventTimestamp';
+      }
     });
     this.maxNestingLevel = maxNesting;
-    this.getFirstEvent();
+    this.getFirstEventTimestamp();
+
+    // Initialize sizes.
+    if (!this.ownBytes === -1) throw 'Invalid state';
+    if (this.funktions.length == 0) {
+      this.bytesTotal = this.ownBytes = 0;
+      return;
+    }
+    let toplevelFunktionBytes = this.funktions.reduce(
+        (bytes, each) => bytes + (each.isToplevel() ? each.getBytes() : 0), 0);
+    if (this.isDeserialized || this.isEval || this.isBackgroundCompiled) {
+      if (this.getBytes() === -1) {
+        this.bytesTotal = toplevelFunktionBytes;
+      }
+    }
+    this.ownBytes = this.bytesTotal - toplevelFunktionBytes;
+    if (this.ownBytes < 0) {
+      console.error(this, 'Own bytes must be positive');
+    }
   }
 
   print() {
@@ -183,27 +239,16 @@ class Script {
   }
 
   getOwnBytes() {
-    if (this.ownBytes === -1) {
-      if (this.getBytes() === -1) {
-        if (this.isDeserialized || this.isEval) {
-          return this.ownBytes = 0;
-        }
-      }
-      this.ownBytes = this.funktions.reduce(
-        (bytes, each) => bytes - (each.isToplevel() ? each.getBytes() : 0),
-        this.getBytes());
-      if (this.ownBytes < 0) throw "Own bytes must be positive";
-    }
     return this.ownBytes;
   }
 
   // Also see Funktion.prototype.getMetricBytes
   getMetricBytes(name) {
     if (name == 'lazyCompileTimestamp') return this.getOwnBytes();
-    return this.getBytes();
+    return this.getOwnBytes();
   }
 
-  getMetricTime(name) {
+  getMetricDuration(name) {
     return this[name];
   }
 
@@ -249,52 +294,52 @@ class Script {
     info("scripts", this.getScripts());
     info("functions", all);
     info("toplevel fn", all.filter(each => each.isToplevel()));
-    info("preparsed", all.filter(each => each.preparseTime > 0));
+    info('preparsed', all.filter(each => each.preparseDuration > 0));
 
-
-    info("fully parsed", all.filter(each => each.parseTime > 0));
-    // info("fn parsed", all.filter(each => each.parse2Time > 0));
-    // info("resolved", all.filter(each => each.resolutionTime > 0));
+    info('fully parsed', all.filter(each => each.parseDuration > 0));
+    // info("fn parsed", all.filter(each => each.parse2Duration > 0));
+    // info("resolved", all.filter(each => each.resolutionDuration > 0));
     info("executed", all.filter(each => each.executionTimestamp > 0));
     info("forEval", all.filter(each => each.fromEval));
     info("lazy compiled", all.filter(each => each.lazyCompileTimestamp > 0));
     info("eager compiled", all.filter(each => each.compileTimestamp > 0));
 
-    let parsingCost = new ExecutionCost('parse', all,
-      each => each.parseTime);
+    let parsingCost =
+        new ExecutionCost('parse', all, each => each.parseDuration);
     parsingCost.setMetrics(this.metrics);
-    log(parsingCost.toString())
+    log(parsingCost.toString());
 
-    let preParsingCost = new ExecutionCost('preparse', all,
-      each => each.preparseTime);
+    let preParsingCost =
+        new ExecutionCost('preparse', all, each => each.preparseDuration);
     preParsingCost.setMetrics(this.metrics);
-    log(preParsingCost.toString())
+    log(preParsingCost.toString());
 
-    let resolutionCost = new ExecutionCost('resolution', all,
-      each => each.resolutionTime);
+    let resolutionCost =
+        new ExecutionCost('resolution', all, each => each.resolutionDuration);
     resolutionCost.setMetrics(this.metrics);
-    log(resolutionCost.toString())
+    log(resolutionCost.toString());
 
     let nesting = new NestingDistribution(all);
     nesting.setMetrics(this.metrics);
-    log(nesting.toString())
+    log(nesting.toString());
 
     if (printSummary) console.log(this.summary);
   }
 
   getAccumulatedTimeMetrics(metrics, start, end, delta, incremental = false) {
     // Returns an array of the following format:
-    // [ [start, acc(metric0, start, start), acc(metric1, ...), ...],
-    //   [start+delta, acc(metric0, start, start+delta), ...],
+    // [ [start,         acc(metric0, start, start), acc(metric1, ...), ...],
+    //   [start+delta,   acc(metric0, start, start+delta), ...],
     //   [start+delta*2, acc(metric0, start, start+delta*2), ...],
     //   ...
     // ]
+    if (end <= start) throw 'Invalid ranges [' + start + ',' + end + ']';
     const timespan = end - start;
     const kSteps = Math.ceil(timespan / delta);
     // To reduce the time spent iterating over the funktions of this script
     // we iterate once over all funktions and add the metric changes to each
     // timepoint:
-    // [ [0, 300, ...], [1, 15, ...], [2, 100, ...], [3, 0, ...] ... ]
+    // [ [0, 300, ...], [1,  15, ...], [2, 100, ...], [3,   0, ...] ... ]
     // In a second step we accumulate all values:
     // [ [0, 300, ...], [1, 315, ...], [2, 415, ...], [3, 415, ...] ... ]
     //
@@ -304,7 +349,7 @@ class Script {
     const metricProperties = ["time"];
     metrics.forEach(each => {
       metricProperties.push(each + 'Timestamp');
-      metricProperties.push(each + 'Time');
+      metricProperties.push(each + 'Duration');
     });
     // Create a packed {rowTemplate} which is copied later-on.
     let indexToTime = (t) => (start + t * delta) / kSecondsToMillis;
@@ -316,12 +361,14 @@ class Script {
     // Create the real metric's property name on the Funktion object.
     // Add the increments of each Funktion's metric to the result.
     this.forEach(funktionOrScript => {
-      // Iterate over the Funktion's metric names, position 0 is the time.
+      // Iterate over the Funktion's metric names, skipping position 0 which
+      // is the time.
       for (let i = 1; i < metricProperties.length; i += 2) {
-        let property = metricProperties[i];
-        let timestamp = funktionOrScript[property];
+        let timestampPropertyName = metricProperties[i];
+        let timestamp = funktionOrScript[timestampPropertyName];
         if (timestamp === void 0) continue;
-        if (timestamp < 0 || end < timestamp) continue;
+        if (timestamp < start || end < timestamp) continue;
+        timestamp -= start;
         let index = Math.floor(timestamp / delta);
         let row = rows[index];
         if (row === null) {
@@ -331,9 +378,9 @@ class Script {
           row[0] = indexToTime(index);
         }
         // Add the metric value.
-        row[i] += funktionOrScript.getMetricBytes(property);
-        let timeMetricName = metricProperties[i + 1];
-        row[i + 1] += funktionOrScript.getMetricTime(timeMetricName);
+        row[i] += funktionOrScript.getMetricBytes(timestampPropertyName);
+        let durationPropertyName = metricProperties[i + 1];
+        row[i + 1] += funktionOrScript.getMetricDuration(durationPropertyName);
       }
     });
     // Create a packed array again with only the valid entries.
@@ -386,12 +433,12 @@ class Script {
     return result;
   }
 
-  getFirstEvent() {
-    if (this.firstEvent === -1) {
+  getFirstEventTimestamp() {
+    if (this.firstEventTimestamp === -1) {
       // TODO(cbruni): add support for network request timestanp
-      this.firstEvent = this.firstParseEvent;
+      this.firstEventTimestamp = this.firstParseEventTimestamp;
     }
-    return this.firstEvent;
+    return this.firstEventTimestamp;
   }
 }
 
@@ -502,67 +549,41 @@ class ExecutionCost {
 }
 
 // ===========================================================================
-const kNoTimeMetrics = {
-  __proto__: null,
-  executionTime: 0,
-  firstEventTimestamp: 0,
-  firstParseEventTimestamp: 0,
-  lastParseTimestamp: 0,
-  lastEventTimestamp: 0
-};
 
-class Funktion {
+class Funktion extends CompilationUnit {
   constructor(name, start, end, script) {
+    super();
     if (start < 0) throw "invalid start position: " + start;
-    if (end <= 0) throw "invalid end position: " + end;
-    if (end <= start) throw "invalid start end positions";
+    if (script.isEval) {
+      if (end < start) throw 'invalid start end positions';
+    } else {
+      if (end <= 0) throw 'invalid end position: ' + end;
+      if (end <= start) throw 'invalid start end positions';
+    }
 
     this.name = name;
     this.start = start;
     this.end = end;
-    this.ownBytes = -1;
     this.script = script;
     this.parent = null;
     this.fromEval = false;
     this.nested = [];
     this.nestingLevel = 0;
 
-    this.preparseTimestamp = -1;
-    this.parseTimestamp = -1;
-    this.parse2Timestamp = -1;
-    this.resolutionTimestamp = -1;
-    this.lazyCompileTimestamp = -1;
-    this.compileTimestamp = -1;
-    this.executionTimestamp = -1;
-
-    this.preparseTime = -0.0;
-    this.parseTime = -0.0;
-    this.parse2Time = -0.0;
-    this.resolutionTime = -0.0;
-    this.scopeResolutionTime = -0.0;
-    this.lazyCompileTime = -0.0;
-    this.compileTime = -0.0;
-
-    // Lazily computed properties.
-    this.firstEventTimestamp = -1;
-    this.firstParseEventTimestamp = -1;
-    this.lastParseTimestamp = -1;
-    this.lastEventTimestamp = -1;
-
     if (script) this.script.addFunktion(this);
   }
 
   getMetricBytes(name) {
     if (name == 'lazyCompileTimestamp') return this.getOwnBytes();
-    return this.getBytes();
+    return this.getOwnBytes();
   }
 
-  getMetricTime(name) {
+  getMetricDuration(name) {
     if (name in kNoTimeMetrics) return 0;
     return this[name];
   }
 
-  getFirstEvent() {
+  getFirstEventTimestamp() {
     if (this.firstEventTimestamp === -1) {
       this.firstEventTimestamp = timestampMin(
         [this.parseTimestamp, this.preparseTimestamp,
@@ -575,7 +596,7 @@ class Funktion {
     return this.firstEventTimestamp;
   }
 
-  getFirstParseEvent() {
+  getFirstParseEventTimestamp() {
     if (this.firstParseEventTimestamp === -1) {
       this.firstParseEventTimestamp = timestampMin(
         [this.parseTimestamp, this.preparseTimestamp,
@@ -588,23 +609,23 @@ class Funktion {
     return this.firstParseEventTimestamp;
   }
 
-  getLastParseEvent() {
-    if (this.lastParseTimestamp === -1) {
-      this.lastParseTimestamp = Math.max(
-        this.preparseTimestamp + this.preparseTime,
-        this.parseTimestamp + this.parseTime,
-        this.resolutionTimestamp + this.resolutionTime);
-      if (!(this.lastParseTimestamp > 0)) {
-        this.lastParseTimestamp = 0;
+  getLastParseEventTimestamp() {
+    if (this.lastParseEventTimestamp === -1) {
+      this.lastParseEventTimestamp = Math.max(
+          this.preparseTimestamp + this.preparseDuration,
+          this.parseTimestamp + this.parseDuration,
+          this.resolutionTimestamp + this.resolutionDuration);
+      if (!(this.lastParseEventTimestamp > 0)) {
+        this.lastParseEventTimestamp = 0;
       }
     }
-    return this.lastParseTimestamp;
+    return this.lastParseEventTimestamp;
   }
 
-  getLastEvent() {
+  getLastEventTimestamp() {
     if (this.lastEventTimestamp === -1) {
-      this.lastEventTimestamp = Math.max(
-        this.getLastParseEvent(), this.executionTimestamp);
+      this.lastEventTimestamp =
+          Math.max(this.getLastParseEventTimestamp(), this.executionTimestamp);
       if (!(this.lastEventTimestamp > 0)) {
         this.lastEventTimestamp = 0;
       }
@@ -726,7 +747,11 @@ class ParseProcessor extends LogReader {
       'script-details': {
         parsers: [parseInt, parseString, parseInt, parseInt, parseInt],
         processor: this.processScriptDetails
-      }
+      },
+      'script-source': {
+        parsers: [parseInt, parseString, parseString],
+        processor: this.processScriptSource
+      },
     };
     this.functionEventDispatchTable_ = {
       // Avoid accidental leaking of __proto__ properties and force this object
@@ -753,9 +778,9 @@ class ParseProcessor extends LogReader {
     this.nameToFunction = new Map();
     this.scripts = [];
     this.totalScript = new TotalScript();
-    this.firstEvent = -1;
-    this.lastParseEvent = -1;
-    this.lastEvent = -1;
+    this.firstEventTimestamp = -1;
+    this.lastParseEventTimestamp = -1;
+    this.lastEventTimestamp = -1;
   }
 
   print() {
@@ -800,12 +825,12 @@ class ParseProcessor extends LogReader {
       script.calculateMetrics(false)
     });
 
-    this.firstEvent =
-      timestampMin(this.scripts.map(each => each.firstEvent));
-    this.lastParseEvent = this.scripts.reduce(
-      (max, script) => Math.max(max, script.lastParseEvent), -1);
-    this.lastEvent = this.scripts.reduce(
-      (max, script) => Math.max(max, script.lastEvent), -1);
+    this.firstEventTimestamp =
+        timestampMin(this.scripts.map(each => each.firstEventTimestamp));
+    this.lastParseEventTimestamp = this.scripts.reduce(
+        (max, script) => Math.max(max, script.lastParseEventTimestamp), -1);
+    this.lastEventTimestamp = this.scripts.reduce(
+        (max, script) => Math.max(max, script.lastEventTimestamp), -1);
 
     this.scripts.forEach(script => this.totalScript.addAllFunktions(script));
     this.totalScript.calculateMetrics(true);
@@ -819,7 +844,8 @@ class ParseProcessor extends LogReader {
       execution: 'First Execution',
     };
     let metrics = Object.keys(series);
-    this.totalScript.getAccumulatedTimeMetrics(metrics, 0, this.lastEvent, 10);
+    this.totalScript.getAccumulatedTimeMetrics(
+        metrics, 0, this.lastEventTimestamp, 10);
   }
 
   processFunctionEvent(
@@ -892,6 +918,11 @@ class ParseProcessor extends LogReader {
     script.setFile(file);
   }
 
+  processScriptSource(scriptId, url, source) {
+    let script = this.lookupScript(scriptId);
+    script.source = source;
+  }
+
   processEval(
       scriptId, startPosition, endPosition, duration, timestamp, functionName) {
     let script = this.lookupScript(scriptId);
@@ -911,14 +942,14 @@ class ParseProcessor extends LogReader {
     // parser.
     if (funktion.parseTimestamp > 0) return;
     funktion.parseTimestamp = startOf(timestamp, duration);
-    funktion.parseTime = duration;
+    funktion.parseDuration = duration;
   }
 
   processParseFunction(
       scriptId, startPosition, endPosition, duration, timestamp, functionName) {
     let funktion = this.getOrCreateFunction(...arguments);
     funktion.parseTimestamp = startOf(timestamp, duration);
-    funktion.parseTime = duration;
+    funktion.parseDuration = duration;
   }
 
   processScript(
@@ -929,7 +960,7 @@ class ParseProcessor extends LogReader {
     script.parseTimestamp = ts;
     script.firstEventTimestamp = ts;
     script.firstParseEventTimestamp = ts;
-    script.parseTime = duration;
+    script.parseDuration = duration;
   }
 
   processPreparseResolution(
@@ -939,14 +970,14 @@ class ParseProcessor extends LogReader {
     // parser.
     if (funktion.resolutionTimestamp > 0) return;
     funktion.resolutionTimestamp = startOf(timestamp, duration);
-    funktion.resolutionTime = duration;
+    funktion.resolutionDuration = duration;
   }
 
   processPreparseNoResolution(
       scriptId, startPosition, endPosition, duration, timestamp, functionName) {
     let funktion = this.getOrCreateFunction(...arguments);
     funktion.preparseTimestamp = startOf(timestamp, duration);
-    funktion.preparseTime = duration;
+    funktion.preparseDuration = duration;
   }
 
   processFirstExecution(
@@ -971,7 +1002,7 @@ class ParseProcessor extends LogReader {
       scriptId, startPosition, endPosition, duration, timestamp, functionName) {
     let funktion = this.getOrCreateFunction(...arguments);
     funktion.lazyCompileTimestamp = startOf(timestamp, duration);
-    funktion.lazyCompileTime = duration;
+    funktion.lazyCompileDuration = duration;
   }
 
   processCompile(
@@ -979,7 +1010,7 @@ class ParseProcessor extends LogReader {
     let script = this.lookupScript(scriptId);
     if (startPosition === 0) {
       script.compileTimestamp = startOf(timestamp, duration);
-      script.compileTime = duration;
+      script.compileDuration = duration;
       script.bytesTotal = endPosition;
     } else {
       let funktion = script.funktionAtPosition(startPosition);
@@ -988,7 +1019,7 @@ class ParseProcessor extends LogReader {
         console.log("processCompile funktion not found", ...arguments);
       }
       funktion.compileTimestamp = startOf(timestamp, duration);
-      funktion.compileTime = duration;
+      funktion.compileDuration = duration;
     }
   }
 

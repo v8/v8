@@ -62,10 +62,39 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     overflow-y: scroll;
   }
 
-
   .funktion {
   }
 
+  .script-size {
+    display: inline-block;
+    background-color: #505050;
+    border-radius: 3px;
+    padding: 3px;
+    margin: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    min-width: 2em;
+    text-decoration: none;
+    color: white;
+  }
+  .script-size.eval {
+    background-color: #ee6300fc;
+
+  }
+  .script-size.background {
+    background-color: #008aff;
+  }
+
+  .script-id {
+    display: inline;
+    padding-right: 2px;
+    margin-right: 2px;
+    border-right: 1px grey dotted;
+  }
+  .script-url {
+    display: inline;
+    text-overflow: ellipis;
+  }
 </style>
 <script src="./splaytree.js" type="text/javascript"></script>
 <script src="./codemap.js" type="text/javascript"></script>
@@ -156,12 +185,13 @@ function renderParseResults(parseProcessor) {
   let result = $('#result');
   // clear out all existing result pages;
   result.innerHTML = '';
-  const start = parseProcessor.firstEvent;
-  const end = parseProcessor.lastEvent;
+  const start = parseProcessor.firstEventTimestamp;
+  const end = parseProcessor.lastEventTimestamp;
   renderScript(result, parseProcessor.totalScript, start, end);
   // Build up the graphs lazily to keep the page responsive.
   parseProcessor.scripts.forEach(
       script => renderScript(result, script, start, end));
+  renderScriptSizes(parseProcessor);
   // Install an intersection observer to lazily load the graphs when the script
   // div becomes visible for the first time.
   var io = new IntersectionObserver((entries, observer) => {
@@ -198,7 +228,31 @@ function renderScript(result, script, start, end) {
   summary.appendChild(text(script.summary));
   scriptDiv.appendChild(summary);
   result.appendChild(scriptDiv);
-  return scriptDiv;
+}
+
+function renderScriptSizes(parseProcessor) {
+  let scriptsDiv = $('#scripts');
+  parseProcessor.scripts.forEach(
+    script => {
+      let scriptDiv = a('#script'+script.id, '', 'script-size');
+      let scriptId = div('script-id');
+      scriptId.innerText = script.id;
+      scriptDiv.appendChild(scriptId);
+      let scriptUrl = div('script-url');
+      if (script.isEval) {
+        scriptUrl.innerText = "eval";
+        scriptDiv.classList.add('eval');
+      } else {
+        scriptUrl.innerText = script.file.split("/").pop();
+      }
+      if (script.isBackgroundCompiled ) {
+        scriptDiv.classList.add('background');
+      }
+      scriptDiv.appendChild(scriptUrl);
+      scriptDiv.style.width = script.bytesTotal * 0.001;
+      scriptsDiv.appendChild(scriptDiv);
+  
+    });
 }
 
 const kMaxTime = 120 * kSecondsToMillis;
@@ -206,13 +260,13 @@ const kMaxTime = 120 * kSecondsToMillis;
 const kTimeIncrement = 1;
 const kSelectionTimespan = 2;
 const series = [
-//    ['firstParseEvent', 'Any Parse Event'],
+    ['firstParseEvent', 'Any Parse Event'],
+    ['execution', 'First Execution'],
     ['parse', 'Parsing'],
-//    ['preparse', 'Preparsing'],
-//    ['resolution', 'Preparsing with Var. Resolution'],
+    ['preparse', 'Preparsing'],
+    ['resolution', 'Preparsing with Var. Resolution'],
     ['lazyCompile', 'Lazy Compilation'],
     ['compile', 'Eager Compilation'],
-    ['execution', 'First Execution'],
 ];
 const metricNames = series.map(each => each[0]);
 
@@ -223,18 +277,21 @@ function appendGraph(script, parentNode, start, end) {
 
   console.time(timerLabel);
   let data = new google.visualization.DataTable();
-  data.addColumn('number', 'Time');
+  data.addColumn('number', 'Duration');
   // The series are interleave bytes processed, time spent and thus have two
-  // different vAxes.
+  // different vAxes. 
   let seriesOptions = [];
+  let colors = ['#4D4D4D', '#5DA5DA', '#FAA43A', '#60BD68', '#F17CB0',
+      '#B2912F', '#B276B2', '#DECF3F', '#F15854'];
   series.forEach(each => {
     let description = each[1];
+    let color = colors.shift();
     // Add the bytes column.
     data.addColumn('number', description + ' Bytes');
-    seriesOptions.push({targetAxisIndex: 0});
+    seriesOptions.push({targetAxisIndex: 0, color: color});
     // Add the time column.
-    data.addColumn('number', description + ' Time');
-    seriesOptions.push({targetAxisIndex: 1, lineDashStyle: [3, 2]});
+    data.addColumn('number', description + ' Duration');
+    seriesOptions.push({targetAxisIndex: 1, color: color, lineDashStyle: [3, 2]});
   });
   // The first entry contains the total.
   seriesOptions[0].type = 'area';
@@ -257,7 +314,7 @@ function appendGraph(script, parentNode, start, end) {
     },
     vAxes: {
       0: {title: 'Bytes Touched', format: 'short'},
-      1: {title: 'Time', format: '#,###ms'}
+      1: {title: 'Duration', format: '#,###ms'}
     },
     height: 400,
     width: 1000,
@@ -275,6 +332,7 @@ function appendGraph(script, parentNode, start, end) {
   google.visualization.events.addListener(chart, 'select',
       () => selectGraphPointHandler(chart, data, script, parentNode));
   chart.draw(data, options);
+  // Add event listeners 
   console.timeEnd(timerLabel);
 }
 
@@ -311,8 +369,6 @@ function createFunktionList(metric, time, funktions) {
   container.appendChild(listNode);
   return container;
 }
-
-
 </script>
 </head>
 
@@ -329,6 +385,10 @@ function createFunktionList(metric, time, funktions) {
       <input id="uploadInput" type="file" name="files" onchange="loadFile();" accept=".log"> trace entries: <span id="count">0</span>
     </p>
   </form>
+
+
+  <h2>Scripts</h2>
+  <div id="scripts"></div>
 
   <h2>Result</h2>
   <div id="result"></div>
