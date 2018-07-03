@@ -1334,7 +1334,7 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
 }
 
 Declaration* Scope::CheckLexDeclarationsConflictingWith(
-    const ZoneList<const AstRawString*>& names) {
+    const ZonePtrList<const AstRawString>& names) {
   DCHECK(is_block_scope());
   for (int i = 0; i < names.length(); ++i) {
     Variable* var = LookupLocal(names.at(i));

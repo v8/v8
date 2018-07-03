@@ -553,7 +553,7 @@ class ParserBase {
     Scope* scope;
     BlockT init_block;
     BlockT inner_block;
-    ZoneList<const AstRawString*> bound_names;
+    ZonePtrList<const AstRawString> bound_names;
   };
 
   struct ForInfo {
@@ -563,7 +563,7 @@ class ParserBase {
           mode(ForEachStatement::ENUMERATE),
           position(kNoSourcePosition),
           parsing_result() {}
-    ZoneList<const AstRawString*> bound_names;
+    ZonePtrList<const AstRawString> bound_names;
     ForEachStatement::VisitMode mode;
     int position;
     DeclarationParsingResult parsing_result;
@@ -1191,17 +1191,17 @@ class ParserBase {
 
   BlockT ParseVariableDeclarations(VariableDeclarationContext var_context,
                                    DeclarationParsingResult* parsing_result,
-                                   ZoneList<const AstRawString*>* names,
+                                   ZonePtrList<const AstRawString>* names,
                                    bool* ok);
-  StatementT ParseAsyncFunctionDeclaration(ZoneList<const AstRawString*>* names,
-                                           bool default_export, bool* ok);
+  StatementT ParseAsyncFunctionDeclaration(
+      ZonePtrList<const AstRawString>* names, bool default_export, bool* ok);
   StatementT ParseFunctionDeclaration(bool* ok);
-  StatementT ParseHoistableDeclaration(ZoneList<const AstRawString*>* names,
+  StatementT ParseHoistableDeclaration(ZonePtrList<const AstRawString>* names,
                                        bool default_export, bool* ok);
   StatementT ParseHoistableDeclaration(int pos, ParseFunctionFlags flags,
-                                       ZoneList<const AstRawString*>* names,
+                                       ZonePtrList<const AstRawString>* names,
                                        bool default_export, bool* ok);
-  StatementT ParseClassDeclaration(ZoneList<const AstRawString*>* names,
+  StatementT ParseClassDeclaration(ZonePtrList<const AstRawString>* names,
                                    bool default_export, bool* ok);
   StatementT ParseNativeDeclaration(bool* ok);
 
@@ -1232,22 +1232,22 @@ class ParserBase {
                                        Token::Value end_token, bool may_abort,
                                        bool* ok);
   StatementT ParseStatementListItem(bool* ok);
-  StatementT ParseStatement(ZoneList<const AstRawString*>* labels, bool* ok) {
+  StatementT ParseStatement(ZonePtrList<const AstRawString>* labels, bool* ok) {
     return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
   }
-  StatementT ParseStatement(ZoneList<const AstRawString*>* labels,
+  StatementT ParseStatement(ZonePtrList<const AstRawString>* labels,
                             AllowLabelledFunctionStatement allow_function,
                             bool* ok);
-  BlockT ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok);
+  BlockT ParseBlock(ZonePtrList<const AstRawString>* labels, bool* ok);
 
   // Parse a SubStatement in strict mode, or with an extra block scope in
   // sloppy mode to handle
   // ES#sec-functiondeclarations-in-ifstatement-statement-clauses
-  StatementT ParseScopedStatement(ZoneList<const AstRawString*>* labels,
+  StatementT ParseScopedStatement(ZonePtrList<const AstRawString>* labels,
                                   bool* ok);
 
   StatementT ParseVariableStatement(VariableDeclarationContext var_context,
-                                    ZoneList<const AstRawString*>* names,
+                                    ZonePtrList<const AstRawString>* names,
                                     bool* ok);
 
   // Magical syntax support.
@@ -1258,43 +1258,45 @@ class ParserBase {
   StatementT ParseDebuggerStatement(bool* ok);
 
   StatementT ParseExpressionOrLabelledStatement(
-      ZoneList<const AstRawString*>* labels,
+      ZonePtrList<const AstRawString>* labels,
       AllowLabelledFunctionStatement allow_function, bool* ok);
-  StatementT ParseIfStatement(ZoneList<const AstRawString*>* labels, bool* ok);
+  StatementT ParseIfStatement(ZonePtrList<const AstRawString>* labels,
+                              bool* ok);
   StatementT ParseContinueStatement(bool* ok);
-  StatementT ParseBreakStatement(ZoneList<const AstRawString*>* labels,
+  StatementT ParseBreakStatement(ZonePtrList<const AstRawString>* labels,
                                  bool* ok);
   StatementT ParseReturnStatement(bool* ok);
-  StatementT ParseWithStatement(ZoneList<const AstRawString*>* labels,
+  StatementT ParseWithStatement(ZonePtrList<const AstRawString>* labels,
                                 bool* ok);
-  StatementT ParseDoWhileStatement(ZoneList<const AstRawString*>* labels,
+  StatementT ParseDoWhileStatement(ZonePtrList<const AstRawString>* labels,
                                    bool* ok);
-  StatementT ParseWhileStatement(ZoneList<const AstRawString*>* labels,
+  StatementT ParseWhileStatement(ZonePtrList<const AstRawString>* labels,
                                  bool* ok);
   StatementT ParseThrowStatement(bool* ok);
-  StatementT ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
+  StatementT ParseSwitchStatement(ZonePtrList<const AstRawString>* labels,
                                   bool* ok);
   StatementT ParseTryStatement(bool* ok);
-  StatementT ParseForStatement(ZoneList<const AstRawString*>* labels, bool* ok);
+  StatementT ParseForStatement(ZonePtrList<const AstRawString>* labels,
+                               bool* ok);
   StatementT ParseForEachStatementWithDeclarations(
-      int stmt_pos, ForInfo* for_info, ZoneList<const AstRawString*>* labels,
+      int stmt_pos, ForInfo* for_info, ZonePtrList<const AstRawString>* labels,
       Scope* inner_block_scope, bool* ok);
   StatementT ParseForEachStatementWithoutDeclarations(
       int stmt_pos, ExpressionT expression, int lhs_beg_pos, int lhs_end_pos,
-      ForInfo* for_info, ZoneList<const AstRawString*>* labels, bool* ok);
+      ForInfo* for_info, ZonePtrList<const AstRawString>* labels, bool* ok);
 
   // Parse a C-style for loop: 'for (<init>; <cond>; <next>) { ... }'
   // "for (<init>;" is assumed to have been parser already.
   ForStatementT ParseStandardForLoop(int stmt_pos,
-                                     ZoneList<const AstRawString*>* labels,
+                                     ZonePtrList<const AstRawString>* labels,
                                      ExpressionT* cond, StatementT* next,
                                      StatementT* body, bool* ok);
   // Same as the above, but handles those cases where <init> is a
   // lexical variable declaration.
   StatementT ParseStandardForLoopWithLexicalDeclarations(
       int stmt_pos, StatementT init, ForInfo* for_info,
-      ZoneList<const AstRawString*>* labels, bool* ok);
-  StatementT ParseForAwaitStatement(ZoneList<const AstRawString*>* labels,
+      ZonePtrList<const AstRawString>* labels, bool* ok);
+  StatementT ParseForAwaitStatement(ZonePtrList<const AstRawString>* labels,
                                     bool* ok);
 
   bool IsNextLetKeyword();
@@ -3849,7 +3851,7 @@ template <typename Impl>
 typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
     VariableDeclarationContext var_context,
     DeclarationParsingResult* parsing_result,
-    ZoneList<const AstRawString*>* names, bool* ok) {
+    ZonePtrList<const AstRawString>* names, bool* ok) {
   // VariableDeclarations ::
   //   ('var' | 'const' | 'let') (Identifier ('=' AssignmentExpression)?)+[',']
   //
@@ -4007,7 +4009,7 @@ ParserBase<Impl>::ParseFunctionDeclaration(bool* ok) {
 template <typename Impl>
 typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseHoistableDeclaration(
-    ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
+    ZonePtrList<const AstRawString>* names, bool default_export, bool* ok) {
   Expect(Token::FUNCTION, CHECK_OK_CUSTOM(NullStatement));
   int pos = position();
   ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
@@ -4020,7 +4022,7 @@ ParserBase<Impl>::ParseHoistableDeclaration(
 template <typename Impl>
 typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseHoistableDeclaration(
-    int pos, ParseFunctionFlags flags, ZoneList<const AstRawString*>* names,
+    int pos, ParseFunctionFlags flags, ZonePtrList<const AstRawString>* names,
     bool default_export, bool* ok) {
   // FunctionDeclaration ::
   //   'function' Identifier '(' FormalParameters ')' '{' FunctionBody '}'
@@ -4089,7 +4091,7 @@ ParserBase<Impl>::ParseHoistableDeclaration(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseClassDeclaration(
-    ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
+    ZonePtrList<const AstRawString>* names, bool default_export, bool* ok) {
   // ClassDeclaration ::
   //   'class' Identifier ('extends' LeftHandExpression)? '{' ClassBody '}'
   //   'class' ('extends' LeftHandExpression)? '{' ClassBody '}'
@@ -4159,7 +4161,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseNativeDeclaration(
 template <typename Impl>
 typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseAsyncFunctionDeclaration(
-    ZoneList<const AstRawString*>* names, bool default_export, bool* ok) {
+    ZonePtrList<const AstRawString>* names, bool default_export, bool* ok) {
   // AsyncFunctionDeclaration ::
   //   async [no LineTerminator here] function BindingIdentifier[Await]
   //       ( FormalParameters[Await] ) { AsyncFunctionBody }
@@ -4981,7 +4983,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatementListItem(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
-    ZoneList<const AstRawString*>* labels,
+    ZonePtrList<const AstRawString>* labels,
     AllowLabelledFunctionStatement allow_function, bool* ok) {
   // Statement ::
   //   Block
@@ -5081,7 +5083,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
 
 template <typename Impl>
 typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ZonePtrList<const AstRawString>* labels, bool* ok) {
   // Block ::
   //   '{' StatementList '}'
 
@@ -5113,7 +5115,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseScopedStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ZonePtrList<const AstRawString>* labels, bool* ok) {
   if (is_strict(language_mode()) || peek() != Token::FUNCTION) {
     return ParseStatement(labels, ok);
   } else {
@@ -5133,7 +5135,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseScopedStatement(
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseVariableStatement(
     VariableDeclarationContext var_context,
-    ZoneList<const AstRawString*>* names, bool* ok) {
+    ZonePtrList<const AstRawString>* names, bool* ok) {
   // VariableStatement ::
   //   VariableDeclarations ';'
 
@@ -5174,7 +5176,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDebuggerStatement(
 template <typename Impl>
 typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseExpressionOrLabelledStatement(
-    ZoneList<const AstRawString*>* labels,
+    ZonePtrList<const AstRawString>* labels,
     AllowLabelledFunctionStatement allow_function, bool* ok) {
   // ExpressionStatement | LabelledStatement ::
   //   Expression ';'
@@ -5245,7 +5247,7 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseIfStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ZonePtrList<const AstRawString>* labels, bool* ok) {
   // IfStatement ::
   //   'if' '(' Expression ')' Statement ('else' Statement)?
 
@@ -5315,7 +5317,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseContinueStatement(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ZonePtrList<const AstRawString>* labels, bool* ok) {
   // BreakStatement ::
   //   'break' Identifier? ';'
 
@@ -5396,7 +5398,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWithStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ZonePtrList<const AstRawString>* labels, bool* ok) {
   // WithStatement ::
   //   'with' '(' Expression ')' Statement
 
@@ -5426,7 +5428,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWithStatement(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ZonePtrList<const AstRawString>* labels, bool* ok) {
   // DoStatement ::
   //   'do' Statement 'while' '(' Expression ')' ';'
 
@@ -5461,7 +5463,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWhileStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ZonePtrList<const AstRawString>* labels, bool* ok) {
   // WhileStatement ::
   //   'while' '(' Expression ')' Statement
 
@@ -5510,7 +5512,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseThrowStatement(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ZonePtrList<const AstRawString>* labels, bool* ok) {
   // SwitchStatement ::
   //   'switch' '(' Expression ')' '{' CaseClause* '}'
   // CaseClause ::
@@ -5676,7 +5678,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ZonePtrList<const AstRawString>* labels, bool* ok) {
   // Either a standard for loop
   //   for (<init>; <cond>; <next>) { ... }
   // or a for-each loop
@@ -5788,7 +5790,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
 template <typename Impl>
 typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseForEachStatementWithDeclarations(
-    int stmt_pos, ForInfo* for_info, ZoneList<const AstRawString*>* labels,
+    int stmt_pos, ForInfo* for_info, ZonePtrList<const AstRawString>* labels,
     Scope* inner_block_scope, bool* ok) {
   // Just one declaration followed by in/of.
   if (for_info->parsing_result.declarations.size() != 1) {
@@ -5885,7 +5887,7 @@ template <typename Impl>
 typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
     int stmt_pos, ExpressionT expression, int lhs_beg_pos, int lhs_end_pos,
-    ForInfo* for_info, ZoneList<const AstRawString*>* labels, bool* ok) {
+    ForInfo* for_info, ZonePtrList<const AstRawString>* labels, bool* ok) {
   // Initializer is reference followed by in/of.
   if (!expression->IsArrayLiteral() && !expression->IsObjectLiteral()) {
     expression = CheckAndRewriteReferenceExpression(
@@ -5922,7 +5924,7 @@ template <typename Impl>
 typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseStandardForLoopWithLexicalDeclarations(
     int stmt_pos, StatementT init, ForInfo* for_info,
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ZonePtrList<const AstRawString>* labels, bool* ok) {
   // The condition and the next statement of the for loop must be parsed
   // in a new scope.
   Scope* inner_scope = NewScope(BLOCK_SCOPE);
@@ -5977,7 +5979,7 @@ ParserBase<Impl>::ParseStandardForLoopWithLexicalDeclarations(
 
 template <typename Impl>
 typename ParserBase<Impl>::ForStatementT ParserBase<Impl>::ParseStandardForLoop(
-    int stmt_pos, ZoneList<const AstRawString*>* labels, ExpressionT* cond,
+    int stmt_pos, ZonePtrList<const AstRawString>* labels, ExpressionT* cond,
     StatementT* next, StatementT* body, bool* ok) {
   ForStatementT loop = factory()->NewForStatement(labels, stmt_pos);
   typename Types::Target target(this, loop);
@@ -6016,7 +6018,7 @@ void ParserBase<Impl>::MarkLoopVariableAsAssigned(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
-    ZoneList<const AstRawString*>* labels, bool* ok) {
+    ZonePtrList<const AstRawString>* labels, bool* ok) {
   // for await '(' ForDeclaration of AssignmentExpression ')'
   DCHECK(is_async_function());
 
