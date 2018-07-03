@@ -1567,6 +1567,33 @@ Handle<Script> Factory::NewScriptWithId(Handle<String> source, int script_id,
   return script;
 }
 
+Handle<Script> Factory::CloneScript(Handle<Script> script) {
+  Heap* heap = isolate()->heap();
+  int script_id = isolate()->heap()->NextScriptId();
+  Handle<Script> new_script =
+      Handle<Script>::cast(NewStruct(SCRIPT_TYPE, TENURED));
+  new_script->set_source(script->source());
+  new_script->set_name(script->name());
+  new_script->set_id(script_id);
+  new_script->set_line_offset(script->line_offset());
+  new_script->set_column_offset(script->column_offset());
+  new_script->set_context_data(script->context_data());
+  new_script->set_type(script->type());
+  new_script->set_wrapper(script->wrapper());
+  new_script->set_line_ends(heap->undefined_value());
+  new_script->set_eval_from_shared_or_wrapped_arguments(
+      script->eval_from_shared_or_wrapped_arguments());
+  new_script->set_shared_function_infos(*empty_weak_fixed_array(),
+                                        SKIP_WRITE_BARRIER);
+  new_script->set_eval_from_position(script->eval_from_position());
+  new_script->set_flags(script->flags());
+  new_script->set_host_defined_options(script->host_defined_options());
+  heap->set_script_list(
+      *FixedArrayOfWeakCells::Add(isolate(), script_list(), new_script));
+  LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
+  return new_script;
+}
+
 Handle<CallableTask> Factory::NewCallableTask(Handle<JSReceiver> callable,
                                               Handle<Context> context) {
   DCHECK(callable->IsCallable());

@@ -661,7 +661,6 @@ action("js2c") {
     "src/js/prologue.js",
     "src/js/array.js",
     "src/js/typedarray.js",
-    "src/debug/liveedit.js",
   ]
 
   outputs = [
@@ -2295,7 +2294,6 @@ v8_source_set("v8_base") {
     "src/runtime/runtime-interpreter.cc",
     "src/runtime/runtime-intl.cc",
     "src/runtime/runtime-literals.cc",
-    "src/runtime/runtime-liveedit.cc",
     "src/runtime/runtime-maths.cc",
     "src/runtime/runtime-module.cc",
     "src/runtime/runtime-numbers.cc",

@@ -1200,37 +1200,9 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
   return true;
 }
 
-MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
-  Isolate* isolate = script->GetIsolate();
-  DCHECK(AllowCompilation::IsAllowed(isolate));
-
-  // In order to ensure that live edit function info collection finds the newly
-  // generated shared function infos, clear the script's list temporarily
-  // and restore it at the end of this method.
-  Handle<WeakFixedArray> old_function_infos(script->shared_function_infos(),
-                                            isolate);
-  script->set_shared_function_infos(isolate->heap()->empty_weak_fixed_array());
-
-  // Start a compilation.
-  ParseInfo parse_info(isolate, script);
-  parse_info.set_eager();
-
-  // TODO(635): support extensions.
-  Handle<JSArray> infos;
-  Handle<SharedFunctionInfo> shared_info;
-  if (CompileToplevel(&parse_info, isolate).ToHandle(&shared_info)) {
-    // Check postconditions on success.
-    DCHECK(!isolate->has_pending_exception());
-    infos = LiveEditFunctionTracker::Collect(parse_info.literal(), script,
-                                             parse_info.zone(), isolate);
-  }
-
-  // Restore the original function info list in order to remain side-effect
-  // free as much as possible, since some code expects the old shared function
-  // infos to stick around.
-  script->set_shared_function_infos(*old_function_infos);
-
-  return infos;
+MaybeHandle<SharedFunctionInfo> Compiler::CompileForLiveEdit(
+    ParseInfo* parse_info, Isolate* isolate) {
+  return CompileToplevel(parse_info, isolate);
 }
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(

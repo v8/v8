@@ -106,10 +106,9 @@ function patch(fun, from, to) {
   // Patching will fail however when an async function is suspended.
   var resolve;
   promise = asyncfn(function(){return new Promise(function(r){resolve = r})});
-  // TODO(kozyatinskiy): message should be BLOCKED_BY_RUNNING_GENERATOR.
   assertThrowsEquals(function() {
     patch(asyncfn, '\'Capybara\'', '\'Tapir\'')
-  }, 'LiveEdit failed: BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME');
+  }, 'LiveEdit failed: BLOCKED_BY_RUNNING_GENERATOR');
   resolve();
   assertPromiseValue("Capybara", promise);
 

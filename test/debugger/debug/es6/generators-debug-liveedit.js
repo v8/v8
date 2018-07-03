@@ -97,10 +97,9 @@ function patch(fun, from, to) {
   // Patching will fail however when a live iterator is suspended.
   iter = generator(function(){});
   assertIteratorResult(undefined, false, iter.next());
-  // TODO(kozyatinskiy): message should be BLOCKED_BY_RUNNING_GENERATOR.
   assertThrowsEquals(function() {
     patch(generator, '\'Capybara\'', '\'Tapir\'')
-  }, 'LiveEdit failed: BLOCKED_BY_FUNCTION_BELOW_NON_DROPPABLE_FRAME');
+  }, 'LiveEdit failed: BLOCKED_BY_RUNNING_GENERATOR');
   assertIteratorResult("Capybara", true, iter.next());
 
   // Try to patch functions with activations inside and outside generator

@@ -1323,11 +1323,6 @@ class SafeStackFrameIterator: public StackFrameIteratorBase {
   StackFrame::Type top_frame_type_;
   ExternalCallbackScope* external_callback_scope_;
 };
-
-// Reads all frames on the current stack and copies them into the current
-// zone memory.
-Vector<StackFrame*> CreateStackMap(Isolate* isolate, Zone* zone);
-
 }  // namespace internal
 }  // namespace v8
 
