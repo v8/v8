@@ -247,7 +247,7 @@ class LiftoffAssembler : public TurboAssembler {
     CacheState(const CacheState&) = delete;
   };
 
-  explicit LiftoffAssembler(Isolate* isolate);
+  LiftoffAssembler();
   ~LiftoffAssembler();
 
   LiftoffRegister PopToRegister(LiftoffRegList pinned = {});

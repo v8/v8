@@ -336,12 +336,18 @@ void LiftoffAssembler::CacheState::Split(const CacheState& source) {
   *this = source;
 }
 
+namespace {
+
+constexpr Assembler::Options DefaultLiftoffOptions() {
+  return Assembler::Options{};
+}
+
+}  // namespace
+
 // TODO(clemensh): Provide a reasonably sized buffer, based on wasm function
 // size.
-// TODO(mstarzinger): The Isolate is not passed to the base class constructor
-// and only used to derive the default options. Remove the Isolate entirely.
-LiftoffAssembler::LiftoffAssembler(Isolate* isolate)
-    : TurboAssembler(nullptr, Assembler::DefaultOptions(isolate), nullptr, 0,
+LiftoffAssembler::LiftoffAssembler()
+    : TurboAssembler(nullptr, DefaultLiftoffOptions(), nullptr, 0,
                      CodeObjectRequired::kNo) {
   set_trap_on_abort(true);  // Avoid calls to Abort.
 }

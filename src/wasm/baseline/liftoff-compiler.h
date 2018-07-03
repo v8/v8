@@ -18,7 +18,7 @@ namespace wasm {
 class LiftoffCompilationUnit final {
  public:
   explicit LiftoffCompilationUnit(WasmCompilationUnit* wasm_unit)
-      : wasm_unit_(wasm_unit), asm_(wasm_unit->isolate_) {}
+      : wasm_unit_(wasm_unit) {}
 
   bool ExecuteCompilation();
   wasm::WasmCode* FinishCompilation(wasm::ErrorThrower*);
