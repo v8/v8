@@ -1428,6 +1428,11 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
 
   Builtin* example_builtin =
       declarations()->FindSomeInternalBuiltinWithType(type);
+  if (!example_builtin) {
+    std::stringstream stream;
+    stream << "unable to find any builtin with type \"" << *type << "\"";
+    ReportError(stream.str());
+  }
 
   if (is_tailcall) {
     source_out() << "TailCallStub(";
