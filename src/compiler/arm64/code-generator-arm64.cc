@@ -2430,15 +2430,8 @@ void CodeGenerator::AssembleConstructFrame() {
         __ B(hs, &done);
       }
 
-      if (!frame_access_state()->has_frame()) {
-        __ set_has_frame(true);
-        // There is no need to leave the frame, we will not return from the
-        // runtime call.
-        __ EnterFrame(StackFrame::WASM_COMPILED);
-      } else {
+      {
         // Finish the frame that hasn't been fully built yet.
-        // TODO(mstarzinger): This is a work-around, deferred frame building is
-        // actually no longer supported, remove the associated code.
         UseScratchRegisterScope temps(tasm());
         __ Claim(2);  // Claim extra slots for marker + instance.
         Register scratch = temps.AcquireX();

@@ -733,7 +733,7 @@ std::ostream& operator<<(std::ostream& os,
     os << "   " << std::setw(5) << j << ": " << printable_instr << std::endl;
   }
 
-  os << " succecessors:";
+  os << " successors:";
   for (RpoNumber succ : block->successors()) {
     os << " B" << succ.ToInt();
   }

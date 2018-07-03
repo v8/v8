@@ -4012,6 +4012,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (shrink_slots > 0) {
+    DCHECK(frame_access_state()->has_frame());
     if (info()->IsWasm() && shrink_slots > 128) {
       // For WebAssembly functions with big frames we have to do the stack
       // overflow check before we construct the frame. Otherwise we may not
@@ -4033,10 +4034,6 @@ void CodeGenerator::AssembleConstructFrame() {
         __ cmp(esp, scratch);
         __ pop(scratch);
         __ j(above_equal, &done);
-      }
-      if (!frame_access_state()->has_frame()) {
-        __ set_has_frame(true);
-        __ EnterFrame(StackFrame::WASM_COMPILED);
       }
       __ mov(ecx, FieldOperand(kWasmInstanceRegister,
                                WasmInstanceObject::kCEntryStubOffset));
