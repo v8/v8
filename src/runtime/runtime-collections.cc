@@ -16,7 +16,7 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_TheHole) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  return isolate->heap()->the_hole_value();
+  return ReadOnlyRoots(isolate).the_hole_value();
 }
 
 RUNTIME_FUNCTION(Runtime_SetGrow) {
@@ -26,7 +26,7 @@ RUNTIME_FUNCTION(Runtime_SetGrow) {
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()), isolate);
   table = OrderedHashSet::EnsureGrowable(isolate, table);
   holder->set_table(*table);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -37,7 +37,7 @@ RUNTIME_FUNCTION(Runtime_SetShrink) {
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()), isolate);
   table = OrderedHashSet::Shrink(isolate, table);
   holder->set_table(*table);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_SetIteratorClone) {
@@ -57,7 +57,7 @@ RUNTIME_FUNCTION(Runtime_MapShrink) {
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()), isolate);
   table = OrderedHashMap::Shrink(isolate, table);
   holder->set_table(*table);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_MapGrow) {
@@ -67,7 +67,7 @@ RUNTIME_FUNCTION(Runtime_MapGrow) {
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()), isolate);
   table = OrderedHashMap::EnsureGrowable(isolate, table);
   holder->set_table(*table);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_MapIteratorClone) {

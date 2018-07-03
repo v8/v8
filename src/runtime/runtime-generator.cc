@@ -96,7 +96,7 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorHasCatchHandlerForPC) {
   // If state is 0 ("suspendedStart"), there is guaranteed to be no catch
   // handler. Otherwise, if state is below 0, the generator is closed and will
   // not reach a catch handler.
-  if (state < 1) return isolate->heap()->false_value();
+  if (state < 1) return ReadOnlyRoots(isolate).false_value();
 
   SharedFunctionInfo* shared = generator->function()->shared();
   DCHECK(shared->HasBytecodeArray());

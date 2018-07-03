@@ -155,7 +155,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case PACKED_ELEMENTS:
     case HOLEY_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(copy->elements()), isolate);
-      if (elements->map() == isolate->heap()->fixed_cow_array_map()) {
+      if (elements->map() == ReadOnlyRoots(isolate).fixed_cow_array_map()) {
 #ifdef DEBUG
         for (int i = 0; i < elements->length(); i++) {
           DCHECK(!elements->get(i)->IsJSObject());
@@ -412,7 +412,7 @@ struct ArrayBoilerplate {
     } else {
       DCHECK(IsSmiOrObjectElementsKind(constant_elements_kind));
       const bool is_cow = (constant_elements_values->map() ==
-                           isolate->heap()->fixed_cow_array_map());
+                           ReadOnlyRoots(isolate).fixed_cow_array_map());
       if (is_cow) {
         copied_elements_values = constant_elements_values;
 #if DEBUG

@@ -140,16 +140,16 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   // Ignore calls on non-function objects to avoid runtime errors.
   CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
   if (!function_object->IsJSFunction()) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
   // If the function is not optimized, just return.
-  if (!function->IsOptimized()) return isolate->heap()->undefined_value();
+  if (!function->IsOptimized()) return ReadOnlyRoots(isolate).undefined_value();
 
   Deoptimizer::DeoptimizeFunction(*function);
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -162,14 +162,14 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   // Find the JavaScript function on the top of the stack.
   JavaScriptFrameIterator it(isolate);
   if (!it.done()) function = handle(it.frame()->function(), isolate);
-  if (function.is_null()) return isolate->heap()->undefined_value();
+  if (function.is_null()) return ReadOnlyRoots(isolate).undefined_value();
 
   // If the function is not optimized, just return.
-  if (!function->IsOptimized()) return isolate->heap()->undefined_value();
+  if (!function->IsOptimized()) return ReadOnlyRoots(isolate).undefined_value();
 
   Deoptimizer::DeoptimizeFunction(*function);
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -177,9 +177,9 @@ RUNTIME_FUNCTION(Runtime_RunningInSimulator) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
 #if defined(USE_SIMULATOR)
-  return isolate->heap()->true_value();
+  return ReadOnlyRoots(isolate).true_value();
 #else
-  return isolate->heap()->false_value();
+  return ReadOnlyRoots(isolate).false_value();
 #endif
 }
 
@@ -196,14 +196,14 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
 
   // This function is used by fuzzers, ignore calls with bogus arguments count.
   if (args.length() != 1 && args.length() != 2) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   // This function is used by fuzzers to get coverage for optimizations
   // in compiler. Ignore calls on non-function objects to avoid runtime errors.
   CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
   if (!function_object->IsJSFunction()) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
@@ -211,24 +211,24 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   // JSFunction::MarkForOptimization().
 
   if (!function->shared()->allows_lazy_compilation()) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   // If function isn't compiled, compile it now.
   if (!function->shared()->is_compiled() &&
       !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION)) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   // If the function is already optimized, just return.
   if (function->IsOptimized() || function->shared()->HasAsmWasmData()) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   // If the function has optimized code, ensure that we check for it and return.
   if (function->HasOptimizedCode()) {
     DCHECK(function->ChecksOptimizationMarker());
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   ConcurrencyMode concurrency_mode = ConcurrencyMode::kNotConcurrent;
@@ -257,7 +257,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   JSFunction::EnsureFeedbackVector(function);
   function->MarkForOptimization(concurrency_mode);
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
@@ -273,10 +273,10 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   JavaScriptFrameIterator it(isolate);
   while (!it.done() && stack_depth--) it.Advance();
   if (!it.done()) function = handle(it.frame()->function(), isolate);
-  if (function.is_null()) return isolate->heap()->undefined_value();
+  if (function.is_null()) return ReadOnlyRoots(isolate).undefined_value();
 
   // If the function is already optimized, just return.
-  if (function->IsOptimized()) return isolate->heap()->undefined_value();
+  if (function->IsOptimized()) return ReadOnlyRoots(isolate).undefined_value();
 
   // Ensure that the function is marked for non-concurrent optimization, so that
   // subsequent runs don't also optimize.
@@ -295,7 +295,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
         it.frame(), AbstractCode::kMaxLoopNestingMarker);
   }
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -306,12 +306,12 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   // in compiler. Ignore calls on non-function objects to avoid runtime errors.
   CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
   if (!function_object->IsJSFunction()) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
   function->shared()->DisableOptimization(
       BailoutReason::kOptimizationDisabledForTest);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
@@ -340,7 +340,8 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   bool sync_with_compiler_thread = true;
   if (args.length() == 2) {
     CONVERT_ARG_HANDLE_CHECKED(Object, sync_object, 1);
-    if (!sync_object->IsString()) return isolate->heap()->undefined_value();
+    if (!sync_object->IsString())
+      return ReadOnlyRoots(isolate).undefined_value();
     Handle<String> sync = Handle<String>::cast(sync_object);
     if (sync->IsOneByteEqualTo(STATIC_CHAR_VECTOR("no sync"))) {
       sync_with_compiler_thread = false;
@@ -402,7 +403,7 @@ RUNTIME_FUNCTION(Runtime_UnblockConcurrentRecompilation) {
       isolate->concurrent_recompilation_enabled()) {
     isolate->optimizing_compile_dispatcher()->Unblock();
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_GetDeoptCount) {
@@ -467,7 +468,7 @@ RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   function->ClearTypeFeedbackInfo();
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_SetWasmCompileControls) {
@@ -480,7 +481,7 @@ RUNTIME_FUNCTION(Runtime_SetWasmCompileControls) {
   ctrl.AllowAnySizeForAsync = allow_async;
   ctrl.MaxWasmBufferSize = static_cast<uint32_t>(block_size->value());
   v8_isolate->SetWasmModuleCallback(WasmModuleOverride);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_SetWasmInstantiateControls) {
@@ -488,14 +489,14 @@ RUNTIME_FUNCTION(Runtime_SetWasmInstantiateControls) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   CHECK_EQ(args.length(), 0);
   v8_isolate->SetWasmInstanceCallback(WasmInstanceOverride);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_NotifyContextDisposed) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   isolate->heap()->NotifyContextDisposed(true);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -519,7 +520,7 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
     }
   }
 #endif
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -596,14 +597,14 @@ RUNTIME_FUNCTION(Runtime_PrintWithNameForAssert) {
   args[1]->ShortPrint();
   PrintF("\n");
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugTrace) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
   isolate->PrintStack(stdout);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugTrackRetainingPath) {
@@ -628,7 +629,7 @@ RUNTIME_FUNCTION(Runtime_DebugTrackRetainingPath) {
     }
     isolate->heap()->AddRetainingPathTarget(object, option);
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 // This will not allocate (flatten the string), but it may run
@@ -653,7 +654,7 @@ RUNTIME_FUNCTION(Runtime_SystemBreak) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   base::OS::DebugBreak();
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -665,7 +666,7 @@ RUNTIME_FUNCTION(Runtime_SetFlags) {
   std::unique_ptr<char[]> flags =
       arg->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   FlagList::SetFlagsFromString(flags.get(), StrLength(flags.get()));
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_SetForceSlowPath) {
@@ -678,7 +679,7 @@ RUNTIME_FUNCTION(Runtime_SetForceSlowPath) {
     DCHECK(arg->IsFalse(isolate));
     isolate->set_force_slow_path(false);
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_Abort) {
@@ -722,13 +723,13 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
   if (!func->is_compiled() &&
       !Compiler::Compile(func, Compiler::KEEP_EXCEPTION)) {
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   StdoutStream os;
   func->code()->Print(isolate, os);
   os << std::endl;
 #endif  // DEBUG
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 namespace {
@@ -757,7 +758,7 @@ RUNTIME_FUNCTION(Runtime_TraceEnter) {
   PrintIndentation(isolate);
   JavaScriptFrame::PrintTop(isolate, stdout, true, false);
   PrintF(" {\n");
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -794,14 +795,14 @@ RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
   if (!function->shared()->HasAsmWasmData()) {
     // Doesn't have wasm data.
-    return isolate->heap()->false_value();
+    return ReadOnlyRoots(isolate).false_value();
   }
   if (function->shared()->HasBuiltinId() &&
       function->shared()->builtin_id() == Builtins::kInstantiateAsmJs) {
     // Hasn't been compiled yet.
-    return isolate->heap()->false_value();
+    return ReadOnlyRoots(isolate).false_value();
   }
-  return isolate->heap()->true_value();
+  return ReadOnlyRoots(isolate).true_value();
 }
 
 namespace {
@@ -818,7 +819,7 @@ RUNTIME_FUNCTION(Runtime_DisallowCodegenFromStrings) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8_isolate->SetAllowCodeGenerationFromStringsCallback(
       flag ? DisallowCodegenFromStringsCallback : nullptr);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DisallowWasmCodegen) {
@@ -828,7 +829,7 @@ RUNTIME_FUNCTION(Runtime_DisallowWasmCodegen) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8_isolate->SetAllowWasmCodeGenerationCallback(
       flag ? DisallowCodegenFromStringsCallback : nullptr);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_IsWasmCode) {
@@ -919,7 +920,7 @@ RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
       !wasm::SerializeNativeModule(
           isolate, native_module,
           {reinterpret_cast<uint8_t*>(array_data), compiled_size})) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
   return *array_buffer;
 }
@@ -954,7 +955,7 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   }
   Handle<WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
   return *module_object;
 }
@@ -1006,7 +1007,7 @@ RUNTIME_FUNCTION(Runtime_RedirectToWasmInterpreter) {
       WasmInstanceObject::GetOrCreateDebugInfo(instance);
   WasmDebugInfo::RedirectToInterpreter(debug_info,
                                        Vector<int>(&function_index, 1));
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
@@ -1035,7 +1036,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
                                   : wasm::ExecutionEngine::kTurbofan;
   wasm::TraceMemoryOperation(eng, info, func_index, pos - func_start,
                              mem_start);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
@@ -1060,7 +1061,7 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   object->map()->CompleteInobjectSlackTracking(isolate);
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
@@ -1069,7 +1070,7 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   CONVERT_ARG_CHECKED(WasmInstanceObject, instance, 0);
 
   instance->module_object()->native_module()->set_lazy_compile_frozen(true);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmMemoryHasFullGuardRegion) {

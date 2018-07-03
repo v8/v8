@@ -27,7 +27,7 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
   CHECK(isolate->bootstrapper()->IsActive());
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
@@ -63,7 +63,7 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
     CHECK_NE(index, Context::kNotFound);
     native_context->set(index, *object);
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_Throw) {
@@ -297,7 +297,7 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqOneByteString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(length, 0);
-  if (length == 0) return isolate->heap()->empty_string();
+  if (length == 0) return ReadOnlyRoots(isolate).empty_string();
   Handle<SeqOneByteString> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, isolate->factory()->NewRawOneByteString(length));
@@ -308,7 +308,7 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(length, 0);
-  if (length == 0) return isolate->heap()->empty_string();
+  if (length == 0) return ReadOnlyRoots(isolate).empty_string();
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, isolate->factory()->NewRawTwoByteString(length));
@@ -471,7 +471,7 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(counter, 0);
   isolate->CountUsage(static_cast<v8::Isolate::UseCounterFeature>(counter));
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
@@ -516,7 +516,7 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
       std::fclose(f);
     else
       std::fflush(f);
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 }
 
@@ -587,7 +587,7 @@ RUNTIME_FUNCTION(Runtime_ReportMessage) {
   isolate->set_pending_exception(*message_obj);
   isolate->ReportPendingMessagesFromJavaScript();
   isolate->clear_pending_exception();
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace internal

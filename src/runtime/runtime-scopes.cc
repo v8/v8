@@ -71,14 +71,14 @@ Object* DeclareGlobal(
   }
   LookupIterator it(global, name, global, lookup_config);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  if (maybe.IsNothing()) return isolate->heap()->exception();
+  if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
 
   if (it.IsFound()) {
     PropertyAttributes old_attributes = maybe.FromJust();
     // The name was declared before; check for conflicting re-declarations.
 
     // Skip var re-declarations.
-    if (is_var) return isolate->heap()->undefined_value();
+    if (is_var) return ReadOnlyRoots(isolate).undefined_value();
 
     DCHECK(is_function_declaration);
     if ((old_attributes & DONT_DELETE) != 0) {
@@ -128,7 +128,7 @@ Object* DeclareGlobal(
       nexus.ConfigurePropertyCellMode(it.GetPropertyCell());
     }
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
@@ -187,7 +187,7 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
     if (isolate->has_pending_exception()) return result;
   });
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace
@@ -275,13 +275,13 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
     DCHECK_EQ(NONE, attributes);
 
     // Skip var re-declarations.
-    if (is_var) return isolate->heap()->undefined_value();
+    if (is_var) return ReadOnlyRoots(isolate).undefined_value();
 
     DCHECK(is_function);
     if (index != Context::kNotFound) {
       DCHECK(holder.is_identical_to(context));
       context->set(index, *value);
-      return isolate->heap()->undefined_value();
+      return ReadOnlyRoots(isolate).undefined_value();
     }
 
     object = Handle<JSObject>::cast(holder);
@@ -305,7 +305,7 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
                                            object, name, value, NONE));
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace
@@ -407,7 +407,8 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
       int mapped_count = Min(argument_count, parameter_count);
       Handle<FixedArray> parameter_map =
           isolate->factory()->NewFixedArray(mapped_count + 2, NOT_TENURED);
-      parameter_map->set_map(isolate->heap()->sloppy_arguments_elements_map());
+      parameter_map->set_map(
+          ReadOnlyRoots(isolate).sloppy_arguments_elements_map());
       result->set_map(isolate->native_context()->fast_aliased_arguments_map());
       result->set_elements(*parameter_map);
 
@@ -647,7 +648,7 @@ static Object* FindNameClash(Isolate* isolate, Handle<ScopeInfo> scope_info,
       LookupIterator it(global_object, name, global_object,
                         LookupIterator::OWN_SKIP_INTERCEPTOR);
       Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-      if (maybe.IsNothing()) return isolate->heap()->exception();
+      if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
       if ((maybe.FromJust() & DONT_DELETE) != 0) {
         // ES#sec-globaldeclarationinstantiation 5.a:
         // If envRec.HasVarDeclaration(name) is true, throw a SyntaxError
@@ -661,7 +662,7 @@ static Object* FindNameClash(Isolate* isolate, Handle<ScopeInfo> scope_info,
       JSGlobalObject::InvalidatePropertyCell(global_object, name);
     }
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -768,14 +769,15 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   // If the slot was not found the result is true.
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
-    if (isolate->has_pending_exception()) return isolate->heap()->exception();
-    return isolate->heap()->true_value();
+    if (isolate->has_pending_exception())
+      return ReadOnlyRoots(isolate).exception();
+    return ReadOnlyRoots(isolate).true_value();
   }
 
   // If the slot was found in a context or in module imports and exports it
   // should be DONT_DELETE.
   if (holder->IsContext() || holder->IsModule()) {
-    return isolate->heap()->false_value();
+    return ReadOnlyRoots(isolate).false_value();
   }
 
   // The slot was found in a JSReceiver, either a context extension object,
@@ -783,7 +785,7 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   // (respecting DONT_DELETE).
   Handle<JSReceiver> object = Handle<JSReceiver>::cast(holder);
   Maybe<bool> result = JSReceiver::DeleteProperty(object, name);
-  MAYBE_RETURN(result, isolate->heap()->exception());
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 
@@ -880,7 +882,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   Handle<Object> receiver;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value, LoadLookupSlot(isolate, name, kThrowOnError, &receiver),
-      MakePair(isolate->heap()->exception(), nullptr));
+      MakePair(ReadOnlyRoots(isolate).exception(), nullptr));
   return MakePair(*value, *receiver);
 }
 

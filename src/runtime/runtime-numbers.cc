@@ -48,7 +48,7 @@ RUNTIME_FUNCTION(Runtime_StringParseInt) {
   }
   int radix32 = DoubleToInt32(radix->Number());
   if (radix32 != 0 && (radix32 < 2 || radix32 > 36)) {
-    return isolate->heap()->nan_value();
+    return ReadOnlyRoots(isolate).nan_value();
   }
 
   double result = StringToInt(isolate, subject, radix32);

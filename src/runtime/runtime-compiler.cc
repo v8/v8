@@ -36,7 +36,7 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
     return isolate->StackOverflow();
   }
   if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   DCHECK(function->is_compiled());
   return function->code();
@@ -51,7 +51,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
     return isolate->StackOverflow();
   }
   if (!Compiler::CompileOptimized(function, ConcurrencyMode::kConcurrent)) {
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   DCHECK(function->is_compiled());
   return function->code();
@@ -85,7 +85,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
     return isolate->StackOverflow();
   }
   if (!Compiler::CompileOptimized(function, ConcurrencyMode::kNotConcurrent)) {
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   DCHECK(function->is_compiled());
   return function->code();
@@ -173,7 +173,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
     Deoptimizer::DeoptimizeFunction(*function);
   }
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -308,7 +308,7 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
     MaybeHandle<Object> maybe_error = isolate->factory()->NewEvalError(
         MessageTemplate::kCodeGenFromStrings, error_message);
     if (maybe_error.ToHandle(&error)) isolate->Throw(*error);
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
 
   // Deal with a normal eval call with a string argument. Compile it
@@ -320,7 +320,7 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
       Compiler::GetFunctionFromEval(source, outer_info, context, language_mode,
                                     restriction, kNoSourcePosition,
                                     eval_scope_position, eval_position),
-      isolate->heap()->exception());
+      ReadOnlyRoots(isolate).exception());
   return *compiled;
 }
 

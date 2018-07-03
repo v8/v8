@@ -95,7 +95,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceScript) {
     Handle<Script> script_handle = Handle<Script>::cast(old_script);
     return *Script::GetWrapper(script_handle);
   } else {
-    return isolate->heap()->null_value();
+    return ReadOnlyRoots(isolate).null_value();
   }
 }
 
@@ -111,7 +111,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFixupScript) {
   Handle<Script> script(Script::cast(script_value->value()), isolate);
 
   LiveEdit::FixupScript(isolate, script, max_function_literal_id);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_LiveEditFunctionSourceUpdated) {
@@ -122,7 +122,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFunctionSourceUpdated) {
   CHECK(SharedInfoWrapper::IsInstance(shared_info));
 
   LiveEdit::FunctionSourceUpdated(shared_info, new_function_literal_id);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -135,7 +135,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceFunctionCode) {
   CHECK(SharedInfoWrapper::IsInstance(shared_info));
 
   LiveEdit::ReplaceFunctionCode(new_compile_info, shared_info);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -160,7 +160,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFunctionSetScript) {
     // and we check it in this function.
   }
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -179,7 +179,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceRefToNestedFunction) {
 
   LiveEdit::ReplaceRefToNestedFunction(isolate->heap(), parent_wrapper,
                                        orig_wrapper, subst_wrapper);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -196,7 +196,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchFunctionPositions) {
   CHECK(SharedInfoWrapper::IsInstance(shared_array));
 
   LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 

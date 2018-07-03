@@ -36,7 +36,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
     isolate->ReportPromiseReject(promise, value,
                                  v8::kPromiseRejectWithNoHandler);
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
@@ -47,7 +47,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
   CHECK(!promise->has_handler());
   isolate->ReportPromiseReject(promise, Handle<Object>(),
                                v8::kPromiseHandlerAddedAfterReject);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
@@ -57,14 +57,14 @@ RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
   Handle<CallableTask> microtask =
       isolate->factory()->NewCallableTask(function, isolate->native_context());
   isolate->EnqueueMicrotask(microtask);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   isolate->RunMicrotasks();
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
@@ -76,7 +76,7 @@ RUNTIME_FUNCTION(Runtime_RunMicrotaskCallback) {
   void* data = ToCData<void*>(microtask_data);
   callback(data);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseStatus) {
@@ -100,7 +100,7 @@ RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
   CONVERT_ARG_CHECKED(JSPromise, promise, 0);
 
   promise->set_has_handler(true);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
@@ -109,7 +109,7 @@ RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, parent, 1);
   isolate->RunPromiseHook(PromiseHookType::kInit, promise, parent);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_AwaitPromisesInit) {
@@ -126,35 +126,37 @@ RUNTIME_FUNCTION(Runtime_AwaitPromisesInit) {
   // async_task_id as outer_promise since we generate WillHandle and DidHandle
   // events using throwaway promise.
   throwaway->set_async_task_id(outer_promise->async_task_id());
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, maybe_promise, 0);
-  if (!maybe_promise->IsJSPromise()) return isolate->heap()->undefined_value();
+  if (!maybe_promise->IsJSPromise())
+    return ReadOnlyRoots(isolate).undefined_value();
   Handle<JSPromise> promise = Handle<JSPromise>::cast(maybe_promise);
   if (isolate->debug()->is_active()) isolate->PushPromise(promise);
   if (promise->IsJSPromise()) {
     isolate->RunPromiseHook(PromiseHookType::kBefore, promise,
                             isolate->factory()->undefined_value());
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseHookAfter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, maybe_promise, 0);
-  if (!maybe_promise->IsJSPromise()) return isolate->heap()->undefined_value();
+  if (!maybe_promise->IsJSPromise())
+    return ReadOnlyRoots(isolate).undefined_value();
   Handle<JSPromise> promise = Handle<JSPromise>::cast(maybe_promise);
   if (isolate->debug()->is_active()) isolate->PopPromise();
   if (promise->IsJSPromise()) {
     isolate->RunPromiseHook(PromiseHookType::kAfter, promise,
                             isolate->factory()->undefined_value());
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_RejectPromise) {

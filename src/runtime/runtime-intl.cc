@@ -204,7 +204,7 @@ RUNTIME_FUNCTION(Runtime_MarkAsInitializedIntlObjectOfType) {
   Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
   JSObject::SetProperty(input, marker, type, LanguageMode::kStrict).Assert();
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
@@ -536,7 +536,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
 
   break_iterator->setText(*u_text);
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_BreakIteratorFirst) {
@@ -600,7 +600,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
   if (status >= UBRK_WORD_NONE && status < UBRK_WORD_NONE_LIMIT) {
     return *isolate->factory()->NewStringFromStaticChars("none");
   } else if (status >= UBRK_WORD_NUMBER && status < UBRK_WORD_NUMBER_LIMIT) {
-    return isolate->heap()->number_string();
+    return ReadOnlyRoots(isolate).number_string();
   } else if (status >= UBRK_WORD_LETTER && status < UBRK_WORD_LETTER_LIMIT) {
     return *isolate->factory()->NewStringFromStaticChars("letter");
   } else if (status >= UBRK_WORD_KANA && status < UBRK_WORD_KANA_LIMIT) {
@@ -674,7 +674,8 @@ RUNTIME_FUNCTION(Runtime_StringLocaleConvertCase) {
 RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  if (isolate->serializer_enabled()) return isolate->heap()->undefined_value();
+  if (isolate->serializer_enabled())
+    return ReadOnlyRoots(isolate).undefined_value();
   if (!isolate->eternal_handles()->Exists(EternalHandles::DATE_CACHE_VERSION)) {
     Handle<FixedArray> date_cache_version =
         isolate->factory()->NewFixedArray(1, TENURED);

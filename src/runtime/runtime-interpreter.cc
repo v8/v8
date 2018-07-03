@@ -118,7 +118,7 @@ void PrintRegisters(Isolate* isolate, std::ostream& os, bool is_input,
 
 RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
   if (!FLAG_trace_ignition) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   SealHandleScope shs(isolate);
@@ -147,12 +147,12 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeEntry) {
 
     os << std::flush;
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
   if (!FLAG_trace_ignition) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   SealHandleScope shs(isolate);
@@ -175,7 +175,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
     PrintRegisters(isolate, os, false, bytecode_iterator, accumulator);
     os << std::flush;
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 #endif
@@ -184,7 +184,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
 
 RUNTIME_FUNCTION(Runtime_InterpreterTraceUpdateFeedback) {
   if (!FLAG_trace_feedback_updates) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   SealHandleScope shs(isolate);
@@ -210,7 +210,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceUpdateFeedback) {
 
   os << "]" << std::endl;
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 #endif

@@ -40,7 +40,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScript) {
       return *Script::GetWrapper(Handle<Script>::cast(script));
     }
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
@@ -67,7 +67,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
         Handle<JSFunction>::cast(function)->shared(), isolate);
     return *SharedFunctionInfo::GetSourceCode(shared);
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -102,7 +102,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
 
   if (!source->is_compiled() &&
       !Compiler::Compile(source, Compiler::KEEP_EXCEPTION)) {
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
 
   // Set the function data, scope info, formal parameter count, and the length
@@ -163,7 +163,7 @@ RUNTIME_FUNCTION(Runtime_SetNativeFlag) {
     JSFunction* func = JSFunction::cast(object);
     func->shared()->set_native(true);
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 

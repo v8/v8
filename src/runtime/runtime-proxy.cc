@@ -51,7 +51,7 @@ RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
                                                         &success, holder);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   RETURN_RESULT_OR_FAILURE(isolate, Object::GetProperty(&it));
 }
@@ -71,11 +71,11 @@ RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {
                                                         &success, holder);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   Maybe<bool> result = Object::SetSuperProperty(
       &it, value, language_mode, Object::MAY_BE_STORE_FROM_KEYED);
-  MAYBE_RETURN(result, isolate->heap()->exception());
+  MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
@@ -101,7 +101,7 @@ RUNTIME_FUNCTION(Runtime_CheckProxyHasTrap) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 1);
 
   Maybe<bool> result = JSProxy::CheckHasTrap(isolate, name, target);
-  if (!result.IsJust()) return isolate->heap()->exception();
+  if (!result.IsJust()) return ReadOnlyRoots(isolate).exception();
   return isolate->heap()->ToBoolean(result.FromJust());
 }
 

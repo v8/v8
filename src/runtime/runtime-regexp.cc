@@ -557,7 +557,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
     result_len = static_cast<int>(result_len_64);
   }
   if (result_len == 0) {
-    return isolate->heap()->empty_string();
+    return ReadOnlyRoots(isolate).empty_string();
   }
 
   int subject_pos = 0;
@@ -619,7 +619,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithString(
     // Ensure the RegExp is compiled so we can access the capture-name map.
     if (RegExpImpl::IrregexpPrepare(isolate, regexp, subject) == -1) {
       DCHECK(isolate->has_pending_exception());
-      return isolate->heap()->exception();
+      return ReadOnlyRoots(isolate).exception();
     }
   }
 
@@ -641,11 +641,11 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithString(
   }
 
   RegExpImpl::GlobalCache global_cache(regexp, subject, isolate);
-  if (global_cache.HasException()) return isolate->heap()->exception();
+  if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
 
   int32_t* current_match = global_cache.FetchNext();
   if (current_match == nullptr) {
-    if (global_cache.HasException()) return isolate->heap()->exception();
+    if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
     return *subject;
   }
 
@@ -682,7 +682,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithString(
     current_match = global_cache.FetchNext();
   } while (current_match != nullptr);
 
-  if (global_cache.HasException()) return isolate->heap()->exception();
+  if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
 
   if (prev < subject_length) {
     builder.EnsureCapacity(2);
@@ -714,11 +714,11 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   }
 
   RegExpImpl::GlobalCache global_cache(regexp, subject, isolate);
-  if (global_cache.HasException()) return isolate->heap()->exception();
+  if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
 
   int32_t* current_match = global_cache.FetchNext();
   if (current_match == nullptr) {
-    if (global_cache.HasException()) return isolate->heap()->exception();
+    if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
     return *subject;
   }
 
@@ -728,7 +728,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   int subject_length = subject->length();
 
   int new_length = subject_length - (end - start);
-  if (new_length == 0) return isolate->heap()->empty_string();
+  if (new_length == 0) return ReadOnlyRoots(isolate).empty_string();
 
   Handle<ResultSeqString> answer;
   if (ResultSeqString::kHasOneByteEncoding) {
@@ -755,7 +755,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
     current_match = global_cache.FetchNext();
   } while (current_match != nullptr);
 
-  if (global_cache.HasException()) return isolate->heap()->exception();
+  if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
 
   RegExpImpl::SetLastMatchInfo(isolate, last_match_info, subject, capture_count,
                                global_cache.LastSuccessfulMatch());
@@ -767,7 +767,7 @@ V8_WARN_UNUSED_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
     position += subject_length - prev;
   }
 
-  if (position == 0) return isolate->heap()->empty_string();
+  if (position == 0) return ReadOnlyRoots(isolate).empty_string();
 
   // Shorten string and fill
   int string_size = ResultSeqString::SizeFor(position);
@@ -1164,7 +1164,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
   }
 
   RegExpImpl::GlobalCache global_cache(regexp, subject, isolate);
-  if (global_cache.HasException()) return isolate->heap()->exception();
+  if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
 
   // Ensured in Runtime_RegExpExecMultiple.
   DCHECK(result_array->HasObjectElements());
@@ -1232,7 +1232,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
             elements->set(cursor++, *substring);
           } else {
             DCHECK_GT(0, current_match[i * 2 + 1]);
-            elements->set(cursor++, isolate->heap()->undefined_value());
+            elements->set(cursor++, ReadOnlyRoots(isolate).undefined_value());
           }
         }
 
@@ -1255,7 +1255,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
     }
   }
 
-  if (global_cache.HasException()) return isolate->heap()->exception();
+  if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
 
   if (match_start >= 0) {
     // Finished matching, with at least one match.
@@ -1290,7 +1290,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
     }
     return *builder.ToJSArray(result_array);
   } else {
-    return isolate->heap()->null_value();  // No matches at all.
+    return ReadOnlyRoots(isolate).null_value();  // No matches at all.
   }
 }
 

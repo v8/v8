@@ -103,7 +103,7 @@ RUNTIME_FUNCTION(Runtime_ThrowNotSuperConstructor) {
 
 RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
   DCHECK_EQ(0, args.length());
-  return isolate->heap()->home_object_symbol();
+  return ReadOnlyRoots(isolate).home_object_symbol();
 }
 
 namespace {
@@ -128,7 +128,7 @@ inline void SetHomeObject(Isolate* isolate, JSFunction* method,
   if (method->shared()->needs_home_object()) {
     const int kPropertyIndex = JSFunction::kMaybeHomeObjectDescriptorIndex;
     CHECK_EQ(method->map()->instance_descriptors()->GetKey(kPropertyIndex),
-             isolate->heap()->home_object_symbol());
+             ReadOnlyRoots(isolate).home_object_symbol());
 
     FieldIndex field_index =
         FieldIndex::ForDescriptor(method->map(), kPropertyIndex);
@@ -287,7 +287,7 @@ bool AddDescriptorsByTemplate(
 
   Handle<NumberDictionary> elements_dictionary =
       *elements_dictionary_template ==
-              isolate->heap()->empty_slow_element_dictionary()
+              ReadOnlyRoots(isolate).empty_slow_element_dictionary()
           ? elements_dictionary_template
           : ShallowCopyDictionaryTemplate(isolate,
                                           elements_dictionary_template);
@@ -519,7 +519,7 @@ bool InitClassConstructor(Isolate* isolate,
         Handle<NameDictionary>::cast(properties_template);
 
     map->set_is_dictionary_map(true);
-    map->InitializeDescriptors(isolate->heap()->empty_descriptor_array(),
+    map->InitializeDescriptors(ReadOnlyRoots(isolate).empty_descriptor_array(),
                                LayoutDescriptor::FastPointerLayout());
     map->set_is_migration_target(false);
     map->set_may_have_interesting_symbols(true);

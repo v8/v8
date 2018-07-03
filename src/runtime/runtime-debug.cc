@@ -84,7 +84,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
                                                                 operand_scale);
 
   if (side_effect_check_failed) {
-    return MakePair(isolate->heap()->exception(),
+    return MakePair(ReadOnlyRoots(isolate).exception(),
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
   Object* interrupt_object = isolate->stack_guard()->HandleInterrupts();
@@ -110,7 +110,7 @@ RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
   DCHECK_EQ(*function, it.frame()->function());
   isolate->debug()->Break(it.frame(), function);
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
@@ -128,7 +128,7 @@ RUNTIME_FUNCTION(Runtime_ScheduleBreak) {
   isolate->RequestInterrupt(
       [](v8::Isolate* isolate, void*) { v8::debug::BreakRightNow(isolate); },
       nullptr);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 template <class IteratorType>
@@ -246,7 +246,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     result->set(1, *status_str);
 
     Handle<Object> value_obj(promise->status() == Promise::kPending
-                                 ? isolate->heap()->undefined_value()
+                                 ? ReadOnlyRoots(isolate).undefined_value()
                                  : promise->result(),
                              isolate);
     Handle<String> promise_value =
@@ -314,7 +314,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
   DCHECK_EQ(2, args.length());
 
   if (!args[0]->IsJSGeneratorObject()) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   // Check arguments.
@@ -323,7 +323,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
 
   // Only inspect suspended generator scopes.
   if (!gen->is_suspended()) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   // Find the requested scope.
@@ -333,7 +333,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
     n++;
   }
   if (it.Done()) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   return *it.MaterializeScopeDetails();
@@ -382,7 +382,7 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   Handle<Object> break_locations =
       Debug::GetSourceBreakLocations(isolate, shared);
   if (break_locations->IsUndefined(isolate)) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
   // Return array as JS array
   return *isolate->factory()->NewJSArrayWithElements(
@@ -408,7 +408,7 @@ RUNTIME_FUNCTION(Runtime_ClearStepping) {
   DCHECK_EQ(0, args.length());
   CHECK(isolate->debug()->is_active());
   isolate->debug()->ClearStepping();
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
@@ -420,7 +420,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
     DebugScope debug_scope(isolate->debug());
     if (debug_scope.failed()) {
       DCHECK(isolate->has_pending_exception());
-      return isolate->heap()->exception();
+      return ReadOnlyRoots(isolate).exception();
     }
     // Fill the script objects.
     instances = isolate->debug()->GetLoadedScripts();
@@ -451,7 +451,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetInferredName) {
   if (f->IsJSFunction()) {
     return JSFunction::cast(f)->shared()->inferred_name();
   }
-  return isolate->heap()->empty_string();
+  return ReadOnlyRoots(isolate).empty_string();
 }
 
 
@@ -463,11 +463,11 @@ RUNTIME_FUNCTION(Runtime_GetDebugContext) {
     DebugScope debug_scope(isolate->debug());
     if (debug_scope.failed()) {
       DCHECK(isolate->has_pending_exception());
-      return isolate->heap()->exception();
+      return ReadOnlyRoots(isolate).exception();
     }
     context = isolate->debug()->GetDebugContext();
   }
-  if (context.is_null()) return isolate->heap()->undefined_value();
+  if (context.is_null()) return ReadOnlyRoots(isolate).undefined_value();
   context->set_security_token(isolate->native_context()->security_token());
   return context->global_proxy();
 }
@@ -480,7 +480,7 @@ RUNTIME_FUNCTION(Runtime_CollectGarbage) {
   DCHECK_EQ(1, args.length());
   isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
                                      GarbageCollectionReason::kRuntime);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -521,7 +521,7 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
     }
   }
 
-  if (found.is_null()) return isolate->heap()->undefined_value();
+  if (found.is_null()) return ReadOnlyRoots(isolate).undefined_value();
   return *Script::GetWrapper(found);
 }
 
@@ -729,10 +729,10 @@ RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
     }
     if (isolate->debug_execution_mode() == DebugInfo::kSideEffects &&
         !isolate->debug()->PerformSideEffectCheck(fun, receiver)) {
-      return isolate->heap()->exception();
+      return ReadOnlyRoots(isolate).exception();
     }
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 // Set one shot breakpoints for the suspended generator object.
@@ -740,7 +740,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInSuspendedGenerator) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   isolate->debug()->PrepareStepInSuspendedGenerator();
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
@@ -748,7 +748,7 @@ RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   isolate->PushPromise(promise);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 
@@ -756,7 +756,7 @@ RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   DCHECK_EQ(0, args.length());
   SealHandleScope shs(isolate);
   isolate->PopPromise();
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugIsActive) {
@@ -838,7 +838,7 @@ RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
   CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
   Coverage::SelectMode(isolate, enable ? debug::Coverage::kPreciseCount
                                        : debug::Coverage::kBestEffort);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugToggleBlockCoverage) {
@@ -846,7 +846,7 @@ RUNTIME_FUNCTION(Runtime_DebugToggleBlockCoverage) {
   CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
   Coverage::SelectMode(isolate, enable ? debug::Coverage::kBlockCount
                                        : debug::Coverage::kBestEffort);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
@@ -866,7 +866,7 @@ RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
     coverage_info->IncrementBlockCount(coverage_array_slot_index);
   }
 
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
@@ -874,7 +874,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   isolate->OnAsyncFunctionStateChanged(promise, debug::kAsyncFunctionSuspended);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
@@ -887,7 +887,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionFinished) {
     isolate->OnAsyncFunctionStateChanged(promise,
                                          debug::kAsyncFunctionFinished);
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
@@ -924,9 +924,9 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
       return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
           "LiveEdit failed: FRAME_RESTART_IS_NOT_SUPPORTED"));
     case v8::debug::LiveEditResult::OK:
-      return isolate->heap()->undefined_value();
+      return ReadOnlyRoots(isolate).undefined_value();
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 }  // namespace internal
 }  // namespace v8

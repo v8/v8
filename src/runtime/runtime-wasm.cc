@@ -136,7 +136,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
                                      wasm::WasmException::kRuntimeValuesStr),
                                  values, LanguageMode::kStrict)
              .is_null());
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
@@ -226,7 +226,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionSetElement) {
       }
     }
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
@@ -267,9 +267,9 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
   if (!success) {
     DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStackGuard) {

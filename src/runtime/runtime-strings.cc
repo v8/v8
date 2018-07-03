@@ -123,14 +123,16 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
                                      kRecursionLimit).ToHandle(&result)) {
     return *result;
   }
-  if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  if (isolate->has_pending_exception())
+    return ReadOnlyRoots(isolate).exception();
 
   subject = String::Flatten(isolate, subject);
   if (StringReplaceOneCharWithString(isolate, subject, search, replace, &found,
                                      kRecursionLimit).ToHandle(&result)) {
     return *result;
   }
-  if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  if (isolate->has_pending_exception())
+    return ReadOnlyRoots(isolate).exception();
   // In case of empty handle and no pending exception we have stack overflow.
   return isolate->StackOverflow();
 }
@@ -166,7 +168,7 @@ RUNTIME_FUNCTION(Runtime_StringIncludes) {
   Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
   if (is_reg_exp.IsNothing()) {
     DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   if (is_reg_exp.FromJust()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -260,7 +262,7 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   subject = String::Flatten(isolate, subject);
 
   if (i >= static_cast<uint32_t>(subject->length())) {
-    return isolate->heap()->nan_value();
+    return ReadOnlyRoots(isolate).nan_value();
   }
 
   return Smi::FromInt(subject->Get(i));
@@ -289,7 +291,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
 
   int special_length = special->length();
   if (!array->HasObjectElements()) {
-    return isolate->Throw(isolate->heap()->illegal_argument_string());
+    return isolate->Throw(ReadOnlyRoots(isolate).illegal_argument_string());
   }
 
   int length;
@@ -303,7 +305,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
     }
 
     if (array_length == 0) {
-      return isolate->heap()->empty_string();
+      return ReadOnlyRoots(isolate).empty_string();
     } else if (array_length == 1) {
       Object* first = fixed_array->get(0);
       if (first->IsString()) return first;
@@ -313,10 +315,10 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   }
 
   if (length == -1) {
-    return isolate->Throw(isolate->heap()->illegal_argument_string());
+    return isolate->Throw(ReadOnlyRoots(isolate).illegal_argument_string());
   }
   if (length == 0) {
-    return isolate->heap()->empty_string();
+    return ReadOnlyRoots(isolate).empty_string();
   }
 
   if (one_byte) {
@@ -356,7 +358,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   }
 
   if (array_length == 0) {
-    return isolate->heap()->empty_string();
+    return ReadOnlyRoots(isolate).empty_string();
   } else if (array_length == 1) {
     Object* first = fixed_array->get(0);
     CHECK(first->IsString());
@@ -570,7 +572,7 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
                                          FixedArray* elements, int length) {
   DisallowHeapAllocation no_gc;
   FixedArray* one_byte_cache = heap->single_character_string_cache();
-  Object* undefined = heap->undefined_value();
+  Object* undefined = ReadOnlyRoots(heap).undefined_value();
   int i;
   WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
   for (i = 0; i < length; ++i) {
@@ -618,8 +620,8 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
       position = CopyCachedOneByteCharsToArray(isolate->heap(), chars.start(),
                                                *elements, length);
     } else {
-      MemsetPointer(elements->data_start(), isolate->heap()->undefined_value(),
-                    length);
+      MemsetPointer(elements->data_start(),
+                    ReadOnlyRoots(isolate).undefined_value(), length);
     }
   } else {
     elements = isolate->factory()->NewFixedArray(length);
@@ -714,7 +716,7 @@ RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
     code &= 0xFFFF;
     return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
   }
-  return isolate->heap()->empty_string();
+  return ReadOnlyRoots(isolate).empty_string();
 }
 
 RUNTIME_FUNCTION(Runtime_StringMaxLength) {
