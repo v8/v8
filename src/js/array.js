@@ -665,8 +665,6 @@ function ArraySpliceFallback(start, delete_count) {
 }
 
 
-// TODO(szuend): Remove once last remaining call site in GetSortedArrayKeys
-//               does not use it anymore.
 function InnerArraySort(array, length, comparefn) {
   // In-place QuickSort algorithm.
   // For short (length <= 10) arrays, insertion sort is used for efficiency.
@@ -823,6 +821,19 @@ function InnerArraySort(array, length, comparefn) {
 
   return array;
 }
+
+DEFINE_METHOD(
+  GlobalArray.prototype,
+  sort(comparefn) {
+    if (!IS_UNDEFINED(comparefn) && !IS_CALLABLE(comparefn)) {
+      throw %make_type_error(kBadSortComparisonFunction, comparefn);
+    }
+
+    var array = TO_OBJECT(this);
+    var length = TO_LENGTH(array.length);
+    return InnerArraySort(array, length, comparefn);
+  }
+);
 
 
 DEFINE_METHOD_LEN(
