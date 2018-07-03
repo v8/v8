@@ -5,7 +5,7 @@
 module typed_array {
   extern runtime TypedArraySortFast(Context, Object): JSTypedArray;
   extern macro ValidateTypedArray(
-      Context, Object, constexpr String): JSTypedArray;
+      Context, Object, constexpr string): JSTypedArray;
 
   extern macro LoadFixedTypedArrayElementAsTagged(
       RawPtr, Smi, constexpr ElementsKind, constexpr ParameterMode): Object;

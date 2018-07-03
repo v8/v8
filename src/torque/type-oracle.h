@@ -20,6 +20,37 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   explicit TypeOracle(Declarations* declarations)
       : declarations_(declarations) {}
 
+  static const AbstractType* GetAbstractType(
+      const Type* parent, std::string name, std::string generated,
+      base::Optional<const AbstractType*> non_constexpr_version) {
+    AbstractType* result = new AbstractType(
+        parent, std::move(name), std::move(generated), non_constexpr_version);
+    Get().nominal_types_.push_back(std::unique_ptr<AbstractType>(result));
+    return result;
+  }
+
+  static const FunctionPointerType* GetFunctionPointerType(
+      TypeVector argument_types, const Type* return_type) {
+    const Type* code_type = Get().GetBuiltinType(CODE_TYPE_STRING);
+    return Get().function_pointer_types_.Add(
+        FunctionPointerType(code_type, argument_types, return_type));
+  }
+
+  static const Type* GetUnionType(UnionType type) {
+    if (base::Optional<const Type*> single = type.GetSingleMember()) {
+      return *single;
+    }
+    return Get().union_types_.Add(std::move(type));
+  }
+
+  static const Type* GetUnionType(const Type* a, const Type* b) {
+    if (a->IsSubtypeOf(b)) return b;
+    if (b->IsSubtypeOf(a)) return a;
+    UnionType result = UnionType::FromType(a);
+    result.Extend(b);
+    return GetUnionType(std::move(result));
+  }
+
   static const Type* GetArgumentsType() {
     return Get().GetBuiltinType(ARGUMENTS_TYPE_STRING);
   }
@@ -56,7 +87,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(CONST_INT31_TYPE_STRING);
   }
 
-  static bool IsImplicitlyConverableFrom(const Type* to, const Type* from) {
+  static bool IsImplicitlyConvertableFrom(const Type* to, const Type* from) {
     std::string name = GetGeneratedCallableName(kFromConstexprMacroName, {to});
     return Get().declarations_->TryLookupMacro(name, {from}) != nullptr;
   }
@@ -67,6 +98,9 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   }
 
   Declarations* declarations_;
+  Deduplicator<FunctionPointerType> function_pointer_types_;
+  Deduplicator<UnionType> union_types_;
+  std::vector<std::unique_ptr<Type>> nominal_types_;
 };
 
 }  // namespace torque

@@ -478,17 +478,17 @@ void DeclarationVisitor::Visit(CallExpression* expr) {
 }
 
 void DeclarationVisitor::Visit(TypeDeclaration* decl) {
-  std::string extends = decl->extends ? *decl->extends : std::string("");
-  std::string* extends_ptr = decl->extends ? &extends : nullptr;
-
   std::string generates = decl->generates ? *decl->generates : std::string("");
-  declarations()->DeclareAbstractType(decl->name, generates, extends_ptr);
+  const AbstractType* type = declarations()->DeclareAbstractType(
+      decl->name, generates, {}, decl->extends);
 
   if (decl->constexpr_generates) {
-    std::string constexpr_name =
-        std::string(CONSTEXPR_TYPE_PREFIX) + decl->name;
+    std::string constexpr_name = CONSTEXPR_TYPE_PREFIX + decl->name;
+    base::Optional<std::string> constexpr_extends;
+    if (decl->extends)
+      constexpr_extends = CONSTEXPR_TYPE_PREFIX + *decl->extends;
     declarations()->DeclareAbstractType(
-        constexpr_name, *decl->constexpr_generates, &(decl->name));
+        constexpr_name, *decl->constexpr_generates, type, constexpr_extends);
   }
 }
 

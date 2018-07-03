@@ -187,15 +187,16 @@ void ImplementationVisitor::Visit(TorqueMacroDeclaration* decl,
       if (!return_type->IsConstexpr()) {
         GenerateIndent();
         source_out() << "Node* return_default = &*SmiConstant(0);" << std::endl;
+        VisitResult init = {
+            return_type,
+            (std::string("UncheckedCast<") +
+             return_type->GetGeneratedTNodeTypeName() + ">(return_default)")};
+        result_var =
+            GenerateVariableDeclaration(decl, kReturnValueVariable, {}, init);
+      } else {
+        result_var =
+            GenerateVariableDeclaration(decl, kReturnValueVariable, {}, {});
       }
-      VisitResult init = {return_type,
-                          return_type->IsConstexpr()
-                              ? (return_type->GetGeneratedTypeName() + "()")
-                              : (std::string("UncheckedCast<") +
-                                 return_type->GetGeneratedTNodeTypeName() +
-                                 ">(return_default)")};
-      result_var =
-          GenerateVariableDeclaration(decl, kReturnValueVariable, {}, init);
     }
     Label* macro_end = declarations()->DeclareLabel("macro_end");
     GenerateLabelDefinition(macro_end, decl);
@@ -335,8 +336,7 @@ VisitResult ImplementationVisitor::Visit(ConditionalExpression* expr) {
 
   const Type* common_type = GetCommonType(left.type(), right.type());
   std::string result_var = NewTempVariable();
-  const Variable* result =
-      GenerateVariableDeclaration(expr, result_var, common_type);
+  Variable* result = GenerateVariableDeclaration(expr, result_var, common_type);
 
   {
     ScopedIndent indent(this);
@@ -357,14 +357,14 @@ VisitResult ImplementationVisitor::Visit(ConditionalExpression* expr) {
     }
     GenerateLabelBind(true_label);
     GenerateIndent();
-    source_out() << result->GetValueForWrite() << " = " << f1 << "();"
-                 << std::endl;
+    VisitResult left_result = {right.type(), f1 + "()"};
+    GenerateAssignToVariable(result, left_result);
     GenerateLabelGoto(done_label);
 
     GenerateLabelBind(false_label);
     GenerateIndent();
-    source_out() << result->GetValueForWrite() << " = " << f2 << "();"
-                 << std::endl;
+    VisitResult right_result = {right.type(), f2 + "()"};
+    GenerateAssignToVariable(result, right_result);
     GenerateLabelGoto(done_label);
 
     GenerateLabelBind(done_label);
@@ -504,7 +504,7 @@ VisitResult ImplementationVisitor::GetBuiltinCode(Builtin* builtin) {
         "creating function pointers is only allowed for internal builtins with "
         "stub linkage");
   }
-  const Type* type = declarations()->GetFunctionPointerType(
+  const Type* type = TypeOracle::GetFunctionPointerType(
       builtin->signature().parameter_types.types,
       builtin->signature().return_type);
   std::string code =
@@ -1174,8 +1174,7 @@ Callable* ImplementationVisitor::LookupCall(const std::string& name,
                                     is_better_candidate);
     for (Macro* candidate : candidates) {
       if (candidate != best && !is_better_candidate(best, candidate)) {
-        FailMacroLookup("ambiguous macro", name, arguments,
-                        macros_with_same_name);
+        FailMacroLookup("ambiguous macro", name, arguments, candidates);
       }
     }
     result = best;
@@ -1221,16 +1220,15 @@ void ImplementationVisitor::GenerateChangedVarsFromControlSplit(AstNode* node) {
 
 const Type* ImplementationVisitor::GetCommonType(const Type* left,
                                                  const Type* right) {
-  const Type* common_type = TypeOracle::GetVoidType();
+  const Type* common_type;
   if (IsAssignableFrom(left, right)) {
     common_type = left;
   } else if (IsAssignableFrom(right, left)) {
     common_type = right;
   } else {
-    std::stringstream s;
-    s << "illegal combination of types " << *left << " and " << *right;
-    ReportError(s.str());
+    common_type = TypeOracle::GetUnionType(left, right);
   }
+  common_type = common_type->NonConstexprVersion();
   return common_type;
 }
 
@@ -1280,7 +1278,7 @@ void ImplementationVisitor::GenerateAssignToVariable(Variable* var,
   VisitResult casted_value = GenerateImplicitConvert(var->type(), value);
   GenerateIndent();
   source_out() << var->GetValueForWrite() << " = " << casted_value.variable()
-               << ";" << std::endl;
+               << ";\n";
   var->Define();
 }
 
@@ -1709,7 +1707,8 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
     return source;
   }
 
-  if (TypeOracle::IsImplicitlyConverableFrom(destination_type, source.type())) {
+  if (TypeOracle::IsImplicitlyConvertableFrom(destination_type,
+                                              source.type())) {
     std::string name =
         GetGeneratedCallableName(kFromConstexprMacroName, {destination_type});
     return GenerateCall(name, {{source}, {}}, false);

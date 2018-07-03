@@ -25,7 +25,7 @@ static const char* const VOID_TYPE_STRING = "void";
 static const char* const ARGUMENTS_TYPE_STRING = "constexpr Arguments";
 static const char* const CONTEXT_TYPE_STRING = "Context";
 static const char* const OBJECT_TYPE_STRING = "Object";
-static const char* const CONST_STRING_TYPE_STRING = "constexpr String";
+static const char* const CONST_STRING_TYPE_STRING = "constexpr string";
 static const char* const CODE_TYPE_STRING = "Code";
 static const char* const INTPTR_TYPE_STRING = "intptr";
 static const char* const CONST_INT31_TYPE_STRING = "constexpr int31";
@@ -88,6 +88,7 @@ class Type : public TypeBase {
   virtual std::string GetGeneratedTypeName() const = 0;
   virtual std::string GetGeneratedTNodeTypeName() const = 0;
   virtual bool IsConstexpr() const = 0;
+  virtual const Type* NonConstexprVersion() const = 0;
   static const Type* CommonSupertype(const Type* a, const Type* b);
   void AddAlias(std::string alias) const { aliases_.insert(std::move(alias)); }
 
@@ -121,17 +122,27 @@ class AbstractType final : public Type {
     return name().substr(0, strlen(CONSTEXPR_TYPE_PREFIX)) ==
            CONSTEXPR_TYPE_PREFIX;
   }
+  const Type* NonConstexprVersion() const override {
+    if (IsConstexpr()) return *non_constexpr_version_;
+    return this;
+  }
 
  private:
-  friend class Declarations;
+  friend class TypeOracle;
   AbstractType(const Type* parent, const std::string& name,
-               const std::string& generated_type)
+               const std::string& generated_type,
+               base::Optional<const AbstractType*> non_constexpr_version)
       : Type(Kind::kAbstractType, parent),
         name_(name),
-        generated_type_(generated_type) {}
+        generated_type_(generated_type),
+        non_constexpr_version_(non_constexpr_version) {
+    DCHECK_EQ(non_constexpr_version_.has_value(), IsConstexpr());
+    if (parent) DCHECK(parent->IsConstexpr() == IsConstexpr());
+  }
 
   const std::string name_;
   const std::string generated_type_;
+  base::Optional<const AbstractType*> non_constexpr_version_;
 };
 
 // For now, function pointers are restricted to Code objects of Torque-defined
@@ -147,7 +158,11 @@ class FunctionPointerType final : public Type {
   std::string GetGeneratedTNodeTypeName() const override {
     return parent()->GetGeneratedTNodeTypeName();
   }
-  bool IsConstexpr() const override { return parent()->IsConstexpr(); }
+  bool IsConstexpr() const override {
+    DCHECK(!parent()->IsConstexpr());
+    return false;
+  }
+  const Type* NonConstexprVersion() const override { return this; }
 
   const TypeVector& parameter_types() const { return parameter_types_; }
   const Type* return_type() const { return return_type_; }
@@ -165,7 +180,7 @@ class FunctionPointerType final : public Type {
   }
 
  private:
-  friend class Declarations;
+  friend class TypeOracle;
   FunctionPointerType(const Type* parent, TypeVector parameter_types,
                       const Type* return_type)
       : Type(Kind::kFunctionPointerType, parent),
@@ -197,6 +212,7 @@ class UnionType final : public Type {
     DCHECK_EQ(false, parent()->IsConstexpr());
     return false;
   }
+  const Type* NonConstexprVersion() const override;
 
   friend size_t hash_value(const UnionType& p) {
     size_t result = 0;

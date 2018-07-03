@@ -121,6 +121,9 @@ class Variable : public Value {
   bool IsConst() const override { return false; }
   std::string GetValueForDeclaration() const override { return value_; }
   std::string GetValueForRead() const override {
+    if (!IsDefined()) {
+      ReportError("Reading uninitialized variable.");
+    }
     if (type()->IsConstexpr()) {
       return std::string("*") + value_;
     } else {
@@ -130,7 +133,12 @@ class Variable : public Value {
   std::string GetValueForWrite() const override {
     return std::string("*") + value_;
   }
-  void Define() { defined_ = true; }
+  void Define() {
+    if (defined_ && type()->IsConstexpr()) {
+      ReportError("Cannot re-define a constexpr variable.");
+    }
+    defined_ = true;
+  }
   bool IsDefined() const { return defined_; }
 
  private:

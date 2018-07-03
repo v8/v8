@@ -139,8 +139,26 @@ TEST(TestFunctionPointers) {
         m.UncheckedCast<Context>(m.Parameter(kNumParams + 2));
     m.Return(m.TestFunctionPointers(context));
   }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   ft.CheckCall(ft.true_value());
+}
+
+TEST(TestTernaryOperator) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    TNode<Smi> arg = m.UncheckedCast<Smi>(m.Parameter(0));
+    m.Return(m.TestTernaryOperator(arg));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  Handle<Object> result1 =
+      ft.Call(Handle<Smi>(Smi::FromInt(-5), isolate)).ToHandleChecked();
+  CHECK_EQ(-15, Handle<Smi>::cast(result1)->value());
+  Handle<Object> result2 =
+      ft.Call(Handle<Smi>(Smi::FromInt(3), isolate)).ToHandleChecked();
+  CHECK_EQ(103, Handle<Smi>::cast(result2)->value());
 }
 
 TEST(TestFunctionPointerToGeneric) {

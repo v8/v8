@@ -174,9 +174,14 @@ module test {
   }
 
   macro TestVariableRedeclaration(context : Context) : Boolean {
-    let var1 : Number = from_constexpr<bool>(42 == 0) ? 0 : 1;
-    let var2 : Number = from_constexpr<bool>(42 == 0) ? 1 : 0;
+    let var1 : int31 = from_constexpr<bool>(42 == 0) ? 0 : 1;
+    let var2 : int31 = from_constexpr<bool>(42 == 0) ? 1 : 0;
     return True;
+  }
+
+  macro TestTernaryOperator(x : Smi) : Smi {
+    let b : bool = x < 0 ? true : false;
+    return b ? x - 10 : x + 100;
   }
 
   macro TestFunctionPointerToGeneric(c: Context) {

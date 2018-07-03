@@ -16,6 +16,8 @@ namespace internal {
 namespace torque {
 
 static constexpr const char* const kFromConstexprMacroName = "from_constexpr";
+static constexpr const char* kTrueLabelName = "_True";
+static constexpr const char* kFalseLabelName = "_False";
 
 class Declarations {
  public:
@@ -49,13 +51,6 @@ class Declarations {
   const Type* LookupGlobalType(const std::string& name);
   const Type* GetType(TypeExpression* type_expression);
 
-  const AbstractType* GetAbstractType(const Type* parent, std::string name,
-                                      std::string generated);
-  const FunctionPointerType* GetFunctionPointerType(TypeVector argument_types,
-                                                    const Type* return_type);
-
-  const Type* GetUnionType(const Type* a, const Type* b);
-
   Builtin* FindSomeInternalBuiltinWithType(const FunctionPointerType* type);
 
   Value* LookupValue(const std::string& name);
@@ -73,9 +68,10 @@ class Declarations {
 
   GenericList* LookupGeneric(const std::string& name);
 
-  const AbstractType* DeclareAbstractType(const std::string& name,
-                                          const std::string& generated,
-                                          const std::string* parent = nullptr);
+  const AbstractType* DeclareAbstractType(
+      const std::string& name, const std::string& generated,
+      base::Optional<const AbstractType*> non_constexpr_version,
+      const base::Optional<std::string>& parent = {});
 
   void DeclareType(const std::string& name, const Type* type);
 
@@ -151,9 +147,6 @@ class Declarations {
   const SpecializationKey* current_generic_specialization_;
   Statement* next_body_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
-  Deduplicator<FunctionPointerType> function_pointer_types_;
-  Deduplicator<UnionType> union_types_;
-  std::vector<std::unique_ptr<Type>> nominal_types_;
   std::map<const Module*, Scope*> module_scopes_;
   std::map<std::pair<const AstNode*, TypeVector>, Scope*> scopes_;
   std::map<Generic*, ScopeChain::Snapshot> generic_declaration_scopes_;

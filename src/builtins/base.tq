@@ -18,6 +18,7 @@ type uintptr generates 'TNode<UintPtrT>' constexpr 'uintptr_t';
 type float32 generates 'TNode<Float32T>' constexpr 'float';
 type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
+type string constexpr 'const char*';
 
 type int31 extends int32 generates 'TNode<Int32T>' constexpr 'int31_t';
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
@@ -25,8 +26,7 @@ type AbstractCode extends HeapObject generates 'TNode<AbstractCode>';
 type Code extends AbstractCode generates 'TNode<Code>';
 type JSReceiver extends HeapObject generates 'TNode<JSReceiver>';
 type Context extends HeapObject generates 'TNode<Context>';
-type String extends HeapObject generates
-'TNode<String>' constexpr 'const char*';
+type String extends HeapObject generates 'TNode<String>';
 type Oddball extends HeapObject generates 'TNode<Oddball>';
 type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
 type Number = Smi|HeapNumber;
@@ -69,16 +69,16 @@ type HasPropertyLookupMode constexpr 'HasPropertyLookupMode';
 const NO_ELEMENTS: constexpr ElementsKind generates 'NO_ELEMENTS';
 
 const PACKED_SMI_ELEMENTS: constexpr ElementsKind generates
-'PACKED_SMI_ELEMENTS';
+    'PACKED_SMI_ELEMENTS';
 const HOLEY_SMI_ELEMENTS: constexpr ElementsKind generates 'HOLEY_SMI_ELEMENTS';
 const PACKED_ELEMENTS: constexpr ElementsKind generates 'PACKED_ELEMENTS';
 const HOLEY_ELEMENTS: constexpr ElementsKind generates 'HOLEY_ELEMENTS';
 const PACKED_DOUBLE_ELEMENTS: constexpr ElementsKind generates
-'PACKED_DOUBLE_ELEMENTS';
+    'PACKED_DOUBLE_ELEMENTS';
 const HOLEY_DOUBLE_ELEMENTS: constexpr ElementsKind generates
-'HOLEY_DOUBLE_ELEMENTS';
+    'HOLEY_DOUBLE_ELEMENTS';
 const DICTIONARY_ELEMENTS: constexpr ElementsKind generates
-'DICTIONARY_ELEMENTS';
+    'DICTIONARY_ELEMENTS';
 
 const UINT8_ELEMENTS: constexpr ElementsKind generates 'UINT8_ELEMENTS';
 const INT8_ELEMENTS: constexpr ElementsKind generates 'INT8_ELEMENTS';
@@ -89,7 +89,7 @@ const INT32_ELEMENTS: constexpr ElementsKind generates 'INT32_ELEMENTS';
 const FLOAT32_ELEMENTS: constexpr ElementsKind generates 'FLOAT32_ELEMENTS';
 const FLOAT64_ELEMENTS: constexpr ElementsKind generates 'FLOAT64_ELEMENTS';
 const UINT8_CLAMPED_ELEMENTS: constexpr ElementsKind generates
-'UINT8_CLAMPED_ELEMENTS';
+    'UINT8_CLAMPED_ELEMENTS';
 const BIGUINT64_ELEMENTS: constexpr ElementsKind generates 'BIGUINT64_ELEMENTS';
 const BIGINT64_ELEMENTS: constexpr ElementsKind generates 'BIGINT64_ELEMENTS';
 
@@ -152,8 +152,8 @@ const INTPTR_PARAMETERS: constexpr ParameterMode generates 'INTPTR_PARAMETERS';
 
 extern macro Is64(): constexpr bool;
 
-extern macro Print(constexpr String);
-extern macro Print(constexpr String, Object);
+extern macro Print(constexpr string);
+extern macro Print(constexpr string, Object);
 extern macro Print(Object);
 extern macro DebugBreak();
 extern macro ToInteger_Inline(Context, Object): Number;
@@ -348,25 +348,28 @@ extern macro SmiToInt32(Smi): int32;
 extern macro LoadHeapNumberValue(HeapNumber): float64;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro ChangeNumberToFloat64(Number): float64;
-extern macro ChangeInt32ToIntPtr(int32): intptr;   // Sign-extends.
+extern macro ChangeInt32ToIntPtr(int32): intptr;  // Sign-extends.
 extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
 
 extern macro NumberConstant(constexpr float64): Number;
 extern macro NumberConstant(constexpr int32): Number;
 extern macro IntPtrConstant(constexpr int31): intptr;
 extern macro IntPtrConstant(constexpr int32): intptr;
-extern macro Int32Constant(constexpr int31): int32;
+extern macro Int32Constant(constexpr int31): int31;
 extern macro Int32Constant(constexpr int32): int32;
 extern macro Float64Constant(constexpr int31): float64;
 extern macro SmiConstant(constexpr int31): Smi;
 extern macro BoolConstant(constexpr bool): bool;
-extern macro StringConstant(constexpr String): String;
+extern macro StringConstant(constexpr string): String;
 extern macro LanguageModeConstant(constexpr LanguageMode): LanguageMode;
 extern macro Int32Constant(constexpr ElementsKind): ElementsKind;
 
 macro from_constexpr<A : type>(o: constexpr int31): A;
 from_constexpr<intptr>(i: constexpr int31): intptr {
   return IntPtrConstant(i);
+}
+from_constexpr<int31>(i: constexpr int31): int31 {
+  return Int32Constant(i);
 }
 from_constexpr<int32>(i: constexpr int31): int32 {
   return Int32Constant(i);
@@ -412,14 +415,17 @@ macro from_constexpr<A : type>(e: constexpr ElementsKind): A;
 from_constexpr<ElementsKind>(e: constexpr ElementsKind): ElementsKind {
   return Int32Constant(e);
 }
-macro from_constexpr<A : type>(s: constexpr String): A;
-from_constexpr<String>(s: constexpr String): String {
+macro from_constexpr<A : type>(s: constexpr string): A;
+from_constexpr<String>(s: constexpr string): String {
   return StringConstant(s);
 }
-from_constexpr<Object>(s: constexpr String): Object {
+from_constexpr<Object>(s: constexpr string): Object {
   return StringConstant(s);
 }
 
+macro convert<A : type>(i: constexpr int31): A {
+  return i;
+}
 macro convert<A : type>(i: int32): A;
 convert<Number>(i: int32): Number {
   return ChangeInt32ToTagged(i);

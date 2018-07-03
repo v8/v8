@@ -4,6 +4,7 @@
 
 #include "src/torque/declarations.h"
 #include "src/torque/declarable.h"
+#include "src/torque/type-oracle.h"
 
 namespace v8 {
 namespace internal {
@@ -73,48 +74,22 @@ const Type* Declarations::LookupGlobalType(const std::string& name) {
   return TypeAlias::cast(raw)->type();
 }
 
-const AbstractType* Declarations::GetAbstractType(const Type* parent,
-                                                  std::string name,
-                                                  std::string generated) {
-  AbstractType* result =
-      new AbstractType(parent, std::move(name), std::move(generated));
-  nominal_types_.push_back(std::unique_ptr<AbstractType>(result));
-  return result;
-}
-
-const FunctionPointerType* Declarations::GetFunctionPointerType(
-    TypeVector argument_types, const Type* return_type) {
-  const Type* code_type = LookupGlobalType(CODE_TYPE_STRING);
-  return function_pointer_types_.Add(
-      FunctionPointerType(code_type, argument_types, return_type));
-}
-
-const Type* Declarations::GetUnionType(const Type* a, const Type* b) {
-  if (a->IsSubtypeOf(b)) return b;
-  if (b->IsSubtypeOf(a)) return a;
-  UnionType result = UnionType::FromType(a);
-  result.Extend(b);
-  if (base::Optional<const Type*> single = result.GetSingleMember()) {
-    return *single;
-  }
-  return union_types_.Add(std::move(result));
-}
-
 const Type* Declarations::GetType(TypeExpression* type_expression) {
   if (auto* basic = BasicTypeExpression::DynamicCast(type_expression)) {
     std::string name =
         (basic->is_constexpr ? CONSTEXPR_TYPE_PREFIX : "") + basic->name;
     return LookupType(name);
   } else if (auto* union_type = UnionTypeExpression::cast(type_expression)) {
-    return GetUnionType(GetType(union_type->a), GetType(union_type->b));
+    return TypeOracle::GetUnionType(GetType(union_type->a),
+                                    GetType(union_type->b));
   } else {
     auto* function_type_exp = FunctionTypeExpression::cast(type_expression);
     TypeVector argument_types;
     for (TypeExpression* type_exp : function_type_exp->parameters.types) {
       argument_types.push_back(GetType(type_exp));
     }
-    return GetFunctionPointerType(argument_types,
-                                  GetType(function_type_exp->return_type));
+    return TypeOracle::GetFunctionPointerType(
+        argument_types, GetType(function_type_exp->return_type));
   }
 }
 
@@ -206,10 +181,11 @@ GenericList* Declarations::LookupGeneric(const std::string& name) {
 
 const AbstractType* Declarations::DeclareAbstractType(
     const std::string& name, const std::string& generated,
-    const std::string* parent) {
+    base::Optional<const AbstractType*> non_constexpr_version,
+    const base::Optional<std::string>& parent) {
   CheckAlreadyDeclared(name, "type");
   const Type* parent_type = nullptr;
-  if (parent != nullptr) {
+  if (parent) {
     Declarable* maybe_parent_type = Lookup(*parent);
     if (maybe_parent_type == nullptr) {
       std::stringstream s;
@@ -224,7 +200,8 @@ const AbstractType* Declarations::DeclareAbstractType(
     }
     parent_type = TypeAlias::cast(maybe_parent_type)->type();
   }
-  const AbstractType* type = GetAbstractType(parent_type, name, generated);
+  const AbstractType* type = TypeOracle::GetAbstractType(
+      parent_type, name, generated, non_constexpr_version);
   DeclareType(name, type);
   return type;
 }
