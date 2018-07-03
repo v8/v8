@@ -2156,15 +2156,6 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 
 // static
 MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
-    OptimizedCompilationInfo* info, Isolate* isolate, Graph* graph,
-    Schedule* schedule) {
-  auto call_descriptor = Linkage::ComputeIncoming(info->zone(), info);
-  return GenerateCodeForTesting(info, isolate, call_descriptor, graph,
-                                schedule);
-}
-
-// static
-MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     OptimizedCompilationInfo* info, Isolate* isolate,
     CallDescriptor* call_descriptor, Graph* graph, Schedule* schedule,
     SourcePositionTable* source_positions) {

@@ -10,7 +10,6 @@
 #include "src/globals.h"
 #include "src/objects.h"
 #include "src/objects/code.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -40,7 +39,7 @@ class WasmCompilationData;
 
 class Pipeline : public AllStatic {
  public:
-  // Returns a new compilation job for the given function.
+  // Returns a new compilation job for the given JavaScript function.
   static OptimizedCompilationJob* NewCompilationJob(Isolate* isolate,
                                                     Handle<JSFunction> function,
                                                     bool has_script);
@@ -62,21 +61,13 @@ class Pipeline : public AllStatic {
       uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
       PoisoningMitigationLevel poisoning_level);
 
-  // Run the entire pipeline and generate a handle to a code object suitable for
-  // testing.
+  // ---------------------------------------------------------------------------
+  // The following methods are for testing purposes only. Avoid production use.
+  // ---------------------------------------------------------------------------
+
+  // Run the pipeline on JavaScript bytecode and generate code.
   static MaybeHandle<Code> GenerateCodeForTesting(
       OptimizedCompilationInfo* info, Isolate* isolate);
-
-  // Run the pipeline on a machine graph and generate code. If {schedule} is
-  // {nullptr}, then compute a new schedule for code generation.
-  static MaybeHandle<Code> GenerateCodeForTesting(
-      OptimizedCompilationInfo* info, Isolate* isolate, Graph* graph,
-      Schedule* schedule = nullptr);
-
-  // Run just the register allocator phases.
-  V8_EXPORT_PRIVATE static bool AllocateRegistersForTesting(
-      const RegisterConfiguration* config, InstructionSequence* sequence,
-      bool run_verifier);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.
@@ -85,6 +76,11 @@ class Pipeline : public AllStatic {
       CallDescriptor* call_descriptor, Graph* graph,
       Schedule* schedule = nullptr,
       SourcePositionTable* source_positions = nullptr);
+
+  // Run just the register allocator phases.
+  V8_EXPORT_PRIVATE static bool AllocateRegistersForTesting(
+      const RegisterConfiguration* config, InstructionSequence* sequence,
+      bool run_verifier);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Pipeline);

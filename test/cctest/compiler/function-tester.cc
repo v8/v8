@@ -166,8 +166,10 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   OptimizedCompilationInfo info(&zone, isolate, shared, function);
 
+  auto call_descriptor = Linkage::ComputeIncoming(&zone, &info);
   Handle<Code> code =
-      Pipeline::GenerateCodeForTesting(&info, isolate, graph).ToHandleChecked();
+      Pipeline::GenerateCodeForTesting(&info, isolate, call_descriptor, graph)
+          .ToHandleChecked();
   function->set_code(*code);
   return function;
 }
