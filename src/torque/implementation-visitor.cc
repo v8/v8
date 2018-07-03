@@ -27,6 +27,8 @@ VisitResult ImplementationVisitor::Visit(Expression* expr) {
 
 const Type* ImplementationVisitor::Visit(Statement* stmt) {
   CurrentSourcePosition::Scope scope(stmt->pos);
+  GenerateIndent();
+  source_out() << "// " << CurrentPositionAsString() << "\n";
   switch (stmt->kind) {
 #define ENUM_ITEM(name)        \
   case AstNode::Kind::k##name: \
