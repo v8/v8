@@ -20,6 +20,7 @@ PartialSerializer::PartialSerializer(
       can_be_rehashed_(true),
       context_(nullptr) {
   InitializeCodeAddressMap();
+  allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
 }
 
 PartialSerializer::~PartialSerializer() {
@@ -139,7 +140,7 @@ void PartialSerializer::SerializeEmbedderFields() {
     HandleScope scope(isolate());
     Handle<JSObject> obj(embedder_field_holders_.back(), isolate());
     embedder_field_holders_.pop_back();
-    SerializerReference reference = reference_map()->Lookup(*obj);
+    SerializerReference reference = reference_map()->LookupReference(*obj);
     DCHECK(reference.is_back_reference());
     int embedder_fields_count = obj->GetEmbedderFieldCount();
     for (int i = 0; i < embedder_fields_count; i++) {

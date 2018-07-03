@@ -177,7 +177,7 @@ bool Serializer<AllocatorT>::SerializeBackReference(HeapObject* obj,
                                                     HowToCode how_to_code,
                                                     WhereToPoint where_to_point,
                                                     int skip) {
-  SerializerReference reference = reference_map_.Lookup(obj);
+  SerializerReference reference = reference_map_.LookupReference(obj);
   if (!reference.is_valid()) return false;
   // Encode the location of an already deserialized object in order to write
   // its location into a later object.  We can encode the location as an
@@ -291,7 +291,21 @@ template <class AllocatorT>
 void Serializer<AllocatorT>::PutBackReference(HeapObject* object,
                                               SerializerReference reference) {
   DCHECK(allocator()->BackReferenceIsAlreadyAllocated(reference));
-  sink_.PutInt(reference.back_reference(), "BackRefValue");
+  switch (reference.space()) {
+    case MAP_SPACE:
+      sink_.PutInt(reference.map_index(), "BackRefChunkOffset");
+      break;
+
+    case LO_SPACE:
+      sink_.PutInt(reference.large_object_index(), "BackRefChunkOffset");
+      break;
+
+    default:
+      sink_.PutInt(reference.chunk_index(), "BackRefChunkIndex");
+      sink_.PutInt(reference.chunk_offset(), "BackRefChunkOffset");
+      break;
+  }
+
   hot_objects_.Add(object);
 }
 
@@ -406,7 +420,7 @@ template <class AllocatorT>
 int32_t Serializer<AllocatorT>::ObjectSerializer::SerializeBackingStore(
     void* backing_store, int32_t byte_length) {
   SerializerReference reference =
-      serializer_->reference_map()->Lookup(backing_store);
+      serializer_->reference_map()->LookupReference(backing_store);
 
   // Serialize the off-heap backing store.
   if (!reference.is_valid()) {
@@ -678,7 +692,7 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeDeferred() {
   int size = object_->Size();
   Map* map = object_->map();
   SerializerReference back_reference =
-      serializer_->reference_map()->Lookup(object_);
+      serializer_->reference_map()->LookupReference(object_);
   DCHECK(back_reference.is_back_reference());
 
   // Serialize the rest of the object.

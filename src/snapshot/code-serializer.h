@@ -58,8 +58,7 @@ class CodeSerializer : public Serializer<> {
   uint32_t source_hash() const { return source_hash_; }
 
  protected:
-  explicit CodeSerializer(Isolate* isolate, uint32_t source_hash)
-      : Serializer(isolate), source_hash_(source_hash) {}
+  CodeSerializer(Isolate* isolate, uint32_t source_hash);
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
   virtual void SerializeCodeObject(Code* code_object, HowToCode how_to_code,

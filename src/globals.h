@@ -584,7 +584,7 @@ enum AllocationSpace {
   FIRST_GROWABLE_PAGED_SPACE = OLD_SPACE,
   LAST_GROWABLE_PAGED_SPACE = MAP_SPACE
 };
-constexpr int kSpaceTagSize = 4;
+constexpr int kSpaceTagSize = 3;
 STATIC_ASSERT(FIRST_SPACE == 0);
 
 enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };

@@ -299,9 +299,7 @@ static void SanityCheck(v8::Isolate* v8_isolate) {
   isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("Empty"));
 }
 
-UNINITIALIZED_TEST(StartupSerializerOnce) {
-  DisableLazyDeserialization();
-  DisableAlwaysOpt();
+void TestStartupSerializerOnceImpl() {
   v8::Isolate* isolate = TestIsolate::NewInitialized();
   StartupBlobs blobs = Serialize(isolate);
   isolate->Dispose();
@@ -317,6 +315,40 @@ UNINITIALIZED_TEST(StartupSerializerOnce) {
   }
   isolate->Dispose();
   blobs.Dispose();
+}
+
+UNINITIALIZED_TEST(StartupSerializerOnce) {
+  DisableLazyDeserialization();
+  DisableAlwaysOpt();
+  TestStartupSerializerOnceImpl();
+}
+
+UNINITIALIZED_TEST(StartupSerializerOnce32) {
+  DisableLazyDeserialization();
+  DisableAlwaysOpt();
+  FLAG_serialization_chunk_size = 32;
+  TestStartupSerializerOnceImpl();
+}
+
+UNINITIALIZED_TEST(StartupSerializerOnce1K) {
+  DisableLazyDeserialization();
+  DisableAlwaysOpt();
+  FLAG_serialization_chunk_size = 1 * KB;
+  TestStartupSerializerOnceImpl();
+}
+
+UNINITIALIZED_TEST(StartupSerializerOnce4K) {
+  DisableLazyDeserialization();
+  DisableAlwaysOpt();
+  FLAG_serialization_chunk_size = 4 * KB;
+  TestStartupSerializerOnceImpl();
+}
+
+UNINITIALIZED_TEST(StartupSerializerOnce32K) {
+  DisableLazyDeserialization();
+  DisableAlwaysOpt();
+  FLAG_serialization_chunk_size = 32 * KB;
+  TestStartupSerializerOnceImpl();
 }
 
 UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {

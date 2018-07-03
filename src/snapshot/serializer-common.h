@@ -9,6 +9,7 @@
 #include "src/base/bits.h"
 #include "src/external-reference-table.h"
 #include "src/globals.h"
+#include "src/snapshot/references.h"
 #include "src/utils.h"
 #include "src/visitors.h"
 

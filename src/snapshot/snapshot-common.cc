@@ -260,8 +260,9 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
             reinterpret_cast<const char*>(startup_snapshot->RawData().start()),
             payload_length);
   if (FLAG_profile_deserialization) {
-    PrintF("Snapshot blob consists of:\n%10d bytes for startup\n",
-           payload_length);
+    PrintF("Snapshot blob consists of:\n%10d bytes in %d chunks for startup\n",
+           payload_length,
+           static_cast<uint32_t>(startup_snapshot->Reservations().size()));
   }
   payload_offset += payload_length;
 
@@ -286,7 +287,8 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
         reinterpret_cast<const char*>(context_snapshot->RawData().start()),
         payload_length);
     if (FLAG_profile_deserialization) {
-      PrintF("%10d bytes for context #%d\n", payload_length, i);
+      PrintF("%10d bytes in %d chunks for context #%d\n", payload_length,
+             static_cast<uint32_t>(context_snapshot->Reservations().size()), i);
     }
     payload_offset += payload_length;
   }

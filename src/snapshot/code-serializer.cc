@@ -31,6 +31,11 @@ ScriptData::ScriptData(const byte* data, int length)
   }
 }
 
+CodeSerializer::CodeSerializer(Isolate* isolate, uint32_t source_hash)
+    : Serializer(isolate), source_hash_(source_hash) {
+  allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
+}
+
 // static
 ScriptCompiler::CachedData* CodeSerializer::Serialize(
     Handle<SharedFunctionInfo> info) {
@@ -253,7 +258,7 @@ void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
 void CodeSerializer::SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
                                        WhereToPoint where_to_point) {
   // We only arrive here if we have not encountered this code stub before.
-  DCHECK(!reference_map()->Lookup(code_stub).is_valid());
+  DCHECK(!reference_map()->LookupReference(code_stub).is_valid());
   uint32_t stub_key = code_stub->stub_key();
   DCHECK(CodeStub::MajorKeyFromKey(stub_key) != CodeStub::NoCache);
   DCHECK(!CodeStub::GetCode(isolate(), stub_key).is_null());

@@ -276,33 +276,37 @@ int Deserializer<AllocatorT>::MaybeReplaceWithDeserializeLazy(int builtin_id) {
 template <class AllocatorT>
 HeapObject* Deserializer<AllocatorT>::GetBackReferencedObject(int space) {
   HeapObject* obj;
-  SerializerReference back_reference =
-      SerializerReference::FromBitfield(source_.GetInt());
-
   switch (space) {
     case LO_SPACE:
-      obj = allocator()->GetLargeObject(back_reference.large_object_index());
+      obj = allocator()->GetLargeObject(source_.GetInt());
       break;
     case MAP_SPACE:
-      obj = allocator()->GetMap(back_reference.map_index());
+      obj = allocator()->GetMap(source_.GetInt());
       break;
-    case RO_SPACE:
+    case RO_SPACE: {
+      uint32_t chunk_index = source_.GetInt();
+      uint32_t chunk_offset = source_.GetInt();
       if (isolate()->heap()->deserialization_complete()) {
         PagedSpace* read_only_space = isolate()->heap()->read_only_space();
         Page* page = read_only_space->first_page();
-        for (uint32_t i = 0; i < back_reference.chunk_index(); ++i) {
+        for (uint32_t i = 0; i < chunk_index; ++i) {
           page = page->next_page();
         }
-        Address address = page->OffsetToAddress(back_reference.chunk_offset());
+        Address address = page->OffsetToAddress(chunk_offset);
         obj = HeapObject::FromAddress(address);
-        break;
+      } else {
+        obj = allocator()->GetObject(static_cast<AllocationSpace>(space),
+                                     chunk_index, chunk_offset);
       }
-      V8_FALLTHROUGH;
-    default:
-      obj = allocator()->GetObject(static_cast<AllocationSpace>(space),
-                                   back_reference.chunk_index(),
-                                   back_reference.chunk_offset());
       break;
+    }
+    default: {
+      uint32_t chunk_index = source_.GetInt();
+      uint32_t chunk_offset = source_.GetInt();
+      obj = allocator()->GetObject(static_cast<AllocationSpace>(space),
+                                   chunk_index, chunk_offset);
+      break;
+    }
   }
 
   if (deserializing_user_code() && obj->IsThinString()) {
