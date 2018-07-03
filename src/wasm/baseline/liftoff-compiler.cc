@@ -1841,9 +1841,7 @@ bool LiftoffCompilationUnit::ExecuteCompilation() {
   liftoff_compile_time_scope.reset();
   if (!decoder.interface().ok()) {
     // Liftoff compilation failed.
-    wasm_unit_->isolate_->counters()
-        ->liftoff_unsupported_functions()
-        ->Increment();
+    wasm_unit_->counters_->liftoff_unsupported_functions()->Increment();
     return false;
   }
   if (decoder.failed()) return false;  // Validation error
@@ -1865,14 +1863,14 @@ bool LiftoffCompilationUnit::ExecuteCompilation() {
                              sizeof(trap_handler::ProtectedInstructionData);
 
   safepoint_table_offset_ = decoder.interface().GetSafepointTableOffset();
-  wasm_unit_->isolate_->counters()->liftoff_compiled_functions()->Increment();
+  wasm_unit_->counters_->liftoff_compiled_functions()->Increment();
   return true;
 }
 
 wasm::WasmCode* LiftoffCompilationUnit::FinishCompilation(
     wasm::ErrorThrower* thrower) {
   CodeDesc desc;
-  asm_.GetCode(wasm_unit_->isolate_, &desc);
+  asm_.GetCode(nullptr, &desc);
 
   OwnedVector<byte> source_positions =
       source_position_table_builder_.ToSourcePositionTableVector();
