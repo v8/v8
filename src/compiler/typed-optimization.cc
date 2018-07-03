@@ -148,7 +148,7 @@ Reduction TypedOptimization::ReduceCheckMaps(Node* node) {
       if (map_type.IsHeapConstant() &&
           map_type.AsHeapConstant()->Value().is_identical_to(object_map)) {
         if (object_map->CanTransition()) {
-          dependencies()->AssumeMapStable(object_map);
+          dependencies()->DependOnStableMap(object_map);
         }
         return Replace(effect);
       }
@@ -213,7 +213,7 @@ Reduction TypedOptimization::ReduceLoadField(Node* node) {
     Handle<Map> object_map;
     if (GetStableMapFromObjectType(object_type).ToHandle(&object_map)) {
       if (object_map->CanTransition()) {
-        dependencies()->AssumeMapStable(object_map);
+        dependencies()->DependOnStableMap(object_map);
       }
       Node* const value = jsgraph()->HeapConstant(object_map);
       ReplaceWithValue(node, value);

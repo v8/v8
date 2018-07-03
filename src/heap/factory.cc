@@ -2526,7 +2526,7 @@ MaybeHandle<Code> Factory::TryNewCode(
     Heap* heap = isolate()->heap();
     CodePageCollectionMemoryModificationScope code_allocation(heap);
     HeapObject* result =
-        heap->AllocateRawWithLigthRetry(object_size, CODE_SPACE);
+        heap->AllocateRawWithLightRetry(object_size, CODE_SPACE);
 
     // Return an empty handle if we cannot allocate the code object.
     if (!result) return MaybeHandle<Code>();

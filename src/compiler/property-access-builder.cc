@@ -136,7 +136,7 @@ void PropertyAccessBuilder::BuildCheckMaps(
     if (receiver_map->is_stable()) {
       for (Handle<Map> map : receiver_maps) {
         if (map.is_identical_to(receiver_map)) {
-          dependencies()->AssumeMapStable(receiver_map);
+          dependencies()->DependOnStableMap(receiver_map);
           return;
         }
       }
@@ -195,18 +195,17 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     // but for now let's just do what Crankshaft does.
     LookupIterator it(m.Value(), name, LookupIterator::OWN_SKIP_INTERCEPTOR);
     if (it.state() == LookupIterator::DATA) {
-      bool is_reaonly_non_configurable =
+      bool is_readonly_non_configurable =
           it.IsReadOnly() && !it.IsConfigurable();
-      if (is_reaonly_non_configurable ||
+      if (is_readonly_non_configurable ||
           (FLAG_track_constant_fields && access_info.IsDataConstantField())) {
         Node* value = jsgraph()->Constant(JSReceiver::GetDataProperty(&it));
-        if (!is_reaonly_non_configurable) {
+        if (!is_readonly_non_configurable) {
           // It's necessary to add dependency on the map that introduced
           // the field.
           DCHECK(access_info.IsDataConstantField());
           DCHECK(!it.is_dictionary_holder());
-          Handle<Map> field_owner_map = it.GetFieldOwnerMap();
-          dependencies()->AssumeFieldOwner(field_owner_map);
+          dependencies()->DependOnFieldType(&it);
         }
         return value;
       }
@@ -264,7 +263,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
     Handle<Map> field_map;
     if (access_info.field_map().ToHandle(&field_map)) {
       if (field_map->is_stable()) {
-        dependencies()->AssumeMapStable(field_map);
+        dependencies()->DependOnStableMap(field_map);
         field_access.map = field_map;
       }
     }

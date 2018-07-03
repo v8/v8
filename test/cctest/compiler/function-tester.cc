@@ -153,7 +153,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, isolate).ToHandleChecked();
-  info.dependencies()->Commit(code);
+  CHECK(info.dependencies()->Commit(code));
   info.context()->native_context()->AddOptimizedCode(*code);
   function->set_code(*code);
   return function;
