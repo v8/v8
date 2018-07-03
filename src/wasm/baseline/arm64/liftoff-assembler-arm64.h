@@ -628,7 +628,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister src, Label* trap) {
   switch (opcode) {
     case kExprI32ConvertI64:
-      Mov(dst.gp().W(), src.gp().W());
+      if (src != dst) Mov(dst.gp().W(), src.gp().W());
       return true;
     case kExprI32SConvertF32:
       Fcvtzs(dst.gp().W(), src.fp().S());  // f32 -> i32 round to zero.
