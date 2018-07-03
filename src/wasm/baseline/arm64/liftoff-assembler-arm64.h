@@ -958,10 +958,24 @@ void LiftoffStackSlots::Construct() {
                    poke_offset);
         break;
       case LiftoffAssembler::VarState::KIntConst: {
-        UseScratchRegisterScope temps(asm_);
-        Register scratch = temps.AcquireW();
-        asm_->Mov(scratch, slot.src_.i32_const());
-        asm_->Poke(scratch, poke_offset);
+        switch (slot.src_.type()) {
+          case kWasmI32: {
+            UseScratchRegisterScope temps(asm_);
+            Register scratch = temps.AcquireW();
+            asm_->Mov(scratch, slot.src_.i32_const());
+            asm_->Poke(scratch, poke_offset);
+            break;
+          }
+          case kWasmI64: {
+            UseScratchRegisterScope temps(asm_);
+            Register scratch = temps.AcquireX();
+            asm_->Mov(scratch, int64_t{slot.src_.i32_const()});
+            asm_->Poke(scratch, poke_offset);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
         break;
       }
     }
