@@ -2194,8 +2194,8 @@ void Heap::Scavenge() {
       // Parallel phase scavenging all copied and promoted objects.
       TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL);
       job.Run(isolate()->async_counters());
-      DCHECK(copied_list.IsGlobalEmpty());
-      DCHECK(promotion_list.IsGlobalEmpty());
+      DCHECK(copied_list.IsEmpty());
+      DCHECK(promotion_list.IsEmpty());
     }
     {
       // Scavenge weak global handles.
@@ -2209,8 +2209,8 @@ void Heap::Scavenge() {
               &root_scavenge_visitor);
       scavengers[kMainThreadId]->Process();
 
-      DCHECK(copied_list.IsGlobalEmpty());
-      DCHECK(promotion_list.IsGlobalEmpty());
+      DCHECK(copied_list.IsEmpty());
+      DCHECK(promotion_list.IsEmpty());
       isolate()
           ->global_handles()
           ->IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(

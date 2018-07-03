@@ -845,8 +845,8 @@ void MarkCompactCollector::Finish() {
   heap()->VerifyCountersBeforeConcurrentSweeping();
 #endif
 
-  CHECK(weak_objects_.current_ephemerons.IsGlobalEmpty());
-  CHECK(weak_objects_.discovered_ephemerons.IsGlobalEmpty());
+  CHECK(weak_objects_.current_ephemerons.IsEmpty());
+  CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
   weak_objects_.next_ephemerons.Clear();
 
   sweeper()->StartSweeperTasks();
@@ -1499,8 +1499,8 @@ void MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
           ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
     }
 
-    CHECK(weak_objects_.current_ephemerons.IsGlobalEmpty());
-    CHECK(weak_objects_.discovered_ephemerons.IsGlobalEmpty());
+    CHECK(weak_objects_.current_ephemerons.IsEmpty());
+    CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
 
     work_to_do =
         work_to_do || !marking_worklist()->IsEmpty() ||
@@ -1509,8 +1509,8 @@ void MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
   }
 
   CHECK(marking_worklist()->IsEmpty());
-  CHECK(weak_objects_.current_ephemerons.IsGlobalEmpty());
-  CHECK(weak_objects_.discovered_ephemerons.IsGlobalEmpty());
+  CHECK(weak_objects_.current_ephemerons.IsEmpty());
+  CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
 }
 
 bool MarkCompactCollector::ProcessEphemerons() {
@@ -1774,10 +1774,10 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 
   ClearWeakCollections();
 
-  DCHECK(weak_objects_.weak_cells.IsGlobalEmpty());
-  DCHECK(weak_objects_.transition_arrays.IsGlobalEmpty());
-  DCHECK(weak_objects_.weak_references.IsGlobalEmpty());
-  DCHECK(weak_objects_.weak_objects_in_code.IsGlobalEmpty());
+  DCHECK(weak_objects_.weak_cells.IsEmpty());
+  DCHECK(weak_objects_.transition_arrays.IsEmpty());
+  DCHECK(weak_objects_.weak_references.IsEmpty());
+  DCHECK(weak_objects_.weak_objects_in_code.IsEmpty());
 }
 
 void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
@@ -4156,7 +4156,7 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
             new YoungGenerationMarkingTask(isolate(), this, worklist(), i));
       }
       job.Run(isolate()->async_counters());
-      DCHECK(worklist()->IsGlobalEmpty());
+      DCHECK(worklist()->IsEmpty());
     }
   }
   old_to_new_slots_ = slots;

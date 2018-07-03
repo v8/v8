@@ -724,8 +724,8 @@ void ConcurrentMarking::RescheduleTasksIfNeeded() {
     if (pending_task_count_ > 0) return;
   }
   if (!shared_->IsGlobalPoolEmpty() ||
-      !weak_objects_->current_ephemerons.IsGlobalEmpty() ||
-      !weak_objects_->discovered_ephemerons.IsGlobalEmpty()) {
+      !weak_objects_->current_ephemerons.IsEmpty() ||
+      !weak_objects_->discovered_ephemerons.IsEmpty()) {
     ScheduleTasks();
   }
 }
