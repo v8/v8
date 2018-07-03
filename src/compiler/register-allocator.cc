@@ -3089,11 +3089,22 @@ bool LinearScanAllocator::TryAllocateFreeReg(
 
   DCHECK_GE(free_until_pos.length(), num_codes);
 
-  // Find the register which stays free for the longest time.
-  int reg = codes[0];
-  for (int i = 1; i < num_codes; ++i) {
+  // Find the register which stays free for the longest time. Check for
+  // the hinted register first, as we might want to use that one. Only
+  // count full instructions for free ranges, as an instruction's internal
+  // positions do not help but might shadow a hinted register. This is
+  // typically the case for function calls, where all registered are
+  // cloberred after the call except for the argument registers, which are
+  // set before the call. Hence, the argument registers always get ignored,
+  // as their available time is shorter.
+  int reg;
+  if (current->FirstHintPosition(&reg) == nullptr) {
+    reg = codes[0];
+  }
+  for (int i = 0; i < num_codes; ++i) {
     int code = codes[i];
-    if (free_until_pos[code] > free_until_pos[reg]) {
+    if (free_until_pos[code].ToInstructionIndex() >
+        free_until_pos[reg].ToInstructionIndex()) {
       reg = code;
     }
   }
