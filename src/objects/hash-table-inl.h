@@ -80,8 +80,9 @@ int HashTable<Derived, Shape>::FindEntry(Isolate* isolate, Key key,
   uint32_t entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
-  Object* undefined = isolate->heap()->undefined_value();
-  Object* the_hole = isolate->heap()->the_hole_value();
+  ReadOnlyRoots roots(isolate);
+  Object* undefined = roots.undefined_value();
+  Object* the_hole = roots.the_hole_value();
   USE(the_hole);
   while (true) {
     Object* element = KeyAt(entry);
@@ -117,8 +118,8 @@ bool BaseShape<KeyT>::IsKey(Isolate* isolate, Object* key) {
 
 template <typename KeyT>
 bool BaseShape<KeyT>::IsLive(Isolate* isolate, Object* k) {
-  Heap* heap = isolate->heap();
-  return k != heap->the_hole_value() && k != heap->undefined_value();
+  ReadOnlyRoots roots(isolate);
+  return k != roots.the_hole_value() && k != roots.undefined_value();
 }
 
 template <typename Derived, typename Shape>

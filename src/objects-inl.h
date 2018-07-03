@@ -210,22 +210,22 @@ HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 
 #define IS_TYPE_FUNCTION_DEF(Type, Value)             \
   bool Object::Is##Type(Isolate* isolate) const {     \
-    return this == isolate->heap()->Value();          \
+    return this == ReadOnlyRoots(isolate).Value();    \
   }                                                   \
   bool HeapObject::Is##Type(Isolate* isolate) const { \
-    return this == isolate->heap()->Value();          \
+    return this == ReadOnlyRoots(isolate).Value();    \
   }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
 
 bool Object::IsNullOrUndefined(Isolate* isolate) const {
-  Heap* heap = isolate->heap();
-  return this == heap->null_value() || this == heap->undefined_value();
+  ReadOnlyRoots roots(isolate);
+  return this == roots.null_value() || this == roots.undefined_value();
 }
 
 bool HeapObject::IsNullOrUndefined(Isolate* isolate) const {
-  Heap* heap = isolate->heap();
-  return this == heap->null_value() || this == heap->undefined_value();
+  ReadOnlyRoots roots(isolate);
+  return this == roots.null_value() || this == roots.undefined_value();
 }
 
 #ifdef DEBUG
@@ -924,10 +924,11 @@ V8_WARN_UNUSED_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
 bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   DisallowHeapAllocation no_gc;
   HeapObject* prototype = HeapObject::cast(object->map()->prototype());
-  HeapObject* null = isolate->heap()->null_value();
-  HeapObject* empty_fixed_array = isolate->heap()->empty_fixed_array();
+  ReadOnlyRoots roots(isolate);
+  HeapObject* null = roots.null_value();
+  HeapObject* empty_fixed_array = roots.empty_fixed_array();
   HeapObject* empty_slow_element_dictionary =
-      isolate->heap()->empty_slow_element_dictionary();
+      roots.empty_slow_element_dictionary();
   while (prototype != null) {
     Map* map = prototype->map();
     if (map->IsCustomElementsReceiverMap()) return false;
@@ -1145,7 +1146,7 @@ FixedArrayBase* JSObject::elements() const {
 }
 
 bool AllocationSite::HasWeakNext() const {
-  return map() == GetHeap()->allocation_site_map();
+  return map() == GetReadOnlyRoots().allocation_site_map();
 }
 
 void AllocationSite::Initialize() {
@@ -2979,14 +2980,15 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
 
 
 void JSReceiver::initialize_properties() {
-  DCHECK(!GetHeap()->InNewSpace(GetReadOnlyRoots().empty_fixed_array()));
-  DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_property_dictionary()));
+  Heap* heap = GetHeap();
+  ReadOnlyRoots roots(heap);
+  DCHECK(!heap->InNewSpace(roots.empty_fixed_array()));
+  DCHECK(!heap->InNewSpace(heap->empty_property_dictionary()));
   if (map()->is_dictionary_map()) {
     WRITE_FIELD(this, kPropertiesOrHashOffset,
-                GetHeap()->empty_property_dictionary());
+                heap->empty_property_dictionary());
   } else {
-    WRITE_FIELD(this, kPropertiesOrHashOffset,
-                GetReadOnlyRoots().empty_fixed_array());
+    WRITE_FIELD(this, kPropertiesOrHashOffset, roots.empty_fixed_array());
   }
 }
 
@@ -3186,9 +3188,9 @@ PropertyCell* GlobalDictionary::CellAt(int entry) {
 }
 
 bool GlobalDictionaryShape::IsLive(Isolate* isolate, Object* k) {
-  Heap* heap = isolate->heap();
-  DCHECK_NE(heap->the_hole_value(), k);
-  return k != heap->undefined_value();
+  ReadOnlyRoots roots(isolate);
+  DCHECK_NE(roots.the_hole_value(), k);
+  return k != roots.undefined_value();
 }
 
 bool GlobalDictionaryShape::IsKey(Isolate* isolate, Object* k) {

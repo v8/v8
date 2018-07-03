@@ -635,7 +635,7 @@ Object* Map::GetBackPointer() const {
   if (object->IsMap()) {
     return object;
   }
-  return GetIsolate()->heap()->undefined_value();
+  return GetReadOnlyRoots().undefined_value();
 }
 
 Map* Map::ElementsTransitionMap() {

@@ -124,19 +124,21 @@ void FixedArray::set_undefined(int index) {
 
 void FixedArray::set_undefined(Isolate* isolate, int index) {
   FixedArray::NoWriteBarrierSet(this, index,
-                                isolate->heap()->undefined_value());
+                                ReadOnlyRoots(isolate).undefined_value());
 }
 
 void FixedArray::set_null(int index) { set_null(GetIsolate(), index); }
 
 void FixedArray::set_null(Isolate* isolate, int index) {
-  FixedArray::NoWriteBarrierSet(this, index, isolate->heap()->null_value());
+  FixedArray::NoWriteBarrierSet(this, index,
+                                ReadOnlyRoots(isolate).null_value());
 }
 
 void FixedArray::set_the_hole(int index) { set_the_hole(GetIsolate(), index); }
 
 void FixedArray::set_the_hole(Isolate* isolate, int index) {
-  FixedArray::NoWriteBarrierSet(this, index, isolate->heap()->the_hole_value());
+  FixedArray::NoWriteBarrierSet(this, index,
+                                ReadOnlyRoots(isolate).the_hole_value());
 }
 
 void FixedArray::FillWithHoles(int from, int to) {

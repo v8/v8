@@ -526,7 +526,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
       FixedArray* keys = enum_cache->keys();
       FixedArray* indices = enum_cache->indices();
       CHECK_LE(map()->EnumLength(), keys->length());
-      CHECK_IMPLIES(indices != isolate->heap()->empty_fixed_array(),
+      CHECK_IMPLIES(indices != ReadOnlyRoots(isolate).empty_fixed_array(),
                     keys->length() == indices->length());
     }
   }
@@ -590,7 +590,8 @@ void Map::DictionaryMapVerify(Isolate* isolate) {
   MapVerify(isolate);
   CHECK(is_dictionary_map());
   CHECK_EQ(kInvalidEnumCacheSentinel, EnumLength());
-  CHECK_EQ(isolate->heap()->empty_descriptor_array(), instance_descriptors());
+  CHECK_EQ(ReadOnlyRoots(isolate).empty_descriptor_array(),
+           instance_descriptors());
   CHECK_EQ(0, UnusedPropertyFields());
   CHECK_EQ(Map::GetVisitorId(this), visitor_id());
 }
@@ -620,7 +621,7 @@ void WeakArrayList::WeakArrayListVerify(Isolate* isolate) {
 
 void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   if (length() == 0) {
-    CHECK_EQ(this, isolate->heap()->empty_property_array());
+    CHECK_EQ(this, ReadOnlyRoots(isolate).empty_property_array());
     return;
   }
   // There are no empty PropertyArrays.
@@ -648,7 +649,7 @@ void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
   if (slot_count() == 0) {
-    CHECK_EQ(isolate->heap()->empty_feedback_metadata(), this);
+    CHECK_EQ(ReadOnlyRoots(isolate).empty_feedback_metadata(), this);
   } else {
     FeedbackMetadataIterator iter(this);
     while (iter.HasNext()) {
@@ -665,10 +666,10 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
   int nof_descriptors = number_of_descriptors();
   if (number_of_descriptors_storage() == 0) {
     Heap* heap = isolate->heap();
-    CHECK_EQ(heap->empty_descriptor_array(), this);
+    CHECK_EQ(ReadOnlyRoots(heap).empty_descriptor_array(), this);
     CHECK_EQ(2, length());
     CHECK_EQ(0, nof_descriptors);
-    CHECK_EQ(heap->empty_enum_cache(), GetEnumCache());
+    CHECK_EQ(ReadOnlyRoots(heap).empty_enum_cache(), GetEnumCache());
   } else {
     CHECK_LT(2, length());
     CHECK_LE(LengthFor(nof_descriptors), length());
@@ -733,11 +734,11 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate,
   bool is_fast = kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
   CHECK(IsFixedArray());
   CHECK_GE(length(), 2);
-  CHECK_EQ(map(), isolate->heap()->sloppy_arguments_elements_map());
+  CHECK_EQ(map(), ReadOnlyRoots(isolate).sloppy_arguments_elements_map());
   Context* context_object = Context::cast(context());
   FixedArray* arg_elements = FixedArray::cast(arguments());
   if (arg_elements->length() == 0) {
-    CHECK(arg_elements == isolate->heap()->empty_fixed_array());
+    CHECK(arg_elements == ReadOnlyRoots(isolate).empty_fixed_array());
     return;
   }
   ElementsAccessor* accessor;
@@ -860,7 +861,7 @@ void JSMessageObject::JSMessageObjectVerify(Isolate* isolate) {
 void String::StringVerify(Isolate* isolate) {
   CHECK(IsString());
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
-  CHECK_IMPLIES(length() == 0, this == isolate->heap()->empty_string());
+  CHECK_IMPLIES(length() == 0, this == ReadOnlyRoots(isolate).empty_string());
   if (IsInternalizedString()) {
     CHECK(!isolate->heap()->InNewSpace(this));
   }
@@ -875,7 +876,7 @@ void String::StringVerify(Isolate* isolate) {
 
 void ConsString::ConsStringVerify(Isolate* isolate) {
   CHECK(this->first()->IsString());
-  CHECK(this->second() == isolate->heap()->empty_string() ||
+  CHECK(this->second() == ReadOnlyRoots(isolate).empty_string() ||
         this->second()->IsString());
   CHECK_GE(this->length(), ConsString::kMinLength);
   CHECK(this->length() == this->first()->length() + this->second()->length());
@@ -938,7 +939,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
         value->IsScopeInfo());
   if (value->IsScopeInfo()) {
     CHECK_LT(0, ScopeInfo::cast(value)->length());
-    CHECK_NE(value, isolate->heap()->empty_scope_info());
+    CHECK_NE(value, ReadOnlyRoots(isolate).empty_scope_info());
   }
 
   CHECK(HasWasmExportedFunctionData() || IsApiFunction() ||
@@ -1007,8 +1008,8 @@ void Oddball::OddballVerify(Isolate* isolate) {
   VerifyHeapPointer(to_string());
   Object* number = to_number();
   if (number->IsHeapObject()) {
-    CHECK(number == heap->nan_value() ||
-          number == heap->hole_nan_value());
+    CHECK(number == ReadOnlyRoots(heap).nan_value() ||
+          number == ReadOnlyRoots(heap).hole_nan_value());
   } else {
     CHECK(number->IsSmi());
     int value = Smi::ToInt(number);
@@ -1017,28 +1018,29 @@ void Oddball::OddballVerify(Isolate* isolate) {
     CHECK_LE(value, 1);
     CHECK_GE(value, kLeastHiddenOddballNumber);
   }
-  if (map() == heap->undefined_map()) {
-    CHECK(this == heap->undefined_value());
-  } else if (map() == heap->the_hole_map()) {
-    CHECK(this == heap->the_hole_value());
-  } else if (map() == heap->null_map()) {
-    CHECK(this == heap->null_value());
-  } else if (map() == heap->boolean_map()) {
-    CHECK(this == heap->true_value() ||
-          this == heap->false_value());
-  } else if (map() == heap->uninitialized_map()) {
-    CHECK(this == heap->uninitialized_value());
-  } else if (map() == heap->arguments_marker_map()) {
-    CHECK(this == heap->arguments_marker());
-  } else if (map() == heap->termination_exception_map()) {
-    CHECK(this == heap->termination_exception());
-  } else if (map() == heap->exception_map()) {
-    CHECK(this == heap->exception());
-  } else if (map() == heap->optimized_out_map()) {
-    CHECK(this == heap->optimized_out());
-  } else if (map() == heap->stale_register_map()) {
-    CHECK(this == heap->stale_register());
-  } else if (map() == heap->self_reference_marker_map()) {
+
+  ReadOnlyRoots roots(heap);
+  if (map() == roots.undefined_map()) {
+    CHECK(this == roots.undefined_value());
+  } else if (map() == roots.the_hole_map()) {
+    CHECK(this == roots.the_hole_value());
+  } else if (map() == roots.null_map()) {
+    CHECK(this == roots.null_value());
+  } else if (map() == roots.boolean_map()) {
+    CHECK(this == roots.true_value() || this == roots.false_value());
+  } else if (map() == roots.uninitialized_map()) {
+    CHECK(this == roots.uninitialized_value());
+  } else if (map() == roots.arguments_marker_map()) {
+    CHECK(this == roots.arguments_marker());
+  } else if (map() == roots.termination_exception_map()) {
+    CHECK(this == roots.termination_exception());
+  } else if (map() == roots.exception_map()) {
+    CHECK(this == roots.exception());
+  } else if (map() == roots.optimized_out_map()) {
+    CHECK(this == roots.optimized_out());
+  } else if (map() == roots.stale_register_map()) {
+    CHECK(this == roots.stale_register());
+  } else if (map() == roots.self_reference_marker_map()) {
     // Multiple instances of this oddball may exist at once.
     CHECK_EQ(kind(), Oddball::kSelfReferenceMarker);
   } else {
@@ -1092,7 +1094,7 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
   if (elements()->IsUndefined(isolate)) return;
   CHECK(elements()->IsFixedArray() || elements()->IsFixedDoubleArray());
   if (elements()->length() == 0) {
-    CHECK_EQ(elements(), isolate->heap()->empty_fixed_array());
+    CHECK_EQ(elements(), ReadOnlyRoots(isolate).empty_fixed_array());
   }
   if (!length()->IsNumber()) return;
   // Verify that the length and the elements backing store are in sync.
@@ -1104,7 +1106,7 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
     // Holey / Packed backing stores might have slack or might have not been
     // properly initialized yet.
     CHECK(size <= elements()->length() ||
-          elements() == isolate->heap()->empty_fixed_array());
+          elements() == ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
     CHECK(HasDictionaryElements());
     uint32_t array_length;
@@ -1531,9 +1533,11 @@ void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {
 void Tuple2::Tuple2Verify(Isolate* isolate) {
   CHECK(IsTuple2());
   Heap* heap = isolate->heap();
-  if (this == heap->empty_enum_cache()) {
-    CHECK_EQ(heap->empty_fixed_array(), EnumCache::cast(this)->keys());
-    CHECK_EQ(heap->empty_fixed_array(), EnumCache::cast(this)->indices());
+  if (this == ReadOnlyRoots(heap).empty_enum_cache()) {
+    CHECK_EQ(ReadOnlyRoots(heap).empty_fixed_array(),
+             EnumCache::cast(this)->keys());
+    CHECK_EQ(ReadOnlyRoots(heap).empty_fixed_array(),
+             EnumCache::cast(this)->indices());
   } else {
     VerifyObjectField(kValue1Offset);
     VerifyObjectField(kValue2Offset);
@@ -1645,11 +1649,11 @@ void AccessCheckInfo::AccessCheckInfoVerify(Isolate* isolate) {
 
 void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
   CHECK(IsCallHandlerInfo());
-  CHECK(
-      map() == isolate->heap()->side_effect_call_handler_info_map() ||
-      map() == isolate->heap()->side_effect_free_call_handler_info_map() ||
-      map() ==
-          isolate->heap()->next_call_side_effect_free_call_handler_info_map());
+  CHECK(map() == ReadOnlyRoots(isolate).side_effect_call_handler_info_map() ||
+        map() ==
+            ReadOnlyRoots(isolate).side_effect_free_call_handler_info_map() ||
+        map() == ReadOnlyRoots(isolate)
+                     .next_call_side_effect_free_call_handler_info_map());
   VerifyPointer(callback());
   VerifyPointer(js_callback());
   VerifyPointer(data());

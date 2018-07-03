@@ -126,7 +126,7 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
   // Convert the dictionary to a linear list.
   Handle<FixedArray> result = Handle<FixedArray>::cast(table);
   // From this point on table is no longer a valid OrderedHashSet.
-  result->set_map(isolate->heap()->fixed_array_map());
+  result->set_map(ReadOnlyRoots(isolate).fixed_array_map());
   for (int i = 0; i < length; i++) {
     int index = kHashTableStartIndex + nof_buckets + (i * kEntrySize);
     Object* key = table->get(index);
@@ -144,11 +144,11 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
 }
 
 HeapObject* OrderedHashSet::GetEmpty(Isolate* isolate) {
-  return isolate->heap()->empty_ordered_hash_set();
+  return ReadOnlyRoots(isolate).empty_ordered_hash_set();
 }
 
 HeapObject* OrderedHashMap::GetEmpty(Isolate* isolate) {
-  return isolate->heap()->empty_ordered_hash_map();
+  return ReadOnlyRoots(isolate).empty_ordered_hash_map();
 }
 
 template <class Derived, int entrysize>
@@ -206,7 +206,7 @@ bool OrderedHashTable<Derived, entrysize>::Delete(Isolate* isolate,
   int nod = table->NumberOfDeletedElements();
   int index = table->EntryToIndex(entry);
 
-  Object* hole = isolate->heap()->the_hole_value();
+  Object* hole = ReadOnlyRoots(isolate).the_hole_value();
   for (int i = 0; i < entrysize; ++i) {
     table->set(index + i, hole);
   }
@@ -338,12 +338,12 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
 
   if (isolate->heap()->InNewSpace(this)) {
     MemsetPointer(RawField(this, kDataTableStartOffset),
-                  isolate->heap()->the_hole_value(),
+                  ReadOnlyRoots(isolate).the_hole_value(),
                   capacity * Derived::kEntrySize);
   } else {
     for (int i = 0; i < capacity; i++) {
       for (int j = 0; j < Derived::kEntrySize; j++) {
-        SetDataEntry(i, j, isolate->heap()->the_hole_value());
+        SetDataEntry(i, j, ReadOnlyRoots(isolate).the_hole_value());
       }
     }
   }
@@ -359,7 +359,7 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
 
   for (int i = 0; i < capacity; ++i) {
     for (int j = 0; j < Derived::kEntrySize; j++) {
-      DCHECK_EQ(isolate->heap()->the_hole_value(), GetDataEntry(i, j));
+      DCHECK_EQ(ReadOnlyRoots(isolate).the_hole_value(), GetDataEntry(i, j));
     }
   }
 #endif  // DEBUG
@@ -448,7 +448,7 @@ bool SmallOrderedHashTable<Derived>::Delete(Isolate* isolate, Derived* table,
   int nof = table->NumberOfElements();
   int nod = table->NumberOfDeletedElements();
 
-  Object* hole = isolate->heap()->the_hole_value();
+  Object* hole = ReadOnlyRoots(isolate).the_hole_value();
   for (int j = 0; j < Derived::kEntrySize; j++) {
     table->SetDataEntry(entry, j, hole);
   }

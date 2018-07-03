@@ -1195,11 +1195,11 @@ MaybeHandle<Object> LegacyUnwrapReceiver(Isolate* isolate,
   if (!has_initialized_slot && is_instance_of) {
     // 2. a. Let new_receiver be ? Get(receiver, %Intl%.[[FallbackSymbol]]).
     Handle<Object> new_receiver;
-    Handle<Symbol> marker =
-        handle(isolate->heap()->intl_fallback_symbol(), isolate);
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, new_receiver,
-        JSReceiver::GetProperty(isolate, receiver, marker), Object);
+        JSReceiver::GetProperty(isolate, receiver,
+                                isolate->factory()->intl_fallback_symbol()),
+        Object);
     return new_receiver;
   }
 

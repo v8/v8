@@ -675,7 +675,7 @@ void JSGeneratorObject::JSGeneratorObjectPrint(Isolate* isolate,
       int col = script->GetColumnNumber(source_position()) + 1;
       String* script_name = script->name()->IsString()
                                 ? String::cast(script->name())
-                                : isolate->heap()->empty_string();
+                                : ReadOnlyRoots(isolate).empty_string();
       os << "\n - source position: " << source_position();
       os << " (";
       script_name->PrintUC16(os);
@@ -940,11 +940,11 @@ void FeedbackCell::FeedbackCellPrint(Isolate* isolate,
                                      std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "FeedbackCell");
   Heap* heap = isolate->heap();
-  if (map() == heap->no_closures_cell_map()) {
+  if (map() == ReadOnlyRoots(heap).no_closures_cell_map()) {
     os << "\n - no closures";
-  } else if (map() == heap->one_closure_cell_map()) {
+  } else if (map() == ReadOnlyRoots(heap).one_closure_cell_map()) {
     os << "\n - one closure";
-  } else if (map() == heap->many_closures_cell_map()) {
+  } else if (map() == ReadOnlyRoots(heap).many_closures_cell_map()) {
     os << "\n - many closures";
   } else {
     os << "\n - Invalid FeedbackCell map";
@@ -2237,16 +2237,16 @@ void TransitionsAccessor::PrintOneTransition(Isolate* isolate, std::ostream& os,
 #endif
   os << ": ";
   Heap* heap = isolate->heap();
-  if (key == heap->nonextensible_symbol()) {
+  if (key == ReadOnlyRoots(heap).nonextensible_symbol()) {
     os << "(transition to non-extensible)";
-  } else if (key == heap->sealed_symbol()) {
+  } else if (key == ReadOnlyRoots(heap).sealed_symbol()) {
     os << "(transition to sealed)";
-  } else if (key == heap->frozen_symbol()) {
+  } else if (key == ReadOnlyRoots(heap).frozen_symbol()) {
     os << "(transition to frozen)";
-  } else if (key == heap->elements_transition_symbol()) {
+  } else if (key == ReadOnlyRoots(heap).elements_transition_symbol()) {
     os << "(transition to " << ElementsKindToString(target->elements_kind())
        << ")";
-  } else if (key == heap->strict_function_transition_symbol()) {
+  } else if (key == ReadOnlyRoots(heap).strict_function_transition_symbol()) {
     os << " (transition to strict function)";
   } else {
     DCHECK(!IsSpecialTransition(heap->isolate(), key));
@@ -2309,15 +2309,15 @@ void TransitionsAccessor::PrintTransitionTree(std::ostream& os, int level,
     os << std::left << std::setw(50) << ss.str() << ": ";
 
     Heap* heap = isolate_->heap();
-    if (key == heap->nonextensible_symbol()) {
+    if (key == ReadOnlyRoots(heap).nonextensible_symbol()) {
       os << "to non-extensible";
-    } else if (key == heap->sealed_symbol()) {
+    } else if (key == ReadOnlyRoots(heap).sealed_symbol()) {
       os << "to sealed ";
-    } else if (key == heap->frozen_symbol()) {
+    } else if (key == ReadOnlyRoots(heap).frozen_symbol()) {
       os << "to frozen";
-    } else if (key == heap->elements_transition_symbol()) {
+    } else if (key == ReadOnlyRoots(heap).elements_transition_symbol()) {
       os << "to " << ElementsKindToString(target->elements_kind());
-    } else if (key == heap->strict_function_transition_symbol()) {
+    } else if (key == ReadOnlyRoots(heap).strict_function_transition_symbol()) {
       os << "to strict function";
     } else {
 #ifdef OBJECT_PRINT

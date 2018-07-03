@@ -384,7 +384,7 @@ MaybeHandle<Cell> Module::ResolveExportUsingStarExports(
     Isolate* isolate, Handle<Module> module, Handle<String> module_specifier,
     Handle<String> export_name, MessageLocation loc, bool must_resolve,
     Module::ResolveSet* resolve_set) {
-  if (!export_name->Equals(isolate->heap()->default_string())) {
+  if (!export_name->Equals(ReadOnlyRoots(isolate).default_string())) {
     // Go through all star exports looking for the given name.  If multiple star
     // exports provide the name, make sure they all map it to the same cell.
     Handle<Cell> unique_cell;
@@ -805,7 +805,7 @@ void FetchStarExports(Isolate* isolate, Handle<Module> module, Zone* zone,
       if (!requested_exports->ToKey(isolate, i, &key)) continue;
       Handle<String> name(String::cast(key), isolate);
 
-      if (name->Equals(isolate->heap()->default_string())) continue;
+      if (name->Equals(ReadOnlyRoots(isolate).default_string())) continue;
       if (!exports->Lookup(name)->IsTheHole(isolate)) continue;
 
       Handle<Cell> cell(Cell::cast(requested_exports->ValueAt(i)), isolate);
@@ -828,7 +828,7 @@ void FetchStarExports(Isolate* isolate, Handle<Module> module, Zone* zone,
   // Copy [more_exports] into [exports].
   for (const auto& elem : more_exports) {
     if (elem.second->IsUndefined(isolate)) continue;  // Ambiguous export.
-    DCHECK(!elem.first->Equals(isolate->heap()->default_string()));
+    DCHECK(!elem.first->Equals(ReadOnlyRoots(isolate).default_string()));
     DCHECK(elem.second->IsCell());
     exports = ObjectHashTable::Put(exports, elem.first, elem.second);
   }

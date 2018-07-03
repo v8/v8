@@ -29,9 +29,9 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
     // Reset function's bytecode array field to point to the original bytecode
     // array.
     shared()->SetDebugBytecodeArray(OriginalBytecodeArray());
-    set_original_bytecode_array(isolate->heap()->undefined_value());
+    set_original_bytecode_array(ReadOnlyRoots(isolate).undefined_value());
   }
-  set_break_points(isolate->heap()->empty_fixed_array());
+  set_break_points(ReadOnlyRoots(isolate).empty_fixed_array());
 
   int new_flags = flags();
   new_flags &= ~kHasBreakInfo & ~kPreparedForDebugExecution;
@@ -81,7 +81,7 @@ Object* DebugInfo::GetBreakPointInfo(Isolate* isolate, int source_position) {
       }
     }
   }
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 bool DebugInfo::ClearBreakPoint(Isolate* isolate, Handle<DebugInfo> debug_info,
@@ -193,7 +193,7 @@ bool DebugInfo::HasCoverageInfo() const {
 
 void DebugInfo::ClearCoverageInfo(Isolate* isolate) {
   if (HasCoverageInfo()) {
-    set_coverage_info(isolate->heap()->undefined_value());
+    set_coverage_info(ReadOnlyRoots(isolate).undefined_value());
 
     int new_flags = flags() & ~kHasCoverageInfo;
     set_flags(new_flags);
@@ -226,7 +226,8 @@ void BreakPointInfo::ClearBreakPoint(Isolate* isolate,
   if (!break_point_info->break_points()->IsFixedArray()) {
     if (IsEqual(BreakPoint::cast(break_point_info->break_points()),
                 *break_point)) {
-      break_point_info->set_break_points(isolate->heap()->undefined_value());
+      break_point_info->set_break_points(
+          ReadOnlyRoots(isolate).undefined_value());
     }
     return;
   }
