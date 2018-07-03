@@ -237,7 +237,7 @@ Object* DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
     Handle<Object> length(Smi::kZero, isolate);
     Maybe<PropertyAttributes> attributes =
         JSReceiver::GetPropertyAttributes(&length_lookup);
-    if (attributes.IsNothing()) return isolate->heap()->exception();
+    if (attributes.IsNothing()) return ReadOnlyRoots(isolate).exception();
     if (attributes.FromJust() != ABSENT) {
       Handle<Object> target_length;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, target_length,
@@ -305,7 +305,7 @@ BUILTIN(FunctionPrototypeToString) {
   // receivers for this method.
   if (FLAG_harmony_function_tostring && receiver->IsJSReceiver() &&
       JSReceiver::cast(*receiver)->map()->is_callable()) {
-    return isolate->heap()->function_native_code_string();
+    return ReadOnlyRoots(isolate).function_native_code_string();
   }
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kNotGeneric,

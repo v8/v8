@@ -43,7 +43,7 @@ BUILTIN(MathHypot) {
   }
 
   if (one_arg_is_nan) {
-    return isolate->heap()->nan_value();
+    return ReadOnlyRoots(isolate).nan_value();
   }
 
   if (max == 0) {

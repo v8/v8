@@ -82,7 +82,7 @@ DEFINE_CAPTURE_GETTER(9)
 BUILTIN(RegExpInputGetter) {
   HandleScope scope(isolate);
   Handle<Object> obj(isolate->regexp_last_match_info()->LastInput(), isolate);
-  return obj->IsUndefined(isolate) ? isolate->heap()->empty_string()
+  return obj->IsUndefined(isolate) ? ReadOnlyRoots(isolate).empty_string()
                                    : String::cast(*obj);
 }
 
@@ -93,7 +93,7 @@ BUILTIN(RegExpInputSetter) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str,
                                      Object::ToString(isolate, value));
   isolate->regexp_last_match_info()->SetLastInput(*str);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 // Getters for the static properties lastMatch, lastParen, leftContext, and
@@ -110,7 +110,9 @@ BUILTIN(RegExpLastParenGetter) {
   HandleScope scope(isolate);
   Handle<RegExpMatchInfo> match_info = isolate->regexp_last_match_info();
   const int length = match_info->NumberOfCaptureRegisters();
-  if (length <= 2) return isolate->heap()->empty_string();  // No captures.
+  if (length <= 2) {
+    return ReadOnlyRoots(isolate).empty_string();  // No captures.
+  }
 
   DCHECK_EQ(0, length % 2);
   const int last_capture = (length / 2) - 1;

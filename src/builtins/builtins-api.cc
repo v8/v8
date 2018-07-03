@@ -223,7 +223,8 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
     argv[cursor--] = *args[i];
   }
   DCHECK_EQ(cursor, BuiltinArguments::kPaddingOffset);
-  argv[BuiltinArguments::kPaddingOffset] = isolate->heap()->the_hole_value();
+  argv[BuiltinArguments::kPaddingOffset] =
+      ReadOnlyRoots(isolate).the_hole_value();
   argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc);
   argv[BuiltinArguments::kTargetOffset] = *function;
   argv[BuiltinArguments::kNewTargetOffset] = *new_target;
@@ -261,7 +262,7 @@ V8_WARN_UNUSED_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
     // right answer.
     new_target = obj;
   } else {
-    new_target = isolate->heap()->undefined_value();
+    new_target = ReadOnlyRoots(isolate).undefined_value();
   }
 
   // Get the invocation callback from the function descriptor that was
@@ -285,7 +286,7 @@ V8_WARN_UNUSED_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
                                      args.length() - 1);
     Handle<Object> result_handle = custom.Call(call_data);
     if (result_handle.is_null()) {
-      result = isolate->heap()->undefined_value();
+      result = ReadOnlyRoots(isolate).undefined_value();
     } else {
       result = *result_handle;
     }

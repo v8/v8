@@ -78,7 +78,7 @@ void LogTimerEvent(Isolate* isolate, BuiltinArguments args,
   BUILTIN(Console##call) {                                     \
     ConsoleCall(isolate, args, &debug::ConsoleDelegate::call); \
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);            \
-    return isolate->heap()->undefined_value();                 \
+    return ReadOnlyRoots(isolate).undefined_value();           \
   }
 CONSOLE_METHOD_LIST(CONSOLE_BUILTIN_IMPLEMENTATION)
 #undef CONSOLE_BUILTIN_IMPLEMENTATION
@@ -87,21 +87,21 @@ BUILTIN(ConsoleTime) {
   LogTimerEvent(isolate, args, Logger::START);
   ConsoleCall(isolate, args, &debug::ConsoleDelegate::Time);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 BUILTIN(ConsoleTimeEnd) {
   LogTimerEvent(isolate, args, Logger::END);
   ConsoleCall(isolate, args, &debug::ConsoleDelegate::TimeEnd);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 BUILTIN(ConsoleTimeStamp) {
   LogTimerEvent(isolate, args, Logger::STAMP);
   ConsoleCall(isolate, args, &debug::ConsoleDelegate::TimeStamp);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 namespace {

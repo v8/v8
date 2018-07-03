@@ -105,7 +105,7 @@ BUILTIN(StringPrototypeNormalizeIntl) {
   }
 
   if (U_FAILURE(status)) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   RETURN_RESULT_OR_FAILURE(
@@ -259,7 +259,7 @@ Object* FormatNumberToParts(Isolate* isolate, icu::NumberFormat* fmt,
   icu::FieldPositionIterator fp_iter;
   UErrorCode status = U_ZERO_ERROR;
   fmt->format(number, formatted, &fp_iter, status);
-  if (U_FAILURE(status)) return isolate->heap()->undefined_value();
+  if (U_FAILURE(status)) return ReadOnlyRoots(isolate).undefined_value();
 
   Handle<JSArray> result = factory->NewJSArray(0);
   int32_t length = formatted.length();
@@ -291,7 +291,7 @@ Object* FormatNumberToParts(Isolate* isolate, icu::NumberFormat* fmt,
             : IcuNumberFieldIdToNumberType(part.field_id, number, isolate);
     if (!AddElement(result, index, field_type_string, formatted, part.begin_pos,
                     part.end_pos, isolate)) {
-      return isolate->heap()->undefined_value();
+      return ReadOnlyRoots(isolate).undefined_value();
     }
     ++index;
   }
@@ -309,7 +309,7 @@ Object* FormatDateToParts(Isolate* isolate, icu::DateFormat* format,
   icu::FieldPosition fp;
   UErrorCode status = U_ZERO_ERROR;
   format->format(date_value, formatted, &fp_iter, status);
-  if (U_FAILURE(status)) return isolate->heap()->undefined_value();
+  if (U_FAILURE(status)) return ReadOnlyRoots(isolate).undefined_value();
 
   Handle<JSArray> result = factory->NewJSArray(0);
   int32_t length = formatted.length();
@@ -324,14 +324,14 @@ Object* FormatDateToParts(Isolate* isolate, icu::DateFormat* format,
     if (previous_end_pos < begin_pos) {
       if (!AddElement(result, index, IcuDateFieldIdToDateType(-1, isolate),
                       formatted, previous_end_pos, begin_pos, isolate)) {
-        return isolate->heap()->undefined_value();
+        return ReadOnlyRoots(isolate).undefined_value();
       }
       ++index;
     }
     if (!AddElement(result, index,
                     IcuDateFieldIdToDateType(fp.getField(), isolate), formatted,
                     begin_pos, end_pos, isolate)) {
-      return isolate->heap()->undefined_value();
+      return ReadOnlyRoots(isolate).undefined_value();
     }
     previous_end_pos = end_pos;
     ++index;
@@ -339,7 +339,7 @@ Object* FormatDateToParts(Isolate* isolate, icu::DateFormat* format,
   if (previous_end_pos < length) {
     if (!AddElement(result, index, IcuDateFieldIdToDateType(-1, isolate),
                     formatted, previous_end_pos, length, isolate)) {
-      return isolate->heap()->undefined_value();
+      return ReadOnlyRoots(isolate).undefined_value();
     }
   }
   JSObject::ValidateElements(*result);

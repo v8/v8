@@ -52,7 +52,7 @@ uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
 BUILTIN(StringFromCodePoint) {
   HandleScope scope(isolate);
   int const length = args.length() - 1;
-  if (length == 0) return isolate->heap()->empty_string();
+  if (length == 0) return ReadOnlyRoots(isolate).empty_string();
   DCHECK_LT(0, length);
 
   // Optimistically assume that the resulting String contains only one byte
@@ -64,7 +64,7 @@ BUILTIN(StringFromCodePoint) {
   for (index = 0; index < length; index++) {
     code = NextCodePoint(isolate, args, index);
     if (code < 0) {
-      return isolate->heap()->exception();
+      return ReadOnlyRoots(isolate).exception();
     }
     if (code > String::kMaxOneByteCharCode) {
       break;
@@ -94,7 +94,7 @@ BUILTIN(StringFromCodePoint) {
     }
     code = NextCodePoint(isolate, args, index);
     if (code < 0) {
-      return isolate->heap()->exception();
+      return ReadOnlyRoots(isolate).exception();
     }
   }
 
@@ -122,7 +122,7 @@ BUILTIN(StringPrototypeEndsWith) {
   Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
   if (is_reg_exp.IsNothing()) {
     DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   if (is_reg_exp.FromJust()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -146,7 +146,7 @@ BUILTIN(StringPrototypeEndsWith) {
   }
 
   int start = end - search_string->length();
-  if (start < 0) return isolate->heap()->false_value();
+  if (start < 0) return ReadOnlyRoots(isolate).false_value();
 
   str = String::Flatten(isolate, str);
   search_string = String::Flatten(isolate, search_string);
@@ -169,10 +169,10 @@ BUILTIN(StringPrototypeEndsWith) {
 
   for (int i = 0; i < search_string->length(); i++) {
     if (str_reader.Get(start + i) != search_reader.Get(i)) {
-      return isolate->heap()->false_value();
+      return ReadOnlyRoots(isolate).false_value();
     }
   }
-  return isolate->heap()->true_value();
+  return ReadOnlyRoots(isolate).true_value();
 }
 
 // ES6 section 21.1.3.9
@@ -280,7 +280,7 @@ BUILTIN(StringPrototypeStartsWith) {
   Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
   if (is_reg_exp.IsNothing()) {
     DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
+    return ReadOnlyRoots(isolate).exception();
   }
   if (is_reg_exp.FromJust()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -304,7 +304,7 @@ BUILTIN(StringPrototypeStartsWith) {
   }
 
   if (start + search_string->length() > str->length()) {
-    return isolate->heap()->false_value();
+    return ReadOnlyRoots(isolate).false_value();
   }
 
   FlatStringReader str_reader(isolate, String::Flatten(isolate, str));
@@ -313,10 +313,10 @@ BUILTIN(StringPrototypeStartsWith) {
 
   for (int i = 0; i < search_string->length(); i++) {
     if (str_reader.Get(start + i) != search_reader.Get(i)) {
-      return isolate->heap()->false_value();
+      return ReadOnlyRoots(isolate).false_value();
     }
   }
-  return isolate->heap()->true_value();
+  return ReadOnlyRoots(isolate).true_value();
 }
 
 #ifndef V8_INTL_SUPPORT

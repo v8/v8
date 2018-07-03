@@ -177,7 +177,7 @@ BUILTIN(ArrayPop) {
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
 
   uint32_t len = static_cast<uint32_t>(Smi::ToInt(array->length()));
-  if (len == 0) return isolate->heap()->undefined_value();
+  if (len == 0) return ReadOnlyRoots(isolate).undefined_value();
 
   if (JSArray::HasReadOnlyLength(array)) {
     return CallJsIntrinsic(isolate, isolate->array_pop(), args);
@@ -208,7 +208,7 @@ BUILTIN(ArrayShift) {
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
 
   int len = Smi::ToInt(array->length());
-  if (len == 0) return heap->undefined_value();
+  if (len == 0) return ReadOnlyRoots(heap).undefined_value();
 
   if (JSArray::HasReadOnlyLength(array)) {
     return CallJsIntrinsic(isolate, isolate->array_shift(), args);
@@ -962,7 +962,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
             }
             case HOLEY_SMI_ELEMENTS:
             case PACKED_SMI_ELEMENTS: {
-              Object* the_hole = isolate->heap()->the_hole_value();
+              Object* the_hole = ReadOnlyRoots(isolate).the_hole_value();
               FixedArray* elements(FixedArray::cast(array->elements()));
               for (uint32_t i = 0; i < length; i++) {
                 Object* element = elements->get(i);
@@ -1018,14 +1018,14 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   for (int i = 0; i < argument_count; i++) {
     Handle<Object> obj((*args)[i], isolate);
     Maybe<bool> spreadable = IsConcatSpreadable(isolate, obj);
-    MAYBE_RETURN(spreadable, isolate->heap()->exception());
+    MAYBE_RETURN(spreadable, ReadOnlyRoots(isolate).exception());
     if (spreadable.FromJust()) {
       Handle<JSReceiver> object = Handle<JSReceiver>::cast(obj);
       if (!IterateElements(isolate, object, &visitor)) {
-        return isolate->heap()->exception();
+        return ReadOnlyRoots(isolate).exception();
       }
     } else {
-      if (!visitor.visit(0, obj)) return isolate->heap()->exception();
+      if (!visitor.visit(0, obj)) return ReadOnlyRoots(isolate).exception();
       visitor.increase_index_offset(1);
     }
   }
@@ -1125,7 +1125,8 @@ BUILTIN(ArrayConcat) {
     if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
       return *result_array;
     }
-    if (isolate->has_pending_exception()) return isolate->heap()->exception();
+    if (isolate->has_pending_exception())
+      return ReadOnlyRoots(isolate).exception();
   }
   // Reading @@species happens before anything else with a side effect, so
   // we can do it here to determine whether to take the fast path.
@@ -1136,7 +1137,8 @@ BUILTIN(ArrayConcat) {
     if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
       return *result_array;
     }
-    if (isolate->has_pending_exception()) return isolate->heap()->exception();
+    if (isolate->has_pending_exception())
+      return ReadOnlyRoots(isolate).exception();
   }
   return Slow_ArrayConcat(&args, species, isolate);
 }

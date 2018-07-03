@@ -15,7 +15,7 @@ BUILTIN(MapPrototypeClear) {
   const char* const kMethodName = "Map.prototype.clear";
   CHECK_RECEIVER(JSMap, map, kMethodName);
   JSMap::Clear(isolate, map);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 BUILTIN(SetPrototypeClear) {
@@ -23,7 +23,7 @@ BUILTIN(SetPrototypeClear) {
   const char* const kMethodName = "Set.prototype.clear";
   CHECK_RECEIVER(JSSet, set, kMethodName);
   JSSet::Clear(isolate, set);
-  return isolate->heap()->undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace internal

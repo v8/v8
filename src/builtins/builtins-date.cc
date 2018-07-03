@@ -872,7 +872,7 @@ BUILTIN(DatePrototypeToJson) {
       isolate, primitive,
       Object::ToPrimitive(receiver_obj, ToPrimitiveHint::kNumber));
   if (primitive->IsNumber() && !std::isfinite(primitive->Number())) {
-    return isolate->heap()->null_value();
+    return ReadOnlyRoots(isolate).null_value();
   } else {
     Handle<String> name =
         isolate->factory()->NewStringFromAsciiChecked("toISOString");
