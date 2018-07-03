@@ -156,9 +156,10 @@ void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
   CurrentCallableActivator activator(global_context_, macro, decl);
 
   DeclareSignature(signature);
+  Variable* return_variable = nullptr;
   if (!signature.return_type->IsVoidOrNever()) {
-    declarations()->DeclareVariable(kReturnValueVariable,
-                                    signature.return_type);
+    return_variable = declarations()->DeclareVariable(kReturnValueVariable,
+                                                      signature.return_type);
   }
 
   PushControlSplit();
@@ -166,6 +167,7 @@ void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
     Visit(body);
   }
   auto changed_vars = PopControlSplit();
+  if (return_variable) changed_vars.insert(return_variable);
   global_context_.AddControlSplitChangedVariables(
       decl, declarations()->GetCurrentSpecializationTypeNamesVector(),
       changed_vars);
@@ -238,11 +240,6 @@ void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
 }
 
 void DeclarationVisitor::Visit(ReturnStatement* stmt) {
-  const Callable* callable = global_context_.GetCurrentCallable();
-  if (callable->IsMacro() && callable->HasReturnValue()) {
-    MarkVariableModified(
-        Variable::cast(declarations()->LookupValue(kReturnValueVariable)));
-  }
   if (stmt->value) {
     Visit(*stmt->value);
   }

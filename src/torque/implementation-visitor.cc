@@ -185,20 +185,8 @@ void ImplementationVisitor::Visit(TorqueMacroDeclaration* decl,
 
     const Variable* result_var = nullptr;
     if (macro->HasReturnValue()) {
-      const Type* return_type = macro->signature().return_type;
-      if (!return_type->IsConstexpr()) {
-        GenerateIndent();
-        source_out() << "Node* return_default = &*SmiConstant(0);" << std::endl;
-        VisitResult init = {
-            return_type,
-            (std::string("UncheckedCast<") +
-             return_type->GetGeneratedTNodeTypeName() + ">(return_default)")};
-        result_var =
-            GenerateVariableDeclaration(decl, kReturnValueVariable, {}, init);
-      } else {
-        result_var =
-            GenerateVariableDeclaration(decl, kReturnValueVariable, {}, {});
-      }
+      result_var =
+          GenerateVariableDeclaration(decl, kReturnValueVariable, {}, {});
     }
     Label* macro_end = declarations()->DeclareLabel("macro_end");
     GenerateLabelDefinition(macro_end, decl);
