@@ -268,12 +268,10 @@ class TurboAssembler : public TurboAssemblerBase {
   void li(Register dst, Handle<HeapObject> value, LiFlags mode = OPTIMIZE_SIZE);
   void li(Register dst, ExternalReference value, LiFlags mode = OPTIMIZE_SIZE);
 
-#ifdef V8_EMBEDDED_BUILTINS
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
   void LoadRootRelative(Register destination, int32_t offset) override;
-#endif  // V8_EMBEDDED_BUILTINS
 
 // Jump, Call, and Ret pseudo instructions implementing inter-working.
 #define COND_ARGS Condition cond = al, Register rs = zero_reg, \

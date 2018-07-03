@@ -225,11 +225,10 @@ void Code::set_next_code_link(Object* value) {
 }
 
 int Code::InstructionSize() const {
-#ifdef V8_EMBEDDED_BUILTINS
   if (is_off_heap_trampoline()) {
+    DCHECK(FLAG_embedded_builtins);
     return OffHeapInstructionSize();
   }
-#endif
   return raw_instruction_size();
 }
 
@@ -238,11 +237,10 @@ Address Code::raw_instruction_start() const {
 }
 
 Address Code::InstructionStart() const {
-#ifdef V8_EMBEDDED_BUILTINS
   if (is_off_heap_trampoline()) {
+    DCHECK(FLAG_embedded_builtins);
     return OffHeapInstructionStart();
   }
-#endif
   return raw_instruction_start();
 }
 
@@ -251,11 +249,10 @@ Address Code::raw_instruction_end() const {
 }
 
 Address Code::InstructionEnd() const {
-#ifdef V8_EMBEDDED_BUILTINS
   if (is_off_heap_trampoline()) {
+    DCHECK(FLAG_embedded_builtins);
     return OffHeapInstructionEnd();
   }
-#endif
   return raw_instruction_end();
 }
 
@@ -320,12 +317,11 @@ int Code::relocation_size() const {
 Address Code::entry() const { return raw_instruction_start(); }
 
 bool Code::contains(Address inner_pointer) {
-#ifdef V8_EMBEDDED_BUILTINS
   if (is_off_heap_trampoline()) {
+    DCHECK(FLAG_embedded_builtins);
     return (OffHeapInstructionStart() <= inner_pointer) &&
            (inner_pointer < OffHeapInstructionEnd());
   }
-#endif
   return (address() <= inner_pointer) && (inner_pointer < address() + Size());
 }
 
@@ -542,13 +538,13 @@ Address Code::constant_pool() const {
 }
 
 Code* Code::GetCodeFromTargetAddress(Address address) {
-#ifdef V8_EMBEDDED_BUILTINS
-  // TODO(jgruber,v8:6666): Support embedded builtins here. We'd need to pass in
-  // the current isolate.
-  Address start = reinterpret_cast<Address>(Isolate::CurrentEmbeddedBlob());
-  Address end = start + Isolate::CurrentEmbeddedBlobSize();
-  CHECK(address < start || address >= end);
-#endif  // V8_EMBEDDED_BUILTINS
+  {
+    // TODO(jgruber,v8:6666): Support embedded builtins here. We'd need to pass
+    // in the current isolate.
+    Address start = reinterpret_cast<Address>(Isolate::CurrentEmbeddedBlob());
+    Address end = start + Isolate::CurrentEmbeddedBlobSize();
+    CHECK(address < start || address >= end);
+  }
 
   HeapObject* code = HeapObject::FromAddress(address - Code::kHeaderSize);
   // GetCodeFromTargetAddress might be called when marking objects during mark

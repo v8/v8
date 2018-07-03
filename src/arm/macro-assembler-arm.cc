@@ -126,7 +126,6 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   return bytes;
 }
 
-#ifdef V8_EMBEDDED_BUILTINS
 void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
@@ -168,7 +167,6 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
     add(destination, kRootRegister, Operand(offset));
   }
 }
-#endif  // V8_EMBEDDED_BUILTINS
 
 void TurboAssembler::Jump(Register target, Condition cond) { bx(target, cond); }
 
@@ -187,29 +185,29 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-#ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && options().isolate_independent_code) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    IndirectLoadConstant(scratch, code);
-    add(scratch, scratch, Operand(Code::kHeaderSize - kHeapObjectTag));
-    Jump(scratch, cond);
-    return;
-  } else if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtins::kNoBuiltinId;
-    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-        Builtins::IsIsolateIndependent(builtin_index)) {
-      // Inline the trampoline.
-      EmbeddedData d = EmbeddedData::FromBlob();
-      Address entry = d.InstructionStartOfBuiltin(builtin_index);
-      // Use ip directly instead of using UseScratchRegisterScope, as we do not
-      // preserve scratch registers across calls.
-      mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-      Jump(ip, cond);
+  if (FLAG_embedded_builtins) {
+    if (root_array_available_ && options().isolate_independent_code) {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      IndirectLoadConstant(scratch, code);
+      add(scratch, scratch, Operand(Code::kHeaderSize - kHeapObjectTag));
+      Jump(scratch, cond);
       return;
+    } else if (options().inline_offheap_trampolines) {
+      int builtin_index = Builtins::kNoBuiltinId;
+      if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+          Builtins::IsIsolateIndependent(builtin_index)) {
+        // Inline the trampoline.
+        EmbeddedData d = EmbeddedData::FromBlob();
+        Address entry = d.InstructionStartOfBuiltin(builtin_index);
+        // Use ip directly instead of using UseScratchRegisterScope, as we do
+        // not preserve scratch registers across calls.
+        mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+        Jump(ip, cond);
+        return;
+      }
     }
   }
-#endif  // V8_EMBEDDED_BUILTINS
   // 'code' is always generated ARM code, never THUMB code
   Jump(static_cast<intptr_t>(code.address()), rmode, cond);
 }
@@ -292,30 +290,30 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond, TargetAddressStorageMode mode,
                           bool check_constant_pool) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-#ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && options().isolate_independent_code) {
-    // Use ip directly instead of using UseScratchRegisterScope, as we do not
-    // preserve scratch registers across calls.
-    IndirectLoadConstant(ip, code);
-    add(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
-    Call(ip, cond);
-    return;
-  } else if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtins::kNoBuiltinId;
-    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-        Builtins::IsIsolateIndependent(builtin_index)) {
-      // Inline the trampoline.
-      DCHECK(Builtins::IsBuiltinId(builtin_index));
-      EmbeddedData d = EmbeddedData::FromBlob();
-      Address entry = d.InstructionStartOfBuiltin(builtin_index);
+  if (FLAG_embedded_builtins) {
+    if (root_array_available_ && options().isolate_independent_code) {
       // Use ip directly instead of using UseScratchRegisterScope, as we do not
       // preserve scratch registers across calls.
-      mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      IndirectLoadConstant(ip, code);
+      add(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
       Call(ip, cond);
       return;
+    } else if (options().inline_offheap_trampolines) {
+      int builtin_index = Builtins::kNoBuiltinId;
+      if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+          Builtins::IsIsolateIndependent(builtin_index)) {
+        // Inline the trampoline.
+        DCHECK(Builtins::IsBuiltinId(builtin_index));
+        EmbeddedData d = EmbeddedData::FromBlob();
+        Address entry = d.InstructionStartOfBuiltin(builtin_index);
+        // Use ip directly instead of using UseScratchRegisterScope, as we do
+        // not preserve scratch registers across calls.
+        mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+        Call(ip, cond);
+        return;
+      }
     }
   }
-#endif  // V8_EMBEDDED_BUILTINS
   // 'code' is always generated ARM code, never THUMB code
   Call(code.address(), rmode, cond, mode);
 }
@@ -356,22 +354,22 @@ void TurboAssembler::Push(Smi* smi) {
 void TurboAssembler::Move(Register dst, Smi* smi) { mov(dst, Operand(smi)); }
 
 void TurboAssembler::Move(Register dst, Handle<HeapObject> value) {
-#ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && options().isolate_independent_code) {
-    IndirectLoadConstant(dst, value);
-    return;
+  if (FLAG_embedded_builtins) {
+    if (root_array_available_ && options().isolate_independent_code) {
+      IndirectLoadConstant(dst, value);
+      return;
+    }
   }
-#endif  // V8_EMBEDDED_BUILTINS
   mov(dst, Operand(value));
 }
 
 void TurboAssembler::Move(Register dst, ExternalReference reference) {
-#ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && options().isolate_independent_code) {
-    IndirectLoadExternalReference(dst, reference);
-    return;
+  if (FLAG_embedded_builtins) {
+    if (root_array_available_ && options().isolate_independent_code) {
+      IndirectLoadExternalReference(dst, reference);
+      return;
+    }
   }
-#endif  // V8_EMBEDDED_BUILTINS
   mov(dst, Operand(reference));
 }
 

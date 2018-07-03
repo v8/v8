@@ -765,12 +765,10 @@ class V8_EXPORT_PRIVATE Factory {
   // initialization by the caller.
   Handle<Code> NewCodeForDeserialization(uint32_t size);
 
-#ifdef V8_EMBEDDED_BUILTINS
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.
   Handle<Code> NewOffHeapTrampolineFor(Handle<Code> code,
                                        Address off_heap_entry);
-#endif
 
   Handle<Code> CopyCode(Handle<Code> code);
 

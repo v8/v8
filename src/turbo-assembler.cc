@@ -22,7 +22,6 @@ TurboAssemblerBase::TurboAssemblerBase(Isolate* isolate, const Options& options,
   }
 }
 
-#ifdef V8_EMBEDDED_BUILTINS
 void TurboAssemblerBase::IndirectLoadConstant(Register destination,
                                               Handle<HeapObject> object) {
   CHECK(isolate()->ShouldLoadConstantsFromRootList());
@@ -82,7 +81,6 @@ void TurboAssemblerBase::IndirectLoadExternalReference(
                      RootRegisterOffsetForExternalReferenceIndex(v.index()));
   }
 }
-#endif  // V8_EMBEDDED_BUILTINS
 
 // static
 int32_t TurboAssemblerBase::RootRegisterOffset(Heap::RootListIndex root_index) {

@@ -879,12 +879,10 @@ class TurboAssembler : public TurboAssemblerBase {
             int shift_amount = 0);
   void Movi(const VRegister& vd, uint64_t hi, uint64_t lo);
 
-#ifdef V8_EMBEDDED_BUILTINS
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
   void LoadRootRelative(Register destination, int32_t offset) override;
-#endif  // V8_EMBEDDED_BUILTINS
 
   void Jump(Register target, Condition cond = al);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);

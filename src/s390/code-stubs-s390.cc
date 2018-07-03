@@ -216,18 +216,18 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 }
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm, Register target) {
-#ifdef V8_EMBEDDED_BUILTINS
-  if (masm->root_array_available() &&
-      isolate()->ShouldLoadConstantsFromRootList()) {
-    // This is basically an inlined version of Call(Handle<Code>) that loads the
-    // code object into lr instead of ip.
-    __ Move(ip, target);
-    __ IndirectLoadConstant(r1, GetCode());
-    __ AddP(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ Call(r1);
-    return;
+  if (FLAG_embedded_builtins) {
+    if (masm->root_array_available() &&
+        isolate()->ShouldLoadConstantsFromRootList()) {
+      // This is basically an inlined version of Call(Handle<Code>) that loads
+      // the code object into lr instead of ip.
+      __ Move(ip, target);
+      __ IndirectLoadConstant(r1, GetCode());
+      __ AddP(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
+      __ Call(r1);
+      return;
+    }
   }
-#endif
 #if ABI_USES_FUNCTION_DESCRIPTORS && !defined(USE_SIMULATOR)
   // Native AIX/S390X Linux use a function descriptor.
   __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(target, kPointerSize));

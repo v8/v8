@@ -858,7 +858,7 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitRuntimeEntry(
 template <class AllocatorT>
 void Serializer<AllocatorT>::ObjectSerializer::VisitOffHeapTarget(
     Code* host, RelocInfo* rinfo) {
-#ifdef V8_EMBEDDED_BUILTINS
+  DCHECK(FLAG_embedded_builtins);
   {
     STATIC_ASSERT(EmbeddedData::kTableSize == Builtins::builtin_count);
     CHECK(Builtins::IsIsolateIndependentBuiltin(host));
@@ -873,9 +873,6 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitOffHeapTarget(
   sink_->PutInt(skip, "SkipB4OffHeapTarget");
   sink_->PutInt(host->builtin_index(), "builtin index");
   bytes_processed_so_far_ += rinfo->target_address_size();
-#else
-  UNREACHABLE();
-#endif
 }
 
 namespace {

@@ -1282,15 +1282,14 @@ class Isolate : private HiddenFactory {
   // Off-heap builtins cannot embed constants within the code object itself,
   // and thus need to load them from the root list.
   bool ShouldLoadConstantsFromRootList() const {
-#ifdef V8_EMBEDDED_BUILTINS
-    return (serializer_enabled() &&
-            builtins_constants_table_builder() != nullptr);
-#else
-    return false;
-#endif  // V8_EMBEDDED_BUILTINS
+    if (FLAG_embedded_builtins) {
+      return (serializer_enabled() &&
+              builtins_constants_table_builder() != nullptr);
+    } else {
+      return false;
+    }
   }
 
-#ifdef V8_EMBEDDED_BUILTINS
   // Called only prior to serialization.
   // This function copies off-heap-safe builtins off the heap, creates off-heap
   // trampolines, and sets up this isolate's embedded blob.
@@ -1303,10 +1302,10 @@ class Isolate : private HiddenFactory {
   static const uint8_t* CurrentEmbeddedBlob();
   static uint32_t CurrentEmbeddedBlobSize();
 
-  // TODO(jgruber): Remove these in favor of the static methods above.
+  // These always return the same result as static methods above, but don't
+  // access the global atomic variable (and thus *might be* slightly faster).
   const uint8_t* embedded_blob() const;
   uint32_t embedded_blob_size() const;
-#endif
 
   void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {
     array_buffer_allocator_ = allocator;
@@ -1659,7 +1658,6 @@ class Isolate : private HiddenFactory {
 
   std::vector<Object*> partial_snapshot_cache_;
 
-#ifdef V8_EMBEDDED_BUILTINS
   // Used during builtins compilation to build the builtins constants table,
   // which is stored on the root list prior to serialization.
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder_ = nullptr;
@@ -1668,7 +1666,6 @@ class Isolate : private HiddenFactory {
 
   const uint8_t* embedded_blob_ = nullptr;
   uint32_t embedded_blob_size_ = 0;
-#endif
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_;
 

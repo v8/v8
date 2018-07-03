@@ -101,14 +101,14 @@ class TestIsolate : public Isolate {
     set_array_buffer_allocator(CcTest::array_buffer_allocator());
     setup_delegate_ = new SetupIsolateDelegateForTests(generate_heap);
 
-#ifdef V8_EMBEDDED_BUILTINS
-    if (generate_heap || clear_embedded_blob_) {
-      // We're generating the heap, including new builtins. Act as if we don't
-      // have an embedded blob.
-      clear_embedded_blob_ = true;
-      SetEmbeddedBlob(nullptr, 0);
+    if (FLAG_embedded_builtins) {
+      if (generate_heap || clear_embedded_blob_) {
+        // We're generating the heap, including new builtins. Act as if we don't
+        // have an embedded blob.
+        clear_embedded_blob_ = true;
+        SetEmbeddedBlob(nullptr, 0);
+      }
     }
-#endif  // V8_EMBEDDED_BUILTINS
   }
 
  private:

@@ -533,7 +533,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       }
 
       case kOffHeapTarget: {
-#ifdef V8_EMBEDDED_BUILTINS
+        DCHECK(FLAG_embedded_builtins);
         int skip = source_.GetInt();
         int builtin_index = source_.GetInt();
         DCHECK(Builtins::IsBuiltinId(builtin_index));
@@ -561,9 +561,6 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
           UnalignedCopy(current, &o);
           current++;
         }
-#else
-        UNREACHABLE();
-#endif
         break;
       }
 

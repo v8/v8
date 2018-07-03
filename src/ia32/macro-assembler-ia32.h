@@ -225,6 +225,18 @@ class TurboAssembler : public TurboAssemblerBase {
 
   void LoadRoot(Register destination, Heap::RootListIndex index) override;
 
+  // TODO(jgruber,v8:6666): Implement embedded builtins.
+  void LoadFromConstantsTable(Register destination,
+                              int constant_index) override {
+    UNREACHABLE();
+  }
+  void LoadRootRegisterOffset(Register destination, intptr_t offset) override {
+    UNREACHABLE();
+  }
+  void LoadRootRelative(Register destination, int32_t offset) override {
+    UNREACHABLE();
+  }
+
   // Return and drop arguments from stack, where the number of arguments
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);

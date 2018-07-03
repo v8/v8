@@ -370,12 +370,10 @@ class TurboAssembler : public TurboAssemblerBase {
   // register.
   void LoadAddress(Register destination, ExternalReference source);
 
-#ifdef V8_EMBEDDED_BUILTINS
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
   void LoadRootRelative(Register destination, int32_t offset) override;
-#endif  // V8_EMBEDDED_BUILTINS
 
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is

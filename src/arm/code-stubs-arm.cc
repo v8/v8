@@ -202,18 +202,18 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
-#ifdef V8_EMBEDDED_BUILTINS
-  if (masm->root_array_available() &&
-      isolate()->ShouldLoadConstantsFromRootList()) {
-    // This is basically an inlined version of Call(Handle<Code>) that loads the
-    // code object into lr instead of ip.
-    __ Move(ip, target);
-    __ IndirectLoadConstant(lr, GetCode());
-    __ add(lr, lr, Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ blx(lr);
-    return;
+  if (FLAG_embedded_builtins) {
+    if (masm->root_array_available() &&
+        isolate()->ShouldLoadConstantsFromRootList()) {
+      // This is basically an inlined version of Call(Handle<Code>) that loads
+      // the code object into lr instead of ip.
+      __ Move(ip, target);
+      __ IndirectLoadConstant(lr, GetCode());
+      __ add(lr, lr, Operand(Code::kHeaderSize - kHeapObjectTag));
+      __ blx(lr);
+      return;
+    }
   }
-#endif
   intptr_t code =
       reinterpret_cast<intptr_t>(GetCode().location());
   __ Move(ip, target);

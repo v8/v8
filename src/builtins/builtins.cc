@@ -199,23 +199,23 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
 
 // static
 bool Builtins::IsIsolateIndependentBuiltin(const Code* code) {
-#ifdef V8_EMBEDDED_BUILTINS
-  const int builtin_index = code->builtin_index();
-  return Builtins::IsBuiltinId(builtin_index) &&
-         Builtins::IsIsolateIndependent(builtin_index);
-#else
-  return false;
-#endif
+  if (FLAG_embedded_builtins) {
+    const int builtin_index = code->builtin_index();
+    return Builtins::IsBuiltinId(builtin_index) &&
+           Builtins::IsIsolateIndependent(builtin_index);
+  } else {
+    return false;
+  }
 }
 
 // static
 bool Builtins::IsLazy(int index) {
   DCHECK(IsBuiltinId(index));
 
-#ifdef V8_EMBEDDED_BUILTINS
-  // We don't want to lazy-deserialize off-heap builtins.
-  if (Builtins::IsIsolateIndependent(index)) return false;
-#endif
+  if (FLAG_embedded_builtins) {
+    // We don't want to lazy-deserialize off-heap builtins.
+    if (Builtins::IsIsolateIndependent(index)) return false;
+  }
 
   // There are a couple of reasons that builtins can require eager-loading,
   // i.e. deserialization at isolate creation instead of on-demand. For
@@ -330,7 +330,6 @@ bool Builtins::IsIsolateIndependent(int index) {
   UNREACHABLE();
 }
 
-#ifdef V8_EMBEDDED_BUILTINS
 // static
 Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
                                                     Address off_heap_entry) {
@@ -354,7 +353,6 @@ Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
 
   return isolate->factory()->NewCode(desc, Code::BUILTIN, masm.CodeObject());
 }
-#endif  // V8_EMBEDDED_BUILTINS
 
 // static
 Builtins::Kind Builtins::KindOf(int index) {

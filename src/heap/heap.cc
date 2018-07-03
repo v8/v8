@@ -5664,19 +5664,15 @@ Code* GcSafeCastToCode(Heap* heap, HeapObject* object, Address inner_pointer) {
 bool Heap::GcSafeCodeContains(HeapObject* code, Address addr) {
   Map* map = GcSafeMapOfCodeSpaceObject(code);
   DCHECK(map == code_map());
-#ifdef V8_EMBEDDED_BUILTINS
   if (InstructionStream::TryLookupCode(isolate(), addr) == code) return true;
-#endif
   Address start = code->address();
   Address end = code->address() + code->SizeFromMap(map);
   return start <= addr && addr < end;
 }
 
 Code* Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
-#ifdef V8_EMBEDDED_BUILTINS
   Code* code = InstructionStream::TryLookupCode(isolate(), inner_pointer);
   if (code != nullptr) return code;
-#endif
 
   // Check if the inner pointer points into a large object chunk.
   LargePage* large_page = lo_space()->FindPage(inner_pointer);

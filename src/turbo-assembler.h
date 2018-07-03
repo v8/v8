@@ -33,7 +33,6 @@ class TurboAssemblerBase : public Assembler {
   void set_has_frame(bool v) { has_frame_ = v; }
   bool has_frame() const { return has_frame_; }
 
-#ifdef V8_EMBEDDED_BUILTINS
   // Loads the given constant or external reference without embedding its direct
   // pointer. The produced code is isolate-independent.
   void IndirectLoadConstant(Register destination, Handle<HeapObject> object);
@@ -46,7 +45,6 @@ class TurboAssemblerBase : public Assembler {
   virtual void LoadRootRegisterOffset(Register destination,
                                       intptr_t offset) = 0;
   virtual void LoadRootRelative(Register destination, int32_t offset) = 0;
-#endif  // V8_EMBEDDED_BUILTINS
 
   virtual void LoadRoot(Register destination, Heap::RootListIndex index) = 0;
 

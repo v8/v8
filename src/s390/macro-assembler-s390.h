@@ -179,12 +179,10 @@ class TurboAssembler : public TurboAssemblerBase {
       : TurboAssemblerBase(isolate, options, buffer, buffer_size,
                            create_code_object) {}
 
-#ifdef V8_EMBEDDED_BUILTINS
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
   void LoadRootRelative(Register destination, int32_t offset) override;
-#endif  // V8_EMBEDDED_BUILTINS
 
   // Returns the size of a call in instructions.
   static int CallSize(Register target);

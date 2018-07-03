@@ -80,7 +80,6 @@ namespace internal {
 
 base::Atomic32 ThreadId::highest_thread_id_ = 0;
 
-#ifdef V8_EMBEDDED_BUILTINS
 extern const uint8_t* DefaultEmbeddedBlob();
 extern uint32_t DefaultEmbeddedBlobSize();
 
@@ -131,7 +130,6 @@ uint32_t Isolate::CurrentEmbeddedBlobSize() {
   return current_embedded_blob_size_.load(
       std::memory_order::memory_order_relaxed);
 }
-#endif  // V8_EMBEDDED_BUILTINS
 
 int ThreadId::AllocateThreadId() {
   int new_id = base::Relaxed_AtomicIncrement(&highest_thread_id_, 1);
@@ -2581,7 +2579,7 @@ Isolate::Isolate()
 
   init_memcopy_functions(this);
 
-#ifdef V8_EMBEDDED_BUILTINS
+  if (FLAG_embedded_builtins) {
 #ifdef V8_MULTI_SNAPSHOTS
   if (FLAG_untrusted_code_mitigations) {
     SetEmbeddedBlob(DefaultEmbeddedBlob(), DefaultEmbeddedBlobSize());
@@ -2591,7 +2589,7 @@ Isolate::Isolate()
 #else
   SetEmbeddedBlob(DefaultEmbeddedBlob(), DefaultEmbeddedBlobSize());
 #endif
-#endif  // V8_EMBEDDED_BUILTINS
+  }
 }
 
 
@@ -2697,13 +2695,14 @@ void Isolate::Deinit() {
   heap_.TearDown();
   logger_->TearDown();
 
-#ifdef V8_EMBEDDED_BUILTINS
-  if (DefaultEmbeddedBlob() == nullptr && embedded_blob() != nullptr) {
-    // We own the embedded blob. Free it.
-    uint8_t* data = const_cast<uint8_t*>(embedded_blob_);
-    InstructionStream::FreeOffHeapInstructionStream(data, embedded_blob_size_);
+  if (FLAG_embedded_builtins) {
+    if (DefaultEmbeddedBlob() == nullptr && embedded_blob() != nullptr) {
+      // We own the embedded blob. Free it.
+      uint8_t* data = const_cast<uint8_t*>(embedded_blob_);
+      InstructionStream::FreeOffHeapInstructionStream(data,
+                                                      embedded_blob_size_);
+    }
   }
-#endif
 
   delete interpreter_;
   interpreter_ = nullptr;
@@ -2869,7 +2868,6 @@ void PrintBuiltinSizes(Isolate* isolate) {
   }
 }
 
-#ifdef V8_EMBEDDED_BUILTINS
 void CreateOffHeapTrampolines(Isolate* isolate) {
   DCHECK(isolate->serializer_enabled());
   DCHECK_NOT_NULL(isolate->embedded_blob());
@@ -2903,10 +2901,8 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
     }
   }
 }
-#endif  // V8_EMBEDDED_BUILTINS
 }  // namespace
 
-#ifdef V8_EMBEDDED_BUILTINS
 void Isolate::PrepareEmbeddedBlobForSerialization() {
   // When preparing the embedded blob, ensure it doesn't exist yet.
   DCHECK_NULL(embedded_blob());
@@ -2923,7 +2919,6 @@ void Isolate::PrepareEmbeddedBlobForSerialization() {
   SetEmbeddedBlob(const_cast<const uint8_t*>(data), size);
   CreateOffHeapTrampolines(this);
 }
-#endif  // V8_EMBEDDED_BUILTINS
 
 bool Isolate::Init(StartupDeserializer* des) {
   TRACE_ISOLATE(init);
@@ -3025,19 +3020,20 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   bootstrapper_->Initialize(create_heap_objects);
 
-#ifdef V8_EMBEDDED_BUILTINS
-  if (create_heap_objects && serializer_enabled()) {
-    builtins_constants_table_builder_ = new BuiltinsConstantsTableBuilder(this);
+  if (FLAG_embedded_builtins) {
+    if (create_heap_objects && serializer_enabled()) {
+      builtins_constants_table_builder_ =
+          new BuiltinsConstantsTableBuilder(this);
+    }
   }
-#endif
   setup_delegate_->SetupBuiltins(this);
-#ifdef V8_EMBEDDED_BUILTINS
-  if (create_heap_objects && serializer_enabled()) {
-    builtins_constants_table_builder_->Finalize();
-    delete builtins_constants_table_builder_;
-    builtins_constants_table_builder_ = nullptr;
+  if (FLAG_embedded_builtins) {
+    if (create_heap_objects && serializer_enabled()) {
+      builtins_constants_table_builder_->Finalize();
+      delete builtins_constants_table_builder_;
+      builtins_constants_table_builder_ = nullptr;
+    }
   }
-#endif  // V8_EMBEDDED_BUILTINS
 
   if (create_heap_objects) heap_.CreateFixedStubs();
 

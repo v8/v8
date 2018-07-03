@@ -86,10 +86,10 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
   if (!self_ref.is_null()) {
     DCHECK(self_ref->IsOddball());
     DCHECK(Oddball::cast(*self_ref)->kind() == Oddball::kSelfReferenceMarker);
-#ifdef V8_EMBEDDED_BUILTINS
-    auto builder = heap->isolate()->builtins_constants_table_builder();
-    if (builder != nullptr) builder->PatchSelfReference(self_ref, code);
-#endif  // V8_EMBEDDED_BUILTINS
+    if (FLAG_embedded_builtins) {
+      auto builder = heap->isolate()->builtins_constants_table_builder();
+      if (builder != nullptr) builder->PatchSelfReference(self_ref, code);
+    }
     *(self_ref.location()) = *code;
   }
 
@@ -2617,7 +2617,6 @@ Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {
   return handle(Code::cast(result), isolate());
 }
 
-#ifdef V8_EMBEDDED_BUILTINS
 Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
                                               Address off_heap_entry) {
   CHECK(isolate()->serializer_enabled());
@@ -2647,7 +2646,6 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
 
   return result;
 }
-#endif
 
 Handle<Code> Factory::CopyCode(Handle<Code> code) {
   Handle<CodeDataContainer> data_container =

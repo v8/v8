@@ -427,7 +427,6 @@ RelocIterator::RelocIterator(const CodeReference code_reference, int mode_mask)
                     code_reference.relocation_end(),
                     code_reference.relocation_start(), mode_mask) {}
 
-#ifdef V8_EMBEDDED_BUILTINS
 RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code* code,
                              int mode_mask)
     : RelocIterator(
@@ -435,7 +434,6 @@ RelocIterator::RelocIterator(EmbeddedData* embedded_data, Code* code,
           code->constant_pool(),
           code->relocation_start() + code->relocation_size(),
           code->relocation_start(), mode_mask) {}
-#endif  // V8_EMBEDDED_BUILTINS
 
 RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
     : RelocIterator(nullptr, reinterpret_cast<Address>(desc.buffer), 0,

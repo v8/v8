@@ -208,17 +208,17 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
-#ifdef V8_EMBEDDED_BUILTINS
-  if (masm->root_array_available() &&
-      isolate()->ShouldLoadConstantsFromRootList()) {
-    // This is basically an inlined version of Call(Handle<Code>) that loads the
-    // code object into kScratchReg instead of t9.
-    __ Move(t9, target);
-    __ IndirectLoadConstant(kScratchReg, GetCode());
-    __ Call(kScratchReg, Code::kHeaderSize - kHeapObjectTag);
-    return;
+  if (FLAG_embedded_builtins) {
+    if (masm->root_array_available() &&
+        isolate()->ShouldLoadConstantsFromRootList()) {
+      // This is basically an inlined version of Call(Handle<Code>) that loads
+      // the code object into kScratchReg instead of t9.
+      __ Move(t9, target);
+      __ IndirectLoadConstant(kScratchReg, GetCode());
+      __ Call(kScratchReg, Code::kHeaderSize - kHeapObjectTag);
+      return;
+    }
   }
-#endif
   intptr_t loc =
       reinterpret_cast<intptr_t>(GetCode().location());
   __ Move(t9, target);

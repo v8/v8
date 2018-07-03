@@ -296,7 +296,6 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   return result;
 }
 
-#ifdef V8_EMBEDDED_BUILTINS
 namespace {
 bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code* code) {
   DCHECK(Builtins::IsIsolateIndependent(code->builtin_index()));
@@ -480,7 +479,6 @@ size_t EmbeddedData::CreateHash() const {
   STATIC_ASSERT(HashSize() == kSizetSize);
   return base::hash_range(data_ + HashSize(), data_ + size_);
 }
-#endif
 
 uint32_t Snapshot::ExtractNumContexts(const v8::StartupData* data) {
   CHECK_LT(kNumberOfContextsOffset, data->raw_size);

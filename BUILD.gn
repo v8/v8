@@ -1209,6 +1209,8 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
 
     if (v8_enable_embedded_builtins) {
       sources += [ "$target_gen_dir/embedded.cc" ]
+    } else {
+      sources += [ "src/snapshot/embedded-empty.cc" ]
     }
 
     if (use_jumbo_build == true) {
@@ -1265,6 +1267,8 @@ if (v8_use_snapshot && v8_use_external_startup_data) {
           ]
         }
       }
+    } else {
+      sources += [ "src/snapshot/embedded-empty.cc" ]
     }
 
     configs = [ ":internal_config" ]

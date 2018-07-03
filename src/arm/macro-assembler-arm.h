@@ -318,12 +318,10 @@ class TurboAssembler : public TurboAssemblerBase {
   void AsrPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, uint32_t shift);
 
-#ifdef V8_EMBEDDED_BUILTINS
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
   void LoadRootRelative(Register destination, int32_t offset) override;
-#endif  // V8_EMBEDDED_BUILTINS
 
   // Returns the size of a call in instructions. Note, the value returned is
   // only valid as long as no entries are added to the constant pool between

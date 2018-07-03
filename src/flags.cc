@@ -633,9 +633,9 @@ void ComputeFlagListHash() {
 #ifdef DEBUG
   modified_args_as_string << "debug";
 #endif  // DEBUG
-#ifdef V8_EMBEDDED_BUILTINS
-  modified_args_as_string << "embedded";
-#endif  // V8_EMBEDDED_BUILTINS
+  if (FLAG_embedded_builtins) {
+    modified_args_as_string << "embedded";
+  }
   for (size_t i = 0; i < num_flags; ++i) {
     Flag* current = &flags[i];
     if (!current->IsDefault()) {

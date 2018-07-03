@@ -348,12 +348,12 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
 }
 
 void TurboAssembler::Mov(const Register& rd, ExternalReference reference) {
-#ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && options().isolate_independent_code) {
-    IndirectLoadExternalReference(rd, reference);
-    return;
+  if (FLAG_embedded_builtins) {
+    if (root_array_available_ && options().isolate_independent_code) {
+      IndirectLoadExternalReference(rd, reference);
+      return;
+    }
   }
-#endif  // V8_EMBEDDED_BUILTINS
   Mov(rd, Operand(reference));
 }
 
@@ -1571,12 +1571,12 @@ void MacroAssembler::LoadObject(Register result, Handle<Object> object) {
 void TurboAssembler::Move(Register dst, Register src) { Mov(dst, src); }
 
 void TurboAssembler::Move(Register dst, Handle<HeapObject> value) {
-#ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && options().isolate_independent_code) {
-    IndirectLoadConstant(dst, value);
-    return;
+  if (FLAG_embedded_builtins) {
+    if (root_array_available_ && options().isolate_independent_code) {
+      IndirectLoadConstant(dst, value);
+      return;
+    }
   }
-#endif  // V8_EMBEDDED_BUILTINS
   Mov(dst, value);
 }
 
@@ -1853,7 +1853,6 @@ void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
   }
 }
 
-#ifdef V8_EMBEDDED_BUILTINS
 void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
@@ -1876,7 +1875,6 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
     Add(destination, kRootRegister, Operand(offset));
   }
 }
-#endif  // V8_EMBEDDED_BUILTINS
 
 void TurboAssembler::Jump(Register target, Condition cond) {
   if (cond == nv) return;
@@ -1932,30 +1930,30 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode,
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-#ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && options().isolate_independent_code) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.AcquireX();
-    IndirectLoadConstant(scratch, code);
-    Add(scratch, scratch, Operand(Code::kHeaderSize - kHeapObjectTag));
-    Jump(scratch, cond);
-    return;
-  } else if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtins::kNoBuiltinId;
-    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-        Builtins::IsIsolateIndependent(builtin_index)) {
-      // Inline the trampoline.
-      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+  if (FLAG_embedded_builtins) {
+    if (root_array_available_ && options().isolate_independent_code) {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.AcquireX();
-      EmbeddedData d = EmbeddedData::FromBlob();
-      Address entry = d.InstructionStartOfBuiltin(builtin_index);
-      Mov(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      IndirectLoadConstant(scratch, code);
+      Add(scratch, scratch, Operand(Code::kHeaderSize - kHeapObjectTag));
       Jump(scratch, cond);
       return;
+    } else if (options().inline_offheap_trampolines) {
+      int builtin_index = Builtins::kNoBuiltinId;
+      if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+          Builtins::IsIsolateIndependent(builtin_index)) {
+        // Inline the trampoline.
+        CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+        UseScratchRegisterScope temps(this);
+        Register scratch = temps.AcquireX();
+        EmbeddedData d = EmbeddedData::FromBlob();
+        Address entry = d.InstructionStartOfBuiltin(builtin_index);
+        Mov(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+        Jump(scratch, cond);
+        return;
+      }
     }
   }
-#endif  // V8_EMBEDDED_BUILTINS
   if (CanUseNearCallOrJump(rmode)) {
     JumpHelper(static_cast<int64_t>(GetCodeTargetIndex(code)), rmode, cond);
   } else {
@@ -2005,30 +2003,30 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
   Bind(&start_call);
 #endif
 
-#ifdef V8_EMBEDDED_BUILTINS
-  if (root_array_available_ && options().isolate_independent_code) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.AcquireX();
-    IndirectLoadConstant(scratch, code);
-    Add(scratch, scratch, Operand(Code::kHeaderSize - kHeapObjectTag));
-    Call(scratch);
-    return;
-  } else if (options().inline_offheap_trampolines) {
-    int builtin_index = Builtins::kNoBuiltinId;
-    if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-        Builtins::IsIsolateIndependent(builtin_index)) {
-      // Inline the trampoline.
-      CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+  if (FLAG_embedded_builtins) {
+    if (root_array_available_ && options().isolate_independent_code) {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.AcquireX();
-      EmbeddedData d = EmbeddedData::FromBlob();
-      Address entry = d.InstructionStartOfBuiltin(builtin_index);
-      Mov(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+      IndirectLoadConstant(scratch, code);
+      Add(scratch, scratch, Operand(Code::kHeaderSize - kHeapObjectTag));
       Call(scratch);
       return;
+    } else if (options().inline_offheap_trampolines) {
+      int builtin_index = Builtins::kNoBuiltinId;
+      if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+          Builtins::IsIsolateIndependent(builtin_index)) {
+        // Inline the trampoline.
+        CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
+        UseScratchRegisterScope temps(this);
+        Register scratch = temps.AcquireX();
+        EmbeddedData d = EmbeddedData::FromBlob();
+        Address entry = d.InstructionStartOfBuiltin(builtin_index);
+        Mov(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+        Call(scratch);
+        return;
+      }
     }
   }
-#endif  // V8_EMBEDDED_BUILTINS
   if (CanUseNearCallOrJump(rmode)) {
     near_call(GetCodeTargetIndex(code), rmode);
   } else {
