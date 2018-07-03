@@ -13,6 +13,8 @@ namespace v8 {
 
 namespace internal {
 
+ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate) : heap_(isolate->heap()) {}
+
 #define ROOT_ACCESSOR(type, name, camel_name) \
   type* ReadOnlyRoots::name() { return heap_->name(); }
 STRONG_READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
@@ -33,6 +35,16 @@ PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
 PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
 WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
+
+#define STRUCT_MAP_ACCESSOR(NAME, Name, name) \
+  Map* ReadOnlyRoots::name##_map() { return heap_->name##_map(); }
+STRUCT_LIST(STRUCT_MAP_ACCESSOR)
+#undef STRUCT_MAP_ACCESSOR
+
+#define ALLOCATION_SITE_MAP_ACCESSOR(NAME, Name, Size, name) \
+  Map* ReadOnlyRoots::name##_map() { return heap_->name##_map(); }
+ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_ACCESSOR)
+#undef ALLOCATION_SITE_MAP_ACCESSOR
 
 }  // namespace internal
 

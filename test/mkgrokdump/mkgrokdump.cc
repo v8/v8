@@ -41,21 +41,25 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   void Free(void* p, size_t) override {}
 };
 
+#define RO_ROOT_LIST_CASE(type, name, camel_name) \
+  if (n == NULL && o == roots.name()) n = #camel_name;
 #define ROOT_LIST_CASE(type, name, camel_name) \
   if (n == NULL && o == space->heap()->name()) n = #camel_name;
 #define STRUCT_LIST_CASE(upper_name, camel_name, name) \
-  if (n == NULL && o == space->heap()->name##_map()) n = #camel_name "Map";
+  if (n == NULL && o == roots.name##_map()) n = #camel_name "Map";
 #define ALLOCATION_SITE_LIST_CASE(upper_name, camel_name, size, name) \
-  if (n == NULL && o == space->heap()->name##_map()) n = #camel_name "Map";
+  if (n == NULL && o == roots.name##_map()) n = #camel_name "Map";
 static void DumpMaps(i::PagedSpace* space) {
   i::HeapObjectIterator it(space);
+  i::ReadOnlyRoots roots(space->heap());
   for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
     if (!o->IsMap()) continue;
     i::Map* m = i::Map::cast(o);
     const char* n = NULL;
     intptr_t p = reinterpret_cast<intptr_t>(m) & 0x7FFFF;
     int t = m->instance_type();
-    ROOT_LIST(ROOT_LIST_CASE)
+    STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
+    MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
     STRUCT_LIST(STRUCT_LIST_CASE)
     ALLOCATION_SITE_LIST(ALLOCATION_SITE_LIST_CASE)
     if (n == NULL) continue;
@@ -67,6 +71,7 @@ static void DumpMaps(i::PagedSpace* space) {
 #undef ALLOCATION_SITE_LIST_CASE
 #undef STRUCT_LIST_CASE
 #undef ROOT_LIST_CASE
+#undef RO_ROOT_LIST_CASE
 
 static int DumpHeapConstants(const char* argv0) {
   // Start up V8.
@@ -81,6 +86,7 @@ static int DumpHeapConstants(const char* argv0) {
   {
     Isolate::Scope scope(isolate);
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+    i::ReadOnlyRoots roots(heap);
     i::PrintF("%s", kHeader);
 #define DUMP_TYPE(T) i::PrintF("  %d: \"%s\",\n", i::T, #T);
     i::PrintF("INSTANCE_TYPES = {\n");
@@ -97,6 +103,11 @@ static int DumpHeapConstants(const char* argv0) {
 
     // Dump the KNOWN_OBJECTS table to the console.
     i::PrintF("\n# List of known V8 objects.\n");
+#define RO_ROOT_LIST_CASE(type, name, camel_name) \
+  if (n == NULL && o == roots.name()) {           \
+    n = #camel_name;                              \
+    i = i::Heap::k##camel_name##RootIndex;        \
+  }
 #define ROOT_LIST_CASE(type, name, camel_name) \
   if (n == NULL && o == heap->name()) {        \
     n = #camel_name;                           \
@@ -116,7 +127,8 @@ static int DumpHeapConstants(const char* argv0) {
         const char* n = NULL;
         i::Heap::RootListIndex i = i::Heap::kStrongRootListLength;
         intptr_t p = reinterpret_cast<intptr_t>(o) & 0x7FFFF;
-        ROOT_LIST(ROOT_LIST_CASE)
+        STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
+        MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
         if (n == NULL) continue;
         if (!i::Heap::RootIsImmortalImmovable(i)) continue;
         i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n", sname, p, n);
@@ -124,6 +136,7 @@ static int DumpHeapConstants(const char* argv0) {
     }
     i::PrintF("}\n");
 #undef ROOT_LIST_CASE
+#undef RO_ROOT_LIST_CASE
 
     // Dump frame markers
     i::PrintF("\n# List of known V8 Frame Markers.\n");

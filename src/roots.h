@@ -6,6 +6,7 @@
 #define V8_ROOTS_H_
 
 #include "src/heap-symbols.h"
+#include "src/objects-definitions.h"
 
 namespace v8 {
 
@@ -76,11 +77,9 @@ namespace internal {
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(Map, code_data_container_map, CodeDataContainerMap)                        \
   V(Map, descriptor_array_map, DescriptorArrayMap)                             \
-  V(Map, external_map, ExternalMap)                                            \
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
   V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
-  V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, module_info_map, ModuleInfoMap)                                       \
   V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
   V(Map, name_dictionary_map, NameDictionaryMap)                               \
@@ -175,8 +174,6 @@ namespace internal {
   V(FixedTypedArrayBase, empty_fixed_biguint64_array,                          \
     EmptyFixedBigUint64Array)                                                  \
   V(FixedTypedArrayBase, empty_fixed_bigint64_array, EmptyFixedBigInt64Array)  \
-  V(Script, empty_script, EmptyScript)                                         \
-  V(FeedbackCell, many_closures_cell, ManyClosuresCell)                        \
   V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
   V(NumberDictionary, empty_slow_element_dictionary,                           \
     EmptySlowElementDictionary)                                                \
@@ -185,7 +182,6 @@ namespace internal {
   V(FeedbackMetadata, empty_feedback_metadata, EmptyFeedbackMetadata)          \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
-  V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)       \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \
@@ -196,11 +192,16 @@ namespace internal {
   V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
   V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
   /* Marker for self-references during code-generation */                      \
-  V(HeapObject, self_reference_marker, SelfReferenceMarker)                    \
-  /* Indirection lists for isolate-independent builtins */                     \
-  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)
+  V(HeapObject, self_reference_marker, SelfReferenceMarker)
 
 #define STRONG_MUTABLE_ROOT_LIST(V)                                          \
+  /* Maps */                                                                 \
+  V(Map, external_map, ExternalMap)                                          \
+  V(Map, message_object_map, JSMessageObjectMap)                             \
+  /* Canonical empty values */                                               \
+  V(Script, empty_script, EmptyScript)                                       \
+  V(FeedbackCell, many_closures_cell, ManyClosuresCell)                      \
+  V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)     \
   /* Protectors */                                                           \
   V(Cell, array_constructor_protector, ArrayConstructorProtector)            \
   V(PropertyCell, no_elements_protector, NoElementsProtector)                \
@@ -232,6 +233,8 @@ namespace internal {
   V(FixedArray, detached_contexts, DetachedContexts)                         \
   V(HeapObject, retaining_path_targets, RetainingPathTargets)                \
   V(WeakArrayList, retained_maps, RetainedMaps)                              \
+  /* Indirection lists for isolate-independent builtins */                   \
+  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)            \
   /* Feedback vectors that we need for code coverage or type profile */      \
   V(Object, feedback_vectors_for_profiling_tools,                            \
     FeedbackVectorsForProfilingTools)                                        \
@@ -271,18 +274,24 @@ namespace internal {
     ConstructStubInvokeDeoptPCOffset)                                          \
   V(Smi, interpreter_entry_return_pc_offset, InterpreterEntryReturnPCOffset)
 
-#define ROOT_LIST(V)  \
-  STRONG_ROOT_LIST(V) \
-  SMI_ROOT_LIST(V)    \
+#define MUTABLE_ROOT_LIST(V)  \
+  STRONG_MUTABLE_ROOT_LIST(V) \
+  SMI_ROOT_LIST(V)            \
   V(StringTable, string_table, StringTable)
 
+#define ROOT_LIST(V)   \
+  MUTABLE_ROOT_LIST(V) \
+  STRONG_READ_ONLY_ROOT_LIST(V)
+
 class Heap;
+class Isolate;
 class String;
 class Symbol;
 
 class ReadOnlyRoots {
  public:
   explicit ReadOnlyRoots(Heap* heap) : heap_(heap) {}
+  inline explicit ReadOnlyRoots(Isolate* isolate);
 
 #define ROOT_ACCESSOR(type, name, camel_name) inline class type* name();
   STRONG_READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
@@ -300,6 +309,16 @@ class ReadOnlyRoots {
   PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
   WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
+
+// Utility type maps.
+#define STRUCT_MAP_ACCESSOR(NAME, Name, name) inline Map* name##_map();
+  STRUCT_LIST(STRUCT_MAP_ACCESSOR)
+#undef STRUCT_MAP_ACCESSOR
+
+#define ALLOCATION_SITE_MAP_ACCESSOR(NAME, Name, Size, name) \
+  inline Map* name##_map();
+  ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_ACCESSOR)
+#undef ALLOCATION_SITE_MAP_ACCESSOR
 
  private:
   Heap* heap_;
