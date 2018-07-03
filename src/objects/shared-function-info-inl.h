@@ -68,13 +68,13 @@ bool SharedFunctionInfo::HasSharedName() const {
 }
 
 String* SharedFunctionInfo::Name() const {
-  if (!HasSharedName()) return GetHeap()->empty_string();
+  if (!HasSharedName()) return GetReadOnlyRoots().empty_string();
   Object* value = name_or_scope_info();
   if (value->IsScopeInfo()) {
     if (ScopeInfo::cast(value)->HasFunctionName()) {
       return String::cast(ScopeInfo::cast(value)->FunctionName());
     }
-    return GetHeap()->empty_string();
+    return GetReadOnlyRoots().empty_string();
   }
   return String::cast(value);
 }
@@ -580,7 +580,7 @@ String* SharedFunctionInfo::inferred_name() {
     return String::cast(function_identifier());
   }
   DCHECK(function_identifier()->IsUndefined() || HasBuiltinFunctionId());
-  return GetHeap()->empty_string();
+  return GetReadOnlyRoots().empty_string();
 }
 
 void SharedFunctionInfo::set_inferred_name(String* inferred_name) {

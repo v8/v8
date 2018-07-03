@@ -3595,49 +3595,50 @@ bool HeapObject::IsValidSlot(Map* map, int offset) {
 }
 
 String* JSReceiver::class_name() {
-  if (IsFunction()) return GetHeap()->Function_string();
-  if (IsJSArgumentsObject()) return GetHeap()->Arguments_string();
-  if (IsJSArray()) return GetHeap()->Array_string();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
+  if (IsFunction()) return roots.Function_string();
+  if (IsJSArgumentsObject()) return roots.Arguments_string();
+  if (IsJSArray()) return roots.Array_string();
   if (IsJSArrayBuffer()) {
     if (JSArrayBuffer::cast(this)->is_shared()) {
-      return GetHeap()->SharedArrayBuffer_string();
+      return roots.SharedArrayBuffer_string();
     }
-    return GetHeap()->ArrayBuffer_string();
+    return roots.ArrayBuffer_string();
   }
-  if (IsJSArrayIterator()) return GetHeap()->ArrayIterator_string();
-  if (IsJSDate()) return GetHeap()->Date_string();
-  if (IsJSError()) return GetHeap()->Error_string();
-  if (IsJSGeneratorObject()) return GetHeap()->Generator_string();
-  if (IsJSMap()) return GetHeap()->Map_string();
-  if (IsJSMapIterator()) return GetHeap()->MapIterator_string();
+  if (IsJSArrayIterator()) return roots.ArrayIterator_string();
+  if (IsJSDate()) return roots.Date_string();
+  if (IsJSError()) return roots.Error_string();
+  if (IsJSGeneratorObject()) return roots.Generator_string();
+  if (IsJSMap()) return roots.Map_string();
+  if (IsJSMapIterator()) return roots.MapIterator_string();
   if (IsJSProxy()) {
-    return map()->is_callable() ? GetHeap()->Function_string()
-                                : GetHeap()->Object_string();
+    return map()->is_callable() ? roots.Function_string()
+                                : roots.Object_string();
   }
-  if (IsJSRegExp()) return GetHeap()->RegExp_string();
-  if (IsJSSet()) return GetHeap()->Set_string();
-  if (IsJSSetIterator()) return GetHeap()->SetIterator_string();
+  if (IsJSRegExp()) return roots.RegExp_string();
+  if (IsJSSet()) return roots.Set_string();
+  if (IsJSSetIterator()) return roots.SetIterator_string();
   if (IsJSTypedArray()) {
 #define SWITCH_KIND(Type, type, TYPE, ctype, size) \
   if (map()->elements_kind() == TYPE##_ELEMENTS) { \
-    return GetHeap()->Type##Array_string();        \
+    return roots.Type##Array_string();             \
   }
     TYPED_ARRAYS(SWITCH_KIND)
 #undef SWITCH_KIND
   }
   if (IsJSValue()) {
     Object* value = JSValue::cast(this)->value();
-    if (value->IsBoolean()) return GetHeap()->Boolean_string();
-    if (value->IsString()) return GetHeap()->String_string();
-    if (value->IsNumber()) return GetHeap()->Number_string();
-    if (value->IsBigInt()) return GetHeap()->BigInt_string();
-    if (value->IsSymbol()) return GetHeap()->Symbol_string();
-    if (value->IsScript()) return GetHeap()->Script_string();
+    if (value->IsBoolean()) return roots.Boolean_string();
+    if (value->IsString()) return roots.String_string();
+    if (value->IsNumber()) return roots.Number_string();
+    if (value->IsBigInt()) return roots.BigInt_string();
+    if (value->IsSymbol()) return roots.Symbol_string();
+    if (value->IsScript()) return roots.Script_string();
     UNREACHABLE();
   }
-  if (IsJSWeakMap()) return GetHeap()->WeakMap_string();
-  if (IsJSWeakSet()) return GetHeap()->WeakSet_string();
-  if (IsJSGlobalProxy()) return GetHeap()->global_string();
+  if (IsJSWeakMap()) return roots.WeakMap_string();
+  if (IsJSWeakSet()) return roots.WeakSet_string();
+  if (IsJSGlobalProxy()) return roots.global_string();
 
   Object* maybe_constructor = map()->GetConstructor();
   if (maybe_constructor->IsJSFunction()) {
@@ -3652,7 +3653,7 @@ String* JSReceiver::class_name() {
     if (info->class_name()->IsString()) return String::cast(info->class_name());
   }
 
-  return GetHeap()->Object_string();
+  return roots.Object_string();
 }
 
 bool HeapObject::CanBeRehashed() const {
@@ -6643,7 +6644,7 @@ void JSReceiver::SetIdentityHash(int hash) {
 void JSReceiver::SetProperties(HeapObject* properties) {
   DCHECK_IMPLIES(properties->IsPropertyArray() &&
                      PropertyArray::cast(properties)->length() == 0,
-                 properties == GetHeap()->empty_property_array());
+                 properties == GetReadOnlyRoots().empty_property_array());
   DisallowHeapAllocation no_gc;
   Isolate* isolate = GetIsolate();
   int hash = GetIdentityHashHelper(isolate, this);
@@ -9150,7 +9151,7 @@ Object* JSObject::SlowReverseLookup(Object* value) {
         }
       }
     }
-    return GetHeap()->undefined_value();
+    return GetReadOnlyRoots().undefined_value();
   } else if (IsJSGlobalObject()) {
     return JSGlobalObject::cast(this)->global_dictionary()->SlowReverseLookup(
         value);
@@ -10444,7 +10445,7 @@ Handle<ArrayList> ArrayList::EnsureSpace(Handle<ArrayList> array, int length) {
   const bool empty = (array->length() == 0);
   auto ret = EnsureSpaceInFixedArray(array, kFirstIndex + length);
   if (empty) {
-    ret->set_map_no_write_barrier(array->GetHeap()->array_list_map());
+    ret->set_map_no_write_barrier(array->GetReadOnlyRoots().array_list_map());
 
     Handle<ArrayList>::cast(ret)->SetLength(0);
   }
@@ -10552,7 +10553,8 @@ Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
 }
 
 void DescriptorArray::ClearEnumCache() {
-  set(kEnumCacheIndex, MaybeObject::FromObject(GetHeap()->empty_enum_cache()));
+  set(kEnumCacheIndex,
+      MaybeObject::FromObject(GetReadOnlyRoots().empty_enum_cache()));
 }
 
 void DescriptorArray::Replace(int index, Descriptor* descriptor) {
@@ -15172,7 +15174,7 @@ void DependentCode::DeoptimizeDependentCodeGroup(
 void Code::SetMarkedForDeoptimization(const char* reason) {
   set_marked_for_deoptimization(true);
   if (FLAG_trace_deopt &&
-      (deoptimization_data() != GetHeap()->empty_fixed_array())) {
+      (deoptimization_data() != GetReadOnlyRoots().empty_fixed_array())) {
     DeoptimizationData* deopt_data =
         DeoptimizationData::cast(deoptimization_data());
     CodeTracer::Scope scope(GetHeap()->isolate()->GetCodeTracer());
@@ -15755,7 +15757,7 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
   DCHECK_NE(TERMINAL_FAST_ELEMENTS_KIND, from_kind);
 
   UpdateAllocationSite(object, to_kind);
-  if (object->elements() == object->GetHeap()->empty_fixed_array() ||
+  if (object->elements() == object->GetReadOnlyRoots().empty_fixed_array() ||
       IsDoubleElementsKind(from_kind) == IsDoubleElementsKind(to_kind)) {
     // No change is needed to the elements() buffer, the transition
     // only requires a map change.
@@ -15793,7 +15795,7 @@ bool JSArray::HasReadOnlyLength(Handle<JSArray> array) {
   // configurable, it's guaranteed to be the first in the descriptor array.
   if (!map->is_dictionary_map()) {
     DCHECK(map->instance_descriptors()->GetKey(0) ==
-           array->GetHeap()->length_string());
+           array->GetReadOnlyRoots().length_string());
     return map->instance_descriptors()->GetDetails(0).IsReadOnly();
   }
 
@@ -15931,7 +15933,7 @@ int FixedArrayBase::GetMaxLengthForNewSpaceAllocation(ElementsKind kind) {
 }
 
 bool FixedArrayBase::IsCowArray() const {
-  return map() == GetHeap()->fixed_cow_array_map();
+  return map() == GetReadOnlyRoots().fixed_cow_array_map();
 }
 
 bool JSObject::WasConstructedFromApiFunction() {
@@ -17633,7 +17635,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
 
 void CompilationCacheTable::Age() {
   DisallowHeapAllocation no_allocation;
-  Object* the_hole_value = GetHeap()->the_hole_value();
+  Object* the_hole_value = GetReadOnlyRoots().the_hole_value();
   for (int entry = 0, size = Capacity(); entry < size; entry++) {
     int entry_index = EntryToIndex(entry);
     int value_index = entry_index + 1;
@@ -17663,7 +17665,7 @@ void CompilationCacheTable::Age() {
 
 void CompilationCacheTable::Remove(Object* value) {
   DisallowHeapAllocation no_allocation;
-  Object* the_hole_value = GetHeap()->the_hole_value();
+  Object* the_hole_value = GetReadOnlyRoots().the_hole_value();
   for (int entry = 0, size = Capacity(); entry < size; entry++) {
     int entry_index = EntryToIndex(entry);
     int value_index = entry_index + 1;

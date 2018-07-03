@@ -180,13 +180,13 @@ void Map::SetEnumLength(int length) {
 FixedArrayBase* Map::GetInitialElements() const {
   FixedArrayBase* result = nullptr;
   if (has_fast_elements() || has_fast_string_wrapper_elements()) {
-    result = GetHeap()->empty_fixed_array();
+    result = GetReadOnlyRoots().empty_fixed_array();
   } else if (has_fast_sloppy_arguments_elements()) {
-    result = GetHeap()->empty_sloppy_arguments_elements();
+    result = GetReadOnlyRoots().empty_sloppy_arguments_elements();
   } else if (has_fixed_typed_array_elements()) {
     result = GetHeap()->EmptyFixedTypedArrayForMap(this);
   } else if (has_dictionary_elements()) {
-    result = GetHeap()->empty_slow_element_dictionary();
+    result = GetReadOnlyRoots().empty_slow_element_dictionary();
   } else {
     UNREACHABLE();
   }
@@ -499,7 +499,9 @@ bool Map::CanTransition() const {
   return IsJSObject(instance_type());
 }
 
-bool Map::IsBooleanMap() const { return this == GetHeap()->boolean_map(); }
+bool Map::IsBooleanMap() const {
+  return this == GetReadOnlyRoots().boolean_map();
+}
 bool Map::IsPrimitiveMap() const {
   return instance_type() <= LAST_PRIMITIVE_TYPE;
 }
@@ -639,7 +641,7 @@ Object* Map::GetBackPointer() const {
 Map* Map::ElementsTransitionMap() {
   DisallowHeapAllocation no_gc;
   return TransitionsAccessor(GetIsolate(), this, &no_gc)
-      .SearchSpecial(GetHeap()->elements_transition_symbol());
+      .SearchSpecial(GetReadOnlyRoots().elements_transition_symbol());
 }
 
 Object* Map::prototype_info() const {

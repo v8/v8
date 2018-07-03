@@ -67,7 +67,8 @@ const wasm::WasmModule* WasmModuleObject::module() const {
   return native_module()->module();
 }
 void WasmModuleObject::reset_breakpoint_infos() {
-  WRITE_FIELD(this, kBreakPointInfosOffset, GetHeap()->undefined_value());
+  WRITE_FIELD(this, kBreakPointInfosOffset,
+              GetReadOnlyRoots().undefined_value());
 }
 bool WasmModuleObject::is_asm_js() {
   bool asm_js = module()->origin == wasm::kAsmJsOrigin;

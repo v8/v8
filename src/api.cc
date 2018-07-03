@@ -9260,7 +9260,8 @@ bool debug::Script::WasCompiled() const {
 
 bool debug::Script::IsEmbedded() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-  return script->context_data() == script->GetHeap()->uninitialized_symbol();
+  return script->context_data() ==
+         script->GetReadOnlyRoots().uninitialized_symbol();
 }
 
 int debug::Script::Id() const { return Utils::OpenHandle(this)->id(); }

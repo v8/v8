@@ -1141,7 +1141,7 @@ void ImportedFunctionEntry::set_wasm_to_wasm(WasmInstanceObject* instance,
             *instance_, index_, instance, call_target);
   instance_->imported_function_instances()->set(index_, instance);
   instance_->imported_function_callables()->set(
-      index_, instance_->GetHeap()->undefined_value());
+      index_, instance_->GetReadOnlyRoots().undefined_value());
   instance_->imported_function_targets()[index_] = call_target;
 }
 

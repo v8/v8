@@ -428,7 +428,7 @@ bool JSObject::ElementsAreSafeToExamine() {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
   return reinterpret_cast<Map*>(elements()) !=
-      GetHeap()->one_pointer_filler_map();
+         GetReadOnlyRoots().one_pointer_filler_map();
 }
 
 namespace {
@@ -535,10 +535,10 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine()) {
     CHECK_EQ((map()->has_fast_smi_or_object_elements() ||
-              (elements() == GetHeap()->empty_fixed_array()) ||
+              (elements() == GetReadOnlyRoots().empty_fixed_array()) ||
               HasFastStringWrapperElements()),
-             (elements()->map() == GetHeap()->fixed_array_map() ||
-              elements()->map() == GetHeap()->fixed_cow_array_map()));
+             (elements()->map() == GetReadOnlyRoots().fixed_array_map() ||
+              elements()->map() == GetReadOnlyRoots().fixed_cow_array_map()));
     CHECK_EQ(map()->has_fast_object_elements(), HasObjectElements());
     VerifyJSObjectElements(isolate, this);
   }

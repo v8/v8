@@ -313,7 +313,7 @@ static void CopySmiToDoubleElements(FixedArrayBase* from_base,
   if (copy_size == 0) return;
   FixedArray* from = FixedArray::cast(from_base);
   FixedDoubleArray* to = FixedDoubleArray::cast(to_base);
-  Object* the_hole = from->GetHeap()->the_hole_value();
+  Object* the_hole = from->GetReadOnlyRoots().the_hole_value();
   for (uint32_t from_end = from_start + static_cast<uint32_t>(copy_size);
        from_start < from_end; from_start++, to_start++) {
     Object* hole_or_smi = from->get(from_start);
@@ -386,7 +386,7 @@ static void CopyObjectToDoubleElements(FixedArrayBase* from_base,
   if (copy_size == 0) return;
   FixedArray* from = FixedArray::cast(from_base);
   FixedDoubleArray* to = FixedDoubleArray::cast(to_base);
-  Object* the_hole = from->GetHeap()->the_hole_value();
+  Object* the_hole = from->GetReadOnlyRoots().the_hole_value();
   for (uint32_t from_end = from_start + copy_size;
        from_start < from_end; from_start++, to_start++) {
     Object* hole_or_object = from->get(from_start);
@@ -888,7 +888,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
       Handle<FixedArrayBase> from_elements(object->elements(),
                                            object->GetIsolate());
-      if (object->elements() == object->GetHeap()->empty_fixed_array() ||
+      if (object->elements() ==
+              object->GetReadOnlyRoots().empty_fixed_array() ||
           IsDoubleElementsKind(from_kind) == IsDoubleElementsKind(to_kind)) {
         // No change is needed to the elements() buffer, the transition
         // only requires a map change.
@@ -3800,7 +3801,8 @@ class SloppyArgumentsElementsAccessor
     // SloppyDeleteImpl allocates a new dictionary elements store. For making
     // heap verification happy we postpone clearing out the mapped entry.
     if (entry < length) {
-      elements->set_mapped_entry(entry, obj->GetHeap()->the_hole_value());
+      elements->set_mapped_entry(entry,
+                                 obj->GetReadOnlyRoots().the_hole_value());
     }
   }
 

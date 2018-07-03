@@ -345,14 +345,14 @@ KNOWN_OBJECTS = {
   ("RO_SPACE", 0x054f1): "SelfReferenceMarker",
   ("OLD_SPACE", 0x02211): "EmptyScript",
   ("OLD_SPACE", 0x02299): "ManyClosuresCell",
-  ("OLD_SPACE", 0x022b9): "NoElementsProtector",
-  ("OLD_SPACE", 0x022e1): "IsConcatSpreadableProtector",
-  ("OLD_SPACE", 0x022f1): "ArraySpeciesProtector",
-  ("OLD_SPACE", 0x02319): "TypedArraySpeciesProtector",
-  ("OLD_SPACE", 0x02341): "PromiseSpeciesProtector",
-  ("OLD_SPACE", 0x02369): "StringLengthProtector",
-  ("OLD_SPACE", 0x02379): "ArrayIteratorProtector",
-  ("OLD_SPACE", 0x023a1): "ArrayBufferNeuteringProtector",
+  ("OLD_SPACE", 0x02919): "NoElementsProtector",
+  ("OLD_SPACE", 0x02941): "IsConcatSpreadableProtector",
+  ("OLD_SPACE", 0x02951): "ArraySpeciesProtector",
+  ("OLD_SPACE", 0x02979): "TypedArraySpeciesProtector",
+  ("OLD_SPACE", 0x029a1): "PromiseSpeciesProtector",
+  ("OLD_SPACE", 0x029c9): "StringLengthProtector",
+  ("OLD_SPACE", 0x029d9): "ArrayIteratorProtector",
+  ("OLD_SPACE", 0x02a01): "ArrayBufferNeuteringProtector",
 }
 
 # List of known V8 Frame Markers.

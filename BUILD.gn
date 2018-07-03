@@ -2275,6 +2275,8 @@ v8_source_set("v8_base") {
     "src/register-configuration.cc",
     "src/register-configuration.h",
     "src/reglist.h",
+    "src/roots-inl.h",
+    "src/roots.h",
     "src/runtime-profiler.cc",
     "src/runtime-profiler.h",
     "src/runtime/runtime-array.cc",

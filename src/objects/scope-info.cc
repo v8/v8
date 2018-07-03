@@ -591,7 +591,7 @@ String* ScopeInfo::FunctionDebugName() const {
     name = InferredFunctionName();
     if (name->IsString()) return String::cast(name);
   }
-  return GetHeap()->empty_string();
+  return GetReadOnlyRoots().empty_string();
 }
 
 int ScopeInfo::StartPosition() const {
@@ -674,7 +674,7 @@ bool ScopeInfo::VariableIsSynthetic(String* name) {
   // with user declarations, the current temporaries like .generator_object and
   // .result start with a dot, so we can use that as a flag. It's a hack!
   return name->length() == 0 || name->Get(0) == '.' ||
-         name->Equals(name->GetHeap()->this_string());
+         name->Equals(name->GetReadOnlyRoots().this_string());
 }
 
 int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,

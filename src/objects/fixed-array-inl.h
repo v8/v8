@@ -46,7 +46,7 @@ Object** FixedArray::GetFirstElementAddress() {
 }
 
 bool FixedArray::ContainsOnlySmisOrHoles() {
-  Object* the_hole = GetHeap()->the_hole_value();
+  Object* the_hole = GetReadOnlyRoots().the_hole_value();
   Object** current = GetFirstElementAddress();
   for (int i = 0; i < length(); ++i) {
     Object* candidate = *current++;
@@ -83,7 +83,7 @@ bool FixedArray::is_the_hole(Isolate* isolate, int index) {
 }
 
 void FixedArray::set(int index, Smi* value) {
-  DCHECK_NE(map(), GetHeap()->fixed_cow_array_map());
+  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(index, this->length());
   DCHECK(reinterpret_cast<Object*>(value)->IsSmi());
   int offset = kHeaderSize + index * kPointerSize;
@@ -91,7 +91,7 @@ void FixedArray::set(int index, Smi* value) {
 }
 
 void FixedArray::set(int index, Object* value) {
-  DCHECK_NE(GetHeap()->fixed_cow_array_map(), map());
+  DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
   DCHECK(IsFixedArray());
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
@@ -101,7 +101,7 @@ void FixedArray::set(int index, Object* value) {
 }
 
 void FixedArray::set(int index, Object* value, WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetHeap()->fixed_cow_array_map());
+  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
@@ -111,7 +111,7 @@ void FixedArray::set(int index, Object* value, WriteBarrierMode mode) {
 
 void FixedArray::NoWriteBarrierSet(FixedArray* array, int index,
                                    Object* value) {
-  DCHECK_NE(array->map(), array->GetHeap()->fixed_cow_array_map());
+  DCHECK_NE(array->map(), array->GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_GE(index, 0);
   DCHECK_LT(index, array->length());
   DCHECK(!array->GetHeap()->InNewSpace(value));
@@ -155,16 +155,16 @@ Object** FixedArray::RawFieldOfElementAt(int index) {
 }
 
 double FixedDoubleArray::get_scalar(int index) {
-  DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
-         map() != GetHeap()->fixed_array_map());
+  DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
+         map() != GetReadOnlyRoots().fixed_array_map());
   DCHECK(index >= 0 && index < this->length());
   DCHECK(!is_the_hole(index));
   return READ_DOUBLE_FIELD(this, kHeaderSize + index * kDoubleSize);
 }
 
 uint64_t FixedDoubleArray::get_representation(int index) {
-  DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
-         map() != GetHeap()->fixed_array_map());
+  DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
+         map() != GetReadOnlyRoots().fixed_array_map());
   DCHECK(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kDoubleSize;
   return READ_UINT64_FIELD(this, offset);
@@ -180,8 +180,8 @@ Handle<Object> FixedDoubleArray::get(FixedDoubleArray* array, int index,
 }
 
 void FixedDoubleArray::set(int index, double value) {
-  DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
-         map() != GetHeap()->fixed_array_map());
+  DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
+         map() != GetReadOnlyRoots().fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
   if (std::isnan(value)) {
     WRITE_DOUBLE_FIELD(this, offset, std::numeric_limits<double>::quiet_NaN());
@@ -196,8 +196,8 @@ void FixedDoubleArray::set_the_hole(Isolate* isolate, int index) {
 }
 
 void FixedDoubleArray::set_the_hole(int index) {
-  DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
-         map() != GetHeap()->fixed_array_map());
+  DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
+         map() != GetReadOnlyRoots().fixed_array_map());
   int offset = kHeaderSize + index * kDoubleSize;
   WRITE_UINT64_FIELD(this, offset, kHoleNanInt64);
 }
