@@ -2663,29 +2663,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-
-#define I8x16_SPLAT(reg, scratch, v)      \
-  __ Move(reg, static_cast<uint32_t>(v)); \
-  __ Pxor(scratch, scratch);              \
-  __ Pshufb(reg, scratch)
-
     case kSSEI8x16Shl: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister src = i.InputSimd128Register(0);
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
       int8_t shift = i.InputInt8(1) & 0x7;
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
-
-      // src = AAaa ... AAaa
-      // tmp = 0F0F ... 0F0F (shift=4)
-      I8x16_SPLAT(tmp, kScratchDoubleReg, 0xFFU >> shift);
-
-      // src = src & tmp
-      //    => 0A0a ... 0A0a
-      __ pand(src, tmp);
-
-      // src = src << shift
-      //    => A0a0 ... A0a0 (shift=4)
-      __ pslld(src, shift);
+      if (shift < 4) {
+        // For small shifts, doubling is faster.
+        for (int i = 0; i < shift; ++i) {
+          __ paddb(dst, dst);
+        }
+      } else {
+        // Mask off the unwanted bits before word-shifting.
+        __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
+        __ psrlw(kScratchDoubleReg, 8 + shift);
+        __ packuswb(kScratchDoubleReg, kScratchDoubleReg);
+        __ pand(dst, kScratchDoubleReg);
+        __ psllw(dst, shift);
+      }
       break;
     }
     case kAVXI8x16Shl: {
@@ -2693,94 +2687,32 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       int8_t shift = i.InputInt8(1) & 0x7;
-      XMMRegister tmp =
-          dst != src ? dst : i.ToSimd128Register(instr->TempAt(0));
-
-      // src = AAaa ... AAaa
-      // tmp = 0F0F ... 0F0F (shift=4)
-      I8x16_SPLAT(tmp, kScratchDoubleReg, 0xFFU >> shift);
-
-      // dst = src & tmp
-      //    => 0A0a ... 0A0a
-      __ vpand(dst, src, tmp);
-
-      // dst = dst << shift
-      //    => A0a0 ... A0a0 (shift=4)
-      __ vpslld(dst, dst, shift);
+      if (shift < 4) {
+        // For small shifts, doubling is faster.
+        for (int i = 0; i < shift; ++i) {
+          __ vpaddb(dst, src, src);
+          src = dst;
+        }
+      } else {
+        // Mask off the unwanted bits before word-shifting.
+        __ vpcmpeqw(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+        __ vpsrlw(kScratchDoubleReg, kScratchDoubleReg, 8 + shift);
+        __ vpackuswb(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+        __ vpand(dst, src, kScratchDoubleReg);
+        __ vpsllw(dst, dst, shift);
+      }
       break;
     }
-    case kSSEI8x16ShrS: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister src = i.InputSimd128Register(0);
-      int8_t shift = i.InputInt8(1) & 0x7;
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
-
-      // I16x8 view of I8x16
-      // src = AAaa AAaa ... AAaa AAaa
-
-      // tmp = aa00 aa00 ... aa00 aa00
-      __ movaps(tmp, src);
-      __ Move(kScratchDoubleReg, static_cast<uint32_t>(0xff00));
-      __ psllw(tmp, 8);
-
-      // src = I16x8ShrS(src, shift)
-      //    => SAAa SAAa ... SAAa SAAa (shift=4)
-      __ pshuflw(kScratchDoubleReg, kScratchDoubleReg, 0x0);
-      __ psraw(src, shift);
-
-      // tmp = I16x8ShrS(tmp, shift)
-      //    => Saa0 Saa0 ... Saa0 Saa0 (shift=4)
-      __ pshufd(kScratchDoubleReg, kScratchDoubleReg, 0x0);
-      __ psraw(tmp, shift);
-
-      // src = I16x8And(src, 0xff00)
-      //    => SA00 SA00 ... SA00 SA00
-      __ pand(src, kScratchDoubleReg);
-
-      // tmp = I16x8ShrU(tmp, 8)
-      //    => 00Sa 00Sa ... 00Sa 00Sa (shift=4)
-      __ psrlw(tmp, 8);
-
-      // src = I16x8Or(src, tmp)
-      //    => SASa SASa ... SASa SASa (shift=4)
-      __ por(src, tmp);
-      break;
-    }
-    case kAVXI8x16ShrS: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
+    case kIA32I8x16ShrS: {
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       int8_t shift = i.InputInt8(1) & 0x7;
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
-
-      // I16x8 view of I8x16
-      // src = AAaa AAaa ... AAaa AAaa
-
-      // tmp = aa00 aa00 ... aa00 aa00
-      __ Move(kScratchDoubleReg, static_cast<uint32_t>(0xff00));
-      __ vpsllw(tmp, src, 8);
-
-      // dst = I16x8ShrS(src, shift)
-      //    => SAAa SAAa ... SAAa SAAa (shift=4)
-      __ vpshuflw(kScratchDoubleReg, kScratchDoubleReg, 0x0);
-      __ vpsraw(dst, src, shift);
-
-      // tmp = I16x8ShrS(tmp, shift)
-      //    => Saa0 Saa0 ... Saa0 Saa0 (shift=4)
-      __ vpshufd(kScratchDoubleReg, kScratchDoubleReg, 0x0);
-      __ vpsraw(tmp, tmp, shift);
-
-      // dst = I16x8And(dst, 0xff00)
-      //    => SA00 SA00 ... SA00 SA00
-      __ vpand(dst, dst, kScratchDoubleReg);
-
-      // tmp = I16x8ShrU(tmp, 8)
-      //    => 00Sa 00Sa ... 00Sa 00Sa (shift=4)
-      __ vpsrlw(tmp, tmp, 8);
-
-      // dst = I16x8Or(dst, tmp)
-      //    => SASa SASa ... SASa SASa (shift=4)
-      __ vpor(dst, dst, tmp);
+      // Unpack the bytes into words, do arithmetic shifts, and repack.
+      __ Punpckhbw(kScratchDoubleReg, src);
+      __ Punpcklbw(dst, src);
+      __ Psraw(kScratchDoubleReg, 8 + shift);
+      __ Psraw(dst, 8 + shift);
+      __ Packsswb(dst, kScratchDoubleReg);
       break;
     }
     case kSSEI8x16Add: {
@@ -3032,51 +2964,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputOperand(1));
       break;
     }
-    case kSSEI8x16ShrU: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister src = i.InputSimd128Register(0);
-      int8_t shift = i.InputInt8(1) & 0x7;
-      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
-
-      // src = AAaa ... AAaa
-      // tmp = F0F0 ... F0F0 (shift=4)
-
-      I8x16_SPLAT(tmp, kScratchDoubleReg, 0xFFU << shift);  // needn't byte cast
-
-      // src = src & tmp
-      //    => A0a0 ... A0a0
-      __ pand(src, tmp);
-
-      // src = src >> shift
-      //    => 0A0a ... 0A0a (shift=4)
-      __ psrld(src, shift);
-      break;
-    }
-    case kAVXI8x16ShrU: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
+    case kIA32I8x16ShrU: {
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
       int8_t shift = i.InputInt8(1) & 0x7;
-      XMMRegister tmp =
-          dst != src ? dst : i.ToSimd128Register(instr->TempAt(0));
-
-      // src = AAaa ... AAaa
-      // tmp = F0F0 ... F0F0 (shift=4)
-      I8x16_SPLAT(tmp, kScratchDoubleReg, 0xFFU << shift);
-
-      // src = src & tmp
-      //    => A0a0 ... A0a0
-      __ vpand(dst, src, tmp);
-
-      // dst = dst >> shift
-      //    => 0A0a ... 0A0a (shift=4)
-      __ vpsrld(dst, dst, shift);
+      // Unpack the bytes into words, do logical shifts, and repack.
+      __ Punpckhbw(kScratchDoubleReg, src);
+      __ Punpcklbw(dst, src);
+      __ Psrlw(kScratchDoubleReg, 8 + shift);
+      __ Psrlw(dst, 8 + shift);
+      __ Packuswb(dst, kScratchDoubleReg);
       break;
     }
-#undef I8x16_SPLAT
     case kSSEI8x16MinU: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ pminub(i.OutputSimd128Register(), i.InputOperand(1));
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ pminub(dst, i.InputOperand(1));
       break;
     }
     case kAVXI8x16MinU: {

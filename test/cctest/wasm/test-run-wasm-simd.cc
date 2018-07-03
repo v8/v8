@@ -1056,33 +1056,34 @@ WASM_SIMD_TEST(I32x4GeU) {
 }
 
 void RunI32x4ShiftOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
-                         WasmOpcode simd_op, Int32ShiftOp expected_op,
-                         int shift) {
-  WasmRunner<int32_t, int32_t, int32_t> r(execution_mode, lower_simd);
-  byte a = 0;
-  byte expected = 1;
-  byte simd = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_SET_LOCAL(simd, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(a))),
-        WASM_SET_LOCAL(
-            simd, WASM_SIMD_SHIFT_OP(simd_op, shift, WASM_GET_LOCAL(simd))),
-        WASM_SIMD_CHECK_SPLAT4(I32x4, simd, I32, expected), WASM_ONE);
+                         WasmOpcode simd_op, Int32ShiftOp expected_op) {
+  for (int shift = 1; shift < 32; ++shift) {
+    WasmRunner<int32_t, int32_t, int32_t> r(execution_mode, lower_simd);
+    byte a = 0;
+    byte expected = 1;
+    byte simd = r.AllocateLocal(kWasmS128);
+    BUILD(r, WASM_SET_LOCAL(simd, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(a))),
+          WASM_SET_LOCAL(
+              simd, WASM_SIMD_SHIFT_OP(simd_op, shift, WASM_GET_LOCAL(simd))),
+          WASM_SIMD_CHECK_SPLAT4(I32x4, simd, I32, expected), WASM_ONE);
 
-  FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i, shift))); }
+    FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i, shift))); }
+  }
 }
 
 WASM_SIMD_TEST(I32x4Shl) {
   RunI32x4ShiftOpTest(execution_mode, lower_simd, kExprI32x4Shl,
-                      LogicalShiftLeft, 1);
+                      LogicalShiftLeft);
 }
 
 WASM_SIMD_TEST(I32x4ShrS) {
   RunI32x4ShiftOpTest(execution_mode, lower_simd, kExprI32x4ShrS,
-                      ArithmeticShiftRight, 1);
+                      ArithmeticShiftRight);
 }
 
 WASM_SIMD_TEST(I32x4ShrU) {
   RunI32x4ShiftOpTest(execution_mode, lower_simd, kExprI32x4ShrU,
-                      LogicalShiftRight, 1);
+                      LogicalShiftRight);
 }
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
@@ -1333,33 +1334,34 @@ WASM_SIMD_TEST(I16x8LeU) {
 }
 
 void RunI16x8ShiftOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
-                         WasmOpcode simd_op, Int16ShiftOp expected_op,
-                         int shift) {
-  WasmRunner<int32_t, int32_t, int32_t> r(execution_mode, lower_simd);
-  byte a = 0;
-  byte expected = 1;
-  byte simd = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_SET_LOCAL(simd, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(a))),
-        WASM_SET_LOCAL(
-            simd, WASM_SIMD_SHIFT_OP(simd_op, shift, WASM_GET_LOCAL(simd))),
-        WASM_SIMD_CHECK_SPLAT8(I16x8, simd, I32, expected), WASM_ONE);
+                         WasmOpcode simd_op, Int16ShiftOp expected_op) {
+  for (int shift = 1; shift < 16; ++shift) {
+    WasmRunner<int32_t, int32_t, int32_t> r(execution_mode, lower_simd);
+    byte a = 0;
+    byte expected = 1;
+    byte simd = r.AllocateLocal(kWasmS128);
+    BUILD(r, WASM_SET_LOCAL(simd, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(a))),
+          WASM_SET_LOCAL(
+              simd, WASM_SIMD_SHIFT_OP(simd_op, shift, WASM_GET_LOCAL(simd))),
+          WASM_SIMD_CHECK_SPLAT8(I16x8, simd, I32, expected), WASM_ONE);
 
-  FOR_INT16_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i, shift))); }
+    FOR_INT16_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i, shift))); }
+  }
 }
 
 WASM_SIMD_TEST(I16x8Shl) {
   RunI16x8ShiftOpTest(execution_mode, lower_simd, kExprI16x8Shl,
-                      LogicalShiftLeft, 1);
+                      LogicalShiftLeft);
 }
 
 WASM_SIMD_TEST(I16x8ShrS) {
   RunI16x8ShiftOpTest(execution_mode, lower_simd, kExprI16x8ShrS,
-                      ArithmeticShiftRight, 1);
+                      ArithmeticShiftRight);
 }
 
 WASM_SIMD_TEST(I16x8ShrU) {
   RunI16x8ShiftOpTest(execution_mode, lower_simd, kExprI16x8ShrU,
-                      LogicalShiftRight, 1);
+                      LogicalShiftRight);
 }
 
 void RunI8x16UnOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
@@ -1569,35 +1571,36 @@ WASM_SIMD_TEST(I8x16Mul) {
         // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 void RunI8x16ShiftOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
-                         WasmOpcode simd_op, Int8ShiftOp expected_op,
-                         int shift) {
-  WasmRunner<int32_t, int32_t, int32_t> r(execution_mode, lower_simd);
-  byte a = 0;
-  byte expected = 1;
-  byte simd = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_SET_LOCAL(simd, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(a))),
-        WASM_SET_LOCAL(
-            simd, WASM_SIMD_SHIFT_OP(simd_op, shift, WASM_GET_LOCAL(simd))),
-        WASM_SIMD_CHECK_SPLAT16(I8x16, simd, I32, expected), WASM_ONE);
+                         WasmOpcode simd_op, Int8ShiftOp expected_op) {
+  for (int shift = 1; shift < 8; ++shift) {
+    WasmRunner<int32_t, int32_t, int32_t> r(execution_mode, lower_simd);
+    byte a = 0;
+    byte expected = 1;
+    byte simd = r.AllocateLocal(kWasmS128);
+    BUILD(r, WASM_SET_LOCAL(simd, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(a))),
+          WASM_SET_LOCAL(
+              simd, WASM_SIMD_SHIFT_OP(simd_op, shift, WASM_GET_LOCAL(simd))),
+          WASM_SIMD_CHECK_SPLAT16(I8x16, simd, I32, expected), WASM_ONE);
 
-  FOR_INT8_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i, shift))); }
+    FOR_INT8_INPUTS(i) { CHECK_EQ(1, r.Call(*i, expected_op(*i, shift))); }
+  }
 }
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 WASM_SIMD_TEST(I8x16Shl) {
   RunI8x16ShiftOpTest(execution_mode, lower_simd, kExprI8x16Shl,
-                      LogicalShiftLeft, 1);
+                      LogicalShiftLeft);
 }
 
 WASM_SIMD_TEST(I8x16ShrS) {
   RunI8x16ShiftOpTest(execution_mode, lower_simd, kExprI8x16ShrS,
-                      ArithmeticShiftRight, 1);
+                      ArithmeticShiftRight);
 }
 
 WASM_SIMD_TEST(I8x16ShrU) {
   RunI8x16ShiftOpTest(execution_mode, lower_simd, kExprI8x16ShrU,
-                      LogicalShiftRight, 1);
+                      LogicalShiftRight);
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
         // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32

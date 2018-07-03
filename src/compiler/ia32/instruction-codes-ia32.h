@@ -257,8 +257,7 @@ namespace compiler {
   V(IA32I8x16Neg)                  \
   V(SSEI8x16Shl)                   \
   V(AVXI8x16Shl)                   \
-  V(SSEI8x16ShrS)                  \
-  V(AVXI8x16ShrS)                  \
+  V(IA32I8x16ShrS)                 \
   V(SSEI8x16Add)                   \
   V(AVXI8x16Add)                   \
   V(SSEI8x16AddSaturateS)          \
@@ -287,8 +286,7 @@ namespace compiler {
   V(AVXI8x16AddSaturateU)          \
   V(SSEI8x16SubSaturateU)          \
   V(AVXI8x16SubSaturateU)          \
-  V(SSEI8x16ShrU)                  \
-  V(AVXI8x16ShrU)                  \
+  V(IA32I8x16ShrU)                 \
   V(SSEI8x16MinU)                  \
   V(AVXI8x16MinU)                  \
   V(SSEI8x16MaxU)                  \

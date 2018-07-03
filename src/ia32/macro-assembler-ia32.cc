@@ -1300,6 +1300,24 @@ void TurboAssembler::Pshufd(XMMRegister dst, Operand src, uint8_t shuffle) {
   }
 }
 
+void TurboAssembler::Psraw(XMMRegister dst, int8_t shift) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsraw(dst, dst, shift);
+  } else {
+    psraw(dst, shift);
+  }
+}
+
+void TurboAssembler::Psrlw(XMMRegister dst, int8_t shift) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpsrlw(dst, dst, shift);
+  } else {
+    psrlw(dst, shift);
+  }
+}
+
 void TurboAssembler::Psignb(XMMRegister dst, Operand src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

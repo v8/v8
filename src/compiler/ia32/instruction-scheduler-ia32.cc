@@ -239,8 +239,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I8x16Neg:
     case kSSEI8x16Shl:
     case kAVXI8x16Shl:
-    case kSSEI8x16ShrS:
-    case kAVXI8x16ShrS:
+    case kIA32I8x16ShrS:
     case kSSEI8x16Add:
     case kAVXI8x16Add:
     case kSSEI8x16AddSaturateS:
@@ -269,8 +268,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI8x16AddSaturateU:
     case kSSEI8x16SubSaturateU:
     case kAVXI8x16SubSaturateU:
-    case kSSEI8x16ShrU:
-    case kAVXI8x16ShrU:
+    case kIA32I8x16ShrU:
     case kSSEI8x16MinU:
     case kAVXI8x16MinU:
     case kSSEI8x16MaxU:

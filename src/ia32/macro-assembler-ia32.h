@@ -254,6 +254,8 @@ class TurboAssembler : public TurboAssemblerBase {
     Pshufd(dst, Operand(src), shuffle);
   }
   void Pshufd(XMMRegister dst, Operand src, uint8_t shuffle);
+  void Psraw(XMMRegister dst, int8_t shift);
+  void Psrlw(XMMRegister dst, int8_t shift);
 
 // SSE/SSE2 instructions with AVX version.
 #define AVX_OP2_WITH_TYPE(macro_name, name, dst_type, src_type) \
@@ -293,12 +295,16 @@ class TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, XMMRegister) \
   AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
 
+  AVX_OP3_XO(Packsswb, packsswb)
+  AVX_OP3_XO(Packuswb, packuswb)
   AVX_OP3_XO(Pcmpeqb, pcmpeqb)
   AVX_OP3_XO(Pcmpeqw, pcmpeqw)
   AVX_OP3_XO(Pcmpeqd, pcmpeqd)
   AVX_OP3_XO(Psubb, psubb)
   AVX_OP3_XO(Psubw, psubw)
   AVX_OP3_XO(Psubd, psubd)
+  AVX_OP3_XO(Punpcklbw, punpcklbw)
+  AVX_OP3_XO(Punpckhbw, punpckhbw)
   AVX_OP3_XO(Pxor, pxor)
   AVX_OP3_XO(Andps, andps)
   AVX_OP3_XO(Andpd, andpd)

@@ -210,19 +210,36 @@ void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
   }
 }
 
+void VisitRRSimd(InstructionSelector* selector, Node* node,
+                 ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
+  IA32OperandGenerator g(selector);
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  if (selector->IsSupported(AVX)) {
+    selector->Emit(avx_opcode, g.DefineAsRegister(node), operand0);
+  } else {
+    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), operand0);
+  }
+}
+
+void VisitRRISimd(InstructionSelector* selector, Node* node,
+                  ArchOpcode opcode) {
+  IA32OperandGenerator g(selector);
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  InstructionOperand operand1 =
+      g.UseImmediate(OpParameter<int32_t>(node->op()));
+  selector->Emit(opcode, g.DefineAsRegister(node), operand0, operand1);
+}
+
 void VisitRRISimd(InstructionSelector* selector, Node* node,
                   ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
   IA32OperandGenerator g(selector);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   InstructionOperand operand1 =
       g.UseImmediate(OpParameter<int32_t>(node->op()));
-  InstructionOperand temps[] = {g.TempSimd128Register()};
   if (selector->IsSupported(AVX)) {
-    selector->Emit(avx_opcode, g.DefineAsRegister(node), operand0, operand1,
-                   arraysize(temps), temps);
+    selector->Emit(avx_opcode, g.DefineAsRegister(node), operand0, operand1);
   } else {
-    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), operand0, operand1,
-                   arraysize(temps), temps);
+    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), operand0, operand1);
   }
 }
 
@@ -1841,53 +1858,24 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4ShrU)                \
   V(I16x8Shl)                 \
   V(I16x8ShrS)                \
-  V(I16x8ShrU)
+  V(I16x8ShrU)                \
+  V(I8x16Shl)
+
+#define SIMD_I8X16_RIGHT_SHIFT_OPCODES(V) \
+  V(I8x16ShrS)                            \
+  V(I8x16ShrU)
 
 void InstructionSelector::VisitF32x4Splat(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
-  if (IsSupported(AVX)) {
-    Emit(kAVXF32x4Splat, g.DefineAsRegister(node), operand0);
-  } else {
-    Emit(kSSEF32x4Splat, g.DefineSameAsFirst(node), operand0);
-  }
+  VisitRRSimd(this, node, kAVXF32x4Splat, kSSEF32x4Splat);
 }
 
 void InstructionSelector::VisitF32x4ExtractLane(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
-  InstructionOperand operand1 =
-      g.UseImmediate(OpParameter<int32_t>(node->op()));
-  if (IsSupported(AVX)) {
-    Emit(kAVXF32x4ExtractLane, g.DefineAsRegister(node), operand0, operand1);
-  } else {
-    Emit(kSSEF32x4ExtractLane, g.DefineSameAsFirst(node), operand0, operand1);
-  }
+  VisitRRISimd(this, node, kAVXF32x4ExtractLane, kSSEF32x4ExtractLane);
 }
 
 void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
-  if (IsSupported(AVX)) {
-    Emit(kAVXF32x4UConvertI32x4, g.DefineAsRegister(node), operand0);
-  } else {
-    Emit(kSSEF32x4UConvertI32x4, g.DefineSameAsFirst(node), operand0);
-  }
+  VisitRRSimd(this, node, kAVXF32x4UConvertI32x4, kSSEF32x4UConvertI32x4);
 }
-
-#define SIMD_I8X16_SHIFT_OPCODES(V) \
-  V(I8x16Shl)                       \
-  V(I8x16ShrS)                      \
-  V(I8x16ShrU)
-
-#define VISIT_SIMD_I8X16_SHIFT(Op)                  \
-  void InstructionSelector::Visit##Op(Node* node) { \
-    VisitRRISimd(this, node, kAVX##Op, kSSE##Op);   \
-  }
-
-SIMD_I8X16_SHIFT_OPCODES(VISIT_SIMD_I8X16_SHIFT)
-#undef SIMD_I8X16_SHIFT_OPCODES
-#undef VISIT_SIMD_I8X16_SHIFT
 
 void InstructionSelector::VisitI8x16Mul(Node* node) {
   IA32OperandGenerator g(this);
@@ -1931,10 +1919,7 @@ SIMD_INT_TYPES(VISIT_SIMD_SPLAT)
 
 #define VISIT_SIMD_EXTRACT_LANE(Type)                              \
   void InstructionSelector::Visit##Type##ExtractLane(Node* node) { \
-    IA32OperandGenerator g(this);                                  \
-    int32_t lane = OpParameter<int32_t>(node->op());               \
-    Emit(kIA32##Type##ExtractLane, g.DefineAsRegister(node),       \
-         g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));   \
+    VisitRRISimd(this, node, kIA32##Type##ExtractLane);            \
   }
 SIMD_INT_TYPES(VISIT_SIMD_EXTRACT_LANE)
 #undef VISIT_SIMD_EXTRACT_LANE
@@ -1959,21 +1944,22 @@ VISIT_SIMD_REPLACE_LANE(F32x4)
 #undef VISIT_SIMD_REPLACE_LANE
 #undef SIMD_INT_TYPES
 
-#define VISIT_SIMD_SHIFT(Opcode)                                         \
-  void InstructionSelector::Visit##Opcode(Node* node) {                  \
-    IA32OperandGenerator g(this);                                        \
-    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));       \
-    InstructionOperand operand1 =                                        \
-        g.UseImmediate(OpParameter<int32_t>(node->op()));                \
-    if (IsSupported(AVX)) {                                              \
-      Emit(kAVX##Opcode, g.DefineAsRegister(node), operand0, operand1);  \
-    } else {                                                             \
-      Emit(kSSE##Opcode, g.DefineSameAsFirst(node), operand0, operand1); \
-    }                                                                    \
+#define VISIT_SIMD_SHIFT(Opcode)                          \
+  void InstructionSelector::Visit##Opcode(Node* node) {   \
+    VisitRRISimd(this, node, kAVX##Opcode, kSSE##Opcode); \
   }
 SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
 #undef VISIT_SIMD_SHIFT
 #undef SIMD_SHIFT_OPCODES
+
+#define VISIT_SIMD_I8X16_RIGHT_SHIFT(Op)            \
+  void InstructionSelector::Visit##Op(Node* node) { \
+    VisitRRISimd(this, node, kIA32##Op);            \
+  }
+
+SIMD_I8X16_RIGHT_SHIFT_OPCODES(VISIT_SIMD_I8X16_RIGHT_SHIFT)
+#undef SIMD_I8X16_RIGHT_SHIFT_OPCODES
+#undef VISIT_SIMD_I8X16_RIGHT_SHIFT
 
 #define VISIT_SIMD_UNOP(Opcode)                                             \
   void InstructionSelector::Visit##Opcode(Node* node) {                     \
