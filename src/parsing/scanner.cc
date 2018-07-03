@@ -391,21 +391,6 @@ Token::Value Scanner::Next() {
   }
   has_line_terminator_before_next_ = false;
   has_multiline_comment_before_next_ = false;
-  if (static_cast<unsigned>(c0_) <= 0x7F) {
-    Token::Value token = static_cast<Token::Value>(one_char_tokens[c0_]);
-    if (token != Token::ILLEGAL) {
-      int pos = source_pos();
-      next_.token = token;
-      next_.contextual_token = Token::UNINITIALIZED;
-      next_.location.beg_pos = pos;
-      next_.location.end_pos = pos + 1;
-      next_.literal_chars = nullptr;
-      next_.raw_literal_chars = nullptr;
-      next_.invalid_template_escape_message = MessageTemplate::kNone;
-      Advance();
-      return current_.token;
-    }
-  }
   Scan();
   return current_.token;
 }
@@ -620,24 +605,26 @@ void Scanner::Scan() {
   next_.literal_chars = nullptr;
   next_.raw_literal_chars = nullptr;
   next_.invalid_template_escape_message = MessageTemplate::kNone;
+
   Token::Value token;
   do {
+    if (static_cast<unsigned>(c0_) <= 0x7F) {
+      Token::Value token = static_cast<Token::Value>(one_char_tokens[c0_]);
+      if (token != Token::ILLEGAL) {
+        int pos = source_pos();
+        next_.token = token;
+        next_.contextual_token = Token::UNINITIALIZED;
+        next_.location.beg_pos = pos;
+        next_.location.end_pos = pos + 1;
+        Advance();
+        return;
+      }
+    }
+
     // Remember the position of the next token
     next_.location.beg_pos = source_pos();
 
     switch (c0_) {
-      case ' ':
-      case '\t':
-        Advance();
-        token = Token::WHITESPACE;
-        break;
-
-      case '\n':
-        Advance();
-        has_line_terminator_before_next_ = true;
-        token = Token::WHITESPACE;
-        break;
-
       case '"':
       case '\'':
         token = ScanString();
@@ -814,50 +801,6 @@ void Scanner::Scan() {
             }
           }
         }
-        break;
-
-      case ':':
-        token = Select(Token::COLON);
-        break;
-
-      case ';':
-        token = Select(Token::SEMICOLON);
-        break;
-
-      case ',':
-        token = Select(Token::COMMA);
-        break;
-
-      case '(':
-        token = Select(Token::LPAREN);
-        break;
-
-      case ')':
-        token = Select(Token::RPAREN);
-        break;
-
-      case '[':
-        token = Select(Token::LBRACK);
-        break;
-
-      case ']':
-        token = Select(Token::RBRACK);
-        break;
-
-      case '{':
-        token = Select(Token::LBRACE);
-        break;
-
-      case '}':
-        token = Select(Token::RBRACE);
-        break;
-
-      case '?':
-        token = Select(Token::CONDITIONAL);
-        break;
-
-      case '~':
-        token = Select(Token::BIT_NOT);
         break;
 
       case '`':
