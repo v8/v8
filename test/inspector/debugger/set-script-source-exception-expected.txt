@@ -14,10 +14,10 @@ Running test: testSourceWithSyntaxError
     id : <messageId>
     result : {
         exceptionDetails : {
-            columnNumber : 11
+            columnNumber : 0
             exceptionId : <exceptionId>
-            lineNumber : 1
-            text : Uncaught SyntaxError: Invalid or unexpected token
+            lineNumber : 0
+            text : Invalid or unexpected token
         }
     }
 }

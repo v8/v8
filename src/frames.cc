@@ -2149,5 +2149,47 @@ InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
   }
   return entry;
 }
+
+
+// -------------------------------------------------------------------------
+
+
+#define DEFINE_WRAPPER(type, field)                              \
+class field##_Wrapper : public ZoneObject {                      \
+ public:  /* NOLINT */                                           \
+  field##_Wrapper(const field& original) : frame_(original) {    \
+  }                                                              \
+  field frame_;                                                  \
+};
+STACK_FRAME_TYPE_LIST(DEFINE_WRAPPER)
+#undef DEFINE_WRAPPER
+
+static StackFrame* AllocateFrameCopy(StackFrame* frame, Zone* zone) {
+#define FRAME_TYPE_CASE(type, field) \
+  case StackFrame::type: { \
+    field##_Wrapper* wrapper = \
+        new(zone) field##_Wrapper(*(reinterpret_cast<field*>(frame))); \
+    return &wrapper->frame_; \
+  }
+
+  switch (frame->type()) {
+    STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
+    default: UNREACHABLE();
+  }
+#undef FRAME_TYPE_CASE
+  return nullptr;
+}
+
+
+Vector<StackFrame*> CreateStackMap(Isolate* isolate, Zone* zone) {
+  ZoneVector<StackFrame*> frames(zone);
+  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
+    StackFrame* frame = AllocateFrameCopy(it.frame(), zone);
+    frames.push_back(frame);
+  }
+  return Vector<StackFrame*>(frames.data(), frames.size());
+}
+
+
 }  // namespace internal
 }  // namespace v8

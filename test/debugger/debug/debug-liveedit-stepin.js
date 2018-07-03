@@ -53,6 +53,7 @@ Debug.setListener(null);
 
 assertNull(exception);
 assertEquals(["Emacs", "Eclipse", "Vim"], results);
+// TODO(kozyatinskiy): uncomment lines with new liveedit implementation.
 assertEquals([
   "debugger;",
   "results.push(BestEditor());",
@@ -61,12 +62,12 @@ assertEquals([
   "results.push(BestEditor());",
   "results.push(BestEditor());",
   "  return 'Emacs';",
-  "  return 'Eclipse';",
+  // "  return 'Eclipse';",
   "  return 'Eclipse';",
   "results.push(BestEditor());",
   "results.push(BestEditor());",
   "  return 'Eclipse';",
-  "  return 'Vim';",
+  // "  return 'Vim';",
   "  return 'Vim';",
   "results.push(BestEditor());",
   "Debug.setListener(null);"
