@@ -61,7 +61,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
       // based on the backing store.
       backing_stores_to_free.emplace_back(
           it->second.backing_store, it->second.length, it->second.backing_store,
-          old_buffer->allocation_mode(), old_buffer->is_wasm_memory());
+          old_buffer->is_wasm_memory());
       old_page->DecrementExternalBackingStoreBytes(
           ExternalBackingStoreType::kArrayBuffer, it->second.length);
 

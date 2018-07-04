@@ -170,23 +170,19 @@ class JSArrayBuffer : public JSObject {
 
   void Neuter();
 
-  inline ArrayBuffer::Allocator::AllocationMode allocation_mode() const;
-
   struct Allocation {
     using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
 
     Allocation(void* allocation_base, size_t length, void* backing_store,
-               AllocationMode mode, bool is_wasm_memory)
+               bool is_wasm_memory)
         : allocation_base(allocation_base),
           length(length),
           backing_store(backing_store),
-          mode(mode),
           is_wasm_memory(is_wasm_memory) {}
 
     void* allocation_base;
     size_t length;
     void* backing_store;
-    AllocationMode mode;
     bool is_wasm_memory;
   };
 

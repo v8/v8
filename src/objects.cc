@@ -18604,9 +18604,8 @@ void JSArrayBuffer::FreeBackingStoreFromMainThread() {
   if (allocation_base() == nullptr) {
     return;
   }
-  FreeBackingStore(GetIsolate(),
-                   {allocation_base(), allocation_length(), backing_store(),
-                    allocation_mode(), is_wasm_memory()});
+  FreeBackingStore(GetIsolate(), {allocation_base(), allocation_length(),
+                                  backing_store(), is_wasm_memory()});
   // Zero out the backing store and allocation base to avoid dangling
   // pointers.
   set_backing_store(nullptr);
@@ -18614,16 +18613,10 @@ void JSArrayBuffer::FreeBackingStoreFromMainThread() {
 
 // static
 void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
-  if (allocation.mode == ArrayBuffer::Allocator::AllocationMode::kReservation) {
-    bool needs_free = true;
-    if (allocation.is_wasm_memory) {
-      wasm::WasmMemoryTracker* memory_tracker =
-          isolate->wasm_engine()->memory_tracker();
-      if (memory_tracker->FreeMemoryIfIsWasmMemory(allocation.backing_store)) {
-        needs_free = false;
-      }
-    }
-    if (needs_free) {
+  if (allocation.is_wasm_memory) {
+    wasm::WasmMemoryTracker* memory_tracker =
+        isolate->wasm_engine()->memory_tracker();
+    if (!memory_tracker->FreeMemoryIfIsWasmMemory(allocation.backing_store)) {
       CHECK(FreePages(allocation.allocation_base, allocation.length));
     }
   } else {

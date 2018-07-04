@@ -104,12 +104,6 @@ void* JSArrayBuffer::allocation_base() const {
   return backing_store();
 }
 
-ArrayBuffer::Allocator::AllocationMode JSArrayBuffer::allocation_mode() const {
-  using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
-  return is_wasm_memory() ? AllocationMode::kReservation
-                          : AllocationMode::kNormal;
-}
-
 bool JSArrayBuffer::is_wasm_memory() const {
   bool const is_wasm_memory = IsWasmMemory::decode(bit_field());
   DCHECK_EQ(is_wasm_memory,

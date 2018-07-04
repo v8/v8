@@ -67,7 +67,7 @@ void LocalArrayBufferTracker::Free(Callback should_free) {
     if (should_free(buffer)) {
       JSArrayBuffer::FreeBackingStore(
           isolate, {it->second.backing_store, length, it->second.backing_store,
-                    buffer->allocation_mode(), buffer->is_wasm_memory()});
+                    buffer->is_wasm_memory()});
       it = array_buffers_.erase(it);
       freed_memory += length;
     } else {
