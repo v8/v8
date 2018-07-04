@@ -5671,7 +5671,6 @@ TEST(YoungGenerationLargeObjectAllocation) {
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
   CHECK(chunk->owner()->identity() == NEW_LO_SPACE);
-  CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
 }
 
 TEST(UncommitUnusedLargeObjectMemory) {

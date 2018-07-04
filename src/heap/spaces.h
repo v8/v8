@@ -420,9 +420,6 @@ class MemoryChunk {
                                           ~kAlignmentMask);
   }
 
-  void SetOldGenerationPageFlags(bool is_marking);
-  void SetYoungGenerationPageFlags(bool is_marking);
-
   static inline MemoryChunk* FromAnyPointerAddress(Heap* heap, Address addr);
 
   static inline void UpdateHighWaterMark(Address mark) {
@@ -2956,6 +2953,8 @@ class LargeObjectSpace : public Space {
     return chunk_size - Page::kPageSize - Page::kObjectStartOffset;
   }
 
+  // Shared implementation of AllocateRaw, AllocateRawCode and
+  // AllocateRawFixedArray.
   V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size,
                                                      Executability executable);
 
@@ -3022,9 +3021,6 @@ class LargeObjectSpace : public Space {
   void Print() override;
 #endif
 
- protected:
-  LargePage* AllocateLargePage(int object_size, Executability executable);
-
  private:
   size_t size_;          // allocated bytes
   int page_count_;       // number of chunks
@@ -3043,8 +3039,6 @@ class LargeObjectSpace : public Space {
 class NewLargeObjectSpace : public LargeObjectSpace {
  public:
   explicit NewLargeObjectSpace(Heap* heap);
-
-  V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size);
 
   // Available bytes for objects in this space.
   size_t Available() override;
