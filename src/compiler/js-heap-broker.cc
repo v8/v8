@@ -451,6 +451,11 @@ double FixedDoubleArrayRef::get_scalar(int i) const {
   return object<FixedDoubleArray>()->get_scalar(i);
 }
 
+int ScopeInfoRef::ContextLength() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<ScopeInfo>()->ContextLength();
+}
+
 int SharedFunctionInfoRef::internal_formal_parameter_count() const {
   AllowHandleDereference allow_handle_dereference;
   return object<SharedFunctionInfo>()->internal_formal_parameter_count();

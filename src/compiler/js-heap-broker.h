@@ -68,6 +68,7 @@ class HeapObjectType {
   V(MutableHeapNumber)           \
   V(Name)                        \
   V(NativeContext)               \
+  V(ScopeInfo)                   \
   V(ScriptContextTable)          \
   V(SharedFunctionInfo)          \
   V(Map)
@@ -287,6 +288,13 @@ class JSArrayRef : public JSObjectRef {
 
   ElementsKind GetElementsKind() const;
   ObjectRef length(const JSHeapBroker* broker) const;
+};
+
+class ScopeInfoRef : public HeapObjectRef {
+ public:
+  explicit ScopeInfoRef(Handle<Object> object) : HeapObjectRef(object) {}
+
+  int ContextLength() const;
 };
 
 class SharedFunctionInfoRef : public HeapObjectRef {

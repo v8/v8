@@ -1249,10 +1249,11 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
+  DisallowHandleDereference disallow_dereference;
   DCHECK_EQ(IrOpcode::kJSCreateFunctionContext, node->opcode());
   const CreateFunctionContextParameters& parameters =
       CreateFunctionContextParametersOf(node->op());
-  Handle<ScopeInfo> scope_info = parameters.scope_info();
+  ScopeInfoRef scope_info(parameters.scope_info());
   int slot_count = parameters.slot_count();
   ScopeType scope_type = parameters.scope_type();
 
@@ -1296,8 +1297,9 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
+  DisallowHandleDereference disallow_dereference;
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
-  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
+  ScopeInfoRef scope_info(ScopeInfoOf(node->op()));
   Node* extension = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1317,8 +1319,9 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
+  DisallowHandleDereference disallow_dereference;
   DCHECK_EQ(IrOpcode::kJSCreateCatchContext, node->opcode());
-  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
+  ScopeInfoRef scope_info(ScopeInfoOf(node->op()));
   Node* exception = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1342,9 +1345,10 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
+  DisallowHandleDereference disallow_dereference;
   DCHECK_EQ(IrOpcode::kJSCreateBlockContext, node->opcode());
-  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
-  int const context_length = scope_info->ContextLength();
+  ScopeInfoRef scope_info(ScopeInfoOf(node->op()));
+  int const context_length = scope_info.ContextLength();
 
   // Use inline allocation for block contexts up to a size limit.
   if (context_length < kBlockContextAllocationLimit) {
