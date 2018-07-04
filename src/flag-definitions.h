@@ -1080,8 +1080,7 @@ DEFINE_BOOL(profile_deserialization, false,
             "Print the time it takes to deserialize the snapshot.")
 DEFINE_BOOL(serialization_statistics, false,
             "Collect statistics on serialized objects.")
-DEFINE_UINT(serialization_chunk_size, 4096,
-            "Custom size for serialization chunks")
+DEFINE_UINT(serialization_chunk_size, 0, "Custom size for serialization chunks")
 
 // Regexp
 DEFINE_BOOL(regexp_optimization, true, "generate optimized regexp code")
