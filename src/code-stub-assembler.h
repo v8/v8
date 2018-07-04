@@ -11,6 +11,7 @@
 #include "src/compiler/code-assembler.h"
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -23,18 +24,25 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
-#define HEAP_CONSTANT_LIST(V)                                               \
+#define HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(V)                              \
+  V(ArraySpeciesProtector, array_species_protector, ArraySpeciesProtector) \
+  V(EmptyPropertyDictionary, empty_property_dictionary,                    \
+    EmptyPropertyDictionary)                                               \
+  V(PromiseSpeciesProtector, promise_species_protector,                    \
+    PromiseSpeciesProtector)                                               \
+  V(TypedArraySpeciesProtector, typed_array_species_protector,             \
+    TypedArraySpeciesProtector)                                            \
+  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)
+
+#define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                             \
   V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                    \
   V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                    \
   V(AllocationSiteWithWeakNextMap, allocation_site_map, AllocationSiteMap)  \
   V(AllocationSiteWithoutWeakNextMap, allocation_site_without_weaknext_map, \
     AllocationSiteWithoutWeakNextMap)                                       \
-  V(ArraySpeciesProtector, array_species_protector, ArraySpeciesProtector)  \
   V(BooleanMap, boolean_map, BooleanMap)                                    \
   V(CodeMap, code_map, CodeMap)                                             \
   V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                    \
-  V(EmptyPropertyDictionary, empty_property_dictionary,                     \
-    EmptyPropertyDictionary)                                                \
   V(EmptySlowElementDictionary, empty_slow_element_dictionary,              \
     EmptySlowElementDictionary)                                             \
   V(empty_string, empty_string, EmptyString)                                \
@@ -59,22 +67,21 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)             \
   V(NullValue, null_value, Null)                                            \
   V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)             \
-  V(PromiseSpeciesProtector, promise_species_protector,                     \
-    PromiseSpeciesProtector)                                                \
   V(prototype_string, prototype_string, PrototypeString)                    \
   V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap) \
-  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                 \
   V(SymbolMap, symbol_map, SymbolMap)                                       \
   V(TheHoleValue, the_hole_value, TheHole)                                  \
   V(TransitionArrayMap, transition_array_map, TransitionArrayMap)           \
   V(TrueValue, true_value, True)                                            \
   V(Tuple2Map, tuple2_map, Tuple2Map)                                       \
   V(Tuple3Map, tuple3_map, Tuple3Map)                                       \
-  V(TypedArraySpeciesProtector, typed_array_species_protector,              \
-    TypedArraySpeciesProtector)                                             \
   V(UndefinedValue, undefined_value, Undefined)                             \
   V(WeakCellMap, weak_cell_map, WeakCellMap)                                \
   V(WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArrayMap)
+
+#define HEAP_IMMOVABLE_OBJECT_LIST(V)   \
+  HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(V) \
+  HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)
 
 // Returned from IteratorBuiltinsAssembler::GetIterator(). Struct is declared
 // here to simplify use in other generated builtins.
@@ -401,17 +408,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 #undef PARAMETER_BINOP
 
   TNode<Object> NoContextConstant();
+
+#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name) \
+  compiler::TNode<std::remove_reference<decltype(                     \
+      *std::declval<ReadOnlyRoots>().rootAccessorName())>::type>      \
+      name##Constant();
+  HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
+#undef HEAP_CONSTANT_ACCESSOR
+
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name) \
   compiler::TNode<std::remove_reference<decltype(                     \
       *std::declval<Heap>().rootAccessorName())>::type>               \
       name##Constant();
-  HEAP_CONSTANT_LIST(HEAP_CONSTANT_ACCESSOR)
+  HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR
 
 #define HEAP_CONSTANT_TEST(rootIndexName, rootAccessorName, name) \
   TNode<BoolT> Is##name(SloppyTNode<Object> value);               \
   TNode<BoolT> IsNot##name(SloppyTNode<Object> value);
-  HEAP_CONSTANT_LIST(HEAP_CONSTANT_TEST)
+  HEAP_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_TEST)
 #undef HEAP_CONSTANT_TEST
 
   TNode<Int32T> HashSeed();
