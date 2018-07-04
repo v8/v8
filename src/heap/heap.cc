@@ -2840,6 +2840,29 @@ bool Heap::IsImmovable(HeapObject* object) {
   return chunk->NeverEvacuate() || chunk->owner()->identity() == LO_SPACE;
 }
 
+#ifdef ENABLE_SLOW_DCHECKS
+namespace {
+
+class LeftTrimmerVerifierRootVisitor : public RootVisitor {
+ public:
+  explicit LeftTrimmerVerifierRootVisitor(FixedArrayBase* to_check)
+      : to_check_(to_check) {}
+
+  virtual void VisitRootPointers(Root root, const char* description,
+                                 Object** start, Object** end) {
+    for (Object** p = start; p < end; ++p) {
+      DCHECK_NE(*p, to_check_);
+    }
+  }
+
+ private:
+  FixedArrayBase* to_check_;
+
+  DISALLOW_COPY_AND_ASSIGN(LeftTrimmerVerifierRootVisitor);
+};
+}  // namespace
+#endif  // ENABLE_SLOW_DCHECKS
+
 FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
                                          int elements_to_trim) {
   CHECK_NOT_NULL(object);
@@ -2895,6 +2918,16 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
 
   // Notify the heap profiler of change in object layout.
   OnMoveEvent(new_object, object, new_object->Size());
+
+#ifdef ENABLE_SLOW_DCHECKS
+  if (FLAG_enable_slow_asserts) {
+    // Make sure the stack or other roots (e.g., Handles) don't contain pointers
+    // to the original FixedArray (which is now the filler object).
+    LeftTrimmerVerifierRootVisitor root_visitor(object);
+    IterateRoots(&root_visitor, VISIT_ALL);
+  }
+#endif  // ENABLE_SLOW_DCHECKS
+
   return new_object;
 }
 
