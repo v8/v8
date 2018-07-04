@@ -2834,9 +2834,9 @@ void FreeListCategory::RepairFreeList(Heap* heap) {
   while (n != nullptr) {
     Map** map_location = reinterpret_cast<Map**>(n->address());
     if (*map_location == nullptr) {
-      *map_location = heap->free_space_map();
+      *map_location = ReadOnlyRoots(heap).free_space_map();
     } else {
-      DCHECK(*map_location == heap->free_space_map());
+      DCHECK(*map_location == ReadOnlyRoots(heap).free_space_map());
     }
     n = n->next();
   }
@@ -3382,7 +3382,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
     // Make the object consistent so the heap can be verified in OldSpaceStep.
     // We only need to do this in debug builds or if verify_heap is on.
     reinterpret_cast<Object**>(object->address())[0] =
-        heap()->fixed_array_map();
+        ReadOnlyRoots(heap()).fixed_array_map();
     reinterpret_cast<Object**>(object->address())[1] = Smi::kZero;
   }
 

@@ -432,9 +432,11 @@ template <LiveObjectIterationMode mode>
 LiveObjectRange<mode>::iterator::iterator(MemoryChunk* chunk, Bitmap* bitmap,
                                           Address start)
     : chunk_(chunk),
-      one_word_filler_map_(chunk->heap()->one_pointer_filler_map()),
-      two_word_filler_map_(chunk->heap()->two_pointer_filler_map()),
-      free_space_map_(chunk->heap()->free_space_map()),
+      one_word_filler_map_(
+          ReadOnlyRoots(chunk->heap()).one_pointer_filler_map()),
+      two_word_filler_map_(
+          ReadOnlyRoots(chunk->heap()).two_pointer_filler_map()),
+      free_space_map_(ReadOnlyRoots(chunk->heap()).free_space_map()),
       it_(chunk, bitmap) {
   it_.Advance(Bitmap::IndexToCell(
       Bitmap::CellAlignIndex(chunk_->AddressToMarkbitIndex(start))));

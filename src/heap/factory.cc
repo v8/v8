@@ -399,7 +399,8 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(int length,
   result->set_map_after_allocation(*fixed_array_map(), SKIP_WRITE_BARRIER);
   Handle<FixedArray> array(FixedArray::cast(result), isolate());
   array->set_length(length);
-  MemsetPointer(array->data_start(), heap->undefined_value(), length);
+  MemsetPointer(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
+                length);
   return array;
 }
 
@@ -1548,17 +1549,18 @@ Handle<Script> Factory::NewScriptWithId(Handle<String> source, int script_id,
   DCHECK(tenure == TENURED || tenure == TENURED_READ_ONLY);
   // Create and initialize script object.
   Heap* heap = isolate()->heap();
+  ReadOnlyRoots roots(heap);
   Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE, tenure));
   script->set_source(*source);
-  script->set_name(heap->undefined_value());
+  script->set_name(roots.undefined_value());
   script->set_id(script_id);
   script->set_line_offset(0);
   script->set_column_offset(0);
-  script->set_context_data(heap->undefined_value());
+  script->set_context_data(roots.undefined_value());
   script->set_type(Script::TYPE_NORMAL);
-  script->set_wrapper(heap->undefined_value());
-  script->set_line_ends(heap->undefined_value());
-  script->set_eval_from_shared_or_wrapped_arguments(heap->undefined_value());
+  script->set_wrapper(roots.undefined_value());
+  script->set_line_ends(roots.undefined_value());
+  script->set_eval_from_shared_or_wrapped_arguments(roots.undefined_value());
   script->set_eval_from_position(0);
   script->set_shared_function_infos(*empty_weak_fixed_array(),
                                     SKIP_WRITE_BARRIER);
@@ -2048,7 +2050,7 @@ Handle<WeakFixedArray> Factory::CopyWeakFixedArrayAndGrow(
   WriteBarrierMode mode = obj->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < old_len; i++) result->Set(i, src->Get(i), mode);
   HeapObjectReference* undefined_reference =
-      HeapObjectReference::Strong(isolate()->heap()->undefined_value());
+      HeapObjectReference::Strong(ReadOnlyRoots(isolate()).undefined_value());
   MemsetPointer(result->data_start() + old_len, undefined_reference, grow_by);
   return Handle<WeakFixedArray>(result, isolate());
 }
@@ -2070,7 +2072,7 @@ Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
   WriteBarrierMode mode = obj->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < old_capacity; i++) result->Set(i, src->Get(i), mode);
   HeapObjectReference* undefined_reference =
-      HeapObjectReference::Strong(isolate()->heap()->undefined_value());
+      HeapObjectReference::Strong(ReadOnlyRoots(isolate()).undefined_value());
   MemsetPointer(result->data_start() + old_capacity, undefined_reference,
                 grow_by);
   return Handle<WeakArrayList>(result, isolate());
@@ -2975,7 +2977,7 @@ Handle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
   FieldIndex index = FieldIndex::ForDescriptor(
       *map, JSModuleNamespace::kToStringTagFieldIndex);
   module_namespace->FastPropertyAtPut(index,
-                                      isolate()->heap()->Module_string());
+                                      ReadOnlyRoots(isolate()).Module_string());
   return module_namespace;
 }
 
@@ -3005,18 +3007,19 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
       requested_modules_length > 0 ? NewFixedArray(requested_modules_length)
                                    : empty_fixed_array();
 
+  ReadOnlyRoots roots(isolate());
   Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE, TENURED));
   module->set_code(*code);
   module->set_exports(*exports);
   module->set_regular_exports(*regular_exports);
   module->set_regular_imports(*regular_imports);
   module->set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
-  module->set_module_namespace(isolate()->heap()->undefined_value());
+  module->set_module_namespace(roots.undefined_value());
   module->set_requested_modules(*requested_modules);
   module->set_script(Script::cast(code->script()));
   module->set_status(Module::kUninstantiated);
-  module->set_exception(isolate()->heap()->the_hole_value());
-  module->set_import_meta(isolate()->heap()->the_hole_value());
+  module->set_exception(roots.the_hole_value());
+  module->set_import_meta(roots.the_hole_value());
   module->set_dfs_index(-1);
   module->set_dfs_ancestor_index(-1);
   return module;
@@ -3588,8 +3591,9 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   DCHECK(!shared->HasDebugInfo());
   debug_info->set_function_identifier(
       shared->function_identifier_or_debug_info());
-  debug_info->set_original_bytecode_array(heap->undefined_value());
-  debug_info->set_break_points(heap->empty_fixed_array());
+  debug_info->set_original_bytecode_array(
+      ReadOnlyRoots(heap).undefined_value());
+  debug_info->set_break_points(ReadOnlyRoots(heap).empty_fixed_array());
 
   // Link debug info to function.
   shared->SetDebugInfo(*debug_info);
@@ -4046,7 +4050,7 @@ Handle<CallHandlerInfo> Factory::NewCallHandlerInfo(bool has_no_side_effect) {
                         : side_effect_call_handler_info_map();
   Handle<CallHandlerInfo> info(CallHandlerInfo::cast(New(map, TENURED)),
                                isolate());
-  Object* undefined_value = isolate()->heap()->undefined_value();
+  Object* undefined_value = ReadOnlyRoots(isolate()).undefined_value();
   info->set_callback(undefined_value);
   info->set_js_callback(undefined_value);
   info->set_data(undefined_value);

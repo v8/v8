@@ -27,7 +27,7 @@ struct WeakListVisitor;
 
 template <class T>
 Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
-  Object* undefined = heap->undefined_value();
+  Object* undefined = ReadOnlyRoots(heap).undefined_value();
   Object* head = undefined;
   T* tail = nullptr;
   bool record_slots = MustRecordSlots(heap);
@@ -78,7 +78,7 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
 
 template <class T>
 static void ClearWeakList(Heap* heap, Object* list) {
-  Object* undefined = heap->undefined_value();
+  Object* undefined = ReadOnlyRoots(heap).undefined_value();
   while (list != undefined) {
     T* candidate = reinterpret_cast<T*>(list);
     list = WeakListVisitor<T>::WeakNext(candidate);
@@ -108,7 +108,7 @@ struct WeakListVisitor<Code> {
   static void VisitPhantomObject(Heap* heap, Code* code) {
     // Even though the code is dying, its code_data_container can still be
     // alive. Clear the next_code_link slot to avoid a dangling pointer.
-    SetWeakNext(code, heap->undefined_value());
+    SetWeakNext(code, ReadOnlyRoots(heap).undefined_value());
   }
 };
 

@@ -405,7 +405,7 @@ bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject* obj,
     bool cow_check = check_cow_array == kIgnoreCow || !IsCowArray(fixed_array);
     return CanRecordFixedArray(fixed_array) && cow_check;
   }
-  if (obj == heap_->empty_property_array()) return false;
+  if (obj == ReadOnlyRoots(heap_).empty_property_array()) return false;
   return true;
 }
 
@@ -721,14 +721,15 @@ void ObjectStatsCollectorImpl::RecordObjectStats(HeapObject* obj,
 }
 
 bool ObjectStatsCollectorImpl::CanRecordFixedArray(FixedArrayBase* array) {
-  return array != heap_->empty_fixed_array() &&
-         array != heap_->empty_sloppy_arguments_elements() &&
-         array != heap_->empty_slow_element_dictionary() &&
+  ReadOnlyRoots roots(heap_);
+  return array != roots.empty_fixed_array() &&
+         array != roots.empty_sloppy_arguments_elements() &&
+         array != roots.empty_slow_element_dictionary() &&
          array != heap_->empty_property_dictionary();
 }
 
 bool ObjectStatsCollectorImpl::IsCowArray(FixedArrayBase* array) {
-  return array->map() == heap_->fixed_cow_array_map();
+  return array->map() == ReadOnlyRoots(heap_).fixed_cow_array_map();
 }
 
 bool ObjectStatsCollectorImpl::SameLiveness(HeapObject* obj1,
@@ -741,7 +742,8 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map* map) {
   // TODO(mlippautz): map->dependent_code(): DEPENDENT_CODE_TYPE.
 
   DescriptorArray* array = map->instance_descriptors();
-  if (map->owns_descriptors() && array != heap_->empty_descriptor_array()) {
+  if (map->owns_descriptors() &&
+      array != ReadOnlyRoots(heap_).empty_descriptor_array()) {
     // DescriptorArray has its own instance type.
     EnumCache* enum_cache = array->GetEnumCache();
     RecordSimpleVirtualObjectStats(array, enum_cache->keys(),

@@ -103,7 +103,7 @@ void MarkingVerifier::VerifyMarkingOnPage(const Page* page, Address start,
     object = HeapObject::FromAddress(current);
     // One word fillers at the end of a black area can be grey.
     if (IsBlackOrGrey(object) &&
-        object->map() != heap_->one_pointer_filler_map()) {
+        object->map() != ReadOnlyRoots(heap_).one_pointer_filler_map()) {
       CHECK(IsMarked(object));
       CHECK(current >= next_object_must_be_here_or_later);
       object->Iterate(this);
@@ -949,7 +949,7 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     // Visit all HeapObject pointers in [start, end).
-    Object* the_hole = heap_->the_hole_value();
+    Object* the_hole = ReadOnlyRoots(heap_).the_hole_value();
     MarkCompactCollector::NonAtomicMarkingState* marking_state =
         heap_->mark_compact_collector()->non_atomic_marking_state();
     for (Object** p = start; p < end; p++) {
@@ -993,7 +993,7 @@ class ExternalStringTableCleaner : public RootVisitor {
     // Visit all HeapObject pointers in [start, end).
     MarkCompactCollector::NonAtomicMarkingState* marking_state =
         heap_->mark_compact_collector()->non_atomic_marking_state();
-    Object* the_hole = heap_->the_hole_value();
+    Object* the_hole = ReadOnlyRoots(heap_).the_hole_value();
     for (Object** p = start; p < end; p++) {
       Object* o = *p;
       if (o->IsHeapObject()) {
@@ -1903,7 +1903,7 @@ void MarkCompactCollector::TrimDescriptorArray(Map* map,
                                                DescriptorArray* descriptors) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) {
-    DCHECK(descriptors == heap_->empty_descriptor_array());
+    DCHECK(descriptors == ReadOnlyRoots(heap_).empty_descriptor_array());
     return;
   }
 
@@ -3840,7 +3840,7 @@ class YoungGenerationExternalStringTableCleaner : public RootVisitor {
             DCHECK(o->IsThinString());
           }
           // Set the entry to the_hole_value (as deleted).
-          *p = heap_->the_hole_value();
+          *p = ReadOnlyRoots(heap_).the_hole_value();
         }
       }
     }

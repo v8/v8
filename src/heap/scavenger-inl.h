@@ -165,7 +165,7 @@ void Scavenger::EvacuateShortcutCandidate(Map* map, HeapObject** slot,
                                           ConsString* object, int object_size) {
   DCHECK(IsShortcutCandidate(map->instance_type()));
   if (!is_incremental_marking_ &&
-      object->unchecked_second() == heap()->empty_string()) {
+      object->unchecked_second() == ReadOnlyRoots(heap()).empty_string()) {
     HeapObject* first = HeapObject::cast(object->unchecked_first());
 
     *slot = first;
@@ -248,7 +248,7 @@ void Scavenger::ScavengeObject(HeapObjectReference** p, HeapObject* object) {
 
   Map* map = first_word.ToMap();
   // AllocationMementos are unrooted and shouldn't survive a scavenge
-  DCHECK_NE(heap()->allocation_memento_map(), map);
+  DCHECK_NE(ReadOnlyRoots(heap()).allocation_memento_map(), map);
   // Call the slow part of scavenge object.
   EvacuateObject(p, map, object);
 }

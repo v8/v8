@@ -3999,9 +3999,10 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
       // We need to find a FixedArrayBase map after walking the fillers.
       while (current->IsFiller()) {
         Address next = reinterpret_cast<Address>(current);
-        if (current->map() == heap_->one_pointer_filler_map()) {
+        if (current->map() == ReadOnlyRoots(heap_).one_pointer_filler_map()) {
           next += kPointerSize;
-        } else if (current->map() == heap_->two_pointer_filler_map()) {
+        } else if (current->map() ==
+                   ReadOnlyRoots(heap_).two_pointer_filler_map()) {
           next += 2 * kPointerSize;
         } else {
           next += current->Size();

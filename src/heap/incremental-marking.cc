@@ -588,7 +588,7 @@ void IncrementalMarking::FinalizeIncrementally() {
 void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
   if (!IsMarking()) return;
 
-  Map* filler_map = heap_->one_pointer_filler_map();
+  Map* filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();
 
 #ifdef ENABLE_MINOR_MC
   MinorMarkCompactCollector::MarkingState* minor_marking_state =
