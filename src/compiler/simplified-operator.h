@@ -759,6 +759,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);
 
+  // load-data-view-element buffer, [base + index]
+  const Operator* LoadDataViewElement(ExternalArrayType const&);
+
   // store-typed-element buffer, [base + external + index], value
   const Operator* StoreTypedElement(ExternalArrayType const&);
 

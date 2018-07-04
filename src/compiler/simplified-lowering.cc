@@ -2630,6 +2630,16 @@ class RepresentationSelector {
         SetOutput(node, rep);
         return;
       }
+      case IrOpcode::kLoadDataViewElement: {
+        MachineRepresentation const rep =
+            MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
+        ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
+        ProcessInput(node, 1, UseInfo::PointerInt());        // external pointer
+        ProcessInput(node, 2, UseInfo::TruncatingWord32());  // index
+        ProcessRemainingInputs(node, 3);
+        SetOutput(node, rep);
+        return;
+      }
       case IrOpcode::kStoreTypedElement: {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));

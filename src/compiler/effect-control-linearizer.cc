@@ -935,6 +935,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kLoadTypedElement:
       result = LowerLoadTypedElement(node);
       break;
+    case IrOpcode::kLoadDataViewElement:
+      result = LowerLoadDataViewElement(node);
+      break;
     case IrOpcode::kStoreTypedElement:
       LowerStoreTypedElement(node);
       break;
@@ -3740,6 +3743,22 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
 
   __ Bind(&done);
   return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerLoadDataViewElement(Node* node) {
+  ExternalArrayType element_type = ExternalArrayTypeOf(node->op());
+  Node* buffer = node->InputAt(0);
+  Node* storage = node->InputAt(1);
+  Node* index = node->InputAt(2);
+
+  // We need to keep the {buffer} alive so that the GC will not release the
+  // ArrayBuffer (if there's any) as long as we are still operating on it.
+  __ Retain(buffer);
+
+  // Perform the actual data view element access.
+  return __ LoadElement(AccessBuilder::ForTypedArrayElement(
+                            element_type, true, LoadSensitivity::kCritical),
+                        storage, index);
 }
 
 Node* EffectControlLinearizer::LowerLoadTypedElement(Node* node) {

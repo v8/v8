@@ -141,6 +141,7 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
 
 ExternalArrayType ExternalArrayTypeOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kLoadTypedElement ||
+         op->opcode() == IrOpcode::kLoadDataViewElement ||
          op->opcode() == IrOpcode::kStoreTypedElement);
   return OpParameter<ExternalArrayType>(op);
 }
@@ -1529,7 +1530,8 @@ SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
   V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1)          \
   V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)          \
   V(LoadTypedElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1) \
-  V(StoreTypedElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)
+  V(StoreTypedElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0) \
+  V(LoadDataViewElement, ExternalArrayType, Operator::kNoWrite, 3, 1, 1)
 
 #define ACCESS(Name, Type, properties, value_input_count, control_input_count, \
                output_count)                                                   \

@@ -1498,6 +1498,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kLoadTypedElement:
       break;
+    case IrOpcode::kLoadDataViewElement:
+      break;
     case IrOpcode::kStoreField:
       // (Object, fieldtype) -> _|_
       // TODO(rossberg): activate once machine ops are typed.

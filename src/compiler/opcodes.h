@@ -380,6 +380,7 @@
   V(LoadField)                          \
   V(LoadElement)                        \
   V(LoadTypedElement)                   \
+  V(LoadDataViewElement)                \
   V(StoreField)                         \
   V(StoreElement)                       \
   V(StoreTypedElement)                  \

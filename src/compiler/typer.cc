@@ -2043,6 +2043,17 @@ Type Typer::Visitor::TypeLoadTypedElement(Node* node) {
   UNREACHABLE();
 }
 
+Type Typer::Visitor::TypeLoadDataViewElement(Node* node) {
+  switch (ExternalArrayTypeOf(node->op())) {
+#define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype, size) \
+  case kExternal##ElemType##Array:                          \
+    return typer_->cache_.k##ElemType;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  }
+  UNREACHABLE();
+}
+
 Type Typer::Visitor::TypeStoreField(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeStoreElement(Node* node) { UNREACHABLE(); }

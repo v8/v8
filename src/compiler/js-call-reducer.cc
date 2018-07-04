@@ -6563,6 +6563,20 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
   return NoChange();
 }
 
+namespace {
+int ExternalArrayElementSize(const ExternalArrayType element_type) {
+  switch (element_type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                          \
+    return size;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    default:
+      UNREACHABLE();
+#undef TYPED_ARRAY_CASE
+  }
+}
+}  // namespace
+
 Reduction JSCallReducer::ReduceDataViewPrototypeGet(
     Node* node, ExternalArrayType element_type) {
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -6641,9 +6655,9 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
 
     // The end offset is the offset plus the element size
     // of the type that we want to load.
-    // Since we only load int8 and uint8 for now, that size is 1.
+    int element_size = ExternalArrayElementSize(element_type);
     Node* end_offset = graph()->NewNode(simplified()->NumberAdd(), offset,
-                                        jsgraph()->OneConstant());
+                                        jsgraph()->Constant(element_size));
 
     // We need to check that {end_offset} <= {byte_length}, ie
     // throw a RangeError if {byte_length} < {end_offset}.
@@ -6679,8 +6693,7 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
 
       // Perform the load.
       vfalse_range = efalse_range = graph()->NewNode(
-          simplified()->LoadElement(AccessBuilder::ForTypedArrayElement(
-              element_type, true, LoadSensitivity::kCritical)),
+          simplified()->LoadDataViewElement(element_type), buffer,
           backing_store, buffer_index, efalse_range, if_false_range);
     }
 
@@ -6699,7 +6712,7 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
                            if_true_range);  // We threw because out of bounds.
       if_true_range = graph()->NewNode(common()->IfSuccess(), if_true_range);
 
-      // We can't throw in LoadTypedElement(),
+      // We can't throw in LoadDataViewElement(),
       // so we don't need to handle that path here.
 
       // Join the exception edges.
