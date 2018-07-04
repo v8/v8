@@ -914,7 +914,8 @@ void V8HeapExplorer::ExtractJSObjectReferences(
   ExtractElementReferences(js_obj, entry);
   ExtractInternalReferences(js_obj, entry);
   PrototypeIterator iter(heap_->isolate(), js_obj);
-  SetPropertyReference(obj, entry, heap_->proto_string(), iter.GetCurrent());
+  ReadOnlyRoots roots(heap_);
+  SetPropertyReference(obj, entry, roots.proto_string(), iter.GetCurrent());
   if (obj->IsJSBoundFunction()) {
     JSBoundFunction* js_fun = JSBoundFunction::cast(obj);
     TagObject(js_fun->bound_arguments(), "(bound arguments)");
@@ -936,11 +937,11 @@ void V8HeapExplorer::ExtractJSObjectReferences(
       Object* proto_or_map = js_fun->prototype_or_initial_map();
       if (!proto_or_map->IsTheHole(heap_->isolate())) {
         if (!proto_or_map->IsMap()) {
-          SetPropertyReference(obj, entry, heap_->prototype_string(),
+          SetPropertyReference(obj, entry, roots.prototype_string(),
                                proto_or_map, nullptr,
                                JSFunction::kPrototypeOrInitialMapOffset);
         } else {
-          SetPropertyReference(obj, entry, heap_->prototype_string(),
+          SetPropertyReference(obj, entry, roots.prototype_string(),
                                js_fun->prototype());
           SetInternalReference(obj, entry, "initial_map", proto_or_map,
                                JSFunction::kPrototypeOrInitialMapOffset);
@@ -1178,7 +1179,7 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   HeapObject* obj = shared;
   String* shared_name = shared->DebugName();
   const char* name = nullptr;
-  if (shared_name != heap_->empty_string()) {
+  if (shared_name != ReadOnlyRoots(heap_).empty_string()) {
     name = names_->GetName(shared_name);
     TagObject(shared->GetCode(), names_->GetFormatted("(code for %s)", name));
   } else {
@@ -1502,7 +1503,7 @@ void V8HeapExplorer::ExtractInternalReferences(JSObject* js_obj, int entry) {
 
 String* V8HeapExplorer::GetConstructorName(JSObject* object) {
   Isolate* isolate = object->GetIsolate();
-  if (object->IsJSFunction()) return isolate->heap()->closure_string();
+  if (object->IsJSFunction()) return ReadOnlyRoots(isolate).closure_string();
   DisallowHeapAllocation no_gc;
   HandleScope scope(isolate);
   return *JSReceiver::GetConstructorName(handle(object, isolate));
@@ -1597,17 +1598,18 @@ bool V8HeapExplorer::IterateAndExtractReferences(SnapshotFiller* filler) {
 
 
 bool V8HeapExplorer::IsEssentialObject(Object* object) {
+  ReadOnlyRoots roots(heap_);
   return object->IsHeapObject() && !object->IsOddball() &&
-         object != heap_->empty_byte_array() &&
-         object != heap_->empty_fixed_array() &&
-         object != heap_->empty_weak_fixed_array() &&
-         object != heap_->empty_descriptor_array() &&
-         object != heap_->fixed_array_map() && object != heap_->cell_map() &&
-         object != heap_->global_property_cell_map() &&
-         object != heap_->shared_function_info_map() &&
-         object != heap_->free_space_map() &&
-         object != heap_->one_pointer_filler_map() &&
-         object != heap_->two_pointer_filler_map();
+         object != roots.empty_byte_array() &&
+         object != roots.empty_fixed_array() &&
+         object != roots.empty_weak_fixed_array() &&
+         object != roots.empty_descriptor_array() &&
+         object != roots.fixed_array_map() && object != roots.cell_map() &&
+         object != roots.global_property_cell_map() &&
+         object != roots.shared_function_info_map() &&
+         object != roots.free_space_map() &&
+         object != roots.one_pointer_filler_map() &&
+         object != roots.two_pointer_filler_map();
 }
 
 bool V8HeapExplorer::IsEssentialHiddenReference(Object* parent,
@@ -1845,27 +1847,34 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
 }
 
 const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
+  ReadOnlyRoots roots(heap_);
   if (strong_gc_subroot_names_.is_empty()) {
 #define NAME_ENTRY(name) strong_gc_subroot_names_.SetTag(heap_->name(), #name);
+#define RO_NAME_ENTRY(name) \
+  strong_gc_subroot_names_.SetTag(roots.name(), #name);
 #define ROOT_NAME(type, name, camel_name) NAME_ENTRY(name)
-    STRONG_ROOT_LIST(ROOT_NAME)
+    STRONG_MUTABLE_ROOT_LIST(ROOT_NAME)
 #undef ROOT_NAME
-#define STRUCT_MAP_NAME(NAME, Name, name) NAME_ENTRY(name##_map)
+#define ROOT_NAME(type, name, camel_name) RO_NAME_ENTRY(name)
+    STRONG_READ_ONLY_ROOT_LIST(ROOT_NAME)
+#undef ROOT_NAME
+#define STRUCT_MAP_NAME(NAME, Name, name) RO_NAME_ENTRY(name##_map)
     STRUCT_LIST(STRUCT_MAP_NAME)
 #undef STRUCT_MAP_NAME
-#define ALLOCATION_SITE_MAP_NAME(NAME, Name, Size, name) NAME_ENTRY(name##_map)
+#define ALLOCATION_SITE_MAP_NAME(NAME, Name, Size, name) \
+  RO_NAME_ENTRY(name##_map)
     ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_NAME)
 #undef ALLOCATION_SITE_MAP_NAME
 #define DATA_HANDLER_MAP_NAME(NAME, Name, Size, name) NAME_ENTRY(name##_map)
     DATA_HANDLER_LIST(DATA_HANDLER_MAP_NAME)
 #undef DATA_HANDLER_MAP_NAME
-#define STRING_NAME(name, str) NAME_ENTRY(name)
+#define STRING_NAME(name, str) RO_NAME_ENTRY(name)
     INTERNALIZED_STRING_LIST(STRING_NAME)
 #undef STRING_NAME
-#define SYMBOL_NAME(name) NAME_ENTRY(name)
+#define SYMBOL_NAME(name) RO_NAME_ENTRY(name)
     PRIVATE_SYMBOL_LIST(SYMBOL_NAME)
 #undef SYMBOL_NAME
-#define SYMBOL_NAME(name, description) NAME_ENTRY(name)
+#define SYMBOL_NAME(name, description) RO_NAME_ENTRY(name)
     PUBLIC_SYMBOL_LIST(SYMBOL_NAME)
     WELL_KNOWN_SYMBOL_LIST(SYMBOL_NAME)
 #undef SYMBOL_NAME
@@ -1874,6 +1883,7 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
     ACCESSOR_INFO_LIST(ACCESSOR_NAME)
 #undef ACCESSOR_NAME
 #undef NAME_ENTRY
+#undef RO_NAME_ENTRY
     CHECK(!strong_gc_subroot_names_.is_empty());
   }
   return strong_gc_subroot_names_.GetTag(object);

@@ -733,7 +733,7 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
       data->set(array_index++, Smi::FromInt(declaration.slot.ToInt()));
       Object* undefined_or_literal_slot;
       if (declaration.literal_slot.IsInvalid()) {
-        undefined_or_literal_slot = isolate->heap()->undefined_value();
+        undefined_or_literal_slot = ReadOnlyRoots(isolate).undefined_value();
       } else {
         undefined_or_literal_slot =
             Smi::FromInt(declaration.literal_slot.ToInt());
