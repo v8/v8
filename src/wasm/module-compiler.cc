@@ -738,9 +738,10 @@ void ValidateSequentially(Isolate* isolate, NativeModule* native_module,
 
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const WasmModule* module = native_module->module();
-  for (uint32_t i = 0; i < module->functions.size(); ++i) {
+  uint32_t start = module->num_imported_functions;
+  uint32_t end = start + module->num_declared_functions;
+  for (uint32_t i = start; i < end; ++i) {
     const WasmFunction& func = module->functions[i];
-    if (func.imported) continue;
 
     const byte* base = wire_bytes.start();
     FunctionBody body{func.sig, func.code.offset(), base + func.code.offset(),
