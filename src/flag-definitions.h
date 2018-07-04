@@ -863,7 +863,6 @@ DEFINE_BOOL(enable_experimental_builtins, false,
             "enable new csa-based experimental builtins")
 DEFINE_BOOL(disallow_code_generation_from_strings, false,
             "disallow eval and friends")
-DEFINE_BOOL(expose_async_hooks, false, "expose async_hooks object")
 
 // builtins.cc
 DEFINE_BOOL(allow_unsafe_function_constructor, false,
