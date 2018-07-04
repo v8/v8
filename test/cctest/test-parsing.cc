@@ -1174,7 +1174,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   if (test_preparser) {
     i::Scanner scanner(isolate->unicode_cache());
     std::unique_ptr<i::Utf16CharacterStream> stream(
-        i::ScannerStream::For(source));
+        i::ScannerStream::For(isolate, source));
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->ast_string_constants(),
