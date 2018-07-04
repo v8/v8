@@ -534,7 +534,7 @@ DEFINE_UINT(wasm_max_mem_pages, v8::internal::wasm::kV8MaxWasmMemoryPages,
             "maximum memory size of a wasm instance")
 DEFINE_UINT(wasm_max_table_size, v8::internal::wasm::kV8MaxWasmTableSize,
             "maximum table size of a wasm instance")
-// Enable liftoff by default on ia32 and x64. More architectures will follow
+// Enable Liftoff by default on ia32 and x64. More architectures will follow
 // once they are implemented and sufficiently tested.
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
 DEFINE_BOOL(
@@ -559,9 +559,9 @@ DEFINE_INT(trace_wasm_ast_start, 0,
            "start function for wasm AST trace (inclusive)")
 DEFINE_INT(trace_wasm_ast_end, 0, "end function for wasm AST trace (exclusive)")
 DEFINE_BOOL(liftoff, false,
-            "enable liftoff, the experimental wasm baseline compiler")
+            "enable Liftoff, the baseline compiler for WebAssembly")
 DEFINE_DEBUG_BOOL(trace_liftoff, false,
-                  "trace liftoff, the wasm baseline compiler")
+                  "trace Liftoff, the baseline compiler for WebAssembly")
 DEFINE_DEBUG_BOOL(wasm_break_on_decoder_error, false,
                   "debug break when wasm decoder encounters an error")
 DEFINE_BOOL(wasm_trace_memory, false,
