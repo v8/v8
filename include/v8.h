@@ -6290,7 +6290,8 @@ class V8_EXPORT AccessorSignature : public Data {
 
 
 // --- Extensions ---
-
+V8_DEPRECATE_SOON("Implementation detail",
+                  class ExternalOneByteStringResourceImpl);
 class V8_EXPORT ExternalOneByteStringResourceImpl
     : public String::ExternalOneByteStringResource {
  public:
@@ -6317,7 +6318,7 @@ class V8_EXPORT Extension {  // NOLINT
             int dep_count = 0,
             const char** deps = 0,
             int source_length = -1);
-  virtual ~Extension() { }
+  virtual ~Extension() { delete source_; }
   virtual Local<FunctionTemplate> GetNativeFunctionTemplate(
       Isolate* isolate, Local<String> name) {
     return Local<FunctionTemplate>();
@@ -6326,7 +6327,8 @@ class V8_EXPORT Extension {  // NOLINT
   const char* name() const { return name_; }
   size_t source_length() const { return source_length_; }
   const String::ExternalOneByteStringResource* source() const {
-    return &source_; }
+    return source_;
+  }
   int dependency_count() { return dep_count_; }
   const char** dependencies() { return deps_; }
   void set_auto_enable(bool value) { auto_enable_ = value; }
@@ -6339,7 +6341,7 @@ class V8_EXPORT Extension {  // NOLINT
  private:
   const char* name_;
   size_t source_length_;  // expected to initialize before source_
-  ExternalOneByteStringResourceImpl source_;
+  String::ExternalOneByteStringResource* source_;
   int dep_count_;
   const char** deps_;
   bool auto_enable_;

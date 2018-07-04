@@ -1244,6 +1244,8 @@ TEST(SliceFromExternal) {
   CHECK_EQ(SlicedString::cast(*slice)->parent(), *string);
   CHECK(SlicedString::cast(*slice)->parent()->IsExternalString());
   CHECK(slice->IsFlat());
+  // This avoids the GC from trying to free stack allocated resources.
+  i::Handle<i::ExternalOneByteString>::cast(string)->set_resource(nullptr);
 }
 
 

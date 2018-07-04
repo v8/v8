@@ -1271,6 +1271,7 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
   external_string->set_length(static_cast<int>(length));
   external_string->set_hash_field(String::kEmptyHashField);
   external_string->set_resource(resource);
+  isolate()->heap()->RegisterExternalString(*external_string);
 
   return external_string;
 }
@@ -1303,6 +1304,7 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
   external_string->set_length(static_cast<int>(length));
   external_string->set_hash_field(String::kEmptyHashField);
   external_string->set_resource(resource);
+  isolate()->heap()->RegisterExternalString(*external_string);
 
   return external_string;
 }
@@ -1318,6 +1320,7 @@ Handle<ExternalOneByteString> Factory::NewNativeSourceString(
   external_string->set_length(static_cast<int>(length));
   external_string->set_hash_field(String::kEmptyHashField);
   external_string->set_resource(resource);
+  isolate()->heap()->RegisterExternalString(*external_string);
 
   return external_string;
 }

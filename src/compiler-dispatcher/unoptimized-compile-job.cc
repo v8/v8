@@ -180,14 +180,12 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
     if (source->IsOneByteRepresentation()) {
       ExternalOneByteString::Resource* resource =
           new OneByteWrapper(data, length);
-      source_wrapper_.reset(resource);
       wrapper = isolate->factory()
                     ->NewExternalStringFromOneByte(resource)
                     .ToHandleChecked();
     } else {
       ExternalTwoByteString::Resource* resource =
           new TwoByteWrapper(data, length);
-      source_wrapper_.reset(resource);
       wrapper = isolate->factory()
                     ->NewExternalStringFromTwoByte(resource)
                     .ToHandleChecked();

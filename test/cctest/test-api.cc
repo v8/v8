@@ -15621,6 +15621,8 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
   virtual ~OneByteVectorResource() {}
   virtual size_t length() const { return data_.length(); }
   virtual const char* data() const { return data_.start(); }
+  virtual void Dispose() {}
+
  private:
   i::Vector<const char> data_;
 };
@@ -15633,6 +15635,8 @@ class UC16VectorResource : public v8::String::ExternalStringResource {
   virtual ~UC16VectorResource() {}
   virtual size_t length() const { return data_.length(); }
   virtual const i::uc16* data() const { return data_.start(); }
+  virtual void Dispose() {}
+
  private:
   i::Vector<const i::uc16> data_;
 };
@@ -15676,15 +15680,14 @@ THREADED_TEST(MorphCompositeStringTest) {
     OneByteVectorResource one_byte_resource(
         i::Vector<const char>(c_string, i::StrLength(c_string)));
     UC16VectorResource uc16_resource(
-        i::Vector<const uint16_t>(two_byte_string,
-                                  i::StrLength(c_string)));
+        i::Vector<const uint16_t>(two_byte_string, i::StrLength(c_string)));
 
-    Local<String> lhs(
-        v8::Utils::ToLocal(factory->NewExternalStringFromOneByte(
-                                        &one_byte_resource).ToHandleChecked()));
-    Local<String> rhs(
-        v8::Utils::ToLocal(factory->NewExternalStringFromOneByte(
-                                        &one_byte_resource).ToHandleChecked()));
+    Local<String> lhs(v8::Utils::ToLocal(
+        factory->NewExternalStringFromOneByte(&one_byte_resource)
+            .ToHandleChecked()));
+    Local<String> rhs(v8::Utils::ToLocal(
+        factory->NewExternalStringFromOneByte(&one_byte_resource)
+            .ToHandleChecked()));
 
     CHECK(env->Global()->Set(env.local(), v8_str("lhs"), lhs).FromJust());
     CHECK(env->Global()->Set(env.local(), v8_str("rhs"), rhs).FromJust());
@@ -15697,10 +15700,10 @@ THREADED_TEST(MorphCompositeStringTest) {
     CHECK(lhs->IsOneByte());
     CHECK(rhs->IsOneByte());
 
-    MorphAString(*v8::Utils::OpenHandle(*lhs), &one_byte_resource,
-                 &uc16_resource);
-    MorphAString(*v8::Utils::OpenHandle(*rhs), &one_byte_resource,
-                 &uc16_resource);
+    i::String* ilhs = *v8::Utils::OpenHandle(*lhs);
+    i::String* irhs = *v8::Utils::OpenHandle(*rhs);
+    MorphAString(ilhs, &one_byte_resource, &uc16_resource);
+    MorphAString(irhs, &one_byte_resource, &uc16_resource);
 
     // This should UTF-8 without flattening, since everything is ASCII.
     Local<String> cons =
@@ -15743,6 +15746,16 @@ THREADED_TEST(MorphCompositeStringTest) {
                            ->Get(env.local(), v8_str("slice_on_cons"))
                            .ToLocalChecked())
               .FromJust());
+
+    // This avoids the GC from trying to free a stack allocated resource.
+    if (ilhs->IsExternalOneByteString())
+      i::ExternalOneByteString::cast(ilhs)->set_resource(nullptr);
+    else
+      i::ExternalTwoByteString::cast(ilhs)->set_resource(nullptr);
+    if (irhs->IsExternalOneByteString())
+      i::ExternalOneByteString::cast(irhs)->set_resource(nullptr);
+    else
+      i::ExternalTwoByteString::cast(irhs)->set_resource(nullptr);
   }
   i::DeleteArray(two_byte_string);
 }
@@ -20307,6 +20320,8 @@ THREADED_TEST(TwoByteStringInOneByteCons) {
   reresult = CompileRun("str2.charCodeAt(2);");
   CHECK_EQ(static_cast<int32_t>('e'),
            reresult->Int32Value(context.local()).FromJust());
+  // This avoids the GC from trying to free stack allocated resources.
+  i::Handle<i::ExternalTwoByteString>::cast(flat_string)->set_resource(nullptr);
 }
 
 

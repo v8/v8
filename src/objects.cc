@@ -2626,6 +2626,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
   self->set_resource(resource);
+  heap->RegisterExternalString(this);
   if (is_internalized) self->Hash();  // Force regeneration of the hash value.
   return true;
 }
@@ -2696,6 +2697,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 
   ExternalOneByteString* self = ExternalOneByteString::cast(this);
   self->set_resource(resource);
+  heap->RegisterExternalString(this);
   if (is_internalized) self->Hash();  // Force regeneration of the hash value.
   return true;
 }

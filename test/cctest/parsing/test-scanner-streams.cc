@@ -317,6 +317,11 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     std::unique_ptr<i::Utf16CharacterStream> uc16_stream(
         i::ScannerStream::For(uc16_string, start, end));
     TestCharacterStream(one_byte_source, uc16_stream.get(), length, start, end);
+
+    // This avoids the GC from trying to free a stack allocated resource.
+    if (uc16_string->IsExternalString())
+      i::Handle<i::ExternalTwoByteString>::cast(uc16_string)
+          ->set_resource(nullptr);
   }
 
   // 1-byte external string
@@ -333,6 +338,10 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
         i::ScannerStream::For(ext_one_byte_string, start, end));
     TestCharacterStream(one_byte_source, one_byte_stream.get(), length, start,
                         end);
+    // This avoids the GC from trying to free a stack allocated resource.
+    if (ext_one_byte_string->IsExternalString())
+      i::Handle<i::ExternalOneByteString>::cast(ext_one_byte_string)
+          ->set_resource(nullptr);
   }
 
   // 1-byte generic i::String

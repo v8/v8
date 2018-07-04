@@ -945,6 +945,21 @@ void RegisteredExtension::UnregisterAll() {
   first_extension_ = nullptr;
 }
 
+namespace {
+class ExtensionResource : public String::ExternalOneByteStringResource {
+ public:
+  ExtensionResource() : data_(0), length_(0) {}
+  ExtensionResource(const char* data, size_t length)
+      : data_(data), length_(length) {}
+  const char* data() const { return data_; }
+  size_t length() const { return length_; }
+  virtual void Dispose() {}
+
+ private:
+  const char* data_;
+  size_t length_;
+};
+}  // anonymous namespace
 
 void RegisterExtension(Extension* that) {
   RegisteredExtension* extension = new RegisteredExtension(that);
@@ -961,10 +976,10 @@ Extension::Extension(const char* name,
       source_length_(source_length >= 0 ?
                      source_length :
                      (source ? static_cast<int>(strlen(source)) : 0)),
-      source_(source, source_length_),
       dep_count_(dep_count),
       deps_(deps),
       auto_enable_(false) {
+  source_ = new ExtensionResource(source, source_length_);
   CHECK(source != nullptr || source_length_ == 0);
 }
 
@@ -6719,7 +6734,6 @@ MaybeLocal<String> v8::String::NewExternalTwoByte(
     i::Handle<i::String> string = i_isolate->factory()
                                       ->NewExternalStringFromTwoByte(resource)
                                       .ToHandleChecked();
-    i_isolate->heap()->RegisterExternalString(*string);
     return Utils::ToLocal(string);
   } else {
     // The resource isn't going to be used, free it immediately.
@@ -6743,7 +6757,6 @@ MaybeLocal<String> v8::String::NewExternalOneByte(
     i::Handle<i::String> string = i_isolate->factory()
                                       ->NewExternalStringFromOneByte(resource)
                                       .ToHandleChecked();
-    i_isolate->heap()->RegisterExternalString(*string);
     return Utils::ToLocal(string);
   } else {
     // The resource isn't going to be used, free it immediately.
@@ -6776,7 +6789,6 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   DCHECK(!CanMakeExternal() || result);
   if (result) {
     DCHECK(obj->IsExternalString());
-    isolate->heap()->RegisterExternalString(*obj);
   }
   return result;
 }
@@ -6800,7 +6812,6 @@ bool v8::String::MakeExternal(
   DCHECK(!CanMakeExternal() || result);
   if (result) {
     DCHECK(obj->IsExternalString());
-    isolate->heap()->RegisterExternalString(*obj);
   }
   return result;
 }
