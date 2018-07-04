@@ -383,64 +383,6 @@ static platform::tracing::TraceConfig* CreateTraceConfigFromJSON(
 
 }  // namespace tracing
 
-class PerIsolateData {
- public:
-  explicit PerIsolateData(Isolate* isolate)
-      : isolate_(isolate), realms_(nullptr) {
-    isolate->SetData(0, this);
-  }
-
-  ~PerIsolateData() {
-    isolate_->SetData(0, nullptr);  // Not really needed, just to be sure...
-  }
-
-  inline static PerIsolateData* Get(Isolate* isolate) {
-    return reinterpret_cast<PerIsolateData*>(isolate->GetData(0));
-  }
-
-  class RealmScope {
-   public:
-    explicit RealmScope(PerIsolateData* data);
-    ~RealmScope();
-   private:
-    PerIsolateData* data_;
-  };
-
-  inline void SetTimeout(Local<Function> callback, Local<Context> context) {
-    set_timeout_callbacks_.emplace(isolate_, callback);
-    set_timeout_contexts_.emplace(isolate_, context);
-  }
-
-  inline MaybeLocal<Function> GetTimeoutCallback() {
-    if (set_timeout_callbacks_.empty()) return MaybeLocal<Function>();
-    Local<Function> result = set_timeout_callbacks_.front().Get(isolate_);
-    set_timeout_callbacks_.pop();
-    return result;
-  }
-
-  inline MaybeLocal<Context> GetTimeoutContext() {
-    if (set_timeout_contexts_.empty()) return MaybeLocal<Context>();
-    Local<Context> result = set_timeout_contexts_.front().Get(isolate_);
-    set_timeout_contexts_.pop();
-    return result;
-  }
-
- private:
-  friend class Shell;
-  friend class RealmScope;
-  Isolate* isolate_;
-  int realm_count_;
-  int realm_current_;
-  int realm_switch_;
-  Global<Context>* realms_;
-  Global<Value> realm_shared_;
-  std::queue<Global<Function>> set_timeout_callbacks_;
-  std::queue<Global<Context>> set_timeout_contexts_;
-
-  int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
-                        int arg_offset);
-  int RealmFind(Local<Context> context);
-};
 
 class ExternalOwningOneByteStringResource
     : public String::ExternalOneByteStringResource {
@@ -990,6 +932,41 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   return true;
 }
 
+PerIsolateData::PerIsolateData(Isolate* isolate)
+    : isolate_(isolate), realms_(nullptr) {
+  isolate->SetData(0, this);
+  if (i::FLAG_expose_async_hooks) {
+    async_hooks_wrapper_ = new AsyncHooks(isolate);
+  }
+}
+
+PerIsolateData::~PerIsolateData() {
+  isolate_->SetData(0, nullptr);  // Not really needed, just to be sure...
+  if (i::FLAG_expose_async_hooks) {
+    delete async_hooks_wrapper_;  // This uses the isolate
+  }
+}
+
+void PerIsolateData::SetTimeout(Local<Function> callback,
+                                Local<Context> context) {
+  set_timeout_callbacks_.emplace(isolate_, callback);
+  set_timeout_contexts_.emplace(isolate_, context);
+}
+
+MaybeLocal<Function> PerIsolateData::GetTimeoutCallback() {
+  if (set_timeout_callbacks_.empty()) return MaybeLocal<Function>();
+  Local<Function> result = set_timeout_callbacks_.front().Get(isolate_);
+  set_timeout_callbacks_.pop();
+  return result;
+}
+
+MaybeLocal<Context> PerIsolateData::GetTimeoutContext() {
+  if (set_timeout_contexts_.empty()) return MaybeLocal<Context>();
+  Local<Context> result = set_timeout_contexts_.front().Get(isolate_);
+  set_timeout_contexts_.pop();
+  return result;
+}
+
 PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
   data_->realm_count_ = 1;
   data_->realm_current_ = 0;
@@ -1242,6 +1219,35 @@ void Shell::RealmSharedSet(Local<String> property,
   Isolate* isolate = info.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
   data->realm_shared_.Reset(isolate, value);
+}
+
+// async_hooks.createHook() registers functions to be called for different
+// lifetime events of each async operation.
+void Shell::AsyncHooksCreateHook(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Local<Object> wrap =
+      PerIsolateData::Get(args.GetIsolate())->GetAsyncHooks()->CreateHook(args);
+  args.GetReturnValue().Set(wrap);
+}
+
+// async_hooks.executionAsyncId() returns the asyncId of the current execution
+// context.
+void Shell::AsyncHooksExecutionAsyncId(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  args.GetReturnValue().Set(v8::Number::New(
+      isolate,
+      PerIsolateData::Get(isolate)->GetAsyncHooks()->GetExecutionAsyncId()));
+}
+
+void Shell::AsyncHooksTriggerAsyncId(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope handle_scope(isolate);
+  args.GetReturnValue().Set(v8::Number::New(
+      isolate,
+      PerIsolateData::Get(isolate)->GetAsyncHooks()->GetTriggerAsyncId()));
 }
 
 void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -1856,6 +1862,26 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "os", NewStringType::kNormal)
           .ToLocalChecked(),
       os_templ);
+
+  if (i::FLAG_expose_async_hooks) {
+    Local<ObjectTemplate> async_hooks_templ = ObjectTemplate::New(isolate);
+    async_hooks_templ->Set(
+        String::NewFromUtf8(isolate, "createHook", NewStringType::kNormal)
+            .ToLocalChecked(),
+        FunctionTemplate::New(isolate, AsyncHooksCreateHook));
+    async_hooks_templ->Set(
+        String::NewFromUtf8(isolate, "executionAsyncId", NewStringType::kNormal)
+            .ToLocalChecked(),
+        FunctionTemplate::New(isolate, AsyncHooksExecutionAsyncId));
+    async_hooks_templ->Set(
+        String::NewFromUtf8(isolate, "triggerAsyncId", NewStringType::kNormal)
+            .ToLocalChecked(),
+        FunctionTemplate::New(isolate, AsyncHooksTriggerAsyncId));
+    global_template->Set(
+        String::NewFromUtf8(isolate, "async_hooks", NewStringType::kNormal)
+            .ToLocalChecked(),
+        async_hooks_templ);
+  }
 
   return global_template;
 }
