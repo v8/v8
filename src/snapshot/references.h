@@ -15,15 +15,14 @@ namespace internal {
 class SerializerReference {
  private:
   enum SpecialValueType {
-    kSpecialValue,
+    kInvalidValue,
     kAttachedReference,
     kOffHeapBackingStore,
     kBuiltinReference,
   };
 
   static const int kSpecialValueSpace = LAST_SPACE + 1;
-  static const int kInvalidValue = 0;
-  static const int kDummyValue = 1;
+  STATIC_ASSERT(kSpecialValueSpace < (1 << kSpaceTagSize));
 
   SerializerReference(SpecialValueType type, uint32_t value)
       : bitfield_(SpaceBits::encode(kSpecialValueSpace) |
@@ -31,7 +30,7 @@ class SerializerReference {
         value_(value) {}
 
  public:
-  SerializerReference() : SerializerReference(kSpecialValue, kInvalidValue) {}
+  SerializerReference() : SerializerReference(kInvalidValue, 0) {}
 
   SerializerReference(uint32_t space, uint32_t chunk_index,
                       uint32_t chunk_offset)
@@ -67,14 +66,9 @@ class SerializerReference {
     return SerializerReference(kBuiltinReference, index);
   }
 
-  static SerializerReference DummyReference() {
-    return SerializerReference(kSpecialValue, kDummyValue);
-  }
-
   bool is_valid() const {
     return SpaceBits::decode(bitfield_) != kSpecialValueSpace ||
-           SpecialValueTypeBits::decode(bitfield_) != kSpecialValue ||
-           value_ != kInvalidValue;
+           SpecialValueTypeBits::decode(bitfield_) != kInvalidValue;
   }
 
   bool is_back_reference() const {
