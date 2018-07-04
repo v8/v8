@@ -340,7 +340,7 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
     RelocIterator on_heap_it(code, kRelocMask);
     RelocIterator off_heap_it(blob, code, kRelocMask);
 
-#ifdef V8_TARGET_ARCH_X64
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
     while (!on_heap_it.done()) {
       DCHECK(!off_heap_it.done());
 
@@ -357,12 +357,12 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
     }
     DCHECK(off_heap_it.done());
 #else
-    // Architectures other than x64 do not use pc-relative calls and thus must
-    // not contain embedded code targets. Instead, we use an indirection through
-    // the root register.
+    // Architectures other than x64 and arm64 do not use pc-relative calls and
+    // thus must not contain embedded code targets. Instead, we use an
+    // indirection through the root register.
     CHECK(on_heap_it.done());
     CHECK(off_heap_it.done());
-#endif  // V8_TARGET_ARCH_X64
+#endif  // defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
   }
 }
 }  // namespace

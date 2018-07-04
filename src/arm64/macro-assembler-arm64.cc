@@ -1931,7 +1931,13 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
+    if (root_array_available_ && options().isolate_independent_code &&
+        !Builtins::IsIsolateIndependentBuiltin(*code)) {
+      // Calls to embedded targets are initially generated as standard
+      // pc-relative calls below. When creating the embedded blob, call offsets
+      // are patched up to point directly to the off-heap instruction start.
+      // Note: It is safe to dereference {code} above since code generation
+      // for builtins and code stubs happens on the main thread.
       UseScratchRegisterScope temps(this);
       Register scratch = temps.AcquireX();
       IndirectLoadConstant(scratch, code);
@@ -2004,7 +2010,13 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
 #endif
 
   if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
+    if (root_array_available_ && options().isolate_independent_code &&
+        !Builtins::IsIsolateIndependentBuiltin(*code)) {
+      // Calls to embedded targets are initially generated as standard
+      // pc-relative calls below. When creating the embedded blob, call offsets
+      // are patched up to point directly to the off-heap instruction start.
+      // Note: It is safe to dereference {code} above since code generation
+      // for builtins and code stubs happens on the main thread.
       UseScratchRegisterScope temps(this);
       Register scratch = temps.AcquireX();
       IndirectLoadConstant(scratch, code);
