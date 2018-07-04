@@ -1514,7 +1514,7 @@ class RegExpEngine: public AllStatic {
   struct CompilationResult {
     CompilationResult(Isolate* isolate, const char* error_message)
         : error_message(error_message),
-          code(isolate->heap()->the_hole_value()),
+          code(ReadOnlyRoots(isolate).the_hole_value()),
           num_registers(0) {}
     CompilationResult(Object* code, int registers)
         : error_message(nullptr), code(code), num_registers(registers) {}

@@ -164,29 +164,29 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     UNREACHABLE();
   }
 
+  ReadOnlyRoots roots(isolate());
   if (ElideObject(obj)) {
-    return SerializeObject(isolate()->heap()->undefined_value(), how_to_code,
-                           where_to_point, skip);
+    return SerializeObject(roots.undefined_value(), how_to_code, where_to_point,
+                           skip);
   }
 
   if (obj->IsScript()) {
     Script* script_obj = Script::cast(obj);
     DCHECK_NE(script_obj->compilation_type(), Script::COMPILATION_TYPE_EVAL);
     // Wrapper object is a context-dependent JSValue. Reset it here.
-    script_obj->set_wrapper(isolate()->heap()->undefined_value());
+    script_obj->set_wrapper(roots.undefined_value());
     // We want to differentiate between undefined and uninitialized_symbol for
     // context_data for now. It is hack to allow debugging for scripts that are
     // included as a part of custom snapshot. (see debug::Script::IsEmbedded())
     Object* context_data = script_obj->context_data();
-    if (context_data != isolate()->heap()->undefined_value() &&
-        context_data != isolate()->heap()->uninitialized_symbol()) {
-      script_obj->set_context_data(isolate()->heap()->undefined_value());
+    if (context_data != roots.undefined_value() &&
+        context_data != roots.uninitialized_symbol()) {
+      script_obj->set_context_data(roots.undefined_value());
     }
     // We don't want to serialize host options to avoid serializing unnecessary
     // object graph.
     FixedArray* host_options = script_obj->host_defined_options();
-    script_obj->set_host_defined_options(
-        isolate()->heap()->empty_fixed_array());
+    script_obj->set_host_defined_options(roots.empty_fixed_array());
     SerializeGeneric(obj, how_to_code, where_to_point);
     script_obj->set_host_defined_options(host_options);
     script_obj->set_context_data(context_data);
@@ -315,7 +315,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 
   if (isolate->logger()->is_listening_to_code_events() ||
       isolate->is_profiling()) {
-    String* name = isolate->heap()->empty_string();
+    String* name = ReadOnlyRoots(isolate).empty_string();
     if (result->script()->IsScript()) {
       Script* script = Script::cast(result->script());
       if (script->name()->IsString()) name = String::cast(script->name());

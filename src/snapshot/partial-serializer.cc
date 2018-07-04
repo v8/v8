@@ -37,11 +37,11 @@ void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
   // it before serializing, it will get re-added to the context list
   // explicitly when it's loaded.
   context_->set(Context::NEXT_CONTEXT_LINK,
-                isolate()->heap()->undefined_value());
+                ReadOnlyRoots(isolate()).undefined_value());
   DCHECK(!context_->global_object()->IsUndefined());
   // Reset math random cache to get fresh random numbers.
   context_->set_math_random_index(Smi::kZero);
-  context_->set_math_random_cache(isolate()->heap()->undefined_value());
+  context_->set_math_random_cache(ReadOnlyRoots(isolate()).undefined_value());
 
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
                    reinterpret_cast<Object**>(o));
@@ -125,8 +125,8 @@ bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject* o) {
   return o->IsName() || o->IsSharedFunctionInfo() || o->IsHeapNumber() ||
          o->IsCode() || o->IsScopeInfo() || o->IsAccessorInfo() ||
          o->IsTemplateInfo() ||
-         o->map() ==
-             startup_serializer_->isolate()->heap()->fixed_cow_array_map();
+         o->map() == ReadOnlyRoots(startup_serializer_->isolate())
+                         .fixed_cow_array_map();
 }
 
 void PartialSerializer::SerializeEmbedderFields() {

@@ -2194,7 +2194,7 @@ void Debug::StopSideEffectCheckMode() {
   DCHECK(isolate_->debug_execution_mode() == DebugInfo::kSideEffects);
   if (side_effect_check_failed_) {
     DCHECK(isolate_->has_pending_exception());
-    DCHECK_EQ(isolate_->heap()->termination_exception(),
+    DCHECK_EQ(ReadOnlyRoots(isolate_).termination_exception(),
               isolate_->pending_exception());
     // Convert the termination exception into a regular exception.
     isolate_->CancelTerminateExecution();

@@ -52,12 +52,13 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
     FlushICacheForNewIsolate();
   }
 
-  isolate->heap()->set_native_contexts_list(isolate->heap()->undefined_value());
+  isolate->heap()->set_native_contexts_list(
+      ReadOnlyRoots(isolate).undefined_value());
   // The allocation site list is build during root iteration, but if no sites
   // were encountered then it needs to be initialized to undefined.
   if (isolate->heap()->allocation_sites_list() == Smi::kZero) {
     isolate->heap()->set_allocation_sites_list(
-        isolate->heap()->undefined_value());
+        ReadOnlyRoots(isolate).undefined_value());
   }
 
   // Issue code events for newly deserialized code objects.

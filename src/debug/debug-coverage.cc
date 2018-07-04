@@ -575,7 +575,7 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
       isolate->debug()->RemoveAllCoverageInfos();
       if (!isolate->is_collecting_type_profile()) {
         isolate->SetFeedbackVectorsForProfilingTools(
-            isolate->heap()->undefined_value());
+            ReadOnlyRoots(isolate).undefined_value());
       }
       break;
     case debug::Coverage::kBlockBinary:

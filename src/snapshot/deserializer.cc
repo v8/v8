@@ -182,7 +182,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     // as a (weak) root. If this root is relocated correctly, this becomes
     // unnecessary.
     if (isolate_->heap()->allocation_sites_list() == Smi::kZero) {
-      site->set_weak_next(isolate_->heap()->undefined_value());
+      site->set_weak_next(ReadOnlyRoots(isolate_).undefined_value());
     } else {
       site->set_weak_next(isolate_->heap()->allocation_sites_list());
     }
@@ -203,7 +203,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     call_handler_infos_.push_back(CallHandlerInfo::cast(obj));
 #endif
   } else if (obj->IsExternalString()) {
-    if (obj->map() == isolate_->heap()->native_source_string_map()) {
+    if (obj->map() == ReadOnlyRoots(isolate_).native_source_string_map()) {
       ExternalOneByteString* string = ExternalOneByteString::cast(obj);
       DCHECK(string->is_short());
       string->set_resource(
