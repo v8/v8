@@ -43,7 +43,7 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
     // Ensure that the new object is marked black.
     HeapObject* object = HeapObject::FromAddress(addr);
     if (incremental_marking_.marking_state()->IsWhite(object) &&
-        !heap->InNewSpace(object)) {
+        !(heap->InNewSpace(object) || heap->new_lo_space()->Contains(object))) {
       if (heap->lo_space()->Contains(object)) {
         incremental_marking_.marking_state()->WhiteToBlack(object);
       } else {
@@ -229,33 +229,10 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
   Heap* heap_;
 };
 
-void IncrementalMarking::SetOldSpacePageFlags(MemoryChunk* chunk,
-                                              bool is_marking) {
-  if (is_marking) {
-    chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-  } else {
-    chunk->ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-  }
-}
-
-
-void IncrementalMarking::SetNewSpacePageFlags(MemoryChunk* chunk,
-                                              bool is_marking) {
-  chunk->SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-  if (is_marking) {
-    chunk->SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-  } else {
-    chunk->ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-  }
-}
-
-
 void IncrementalMarking::DeactivateIncrementalWriteBarrierForSpace(
     PagedSpace* space) {
   for (Page* p : *space) {
-    SetOldSpacePageFlags(p, false);
+    p->SetOldGenerationPageFlags(false);
   }
 }
 
@@ -263,7 +240,7 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrierForSpace(
 void IncrementalMarking::DeactivateIncrementalWriteBarrierForSpace(
     NewSpace* space) {
   for (Page* p : *space) {
-    SetNewSpacePageFlags(p, false);
+    p->SetYoungGenerationPageFlags(false);
   }
 }
 
@@ -274,22 +251,22 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrier() {
   DeactivateIncrementalWriteBarrierForSpace(heap_->code_space());
   DeactivateIncrementalWriteBarrierForSpace(heap_->new_space());
 
-  for (LargePage* lop : *heap_->lo_space()) {
-    SetOldSpacePageFlags(lop, false);
+  for (LargePage* p : *heap_->lo_space()) {
+    p->SetOldGenerationPageFlags(false);
   }
 }
 
 
 void IncrementalMarking::ActivateIncrementalWriteBarrier(PagedSpace* space) {
   for (Page* p : *space) {
-    SetOldSpacePageFlags(p, true);
+    p->SetOldGenerationPageFlags(true);
   }
 }
 
 
 void IncrementalMarking::ActivateIncrementalWriteBarrier(NewSpace* space) {
   for (Page* p : *space) {
-    SetNewSpacePageFlags(p, true);
+    p->SetYoungGenerationPageFlags(true);
   }
 }
 
@@ -300,8 +277,8 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
   ActivateIncrementalWriteBarrier(heap_->code_space());
   ActivateIncrementalWriteBarrier(heap_->new_space());
 
-  for (LargePage* lop : *heap_->lo_space()) {
-    SetOldSpacePageFlags(lop, true);
+  for (LargePage* p : *heap_->lo_space()) {
+    p->SetOldGenerationPageFlags(true);
   }
 }
 

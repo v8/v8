@@ -184,7 +184,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   } else if (LO_SPACE == space) {
     DCHECK(large_object);
     if (FLAG_young_generation_large_objects) {
-      allocation = new_lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
+      allocation = new_lo_space_->AllocateRaw(size_in_bytes);
     } else {
       allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
     }
