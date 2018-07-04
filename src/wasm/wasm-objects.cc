@@ -191,7 +191,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   }
   module_object->set_script(*script);
   module_object->set_weak_instance_list(
-      isolate->heap()->empty_weak_array_list());
+      ReadOnlyRoots(isolate).empty_weak_array_list());
   if (!asm_js_offset_table.is_null()) {
     module_object->set_asm_js_offset_table(*asm_js_offset_table);
   }
@@ -724,7 +724,7 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
       isolate->factory()->NewJSObject(table_ctor));
 
   *js_functions = isolate->factory()->NewFixedArray(initial);
-  Object* null = isolate->heap()->null_value();
+  Object* null = ReadOnlyRoots(isolate).null_value();
   for (int i = 0; i < static_cast<int>(initial); ++i) {
     (*js_functions)->set(i, null);
   }
@@ -733,7 +733,7 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
   Handle<Object> max = isolate->factory()->NewNumber(maximum);
   table_obj->set_maximum_length(*max);
 
-  table_obj->set_dispatch_tables(isolate->heap()->empty_fixed_array());
+  table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
   return Handle<WasmTableObject>::cast(table_obj);
 }
 
@@ -790,7 +790,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   Handle<FixedArray> array(table->functions(), isolate);
   if (function.is_null()) {
     ClearDispatchTables(isolate, table, table_index);  // Degenerate case.
-    array->set(table_index, isolate->heap()->null_value());
+    array->set(table_index, ReadOnlyRoots(isolate).null_value());
     return;
   }
 
@@ -1098,7 +1098,7 @@ void IndirectFunctionTableEntry::clear() {
   instance_->indirect_function_table_sig_ids()[index_] = -1;
   instance_->indirect_function_table_targets()[index_] = 0;
   instance_->indirect_function_table_instances()->set(
-      index_, instance_->GetIsolate()->heap()->undefined_value());
+      index_, ReadOnlyRoots(instance_->GetIsolate()).undefined_value());
 }
 
 void IndirectFunctionTableEntry::set(int sig_id, WasmInstanceObject* instance,
@@ -1242,8 +1242,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_indirect_function_table_targets(nullptr);
   instance->set_native_context(*isolate->native_context());
   instance->set_module_object(*module_object);
-  instance->set_undefined_value(isolate->heap()->undefined_value());
-  instance->set_null_value(isolate->heap()->null_value());
+  instance->set_undefined_value(ReadOnlyRoots(isolate).undefined_value());
+  instance->set_null_value(ReadOnlyRoots(isolate).null_value());
 
   // Insert the new instance into the modules weak list of instances.
   // TODO(mstarzinger): Allow to reuse holes in the {WeakArrayList} below.
