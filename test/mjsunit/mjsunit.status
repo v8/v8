@@ -834,4 +834,11 @@
   'string-replace-gc': [SKIP],
 }],  # variant == slow_path
 
+##############################################################################
+['arch == x64', {
+  # TODO: Flaky test: crbug.com/v8/7899
+  'wasm/asm-wasm-i32': [SKIP],
+  'wasm/asm-wasm-f64': [SKIP],
+}], # arch == x64
+
 ]
