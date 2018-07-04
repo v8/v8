@@ -3495,7 +3495,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     share->set_expected_nof_properties(0);
     share->set_raw_start_position_and_type(0);
     share->set_raw_end_position(0);
-    share->set_function_token_position(0);
+    share->set_raw_function_token_offset(0);
     // All flags default to false or 0.
     share->set_flags(0);
     share->CalculateConstructAsBuiltin();

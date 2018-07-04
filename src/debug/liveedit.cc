@@ -974,12 +974,13 @@ void UpdatePositions(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
   int new_end_position = LiveEdit::TranslatePosition(diffs, sfi->EndPosition());
   int new_function_token_position =
       LiveEdit::TranslatePosition(diffs, sfi->function_token_position());
+
   sfi->set_raw_start_position(new_start_position);
   sfi->set_raw_end_position(new_end_position);
-  sfi->set_function_token_position(new_function_token_position);
   if (sfi->scope_info()->HasPositionInfo()) {
     sfi->scope_info()->SetPositionInfo(new_start_position, new_end_position);
   }
+  sfi->SetFunctionTokenPosition(new_function_token_position);
   if (sfi->HasBytecodeArray()) {
     TranslateSourcePositionTable(handle(sfi->GetBytecodeArray(), isolate),
                                  diffs);

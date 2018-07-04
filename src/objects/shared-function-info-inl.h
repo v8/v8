@@ -50,13 +50,13 @@ INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
 UINT16_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 UINT16_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
                  kFormalParameterCountOffset)
-INT_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
-              kExpectedNofPropertiesOffset)
+UINT16_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
+                 kExpectedNofPropertiesOffset)
+UINT16_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
+                 kFunctionTokenOffsetOffset)
 INT_ACCESSORS(SharedFunctionInfo, raw_end_position, kEndPositionOffset)
 INT_ACCESSORS(SharedFunctionInfo, raw_start_position_and_type,
               kStartPositionAndTypeOffset)
-INT_ACCESSORS(SharedFunctionInfo, function_token_position,
-              kFunctionTokenPositionOffset)
 INT_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
 
 bool SharedFunctionInfo::HasSharedName() const {
@@ -96,6 +96,15 @@ AbstractCode* SharedFunctionInfo::abstract_code() {
     return AbstractCode::cast(GetBytecodeArray());
   } else {
     return AbstractCode::cast(GetCode());
+  }
+}
+
+int SharedFunctionInfo::function_token_position() const {
+  int offset = raw_function_token_offset();
+  if (offset == kFunctionTokenOutOfRange) {
+    return kNoSourcePosition;
+  } else {
+    return StartPosition() - offset;
   }
 }
 

@@ -147,7 +147,7 @@ class SharedFunctionInfo : public HeapObject {
 
   // [expected_nof_properties]: Expected number of properties for the
   // function. The value is only reliable when the function has been compiled.
-  DECL_INT_ACCESSORS(expected_nof_properties)
+  DECL_UINT16_ACCESSORS(expected_nof_properties)
 
   // [function_literal_id] - uniquely identifies the FunctionLiteral this
   // SharedFunctionInfo represents within its script, or -1 if this
@@ -247,8 +247,15 @@ class SharedFunctionInfo : public HeapObject {
   // [script]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)
 
-  // Position of the 'function' token in the script source.
-  DECL_INT_ACCESSORS(function_token_position)
+  // The offset of the 'function' token in the script source relative to the
+  // start position. Can return kFunctionTokenOutOfRange if offset doesn't
+  // fit in 16 bits.
+  DECL_UINT16_ACCESSORS(raw_function_token_offset)
+
+  // The position of the 'function' token in the script source. Can return
+  // kNoSourcePosition if raw_function_token_offset() returns
+  // kFunctionTokenOutOfRange.
+  inline int function_token_position() const;
 
   // [raw_start_position_and_type]: Field used to store both the source code
   // position, whether or not the function is a function expression,
@@ -392,6 +399,9 @@ class SharedFunctionInfo : public HeapObject {
   // Sets the expected number of properties based on estimate from parser.
   void SetExpectedNofPropertiesFromEstimate(FunctionLiteral* literal);
 
+  // Sets the FunctionTokenOffset field based on the
+  void SetFunctionTokenPosition(int function_token_position);
+
   inline bool construct_as_builtin() const;
 
   // Determines and sets the ConstructAsBuiltinBit in |flags|, based on the
@@ -445,6 +455,10 @@ class SharedFunctionInfo : public HeapObject {
   // Constants.
   static const uint16_t kDontAdaptArgumentsSentinel = static_cast<uint16_t>(-1);
 
+  static const int kMaximumFunctionTokenOffset = kMaxUInt16 - 1;
+  static const uint16_t kFunctionTokenOutOfRange = static_cast<uint16_t>(-1);
+  STATIC_ASSERT(kMaximumFunctionTokenOffset + 1 == kFunctionTokenOutOfRange);
+
 #if V8_SFI_HAS_UNIQUE_ID
   static const int kUniqueIdFieldSize = kInt32Size;
 #else
@@ -467,10 +481,10 @@ class SharedFunctionInfo : public HeapObject {
   V(kUniqueIdOffset, kUniqueIdFieldSize)                   \
   V(kLengthOffset, kUInt16Size)                            \
   V(kFormalParameterCountOffset, kUInt16Size)              \
-  V(kExpectedNofPropertiesOffset, kInt32Size)              \
+  V(kExpectedNofPropertiesOffset, kUInt16Size)             \
+  V(kFunctionTokenOffsetOffset, kUInt16Size)               \
   V(kStartPositionAndTypeOffset, kInt32Size)               \
   V(kEndPositionOffset, kInt32Size)                        \
-  V(kFunctionTokenPositionOffset, kInt32Size)              \
   V(kFlagsOffset, kInt32Size)                              \
   /* Total size. */                                        \
   V(kSize, 0)

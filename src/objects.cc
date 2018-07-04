@@ -13333,6 +13333,14 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
   }
 
   if (FLAG_harmony_function_tostring) {
+    if (shared_info->function_token_position() == kNoSourcePosition) {
+      // If the function token position isn't valid, return [native code] to
+      // ensure calling eval on the returned source code throws rather than
+      // giving inconsistent call behaviour.
+      isolate->CountUsage(v8::Isolate::UseCounterFeature::
+                              kFunctionTokenOffsetTooLongForToString);
+      return NativeCodeFunctionSourceString(shared_info);
+    }
     return Handle<String>::cast(
         SharedFunctionInfo::GetSourceCodeHarmony(shared_info));
   }
@@ -13836,7 +13844,7 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   Handle<String> script_source(
       String::cast(Script::cast(shared->script())->source()), isolate);
   int start_pos = shared->function_token_position();
-  if (start_pos == kNoSourcePosition) start_pos = shared->StartPosition();
+  DCHECK_NE(start_pos, kNoSourcePosition);
   Handle<String> source = isolate->factory()->NewSubString(
       script_source, start_pos, shared->EndPosition());
   if (!shared->is_wrapped()) return source;
@@ -13993,9 +14001,9 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   // When adding fields here, make sure DeclarationScope::AnalyzePartially is
   // updated accordingly.
   shared_info->set_internal_formal_parameter_count(lit->parameter_count());
-  shared_info->set_function_token_position(lit->function_token_position());
   shared_info->set_raw_start_position(lit->start_position());
   shared_info->set_raw_end_position(lit->end_position());
+  shared_info->SetFunctionTokenPosition(lit->function_token_position());
   if (shared_info->scope_info()->HasPositionInfo()) {
     shared_info->scope_info()->SetPositionInfo(lit->start_position(),
                                                lit->end_position());
@@ -14067,7 +14075,26 @@ void SharedFunctionInfo::SetExpectedNofPropertiesFromEstimate(
   // so we can afford to adjust the estimate generously.
   estimate += 8;
 
+  // Limit actual estimate to fit in a 16 bit field, we will never allocate
+  // more than this in any case.
+  estimate = std::min(estimate, kMaxUInt16);
+
   set_expected_nof_properties(estimate);
+}
+
+void SharedFunctionInfo::SetFunctionTokenPosition(int function_token_position) {
+  DCHECK_NE(StartPosition(), kNoSourcePosition);
+  int offset;
+  if (function_token_position == kNoSourcePosition) {
+    offset = 0;
+  } else {
+    offset = StartPosition() - function_token_position;
+  }
+
+  if (offset > kMaximumFunctionTokenOffset) {
+    offset = kFunctionTokenOutOfRange;
+  }
+  set_raw_function_token_offset(offset);
 }
 
 void Map::StartInobjectSlackTracking() {
