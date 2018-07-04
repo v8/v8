@@ -83,25 +83,25 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate) : isolate_(isolate) {}
 
 HeapObjectType JSHeapBroker::HeapObjectTypeFromMap(Map* map) const {
   AllowHandleDereference allow_handle_dereference;
-  Heap* heap = isolate_->heap();
   OddballType oddball_type = OddballType::kNone;
   if (map->instance_type() == ODDBALL_TYPE) {
-    if (map == heap->undefined_map()) {
+    ReadOnlyRoots roots(isolate_);
+    if (map == roots.undefined_map()) {
       oddball_type = OddballType::kUndefined;
-    } else if (map == heap->null_map()) {
+    } else if (map == roots.null_map()) {
       oddball_type = OddballType::kNull;
-    } else if (map == heap->boolean_map()) {
+    } else if (map == roots.boolean_map()) {
       oddball_type = OddballType::kBoolean;
-    } else if (map == heap->the_hole_map()) {
+    } else if (map == roots.the_hole_map()) {
       oddball_type = OddballType::kHole;
-    } else if (map == heap->uninitialized_map()) {
+    } else if (map == roots.uninitialized_map()) {
       oddball_type = OddballType::kUninitialized;
     } else {
       oddball_type = OddballType::kOther;
-      DCHECK(map == heap->termination_exception_map() ||
-             map == heap->arguments_marker_map() ||
-             map == heap->optimized_out_map() ||
-             map == heap->stale_register_map());
+      DCHECK(map == roots.termination_exception_map() ||
+             map == roots.arguments_marker_map() ||
+             map == roots.optimized_out_map() ||
+             map == roots.stale_register_map());
     }
   }
   HeapObjectType::Flags flags(0);
@@ -248,7 +248,7 @@ bool IsFastLiteralHelper(Handle<JSObject> boilerplate, int max_depth,
   Isolate* const isolate = boilerplate->GetIsolate();
   Handle<FixedArrayBase> elements(boilerplate->elements(), isolate);
   if (elements->length() > 0 &&
-      elements->map() != isolate->heap()->fixed_cow_array_map()) {
+      elements->map() != ReadOnlyRoots(isolate).fixed_cow_array_map()) {
     if (boilerplate->HasSmiOrObjectElements()) {
       Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
       int length = elements->length();
@@ -385,7 +385,8 @@ bool MapRef::IsJSArrayMap() const {
 
 bool MapRef::IsFixedCowArrayMap(const JSHeapBroker* broker) const {
   AllowHandleDereference allow_handle_dereference;
-  return *object<Map>() == broker->isolate()->heap()->fixed_cow_array_map();
+  return *object<Map>() ==
+         ReadOnlyRoots(broker->isolate()).fixed_cow_array_map();
 }
 
 ElementsKind JSArrayRef::GetElementsKind() const {

@@ -431,7 +431,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
                                         isolate());
     if (descriptors->number_of_descriptors() < 2) return NoChange();
     if (descriptors->GetKey(JSFunction::kLengthDescriptorIndex) !=
-        isolate()->heap()->length_string()) {
+        ReadOnlyRoots(isolate()).length_string()) {
       return NoChange();
     }
     if (!descriptors->GetStrongValue(JSFunction::kLengthDescriptorIndex)
@@ -439,7 +439,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
       return NoChange();
     }
     if (descriptors->GetKey(JSFunction::kNameDescriptorIndex) !=
-        isolate()->heap()->name_string()) {
+        ReadOnlyRoots(isolate()).name_string()) {
       return NoChange();
     }
     if (!descriptors->GetStrongValue(JSFunction::kNameDescriptorIndex)

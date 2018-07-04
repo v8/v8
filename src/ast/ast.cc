@@ -629,7 +629,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
   // elements array to a copy-on-write array.
   if (is_simple() && depth() == 1 && array_index > 0 &&
       IsSmiOrObjectElementsKind(kind)) {
-    fixed_array->set_map(isolate->heap()->fixed_cow_array_map());
+    fixed_array->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
   }
 
   Handle<FixedArrayBase> elements = fixed_array;
@@ -722,7 +722,7 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
       if (this->cooked_strings()->at(i) != nullptr) {
         cooked_strings->set(i, *this->cooked_strings()->at(i)->string());
       } else {
-        cooked_strings->set(i, isolate->heap()->undefined_value());
+        cooked_strings->set(i, ReadOnlyRoots(isolate).undefined_value());
       }
     }
   }
