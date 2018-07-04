@@ -1841,18 +1841,6 @@ void MacroAssembler::AssertSmi(Register object) {
   }
 }
 
-void MacroAssembler::AssertFixedArray(Register object) {
-  if (emit_debug_code()) {
-    STATIC_ASSERT(kSmiTag == 0);
-    TestIfSmi(object, r0);
-    Check(ne, AbortReason::kOperandIsASmiAndNotAFixedArray, cr0);
-    push(object);
-    CompareObjectType(object, object, object, FIXED_ARRAY_TYPE);
-    pop(object);
-    Check(eq, AbortReason::kOperandIsNotAFixedArray);
-  }
-}
-
 void MacroAssembler::AssertConstructor(Register object) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);

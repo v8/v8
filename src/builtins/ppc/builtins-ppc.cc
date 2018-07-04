@@ -1641,7 +1641,28 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- r6 : new.target (for [[Construct]])
   // -----------------------------------
 
-  __ AssertFixedArray(r5);
+  Register scratch = ip;
+
+  if (masm->emit_debug_code()) {
+    // Allow r5 to be a FixedArray, or a FixedDoubleArray if r7 == 0.
+    Label ok, fail;
+    __ AssertNotSmi(r5);
+    __ LoadP(scratch, FieldMemOperand(r5, HeapObject::kMapOffset));
+    __ LoadHalfWord(scratch,
+                    FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+    __ cmpi(scratch, Operand(FIXED_ARRAY_TYPE));
+    __ beq(&ok);
+    __ cmpi(scratch, Operand(FIXED_DOUBLE_ARRAY_TYPE));
+    __ bne(&fail);
+    __ cmpi(r7, Operand::Zero());
+    __ beq(&ok);
+    // Fall through.
+    __ bind(&fail);
+    __ Abort(AbortReason::kOperandIsNotAFixedArray);
+
+    __ bind(&ok);
+  }
+
   // Check for stack overflow.
   {
     // Check the stack for overflow. We are not trying to catch interruptions
