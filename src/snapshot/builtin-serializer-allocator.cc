@@ -18,10 +18,11 @@ SerializerReference BuiltinSerializerAllocator::Allocate(AllocationSpace space,
   // system.  Instead of worrying about chunk indices and offsets, we simply
   // need to generate unique offsets here.
 
-  const auto ref = SerializerReference::BuiltinReference(virtual_chunk_offset_);
+  const auto ref =
+      SerializerReference::BuiltinReference(next_builtin_reference_index_);
 
-  virtual_chunk_size_ += size;
-  virtual_chunk_offset_ += kObjectAlignment;  // Needs to be aligned.
+  allocated_bytes_ += size;
+  next_builtin_reference_index_++;
 
   return ref;
 }
@@ -30,7 +31,7 @@ SerializerReference BuiltinSerializerAllocator::Allocate(AllocationSpace space,
 bool BuiltinSerializerAllocator::BackReferenceIsAlreadyAllocated(
     SerializerReference reference) const {
   DCHECK(reference.is_builtin_reference());
-  return reference.builtin_offset() < virtual_chunk_offset_;
+  return reference.builtin_index() < next_builtin_reference_index_;
 }
 #endif  // DEBUG
 
@@ -50,7 +51,7 @@ void BuiltinSerializerAllocator::OutputStatistics() {
   PrintF("\n");
 
   for (int space = FIRST_SPACE; space < kNumberOfSpaces; space++) {
-    uint32_t space_size = (space == CODE_SPACE) ? virtual_chunk_size_ : 0;
+    uint32_t space_size = (space == CODE_SPACE) ? allocated_bytes_ : 0;
     PrintF("%16d", space_size);
   }
   PrintF("\n");

@@ -131,7 +131,7 @@ class SerializerReference {
            SpecialValueTypeBits::decode(bitfield_) == kBuiltinReference;
   }
 
-  uint32_t builtin_offset() const {
+  uint32_t builtin_index() const {
     DCHECK(is_builtin_reference());
     return value_;
   }
