@@ -2197,7 +2197,8 @@ AsyncCompileJob::AsyncCompileJob(
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
   // The handle for the context must be deferred.
   DeferredHandleScope deferred(isolate);
-  context_ = Handle<Context>(*context, isolate);
+  native_context_ = Handle<Context>(context->native_context(), isolate);
+  DCHECK(native_context_->IsNativeContext());
   deferred_handles_.push_back(deferred.Detach());
 }
 
@@ -2308,7 +2309,7 @@ class AsyncCompileJob::CompileStep {
       --job_->num_pending_foreground_tasks_;
       DCHECK_EQ(0, job_->num_pending_foreground_tasks_);
       SaveContext saved_context(job_->isolate_);
-      job_->isolate_->set_context(*job_->context_);
+      job_->isolate_->set_context(*job_->native_context_);
       RunInForeground();
     } else {
       RunInBackground();
@@ -2505,9 +2506,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
               case CompilationEvent::kFinishedBaselineCompilation:
                 if (job->DecrementAndCheckFinisherCount()) {
                   SaveContext saved_context(job->isolate());
-                  // TODO(mstarzinger): Make {AsyncCompileJob::context} point
-                  // to the native context and also rename to {native_context}.
-                  job->isolate()->set_context(job->context_->native_context());
+                  job->isolate()->set_context(*job->native_context_);
                   job->FinishCompile();
                 }
                 return;
@@ -2531,7 +2530,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                             ->baseline_compilation_finished());
 
                 SaveContext saved_context(job->isolate());
-                job->isolate()->set_context(job->context_->native_context());
+                job->isolate()->set_context(*job->native_context_);
                 Handle<Object> error = thrower->Reify();
 
                 DeferredHandleScope deferred(job->isolate());

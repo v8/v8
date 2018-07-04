@@ -144,7 +144,7 @@ class AsyncCompileJob {
   // Reference to the wire bytes (hold in {bytes_copy_} or as part of
   // {native_module_}).
   ModuleWireBytes wire_bytes_;
-  Handle<Context> context_;
+  Handle<Context> native_context_;
   std::unique_ptr<CompilationResultResolver> resolver_;
   std::shared_ptr<const WasmModule> module_;
 
