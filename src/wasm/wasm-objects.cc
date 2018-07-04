@@ -1250,9 +1250,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   Handle<WeakArrayList> weak_instance_list(module_object->weak_instance_list(),
                                            isolate);
   weak_instance_list = WeakArrayList::AddToEnd(
-      weak_instance_list,
-      MaybeObjectHandle(
-          MaybeObject::MakeWeak(MaybeObject::FromObject(*instance)), isolate));
+      weak_instance_list, MaybeObjectHandle::Weak(instance));
   module_object->set_weak_instance_list(*weak_instance_list);
 
   return instance;
