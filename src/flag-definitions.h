@@ -794,7 +794,7 @@ DEFINE_BOOL(optimize_ephemerons, true,
 DEFINE_NEG_NEG_IMPLICATION(optimize_ephemerons, parallel_ephemeron_marking)
 DEFINE_NEG_NEG_IMPLICATION(optimize_ephemerons, parallel_ephemeron_visiting)
 
-DEFINE_BOOL(clear_free_memory, true, "initialize free memory with 0")
+DEFINE_BOOL(clear_free_memory, false, "initialize free memory with 0")
 
 DEFINE_BOOL(young_generation_large_objects, false,
             "allocates large objects by default in the young generation large "
