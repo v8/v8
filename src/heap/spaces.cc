@@ -1675,7 +1675,6 @@ bool PagedSpace::Expand() {
   AddPage(page);
   Free(page->area_start(), page->area_size(),
        SpaceAccountingMode::kSpaceAccounted);
-  DCHECK(Capacity() <= heap()->MaxOldGenerationSize());
   return true;
 }
 
