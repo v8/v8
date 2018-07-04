@@ -1910,7 +1910,7 @@ class Heap {
   // triggered and the allocation is retried. This is performed multiple times.
   // If after that retry procedure the allocation still fails nullptr is
   // returned.
-  HeapObject* AllocateRawWithLightRetry(
+  HeapObject* AllocateRawWithLigthRetry(
       int size, AllocationSpace space,
       AllocationAlignment alignment = kWordAligned);
 

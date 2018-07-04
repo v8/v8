@@ -918,9 +918,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
     }
     return FAILED;
   }
-  if (!compilation_info()->dependencies()->Commit(code)) {
-    return AbortOptimization(BailoutReason::kBailedOutDueToDependencyChange);
-  }
+  compilation_info()->dependencies()->Commit(code);
   compilation_info()->SetCode(code);
 
   compilation_info()->context()->native_context()->AddOptimizedCode(*code);

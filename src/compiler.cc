@@ -227,6 +227,8 @@ CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
   DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
   DisallowCodeDependencyChange no_dependency_change;
   DisallowJavascriptExecution no_js(isolate);
+  CHECK(!compilation_info()->dependencies() ||
+        !compilation_info()->dependencies()->HasAborted());
 
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToFinalize);
@@ -800,6 +802,8 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(
   if (job->state() == CompilationJob::State::kReadyToFinalize) {
     if (shared->optimization_disabled()) {
       job->RetryOptimization(BailoutReason::kOptimizationDisabled);
+    } else if (compilation_info->dependencies()->HasAborted()) {
+      job->RetryOptimization(BailoutReason::kBailedOutDueToDependencyChange);
     } else if (job->FinalizeJob(isolate) == CompilationJob::SUCCEEDED) {
       job->RecordCompilationStats();
       job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,

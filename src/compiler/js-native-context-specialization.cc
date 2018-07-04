@@ -155,7 +155,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   // {function}s map is stable, i.e. we can use a code dependency
   // to guard against [[Prototype]] changes of {function}.
   if (function_map->is_stable() && function_prototype->IsConstructor()) {
-    dependencies()->DependOnStableMap(function_map);
+    dependencies()->AssumeMapStable(function_map);
     Node* value = jsgraph()->Constant(function_prototype);
     ReplaceWithValue(node, value);
     return Replace(value);
@@ -208,7 +208,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
       // Determine actual holder and perform prototype chain checks.
       Handle<JSObject> holder;
       if (access_info.holder().ToHandle(&holder)) {
-        dependencies()->DependOnStablePrototypeChains(
+        dependencies()->AssumePrototypesStable(
             native_context().object<Context>(), access_info.receiver_maps(),
             holder);
       }
@@ -234,9 +234,9 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     // Determine actual holder and perform prototype chain checks.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
-      dependencies()->DependOnStablePrototypeChains(
-          native_context().object<Context>(), access_info.receiver_maps(),
-          holder);
+      dependencies()->AssumePrototypesStable(native_context().object<Context>(),
+                                             access_info.receiver_maps(),
+                                             holder);
     } else {
       holder = receiver;
     }
@@ -411,7 +411,9 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
       // depend on that for the prototype constant-folding below.
       JSFunction::EnsureHasInitialMap(function);
 
-      Handle<Map> initial_map = dependencies()->DependOnInitialMap(function);
+      // Install a code dependency on the {function}s initial map.
+      Handle<Map> initial_map(function->initial_map(), isolate());
+      dependencies()->AssumeInitialMapCantChange(initial_map);
       Node* prototype =
           jsgraph()->Constant(handle(initial_map->prototype(), isolate()));
 
@@ -500,9 +502,8 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   // Add proper dependencies on the {resolution}s [[Prototype]]s.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
-    dependencies()->DependOnStablePrototypeChains(
-        native_context().object<Context>(), access_info.receiver_maps(),
-        holder);
+    dependencies()->AssumePrototypesStable(native_context().object<Context>(),
+                                           access_info.receiver_maps(), holder);
   }
 
   // Simply fulfill the {promise} with the {resolution}.
@@ -608,7 +609,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       // can be deleted or reconfigured to an accessor property).
       if (property_details.cell_type() != PropertyCellType::kMutable ||
           property_details.IsConfigurable()) {
-        dependencies()->DependOnGlobalProperty(property_cell);
+        dependencies()->AssumePropertyCell(property_cell);
       }
 
       // Load from constant/undefined global property can be constant-folded.
@@ -640,7 +641,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
             // elimination if it's stable, i.e. the HeapObject wasn't
             // mutated without the cell state being updated.
             if (property_cell_value_map->is_stable()) {
-              dependencies()->DependOnStableMap(property_cell_value_map);
+              dependencies()->AssumeMapStable(property_cell_value_map);
               map = property_cell_value_map;
             }
           }
@@ -662,7 +663,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       case PropertyCellType::kConstant: {
         // Record a code dependency on the cell, and just deoptimize if the new
         // value doesn't match the previous value stored inside the cell.
-        dependencies()->DependOnGlobalProperty(property_cell);
+        dependencies()->AssumePropertyCell(property_cell);
         Node* check =
             graph()->NewNode(simplified()->ReferenceEqual(), value,
                              jsgraph()->Constant(property_cell_value));
@@ -675,7 +676,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         // Record a code dependency on the cell, and just deoptimize if the new
         // values' type doesn't match the type of the previous value in the
         // cell.
-        dependencies()->DependOnGlobalProperty(property_cell);
+        dependencies()->AssumePropertyCell(property_cell);
         Type property_cell_value_type;
         MachineRepresentation representation = MachineRepresentation::kTagged;
         if (property_cell_value->IsHeapObject()) {
@@ -684,7 +685,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
           Handle<Map> property_cell_value_map(
               Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
           DCHECK(property_cell_value_map->is_stable());
-          dependencies()->DependOnStableMap(property_cell_value_map);
+          dependencies()->AssumeMapStable(property_cell_value_map);
 
           // Check that the {value} is a HeapObject.
           value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
@@ -715,7 +716,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       case PropertyCellType::kMutable: {
         // Record a code dependency on the cell, and just deoptimize if the
         // property ever becomes read-only.
-        dependencies()->DependOnGlobalProperty(property_cell);
+        dependencies()->AssumePropertyCell(property_cell);
         effect = graph()->NewNode(
             simplified()->StoreField(ForPropertyCellValue(
                 MachineRepresentation::kTagged, Type::NonInternal(),
@@ -1096,7 +1097,8 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
         // {function} in order to be notified about changes to the
         // "prototype" of {function}.
         JSFunction::EnsureHasInitialMap(function);
-        dependencies()->DependOnInitialMap(function);
+        Handle<Map> initial_map(function->initial_map(), isolate());
+        dependencies()->AssumeInitialMapCantChange(initial_map);
         Handle<Object> prototype(function->prototype(), isolate());
         Node* value = jsgraph()->Constant(prototype);
         ReplaceWithValue(node, value);
@@ -1230,7 +1232,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 
       // Install dependencies on the relevant prototype maps.
       for (Handle<Map> prototype_map : prototype_maps) {
-        dependencies()->DependOnStableMap(prototype_map);
+        dependencies()->AssumeMapStable(prototype_map);
       }
     }
 
@@ -1800,9 +1802,8 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   Handle<JSObject> holder;
   PropertyAccessBuilder access_builder(jsgraph(), dependencies());
   if (access_info.holder().ToHandle(&holder)) {
-    dependencies()->DependOnStablePrototypeChains(
-        native_context().object<Context>(), access_info.receiver_maps(),
-        holder);
+    dependencies()->AssumePrototypesStable(native_context().object<Context>(),
+                                           access_info.receiver_maps(), holder);
   }
 
   // Generate the actual property access.
@@ -1858,9 +1859,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
   PropertyAccessBuilder access_builder(jsgraph(), dependencies());
   if (access_info.holder().ToHandle(&holder)) {
     DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
-    dependencies()->DependOnStablePrototypeChains(
-        native_context().object<Context>(), access_info.receiver_maps(),
-        holder);
+    dependencies()->AssumePrototypesStable(native_context().object<Context>(),
+                                           access_info.receiver_maps(), holder);
   }
 
   DCHECK(!access_info.IsNotFound());
@@ -2258,7 +2258,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     if (isolate()->IsArrayBufferNeuteringIntact()) {
       // Add a code dependency so we are deoptimized in case an ArrayBuffer
       // gets neutered.
-      dependencies()->DependOnProtector(
+      dependencies()->AssumePropertyCell(
           factory()->array_buffer_neutering_protector());
     } else {
       // Default to zero if the {receiver}s buffer was neutered.
@@ -2661,7 +2661,8 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
     KeyedAccessLoadMode load_mode) {
   if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS &&
       isolate()->IsNoElementsProtectorIntact()) {
-    dependencies()->DependOnProtector(factory()->no_elements_protector());
+    // Add a code dependency on the "no elements" protector.
+    dependencies()->AssumePropertyCell(factory()->no_elements_protector());
 
     // Ensure that the {index} is a valid String length.
     index = *effect = graph()->NewNode(
@@ -2810,7 +2811,8 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   // Check if the array prototype chain is intact.
   if (!isolate()->IsNoElementsProtectorIntact()) return false;
 
-  dependencies()->DependOnProtector(factory()->no_elements_protector());
+  // Install code dependency on the array protector cell.
+  dependencies()->AssumePropertyCell(factory()->no_elements_protector());
   return true;
 }
 
