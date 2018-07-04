@@ -2280,7 +2280,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
         heap->CanMoveObjectStart(*dst_elms)) {
       // Remove all the pointers to the FixedArrayBase we're going to left trim
       // from the heap.
-      receiver->set_elements(heap->empty_fixed_array());
+      receiver->set_elements(ReadOnlyRoots(heap).empty_fixed_array());
       // Update all the copies of this backing_store handle.
       *dst_elms.location() =
           BackingStore::cast(heap->LeftTrimFixedArray(*dst_elms, src_index));

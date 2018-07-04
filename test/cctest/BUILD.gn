@@ -209,6 +209,7 @@ v8_source_set("cctest_sources") {
     "test-random-number-generator.cc",
     "test-regexp.cc",
     "test-representation.cc",
+    "test-roots.cc",
     "test-sampler-api.cc",
     "test-serialize.cc",
     "test-strings.cc",
