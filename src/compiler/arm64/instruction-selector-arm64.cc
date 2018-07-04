@@ -560,6 +560,27 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
   // If output is not nullptr, use that as the output register. This
   // is used when we merge a conversion into the load.
   outputs[0] = g.DefineAsRegister(output == nullptr ? node : output);
+
+  if (selector->CanAddressRelativeToRootsRegister()) {
+    ExternalReferenceMatcher m(base);
+    if (m.HasValue() && g.IsIntegerConstant(index)) {
+      ptrdiff_t const delta =
+          g.GetIntegerConstantValue(index) +
+          TurboAssemblerBase::RootRegisterOffsetForExternalReference(
+              selector->isolate(), m.Value());
+      input_count = 1;
+      // Check that the delta is a 32-bit integer due to the limitations of
+      // immediate operands.
+      if (is_int32(delta)) {
+        inputs[0] = g.UseImmediate(static_cast<int32_t>(delta));
+        opcode |= AddressingModeField::encode(kMode_Root);
+        selector->Emit(opcode, arraysize(outputs), outputs, input_count,
+                       inputs);
+        return;
+      }
+    }
+  }
+
   inputs[0] = g.UseRegister(base);
 
   if (g.CanBeImmediate(index, immediate_mode)) {

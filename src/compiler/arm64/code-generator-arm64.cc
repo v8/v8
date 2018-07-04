@@ -130,6 +130,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         return Operand(InputRegister32(index), SXTW);
       case kMode_MRI:
       case kMode_MRR:
+      case kMode_Root:
         break;
     }
     UNREACHABLE();
@@ -159,13 +160,13 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         return Operand(InputRegister64(index), SXTW);
       case kMode_MRI:
       case kMode_MRR:
+      case kMode_Root:
         break;
     }
     UNREACHABLE();
   }
 
-  MemOperand MemoryOperand(size_t* first_index) {
-    const size_t index = *first_index;
+  MemOperand MemoryOperand(size_t index = 0) {
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
       case kMode_Operand2_R_LSR_I:
@@ -177,22 +178,17 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
       case kMode_Operand2_R_SXTH:
       case kMode_Operand2_R_SXTW:
         break;
+      case kMode_Root:
+        return MemOperand(kRootRegister, InputInt64(index));
       case kMode_Operand2_R_LSL_I:
-        *first_index += 3;
         return MemOperand(InputRegister(index + 0), InputRegister(index + 1),
                           LSL, InputInt32(index + 2));
       case kMode_MRI:
-        *first_index += 2;
         return MemOperand(InputRegister(index + 0), InputInt32(index + 1));
       case kMode_MRR:
-        *first_index += 2;
         return MemOperand(InputRegister(index + 0), InputRegister(index + 1));
     }
     UNREACHABLE();
-  }
-
-  MemOperand MemoryOperand(size_t first_index = 0) {
-    return MemoryOperand(&first_index);
   }
 
   Operand ToOperand(InstructionOperand* op) {
