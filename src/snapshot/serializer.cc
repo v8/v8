@@ -293,11 +293,11 @@ void Serializer<AllocatorT>::PutBackReference(HeapObject* object,
   DCHECK(allocator()->BackReferenceIsAlreadyAllocated(reference));
   switch (reference.space()) {
     case MAP_SPACE:
-      sink_.PutInt(reference.map_index(), "BackRefChunkOffset");
+      sink_.PutInt(reference.map_index(), "BackRefMapIndex");
       break;
 
     case LO_SPACE:
-      sink_.PutInt(reference.large_object_index(), "BackRefChunkOffset");
+      sink_.PutInt(reference.large_object_index(), "BackRefLargeObjectIndex");
       break;
 
     default:
