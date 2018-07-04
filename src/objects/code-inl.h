@@ -155,6 +155,10 @@ DependentCode::DependencyGroup DependentCode::group() {
   return static_cast<DependencyGroup>(GroupField::decode(flags()));
 }
 
+void DependentCode::set_group(DependentCode::DependencyGroup group) {
+  set_flags(GroupField::update(flags(), static_cast<int>(group)));
+}
+
 void DependentCode::set_object_at(int i, Object* object) {
   set(kCodesStartIndex + i, object);
 }
