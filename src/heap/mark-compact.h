@@ -451,6 +451,12 @@ struct WeakObjects {
   Worklist<std::pair<HeapObject*, Code*>, 64> weak_objects_in_code;
 };
 
+struct EphemeronMarking {
+  std::vector<HeapObject*> newly_discovered;
+  bool newly_discovered_overflowed;
+  size_t newly_discovered_limit;
+};
+
 // Collector for young and old generation.
 class MarkCompactCollector final : public MarkCompactCollectorBase {
  public:
@@ -667,6 +673,22 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
                                             std::make_pair(object, code));
   }
 
+  void AddNewlyDiscovered(HeapObject* object) {
+    if (ephemeron_marking_.newly_discovered_overflowed) return;
+
+    if (ephemeron_marking_.newly_discovered.size() <
+        ephemeron_marking_.newly_discovered_limit) {
+      ephemeron_marking_.newly_discovered.push_back(object);
+    } else {
+      ephemeron_marking_.newly_discovered_overflowed = true;
+    }
+  }
+
+  void ResetNewlyDiscovered() {
+    ephemeron_marking_.newly_discovered_overflowed = false;
+    ephemeron_marking_.newly_discovered.clear();
+  }
+
   Sweeper* sweeper() { return sweeper_; }
 
 #ifdef DEBUG
@@ -735,6 +757,14 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // if no concurrent threads are running.
   void ProcessMarkingWorklist() override;
 
+  enum class MarkingWorklistProcessingMode {
+    kDefault,
+    kTrackNewlyDiscoveredObjects
+  };
+
+  template <MarkingWorklistProcessingMode mode>
+  void ProcessMarkingWorklistInternal();
+
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
   bool VisitEphemeron(HeapObject* key, HeapObject* value);
@@ -746,6 +776,13 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Drains ephemeron and marking worklists. Single iteration of the
   // fixpoint iteration.
   bool ProcessEphemerons();
+
+  // Mark ephemerons and drain marking worklist with a linear algorithm.
+  // Only used if fixpoint iteration doesn't finish within a few iterations.
+  void ProcessEphemeronsLinear();
+
+  // Perform Wrapper Tracing if in use.
+  void PerformWrapperTracing();
 
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
@@ -767,11 +804,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
                               DescriptorArray* descriptors);
   void TrimDescriptorArray(Map* map, DescriptorArray* descriptors);
   void TrimEnumCache(Map* map, DescriptorArray* descriptors);
-
-  // Mark all values associated with reachable keys in weak collections
-  // encountered so far.  This might push new object or even new weak maps onto
-  // the marking stack.
-  void ProcessWeakCollections();
 
   // After all reachable objects have been marked those weak map entries
   // with an unreachable key are removed from all encountered weak maps.
@@ -848,6 +880,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   MarkingWorklist marking_worklist_;
   WeakObjects weak_objects_;
+  EphemeronMarking ephemeron_marking_;
 
   // Candidates for pages that should be evacuated.
   std::vector<Page*> evacuation_candidates_;
