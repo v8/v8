@@ -429,7 +429,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
       TraceIC("LoadIC", name);
     }
 
-    if (*name == isolate()->heap()->iterator_symbol()) {
+    if (*name == ReadOnlyRoots(isolate()).iterator_symbol()) {
       return Runtime::ThrowIteratorError(isolate(), object);
     }
     return TypeError(MessageTemplate::kNonObjectPropertyLoad, object, name);
@@ -737,21 +737,19 @@ void IC::TraceHandlerCacheHitStats(LookupIterator* lookup) {
 
 Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
   Handle<Object> receiver = lookup->GetReceiver();
-  if (receiver->IsString() &&
-      *lookup->name() == isolate()->heap()->length_string()) {
+  ReadOnlyRoots roots(isolate());
+  if (receiver->IsString() && *lookup->name() == roots.length_string()) {
     TRACE_HANDLER_STATS(isolate(), LoadIC_StringLength);
     return BUILTIN_CODE(isolate(), LoadIC_StringLength);
   }
 
-  if (receiver->IsStringWrapper() &&
-      *lookup->name() == isolate()->heap()->length_string()) {
+  if (receiver->IsStringWrapper() && *lookup->name() == roots.length_string()) {
     TRACE_HANDLER_STATS(isolate(), LoadIC_StringWrapperLength);
     return BUILTIN_CODE(isolate(), LoadIC_StringWrapperLength);
   }
 
   // Use specialized code for getting prototype of functions.
-  if (receiver->IsJSFunction() &&
-      *lookup->name() == isolate()->heap()->prototype_string() &&
+  if (receiver->IsJSFunction() && *lookup->name() == roots.prototype_string() &&
       JSFunction::cast(*receiver)->has_prototype_slot() &&
       !JSFunction::cast(*receiver)->map()->has_non_instance_prototype()) {
     Handle<Code> stub;
@@ -2226,7 +2224,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
         script_contexts, lookup_result.context_index);
     Handle<Object> result =
         FixedArray::get(*script_context, lookup_result.slot_index, isolate);
-    if (*result == isolate->heap()->the_hole_value()) {
+    if (*result == ReadOnlyRoots(isolate).the_hole_value()) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
     }
@@ -2531,7 +2529,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   // It could actually be any kind of load IC slot here but the predicate
   // handles all the cases properly.
   if (!LoadIC::ShouldThrowReferenceError(slot_kind)) {
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   // Throw a reference error.
@@ -2585,7 +2583,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
 
   MAYBE_RETURN(Object::SetProperty(&it, value, language_mode,
                                    JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED),
-               isolate->heap()->exception());
+               ReadOnlyRoots(isolate).exception());
   return *value;
 }
 
