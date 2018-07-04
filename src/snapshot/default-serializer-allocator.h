@@ -35,6 +35,8 @@ class DefaultSerializerAllocator final {
   void OutputStatistics();
 
  private:
+  // We try to not exceed this size for every chunk. We will not succeed for
+  // larger objects though.
   uint32_t TargetChunkSize(int space);
 
   static constexpr int kNumberOfPreallocatedSpaces =
