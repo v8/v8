@@ -13406,7 +13406,8 @@ TEST(CallHandlerAsFunctionHasNoSideEffectNotSupported) {
   i::CallHandlerInfo* handler_info =
       i::CallHandlerInfo::cast(cons->instance_call_handler());
   CHECK(!handler_info->IsSideEffectFreeCallHandlerInfo(CcTest::i_isolate()));
-  handler_info->set_map(heap->side_effect_free_call_handler_info_map());
+  handler_info->set_map(
+      i::ReadOnlyRoots(heap).side_effect_free_call_handler_info_map());
   CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj()"), true).IsEmpty());
 }
 
@@ -15641,19 +15642,20 @@ static void MorphAString(i::String* string,
                          OneByteVectorResource* one_byte_resource,
                          UC16VectorResource* uc16_resource) {
   CHECK(i::StringShape(string).IsExternal());
+  i::ReadOnlyRoots roots(CcTest::heap());
   if (string->IsOneByteRepresentation()) {
     // Check old map is not internalized or long.
-    CHECK(string->map() == CcTest::heap()->external_one_byte_string_map());
+    CHECK(string->map() == roots.external_one_byte_string_map());
     // Morph external string to be TwoByte string.
-    string->set_map(CcTest::heap()->external_string_map());
+    string->set_map(roots.external_string_map());
     i::ExternalTwoByteString* morphed =
          i::ExternalTwoByteString::cast(string);
     morphed->set_resource(uc16_resource);
   } else {
     // Check old map is not internalized or long.
-    CHECK(string->map() == CcTest::heap()->external_string_map());
+    CHECK(string->map() == roots.external_string_map());
     // Morph external string to be one-byte string.
-    string->set_map(CcTest::heap()->external_one_byte_string_map());
+    string->set_map(roots.external_one_byte_string_map());
     i::ExternalOneByteString* morphed = i::ExternalOneByteString::cast(string);
     morphed->set_resource(one_byte_resource);
   }

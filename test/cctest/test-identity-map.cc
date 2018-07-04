@@ -715,9 +715,10 @@ TEST(CanonicalHandleScope) {
   CHECK_EQ(next_handle, isolate->handle_scope_data()->next);
 
   // Deduplicate root list items.
-  Handle<String> empty_string(heap->empty_string(), isolate);
-  Handle<Map> free_space_map(heap->free_space_map(), isolate);
-  Handle<Symbol> uninitialized_symbol(heap->uninitialized_symbol(), isolate);
+  Handle<String> empty_string(ReadOnlyRoots(heap).empty_string(), isolate);
+  Handle<Map> free_space_map(ReadOnlyRoots(heap).free_space_map(), isolate);
+  Handle<Symbol> uninitialized_symbol(
+      ReadOnlyRoots(heap).uninitialized_symbol(), isolate);
   CHECK_EQ(isolate->factory()->empty_string().location(),
            empty_string.location());
   CHECK_EQ(isolate->factory()->free_space_map().location(),

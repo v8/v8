@@ -367,7 +367,7 @@ Handle<Symbol> FeedbackVector::PremonomorphicSentinel(Isolate* isolate) {
 }
 
 Symbol* FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
-  return isolate->heap()->uninitialized_symbol();
+  return ReadOnlyRoots(isolate).uninitialized_symbol();
 }
 
 bool FeedbackMetadataIterator::HasNext() const {

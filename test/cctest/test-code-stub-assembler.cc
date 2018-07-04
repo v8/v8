@@ -379,7 +379,7 @@ TEST(ToString) {
   test_cases->set(2, *string_test);
 
   Handle<FixedArray> oddball_test = isolate->factory()->NewFixedArray(2);
-  oddball_test->set(0, isolate->heap()->undefined_value());
+  oddball_test->set(0, ReadOnlyRoots(isolate).undefined_value());
   str = isolate->factory()->InternalizeUtf8String("undefined");
   oddball_test->set(1, *str);
   test_cases->set(3, *oddball_test);
@@ -2047,7 +2047,7 @@ TEST(IsDebugActive) {
   CHECK(!isolate->debug()->is_active());
   Handle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK_EQ(isolate->heap()->false_value(), *result);
+  CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 
   bool* debug_is_active = reinterpret_cast<bool*>(
       ExternalReference::debug_is_active_address(isolate).address());
@@ -2056,7 +2056,7 @@ TEST(IsDebugActive) {
   *debug_is_active = true;
 
   result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK_EQ(isolate->heap()->true_value(), *result);
+  CHECK_EQ(ReadOnlyRoots(isolate).true_value(), *result);
 
   // Reset debug mode.
   *debug_is_active = false;
@@ -2103,13 +2103,14 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     CHECK_EQ(result_size, Handle<Smi>::cast(result)->value());
     CHECK_EQ(result_size, Smi::ToInt(array->length()));
     Object* obj = *JSObject::GetElement(isolate, array, 2).ToHandleChecked();
-    CHECK_EQ(result_size < 3 ? isolate->heap()->undefined_value() : o1, obj);
+    HeapObject* undefined_value = ReadOnlyRoots(isolate).undefined_value();
+    CHECK_EQ(result_size < 3 ? undefined_value : o1, obj);
     obj = *JSObject::GetElement(isolate, array, 3).ToHandleChecked();
-    CHECK_EQ(result_size < 4 ? isolate->heap()->undefined_value() : o2, obj);
+    CHECK_EQ(result_size < 4 ? undefined_value : o2, obj);
     obj = *JSObject::GetElement(isolate, array, 4).ToHandleChecked();
-    CHECK_EQ(result_size < 5 ? isolate->heap()->undefined_value() : o3, obj);
+    CHECK_EQ(result_size < 5 ? undefined_value : o3, obj);
     obj = *JSObject::GetElement(isolate, array, 5).ToHandleChecked();
-    CHECK_EQ(result_size < 6 ? isolate->heap()->undefined_value() : o4, obj);
+    CHECK_EQ(result_size < 6 ? undefined_value : o4, obj);
   }
 
   static void TestAppendJSArray(Isolate* isolate, ElementsKind kind, Object* o1,
@@ -2158,14 +2159,14 @@ TEST(BuildAppendJSArrayFastSmiElementObject) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   AppendJSArrayCodeStubAssembler::TestAppendJSArray(
       isolate, PACKED_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
-      isolate->heap()->undefined_value(), Smi::FromInt(6), 6, 4);
+      ReadOnlyRoots(isolate).undefined_value(), Smi::FromInt(6), 6, 4);
 }
 
 TEST(BuildAppendJSArrayFastSmiElementObjectGrow) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   AppendJSArrayCodeStubAssembler::TestAppendJSArray(
       isolate, PACKED_SMI_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
-      isolate->heap()->undefined_value(), Smi::FromInt(6), 2, 4);
+      ReadOnlyRoots(isolate).undefined_value(), Smi::FromInt(6), 2, 4);
 }
 
 TEST(BuildAppendJSArrayFastDoubleElements) {
@@ -2186,7 +2187,7 @@ TEST(BuildAppendJSArrayFastDoubleElementsObject) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   AppendJSArrayCodeStubAssembler::TestAppendJSArray(
       isolate, PACKED_DOUBLE_ELEMENTS, Smi::FromInt(3), Smi::FromInt(4),
-      isolate->heap()->undefined_value(), Smi::FromInt(6), 6, 4);
+      ReadOnlyRoots(isolate).undefined_value(), Smi::FromInt(6), 6, 4);
 }
 
 namespace {
@@ -2216,15 +2217,15 @@ TEST(IsPromiseHookEnabled) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK_EQ(isolate->heap()->false_value(), *result);
+  CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 
   isolate->SetPromiseHook(CustomPromiseHook);
   result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK_EQ(isolate->heap()->true_value(), *result);
+  CHECK_EQ(ReadOnlyRoots(isolate).true_value(), *result);
 
   isolate->SetPromiseHook(nullptr);
   result = ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK_EQ(isolate->heap()->false_value(), *result);
+  CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 }
 
 TEST(AllocateAndInitJSPromise) {
@@ -2279,10 +2280,10 @@ TEST(IsSymbol) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result =
       ft.Call(isolate->factory()->NewSymbol()).ToHandleChecked();
-  CHECK_EQ(isolate->heap()->true_value(), *result);
+  CHECK_EQ(ReadOnlyRoots(isolate).true_value(), *result);
 
   result = ft.Call(isolate->factory()->empty_string()).ToHandleChecked();
-  CHECK_EQ(isolate->heap()->false_value(), *result);
+  CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 }
 
 TEST(IsPrivateSymbol) {
@@ -2298,13 +2299,13 @@ TEST(IsPrivateSymbol) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result =
       ft.Call(isolate->factory()->NewSymbol()).ToHandleChecked();
-  CHECK_EQ(isolate->heap()->false_value(), *result);
+  CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 
   result = ft.Call(isolate->factory()->empty_string()).ToHandleChecked();
-  CHECK_EQ(isolate->heap()->false_value(), *result);
+  CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 
   result = ft.Call(isolate->factory()->NewPrivateSymbol()).ToHandleChecked();
-  CHECK_EQ(isolate->heap()->true_value(), *result);
+  CHECK_EQ(ReadOnlyRoots(isolate).true_value(), *result);
 }
 
 TEST(PromiseHasHandler) {
@@ -2322,7 +2323,7 @@ TEST(PromiseHasHandler) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK_EQ(isolate->heap()->false_value(), *result);
+  CHECK_EQ(ReadOnlyRoots(isolate).false_value(), *result);
 }
 
 TEST(CreatePromiseResolvingFunctionsContext) {
@@ -2346,10 +2347,10 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   CHECK(result->IsContext());
   Handle<Context> context_js = Handle<Context>::cast(result);
   CHECK_EQ(isolate->native_context()->scope_info(), context_js->scope_info());
-  CHECK_EQ(isolate->heap()->the_hole_value(), context_js->extension());
+  CHECK_EQ(ReadOnlyRoots(isolate).the_hole_value(), context_js->extension());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
   CHECK(context_js->get(PromiseBuiltinsAssembler::kPromiseSlot)->IsJSPromise());
-  CHECK_EQ(isolate->heap()->false_value(),
+  CHECK_EQ(ReadOnlyRoots(isolate).false_value(),
            context_js->get(PromiseBuiltinsAssembler::kDebugEventSlot));
 }
 
@@ -2469,8 +2470,9 @@ TEST(AllocateFunctionWithMapAndContext) {
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(result_obj->IsJSFunction());
   Handle<JSFunction> fun = Handle<JSFunction>::cast(result_obj);
-  CHECK_EQ(isolate->heap()->empty_property_array(), fun->property_array());
-  CHECK_EQ(isolate->heap()->empty_fixed_array(), fun->elements());
+  CHECK_EQ(ReadOnlyRoots(isolate).empty_property_array(),
+           fun->property_array());
+  CHECK_EQ(ReadOnlyRoots(isolate).empty_fixed_array(), fun->elements());
   CHECK_EQ(isolate->heap()->many_closures_cell(), fun->feedback_cell());
   CHECK(!fun->has_prototype_slot());
   CHECK_EQ(*isolate->promise_capability_default_resolve_shared_fun(),
@@ -2509,7 +2511,7 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   CHECK_EQ(PromiseBuiltinsAssembler::kCapabilitiesContextLength,
            context_js->length());
   CHECK_EQ(isolate->native_context()->scope_info(), context_js->scope_info());
-  CHECK_EQ(isolate->heap()->the_hole_value(), context_js->extension());
+  CHECK_EQ(ReadOnlyRoots(isolate).the_hole_value(), context_js->extension());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
   CHECK(context_js->get(PromiseBuiltinsAssembler::kCapabilitySlot)
             ->IsPromiseCapability());
@@ -2557,7 +2559,7 @@ TEST(NewPromiseCapability) {
     for (auto&& callback : callbacks) {
       Handle<Context> context(Context::cast(callback->context()), isolate);
       CHECK_EQ(isolate->native_context()->scope_info(), context->scope_info());
-      CHECK_EQ(isolate->heap()->the_hole_value(), context->extension());
+      CHECK_EQ(ReadOnlyRoots(isolate).the_hole_value(), context->extension());
       CHECK_EQ(*isolate->native_context(), context->native_context());
       CHECK_EQ(PromiseBuiltinsAssembler::kPromiseContextLength,
                context->length());
@@ -2841,8 +2843,8 @@ TEST(AllocateStruct) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<Map> maps[] = {
-      handle(isolate->heap()->tuple3_map(), isolate),
-      handle(isolate->heap()->tuple2_map(), isolate),
+      handle(ReadOnlyRoots(isolate).tuple3_map(), isolate),
+      handle(ReadOnlyRoots(isolate).tuple2_map(), isolate),
   };
 
   {
@@ -3117,7 +3119,7 @@ TEST(CloneFixedArrayCOW) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  source->set_map(isolate->heap()->fixed_cow_array_map());
+  source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
   FixedArray* result(FixedArray::cast(*result_raw));
   CHECK_EQ(*source, result);
@@ -3139,7 +3141,7 @@ TEST(ExtractFixedArrayCOWForceCopy) {
 
   Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
   source->set(1, Smi::FromInt(1234));
-  source->set_map(isolate->heap()->fixed_cow_array_map());
+  source->set_map(ReadOnlyRoots(isolate).fixed_cow_array_map());
   Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
   FixedArray* result(FixedArray::cast(*result_raw));
   CHECK_NE(*source, result);

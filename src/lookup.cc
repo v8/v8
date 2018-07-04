@@ -273,7 +273,8 @@ bool IsTypedArrayFunctionInAnyContext(Isolate* isolate, JSReceiver* holder) {
 void LookupIterator::InternalUpdateProtector() {
   if (isolate_->bootstrapper()->IsActive()) return;
 
-  if (*name_ == heap()->constructor_string()) {
+  ReadOnlyRoots roots(heap());
+  if (*name_ == roots.constructor_string()) {
     if (!isolate_->IsArraySpeciesLookupChainIntact() &&
         !isolate_->IsTypedArraySpeciesLookupChainIntact() &&
         !isolate_->IsPromiseSpeciesLookupChainIntact())
@@ -319,7 +320,7 @@ void LookupIterator::InternalUpdateProtector() {
         isolate_->InvalidateTypedArraySpeciesProtector();
       }
     }
-  } else if (*name_ == heap()->next_string()) {
+  } else if (*name_ == roots.next_string()) {
     if (!isolate_->IsArrayIteratorLookupChainIntact()) return;
     // Setting the next property of %ArrayIteratorPrototype% also needs to
     // invalidate the array iterator protector.
@@ -327,7 +328,7 @@ void LookupIterator::InternalUpdateProtector() {
             *holder_, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)) {
       isolate_->InvalidateArrayIteratorProtector();
     }
-  } else if (*name_ == heap()->species_symbol()) {
+  } else if (*name_ == roots.species_symbol()) {
     if (!isolate_->IsArraySpeciesLookupChainIntact() &&
         !isolate_->IsTypedArraySpeciesLookupChainIntact() &&
         !isolate_->IsPromiseSpeciesLookupChainIntact())
@@ -347,22 +348,22 @@ void LookupIterator::InternalUpdateProtector() {
       if (!isolate_->IsTypedArraySpeciesLookupChainIntact()) return;
       isolate_->InvalidateTypedArraySpeciesProtector();
     }
-  } else if (*name_ == heap()->is_concat_spreadable_symbol()) {
+  } else if (*name_ == roots.is_concat_spreadable_symbol()) {
     if (!isolate_->IsIsConcatSpreadableLookupChainIntact()) return;
     isolate_->InvalidateIsConcatSpreadableProtector();
-  } else if (*name_ == heap()->iterator_symbol()) {
+  } else if (*name_ == roots.iterator_symbol()) {
     if (!isolate_->IsArrayIteratorLookupChainIntact()) return;
     if (holder_->IsJSArray()) {
       isolate_->InvalidateArrayIteratorProtector();
     }
-  } else if (*name_ == heap()->resolve_string()) {
+  } else if (*name_ == roots.resolve_string()) {
     if (!isolate_->IsPromiseResolveLookupChainIntact()) return;
     // Setting the "resolve" property on any %Promise% intrinsic object
     // invalidates the Promise.resolve protector.
     if (isolate_->IsInAnyContext(*holder_, Context::PROMISE_FUNCTION_INDEX)) {
       isolate_->InvalidatePromiseResolveProtector();
     }
-  } else if (*name_ == heap()->then_string()) {
+  } else if (*name_ == roots.then_string()) {
     if (!isolate_->IsPromiseThenLookupChainIntact()) return;
     // Setting the "then" property on any JSPromise instance or on the
     // initial %PromisePrototype% invalidates the Promise#then protector.
@@ -766,7 +767,7 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
       FixedArray* parameter_map = FixedArray::cast(receiver->elements());
       uint32_t length = parameter_map->length() - 2;
       if (number_ < length) {
-        parameter_map->set(number_ + 2, heap()->the_hole_value());
+        parameter_map->set(number_ + 2, ReadOnlyRoots(heap()).the_hole_value());
       }
       FixedArray::cast(receiver->elements())->set(1, *dictionary);
     } else {
@@ -1006,7 +1007,7 @@ bool LookupIterator::SkipInterceptor(JSObject* holder) {
 
 JSReceiver* LookupIterator::NextHolder(Map* map) {
   DisallowHeapAllocation no_gc;
-  if (map->prototype() == heap()->null_value()) return nullptr;
+  if (map->prototype() == ReadOnlyRoots(heap()).null_value()) return nullptr;
   if (!check_prototype_chain() && !map->has_hidden_prototype()) return nullptr;
   return JSReceiver::cast(map->prototype());
 }

@@ -42,7 +42,7 @@ TEST(ConcurrentMarking) {
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
       new ConcurrentMarking(heap, &shared, &bailout, &on_hold, &weak_objects);
-  PublishSegment(&shared, heap->undefined_value());
+  PublishSegment(&shared, ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->ScheduleTasks();
   concurrent_marking->Stop(
       ConcurrentMarking::StopRequest::COMPLETE_TASKS_FOR_TESTING);
@@ -64,11 +64,11 @@ TEST(ConcurrentMarkingReschedule) {
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
       new ConcurrentMarking(heap, &shared, &bailout, &on_hold, &weak_objects);
-  PublishSegment(&shared, heap->undefined_value());
+  PublishSegment(&shared, ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->ScheduleTasks();
   concurrent_marking->Stop(
       ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
-  PublishSegment(&shared, heap->undefined_value());
+  PublishSegment(&shared, ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->RescheduleTasksIfNeeded();
   concurrent_marking->Stop(
       ConcurrentMarking::StopRequest::COMPLETE_TASKS_FOR_TESTING);
@@ -91,11 +91,11 @@ TEST(ConcurrentMarkingPreemptAndReschedule) {
   ConcurrentMarking* concurrent_marking =
       new ConcurrentMarking(heap, &shared, &bailout, &on_hold, &weak_objects);
   for (int i = 0; i < 5000; i++)
-    PublishSegment(&shared, heap->undefined_value());
+    PublishSegment(&shared, ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->ScheduleTasks();
   concurrent_marking->Stop(ConcurrentMarking::StopRequest::PREEMPT_TASKS);
   for (int i = 0; i < 5000; i++)
-    PublishSegment(&shared, heap->undefined_value());
+    PublishSegment(&shared, ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->RescheduleTasksIfNeeded();
   concurrent_marking->Stop(
       ConcurrentMarking::StopRequest::COMPLETE_TASKS_FOR_TESTING);

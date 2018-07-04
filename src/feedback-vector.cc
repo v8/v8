@@ -45,10 +45,10 @@ static bool IsPropertyNameFeedback(MaybeObject* feedback) {
   if (heap_object->IsString()) return true;
   if (!heap_object->IsSymbol()) return false;
   Symbol* symbol = Symbol::cast(heap_object);
-  Heap* heap = symbol->GetHeap();
-  return symbol != heap->uninitialized_symbol() &&
-         symbol != heap->premonomorphic_symbol() &&
-         symbol != heap->megamorphic_symbol();
+  ReadOnlyRoots roots = symbol->GetReadOnlyRoots();
+  return symbol != roots.uninitialized_symbol() &&
+         symbol != roots.premonomorphic_symbol() &&
+         symbol != roots.megamorphic_symbol();
 }
 
 std::ostream& operator<<(std::ostream& os, FeedbackSlotKind kind) {
@@ -219,7 +219,8 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
 
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);
-  DCHECK_EQ(isolate->heap()->uninitialized_symbol(), *uninitialized_sentinel);
+  DCHECK_EQ(ReadOnlyRoots(isolate).uninitialized_symbol(),
+            *uninitialized_sentinel);
   Handle<Oddball> undefined_value = factory->undefined_value();
   for (int i = 0; i < slot_count;) {
     FeedbackSlot slot(i);

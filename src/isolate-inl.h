@@ -83,7 +83,7 @@ void Isolate::clear_scheduled_exception() {
 }
 
 bool Isolate::is_catchable_by_javascript(Object* exception) {
-  return exception != heap()->termination_exception();
+  return exception != ReadOnlyRoots(heap()).termination_exception();
 }
 
 void Isolate::FireBeforeCallEnteredCallback() {

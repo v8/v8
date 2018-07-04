@@ -273,11 +273,11 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
     if (IsElement()) return;
     // This list must be kept in sync with
     // CodeStubAssembler::CheckForAssociatedProtector!
-    if (*name_ == heap()->is_concat_spreadable_symbol() ||
-        *name_ == heap()->constructor_string() ||
-        *name_ == heap()->next_string() || *name_ == heap()->species_symbol() ||
-        *name_ == heap()->iterator_symbol() ||
-        *name_ == heap()->resolve_string() || *name_ == heap()->then_string()) {
+    ReadOnlyRoots roots(heap());
+    if (*name_ == roots.is_concat_spreadable_symbol() ||
+        *name_ == roots.constructor_string() || *name_ == roots.next_string() ||
+        *name_ == roots.species_symbol() || *name_ == roots.iterator_symbol() ||
+        *name_ == roots.resolve_string() || *name_ == roots.then_string()) {
       InternalUpdateProtector();
     }
   }

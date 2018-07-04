@@ -748,7 +748,7 @@ Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {
   Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
   {
     DisallowHeapAllocation no_gc;
-    Oddball* the_hole = isolate_->heap()->the_hole_value();
+    Oddball* the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int capacity = table->UsedCapacity();
     int result_index = 0;
     for (int i = 0; i < capacity; i++) {
@@ -779,7 +779,7 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
   Handle<FixedArray> entries = isolate_->factory()->NewFixedArray(length);
   {
     DisallowHeapAllocation no_gc;
-    Oddball* the_hole = isolate_->heap()->the_hole_value();
+    Oddball* the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int capacity = table->UsedCapacity();
     int result_index = 0;
     for (int i = 0; i < capacity; i++) {
@@ -1000,7 +1000,7 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate,
       end_(data.start() + data.length()),
       pretenure_(data.length() > kPretenureThreshold ? TENURED : NOT_TENURED),
       id_map_(isolate->global_handles()->Create(
-          isolate_->heap()->empty_fixed_array())) {}
+          ReadOnlyRoots(isolate_).empty_fixed_array())) {}
 
 ValueDeserializer::~ValueDeserializer() {
   GlobalHandles::Destroy(Handle<Object>::cast(id_map_).location());
@@ -1506,12 +1506,12 @@ MaybeHandle<JSValue> ValueDeserializer::ReadJSValue(SerializationTag tag) {
     case SerializationTag::kTrueObject:
       value = Handle<JSValue>::cast(isolate_->factory()->NewJSObject(
           isolate_->boolean_function(), pretenure_));
-      value->set_value(isolate_->heap()->true_value());
+      value->set_value(ReadOnlyRoots(isolate_).true_value());
       break;
     case SerializationTag::kFalseObject:
       value = Handle<JSValue>::cast(isolate_->factory()->NewJSObject(
           isolate_->boolean_function(), pretenure_));
-      value->set_value(isolate_->heap()->false_value());
+      value->set_value(ReadOnlyRoots(isolate_).false_value());
       break;
     case SerializationTag::kNumberObject: {
       double number;

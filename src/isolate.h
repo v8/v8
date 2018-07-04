@@ -158,16 +158,16 @@ class WasmEngine;
     }                                                             \
   } while (false)
 
-#define RETURN_RESULT_OR_FAILURE(isolate, call)     \
-  do {                                              \
-    Handle<Object> __result__;                      \
-    Isolate* __isolate__ = (isolate);               \
-    if (!(call).ToHandle(&__result__)) {            \
-      DCHECK(__isolate__->has_pending_exception()); \
-      return __isolate__->heap()->exception();      \
-    }                                               \
-    DCHECK(!__isolate__->has_pending_exception());  \
-    return *__result__;                             \
+#define RETURN_RESULT_OR_FAILURE(isolate, call)      \
+  do {                                               \
+    Handle<Object> __result__;                       \
+    Isolate* __isolate__ = (isolate);                \
+    if (!(call).ToHandle(&__result__)) {             \
+      DCHECK(__isolate__->has_pending_exception());  \
+      return ReadOnlyRoots(__isolate__).exception(); \
+    }                                                \
+    DCHECK(!__isolate__->has_pending_exception());   \
+    return *__result__;                              \
   } while (false)
 
 #define ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value)  \
@@ -178,11 +178,11 @@ class WasmEngine;
     }                                                                \
   } while (false)
 
-#define ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call)          \
-  do {                                                                  \
-    Isolate* __isolate__ = (isolate);                                   \
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(__isolate__, dst, call,            \
-                                     __isolate__->heap()->exception()); \
+#define ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call)                \
+  do {                                                                        \
+    Isolate* __isolate__ = (isolate);                                         \
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(__isolate__, dst, call,                  \
+                                     ReadOnlyRoots(__isolate__).exception()); \
   } while (false)
 
 #define ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call, T)  \
@@ -208,11 +208,11 @@ class WasmEngine;
     }                                                              \
   } while (false)
 
-#define RETURN_FAILURE_ON_EXCEPTION(isolate, call)               \
-  do {                                                           \
-    Isolate* __isolate__ = (isolate);                            \
-    RETURN_ON_EXCEPTION_VALUE(__isolate__, call,                 \
-                              __isolate__->heap()->exception()); \
+#define RETURN_FAILURE_ON_EXCEPTION(isolate, call)                     \
+  do {                                                                 \
+    Isolate* __isolate__ = (isolate);                                  \
+    RETURN_ON_EXCEPTION_VALUE(__isolate__, call,                       \
+                              ReadOnlyRoots(__isolate__).exception()); \
   } while (false);
 
 #define RETURN_ON_EXCEPTION(isolate, call, T)  \

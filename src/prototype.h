@@ -110,7 +110,7 @@ class PrototypeIterator {
   void Advance() {
     if (handle_.is_null() && object_->IsJSProxy()) {
       is_at_end_ = true;
-      object_ = isolate_->heap()->null_value();
+      object_ = ReadOnlyRoots(isolate_).null_value();
       return;
     } else if (!handle_.is_null() && handle_->IsJSProxy()) {
       is_at_end_ = true;

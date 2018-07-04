@@ -25,7 +25,7 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
     Isolate* isolate = script_context->GetIsolate();
     Handle<FixedArray> copy =
         isolate->factory()->CopyFixedArrayAndGrow(table, length);
-    copy->set_map(isolate->heap()->script_context_table_map());
+    copy->set_map(ReadOnlyRoots(isolate).script_context_table_map());
     result = Handle<ScriptContextTable>::cast(copy);
   } else {
     result = table;

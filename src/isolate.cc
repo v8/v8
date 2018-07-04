@@ -1043,7 +1043,7 @@ Object* Isolate::StackOverflow() {
   }
 #endif  // VERIFY_HEAP
 
-  return heap()->exception();
+  return ReadOnlyRoots(heap()).exception();
 }
 
 
@@ -1266,7 +1266,7 @@ Object* Isolate::Throw(Object* raw_exception, MessageLocation* location) {
 
   // Set the exception being thrown.
   set_pending_exception(*exception);
-  return heap()->exception();
+  return ReadOnlyRoots(heap()).exception();
 }
 
 
@@ -1275,7 +1275,7 @@ Object* Isolate::ReThrow(Object* exception) {
 
   // Set the exception being re-thrown.
   set_pending_exception(exception);
-  return heap()->exception();
+  return ReadOnlyRoots(heap()).exception();
 }
 
 
@@ -1613,7 +1613,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
 
 Object* Isolate::ThrowIllegalOperation() {
   if (FLAG_stack_trace_on_illegal) PrintStack(stdout);
-  return Throw(heap()->illegal_access_string());
+  return Throw(ReadOnlyRoots(heap()).illegal_access_string());
 }
 
 
@@ -1644,7 +1644,8 @@ void Isolate::RestorePendingMessageFromTryCatch(v8::TryCatch* handler) {
 void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
   DCHECK(has_scheduled_exception());
   if (scheduled_exception() == handler->exception_) {
-    DCHECK(scheduled_exception() != heap()->termination_exception());
+    DCHECK(scheduled_exception() !=
+           ReadOnlyRoots(heap()).termination_exception());
     clear_scheduled_exception();
   }
   if (thread_local_top_.pending_message_obj_ == handler->message_obj_) {
@@ -1826,7 +1827,7 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
 
 
 bool Isolate::IsJavaScriptHandlerOnTop(Object* exception) {
-  DCHECK_NE(heap()->the_hole_value(), exception);
+  DCHECK_NE(ReadOnlyRoots(heap()).the_hole_value(), exception);
 
   // For uncatchable exceptions, the JavaScript handler cannot be on top.
   if (!is_catchable_by_javascript(exception)) return false;
@@ -1851,7 +1852,7 @@ bool Isolate::IsJavaScriptHandlerOnTop(Object* exception) {
 
 
 bool Isolate::IsExternalHandlerOnTop(Object* exception) {
-  DCHECK_NE(heap()->the_hole_value(), exception);
+  DCHECK_NE(ReadOnlyRoots(heap()).the_hole_value(), exception);
 
   // Get the address of the external handler so we can compare the address to
   // determine which one is closer to the top of the stack.
@@ -1993,7 +1994,8 @@ void Isolate::ReportPendingMessagesFromJavaScript() {
 MessageLocation Isolate::GetMessageLocation() {
   DCHECK(has_pending_exception());
 
-  if (thread_local_top_.pending_exception_ != heap()->termination_exception() &&
+  if (thread_local_top_.pending_exception_ !=
+          ReadOnlyRoots(heap()).termination_exception() &&
       !thread_local_top_.pending_message_obj_->IsTheHole(this)) {
     Handle<JSMessageObject> message_obj(
         JSMessageObject::cast(thread_local_top_.pending_message_obj_), this);
@@ -2810,7 +2812,7 @@ void Isolate::SetTerminationOnExternalTryCatch() {
   if (try_catch_handler() == nullptr) return;
   try_catch_handler()->can_continue_ = false;
   try_catch_handler()->has_terminated_ = true;
-  try_catch_handler()->exception_ = heap()->null_value();
+  try_catch_handler()->exception_ = ReadOnlyRoots(heap()).null_value();
 }
 
 bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
@@ -3367,16 +3369,17 @@ bool Isolate::IsNoElementsProtectorIntact(Context* context) {
   }
 
   FixedArrayBase* elements = initial_array_proto->elements();
-  if (elements != heap()->empty_fixed_array() &&
-      elements != heap()->empty_slow_element_dictionary()) {
+  ReadOnlyRoots roots(heap());
+  if (elements != roots.empty_fixed_array() &&
+      elements != roots.empty_slow_element_dictionary()) {
     DCHECK_EQ(false, cell_reports_intact);
     return cell_reports_intact;
   }
 
   // Check that the Object.prototype hasn't been altered WRT empty elements.
   elements = initial_object_proto->elements();
-  if (elements != heap()->empty_fixed_array() &&
-      elements != heap()->empty_slow_element_dictionary()) {
+  if (elements != roots.empty_fixed_array() &&
+      elements != roots.empty_slow_element_dictionary()) {
     DCHECK_EQ(false, cell_reports_intact);
     return cell_reports_intact;
   }
@@ -3399,8 +3402,8 @@ bool Isolate::IsNoElementsProtectorIntact(Context* context) {
 
   // Check that the String.prototype hasn't been altered WRT empty elements.
   elements = initial_string_proto->elements();
-  if (elements != heap()->empty_fixed_array() &&
-      elements != heap()->empty_slow_element_dictionary()) {
+  if (elements != roots.empty_fixed_array() &&
+      elements != roots.empty_slow_element_dictionary()) {
     DCHECK_EQ(false, cell_reports_intact);
     return cell_reports_intact;
   }
@@ -3978,7 +3981,7 @@ void Isolate::RunMicrotasks() {
     // If execution is terminating, bail out, clean up, and propagate to
     // TryCatch scope.
     if (maybe_result.is_null() && maybe_exception.is_null()) {
-      heap()->set_microtask_queue(heap()->empty_fixed_array());
+      heap()->set_microtask_queue(ReadOnlyRoots(heap()).empty_fixed_array());
       set_pending_microtask_count(0);
       handle_scope_implementer()->LeaveMicrotaskContext();
       SetTerminationOnExternalTryCatch();
@@ -4073,7 +4076,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
     }
   }
   if (new_length == 0) {
-    heap()->set_detached_contexts(heap()->empty_fixed_array());
+    heap()->set_detached_contexts(ReadOnlyRoots(heap()).empty_fixed_array());
   } else if (new_length < length) {
     heap()->RightTrimFixedArray(*detached_contexts, length - new_length);
   }

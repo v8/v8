@@ -467,7 +467,7 @@ void Utils::ReportOOMFailure(i::Isolate* isolate, const char* location,
 static inline bool IsExecutionTerminatingCheck(i::Isolate* isolate) {
   if (isolate->has_scheduled_exception()) {
     return isolate->scheduled_exception() ==
-        isolate->heap()->termination_exception();
+           i::ReadOnlyRoots(isolate).termination_exception();
   }
   return false;
 }
@@ -675,7 +675,7 @@ void ConvertSerializedObjectsToFixedArray(Local<Context> context) {
   i::Handle<i::Context> ctx = Utils::OpenHandle(*context);
   i::Isolate* isolate = ctx->GetIsolate();
   if (!ctx->serialized_objects()->IsArrayList()) {
-    ctx->set_serialized_objects(isolate->heap()->empty_fixed_array());
+    ctx->set_serialized_objects(i::ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
     i::Handle<i::ArrayList> list(i::ArrayList::cast(ctx->serialized_objects()),
                                  isolate);
@@ -686,7 +686,8 @@ void ConvertSerializedObjectsToFixedArray(Local<Context> context) {
 
 void ConvertSerializedObjectsToFixedArray(i::Isolate* isolate) {
   if (!isolate->heap()->serialized_objects()->IsArrayList()) {
-    isolate->heap()->SetSerializedObjects(isolate->heap()->empty_fixed_array());
+    isolate->heap()->SetSerializedObjects(
+        i::ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
     i::Handle<i::ArrayList> list(
         i::ArrayList::cast(isolate->heap()->serialized_objects()), isolate);
@@ -773,7 +774,8 @@ StartupData SnapshotCreator::CreateBlob(
 
       // Also, clear out feedback vectors, or any optimized code.
       if (fun->has_feedback_vector()) {
-        fun->feedback_cell()->set_value(isolate->heap()->undefined_value());
+        fun->feedback_cell()->set_value(
+            i::ReadOnlyRoots(isolate).undefined_value());
         fun->set_code(isolate->builtins()->builtin(i::Builtins::kCompileLazy));
       }
     }
@@ -1159,7 +1161,8 @@ i::Object** HandleScope::CreateHandle(i::HeapObject* heap_object,
 
 EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  escape_slot_ = CreateHandle(isolate, isolate->heap()->the_hole_value());
+  escape_slot_ =
+      CreateHandle(isolate, i::ReadOnlyRoots(isolate).the_hole_value());
   Initialize(v8_isolate);
 }
 
@@ -1169,7 +1172,7 @@ i::Object** EscapableHandleScope::Escape(i::Object** escape_value) {
   Utils::ApiCheck((*escape_slot_)->IsTheHole(heap->isolate()),
                   "EscapableHandleScope::Escape", "Escape value set twice");
   if (escape_value == nullptr) {
-    *escape_slot_ = heap->undefined_value();
+    *escape_slot_ = i::ReadOnlyRoots(heap).undefined_value();
     return nullptr;
   }
   *escape_slot_ = *escape_value;
@@ -1461,7 +1464,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   }
   obj->set_cached_property_name(
       cached_property_name.IsEmpty()
-          ? isolate->heap()->the_hole_value()
+          ? i::ReadOnlyRoots(isolate).the_hole_value()
           : *Utils::OpenHandle(*cached_property_name));
   return Utils::ToLocal(obj);
 }
@@ -2877,7 +2880,7 @@ void v8::TryCatch::Reset() {
 
 
 void v8::TryCatch::ResetInternal() {
-  i::Object* the_hole = isolate_->heap()->the_hole_value();
+  i::Object* the_hole = i::ReadOnlyRoots(isolate_).the_hole_value();
   exception_ = the_hole;
   message_obj_ = the_hole;
 }
@@ -6214,7 +6217,7 @@ static i::Handle<ObjectType> CreateEnvironment(
             global_constructor->needs_access_check());
         global_constructor->set_needs_access_check(false);
         global_constructor->set_access_check_info(
-            isolate->heap()->undefined_value());
+            i::ReadOnlyRoots(isolate).undefined_value());
       }
 
       // Same for other interceptors. If the global constructor has
@@ -6225,14 +6228,14 @@ static i::Handle<ObjectType> CreateEnvironment(
         named_interceptor =
             handle(global_constructor->named_property_handler(), isolate);
         global_constructor->set_named_property_handler(
-            isolate->heap()->noop_interceptor_info());
+            i::ReadOnlyRoots(isolate).noop_interceptor_info());
       }
       if (!global_constructor->indexed_property_handler()->IsUndefined(
               isolate)) {
         indexed_interceptor =
             handle(global_constructor->indexed_property_handler(), isolate);
         global_constructor->set_indexed_property_handler(
-            isolate->heap()->noop_interceptor_info());
+            i::ReadOnlyRoots(isolate).noop_interceptor_info());
       }
     }
 
@@ -6405,7 +6408,8 @@ void Context::AllowCodeGenerationFromStrings(bool allow) {
   i::Isolate* isolate = context->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   context->set_allow_code_gen_from_strings(
-      allow ? isolate->heap()->true_value() : isolate->heap()->false_value());
+      allow ? i::ReadOnlyRoots(isolate).true_value()
+            : i::ReadOnlyRoots(isolate).false_value());
 }
 
 
@@ -6872,8 +6876,9 @@ Local<v8::Value> v8::BooleanObject::New(Isolate* isolate, bool value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, BooleanObject, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::Object> boolean(value ? i_isolate->heap()->true_value()
-                                     : i_isolate->heap()->false_value(),
+  i::Handle<i::Object> boolean(value
+                                   ? i::ReadOnlyRoots(i_isolate).true_value()
+                                   : i::ReadOnlyRoots(i_isolate).false_value(),
                                i_isolate);
   i::Handle<i::Object> obj =
       i::Object::ToObject(i_isolate, boolean).ToHandleChecked();
@@ -7151,7 +7156,7 @@ i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object* table_obj,
   {
     i::DisallowHeapAllocation no_gc;
     int capacity = table->UsedCapacity();
-    i::Oddball* the_hole = isolate->heap()->the_hole_value();
+    i::Oddball* the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
     for (int i = 0; i < capacity; ++i) {
       i::Object* key = table->KeyAt(i);
       if (key == the_hole) continue;
@@ -7258,7 +7263,7 @@ i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object* table_obj,
   {
     i::DisallowHeapAllocation no_gc;
     int capacity = table->UsedCapacity();
-    i::Oddball* the_hole = isolate->heap()->the_hole_value();
+    i::Oddball* the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
     for (int i = 0; i < capacity; ++i) {
       i::Object* key = table->KeyAt(i);
       if (key == the_hole) continue;
@@ -8198,7 +8203,7 @@ v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
   // If we're passed an empty handle, we throw an undefined exception
   // to deal more gracefully with out of memory situations.
   if (value.IsEmpty()) {
-    isolate->ScheduleThrow(isolate->heap()->undefined_value());
+    isolate->ScheduleThrow(i::ReadOnlyRoots(isolate).undefined_value());
   } else {
     isolate->ScheduleThrow(*Utils::OpenHandle(*value));
   }
@@ -8944,7 +8949,7 @@ bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
   i::Handle<i::Foreign> foreign =
       isolate->factory()->NewForeign(FUNCTION_ADDR(that));
   listener->set(0, *foreign);
-  listener->set(1, data.IsEmpty() ? isolate->heap()->undefined_value()
+  listener->set(1, data.IsEmpty() ? i::ReadOnlyRoots(isolate).undefined_value()
                                   : *Utils::OpenHandle(*data));
   listener->set(2, i::Smi::FromInt(message_levels));
   list = i::TemplateList::Add(isolate, list, listener);
@@ -8964,7 +8969,7 @@ void Isolate::RemoveMessageListeners(MessageCallback that) {
     i::FixedArray* listener = i::FixedArray::cast(listeners->get(i));
     i::Foreign* callback_obj = i::Foreign::cast(listener->get(0));
     if (callback_obj->foreign_address() == FUNCTION_ADDR(that)) {
-      listeners->set(i, isolate->heap()->undefined_value());
+      listeners->set(i, i::ReadOnlyRoots(isolate).undefined_value());
     }
   }
 }

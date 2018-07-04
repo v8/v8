@@ -103,7 +103,8 @@ AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
   HeapObject* obj;
   AllocationResult alloc = heap->AllocateRaw(Map::kSize, MAP_SPACE);
   if (!alloc.To(&obj)) return alloc;
-  obj->set_map_after_allocation(heap->meta_map(), SKIP_WRITE_BARRIER);
+  obj->set_map_after_allocation(ReadOnlyRoots(heap).meta_map(),
+                                SKIP_WRITE_BARRIER);
   return isolate->factory()->InitializeMap(Map::cast(obj), JS_OBJECT_TYPE,
                                            JSObject::kHeaderSize,
                                            TERMINAL_FAST_ELEMENTS_KIND, 0);
@@ -121,10 +122,12 @@ AllocationResult HeapTester::AllocateFixedArrayForTest(
     AllocationResult result = heap->AllocateRaw(size, space);
     if (!result.To(&obj)) return result;
   }
-  obj->set_map_after_allocation(heap->fixed_array_map(), SKIP_WRITE_BARRIER);
+  obj->set_map_after_allocation(ReadOnlyRoots(heap).fixed_array_map(),
+                                SKIP_WRITE_BARRIER);
   FixedArray* array = FixedArray::cast(obj);
   array->set_length(length);
-  MemsetPointer(array->data_start(), heap->undefined_value(), length);
+  MemsetPointer(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
+                length);
   return array;
 }
 

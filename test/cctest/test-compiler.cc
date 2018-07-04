@@ -259,7 +259,7 @@ TEST(Regression236) {
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<Script> script = factory->NewScript(factory->empty_string());
-  script->set_source(CcTest::heap()->undefined_value());
+  script->set_source(ReadOnlyRoots(CcTest::heap()).undefined_value());
   CHECK_EQ(-1, Script::GetLineNumber(script, 0));
   CHECK_EQ(-1, Script::GetLineNumber(script, 100));
   CHECK_EQ(-1, Script::GetLineNumber(script, -1));

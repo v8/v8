@@ -168,7 +168,8 @@ void Accessors::ArrayLengthSetter(
                               RuntimeCallCounterId::kArrayLengthSetter);
   HandleScope scope(isolate);
 
-  DCHECK(Utils::OpenHandle(*name)->SameValue(isolate->heap()->length_string()));
+  DCHECK(Utils::OpenHandle(*name)->SameValue(
+      ReadOnlyRoots(isolate).length_string()));
 
   Handle<JSReceiver> object = Utils::OpenHandle(*info.Holder());
   Handle<JSArray> array = Handle<JSArray>::cast(object);
@@ -826,7 +827,7 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
       // Generators currently use holes as dummy arguments when resuming.  We
       // must not leak those.
       DCHECK(IsResumableFunction(function->shared()->kind()));
-      value = isolate->heap()->undefined_value();
+      value = ReadOnlyRoots(isolate).undefined_value();
     }
     array->set(i, value);
   }

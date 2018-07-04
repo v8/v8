@@ -69,7 +69,7 @@ static void CheckMap(Map* map, int type, int instance_size) {
 #ifdef DEBUG
   CHECK(CcTest::heap()->Contains(map));
 #endif
-  CHECK_EQ(CcTest::heap()->meta_map(), map->map());
+  CHECK_EQ(ReadOnlyRoots(CcTest::heap()).meta_map(), map->map());
   CHECK_EQ(type, map->instance_type());
   CHECK_EQ(instance_size, map->instance_size());
 }
@@ -77,12 +77,12 @@ static void CheckMap(Map* map, int type, int instance_size) {
 
 TEST(HeapMaps) {
   CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
-  CheckMap(heap->meta_map(), MAP_TYPE, Map::kSize);
-  CheckMap(heap->heap_number_map(), HEAP_NUMBER_TYPE, HeapNumber::kSize);
-  CheckMap(heap->fixed_array_map(), FIXED_ARRAY_TYPE, kVariableSizeSentinel);
-  CheckMap(heap->hash_table_map(), HASH_TABLE_TYPE, kVariableSizeSentinel);
-  CheckMap(heap->string_map(), STRING_TYPE, kVariableSizeSentinel);
+  ReadOnlyRoots roots(CcTest::heap());
+  CheckMap(roots.meta_map(), MAP_TYPE, Map::kSize);
+  CheckMap(roots.heap_number_map(), HEAP_NUMBER_TYPE, HeapNumber::kSize);
+  CheckMap(roots.fixed_array_map(), FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+  CheckMap(roots.hash_table_map(), HASH_TABLE_TYPE, kVariableSizeSentinel);
+  CheckMap(roots.string_map(), STRING_TYPE, kVariableSizeSentinel);
 }
 
 static void VerifyStoredPrototypeMap(Isolate* isolate,
@@ -316,10 +316,11 @@ TEST(HeapObjects) {
   CHECK(Just(true) == JSReceiver::HasOwnProperty(global, object_string));
 
   // Check ToString for oddballs
-  CheckOddball(isolate, heap->true_value(), "true");
-  CheckOddball(isolate, heap->false_value(), "false");
-  CheckOddball(isolate, heap->null_value(), "null");
-  CheckOddball(isolate, heap->undefined_value(), "undefined");
+  ReadOnlyRoots roots(heap);
+  CheckOddball(isolate, roots.true_value(), "true");
+  CheckOddball(isolate, roots.false_value(), "false");
+  CheckOddball(isolate, roots.null_value(), "null");
+  CheckOddball(isolate, roots.undefined_value(), "undefined");
 
   // Check ToString for Smis
   CheckSmi(isolate, 0, "0");
@@ -956,8 +957,8 @@ TEST(ObjectProperties) {
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
-  Handle<String> object_string(String::cast(CcTest::heap()->Object_string()),
-                               isolate);
+  Handle<String> object_string(
+      String::cast(ReadOnlyRoots(CcTest::heap()).Object_string()), isolate);
   Handle<Object> object = Object::GetProperty(
       CcTest::i_isolate()->global_object(), object_string).ToHandleChecked();
   Handle<JSFunction> constructor = Handle<JSFunction>::cast(object);
@@ -1110,8 +1111,8 @@ TEST(JSObjectCopy) {
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
-  Handle<String> object_string(String::cast(CcTest::heap()->Object_string()),
-                               isolate);
+  Handle<String> object_string(
+      String::cast(ReadOnlyRoots(CcTest::heap()).Object_string()), isolate);
   Handle<Object> object = Object::GetProperty(
       CcTest::i_isolate()->global_object(), object_string).ToHandleChecked();
   Handle<JSFunction> constructor = Handle<JSFunction>::cast(object);
@@ -1480,7 +1481,7 @@ TEST(TestInternalWeakLists) {
   for (int i = 0; i < kNumTestContexts; i++) {
     // TODO(dcarney): is there a better way to do this?
     i::Object** unsafe = reinterpret_cast<i::Object**>(*ctx[i]);
-    *unsafe = CcTest::heap()->undefined_value();
+    *unsafe = ReadOnlyRoots(CcTest::heap()).undefined_value();
     ctx[i].Clear();
 
     // Scavenge treats these references as strong.
@@ -2519,7 +2520,8 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
 
   CHECK(CcTest::heap()->InOldSpace(*o));
-  CHECK_EQ(o->property_array(), CcTest::heap()->empty_property_array());
+  CHECK_EQ(o->property_array(),
+           ReadOnlyRoots(CcTest::heap()).empty_property_array());
 }
 
 
@@ -3468,9 +3470,9 @@ TEST(DeferredHandles) {
   Heap* heap = isolate->heap();
   v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate));
   HandleScopeData* data = isolate->handle_scope_data();
-  Handle<Object> init(heap->empty_string(), isolate);
+  Handle<Object> init(ReadOnlyRoots(heap).empty_string(), isolate);
   while (data->next < data->limit) {
-    Handle<Object> obj(heap->empty_string(), isolate);
+    Handle<Object> obj(ReadOnlyRoots(heap).empty_string(), isolate);
   }
   // An entire block of handles has been filled.
   // Next handle would require a new block.
@@ -3602,7 +3604,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
     int dependency_group_count = 0;
     DependentCode* dependency = site->dependent_code();
-    while (dependency != heap->empty_fixed_array()) {
+    while (dependency != ReadOnlyRoots(heap).empty_fixed_array()) {
       CHECK(dependency->group() ==
                 DependentCode::kAllocationSiteTransitionChangedGroup ||
             dependency->group() ==
@@ -5100,7 +5102,8 @@ AllocationResult HeapTester::AllocateByteArrayForTest(Heap* heap, int length,
     if (!allocation.To(&result)) return allocation;
   }
 
-  result->set_map_after_allocation(heap->byte_array_map(), SKIP_WRITE_BARRIER);
+  result->set_map_after_allocation(ReadOnlyRoots(heap).byte_array_map(),
+                                   SKIP_WRITE_BARRIER);
   ByteArray::cast(result)->set_length(length);
   ByteArray::cast(result)->clear_padding();
   return result;
@@ -5876,7 +5879,7 @@ TEST(Regress6800) {
       root->set(i, *new_space_array);
     }
     for (int i = 0; i < kRootLength; i++) {
-      root->set(i, CcTest::heap()->undefined_value());
+      root->set(i, ReadOnlyRoots(CcTest::heap()).undefined_value());
     }
   }
   CcTest::CollectGarbage(NEW_SPACE);
@@ -5900,7 +5903,7 @@ TEST(Regress6800LargeObject) {
       root->set(i, *new_space_array);
     }
     for (int i = 0; i < kRootLength; i++) {
-      root->set(i, CcTest::heap()->undefined_value());
+      root->set(i, ReadOnlyRoots(CcTest::heap()).undefined_value());
     }
   }
   CcTest::CollectGarbage(OLD_SPACE);

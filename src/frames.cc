@@ -768,11 +768,11 @@ Script* StandardFrame::script() const {
 }
 
 Object* StandardFrame::receiver() const {
-  return isolate()->heap()->undefined_value();
+  return ReadOnlyRoots(isolate()).undefined_value();
 }
 
 Object* StandardFrame::context() const {
-  return isolate()->heap()->undefined_value();
+  return ReadOnlyRoots(isolate()).undefined_value();
 }
 
 int StandardFrame::position() const {
@@ -1077,7 +1077,7 @@ Object* JavaScriptFrame::unchecked_function() const {
   // materialize some closures on the stack. The arguments marker object
   // marks this case.
   DCHECK(function_slot_object()->IsJSFunction() ||
-         isolate()->heap()->arguments_marker() == function_slot_object());
+         ReadOnlyRoots(isolate()).arguments_marker() == function_slot_object());
   return function_slot_object();
 }
 
@@ -1251,7 +1251,7 @@ void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
       kPointerSize;  // Skip over return value slot.
 
   // Only allow setting exception if previous value was the hole.
-  CHECK_EQ(isolate()->heap()->the_hole_value(),
+  CHECK_EQ(ReadOnlyRoots(isolate()).the_hole_value(),
            Memory::Object_at(exception_argument_slot));
   Memory::Object_at(exception_argument_slot) = exception;
 }

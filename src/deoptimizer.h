@@ -32,8 +32,8 @@ class RegisterValues;
 class TranslatedValue {
  public:
   // Allocation-less getter of the value.
-  // Returns heap()->arguments_marker() if allocation would be
-  // necessary to get the value.
+  // Returns ReadOnlyRoots::arguments_marker() if allocation would be necessary
+  // to get the value.
   Object* GetRawValue() const;
 
   // Getter for the value, takes care of materializing the subgraph

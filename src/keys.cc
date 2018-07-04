@@ -50,7 +50,7 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
     return isolate_->factory()->empty_fixed_array();
   }
   if (mode_ == KeyCollectionMode::kOwnOnly &&
-      keys_->map() == isolate_->heap()->fixed_array_map()) {
+      keys_->map() == ReadOnlyRoots(isolate_).fixed_array_map()) {
     return Handle<FixedArray>::cast(keys_);
   }
   USE(ContainsOnlyValidKeys);

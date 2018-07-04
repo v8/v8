@@ -887,9 +887,9 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // Compute the incoming parameter translation.
 
+  ReadOnlyRoots roots(isolate());
   if (ShouldPadArguments(parameter_count)) {
-    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
-                               "padding\n");
+    frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
   }
 
   for (int i = 0; i < parameter_count; ++i, ++value_iterator) {
@@ -989,15 +989,13 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // to ensure the stack frame is aligned. Do this now.
   while (register_slots_written < register_stack_slot_count) {
     register_slots_written++;
-    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
-                               "padding\n");
+    frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
   }
 
   // Translate the accumulator register (depending on frame position).
   if (is_topmost) {
     if (PadTopOfStackRegister()) {
-      frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
-                                 "padding\n");
+      frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
     }
     // For topmost frame, put the accumulator on the stack. The
     // {NotifyDeoptimized} builtin pops it off the topmost frame (possibly
@@ -1099,9 +1097,9 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   }
   output_frame->SetTop(top_address);
 
+  ReadOnlyRoots roots(isolate());
   if (ShouldPadArguments(parameter_count)) {
-    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
-                               "padding\n");
+    frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
   }
 
   // Compute the incoming parameter translation.
@@ -1143,7 +1141,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   // Number of incoming arguments.
   frame_writer.PushRawObject(Smi::FromInt(height - 1), "argc\n");
 
-  frame_writer.PushRawObject(isolate()->heap()->the_hole_value(), "padding\n");
+  frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
 
   CHECK_EQ(translated_frame->end(), value_iterator);
   DCHECK_EQ(0, frame_writer.top_offset());
@@ -1218,9 +1216,9 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
   output_frame->SetTop(top_address);
 
+  ReadOnlyRoots roots(isolate());
   if (ShouldPadArguments(parameter_count)) {
-    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
-                               "padding\n");
+    frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
   }
 
   // The allocated receiver of a construct stub frame is passed as the
@@ -1277,7 +1275,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // position of the receiver. Copy it to the top of stack, with the hole value
   // as padding to maintain alignment.
 
-  frame_writer.PushRawObject(isolate()->heap()->the_hole_value(), "padding\n");
+  frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
 
   CHECK(bailout_id == BailoutId::ConstructStubCreate() ||
         bailout_id == BailoutId::ConstructStubInvoke());
@@ -1288,8 +1286,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   if (is_topmost) {
     if (PadTopOfStackRegister()) {
-      frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
-                                 "padding\n");
+      frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
     }
     // Ensure the result is restored back when we return to the stub.
     Register result_reg = kReturnRegister0;
@@ -1567,9 +1564,9 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       reinterpret_cast<intptr_t>(value_iterator->GetRawValue());
   ++value_iterator;
 
+  ReadOnlyRoots roots(isolate());
   if (ShouldPadArguments(stack_param_count)) {
-    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
-                               "padding\n");
+    frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
   }
 
   for (int i = 0; i < translated_stack_parameters; ++i, ++value_iterator) {
@@ -1582,7 +1579,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     case BuiltinContinuationMode::JAVASCRIPT:
       break;
     case BuiltinContinuationMode::JAVASCRIPT_WITH_CATCH: {
-      frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
+      frame_writer.PushRawObject(roots.the_hole_value(),
                                  "placeholder for exception on lazy deopt\n");
     } break;
     case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION: {
@@ -1594,7 +1591,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   }
 
   if (must_handle_result) {
-    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
+    frame_writer.PushRawObject(roots.the_hole_value(),
                                "placeholder for return result on lazy deopt\n");
   }
 
@@ -1692,14 +1689,12 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // Some architectures must pad the stack frame with extra stack slots
   // to ensure the stack frame is aligned.
   for (int i = 0; i < padding_slot_count; ++i) {
-    frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
-                               "padding\n");
+    frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
   }
 
   if (is_topmost) {
     if (PadTopOfStackRegister()) {
-      frame_writer.PushRawObject(isolate()->heap()->the_hole_value(),
-                                 "padding\n");
+      frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
     }
     // Ensure the result is restored back when we return to the stub.
 
@@ -1708,8 +1703,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       frame_writer.PushRawValue(input_->GetRegister(result_reg.code()),
                                 "callback result\n");
     } else {
-      frame_writer.PushRawObject(isolate()->heap()->undefined_value(),
-                                 "callback result\n");
+      frame_writer.PushRawObject(roots.undefined_value(), "callback result\n");
     }
   }
 
@@ -1780,7 +1774,7 @@ void Deoptimizer::MaterializeHeapObjects() {
 void Deoptimizer::QueueValueForMaterialization(
     Address output_address, Object* obj,
     const TranslatedFrame::iterator& iterator) {
-  if (obj == isolate_->heap()->arguments_marker()) {
+  if (obj == ReadOnlyRoots(isolate_).arguments_marker()) {
     values_to_materialize_.push_back({output_address, iterator});
   }
 }
@@ -2165,7 +2159,7 @@ bool MaterializedObjectStore::Remove(Address fp) {
   for (int i = index; i < fps_size; i++) {
     array->set(i, array->get(i + 1));
   }
-  array->set(fps_size, isolate()->heap()->undefined_value());
+  array->set(fps_size, ReadOnlyRoots(isolate()).undefined_value());
   return true;
 }
 
@@ -2200,8 +2194,9 @@ Handle<FixedArray> MaterializedObjectStore::EnsureStackEntries(int length) {
   for (int i = 0; i < array->length(); i++) {
     new_array->set(i, array->get(i));
   }
+  HeapObject* undefined_value = ReadOnlyRoots(isolate()).undefined_value();
   for (int i = array->length(); i < length; i++) {
-    new_array->set(i, isolate()->heap()->undefined_value());
+    new_array->set(i, undefined_value);
   }
   isolate()->heap()->SetRootMaterializedObjects(*new_array);
   return new_array;
@@ -2211,7 +2206,7 @@ namespace {
 
 Handle<Object> GetValueForDebugger(TranslatedFrame::iterator it,
                                    Isolate* isolate) {
-  if (it->GetRawValue() == isolate->heap()->arguments_marker()) {
+  if (it->GetRawValue() == ReadOnlyRoots(isolate).arguments_marker()) {
     if (!it->IsMaterializableByDebugger()) {
       return isolate->factory()->optimized_out();
     }
@@ -2461,10 +2456,10 @@ Object* TranslatedValue::GetRawValue() const {
 
     case kBoolBit: {
       if (uint32_value() == 0) {
-        return isolate()->heap()->false_value();
+        return ReadOnlyRoots(isolate()).false_value();
       } else {
         CHECK_EQ(1U, uint32_value());
-        return isolate()->heap()->true_value();
+        return ReadOnlyRoots(isolate()).true_value();
       }
     }
 
@@ -2474,7 +2469,7 @@ Object* TranslatedValue::GetRawValue() const {
 
   // If we could not get the value without allocation, return the arguments
   // marker.
-  return isolate()->heap()->arguments_marker();
+  return ReadOnlyRoots(isolate()).arguments_marker();
 }
 
 void TranslatedValue::set_initialized_storage(Handle<Object> storage) {
@@ -2532,7 +2527,7 @@ void TranslatedValue::MaterializeSimple() {
   if (materialization_state() == kFinished) return;
 
   Object* raw_value = GetRawValue();
-  if (raw_value != isolate()->heap()->arguments_marker()) {
+  if (raw_value != ReadOnlyRoots(isolate()).arguments_marker()) {
     // We can get the value without allocation, just return it here.
     set_initialized_storage(Handle<Object>(raw_value, isolate()));
     return;
@@ -2906,8 +2901,8 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
   frame.Add(TranslatedValue::NewDeferredObject(
       this, length + FixedArray::kHeaderSize / kPointerSize, object_index));
 
-  frame.Add(
-      TranslatedValue::NewTagged(this, isolate_->heap()->fixed_array_map()));
+  ReadOnlyRoots roots(isolate_);
+  frame.Add(TranslatedValue::NewTagged(this, roots.fixed_array_map()));
   frame.Add(TranslatedValue::NewInt32(this, length));
 
   int number_of_holes = 0;
@@ -2917,8 +2912,7 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
     number_of_holes = Min(formal_parameter_count_, length);
   }
   for (int i = 0; i < number_of_holes; ++i) {
-    frame.Add(
-        TranslatedValue::NewTagged(this, isolate_->heap()->the_hole_value()));
+    frame.Add(TranslatedValue::NewTagged(this, roots.the_hole_value()));
   }
   for (int i = length - number_of_holes - 1; i >= 0; --i) {
     Address argument_slot = arguments_frame +
@@ -3563,7 +3557,7 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
       CHECK_EQ(instance_size, slot->GetChildrenCount() * kPointerSize);
 
       // Canonicalize empty fixed array.
-      if (*map == isolate()->heap()->empty_fixed_array()->map() &&
+      if (*map == ReadOnlyRoots(isolate()).empty_fixed_array()->map() &&
           array_length == 0) {
         slot->set_storage(isolate()->factory()->empty_fixed_array());
       } else {
@@ -3769,7 +3763,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
   Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
 
   // Skip the writes if we already have the canonical empty fixed array.
-  if (*object_storage == isolate()->heap()->empty_fixed_array()) {
+  if (*object_storage == ReadOnlyRoots(isolate()).empty_fixed_array()) {
     CHECK_EQ(2, slot->GetChildrenCount());
     Handle<Object> length_value = GetValueAndAdvance(frame, value_index);
     CHECK_EQ(*length_value, Smi::FromInt(0));

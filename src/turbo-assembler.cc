@@ -18,7 +18,7 @@ TurboAssemblerBase::TurboAssemblerBase(Isolate* isolate, const Options& options,
     : Assembler(options, buffer, buffer_size), isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ = Handle<HeapObject>::New(
-        isolate->heap()->self_reference_marker(), isolate);
+        ReadOnlyRoots(isolate).self_reference_marker(), isolate);
   }
 }
 

@@ -224,7 +224,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
     heap::GcAndSweep(heap, NEW_SPACE);
     CHECK(IsTracked(JSArrayBuffer::cast(root->get(0))));
     raw_ab = JSArrayBuffer::cast(root->get(0));
-    root->set(0, heap->undefined_value());
+    root->set(0, ReadOnlyRoots(heap).undefined_value());
     heap::SimulateIncrementalMarking(heap, true);
     // Prohibit page from being released.
     Page::FromAddress(raw_ab->address())->MarkNeverEvacuate();
@@ -261,7 +261,7 @@ TEST(ArrayBuffer_LivePromotion) {
     heap::GcAndSweep(heap, NEW_SPACE);
     CHECK(IsTracked(JSArrayBuffer::cast(root->get(0))));
     raw_ab = JSArrayBuffer::cast(root->get(0));
-    root->set(0, heap->undefined_value());
+    root->set(0, ReadOnlyRoots(heap).undefined_value());
     // Prohibit page from being released.
     Page::FromAddress(raw_ab->address())->MarkNeverEvacuate();
     heap::GcAndSweep(heap, OLD_SPACE);

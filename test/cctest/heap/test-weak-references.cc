@@ -377,7 +377,7 @@ TEST(WeakArraysBasic) {
   for (int i = 0; i < length; ++i) {
     HeapObject* heap_object;
     CHECK(array->Get(i)->ToStrongHeapObject(&heap_object));
-    CHECK_EQ(heap_object, heap->undefined_value());
+    CHECK_EQ(heap_object, ReadOnlyRoots(heap).undefined_value());
   }
 
   Handle<HeapObject> saved;
@@ -435,7 +435,8 @@ TEST(WeakArrayListBasic) {
   Heap* heap = isolate->heap();
   HandleScope outer_scope(isolate);
 
-  Handle<WeakArrayList> array(heap->empty_weak_array_list(), isolate);
+  Handle<WeakArrayList> array(ReadOnlyRoots(heap).empty_weak_array_list(),
+                              isolate);
   CHECK(array->IsWeakArrayList());
   CHECK(!array->IsFixedArray());
   CHECK(!array->IsWeakFixedArray());

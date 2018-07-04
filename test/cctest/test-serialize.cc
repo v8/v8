@@ -372,7 +372,7 @@ UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {
     // platforms. So, without special measures we're risking to serialize
     // object, requiring alignment before FreeSpaceMap is fully serialized.
     v8::internal::Handle<Map> map(
-        internal_isolate->heap()->one_byte_internalized_string_map(),
+        ReadOnlyRoots(internal_isolate).one_byte_internalized_string_map(),
         internal_isolate);
     Map::WeakCellForMap(internal_isolate, map);
     // Need to avoid DCHECKs inside SnapshotCreator.

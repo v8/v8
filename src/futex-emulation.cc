@@ -138,7 +138,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     ResetWaitingOnScopeExit reset_waiting(node);
 
     if (*p != value) {
-      result = isolate->heap()->not_equal();
+      result = ReadOnlyRoots(isolate).not_equal();
       callback_result = AtomicsWaitEvent::kNotEqual;
       break;
     }
@@ -196,7 +196,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
       }
 
       if (!node->waiting_) {
-        result = isolate->heap()->ok();
+        result = ReadOnlyRoots(isolate).ok();
         break;
       }
 
@@ -204,7 +204,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
       if (use_timeout) {
         current_time = base::TimeTicks::Now();
         if (current_time >= timeout_time) {
-          result = isolate->heap()->timed_out();
+          result = ReadOnlyRoots(isolate).timed_out();
           callback_result = AtomicsWaitEvent::kTimedOut;
           break;
         }

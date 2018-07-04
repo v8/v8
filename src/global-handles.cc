@@ -1144,17 +1144,17 @@ void EternalHandles::PostGarbageCollectionProcessing(Heap* heap) {
 void EternalHandles::Create(Isolate* isolate, Object* object, int* index) {
   DCHECK_EQ(kInvalidIndex, *index);
   if (object == nullptr) return;
-  DCHECK_NE(isolate->heap()->the_hole_value(), object);
+  Object* the_hole = ReadOnlyRoots(isolate).the_hole_value();
+  DCHECK_NE(the_hole, object);
   int block = size_ >> kShift;
   int offset = size_ & kMask;
   // need to resize
   if (offset == 0) {
     Object** next_block = new Object*[kSize];
-    Object* the_hole = isolate->heap()->the_hole_value();
     MemsetPointer(next_block, the_hole, kSize);
     blocks_.push_back(next_block);
   }
-  DCHECK_EQ(isolate->heap()->the_hole_value(), blocks_[block][offset]);
+  DCHECK_EQ(the_hole, blocks_[block][offset]);
   blocks_[block][offset] = object;
   if (isolate->heap()->InNewSpace(object)) {
     new_space_indices_.push_back(size_);

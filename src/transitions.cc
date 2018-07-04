@@ -237,11 +237,11 @@ Map* TransitionsAccessor::SearchSpecial(Symbol* name) {
 // static
 bool TransitionsAccessor::IsSpecialTransition(Isolate* isolate, Name* name) {
   if (!name->IsSymbol()) return false;
-  Heap* heap = isolate->heap();
-  return name == heap->nonextensible_symbol() ||
-         name == heap->sealed_symbol() || name == heap->frozen_symbol() ||
-         name == heap->elements_transition_symbol() ||
-         name == heap->strict_function_transition_symbol();
+  ReadOnlyRoots roots(isolate);
+  return name == roots.nonextensible_symbol() ||
+         name == roots.sealed_symbol() || name == roots.frozen_symbol() ||
+         name == roots.elements_transition_symbol() ||
+         name == roots.strict_function_transition_symbol();
 }
 
 MaybeHandle<Map> TransitionsAccessor::FindTransitionToDataProperty(
@@ -413,7 +413,7 @@ Handle<Map> TransitionsAccessor::GetPrototypeTransition(
 WeakFixedArray* TransitionsAccessor::GetPrototypeTransitions() {
   if (encoding() != kFullTransitionArray ||
       !transitions()->HasPrototypeTransitions()) {
-    return isolate_->heap()->empty_weak_fixed_array();
+    return ReadOnlyRoots(isolate_).empty_weak_fixed_array();
   }
   return transitions()->GetPrototypeTransitions();
 }
@@ -441,9 +441,10 @@ int TransitionsAccessor::NumberOfTransitions() {
 }
 
 void TransitionArray::Zap(Isolate* isolate) {
-  MemsetPointer(data_start() + kPrototypeTransitionsIndex,
-                MaybeObject::FromObject(isolate->heap()->the_hole_value()),
-                length() - kPrototypeTransitionsIndex);
+  MemsetPointer(
+      data_start() + kPrototypeTransitionsIndex,
+      MaybeObject::FromObject(ReadOnlyRoots(isolate).the_hole_value()),
+      length() - kPrototypeTransitionsIndex);
   SetNumberOfTransitions(0);
 }
 

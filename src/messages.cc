@@ -85,7 +85,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
     // and ignore scheduled exceptions callbacks can throw.
 
     // We pass the exception object into the message handler callback though.
-    Object* exception_object = isolate->heap()->undefined_value();
+    Object* exception_object = ReadOnlyRoots(isolate).undefined_value();
     if (isolate->has_pending_exception()) {
       exception_object = isolate->pending_exception();
     }
@@ -190,7 +190,7 @@ namespace {
 
 Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
   if (!script->has_eval_from_shared())
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
 
   Handle<SharedFunctionInfo> shared(script->eval_from_shared(), isolate);
   // Find the name of the function calling eval.
@@ -203,13 +203,13 @@ Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
 
 Object* EvalFromScript(Isolate* isolate, Handle<Script> script) {
   if (!script->has_eval_from_shared())
-    return isolate->heap()->undefined_value();
+    return ReadOnlyRoots(isolate).undefined_value();
 
   Handle<SharedFunctionInfo> eval_from_shared(script->eval_from_shared(),
                                               isolate);
   return eval_from_shared->script()->IsScript()
              ? eval_from_shared->script()
-             : isolate->heap()->undefined_value();
+             : ReadOnlyRoots(isolate).undefined_value();
 }
 
 MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
