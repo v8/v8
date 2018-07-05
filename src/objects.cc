@@ -18941,57 +18941,6 @@ MaybeHandle<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
   return MaybeHandle<Name>();
 }
 
-#ifdef V8_INTL_SUPPORT
-MaybeHandle<Object> Object::GetOption(
-    Isolate* isolate, Handle<JSReceiver> options, Handle<Name> property,
-    Object::OptionType type, Handle<FixedArray> values, Handle<Object> fallback,
-    Handle<String> services) {
-  // 1. Let value be ? Get(options, property).
-  Handle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, value, Object::GetPropertyOrElement(options, property), Object);
-
-  // 2. If value is not undefined, then
-  if (!value->IsUndefined(isolate)) {
-    // 2. b. If type is "boolean", then
-    if (type == Object::OptionType::Boolean) {
-      // 2. b. i. Let value be ToBoolean(value).
-      value = isolate->factory()->ToBoolean(value->BooleanValue(isolate));
-    }
-
-    // 2. c. If type is "string", then
-    if (type == Object::OptionType::String) {
-      // 2. c. i. Let value be ? ToString(value).
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                                 Object::ToString(isolate, value), Object);
-    }
-
-    // 2. d. if values is not undefined, then
-    if (values->length() > 0) {
-      // 2. d. i. If values does not contain an element equal to value,
-      // throw a RangeError exception.
-      for (int i = 0; i < values->length(); i++) {
-        if (value->StrictEquals(values->get(i))) {
-          // 2. e. return value
-          return value;
-        }
-      }
-
-      THROW_NEW_ERROR(isolate,
-                      NewRangeError(MessageTemplate::kValueOutOfRange, value,
-                                    services, property),
-                      Object);
-    }
-
-    // 2. e. return value
-    return value;
-  }
-
-  // 3. Else, return fallback.
-  return fallback;
-}
-#endif  // V8_INTL_SUPPORT
-
 // Force instantiation of template instances class.
 // Please note this list is compiler dependent.
 // Keep this at the end of this file

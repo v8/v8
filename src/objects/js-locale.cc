@@ -17,6 +17,7 @@
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/intl-objects.h"
 #include "src/objects/js-locale-inl.h"
 #include "unicode/locid.h"
 #include "unicode/unistr.h"
@@ -46,37 +47,28 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
                                  {"numeric", "kn"},
                                  {"numberingSystem", "nu"}}};
 
-  Handle<Object> undefined = isolate->factory()->undefined_value();
-  Handle<FixedArray> empty_array = isolate->factory()->empty_fixed_array();
-  Handle<String> service =
-      isolate->factory()->NewStringFromAsciiChecked("locale");
+  // TODO(cira): Pass in values as per the spec to make this to be
+  // spec compliant.
+  std::vector<const char*> values = {};
 
   for (const auto& option_to_bcp47 : kOptionToUnicodeTagMap) {
-    Handle<String> key_str =
-        isolate->factory()->NewStringFromAsciiChecked(option_to_bcp47.first);
+    std::unique_ptr<char[]> value_str = nullptr;
+    Maybe<bool> maybe_found = Intl::GetStringOption(
+        isolate, options, option_to_bcp47.first, values, "locale", &value_str);
+    if (maybe_found.IsNothing()) return maybe_found;
 
-    Handle<Object> value_obj;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, value_obj,
-        Object::GetOption(isolate, options, key_str, Object::OptionType::String,
-                          empty_array, undefined, service),
-        Nothing<bool>());
-
-    if (value_obj->IsUndefined(isolate)) {
-      // Skip this key, user didn't specify it in options.
-      continue;
-    }
-
-    Handle<String> value_str = Handle<String>::cast(value_obj);
-    std::unique_ptr<char[]> value_c_str = value_str->ToCString();
+    // TODO(cira): Use fallback value if value is not found to make
+    // this spec compliant.
+    if (!maybe_found.FromJust()) continue;
+    DCHECK_NOT_NULL(value_str.get());
 
     // Convert bcp47 key and value into legacy ICU format so we can use
     // uloc_setKeywordValue.
     const char* key = uloc_toLegacyKey(option_to_bcp47.second);
-    if (!key) return Just(false);
+    DCHECK_NOT_NULL(key);
 
     // Overwrite existing, or insert new key-value to the locale string.
-    const char* value = uloc_toLegacyType(key, value_c_str.get());
+    const char* value = uloc_toLegacyType(key, value_str.get());
     UErrorCode status = U_ZERO_ERROR;
     if (value) {
       // TODO(cira): ICU puts artificial limit on locale length, while BCP47

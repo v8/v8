@@ -200,6 +200,13 @@ class WasmEngine;
     return __isolate__->Throw(*__isolate__->factory()->call); \
   } while (false)
 
+#define THROW_NEW_ERROR_RETURN_VALUE(isolate, call, value) \
+  do {                                                     \
+    Isolate* __isolate__ = (isolate);                      \
+    __isolate__->Throw(*__isolate__->factory()->call);     \
+    return value;                                          \
+  } while (false)
+
 #define RETURN_ON_EXCEPTION_VALUE(isolate, call, value)            \
   do {                                                             \
     if ((call).is_null()) {                                        \

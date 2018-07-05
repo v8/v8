@@ -206,6 +206,42 @@ class Intl {
       Handle<JSFunction> constructor, Intl::Type type,
       Handle<String> method_name /* TODO(gsathya): Make this char const* */,
       bool check_legacy_constructor = false);
+
+  // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
+  // ecma402/#sec-getoption
+  //
+  // This is specialized for the case when type is string.
+  //
+  // Instead of passing undefined for the values argument as the spec
+  // defines, pass in an empty vector.
+  //
+  // Returns true if options object has the property and stores the
+  // result in value. Returns false if the value is not found. The
+  // caller is required to use fallback value appropriately in this
+  // case.
+  //
+  // service is a string denoting the type of Intl object; used when
+  // printing the error message.
+  V8_WARN_UNUSED_RESULT static Maybe<bool> GetStringOption(
+      Isolate* isolate, Handle<JSReceiver> options, const char* property,
+      std::vector<const char*> values, const char* service,
+      std::unique_ptr<char[]>* result);
+
+  // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
+  // ecma402/#sec-getoption
+  //
+  // This is specialized for the case when type is boolean.
+  //
+  // Returns true if options object has the property and stores the
+  // result in value. Returns false if the value is not found. The
+  // caller is required to use fallback value appropriately in this
+  // case.
+  //
+  // service is a string denoting the type of Intl object; used when
+  // printing the error message.
+  V8_WARN_UNUSED_RESULT static Maybe<bool> GetBoolOption(
+      Isolate* isolate, Handle<JSReceiver> options, const char* property,
+      const char* service, bool* result);
 };
 
 }  // namespace internal

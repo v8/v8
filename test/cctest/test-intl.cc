@@ -105,80 +105,106 @@ TEST(FlattenRegionsToParts) {
       });
 }
 
-TEST(GetOptions) {
+TEST(GetStringOption) {
   LocalContext env;
   Isolate* isolate = CcTest::i_isolate();
   v8::Isolate* v8_isolate = env->GetIsolate();
   v8::HandleScope handle_scope(v8_isolate);
 
   Handle<JSObject> options = isolate->factory()->NewJSObjectWithNullProto();
+  {
+    // No value found
+    std::unique_ptr<char[]> result = nullptr;
+    Maybe<bool> found =
+        Intl::GetStringOption(isolate, options, "foo",
+                              std::vector<const char*>{}, "service", &result);
+    CHECK(!found.FromJust());
+    CHECK_NULL(result);
+  }
+
   Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("foo");
-  Handle<String> service =
-      isolate->factory()->NewStringFromAsciiChecked("service");
-  Handle<Object> undefined = isolate->factory()->undefined_value();
-  Handle<FixedArray> empty_fixed_array =
-      isolate->factory()->empty_fixed_array();
-
-  // No value found
-  Handle<Object> result =
-      Object::GetOption(isolate, options, key, Object::OptionType::String,
-                        empty_fixed_array, undefined, service)
-          .ToHandleChecked();
-  CHECK(result->IsUndefined(isolate));
-
-  // Value found
   v8::internal::LookupIterator it(options, key);
   CHECK(Object::SetProperty(&it, Handle<Smi>(Smi::FromInt(42), isolate),
                             LanguageMode::kStrict,
                             AllocationMemento::MAY_BE_STORE_FROM_KEYED)
             .FromJust());
-  result = Object::GetOption(isolate, options, key, Object::OptionType::String,
-                             empty_fixed_array, undefined, service)
-               .ToHandleChecked();
-  CHECK(result->IsString());
-  Handle<String> expected_str =
-      isolate->factory()->NewStringFromAsciiChecked("42");
-  CHECK(String::Equals(isolate, expected_str, Handle<String>::cast(result)));
 
-  result = Object::GetOption(isolate, options, key, Object::OptionType::Boolean,
-                             empty_fixed_array, undefined, service)
-               .ToHandleChecked();
-  CHECK(result->IsBoolean());
-  CHECK(result->IsTrue(isolate));
-
-  // No expected value in values array
-  Handle<FixedArray> values = isolate->factory()->NewFixedArray(1);
   {
-    CHECK(!Object::GetOption(isolate, options, key, Object::OptionType::String,
-                             values, undefined, service)
-               .ToHandle(&result));
+    // Value found
+    std::unique_ptr<char[]> result = nullptr;
+    Maybe<bool> found =
+        Intl::GetStringOption(isolate, options, "foo",
+                              std::vector<const char*>{}, "service", &result);
+    CHECK(found.FromJust());
+    CHECK_NOT_NULL(result);
+    CHECK_EQ(0, strcmp("42", result.get()));
+  }
+
+  {
+    // No expected value in values array
+    std::unique_ptr<char[]> result = nullptr;
+    Maybe<bool> found = Intl::GetStringOption(isolate, options, "foo",
+                                              std::vector<const char*>{"bar"},
+                                              "service", &result);
     CHECK(isolate->has_pending_exception());
+    CHECK(found.IsNothing());
+    CHECK_NULL(result);
     isolate->clear_pending_exception();
   }
 
-  // Add expected value to values array
-  values->set(0, *expected_str);
-  result = Object::GetOption(isolate, options, key, Object::OptionType::String,
-                             values, undefined, service)
-               .ToHandleChecked();
-  CHECK(result->IsString());
-  CHECK(String::Equals(isolate, expected_str, Handle<String>::cast(result)));
+  {
+    // Expected value in values array
+    std::unique_ptr<char[]> result = nullptr;
+    Maybe<bool> found = Intl::GetStringOption(isolate, options, "foo",
+                                              std::vector<const char*>{"42"},
+                                              "service", &result);
+    CHECK(found.FromJust());
+    CHECK_NOT_NULL(result);
+    CHECK_EQ(0, strcmp("42", result.get()));
+  }
+}
 
-  // Test boolean values
-  CHECK(Object::SetProperty(&it, isolate->factory()->ToBoolean(false),
-                            LanguageMode::kStrict,
-                            AllocationMemento::MAY_BE_STORE_FROM_KEYED)
-            .FromJust());
-  result = Object::GetOption(isolate, options, key, Object::OptionType::String,
-                             empty_fixed_array, undefined, service)
-               .ToHandleChecked();
-  CHECK(result->IsString());
+TEST(GetBoolOption) {
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  v8::Isolate* v8_isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(v8_isolate);
 
-  result = Object::GetOption(isolate, options, key, Object::OptionType::Boolean,
-                             empty_fixed_array, undefined, service)
-               .ToHandleChecked();
-  CHECK(result->IsBoolean());
-  CHECK(result->IsFalse(isolate));
+  Handle<JSObject> options = isolate->factory()->NewJSObjectWithNullProto();
+  {
+    bool result = false;
+    Maybe<bool> found =
+        Intl::GetBoolOption(isolate, options, "foo", "service", &result);
+    CHECK(!found.FromJust());
+    CHECK(!result);
+  }
+
+  Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("foo");
+  {
+    v8::internal::LookupIterator it(options, key);
+    Handle<Object> false_value =
+        handle(i::ReadOnlyRoots(isolate).false_value(), isolate);
+    Object::SetProperty(options, key, false_value, LanguageMode::kStrict)
+        .Assert();
+    bool result = false;
+    Maybe<bool> found =
+        Intl::GetBoolOption(isolate, options, "foo", "service", &result);
+    CHECK(found.FromJust());
+    CHECK(!result);
+  }
+
+  {
+    v8::internal::LookupIterator it(options, key);
+    Handle<Object> true_value =
+        handle(i::ReadOnlyRoots(isolate).true_value(), isolate);
+    Object::SetProperty(options, key, true_value, LanguageMode::kStrict)
+        .Assert();
+    bool result = false;
+    Maybe<bool> found =
+        Intl::GetBoolOption(isolate, options, "foo", "service", &result);
+    CHECK(found.FromJust());
+    CHECK(result);
+  }
 }
 
 bool ScriptTagWasRemoved(std::string locale, std::string expected) {
