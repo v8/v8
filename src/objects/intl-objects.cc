@@ -1237,6 +1237,29 @@ MaybeHandle<JSReceiver> Intl::UnwrapReceiver(Isolate* isolate,
   return Handle<JSReceiver>::cast(new_receiver);
 }
 
+// TODO(bstell): Convert this to C++ instead of calling out to the
+// JS implementation.
+MaybeHandle<JSObject> Intl::ResolveLocale(Isolate* isolate, const char* service,
+                                          Handle<Object> requestedLocales,
+                                          Handle<Object> options) {
+  Handle<String> service_str =
+      isolate->factory()->NewStringFromAsciiChecked(service);
+
+  Handle<JSFunction> resolve_locale_function = isolate->resolve_locale();
+
+  Handle<Object> result;
+  Handle<Object> undefined_value(ReadOnlyRoots(isolate).undefined_value(),
+                                 isolate);
+  Handle<Object> args[] = {service_str, requestedLocales, options};
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, resolve_locale_function, undefined_value,
+                      arraysize(args), args),
+      JSObject);
+
+  return Handle<JSObject>::cast(result);
+}
+
 Maybe<bool> Intl::GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
                                   const char* property,
                                   std::vector<const char*> values,

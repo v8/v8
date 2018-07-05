@@ -415,6 +415,9 @@ function resolveLocale(service, requestedLocales, options) {
   return resolved;
 }
 
+%InstallToContext([
+  "resolve_locale", resolveLocale
+]);
 
 /**
  * Look up the longest non-empty prefix of |locale| that is an element of

@@ -201,11 +201,29 @@ class Intl {
   // Returns the underlying Intl receiver for various methods which
   // implement ECMA-402 v1 semantics for supporting initializing
   // existing Intl objects.
-  static MaybeHandle<JSReceiver> UnwrapReceiver(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> UnwrapReceiver(
       Isolate* isolate, Handle<JSReceiver> receiver,
       Handle<JSFunction> constructor, Intl::Type type,
       Handle<String> method_name /* TODO(gsathya): Make this char const* */,
       bool check_legacy_constructor = false);
+
+  // The ResolveLocale abstract operation compares a BCP 47 language
+  // priority list requestedLocales against the locales in
+  // availableLocales and determines the best available language to
+  // meet the request. availableLocales, requestedLocales, and
+  // relevantExtensionKeys must be provided as List values, options
+  // and localeData as Records.
+  //
+  // #ecma402/sec-partitiondatetimepattern
+  //
+  // Returns a JSObject with two properties:
+  //   (1) locale
+  //   (2) extension
+  //
+  // To access either, use JSObject::GetDataProperty.
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolveLocale(
+      Isolate* isolate, const char* service, Handle<Object> requestedLocales,
+      Handle<Object> options);
 
   // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
   // ecma402/#sec-getoption
