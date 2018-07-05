@@ -482,6 +482,7 @@ TF_BUILTIN(ProxyGetProperty, ProxiesCodeStubAssembler) {
   Node* proxy = Parameter(Descriptor::kProxy);
   Node* name = Parameter(Descriptor::kName);
   Node* receiver = Parameter(Descriptor::kReceiverValue);
+  Node* on_non_existent = Parameter(Descriptor::kOnNonExistent);
 
   CSA_ASSERT(this, IsJSProxy(proxy));
 
@@ -531,7 +532,7 @@ TF_BUILTIN(ProxyGetProperty, ProxiesCodeStubAssembler) {
     // 7.a. Return ? target.[[Get]](P, Receiver).
     // TODO(mslekova): Introduce GetPropertyWithReceiver stub
     Return(CallRuntime(Runtime::kGetPropertyWithReceiver, context, target, name,
-                       receiver));
+                       receiver, on_non_existent));
   }
 
   BIND(&throw_proxy_handler_revoked);

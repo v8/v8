@@ -520,13 +520,16 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
         to_name_failed(this, Label::kDeferred);
 
     if (support_elements == kSupportElements) {
+      DCHECK_NE(on_nonexistent, OnNonExistent::kThrowReferenceError);
+
       TryToName(p->name, &if_index, &var_index, &if_unique_name, &var_unique,
                 &to_name_failed);
 
       BIND(&if_unique_name);
       exit_point->ReturnCallStub(
           Builtins::CallableFor(isolate(), Builtins::kProxyGetProperty),
-          p->context, holder, var_unique.value(), p->receiver);
+          p->context, holder, var_unique.value(), p->receiver,
+          SmiConstant(on_nonexistent));
 
       BIND(&if_index);
       // TODO(mslekova): introduce TryToName that doesn't try to compute
@@ -535,12 +538,13 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
       BIND(&to_name_failed);
       exit_point->ReturnCallRuntime(Runtime::kGetPropertyWithReceiver,
-                                    p->context, holder, p->name, p->receiver);
-
+                                    p->context, holder, p->name, p->receiver,
+                                    SmiConstant(on_nonexistent));
     } else {
       exit_point->ReturnCallStub(
           Builtins::CallableFor(isolate(), Builtins::kProxyGetProperty),
-          p->context, holder, p->name, p->receiver);
+          p->context, holder, p->name, p->receiver,
+          SmiConstant(on_nonexistent));
     }
   }
 
@@ -2196,7 +2200,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     direct_exit.ReturnCallStub(
         Builtins::CallableFor(isolate(), Builtins::kProxyGetProperty),
         p->context, receiver /*holder is the same as receiver*/, p->name,
-        receiver);
+        receiver, SmiConstant(OnNonExistent::kReturnUndefined));
   }
 }
 

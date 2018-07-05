@@ -889,7 +889,7 @@ namespace internal {
   TFJ(ProxyConstructor, 2, kReceiver, kTarget, kHandler)                       \
   TFJ(ProxyRevocable, 2, kReceiver, kTarget, kHandler)                         \
   TFJ(ProxyRevoke, 0, kReceiver)                                               \
-  TFS(ProxyGetProperty, kProxy, kName, kReceiverValue)                         \
+  TFS(ProxyGetProperty, kProxy, kName, kReceiverValue, kOnNonExistent)         \
   TFS(ProxyHasProperty, kProxy, kName)                                         \
   TFS(ProxySetProperty, kProxy, kName, kValue, kReceiverValue, kLanguageMode)  \
                                                                                \

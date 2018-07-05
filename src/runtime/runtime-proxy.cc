@@ -41,10 +41,11 @@ RUNTIME_FUNCTION(Runtime_JSProxyGetTarget) {
 RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
   HandleScope scope(isolate);
 
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, on_non_existent, 3);
 
   bool success = false;
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, receiver, key,
@@ -53,7 +54,10 @@ RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
   }
-  RETURN_RESULT_OR_FAILURE(isolate, Object::GetProperty(&it));
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Object::GetProperty(
+                   &it, static_cast<OnNonExistent>(on_non_existent->value())));
 }
 
 RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {

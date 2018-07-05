@@ -667,6 +667,8 @@ enum class ComparisonResult {
 // (Returns false whenever {result} is kUndefined.)
 bool ComparisonResultToBool(Operation op, ComparisonResult result);
 
+enum class OnNonExistent { kThrowReferenceError, kReturnUndefined };
+
 class AbstractCode;
 class AccessorPair;
 class AccessCheckInfo;
@@ -1150,7 +1152,8 @@ class Object {
       Isolate* isolate, Handle<Object> object, Handle<Object> callable);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
-  GetProperty(LookupIterator* it);
+  GetProperty(LookupIterator* it,
+              OnNonExistent on_non_existent = OnNonExistent::kReturnUndefined);
 
   // ES6 [[Set]] (when passed kDontThrow)
   // Invariants for this and related functions (unless stated otherwise):
