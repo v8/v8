@@ -3548,11 +3548,21 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
   delete[] blob.data;
 }
 
-TEST(SerializationMemoryStats) {
+TEST(SerializationStats) {
   FLAG_profile_deserialization = true;
   FLAG_always_opt = false;
   v8::StartupData blob = CreateSnapshotDataBlob();
   delete[] blob.data;
+
+  // Track the embedded blob size as well.
+  {
+    int embedded_blob_size = 0;
+    if (FLAG_embedded_builtins) {
+      i::EmbeddedData d = i::EmbeddedData::FromBlob();
+      embedded_blob_size = static_cast<int>(d.size());
+    }
+    PrintF("Embedded blob is %d bytes\n", embedded_blob_size);
+  }
 }
 
 void CheckSFIsAreWeak(WeakFixedArray* sfis, Isolate* isolate) {

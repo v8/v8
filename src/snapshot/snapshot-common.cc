@@ -450,6 +450,8 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   DCHECK_EQ(hash, d.CreateHash());
   DCHECK_EQ(hash, d.Hash());
 
+  if (FLAG_serialization_statistics) d.PrintStatistics();
+
   return d;
 }
 
@@ -486,6 +488,48 @@ uint32_t Snapshot::ExtractNumContexts(const v8::StartupData* data) {
   CHECK_LT(kNumberOfContextsOffset, data->raw_size);
   uint32_t num_contexts = GetHeaderValue(data, kNumberOfContextsOffset);
   return num_contexts;
+}
+
+void EmbeddedData::PrintStatistics() const {
+  DCHECK(FLAG_serialization_statistics);
+
+  constexpr int kCount = Builtins::builtin_count;
+
+  int embedded_count = 0;
+  int instruction_size = 0;
+  int sizes[kCount];
+  for (int i = 0; i < kCount; i++) {
+    if (!Builtins::IsIsolateIndependent(i)) continue;
+    const int size = InstructionSizeOfBuiltin(i);
+    instruction_size += size;
+    sizes[embedded_count] = size;
+    embedded_count++;
+  }
+
+  // Sort for percentiles.
+  std::sort(&sizes[0], &sizes[embedded_count]);
+
+  const int k50th = embedded_count * 0.5;
+  const int k75th = embedded_count * 0.75;
+  const int k90th = embedded_count * 0.90;
+  const int k99th = embedded_count * 0.99;
+
+  const int metadata_size =
+      static_cast<int>(HashSize() + OffsetsSize() + LengthsSize());
+
+  PrintF("EmbeddedData:\n");
+  PrintF("  Total size:                         %d\n",
+         static_cast<int>(size()));
+  PrintF("  Metadata size:                      %d\n", metadata_size);
+  PrintF("  Instruction size:                   %d\n", instruction_size);
+  PrintF("  Padding:                            %d\n",
+         static_cast<int>(size() - metadata_size - instruction_size));
+  PrintF("  Embedded builtin count:             %d\n", embedded_count);
+  PrintF("  Instruction size (50th percentile): %d\n", sizes[k50th]);
+  PrintF("  Instruction size (75th percentile): %d\n", sizes[k75th]);
+  PrintF("  Instruction size (90th percentile): %d\n", sizes[k90th]);
+  PrintF("  Instruction size (99th percentile): %d\n", sizes[k99th]);
+  PrintF("\n");
 }
 
 uint32_t Snapshot::ExtractContextOffset(const v8::StartupData* data,

@@ -139,6 +139,8 @@ class EmbeddedData final {
   }
   const uint8_t* RawData() const { return data_ + RawDataOffset(); }
 
+  void PrintStatistics() const;
+
   const uint8_t* data_;
   uint32_t size_;
 };
