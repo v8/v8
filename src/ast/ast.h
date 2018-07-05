@@ -1122,8 +1122,8 @@ class MaterializedLiteral : public Expression {
   void BuildConstants(Isolate* isolate);
 
   // If the expression is a literal, return the literal value;
-  // if the expression is a materialized literal and is simple return a
-  // compile time value as encoded by CompileTimeValue
+  // if the expression is a materialized literal and is_simple
+  // then return an Array or Object Boilerplate Description
   // Otherwise, return undefined literal as the placeholder
   // in the object literal boilerplate.
   Handle<Object> GetBoilerplateValue(Expression* expression, Isolate* isolate);
@@ -1277,9 +1277,9 @@ class ObjectLiteral final : public AggregateLiteral {
  public:
   typedef ObjectLiteralProperty Property;
 
-  Handle<BoilerplateDescription> constant_properties() const {
-    DCHECK(!constant_properties_.is_null());
-    return constant_properties_;
+  Handle<ObjectBoilerplateDescription> boilerplate_description() const {
+    DCHECK(!boilerplate_description_.is_null());
+    return boilerplate_description_;
   }
   int properties_count() const { return boilerplate_properties_; }
   ZonePtrList<Property>* properties() const { return properties_; }
@@ -1305,17 +1305,17 @@ class ObjectLiteral final : public AggregateLiteral {
   // Populate the depth field and flags, returns the depth.
   int InitDepthAndFlags();
 
-  // Get the constant properties fixed array, populating it if necessary.
-  Handle<BoilerplateDescription> GetOrBuildConstantProperties(
+  // Get the boilerplate description, populating it if necessary.
+  Handle<ObjectBoilerplateDescription> GetOrBuildBoilerplateDescription(
       Isolate* isolate) {
-    if (constant_properties_.is_null()) {
-      BuildConstantProperties(isolate);
+    if (boilerplate_description_.is_null()) {
+      BuildBoilerplateDescription(isolate);
     }
-    return constant_properties();
+    return boilerplate_description();
   }
 
-  // Populate the constant properties fixed array.
-  void BuildConstantProperties(Isolate* isolate);
+  // Populate the boilerplate description.
+  void BuildBoilerplateDescription(Isolate* isolate);
 
   // Mark all computed expressions that are bound to a key that
   // is shadowed by a later occurrence of the same key. For the
@@ -1382,8 +1382,8 @@ class ObjectLiteral final : public AggregateLiteral {
   }
 
   uint32_t boilerplate_properties_;
-  Handle<BoilerplateDescription> constant_properties_;
-  ZonePtrList<Property>* properties_;
+  Handle<ObjectBoilerplateDescription> boilerplate_description_;
+  ZoneList<Property*>* properties_;
 
   class HasElementsField
       : public BitField<bool, AggregateLiteral::kNextBitFieldIndex, 1> {};
@@ -1425,8 +1425,8 @@ class AccessorTable
 // for minimizing the work when constructing it at runtime.
 class ArrayLiteral final : public AggregateLiteral {
  public:
-  Handle<ConstantElementsPair> constant_elements() const {
-    return constant_elements_;
+  Handle<ArrayBoilerplateDescription> boilerplate_description() const {
+    return boilerplate_description_;
   }
 
   ZonePtrList<Expression>* values() const { return values_; }
@@ -1438,16 +1438,17 @@ class ArrayLiteral final : public AggregateLiteral {
   // Populate the depth field and flags, returns the depth.
   int InitDepthAndFlags();
 
-  // Get the constant elements fixed array, populating it if necessary.
-  Handle<ConstantElementsPair> GetOrBuildConstantElements(Isolate* isolate) {
-    if (constant_elements_.is_null()) {
-      BuildConstantElements(isolate);
+  // Get the boilerplate description, populating it if necessary.
+  Handle<ArrayBoilerplateDescription> GetOrBuildBoilerplateDescription(
+      Isolate* isolate) {
+    if (boilerplate_description_.is_null()) {
+      BuildBoilerplateDescription(isolate);
     }
-    return constant_elements();
+    return boilerplate_description();
   }
 
-  // Populate the constant elements fixed array.
-  void BuildConstantElements(Isolate* isolate);
+  // Populate the boilerplate description.
+  void BuildBoilerplateDescription(Isolate* isolate);
 
   // Determines whether the {CreateShallowArrayLiteral} builtin can be used.
   bool IsFastCloningSupported() const;
@@ -1466,7 +1467,7 @@ class ArrayLiteral final : public AggregateLiteral {
         values_(values) {}
 
   int first_spread_index_;
-  Handle<ConstantElementsPair> constant_elements_;
+  Handle<ArrayBoilerplateDescription> boilerplate_description_;
   ZonePtrList<Expression>* values_;
 };
 

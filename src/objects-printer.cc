@@ -14,6 +14,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-locale-inl.h"
 #endif  // V8_INTL_SUPPORT
@@ -128,8 +129,9 @@ void HeapObject::HeapObjectPrint(Isolate* isolate,
     case EPHEMERON_HASH_TABLE_TYPE:
       EphemeronHashTable::cast(this)->EphemeronHashTablePrint(os);
       break;
-    case BOILERPLATE_DESCRIPTION_TYPE:
-      BoilerplateDescription::cast(this)->BoilerplateDescriptionPrint(os);
+    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
+      ObjectBoilerplateDescription::cast(this)
+          ->ObjectBoilerplateDescriptionPrint(os);
       break;
     case PROPERTY_ARRAY_TYPE:
       PropertyArray::cast(this)->PropertyArrayPrint(os);
@@ -901,8 +903,9 @@ void EphemeronHashTable::EphemeronHashTablePrint(std::ostream& os) {
   PrintHashTableWithHeader(os, this, "EphemeronHashTable");
 }
 
-void BoilerplateDescription::BoilerplateDescriptionPrint(std::ostream& os) {
-  PrintFixedArrayWithHeader(os, this, "BoilerplateDescription");
+void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionPrint(
+    std::ostream& os) {
+  PrintFixedArrayWithHeader(os, this, "ObjectBoilerplateDescription");
 }
 
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
@@ -1681,6 +1684,14 @@ void Tuple3::Tuple3Print(std::ostream& os) {  // NOLINT
   os << "\n - value1: " << Brief(value1());
   os << "\n - value2: " << Brief(value2());
   os << "\n - value3: " << Brief(value3());
+  os << "\n";
+}
+
+void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionPrint(
+    std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "ArrayBoilerplateDescription");
+  os << "\n - elements kind: " << elements_kind();
+  os << "\n - constant elements: " << Brief(constant_elements());
   os << "\n";
 }
 

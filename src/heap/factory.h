@@ -23,15 +23,14 @@ namespace internal {
 
 // Forward declarations.
 class AliasedArgumentsEntry;
-class BoilerplateDescription;
+class ObjectBoilerplateDescription;
 class BreakPoint;
 class BreakPointInfo;
 class CallableTask;
 class CallbackTask;
 class CallHandlerInfo;
-class ConstantElementsPair;
 class Expression;
-class CompileTimeValue;
+class ArrayBoilerplateDescription;
 class CoverageInfo;
 class DebugInfo;
 class EnumCache;
@@ -145,10 +144,8 @@ class V8_EXPORT_PRIVATE Factory {
 
   // Allocates a fixed array for name-value pairs of boilerplate properties and
   // calculates the number of properties we need to store in the backing store.
-  Handle<BoilerplateDescription> NewBoilerplateDescription(int boilerplate,
-                                                           int all_properties,
-                                                           int index_keys,
-                                                           bool has_seen_proto);
+  Handle<ObjectBoilerplateDescription> NewObjectBoilerplateDescription(
+      int boilerplate, int all_properties, int index_keys, bool has_seen_proto);
 
   // Allocate a new uninitialized fixed double array.
   // The function returns a pre-allocated empty fixed array for length = 0,
@@ -192,12 +189,9 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<Tuple3> NewTuple3(Handle<Object> value1, Handle<Object> value2,
                            Handle<Object> value3, PretenureFlag pretenure);
 
-  // Create a new ConstantElementsPair struct.
-  Handle<ConstantElementsPair> NewConstantElementsPair(
+  // Create a new ArrayBoilerplateDescription struct.
+  Handle<ArrayBoilerplateDescription> NewArrayBoilerplateDescription(
       ElementsKind elements_kind, Handle<FixedArrayBase> constant_values);
-
-  // Create a new CompileTimeValue struct.
-  Handle<CompileTimeValue> NewCompileTimeValue(Expression* expression);
 
   // Create a new TemplateObjectDescription struct.
   Handle<TemplateObjectDescription> NewTemplateObjectDescription(

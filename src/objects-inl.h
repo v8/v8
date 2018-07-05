@@ -76,7 +76,7 @@ int PropertyDetails::field_width_in_words() const {
 // pointer rather than looking up the instance type.
 TYPE_CHECKER(AllocationSite, ALLOCATION_SITE_TYPE)
 TYPE_CHECKER(BigInt, BIGINT_TYPE)
-TYPE_CHECKER(BoilerplateDescription, BOILERPLATE_DESCRIPTION_TYPE)
+TYPE_CHECKER(ObjectBoilerplateDescription, OBJECT_BOILERPLATE_DESCRIPTION_TYPE)
 TYPE_CHECKER(BreakPoint, TUPLE2_TYPE)
 TYPE_CHECKER(BreakPointInfo, TUPLE2_TYPE)
 TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
@@ -85,8 +85,6 @@ TYPE_CHECKER(CallHandlerInfo, CALL_HANDLER_INFO_TYPE)
 TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(Code, CODE_TYPE)
 TYPE_CHECKER(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)
-TYPE_CHECKER(ConstantElementsPair, TUPLE2_TYPE)
-TYPE_CHECKER(CompileTimeValue, TUPLE2_TYPE)
 TYPE_CHECKER(CoverageInfo, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)
 TYPE_CHECKER(EphemeronHashTable, EPHEMERON_HASH_TABLE_TYPE)
@@ -599,10 +597,9 @@ CAST_ACCESSOR(AllocationMemento)
 CAST_ACCESSOR(AllocationSite)
 CAST_ACCESSOR(AsyncGeneratorRequest)
 CAST_ACCESSOR(BigInt)
-CAST_ACCESSOR(BoilerplateDescription)
+CAST_ACCESSOR(ObjectBoilerplateDescription)
 CAST_ACCESSOR(Cell)
-CAST_ACCESSOR(ConstantElementsPair)
-CAST_ACCESSOR(CompileTimeValue)
+CAST_ACCESSOR(ArrayBoilerplateDescription)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(EphemeronHashTable)
 CAST_ACCESSOR(EnumCache)
@@ -2413,13 +2410,6 @@ BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 ACCESSORS(Tuple2, value1, Object, kValue1Offset)
 ACCESSORS(Tuple2, value2, Object, kValue2Offset)
 ACCESSORS(Tuple3, value3, Object, kValue3Offset)
-
-SMI_ACCESSORS(ConstantElementsPair, elements_kind, kElementsKindOffset)
-ACCESSORS(ConstantElementsPair, constant_values, FixedArrayBase,
-          kConstantValuesOffset)
-bool ConstantElementsPair::is_empty() const {
-  return constant_values()->length() == 0;
-}
 
 ACCESSORS(TemplateObjectDescription, raw_strings, FixedArray, kRawStringsOffset)
 ACCESSORS(TemplateObjectDescription, cooked_strings, FixedArray,

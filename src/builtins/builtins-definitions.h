@@ -78,7 +78,7 @@ namespace internal {
   TFS(CreateEmptyArrayLiteral, kFeedbackVector, kSlot)                         \
   TFS(CreateShallowArrayLiteral, kFeedbackVector, kSlot, kConstantElements)    \
   TFS(CreateShallowObjectLiteral, kFeedbackVector, kSlot,                      \
-      kBoilerplateDescription, kFlags)                                         \
+      kObjectBoilerplateDescription, kFlags)                                   \
   /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */           \
   TFC(ConstructProxy, JSTrampoline, 1)                                         \
                                                                                \

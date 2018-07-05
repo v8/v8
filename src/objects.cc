@@ -60,6 +60,7 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-locale.h"
 #endif  // V8_INTL_SUPPORT
@@ -3000,7 +3001,7 @@ VisitorId Map::GetVisitorId(Map* map) {
       return kVisitFreeSpace;
 
     case FIXED_ARRAY_TYPE:
-    case BOILERPLATE_DESCRIPTION_TYPE:
+    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
@@ -3374,8 +3375,8 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case FIXED_ARRAY_TYPE:
       os << "<FixedArray[" << FixedArray::cast(this)->length() << "]>";
       break;
-    case BOILERPLATE_DESCRIPTION_TYPE:
-      os << "<BoilerplateDescription[" << FixedArray::cast(this)->length()
+    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
+      os << "<ObjectBoilerplateDescription[" << FixedArray::cast(this)->length()
          << "]>";
       break;
     case FIXED_DOUBLE_ARRAY_TYPE:
@@ -3578,6 +3579,10 @@ void Tuple2::BriefPrintDetails(std::ostream& os) {
 void Tuple3::BriefPrintDetails(std::ostream& os) {
   os << " " << Brief(value1()) << ", " << Brief(value2()) << ", "
      << Brief(value3());
+}
+
+void ArrayBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
+  os << " " << elements_kind() << ", " << Brief(constant_elements());
 }
 
 void CallableTask::BriefPrintDetails(std::ostream& os) {
@@ -13017,7 +13022,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
       return true;
 
     case BIGINT_TYPE:
-    case BOILERPLATE_DESCRIPTION_TYPE:
+    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case BYTECODE_ARRAY_TYPE:
     case BYTE_ARRAY_TYPE:
     case CELL_TYPE:

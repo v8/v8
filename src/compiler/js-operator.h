@@ -16,8 +16,8 @@ namespace v8 {
 namespace internal {
 
 class AllocationSite;
-class BoilerplateDescription;
-class ConstantElementsPair;
+class ObjectBoilerplateDescription;
+class ArrayBoilerplateDescription;
 class FeedbackCell;
 class SharedFunctionInfo;
 
@@ -705,16 +705,17 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateObject();
   const Operator* CreatePromise();
   const Operator* CreateTypedArray();
-  const Operator* CreateLiteralArray(Handle<ConstantElementsPair> constant,
-                                     VectorSlotPair const& feedback,
-                                     int literal_flags, int number_of_elements);
+  const Operator* CreateLiteralArray(
+      Handle<ArrayBoilerplateDescription> constant,
+      VectorSlotPair const& feedback, int literal_flags,
+      int number_of_elements);
   const Operator* CreateEmptyLiteralArray(VectorSlotPair const& feedback);
   const Operator* CreateEmptyLiteralObject();
 
-  const Operator* CreateLiteralObject(Handle<BoilerplateDescription> constant,
-                                      VectorSlotPair const& feedback,
-                                      int literal_flags,
-                                      int number_of_properties);
+  const Operator* CreateLiteralObject(
+      Handle<ObjectBoilerplateDescription> constant,
+      VectorSlotPair const& feedback, int literal_flags,
+      int number_of_properties);
   const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
                                       VectorSlotPair const& feedback,
                                       int literal_flags);

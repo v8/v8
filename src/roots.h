@@ -73,7 +73,7 @@ namespace internal {
   V(Map, feedback_metadata_map, FeedbackMetadataArrayMap)                      \
   V(Map, array_list_map, ArrayListMap)                                         \
   V(Map, bigint_map, BigIntMap)                                                \
-  V(Map, boilerplate_description_map, BoilerplateDescriptionMap)               \
+  V(Map, object_boilerplate_description_map, ObjectBoilerplateDescriptionMap)  \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(Map, code_data_container_map, CodeDataContainerMap)                        \
   V(Map, descriptor_array_map, DescriptorArrayMap)                             \
@@ -159,8 +159,8 @@ namespace internal {
   V(EnumCache, empty_enum_cache, EmptyEnumCache)                               \
   V(PropertyArray, empty_property_array, EmptyPropertyArray)                   \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
-  V(BoilerplateDescription, empty_boilerplate_description,                     \
-    EmptyBoilerplateDescription)                                               \
+  V(ObjectBoilerplateDescription, empty_object_boilerplate_description,        \
+    EmptyObjectBoilerplateDescription)                                         \
   V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
   V(FixedTypedArrayBase, empty_fixed_int8_array, EmptyFixedInt8Array)          \
   V(FixedTypedArrayBase, empty_fixed_uint16_array, EmptyFixedUint16Array)      \

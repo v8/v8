@@ -19,7 +19,7 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection-inl.h"
-#include "src/objects/literal-objects.h"
+#include "src/objects/literal-objects-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-locale-inl.h"
 #endif  // V8_INTL_SUPPORT
@@ -135,6 +135,11 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case CALL_HANDLER_INFO_TYPE:
       CallHandlerInfo::cast(this)->CallHandlerInfoVerify(isolate);
       break;
+    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
+      ObjectBoilerplateDescription::cast(this)
+          ->ObjectBoilerplateDescriptionVerify(isolate);
+      break;
+    // FixedArray types
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
@@ -144,7 +149,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case STRING_TABLE_TYPE:
     case EPHEMERON_HASH_TABLE_TYPE:
-    case BOILERPLATE_DESCRIPTION_TYPE:
     case FIXED_ARRAY_TYPE:
     case SCOPE_INFO_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
@@ -1549,6 +1553,21 @@ void Tuple3::Tuple3Verify(Isolate* isolate) {
   VerifyObjectField(kValue1Offset);
   VerifyObjectField(kValue2Offset);
   VerifyObjectField(kValue3Offset);
+}
+
+void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
+    Isolate* isolate) {
+  CHECK(IsObjectBoilerplateDescription());
+  CHECK_GE(this->length(),
+           ObjectBoilerplateDescription::kDescriptionStartIndex);
+  this->FixedArrayVerify(isolate);
+}
+
+void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionVerify(
+    Isolate* isolate) {
+  CHECK(IsArrayBoilerplateDescription());
+  CHECK(constant_elements()->IsFixedArrayBase());
+  VerifyObjectField(kConstantElementsOffset);
 }
 
 void WasmDebugInfo::WasmDebugInfoVerify(Isolate* isolate) {

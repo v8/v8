@@ -236,33 +236,13 @@ Handle<Tuple3> Factory::NewTuple3(Handle<Object> value1, Handle<Object> value2,
   return result;
 }
 
-Handle<ConstantElementsPair> Factory::NewConstantElementsPair(
+Handle<ArrayBoilerplateDescription> Factory::NewArrayBoilerplateDescription(
     ElementsKind elements_kind, Handle<FixedArrayBase> constant_values) {
-  Handle<ConstantElementsPair> result =
-      Handle<ConstantElementsPair>::cast(NewStruct(TUPLE2_TYPE, TENURED));
+  Handle<ArrayBoilerplateDescription> result =
+      Handle<ArrayBoilerplateDescription>::cast(
+          NewStruct(ARRAY_BOILERPLATE_DESCRIPTION_TYPE, TENURED));
   result->set_elements_kind(elements_kind);
-  result->set_constant_values(*constant_values);
-  return result;
-}
-
-Handle<CompileTimeValue> Factory::NewCompileTimeValue(Expression* expression) {
-  DCHECK(expression->IsCompileTimeValue());
-  Handle<CompileTimeValue> result =
-      Handle<CompileTimeValue>::cast(NewStruct(TUPLE2_TYPE, TENURED));
-
-  if (expression->IsObjectLiteral()) {
-    ObjectLiteral* object_literal = expression->AsObjectLiteral();
-    DCHECK(object_literal->is_simple());
-    int literalTypeFlag = object_literal->EncodeLiteralType();
-    DCHECK_NE(CompileTimeValue::kArrayLiteralFlag, literalTypeFlag);
-    result->set_literal_type_flag(literalTypeFlag);
-    result->set_constant_elements(*object_literal->constant_properties());
-  } else {
-    ArrayLiteral* array_literal = expression->AsArrayLiteral();
-    DCHECK(array_literal->is_simple());
-    result->set_literal_type_flag(CompileTimeValue::kArrayLiteralFlag);
-    result->set_constant_elements(*array_literal->constant_elements());
-  }
+  result->set_constant_elements(*constant_values);
   return result;
 }
 
@@ -447,7 +427,7 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   return vector;
 }
 
-Handle<BoilerplateDescription> Factory::NewBoilerplateDescription(
+Handle<ObjectBoilerplateDescription> Factory::NewObjectBoilerplateDescription(
     int boilerplate, int all_properties, int index_keys, bool has_seen_proto) {
   DCHECK_GE(boilerplate, 0);
   DCHECK_GE(all_properties, index_keys);
@@ -458,27 +438,26 @@ Handle<BoilerplateDescription> Factory::NewBoilerplateDescription(
   DCHECK_GE(backing_store_size, 0);
   bool has_different_size_backing_store = boilerplate != backing_store_size;
 
-  // Space for name and value for every boilerplate property.
-  int size = 2 * boilerplate;
+  // Space for name and value for every boilerplate property + LiteralType flag.
+  int size =
+      2 * boilerplate + ObjectBoilerplateDescription::kDescriptionStartIndex;
 
   if (has_different_size_backing_store) {
     // An extra entry for the backing store size.
     size++;
   }
 
-  if (size == 0) {
-    return isolate()->factory()->empty_boilerplate_description();
-  }
-
-  Handle<BoilerplateDescription> description =
-      Handle<BoilerplateDescription>::cast(NewFixedArrayWithMap(
-          Heap::kBoilerplateDescriptionMapRootIndex, size, TENURED));
+  Handle<ObjectBoilerplateDescription> description =
+      Handle<ObjectBoilerplateDescription>::cast(NewFixedArrayWithMap(
+          Heap::kObjectBoilerplateDescriptionMapRootIndex, size, TENURED));
 
   if (has_different_size_backing_store) {
     DCHECK_IMPLIES((boilerplate == (all_properties - index_keys)),
                    has_seen_proto);
     description->set_backing_store_size(isolate(), backing_store_size);
   }
+
+  description->set_flags(0);
 
   return description;
 }

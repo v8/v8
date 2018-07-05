@@ -40,7 +40,7 @@ class HeapTester;
 class TestMemoryAllocatorScope;
 }  // namespace heap
 
-class BoilerplateDescription;
+class ObjectBoilerplateDescription;
 class BytecodeArray;
 class CodeDataContainer;
 class DeoptimizationData;
@@ -59,7 +59,7 @@ using v8::MemoryPressureLevel;
   V(ArrayIteratorProtector)             \
   V(BigIntMap)                          \
   V(BlockContextMap)                    \
-  V(BoilerplateDescriptionMap)          \
+  V(ObjectBoilerplateDescriptionMap)    \
   V(BooleanMap)                         \
   V(ByteArrayMap)                       \
   V(BytecodeArrayMap)                   \

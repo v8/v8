@@ -14,7 +14,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects-inl.h"
-#include "src/objects/literal-objects.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/vector-slot-pair.h"
 
 namespace v8 {
@@ -1569,8 +1569,8 @@ void BytecodeGraphBuilder::VisitCreateRegExpLiteral() {
 }
 
 void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
-  Handle<ConstantElementsPair> constant_elements(
-      ConstantElementsPair::cast(
+  Handle<ArrayBoilerplateDescription> array_boilerplate_description(
+      ArrayBoilerplateDescription::cast(
           bytecode_iterator().GetConstantForIndexOperand(0)),
       isolate());
   int const slot_id = bytecode_iterator().GetIndexOperand(1);
@@ -1585,9 +1585,10 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   literal_flags |= ArrayLiteral::kDisableMementos;
   // TODO(mstarzinger): Thread through number of elements. The below number is
   // only an estimate and does not match {ArrayLiteral::values::length}.
-  int number_of_elements = constant_elements->constant_values()->length();
+  int number_of_elements =
+      array_boilerplate_description->constant_elements()->length();
   Node* literal = NewNode(javascript()->CreateLiteralArray(
-      constant_elements, pair, literal_flags, number_of_elements));
+      array_boilerplate_description, pair, literal_flags, number_of_elements));
   environment()->BindAccumulator(literal, Environment::kAttachFrameState);
 }
 
@@ -1599,8 +1600,8 @@ void BytecodeGraphBuilder::VisitCreateEmptyArrayLiteral() {
 }
 
 void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
-  Handle<BoilerplateDescription> constant_properties(
-      BoilerplateDescription::cast(
+  Handle<ObjectBoilerplateDescription> constant_properties(
+      ObjectBoilerplateDescription::cast(
           bytecode_iterator().GetConstantForIndexOperand(0)),
       isolate());
   int const slot_id = bytecode_iterator().GetIndexOperand(1);

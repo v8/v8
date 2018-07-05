@@ -31,9 +31,9 @@ void PreInitializeLiteralSite(Handle<FeedbackVector> vector,
   vector->Set(slot, Smi::FromInt(1));
 }
 
-Handle<Object> InnerCreateBoilerplate(
-    Isolate* isolate, Handle<CompileTimeValue> compile_time_value,
-    PretenureFlag pretenure_flag);
+Handle<Object> InnerCreateBoilerplate(Isolate* isolate,
+                                      Handle<Object> description,
+                                      PretenureFlag pretenure_flag);
 
 enum DeepCopyHints { kNoHints = 0, kObjectIsShallow = 1 };
 
@@ -322,8 +322,8 @@ struct ObjectBoilerplate {
                                  Handle<HeapObject> description, int flags,
                                  PretenureFlag pretenure_flag) {
     Handle<Context> native_context = isolate->native_context();
-    Handle<BoilerplateDescription> boilerplate_description =
-        Handle<BoilerplateDescription>::cast(description);
+    Handle<ObjectBoilerplateDescription> object_boilerplate_description =
+        Handle<ObjectBoilerplateDescription>::cast(description);
     bool use_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
     bool has_null_prototype = (flags & ObjectLiteral::kHasNullPrototype) != 0;
 
@@ -331,7 +331,8 @@ struct ObjectBoilerplate {
     // slow properties mode for now. We don't go in the map cache because
     // maps with constant functions can't be shared if the functions are
     // not the same (which is the common case).
-    int number_of_properties = boilerplate_description->backing_store_size();
+    int number_of_properties =
+        object_boilerplate_description->backing_store_size();
 
     // Ignoring number_of_properties for force dictionary map with
     // __proto__:null.
@@ -352,18 +353,16 @@ struct ObjectBoilerplate {
     if (!use_fast_elements) JSObject::NormalizeElements(boilerplate);
 
     // Add the constant properties to the boilerplate.
-    int length = boilerplate_description->size();
+    int length = object_boilerplate_description->size();
     // TODO(verwaest): Support tracking representations in the boilerplate.
     for (int index = 0; index < length; index++) {
-      Handle<Object> key(boilerplate_description->name(index), isolate);
-      Handle<Object> value(boilerplate_description->value(index), isolate);
-      if (value->IsCompileTimeValue()) {
-        // The value contains the CompileTimeValue with the boilerplate
-        // properties of a simple object or array literal.
-        Handle<CompileTimeValue> compile_time_value =
-            Handle<CompileTimeValue>::cast(value);
-        value =
-            InnerCreateBoilerplate(isolate, compile_time_value, pretenure_flag);
+      Handle<Object> key(object_boilerplate_description->name(index), isolate);
+      Handle<Object> value(object_boilerplate_description->value(index),
+                           isolate);
+
+      if (value->IsObjectBoilerplateDescription() ||
+          value->IsArrayBoilerplateDescription()) {
+        value = InnerCreateBoilerplate(isolate, value, pretenure_flag);
       }
       uint32_t element_index = 0;
       if (key->ToArrayIndex(&element_index)) {
@@ -397,14 +396,16 @@ struct ArrayBoilerplate {
   static Handle<JSObject> Create(Isolate* isolate,
                                  Handle<HeapObject> description, int flags,
                                  PretenureFlag pretenure_flag) {
-    Handle<ConstantElementsPair> elements =
-        Handle<ConstantElementsPair>::cast(description);
-    // Create the JSArray.
-    ElementsKind constant_elements_kind =
-        static_cast<ElementsKind>(elements->elements_kind());
+    Handle<ArrayBoilerplateDescription> array_boilerplate_description =
+        Handle<ArrayBoilerplateDescription>::cast(description);
 
-    Handle<FixedArrayBase> constant_elements_values(elements->constant_values(),
-                                                    isolate);
+    ElementsKind constant_elements_kind =
+        array_boilerplate_description->elements_kind();
+
+    Handle<FixedArrayBase> constant_elements_values(
+        array_boilerplate_description->constant_elements(), isolate);
+
+    // Create the JSArray.
     Handle<FixedArrayBase> copied_elements_values;
     if (IsDoubleElementsKind(constant_elements_kind)) {
       copied_elements_values = isolate->factory()->CopyFixedDoubleArray(
@@ -430,15 +431,12 @@ struct ArrayBoilerplate {
         copied_elements_values = fixed_array_values_copy;
         FOR_WITH_HANDLE_SCOPE(
             isolate, int, i = 0, i, i < fixed_array_values->length(), i++, {
-              if (fixed_array_values->get(i)->IsCompileTimeValue()) {
-                // The value contains the CompileTimeValue with the
-                // boilerplate description of a simple object or
-                // array literal.
-                Handle<CompileTimeValue> compile_time_value(
-                    CompileTimeValue::cast(fixed_array_values->get(i)),
-                    for_with_handle_isolate);
-                Handle<Object> result = InnerCreateBoilerplate(
-                    isolate, compile_time_value, pretenure_flag);
+              Handle<Object> value(fixed_array_values->get(i), isolate);
+
+              if (value->IsArrayBoilerplateDescription() ||
+                  value->IsObjectBoilerplateDescription()) {
+                Handle<Object> result =
+                    InnerCreateBoilerplate(isolate, value, pretenure_flag);
                 fixed_array_values_copy->set(i, *result);
               }
             });
@@ -451,16 +449,23 @@ struct ArrayBoilerplate {
   }
 };
 
-Handle<Object> InnerCreateBoilerplate(
-    Isolate* isolate, Handle<CompileTimeValue> compile_time_value,
-    PretenureFlag pretenure_flag) {
-  int flags = compile_time_value->literal_type_flag();
-  Handle<HeapObject> elements(
-      HeapObject::cast(compile_time_value->constant_elements()), isolate);
-  if (flags == CompileTimeValue::kArrayLiteralFlag) {
-    return ArrayBoilerplate::Create(isolate, elements, flags, pretenure_flag);
+Handle<Object> InnerCreateBoilerplate(Isolate* isolate,
+                                      Handle<Object> description,
+                                      PretenureFlag pretenure_flag) {
+  if (description->IsObjectBoilerplateDescription()) {
+    Handle<ObjectBoilerplateDescription> object_boilerplate_description =
+        Handle<ObjectBoilerplateDescription>::cast(description);
+    return ObjectBoilerplate::Create(isolate, object_boilerplate_description,
+                                     object_boilerplate_description->flags(),
+                                     pretenure_flag);
+  } else {
+    DCHECK(description->IsArrayBoilerplateDescription());
+    Handle<ArrayBoilerplateDescription> array_boilerplate_description =
+        Handle<ArrayBoilerplateDescription>::cast(description);
+    return ArrayBoilerplate::Create(
+        isolate, array_boilerplate_description,
+        array_boilerplate_description->elements_kind(), pretenure_flag);
   }
-  return ObjectBoilerplate::Create(isolate, elements, flags, pretenure_flag);
 }
 
 template <typename Boilerplate>
@@ -536,7 +541,7 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(BoilerplateDescription, description, 2);
+  CONVERT_ARG_HANDLE_CHECKED(ObjectBoilerplateDescription, description, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ObjectBoilerplate>(isolate, vector, literals_index,
@@ -548,7 +553,7 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(ConstantElementsPair, elements, 2);
+  CONVERT_ARG_HANDLE_CHECKED(ArrayBoilerplateDescription, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateLiteral<ArrayBoilerplate>(isolate, vector, literals_index,

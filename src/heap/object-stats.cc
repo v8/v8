@@ -17,6 +17,7 @@
 #include "src/isolate.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/templates.h"
 #include "src/utils.h"
 
@@ -360,7 +361,7 @@ class ObjectStatsCollectorImpl {
   void RecordObjectStats(HeapObject* obj, InstanceType type, size_t size);
 
   // Specific recursion into constant pool or embedded code objects. Records
-  // FixedArrays and Tuple2 that look like ConstantElementsPair.
+  // FixedArrays and Tuple2.
   void RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
       HeapObject* parent, HeapObject* object,
       ObjectStats::VirtualInstanceType type);
@@ -381,6 +382,8 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo* info);
   void RecordVirtualJSFunctionDetails(JSFunction* function);
 
+  void RecordVirtualArrayBoilerplateDescription(
+      ArrayBoilerplateDescription* description);
   Heap* heap_;
   ObjectStats* stats_;
   MarkCompactCollector::NonAtomicMarkingState* marking_state_;
@@ -660,6 +663,9 @@ void ObjectStatsCollectorImpl::CollectStatistics(
         RecordVirtualContext(Context::cast(obj));
       } else if (obj->IsScript()) {
         RecordVirtualScriptDetails(Script::cast(obj));
+      } else if (obj->IsArrayBoilerplateDescription()) {
+        RecordVirtualArrayBoilerplateDescription(
+            ArrayBoilerplateDescription::cast(obj));
       } else if (obj->IsFixedArrayExact()) {
         // Has to go last as it triggers too eagerly.
         RecordVirtualFixedArrayDetails(FixedArray::cast(obj));
@@ -805,16 +811,12 @@ void ObjectStatsCollectorImpl::RecordVirtualJSFunctionDetails(
                                    ObjectStats::UNCOMPILED_JS_FUNCTION_TYPE);
   }
 }
-
-namespace {
-
-bool MatchesConstantElementsPair(Object* object) {
-  if (!object->IsTuple2()) return false;
-  Tuple2* tuple = Tuple2::cast(object);
-  return tuple->value1()->IsSmi() && tuple->value2()->IsFixedArrayExact();
+void ObjectStatsCollectorImpl::RecordVirtualArrayBoilerplateDescription(
+    ArrayBoilerplateDescription* description) {
+  RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
+      description, description->constant_elements(),
+      ObjectStats::ARRAY_BOILERPLATE_DESCRIPTION_ELEMENTS_TYPE);
 }
-
-}  // namespace
 
 void ObjectStatsCollectorImpl::
     RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
@@ -829,11 +831,6 @@ void ObjectStatsCollectorImpl::
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           array, HeapObject::cast(entry), type);
     }
-  } else if (MatchesConstantElementsPair(object) ||
-             object->IsCompileTimeValue()) {
-    Tuple2* tuple = Tuple2::cast(object);
-    RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
-        tuple, HeapObject::cast(tuple->value2()), type);
   }
 }
 
@@ -847,8 +844,7 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
   FixedArray* constant_pool = FixedArray::cast(bytecode->constant_pool());
   for (int i = 0; i < constant_pool->length(); i++) {
     Object* entry = constant_pool->get(i);
-    if (entry->IsFixedArrayExact() || MatchesConstantElementsPair(entry) ||
-        entry->IsCompileTimeValue()) {
+    if (entry->IsFixedArrayExact()) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           constant_pool, HeapObject::cast(entry),
           ObjectStats::EMBEDDED_OBJECT_TYPE);
@@ -910,8 +906,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code* code) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Object* target = it.rinfo()->target_object();
-      if (target->IsFixedArrayExact() || MatchesConstantElementsPair(target) ||
-          target->IsCompileTimeValue()) {
+      if (target->IsFixedArrayExact()) {
         RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
             code, HeapObject::cast(target), ObjectStats::EMBEDDED_OBJECT_TYPE);
       }

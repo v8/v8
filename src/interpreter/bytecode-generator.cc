@@ -990,8 +990,8 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
     if (object_literal->properties_count() > 0) {
       // If constant properties is an empty fixed array, we've already added it
       // to the constant pool when visiting the object literal.
-      Handle<BoilerplateDescription> constant_properties =
-          object_literal->GetOrBuildConstantProperties(isolate);
+      Handle<ObjectBoilerplateDescription> constant_properties =
+          object_literal->GetOrBuildBoilerplateDescription(isolate);
 
       builder()->SetDeferredConstantPoolEntry(literal.second,
                                               constant_properties);
@@ -1001,8 +1001,8 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
   // Build array literal constant elements
   for (std::pair<ArrayLiteral*, size_t> literal : array_literals_) {
     ArrayLiteral* array_literal = literal.first;
-    Handle<ConstantElementsPair> constant_elements =
-        array_literal->GetOrBuildConstantElements(isolate);
+    Handle<ArrayBoilerplateDescription> constant_elements =
+        array_literal->GetOrBuildBoilerplateDescription(isolate);
     builder()->SetDeferredConstantPoolEntry(literal.second, constant_elements);
   }
 
@@ -2118,7 +2118,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // If constant properties is an empty fixed array, use a cached empty fixed
   // array to ensure it's only added to the constant pool once.
   if (expr->properties_count() == 0) {
-    entry = builder()->EmptyBoilerplateDescriptionConstantPoolEntry();
+    entry = builder()->EmptyObjectBoilerplateDescriptionConstantPoolEntry();
   } else {
     entry = builder()->AllocateDeferredConstantPoolEntry();
     object_literals_.push_back(std::make_pair(expr, entry));

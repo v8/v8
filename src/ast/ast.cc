@@ -18,6 +18,7 @@
 #include "src/double.h"
 #include "src/elements.h"
 #include "src/objects-inl.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/map.h"
 #include "src/property-details.h"
@@ -477,8 +478,8 @@ int ObjectLiteral::InitDepthAndFlags() {
   return depth_acc;
 }
 
-void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
-  if (!constant_properties_.is_null()) return;
+void ObjectLiteral::BuildBoilerplateDescription(Isolate* isolate) {
+  if (!boilerplate_description_.is_null()) return;
 
   int index_keys = 0;
   bool has_seen_proto = false;
@@ -499,17 +500,17 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
     }
   }
 
-  Handle<BoilerplateDescription> constant_properties =
-      isolate->factory()->NewBoilerplateDescription(boilerplate_properties_,
-                                                    properties()->length(),
-                                                    index_keys, has_seen_proto);
+  Handle<ObjectBoilerplateDescription> boilerplate_description =
+      isolate->factory()->NewObjectBoilerplateDescription(
+          boilerplate_properties_, properties()->length(), index_keys,
+          has_seen_proto);
 
   int position = 0;
   for (int i = 0; i < properties()->length(); i++) {
     ObjectLiteral::Property* property = properties()->at(i);
     if (property->IsPrototype()) continue;
 
-    if (static_cast<uint32_t>(position) == boilerplate_properties_ * 2) {
+    if (static_cast<uint32_t>(position) == boilerplate_properties_) {
       DCHECK(property->is_computed_name());
       break;
     }
@@ -533,11 +534,12 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
     Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
 
     // Add name, value pair to the fixed array.
-    constant_properties->set(position++, *key);
-    constant_properties->set(position++, *value);
+    boilerplate_description->set_key_value(position++, *key, *value);
   }
 
-  constant_properties_ = constant_properties;
+  boilerplate_description->set_flags(EncodeLiteralType());
+
+  boilerplate_description_ = boilerplate_description;
 }
 
 bool ObjectLiteral::IsFastCloningSupported() const {
@@ -551,8 +553,8 @@ bool ObjectLiteral::IsFastCloningSupported() const {
 
 bool ArrayLiteral::is_empty() const {
   DCHECK(is_initialized());
-  return values()->is_empty() &&
-         (constant_elements().is_null() || constant_elements()->is_empty());
+  return values()->is_empty() && (boilerplate_description().is_null() ||
+                                  boilerplate_description()->is_empty());
 }
 
 int ArrayLiteral::InitDepthAndFlags() {
@@ -586,8 +588,8 @@ int ArrayLiteral::InitDepthAndFlags() {
   return depth_acc;
 }
 
-void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
-  if (!constant_elements_.is_null()) return;
+void ArrayLiteral::BuildBoilerplateDescription(Isolate* isolate) {
+  if (!boilerplate_description_.is_null()) return;
 
   int constants_length =
       first_spread_index_ >= 0 ? first_spread_index_ : values()->length();
@@ -642,11 +644,8 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
                            constants_length);
   }
 
-  // Remember both the literal's constant values as well as the ElementsKind.
-  Handle<ConstantElementsPair> literals =
-      isolate->factory()->NewConstantElementsPair(kind, elements);
-
-  constant_elements_ = literals;
+  boilerplate_description_ =
+      isolate->factory()->NewArrayBoilerplateDescription(kind, elements);
 }
 
 bool ArrayLiteral::IsFastCloningSupported() const {
@@ -668,7 +667,16 @@ Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
     return expression->AsLiteral()->BuildValue(isolate);
   }
   if (expression->IsCompileTimeValue()) {
-    return isolate->factory()->NewCompileTimeValue(expression);
+    if (expression->IsObjectLiteral()) {
+      ObjectLiteral* object_literal = expression->AsObjectLiteral();
+      DCHECK(object_literal->is_simple());
+      return object_literal->boilerplate_description();
+    } else {
+      DCHECK(expression->IsArrayLiteral());
+      ArrayLiteral* array_literal = expression->AsArrayLiteral();
+      DCHECK(array_literal->is_simple());
+      return array_literal->boilerplate_description();
+    }
   }
   return isolate->factory()->uninitialized_value();
 }
@@ -693,10 +701,12 @@ bool MaterializedLiteral::NeedsInitialAllocationSite() {
 
 void MaterializedLiteral::BuildConstants(Isolate* isolate) {
   if (IsArrayLiteral()) {
-    return AsArrayLiteral()->BuildConstantElements(isolate);
+    AsArrayLiteral()->BuildBoilerplateDescription(isolate);
+    return;
   }
   if (IsObjectLiteral()) {
-    return AsObjectLiteral()->BuildConstantProperties(isolate);
+    AsObjectLiteral()->BuildBoilerplateDescription(isolate);
+    return;
   }
   DCHECK(IsRegExpLiteral());
 }

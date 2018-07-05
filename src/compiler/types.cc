@@ -271,7 +271,7 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case FEEDBACK_METADATA_TYPE:
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:
-    case BOILERPLATE_DESCRIPTION_TYPE:
+    case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case DESCRIPTOR_ARRAY_TYPE:
     case TRANSITION_ARRAY_TYPE:
     case FEEDBACK_CELL_TYPE:
@@ -324,6 +324,7 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case INTERPRETER_DATA_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
+    case ARRAY_BOILERPLATE_DESCRIPTION_TYPE:
     case WASM_DEBUG_INFO_TYPE:
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
     case LOAD_HANDLER_TYPE:

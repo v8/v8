@@ -478,7 +478,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(SCRIPT_CONTEXT_TYPE, script_context)
     ALLOCATE_VARSIZE_MAP(SCRIPT_CONTEXT_TABLE_TYPE, script_context_table)
 
-    ALLOCATE_VARSIZE_MAP(BOILERPLATE_DESCRIPTION_TYPE, boilerplate_description)
+    ALLOCATE_VARSIZE_MAP(OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
+                         object_boilerplate_description)
 
     ALLOCATE_VARSIZE_MAP(NATIVE_CONTEXT_TYPE, native_context)
     native_context_map()->set_visitor_id(kVisitNativeContext);
@@ -513,13 +514,18 @@ bool Heap::CreateInitialMaps() {
   set_empty_scope_info(ScopeInfo::cast(obj));
 
   {
-    AllocationResult alloc = AllocateRaw(FixedArray::SizeFor(0), RO_SPACE);
+    // Empty boilerplate needs a field for literal_flags
+    AllocationResult alloc = AllocateRaw(FixedArray::SizeFor(1), RO_SPACE);
     if (!alloc.To(&obj)) return false;
-    obj->set_map_after_allocation(boilerplate_description_map(),
+    obj->set_map_after_allocation(object_boilerplate_description_map(),
                                   SKIP_WRITE_BARRIER);
-    FixedArray::cast(obj)->set_length(0);
+
+    FixedArray::cast(obj)->set_length(1);
+    FixedArray::cast(obj)->set(ObjectBoilerplateDescription::kLiteralTypeOffset,
+                               Smi::kZero);
   }
-  set_empty_boilerplate_description(BoilerplateDescription::cast(obj));
+  set_empty_object_boilerplate_description(
+      ObjectBoilerplateDescription::cast(obj));
 
   {
     AllocationResult allocation = Allocate(boolean_map(), RO_SPACE);

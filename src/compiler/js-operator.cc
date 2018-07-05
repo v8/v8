@@ -1142,10 +1142,10 @@ const Operator* JSOperatorBuilder::CreateClosure(
 }
 
 const Operator* JSOperatorBuilder::CreateLiteralArray(
-    Handle<ConstantElementsPair> constant_elements,
+    Handle<ArrayBoilerplateDescription> description,
     VectorSlotPair const& feedback, int literal_flags, int number_of_elements) {
-  CreateLiteralParameters parameters(constant_elements, feedback,
-                                     number_of_elements, literal_flags);
+  CreateLiteralParameters parameters(description, feedback, number_of_elements,
+                                     literal_flags);
   return new (zone()) Operator1<CreateLiteralParameters>(  // --
       IrOpcode::kJSCreateLiteralArray,                     // opcode
       Operator::kNoProperties,                             // properties
@@ -1166,7 +1166,7 @@ const Operator* JSOperatorBuilder::CreateEmptyLiteralArray(
 }
 
 const Operator* JSOperatorBuilder::CreateLiteralObject(
-    Handle<BoilerplateDescription> constant_properties,
+    Handle<ObjectBoilerplateDescription> constant_properties,
     VectorSlotPair const& feedback, int literal_flags,
     int number_of_properties) {
   CreateLiteralParameters parameters(constant_properties, feedback,

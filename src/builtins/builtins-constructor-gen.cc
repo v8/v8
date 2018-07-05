@@ -600,12 +600,12 @@ TF_BUILTIN(CreateShallowObjectLiteral, ConstructorBuiltinsAssembler) {
   Return(copy);
 
   BIND(&call_runtime);
-  Node* boilerplate_description =
-      Parameter(Descriptor::kBoilerplateDescription);
+  Node* object_boilerplate_description =
+      Parameter(Descriptor::kObjectBoilerplateDescription);
   Node* flags = Parameter(Descriptor::kFlags);
   Node* context = Parameter(Descriptor::kContext);
   TailCallRuntime(Runtime::kCreateObjectLiteral, context, feedback_vector,
-                  SmiTag(slot), boilerplate_description, flags);
+                  SmiTag(slot), object_boilerplate_description, flags);
 }
 
 // Used by the CreateEmptyObjectLiteral bytecode and the Object constructor.

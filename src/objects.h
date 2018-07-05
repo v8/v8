@@ -473,6 +473,7 @@ enum InstanceType : uint16_t {
   STACK_FRAME_INFO_TYPE,
   TUPLE2_TYPE,
   TUPLE3_TYPE,
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
   WASM_DEBUG_INFO_TYPE,
   WASM_EXPORTED_FUNCTION_DATA_TYPE,
 
@@ -485,7 +486,7 @@ enum InstanceType : uint16_t {
   ALLOCATION_SITE_TYPE,
   // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
-  BOILERPLATE_DESCRIPTION_TYPE,
+  OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   HASH_TABLE_TYPE,        // FIRST_HASH_TABLE_TYPE
   ORDERED_HASH_MAP_TYPE,  // FIRST_DICTIONARY_TYPE
   ORDERED_HASH_SET_TYPE,
@@ -740,7 +741,7 @@ template <class C> inline bool Is(Object* obj);
   V(ArrayList)                                 \
   V(BigInt)                                    \
   V(BigIntWrapper)                             \
-  V(BoilerplateDescription)                    \
+  V(ObjectBoilerplateDescription)              \
   V(Boolean)                                   \
   V(BooleanWrapper)                            \
   V(BreakPoint)                                \
@@ -755,8 +756,6 @@ template <class C> inline bool Is(Object* obj);
   V(CodeDataContainer)                         \
   V(CompilationCacheTable)                     \
   V(ConsString)                                \
-  V(ConstantElementsPair)                      \
-  V(CompileTimeValue)                          \
   V(Constructor)                               \
   V(Context)                                   \
   V(CoverageInfo)                              \
