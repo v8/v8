@@ -168,6 +168,9 @@ void WasmCode::LogCode(Isolate* isolate) const {
 
 void WasmCode::Validate() const {
 #ifdef DEBUG
+  // We run NativeModule::Lookup, which accesses owned_code_, thuse we need to
+  // hold the mutex to avoid race conditions.
+  base::LockGuard<base::Mutex> lock(&native_module_->allocation_mutex_);
   // We expect certain relocation info modes to never appear in {WasmCode}
   // objects or to be restricted to a small set of valid values. Hence the
   // iteration below does not use a mask, but visits all relocation data.
@@ -530,11 +533,16 @@ WasmCode* NativeModule::AddCode(
     }
   }
 
-  if (!ret->protected_instructions_.is_empty()) {
-    ret->RegisterTrapHandlerData();
+  {
+    // TODO(clemensh): Remove the need for locking here. Probably requires
+    // word-aligning the jump table slots.
+    base::LockGuard<base::Mutex> lock(&allocation_mutex_);
+    if (!ret->protected_instructions_.is_empty()) {
+      ret->RegisterTrapHandlerData();
+    }
+    set_code(index, ret);
+    PatchJumpTable(index, ret->instruction_start(), WasmCode::kFlushICache);
   }
-  set_code(index, ret);
-  PatchJumpTable(index, ret->instruction_start(), WasmCode::kFlushICache);
 
   // Flush the i-cache here instead of in AddOwnedCode, to include the changes
   // made while iterating over the RelocInfo above.

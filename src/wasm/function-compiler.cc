@@ -8,6 +8,7 @@
 #include "src/counters.h"
 #include "src/macro-assembler-inl.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
+#include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
 namespace internal {

@@ -225,6 +225,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   static constexpr bool kCanAllocateMoreMemory = true;
 #endif
 
+  // {AddCode} is thread safe w.r.t. other calls to {AddCode} or {AddCodeCopy},
+  // i.e. it can be called concurrently from background threads.
   WasmCode* AddCode(uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
                     size_t safepoint_table_offset, size_t handler_table_offset,
                     OwnedVector<trap_handler::ProtectedInstructionData>
@@ -388,7 +390,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::list<VirtualMemory> owned_code_space_;
 
   WasmCodeManager* wasm_code_manager_;
-  base::Mutex allocation_mutex_;
+  // This mutex protects concurrent calls to {AddCode} and {AddCodeCopy}.
+  mutable base::Mutex allocation_mutex_;
   size_t committed_code_space_ = 0;
   int modification_scope_depth_ = 0;
   bool can_request_more_memory_;

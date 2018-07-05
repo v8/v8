@@ -572,12 +572,15 @@ class LiftoffAssembler : public TurboAssembler {
   }
 
   CacheState* cache_state() { return &cache_state_; }
+  const CacheState* cache_state() const { return &cache_state_; }
 
   bool did_bailout() { return bailout_reason_ != nullptr; }
   const char* bailout_reason() const { return bailout_reason_; }
 
   void bailout(const char* reason) {
-    if (bailout_reason_ == nullptr) bailout_reason_ = reason;
+    if (bailout_reason_ != nullptr) return;
+    AbortCompilation();
+    bailout_reason_ = reason;
   }
 
  private:
