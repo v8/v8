@@ -59,28 +59,6 @@ module data_view {
     return data_view.byte_offset;
   }
 
-  extern macro IsTargetLittleEndian(): constexpr bool;
-
-  macro EndiannessMatchesTarget(requested_little_endian: bool): bool {
-    if constexpr (IsTargetLittleEndian()) {
-      return requested_little_endian;
-    } else {
-      return !requested_little_endian;
-    }
-  }
-
-  macro IsAddressAligned(address: intptr, width: constexpr int31): bool {
-    if constexpr (width == 2) {
-      return (address & 1) == 0;
-    } else if constexpr (width == 4) {
-      return (address & 3) == 0;
-    } else if constexpr (width == 8) {
-      return (address & 7) == 0;
-    } else {
-      unreachable;
-    }
-  }
-
   extern macro BitcastInt32ToFloat32(uint32): float32;
   extern macro BitcastFloat32ToInt32(float32): uint32;
   extern macro Float64ExtractLowWord32(float64): uint32;
@@ -90,12 +68,6 @@ module data_view {
 
   extern macro LoadUint8(RawPtr, intptr): uint32;
   extern macro LoadInt8(RawPtr, intptr): int32;
-  extern macro LoadUint16(RawPtr, intptr): int32;
-  extern macro LoadInt16(RawPtr, intptr): int32;
-  extern macro LoadUint32(RawPtr, intptr): uint32;
-  extern macro LoadInt32(RawPtr, intptr): int32;
-  extern macro LoadFloat32(RawPtr, intptr): float32;
-  extern macro LoadFloat64(RawPtr, intptr): float64;
 
   macro LoadDataViewUint8(buffer: JSArrayBuffer, offset: intptr): Smi {
     return convert<Smi>(LoadUint8(buffer.backing_store, offset));
@@ -109,17 +81,6 @@ module data_view {
                        requested_little_endian: bool,
                        signed: constexpr bool): Number {
     let data_pointer: RawPtr = buffer.backing_store;
-
-    // If endiannesses match and the pointer is aligned, we can
-    // directly load the value.
-    if (IsAddressAligned(convert<intptr>(data_pointer) + offset, 2) &&
-        EndiannessMatchesTarget(requested_little_endian)) {
-      if constexpr (signed) {
-        return convert<Number>(LoadInt16(data_pointer, offset));
-      } else {
-        return convert<Number>(LoadUint16(data_pointer, offset));
-      }
-    }
 
     let b0: int32;
     let b1: int32;
@@ -148,17 +109,6 @@ module data_view {
                        signed: constexpr bool): Number {
     let data_pointer: RawPtr = buffer.backing_store;
 
-    // If endiannesses match and the pointer is aligned, we can
-    // directly load the value.
-    if (IsAddressAligned(convert<intptr>(data_pointer) + offset, 4) &&
-        EndiannessMatchesTarget(requested_little_endian)) {
-      if constexpr (signed) {
-        return convert<Number>(LoadInt32(data_pointer, offset));
-      } else {
-        return convert<Number>(LoadUint32(data_pointer, offset));
-      }
-    }
-
     let b0: uint32 = LoadUint8(data_pointer, offset);
     let b1: uint32 = LoadUint8(data_pointer, offset + 1);
     let b2: uint32 = LoadUint8(data_pointer, offset + 2);
@@ -182,14 +132,6 @@ module data_view {
                             requested_little_endian: bool): Number {
     let data_pointer: RawPtr = buffer.backing_store;
 
-    // If endiannesses match and the pointer is aligned, we can
-    // directly load the value.
-    if (IsAddressAligned(convert<intptr>(data_pointer) + offset, 4) &&
-        EndiannessMatchesTarget(requested_little_endian)) {
-      let res: float64 = convert<float64>(LoadFloat32(data_pointer, offset));
-      return convert<Number>(res);
-    }
-
     let b0: uint32 = LoadUint8(data_pointer, offset);
     let b1: uint32 = LoadUint8(data_pointer, offset + 1);
     let b2: uint32 = LoadUint8(data_pointer, offset + 2);
@@ -209,13 +151,6 @@ module data_view {
   macro LoadDataViewFloat64(buffer: JSArrayBuffer, offset: intptr,
                             requested_little_endian: bool): Number {
     let data_pointer: RawPtr = buffer.backing_store;
-
-    // If endiannesses match and the pointer is aligned, we can
-    // directly load the value.
-    if (IsAddressAligned(convert<intptr>(data_pointer) + offset, 8) &&
-        EndiannessMatchesTarget(requested_little_endian)) {
-      return convert<Number>(LoadFloat64(data_pointer, offset));
-    }
 
     let b0: uint32 = LoadUint8(data_pointer, offset);
     let b1: uint32 = LoadUint8(data_pointer, offset + 1);
@@ -388,38 +323,24 @@ module data_view {
                            requested_little_endian: bool,
                            signed: constexpr bool): BigInt {
     let data_pointer: RawPtr = buffer.backing_store;
+
+    let b0: uint32 = LoadUint8(data_pointer, offset);
+    let b1: uint32 = LoadUint8(data_pointer, offset + 1);
+    let b2: uint32 = LoadUint8(data_pointer, offset + 2);
+    let b3: uint32 = LoadUint8(data_pointer, offset + 3);
+    let b4: uint32 = LoadUint8(data_pointer, offset + 4);
+    let b5: uint32 = LoadUint8(data_pointer, offset + 5);
+    let b6: uint32 = LoadUint8(data_pointer, offset + 6);
+    let b7: uint32 = LoadUint8(data_pointer, offset + 7);
     let low_word: uint32;
     let high_word: uint32;
 
-    // If endiannesses match and the pointer is aligned, we can
-    // directly load the words.
-    if (IsAddressAligned(convert<intptr>(data_pointer) + offset, 4) &&
-        EndiannessMatchesTarget(requested_little_endian)) {
-      if (requested_little_endian) {
-        low_word = LoadUint32(data_pointer, offset);
-        high_word = LoadUint32(data_pointer, offset + 4);
-      } else {
-        high_word = LoadUint32(data_pointer, offset);
-        low_word = LoadUint32(data_pointer, offset + 4);
-      }
-    }
-    else { // We have to perform the loads byte by byte.
-      let b0: uint32 = LoadUint8(data_pointer, offset);
-      let b1: uint32 = LoadUint8(data_pointer, offset + 1);
-      let b2: uint32 = LoadUint8(data_pointer, offset + 2);
-      let b3: uint32 = LoadUint8(data_pointer, offset + 3);
-      let b4: uint32 = LoadUint8(data_pointer, offset + 4);
-      let b5: uint32 = LoadUint8(data_pointer, offset + 5);
-      let b6: uint32 = LoadUint8(data_pointer, offset + 6);
-      let b7: uint32 = LoadUint8(data_pointer, offset + 7);
-
-      if (requested_little_endian) {
-        low_word = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
-        high_word = (b7 << 24) | (b6 << 16) | (b5 << 8) | b4;
-      } else {
-        high_word = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
-        low_word = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
-      }
+    if (requested_little_endian) {
+      low_word = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+      high_word = (b7 << 24) | (b6 << 16) | (b5 << 8) | b4;
+    } else {
+      high_word = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+      low_word = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
     }
 
     return MakeBigInt(low_word, high_word, signed);
@@ -608,8 +529,6 @@ module data_view {
   extern macro TruncateFloat64ToWord32(float64): uint32;
 
   extern macro StoreWord8(RawPtr, intptr, uint32): void;
-  extern macro StoreWord16(RawPtr, intptr, uint32): void;
-  extern macro StoreWord32(RawPtr, intptr, uint32): void;
 
   macro StoreDataView8(buffer: JSArrayBuffer, offset: intptr,
                        value: uint32) {
@@ -619,14 +538,6 @@ module data_view {
   macro StoreDataView16(buffer: JSArrayBuffer, offset: intptr, value: uint32,
                         requested_little_endian: bool) {
     let data_pointer: RawPtr = buffer.backing_store;
-
-    // If endiannesses match and the pointer is aligned, we can
-    // directly store the value.
-    if (IsAddressAligned(convert<intptr>(data_pointer) + offset, 2) &&
-        EndiannessMatchesTarget(requested_little_endian)) {
-      StoreWord16(data_pointer, offset, value);
-      return;
-    }
 
     let b0: uint32 = value & 0xFF;
     let b1: uint32 = (value >>> 8) & 0xFF;
@@ -643,14 +554,6 @@ module data_view {
   macro StoreDataView32(buffer: JSArrayBuffer, offset: intptr, value: uint32,
                         requested_little_endian: bool) {
     let data_pointer: RawPtr = buffer.backing_store;
-
-    // If endiannesses match and the pointer is aligned, we can
-    // directly store the value.
-    if (IsAddressAligned(convert<intptr>(data_pointer) + offset, 4) &&
-        EndiannessMatchesTarget(requested_little_endian)) {
-      StoreWord32(data_pointer, offset, value);
-      return;
-    }
 
     let b0: uint32 = value & 0xFF;
     let b1: uint32 = (value >>> 8) & 0xFF;
@@ -674,20 +577,6 @@ module data_view {
                         low_word: uint32, high_word: uint32,
                         requested_little_endian: bool) {
     let data_pointer: RawPtr = buffer.backing_store;
-
-    // If endiannesses match and the pointer is aligned, we can
-    // directly store the words.
-    if (IsAddressAligned(convert<intptr>(data_pointer) + offset, 4) &&
-        EndiannessMatchesTarget(requested_little_endian)) {
-      if (requested_little_endian) {
-        StoreWord32(data_pointer, offset, low_word);
-        StoreWord32(data_pointer, offset + 4, high_word);
-      } else {
-        StoreWord32(data_pointer, offset, high_word);
-        StoreWord32(data_pointer, offset + 4, low_word);
-      }
-      return;
-    }
 
     let b0: uint32 = low_word & 0xFF;
     let b1: uint32 = (low_word >>> 8) & 0xFF;

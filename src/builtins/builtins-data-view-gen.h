@@ -25,14 +25,6 @@ class DataViewBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
     return CAST(LoadObjectField(data_view, JSDataView::kByteLengthOffset));
   }
 
-  bool IsTargetLittleEndian() {
-#ifdef V8_TARGET_LITTLE_ENDIAN
-    return true;
-#else
-    return false;
-#endif
-  }
-
   TNode<Int32T> LoadUint8(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset) {
     return UncheckedCast<Int32T>(
         Load(MachineType::Uint8(), data_pointer, offset));
@@ -43,54 +35,9 @@ class DataViewBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
         Load(MachineType::Int8(), data_pointer, offset));
   }
 
-  TNode<Int32T> LoadUint16(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset) {
-    return UncheckedCast<Int32T>(
-        Load(MachineType::Uint16(), data_pointer, offset));
-  }
-
-  TNode<Int32T> LoadInt16(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset) {
-    return UncheckedCast<Int32T>(
-        Load(MachineType::Int16(), data_pointer, offset));
-  }
-
-  TNode<Uint32T> LoadUint32(TNode<RawPtrT> data_pointer,
-                            TNode<IntPtrT> offset) {
-    return UncheckedCast<Uint32T>(
-        Load(MachineType::Uint32(), data_pointer, offset));
-  }
-
-  TNode<Int32T> LoadInt32(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset) {
-    return UncheckedCast<Int32T>(
-        Load(MachineType::Int32(), data_pointer, offset));
-  }
-
-  TNode<Float32T> LoadFloat32(TNode<RawPtrT> data_pointer,
-                              TNode<IntPtrT> offset) {
-    return UncheckedCast<Float32T>(
-        Load(MachineType::Float32(), data_pointer, offset));
-  }
-
-  TNode<Float64T> LoadFloat64(TNode<RawPtrT> data_pointer,
-                              TNode<IntPtrT> offset) {
-    return UncheckedCast<Float64T>(
-        Load(MachineType::Float64(), data_pointer, offset));
-  }
-
   void StoreWord8(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset,
                   TNode<Word32T> value) {
     StoreNoWriteBarrier(MachineRepresentation::kWord8, data_pointer, offset,
-                        value);
-  }
-
-  void StoreWord16(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset,
-                   TNode<Word32T> value) {
-    StoreNoWriteBarrier(MachineRepresentation::kWord16, data_pointer, offset,
-                        value);
-  }
-
-  void StoreWord32(TNode<RawPtrT> data_pointer, TNode<IntPtrT> offset,
-                   TNode<Word32T> value) {
-    StoreNoWriteBarrier(MachineRepresentation::kWord32, data_pointer, offset,
                         value);
   }
 
