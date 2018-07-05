@@ -129,6 +129,7 @@ function IntlConstruct(receiver, constructor, create, newTarget, args,
  * Caches available locales for each service.
  */
 var AVAILABLE_LOCALES = {
+   __proto__ : null,
   'collator': UNDEFINED,
   'numberformat': UNDEFINED,
   'dateformat': UNDEFINED,
@@ -455,7 +456,7 @@ function attemptSingleLookup(availableLocales, requestedLocale) {
     var extensionMatch = %regexp_internal_match(
         GetUnicodeExtensionRE(), requestedLocale);
     var extension = IS_NULL(extensionMatch) ? '' : extensionMatch[0];
-    return {locale: availableLocale, extension: extension};
+    return {__proto__: null, locale: availableLocale, extension: extension};
   }
   return UNDEFINED;
 }
@@ -490,6 +491,7 @@ function lookupMatcher(service, requestedLocales) {
 
   // Didn't find a match, return default.
   return {
+    __proto__: null,
     locale: 'und',
     extension: ''
   };
@@ -994,8 +996,9 @@ function CreateCollator(locales, options) {
    * for a collator.
    */
   var COLLATOR_KEY_MAP = {
-    'kn': {'property': 'numeric', 'type': 'boolean'},
-    'kf': {'property': 'caseFirst', 'type': 'string',
+    __proto__: null,
+    'kn': { __proto__: null, 'property': 'numeric', 'type': 'boolean'},
+    'kf': { __proto__: null, 'property': 'caseFirst', 'type': 'string',
            'values': ['false', 'lower', 'upper']}
   };
 
@@ -1341,7 +1344,8 @@ function CreateNumberFormat(locales, options) {
    * for a number format.
    */
   var NUMBER_FORMAT_KEY_MAP = {
-    'nu': {'property': UNDEFINED, 'type': 'string'}
+    __proto__: null,
+    'nu': {__proto__: null, 'property': UNDEFINED, 'type': 'string'}
   };
 
   var extension = setOptions(options, extensionMap, NUMBER_FORMAT_KEY_MAP,
@@ -1706,8 +1710,9 @@ function CreateDateTimeFormat(locales, options) {
    * for a date/time format.
    */
   var DATETIME_FORMAT_KEY_MAP = {
-    'ca': {'property': UNDEFINED, 'type': 'string'},
-    'nu': {'property': UNDEFINED, 'type': 'string'}
+    __proto__: null,
+    'ca': {__proto__: null, 'property': UNDEFINED, 'type': 'string'},
+    'nu': {__proto__: null, 'property': UNDEFINED, 'type': 'string'}
   };
 
   var extension = setOptions(options, extensionMap, DATETIME_FORMAT_KEY_MAP,
@@ -1735,7 +1740,8 @@ function CreateDateTimeFormat(locales, options) {
   });
 
   var dateFormat = %CreateDateTimeFormat(
-    requestedLocale, {skeleton: ldmlString, timeZone: tz}, resolved);
+    requestedLocale,
+    {__proto__: null, skeleton: ldmlString, timeZone: tz}, resolved);
 
   if (resolved.timeZone === "Etc/Unknown") {
     throw %make_range_error(kUnsupportedTimeZone, tz);
@@ -1782,6 +1788,7 @@ DEFINE_METHOD(
      * http://www.unicode.org/repos/cldr/tags/latest/common/bcp47/calendar.xml
      */
     var ICU_CALENDAR_MAP = {
+      __proto__: null,
       'gregorian': 'gregory',
       'ethiopic-amete-alem': 'ethioaa'
     };
@@ -2035,6 +2042,7 @@ AddBoundMethod(GlobalIntlv8BreakIterator, 'breakType', breakType, 0,
 
 // Save references to Intl objects and methods we use, for added security.
 var savedObjects = {
+  __proto__: null,
   'collator': GlobalIntlCollator,
   'numberformat': GlobalIntlNumberFormat,
   'dateformatall': GlobalIntlDateTimeFormat,
@@ -2046,6 +2054,7 @@ var savedObjects = {
 // Default (created with undefined locales and options parameters) collator,
 // number and date format instances. They'll be created as needed.
 var defaultObjects = {
+  __proto__: null,
   'collator': UNDEFINED,
   'numberformat': UNDEFINED,
   'dateformatall': UNDEFINED,
