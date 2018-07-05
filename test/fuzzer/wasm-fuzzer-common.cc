@@ -67,6 +67,10 @@ int FuzzWasmSection(SectionCode section, const uint8_t* data, size_t size) {
 
 void InterpretAndExecuteModule(i::Isolate* isolate,
                                Handle<WasmModuleObject> module_object) {
+  // We do not instantiate the module if there is a start function, because a
+  // start function can contain an infinite loop which we cannot handle.
+  if (module_object->module()->start_function_index >= 0) return;
+
   ErrorThrower thrower(isolate, "WebAssembly Instantiation");
   MaybeHandle<WasmInstanceObject> maybe_instance;
   Handle<WasmInstanceObject> instance;
