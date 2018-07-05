@@ -22,14 +22,19 @@ class LiftoffCompilationUnit final {
 
   bool ExecuteCompilation();
   wasm::WasmCode* FinishCompilation(wasm::ErrorThrower*);
-  void AbortCompilation();
 
  private:
   WasmCompilationUnit* const wasm_unit_;
-  wasm::LiftoffAssembler asm_;
+  // Must stay alive until the code is added to the {NativeModule}, because it
+  // contains the instruction buffer.
+  LiftoffAssembler asm_;
+
+  // Result of compilation:
+  CodeDesc desc_;
+  OwnedVector<byte> source_positions_;
+  OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions_;
+  uint32_t frame_slot_count_;
   int safepoint_table_offset_;
-  SourcePositionTableBuilder source_position_table_builder_;
-  std::vector<trap_handler::ProtectedInstructionData> protected_instructions_;
 
   DISALLOW_COPY_AND_ASSIGN(LiftoffCompilationUnit);
 };

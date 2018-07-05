@@ -118,7 +118,6 @@ void WasmCompilationUnit::SwitchMode(CompilationMode new_mode) {
       return;
     case CompilationMode::kTurbofan:
       DCHECK(!turbofan_unit_);
-      if (liftoff_unit_ != nullptr) liftoff_unit_->AbortCompilation();
       liftoff_unit_.reset();
       turbofan_unit_.reset(new compiler::TurbofanWasmCompilationUnit(this));
       return;
