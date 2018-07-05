@@ -299,8 +299,6 @@ class InterpreterHandle {
   void NotifyDebugEventListeners(WasmInterpreter::Thread* thread) {
     // Enter the debugger.
     DebugScope debug_scope(isolate_->debug());
-    if (debug_scope.failed()) return;
-
     // Postpone interrupt during breakpoint processing.
     PostponeInterruptsScope postpone(isolate_);
 

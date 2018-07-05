@@ -2185,31 +2185,6 @@ TEST(SfiAndJsFunctionWeakRefs) {
 }
 
 
-TEST(NoDebugObjectInSnapshot) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-
-  CHECK(CcTest::i_isolate()->debug()->Load());
-  CompileRun("foo = {};");
-  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
-  CHECK(ValidateSnapshot(snapshot));
-  const v8::HeapGraphNode* root = snapshot->GetRoot();
-  int globals_count = 0;
-  for (int i = 0; i < root->GetChildrenCount(); ++i) {
-    const v8::HeapGraphEdge* edge = root->GetChild(i);
-    if (edge->GetType() == v8::HeapGraphEdge::kShortcut) {
-      ++globals_count;
-      const v8::HeapGraphNode* global = edge->GetToNode();
-      const v8::HeapGraphNode* foo = GetProperty(
-          env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "foo");
-      CHECK(foo);
-    }
-  }
-  CHECK_EQ(1, globals_count);
-}
-
-
 TEST(AllStrongGcRootsHaveNames) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());

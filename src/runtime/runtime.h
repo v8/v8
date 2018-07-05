@@ -141,7 +141,6 @@ namespace internal {
   F(DebugTogglePreciseCoverage, 1, 1)           \
   F(FunctionGetInferredName, 1, 1)              \
   F(GetBreakLocations, 1, 1)                    \
-  F(GetDebugContext, 0, 1)                      \
   F(GetGeneratorScopeCount, 1, 1)               \
   F(GetGeneratorScopeDetails, 2, 1)             \
   F(GetHeapUsage, 0, 1)                         \

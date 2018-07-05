@@ -79,8 +79,7 @@ class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
 };
 
 Debug::Debug(Isolate* isolate)
-    : debug_context_(Handle<Context>()),
-      is_active_(false),
+    : is_active_(false),
       hook_on_function_call_(false),
       is_suppressed_(false),
       break_disabled_(false),
@@ -392,60 +391,12 @@ DebugInfoListNode::~DebugInfoListNode() {
   debug_info_ = nullptr;
 }
 
-
-bool Debug::Load() {
-  // Return if debugger is already loaded.
-  if (is_loaded()) return true;
-
-  // Bail out if we're already in the process of compiling the native
-  // JavaScript source code for the debugger.
-  if (is_suppressed_) return false;
-  SuppressDebug while_loading(this);
-
-  // Disable breakpoints and interrupts while compiling and running the
-  // debugger scripts including the context creation code.
-  DisableBreak disable(this);
-  PostponeInterruptsScope postpone(isolate_);
-
-  // Create the debugger context.
-  HandleScope scope(isolate_);
-  ExtensionConfiguration no_extensions;
-  // TODO(yangguo): we rely on the fact that first context snapshot is usable
-  //                as debug context. This dependency is gone once we remove
-  //                debug context completely.
-  static const int kFirstContextSnapshotIndex = 0;
-  Handle<Context> context = isolate_->bootstrapper()->CreateEnvironment(
-      MaybeHandle<JSGlobalProxy>(), v8::Local<ObjectTemplate>(), &no_extensions,
-      kFirstContextSnapshotIndex, v8::DeserializeEmbedderFieldsCallback(),
-      DEBUG_CONTEXT);
-
-  // Fail if no context could be created.
-  if (context.is_null()) return false;
-
-  debug_context_ = isolate_->global_handles()->Create(*context);
-  GlobalHandles::AnnotateStrongRetainer(
-      Handle<Object>::cast(debug_context_).location(),
-      "v8::internal::Debug::debug_context_");
-
-  feature_tracker()->Track(DebugFeatureTracker::kActive);
-
-  return true;
-}
-
-
 void Debug::Unload() {
   ClearAllBreakPoints();
   ClearStepping();
   RemoveAllCoverageInfos();
   ClearAllDebuggerHints();
-  RemoveDebugDelegate();
-
-  // Return debugger is not loaded.
-  if (!is_loaded()) return;
-
-  // Clear debugger context global handle.
-  GlobalHandles::Destroy(Handle<Object>::cast(debug_context_).location());
-  debug_context_ = Handle<Context>();
+  debug_delegate_ = nullptr;
 }
 
 void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
@@ -457,7 +408,6 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
 
   // Enter the debugger.
   DebugScope debug_scope(this);
-  if (debug_scope.failed()) return;
 
   // Postpone interrupt during breakpoint processing.
   PostponeInterruptsScope postpone(isolate_);
@@ -585,7 +535,6 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
   Handle<DebugInfo> debug_info(function->shared()->GetDebugInfo(), isolate_);
   // Enter the debugger.
   DebugScope debug_scope(this);
-  if (debug_scope.failed()) return false;
   std::vector<BreakLocation> break_locations;
   BreakLocation::AllAtCurrentStatement(debug_info, frame, &break_locations);
   bool has_break_points_at_all = false;
@@ -597,22 +546,6 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
     if (has_break_points && !check_result.is_null()) return false;
   }
   return has_break_points_at_all;
-}
-
-MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
-                                        Handle<Object> args[],
-                                        MaybeHandle<Object>* maybe_exception) {
-  AllowJavascriptExecutionDebugOnly allow_script(isolate_);
-  PostponeInterruptsScope no_interrupts(isolate_);
-  AssertDebugContext();
-  Handle<JSReceiver> holder =
-      Handle<JSReceiver>::cast(isolate_->natives_utils_object());
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(
-      JSReceiver::GetProperty(isolate_, holder, name).ToHandleChecked());
-  Handle<Object> undefined = isolate_->factory()->undefined_value();
-  return Execution::TryCall(isolate_, fun, undefined, argc, args,
-                            Execution::MessageHandling::kReport,
-                            maybe_exception);
 }
 
 // Check whether a single break point object is triggered.
@@ -1683,12 +1616,6 @@ void Debug::ScheduleFrameRestart(StackFrame* frame) {
   }
 }
 
-
-bool Debug::IsDebugGlobal(JSGlobalObject* global) {
-  return is_loaded() && global == debug_context()->global_object();
-}
-
-
 Handle<FixedArray> Debug::GetLoadedScripts() {
   isolate_->heap()->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
                                       GarbageCollectionReason::kDebugger);
@@ -1738,17 +1665,6 @@ void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
     OnException(value, promise);
   }
 }
-
-namespace {
-v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
-  Handle<Context> context = handle(isolate->context(), isolate);
-  // Isolate::context() may have been nullptr when "script collected" event
-  // occurred.
-  if (context.is_null()) return v8::Local<v8::Context>();
-  Handle<Context> native_context(context->native_context(), isolate);
-  return v8::Utils::ToLocal(native_context);
-}
-}  // anonymous namespace
 
 bool Debug::IsExceptionBlackboxed(bool uncaught) {
   // Uncaught exception is blackboxed if all current frames are blackboxed,
@@ -1812,14 +1728,14 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
   }
 
   DebugScope debug_scope(this);
-  if (debug_scope.failed()) return;
   HandleScope scope(isolate_);
   PostponeInterruptsScope postpone(isolate_);
   DisableBreak no_recursive_break(this);
 
-  debug_delegate_->ExceptionThrown(
-      GetDebugEventContext(isolate_),
-      v8::Utils::ToLocal(exception), v8::Utils::ToLocal(promise), uncaught);
+  Handle<Context> native_context(isolate_->native_context());
+  debug_delegate_->ExceptionThrown(v8::Utils::ToLocal(native_context),
+                                   v8::Utils::ToLocal(exception),
+                                   v8::Utils::ToLocal(promise), uncaught);
 }
 
 void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit) {
@@ -1847,9 +1763,9 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit) {
     ++inspector_break_points_count;
   }
 
-  debug_delegate_->BreakProgramRequested(
-      GetDebugEventContext(isolate_),
-      inspector_break_points_hit);
+  Handle<Context> native_context(isolate_->native_context());
+  debug_delegate_->BreakProgramRequested(v8::Utils::ToLocal(native_context),
+                                         inspector_break_points_hit);
 }
 
 namespace {
@@ -1940,21 +1856,12 @@ void Debug::ProcessCompileEvent(bool has_compile_error, Handle<Script> script) {
   if (!debug_delegate_) return;
   SuppressDebug while_processing(this);
   DebugScope debug_scope(this);
-  if (debug_scope.failed()) return;
   HandleScope scope(isolate_);
   PostponeInterruptsScope postpone(isolate_);
   DisableBreak no_recursive_break(this);
   AllowJavascriptExecution allow_script(isolate_);
   debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script),
                                   running_live_edit_, has_compile_error);
-}
-
-Handle<Context> Debug::GetDebugContext() {
-  if (!is_loaded()) return Handle<Context>();
-  DebugScope debug_scope(this);
-  if (debug_scope.failed()) return Handle<Context>();
-  // The global handle may be destroyed soon after.  Return it reboxed.
-  return handle(*debug_context(), isolate_);
 }
 
 int Debug::CurrentFrameCount() {
@@ -1978,31 +1885,21 @@ int Debug::CurrentFrameCount() {
   return counter;
 }
 
-void Debug::SetDebugDelegate(debug::DebugDelegate* delegate,
-                             bool pass_ownership) {
-  RemoveDebugDelegate();
+void Debug::SetDebugDelegate(debug::DebugDelegate* delegate) {
   debug_delegate_ = delegate;
-  owns_debug_delegate_ = pass_ownership;
   UpdateState();
-}
-
-void Debug::RemoveDebugDelegate() {
-  if (debug_delegate_ == nullptr) return;
-  if (owns_debug_delegate_) {
-    owns_debug_delegate_ = false;
-    delete debug_delegate_;
-  }
-  debug_delegate_ = nullptr;
 }
 
 void Debug::UpdateState() {
   bool is_active = debug_delegate_ != nullptr;
-  if (is_active || in_debug_scope()) {
+  if (is_active == is_active_) return;
+  if (is_active) {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
     isolate_->compilation_cache()->Disable();
-    is_active = Load();
-  } else if (is_loaded()) {
+    is_active = true;
+    feature_tracker()->Track(DebugFeatureTracker::kActive);
+  } else {
     isolate_->compilation_cache()->Enable();
     Unload();
   }
@@ -2045,9 +1942,6 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
                               ? IsBlackboxed(shared)
                               : AllFramesOnStackAreBlackboxed();
       if (ignore_break) return;
-      JSGlobalObject* global = function->context()->global_object();
-      // Don't stop in debugger functions.
-      if (IsDebugGlobal(global)) return;
       // Don't stop if the break location is muted.
       if (IsMutedAtCurrentLocation(it.frame())) return;
     }
@@ -2058,7 +1952,6 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
 
   HandleScope scope(isolate_);
   DebugScope debug_scope(this);
-  if (debug_scope.failed()) return;
 
   OnDebugBreak(isolate_->factory()->empty_fixed_array());
 }
@@ -2125,9 +2018,6 @@ DebugScope::DebugScope(Debug* debug)
   debug_->SetNextBreakId();
 
   debug_->UpdateState();
-  // Make sure that debugger is loaded and enter the debugger context.
-  // The previous context is kept in save_.
-  failed_ = !debug_->is_loaded();
 }
 
 

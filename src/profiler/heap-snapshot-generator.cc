@@ -1850,7 +1850,6 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   JSGlobalObject* global = Context::cast(child_obj)->global_object();
   if (!global->IsJSGlobalObject()) return;
 
-  if (heap_->isolate()->debug()->IsDebugGlobal(global)) return;
   if (user_roots_.Contains(global)) return;
 
   user_roots_.Insert(global);

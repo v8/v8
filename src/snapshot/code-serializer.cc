@@ -57,7 +57,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   // TODO(7110): Enable serialization of Asm modules once the AsmWasmData is
   // context independent.
   if (script->ContainsAsmModule()) return nullptr;
-  if (isolate->debug()->is_loaded()) return nullptr;
+  if (isolate->debug()->is_active()) return nullptr;
 
   isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
 

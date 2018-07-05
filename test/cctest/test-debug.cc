@@ -156,7 +156,6 @@ Handle<FixedArray> GetDebuggedFunctions() {
 void CheckDebuggerUnloaded() {
   // Check that the debugger context is cleared and that there is no debug
   // information stored for the debugger.
-  CHECK(CcTest::i_isolate()->debug()->debug_context().is_null());
   CHECK(!CcTest::i_isolate()->debug()->debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
@@ -2670,7 +2669,7 @@ TEST(PauseInScript) {
 
   // Register a debug event listener which counts.
   DebugEventCounter event_counter;
-  SetDebugDelegate(env->GetIsolate(), &event_counter);
+  v8::debug::SetDebugDelegate(env->GetIsolate(), &event_counter);
 
   v8::Local<v8::Context> context = env.local();
   // Create a script that returns a function.
@@ -3041,8 +3040,6 @@ TEST(DebugScriptLineEndsAreAscending) {
   Handle<v8::internal::FixedArray> instances;
   {
     v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-    v8::internal::DebugScope debug_scope(debug);
-    CHECK(!debug_scope.failed());
     instances = debug->GetLoadedScripts();
   }
 
@@ -3628,35 +3625,6 @@ TEST(Regress131642) {
   // The second script uses forEach.
   const char* script_2 = "[0].forEach(function() { });";
   CompileRun(script_2);
-
-  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
-}
-
-
-// Import from test-heap.cc
-namespace v8 {
-namespace internal {
-namespace heap {
-int CountNativeContexts();
-}  // namespace heap
-}  // namespace internal
-}  // namespace v8
-
-class NopListener : public v8::debug::DebugDelegate {};
-
-TEST(DebuggerCreatesContextIffActive) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  CHECK_EQ(1, v8::internal::heap::CountNativeContexts());
-
-  v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
-  CompileRun("debugger;");
-  CHECK_EQ(1, v8::internal::heap::CountNativeContexts());
-
-  NopListener delegate;
-  v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
-  CompileRun("debugger;");
-  CHECK_EQ(2, v8::internal::heap::CountNativeContexts());
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
 }

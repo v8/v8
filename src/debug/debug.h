@@ -224,11 +224,8 @@ class Debug {
   void OnCompileError(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
 
-  Handle<Context> GetDebugContext();
   void HandleDebugBreak(IgnoreBreakMode ignore_break_mode);
 
-  // Internal logic
-  bool Load();
   // The break target may not be the top-most frame, since we may be
   // breaking before entering a function that cannot contain break points.
   void Break(JavaScriptFrame* frame, Handle<JSFunction> break_target);
@@ -276,7 +273,7 @@ class Debug {
 
   bool CanBreakAtEntry(Handle<SharedFunctionInfo> shared);
 
-  void SetDebugDelegate(debug::DebugDelegate* delegate, bool pass_ownership);
+  void SetDebugDelegate(debug::DebugDelegate* delegate);
 
   // Returns whether the operation succeeded.
   bool EnsureBreakInfo(Handle<SharedFunctionInfo> shared);
@@ -287,18 +284,12 @@ class Debug {
                            Handle<CoverageInfo> coverage_info);
   void RemoveAllCoverageInfos();
 
-  template <typename C>
-  bool CompileToRevealInnerFunctions(C* compilable);
-
   // This function is used in FunctionNameUsing* tests.
   Handle<Object> FindSharedFunctionInfoInScript(Handle<Script> script,
                                                 int position);
 
   static Handle<Object> GetSourceBreakLocations(
       Isolate* isolate, Handle<SharedFunctionInfo> shared);
-
-  // Check whether a global object is the debug global object.
-  bool IsDebugGlobal(JSGlobalObject* global);
 
   // Check whether this frame is just about to return.
   bool IsBreakAtReturn(JavaScriptFrame* frame);
@@ -324,9 +315,7 @@ class Debug {
   void FreeThreadResources() { }
   void Iterate(RootVisitor* v);
 
-  bool CheckExecutionState() {
-    return is_active() && !debug_context().is_null() && break_id() != 0;
-  }
+  bool CheckExecutionState() { return is_active() && break_id() != 0; }
 
   void StartSideEffectCheckMode();
   void StopSideEffectCheckMode();
@@ -345,10 +334,8 @@ class Debug {
     return reinterpret_cast<DebugScope*>(
         base::Relaxed_Load(&thread_local_.current_debug_scope_));
   }
-  inline Handle<Context> debug_context() { return debug_context_; }
 
   inline bool is_active() const { return is_active_; }
-  inline bool is_loaded() const { return !debug_context_.is_null(); }
   inline bool in_debug_scope() const {
     return !!base::Relaxed_Load(&thread_local_.current_debug_scope_);
   }
@@ -405,7 +392,6 @@ class Debug {
   void UpdateDebugInfosForExecutionMode();
   void UpdateState();
   void UpdateHookOnFunctionCall();
-  void RemoveDebugDelegate();
   void Unload();
   void SetNextBreakId() {
     thread_local_.break_id_ = ++thread_local_.break_count_;
@@ -458,9 +444,6 @@ class Debug {
   // Check whether a BreakPoint object is hit. Evaluate condition depending
   // on whether this is a regular break location or a break at function entry.
   bool CheckBreakPoint(Handle<BreakPoint> break_point, bool is_break_at_entry);
-  MaybeHandle<Object> CallFunction(const char* name, int argc,
-                                   Handle<Object> args[],
-                                   MaybeHandle<Object>* maybe_exception);
 
   inline void AssertDebugContext() {
     DCHECK(in_debug_scope());
@@ -480,11 +463,7 @@ class Debug {
                      DebugInfoListNode** curr);
   void FreeDebugInfoListNode(DebugInfoListNode* prev, DebugInfoListNode* node);
 
-  // Global handles.
-  Handle<Context> debug_context_;
-
   debug::DebugDelegate* debug_delegate_ = nullptr;
-  bool owns_debug_delegate_ = false;
 
   // Debugger is active, i.e. there is a debug event listener attached.
   bool is_active_;
@@ -579,7 +558,6 @@ class Debug {
   friend class DisableBreak;
   friend class LiveEdit;
   friend class SuppressDebug;
-  friend class NoSideEffectScope;
 
   friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
   friend void CheckDebuggerUnloaded();               // In test-debug.cc
@@ -589,14 +567,10 @@ class Debug {
 
 // This scope is used to load and enter the debug context and create a new
 // break state.  Leaving the scope will restore the previous state.
-// On failure to load, FailedToEnter returns true.
 class DebugScope BASE_EMBEDDED {
  public:
   explicit DebugScope(Debug* debug);
   ~DebugScope();
-
-  // Check whether loading was successful.
-  inline bool failed() { return failed_; }
 
  private:
   Isolate* isolate() { return debug_->isolate_; }
@@ -605,7 +579,6 @@ class DebugScope BASE_EMBEDDED {
   DebugScope* prev_;               // Previous scope if entered recursively.
   StackFrame::Id break_frame_id_;  // Previous break frame id.
   int break_id_;                   // Previous break id.
-  bool failed_;                    // Did the debug context fail to load?
   PostponeInterruptsScope no_termination_exceptons_;
 };
 

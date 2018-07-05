@@ -9627,9 +9627,7 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
 void debug::SetDebugDelegate(Isolate* v8_isolate,
                              debug::DebugDelegate* delegate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  // Might create the Debug context.
-  ENTER_V8_FOR_NEW_CONTEXT(isolate);
-  isolate->debug()->SetDebugDelegate(delegate, false);
+  isolate->debug()->SetDebugDelegate(delegate);
 }
 
 void debug::SetAsyncEventDelegate(Isolate* v8_isolate,
