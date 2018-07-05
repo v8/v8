@@ -2990,16 +2990,18 @@ bool Isolate::Init(StartupDeserializer* des) {
   DCHECK(!heap_.HasBeenSetUp());
   heap_.SetUp();
 
-  // Setup the wasm engine. Currently, there's one per Isolate.
-  wasm_engine_.reset(
-      new wasm::WasmEngine(std::unique_ptr<wasm::WasmCodeManager>(
-          new wasm::WasmCodeManager(kMaxWasmCodeMemory))));
-  wasm_engine_->memory_tracker()->SetAllocationResultHistogram(
-      counters()->wasm_memory_allocation_result());
-  wasm_engine_->memory_tracker()->SetAddressSpaceUsageHistogram(
-      counters()->wasm_address_space_usage_mb());
-  wasm_engine_->code_manager()->SetModuleCodeSizeHistogram(
-      counters()->wasm_module_code_size_mb());
+  // Setup the wasm engine. Currently, there's one per Isolate by default.
+  if (wasm_engine_ == nullptr) {
+    wasm_engine_.reset(
+        new wasm::WasmEngine(std::unique_ptr<wasm::WasmCodeManager>(
+            new wasm::WasmCodeManager(kMaxWasmCodeMemory))));
+    wasm_engine_->memory_tracker()->SetAllocationResultHistogram(
+        counters()->wasm_memory_allocation_result());
+    wasm_engine_->memory_tracker()->SetAddressSpaceUsageHistogram(
+        counters()->wasm_address_space_usage_mb());
+    wasm_engine_->code_manager()->SetModuleCodeSizeHistogram(
+        counters()->wasm_module_code_size_mb());
+  }
 
   deoptimizer_data_ = new DeoptimizerData(heap());
 

@@ -130,8 +130,8 @@ class WasmMemoryTracker {
   std::unordered_map<const void*, AllocationData> allocations_;
 
   // Keep pointers to
-  Histogram* allocation_result_;
-  Histogram* address_space_usage_mb_;  // in MiB
+  Histogram* allocation_result_ = nullptr;
+  Histogram* address_space_usage_mb_ = nullptr;  // in MiB
 
   DISALLOW_COPY_AND_ASSIGN(WasmMemoryTracker);
 };
