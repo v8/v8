@@ -139,6 +139,18 @@ HeapObjectType HeapObjectRef::type(const JSHeapBroker* broker) const {
   return broker->HeapObjectTypeFromMap(object<HeapObject>()->map());
 }
 
+base::Optional<MapRef> HeapObjectRef::TryGetObjectCreateMap(
+    const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  Handle<Map> instance_map;
+  if (Map::TryGetObjectCreateMap(broker->isolate(), object<HeapObject>())
+          .ToHandle(&instance_map)) {
+    return MapRef(instance_map);
+  } else {
+    return base::Optional<MapRef>();
+  }
+}
+
 bool JSFunctionRef::HasBuiltinFunctionId() const {
   AllowHandleDereference allow_handle_dereference;
   return object<JSFunction>()->shared()->HasBuiltinFunctionId();
@@ -383,6 +395,16 @@ bool MapRef::IsJSArrayMap() const {
   return object<Map>()->IsJSArrayMap();
 }
 
+bool MapRef::IsInobjectSlackTrackingInProgress() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<Map>()->IsInobjectSlackTrackingInProgress();
+}
+
+bool MapRef::is_dictionary_map() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<Map>()->is_dictionary_map();
+}
+
 bool MapRef::IsFixedCowArrayMap(const JSHeapBroker* broker) const {
   AllowHandleDereference allow_handle_dereference;
   return *object<Map>() ==
@@ -491,6 +513,48 @@ MapRef NativeContextRef::js_array_fast_elements_map_index(
     const JSHeapBroker* broker) const {
   AllowHandleDereference allow_handle_dereference;
   return MapRef(handle(object<Context>()->js_array_fast_elements_map_index(),
+                       broker->isolate()));
+}
+
+MapRef NativeContextRef::initial_array_iterator_map(
+    const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(handle(object<Context>()->initial_array_iterator_map(),
+                       broker->isolate()));
+}
+
+MapRef NativeContextRef::set_value_iterator_map(
+    const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(
+      handle(object<Context>()->set_value_iterator_map(), broker->isolate()));
+}
+
+MapRef NativeContextRef::set_key_value_iterator_map(
+    const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(handle(object<Context>()->set_key_value_iterator_map(),
+                       broker->isolate()));
+}
+
+MapRef NativeContextRef::map_key_iterator_map(
+    const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(
+      handle(object<Context>()->map_key_iterator_map(), broker->isolate()));
+}
+
+MapRef NativeContextRef::map_value_iterator_map(
+    const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(
+      handle(object<Context>()->map_value_iterator_map(), broker->isolate()));
+}
+
+MapRef NativeContextRef::map_key_value_iterator_map(
+    const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(handle(object<Context>()->map_key_value_iterator_map(),
                        broker->isolate()));
 }
 

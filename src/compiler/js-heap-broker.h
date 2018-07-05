@@ -118,6 +118,8 @@ class HeapObjectRef : public ObjectRef {
   HeapObjectType type(const JSHeapBroker* broker) const;
 
   MapRef map(const JSHeapBroker* broker) const;
+  base::Optional<MapRef> TryGetObjectCreateMap(
+      const JSHeapBroker* broker) const;
 
  private:
   friend class JSHeapBroker;
@@ -203,6 +205,12 @@ class NativeContextRef : public ContextRef {
   MapRef sloppy_arguments_map(const JSHeapBroker* broker) const;
   MapRef strict_arguments_map(const JSHeapBroker* broker) const;
   MapRef js_array_fast_elements_map_index(const JSHeapBroker* broker) const;
+  MapRef initial_array_iterator_map(const JSHeapBroker* broker) const;
+  MapRef set_value_iterator_map(const JSHeapBroker* broker) const;
+  MapRef set_key_value_iterator_map(const JSHeapBroker* broker) const;
+  MapRef map_key_iterator_map(const JSHeapBroker* broker) const;
+  MapRef map_value_iterator_map(const JSHeapBroker* broker) const;
+  MapRef map_key_value_iterator_map(const JSHeapBroker* broker) const;
 };
 
 class NameRef : public HeapObjectRef {
@@ -254,6 +262,9 @@ class MapRef : public HeapObjectRef {
 
   bool IsJSArrayMap() const;
   bool IsFixedCowArrayMap(const JSHeapBroker* broker) const;
+  bool is_dictionary_map() const;
+
+  bool IsInobjectSlackTrackingInProgress() const;
 };
 
 class FixedArrayBaseRef : public HeapObjectRef {

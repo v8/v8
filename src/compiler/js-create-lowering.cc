@@ -838,6 +838,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateArrayIterator(Node* node) {
+  DisallowHandleDereference disallow_dereference;
   DCHECK_EQ(IrOpcode::kJSCreateArrayIterator, node->opcode());
   CreateArrayIteratorParameters const& p =
       CreateArrayIteratorParametersOf(node->op());
@@ -849,7 +850,7 @@ Reduction JSCreateLowering::ReduceJSCreateArrayIterator(Node* node) {
   AllocationBuilder a(jsgraph(), js_heap_broker(), effect, control);
   a.Allocate(JSArrayIterator::kSize, NOT_TENURED, Type::OtherObject());
   a.Store(AccessBuilder::ForMap(),
-          handle(native_context()->initial_array_iterator_map(), isolate()));
+          native_context_ref().initial_array_iterator_map(js_heap_broker()));
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSObjectElements(),
@@ -866,27 +867,29 @@ Reduction JSCreateLowering::ReduceJSCreateArrayIterator(Node* node) {
 
 namespace {
 
-Context::Field ContextFieldForCollectionIterationKind(
-    CollectionKind collection_kind, IterationKind iteration_kind) {
+MapRef MapForCollectionIterationKind(const NativeContextRef& native_context,
+                                     const JSHeapBroker* broker,
+                                     CollectionKind collection_kind,
+                                     IterationKind iteration_kind) {
   switch (collection_kind) {
     case CollectionKind::kSet:
       switch (iteration_kind) {
         case IterationKind::kKeys:
           UNREACHABLE();
         case IterationKind::kValues:
-          return Context::SET_VALUE_ITERATOR_MAP_INDEX;
+          return native_context.set_value_iterator_map(broker);
         case IterationKind::kEntries:
-          return Context::SET_KEY_VALUE_ITERATOR_MAP_INDEX;
+          return native_context.set_key_value_iterator_map(broker);
       }
       break;
     case CollectionKind::kMap:
       switch (iteration_kind) {
         case IterationKind::kKeys:
-          return Context::MAP_KEY_ITERATOR_MAP_INDEX;
+          return native_context.map_key_iterator_map(broker);
         case IterationKind::kValues:
-          return Context::MAP_VALUE_ITERATOR_MAP_INDEX;
+          return native_context.map_value_iterator_map(broker);
         case IterationKind::kEntries:
-          return Context::MAP_KEY_VALUE_ITERATOR_MAP_INDEX;
+          return native_context.map_key_value_iterator_map(broker);
       }
       break;
   }
@@ -896,6 +899,7 @@ Context::Field ContextFieldForCollectionIterationKind(
 }  // namespace
 
 Reduction JSCreateLowering::ReduceJSCreateCollectionIterator(Node* node) {
+  DisallowHandleDereference disallow_dereference;
   DCHECK_EQ(IrOpcode::kJSCreateCollectionIterator, node->opcode());
   CreateCollectionIteratorParameters const& p =
       CreateCollectionIteratorParametersOf(node->op());
@@ -911,10 +915,10 @@ Reduction JSCreateLowering::ReduceJSCreateCollectionIterator(Node* node) {
   // Create the JSArrayIterator result.
   AllocationBuilder a(jsgraph(), js_heap_broker(), effect, control);
   a.Allocate(JSCollectionIterator::kSize, NOT_TENURED, Type::OtherObject());
-  a.Store(AccessBuilder::ForMap(),
-          handle(native_context()->get(ContextFieldForCollectionIterationKind(
-                     p.collection_kind(), p.iteration_kind())),
-                 isolate()));
+  a.Store(
+      AccessBuilder::ForMap(),
+      MapForCollectionIterationKind(native_context_ref(), js_heap_broker(),
+                                    p.collection_kind(), p.iteration_kind()));
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSObjectElements(),
@@ -928,11 +932,12 @@ Reduction JSCreateLowering::ReduceJSCreateCollectionIterator(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
+  DisallowHandleDereference disallow_dereference;
   DCHECK_EQ(IrOpcode::kJSCreateBoundFunction, node->opcode());
   CreateBoundFunctionParameters const& p =
       CreateBoundFunctionParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
-  Handle<Map> const map = p.map();
+  MapRef const map(p.map());
   Node* bound_target_function = NodeProperties::GetValueInput(node, 0);
   Node* bound_this = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -1379,6 +1384,7 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
+  DisallowHandleDereference disallow_dereference;
   DCHECK_EQ(IrOpcode::kJSCreateObject, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1386,15 +1392,16 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
   Type prototype_type = NodeProperties::GetType(prototype);
   if (!prototype_type.IsHeapConstant()) return NoChange();
 
-  Handle<Map> instance_map;
-  Handle<HeapObject> prototype_const = prototype_type.AsHeapConstant()->Value();
-  MaybeHandle<Map> maybe_instance_map =
-      Map::TryGetObjectCreateMap(isolate(), prototype_const);
-  if (!maybe_instance_map.ToHandle(&instance_map)) return NoChange();
+  HeapObjectRef prototype_const = prototype_type.AsHeapConstant()->Ref();
+  auto maybe_instance_map =
+      prototype_const.TryGetObjectCreateMap(js_heap_broker());
+  if (!maybe_instance_map) return NoChange();
+  MapRef instance_map = maybe_instance_map.value();
 
   Node* properties = jsgraph()->EmptyFixedArrayConstant();
-  if (instance_map->is_dictionary_map()) {
-    DCHECK(prototype_const->IsNull());
+  if (instance_map.is_dictionary_map()) {
+    DCHECK_EQ(prototype_const.type(js_heap_broker()).oddball_type(),
+              OddballType::kNull);
     // Allocated an empty NameDictionary as backing store for the properties.
     Handle<Map> map(ReadOnlyRoots(isolate()).name_dictionary_map(), isolate());
     int capacity =
@@ -1433,9 +1440,9 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
     properties = effect = a.Finish();
   }
 
-  int const instance_size = instance_map->instance_size();
+  int const instance_size = instance_map.instance_size();
   if (instance_size > kMaxRegularHeapObjectSize) return NoChange();
-  CHECK(!instance_map->IsInobjectSlackTrackingInProgress());
+  CHECK(!instance_map.IsInobjectSlackTrackingInProgress());
 
   // Emit code to allocate the JSObject instance for the given
   // {instance_map}.
