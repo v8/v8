@@ -910,5 +910,30 @@ void AssemblerBase::RequestHeapObject(HeapObjectRequest request) {
   heap_object_requests_.push_front(request);
 }
 
+int AssemblerBase::AddCodeTarget(Handle<Code> target) {
+  int current = static_cast<int>(code_targets_.size());
+  if (current > 0 && !target.is_null() &&
+      code_targets_.back().address() == target.address()) {
+    // Optimization if we keep jumping to the same code target.
+    return current - 1;
+  } else {
+    code_targets_.push_back(target);
+    return current;
+  }
+}
+
+Handle<Code> AssemblerBase::GetCodeTarget(intptr_t code_target_index) const {
+  DCHECK_LE(0, code_target_index);
+  DCHECK_LT(code_target_index, code_targets_.size());
+  return code_targets_[code_target_index];
+}
+
+void AssemblerBase::UpdateCodeTarget(intptr_t code_target_index,
+                                     Handle<Code> code) {
+  DCHECK_LE(0, code_target_index);
+  DCHECK_LT(code_target_index, code_targets_.size());
+  code_targets_[code_target_index] = code;
+}
+
 }  // namespace internal
 }  // namespace v8

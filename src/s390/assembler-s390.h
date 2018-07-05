@@ -1558,9 +1558,6 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
   inline void TrackBranch();
   inline void UntrackBranch();
 
-  inline int32_t emit_code_target(
-      Handle<Code> target, RelocInfo::Mode rmode);
-
   // Helper to emit the binary encoding of a 2 byte instruction
   void emit2bytes(uint16_t x) {
     CheckBuffer();
@@ -1625,8 +1622,6 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
   friend class RegExpMacroAssemblerS390;
   friend class RelocInfo;
   friend class EnsureSpace;
-
-  std::vector<Handle<Code>> code_targets_;
 };
 
 class EnsureSpace BASE_EMBEDDED {

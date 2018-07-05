@@ -1935,7 +1935,6 @@ class Assembler : public AssemblerBase {
   inline void emitp(Address x, RelocInfo::Mode rmode);
   inline void emitq(uint64_t x);
   inline void emitw(uint16_t x);
-  inline void emit_code_target(Handle<Code> target, RelocInfo::Mode rmode);
   inline void emit_runtime_entry(Address entry, RelocInfo::Mode rmode);
   inline void emit(Immediate x);
 
@@ -2370,8 +2369,6 @@ class Assembler : public AssemblerBase {
   // GrowBuffer(); contains only those internal references whose labels
   // are already bound.
   std::deque<int> internal_reference_positions_;
-
-  std::vector<Handle<Code>> code_targets_;
 
   // Variables for this instance of assembler
   int farjmp_num_ = 0;

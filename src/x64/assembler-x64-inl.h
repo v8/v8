@@ -48,21 +48,6 @@ void Assembler::emitw(uint16_t x) {
   pc_ += sizeof(uint16_t);
 }
 
-void Assembler::emit_code_target(Handle<Code> target, RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsCodeTarget(rmode));
-  RecordRelocInfo(rmode);
-  int current = static_cast<int>(code_targets_.size());
-  if (current > 0 && !target.is_null() &&
-      code_targets_.back().address() == target.address()) {
-    // Optimization if we keep jumping to the same code target.
-    emitl(current - 1);
-  } else {
-    code_targets_.push_back(target);
-    emitl(current);
-  }
-}
-
-
 void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsRuntimeEntry(rmode));
   RecordRelocInfo(rmode);
@@ -278,7 +263,7 @@ int Assembler::deserialization_special_target_size(
 }
 
 Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
-  return code_targets_[Memory::int32_at(pc)];
+  return GetCodeTarget(Memory::int32_at(pc));
 }
 
 Address Assembler::runtime_entry_at(Address pc) {

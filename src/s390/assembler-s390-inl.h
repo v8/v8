@@ -137,7 +137,7 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
   SixByteInstr instr =
       Instruction::InstructionBits(reinterpret_cast<const byte*>(pc));
   int index = instr & 0xFFFFFFFF;
-  return code_targets_[index];
+  return GetCodeTarget(index);
 }
 
 HeapObject* RelocInfo::target_object() {
@@ -236,23 +236,6 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
 
 // Operand constructors
 Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NONE) {}
-
-int32_t Assembler::emit_code_target(Handle<Code> target,
-                                    RelocInfo::Mode rmode) {
-  DCHECK(RelocInfo::IsCodeTarget(rmode));
-  RecordRelocInfo(rmode);
-
-  size_t current = code_targets_.size();
-  if (current > 0 && !target.is_null() &&
-      code_targets_.back().address() == target.address()) {
-    // Optimization if we keep jumping to the same code target.
-    current--;
-  } else {
-    code_targets_.push_back(target);
-  }
-  return current;
-}
-
 
 // Fetch the 32bit value from the FIXED_SEQUENCE IIHF / IILF
 Address Assembler::target_address_at(Address pc, Address constant_pool) {

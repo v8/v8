@@ -578,7 +578,7 @@ void Assembler::Reset() {
   memset(buffer_, 0, pc_ - buffer_);
 #endif
   pc_ = buffer_;
-  code_targets_.reserve(64);
+  ReserveCodeTargetSpace(64);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   constpool_.Clear();
   next_constant_pool_check_ = 0;
@@ -600,12 +600,9 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         request.code_stub()->set_isolate(isolate);
         Instruction* instr = reinterpret_cast<Instruction*>(pc);
         DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-        DCHECK_GE(instr->ImmPCOffset(), 0);
         DCHECK_EQ(instr->ImmPCOffset() % kInstructionSize, 0);
-        DCHECK_LT(instr->ImmPCOffset() >> kInstructionSizeLog2,
-                  code_targets_.size());
-        code_targets_[instr->ImmPCOffset() >> kInstructionSizeLog2] =
-            request.code_stub()->GetCode();
+        UpdateCodeTarget(instr->ImmPCOffset() >> kInstructionSizeLog2,
+                         request.code_stub()->GetCode());
         break;
       }
     }
@@ -4793,18 +4790,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
   }
 }
 
-int Assembler::GetCodeTargetIndex(Handle<Code> target) {
-  int current = static_cast<int>(code_targets_.size());
-  if (current > 0 && !target.is_null() &&
-      code_targets_.back().address() == target.address()) {
-    // Optimization if we keep jumping to the same code target.
-    return (current - 1);
-  } else {
-    code_targets_.push_back(target);
-    return current;
-  }
-}
-
 void Assembler::near_jump(int offset, RelocInfo::Mode rmode) {
   if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode, offset, NO_POOL_ENTRY);
   b(offset);
@@ -4817,7 +4802,7 @@ void Assembler::near_call(int offset, RelocInfo::Mode rmode) {
 
 void Assembler::near_call(HeapObjectRequest request) {
   RequestHeapObject(request);
-  int index = GetCodeTargetIndex(Handle<Code>());
+  int index = AddCodeTarget(Handle<Code>());
   RecordRelocInfo(RelocInfo::CODE_TARGET, index, NO_POOL_ENTRY);
   bl(index);
 }

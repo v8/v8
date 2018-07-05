@@ -970,10 +970,6 @@ class Assembler : public AssemblerBase {
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
-  // Add 'target' to the code_targets_ vector, if necessary, and return the
-  // offset at which it is stored.
-  int GetCodeTargetIndex(Handle<Code> target);
-
   // Returns the handle for the code object called at 'pc'.
   // This might need to be temporarily encoded as an offset into code_targets_.
   inline Handle<Code> code_target_object_handle_at(Address pc);
@@ -3503,14 +3499,6 @@ class Assembler : public AssemblerBase {
   // GrowBuffer(); contains only those internal references whose labels
   // are already bound.
   std::deque<int> internal_reference_positions_;
-
-  // Before we copy code into the code space, we cannot encode calls to code
-  // targets as we normally would, as the difference between the instruction's
-  // location in the temporary buffer and the call target is not guaranteed to
-  // fit in the offset field. We keep track of the code handles we encounter
-  // in calls in this vector, and encode the index of the code handle in the
-  // vector instead.
-  std::vector<Handle<Code>> code_targets_;
 
   // Relocation info records are also used during code generation as temporary
   // containers for constants and code target addresses until they are emitted

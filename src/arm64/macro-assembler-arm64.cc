@@ -1955,7 +1955,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     }
   }
   if (CanUseNearCallOrJump(rmode)) {
-    JumpHelper(static_cast<int64_t>(GetCodeTargetIndex(code)), rmode, cond);
+    JumpHelper(static_cast<int64_t>(AddCodeTarget(code)), rmode, cond);
   } else {
     Jump(code.address(), rmode, cond);
   }
@@ -2028,7 +2028,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
     }
   }
   if (CanUseNearCallOrJump(rmode)) {
-    near_call(GetCodeTargetIndex(code), rmode);
+    near_call(AddCodeTarget(code), rmode);
   } else {
     IndirectCall(code.address(), rmode);
   }

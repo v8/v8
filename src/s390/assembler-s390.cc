@@ -338,7 +338,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         SixByteInstr instr =
             Instruction::InstructionBits(reinterpret_cast<const byte*>(pc));
         int index = instr & 0xFFFFFFFF;
-        code_targets_[index] = request.code_stub()->GetCode();
+        UpdateCodeTarget(index, request.code_stub()->GetCode());
         break;
     }
   }
@@ -350,8 +350,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 Assembler::Assembler(const Options& options, void* buffer, int buffer_size)
     : AssemblerBase(options, buffer, buffer_size) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
-  code_targets_.reserve(100);
-
+  ReserveCodeTargetSpace(100);
   last_bound_pos_ = 0;
   relocations_.reserve(128);
 }
@@ -667,25 +666,29 @@ void Assembler::EnsureSpaceFor(int space_needed) {
 }
 
 void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
+  DCHECK(RelocInfo::IsCodeTarget(rmode));
   EnsureSpace ensure_space(this);
 
-  int32_t target_index = emit_code_target(target, rmode);
+  RecordRelocInfo(rmode);
+  int32_t target_index = AddCodeTarget(target);
   brasl(r14, Operand(target_index));
 }
 
 void Assembler::call(CodeStub* stub) {
   EnsureSpace ensure_space(this);
   RequestHeapObject(HeapObjectRequest(stub));
-  int32_t target_index =
-      emit_code_target(Handle<Code>(), RelocInfo::CODE_TARGET);
+  RecordRelocInfo(RelocInfo::CODE_TARGET);
+  int32_t target_index = AddCodeTarget(Handle<Code>());
   brasl(r14, Operand(target_index));
 }
 
 void Assembler::jump(Handle<Code> target, RelocInfo::Mode rmode,
                      Condition cond) {
+  DCHECK(RelocInfo::IsCodeTarget(rmode));
   EnsureSpace ensure_space(this);
 
-  int32_t target_index = emit_code_target(target, rmode);
+  RecordRelocInfo(rmode);
+  int32_t target_index = AddCodeTarget(target);
   brcl(cond, Operand(target_index));
 }
 

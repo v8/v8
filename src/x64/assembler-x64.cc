@@ -346,7 +346,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
       }
       case HeapObjectRequest::kCodeStub: {
         request.code_stub()->set_isolate(isolate);
-        code_targets_[Memory::int32_at(pc)] = request.code_stub()->GetCode();
+        UpdateCodeTarget(Memory::int32_at(pc), request.code_stub()->GetCode());
         break;
       }
     }
@@ -367,7 +367,7 @@ Assembler::Assembler(const Options& options, void* buffer, int buffer_size)
   }
 #endif
 
-  code_targets_.reserve(100);
+  ReserveCodeTargetSpace(100);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 }
 
@@ -981,14 +981,19 @@ void Assembler::call(CodeStub* stub) {
   // 1110 1000 #32-bit disp.
   emit(0xE8);
   RequestHeapObject(HeapObjectRequest(stub));
-  emit_code_target(Handle<Code>(), RelocInfo::CODE_TARGET);
+  RecordRelocInfo(RelocInfo::CODE_TARGET);
+  int code_target_index = AddCodeTarget(Handle<Code>());
+  emitl(code_target_index);
 }
 
 void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
+  DCHECK(RelocInfo::IsCodeTarget(rmode));
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
   emit(0xE8);
-  emit_code_target(target, rmode);
+  RecordRelocInfo(rmode);
+  int code_target_index = AddCodeTarget(target);
+  emitl(code_target_index);
 }
 
 void Assembler::near_call(Address addr, RelocInfo::Mode rmode) {
@@ -1430,7 +1435,10 @@ void Assembler::j(Condition cc,
   // 0000 1111 1000 tttn #32-bit disp.
   emit(0x0F);
   emit(0x80 | cc);
-  emit_code_target(target, rmode);
+  DCHECK(RelocInfo::IsCodeTarget(rmode));
+  RecordRelocInfo(rmode);
+  int code_target_index = AddCodeTarget(target);
+  emitl(code_target_index);
 }
 
 
@@ -1491,10 +1499,13 @@ void Assembler::jmp(Label* L, Label::Distance distance) {
 
 
 void Assembler::jmp(Handle<Code> target, RelocInfo::Mode rmode) {
+  DCHECK(RelocInfo::IsCodeTarget(rmode));
   EnsureSpace ensure_space(this);
   // 1110 1001 #32-bit disp.
   emit(0xE9);
-  emit_code_target(target, rmode);
+  RecordRelocInfo(rmode);
+  int code_target_index = AddCodeTarget(target);
+  emitl(code_target_index);
 }
 
 

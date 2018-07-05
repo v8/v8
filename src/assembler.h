@@ -229,6 +229,17 @@ class AssemblerBase : public Malloced {
   static const char* GetSpecialRegisterName(int code) { return "UNKNOWN"; }
 
  protected:
+  // Add 'target' to the {code_targets_} vector, if necessary, and return the
+  // offset at which it is stored.
+  int AddCodeTarget(Handle<Code> target);
+  Handle<Code> GetCodeTarget(intptr_t code_target_index) const;
+  // Update to the code target at {code_target_index} to {target}.
+  void UpdateCodeTarget(intptr_t code_target_index, Handle<Code> target);
+  // Reserves space in the code target vector.
+  void ReserveCodeTargetSpace(size_t num_of_code_targets) {
+    code_targets_.reserve(num_of_code_targets);
+  }
+
   // The buffer into which code and relocation info are generated. It could
   // either be owned by the assembler or be provided externally.
   byte* buffer_;
@@ -256,6 +267,14 @@ class AssemblerBase : public Malloced {
   void RequestHeapObject(HeapObjectRequest request);
 
  private:
+  // Before we copy code into the code space, we sometimes cannot encode
+  // call/jump code targets as we normally would, as the difference between the
+  // instruction's location in the temporary buffer and the call target is not
+  // guaranteed to fit in the instruction's offset field. We keep track of the
+  // code handles we encounter in calls in this vector, and encode the index of
+  // the code handle in the vector instead.
+  std::vector<Handle<Code>> code_targets_;
+
   const Options options_;
   uint64_t enabled_cpu_features_;
   bool emit_debug_code_;

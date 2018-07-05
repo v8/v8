@@ -549,11 +549,8 @@ Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
         Assembler::target_address_at(pc, 0 /* unused */)));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-    DCHECK_GE(instr->ImmPCOffset(), 0);
     DCHECK_EQ(instr->ImmPCOffset() % kInstructionSize, 0);
-    DCHECK_LT(instr->ImmPCOffset() >> kInstructionSizeLog2,
-              code_targets_.size());
-    return code_targets_[instr->ImmPCOffset() >> kInstructionSizeLog2];
+    return GetCodeTarget(instr->ImmPCOffset() >> kInstructionSizeLog2);
   }
 }
 
