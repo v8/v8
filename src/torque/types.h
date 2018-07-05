@@ -33,6 +33,7 @@ static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 
 class Label;
+class Value;
 
 class TypeBase {
  public:
@@ -292,14 +293,20 @@ inline std::ostream& operator<<(std::ostream& os, const Type& t) {
 class VisitResult {
  public:
   VisitResult() {}
-  VisitResult(const Type* type, const std::string& variable)
-      : type_(type), variable_(variable) {}
+  VisitResult(const Type* type, const std::string& value)
+      : type_(type), value_(value), declarable_{} {}
+  VisitResult(const Type* type, const Value* declarable);
   const Type* type() const { return type_; }
-  const std::string& variable() const { return variable_; }
+  // const std::string& variable() const { return variable_; }
+  base::Optional<const Value*> declarable() const { return declarable_; }
+  std::string value() const { return value_; }
+  std::string LValue() const;
+  std::string RValue() const;
 
  private:
   const Type* type_;
-  std::string variable_;
+  std::string value_;
+  base::Optional<const Value*> declarable_;
 };
 
 class VisitResultVector : public std::vector<VisitResult> {

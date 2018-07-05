@@ -58,7 +58,7 @@ class ImplementationVisitor : public FileVisitor {
       s << "\"" << value->name() << "\" is used before it is defined";
       ReportError(s.str());
     }
-    return VisitResult({value->type(), value->GetValueForRead()});
+    return VisitResult(value->type(), value);
   }
   VisitResult GenerateFetchFromLocation(FieldAccessExpression* expr,
                                         LocationReference reference) {

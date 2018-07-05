@@ -248,6 +248,15 @@ bool operator<(const Type& a, const Type& b) {
   return a.MangledName() < b.MangledName();
 }
 
+VisitResult::VisitResult(const Type* type, const Value* declarable)
+    : type_(type), value_(declarable->value()), declarable_(declarable) {}
+
+std::string VisitResult::LValue() const { return std::string("*") + value_; }
+
+std::string VisitResult::RValue() const {
+  return (declarable_) ? (*declarable_)->RValue() : value_;
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8
