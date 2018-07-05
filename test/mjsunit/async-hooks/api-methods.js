@@ -27,10 +27,18 @@
 
 // Flags: --expose-async-hooks
 
-// Check for correct API methods
+// Check for invalid arguments handling
 (function() {
   assertTrue(async_hooks.hasOwnProperty('createHook'),
     'Async hooks missing createHook method');
+
+  assertThrows(() => async_hooks.createHook());
+  assertThrows(() => async_hooks.createHook(123));
+  assertThrows(() => async_hooks.createHook('str'));
+})();
+
+// Check for correct API methods
+(function() {
   assertTrue(async_hooks.hasOwnProperty('executionAsyncId'),
     'Async hooks missing executionAsyncId method');
   assertTrue(async_hooks.hasOwnProperty('triggerAsyncId'),

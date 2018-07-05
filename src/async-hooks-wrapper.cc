@@ -72,9 +72,15 @@ Local<Object> AsyncHooks::CreateHook(
 
   Local<Context> currentContext = isolate->GetCurrentContext();
 
-  AsyncHooksWrap* wrap = new AsyncHooksWrap(isolate);
+  if (args.Length() != 1 || !args[0]->IsObject()) {
+    isolate->ThrowException(
+        String::NewFromUtf8(isolate, "Invalid arguments passed to createHook",
+                            NewStringType::kNormal)
+            .ToLocalChecked());
+    return Local<Object>();
+  }
 
-  CHECK(args[0]->IsObject());
+  AsyncHooksWrap* wrap = new AsyncHooksWrap(isolate);
 
   Local<Object> fn_obj = args[0].As<Object>();
 
