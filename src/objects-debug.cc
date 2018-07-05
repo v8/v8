@@ -1731,7 +1731,6 @@ void Script::ScriptVerify(Isolate* isolate) {
   CHECK(IsScript());
   VerifyPointer(source());
   VerifyPointer(name());
-  VerifyPointer(wrapper());
   VerifyPointer(line_ends());
   for (int i = 0; i < shared_function_infos()->length(); ++i) {
     MaybeObject* maybe_object = shared_function_infos()->Get(i);

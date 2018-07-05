@@ -1537,7 +1537,6 @@ Handle<Script> Factory::NewScriptWithId(Handle<String> source, int script_id,
   script->set_column_offset(0);
   script->set_context_data(roots.undefined_value());
   script->set_type(Script::TYPE_NORMAL);
-  script->set_wrapper(roots.undefined_value());
   script->set_line_ends(roots.undefined_value());
   script->set_eval_from_shared_or_wrapped_arguments(roots.undefined_value());
   script->set_eval_from_position(0);
@@ -1563,7 +1562,6 @@ Handle<Script> Factory::CloneScript(Handle<Script> script) {
   new_script->set_column_offset(script->column_offset());
   new_script->set_context_data(script->context_data());
   new_script->set_type(script->type());
-  new_script->set_wrapper(script->wrapper());
   new_script->set_line_ends(heap->undefined_value());
   new_script->set_eval_from_shared_or_wrapped_arguments(
       script->eval_from_shared_or_wrapped_arguments());
@@ -3381,7 +3379,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
 
 Handle<JSMessageObject> Factory::NewJSMessageObject(
     MessageTemplate::Template message, Handle<Object> argument,
-    int start_position, int end_position, Handle<Object> script,
+    int start_position, int end_position, Handle<Script> script,
     Handle<Object> stack_frames) {
   Handle<Map> map = message_object_map();
   Handle<JSMessageObject> message_obj(

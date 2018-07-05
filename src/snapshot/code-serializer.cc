@@ -173,8 +173,6 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   if (obj->IsScript()) {
     Script* script_obj = Script::cast(obj);
     DCHECK_NE(script_obj->compilation_type(), Script::COMPILATION_TYPE_EVAL);
-    // Wrapper object is a context-dependent JSValue. Reset it here.
-    script_obj->set_wrapper(roots.undefined_value());
     // We want to differentiate between undefined and uninitialized_symbol for
     // context_data for now. It is hack to allow debugging for scripts that are
     // included as a part of custom snapshot. (see debug::Script::IsEmbedded())

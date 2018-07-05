@@ -129,7 +129,7 @@ namespace internal {
   F(CollectGarbage, 1, 1)                       \
   F(DebugBreakAtEntry, 1, 1)                    \
   F(DebugCollectCoverage, 0, 1)                 \
-  F(DebugGetLoadedScripts, 0, 1)                \
+  F(DebugGetLoadedScriptIds, 0, 1)              \
   F(DebugIsActive, 0, 1)                        \
   F(DebugOnFunctionCall, 2, 1)                  \
   F(DebugPopPromise, 0, 1)                      \
@@ -144,15 +144,11 @@ namespace internal {
   F(GetGeneratorScopeCount, 1, 1)               \
   F(GetGeneratorScopeDetails, 2, 1)             \
   F(GetHeapUsage, 0, 1)                         \
-  F(GetScript, 1, 1)                            \
   F(HandleDebuggerStatement, 0, 1)              \
   F(IncBlockCounter, 2, 1)                      \
   F(IsBreakOnException, 1, 1)                   \
   F(ScheduleBreak, 0, 1)                        \
   F(ScriptLocationFromLine2, 4, 1)              \
-  F(ScriptLocationFromLine, 4, 1)               \
-  F(ScriptPositionInfo2, 3, 1)                  \
-  F(ScriptPositionInfo, 3, 1)                   \
   F(SetGeneratorScopeVariableValue, 4, 1)       \
   F(LiveEditPatchScript, 2, 1)
 
@@ -183,7 +179,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
   F(Call, -1 /* >= 2 */, 1)                \
   F(FunctionGetName, 1, 1)                 \
-  F(FunctionGetScript, 1, 1)               \
+  F(FunctionGetScriptSource, 1, 1)         \
   F(FunctionGetScriptId, 1, 1)             \
   F(FunctionGetScriptSourcePosition, 1, 1) \
   F(FunctionGetSourceCode, 1, 1)           \
@@ -520,7 +516,6 @@ namespace internal {
   F(IsLiftoffFunction, 1, 1)                  \
   F(IsWasmCode, 1, 1)                         \
   F(IsWasmTrapHandlerEnabled, 0, 1)           \
-  F(NativeScriptsCount, 0, 1)                 \
   F(NeverOptimizeFunction, 1, 1)              \
   F(NotifyContextDisposed, 0, 1)              \
   F(OptimizeFunctionOnNextCall, -1, 1)        \

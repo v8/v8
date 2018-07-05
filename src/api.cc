@@ -2930,9 +2930,7 @@ ScriptOrigin Message::GetScriptOrigin() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   auto message = i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
-  auto script_wraper = i::Handle<i::Object>(message->script(), isolate);
-  auto script_value = i::Handle<i::JSValue>::cast(script_wraper);
-  i::Handle<i::Script> script(i::Script::cast(script_value->value()), isolate);
+  i::Handle<i::Script> script(message->script(), isolate);
   return GetScriptOriginForScript(isolate, script);
 }
 
@@ -3020,10 +3018,8 @@ Maybe<int> Message::GetEndColumn(Local<Context> context) const {
 bool Message::IsSharedCrossOrigin() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  auto self = Utils::OpenHandle(this);
-  auto script = i::Handle<i::JSValue>::cast(
-      i::Handle<i::Object>(self->script(), isolate));
-  return i::Script::cast(script->value())
+  return Utils::OpenHandle(this)
+      ->script()
       ->origin_options()
       .IsSharedCrossOrigin();
 }
@@ -3031,10 +3027,7 @@ bool Message::IsSharedCrossOrigin() const {
 bool Message::IsOpaque() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  auto self = Utils::OpenHandle(this);
-  auto script = i::Handle<i::JSValue>::cast(
-      i::Handle<i::Object>(self->script(), isolate));
-  return i::Script::cast(script->value())->origin_options().IsOpaque();
+  return Utils::OpenHandle(this)->script()->origin_options().IsOpaque();
 }
 
 

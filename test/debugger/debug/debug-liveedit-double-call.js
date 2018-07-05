@@ -78,8 +78,6 @@ function TestCase(test_scenario, expected_output) {
 
   var test_fun = eval(script_text_generator.get());
 
-  var script = Debug.findScript(test_fun);
-
   var scenario_pos = 0;
 
   function DebuggerStatementHandler() {

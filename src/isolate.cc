@@ -1911,8 +1911,7 @@ void Isolate::ReportPendingMessagesImpl(bool report_externally) {
   if (!message_obj->IsTheHole(this) && should_report_exception) {
     HandleScope scope(this);
     Handle<JSMessageObject> message(JSMessageObject::cast(message_obj), this);
-    Handle<JSValue> script_wrapper(JSValue::cast(message->script()), this);
-    Handle<Script> script(Script::cast(script_wrapper->value()), this);
+    Handle<Script> script(message->script(), this);
     int start_pos = message->start_position();
     int end_pos = message->end_position();
     MessageLocation location(script, start_pos, end_pos);
@@ -2008,8 +2007,7 @@ MessageLocation Isolate::GetMessageLocation() {
       !thread_local_top_.pending_message_obj_->IsTheHole(this)) {
     Handle<JSMessageObject> message_obj(
         JSMessageObject::cast(thread_local_top_.pending_message_obj_), this);
-    Handle<JSValue> script_wrapper(JSValue::cast(message_obj->script()), this);
-    Handle<Script> script(Script::cast(script_wrapper->value()), this);
+    Handle<Script> script(message_obj->script(), this);
     int start_pos = message_obj->start_position();
     int end_pos = message_obj->end_position();
     return MessageLocation(script, start_pos, end_pos);

@@ -61,8 +61,7 @@ function ExecuteInDebugContext(f) {
 
 function patch(fun, from, to) {
   function debug() {
-    var script = Debug.findScript(fun);
-    %LiveEditPatchScript(fun, script.source.replace(from, to));
+    %LiveEditPatchScript(fun, Debug.scriptSource(fun).replace(from, to));
   }
   ExecuteInDebugContext(debug);
 }

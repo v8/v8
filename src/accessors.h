@@ -33,19 +33,6 @@ class JavaScriptFrame;
   V(function_name, FunctionName)                                    \
   V(function_length, FunctionLength)                                \
   V(function_prototype, FunctionPrototype)                          \
-  V(script_column_offset, ScriptColumnOffset)                       \
-  V(script_compilation_type, ScriptCompilationType)                 \
-  V(script_context_data, ScriptContextData)                         \
-  V(script_eval_from_script, ScriptEvalFromScript)                  \
-  V(script_eval_from_script_position, ScriptEvalFromScriptPosition) \
-  V(script_eval_from_function_name, ScriptEvalFromFunctionName)     \
-  V(script_id, ScriptId)                                            \
-  V(script_line_offset, ScriptLineOffset)                           \
-  V(script_name, ScriptName)                                        \
-  V(script_source, ScriptSource)                                    \
-  V(script_type, ScriptType)                                        \
-  V(script_source_url, ScriptSourceUrl)                             \
-  V(script_source_mapping_url, ScriptSourceMappingUrl)              \
   V(string_length, StringLength)
 
 #define SIDE_EFFECT_FREE_ACCESSOR_INFO_LIST(V) \

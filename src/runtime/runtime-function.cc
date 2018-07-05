@@ -28,7 +28,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetName) {
 }
 
 // TODO(5530): Remove once uses in debug.js are gone.
-RUNTIME_FUNCTION(Runtime_FunctionGetScript) {
+RUNTIME_FUNCTION(Runtime_FunctionGetScriptSource) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
@@ -36,9 +36,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScript) {
   if (function->IsJSFunction()) {
     Handle<Object> script(
         Handle<JSFunction>::cast(function)->shared()->script(), isolate);
-    if (script->IsScript()) {
-      return *Script::GetWrapper(Handle<Script>::cast(script));
-    }
+    if (script->IsScript()) return Handle<Script>::cast(script)->source();
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }

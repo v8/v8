@@ -13619,32 +13619,6 @@ Object* Script::GetNameOrSourceURL() {
   return name();
 }
 
-
-Handle<JSObject> Script::GetWrapper(Handle<Script> script) {
-  Isolate* isolate = script->GetIsolate();
-  if (!script->wrapper()->IsUndefined(isolate)) {
-    DCHECK(script->wrapper()->IsWeakCell());
-    Handle<WeakCell> cell(WeakCell::cast(script->wrapper()), isolate);
-    if (!cell->cleared()) {
-      // Return a handle for the existing script wrapper from the cache.
-      return handle(JSObject::cast(cell->value()), isolate);
-    }
-    // If we found an empty WeakCell, that means the script wrapper was
-    // GCed.  We are not notified directly of that, so we decrement here
-    // so that we at least don't count double for any given script.
-    isolate->counters()->script_wrappers()->Decrement();
-  }
-  // Construct a new script wrapper.
-  isolate->counters()->script_wrappers()->Increment();
-  Handle<JSFunction> constructor = isolate->script_function();
-  Handle<JSValue> result =
-      Handle<JSValue>::cast(isolate->factory()->NewJSObject(constructor));
-  result->set_value(*script);
-  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(result);
-  script->set_wrapper(*cell);
-  return result;
-}
-
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     Isolate* isolate, const FunctionLiteral* fun) {
   CHECK_NE(fun->function_literal_id(), FunctionLiteral::kIdTypeInvalid);
@@ -18529,21 +18503,10 @@ void JSDate::SetCachedFields(int64_t local_time_ms, DateCache* date_cache) {
   set_sec(Smi::FromInt(sec), SKIP_WRITE_BARRIER);
 }
 
-namespace {
-
-Script* ScriptFromJSValue(Object* in) {
-  DCHECK(in->IsJSValue());
-  JSValue* jsvalue = JSValue::cast(in);
-  DCHECK(jsvalue->value()->IsScript());
-  return Script::cast(jsvalue->value());
-}
-
-}  // namespace
-
 int JSMessageObject::GetLineNumber() const {
   if (start_position() == -1) return Message::kNoLineNumberInfo;
 
-  Handle<Script> the_script = handle(ScriptFromJSValue(script()), GetIsolate());
+  Handle<Script> the_script(script(), GetIsolate());
 
   Script::PositionInfo info;
   const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
@@ -18558,7 +18521,7 @@ int JSMessageObject::GetLineNumber() const {
 int JSMessageObject::GetColumnNumber() const {
   if (start_position() == -1) return -1;
 
-  Handle<Script> the_script = handle(ScriptFromJSValue(script()), GetIsolate());
+  Handle<Script> the_script(script(), GetIsolate());
 
   Script::PositionInfo info;
   const Script::OffsetFlag offset_flag = Script::WITH_OFFSET;
@@ -18572,7 +18535,7 @@ int JSMessageObject::GetColumnNumber() const {
 
 Handle<String> JSMessageObject::GetSourceLine() const {
   Isolate* isolate = GetIsolate();
-  Handle<Script> the_script = handle(ScriptFromJSValue(script()), isolate);
+  Handle<Script> the_script(script(), isolate);
 
   if (the_script->type() == Script::TYPE_WASM) {
     return isolate->factory()->empty_string();

@@ -1929,7 +1929,6 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   os << "\n - type: " << type();
   os << "\n - id: " << id();
   os << "\n - context data: " << Brief(context_data());
-  os << "\n - wrapper: " << Brief(wrapper());
   os << "\n - compilation type: " << compilation_type();
   os << "\n - line ends: " << Brief(line_ends());
   if (has_eval_from_shared()) {

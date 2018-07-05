@@ -881,7 +881,7 @@ class V8_EXPORT_PRIVATE Factory {
                                              Handle<Object> argument,
                                              int start_position,
                                              int end_position,
-                                             Handle<Object> script,
+                                             Handle<Script> script,
                                              Handle<Object> stack_frames);
 
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);

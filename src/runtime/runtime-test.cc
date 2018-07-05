@@ -709,12 +709,6 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NativeScriptsCount) {
-  DCHECK_EQ(0, args.length());
-  return Smi::FromInt(Natives::GetBuiltinsCount());
-}
-
-
 RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   HandleScope scope(isolate);
 #ifdef DEBUG

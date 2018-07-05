@@ -3555,7 +3555,7 @@ class JSMessageObject: public JSObject {
   DECL_ACCESSORS(argument, Object)
 
   // [script]: the script from which the error message originated.
-  DECL_ACCESSORS(script, Object)
+  DECL_ACCESSORS(script, Script)
 
   // [stack_frames]: an array of stack frames for this error object.
   DECL_ACCESSORS(stack_frames, Object)

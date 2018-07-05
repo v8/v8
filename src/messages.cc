@@ -56,13 +56,11 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
 
   int start = -1;
   int end = -1;
-  Handle<Object> script_handle = factory->undefined_value();
+  Handle<Script> script_handle = isolate->factory()->empty_script();
   if (location != nullptr) {
     start = location->start_pos();
     end = location->end_pos();
-    script_handle = Script::GetWrapper(location->script());
-  } else {
-    script_handle = Script::GetWrapper(isolate->factory()->empty_script());
+    script_handle = location->script();
   }
 
   Handle<Object> stack_frames_handle = stack_frames.is_null()

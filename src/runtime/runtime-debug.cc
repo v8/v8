@@ -411,7 +411,7 @@ RUNTIME_FUNCTION(Runtime_ClearStepping) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
+RUNTIME_FUNCTION(Runtime_DebugGetLoadedScriptIds) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
 
@@ -425,13 +425,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
   // Convert the script objects to proper JS objects.
   for (int i = 0; i < instances->length(); i++) {
     Handle<Script> script(Script::cast(instances->get(i)), isolate);
-    // Get the script wrapper in a local handle before calling GetScriptWrapper,
-    // because using
-    //   instances->set(i, *GetScriptWrapper(script))
-    // is unsafe as GetScriptWrapper might call GC and the C++ compiler might
-    // already have dereferenced the instances handle.
-    Handle<JSObject> wrapper = Script::GetWrapper(script);
-    instances->set(i, *wrapper);
+    instances->set(i, Smi::FromInt(script->id()));
   }
 
   // Return result as a JS array.
@@ -473,36 +467,6 @@ RUNTIME_FUNCTION(Runtime_GetHeapUsage) {
   return Smi::FromInt(usage);
 }
 
-
-// Finds the script object from the script data. NOTE: This operation uses
-// heap traversal to find the function generated for the source position
-// for the requested break point. For lazily compiled functions several heap
-// traversals might be required rendering this operation as a rather slow
-// operation. However for setting break points which is normally done through
-// some kind of user interaction the performance is not crucial.
-RUNTIME_FUNCTION(Runtime_GetScript) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, script_name, 0);
-
-  Handle<Script> found;
-  {
-    Script::Iterator iterator(isolate);
-    Script* script = nullptr;
-    while ((script = iterator.Next()) != nullptr) {
-      if (!script->name()->IsString()) continue;
-      String* name = String::cast(script->name());
-      if (name->Equals(*script_name)) {
-        found = Handle<Script>(script, isolate);
-        break;
-      }
-    }
-  }
-
-  if (found.is_null()) return ReadOnlyRoots(isolate).undefined_value();
-  return *Script::GetWrapper(found);
-}
-
 namespace {
 
 int ScriptLinePosition(Handle<Script> script, int line) {
@@ -525,11 +489,24 @@ int ScriptLinePosition(Handle<Script> script, int line) {
   return Smi::ToInt(line_ends_array->get(line - 1)) + 1;
 }
 
-}  // namespace
+int ScriptLinePositionWithOffset(Handle<Script> script, int line, int offset) {
+  if (line < 0 || offset < 0) return -1;
 
-static Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
-                                        Script::OffsetFlag offset_flag,
-                                        Isolate* isolate) {
+  if (line == 0 || offset == 0)
+    return ScriptLinePosition(script, line) + offset;
+
+  Script::PositionInfo info;
+  if (!Script::GetPositionInfo(script, offset, &info, Script::NO_OFFSET)) {
+    return -1;
+  }
+
+  const int total_line = info.line + line;
+  return ScriptLinePosition(script, total_line);
+}
+
+Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
+                                 Script::OffsetFlag offset_flag,
+                                 Isolate* isolate) {
   Script::PositionInfo info;
   if (!Script::GetPositionInfo(script, position, &info, offset_flag)) {
     return isolate->factory()->null_value();
@@ -557,23 +534,6 @@ static Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
                         NONE);
 
   return jsinfo;
-}
-
-namespace {
-
-int ScriptLinePositionWithOffset(Handle<Script> script, int line, int offset) {
-  if (line < 0 || offset < 0) return -1;
-
-  if (line == 0 || offset == 0)
-    return ScriptLinePosition(script, line) + offset;
-
-  Script::PositionInfo info;
-  if (!Script::GetPositionInfo(script, offset, &info, Script::NO_OFFSET)) {
-    return -1;
-  }
-
-  const int total_line = info.line + line;
-  return ScriptLinePosition(script, total_line);
 }
 
 Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
@@ -619,30 +579,6 @@ bool GetScriptById(Isolate* isolate, int needle, Handle<Script>* result) {
 
 }  // namespace
 
-// Get information on a specific source line and column possibly offset by a
-// fixed source position. This function is used to find a source position from
-// a line and column position. The fixed source position offset is typically
-// used to find a source position in a function based on a line and column in
-// the source for the function alone. The offset passed will then be the
-// start position of the source for the function within the full script source.
-// Note that incoming line and column parameters may be undefined, and are
-// assumed to be passed *with* offsets.
-// TODO(5530): Remove once uses in debug.js are gone.
-RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSValue, script, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, opt_line, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, opt_column, 2);
-  CONVERT_NUMBER_CHECKED(int32_t, offset, Int32, args[3]);
-
-  CHECK(script->value()->IsScript());
-  Handle<Script> script_handle(Script::cast(script->value()), isolate);
-
-  return *ScriptLocationFromLine(isolate, script_handle, opt_line, opt_column,
-                                 offset);
-}
-
 // TODO(5530): Rename once conflicting function has been deleted.
 RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine2) {
   HandleScope scope(isolate);
@@ -656,38 +592,6 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine2) {
   CHECK(GetScriptById(isolate, scriptid, &script));
 
   return *ScriptLocationFromLine(isolate, script, opt_line, opt_column, offset);
-}
-
-// TODO(5530): Remove once uses in debug.js are gone.
-RUNTIME_FUNCTION(Runtime_ScriptPositionInfo) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_CHECKED(JSValue, script, 0);
-  CONVERT_NUMBER_CHECKED(int32_t, position, Int32, args[1]);
-  CONVERT_BOOLEAN_ARG_CHECKED(with_offset, 2);
-
-  CHECK(script->value()->IsScript());
-  Handle<Script> script_handle(Script::cast(script->value()), isolate);
-
-  const Script::OffsetFlag offset_flag =
-      with_offset ? Script::WITH_OFFSET : Script::NO_OFFSET;
-  return *GetJSPositionInfo(script_handle, position, offset_flag, isolate);
-}
-
-// TODO(5530): Rename once conflicting function has been deleted.
-RUNTIME_FUNCTION(Runtime_ScriptPositionInfo2) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_NUMBER_CHECKED(int32_t, scriptid, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, position, Int32, args[1]);
-  CONVERT_BOOLEAN_ARG_CHECKED(with_offset, 2);
-
-  Handle<Script> script;
-  CHECK(GetScriptById(isolate, scriptid, &script));
-
-  const Script::OffsetFlag offset_flag =
-      with_offset ? Script::WITH_OFFSET : Script::NO_OFFSET;
-  return *GetJSPositionInfo(script, position, offset_flag, isolate);
 }
 
 // On function call, depending on circumstances, prepare for stepping in,
@@ -804,8 +708,8 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
 
     Handle<JSArray> script_obj =
         factory->NewJSArrayWithElements(ranges_array, PACKED_ELEMENTS);
-    Handle<JSObject> wrapper = Script::GetWrapper(script_data.script);
-    JSObject::AddProperty(isolate, script_obj, script_string, wrapper, NONE);
+    JSObject::AddProperty(isolate, script_obj, script_string,
+                          handle(script_data.script->source(), isolate), NONE);
     scripts_array->set(i, *script_obj);
   }
   return *factory->NewJSArrayWithElements(scripts_array, PACKED_ELEMENTS);

@@ -2734,7 +2734,7 @@ ACCESSORS(JSDate, sec, Object, kSecOffset)
 
 SMI_ACCESSORS(JSMessageObject, type, kTypeOffset)
 ACCESSORS(JSMessageObject, argument, Object, kArgumentsOffset)
-ACCESSORS(JSMessageObject, script, Object, kScriptOffset)
+ACCESSORS(JSMessageObject, script, Script, kScriptOffset)
 ACCESSORS(JSMessageObject, stack_frames, Object, kStackFramesOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
