@@ -25,6 +25,7 @@
 #include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stubs.h"
+#include "src/compilation-dependencies.h"
 #include "src/compiler.h"
 #include "src/counters-inl.h"
 #include "src/counters.h"
@@ -15066,6 +15067,34 @@ bool DependentCode::Compact() {
 }
 
 
+void DependentCode::UpdateToFinishedCode(DependencyGroup group, Foreign* info,
+                                         WeakCell* code_cell) {
+  if (this->length() == 0 || this->group() > group) {
+    // There is no such group.
+    return;
+  }
+  if (this->group() < group) {
+    // The group comes later in the list.
+    next_link()->UpdateToFinishedCode(group, info, code_cell);
+    return;
+  }
+  DCHECK_EQ(group, this->group());
+  DisallowHeapAllocation no_gc;
+  int count = this->count();
+  for (int i = 0; i < count; i++) {
+    if (object_at(i) == info) {
+      set_object_at(i, code_cell);
+      break;
+    }
+  }
+#ifdef DEBUG
+  for (int i = 0; i < count; i++) {
+    DCHECK(object_at(i) != info);
+  }
+#endif
+}
+
+
 void DependentCode::RemoveCompilationDependencies(
     DependentCode::DependencyGroup group, Foreign* info) {
   if (this->length() == 0 || this->group() > group) {
@@ -15154,12 +15183,20 @@ bool DependentCode::MarkCodeForDeoptimization(
   int count = this->count();
   for (int i = 0; i < count; i++) {
     Object* obj = object_at(i);
-    WeakCell* cell = WeakCell::cast(obj);
-    if (cell->cleared()) continue;
-    Code* code = Code::cast(cell->value());
-    if (!code->marked_for_deoptimization()) {
-      code->SetMarkedForDeoptimization(DependencyGroupName(group));
-      marked = true;
+    if (obj->IsWeakCell()) {
+      WeakCell* cell = WeakCell::cast(obj);
+      if (cell->cleared()) continue;
+      Code* code = Code::cast(cell->value());
+      if (!code->marked_for_deoptimization()) {
+        code->SetMarkedForDeoptimization(DependencyGroupName(group));
+        marked = true;
+      }
+    } else {
+      DCHECK(obj->IsForeign());
+      CompilationDependencies* info =
+          reinterpret_cast<CompilationDependencies*>(
+              Foreign::cast(obj)->foreign_address());
+      info->Abort();
     }
   }
   for (int i = 0; i < count; i++) {

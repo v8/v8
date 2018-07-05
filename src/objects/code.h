@@ -631,6 +631,9 @@ class DependentCode : public FixedArray {
                                               DependencyGroup group,
                                               Handle<WeakCell> code_cell);
 
+  void UpdateToFinishedCode(DependencyGroup group, Foreign* info,
+                            WeakCell* code_cell);
+
   void RemoveCompilationDependencies(DependentCode::DependencyGroup group,
                                      Foreign* info);
 

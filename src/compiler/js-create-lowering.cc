@@ -133,12 +133,12 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
       // Force completion of inobject slack tracking before
       // generating code to finalize the instance size.
       original_constructor->CompleteInobjectSlackTrackingIfActive();
+      Handle<Map> initial_map(original_constructor->initial_map(), isolate());
+      int const instance_size = initial_map->instance_size();
 
       // Add a dependency on the {initial_map} to make sure that this code is
       // deoptimized whenever the {initial_map} changes.
-      Handle<Map> initial_map =
-          dependencies()->DependOnInitialMap(original_constructor);
-      int const instance_size = initial_map->instance_size();
+      dependencies()->AssumeInitialMapCantChange(initial_map);
 
       // Emit code to allocate the JSObject instance for the
       // {original_constructor}.
@@ -425,12 +425,13 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     // Force completion of inobject slack tracking before
     // generating code to finalize the instance size.
     js_function->CompleteInobjectSlackTrackingIfActive();
+    Handle<Map> initial_map(js_function->initial_map(), isolate());
+    DCHECK(initial_map->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
+           initial_map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
 
     // Add a dependency on the {initial_map} to make sure that this code is
     // deoptimized whenever the {initial_map} changes.
-    Handle<Map> initial_map = dependencies()->DependOnInitialMap(js_function);
-    DCHECK(initial_map->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
-           initial_map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
+    dependencies()->AssumeInitialMapCantChange(initial_map);
 
     // Allocate a register file.
     DCHECK(js_function->shared()->HasBytecodeArray());
@@ -724,11 +725,11 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       // Force completion of inobject slack tracking before
       // generating code to finalize the instance size.
       original_constructor->CompleteInobjectSlackTrackingIfActive();
+      Handle<Map> initial_map(original_constructor->initial_map(), isolate());
 
       // Add a dependency on the {initial_map} to make sure that this code is
       // deoptimized whenever the {initial_map} changes.
-      Handle<Map> initial_map =
-          dependencies()->DependOnInitialMap(original_constructor);
+      dependencies()->AssumeInitialMapCantChange(initial_map);
 
       // Tells whether we are protected by either the {site} or a
       // protector cell to do certain speculative optimizations.
@@ -742,8 +743,10 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
               Map::AsElementsKind(isolate(), initial_map, elements_kind);
         }
         can_inline_call = site->CanInlineCall();
-        pretenure = dependencies()->DependOnPretenureMode(site);
-        dependencies()->DependOnElementsKind(site);
+        pretenure = site->GetPretenureMode();
+
+        dependencies()->AssumeTransitionStable(site);
+        dependencies()->AssumeTenuringDecision(site);
       } else {
         can_inline_call = isolate()->IsArrayConstructorIntact();
       }
@@ -1134,6 +1137,17 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
   return Changed(node);
 }
 
+void AssumeAllocationSiteTransitionDeepDependencies(
+    CompilationDependencies* dependencies, Isolate* isolate,
+    Handle<AllocationSite> site) {
+  while (true) {
+    dependencies->AssumeTransitionStable(site);
+    if (!site->nested_site()->IsAllocationSite()) break;
+    site = handle(AllocationSite::cast(site->nested_site()), isolate);
+  }
+  CHECK_EQ(site->nested_site(), Smi::kZero);
+}
+
 Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kJSCreateLiteralArray ||
          node->opcode() == IrOpcode::kJSCreateLiteralObject);
@@ -1149,11 +1163,12 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
     if (site.IsFastLiteral(js_heap_broker())) {
       PretenureFlag pretenure = NOT_TENURED;
       if (FLAG_allocation_site_pretenuring) {
-        pretenure = dependencies()->DependOnPretenureMode(
-            site.object<AllocationSite>());
+        pretenure = site.GetPretenureMode();
+        dependencies()->AssumeTenuringDecision(site.object<AllocationSite>());
       }
-      dependencies()->DependOnElementsKinds(site.object<AllocationSite>());
       JSObjectRef boilerplate = site.boilerplate(js_heap_broker());
+      AssumeAllocationSiteTransitionDeepDependencies(
+          dependencies(), isolate(), site.object<AllocationSite>());
       Node* value = effect =
           AllocateFastLiteral(effect, control, boilerplate, pretenure);
       ReplaceWithValue(node, value, effect, control);
@@ -1174,8 +1189,9 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
     Handle<Map> const initial_map(
         native_context()->GetInitialJSArrayMap(site->GetElementsKind()),
         isolate());
-    PretenureFlag const pretenure = dependencies()->DependOnPretenureMode(site);
-    dependencies()->DependOnElementsKind(site);
+    PretenureFlag const pretenure = site->GetPretenureMode();
+    dependencies()->AssumeTransitionStable(site);
+    dependencies()->AssumeTenuringDecision(site);
     Node* length = jsgraph()->ZeroConstant();
     return ReduceNewArray(node, length, 0, initial_map, pretenure);
   }
