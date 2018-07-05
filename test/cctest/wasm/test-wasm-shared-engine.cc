@@ -95,7 +95,7 @@ class SharedEngineIsolate {
     script->set_wasm_module_object(*module_object);
     module_object->set_script(*script);
     module_object->set_weak_instance_list(
-        isolate()->heap()->empty_weak_array_list());
+        ReadOnlyRoots(isolate()).empty_weak_array_list());
 
     size_t native_memory_estimate =
         isolate()->wasm_engine()->code_manager()->EstimateNativeModuleSize(
