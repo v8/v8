@@ -134,7 +134,7 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
   Handle<String> source(String::cast(script->source()), isolate);
   if (source->IsExternalTwoByteString() || source->IsExternalOneByteString()) {
     std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
-        source, shared_->StartPosition(), shared_->EndPosition()));
+        isolate, source, shared_->StartPosition(), shared_->EndPosition()));
     parse_info_->set_character_stream(std::move(stream));
   } else {
     source = String::Flatten(isolate, source);
@@ -192,7 +192,7 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
     }
     wrapper_ = isolate->global_handles()->Create(*wrapper);
     std::unique_ptr<Utf16CharacterStream> stream(
-        ScannerStream::For(wrapper_, shared_->StartPosition() - offset,
+        ScannerStream::For(isolate, wrapper_, shared_->StartPosition() - offset,
                            shared_->EndPosition() - offset));
     parse_info_->set_character_stream(std::move(stream));
   }
