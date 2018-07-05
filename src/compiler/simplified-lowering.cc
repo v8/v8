@@ -2636,7 +2636,8 @@ class RepresentationSelector {
         ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
         ProcessInput(node, 1, UseInfo::PointerInt());        // external pointer
         ProcessInput(node, 2, UseInfo::TruncatingWord32());  // index
-        ProcessRemainingInputs(node, 3);
+        ProcessInput(node, 3, UseInfo::Bool());              // little endian
+        ProcessRemainingInputs(node, 4);
         SetOutput(node, rep);
         return;
       }

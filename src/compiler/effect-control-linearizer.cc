@@ -3750,15 +3750,66 @@ Node* EffectControlLinearizer::LowerLoadDataViewElement(Node* node) {
   Node* buffer = node->InputAt(0);
   Node* storage = node->InputAt(1);
   Node* index = node->InputAt(2);
+  Node* is_little_endian = node->InputAt(3);
 
   // We need to keep the {buffer} alive so that the GC will not release the
   // ArrayBuffer (if there's any) as long as we are still operating on it.
   __ Retain(buffer);
 
-  // Perform the actual data view element access.
-  return __ LoadElement(AccessBuilder::ForTypedArrayElement(
-                            element_type, true, LoadSensitivity::kCritical),
-                        storage, index);
+  ElementAccess access_int8 = AccessBuilder::ForTypedArrayElement(
+      kExternalInt8Array, true, LoadSensitivity::kCritical);
+  ElementAccess access_uint8 = AccessBuilder::ForTypedArrayElement(
+      kExternalUint8Array, true, LoadSensitivity::kCritical);
+
+  switch (element_type) {
+    case kExternalUint8Array:
+      return __ LoadElement(access_uint8, storage, index);
+
+    case kExternalInt8Array:
+      return __ LoadElement(access_int8, storage, index);
+
+    case kExternalUint16Array:  // Fall through.
+    case kExternalInt16Array: {
+      auto big_endian = __ MakeLabel();
+      auto done = __ MakeLabel(MachineRepresentation::kWord32);
+
+      // If we're doing an Int16 load, sign-extend the most significant byte
+      // by loading it as an Int8 instead of Uint8.
+      ElementAccess access_msb =
+          element_type == kExternalInt16Array ? access_int8 : access_uint8;
+
+      __ GotoIfNot(is_little_endian, &big_endian);
+      {
+        // Little-endian load.
+        Node* b0 = __ LoadElement(access_uint8, storage, index);
+        Node* b1 = __ LoadElement(access_msb, storage,
+                                  __ Int32Add(index, __ Int32Constant(1)));
+
+        // result = (b1 << 8) + b0
+        Node* result = __ Int32Add(__ Word32Shl(b1, __ Int32Constant(8)), b0);
+        __ Goto(&done, result);
+      }
+
+      __ Bind(&big_endian);
+      {
+        // Big-endian load.
+        Node* b0 = __ LoadElement(access_msb, storage, index);
+        Node* b1 = __ LoadElement(access_uint8, storage,
+                                  __ Int32Add(index, __ Int32Constant(1)));
+
+        // result = (b0 << 8) + b1;
+        Node* result = __ Int32Add(__ Word32Shl(b0, __ Int32Constant(8)), b1);
+        __ Goto(&done, result);
+      }
+
+      // We're done, return {result}.
+      __ Bind(&done);
+      return done.PhiAt(0);
+    }
+
+    default:
+      UNREACHABLE();
+  }
 }
 
 Node* EffectControlLinearizer::LowerLoadTypedElement(Node* node) {

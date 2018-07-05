@@ -3434,6 +3434,12 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtins::kDataViewPrototypeGetInt8:
       return ReduceDataViewPrototypeGet(node,
                                         ExternalArrayType::kExternalInt8Array);
+    case Builtins::kDataViewPrototypeGetUint16:
+      return ReduceDataViewPrototypeGet(
+          node, ExternalArrayType::kExternalUint16Array);
+    case Builtins::kDataViewPrototypeGetInt16:
+      return ReduceDataViewPrototypeGet(node,
+                                        ExternalArrayType::kExternalInt16Array);
     case Builtins::kTypedArrayPrototypeByteLength:
       return ReduceArrayBufferViewAccessor(
           node, JS_TYPED_ARRAY_TYPE,
@@ -6692,9 +6698,10 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
           graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
 
       // Perform the load.
-      vfalse_range = efalse_range = graph()->NewNode(
-          simplified()->LoadDataViewElement(element_type), buffer,
-          backing_store, buffer_index, efalse_range, if_false_range);
+      vfalse_range = efalse_range =
+          graph()->NewNode(simplified()->LoadDataViewElement(element_type),
+                           buffer, backing_store, buffer_index,
+                           is_little_endian, efalse_range, if_false_range);
     }
 
     // Rewire potential exception edges.

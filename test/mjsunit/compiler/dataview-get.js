@@ -9,6 +9,10 @@ var dataview = new DataView(buffer, 8, 24);
 
 var values = [-1, 2, -3, 42];
 
+function readUint8(offset) {
+  return dataview.getUint8(offset);
+}
+
 function readInt8Handled(offset) {
   try {
     return dataview.getInt8(offset);
@@ -17,8 +21,16 @@ function readInt8Handled(offset) {
   }
 }
 
-function readUint8(offset) {
-  return dataview.getUint8(offset);
+function readUint16(offset, little_endian) {
+  return dataview.getUint16(offset, little_endian);
+}
+
+function readInt16Handled(offset, little_endian) {
+  try {
+    return dataview.getInt16(offset, little_endian);
+  } catch (e) {
+    return e;
+  }
 }
 
 function warmup(f) {
@@ -49,10 +61,28 @@ assertEquals(0xad, readUint8(5));
 assertEquals(0xbe, readUint8(6));
 assertEquals(0xef, readUint8(7));
 
+// TurboFan valid getUint16.
+dataview.setUint16(8, 0xabcd);
+warmup(readUint16);
+assertOptimized(readUint16);
+assertEquals(0xabcd, readUint16(8));
+assertEquals(0xcdab, readUint16(8, true));
+
+// TurboFan valid getInt16.
+dataview.setInt16(10, -0x1234);
+warmup(readInt16Handled);
+assertEquals(-0x1234, readInt16Handled(10));
+dataview.setInt16(10, -0x1234, true);
+assertEquals(-0x1234, readInt16Handled(10, true));
+
 // TurboFan out of bounds read, throw with exception handler.
 assertOptimized(readInt8Handled);
-assertInstanceof(readInt8Handled(64), RangeError);
+assertInstanceof(readInt8Handled(24), RangeError);
 assertOptimized(readInt8Handled);
+assertOptimized(readInt16Handled);
+assertInstanceof(readInt16Handled(23), RangeError);
+assertOptimized(readInt16Handled);
+
 // Without exception handler.
 assertOptimized(readUint8);
 assertThrows(() => readUint8(64));
