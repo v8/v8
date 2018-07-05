@@ -88,12 +88,8 @@ class SharedEngineIsolate {
   Handle<WasmInstanceObject> ImportInstance(SharedModule shared_module) {
     Vector<const byte> wire_bytes = shared_module->wire_bytes();
     Handle<Script> script = CreateWasmScript(isolate(), wire_bytes);
-    int export_wrappers_size =
-        static_cast<int>(shared_module->module()->num_exported_functions);
-    Handle<FixedArray> export_wrappers =
-        isolate()->factory()->NewFixedArray(export_wrappers_size, TENURED);
-    Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-        isolate(), export_wrappers, shared_module, script);
+    Handle<WasmModuleObject> module_object =
+        WasmModuleObject::New(isolate(), shared_module, script);
 
     // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}.
     // This requires unlocking the code space here. This should eventually be

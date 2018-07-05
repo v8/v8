@@ -176,10 +176,9 @@ enum DispatchTableElements : int {
 
 // static
 Handle<WasmModuleObject> WasmModuleObject::New(
-    Isolate* isolate, Handle<FixedArray> export_wrappers,
-    std::shared_ptr<const wasm::WasmModule> shared_module, wasm::ModuleEnv& env,
-    OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
-    Handle<ByteArray> asm_js_offset_table) {
+    Isolate* isolate, std::shared_ptr<const wasm::WasmModule> shared_module,
+    wasm::ModuleEnv& env, OwnedVector<const uint8_t> wire_bytes,
+    Handle<Script> script, Handle<ByteArray> asm_js_offset_table) {
   DCHECK_EQ(shared_module.get(), env.module);
 
   // Create a new {NativeModule} first.
@@ -195,7 +194,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
 
   // Delegate to the shared {WasmModuleObject::New} allocator.
   Handle<WasmModuleObject> module_object =
-      New(isolate, export_wrappers, std::move(native_module), script);
+      New(isolate, std::move(native_module), script);
   if (!asm_js_offset_table.is_null()) {
     module_object->set_asm_js_offset_table(*asm_js_offset_table);
   }
@@ -204,8 +203,12 @@ Handle<WasmModuleObject> WasmModuleObject::New(
 
 // static
 Handle<WasmModuleObject> WasmModuleObject::New(
-    Isolate* isolate, Handle<FixedArray> export_wrappers,
-    std::shared_ptr<wasm::NativeModule> native_module, Handle<Script> script) {
+    Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
+    Handle<Script> script) {
+  int export_wrapper_size =
+      static_cast<int>(native_module->module()->num_exported_functions);
+  Handle<FixedArray> export_wrappers =
+      isolate->factory()->NewFixedArray(export_wrapper_size, TENURED);
   Handle<WasmModuleObject> module_object = Handle<WasmModuleObject>::cast(
       isolate->factory()->NewJSObject(isolate->wasm_module_constructor()));
   module_object->set_export_wrappers(*export_wrappers);

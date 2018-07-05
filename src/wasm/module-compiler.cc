@@ -919,7 +919,6 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   base::Optional<CodeSpaceMemoryModificationScope> modification_scope(
       base::in_place_t(), isolate->heap());
 
-  Factory* factory = isolate->factory();
   // Create heap objects for script, module bytes and asm.js offset table to
   // be stored in the module object.
   Handle<Script> script;
@@ -943,14 +942,6 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   // only have one WasmModuleObject. Otherwise, we might only set
   // breakpoints on a (potentially empty) subset of the instances.
 
-  int export_wrappers_size =
-      static_cast<int>(wasm_module->num_exported_functions);
-  Handle<FixedArray> export_wrappers =
-      factory->NewFixedArray(static_cast<int>(export_wrappers_size), TENURED);
-  Handle<Code> init_builtin = BUILTIN_CODE(isolate, Illegal);
-  for (int i = 0, e = export_wrappers->length(); i < e; ++i) {
-    export_wrappers->set(i, *init_builtin);
-  }
   ModuleEnv env = CreateDefaultModuleEnv(wasm_module);
 
   // Create the compiled module object and populate with compiled functions
@@ -958,8 +949,8 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, export_wrappers, std::move(module), env,
-      std::move(wire_bytes_copy), script, asm_js_offset_table);
+      isolate, std::move(module), env, std::move(wire_bytes_copy), script,
+      asm_js_offset_table);
   CompileNativeModule(isolate, thrower, module_object, wasm_module, &env);
   if (thrower->error()) return {};
 
@@ -2457,9 +2448,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     const WasmModule* module = job_->module_.get();
     ModuleEnv env = CreateDefaultModuleEnv(module);
-    int export_wrapper_size = static_cast<int>(module->num_exported_functions);
-    Handle<FixedArray> export_wrappers =
-        job_->isolate_->factory()->NewFixedArray(export_wrapper_size, TENURED);
     // TODO(wasm): Improve efficiency of storing module wire bytes. Only store
     // relevant sections, not function bodies
 
@@ -2470,7 +2458,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // breakpoints on a (potentially empty) subset of the instances.
     // Create the module object.
     job_->module_object_ = WasmModuleObject::New(
-        job_->isolate_, export_wrappers, job_->module_, env,
+        job_->isolate_, job_->module_, env,
         {std::move(job_->bytes_copy_), job_->wire_bytes_.length()}, script,
         asm_js_offset_table);
     job_->native_module_ = job_->module_object_->native_module();

@@ -134,16 +134,15 @@ class WasmModuleObject : public JSObject {
 
   // Creates a new {WasmModuleObject} with a new {NativeModule} underneath.
   static Handle<WasmModuleObject> New(
-      Isolate* isolate, Handle<FixedArray> export_wrappers,
-      std::shared_ptr<const wasm::WasmModule> module, wasm::ModuleEnv& env,
-      OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
-      Handle<ByteArray> asm_js_offset_table);
+      Isolate* isolate, std::shared_ptr<const wasm::WasmModule> module,
+      wasm::ModuleEnv& env, OwnedVector<const uint8_t> wire_bytes,
+      Handle<Script> script, Handle<ByteArray> asm_js_offset_table);
 
   // Creates a new {WasmModuleObject} for an existing {NativeModule} that is
   // reference counted and might be shared between multiple Isolates.
   static Handle<WasmModuleObject> New(
-      Isolate* isolate, Handle<FixedArray> export_wrappers,
-      std::shared_ptr<wasm::NativeModule> native_module, Handle<Script> script);
+      Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
+      Handle<Script> script);
 
   // Set a breakpoint on the given byte position inside the given module.
   // This will affect all live and future instances of the module.

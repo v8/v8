@@ -541,9 +541,6 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   CHECK_NOT_NULL(decode_result.val);
   WasmModule* module = decode_result.val.get();
   Handle<Script> script = CreateWasmScript(isolate, wire_bytes);
-  int export_wrappers_size = static_cast<int>(module->num_exported_functions);
-  Handle<FixedArray> export_wrappers = isolate->factory()->NewFixedArray(
-      static_cast<int>(export_wrappers_size), TENURED);
 
   // TODO(eholk): We need to properly preserve the flag whether the trap
   // handler was used or not when serializing.
@@ -555,8 +552,8 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   OwnedVector<uint8_t> wire_bytes_copy = OwnedVector<uint8_t>::Of(wire_bytes);
 
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, export_wrappers, std::move(decode_result.val), env,
-      std::move(wire_bytes_copy), script, Handle<ByteArray>::null());
+      isolate, std::move(decode_result.val), env, std::move(wire_bytes_copy),
+      script, Handle<ByteArray>::null());
   NativeModule* native_module = module_object->native_module();
 
   if (FLAG_wasm_lazy_compilation) {
