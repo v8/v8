@@ -1588,7 +1588,10 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
          space < SerializerDeserializer::kNumberOfSpaces; space++) {
       Reservation* reservation = &reservations[space];
       DCHECK_LE(1, reservation->size());
-      if (reservation->at(0).size == 0) continue;
+      if (reservation->at(0).size == 0) {
+        DCHECK_EQ(1, reservation->size());
+        continue;
+      }
       bool perform_gc = false;
       if (space == MAP_SPACE) {
         // We allocate each map individually to avoid fragmentation.

@@ -47,7 +47,7 @@ SerializerReference DefaultSerializerAllocator::Allocate(AllocationSpace space,
   uint32_t new_chunk_size = old_chunk_size + size;
   // Start a new chunk if the new size exceeds the target chunk size.
   // We may exceed the target chunk size if the single object size does.
-  if (new_chunk_size > TargetChunkSize(space)) {
+  if (new_chunk_size > TargetChunkSize(space) && old_chunk_size != 0) {
     serializer_->PutNextChunk(space);
     completed_chunks_[space].push_back(pending_chunk_[space]);
     pending_chunk_[space] = 0;

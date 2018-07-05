@@ -323,6 +323,13 @@ UNINITIALIZED_TEST(StartupSerializerOnce) {
   TestStartupSerializerOnceImpl();
 }
 
+UNINITIALIZED_TEST(StartupSerializerOnce1) {
+  DisableLazyDeserialization();
+  DisableAlwaysOpt();
+  FLAG_serialization_chunk_size = 1;
+  TestStartupSerializerOnceImpl();
+}
+
 UNINITIALIZED_TEST(StartupSerializerOnce32) {
   DisableLazyDeserialization();
   DisableAlwaysOpt();
@@ -1382,7 +1389,7 @@ static Handle<SharedFunctionInfo> CompileScriptAndProduceCache(
   return sfi;
 }
 
-TEST(CodeSerializerOnePlusOne) {
+void TestCodeSerializerOnePlusOneImpl() {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1429,6 +1436,23 @@ TEST(CodeSerializerOnePlusOne) {
   CHECK_EQ(builtins_count, CountBuiltins());
 
   delete cache;
+}
+
+TEST(CodeSerializerOnePlusOne) { TestCodeSerializerOnePlusOneImpl(); }
+
+TEST(CodeSerializerOnePlusOne1) {
+  FLAG_serialization_chunk_size = 1;
+  TestCodeSerializerOnePlusOneImpl();
+}
+
+TEST(CodeSerializerOnePlusOne32) {
+  FLAG_serialization_chunk_size = 32;
+  TestCodeSerializerOnePlusOneImpl();
+}
+
+TEST(CodeSerializerOnePlusOne4K) {
+  FLAG_serialization_chunk_size = 4 * KB;
+  TestCodeSerializerOnePlusOneImpl();
 }
 
 TEST(CodeSerializerPromotedToCompilationCache) {
