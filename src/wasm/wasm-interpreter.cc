@@ -1081,7 +1081,6 @@ class ThreadImpl {
              Handle<WasmInstanceObject> instance_object)
       : codemap_(codemap),
         instance_object_(instance_object),
-        zone_(zone),
         frames_(zone),
         activations_(zone) {}
 
@@ -1123,7 +1122,7 @@ class ThreadImpl {
 
   void Reset() {
     TRACE("----- RESET -----\n");
-    sp_ = stack_start_;
+    sp_ = stack_.get();
     frames_.clear();
     state_ = WasmInterpreter::STOPPED;
     trap_reason_ = kTrapCount;
@@ -1146,12 +1145,12 @@ class ThreadImpl {
 
   WasmValue GetStackValue(sp_t index) {
     DCHECK_GT(StackHeight(), index);
-    return stack_start_[index];
+    return stack_[index];
   }
 
   void SetStackValue(sp_t index, WasmValue value) {
     DCHECK_GT(StackHeight(), index);
-    stack_start_[index] = value;
+    stack_[index] = value;
   }
 
   TrapReason GetTrapReason() { return trap_reason_; }
@@ -1190,7 +1189,7 @@ class ThreadImpl {
     // first).
     DCHECK_EQ(activations_.back().fp, frames_.size());
     DCHECK_LE(activations_.back().sp, StackHeight());
-    sp_ = stack_start_ + activations_.back().sp;
+    sp_ = stack_.get() + activations_.back().sp;
     activations_.pop_back();
   }
 
@@ -1212,7 +1211,7 @@ class ThreadImpl {
     DCHECK_LE(act.fp, frames_.size());
     frames_.resize(act.fp);
     DCHECK_LE(act.sp, StackHeight());
-    sp_ = stack_start_ + act.sp;
+    sp_ = stack_.get() + act.sp;
     state_ = WasmInterpreter::STOPPED;
     return WasmInterpreter::Thread::UNWOUND;
   }
@@ -1241,8 +1240,7 @@ class ThreadImpl {
 
   CodeMap* codemap_;
   Handle<WasmInstanceObject> instance_object_;
-  Zone* zone_;
-  WasmValue* stack_start_ = nullptr;  // Start of allocated stack space.
+  std::unique_ptr<WasmValue[]> stack_;
   WasmValue* stack_limit_ = nullptr;  // End of allocated stack space.
   WasmValue* sp_ = nullptr;           // Current stack pointer.
   ZoneVector<Frame> frames_;
@@ -1344,7 +1342,7 @@ class ThreadImpl {
   bool DoReturn(Decoder* decoder, InterpreterCode** code, pc_t* pc, pc_t* limit,
                 size_t arity) {
     DCHECK_GT(frames_.size(), 0);
-    WasmValue* sp_dest = stack_start_ + frames_.back().sp;
+    WasmValue* sp_dest = stack_.get() + frames_.back().sp;
     frames_.pop_back();
     if (frames_.size() == current_activation().fp) {
       // A return from the last frame terminates the execution.
@@ -1997,7 +1995,7 @@ class ThreadImpl {
     const size_t stack_size_limit = FLAG_stack_size * KB;
     // Sum up the value stack size and the control stack size.
     const size_t current_stack_size =
-        (sp_ - stack_start_) + frames_.size() * sizeof(Frame);
+        (sp_ - stack_.get()) + frames_.size() * sizeof(Frame);
     if (V8_LIKELY(current_stack_size <= stack_size_limit)) {
       return true;
     }
@@ -2018,7 +2016,7 @@ class ThreadImpl {
     DCHECK_LE(code->function->sig->parameter_count() +
                   code->locals.type_list.size() +
                   code->side_table->max_stack_height_,
-              stack_limit_ - stack_start_ - frames_.back().sp);
+              stack_limit_ - stack_.get() - frames_.back().sp);
 
     Decoder decoder(code->start, code->end);
     pc_t limit = code->end - code->start;
@@ -2576,18 +2574,18 @@ class ThreadImpl {
 
   void EnsureStackSpace(size_t size) {
     if (V8_LIKELY(static_cast<size_t>(stack_limit_ - sp_) >= size)) return;
-    size_t old_size = stack_limit_ - stack_start_;
+    size_t old_size = stack_limit_ - stack_.get();
     size_t requested_size =
-        base::bits::RoundUpToPowerOfTwo64((sp_ - stack_start_) + size);
+        base::bits::RoundUpToPowerOfTwo64((sp_ - stack_.get()) + size);
     size_t new_size = Max(size_t{8}, Max(2 * old_size, requested_size));
-    WasmValue* new_stack = zone_->NewArray<WasmValue>(new_size);
-    memcpy(new_stack, stack_start_, old_size * sizeof(*sp_));
-    sp_ = new_stack + (sp_ - stack_start_);
-    stack_start_ = new_stack;
-    stack_limit_ = new_stack + new_size;
+    std::unique_ptr<WasmValue[]> new_stack(new WasmValue[new_size]);
+    memcpy(new_stack.get(), stack_.get(), old_size * sizeof(*sp_));
+    sp_ = new_stack.get() + (sp_ - stack_.get());
+    stack_ = std::move(new_stack);
+    stack_limit_ = stack_.get() + new_size;
   }
 
-  sp_t StackHeight() { return sp_ - stack_start_; }
+  sp_t StackHeight() { return sp_ - stack_.get(); }
 
   void TraceValueStack() {
 #ifdef DEBUG
