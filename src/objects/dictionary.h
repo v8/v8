@@ -301,6 +301,7 @@ class NumberDictionary
     : public Dictionary<NumberDictionary, NumberDictionaryShape> {
  public:
   DECL_CAST(NumberDictionary)
+  DECL_PRINTER(NumberDictionary)
 
   // Type specific at put (default NONE attributes is used when adding).
   V8_WARN_UNUSED_RESULT static Handle<NumberDictionary> Set(

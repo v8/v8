@@ -118,10 +118,12 @@ void HeapObject::HeapObjectPrint(Isolate* isolate,
     case ORDERED_HASH_SET_TYPE:
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
-    case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case STRING_TABLE_TYPE:
       ObjectHashTable::cast(this)->ObjectHashTablePrint(os);
+      break;
+    case NUMBER_DICTIONARY_TYPE:
+      NumberDictionary::cast(this)->NumberDictionaryPrint(os);
       break;
     case EPHEMERON_HASH_TABLE_TYPE:
       EphemeronHashTable::cast(this)->EphemeronHashTablePrint(os);
@@ -889,6 +891,10 @@ void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
 
 void ObjectHashTable::ObjectHashTablePrint(std::ostream& os) {
   PrintHashTableWithHeader(os, this, "ObjectHashTable");
+}
+
+void NumberDictionary::NumberDictionaryPrint(std::ostream& os) {
+  PrintHashTableWithHeader(os, this, "NumberDictionary");
 }
 
 void EphemeronHashTable::EphemeronHashTablePrint(std::ostream& os) {
