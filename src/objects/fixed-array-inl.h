@@ -119,26 +119,37 @@ void FixedArray::NoWriteBarrierSet(FixedArray* array, int index,
 }
 
 void FixedArray::set_undefined(int index) {
-  set_undefined(GetIsolate(), index);
+  set_undefined(GetReadOnlyRoots(), index);
 }
 
 void FixedArray::set_undefined(Isolate* isolate, int index) {
-  FixedArray::NoWriteBarrierSet(this, index,
-                                ReadOnlyRoots(isolate).undefined_value());
+  set_undefined(ReadOnlyRoots(isolate), index);
 }
 
-void FixedArray::set_null(int index) { set_null(GetIsolate(), index); }
+void FixedArray::set_undefined(ReadOnlyRoots ro_roots, int index) {
+  FixedArray::NoWriteBarrierSet(this, index, ro_roots.undefined_value());
+}
+
+void FixedArray::set_null(int index) { set_null(GetReadOnlyRoots(), index); }
 
 void FixedArray::set_null(Isolate* isolate, int index) {
-  FixedArray::NoWriteBarrierSet(this, index,
-                                ReadOnlyRoots(isolate).null_value());
+  set_null(ReadOnlyRoots(isolate), index);
 }
 
-void FixedArray::set_the_hole(int index) { set_the_hole(GetIsolate(), index); }
+void FixedArray::set_null(ReadOnlyRoots ro_roots, int index) {
+  FixedArray::NoWriteBarrierSet(this, index, ro_roots.null_value());
+}
+
+void FixedArray::set_the_hole(int index) {
+  set_the_hole(GetReadOnlyRoots(), index);
+}
 
 void FixedArray::set_the_hole(Isolate* isolate, int index) {
-  FixedArray::NoWriteBarrierSet(this, index,
-                                ReadOnlyRoots(isolate).the_hole_value());
+  set_the_hole(ReadOnlyRoots(isolate), index);
+}
+
+void FixedArray::set_the_hole(ReadOnlyRoots ro_roots, int index) {
+  FixedArray::NoWriteBarrierSet(this, index, ro_roots.the_hole_value());
 }
 
 void FixedArray::FillWithHoles(int from, int to) {

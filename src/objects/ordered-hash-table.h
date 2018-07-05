@@ -230,7 +230,7 @@ class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
   static Handle<FixedArray> ConvertToKeysArray(Isolate* isolate,
                                                Handle<OrderedHashSet> table,
                                                GetKeysConversion convert);
-  static HeapObject* GetEmpty(Isolate* isolate);
+  static HeapObject* GetEmpty(ReadOnlyRoots ro_roots);
   static inline int GetMapRootIndex();
   static inline bool Is(Handle<HeapObject> table);
 };
@@ -248,7 +248,7 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
 
   static Object* GetHash(Isolate* isolate, Object* key);
 
-  static HeapObject* GetEmpty(Isolate* isolate);
+  static HeapObject* GetEmpty(ReadOnlyRoots ro_roots);
   static inline int GetMapRootIndex();
   static inline bool Is(Handle<HeapObject> table);
 

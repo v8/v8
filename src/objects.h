@@ -943,22 +943,18 @@ class Object {
 
   V8_INLINE bool IsExternal(Isolate* isolate) const;
 
-#define IS_TYPE_FUNCTION_DECL(Type, Value) \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;
+// Oddball checks are faster when they are raw pointer comparisons, so the
+// isolate/read-only roots overloads should be preferred where possible.
+#define IS_TYPE_FUNCTION_DECL(Type, Value)            \
+  V8_INLINE bool Is##Type(Isolate* isolate) const;    \
+  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const; \
+  V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
   V8_INLINE bool IsNullOrUndefined(Isolate* isolate) const;
-
-// Non-isolate version of oddball check. This is slower than the above check,
-// so it should only be used for DCHECKS.
-#ifdef DEBUG
-#define IS_TYPE_FUNCTION_DECL(Type, Value) V8_INLINE bool Is##Type() const;
-  ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
-#undef IS_TYPE_FUNCTION_DECL
-
+  V8_INLINE bool IsNullOrUndefined(ReadOnlyRoots roots) const;
   V8_INLINE bool IsNullOrUndefined() const;
-#endif
 
   // A non-keyed store is of the form a.x = foo or a["x"] = foo whereas
   // a keyed store is of the form a[expression] = foo.
@@ -1548,22 +1544,18 @@ class HeapObject: public Object {
 
   V8_INLINE bool IsExternal(Isolate* isolate) const;
 
-#define IS_TYPE_FUNCTION_DECL(Type, Value) \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;
+// Oddball checks are faster when they are raw pointer comparisons, so the
+// isolate/read-only roots overloads should be preferred where possible.
+#define IS_TYPE_FUNCTION_DECL(Type, Value)            \
+  V8_INLINE bool Is##Type(Isolate* isolate) const;    \
+  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const; \
+  V8_INLINE bool Is##Type() const;
   ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
   V8_INLINE bool IsNullOrUndefined(Isolate* isolate) const;
-
-// Non-isolate version of oddball check. This is slower than the above check,
-// so it should only be used for DCHECKS.
-#ifdef DEBUG
-#define IS_TYPE_FUNCTION_DECL(Type, Value) V8_INLINE bool Is##Type() const;
-  ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
-#undef IS_TYPE_FUNCTION_DECL
-
+  V8_INLINE bool IsNullOrUndefined(ReadOnlyRoots roots) const;
   V8_INLINE bool IsNullOrUndefined() const;
-#endif
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) V8_INLINE bool Is##Name() const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
@@ -2481,7 +2473,7 @@ class JSObject: public JSReceiver {
   DECL_VERIFIER(JSObject)
 #ifdef OBJECT_PRINT
   bool PrintProperties(std::ostream& os);  // NOLINT
-  void PrintElements(Isolate* isolate, std::ostream& os);  // NOLINT
+  void PrintElements(std::ostream& os);    // NOLINT
 #endif
 #if defined(DEBUG) || defined(OBJECT_PRINT)
   void PrintTransitions(std::ostream& os);  // NOLINT
@@ -4010,7 +4002,7 @@ class PropertyCell : public HeapObject {
   DECL_CAST(PropertyCell)
 
   // Dispatched behavior.
-  DECL_PRINTER_WITH_ISOLATE(PropertyCell)
+  DECL_PRINTER(PropertyCell)
   DECL_VERIFIER(PropertyCell)
 
   // Layout description.

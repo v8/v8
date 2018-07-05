@@ -28,10 +28,10 @@ CAST_ACCESSOR(WasmMemoryObject)
 CAST_ACCESSOR(WasmModuleObject)
 CAST_ACCESSOR(WasmTableObject)
 
-#define OPTIONAL_ACCESSORS(holder, name, type, offset)           \
-  bool holder::has_##name() {                                    \
-    return !READ_FIELD(this, offset)->IsUndefined(GetIsolate()); \
-  }                                                              \
+#define OPTIONAL_ACCESSORS(holder, name, type, offset) \
+  bool holder::has_##name() {                          \
+    return !READ_FIELD(this, offset)->IsUndefined();   \
+  }                                                    \
   ACCESSORS(holder, name, type, offset)
 
 #define READ_PRIMITIVE_FIELD(p, type, offset) \

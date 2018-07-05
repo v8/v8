@@ -454,26 +454,24 @@ static void TraceTopFrame(Isolate* isolate) {
 static void SortIndices(
     Isolate* isolate, Handle<FixedArray> indices, uint32_t sort_size,
     WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER) {
-  struct {
-    bool operator()(const base::AtomicElement<Object*>& elementA,
-                    const base::AtomicElement<Object*>& elementB) {
-      const Object* a = elementA.value();
-      const Object* b = elementB.value();
-      if (a->IsSmi() || !a->IsUndefined(HeapObject::cast(a)->GetIsolate())) {
-        if (!b->IsSmi() && b->IsUndefined(HeapObject::cast(b)->GetIsolate())) {
-          return true;
-        }
-        return a->Number() < b->Number();
-      }
-      return !b->IsSmi() && b->IsUndefined(HeapObject::cast(b)->GetIsolate());
-    }
-  } cmp;
   // Use AtomicElement wrapper to ensure that std::sort uses atomic load and
   // store operations that are safe for concurrent marking.
   base::AtomicElement<Object*>* start =
       reinterpret_cast<base::AtomicElement<Object*>*>(
           indices->GetFirstElementAddress());
-  std::sort(start, start + sort_size, cmp);
+  std::sort(start, start + sort_size,
+            [isolate](const base::AtomicElement<Object*>& elementA,
+                      const base::AtomicElement<Object*>& elementB) {
+              const Object* a = elementA.value();
+              const Object* b = elementB.value();
+              if (a->IsSmi() || !a->IsUndefined(isolate)) {
+                if (!b->IsSmi() && b->IsUndefined(isolate)) {
+                  return true;
+                }
+                return a->Number() < b->Number();
+              }
+              return !b->IsSmi() && b->IsUndefined(isolate);
+            });
   if (write_barrier_mode != SKIP_WRITE_BARRIER) {
     FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(isolate->heap(), *indices, 0, sort_size);
   }

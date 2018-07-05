@@ -3459,10 +3459,7 @@ bool ValueDeserializer::ReadRawBytes(size_t length, const void** data) {
 
 bool Value::FullIsUndefined() const {
   i::Handle<i::Object> object = Utils::OpenHandle(this);
-  bool result = false;
-  if (!object->IsSmi()) {
-    result = object->IsUndefined(i::HeapObject::cast(*object)->GetIsolate());
-  }
+  bool result = object->IsUndefined();
   DCHECK_EQ(result, QuickIsUndefined());
   return result;
 }
@@ -3470,10 +3467,7 @@ bool Value::FullIsUndefined() const {
 
 bool Value::FullIsNull() const {
   i::Handle<i::Object> object = Utils::OpenHandle(this);
-  bool result = false;
-  if (!object->IsSmi()) {
-    result = object->IsNull(i::HeapObject::cast(*object)->GetIsolate());
-  }
+  bool result = object->IsNull();
   DCHECK_EQ(result, QuickIsNull());
   return result;
 }
@@ -3482,14 +3476,14 @@ bool Value::FullIsNull() const {
 bool Value::IsTrue() const {
   i::Handle<i::Object> object = Utils::OpenHandle(this);
   if (object->IsSmi()) return false;
-  return object->IsTrue(i::HeapObject::cast(*object)->GetIsolate());
+  return object->IsTrue();
 }
 
 
 bool Value::IsFalse() const {
   i::Handle<i::Object> object = Utils::OpenHandle(this);
   if (object->IsSmi()) return false;
-  return object->IsFalse(i::HeapObject::cast(*object)->GetIsolate());
+  return object->IsFalse();
 }
 
 
@@ -5196,8 +5190,8 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
         i::JSFunction::cast(*self)->shared()->get_api_func_data()->call_code();
     if (obj->IsCallHandlerInfo()) {
       i::CallHandlerInfo* handler_info = i::CallHandlerInfo::cast(obj);
-      if (!handler_info->IsSideEffectFreeCallHandlerInfo(isolate)) {
-        handler_info->SetNextCallHasNoSideEffect(isolate);
+      if (!handler_info->IsSideEffectFreeCallHandlerInfo()) {
+        handler_info->SetNextCallHasNoSideEffect();
       }
     }
   }
@@ -5212,10 +5206,10 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
       i::CallHandlerInfo* handler_info = i::CallHandlerInfo::cast(obj);
       if (has_pending_exception) {
         // Restore the map if an exception prevented restoration.
-        handler_info->NextCallHasNoSideEffect(isolate);
+        handler_info->NextCallHasNoSideEffect();
       } else {
-        DCHECK(handler_info->IsSideEffectCallHandlerInfo(isolate) ||
-               handler_info->IsSideEffectFreeCallHandlerInfo(isolate));
+        DCHECK(handler_info->IsSideEffectCallHandlerInfo() ||
+               handler_info->IsSideEffectFreeCallHandlerInfo());
       }
     }
   }
@@ -5929,7 +5923,7 @@ double Number::Value() const {
 
 bool Boolean::Value() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  return obj->IsTrue(i::HeapObject::cast(*obj)->GetIsolate());
+  return obj->IsTrue();
 }
 
 
@@ -6032,8 +6026,7 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
 
 static void* ExternalValue(i::Object* obj) {
   // Obscure semantics for undefined, but somehow checked in our unit tests...
-  if (!obj->IsSmi() &&
-      obj->IsUndefined(i::HeapObject::cast(obj)->GetIsolate())) {
+  if (obj->IsUndefined()) {
     return nullptr;
   }
   i::Object* foreign = i::JSObject::cast(obj)->GetEmbedderField(0);

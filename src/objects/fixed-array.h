@@ -190,6 +190,10 @@ class FixedArray : public FixedArrayBase {
  private:
   STATIC_ASSERT(kHeaderSize == Internals::kFixedArrayHeaderSize);
 
+  inline void set_undefined(ReadOnlyRoots ro_roots, int index);
+  inline void set_null(ReadOnlyRoots ro_roots, int index);
+  inline void set_the_hole(ReadOnlyRoots ro_roots, int index);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
 };
 

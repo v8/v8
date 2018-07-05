@@ -186,15 +186,15 @@ class CallHandlerInfo : public Tuple3 {
 
   DECL_CAST(CallHandlerInfo)
 
-  inline bool IsSideEffectFreeCallHandlerInfo(Isolate* isolate) const;
-  inline bool IsSideEffectCallHandlerInfo(Isolate* isolate) const;
-  inline void SetNextCallHasNoSideEffect(Isolate* isolate);
+  inline bool IsSideEffectFreeCallHandlerInfo() const;
+  inline bool IsSideEffectCallHandlerInfo() const;
+  inline void SetNextCallHasNoSideEffect();
   // Returns whether or not the next call can be side effect free.
   // Calling this will change the state back to having a side effect.
-  inline bool NextCallHasNoSideEffect(Isolate* isolate);
+  inline bool NextCallHasNoSideEffect();
 
   // Dispatched behavior.
-  DECL_PRINTER_WITH_ISOLATE(CallHandlerInfo)
+  DECL_PRINTER(CallHandlerInfo)
   DECL_VERIFIER(CallHandlerInfo)
 
   Address redirected_callback() const;

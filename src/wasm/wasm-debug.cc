@@ -550,7 +550,7 @@ wasm::InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info) {
 
 wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo* debug_info) {
   Object* handle_obj = debug_info->interpreter_handle();
-  if (handle_obj->IsUndefined(debug_info->GetIsolate())) return nullptr;
+  if (handle_obj->IsUndefined()) return nullptr;
   return Managed<wasm::InterpreterHandle>::cast(handle_obj)->raw();
 }
 

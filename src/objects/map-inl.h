@@ -659,7 +659,7 @@ void Map::set_prototype_info(Object* value, WriteBarrierMode mode) {
 void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   CHECK_GE(instance_type(), FIRST_JS_RECEIVER_TYPE);
   CHECK(value->IsMap());
-  CHECK(GetBackPointer()->IsUndefined(GetIsolate()));
+  CHECK(GetBackPointer()->IsUndefined());
   CHECK_IMPLIES(value->IsMap(), Map::cast(value)->GetConstructor() ==
                                     constructor_or_backpointer());
   set_constructor_or_backpointer(value, mode);

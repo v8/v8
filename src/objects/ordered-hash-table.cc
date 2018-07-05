@@ -143,12 +143,12 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
   return FixedArray::ShrinkOrEmpty(result, length);
 }
 
-HeapObject* OrderedHashSet::GetEmpty(Isolate* isolate) {
-  return ReadOnlyRoots(isolate).empty_ordered_hash_set();
+HeapObject* OrderedHashSet::GetEmpty(ReadOnlyRoots ro_roots) {
+  return ro_roots.empty_ordered_hash_set();
 }
 
-HeapObject* OrderedHashMap::GetEmpty(Isolate* isolate) {
-  return ReadOnlyRoots(isolate).empty_ordered_hash_map();
+HeapObject* OrderedHashMap::GetEmpty(ReadOnlyRoots ro_roots) {
+  return ro_roots.empty_ordered_hash_map();
 }
 
 template <class Derived, int entrysize>
@@ -715,7 +715,7 @@ void OrderedHashTableIterator<Derived, TableType>::Transition() {
 template <class Derived, class TableType>
 bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
   DisallowHeapAllocation no_allocation;
-  Isolate* isolate = this->GetIsolate();
+  ReadOnlyRoots ro_roots = GetReadOnlyRoots();
 
   Transition();
 
@@ -723,7 +723,7 @@ bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
   int index = Smi::ToInt(this->index());
   int used_capacity = table->UsedCapacity();
 
-  while (index < used_capacity && table->KeyAt(index)->IsTheHole(isolate)) {
+  while (index < used_capacity && table->KeyAt(index)->IsTheHole(ro_roots)) {
     index++;
   }
 
@@ -731,7 +731,7 @@ bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
 
   if (index < used_capacity) return true;
 
-  set_table(TableType::GetEmpty(isolate));
+  set_table(TableType::GetEmpty(ro_roots));
   return false;
 }
 

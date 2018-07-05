@@ -179,8 +179,7 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
 MaybeHandle<JSReceiver> Object::ConvertReceiver(Isolate* isolate,
                                                 Handle<Object> object) {
   if (object->IsJSReceiver()) return Handle<JSReceiver>::cast(object);
-  if (*object == ReadOnlyRoots(isolate).null_value() ||
-      object->IsUndefined(isolate)) {
+  if (object->IsNullOrUndefined(isolate)) {
     return isolate->global_proxy();
   }
   return Object::ToObject(isolate, object);
@@ -2784,7 +2783,7 @@ void String::PrintUC16(std::ostream& os, int start, int end) {  // NOLINT
 void JSObject::JSObjectShortPrint(StringStream* accumulator) {
   switch (map()->instance_type()) {
     case JS_ARRAY_TYPE: {
-      double length = JSArray::cast(this)->length()->IsUndefined(GetIsolate())
+      double length = JSArray::cast(this)->length()->IsUndefined()
                           ? 0
                           : JSArray::cast(this)->length()->Number();
       accumulator->Add("<JSArray[%u]>", static_cast<uint32_t>(length));
@@ -3280,7 +3279,6 @@ bool JSObject::IsUnmodifiedApiObject(Object** o) {
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
   Heap* heap = GetHeap();
   ReadOnlyRoots roots(heap);
-  Isolate* isolate = heap->isolate();
   if (!heap->Contains(this)) {
     os << "!!!INVALID POINTER!!!";
     return;
@@ -3476,15 +3474,15 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       break;
     }
     case ODDBALL_TYPE: {
-      if (IsUndefined(isolate)) {
+      if (IsUndefined()) {
         os << "<undefined>";
-      } else if (IsTheHole(isolate)) {
+      } else if (IsTheHole()) {
         os << "<the_hole>";
-      } else if (IsNull(isolate)) {
+      } else if (IsNull()) {
         os << "<null>";
-      } else if (IsTrue(isolate)) {
+      } else if (IsTrue()) {
         os << "<true>";
-      } else if (IsFalse(isolate)) {
+      } else if (IsFalse()) {
         os << "<false>";
       } else {
         os << "<Odd Oddball: ";
@@ -3558,7 +3556,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << "callback= " << Brief(info->callback());
       os << ", js_callback= " << Brief(info->js_callback());
       os << ", data= " << Brief(info->data());
-      if (info->IsSideEffectFreeCallHandlerInfo(isolate)) {
+      if (info->IsSideEffectFreeCallHandlerInfo()) {
         os << ", side_effect_free= true>";
       } else {
         os << ", side_effect_free= false>";
@@ -13516,7 +13514,7 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
         ->GetPositionInfo(static_cast<uint32_t>(position), info);
   }
 
-  if (line_ends()->IsUndefined(GetIsolate())) {
+  if (line_ends()->IsUndefined()) {
     // Slow mode: we do not have line_ends. We have to iterate through source.
     if (!GetPositionInfoSlow(this, position, info)) return false;
   } else {
@@ -18213,7 +18211,7 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
   DCHECK(table->IsKey(table->GetIsolate(), *key));
 
   Object* hash = key->GetHash();
-  if (hash->IsUndefined(table->GetIsolate())) {
+  if (hash->IsUndefined()) {
     *was_present = false;
     return table;
   }

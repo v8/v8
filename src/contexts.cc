@@ -93,7 +93,7 @@ JSObject* Context::extension_object() {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext() ||
          IsEvalContext() || IsCatchContext());
   HeapObject* object = extension();
-  if (object->IsTheHole(GetIsolate())) return nullptr;
+  if (object->IsTheHole()) return nullptr;
   DCHECK(object->IsJSContextExtensionObject() ||
          (IsNativeContext() && object->IsJSGlobalObject()));
   return JSObject::cast(object);
