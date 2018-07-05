@@ -28,12 +28,14 @@ class ChunkSource : public v8::ScriptCompiler::ExternalSourceStream {
       chunks += strlen(chunks) + 1;
     } while (chunks_.back().len > 0);
   }
-  ChunkSource(const uint8_t* data, size_t len, bool extra_chunky)
+  ChunkSource(const uint8_t* data, size_t char_size, size_t len,
+              bool extra_chunky)
       : current_(0) {
-    // If extra_chunky, we'll use increasingly large chunk sizes.
-    // If not, we'll have a single chunk of full length.
-    size_t chunk_size = extra_chunky ? 1 : len;
-    for (size_t i = 0; i < len; i += chunk_size, chunk_size++) {
+    // If extra_chunky, we'll use increasingly large chunk sizes.  If not, we'll
+    // have a single chunk of full length. Make sure that chunks are always
+    // aligned to char-size though.
+    size_t chunk_size = extra_chunky ? char_size : len;
+    for (size_t i = 0; i < len; i += chunk_size, chunk_size += char_size) {
       chunks_.push_back({data + i, i::Min(chunk_size, len - i)});
     }
     chunks_.push_back({nullptr, 0});
@@ -371,7 +373,7 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     const uint8_t* data = one_byte_vector.begin();
     const uint8_t* data_end = one_byte_vector.end();
 
-    ChunkSource single_chunk(data, data_end - data, false);
+    ChunkSource single_chunk(data, 1, data_end - data, false);
     std::unique_ptr<i::Utf16CharacterStream> one_byte_streaming_stream(
         i::ScannerStream::For(&single_chunk,
                               v8::ScriptCompiler::StreamedSource::ONE_BYTE,
@@ -379,7 +381,7 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     TestCharacterStream(one_byte_source, one_byte_streaming_stream.get(),
                         length, start, end);
 
-    ChunkSource many_chunks(data, data_end - data, true);
+    ChunkSource many_chunks(data, 1, data_end - data, true);
     one_byte_streaming_stream.reset(i::ScannerStream::For(
         &many_chunks, v8::ScriptCompiler::StreamedSource::ONE_BYTE, nullptr));
     TestCharacterStream(one_byte_source, one_byte_streaming_stream.get(),
@@ -390,14 +392,14 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
   {
     const uint8_t* data = one_byte_vector.begin();
     const uint8_t* data_end = one_byte_vector.end();
-    ChunkSource chunks(data, data_end - data, false);
+    ChunkSource chunks(data, 1, data_end - data, false);
     std::unique_ptr<i::Utf16CharacterStream> utf8_streaming_stream(
         i::ScannerStream::For(&chunks, v8::ScriptCompiler::StreamedSource::UTF8,
                               nullptr));
     TestCharacterStream(one_byte_source, utf8_streaming_stream.get(), length,
                         start, end);
 
-    ChunkSource many_chunks(data, data_end - data, true);
+    ChunkSource many_chunks(data, 1, data_end - data, true);
     utf8_streaming_stream.reset(i::ScannerStream::For(
         &many_chunks, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
     TestCharacterStream(one_byte_source, utf8_streaming_stream.get(), length,
@@ -410,14 +412,14 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
         reinterpret_cast<const uint8_t*>(two_byte_vector.begin());
     const uint8_t* data_end =
         reinterpret_cast<const uint8_t*>(two_byte_vector.end());
-    ChunkSource chunks(data, data_end - data, false);
+    ChunkSource chunks(data, 2, data_end - data, false);
     std::unique_ptr<i::Utf16CharacterStream> two_byte_streaming_stream(
         i::ScannerStream::For(
             &chunks, v8::ScriptCompiler::StreamedSource::TWO_BYTE, nullptr));
     TestCharacterStream(one_byte_source, two_byte_streaming_stream.get(),
                         length, start, end);
 
-    ChunkSource many_chunks(data, data_end - data, true);
+    ChunkSource many_chunks(data, 2, data_end - data, true);
     two_byte_streaming_stream.reset(i::ScannerStream::For(
         &many_chunks, v8::ScriptCompiler::StreamedSource::TWO_BYTE, nullptr));
     TestCharacterStream(one_byte_source, two_byte_streaming_stream.get(),
@@ -459,7 +461,7 @@ TEST(Regress651333) {
     // Read len bytes from bytes, and compare against the expected unicode
     // characters. Expect kBadChar ( == Unicode replacement char == code point
     // 65533) instead of the incorrectly coded Latin1 char.
-    ChunkSource chunks(bytes, len, false);
+    ChunkSource chunks(bytes, 1, len, false);
     std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
         &chunks, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
     for (size_t i = 0; i < len; i++) {

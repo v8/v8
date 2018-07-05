@@ -38,9 +38,8 @@ struct Range {
   const Char* end;
 
   size_t length() { return static_cast<size_t>(end - start); }
-  bool empty() const { return start == end; }
   bool unaligned_start() const {
-    return reinterpret_cast<intptr_t>(start) % 2 == 1;
+    return reinterpret_cast<intptr_t>(start) % sizeof(Char) == 1;
   }
 };
 
@@ -95,89 +94,47 @@ class ChunkedStream {
 
   Range<Char> GetDataAt(size_t pos) {
     Chunk chunk = FindChunk(pos);
-    size_t buffer_end = chunk.length();
+    size_t buffer_end = chunk.length;
     size_t buffer_pos = Min(buffer_end, pos - chunk.position);
-    return {&chunk.data()[buffer_pos], &chunk.data()[buffer_end]};
+    return {&chunk.data[buffer_pos], &chunk.data[buffer_end]};
   }
 
   ~ChunkedStream() {
     for (size_t i = 0; i < chunks_.size(); i++) {
-      delete[] chunks_[i].raw_data;
+      delete[] chunks_[i].data;
     }
   }
 
   static const bool kCanAccessHeap = false;
 
  private:
-  // A single chunk of Chars. There may be a lonely bytes at the start and end
-  // in case sizeof(Char) > 1. They just need to be ignored since additional
-  // chunks are added by FetchChunk that contain the full character.
-  // TODO(verwaest): Make sure that those characters are added by blink instead
-  // so we can get rid of this complexity here.
   struct Chunk {
-    // A raw chunk of Chars possibly including a lonely start and/or a lonely
-    // end byte.
-    const uint8_t* const raw_data;
-    // The logical position of data() (possibly skipping a lonely start byte).
+    const Char* const data;
+    // The logical position of data.
     const size_t position;
-    // The length of the raw_data.
-    const size_t raw_length : sizeof(size_t) * 8 - 1;
-    // Tells us whether the first byte of raw_data is a lonely start byte and
-    // should be skipped because it's combined with a lonely end byte from the
-    // previous chunk.
-    const bool lonely_start : 1;
-
-    size_t end_position() const { return position + length(); }
-
-    // The chunk includes a lonely end byte if the chunk is 2-byte but has an
-    // uneven number of chars (possibly ignoring a lonely start byte that is
-    // merged with the lonely end byte of the previous chunk).
-    bool lonely_end() const {
-      return (raw_length - lonely_start) % sizeof(Char) == 1;
-    }
-
-    uint8_t lonely_end_byte() const {
-      DCHECK(lonely_end());
-      return raw_data[raw_length - 1];
-    }
-
-    size_t length() const {
-      return (raw_length - lonely_start) >> (sizeof(Char) - 1);
-    }
-
-    bool has_chars() const { return raw_length - lonely_start > 0; }
-
-    const Char* data() const {
-      return reinterpret_cast<const Char*>(raw_data + lonely_start);
-    }
+    const size_t length;
+    size_t end_position() const { return position + length; }
   };
 
   Chunk FindChunk(size_t position) {
-    if (chunks_.empty()) FetchFirstChunk();
+    if (chunks_.empty()) FetchChunk(size_t{0});
 
-    // Walk forwards while the position is in front of the current chunk..
-    if (chunks_.back().position <= position) {
-      while (position >= chunks_.back().end_position() &&
-             chunks_.back().has_chars()) {
-        FetchChunk();
-      }
-      // Return if the final chunk's starting position is before the position.
-      if (chunks_.back().position <= position) return chunks_.back();
-      // Otherwise walk backwards to find the intermediate chunk added to
-      // support lonely bytes.
-      // TODO(verwaest): Remove once we don't need to support lonely bytes here
-      // anymore.
+    // Walk forwards while the position is in front of the current chunk.
+    while (position >= chunks_.back().end_position() &&
+           chunks_.back().length > 0) {
+      FetchChunk(chunks_.back().end_position());
     }
 
     // Walk backwards.
-    for (auto reverse_it = chunks_.rbegin() + 1; reverse_it != chunks_.rend();
+    for (auto reverse_it = chunks_.rbegin(); reverse_it != chunks_.rend();
          ++reverse_it) {
       if (reverse_it->position <= position) return *reverse_it;
     }
+
     UNREACHABLE();
   }
 
-  void FetchFirstChunk() {
+  void FetchChunk(size_t position) {
     const uint8_t* data = nullptr;
     size_t length;
     {
@@ -185,35 +142,10 @@ class ChunkedStream {
                                   RuntimeCallCounterId::kGetMoreDataCallback);
       length = source_->GetMoreData(&data);
     }
-    chunks_.push_back({data, 0, length, false});
-  }
-
-  void FetchChunk() {
-    DCHECK(!chunks_.empty());
-
-    const uint8_t* data = nullptr;
-    size_t length;
-    {
-      RuntimeCallTimerScope scope(stats_,
-                                  RuntimeCallCounterId::kGetMoreDataCallback);
-      length = source_->GetMoreData(&data);
-    }
-
-    const Chunk& last_chunk = chunks_.back();
-    bool lonely_start = last_chunk.lonely_end();
-    DCHECK(last_chunk.has_chars());
-
-    size_t position = last_chunk.end_position();
-
-    if (lonely_start) {
-      uint8_t* intermediate = NewArray<uint8_t>(2);
-      intermediate[0] = last_chunk.lonely_end_byte();
-      intermediate[1] = length == 0 ? 0 : data[0];
-      chunks_.push_back({intermediate, position, 2, false});
-      position += 1;
-    }
-
-    chunks_.push_back({data, position, length, lonely_start});
+    // Incoming data has to be aligned to Char size.
+    DCHECK_EQ(0, length % sizeof(Char));
+    chunks_.push_back(
+        {reinterpret_cast<const Char*>(data), position, length / sizeof(Char)});
   }
 
   std::vector<struct Chunk> chunks_;
@@ -240,7 +172,7 @@ class BufferedCharacterStream : public Utf16CharacterStream {
     buffer_cursor_ = buffer_start_;
 
     Range<Char> range = byte_stream_.GetDataAt(position);
-    if (range.empty()) {
+    if (range.length() == 0) {
       buffer_end_ = buffer_start_;
       return false;
     }
@@ -261,10 +193,8 @@ class BufferedCharacterStream : public Utf16CharacterStream {
   ByteStream<Char> byte_stream_;
 };
 
-// Provides a (partially) unbuffered utf-16 view on the bytes from the
-// underlying ByteStream. It is only partially unbuffered when running on MIPS
-// due to lonely start bytes making chunks unaligned. In that case, unaligned
-// chars in a chunk (due to lonely start) are locally buffered.
+// Provides a unbuffered utf-16 view on the bytes from the underlying
+// ByteStream.
 template <template <typename T> class ByteStream>
 class UnbufferedCharacterStream : public Utf16CharacterStream {
  public:
@@ -282,20 +212,9 @@ class UnbufferedCharacterStream : public Utf16CharacterStream {
     buffer_start_ = range.start;
     buffer_end_ = range.end;
     buffer_cursor_ = buffer_start_;
-    if (range.empty()) return false;
+    if (range.length() == 0) return false;
 
-// TODO(verwaest): Make sure that this cannot happen by dealing with lonely
-// bytes on the blink side.
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
-    // Buffer anyway in case the chunk is unaligned due to a lonely start.
-    if (range.unaligned_start()) {
-      size_t length = Min(kBufferSize, range.length());
-      i::CopyCharsUnsigned(buffer_, buffer_start_, length);
-      buffer_start_ = &buffer_[0];
-      buffer_cursor_ = buffer_start_;
-      buffer_end_ = &buffer_[length];
-    }
-#endif
+    DCHECK(!range.unaligned_start());
     DCHECK_LE(buffer_start_, buffer_end_);
     return true;
   }
@@ -303,10 +222,6 @@ class UnbufferedCharacterStream : public Utf16CharacterStream {
   bool can_access_heap() override { return false; }
 
  private:
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
-  static const size_t kBufferSize = 512;
-  uc16 buffer_[kBufferSize];
-#endif
   ByteStream<uint16_t> byte_stream_;
 };
 

@@ -1480,6 +1480,10 @@ class V8_EXPORT ScriptCompiler {
      * more than two data chunks. The embedder can avoid this problem by always
      * returning at least 2 bytes of data.
      *
+     * When streaming UTF-16 data, V8 does not handle characters split between
+     * two data chunks. The embedder has to make sure that chunks have an even
+     * length.
+     *
      * If the embedder wants to cancel the streaming, they should make the next
      * GetMoreData call return 0. V8 will interpret it as end of data (and most
      * probably, parsing will fail). The streaming task will return as soon as
