@@ -317,11 +317,20 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kInterpreterEntryTrampoline:
       return false;
 #if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_MIPS
-    // TODO(7882): The size of ArraySpliceTorque on MIP64 and MIPS32 is greater
+    // TODO(7882): The size of these builtins on MIP64 and MIPS32 is greater
     // than 128KB, and this triggers generation of MIPS specific trampolines.
     // Trampoline code is not PIC and therefore the builtin is not isolate
     // independent.
     case kArraySpliceTorque:
+    case kKeyedLoadIC_Megamorphic:
+    case kKeyedStoreIC_Megamorphic:
+    case kObjectAssign:
+    case kObjectGetOwnPropertyDescriptor:
+    case kRegExpMatchFast:
+    case kRegExpReplace:
+    case kRegExpSplit:
+    case kRegExpStringIteratorPrototypeNext:
+    case kStoreIC_Uninitialized:
       return false;
 #endif
     default:
