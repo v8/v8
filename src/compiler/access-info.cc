@@ -395,11 +395,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               // The field type was cleared by the GC, so we don't know anything
               // about the contents now.
             } else if (descriptors_field_type->IsClass()) {
-              // Add proper code dependencies in case of stable field map(s).
-              Handle<Map> field_owner_map(
-                  map->FindFieldOwner(isolate(), number), isolate());
-              dependencies()->AssumeFieldOwner(field_owner_map);
-
+              dependencies()->DependOnFieldType(map, number);
               // Remember the field map, and try to infer a useful type.
               field_type = Type::For(js_heap_broker(),
                                      descriptors_field_type->AsClass());
@@ -701,18 +697,14 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       // Store is not safe if the field type was cleared.
       return false;
     } else if (descriptors_field_type->IsClass()) {
-      // Add proper code dependencies in case of stable field map(s).
-      Handle<Map> field_owner_map(
-          transition_map->FindFieldOwner(isolate(), number), isolate());
-      dependencies()->AssumeFieldOwner(field_owner_map);
-
+      dependencies()->DependOnFieldType(transition_map, number);
       // Remember the field map, and try to infer a useful type.
       field_type =
           Type::For(js_heap_broker(), descriptors_field_type->AsClass());
       field_map = descriptors_field_type->AsClass();
     }
   }
-  dependencies()->AssumeMapNotDeprecated(transition_map);
+  dependencies()->DependOnTransition(transition_map);
   // Transitioning stores are never stores to constant fields.
   *access_info = PropertyAccessInfo::DataField(
       PropertyConstness::kMutable, MapHandles{map}, field_index,
