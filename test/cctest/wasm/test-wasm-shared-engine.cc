@@ -83,32 +83,6 @@ class SharedEngineIsolate {
     return instance.ToHandleChecked();
   }
 
-  // TODO(mstarzinger): Turn this into a {WasmModuleObject::New} method.
-  Handle<WasmModuleObject> NewWasmModuleObject(
-      Handle<FixedArray> export_wrappers, Handle<Script> script,
-      SharedModule shared_module) {
-    Handle<JSFunction> module_cons(
-        isolate()->native_context()->wasm_module_constructor(), isolate());
-    auto module_object = Handle<WasmModuleObject>::cast(
-        isolate()->factory()->NewJSObject(module_cons));
-    module_object->set_export_wrappers(*export_wrappers);
-    script->set_wasm_module_object(*module_object);
-    module_object->set_script(*script);
-    module_object->set_weak_instance_list(
-        ReadOnlyRoots(isolate()).empty_weak_array_list());
-
-    size_t native_memory_estimate =
-        isolate()->wasm_engine()->code_manager()->EstimateNativeModuleSize(
-            shared_module->module());
-    size_t memory_estimate = EstimateWasmModuleSize(shared_module->module()) +
-                             native_memory_estimate;
-    Handle<Managed<wasm::NativeModule>> managed_native_module =
-        Managed<wasm::NativeModule>::FromSharedPtr(isolate(), memory_estimate,
-                                                   shared_module);
-    module_object->set_managed_native_module(*managed_native_module);
-    return module_object;
-  }
-
   // TODO(mstarzinger): Switch over to a public API for sharing modules via the
   // {v8::WasmCompiledModule::TransferrableModule} class once it is ready.
   Handle<WasmInstanceObject> ImportInstance(SharedModule shared_module) {
@@ -118,8 +92,8 @@ class SharedEngineIsolate {
         static_cast<int>(shared_module->module()->num_exported_functions);
     Handle<FixedArray> export_wrappers =
         isolate()->factory()->NewFixedArray(export_wrappers_size, TENURED);
-    Handle<WasmModuleObject> module_object =
-        NewWasmModuleObject(export_wrappers, script, shared_module);
+    Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+        isolate(), export_wrappers, shared_module, script);
 
     // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}.
     // This requires unlocking the code space here. This should eventually be

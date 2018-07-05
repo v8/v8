@@ -174,17 +174,40 @@ enum DispatchTableElements : int {
 
 }  // namespace
 
+// static
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, Handle<FixedArray> export_wrappers,
     std::shared_ptr<const wasm::WasmModule> shared_module, wasm::ModuleEnv& env,
     OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
     Handle<ByteArray> asm_js_offset_table) {
   DCHECK_EQ(shared_module.get(), env.module);
-  // Now create the {WasmModuleObject}.
-  Handle<JSFunction> module_cons(
-      isolate->native_context()->wasm_module_constructor(), isolate);
-  auto module_object = Handle<WasmModuleObject>::cast(
-      isolate->factory()->NewJSObject(module_cons));
+
+  // Create a new {NativeModule} first.
+  size_t native_memory_estimate =
+      isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(
+          env.module);
+  auto native_module = isolate->wasm_engine()->code_manager()->NewNativeModule(
+      isolate, native_memory_estimate,
+      wasm::NativeModule::kCanAllocateMoreMemory, std::move(shared_module),
+      env);
+  native_module->set_wire_bytes(std::move(wire_bytes));
+  native_module->SetRuntimeStubs(isolate);
+
+  // Delegate to the shared {WasmModuleObject::New} allocator.
+  Handle<WasmModuleObject> module_object =
+      New(isolate, export_wrappers, std::move(native_module), script);
+  if (!asm_js_offset_table.is_null()) {
+    module_object->set_asm_js_offset_table(*asm_js_offset_table);
+  }
+  return module_object;
+}
+
+// static
+Handle<WasmModuleObject> WasmModuleObject::New(
+    Isolate* isolate, Handle<FixedArray> export_wrappers,
+    std::shared_ptr<wasm::NativeModule> native_module, Handle<Script> script) {
+  Handle<WasmModuleObject> module_object = Handle<WasmModuleObject>::cast(
+      isolate->factory()->NewJSObject(isolate->wasm_module_constructor()));
   module_object->set_export_wrappers(*export_wrappers);
   if (script->type() == Script::TYPE_WASM) {
     script->set_wasm_module_object(*module_object);
@@ -192,27 +215,18 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   module_object->set_script(*script);
   module_object->set_weak_instance_list(
       ReadOnlyRoots(isolate).empty_weak_array_list());
-  if (!asm_js_offset_table.is_null()) {
-    module_object->set_asm_js_offset_table(*asm_js_offset_table);
-  }
 
-  // Create the {NativeModule}, and let the {WasmModuleObject} reference it.
+  // Use the given shared {NativeModule}, but increase its reference count by
+  // allocating a new {Managed<T>} that the {WasmModuleObject} references.
   size_t native_memory_estimate =
       isolate->wasm_engine()->code_manager()->EstimateNativeModuleSize(
-          env.module);
+          native_module->module());
   size_t memory_estimate =
-      EstimateWasmModuleSize(env.module) + native_memory_estimate;
-  auto native_module = isolate->wasm_engine()->code_manager()->NewNativeModule(
-      isolate, native_memory_estimate,
-      wasm::NativeModule::kCanAllocateMoreMemory, std::move(shared_module),
-      env);
-  native_module->set_wire_bytes(std::move(wire_bytes));
-  native_module->SetRuntimeStubs(isolate);
+      EstimateWasmModuleSize(native_module->module()) + native_memory_estimate;
   Handle<Managed<wasm::NativeModule>> managed_native_module =
-      Managed<wasm::NativeModule>::FromUniquePtr(isolate, memory_estimate,
+      Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
                                                  std::move(native_module));
   module_object->set_managed_native_module(*managed_native_module);
-
   return module_object;
 }
 
