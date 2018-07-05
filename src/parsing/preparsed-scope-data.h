@@ -76,8 +76,10 @@ class ProducedPreParsedScopeData : public ZoneObject {
     void WriteUint8(uint8_t data);
     void WriteQuarter(uint8_t data);
 
+#ifdef DEBUG
     // For overwriting previously written data at position 0.
     void OverwriteFirstUint32(uint32_t data);
+#endif
 
     Handle<PodArray<uint8_t>> Serialize(Isolate* isolate);
 
