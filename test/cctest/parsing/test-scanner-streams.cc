@@ -315,7 +315,7 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     i::Handle<i::String> uc16_string(
         factory->NewExternalStringFromTwoByte(&resource).ToHandleChecked());
     std::unique_ptr<i::Utf16CharacterStream> uc16_stream(
-        i::ScannerStream::For(isolate, uc16_string, start, end));
+        i::ScannerStream::For(uc16_string, start, end));
     TestCharacterStream(one_byte_source, uc16_stream.get(), length, start, end);
 
     // This avoids the GC from trying to free a stack allocated resource.
@@ -335,7 +335,7 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
         factory->NewExternalStringFromOneByte(&one_byte_resource)
             .ToHandleChecked());
     std::unique_ptr<i::Utf16CharacterStream> one_byte_stream(
-        i::ScannerStream::For(isolate, ext_one_byte_string, start, end));
+        i::ScannerStream::For(ext_one_byte_string, start, end));
     TestCharacterStream(one_byte_source, one_byte_stream.get(), length, start,
                         end);
     // This avoids the GC from trying to free a stack allocated resource.
@@ -347,7 +347,7 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
   // 1-byte generic i::String
   {
     std::unique_ptr<i::Utf16CharacterStream> string_stream(
-        i::ScannerStream::For(isolate, one_byte_string, start, end));
+        i::ScannerStream::For(one_byte_string, start, end));
     TestCharacterStream(one_byte_source, string_stream.get(), length, start,
                         end);
   }
@@ -357,7 +357,7 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     i::Handle<i::String> two_byte_string =
         factory->NewStringFromTwoByte(two_byte_vector).ToHandleChecked();
     std::unique_ptr<i::Utf16CharacterStream> two_byte_string_stream(
-        i::ScannerStream::For(isolate, two_byte_string, start, end));
+        i::ScannerStream::For(two_byte_string, start, end));
     TestCharacterStream(one_byte_source, two_byte_string_stream.get(), length,
                         start, end);
   }
