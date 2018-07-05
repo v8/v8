@@ -10,6 +10,7 @@
 #include "src/globals.h"
 #include "src/machine-type.h"
 #include "src/utils.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
