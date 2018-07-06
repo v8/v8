@@ -97,7 +97,7 @@ void FixedArray::set(int index, Object* value) {
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
   RELAXED_WRITE_FIELD(this, offset, value);
-  WRITE_BARRIER(GetHeap(), this, offset, value);
+  WRITE_BARRIER(Heap::FromWritableHeapObject(this), this, offset, value);
 }
 
 void FixedArray::set(int index, Object* value, WriteBarrierMode mode) {
@@ -106,7 +106,8 @@ void FixedArray::set(int index, Object* value, WriteBarrierMode mode) {
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
   RELAXED_WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this, offset,
+                            value, mode);
 }
 
 void FixedArray::NoWriteBarrierSet(FixedArray* array, int index,
@@ -153,9 +154,8 @@ void FixedArray::set_the_hole(ReadOnlyRoots ro_roots, int index) {
 }
 
 void FixedArray::FillWithHoles(int from, int to) {
-  Isolate* isolate = GetIsolate();
   for (int i = from; i < to; i++) {
-    set_the_hole(isolate, i);
+    set_the_hole(i);
   }
 }
 
@@ -243,7 +243,7 @@ void WeakFixedArray::Set(int index, MaybeObject* value) {
   DCHECK_LT(index, length());
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(this, offset, value);
-  WEAK_WRITE_BARRIER(GetHeap(), this, offset, value);
+  WEAK_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this, offset, value);
 }
 
 void WeakFixedArray::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
@@ -251,7 +251,8 @@ void WeakFixedArray::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
   DCHECK_LT(index, length());
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WEAK_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+  CONDITIONAL_WEAK_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this,
+                                 offset, value, mode);
 }
 
 MaybeObject** WeakFixedArray::data_start() {
@@ -277,7 +278,8 @@ void WeakArrayList::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
   DCHECK_LT(index, this->capacity());
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WEAK_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+  CONDITIONAL_WEAK_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this,
+                                 offset, value, mode);
 }
 
 MaybeObject** WeakArrayList::data_start() {
