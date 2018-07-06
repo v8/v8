@@ -309,6 +309,7 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   std::shared_ptr<DeferredHandles> deferred_handles_;
 
   // Dependencies for this compilation, e.g. stable maps.
+  // TODO(neis): Move this to PipelineData.
   std::unique_ptr<CompilationDependencies> dependencies_;
 
   BailoutReason bailout_reason_;

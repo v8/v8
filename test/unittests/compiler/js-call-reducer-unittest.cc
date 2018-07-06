@@ -57,11 +57,6 @@ class JSCallReducerTest : public TypedGraphTest {
     i::FLAG_lazy_handler_deserialization = old_flag_lazy_handler_;
   }
 
-  // Ensure uncommitted compilation dependencies are discarded after each test.
-  // This prevents use-after-free accesses through invalidation of compilation
-  // dependencies.
-  void TearDown() override { deps_.Rollback(); }
-
   Node* GlobalFunction(const char* name) {
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         Object::GetProperty(

@@ -5,75 +5,70 @@
 #ifndef V8_COMPILATION_DEPENDENCIES_H_
 #define V8_COMPILATION_DEPENDENCIES_H_
 
-#include "src/handles.h"
 #include "src/objects.h"
-#include "src/objects/map.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
-// Collects dependencies for this compilation, e.g. assumptions about
-// stable maps, constant globals, etc.
+// Collects and installs dependencies of the code that is being generated.
 class V8_EXPORT_PRIVATE CompilationDependencies {
  public:
-  CompilationDependencies(Isolate* isolate, Zone* zone)
-      : isolate_(isolate),
-        zone_(zone),
-        object_wrapper_(Handle<Foreign>::null()),
-        aborted_(false) {
-    std::fill_n(groups_, DependentCode::kGroupCount, nullptr);
-  }
+  CompilationDependencies(Isolate* isolate, Zone* zone);
 
-  void Insert(DependentCode::DependencyGroup group, Handle<HeapObject> handle);
+  V8_WARN_UNUSED_RESULT bool Commit(Handle<Code> code);
 
-  void AssumeInitialMapCantChange(Handle<Map> map) {
-    Insert(DependentCode::kInitialMapChangedGroup, map);
-  }
-  void AssumeFieldOwner(Handle<Map> map) {
-    Insert(DependentCode::kFieldOwnerGroup, map);
-  }
-  void AssumeMapStable(Handle<Map> map);
-  void AssumePrototypeMapsStable(
-      Handle<Map> map,
-      MaybeHandle<JSReceiver> prototype = MaybeHandle<JSReceiver>());
-  void AssumeMapNotDeprecated(Handle<Map> map);
-  void AssumePropertyCell(Handle<PropertyCell> cell) {
-    Insert(DependentCode::kPropertyCellChangedGroup, cell);
-  }
-  void AssumeTenuringDecision(Handle<AllocationSite> site) {
-    Insert(DependentCode::kAllocationSiteTenuringChangedGroup, site);
-  }
-  void AssumeTransitionStable(Handle<AllocationSite> site);
+  // Return the initial map of {function} and record the assumption that it
+  // stays the intial map.
+  Handle<Map> DependOnInitialMap(Handle<JSFunction> function);
 
-  // Adds stability dependencies on all prototypes of every class in
+  // Record the assumption that {map} stays stable.
+  void DependOnStableMap(Handle<Map> map);
+
+  // Record the assumption that {target_map} can be transitioned to, i.e., that
+  // it does not become deprecated.
+  void DependOnTransition(Handle<Map> target_map);
+
+  // Return the pretenure mode of {site} and record the assumption that it does
+  // not change.
+  PretenureFlag DependOnPretenureMode(Handle<AllocationSite> site);
+
+  // Record the assumption that the field type of a field does not change. The
+  // field is identified by the argument(s).
+  void DependOnFieldType(Handle<Map> map, int descriptor);
+  void DependOnFieldType(const LookupIterator* it);
+
+  // Record the assumption that neither {cell}'s {CellType} changes, nor the
+  // {IsReadOnly()} flag of {cell}'s {PropertyDetails}.
+  void DependOnGlobalProperty(Handle<PropertyCell> cell);
+
+  // Record the assumption that the protector remains valid.
+  void DependOnProtector(Handle<PropertyCell> cell);
+
+  // Record the assumption that {site}'s {ElementsKind} doesn't change.
+  void DependOnElementsKind(Handle<AllocationSite> site);
+
+  // Depend on the stability of (the maps of) all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.
-  void AssumePrototypesStable(Handle<Context> native_context,
-                              std::vector<Handle<Map>> const& receiver_maps,
-                              Handle<JSObject> holder);
+  void DependOnStablePrototypeChains(
+      Handle<Context> native_context,
+      std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder);
 
-  void Commit(Handle<Code> code);
-  void Rollback();
-  void Abort() { aborted_ = true; }
-  bool HasAborted() const { return aborted_; }
+  // Like DependOnElementsKind but also applies to all nested allocation sites.
+  void DependOnElementsKinds(Handle<AllocationSite> site);
 
-  bool IsEmpty() const {
-    for (int i = 0; i < DependentCode::kGroupCount; i++) {
-      if (groups_[i]) return false;
-    }
-    return true;
-  }
+  // Exposed only for testing purposes.
+  bool AreValid() const;
+
+  // Exposed only because C++.
+  class Dependency;
 
  private:
   Isolate* isolate_;
   Zone* zone_;
-  Handle<Foreign> object_wrapper_;
-  bool aborted_;
-  ZoneVector<Handle<HeapObject> >* groups_[DependentCode::kGroupCount];
-
-  DependentCode* Get(Handle<Object> object) const;
-  void Set(Handle<Object> object, Handle<DependentCode> dep);
+  ZoneForwardList<Dependency*> dependencies_;
 };
+
 }  // namespace internal
 }  // namespace v8
 

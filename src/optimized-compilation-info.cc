@@ -87,9 +87,6 @@ OptimizedCompilationInfo::~OptimizedCompilationInfo() {
   if (GetFlag(kDisableFutureOptimization) && has_shared_info()) {
     shared_info()->DisableOptimization(bailout_reason());
   }
-  if (dependencies()) {
-    dependencies()->Rollback();
-  }
 }
 
 void OptimizedCompilationInfo::set_deferred_handles(
