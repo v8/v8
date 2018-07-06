@@ -398,13 +398,14 @@ void Heap::SetGCState(HeapState state) {
 
 void Heap::PrintShortHeapStatistics() {
   if (!FLAG_trace_gc_verbose) return;
-  PrintIsolate(isolate_, "Memory allocator,   used: %6" PRIuS
-                         " KB,"
-                         " available: %6" PRIuS " KB\n",
+  PrintIsolate(isolate_,
+               "Memory allocator,       used: %6" PRIuS
+               " KB,"
+               " available: %6" PRIuS " KB\n",
                memory_allocator()->Size() / KB,
                memory_allocator()->Available() / KB);
   PrintIsolate(isolate_,
-               "Read-only space,    used: %6" PRIuS
+               "Read-only space,        used: %6" PRIuS
                " KB"
                ", available: %6" PRIuS
                " KB"
@@ -412,52 +413,67 @@ void Heap::PrintShortHeapStatistics() {
                read_only_space_->Size() / KB,
                read_only_space_->Available() / KB,
                read_only_space_->CommittedMemory() / KB);
-  PrintIsolate(isolate_, "New space,          used: %6" PRIuS
-                         " KB"
-                         ", available: %6" PRIuS
-                         " KB"
-                         ", committed: %6" PRIuS " KB\n",
+  PrintIsolate(isolate_,
+               "New space,              used: %6" PRIuS
+               " KB"
+               ", available: %6" PRIuS
+               " KB"
+               ", committed: %6" PRIuS " KB\n",
                new_space_->Size() / KB, new_space_->Available() / KB,
                new_space_->CommittedMemory() / KB);
-  PrintIsolate(isolate_, "Old space,          used: %6" PRIuS
-                         " KB"
-                         ", available: %6" PRIuS
-                         " KB"
-                         ", committed: %6" PRIuS " KB\n",
+  PrintIsolate(isolate_,
+               "New large object space, used: %6" PRIuS
+               " KB"
+               ", available: %6" PRIuS
+               " KB"
+               ", committed: %6" PRIuS " KB\n",
+               new_lo_space_->SizeOfObjects() / KB,
+               new_lo_space_->Available() / KB,
+               new_lo_space_->CommittedMemory() / KB);
+  PrintIsolate(isolate_,
+               "Old space,              used: %6" PRIuS
+               " KB"
+               ", available: %6" PRIuS
+               " KB"
+               ", committed: %6" PRIuS " KB\n",
                old_space_->SizeOfObjects() / KB, old_space_->Available() / KB,
                old_space_->CommittedMemory() / KB);
-  PrintIsolate(isolate_, "Code space,         used: %6" PRIuS
-                         " KB"
-                         ", available: %6" PRIuS
-                         " KB"
-                         ", committed: %6" PRIuS "KB\n",
+  PrintIsolate(isolate_,
+               "Code space,             used: %6" PRIuS
+               " KB"
+               ", available: %6" PRIuS
+               " KB"
+               ", committed: %6" PRIuS "KB\n",
                code_space_->SizeOfObjects() / KB, code_space_->Available() / KB,
                code_space_->CommittedMemory() / KB);
-  PrintIsolate(isolate_, "Map space,          used: %6" PRIuS
-                         " KB"
-                         ", available: %6" PRIuS
-                         " KB"
-                         ", committed: %6" PRIuS " KB\n",
+  PrintIsolate(isolate_,
+               "Map space,              used: %6" PRIuS
+               " KB"
+               ", available: %6" PRIuS
+               " KB"
+               ", committed: %6" PRIuS " KB\n",
                map_space_->SizeOfObjects() / KB, map_space_->Available() / KB,
                map_space_->CommittedMemory() / KB);
-  PrintIsolate(isolate_, "Large object space, used: %6" PRIuS
-                         " KB"
-                         ", available: %6" PRIuS
-                         " KB"
-                         ", committed: %6" PRIuS " KB\n",
+  PrintIsolate(isolate_,
+               "Large object space,     used: %6" PRIuS
+               " KB"
+               ", available: %6" PRIuS
+               " KB"
+               ", committed: %6" PRIuS " KB\n",
                lo_space_->SizeOfObjects() / KB, lo_space_->Available() / KB,
                lo_space_->CommittedMemory() / KB);
+  PrintIsolate(isolate_,
+               "All spaces,             used: %6" PRIuS
+               " KB"
+               ", available: %6" PRIuS
+               " KB"
+               ", committed: %6" PRIuS "KB\n",
+               this->SizeOfObjects() / KB, this->Available() / KB,
+               this->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "Unmapper buffering %d chunks of committed: %6" PRIuS " KB\n",
                memory_allocator()->unmapper()->NumberOfChunks(),
                CommittedMemoryOfHeapAndUnmapper() / KB);
-  PrintIsolate(isolate_, "All spaces,         used: %6" PRIuS
-                         " KB"
-                         ", available: %6" PRIuS
-                         " KB"
-                         ", committed: %6" PRIuS "KB\n",
-               this->SizeOfObjects() / KB, this->Available() / KB,
-               this->CommittedMemory() / KB);
   PrintIsolate(isolate_, "External memory reported: %6" PRId64 " KB\n",
                external_memory_ / KB);
   PrintIsolate(isolate_, "External memory global %zu KB\n",
