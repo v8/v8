@@ -251,6 +251,10 @@ constexpr int kExternalAllocationSoftLimit = 64 * MB;
 // Current value: Page::kAllocatableMemory (on 32-bit arch) - 512 (slack).
 constexpr int kMaxRegularHeapObjectSize = 507136;
 
+// Objects smaller or equal kMaxNewSpaceHeapObjectSize are allocated in the
+// new large object space.
+constexpr int kMaxNewSpaceHeapObjectSize = 32 * KB;
+
 STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
 
 constexpr int kBitsPerByte = 8;
