@@ -2751,6 +2751,19 @@ class ThreadImpl {
     return {ExternalCallResult::EXTERNAL_RETURNED};
   }
 
+  static WasmCode* GetTargetCode(WasmCodeManager* code_manager,
+                                 Address target) {
+    NativeModule* native_module = code_manager->LookupNativeModule(target);
+    if (native_module->is_jump_table_slot(target)) {
+      uint32_t func_index =
+          native_module->GetFunctionIndexFromJumpTableSlot(target);
+      return native_module->code(func_index);
+    }
+    WasmCode* code = native_module->Lookup(target);
+    DCHECK_EQ(code->instruction_start(), target);
+    return code;
+  }
+
   ExternalCallResult CallImportedFunction(uint32_t function_index) {
     // Use a new HandleScope to avoid leaking / accumulating handles in the
     // outer scope.
@@ -2759,13 +2772,10 @@ class ThreadImpl {
 
     DCHECK_GT(module()->num_imported_functions, function_index);
     Handle<WasmInstanceObject> instance;
-    WasmCode* code;
-    {
-      ImportedFunctionEntry entry(instance_object_, function_index);
-      instance = handle(entry.instance(), isolate);
-      code = isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
-          entry.target());
-    }
+    ImportedFunctionEntry entry(instance_object_, function_index);
+    instance = handle(entry.instance(), isolate);
+    WasmCode* code =
+        GetTargetCode(isolate->wasm_engine()->code_manager(), entry.target());
     FunctionSig* sig = codemap()->module()->functions[function_index].sig;
     return CallExternalWasmFunction(isolate, instance, code, sig);
   }
@@ -2812,17 +2822,8 @@ class ThreadImpl {
     }
 
     Handle<WasmInstanceObject> instance = handle(entry.instance(), isolate);
-    Address target = entry.target();
-    NativeModule* native_module =
-        isolate->wasm_engine()->code_manager()->LookupNativeModule(target);
-    WasmCode* code;
-    if (native_module->is_jump_table_slot(target)) {
-      uint32_t func_index =
-          native_module->GetFunctionIndexFromJumpTableSlot(target);
-      code = native_module->code(func_index);
-    } else {
-      code = native_module->Lookup(target);
-    }
+    WasmCode* code =
+        GetTargetCode(isolate->wasm_engine()->code_manager(), entry.target());
 
     // Call either an internal or external WASM function.
     HandleScope scope(isolate);
