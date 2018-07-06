@@ -1739,8 +1739,9 @@ Reduction JSCallReducer::ReduceArrayFilter(Node* node,
     ab.Store(AccessBuilder::ForJSArrayLength(packed_kind),
              jsgraph()->ZeroConstant());
     for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
-      ab.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
-               jsgraph()->UndefinedConstant());
+      ab.Store(
+          AccessBuilder::ForJSObjectInObjectProperty(MapRef(initial_map), i),
+          jsgraph()->UndefinedConstant());
     }
     a = effect = ab.Finish();
   }

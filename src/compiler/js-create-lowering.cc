@@ -150,8 +150,9 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
       a.Store(AccessBuilder::ForJSObjectElements(),
               jsgraph()->EmptyFixedArrayConstant());
       for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
-        a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
-                jsgraph()->UndefinedConstant());
+        a.Store(
+            AccessBuilder::ForJSObjectInObjectProperty(MapRef(initial_map), i),
+            jsgraph()->UndefinedConstant());
       }
       RelaxControls(node);
       a.FinishAndChange(node);
@@ -475,8 +476,9 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
 
     // Handle in-object properties, too.
     for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
-      a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
-              undefined);
+      a.Store(
+          AccessBuilder::ForJSObjectInObjectProperty(MapRef(initial_map), i),
+          undefined);
     }
     a.FinishAndChange(node);
     return Changed(node);
@@ -526,7 +528,7 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   a.Store(AccessBuilder::ForJSArrayLength(initial_map->elements_kind()),
           length);
   for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
-    a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
+    a.Store(AccessBuilder::ForJSObjectInObjectProperty(MapRef(initial_map), i),
             jsgraph()->UndefinedConstant());
   }
   RelaxControls(node);
@@ -571,7 +573,7 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
   a.Store(AccessBuilder::ForJSArrayLength(elements_kind), length);
   for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
-    a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
+    a.Store(AccessBuilder::ForJSObjectInObjectProperty(MapRef(initial_map), i),
             jsgraph()->UndefinedConstant());
   }
   RelaxControls(node);
@@ -627,7 +629,7 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node,
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
   a.Store(AccessBuilder::ForJSArrayLength(elements_kind), length);
   for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
-    a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
+    a.Store(AccessBuilder::ForJSObjectInObjectProperty(MapRef(initial_map), i),
             jsgraph()->UndefinedConstant());
   }
   RelaxControls(node);
@@ -970,11 +972,12 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
+  DisallowHandleDereference disallow_dereference;
   DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
-  Handle<SharedFunctionInfo> shared = p.shared_info();
-  Handle<FeedbackCell> feedback_cell = p.feedback_cell();
-  Handle<Code> code = p.code();
+  SharedFunctionInfoRef shared(p.shared_info());
+  HeapObjectRef feedback_cell(p.feedback_cell());
+  HeapObjectRef code(p.code());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
@@ -982,18 +985,15 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   // Use inline allocation of closures only for instantiation sites that have
   // seen more than one instantiation, this simplifies the generated code and
   // also serves as a heuristic of which allocation sites benefit from it.
-  if (feedback_cell->map() !=
-      ReadOnlyRoots(isolate()).many_closures_cell_map()) {
-    // The generic path can only create closures for user functions.
-    DCHECK_EQ(isolate()->builtins()->builtin(Builtins::kCompileLazy), *code);
+  if (!feedback_cell.map(js_heap_broker())
+           .equals(MapRef(factory()->many_closures_cell_map()))) {
     return NoChange();
   }
 
-  Handle<Map> function_map(
-      Map::cast(native_context()->get(shared->function_map_index())),
-      isolate());
-  DCHECK(!function_map->IsInobjectSlackTrackingInProgress());
-  DCHECK(!function_map->is_dictionary_map());
+  MapRef function_map = native_context_ref().GetFunctionMapFromIndex(
+      js_heap_broker(), shared.function_map_index());
+  DCHECK(!function_map.IsInobjectSlackTrackingInProgress());
+  DCHECK(!function_map.is_dictionary_map());
 
   // TODO(turbofan): We should use the pretenure flag from {p} here,
   // but currently the heuristic in the parser works against us, as
@@ -1009,7 +1009,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   // Emit code to allocate the JSFunction instance.
   STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
   AllocationBuilder a(jsgraph(), js_heap_broker(), effect, control);
-  a.Allocate(function_map->instance_size(), pretenure, Type::Function());
+  a.Allocate(function_map.instance_size(), pretenure, Type::Function());
   a.Store(AccessBuilder::ForMap(), function_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
           jsgraph()->EmptyFixedArrayConstant());
@@ -1020,12 +1020,12 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   a.Store(AccessBuilder::ForJSFunctionFeedbackCell(), feedback_cell);
   a.Store(AccessBuilder::ForJSFunctionCode(), code);
   STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
-  if (function_map->has_prototype_slot()) {
+  if (function_map.has_prototype_slot()) {
     a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),
             jsgraph()->TheHoleConstant());
     STATIC_ASSERT(JSFunction::kSizeWithPrototype == 8 * kPointerSize);
   }
-  for (int i = 0; i < function_map->GetInObjectProperties(); i++) {
+  for (int i = 0; i < function_map.GetInObjectProperties(); i++) {
     a.Store(AccessBuilder::ForJSObjectInObjectProperty(function_map, i),
             jsgraph()->UndefinedConstant());
   }
@@ -1209,7 +1209,7 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralObject(Node* node) {
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
   for (int i = 0; i < map->GetInObjectProperties(); i++) {
-    a.Store(AccessBuilder::ForJSObjectInObjectProperty(map, i),
+    a.Store(AccessBuilder::ForJSObjectInObjectProperty(MapRef(map), i),
             jsgraph()->UndefinedConstant());
   }
 
@@ -1712,8 +1712,8 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
   int const boilerplate_length = boilerplate_map.GetInObjectProperties();
   for (int index = static_cast<int>(inobject_fields.size());
        index < boilerplate_length; ++index) {
-    FieldAccess access = AccessBuilder::ForJSObjectInObjectProperty(
-        boilerplate_map.object<Map>(), index);
+    FieldAccess access =
+        AccessBuilder::ForJSObjectInObjectProperty(boilerplate_map, index);
     Node* value = jsgraph()->HeapConstant(factory()->one_pointer_filler_map());
     inobject_fields.push_back(std::make_pair(access, value));
   }

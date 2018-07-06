@@ -48,7 +48,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForJSObjectElements();
 
   // Provides access to JSObject inobject property fields.
-  static FieldAccess ForJSObjectInObjectProperty(Handle<Map> map, int index);
+  static FieldAccess ForJSObjectInObjectProperty(const MapRef& map, int index);
   static FieldAccess ForJSObjectOffset(
       int offset, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
 

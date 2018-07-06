@@ -85,9 +85,9 @@ FieldAccess AccessBuilder::ForJSObjectElements() {
 
 
 // static
-FieldAccess AccessBuilder::ForJSObjectInObjectProperty(Handle<Map> map,
+FieldAccess AccessBuilder::ForJSObjectInObjectProperty(const MapRef& map,
                                                        int index) {
-  int const offset = map->GetInObjectPropertyOffset(index);
+  int const offset = map.GetInObjectPropertyOffset(index);
   FieldAccess access = {kTaggedBase,         offset,
                         MaybeHandle<Name>(), MaybeHandle<Map>(),
                         Type::NonInternal(), MachineType::AnyTagged(),

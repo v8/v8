@@ -63,6 +63,10 @@ bool ObjectRef::IsSmi() const {
 
 int ObjectRef::AsSmi() const { return object<Smi>()->value(); }
 
+bool ObjectRef::equals(const ObjectRef& other) const {
+  return object<Object>().equals(other.object<Object>());
+}
+
 base::Optional<ContextRef> ContextRef::previous(
     const JSHeapBroker* broker) const {
   AllowHandleAllocation handle_allocation;
@@ -411,6 +415,16 @@ bool MapRef::IsFixedCowArrayMap(const JSHeapBroker* broker) const {
          ReadOnlyRoots(broker->isolate()).fixed_cow_array_map();
 }
 
+int MapRef::GetInObjectPropertyOffset(int index) const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<Map>()->GetInObjectPropertyOffset(index);
+}
+
+bool MapRef::has_prototype_slot() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<Map>()->has_prototype_slot();
+}
+
 ElementsKind JSArrayRef::GetElementsKind() const {
   AllowHandleDereference allow_handle_dereference;
   return object<JSArray>()->GetElementsKind();
@@ -481,6 +495,11 @@ int ScopeInfoRef::ContextLength() const {
 int SharedFunctionInfoRef::internal_formal_parameter_count() const {
   AllowHandleDereference allow_handle_dereference;
   return object<SharedFunctionInfo>()->internal_formal_parameter_count();
+}
+
+int SharedFunctionInfoRef::function_map_index() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<SharedFunctionInfo>()->function_map_index();
 }
 
 bool SharedFunctionInfoRef::has_duplicate_parameters() const {
@@ -556,6 +575,14 @@ MapRef NativeContextRef::map_key_value_iterator_map(
   AllowHandleDereference allow_handle_dereference;
   return MapRef(handle(object<Context>()->map_key_value_iterator_map(),
                        broker->isolate()));
+}
+
+MapRef NativeContextRef::GetFunctionMapFromIndex(const JSHeapBroker* broker,
+                                                 int index) const {
+  AllowHandleDereference allow_handle_dereference;
+  DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
+  DCHECK_GE(index, Context::FIRST_FUNCTION_MAP_INDEX);
+  return get(broker, index).AsMap();
 }
 
 }  // namespace compiler

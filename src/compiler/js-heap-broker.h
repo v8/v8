@@ -100,6 +100,8 @@ class ObjectRef {
   bool IsSmi() const;
   int AsSmi() const;
 
+  bool equals(const ObjectRef& other) const;
+
 #define HEAP_IS_METHOD_DECL(Name) bool Is##Name() const;
   HEAP_BROKER_KIND_LIST(HEAP_IS_METHOD_DECL)
 #undef HEAP_IS_METHOD_DECL
@@ -211,6 +213,8 @@ class NativeContextRef : public ContextRef {
   MapRef map_key_iterator_map(const JSHeapBroker* broker) const;
   MapRef map_value_iterator_map(const JSHeapBroker* broker) const;
   MapRef map_key_value_iterator_map(const JSHeapBroker* broker) const;
+
+  MapRef GetFunctionMapFromIndex(const JSHeapBroker* broker, int index) const;
 };
 
 class NameRef : public HeapObjectRef {
@@ -260,9 +264,13 @@ class MapRef : public HeapObjectRef {
   NameRef GetPropertyKey(const JSHeapBroker* broker, int i) const;
   FieldIndex GetFieldIndexFor(int i) const;
 
+  int GetInObjectPropertyOffset(int index) const;
+
   bool IsJSArrayMap() const;
   bool IsFixedCowArrayMap(const JSHeapBroker* broker) const;
   bool is_dictionary_map() const;
+
+  bool has_prototype_slot() const;
 
   bool IsInobjectSlackTrackingInProgress() const;
 };
@@ -315,6 +323,7 @@ class SharedFunctionInfoRef : public HeapObjectRef {
 
   int internal_formal_parameter_count() const;
   bool has_duplicate_parameters() const;
+  int function_map_index() const;
 };
 
 }  // namespace compiler
