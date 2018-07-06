@@ -361,32 +361,30 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(table)) return 0;
     weak_objects_->ephemeron_hash_tables.Push(task_id_, table);
 
-    if (V8_LIKELY(FLAG_optimize_ephemerons)) {
-      for (int i = 0; i < table->Capacity(); i++) {
-        Object** key_slot =
-            table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
-        HeapObject* key = HeapObject::cast(table->KeyAt(i));
-        MarkCompactCollector::RecordSlot(table, key_slot, key);
+    for (int i = 0; i < table->Capacity(); i++) {
+      Object** key_slot =
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
+      HeapObject* key = HeapObject::cast(table->KeyAt(i));
+      MarkCompactCollector::RecordSlot(table, key_slot, key);
 
-        Object** value_slot = table->RawFieldOfElementAt(
-            EphemeronHashTable::EntryToValueIndex(i));
+      Object** value_slot =
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
 
-        if (marking_state_.IsBlackOrGrey(key)) {
-          VisitPointer(table, value_slot);
+      if (marking_state_.IsBlackOrGrey(key)) {
+        VisitPointer(table, value_slot);
 
-        } else {
-          Object* value_obj = table->ValueAt(i);
+      } else {
+        Object* value_obj = table->ValueAt(i);
 
-          if (value_obj->IsHeapObject()) {
-            HeapObject* value = HeapObject::cast(value_obj);
-            MarkCompactCollector::RecordSlot(table, value_slot, value);
+        if (value_obj->IsHeapObject()) {
+          HeapObject* value = HeapObject::cast(value_obj);
+          MarkCompactCollector::RecordSlot(table, value_slot, value);
 
-            // Revisit ephemerons with both key and value unreachable at end
-            // of concurrent marking cycle.
-            if (marking_state_.IsWhite(value)) {
-              weak_objects_->discovered_ephemerons.Push(task_id_,
-                                                        Ephemeron{key, value});
-            }
+          // Revisit ephemerons with both key and value unreachable at end
+          // of concurrent marking cycle.
+          if (marking_state_.IsWhite(value)) {
+            weak_objects_->discovered_ephemerons.Push(task_id_,
+                                                      Ephemeron{key, value});
           }
         }
       }

@@ -699,11 +699,6 @@ DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING_BOOL,
             "use concurrent marking")
 DEFINE_BOOL(parallel_marking, true, "use parallel marking in atomic pause")
 DEFINE_IMPLICATION(parallel_marking, concurrent_marking)
-DEFINE_BOOL(parallel_ephemeron_visiting, true,
-            "use parallel visiting of ephemerons in atomic pause")
-DEFINE_BOOL(
-    parallel_ephemeron_marking, true,
-    "use parallel marking of objects after visiting ephemerons in atomic pause")
 DEFINE_INT(ephemeron_fixpoint_iterations, 0,
            "number of fixpoint iterations it takes to switch to linear "
            "ephemeron algorithm")
@@ -791,11 +786,6 @@ DEFINE_BOOL(manual_evacuation_candidates_selection, false,
             "candidates pages (requires --stress_compaction).")
 DEFINE_BOOL(fast_promotion_new_space, false,
             "fast promote new space on high survival rates")
-
-DEFINE_BOOL(optimize_ephemerons, true,
-            "use optimized handling of ephemerons in the GC")
-DEFINE_NEG_NEG_IMPLICATION(optimize_ephemerons, parallel_ephemeron_marking)
-DEFINE_NEG_NEG_IMPLICATION(optimize_ephemerons, parallel_ephemeron_visiting)
 
 DEFINE_BOOL(clear_free_memory, false, "initialize free memory with 0")
 
@@ -1391,8 +1381,6 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_compaction)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_marking)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_pointer_update)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_scavenge)
-DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_ephemeron_marking)
-DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_ephemeron_visiting)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_store_buffer)
 #ifdef ENABLE_MINOR_MC
 DEFINE_NEG_IMPLICATION(single_threaded_gc, minor_mc_parallel_marking)

@@ -92,31 +92,29 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
     VisitEphemeronHashTable(Map* map, EphemeronHashTable* table) {
   collector_->AddEphemeronHashTable(table);
 
-  if (V8_LIKELY(FLAG_optimize_ephemerons)) {
-    for (int i = 0; i < table->Capacity(); i++) {
-      Object** key_slot =
-          table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
-      HeapObject* key = HeapObject::cast(table->KeyAt(i));
-      collector_->RecordSlot(table, key_slot, key);
+  for (int i = 0; i < table->Capacity(); i++) {
+    Object** key_slot =
+        table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
+    HeapObject* key = HeapObject::cast(table->KeyAt(i));
+    collector_->RecordSlot(table, key_slot, key);
 
-      Object** value_slot =
-          table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
+    Object** value_slot =
+        table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
 
-      if (marking_state()->IsBlackOrGrey(key)) {
-        VisitPointer(table, value_slot);
+    if (marking_state()->IsBlackOrGrey(key)) {
+      VisitPointer(table, value_slot);
 
-      } else {
-        Object* value_obj = *value_slot;
+    } else {
+      Object* value_obj = *value_slot;
 
-        if (value_obj->IsHeapObject()) {
-          HeapObject* value = HeapObject::cast(value_obj);
-          collector_->RecordSlot(table, value_slot, value);
+      if (value_obj->IsHeapObject()) {
+        HeapObject* value = HeapObject::cast(value_obj);
+        collector_->RecordSlot(table, value_slot, value);
 
-          // Revisit ephemerons with both key and value unreachable at end
-          // of concurrent marking cycle.
-          if (marking_state()->IsWhite(value)) {
-            collector_->AddEphemeron(key, value);
-          }
+        // Revisit ephemerons with both key and value unreachable at end
+        // of concurrent marking cycle.
+        if (marking_state()->IsWhite(value)) {
+          collector_->AddEphemeron(key, value);
         }
       }
     }
