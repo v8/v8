@@ -3440,6 +3440,18 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtins::kDataViewPrototypeGetInt16:
       return ReduceDataViewPrototypeGet(node,
                                         ExternalArrayType::kExternalInt16Array);
+    case Builtins::kDataViewPrototypeGetUint32:
+      return ReduceDataViewPrototypeGet(
+          node, ExternalArrayType::kExternalUint32Array);
+    case Builtins::kDataViewPrototypeGetInt32:
+      return ReduceDataViewPrototypeGet(node,
+                                        ExternalArrayType::kExternalInt32Array);
+    case Builtins::kDataViewPrototypeGetFloat32:
+      return ReduceDataViewPrototypeGet(
+          node, ExternalArrayType::kExternalFloat32Array);
+    case Builtins::kDataViewPrototypeGetFloat64:
+      return ReduceDataViewPrototypeGet(
+          node, ExternalArrayType::kExternalFloat64Array);
     case Builtins::kTypedArrayPrototypeByteLength:
       return ReduceArrayBufferViewAccessor(
           node, JS_TYPED_ARRAY_TYPE,

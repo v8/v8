@@ -29,6 +29,7 @@ namespace compiler {
   V(RoundFloat64ToInt32)                 \
   V(TruncateFloat64ToWord32)             \
   V(Float64ExtractHighWord32)            \
+  V(BitcastInt32ToFloat32)               \
   V(Float64Abs)
 
 #define PURE_ASSEMBLER_MACH_BINOP_LIST(V) \
@@ -60,6 +61,8 @@ namespace compiler {
   V(Float64Equal)                         \
   V(Float64LessThan)                      \
   V(Float64LessThanOrEqual)               \
+  V(Float64InsertLowWord32)               \
+  V(Float64InsertHighWord32)              \
   V(Word32Equal)                          \
   V(WordEqual)
 

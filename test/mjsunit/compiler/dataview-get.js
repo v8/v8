@@ -33,6 +33,26 @@ function readInt16Handled(offset, little_endian) {
   }
 }
 
+function readUint32(offset, little_endian) {
+  return dataview.getUint32(offset, little_endian);
+}
+
+function readInt32Handled(offset, little_endian) {
+  try {
+    return dataview.getInt32(offset, little_endian);
+  } catch (e) {
+    return e;
+  }
+}
+
+function readFloat32(offset, little_endian) {
+  return dataview.getFloat32(offset, little_endian);
+}
+
+function readFloat64(offset, little_endian) {
+  return dataview.getFloat64(offset, little_endian);
+}
+
 function warmup(f) {
   f(0);
   f(1);
@@ -69,11 +89,48 @@ assertEquals(0xabcd, readUint16(8));
 assertEquals(0xcdab, readUint16(8, true));
 
 // TurboFan valid getInt16.
-dataview.setInt16(10, -0x1234);
+let b1 = -0x1234;
+dataview.setInt16(10, b1);
 warmup(readInt16Handled);
-assertEquals(-0x1234, readInt16Handled(10));
-dataview.setInt16(10, -0x1234, true);
-assertEquals(-0x1234, readInt16Handled(10, true));
+assertOptimized(readInt16Handled);
+assertEquals(b1, readInt16Handled(10));
+dataview.setInt16(10, b1, true);
+assertEquals(b1, readInt16Handled(10, true));
+
+// TurboFan valid getUint32.
+dataview.setUint32(12, 0xabcdef12);
+warmup(readUint32);
+assertOptimized(readUint32);
+assertEquals(0xabcdef12, readUint32(12));
+assertEquals(0x12efcdab, readUint32(12, true));
+
+// TurboFan valid getInt32.
+let b2 = -0x12345678;
+dataview.setInt32(16, b2);
+warmup(readInt32Handled);
+assertOptimized(readInt32Handled);
+assertEquals(b2, readInt32Handled(16));
+dataview.setInt32(16, b2, true);
+assertEquals(b2, readInt32Handled(16, true));
+
+// TurboFan valid getFloat32.
+let b3 = Math.fround(Math.E); // Round Math.E to float32.
+dataview.setFloat32(16, b3);
+warmup(readFloat32);
+assertOptimized(readFloat32);
+assertEquals(b3, readFloat32(16));
+dataview.setFloat32(16, b3, true);
+assertEquals(b3, readFloat32(16, true));
+
+// TurboFan valid getFloat64.
+let b4 = Math.PI;
+dataview.setFloat64(16, b4);
+warmup(readFloat64);
+assertOptimized(readFloat64);
+assertEquals(b4, readFloat64(16));
+dataview.setFloat64(16, b4, true);
+assertEquals(b4, readFloat64(16, true));
+
 
 // TurboFan out of bounds read, throw with exception handler.
 assertOptimized(readInt8Handled);
@@ -82,11 +139,21 @@ assertOptimized(readInt8Handled);
 assertOptimized(readInt16Handled);
 assertInstanceof(readInt16Handled(23), RangeError);
 assertOptimized(readInt16Handled);
+assertOptimized(readInt32Handled);
+assertInstanceof(readInt32Handled(21), RangeError);
+assertOptimized(readInt32Handled);
 
 // Without exception handler.
 assertOptimized(readUint8);
-assertThrows(() => readUint8(64));
+assertThrows(() => readUint8(24));
 assertOptimized(readUint8);
+assertOptimized(readFloat32);
+assertThrows(() => readFloat32(21));
+assertOptimized(readFloat32);
+assertOptimized(readFloat64);
+assertThrows(() => readFloat64(17));
+assertOptimized(readFloat64);
+
 
 // TurboFan deoptimizations.
 assertOptimized(readInt8Handled);
@@ -101,7 +168,7 @@ assertUnoptimized(readInt8Handled);
 // None of the stores wrote out of bounds.
 var bytes = new Uint8Array(buffer);
 for (var i = 0; i < 8; i++) assertEquals(0, bytes[i]);
-for (var i = 24; i < 64; i++) assertEquals(0, bytes[i]);
+for (var i = 32; i < 64; i++) assertEquals(0, bytes[i]);
 
 // TurboFan neutered buffer.
 warmup(readInt8Handled);
