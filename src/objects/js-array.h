@@ -94,6 +94,9 @@ class JSArray : public JSObject {
        AllocationMemento::kSize) >>
       kDoubleSizeLog2;
 
+  // Valid array indices range from +0 <= i < 2^32 - 1 (kMaxUInt32).
+  static const uint32_t kMaxArrayIndex = kMaxUInt32 - 1;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArray);
 };

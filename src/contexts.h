@@ -72,7 +72,6 @@ enum ContextLookupFlags {
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                 \
   V(ARRAY_POP_INDEX, JSFunction, array_pop)                               \
-  V(ARRAY_PUSH_INDEX, JSFunction, array_push)                             \
   V(ARRAY_SHIFT_INDEX, JSFunction, array_shift)                           \
   V(ARRAY_SPLICE_INDEX, JSFunction, array_splice)                         \
   V(ARRAY_UNSHIFT_INDEX, JSFunction, array_unshift)                       \
