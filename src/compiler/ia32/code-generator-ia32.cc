@@ -3382,7 +3382,45 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpor(dst, dst, kScratchDoubleReg);
       break;
     }
-
+    case kSSES8x8Reverse:
+    case kSSES8x4Reverse:
+    case kSSES8x2Reverse: {
+      DCHECK_EQ(1, instr->InputCount());
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      if (arch_opcode != kSSES8x2Reverse) {
+        // First shuffle words into position.
+        int8_t shuffle_mask = arch_opcode == kSSES8x4Reverse ? 0xB1 : 0x1B;
+        __ pshuflw(dst, dst, shuffle_mask);
+        __ pshufhw(dst, dst, shuffle_mask);
+      }
+      __ movaps(kScratchDoubleReg, dst);
+      __ psrlw(kScratchDoubleReg, 8);
+      __ psllw(dst, 8);
+      __ por(dst, kScratchDoubleReg);
+      break;
+    }
+    case kAVXS8x2Reverse:
+    case kAVXS8x4Reverse:
+    case kAVXS8x8Reverse: {
+      DCHECK_EQ(1, instr->InputCount());
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = dst;
+      if (arch_opcode != kAVXS8x2Reverse) {
+        // First shuffle words into position.
+        int8_t shuffle_mask = arch_opcode == kAVXS8x4Reverse ? 0xB1 : 0x1B;
+        __ vpshuflw(dst, i.InputOperand(0), shuffle_mask);
+        __ vpshufhw(dst, dst, shuffle_mask);
+      } else {
+        src = i.InputSimd128Register(0);
+      }
+      // Reverse each 16 bit lane.
+      __ vpsrlw(kScratchDoubleReg, src, 8);
+      __ vpsllw(dst, src, 8);
+      __ vpor(dst, dst, kScratchDoubleReg);
+      break;
+    }
     case kIA32S1x4AnyTrue:
     case kIA32S1x8AnyTrue:
     case kIA32S1x16AnyTrue: {

@@ -315,6 +315,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXS8x16TransposeLow:
     case kSSES8x16TransposeHigh:
     case kAVXS8x16TransposeHigh:
+    case kSSES8x8Reverse:
+    case kAVXS8x8Reverse:
+    case kSSES8x4Reverse:
+    case kAVXS8x4Reverse:
+    case kSSES8x2Reverse:
+    case kAVXS8x2Reverse:
     case kIA32S1x4AnyTrue:
     case kIA32S1x4AllTrue:
     case kIA32S1x8AnyTrue:

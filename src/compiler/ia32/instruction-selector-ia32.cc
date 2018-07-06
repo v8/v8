@@ -2162,6 +2162,21 @@ static const ShuffleEntry arch_shuffles[] = {
      kSSES8x16TransposeHigh,
      kAVXS8x16TransposeHigh,
      true,
+     true},
+    {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8},
+     kSSES8x8Reverse,
+     kAVXS8x8Reverse,
+     false,
+     false},
+    {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12},
+     kSSES8x4Reverse,
+     kAVXS8x4Reverse,
+     false,
+     false},
+    {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14},
+     kSSES8x2Reverse,
+     kAVXS8x2Reverse,
+     true,
      true}};
 
 bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
@@ -2224,7 +2239,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
                                  arraysize(arch_shuffles), is_swizzle,
                                  &arch_shuffle)) {
     opcode = use_avx ? arch_shuffle->avx_opcode : arch_shuffle->opcode;
-    src0_needs_reg = arch_shuffle->src0_needs_reg;
+    src0_needs_reg = !use_avx || arch_shuffle->src0_needs_reg;
     // SSE can't take advantage of both operands in registers and needs
     // same-as-first.
     src1_needs_reg = use_avx && arch_shuffle->src1_needs_reg;

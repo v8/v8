@@ -333,6 +333,12 @@ namespace compiler {
   V(AVXS8x16TransposeLow)          \
   V(SSES8x16TransposeHigh)         \
   V(AVXS8x16TransposeHigh)         \
+  V(SSES8x8Reverse)                \
+  V(AVXS8x8Reverse)                \
+  V(SSES8x4Reverse)                \
+  V(AVXS8x4Reverse)                \
+  V(SSES8x2Reverse)                \
+  V(AVXS8x2Reverse)                \
   V(IA32S1x4AnyTrue)               \
   V(IA32S1x4AllTrue)               \
   V(IA32S1x8AnyTrue)               \
