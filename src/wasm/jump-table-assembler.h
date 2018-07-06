@@ -18,12 +18,12 @@ class JumpTableAssembler : public TurboAssembler {
   // must be independent of the code range of any isolate anyway. So just use
   // this default {Options} for each {JumpTableAssembler}.
   JumpTableAssembler()
-      : TurboAssembler(nullptr, Assembler::Options{}, nullptr, 0,
+      : TurboAssembler(nullptr, AssemblerOptions{}, nullptr, 0,
                        CodeObjectRequired::kNo) {}
 
   // Instantiate a {JumpTableAssembler} for patching.
   explicit JumpTableAssembler(Address slot_addr, int size = 256)
-      : TurboAssembler(nullptr, Assembler::Options{},
+      : TurboAssembler(nullptr, AssemblerOptions{},
                        reinterpret_cast<void*>(slot_addr), size,
                        CodeObjectRequired::kNo) {}
 

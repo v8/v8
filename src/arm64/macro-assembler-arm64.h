@@ -179,8 +179,9 @@ enum PreShiftImmMode {
 
 class TurboAssembler : public TurboAssemblerBase {
  public:
-  TurboAssembler(Isolate* isolate, const Options& options, void* buffer,
-                 int buffer_size, CodeObjectRequired create_code_object)
+  TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
+                 void* buffer, int buffer_size,
+                 CodeObjectRequired create_code_object)
       : TurboAssemblerBase(isolate, options, buffer, buffer_size,
                            create_code_object) {}
 
@@ -1304,10 +1305,10 @@ class MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object)
-      : MacroAssembler(isolate, Assembler::DefaultOptions(isolate), buffer,
+      : MacroAssembler(isolate, AssemblerOptions::Default(isolate), buffer,
                        size, create_code_object) {}
-  MacroAssembler(Isolate* isolate, const Options& options, void* buffer,
-                 int size, CodeObjectRequired create_code_object);
+  MacroAssembler(Isolate* isolate, const AssemblerOptions& options,
+                 void* buffer, int size, CodeObjectRequired create_code_object);
 
   // Instruction set functions ------------------------------------------------
   // Logical macros.

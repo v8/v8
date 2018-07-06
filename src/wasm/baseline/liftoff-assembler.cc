@@ -338,8 +338,8 @@ void LiftoffAssembler::CacheState::Split(const CacheState& source) {
 
 namespace {
 
-constexpr Assembler::Options DefaultLiftoffOptions() {
-  return Assembler::Options{};
+constexpr AssemblerOptions DefaultLiftoffOptions() {
+  return AssemblerOptions{};
 }
 
 }  // namespace

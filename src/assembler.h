@@ -137,38 +137,38 @@ class HeapObjectRequest {
 
 enum class CodeObjectRequired { kNo, kYes };
 
+struct V8_EXPORT_PRIVATE AssemblerOptions {
+  // Recording reloc info and for external references and off-heap targets is
+  // needed whenever code is serialized, e.g. into the snapshot or as a WASM
+  // module. This flag allows this reloc info to be disabled for code that
+  // will not survive process destruction.
+  bool record_reloc_info_for_serialization = true;
+  // Enables access to exrefs by computing a delta from the root array.
+  // Only valid if code will not survive the process.
+  bool enable_root_array_delta_access = false;
+  // Enables specific assembler sequences only used for the simulator.
+  bool enable_simulator_code = false;
+  // Enables use of isolate-independent constants, indirected through the
+  // root array.
+  // (macro assembler feature).
+  bool isolate_independent_code = false;
+  // Enables the use of isolate-independent builtins through an off-heap
+  // trampoline. (macro assembler feature).
+  bool inline_offheap_trampolines = false;
+  // On some platforms, all code is within a given range in the process,
+  // and the start of this range is configured here.
+  Address code_range_start = 0;
+
+  static AssemblerOptions Default(
+      Isolate* isolate, bool explicitly_support_serialization = false);
+};
+
 class AssemblerBase : public Malloced {
  public:
-  struct Options {
-    // Recording reloc info and for external references and off-heap targets is
-    // needed whenever code is serialized, e.g. into the snapshot or as a WASM
-    // module. This flag allows this reloc info to be disabled for code that
-    // will not survive process destruction.
-    bool record_reloc_info_for_serialization = true;
-    // Enables access to exrefs by computing a delta from the root array.
-    // Only valid if code will not survive the process.
-    bool enable_root_array_delta_access = false;
-    // Enables specific assembler sequences only used for the simulator.
-    bool enable_simulator_code = false;
-    // Enables use of isolate-independent constants, indirected through the
-    // root array.
-    // (macro assembler feature).
-    bool isolate_independent_code = false;
-    // Enables the use of isolate-independent builtins through an off-heap
-    // trampoline. (macro assembler feature).
-    bool inline_offheap_trampolines = false;
-    // On some platforms, all code is within a given range in the process,
-    // and the start of this range is configured here.
-    Address code_range_start = 0;
-  };
-
-  static Options DefaultOptions(Isolate* isolate,
-                                bool explicitly_support_serialization = false);
-
-  AssemblerBase(const Options& options, void* buffer, int buffer_size);
+  AssemblerBase(const AssemblerOptions& options, void* buffer, int buffer_size);
   virtual ~AssemblerBase();
 
-  const Options& options() const { return options_; }
+  const AssemblerOptions& options() const { return options_; }
 
   bool emit_debug_code() const { return emit_debug_code_; }
   void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
@@ -275,7 +275,7 @@ class AssemblerBase : public Malloced {
   // the code handle in the vector instead.
   std::vector<Handle<Code>> code_targets_;
 
-  const Options options_;
+  const AssemblerOptions options_;
   uint64_t enabled_cpu_features_;
   bool emit_debug_code_;
   bool predictable_code_size_;

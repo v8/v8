@@ -256,10 +256,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   OptimizedCompilationInfo info(ArrayVector("testing"), &zone,
                                 Code::WASM_FUNCTION);
-  Handle<Code> code =
-      Pipeline::GenerateCodeForTesting(&info, i_isolate, desc, callee.graph(),
-                                       callee.Export())
-          .ToHandleChecked();
+  Handle<Code> code = Pipeline::GenerateCodeForTesting(
+                          &info, i_isolate, desc, callee.graph(),
+                          AssemblerOptions::Default(i_isolate), callee.Export())
+                          .ToHandleChecked();
 
   std::unique_ptr<wasm::NativeModule> module =
       AllocateNativeModule(i_isolate, code->raw_instruction_size());
@@ -303,8 +303,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   OptimizedCompilationInfo wrapper_info(ArrayVector("wrapper"), &zone,
                                         Code::STUB);
   Handle<Code> wrapper_code =
-      Pipeline::GenerateCodeForTesting(&wrapper_info, i_isolate, wrapper_desc,
-                                       caller.graph(), caller.Export())
+      Pipeline::GenerateCodeForTesting(
+          &wrapper_info, i_isolate, wrapper_desc, caller.graph(),
+          AssemblerOptions::Default(i_isolate), caller.Export())
           .ToHandleChecked();
   auto fn = GeneratedCode<int32_t>::FromCode(*wrapper_code);
   int result = fn.Call();

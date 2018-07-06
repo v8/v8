@@ -347,7 +347,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
-Assembler::Assembler(const Options& options, void* buffer, int buffer_size)
+Assembler::Assembler(const AssemblerOptions& options, void* buffer,
+                     int buffer_size)
     : AssemblerBase(options, buffer, buffer_size) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   ReserveCodeTargetSpace(100);

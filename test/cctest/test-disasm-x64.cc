@@ -52,7 +52,7 @@ TEST(DisasmX64) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::internal::byte buffer[8192];
-  Assembler assm(Assembler::Options{}, buffer, sizeof buffer);
+  Assembler assm(AssemblerOptions{}, buffer, sizeof buffer);
   DummyStaticFunction(nullptr);  // just bloody use it (DELETE; debugging)
 
   // Short immediate instructions

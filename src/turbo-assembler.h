@@ -63,8 +63,9 @@ class TurboAssemblerBase : public Assembler {
       Isolate* isolate, const ExternalReference& reference);
 
  protected:
-  TurboAssemblerBase(Isolate* isolate, const Options& options, void* buffer,
-                     int buffer_size, CodeObjectRequired create_code_object);
+  TurboAssemblerBase(Isolate* isolate, const AssemblerOptions& options,
+                     void* buffer, int buffer_size,
+                     CodeObjectRequired create_code_object);
 
   Isolate* const isolate_ = nullptr;
 

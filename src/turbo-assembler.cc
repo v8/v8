@@ -12,7 +12,8 @@
 namespace v8 {
 namespace internal {
 
-TurboAssemblerBase::TurboAssemblerBase(Isolate* isolate, const Options& options,
+TurboAssemblerBase::TurboAssemblerBase(Isolate* isolate,
+                                       const AssemblerOptions& options,
                                        void* buffer, int buffer_size,
                                        CodeObjectRequired create_code_object)
     : Assembler(options, buffer, buffer_size), isolate_(isolate) {

@@ -50,12 +50,9 @@ namespace internal {
 
 const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
-// -----------------------------------------------------------------------------
-// Implementation of AssemblerBase
-
-AssemblerBase::Options AssemblerBase::DefaultOptions(
+AssemblerOptions AssemblerOptions::Default(
     Isolate* isolate, bool explicitly_support_serialization) {
-  Options options;
+  AssemblerOptions options;
   bool serializer =
       isolate->serializer_enabled() || explicitly_support_serialization;
   options.record_reloc_info_for_serialization = serializer;
@@ -74,7 +71,10 @@ AssemblerBase::Options AssemblerBase::DefaultOptions(
   return options;
 }
 
-AssemblerBase::AssemblerBase(const Options& options, void* buffer,
+// -----------------------------------------------------------------------------
+// Implementation of AssemblerBase
+
+AssemblerBase::AssemblerBase(const AssemblerOptions& options, void* buffer,
                              int buffer_size)
     : options_(options),
       enabled_cpu_features_(0),

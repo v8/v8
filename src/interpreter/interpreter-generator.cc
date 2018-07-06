@@ -3124,7 +3124,8 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
 #undef CALL_GENERATOR
   }
 
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
+      &state, AssemblerOptions::Default(isolate));
   PROFILE(isolate, CodeCreateEvent(
                        CodeEventListener::BYTECODE_HANDLER_TAG,
                        AbstractCode::cast(*code),
@@ -3189,7 +3190,8 @@ Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
           : PoisoningMitigationLevel::kDontPoison);
 
   DeserializeLazyAssembler::Generate(&state, operand_scale);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
+      &state, AssemblerOptions::Default(isolate));
   PROFILE(isolate,
           CodeCreateEvent(CodeEventListener::BYTECODE_HANDLER_TAG,
                           AbstractCode::cast(*code), debug_name.c_str()));

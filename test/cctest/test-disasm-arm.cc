@@ -111,7 +111,7 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
   Isolate* isolate = CcTest::i_isolate();                   \
   HandleScope scope(isolate);                               \
   byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024)); \
-  Assembler assm(Assembler::Options{}, buffer, 4 * 1024);   \
+  Assembler assm(AssemblerOptions{}, buffer, 4 * 1024);     \
   bool failure = false;
 
 // This macro assembles one instruction using the preallocated assembler and

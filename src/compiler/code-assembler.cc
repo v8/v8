@@ -167,7 +167,8 @@ PoisoningMitigationLevel CodeAssembler::poisoning_level() const {
 }
 
 // static
-Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
+Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state,
+                                         const AssemblerOptions& options) {
   DCHECK(!state->code_generated_);
 
   RawMachineAssembler* rasm = state->raw_assembler_.get();
@@ -181,18 +182,20 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
       Pipeline::GenerateCodeForCodeStub(
           rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
           state->kind_, state->name_, state->stub_key_, state->builtin_index_,
-          should_optimize_jumps ? &jump_opt : nullptr, rasm->poisoning_level())
+          should_optimize_jumps ? &jump_opt : nullptr, rasm->poisoning_level(),
+          options)
           .ToHandleChecked();
 
   if (jump_opt.is_optimizable()) {
     jump_opt.set_optimizing();
 
     // Regenerate machine code
-    code = Pipeline::GenerateCodeForCodeStub(
-               rasm->isolate(), rasm->call_descriptor(), rasm->graph(),
-               schedule, state->kind_, state->name_, state->stub_key_,
-               state->builtin_index_, &jump_opt, rasm->poisoning_level())
-               .ToHandleChecked();
+    code =
+        Pipeline::GenerateCodeForCodeStub(
+            rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
+            state->kind_, state->name_, state->stub_key_, state->builtin_index_,
+            &jump_opt, rasm->poisoning_level(), options)
+            .ToHandleChecked();
   }
 
   state->code_generated_ = true;

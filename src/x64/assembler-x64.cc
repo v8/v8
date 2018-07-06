@@ -356,7 +356,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 // -----------------------------------------------------------------------------
 // Implementation of Assembler.
 
-Assembler::Assembler(const Options& options, void* buffer, int buffer_size)
+Assembler::Assembler(const AssemblerOptions& options, void* buffer,
+                     int buffer_size)
     : AssemblerBase(options, buffer, buffer_size) {
 // Clear the buffer in debug mode unless it was provided by the
 // caller in which case we can't be sure it's okay to overwrite

@@ -567,7 +567,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   explicit CodeAssembler(CodeAssemblerState* state) : state_(state) {}
   ~CodeAssembler();
 
-  static Handle<Code> GenerateCode(CodeAssemblerState* state);
+  static Handle<Code> GenerateCode(CodeAssemblerState* state,
+                                   const AssemblerOptions& options);
 
   bool Is64() const;
   bool IsFloat64RoundUpSupported() const;

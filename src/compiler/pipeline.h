@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 
+struct AssemblerOptions;
 class OptimizedCompilationInfo;
 class OptimizedCompilationJob;
 class RegisterConfiguration;
@@ -59,7 +60,8 @@ class Pipeline : public AllStatic {
       Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
       Schedule* schedule, Code::Kind kind, const char* debug_name,
       uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
-      PoisoningMitigationLevel poisoning_level);
+      PoisoningMitigationLevel poisoning_level,
+      const AssemblerOptions& options);
 
   // ---------------------------------------------------------------------------
   // The following methods are for testing purposes only. Avoid production use.
@@ -74,7 +76,7 @@ class Pipeline : public AllStatic {
   V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
       OptimizedCompilationInfo* info, Isolate* isolate,
       CallDescriptor* call_descriptor, Graph* graph,
-      Schedule* schedule = nullptr,
+      const AssemblerOptions& options, Schedule* schedule = nullptr,
       SourcePositionTable* source_positions = nullptr);
 
   // Run just the register allocator phases.

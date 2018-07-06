@@ -241,7 +241,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
-Assembler::Assembler(const Options& options, void* buffer, int buffer_size)
+Assembler::Assembler(const AssemblerOptions& options, void* buffer,
+                     int buffer_size)
     : AssemblerBase(options, buffer, buffer_size),
       constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
@@ -2142,8 +2143,8 @@ void Assembler::CheckTrampolinePool() {
   }
 }
 
-PatchingAssembler::PatchingAssembler(const Options& options, byte* address,
-                                     int instructions)
+PatchingAssembler::PatchingAssembler(const AssemblerOptions& options,
+                                     byte* address, int instructions)
     : Assembler(options, address, instructions * kInstrSize + kGap) {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
 }

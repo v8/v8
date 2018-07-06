@@ -38,23 +38,12 @@ class CodeGenerator::JumpTable final : public ZoneObject {
   size_t const target_count_;
 };
 
-Assembler::Options AssemblerOptions(Isolate* isolate, Code::Kind kind) {
-  Assembler::Options options = Assembler::DefaultOptions(isolate);
-  if (kind == Code::JS_TO_WASM_FUNCTION || kind == Code::WASM_FUNCTION) {
-    options.record_reloc_info_for_serialization = true;
-    options.enable_root_array_delta_access = false;
-  }
-  return options;
-}
-
-CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
-                             InstructionSequence* code,
-                             OptimizedCompilationInfo* info, Isolate* isolate,
-                             base::Optional<OsrHelper> osr_helper,
-                             int start_source_position,
-                             JumpOptimizationInfo* jump_opt,
-                             WasmCompilationData* wasm_compilation_data,
-                             PoisoningMitigationLevel poisoning_level)
+CodeGenerator::CodeGenerator(
+    Zone* codegen_zone, Frame* frame, Linkage* linkage,
+    InstructionSequence* code, OptimizedCompilationInfo* info, Isolate* isolate,
+    base::Optional<OsrHelper> osr_helper, int start_source_position,
+    JumpOptimizationInfo* jump_opt, WasmCompilationData* wasm_compilation_data,
+    PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -66,8 +55,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       current_block_(RpoNumber::Invalid()),
       start_source_position_(start_source_position),
       current_source_position_(SourcePosition::Unknown()),
-      tasm_(isolate, AssemblerOptions(isolate, info->code_kind()), nullptr, 0,
-            CodeObjectRequired::kNo),
+      tasm_(isolate, options, nullptr, 0, CodeObjectRequired::kNo),
       resolver_(this),
       safepoints_(zone()),
       handlers_(zone()),

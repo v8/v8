@@ -118,7 +118,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 256;
-  TurboAssembler patching_assembler(nullptr, Assembler::Options{},
+  TurboAssembler patching_assembler(nullptr, AssemblerOptions{},
                                     buffer_ + offset, kAvailableSpace,
                                     CodeObjectRequired::kNo);
   // If bytes can be represented as 16bit, addiu will be generated and two

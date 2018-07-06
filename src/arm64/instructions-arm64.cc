@@ -227,7 +227,7 @@ bool Instruction::IsTargetInImmPCOffsetRange(Instruction* target) {
   return IsValidImmPCOffset(BranchType(), DistanceTo(target));
 }
 
-void Instruction::SetImmPCOffsetTarget(const Assembler::Options& options,
+void Instruction::SetImmPCOffsetTarget(const AssemblerOptions& options,
                                        Instruction* target) {
   if (IsPCRelAddressing()) {
     SetPCRelImmTarget(options, target);
@@ -241,7 +241,7 @@ void Instruction::SetImmPCOffsetTarget(const Assembler::Options& options,
   }
 }
 
-void Instruction::SetPCRelImmTarget(const Assembler::Options& options,
+void Instruction::SetPCRelImmTarget(const AssemblerOptions& options,
                                     Instruction* target) {
   // ADRP is not supported, so 'this' must point to an ADR instruction.
   DCHECK(IsAdr());
@@ -293,7 +293,7 @@ void Instruction::SetBranchImmTarget(Instruction* target) {
 }
 
 void Instruction::SetUnresolvedInternalReferenceImmTarget(
-    const Assembler::Options& options, Instruction* target) {
+    const AssemblerOptions& options, Instruction* target) {
   DCHECK(IsUnresolvedInternalReference());
   DCHECK(IsAligned(DistanceTo(target), kInstructionSize));
   DCHECK(is_int32(DistanceTo(target) >> kInstructionSizeLog2));

@@ -538,7 +538,8 @@ const Instr kLdrRegFpNegOffsetPattern =
 const Instr kStrRegFpNegOffsetPattern = al | B26 | NegOffset | fp.code() * B16;
 const Instr kLdrStrInstrTypeMask = 0xFFFF0000;
 
-Assembler::Assembler(const Options& options, void* buffer, int buffer_size)
+Assembler::Assembler(const AssemblerOptions& options, void* buffer,
+                     int buffer_size)
     : AssemblerBase(options, buffer, buffer_size),
       pending_32_bit_constants_(),
       pending_64_bit_constants_(),
@@ -5447,8 +5448,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   next_buffer_check_ = pc_offset() + kCheckPoolInterval;
 }
 
-PatchingAssembler::PatchingAssembler(const Options& options, byte* address,
-                                     int instructions)
+PatchingAssembler::PatchingAssembler(const AssemblerOptions& options,
+                                     byte* address, int instructions)
     : Assembler(options, address, instructions * kInstrSize + kGap) {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
 }

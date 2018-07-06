@@ -115,7 +115,8 @@ class PipelineData {
         codegen_zone_scope_(zone_stats_, ZONE_NAME),
         codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
-        register_allocation_zone_(register_allocation_zone_scope_.zone()) {
+        register_allocation_zone_(register_allocation_zone_scope_.zone()),
+        assembler_options_(AssemblerOptions::Default(isolate)) {
     PhaseScope scope(pipeline_statistics, "init pipeline data");
     graph_ = new (graph_zone_) Graph(graph_zone_);
     source_positions_ = new (graph_zone_) SourcePositionTable(graph_);
@@ -141,7 +142,8 @@ class PipelineData {
                SourcePositionTable* source_positions,
                NodeOriginTable* node_origins,
                WasmCompilationData* wasm_compilation_data,
-               int wasm_function_index)
+               int wasm_function_index,
+               const AssemblerOptions& assembler_options)
       : isolate_(isolate),
         info_(info),
         debug_name_(info_->GetDebugName()),
@@ -162,13 +164,15 @@ class PipelineData {
         codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
-        wasm_compilation_data_(wasm_compilation_data) {}
+        wasm_compilation_data_(wasm_compilation_data),
+        assembler_options_(assembler_options) {}
 
   // For machine graph testing entry point.
   PipelineData(ZoneStats* zone_stats, OptimizedCompilationInfo* info,
                Isolate* isolate, Graph* graph, Schedule* schedule,
                SourcePositionTable* source_positions,
-               NodeOriginTable* node_origins, JumpOptimizationInfo* jump_opt)
+               NodeOriginTable* node_origins, JumpOptimizationInfo* jump_opt,
+               const AssemblerOptions& assembler_options)
       : isolate_(isolate),
         info_(info),
         debug_name_(info_->GetDebugName()),
@@ -184,7 +188,8 @@ class PipelineData {
         codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
-        jump_optimization_info_(jump_opt) {}
+        jump_optimization_info_(jump_opt),
+        assembler_options_(assembler_options) {}
 
   // For register allocation testing entry point.
   PipelineData(ZoneStats* zone_stats, OptimizedCompilationInfo* info,
@@ -200,7 +205,8 @@ class PipelineData {
         codegen_zone_scope_(zone_stats_, ZONE_NAME),
         codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
-        register_allocation_zone_(register_allocation_zone_scope_.zone()) {}
+        register_allocation_zone_(register_allocation_zone_scope_.zone()),
+        assembler_options_(AssemblerOptions::Default(isolate)) {}
 
   ~PipelineData() {
     delete code_generator_;  // Must happen before zones are destroyed.
@@ -369,7 +375,8 @@ class PipelineData {
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
-        wasm_compilation_data_, info()->GetPoisoningMitigationLevel());
+        wasm_compilation_data_, info()->GetPoisoningMitigationLevel(),
+        assembler_options_);
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -453,6 +460,7 @@ class PipelineData {
   WasmCompilationData* wasm_compilation_data_ = nullptr;
 
   JumpOptimizationInfo* jump_optimization_info_ = nullptr;
+  AssemblerOptions assembler_options_;
 
   DISALLOW_COPY_AND_ASSIGN(PipelineData);
 };
@@ -968,7 +976,7 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
             function_body, wasm_module, info, isolate, &zone_stats_)),
         data_(&zone_stats_, isolate, info, mcgraph, pipeline_statistics_.get(),
               source_positions, node_origins, wasm_compilation_data,
-              function_index),
+              function_index, WasmAssemblerOptions(isolate)),
         pipeline_(&data_),
         linkage_(call_descriptor),
         native_module_(native_module),
@@ -2089,7 +2097,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     Schedule* schedule, Code::Kind kind, const char* debug_name,
     uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
-    PoisoningMitigationLevel poisoning_level) {
+    PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options) {
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   info.set_builtin_index(builtin_index);
   info.set_stub_key(stub_key);
@@ -2103,7 +2111,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   SourcePositionTable source_positions(graph);
   NodeOriginTable node_origins(graph);
   PipelineData data(&zone_stats, &info, isolate, graph, schedule,
-                    &source_positions, &node_origins, jump_opt);
+                    &source_positions, &node_origins, jump_opt, options);
   data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
@@ -2159,7 +2167,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 // static
 MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     OptimizedCompilationInfo* info, Isolate* isolate,
-    CallDescriptor* call_descriptor, Graph* graph, Schedule* schedule,
+    CallDescriptor* call_descriptor, Graph* graph,
+    const AssemblerOptions& options, Schedule* schedule,
     SourcePositionTable* source_positions) {
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
@@ -2169,7 +2178,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     source_positions = new (info->zone()) SourcePositionTable(graph);
   NodeOriginTable* node_positions = new (info->zone()) NodeOriginTable(graph);
   PipelineData data(&zone_stats, info, isolate, graph, schedule,
-                    source_positions, node_positions, nullptr);
+                    source_positions, node_positions, nullptr, options);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(

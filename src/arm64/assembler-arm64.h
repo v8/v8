@@ -898,7 +898,7 @@ class Assembler : public AssemblerBase {
   // buffer for code generation and assumes its size to be buffer_size. If the
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
-  Assembler(const Options& options, void* buffer, int buffer_size);
+  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
 
   virtual ~Assembler();
 
@@ -3612,7 +3612,8 @@ class PatchingAssembler : public Assembler {
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
   // Note that the instruction cache will not be flushed.
-  PatchingAssembler(const Options& options, byte* start, unsigned count)
+  PatchingAssembler(const AssemblerOptions& options, byte* start,
+                    unsigned count)
       : Assembler(options, start, count * kInstructionSize + kGap) {
     // Block constant pool emission.
     StartBlockPools();

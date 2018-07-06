@@ -3648,7 +3648,7 @@ TEST(WeakReference) {
   i::Handle<i::FeedbackVector> fv = factory->NewFeedbackVector(shared_function);
 
   // Create a Code.
-  i::Assembler assm(i::Assembler::Options{}, nullptr, 0);
+  i::Assembler assm(i::AssemblerOptions{}, nullptr, 0);
   assm.nop();  // supported on all architectures
   i::CodeDesc desc;
   assm.GetCode(i_isolate, &desc);

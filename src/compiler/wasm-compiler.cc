@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/assembler-inl.h"
+#include "src/assembler.h"
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
@@ -4775,8 +4776,8 @@ MaybeHandle<Code> CompileJSToWasmWrapper(
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
       &zone, false, params + 1, CallDescriptor::kNoFlags);
 
-  MaybeHandle<Code> maybe_code =
-      Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
+  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForTesting(
+      &info, isolate, incoming, &graph, WasmAssemblerOptions(isolate));
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     return maybe_code;
@@ -4850,9 +4851,9 @@ MaybeHandle<Code> CompileWasmToJSWrapper(
   if (machine.Is32()) {
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
-
   MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForTesting(
-      &info, isolate, incoming, &graph, nullptr, source_position_table);
+      &info, isolate, incoming, &graph, AssemblerOptions::Default(isolate),
+      nullptr, source_position_table);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     return maybe_code;
@@ -4918,7 +4919,8 @@ MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate* isolate,
   }
 
   MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForTesting(
-      &info, isolate, incoming, &graph, nullptr);
+      &info, isolate, incoming, &graph, AssemblerOptions::Default(isolate),
+      nullptr);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     return maybe_code;
@@ -4986,8 +4988,8 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
     StdoutStream{} << "-- C Wasm entry graph -- " << std::endl << AsRPO(graph);
   }
 
-  MaybeHandle<Code> maybe_code =
-      Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
+  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForTesting(
+      &info, isolate, incoming, &graph, AssemblerOptions::Default(isolate));
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     return maybe_code;
@@ -5385,6 +5387,13 @@ CallDescriptor* GetI32WasmCallDescriptorForSimd(
   return ReplaceTypeInCallDescriptorWith(zone, call_descriptor, 4,
                                          MachineType::Simd128(),
                                          MachineRepresentation::kWord32);
+}
+
+AssemblerOptions WasmAssemblerOptions(Isolate* isolate) {
+  AssemblerOptions options = AssemblerOptions::Default(isolate);
+  options.record_reloc_info_for_serialization = true;
+  options.enable_root_array_delta_access = false;
+  return options;
 }
 
 #undef WASM_64

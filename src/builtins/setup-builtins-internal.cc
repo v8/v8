@@ -119,7 +119,8 @@ Code* BuildWithCodeStubAssemblerJS(Isolate* isolate, int32_t builtin_index,
       isolate, &zone, argc_with_recv, Code::BUILTIN, name,
       PoisoningMitigationLevel::kDontPoison, builtin_index);
   generator(&state);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
+  AssemblerOptions options = AssemblerOptions::Default(isolate);
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state, options);
   PostBuildProfileAndTracing(isolate, *code, name);
   return *code;
 }
@@ -147,7 +148,8 @@ Code* BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
       isolate, &zone, descriptor, Code::BUILTIN, name,
       PoisoningMitigationLevel::kDontPoison, 0, builtin_index);
   generator(&state);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
+  AssemblerOptions options = AssemblerOptions::Default(isolate);
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state, options);
   PostBuildProfileAndTracing(isolate, *code, name);
   return *code;
 }

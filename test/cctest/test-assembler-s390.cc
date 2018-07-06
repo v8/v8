@@ -52,7 +52,7 @@ TEST(0) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(Assembler::Options{}, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
 
   __ lhi(r1, Operand(3));    // test 4-byte instr
   __ llilf(r2, Operand(4));  // test 6-byte instr
@@ -79,7 +79,7 @@ TEST(1) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(Assembler::Options{}, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
   Label L, C;
 
 #if defined(_AIX)
@@ -119,7 +119,7 @@ TEST(2) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
-  Assembler assm(Assembler::Options{}, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
   Label L, C;
 
 #if defined(_AIX)
@@ -168,7 +168,7 @@ TEST(3) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(Assembler::Options{}, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
 
   __ ar(r14, r13);
   __ sr(r14, r13);
@@ -222,7 +222,7 @@ TEST(4) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(Assembler::Options{}, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
   Label L2, L3, L4;
 
   __ chi(r2, Operand(10));
@@ -424,7 +424,7 @@ TEST(10) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(Assembler::Options{}, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
 
   Label ok, failed;
 
@@ -502,7 +502,7 @@ TEST(11) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(Assembler::Options{}, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
 
   Label ok, failed, continue1, continue2;
   // r1 - operand; r3 - inc / test val
@@ -556,7 +556,7 @@ TEST(12) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  Assembler assm(Assembler::Options{}, nullptr, 0);
+  Assembler assm(AssemblerOptions{}, nullptr, 0);
 
   Label ok, failed, continue1, continue2;
   // r1 - operand; r3 - inc / test val

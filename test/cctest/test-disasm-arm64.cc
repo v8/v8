@@ -62,16 +62,16 @@ namespace internal {
   DisassemblingDecoder* disasm = new DisassemblingDecoder();             \
   decoder->AppendVisitor(disasm)
 
-#define SET_UP_ASM()                                                      \
-  InitializeVM();                                                         \
-  Isolate* isolate = CcTest::i_isolate();                                 \
-  HandleScope scope(isolate);                                             \
-  byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));                     \
-  uint32_t encoding = 0;                                                  \
-  Assembler* assm = new Assembler(Assembler::Options{}, buf, INSTR_SIZE); \
-  Decoder<DispatchingDecoderVisitor>* decoder =                           \
-      new Decoder<DispatchingDecoderVisitor>();                           \
-  DisassemblingDecoder* disasm = new DisassemblingDecoder();              \
+#define SET_UP_ASM()                                                    \
+  InitializeVM();                                                       \
+  Isolate* isolate = CcTest::i_isolate();                               \
+  HandleScope scope(isolate);                                           \
+  byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));                   \
+  uint32_t encoding = 0;                                                \
+  Assembler* assm = new Assembler(AssemblerOptions{}, buf, INSTR_SIZE); \
+  Decoder<DispatchingDecoderVisitor>* decoder =                         \
+      new Decoder<DispatchingDecoderVisitor>();                         \
+  DisassemblingDecoder* disasm = new DisassemblingDecoder();            \
   decoder->AppendVisitor(disasm)
 
 #define COMPARE(ASM, EXP)                                                \
@@ -1880,7 +1880,7 @@ TEST_(debug) {
     HandleScope scope(isolate);
     byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));
     uint32_t encoding = 0;
-    Assembler::Options options;
+    AssemblerOptions options;
     options.enable_simulator_code = (i == 1);
     Assembler* assm = new Assembler(options, buf, INSTR_SIZE);
     Decoder<DispatchingDecoderVisitor>* decoder =

@@ -21,7 +21,7 @@
 
 namespace v8 {
 namespace internal {
-
+struct AssemblerOptions;
 class OptimizedCompilationJob;
 
 namespace compiler {
@@ -507,6 +507,8 @@ V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
 
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptorForSimd(
     Zone* zone, CallDescriptor* call_descriptor);
+
+AssemblerOptions WasmAssemblerOptions(Isolate* isolate);
 
 }  // namespace compiler
 }  // namespace internal

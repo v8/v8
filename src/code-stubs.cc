@@ -107,7 +107,7 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
 
   // Generate the new code.
   // TODO(yangguo): remove this once we can serialize IC stubs.
-  Assembler::Options options = Assembler::DefaultOptions(isolate(), true);
+  AssemblerOptions options = AssemblerOptions::Default(isolate(), true);
   MacroAssembler masm(isolate(), options, nullptr, 256,
                       CodeObjectRequired::kYes);
 
@@ -263,7 +263,8 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
       isolate(), &zone, descriptor, Code::STUB, name,
       PoisoningMitigationLevel::kDontPoison, GetKey());
   GenerateAssembly(&state);
-  return compiler::CodeAssembler::GenerateCode(&state);
+  return compiler::CodeAssembler::GenerateCode(
+      &state, AssemblerOptions::Default(isolate()));
 }
 
 TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {

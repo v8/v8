@@ -53,7 +53,7 @@ TEST(WeakReferencesBasic) {
     HandleScope inner_scope(isolate);
 
     // Create a new Code.
-    Assembler assm(Assembler::Options{}, nullptr, 0);
+    Assembler assm(AssemblerOptions{}, nullptr, 0);
     assm.nop();  // supported on all architectures
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
