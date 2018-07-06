@@ -1315,7 +1315,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     if (is_topmost) {
       Register constant_pool_reg =
           JavaScriptFrame::constant_pool_pointer_register();
-      output_frame->SetRegister(constant_pool_reg.code(), fp_value);
+      output_frame->SetRegister(constant_pool_reg.code(), constant_pool_value);
     }
   }
 
