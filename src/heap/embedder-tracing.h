@@ -30,8 +30,8 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   void EnterFinalPause();
   bool Trace(double deadline,
              EmbedderHeapTracer::AdvanceTracingActions actions);
+  bool IsRemoteTracingDone();
 
-  size_t NumberOfWrappersToTrace();
   size_t NumberOfCachedWrappersToTrace() {
     return cached_wrappers_to_trace_.size();
   }
@@ -51,7 +51,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   bool ShouldFinalizeIncrementalMarking() {
     static const size_t kMaxIncrementalFixpointRounds = 3;
     return !FLAG_incremental_marking_wrappers || !InUse() ||
-           NumberOfWrappersToTrace() == 0 ||
+           IsRemoteTracingDone() ||
            num_v8_marking_worklist_was_empty_ > kMaxIncrementalFixpointRounds;
   }
 

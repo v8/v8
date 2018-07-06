@@ -1504,10 +1504,9 @@ void MarkCompactCollector::ProcessEphemeronsUntilFixpoint() {
     CHECK(weak_objects_.current_ephemerons.IsEmpty());
     CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
 
-    work_to_do =
-        work_to_do || !marking_worklist()->IsEmpty() ||
-        heap()->concurrent_marking()->ephemeron_marked() ||
-        heap()->local_embedder_heap_tracer()->NumberOfWrappersToTrace() > 0;
+    work_to_do = work_to_do || !marking_worklist()->IsEmpty() ||
+                 heap()->concurrent_marking()->ephemeron_marked() ||
+                 !heap()->local_embedder_heap_tracer()->IsRemoteTracingDone();
     ++iterations;
   }
 
@@ -1620,9 +1619,8 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
     // for work_to_do are not sufficient for determining if another iteration
     // is necessary.
 
-    work_to_do =
-        !marking_worklist()->IsEmpty() ||
-        heap()->local_embedder_heap_tracer()->NumberOfWrappersToTrace() > 0;
+    work_to_do = !marking_worklist()->IsEmpty() ||
+                 !heap()->local_embedder_heap_tracer()->IsRemoteTracingDone();
     CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
   }
 
@@ -1692,7 +1690,7 @@ void MarkCompactCollector::ProcessEphemeronMarking() {
   ProcessEphemeronsUntilFixpoint();
 
   CHECK(marking_worklist()->IsEmpty());
-  CHECK_EQ(0, heap()->local_embedder_heap_tracer()->NumberOfWrappersToTrace());
+  CHECK(heap()->local_embedder_heap_tracer()->IsRemoteTracingDone());
 }
 
 void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {

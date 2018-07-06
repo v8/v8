@@ -30,7 +30,7 @@ class MockEmbedderHeapTracer : public EmbedderHeapTracer {
   MOCK_METHOD0(TraceEpilogue, void());
   MOCK_METHOD0(AbortTracing, void());
   MOCK_METHOD0(EnterFinalPause, void());
-  MOCK_METHOD0(NumberOfWrappersToTrace, size_t());
+  MOCK_METHOD0(IsTracingDone, bool());
   MOCK_METHOD1(RegisterV8References,
                void(const std::vector<std::pair<void*, void*> >&));
   MOCK_METHOD2(AdvanceTracing,
@@ -100,12 +100,12 @@ TEST(LocalEmbedderHeapTracer, EnterFinalPauseForwards) {
   local_tracer.EnterFinalPause();
 }
 
-TEST(LocalEmbedderHeapTracer, NumberOfWrappersToTraceIncludesRemote) {
+TEST(LocalEmbedderHeapTracer, IsRemoteTracingDoneIncludesRemote) {
   LocalEmbedderHeapTracer local_tracer;
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
   local_tracer.SetRemoteTracer(&remote_tracer);
-  EXPECT_CALL(remote_tracer, NumberOfWrappersToTrace());
-  local_tracer.NumberOfWrappersToTrace();
+  EXPECT_CALL(remote_tracer, IsTracingDone());
+  local_tracer.IsRemoteTracingDone();
 }
 
 TEST(LocalEmbedderHeapTracer, NumberOfCachedWrappersToTraceExcludesRemote) {
@@ -124,8 +124,8 @@ TEST(LocalEmbedderHeapTracer, RegisterWrappersWithRemoteTracer) {
   EXPECT_CALL(remote_tracer, RegisterV8References(_));
   local_tracer.RegisterWrappersWithRemoteTracer();
   EXPECT_EQ(0u, local_tracer.NumberOfCachedWrappersToTrace());
-  EXPECT_CALL(remote_tracer, NumberOfWrappersToTrace()).WillOnce(Return(1));
-  EXPECT_EQ(1u, local_tracer.NumberOfWrappersToTrace());
+  EXPECT_CALL(remote_tracer, IsTracingDone()).WillOnce(Return(false));
+  EXPECT_FALSE(local_tracer.IsRemoteTracingDone());
 }
 
 TEST(LocalEmbedderHeapTracer, TraceFinishes) {

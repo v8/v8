@@ -7038,6 +7038,12 @@ class V8_EXPORT EmbedderHeapTracer {
   virtual bool AdvanceTracing(double deadline_in_ms,
                               AdvanceTracingActions actions) = 0;
 
+  /*
+   * Returns true if there no more tracing work to be done (see AdvanceTracing)
+   * and false otherwise.
+   */
+  virtual bool IsTracingDone() { return NumberOfWrappersToTrace() == 0; }
+
   /**
    * Called at the end of a GC cycle.
    *
@@ -7062,7 +7068,8 @@ class V8_EXPORT EmbedderHeapTracer {
   /**
    * Returns the number of wrappers that are still to be traced by the embedder.
    */
-  virtual size_t NumberOfWrappersToTrace() { return 0; }
+  V8_DEPRECATE_SOON("Use IsTracingDone",
+                    virtual size_t NumberOfWrappersToTrace() { return 0; });
 
  protected:
   virtual ~EmbedderHeapTracer() = default;
