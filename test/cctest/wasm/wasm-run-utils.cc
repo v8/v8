@@ -122,15 +122,14 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   // Wrap the code so it can be called as a JS function.
   Link();
-  Address target = native_module_->GetCallTargetForFunction(index);
+  FunctionSig* sig = test_module_->functions[index].sig;
   MaybeHandle<Code> maybe_ret_code = compiler::CompileJSToWasmWrapper(
-      isolate_, test_module_ptr_, target, index,
+      isolate_, native_module_, sig, false,
       trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler);
   Handle<Code> ret_code = maybe_ret_code.ToHandleChecked();
   Handle<JSFunction> ret = WasmExportedFunction::New(
       isolate_, instance_object(), MaybeHandle<String>(),
-      static_cast<int>(index),
-      static_cast<int>(test_module_->functions[index].sig->parameter_count()),
+      static_cast<int>(index), static_cast<int>(sig->parameter_count()),
       ret_code);
 
   // Add reference to the exported wrapper code.

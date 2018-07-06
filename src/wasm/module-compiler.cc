@@ -171,46 +171,35 @@ namespace {
 
 class JSToWasmWrapperCache {
  public:
-  Handle<Code> CloneOrCompileJSToWasmWrapper(
-      Isolate* isolate, const wasm::WasmModule* module, Address call_target,
-      uint32_t index, wasm::UseTrapHandler use_trap_handler) {
-    const bool is_import = index < module->num_imported_functions;
-    DCHECK_EQ(is_import, call_target == kNullAddress);
-    const wasm::WasmFunction* func = &module->functions[index];
-    // We cannot cache js-to-wasm wrappers for imports, as they hard-code the
-    // function index.
-    if (!is_import) {
-      int cached_idx = sig_map_.Find(func->sig);
-      if (cached_idx >= 0) {
-        Handle<Code> code =
-            isolate->factory()->CopyCode(code_cache_[cached_idx]);
-        // Now patch the call to wasm code.
-        RelocIterator it(*code,
-                         RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
-        // If there is no reloc info, then it's an incompatible signature or
-        // calls an import.
-        if (!it.done()) it.rinfo()->set_js_to_wasm_address(call_target);
-        return code;
-      }
-    }
+  Handle<Code> GetOrCompileJSToWasmWrapper(
+      Isolate* isolate, const wasm::NativeModule* native_module,
+      uint32_t func_index, wasm::UseTrapHandler use_trap_handler) {
+    const wasm::WasmModule* module = native_module->module();
+    const wasm::WasmFunction* func = &module->functions[func_index];
+    bool is_import = func_index < module->num_imported_functions;
+    auto& cache = cache_[is_import ? 1 : 0];
+    int cached_idx = cache.sig_map.Find(func->sig);
+    if (cached_idx >= 0) return cache.code_cache[cached_idx];
 
     Handle<Code> code =
-        compiler::CompileJSToWasmWrapper(isolate, module, call_target, index,
-                                         use_trap_handler)
+        compiler::CompileJSToWasmWrapper(isolate, native_module, func->sig,
+                                         is_import, use_trap_handler)
             .ToHandleChecked();
-    if (!is_import) {
-      uint32_t new_cache_idx = sig_map_.FindOrInsert(func->sig);
-      DCHECK_EQ(code_cache_.size(), new_cache_idx);
-      USE(new_cache_idx);
-      code_cache_.push_back(code);
-    }
+    uint32_t new_cache_idx = cache.sig_map.FindOrInsert(func->sig);
+    DCHECK_EQ(cache.code_cache.size(), new_cache_idx);
+    USE(new_cache_idx);
+    cache.code_cache.push_back(code);
     return code;
   }
 
  private:
-  // sig_map_ maps signatures to an index in code_cache_.
-  wasm::SignatureMap sig_map_;
-  std::vector<Handle<Code>> code_cache_;
+  // We generate different code for calling imports than calling wasm functions
+  // in this module. Both are cached separately.
+  // [0] for non-imports, [1] for imports.
+  struct Cache {
+    wasm::SignatureMap sig_map;
+    std::vector<Handle<Code>> code_cache;
+  } cache_[2];
 };
 
 // A helper class to simplify instantiating a module from a module object.
@@ -1254,13 +1243,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
-    Address start_call_address =
-        static_cast<uint32_t>(start_index) < module_->num_imported_functions
-            ? kNullAddress
-            : native_module->GetCallTargetForFunction(start_index);
     FunctionSig* sig = module_->functions[start_index].sig;
-    Handle<Code> wrapper_code = js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
-        isolate_, module_, start_call_address, start_index, use_trap_handler());
+    Handle<Code> wrapper_code = js_to_wasm_cache_.GetOrCompileJSToWasmWrapper(
+        isolate_, native_module, start_index, use_trap_handler());
     // TODO(clemensh): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(
@@ -2135,9 +2120,8 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
             // at module compile time and cached instead.
 
             Handle<Code> wrapper_code =
-                js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
-                    isolate_, module_, is_import ? kNullAddress : call_target,
-                    func_index, use_trap_handler());
+                js_to_wasm_cache_.GetOrCompileJSToWasmWrapper(
+                    isolate_, native_module, func_index, use_trap_handler());
             MaybeHandle<String> func_name;
             if (module_->origin == kAsmJsOrigin) {
               // For modules arising from asm.js, honor the names section.
@@ -3050,15 +3034,11 @@ void CompileJsToWasmWrappers(Isolate* isolate,
   NativeModule* native_module = module_object->native_module();
   wasm::UseTrapHandler use_trap_handler =
       native_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
-  const WasmModule* module = module_object->module();
+  const WasmModule* module = native_module->module();
   for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
-    Address call_target =
-        exp.index < module->num_imported_functions
-            ? kNullAddress
-            : native_module->GetCallTargetForFunction(exp.index);
-    Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
-        isolate, module, call_target, exp.index, use_trap_handler);
+    Handle<Code> wrapper_code = js_to_wasm_cache.GetOrCompileJSToWasmWrapper(
+        isolate, native_module, exp.index, use_trap_handler);
     export_wrappers->set(wrapper_index, *wrapper_code);
     RecordStats(*wrapper_code, isolate->counters());
     ++wrapper_index;

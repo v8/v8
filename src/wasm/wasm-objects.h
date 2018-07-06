@@ -501,10 +501,10 @@ class WasmExportedFunctionData : public Struct {
   DECL_VERIFIER(WasmExportedFunctionData)
 
 // Layout description.
-#define WASM_EXPORTED_FUNCTION_DATA_FIELDS(V) \
-  V(kWrapperCodeOffset, kPointerSize)         \
-  V(kInstanceOffset, kPointerSize)            \
-  V(kFunctionIndexOffset, kPointerSize)       \
+#define WASM_EXPORTED_FUNCTION_DATA_FIELDS(V)     \
+  V(kWrapperCodeOffset, kPointerSize)             \
+  V(kInstanceOffset, kPointerSize)                \
+  V(kFunctionIndexOffset, kPointerSize) /* Smi */ \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,

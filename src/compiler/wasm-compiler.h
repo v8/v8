@@ -114,10 +114,11 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate*, Handle<JSReceiver> target,
                                          wasm::ModuleOrigin,
                                          wasm::UseTrapHandler);
 
-// Wraps a given wasm code object, producing a code object.
+// Creates a code object calling a wasm function with the given signature,
+// callable from JS.
 V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(
-    Isolate*, const wasm::WasmModule*, Address call_target, uint32_t index,
-    wasm::UseTrapHandler);
+    Isolate*, const wasm::NativeModule*, wasm::FunctionSig*, bool is_import,
+    wasm::UseTrapHandler use_trap_handler);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
@@ -393,6 +394,8 @@ class WasmGraphBuilder {
                       UseRetpoline use_retpoline);
   Node* BuildImportWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
                             wasm::WasmCodePosition position, int func_index);
+  Node* BuildImportWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
+                            wasm::WasmCodePosition position, Node* func_index);
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);

@@ -279,6 +279,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return code;
   }
 
+  Address jump_table_start() const {
+    return jump_table_ ? jump_table_->instruction_start() : kNullAddress;
+  }
+
   bool is_jump_table_slot(Address address) const {
     return jump_table_->contains(address);
   }
