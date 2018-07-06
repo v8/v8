@@ -14953,32 +14953,17 @@ void JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
   array->GetElementsAccessor()->SetLength(array, new_length);
 }
 
-
-Handle<DependentCode> DependentCode::InsertCompilationDependencies(
-    Handle<DependentCode> entries, DependencyGroup group,
-    Handle<Foreign> info) {
-  return Insert(entries, group, info);
-}
-
-
 Handle<DependentCode> DependentCode::InsertWeakCode(
     Handle<DependentCode> entries, DependencyGroup group,
     Handle<WeakCell> code_cell) {
-  return Insert(entries, group, code_cell);
-}
-
-
-Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
-                                            DependencyGroup group,
-                                            Handle<Object> object) {
   if (entries->length() == 0 || entries->group() > group) {
     // There is no such group.
-    return DependentCode::New(group, object, entries);
+    return DependentCode::New(group, code_cell, entries);
   }
   if (entries->group() < group) {
     // The group comes later in the list.
     Handle<DependentCode> old_next(entries->next_link(), entries->GetIsolate());
-    Handle<DependentCode> new_next = Insert(old_next, group, object);
+    Handle<DependentCode> new_next = InsertWeakCode(old_next, group, code_cell);
     if (!old_next.is_identical_to(new_next)) {
       entries->set_next_link(*new_next);
     }
@@ -14988,14 +14973,14 @@ Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
   int count = entries->count();
   // Check for existing entry to avoid duplicates.
   for (int i = 0; i < count; i++) {
-    if (entries->object_at(i) == *object) return entries;
+    if (entries->object_at(i) == *code_cell) return entries;
   }
   if (entries->length() < kCodesStartIndex + count + 1) {
     entries = EnsureSpace(entries);
     // Count could have changed, reload it.
     count = entries->count();
   }
-  entries->set_object_at(count, *object);
+  entries->set_object_at(count, *code_cell);
   entries->set_count(count + 1);
   return entries;
 }
