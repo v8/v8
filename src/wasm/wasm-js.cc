@@ -17,6 +17,7 @@
 #include "src/objects/templates.h"
 #include "src/parsing/parse-info.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-memory.h"
@@ -25,6 +26,41 @@
 using v8::internal::wasm::ErrorThrower;
 
 namespace v8 {
+
+class WasmStreaming::WasmStreamingImpl {
+ public:
+  void OnBytesReceived(const uint8_t* bytes, size_t size) {}
+
+  void Finish() {}
+
+  void Abort(MaybeLocal<Value> exception) {}
+};
+
+WasmStreaming::WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl)
+    : impl_(std::move(impl)) {}
+
+// The destructor is defined here because we have a unique_ptr with forward
+// declaration.
+WasmStreaming::~WasmStreaming() = default;
+
+void WasmStreaming::OnBytesReceived(const uint8_t* bytes, size_t size) {
+  impl_->OnBytesReceived(bytes, size);
+}
+
+void WasmStreaming::Finish() { impl_->Finish(); }
+
+void WasmStreaming::Abort(MaybeLocal<Value> exception) {
+  impl_->Abort(exception);
+}
+
+// static
+std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
+                                                     Local<Value> value) {
+  i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate));
+  auto managed =
+      i::Handle<i::Managed<WasmStreaming>>::cast(Utils::OpenHandle(*value));
+  return managed->get();
+}
 
 namespace {
 

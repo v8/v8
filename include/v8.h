@@ -154,6 +154,7 @@ class FunctionCallbackArguments;
 class GlobalHandles;
 
 namespace wasm {
+class CompilationResultResolver;
 class StreamingDecoder;
 }  // namespace wasm
 
@@ -4462,6 +4463,52 @@ operator WasmCompiledModule::CallerOwnedBuffer() {
   return {start, size};
 }
 
+/**
+ * The V8 interface for WebAssembly streaming compilation. When streaming
+ * compilation is initiated, V8 passes a {WasmStreaming} object to the embedder
+ * such that the embedder can pass the input butes for streaming compilation to
+ * V8.
+ */
+class V8_EXPORT WasmStreaming final {
+ public:
+  class WasmStreamingImpl;
+
+  WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl);
+
+  ~WasmStreaming();
+
+  /**
+   * Pass a new chunck of bytes to WebAssembly streaming compilation.
+   * The buffer passed into {OnBytesReceived} is owned by the caller.
+   */
+  void OnBytesReceived(const uint8_t* bytes, size_t size);
+
+  /**
+   * {Finish} should be called after all received bytes where passed to
+   * {OnBytesReceived} to tell V8 that there will be no more bytes. {Finish}
+   * does not have to be called after {Abort} has been called already.
+   */
+  void Finish();
+
+  /**
+   * Abort streaming compilation. If {exception} has a value, then the promise
+   * associated with streaming compilation is rejected with that value. If
+   * {exception} does not have value, the promise does not get rejected.
+   */
+  void Abort(MaybeLocal<Value> exception);
+
+  /**
+   * Unpacks a {WasmStreaming} object wrapped in a  {Managed} for the embedder.
+   * Since the embedder is on the other side of the API, it cannot unpack the
+   * {Managed} itself.
+   */
+  static std::shared_ptr<WasmStreaming> Unpack(Isolate* isolate,
+                                               Local<Value> value);
+
+ private:
+  std::unique_ptr<WasmStreamingImpl> impl_;
+};
+
 // TODO(mtrofin): when streaming compilation is done, we can rename this
 // to simply WasmModuleObjectBuilder
 class V8_EXPORT WasmModuleObjectBuilderStreaming final {
@@ -6678,6 +6725,9 @@ typedef bool (*AllowWasmCodeGenerationCallback)(Local<Context> context,
 // by the embedder. Example: WebAssembly.{compile|instantiate}Streaming ---
 typedef void (*ApiImplementationCallback)(const FunctionCallbackInfo<Value>&);
 
+// --- Callback for WebAssembly.compileStreaming ---
+typedef void (*WasmStreamingCallback)(const FunctionCallbackInfo<Value>&);
+
 // --- Garbage Collection Callbacks ---
 
 /**
@@ -8189,6 +8239,8 @@ class V8_EXPORT Isolate {
   void SetWasmInstanceCallback(ExtensionCallback callback);
 
   void SetWasmCompileStreamingCallback(ApiImplementationCallback callback);
+
+  void SetWasmStreamingCallback(WasmStreamingCallback callback);
 
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after

@@ -8939,6 +8939,9 @@ CALLBACK_SETTER(WasmInstanceCallback, ExtensionCallback, wasm_instance_callback)
 CALLBACK_SETTER(WasmCompileStreamingCallback, ApiImplementationCallback,
                 wasm_compile_streaming_callback)
 
+CALLBACK_SETTER(WasmStreamingCallback, WasmStreamingCallback,
+                wasm_streaming_callback)
+
 void Isolate::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
                                        void* data) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);

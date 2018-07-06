@@ -431,6 +431,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(ExtensionCallback, wasm_module_callback, &NoExtension)                    \
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
   V(ApiImplementationCallback, wasm_compile_streaming_callback, nullptr)      \
+  V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                  \
   /* State for Relocatable. */                                                \
   V(Relocatable*, relocatable_top, nullptr)                                   \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
