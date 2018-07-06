@@ -2,17 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILATION_DEPENDENCIES_H_
-#define V8_COMPILATION_DEPENDENCIES_H_
+#ifndef V8_COMPILER_COMPILATION_DEPENDENCIES_H_
+#define V8_COMPILER_COMPILATION_DEPENDENCIES_H_
 
 #include "src/objects.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
+namespace compiler {
 
 // Collects and installs dependencies of the code that is being generated.
-class V8_EXPORT_PRIVATE CompilationDependencies {
+class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
  public:
   CompilationDependencies(Isolate* isolate, Zone* zone);
 
@@ -69,7 +70,8 @@ class V8_EXPORT_PRIVATE CompilationDependencies {
   ZoneForwardList<Dependency*> dependencies_;
 };
 
+}  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILATION_DEPENDENCIES_H_
+#endif  // V8_COMPILER_COMPILATION_DEPENDENCIES_H_

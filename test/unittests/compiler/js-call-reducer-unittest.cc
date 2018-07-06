@@ -4,7 +4,7 @@
 
 #include <cctype>
 
-#include "src/compilation-dependencies.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-call-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/simplified-operator.h"

@@ -21,6 +21,7 @@
 #include "src/compiler/checkpoint-elimination.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator-reducer.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/constant-folding-reducer.h"
 #include "src/compiler/control-flow-optimizer.h"
@@ -133,6 +134,8 @@ class PipelineData {
     jsgraph_ = new (graph_zone_)
         JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
     js_heap_broker_ = new (graph_zone_) JSHeapBroker(isolate_);
+    dependencies_ =
+        new (codegen_zone_) CompilationDependencies(isolate_, codegen_zone_);
   }
 
   // For WebAssembly compile entry point.
@@ -220,6 +223,7 @@ class PipelineData {
   Isolate* isolate() const { return isolate_; }
   OptimizedCompilationInfo* info() const { return info_; }
   ZoneStats* zone_stats() const { return zone_stats_; }
+  CompilationDependencies* dependencies() const { return dependencies_; }
   PipelineStatistics* pipeline_statistics() { return pipeline_statistics_; }
   OsrHelper* osr_helper() { return &(*osr_helper_); }
   bool compilation_failed() const { return compilation_failed_; }
@@ -317,6 +321,7 @@ class PipelineData {
     if (codegen_zone_ == nullptr) return;
     codegen_zone_scope_.Destroy();
     codegen_zone_ = nullptr;
+    dependencies_ = nullptr;
     frame_ = nullptr;
   }
 
@@ -442,6 +447,7 @@ class PipelineData {
   // is destroyed.
   ZoneStats::Scope codegen_zone_scope_;
   Zone* codegen_zone_;
+  CompilationDependencies* dependencies_ = nullptr;
   Frame* frame_ = nullptr;
 
   // All objects in the following group of fields are allocated in
@@ -494,6 +500,9 @@ class PipelineImpl final {
 
   // Step D. Run the code finalization pass.
   MaybeHandle<Code> FinalizeCode();
+
+  // Step E. Install any code dependencies.
+  bool CommitDependencies(Handle<Code> code);
 
   void VerifyGeneratedCodeIsIdempotent();
   void RunPrintAndVerify(const char* phase, bool untyped = false);
@@ -926,11 +935,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
     }
     return FAILED;
   }
-  if (!compilation_info()->dependencies()->Commit(code)) {
+  if (!pipeline_.CommitDependencies(code)) {
     return RetryOptimization(BailoutReason::kBailedOutDueToDependencyChange);
   }
-  compilation_info()->SetCode(code);
 
+  compilation_info()->SetCode(code);
   compilation_info()->context()->native_context()->AddOptimizedCode(*code);
   RegisterWeakObjectsInOptimizedCode(code, isolate);
   return SUCCEEDED;
@@ -1169,12 +1178,12 @@ struct InliningPhase {
     CommonOperatorReducer common_reducer(isolate, &graph_reducer, data->graph(),
                                          data->common(), data->machine(),
                                          temp_zone);
-    JSCallReducer call_reducer(
-        &graph_reducer, data->jsgraph(), data->js_heap_broker(),
-        data->info()->is_bailout_on_uninitialized()
-            ? JSCallReducer::kBailoutOnUninitialized
-            : JSCallReducer::kNoFlags,
-        data->native_context(), data->info()->dependencies());
+    JSCallReducer call_reducer(&graph_reducer, data->jsgraph(),
+                               data->js_heap_broker(),
+                               data->info()->is_bailout_on_uninitialized()
+                                   ? JSCallReducer::kBailoutOnUninitialized
+                                   : JSCallReducer::kNoFlags,
+                               data->native_context(), data->dependencies());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(), data->js_heap_broker(),
         ChooseSpecializationContext(isolate, data->info()),
@@ -1191,7 +1200,7 @@ struct InliningPhase {
     }
     JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, data->jsgraph(), data->js_heap_broker(), flags,
-        data->native_context(), data->info()->dependencies(), temp_zone);
+        data->native_context(), data->dependencies(), temp_zone);
     JSInliningHeuristic inlining(
         &graph_reducer, data->info()->is_inlining_enabled()
                             ? JSInliningHeuristic::kGeneralInlining
@@ -1262,16 +1271,16 @@ struct TypedLoweringPhase {
                                data->jsgraph()->Dead());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
-    JSCreateLowering create_lowering(
-        &graph_reducer, data->info()->dependencies(), data->jsgraph(),
-        data->js_heap_broker(), data->native_context(), temp_zone);
+    JSCreateLowering create_lowering(&graph_reducer, data->dependencies(),
+                                     data->jsgraph(), data->js_heap_broker(),
+                                     data->native_context(), temp_zone);
     JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(),
                                    data->js_heap_broker(), temp_zone);
     ConstantFoldingReducer constant_folding_reducer(&graph_reducer,
                                                     data->jsgraph());
-    TypedOptimization typed_optimization(
-        &graph_reducer, data->info()->dependencies(), data->jsgraph(),
-        data->js_heap_broker());
+    TypedOptimization typed_optimization(&graph_reducer, data->dependencies(),
+                                         data->jsgraph(),
+                                         data->js_heap_broker());
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(data->isolate(), &graph_reducer,
@@ -2161,7 +2170,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
   if (!pipeline.OptimizeGraph(&linkage)) return MaybeHandle<Code>();
   pipeline.AssembleCode(&linkage);
-  return pipeline.FinalizeCode();
+  Handle<Code> code;
+  if (pipeline.FinalizeCode().ToHandle(&code) &&
+      pipeline.CommitDependencies(code)) {
+    return code;
+  }
+  return MaybeHandle<Code>();
 }
 
 // static
@@ -2201,7 +2215,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     pipeline.ComputeScheduledGraph();
   }
 
-  return pipeline.GenerateCode(call_descriptor);
+  Handle<Code> code;
+  if (pipeline.GenerateCode(call_descriptor).ToHandle(&code) &&
+      pipeline.CommitDependencies(code)) {
+    return code;
+  }
+  return MaybeHandle<Code>();
 }
 
 // static
@@ -2502,6 +2521,11 @@ MaybeHandle<Code> PipelineImpl::GenerateCode(CallDescriptor* call_descriptor) {
   // Generate the final machine code.
   AssembleCode(&linkage);
   return FinalizeCode();
+}
+
+bool PipelineImpl::CommitDependencies(Handle<Code> code) {
+  return data_->dependencies() == nullptr ||
+         data_->dependencies()->Commit(code);
 }
 
 void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,

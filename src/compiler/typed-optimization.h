@@ -13,13 +13,13 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class CompilationDependencies;
 class Factory;
 class Isolate;
 
 namespace compiler {
 
 // Forward declarations.
+class CompilationDependencies;
 class JSGraph;
 class SimplifiedOperatorBuilder;
 class TypeCache;

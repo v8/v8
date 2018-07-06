@@ -14,7 +14,6 @@ namespace internal {
 
 // Forward declarations.
 class AllocationSiteUsageContext;
-class CompilationDependencies;
 class Factory;
 class JSRegExp;
 
@@ -22,6 +21,7 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
+class CompilationDependencies;
 class JSGraph;
 class JSOperatorBuilder;
 class MachineOperatorBuilder;

@@ -9,7 +9,6 @@
 
 #include "src/bailout-reason.h"
 #include "src/code-reference.h"
-#include "src/compilation-dependencies.h"
 #include "src/feedback-vector.h"
 #include "src/frames.h"
 #include "src/globals.h"
@@ -230,8 +229,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   BailoutReason bailout_reason() const { return bailout_reason_; }
 
-  CompilationDependencies* dependencies() { return dependencies_.get(); }
-
   int optimization_id() const {
     DCHECK(IsOptimizing());
     return optimization_id_;
@@ -307,10 +304,6 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   Zone* zone_;
 
   std::shared_ptr<DeferredHandles> deferred_handles_;
-
-  // Dependencies for this compilation, e.g. stable maps.
-  // TODO(neis): Move this to PipelineData.
-  std::unique_ptr<CompilationDependencies> dependencies_;
 
   BailoutReason bailout_reason_;
 

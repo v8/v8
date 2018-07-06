@@ -23,7 +23,6 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   shared_info_ = shared;
   closure_ = closure;
   optimization_id_ = isolate->NextOptimizationId();
-  dependencies_.reset(new CompilationDependencies(isolate, zone));
 
   SetFlag(kCalledWithCodeStartRegister);
   if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
@@ -78,7 +77,6 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
       osr_offset_(BailoutId::None()),
       zone_(zone),
       deferred_handles_(nullptr),
-      dependencies_(nullptr),
       bailout_reason_(BailoutReason::kNoReason),
       optimization_id_(-1),
       debug_name_(debug_name) {}

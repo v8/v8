@@ -13,12 +13,10 @@
 
 namespace v8 {
 namespace internal {
-
-class CompilationDependencies;
-
 namespace compiler {
 
 class CommonOperatorBuilder;
+class CompilationDependencies;
 class Graph;
 class JSGraph;
 class Node;

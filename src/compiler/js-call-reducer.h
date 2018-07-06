@@ -14,7 +14,6 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class CompilationDependencies;
 class Factory;
 class VectorSlotPair;
 
@@ -23,6 +22,7 @@ namespace compiler {
 // Forward declarations.
 class CallFrequency;
 class CommonOperatorBuilder;
+class CompilationDependencies;
 struct FieldAccess;
 class JSGraph;
 class JSHeapBroker;

@@ -18,12 +18,12 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class CompilationDependencies;
 class Factory;
 
 namespace compiler {
 
 // Forward declarations.
+class CompilationDependencies;
 class Type;
 class TypeCache;
 

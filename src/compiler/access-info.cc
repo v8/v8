@@ -4,9 +4,10 @@
 
 #include <ostream>
 
-#include "src/accessors.h"
-#include "src/compilation-dependencies.h"
 #include "src/compiler/access-info.h"
+
+#include "src/accessors.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/type-cache.h"
 #include "src/field-index-inl.h"
 #include "src/field-type.h"

@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compilation-dependencies.h"
+#include "src/compiler/compilation-dependencies.h"
 
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
+namespace compiler {
 
 // TODO(neis): Move these to the DependentCode class.
 namespace {
@@ -384,5 +385,6 @@ void CompilationDependencies::DependOnElementsKinds(
   CHECK_EQ(site->nested_site(), Smi::kZero);
 }
 
+}  // namespace compiler
 }  // namespace internal
 }  // namespace v8

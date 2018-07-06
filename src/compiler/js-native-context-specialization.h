@@ -14,7 +14,6 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class CompilationDependencies;
 class Factory;
 class FeedbackNexus;
 
@@ -23,6 +22,7 @@ namespace compiler {
 // Forward declarations.
 enum class AccessMode;
 class CommonOperatorBuilder;
+class CompilationDependencies;
 class ElementAccessInfo;
 class JSGraph;
 class JSHeapBroker;

@@ -10,7 +10,7 @@
 #include "src/v8.h"
 
 #include "src/compilation-cache.h"
-#include "src/compilation-dependencies.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/execution.h"
 #include "src/field-type.h"
 #include "src/global-handles.h"
@@ -24,6 +24,7 @@
 
 namespace v8 {
 namespace internal {
+namespace compiler {
 namespace test_field_type_tracking {
 
 // TODO(ishell): fix this once TransitionToPrototype stops generalizing
@@ -2814,5 +2815,6 @@ TEST(HoleyMutableHeapNumber) {
 }
 
 }  // namespace test_field_type_tracking
+}  // namespace compiler
 }  // namespace internal
 }  // namespace v8
