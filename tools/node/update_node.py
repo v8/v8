@@ -86,7 +86,6 @@ def ResetTarget(path):
   print ">> Resetting Node.js checkout"
   subprocess.check_call(["git", "reset", "--hard"], cwd=path)
   subprocess.check_call(["git", "clean", "-fxd"], cwd=path)
-  subprocess.check_call(["git", "checkout", "vee-eight-lkgr"], cwd=path)
 
 def UpdateTarget(repository, options, files_to_keep):
   source = os.path.join(options.v8_path, *repository)
