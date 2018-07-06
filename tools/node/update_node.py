@@ -81,12 +81,6 @@ def CommitPatch(options):
       cwd=options.v8_path,
   )
 
-def ResetTarget(path):
-  """Temporarily use this to clear the checkout on the bots"""
-  print ">> Resetting Node.js checkout"
-  subprocess.check_call(["git", "reset", "--hard"], cwd=path)
-  subprocess.check_call(["git", "clean", "-fxd"], cwd=path)
-
 def UpdateTarget(repository, options, files_to_keep):
   source = os.path.join(options.v8_path, *repository)
   target = os.path.join(options.node_path, TARGET_SUBDIR, *repository)
@@ -174,7 +168,6 @@ def Main(args):
   if options.gclient:
     RunGclient(options.v8_path)
   # Commit patch on trybots to main V8 repository.
-  ResetTarget(options.node_path)
   if options.with_patch:
     CommitPatch(options)
   # Update main V8 repository.
