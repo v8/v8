@@ -1048,7 +1048,7 @@ Object* Isolate::StackOverflow() {
 
 
 Object* Isolate::TerminateExecution() {
-  return Throw(heap_.termination_exception(), nullptr);
+  return Throw(ReadOnlyRoots(this).termination_exception(), nullptr);
 }
 
 
@@ -1057,12 +1057,12 @@ void Isolate::CancelTerminateExecution() {
     try_catch_handler()->has_terminated_ = false;
   }
   if (has_pending_exception() &&
-      pending_exception() == heap_.termination_exception()) {
+      pending_exception() == ReadOnlyRoots(this).termination_exception()) {
     thread_local_top()->external_caught_exception_ = false;
     clear_pending_exception();
   }
   if (has_scheduled_exception() &&
-      scheduled_exception() == heap_.termination_exception()) {
+      scheduled_exception() == ReadOnlyRoots(this).termination_exception()) {
     thread_local_top()->external_caught_exception_ = false;
     clear_scheduled_exception();
   }
@@ -2022,7 +2022,7 @@ bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
   PropagatePendingExceptionToExternalTryCatch();
 
   bool is_termination_exception =
-      pending_exception() == heap_.termination_exception();
+      pending_exception() == ReadOnlyRoots(this).termination_exception();
 
   // Do not reschedule the exception if this is the bottom call.
   bool clear_exception = is_bottom_call;
@@ -3007,7 +3007,7 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   if (create_heap_objects) {
     // Terminate the partial snapshot cache so we can iterate.
-    partial_snapshot_cache_.push_back(heap_.undefined_value());
+    partial_snapshot_cache_.push_back(ReadOnlyRoots(this).undefined_value());
   }
 
   InitializeThreadLocal();
@@ -3072,7 +3072,8 @@ bool Isolate::Init(StartupDeserializer* des) {
   heap_.SetStackLimits();
 
   // Quiet the heap NaN if needed on target platform.
-  if (!create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
+  if (!create_heap_objects)
+    Assembler::QuietNaN(ReadOnlyRoots(this).nan_value());
 
   if (FLAG_trace_turbo) {
     // Create an empty file.

@@ -931,7 +931,7 @@ void Heap::InvalidateCodeEmbeddedObjects(Code* code) {
 void Heap::InvalidateCodeDeoptimizationData(Code* code) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(code->address());
   CodePageMemoryModificationScope modification_scope(chunk);
-  code->set_deoptimization_data(empty_fixed_array());
+  code->set_deoptimization_data(ReadOnlyRoots(this).empty_fixed_array());
 }
 
 void Heap::DeoptMarkedAllocationSites() {
@@ -1538,7 +1538,7 @@ void Heap::MoveElements(FixedArray* array, int dst_index, int src_index,
                         int len, WriteBarrierMode mode) {
   if (len == 0) return;
 
-  DCHECK(array->map() != fixed_cow_array_map());
+  DCHECK(array->map() != ReadOnlyRoots(this).fixed_cow_array_map());
   Object** dst = array->data_start() + dst_index;
   Object** src = array->data_start() + src_index;
   if (FLAG_concurrent_marking && incremental_marking()->IsMarking()) {
@@ -2897,7 +2897,7 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // In large object space the object's start must coincide with chunk
   // and thus the trick is just not applicable.
   DCHECK(!lo_space()->Contains(object));
-  DCHECK(object->map() != fixed_cow_array_map());
+  DCHECK(object->map() != ReadOnlyRoots(this).fixed_cow_array_map());
 
   STATIC_ASSERT(FixedArrayBase::kMapOffset == 0);
   STATIC_ASSERT(FixedArrayBase::kLengthOffset == kPointerSize);
@@ -2990,7 +2990,7 @@ void Heap::CreateFillerForArray(T* object, int elements_to_trim,
          object->IsWeakFixedArray());
 
   // For now this trick is only applied to objects in new and paged space.
-  DCHECK(object->map() != fixed_cow_array_map());
+  DCHECK(object->map() != ReadOnlyRoots(this).fixed_cow_array_map());
 
   if (bytes_to_trim == 0) {
     DCHECK_EQ(elements_to_trim, 0);
@@ -4531,7 +4531,7 @@ HeapObject* Heap::AllocateRawWithLightRetry(int size, AllocationSpace space,
   HeapObject* result;
   AllocationResult alloc = AllocateRaw(size, space, alignment);
   if (alloc.To(&result)) {
-    DCHECK(result != exception());
+    DCHECK(result != ReadOnlyRoots(this).exception());
     return result;
   }
   // Two GCs before panicking. In newspace will almost always succeed.
@@ -4540,7 +4540,7 @@ HeapObject* Heap::AllocateRawWithLightRetry(int size, AllocationSpace space,
                    GarbageCollectionReason::kAllocationFailure);
     alloc = AllocateRaw(size, space, alignment);
     if (alloc.To(&result)) {
-      DCHECK(result != exception());
+      DCHECK(result != ReadOnlyRoots(this).exception());
       return result;
     }
   }
@@ -4560,7 +4560,7 @@ HeapObject* Heap::AllocateRawWithRetryOrFail(int size, AllocationSpace space,
     alloc = AllocateRaw(size, space, alignment);
   }
   if (alloc.To(&result)) {
-    DCHECK(result != exception());
+    DCHECK(result != ReadOnlyRoots(this).exception());
     return result;
   }
   // TODO(1181417): Fix this.
@@ -4574,7 +4574,7 @@ HeapObject* Heap::AllocateRawCodeInLargeObjectSpace(int size) {
   AllocationResult alloc = lo_space()->AllocateRaw(size, EXECUTABLE);
   HeapObject* result;
   if (alloc.To(&result)) {
-    DCHECK(result != exception());
+    DCHECK(result != ReadOnlyRoots(this).exception());
     return result;
   }
   // Two GCs before panicking.
@@ -4583,7 +4583,7 @@ HeapObject* Heap::AllocateRawCodeInLargeObjectSpace(int size) {
                    GarbageCollectionReason::kAllocationFailure);
     alloc = lo_space()->AllocateRaw(size, EXECUTABLE);
     if (alloc.To(&result)) {
-      DCHECK(result != exception());
+      DCHECK(result != ReadOnlyRoots(this).exception());
       return result;
     }
   }
@@ -4594,7 +4594,7 @@ HeapObject* Heap::AllocateRawCodeInLargeObjectSpace(int size) {
     alloc = lo_space()->AllocateRaw(size, EXECUTABLE);
   }
   if (alloc.To(&result)) {
-    DCHECK(result != exception());
+    DCHECK(result != ReadOnlyRoots(this).exception());
     return result;
   }
   // TODO(1181417): Fix this.
@@ -4801,8 +4801,8 @@ void Heap::TracePossibleWrapper(JSObject* js_object) {
   DCHECK(js_object->WasConstructedFromApiFunction());
   if (js_object->GetEmbedderFieldCount() >= 2 &&
       js_object->GetEmbedderField(0) &&
-      js_object->GetEmbedderField(0) != undefined_value() &&
-      js_object->GetEmbedderField(1) != undefined_value()) {
+      js_object->GetEmbedderField(0) != ReadOnlyRoots(this).undefined_value() &&
+      js_object->GetEmbedderField(1) != ReadOnlyRoots(this).undefined_value()) {
     DCHECK_EQ(0,
               reinterpret_cast<intptr_t>(js_object->GetEmbedderField(0)) % 2);
     local_embedder_heap_tracer()->AddWrapperToTrace(std::pair<void*, void*>(
@@ -5073,7 +5073,7 @@ void Heap::CompactRetainedMaps(WeakArrayList* retained_maps) {
     new_length += 2;
   }
   number_of_disposed_maps_ = new_number_of_disposed_maps;
-  HeapObject* undefined = undefined_value();
+  HeapObject* undefined = ReadOnlyRoots(this).undefined_value();
   for (int i = new_length; i < length; i++) {
     retained_maps->Set(i, HeapObjectReference::Strong(undefined));
   }
@@ -5651,7 +5651,7 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
   //
   // Since this function is used for debugging only, we do not place
   // asserts here, but check everything explicitly.
-  if (obj->map() == one_pointer_filler_map()) return false;
+  if (obj->map() == ReadOnlyRoots(this).one_pointer_filler_map()) return false;
   InstanceType type = obj->map()->instance_type();
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   AllocationSpace src = chunk->owner()->identity();
@@ -5716,7 +5716,7 @@ Code* GcSafeCastToCode(Heap* heap, HeapObject* object, Address inner_pointer) {
 
 bool Heap::GcSafeCodeContains(HeapObject* code, Address addr) {
   Map* map = GcSafeMapOfCodeSpaceObject(code);
-  DCHECK(map == code_map());
+  DCHECK(map == ReadOnlyRoots(this).code_map());
   if (InstructionStream::TryLookupCode(isolate(), addr) == code) return true;
   Address start = code->address();
   Address end = code->address() + code->SizeFromMap(map);

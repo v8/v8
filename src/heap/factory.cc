@@ -1562,7 +1562,7 @@ Handle<Script> Factory::CloneScript(Handle<Script> script) {
   new_script->set_column_offset(script->column_offset());
   new_script->set_context_data(script->context_data());
   new_script->set_type(script->type());
-  new_script->set_line_ends(heap->undefined_value());
+  new_script->set_line_ends(ReadOnlyRoots(heap).undefined_value());
   new_script->set_eval_from_shared_or_wrapped_arguments(
       script->eval_from_shared_or_wrapped_arguments());
   new_script->set_shared_function_infos(*empty_weak_fixed_array(),
