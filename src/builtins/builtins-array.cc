@@ -232,20 +232,76 @@ BUILTIN(ArrayPush) {
   return *isolate->factory()->NewNumberFromUint((new_length));
 }
 
+namespace {
+
+V8_WARN_UNUSED_RESULT Object* GenericArrayPop(Isolate* isolate,
+                                              BuiltinArguments* args) {
+  // 1. Let O be ? ToObject(this value).
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, receiver, Object::ToObject(isolate, args->receiver()));
+
+  // 2. Let len be ? ToLength(? Get(O, "length")).
+  Handle<Object> raw_length_number;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, raw_length_number,
+      Object::GetLengthFromArrayLike(isolate, receiver));
+  double length = raw_length_number->Number();
+
+  // 3. If len is zero, then.
+  if (length == 0) {
+    // a. Perform ? Set(O, "length", 0, true).
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate, Object::SetProperty(
+                     receiver, isolate->factory()->length_string(),
+                     Handle<Smi>(Smi::kZero, isolate), LanguageMode::kStrict));
+
+    // b. Return undefined.
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  // 4. Else len > 0.
+  // a. Let new_len be len-1.
+  Handle<Object> new_length = isolate->factory()->NewNumber(length - 1);
+
+  // b. Let index be ! ToString(newLen).
+  Handle<String> index = isolate->factory()->NumberToString(new_length);
+
+  // c. Let element be ? Get(O, index).
+  Handle<Object> element;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, element, JSReceiver::GetPropertyOrElement(receiver, index));
+
+  // d. Perform ? DeletePropertyOrThrow(O, index).
+  MAYBE_RETURN(JSReceiver::DeletePropertyOrElement(receiver, index,
+                                                   LanguageMode::kStrict),
+               ReadOnlyRoots(isolate).exception());
+
+  // e. Perform ? Set(O, "length", newLen, true).
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate,
+      Object::SetProperty(receiver, isolate->factory()->length_string(),
+                          new_length, LanguageMode::kStrict));
+
+  // f. Return element.
+  return *element;
+}
+
+}  // namespace
+
 BUILTIN(ArrayPop) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
   if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, nullptr, 0)) {
-    return CallJsIntrinsic(isolate, isolate->array_pop(), args);
+    return GenericArrayPop(isolate, &args);
   }
-
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
 
-  uint32_t len = static_cast<uint32_t>(Smi::ToInt(array->length()));
+  uint32_t len = static_cast<uint32_t>(array->length()->Number());
   if (len == 0) return ReadOnlyRoots(isolate).undefined_value();
 
   if (JSArray::HasReadOnlyLength(array)) {
-    return CallJsIntrinsic(isolate, isolate->array_pop(), args);
+    return GenericArrayPop(isolate, &args);
   }
 
   Handle<Object> result;
@@ -259,6 +315,7 @@ BUILTIN(ArrayPop) {
         isolate, result, JSReceiver::GetElement(isolate, array, new_length));
     JSArray::SetLength(array, new_length);
   }
+
   return *result;
 }
 

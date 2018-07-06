@@ -391,24 +391,6 @@ DEFINE_METHOD(
 );
 
 
-// Removes the last element from the array and returns it. See
-// ECMA-262, section 15.4.4.6.
-function ArrayPopFallback() {
-  var array = TO_OBJECT(this);
-  var n = TO_LENGTH(array.length);
-  if (n == 0) {
-    array.length = n;
-    return;
-  }
-
-  n--;
-  var value = array[n];
-  delete array[n];
-  array.length = n;
-  return value;
-}
-
-
 // For implementing reverse() on large, sparse arrays.
 function SparseReverse(array, len) {
   var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, len));
@@ -1037,7 +1019,6 @@ utils.Export(function(to) {
   "array_keys_iterator", ArrayKeys,
   "array_values_iterator", ArrayValues,
   // Fallback implementations of Array builtins.
-  "array_pop", ArrayPopFallback,
   "array_shift", ArrayShiftFallback,
   "array_splice", ArraySpliceFallback,
   "array_unshift", ArrayUnshiftFallback,
