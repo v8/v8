@@ -617,21 +617,19 @@ class DependentCode : public FixedArray {
     kAllocationSiteTransitionChangedGroup
   };
 
+  // Register a code dependency of {cell} on {object}.
+  static void InstallDependency(Isolate* isolate, Handle<WeakCell> cell,
+                                Handle<HeapObject> object,
+                                DependencyGroup group);
+
   bool Contains(DependencyGroup group, WeakCell* code_cell);
   bool IsEmpty(DependencyGroup group);
 
-  static Handle<DependentCode> InsertWeakCode(Handle<DependentCode> entries,
-                                              DependencyGroup group,
-                                              Handle<WeakCell> code_cell);
+  void RemoveCompilationDependencies(DependencyGroup group, Foreign* info);
 
-  void RemoveCompilationDependencies(DependentCode::DependencyGroup group,
-                                     Foreign* info);
+  void DeoptimizeDependentCodeGroup(Isolate* isolate, DependencyGroup group);
 
-  void DeoptimizeDependentCodeGroup(Isolate* isolate,
-                                    DependentCode::DependencyGroup group);
-
-  bool MarkCodeForDeoptimization(Isolate* isolate,
-                                 DependentCode::DependencyGroup group);
+  bool MarkCodeForDeoptimization(Isolate* isolate, DependencyGroup group);
 
   // The following low-level accessors are exposed only for tests.
   inline DependencyGroup group();
@@ -642,9 +640,16 @@ class DependentCode : public FixedArray {
  private:
   static const char* DependencyGroupName(DependencyGroup group);
 
+  // Get/Set {object}'s {DependentCode}.
+  static DependentCode* Get(Handle<HeapObject> object);
+  static void Set(Handle<HeapObject> object, Handle<DependentCode> dep);
+
   static Handle<DependentCode> New(DependencyGroup group, Handle<Object> object,
                                    Handle<DependentCode> next);
   static Handle<DependentCode> EnsureSpace(Handle<DependentCode> entries);
+  static Handle<DependentCode> InsertWeakCode(Handle<DependentCode> entries,
+                                              DependencyGroup group,
+                                              Handle<WeakCell> code_cell);
 
   // Compact by removing cleared weak cells and return true if there was
   // any cleared weak cell.

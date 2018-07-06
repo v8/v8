@@ -14953,6 +14953,38 @@ void JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
   array->GetElementsAccessor()->SetLength(array, new_length);
 }
 
+DependentCode* DependentCode::Get(Handle<HeapObject> object) {
+  if (object->IsMap()) {
+    return Handle<Map>::cast(object)->dependent_code();
+  } else if (object->IsPropertyCell()) {
+    return Handle<PropertyCell>::cast(object)->dependent_code();
+  } else if (object->IsAllocationSite()) {
+    return Handle<AllocationSite>::cast(object)->dependent_code();
+  }
+  UNREACHABLE();
+}
+
+void DependentCode::Set(Handle<HeapObject> object, Handle<DependentCode> dep) {
+  if (object->IsMap()) {
+    Handle<Map>::cast(object)->set_dependent_code(*dep);
+  } else if (object->IsPropertyCell()) {
+    Handle<PropertyCell>::cast(object)->set_dependent_code(*dep);
+  } else if (object->IsAllocationSite()) {
+    Handle<AllocationSite>::cast(object)->set_dependent_code(*dep);
+  } else {
+    UNREACHABLE();
+  }
+}
+
+void DependentCode::InstallDependency(Isolate* isolate, Handle<WeakCell> cell,
+                                      Handle<HeapObject> object,
+                                      DependencyGroup group) {
+  Handle<DependentCode> old_deps(DependentCode::Get(object), isolate);
+  Handle<DependentCode> new_deps = InsertWeakCode(old_deps, group, cell);
+  // Update the list head if necessary.
+  if (!new_deps.is_identical_to(old_deps)) DependentCode::Set(object, new_deps);
+}
+
 Handle<DependentCode> DependentCode::InsertWeakCode(
     Handle<DependentCode> entries, DependencyGroup group,
     Handle<WeakCell> code_cell) {

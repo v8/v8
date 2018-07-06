@@ -11,42 +11,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// TODO(neis): Move these to the DependentCode class.
-namespace {
-DependentCode* GetDependentCode(Handle<Object> object) {
-  if (object->IsMap()) {
-    return Handle<Map>::cast(object)->dependent_code();
-  } else if (object->IsPropertyCell()) {
-    return Handle<PropertyCell>::cast(object)->dependent_code();
-  } else if (object->IsAllocationSite()) {
-    return Handle<AllocationSite>::cast(object)->dependent_code();
-  }
-  UNREACHABLE();
-}
-
-void SetDependentCode(Handle<Object> object, Handle<DependentCode> dep) {
-  if (object->IsMap()) {
-    Handle<Map>::cast(object)->set_dependent_code(*dep);
-  } else if (object->IsPropertyCell()) {
-    Handle<PropertyCell>::cast(object)->set_dependent_code(*dep);
-  } else if (object->IsAllocationSite()) {
-    Handle<AllocationSite>::cast(object)->set_dependent_code(*dep);
-  } else {
-    UNREACHABLE();
-  }
-}
-
-void InstallDependency(Isolate* isolate, Handle<WeakCell> source,
-                       Handle<HeapObject> target,
-                       DependentCode::DependencyGroup group) {
-  Handle<DependentCode> old_deps(GetDependentCode(target), isolate);
-  Handle<DependentCode> new_deps =
-      DependentCode::InsertWeakCode(old_deps, group, source);
-  // Update the list head if necessary.
-  if (!new_deps.is_identical_to(old_deps)) SetDependentCode(target, new_deps);
-}
-}  // namespace
-
 CompilationDependencies::CompilationDependencies(Isolate* isolate, Zone* zone)
     : isolate_(isolate), zone_(zone), dependencies_(zone) {}
 
@@ -71,8 +35,8 @@ class InitialMapDependency final : public CompilationDependencies::Dependency {
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
     DCHECK(IsValid());
-    InstallDependency(isolate, code, initial_map_,
-                      DependentCode::kInitialMapChangedGroup);
+    DependentCode::InstallDependency(isolate, code, initial_map_,
+                                     DependentCode::kInitialMapChangedGroup);
   }
 
  private:
@@ -93,7 +57,8 @@ class StableMapDependency final : public CompilationDependencies::Dependency {
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
     DCHECK(IsValid());
-    InstallDependency(isolate, code, map_, DependentCode::kPrototypeCheckGroup);
+    DependentCode::InstallDependency(isolate, code, map_,
+                                     DependentCode::kPrototypeCheckGroup);
   }
 
  private:
@@ -113,7 +78,8 @@ class TransitionDependency final : public CompilationDependencies::Dependency {
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
     DCHECK(IsValid());
-    InstallDependency(isolate, code, map_, DependentCode::kTransitionGroup);
+    DependentCode::InstallDependency(isolate, code, map_,
+                                     DependentCode::kTransitionGroup);
   }
 
  private:
@@ -135,8 +101,9 @@ class PretenureModeDependency final
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
     DCHECK(IsValid());
-    InstallDependency(isolate, code, site_,
-                      DependentCode::kAllocationSiteTenuringChangedGroup);
+    DependentCode::InstallDependency(
+        isolate, code, site_,
+        DependentCode::kAllocationSiteTenuringChangedGroup);
   }
 
  private:
@@ -160,7 +127,8 @@ class FieldTypeDependency final : public CompilationDependencies::Dependency {
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
     DCHECK(IsValid());
-    InstallDependency(isolate, code, owner_, DependentCode::kFieldOwnerGroup);
+    DependentCode::InstallDependency(isolate, code, owner_,
+                                     DependentCode::kFieldOwnerGroup);
   }
 
  private:
@@ -187,8 +155,8 @@ class GlobalPropertyDependency final
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
     DCHECK(IsValid());
-    InstallDependency(isolate, code, cell_,
-                      DependentCode::kPropertyCellChangedGroup);
+    DependentCode::InstallDependency(isolate, code, cell_,
+                                     DependentCode::kPropertyCellChangedGroup);
   }
 
  private:
@@ -210,8 +178,8 @@ class ProtectorDependency final : public CompilationDependencies::Dependency {
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
     DCHECK(IsValid());
-    InstallDependency(isolate, code, cell_,
-                      DependentCode::kPropertyCellChangedGroup);
+    DependentCode::InstallDependency(isolate, code, cell_,
+                                     DependentCode::kPropertyCellChangedGroup);
   }
 
  private:
@@ -237,8 +205,9 @@ class ElementsKindDependency final
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
     DCHECK(IsValid());
-    InstallDependency(isolate, code, site_,
-                      DependentCode::kAllocationSiteTransitionChangedGroup);
+    DependentCode::InstallDependency(
+        isolate, code, site_,
+        DependentCode::kAllocationSiteTransitionChangedGroup);
   }
 
  private:
