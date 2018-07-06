@@ -964,6 +964,7 @@ namespace internal {
   TFJ(RegExpPrototypeSplit, SharedFunctionInfo::kDontAdaptArgumentsSentinel)   \
   /* RegExp helpers */                                                         \
   TFS(RegExpExecAtom, kRegExp, kString, kLastIndex, kMatchInfo)                \
+  TFS(RegExpExecInternal, kRegExp, kString, kLastIndex, kMatchInfo)            \
   TFS(RegExpMatchFast, kReceiver, kPattern)                                    \
   TFS(RegExpPrototypeExecSlow, kReceiver, kString)                             \
   TFS(RegExpReplace, kRegExp, kString, kReplaceValue)                          \
@@ -1294,11 +1295,12 @@ namespace internal {
   ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_NoBuiltinExit)                     \
   ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit)                       \
                                                                                \
-  /* StringAdd */                                                              \
+  /* String helpers */                                                         \
   TFS(StringAdd_CheckNone_NotTenured, kLeft, kRight)                           \
   TFS(StringAdd_CheckNone_Tenured, kLeft, kRight)                              \
   TFS(StringAdd_ConvertLeft_NotTenured, kLeft, kRight)                         \
   TFS(StringAdd_ConvertRight_NotTenured, kLeft, kRight)                        \
+  TFS(SubString, kString, kFrom, kTo)                                          \
                                                                                \
   /* Miscellaneous */                                                          \
   ASM(CallApiCallback_Argc0)                                                   \

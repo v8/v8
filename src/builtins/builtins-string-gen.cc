@@ -347,6 +347,13 @@ TF_BUILTIN(StringAdd_ConvertRight_NotTenured, StringBuiltinsAssembler) {
                      right);
 }
 
+TF_BUILTIN(SubString, StringBuiltinsAssembler) {
+  TNode<String> string = CAST(Parameter(Descriptor::kString));
+  TNode<Smi> from = CAST(Parameter(Descriptor::kFrom));
+  TNode<Smi> to = CAST(Parameter(Descriptor::kTo));
+  Return(SubString(string, SmiUntag(from), SmiUntag(to)));
+}
+
 void StringBuiltinsAssembler::GenerateStringAt(char const* method_name,
                                                TNode<Context> context,
                                                Node* receiver,

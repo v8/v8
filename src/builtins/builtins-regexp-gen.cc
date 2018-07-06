@@ -179,7 +179,8 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   // Calculate the substring of the first match before creating the result array
   // to avoid an unnecessary write barrier storing the first result.
 
-  TNode<String> const first = SubString(string, SmiUntag(start), SmiUntag(end));
+  TNode<String> first =
+      CAST(CallBuiltin(Builtins::kSubString, context, string, start, end));
 
   Node* const result =
       AllocateRegExpResult(context, num_results, start, string);
@@ -217,7 +218,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     Node* const end = LoadFixedArrayElement(match_info, from_cursor_plus1);
 
     TNode<String> const capture =
-        SubString(string, SmiUntag(start), SmiUntag(end));
+        CAST(CallBuiltin(Builtins::kSubString, context, string, start, end));
     StoreFixedArrayElement(result_elements, to_cursor, capture);
     Goto(&next_iter);
 
@@ -1084,6 +1085,19 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
   Return(NullConstant());
 }
 
+TF_BUILTIN(RegExpExecInternal, RegExpBuiltinsAssembler) {
+  TNode<JSRegExp> regexp = CAST(Parameter(Descriptor::kRegExp));
+  TNode<String> string = CAST(Parameter(Descriptor::kString));
+  TNode<Number> last_index = CAST(Parameter(Descriptor::kLastIndex));
+  TNode<FixedArray> match_info = CAST(Parameter(Descriptor::kMatchInfo));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  CSA_ASSERT(this, IsNumberNormalized(last_index));
+  CSA_ASSERT(this, IsNumberPositive(last_index));
+
+  Return(RegExpExecInternal(context, regexp, string, last_index, match_info));
+}
+
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
 TF_BUILTIN(RegExpPrototypeExec, RegExpBuiltinsAssembler) {
@@ -1918,8 +1932,8 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
         Node* const match_to = LoadFixedArrayElement(
             match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
 
-        var_match.Bind(
-            SubString(string, SmiUntag(match_from), SmiUntag(match_to)));
+        var_match.Bind(CallBuiltin(Builtins::kSubString, context, string,
+                                   match_from, match_to));
         Goto(&if_didmatch);
       } else {
         DCHECK(!is_fastpath);
@@ -2385,8 +2399,9 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
       Node* const last_match_info = LoadContextElement(
           native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
 
-      Node* const match_indices = RegExpExecInternal(context, regexp, string,
-                                                     smi_zero, last_match_info);
+      Node* const match_indices =
+          CallBuiltin(Builtins::kRegExpExecInternal, context, regexp, string,
+                      smi_zero, last_match_info);
 
       Label return_singleton_array(this);
       Branch(IsNull(match_indices), &return_singleton_array,
@@ -2441,8 +2456,9 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
     Node* const last_match_info = LoadContextElement(
         native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
 
-    Node* const match_indices = RegExpExecInternal(
-        context, regexp, string, next_search_from, last_match_info);
+    Node* const match_indices =
+        CallBuiltin(Builtins::kRegExpExecInternal, context, regexp, string,
+                    next_search_from, last_match_info);
 
     // We're done if no match was found.
     {
@@ -2484,7 +2500,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
     {
       TNode<Smi> const from = last_matched_until;
       TNode<Smi> const to = match_from;
-      array.Push(SubString(string, SmiUntag(from), SmiUntag(to)));
+      array.Push(CallBuiltin(Builtins::kSubString, context, string, from, to));
       GotoIf(WordEqual(array.length(), int_limit), &out);
     }
 
@@ -2521,7 +2537,8 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
         BIND(&select_capture);
         {
-          var_value.Bind(SubString(string, SmiUntag(from), SmiUntag(to)));
+          var_value.Bind(
+              CallBuiltin(Builtins::kSubString, context, string, from, to));
           Goto(&store_value);
         }
 
@@ -2556,7 +2573,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
   {
     Node* const from = var_last_matched_until.value();
     Node* const to = string_length;
-    array.Push(SubString(string, SmiUntag(from), SmiUntag(to)));
+    array.Push(CallBuiltin(Builtins::kSubString, context, string, from, to));
     Goto(&out);
   }
 
@@ -2917,32 +2934,22 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
       TNode<Smi> const match_end = CAST(LoadFixedArrayElement(
           var_match_indices.value(), RegExpMatchInfo::kFirstCaptureIndex + 1));
 
-      Label if_replaceisempty(this), if_replaceisnotempty(this);
       TNode<Smi> const replace_length = LoadStringLengthAsSmi(replace_string);
-      Branch(SmiEqual(replace_length, smi_zero), &if_replaceisempty,
-             &if_replaceisnotempty);
 
-      BIND(&if_replaceisempty);
-      {
-        // TODO(jgruber): We could skip many of the checks that using SubString
-        // here entails.
-        TNode<String> const first_part =
-            SubString(string, SmiUntag(var_last_match_end.value()),
-                      SmiUntag(match_start));
-        var_result = StringAdd(context, var_result.value(), first_part);
-        Goto(&loop_end);
-      }
+      // TODO(jgruber): We could skip many of the checks that using SubString
+      // here entails.
+      TNode<String> first_part =
+          CAST(CallBuiltin(Builtins::kSubString, context, string,
+                           var_last_match_end.value(), match_start));
+      var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone_NotTenured,
+                                    context, var_result.value(), first_part));
 
-      BIND(&if_replaceisnotempty);
-      {
-        TNode<String> const first_part =
-            SubString(string, SmiUntag(var_last_match_end.value()),
-                      SmiUntag(match_start));
-        TNode<String> result =
-            StringAdd(context, var_result.value(), first_part);
-        var_result = StringAdd(context, result, replace_string);
-        Goto(&loop_end);
-      }
+      GotoIf(SmiEqual(replace_length, smi_zero), &loop_end);
+
+      var_result =
+          CAST(CallBuiltin(Builtins::kStringAdd_CheckNone_NotTenured, context,
+                           var_result.value(), replace_string));
+      Goto(&loop_end);
 
       BIND(&loop_end);
       {
@@ -2964,9 +2971,11 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
   BIND(&if_nofurthermatches);
   {
     TNode<Smi> const string_length = LoadStringLengthAsSmi(string);
-    TNode<String> const last_part = SubString(
-        string, SmiUntag(var_last_match_end.value()), SmiUntag(string_length));
-    var_result = StringAdd(context, var_result.value(), last_part);
+    TNode<String> last_part =
+        CAST(CallBuiltin(Builtins::kSubString, context, string,
+                         var_last_match_end.value(), string_length));
+    var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone_NotTenured,
+                                  context, var_result.value(), last_part));
     Goto(&out);
   }
 
@@ -3107,8 +3116,9 @@ TF_BUILTIN(RegExpInternalMatch, RegExpBuiltinsAssembler) {
   Node* const native_context = LoadNativeContext(context);
   Node* const internal_match_info = LoadContextElement(
       native_context, Context::REGEXP_INTERNAL_MATCH_INFO_INDEX);
-  Node* const match_indices = RegExpExecInternal(context, regexp, string,
-                                                 smi_zero, internal_match_info);
+  Node* const match_indices =
+      CallBuiltin(Builtins::kRegExpExecInternal, context, regexp, string,
+                  smi_zero, internal_match_info);
   Node* const null = NullConstant();
   Label if_matched(this);
   GotoIfNot(WordEqual(match_indices, null), &if_matched);

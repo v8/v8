@@ -1798,7 +1798,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<String> StringFromSingleCharCode(TNode<Int32T> code);
 
   // Return a new string object which holds a substring containing the range
-  // [from,to[ of string.  |from| and |to| are expected to be tagged.
+  // [from,to[ of string.
   TNode<String> SubString(TNode<String> string, TNode<IntPtrT> from,
                           TNode<IntPtrT> to);
 
