@@ -317,6 +317,8 @@ namespace compiler {
   V(IA32S16x8HalfShuffle1)         \
   V(IA32S16x8HalfShuffle2)         \
   V(IA32S8x16Alignr)               \
+  V(IA32S16x8Dup)                  \
+  V(IA32S8x16Dup)                  \
   V(SSES16x8UnzipHigh)             \
   V(AVXS16x8UnzipHigh)             \
   V(SSES16x8UnzipLow)              \

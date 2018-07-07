@@ -3281,6 +3281,52 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32S8x16Alignr:
       ASSEMBLE_SIMD_IMM_SHUFFLE(palignr, SSSE3, i.InputInt8(2));
       break;
+    case kIA32S16x8Dup: {
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src = i.InputOperand(0);
+      int8_t lane = i.InputInt8(1) & 0x7;
+      int8_t lane4 = lane & 0x3;
+      int8_t half_dup = lane4 | (lane4 << 2) | (lane4 << 4) | (lane4 << 6);
+      if (lane < 4) {
+        __ Pshuflw(dst, src, half_dup);
+        __ Pshufd(dst, dst, 0);
+      } else {
+        __ Pshufhw(dst, src, half_dup);
+        __ Pshufd(dst, dst, 0xaa);
+      }
+      break;
+    }
+    case kIA32S8x16Dup: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      int8_t lane = i.InputInt8(1) & 0xf;
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope avx_scope(tasm(), AVX);
+        if (lane < 8) {
+          __ vpunpcklbw(dst, src, src);
+        } else {
+          __ vpunpckhbw(dst, src, src);
+        }
+      } else {
+        DCHECK_EQ(dst, src);
+        if (lane < 8) {
+          __ punpcklbw(dst, dst);
+        } else {
+          __ punpckhbw(dst, dst);
+        }
+      }
+      lane &= 0x7;
+      int8_t lane4 = lane & 0x3;
+      int8_t half_dup = lane4 | (lane4 << 2) | (lane4 << 4) | (lane4 << 6);
+      if (lane < 4) {
+        __ Pshuflw(dst, dst, half_dup);
+        __ Pshufd(dst, dst, 0);
+      } else {
+        __ Pshufhw(dst, dst, half_dup);
+        __ Pshufd(dst, dst, 0xaa);
+      }
+      break;
+    }
     case kIA32S64x2UnpackHigh:
       ASSEMBLE_SIMD_PUNPCK_SHUFFLE(punpckhqdq);
       break;

@@ -2238,6 +2238,7 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   uint8_t offset;
   uint8_t shuffle32x4[4];
   uint8_t shuffle16x8[8];
+  int index;
   const ShuffleEntry* arch_shuffle;
   if (TryMatchConcat(shuffle, &offset)) {
     // Swap inputs from the normal order for (v)palignr.
@@ -2286,6 +2287,10 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
       opcode = kIA32S16x8Blend;
       blend_mask = PackBlend8(shuffle16x8);
       imms[imm_count++] = blend_mask;
+    } else if (TryMatchDup<8>(shuffle, &index)) {
+      opcode = kIA32S16x8Dup;
+      src0_needs_reg = false;
+      imms[imm_count++] = index;
     } else if (TryMatch16x8HalfShuffle(shuffle16x8, &blend_mask)) {
       opcode = is_swizzle ? kIA32S16x8HalfShuffle1 : kIA32S16x8HalfShuffle2;
       // Half-shuffles don't need DefineSameAsFirst or UseRegister(src0).
@@ -2297,6 +2302,11 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
       imms[imm_count++] = mask_hi;
       if (!is_swizzle) imms[imm_count++] = blend_mask;
     }
+  } else if (TryMatchDup<16>(shuffle, &index)) {
+    opcode = kIA32S8x16Dup;
+    no_same_as_first = use_avx;
+    src0_needs_reg = true;
+    imms[imm_count++] = index;
   }
   if (opcode == kIA32S8x16Shuffle) {
     // Use same-as-first for general swizzle, but not shuffle.
