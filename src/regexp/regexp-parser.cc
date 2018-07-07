@@ -1291,6 +1291,9 @@ bool IsSupportedBinaryProperty(UProperty property) {
     case UCHAR_EMOJI_MODIFIER_BASE:
     case UCHAR_EMOJI_MODIFIER:
     case UCHAR_EMOJI_PRESENTATION:
+#if U_ICU_VERSION_MAJOR_NUM >= 62
+    case UCHAR_EXTENDED_PICTOGRAPHIC:
+#endif
     case UCHAR_EXTENDER:
     case UCHAR_GRAPHEME_BASE:
     case UCHAR_GRAPHEME_EXTEND:
