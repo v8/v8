@@ -2010,6 +2010,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputOperand(2), i.InputInt8(1));
       break;
     }
+    case kSSEI32x4SConvertF32x4: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      XMMRegister dst = i.OutputSimd128Register();
+      // NAN->0
+      __ movaps(kScratchDoubleReg, dst);
+      __ cmpeqps(kScratchDoubleReg, kScratchDoubleReg);
+      __ pand(dst, kScratchDoubleReg);
+      // Set top bit if >= 0 (but not -0.0!)
+      __ pxor(kScratchDoubleReg, dst);
+      // Convert
+      __ cvttps2dq(dst, dst);
+      // Set top bit if >=0 is now < 0
+      __ pand(kScratchDoubleReg, dst);
+      __ psrad(kScratchDoubleReg, 31);
+      // Set positive overflow lanes to 0x7FFFFFFF
+      __ pxor(dst, kScratchDoubleReg);
+      break;
+    }
+    case kAVXI32x4SConvertF32x4: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      // NAN->0
+      __ vcmpeqps(kScratchDoubleReg, src, src);
+      __ vpand(dst, src, kScratchDoubleReg);
+      // Set top bit if >= 0 (but not -0.0!)
+      __ vpxor(kScratchDoubleReg, kScratchDoubleReg, dst);
+      // Convert
+      __ vcvttps2dq(dst, dst);
+      // Set top bit if >=0 is now < 0
+      __ vpand(kScratchDoubleReg, kScratchDoubleReg, dst);
+      __ vpsrad(kScratchDoubleReg, kScratchDoubleReg, 31);
+      // Set positive overflow lanes to 0x7FFFFFFF
+      __ vpxor(dst, dst, kScratchDoubleReg);
+      break;
+    }
     case kIA32I32x4SConvertI16x8Low: {
       __ Pmovsxwd(i.OutputSimd128Register(), i.InputOperand(0));
       break;
@@ -2177,6 +2213,61 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Operand src2 = i.InputOperand(1);
       __ vpminsd(kScratchDoubleReg, src1, src2);
       __ vpcmpeqd(i.OutputSimd128Register(), kScratchDoubleReg, src2);
+      break;
+    }
+    case kSSEI32x4UConvertF32x4: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      // NAN->0, negative->0
+      __ pxor(kScratchDoubleReg, kScratchDoubleReg);
+      __ maxps(dst, kScratchDoubleReg);
+      // scratch: float representation of max_signed
+      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+      __ psrld(kScratchDoubleReg, 1);                     // 0x7fffffff
+      __ cvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // 0x4f000000
+      // tmp: convert (src-max_signed).
+      // Positive overflow lanes -> 0x7FFFFFFF
+      // Negative lanes -> 0
+      __ movaps(tmp, dst);
+      __ subps(tmp, kScratchDoubleReg);
+      __ cmpleps(kScratchDoubleReg, tmp);
+      __ cvttps2dq(tmp, tmp);
+      __ pxor(tmp, kScratchDoubleReg);
+      __ pxor(kScratchDoubleReg, kScratchDoubleReg);
+      __ pmaxsd(tmp, kScratchDoubleReg);
+      // convert. Overflow lanes above max_signed will be 0x80000000
+      __ cvttps2dq(dst, dst);
+      // Add (src-max_signed) for overflow lanes.
+      __ paddd(dst, tmp);
+      break;
+    }
+    case kAVXI32x4UConvertF32x4: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
+      // NAN->0, negative->0
+      __ vpxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vmaxps(dst, dst, kScratchDoubleReg);
+      // scratch: float representation of max_signed
+      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpsrld(kScratchDoubleReg, kScratchDoubleReg, 1);  // 0x7fffffff
+      __ vcvtdq2ps(kScratchDoubleReg, kScratchDoubleReg);  // 0x4f000000
+      // tmp: convert (src-max_signed).
+      // Positive overflow lanes -> 0x7FFFFFFF
+      // Negative lanes -> 0
+      __ vsubps(tmp, dst, kScratchDoubleReg);
+      __ vcmpleps(kScratchDoubleReg, kScratchDoubleReg, tmp);
+      __ vcvttps2dq(tmp, tmp);
+      __ vpxor(tmp, tmp, kScratchDoubleReg);
+      __ vpxor(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpmaxsd(tmp, tmp, kScratchDoubleReg);
+      // convert. Overflow lanes above max_signed will be 0x80000000
+      __ vcvttps2dq(dst, dst);
+      // Add (src-max_signed) for overflow lanes.
+      __ vpaddd(dst, dst, tmp);
       break;
     }
     case kIA32I32x4UConvertI16x8Low: {

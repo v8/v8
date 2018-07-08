@@ -821,7 +821,7 @@ WASM_SIMD_TEST(I8x16ReplaceLane) {
 }
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 int32_t ConvertToInt(double val, bool unsigned_integer) {
   if (std::isnan(val)) return 0;
@@ -860,11 +860,7 @@ WASM_SIMD_TEST(I32x4ConvertF32x4) {
     CHECK_EQ(1, r.Call(*i, signed_value, unsigned_value));
   }
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 // Tests both signed and unsigned conversion from I16x8 (unpacking).
 WASM_SIMD_TEST(I32x4ConvertI16x8) {
   WasmRunner<int32_t, int32_t, int32_t, int32_t, int32_t> r(execution_mode,

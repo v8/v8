@@ -154,6 +154,8 @@ namespace compiler {
   V(IA32I32x4ExtractLane)          \
   V(SSEI32x4ReplaceLane)           \
   V(AVXI32x4ReplaceLane)           \
+  V(SSEI32x4SConvertF32x4)         \
+  V(AVXI32x4SConvertF32x4)         \
   V(IA32I32x4SConvertI16x8Low)     \
   V(IA32I32x4SConvertI16x8High)    \
   V(IA32I32x4Neg)                  \
@@ -181,6 +183,8 @@ namespace compiler {
   V(AVXI32x4GtS)                   \
   V(SSEI32x4GeS)                   \
   V(AVXI32x4GeS)                   \
+  V(SSEI32x4UConvertF32x4)         \
+  V(AVXI32x4UConvertF32x4)         \
   V(IA32I32x4UConvertI16x8Low)     \
   V(IA32I32x4UConvertI16x8High)    \
   V(SSEI32x4ShrU)                  \

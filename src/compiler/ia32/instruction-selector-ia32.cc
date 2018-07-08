@@ -1877,6 +1877,19 @@ void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
   VisitRRSimd(this, node, kAVXF32x4UConvertI32x4, kSSEF32x4UConvertI32x4);
 }
 
+void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
+  VisitRRSimd(this, node, kAVXI32x4SConvertF32x4, kSSEI32x4SConvertF32x4);
+}
+
+void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  InstructionCode opcode =
+      IsSupported(AVX) ? kAVXI32x4UConvertF32x4 : kSSEI32x4UConvertF32x4;
+  Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+       arraysize(temps), temps);
+}
+
 void InstructionSelector::VisitI8x16Mul(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand operand0 = g.UseUniqueRegister(node->InputAt(0));
