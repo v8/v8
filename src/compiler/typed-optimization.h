@@ -58,20 +58,24 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceToBoolean(Node* node);
 
   Reduction TryReduceStringComparisonOfStringFromSingleCharCode(
-      Node* comparison, Node* from_char_code, Node* constant, bool inverted);
+      Node* comparison, Node* from_char_code, Type constant_type,
+      bool inverted);
   Reduction TryReduceStringComparisonOfStringFromSingleCharCodeToConstant(
-      Node* comparison, Handle<String> string, bool inverted);
+      Node* comparison, const StringRef& string, bool inverted);
   const Operator* NumberComparisonFor(const Operator* op);
 
-  CompilationDependencies* dependencies() const { return dependencies_; }
+  SimplifiedOperatorBuilder* simplified() const;
   Factory* factory() const;
   Graph* graph() const;
   Isolate* isolate() const;
+
+  CompilationDependencies* dependencies() const { return dependencies_; }
   JSGraph* jsgraph() const { return jsgraph_; }
-  SimplifiedOperatorBuilder* simplified() const;
+  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
 
   CompilationDependencies* const dependencies_;
   JSGraph* const jsgraph_;
+  const JSHeapBroker* js_heap_broker_;
   Type const true_type_;
   Type const false_type_;
   TypeCache const& type_cache_;

@@ -73,12 +73,12 @@ class HeapObjectType {
   V(ScopeInfo)                   \
   V(ScriptContextTable)          \
   V(SharedFunctionInfo)          \
-  V(Map)
+  V(Map)                         \
+  V(String)
 
 #define HEAP_BROKER_KIND_LIST(V) \
   HEAP_BROKER_DATA_LIST(V)       \
-  V(InternalizedString)          \
-  V(String)
+  V(InternalizedString)
 
 #define FORWARD_DECL(Name) class Name##Ref;
 HEAP_BROKER_DATA_LIST(FORWARD_DECL)
@@ -98,6 +98,8 @@ class ObjectRef {
   }
 
   OddballType oddball_type(const JSHeapBroker* broker) const;
+
+  StringRef TypeOf(const JSHeapBroker* broker) const;
 
   bool IsSmi() const;
   int AsSmi() const;
@@ -282,9 +284,14 @@ class MapRef : public HeapObjectRef {
   bool IsJSArrayMap() const;
   bool IsFixedCowArrayMap(const JSHeapBroker* broker) const;
 
+  bool is_stable() const;
   bool has_prototype_slot() const;
+  bool CanTransition() const;
 
   bool IsInobjectSlackTrackingInProgress() const;
+
+  void DependOnStableMap(const JSHeapBroker* broker,
+                         CompilationDependencies* dependencies) const;
 };
 
 class FixedArrayBaseRef : public HeapObjectRef {
@@ -336,6 +343,14 @@ class SharedFunctionInfoRef : public HeapObjectRef {
   int internal_formal_parameter_count() const;
   bool has_duplicate_parameters() const;
   int function_map_index() const;
+};
+
+class StringRef : public NameRef {
+ public:
+  explicit StringRef(Handle<Object> object) : NameRef(object) {}
+
+  int length() const;
+  uint16_t GetFirstChar();
 };
 
 }  // namespace compiler

@@ -17,6 +17,7 @@ HeapObjectRef::HeapObjectRef(Handle<Object> object) : ObjectRef(object) {
 }
 
 MapRef HeapObjectRef::map(const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(handle(object<HeapObject>()->map(), broker->isolate()));
 }
@@ -66,6 +67,11 @@ int ObjectRef::AsSmi() const { return object<Smi>()->value(); }
 
 bool ObjectRef::equals(const ObjectRef& other) const {
   return object<Object>().equals(other.object<Object>());
+}
+
+StringRef ObjectRef::TypeOf(const JSHeapBroker* broker) const {
+  AllowHandleDereference handle_dereference;
+  return StringRef(Object::TypeOf(broker->isolate(), object<Object>()));
 }
 
 base::Optional<ContextRef> ContextRef::previous(
@@ -179,6 +185,12 @@ MapRef JSFunctionRef::DependOnInitialMap(
   return MapRef(initial_map);
 }
 
+void MapRef::DependOnStableMap(const JSHeapBroker* broker,
+                               CompilationDependencies* dependencies) const {
+  AllowHandleDereference allow_handle_dereference;
+  dependencies->DependOnStableMap(object<Map>());
+}
+
 int JSFunctionRef::GetInstanceSizeWithFinishedSlackTracking() const {
   AllowHandleDereference allow_handle_dereference;
   object<JSFunction>()->CompleteInobjectSlackTrackingIfActive();
@@ -226,6 +238,7 @@ ScriptContextTableRef::lookup(const NameRef& name) const {
 
 ScriptContextTableRef NativeContextRef::script_context_table(
     const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference handle_dereference;
   return ScriptContextTableRef(
       handle(object<Context>()->script_context_table(), broker->isolate()));
@@ -263,12 +276,14 @@ double JSObjectRef::RawFastDoublePropertyAt(FieldIndex index) const {
 
 ObjectRef JSObjectRef::RawFastPropertyAt(const JSHeapBroker* broker,
                                          FieldIndex index) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference handle_dereference;
   return ObjectRef(
       handle(object<JSObject>()->RawFastPropertyAt(index), broker->isolate()));
 }
 
 FixedArrayBaseRef JSObjectRef::elements(const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference handle_dereference;
   return FixedArrayBaseRef(
       handle(object<JSObject>()->elements(), broker->isolate()));
@@ -435,6 +450,7 @@ PropertyDetails MapRef::GetPropertyDetails(int i) const {
 }
 
 NameRef MapRef::GetPropertyKey(const JSHeapBroker* broker, int i) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return NameRef(handle(object<Map>()->instance_descriptors()->GetKey(i),
                         broker->isolate()));
@@ -461,39 +477,65 @@ bool MapRef::has_prototype_slot() const {
   return object<Map>()->has_prototype_slot();
 }
 
+bool MapRef::is_stable() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<Map>()->is_stable();
+}
+
+bool MapRef::CanTransition() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<Map>()->CanTransition();
+}
+
 ElementsKind JSArrayRef::GetElementsKind() const {
   AllowHandleDereference allow_handle_dereference;
   return object<JSArray>()->GetElementsKind();
 }
 
 ObjectRef JSArrayRef::length(const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return ObjectRef(handle(object<JSArray>()->length(), broker->isolate()));
 }
 
+int StringRef::length() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<String>()->length();
+}
+
+uint16_t StringRef::GetFirstChar() {
+  AllowHandleDereference allow_handle_dereference;
+  return object<String>()->Get(0);
+}
+
 ObjectRef JSRegExpRef::raw_properties_or_hash(
     const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return ObjectRef(
       handle(object<JSRegExp>()->raw_properties_or_hash(), broker->isolate()));
 }
 
 ObjectRef JSRegExpRef::data(const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return ObjectRef(handle(object<JSRegExp>()->data(), broker->isolate()));
 }
 
 ObjectRef JSRegExpRef::source(const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return ObjectRef(handle(object<JSRegExp>()->source(), broker->isolate()));
 }
 
 ObjectRef JSRegExpRef::flags(const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return ObjectRef(handle(object<JSRegExp>()->flags(), broker->isolate()));
 }
 
 ObjectRef JSRegExpRef::last_index(const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return ObjectRef(handle(object<JSRegExp>()->last_index(), broker->isolate()));
 }
@@ -509,6 +551,7 @@ bool FixedArrayRef::is_the_hole(const JSHeapBroker* broker, int i) const {
 }
 
 ObjectRef FixedArrayRef::get(const JSHeapBroker* broker, int i) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return ObjectRef(handle(object<FixedArray>()->get(i), broker->isolate()));
 }
@@ -545,6 +588,7 @@ bool SharedFunctionInfoRef::has_duplicate_parameters() const {
 
 MapRef NativeContextRef::fast_aliased_arguments_map(
     const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(handle(object<Context>()->fast_aliased_arguments_map(),
                        broker->isolate()));
@@ -552,6 +596,7 @@ MapRef NativeContextRef::fast_aliased_arguments_map(
 
 MapRef NativeContextRef::sloppy_arguments_map(
     const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(
       handle(object<Context>()->sloppy_arguments_map(), broker->isolate()));
@@ -559,6 +604,7 @@ MapRef NativeContextRef::sloppy_arguments_map(
 
 MapRef NativeContextRef::strict_arguments_map(
     const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(
       handle(object<Context>()->strict_arguments_map(), broker->isolate()));
@@ -566,6 +612,7 @@ MapRef NativeContextRef::strict_arguments_map(
 
 MapRef NativeContextRef::js_array_fast_elements_map_index(
     const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(handle(object<Context>()->js_array_fast_elements_map_index(),
                        broker->isolate()));
@@ -573,6 +620,7 @@ MapRef NativeContextRef::js_array_fast_elements_map_index(
 
 MapRef NativeContextRef::initial_array_iterator_map(
     const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(handle(object<Context>()->initial_array_iterator_map(),
                        broker->isolate()));
@@ -580,6 +628,7 @@ MapRef NativeContextRef::initial_array_iterator_map(
 
 MapRef NativeContextRef::set_value_iterator_map(
     const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(
       handle(object<Context>()->set_value_iterator_map(), broker->isolate()));
@@ -587,6 +636,7 @@ MapRef NativeContextRef::set_value_iterator_map(
 
 MapRef NativeContextRef::set_key_value_iterator_map(
     const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(handle(object<Context>()->set_key_value_iterator_map(),
                        broker->isolate()));
@@ -594,6 +644,7 @@ MapRef NativeContextRef::set_key_value_iterator_map(
 
 MapRef NativeContextRef::map_key_iterator_map(
     const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(
       handle(object<Context>()->map_key_iterator_map(), broker->isolate()));
@@ -601,6 +652,7 @@ MapRef NativeContextRef::map_key_iterator_map(
 
 MapRef NativeContextRef::map_value_iterator_map(
     const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(
       handle(object<Context>()->map_value_iterator_map(), broker->isolate()));
@@ -608,6 +660,7 @@ MapRef NativeContextRef::map_value_iterator_map(
 
 MapRef NativeContextRef::map_key_value_iterator_map(
     const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(handle(object<Context>()->map_key_value_iterator_map(),
                        broker->isolate()));
