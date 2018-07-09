@@ -12,7 +12,7 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ec3bd1bde162d0274fcbe7217beb8aa3ea7c0794',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '84b1e58199c083dce4cc9b2aa7dd42f09f11d975',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/depot_tools':
@@ -62,7 +62,7 @@ deps = {
   'v8/test/test262/harness':
     Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '0f2acdd882c84cff43b9d60df7574a1901e2cdcd',
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ebf0d4a36bb989c366e78a4c20564cd4656197e6',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '230416cead9381987e29fd81df3ae00424a57393',
   'v8/tools/luci-go':
     Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + 'e3d4003364ba53f0db6e235609d8e7f5b7d7ab9d',
   'v8/test/wasm-js':
