@@ -1276,8 +1276,8 @@ struct TypedLoweringPhase {
                                      data->native_context(), temp_zone);
     JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(),
                                    data->js_heap_broker(), temp_zone);
-    ConstantFoldingReducer constant_folding_reducer(&graph_reducer,
-                                                    data->jsgraph());
+    ConstantFoldingReducer constant_folding_reducer(
+        &graph_reducer, data->jsgraph(), data->js_heap_broker());
     TypedOptimization typed_optimization(&graph_reducer, data->dependencies(),
                                          data->jsgraph(),
                                          data->js_heap_broker());
@@ -1515,8 +1515,8 @@ struct LoadEliminationPhase {
     CommonOperatorReducer common_reducer(data->isolate(), &graph_reducer,
                                          data->graph(), data->common(),
                                          data->machine(), temp_zone);
-    ConstantFoldingReducer constant_folding_reducer(&graph_reducer,
-                                                    data->jsgraph());
+    ConstantFoldingReducer constant_folding_reducer(
+        &graph_reducer, data->jsgraph(), data->js_heap_broker());
     TypeNarrowingReducer type_narrowing_reducer(&graph_reducer, data->jsgraph(),
                                                 data->js_heap_broker());
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
