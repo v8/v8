@@ -85,7 +85,8 @@ class CodeGenerator final : public GapResolver::Assembler {
                          JumpOptimizationInfo* jump_opt,
                          WasmCompilationData* wasm_compilation_data,
                          PoisoningMitigationLevel poisoning_level,
-                         const AssemblerOptions& options);
+                         const AssemblerOptions& options,
+                         int32_t builtin_index);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,

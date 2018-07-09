@@ -381,7 +381,7 @@ class PipelineData {
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
         wasm_compilation_data_, info()->GetPoisoningMitigationLevel(),
-        assembler_options_);
+        assembler_options_, info_->builtin_index());
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {

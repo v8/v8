@@ -43,7 +43,8 @@ CodeGenerator::CodeGenerator(
     InstructionSequence* code, OptimizedCompilationInfo* info, Isolate* isolate,
     base::Optional<OsrHelper> osr_helper, int start_source_position,
     JumpOptimizationInfo* jump_opt, WasmCompilationData* wasm_compilation_data,
-    PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options)
+    PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
+    int32_t builtin_index)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -91,6 +92,7 @@ CodeGenerator::CodeGenerator(
       code_kind == Code::WASM_INTERPRETER_ENTRY) {
     tasm_.set_trap_on_abort(true);
   }
+  tasm_.set_builtin_index(builtin_index);
 }
 
 bool CodeGenerator::wasm_runtime_exception_support() const {
