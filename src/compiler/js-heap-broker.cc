@@ -629,6 +629,11 @@ MapRef NativeContextRef::GetFunctionMapFromIndex(const JSHeapBroker* broker,
   return get(broker, index).AsMap();
 }
 
+bool ObjectRef::BooleanValue(const JSHeapBroker* broker) {
+  AllowHandleDereference allow_handle_dereference;
+  return object<Object>()->BooleanValue(broker->isolate());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

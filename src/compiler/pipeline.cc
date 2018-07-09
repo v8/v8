@@ -1281,7 +1281,8 @@ struct TypedLoweringPhase {
     TypedOptimization typed_optimization(&graph_reducer, data->dependencies(),
                                          data->jsgraph(),
                                          data->js_heap_broker());
-    SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
+    SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph(),
+                                             data->js_heap_broker());
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(data->isolate(), &graph_reducer,
                                          data->graph(), data->common(),
@@ -1399,7 +1400,8 @@ struct EarlyOptimizationPhase {
                                data->jsgraph()->Dead());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
-    SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
+    SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph(),
+                                             data->js_heap_broker());
     RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     MachineOperatorReducer machine_reducer(data->jsgraph());

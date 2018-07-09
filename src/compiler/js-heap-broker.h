@@ -93,8 +93,6 @@ class ObjectRef {
 
   OddballType oddball_type(const JSHeapBroker* broker) const;
 
-  StringRef TypeOf(const JSHeapBroker* broker) const;
-
   bool IsSmi() const;
   int AsSmi() const;
 
@@ -107,6 +105,9 @@ class ObjectRef {
 #define HEAP_AS_METHOD_DECL(Name) Name##Ref As##Name() const;
   HEAP_BROKER_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
+
+  StringRef TypeOf(const JSHeapBroker* broker) const;
+  bool BooleanValue(const JSHeapBroker* broker);
 
  private:
   Handle<Object> object_;
