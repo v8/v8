@@ -41,11 +41,14 @@ Node* GetArgumentsFrameState(Node* frame_state) {
 
 // Checks whether allocation using the given target and new.target can be
 // inlined.
-bool IsAllocationInlineable(Handle<JSFunction> target,
-                            Handle<JSFunction> new_target) {
-  return new_target->has_initial_map() &&
-         !new_target->initial_map()->is_dictionary_map() &&
-         new_target->initial_map()->constructor_or_backpointer() == *target;
+bool IsAllocationInlineable(const JSFunctionRef& target,
+                            const JSFunctionRef& new_target,
+                            const JSHeapBroker* broker) {
+  return new_target.has_initial_map() &&
+         !new_target.initial_map(broker).is_dictionary_map() &&
+         new_target.initial_map(broker)
+             .constructor_or_backpointer(broker)
+             .equals(target);
 }
 
 // When initializing arrays, we'll unfold the loop if the number of
@@ -110,6 +113,7 @@ Reduction JSCreateLowering::Reduce(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
+  DisallowHandleDereference disallow_handle_dereference;
   DCHECK_EQ(IrOpcode::kJSCreate, node->opcode());
   Node* const target = NodeProperties::GetValueInput(node, 0);
   Type const target_type = NodeProperties::GetType(target);
@@ -118,48 +122,52 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
   // Extract constructor and original constructor function.
-  if (target_type.IsHeapConstant() && new_target_type.IsHeapConstant() &&
-      target_type.AsHeapConstant()->Value()->IsJSFunction() &&
-      new_target_type.AsHeapConstant()->Value()->IsJSFunction()) {
-    Handle<JSFunction> constructor =
-        Handle<JSFunction>::cast(target_type.AsHeapConstant()->Value());
-    if (!constructor->IsConstructor()) return NoChange();
-    Handle<JSFunction> original_constructor =
-        Handle<JSFunction>::cast(new_target_type.AsHeapConstant()->Value());
-    if (!original_constructor->IsConstructor()) return NoChange();
-
-    // Check if we can inline the allocation.
-    if (IsAllocationInlineable(constructor, original_constructor)) {
-      // Force completion of inobject slack tracking before
-      // generating code to finalize the instance size.
-      original_constructor->CompleteInobjectSlackTrackingIfActive();
-
-      // Add a dependency on the {initial_map} to make sure that this code is
-      // deoptimized whenever the {initial_map} changes.
-      Handle<Map> initial_map =
-          dependencies()->DependOnInitialMap(original_constructor);
-      int const instance_size = initial_map->instance_size();
-
-      // Emit code to allocate the JSObject instance for the
-      // {original_constructor}.
-      AllocationBuilder a(jsgraph(), js_heap_broker(), effect, control);
-      a.Allocate(instance_size);
-      a.Store(AccessBuilder::ForMap(), initial_map);
-      a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
-              jsgraph()->EmptyFixedArrayConstant());
-      a.Store(AccessBuilder::ForJSObjectElements(),
-              jsgraph()->EmptyFixedArrayConstant());
-      for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
-        a.Store(
-            AccessBuilder::ForJSObjectInObjectProperty(MapRef(initial_map), i),
-            jsgraph()->UndefinedConstant());
-      }
-      RelaxControls(node);
-      a.FinishAndChange(node);
-      return Changed(node);
-    }
+  if (!target_type.IsHeapConstant() || !new_target_type.IsHeapConstant() ||
+      !target_type.AsHeapConstant()->Ref().IsJSFunction() ||
+      !new_target_type.AsHeapConstant()->Ref().IsJSFunction()) {
+    return NoChange();
   }
-  return NoChange();
+
+  JSFunctionRef constructor =
+      target_type.AsHeapConstant()->Ref().AsJSFunction();
+  if (!constructor.IsConstructor()) return NoChange();
+  JSFunctionRef original_constructor =
+      new_target_type.AsHeapConstant()->Ref().AsJSFunction();
+  if (!original_constructor.IsConstructor()) return NoChange();
+
+  // Check if we can inline the allocation.
+  if (!IsAllocationInlineable(constructor, original_constructor,
+                              js_heap_broker())) {
+    return NoChange();
+  }
+
+  // Add a dependency on the {initial_map} to make sure that this code is
+  // deoptimized whenever the {initial_map} changes.
+  MapRef initial_map =
+      original_constructor.DependOnInitialMap(js_heap_broker(), dependencies());
+
+  // Force completion of inobject slack tracking before
+  // generating code to finalize the instance size.
+  int const instance_size =
+      original_constructor.GetInstanceSizeWithFinishedSlackTracking();
+
+  // Emit code to allocate the JSObject instance for the
+  // {original_constructor}.
+  AllocationBuilder a(jsgraph(), js_heap_broker(), effect, control);
+  a.Allocate(instance_size);
+  a.Store(AccessBuilder::ForMap(), initial_map);
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSObjectElements(),
+          jsgraph()->EmptyFixedArrayConstant());
+  for (int i = 0; i < initial_map.GetInObjectProperties(); ++i) {
+    a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
+            jsgraph()->UndefinedConstant());
+  }
+
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
 }
 
 Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
@@ -722,7 +730,9 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
     DCHECK(original_constructor->IsConstructor());
 
     // Check if we can inline the allocation.
-    if (IsAllocationInlineable(constructor, original_constructor)) {
+    if (IsAllocationInlineable(JSFunctionRef(constructor),
+                               JSFunctionRef(original_constructor),
+                               js_heap_broker())) {
       // Force completion of inobject slack tracking before
       // generating code to finalize the instance size.
       original_constructor->CompleteInobjectSlackTrackingIfActive();

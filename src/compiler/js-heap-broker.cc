@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-regexp-inl.h"
 
@@ -163,6 +164,35 @@ bool JSFunctionRef::HasBuiltinFunctionId() const {
 BuiltinFunctionId JSFunctionRef::GetBuiltinFunctionId() const {
   AllowHandleDereference allow_handle_dereference;
   return object<JSFunction>()->shared()->builtin_function_id();
+}
+
+bool JSFunctionRef::IsConstructor() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<JSFunction>()->IsConstructor();
+}
+
+MapRef JSFunctionRef::DependOnInitialMap(
+    const JSHeapBroker* broker, CompilationDependencies* dependencies) const {
+  AllowHandleDereference allow_handle_dereference;
+  Handle<Map> initial_map =
+      dependencies->DependOnInitialMap(object<JSFunction>());
+  return MapRef(initial_map);
+}
+
+int JSFunctionRef::GetInstanceSizeWithFinishedSlackTracking() const {
+  AllowHandleDereference allow_handle_dereference;
+  object<JSFunction>()->CompleteInobjectSlackTrackingIfActive();
+  return object<JSFunction>()->initial_map()->instance_size();
+}
+
+bool JSFunctionRef::has_initial_map() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<JSFunction>()->has_initial_map();
+}
+
+MapRef JSFunctionRef::initial_map(const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(handle(object<JSFunction>()->initial_map(), broker->isolate()));
 }
 
 NameRef::NameRef(Handle<Object> object) : HeapObjectRef(object) {
@@ -373,6 +403,22 @@ FieldIndex MapRef::GetFieldIndexFor(int i) const {
   return FieldIndex::ForDescriptor(*object<Map>(), i);
 }
 
+int MapRef::GetInObjectPropertyOffset(int i) const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<Map>()->GetInObjectPropertyOffset(i);
+}
+
+bool MapRef::is_dictionary_map() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<Map>()->is_dictionary_map();
+}
+
+ObjectRef MapRef::constructor_or_backpointer(const JSHeapBroker* broker) const {
+  AllowHandleDereference allow_handle_dereference;
+  return ObjectRef(
+      handle(object<Map>()->constructor_or_backpointer(), broker->isolate()));
+}
+
 int MapRef::instance_size() const {
   AllowHandleDereference allow_handle_dereference;
   return object<Map>()->instance_size();
@@ -404,20 +450,10 @@ bool MapRef::IsInobjectSlackTrackingInProgress() const {
   return object<Map>()->IsInobjectSlackTrackingInProgress();
 }
 
-bool MapRef::is_dictionary_map() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->is_dictionary_map();
-}
-
 bool MapRef::IsFixedCowArrayMap(const JSHeapBroker* broker) const {
   AllowHandleDereference allow_handle_dereference;
   return *object<Map>() ==
          ReadOnlyRoots(broker->isolate()).fixed_cow_array_map();
-}
-
-int MapRef::GetInObjectPropertyOffset(int index) const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->GetInObjectPropertyOffset(index);
 }
 
 bool MapRef::has_prototype_slot() const {

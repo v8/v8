@@ -14,6 +14,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class CompilationDependencies;
+
 enum class OddballType : uint8_t {
   kNone,     // Not an Oddball.
   kBoolean,  // True or False.
@@ -163,8 +165,16 @@ class JSObjectRef : public HeapObjectRef {
 class JSFunctionRef : public JSObjectRef {
  public:
   explicit JSFunctionRef(Handle<Object> object);
+
   bool HasBuiltinFunctionId() const;
   BuiltinFunctionId GetBuiltinFunctionId() const;
+  bool IsConstructor() const;
+  bool has_initial_map() const;
+  MapRef initial_map(const JSHeapBroker* broker) const;
+
+  MapRef DependOnInitialMap(const JSHeapBroker* broker,
+                            CompilationDependencies* dependencies) const;
+  int GetInstanceSizeWithFinishedSlackTracking() const;
 };
 
 class JSRegExpRef : public JSObjectRef {
@@ -260,15 +270,17 @@ class MapRef : public HeapObjectRef {
   InstanceType instance_type() const;
   int GetInObjectProperties() const;
   int NumberOfOwnDescriptors() const;
+
   PropertyDetails GetPropertyDetails(int i) const;
   NameRef GetPropertyKey(const JSHeapBroker* broker, int i) const;
   FieldIndex GetFieldIndexFor(int i) const;
-
   int GetInObjectPropertyOffset(int index) const;
+
+  bool is_dictionary_map() const;
+  ObjectRef constructor_or_backpointer(const JSHeapBroker* broker) const;
 
   bool IsJSArrayMap() const;
   bool IsFixedCowArrayMap(const JSHeapBroker* broker) const;
-  bool is_dictionary_map() const;
 
   bool has_prototype_slot() const;
 
