@@ -95,7 +95,7 @@ class ConcurrentMarking {
   struct TaskState {
     // The main thread sets this flag to true when it wants the concurrent
     // marker to give up the worker thread.
-    base::AtomicValue<bool> preemption_request;
+    std::atomic<bool> preemption_request;
 
     LiveBytesMap live_bytes;
     size_t marked_bytes = 0;

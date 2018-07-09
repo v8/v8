@@ -627,7 +627,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
       marked_bytes += current_marked_bytes;
       base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes,
                                                 marked_bytes);
-      if (task_state->preemption_request.Value()) {
+      if (task_state->preemption_request) {
         TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                      "ConcurrentMarking::Run Preempted");
         break;
@@ -703,7 +703,7 @@ void ConcurrentMarking::ScheduleTasks() {
         heap_->isolate()->PrintWithTimestamp(
             "Scheduling concurrent marking task %d\n", i);
       }
-      task_state_[i].preemption_request.SetValue(false);
+      task_state_[i].preemption_request = false;
       is_pending_[i] = true;
       ++pending_task_count_;
       auto task =
@@ -744,7 +744,7 @@ bool ConcurrentMarking::Stop(StopRequest stop_request) {
           is_pending_[i] = false;
           --pending_task_count_;
         } else if (stop_request == StopRequest::PREEMPT_TASKS) {
-          task_state_[i].preemption_request.SetValue(true);
+          task_state_[i].preemption_request = true;
         }
       }
     }
