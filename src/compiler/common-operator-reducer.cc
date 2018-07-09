@@ -19,7 +19,7 @@ namespace compiler {
 
 namespace {
 
-Decision DecideCondition(Isolate* isolate, Node* const cond) {
+Decision DecideCondition(const JSHeapBroker* broker, Node* const cond) {
   switch (cond->opcode()) {
     case IrOpcode::kInt32Constant: {
       Int32Matcher mcond(cond);
@@ -27,8 +27,8 @@ Decision DecideCondition(Isolate* isolate, Node* const cond) {
     }
     case IrOpcode::kHeapConstant: {
       HeapObjectMatcher mcond(cond);
-      return mcond.Value()->BooleanValue(isolate) ? Decision::kTrue
-                                                  : Decision::kFalse;
+      ObjectRef object(mcond.Value());
+      return object.BooleanValue(broker) ? Decision::kTrue : Decision::kFalse;
     }
     default:
       return Decision::kUnknown;
@@ -37,14 +37,14 @@ Decision DecideCondition(Isolate* isolate, Node* const cond) {
 
 }  // namespace
 
-CommonOperatorReducer::CommonOperatorReducer(Isolate* isolate, Editor* editor,
-                                             Graph* graph,
+CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
+                                             const JSHeapBroker* js_heap_broker,
                                              CommonOperatorBuilder* common,
                                              MachineOperatorBuilder* machine,
                                              Zone* temp_zone)
     : AdvancedReducer(editor),
-      isolate_(isolate),
       graph_(graph),
+      js_heap_broker_(js_heap_broker),
       common_(common),
       machine_(machine),
       dead_(graph->NewNode(common->Dead())),
@@ -53,6 +53,11 @@ CommonOperatorReducer::CommonOperatorReducer(Isolate* isolate, Editor* editor,
 }
 
 Reduction CommonOperatorReducer::Reduce(Node* node) {
+  DisallowHeapAllocation no_heap_allocation;
+  DisallowHandleAllocation no_handle_allocation;
+  DisallowHandleDereference no_handle_dereference;
+  DisallowCodeDependencyChange no_dependency_change;
+
   switch (node->opcode()) {
     case IrOpcode::kBranch:
       return ReduceBranch(node);
@@ -88,8 +93,10 @@ Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
   // not (i.e. true being returned in the false case and vice versa).
   if (cond->opcode() == IrOpcode::kBooleanNot ||
       (cond->opcode() == IrOpcode::kSelect &&
-       DecideCondition(isolate_, cond->InputAt(1)) == Decision::kFalse &&
-       DecideCondition(isolate_, cond->InputAt(2)) == Decision::kTrue)) {
+       DecideCondition(js_heap_broker(), cond->InputAt(1)) ==
+           Decision::kFalse &&
+       DecideCondition(js_heap_broker(), cond->InputAt(2)) ==
+           Decision::kTrue)) {
     for (Node* const use : node->uses()) {
       switch (use->opcode()) {
         case IrOpcode::kIfTrue:
@@ -111,7 +118,7 @@ Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
         node, common()->Branch(NegateBranchHint(BranchHintOf(node->op()))));
     return Changed(node);
   }
-  Decision const decision = DecideCondition(isolate_, cond);
+  Decision const decision = DecideCondition(js_heap_broker(), cond);
   if (decision == Decision::kUnknown) return NoChange();
   Node* const control = node->InputAt(1);
   for (Node* const use : node->uses()) {
@@ -151,7 +158,7 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
             : common()->DeoptimizeUnless(p.kind(), p.reason(), p.feedback()));
     return Changed(node);
   }
-  Decision const decision = DecideCondition(isolate_, condition);
+  Decision const decision = DecideCondition(js_heap_broker(), condition);
   if (decision == Decision::kUnknown) return NoChange();
   if (condition_is_true == (decision == Decision::kTrue)) {
     ReplaceWithValue(node, dead(), effect, control);
@@ -384,7 +391,7 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
   Node* const vtrue = node->InputAt(1);
   Node* const vfalse = node->InputAt(2);
   if (vtrue == vfalse) return Replace(vtrue);
-  switch (DecideCondition(isolate_, cond)) {
+  switch (DecideCondition(js_heap_broker(), cond)) {
     case Decision::kTrue:
       return Replace(vtrue);
     case Decision::kFalse:
