@@ -617,9 +617,6 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   script->set_type(Script::TYPE_NATIVE);
   Handle<WeakFixedArray> infos = factory()->NewWeakFixedArray(2);
   script->set_shared_function_infos(*infos);
-  // TODO(cbruni): fix position information here.
-  empty_function->shared()->set_raw_start_position(0);
-  empty_function->shared()->set_raw_end_position(source->length());
   empty_function->shared()->set_scope_info(*scope_info);
   empty_function->shared()->set_function_literal_id(1);
   empty_function->shared()->DontAdaptArguments();

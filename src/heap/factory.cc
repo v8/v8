@@ -2495,6 +2495,32 @@ Handle<PreParsedScopeData> Factory::NewPreParsedScopeData() {
   return result;
 }
 
+Handle<UncompiledDataWithoutPreParsedScope>
+Factory::NewUncompiledDataWithoutPreParsedScope(int32_t start_position,
+                                                int32_t end_position) {
+  Handle<UncompiledDataWithoutPreParsedScope> result(
+      UncompiledDataWithoutPreParsedScope::cast(
+          New(uncompiled_data_without_pre_parsed_scope_map(), TENURED)),
+      isolate());
+  result->set_start_position(start_position);
+  result->set_end_position(end_position);
+  return result;
+}
+
+Handle<UncompiledDataWithPreParsedScope>
+Factory::NewUncompiledDataWithPreParsedScope(
+    int32_t start_position, int32_t end_position,
+    Handle<PreParsedScopeData> pre_parsed_scope_data) {
+  Handle<UncompiledDataWithPreParsedScope> result(
+      UncompiledDataWithPreParsedScope::cast(
+          New(uncompiled_data_with_pre_parsed_scope_map(), TENURED)),
+      isolate());
+  result->set_start_position(start_position);
+  result->set_end_position(end_position);
+  result->set_pre_parsed_scope_data(*pre_parsed_scope_data);
+  return result;
+}
+
 Handle<JSObject> Factory::NewExternal(void* value) {
   Handle<Foreign> foreign = NewForeign(reinterpret_cast<Address>(value));
   Handle<JSObject> external = NewJSObjectFromMap(external_map());
@@ -3470,8 +3496,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     share->set_length(0);
     share->set_internal_formal_parameter_count(0);
     share->set_expected_nof_properties(0);
-    share->set_raw_start_position_and_type(0);
-    share->set_raw_end_position(0);
     share->set_raw_function_token_offset(0);
     // All flags default to false or 0.
     share->set_flags(0);

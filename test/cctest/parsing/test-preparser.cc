@@ -734,13 +734,15 @@ TEST(PreParserScopeAnalysis) {
 
       if (inners[inner_ix].bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
           !outers[outer_ix].strict_outer) {
-        CHECK(!shared->HasPreParsedScopeData());
+        CHECK(!shared->HasUncompiledDataWithPreParsedScope());
         continue;
       }
 
-      CHECK(shared->HasPreParsedScopeData());
+      CHECK(shared->HasUncompiledDataWithPreParsedScope());
       i::Handle<i::PreParsedScopeData> produced_data_on_heap(
-          i::PreParsedScopeData::cast(shared->preparsed_scope_data()), isolate);
+          shared->uncompiled_data_with_pre_parsed_scope()
+              ->pre_parsed_scope_data(),
+          isolate);
 
       // Parse the lazy function using the scope data.
       i::ParseInfo using_scope_data(isolate, shared);

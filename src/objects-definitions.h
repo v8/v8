@@ -163,6 +163,8 @@ namespace internal {
   V(SMALL_ORDERED_HASH_MAP_TYPE)                                \
   V(SMALL_ORDERED_HASH_SET_TYPE)                                \
   V(STORE_HANDLER_TYPE)                                         \
+  V(UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE)              \
+  V(UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE)                 \
   V(WEAK_CELL_TYPE)                                             \
   V(WEAK_ARRAY_LIST_TYPE)                                       \
                                                                 \

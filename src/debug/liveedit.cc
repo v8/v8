@@ -974,13 +974,9 @@ void UpdatePositions(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
   int new_end_position = LiveEdit::TranslatePosition(diffs, sfi->EndPosition());
   int new_function_token_position =
       LiveEdit::TranslatePosition(diffs, sfi->function_token_position());
-
-  sfi->set_raw_start_position(new_start_position);
-  sfi->set_raw_end_position(new_end_position);
-  if (sfi->scope_info()->HasPositionInfo()) {
-    sfi->scope_info()->SetPositionInfo(new_start_position, new_end_position);
-  }
-  sfi->SetFunctionTokenPosition(new_function_token_position);
+  sfi->SetPosition(new_start_position, new_end_position);
+  sfi->SetFunctionTokenPosition(new_function_token_position,
+                                new_start_position);
   if (sfi->HasBytecodeArray()) {
     TranslateSourcePositionTable(handle(sfi->GetBytecodeArray(), isolate),
                                  diffs);
@@ -1066,7 +1062,9 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     new_script_sfis->Set(mapping.second->function_literal_id(),
                          HeapObjectReference::Weak(*sfi));
 
-    if (sfi->HasPreParsedScopeData()) sfi->ClearPreParsedScopeData();
+    if (sfi->HasUncompiledDataWithPreParsedScope()) {
+      sfi->ClearPreParsedScopeData();
+    }
 
     for (auto& js_function : data->js_functions) {
       js_function->set_feedback_cell(*isolate->factory()->many_closures_cell());

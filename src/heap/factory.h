@@ -51,6 +51,8 @@ class RegExpMatchInfo;
 class ScriptContextTable;
 class StoreHandler;
 class TemplateObjectDescription;
+class UncompiledDataWithoutPreParsedScope;
+class UncompiledDataWithPreParsedScope;
 class WasmExportedFunctionData;
 struct SourceRange;
 template <typename T>
@@ -716,6 +718,13 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<ModuleInfo> NewModuleInfo();
 
   Handle<PreParsedScopeData> NewPreParsedScopeData();
+
+  Handle<UncompiledDataWithoutPreParsedScope>
+  NewUncompiledDataWithoutPreParsedScope(int32_t start_position,
+                                         int32_t end_position);
+
+  Handle<UncompiledDataWithPreParsedScope> NewUncompiledDataWithPreParsedScope(
+      int32_t start_position, int32_t end_position, Handle<PreParsedScopeData>);
 
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);

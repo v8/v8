@@ -146,6 +146,10 @@ TYPE_CHECKER(StringTable, STRING_TABLE_TYPE)
 TYPE_CHECKER(Symbol, SYMBOL_TYPE)
 TYPE_CHECKER(TemplateObjectDescription, TUPLE2_TYPE)
 TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
+TYPE_CHECKER(UncompiledDataWithoutPreParsedScope,
+             UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE)
+TYPE_CHECKER(UncompiledDataWithPreParsedScope,
+             UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE)
 TYPE_CHECKER(WasmGlobalObject, WASM_GLOBAL_TYPE)
 TYPE_CHECKER(WasmInstanceObject, WASM_INSTANCE_TYPE)
 TYPE_CHECKER(WasmMemoryObject, WASM_MEMORY_TYPE)
@@ -163,6 +167,10 @@ TYPE_CHECKER(JSLocale, JS_INTL_LOCALE_TYPE)
 TYPED_ARRAYS(TYPED_ARRAY_TYPE_CHECKER)
 #undef TYPED_ARRAY_TYPE_CHECKER
 
+bool HeapObject::IsUncompiledData() const {
+  return IsUncompiledDataWithoutPreParsedScope() ||
+         IsUncompiledDataWithPreParsedScope();
+}
 
 bool HeapObject::IsFixedArrayBase() const {
   return IsFixedArray() || IsFixedDoubleArray() || IsFixedTypedArrayBase();

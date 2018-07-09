@@ -77,6 +77,12 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(Tuple3Map, tuple3_map, Tuple3Map)                                       \
   V(ArrayBoilerplateDescriptionMap, array_boilerplate_description_map,      \
     ArrayBoilerplateDescriptionMap)                                         \
+  V(UncompiledDataWithoutPreParsedScopeMap,                                 \
+    uncompiled_data_without_pre_parsed_scope_map,                           \
+    UncompiledDataWithoutPreParsedScopeMap)                                 \
+  V(UncompiledDataWithPreParsedScopeMap,                                    \
+    uncompiled_data_with_pre_parsed_scope_map,                              \
+    UncompiledDataWithPreParsedScopeMap)                                    \
   V(UndefinedValue, undefined_value, Undefined)                             \
   V(WeakCellMap, weak_cell_map, WeakCellMap)                                \
   V(WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArrayMap)

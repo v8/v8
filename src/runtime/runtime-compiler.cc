@@ -130,9 +130,10 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
     }
   }
   // Remove wasm data, mark as broken for asm->wasm, replace function code with
-  // CompileLazy, and return a smi 0 to indicate failure.
+  // UncompiledData, and return a smi 0 to indicate failure.
   if (function->shared()->HasAsmWasmData()) {
-    function->shared()->FlushCompiled();
+    SharedFunctionInfo::DiscardCompiled(isolate,
+                                        handle(function->shared(), isolate));
   }
   function->shared()->set_is_asm_wasm_broken(true);
   DCHECK(function->code() ==

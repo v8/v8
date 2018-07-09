@@ -760,12 +760,16 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case CODE_DATA_CONTAINER_TYPE:
       return Op::template apply<CodeDataContainer::BodyDescriptor>(p1, p2, p3,
                                                                    p4);
+    case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
+      return Op::template apply<
+          UncompiledDataWithPreParsedScope::BodyDescriptor>(p1, p2, p3, p4);
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
     case FREE_SPACE_TYPE:
     case BIGINT_TYPE:
+    case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
       return ReturnType();
 
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \

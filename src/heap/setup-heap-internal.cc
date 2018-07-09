@@ -498,6 +498,12 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
                  next_call_side_effect_free_call_handler_info)
 
+    ALLOCATE_MAP(UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE,
+                 UncompiledDataWithoutPreParsedScope::kSize,
+                 uncompiled_data_without_pre_parsed_scope)
+    ALLOCATE_MAP(UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE,
+                 UncompiledDataWithPreParsedScope::kSize,
+                 uncompiled_data_with_pre_parsed_scope)
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kAlignedSize,
                  shared_function_info)
 

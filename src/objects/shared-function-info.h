@@ -20,6 +20,8 @@ class CoverageInfo;
 class DebugInfo;
 class WasmExportedFunctionData;
 
+// Data collected by the pre-parser storing information about scopes and inner
+// functions.
 class PreParsedScopeData : public Struct {
  public:
   DECL_ACCESSORS(scope_data, PodArray<uint8_t>)
@@ -35,6 +37,78 @@ class PreParsedScopeData : public Struct {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PreParsedScopeData);
+};
+
+// Abstract class representing extra data for an uncompiled function, which is
+// not stored in the SharedFunctionInfo.
+class UncompiledData : public HeapObject {
+ public:
+  DECL_INT32_ACCESSORS(start_position)
+  DECL_INT32_ACCESSORS(end_position)
+
+  DECL_CAST(UncompiledData)
+
+#define UNCOMPILED_DATA_FIELDS(V)     \
+  V(kStartPositionOffset, kInt32Size) \
+  V(kEndPositionOffset, kInt32Size)   \
+  /* Total size. */                   \
+  V(kUnalignedSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, UNCOMPILED_DATA_FIELDS)
+#undef UNCOMPILED_DATA_FIELDS
+
+  static const int kSize = POINTER_SIZE_ALIGN(kUnalignedSize);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledData);
+};
+
+// Class representing data for an uncompiled function that does not have any
+// data from the pre-parser, either because it's a leaf function or because the
+// pre-parser bailed out.
+class UncompiledDataWithoutPreParsedScope : public UncompiledData {
+ public:
+  DECL_CAST(UncompiledDataWithoutPreParsedScope)
+  DECL_PRINTER(UncompiledDataWithoutPreParsedScope)
+  DECL_VERIFIER(UncompiledDataWithoutPreParsedScope)
+
+  static const int kSize = UncompiledData::kSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledDataWithoutPreParsedScope);
+};
+
+// Class representing data for an uncompiled function that has pre-parsed scope
+// data.
+class UncompiledDataWithPreParsedScope : public UncompiledData {
+ public:
+  DECL_ACCESSORS(pre_parsed_scope_data, PreParsedScopeData)
+
+  DECL_CAST(UncompiledDataWithPreParsedScope)
+  DECL_PRINTER(UncompiledDataWithPreParsedScope)
+  DECL_VERIFIER(UncompiledDataWithPreParsedScope)
+
+#define UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_FIELDS(V) \
+  V(kStartOfPointerFieldsOffset, 0)                     \
+  V(kPreParsedScopeDataOffset, kPointerSize)            \
+  V(kEndOfPointerFieldsOffset, 0)                       \
+  /* Total size. */                                     \
+  V(kUnalignedSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(UncompiledData::kSize,
+                                UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_FIELDS)
+#undef UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_FIELDS
+
+  static const int kSize = POINTER_SIZE_ALIGN(kUnalignedSize);
+
+  typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
+                              kEndOfPointerFieldsOffset, kUnalignedSize>
+      BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledDataWithPreParsedScope);
 };
 
 class InterpreterData : public Struct {
@@ -112,6 +186,10 @@ class SharedFunctionInfo : public HeapObject {
   // Start position of this function in the script source.
   inline int StartPosition() const;
 
+  // Set the start and end position of this function in the script source.
+  // Updates the scope info if available.
+  inline void SetPosition(int start_position, int end_position);
+
   // [outer scope info | feedback metadata] Shared storage for outer scope info
   // (on uncompiled functions) and feedback metadata (on compiled functions).
   DECL_ACCESSORS(raw_outer_scope_info_or_feedback_metadata, HeapObject)
@@ -168,7 +246,10 @@ class SharedFunctionInfo : public HeapObject {
   //    interpreter trampoline [HasInterpreterData()]
   //  - a FixedArray with Asm->Wasm conversion [HasAsmWasmData()].
   //  - a Smi containing the builtin id [HasBuiltinId()]
-  //  - a PreParsedScopeData for the parser [HasPreParsedScopeData()]
+  //  - a UncompiledDataWithoutPreParsedScope for lazy compilation
+  //    [HasUncompiledDataWithoutPreParsedScope()]
+  //  - a UncompiledDataWithPreParsedScope for lazy compilation
+  //    [HasUncompiledDataWithPreParsedScope()]
   //  - a WasmExportedFunctionData for Wasm [HasWasmExportedFunctionData()]
   DECL_ACCESSORS(function_data, Object)
 
@@ -196,13 +277,22 @@ class SharedFunctionInfo : public HeapObject {
   inline bool HasBuiltinId() const;
   inline int builtin_id() const;
   inline void set_builtin_id(int builtin_id);
-  inline bool HasPreParsedScopeData() const;
-  inline PreParsedScopeData* preparsed_scope_data() const;
-  inline void set_preparsed_scope_data(PreParsedScopeData* data);
-  inline void ClearPreParsedScopeData();
+  inline bool HasUncompiledData() const;
+  inline UncompiledData* uncompiled_data() const;
+  inline void set_uncompiled_data(UncompiledData* data);
+  inline bool HasUncompiledDataWithPreParsedScope() const;
+  inline UncompiledDataWithPreParsedScope*
+  uncompiled_data_with_pre_parsed_scope() const;
+  inline void set_uncompiled_data_with_pre_parsed_scope(
+      UncompiledDataWithPreParsedScope* data);
+  inline bool HasUncompiledDataWithoutPreParsedScope() const;
   inline bool HasWasmExportedFunctionData() const;
   inline WasmExportedFunctionData* wasm_exported_function_data() const;
   inline void set_wasm_exported_function_data(WasmExportedFunctionData* data);
+
+  // Clear out pre-parsed scope data from UncompiledDataWithPreParsedScope,
+  // turning it into UncompiledDataWithoutPreParsedScope.
+  inline void ClearPreParsedScopeData();
 
   // [function identifier]: This field holds an additional identifier for the
   // function.
@@ -257,33 +347,17 @@ class SharedFunctionInfo : public HeapObject {
   // kFunctionTokenOutOfRange.
   inline int function_token_position() const;
 
-  // [raw_start_position_and_type]: Field used to store both the source code
-  // position, whether or not the function is a function expression,
-  // and whether or not the function is a toplevel function. The two
-  // least significants bit indicates whether the function is an
-  // expression and the rest contains the source code position.
-  // TODO(cbruni): start_position should be removed from SFI.
-  DECL_INT_ACCESSORS(raw_start_position_and_type)
-
-  // Position of this function in the script source.
-  // TODO(cbruni): start_position should be removed from SFI.
-  DECL_INT_ACCESSORS(raw_start_position)
-
-  // End position of this function in the script source.
-  // TODO(cbruni): end_position should be removed from SFI.
-  DECL_INT_ACCESSORS(raw_end_position)
-
   // Returns true if the function has shared name.
   inline bool HasSharedName() const;
+
+  // [flags] Bit field containing various flags about the function.
+  DECL_INT_ACCESSORS(flags)
 
   // Is this function a named function expression in the source code.
   DECL_BOOLEAN_ACCESSORS(is_named_expression)
 
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)
-
-  // [flags] Bit field containing various flags about the function.
-  DECL_INT_ACCESSORS(flags)
 
   // Indicates if this function can be lazy compiled.
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
@@ -375,11 +449,12 @@ class SharedFunctionInfo : public HeapObject {
 
   // True if one can flush compiled code from this function, in such a way that
   // it can later be re-compiled.
-  inline bool CanFlushCompiled() const;
+  inline bool CanDiscardCompiled() const;
 
   // Flush compiled data from this function, setting it back to CompileLazy and
   // clearing any feedback metadata.
-  inline void FlushCompiled();
+  static inline void DiscardCompiled(Isolate* isolate,
+                                     Handle<SharedFunctionInfo> shared_info);
 
   // Check whether or not this function is inlineable.
   bool IsInlineable();
@@ -399,8 +474,10 @@ class SharedFunctionInfo : public HeapObject {
   // Sets the expected number of properties based on estimate from parser.
   void SetExpectedNofPropertiesFromEstimate(FunctionLiteral* literal);
 
-  // Sets the FunctionTokenOffset field based on the
-  void SetFunctionTokenPosition(int function_token_position);
+  // Sets the FunctionTokenOffset field based on the given token position and
+  // start position.
+  void SetFunctionTokenPosition(int function_token_position,
+                                int start_position);
 
   inline bool construct_as_builtin() const;
 
@@ -483,8 +560,6 @@ class SharedFunctionInfo : public HeapObject {
   V(kFormalParameterCountOffset, kUInt16Size)              \
   V(kExpectedNofPropertiesOffset, kUInt16Size)             \
   V(kFunctionTokenOffsetOffset, kUInt16Size)               \
-  V(kStartPositionAndTypeOffset, kInt32Size)               \
-  V(kEndPositionOffset, kInt32Size)                        \
   V(kFlagsOffset, kInt32Size)                              \
   /* Total size. */                                        \
   V(kSize, 0)
@@ -500,15 +575,6 @@ class SharedFunctionInfo : public HeapObject {
       BodyDescriptor;
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
-
-// Bit fields in |raw_start_position_and_type|.
-#define START_POSITION_AND_TYPE_BIT_FIELDS(V, _) \
-  V(IsNamedExpressionBit, bool, 1, _)            \
-  V(IsTopLevelBit, bool, 1, _)                   \
-  V(StartPositionBits, int, 30, _)
-
-  DEFINE_BIT_FIELDS(START_POSITION_AND_TYPE_BIT_FIELDS)
-#undef START_POSITION_AND_TYPE_BIT_FIELDS
 
 // Bit positions in |flags|.
 #define FLAGS_BIT_FIELDS(V, _)                           \
@@ -530,7 +596,9 @@ class SharedFunctionInfo : public HeapObject {
   V(IsAnonymousExpressionBit, bool, 1, _)                \
   V(NameShouldPrintAsAnonymousBit, bool, 1, _)           \
   V(IsDeserializedBit, bool, 1, _)                       \
-  V(HasReportedBinaryCoverageBit, bool, 1, _)
+  V(HasReportedBinaryCoverageBit, bool, 1, _)            \
+  V(IsNamedExpressionBit, bool, 1, _)                    \
+  V(IsTopLevelBit, bool, 1, _)
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
 

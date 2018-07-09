@@ -111,9 +111,6 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
       source_shared->raw_outer_scope_info_or_feedback_metadata());
   target_shared->set_internal_formal_parameter_count(
       source_shared->internal_formal_parameter_count());
-  target_shared->set_raw_start_position_and_type(
-      source_shared->raw_start_position_and_type());
-  target_shared->set_raw_end_position(source_shared->raw_end_position());
   bool was_native = target_shared->native();
   target_shared->set_flags(source_shared->flags());
   target_shared->set_native(was_native);

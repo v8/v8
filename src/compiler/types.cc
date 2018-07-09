@@ -295,6 +295,8 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
     case CELL_TYPE:
+    case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
+    case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
       return kOtherInternal;
 
     // Remaining instance types are unsupported for now. If any of them do

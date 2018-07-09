@@ -1087,14 +1087,11 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
   }
 
   if (FLAG_preparser_scope_analysis) {
-    if (shared_info->HasPreParsedScopeData()) {
-      Handle<PreParsedScopeData> data(
-          PreParsedScopeData::cast(shared_info->preparsed_scope_data()),
-          isolate);
-      parse_info.consumed_preparsed_scope_data()->SetData(isolate, data);
-      // After we've compiled the function, we don't need data about its
-      // skippable functions any more.
-      shared_info->ClearPreParsedScopeData();
+    if (shared_info->HasUncompiledDataWithPreParsedScope()) {
+      parse_info.consumed_preparsed_scope_data()->SetData(
+          isolate, handle(shared_info->uncompiled_data_with_pre_parsed_scope()
+                              ->pre_parsed_scope_data(),
+                          isolate));
     }
   }
 

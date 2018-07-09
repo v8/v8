@@ -318,6 +318,14 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case FOREIGN_TYPE:
       Foreign::cast(this)->ForeignVerify(isolate);
       break;
+    case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
+      UncompiledDataWithoutPreParsedScope::cast(this)
+          ->UncompiledDataWithoutPreParsedScopeVerify(isolate);
+      break;
+    case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
+      UncompiledDataWithPreParsedScope::cast(this)
+          ->UncompiledDataWithPreParsedScopeVerify(isolate);
+      break;
     case SHARED_FUNCTION_INFO_TYPE:
       SharedFunctionInfo::cast(this)->SharedFunctionInfoVerify(isolate);
       break;
@@ -948,7 +956,8 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
 
   CHECK(HasWasmExportedFunctionData() || IsApiFunction() ||
         HasBytecodeArray() || HasAsmWasmData() || HasBuiltinId() ||
-        HasPreParsedScopeData());
+        HasUncompiledDataWithPreParsedScope() ||
+        HasUncompiledDataWithoutPreParsedScope());
 
   CHECK(function_identifier_or_debug_info()->IsUndefined(isolate) ||
         HasBuiltinFunctionId() || HasInferredName() || HasDebugInfo());
@@ -970,8 +979,6 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
     ScopeInfo* info = scope_info();
     CHECK(kind() == info->function_kind());
     CHECK_EQ(kind() == kModule, info->scope_type() == MODULE_SCOPE);
-    CHECK_EQ(raw_start_position(), info->StartPosition());
-    CHECK_EQ(raw_end_position(), info->EndPosition());
   }
 
   if (IsApiFunction()) {
@@ -1777,6 +1784,17 @@ void PreParsedScopeData::PreParsedScopeDataVerify(Isolate* isolate) {
   CHECK(IsPreParsedScopeData());
   CHECK(scope_data()->IsByteArray());
   CHECK(child_data()->IsFixedArray());
+}
+
+void UncompiledDataWithPreParsedScope::UncompiledDataWithPreParsedScopeVerify(
+    Isolate* isolate) {
+  CHECK(IsUncompiledDataWithPreParsedScope());
+  VerifyPointer(pre_parsed_scope_data());
+}
+
+void UncompiledDataWithoutPreParsedScope::
+    UncompiledDataWithoutPreParsedScopeVerify(Isolate* isolate) {
+  CHECK(IsUncompiledDataWithoutPreParsedScope());
 }
 
 void InterpreterData::InterpreterDataVerify(Isolate* isolate) {
