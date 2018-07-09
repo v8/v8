@@ -4083,17 +4083,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                             BuildChangeSmiToInt32(value));
   }
 
-  Node* BuildTestNotSmi(Node* value) {
-    STATIC_ASSERT(kSmiTag == 0);
-    STATIC_ASSERT(kSmiTagMask == 1);
+  Node* BuildTestHeapObject(Node* value) {
     return graph()->NewNode(mcgraph()->machine()->WordAnd(), value,
-                            mcgraph()->IntPtrConstant(kSmiTagMask));
+                            mcgraph()->IntPtrConstant(kHeapObjectTag));
   }
 
-  Node* BuildLoadHeapNumberValue(Node* value, Node* control) {
-    return graph()->NewNode(mcgraph()->machine()->Load(MachineType::Float64()),
-                            value, BuildHeapNumberValueIndexConstant(),
-                            graph()->start(), control);
+  Node* BuildLoadHeapNumberValue(Node* value) {
+    return *effect_ = graph()->NewNode(
+               mcgraph()->machine()->Load(MachineType::Float64()), value,
+               BuildHeapNumberValueIndexConstant(), *effect_, *control_);
   }
 
   Node* BuildHeapNumberValueIndexConstant() {
@@ -4259,42 +4257,53 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     MachineOperatorBuilder* machine = mcgraph()->machine();
     CommonOperatorBuilder* common = mcgraph()->common();
 
-    Node* check = BuildTestNotSmi(value);
-    Node* branch = graph()->NewNode(common->Branch(BranchHint::kFalse), check,
-                                    graph()->start());
+    // Implement the following decision tree:
+    //  heap object?
+    //  ├─ true: undefined?
+    //  │        ├─ true: f64 const
+    //  │        └─ false: load heap number value
+    //  └─ false: smi to float64
 
-    Node* if_not_smi = graph()->NewNode(common->IfTrue(), branch);
+    Node* check_heap_object = BuildTestHeapObject(value);
+    Diamond is_heap_object(graph(), common, check_heap_object,
+                           BranchHint::kFalse);
+    is_heap_object.Chain(*control_);
 
-    Node* vnot_smi;
-    Node* undefined_node =
+    *control_ = is_heap_object.if_true;
+    Node* orig_effect = *effect_;
+
+    Node* undefined_node = *effect_ =
         LOAD_INSTANCE_FIELD(UndefinedValue, MachineType::TaggedPointer());
     Node* check_undefined =
         graph()->NewNode(machine->WordEqual(), value, undefined_node);
-    Node* branch_undefined = graph()->NewNode(
-        common->Branch(BranchHint::kFalse), check_undefined, if_not_smi);
+    Node* effect_tagged = *effect_;
 
-    Node* if_undefined = graph()->NewNode(common->IfTrue(), branch_undefined);
+    Diamond is_undefined(graph(), common, check_undefined, BranchHint::kFalse);
+    is_undefined.Nest(is_heap_object, true);
+
+    *control_ = is_undefined.if_false;
+    Node* vheap_number = BuildLoadHeapNumberValue(value);
+    Node* effect_undefined = *effect_;
+
+    *control_ = is_undefined.merge;
     Node* vundefined =
         mcgraph()->Float64Constant(std::numeric_limits<double>::quiet_NaN());
+    Node* vtagged = is_undefined.Phi(MachineRepresentation::kFloat64,
+                                     vundefined, vheap_number);
 
-    Node* if_not_undefined =
-        graph()->NewNode(common->IfFalse(), branch_undefined);
-    Node* vheap_number = BuildLoadHeapNumberValue(value, if_not_undefined);
+    effect_tagged =
+        graph()->NewNode(mcgraph()->common()->EffectPhi(2), effect_tagged,
+                         effect_undefined, is_undefined.merge);
 
-    if_not_smi =
-        graph()->NewNode(common->Merge(2), if_undefined, if_not_undefined);
-    vnot_smi = graph()->NewNode(common->Phi(MachineRepresentation::kFloat64, 2),
-                                vundefined, vheap_number, if_not_smi);
-
-    Node* if_smi = graph()->NewNode(common->IfFalse(), branch);
+    // If input is Smi: just convert to float64.
     Node* vfrom_smi = BuildChangeSmiToFloat64(value);
 
-    Node* merge = graph()->NewNode(common->Merge(2), if_not_smi, if_smi);
-    Node* phi =
-        graph()->NewNode(common->Phi(MachineRepresentation::kFloat64, 2),
-                         vnot_smi, vfrom_smi, merge);
-
-    return phi;
+    *control_ = is_heap_object.merge;
+    *effect_ =
+        graph()->NewNode(mcgraph()->common()->EffectPhi(2), effect_tagged,
+                         orig_effect, is_heap_object.merge);
+    return is_heap_object.Phi(MachineRepresentation::kFloat64, vtagged,
+                              vfrom_smi);
   }
 
   Node* ToJS(Node* node, wasm::ValueType type) {
