@@ -201,6 +201,8 @@ enum ContextLookupFlags {
     intl_date_time_format_function)                                            \
   V(INTL_NUMBER_FORMAT_FUNCTION_INDEX, JSFunction,                             \
     intl_number_format_function)                                               \
+  V(INTL_NUMBER_FORMAT_INTERNAL_FORMAT_NUMBER_SHARED_FUN, SharedFunctionInfo,  \
+    number_format_internal_format_number_shared_fun)                           \
   V(INTL_LOCALE_FUNCTION_INDEX, JSFunction, intl_locale_function)              \
   V(INTL_COLLATOR_FUNCTION_INDEX, JSFunction, intl_collator_function)          \
   V(INTL_PLURAL_RULES_FUNCTION_INDEX, JSFunction, intl_plural_rules_function)  \

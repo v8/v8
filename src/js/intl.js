@@ -1468,10 +1468,6 @@ function formatNumber(formatter, value) {
   return %InternalNumberFormat(formatter, number);
 }
 
-
-AddBoundMethod(GlobalIntlNumberFormat, 'format', formatNumber, 1,
-               NUMBER_FORMAT_TYPE, true);
-
 /**
  * Returns a string that matches LDML representation of the options object.
  */

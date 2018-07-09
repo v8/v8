@@ -12,6 +12,7 @@
 #include <set>
 #include <string>
 
+#include "src/contexts.h"
 #include "src/intl.h"
 #include "src/objects.h"
 #include "unicode/uversion.h"
@@ -71,9 +72,47 @@ class NumberFormat {
   // holds the pointer gets garbage collected.
   static void DeleteNumberFormat(const v8::WeakCallbackInfo<void>& data);
 
+  // The UnwrapNumberFormat abstract operation gets the underlying
+  // NumberFormat operation for various methods which implement
+  // ECMA-402 v1 semantics for supporting initializing existing Intl
+  // objects.
+  //
+  // ecma402/#sec-unwrapnumberformat
+  static MaybeHandle<JSObject> Unwrap(Isolate* isolate,
+                                      Handle<JSReceiver> receiver,
+                                      const char* method_name);
+
+  // ecm402/#sec-formatnumber
+  static MaybeHandle<Object> FormatNumber(Isolate* isolate,
+                                          Handle<JSObject> number_format_holder,
+                                          double value);
+
   // Layout description.
-  static const int kDecimalFormat = JSObject::kHeaderSize;
-  static const int kSize = kDecimalFormat + kPointerSize;
+#define NUMBER_FORMAT_FIELDS(V)   \
+  /* Pointer fields. */           \
+  V(kDecimalFormat, kPointerSize) \
+  V(kBoundFormat, kPointerSize)   \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, NUMBER_FORMAT_FIELDS)
+#undef NUMBER_FORMAT_FIELDS
+
+  // ContextSlot defines the context structure for the bound
+  // NumberFormat.prototype.format function.
+  enum ContextSlot {
+    // The number format instance that the function holding this
+    // context is bound to.
+    kNumberFormat = Context::MIN_CONTEXT_SLOTS,
+
+    kLength
+  };
+
+  // TODO(gsathya): Remove this and use regular accessors once
+  // NumberFormat is a sub class of JSObject.
+  //
+  // This needs to be consistent with the above LayoutDescription.
+  static const int kDecimalFormatIndex = 0;
+  static const int kBoundFormatIndex = 1;
 
  private:
   NumberFormat();
@@ -201,7 +240,7 @@ class Intl {
   // Returns the underlying Intl receiver for various methods which
   // implement ECMA-402 v1 semantics for supporting initializing
   // existing Intl objects.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> UnwrapReceiver(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> UnwrapReceiver(
       Isolate* isolate, Handle<JSReceiver> receiver,
       Handle<JSFunction> constructor, Intl::Type type,
       Handle<String> method_name /* TODO(gsathya): Make this char const* */,

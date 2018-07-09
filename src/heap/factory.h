@@ -392,6 +392,13 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<Context> NewBlockContext(Handle<Context> previous,
                                   Handle<ScopeInfo> scope_info);
 
+  // Create a context that's used by builtin functions.
+  //
+  // These are similar to function context but don't have a previous
+  // context or any scope info. These are used to store spec defined
+  // context values.
+  Handle<Context> NewBuiltinContext(Handle<Context> native_context, int length);
+
   Handle<Struct> NewStruct(InstanceType type,
                            PretenureFlag pretenure = NOT_TENURED);
 

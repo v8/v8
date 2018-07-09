@@ -288,7 +288,8 @@ RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
 
   if (!number_format) return isolate->ThrowIllegalOperation();
 
-  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(number_format));
+  local_object->SetEmbedderField(NumberFormat::kDecimalFormatIndex,
+                                 reinterpret_cast<Smi*>(number_format));
 
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
   GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
@@ -303,22 +304,15 @@ RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
   DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, number_format_holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, number, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
 
-  Handle<Object> value;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value, Object::ToNumber(number));
+  Handle<Object> number_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_obj,
+                                     Object::ToNumber(value));
 
-  icu::DecimalFormat* number_format =
-      NumberFormat::UnpackNumberFormat(isolate, number_format_holder);
-  CHECK_NOT_NULL(number_format);
-
-  icu::UnicodeString result;
-  number_format->format(value->Number(), result);
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
-                   reinterpret_cast<const uint16_t*>(result.getBuffer()),
-                   result.length())));
+  double number = number_obj->Number();
+  RETURN_RESULT_OR_FAILURE(isolate, NumberFormat::FormatNumber(
+                                        isolate, number_format_holder, number));
 }
 
 RUNTIME_FUNCTION(Runtime_CurrencyDigits) {

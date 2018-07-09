@@ -909,7 +909,8 @@ icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
 
 icu::DecimalFormat* NumberFormat::UnpackNumberFormat(Isolate* isolate,
                                                      Handle<JSObject> obj) {
-  return reinterpret_cast<icu::DecimalFormat*>(obj->GetEmbedderField(0));
+  return reinterpret_cast<icu::DecimalFormat*>(
+      obj->GetEmbedderField(NumberFormat::kDecimalFormatIndex));
 }
 
 void NumberFormat::DeleteNumberFormat(const v8::WeakCallbackInfo<void>& data) {
@@ -1209,33 +1210,59 @@ MaybeHandle<Object> LegacyUnwrapReceiver(Isolate* isolate,
 
 }  // namespace
 
-MaybeHandle<JSReceiver> Intl::UnwrapReceiver(Isolate* isolate,
-                                             Handle<JSReceiver> receiver,
-                                             Handle<JSFunction> constructor,
-                                             Intl::Type type,
-                                             Handle<String> method_name,
-                                             bool check_legacy_constructor) {
+MaybeHandle<JSObject> Intl::UnwrapReceiver(Isolate* isolate,
+                                           Handle<JSReceiver> receiver,
+                                           Handle<JSFunction> constructor,
+                                           Intl::Type type,
+                                           Handle<String> method_name,
+                                           bool check_legacy_constructor) {
   Handle<Object> new_receiver = receiver;
   if (check_legacy_constructor) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, new_receiver,
-        LegacyUnwrapReceiver(isolate, receiver, constructor, type), JSReceiver);
+        LegacyUnwrapReceiver(isolate, receiver, constructor, type), JSObject);
   }
 
   // 3. If Type(new_receiver) is not Object or nf does not have an
   //    [[Initialized...]]  internal slot, then
-  if (!new_receiver->IsJSReceiver() ||
-      !Intl::IsObjectOfType(isolate, new_receiver, type)) {
+  if (!Intl::IsObjectOfType(isolate, new_receiver, type)) {
     // 3. a. Throw a TypeError exception.
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                                  method_name, receiver),
-                    JSReceiver);
+                    JSObject);
   }
 
   // The above IsObjectOfType returns true only for JSObjects, which
   // makes this cast safe.
-  return Handle<JSReceiver>::cast(new_receiver);
+  return Handle<JSObject>::cast(new_receiver);
+}
+
+MaybeHandle<JSObject> NumberFormat::Unwrap(Isolate* isolate,
+                                           Handle<JSReceiver> receiver,
+                                           const char* method_name) {
+  Handle<Context> native_context =
+      Handle<Context>(isolate->context()->native_context(), isolate);
+  Handle<JSFunction> constructor = Handle<JSFunction>(
+      JSFunction::cast(native_context->intl_number_format_function()), isolate);
+  Handle<String> method_name_str =
+      isolate->factory()->NewStringFromAsciiChecked(method_name);
+
+  return Intl::UnwrapReceiver(isolate, receiver, constructor,
+                              Intl::Type::kNumberFormat, method_name_str, true);
+}
+
+MaybeHandle<Object> NumberFormat::FormatNumber(
+    Isolate* isolate, Handle<JSObject> number_format_holder, double value) {
+  icu::DecimalFormat* number_format =
+      NumberFormat::UnpackNumberFormat(isolate, number_format_holder);
+  CHECK_NOT_NULL(number_format);
+
+  icu::UnicodeString result;
+  number_format->format(value, result);
+
+  return isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+      reinterpret_cast<const uint16_t*>(result.getBuffer()), result.length()));
 }
 
 // TODO(bstell): enable this anonymous namespace once these routines are called:

@@ -502,6 +502,96 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
   return FormatDateToParts(isolate, date_format, date_value);
 }
 
+BUILTIN(NumberFormatPrototypeFormatNumber) {
+  const char* const method = "get Intl.NumberFormat.prototype.format";
+  HandleScope scope(isolate);
+
+  // 1. Let nf be the this value.
+  // 2. If Type(nf) is not Object, throw a TypeError exception.
+  CHECK_RECEIVER(JSReceiver, receiver, method);
+
+  // 3. Let nf be ? UnwrapNumberFormat(nf).
+  Handle<JSObject> number_format_holder;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, number_format_holder,
+      NumberFormat::Unwrap(isolate, receiver, method));
+
+  DCHECK(Intl::IsObjectOfType(isolate, number_format_holder,
+                              Intl::Type::kNumberFormat));
+
+  Handle<Object> bound_format = Handle<Object>(
+      number_format_holder->GetEmbedderField(NumberFormat::kBoundFormatIndex),
+      isolate);
+
+  // 4. If nf.[[BoundFormat]] is undefined, then
+  if (!bound_format->IsUndefined(isolate)) {
+    DCHECK(bound_format->IsJSFunction());
+    // 5. Return nf.[[BoundFormat]].
+    return *bound_format;
+  }
+
+  Handle<Context> native_context =
+      Handle<Context>(isolate->context()->native_context(), isolate);
+
+  Handle<Context> context = isolate->factory()->NewBuiltinContext(
+      native_context, NumberFormat::ContextSlot::kLength);
+
+  // 4. b. Set F.[[NumberFormat]] to nf.
+  context->set(NumberFormat::ContextSlot::kNumberFormat, *number_format_holder);
+
+  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
+      native_context->number_format_internal_format_number_shared_fun(),
+      isolate);
+
+  Handle<Map> map = isolate->strict_function_without_prototype_map();
+
+  // 4. a. Let F be a new built-in function object as defined in
+  // Number Format Functions (11.1.4).
+  Handle<JSFunction> new_bound_format_function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
+
+  // 4. c. Set nf.[[BoundFormat]] to F.
+  number_format_holder->SetEmbedderField(NumberFormat::kBoundFormatIndex,
+                                         *new_bound_format_function);
+
+  // 5. Return nf.[[BoundFormat]].
+  return *new_bound_format_function;
+}
+
+BUILTIN(NumberFormatInternalFormatNumber) {
+  HandleScope scope(isolate);
+
+  Handle<Context> context = Handle<Context>(isolate->context(), isolate);
+
+  // 1. Let nf be F.[[NumberFormat]].
+  Handle<JSObject> number_format_holder = Handle<JSObject>(
+      JSObject::cast(context->get(NumberFormat::ContextSlot::kNumberFormat)),
+      isolate);
+
+  // 2. Assert: Type(nf) is Object and nf has an
+  //    [[InitializedNumberFormat]] internal slot.
+  DCHECK(Intl::IsObjectOfType(isolate, number_format_holder,
+                              Intl::Type::kNumberFormat));
+
+  // 3. If value is not provided, let value be undefined.
+  Handle<Object> value = args.atOrUndefined(isolate, 1);
+
+  // 4. Let x be ? ToNumber(value).
+  Handle<Object> number_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_obj,
+                                     Object::ToNumber(value));
+
+  // Spec treats -0 as 0.
+  if (number_obj->IsMinusZero()) {
+    number_obj = Handle<Smi>(Smi::kZero, isolate);
+  }
+
+  double number = number_obj->Number();
+  // Return FormatNumber(nf, x).
+  RETURN_RESULT_OR_FAILURE(isolate, NumberFormat::FormatNumber(
+                                        isolate, number_format_holder, number));
+}
+
 // Intl.Locale implementation
 BUILTIN(LocaleConstructor) {
   HandleScope scope(isolate);

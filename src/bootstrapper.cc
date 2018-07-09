@@ -2902,6 +2902,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallFunction(isolate_, prototype, "formatToParts",
                             Builtins::kNumberFormatPrototypeFormatToParts, 1,
                             false);
+      SimpleInstallGetter(isolate_, prototype,
+                          factory->InternalizeUtf8String("format"),
+                          Builtins::kNumberFormatPrototypeFormatNumber, false);
+
+      {
+        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
+            isolate_, Builtins::kNumberFormatInternalFormatNumber,
+            factory->empty_string(), 1);
+        native_context()->set_number_format_internal_format_number_shared_fun(
+            *info);
+      }
     }
 
     {

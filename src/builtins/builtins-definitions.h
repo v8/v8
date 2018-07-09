@@ -1338,7 +1338,11 @@ namespace internal {
   CPP(LocalePrototypeHourCycle)                                  \
   CPP(LocalePrototypeNumeric)                                    \
   CPP(LocalePrototypeNumberingSystem)                            \
-  CPP(LocalePrototypeToString)
+  CPP(LocalePrototypeToString)                                   \
+  /* ecma402 #sec-number-format-functions */                     \
+  CPP(NumberFormatInternalFormatNumber)                          \
+  /* ecma402 #sec-intl.numberformat.prototype.format */          \
+  CPP(NumberFormatPrototypeFormatNumber)
 #else
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)    \
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)     \

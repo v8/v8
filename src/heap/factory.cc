@@ -1482,6 +1482,17 @@ Handle<Context> Factory::NewBlockContext(Handle<Context> previous,
   return context;
 }
 
+Handle<Context> Factory::NewBuiltinContext(Handle<Context> native_context,
+                                           int length) {
+  DCHECK_GE(length, Context::MIN_CONTEXT_SLOTS);
+  Handle<Context> context =
+      NewFixedArrayWithMap<Context>(Heap::kFunctionContextMapRootIndex, length);
+  context->set_scope_info(ReadOnlyRoots(isolate()).empty_scope_info());
+  context->set_extension(*the_hole_value());
+  context->set_native_context(*native_context);
+  return context;
+}
+
 Handle<Struct> Factory::NewStruct(InstanceType type, PretenureFlag pretenure) {
   Map* map;
   switch (type) {
