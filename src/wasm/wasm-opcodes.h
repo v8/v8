@@ -226,8 +226,7 @@ using WasmName = Vector<const char>;
   V(I64SExtendI8, 0xc2, l_l)               \
   V(I64SExtendI16, 0xc3, l_l)              \
   V(I64SExtendI32, 0xc4, l_l)              \
-  V(RefIsNull, 0xd1, i_r)                  \
-  V(RefEq, 0xd2, i_rr)
+  V(RefIsNull, 0xd1, i_r)
 
 // For compatibility with Asm.js.
 #define FOREACH_ASMJS_COMPAT_OPCODE(V) \
@@ -535,8 +534,7 @@ using WasmName = Vector<const char>;
   V(l_il, kWasmI64, kWasmI32, kWasmI64)            \
   V(i_iii, kWasmI32, kWasmI32, kWasmI32, kWasmI32) \
   V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64) \
-  V(i_r, kWasmI32, kWasmAnyRef)                    \
-  V(i_rr, kWasmI32, kWasmAnyRef, kWasmAnyRef)
+  V(i_r, kWasmI32, kWasmAnyRef)
 
 #define FOREACH_SIMD_SIGNATURE(V)          \
   V(s_s, kWasmS128, kWasmS128)             \

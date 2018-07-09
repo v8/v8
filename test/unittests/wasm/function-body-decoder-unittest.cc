@@ -2975,7 +2975,6 @@ TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {
   EXPECT_LENGTH(1, kExprF64ReinterpretI64);
   EXPECT_LENGTH(1, kExprI32ReinterpretF32);
   EXPECT_LENGTH(1, kExprI64ReinterpretF64);
-  EXPECT_LENGTH(1, kExprRefEq);
 }
 
 TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
