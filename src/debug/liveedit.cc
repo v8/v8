@@ -1046,6 +1046,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     if (!function_data_map.Lookup(script, mapping.first, &data)) continue;
     Handle<SharedFunctionInfo> sfi;
     if (!data->shared.ToHandle(&sfi)) continue;
+    DCHECK_EQ(sfi->script(), *script);
 
     isolate->compilation_cache()->Remove(sfi);
     isolate->debug()->DeoptimizeFunction(sfi);
@@ -1055,12 +1056,33 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     }
     UpdatePositions(isolate, sfi, diffs);
 
+    MaybeObject* weak_redundant_new_sfi =
+        new_script->shared_function_infos()->Get(
+            mapping.second->function_literal_id());
+
     sfi->set_function_literal_id(mapping.second->function_literal_id());
     sfi->set_script(*new_script);
-    Handle<WeakFixedArray> new_script_sfis =
-        handle(new_script->shared_function_infos(), isolate);
-    new_script_sfis->Set(mapping.second->function_literal_id(),
-                         HeapObjectReference::Weak(*sfi));
+    new_script->shared_function_infos()->Set(
+        mapping.second->function_literal_id(), HeapObjectReference::Weak(*sfi));
+    DCHECK_EQ(sfi->function_literal_id(),
+              mapping.second->function_literal_id());
+
+    // Swap the now-redundant, newly compiled SFI into the old script, so that
+    // we can look up the old function_literal_id using the new SFI when
+    // processing changed functions.
+    HeapObject* redundant_new_sfi_obj;
+    if (weak_redundant_new_sfi->ToStrongOrWeakHeapObject(
+            &redundant_new_sfi_obj)) {
+      SharedFunctionInfo* redundant_new_sfi =
+          SharedFunctionInfo::cast(redundant_new_sfi_obj);
+
+      redundant_new_sfi->set_function_literal_id(
+          mapping.first->function_literal_id());
+      redundant_new_sfi->set_script(*script);
+      script->shared_function_infos()->Set(
+          mapping.first->function_literal_id(),
+          HeapObjectReference::Weak(redundant_new_sfi));
+    }
 
     if (sfi->HasUncompiledDataWithPreParsedScope()) {
       sfi->ClearPreParsedScopeData();
@@ -1096,6 +1118,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     FunctionData* data = nullptr;
     if (!function_data_map.Lookup(new_script, mapping.second, &data)) continue;
     Handle<SharedFunctionInfo> new_sfi = data->shared.ToHandleChecked();
+    DCHECK_EQ(new_sfi->script(), *new_script);
 
     if (!function_data_map.Lookup(script, mapping.first, &data)) continue;
     Handle<SharedFunctionInfo> sfi;
@@ -1111,7 +1134,65 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       if (!js_function->is_compiled()) continue;
       JSFunction::EnsureFeedbackVector(js_function);
     }
+
+    if (!new_sfi->HasBytecodeArray()) continue;
+    FixedArray* constants = new_sfi->GetBytecodeArray()->constant_pool();
+    for (int i = 0; i < constants->length(); ++i) {
+      if (!constants->get(i)->IsSharedFunctionInfo()) continue;
+      SharedFunctionInfo* inner_sfi =
+          SharedFunctionInfo::cast(constants->get(i));
+      if (inner_sfi->script() != *script) continue;
+
+      // If the inner SFI's script is the old script, then this is actually a
+      // redundant new_script SFI where the old script SFI was unchanged, so we
+      // swapped their scripts in the unchanged iteration. This means that we
+      // have to update this changed SFI's inner SFI constant to point at the
+      // old inner SFI, which has already been patched to be on the new script.
+      //
+      // So, we look up FunctionData using the current, newly compiled
+      // inner_sfi, but the resulting FunctionData will still be referring to
+      // the old, unchanged SFI.
+      FunctionData* data = nullptr;
+      if (!function_data_map.Lookup(inner_sfi, &data)) continue;
+      Handle<SharedFunctionInfo> old_unchanged_inner_sfi =
+          data->shared.ToHandleChecked();
+      // Now some sanity checks. Make sure that this inner_sfi is not the
+      // unchanged SFI yet...
+      DCHECK_NE(*old_unchanged_inner_sfi, inner_sfi);
+      // ... that the unchanged SFI has already been processed and patched to be
+      // on the new script ...
+      DCHECK_EQ(old_unchanged_inner_sfi->script(), *new_script);
+      // ... and that the id of the unchanged SFI matches the unchanged target
+      // literal's id.
+      DCHECK_EQ(old_unchanged_inner_sfi->function_literal_id(),
+                unchanged[data->literal]->function_literal_id());
+      constants->set(i, *old_unchanged_inner_sfi);
+    }
   }
+#ifdef DEBUG
+  {
+    // Check that all the functions in the new script are valid.
+    SharedFunctionInfo::ScriptIterator it(isolate, *new_script);
+    while (SharedFunctionInfo* sfi = it.Next()) {
+      DCHECK_EQ(sfi->script(), *new_script);
+
+      if (!sfi->HasBytecodeArray()) continue;
+      // Check that all the functions in this function's constant pool are also
+      // on the new script, and that their id matches their index in the new
+      // scripts function list.
+      FixedArray* constants = sfi->GetBytecodeArray()->constant_pool();
+      for (int i = 0; i < constants->length(); ++i) {
+        if (!constants->get(i)->IsSharedFunctionInfo()) continue;
+        SharedFunctionInfo* inner_sfi =
+            SharedFunctionInfo::cast(constants->get(i));
+        DCHECK_EQ(inner_sfi->script(), *new_script);
+        DCHECK_EQ(inner_sfi, new_script->shared_function_infos()
+                                 ->Get(inner_sfi->function_literal_id())
+                                 ->GetHeapObject());
+      }
+    }
+  }
+#endif
 
   if (restart_frame_fp) {
     for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
