@@ -34,6 +34,7 @@
 #include "unicode/numsys.h"
 #include "unicode/plurrule.h"
 #include "unicode/rbbi.h"
+#include "unicode/regex.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/timezone.h"
 #include "unicode/uchar.h"
@@ -1237,8 +1238,98 @@ MaybeHandle<JSReceiver> Intl::UnwrapReceiver(Isolate* isolate,
   return Handle<JSReceiver>::cast(new_receiver);
 }
 
-// TODO(bstell): Convert this to C++ instead of calling out to the
-// JS implementation.
+// TODO(bstell): enable this anonymous namespace once these routines are called:
+//  * GetLanguageSingletonRegexMatcher,
+//  * GetLanguageTagRegexMatcher
+//  * GetLanguageVariantRegexMatcher
+// namespace {
+
+// TODO(bstell): Make all these a constexpr on the Intl class.
+void BuildLanguageTagRegexes(Isolate* isolate) {
+  std::string alpha = "[a-zA-Z]";
+  std::string digit = "[0-9]";
+  std::string alphanum = "(" + alpha + "|" + digit + ")";
+  std::string regular =
+      "(art-lojban|cel-gaulish|no-bok|no-nyn|zh-guoyu|zh-hakka|"
+      "zh-min|zh-min-nan|zh-xiang)";
+  std::string irregular =
+      "(en-GB-oed|i-ami|i-bnn|i-default|i-enochian|i-hak|"
+      "i-klingon|i-lux|i-mingo|i-navajo|i-pwn|i-tao|i-tay|"
+      "i-tsu|sgn-BE-FR|sgn-BE-NL|sgn-CH-DE)";
+  std::string grandfathered = "(" + irregular + "|" + regular + ")";
+  std::string private_use = "(x(-" + alphanum + "{1,8})+)";
+
+  std::string singleton = "(" + digit + "|[A-WY-Za-wy-z])";
+  std::string language_singleton_regexp = "^" + singleton + "$";
+
+  std::string extension = "(" + singleton + "(-" + alphanum + "{2,8})+)";
+
+  std::string variant = "(" + alphanum + "{5,8}|(" + digit + alphanum + "{3}))";
+  std::string language_variant_regexp = "^" + variant + "$";
+
+  std::string region = "(" + alpha + "{2}|" + digit + "{3})";
+  std::string script = "(" + alpha + "{4})";
+  std::string ext_lang = "(" + alpha + "{3}(-" + alpha + "{3}){0,2})";
+  std::string language = "(" + alpha + "{2,3}(-" + ext_lang + ")?|" + alpha +
+                         "{4}|" + alpha + "{5,8})";
+  std::string lang_tag = language + "(-" + script + ")?(-" + region + ")?(-" +
+                         variant + ")*(-" + extension + ")*(-" + private_use +
+                         ")?";
+
+  std::string language_tag =
+      "^(" + lang_tag + "|" + private_use + "|" + grandfathered + ")$";
+  std::string language_tag_regexp = std::string(language_tag);
+
+  UErrorCode status = U_ZERO_ERROR;
+  icu::RegexMatcher* language_singleton_regexp_matcher = new icu::RegexMatcher(
+      icu::UnicodeString::fromUTF8(language_singleton_regexp), 0, status);
+  icu::RegexMatcher* language_tag_regexp_matcher = new icu::RegexMatcher(
+      icu::UnicodeString::fromUTF8(language_tag_regexp), 0, status);
+  icu::RegexMatcher* language_variant_regexp_matcher = new icu::RegexMatcher(
+      icu::UnicodeString::fromUTF8(language_variant_regexp), 0, status);
+  if (!U_SUCCESS(status)) {
+    return;
+  }
+
+  isolate->set_language_tag_regexp_matchers(language_singleton_regexp_matcher,
+                                            language_tag_regexp_matcher,
+                                            language_variant_regexp_matcher);
+}
+
+icu::RegexMatcher* GetLanguageSingletonRegexMatcher(Isolate* isolate) {
+  icu::RegexMatcher* language_singleton_regexp_matcher =
+      isolate->language_singleton_regexp_matcher();
+  if (language_singleton_regexp_matcher == nullptr) {
+    BuildLanguageTagRegexes(isolate);
+    language_singleton_regexp_matcher =
+        isolate->language_singleton_regexp_matcher();
+  }
+  return language_singleton_regexp_matcher;
+}
+
+icu::RegexMatcher* GetLanguageTagRegexMatcher(Isolate* isolate) {
+  icu::RegexMatcher* language_tag_regexp_matcher =
+      isolate->language_tag_regexp_matcher();
+  if (language_tag_regexp_matcher == nullptr) {
+    BuildLanguageTagRegexes(isolate);
+    language_tag_regexp_matcher = isolate->language_tag_regexp_matcher();
+  }
+  return language_tag_regexp_matcher;
+}
+
+icu::RegexMatcher* GetLanguageVariantRegexMatcher(Isolate* isolate) {
+  icu::RegexMatcher* language_variant_regexp_matcher =
+      isolate->language_variant_regexp_matcher();
+  if (language_variant_regexp_matcher == nullptr) {
+    BuildLanguageTagRegexes(isolate);
+    language_variant_regexp_matcher =
+        isolate->language_variant_regexp_matcher();
+  }
+  return language_variant_regexp_matcher;
+}
+
+// }  // anonymous namespace
+
 MaybeHandle<JSObject> Intl::ResolveLocale(Isolate* isolate, const char* service,
                                           Handle<Object> requestedLocales,
                                           Handle<Object> options) {

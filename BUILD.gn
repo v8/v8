@@ -952,6 +952,12 @@ v8_source_set("torque_generated_initializers") {
     ":run_torque",
   ]
 
+  if (v8_enable_i18n_support) {
+    public_deps = [
+      "//third_party/icu",
+    ]
+  }
+
   sources = []
   foreach(module, torque_modules) {
     sources += [
@@ -1431,6 +1437,11 @@ v8_source_set("v8_init") {
     ### gcmole(all) ###
     "src/setup-isolate-full.cc",
   ]
+  if (v8_enable_i18n_support) {
+    public_deps = [
+      "//third_party/icu",
+    ]
+  }
 
   configs = [ ":internal_config" ]
 }
@@ -3072,6 +3083,10 @@ v8_source_set("fuzzer_support") {
     ":v8_libbase",
     ":v8_libplatform",
   ]
+
+  if (v8_enable_i18n_support) {
+    public_deps += [ "//third_party/icu" ]
+  }
 }
 
 ###############################################################################
@@ -3550,6 +3565,12 @@ v8_source_set("wasm_module_runner") {
     ":torque_generated_core",
   ]
 
+  if (v8_enable_i18n_support) {
+    public_deps = [
+      "//third_party/icu",
+    ]
+  }
+
   configs = [
     ":external_config",
     ":internal_config_base",
@@ -3626,6 +3647,12 @@ v8_source_set("lib_wasm_fuzzer_common") {
   deps = [
     ":torque_generated_core",
   ]
+
+  if (v8_enable_i18n_support) {
+    public_deps = [
+      "//third_party/icu",
+    ]
+  }
 
   configs = [
     ":external_config",
