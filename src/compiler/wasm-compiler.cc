@@ -4139,27 +4139,36 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     MachineOperatorBuilder* machine = mcgraph()->machine();
     CommonOperatorBuilder* common = mcgraph()->common();
 
+    // Check several conditions:
+    //  i32?
+    //  ├─ true: zero?
+    //  │        ├─ true: negative?
+    //  │        │        ├─ true: box
+    //  │        │        └─ false: potentially Smi
+    //  │        └─ false: potentially Smi
+    //  └─ false: box
+    // For potential Smi values, depending on whether Smis are 31 or 32 bit, we
+    // still need to check whether the value fits in a Smi.
+
     Node* effect = *effect_;
     Node* control = *control_;
     Node* value32 = graph()->NewNode(machine->RoundFloat64ToInt32(), value);
-    Node* check_same = graph()->NewNode(
+    Node* check_i32 = graph()->NewNode(
         machine->Float64Equal(), value,
         graph()->NewNode(machine->ChangeInt32ToFloat64(), value32));
-    Node* branch_same = graph()->NewNode(common->Branch(), check_same, control);
+    Node* branch_i32 = graph()->NewNode(common->Branch(), check_i32, control);
 
-    Node* if_smi = graph()->NewNode(common->IfTrue(), branch_same);
-    Node* vsmi;
-    Node* if_box = graph()->NewNode(common->IfFalse(), branch_same);
-    Node* vbox;
+    Node* if_i32 = graph()->NewNode(common->IfTrue(), branch_i32);
+    Node* if_not_i32 = graph()->NewNode(common->IfFalse(), branch_i32);
 
     // We only need to check for -0 if the {value} can potentially contain -0.
     Node* check_zero = graph()->NewNode(machine->Word32Equal(), value32,
                                         mcgraph()->Int32Constant(0));
     Node* branch_zero = graph()->NewNode(common->Branch(BranchHint::kFalse),
-                                         check_zero, if_smi);
+                                         check_zero, if_i32);
 
     Node* if_zero = graph()->NewNode(common->IfTrue(), branch_zero);
-    Node* if_notzero = graph()->NewNode(common->IfFalse(), branch_zero);
+    Node* if_not_zero = graph()->NewNode(common->IfFalse(), branch_zero);
 
     // In case of 0, we need to check the high bits for the IEEE -0 pattern.
     Node* check_negative = graph()->NewNode(
@@ -4170,15 +4179,18 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                              check_negative, if_zero);
 
     Node* if_negative = graph()->NewNode(common->IfTrue(), branch_negative);
-    Node* if_notnegative = graph()->NewNode(common->IfFalse(), branch_negative);
+    Node* if_not_negative =
+        graph()->NewNode(common->IfFalse(), branch_negative);
 
     // We need to create a box for negative 0.
-    if_smi = graph()->NewNode(common->Merge(2), if_notzero, if_notnegative);
-    if_box = graph()->NewNode(common->Merge(2), if_box, if_negative);
+    Node* if_smi =
+        graph()->NewNode(common->Merge(2), if_not_zero, if_not_negative);
+    Node* if_box = graph()->NewNode(common->Merge(2), if_not_i32, if_negative);
 
     // On 64-bit machines we can just wrap the 32-bit integer in a smi, for
     // 32-bit machines we need to deal with potential overflow and fallback to
     // boxing.
+    Node* vsmi;
     if (SmiValuesAre32Bits()) {
       vsmi = BuildChangeInt32ToSmi(value32);
     } else {
@@ -4200,7 +4212,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
 
     // Allocate the box for the {value}.
-    vbox = BuildAllocateHeapNumberWithValue(value, if_box);
+    Node* vbox = BuildAllocateHeapNumberWithValue(value, if_box);
     Node* ebox = *effect_;
 
     Node* merge = graph()->NewNode(common->Merge(2), if_smi, if_box);
