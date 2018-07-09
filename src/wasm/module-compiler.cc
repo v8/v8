@@ -6,7 +6,6 @@
 
 #include "src/api.h"
 #include "src/asmjs/asm-js.h"
-#include "src/assembler-inl.h"
 #include "src/base/optional.h"
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
@@ -389,8 +388,6 @@ wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
   auto counters = isolate->counters();
   counters->wasm_lazily_compiled_functions()->Increment();
 
-  Assembler::FlushICache(wasm_code->instructions().start(),
-                         wasm_code->instructions().size());
   counters->wasm_generated_code_size()->Increment(
       static_cast<int>(wasm_code->instructions().size()));
   counters->wasm_reloc_size()->Increment(
@@ -424,17 +421,6 @@ namespace {
 bool compile_lazy(const WasmModule* module) {
   return FLAG_wasm_lazy_compilation ||
          (FLAG_asm_wasm_lazy_compilation && module->origin == kAsmJsOrigin);
-}
-
-void FlushICache(const wasm::NativeModule* native_module) {
-  for (uint32_t i = native_module->num_imported_functions(),
-                e = native_module->num_functions();
-       i < e; ++i) {
-    const wasm::WasmCode* code = native_module->code(i);
-    if (code == nullptr) continue;
-    Assembler::FlushICache(code->instructions().start(),
-                           code->instructions().size());
-  }
 }
 
 byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
@@ -1210,11 +1196,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (module_->data_segments.size() > 0) {
     LoadDataSegments(instance);
   }
-
-  //--------------------------------------------------------------------------
-  // Flush the processors instruction cache.
-  //--------------------------------------------------------------------------
-  FlushICache(native_module);
 
   //--------------------------------------------------------------------------
   // Install a finalizer on the new instance object.
