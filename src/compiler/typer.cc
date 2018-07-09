@@ -2074,6 +2074,8 @@ Type Typer::Visitor::TypeStoreSignedSmallElement(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeStoreTypedElement(Node* node) { UNREACHABLE(); }
 
+Type Typer::Visitor::TypeStoreDataViewElement(Node* node) { UNREACHABLE(); }
+
 Type Typer::Visitor::TypeObjectIsArrayBufferView(Node* node) {
   return TypeUnaryOp(node, ObjectIsArrayBufferView);
 }

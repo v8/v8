@@ -28,8 +28,10 @@ namespace compiler {
   V(TruncateInt64ToInt32)                \
   V(RoundFloat64ToInt32)                 \
   V(TruncateFloat64ToWord32)             \
+  V(Float64ExtractLowWord32)             \
   V(Float64ExtractHighWord32)            \
   V(BitcastInt32ToFloat32)               \
+  V(BitcastFloat32ToInt32)               \
   V(Float64Abs)
 
 #define PURE_ASSEMBLER_MACH_BINOP_LIST(V) \

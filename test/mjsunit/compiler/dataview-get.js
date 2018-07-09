@@ -165,11 +165,6 @@ assertOptimized(readInt8Handled);
 assertEquals(values[3], readInt8Handled(3.14)); // Non-Smi index deopts.
 assertUnoptimized(readInt8Handled);
 
-// None of the stores wrote out of bounds.
-var bytes = new Uint8Array(buffer);
-for (var i = 0; i < 8; i++) assertEquals(0, bytes[i]);
-for (var i = 32; i < 64; i++) assertEquals(0, bytes[i]);
-
 // TurboFan neutered buffer.
 warmup(readInt8Handled);
 assertOptimized(readInt8Handled);

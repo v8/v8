@@ -2636,7 +2636,7 @@ class RepresentationSelector {
         ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
         ProcessInput(node, 1, UseInfo::PointerInt());        // external pointer
         ProcessInput(node, 2, UseInfo::TruncatingWord32());  // index
-        ProcessInput(node, 3, UseInfo::Bool());              // little endian
+        ProcessInput(node, 3, UseInfo::Bool());              // little-endian
         ProcessRemainingInputs(node, 4);
         SetOutput(node, rep);
         return;
@@ -2650,6 +2650,19 @@ class RepresentationSelector {
         ProcessInput(node, 3, UseInfo::TruncatingWord32());  // index
         ProcessInput(node, 4,
                      TruncatingUseInfoFromRepresentation(rep));  // value
+        ProcessRemainingInputs(node, 5);
+        SetOutput(node, MachineRepresentation::kNone);
+        return;
+      }
+      case IrOpcode::kStoreDataViewElement: {
+        MachineRepresentation const rep =
+            MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
+        ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
+        ProcessInput(node, 1, UseInfo::PointerInt());        // external pointer
+        ProcessInput(node, 2, UseInfo::TruncatingWord32());  // index
+        ProcessInput(node, 3,
+                     TruncatingUseInfoFromRepresentation(rep));  // value
+        ProcessInput(node, 4, UseInfo::Bool());  // little-endian
         ProcessRemainingInputs(node, 5);
         SetOutput(node, MachineRepresentation::kNone);
         return;

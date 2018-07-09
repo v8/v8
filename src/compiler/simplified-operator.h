@@ -765,6 +765,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // store-typed-element buffer, [base + external + index], value
   const Operator* StoreTypedElement(ExternalArrayType const&);
 
+  // store-data-view-element buffer, [base + index], value
+  const Operator* StoreDataViewElement(ExternalArrayType const&);
+
   // Abort (for terminating execution on internal error).
   const Operator* RuntimeAbort(AbortReason reason);
 

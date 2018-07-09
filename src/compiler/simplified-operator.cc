@@ -142,7 +142,8 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
 ExternalArrayType ExternalArrayTypeOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kLoadTypedElement ||
          op->opcode() == IrOpcode::kLoadDataViewElement ||
-         op->opcode() == IrOpcode::kStoreTypedElement);
+         op->opcode() == IrOpcode::kStoreTypedElement ||
+         op->opcode() == IrOpcode::kStoreDataViewElement);
   return OpParameter<ExternalArrayType>(op);
 }
 
@@ -1524,14 +1525,15 @@ const Operator* SimplifiedOperatorBuilder::StringFromSingleCodePoint(
 SPECULATIVE_NUMBER_BINOP_LIST(SPECULATIVE_NUMBER_BINOP)
 #undef SPECULATIVE_NUMBER_BINOP
 
-#define ACCESS_OP_LIST(V)                                             \
-  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)              \
-  V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)              \
-  V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1)          \
-  V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)          \
-  V(LoadTypedElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1) \
-  V(StoreTypedElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0) \
-  V(LoadDataViewElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1)
+#define ACCESS_OP_LIST(V)                                                \
+  V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)                 \
+  V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)                 \
+  V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1)             \
+  V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)             \
+  V(LoadTypedElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1)    \
+  V(StoreTypedElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)    \
+  V(LoadDataViewElement, ExternalArrayType, Operator::kNoWrite, 4, 1, 1) \
+  V(StoreDataViewElement, ExternalArrayType, Operator::kNoRead, 5, 1, 0)
 
 #define ACCESS(Name, Type, properties, value_input_count, control_input_count, \
                output_count)                                                   \

@@ -183,6 +183,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Reduction ReduceDataViewPrototypeGet(Node* node,
                                        ExternalArrayType element_type);
+  Reduction ReduceDataViewPrototypeSet(Node* node,
+                                       ExternalArrayType element_type);
 
   Reduction ReduceDatePrototypeGetTime(Node* node);
   Reduction ReduceDateNow(Node* node);

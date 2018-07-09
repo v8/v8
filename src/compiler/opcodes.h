@@ -384,6 +384,7 @@
   V(StoreField)                         \
   V(StoreElement)                       \
   V(StoreTypedElement)                  \
+  V(StoreDataViewElement)               \
   V(StoreSignedSmallElement)            \
   V(TransitionAndStoreElement)          \
   V(TransitionAndStoreNumberElement)    \

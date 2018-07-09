@@ -1529,6 +1529,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kStoreTypedElement:
       CheckNotTyped(node);
       break;
+    case IrOpcode::kStoreDataViewElement:
+      CheckNotTyped(node);
+      break;
     case IrOpcode::kNumberSilenceNaN:
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::Number());
