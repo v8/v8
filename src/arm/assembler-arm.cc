@@ -324,8 +324,8 @@ void CpuFeatures::PrintFeatures() {
 // Implementation of RelocInfo
 
 // static
-const int RelocInfo::kApplyMask = 0;
-
+const int RelocInfo::kApplyMask =
+    RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
@@ -333,7 +333,6 @@ bool RelocInfo::IsCodedSpecially() {
   // generate those for relocatable pointers.
   return false;
 }
-
 
 bool RelocInfo::IsInConstantPool() {
   return Assembler::is_constant_pool_load(pc_);
@@ -613,20 +612,6 @@ Condition Assembler::GetCondition(Instr instr) {
   return Instruction::ConditionField(instr);
 }
 
-
-bool Assembler::IsBranch(Instr instr) {
-  return (instr & (B27 | B25)) == (B27 | B25);
-}
-
-
-int Assembler::GetBranchOffset(Instr instr) {
-  DCHECK(IsBranch(instr));
-  // Take the jump offset in the lower 24 bits, sign extend it and multiply it
-  // with 4 to get the offset in bytes.
-  return ((instr & kImm24Mask) << 8) >> 6;
-}
-
-
 bool Assembler::IsLdrRegisterImmediate(Instr instr) {
   return (instr & (B27 | B26 | B25 | B22 | B20)) == (B26 | B20);
 }
@@ -844,7 +829,7 @@ int Assembler::target_at(int pos) {
     // blx uses bit 24 to encode bit 2 of imm26
     imm26 += 2;
   }
-  return pos + kPcLoadDelta + imm26;
+  return pos + Instruction::kPcLoadDelta + imm26;
 }
 
 
@@ -924,7 +909,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
     }
     return;
   }
-  int imm26 = target_pos - (pos + kPcLoadDelta);
+  int imm26 = target_pos - (pos + Instruction::kPcLoadDelta);
   DCHECK_EQ(5 * B25, instr & 7 * B25);  // b, bl, or blx imm24
   if (Instruction::ConditionField(instr) == kSpecialCondition) {
     // blx uses bit 24 to encode bit 2 of imm26
@@ -1427,12 +1412,13 @@ int Assembler::branch_offset(Label* L) {
   // be emitted at the pc offset recorded by the label.
   if (!is_const_pool_blocked()) BlockConstPoolFor(1);
 
-  return target_pos - (pc_offset() + kPcLoadDelta);
+  return target_pos - (pc_offset() + Instruction::kPcLoadDelta);
 }
 
 
 // Branch instructions.
-void Assembler::b(int branch_offset, Condition cond) {
+void Assembler::b(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
+  RecordRelocInfo(rmode);
   DCHECK_EQ(branch_offset & 3, 0);
   int imm24 = branch_offset >> 2;
   CHECK(is_int24(imm24));
@@ -1444,8 +1430,8 @@ void Assembler::b(int branch_offset, Condition cond) {
   }
 }
 
-
-void Assembler::bl(int branch_offset, Condition cond) {
+void Assembler::bl(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
+  RecordRelocInfo(rmode);
   DCHECK_EQ(branch_offset & 3, 0);
   int imm24 = branch_offset >> 2;
   CHECK(is_int24(imm24));
@@ -5372,7 +5358,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       DCHECK((IsVldrDPcImmediateOffset(instr) &&
               GetVldrDRegisterImmediateOffset(instr) == 0));
 
-      int delta = pc_offset() - entry.position() - kPcLoadDelta;
+      int delta = pc_offset() - entry.position() - Instruction::kPcLoadDelta;
       DCHECK(is_uint10(delta));
 
       if (entry.is_merged()) {
@@ -5403,7 +5389,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       DCHECK(IsLdrPcImmediateOffset(instr) &&
              GetLdrRegisterImmediateOffset(instr) == 0);
 
-      int delta = pc_offset() - entry.position() - kPcLoadDelta;
+      int delta = pc_offset() - entry.position() - Instruction::kPcLoadDelta;
       DCHECK(is_uint12(delta));
       // 0 is the smallest delta:
       //   ldr rd, [pc, #0]

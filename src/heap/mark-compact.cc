@@ -1087,7 +1087,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
 
   inline void VisitCodeTarget(Code* host, RelocInfo* rinfo) override {
     DCHECK_EQ(host, rinfo->host());
-    DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
+    DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     // The target is always in old space, we don't have to record the slot in
     // the old-to-new remembered set.
@@ -2162,7 +2162,7 @@ void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
     SlotType slot_type = SlotTypeForRelocInfoMode(rmode);
     if (rinfo->IsInConstantPool()) {
       addr = rinfo->constant_pool_entry_address();
-      if (RelocInfo::IsCodeTarget(rmode)) {
+      if (RelocInfo::IsCodeTargetMode(rmode)) {
         slot_type = CODE_ENTRY_SLOT;
       } else {
         DCHECK(RelocInfo::IsEmbeddedObject(rmode));

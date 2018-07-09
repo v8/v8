@@ -14130,7 +14130,7 @@ void Map::StartInobjectSlackTracking() {
 }
 
 void ObjectVisitor::VisitCodeTarget(Code* host, RelocInfo* rinfo) {
-  DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
+  DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
   Object* old_pointer = Code::GetCodeFromTargetAddress(rinfo->target_address());
   Object* new_pointer = old_pointer;
   VisitPointer(host, &new_pointer);
@@ -14202,6 +14202,7 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
+                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
                   RelocInfo::kApplyMask;
   // Needed to find target_object and runtime_entry on X64
   Assembler* origin = desc.origin;
@@ -14212,7 +14213,7 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
       Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
       it.rinfo()->set_target_object(heap, *p, UPDATE_WRITE_BARRIER,
                                     SKIP_ICACHE_FLUSH);
-    } else if (RelocInfo::IsCodeTarget(mode)) {
+    } else if (RelocInfo::IsCodeTargetMode(mode)) {
       // rewrite code handles to direct pointers to the first instruction in the
       // code object
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
@@ -14410,6 +14411,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
                 (1 << RelocInfo::COMMENT));
   STATIC_ASSERT(mode_mask ==
                 (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+                 RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
@@ -14421,7 +14423,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
 
   bool is_process_independent = true;
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
-    if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
+    if (RelocInfo::IsCodeTargetMode(it.rinfo()->rmode())) {
       // Off-heap code targets are later rewritten as pc-relative jumps to the
       // off-heap instruction stream and are thus process-independent.
       Address target_address = it.rinfo()->target_address();

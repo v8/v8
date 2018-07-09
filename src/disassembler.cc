@@ -132,7 +132,7 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
                           isolate, relocinfo->target_external_reference())
                     : "unknown";
     out->AddFormatted("    ;; external reference (%s)", reference_name);
-  } else if (RelocInfo::IsCodeTarget(rmode)) {
+  } else if (RelocInfo::IsCodeTargetMode(rmode)) {
     out->AddFormatted("    ;; code:");
     Code* code = isolate->heap()->GcSafeFindCodeForInnerPointer(
         relocinfo->target_address());

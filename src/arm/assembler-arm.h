@@ -703,9 +703,6 @@ class Assembler : public AssemblerBase {
   // Size of an instruction.
   static constexpr int kInstrSize = sizeof(Instr);
 
-  // Difference between address of current opcode and value read from pc
-  // register.
-  static constexpr int kPcLoadDelta = 8;
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   VfpRegList* GetScratchVfpRegisterList() {
     return &scratch_vfp_register_list_;
@@ -725,8 +722,10 @@ class Assembler : public AssemblerBase {
   void CodeTargetAlign();
 
   // Branch instructions
-  void b(int branch_offset, Condition cond = al);
-  void bl(int branch_offset, Condition cond = al);
+  void b(int branch_offset, Condition cond = al,
+         RelocInfo::Mode rmode = RelocInfo::NONE);
+  void bl(int branch_offset, Condition cond = al,
+          RelocInfo::Mode rmode = RelocInfo::NONE);
   void blx(int branch_offset);  // v5 and above
   void blx(Register target, Condition cond = al);  // v5 and above
   void bx(Register target, Condition cond = al);  // v5 and above, plus v4t
@@ -1472,8 +1471,6 @@ class Assembler : public AssemblerBase {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
   static Condition GetCondition(Instr instr);
-  static bool IsBranch(Instr instr);
-  static int GetBranchOffset(Instr instr);
   static bool IsLdrRegisterImmediate(Instr instr);
   static bool IsVldrDRegisterImmediate(Instr instr);
   static int GetLdrRegisterImmediateOffset(Instr instr);
@@ -1549,6 +1546,10 @@ class Assembler : public AssemblerBase {
 
   // Move a 32-bit immediate into a register, potentially via the constant pool.
   void Move32BitImmediate(Register rd, const Operand& x, Condition cond = al);
+
+  // Get the code target object for a pc-relative call or jump.
+  V8_INLINE Handle<Code> relative_code_target_object_handle_at(
+      Address pc_) const;
 
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }

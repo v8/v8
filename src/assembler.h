@@ -158,6 +158,10 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // On some platforms, all code is within a given range in the process,
   // and the start of this range is configured here.
   Address code_range_start = 0;
+  // Enable pc-relative calls/jumps on platforms that support it. When setting
+  // this flag, the code range must be small enough to fit all offsets into
+  // the instruction immediates.
+  bool use_pc_relative_calls_and_jumps = false;
 
   static AssemblerOptions Default(
       Isolate* isolate, bool explicitly_support_serialization = false);
@@ -448,7 +452,8 @@ class RelocInfo {
     // and IsShareableRelocMode predicates below).
 
     CODE_TARGET,
-    EMBEDDED_OBJECT,  // LAST_GCED_ENUM
+    RELATIVE_CODE_TARGET,  // LAST_CODE_TARGET_MODE
+    EMBEDDED_OBJECT,       // LAST_GCED_ENUM
 
     JS_TO_WASM_CALL,
     WASM_CALL,  // FIRST_SHAREABLE_RELOC_MODE
@@ -484,6 +489,7 @@ class RelocInfo {
     NUMBER_OF_MODES,
     NONE,  // never recorded value
 
+    LAST_CODE_TARGET_MODE = RELATIVE_CODE_TARGET,
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
     LAST_GCED_ENUM = EMBEDDED_OBJECT,
@@ -511,6 +517,12 @@ class RelocInfo {
     return mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE;
   }
   static inline bool IsCodeTarget(Mode mode) { return mode == CODE_TARGET; }
+  static inline bool IsCodeTargetMode(Mode mode) {
+    return mode <= LAST_CODE_TARGET_MODE;
+  }
+  static inline bool IsRelativeCodeTarget(Mode mode) {
+    return mode == RELATIVE_CODE_TARGET;
+  }
   static inline bool IsEmbeddedObject(Mode mode) {
     return mode == EMBEDDED_OBJECT;
   }

@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 #include "include/libplatform/libplatform.h"
-#include "src/assembler.h"
+#include "src/assembler-arch.h"
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
 #include "src/msan.h"
@@ -388,7 +388,16 @@ int main(int argc, char** argv) {
 
     v8::StartupData blob;
     {
-      v8::SnapshotCreator snapshot_creator;
+      v8::Isolate* isolate = v8::Isolate::Allocate();
+      if (i::FLAG_embedded_builtins) {
+        // Set code range such that relative jumps for builtins to
+        // builtin calls in the snapshot are possible.
+        i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+        size_t code_range_size = std::min(i::kMaximalCodeRangeSize / i::MB,
+                                          i::kMaxPCRelativeCodeRangeInMB);
+        i_isolate->heap()->ConfigureHeap(0, 0, code_range_size);
+      }
+      v8::SnapshotCreator snapshot_creator(isolate);
       if (i::FLAG_embedded_builtins) {
         // This process is a bit tricky since we might go on to make a second
         // snapshot if a warmup script is passed. In that case, create the first

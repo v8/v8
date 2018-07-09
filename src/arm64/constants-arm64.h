@@ -26,6 +26,7 @@ STATIC_ASSERT(sizeof(1L) == sizeof(int64_t));
 namespace v8 {
 namespace internal {
 
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 128;
 
 const unsigned kInstructionSize = 4;
 const unsigned kInstructionSizeLog2 = 2;

@@ -107,6 +107,9 @@ const uint32_t kLessSignificantWordInDoublewordOffset = 4;
 namespace v8 {
 namespace internal {
 
+// TODO(sigurds): Change this value once we use relative jumps.
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 0;
+
 // -----------------------------------------------------------------------------
 // Registers and FPURegisters.
 

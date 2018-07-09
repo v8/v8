@@ -501,11 +501,12 @@ void RelocInfo::set_wasm_stub_call_address(Address address,
 void RelocInfo::set_target_address(Address target,
                                    WriteBarrierMode write_barrier_mode,
                                    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
+  DCHECK(IsCodeTargetMode(rmode_) || IsRuntimeEntry(rmode_) ||
+         IsWasmCall(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
-      IsCodeTarget(rmode_)) {
+      IsCodeTargetMode(rmode_)) {
     Code* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
                                                                   target_code);
@@ -518,6 +519,7 @@ bool RelocInfo::RequiresRelocation(const CodeDesc& desc) {
   // deoptimization entries, they would require relocation after code
   // generation.
   int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::kApplyMask;
   RelocIterator it(desc, mode_mask);
@@ -534,6 +536,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "embedded object";
     case CODE_TARGET:
       return "code target";
+    case RELATIVE_CODE_TARGET:
+      return "relative code target";
     case RUNTIME_ENTRY:
       return "runtime entry";
     case COMMENT:
@@ -591,7 +595,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     }
     os << " (" << reinterpret_cast<const void*>(target_external_reference())
        << ")";
-  } else if (IsCodeTarget(rmode_)) {
+  } else if (IsCodeTargetMode(rmode_)) {
     const Address code_target = target_address();
     Code* code = Code::GetCodeFromTargetAddress(code_target);
     DCHECK(code->IsCode());
@@ -624,7 +628,8 @@ void RelocInfo::Verify(Isolate* isolate) {
     case EMBEDDED_OBJECT:
       Object::VerifyPointer(target_object());
       break;
-    case CODE_TARGET: {
+    case CODE_TARGET:
+    case RELATIVE_CODE_TARGET: {
       // convert inline target address to code object
       Address addr = target_address();
       CHECK_NE(addr, kNullAddress);

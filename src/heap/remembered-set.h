@@ -295,7 +295,7 @@ class UpdateTypedSlotHelper {
   template <typename Callback>
   static SlotCallbackResult UpdateCodeTarget(RelocInfo* rinfo,
                                              Callback callback) {
-    DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
+    DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
     Code* old_target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     Object* new_target = old_target;
     SlotCallbackResult result =
@@ -353,7 +353,7 @@ class UpdateTypedSlotHelper {
 };
 
 inline SlotType SlotTypeForRelocInfoMode(RelocInfo::Mode rmode) {
-  if (RelocInfo::IsCodeTarget(rmode)) {
+  if (RelocInfo::IsCodeTargetMode(rmode)) {
     return CODE_TARGET_SLOT;
   } else if (RelocInfo::IsEmbeddedObject(rmode)) {
     return EMBEDDED_OBJECT_SLOT;

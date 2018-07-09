@@ -5164,7 +5164,7 @@ void Heap::RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo,
   SlotType slot_type = SlotTypeForRelocInfoMode(rmode);
   if (rinfo->IsInConstantPool()) {
     addr = rinfo->constant_pool_entry_address();
-    if (RelocInfo::IsCodeTarget(rmode)) {
+    if (RelocInfo::IsCodeTargetMode(rmode)) {
       slot_type = CODE_ENTRY_SLOT;
     } else {
       DCHECK(RelocInfo::IsEmbeddedObject(rmode));

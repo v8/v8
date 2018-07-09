@@ -11,6 +11,7 @@
 #include "src/base/macros.h"
 #include "src/boxed-float.h"
 #include "src/globals.h"
+#include "src/utils.h"
 
 // ARM EABI is required.
 #if defined(__arm__) && !defined(__ARM_EABI__)
@@ -468,15 +469,19 @@ class Instruction {
     kPCReadOffset = 8
   };
 
-  // Helper macro to define static accessors.
-  // We use the cast to char* trick to bypass the strict anti-aliasing rules.
-  #define DECLARE_STATIC_TYPED_ACCESSOR(return_type, Name)                     \
-    static inline return_type Name(Instr instr) {                              \
-      char* temp = reinterpret_cast<char*>(&instr);                            \
-      return reinterpret_cast<Instruction*>(temp)->Name();                     \
-    }
+  // Difference between address of current opcode and value read from pc
+  // register.
+  static constexpr int kPcLoadDelta = 8;
 
-  #define DECLARE_STATIC_ACCESSOR(Name) DECLARE_STATIC_TYPED_ACCESSOR(int, Name)
+// Helper macro to define static accessors.
+// We use the cast to char* trick to bypass the strict anti-aliasing rules.
+#define DECLARE_STATIC_TYPED_ACCESSOR(return_type, Name) \
+  static inline return_type Name(Instr instr) {          \
+    char* temp = reinterpret_cast<char*>(&instr);        \
+    return reinterpret_cast<Instruction*>(temp)->Name(); \
+  }
+
+#define DECLARE_STATIC_ACCESSOR(Name) DECLARE_STATIC_TYPED_ACCESSOR(int, Name)
 
   // Get the raw instruction bits.
   inline Instr InstructionBits() const {
@@ -630,7 +635,25 @@ class Instruction {
 
   // Fields used in Branch instructions
   inline int LinkValue() const { return Bit(24); }
-  inline int SImmed24Value() const { return ((InstructionBits() << 8) >> 8); }
+  inline int SImmed24Value() const {
+    return signed_bitextract_32(23, 0, InstructionBits());
+  }
+
+  bool IsBranch() { return Bit(27) == 1 && Bit(25) == 1; }
+
+  int GetBranchOffset() {
+    DCHECK(IsBranch());
+    return SImmed24Value() * kInstrSize;
+  }
+
+  void SetBranchOffset(int32_t branch_offset) {
+    DCHECK(IsBranch());
+    DCHECK_EQ(branch_offset % kInstrSize, 0);
+    int32_t new_imm24 = branch_offset / kInstrSize;
+    CHECK(is_int24(new_imm24));
+    SetInstructionBits((InstructionBits() & ~(kImm24Mask)) |
+                       (new_imm24 & kImm24Mask));
+  }
 
   // Fields used in Software interrupt instructions
   inline SoftwareInterruptCodes SvcValue() const {
@@ -735,6 +758,8 @@ class VFPRegisters {
   static const char* names_[kNumVFPRegisters];
 };
 
+// Relative jumps on ARM can address ±32 MB.
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 32;
 
 }  // namespace internal
 }  // namespace v8

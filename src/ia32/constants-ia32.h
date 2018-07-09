@@ -5,10 +5,19 @@
 #ifndef V8_IA32_CONSTANTS_IA32_H_
 #define V8_IA32_CONSTANTS_IA32_H_
 
+#include "src/globals.h"
+
+namespace v8 {
+namespace internal {
 // Actual value of root register is offset from the root array's start
 // to take advantage of negative displacement values.
 // For x86, this value is provided for uniformity with other platforms, although
 // currently no root register is present.
 constexpr int kRootRegisterBias = 0;
+
+// TODO(sigurds): Change this value once we use relative jumps.
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 0;
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IA32_CONSTANTS_IA32_H_
