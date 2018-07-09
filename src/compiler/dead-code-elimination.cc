@@ -46,6 +46,10 @@ Node* FindDeadInput(Node* node) {
 }  // namespace
 
 Reduction DeadCodeElimination::Reduce(Node* node) {
+  DisallowHeapAllocation no_heap_allocation;
+  DisallowHandleAllocation no_handle_allocation;
+  DisallowHandleDereference no_handle_dereference;
+  DisallowCodeDependencyChange no_dependency_change;
   switch (node->opcode()) {
     case IrOpcode::kEnd:
       return ReduceEnd(node);
