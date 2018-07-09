@@ -356,7 +356,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          OwnedVector<trap_handler::ProtectedInstructionData>,
                          OwnedVector<const byte> reloc_info,
                          OwnedVector<const byte> source_position_table,
-                         WasmCode::Kind, WasmCode::Tier, WasmCode::FlushICache);
+                         WasmCode::Kind, WasmCode::Tier);
 
   WasmCode* CreateEmptyJumpTable(uint32_t num_wasm_functions);
 
