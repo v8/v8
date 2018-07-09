@@ -488,8 +488,10 @@
       "tests": [
 	{"name": "DataViewTest-DataView-BigEndian"},
 	{"name": "DataViewTest-DataView-LittleEndian"},
+	{"name": "DataViewTest-DataView-Floats"},
 	{"name": "DataViewTest-TypedArray-BigEndian"},
-	{"name": "DataViewTest-TypedArray-LittleEndian"}
+	{"name": "DataViewTest-TypedArray-LittleEndian"},
+	{"name": "DataViewTest-TypedArray-Floats"}
       ]
     },
     {
