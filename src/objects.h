@@ -3340,6 +3340,7 @@ class JSFunction: public JSObject {
   V(kSizeWithPrototype, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_FUNCTION_FIELDS)
+#undef JS_FUNCTION_FIELDS
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunction);
