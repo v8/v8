@@ -3093,6 +3093,9 @@ VisitorId Map::GetVisitorId(Map* map) {
     case WASM_INSTANCE_TYPE:
       return kVisitWasmInstanceObject;
 
+    case PRE_PARSED_SCOPE_DATA_TYPE:
+      return kVisitPreParsedScopeData;
+
     case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
       return kVisitUncompiledDataWithPreParsedScope;
 
@@ -3430,6 +3433,12 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
 
     TYPED_ARRAYS(TYPED_ARRAY_SHORT_PRINT)
 #undef TYPED_ARRAY_SHORT_PRINT
+
+    case PRE_PARSED_SCOPE_DATA_TYPE: {
+      PreParsedScopeData* data = PreParsedScopeData::cast(this);
+      os << "<PreParsedScopeData[" << data->length() << "]>";
+      break;
+    }
 
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE: {
       UncompiledDataWithoutPreParsedScope* data =

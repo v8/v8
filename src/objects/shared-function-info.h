@@ -22,18 +22,40 @@ class WasmExportedFunctionData;
 
 // Data collected by the pre-parser storing information about scopes and inner
 // functions.
-class PreParsedScopeData : public Struct {
+class PreParsedScopeData : public HeapObject {
  public:
   DECL_ACCESSORS(scope_data, PodArray<uint8_t>)
-  DECL_ACCESSORS(child_data, FixedArray)
+  DECL_INT_ACCESSORS(length)
 
-  static const int kScopeDataOffset = Struct::kHeaderSize;
-  static const int kChildDataOffset = kScopeDataOffset + kPointerSize;
-  static const int kSize = kChildDataOffset + kPointerSize;
+  inline Object* child_data(int index) const;
+  inline void set_child_data(int index, Object* value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Object** child_data_start() const;
 
   DECL_CAST(PreParsedScopeData)
   DECL_PRINTER(PreParsedScopeData)
   DECL_VERIFIER(PreParsedScopeData)
+
+#define PRE_PARSED_SCOPE_DATA_FIELDS(V) \
+  V(kScopeDataOffset, kPointerSize)     \
+  V(kLengthOffset, kIntSize)            \
+  V(kUnalignedChildDataStartOffset, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                PRE_PARSED_SCOPE_DATA_FIELDS)
+#undef PRE_PARSED_SCOPE_DATA_FIELDS
+
+  static const int kChildDataStartOffset =
+      POINTER_SIZE_ALIGN(kUnalignedChildDataStartOffset);
+
+  class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
+
+  static constexpr int SizeFor(int length) {
+    return kChildDataStartOffset + length * kPointerSize;
+  }
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PreParsedScopeData);
