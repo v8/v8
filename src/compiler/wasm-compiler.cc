@@ -290,8 +290,7 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
 
   SetSourcePosition(call, position);
 
-  Node* ephi = graph()->NewNode(mcgraph()->common()->EffectPhi(2), *effect,
-                                call, stack_check.merge);
+  Node* ephi = stack_check.EffectPhi(*effect, call);
 
   *control = stack_check.merge;
   *effect = ephi;
@@ -3347,8 +3346,7 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
   Node* value_phi =
       bounds_check.Phi(type.representation(), load,
                        GetAsmJsOOBValue(type.representation(), mcgraph()));
-  Node* effect_phi = graph()->NewNode(mcgraph()->common()->EffectPhi(2), load,
-                                      *effect_, bounds_check.merge);
+  Node* effect_phi = bounds_check.EffectPhi(load, *effect_);
   *effect_ = effect_phi;
   *control_ = bounds_check.merge;
   return value_phi;
@@ -3396,8 +3394,7 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
       type.representation(), WriteBarrierKind::kNoWriteBarrier));
   Node* store = graph()->NewNode(store_op, mem_start, index, val, *effect_,
                                  bounds_check.if_true);
-  Node* effect_phi = graph()->NewNode(mcgraph()->common()->EffectPhi(2), store,
-                                      *effect_, bounds_check.merge);
+  Node* effect_phi = bounds_check.EffectPhi(store, *effect_);
   *effect_ = effect_phi;
   *control_ = bounds_check.merge;
   return val;
@@ -4291,17 +4288,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* vtagged = is_undefined.Phi(MachineRepresentation::kFloat64,
                                      vundefined, vheap_number);
 
-    effect_tagged =
-        graph()->NewNode(mcgraph()->common()->EffectPhi(2), effect_tagged,
-                         effect_undefined, is_undefined.merge);
+    effect_tagged = is_undefined.EffectPhi(effect_tagged, effect_undefined);
 
     // If input is Smi: just convert to float64.
     Node* vfrom_smi = BuildChangeSmiToFloat64(value);
 
     *control_ = is_heap_object.merge;
-    *effect_ =
-        graph()->NewNode(mcgraph()->common()->EffectPhi(2), effect_tagged,
-                         orig_effect, is_heap_object.merge);
+    *effect_ = is_heap_object.EffectPhi(effect_tagged, orig_effect);
     return is_heap_object.Phi(MachineRepresentation::kFloat64, vtagged,
                               vfrom_smi);
   }
