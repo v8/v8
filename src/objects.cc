@@ -10250,7 +10250,7 @@ bool FixedArray::ContainsSortedNumbers() {
 Handle<FixedArray> FixedArray::ShrinkOrEmpty(Handle<FixedArray> array,
                                              int new_length) {
   if (new_length == 0) {
-    return array->GetIsolate()->factory()->empty_fixed_array();
+    return array->GetReadOnlyRoots().empty_fixed_array_handle();
   } else {
     array->Shrink(new_length);
     return array;

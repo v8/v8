@@ -5,6 +5,7 @@
 #ifndef V8_ROOTS_H_
 #define V8_ROOTS_H_
 
+#include "src/handles.h"
 #include "src/heap-symbols.h"
 #include "src/objects-definitions.h"
 
@@ -289,6 +290,7 @@ namespace internal {
 
 class Heap;
 class Isolate;
+class Map;
 class String;
 class Symbol;
 
@@ -297,30 +299,41 @@ class ReadOnlyRoots {
   explicit ReadOnlyRoots(Heap* heap) : heap_(heap) {}
   inline explicit ReadOnlyRoots(Isolate* isolate);
 
-#define ROOT_ACCESSOR(type, name, camel_name) inline class type* name();
+#define ROOT_ACCESSOR(type, name, camel_name) \
+  inline class type* name();                  \
+  inline Handle<type> name##_handle();
   STRONG_READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-#define STRING_ACCESSOR(name, str) inline String* name();
+#define STRING_ACCESSOR(name, str) \
+  inline String* name();           \
+  inline Handle<String> name##_handle();
   INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
 #undef STRING_ACCESSOR
 
-#define SYMBOL_ACCESSOR(name) inline Symbol* name();
+#define SYMBOL_ACCESSOR(name) \
+  inline Symbol* name();      \
+  inline Handle<Symbol> name##_handle();
   PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
-#define SYMBOL_ACCESSOR(name, description) inline Symbol* name();
+#define SYMBOL_ACCESSOR(name, description) \
+  inline Symbol* name();                   \
+  inline Handle<Symbol> name##_handle();
   PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
   WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
 // Utility type maps.
-#define STRUCT_MAP_ACCESSOR(NAME, Name, name) inline Map* name##_map();
+#define STRUCT_MAP_ACCESSOR(NAME, Name, name) \
+  inline Map* name##_map();                   \
+  inline class Handle<Map> name##_map_handle();
   STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
 #define ALLOCATION_SITE_MAP_ACCESSOR(NAME, Name, Size, name) \
-  inline Map* name##_map();
+  inline Map* name##_map();                                  \
+  inline class Handle<Map> name##_map_handle();
   ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_ACCESSOR)
 #undef ALLOCATION_SITE_MAP_ACCESSOR
 
