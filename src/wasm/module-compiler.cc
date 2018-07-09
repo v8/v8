@@ -121,7 +121,10 @@ class CompilationState {
                                           : baseline_finish_units_;
   }
 
+  // TODO(7423): Get rid of the Isolate field to make sure the CompilationState
+  // can be shared across multiple Isolates.
   Isolate* const isolate_;
+  WasmEngine* const wasm_engine_;
   // TODO(clemensh): Remove ModuleEnv, generate it when needed.
   ModuleEnv module_env_;
   const size_t max_memory_;
@@ -2791,6 +2794,7 @@ ModuleEnv* GetModuleEnv(CompilationState* compilation_state) {
 CompilationState::CompilationState(internal::Isolate* isolate,
                                    const ModuleEnv& env)
     : isolate_(isolate),
+      wasm_engine_(isolate->wasm_engine()),
       module_env_(env),
       max_memory_(GetMaxUsableMemorySize(isolate) / 2),
       compile_mode_(FLAG_wasm_tier_up && env.module->origin == kWasmOrigin
@@ -2804,15 +2808,15 @@ CompilationState::CompilationState(internal::Isolate* isolate,
   v8::Platform* platform = V8::GetCurrentPlatform();
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
 
-  // Register task manager for clean shutdown in case of an isolate shutdown.
-  isolate_->wasm_engine()->Register(&background_task_manager_);
-  isolate_->wasm_engine()->Register(&foreground_task_manager_);
+  // Register task manager for clean shutdown in case of an engine shutdown.
+  wasm_engine_->Register(&background_task_manager_);
+  wasm_engine_->Register(&foreground_task_manager_);
 }
 
 CompilationState::~CompilationState() {
   CancelAndWait();
   foreground_task_manager_.CancelAndWait();
-  isolate_->wasm_engine()->Unregister(&foreground_task_manager_);
+  wasm_engine_->Unregister(&foreground_task_manager_);
   NotifyOnEvent(CompilationEvent::kDestroyed, nullptr);
 }
 
@@ -2949,7 +2953,7 @@ void CompilationState::ScheduleUnitForFinishing(
 
 void CompilationState::CancelAndWait() {
   background_task_manager_.CancelAndWait();
-  isolate_->wasm_engine()->Unregister(&background_task_manager_);
+  wasm_engine_->Unregister(&background_task_manager_);
 }
 
 void CompilationState::OnBackgroundTaskStopped() {

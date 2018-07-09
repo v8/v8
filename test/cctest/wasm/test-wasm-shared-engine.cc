@@ -177,19 +177,19 @@ TEST(SharedEngineRunImported) {
     HandleScope scope(isolate.isolate());
     ZoneBuffer* buffer = BuildReturnConstantModule(isolate.zone(), 23);
     Handle<WasmInstanceObject> instance = isolate.CompileAndInstantiate(buffer);
-    // TODO(mstarzinger): Even just deferring the destruction of the native
-    // module doesn't work currently because of {WasmModule::signature_zone}.
-    // module = isolate.ExportInstance(instance);
+    module = isolate.ExportInstance(instance);
     CHECK_EQ(23, isolate.Run(instance));
+    CHECK_EQ(2, module.use_count());
   }
-  // TODO(mstarzinger): Tearing down the first Isolate still invalidates the
-  // compilation state and hence breaks tear down of the second Isolate.
-  // {
-  //   SharedEngineIsolate isolate(&engine);
-  //   HandleScope scope(isolate.isolate());
-  //   Handle<WasmInstanceObject> instance = isolate.ImportInstance(module);
-  //   CHECK_EQ(23, isolate.Run(instance));
-  // }
+  CHECK_EQ(1, module.use_count());
+  {
+    SharedEngineIsolate isolate(&engine);
+    HandleScope scope(isolate.isolate());
+    Handle<WasmInstanceObject> instance = isolate.ImportInstance(module);
+    CHECK_EQ(23, isolate.Run(instance));
+    CHECK_EQ(2, module.use_count());
+  }
+  CHECK_EQ(1, module.use_count());
 }
 
 }  // namespace test_wasm_shared_engine

@@ -291,8 +291,8 @@ class ModuleDecoderImpl : public Decoder {
   void StartDecoding(Isolate* isolate) {
     CHECK_NULL(module_);
     SetCounters(isolate->counters());
-    module_.reset(new WasmModule(
-        base::make_unique<Zone>(isolate->allocator(), "signatures")));
+    module_.reset(new WasmModule(base::make_unique<Zone>(
+        isolate->wasm_engine()->allocator(), "signatures")));
     module_->initial_pages = 0;
     module_->maximum_pages = 0;
     module_->mem_export = false;

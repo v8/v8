@@ -9,6 +9,7 @@
 
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-memory.h"
+#include "src/zone/accounting-allocator.h"
 
 namespace v8 {
 namespace internal {
@@ -89,9 +90,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   WasmMemoryTracker* memory_tracker() { return &memory_tracker_; }
 
-  // We register and unregister CancelableTaskManagers that run
-  // isolate-dependent tasks. These tasks need to be shutdown if the isolate is
-  // shut down.
+  AccountingAllocator* allocator() { return &allocator_; }
+
+  // We register and unregister CancelableTaskManagers that run engine-dependent
+  // tasks. These tasks need to be shutdown if the engine is shut down.
   void Register(CancelableTaskManager* task_manager);
   void Unregister(CancelableTaskManager* task_manager);
 
@@ -119,6 +121,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   std::unordered_map<AsyncCompileJob*, std::unique_ptr<AsyncCompileJob>> jobs_;
   std::unique_ptr<WasmCodeManager> code_manager_;
   WasmMemoryTracker memory_tracker_;
+  AccountingAllocator allocator_;
 
   // Contains all CancelableTaskManagers that run tasks that are dependent
   // on the isolate.

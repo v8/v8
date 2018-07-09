@@ -8521,10 +8521,15 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->total_available_size_ = heap->Available();
   heap_statistics->used_heap_size_ = heap->SizeOfObjects();
   heap_statistics->heap_size_limit_ = heap->MaxReserved();
+  // TODO(7424): There is no public API for the {WasmEngine} yet. Once such an
+  // API becomes available we should report the malloced memory separately. For
+  // now we just add the values, thereby over-approximating the peak slightly.
   heap_statistics->malloced_memory_ =
-      isolate->allocator()->GetCurrentMemoryUsage();
+      isolate->allocator()->GetCurrentMemoryUsage() +
+      isolate->wasm_engine()->allocator()->GetCurrentMemoryUsage();
   heap_statistics->peak_malloced_memory_ =
-      isolate->allocator()->GetMaxMemoryUsage();
+      isolate->allocator()->GetMaxMemoryUsage() +
+      isolate->wasm_engine()->allocator()->GetMaxMemoryUsage();
   heap_statistics->number_of_native_contexts_ = heap->NumberOfNativeContexts();
   heap_statistics->number_of_detached_contexts_ =
       heap->NumberOfDetachedContexts();
