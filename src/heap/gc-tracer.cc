@@ -532,6 +532,7 @@ void GCTracer::PrintNVP() const {
           "scavenge.weak_global_handles.identify=%.2f "
           "scavenge.weak_global_handles.process=%.2f "
           "scavenge.parallel=%.2f "
+          "scavenge.update_refs=%.2f "
           "background.scavenge.parallel=%.2f "
           "background.array_buffer_free=%.2f "
           "background.store_buffer=%.2f "
@@ -580,6 +581,7 @@ void GCTracer::PrintNVP() const {
           current_
               .scopes[Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_PARALLEL],
+          current_.scopes[Scope::SCAVENGER_SCAVENGE_UPDATE_REFS],
           current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL],
           current_.scopes[Scope::BACKGROUND_ARRAY_BUFFER_FREE],
           current_.scopes[Scope::BACKGROUND_STORE_BUFFER],

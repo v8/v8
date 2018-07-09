@@ -2242,10 +2242,14 @@ void Heap::Scavenge() {
     }
   }
 
-  UpdateNewSpaceReferencesInExternalStringTable(
-      &UpdateNewSpaceReferenceInExternalStringTableEntry);
+  {
+    // Update references into new space
+    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_UPDATE_REFS);
+    UpdateNewSpaceReferencesInExternalStringTable(
+        &UpdateNewSpaceReferenceInExternalStringTableEntry);
 
-  incremental_marking()->UpdateMarkingWorklistAfterScavenge();
+    incremental_marking()->UpdateMarkingWorklistAfterScavenge();
+  }
 
   if (FLAG_concurrent_marking) {
     // Ensure that concurrent marker does not track pages that are
