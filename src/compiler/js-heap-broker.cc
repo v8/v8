@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/js-heap-broker.h"
+
 #include "src/compiler/compilation-dependencies.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-regexp-inl.h"
@@ -11,31 +12,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-HeapObjectRef::HeapObjectRef(Handle<Object> object) : ObjectRef(object) {
-  AllowHandleDereference handle_dereference;
-  DCHECK(object->IsHeapObject());
-}
-
 MapRef HeapObjectRef::map(const JSHeapBroker* broker) const {
   AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(handle(object<HeapObject>()->map(), broker->isolate()));
-}
-
-JSFunctionRef::JSFunctionRef(Handle<Object> object) : JSObjectRef(object) {
-  AllowHandleDereference handle_dereference;
-  DCHECK(object->IsJSFunction());
-}
-
-HeapNumberRef::HeapNumberRef(Handle<Object> object) : HeapObjectRef(object) {
-  AllowHandleDereference handle_dereference;
-  DCHECK(object->IsHeapNumber());
-}
-
-MutableHeapNumberRef::MutableHeapNumberRef(Handle<Object> object)
-    : HeapObjectRef(object) {
-  AllowHandleDereference handle_dereference;
-  DCHECK(object->IsMutableHeapNumber());
 }
 
 double HeapNumberRef::value() const {
@@ -46,16 +26,6 @@ double HeapNumberRef::value() const {
 double MutableHeapNumberRef::value() const {
   AllowHandleDereference allow_handle_dereference;
   return object<MutableHeapNumber>()->value();
-}
-
-ContextRef::ContextRef(Handle<Object> object) : HeapObjectRef(object) {
-  AllowHandleDereference handle_dereference;
-  DCHECK(object->IsContext());
-}
-
-NativeContextRef::NativeContextRef(Handle<Object> object) : ContextRef(object) {
-  AllowHandleDereference handle_dereference;
-  DCHECK(object->IsNativeContext());
 }
 
 bool ObjectRef::IsSmi() const {
@@ -129,21 +99,17 @@ base::Optional<int> JSHeapBroker::TryGetSmi(Handle<Object> object) {
   return Smi::cast(*object)->value();
 }
 
-#define HEAP_KIND_FUNCTIONS_DEF(Name)                \
+#define DEFINE_IS_AND_AS(Name)                       \
   bool ObjectRef::Is##Name() const {                 \
     AllowHandleDereference allow_handle_dereference; \
     return object<Object>()->Is##Name();             \
+  }                                                  \
+  Name##Ref ObjectRef::As##Name() const {            \
+    DCHECK(Is##Name());                              \
+    return Name##Ref(object<HeapObject>());          \
   }
-HEAP_BROKER_KIND_LIST(HEAP_KIND_FUNCTIONS_DEF)
-#undef HEAP_KIND_FUNCTIONS_DEF
-
-#define HEAP_DATA_FUNCTIONS_DEF(Name)       \
-  Name##Ref ObjectRef::As##Name() const {   \
-    DCHECK(Is##Name());                     \
-    return Name##Ref(object<HeapObject>()); \
-  }
-HEAP_BROKER_DATA_LIST(HEAP_DATA_FUNCTIONS_DEF)
-#undef HEAP_DATA_FUNCTIONS_DEF
+HEAP_BROKER_OBJECT_LIST(DEFINE_IS_AND_AS)
+#undef DEFINE_IS_AND_AS
 
 HeapObjectType HeapObjectRef::type(const JSHeapBroker* broker) const {
   AllowHandleDereference allow_handle_dereference;
@@ -205,17 +171,6 @@ bool JSFunctionRef::has_initial_map() const {
 MapRef JSFunctionRef::initial_map(const JSHeapBroker* broker) const {
   AllowHandleDereference allow_handle_dereference;
   return MapRef(handle(object<JSFunction>()->initial_map(), broker->isolate()));
-}
-
-NameRef::NameRef(Handle<Object> object) : HeapObjectRef(object) {
-  AllowHandleDereference handle_dereference;
-  DCHECK(object->IsName());
-}
-
-ScriptContextTableRef::ScriptContextTableRef(Handle<Object> object)
-    : HeapObjectRef(object) {
-  AllowHandleDereference handle_dereference;
-  DCHECK(object->IsScriptContextTable());
 }
 
 base::Optional<ScriptContextTableRef::LookupResult>
@@ -372,7 +327,7 @@ const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
 // Determines whether the given array or object literal boilerplate satisfies
 // all limits to be considered for fast deep-copying and computes the total
 // size of all objects that are part of the graph.
-bool AllocationSiteRef::IsFastLiteral(const JSHeapBroker* broker) {
+bool AllocationSiteRef::IsFastLiteral(const JSHeapBroker* broker) const {
   AllowHandleDereference allow_handle_dereference;
   int max_properties = kMaxFastLiteralProperties;
   Handle<JSObject> boilerplate(object<AllocationSite>()->boilerplate(),
