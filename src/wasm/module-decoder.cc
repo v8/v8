@@ -1280,6 +1280,9 @@ class ModuleDecoderImpl : public Decoder {
             case kLocalS128:
               if (FLAG_experimental_wasm_simd) return kWasmS128;
               break;
+            case kLocalAnyFunc:
+              if (FLAG_experimental_wasm_anyref) return kWasmAnyFunc;
+              break;
             case kLocalAnyRef:
               if (FLAG_experimental_wasm_anyref) return kWasmAnyRef;
               break;

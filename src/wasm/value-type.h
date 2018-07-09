@@ -20,6 +20,7 @@ enum ValueType : uint8_t {
   kWasmF64,
   kWasmS128,
   kWasmAnyRef,
+  kWasmAnyFunc,
   kWasmVar,
 };
 
@@ -234,6 +235,7 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return MachineType::Float32();
       case kWasmF64:
         return MachineType::Float64();
+      case kWasmAnyFunc:
       case kWasmAnyRef:
         return MachineType::TaggedPointer();
       case kWasmS128:

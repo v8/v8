@@ -135,11 +135,14 @@ static size_t SizeOfVarInt(size_t value) {
 struct ValueTypePair {
   uint8_t code;
   ValueType type;
-} kValueTypes[] = {{kLocalI32, kWasmI32},
-                   {kLocalI64, kWasmI64},
-                   {kLocalF32, kWasmF32},
-                   {kLocalF64, kWasmF64},
-                   {kLocalAnyRef, kWasmAnyRef}};
+} kValueTypes[] = {
+    {kLocalI32, kWasmI32},          // --
+    {kLocalI64, kWasmI64},          // --
+    {kLocalF32, kWasmF32},          // --
+    {kLocalF64, kWasmF64},          // --
+    {kLocalAnyFunc, kWasmAnyFunc},  // --
+    {kLocalAnyRef, kWasmAnyRef}     // --
+};
 
 class WasmModuleVerifyTest : public TestWithIsolateAndZone {
  public:
@@ -1086,13 +1089,15 @@ TEST_F(WasmSignatureDecodeTest, Fail_off_end) {
 TEST_F(WasmSignatureDecodeTest, Fail_anyref_without_flag) {
   // Disable AnyRef support and check that decoding fails.
   FlagScope<bool> flag_scope(&FLAG_experimental_wasm_anyref, false);
-  byte kInvalidType = kLocalAnyRef;
-  for (size_t i = 0; i < SIZEOF_SIG_ENTRY_x_xx; i++) {
-    byte data[] = {SIG_ENTRY_x_xx(kLocalI32, kLocalI32, kLocalI32)};
-    data[i] = kInvalidType;
-    FunctionSig* sig =
-        DecodeWasmSignatureForTesting(zone(), data, data + sizeof(data));
-    EXPECT_EQ(nullptr, sig);
+  byte ref_types[] = {kLocalAnyFunc, kLocalAnyRef};
+  for (byte invalid_type : ref_types) {
+    for (size_t i = 0; i < SIZEOF_SIG_ENTRY_x_xx; i++) {
+      byte data[] = {SIG_ENTRY_x_xx(kLocalI32, kLocalI32, kLocalI32)};
+      data[i] = invalid_type;
+      FunctionSig* sig =
+          DecodeWasmSignatureForTesting(zone(), data, data + sizeof(data));
+      EXPECT_EQ(nullptr, sig);
+    }
   }
 }
 
