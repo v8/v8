@@ -7,6 +7,7 @@
 
 #define INTERNALIZED_STRING_LIST(V)                                \
   V(add_string, "add")                                             \
+  V(always_string, "always")                                       \
   V(anonymous_function_string, "(anonymous function)")             \
   V(anonymous_string, "anonymous")                                 \
   V(apply_string, "apply")                                         \
@@ -19,6 +20,7 @@
   V(ArrayIterator_string, "Array Iterator")                        \
   V(assign_string, "assign")                                       \
   V(async_string, "async")                                         \
+  V(auto_string, "auto")                                           \
   V(await_string, "await")                                         \
   V(BigInt_string, "BigInt")                                       \
   V(bigint_string, "bigint")                                       \
@@ -115,6 +117,8 @@
   V(line_string, "line")                                           \
   V(LinkError_string, "LinkError")                                 \
   V(literal_string, "literal")                                     \
+  V(locale_string, "locale")                                       \
+  V(long_string, "long")                                           \
   V(Map_string, "Map")                                             \
   V(MapIterator_string, "Map Iterator")                            \
   V(message_string, "message")                                     \
@@ -128,6 +132,7 @@
   V(name_string, "name")                                           \
   V(NaN_string, "NaN")                                             \
   V(nan_string, "nan")                                             \
+  V(narrow_string, "narrow")                                       \
   V(native_string, "native")                                       \
   V(new_target_string, ".new.target")                              \
   V(next_string, "next")                                           \
@@ -141,6 +146,7 @@
   V(Number_string, "Number")                                       \
   V(number_string, "number")                                       \
   V(number_to_string, "[object Number]")                           \
+  V(numeric_string, "numeric")                                     \
   V(Object_string, "Object")                                       \
   V(object_string, "object")                                       \
   V(object_to_string, "[object Object]")                           \
@@ -172,6 +178,8 @@
   V(RuntimeError_string, "RuntimeError")                           \
   V(Script_string, "Script")                                       \
   V(script_string, "script")                                       \
+  V(short_string, "short")                                         \
+  V(style_string, "style")                                         \
   V(second_string, "second")                                       \
   V(set_space_string, "set ")                                      \
   V(Set_string, "Set")                                             \
@@ -210,6 +218,7 @@
   V(undefined_string, "undefined")                                 \
   V(undefined_to_string, "[object Undefined]")                     \
   V(unicode_string, "unicode")                                     \
+  V(unit_string, "unit")                                           \
   V(URIError_string, "URIError")                                   \
   V(use_asm_string, "use asm")                                     \
   V(use_strict_string, "use strict")                               \

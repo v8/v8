@@ -208,6 +208,7 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case JS_DATE_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_INTL_LOCALE_TYPE:
+    case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
 #endif  // V8_INTL_SUPPORT
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:

@@ -120,6 +120,11 @@ RUNTIME_FUNCTION(Runtime_AvailableLocalesOf) {
     // so we should filter from all locales, but it's not clear how; see
     // https://ssl.icu-project.org/trac/ticket/12756
     available_locales = icu::Locale::getAvailableLocales(count);
+  } else if (service->IsUtf8EqualTo(CStrVector("relativetimeformat"))) {
+    // TODO(ftang): for now just use
+    // icu::NumberFormat::getAvailableLocales(count) until we migrate to
+    // Intl::GetAvailableLocales()
+    available_locales = icu::NumberFormat::getAvailableLocales(count);
   } else {
     UNREACHABLE();
   }

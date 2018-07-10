@@ -1327,6 +1327,7 @@ namespace internal {
   /* ecma402 #sec-intl.datetimeformat.prototype.formattoparts */ \
   CPP(DateTimeFormatPrototypeFormatToParts)                      \
   /* ecma402 #new proposal */                                    \
+  /* ecma402 #sec-intl-locale-constructor */                     \
   CPP(LocaleConstructor)                                         \
   CPP(LocalePrototypeLanguage)                                   \
   CPP(LocalePrototypeScript)                                     \
@@ -1342,7 +1343,9 @@ namespace internal {
   /* ecma402 #sec-number-format-functions */                     \
   CPP(NumberFormatInternalFormatNumber)                          \
   /* ecma402 #sec-intl.numberformat.prototype.format */          \
-  CPP(NumberFormatPrototypeFormatNumber)
+  CPP(NumberFormatPrototypeFormatNumber)                         \
+  /* ecma402 #sec-intl-relativetimeformat-constructor */         \
+  CPP(RelativeTimeFormatConstructor)
 #else
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)    \
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)     \

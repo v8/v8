@@ -215,9 +215,10 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_await_optimization, "harmony await taking 1 tick")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V) \
-  HARMONY_INPROGRESS_BASE(V)  \
-  V(harmony_locale, "Intl.Locale")
+#define HARMONY_INPROGRESS(V)      \
+  HARMONY_INPROGRESS_BASE(V)       \
+  V(harmony_locale, "Intl.Locale") \
+  V(harmony_intl_relative_time_format, "Intl.RelativeTimeFormat")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif

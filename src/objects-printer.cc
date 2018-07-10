@@ -13,16 +13,19 @@
 #include "src/instruction-stream.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects-inl.h"
+#include "src/objects/arguments-inl.h"
 #include "src/objects/debug-objects-inl.h"
-#include "src/objects/literal-objects-inl.h"
+#include "src/objects/hash-table-inl.h"
+#include "src/objects/js-collection-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-locale-inl.h"
 #endif  // V8_INTL_SUPPORT
-#include "src/objects/arguments-inl.h"
-#include "src/objects/hash-table-inl.h"
-#include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/js-relative-time-format-inl.h"
+#endif  // V8_INTL_SUPPORT
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
@@ -300,6 +303,9 @@ void HeapObject::HeapObjectPrint(Isolate* isolate,
 #ifdef V8_INTL_SUPPORT
     case JS_INTL_LOCALE_TYPE:
       JSLocale::cast(this)->JSLocalePrint(os);
+      break;
+    case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+      JSRelativeTimeFormat::cast(this)->JSRelativeTimeFormatPrint(isolate, os);
       break;
 #endif  // V8_INTL_SUPPORT
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
@@ -1964,6 +1970,17 @@ void JSLocale::JSLocalePrint(std::ostream& os) {  // NOLINT
   os << "\n - hourCycle: " << Brief(hour_cycle());
   os << "\n - numeric: " << Brief(numeric());
   os << "\n - numberingSystem: " << Brief(numbering_system());
+  os << "\n";
+}
+
+void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(
+    Isolate* isolate,
+    std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(isolate, os, this, "JSRelativeTimeFormat");
+  os << "\n - locale: " << Brief(locale());
+  os << "\n - style: " << StyleAsString(isolate);
+  os << "\n - numeric: " << NumericAsString(isolate);
+  os << "\n - formatter: " << Brief(formatter());
   os << "\n";
 }
 #endif  // V8_INTL_SUPPORT

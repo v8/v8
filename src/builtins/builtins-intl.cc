@@ -14,6 +14,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-locale-inl.h"
+#include "src/objects/js-relative-time-format-inl.h"
 
 #include "unicode/datefmt.h"
 #include "unicode/decimfmt.h"
@@ -641,6 +642,37 @@ BUILTIN(LocaleConstructor) {
         JSLocale::InitializeLocale(isolate, Handle<JSLocale>::cast(result),
                                    locale_string, options_object));
   }
+}
+
+BUILTIN(RelativeTimeFormatConstructor) {
+  HandleScope scope(isolate);
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
+                              isolate->factory()->NewStringFromStaticChars(
+                                  "Intl.RelativeTimeFormat")));
+  }
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+
+  Handle<JSObject> result;
+  // 2. Let relativeTimeFormat be
+  //    ! OrdinaryCreateFromConstructor(NewTarget,
+  //                                    "%RelativeTimeFormatPrototype%").
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     JSObject::New(target, new_target));
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  // 3. Return ? InitializeRelativeTimeFormat(relativeTimeFormat, locales,
+  //                                          options).
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSRelativeTimeFormat::InitializeRelativeTimeFormat(
+                   isolate, Handle<JSRelativeTimeFormat>::cast(result), locales,
+                   options));
 }
 
 // Locale getters.

@@ -25,6 +25,9 @@
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/js-relative-time-format-inl.h"
+#endif  // V8_INTL_SUPPORT
 #include "src/objects/maybe-object.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
@@ -353,6 +356,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
 #ifdef V8_INTL_SUPPORT
     case JS_INTL_LOCALE_TYPE:
       JSLocale::cast(this)->JSLocaleVerify(isolate);
+      break;
+    case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+      JSRelativeTimeFormat::cast(this)->JSRelativeTimeFormatVerify(isolate);
       break;
 #endif  // V8_INTL_SUPPORT
 
@@ -1817,6 +1823,13 @@ void JSLocale::JSLocaleVerify(Isolate* isolate) {
   VerifyObjectField(kHourCycleOffset);
   VerifyObjectField(kNumericOffset);
   VerifyObjectField(kNumberingSystemOffset);
+}
+
+void JSRelativeTimeFormat::JSRelativeTimeFormatVerify(Isolate* isolate) {
+  VerifyObjectField(kLocaleOffset);
+  VerifyObjectField(kStyleOffset);
+  VerifyObjectField(kNumericOffset);
+  VerifyObjectField(kFormatterOffset);
 }
 #endif  // V8_INTL_SUPPORT
 
