@@ -822,7 +822,9 @@ TEST(ProducingAndConsumingByteData) {
   bytes.WriteUint8(255);
   bytes.WriteUint32(0);
   bytes.WriteUint8(0);
+#ifdef DEBUG
   bytes.OverwriteFirstUint32(2017);
+#endif
   bytes.WriteUint8(100);
   // Write quarter bytes between uint8s and uint32s to verify they're stored
   // correctly.
@@ -845,7 +847,11 @@ TEST(ProducingAndConsumingByteData) {
       &bytes_for_reading, *data_on_heap);
 
   // Read the data back.
+#ifdef DEBUG
   CHECK_EQ(bytes_for_reading.ReadUint32(), 2017);
+#else
+  CHECK_EQ(bytes_for_reading.ReadUint32(), 1983);
+#endif
   CHECK_EQ(bytes_for_reading.ReadUint32(), 2147483647);
   CHECK_EQ(bytes_for_reading.ReadUint8(), 4);
   CHECK_EQ(bytes_for_reading.ReadUint8(), 255);
