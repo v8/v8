@@ -248,6 +248,12 @@ TEST(GetAvailableLocales) {
 
   locales = Intl::GetAvailableLocales(IcuService::kPluralRules);
   CHECK(locales.count("en-US"));
+
+  locales = Intl::GetAvailableLocales(IcuService::kResourceBundle);
+  CHECK(locales.count("en-US"));
+
+  locales = Intl::GetAvailableLocales(IcuService::kRelativeDateTimeFormatter);
+  CHECK(locales.count("en-US"));
 }
 
 TEST(IsObjectOfType) {
