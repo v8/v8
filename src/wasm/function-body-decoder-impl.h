@@ -849,7 +849,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, CallIndirectImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr && !module_->function_tables.empty())) {
+    if (!VALIDATE(module_ != nullptr && !module_->tables.empty())) {
       error("function table has to exist to execute call_indirect");
       return false;
     }

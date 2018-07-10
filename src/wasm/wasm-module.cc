@@ -330,7 +330,7 @@ size_t EstimateWasmModuleSize(const WasmModule* module) {
   size_t estimate =
       sizeof(WasmModule) + VectorSize(module->signatures) +
       VectorSize(module->signature_ids) + VectorSize(module->functions) +
-      VectorSize(module->data_segments) + VectorSize(module->function_tables) +
+      VectorSize(module->data_segments) + VectorSize(module->tables) +
       VectorSize(module->import_table) + VectorSize(module->export_table) +
       VectorSize(module->exceptions) + VectorSize(module->table_inits);
   // TODO(wasm): include names table and wire bytes in size estimate

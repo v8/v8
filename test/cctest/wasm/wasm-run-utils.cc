@@ -147,8 +147,8 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
 
 void TestingModuleBuilder::AddIndirectFunctionTable(
     const uint16_t* function_indexes, uint32_t table_size) {
-  test_module_->function_tables.emplace_back();
-  WasmIndirectFunctionTable& table = test_module_->function_tables.back();
+  test_module_->tables.emplace_back();
+  WasmTable& table = test_module_->tables.back();
   table.initial_size = table_size;
   table.maximum_size = table_size;
   table.has_maximum_size = true;
@@ -164,7 +164,7 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
   auto instance = instance_object();
   uint32_t num_tables = 1;  // TODO(titzer): multiple tables.
   for (uint32_t i = 0; i < num_tables; i++) {
-    WasmIndirectFunctionTable& table = test_module_->function_tables[i];
+    WasmTable& table = test_module_->tables[i];
     int table_size = static_cast<int>(instance->indirect_function_table_size());
     for (int j = 0; j < table_size; j++) {
       WasmFunction& function = test_module_->functions[table.values[j]];

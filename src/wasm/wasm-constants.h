@@ -26,7 +26,6 @@ enum ValueTypeCode : uint8_t {
 };
 // Binary encoding of other types.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
-constexpr uint8_t kWasmAnyFunctionTypeCode = 0x70;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {

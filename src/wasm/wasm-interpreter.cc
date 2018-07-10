@@ -969,16 +969,14 @@ class CodeMap {
   InterpreterCode* GetIndirectCode(uint32_t table_index, uint32_t entry_index) {
     uint32_t saved_index;
     USE(saved_index);
-    if (table_index >= module_->function_tables.size()) return nullptr;
+    if (table_index >= module_->tables.size()) return nullptr;
     // Mask table index for SSCA mitigation.
     saved_index = table_index;
-    table_index &=
-        static_cast<int32_t>((table_index - module_->function_tables.size()) &
-                             ~static_cast<int32_t>(table_index)) >>
-        31;
+    table_index &= static_cast<int32_t>((table_index - module_->tables.size()) &
+                                        ~static_cast<int32_t>(table_index)) >>
+                   31;
     DCHECK_EQ(table_index, saved_index);
-    const WasmIndirectFunctionTable* table =
-        &module_->function_tables[table_index];
+    const WasmTable* table = &module_->tables[table_index];
     if (entry_index >= table->values.size()) return nullptr;
     // Mask entry_index for SSCA mitigation.
     saved_index = entry_index;
@@ -2249,7 +2247,7 @@ class ThreadImpl {
                                                           code->at(pc));
           uint32_t entry_index = Pop().to<uint32_t>();
           // Assume only one table for now.
-          DCHECK_LE(module()->function_tables.size(), 1u);
+          DCHECK_LE(module()->tables.size(), 1u);
           ExternalCallResult result =
               CallIndirectFunction(0, entry_index, imm.sig_index);
           switch (result.type) {

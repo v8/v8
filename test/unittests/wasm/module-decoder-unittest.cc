@@ -797,22 +797,22 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION,
       // table declaration ---------------------------------------------------
-      SECTION(Table, 4), ENTRY_COUNT(1), kWasmAnyFunctionTypeCode, 0, 1};
+      SECTION(Table, 4), ENTRY_COUNT(1), kLocalAnyFunc, 0, 1};
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
   if (result.ok()) {
     EXPECT_EQ(1u, result.val->signatures.size());
     EXPECT_EQ(1u, result.val->functions.size());
-    EXPECT_EQ(1u, result.val->function_tables.size());
-    EXPECT_EQ(1u, result.val->function_tables[0].initial_size);
+    EXPECT_EQ(1u, result.val->tables.size());
+    EXPECT_EQ(1u, result.val->tables[0].initial_size);
   }
 }
 
 TEST_F(WasmModuleVerifyTest, ElementSectionWithInternalTable) {
   static const byte data[] = {
       // table ---------------------------------------------------------------
-      SECTION(Table, 4), ENTRY_COUNT(1), kWasmAnyFunctionTypeCode, 0, 1,
+      SECTION(Table, 4), ENTRY_COUNT(1), kLocalAnyFunc, 0, 1,
       // elements ------------------------------------------------------------
       SECTION(Element, 1),
       0  // entry count
@@ -825,14 +825,14 @@ TEST_F(WasmModuleVerifyTest, ElementSectionWithImportedTable) {
   static const byte data[] = {
       // imports -------------------------------------------------------------
       SECTION(Import, 9), ENTRY_COUNT(1),
-      NAME_LENGTH(1),            // --
-      'm',                       // module name
-      NAME_LENGTH(1),            // --
-      't',                       // table name
-      kExternalTable,            // import kind
-      kWasmAnyFunctionTypeCode,  // elem_type
-      0,                         // no maximum field
-      1,                         // initial size
+      NAME_LENGTH(1),  // --
+      'm',             // module name
+      NAME_LENGTH(1),  // --
+      't',             // table name
+      kExternalTable,  // import kind
+      kLocalAnyFunc,   // elem_type
+      0,               // no maximum field
+      1,               // initial size
       // elements ------------------------------------------------------------
       SECTION(Element, 1),
       0  // entry count
@@ -863,7 +863,7 @@ TEST_F(WasmModuleVerifyTest, Regression_735887) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION,
       // table declaration ---------------------------------------------------
-      SECTION(Table, 4), ENTRY_COUNT(1), kWasmAnyFunctionTypeCode, 0, 1,
+      SECTION(Table, 4), ENTRY_COUNT(1), kLocalAnyFunc, 0, 1,
       // elements ------------------------------------------------------------
       SECTION(Element, 7),
       1,  // entry count
@@ -882,7 +882,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
       // funcs ---------------------------------------------------------------
       ONE_EMPTY_FUNCTION,
       // table declaration ---------------------------------------------------
-      SECTION(Table, 4), ENTRY_COUNT(1), kWasmAnyFunctionTypeCode, 0, 1,
+      SECTION(Table, 4), ENTRY_COUNT(1), kLocalAnyFunc, 0, 1,
       // elements ------------------------------------------------------------
       SECTION(Element, 7),
       1,  // entry count
@@ -895,8 +895,8 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction_one_entry) {
   if (result.ok()) {
     EXPECT_EQ(1u, result.val->signatures.size());
     EXPECT_EQ(1u, result.val->functions.size());
-    EXPECT_EQ(1u, result.val->function_tables.size());
-    EXPECT_EQ(1u, result.val->function_tables[0].initial_size);
+    EXPECT_EQ(1u, result.val->tables.size());
+    EXPECT_EQ(1u, result.val->tables[0].initial_size);
   }
 }
 
@@ -910,7 +910,7 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
       // funcs ------------------------------------------------------
       FOUR_EMPTY_FUNCTIONS,
       // table declaration -------------------------------------------
-      SECTION(Table, 4), ENTRY_COUNT(1), kWasmAnyFunctionTypeCode, 0, 8,
+      SECTION(Table, 4), ENTRY_COUNT(1), kLocalAnyFunc, 0, 8,
       // table elements ----------------------------------------------
       SECTION(Element, 14),
       1,  // entry count
@@ -931,8 +931,8 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
   if (result.ok()) {
     EXPECT_EQ(2u, result.val->signatures.size());
     EXPECT_EQ(4u, result.val->functions.size());
-    EXPECT_EQ(1u, result.val->function_tables.size());
-    EXPECT_EQ(8u, result.val->function_tables[0].initial_size);
+    EXPECT_EQ(1u, result.val->tables.size());
+    EXPECT_EQ(8u, result.val->tables[0].initial_size);
   }
 }
 
@@ -958,6 +958,45 @@ TEST_F(WasmModuleVerifyTest, IndirectFunctionInvalidIndex) {
   };
 
   EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, MultipleTablesWithoutFlag) {
+  static const byte data[] = {
+      SECTION(Table, 7),  // table section
+      ENTRY_COUNT(2),     // 2 tables
+      kLocalAnyFunc,      // table 1: type
+      0,                  // table 1: no maximum
+      10,                 // table 1: minimum size
+      kLocalAnyFunc,      // table 2: type
+      0,                  // table 2: no maximum
+      10,                 // table 2: minimum size
+  };
+  EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, MultipleTablesWithFlag) {
+  FlagScope<bool> flag_scope(&FLAG_experimental_wasm_anyref, true);
+  static const byte data[] = {
+      SECTION(Table, 7),  // table section
+      ENTRY_COUNT(2),     // 2 tables
+      kLocalAnyFunc,      // table 1: type
+      0,                  // table 1: no maximum
+      10,                 // table 1: minimum size
+      kLocalAnyRef,       // table 2: type
+      0,                  // table 2: no maximum
+      11,                 // table 2: minimum size
+  };
+
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+
+  EXPECT_EQ(2u, result.val->tables.size());
+
+  EXPECT_EQ(10u, result.val->tables[0].initial_size);
+  EXPECT_EQ(kWasmAnyFunc, result.val->tables[0].type);
+
+  EXPECT_EQ(11u, result.val->tables[1].initial_size);
+  EXPECT_EQ(kWasmAnyRef, result.val->tables[1].type);
 }
 
 class WasmSignatureDecodeTest : public TestWithZone {

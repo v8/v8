@@ -473,12 +473,11 @@ class ModuleDecoderImpl : public Decoder {
         case kExternalTable: {
           // ===== Imported table ==========================================
           if (!AddTable(module_.get())) break;
-          import->index =
-              static_cast<uint32_t>(module_->function_tables.size());
-          module_->function_tables.emplace_back();
-          WasmIndirectFunctionTable* table = &module_->function_tables.back();
+          import->index = static_cast<uint32_t>(module_->tables.size());
+          module_->tables.emplace_back();
+          WasmTable* table = &module_->tables.back();
           table->imported = true;
-          expect_u8("element type", kWasmAnyFunctionTypeCode);
+          expect_u8("element type", kLocalAnyFunc);
           uint8_t flags = validate_table_flags("element count");
           consume_resizable_limits(
               "element count", "elements", FLAG_wasm_max_table_size,
@@ -547,13 +546,16 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void DecodeTableSection() {
-    uint32_t table_count = consume_count("table count", kV8MaxWasmTables);
+    // TODO(ahaas): Set the correct limit to {kV8MaxWasmTables} once the
+    // implementation of AnyRef landed.
+    uint32_t max_count = FLAG_experimental_wasm_anyref ? 10 : kV8MaxWasmTables;
+    uint32_t table_count = consume_count("table count", max_count);
 
     for (uint32_t i = 0; ok() && i < table_count; i++) {
       if (!AddTable(module_.get())) break;
-      module_->function_tables.emplace_back();
-      WasmIndirectFunctionTable* table = &module_->function_tables.back();
-      expect_u8("table type", kWasmAnyFunctionTypeCode);
+      module_->tables.emplace_back();
+      WasmTable* table = &module_->tables.back();
+      table->type = consume_reference_type();
       uint8_t flags = validate_table_flags("table elements");
       consume_resizable_limits(
           "table elements", "elements", FLAG_wasm_max_table_size,
@@ -618,7 +620,7 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         case kExternalTable: {
-          WasmIndirectFunctionTable* table = nullptr;
+          WasmTable* table = nullptr;
           exp->index = consume_table_index(module_.get(), &table);
           if (table) table->exported = true;
           break;
@@ -694,7 +696,7 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t element_count =
         consume_count("element count", FLAG_wasm_max_table_size);
 
-    if (element_count > 0 && module_->function_tables.size() == 0) {
+    if (element_count > 0 && module_->tables.size() == 0) {
       error(pc_, "The element section requires a table");
     }
     for (uint32_t i = 0; ok() && i < element_count; ++i) {
@@ -703,7 +705,7 @@ class ModuleDecoderImpl : public Decoder {
       if (table_index != 0) {
         errorf(pos, "illegal table index %u != 0", table_index);
       }
-      if (table_index >= module_->function_tables.size()) {
+      if (table_index >= module_->tables.size()) {
         errorf(pos, "out of bounds table index %u", table_index);
         break;
       }
@@ -932,7 +934,8 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   bool AddTable(WasmModule* module) {
-    if (module->function_tables.size() > 0) {
+    if (FLAG_experimental_wasm_anyref) return true;
+    if (module->tables.size() > 0) {
       error("At most one table is supported");
       return false;
     } else {
@@ -1079,9 +1082,8 @@ class ModuleDecoderImpl : public Decoder {
     return consume_index("global index", module->globals, global);
   }
 
-  uint32_t consume_table_index(WasmModule* module,
-                               WasmIndirectFunctionTable** table) {
-    return consume_index("table index", module->function_tables, table);
+  uint32_t consume_table_index(WasmModule* module, WasmTable** table) {
+    return consume_index("table index", module->tables, table);
   }
 
   template <typename T>
@@ -1293,6 +1295,26 @@ class ModuleDecoderImpl : public Decoder {
         error(pc_ - 1, "invalid local type");
         return kWasmStmt;
     }
+  }
+
+  // Reads a single 8-bit integer, interpreting it as a reference type.
+  ValueType consume_reference_type() {
+    byte val = consume_u8("reference type");
+    ValueTypeCode t = static_cast<ValueTypeCode>(val);
+    switch (t) {
+      case kLocalAnyFunc:
+        return kWasmAnyFunc;
+      case kLocalAnyRef:
+        if (!FLAG_experimental_wasm_anyref) {
+          error(pc_ - 1,
+                "Invalid type. Set --experimental-wasm-anyref to use 'AnyRef'");
+        }
+        return kWasmAnyRef;
+      default:
+        break;
+    }
+    error(pc_ - 1, "invalid reference type");
+    return kWasmStmt;
   }
 
   FunctionSig* consume_sig(Zone* zone) {

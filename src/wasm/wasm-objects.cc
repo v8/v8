@@ -131,7 +131,7 @@ size_t EstimateNativeAllocationsSize(const WasmModule* module) {
   size_t estimate = sizeof(WasmInstanceNativeAllocations) +
                     (1 * kPointerSize * module->num_imported_mutable_globals) +
                     (2 * kPointerSize * module->num_imported_functions);
-  for (auto& table : module->function_tables) {
+  for (auto& table : module->tables) {
     estimate += 3 * kPointerSize * table.initial_size;
   }
   return estimate;
