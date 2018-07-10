@@ -824,7 +824,7 @@ MaybeHandle<FixedArray> Debug::GetHitBreakPoints(Handle<DebugInfo> debug_info,
     }
   }
   if (break_points_hit_count == 0) return {};
-  break_points_hit->Shrink(break_points_hit_count);
+  break_points_hit->Shrink(isolate_, break_points_hit_count);
   return break_points_hit;
 }
 
@@ -1634,7 +1634,7 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
       if (script->HasValidSource()) results->set(length++, script);
     }
   }
-  return FixedArray::ShrinkOrEmpty(results, length);
+  return FixedArray::ShrinkOrEmpty(isolate_, results, length);
 }
 
 void Debug::OnThrow(Handle<Object> exception) {

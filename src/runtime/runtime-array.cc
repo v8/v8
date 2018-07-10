@@ -500,7 +500,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
     j++;
   }
 
-  keys = FixedArray::ShrinkOrEmpty(keys, j);
+  keys = FixedArray::ShrinkOrEmpty(isolate, keys, j);
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 

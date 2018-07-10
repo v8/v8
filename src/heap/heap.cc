@@ -5004,10 +5004,10 @@ void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
 }
 
 namespace {
-void CompactFixedArrayOfWeakCells(Object* object) {
+void CompactFixedArrayOfWeakCells(Isolate* isolate, Object* object) {
   if (object->IsFixedArrayOfWeakCells()) {
     FixedArrayOfWeakCells* array = FixedArrayOfWeakCells::cast(object);
-    array->Compact<FixedArrayOfWeakCells::NullCallback>();
+    array->Compact<FixedArrayOfWeakCells::NullCallback>(isolate);
   }
 }
 }  // anonymous namespace
@@ -5021,13 +5021,14 @@ void Heap::CompactFixedArraysOfWeakCells() {
       if (prototype_users->IsFixedArrayOfWeakCells()) {
         FixedArrayOfWeakCells* array =
             FixedArrayOfWeakCells::cast(prototype_users);
-        array->Compact<JSObject::PrototypeRegistryCompactionCallback>();
+        array->Compact<JSObject::PrototypeRegistryCompactionCallback>(
+            isolate());
       }
     }
   }
-  CompactFixedArrayOfWeakCells(noscript_shared_function_infos());
-  CompactFixedArrayOfWeakCells(script_list());
-  CompactFixedArrayOfWeakCells(weak_stack_trace_list());
+  CompactFixedArrayOfWeakCells(isolate(), noscript_shared_function_infos());
+  CompactFixedArrayOfWeakCells(isolate(), script_list());
+  CompactFixedArrayOfWeakCells(isolate(), weak_stack_trace_list());
 }
 
 void Heap::AddRetainedMap(Handle<Map> map) {

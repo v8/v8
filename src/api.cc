@@ -6460,7 +6460,7 @@ i::Object** GetSerializedDataFromFixedArray(i::Isolate* isolate,
       // empty FixedArray).
       int last = list->length() - 1;
       while (last >= 0 && list->is_the_hole(isolate, last)) last--;
-      if (last != -1) list->Shrink(last + 1);
+      if (last != -1) list->Shrink(isolate, last + 1);
       return i::Handle<i::Object>(object, isolate).location();
     }
   }

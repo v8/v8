@@ -1296,7 +1296,7 @@ Handle<TemplateList> TemplateList::Add(Isolate* isolate,
   STATIC_ASSERT(kFirstElementIndex == 1);
   int index = list->length() + 1;
   Handle<i::FixedArray> fixed_array = Handle<FixedArray>::cast(list);
-  fixed_array = FixedArray::SetAndGrow(fixed_array, index, value);
+  fixed_array = FixedArray::SetAndGrow(isolate, fixed_array, index, value);
   fixed_array->set(kLengthIndex, Smi::FromInt(index));
   return Handle<TemplateList>::cast(fixed_array);
 }
@@ -8955,7 +8955,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
   }
 
   DCHECK_LE(count, values_or_entries->length());
-  *result = FixedArray::ShrinkOrEmpty(values_or_entries, count);
+  *result = FixedArray::ShrinkOrEmpty(isolate, values_or_entries, count);
   return Just(true);
 }
 
@@ -9014,7 +9014,7 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
     length++;
   }
   DCHECK_LE(length, values_or_entries->length());
-  return FixedArray::ShrinkOrEmpty(values_or_entries, length);
+  return FixedArray::ShrinkOrEmpty(isolate, values_or_entries, length);
 }
 
 MaybeHandle<FixedArray> JSReceiver::GetOwnValues(Handle<JSReceiver> object,
@@ -10215,7 +10215,8 @@ Handle<Map> Map::CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
                                 "CopyReplaceDescriptor", simple_flag);
 }
 
-Handle<FixedArray> FixedArray::SetAndGrow(Handle<FixedArray> array, int index,
+Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
+                                          Handle<FixedArray> array, int index,
                                           Handle<Object> value,
                                           PretenureFlag pretenure) {
   if (index < array->length()) {
@@ -10227,8 +10228,7 @@ Handle<FixedArray> FixedArray::SetAndGrow(Handle<FixedArray> array, int index,
     capacity = JSObject::NewElementsCapacity(capacity);
   } while (capacity <= index);
   Handle<FixedArray> new_array =
-      array->GetIsolate()->factory()->NewUninitializedFixedArray(capacity,
-                                                                 pretenure);
+      isolate->factory()->NewUninitializedFixedArray(capacity, pretenure);
   array->CopyTo(0, *new_array, 0, array->length());
   new_array->FillWithHoles(array->length(), new_array->length());
   new_array->set(index, *value);
@@ -10249,20 +10249,21 @@ bool FixedArray::ContainsSortedNumbers() {
   return true;
 }
 
-Handle<FixedArray> FixedArray::ShrinkOrEmpty(Handle<FixedArray> array,
+Handle<FixedArray> FixedArray::ShrinkOrEmpty(Isolate* isolate,
+                                             Handle<FixedArray> array,
                                              int new_length) {
   if (new_length == 0) {
     return array->GetReadOnlyRoots().empty_fixed_array_handle();
   } else {
-    array->Shrink(new_length);
+    array->Shrink(isolate, new_length);
     return array;
   }
 }
 
-void FixedArray::Shrink(int new_length) {
+void FixedArray::Shrink(Isolate* isolate, int new_length) {
   DCHECK(0 < new_length && new_length <= length());
   if (new_length < length()) {
-    GetHeap()->RightTrimFixedArray(this, length() - new_length);
+    isolate->heap()->RightTrimFixedArray(this, length() - new_length);
   }
 }
 
@@ -10335,7 +10336,7 @@ Handle<FixedArrayOfWeakCells> FixedArrayOfWeakCells::Add(
 }
 
 template <class CompactionCallback>
-void FixedArrayOfWeakCells::Compact() {
+void FixedArrayOfWeakCells::Compact(Isolate* isolate) {
   FixedArray* array = FixedArray::cast(this);
   int new_length = kFirstIndex;
   for (int i = kFirstIndex; i < array->length(); i++) {
@@ -10347,7 +10348,7 @@ void FixedArrayOfWeakCells::Compact() {
                                  new_length - kFirstIndex);
     array->set(new_length++, element);
   }
-  array->Shrink(new_length);
+  array->Shrink(isolate, new_length);
   set_last_used_index(0);
 }
 
@@ -10373,10 +10374,10 @@ void JSObject::PrototypeRegistryCompactionCallback::Callback(Object* value,
   proto_info->set_registry_slot(new_index);
 }
 
-template void
-FixedArrayOfWeakCells::Compact<FixedArrayOfWeakCells::NullCallback>();
-template void
-FixedArrayOfWeakCells::Compact<JSObject::PrototypeRegistryCompactionCallback>();
+template void FixedArrayOfWeakCells::Compact<
+    FixedArrayOfWeakCells::NullCallback>(Isolate* isolate);
+template void FixedArrayOfWeakCells::Compact<
+    JSObject::PrototypeRegistryCompactionCallback>(Isolate* isolate);
 
 bool FixedArrayOfWeakCells::Remove(Handle<HeapObject> value) {
   if (Length() == 0) return false;
@@ -10570,7 +10571,9 @@ Handle<FrameArray> FrameArray::AppendWasmFrame(
   return array;
 }
 
-void FrameArray::ShrinkToFit() { Shrink(LengthFor(FrameCount())); }
+void FrameArray::ShrinkToFit(Isolate* isolate) {
+  Shrink(isolate, LengthFor(FrameCount()));
+}
 
 // static
 Handle<FrameArray> FrameArray::EnsureSpace(Handle<FrameArray> array,
@@ -18015,7 +18018,7 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
             array->GetFirstElementAddress());
     std::sort(start, start + array_size, cmp);
   }
-  return FixedArray::ShrinkOrEmpty(array, array_size);
+  return FixedArray::ShrinkOrEmpty(isolate, array, array_size);
 }
 
 template <typename Derived, typename Shape>

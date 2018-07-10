@@ -4530,7 +4530,7 @@ TEST(Regress507979) {
 
   // Replace parts of an object placed before a live object with a filler. This
   // way the filler object shares the mark bits with the following live object.
-  o1->Shrink(kFixedArrayLen - 1);
+  o1->Shrink(isolate, kFixedArrayLen - 1);
 
   for (HeapObject* obj = it.next(); obj != nullptr; obj = it.next()) {
     // Let's not optimize the loop away.
@@ -4754,7 +4754,7 @@ TEST(FixedArrayOfWeakCells) {
   Handle<FixedArrayOfWeakCells> array =
       FixedArrayOfWeakCells::Add(isolate, Handle<Object>(), number);
   array->Remove(number);
-  array->Compact<FixedArrayOfWeakCells::NullCallback>();
+  array->Compact<FixedArrayOfWeakCells::NullCallback>(isolate);
   FixedArrayOfWeakCells::Add(isolate, array, number);
 }
 
@@ -5337,7 +5337,7 @@ Handle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
       heap->isolate()->factory()->NewFixedArray(length, TENURED);
   size_t size_after_allocation = heap->SizeOfObjects();
   CHECK_EQ(size_after_allocation, size_before_allocation + array->Size());
-  array->Shrink(1);
+  array->Shrink(heap->isolate(), 1);
   size_t size_after_shrinking = heap->SizeOfObjects();
   // Shrinking does not change the space size immediately.
   CHECK_EQ(size_after_allocation, size_after_shrinking);
@@ -5689,7 +5689,7 @@ TEST(UncommitUnusedLargeObjectMemory) {
   intptr_t size_before = array->Size();
   size_t committed_memory_before = chunk->CommittedPhysicalMemory();
 
-  array->Shrink(1);
+  array->Shrink(isolate, 1);
   CHECK(array->Size() < size_before);
 
   CcTest::CollectAllGarbage();
@@ -5843,7 +5843,7 @@ HEAP_TEST(Regress5831) {
   bool overflowed_into_lospace = false;
   for (int i = 0; i < kMaxIterations; i++) {
     Handle<Code> code = GenerateDummyImmovableCode(isolate);
-    array = FixedArray::SetAndGrow(array, i, code);
+    array = FixedArray::SetAndGrow(isolate, array, i, code);
     CHECK(heap->code_space()->Contains(code->address()) ||
           heap->lo_space()->Contains(*code));
     if (heap->lo_space()->Contains(*code)) {

@@ -104,7 +104,8 @@ class FixedArray : public FixedArrayBase {
   Handle<T> GetValueChecked(Isolate* isolate, int index) const;
 
   // Return a grown copy if the index is bigger than the array's length.
-  static Handle<FixedArray> SetAndGrow(Handle<FixedArray> array, int index,
+  static Handle<FixedArray> SetAndGrow(Isolate* isolate,
+                                       Handle<FixedArray> array, int index,
                                        Handle<Object> value,
                                        PretenureFlag pretenure = NOT_TENURED);
 
@@ -136,10 +137,11 @@ class FixedArray : public FixedArrayBase {
   inline void FillWithHoles(int from, int to);
 
   // Shrink the array and insert filler objects. {new_length} must be > 0.
-  void Shrink(int new_length);
+  void Shrink(Isolate* isolate, int new_length);
   // If {new_length} is 0, return the canonical empty FixedArray. Otherwise
   // like above.
-  static Handle<FixedArray> ShrinkOrEmpty(Handle<FixedArray> array,
+  static Handle<FixedArray> ShrinkOrEmpty(Isolate* isolate,
+                                          Handle<FixedArray> array,
                                           int new_length);
 
   // Copy a sub array from the receiver to dest.
@@ -390,7 +392,7 @@ class FixedArrayOfWeakCells : public FixedArray {
   };
 
   template <class CompactionCallback>
-  void Compact();
+  void Compact(Isolate* isolate);
 
   inline Object* Get(int index) const;
   inline void Clear(int index);

@@ -41,7 +41,7 @@ class FrameArray : public FixedArray {
   inline bool IsAsmJsWasmFrame(int frame_ix) const;
   inline int FrameCount() const;
 
-  void ShrinkToFit();
+  void ShrinkToFit(Isolate* isolate);
 
   // Flags.
   enum Flag {

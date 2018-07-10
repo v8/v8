@@ -535,7 +535,7 @@ class FrameArrayBuilder {
   bool full() { return elements_->FrameCount() >= limit_; }
 
   Handle<FrameArray> GetElements() {
-    elements_->ShrinkToFit();
+    elements_->ShrinkToFit(isolate_);
     return elements_;
   }
 
@@ -876,7 +876,7 @@ Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
       frames_seen++;
     }
   }
-  return FixedArray::ShrinkOrEmpty(stack_trace_elems, frames_seen);
+  return FixedArray::ShrinkOrEmpty(this, stack_trace_elems, frames_seen);
 }
 
 

@@ -139,7 +139,7 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
     }
     result->set(i, key);
   }
-  return FixedArray::ShrinkOrEmpty(result, length);
+  return FixedArray::ShrinkOrEmpty(isolate, result, length);
 }
 
 HeapObject* OrderedHashSet::GetEmpty(ReadOnlyRoots ro_roots) {

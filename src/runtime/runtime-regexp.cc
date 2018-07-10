@@ -1279,7 +1279,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
         last_match_cache->set(i, Smi::FromInt(last_match[i]));
       }
       Handle<FixedArray> result_fixed_array =
-          FixedArray::ShrinkOrEmpty(builder.array(), builder.length());
+          FixedArray::ShrinkOrEmpty(isolate, builder.array(), builder.length());
       // Cache the result and copy the FixedArray into a COW array.
       Handle<FixedArray> copied_fixed_array =
           isolate->factory()->CopyFixedArrayWithMap(
@@ -1558,7 +1558,7 @@ Handle<JSArray> NewJSArrayWithElements(Isolate* isolate,
                                        Handle<FixedArray> elems,
                                        int num_elems) {
   return isolate->factory()->NewJSArrayWithElements(
-      FixedArray::ShrinkOrEmpty(elems, num_elems));
+      FixedArray::ShrinkOrEmpty(isolate, elems, num_elems));
 }
 
 }  // namespace
@@ -1679,7 +1679,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
     {
       Handle<String> substr =
           factory->NewSubString(string, prev_string_index, string_index);
-      elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
+      elems = FixedArray::SetAndGrow(isolate, elems, num_elems++, substr);
       if (num_elems == limit) {
         return *NewJSArrayWithElements(isolate, elems, num_elems);
       }
@@ -1700,7 +1700,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
       Handle<Object> capture;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, capture, Object::GetElement(isolate, result, i));
-      elems = FixedArray::SetAndGrow(elems, num_elems++, capture);
+      elems = FixedArray::SetAndGrow(isolate, elems, num_elems++, capture);
       if (num_elems == limit) {
         return *NewJSArrayWithElements(isolate, elems, num_elems);
       }
@@ -1712,7 +1712,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   {
     Handle<String> substr =
         factory->NewSubString(string, prev_string_index, length);
-    elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
+    elems = FixedArray::SetAndGrow(isolate, elems, num_elems++, substr);
   }
 
   return *NewJSArrayWithElements(isolate, elems, num_elems);

@@ -308,7 +308,7 @@ void CacheTemplateInstantiation(Isolate* isolate, int serial_number,
     Handle<FixedArray> fast_cache =
         isolate->fast_template_instantiations_cache();
     Handle<FixedArray> new_cache =
-        FixedArray::SetAndGrow(fast_cache, serial_number - 1, object);
+        FixedArray::SetAndGrow(isolate, fast_cache, serial_number - 1, object);
     if (*new_cache != *fast_cache) {
       isolate->native_context()->set_fast_template_instantiations_cache(
           *new_cache);
