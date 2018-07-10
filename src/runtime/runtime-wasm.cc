@@ -80,8 +80,11 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   DCHECK_NULL(isolate->context());
   isolate->set_context(instance->native_context());
 
-  return *isolate->factory()->NewNumberFromInt(WasmMemoryObject::Grow(
-      isolate, handle(instance->memory_object(), isolate), delta_pages));
+  int ret = WasmMemoryObject::Grow(
+      isolate, handle(instance->memory_object(), isolate), delta_pages);
+  // The WasmGrowMemory builtin which calls this runtime function expects us to
+  // always return a Smi.
+  return Smi::FromInt(ret);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
