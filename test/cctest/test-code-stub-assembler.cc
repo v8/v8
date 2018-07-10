@@ -1385,7 +1385,7 @@ namespace {
 
 void AddElement(Handle<JSObject> object, uint32_t index, Handle<Object> value,
                 PropertyAttributes attributes = NONE) {
-  JSObject::AddDataElement(object, index, value, attributes).ToHandleChecked();
+  JSObject::AddDataElement(object, index, value, attributes);
 }
 
 }  // namespace

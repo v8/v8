@@ -1165,8 +1165,7 @@ Handle<JSObject> ConvertToJSObject(Isolate* isolate,
           type_profile, position,
           isolate->factory()->NewJSArrayWithElements(
               ArrayList::Elements(position_specific_types)),
-          PropertyAttributes::NONE)
-          .ToHandleChecked();
+          PropertyAttributes::NONE);
     }
   }
   return type_profile;

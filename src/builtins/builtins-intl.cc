@@ -231,8 +231,7 @@ bool AddElement(Handle<JSArray> array, int index,
       false);
 
   JSObject::AddProperty(isolate, element, factory->value_string(), value, NONE);
-  RETURN_ON_EXCEPTION_VALUE(
-      isolate, JSObject::AddDataElement(array, index, element, NONE), false);
+  JSObject::AddDataElement(array, index, element, NONE);
   return true;
 }
 

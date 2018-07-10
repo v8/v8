@@ -5300,10 +5300,9 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
     }
 
     Handle<JSObject> receiver_obj = Handle<JSObject>::cast(receiver);
-    Maybe<bool> result = JSObject::AddDataElement(
-        receiver_obj, it->index(), value, attributes, should_throw);
+    JSObject::AddDataElement(receiver_obj, it->index(), value, attributes);
     JSObject::ValidateElements(*receiver_obj);
-    return result;
+    return Just(true);
   } else {
     it->UpdateProtector();
     // Migrate to the most up-to-date map that will be able to store |value|
@@ -15586,23 +15585,10 @@ static bool ShouldConvertToFastElements(JSObject* object,
   return 2 * dictionary_size >= *new_capacity;
 }
 
-
 // static
-MaybeHandle<Object> JSObject::AddDataElement(Handle<JSObject> object,
-                                             uint32_t index,
-                                             Handle<Object> value,
-                                             PropertyAttributes attributes) {
-  MAYBE_RETURN_NULL(
-      AddDataElement(object, index, value, attributes, kThrowOnError));
-  return value;
-}
-
-
-// static
-Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
-                                     Handle<Object> value,
-                                     PropertyAttributes attributes,
-                                     ShouldThrow should_throw) {
+void JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
+                              Handle<Object> value,
+                              PropertyAttributes attributes) {
   DCHECK(object->map()->is_extensible());
 
   Isolate* isolate = object->GetIsolate();
@@ -15652,8 +15638,6 @@ Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
         isolate->factory()->NewNumberFromUint(index + 1);
     JSArray::cast(*object)->set_length(*new_length);
   }
-
-  return Just(true);
 }
 
 

@@ -2207,12 +2207,9 @@ class JSObject: public JSReceiver {
                           Handle<Name> name, Handle<Object> value,
                           PropertyAttributes attributes);
 
-  V8_WARN_UNUSED_RESULT static Maybe<bool> AddDataElement(
-      Handle<JSObject> receiver, uint32_t index, Handle<Object> value,
-      PropertyAttributes attributes, ShouldThrow should_throw);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> AddDataElement(
-      Handle<JSObject> receiver, uint32_t index, Handle<Object> value,
-      PropertyAttributes attributes);
+  static void AddDataElement(Handle<JSObject> receiver, uint32_t index,
+                             Handle<Object> value,
+                             PropertyAttributes attributes);
 
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
