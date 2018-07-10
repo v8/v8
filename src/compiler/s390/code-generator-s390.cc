@@ -3005,8 +3005,9 @@ void CodeGenerator::AssembleConstructFrame() {
       // check in the condition code.
       if ((shrink_slots * kPointerSize) < (FLAG_stack_size * 1024)) {
         Register scratch = r1;
-        __ Move(scratch,
-                ExternalReference::address_of_real_stack_limit(__ isolate()));
+        __ LoadP(scratch, FieldMemOperand(
+                            kWasmInstanceRegister,
+                            WasmInstanceObject::kRealStackLimitAddressOffset));
         __ LoadP(scratch, MemOperand(scratch));
         __ AddP(scratch, scratch, Operand(shrink_slots * kPointerSize));
         __ CmpLogicalP(sp, scratch);
