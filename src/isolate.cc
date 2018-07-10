@@ -3233,7 +3233,6 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
 void Isolate::DumpAndResetStats() {
   if (turbo_statistics() != nullptr) {
     DCHECK(FLAG_turbo_stats || FLAG_turbo_stats_nvp);
-
     StdoutStream os;
     if (FLAG_turbo_stats) {
       AsPrintableStatistics ps = {*turbo_statistics(), false};
@@ -3243,9 +3242,14 @@ void Isolate::DumpAndResetStats() {
       AsPrintableStatistics ps = {*turbo_statistics(), true};
       os << ps << std::endl;
     }
+    delete turbo_statistics_;
+    turbo_statistics_ = nullptr;
   }
-  delete turbo_statistics_;
-  turbo_statistics_ = nullptr;
+  // TODO(7424): There is no public API for the {WasmEngine} yet. So for now we
+  // just dump and reset the engines statistics together with the Isolate.
+  if (FLAG_turbo_stats_wasm) {
+    wasm_engine()->DumpAndResetTurboStatistics();
+  }
   if (V8_UNLIKELY(FLAG_runtime_stats ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
     counters()->runtime_call_stats()->Print();

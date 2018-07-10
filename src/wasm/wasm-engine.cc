@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-engine.h"
 
+#include "src/compilation-statistics.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-promise.h"
 #include "src/wasm/module-compiler.h"
@@ -14,6 +15,11 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+WasmEngine::WasmEngine(std::unique_ptr<WasmCodeManager> code_manager)
+    : code_manager_(std::move(code_manager)) {}
+
+WasmEngine::~WasmEngine() = default;
 
 bool WasmEngine::SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes) {
   // TODO(titzer): remove dependency on the isolate.
@@ -149,6 +155,21 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
       CreateAsyncCompileJob(isolate, std::unique_ptr<byte[]>(nullptr), 0,
                             context, std::move(resolver));
   return job->CreateStreamingDecoder();
+}
+
+CompilationStatistics* WasmEngine::GetOrCreateTurboStatistics() {
+  if (compilation_stats_ == nullptr) {
+    compilation_stats_.reset(new CompilationStatistics());
+  }
+  return compilation_stats_.get();
+}
+
+void WasmEngine::DumpAndResetTurboStatistics() {
+  if (compilation_stats_ != nullptr) {
+    StdoutStream os;
+    os << AsPrintableStatistics{*compilation_stats_.get(), false} << std::endl;
+  }
+  compilation_stats_.reset();
 }
 
 void WasmEngine::Register(CancelableTaskManager* task_manager) {

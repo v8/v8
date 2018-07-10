@@ -760,7 +760,8 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
   PipelineStatistics* pipeline_statistics = nullptr;
 
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
-    pipeline_statistics = new PipelineStatistics(info, isolate, zone_stats);
+    pipeline_statistics =
+        new PipelineStatistics(info, isolate->GetTurboStatistics(), zone_stats);
     pipeline_statistics->BeginPhaseKind("initializing");
   }
 
@@ -775,15 +776,16 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
   return pipeline_statistics;
 }
 
-PipelineStatistics* CreatePipelineStatistics(wasm::FunctionBody function_body,
+PipelineStatistics* CreatePipelineStatistics(wasm::WasmEngine* wasm_engine,
+                                             wasm::FunctionBody function_body,
                                              wasm::WasmModule* wasm_module,
                                              OptimizedCompilationInfo* info,
-                                             Isolate* isolate,
                                              ZoneStats* zone_stats) {
   PipelineStatistics* pipeline_statistics = nullptr;
 
-  if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
-    pipeline_statistics = new PipelineStatistics(info, isolate, zone_stats);
+  if (FLAG_turbo_stats_wasm) {
+    pipeline_statistics = new PipelineStatistics(
+        info, wasm_engine->GetOrCreateTurboStatistics(), zone_stats);
     pipeline_statistics->BeginPhaseKind("initializing");
   }
 
@@ -973,16 +975,17 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
 class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
  public:
   explicit PipelineWasmCompilationJob(
-      OptimizedCompilationInfo* info, Isolate* isolate, MachineGraph* mcgraph,
-      CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
-      NodeOriginTable* node_origins, WasmCompilationData* wasm_compilation_data,
+      OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
+      Isolate* isolate, MachineGraph* mcgraph, CallDescriptor* call_descriptor,
+      SourcePositionTable* source_positions, NodeOriginTable* node_origins,
+      WasmCompilationData* wasm_compilation_data,
       wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
       wasm::NativeModule* native_module, int function_index, bool asmjs_origin)
       : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), info,
                                 "TurboFan", State::kReadyToExecute),
         zone_stats_(isolate->allocator()),
         pipeline_statistics_(CreatePipelineStatistics(
-            function_body, wasm_module, info, isolate, &zone_stats_)),
+            wasm_engine, function_body, wasm_module, info, &zone_stats_)),
         data_(&zone_stats_, isolate, info, mcgraph, pipeline_statistics_.get(),
               source_positions, node_origins, wasm_compilation_data,
               function_index, WasmAssemblerOptions(isolate)),
@@ -1019,8 +1022,9 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
   pipeline_.RunPrintAndVerify("Machine", true);
 
   PipelineData* data = &data_;
-  PipelineRunScope scope(data, "wasm optimization");
+  data->BeginPhaseKind("wasm optimization");
   if (FLAG_wasm_opt || asmjs_origin_) {
+    PipelineRunScope scope(data, "wasm full optimization");
     GraphReducer graph_reducer(scope.zone(), data->graph(),
                                data->mcgraph()->Dead());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
@@ -1036,6 +1040,7 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
     AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   } else {
+    PipelineRunScope scope(data, "wasm base optimization");
     GraphReducer graph_reducer(scope.zone(), data->graph(),
                                data->mcgraph()->Dead());
     ValueNumberingReducer value_numbering(scope.zone(), data->graph()->zone());
@@ -2124,8 +2129,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
-    pipeline_statistics.reset(
-        new PipelineStatistics(&info, isolate, &zone_stats));
+    pipeline_statistics.reset(new PipelineStatistics(
+        &info, isolate->GetTurboStatistics(), &zone_stats));
     pipeline_statistics->BeginPhaseKind("stub codegen");
   }
 
@@ -2195,8 +2200,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
                     source_positions, node_positions, nullptr, options);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
-    pipeline_statistics.reset(
-        new PipelineStatistics(info, isolate, &zone_stats));
+    pipeline_statistics.reset(new PipelineStatistics(
+        info, isolate->GetTurboStatistics(), &zone_stats));
     pipeline_statistics->BeginPhaseKind("test codegen");
   }
 
@@ -2233,16 +2238,17 @@ OptimizedCompilationJob* Pipeline::NewCompilationJob(
 
 // static
 OptimizedCompilationJob* Pipeline::NewWasmCompilationJob(
-    OptimizedCompilationInfo* info, Isolate* isolate, MachineGraph* mcgraph,
-    CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
-    NodeOriginTable* node_origins, WasmCompilationData* wasm_compilation_data,
+    OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
+    Isolate* isolate, MachineGraph* mcgraph, CallDescriptor* call_descriptor,
+    SourcePositionTable* source_positions, NodeOriginTable* node_origins,
+    WasmCompilationData* wasm_compilation_data,
     wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
     wasm::NativeModule* native_module, int function_index,
     wasm::ModuleOrigin asmjs_origin) {
   return new PipelineWasmCompilationJob(
-      info, isolate, mcgraph, call_descriptor, source_positions, node_origins,
-      wasm_compilation_data, function_body, wasm_module, native_module,
-      function_index, asmjs_origin);
+      info, wasm_engine, isolate, mcgraph, call_descriptor, source_positions,
+      node_origins, wasm_compilation_data, function_body, wasm_module,
+      native_module, function_index, asmjs_origin);
 }
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,

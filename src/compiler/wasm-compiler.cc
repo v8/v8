@@ -5211,9 +5211,9 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
     }
 
     job_.reset(Pipeline::NewWasmCompilationJob(
-        info_.get(), wasm_unit_->isolate_, mcgraph_, call_descriptor,
-        source_positions, node_origins, &wasm_compilation_data_,
-        wasm_unit_->func_body_,
+        info_.get(), wasm_unit_->isolate_->wasm_engine(), wasm_unit_->isolate_,
+        mcgraph_, call_descriptor, source_positions, node_origins,
+        &wasm_compilation_data_, wasm_unit_->func_body_,
         const_cast<wasm::WasmModule*>(wasm_unit_->env_->module),
         wasm_unit_->native_module_, wasm_unit_->func_index_,
         wasm_unit_->env_->module->origin));

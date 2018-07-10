@@ -24,6 +24,7 @@ namespace wasm {
 enum ModuleOrigin : uint8_t;
 struct FunctionBody;
 class NativeModule;
+class WasmEngine;
 struct WasmModule;
 }  // namespace wasm
 
@@ -47,9 +48,10 @@ class Pipeline : public AllStatic {
 
   // Returns a new compilation job for the WebAssembly compilation info.
   static OptimizedCompilationJob* NewWasmCompilationJob(
-      OptimizedCompilationInfo* info, Isolate* isolate, MachineGraph* mcgraph,
-      CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
-      NodeOriginTable* node_origins, WasmCompilationData* wasm_compilation_data,
+      OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
+      Isolate* isolate, MachineGraph* mcgraph, CallDescriptor* call_descriptor,
+      SourcePositionTable* source_positions, NodeOriginTable* node_origins,
+      WasmCompilationData* wasm_compilation_data,
       wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
       wasm::NativeModule* native_module, int function_index,
       wasm::ModuleOrigin wasm_origin);
