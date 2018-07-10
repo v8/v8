@@ -608,9 +608,6 @@
   'intl402/RelativeTimeFormat/prototype/formatToParts/length': [FAIL],
   'intl402/RelativeTimeFormat/prototype/formatToParts/name': [FAIL],
   'intl402/RelativeTimeFormat/prototype/formatToParts/prop-desc': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/resolvedOptions/length': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/resolvedOptions/name': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/resolvedOptions/prop-desc': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7813
   'built-ins/Array/prototype/lastIndexOf/calls-only-has-on-prototype-after-length-zeroed': [FAIL],

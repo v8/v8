@@ -675,6 +675,13 @@ BUILTIN(RelativeTimeFormatConstructor) {
                    options));
 }
 
+BUILTIN(RelativeTimeFormatPrototypeResolvedOptions) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSRelativeTimeFormat, format_holder,
+                 "Intl.RelativeTimeFormat.prototype.resolvedOptions");
+  return *JSRelativeTimeFormat::ResolvedOptions(isolate, format_holder);
+}
+
 // Locale getters.
 BUILTIN(LocalePrototypeLanguage) {
   HandleScope scope(isolate);

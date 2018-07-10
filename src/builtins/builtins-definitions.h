@@ -1311,41 +1311,43 @@ namespace internal {
   ASM(MathPowInternal)
 
 #ifdef V8_INTL_SUPPORT
-#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)          \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)           \
-  BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM)       \
-                                                                 \
-  TFS(StringToLowerCaseIntl, kString)                            \
-  /* ES #sec-string.prototype.tolowercase */                     \
-  TFJ(StringPrototypeToLowerCaseIntl, 0, kReceiver)              \
-  /* ES #sec-string.prototype.touppercase */                     \
-  CPP(StringPrototypeToUpperCaseIntl)                            \
-  /* ES #sec-string.prototype.normalize */                       \
-  CPP(StringPrototypeNormalizeIntl)                              \
-  /* ecma402 #sec-intl.numberformat.prototype.formattoparts */   \
-  CPP(NumberFormatPrototypeFormatToParts)                        \
-  /* ecma402 #sec-intl.datetimeformat.prototype.formattoparts */ \
-  CPP(DateTimeFormatPrototypeFormatToParts)                      \
-  /* ecma402 #new proposal */                                    \
-  /* ecma402 #sec-intl-locale-constructor */                     \
-  CPP(LocaleConstructor)                                         \
-  CPP(LocalePrototypeLanguage)                                   \
-  CPP(LocalePrototypeScript)                                     \
-  CPP(LocalePrototypeRegion)                                     \
-  CPP(LocalePrototypeBaseName)                                   \
-  CPP(LocalePrototypeCalendar)                                   \
-  CPP(LocalePrototypeCaseFirst)                                  \
-  CPP(LocalePrototypeCollation)                                  \
-  CPP(LocalePrototypeHourCycle)                                  \
-  CPP(LocalePrototypeNumeric)                                    \
-  CPP(LocalePrototypeNumberingSystem)                            \
-  CPP(LocalePrototypeToString)                                   \
-  /* ecma402 #sec-number-format-functions */                     \
-  CPP(NumberFormatInternalFormatNumber)                          \
-  /* ecma402 #sec-intl.numberformat.prototype.format */          \
-  CPP(NumberFormatPrototypeFormatNumber)                         \
-  /* ecma402 #sec-intl-relativetimeformat-constructor */         \
-  CPP(RelativeTimeFormatConstructor)
+#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)                \
+  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)                 \
+  BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM)             \
+                                                                       \
+  TFS(StringToLowerCaseIntl, kString)                                  \
+  /* ES #sec-string.prototype.tolowercase */                           \
+  TFJ(StringPrototypeToLowerCaseIntl, 0, kReceiver)                    \
+  /* ES #sec-string.prototype.touppercase */                           \
+  CPP(StringPrototypeToUpperCaseIntl)                                  \
+  /* ES #sec-string.prototype.normalize */                             \
+  CPP(StringPrototypeNormalizeIntl)                                    \
+  /* ecma402 #sec-intl.numberformat.prototype.formattoparts */         \
+  CPP(NumberFormatPrototypeFormatToParts)                              \
+  /* ecma402 #sec-intl.datetimeformat.prototype.formattoparts */       \
+  CPP(DateTimeFormatPrototypeFormatToParts)                            \
+  /* ecma402 #new proposal */                                          \
+  /* ecma402 #sec-intl-locale-constructor */                           \
+  CPP(LocaleConstructor)                                               \
+  CPP(LocalePrototypeLanguage)                                         \
+  CPP(LocalePrototypeScript)                                           \
+  CPP(LocalePrototypeRegion)                                           \
+  CPP(LocalePrototypeBaseName)                                         \
+  CPP(LocalePrototypeCalendar)                                         \
+  CPP(LocalePrototypeCaseFirst)                                        \
+  CPP(LocalePrototypeCollation)                                        \
+  CPP(LocalePrototypeHourCycle)                                        \
+  CPP(LocalePrototypeNumeric)                                          \
+  CPP(LocalePrototypeNumberingSystem)                                  \
+  CPP(LocalePrototypeToString)                                         \
+  /* ecma402 #sec-number-format-functions */                           \
+  CPP(NumberFormatInternalFormatNumber)                                \
+  /* ecma402 #sec-intl.numberformat.prototype.format */                \
+  CPP(NumberFormatPrototypeFormatNumber)                               \
+  /* ecma402 #sec-intl-relativetimeformat-constructor */               \
+  CPP(RelativeTimeFormatConstructor)                                   \
+  /* ecma402 #sec-intl.relativetimeformat.prototype.resolvedoptions */ \
+  CPP(RelativeTimeFormatPrototypeResolvedOptions)
 #else
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)    \
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)     \

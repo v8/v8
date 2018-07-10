@@ -4586,6 +4586,10 @@ void Genesis::InitializeGlobal_harmony_intl_relative_time_format() {
   JSObject::AddProperty(isolate(), prototype, factory()->to_string_tag_symbol(),
                         factory()->Object_string(),
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+  SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
+                        Builtins::kRelativeTimeFormatPrototypeResolvedOptions,
+                        0, false);
 }
 
 #endif  // V8_INTL_SUPPORT
