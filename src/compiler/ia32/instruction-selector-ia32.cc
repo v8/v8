@@ -1893,8 +1893,7 @@ void InstructionSelector::VisitI8x16Mul(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand operand0 = g.UseUniqueRegister(node->InputAt(0));
   InstructionOperand operand1 = g.UseUniqueRegister(node->InputAt(1));
-  InstructionOperand temps[] = {g.TempSimd128Register(),
-                                g.TempSimd128Register()};
+  InstructionOperand temps[] = {g.TempSimd128Register()};
   if (IsSupported(AVX)) {
     Emit(kAVXI8x16Mul, g.DefineAsRegister(node), operand0, operand1,
          arraysize(temps), temps);

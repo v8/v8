@@ -2851,43 +2851,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI8x16Mul: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister left = i.InputSimd128Register(0);
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
       XMMRegister right = i.InputSimd128Register(1);
-      XMMRegister t0 = i.ToSimd128Register(instr->TempAt(0));
-      XMMRegister t1 = i.ToSimd128Register(instr->TempAt(1));
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
 
       // I16x8 view of I8x16
       // left = AAaa AAaa ... AAaa AAaa
       // right= BBbb BBbb ... BBbb BBbb
 
-      // t0 = 00AA 00AA ... 00AA 00AA
-      // t1 = 00BB 00BB ... 00BB 00BB
-      __ movaps(t0, left);
-      __ movaps(t1, right);
-      __ pcmpeqb(kScratchDoubleReg, kScratchDoubleReg);
-      __ psrlw(t0, 8);
-      __ psrlw(t1, 8);
-
-      // left = I16x8Mul(left, right)
-      //    => __pp __pp ...  __pp  __pp
-      // t0 = I16x8Mul(t0, t1)
-      //    => __PP __PP ...  __PP  __PP
+      // t = 00AA 00AA ... 00AA 00AA
+      // s = 00BB 00BB ... 00BB 00BB
+      __ movaps(tmp, dst);
+      __ movaps(kScratchDoubleReg, right);
+      __ psrlw(tmp, 8);
       __ psrlw(kScratchDoubleReg, 8);
-      __ pmullw(t0, t1);
-      __ pmullw(left, right);
+      // dst = left * 256
+      __ psllw(dst, 8);
 
-      // t0 = I16x8Shl(t0, 8)
+      // t = I16x8Mul(t, s)
+      //    => __PP __PP ...  __PP  __PP
+      __ pmullw(tmp, kScratchDoubleReg);
+      // dst = I16x8Mul(left * 256, right)
+      //    => pp__ pp__ ...  pp__  pp__
+      __ pmullw(dst, right);
+
+      // t = I16x8Shl(t, 8)
       //    => PP00 PP00 ...  PP00  PP00
-      __ psllw(t0, 8);
+      __ psllw(tmp, 8);
 
-      // left = I16x8And(left, 0x00ff)
+      // dst = I16x8Shr(dst, 8)
       //    => 00pp 00pp ...  00pp  00pp
-      __ pand(left, kScratchDoubleReg);
+      __ psrlw(dst, 8);
 
-      // left = I16x8Or(left, t0)
+      // dst = I16x8Or(dst, t)
       //    => PPpp PPpp ...  PPpp  PPpp
-      __ por(left, t0);
+      __ por(dst, tmp);
       break;
     }
     case kAVXI8x16Mul: {
@@ -2895,39 +2894,39 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister left = i.InputSimd128Register(0);
       XMMRegister right = i.InputSimd128Register(1);
-      XMMRegister t0 = i.ToSimd128Register(instr->TempAt(0));
-      XMMRegister t1 = i.ToSimd128Register(instr->TempAt(1));
+      XMMRegister tmp = i.ToSimd128Register(instr->TempAt(0));
 
       // I16x8 view of I8x16
       // left = AAaa AAaa ... AAaa AAaa
       // right= BBbb BBbb ... BBbb BBbb
 
-      // t0 = 00AA 00AA ... 00AA 00AA
-      // t1 = 00BB 00BB ... 00BB 00BB
-      __ vpcmpeqb(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
-      __ vpsrlw(t0, left, 8);
-      __ vpsrlw(t1, right, 8);
+      // t = 00AA 00AA ... 00AA 00AA
+      // s = 00BB 00BB ... 00BB 00BB
+      __ vpsrlw(tmp, left, 8);
+      __ vpsrlw(kScratchDoubleReg, right, 8);
 
-      // dst = I16x8Mul(left, right)
-      //    => __pp __pp ...  __pp  __pp
-      __ vpsrlw(kScratchDoubleReg, kScratchDoubleReg, 8);
-      __ vpmullw(dst, left, right);
-
-      // t0 = I16x8Mul(t0, t1)
+      // t = I16x8Mul(t0, t1)
       //    => __PP __PP ...  __PP  __PP
-      __ vpmullw(t0, t0, t1);
+      __ vpmullw(tmp, tmp, kScratchDoubleReg);
 
-      // t0 = I16x8Shl(t0, 8)
-      //    => PP00 PP00 ...  PP00  PP00
-      __ vpsllw(t0, t0, 8);
+      // s = left * 256
+      __ vpsllw(kScratchDoubleReg, left, 8);
 
-      // dst = I16x8And(dst, 0x00ff)
+      // dst = I16x8Mul(left * 256, right)
+      //    => pp__ pp__ ...  pp__  pp__
+      __ vpmullw(dst, kScratchDoubleReg, right);
+
+      // dst = I16x8Shr(dst, 8)
       //    => 00pp 00pp ...  00pp  00pp
-      __ vpand(dst, dst, kScratchDoubleReg);
+      __ vpsrlw(dst, dst, 8);
 
-      // dst = I16x8Or(dst, t0)
+      // t = I16x8Shl(t, 8)
+      //    => PP00 PP00 ...  PP00  PP00
+      __ vpsllw(tmp, tmp, 8);
+
+      // dst = I16x8Or(dst, t)
       //    => PPpp PPpp ...  PPpp  PPpp
-      __ vpor(dst, dst, t0);
+      __ vpor(dst, dst, tmp);
       break;
     }
     case kSSEI8x16MinS: {
