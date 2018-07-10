@@ -292,22 +292,30 @@ MaybeHandle<PreParsedScopeData> ProducedPreParsedScopeData::Serialize(
     return MaybeHandle<PreParsedScopeData>();
   }
 
-  int child_data_length = static_cast<int>(data_for_inner_functions_.size());
-  Handle<PreParsedScopeData> data =
-      isolate->factory()->NewPreParsedScopeData(child_data_length);
+  Handle<PreParsedScopeData> data = isolate->factory()->NewPreParsedScopeData();
 
   Handle<PodArray<uint8_t>> scope_data_array = byte_data_->Serialize(isolate);
   data->set_scope_data(*scope_data_array);
 
-  int i = 0;
-  for (const auto& item : data_for_inner_functions_) {
-    Handle<PreParsedScopeData> child_data;
-    if (item->Serialize(isolate).ToHandle(&child_data)) {
-      data->set_child_data(i, *child_data);
-    } else {
-      DCHECK(data->child_data(i)->IsNull());
+  int child_data_length = static_cast<int>(data_for_inner_functions_.size());
+  if (child_data_length == 0) {
+    data->set_child_data(*(isolate->factory()->empty_fixed_array()));
+  } else {
+    Handle<FixedArray> child_array =
+        isolate->factory()->NewFixedArray(child_data_length, TENURED);
+    int i = 0;
+    for (const auto& item : data_for_inner_functions_) {
+      MaybeHandle<PreParsedScopeData> maybe_child_data =
+          item->Serialize(isolate);
+      if (maybe_child_data.is_null()) {
+        child_array->set(i++, *(isolate->factory()->null_value()));
+      } else {
+        Handle<PreParsedScopeData> child_data =
+            maybe_child_data.ToHandleChecked();
+        child_array->set(i++, *child_data);
+      }
     }
-    i++;
+    data->set_child_data(*child_array);
   }
 
   return data;
@@ -517,8 +525,9 @@ ConsumedPreParsedScopeData::GetDataForSkippableFunction(
   // Retrieve the corresponding PreParsedScopeData and associate it to the
   // skipped function. If the skipped functions contains inner functions, those
   // can be skipped when the skipped function is eagerly parsed.
-  CHECK_GT(data_->length(), child_index_);
-  Object* child_data = data_->child_data(child_index_++);
+  FixedArray* children = data_->child_data();
+  CHECK_GT(children->length(), child_index_);
+  Object* child_data = children->get(child_index_++);
   if (!child_data->IsPreParsedScopeData()) {
     return nullptr;
   }

@@ -48,7 +48,6 @@ class UncompiledDataWithPreParsedScope;
   V(JSWeakCollection)                 \
   V(Map)                              \
   V(Oddball)                          \
-  V(PreParsedScopeData)               \
   V(PropertyArray)                    \
   V(PropertyCell)                     \
   V(PrototypeInfo)                    \

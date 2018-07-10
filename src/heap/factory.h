@@ -724,7 +724,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<ModuleInfo> NewModuleInfo();
 
-  Handle<PreParsedScopeData> NewPreParsedScopeData(int length);
+  Handle<PreParsedScopeData> NewPreParsedScopeData();
 
   Handle<UncompiledDataWithoutPreParsedScope>
   NewUncompiledDataWithoutPreParsedScope(int32_t start_position,
