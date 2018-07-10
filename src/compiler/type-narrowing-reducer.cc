@@ -20,10 +20,7 @@ TypeNarrowingReducer::TypeNarrowingReducer(Editor* editor, JSGraph* jsgraph,
 TypeNarrowingReducer::~TypeNarrowingReducer() {}
 
 Reduction TypeNarrowingReducer::Reduce(Node* node) {
-  DisallowHeapAllocation no_heap_allocation;
-  DisallowHandleAllocation no_handle_allocation;
-  DisallowHandleDereference no_handle_dereference;
-  DisallowCodeDependencyChange no_dependency_change;
+  DisallowHeapAccess no_heap_access;
 
   Type new_type = Type::Any();
 

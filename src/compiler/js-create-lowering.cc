@@ -113,7 +113,7 @@ Reduction JSCreateLowering::Reduce(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
-  DisallowHandleDereference disallow_handle_dereference;
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreate, node->opcode());
   Node* const target = NodeProperties::GetValueInput(node, 0);
   Type const target_type = NodeProperties::GetType(target);
@@ -171,7 +171,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
-  DisallowHandleDereference disallow_handle_dereference;
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateArguments, node->opcode());
   CreateArgumentsType type = CreateArgumentsTypeOf(node->op());
   Node* const frame_state = NodeProperties::GetFrameStateInput(node);
@@ -847,7 +847,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateArrayIterator(Node* node) {
-  DisallowHandleDereference disallow_dereference;
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateArrayIterator, node->opcode());
   CreateArrayIteratorParameters const& p =
       CreateArrayIteratorParametersOf(node->op());
@@ -908,7 +908,7 @@ MapRef MapForCollectionIterationKind(const NativeContextRef& native_context,
 }  // namespace
 
 Reduction JSCreateLowering::ReduceJSCreateCollectionIterator(Node* node) {
-  DisallowHandleDereference disallow_dereference;
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateCollectionIterator, node->opcode());
   CreateCollectionIteratorParameters const& p =
       CreateCollectionIteratorParametersOf(node->op());
@@ -941,7 +941,7 @@ Reduction JSCreateLowering::ReduceJSCreateCollectionIterator(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
-  DisallowHandleDereference disallow_dereference;
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateBoundFunction, node->opcode());
   CreateBoundFunctionParameters const& p =
       CreateBoundFunctionParametersOf(node->op());
@@ -982,7 +982,7 @@ Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
-  DisallowHandleDereference disallow_dereference;
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
   SharedFunctionInfoRef shared(p.shared_info());
@@ -1229,7 +1229,7 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralObject(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
-  DisallowHandleDereference disallow_dereference;
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateLiteralRegExp, node->opcode());
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -1248,7 +1248,7 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
-  DisallowHandleDereference disallow_dereference;
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateFunctionContext, node->opcode());
   const CreateFunctionContextParameters& parameters =
       CreateFunctionContextParametersOf(node->op());
@@ -1296,7 +1296,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
-  DisallowHandleDereference disallow_dereference;
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
   ScopeInfoRef scope_info(ScopeInfoOf(node->op()));
   Node* extension = NodeProperties::GetValueInput(node, 0);
@@ -1318,7 +1318,7 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
-  DisallowHandleDereference disallow_dereference;
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateCatchContext, node->opcode());
   ScopeInfoRef scope_info(ScopeInfoOf(node->op()));
   Node* exception = NodeProperties::GetValueInput(node, 0);
@@ -1344,7 +1344,7 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
-  DisallowHandleDereference disallow_dereference;
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateBlockContext, node->opcode());
   ScopeInfoRef scope_info(ScopeInfoOf(node->op()));
   int const context_length = scope_info.ContextLength();
@@ -1378,7 +1378,7 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
-  DisallowHandleDereference disallow_dereference;
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateObject, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1396,8 +1396,8 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
   if (instance_map.is_dictionary_map()) {
     DCHECK_EQ(prototype_const.type(js_heap_broker()).oddball_type(),
               OddballType::kNull);
-    // Allocated an empty NameDictionary as backing store for the properties.
-    Handle<Map> map(ReadOnlyRoots(isolate()).name_dictionary_map(), isolate());
+    // Allocate an empty NameDictionary as backing store for the properties.
+    Handle<Map> map = isolate()->factory()->name_dictionary_map();
     int capacity =
         NameDictionary::ComputeCapacity(NameDictionary::kInitialCapacity);
     DCHECK(base::bits::IsPowerOfTwo(capacity));

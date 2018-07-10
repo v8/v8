@@ -118,6 +118,7 @@ HeapObjectType HeapObjectRef::type(const JSHeapBroker* broker) const {
 
 base::Optional<MapRef> HeapObjectRef::TryGetObjectCreateMap(
     const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   Handle<Map> instance_map;
   if (Map::TryGetObjectCreateMap(broker->isolate(), object<HeapObject>())
@@ -145,6 +146,7 @@ bool JSFunctionRef::IsConstructor() const {
 
 MapRef JSFunctionRef::DependOnInitialMap(
     const JSHeapBroker* broker, CompilationDependencies* dependencies) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   Handle<Map> initial_map =
       dependencies->DependOnInitialMap(object<JSFunction>());
@@ -153,11 +155,13 @@ MapRef JSFunctionRef::DependOnInitialMap(
 
 void MapRef::DependOnStableMap(const JSHeapBroker* broker,
                                CompilationDependencies* dependencies) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   dependencies->DependOnStableMap(object<Map>());
 }
 
 int JSFunctionRef::GetInstanceSizeWithFinishedSlackTracking() const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   object<JSFunction>()->CompleteInobjectSlackTrackingIfActive();
   return object<JSFunction>()->initial_map()->instance_size();
@@ -169,12 +173,14 @@ bool JSFunctionRef::has_initial_map() const {
 }
 
 MapRef JSFunctionRef::initial_map(const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(handle(object<JSFunction>()->initial_map(), broker->isolate()));
 }
 
 base::Optional<ScriptContextTableRef::LookupResult>
 ScriptContextTableRef::lookup(const NameRef& name) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference handle_dereference;
   if (!name.IsString()) return {};
   ScriptContextTable::LookupResult lookup_result;
@@ -206,6 +212,7 @@ OddballType ObjectRef::oddball_type(const JSHeapBroker* broker) const {
 
 ObjectRef FeedbackVectorRef::get(const JSHeapBroker* broker,
                                  FeedbackSlot slot) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference handle_dereference;
   Handle<Object> value(object<FeedbackVector>()->Get(slot)->ToObject(),
                        broker->isolate());
@@ -213,6 +220,7 @@ ObjectRef FeedbackVectorRef::get(const JSHeapBroker* broker,
 }
 
 JSObjectRef AllocationSiteRef::boilerplate(const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference handle_dereference;
   Handle<JSObject> value(object<AllocationSite>()->boilerplate(),
                          broker->isolate());
@@ -384,6 +392,7 @@ bool MapRef::is_dictionary_map() const {
 }
 
 ObjectRef MapRef::constructor_or_backpointer(const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return ObjectRef(
       handle(object<Map>()->constructor_or_backpointer(), broker->isolate()));

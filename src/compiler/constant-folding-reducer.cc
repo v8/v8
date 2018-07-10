@@ -20,10 +20,7 @@ ConstantFoldingReducer::ConstantFoldingReducer(
 ConstantFoldingReducer::~ConstantFoldingReducer() {}
 
 Reduction ConstantFoldingReducer::Reduce(Node* node) {
-  DisallowHeapAllocation no_heap_allocation;
-  DisallowHandleAllocation no_handle_allocation;
-  DisallowHandleDereference no_handle_dereference;
-  DisallowCodeDependencyChange no_dependency_change;
+  DisallowHeapAccess no_heap_access;
   // Check if the output type is a singleton.  In that case we already know the
   // result value and can simply replace the node if it's eliminable.
   if (!NodeProperties::IsConstant(node) && NodeProperties::IsTyped(node) &&

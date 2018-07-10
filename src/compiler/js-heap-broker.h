@@ -14,6 +14,13 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class DisallowHeapAccess {
+  DisallowHeapAllocation no_heap_allocation_;
+  DisallowHandleAllocation no_handle_allocation_;
+  DisallowHandleDereference no_handle_dereference_;
+  DisallowCodeDependencyChange no_dependency_change_;
+};
+
 enum class OddballType : uint8_t {
   kNone,     // Not an Oddball.
   kBoolean,  // True or False.
