@@ -358,7 +358,9 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
              RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
-             RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
+             RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+             RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+             RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
   RelocIterator orig_iter(code->instructions(), code->reloc_info(),
                           code->constant_pool(), mask);
   for (RelocIterator iter(
@@ -391,6 +393,13 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
         DCHECK(ref_iter != reference_table_lookup_.end());
         uint32_t tag = ref_iter->second;
         SetWasmCalleeTag(iter.rinfo(), tag);
+      } break;
+      case RelocInfo::INTERNAL_REFERENCE:
+      case RelocInfo::INTERNAL_REFERENCE_ENCODED: {
+        Address orig_target = orig_iter.rinfo()->target_internal_reference();
+        Address offset = orig_target - code->instruction_start();
+        Assembler::deserialization_set_target_internal_reference_at(
+            iter.rinfo()->pc(), offset, mode);
       } break;
       default:
         UNREACHABLE();
@@ -562,6 +571,8 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
              RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+             RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+             RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
              RelocInfo::ModeMask(RelocInfo::WASM_CODE_TABLE_ENTRY);
   for (RelocIterator iter(ret->instructions(), ret->reloc_info(),
                           ret->constant_pool(), mask);
@@ -594,6 +605,14 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
         Address address =
             isolate_->heap()->external_reference_table()->address(tag);
         iter.rinfo()->set_target_external_reference(address, SKIP_ICACHE_FLUSH);
+        break;
+      }
+      case RelocInfo::INTERNAL_REFERENCE:
+      case RelocInfo::INTERNAL_REFERENCE_ENCODED: {
+        Address offset = iter.rinfo()->target_internal_reference();
+        Address target = ret->instruction_start() + offset;
+        Assembler::deserialization_set_target_internal_reference_at(
+            iter.rinfo()->pc(), target, mode);
         break;
       }
       case RelocInfo::WASM_CODE_TABLE_ENTRY: {
