@@ -645,7 +645,6 @@ CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
 CAST_ACCESSOR(PropertyArray)
 CAST_ACCESSOR(PropertyCell)
-CAST_ACCESSOR(PrototypeInfo)
 CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(SimpleNumberDictionary)
@@ -2390,28 +2389,6 @@ ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
 SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
 ACCESSORS(AsyncGeneratorRequest, value, Object, kValueOffset)
 ACCESSORS(AsyncGeneratorRequest, promise, Object, kPromiseOffset)
-
-Map* PrototypeInfo::ObjectCreateMap() {
-  return Map::cast(object_create_map()->ToWeakHeapObject());
-}
-
-// static
-void PrototypeInfo::SetObjectCreateMap(Handle<PrototypeInfo> info,
-                                       Handle<Map> map) {
-  info->set_object_create_map(HeapObjectReference::Weak(*map));
-}
-
-bool PrototypeInfo::HasObjectCreateMap() {
-  MaybeObject* cache = object_create_map();
-  return cache->IsWeakHeapObject();
-}
-
-ACCESSORS(PrototypeInfo, weak_cell, Object, kWeakCellOffset)
-ACCESSORS(PrototypeInfo, prototype_users, Object, kPrototypeUsersOffset)
-WEAK_ACCESSORS(PrototypeInfo, object_create_map, kObjectCreateMapOffset)
-SMI_ACCESSORS(PrototypeInfo, registry_slot, kRegistrySlotOffset)
-SMI_ACCESSORS(PrototypeInfo, bit_field, kBitFieldOffset)
-BOOL_ACCESSORS(PrototypeInfo, bit_field, should_be_fast_map, kShouldBeFastBit)
 
 ACCESSORS(Tuple2, value1, Object, kValue1Offset)
 ACCESSORS(Tuple2, value2, Object, kValue2Offset)
