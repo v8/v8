@@ -131,7 +131,7 @@ TYPE_CHECKER(NumberDictionary, NUMBER_DICTIONARY_TYPE)
 TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(OrderedHashMap, ORDERED_HASH_MAP_TYPE)
 TYPE_CHECKER(OrderedHashSet, ORDERED_HASH_SET_TYPE)
-TYPE_CHECKER(PreParsedScopeData, TUPLE2_TYPE)
+TYPE_CHECKER(PreParsedScopeData, PRE_PARSED_SCOPE_DATA_TYPE)
 TYPE_CHECKER(PropertyArray, PROPERTY_ARRAY_TYPE)
 TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
 TYPE_CHECKER(PropertyDescriptorObject, FIXED_ARRAY_TYPE)
@@ -2366,6 +2366,10 @@ int HeapObject::SizeFromMap(Map* map) const {
   }
   if (instance_type == BIGINT_TYPE) {
     return BigInt::SizeFor(reinterpret_cast<const BigInt*>(this)->length());
+  }
+  if (instance_type == PRE_PARSED_SCOPE_DATA_TYPE) {
+    return PreParsedScopeData::SizeFor(
+        reinterpret_cast<const PreParsedScopeData*>(this)->length());
   }
   DCHECK(instance_type == CODE_TYPE);
   return reinterpret_cast<const Code*>(this)->CodeSize();

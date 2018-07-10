@@ -388,6 +388,24 @@ class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class PreParsedScopeData::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    return offset == kScopeDataOffset || offset >= kChildDataStartOffset;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointer(obj, kScopeDataOffset, v);
+    IteratePointers(obj, kChildDataStartOffset, object_size, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    return PreParsedScopeData::SizeFor(PreParsedScopeData::cast(obj)->length());
+  }
+};
+
 class PrototypeInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
@@ -761,6 +779,9 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case CODE_DATA_CONTAINER_TYPE:
       return Op::template apply<CodeDataContainer::BodyDescriptor>(p1, p2, p3,
                                                                    p4);
+    case PRE_PARSED_SCOPE_DATA_TYPE:
+      return Op::template apply<PreParsedScopeData::BodyDescriptor>(p1, p2, p3,
+                                                                    p4);
     case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
       return Op::template apply<
           UncompiledDataWithPreParsedScope::BodyDescriptor>(p1, p2, p3, p4);

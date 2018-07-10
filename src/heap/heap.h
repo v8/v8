@@ -129,6 +129,7 @@ using v8::MemoryPressureLevel;
   V(OptimizedOut)                           \
   V(OrderedHashMapMap)                      \
   V(OrderedHashSetMap)                      \
+  V(PreParsedScopeDataMap)                  \
   V(PropertyArrayMap)                       \
   V(ScopeInfoMap)                           \
   V(ScriptContextMap)                       \

@@ -265,6 +265,9 @@ void HeapObject::HeapObjectPrint(Isolate* isolate,
     case CALL_HANDLER_INFO_TYPE:
       CallHandlerInfo::cast(this)->CallHandlerInfoPrint(os);
       break;
+    case PRE_PARSED_SCOPE_DATA_TYPE:
+      PreParsedScopeData::cast(this)->PreParsedScopeDataPrint(os);
+      break;
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
       UncompiledDataWithoutPreParsedScope::cast(this)
           ->UncompiledDataWithoutPreParsedScopePrint(os);
@@ -2127,7 +2130,10 @@ void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
 void PreParsedScopeData::PreParsedScopeDataPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PreParsedScopeData");
   os << "\n - scope_data: " << Brief(scope_data());
-  os << "\n - child_data: " << Brief(child_data());
+  os << "\n - length: " << length();
+  for (int i = 0; i < length(); ++i) {
+    os << "\n - [" << i << "]: " << Brief(child_data(i));
+  }
   os << "\n";
 }
 

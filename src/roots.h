@@ -89,6 +89,7 @@ namespace internal {
   V(Map, one_closure_cell_map, OneClosureCellMap)                              \
   V(Map, ordered_hash_map_map, OrderedHashMapMap)                              \
   V(Map, ordered_hash_set_map, OrderedHashSetMap)                              \
+  V(Map, pre_parsed_scope_data_map, PreParsedScopeDataMap)                     \
   V(Map, property_array_map, PropertyArrayMap)                                 \
   V(Map, side_effect_call_handler_info_map, SideEffectCallHandlerInfoMap)      \
   V(Map, side_effect_free_call_handler_info_map,                               \

@@ -44,6 +44,7 @@ namespace internal {
   V(Map)                              \
   V(NativeContext)                    \
   V(Oddball)                          \
+  V(PreParsedScopeData)               \
   V(PropertyArray)                    \
   V(PropertyCell)                     \
   V(PrototypeInfo)                    \

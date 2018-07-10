@@ -170,10 +170,10 @@
 //         - PromiseResolveThenableJobTask
 //       - Module
 //       - ModuleInfoEntry
-//       - PreParsedScopeData
 //     - WeakCell
 //     - FeedbackCell
 //     - FeedbackVector
+//     - PreParsedScopeData
 //     - UncompiledData
 //       - UncompiledDataWithoutPreParsedScope
 //       - UncompiledDataWithPreParsedScope
@@ -523,6 +523,7 @@ enum InstanceType : uint16_t {
   FEEDBACK_CELL_TYPE,
   FEEDBACK_VECTOR_TYPE,
   LOAD_HANDLER_TYPE,
+  PRE_PARSED_SCOPE_DATA_TYPE,
   PROPERTY_ARRAY_TYPE,
   PROPERTY_CELL_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
@@ -706,6 +707,7 @@ class ModuleInfoEntry;
 class ObjectHashTable;
 class ObjectTemplateInfo;
 class ObjectVisitor;
+class PreParsedScopeData;
 class PropertyCell;
 class PropertyDescriptor;
 class RootVisitor;

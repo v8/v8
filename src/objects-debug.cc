@@ -321,6 +321,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case FOREIGN_TYPE:
       Foreign::cast(this)->ForeignVerify(isolate);
       break;
+    case PRE_PARSED_SCOPE_DATA_TYPE:
+      PreParsedScopeData::cast(this)->PreParsedScopeDataVerify(isolate);
+      break;
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
       UncompiledDataWithoutPreParsedScope::cast(this)
           ->UncompiledDataWithoutPreParsedScopeVerify(isolate);
@@ -1789,7 +1792,13 @@ void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
 void PreParsedScopeData::PreParsedScopeDataVerify(Isolate* isolate) {
   CHECK(IsPreParsedScopeData());
   CHECK(scope_data()->IsByteArray());
-  CHECK(child_data()->IsFixedArray());
+  CHECK_GE(length(), 0);
+
+  for (int i = 0; i < length(); ++i) {
+    Object* child = child_data(i);
+    CHECK(child->IsPreParsedScopeData() || child->IsNull());
+    VerifyPointer(child);
+  }
 }
 
 void UncompiledDataWithPreParsedScope::UncompiledDataWithPreParsedScopeVerify(

@@ -498,6 +498,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
                  next_call_side_effect_free_call_handler_info)
 
+    ALLOCATE_VARSIZE_MAP(PRE_PARSED_SCOPE_DATA_TYPE, pre_parsed_scope_data)
     ALLOCATE_MAP(UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE,
                  UncompiledDataWithoutPreParsedScope::kSize,
                  uncompiled_data_without_pre_parsed_scope)

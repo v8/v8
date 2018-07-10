@@ -2498,11 +2498,17 @@ Handle<ModuleInfo> Factory::NewModuleInfo() {
                                           ModuleInfo::kLength, TENURED);
 }
 
-Handle<PreParsedScopeData> Factory::NewPreParsedScopeData() {
-  Handle<PreParsedScopeData> result =
-      Handle<PreParsedScopeData>::cast(NewStruct(TUPLE2_TYPE, TENURED));
+Handle<PreParsedScopeData> Factory::NewPreParsedScopeData(int length) {
+  int size = PreParsedScopeData::SizeFor(length);
+  Handle<PreParsedScopeData> result(
+      PreParsedScopeData::cast(AllocateRawWithImmortalMap(
+          size, TENURED, *pre_parsed_scope_data_map())),
+      isolate());
   result->set_scope_data(PodArray<uint8_t>::cast(*empty_byte_array()));
-  result->set_child_data(*empty_fixed_array());
+  result->set_length(length);
+  MemsetPointer(result->child_data_start(), *null_value(), length);
+
+  result->clear_padding();
   return result;
 }
 

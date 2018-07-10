@@ -20,7 +20,37 @@ namespace internal {
 
 CAST_ACCESSOR(PreParsedScopeData)
 ACCESSORS(PreParsedScopeData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
-ACCESSORS(PreParsedScopeData, child_data, FixedArray, kChildDataOffset)
+INT_ACCESSORS(PreParsedScopeData, length, kLengthOffset)
+
+Object* PreParsedScopeData::child_data(int index) const {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
+  int offset = kChildDataStartOffset + index * kPointerSize;
+  return RELAXED_READ_FIELD(this, offset);
+}
+
+void PreParsedScopeData::set_child_data(int index, Object* value,
+                                        WriteBarrierMode mode) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
+  int offset = kChildDataStartOffset + index * kPointerSize;
+  RELAXED_WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this, offset,
+                            value, mode);
+}
+
+Object** PreParsedScopeData::child_data_start() const {
+  return HeapObject::RawField(this, kChildDataStartOffset);
+}
+
+void PreParsedScopeData::clear_padding() {
+  // For archs where kIntSize < kPointerSize, there will be padding between the
+  // length field and the start of the child data.
+  if (kUnalignedChildDataStartOffset < kChildDataStartOffset) {
+    memset(reinterpret_cast<void*>(address() + kUnalignedChildDataStartOffset),
+           0, kChildDataStartOffset - kUnalignedChildDataStartOffset);
+  }
+}
 
 CAST_ACCESSOR(UncompiledData)
 INT32_ACCESSORS(UncompiledData, start_position, kStartPositionOffset)

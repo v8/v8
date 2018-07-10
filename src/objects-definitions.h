@@ -157,6 +157,7 @@ namespace internal {
   V(FEEDBACK_CELL_TYPE)                                         \
   V(FEEDBACK_VECTOR_TYPE)                                       \
   V(LOAD_HANDLER_TYPE)                                          \
+  V(PRE_PARSED_SCOPE_DATA_TYPE)                                 \
   V(PROPERTY_ARRAY_TYPE)                                        \
   V(PROPERTY_CELL_TYPE)                                         \
   V(SHARED_FUNCTION_INFO_TYPE)                                  \
