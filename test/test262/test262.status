@@ -820,7 +820,7 @@
 
 ['system == windows', {
   # https://crbug.com/856119
-  'intl402/DateTimeFormat/prototype/resolvedOptions/basic': [FAIL],
+  'intl402/DateTimeFormat/prototype/resolvedOptions/basic': [SKIP],
 }],  # system == windows
 
 ]
