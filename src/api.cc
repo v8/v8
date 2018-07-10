@@ -6827,10 +6827,10 @@ bool v8::String::CanMakeExternal() {
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   if (obj->IsExternalString()) return false;
 
-  // Old space strings should be externalized.
-  i::Heap* heap = obj->GetIsolate()->heap();
-  return !heap->new_space()->Contains(*obj) &&
-         !heap->read_only_space()->Contains(*obj);
+  // Only old space strings should be externalized.
+  i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(*obj);
+  i::AllocationSpace space = chunk->owner()->identity();
+  return space != i::NEW_SPACE && space != i::RO_SPACE;
 }
 
 

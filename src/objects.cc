@@ -2584,8 +2584,11 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   int size = this->Size();  // Byte size of the original string.
   // Abort if size does not allow in-place conversion.
   if (size < ExternalString::kShortSize) return false;
-  Heap* heap = GetHeap();
-  if (heap->read_only_space()->Contains(this)) return false;
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(this);
+  // Read-only strings cannot be made external, since that would mutate the
+  // string.
+  if (chunk->owner()->identity() == RO_SPACE) return false;
+  Heap* heap = chunk->heap();
   bool is_one_byte = this->IsOneByteRepresentation();
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(this).IsIndirect();
@@ -2666,8 +2669,11 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   int size = this->Size();  // Byte size of the original string.
   // Abort if size does not allow in-place conversion.
   if (size < ExternalString::kShortSize) return false;
-  Heap* heap = GetHeap();
-  if (heap->read_only_space()->Contains(this)) return false;
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(this);
+  // Read-only strings cannot be made external, since that would mutate the
+  // string.
+  if (chunk->owner()->identity() == RO_SPACE) return false;
+  Heap* heap = chunk->heap();
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(this).IsIndirect();
 
@@ -3286,17 +3292,6 @@ bool JSObject::IsUnmodifiedApiObject(Object** o) {
 }
 
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
-  Heap* heap = GetHeap();
-  ReadOnlyRoots roots(heap);
-  if (!heap->Contains(this)) {
-    os << "!!!INVALID POINTER!!!";
-    return;
-  }
-  if (!heap->Contains(map())) {
-    os << "!!!INVALID MAP!!!";
-    return;
-  }
-
   os << AsHex(reinterpret_cast<Address>(this), kPointerHexDigits, true) << " ";
 
   if (IsString()) {
@@ -3409,17 +3404,20 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << "<PropertyArray[" << PropertyArray::cast(this)->length() << "]>";
       break;
     case FEEDBACK_CELL_TYPE: {
-      os << "<FeedbackCell[";
-      if (map() == roots.no_closures_cell_map()) {
-        os << "no closures";
-      } else if (map() == roots.one_closure_cell_map()) {
-        os << "one closure";
-      } else if (map() == roots.many_closures_cell_map()) {
-        os << "many closures";
-      } else {
-        os << "!!!INVALID MAP!!!";
+      {
+        ReadOnlyRoots roots = GetReadOnlyRoots();
+        os << "<FeedbackCell[";
+        if (map() == roots.no_closures_cell_map()) {
+          os << "no closures";
+        } else if (map() == roots.one_closure_cell_map()) {
+          os << "one closure";
+        } else if (map() == roots.many_closures_cell_map()) {
+          os << "many closures";
+        } else {
+          os << "!!!INVALID MAP!!!";
+        }
+        os << "]>";
       }
-      os << "]>";
       break;
     }
     case FEEDBACK_VECTOR_TYPE:
