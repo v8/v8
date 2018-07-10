@@ -4404,8 +4404,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return function_index;
   }
 
-  void BuildJSToWasmWrapper(Address jump_table_start, bool is_import,
-                            uint32_t num_imported_functions) {
+  void BuildJSToWasmWrapper(bool is_import) {
     const int wasm_count = static_cast<int>(sig_->parameter_count());
 
     // Build the start and the JS parameter nodes.
@@ -4466,13 +4465,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     } else {
       // Call to a wasm function defined in this module.
       // The call target is the jump table slot for that function. This is
-      // {jump_table + (func_index - num_imports) * kJumpTableSlotSize}.
-      // Compute as
-      //   jump_table_adjusted (static) := jump_table - num_imports * kJTSS.
-      //   call_target := jump_table_adjusted + func_index * kJTSS.
-      Node* jump_table_adjusted = mcgraph()->IntPtrConstant(
-          jump_table_start - num_imported_functions *
-                                 wasm::JumpTableAssembler::kJumpTableSlotSize);
+      // {jump_table + (func_index - num_imports) * kJumpTableSlotSize}
+      // == {jump_table_adjusted + func_index * kJumpTableSlotSize}.
+      Node* jump_table_adjusted =
+          LOAD_INSTANCE_FIELD(JumpTableAdjustedStart, MachineType::Pointer());
       Node* jump_table_offset = graph()->NewNode(
           mcgraph()->machine()->IntMul(), Uint32ToUintptr(function_index),
           mcgraph()->IntPtrConstant(
@@ -4828,8 +4824,7 @@ MaybeHandle<Code> CompileJSToWasmWrapper(
                                   StubCallMode::kCallOnHeapBuiltin);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.BuildJSToWasmWrapper(native_module->jump_table_start(), is_import,
-                               module->num_imported_functions);
+  builder.BuildJSToWasmWrapper(is_import);
 
   //----------------------------------------------------------------------------
   // Run the compilation pipeline.

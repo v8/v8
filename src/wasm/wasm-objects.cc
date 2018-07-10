@@ -13,6 +13,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -1263,6 +1264,10 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_module_object(*module_object);
   instance->set_undefined_value(ReadOnlyRoots(isolate).undefined_value());
   instance->set_null_value(ReadOnlyRoots(isolate).null_value());
+  instance->set_jump_table_adjusted_start(
+      module_object->native_module()->jump_table_start() -
+      wasm::JumpTableAssembler::kJumpTableSlotSize *
+          module->num_imported_functions);
 
   // Insert the new instance into the modules weak list of instances.
   // TODO(mstarzinger): Allow to reuse holes in the {WeakArrayList} below.

@@ -156,6 +156,8 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_sig_ids,
                     uint32_t*, kIndirectFunctionTableSigIdsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_targets,
                     Address*, kIndirectFunctionTableTargetsOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, jump_table_adjusted_start, Address,
+                    kJumpTableAdjustedStartOffset)
 
 ACCESSORS(WasmInstanceObject, module_object, WasmModuleObject,
           kModuleObjectOffset)
