@@ -1000,9 +1000,7 @@ class Isolate : private HiddenFactory {
   HeapProfiler* heap_profiler() const { return heap_profiler_; }
 
 #ifdef DEBUG
-  static size_t non_disposed_isolates() {
-    return non_disposed_isolates_.Value();
-  }
+  static size_t non_disposed_isolates() { return non_disposed_isolates_; }
 #endif
 
   v8::internal::Factory* factory() {
@@ -1643,7 +1641,7 @@ class Isolate : private HiddenFactory {
   double time_millis_at_init_;
 
 #ifdef DEBUG
-  static base::AtomicNumber<size_t> non_disposed_isolates_;
+  static std::atomic<size_t> non_disposed_isolates_;
 
   JSObject::SpillInformation js_spill_information_;
 #endif

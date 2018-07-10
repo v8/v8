@@ -2392,12 +2392,11 @@ class VerboseAccountingAllocator : public AccountingAllocator {
       size_t malloced_current = GetCurrentMemoryUsage();
       size_t pooled_current = GetCurrentPoolSize();
 
-      if (last_memory_usage_.Value() + allocation_sample_bytes_ <
-              malloced_current ||
-          last_pool_size_.Value() + pool_sample_bytes_ < pooled_current) {
+      if (last_memory_usage_ + allocation_sample_bytes_ < malloced_current ||
+          last_pool_size_ + pool_sample_bytes_ < pooled_current) {
         PrintMemoryJSON(malloced_current, pooled_current);
-        last_memory_usage_.SetValue(malloced_current);
-        last_pool_size_.SetValue(pooled_current);
+        last_memory_usage_ = malloced_current;
+        last_pool_size_ = pooled_current;
       }
     }
     return memory;
@@ -2408,22 +2407,21 @@ class VerboseAccountingAllocator : public AccountingAllocator {
     size_t malloced_current = GetCurrentMemoryUsage();
     size_t pooled_current = GetCurrentPoolSize();
 
-    if (malloced_current + allocation_sample_bytes_ <
-            last_memory_usage_.Value() ||
-        pooled_current + pool_sample_bytes_ < last_pool_size_.Value()) {
+    if (malloced_current + allocation_sample_bytes_ < last_memory_usage_ ||
+        pooled_current + pool_sample_bytes_ < last_pool_size_) {
       PrintMemoryJSON(malloced_current, pooled_current);
-      last_memory_usage_.SetValue(malloced_current);
-      last_pool_size_.SetValue(pooled_current);
+      last_memory_usage_ = malloced_current;
+      last_pool_size_ = pooled_current;
     }
   }
 
   void ZoneCreation(const Zone* zone) override {
     PrintZoneModificationSample(zone, "zonecreation");
-    nesting_deepth_.Increment(1);
+    nesting_deepth_++;
   }
 
   void ZoneDestruction(const Zone* zone) override {
-    nesting_deepth_.Decrement(1);
+    nesting_deepth_--;
     PrintZoneModificationSample(zone, "zonedestruction");
   }
 
@@ -2442,7 +2440,7 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         type, reinterpret_cast<void*>(heap_->isolate()),
         heap_->isolate()->time_millis_since_init(),
         reinterpret_cast<const void*>(zone), zone->name(),
-        zone->allocation_size(), nesting_deepth_.Value());
+        zone->allocation_size(), nesting_deepth_.load());
   }
 
   void PrintMemoryJSON(size_t malloced, size_t pooled) {
@@ -2461,14 +2459,14 @@ class VerboseAccountingAllocator : public AccountingAllocator {
   }
 
   Heap* heap_;
-  base::AtomicNumber<size_t> last_memory_usage_;
-  base::AtomicNumber<size_t> last_pool_size_;
-  base::AtomicNumber<size_t> nesting_deepth_;
+  std::atomic<size_t> last_memory_usage_;
+  std::atomic<size_t> last_pool_size_;
+  std::atomic<size_t> nesting_deepth_;
   size_t allocation_sample_bytes_, pool_sample_bytes_;
 };
 
 #ifdef DEBUG
-base::AtomicNumber<size_t> Isolate::non_disposed_isolates_;
+std::atomic<size_t> Isolate::non_disposed_isolates_;
 #endif  // DEBUG
 
 Isolate::Isolate()
@@ -2557,7 +2555,7 @@ Isolate::Isolate()
   thread_manager_->isolate_ = this;
 
 #ifdef DEBUG
-  non_disposed_isolates_.Increment(1);
+  non_disposed_isolates_++;
 #endif  // DEBUG
 
   handle_scope_data_.Initialize();
@@ -2619,7 +2617,7 @@ void Isolate::TearDown() {
   }
 
 #ifdef DEBUG
-  non_disposed_isolates_.Decrement(1);
+  non_disposed_isolates_--;
 #endif  // DEBUG
 
   delete this;
