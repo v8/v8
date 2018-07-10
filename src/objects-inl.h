@@ -3404,6 +3404,11 @@ bool ScopeInfo::HasSimpleParameters() const {
 FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
 #undef FIELD_ACCESSORS
 
+FreshlyAllocatedBigInt* FreshlyAllocatedBigInt::cast(Object* object) {
+  SLOW_DCHECK(object->IsBigInt());
+  return reinterpret_cast<FreshlyAllocatedBigInt*>(object);
+}
+
 }  // namespace internal
 }  // namespace v8
 

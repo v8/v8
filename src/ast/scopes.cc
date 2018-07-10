@@ -17,6 +17,7 @@
 #include "src/objects/scope-info.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/preparsed-scope-data.h"
+#include "src/zone/zone-list-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -187,6 +188,13 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
       params_(4, zone) {
   DCHECK_NE(scope_type, SCRIPT_SCOPE);
   SetDefaults();
+}
+
+bool DeclarationScope::IsDeclaredParameter(const AstRawString* name) {
+  // If IsSimpleParameterList is false, duplicate parameters are not allowed,
+  // however `arguments` may be allowed if function is not strict code. Thus,
+  // the assumptions explained above do not hold.
+  return params_.Contains(variables_.Lookup(name));
 }
 
 ModuleScope::ModuleScope(DeclarationScope* script_scope,

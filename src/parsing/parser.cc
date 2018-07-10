@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <memory>
 
-#include "src/api.h"
 #include "src/ast/ast-function-literal-id-reindexer.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/ast.h"
@@ -15,9 +14,10 @@
 #include "src/base/platform/platform.h"
 #include "src/char-predicates-inl.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
+#include "src/conversions-inl.h"
 #include "src/log.h"
 #include "src/messages.h"
-#include "src/objects-inl.h"
+#include "src/objects/scope-info.h"
 #include "src/parsing/duplicate-finder.h"
 #include "src/parsing/expression-scope-reparenter.h"
 #include "src/parsing/parse-info.h"

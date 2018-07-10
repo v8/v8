@@ -11,9 +11,11 @@
 #include "src/detachable-vector.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
+#include "src/objects/bigint.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/module.h"
+#include "src/objects/templates.h"
 
 namespace v8 {
 

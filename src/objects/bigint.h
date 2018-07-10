@@ -85,10 +85,7 @@ class FreshlyAllocatedBigInt : public BigIntBase {
   //   (and no explicit operator is provided either).
 
  public:
-  inline static FreshlyAllocatedBigInt* cast(Object* object) {
-    SLOW_DCHECK(object->IsBigInt());
-    return reinterpret_cast<FreshlyAllocatedBigInt*>(object);
-  }
+  inline static FreshlyAllocatedBigInt* cast(Object* object);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreshlyAllocatedBigInt);

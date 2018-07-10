@@ -256,29 +256,12 @@ class ModuleInfo : public FixedArray {
   static Handle<ModuleInfo> New(Isolate* isolate, Zone* zone,
                                 ModuleDescriptor* descr);
 
-  inline FixedArray* module_requests() const {
-    return FixedArray::cast(get(kModuleRequestsIndex));
-  }
-
-  inline FixedArray* special_exports() const {
-    return FixedArray::cast(get(kSpecialExportsIndex));
-  }
-
-  inline FixedArray* regular_exports() const {
-    return FixedArray::cast(get(kRegularExportsIndex));
-  }
-
-  inline FixedArray* regular_imports() const {
-    return FixedArray::cast(get(kRegularImportsIndex));
-  }
-
-  inline FixedArray* namespace_imports() const {
-    return FixedArray::cast(get(kNamespaceImportsIndex));
-  }
-
-  inline FixedArray* module_request_positions() const {
-    return FixedArray::cast(get(kModuleRequestPositionsIndex));
-  }
+  inline FixedArray* module_requests() const;
+  inline FixedArray* special_exports() const;
+  inline FixedArray* regular_exports() const;
+  inline FixedArray* regular_imports() const;
+  inline FixedArray* namespace_imports() const;
+  inline FixedArray* module_request_positions() const;
 
   // Accessors for [regular_exports].
   int RegularExportCount() const;
@@ -287,14 +270,7 @@ class ModuleInfo : public FixedArray {
   FixedArray* RegularExportExportNames(int i) const;
 
 #ifdef DEBUG
-  inline bool Equals(ModuleInfo* other) const {
-    return regular_exports() == other->regular_exports() &&
-           regular_imports() == other->regular_imports() &&
-           special_exports() == other->special_exports() &&
-           namespace_imports() == other->namespace_imports() &&
-           module_requests() == other->module_requests() &&
-           module_request_positions() == other->module_request_positions();
-  }
+  inline bool Equals(ModuleInfo* other) const;
 #endif
 
  private:
