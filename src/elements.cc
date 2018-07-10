@@ -2280,9 +2280,6 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     Handle<BackingStore> dst_elms = Handle<BackingStore>::cast(backing_store);
     if (len > JSArray::kMaxCopyElements && dst_index == 0 &&
         heap->CanMoveObjectStart(*dst_elms)) {
-      // Remove all the pointers to the FixedArrayBase we're going to left trim
-      // from the heap.
-      receiver->set_elements(ReadOnlyRoots(heap).empty_fixed_array());
       // Update all the copies of this backing_store handle.
       *dst_elms.location() =
           BackingStore::cast(heap->LeftTrimFixedArray(*dst_elms, src_index));
