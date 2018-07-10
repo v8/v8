@@ -243,6 +243,7 @@
   # platforms, since this would require bit swapping as a part of atomic
   # operations.
   'test-run-wasm-atomics/*': [SKIP],
+  'test-run-wasm-atomics64/*': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################

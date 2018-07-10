@@ -1454,14 +1454,14 @@ class ThreadImpl {
     return true;
   }
 
-  template <typename type>
+  template <typename type, typename op_type>
   bool ExtractAtomicOpParams(Decoder* decoder, InterpreterCode* code,
                              Address& address, pc_t pc, int& len,
                              type* val = nullptr, type* val2 = nullptr) {
     MemoryAccessImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc + 1),
                                                     sizeof(type));
-    if (val2) *val2 = Pop().to<uint32_t>();
-    if (val) *val = Pop().to<uint32_t>();
+    if (val2) *val2 = static_cast<type>(Pop().to<op_type>());
+    if (val) *val = static_cast<type>(Pop().to<op_type>());
     uint32_t index = Pop().to<uint32_t>();
     address = BoundsCheckMem<type>(imm.offset, index);
     if (!address) {
@@ -1511,84 +1511,133 @@ class ThreadImpl {
                        InterpreterCode* code, pc_t pc, int& len) {
     WasmValue result;
     switch (opcode) {
-#define ATOMIC_BINOP_CASE(name, type, operation)                            \
+// Disabling on Mips as 32 bit atomics are not correctly laid out for load/store
+// on big endian and 64 bit atomics fail to compile.
+#if !(V8_TARGET_ARCH_MIPS && V8_TARGET_BIG_ENDIAN)
+#define ATOMIC_BINOP_CASE(name, type, op_type, operation)                   \
   case kExpr##name: {                                                       \
     type val;                                                               \
     Address addr;                                                           \
-    if (!ExtractAtomicOpParams<type>(decoder, code, addr, pc, len, &val)) { \
+    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, addr, pc, len, \
+                                              &val)) {                      \
       return false;                                                         \
     }                                                                       \
     static_assert(sizeof(std::atomic<type>) == sizeof(type),                \
                   "Size mismatch for types std::atomic<" #type              \
                   ">, and " #type);                                         \
-    result = WasmValue(                                                     \
-        std::operation(reinterpret_cast<std::atomic<type>*>(addr), val));   \
+    result = WasmValue(static_cast<op_type>(                                \
+        std::operation(reinterpret_cast<std::atomic<type>*>(addr), val)));  \
     Push(result);                                                           \
     break;                                                                  \
   }
-      ATOMIC_BINOP_CASE(I32AtomicAdd, uint32_t, atomic_fetch_add);
-      ATOMIC_BINOP_CASE(I32AtomicAdd8U, uint8_t, atomic_fetch_add);
-      ATOMIC_BINOP_CASE(I32AtomicAdd16U, uint16_t, atomic_fetch_add);
-      ATOMIC_BINOP_CASE(I32AtomicSub, uint32_t, atomic_fetch_sub);
-      ATOMIC_BINOP_CASE(I32AtomicSub8U, uint8_t, atomic_fetch_sub);
-      ATOMIC_BINOP_CASE(I32AtomicSub16U, uint16_t, atomic_fetch_sub);
-      ATOMIC_BINOP_CASE(I32AtomicAnd, uint32_t, atomic_fetch_and);
-      ATOMIC_BINOP_CASE(I32AtomicAnd8U, uint8_t, atomic_fetch_and);
-      ATOMIC_BINOP_CASE(I32AtomicAnd16U, uint16_t, atomic_fetch_and);
-      ATOMIC_BINOP_CASE(I32AtomicOr, uint32_t, atomic_fetch_or);
-      ATOMIC_BINOP_CASE(I32AtomicOr8U, uint8_t, atomic_fetch_or);
-      ATOMIC_BINOP_CASE(I32AtomicOr16U, uint16_t, atomic_fetch_or);
-      ATOMIC_BINOP_CASE(I32AtomicXor, uint32_t, atomic_fetch_xor);
-      ATOMIC_BINOP_CASE(I32AtomicXor8U, uint8_t, atomic_fetch_xor);
-      ATOMIC_BINOP_CASE(I32AtomicXor16U, uint16_t, atomic_fetch_xor);
-      ATOMIC_BINOP_CASE(I32AtomicExchange, uint32_t, atomic_exchange);
-      ATOMIC_BINOP_CASE(I32AtomicExchange8U, uint8_t, atomic_exchange);
-      ATOMIC_BINOP_CASE(I32AtomicExchange16U, uint16_t, atomic_exchange);
+      ATOMIC_BINOP_CASE(I32AtomicAdd, uint32_t, uint32_t, atomic_fetch_add);
+      ATOMIC_BINOP_CASE(I32AtomicAdd8U, uint8_t, uint32_t, atomic_fetch_add);
+      ATOMIC_BINOP_CASE(I32AtomicAdd16U, uint16_t, uint32_t, atomic_fetch_add);
+      ATOMIC_BINOP_CASE(I32AtomicSub, uint32_t, uint32_t, atomic_fetch_sub);
+      ATOMIC_BINOP_CASE(I32AtomicSub8U, uint8_t, uint32_t, atomic_fetch_sub);
+      ATOMIC_BINOP_CASE(I32AtomicSub16U, uint16_t, uint32_t, atomic_fetch_sub);
+      ATOMIC_BINOP_CASE(I32AtomicAnd, uint32_t, uint32_t, atomic_fetch_and);
+      ATOMIC_BINOP_CASE(I32AtomicAnd8U, uint8_t, uint32_t, atomic_fetch_and);
+      ATOMIC_BINOP_CASE(I32AtomicAnd16U, uint16_t, uint32_t, atomic_fetch_and);
+      ATOMIC_BINOP_CASE(I32AtomicOr, uint32_t, uint32_t, atomic_fetch_or);
+      ATOMIC_BINOP_CASE(I32AtomicOr8U, uint8_t, uint32_t, atomic_fetch_or);
+      ATOMIC_BINOP_CASE(I32AtomicOr16U, uint16_t, uint32_t, atomic_fetch_or);
+      ATOMIC_BINOP_CASE(I32AtomicXor, uint32_t, uint32_t, atomic_fetch_xor);
+      ATOMIC_BINOP_CASE(I32AtomicXor8U, uint8_t, uint32_t, atomic_fetch_xor);
+      ATOMIC_BINOP_CASE(I32AtomicXor16U, uint16_t, uint32_t, atomic_fetch_xor);
+      ATOMIC_BINOP_CASE(I32AtomicExchange, uint32_t, uint32_t, atomic_exchange);
+      ATOMIC_BINOP_CASE(I32AtomicExchange8U, uint8_t, uint32_t,
+                        atomic_exchange);
+      ATOMIC_BINOP_CASE(I32AtomicExchange16U, uint16_t, uint32_t,
+                        atomic_exchange);
+      ATOMIC_BINOP_CASE(I64AtomicAdd, uint64_t, uint64_t, atomic_fetch_add);
+      ATOMIC_BINOP_CASE(I64AtomicAdd8U, uint8_t, uint64_t, atomic_fetch_add);
+      ATOMIC_BINOP_CASE(I64AtomicAdd16U, uint16_t, uint64_t, atomic_fetch_add);
+      ATOMIC_BINOP_CASE(I64AtomicAdd32U, uint32_t, uint64_t, atomic_fetch_add);
+      ATOMIC_BINOP_CASE(I64AtomicSub, uint64_t, uint64_t, atomic_fetch_sub);
+      ATOMIC_BINOP_CASE(I64AtomicSub8U, uint8_t, uint64_t, atomic_fetch_sub);
+      ATOMIC_BINOP_CASE(I64AtomicSub16U, uint16_t, uint64_t, atomic_fetch_sub);
+      ATOMIC_BINOP_CASE(I64AtomicSub32U, uint32_t, uint64_t, atomic_fetch_sub);
+      ATOMIC_BINOP_CASE(I64AtomicAnd, uint64_t, uint64_t, atomic_fetch_and);
+      ATOMIC_BINOP_CASE(I64AtomicAnd8U, uint8_t, uint64_t, atomic_fetch_and);
+      ATOMIC_BINOP_CASE(I64AtomicAnd16U, uint16_t, uint64_t, atomic_fetch_and);
+      ATOMIC_BINOP_CASE(I64AtomicAnd32U, uint32_t, uint64_t, atomic_fetch_and);
+      ATOMIC_BINOP_CASE(I64AtomicOr, uint64_t, uint64_t, atomic_fetch_or);
+      ATOMIC_BINOP_CASE(I64AtomicOr8U, uint8_t, uint64_t, atomic_fetch_or);
+      ATOMIC_BINOP_CASE(I64AtomicOr16U, uint16_t, uint64_t, atomic_fetch_or);
+      ATOMIC_BINOP_CASE(I64AtomicOr32U, uint32_t, uint64_t, atomic_fetch_or);
+      ATOMIC_BINOP_CASE(I64AtomicXor, uint64_t, uint64_t, atomic_fetch_xor);
+      ATOMIC_BINOP_CASE(I64AtomicXor8U, uint8_t, uint64_t, atomic_fetch_xor);
+      ATOMIC_BINOP_CASE(I64AtomicXor16U, uint16_t, uint64_t, atomic_fetch_xor);
+      ATOMIC_BINOP_CASE(I64AtomicXor32U, uint32_t, uint64_t, atomic_fetch_xor);
+      ATOMIC_BINOP_CASE(I64AtomicExchange, uint64_t, uint64_t, atomic_exchange);
+      ATOMIC_BINOP_CASE(I64AtomicExchange8U, uint8_t, uint64_t,
+                        atomic_exchange);
+      ATOMIC_BINOP_CASE(I64AtomicExchange16U, uint16_t, uint64_t,
+                        atomic_exchange);
+      ATOMIC_BINOP_CASE(I64AtomicExchange32U, uint32_t, uint64_t,
+                        atomic_exchange);
 #undef ATOMIC_BINOP_CASE
-#define ATOMIC_COMPARE_EXCHANGE_CASE(name, type)                         \
-  case kExpr##name: {                                                    \
-    type val;                                                            \
-    type val2;                                                           \
-    Address addr;                                                        \
-    if (!ExtractAtomicOpParams<type>(decoder, code, addr, pc, len, &val, \
-                                     &val2)) {                           \
-      return false;                                                      \
-    }                                                                    \
-    static_assert(sizeof(std::atomic<type>) == sizeof(type),             \
-                  "Size mismatch for types std::atomic<" #type           \
-                  ">, and " #type);                                      \
-    std::atomic_compare_exchange_strong(                                 \
-        reinterpret_cast<std::atomic<type>*>(addr), &val, val2);         \
-    Push(WasmValue(val));                                                \
-    break;                                                               \
+#define ATOMIC_COMPARE_EXCHANGE_CASE(name, type, op_type)                   \
+  case kExpr##name: {                                                       \
+    type val;                                                               \
+    type val2;                                                              \
+    Address addr;                                                           \
+    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, addr, pc, len, \
+                                              &val, &val2)) {               \
+      return false;                                                         \
+    }                                                                       \
+    static_assert(sizeof(std::atomic<type>) == sizeof(type),                \
+                  "Size mismatch for types std::atomic<" #type              \
+                  ">, and " #type);                                         \
+    std::atomic_compare_exchange_strong(                                    \
+        reinterpret_cast<std::atomic<type>*>(addr), &val, val2);            \
+    Push(WasmValue(static_cast<op_type>(val)));                             \
+    break;                                                                  \
   }
-      ATOMIC_COMPARE_EXCHANGE_CASE(I32AtomicCompareExchange, uint32_t);
-      ATOMIC_COMPARE_EXCHANGE_CASE(I32AtomicCompareExchange8U, uint8_t);
-      ATOMIC_COMPARE_EXCHANGE_CASE(I32AtomicCompareExchange16U, uint16_t);
+      ATOMIC_COMPARE_EXCHANGE_CASE(I32AtomicCompareExchange, uint32_t,
+                                   uint32_t);
+      ATOMIC_COMPARE_EXCHANGE_CASE(I32AtomicCompareExchange8U, uint8_t,
+                                   uint32_t);
+      ATOMIC_COMPARE_EXCHANGE_CASE(I32AtomicCompareExchange16U, uint16_t,
+                                   uint32_t);
+      ATOMIC_COMPARE_EXCHANGE_CASE(I64AtomicCompareExchange, uint64_t,
+                                   uint64_t);
+      ATOMIC_COMPARE_EXCHANGE_CASE(I64AtomicCompareExchange8U, uint8_t,
+                                   uint64_t);
+      ATOMIC_COMPARE_EXCHANGE_CASE(I64AtomicCompareExchange16U, uint16_t,
+                                   uint64_t);
+      ATOMIC_COMPARE_EXCHANGE_CASE(I64AtomicCompareExchange32U, uint32_t,
+                                   uint64_t);
 #undef ATOMIC_COMPARE_EXCHANGE_CASE
-#define ATOMIC_LOAD_CASE(name, type, operation)                                \
+#define ATOMIC_LOAD_CASE(name, type, op_type, operation)                       \
   case kExpr##name: {                                                          \
     Address addr;                                                              \
-    if (!ExtractAtomicOpParams<type>(decoder, code, addr, pc, len)) {          \
+    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, addr, pc, len)) { \
       return false;                                                            \
     }                                                                          \
     static_assert(sizeof(std::atomic<type>) == sizeof(type),                   \
                   "Size mismatch for types std::atomic<" #type                 \
                   ">, and " #type);                                            \
-    result =                                                                   \
-        WasmValue(std::operation(reinterpret_cast<std::atomic<type>*>(addr))); \
+    result = WasmValue(static_cast<op_type>(                                   \
+        std::operation(reinterpret_cast<std::atomic<type>*>(addr))));          \
     Push(result);                                                              \
     break;                                                                     \
   }
-      ATOMIC_LOAD_CASE(I32AtomicLoad, uint32_t, atomic_load);
-      ATOMIC_LOAD_CASE(I32AtomicLoad8U, uint8_t, atomic_load);
-      ATOMIC_LOAD_CASE(I32AtomicLoad16U, uint16_t, atomic_load);
+      ATOMIC_LOAD_CASE(I32AtomicLoad, uint32_t, uint32_t, atomic_load);
+      ATOMIC_LOAD_CASE(I32AtomicLoad8U, uint8_t, uint32_t, atomic_load);
+      ATOMIC_LOAD_CASE(I32AtomicLoad16U, uint16_t, uint32_t, atomic_load);
+      ATOMIC_LOAD_CASE(I64AtomicLoad, uint64_t, uint64_t, atomic_load);
+      ATOMIC_LOAD_CASE(I64AtomicLoad8U, uint8_t, uint64_t, atomic_load);
+      ATOMIC_LOAD_CASE(I64AtomicLoad16U, uint16_t, uint64_t, atomic_load);
+      ATOMIC_LOAD_CASE(I64AtomicLoad32U, uint32_t, uint64_t, atomic_load);
 #undef ATOMIC_LOAD_CASE
-#define ATOMIC_STORE_CASE(name, type, operation)                            \
+#define ATOMIC_STORE_CASE(name, type, op_type, operation)                   \
   case kExpr##name: {                                                       \
     type val;                                                               \
     Address addr;                                                           \
-    if (!ExtractAtomicOpParams<type>(decoder, code, addr, pc, len, &val)) { \
+    if (!ExtractAtomicOpParams<type, op_type>(decoder, code, addr, pc, len, \
+                                              &val)) {                      \
       return false;                                                         \
     }                                                                       \
     static_assert(sizeof(std::atomic<type>) == sizeof(type),                \
@@ -1597,10 +1646,15 @@ class ThreadImpl {
     std::operation(reinterpret_cast<std::atomic<type>*>(addr), val);        \
     break;                                                                  \
   }
-      ATOMIC_STORE_CASE(I32AtomicStore, uint32_t, atomic_store);
-      ATOMIC_STORE_CASE(I32AtomicStore8U, uint8_t, atomic_store);
-      ATOMIC_STORE_CASE(I32AtomicStore16U, uint16_t, atomic_store);
+      ATOMIC_STORE_CASE(I32AtomicStore, uint32_t, uint32_t, atomic_store);
+      ATOMIC_STORE_CASE(I32AtomicStore8U, uint8_t, uint32_t, atomic_store);
+      ATOMIC_STORE_CASE(I32AtomicStore16U, uint16_t, uint32_t, atomic_store);
+      ATOMIC_STORE_CASE(I64AtomicStore, uint64_t, uint64_t, atomic_store);
+      ATOMIC_STORE_CASE(I64AtomicStore8U, uint8_t, uint64_t, atomic_store);
+      ATOMIC_STORE_CASE(I64AtomicStore16U, uint16_t, uint64_t, atomic_store);
+      ATOMIC_STORE_CASE(I64AtomicStore32U, uint32_t, uint64_t, atomic_store);
 #undef ATOMIC_STORE_CASE
+#endif  // !(V8_TARGET_ARCH_MIPS && V8_TARGET_BIG_ENDIAN)
       default:
         UNREACHABLE();
         return false;
