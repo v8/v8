@@ -128,7 +128,8 @@ class Logger : public CodeEventListener {
     kReserveId,
     kCreate,
     kDeserialize,
-    kBackgroundCompile
+    kBackgroundCompile,
+    kStreamingCompile
   };
 
   // The separator is used to write an unescaped "," into the log.

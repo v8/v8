@@ -970,7 +970,7 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* source,
   // Prepare the data for the internalization phase and compilation phase, which
   // will happen in the main thread after parsing.
   ParseInfo* info = new ParseInfo(isolate);
-  LOG(isolate, ScriptEvent(Logger::ScriptEventType::kBackgroundCompile,
+  LOG(isolate, ScriptEvent(Logger::ScriptEventType::kStreamingCompile,
                            info->script_id()));
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
     info->set_runtime_call_stats(new (info->zone()) RuntimeCallStats());

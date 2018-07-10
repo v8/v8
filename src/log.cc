@@ -1549,25 +1549,18 @@ void Logger::FunctionEvent(const char* reason, int script_id, double time_delta,
   msg.WriteToLogFile();
 }
 
-namespace {
-void AppendCompilationCacheMessage(Log::MessageBuilder& msg,
-                                   SharedFunctionInfo* sfi) {
-  int script_id = -1;
-  if (sfi->script()->IsScript()) {
-    script_id = Script::cast(sfi->script())->id();
-  }
-  msg << script_id << Logger::kNext << sfi->StartPosition() << Logger::kNext
-      << sfi->EndPosition();
-}
-}  // namespace
-
 void Logger::CompilationCacheEvent(const char* action, const char* cache_type,
                                    SharedFunctionInfo* sfi) {
   if (!log_->IsEnabled() || !FLAG_log_function_events) return;
   Log::MessageBuilder msg(log_);
+  int script_id = -1;
+  if (sfi->script()->IsScript()) {
+    script_id = Script::cast(sfi->script())->id();
+  }
   msg << "compilation-cache" << Logger::kNext << action << Logger::kNext
-      << cache_type << Logger::kNext;
-  AppendCompilationCacheMessage(msg, sfi);
+      << cache_type << Logger::kNext << script_id << Logger::kNext
+      << sfi->StartPosition() << Logger::kNext << sfi->EndPosition()
+      << Logger::kNext << timer_.Elapsed().InMicroseconds();
   msg.WriteToLogFile();
 }
 
@@ -1588,24 +1581,31 @@ void Logger::ScriptEvent(ScriptEventType type, int script_id) {
     case ScriptEventType::kBackgroundCompile:
       msg << "background-compile";
       break;
+    case ScriptEventType::kStreamingCompile:
+      msg << "streaming-compile";
+      break;
   }
-  msg << Logger::kNext << script_id;
+  msg << Logger::kNext << script_id << Logger::kNext
+      << timer_.Elapsed().InMicroseconds();
   msg.WriteToLogFile();
 }
 
 void Logger::ScriptDetails(Script* script) {
   if (!log_->IsEnabled() || !FLAG_log_function_events) return;
-  Log::MessageBuilder msg(log_);
-  msg << "script-details" << Logger::kNext << script->id() << Logger::kNext;
-  if (script->name()->IsString()) {
-    msg << String::cast(script->name());
+  {
+    Log::MessageBuilder msg(log_);
+    msg << "script-details" << Logger::kNext << script->id() << Logger::kNext;
+    if (script->name()->IsString()) {
+      msg << String::cast(script->name());
+    }
+    msg << Logger::kNext << script->line_offset() << Logger::kNext
+        << script->column_offset() << Logger::kNext;
+    if (script->source_mapping_url()->IsString()) {
+      msg << String::cast(script->source_mapping_url());
+    }
+    msg.WriteToLogFile();
   }
-  msg << Logger::kNext << script->line_offset() << Logger::kNext
-      << script->column_offset() << Logger::kNext;
-  if (script->source_mapping_url()->IsString()) {
-    msg << String::cast(script->source_mapping_url());
-  }
-  msg.WriteToLogFile();
+  EnsureLogScriptSource(script);
 }
 
 bool Logger::EnsureLogScriptSource(Script* script) {

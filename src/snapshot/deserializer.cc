@@ -172,6 +172,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
   } else if (obj->IsScript()) {
     LOG(isolate_, ScriptEvent(Logger::ScriptEventType::kDeserialize,
                               Script::cast(obj)->id()));
+    LOG(isolate_, ScriptDetails(Script::cast(obj)));
   }
 
   if (obj->IsAllocationSite()) {

@@ -276,7 +276,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, ScriptData* cached_data, Handle<String> source,
     ScriptOriginOptions origin_options) {
   base::ElapsedTimer timer;
-  if (FLAG_profile_deserialization) timer.Start();
+  if (FLAG_profile_deserialization || FLAG_log_function_events) timer.Start();
 
   HandleScope scope(isolate);
 
@@ -311,15 +311,24 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
   }
 
-  if (isolate->logger()->is_listening_to_code_events() ||
-      isolate->is_profiling()) {
+  bool log_code_creation = isolate->logger()->is_listening_to_code_events() ||
+                           isolate->is_profiling();
+  if (log_code_creation || FLAG_log_function_events) {
     String* name = ReadOnlyRoots(isolate).empty_string();
     if (result->script()->IsScript()) {
       Script* script = Script::cast(result->script());
       if (script->name()->IsString()) name = String::cast(script->name());
+      if (FLAG_log_function_events) {
+        LOG(isolate, FunctionEvent("deserialize", script->id(),
+                                   timer.Elapsed().InMillisecondsF(),
+                                   result->StartPosition(),
+                                   result->EndPosition(), name));
+      }
     }
-    PROFILE(isolate, CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
-                                     result->abstract_code(), *result, name));
+    if (log_code_creation) {
+      PROFILE(isolate, CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
+                                       result->abstract_code(), *result, name));
+    }
   }
 
   if (isolate->NeedsSourcePositionsForProfiling()) {

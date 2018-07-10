@@ -83,6 +83,7 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
     script->set_id(isolate()->heap()->NextScriptId());
     LOG(isolate(),
         ScriptEvent(Logger::ScriptEventType::kDeserialize, script->id()));
+    LOG(isolate(), ScriptDetails(*script));
     // Add script to list.
     Handle<Object> list =
         FixedArrayOfWeakCells::Add(isolate(), factory->script_list(), script);
