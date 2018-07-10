@@ -387,15 +387,19 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Jump table used to easily redirect wasm function calls.
   WasmCode* jump_table_ = nullptr;
 
+  // The compilation state keeps track of compilation tasks for this module.
+  // Note that its destructor blocks until all tasks are finished/aborted and
+  // hence needs to be destructed first when this native module dies.
   std::unique_ptr<CompilationState, CompilationStateDeleter> compilation_state_;
+
+  // This mutex protects concurrent calls to {AddCode} and {AddCodeCopy}.
+  mutable base::Mutex allocation_mutex_;
 
   DisjointAllocationPool free_code_space_;
   DisjointAllocationPool allocated_code_space_;
   std::list<VirtualMemory> owned_code_space_;
 
   WasmCodeManager* wasm_code_manager_;
-  // This mutex protects concurrent calls to {AddCode} and {AddCodeCopy}.
-  mutable base::Mutex allocation_mutex_;
   size_t committed_code_space_ = 0;
   int modification_scope_depth_ = 0;
   bool can_request_more_memory_;
