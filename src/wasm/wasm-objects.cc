@@ -1253,6 +1253,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       reinterpret_cast<Address>(isolate->heap()->roots_array_start()));
   instance->set_stack_limit_address(
       isolate->stack_guard()->address_of_jslimit());
+  instance->set_real_stack_limit_address(
+      isolate->stack_guard()->address_of_real_jslimit());
   instance->set_globals_start(nullptr);
   instance->set_indirect_function_table_size(0);
   instance->set_indirect_function_table_sig_ids(nullptr);

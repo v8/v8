@@ -2418,8 +2418,9 @@ void CodeGenerator::AssembleConstructFrame() {
       if (shrink_slots * kPointerSize < FLAG_stack_size * 1024) {
         UseScratchRegisterScope scope(tasm());
         Register scratch = scope.AcquireX();
-        __ Mov(scratch, Operand(ExternalReference::address_of_real_stack_limit(
-                            __ isolate())));
+        __ Ldr(scratch, FieldMemOperand(
+                            kWasmInstanceRegister,
+                            WasmInstanceObject::kRealStackLimitAddressOffset));
         __ Ldr(scratch, MemOperand(scratch));
         __ Add(scratch, scratch, shrink_slots * kPointerSize);
         __ Cmp(sp, scratch);

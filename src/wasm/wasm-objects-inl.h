@@ -142,6 +142,8 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, roots_array_address, Address,
                     kRootsArrayAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, stack_limit_address, Address,
                     kStackLimitAddressOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, real_stack_limit_address, Address,
+                    kRealStackLimitAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, imported_function_targets, Address*,
                     kImportedFunctionTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, globals_start, byte*,

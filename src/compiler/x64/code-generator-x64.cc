@@ -3099,8 +3099,9 @@ void CodeGenerator::AssembleConstructFrame() {
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
       if (shrink_slots * kPointerSize < FLAG_stack_size * 1024) {
-        __ Move(kScratchRegister,
-                ExternalReference::address_of_real_stack_limit(__ isolate()));
+        __ movq(kScratchRegister,
+                FieldOperand(kWasmInstanceRegister,
+                             WasmInstanceObject::kRealStackLimitAddressOffset));
         __ movq(kScratchRegister, Operand(kScratchRegister, 0));
         __ addq(kScratchRegister, Immediate(shrink_slots * kPointerSize));
         __ cmpq(rsp, kScratchRegister);

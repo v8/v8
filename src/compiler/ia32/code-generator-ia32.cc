@@ -4059,8 +4059,8 @@ void CodeGenerator::AssembleConstructFrame() {
         Register scratch = esi;
         __ push(scratch);
         __ mov(scratch,
-               Immediate(ExternalReference::address_of_real_stack_limit(
-                   __ isolate())));
+               FieldOperand(kWasmInstanceRegister,
+                            WasmInstanceObject::kRealStackLimitAddressOffset));
         __ mov(scratch, Operand(scratch, 0));
         __ add(scratch, Immediate(shrink_slots * kPointerSize));
         __ cmp(esp, scratch);

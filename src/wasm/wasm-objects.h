@@ -394,6 +394,7 @@ class WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(memory_mask, uint32_t)
   DECL_PRIMITIVE_ACCESSORS(roots_array_address, Address)
   DECL_PRIMITIVE_ACCESSORS(stack_limit_address, Address)
+  DECL_PRIMITIVE_ACCESSORS(real_stack_limit_address, Address)
   DECL_PRIMITIVE_ACCESSORS(imported_function_targets, Address*)
   DECL_PRIMITIVE_ACCESSORS(globals_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(imported_mutable_globals, Address*)
@@ -428,6 +429,7 @@ class WasmInstanceObject : public JSObject {
   V(kMemoryMaskOffset, kUInt32Size)                      /* untagged */ \
   V(kRootsArrayAddressOffset, kPointerSize)              /* untagged */ \
   V(kStackLimitAddressOffset, kPointerSize)              /* untagged */ \
+  V(kRealStackLimitAddressOffset, kPointerSize)          /* untagged */ \
   V(kImportedFunctionTargetsOffset, kPointerSize)        /* untagged */ \
   V(kGlobalsStartOffset, kPointerSize)                   /* untagged */ \
   V(kImportedMutableGlobalsOffset, kPointerSize)         /* untagged */ \
