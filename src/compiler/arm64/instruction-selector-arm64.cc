@@ -3178,10 +3178,9 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   int index = 0;
   if (TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
     if (TryMatchDup<4>(shuffle, &index)) {
-      InstructionOperand src =
-          index < 4 ? g.UseRegister(input0) : g.UseRegister(input1);
-      Emit(kArm64S128Dup, g.DefineAsRegister(node), src, g.UseImmediate(4),
-           g.UseImmediate(index % 4));
+      DCHECK_GT(4, index);
+      Emit(kArm64S128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
+           g.UseImmediate(4), g.UseImmediate(index % 4));
     } else {
       Emit(kArm64S32x4Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
            g.UseRegister(input1), g.UseImmediate(Pack4Lanes(shuffle32x4)));
@@ -3189,17 +3188,15 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
     return;
   }
   if (TryMatchDup<8>(shuffle, &index)) {
-    InstructionOperand src =
-        index < 8 ? g.UseRegister(input0) : g.UseRegister(input1);
-    Emit(kArm64S128Dup, g.DefineAsRegister(node), src, g.UseImmediate(8),
-         g.UseImmediate(index % 8));
+    DCHECK_GT(8, index);
+    Emit(kArm64S128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseImmediate(8), g.UseImmediate(index % 8));
     return;
   }
   if (TryMatchDup<16>(shuffle, &index)) {
-    InstructionOperand src =
-        index < 16 ? g.UseRegister(input0) : g.UseRegister(input1);
-    Emit(kArm64S128Dup, g.DefineAsRegister(node), src, g.UseImmediate(16),
-         g.UseImmediate(index % 16));
+    DCHECK_GT(16, index);
+    Emit(kArm64S128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseImmediate(16), g.UseImmediate(index % 16));
     return;
   }
   // Code generator uses vtbl, arrange sources to form a valid lookup table.
