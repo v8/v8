@@ -2537,8 +2537,7 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
 
   DCHECK(AllowHeapAllocation::IsAllowed());
   int length = cons->length();
-  PretenureFlag tenure = isolate->heap()->InNewSpace(*cons) ? pretenure
-                                                            : TENURED;
+  PretenureFlag tenure = Heap::InNewSpace(*cons) ? pretenure : TENURED;
   Handle<SeqString> result;
   if (cons->IsOneByteRepresentation()) {
     Handle<SeqOneByteString> flat = isolate->factory()->NewRawOneByteString(
@@ -15501,7 +15500,7 @@ static bool ShouldConvertToSlowElements(JSObject* object, uint32_t capacity,
   DCHECK_LT(index, *new_capacity);
   if (*new_capacity <= JSObject::kMaxUncheckedOldFastElementsLength ||
       (*new_capacity <= JSObject::kMaxUncheckedFastElementsLength &&
-       object->GetHeap()->InNewSpace(object))) {
+       Heap::InNewSpace(object))) {
     return false;
   }
   // If the fast-case backing storage takes up much more memory than a
@@ -15767,13 +15766,13 @@ bool JSObject::UpdateAllocationSite(Handle<JSObject> object,
                                     ElementsKind to_kind) {
   if (!object->IsJSArray()) return false;
 
-  Heap* heap = object->GetHeap();
-  if (!heap->InNewSpace(*object)) return false;
+  if (!Heap::InNewSpace(*object)) return false;
 
   Handle<AllocationSite> site;
   {
     DisallowHeapAllocation no_allocation;
 
+    Heap* heap = object->GetHeap();
     AllocationMemento* memento =
         heap->FindAllocationMemento<Heap::kForRuntime>(object->map(), *object);
     if (memento == nullptr) return false;
@@ -16756,9 +16755,9 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
   int new_nof = table->NumberOfElements() + n;
 
   const int kMinCapacityForPretenure = 256;
-  bool should_pretenure = pretenure == TENURED ||
-      ((capacity > kMinCapacityForPretenure) &&
-          !isolate->heap()->InNewSpace(*table));
+  bool should_pretenure =
+      pretenure == TENURED ||
+      ((capacity > kMinCapacityForPretenure) && !Heap::InNewSpace(*table));
   Handle<Derived> new_table = HashTable::New(
       isolate, new_nof, should_pretenure ? TENURED : NOT_TENURED);
 
@@ -16806,7 +16805,7 @@ Handle<Derived> HashTable<Derived, Shape>::Shrink(Handle<Derived> table,
   Isolate* isolate = table->GetIsolate();
   const int kMinCapacityForPretenure = 256;
   bool pretenure = (at_least_room_for > kMinCapacityForPretenure) &&
-                   !isolate->heap()->InNewSpace(*table);
+                   !Heap::InNewSpace(*table);
   Handle<Derived> new_table =
       HashTable::New(isolate, new_capacity, pretenure ? TENURED : NOT_TENURED,
                      USE_CUSTOM_MINIMUM_CAPACITY);

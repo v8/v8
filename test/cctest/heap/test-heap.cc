@@ -181,11 +181,10 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
   HandleScope sc(isolate);
 
   Handle<HeapNumber> value = factory->NewHeapNumber(1.000123);
-  CHECK(heap->InNewSpace(*value));
+  CHECK(Heap::InNewSpace(*value));
 
   i::byte buffer[i::Assembler::kMinimalBufferSize];
   MacroAssembler masm(isolate, buffer, sizeof(buffer),
@@ -670,7 +669,6 @@ TEST(WeakGlobalHandlesMark) {
   FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
   Factory* factory = isolate->factory();
   GlobalHandles* global_handles = isolate->global_handles();
 
@@ -692,7 +690,7 @@ TEST(WeakGlobalHandlesMark) {
   // Make sure the objects are promoted.
   CcTest::CollectGarbage(OLD_SPACE);
   CcTest::CollectGarbage(NEW_SPACE);
-  CHECK(!heap->InNewSpace(*h1) && !heap->InNewSpace(*h2));
+  CHECK(!Heap::InNewSpace(*h1) && !Heap::InNewSpace(*h2));
 
   std::pair<Handle<Object>*, int> handle_and_id(&h2, 1234);
   GlobalHandles::MakeWeak(
@@ -2204,7 +2202,7 @@ HEAP_TEST(Regress845060) {
 
   // Preparation: create a string in new space.
   Local<Value> str = CompileRun("var str = (new Array(10000)).join('x'); str");
-  CHECK(heap->InNewSpace(*v8::Utils::OpenHandle(*str)));
+  CHECK(Heap::InNewSpace(*v8::Utils::OpenHandle(*str)));
 
   // Idle incremental marking sets the "kReduceMemoryFootprint" flag, which
   // causes from_space to be unmapped after scavenging.
@@ -2215,7 +2213,7 @@ HEAP_TEST(Regress845060) {
   // promoted to old space. Unmapping of from_space causes accesses to any
   // stale raw pointers to crash.
   CompileRun("while (%InNewSpace(str)) { str.split(''); }");
-  CHECK(!heap->InNewSpace(*v8::Utils::OpenHandle(*str)));
+  CHECK(!Heap::InNewSpace(*v8::Utils::OpenHandle(*str)));
 }
 
 TEST(IdleNotificationFinishMarking) {
@@ -2283,7 +2281,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
   i::Handle<JSReceiver> o =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
 
-  CHECK(CcTest::heap()->InNewSpace(*o));
+  CHECK(Heap::InNewSpace(*o));
 }
 
 
@@ -2421,7 +2419,7 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
 
   // Nested literal sites are only pretenured if the top level
   // literal is pretenured
-  CHECK(CcTest::heap()->InNewSpace(*o));
+  CHECK(Heap::InNewSpace(*o));
 }
 
 TEST(OptimizedPretenuringMixedInObjectProperties) {
@@ -2750,7 +2748,7 @@ TEST(OptimizedAllocationArrayLiterals) {
   i::Handle<JSObject> o = Handle<JSObject>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
 
-  CHECK(CcTest::heap()->InNewSpace(o->elements()));
+  CHECK(Heap::InNewSpace(o->elements()));
 }
 
 static int CountMapTransitions(i::Isolate* isolate, Map* map) {
@@ -3795,14 +3793,13 @@ TEST(NewSpaceObjectsInOptimizedCode) {
   FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  v8::internal::Heap* heap = CcTest::heap();
 
   if (!isolate->use_optimizer()) return;
-  HandleScope outer_scope(heap->isolate());
+  HandleScope outer_scope(isolate);
   Handle<Code> code;
   {
     LocalContext context;
-    HandleScope scope(heap->isolate());
+    HandleScope scope(isolate);
 
     CompileRun(
         "var foo;"
@@ -3832,12 +3829,12 @@ TEST(NewSpaceObjectsInOptimizedCode) {
                                            ->Get(context.local(), v8_str("foo"))
                                            .ToLocalChecked())));
 
-    CHECK(heap->InNewSpace(*foo));
+    CHECK(Heap::InNewSpace(*foo));
     CcTest::CollectGarbage(NEW_SPACE);
     CcTest::CollectGarbage(NEW_SPACE);
-    CHECK(!heap->InNewSpace(*foo));
+    CHECK(!Heap::InNewSpace(*foo));
 #ifdef VERIFY_HEAP
-    heap->Verify();
+    CcTest::heap()->Verify();
 #endif
     CHECK(!bar->code()->marked_for_deoptimization());
     code = scope.CloseAndEscape(Handle<Code>(bar->code(), isolate));
@@ -4522,15 +4519,14 @@ TEST(Regress507979) {
   const int kFixedArrayLen = 10;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
   HandleScope handle_scope(isolate);
 
   Handle<FixedArray> o1 = isolate->factory()->NewFixedArray(kFixedArrayLen);
   Handle<FixedArray> o2 = isolate->factory()->NewFixedArray(kFixedArrayLen);
-  CHECK(heap->InNewSpace(*o1));
-  CHECK(heap->InNewSpace(*o2));
+  CHECK(Heap::InNewSpace(*o1));
+  CHECK(Heap::InNewSpace(*o2));
 
-  HeapIterator it(heap, i::HeapIterator::kFilterUnreachable);
+  HeapIterator it(isolate->heap(), i::HeapIterator::kFilterUnreachable);
 
   // Replace parts of an object placed before a live object with a filler. This
   // way the filler object shares the mark bits with the following live object.
@@ -4880,7 +4876,7 @@ void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
       static_cast<int>((bytes - FixedArray::kHeaderSize) / kPointerSize);
   Handle<FixedArray> array = factory->NewFixedArray(
       elements, space == NEW_SPACE ? NOT_TENURED : TENURED);
-  CHECK((space == NEW_SPACE) == isolate->heap()->InNewSpace(*array));
+  CHECK((space == NEW_SPACE) == Heap::InNewSpace(*array));
   CHECK_EQ(bytes, static_cast<size_t>(array->Size()));
 }
 
@@ -5125,7 +5121,7 @@ HEAP_TEST(Regress587004) {
   Handle<FixedArray> array = factory->NewFixedArray(N, TENURED);
   CHECK(heap->old_space()->Contains(*array));
   Handle<Object> number = factory->NewHeapNumber(1.0);
-  CHECK(heap->InNewSpace(*number));
+  CHECK(Heap::InNewSpace(*number));
   for (int i = 0; i < N; i++) {
     array->set(i, *number);
   }
@@ -6061,7 +6057,7 @@ HEAP_TEST(Regress779503) {
     // The byte array filled with kHeapObjectTag ensures that we cannot read
     // from the slot again and interpret it as heap value. Doing so will crash.
     Handle<ByteArray> byte_array = isolate->factory()->NewByteArray(kArraySize);
-    CHECK(heap->InNewSpace(*byte_array));
+    CHECK(Heap::InNewSpace(*byte_array));
     for (int i = 0; i < kArraySize; i++) {
       byte_array->set(i, kHeapObjectTag);
     }
@@ -6071,21 +6067,21 @@ HEAP_TEST(Regress779503) {
       // The FixedArray in old space serves as space for slots.
       Handle<FixedArray> fixed_array =
           isolate->factory()->NewFixedArray(kArraySize, TENURED);
-      CHECK(!heap->InNewSpace(*fixed_array));
+      CHECK(!Heap::InNewSpace(*fixed_array));
       for (int i = 0; i < kArraySize; i++) {
         fixed_array->set(i, *byte_array);
       }
     }
     // Delay sweeper tasks to allow the scavenger to sweep the page it is
     // currently scavenging.
-    CcTest::heap()->delay_sweeper_tasks_for_testing_ = true;
+    heap->delay_sweeper_tasks_for_testing_ = true;
     CcTest::CollectGarbage(OLD_SPACE);
-    CHECK(heap->InNewSpace(*byte_array));
+    CHECK(Heap::InNewSpace(*byte_array));
   }
   // Scavenging and sweeping the same page will crash as slots will be
   // overridden.
   CcTest::CollectGarbage(NEW_SPACE);
-  CcTest::heap()->delay_sweeper_tasks_for_testing_ = false;
+  heap->delay_sweeper_tasks_for_testing_ = false;
 }
 
 struct OutOfMemoryState {

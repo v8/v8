@@ -43,7 +43,7 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
     // Ensure that the new object is marked black.
     HeapObject* object = HeapObject::FromAddress(addr);
     if (incremental_marking_.marking_state()->IsWhite(object) &&
-        !(heap->InNewSpace(object) || heap->new_lo_space()->Contains(object))) {
+        !(Heap::InNewSpace(object) || heap->new_lo_space()->Contains(object))) {
       if (heap->lo_space()->Contains(object)) {
         incremental_marking_.marking_state()->WhiteToBlack(object);
       } else {
@@ -632,12 +632,12 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 
 namespace {
 template <typename T>
-T* ForwardingAddress(Heap* heap, T* heap_obj) {
+T* ForwardingAddress(T* heap_obj) {
   MapWord map_word = heap_obj->map_word();
 
   if (map_word.IsForwardingAddress()) {
     return T::cast(map_word.ToForwardingAddress());
-  } else if (heap->InNewSpace(heap_obj)) {
+  } else if (Heap::InNewSpace(heap_obj)) {
     return nullptr;
   } else {
     return heap_obj;
@@ -646,12 +646,11 @@ T* ForwardingAddress(Heap* heap, T* heap_obj) {
 }  // namespace
 
 void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
-  Heap* heap = heap_;
   weak_objects_->weak_references.Update(
-      [heap](std::pair<HeapObject*, HeapObjectReference**> slot_in,
-             std::pair<HeapObject*, HeapObjectReference**>* slot_out) -> bool {
+      [](std::pair<HeapObject*, HeapObjectReference**> slot_in,
+         std::pair<HeapObject*, HeapObjectReference**>* slot_out) -> bool {
         HeapObject* heap_obj = slot_in.first;
-        HeapObject* forwarded = ForwardingAddress(heap, heap_obj);
+        HeapObject* forwarded = ForwardingAddress(heap_obj);
 
         if (forwarded) {
           ptrdiff_t distance_to_slot =
@@ -667,10 +666,10 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
         return false;
       });
   weak_objects_->weak_objects_in_code.Update(
-      [heap](std::pair<HeapObject*, Code*> slot_in,
-             std::pair<HeapObject*, Code*>* slot_out) -> bool {
+      [](std::pair<HeapObject*, Code*> slot_in,
+         std::pair<HeapObject*, Code*>* slot_out) -> bool {
         HeapObject* heap_obj = slot_in.first;
-        HeapObject* forwarded = ForwardingAddress(heap, heap_obj);
+        HeapObject* forwarded = ForwardingAddress(heap_obj);
 
         if (forwarded) {
           slot_out->first = forwarded;
@@ -681,9 +680,8 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
         return false;
       });
   weak_objects_->ephemeron_hash_tables.Update(
-      [heap](EphemeronHashTable* slot_in,
-             EphemeronHashTable** slot_out) -> bool {
-        EphemeronHashTable* forwarded = ForwardingAddress(heap, slot_in);
+      [](EphemeronHashTable* slot_in, EphemeronHashTable** slot_out) -> bool {
+        EphemeronHashTable* forwarded = ForwardingAddress(slot_in);
 
         if (forwarded) {
           *slot_out = forwarded;
@@ -693,12 +691,11 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
         return false;
       });
 
-  auto ephemeron_updater = [heap](Ephemeron slot_in,
-                                  Ephemeron* slot_out) -> bool {
+  auto ephemeron_updater = [](Ephemeron slot_in, Ephemeron* slot_out) -> bool {
     HeapObject* key = slot_in.key;
     HeapObject* value = slot_in.value;
-    HeapObject* forwarded_key = ForwardingAddress(heap, key);
-    HeapObject* forwarded_value = ForwardingAddress(heap, value);
+    HeapObject* forwarded_key = ForwardingAddress(key);
+    HeapObject* forwarded_value = ForwardingAddress(value);
 
     if (forwarded_key && forwarded_value) {
       *slot_out = Ephemeron{forwarded_key, forwarded_value};

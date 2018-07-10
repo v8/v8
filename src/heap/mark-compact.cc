@@ -299,7 +299,7 @@ class FullEvacuationVerifier : public EvacuationVerifier {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
-        if (heap()->InNewSpace(object)) {
+        if (Heap::InNewSpace(object)) {
           CHECK(Heap::InToSpace(object));
         }
         CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(object));
@@ -310,7 +310,7 @@ class FullEvacuationVerifier : public EvacuationVerifier {
     for (MaybeObject** current = start; current < end; current++) {
       HeapObject* object;
       if ((*current)->ToStrongHeapObject(&object)) {
-        if (heap()->InNewSpace(object)) {
+        if (Heap::InNewSpace(object)) {
           CHECK(Heap::InToSpace(object));
         }
         CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(object));
@@ -962,7 +962,7 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
           *p = the_hole;
         } else {
           // StringTable contains only old space strings.
-          DCHECK(!heap_->InNewSpace(o));
+          DCHECK(!Heap::InNewSpace(o));
           MarkCompactCollector::RecordSlot(table_, p, heap_object);
         }
       }
@@ -1091,7 +1091,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     // The target is always in old space, we don't have to record the slot in
     // the old-to-new remembered set.
-    DCHECK(!collector_->heap()->InNewSpace(target));
+    DCHECK(!Heap::InNewSpace(target));
     collector_->RecordRelocSlot(host, rinfo, target);
   }
 
@@ -2983,7 +2983,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       }
       return KEEP_SLOT;
     } else {
-      DCHECK(!heap_->InNewSpace(heap_object));
+      DCHECK(!Heap::InNewSpace(heap_object));
     }
     return REMOVE_SLOT;
   }
@@ -3498,7 +3498,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
       DCHECK(!HasWeakHeapObjectTag(*current));
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
-        if (!heap_->InNewSpace(object)) return;
+        if (!Heap::InNewSpace(object)) return;
         CHECK(IsMarked(object));
       }
     }
@@ -3509,7 +3509,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
       HeapObject* object;
       // Minor MC treats weak references as strong.
       if ((*current)->ToStrongOrWeakHeapObject(&object)) {
-        if (!heap_->InNewSpace(object)) {
+        if (!Heap::InNewSpace(object)) {
           continue;
         }
         CHECK(IsMarked(object));
@@ -3539,7 +3539,7 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
-        CHECK_IMPLIES(heap()->InNewSpace(object), Heap::InToSpace(object));
+        CHECK_IMPLIES(Heap::InNewSpace(object), Heap::InToSpace(object));
       }
     }
   }
@@ -3547,7 +3547,7 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
     for (MaybeObject** current = start; current < end; current++) {
       HeapObject* object;
       if ((*current)->ToStrongOrWeakHeapObject(&object)) {
-        CHECK_IMPLIES(heap()->InNewSpace(object), Heap::InToSpace(object));
+        CHECK_IMPLIES(Heap::InNewSpace(object), Heap::InToSpace(object));
       }
     }
   }
@@ -3570,8 +3570,8 @@ void SeedGlobalHandles(Heap* heap, GlobalHandles* global_handles,
 }
 
 bool IsUnmarkedObjectForYoungGeneration(Heap* heap, Object** p) {
-  DCHECK_IMPLIES(heap->InNewSpace(*p), Heap::InToSpace(*p));
-  return heap->InNewSpace(*p) && !heap->minor_mark_compact_collector()
+  DCHECK_IMPLIES(Heap::InNewSpace(*p), Heap::InToSpace(*p));
+  return Heap::InNewSpace(*p) && !heap->minor_mark_compact_collector()
                                       ->non_atomic_marking_state()
                                       ->IsGrey(HeapObject::cast(*p));
 }
@@ -3582,11 +3582,9 @@ class YoungGenerationMarkingVisitor final
     : public NewSpaceVisitor<YoungGenerationMarkingVisitor> {
  public:
   YoungGenerationMarkingVisitor(
-      Heap* heap, MinorMarkCompactCollector::MarkingState* marking_state,
+      MinorMarkCompactCollector::MarkingState* marking_state,
       MinorMarkCompactCollector::MarkingWorklist* global_worklist, int task_id)
-      : heap_(heap),
-        worklist_(global_worklist, task_id),
-        marking_state_(marking_state) {}
+      : worklist_(global_worklist, task_id), marking_state_(marking_state) {}
 
   V8_INLINE void VisitPointers(HeapObject* host, Object** start,
                                Object** end) final {
@@ -3605,7 +3603,7 @@ class YoungGenerationMarkingVisitor final
   V8_INLINE void VisitPointer(HeapObject* host, Object** slot) final {
     Object* target = *slot;
     DCHECK(!HasWeakHeapObjectTag(target));
-    if (heap_->InNewSpace(target)) {
+    if (Heap::InNewSpace(target)) {
       HeapObject* target_object = HeapObject::cast(target);
       MarkObjectViaMarkingWorklist(target_object);
     }
@@ -3613,7 +3611,7 @@ class YoungGenerationMarkingVisitor final
 
   V8_INLINE void VisitPointer(HeapObject* host, MaybeObject** slot) final {
     MaybeObject* target = *slot;
-    if (heap_->InNewSpace(target)) {
+    if (Heap::InNewSpace(target)) {
       HeapObject* target_object;
       // Treat weak references as strong. TODO(marja): Proper weakness handling
       // for minor-mcs.
@@ -3631,7 +3629,6 @@ class YoungGenerationMarkingVisitor final
     }
   }
 
-  Heap* heap_;
   MinorMarkCompactCollector::MarkingWorklist::View worklist_;
   MinorMarkCompactCollector::MarkingState* marking_state_;
 };
@@ -3644,7 +3641,7 @@ MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
     : MarkCompactCollectorBase(heap),
       worklist_(new MinorMarkCompactCollector::MarkingWorklist()),
       main_marking_visitor_(new YoungGenerationMarkingVisitor(
-          heap, marking_state(), worklist_, kMainMarker)),
+          marking_state(), worklist_, kMainMarker)),
       page_parallel_job_semaphore_(0) {
   static_assert(
       kNumMarkers <= MinorMarkCompactCollector::MarkingWorklist::kMaxNumTasks,
@@ -3972,12 +3969,11 @@ class MinorMarkCompactWeakObjectRetainer : public WeakObjectRetainer {
  public:
   explicit MinorMarkCompactWeakObjectRetainer(
       MinorMarkCompactCollector* collector)
-      : heap_(collector->heap()),
-        marking_state_(collector->non_atomic_marking_state()) {}
+      : marking_state_(collector->non_atomic_marking_state()) {}
 
   virtual Object* RetainAs(Object* object) {
     HeapObject* heap_object = HeapObject::cast(object);
-    if (!heap_->InNewSpace(heap_object)) return object;
+    if (!Heap::InNewSpace(heap_object)) return object;
 
     // Young generation marking only marks to grey instead of black.
     DCHECK(!marking_state_->IsBlack(heap_object));
@@ -3988,7 +3984,6 @@ class MinorMarkCompactWeakObjectRetainer : public WeakObjectRetainer {
   }
 
  private:
-  Heap* heap_;
   MinorMarkCompactCollector::NonAtomicMarkingState* marking_state_;
 };
 
@@ -4064,7 +4059,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
         collector_(collector),
         marking_worklist_(global_worklist, task_id),
         marking_state_(collector->marking_state()),
-        visitor_(isolate->heap(), marking_state_, global_worklist, task_id) {
+        visitor_(marking_state_, global_worklist, task_id) {
     local_live_bytes_.reserve(isolate->heap()->new_space()->Capacity() /
                               Page::kPageSize);
   }
@@ -4092,7 +4087,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
   };
 
   void MarkObject(Object* object) {
-    if (!collector_->heap()->InNewSpace(object)) return;
+    if (!Heap::InNewSpace(object)) return;
     HeapObject* heap_object = HeapObject::cast(object);
     if (marking_state_->WhiteToGrey(heap_object)) {
       const int size = visitor_.Visit(heap_object);
@@ -4174,7 +4169,7 @@ class PageMarkingItem : public MarkingItem {
   SlotCallbackResult CheckAndMarkObject(YoungGenerationMarkingTask* task,
                                         Address slot_address) {
     MaybeObject* object = *reinterpret_cast<MaybeObject**>(slot_address);
-    if (heap()->InNewSpace(object)) {
+    if (Heap::InNewSpace(object)) {
       // Marking happens before flipping the young generation, so the object
       // has to be in ToSpace.
       DCHECK(Heap::InToSpace(object));

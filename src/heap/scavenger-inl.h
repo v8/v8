@@ -150,7 +150,7 @@ void Scavenger::EvacuateThinString(Map* map, HeapObject** slot,
     *slot = actual;
     // ThinStrings always refer to internalized strings, which are
     // always in old space.
-    DCHECK(!heap()->InNewSpace(actual));
+    DCHECK(!Heap::InNewSpace(actual));
     base::AsAtomicPointer::Relaxed_Store(
         reinterpret_cast<Map**>(object->address()),
         MapWord::FromForwardingAddress(actual).ToMap());
@@ -170,7 +170,7 @@ void Scavenger::EvacuateShortcutCandidate(Map* map, HeapObject** slot,
 
     *slot = first;
 
-    if (!heap()->InNewSpace(first)) {
+    if (!Heap::InNewSpace(first)) {
       base::AsAtomicPointer::Relaxed_Store(
           reinterpret_cast<Map**>(object->address()),
           MapWord::FromForwardingAddress(first).ToMap());
@@ -289,7 +289,7 @@ void ScavengeVisitor::VisitPointers(HeapObject* host, Object** start,
                                     Object** end) {
   for (Object** p = start; p < end; p++) {
     Object* object = *p;
-    if (!heap_->InNewSpace(object)) continue;
+    if (!Heap::InNewSpace(object)) continue;
     scavenger_->ScavengeObject(reinterpret_cast<HeapObjectReference**>(p),
                                reinterpret_cast<HeapObject*>(object));
   }
@@ -299,7 +299,7 @@ void ScavengeVisitor::VisitPointers(HeapObject* host, MaybeObject** start,
                                     MaybeObject** end) {
   for (MaybeObject** p = start; p < end; p++) {
     MaybeObject* object = *p;
-    if (!heap_->InNewSpace(object)) continue;
+    if (!Heap::InNewSpace(object)) continue;
     // Treat the weak reference as strong.
     HeapObject* heap_object;
     if (object->ToStrongOrWeakHeapObject(&heap_object)) {

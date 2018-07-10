@@ -36,17 +36,16 @@ TEST(WeakReferencesBasic) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
   HandleScope outer_scope(isolate);
 
   Handle<FeedbackVector> fv =
       CreateFeedbackVectorForTest(CcTest::isolate(), factory);
-  CHECK(heap->InNewSpace(*fv));
+  CHECK(Heap::InNewSpace(*fv));
 
   MaybeObject* code_object = fv->optimized_code_weak_or_smi();
   CHECK(code_object->IsSmi());
   CcTest::CollectAllGarbage();
-  CHECK(heap->InNewSpace(*fv));
+  CHECK(Heap::InNewSpace(*fv));
   CHECK_EQ(code_object, fv->optimized_code_weak_or_smi());
 
   {
@@ -123,7 +122,7 @@ TEST(WeakReferencesOldToNew) {
 
   // Create a new FixedArray which the FeedbackVector will point to.
   Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
-  CHECK(heap->InNewSpace(*fixed_array));
+  CHECK(Heap::InNewSpace(*fixed_array));
   fv->set_optimized_code_weak_or_smi(HeapObjectReference::Weak(*fixed_array));
 
   CcTest::CollectAllGarbage();
@@ -148,7 +147,7 @@ TEST(WeakReferencesOldToNewScavenged) {
 
   // Create a new FixedArray which the FeedbackVector will point to.
   Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
-  CHECK(heap->InNewSpace(*fixed_array));
+  CHECK(Heap::InNewSpace(*fixed_array));
   fv->set_optimized_code_weak_or_smi(HeapObjectReference::Weak(*fixed_array));
 
   CcTest::CollectGarbage(NEW_SPACE);
@@ -191,13 +190,13 @@ TEST(ObjectMovesBeforeClearingWeakField) {
   HandleScope outer_scope(isolate);
   Handle<FeedbackVector> fv =
       CreateFeedbackVectorForTest(CcTest::isolate(), factory);
-  CHECK(heap->InNewSpace(*fv));
+  CHECK(Heap::InNewSpace(*fv));
   FeedbackVector* fv_location = *fv;
   {
     HandleScope inner_scope(isolate);
     // Create a new FixedArray which the FeedbackVector will point to.
     Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
-    CHECK(heap->InNewSpace(*fixed_array));
+    CHECK(Heap::InNewSpace(*fixed_array));
     fv->set_optimized_code_weak_or_smi(HeapObjectReference::Weak(*fixed_array));
     // inner_scope will go out of scope, so when marking the next time,
     // *fixed_array will stay white.
@@ -232,12 +231,12 @@ TEST(ObjectWithWeakFieldDies) {
     HandleScope outer_scope(isolate);
     Handle<FeedbackVector> fv =
         CreateFeedbackVectorForTest(CcTest::isolate(), factory);
-    CHECK(heap->InNewSpace(*fv));
+    CHECK(Heap::InNewSpace(*fv));
     {
       HandleScope inner_scope(isolate);
       // Create a new FixedArray which the FeedbackVector will point to.
       Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
-      CHECK(heap->InNewSpace(*fixed_array));
+      CHECK(Heap::InNewSpace(*fixed_array));
       fv->set_optimized_code_weak_or_smi(
           HeapObjectReference::Weak(*fixed_array));
       // inner_scope will go out of scope, so when marking the next time,
@@ -265,11 +264,11 @@ TEST(ObjectWithWeakReferencePromoted) {
   HandleScope outer_scope(isolate);
   Handle<FeedbackVector> fv =
       CreateFeedbackVectorForTest(CcTest::isolate(), factory);
-  CHECK(heap->InNewSpace(*fv));
+  CHECK(Heap::InNewSpace(*fv));
 
   // Create a new FixedArray which the FeedbackVector will point to.
   Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
-  CHECK(heap->InNewSpace(*fixed_array));
+  CHECK(Heap::InNewSpace(*fixed_array));
   fv->set_optimized_code_weak_or_smi(HeapObjectReference::Weak(*fixed_array));
 
   CcTest::CollectGarbage(NEW_SPACE);
@@ -291,12 +290,12 @@ TEST(ObjectWithClearedWeakReferencePromoted) {
   HandleScope outer_scope(isolate);
   Handle<FeedbackVector> fv =
       CreateFeedbackVectorForTest(CcTest::isolate(), factory);
-  CHECK(heap->InNewSpace(*fv));
+  CHECK(Heap::InNewSpace(*fv));
 
   fv->set_optimized_code_weak_or_smi(HeapObjectReference::ClearedValue());
 
   CcTest::CollectGarbage(NEW_SPACE);
-  CHECK(heap->InNewSpace(*fv));
+  CHECK(Heap::InNewSpace(*fv));
   CHECK(fv->optimized_code_weak_or_smi()->IsClearedWeakHeapObject());
 
   CcTest::CollectGarbage(NEW_SPACE);
@@ -321,21 +320,21 @@ TEST(WeakReferenceWriteBarrier) {
   HandleScope outer_scope(isolate);
   Handle<FeedbackVector> fv =
       CreateFeedbackVectorForTest(CcTest::isolate(), factory);
-  CHECK(heap->InNewSpace(*fv));
+  CHECK(Heap::InNewSpace(*fv));
 
   {
     HandleScope inner_scope(isolate);
 
     // Create a new FixedArray which the FeedbackVector will point to.
     Handle<FixedArray> fixed_array1 = factory->NewFixedArray(1);
-    CHECK(heap->InNewSpace(*fixed_array1));
+    CHECK(Heap::InNewSpace(*fixed_array1));
     fv->set_optimized_code_weak_or_smi(
         HeapObjectReference::Weak(*fixed_array1));
 
     SimulateIncrementalMarking(heap, true);
 
     Handle<FixedArray> fixed_array2 = factory->NewFixedArray(1);
-    CHECK(heap->InNewSpace(*fixed_array2));
+    CHECK(Heap::InNewSpace(*fixed_array2));
     // This write will trigger the write barrier.
     fv->set_optimized_code_weak_or_smi(
         HeapObjectReference::Weak(*fixed_array2));
@@ -372,7 +371,7 @@ TEST(WeakArraysBasic) {
   CHECK(array->IsWeakFixedArray());
   CHECK(!array->IsFixedArray());
   CHECK_EQ(array->length(), length);
-  CHECK(heap->InNewSpace(*array));
+  CHECK(Heap::InNewSpace(*array));
 
   for (int i = 0; i < length; ++i) {
     HeapObject* heap_object;
@@ -475,7 +474,7 @@ TEST(WeakArrayListBasic) {
         array, MaybeObjectHandle(Smi::FromInt(7), isolate));
     CHECK_EQ(array->length(), 8);
 
-    CHECK(heap->InNewSpace(*array));
+    CHECK(Heap::InNewSpace(*array));
 
     CHECK_EQ(array->Get(0), HeapObjectReference::Weak(*index0));
     CHECK_EQ(Smi::ToInt(array->Get(1)->ToSmi()), 1);

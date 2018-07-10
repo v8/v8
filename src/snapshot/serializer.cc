@@ -264,8 +264,7 @@ void Serializer<AllocatorT>::PutRoot(
                 kNumberOfRootArrayConstants - 1);
 
   if (how_to_code == kPlain && where_to_point == kStartOfObject &&
-      root_index < kNumberOfRootArrayConstants &&
-      !isolate()->heap()->InNewSpace(object)) {
+      root_index < kNumberOfRootArrayConstants && !Heap::InNewSpace(object)) {
     if (skip == 0) {
       sink_.Put(kRootArrayConstants + root_index, "RootConstant");
     } else {
@@ -757,7 +756,7 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(
           Heap::RootIsImmortalImmovable(root_index) &&
           *current == current[-1]) {
         DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
-        DCHECK(!serializer_->isolate()->heap()->InNewSpace(current_contents));
+        DCHECK(!Heap::InNewSpace(current_contents));
         int repeat_count = 1;
         while (&current[repeat_count] < end - 1 &&
                current[repeat_count] == *current) {

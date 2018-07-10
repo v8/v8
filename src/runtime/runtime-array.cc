@@ -188,8 +188,7 @@ Object* RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
     Handle<Map> new_map =
         JSObject::GetElementsTransitionMap(object, HOLEY_ELEMENTS);
 
-    PretenureFlag tenure =
-        isolate->heap()->InNewSpace(*object) ? NOT_TENURED : TENURED;
+    PretenureFlag tenure = Heap::InNewSpace(*object) ? NOT_TENURED : TENURED;
     Handle<FixedArray> fast_elements =
         isolate->factory()->NewFixedArray(dict->NumberOfElements(), tenure);
     dict->CopyValuesTo(*fast_elements);

@@ -617,7 +617,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       case kVariableRepeat: {
         int repeats = source_.GetInt();
         MaybeObject* object = current[-1];
-        DCHECK(!isolate->heap()->InNewSpace(object));
+        DCHECK(!Heap::InNewSpace(object));
         DCHECK(!allocator()->next_reference_is_weak());
         for (int i = 0; i < repeats; i++) UnalignedCopy(current++, &object);
         break;
@@ -683,7 +683,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id);
         MaybeObject* object =
             MaybeObject::FromObject(isolate->heap()->root(root_index));
-        DCHECK(!isolate->heap()->InNewSpace(object));
+        DCHECK(!Heap::InNewSpace(object));
         DCHECK(!allocator()->next_reference_is_weak());
         UnalignedCopy(current++, &object);
         break;
@@ -708,7 +708,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         }
 
         UnalignedCopy(current, &hot_maybe_object);
-        if (write_barrier_needed && isolate->heap()->InNewSpace(hot_object)) {
+        if (write_barrier_needed && Heap::InNewSpace(hot_object)) {
           Address current_address = reinterpret_cast<Address>(current);
           isolate->heap()->RecordWrite(
               HeapObject::FromAddress(current_object_address),
@@ -736,7 +736,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         MaybeObject* object;
         DCHECK(!allocator()->next_reference_is_weak());
         UnalignedCopy(&object, current - 1);
-        DCHECK(!isolate->heap()->InNewSpace(object));
+        DCHECK(!Heap::InNewSpace(object));
         for (int i = 0; i < repeats; i++) UnalignedCopy(current++, &object);
         break;
       }
@@ -818,16 +818,16 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
       int id = source_.GetInt();
       Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id);
       new_object = isolate->heap()->root(root_index);
-      emit_write_barrier = isolate->heap()->InNewSpace(new_object);
+      emit_write_barrier = Heap::InNewSpace(new_object);
       hot_objects_.Add(HeapObject::cast(new_object));
     } else if (where == kPartialSnapshotCache) {
       int cache_index = source_.GetInt();
       new_object = isolate->partial_snapshot_cache()->at(cache_index);
-      emit_write_barrier = isolate->heap()->InNewSpace(new_object);
+      emit_write_barrier = Heap::InNewSpace(new_object);
     } else if (where == kAttachedReference) {
       int index = source_.GetInt();
       new_object = *attached_objects_[index];
-      emit_write_barrier = isolate->heap()->InNewSpace(new_object);
+      emit_write_barrier = Heap::InNewSpace(new_object);
     } else {
       DCHECK_EQ(where, kBuiltin);
       int builtin_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());

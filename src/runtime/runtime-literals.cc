@@ -508,7 +508,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
       return boilerplate;
     } else {
       PretenureFlag pretenure_flag =
-          isolate->heap()->InNewSpace(*vector) ? NOT_TENURED : TENURED;
+          Heap::InNewSpace(*vector) ? NOT_TENURED : TENURED;
       boilerplate =
           Boilerplate::Create(isolate, description, flags, pretenure_flag);
     }

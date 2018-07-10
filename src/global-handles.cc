@@ -552,8 +552,7 @@ Handle<Object> GlobalHandles::Create(Object* value) {
   Node* result = first_free_;
   first_free_ = result->next_free();
   result->Acquire(value);
-  if (isolate_->heap()->InNewSpace(value) &&
-      !result->is_in_new_space_list()) {
+  if (Heap::InNewSpace(value) && !result->is_in_new_space_list()) {
     new_space_nodes_.push_back(result);
     result->set_in_new_space_list(true);
   }
@@ -838,7 +837,7 @@ void GlobalHandles::UpdateListOfNewSpaceNodes() {
   for (Node* node : new_space_nodes_) {
     DCHECK(node->is_in_new_space_list());
     if (node->IsRetainer()) {
-      if (isolate_->heap()->InNewSpace(node->object())) {
+      if (Heap::InNewSpace(node->object())) {
         new_space_nodes_[last++] = node;
         isolate_->heap()->IncrementNodesCopiedInNewSpace();
       } else {
@@ -1128,11 +1127,10 @@ void EternalHandles::IterateNewSpaceRoots(RootVisitor* visitor) {
   }
 }
 
-
-void EternalHandles::PostGarbageCollectionProcessing(Heap* heap) {
+void EternalHandles::PostGarbageCollectionProcessing() {
   size_t last = 0;
   for (int index : new_space_indices_) {
-    if (heap->InNewSpace(*GetLocation(index))) {
+    if (Heap::InNewSpace(*GetLocation(index))) {
       new_space_indices_[last++] = index;
     }
   }
@@ -1156,7 +1154,7 @@ void EternalHandles::Create(Isolate* isolate, Object* object, int* index) {
   }
   DCHECK_EQ(the_hole, blocks_[block][offset]);
   blocks_[block][offset] = object;
-  if (isolate->heap()->InNewSpace(object)) {
+  if (Heap::InNewSpace(object)) {
     new_space_indices_.push_back(size_);
   }
   *index = size_++;

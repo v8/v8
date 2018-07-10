@@ -1691,10 +1691,9 @@ Object* JSObject::InObjectPropertyAtPut(int index,
 void JSObject::InitializeBody(Map* map, int start_offset,
                               Object* pre_allocated_value,
                               Object* filler_value) {
-  DCHECK(!filler_value->IsHeapObject() ||
-         !GetHeap()->InNewSpace(filler_value));
+  DCHECK(!filler_value->IsHeapObject() || !Heap::InNewSpace(filler_value));
   DCHECK(!pre_allocated_value->IsHeapObject() ||
-         !GetHeap()->InNewSpace(pre_allocated_value));
+         !Heap::InNewSpace(pre_allocated_value));
   int size = map->instance_size();
   int offset = start_offset;
   if (filler_value != pre_allocated_value) {
@@ -1801,7 +1800,7 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
     const DisallowHeapAllocation& promise) {
   Heap* heap = Heap::FromWritableHeapObject(this);
   if (heap->incremental_marking()->IsMarking()) return UPDATE_WRITE_BARRIER;
-  if (heap->InNewSpace(this)) return SKIP_WRITE_BARRIER;
+  if (Heap::InNewSpace(this)) return SKIP_WRITE_BARRIER;
   return UPDATE_WRITE_BARRIER;
 }
 
@@ -2557,7 +2556,7 @@ AbstractCode* JSFunction::abstract_code() {
 Code* JSFunction::code() { return Code::cast(READ_FIELD(this, kCodeOffset)); }
 
 void JSFunction::set_code(Code* value) {
-  DCHECK(!GetHeap()->InNewSpace(value));
+  DCHECK(!Heap::InNewSpace(value));
   WRITE_FIELD(this, kCodeOffset, value);
   GetHeap()->incremental_marking()->RecordWrite(
       this, HeapObject::RawField(this, kCodeOffset), value);
@@ -2565,7 +2564,7 @@ void JSFunction::set_code(Code* value) {
 
 
 void JSFunction::set_code_no_write_barrier(Code* value) {
-  DCHECK(!GetHeap()->InNewSpace(value));
+  DCHECK(!Heap::InNewSpace(value));
   WRITE_FIELD(this, kCodeOffset, value);
 }
 
@@ -2979,8 +2978,8 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
 void JSReceiver::initialize_properties() {
   Heap* heap = GetHeap();
   ReadOnlyRoots roots(heap);
-  DCHECK(!heap->InNewSpace(roots.empty_fixed_array()));
-  DCHECK(!heap->InNewSpace(heap->empty_property_dictionary()));
+  DCHECK(!Heap::InNewSpace(roots.empty_fixed_array()));
+  DCHECK(!Heap::InNewSpace(heap->empty_property_dictionary()));
   if (map()->is_dictionary_map()) {
     WRITE_FIELD(this, kPropertiesOrHashOffset,
                 heap->empty_property_dictionary());

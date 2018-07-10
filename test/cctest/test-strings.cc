@@ -1214,7 +1214,7 @@ TEST(InternalizeExternal) {
     Handle<String> string = v8::Utils::OpenHandle(*ext_string);
     CHECK(string->IsExternalString());
     CHECK(!string->IsInternalizedString());
-    CHECK(!isolate->heap()->InNewSpace(*string));
+    CHECK(!i::Heap::InNewSpace(*string));
     CHECK_EQ(
         isolate->factory()->string_table()->LookupStringIfExists_NoAllocate(
             *string),
@@ -1222,7 +1222,7 @@ TEST(InternalizeExternal) {
     factory->InternalizeName(string);
     CHECK(string->IsExternalString());
     CHECK(string->IsInternalizedString());
-    CHECK(!isolate->heap()->InNewSpace(*string));
+    CHECK(!i::Heap::InNewSpace(*string));
   }
   CcTest::CollectGarbage(i::OLD_SPACE);
   CcTest::CollectGarbage(i::OLD_SPACE);
@@ -1596,7 +1596,6 @@ TEST(ExternalStringIndexOf) {
     LocalContext context;                                                      \
     v8::HandleScope scope(CcTest::isolate());                                  \
     Factory* factory = CcTest::i_isolate()->factory();                         \
-    Heap* heap = CcTest::i_isolate()->heap();                                  \
     /* Length must be bigger than the buffer size of the Utf8Decoder. */       \
     const char* buf = STRING;                                                  \
     size_t len = strlen(buf);                                                  \
@@ -1605,7 +1604,7 @@ TEST(ExternalStringIndexOf) {
             ->NewStringFromOneByte(Vector<const uint8_t>(                      \
                 reinterpret_cast<const uint8_t*>(buf), len))                   \
             .ToHandleChecked();                                                \
-    CHECK(heap->InNewSpace(*main_string));                                     \
+    CHECK(Heap::InNewSpace(*main_string));                                     \
     /* Next allocation will cause GC. */                                       \
     heap::SimulateFullSpace(CcTest::i_isolate()->heap()->new_space());         \
     /* Offset by two to check substring-ing. */                                \

@@ -190,7 +190,7 @@ FixedArrayBase* Map::GetInitialElements() const {
   } else {
     UNREACHABLE();
   }
-  DCHECK(!GetHeap()->InNewSpace(result));
+  DCHECK(!Heap::InNewSpace(result));
   return result;
 }
 

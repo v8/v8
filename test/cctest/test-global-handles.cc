@@ -94,8 +94,7 @@ void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
   {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Object> tmp = v8::Local<v8::Object>::New(isolate, fp.handle);
-    CHECK(
-        CcTest::i_isolate()->heap()->InNewSpace(*v8::Utils::OpenHandle(*tmp)));
+    CHECK(i::Heap::InNewSpace(*v8::Utils::OpenHandle(*tmp)));
   }
 
   fp.handle.SetWeak(&fp, &ResetHandleAndSetFlag,
@@ -470,8 +469,7 @@ TEST(GCFromWeakCallbacks) {
         v8::HandleScope scope(isolate);
         v8::Local<v8::Object> tmp =
             v8::Local<v8::Object>::New(isolate, fp.handle);
-        CHECK(CcTest::i_isolate()->heap()->InNewSpace(
-            *v8::Utils::OpenHandle(*tmp)));
+        CHECK(i::Heap::InNewSpace(*v8::Utils::OpenHandle(*tmp)));
       }
       fp.flag = false;
       fp.handle.SetWeak(&fp, gc_forcing_callback[inner_gc],

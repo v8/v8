@@ -59,7 +59,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
       DCHECK(success);
       scavenger_->PageMemoryFence(reinterpret_cast<MaybeObject*>(target));
 
-      if (heap_->InNewSpace(target)) {
+      if (Heap::InNewSpace(target)) {
         SLOW_DCHECK(target->IsHeapObject());
         SLOW_DCHECK(Heap::InToSpace(target));
         RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot_address),
@@ -139,7 +139,7 @@ void Scavenger::Process(OneshotBarrier* barrier) {
   // Threshold when to switch processing the promotion list to avoid
   // allocating too much backing store in the worklist.
   const int kProcessPromotionListThreshold = kPromotionListSegmentSize / 2;
-  ScavengeVisitor scavenge_visitor(heap(), this);
+  ScavengeVisitor scavenge_visitor(this);
 
   const bool have_barrier = barrier != nullptr;
   bool done;
@@ -196,7 +196,7 @@ void RootScavengeVisitor::VisitRootPointers(Root root, const char* description,
 void RootScavengeVisitor::ScavengePointer(Object** p) {
   Object* object = *p;
   DCHECK(!HasWeakHeapObjectTag(object));
-  if (!heap_->InNewSpace(object)) return;
+  if (!Heap::InNewSpace(object)) return;
 
   scavenger_->ScavengeObject(reinterpret_cast<HeapObjectReference**>(p),
                              reinterpret_cast<HeapObject*>(object));

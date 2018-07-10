@@ -1827,7 +1827,7 @@ bool Heap::PerformGarbageCollection(
   }
   gc_post_processing_depth_--;
 
-  isolate_->eternal_handles()->PostGarbageCollectionProcessing(this);
+  isolate_->eternal_handles()->PostGarbageCollectionProcessing();
 
   // Update relocatables.
   Relocatable::PostGarbageCollectionProcessing(isolate_);
@@ -2194,7 +2194,7 @@ void Heap::Scavenge() {
           job.AddItem(new PageScavengingItem(chunk));
         });
 
-    RootScavengeVisitor root_scavenge_visitor(this, scavengers[kMainThreadId]);
+    RootScavengeVisitor root_scavenge_visitor(scavengers[kMainThreadId]);
 
     {
       // Identify weak unmodified handles. Requires an unmodified graph.
@@ -2359,12 +2359,12 @@ void Heap::ExternalStringTable::Verify() {
 #ifdef DEBUG
   for (size_t i = 0; i < new_space_strings_.size(); ++i) {
     Object* obj = Object::cast(new_space_strings_[i]);
-    DCHECK(heap_->InNewSpace(obj));
+    DCHECK(InNewSpace(obj));
     DCHECK(!obj->IsTheHole(heap_->isolate()));
   }
   for (size_t i = 0; i < old_space_strings_.size(); ++i) {
     Object* obj = Object::cast(old_space_strings_[i]);
-    DCHECK(!heap_->InNewSpace(obj));
+    DCHECK(!InNewSpace(obj));
     DCHECK(!obj->IsTheHole(heap_->isolate()));
   }
 #endif
@@ -2385,7 +2385,7 @@ void Heap::ExternalStringTable::UpdateNewSpaceReferences(
 
     DCHECK(target->IsExternalString());
 
-    if (heap_->InNewSpace(target)) {
+    if (InNewSpace(target)) {
       // String is still in new space. Update the table entry.
       *last = target;
       ++last;
@@ -3881,20 +3881,17 @@ class SlotVerifyingVisitor : public ObjectVisitor {
 
 class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
  public:
-  OldToNewSlotVerifyingVisitor(Heap* heap, std::set<Address>* untyped,
-                               std::set<std::pair<SlotType, Address> >* typed)
-      : SlotVerifyingVisitor(untyped, typed), heap_(heap) {}
+  OldToNewSlotVerifyingVisitor(std::set<Address>* untyped,
+                               std::set<std::pair<SlotType, Address>>* typed)
+      : SlotVerifyingVisitor(untyped, typed) {}
 
   bool ShouldHaveBeenRecorded(HeapObject* host, MaybeObject* target) override {
     DCHECK_IMPLIES(
-        target->IsStrongOrWeakHeapObject() && heap_->InNewSpace(target),
+        target->IsStrongOrWeakHeapObject() && Heap::InNewSpace(target),
         Heap::InToSpace(target));
-    return target->IsStrongOrWeakHeapObject() && heap_->InNewSpace(target) &&
-           !heap_->InNewSpace(host);
+    return target->IsStrongOrWeakHeapObject() && Heap::InNewSpace(target) &&
+           !Heap::InNewSpace(host);
   }
-
- private:
-  Heap* heap_;
 };
 
 template <RememberedSetType direction>
@@ -3931,7 +3928,7 @@ void Heap::VerifyRememberedSetFor(HeapObject* object) {
   if (!InNewSpace(object)) {
     store_buffer()->MoveAllEntriesToRememberedSet();
     CollectSlots<OLD_TO_NEW>(chunk, start, end, &old_to_new, &typed_old_to_new);
-    OldToNewSlotVerifyingVisitor visitor(this, &old_to_new, &typed_old_to_new);
+    OldToNewSlotVerifyingVisitor visitor(&old_to_new, &typed_old_to_new);
     object->IterateBody(&visitor);
   }
   // TODO(ulan): Add old to old slot set verification once all weak objects
@@ -5405,7 +5402,7 @@ void Heap::ExternalStringTable::CleanUpNewSpaceStrings() {
     // will be processed. Re-processing it will add a duplicate to the vector.
     if (o->IsThinString()) continue;
     DCHECK(o->IsExternalString());
-    if (heap_->InNewSpace(o)) {
+    if (InNewSpace(o)) {
       new_space_strings_[last++] = o;
     } else {
       old_space_strings_.push_back(o);
@@ -5427,7 +5424,7 @@ void Heap::ExternalStringTable::CleanUpAll() {
     // will be processed. Re-processing it will add a duplicate to the vector.
     if (o->IsThinString()) continue;
     DCHECK(o->IsExternalString());
-    DCHECK(!heap_->InNewSpace(o));
+    DCHECK(!InNewSpace(o));
     old_space_strings_[last++] = o;
   }
   old_space_strings_.resize(last);

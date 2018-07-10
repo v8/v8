@@ -303,7 +303,7 @@ class EternalHandles {
   // Iterates over all handles which might be in new space.
   void IterateNewSpaceRoots(RootVisitor* visitor);
   // Rebuilds new space list.
-  void PostGarbageCollectionProcessing(Heap* heap);
+  void PostGarbageCollectionProcessing();
 
  private:
   static const int kInvalidIndex = -1;

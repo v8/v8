@@ -355,7 +355,7 @@ void JSObjectRef::EnsureElementsTenured(const JSHeapBroker* broker) {
   AllowHandleDereference allow_handle_dereference;
   Handle<FixedArrayBase> object_elements =
       elements(broker).object<FixedArrayBase>();
-  if (broker->isolate()->heap()->InNewSpace(*object_elements)) {
+  if (Heap::InNewSpace(*object_elements)) {
     // If we would like to pretenure a fixed cow array, we must ensure that
     // the array is already in old space, otherwise we'll create too many
     // old-to-new-space pointers (overflowing the store buffer).
