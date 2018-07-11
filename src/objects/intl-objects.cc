@@ -1272,7 +1272,7 @@ MaybeHandle<Object> NumberFormat::FormatNumber(
 // namespace {
 
 // TODO(bstell): Make all these a constexpr on the Intl class.
-void BuildLanguageTagRegexes(Isolate* isolate) {
+void BuildLanguageTagRegexps(Isolate* isolate) {
   std::string alpha = "[a-zA-Z]";
   std::string digit = "[0-9]";
   std::string alphanum = "(" + alpha + "|" + digit + ")";
@@ -1327,7 +1327,7 @@ icu::RegexMatcher* GetLanguageSingletonRegexMatcher(Isolate* isolate) {
   icu::RegexMatcher* language_singleton_regexp_matcher =
       isolate->language_singleton_regexp_matcher();
   if (language_singleton_regexp_matcher == nullptr) {
-    BuildLanguageTagRegexes(isolate);
+    BuildLanguageTagRegexps(isolate);
     language_singleton_regexp_matcher =
         isolate->language_singleton_regexp_matcher();
   }
@@ -1338,7 +1338,7 @@ icu::RegexMatcher* GetLanguageTagRegexMatcher(Isolate* isolate) {
   icu::RegexMatcher* language_tag_regexp_matcher =
       isolate->language_tag_regexp_matcher();
   if (language_tag_regexp_matcher == nullptr) {
-    BuildLanguageTagRegexes(isolate);
+    BuildLanguageTagRegexps(isolate);
     language_tag_regexp_matcher = isolate->language_tag_regexp_matcher();
   }
   return language_tag_regexp_matcher;
@@ -1348,7 +1348,7 @@ icu::RegexMatcher* GetLanguageVariantRegexMatcher(Isolate* isolate) {
   icu::RegexMatcher* language_variant_regexp_matcher =
       isolate->language_variant_regexp_matcher();
   if (language_variant_regexp_matcher == nullptr) {
-    BuildLanguageTagRegexes(isolate);
+    BuildLanguageTagRegexps(isolate);
     language_variant_regexp_matcher =
         isolate->language_variant_regexp_matcher();
   }
