@@ -200,7 +200,7 @@ MaybeHandle<Object> Object::ConvertToNumberOrNumeric(Isolate* isolate,
       return String::ToNumber(isolate, Handle<String>::cast(input));
     }
     if (input->IsOddball()) {
-      return Oddball::ToNumber(Handle<Oddball>::cast(input));
+      return Oddball::ToNumber(isolate, Handle<Oddball>::cast(input));
     }
     if (input->IsSymbol()) {
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kSymbolToNumber),
@@ -646,14 +646,14 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
         y = String::ToNumber(isolate, Handle<String>::cast(y));
         return Just(NumberEquals(Handle<Oddball>::cast(x)->to_number(), *y));
       } else if (y->IsBigInt()) {
-        x = Oddball::ToNumber(Handle<Oddball>::cast(x));
+        x = Oddball::ToNumber(isolate, Handle<Oddball>::cast(x));
         return Just(BigInt::EqualToNumber(Handle<BigInt>::cast(y), x));
       } else if (y->IsJSReceiver()) {
         if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
                  .ToHandle(&y)) {
           return Nothing<bool>();
         }
-        x = Oddball::ToNumber(Handle<Oddball>::cast(x));
+        x = Oddball::ToNumber(isolate, Handle<Oddball>::cast(x));
       } else {
         return Just(false);
       }
@@ -679,7 +679,7 @@ Maybe<bool> Object::Equals(Isolate* isolate, Handle<Object> x,
       } else if (y->IsUndetectable()) {
         return Just(x->IsUndetectable());
       } else if (y->IsBoolean()) {
-        y = Oddball::ToNumber(Handle<Oddball>::cast(y));
+        y = Oddball::ToNumber(isolate, Handle<Oddball>::cast(y));
       } else if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(x))
                       .ToHandle(&x)) {
         return Nothing<bool>();

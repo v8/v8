@@ -1447,8 +1447,8 @@ void Oddball::set_kind(byte value) {
 
 
 // static
-Handle<Object> Oddball::ToNumber(Handle<Oddball> input) {
-  return handle(input->to_number(), input->GetIsolate());
+Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
+  return handle(input->to_number(), isolate);
 }
 
 

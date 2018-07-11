@@ -3846,7 +3846,7 @@ class Oddball: public HeapObject {
 
   // ES6 section 7.1.3 ToNumber for Boolean, Null, Undefined.
   V8_WARN_UNUSED_RESULT static inline Handle<Object> ToNumber(
-      Handle<Oddball> input);
+      Isolate* isolate, Handle<Oddball> input);
 
   DECL_CAST(Oddball)
 

@@ -983,7 +983,7 @@ Reduction JSTypedLowering::ReduceJSToNumberOrNumericInput(Node* input) {
     Handle<Object> input_value = input_type.AsHeapConstant()->Value();
     if (input_value->IsOddball()) {
       return Replace(jsgraph()->Constant(
-          Oddball::ToNumber(Handle<Oddball>::cast(input_value))));
+          Oddball::ToNumber(isolate(), Handle<Oddball>::cast(input_value))));
     }
   }
   if (input_type.Is(Type::Number())) {
