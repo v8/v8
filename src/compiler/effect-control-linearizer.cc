@@ -3372,15 +3372,19 @@ void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
           frame_state);
 
       // Try to find the {val} in the string table.
-      MachineSignature::Builder builder(graph()->zone(), 1, 1);
+      MachineSignature::Builder builder(graph()->zone(), 1, 2);
       builder.AddReturn(MachineType::AnyTagged());
+      builder.AddParam(MachineType::Pointer());
       builder.AddParam(MachineType::AnyTagged());
       Node* try_internalize_string_function = __ ExternalConstant(
           ExternalReference::try_internalize_string_function());
+      Node* const isolate_ptr =
+          __ ExternalConstant(ExternalReference::isolate_address(isolate()));
       auto call_descriptor =
           Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
-      Node* val_internalized = __ Call(common()->Call(call_descriptor),
-                                       try_internalize_string_function, val);
+      Node* val_internalized =
+          __ Call(common()->Call(call_descriptor),
+                  try_internalize_string_function, isolate_ptr, val);
 
       // Now see if the results match.
       __ DeoptimizeIfNot(DeoptimizeReason::kWrongName, VectorSlotPair(),

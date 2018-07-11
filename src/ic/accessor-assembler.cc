@@ -2676,8 +2676,11 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
       // Try to internalize the {name}.
       Node* function = ExternalConstant(
           ExternalReference::try_internalize_string_function());
-      var_name.Bind(CallCFunction1(MachineType::AnyTagged(),
-                                   MachineType::AnyTagged(), function, name));
+      Node* const isolate_ptr =
+          ExternalConstant(ExternalReference::isolate_address(isolate()));
+      var_name.Bind(CallCFunction2(
+          MachineType::AnyTagged(), MachineType::Pointer(),
+          MachineType::AnyTagged(), function, isolate_ptr, name));
       Goto(&if_internalized);
     }
 

@@ -73,7 +73,8 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   // string handle if it is found, or an empty handle otherwise.
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> LookupTwoCharsStringIfExists(
       Isolate* isolate, uint16_t c1, uint16_t c2);
-  static Object* LookupStringIfExists_NoAllocate(String* string);
+  static Object* LookupStringIfExists_NoAllocate(Isolate* isolate,
+                                                 String* string);
 
   static void EnsureCapacityForDeserialization(Isolate* isolate, int expected);
 

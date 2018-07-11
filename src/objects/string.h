@@ -463,7 +463,7 @@ class String : public Name {
   V8_EXPORT_PRIVATE bool SlowAsArrayIndex(uint32_t* index);
 
   // Compute and set the hash code.
-  uint32_t ComputeAndSetHash();
+  uint32_t ComputeAndSetHash(Isolate* isolate);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(String);
 };
@@ -593,7 +593,7 @@ class ConsString : public String {
   // Doesn't check that the result is a string, even in debug mode.  This is
   // useful during GC where the mark bits confuse the checks.
   inline Object* unchecked_first();
-  inline void set_first(String* first,
+  inline void set_first(Isolate* isolate, String* first,
                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Second string of the cons cell.
@@ -601,7 +601,7 @@ class ConsString : public String {
   // Doesn't check that the result is a string, even in debug mode.  This is
   // useful during GC where the mark bits confuse the checks.
   inline Object* unchecked_second();
-  inline void set_second(String* second,
+  inline void set_second(Isolate* isolate, String* second,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
@@ -675,7 +675,7 @@ class ThinString : public String {
 class SlicedString : public String {
  public:
   inline String* parent();
-  inline void set_parent(String* parent,
+  inline void set_parent(Isolate* isolate, String* parent,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline int offset() const;
   inline void set_offset(int offset);

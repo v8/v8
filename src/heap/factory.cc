@@ -574,7 +574,7 @@ Handle<String> Factory::InternalizeOneByteString(Vector<const uint8_t> string) {
 
 Handle<String> Factory::InternalizeOneByteString(
     Handle<SeqOneByteString> string, int from, int length) {
-  SeqOneByteSubStringKey key(string, from, length);
+  SeqOneByteSubStringKey key(isolate(), string, from, length);
   return InternalizeStringWithKey(&key);
 }
 
@@ -1145,8 +1145,8 @@ Handle<String> Factory::NewConsString(Handle<String> left, Handle<String> right,
 
   result->set_hash_field(String::kEmptyHashField);
   result->set_length(length);
-  result->set_first(*left, mode);
-  result->set_second(*right, mode);
+  result->set_first(isolate(), *left, mode);
+  result->set_second(isolate(), *right, mode);
   return result;
 }
 
@@ -1226,7 +1226,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
 
   slice->set_hash_field(String::kEmptyHashField);
   slice->set_length(length);
-  slice->set_parent(*str);
+  slice->set_parent(isolate(), *str);
   slice->set_offset(offset);
   return slice;
 }

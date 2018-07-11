@@ -2557,8 +2557,8 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
     WriteToFlat(*cons, flat->GetChars(), 0, length);
     result = flat;
   }
-  cons->set_first(*result);
-  cons->set_second(ReadOnlyRoots(isolate).empty_string());
+  cons->set_first(isolate, *result);
+  cons->set_second(isolate, ReadOnlyRoots(isolate).empty_string());
   DCHECK(result->IsFlat());
   return result;
 }
@@ -12164,13 +12164,13 @@ bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
   return true;
 }
 
-
-uint32_t String::ComputeAndSetHash() {
+uint32_t String::ComputeAndSetHash(Isolate* isolate) {
   // Should only be called if hash code has not yet been computed.
   DCHECK(!HasHashCode());
 
   // Store the hash code in the object.
-  uint32_t field = IteratingStringHasher::Hash(this, GetHeap()->HashSeed());
+  uint32_t field =
+      IteratingStringHasher::Hash(this, isolate->heap()->HashSeed());
   set_hash_field(field);
 
   // Check the hash code is there.
@@ -12204,8 +12204,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
 
 
 Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
-  Heap* heap = string->GetHeap();
-  if (new_length == 0) return heap->isolate()->factory()->empty_string();
+  if (new_length == 0) return string->GetReadOnlyRoots().empty_string_handle();
 
   int new_size, old_size;
   int old_length = string->length();
@@ -12226,6 +12225,7 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   DCHECK_OBJECT_ALIGNED(start_of_string);
   DCHECK_OBJECT_ALIGNED(start_of_string + new_size);
 
+  Heap* heap = Heap::FromWritableHeapObject(*string);
   // Sizes are pointer size aligned, so that we can use filler objects
   // that are a multiple of pointer size.
   heap->CreateFillerObjectAt(start_of_string + new_size, delta,
@@ -17153,8 +17153,8 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   } else {  // !FLAG_thin_strings
     if (string->IsConsString()) {
       Handle<ConsString> cons = Handle<ConsString>::cast(string);
-      cons->set_first(*result);
-      cons->set_second(ReadOnlyRoots(isolate).empty_string());
+      cons->set_first(isolate, *result);
+      cons->set_second(isolate, ReadOnlyRoots(isolate).empty_string());
     } else if (string->IsSlicedString()) {
       STATIC_ASSERT(ConsString::kSize == SlicedString::kSize);
       DisallowHeapAllocation no_gc;
@@ -17164,8 +17164,8 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
                             : isolate->factory()->cons_string_map();
       string->set_map(*map);
       Handle<ConsString> cons = Handle<ConsString>::cast(string);
-      cons->set_first(*result);
-      cons->set_second(ReadOnlyRoots(isolate).empty_string());
+      cons->set_first(isolate, *result);
+      cons->set_second(isolate, ReadOnlyRoots(isolate).empty_string());
     }
   }
   return result;
@@ -17353,10 +17353,10 @@ class StringTableNoAllocateKey : public StringTableKey {
 }  // namespace
 
 // static
-Object* StringTable::LookupStringIfExists_NoAllocate(String* string) {
+Object* StringTable::LookupStringIfExists_NoAllocate(Isolate* isolate,
+                                                     String* string) {
   DisallowHeapAllocation no_gc;
-  Heap* heap = string->GetHeap();
-  Isolate* isolate = heap->isolate();
+  Heap* heap = isolate->heap();
   StringTable* table = heap->string_table();
 
   StringTableNoAllocateKey key(string, heap->HashSeed());

@@ -225,9 +225,10 @@ class SeqOneByteSubStringKey : public StringTableKey {
 #pragma warning(push)
 #pragma warning(disable : 4789)
 #endif
-  SeqOneByteSubStringKey(Handle<SeqOneByteString> string, int from, int length)
+  SeqOneByteSubStringKey(Isolate* isolate, Handle<SeqOneByteString> string,
+                         int from, int length)
       : StringTableKey(StringHasher::HashSequentialString(
-            string->GetChars() + from, length, string->GetHeap()->HashSeed())),
+            string->GetChars() + from, length, isolate->heap()->HashSeed())),
         string_(string),
         from_(from),
         length_(length) {
@@ -492,10 +493,11 @@ String* SlicedString::parent() {
   return String::cast(READ_FIELD(this, kParentOffset));
 }
 
-void SlicedString::set_parent(String* parent, WriteBarrierMode mode) {
+void SlicedString::set_parent(Isolate* isolate, String* parent,
+                              WriteBarrierMode mode) {
   DCHECK(parent->IsSeqString() || parent->IsExternalString());
   WRITE_FIELD(this, kParentOffset, parent);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kParentOffset, parent, mode);
+  CONDITIONAL_WRITE_BARRIER(isolate->heap(), this, kParentOffset, parent, mode);
 }
 
 SMI_ACCESSORS(SlicedString, offset, kOffsetOffset)
@@ -506,9 +508,10 @@ String* ConsString::first() {
 
 Object* ConsString::unchecked_first() { return READ_FIELD(this, kFirstOffset); }
 
-void ConsString::set_first(String* value, WriteBarrierMode mode) {
+void ConsString::set_first(Isolate* isolate, String* value,
+                           WriteBarrierMode mode) {
   WRITE_FIELD(this, kFirstOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kFirstOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(isolate->heap(), this, kFirstOffset, value, mode);
 }
 
 String* ConsString::second() {
@@ -519,9 +522,10 @@ Object* ConsString::unchecked_second() {
   return RELAXED_READ_FIELD(this, kSecondOffset);
 }
 
-void ConsString::set_second(String* value, WriteBarrierMode mode) {
+void ConsString::set_second(Isolate* isolate, String* value,
+                            WriteBarrierMode mode) {
   WRITE_FIELD(this, kSecondOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kSecondOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(isolate->heap(), this, kSecondOffset, value, mode);
 }
 
 ACCESSORS(ThinString, actual, String, kActualOffset);

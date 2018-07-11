@@ -7218,8 +7218,11 @@ void CodeStubAssembler::TryInternalizeString(
   CSA_SLOW_ASSERT(this, IsString(string));
   Node* function =
       ExternalConstant(ExternalReference::try_internalize_string_function());
-  Node* result = CallCFunction1(MachineType::AnyTagged(),
-                                MachineType::AnyTagged(), function, string);
+  Node* const isolate_ptr =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
+  Node* result =
+      CallCFunction2(MachineType::AnyTagged(), MachineType::Pointer(),
+                     MachineType::AnyTagged(), function, isolate_ptr, string);
   Label internalized(this);
   GotoIf(TaggedIsNotSmi(result), &internalized);
   Node* word_result = SmiUntag(result);
