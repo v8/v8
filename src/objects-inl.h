@@ -2101,12 +2101,6 @@ FieldType* DescriptorArray::GetFieldType(int descriptor_number) {
   return Map::UnwrapFieldType(wrapped_type);
 }
 
-void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
-  desc->Init(handle(GetKey(descriptor_number), GetIsolate()),
-             MaybeObjectHandle(GetStrongValue(descriptor_number), GetIsolate()),
-             GetDetails(descriptor_number));
-}
-
 void DescriptorArray::Set(int descriptor_number, Name* key, MaybeObject* value,
                           PropertyDetails details) {
   // Range check.

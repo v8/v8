@@ -65,15 +65,6 @@ class Descriptor final BASE_EMBEDDED {
   PropertyDetails details_;
 
  protected:
-  void Init(Handle<Name> key, MaybeObjectHandle value,
-            PropertyDetails details) {
-    DCHECK(key->IsUniqueName());
-    DCHECK_IMPLIES(key->IsPrivate(), !details.IsEnumerable());
-    key_ = key;
-    value_ = value;
-    details_ = details;
-  }
-
   Descriptor(Handle<Name> key, MaybeObjectHandle value, PropertyDetails details)
       : key_(key), value_(value), details_(details) {
     DCHECK(key->IsUniqueName());
@@ -92,8 +83,6 @@ class Descriptor final BASE_EMBEDDED {
     DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
   }
 
-  friend class DescriptorArray;
-  friend class Map;
   friend class MapUpdater;
 };
 
