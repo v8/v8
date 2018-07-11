@@ -998,8 +998,6 @@ void Simulator::EvalTableInit() {
   EvalTable[STFPC] = &Simulator::Evaluate_STFPC;
   EvalTable[LFPC] = &Simulator::Evaluate_LFPC;
   EvalTable[TRE] = &Simulator::Evaluate_TRE;
-  EvalTable[CUUTF] = &Simulator::Evaluate_CUUTF;
-  EvalTable[CUTFU] = &Simulator::Evaluate_CUTFU;
   EvalTable[STFLE] = &Simulator::Evaluate_STFLE;
   EvalTable[SRNMB] = &Simulator::Evaluate_SRNMB;
   EvalTable[SRNMT] = &Simulator::Evaluate_SRNMT;
@@ -1105,7 +1103,6 @@ void Simulator::EvalTableInit() {
   EvalTable[CGDR] = &Simulator::Evaluate_CGDR;
   EvalTable[CGXR] = &Simulator::Evaluate_CGXR;
   EvalTable[LGDR] = &Simulator::Evaluate_LGDR;
-  EvalTable[MDTR] = &Simulator::Evaluate_MDTR;
   EvalTable[MDTRA] = &Simulator::Evaluate_MDTRA;
   EvalTable[DDTRA] = &Simulator::Evaluate_DDTRA;
   EvalTable[ADTRA] = &Simulator::Evaluate_ADTRA;
@@ -5291,18 +5288,6 @@ EVALUATE(TRE) {
   return 0;
 }
 
-EVALUATE(CUUTF) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
-}
-
-EVALUATE(CUTFU) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
-}
-
 EVALUATE(STFLE) {
   UNIMPLEMENTED();
   USE(instr);
@@ -6410,12 +6395,6 @@ EVALUATE(LGDR) {
   int64_t double_val = get_d_register(r2);
   set_register(r1, double_val);
   return length;
-}
-
-EVALUATE(MDTR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
 }
 
 EVALUATE(MDTRA) {

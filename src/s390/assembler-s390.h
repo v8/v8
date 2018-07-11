@@ -1331,6 +1331,46 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
     brxhg(dst, inc, Operand(offset_halfwords));
   }
 
+  template <class R1, class R2>
+  void ledbr(R1 r1, R2 r2) {
+    ledbra(Condition(0), Condition(0), r1, r2);
+  }
+
+  template <class R1, class R2>
+  void cdfbr(R1 r1, R2 r2) {
+    cdfbra(Condition(0), Condition(0), r1, r2);
+  }
+
+  template <class R1, class R2>
+  void cdgbr(R1 r1, R2 r2) {
+    cdgbra(Condition(0), Condition(0), r1, r2);
+  }
+
+  template <class R1, class R2>
+  void cegbr(R1 r1, R2 r2) {
+    cegbra(Condition(0), Condition(0), r1, r2);
+  }
+
+  template <class R1, class R2>
+  void cgebr(Condition m3, R1 r1, R2 r2) {
+    cgebra(m3, Condition(0), r1, r2);
+  }
+
+  template <class R1, class R2>
+  void cgdbr(Condition m3, R1 r1, R2 r2) {
+    cgdbra(m3, Condition(0), r1, r2);
+  }
+
+  template <class R1, class R2>
+  void cfdbr(Condition m3, R1 r1, R2 r2) {
+    cfdbra(m3, Condition(0), r1, r2);
+  }
+
+  template <class R1, class R2>
+  void cfebr(Condition m3, R1 r1, R2 r2) {
+    cfebra(m3, Condition(0), r1, r2);
+  }
+
   // ---------------------------------------------------------------------------
   // Code generation
 
