@@ -2,7 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-"use strict";
+import * as d3 from "d3"
+import {layoutNodeGraph} from "./graph-layout.js"
+import {MAX_RANK_SENTINEL} from "./constants.js"
+import {GNode, nodeToStr, isNodeInitiallyVisible} from "./node.js"
+import {NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH} from "./node.js"
+import {DEFAULT_NODE_BUBBLE_RADIUS} from "./node.js"
+import {Edge, edgeToStr} from "./edge.js"
+import {View, PhaseView} from "./view.js"
+import {MySelection} from "./selection.js"
+import {partial, alignUp} from "./util.js"
 
 function nodeToStringKey(n) {
   return "" + n.id;
@@ -18,7 +27,7 @@ interface GraphState {
   hideDead: boolean
 }
 
-class GraphView extends View implements PhaseView {
+export class GraphView extends View implements PhaseView {
   divElement: d3.Selection<any, any, any, any>;
   svg: d3.Selection<any, any, any, any>;
   showPhaseByName: (string) => void;
@@ -272,7 +281,7 @@ class GraphView extends View implements PhaseView {
   };
 
   measureText(text) {
-    const textMeasure = document.getElementById('text-measure');
+    const textMeasure = document.getElementById('text-measure') as SVGTSpanElement;
     textMeasure.textContent = text;
     return {
       width: textMeasure.getBBox().width,
@@ -304,7 +313,7 @@ class GraphView extends View implements PhaseView {
       n.labelbbox = g.measureText(n.displayLabel);
       n.typebbox = g.measureText(n.getDisplayType());
       var innerwidth = Math.max(n.labelbbox.width, n.typebbox.width);
-      n.width = MoreMath.alignUp(innerwidth + NODE_INPUT_WIDTH * 2,
+      n.width = alignUp(innerwidth + NODE_INPUT_WIDTH * 2,
         NODE_INPUT_WIDTH);
       var innerheight = Math.max(n.labelbbox.height, n.typebbox.height);
       n.normalheight = innerheight + 20;
@@ -748,10 +757,10 @@ class GraphView extends View implements PhaseView {
     newGs.append("rect")
       .attr("rx", 10)
       .attr("ry", 10)
-      .attr(WIDTH, function (d) {
+      .attr('width', function (d) {
         return d.getTotalNodeWidth();
       })
-      .attr(HEIGHT, function (d) {
+      .attr('height', function (d) {
         return graph.getNodeHeight(d);
       })
 
@@ -856,7 +865,7 @@ class GraphView extends View implements PhaseView {
       })
       .attr("transform", function (d) { return "translate(" + d.x + "," + d.y + ")"; })
       .select('rect')
-      .attr(HEIGHT, function (d) { return graph.getNodeHeight(d); });
+      .attr('height', function (d) { return graph.getNodeHeight(d); });
 
     graph.visibleBubbles = d3.selectAll('circle');
 

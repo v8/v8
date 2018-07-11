@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-class SelectionBroker {
+import {SourceResolver, sourcePositionValid} from "./source-resolver.js"
+
+export class SelectionBroker {
   sourceResolver: SourceResolver;
   sourcePositionHandlers: Array<SelectionHandler>;
   nodeHandlers: Array<NodeSelectionHandler>;

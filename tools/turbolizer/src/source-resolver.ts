@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {sortUnique, anyToString} from "./util.js"
+
 function sourcePositionLe(a, b) {
   if (a.inliningId == b.inliningId) {
     return a.scriptOffset - b.scriptOffset;
@@ -14,7 +16,7 @@ function sourcePositionEq(a, b) {
     a.scriptOffset == b.scriptOffset;
 }
 
-function sourcePositionToStringKey(sourcePosition): string {
+export function sourcePositionToStringKey(sourcePosition): string {
   if (!sourcePosition) return "undefined";
   if (sourcePosition.inliningId && sourcePosition.scriptOffset)
     return "SP:" + sourcePosition.inliningId + ":" + sourcePosition.scriptOffset;
@@ -23,12 +25,12 @@ function sourcePositionToStringKey(sourcePosition): string {
   return "undefined";
 }
 
-function sourcePositionValid(l) {
+export function sourcePositionValid(l) {
   return (typeof l.scriptOffset !== undefined
     && typeof l.inliningId !== undefined) || typeof l.bytecodePosition != undefined;
 }
 
-interface SourcePosition {
+export interface SourcePosition {
   scriptOffset: number;
   inliningId: number;
 }
@@ -38,7 +40,7 @@ interface TurboFanOrigin {
   reducer: string;
 }
 
-interface NodeOrigin {
+export interface NodeOrigin {
   nodeId: number;
 }
 
@@ -52,7 +54,7 @@ type TurboFanBytecodeOrigin = BytecodePosition & TurboFanOrigin;
 
 type AnyPosition = SourcePosition | BytecodePosition;
 
-interface Source {
+export interface Source {
   sourcePositions: Array<SourcePosition>;
   sourceName: string;
   functionName: string;
@@ -70,11 +72,11 @@ interface Phase {
   data: any;
 }
 
-interface Schedule {
+export interface Schedule {
   nodes: Array<any>;
 }
 
-class SourceResolver {
+export class SourceResolver {
   nodePositionMap: Array<AnyPosition>;
   sources: Array<Source>;
   inlinings: Array<Inlining>;

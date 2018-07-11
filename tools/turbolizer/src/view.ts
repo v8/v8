@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-"use strict";
-
-abstract class View {
+export abstract class View {
   container: HTMLElement;
   divNode: HTMLElement;
   abstract initializeContent(data: any, rememberedSelection: Selection): void;
@@ -32,7 +30,7 @@ abstract class View {
   }
 }
 
-interface PhaseView {
+export interface PhaseView {
   onresize();
   searchInputAction(searchInput: HTMLInputElement, e: Event);
 }

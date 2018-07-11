@@ -2,7 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var DEFAULT_NODE_ROW_SEPARATION = 130
+
+import {MAX_RANK_SENTINEL} from "./constants.js"
+import {MINIMUM_EDGE_SEPARATION} from "./edge.js"
+import {NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS} from "./node.js"
+
+
+const DEFAULT_NODE_ROW_SEPARATION = 130
 
 var traceLayout = false;
 
@@ -246,7 +252,7 @@ function newGraphOccupation(graph) {
   return occupation;
 }
 
-function layoutNodeGraph(graph) {
+export function layoutNodeGraph(graph) {
   // First determine the set of nodes that have no outputs. Those are the
   // basis for bottom-up DFS to determine rank and node placement.
   var endNodesHasNoOutputs = [];

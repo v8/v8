@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-"use strict";
+export function anyToString(x: any): string {
+  return "" + x;
+}
 
 function computeScrollTop(container, element) {
   const height = container.offsetHeight;
@@ -17,7 +19,7 @@ function computeScrollTop(container, element) {
   return pos;
 }
 
-class ViewElements {
+export class ViewElements {
   container: HTMLElement;
   scrollTop: number;
 
@@ -84,7 +86,7 @@ function upperBound(a, value, compare, lookup) {
 }
 
 
-function sortUnique<T>(arr: Array<T>, f: (a: T, b: T) => number, equal: (a: T, b: T) => boolean) {
+export function sortUnique<T>(arr: Array<T>, f: (a: T, b: T) => number, equal: (a: T, b: T) => boolean) {
   if (arr.length == 0) return arr;
   arr = arr.sort(f);
   let ret = [arr[0]];
@@ -97,14 +99,18 @@ function sortUnique<T>(arr: Array<T>, f: (a: T, b: T) => number, equal: (a: T, b
 }
 
 // Partial application without binding the receiver
-function partial(f, ...arguments1) {
+export function partial(f, ...arguments1) {
   return function (...arguments2) {
     var arguments2 = Array.from(arguments);
     f.apply(this, [...arguments1, ...arguments2]);
   }
 }
 
-function isIterable(obj: any): obj is Iterable<any> {
+export function isIterable(obj: any): obj is Iterable<any> {
   return obj != null && obj != undefined
     && typeof obj != 'string' && typeof obj[Symbol.iterator] === 'function';
+}
+
+export function alignUp(raw:number, multiple:number):number {
+  return Math.floor((raw + multiple - 1) / multiple) * multiple;
 }

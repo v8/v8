@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var MINIMUM_EDGE_SEPARATION = 20;
+import {GNode, DEFAULT_NODE_BUBBLE_RADIUS} from "./node.js"
 
-function isEdgeInitiallyVisible(target, index, source, type) {
+export const MINIMUM_EDGE_SEPARATION = 20;
+
+export function isEdgeInitiallyVisible(target, index, source, type) {
   return type == "control" && (target.cfg || source.cfg);
 }
 
-class Edge {
+export class Edge {
   target: GNode;
   source: GNode;
   index: number;
@@ -89,4 +91,4 @@ class Edge {
 
 }
 
-const edgeToStr = (e: Edge) => e.stringID();
+export const edgeToStr = (e: Edge) => e.stringID();

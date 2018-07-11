@@ -1,12 +1,15 @@
 {
     "compilerOptions": {
-        "outFile": "build/turbolizer.js",
-        "allowJs": true,
+        "outDir": "build/",
+        "allowJs": false,
         "target": "es2017",
-        "sourceMap": true
+        "module": "es2015",
+        "sourceMap": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "moduleResolution": "node"
     },
     "files": [
-        "src/monkey.ts",
         "src/util.ts",
         "src/lang-disassembly.ts",
         "src/node.ts",

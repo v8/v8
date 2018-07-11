@@ -2,9 +2,8 @@
   "name": "turbolizer",
   "version": "0.1.0",
   "description": "Visualization tool for V8 TurboFan IR graphs",
-  "main": "index.html",
   "scripts": {
-    "build": "tsc",
+    "build": "rollup -c",
     "watch": "tsc --watch",
     "deploy": "./deploy.sh",
     "format": "tsfmt -r"
@@ -13,7 +12,10 @@
   "license": "MIT",
   "dependencies": {
     "@types/d3": "^5.0.0",
-    "d3": "^5.4.0"
+    "d3": "^5.5.0",
+    "pegjs": "^0.10.0",
+    "rollup": "^0.62.0",
+    "rollup-plugin-typescript2": "^0.15.1"
   },
   "repository": {
     "type": "git",

@@ -2,14 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-"use strict";
+import {Source,SourceResolver,sourcePositionToStringKey} from "./source-resolver.js"
+import {SelectionBroker} from "./selection-broker.js"
+import {View} from "./view.js"
+import {MySelection} from "./selection.js"
+import {anyToString,ViewElements} from "./util.js"
 
-enum CodeMode {
+export enum CodeMode {
   MAIN_SOURCE = "main function",
   INLINED_SOURCE = "inlined function"
 };
 
-class CodeView extends View {
+export class CodeView extends View {
   broker: SelectionBroker;
   source: Source;
   sourceResolver: SourceResolver;

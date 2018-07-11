@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-"use strict";
+import {Schedule,SourceResolver} from "./source-resolver.js"
+import {isIterable} from "./util.js"
+import {PhaseView} from "./view.js"
+import {TextView} from "./text-view.js"
 
-class ScheduleView extends TextView implements PhaseView {
+export class ScheduleView extends TextView implements PhaseView {
   schedule: Schedule;
   sourceResolver: SourceResolver;
 

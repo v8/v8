@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-const TYPE_HEIGHT = 25;
-const DEFAULT_NODE_BUBBLE_RADIUS = 12;
-const NODE_INPUT_WIDTH = 50;
-const MINIMUM_NODE_INPUT_APPROACH = 15 + 2 * DEFAULT_NODE_BUBBLE_RADIUS;
-const MINIMUM_NODE_OUTPUT_APPROACH = 15;
+import {NodeOrigin} from "./source-resolver.js"
+import {MINIMUM_EDGE_SEPARATION} from "./edge.js"
 
-function isNodeInitiallyVisible(node) {
+export const DEFAULT_NODE_BUBBLE_RADIUS = 12;
+export const NODE_INPUT_WIDTH = 50;
+export const MINIMUM_NODE_OUTPUT_APPROACH = 15;
+const MINIMUM_NODE_INPUT_APPROACH = 15 + 2 * DEFAULT_NODE_BUBBLE_RADIUS;
+
+export function isNodeInitiallyVisible(node) {
   return node.cfg;
 }
 
@@ -22,7 +24,7 @@ function formatOrigin(origin) {
   return "unknown origin";
 }
 
-class GNode {
+export class GNode {
   control: boolean;
   opcode: string;
   live: boolean;
@@ -177,4 +179,4 @@ class GNode {
   }
 };
 
-const nodeToStr = (n: GNode) => "N" + n.id;
+export const nodeToStr = (n: GNode) => "N" + n.id;

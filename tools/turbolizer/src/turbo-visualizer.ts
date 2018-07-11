@@ -2,6 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import * as C from "./constants.js"
+import {SourceResolver} from "./source-resolver.js"
+import {SelectionBroker} from "./selection-broker.js"
+import {DisassemblyView} from "./disassembly-view.js"
+import {GraphMultiView} from "./graphmultiview.js"
+import {CodeMode, CodeView} from "./code-view.js"
+import * as d3 from "d3"
+
 class Snapper {
   resizer: Resizer;
   sourceExpand: HTMLElement;
@@ -12,10 +20,10 @@ class Snapper {
   constructor(resizer: Resizer) {
     const snapper = this;
     snapper.resizer = resizer;
-    snapper.sourceExpand = document.getElementById(SOURCE_EXPAND_ID);
-    snapper.sourceCollapse = document.getElementById(SOURCE_COLLAPSE_ID);
-    snapper.disassemblyExpand = document.getElementById(DISASSEMBLY_EXPAND_ID);
-    snapper.disassemblyCollapse = document.getElementById(DISASSEMBLY_COLLAPSE_ID);
+    snapper.sourceExpand = document.getElementById(C.SOURCE_EXPAND_ID);
+    snapper.sourceCollapse = document.getElementById(C.SOURCE_COLLAPSE_ID);
+    snapper.disassemblyExpand = document.getElementById(C.DISASSEMBLY_EXPAND_ID);
+    snapper.disassemblyCollapse = document.getElementById(C.DISASSEMBLY_COLLAPSE_ID);
 
     document.getElementById("source-collapse").addEventListener("click", function () {
       resizer.snapper.toggleSourceExpanded();
@@ -112,9 +120,9 @@ class Resizer {
     resizer.panes_updated_callback = panes_updated_callback;
     resizer.dead_width = dead_width
     resizer.client_width = document.body.getBoundingClientRect().width;
-    resizer.left = document.getElementById(SOURCE_PANE_ID);
-    resizer.middle = document.getElementById(INTERMEDIATE_PANE_ID);
-    resizer.right = document.getElementById(GENERATED_PANE_ID);
+    resizer.left = document.getElementById(C.SOURCE_PANE_ID);
+    resizer.middle = document.getElementById(C.INTERMEDIATE_PANE_ID);
+    resizer.right = document.getElementById(C.GENERATED_PANE_ID);
     resizer.resizer_left = d3.select('.resizer-left');
     resizer.resizer_right = d3.select('.resizer-right');
     resizer.sep_left = resizer.client_width / 3;
@@ -188,7 +196,6 @@ class Resizer {
 }
 
 window.onload = function () {
-  "use strict";
   var svg = null;
   var multiview = null;
   var disassemblyView = null;
@@ -237,24 +244,24 @@ window.onload = function () {
       sourceResolver.setNodePositionMap(jsonObj.nodePositions);
       sourceResolver.parsePhases(jsonObj.phases);
 
-      let sourceView = new CodeView(SOURCE_PANE_ID, selectionBroker, sourceResolver, fnc, CodeMode.MAIN_SOURCE);
+      let sourceView = new CodeView(C.SOURCE_PANE_ID, selectionBroker, sourceResolver, fnc, CodeMode.MAIN_SOURCE);
       sourceView.show(null, null);
       sourceViews.push(sourceView);
 
       sourceResolver.forEachSource((source) => {
-        let sourceView = new CodeView(SOURCE_PANE_ID, selectionBroker, sourceResolver, source, CodeMode.INLINED_SOURCE);
+        let sourceView = new CodeView(C.SOURCE_PANE_ID, selectionBroker, sourceResolver, source, CodeMode.INLINED_SOURCE);
         sourceView.show(null, null);
         sourceViews.push(sourceView);
       });
 
-      disassemblyView = new DisassemblyView(GENERATED_PANE_ID, selectionBroker);
+      disassemblyView = new DisassemblyView(C.GENERATED_PANE_ID, selectionBroker);
       disassemblyView.initializeCode(fnc.sourceText);
       if (sourceResolver.disassemblyPhase) {
         disassemblyView.initializePerfProfile(jsonObj.eventCounts);
         disassemblyView.show(sourceResolver.disassemblyPhase.data, null);
       }
 
-      multiview = new GraphMultiView(INTERMEDIATE_PANE_ID, selectionBroker, sourceResolver);
+      multiview = new GraphMultiView(C.INTERMEDIATE_PANE_ID, selectionBroker, sourceResolver);
       multiview.show(jsonObj);
     } catch (err) {
       if (window.confirm("Error: Exception during load of TurboFan JSON file:\n" +
