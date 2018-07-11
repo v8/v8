@@ -109,6 +109,7 @@
       {'name': 'test262_variants', 'shards': 4},
       {'name': 'test262_variants', 'variant': 'extra', 'shards': 2},
       {'name': 'v8testing'},
+      {'name': 'v8testing', 'suffix': 'isolates', 'test_args': ['--isolates'], 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
