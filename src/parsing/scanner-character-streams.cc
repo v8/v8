@@ -564,9 +564,11 @@ Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
   if (data->IsSlicedString()) {
     SlicedString* string = SlicedString::cast(*data);
     start_offset = string->offset();
-    data = handle(string->parent(), string->GetIsolate());
+    String* parent = string->parent();
+    if (parent->IsThinString()) parent = ThinString::cast(parent)->actual();
+    data = handle(parent, isolate);
   } else {
-    data = String::Flatten(data->GetIsolate(), data);
+    data = String::Flatten(isolate, data);
   }
   if (data->IsExternalOneByteString()) {
     return new BufferedCharacterStream<uint8_t, ExternalStringStream>(
