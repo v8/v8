@@ -145,6 +145,7 @@ class DeferredHandles;
 class Heap;
 class HeapObject;
 class Isolate;
+class LocalEmbedderHeapTracer;
 class Object;
 struct ScriptStreamingData;
 template<typename T> class CustomArguments;
@@ -7065,6 +7066,23 @@ class V8_EXPORT EmbedderHeapTracer {
    */
   virtual void AbortTracing() = 0;
 
+  /*
+   * Called by the embedder to request immediaet finalization of the currently
+   * running tracing phase that has been started with TracePrologue and not
+   * yet finished with TraceEpilogue.
+   *
+   * Will be a noop when currently not in tracing.
+   *
+   * This is an experimental feature.
+   */
+  void FinalizeTracing();
+
+  /*
+   * Returns the v8::Isolate this tracer is attached too and |nullptr| if it
+   * is not attached to any v8::Isolate.
+   */
+  v8::Isolate* isolate() const { return isolate_; }
+
   /**
    * Returns the number of wrappers that are still to be traced by the embedder.
    */
@@ -7073,6 +7091,10 @@ class V8_EXPORT EmbedderHeapTracer {
 
  protected:
   virtual ~EmbedderHeapTracer() = default;
+
+  v8::Isolate* isolate_ = nullptr;
+
+  friend class internal::LocalEmbedderHeapTracer;
 };
 
 /**

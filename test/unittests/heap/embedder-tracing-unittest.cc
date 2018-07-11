@@ -3,11 +3,15 @@
 // found in the LICENSE file.
 
 #include "src/heap/embedder-tracing.h"
+#include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+
+using LocalEmbedderHeapTracerWithIsolate = TestWithIsolate;
+
 namespace heap {
 
 using testing::StrictMock;
@@ -38,14 +42,14 @@ class MockEmbedderHeapTracer : public EmbedderHeapTracer {
 };
 
 TEST(LocalEmbedderHeapTracer, InUse) {
-  LocalEmbedderHeapTracer local_tracer;
   MockEmbedderHeapTracer mock_remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
   local_tracer.SetRemoteTracer(&mock_remote_tracer);
   EXPECT_TRUE(local_tracer.InUse());
 }
 
 TEST(LocalEmbedderHeapTracer, NoRemoteTracer) {
-  LocalEmbedderHeapTracer local_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
   // We should be able to call all functions without a remote tracer being
   // attached.
   EXPECT_FALSE(local_tracer.InUse());
@@ -59,32 +63,32 @@ TEST(LocalEmbedderHeapTracer, NoRemoteTracer) {
 }
 
 TEST(LocalEmbedderHeapTracer, TracePrologueForwards) {
-  LocalEmbedderHeapTracer local_tracer;
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
   local_tracer.SetRemoteTracer(&remote_tracer);
   EXPECT_CALL(remote_tracer, TracePrologue());
   local_tracer.TracePrologue();
 }
 
 TEST(LocalEmbedderHeapTracer, TraceEpilogueForwards) {
-  LocalEmbedderHeapTracer local_tracer;
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
   local_tracer.SetRemoteTracer(&remote_tracer);
   EXPECT_CALL(remote_tracer, TraceEpilogue());
   local_tracer.TraceEpilogue();
 }
 
 TEST(LocalEmbedderHeapTracer, AbortTracingForwards) {
-  LocalEmbedderHeapTracer local_tracer;
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
   local_tracer.SetRemoteTracer(&remote_tracer);
   EXPECT_CALL(remote_tracer, AbortTracing());
   local_tracer.AbortTracing();
 }
 
 TEST(LocalEmbedderHeapTracer, AbortTracingClearsCachedWrappers) {
-  LocalEmbedderHeapTracer local_tracer;
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
   local_tracer.SetRemoteTracer(&remote_tracer);
   local_tracer.AddWrapperToTrace(CreateWrapperInfo());
   EXPECT_CALL(remote_tracer, AbortTracing());
@@ -93,31 +97,31 @@ TEST(LocalEmbedderHeapTracer, AbortTracingClearsCachedWrappers) {
 }
 
 TEST(LocalEmbedderHeapTracer, EnterFinalPauseForwards) {
-  LocalEmbedderHeapTracer local_tracer;
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
   local_tracer.SetRemoteTracer(&remote_tracer);
   EXPECT_CALL(remote_tracer, EnterFinalPause());
   local_tracer.EnterFinalPause();
 }
 
 TEST(LocalEmbedderHeapTracer, IsRemoteTracingDoneIncludesRemote) {
-  LocalEmbedderHeapTracer local_tracer;
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
   local_tracer.SetRemoteTracer(&remote_tracer);
   EXPECT_CALL(remote_tracer, IsTracingDone());
   local_tracer.IsRemoteTracingDone();
 }
 
 TEST(LocalEmbedderHeapTracer, NumberOfCachedWrappersToTraceExcludesRemote) {
-  LocalEmbedderHeapTracer local_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
   local_tracer.SetRemoteTracer(&remote_tracer);
   local_tracer.NumberOfCachedWrappersToTrace();
 }
 
 TEST(LocalEmbedderHeapTracer, RegisterWrappersWithRemoteTracer) {
-  LocalEmbedderHeapTracer local_tracer;
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
   local_tracer.SetRemoteTracer(&remote_tracer);
   local_tracer.AddWrapperToTrace(CreateWrapperInfo());
   EXPECT_EQ(1u, local_tracer.NumberOfCachedWrappersToTrace());
@@ -129,8 +133,8 @@ TEST(LocalEmbedderHeapTracer, RegisterWrappersWithRemoteTracer) {
 }
 
 TEST(LocalEmbedderHeapTracer, TraceFinishes) {
-  LocalEmbedderHeapTracer local_tracer;
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
   local_tracer.SetRemoteTracer(&remote_tracer);
   local_tracer.AddWrapperToTrace(CreateWrapperInfo());
   EXPECT_EQ(1u, local_tracer.NumberOfCachedWrappersToTrace());
@@ -144,8 +148,8 @@ TEST(LocalEmbedderHeapTracer, TraceFinishes) {
 }
 
 TEST(LocalEmbedderHeapTracer, TraceDoesNotFinish) {
-  LocalEmbedderHeapTracer local_tracer;
   StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(nullptr);
   local_tracer.SetRemoteTracer(&remote_tracer);
   local_tracer.AddWrapperToTrace(CreateWrapperInfo());
   EXPECT_EQ(1u, local_tracer.NumberOfCachedWrappersToTrace());
@@ -156,6 +160,23 @@ TEST(LocalEmbedderHeapTracer, TraceDoesNotFinish) {
       0, EmbedderHeapTracer::AdvanceTracingActions(
              EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION)));
   EXPECT_EQ(0u, local_tracer.NumberOfCachedWrappersToTrace());
+}
+
+TEST_F(LocalEmbedderHeapTracerWithIsolate, SetRemoteTracerSetsIsolate) {
+  StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  LocalEmbedderHeapTracer local_tracer(isolate());
+  local_tracer.SetRemoteTracer(&remote_tracer);
+  EXPECT_EQ(isolate(), reinterpret_cast<Isolate*>(remote_tracer.isolate()));
+}
+
+TEST_F(LocalEmbedderHeapTracerWithIsolate, DestructorClearsIsolate) {
+  StrictMock<MockEmbedderHeapTracer> remote_tracer;
+  {
+    LocalEmbedderHeapTracer local_tracer(isolate());
+    local_tracer.SetRemoteTracer(&remote_tracer);
+    EXPECT_EQ(isolate(), reinterpret_cast<Isolate*>(remote_tracer.isolate()));
+  }
+  EXPECT_EQ(nullptr, remote_tracer.isolate());
 }
 
 }  // namespace heap

@@ -3664,6 +3664,8 @@ const char* Heap::GarbageCollectionReasonToString(
       return "snapshot creator";
     case GarbageCollectionReason::kTesting:
       return "testing";
+    case GarbageCollectionReason::kExternalFinalize:
+      return "external finalize";
     case GarbageCollectionReason::kUnknown:
       return "unknown";
   }
@@ -4680,7 +4682,7 @@ void Heap::SetUp() {
     dead_object_stats_ = new ObjectStats(this);
   }
   scavenge_job_ = new ScavengeJob();
-  local_embedder_heap_tracer_ = new LocalEmbedderHeapTracer();
+  local_embedder_heap_tracer_ = new LocalEmbedderHeapTracer(isolate());
 
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
