@@ -1056,18 +1056,10 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
   pipeline_.ComputeScheduledGraph();
   if (!pipeline_.SelectInstructions(&linkage_)) return FAILED;
   pipeline_.AssembleCode(&linkage_);
-  return SUCCEEDED;
-}
 
-size_t PipelineWasmCompilationJob::AllocatedMemory() const {
-  return pipeline_.data_->zone_stats()->GetCurrentAllocatedBytes();
-}
-
-PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
-    Isolate* isolate) {
   CodeGenerator* code_generator = pipeline_.data_->code_generator();
   CodeDesc code_desc;
-  code_generator->tasm()->GetCode(isolate, &code_desc);
+  code_generator->tasm()->GetCode(nullptr, &code_desc);
 
   wasm::WasmCode* code = native_module_->AddCode(
       data_.wasm_function_index(), code_desc,
@@ -1077,15 +1069,13 @@ PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
       data_.wasm_compilation_data()->GetProtectedInstructions(),
       code_generator->GetSourcePositionTable(), wasm::WasmCode::kTurbofan);
 
-  if (!code) return FAILED;
-
   if (data_.info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(data_.info(), std::ios_base::app);
     json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
 #ifdef ENABLE_DISASSEMBLER
     std::stringstream disassembler_stream;
     Disassembler::Decode(
-        isolate, &disassembler_stream, code->instructions().start(),
+        nullptr, &disassembler_stream, code->instructions().start(),
         code->instructions().start() + code->safepoint_table_offset(),
         CodeReference(code));
     for (auto const c : disassembler_stream.str()) {
@@ -1098,6 +1088,16 @@ PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
 
   compilation_info()->SetCode(code);
 
+  return SUCCEEDED;
+}
+
+size_t PipelineWasmCompilationJob::AllocatedMemory() const {
+  return pipeline_.data_->zone_stats()->GetCurrentAllocatedBytes();
+}
+
+PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
+    Isolate* isolate) {
+  UNREACHABLE();  // Finalize should always be skipped for WasmCompilationJob.
   return SUCCEEDED;
 }
 

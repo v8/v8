@@ -5255,24 +5255,10 @@ wasm::WasmCode* TurbofanWasmCompilationUnit::FinishCompilation(
 
     return nullptr;
   }
-  base::ElapsedTimer codegen_timer;
-  if (FLAG_trace_wasm_decode_time) {
-    codegen_timer.Start();
-  }
 
-  if (job_->FinalizeJob(wasm_unit_->isolate_) != CompilationJob::SUCCEEDED) {
-    return nullptr;
-  }
-
-  if (FLAG_trace_wasm_decode_time) {
-    double codegen_ms = codegen_timer.Elapsed().InMillisecondsF();
-    PrintF("wasm-code-generation ok: %u bytes, %0.3f ms code generation\n",
-           static_cast<unsigned>(wasm_unit_->func_body_.end -
-                                 wasm_unit_->func_body_.start),
-           codegen_ms);
-  }
-
-  return job_->compilation_info()->wasm_code();
+  wasm::WasmCode* code = job_->compilation_info()->wasm_code();
+  wasm_unit_->native_module()->PublishCode(code);
+  return code;
 }
 
 namespace {

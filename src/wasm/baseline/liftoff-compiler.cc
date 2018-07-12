@@ -1879,6 +1879,7 @@ bool LiftoffCompilationUnit::ExecuteCompilation() {
       wasm_unit_->func_index_, desc, frame_slot_count, safepoint_table_offset,
       0, std::move(protected_instructions), std::move(source_positions),
       wasm::WasmCode::kLiftoff);
+  wasm_unit_->native_module_->PublishCode(code_);
 
   // Record the memory cost this unit places on the system until
   // it is finalized.

@@ -264,6 +264,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // resolved during relocation.
   void SetRuntimeStubs(Isolate* isolate);
 
+  // Makes the code available to the system (by entering it into the code table
+  // and patching the jump table). Callers have to take care not to race with
+  // threads executing the old code.
+  void PublishCode(WasmCode* code);
+
   WasmCode* code(uint32_t index) const {
     DCHECK_LT(index, num_functions());
     DCHECK_LE(module_->num_imported_functions, index);
