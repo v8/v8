@@ -125,9 +125,6 @@
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail1': [FAIL],
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail2': [FAIL],
 
-  # https://crbug.com/v8/7859
-  'test-heap/Regress538257': [SKIP],
-
   ############################################################################
   # Slow tests.
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
