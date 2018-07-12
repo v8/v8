@@ -248,7 +248,8 @@ void CompilationCacheRegExp::Put(Handle<String> source,
                                  Handle<FixedArray> data) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetFirstTable();
-  SetFirstTable(CompilationCacheTable::PutRegExp(table, source, flags, data));
+  SetFirstTable(
+      CompilationCacheTable::PutRegExp(isolate(), table, source, flags, data));
 }
 
 void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {

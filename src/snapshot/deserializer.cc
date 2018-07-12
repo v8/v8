@@ -45,7 +45,7 @@ bool Deserializer<AllocatorT>::IsLazyDeserializationEnabled() const {
 template <class AllocatorT>
 void Deserializer<AllocatorT>::Rehash() {
   DCHECK(can_rehash() || deserializing_user_code());
-  for (const auto& item : to_rehash_) item->RehashBasedOnMap();
+  for (const auto& item : to_rehash_) item->RehashBasedOnMap(isolate());
 }
 
 template <class AllocatorT>

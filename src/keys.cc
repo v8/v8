@@ -216,7 +216,7 @@ void KeyAccumulator::AddShadowingKey(Handle<Object> key) {
   if (shadowing_keys_.is_null()) {
     shadowing_keys_ = ObjectHashSet::New(isolate_, 16);
   }
-  shadowing_keys_ = ObjectHashSet::Add(shadowing_keys_, key);
+  shadowing_keys_ = ObjectHashSet::Add(isolate(), shadowing_keys_, key);
 }
 
 namespace {

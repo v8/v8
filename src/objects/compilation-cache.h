@@ -93,7 +93,7 @@ class CompilationCacheTable
       Handle<Context> native_context, Handle<FeedbackCell> feedback_cell,
       int position);
   static Handle<CompilationCacheTable> PutRegExp(
-      Handle<CompilationCacheTable> cache, Handle<String> src,
+      Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value);
   void Remove(Object* value);
   void Age();

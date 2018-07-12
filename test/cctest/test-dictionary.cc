@@ -73,7 +73,7 @@ static void TestHashMap(Handle<HashMap> table) {
 
   // Keys that have been removed are mapped to the hole.
   bool was_present = false;
-  table = HashMap::Remove(table, a, &was_present);
+  table = HashMap::Remove(isolate, table, a, &was_present);
   CHECK(was_present);
   CHECK_EQ(0, table->NumberOfElements());
   CHECK_EQ(table->Lookup(a), roots.the_hole_value());
@@ -125,7 +125,7 @@ static void TestHashSet(Handle<HashSet> table) {
 
   Handle<JSObject> a = factory->NewJSArray(7);
   Handle<JSObject> b = factory->NewJSArray(11);
-  table = HashSet::Add(table, a);
+  table = HashSet::Add(isolate, table, a);
   CHECK_EQ(1, table->NumberOfElements());
   CHECK(table->Has(isolate, a));
   CHECK(!table->Has(isolate, b));
@@ -137,7 +137,7 @@ static void TestHashSet(Handle<HashSet> table) {
   CHECK(!table->Has(isolate, b));
 
   // Keys that are overwritten should not change number of elements.
-  table = HashSet::Add(table, a);
+  table = HashSet::Add(isolate, table, a);
   CHECK_EQ(1, table->NumberOfElements());
   CHECK(table->Has(isolate, a));
   CHECK(!table->Has(isolate, b));
@@ -155,7 +155,7 @@ static void TestHashSet(Handle<HashSet> table) {
   // an identity hash code generated.
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
-    table = HashSet::Add(table, key);
+    table = HashSet::Add(isolate, table, key);
     CHECK_EQ(table->NumberOfElements(), i + 2);
     CHECK(table->Has(isolate, key));
     CHECK(key->GetIdentityHash(isolate)->IsSmi());
@@ -217,7 +217,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity - 1; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash();
+    t->Rehash(isolate);
     for (int i = 0; i < capacity - 1; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -230,7 +230,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity / 2; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash();
+    t->Rehash(isolate);
     for (int i = 0; i < capacity / 2; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }

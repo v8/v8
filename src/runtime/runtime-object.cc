@@ -688,7 +688,8 @@ RUNTIME_FUNCTION(Runtime_ShrinkPropertyDictionary) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
   Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
-  Handle<NameDictionary> new_properties = NameDictionary::Shrink(dictionary);
+  Handle<NameDictionary> new_properties =
+      NameDictionary::Shrink(isolate, dictionary);
   receiver->SetProperties(*new_properties);
   return Smi::kZero;
 }

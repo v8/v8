@@ -98,7 +98,7 @@ void CodeStub::DeleteStubFromCacheForTesting() {
   Handle<SimpleNumberDictionary> dict(heap->code_stubs(), isolate());
   int entry = dict->FindEntry(GetKey());
   DCHECK_NE(SimpleNumberDictionary::kNotFound, entry);
-  dict = SimpleNumberDictionary::DeleteEntry(dict, entry);
+  dict = SimpleNumberDictionary::DeleteEntry(isolate(), dict, entry);
   heap->SetRootCodeStubs(*dict);
 }
 

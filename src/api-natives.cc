@@ -341,7 +341,7 @@ void UncacheTemplateInstantiation(Isolate* isolate, int serial_number,
         isolate->slow_template_instantiations_cache();
     int entry = cache->FindEntry(serial_number);
     DCHECK_NE(SimpleNumberDictionary::kNotFound, entry);
-    cache = SimpleNumberDictionary::DeleteEntry(cache, entry);
+    cache = SimpleNumberDictionary::DeleteEntry(isolate, cache, entry);
     isolate->native_context()->set_slow_template_instantiations_cache(*cache);
   }
 }

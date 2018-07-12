@@ -1649,7 +1649,7 @@ class HeapObject: public Object {
   bool CanBeRehashed() const;
 
   // Rehash the object based on the layout inferred from its map.
-  void RehashBasedOnMap();
+  void RehashBasedOnMap(Isolate* isolate);
 
   // Layout description.
   // First field in a heap object is map.

@@ -67,7 +67,8 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
 
   // Shink the StringTable if it's very empty (kMaxEmptyFactor) to avoid the
   // performance overhead of re-allocating the StringTable over and over again.
-  static Handle<StringTable> CautiousShrink(Handle<StringTable> table);
+  static Handle<StringTable> CautiousShrink(Isolate* isolate,
+                                            Handle<StringTable> table);
 
   // Looks up a string that is equal to the given string and returns
   // string handle if it is found, or an empty handle otherwise.

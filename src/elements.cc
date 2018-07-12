@@ -1520,7 +1520,7 @@ class DictionaryElementsAccessor
   static void DeleteImpl(Handle<JSObject> obj, uint32_t entry) {
     Handle<NumberDictionary> dict(NumberDictionary::cast(obj->elements()),
                                   obj->GetIsolate());
-    dict = NumberDictionary::DeleteEntry(dict, entry);
+    dict = NumberDictionary::DeleteEntry(obj->GetIsolate(), dict, entry);
     obj->set_elements(*dict);
   }
 
@@ -4000,7 +4000,7 @@ class SlowSloppyArgumentsElementsAccessor
     Handle<NumberDictionary> dict(NumberDictionary::cast(elements->arguments()),
                                   isolate);
     int length = elements->parameter_map_length();
-    dict = NumberDictionary::DeleteEntry(dict, entry - length);
+    dict = NumberDictionary::DeleteEntry(isolate, dict, entry - length);
     elements->set_arguments(*dict);
   }
   static void AddImpl(Handle<JSObject> object, uint32_t index,

@@ -49,12 +49,12 @@ class Dictionary : public HashTable<Derived, Shape> {
 
   // Delete a property from the dictionary.
   V8_WARN_UNUSED_RESULT static Handle<Derived> DeleteEntry(
-      Handle<Derived> dictionary, int entry);
+      Isolate* isolate, Handle<Derived> dictionary, int entry);
 
   // Attempt to shrink the dictionary after deletion of key.
   V8_WARN_UNUSED_RESULT static inline Handle<Derived> Shrink(
-      Handle<Derived> dictionary) {
-    return DerivedHashTable::Shrink(dictionary);
+      Isolate* isolate, Handle<Derived> dictionary) {
+    return DerivedHashTable::Shrink(isolate, dictionary);
   }
 
   int NumberOfEnumerableProperties();
@@ -174,7 +174,8 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
                              KeyAccumulator* accumulator);
 
   // Ensure enough space for n additional elements.
-  static Handle<Derived> EnsureCapacity(Handle<Derived> dictionary, int n);
+  static Handle<Derived> EnsureCapacity(Isolate* isolate,
+                                        Handle<Derived> dictionary, int n);
 
   V8_WARN_UNUSED_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
       Handle<Derived> dictionary, Key key, Handle<Object> value,
