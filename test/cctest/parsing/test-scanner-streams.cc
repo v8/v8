@@ -323,7 +323,7 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     // This avoids the GC from trying to free a stack allocated resource.
     if (uc16_string->IsExternalString())
       i::Handle<i::ExternalTwoByteString>::cast(uc16_string)
-          ->set_resource(nullptr);
+          ->SetResource(nullptr);
   }
 
   // 1-byte external string
@@ -343,7 +343,7 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     // This avoids the GC from trying to free a stack allocated resource.
     if (ext_one_byte_string->IsExternalString())
       i::Handle<i::ExternalOneByteString>::cast(ext_one_byte_string)
-          ->set_resource(nullptr);
+          ->SetResource(nullptr);
   }
 
   // 1-byte generic i::String

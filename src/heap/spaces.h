@@ -759,6 +759,10 @@ class Page : public MemoryChunk {
   static Page* FromAddress(Address addr) {
     return reinterpret_cast<Page*>(OffsetFrom(addr) & ~kPageAlignmentMask);
   }
+  static Page* FromHeapObject(const HeapObject* o) {
+    return reinterpret_cast<Page*>(reinterpret_cast<Address>(o) &
+                                   ~kAlignmentMask);
+  }
 
   // Returns the page containing the address provided. The address can
   // potentially point righter after the page. To be also safe for tagged values

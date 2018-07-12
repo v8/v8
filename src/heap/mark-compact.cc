@@ -2301,7 +2301,14 @@ static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
   MapWord map_word = HeapObject::cast(*p)->map_word();
 
   if (map_word.IsForwardingAddress()) {
-    return String::cast(map_word.ToForwardingAddress());
+    String* new_string = String::cast(map_word.ToForwardingAddress());
+
+    if (new_string->IsExternalString()) {
+      heap->ProcessMovedExternalString(
+          Page::FromAddress(reinterpret_cast<Address>(*p)),
+          Page::FromHeapObject(new_string), ExternalString::cast(new_string));
+    }
+    return new_string;
   }
 
   return String::cast(*p);
