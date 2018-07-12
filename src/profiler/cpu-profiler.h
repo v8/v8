@@ -183,7 +183,7 @@ class ProfilerEventsProcessor : public base::Thread {
   SamplingCircularQueue<TickSampleEventRecord,
                         kTickSampleQueueLength> ticks_buffer_;
   LockedQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
-  base::AtomicNumber<unsigned> last_code_event_id_;
+  std::atomic<unsigned> last_code_event_id_;
   unsigned last_processed_code_event_id_;
 };
 

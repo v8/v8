@@ -2436,7 +2436,7 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"name\": \"%s\", "
         "\"size\": %" PRIuS
         ","
-        "\"nesting\": %" PRIuS "}\n",
+        "\"nesting\": %zu}\n",
         type, reinterpret_cast<void*>(heap_->isolate()),
         heap_->isolate()->time_millis_since_init(),
         reinterpret_cast<const void*>(zone), zone->name(),
