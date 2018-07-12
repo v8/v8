@@ -617,7 +617,7 @@ void ApplyForwarding(TestCode& code, int size, int* forward) {
   for (int i = 0; i < size; i++) {
     vector.push_back(RpoNumber::FromInt(forward[i]));
   }
-  JumpThreading::ApplyForwarding(vector, &code.sequence_);
+  JumpThreading::ApplyForwarding(code.main_zone(), vector, &code.sequence_);
 }
 
 
