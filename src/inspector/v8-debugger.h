@@ -7,6 +7,7 @@
 
 #include <list>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "src/base/macros.h"
@@ -203,9 +204,9 @@ class V8Debugger : public v8::debug::DebugDelegate,
   std::unique_ptr<V8StackTraceImpl> m_continueToLocationStack;
 
   using AsyncTaskToStackTrace =
-      protocol::HashMap<void*, std::weak_ptr<AsyncStackTrace>>;
+      std::unordered_map<void*, std::weak_ptr<AsyncStackTrace>>;
   AsyncTaskToStackTrace m_asyncTaskStacks;
-  protocol::HashSet<void*> m_recurringTasks;
+  std::unordered_set<void*> m_recurringTasks;
 
   int m_maxAsyncCallStacks;
   int m_maxAsyncCallStackDepth;
@@ -221,7 +222,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
   std::list<std::shared_ptr<AsyncStackTrace>> m_allAsyncStacks;
   std::unordered_map<int, std::weak_ptr<StackFrame>> m_framesCache;
 
-  protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
+  std::unordered_map<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
   void* m_taskWithScheduledBreak = nullptr;
   String16 m_taskWithScheduledBreakDebuggerId;
 
@@ -233,13 +234,13 @@ class V8Debugger : public v8::debug::DebugDelegate,
   v8_inspector::V8StackTraceId m_scheduledAsyncCall;
 
   using StackTraceIdToStackTrace =
-      protocol::HashMap<uintptr_t, std::weak_ptr<AsyncStackTrace>>;
+      std::unordered_map<uintptr_t, std::weak_ptr<AsyncStackTrace>>;
   StackTraceIdToStackTrace m_storedStackTraces;
   uintptr_t m_lastStackTraceId = 0;
 
-  protocol::HashMap<int, std::pair<int64_t, int64_t>>
+  std::unordered_map<int, std::pair<int64_t, int64_t>>
       m_contextGroupIdToDebuggerId;
-  protocol::HashMap<String16, std::pair<int64_t, int64_t>>
+  std::unordered_map<String16, std::pair<int64_t, int64_t>>
       m_serializedDebuggerIdToDebuggerId;
 
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;

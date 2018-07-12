@@ -31,6 +31,8 @@
 #ifndef V8_INSPECTOR_V8_RUNTIME_AGENT_IMPL_H_
 #define V8_INSPECTOR_V8_RUNTIME_AGENT_IMPL_H_
 
+#include <unordered_map>
+
 #include "src/base/macros.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
@@ -137,7 +139,7 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   protocol::Runtime::Frontend m_frontend;
   V8InspectorImpl* m_inspector;
   bool m_enabled;
-  protocol::HashMap<String16, std::unique_ptr<v8::Global<v8::Script>>>
+  std::unordered_map<String16, std::unique_ptr<v8::Global<v8::Script>>>
       m_compiledScripts;
 
   DISALLOW_COPY_AND_ASSIGN(V8RuntimeAgentImpl);
