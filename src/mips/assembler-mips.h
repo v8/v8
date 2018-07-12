@@ -612,6 +612,11 @@ class Assembler : public AssemblerBase {
   // Difference between address of current opcode and target address offset.
   static constexpr int kBranchPCOffset = 4;
 
+  // Difference between address of current opcode and target address offset,
+  // when we are generatinga sequence of instructions for long relative PC
+  // branches
+  static constexpr int kLongBranchPCOffset = 12;
+
   // Here we are patching the address in the LUI/ORI instruction pair.
   // These values are used in the serialization process and must be zero for
   // MIPS platform, as Code, Embedded Object or External-reference pointers
@@ -644,11 +649,8 @@ class Assembler : public AssemblerBase {
   // Max offset for compact branch instructions with 26-bit offset field
   static constexpr int kMaxCompactBranchOffset = (1 << (28 - 1)) - 1;
 
-#ifdef _MIPS_ARCH_MIPS32R6
-  static constexpr int kTrampolineSlotsSize = 2 * kInstrSize;
-#else
-  static constexpr int kTrampolineSlotsSize = 4 * kInstrSize;
-#endif
+  static constexpr int kTrampolineSlotsSize =
+      IsMipsArchVariant(kMips32r6) ? 2 * kInstrSize : 8 * kInstrSize;
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
 
@@ -1765,6 +1767,7 @@ class Assembler : public AssemblerBase {
   static bool IsBeqc(Instr instr);
   static bool IsBnec(Instr instr);
   static bool IsJicOrJialc(Instr instr);
+  static bool IsMov(Instr instr, Register rd, Register rs);
 
   static bool IsJump(Instr instr);
   static bool IsJ(Instr instr);
@@ -1881,6 +1884,9 @@ class Assembler : public AssemblerBase {
 
   void EndBlockTrampolinePool() {
     trampoline_pool_blocked_nesting_--;
+    if (trampoline_pool_blocked_nesting_ == 0) {
+      CheckTrampolinePoolQuick(1);
+    }
   }
 
   bool is_trampoline_pool_blocked() const {
@@ -1916,7 +1922,11 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  inline void CheckTrampolinePoolQuick(int extra_instructions = 0);
+  inline void CheckTrampolinePoolQuick(int extra_instructions = 0) {
+    if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
+      CheckTrampolinePool();
+    }
+  }
 
   inline void CheckBuffer();
 
