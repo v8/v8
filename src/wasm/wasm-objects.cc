@@ -845,7 +845,7 @@ void WasmTableObject::UpdateDispatchTables(
         isolate);
     // Note that {SignatureMap::Find} may return {-1} if the signature is
     // not found; it will simply never match any check.
-    auto sig_id = to_instance->module()->signature_map.Find(sig);
+    auto sig_id = to_instance->module()->signature_map.Find(*sig);
     IndirectFunctionTableEntry(to_instance, table_index)
         .set(sig_id, *from_instance, call_target);
   }

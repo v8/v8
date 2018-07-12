@@ -703,9 +703,9 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
   }
   Handle<FixedArray> entries(debug_info->c_wasm_entries(), isolate);
   wasm::SignatureMap* map = debug_info->c_wasm_entry_map()->raw();
-  int32_t index = map->Find(sig);
+  int32_t index = map->Find(*sig);
   if (index == -1) {
-    index = static_cast<int32_t>(map->FindOrInsert(sig));
+    index = static_cast<int32_t>(map->FindOrInsert(*sig));
     if (index == entries->length()) {
       entries = isolate->factory()->CopyFixedArrayAndGrow(
           entries, entries->length(), TENURED);

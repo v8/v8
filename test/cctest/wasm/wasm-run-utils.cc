@@ -168,7 +168,7 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
     int table_size = static_cast<int>(instance->indirect_function_table_size());
     for (int j = 0; j < table_size; j++) {
       WasmFunction& function = test_module_->functions[table.values[j]];
-      int sig_id = test_module_->signature_map.Find(function.sig);
+      int sig_id = test_module_->signature_map.Find(*function.sig);
       auto target =
           native_module_->GetCallTargetForFunction(function.func_index);
       IndirectFunctionTableEntry(instance, j).set(sig_id, *instance, target);

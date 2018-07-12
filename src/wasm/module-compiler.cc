@@ -179,29 +179,23 @@ class JSToWasmWrapperCache {
     const wasm::WasmModule* module = native_module->module();
     const wasm::WasmFunction* func = &module->functions[func_index];
     bool is_import = func_index < module->num_imported_functions;
-    auto& cache = cache_[is_import ? 1 : 0];
-    int cached_idx = cache.sig_map.Find(func->sig);
-    if (cached_idx >= 0) return cache.code_cache[cached_idx];
+    std::pair<bool, wasm::FunctionSig> key(is_import, *func->sig);
+    Handle<Code>& cached = cache_[key];
+    if (!cached.is_null()) return cached;
 
     Handle<Code> code =
         compiler::CompileJSToWasmWrapper(isolate, native_module, func->sig,
                                          is_import, use_trap_handler)
             .ToHandleChecked();
-    uint32_t new_cache_idx = cache.sig_map.FindOrInsert(func->sig);
-    DCHECK_EQ(cache.code_cache.size(), new_cache_idx);
-    USE(new_cache_idx);
-    cache.code_cache.push_back(code);
+    cached = code;
     return code;
   }
 
  private:
   // We generate different code for calling imports than calling wasm functions
   // in this module. Both are cached separately.
-  // [0] for non-imports, [1] for imports.
-  struct Cache {
-    wasm::SignatureMap sig_map;
-    std::vector<Handle<Code>> code_cache;
-  } cache_[2];
+  using CacheKey = std::pair<bool, wasm::FunctionSig>;
+  std::unordered_map<CacheKey, Handle<Code>, base::hash<CacheKey>> cache_;
 };
 
 // A helper class to simplify instantiating a module from a module object.
@@ -1512,7 +1506,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
               imported_instance->module()
                   ->functions[imported_function->function_index()]
                   .sig;
-          if (!imported_sig->Equals(expected_sig)) {
+          if (*imported_sig != *expected_sig) {
             ReportLinkError(
                 "imported function does not match the expected type", index,
                 module_name, import_name);
@@ -1611,7 +1605,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
                                  ->functions[target->function_index()]
                                  .sig;
           IndirectFunctionTableEntry(instance, i)
-              .set(module_->signature_map.Find(sig), *imported_instance,
+              .set(module_->signature_map.Find(*sig), *imported_instance,
                    exported_call_target);
         }
         num_imported_tables++;

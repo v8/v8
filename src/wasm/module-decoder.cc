@@ -428,7 +428,7 @@ class ModuleDecoderImpl : public Decoder {
             static_cast<int>(pc_ - start_));
       FunctionSig* s = consume_sig(module_->signature_zone.get());
       module_->signatures.push_back(s);
-      uint32_t id = s ? module_->signature_map.FindOrInsert(s) : 0;
+      uint32_t id = s ? module_->signature_map.FindOrInsert(*s) : 0;
       module_->signature_ids.push_back(id);
     }
     module_->signature_map.Freeze();

@@ -2846,7 +2846,7 @@ class ThreadImpl {
             module()->signature_ids[code->function->sig_index];
         int expected_canonical_id = module()->signature_ids[sig_index];
         DCHECK_EQ(function_canonical_id,
-                  module()->signature_map.Find(code->function->sig));
+                  module()->signature_map.Find(*code->function->sig));
         if (function_canonical_id != expected_canonical_id) {
           return {ExternalCallResult::SIGNATURE_MISMATCH};
         }
@@ -2857,7 +2857,7 @@ class ThreadImpl {
     Isolate* isolate = instance_object_->GetIsolate();
     uint32_t expected_sig_id = module()->signature_ids[sig_index];
     DCHECK_EQ(expected_sig_id,
-              module()->signature_map.Find(module()->signatures[sig_index]));
+              module()->signature_map.Find(*module()->signatures[sig_index]));
 
     // The function table is stored in the instance.
     // TODO(wasm): the wasm interpreter currently supports only one table.
