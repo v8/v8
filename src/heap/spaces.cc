@@ -3591,7 +3591,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
           object->IsWeakFixedArray() || object->IsWeakArrayList() ||
           object->IsPropertyArray() || object->IsByteArray() ||
           object->IsFeedbackVector() || object->IsBigInt() ||
-          object->IsFreeSpace());
+          object->IsFreeSpace() || object->IsFeedbackMetadata());
 
     // The object itself should look OK.
     object->ObjectVerify(isolate);
