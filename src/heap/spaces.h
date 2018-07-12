@@ -368,10 +368,9 @@ class MemoryChunk {
       + kPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
       + kPointerSize  // InvalidatedSlots* invalidated_slots_
       + kPointerSize  // SkipList* skip_list_
-      + kPointerSize  // std::atomic<intptr_t> high_water_mark_
+      + kPointerSize  // AtomicValue high_water_mark_
       + kPointerSize  // base::Mutex* mutex_
-      +
-      kPointerSize  // std::atomic<ConcurrentSweepingState> concurrent_sweeping_
+      + kPointerSize  // base::AtomicWord concurrent_sweeping_
       + kPointerSize  // base::Mutex* page_protection_change_mutex_
       + kPointerSize  // unitptr_t write_unprotect_counter_
       + kSizetSize * kNumTypes
@@ -435,10 +434,9 @@ class MemoryChunk {
     intptr_t new_mark = static_cast<intptr_t>(mark - chunk->address());
     intptr_t old_mark = 0;
     do {
-      old_mark = chunk->high_water_mark_;
-    } while (
-        (new_mark > old_mark) &&
-        !chunk->high_water_mark_.compare_exchange_weak(old_mark, new_mark));
+      old_mark = chunk->high_water_mark_.Value();
+    } while ((new_mark > old_mark) &&
+             !chunk->high_water_mark_.TrySetValue(old_mark, new_mark));
   }
 
   Address address() const {
@@ -457,15 +455,13 @@ class MemoryChunk {
     return addr >= area_start() && addr <= area_end();
   }
 
-  void set_concurrent_sweeping_state(ConcurrentSweepingState state) {
-    concurrent_sweeping_ = state;
-  }
-
-  ConcurrentSweepingState concurrent_sweeping_state() const {
+  base::AtomicValue<ConcurrentSweepingState>& concurrent_sweeping_state() {
     return concurrent_sweeping_;
   }
 
-  bool SweepingDone() { return concurrent_sweeping_ == kSweepingDone; }
+  bool SweepingDone() {
+    return concurrent_sweeping_state().Value() == kSweepingDone;
+  }
 
   size_t size() const { return size_; }
   void set_size(size_t size) { size_ = size; }
@@ -526,7 +522,7 @@ class MemoryChunk {
   // Approximate amount of physical memory committed for this chunk.
   size_t CommittedPhysicalMemory();
 
-  Address HighWaterMark() { return address() + high_water_mark_; }
+  Address HighWaterMark() { return address() + high_water_mark_.Value(); }
 
   int progress_bar() {
     DCHECK(IsFlagSet(HAS_PROGRESS_BAR));
@@ -623,9 +619,9 @@ class MemoryChunk {
 
   bool InFromSpace() { return IsFlagSet(IN_FROM_SPACE); }
 
-  Space* owner() const { return owner_; }
+  Space* owner() const { return owner_.Value(); }
 
-  void set_owner(Space* space) { owner_ = space; }
+  void set_owner(Space* space) { owner_.SetValue(space); }
 
   bool IsPagedSpace() const;
 
@@ -660,7 +656,7 @@ class MemoryChunk {
   VirtualMemory reservation_;
 
   // The space owning this memory chunk.
-  std::atomic<Space*> owner_;
+  base::AtomicValue<Space*> owner_;
 
   Heap* heap_;
 
@@ -682,11 +678,11 @@ class MemoryChunk {
 
   // Assuming the initial allocation on a page is sequential,
   // count highest number of bytes ever allocated on the page.
-  std::atomic<intptr_t> high_water_mark_;
+  base::AtomicValue<intptr_t> high_water_mark_;
 
   base::Mutex* mutex_;
 
-  std::atomic<ConcurrentSweepingState> concurrent_sweeping_;
+  base::AtomicValue<ConcurrentSweepingState> concurrent_sweeping_;
 
   base::Mutex* page_protection_change_mutex_;
 
@@ -1375,8 +1371,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // Returns an indication of whether a pointer is in a space that has
   // been allocated by this MemoryAllocator.
   V8_INLINE bool IsOutsideAllocatedSpace(Address address) {
-    return address < lowest_ever_allocated_ ||
-           address >= highest_ever_allocated_;
+    return address < lowest_ever_allocated_.Value() ||
+           address >= highest_ever_allocated_.Value();
   }
 
   // Returns a MemoryChunk in which the memory region from commit_area_size to
@@ -1459,13 +1455,11 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     // values only if they did not change in between.
     Address ptr = kNullAddress;
     do {
-      ptr = lowest_ever_allocated_;
-    } while ((low < ptr) &&
-             !lowest_ever_allocated_.compare_exchange_weak(ptr, low));
+      ptr = lowest_ever_allocated_.Value();
+    } while ((low < ptr) && !lowest_ever_allocated_.TrySetValue(ptr, low));
     do {
-      ptr = highest_ever_allocated_;
-    } while ((high > ptr) &&
-             !highest_ever_allocated_.compare_exchange_weak(ptr, high));
+      ptr = highest_ever_allocated_.Value();
+    } while ((high > ptr) && !highest_ever_allocated_.TrySetValue(ptr, high));
   }
 
   void RegisterExecutableMemoryChunk(MemoryChunk* chunk) {
@@ -1496,8 +1490,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // conservative, i.e. not all addresses in 'allocated' space are allocated
   // to our heap. The range is [lowest, highest[, inclusive on the low end
   // and exclusive on the high end.
-  std::atomic<Address> lowest_ever_allocated_;
-  std::atomic<Address> highest_ever_allocated_;
+  base::AtomicValue<Address> lowest_ever_allocated_;
+  base::AtomicValue<Address> highest_ever_allocated_;
 
   VirtualMemory last_chunk_;
   Unmapper unmapper_;
@@ -2689,11 +2683,11 @@ class NewSpace : public SpaceWithLinearArea {
   void ResetOriginalTop() {
     DCHECK_GE(top(), original_top());
     DCHECK_LE(top(), original_limit());
-    original_top_ = top();
+    original_top_.SetValue(top());
   }
 
-  Address original_top() { return original_top_; }
-  Address original_limit() { return original_limit_; }
+  Address original_top() { return original_top_.Value(); }
+  Address original_limit() { return original_limit_.Value(); }
 
   // Return the address of the first allocatable address in the active
   // semispace. This may be the address where the first object resides.
@@ -2782,8 +2776,8 @@ class NewSpace : public SpaceWithLinearArea {
 
   // The top and the limit at the time of setting the linear allocation area.
   // These values can be accessed by background tasks.
-  std::atomic<Address> original_top_;
-  std::atomic<Address> original_limit_;
+  base::AtomicValue<Address> original_top_;
+  base::AtomicValue<Address> original_limit_;
 
   // The semispaces.
   SemiSpace to_space_;

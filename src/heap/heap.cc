@@ -1425,7 +1425,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
       if (deserialization_complete_) {
         memory_reducer_->NotifyMarkCompact(event);
       }
-      memory_pressure_level_ = MemoryPressureLevel::kNone;
+      memory_pressure_level_.SetValue(MemoryPressureLevel::kNone);
     }
 
     tracer()->Stop(collector);
@@ -3484,9 +3484,9 @@ void Heap::CheckMemoryPressure() {
     // The optimizing compiler may be unnecessarily holding on to memory.
     isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   }
-  if (memory_pressure_level_ == MemoryPressureLevel::kCritical) {
+  if (memory_pressure_level_.Value() == MemoryPressureLevel::kCritical) {
     CollectGarbageOnMemoryPressure();
-  } else if (memory_pressure_level_ == MemoryPressureLevel::kModerate) {
+  } else if (memory_pressure_level_.Value() == MemoryPressureLevel::kModerate) {
     if (FLAG_incremental_marking && incremental_marking()->IsStopped()) {
       StartIncrementalMarking(kReduceMemoryFootprintMask,
                               GarbageCollectionReason::kMemoryPressure);
@@ -3538,8 +3538,8 @@ void Heap::CollectGarbageOnMemoryPressure() {
 
 void Heap::MemoryPressureNotification(MemoryPressureLevel level,
                                       bool is_isolate_locked) {
-  MemoryPressureLevel previous = memory_pressure_level_;
-  memory_pressure_level_ = level;
+  MemoryPressureLevel previous = memory_pressure_level_.Value();
+  memory_pressure_level_.SetValue(level);
   if ((previous != MemoryPressureLevel::kCritical &&
        level == MemoryPressureLevel::kCritical) ||
       (previous == MemoryPressureLevel::kNone &&

@@ -3379,7 +3379,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
       // that this adds unusable memory into the free list that is later on
       // (in the free list) dropped again. Since we only use the flag for
       // testing this is fine.
-      p->set_concurrent_sweeping_state(Page::kSweepingInProgress);
+      p->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
       sweeper()->RawSweep(p, Sweeper::IGNORE_FREE_LIST,
                           Heap::ShouldZapGarbage()
                               ? FreeSpaceTreatmentMode::ZAP_FREE_SPACE
