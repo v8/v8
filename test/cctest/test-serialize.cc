@@ -1439,6 +1439,13 @@ void TestCodeSerializerOnePlusOneImpl() {
 
 TEST(CodeSerializerOnePlusOne) { TestCodeSerializerOnePlusOneImpl(); }
 
+TEST(CodeSerializerOnePlusOneWithDebugger) {
+  v8::HandleScope scope(CcTest::isolate());
+  static v8::debug::DebugDelegate dummy_delegate;
+  v8::debug::SetDebugDelegate(CcTest::isolate(), &dummy_delegate);
+  TestCodeSerializerOnePlusOneImpl();
+}
+
 TEST(CodeSerializerOnePlusOne1) {
   FLAG_serialization_chunk_size = 1;
   TestCodeSerializerOnePlusOneImpl();
