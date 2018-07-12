@@ -1431,8 +1431,9 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
     GlobalDictionary* dictionary =
         JSGlobalObject::cast(js_obj)->global_dictionary();
     int length = dictionary->Capacity();
+    ReadOnlyRoots roots(isolate);
     for (int i = 0; i < length; ++i) {
-      if (dictionary->IsKey(isolate, dictionary->KeyAt(i))) {
+      if (dictionary->IsKey(roots, dictionary->KeyAt(i))) {
         PropertyCell* cell = dictionary->CellAt(i);
         Name* name = cell->name();
         Object* value = cell->value();
@@ -1444,9 +1445,10 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
   } else {
     NameDictionary* dictionary = js_obj->property_dictionary();
     int length = dictionary->Capacity();
+    ReadOnlyRoots roots(isolate);
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);
-      if (dictionary->IsKey(isolate, k)) {
+      if (dictionary->IsKey(roots, k)) {
         Object* value = dictionary->ValueAt(i);
         PropertyDetails details = dictionary->DetailsAt(i);
         SetDataOrAccessorPropertyReference(details.kind(), js_obj, entry,
@@ -1476,14 +1478,14 @@ void V8HeapExplorer::ExtractAccessorPairProperty(JSObject* js_obj, int entry,
 
 
 void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj, int entry) {
-  Isolate* isolate = js_obj->GetIsolate();
+  ReadOnlyRoots roots = js_obj->GetReadOnlyRoots();
   if (js_obj->HasObjectElements()) {
     FixedArray* elements = FixedArray::cast(js_obj->elements());
     int length = js_obj->IsJSArray()
                      ? Smi::ToInt(JSArray::cast(js_obj)->length())
                      : elements->length();
     for (int i = 0; i < length; ++i) {
-      if (!elements->get(i)->IsTheHole(isolate)) {
+      if (!elements->get(i)->IsTheHole(roots)) {
         SetElementReference(js_obj, entry, i, elements->get(i));
       }
     }
@@ -1492,7 +1494,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj, int entry) {
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);
-      if (dictionary->IsKey(isolate, k)) {
+      if (dictionary->IsKey(roots, k)) {
         DCHECK(k->IsNumber());
         uint32_t index = static_cast<uint32_t>(k->Number());
         SetElementReference(js_obj, entry, index, dictionary->ValueAt(i));

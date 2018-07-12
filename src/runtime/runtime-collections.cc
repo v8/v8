@@ -98,7 +98,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
 
 #ifdef DEBUG
   DCHECK(key->IsJSReceiver());
-  DCHECK(EphemeronHashTableShape::IsLive(isolate, *key));
+  DCHECK(EphemeronHashTableShape::IsLive(ReadOnlyRoots(isolate), *key));
   Handle<EphemeronHashTable> table(
       EphemeronHashTable::cast(weak_collection->table()), isolate);
   // Should only be called when shrinking the table is necessary. See
@@ -130,7 +130,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
 
 #ifdef DEBUG
   DCHECK(key->IsJSReceiver());
-  DCHECK(EphemeronHashTableShape::IsLive(isolate, *key));
+  DCHECK(EphemeronHashTableShape::IsLive(ReadOnlyRoots(isolate), *key));
   Handle<EphemeronHashTable> table(
       EphemeronHashTable::cast(weak_collection->table()), isolate);
   // Should only be called when rehashing or resizing the table is necessary.

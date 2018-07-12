@@ -5452,10 +5452,11 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         Handle<NameDictionary>(from->property_dictionary(), isolate());
     Handle<FixedArray> key_indices =
         NameDictionary::IterationIndices(properties);
+    ReadOnlyRoots roots(isolate());
     for (int i = 0; i < key_indices->length(); i++) {
       int key_index = Smi::ToInt(key_indices->get(i));
       Object* raw_key = properties->KeyAt(key_index);
-      DCHECK(properties->IsKey(isolate(), raw_key));
+      DCHECK(properties->IsKey(roots, raw_key));
       DCHECK(raw_key->IsName());
       // If the property is already there we skip it.
       Handle<Name> key(Name::cast(raw_key), isolate());

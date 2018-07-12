@@ -434,7 +434,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
                 isolate());
             Handle<Cell> cell(
                 Cell::cast(module_namespace->module()->exports()->Lookup(
-                    isolate(), name, Smi::ToInt(name->GetHash()))),
+                    ReadOnlyRoots(isolate()), name,
+                    Smi::ToInt(name->GetHash()))),
                 isolate());
             if (cell->value()->IsTheHole(isolate())) {
               // This module has not been fully initialized yet.

@@ -58,8 +58,8 @@ class BaseShape {
   static inline int GetMapRootIndex();
   static const bool kNeedsHoleCheck = true;
   static Object* Unwrap(Object* key) { return key; }
-  static inline bool IsKey(Isolate* isolate, Object* key);
-  static inline bool IsLive(Isolate* isolate, Object* key);
+  static inline bool IsKey(ReadOnlyRoots roots, Object* key);
+  static inline bool IsLive(ReadOnlyRoots roots, Object* key);
 };
 
 class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
@@ -145,7 +145,7 @@ class HashTable : public HashTableBase {
 
   // Find entry for key otherwise return kNotFound.
   inline int FindEntry(Key key);
-  inline int FindEntry(Isolate* isolate, Key key, int32_t hash);
+  inline int FindEntry(ReadOnlyRoots roots, Key key, int32_t hash);
   int FindEntry(Isolate* isolate, Key key);
 
   // Rehashes the table in-place.
@@ -153,9 +153,9 @@ class HashTable : public HashTableBase {
 
   // Tells whether k is a real key.  The hole and undefined are not allowed
   // as keys and can be used to indicate missing or deleted elements.
-  static bool IsKey(Isolate* isolate, Object* k);
+  static bool IsKey(ReadOnlyRoots roots, Object* k);
 
-  inline bool ToKey(Isolate* isolate, int entry, Object** out_k);
+  inline bool ToKey(ReadOnlyRoots roots, int entry, Object** out_k);
 
   // Returns the key at entry.
   Object* KeyAt(int entry) { return get(EntryToIndex(entry) + kEntryKeyIndex); }
@@ -276,7 +276,7 @@ class ObjectHashTableBase : public HashTable<Derived, Shape> {
   // returned in case the key is not present.
   Object* Lookup(Handle<Object> key);
   Object* Lookup(Handle<Object> key, int32_t hash);
-  Object* Lookup(Isolate* isolate, Handle<Object> key, int32_t hash);
+  Object* Lookup(ReadOnlyRoots roots, Handle<Object> key, int32_t hash);
 
   // Returns the value at entry.
   Object* ValueAt(int entry);

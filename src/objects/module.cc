@@ -778,12 +778,13 @@ void FetchStarExports(Isolate* isolate, Handle<Module> module, Zone* zone,
   // TODO(neis): Only allocate more_exports if there are star exports.
   // Maybe split special_exports into indirect_exports and star_exports.
 
+  ReadOnlyRoots roots(isolate);
   Handle<FixedArray> special_exports(module->info()->special_exports(),
                                      isolate);
   for (int i = 0, n = special_exports->length(); i < n; ++i) {
     Handle<ModuleInfoEntry> entry(
         ModuleInfoEntry::cast(special_exports->get(i)), isolate);
-    if (!entry->export_name()->IsUndefined(isolate)) {
+    if (!entry->export_name()->IsUndefined(roots)) {
       continue;  // Indirect export.
     }
 
@@ -802,24 +803,24 @@ void FetchStarExports(Isolate* isolate, Handle<Module> module, Zone* zone,
                                               isolate);
     for (int i = 0, n = requested_exports->Capacity(); i < n; ++i) {
       Object* key;
-      if (!requested_exports->ToKey(isolate, i, &key)) continue;
+      if (!requested_exports->ToKey(roots, i, &key)) continue;
       Handle<String> name(String::cast(key), isolate);
 
-      if (name->Equals(ReadOnlyRoots(isolate).default_string())) continue;
-      if (!exports->Lookup(name)->IsTheHole(isolate)) continue;
+      if (name->Equals(roots.default_string())) continue;
+      if (!exports->Lookup(name)->IsTheHole(roots)) continue;
 
       Handle<Cell> cell(Cell::cast(requested_exports->ValueAt(i)), isolate);
       auto insert_result = more_exports.insert(std::make_pair(name, cell));
       if (!insert_result.second) {
         auto it = insert_result.first;
-        if (*it->second == *cell || it->second->IsUndefined(isolate)) {
+        if (*it->second == *cell || it->second->IsUndefined(roots)) {
           // We already recorded this mapping before, or the name is already
           // known to be ambiguous.  In either case, there's nothing to do.
         } else {
           DCHECK(it->second->IsCell());
           // Different star exports provide different cells for this name, hence
           // mark the name as ambiguous.
-          it->second = isolate->factory()->undefined_value();
+          it->second = roots.undefined_value_handle();
         }
       }
     }
@@ -848,7 +849,8 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
 Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
                                                      Handle<Module> module) {
   Handle<HeapObject> object(module->module_namespace(), isolate);
-  if (!object->IsUndefined(isolate)) {
+  ReadOnlyRoots roots(isolate);
+  if (!object->IsUndefined(roots)) {
     // Namespace object already exists.
     return Handle<JSModuleNamespace>::cast(object);
   }
@@ -862,7 +864,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   names.reserve(exports->NumberOfElements());
   for (int i = 0, n = exports->Capacity(); i < n; ++i) {
     Object* key;
-    if (!exports->ToKey(isolate, i, &key)) continue;
+    if (!exports->ToKey(roots, i, &key)) continue;
     names.push_back(handle(String::cast(key), isolate));
   }
   DCHECK_EQ(static_cast<int>(names.size()), exports->NumberOfElements());

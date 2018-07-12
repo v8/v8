@@ -804,7 +804,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         Handle<ObjectHashTable> exports(
             Handle<JSModuleNamespace>::cast(holder)->module()->exports(),
             isolate());
-        int entry = exports->FindEntry(isolate(), lookup->name(),
+        int entry = exports->FindEntry(roots, lookup->name(),
                                        Smi::ToInt(lookup->name()->GetHash()));
         // We found the accessor, so the entry must exist.
         DCHECK_NE(entry, ObjectHashTable::kNotFound);

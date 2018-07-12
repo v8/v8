@@ -2029,7 +2029,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
     Handle<JSGlobalObject> global_obj = Handle<JSGlobalObject>::cast(object);
     Handle<GlobalDictionary> dictionary(global_obj->global_dictionary(),
                                         isolate);
-    int entry = dictionary->FindEntry(isolate, name, hash);
+    int entry = dictionary->FindEntry(ReadOnlyRoots(isolate), name, hash);
 
     if (entry == GlobalDictionary::kNotFound) {
       DCHECK_IMPLIES(global_obj->map()->is_prototype_map(),
@@ -6411,9 +6411,10 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   int number_of_fields = 0;
 
   // Compute the length of the instance descriptor.
+  ReadOnlyRoots roots(isolate);
   for (int i = 0; i < instance_descriptor_length; i++) {
     int index = Smi::ToInt(iteration_order->get(i));
-    DCHECK(dictionary->IsKey(isolate, dictionary->KeyAt(index)));
+    DCHECK(dictionary->IsKey(roots, dictionary->KeyAt(index)));
 
     PropertyKind kind = dictionary->DetailsAt(index).kind();
     if (kind == kData) {
@@ -8239,14 +8240,15 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Handle<JSReceiver> receiver,
 namespace {
 
 template <typename Dictionary>
-bool TestDictionaryPropertiesIntegrityLevel(Dictionary* dict, Isolate* isolate,
+bool TestDictionaryPropertiesIntegrityLevel(Dictionary* dict,
+                                            ReadOnlyRoots roots,
                                             PropertyAttributes level) {
   DCHECK(level == SEALED || level == FROZEN);
 
   uint32_t capacity = dict->Capacity();
   for (uint32_t i = 0; i < capacity; i++) {
     Object* key;
-    if (!dict->ToKey(isolate, i, &key)) continue;
+    if (!dict->ToKey(roots, i, &key)) continue;
     if (key->FilterKey(ALL_PROPERTIES)) continue;
     PropertyDetails details = dict->DetailsAt(i);
     if (details.IsConfigurable()) return false;
@@ -8282,8 +8284,8 @@ bool TestPropertiesIntegrityLevel(JSObject* object, PropertyAttributes level) {
     return TestFastPropertiesIntegrityLevel(object->map(), level);
   }
 
-  return TestDictionaryPropertiesIntegrityLevel(object->property_dictionary(),
-                                                object->GetIsolate(), level);
+  return TestDictionaryPropertiesIntegrityLevel(
+      object->property_dictionary(), object->GetReadOnlyRoots(), level);
 }
 
 bool TestElementsIntegrityLevel(JSObject* object, PropertyAttributes level) {
@@ -8293,7 +8295,7 @@ bool TestElementsIntegrityLevel(JSObject* object, PropertyAttributes level) {
 
   if (IsDictionaryElementsKind(kind)) {
     return TestDictionaryPropertiesIntegrityLevel(
-        NumberDictionary::cast(object->elements()), object->GetIsolate(),
+        NumberDictionary::cast(object->elements()), object->GetReadOnlyRoots(),
         level);
   }
 
@@ -8544,13 +8546,13 @@ bool JSObject::IsExtensible(Handle<JSObject> object) {
 namespace {
 
 template <typename Dictionary>
-void ApplyAttributesToDictionary(Isolate* isolate,
+void ApplyAttributesToDictionary(ReadOnlyRoots roots,
                                  Handle<Dictionary> dictionary,
                                  const PropertyAttributes attributes) {
   int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k;
-    if (!dictionary->ToKey(isolate, i, &k)) continue;
+    if (!dictionary->ToKey(roots, i, &k)) continue;
     if (k->FilterKey(ALL_PROPERTIES)) continue;
     PropertyDetails details = dictionary->DetailsAt(i);
     int attrs = attributes;
@@ -8672,14 +8674,15 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     JSObject::MigrateToMap(object, new_map);
 
     if (attrs != NONE) {
+      ReadOnlyRoots roots(isolate);
       if (object->IsJSGlobalObject()) {
         Handle<GlobalDictionary> dictionary(
             JSGlobalObject::cast(*object)->global_dictionary(), isolate);
-        ApplyAttributesToDictionary(isolate, dictionary, attrs);
+        ApplyAttributesToDictionary(roots, dictionary, attrs);
       } else {
         Handle<NameDictionary> dictionary(object->property_dictionary(),
                                           isolate);
-        ApplyAttributesToDictionary(isolate, dictionary, attrs);
+        ApplyAttributesToDictionary(roots, dictionary, attrs);
       }
     }
   }
@@ -8708,7 +8711,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     // Make sure we never go back to the fast case
     object->RequireSlowElements(*dictionary);
     if (attrs != NONE) {
-      ApplyAttributesToDictionary(isolate, dictionary, attrs);
+      ApplyAttributesToDictionary(ReadOnlyRoots(isolate), dictionary, attrs);
     }
   }
 
@@ -15920,12 +15923,12 @@ int JSObject::GetFastElementsUsage() {
 template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::Print(std::ostream& os) {
   DisallowHeapAllocation no_gc;
-  Isolate* isolate = this->GetIsolate();
+  ReadOnlyRoots roots = this->GetReadOnlyRoots();
   Derived* dictionary = Derived::cast(this);
   int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = dictionary->KeyAt(i);
-    if (!dictionary->ToKey(isolate, i, &k)) continue;
+    if (!dictionary->ToKey(roots, i, &k)) continue;
     os << "\n   ";
     if (k->IsString()) {
       String::cast(k)->StringPrint(os);
@@ -16659,10 +16662,11 @@ void HashTable<Derived, Shape>::Rehash(Derived* new_table) {
   // Rehash the elements.
   int capacity = this->Capacity();
   Isolate* isolate = new_table->GetIsolate();
+  ReadOnlyRoots roots(isolate);
   for (int i = 0; i < capacity; i++) {
     uint32_t from_index = EntryToIndex(i);
     Object* k = this->get(from_index);
-    if (!Shape::IsLive(isolate, k)) continue;
+    if (!Shape::IsLive(roots, k)) continue;
     uint32_t hash = Shape::HashForObject(isolate, k);
     uint32_t insertion_index =
         EntryToIndex(new_table->FindInsertionEntry(hash));
@@ -16709,6 +16713,7 @@ void HashTable<Derived, Shape>::Rehash() {
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
   Isolate* isolate = GetIsolate();
+  ReadOnlyRoots roots(isolate);
   uint32_t capacity = Capacity();
   bool done = false;
   for (int probe = 1; !done; probe++) {
@@ -16717,11 +16722,11 @@ void HashTable<Derived, Shape>::Rehash() {
     done = true;
     for (uint32_t current = 0; current < capacity; current++) {
       Object* current_key = KeyAt(current);
-      if (!Shape::IsLive(isolate, current_key)) continue;
+      if (!Shape::IsLive(roots, current_key)) continue;
       uint32_t target = EntryForProbe(current_key, probe, current);
       if (current == target) continue;
       Object* target_key = KeyAt(target);
-      if (!Shape::IsLive(isolate, target_key) ||
+      if (!Shape::IsLive(roots, target_key) ||
           EntryForProbe(target_key, probe, target) != target) {
         // Put the current element into the correct position.
         Swap(current, target, mode);
@@ -16735,8 +16740,8 @@ void HashTable<Derived, Shape>::Rehash() {
     }
   }
   // Wipe deleted entries.
-  Object* the_hole = ReadOnlyRoots(isolate).the_hole_value();
-  Object* undefined = ReadOnlyRoots(isolate).undefined_value();
+  Object* the_hole = roots.the_hole_value();
+  Object* undefined = roots.undefined_value();
   for (uint32_t current = 0; current < capacity; current++) {
     if (KeyAt(current) == the_hole) {
       set(EntryToIndex(current) + kEntryKeyIndex, undefined);
@@ -16820,9 +16825,9 @@ uint32_t HashTable<Derived, Shape>::FindInsertionEntry(uint32_t hash) {
   uint32_t entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
-  Isolate* isolate = GetIsolate();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   while (true) {
-    if (!Shape::IsLive(isolate, KeyAt(entry))) break;
+    if (!Shape::IsLive(roots, KeyAt(entry))) break;
     entry = NextProbe(entry, count++, capacity);
   }
   return entry;
@@ -17375,7 +17380,7 @@ Object* StringTable::LookupStringIfExists_NoAllocate(String* string) {
   }
 
   DCHECK(!string->IsInternalizedString());
-  int entry = table->FindEntry(isolate, &key, key.Hash());
+  int entry = table->FindEntry(ReadOnlyRoots(isolate), &key, key.Hash());
   if (entry != kNotFound) {
     String* internalized = String::cast(table->KeyAt(entry));
     if (FLAG_thin_strings) {
@@ -17756,7 +17761,7 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::EnsureCapacity(
     // the dictionary with new enumeration indices.
     for (int i = 0; i < length; i++) {
       int index = Smi::ToInt(iteration_order->get(i));
-      DCHECK(dictionary->IsKey(dictionary->GetIsolate(),
+      DCHECK(dictionary->IsKey(dictionary->GetReadOnlyRoots(),
                                dictionary->KeyAt(index)));
 
       int enum_index = PropertyDetails::kInitialIndex + i;
@@ -17865,11 +17870,11 @@ Handle<SimpleNumberDictionary> SimpleNumberDictionary::Set(
 
 bool NumberDictionary::HasComplexElements() {
   if (!requires_slow_elements()) return false;
-  Isolate* isolate = this->GetIsolate();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k;
-    if (!this->ToKey(isolate, i, &k)) continue;
+    if (!this->ToKey(roots, i, &k)) continue;
     PropertyDetails details = this->DetailsAt(i);
     if (details.kind() == kAccessor) return true;
     PropertyAttributes attr = details.attributes();
@@ -17909,14 +17914,14 @@ Handle<NumberDictionary> NumberDictionary::Set(
 }
 
 void NumberDictionary::CopyValuesTo(FixedArray* elements) {
-  Isolate* isolate = this->GetIsolate();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   int pos = 0;
   int capacity = this->Capacity();
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < capacity; i++) {
     Object* k;
-    if (this->ToKey(isolate, i, &k)) {
+    if (this->ToKey(roots, i, &k)) {
       elements->set(pos++, this->ValueAt(i), mode);
     }
   }
@@ -17925,12 +17930,12 @@ void NumberDictionary::CopyValuesTo(FixedArray* elements) {
 
 template <typename Derived, typename Shape>
 int Dictionary<Derived, Shape>::NumberOfEnumerableProperties() {
-  Isolate* isolate = this->GetIsolate();
+  ReadOnlyRoots roots = this->GetReadOnlyRoots();
   int capacity = this->Capacity();
   int result = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k;
-    if (!this->ToKey(isolate, i, &k)) continue;
+    if (!this->ToKey(roots, i, &k)) continue;
     if (k->FilterKey(ENUMERABLE_STRINGS)) continue;
     PropertyDetails details = this->DetailsAt(i);
     PropertyAttributes attr = details.attributes();
@@ -17960,9 +17965,10 @@ void BaseNameDictionary<Derived, Shape>::CopyEnumKeysTo(
   int length = storage->length();
   int capacity = dictionary->Capacity();
   int properties = 0;
+  ReadOnlyRoots roots(isolate);
   for (int i = 0; i < capacity; i++) {
     Object* key;
-    if (!dictionary->ToKey(isolate, i, &key)) continue;
+    if (!dictionary->ToKey(roots, i, &key)) continue;
     bool is_shadowing_key = false;
     if (key->IsSymbol()) continue;
     PropertyDetails details = dictionary->DetailsAt(i);
@@ -18007,13 +18013,14 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
   int capacity = dictionary->Capacity();
   int length = dictionary->NumberOfElements();
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
+  ReadOnlyRoots roots(isolate);
   int array_size = 0;
   {
     DisallowHeapAllocation no_gc;
     Derived* raw_dictionary = *dictionary;
     for (int i = 0; i < capacity; i++) {
       Object* k;
-      if (!raw_dictionary->ToKey(isolate, i, &k)) continue;
+      if (!raw_dictionary->ToKey(roots, i, &k)) continue;
       array->set(array_size++, Smi::FromInt(i));
     }
 
@@ -18034,6 +18041,7 @@ template <typename Derived, typename Shape>
 void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
     Handle<Derived> dictionary, KeyAccumulator* keys) {
   Isolate* isolate = keys->isolate();
+  ReadOnlyRoots roots(isolate);
   int capacity = dictionary->Capacity();
   Handle<FixedArray> array =
       isolate->factory()->NewFixedArray(dictionary->NumberOfElements());
@@ -18044,7 +18052,7 @@ void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
     Derived* raw_dictionary = *dictionary;
     for (int i = 0; i < capacity; i++) {
       Object* k;
-      if (!raw_dictionary->ToKey(isolate, i, &k)) continue;
+      if (!raw_dictionary->ToKey(roots, i, &k)) continue;
       if (k->FilterKey(filter)) continue;
       PropertyDetails details = raw_dictionary->DetailsAt(i);
       if ((details.attributes() & filter) != 0) {
@@ -18093,15 +18101,15 @@ void BaseNameDictionary<Derived, Shape>::CollectKeysTo(
 template <typename Derived, typename Shape>
 Object* Dictionary<Derived, Shape>::SlowReverseLookup(Object* value) {
   Derived* dictionary = Derived::cast(this);
-  Isolate* isolate = dictionary->GetIsolate();
+  ReadOnlyRoots roots = dictionary->GetReadOnlyRoots();
   int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k;
-    if (!dictionary->ToKey(isolate, i, &k)) continue;
+    if (!dictionary->ToKey(roots, i, &k)) continue;
     Object* e = dictionary->ValueAt(i);
     if (e == value) return k;
   }
-  return ReadOnlyRoots(isolate).undefined_value();
+  return roots.undefined_value();
 }
 
 template <typename Derived, typename Shape>
@@ -18114,14 +18122,14 @@ void ObjectHashTableBase<Derived, Shape>::FillEntriesWithHoles(
 }
 
 template <typename Derived, typename Shape>
-Object* ObjectHashTableBase<Derived, Shape>::Lookup(Isolate* isolate,
+Object* ObjectHashTableBase<Derived, Shape>::Lookup(ReadOnlyRoots roots,
                                                     Handle<Object> key,
                                                     int32_t hash) {
   DisallowHeapAllocation no_gc;
-  DCHECK(this->IsKey(isolate, *key));
+  DCHECK(this->IsKey(roots, *key));
 
-  int entry = this->FindEntry(isolate, key, hash);
-  if (entry == kNotFound) return ReadOnlyRoots(isolate).the_hole_value();
+  int entry = this->FindEntry(roots, key, hash);
+  if (entry == kNotFound) return roots.the_hole_value();
   return this->get(Derived::EntryToIndex(entry) + 1);
 }
 
@@ -18129,21 +18137,21 @@ template <typename Derived, typename Shape>
 Object* ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key) {
   DisallowHeapAllocation no_gc;
 
-  Isolate* isolate = this->GetIsolate();
-  DCHECK(this->IsKey(isolate, *key));
+  ReadOnlyRoots roots = this->GetReadOnlyRoots();
+  DCHECK(this->IsKey(roots, *key));
 
   // If the object does not have an identity hash, it was never used as a key.
   Object* hash = key->GetHash();
-  if (hash->IsUndefined(isolate)) {
-    return ReadOnlyRoots(isolate).the_hole_value();
+  if (hash->IsUndefined(roots)) {
+    return roots.the_hole_value();
   }
-  return Lookup(isolate, key, Smi::ToInt(hash));
+  return Lookup(roots, key, Smi::ToInt(hash));
 }
 
 template <typename Derived, typename Shape>
 Object* ObjectHashTableBase<Derived, Shape>::Lookup(Handle<Object> key,
                                                     int32_t hash) {
-  return Lookup(this->GetIsolate(), key, hash);
+  return Lookup(this->GetReadOnlyRoots(), key, hash);
 }
 
 template <typename Derived, typename Shape>
@@ -18155,9 +18163,9 @@ template <typename Derived, typename Shape>
 Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Handle<Derived> table,
                                                          Handle<Object> key,
                                                          Handle<Object> value) {
-  Isolate* isolate = table->GetIsolate();
-  DCHECK(table->IsKey(isolate, *key));
-  DCHECK(!value->IsTheHole(isolate));
+  Isolate* isolate = Heap::FromWritableHeapObject(*table)->isolate();
+  DCHECK(table->IsKey(ReadOnlyRoots(isolate), *key));
+  DCHECK(!value->IsTheHole(ReadOnlyRoots(isolate)));
 
   // Make sure the key object has an identity hash code.
   int32_t hash = key->GetOrCreateHash(isolate)->value();
@@ -18171,10 +18179,11 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Handle<Derived> table,
                                                          Handle<Object> value,
                                                          int32_t hash) {
   Isolate* isolate = table->GetIsolate();
-  DCHECK(table->IsKey(isolate, *key));
-  DCHECK(!value->IsTheHole(isolate));
+  ReadOnlyRoots roots(isolate);
+  DCHECK(table->IsKey(roots, *key));
+  DCHECK(!value->IsTheHole(roots));
 
-  int entry = table->FindEntry(isolate, key, hash);
+  int entry = table->FindEntry(roots, key, hash);
 
   // Key is already in table, just overwrite value.
   if (entry != kNotFound) {
@@ -18211,7 +18220,7 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Handle<Derived> table,
 template <typename Derived, typename Shape>
 Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
     Handle<Derived> table, Handle<Object> key, bool* was_present) {
-  DCHECK(table->IsKey(table->GetIsolate(), *key));
+  DCHECK(table->IsKey(table->GetReadOnlyRoots(), *key));
 
   Object* hash = key->GetHash();
   if (hash->IsUndefined()) {
@@ -18226,10 +18235,10 @@ template <typename Derived, typename Shape>
 Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
     Handle<Derived> table, Handle<Object> key, bool* was_present,
     int32_t hash) {
-  Isolate* isolate = table->GetIsolate();
-  DCHECK(table->IsKey(isolate, *key));
+  ReadOnlyRoots roots = table->GetReadOnlyRoots();
+  DCHECK(table->IsKey(roots, *key));
 
-  int entry = table->FindEntry(isolate, key, hash);
+  int entry = table->FindEntry(roots, key, hash);
   if (entry == kNotFound) {
     *was_present = false;
     return table;
@@ -18294,7 +18303,7 @@ void JSWeakCollection::Set(Handle<JSWeakCollection> weak_collection,
   Handle<EphemeronHashTable> table(
       EphemeronHashTable::cast(weak_collection->table()),
       weak_collection->GetIsolate());
-  DCHECK(table->IsKey(weak_collection->GetIsolate(), *key));
+  DCHECK(table->IsKey(weak_collection->GetReadOnlyRoots(), *key));
   Handle<EphemeronHashTable> new_table =
       EphemeronHashTable::Put(table, key, value, hash);
   weak_collection->set_table(*new_table);
@@ -18311,7 +18320,7 @@ bool JSWeakCollection::Delete(Handle<JSWeakCollection> weak_collection,
   Handle<EphemeronHashTable> table(
       EphemeronHashTable::cast(weak_collection->table()),
       weak_collection->GetIsolate());
-  DCHECK(table->IsKey(weak_collection->GetIsolate(), *key));
+  DCHECK(table->IsKey(weak_collection->GetReadOnlyRoots(), *key));
   bool was_present = false;
   Handle<EphemeronHashTable> new_table =
       EphemeronHashTable::Remove(table, key, &was_present, hash);
@@ -18341,11 +18350,12 @@ Handle<JSArray> JSWeakCollection::GetEntries(Handle<JSWeakCollection> holder,
 
   {
     DisallowHeapAllocation no_gc;
+    ReadOnlyRoots roots = ReadOnlyRoots(isolate);
     int count = 0;
     for (int i = 0;
          count / values_per_entry < max_entries && i < table->Capacity(); i++) {
       Object* key;
-      if (table->ToKey(isolate, i, &key)) {
+      if (table->ToKey(roots, i, &key)) {
         entries->set(count++, key);
         if (values_per_entry > 1) {
           Object* value = table->Lookup(handle(key, isolate));

@@ -228,9 +228,10 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
 
   // Replace all indices with proper methods.
   int capacity = dictionary->Capacity();
+  ReadOnlyRoots roots(isolate);
   for (int i = 0; i < capacity; i++) {
     Object* maybe_key = dictionary->KeyAt(i);
-    if (!Dictionary::IsKey(isolate, maybe_key)) continue;
+    if (!Dictionary::IsKey(roots, maybe_key)) continue;
     if (install_name_accessor && *install_name_accessor &&
         (maybe_key == *name_string)) {
       *install_name_accessor = false;

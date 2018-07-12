@@ -215,8 +215,8 @@ class GlobalDictionaryShape : public NameDictionaryShape {
                                   PropertyDetails value);
 
   static inline Object* Unwrap(Object* key);
-  static inline bool IsKey(Isolate* isolate, Object* k);
-  static inline bool IsLive(Isolate* isolate, Object* key);
+  static inline bool IsKey(ReadOnlyRoots roots, Object* k);
+  static inline bool IsLive(ReadOnlyRoots roots, Object* key);
   static inline int GetMapRootIndex();
 };
 

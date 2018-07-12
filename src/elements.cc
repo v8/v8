@@ -1432,13 +1432,14 @@ class DictionaryElementsAccessor
     CHECK(array->length()->ToArrayLength(&old_length));
     {
       DisallowHeapAllocation no_gc;
+      ReadOnlyRoots roots(isolate);
       if (length < old_length) {
         if (dict->requires_slow_elements()) {
           // Find last non-deletable element in range of elements to be
           // deleted and adjust range accordingly.
           for (int entry = 0; entry < capacity; entry++) {
             Object* index = dict->KeyAt(entry);
-            if (dict->IsKey(isolate, index)) {
+            if (dict->IsKey(roots, index)) {
               uint32_t number = static_cast<uint32_t>(index->Number());
               if (length <= number && number < old_length) {
                 PropertyDetails details = dict->DetailsAt(entry);
@@ -1456,7 +1457,7 @@ class DictionaryElementsAccessor
           int removed_entries = 0;
           for (int entry = 0; entry < capacity; entry++) {
             Object* index = dict->KeyAt(entry);
-            if (dict->IsKey(isolate, index)) {
+            if (dict->IsKey(roots, index)) {
               uint32_t number = static_cast<uint32_t>(index->Number());
               if (length <= number && number < old_length) {
                 dict->ClearEntry(entry);
@@ -1497,9 +1498,10 @@ class DictionaryElementsAccessor
     Handle<NumberDictionary> source_dict(
         NumberDictionary::cast(receiver->elements()), isolate);
     int entry_count = source_dict->Capacity();
+    ReadOnlyRoots roots(isolate);
     for (int i = 0; i < entry_count; i++) {
       Object* key = source_dict->KeyAt(i);
-      if (!source_dict->ToKey(isolate, i, &key)) continue;
+      if (!source_dict->ToKey(roots, i, &key)) continue;
       uint64_t key_value = NumberToInt64(key);
       if (key_value >= start && key_value < end) {
         Handle<NumberDictionary> dest_dict(
@@ -1528,10 +1530,10 @@ class DictionaryElementsAccessor
     NumberDictionary* dict = NumberDictionary::cast(backing_store);
     if (!dict->requires_slow_elements()) return false;
     int capacity = dict->Capacity();
-    Isolate* isolate = holder->GetIsolate();
+    ReadOnlyRoots roots = holder->GetReadOnlyRoots();
     for (int i = 0; i < capacity; i++) {
       Object* key = dict->KeyAt(i);
-      if (!dict->IsKey(isolate, key)) continue;
+      if (!dict->IsKey(roots, key)) continue;
       PropertyDetails details = dict->DetailsAt(i);
       if (details.kind() == kAccessor) return true;
     }
@@ -1644,7 +1646,7 @@ class DictionaryElementsAccessor
                                      int entry, PropertyFilter filter) {
     DisallowHeapAllocation no_gc;
     Object* raw_key = dictionary->KeyAt(entry);
-    if (!dictionary->IsKey(isolate, raw_key)) return kMaxUInt32;
+    if (!dictionary->IsKey(ReadOnlyRoots(isolate), raw_key)) return kMaxUInt32;
     return FilterKey(dictionary, entry, raw_key, filter);
   }
 
@@ -1660,9 +1662,10 @@ class DictionaryElementsAccessor
         GetMaxNumberOfEntries(*object, *backing_store));
     int insertion_index = 0;
     PropertyFilter filter = keys->filter();
+    ReadOnlyRoots roots(isolate);
     for (int i = 0; i < capacity; i++) {
       Object* raw_key = dictionary->KeyAt(i);
-      if (!dictionary->IsKey(isolate, raw_key)) continue;
+      if (!dictionary->IsKey(roots, raw_key)) continue;
       uint32_t key = FilterKey(dictionary, i, raw_key, filter);
       if (key == kMaxUInt32) {
         keys->AddShadowingKey(raw_key);
@@ -1706,9 +1709,10 @@ class DictionaryElementsAccessor
     Handle<NumberDictionary> dictionary(
         NumberDictionary::cast(receiver->elements()), isolate);
     int capacity = dictionary->Capacity();
+    ReadOnlyRoots roots(isolate);
     for (int i = 0; i < capacity; i++) {
       Object* k = dictionary->KeyAt(i);
-      if (!dictionary->IsKey(isolate, k)) continue;
+      if (!dictionary->IsKey(roots, k)) continue;
       Object* value = dictionary->ValueAt(i);
       DCHECK(!value->IsTheHole(isolate));
       DCHECK(!value->IsAccessorPair());
@@ -1901,7 +1905,7 @@ class DictionaryElementsAccessor
 #if DEBUG
     DCHECK_EQ(holder->map()->elements_kind(), DICTIONARY_ELEMENTS);
     if (!FLAG_enable_slow_asserts) return;
-    Isolate* isolate = holder->GetIsolate();
+    ReadOnlyRoots roots = holder->GetReadOnlyRoots();
     NumberDictionary* dictionary = NumberDictionary::cast(holder->elements());
     // Validate the requires_slow_elements and max_number_key values.
     int capacity = dictionary->Capacity();
@@ -1909,7 +1913,7 @@ class DictionaryElementsAccessor
     int max_key = 0;
     for (int i = 0; i < capacity; ++i) {
       Object* k;
-      if (!dictionary->ToKey(isolate, i, &k)) continue;
+      if (!dictionary->ToKey(roots, i, &k)) continue;
       DCHECK_LE(0.0, k->Number());
       if (k->Number() > NumberDictionary::kRequiresSlowElementsLimit) {
         requires_slow_elements = true;

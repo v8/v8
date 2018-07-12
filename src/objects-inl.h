@@ -3186,15 +3186,13 @@ PropertyCell* GlobalDictionary::CellAt(int entry) {
   return PropertyCell::cast(KeyAt(entry));
 }
 
-bool GlobalDictionaryShape::IsLive(Isolate* isolate, Object* k) {
-  ReadOnlyRoots roots(isolate);
+bool GlobalDictionaryShape::IsLive(ReadOnlyRoots roots, Object* k) {
   DCHECK_NE(roots.the_hole_value(), k);
   return k != roots.undefined_value();
 }
 
-bool GlobalDictionaryShape::IsKey(Isolate* isolate, Object* k) {
-  return IsLive(isolate, k) &&
-         !PropertyCell::cast(k)->value()->IsTheHole(isolate);
+bool GlobalDictionaryShape::IsKey(ReadOnlyRoots roots, Object* k) {
+  return IsLive(roots, k) && !PropertyCell::cast(k)->value()->IsTheHole(roots);
 }
 
 Name* GlobalDictionary::NameAt(int entry) { return CellAt(entry)->name(); }

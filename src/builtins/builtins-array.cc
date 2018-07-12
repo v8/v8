@@ -651,9 +651,10 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
     case DICTIONARY_ELEMENTS: {
       NumberDictionary* dictionary = NumberDictionary::cast(array->elements());
       int capacity = dictionary->Capacity();
+      ReadOnlyRoots roots(isolate);
       for (int i = 0; i < capacity; i++) {
         Object* key = dictionary->KeyAt(i);
-        if (dictionary->IsKey(isolate, key)) {
+        if (dictionary->IsKey(roots, key)) {
           element_count++;
         }
       }
@@ -718,9 +719,10 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       DisallowHeapAllocation no_gc;
       NumberDictionary* dict = NumberDictionary::cast(object->elements());
       uint32_t capacity = dict->Capacity();
+      ReadOnlyRoots roots(isolate);
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, j = 0, j, j < capacity, j++, {
         Object* k = dict->KeyAt(j);
-        if (!dict->IsKey(isolate, k)) continue;
+        if (!dict->IsKey(roots, k)) continue;
         DCHECK(k->IsNumber());
         uint32_t index = static_cast<uint32_t>(k->Number());
         if (index < range) {
