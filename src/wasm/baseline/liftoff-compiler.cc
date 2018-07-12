@@ -629,9 +629,11 @@ class LiftoffCompiler {
           __ emit_##fn(dst.fp(), src.fp());             \
         });                                             \
     break;
-#define CASE_FLOAT_UNOP_WITH_CFALLBACK(type, fn)                        \
-  EmitFloatUnOpWithCFallback<kWasm##type>(&LiftoffAssembler::emit_##fn, \
-                                          &ExternalReference::wasm_##fn);
+#define CASE_FLOAT_UNOP_WITH_CFALLBACK(opcode, type, fn)                    \
+  case WasmOpcode::kExpr##opcode:                                           \
+    EmitFloatUnOpWithCFallback<kWasm##type>(&LiftoffAssembler::emit_##fn,   \
+                                            &ExternalReference::wasm_##fn); \
+    break;
 #define CASE_TYPE_CONVERSION(opcode, dst_type, src_type, ext_ref, can_trap) \
   case WasmOpcode::kExpr##opcode:                                           \
     EmitTypeConversion<kWasm##dst_type, kWasm##src_type, can_trap>(         \
@@ -650,10 +652,10 @@ class LiftoffCompiler {
       CASE_FLOAT_UNOP(F32Sqrt, F32, f32_sqrt)
       CASE_FLOAT_UNOP(F64Abs, F64, f64_abs)
       CASE_FLOAT_UNOP(F64Neg, F64, f64_neg)
-      CASE_FLOAT_UNOP_WITH_CFALLBACK(F64, f64_ceil)
-      CASE_FLOAT_UNOP_WITH_CFALLBACK(F64, f64_floor)
-      CASE_FLOAT_UNOP_WITH_CFALLBACK(F64, f64_trunc)
-      CASE_FLOAT_UNOP_WITH_CFALLBACK(F64, f64_nearest_int)
+      CASE_FLOAT_UNOP_WITH_CFALLBACK(F64Ceil, F64, f64_ceil)
+      CASE_FLOAT_UNOP_WITH_CFALLBACK(F64Floor, F64, f64_floor)
+      CASE_FLOAT_UNOP_WITH_CFALLBACK(F64Trunc, F64, f64_trunc)
+      CASE_FLOAT_UNOP_WITH_CFALLBACK(F64NearestInt, F64, f64_nearest_int)
       CASE_FLOAT_UNOP(F64Sqrt, F64, f64_sqrt)
       CASE_TYPE_CONVERSION(I32ConvertI64, I32, I64, nullptr, kNoTrap)
       CASE_TYPE_CONVERSION(I32SConvertF32, I32, F32, nullptr, kCanTrap)
