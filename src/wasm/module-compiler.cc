@@ -2048,7 +2048,8 @@ void InstanceBuilder::InitializeTables(Handle<WasmInstanceObject> instance) {
     const WasmTable& table = module_->tables[index];
     TableInstance& table_instance = table_instances_[index];
 
-    if (!instance->has_indirect_function_table()) {
+    if (!instance->has_indirect_function_table() &&
+        table.type == kWasmAnyFunc) {
       WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
           instance, table.initial_size);
       table_instance.table_size = table.initial_size;
@@ -2058,74 +2059,71 @@ void InstanceBuilder::InitializeTables(Handle<WasmInstanceObject> instance) {
 
 void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
   NativeModule* native_module = module_object_->native_module();
+  for (auto& table_init : module_->table_inits) {
+    uint32_t base = EvalUint32InitExpr(table_init.offset);
+    uint32_t num_entries = static_cast<uint32_t>(table_init.entries.size());
+    uint32_t index = table_init.table_index;
+    TableInstance& table_instance = table_instances_[index];
+    DCHECK(in_bounds(base, num_entries, table_instance.table_size));
+    for (uint32_t i = 0; i < num_entries; ++i) {
+      uint32_t func_index = table_init.entries[i];
+      const WasmFunction* function = &module_->functions[func_index];
+      int table_index = static_cast<int>(i + base);
+
+      // Update the local dispatch table first.
+      uint32_t sig_id = module_->signature_ids[function->sig_index];
+      WasmInstanceObject* target_instance = *instance;
+      Address call_target;
+      const bool is_import = func_index < module_->num_imported_functions;
+      if (is_import) {
+        // For imported calls, take target instance and address from the
+        // import table.
+        ImportedFunctionEntry entry(instance, func_index);
+        target_instance = entry.instance();
+        call_target = entry.target();
+      } else {
+        call_target = native_module->GetCallTargetForFunction(func_index);
+      }
+      IndirectFunctionTableEntry(instance, table_index)
+          .set(sig_id, target_instance, call_target);
+
+      if (!table_instance.table_object.is_null()) {
+        // Update the table object's other dispatch tables.
+        if (js_wrappers_[func_index].is_null()) {
+          // No JSFunction entry yet exists for this function. Create one.
+          // TODO(titzer): We compile JS->wasm wrappers for functions are
+          // not exported but are in an exported table. This should be done
+          // at module compile time and cached instead.
+
+          Handle<Code> wrapper_code =
+              js_to_wasm_cache_.GetOrCompileJSToWasmWrapper(
+                  isolate_, native_module, func_index, use_trap_handler());
+          MaybeHandle<String> func_name;
+          if (module_->origin == kAsmJsOrigin) {
+            // For modules arising from asm.js, honor the names section.
+            WireBytesRef func_name_ref = module_->LookupFunctionName(
+                native_module->wire_bytes(), func_index);
+            func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+                            isolate_, module_object_, func_name_ref)
+                            .ToHandleChecked();
+          }
+          Handle<WasmExportedFunction> js_function = WasmExportedFunction::New(
+              isolate_, instance, func_name, func_index,
+              static_cast<int>(function->sig->parameter_count()), wrapper_code);
+          js_wrappers_[func_index] = js_function;
+        }
+        table_instance.js_wrappers->set(table_index, *js_wrappers_[func_index]);
+        // UpdateDispatchTables() should update this instance as well.
+        WasmTableObject::UpdateDispatchTables(
+            isolate_, table_instance.table_object, table_index, function->sig,
+            instance, call_target);
+      }
+    }
+  }
+
   int table_count = static_cast<int>(module_->tables.size());
   for (int index = 0; index < table_count; ++index) {
     TableInstance& table_instance = table_instances_[index];
-
-    // TODO(titzer): this does redundant work if there are multiple tables,
-    // since initializations are not sorted by table index.
-    for (auto& table_init : module_->table_inits) {
-      uint32_t base = EvalUint32InitExpr(table_init.offset);
-      uint32_t num_entries = static_cast<uint32_t>(table_init.entries.size());
-      DCHECK(in_bounds(base, num_entries, table_instance.table_size));
-      for (uint32_t i = 0; i < num_entries; ++i) {
-        uint32_t func_index = table_init.entries[i];
-        const WasmFunction* function = &module_->functions[func_index];
-        int table_index = static_cast<int>(i + base);
-
-        // Update the local dispatch table first.
-        uint32_t sig_id = module_->signature_ids[function->sig_index];
-        WasmInstanceObject* target_instance = *instance;
-        Address call_target;
-        const bool is_import = func_index < module_->num_imported_functions;
-        if (is_import) {
-          // For imported calls, take target instance and address from the
-          // import table.
-          ImportedFunctionEntry entry(instance, func_index);
-          target_instance = entry.instance();
-          call_target = entry.target();
-        } else {
-          call_target = native_module->GetCallTargetForFunction(func_index);
-        }
-        IndirectFunctionTableEntry(instance, table_index)
-            .set(sig_id, target_instance, call_target);
-
-        if (!table_instance.table_object.is_null()) {
-          // Update the table object's other dispatch tables.
-          if (js_wrappers_[func_index].is_null()) {
-            // No JSFunction entry yet exists for this function. Create one.
-            // TODO(titzer): We compile JS->wasm wrappers for functions are
-            // not exported but are in an exported table. This should be done
-            // at module compile time and cached instead.
-
-            Handle<Code> wrapper_code =
-                js_to_wasm_cache_.GetOrCompileJSToWasmWrapper(
-                    isolate_, native_module, func_index, use_trap_handler());
-            MaybeHandle<String> func_name;
-            if (module_->origin == kAsmJsOrigin) {
-              // For modules arising from asm.js, honor the names section.
-              WireBytesRef func_name_ref = module_->LookupFunctionName(
-                  native_module->wire_bytes(), func_index);
-              func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-                              isolate_, module_object_, func_name_ref)
-                              .ToHandleChecked();
-            }
-            Handle<WasmExportedFunction> js_function =
-                WasmExportedFunction::New(
-                    isolate_, instance, func_name, func_index,
-                    static_cast<int>(function->sig->parameter_count()),
-                    wrapper_code);
-            js_wrappers_[func_index] = js_function;
-          }
-          table_instance.js_wrappers->set(table_index,
-                                          *js_wrappers_[func_index]);
-          // UpdateDispatchTables() should update this instance as well.
-          WasmTableObject::UpdateDispatchTables(
-              isolate_, table_instance.table_object, table_index, function->sig,
-              instance, call_target);
-        }
-      }
-    }
 
     // TODO(titzer): we add the new dispatch table at the end to avoid
     // redundant work and also because the new instance is not yet fully

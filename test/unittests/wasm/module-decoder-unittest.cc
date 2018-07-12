@@ -936,6 +936,262 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
   }
 }
 
+TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTables) {
+  // Test that if we have multiple tables, in the element section we can target
+  // and initialize all tables.
+  FlagScope<bool> flag_scope(&FLAG_experimental_wasm_anyref, true);
+  static const byte data[] = {
+      // sig#0 ---------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // funcs ---------------------------------------------------------------
+      ONE_EMPTY_FUNCTION,
+      // table declaration ---------------------------------------------------
+      SECTION(Table, 7), ENTRY_COUNT(2),  // section header
+      kLocalAnyFunc, 0, 5,                // table 0
+      kLocalAnyFunc, 0, 9,                // table 1
+      // elements ------------------------------------------------------------
+      SECTION(Element, 14),
+      2,                         // entry count
+      TABLE_INDEX(0),            // element for table 0
+      WASM_INIT_EXPR_I32V_1(0),  // index
+      1,                         // elements count
+      FUNC_INDEX(0),             // function
+      TABLE_INDEX(1),            // element for table 1
+      WASM_INIT_EXPR_I32V_1(7),  // index
+      2,                         // elements count
+      FUNC_INDEX(0),             // entry 0
+      FUNC_INDEX(0),             // entry 1
+  };
+
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ElementSectionMixedTables) {
+  // Test that if we have multiple tables, both imported and module-defined, in
+  // the element section we can target and initialize all tables.
+  FlagScope<bool> flag_scope(&FLAG_experimental_wasm_anyref, true);
+  static const byte data[] = {
+      // sig#0 ---------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // imports -------------------------------------------------------------
+      SECTION(Import, 17), ENTRY_COUNT(2),
+      NAME_LENGTH(1),  // --
+      'm',             // module name
+      NAME_LENGTH(1),  // --
+      't',             // table name
+      kExternalTable,  // import kind
+      kLocalAnyFunc,   // elem_type
+      0,               // no maximum field
+      5,               // initial size
+      NAME_LENGTH(1),  // --
+      'm',             // module name
+      NAME_LENGTH(1),  // --
+      's',             // table name
+      kExternalTable,  // import kind
+      kLocalAnyFunc,   // elem_type
+      0,               // no maximum field
+      10,              // initial size
+      // funcs ---------------------------------------------------------------
+      ONE_EMPTY_FUNCTION,
+      // table declaration ---------------------------------------------------
+      SECTION(Table, 7), ENTRY_COUNT(2),  // section header
+      kLocalAnyFunc, 0, 15,               // table 0
+      kLocalAnyFunc, 0, 19,               // table 1
+      // elements ------------------------------------------------------------
+      SECTION(Element, 27),
+      4,                          // entry count
+      TABLE_INDEX(0),             // element for table 0
+      WASM_INIT_EXPR_I32V_1(0),   // index
+      1,                          // elements count
+      FUNC_INDEX(0),              // function
+      TABLE_INDEX(1),             // element for table 1
+      WASM_INIT_EXPR_I32V_1(7),   // index
+      2,                          // elements count
+      FUNC_INDEX(0),              // entry 0
+      FUNC_INDEX(0),              // entry 1
+      TABLE_INDEX(2),             // element for table 2
+      WASM_INIT_EXPR_I32V_1(12),  // index
+      1,                          // elements count
+      FUNC_INDEX(0),              // function
+      TABLE_INDEX(3),             // element for table 1
+      WASM_INIT_EXPR_I32V_1(17),  // index
+      2,                          // elements count
+      FUNC_INDEX(0),              // entry 0
+      FUNC_INDEX(0),              // entry 1
+  };
+
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ElementSectionMultipleTablesArbitraryOrder) {
+  // Test that the order in which tables are targeted in the element secion
+  // can be arbitrary.
+  FlagScope<bool> flag_scope(&FLAG_experimental_wasm_anyref, true);
+  static const byte data[] = {
+      // sig#0 ---------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // funcs ---------------------------------------------------------------
+      ONE_EMPTY_FUNCTION,
+      // table declaration ---------------------------------------------------
+      SECTION(Table, 7), ENTRY_COUNT(2),  // section header
+      kLocalAnyFunc, 0, 5,                // table 0
+      kLocalAnyFunc, 0, 9,                // table 1
+      // elements ------------------------------------------------------------
+      SECTION(Element, 20),
+      3,                         // entry count
+      TABLE_INDEX(0),            // element for table 1
+      WASM_INIT_EXPR_I32V_1(0),  // index
+      1,                         // elements count
+      FUNC_INDEX(0),             // function
+      TABLE_INDEX(1),            // element for table 0
+      WASM_INIT_EXPR_I32V_1(7),  // index
+      2,                         // elements count
+      FUNC_INDEX(0),             // entry 0
+      FUNC_INDEX(0),             // entry 1
+      TABLE_INDEX(0),            // element for table 1
+      WASM_INIT_EXPR_I32V_1(3),  // index
+      1,                         // elements count
+      FUNC_INDEX(0),             // function
+  };
+
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ElementSectionMixedTablesArbitraryOrder) {
+  // Test that the order in which tables are targeted in the element secion can
+  // be arbitrary. In this test, tables can be both imported and module-defined.
+  FlagScope<bool> flag_scope(&FLAG_experimental_wasm_anyref, true);
+  static const byte data[] = {
+      // sig#0 ---------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // imports -------------------------------------------------------------
+      SECTION(Import, 17), ENTRY_COUNT(2),
+      NAME_LENGTH(1),  // --
+      'm',             // module name
+      NAME_LENGTH(1),  // --
+      't',             // table name
+      kExternalTable,  // import kind
+      kLocalAnyFunc,   // elem_type
+      0,               // no maximum field
+      5,               // initial size
+      NAME_LENGTH(1),  // --
+      'm',             // module name
+      NAME_LENGTH(1),  // --
+      's',             // table name
+      kExternalTable,  // import kind
+      kLocalAnyFunc,   // elem_type
+      0,               // no maximum field
+      10,              // initial size
+      // funcs ---------------------------------------------------------------
+      ONE_EMPTY_FUNCTION,
+      // table declaration ---------------------------------------------------
+      SECTION(Table, 7), ENTRY_COUNT(2),  // section header
+      kLocalAnyFunc, 0, 15,               // table 0
+      kLocalAnyFunc, 0, 19,               // table 1
+      // elements ------------------------------------------------------------
+      SECTION(Element, 27),
+      4,                          // entry count
+      TABLE_INDEX(2),             // element for table 0
+      WASM_INIT_EXPR_I32V_1(10),  // index
+      1,                          // elements count
+      FUNC_INDEX(0),              // function
+      TABLE_INDEX(3),             // element for table 1
+      WASM_INIT_EXPR_I32V_1(17),  // index
+      2,                          // elements count
+      FUNC_INDEX(0),              // entry 0
+      FUNC_INDEX(0),              // entry 1
+      TABLE_INDEX(0),             // element for table 2
+      WASM_INIT_EXPR_I32V_1(2),   // index
+      1,                          // elements count
+      FUNC_INDEX(0),              // function
+      TABLE_INDEX(1),             // element for table 1
+      WASM_INIT_EXPR_I32V_1(7),   // index
+      2,                          // elements count
+      FUNC_INDEX(0),              // entry 0
+      FUNC_INDEX(0),              // entry 1
+  };
+
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefTable) {
+  // Test that tables of type 'AnyRef' cannot be initialized by the element
+  // section.
+  FlagScope<bool> flag_scope(&FLAG_experimental_wasm_anyref, true);
+  static const byte data[] = {
+      // sig#0 ---------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // funcs ---------------------------------------------------------------
+      ONE_EMPTY_FUNCTION,
+      // table declaration ---------------------------------------------------
+      SECTION(Table, 7), ENTRY_COUNT(2),  // section header
+      kLocalAnyRef, 0, 5,                 // table 0
+      kLocalAnyFunc, 0, 9,                // table 1
+      // elements ------------------------------------------------------------
+      SECTION(Element, 14),
+      2,                         // entry count
+      TABLE_INDEX(0),            // element for table 0
+      WASM_INIT_EXPR_I32V_1(0),  // index
+      1,                         // elements count
+      FUNC_INDEX(0),             // function
+      TABLE_INDEX(1),            // element for table 1
+      WASM_INIT_EXPR_I32V_1(7),  // index
+      2,                         // elements count
+      FUNC_INDEX(0),             // entry 0
+      FUNC_INDEX(0),             // entry 1
+  };
+
+  EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ElementSectionDontInitAnyRefImportedTable) {
+  // Test that imported tables of type AnyRef cannot be initialized in the
+  // elements section.
+  FlagScope<bool> flag_scope(&FLAG_experimental_wasm_anyref, true);
+  static const byte data[] = {
+      // sig#0 ---------------------------------------------------------------
+      SIGNATURES_SECTION_VOID_VOID,
+      // imports -------------------------------------------------------------
+      SECTION(Import, 17), ENTRY_COUNT(2),
+      NAME_LENGTH(1),  // --
+      'm',             // module name
+      NAME_LENGTH(1),  // --
+      't',             // table name
+      kExternalTable,  // import kind
+      kLocalAnyFunc,   // elem_type
+      0,               // no maximum field
+      5,               // initial size
+      NAME_LENGTH(1),  // --
+      'm',             // module name
+      NAME_LENGTH(1),  // --
+      's',             // table name
+      kExternalTable,  // import kind
+      kLocalAnyRef,    // elem_type
+      0,               // no maximum field
+      10,              // initial size
+      // funcs ---------------------------------------------------------------
+      ONE_EMPTY_FUNCTION,
+      // table declaration ---------------------------------------------------
+      SECTION(Table, 7), ENTRY_COUNT(2),  // section header
+      kLocalAnyFunc, 0, 15,               // table 0
+      kLocalAnyFunc, 0, 19,               // table 1
+      // elements ------------------------------------------------------------
+      SECTION(Element, 14),
+      4,                          // entry count
+      TABLE_INDEX(0),             // element for table 0
+      WASM_INIT_EXPR_I32V_1(10),  // index
+      1,                          // elements count
+      FUNC_INDEX(0),              // function
+      TABLE_INDEX(1),             // element for table 1
+      WASM_INIT_EXPR_I32V_1(17),  // index
+      2,                          // elements count
+      FUNC_INDEX(0),              // entry 0
+      FUNC_INDEX(0),              // entry 1
+  };
+
+  EXPECT_FAILURE(data);
+}
+
 TEST_F(WasmModuleVerifyTest, IndirectFunctionNoFunctions) {
   static const byte data[] = {
       // sig#0 -------------------------------------------------------

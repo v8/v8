@@ -477,7 +477,14 @@ class ModuleDecoderImpl : public Decoder {
           module_->tables.emplace_back();
           WasmTable* table = &module_->tables.back();
           table->imported = true;
-          expect_u8("element type", kLocalAnyFunc);
+          ValueType type = consume_reference_type();
+          if (!FLAG_experimental_wasm_anyref) {
+            if (type != kWasmAnyFunc) {
+              error(pc_ - 1, "invalid table type");
+              break;
+            }
+          }
+          table->type = type;
           uint8_t flags = validate_table_flags("element count");
           consume_resizable_limits(
               "element count", "elements", FLAG_wasm_max_table_size,
@@ -702,11 +709,16 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; ok() && i < element_count; ++i) {
       const byte* pos = pc();
       uint32_t table_index = consume_u32v("table index");
-      if (table_index != 0) {
+      if (!FLAG_experimental_wasm_anyref && table_index != 0) {
         errorf(pos, "illegal table index %u != 0", table_index);
       }
       if (table_index >= module_->tables.size()) {
         errorf(pos, "out of bounds table index %u", table_index);
+        break;
+      }
+      if (module_->tables[table_index].type != kWasmAnyFunc) {
+        errorf(pos, "Invalid element segment. Table %u is not of type AnyFunc",
+               table_index);
         break;
       }
       WasmInitExpr offset = consume_init_expr(module_.get(), kWasmI32);
