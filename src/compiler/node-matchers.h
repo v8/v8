@@ -192,6 +192,8 @@ struct HeapObjectMatcher final
   bool Is(Handle<HeapObject> const& value) const {
     return this->HasValue() && this->Value().address() == value.address();
   }
+
+  ObjectRef Ref() const { return ObjectRef(this->Value()); }
 };
 
 

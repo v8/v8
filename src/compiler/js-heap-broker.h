@@ -61,6 +61,8 @@ class HeapObjectType {
 
 #define HEAP_BROKER_OBJECT_LIST(V) \
   V(AllocationSite)                \
+  V(Cell)                          \
+  V(Code)                          \
   V(Context)                       \
   V(FeedbackVector)                \
   V(FixedArray)                    \
@@ -71,9 +73,11 @@ class HeapObjectType {
   V(InternalizedString)            \
   V(JSArray)                       \
   V(JSFunction)                    \
+  V(JSGlobalProxy)                 \
   V(JSObject)                      \
   V(JSRegExp)                      \
   V(Map)                           \
+  V(Module)                        \
   V(MutableHeapNumber)             \
   V(Name)                          \
   V(NativeContext)                 \
@@ -128,6 +132,8 @@ class HeapObjectRef : public ObjectRef {
   MapRef map(const JSHeapBroker* broker) const;
   base::Optional<MapRef> TryGetObjectCreateMap(
       const JSHeapBroker* broker) const;
+  bool IsSeqString() const;
+  bool IsExternalString() const;
 };
 
 class JSObjectRef : public HeapObjectRef {
@@ -156,6 +162,8 @@ class JSFunctionRef : public JSObjectRef {
   MapRef DependOnInitialMap(const JSHeapBroker* broker,
                             CompilationDependencies* dependencies) const;
   int GetInstanceSizeWithFinishedSlackTracking() const;
+  SharedFunctionInfoRef shared(const JSHeapBroker* broker) const;
+  JSGlobalProxyRef global_proxy(const JSHeapBroker* broker) const;
 };
 
 class JSRegExpRef : public JSObjectRef {
@@ -317,6 +325,13 @@ class SharedFunctionInfoRef : public HeapObjectRef {
   int internal_formal_parameter_count() const;
   bool has_duplicate_parameters() const;
   int function_map_index() const;
+  FunctionKind kind() const;
+  LanguageMode language_mode();
+  bool native() const;
+  bool HasBreakInfo() const;
+  bool HasBuiltinId() const;
+  int builtin_id() const;
+  bool construct_as_builtin() const;
 };
 
 class StringRef : public NameRef {
@@ -325,6 +340,28 @@ class StringRef : public NameRef {
 
   int length() const;
   uint16_t GetFirstChar();
+};
+
+class ModuleRef : public HeapObjectRef {
+ public:
+  explicit ModuleRef(Handle<Object> object) : HeapObjectRef(object) {}
+
+  CellRef GetCell(const JSHeapBroker* broker, int cell_index);
+};
+
+class CellRef : public HeapObjectRef {
+ public:
+  explicit CellRef(Handle<Object> object) : HeapObjectRef(object) {}
+};
+
+class JSGlobalProxyRef : public JSObjectRef {
+ public:
+  explicit JSGlobalProxyRef(Handle<Object> object) : JSObjectRef(object) {}
+};
+
+class CodeRef : public HeapObjectRef {
+ public:
+  explicit CodeRef(Handle<Object> object) : HeapObjectRef(object) {}
 };
 
 class InternalizedStringRef : public StringRef {

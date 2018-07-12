@@ -7,6 +7,7 @@
 #include "src/compiler/compilation-dependencies.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/module-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -129,6 +130,16 @@ base::Optional<MapRef> HeapObjectRef::TryGetObjectCreateMap(
   }
 }
 
+bool HeapObjectRef::IsSeqString() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<HeapObject>()->IsSeqString();
+}
+
+bool HeapObjectRef::IsExternalString() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<HeapObject>()->IsExternalString();
+}
+
 bool JSFunctionRef::HasBuiltinFunctionId() const {
   AllowHandleDereference allow_handle_dereference;
   return object<JSFunction>()->shared()->HasBuiltinFunctionId();
@@ -176,6 +187,20 @@ MapRef JSFunctionRef::initial_map(const JSHeapBroker* broker) const {
   AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(handle(object<JSFunction>()->initial_map(), broker->isolate()));
+}
+
+SharedFunctionInfoRef JSFunctionRef::shared(const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  return SharedFunctionInfoRef(
+      handle(object<JSFunction>()->shared(), broker->isolate()));
+}
+
+JSGlobalProxyRef JSFunctionRef::global_proxy(const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  return JSGlobalProxyRef(
+      handle(object<JSFunction>()->global_proxy(), broker->isolate()));
 }
 
 base::Optional<ScriptContextTableRef::LookupResult>
@@ -550,6 +575,41 @@ bool SharedFunctionInfoRef::has_duplicate_parameters() const {
   return object<SharedFunctionInfo>()->has_duplicate_parameters();
 }
 
+FunctionKind SharedFunctionInfoRef::kind() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<SharedFunctionInfo>()->kind();
+}
+
+LanguageMode SharedFunctionInfoRef::language_mode() {
+  AllowHandleDereference allow_handle_dereference;
+  return object<SharedFunctionInfo>()->language_mode();
+}
+
+bool SharedFunctionInfoRef::native() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<SharedFunctionInfo>()->native();
+}
+
+bool SharedFunctionInfoRef::HasBreakInfo() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<SharedFunctionInfo>()->HasBreakInfo();
+}
+
+bool SharedFunctionInfoRef::HasBuiltinId() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<SharedFunctionInfo>()->HasBuiltinId();
+}
+
+int SharedFunctionInfoRef::builtin_id() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<SharedFunctionInfo>()->builtin_id();
+}
+
+bool SharedFunctionInfoRef::construct_as_builtin() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<SharedFunctionInfo>()->construct_as_builtin();
+}
+
 MapRef NativeContextRef::fast_aliased_arguments_map(
     const JSHeapBroker* broker) const {
   AllowHandleAllocation handle_allocation;
@@ -641,6 +701,14 @@ MapRef NativeContextRef::GetFunctionMapFromIndex(const JSHeapBroker* broker,
 bool ObjectRef::BooleanValue(const JSHeapBroker* broker) {
   AllowHandleDereference allow_handle_dereference;
   return object<Object>()->BooleanValue(broker->isolate());
+}
+
+CellRef ModuleRef::GetCell(const JSHeapBroker* broker, int cell_index) {
+  AllowHandleAllocation handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+
+  return CellRef(
+      handle(object<Module>()->GetCell(cell_index), broker->isolate()));
 }
 
 }  // namespace compiler

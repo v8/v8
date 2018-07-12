@@ -93,19 +93,19 @@ class JSBinopReduction final {
     if (BothInputsAre(Type::String()) ||
         BinaryOperationHintOf(node_->op()) == BinaryOperationHint::kString) {
       HeapObjectBinopMatcher m(node_);
-      if (m.right().HasValue() && m.right().Value()->IsString()) {
-        Handle<String> right_string = Handle<String>::cast(m.right().Value());
-        if (right_string->length() >= ConsString::kMinLength) return true;
+      if (m.right().HasValue() && m.right().Ref().IsString()) {
+        StringRef right_string(m.right().Value());
+        if (right_string.length() >= ConsString::kMinLength) return true;
       }
-      if (m.left().HasValue() && m.left().Value()->IsString()) {
-        Handle<String> left_string = Handle<String>::cast(m.left().Value());
-        if (left_string->length() >= ConsString::kMinLength) {
+      if (m.left().HasValue() && m.left().Ref().IsString()) {
+        StringRef left_string(m.left().Value());
+        if (left_string.length() >= ConsString::kMinLength) {
           // The invariant for ConsString requires the left hand side to be
           // a sequential or external string if the right hand side is the
           // empty string. Since we don't know anything about the right hand
           // side here, we must ensure that the left hand side satisfy the
           // constraints independent of the right hand side.
-          return left_string->IsSeqString() || left_string->IsExternalString();
+          return left_string.IsSeqString() || left_string.IsExternalString();
         }
       }
     }
@@ -410,6 +410,7 @@ JSTypedLowering::JSTypedLowering(Editor* editor, JSGraph* jsgraph,
                                  const JSHeapBroker* js_heap_broker, Zone* zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
+      js_heap_broker_(js_heap_broker),
       empty_string_type_(Type::HeapConstant(
           js_heap_broker, factory()->empty_string(), graph()->zone())),
       pointer_comparable_type_(
@@ -531,14 +532,24 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     if (r.BothInputsAre(Type::String())) {
       HeapObjectBinopMatcher m(node);
       if (m.IsFoldable()) {
-        Handle<String> left = Handle<String>::cast(m.left().Value());
-        Handle<String> right = Handle<String>::cast(m.right().Value());
-        if (left->length() + right->length() > String::kMaxLength) {
+        StringRef left(m.left().Value());
+        StringRef right(m.right().Value());
+        if (left.length() + right.length() > String::kMaxLength) {
           // No point in trying to optimize this, as it will just throw.
           return NoChange();
         }
-        Node* value = jsgraph()->HeapConstant(
-            factory()->NewConsString(left, right).ToHandleChecked());
+        // TODO(mslekova): get rid of these allows by doing either one of:
+        // 1. remove the optimization and check if it ruins the performance
+        // 2. leave a placeholder and do the actual allocations once back on the
+        // MT
+        AllowHandleDereference allow_handle_dereference;
+        AllowHandleAllocation allow_handle_allocation;
+        AllowHeapAllocation allow_heap_allocation;
+        ObjectRef cons(
+            factory()
+                ->NewConsString(left.object<String>(), right.object<String>())
+                .ToHandleChecked());
+        Node* value = jsgraph()->Constant(js_heap_broker(), cons);
         ReplaceWithValue(node, value);
         return Replace(value);
       }
@@ -733,11 +744,11 @@ Node* JSTypedLowering::BuildGetStringLength(Node* value) {
   // TODO(bmeurer): Get rid of this hack and instead have a way to
   // express the string length in the types.
   HeapObjectMatcher m(value);
-  Node* length =
-      (m.HasValue() && m.Value()->IsString())
-          ? jsgraph()->Constant(Handle<String>::cast(m.Value())->length())
-          : graph()->NewNode(simplified()->StringLength(), value);
-  return length;
+  if (!m.HasValue() || !m.Ref().IsString()) {
+    return graph()->NewNode(simplified()->StringLength(), value);
+  }
+
+  return jsgraph()->Constant(m.Ref().AsString().length());
 }
 
 Reduction JSTypedLowering::ReduceSpeculativeNumberComparison(Node* node) {
@@ -971,19 +982,28 @@ Reduction JSTypedLowering::ReduceJSToNumberOrNumericInput(Node* input) {
   // Try constant-folding of JSToNumber/JSToNumeric with constant inputs. Here
   // we only cover cases where ToNumber and ToNumeric coincide.
   Type input_type = NodeProperties::GetType(input);
+
+  // TODO(mslekova): get rid of these allows by doing either one of:
+  // 1. remove the optimization and check if it ruins the performance
+  // 2. leave a placeholder and do the actual allocations once back on the MT
   if (input_type.Is(Type::String())) {
     HeapObjectMatcher m(input);
-    if (m.HasValue() && m.Value()->IsString()) {
-      Handle<Object> input_value = m.Value();
+    if (m.HasValue() && m.Ref().IsString()) {
+      AllowHandleDereference allow_handle_dereference;
+      AllowHandleAllocation allow_handle_allocation;
+      AllowHeapAllocation allow_heap_allocation;
+      StringRef input_value = m.Ref().AsString();
       return Replace(jsgraph()->Constant(
-          String::ToNumber(isolate(), Handle<String>::cast(input_value))));
+          String::ToNumber(isolate(), input_value.object<String>())));
     }
   }
   if (input_type.IsHeapConstant()) {
-    Handle<Object> input_value = input_type.AsHeapConstant()->Value();
-    if (input_value->IsOddball()) {
+    ObjectRef input_value = input_type.AsHeapConstant()->Ref();
+    if (input_value.oddball_type(js_heap_broker()) != OddballType::kNone) {
+      AllowHandleDereference allow_handle_dereference;
+      AllowHandleAllocation allow_handle_allocation;
       return Replace(jsgraph()->Constant(
-          Oddball::ToNumber(isolate(), Handle<Oddball>::cast(input_value))));
+          Oddball::ToNumber(isolate(), input_value.object<Oddball>())));
     }
   }
   if (input_type.Is(Type::Number())) {
@@ -1052,6 +1072,13 @@ Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
   }
   if (input_type.Is(Type::OrderedNumber()) &&
       input_type.Min() == input_type.Max()) {
+    // TODO(mslekova): get rid of these allows by doing either one of:
+    // 1. remove the optimization and check if it ruins the performance
+    // 2. allocate all the ToString's from numbers before the compilation
+    // 3. leave a placeholder and do the actual allocations once back on the MT
+    AllowHandleDereference allow_handle_dereference;
+    AllowHandleAllocation allow_handle_allocation;
+    AllowHeapAllocation allow_heap_allocation;
     // Note that we can use Type::OrderedNumber(), since
     // both 0 and -0 map to the String "0" in JavaScript.
     return Replace(jsgraph()->HeapConstant(
@@ -1142,10 +1169,10 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Type receiver_type = NodeProperties::GetType(receiver);
-  Handle<Name> name = NamedAccessOf(node->op()).name();
+  NameRef name(NamedAccessOf(node->op()).name());
+  NameRef length_str(factory()->length_string());
   // Optimize "length" property of strings.
-  if (name.is_identical_to(factory()->length_string()) &&
-      receiver_type.Is(Type::String())) {
+  if (name.equals(length_str) && receiver_type.Is(Type::String())) {
     Node* value = graph()->NewNode(simplified()->StringLength(), receiver);
     ReplaceWithValue(node, value);
     return Replace(value);
@@ -1377,10 +1404,10 @@ Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
   Type module_type = NodeProperties::GetType(module);
 
   if (module_type.IsHeapConstant()) {
-    Handle<Module> module_constant =
-        Handle<Module>::cast(module_type.AsHeapConstant()->Value());
-    Handle<Cell> cell_constant(module_constant->GetCell(cell_index), isolate());
-    return jsgraph()->HeapConstant(cell_constant);
+    ModuleRef module_constant = module_type.AsHeapConstant()->Ref().AsModule();
+    CellRef cell_constant(
+        module_constant.GetCell(js_heap_broker(), cell_index));
+    return jsgraph()->Constant(js_heap_broker(), cell_constant);
   }
 
   FieldAccess field_access;
@@ -1510,9 +1537,9 @@ void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
   NodeProperties::ChangeOp(node, jsgraph->common()->Call(call_descriptor));
 }
 
-bool NeedsArgumentAdaptorFrame(Handle<SharedFunctionInfo> shared, int arity) {
+bool NeedsArgumentAdaptorFrame(SharedFunctionInfoRef shared, int arity) {
   static const int sentinel = SharedFunctionInfo::kDontAdaptArgumentsSentinel;
-  const int num_decl_parms = shared->internal_formal_parameter_count();
+  const int num_decl_parms = shared.internal_formal_parameter_count();
   return (num_decl_parms != arity && num_decl_parms != sentinel);
 }
 
@@ -1531,11 +1558,10 @@ Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
 
   // Check if {target} is a JSFunction.
   if (target_type.IsHeapConstant() &&
-      target_type.AsHeapConstant()->Value()->IsJSFunction()) {
+      target_type.AsHeapConstant()->Ref().IsJSFunction()) {
     // Only optimize [[Construct]] here if {function} is a Constructor.
-    Handle<JSFunction> function =
-        Handle<JSFunction>::cast(target_type.AsHeapConstant()->Value());
-    if (!function->IsConstructor()) return NoChange();
+    JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();
+    if (!function.IsConstructor()) return NoChange();
     // Patch {node} to an indirect call via ConstructFunctionForwardVarargs.
     Callable callable = CodeFactory::ConstructFunctionForwardVarargs(isolate());
     node->RemoveInput(arity + 1);
@@ -1566,25 +1592,25 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
 
   // Check if {target} is a known JSFunction.
   if (target_type.IsHeapConstant() &&
-      target_type.AsHeapConstant()->Value()->IsJSFunction()) {
-    Handle<JSFunction> function =
-        Handle<JSFunction>::cast(target_type.AsHeapConstant()->Value());
-    Handle<SharedFunctionInfo> shared(function->shared(), isolate());
+      target_type.AsHeapConstant()->Ref().IsJSFunction()) {
+    JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();
+    SharedFunctionInfoRef shared = function.shared(js_heap_broker());
 
     // Only optimize [[Construct]] here if {function} is a Constructor.
-    if (!function->IsConstructor()) return NoChange();
+    if (!function.IsConstructor()) return NoChange();
 
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
 
     // Patch {node} to an indirect call via the {function}s construct stub.
-    bool use_builtin_construct_stub = shared->construct_as_builtin();
+    bool use_builtin_construct_stub = shared.construct_as_builtin();
 
-    Handle<Code> code = use_builtin_construct_stub
-                            ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
-                            : BUILTIN_CODE(isolate(), JSConstructStubGeneric);
+    CodeRef code(use_builtin_construct_stub
+                     ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
+                     : BUILTIN_CODE(isolate(), JSConstructStubGeneric));
 
     node->RemoveInput(arity + 1);
-    node->InsertInput(graph()->zone(), 0, jsgraph()->HeapConstant(code));
+    node->InsertInput(graph()->zone(), 0,
+                      jsgraph()->Constant(js_heap_broker(), code));
     node->InsertInput(graph()->zone(), 2, new_target);
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
@@ -1649,19 +1675,18 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 
   // Check if {target} is a known JSFunction.
   if (target_type.IsHeapConstant() &&
-      target_type.AsHeapConstant()->Value()->IsJSFunction()) {
-    Handle<JSFunction> function =
-        Handle<JSFunction>::cast(target_type.AsHeapConstant()->Value());
-    Handle<SharedFunctionInfo> shared(function->shared(), isolate());
+      target_type.AsHeapConstant()->Ref().IsJSFunction()) {
+    JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();
+    SharedFunctionInfoRef shared = function.shared(js_heap_broker());
 
-    if (function->shared()->HasBreakInfo()) {
+    if (shared.HasBreakInfo()) {
       // Do not inline the call if we need to check whether to break at entry.
       return NoChange();
     }
 
     // Class constructors are callable, but [[Call]] will raise an exception.
     // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
-    if (IsClassConstructor(shared->kind())) return NoChange();
+    if (IsClassConstructor(shared.kind())) return NoChange();
 
     // Load the context from the {target}.
     Node* context = effect = graph()->NewNode(
@@ -1670,10 +1695,10 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     NodeProperties::ReplaceContextInput(node, context);
 
     // Check if we need to convert the {receiver}.
-    if (is_sloppy(shared->language_mode()) && !shared->native() &&
+    if (is_sloppy(shared.language_mode()) && !shared.native() &&
         !receiver_type.Is(Type::Receiver())) {
-      Node* global_proxy =
-          jsgraph()->HeapConstant(handle(function->global_proxy(), isolate()));
+      Node* global_proxy = jsgraph()->Constant(
+          js_heap_broker(), function.global_proxy(js_heap_broker()));
       receiver = effect =
           graph()->NewNode(simplified()->ConvertReceiver(convert_mode),
                            receiver, global_proxy, effect, control);
@@ -1697,20 +1722,20 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       node->InsertInput(graph()->zone(), 3, argument_count);
       node->InsertInput(
           graph()->zone(), 4,
-          jsgraph()->Constant(shared->internal_formal_parameter_count()));
+          jsgraph()->Constant(shared.internal_formal_parameter_count()));
       NodeProperties::ChangeOp(
           node, common()->Call(Linkage::GetStubCallDescriptor(
                     graph()->zone(), callable.descriptor(), 1 + arity, flags)));
-    } else if (shared->HasBuiltinId() &&
-               Builtins::HasCppImplementation(shared->builtin_id())) {
+    } else if (shared.HasBuiltinId() &&
+               Builtins::HasCppImplementation(shared.builtin_id())) {
       // Patch {node} to a direct CEntry call.
-      ReduceBuiltin(isolate(), jsgraph(), node, shared->builtin_id(), arity,
+      ReduceBuiltin(isolate(), jsgraph(), node, shared.builtin_id(), arity,
                     flags);
-    } else if (shared->HasBuiltinId() &&
-               Builtins::KindOf(shared->builtin_id()) == Builtins::TFJ) {
+    } else if (shared.HasBuiltinId() &&
+               Builtins::KindOf(shared.builtin_id()) == Builtins::TFJ) {
       // Patch {node} to a direct code object call.
       Callable callable = Builtins::CallableFor(
-          isolate(), static_cast<Builtins::Name>(shared->builtin_id()));
+          isolate(), static_cast<Builtins::Name>(shared.builtin_id()));
       CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
 
       const CallInterfaceDescriptor& descriptor = callable.descriptor();
@@ -2256,6 +2281,8 @@ Reduction JSTypedLowering::ReduceJSParseInt(Node* node) {
 }
 
 Reduction JSTypedLowering::Reduce(Node* node) {
+  DisallowHeapAccess no_heap_access;
+
   switch (node->opcode()) {
     case IrOpcode::kJSEqual:
       return ReduceJSEqual(node);

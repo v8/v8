@@ -98,12 +98,14 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
   Isolate* isolate() const;
   JSOperatorBuilder* javascript() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
 
   JSGraph* jsgraph_;
+  const JSHeapBroker* js_heap_broker_;
   Type empty_string_type_;
   Type pointer_comparable_type_;
   TypeCache const& type_cache_;
