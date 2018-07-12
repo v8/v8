@@ -247,7 +247,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   os << "})();\n";
 }
 
-int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
+int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
                                         bool require_valid) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
@@ -269,7 +269,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
   int32_t num_args = 0;
   std::unique_ptr<WasmValue[]> interpreter_args;
   std::unique_ptr<Handle<Object>[]> compiler_args;
-  if (!GenerateModule(i_isolate, &zone, data, size, buffer, num_args,
+  if (!GenerateModule(i_isolate, &zone, data, buffer, num_args,
                       interpreter_args, compiler_args)) {
     return 0;
   }

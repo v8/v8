@@ -32,12 +32,11 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 class WasmExecutionFuzzer {
  public:
   virtual ~WasmExecutionFuzzer() {}
-  int FuzzWasmModule(const uint8_t* data, size_t size,
-                     bool require_valid = false);
+  int FuzzWasmModule(Vector<const uint8_t> data, bool require_valid = false);
 
  protected:
   virtual bool GenerateModule(
-      Isolate* isolate, Zone* zone, const uint8_t* data, size_t size,
+      Isolate* isolate, Zone* zone, Vector<const uint8_t> data,
       ZoneBuffer& buffer, int32_t& num_args,
       std::unique_ptr<WasmValue[]>& interpreter_args,
       std::unique_ptr<Handle<Object>[]>& compiler_args) = 0;

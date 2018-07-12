@@ -123,9 +123,16 @@ class Vector {
     length_ = 0;
   }
 
-  inline Vector<T> operator+(size_t offset) {
+  Vector<T> operator+(size_t offset) {
     DCHECK_LE(offset, length_);
     return Vector<T>(start_ + offset, length_ - offset);
+  }
+
+  Vector<T> operator+=(size_t offset) {
+    DCHECK_LE(offset, length_);
+    start_ += offset;
+    length_ -= offset;
+    return *this;
   }
 
   // Implicit conversion from Vector<T> to Vector<const T>.
