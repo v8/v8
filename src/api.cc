@@ -10640,9 +10640,8 @@ void EmbedderHeapTracer::FinalizeTracing() {
   if (isolate_) {
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(isolate_);
     if (isolate->heap()->incremental_marking()->IsMarking()) {
-      isolate->heap()->CollectAllGarbage(
-          i::Heap::kNoGCFlags, i::GarbageCollectionReason::kExternalFinalize,
-          kNoGCCallbackFlags);
+      isolate->heap()->FinalizeIncrementalMarkingAtomically(
+          i::GarbageCollectionReason::kExternalFinalize);
     }
   }
 }
