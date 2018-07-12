@@ -11,6 +11,7 @@
 #include "src/allocation.h"
 #include "src/base/macros.h"
 #include "src/boxed-float.h"
+#include "src/code-tracer.h"
 #include "src/deoptimize-reason.h"
 #include "src/feedback-vector.h"
 #include "src/frame-constants.h"

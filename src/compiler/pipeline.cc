@@ -14,6 +14,7 @@
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/bootstrapper.h"
+#include "src/code-tracer.h"
 #include "src/compiler.h"
 #include "src/compiler/basic-block-instrumentor.h"
 #include "src/compiler/branch-elimination.h"

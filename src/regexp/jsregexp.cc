@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/base/platform/platform.h"
+#include "src/code-tracer.h"
 #include "src/compilation-cache.h"
 #include "src/elements.h"
 #include "src/execution.h"

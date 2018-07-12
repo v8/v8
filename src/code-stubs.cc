@@ -13,6 +13,7 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/code-stubs-utils.h"
+#include "src/code-tracer.h"
 #include "src/counters.h"
 #include "src/gdb-jit.h"
 #include "src/heap/heap-inl.h"

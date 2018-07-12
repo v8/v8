@@ -5,6 +5,7 @@
 #include "test/cctest/wasm/wasm-run-utils.h"
 
 #include "src/assembler-inl.h"
+#include "src/code-tracer.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"
 
