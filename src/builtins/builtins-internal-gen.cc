@@ -228,48 +228,6 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
                         IntPtrConstant(0));
   }
 
-  void GotoIfNotBlack(Node* object, Label* not_black) {
-    Label exit(this);
-    Label* black = &exit;
-
-    DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
-
-    Node* cell;
-    Node* mask;
-
-    GetMarkBit(object, &cell, &mask);
-    mask = TruncateIntPtrToInt32(mask);
-
-    Node* bits = Load(MachineType::Int32(), cell);
-    Node* bit_0 = Word32And(bits, mask);
-
-    GotoIf(Word32Equal(bit_0, Int32Constant(0)), not_black);
-
-    mask = Word32Shl(mask, Int32Constant(1));
-
-    Label word_boundary(this), in_word(this);
-
-    // If mask becomes zero, we know mask was `1 << 31`, i.e., the bit is on
-    // word boundary. Otherwise, the bit is within the word.
-    Branch(Word32Equal(mask, Int32Constant(0)), &word_boundary, &in_word);
-
-    BIND(&word_boundary);
-    {
-      Node* bit_1 = Word32And(
-          Load(MachineType::Int32(), IntPtrAdd(cell, IntPtrConstant(4))),
-          Int32Constant(1));
-      Branch(Word32Equal(bit_1, Int32Constant(0)), not_black, black);
-    }
-
-    BIND(&in_word);
-    {
-      Branch(Word32Equal(Word32And(bits, mask), Int32Constant(0)), not_black,
-             black);
-    }
-
-    BIND(&exit);
-  }
-
   Node* IsWhite(Node* object) {
     DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
     Node* cell;
@@ -443,10 +401,6 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   BIND(&incremental_wb);
   {
     Label call_incremental_wb(this);
-
-#ifndef V8_CONCURRENT_MARKING
-    GotoIfNotBlack(object, &exit);
-#endif
 
     // There are two cases we need to call incremental write barrier.
     // 1) value_is_white
