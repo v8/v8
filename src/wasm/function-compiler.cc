@@ -54,6 +54,10 @@ WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate, ModuleEnv* env,
   //    1) asm-specific opcodes are not implemented, and
   //    2) tier-up does not work with lazy compilation.
   if (env->module->origin == kAsmJsOrigin) mode = CompilationMode::kTurbofan;
+  if (V8_UNLIKELY(FLAG_wasm_tier_mask_for_testing) && index < 32 &&
+      (FLAG_wasm_tier_mask_for_testing & (1 << index))) {
+    mode = CompilationMode::kTurbofan;
+  }
   SwitchMode(mode);
 }
 
