@@ -3030,7 +3030,7 @@ TEST(PrintSharedFunctionInfo) {
           CcTest::global()->Get(ctx, v8_str("g")).ToLocalChecked())));
 
   StdoutStream os;
-  g->shared()->Print(g->GetIsolate(), os);
+  g->shared()->Print(os);
   os << std::endl;
 }
 #endif  // OBJECT_PRINT

@@ -71,11 +71,11 @@ class MaybeObject {
   void ShortPrint(std::ostream& os);
 
 #ifdef OBJECT_PRINT
-  void Print(Isolate* isolate);
-  void Print(Isolate* isolate, std::ostream& os);
+  void Print();
+  void Print(std::ostream& os);
 #else
-  void Print(Isolate* isolate) { ShortPrint(); }
-  void Print(Isolate* isolate, std::ostream& os) { ShortPrint(os); }
+  void Print() { ShortPrint(); }
+  void Print(std::ostream& os) { ShortPrint(os); }
 #endif
 
  private:

@@ -397,7 +397,7 @@ class ObjectDescriptor {
       computed_properties_ = FixedArray::ShrinkOrEmpty(
           isolate, computed_properties_, current_computed_index_);
     } else {
-      DCHECK(descriptor_array_template_->IsSortedNoDuplicates(isolate));
+      DCHECK(descriptor_array_template_->IsSortedNoDuplicates());
     }
   }
 

@@ -89,9 +89,8 @@ HeapObjectReference** TransitionArray::GetTargetSlot(int transition_number) {
 }
 
 // static
-PropertyDetails TransitionsAccessor::GetTargetDetails(Isolate* isolate,
-                                                      Name* name, Map* target) {
-  DCHECK(!IsSpecialTransition(isolate, name));
+PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map* target) {
+  DCHECK(!IsSpecialTransition(name->GetReadOnlyRoots(), name));
   int descriptor = target->LastAdded();
   DescriptorArray* descriptors = target->instance_descriptors();
   // Transitions are allowed only for the last added property.
@@ -148,8 +147,8 @@ bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
 
 int TransitionArray::SearchName(Name* name, int* out_insertion_index) {
   DCHECK(name->IsUniqueName());
-  return internal::Search<ALL_ENTRIES>(
-      GetIsolate(), this, name, number_of_entries(), out_insertion_index);
+  return internal::Search<ALL_ENTRIES>(this, name, number_of_entries(),
+                                       out_insertion_index);
 }
 
 int TransitionArray::number_of_transitions() const {

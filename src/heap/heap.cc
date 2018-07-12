@@ -572,7 +572,7 @@ void Heap::PrintRetainingPath(HeapObject* target, RetainingPathOption option) {
     object->ShortPrint();
     PrintF("\n");
 #ifdef OBJECT_PRINT
-    object->Print(isolate());
+    object->Print();
     PrintF("\n");
 #endif
     --distance;
@@ -1212,7 +1212,7 @@ void ReportDuplicates(Isolate* isolate, int size,
     PrintF("%d duplicates of size %d each (%dKB)\n", it->first, size,
            duplicate_bytes / KB);
     PrintF("Sample object: ");
-    it->second->Print(isolate);
+    it->second->Print();
     PrintF("============================\n");
   }
 }

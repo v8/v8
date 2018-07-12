@@ -869,7 +869,7 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
     // Check bytecodes against whitelist.
     Handle<BytecodeArray> bytecode_array(info->GetBytecodeArray(), isolate);
     if (FLAG_trace_side_effect_free_debug_evaluate) {
-      bytecode_array->Print(isolate);
+      bytecode_array->Print();
     }
     bool requires_runtime_checks = false;
     for (interpreter::BytecodeArrayIterator it(bytecode_array); !it.done();

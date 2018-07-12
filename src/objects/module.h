@@ -215,7 +215,7 @@ class Module : public Struct {
 class JSModuleNamespace : public JSObject {
  public:
   DECL_CAST(JSModuleNamespace)
-  DECL_PRINTER_WITH_ISOLATE(JSModuleNamespace)
+  DECL_PRINTER(JSModuleNamespace)
   DECL_VERIFIER(JSModuleNamespace)
 
   // The actual module whose namespace is being represented.

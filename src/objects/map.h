@@ -783,7 +783,7 @@ class Map : public HeapObject {
   static Handle<WeakCell> WeakCellForMap(Isolate* isolate, Handle<Map> map);
 
   // Dispatched behavior.
-  DECL_PRINTER_WITH_ISOLATE(Map)
+  DECL_PRINTER(Map)
   DECL_VERIFIER(Map)
 
 #ifdef VERIFY_HEAP
@@ -843,7 +843,7 @@ class Map : public HeapObject {
   // Returns true if given field is unboxed double.
   inline bool IsUnboxedDoubleField(FieldIndex index) const;
 
-  void PrintMapDetails(Isolate* isolate, std::ostream& os);
+  void PrintMapDetails(std::ostream& os);
 
   static inline Handle<Map> AddMissingTransitionsForTesting(
       Isolate* isolate, Handle<Map> split_map,

@@ -115,7 +115,7 @@ class WasmModuleObject : public JSObject {
   inline void reset_breakpoint_infos();
 
   // Dispatched behavior.
-  DECL_PRINTER_WITH_ISOLATE(WasmModuleObject)
+  DECL_PRINTER(WasmModuleObject)
   DECL_VERIFIER(WasmModuleObject)
 
 // Layout description.

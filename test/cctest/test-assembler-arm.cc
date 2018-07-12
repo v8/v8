@@ -64,7 +64,7 @@ TEST(0) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
   int res = reinterpret_cast<int>(f.Call(3, 4, 0, 0, 0));
@@ -100,7 +100,7 @@ TEST(1) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
   int res = reinterpret_cast<int>(f.Call(100, 0, 0, 0, 0));
@@ -145,7 +145,7 @@ TEST(2) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
   int res = reinterpret_cast<int>(f.Call(10, 0, 0, 0, 0));
@@ -192,7 +192,7 @@ TEST(3) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   t.i = 100000;
@@ -323,7 +323,7 @@ TEST(4) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
     t.a = 1.5;
@@ -385,7 +385,7 @@ TEST(5) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(*code);
     int res = reinterpret_cast<int>(f.Call(0xAAAAAAAA, 0, 0, 0, 0));
@@ -416,7 +416,7 @@ TEST(6) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
   int res = reinterpret_cast<int>(f.Call(0xFFFF, 0, 0, 0, 0));
@@ -484,7 +484,7 @@ static void TestRoundingMode(VCVTTypes types,
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
   int res = reinterpret_cast<int>(f.Call(0, 0, 0, 0, 0));
@@ -666,7 +666,7 @@ TEST(8) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto fn = GeneratedCode<F_ppiii>::FromCode(*code);
   d.a = 1.1;
@@ -775,7 +775,7 @@ TEST(9) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto fn = GeneratedCode<F_ppiii>::FromCode(*code);
   d.a = 1.1;
@@ -880,7 +880,7 @@ TEST(10) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto fn = GeneratedCode<F_ppiii>::FromCode(*code);
   d.a = 1.1;
@@ -974,7 +974,7 @@ TEST(11) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   f.Call(&i, 0, 0, 0, 0);
@@ -1100,7 +1100,7 @@ TEST(13) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
     t.a = 1.5;
@@ -1172,7 +1172,7 @@ TEST(14) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   t.left = bit_cast<double>(kHoleNanInt64);
@@ -2052,7 +2052,7 @@ TEST(15) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
     t.src0 = 0x01020304;
@@ -2328,7 +2328,7 @@ TEST(16) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   t.src0 = 0x01020304;
@@ -2406,7 +2406,7 @@ TEST(sdiv) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
     TEST_SDIV(0, kMinInt, 0);
@@ -2466,7 +2466,7 @@ TEST(udiv) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
     TEST_UDIV(0u, 0, 0);
@@ -2494,7 +2494,7 @@ TEST(smmla) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(isolate, std::cout);
+  code->Print(std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2519,7 +2519,7 @@ TEST(smmul) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(isolate, std::cout);
+  code->Print(std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2544,7 +2544,7 @@ TEST(sxtb) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(isolate, std::cout);
+  code->Print(std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2569,7 +2569,7 @@ TEST(sxtab) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(isolate, std::cout);
+  code->Print(std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2594,7 +2594,7 @@ TEST(sxth) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(isolate, std::cout);
+  code->Print(std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2619,7 +2619,7 @@ TEST(sxtah) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(isolate, std::cout);
+  code->Print(std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2644,7 +2644,7 @@ TEST(uxtb) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(isolate, std::cout);
+  code->Print(std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2669,7 +2669,7 @@ TEST(uxtab) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(isolate, std::cout);
+  code->Print(std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2694,7 +2694,7 @@ TEST(uxth) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(isolate, std::cout);
+  code->Print(std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2719,7 +2719,7 @@ TEST(uxtah) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(isolate, std::cout);
+  code->Print(std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2761,7 +2761,7 @@ TEST(rbit) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
 #ifdef OBJECT_PRINT
-    code->Print(isolate, std::cout);
+    code->Print(std::cout);
 #endif
 
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
@@ -2881,7 +2881,7 @@ TEST(msr_mrs) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto f = GeneratedCode<F_ippii>::FromCode(*code);
 
@@ -2979,7 +2979,7 @@ TEST(ARMv8_float32_vrintX) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
 
@@ -3081,7 +3081,7 @@ TEST(ARMv8_vrintX) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
 
@@ -3218,7 +3218,7 @@ TEST(ARMv8_vsel) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_ippii>::FromCode(*code);
 
@@ -3309,7 +3309,7 @@ TEST(ARMv8_vminmax_f64) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_ppiii>::FromCode(*code);
 
@@ -3389,7 +3389,7 @@ TEST(ARMv8_vminmax_f32) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_ppiii>::FromCode(*code);
 
@@ -3519,7 +3519,7 @@ static GeneratedCode<F_ppiii> GenerateMacroFloatMinMax(MacroAssembler& assm) {
       assm.isolate()->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(assm.isolate(), os);
+  code->Print(os);
 #endif
   return GeneratedCode<F_ppiii>::FromCode(*code);
 }
@@ -3682,7 +3682,7 @@ TEST(unaligned_loads) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto f = GeneratedCode<F_ppiii>::FromCode(*code);
 
@@ -3725,7 +3725,7 @@ TEST(unaligned_stores) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto f = GeneratedCode<F_ppiii>::FromCode(*code);
 
@@ -3825,7 +3825,7 @@ TEST(vswp) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   f.Call(&t, 0, 0, 0, 0);
@@ -4037,7 +4037,7 @@ TEST(split_add_immediate) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(*code);
     uint32_t res = reinterpret_cast<int>(f.Call(0, 0, 0, 0, 0));
@@ -4057,7 +4057,7 @@ TEST(split_add_immediate) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(*code);
     uint32_t res = reinterpret_cast<int>(f.Call(0, 0, 0, 0, 0));
@@ -4080,7 +4080,7 @@ TEST(split_add_immediate) {
         isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(isolate, os);
+    code->Print(os);
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(*code);
     uint32_t res = reinterpret_cast<int>(f.Call(0, 0, 0, 0, 0));

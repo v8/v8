@@ -46,7 +46,7 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   CHECK(exc->IsJSError());
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(i_isolate);
 
-  exc->Print(i_isolate);
+  exc->Print();
   // Extract stack frame from the exception.
   Local<v8::Value> localExc = Utils::ToLocal(exc);
   v8::Local<v8::StackTrace> stack = v8::Exception::GetStackTrace(localExc);

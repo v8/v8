@@ -1966,9 +1966,8 @@ int LinearSearch(T* array, Name* name, int valid_entries,
 }
 
 template <SearchMode search_mode, typename T>
-int Search(Isolate* isolate, T* array, Name* name, int valid_entries,
-           int* out_insertion_index) {
-  SLOW_DCHECK(array->IsSortedNoDuplicates(isolate));
+int Search(T* array, Name* name, int valid_entries, int* out_insertion_index) {
+  SLOW_DCHECK(array->IsSortedNoDuplicates());
 
   if (valid_entries == 0) {
     if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
@@ -1992,8 +1991,8 @@ int Search(Isolate* isolate, T* array, Name* name, int valid_entries,
 
 int DescriptorArray::Search(Name* name, int valid_descriptors) {
   DCHECK(name->IsUniqueName());
-  return internal::Search<VALID_ENTRIES>(GetIsolate(), this, name,
-                                         valid_descriptors, nullptr);
+  return internal::Search<VALID_ENTRIES>(this, name, valid_descriptors,
+                                         nullptr);
 }
 
 int DescriptorArray::Search(Name* name, Map* map) {

@@ -478,7 +478,7 @@ void MipsDebugger::Debug() {
             Object* obj = reinterpret_cast<Object*>(value);
             os << arg1 << ": \n";
 #ifdef DEBUG
-            obj->Print(sim_->isolate_, os);
+            obj->Print(os);
             os << "\n";
 #else
             os << Brief(obj) << "\n";

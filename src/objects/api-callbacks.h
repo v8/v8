@@ -37,8 +37,7 @@ class AccessorInfo : public Struct {
   DECL_ACCESSORS(js_getter, Object)
   DECL_ACCESSORS(data, Object)
 
-  static Address redirect(Isolate* isolate, Address address,
-                          AccessorComponent component);
+  static Address redirect(Address address, AccessorComponent component);
   Address redirected_getter() const;
 
   // Dispatched behavior.

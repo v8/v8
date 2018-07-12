@@ -1565,8 +1565,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
 }
 
 // static
-Address AccessorInfo::redirect(Isolate* isolate, Address address,
-                               AccessorComponent component) {
+Address AccessorInfo::redirect(Address address, AccessorComponent component) {
   ApiFunction fun(address);
   DCHECK_EQ(ACCESSOR_GETTER, component);
   ExternalReference::Type type = ExternalReference::DIRECT_GETTER_CALL;
@@ -1576,7 +1575,7 @@ Address AccessorInfo::redirect(Isolate* isolate, Address address,
 Address AccessorInfo::redirected_getter() const {
   Address accessor = v8::ToCData<Address>(getter());
   if (accessor == kNullAddress) return kNullAddress;
-  return redirect(GetIsolate(), accessor, ACCESSOR_GETTER);
+  return redirect(accessor, ACCESSOR_GETTER);
 }
 
 Address CallHandlerInfo::redirected_callback() const {
@@ -4391,7 +4390,7 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
   if (FLAG_trace_normalization) {
     StdoutStream os;
     os << "Object properties have been normalized:\n";
-    object->Print(isolate, os);
+    object->Print(os);
   }
 #endif
 }
@@ -6618,7 +6617,7 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
   if (FLAG_trace_normalization) {
     StdoutStream os;
     os << "Object elements have been normalized:\n";
-    object->Print(isolate, os);
+    object->Print(os);
   }
 #endif
 
@@ -9506,7 +9505,7 @@ Handle<Map> Map::CopyReplaceDescriptors(
     Handle<LayoutDescriptor> layout_descriptor, TransitionFlag flag,
     MaybeHandle<Name> maybe_name, const char* reason,
     SimpleTransitionFlag simple_flag) {
-  DCHECK(descriptors->IsSortedNoDuplicates(isolate));
+  DCHECK(descriptors->IsSortedNoDuplicates());
 
   Handle<Map> result = CopyDropDescriptors(isolate, map);
 
@@ -9551,7 +9550,7 @@ Handle<Map> Map::AddMissingTransitions(
     Isolate* isolate, Handle<Map> split_map,
     Handle<DescriptorArray> descriptors,
     Handle<LayoutDescriptor> full_layout_descriptor) {
-  DCHECK(descriptors->IsSortedNoDuplicates(isolate));
+  DCHECK(descriptors->IsSortedNoDuplicates());
   int split_nof = split_map->NumberOfOwnDescriptors();
   int nof_descriptors = descriptors->number_of_descriptors();
   DCHECK_LT(split_nof, nof_descriptors);
@@ -9596,7 +9595,7 @@ void Map::InstallDescriptors(Isolate* isolate, Handle<Map> parent,
                              Handle<Map> child, int new_descriptor,
                              Handle<DescriptorArray> descriptors,
                              Handle<LayoutDescriptor> full_layout_descriptor) {
-  DCHECK(descriptors->IsSortedNoDuplicates(isolate));
+  DCHECK(descriptors->IsSortedNoDuplicates());
 
   child->set_instance_descriptors(*descriptors);
   child->SetNumberOfOwnDescriptors(new_descriptor + 1);
@@ -9918,7 +9917,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
     std::unique_ptr<ScopedVector<char>> buffer;
     if (FLAG_trace_maps) {
       ScopedVector<char> name_buffer(100);
-      name->NameShortPrint(isolate, name_buffer);
+      name->NameShortPrint(name_buffer);
       buffer.reset(new ScopedVector<char>(128));
       SNPrintF(*buffer, "TooManyFastProperties %s", name_buffer.start());
       reason = buffer->start();
@@ -10693,7 +10692,7 @@ void DescriptorArray::Sort() {
       parent_index = child_index;
     }
   }
-  DCHECK(IsSortedNoDuplicates(GetIsolate()));
+  DCHECK(IsSortedNoDuplicates());
 }
 
 
@@ -13650,9 +13649,8 @@ int Script::GetLineNumber(int code_pos) const {
 }
 
 Object* Script::GetNameOrSourceURL() {
-  Isolate* isolate = GetIsolate();
   // Keep in sync with ScriptNameOrSourceURL in messages.js.
-  if (!source_url()->IsUndefined(isolate)) return source_url();
+  if (!source_url()->IsUndefined()) return source_url();
   return name();
 }
 
@@ -14911,14 +14909,20 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
 }
 #endif  // ENABLE_DISASSEMBLER
 
-void BytecodeArray::Disassemble(Isolate* isolate, std::ostream& os) {
+void BytecodeArray::Disassemble(std::ostream& os) {
+  DisallowHeapAllocation no_gc;
+
   os << "Parameter count " << parameter_count() << "\n";
   os << "Frame size " << frame_size() << "\n";
 
   Address base_address = GetFirstBytecodeAddress();
   SourcePositionTableIterator source_positions(SourcePositionTable());
 
-  interpreter::BytecodeArrayIterator iterator(handle(this, isolate));
+  // Storage for backing the handle passed to the iterator. This handle won't be
+  // updated by the gc, but that's ok because we've disallowed GCs anyway.
+  BytecodeArray* handle_storage = this;
+  Handle<BytecodeArray> handle(&handle_storage);
+  interpreter::BytecodeArrayIterator iterator(handle);
   while (!iterator.done()) {
     if (!source_positions.done() &&
         iterator.current_offset() == source_positions.code_offset()) {
@@ -14958,7 +14962,7 @@ void BytecodeArray::Disassemble(Isolate* isolate, std::ostream& os) {
   os << "Constant pool (size = " << constant_pool()->length() << ")\n";
 #ifdef OBJECT_PRINT
   if (constant_pool()->length() > 0) {
-    constant_pool()->Print(isolate);
+    constant_pool()->Print();
   }
 #endif
 
@@ -16019,8 +16023,8 @@ bool JSObject::WasConstructedFromApiFunction() {
   return is_api_object;
 }
 
-const char* Symbol::PrivateSymbolToName(Isolate* isolate) const {
-  ReadOnlyRoots roots(isolate);
+const char* Symbol::PrivateSymbolToName() const {
+  ReadOnlyRoots roots = GetReadOnlyRoots();
 #define SYMBOL_CHECK_AND_PRINT(name) \
   if (this == roots.name()) return #name;
   PRIVATE_SYMBOL_LIST(SYMBOL_CHECK_AND_PRINT)
@@ -16030,16 +16034,15 @@ const char* Symbol::PrivateSymbolToName(Isolate* isolate) const {
 
 
 void Symbol::SymbolShortPrint(std::ostream& os) {
-  Isolate* isolate = GetIsolate();
   os << "<Symbol:";
-  if (!name()->IsUndefined(isolate)) {
+  if (!name()->IsUndefined()) {
     os << " ";
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
     String::cast(name())->StringShortPrint(&accumulator, false);
     os << accumulator.ToCString().get();
   } else {
-    os << " (" << PrivateSymbolToName(isolate) << ")";
+    os << " (" << PrivateSymbolToName() << ")";
   }
   os << ">";
 }

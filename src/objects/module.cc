@@ -181,7 +181,7 @@ void Module::PrintStatusTransition(Isolate* isolate, Status new_status) {
     StdoutStream os;
     os << "Changing module status from " << status() << " to " << new_status
        << " for ";
-    script()->GetNameOrSourceURL()->Print(isolate, os);
+    script()->GetNameOrSourceURL()->Print(os);
 #ifndef OBJECT_PRINT
     os << "\n";
 #endif  // OBJECT_PRINT
@@ -443,7 +443,7 @@ bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
   if (FLAG_trace_module_status) {
     StdoutStream os;
     os << "Instantiating module ";
-    module->script()->GetNameOrSourceURL()->Print(isolate, os);
+    module->script()->GetNameOrSourceURL()->Print(os);
 #ifndef OBJECT_PRINT
     os << "\n";
 #endif  // OBJECT_PRINT
@@ -668,7 +668,7 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
   if (FLAG_trace_module_status) {
     StdoutStream os;
     os << "Evaluating module ";
-    module->script()->GetNameOrSourceURL()->Print(isolate, os);
+    module->script()->GetNameOrSourceURL()->Print(os);
 #ifndef OBJECT_PRINT
     os << "\n";
 #endif  // OBJECT_PRINT

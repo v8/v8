@@ -64,7 +64,7 @@ TEST(0) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print(isolate);
+  code->Print();
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(3, 4, 0, 0, 0));
@@ -102,7 +102,7 @@ TEST(1) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print(isolate);
+  code->Print();
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(100, 0, 0, 0, 0));
@@ -152,7 +152,7 @@ TEST(2) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print(isolate);
+  code->Print();
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(*code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(10, 0, 0, 0, 0));
@@ -224,7 +224,7 @@ TEST(3) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
-  code->Print(isolate);
+  code->Print();
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   t.i = 100000;
@@ -339,7 +339,7 @@ TEST(4) {
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
-    Code::cast(code)->Print(isolate);
+    Code::cast(code)->Print();
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(*code);
     t.a = 1.5;
@@ -399,7 +399,7 @@ TEST(5) {
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
-    Code::cast(code)->Print(isolate);
+    Code::cast(code)->Print();
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(*code);
     int res = reinterpret_cast<int>(f.Call(0xAAAAAAAA, 0, 0, 0, 0));
@@ -434,7 +434,7 @@ TEST(6) {
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
-    Code::cast(code)->Print(isolate);
+    Code::cast(code)->Print();
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(*code);
     int res = reinterpret_cast<int>(f.Call(0xFFFF, 0, 0, 0, 0));
@@ -509,7 +509,7 @@ static void TestRoundingMode(VCVTTypes types,
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
-    Code::cast(code)->Print(isolate);
+    Code::cast(code)->Print();
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(*code);
     int res = reinterpret_cast<int>(f.Call(0, 0, 0, 0, 0));
@@ -696,7 +696,7 @@ TEST(8) {
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
-    Code::cast(code)->Print(isolate);
+    Code::cast(code)->Print();
 #endif
     auto fn = GeneratedCode<F_ppiii>::FromCode(*code);
     d.a = 1.1;
@@ -811,7 +811,7 @@ TEST(9) {
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
-    Code::cast(code)->Print(isolate);
+    Code::cast(code)->Print();
 #endif
     auto fn = GeneratedCode<F_ppiii>::FromCode(*code);
     d.a = 1.1;
@@ -922,7 +922,7 @@ TEST(10) {
         Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
-    Code::cast(code)->Print(isolate);
+    Code::cast(code)->Print();
 #endif
     auto fn = GeneratedCode<F_ppiii>::FromCode(*code);
     d.a = 1.1;
@@ -1019,7 +1019,7 @@ TEST(11) {
       Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef DEBUG
-  Code::cast(code)->Print(isolate);
+  Code::cast(code)->Print();
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(*code);
   f.Call(&i, 0, 0, 0, 0);

@@ -1212,7 +1212,7 @@ TEST(FuzzAssembleMove) {
 
     Handle<Code> test = c.FinalizeForExecuting();
     if (FLAG_print_code) {
-      test->Print(env.main_isolate());
+      test->Print();
     }
 
     Handle<FixedArray> actual = env.Run(test, state_in);
@@ -1238,7 +1238,7 @@ TEST(FuzzAssembleSwap) {
 
     Handle<Code> test = c.FinalizeForExecuting();
     if (FLAG_print_code) {
-      test->Print(env.main_isolate());
+      test->Print();
     }
 
     Handle<FixedArray> actual = env.Run(test, state_in);
@@ -1276,7 +1276,7 @@ TEST(FuzzAssembleMoveAndSwap) {
 
     Handle<Code> test = c.FinalizeForExecuting();
     if (FLAG_print_code) {
-      test->Print(env.main_isolate());
+      test->Print();
     }
 
     Handle<FixedArray> actual = env.Run(test, state_in);
@@ -1357,7 +1357,7 @@ TEST(AssembleTailCallGap) {
                                 CodeGeneratorTester::kRegisterPush);
     Handle<Code> code = c.Finalize();
     if (FLAG_print_code) {
-      code->Print(env.main_isolate());
+      code->Print();
     }
   }
 
@@ -1386,7 +1386,7 @@ TEST(AssembleTailCallGap) {
                                 CodeGeneratorTester::kStackSlotPush);
     Handle<Code> code = c.Finalize();
     if (FLAG_print_code) {
-      code->Print(env.main_isolate());
+      code->Print();
     }
   }
 
@@ -1415,7 +1415,7 @@ TEST(AssembleTailCallGap) {
                                 CodeGeneratorTester::kScalarPush);
     Handle<Code> code = c.Finalize();
     if (FLAG_print_code) {
-      code->Print(env.main_isolate());
+      code->Print();
     }
   }
 }

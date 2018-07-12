@@ -965,7 +965,7 @@ TEST(DisasmX64) {
   USE(code);
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(isolate, os);
+  code->Print(os);
   Address begin = code->raw_instruction_start();
   Address end = code->raw_instruction_end();
   disasm::Disassembler::Disassemble(stdout, reinterpret_cast<byte*>(begin),

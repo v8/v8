@@ -730,11 +730,8 @@ template <class C> inline bool Is(Object* obj);
 
 #ifdef OBJECT_PRINT
 #define DECL_PRINTER(Name) void Name##Print(std::ostream& os);  // NOLINT
-#define DECL_PRINTER_WITH_ISOLATE(Name) \
-  void Name##Print(Isolate* isolate, std::ostream& os);  // NOLINT
 #else
 #define DECL_PRINTER(Name)
-#define DECL_PRINTER_WITH_ISOLATE(Name)
 #endif
 
 #define OBJECT_TYPE_LIST(V) \
@@ -1299,13 +1296,13 @@ class Object {
 
 #ifdef OBJECT_PRINT
   // For our gdb macros, we should perhaps change these in the future.
-  void Print(Isolate* isolate);
+  void Print();
 
   // Prints this object with details.
-  void Print(Isolate* isolate, std::ostream& os);  // NOLINT
+  void Print(std::ostream& os);  // NOLINT
 #else
-  void Print(Isolate* isolate) { ShortPrint(); }
-  void Print(Isolate* isolate, std::ostream& os) { ShortPrint(os); }  // NOLINT
+  void Print() { ShortPrint(); }
+  void Print(std::ostream& os) { ShortPrint(os); }  // NOLINT
 #endif
 
  private:
@@ -1627,7 +1624,7 @@ class HeapObject: public Object {
 #ifdef OBJECT_PRINT
   void PrintHeader(std::ostream& os, const char* id);  // NOLINT
 #endif
-  DECL_PRINTER_WITH_ISOLATE(HeapObject)
+  DECL_PRINTER(HeapObject)
   DECL_VERIFIER(HeapObject)
 #ifdef VERIFY_HEAP
   inline void VerifyObjectField(int offset);
@@ -2463,7 +2460,7 @@ class JSObject: public JSReceiver {
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
-  DECL_PRINTER_WITH_ISOLATE(JSObject)
+  DECL_PRINTER(JSObject)
   DECL_VERIFIER(JSObject)
 #ifdef OBJECT_PRINT
   bool PrintProperties(std::ostream& os);  // NOLINT
@@ -3016,7 +3013,7 @@ class JSGeneratorObject: public JSObject {
   DECL_CAST(JSGeneratorObject)
 
   // Dispatched behavior.
-  DECL_PRINTER_WITH_ISOLATE(JSGeneratorObject)
+  DECL_PRINTER(JSGeneratorObject)
   DECL_VERIFIER(JSGeneratorObject)
 
   // Magic sentinel values for the continuation.
@@ -3088,7 +3085,7 @@ class JSBoundFunction : public JSObject {
   DECL_CAST(JSBoundFunction)
 
   // Dispatched behavior.
-  DECL_PRINTER_WITH_ISOLATE(JSBoundFunction)
+  DECL_PRINTER(JSBoundFunction)
   DECL_VERIFIER(JSBoundFunction)
 
   // The bound function's string representation implemented according
@@ -3259,7 +3256,7 @@ class JSFunction: public JSObject {
   class BodyDescriptor;
 
   // Dispatched behavior.
-  DECL_PRINTER_WITH_ISOLATE(JSFunction)
+  DECL_PRINTER(JSFunction)
   DECL_VERIFIER(JSFunction)
 
   // The function's name if it is configured, otherwise shared function info
@@ -3326,7 +3323,7 @@ class JSGlobalProxy : public JSObject {
   static int SizeWithEmbedderFields(int embedder_field_count);
 
   // Dispatched behavior.
-  DECL_PRINTER_WITH_ISOLATE(JSGlobalProxy)
+  DECL_PRINTER(JSGlobalProxy)
   DECL_VERIFIER(JSGlobalProxy)
 
   // Layout description.
@@ -3363,7 +3360,7 @@ class JSGlobalObject : public JSObject {
   inline bool IsDetached();
 
   // Dispatched behavior.
-  DECL_PRINTER_WITH_ISOLATE(JSGlobalObject)
+  DECL_PRINTER(JSGlobalObject)
   DECL_VERIFIER(JSGlobalObject)
 
   // Layout description.
@@ -3386,7 +3383,7 @@ class JSValue: public JSObject {
   DECL_CAST(JSValue)
 
   // Dispatched behavior.
-  DECL_PRINTER_WITH_ISOLATE(JSValue)
+  DECL_PRINTER(JSValue)
   DECL_VERIFIER(JSValue)
 
   // Layout description.
@@ -3441,7 +3438,7 @@ class JSDate: public JSObject {
   void SetValue(Object* value, bool is_value_nan);
 
   // Dispatched behavior.
-  DECL_PRINTER_WITH_ISOLATE(JSDate)
+  DECL_PRINTER(JSDate)
   DECL_VERIFIER(JSDate)
 
   // The order is important. It must be kept in sync with date macros
@@ -3544,7 +3541,7 @@ class JSMessageObject: public JSObject {
   DECL_CAST(JSMessageObject)
 
   // Dispatched behavior.
-  DECL_PRINTER_WITH_ISOLATE(JSMessageObject)
+  DECL_PRINTER(JSMessageObject)
   DECL_VERIFIER(JSMessageObject)
 
   // Layout description.
@@ -3888,7 +3885,7 @@ class FeedbackCell : public Struct {
   DECL_CAST(FeedbackCell)
 
   // Dispatched behavior.
-  DECL_PRINTER_WITH_ISOLATE(FeedbackCell)
+  DECL_PRINTER(FeedbackCell)
   DECL_VERIFIER(FeedbackCell)
 
   static const int kValueOffset = HeapObject::kHeaderSize;

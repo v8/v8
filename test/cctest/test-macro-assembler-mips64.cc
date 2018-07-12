@@ -269,7 +269,7 @@ TEST(jump_tables4) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(isolate, std::cout);
+  code->Print(std::cout);
 #endif
   auto f = GeneratedCode<F1>::FromCode(*code);
   for (int i = 0; i < kNumCases; ++i) {
@@ -342,7 +342,7 @@ TEST(jump_tables5) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(isolate, std::cout);
+  code->Print(std::cout);
 #endif
   auto f = GeneratedCode<F1>::FromCode(*code);
   for (int i = 0; i < kNumCases; ++i) {
@@ -433,7 +433,7 @@ TEST(jump_tables6) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print(isolate, std::cout);
+  code->Print(std::cout);
 #endif
   auto f = GeneratedCode<F1>::FromCode(*code);
   for (int i = 0; i < kSwitchTableCases; ++i) {
@@ -1487,7 +1487,7 @@ static GeneratedCode<F4> GenerateMacroFloat32MinMax(MacroAssembler* masm) {
       masm->isolate()->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(masm->isolate(), os);
+  code->Print(os);
 #endif
   return GeneratedCode<F4>::FromCode(*code);
 }
@@ -1629,7 +1629,7 @@ static GeneratedCode<F4> GenerateMacroFloat64MinMax(MacroAssembler* masm) {
       masm->isolate()->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(masm->isolate(), os);
+  code->Print(os);
 #endif
   return GeneratedCode<F4>::FromCode(*code);
 }

@@ -40,8 +40,8 @@ class JSRelativeTimeFormat : public JSObject {
   static icu::RelativeDateTimeFormatter* UnpackFormatter(
       Isolate* isolate,
       Handle<JSRelativeTimeFormat> relative_time_format_holder);
-  Handle<String> StyleAsString(Isolate* isolate) const;
-  Handle<String> NumericAsString(Isolate* isolate) const;
+  Handle<String> StyleAsString() const;
+  Handle<String> NumericAsString() const;
 
   DECL_CAST(JSRelativeTimeFormat)
 
@@ -79,7 +79,7 @@ class JSRelativeTimeFormat : public JSObject {
   inline Numeric numeric() const;
 
   DECL_ACCESSORS(formatter, Foreign)
-  DECL_PRINTER_WITH_ISOLATE(JSRelativeTimeFormat)
+  DECL_PRINTER(JSRelativeTimeFormat)
   DECL_VERIFIER(JSRelativeTimeFormat)
 
   // Layout description.

@@ -24,7 +24,7 @@ Handle<Code> AssembleCodeImpl(std::function<void(Assembler&)> assemble) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   if (FLAG_print_code) {
-    code->Print(isolate);
+    code->Print();
   }
   return code;
 }

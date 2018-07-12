@@ -1744,7 +1744,7 @@ void Logger::MapDetails(Map* map) {
       << reinterpret_cast<void*>(map) << kNext;
   if (FLAG_trace_maps_details) {
     std::ostringstream buffer;
-    map->PrintMapDetails(isolate_, buffer);
+    map->PrintMapDetails(buffer);
     msg << buffer.str().c_str();
   }
   msg.WriteToLogFile();

@@ -576,10 +576,10 @@ void Map::MapVerify(Isolate* isolate) {
         !Map::cast(GetBackPointer())->is_stable());
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
-  SLOW_DCHECK(instance_descriptors()->IsSortedNoDuplicates(isolate));
+  SLOW_DCHECK(instance_descriptors()->IsSortedNoDuplicates());
   DisallowHeapAllocation no_gc;
   SLOW_DCHECK(
-      TransitionsAccessor(isolate, this, &no_gc).IsSortedNoDuplicates(isolate));
+      TransitionsAccessor(isolate, this, &no_gc).IsSortedNoDuplicates());
   SLOW_DCHECK(TransitionsAccessor(isolate, this, &no_gc)
                   .IsConsistentWithBackPointers());
   SLOW_DCHECK(!FLAG_unbox_double_fields ||
@@ -1949,21 +1949,20 @@ void JSObject::SpillInformation::Print() {
   PrintF("\n");
 }
 
-bool DescriptorArray::IsSortedNoDuplicates(Isolate* isolate,
-                                           int valid_entries) {
+bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
   if (valid_entries == -1) valid_entries = number_of_descriptors();
   Name* current_key = nullptr;
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
     Name* key = GetSortedKey(i);
     if (key == current_key) {
-      Print(isolate);
+      Print();
       return false;
     }
     current_key = key;
     uint32_t hash = GetSortedKey(i)->Hash();
     if (hash < current) {
-      Print(isolate);
+      Print();
       return false;
     }
     current = hash;
@@ -1971,8 +1970,7 @@ bool DescriptorArray::IsSortedNoDuplicates(Isolate* isolate,
   return true;
 }
 
-bool TransitionArray::IsSortedNoDuplicates(Isolate* isolate,
-                                           int valid_entries) {
+bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
   DCHECK_EQ(valid_entries, -1);
   Name* prev_key = nullptr;
   PropertyKind prev_kind = kData;
@@ -1984,10 +1982,11 @@ bool TransitionArray::IsSortedNoDuplicates(Isolate* isolate,
     uint32_t hash = key->Hash();
     PropertyKind kind = kData;
     PropertyAttributes attributes = NONE;
-    if (!TransitionsAccessor::IsSpecialTransition(isolate, key)) {
+    if (!TransitionsAccessor::IsSpecialTransition(key->GetReadOnlyRoots(),
+                                                  key)) {
       Map* target = GetTarget(i);
       PropertyDetails details =
-          TransitionsAccessor::GetTargetDetails(isolate, key, target);
+          TransitionsAccessor::GetTargetDetails(key, target);
       kind = details.kind();
       attributes = details.attributes();
     } else {
@@ -1998,7 +1997,7 @@ bool TransitionArray::IsSortedNoDuplicates(Isolate* isolate,
     int cmp = CompareKeys(prev_key, prev_hash, prev_kind, prev_attributes, key,
                           hash, kind, attributes);
     if (cmp >= 0) {
-      Print(isolate);
+      Print();
       return false;
     }
     prev_key = key;
@@ -2009,10 +2008,10 @@ bool TransitionArray::IsSortedNoDuplicates(Isolate* isolate,
   return true;
 }
 
-bool TransitionsAccessor::IsSortedNoDuplicates(Isolate* isolate) {
+bool TransitionsAccessor::IsSortedNoDuplicates() {
   // Simple and non-existent transitions are always sorted.
   if (encoding() != kFullTransitionArray) return true;
-  return transitions()->IsSortedNoDuplicates(isolate);
+  return transitions()->IsSortedNoDuplicates();
 }
 
 

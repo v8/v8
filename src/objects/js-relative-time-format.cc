@@ -183,9 +183,9 @@ Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
   JSObject::AddProperty(isolate, result, factory->style_string(),
-                        format_holder->StyleAsString(isolate), NONE);
+                        format_holder->StyleAsString(), NONE);
   JSObject::AddProperty(isolate, result, factory->numeric_string(),
-                        format_holder->NumericAsString(isolate), NONE);
+                        format_holder->NumericAsString(), NONE);
   return result;
 }
 
@@ -195,27 +195,25 @@ icu::RelativeDateTimeFormatter* JSRelativeTimeFormat::UnpackFormatter(
       ->raw();
 }
 
-Handle<String> JSRelativeTimeFormat::StyleAsString(Isolate* isolate) const {
-  Factory* factory = isolate->factory();
+Handle<String> JSRelativeTimeFormat::StyleAsString() const {
   switch (style()) {
     case Style::LONG:
-      return factory->long_string();
+      return GetReadOnlyRoots().long_string_handle();
     case Style::SHORT:
-      return factory->short_string();
+      return GetReadOnlyRoots().short_string_handle();
     case Style::NARROW:
-      return factory->narrow_string();
+      return GetReadOnlyRoots().narrow_string_handle();
     case Style::COUNT:
       UNREACHABLE();
   }
 }
 
-Handle<String> JSRelativeTimeFormat::NumericAsString(Isolate* isolate) const {
-  Factory* factory = isolate->factory();
+Handle<String> JSRelativeTimeFormat::NumericAsString() const {
   switch (numeric()) {
     case Numeric::ALWAYS:
-      return factory->always_string();
+      return GetReadOnlyRoots().always_string_handle();
     case Numeric::AUTO:
-      return factory->auto_string();
+      return GetReadOnlyRoots().auto_string_handle();
     case Numeric::COUNT:
       UNREACHABLE();
   }
