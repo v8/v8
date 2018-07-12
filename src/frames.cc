@@ -1759,23 +1759,22 @@ void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
                               int index) const {
   PrintIndex(accumulator, mode, index);
   accumulator->Add("WASM [");
-  Script* script = this->script();
-  accumulator->PrintName(script->name());
+  accumulator->PrintName(script()->name());
   Address instruction_start = isolate()
                                   ->wasm_engine()
                                   ->code_manager()
                                   ->LookupCode(pc())
                                   ->instruction_start();
-  int pc = static_cast<int>(this->pc() - instruction_start);
   Vector<const uint8_t> raw_func_name =
-      module_object()->GetRawFunctionName(this->function_index());
+      module_object()->GetRawFunctionName(function_index());
   const int kMaxPrintedFunctionName = 64;
   char func_name[kMaxPrintedFunctionName + 1];
   int func_name_len = std::min(kMaxPrintedFunctionName, raw_func_name.length());
   memcpy(func_name, raw_func_name.start(), func_name_len);
   func_name[func_name_len] = '\0';
-  accumulator->Add("], function #%u ('%s'), pc=+0x%x, pos=%d\n",
-                   this->function_index(), func_name, pc, this->position());
+  accumulator->Add("], function #%u ('%s'), pc=%p (+0x%x), pos=%d\n",
+                   function_index(), func_name, reinterpret_cast<void*>(pc()),
+                   static_cast<int>(pc() - instruction_start), position());
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
