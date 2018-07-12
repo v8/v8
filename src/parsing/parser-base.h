@@ -3599,13 +3599,14 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseImportExpressions(
     bool* ok) {
   DCHECK(allow_harmony_dynamic_import());
+
+  classifier()->RecordPatternError(scanner()->peek_location(),
+                                   MessageTemplate::kUnexpectedToken,
+                                   Token::String(Token::IMPORT));
+
   Consume(Token::IMPORT);
   int pos = position();
   if (allow_harmony_import_meta() && peek() == Token::PERIOD) {
-    classifier()->RecordPatternError(
-        Scanner::Location(pos, scanner()->location().end_pos),
-        MessageTemplate::kInvalidDestructuringTarget);
-    ArrowFormalParametersUnexpectedToken();
     ExpectMetaProperty(Token::META, "import.meta", pos, CHECK_OK);
     if (!parsing_module_) {
       impl()->ReportMessageAt(scanner()->location(),

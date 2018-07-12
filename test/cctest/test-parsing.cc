@@ -4227,6 +4227,39 @@ TEST(ImportExpressionErrors) {
     RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                             arraysize(flags));
   }
+
+  // Import statements as arrow function params and destructuring targets.
+  {
+    // clang-format off
+    const char* context_data[][2] = {
+      {"(", ") => {}"},
+      {"(a, ", ") => {}"},
+      {"(1, ", ") => {}"},
+      {"let f = ", " => {}"},
+      {"[", "] = [1];"},
+      {"{", "} = {'a': 1};"},
+      {nullptr, nullptr}
+    };
+
+    const char* data[] = {
+      "import(foo)",
+      "import(1)",
+      "import(y=x)",
+      "import(import(x))",
+      "import(x).then()",
+      nullptr
+    };
+
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError);
+    RunModuleParserSyncTest(context_data, data, kError);
+
+    static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
+    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
+                      arraysize(flags));
+    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
+                            arraysize(flags));
+  }
 }
 
 TEST(SuperCall) {
@@ -8133,6 +8166,8 @@ TEST(ImportMetaFailure) {
     {"({", "} = {1})"},
     {"var {", " = 1} = 1"},
     {"for (var ", " of [1]) {}"},
+    {"(", ") => {}"},
+    {"let f = ", " => {}"},
     {nullptr}
   };
 
