@@ -1957,6 +1957,7 @@ class EmbedderGraphImpl : public EmbedderGraph {
   struct Edge {
     Node* from;
     Node* to;
+    const char* name;
   };
 
   class V8NodeImpl : public Node {
@@ -1993,7 +1994,9 @@ class EmbedderGraphImpl : public EmbedderGraph {
     return result;
   }
 
-  void AddEdge(Node* from, Node* to) final { edges_.push_back({from, to}); }
+  void AddEdge(Node* from, Node* to, const char* name) final {
+    edges_.push_back({from, to, name});
+  }
 
   const std::vector<std::unique_ptr<Node>>& nodes() { return nodes_; }
   const std::vector<Edge>& edges() { return edges_; }
@@ -2286,8 +2289,13 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
       int from_index = from->index();
       HeapEntry* to = EntryForEmbedderGraphNode(edge.to);
       if (to) {
-        filler_->SetIndexedAutoIndexReference(HeapGraphEdge::kElement,
-                                              from_index, to);
+        if (edge.name == nullptr) {
+          filler_->SetIndexedAutoIndexReference(HeapGraphEdge::kElement,
+                                                from_index, to);
+        } else {
+          filler_->SetNamedReference(HeapGraphEdge::kInternal, from_index,
+                                     edge.name, to);
+        }
       }
     }
   } else {
