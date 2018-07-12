@@ -354,23 +354,29 @@ function bestFitSupportedLocalesOf(requestedLocales, availableLocales) {
 function getGetOption(options, caller) {
   if (IS_UNDEFINED(options)) throw %make_error(kDefaultOptionsMissing, caller);
 
-  var getOption = function getOption(property, type, values, defaultValue) {
-    if (!IS_UNDEFINED(options[property])) {
-      var value = options[property];
+  // Ecma 402 #sec-getoption
+  var getOption = function (property, type, values, fallback) {
+    // 1. Let value be ? Get(options, property).
+    var value = options[property];
+    // 2. If value is not undefined, then
+    if (!IS_UNDEFINED(value)) {
       switch (type) {
+        // If type is "boolean", then let value be ToBoolean(value).
         case 'boolean':
           value = TO_BOOLEAN(value);
           break;
+        // If type is "string", then let value be ToString(value).
         case 'string':
           value = TO_STRING(value);
           break;
-        case 'number':
-          value = TO_NUMBER(value);
-          break;
+        // Assert: type is "boolean" or "string".
         default:
           throw %make_error(kWrongValueType);
       }
 
+      // d. If values is not undefined, then
+      // If values does not contain an element equal to value, throw a
+      // RangeError exception.
       if (!IS_UNDEFINED(values) && %ArrayIndexOf(values, value, 0) === -1) {
         throw %make_range_error(kValueOutOfRange, value, caller, property);
       }
@@ -378,7 +384,7 @@ function getGetOption(options, caller) {
       return value;
     }
 
-    return defaultValue;
+    return fallback;
   }
 
   return getOption;

@@ -480,7 +480,6 @@
   'intl402/Locale/prototype/toStringTag/toString': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7869
-  'intl402/RelativeTimeFormat/constructor/constructor/options-order': [FAIL],
   'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/branding': [FAIL],
   'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/length': [FAIL],
   'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/name': [FAIL],
