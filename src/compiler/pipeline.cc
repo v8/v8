@@ -1000,8 +1000,6 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
   Status FinalizeJobImpl(Isolate* isolate) final;
 
  private:
-  size_t AllocatedMemory() const override;
-
   ZoneStats zone_stats_;
   std::unique_ptr<PipelineStatistics> pipeline_statistics_;
   PipelineData data_;
@@ -1089,10 +1087,6 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
   compilation_info()->SetCode(code);
 
   return SUCCEEDED;
-}
-
-size_t PipelineWasmCompilationJob::AllocatedMemory() const {
-  return pipeline_.data_->zone_stats()->GetCurrentAllocatedBytes();
 }
 
 PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(

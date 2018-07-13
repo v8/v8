@@ -302,7 +302,6 @@ class OptimizedCompilationJob : public CompilationJob {
   OptimizedCompilationInfo* compilation_info() const {
     return compilation_info_;
   }
-  virtual size_t AllocatedMemory() const { return 0; }
 
  protected:
   // Overridden by the actual implementation.
