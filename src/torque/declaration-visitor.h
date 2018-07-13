@@ -107,14 +107,7 @@ class DeclarationVisitor : public FileVisitor {
   }
 
   void Visit(VarDeclarationStatement* stmt);
-
-  void Visit(ExternConstDeclaration* decl) {
-    // TODO(szuend): When module-wide const bindings are available, only
-    //               constexpr types should be allowed here.
-    declarations()->DeclareConstant(
-        decl->name, declarations()->GetType(decl->type), decl->literal);
-  }
-
+  void Visit(ExternConstDeclaration* decl);
   void Visit(LogicalOrExpression* expr);
   void Visit(LogicalAndExpression* expr);
   void DeclareExpressionForBranch(Expression* node);

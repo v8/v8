@@ -138,7 +138,7 @@ void DeclarationVisitor::Visit(TorqueBuiltinDeclaration* decl,
   CurrentCallableActivator activator(global_context_, builtin, decl);
   DeclareSignature(signature);
   if (signature.parameter_types.var_args) {
-    declarations()->DeclareConstant(
+    declarations()->DeclareExternConstant(
         decl->signature->parameters.arguments_variable,
         TypeOracle::GetArgumentsType(), "arguments");
   }
@@ -269,6 +269,18 @@ void DeclarationVisitor::Visit(VarDeclarationStatement* stmt) {
                 << CurrentPositionAsString() << "\n";
     }
   }
+}
+
+void DeclarationVisitor::Visit(ExternConstDeclaration* decl) {
+  const Type* type = declarations()->GetType(decl->type);
+  if (!type->IsConstexpr()) {
+    std::stringstream stream;
+    stream << "extern constants must have constexpr type, but found: \""
+           << *type << "\"\n";
+    ReportError(stream.str());
+  }
+
+  declarations()->DeclareExternConstant(decl->name, type, decl->literal);
 }
 
 void DeclarationVisitor::Visit(LogicalOrExpression* expr) {

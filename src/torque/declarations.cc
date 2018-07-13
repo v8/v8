@@ -314,10 +314,11 @@ Label* Declarations::DeclarePrivateLabel(const std::string& raw_name) {
   return result;
 }
 
-void Declarations::DeclareConstant(const std::string& name, const Type* type,
-                                   const std::string& value) {
+void Declarations::DeclareExternConstant(const std::string& name,
+                                         const Type* type,
+                                         const std::string& value) {
   CheckAlreadyDeclared(name, "constant, parameter or arguments");
-  Constant* result = new Constant(name, type, value);
+  ExternConstant* result = new ExternConstant(name, type, value);
   Declare(name, std::unique_ptr<Declarable>(result));
 }
 

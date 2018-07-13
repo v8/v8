@@ -338,6 +338,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return CAST(p_n);
   }
 
+  TNode<FixedArrayBase> UnsafeCastObjectToFixedArrayBase(TNode<Object> p_o) {
+    return CAST(p_o);
+  }
+
   TNode<FixedArray> UnsafeCastObjectToFixedArray(TNode<Object> p_o) {
     return CAST(p_o);
   }
@@ -390,6 +394,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<JSObject> UnsafeCastObjectToJSObject(TNode<Object> p_o) {
     return CAST(p_o);
   }
+
+  TNode<Map> UnsafeCastObjectToMap(TNode<Object> p_o) { return CAST(p_o); }
 
   Node* MatchesParameterMode(Node* value, ParameterMode mode);
 

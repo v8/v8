@@ -108,9 +108,10 @@ type FixedBigInt64Array extends FixedTypedArray;
 const kAllFixedArrays: constexpr ExtractFixedArrayFlags generates
 'ExtractFixedArrayFlag::kAllFixedArrays';
 
-const kCOWMap: Map generates 'LoadRoot(Heap::kFixedCOWArrayMapRootIndex)';
-const kEmptyFixedArray: FixedArrayBase generates
-'UncheckedCast<FixedArrayBase>(LoadRoot(Heap::kEmptyFixedArrayRootIndex))';
+const kFixedCOWArrayMapRootIndex: constexpr RootListIndex generates
+'Heap::kFixedCOWArrayMapRootIndex';
+const kEmptyFixedArrayRootIndex: constexpr RootListIndex generates
+'Heap::kEmptyFixedArrayRootIndex';
 
 const kInvalidArrayLength: constexpr MessageTemplate generates
 'MessageTemplate::kInvalidArrayLength';
@@ -136,11 +137,18 @@ const kInvalidDataViewAccessorOffset: constexpr MessageTemplate generates
 const kStrictReadOnlyProperty: constexpr MessageTemplate generates
 'MessageTemplate::kStrictReadOnlyProperty';
 
-const Hole: Oddball generates 'TheHoleConstant()';
-const Null: Oddball generates 'NullConstant()';
-const Undefined: Oddball generates 'UndefinedConstant()';
-const True: Boolean generates 'TrueConstant()';
-const False: Boolean generates 'FalseConstant()';
+extern macro TheHoleConstant(): Oddball;
+extern macro NullConstant(): Oddball;
+extern macro UndefinedConstant(): Oddball;
+extern macro TrueConstant(): Boolean;
+extern macro FalseConstant(): Boolean;
+
+const Hole: Oddball = TheHoleConstant();
+const Null: Oddball = NullConstant();
+const Undefined: Oddball = UndefinedConstant();
+const True: Boolean = TrueConstant();
+const False: Boolean = FalseConstant();
+
 const true: constexpr bool generates 'true';
 const false: constexpr bool generates 'false';
 
@@ -489,6 +497,7 @@ convert<intptr>(r: RawPtr): intptr {
 }
 
 extern macro UnsafeCastNumberToHeapNumber(Number): HeapNumber;
+extern macro UnsafeCastObjectToFixedArrayBase(Object): FixedArrayBase;
 extern macro UnsafeCastObjectToFixedArray(Object): FixedArray;
 extern macro UnsafeCastObjectToFixedDoubleArray(Object): FixedDoubleArray;
 extern macro UnsafeCastObjectToHeapNumber(Object): HeapNumber;
@@ -501,6 +510,7 @@ extern macro UnsafeCastObjectToFixedTypedArrayBase(Object): FixedTypedArrayBase;
 extern macro UnsafeCastObjectToNumberDictionary(Object): NumberDictionary;
 extern macro UnsafeCastObjectToJSReceiver(Object): JSReceiver;
 extern macro UnsafeCastObjectToJSObject(Object): JSObject;
+extern macro UnsafeCastObjectToMap(Object): Map;
 
 macro unsafe_cast<A : type>(n: Number): A;
 unsafe_cast<HeapNumber>(n: Number): HeapNumber {
@@ -543,6 +553,16 @@ unsafe_cast<JSReceiver>(o: Object): JSReceiver {
 unsafe_cast<JSObject>(o: Object): JSObject {
   return UnsafeCastObjectToJSObject(o);
 }
+unsafe_cast<Map>(o: Object): Map {
+  return UnsafeCastObjectToMap(o);
+}
+unsafe_cast<FixedArrayBase>(o: Object): FixedArrayBase {
+  return UnsafeCastObjectToFixedArrayBase(o);
+}
+
+const kCOWMap: Map = unsafe_cast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
+const kEmptyFixedArray: FixedArrayBase = unsafe_cast<FixedArrayBase>(
+    LoadRoot(kEmptyFixedArrayRootIndex));
 
 extern macro BranchIfFastJSArray(Object, Context): never labels Taken, NotTaken;
 extern macro BranchIfNotFastJSArray(Object, Context): never labels Taken,

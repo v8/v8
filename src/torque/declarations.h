@@ -95,8 +95,8 @@ class Declarations {
 
   Label* DeclarePrivateLabel(const std::string& name);
 
-  void DeclareConstant(const std::string& name, const Type* type,
-                       const std::string& value);
+  void DeclareExternConstant(const std::string& name, const Type* type,
+                             const std::string& value);
   ModuleConstant* DeclareModuleConstant(const std::string& name,
                                         const Type* type);
 

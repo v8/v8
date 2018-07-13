@@ -275,8 +275,9 @@ void ImplementationVisitor::Visit(TorqueBuiltinDeclaration* decl,
   size_t first = 1;
   if (builtin->IsVarArgsJavaScript()) {
     assert(decl->signature->parameters.has_varargs);
-    Constant* arguments = Constant::cast(declarations()->LookupValue(
-        decl->signature->parameters.arguments_variable));
+    ExternConstant* arguments =
+        ExternConstant::cast(declarations()->LookupValue(
+            decl->signature->parameters.arguments_variable));
     std::string arguments_name = arguments->value();
     GenerateIndent();
     source_out()
