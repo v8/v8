@@ -51,8 +51,6 @@ deps = {
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'b41863e42637544c2941b574c7877d3e1f663e25',
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
-  'v8/third_party/proguard':
-    Var('chromium_url') + '/chromium/src/third_party/proguard.git' + '@' + 'eba7a98d98735b2cc65c54d36baa5c9b46fe4f8e',
   'v8/tools/swarming_client':
     Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '9a518d097dca20b7b00ce3bdfc5d418ccc79893a',
   'v8/test/benchmarks/data':
