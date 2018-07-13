@@ -621,8 +621,8 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->invalidated_slots_ = nullptr;
   chunk->skip_list_ = nullptr;
   chunk->progress_bar_ = 0;
-  chunk->high_water_mark_.SetValue(static_cast<intptr_t>(area_start - base));
-  chunk->concurrent_sweeping_state().SetValue(kSweepingDone);
+  chunk->high_water_mark_ = static_cast<intptr_t>(area_start - base);
+  chunk->set_concurrent_sweeping_state(kSweepingDone);
   chunk->page_protection_change_mutex_ = new base::Mutex();
   chunk->write_unprotect_counter_ = 0;
   chunk->mutex_ = new base::Mutex();
@@ -760,7 +760,7 @@ Page* Page::ConvertNewToOld(Page* old_page) {
 size_t MemoryChunk::CommittedPhysicalMemory() {
   if (!base::OS::HasLazyCommits() || owner()->identity() == LO_SPACE)
     return size();
-  return high_water_mark_.Value();
+  return high_water_mark_;
 }
 
 bool MemoryChunk::IsPagedSpace() const {
@@ -2229,8 +2229,8 @@ void NewSpace::UpdateLinearAllocationArea() {
   Address new_top = to_space_.page_low();
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.Reset(new_top, to_space_.page_high());
-  original_top_.SetValue(top());
-  original_limit_.SetValue(limit());
+  original_top_ = top();
+  original_limit_ = limit();
   StartNextInlineAllocationStep();
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
