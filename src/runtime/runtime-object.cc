@@ -1141,14 +1141,14 @@ RUNTIME_FUNCTION(Runtime_ToNumber) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  RETURN_RESULT_OR_FAILURE(isolate, Object::ToNumber(input));
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToNumber(isolate, input));
 }
 
 RUNTIME_FUNCTION(Runtime_ToNumeric) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  RETURN_RESULT_OR_FAILURE(isolate, Object::ToNumeric(input));
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ToNumeric(isolate, input));
 }
 
 RUNTIME_FUNCTION(Runtime_ToInteger) {

@@ -1252,8 +1252,8 @@ MaybeHandle<Object> InstanceBuilder::LookupImport(uint32_t index,
   DCHECK(!ffi_.is_null());
 
   // Look up the module first.
-  MaybeHandle<Object> result =
-      Object::GetPropertyOrElement(ffi_.ToHandleChecked(), module_name);
+  MaybeHandle<Object> result = Object::GetPropertyOrElement(
+      isolate_, ffi_.ToHandleChecked(), module_name);
   if (result.is_null()) {
     return ReportTypeError("module not found", index, module_name);
   }
@@ -1266,7 +1266,7 @@ MaybeHandle<Object> InstanceBuilder::LookupImport(uint32_t index,
                            module_name);
   }
 
-  result = Object::GetPropertyOrElement(module, import_name);
+  result = Object::GetPropertyOrElement(isolate_, module, import_name);
   if (result.is_null()) {
     ReportLinkError("import not found", index, module_name, import_name);
     return MaybeHandle<JSFunction>();
@@ -1680,7 +1680,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
             if (global.type == kWasmI32) {
               value = Object::ToInt32(isolate_, value).ToHandleChecked();
             } else {
-              value = Object::ToNumber(value).ToHandleChecked();
+              value = Object::ToNumber(isolate_, value).ToHandleChecked();
             }
           }
         }

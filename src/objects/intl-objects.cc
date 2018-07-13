@@ -1427,7 +1427,8 @@ Maybe<bool> Intl::GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
   // 1. Let value be ? Get(options, property).
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, Object::GetPropertyOrElement(options, property_str),
+      isolate, value,
+      Object::GetPropertyOrElement(isolate, options, property_str),
       Nothing<bool>());
 
   if (value->IsUndefined(isolate)) {
@@ -1475,7 +1476,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> Intl::GetBoolOption(
   // 1. Let value be ? Get(options, property).
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, Object::GetPropertyOrElement(options, property_str),
+      isolate, value,
+      Object::GetPropertyOrElement(isolate, options, property_str),
       Nothing<bool>());
 
   // 2. If value is not undefined, then

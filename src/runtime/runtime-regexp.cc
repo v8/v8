@@ -1549,7 +1549,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> ToUint32(Isolate* isolate,
   }
 
   Handle<Object> number;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number, Object::ToNumber(object), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, number, Object::ToNumber(isolate, object),
+                             Object);
   *out = NumberToUint32(*number);
   return object;
 }

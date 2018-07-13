@@ -122,7 +122,7 @@ BUILTIN(TypedArrayPrototypeFill) {
                                        BigInt::FromObject(isolate, obj_value));
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, obj_value,
-                                       Object::ToNumber(obj_value));
+                                       Object::ToNumber(isolate, obj_value));
   }
 
   int64_t len = array->length_value();

@@ -1081,10 +1081,10 @@ class Object {
 
   // ES6 section 7.1.3 ToNumber
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToNumber(
-      Handle<Object> input);
+      Isolate* isolate, Handle<Object> input);
 
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToNumeric(
-      Handle<Object> input);
+      Isolate* isolate, Handle<Object> input);
 
   // ES6 section 7.1.4 ToInteger
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> ToInteger(
@@ -1177,8 +1177,8 @@ class Object {
       LanguageMode language_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> SetPropertyOrElement(
-      Handle<Object> object, Handle<Name> name, Handle<Object> value,
-      LanguageMode language_mode,
+      Isolate* isolate, Handle<Object> object, Handle<Name> name,
+      Handle<Object> value, LanguageMode language_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetSuperProperty(
@@ -1202,7 +1202,7 @@ class Object {
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       ShouldThrow should_throw, StoreFromKeyed store_mode);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
-      Handle<Object> object, Handle<Name> name);
+      Isolate* isolate, Handle<Object> object, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Handle<Object> receiver, Handle<Name> name, Handle<JSReceiver> holder);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetProperty(

@@ -455,7 +455,7 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
   Handle<Object> x;
   if (args.length() >= 2) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
-                                       Object::ToNumber(args.at(1)));
+                                       Object::ToNumber(isolate, args.at(1)));
   } else {
     x = isolate->factory()->nan_value();
   }
@@ -487,7 +487,7 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
     x = factory->NewNumber(JSDate::CurrentTimeValue(isolate));
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
-                                       Object::ToNumber(args.at(1)));
+                                       Object::ToNumber(isolate, args.at(1)));
   }
 
   double date_value = DateCache::TimeClip(x->Number());
@@ -580,7 +580,7 @@ BUILTIN(NumberFormatInternalFormatNumber) {
   // 4. Let x be ? ToNumber(value).
   Handle<Object> number_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_obj,
-                                     Object::ToNumber(value));
+                                     Object::ToNumber(isolate, value));
 
   // Spec treats -0 as 0.
   if (number_obj->IsMinusZero()) {

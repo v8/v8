@@ -802,17 +802,15 @@ MaybeHandle<Object> Object::ToPrimitive(Handle<Object> input,
 }
 
 // static
-MaybeHandle<Object> Object::ToNumber(Handle<Object> input) {
+MaybeHandle<Object> Object::ToNumber(Isolate* isolate, Handle<Object> input) {
   if (input->IsNumber()) return input;  // Shortcut.
-  return ConvertToNumberOrNumeric(HeapObject::cast(*input)->GetIsolate(), input,
-                                  Conversion::kToNumber);
+  return ConvertToNumberOrNumeric(isolate, input, Conversion::kToNumber);
 }
 
 // static
-MaybeHandle<Object> Object::ToNumeric(Handle<Object> input) {
+MaybeHandle<Object> Object::ToNumeric(Isolate* isolate, Handle<Object> input) {
   if (input->IsNumber() || input->IsBigInt()) return input;  // Shortcut.
-  return ConvertToNumberOrNumeric(HeapObject::cast(*input)->GetIsolate(), input,
-                                  Conversion::kToNumeric);
+  return ConvertToNumberOrNumeric(isolate, input, Conversion::kToNumeric);
 }
 
 // static
@@ -2923,20 +2921,20 @@ Maybe<bool> Object::LessThanOrEqual(Isolate* isolate, Handle<Object> x,
   return Nothing<bool>();
 }
 
-MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
+MaybeHandle<Object> Object::GetPropertyOrElement(Isolate* isolate,
+                                                 Handle<Object> object,
                                                  Handle<Name> name) {
-  LookupIterator it =
-      LookupIterator::PropertyOrElement(name->GetIsolate(), object, name);
+  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name);
   return GetProperty(&it);
 }
 
-MaybeHandle<Object> Object::SetPropertyOrElement(Handle<Object> object,
+MaybeHandle<Object> Object::SetPropertyOrElement(Isolate* isolate,
+                                                 Handle<Object> object,
                                                  Handle<Name> name,
                                                  Handle<Object> value,
                                                  LanguageMode language_mode,
                                                  StoreFromKeyed store_mode) {
-  LookupIterator it =
-      LookupIterator::PropertyOrElement(name->GetIsolate(), object, name);
+  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name);
   MAYBE_RETURN_NULL(SetProperty(&it, value, language_mode, store_mode));
   return value;
 }

@@ -19,7 +19,8 @@ namespace internal {
 namespace {  // for String.fromCodePoint
 
 bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
-  if (!value->IsNumber() && !Object::ToNumber(value).ToHandle(&value)) {
+  if (!value->IsNumber() &&
+      !Object::ToNumber(isolate, value).ToHandle(&value)) {
     return false;
   }
 
@@ -37,7 +38,8 @@ bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
 
 uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
   Handle<Object> value = args.at(1 + index);
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value, Object::ToNumber(value), -1);
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value,
+                                   Object::ToNumber(isolate, value), -1);
   if (!IsValidCodePoint(isolate, value)) {
     isolate->Throw(*isolate->factory()->NewRangeError(
         MessageTemplate::kInvalidCodePoint, value));

@@ -69,7 +69,8 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
   HandleScope outer_scope(isolate_);
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate_, value, Object::GetPropertyOrElement(holder, name), Object);
+      isolate_, value, Object::GetPropertyOrElement(isolate_, holder, name),
+      Object);
   if (value->IsJSReceiver()) {
     Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
     Maybe<bool> is_array = Object::IsArray(object);

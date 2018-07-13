@@ -270,7 +270,8 @@ V8_WARN_UNUSED_RESULT Object* GenericArrayPop(Isolate* isolate,
   // c. Let element be ? Get(O, index).
   Handle<Object> element;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, element, JSReceiver::GetPropertyOrElement(receiver, index));
+      isolate, element,
+      JSReceiver::GetPropertyOrElement(isolate, receiver, index));
 
   // d. Perform ? DeletePropertyOrThrow(O, index).
   MAYBE_RETURN(JSReceiver::DeletePropertyOrElement(receiver, index,

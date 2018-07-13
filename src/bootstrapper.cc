@@ -3857,7 +3857,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Isolate* isolate,
   if (period_pos == nullptr) {
     return Handle<JSObject>::cast(
         Object::GetPropertyOrElement(
-            global, factory->InternalizeUtf8String(holder_expr))
+            isolate, global, factory->InternalizeUtf8String(holder_expr))
             .ToHandleChecked());
   }
   const char* inner = period_pos + 1;

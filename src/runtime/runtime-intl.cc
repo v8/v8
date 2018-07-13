@@ -313,7 +313,7 @@ RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
 
   Handle<Object> number_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_obj,
-                                     Object::ToNumber(value));
+                                     Object::ToNumber(isolate, value));
 
   double number = number_obj->Number();
   RETURN_RESULT_OR_FAILURE(isolate, NumberFormat::FormatNumber(

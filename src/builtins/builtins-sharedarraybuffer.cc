@@ -29,7 +29,8 @@ inline bool AtomicIsLockFree(uint32_t size) {
 BUILTIN(AtomicsIsLockFree) {
   HandleScope scope(isolate);
   Handle<Object> size = args.atOrUndefined(isolate, 1);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, size, Object::ToNumber(size));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, size,
+                                     Object::ToNumber(isolate, size));
   return *isolate->factory()->ToBoolean(AtomicIsLockFree(size->Number()));
 }
 
@@ -142,7 +143,7 @@ BUILTIN(AtomicsWait) {
     timeout_number = ReadOnlyRoots(isolate).infinity_value()->Number();
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout,
-                                       Object::ToNumber(timeout));
+                                       Object::ToNumber(isolate, timeout));
     timeout_number = timeout->Number();
     if (std::isnan(timeout_number))
       timeout_number = ReadOnlyRoots(isolate).infinity_value()->Number();

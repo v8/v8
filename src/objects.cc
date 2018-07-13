@@ -465,7 +465,7 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
 // static
 MaybeHandle<Object> Object::ConvertToLength(Isolate* isolate,
                                             Handle<Object> input) {
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(isolate, input), Object);
   if (input->IsSmi()) {
     int value = std::max(Smi::ToInt(*input), 0);
     return handle(Smi::FromInt(value), isolate);
@@ -484,7 +484,7 @@ MaybeHandle<Object> Object::ConvertToIndex(
     Isolate* isolate, Handle<Object> input,
     MessageTemplate::Template error_index) {
   if (input->IsUndefined(isolate)) return handle(Smi::kZero, isolate);
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(isolate, input), Object);
   if (input->IsSmi() && Smi::ToInt(*input) >= 0) return input;
   double len = DoubleToInteger(input->Number()) + 0.0;
   auto js_len = isolate->factory()->NewNumber(len);
@@ -572,8 +572,8 @@ Maybe<ComparisonResult> Object::Compare(Isolate* isolate, Handle<Object> x,
         isolate, Handle<BigInt>::cast(y), Handle<String>::cast(x))));
   }
   // ES6 section 7.2.11 Abstract Relational Comparison step 6.
-  if (!Object::ToNumeric(x).ToHandle(&x) ||
-      !Object::ToNumeric(y).ToHandle(&y)) {
+  if (!Object::ToNumeric(isolate, x).ToHandle(&x) ||
+      !Object::ToNumeric(isolate, y).ToHandle(&y)) {
     return Nothing<ComparisonResult>();
   }
 
@@ -741,8 +741,10 @@ MaybeHandle<Object> Object::Add(Isolate* isolate, Handle<Object> lhs,
     return isolate->factory()->NewConsString(Handle<String>::cast(lhs),
                                              Handle<String>::cast(rhs));
   }
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(rhs), Object);
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(lhs), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(isolate, rhs),
+                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(isolate, lhs),
+                             Object);
   return isolate->factory()->NewNumber(lhs->Number() + rhs->Number());
 }
 
@@ -5002,9 +5004,9 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
               it->isolate(), throwaway_value,
               BigInt::FromObject(it->isolate(), value), Nothing<bool>());
         } else {
-          ASSIGN_RETURN_ON_EXCEPTION_VALUE(it->isolate(), throwaway_value,
-                                           Object::ToNumber(value),
-                                           Nothing<bool>());
+          ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+              it->isolate(), throwaway_value,
+              Object::ToNumber(it->isolate(), value), Nothing<bool>());
         }
 
         // FIXME: Throw a TypeError if the holder is neutered here
@@ -5219,8 +5221,9 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
         // TODO(neis): According to the spec, this should throw a TypeError.
       }
     } else if (!value->IsNumber() && !value->IsUndefined(it->isolate())) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          it->isolate(), to_assign, Object::ToNumber(value), Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(it->isolate(), to_assign,
+                                       Object::ToNumber(it->isolate(), value),
+                                       Nothing<bool>());
       // We have to recheck the length. However, it can only change if the
       // underlying buffer was neutered, so just check that.
       if (Handle<JSArrayBufferView>::cast(receiver)->WasNeutered()) {
@@ -7533,7 +7536,7 @@ bool JSArray::AnythingToArrayLength(Isolate* isolate,
   }
   // 5. Let numberLen be ToNumber(Desc.[[Value]]).
   Handle<Object> number_v;
-  if (!Object::ToNumber(length_object).ToHandle(&number_v)) {
+  if (!Object::ToNumber(isolate, length_object).ToHandle(&number_v)) {
     // 6. ReturnIfAbrupt(newLen).
     return false;
   }
@@ -9009,7 +9012,7 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
 
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, value, JSReceiver::GetPropertyOrElement(object, key),
+        isolate, value, JSReceiver::GetPropertyOrElement(isolate, object, key),
         MaybeHandle<FixedArray>());
 
     if (get_entries) {
@@ -12049,7 +12052,7 @@ Object* String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
                                      Object::ToString(isolate, search));
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
-                                     Object::ToNumber(position));
+                                     Object::ToNumber(isolate, position));
 
   uint32_t start_index;
 

@@ -3506,7 +3506,7 @@ class TypedElementsAccessor
                                            BigInt::FromObject(isolate, elem));
       } else {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
-                                           Object::ToNumber(elem));
+                                           Object::ToNumber(isolate, elem));
       }
 
       if (V8_UNLIKELY(destination->WasNeutered())) {

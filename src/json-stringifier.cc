@@ -153,8 +153,8 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap,
                                        Object::ToString(isolate_, gap), false);
     } else if (value->IsNumber()) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap, Object::ToNumber(gap),
-                                       false);
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap,
+                                       Object::ToNumber(isolate_, gap), false);
     }
   }
 
@@ -361,8 +361,8 @@ JsonStringifier::Result JsonStringifier::SerializeJSValue(
     SerializeString(Handle<String>::cast(value));
   } else if (raw->IsNumber()) {
     Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, value, Object::ToNumber(object),
-                                     EXCEPTION);
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, value, Object::ToNumber(isolate_, object), EXCEPTION);
     if (value->IsSmi()) return SerializeSmi(Smi::cast(*value));
     SerializeHeapNumber(Handle<HeapNumber>::cast(value));
   } else if (raw->IsBigInt()) {
@@ -547,8 +547,8 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
                                             field_index);
       } else {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate_, property, Object::GetPropertyOrElement(js_obj, key),
-            EXCEPTION);
+            isolate_, property,
+            Object::GetPropertyOrElement(isolate_, js_obj, key), EXCEPTION);
       }
       Result result = SerializeProperty(property, comma, key);
       if (!comma && result == SUCCESS) comma = true;
@@ -582,9 +582,9 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
   for (int i = 0; i < contents->length(); i++) {
     Handle<String> key(String::cast(contents->get(i)), isolate_);
     Handle<Object> property;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, property,
-                                     Object::GetPropertyOrElement(object, key),
-                                     EXCEPTION);
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, property, Object::GetPropertyOrElement(isolate_, object, key),
+        EXCEPTION);
     Result result = SerializeProperty(property, comma, key);
     if (!comma && result == SUCCESS) comma = true;
     if (result == EXCEPTION) return result;
