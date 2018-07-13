@@ -47,7 +47,7 @@ class DeoptimizationData;
 class HandlerTable;
 class IncrementalMarking;
 class JSArrayBuffer;
-class ExternalString;
+
 using v8::MemoryPressureLevel;
 
 // Heap roots that are known to be immortal immovable, for which we can safely
@@ -678,9 +678,6 @@ class Heap {
     external_memory_concurrently_freed_ = 0;
   }
 
-  void ProcessMovedExternalString(Page* old_page, Page* new_page,
-                                  ExternalString* string);
-
   void CompactFixedArraysOfWeakCells();
 
   void AddRetainedMap(Handle<Map> map);
@@ -1091,11 +1088,6 @@ class Heap {
 
   // Registers an external string.
   inline void RegisterExternalString(String* string);
-
-  // Called when a string's resource is changed. The size of the payload is sent
-  // as argument of the method.
-  inline void UpdateExternalString(String* string, size_t old_payload,
-                                   size_t new_payload);
 
   // Finalizes an external string by deleting the associated external
   // data and clearing the resource pointer.

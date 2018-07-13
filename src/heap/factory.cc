@@ -926,7 +926,7 @@ Handle<StringClass> Factory::InternalizeExternalString(Handle<String> string) {
                                       isolate());
   external_string->set_length(cast_string->length());
   external_string->set_hash_field(cast_string->hash_field());
-  external_string->SetResource(nullptr);
+  external_string->set_resource(nullptr);
   isolate()->heap()->RegisterExternalString(*external_string);
   return external_string;
 }
@@ -1250,7 +1250,7 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
       ExternalOneByteString::cast(New(map, TENURED)), isolate());
   external_string->set_length(static_cast<int>(length));
   external_string->set_hash_field(String::kEmptyHashField);
-  external_string->SetResource(resource);
+  external_string->set_resource(resource);
   isolate()->heap()->RegisterExternalString(*external_string);
 
   return external_string;
@@ -1283,7 +1283,7 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
       ExternalTwoByteString::cast(New(map, TENURED)), isolate());
   external_string->set_length(static_cast<int>(length));
   external_string->set_hash_field(String::kEmptyHashField);
-  external_string->SetResource(resource);
+  external_string->set_resource(resource);
   isolate()->heap()->RegisterExternalString(*external_string);
 
   return external_string;
@@ -1299,7 +1299,7 @@ Handle<ExternalOneByteString> Factory::NewNativeSourceString(
       ExternalOneByteString::cast(New(map, TENURED)), isolate());
   external_string->set_length(static_cast<int>(length));
   external_string->set_hash_field(String::kEmptyHashField);
-  external_string->SetResource(resource);
+  external_string->set_resource(resource);
   isolate()->heap()->RegisterExternalString(*external_string);
 
   return external_string;

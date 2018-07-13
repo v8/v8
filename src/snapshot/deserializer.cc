@@ -206,7 +206,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     if (obj->map() == ReadOnlyRoots(isolate_).native_source_string_map()) {
       ExternalOneByteString* string = ExternalOneByteString::cast(obj);
       DCHECK(string->is_short());
-      string->SetResource(
+      string->set_resource(
           NativesExternalStringResource::DecodeForDeserialization(
               string->resource()));
     } else {
@@ -215,8 +215,6 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
       Address address =
           static_cast<Address>(isolate_->api_external_references()[index]);
       string->set_address_as_resource(address);
-      isolate_->heap()->UpdateExternalString(string, 0,
-                                             string->ExternalPayloadSize());
     }
     isolate_->heap()->RegisterExternalString(String::cast(obj));
   } else if (obj->IsJSTypedArray()) {

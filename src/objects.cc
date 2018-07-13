@@ -2637,7 +2637,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   this->synchronized_set_map(new_map);
 
   ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
-  self->SetResource(resource);
+  self->set_resource(resource);
   heap->RegisterExternalString(this);
   if (is_internalized) self->Hash();  // Force regeneration of the hash value.
   return true;
@@ -2711,7 +2711,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   this->synchronized_set_map(new_map);
 
   ExternalOneByteString* self = ExternalOneByteString::cast(this);
-  self->SetResource(resource);
+  self->set_resource(resource);
   heap->RegisterExternalString(this);
   if (is_internalized) self->Hash();  // Force regeneration of the hash value.
   return true;
@@ -17089,12 +17089,10 @@ void MigrateExternalStringResource(Isolate* isolate, String* from, String* to) {
   const typename StringClass::Resource* to_resource = cast_to->resource();
   if (to_resource == nullptr) {
     // |to| is a just-created internalized copy of |from|. Migrate the resource.
-    cast_to->SetResource(cast_from->resource());
+    cast_to->set_resource(cast_from->resource());
     // Zap |from|'s resource pointer to reflect the fact that |from| has
     // relinquished ownership of its resource.
-    isolate->heap()->UpdateExternalString(
-        from, ExternalString::cast(from)->ExternalPayloadSize(), 0);
-    cast_from->SetResource(nullptr);
+    cast_from->set_resource(nullptr);
   } else if (to_resource != cast_from->resource()) {
     // |to| already existed and has its own resource. Finalize |from|.
     isolate->heap()->FinalizeExternalString(from);

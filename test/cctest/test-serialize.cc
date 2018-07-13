@@ -1903,9 +1903,9 @@ TEST(CodeSerializerExternalString) {
 
   // This avoids the GC from trying to free stack allocated resources.
   i::Handle<i::ExternalOneByteString>::cast(one_byte_string)
-      ->SetResource(nullptr);
+      ->set_resource(nullptr);
   i::Handle<i::ExternalTwoByteString>::cast(two_byte_string)
-      ->SetResource(nullptr);
+      ->set_resource(nullptr);
   delete cache;
 }
 
@@ -1963,7 +1963,7 @@ TEST(CodeSerializerLargeExternalString) {
   CHECK_EQ(42.0, copy_result->Number());
 
   // This avoids the GC from trying to free stack allocated resources.
-  i::Handle<i::ExternalOneByteString>::cast(name)->SetResource(nullptr);
+  i::Handle<i::ExternalOneByteString>::cast(name)->set_resource(nullptr);
   delete cache;
   string.Dispose();
 }
@@ -2014,7 +2014,7 @@ TEST(CodeSerializerExternalScriptName) {
   CHECK_EQ(10.0, copy_result->Number());
 
   // This avoids the GC from trying to free stack allocated resources.
-  i::Handle<i::ExternalOneByteString>::cast(name)->SetResource(nullptr);
+  i::Handle<i::ExternalOneByteString>::cast(name)->set_resource(nullptr);
   delete cache;
 }
 

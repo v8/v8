@@ -751,11 +751,6 @@ class ExternalOneByteString : public ExternalString {
 
   // The underlying resource.
   inline const Resource* resource();
-
-  // It is assumed that the previous resource is null. If it is not null, then
-  // it is the responsability of the caller the handle the previous resource.
-  inline void SetResource(const Resource* buffer);
-  // Used only during serialization.
   inline void set_resource(const Resource* buffer);
 
   // Update the pointer cache to the external character array.
@@ -789,11 +784,6 @@ class ExternalTwoByteString : public ExternalString {
 
   // The underlying string resource.
   inline const Resource* resource();
-
-  // It is assumed that the previous resource is null. If it is not null, then
-  // it is the responsability of the caller the handle the previous resource.
-  inline void SetResource(const Resource* buffer);
-  // Used only during serialization.
   inline void set_resource(const Resource* buffer);
 
   // Update the pointer cache to the external character array.
