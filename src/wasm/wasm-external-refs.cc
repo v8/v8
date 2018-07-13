@@ -247,10 +247,6 @@ void float64_pow_wrapper(Address data) {
   WriteUnalignedValue<double>(data, Pow(x, y));
 }
 
-void set_thread_in_wasm_flag() { trap_handler::SetThreadInWasm(); }
-
-void clear_thread_in_wasm_flag() { trap_handler::ClearThreadInWasm(); }
-
 static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;
 
 void set_trap_callback_for_testing(WasmTrapCallbackForTesting callback) {

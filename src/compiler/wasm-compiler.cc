@@ -4356,21 +4356,21 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return num;
   }
 
-  Node* BuildModifyThreadInWasmFlag(bool new_value) {
-    // TODO(eholk): generate code to modify the thread-local storage directly,
-    // rather than calling the runtime.
-    if (!use_trap_handler()) {
-      return *control_;
-    }
-
-    // Using two functions instead of taking the new value as a parameter saves
-    // one instruction on each call to set up the parameter.
-    ExternalReference ref =
-        new_value ? ExternalReference::wasm_set_thread_in_wasm_flag()
-                  : ExternalReference::wasm_clear_thread_in_wasm_flag();
-    MachineSignature sig(0, 0, nullptr);
-    return BuildCCall(
-        &sig, graph()->NewNode(mcgraph()->common()->ExternalConstant(ref)));
+  void BuildModifyThreadInWasmFlag(bool new_value) {
+    if (!trap_handler::IsTrapHandlerEnabled()) return;
+    Node* thread_in_wasm_flag_address_address =
+        graph()->NewNode(mcgraph()->common()->ExternalConstant(
+            ExternalReference::wasm_thread_in_wasm_flag_address_address(
+                isolate_)));
+    Node* thread_in_wasm_flag_address = *effect_ = graph()->NewNode(
+        mcgraph()->machine()->Load(LoadRepresentation(MachineType::Pointer())),
+        thread_in_wasm_flag_address_address, mcgraph()->Int32Constant(0),
+        *effect_, *control_);
+    *effect_ = graph()->NewNode(
+        mcgraph()->machine()->Store(StoreRepresentation(
+            MachineRepresentation::kWord32, kNoWriteBarrier)),
+        thread_in_wasm_flag_address, mcgraph()->Int32Constant(0),
+        mcgraph()->Int32Constant(new_value ? 1 : 0), *effect_, *control_);
   }
 
   Node* BuildLoadFunctionDataFromExportedFunction(Node* closure) {

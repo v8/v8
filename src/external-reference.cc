@@ -364,16 +364,6 @@ ExternalReference ExternalReference::wasm_float64_pow() {
   return ExternalReference(Redirect(FUNCTION_ADDR(wasm::float64_pow_wrapper)));
 }
 
-ExternalReference ExternalReference::wasm_set_thread_in_wasm_flag() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::set_thread_in_wasm_flag)));
-}
-
-ExternalReference ExternalReference::wasm_clear_thread_in_wasm_flag() {
-  return ExternalReference(
-      Redirect(FUNCTION_ADDR(wasm::clear_thread_in_wasm_flag)));
-}
-
 static void f64_mod_wrapper(Address data) {
   double dividend = ReadUnalignedValue<double>(data);
   double divisor = ReadUnalignedValue<double>(data + sizeof(dividend));
@@ -929,6 +919,12 @@ ExternalReference ExternalReference::debug_suspended_generator_address(
 ExternalReference ExternalReference::debug_restart_fp_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->restart_fp_address());
+}
+
+ExternalReference ExternalReference::wasm_thread_in_wasm_flag_address_address(
+    Isolate* isolate) {
+  return ExternalReference(reinterpret_cast<Address>(
+      &isolate->thread_local_top()->thread_in_wasm_flag_address_));
 }
 
 ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {

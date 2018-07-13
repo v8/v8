@@ -396,6 +396,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_ = nullptr;
 
+  // Address of the thread-local "thread in wasm" flag.
+  Address thread_in_wasm_flag_address_ = kNullAddress;
+
  private:
   v8::TryCatch* try_catch_handler_ = nullptr;
 };

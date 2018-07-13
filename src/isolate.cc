@@ -156,8 +156,9 @@ void ThreadLocalTop::Initialize(Isolate* isolate) {
   simulator_ = Simulator::current(isolate);
 #endif
   thread_id_ = ThreadId::Current();
+  thread_in_wasm_flag_address_ = reinterpret_cast<Address>(
+      trap_handler::GetThreadInWasmThreadLocalAddress());
 }
-
 
 void ThreadLocalTop::Free() {
   wasm_caught_exception_ = nullptr;

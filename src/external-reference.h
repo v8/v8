@@ -66,6 +66,8 @@ class StatsCounter;
   V(debug_suspended_generator_address,                                         \
     "Debug::step_suspended_generator_address()")                               \
   V(debug_restart_fp_address, "Debug::restart_fp_address()")                   \
+  V(wasm_thread_in_wasm_flag_address_address,                                  \
+    "&Isolate::thread_in_wasm_flag_address")                                   \
   EXTERNAL_REFERENCE_LIST_NON_INTERPRETED_REGEXP(V)
 
 #define EXTERNAL_REFERENCE_LIST(V)                                            \
@@ -137,7 +139,6 @@ class StatsCounter;
   V(try_internalize_string_function, "try_internalize_string_function")       \
   V(wasm_call_trap_callback_for_testing,                                      \
     "wasm::call_trap_callback_for_testing")                                   \
-  V(wasm_clear_thread_in_wasm_flag, "wasm::clear_thread_in_wasm_flag")        \
   V(wasm_f32_ceil, "wasm::f32_ceil_wrapper")                                  \
   V(wasm_f32_floor, "wasm::f32_floor_wrapper")                                \
   V(wasm_f32_nearest_int, "wasm::f32_nearest_int_wrapper")                    \
@@ -155,7 +156,6 @@ class StatsCounter;
   V(wasm_int64_mod, "wasm::int64_mod")                                        \
   V(wasm_int64_to_float32, "wasm::int64_to_float32_wrapper")                  \
   V(wasm_int64_to_float64, "wasm::int64_to_float64_wrapper")                  \
-  V(wasm_set_thread_in_wasm_flag, "wasm::set_thread_in_wasm_flag")            \
   V(wasm_uint64_div, "wasm::uint64_div")                                      \
   V(wasm_uint64_mod, "wasm::uint64_mod")                                      \
   V(wasm_uint64_to_float32, "wasm::uint64_to_float32_wrapper")                \
