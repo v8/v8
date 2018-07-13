@@ -512,10 +512,6 @@
   'language/expressions/async-generator/generator-created-after-decl-inst': [FAIL],
   'language/statements/async-generator/generator-created-after-decl-inst': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7832
-  'intl402/Array/prototype/toLocaleString/calls-toLocaleString-number-elements': [FAIL],
-  'intl402/TypedArray/prototype/toLocaleString/calls-toLocaleString-number-elements': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
