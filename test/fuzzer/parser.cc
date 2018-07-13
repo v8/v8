@@ -18,6 +18,11 @@
 #include "test/fuzzer/fuzzer-support.h"
 
 bool IsValidInput(const uint8_t* data, size_t size) {
+  // Ignore too long inputs as they tend to find OOM or timeouts, not real bugs.
+  if (size > 8192) {
+    return false;
+  }
+
   std::list<char> parentheses;
   const char* ptr = reinterpret_cast<const char*>(data);
 
