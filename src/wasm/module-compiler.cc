@@ -95,8 +95,6 @@ class CompilationState {
   bool SetFinisherIsRunning(bool value);
   void ScheduleFinisherTask();
 
-  bool StopBackgroundCompilationTaskForThrottling();
-
   void Abort();
 
   Isolate* isolate() const { return isolate_; }
@@ -127,7 +125,6 @@ class CompilationState {
   WasmEngine* const wasm_engine_;
   // TODO(clemensh): Remove ModuleEnv, generate it when needed.
   ModuleEnv module_env_;
-  const size_t max_memory_;
   const CompileMode compile_mode_;
   bool baseline_compilation_finished_ = false;
 
@@ -147,8 +144,6 @@ class CompilationState {
 
   std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_finish_units_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_finish_units_;
-
-  size_t allocated_memory_ = 0;
 
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
@@ -462,12 +457,6 @@ ModuleEnv CreateDefaultModuleEnv(const WasmModule* module,
           ? kUseTrapHandler
           : kNoTrapHandler;
   return ModuleEnv(module, use_trap_handler, kRuntimeExceptionSupport);
-}
-
-size_t GetMaxUsableMemorySize(Isolate* isolate) {
-  return isolate->heap()->memory_allocator()->code_range()->valid()
-             ? isolate->heap()->memory_allocator()->code_range()->size()
-             : isolate->heap()->code_space()->Capacity();
 }
 
 // The CompilationUnitBuilder builds compilation units and stores them in an
@@ -863,16 +852,14 @@ class BackgroundCompileTask : public CancelableTask {
 
   void RunInternal() override {
     TRACE_COMPILE("(3b) Compiling...\n");
-    // The number of currently running background tasks is reduced either in
-    // {StopBackgroundCompilationTaskForThrottling} or in
+    // The number of currently running background tasks is reduced in
     // {OnBackgroundTaskStopped}.
-    while (!compilation_state_->StopBackgroundCompilationTaskForThrottling()) {
-      if (compilation_state_->failed() ||
-          !FetchAndExecuteCompilationUnit(compilation_state_)) {
-        compilation_state_->OnBackgroundTaskStopped();
+    while (!compilation_state_->failed()) {
+      if (!FetchAndExecuteCompilationUnit(compilation_state_)) {
         break;
       }
     }
+    compilation_state_->OnBackgroundTaskStopped();
   }
 
  private:
@@ -2769,14 +2756,12 @@ CompilationState::CompilationState(internal::Isolate* isolate,
     : isolate_(isolate),
       wasm_engine_(isolate->wasm_engine()),
       module_env_(env),
-      max_memory_(GetMaxUsableMemorySize(isolate) / 2),
       compile_mode_(FLAG_wasm_tier_up && env.module->origin == kWasmOrigin
                         ? CompileMode::kTiering
                         : CompileMode::kRegular),
       max_background_tasks_(std::max(
           1, std::min(FLAG_wasm_num_compilation_tasks,
                       V8::GetCurrentPlatform()->NumberOfWorkerThreads()))) {
-  DCHECK_LT(0, max_memory_);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   v8::Platform* platform = V8::GetCurrentPlatform();
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
@@ -2858,7 +2843,6 @@ std::unique_ptr<WasmCompilationUnit> CompilationState::GetNextExecutedUnit() {
   if (units.empty()) return {};
   std::unique_ptr<WasmCompilationUnit> ret = std::move(units.back());
   units.pop_back();
-  allocated_memory_ -= ret->memory_cost();
   return ret;
 }
 
@@ -2907,7 +2891,6 @@ void CompilationState::OnFinishedUnit() {
 void CompilationState::ScheduleUnitForFinishing(
     std::unique_ptr<WasmCompilationUnit> unit,
     WasmCompilationUnit::CompilationMode mode) {
-  size_t cost = unit->memory_cost();
   base::LockGuard<base::Mutex> guard(&mutex_);
   if (compile_mode_ == CompileMode::kTiering &&
       mode == WasmCompilationUnit::CompilationMode::kTurbofan) {
@@ -2915,7 +2898,6 @@ void CompilationState::ScheduleUnitForFinishing(
   } else {
     baseline_finish_units_.push_back(std::move(unit));
   }
-  allocated_memory_ += cost;
 
   if (!finisher_is_running_ && !failed_) {
     ScheduleFinisherTask();
@@ -2942,8 +2924,6 @@ void CompilationState::RestartBackgroundTasks(size_t max) {
     // No need to restart tasks if compilation already failed.
     if (failed_) return;
 
-    bool should_increase_workload = allocated_memory_ <= max_memory_ / 2;
-    if (!should_increase_workload) return;
     DCHECK_LE(num_background_tasks_, max_background_tasks_);
     if (num_background_tasks_ == max_background_tasks_) return;
     size_t num_compilation_units =
@@ -2977,15 +2957,6 @@ bool CompilationState::SetFinisherIsRunning(bool value) {
 void CompilationState::ScheduleFinisherTask() {
   foreground_task_runner_->PostTask(
       base::make_unique<FinishCompileTask>(this, &foreground_task_manager_));
-}
-
-bool CompilationState::StopBackgroundCompilationTaskForThrottling() {
-  base::LockGuard<base::Mutex> guard(&mutex_);
-  DCHECK_LE(1, num_background_tasks_);
-  bool can_accept_work = allocated_memory_ < max_memory_;
-  if (can_accept_work) return false;
-  --num_background_tasks_;
-  return true;
 }
 
 void CompilationState::Abort() {

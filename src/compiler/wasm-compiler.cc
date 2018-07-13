@@ -5232,10 +5232,6 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
     }
     if (ok_) wasm_code_ = info.wasm_code();
   }
-
-  // Record the memory cost this unit places on the system until
-  // it is finalized.
-  wasm_unit_->memory_cost_ = sizeof(TurbofanWasmCompilationUnit);
 }
 
 wasm::WasmCode* TurbofanWasmCompilationUnit::FinishCompilation(
