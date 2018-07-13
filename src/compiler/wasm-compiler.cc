@@ -37,6 +37,7 @@
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
 #include "src/optimized-compilation-info.h"
+#include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
@@ -5154,6 +5155,8 @@ Vector<const char> GetDebugName(Zone* zone, wasm::WasmName name, int index) {
 }  // namespace
 
 void TurbofanWasmCompilationUnit::ExecuteCompilation() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+               "ExecuteTurbofanCompilation");
   double decode_ms = 0;
   size_t node_count = 0;
 

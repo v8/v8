@@ -11,6 +11,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
 #include "src/macro-assembler-inl.h"
+#include "src/tracing/trace-event.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
@@ -1832,6 +1833,8 @@ class LiftoffCompiler {
 }  // namespace
 
 bool LiftoffCompilationUnit::ExecuteCompilation() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+               "ExecuteLiftoffCompilation");
   base::ElapsedTimer compile_timer;
   if (FLAG_trace_wasm_decode_time) {
     compile_timer.Start();

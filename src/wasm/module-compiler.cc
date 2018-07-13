@@ -13,6 +13,7 @@
 #include "src/counters.h"
 #include "src/identity-map.h"
 #include "src/property-descriptor.h"
+#include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
@@ -577,6 +578,7 @@ void InitializeCompilationUnits(NativeModule* native_module) {
 
 void FinishCompilationUnits(CompilationState* compilation_state,
                             ErrorThrower* thrower) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "FinishCompilationUnits");
   while (true) {
     if (compilation_state->failed()) break;
     std::unique_ptr<WasmCompilationUnit> unit =
@@ -959,6 +961,7 @@ InstanceBuilder::InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
 
 // Build an instance, in all of its glory.
 MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "InstanceBuilder::Build");
   // Check that an imports argument was provided, if the module requires it.
   // No point in continuing otherwise.
   if (!module_->import_table.empty() && ffi_.is_null()) {
@@ -1235,6 +1238,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 }
 
 bool InstanceBuilder::ExecuteStartFunction() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+               "InstanceBuilder::ExecuteStartFunction");
   if (start_function_.is_null()) return true;  // No start function.
 
   HandleScope scope(isolate_);
