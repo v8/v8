@@ -149,44 +149,11 @@ int ThreadId::GetCurrentThreadId() {
   return thread_id;
 }
 
-
-ThreadLocalTop::ThreadLocalTop() {
-  InitializeInternal();
-}
-
-
-void ThreadLocalTop::InitializeInternal() {
-  c_entry_fp_ = 0;
-  c_function_ = 0;
-  handler_ = 0;
+void ThreadLocalTop::Initialize(Isolate* isolate) {
+  *this = ThreadLocalTop();
+  isolate_ = isolate;
 #ifdef USE_SIMULATOR
-  simulator_ = nullptr;
-#endif
-  js_entry_sp_ = kNullAddress;
-  external_callback_scope_ = nullptr;
-  current_vm_state_ = EXTERNAL;
-  try_catch_handler_ = nullptr;
-  context_ = nullptr;
-  thread_id_ = ThreadId::Invalid();
-  external_caught_exception_ = false;
-  failed_access_check_callback_ = nullptr;
-  save_context_ = nullptr;
-  promise_on_stack_ = nullptr;
-
-  // These members are re-initialized later after deserialization
-  // is complete.
-  pending_exception_ = nullptr;
-  wasm_caught_exception_ = nullptr;
-  rethrowing_message_ = false;
-  pending_message_obj_ = nullptr;
-  scheduled_exception_ = nullptr;
-}
-
-
-void ThreadLocalTop::Initialize() {
-  InitializeInternal();
-#ifdef USE_SIMULATOR
-  simulator_ = Simulator::current(isolate_);
+  simulator_ = Simulator::current(isolate);
 #endif
   thread_id_ = ThreadId::Current();
 }
@@ -2809,11 +2776,7 @@ Isolate::~Isolate() {
   allocator_ = nullptr;
 }
 
-
-void Isolate::InitializeThreadLocal() {
-  thread_local_top_.isolate_ = this;
-  thread_local_top_.Initialize();
-}
+void Isolate::InitializeThreadLocal() { thread_local_top_.Initialize(this); }
 
 void Isolate::SetTerminationOnExternalTryCatch() {
   if (try_catch_handler() == nullptr) return;

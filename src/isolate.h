@@ -313,10 +313,10 @@ class ThreadLocalTop BASE_EMBEDDED {
  public:
   // Does early low-level initialization that does not depend on the
   // isolate being present.
-  ThreadLocalTop();
+  ThreadLocalTop() = default;
 
   // Initialize the thread data.
-  void Initialize();
+  void Initialize(Isolate*);
 
   // Get the top C++ try catch handler or nullptr if none are registered.
   //
@@ -342,60 +342,62 @@ class ThreadLocalTop BASE_EMBEDDED {
 
   void Free();
 
-  Isolate* isolate_;
+  Isolate* isolate_ = nullptr;
   // The context where the current execution method is created and for variable
   // lookups.
-  Context* context_;
-  ThreadId thread_id_;
-  Object* pending_exception_;
+  Context* context_ = nullptr;
+  ThreadId thread_id_ = ThreadId::Invalid();
+  Object* pending_exception_ = nullptr;
   // TODO(kschimpf): Change this to a stack of caught exceptions (rather than
   // just innermost catching try block).
   Object* wasm_caught_exception_ = nullptr;
 
   // Communication channel between Isolate::FindHandler and the CEntry.
-  Context* pending_handler_context_;
-  Address pending_handler_entrypoint_;
-  Address pending_handler_constant_pool_;
-  Address pending_handler_fp_;
-  Address pending_handler_sp_;
+  Context* pending_handler_context_ = nullptr;
+  Address pending_handler_entrypoint_ = kNullAddress;
+  Address pending_handler_constant_pool_ = kNullAddress;
+  Address pending_handler_fp_ = kNullAddress;
+  Address pending_handler_sp_ = kNullAddress;
 
   // Communication channel between Isolate::Throw and message consumers.
-  bool rethrowing_message_;
-  Object* pending_message_obj_;
+  bool rethrowing_message_ = false;
+  Object* pending_message_obj_ = nullptr;
 
   // Use a separate value for scheduled exceptions to preserve the
   // invariants that hold about pending_exception.  We may want to
   // unify them later.
-  Object* scheduled_exception_;
-  bool external_caught_exception_;
-  SaveContext* save_context_;
+  Object* scheduled_exception_ = nullptr;
+  bool external_caught_exception_ = false;
+  SaveContext* save_context_ = nullptr;
 
   // Stack.
-  Address c_entry_fp_;  // the frame pointer of the top c entry frame
-  Address handler_;     // try-blocks are chained through the stack
-  Address c_function_;  // C function that was called at c entry.
+  // The frame pointer of the top c entry frame.
+  Address c_entry_fp_ = kNullAddress;
+  // Try-blocks are chained through the stack.
+  Address handler_ = kNullAddress;
+  // C function that was called at c entry.
+  Address c_function_ = kNullAddress;
 
   // Throwing an exception may cause a Promise rejection.  For this purpose
   // we keep track of a stack of nested promises and the corresponding
   // try-catch handlers.
-  PromiseOnStack* promise_on_stack_;
+  PromiseOnStack* promise_on_stack_ = nullptr;
 
 #ifdef USE_SIMULATOR
-  Simulator* simulator_;
+  Simulator* simulator_ = nullptr;
 #endif
 
-  Address js_entry_sp_;  // the stack pointer of the bottom JS entry frame
-  // the external callback we're currently in
-  ExternalCallbackScope* external_callback_scope_;
-  StateTag current_vm_state_;
+  // The stack pointer of the bottom JS entry frame.
+  Address js_entry_sp_ = kNullAddress;
+  // The external callback we're currently in.
+  ExternalCallbackScope* external_callback_scope_ = nullptr;
+  StateTag current_vm_state_ = EXTERNAL;
 
   // Call back function to report unsafe JS accesses.
-  v8::FailedAccessCheckCallback failed_access_check_callback_;
+  v8::FailedAccessCheckCallback failed_access_check_callback_ = nullptr;
 
  private:
-  void InitializeInternal();
-
-  v8::TryCatch* try_catch_handler_;
+  v8::TryCatch* try_catch_handler_ = nullptr;
 };
 
 
