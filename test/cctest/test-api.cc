@@ -15654,7 +15654,9 @@ static void MorphAString(i::String* string,
     string->set_map(roots.external_string_map());
     i::ExternalTwoByteString* morphed =
          i::ExternalTwoByteString::cast(string);
-    CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
+    CcTest::heap()->UpdateExternalString(morphed, morphed->resource()->length(),
+                                         0);
+
     morphed->SetResource(uc16_resource);
   } else {
     // Check old map is not internalized or long.
@@ -15662,7 +15664,8 @@ static void MorphAString(i::String* string,
     // Morph external string to be one-byte string.
     string->set_map(roots.external_one_byte_string_map());
     i::ExternalOneByteString* morphed = i::ExternalOneByteString::cast(string);
-    CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
+    CcTest::heap()->UpdateExternalString(morphed,
+                                         morphed->resource()->length() * 2, 0);
     morphed->SetResource(one_byte_resource);
   }
 }
