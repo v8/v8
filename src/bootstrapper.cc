@@ -623,10 +623,9 @@ Handle<JSFunction> Genesis::CreateEmptyFunction() {
   Handle<WeakFixedArray> infos = factory()->NewWeakFixedArray(2);
   script->set_shared_function_infos(*infos);
   empty_function->shared()->set_scope_info(*scope_info);
-  empty_function->shared()->set_function_literal_id(1);
   empty_function->shared()->DontAdaptArguments();
   SharedFunctionInfo::SetScript(handle(empty_function->shared(), isolate()),
-                                script);
+                                script, 1);
 
   return empty_function;
 }

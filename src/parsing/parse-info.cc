@@ -68,7 +68,7 @@ ParseInfo::ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared)
   set_function_flags(shared->flags());
   set_start_position(shared->StartPosition());
   set_end_position(shared->EndPosition());
-  function_literal_id_ = shared->function_literal_id();
+  function_literal_id_ = shared->FunctionLiteralId(isolate);
   set_language_mode(shared->language_mode());
   set_asm_wasm_broken(shared->is_asm_wasm_broken());
 

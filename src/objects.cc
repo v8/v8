@@ -12895,9 +12895,8 @@ void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
   map->set_prototype(*prototype, wb_mode);
 }
 
-
-Handle<Object> CacheInitialJSArrayMaps(
-    Handle<Context> native_context, Handle<Map> initial_map) {
+Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
+                                       Handle<Map> initial_map) {
   // Replace all of the cached initial array maps in the native context with
   // the appropriate transitioned elements kind maps.
   Handle<Map> current_map = initial_map;
@@ -13017,7 +13016,6 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
 
   SetInstancePrototype(isolate, function, construct_prototype);
 }
-
 
 void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                                Handle<Object> prototype) {
@@ -13736,8 +13734,8 @@ SharedFunctionInfo* SharedFunctionInfo::GlobalIterator::Next() {
 
 void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
                                    Handle<Object> script_object,
+                                   int function_literal_id,
                                    bool reset_preparsed_scope_data) {
-  DCHECK_NE(shared->function_literal_id(), FunctionLiteral::kIdTypeInvalid);
   if (shared->script() == *script_object) return;
   Isolate* isolate = shared->GetIsolate();
 
@@ -13755,15 +13753,14 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
     Handle<WeakFixedArray> list =
         handle(script->shared_function_infos(), isolate);
 #ifdef DEBUG
-    DCHECK_LT(shared->function_literal_id(), list->length());
-    MaybeObject* maybe_object = list->Get(shared->function_literal_id());
+    DCHECK_LT(function_literal_id, list->length());
+    MaybeObject* maybe_object = list->Get(function_literal_id);
     HeapObject* heap_object;
     if (maybe_object->ToWeakHeapObject(&heap_object)) {
       DCHECK_EQ(heap_object, *shared);
     }
 #endif
-    list->Set(shared->function_literal_id(),
-              HeapObjectReference::Weak(*shared));
+    list->Set(function_literal_id, HeapObjectReference::Weak(*shared));
   } else {
     Handle<Object> list = isolate->factory()->noscript_shared_function_infos();
 
@@ -13789,15 +13786,14 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
     // Due to liveedit, it might happen that the old_script doesn't know
     // about the SharedFunctionInfo, so we have to guard against that.
     Handle<WeakFixedArray> infos(old_script->shared_function_infos(), isolate);
-    if (shared->function_literal_id() < infos->length()) {
-      MaybeObject* raw = old_script->shared_function_infos()->Get(
-          shared->function_literal_id());
+    if (function_literal_id < infos->length()) {
+      MaybeObject* raw =
+          old_script->shared_function_infos()->Get(function_literal_id);
       HeapObject* heap_object;
       if (raw->ToWeakHeapObject(&heap_object) && heap_object == *shared) {
         old_script->shared_function_infos()->Set(
-            shared->function_literal_id(),
-            HeapObjectReference::Strong(
-                ReadOnlyRoots(isolate).undefined_value()));
+            function_literal_id, HeapObjectReference::Strong(
+                                     ReadOnlyRoots(isolate).undefined_value()));
       }
     }
   } else {
@@ -13909,6 +13905,27 @@ bool SharedFunctionInfo::IsInlineable() {
 }
 
 int SharedFunctionInfo::SourceSize() { return EndPosition() - StartPosition(); }
+
+int SharedFunctionInfo::FindIndexInScript(Isolate* isolate) const {
+  DisallowHeapAllocation no_gc;
+
+  Object* script_obj = script();
+  if (!script_obj->IsScript()) return FunctionLiteral::kIdTypeInvalid;
+
+  WeakFixedArray* shared_info_list =
+      Script::cast(script_obj)->shared_function_infos();
+  SharedFunctionInfo::ScriptIterator iterator(
+      isolate, Handle<WeakFixedArray>(&shared_info_list));
+
+  for (SharedFunctionInfo* shared = iterator.Next(); shared != nullptr;
+       shared = iterator.Next()) {
+    if (shared == this) {
+      return iterator.CurrentIndex();
+    }
+  }
+
+  return FunctionLiteral::kIdTypeInvalid;
+}
 
 void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
                                              bool has_prototype_slot,
@@ -14052,7 +14069,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   // FunctionKind must have already been set.
   DCHECK(lit->kind() == shared_info->kind());
   shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
-  shared_info->set_function_literal_id(lit->function_literal_id());
   DCHECK_IMPLIES(lit->requires_instance_fields_initializer(),
                  IsClassConstructor(lit->kind()));
   shared_info->set_requires_instance_fields_initializer(
@@ -14099,7 +14115,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
           Handle<UncompiledData> data =
               isolate->factory()->NewUncompiledDataWithPreParsedScope(
                   lit->start_position(), lit->end_position(),
-                  pre_parsed_scope_data);
+                  lit->function_literal_id(), pre_parsed_scope_data);
           shared_info->set_uncompiled_data(*data);
           needs_position_info = false;
         }
@@ -14109,7 +14125,8 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   if (needs_position_info) {
     Handle<UncompiledData> data =
         isolate->factory()->NewUncompiledDataWithoutPreParsedScope(
-            lit->start_position(), lit->end_position());
+            lit->start_position(), lit->end_position(),
+            lit->function_literal_id());
     shared_info->set_uncompiled_data(*data);
   }
 }
