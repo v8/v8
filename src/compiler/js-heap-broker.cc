@@ -41,6 +41,7 @@ bool ObjectRef::equals(const ObjectRef& other) const {
 }
 
 StringRef ObjectRef::TypeOf(const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
   AllowHandleDereference handle_dereference;
   return StringRef(Object::TypeOf(broker->isolate(), object<Object>()));
 }
@@ -361,6 +362,7 @@ const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
 // all limits to be considered for fast deep-copying and computes the total
 // size of all objects that are part of the graph.
 bool AllocationSiteRef::IsFastLiteral(const JSHeapBroker* broker) const {
+  AllowHandleAllocation allow_handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   int max_properties = kMaxFastLiteralProperties;
   Handle<JSObject> boilerplate(object<AllocationSite>()->boilerplate(),
@@ -377,6 +379,7 @@ PretenureFlag AllocationSiteRef::GetPretenureMode() const {
 void JSObjectRef::EnsureElementsTenured(const JSHeapBroker* broker) {
   // TODO(jarin) Eventually, we will pretenure the boilerplates before
   // the compilation job starts.
+  AllowHandleAllocation allow_handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   Handle<FixedArrayBase> object_elements =
       elements(broker).object<FixedArrayBase>();
@@ -692,7 +695,6 @@ MapRef NativeContextRef::map_key_value_iterator_map(
 
 MapRef NativeContextRef::GetFunctionMapFromIndex(const JSHeapBroker* broker,
                                                  int index) const {
-  AllowHandleDereference allow_handle_dereference;
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   DCHECK_GE(index, Context::FIRST_FUNCTION_MAP_INDEX);
   return get(broker, index).AsMap();
@@ -706,7 +708,6 @@ bool ObjectRef::BooleanValue(const JSHeapBroker* broker) {
 CellRef ModuleRef::GetCell(const JSHeapBroker* broker, int cell_index) {
   AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
-
   return CellRef(
       handle(object<Module>()->GetCell(cell_index), broker->isolate()));
 }
