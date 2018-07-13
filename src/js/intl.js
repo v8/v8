@@ -29,6 +29,7 @@ var GlobalIntlv8BreakIterator = GlobalIntl.v8BreakIterator;
 var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
+var GlobalArray = global.Array;
 var IntlFallbackSymbol = utils.ImportNow("intl_fallback_symbol");
 var InternalArray = utils.InternalArray;
 var MathMax = global.Math.max;
@@ -38,6 +39,7 @@ var patternSymbol = utils.ImportNow("intl_pattern_symbol");
 var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
 var StringSubstr = GlobalString.prototype.substr;
 var StringSubstring = GlobalString.prototype.substring;
+var ArraySlice = GlobalArray.prototype.slice;
 
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
@@ -1207,8 +1209,7 @@ DEFINE_METHOD(
     }
 
     defineWECProperty(result, 'pluralCategories',
-                      this[resolvedSymbol].pluralCategories);
-
+        %_Call(ArraySlice, this[resolvedSymbol].pluralCategories));
     return result;
   }
 );
