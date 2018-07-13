@@ -491,8 +491,8 @@ class ArrayConcatVisitor {
     // The object holding this backing store has just been allocated, so
     // it cannot yet be used as a prototype.
     Handle<JSObject> not_a_prototype_holder;
-    Handle<NumberDictionary> result =
-        NumberDictionary::Set(dict, index, elm, not_a_prototype_holder);
+    Handle<NumberDictionary> result = NumberDictionary::Set(
+        isolate_, dict, index, elm, not_a_prototype_holder);
     if (!result.is_identical_to(dict)) {
       // Dictionary needed to grow.
       clear_storage();
@@ -568,7 +568,7 @@ class ArrayConcatVisitor {
             // it cannot yet be used as a prototype.
             Handle<JSObject> not_a_prototype_holder;
             Handle<NumberDictionary> new_storage = NumberDictionary::Set(
-                slow_storage, i, element, not_a_prototype_holder);
+                isolate_, slow_storage, i, element, not_a_prototype_holder);
             if (!new_storage.is_identical_to(slow_storage)) {
               slow_storage = loop_scope.CloseAndEscape(new_storage);
             }

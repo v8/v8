@@ -166,7 +166,7 @@ Handle<Code> CodeStub::GetCode() {
 
     // Update the dictionary and the root in Heap.
     Handle<SimpleNumberDictionary> dict = SimpleNumberDictionary::Set(
-        handle(heap->code_stubs(), isolate_), GetKey(), new_object);
+        isolate(), handle(heap->code_stubs(), isolate_), GetKey(), new_object);
     heap->SetRootCodeStubs(*dict);
     code = *new_object;
   }

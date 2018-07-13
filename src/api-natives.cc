@@ -208,7 +208,8 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
       Object* maybe_properties = temp->property_accessors();
       if (!maybe_properties->IsUndefined(isolate)) {
         valid_descriptors = AccessorInfo::AppendUnique(
-            handle(maybe_properties, isolate), array, valid_descriptors);
+            isolate, handle(maybe_properties, isolate), array,
+            valid_descriptors);
       }
     }
 
@@ -318,7 +319,8 @@ void CacheTemplateInstantiation(Isolate* isolate, int serial_number,
               TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
     Handle<SimpleNumberDictionary> cache =
         isolate->slow_template_instantiations_cache();
-    auto new_cache = SimpleNumberDictionary::Set(cache, serial_number, object);
+    auto new_cache =
+        SimpleNumberDictionary::Set(isolate, cache, serial_number, object);
     if (*new_cache != *cache) {
       isolate->native_context()->set_slow_template_instantiations_cache(
           *new_cache);

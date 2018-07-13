@@ -454,24 +454,28 @@ TEST(WeakArrayListBasic) {
     Handle<FixedArray> index6 = factory->NewFixedArray(1);
     index6->set(0, Smi::FromInt(2019));
 
-    array = WeakArrayList::AddToEnd(array, MaybeObjectHandle::Weak(index0));
+    array = WeakArrayList::AddToEnd(isolate, array,
+                                    MaybeObjectHandle::Weak(index0));
     array = WeakArrayList::AddToEnd(
-        array, MaybeObjectHandle(Smi::FromInt(1), isolate));
+        isolate, array, MaybeObjectHandle(Smi::FromInt(1), isolate));
     CHECK_EQ(array->length(), 2);
 
-    array = WeakArrayList::AddToEnd(array, MaybeObjectHandle::Weak(index2));
+    array = WeakArrayList::AddToEnd(isolate, array,
+                                    MaybeObjectHandle::Weak(index2));
     array = WeakArrayList::AddToEnd(
-        array, MaybeObjectHandle(Smi::FromInt(3), isolate));
+        isolate, array, MaybeObjectHandle(Smi::FromInt(3), isolate));
     CHECK_EQ(array->length(), 4);
 
-    array = WeakArrayList::AddToEnd(array, MaybeObjectHandle::Weak(index4));
+    array = WeakArrayList::AddToEnd(isolate, array,
+                                    MaybeObjectHandle::Weak(index4));
     array = WeakArrayList::AddToEnd(
-        array, MaybeObjectHandle(Smi::FromInt(5), isolate));
+        isolate, array, MaybeObjectHandle(Smi::FromInt(5), isolate));
     CHECK_EQ(array->length(), 6);
 
-    array = WeakArrayList::AddToEnd(array, MaybeObjectHandle::Weak(index6));
+    array = WeakArrayList::AddToEnd(isolate, array,
+                                    MaybeObjectHandle::Weak(index6));
     array = WeakArrayList::AddToEnd(
-        array, MaybeObjectHandle(Smi::FromInt(7), isolate));
+        isolate, array, MaybeObjectHandle(Smi::FromInt(7), isolate));
     CHECK_EQ(array->length(), 8);
 
     CHECK(Heap::InNewSpace(*array));

@@ -1134,8 +1134,8 @@ void ValueDeserializer::TransferArrayBuffer(
   }
   Handle<SimpleNumberDictionary> dictionary =
       array_buffer_transfer_map_.ToHandleChecked();
-  Handle<SimpleNumberDictionary> new_dictionary =
-      SimpleNumberDictionary::Set(dictionary, transfer_id, array_buffer);
+  Handle<SimpleNumberDictionary> new_dictionary = SimpleNumberDictionary::Set(
+      isolate_, dictionary, transfer_id, array_buffer);
   if (!new_dictionary.is_identical_to(dictionary)) {
     GlobalHandles::Destroy(Handle<Object>::cast(dictionary).location());
     array_buffer_transfer_map_ =
@@ -1560,7 +1560,7 @@ MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
   // TODO(adamk): Can we remove this check now that dotAll is always-on?
   uint32_t flags_mask = static_cast<uint32_t>(-1) << JSRegExp::FlagCount();
   if ((raw_flags & flags_mask) ||
-      !JSRegExp::New(pattern, static_cast<JSRegExp::Flags>(raw_flags))
+      !JSRegExp::New(isolate_, pattern, static_cast<JSRegExp::Flags>(raw_flags))
            .ToHandle(&regexp)) {
     return MaybeHandle<JSRegExp>();
   }

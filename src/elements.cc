@@ -1583,8 +1583,8 @@ class DictionaryElementsAccessor
             ? JSObject::NormalizeElements(object)
             : handle(NumberDictionary::cast(object->elements()),
                      object->GetIsolate());
-    Handle<NumberDictionary> new_dictionary =
-        NumberDictionary::Add(dictionary, index, value, details);
+    Handle<NumberDictionary> new_dictionary = NumberDictionary::Add(
+        object->GetIsolate(), dictionary, index, value, details);
     new_dictionary->UpdateMaxNumberKey(index, object);
     if (attributes != NONE) object->RequireSlowElements(*new_dictionary);
     if (dictionary.is_identical_to(new_dictionary)) return;
@@ -1965,7 +1965,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       }
       max_number_key = i;
       Handle<Object> value = Subclass::GetImpl(isolate, *store, i);
-      dictionary = NumberDictionary::Add(dictionary, i, value, details);
+      dictionary =
+          NumberDictionary::Add(isolate, dictionary, i, value, details);
       j++;
     }
 
@@ -4017,7 +4018,7 @@ class SlowSloppyArgumentsElementsAccessor
             : JSObject::NormalizeElements(object);
     PropertyDetails details(kData, attributes, PropertyCellType::kNoCell);
     Handle<NumberDictionary> new_dictionary =
-        NumberDictionary::Add(dictionary, index, value, details);
+        NumberDictionary::Add(isolate, dictionary, index, value, details);
     if (attributes != NONE) object->RequireSlowElements(*new_dictionary);
     if (*dictionary != *new_dictionary) {
       elements->set_arguments(*new_dictionary);
@@ -4051,7 +4052,8 @@ class SlowSloppyArgumentsElementsAccessor
       PropertyDetails details(kData, attributes, PropertyCellType::kNoCell);
       Handle<NumberDictionary> arguments(
           NumberDictionary::cast(elements->arguments()), isolate);
-      arguments = NumberDictionary::Add(arguments, entry, value, details);
+      arguments =
+          NumberDictionary::Add(isolate, arguments, entry, value, details);
       // If the attributes were NONE, we would have called set rather than
       // reconfigure.
       DCHECK_NE(NONE, attributes);

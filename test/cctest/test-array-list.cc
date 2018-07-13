@@ -18,10 +18,10 @@ TEST(ArrayList) {
   Handle<ArrayList> array(
       ArrayList::cast(ReadOnlyRoots(isolate).empty_fixed_array()), isolate);
   CHECK_EQ(0, array->Length());
-  array = ArrayList::Add(array, handle(Smi::FromInt(100), isolate));
+  array = ArrayList::Add(isolate, array, handle(Smi::FromInt(100), isolate));
   CHECK_EQ(1, array->Length());
   CHECK_EQ(100, Smi::ToInt(array->Get(0)));
-  array = ArrayList::Add(array, handle(Smi::FromInt(200), isolate),
+  array = ArrayList::Add(isolate, array, handle(Smi::FromInt(200), isolate),
                          handle(Smi::FromInt(300), isolate));
   CHECK_EQ(3, array->Length());
   CHECK_EQ(100, Smi::ToInt(array->Get(0)));

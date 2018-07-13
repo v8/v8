@@ -575,7 +575,8 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   Handle<Object> boilerplate;
   if (!HasBoilerplate(isolate, literal_site)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, boilerplate, JSRegExp::New(pattern, JSRegExp::Flags(flags)));
+        isolate, boilerplate,
+        JSRegExp::New(isolate, pattern, JSRegExp::Flags(flags)));
     if (IsUninitializedLiteralSite(*literal_site)) {
       PreInitializeLiteralSite(vector, literal_slot);
       return *boilerplate;

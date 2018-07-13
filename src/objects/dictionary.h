@@ -73,15 +73,14 @@ class Dictionary : public HashTable<Derived, Shape> {
   inline void SetEntry(int entry, Object* key, Object* value,
                        PropertyDetails details);
 
-  V8_WARN_UNUSED_RESULT static Handle<Derived> Add(Handle<Derived> dictionary,
-                                                   Key key,
-                                                   Handle<Object> value,
-                                                   PropertyDetails details,
-                                                   int* entry_out = nullptr);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
+      Isolate* isolate, Handle<Derived> dictionary, Key key,
+      Handle<Object> value, PropertyDetails details, int* entry_out = nullptr);
 
  protected:
   // Generic at put operation.
-  V8_WARN_UNUSED_RESULT static Handle<Derived> AtPut(Handle<Derived> dictionary,
+  V8_WARN_UNUSED_RESULT static Handle<Derived> AtPut(Isolate* isolate,
+                                                     Handle<Derived> dictionary,
                                                      Key key,
                                                      Handle<Object> value,
                                                      PropertyDetails details);
@@ -164,7 +163,8 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   static void CollectKeysTo(Handle<Derived> dictionary, KeyAccumulator* keys);
 
   // Return the key indices sorted by its enumeration index.
-  static Handle<FixedArray> IterationIndices(Handle<Derived> dictionary);
+  static Handle<FixedArray> IterationIndices(Isolate* isolate,
+                                             Handle<Derived> dictionary);
 
   // Copies enumerable keys to preallocated fixed array.
   // Does not throw for uninitialized exports in module namespace objects, so
@@ -178,14 +178,12 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
                                         Handle<Derived> dictionary, int n);
 
   V8_WARN_UNUSED_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
-      Handle<Derived> dictionary, Key key, Handle<Object> value,
-      PropertyDetails details, int* entry_out = nullptr);
+      Isolate* isolate, Handle<Derived> dictionary, Key key,
+      Handle<Object> value, PropertyDetails details, int* entry_out = nullptr);
 
-  V8_WARN_UNUSED_RESULT static Handle<Derived> Add(Handle<Derived> dictionary,
-                                                   Key key,
-                                                   Handle<Object> value,
-                                                   PropertyDetails details,
-                                                   int* entry_out = nullptr);
+  V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
+      Isolate* isolate, Handle<Derived> dictionary, Key key,
+      Handle<Object> value, PropertyDetails details, int* entry_out = nullptr);
 };
 
 class NameDictionary
@@ -284,7 +282,7 @@ class SimpleNumberDictionary
   DECL_CAST(SimpleNumberDictionary)
   // Type specific at put (default NONE attributes is used when adding).
   V8_WARN_UNUSED_RESULT static Handle<SimpleNumberDictionary> Set(
-      Handle<SimpleNumberDictionary> dictionary, uint32_t key,
+      Isolate* isolate, Handle<SimpleNumberDictionary> dictionary, uint32_t key,
       Handle<Object> value);
 
   static const int kEntryValueIndex = 1;
@@ -306,7 +304,8 @@ class NumberDictionary
 
   // Type specific at put (default NONE attributes is used when adding).
   V8_WARN_UNUSED_RESULT static Handle<NumberDictionary> Set(
-      Handle<NumberDictionary> dictionary, uint32_t key, Handle<Object> value,
+      Isolate* isolate, Handle<NumberDictionary> dictionary, uint32_t key,
+      Handle<Object> value,
       Handle<JSObject> dictionary_holder = Handle<JSObject>::null(),
       PropertyDetails details = PropertyDetails::Empty());
 

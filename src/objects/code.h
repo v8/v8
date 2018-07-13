@@ -24,8 +24,10 @@ class Register;
 }
 
 // Code describes objects with on-the-fly generated machine code.
-class Code : public HeapObject {
+class Code : public HeapObject, public NeverReadOnlySpaceObject {
  public:
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
   // Opaque data type for encapsulating code flags like kind, inline
   // cache state, and arguments count.
   typedef uint32_t Flags;
@@ -457,8 +459,11 @@ class Code : public HeapObject {
 // pages within the heap, its header fields need to be immutable. There always
 // is a 1-to-1 relation between {Code} and {CodeDataContainer}, the referencing
 // field {Code::code_data_container} itself is immutable.
-class CodeDataContainer : public HeapObject {
+class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
  public:
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   DECL_ACCESSORS(next_code_link, Object)
   DECL_INT_ACCESSORS(kind_specific_flags)
 
@@ -496,8 +501,11 @@ class CodeDataContainer : public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(CodeDataContainer);
 };
 
-class AbstractCode : public HeapObject {
+class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
  public:
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   // All code kinds and INTERPRETED_FUNCTION.
   enum Kind {
 #define DEFINE_CODE_KIND_ENUM(name) name,
@@ -644,10 +652,13 @@ class DependentCode : public FixedArray {
   static DependentCode* Get(Handle<HeapObject> object);
   static void Set(Handle<HeapObject> object, Handle<DependentCode> dep);
 
-  static Handle<DependentCode> New(DependencyGroup group, Handle<Object> object,
+  static Handle<DependentCode> New(Isolate* isolate, DependencyGroup group,
+                                   Handle<Object> object,
                                    Handle<DependentCode> next);
-  static Handle<DependentCode> EnsureSpace(Handle<DependentCode> entries);
-  static Handle<DependentCode> InsertWeakCode(Handle<DependentCode> entries,
+  static Handle<DependentCode> EnsureSpace(Isolate* isolate,
+                                           Handle<DependentCode> entries);
+  static Handle<DependentCode> InsertWeakCode(Isolate* isolate,
+                                              Handle<DependentCode> entries,
                                               DependencyGroup group,
                                               Handle<WeakCell> code_cell);
 

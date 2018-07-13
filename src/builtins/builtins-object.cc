@@ -156,7 +156,7 @@ Object* ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
         Handle<Object> maybe_pair = it.GetAccessors();
         if (maybe_pair->IsAccessorPair()) {
           return *AccessorPair::GetComponent(
-              Handle<AccessorPair>::cast(maybe_pair), component);
+              isolate, Handle<AccessorPair>::cast(maybe_pair), component);
         }
       }
     }

@@ -571,8 +571,8 @@ Handle<RegExpMatchInfo> RegExpImpl::SetLastMatchInfo(
   // here.
 
   int capture_register_count = (capture_count + 1) * 2;
-  Handle<RegExpMatchInfo> result =
-      RegExpMatchInfo::ReserveCaptures(last_match_info, capture_register_count);
+  Handle<RegExpMatchInfo> result = RegExpMatchInfo::ReserveCaptures(
+      isolate, last_match_info, capture_register_count);
   result->SetNumberOfCaptureRegisters(capture_register_count);
 
   if (*result != *last_match_info) {

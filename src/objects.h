@@ -4223,13 +4223,14 @@ class AccessorPair: public Struct {
 
   DECL_CAST(AccessorPair)
 
-  static Handle<AccessorPair> Copy(Handle<AccessorPair> pair);
+  static Handle<AccessorPair> Copy(Isolate* isolate, Handle<AccessorPair> pair);
 
   inline Object* get(AccessorComponent component);
   inline void set(AccessorComponent component, Object* value);
 
   // Note: Returns undefined if the component is not set.
-  static Handle<Object> GetComponent(Handle<AccessorPair> accessor_pair,
+  static Handle<Object> GetComponent(Isolate* isolate,
+                                     Handle<AccessorPair> accessor_pair,
                                      AccessorComponent component);
 
   // Set both components, skipping arguments which are a JavaScript null.

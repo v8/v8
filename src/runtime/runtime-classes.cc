@@ -213,7 +213,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
     Object* value = dictionary->ValueAt(i);
     if (value->IsAccessorPair()) {
       Handle<AccessorPair> pair(AccessorPair::cast(value), isolate);
-      pair = AccessorPair::Copy(pair);
+      pair = AccessorPair::Copy(isolate, pair);
       dictionary->ValueAtPut(i, *pair);
     }
   }
@@ -298,8 +298,8 @@ bool AddDescriptorsByTemplate(
   for (int i = 0; i < nof_descriptors; i++) {
     Object* value = descriptors_template->GetStrongValue(i);
     if (value->IsAccessorPair()) {
-      Handle<AccessorPair> pair =
-          AccessorPair::Copy(handle(AccessorPair::cast(value), isolate));
+      Handle<AccessorPair> pair = AccessorPair::Copy(
+          isolate, handle(AccessorPair::cast(value), isolate));
       value = *pair;
     }
     DisallowHeapAllocation no_gc;
@@ -410,7 +410,7 @@ bool AddDescriptorsByTemplate(
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
     PropertyDetails details(kAccessor, attribs, PropertyCellType::kNoCell);
     Handle<NameDictionary> dict = NameDictionary::Add(
-        properties_dictionary, isolate->factory()->name_string(),
+        isolate, properties_dictionary, isolate->factory()->name_string(),
         isolate->factory()->function_name_accessor(), details);
     CHECK_EQ(*dict, *properties_dictionary);
   }

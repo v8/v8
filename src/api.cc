@@ -645,7 +645,7 @@ size_t SnapshotCreator::AddData(i::Object* object) {
         i::ArrayList::cast(isolate->heap()->serialized_objects()), isolate);
   }
   size_t index = static_cast<size_t>(list->Length());
-  list = i::ArrayList::Add(list, obj);
+  list = i::ArrayList::Add(isolate, list, obj);
   isolate->heap()->SetSerializedObjects(*list);
   return index;
 }
@@ -665,7 +665,7 @@ size_t SnapshotCreator::AddData(Local<Context> context, i::Object* object) {
         i::ArrayList::cast(ctx->serialized_objects()), isolate);
   }
   size_t index = static_cast<size_t>(list->Length());
-  list = i::ArrayList::Add(list, obj);
+  list = i::ArrayList::Add(isolate, list, obj);
   ctx->set_serialized_objects(*list);
   return index;
 }
@@ -679,7 +679,7 @@ void ConvertSerializedObjectsToFixedArray(Local<Context> context) {
   } else {
     i::Handle<i::ArrayList> list(i::ArrayList::cast(ctx->serialized_objects()),
                                  isolate);
-    i::Handle<i::FixedArray> elements = i::ArrayList::Elements(list);
+    i::Handle<i::FixedArray> elements = i::ArrayList::Elements(isolate, list);
     ctx->set_serialized_objects(*elements);
   }
 }
@@ -691,7 +691,7 @@ void ConvertSerializedObjectsToFixedArray(i::Isolate* isolate) {
   } else {
     i::Handle<i::ArrayList> list(
         i::ArrayList::cast(isolate->heap()->serialized_objects()), isolate);
-    i::Handle<i::FixedArray> elements = i::ArrayList::Elements(list);
+    i::Handle<i::FixedArray> elements = i::ArrayList::Elements(isolate, list);
     isolate->heap()->SetSerializedObjects(*elements);
   }
 }
@@ -7008,7 +7008,7 @@ MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
   PREPARE_FOR_EXECUTION(context, RegExp, New, RegExp);
   Local<v8::RegExp> result;
   has_pending_exception =
-      !ToLocal<RegExp>(i::JSRegExp::New(Utils::OpenHandle(*pattern),
+      !ToLocal<RegExp>(i::JSRegExp::New(isolate, Utils::OpenHandle(*pattern),
                                         static_cast<i::JSRegExp::Flags>(flags)),
                        &result);
   RETURN_ON_FAILED_EXECUTION(RegExp);

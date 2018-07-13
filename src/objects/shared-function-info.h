@@ -156,8 +156,11 @@ class InterpreterData : public Struct {
 
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
-class SharedFunctionInfo : public HeapObject {
+class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
  public:
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   static constexpr Object* const kNoSharedNameSentinel = Smi::kZero;
 
   // [name]: Returns shared name if it exists or an empty string otherwise.

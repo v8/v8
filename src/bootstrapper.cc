@@ -397,7 +397,8 @@ V8_NOINLINE void InstallFunction(Isolate* isolate, Handle<JSObject> target,
 V8_NOINLINE void InstallFunction(Isolate* isolate, Handle<JSObject> target,
                                  Handle<JSFunction> function, Handle<Name> name,
                                  PropertyAttributes attributes = DONT_ENUM) {
-  Handle<String> name_string = Name::ToFunctionName(name).ToHandleChecked();
+  Handle<String> name_string =
+      Name::ToFunctionName(isolate, name).ToHandleChecked();
   InstallFunction(isolate, target, name, function, name_string, attributes);
 }
 
@@ -434,7 +435,8 @@ V8_NOINLINE Handle<JSFunction> InstallFunction(
     InstanceType type, int instance_size, int inobject_properties,
     MaybeHandle<Object> maybe_prototype, Builtins::Name call,
     PropertyAttributes attributes) {
-  Handle<String> name_string = Name::ToFunctionName(name).ToHandleChecked();
+  Handle<String> name_string =
+      Name::ToFunctionName(isolate, name).ToHandleChecked();
   Handle<JSFunction> function =
       CreateFunction(isolate, name_string, type, instance_size,
                      inobject_properties, maybe_prototype, call);
@@ -529,13 +531,13 @@ V8_NOINLINE void SimpleInstallGetterSetter(Isolate* isolate,
                                            Builtins::Name call_setter,
                                            PropertyAttributes attribs) {
   Handle<String> getter_name =
-      Name::ToFunctionName(name, isolate->factory()->get_string())
+      Name::ToFunctionName(isolate, name, isolate->factory()->get_string())
           .ToHandleChecked();
   Handle<JSFunction> getter =
       SimpleCreateFunction(isolate, getter_name, call_getter, 0, true);
 
   Handle<String> setter_name =
-      Name::ToFunctionName(name, isolate->factory()->set_string())
+      Name::ToFunctionName(isolate, name, isolate->factory()->set_string())
           .ToHandleChecked();
   Handle<JSFunction> setter =
       SimpleCreateFunction(isolate, setter_name, call_setter, 1, true);
@@ -547,7 +549,7 @@ V8_NOINLINE Handle<JSFunction> SimpleInstallGetter(
     Isolate* isolate, Handle<JSObject> base, Handle<Name> name,
     Handle<Name> property_name, Builtins::Name call, bool adapt) {
   Handle<String> getter_name =
-      Name::ToFunctionName(name, isolate->factory()->get_string())
+      Name::ToFunctionName(isolate, name, isolate->factory()->get_string())
           .ToHandleChecked();
   Handle<JSFunction> getter =
       SimpleCreateFunction(isolate, getter_name, call, 0, adapt);
@@ -5430,7 +5432,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
     // Copy all keys and values in enumeration order.
     Handle<GlobalDictionary> properties(
         JSGlobalObject::cast(*from)->global_dictionary(), isolate());
-    Handle<FixedArray> indices = GlobalDictionary::IterationIndices(properties);
+    Handle<FixedArray> indices =
+        GlobalDictionary::IterationIndices(isolate(), properties);
     for (int i = 0; i < indices->length(); i++) {
       int index = Smi::ToInt(indices->get(i));
       // If the property is already there we skip it.
@@ -5451,7 +5454,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
     Handle<NameDictionary> properties =
         Handle<NameDictionary>(from->property_dictionary(), isolate());
     Handle<FixedArray> key_indices =
-        NameDictionary::IterationIndices(properties);
+        NameDictionary::IterationIndices(isolate(), properties);
     ReadOnlyRoots roots(isolate());
     for (int i = 0; i < key_indices->length(); i++) {
       int key_index = Smi::ToInt(key_indices->get(i));

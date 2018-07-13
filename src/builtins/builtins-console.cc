@@ -111,7 +111,7 @@ void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
   Factory* const factory = isolate->factory();
 
   Handle<String> name_string =
-      Name::ToFunctionName(factory->InternalizeUtf8String(name))
+      Name::ToFunctionName(isolate, factory->InternalizeUtf8String(name))
           .ToHandleChecked();
   NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
       name_string, builtin_id, i::LanguageMode::kSloppy);

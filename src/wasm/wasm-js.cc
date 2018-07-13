@@ -1324,7 +1324,7 @@ Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
 }
 
 Handle<String> GetterName(Isolate* isolate, Handle<String> name) {
-  return Name::ToFunctionName(name, isolate->factory()->get_string())
+  return Name::ToFunctionName(isolate, name, isolate->factory()->get_string())
       .ToHandleChecked();
 }
 
@@ -1342,7 +1342,7 @@ void InstallGetter(Isolate* isolate, Handle<JSObject> object,
 }
 
 Handle<String> SetterName(Isolate* isolate, Handle<String> name) {
-  return Name::ToFunctionName(name, isolate->factory()->set_string())
+  return Name::ToFunctionName(isolate, name, isolate->factory()->set_string())
       .ToHandleChecked();
 }
 

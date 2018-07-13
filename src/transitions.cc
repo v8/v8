@@ -590,17 +590,17 @@ int TransitionArray::Search(Isolate* isolate, PropertyKind kind, Name* name,
                        out_insertion_index);
 }
 
-void TransitionArray::Sort(Isolate* isolate) {
+void TransitionArray::Sort() {
   DisallowHeapAllocation no_gc;
   // In-place insertion sort.
   int length = number_of_transitions();
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   for (int i = 1; i < length; i++) {
     Name* key = GetKey(i);
     MaybeObject* target = GetRawTarget(i);
     PropertyKind kind = kData;
     PropertyAttributes attributes = NONE;
-    if (!TransitionsAccessor::IsSpecialTransition(ReadOnlyRoots(isolate),
-                                                  key)) {
+    if (!TransitionsAccessor::IsSpecialTransition(roots, key)) {
       Map* target_map = TransitionsAccessor::GetTargetFromRaw(target);
       PropertyDetails details =
           TransitionsAccessor::GetTargetDetails(key, target_map);
@@ -613,8 +613,7 @@ void TransitionArray::Sort(Isolate* isolate) {
       MaybeObject* temp_target = GetRawTarget(j);
       PropertyKind temp_kind = kData;
       PropertyAttributes temp_attributes = NONE;
-      if (!TransitionsAccessor::IsSpecialTransition(ReadOnlyRoots(isolate),
-                                                    temp_key)) {
+      if (!TransitionsAccessor::IsSpecialTransition(roots, temp_key)) {
         Map* temp_target_map =
             TransitionsAccessor::GetTargetFromRaw(temp_target);
         PropertyDetails details =

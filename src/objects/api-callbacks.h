@@ -69,8 +69,8 @@ class AccessorInfo : public Struct {
 
   // Append all descriptors to the array that are not already there.
   // Return number added.
-  static int AppendUnique(Handle<Object> descriptors, Handle<FixedArray> array,
-                          int valid_descriptors);
+  static int AppendUnique(Isolate* isolate, Handle<Object> descriptors,
+                          Handle<FixedArray> array, int valid_descriptors);
 
 // Layout description.
 #define ACCESSOR_INFO_FIELDS(V)                \

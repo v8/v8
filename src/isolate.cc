@@ -771,7 +771,8 @@ class CaptureStackTraceHelper {
     frame->set_is_constructor(summ.is_constructor());
     frame->set_is_wasm(false);
     if (!FLAG_optimize_for_size) {
-      auto new_cache = SimpleNumberDictionary::Set(cache, code_offset, frame);
+      auto new_cache =
+          SimpleNumberDictionary::Set(isolate_, cache, code_offset, frame);
       if (*new_cache != *cache || !maybe_cache->IsNumberDictionary()) {
         AbstractCode::SetStackFrameCache(summ.abstract_code(), new_cache);
       }
@@ -3283,7 +3284,7 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
   // Add collected feedback vectors to the root list lest we lose them to GC.
   Handle<ArrayList> list =
       ArrayList::New(this, static_cast<int>(vectors.size()));
-  for (const auto& vector : vectors) list = ArrayList::Add(list, vector);
+  for (const auto& vector : vectors) list = ArrayList::Add(this, list, vector);
   SetFeedbackVectorsForProfilingTools(*list);
 }
 
@@ -3637,7 +3638,7 @@ Handle<Symbol> Isolate::SymbolFor(Heap::RootListIndex dictionary_index,
     symbol =
         private_symbol ? factory()->NewPrivateSymbol() : factory()->NewSymbol();
     symbol->set_name(*key);
-    dictionary = NameDictionary::Add(dictionary, key, symbol,
+    dictionary = NameDictionary::Add(this, dictionary, key, symbol,
                                      PropertyDetails::Empty(), &entry);
     switch (dictionary_index) {
       case Heap::kPublicSymbolTableRootIndex:

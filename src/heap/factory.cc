@@ -2812,7 +2812,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
     Handle<PropertyCell> cell = NewPropertyCell(name);
     cell->set_value(descs->GetStrongValue(i));
     // |dictionary| already contains enough space for all properties.
-    USE(GlobalDictionary::Add(dictionary, name, cell, d));
+    USE(GlobalDictionary::Add(isolate(), dictionary, name, cell, d));
   }
 
   // Allocate the global object and initialize it with the backing store.

@@ -15,8 +15,11 @@ namespace v8 {
 namespace internal {
 
 // Script describes a script which has been added to the VM.
-class Script : public Struct {
+class Script : public Struct, public NeverReadOnlySpaceObject {
  public:
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   // Script types.
   enum Type {
     TYPE_NATIVE = 0,

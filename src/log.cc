@@ -405,7 +405,8 @@ void ExternalCodeEventListener::CodeCreateEvent(
 void ExternalCodeEventListener::CodeCreateEvent(
     CodeEventListener::LogEventsAndTags tag, AbstractCode* code, Name* name) {
   Handle<String> name_string =
-      Name::ToFunctionName(Handle<Name>(name, isolate_)).ToHandleChecked();
+      Name::ToFunctionName(isolate_, Handle<Name>(name, isolate_))
+          .ToHandleChecked();
 
   CodeEvent code_event;
   code_event.code_start_address =
@@ -425,7 +426,8 @@ void ExternalCodeEventListener::CodeCreateEvent(
     CodeEventListener::LogEventsAndTags tag, AbstractCode* code,
     SharedFunctionInfo* shared, Name* name) {
   Handle<String> name_string =
-      Name::ToFunctionName(Handle<Name>(name, isolate_)).ToHandleChecked();
+      Name::ToFunctionName(isolate_, Handle<Name>(name, isolate_))
+          .ToHandleChecked();
 
   CodeEvent code_event;
   code_event.code_start_address =
@@ -445,10 +447,11 @@ void ExternalCodeEventListener::CodeCreateEvent(
     CodeEventListener::LogEventsAndTags tag, AbstractCode* code,
     SharedFunctionInfo* shared, Name* source, int line, int column) {
   Handle<String> name_string =
-      Name::ToFunctionName(Handle<Name>(shared->Name(), isolate_))
+      Name::ToFunctionName(isolate_, Handle<Name>(shared->Name(), isolate_))
           .ToHandleChecked();
   Handle<String> source_string =
-      Name::ToFunctionName(Handle<Name>(source, isolate_)).ToHandleChecked();
+      Name::ToFunctionName(isolate_, Handle<Name>(source, isolate_))
+          .ToHandleChecked();
 
   CodeEvent code_event;
   code_event.code_start_address =

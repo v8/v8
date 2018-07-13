@@ -680,7 +680,8 @@ void TestNameDictionaryLookup() {
 
   for (size_t i = 0; i < arraysize(keys); i++) {
     Handle<Object> value = factory->NewPropertyCell(keys[i]);
-    dictionary = Dictionary::Add(dictionary, keys[i], value, fake_details);
+    dictionary =
+        Dictionary::Add(isolate, dictionary, keys[i], value, fake_details);
   }
 
   for (size_t i = 0; i < arraysize(keys); i++) {
@@ -778,8 +779,8 @@ TEST(NumberDictionaryLookup) {
     keys[i] = static_cast<uint32_t>(random_key);
     if (dictionary->FindEntry(keys[i]) != NumberDictionary::kNotFound) continue;
 
-    dictionary =
-        NumberDictionary::Add(dictionary, keys[i], fake_value, fake_details);
+    dictionary = NumberDictionary::Add(isolate, dictionary, keys[i], fake_value,
+                                       fake_details);
   }
 
   // Now try querying existing keys.

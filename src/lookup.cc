@@ -639,7 +639,7 @@ void LookupIterator::ApplyTransitionToDataProperty(
     if (receiver->map()->is_prototype_map() && receiver->IsJSObject()) {
       JSObject::InvalidatePrototypeChains(receiver->map());
     }
-    dictionary = NameDictionary::Add(dictionary, name(),
+    dictionary = NameDictionary::Add(isolate(), dictionary, name(),
                                      isolate_->factory()->uninitialized_value(),
                                      property_details_, &entry);
     receiver->SetProperties(*dictionary);
@@ -736,7 +736,7 @@ void LookupIterator::TransitionToAccessorProperty(
         return;
       }
     } else {
-      pair = AccessorPair::Copy(pair);
+      pair = AccessorPair::Copy(isolate(), pair);
       pair->SetComponents(*getter, *setter);
     }
   } else {
@@ -766,8 +766,8 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
     isolate_->CountUsage(v8::Isolate::kIndexAccessor);
     Handle<NumberDictionary> dictionary = JSObject::NormalizeElements(receiver);
 
-    dictionary =
-        NumberDictionary::Set(dictionary, index_, pair, receiver, details);
+    dictionary = NumberDictionary::Set(isolate_, dictionary, index_, pair,
+                                       receiver, details);
     receiver->RequireSlowElements(*dictionary);
 
     if (receiver->HasSlowArgumentsElements()) {

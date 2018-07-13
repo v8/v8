@@ -233,7 +233,7 @@ class TransitionArray : public WeakFixedArray {
   bool IsSortedNoDuplicates(int valid_entries = -1);
 #endif
 
-  void Sort(Isolate* isolate);
+  void Sort();
 
   void PrintInternal(std::ostream& os);
 

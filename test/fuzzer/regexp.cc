@@ -71,7 +71,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     std::string str = std::string(reinterpret_cast<const char*>(data), size);
     i::JSRegExp::Flags flag = static_cast<i::JSRegExp::Flags>(
         std::hash<std::string>()(str) % (kAllFlags + 1));
-    i::MaybeHandle<i::JSRegExp> maybe_regexp = i::JSRegExp::New(source, flag);
+    i::MaybeHandle<i::JSRegExp> maybe_regexp =
+        i::JSRegExp::New(i_isolate, source, flag);
     if (!maybe_regexp.ToHandle(&regexp)) {
       i_isolate->clear_pending_exception();
       return 0;
