@@ -249,12 +249,14 @@ bool operator<(const Type& a, const Type& b) {
 }
 
 VisitResult::VisitResult(const Type* type, const Value* declarable)
-    : type_(type), value_(declarable->value()), declarable_(declarable) {}
+    : type_(type), value_(), declarable_(declarable) {}
 
-std::string VisitResult::LValue() const { return std::string("*") + value_; }
+std::string VisitResult::LValue() const {
+  return std::string("*") + (declarable_ ? (*declarable_)->value() : value_);
+}
 
 std::string VisitResult::RValue() const {
-  return (declarable_) ? (*declarable_)->RValue() : value_;
+  return declarable_ ? (*declarable_)->RValue() : value_;
 }
 
 }  // namespace torque

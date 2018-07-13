@@ -278,6 +278,7 @@ builtinDeclaration : JAVASCRIPT? BUILTIN IDENTIFIER optionalGenericTypeList para
 genericSpecialization: IDENTIFIER genericSpecializationTypeList parameterList optionalType optionalLabelList helperBody;
 macroDeclaration : ('operator' STRING_LITERAL)? MACRO IDENTIFIER optionalGenericTypeList parameterList optionalType optionalLabelList (helperBody | ';');
 externConstDeclaration : 'const' IDENTIFIER ':' type generatesDeclaration ';';
+constDeclaration: 'const' IDENTIFIER ':' type ASSIGNMENT expression ';';
 
 declaration
         : typeDeclaration
@@ -288,7 +289,8 @@ declaration
         | externalMacro
         | externalBuiltin
         | externalRuntime
-        | externConstDeclaration;
+        | externConstDeclaration
+        | constDeclaration;
 
 moduleDeclaration : MODULE IDENTIFIER '{' declaration* '}';
 

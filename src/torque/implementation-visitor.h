@@ -108,6 +108,7 @@ class ImplementationVisitor : public FileVisitor {
   void Visit(ExternalRuntimeDeclaration* decl, const Signature& signature,
              Statement* body) {}
   void Visit(CallableNode* decl, const Signature& signature, Statement* body);
+  void Visit(ConstDeclaration* decl);
 
   VisitResult Visit(CallExpression* expr, bool is_tail = false);
   const Type* Visit(TailCallStatement* stmt);
@@ -216,6 +217,11 @@ class ImplementationVisitor : public FileVisitor {
   void GenerateMacroFunctionDeclaration(std::ostream& o,
                                         const std::string& macro_prefix,
                                         Macro* macro);
+  void GenerateFunctionDeclaration(std::ostream& o,
+                                   const std::string& macro_prefix,
+                                   const std::string& name,
+                                   const Signature& signature,
+                                   const NameVector& parameter_names);
 
   VisitResult GenerateImplicitConvert(const Type* destination_type,
                                       VisitResult source);

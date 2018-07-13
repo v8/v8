@@ -278,6 +278,16 @@ antlrcpp::Any AstGenerator::visitExternalRuntime(
       RegisterNode(new StandardDeclaration{Pos(context), runtime, nullptr}));
 }
 
+antlrcpp::Any AstGenerator::visitConstDeclaration(
+    TorqueParser::ConstDeclarationContext* context) {
+  auto name = context->IDENTIFIER()->getSymbol()->getText();
+  auto type = GetType(context->type());
+  Expression* expression =
+      context->expression()->accept(this).as<Expression*>();
+  return implicit_cast<Declaration*>(
+      RegisterNode(new ConstDeclaration{Pos(context), name, type, expression}));
+}
+
 antlrcpp::Any AstGenerator::visitGenericSpecialization(
     TorqueParser::GenericSpecializationContext* context) {
   auto name = context->IDENTIFIER()->getSymbol()->getText();

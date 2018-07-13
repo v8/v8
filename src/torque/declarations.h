@@ -67,6 +67,7 @@ class Declarations {
   Label* LookupLabel(const std::string& name);
 
   GenericList* LookupGeneric(const std::string& name);
+  ModuleConstant* LookupModuleConstant(const std::string& name);
 
   const AbstractType* DeclareAbstractType(
       const std::string& name, const std::string& generated,
@@ -96,6 +97,8 @@ class Declarations {
 
   void DeclareConstant(const std::string& name, const Type* type,
                        const std::string& value);
+  ModuleConstant* DeclareModuleConstant(const std::string& name,
+                                        const Type* type);
 
   Generic* DeclareGeneric(const std::string& name, Module* module,
                           GenericDeclaration* generic);

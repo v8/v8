@@ -299,9 +299,9 @@ class VisitResult {
   const Type* type() const { return type_; }
   // const std::string& variable() const { return variable_; }
   base::Optional<const Value*> declarable() const { return declarable_; }
-  std::string value() const { return value_; }
   std::string LValue() const;
   std::string RValue() const;
+  void SetType(const Type* new_type) { type_ = new_type; }
 
  private:
   const Type* type_;

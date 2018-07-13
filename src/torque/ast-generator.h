@@ -41,6 +41,9 @@ class AstGenerator : public TorqueBaseVisitor {
   antlrcpp::Any visitExternalRuntime(
       TorqueParser::ExternalRuntimeContext* context) override;
 
+  antlrcpp::Any visitConstDeclaration(
+      TorqueParser::ConstDeclarationContext* context) override;
+
   antlrcpp::Any visitGenericSpecialization(
       TorqueParser::GenericSpecializationContext* context) override;
 

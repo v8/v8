@@ -35,7 +35,8 @@ class Declarable {
     kGenericList,
     kTypeAlias,
     kLabel,
-    kConstant
+    kConstant,
+    kModuleConstant
   };
   Kind kind() const { return kind_; }
   bool IsMacro() const { return kind() == kMacro; }
@@ -49,7 +50,10 @@ class Declarable {
   bool IsMacroList() const { return kind() == kMacroList; }
   bool IsGenericList() const { return kind() == kGenericList; }
   bool IsConstant() const { return kind() == kConstant; }
-  bool IsValue() const { return IsVariable() || IsConstant() || IsParameter(); }
+  bool IsModuleConstant() const { return kind() == kModuleConstant; }
+  bool IsValue() const {
+    return IsVariable() || IsConstant() || IsParameter() || IsModuleConstant();
+  }
   virtual const char* type_name() const { return "<<unknown>>"; }
 
  protected:
@@ -110,6 +114,18 @@ class Parameter : public Value {
       : Value(Declarable::kParameter, type, name), var_name_(var_name) {}
 
   std::string var_name_;
+};
+
+class ModuleConstant : public Value {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(ModuleConstant, constant);
+  std::string value() const override { UNREACHABLE(); }
+  std::string RValue() const override { return name() + "()"; }
+
+ private:
+  friend class Declarations;
+  explicit ModuleConstant(const std::string& name, const Type* type)
+      : Value(Declarable::kModuleConstant, type, name) {}
 };
 
 class Variable : public Value {

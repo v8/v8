@@ -25,6 +25,12 @@ Signature FileVisitor::MakeSignature(const CallableNodeSignature* signature) {
   return result;
 }
 
+Signature FileVisitor::MakeSignatureFromReturnType(
+    TypeExpression* return_type) {
+  Signature result{{}, {{}, false}, declarations()->GetType(return_type), {}};
+  return result;
+}
+
 void FileVisitor::QueueGenericSpecialization(
     const SpecializationKey& key, CallableNode* callable,
     const CallableNodeSignature* signature, base::Optional<Statement*> body) {

@@ -70,7 +70,8 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
   V(SpecializationDeclaration)            \
   V(ExternConstDeclaration)               \
   V(DefaultModuleDeclaration)             \
-  V(ExplicitModuleDeclaration)
+  V(ExplicitModuleDeclaration)            \
+  V(ConstDeclaration)
 
 #define AST_CALLABLE_NODE_KIND_LIST(V) \
   V(TorqueMacroDeclaration)            \
@@ -621,6 +622,16 @@ struct ExternalRuntimeDeclaration : CallableNode {
   ExternalRuntimeDeclaration(SourcePosition p, std::string n, ParameterList pl,
                              TypeExpression* r)
       : CallableNode(kKind, p, n, pl, r, {}) {}
+};
+
+struct ConstDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(ConstDeclaration)
+  ConstDeclaration(SourcePosition p, std::string n, TypeExpression* r,
+                   Expression* e)
+      : Declaration(kKind, p), name(std::move(n)), type(r), expression(e) {}
+  std::string name;
+  TypeExpression* type;
+  Expression* expression;
 };
 
 struct StandardDeclaration : Declaration {

@@ -341,6 +341,11 @@ class TorqueBaseVisitor : public TorqueVisitor {
     return visitChildren(ctx);
   }
 
+  antlrcpp::Any visitConstDeclaration(
+      TorqueParser::ConstDeclarationContext* ctx) override {
+    return visitChildren(ctx);
+  }
+
   antlrcpp::Any visitDeclaration(
       TorqueParser::DeclarationContext* ctx) override {
     return visitChildren(ctx);

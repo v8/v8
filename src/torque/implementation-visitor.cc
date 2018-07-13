@@ -164,6 +164,30 @@ void ImplementationVisitor::Visit(ModuleDeclaration* decl) {
   module_ = saved_module;
 }
 
+void ImplementationVisitor::Visit(ConstDeclaration* decl) {
+  Signature signature = MakeSignatureFromReturnType(decl->type);
+  std::string name = decl->name;
+
+  header_out() << "  ";
+  GenerateFunctionDeclaration(header_out(), "", name, signature, {});
+  header_out() << ";\n";
+
+  GenerateFunctionDeclaration(source_out(),
+                              GetDSLAssemblerName(CurrentModule()) + "::", name,
+                              signature, {});
+  source_out() << " {\n";
+
+  DCHECK(!signature.return_type->IsVoidOrNever());
+
+  VisitResult expression_result = Visit(decl->expression);
+  VisitResult return_result =
+      GenerateImplicitConvert(signature.return_type, expression_result);
+
+  GenerateIndent();
+  source_out() << "return " << return_result.RValue() << ";\n";
+  source_out() << "}\n\n";
+}
+
 void ImplementationVisitor::Visit(TorqueMacroDeclaration* decl,
                                   const Signature& sig, Statement* body) {
   Signature signature = MakeSignature(decl->signature.get());
@@ -789,6 +813,10 @@ const Type* ImplementationVisitor::Visit(ReturnStatement* stmt) {
         source_out() << "Return(" << return_result.RValue() << ");"
                      << std::endl;
       }
+    } else if (current_callable->IsModuleConstant()) {
+      Variable* var =
+          Variable::cast(declarations()->LookupValue(kReturnValueVariable));
+      GenerateAssignToVariable(var, return_result);
     } else {
       UNREACHABLE();
     }
@@ -1030,26 +1058,32 @@ void ImplementationVisitor::GenerateIndent() {
 
 void ImplementationVisitor::GenerateMacroFunctionDeclaration(
     std::ostream& o, const std::string& macro_prefix, Macro* macro) {
+  GenerateFunctionDeclaration(o, macro_prefix, macro->name(),
+                              macro->signature(), macro->parameter_names());
+}
+
+void ImplementationVisitor::GenerateFunctionDeclaration(
+    std::ostream& o, const std::string& macro_prefix, const std::string& name,
+    const Signature& signature, const NameVector& parameter_names) {
   if (global_context_.verbose()) {
-    std::cout << "generating source for declaration " << *macro << ""
+    std::cout << "generating source for declaration " << name << ""
               << std::endl;
   }
 
   // Quite a hack here. Make sure that TNode is namespace qualified if the
-  // macro name is also qualified.
-  std::string return_type_name(
-      macro->signature().return_type->GetGeneratedTypeName());
+  // macro/constant name is also qualified.
+  std::string return_type_name(signature.return_type->GetGeneratedTypeName());
   if (macro_prefix != "" && (return_type_name.length() > 5) &&
       (return_type_name.substr(0, 5) == "TNode")) {
     o << "compiler::";
   }
   o << return_type_name;
-  o << " " << macro_prefix << macro->name() << "(";
+  o << " " << macro_prefix << name << "(";
 
-  DCHECK_EQ(macro->signature().types().size(), macro->parameter_names().size());
-  auto type_iterator = macro->signature().types().begin();
+  DCHECK_EQ(signature.types().size(), parameter_names.size());
+  auto type_iterator = signature.types().begin();
   bool first = true;
-  for (const std::string& name : macro->parameter_names()) {
+  for (const std::string& name : parameter_names) {
     if (!first) {
       o << ", ";
     }
@@ -1062,7 +1096,7 @@ void ImplementationVisitor::GenerateMacroFunctionDeclaration(
     first = false;
   }
 
-  for (const LabelDeclaration& label_info : macro->signature().labels) {
+  for (const LabelDeclaration& label_info : signature.labels) {
     Label* label = declarations()->LookupLabel(label_info.name);
     if (!first) {
       o << ", ";
@@ -1700,11 +1734,8 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
         GetGeneratedCallableName(kFromConstexprMacroName, {destination_type});
     return GenerateCall(name, {{source}, {}}, false);
   } else if (IsAssignableFrom(destination_type, source.type())) {
-    if (source.declarable()) {
-      return VisitResult(destination_type, *source.declarable());
-    } else {
-      return VisitResult(destination_type, source.value());
-    }
+    source.SetType(destination_type);
+    return source;
   } else {
     std::stringstream s;
     s << "cannot use expression of type " << *source.type()

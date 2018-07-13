@@ -91,6 +91,7 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(CallableNode* decl, const Signature& signature, Statement* body);
 
+  void Visit(ConstDeclaration* decl);
   void Visit(StandardDeclaration* decl);
   void Visit(GenericDeclaration* decl);
   void Visit(SpecializationDeclaration* decl);

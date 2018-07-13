@@ -179,6 +179,18 @@ GenericList* Declarations::LookupGeneric(const std::string& name) {
   return nullptr;
 }
 
+ModuleConstant* Declarations::LookupModuleConstant(const std::string& name) {
+  Declarable* declarable = Lookup(name);
+  if (declarable != nullptr) {
+    if (declarable->IsModuleConstant()) {
+      return ModuleConstant::cast(declarable);
+    }
+    ReportError(name + " is not a constant");
+  }
+  ReportError(std::string("constant \"") + name + "\" is not defined");
+  return nullptr;
+}
+
 const AbstractType* Declarations::DeclareAbstractType(
     const std::string& name, const std::string& generated,
     base::Optional<const AbstractType*> non_constexpr_version,
@@ -307,6 +319,14 @@ void Declarations::DeclareConstant(const std::string& name, const Type* type,
   CheckAlreadyDeclared(name, "constant, parameter or arguments");
   Constant* result = new Constant(name, type, value);
   Declare(name, std::unique_ptr<Declarable>(result));
+}
+
+ModuleConstant* Declarations::DeclareModuleConstant(const std::string& name,
+                                                    const Type* type) {
+  CheckAlreadyDeclared(name, "module constant");
+  ModuleConstant* result = new ModuleConstant(name, type);
+  Declare(name, std::unique_ptr<Declarable>(result));
+  return result;
 }
 
 Generic* Declarations::DeclareGeneric(const std::string& name, Module* module,

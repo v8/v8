@@ -66,6 +66,7 @@ class FileVisitor {
   }
 
   Signature MakeSignature(const CallableNodeSignature* signature);
+  Signature MakeSignatureFromReturnType(TypeExpression* return_type);
 
   struct PendingSpecialization {
     SpecializationKey key;

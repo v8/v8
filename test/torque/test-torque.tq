@@ -228,4 +228,14 @@ module test {
   macro TestNewlineInString() {
     Print('Hello, World!\n');
   }
+
+  const kConstexprConst: constexpr int31 = 5;
+  const kIntptrConst: intptr = 4;
+  const kSmiConst: Smi = 3;
+
+  macro TestModuleConstBindings() {
+    check(kConstexprConst == Int32Constant(5));
+    check(kIntptrConst == 4);
+    check(kSmiConst == 3);
+  }
 }

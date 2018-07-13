@@ -173,6 +173,12 @@ void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
       changed_vars);
 }
 
+void DeclarationVisitor::Visit(ConstDeclaration* decl) {
+  declarations()->DeclareModuleConstant(decl->name,
+                                        declarations()->GetType(decl->type));
+  Visit(decl->expression);
+}
+
 void DeclarationVisitor::Visit(StandardDeclaration* decl) {
   Signature signature = MakeSignature(decl->callable->signature.get());
   Visit(decl->callable, signature, decl->body);
