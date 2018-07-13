@@ -2212,7 +2212,6 @@ bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
 
 }  // namespace
 
-// TODO(bbudge) Make sure identity shuffle emits no instructions.
 void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
@@ -2259,11 +2258,17 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   } else if (TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
     uint8_t shuffle_mask = PackShuffle4(shuffle32x4);
     if (is_swizzle) {
-      // pshufd takes a single imm8 shuffle mask.
-      opcode = kIA32S32x4Swizzle;
-      no_same_as_first = true;
-      src0_needs_reg = false;
-      imms[imm_count++] = shuffle_mask;
+      if (TryMatchIdentity(shuffle)) {
+        // Bypass normal shuffle code generation in this case.
+        EmitIdentity(node);
+        return;
+      } else {
+        // pshufd takes a single imm8 shuffle mask.
+        opcode = kIA32S32x4Swizzle;
+        no_same_as_first = true;
+        src0_needs_reg = false;
+        imms[imm_count++] = shuffle_mask;
+      }
     } else {
       // 2 operand shuffle
       // A blend is more efficient than a general 32x4 shuffle; try it first.

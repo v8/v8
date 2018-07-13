@@ -2331,18 +2331,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register(),
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);
-      UseScratchRegisterScope temps(tasm());
-      // Check for in-place shuffles.
-      // If dst == src0 == src1, then the shuffle is unary and we only use src0.
-      if (dst == src0) {
-        Simd128Register scratch = temps.AcquireQ();
-        __ vmov(scratch, src0);
-        src0 = scratch;
-      } else if (dst == src1) {
-        Simd128Register scratch = temps.AcquireQ();
-        __ vmov(scratch, src1);
-        src1 = scratch;
-      }
+      DCHECK_NE(dst, src0);
+      DCHECK_NE(dst, src1);
       // Perform shuffle as a vmov per lane.
       int dst_code = dst.code() * 4;
       int src0_code = src0.code() * 4;

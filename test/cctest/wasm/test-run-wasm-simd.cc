@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/assembler-inl.h"
+#include "src/base/bits.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -1714,257 +1715,307 @@ void RunBinaryLaneOpTest(
 }
 
 WASM_SIMD_TEST(I32x4AddHoriz) {
+  // Inputs are [0 1 2 3] and [4 5 6 7].
   RunBinaryLaneOpTest<int32_t>(execution_mode, lower_simd, kExprI32x4AddHoriz,
                                {{1, 5, 9, 13}});
 }
 
 WASM_SIMD_TEST(I16x8AddHoriz) {
+  // Inputs are [0 1 2 3 4 5 6 7] and [8 9 10 11 12 13 14 15].
   RunBinaryLaneOpTest<int16_t>(execution_mode, lower_simd, kExprI16x8AddHoriz,
                                {{1, 5, 9, 13, 17, 21, 25, 29}});
 }
 
 WASM_SIMD_TEST(F32x4AddHoriz) {
+  // Inputs are [0.0f 1.0f 2.0f 3.0f] and [4.0f 5.0f 6.0f 7.0f].
   RunBinaryLaneOpTest<float>(execution_mode, lower_simd, kExprF32x4AddHoriz,
                              {{1.0f, 5.0f, 9.0f, 13.0f}});
 }
 
 // Test shuffle ops.
-template <typename T>
 void RunShuffleOpTest(WasmExecutionMode execution_mode, LowerSimd lower_simd,
                       WasmOpcode simd_op,
-                      const std::array<T, kSimd128Size / sizeof(T)>& shuffle) {
+                      const std::array<int8_t, kSimd128Size>& shuffle) {
   // Test the original shuffle.
-  RunBinaryLaneOpTest<T>(execution_mode, lower_simd, simd_op, shuffle);
+  RunBinaryLaneOpTest<int8_t>(execution_mode, lower_simd, simd_op, shuffle);
 
   // Test a non-canonical (inputs reversed) version of the shuffle.
-  std::array<T, kSimd128Size / sizeof(T)> other_shuffle(shuffle);
+  std::array<int8_t, kSimd128Size> other_shuffle(shuffle);
   for (size_t i = 0; i < shuffle.size(); ++i) other_shuffle[i] ^= kSimd128Size;
-  RunBinaryLaneOpTest<T>(execution_mode, lower_simd, simd_op, other_shuffle);
+  RunBinaryLaneOpTest<int8_t>(execution_mode, lower_simd, simd_op,
+                              other_shuffle);
 
   // Test the swizzle (one-operand) version of the shuffle.
-  std::array<T, kSimd128Size / sizeof(T)> swizzle(shuffle);
+  std::array<int8_t, kSimd128Size> swizzle(shuffle);
   for (size_t i = 0; i < shuffle.size(); ++i) swizzle[i] &= (kSimd128Size - 1);
-  RunBinaryLaneOpTest<T>(execution_mode, lower_simd, simd_op, swizzle);
+  RunBinaryLaneOpTest<int8_t>(execution_mode, lower_simd, simd_op, swizzle);
 
   // Test the non-canonical swizzle (one-operand) version of the shuffle.
-  std::array<T, kSimd128Size / sizeof(T)> other_swizzle(shuffle);
+  std::array<int8_t, kSimd128Size> other_swizzle(shuffle);
   for (size_t i = 0; i < shuffle.size(); ++i) other_swizzle[i] |= kSimd128Size;
-  RunBinaryLaneOpTest<T>(execution_mode, lower_simd, simd_op, other_swizzle);
+  RunBinaryLaneOpTest<int8_t>(execution_mode, lower_simd, simd_op,
+                              other_swizzle);
 }
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
-// Test some regular shuffles that may have special handling on some targets.
-WASM_SIMD_TEST(S32x4Dup) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{16, 17, 18, 19, 16, 17, 18, 19, 16, 17, 18, 19, 16, 17, 18, 19}});
-}
+#define SHUFFLE_LIST(V)  \
+  V(S128Identity)        \
+  V(S32x4Dup)            \
+  V(S32x4ZipLeft)        \
+  V(S32x4ZipRight)       \
+  V(S32x4UnzipLeft)      \
+  V(S32x4UnzipRight)     \
+  V(S32x4TransposeLeft)  \
+  V(S32x4TransposeRight) \
+  V(S32x2Reverse)        \
+  V(S32x4Irregular)      \
+  V(S16x8Dup)            \
+  V(S16x8ZipLeft)        \
+  V(S16x8ZipRight)       \
+  V(S16x8UnzipLeft)      \
+  V(S16x8UnzipRight)     \
+  V(S16x8TransposeLeft)  \
+  V(S16x8TransposeRight) \
+  V(S16x4Reverse)        \
+  V(S16x2Reverse)        \
+  V(S16x8Irregular)      \
+  V(S8x16Dup)            \
+  V(S8x16ZipLeft)        \
+  V(S8x16ZipRight)       \
+  V(S8x16UnzipLeft)      \
+  V(S8x16UnzipRight)     \
+  V(S8x16TransposeLeft)  \
+  V(S8x16TransposeRight) \
+  V(S8x8Reverse)         \
+  V(S8x4Reverse)         \
+  V(S8x2Reverse)         \
+  V(S8x16Irregular)
 
-WASM_SIMD_TEST(S32x4ZipLeft) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23}});
-}
+enum ShuffleKey {
+#define SHUFFLE_ENUM_VALUE(Name) k##Name,
+  SHUFFLE_LIST(SHUFFLE_ENUM_VALUE)
+#undef SHUFFLE_ENUM_VALUE
+      kNumShuffleKeys
+};
 
-WASM_SIMD_TEST(S32x4ZipRight) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31}});
-}
+using Shuffle = std::array<int8_t, kSimd128Size>;
+using ShuffleMap = std::map<ShuffleKey, const Shuffle>;
 
-WASM_SIMD_TEST(S32x4UnzipLeft) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27}});
-}
+ShuffleMap test_shuffles = {
+    {kS128Identity,
+     {{16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31}}},
+    {kS32x4Dup,
+     {{16, 17, 18, 19, 16, 17, 18, 19, 16, 17, 18, 19, 16, 17, 18, 19}}},
+    {kS32x4ZipLeft, {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23}}},
+    {kS32x4ZipRight,
+     {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31}}},
+    {kS32x4UnzipLeft,
+     {{0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27}}},
+    {kS32x4UnzipRight,
+     {{4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31}}},
+    {kS32x4TransposeLeft,
+     {{0, 1, 2, 3, 16, 17, 18, 19, 8, 9, 10, 11, 24, 25, 26, 27}}},
+    {kS32x4TransposeRight,
+     {{4, 5, 6, 7, 20, 21, 22, 23, 12, 13, 14, 15, 28, 29, 30, 31}}},
+    {kS32x2Reverse,  // swizzle only
+     {{4, 5, 6, 7, 0, 1, 2, 3, 12, 13, 14, 15, 8, 9, 10, 11}}},
+    {kS32x4Irregular,
+     {{0, 1, 2, 3, 16, 17, 18, 19, 16, 17, 18, 19, 20, 21, 22, 23}}},
+    {kS16x8Dup,
+     {{18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19}}},
+    {kS16x8ZipLeft, {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23}}},
+    {kS16x8ZipRight,
+     {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31}}},
+    {kS16x8UnzipLeft,
+     {{0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29}}},
+    {kS16x8UnzipRight,
+     {{2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31}}},
+    {kS16x8TransposeLeft,
+     {{0, 1, 16, 17, 4, 5, 20, 21, 8, 9, 24, 25, 12, 13, 28, 29}}},
+    {kS16x8TransposeRight,
+     {{2, 3, 18, 19, 6, 7, 22, 23, 10, 11, 26, 27, 14, 15, 30, 31}}},
+    {kS16x4Reverse,  // swizzle only
+     {{6, 7, 4, 5, 2, 3, 0, 1, 14, 15, 12, 13, 10, 11, 8, 9}}},
+    {kS16x2Reverse,  // swizzle only
+     {{2, 3, 0, 1, 6, 7, 4, 5, 10, 11, 8, 9, 14, 15, 12, 13}}},
+    {kS16x8Irregular,
+     {{0, 1, 16, 17, 16, 17, 0, 1, 4, 5, 20, 21, 6, 7, 22, 23}}},
+    {kS8x16Dup,
+     {{19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19}}},
+    {kS8x16ZipLeft, {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}}},
+    {kS8x16ZipRight,
+     {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31}}},
+    {kS8x16UnzipLeft,
+     {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30}}},
+    {kS8x16UnzipRight,
+     {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31}}},
+    {kS8x16TransposeLeft,
+     {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30}}},
+    {kS8x16TransposeRight,
+     {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31}}},
+    {kS8x8Reverse,  // swizzle only
+     {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8}}},
+    {kS8x4Reverse,  // swizzle only
+     {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12}}},
+    {kS8x2Reverse,  // swizzle only
+     {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14}}},
+    {kS8x16Irregular,
+     {{0, 16, 0, 16, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}}},
+};
 
-WASM_SIMD_TEST(S32x4UnzipRight) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31}});
-}
-
-WASM_SIMD_TEST(S32x4TransposeLeft) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{0, 1, 2, 3, 16, 17, 18, 19, 8, 9, 10, 11, 24, 25, 26, 27}});
-}
-
-WASM_SIMD_TEST(S32x4TransposeRight) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{4, 5, 6, 7, 20, 21, 22, 23, 12, 13, 14, 15, 28, 29, 30, 31}});
-}
-
-// Reverses are only unary.
-WASM_SIMD_TEST(S32x2Reverse) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{4, 5, 6, 7, 0, 1, 2, 3, 12, 13, 14, 15, 8, 9, 10, 11}});
-}
-
-// Test irregular shuffle.
-WASM_SIMD_TEST(S32x4Irregular) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{0, 1, 2, 3, 16, 17, 18, 19, 16, 17, 18, 19, 20, 21, 22, 23}});
-}
-
-WASM_SIMD_TEST(S16x8Dup) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19}});
-}
-
-WASM_SIMD_TEST(S16x8ZipLeft) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23}});
-}
-
-WASM_SIMD_TEST(S16x8ZipRight) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31}});
-}
-
-WASM_SIMD_TEST(S16x8UnzipLeft) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29}});
-}
-
-WASM_SIMD_TEST(S16x8UnzipRight) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31}});
-}
-
-WASM_SIMD_TEST(S16x8TransposeLeft) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{0, 1, 16, 17, 4, 5, 20, 21, 8, 9, 24, 25, 12, 13, 28, 29}});
-}
-
-WASM_SIMD_TEST(S16x8TransposeRight) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{2, 3, 18, 19, 6, 7, 22, 23, 10, 11, 26, 27, 14, 15, 30, 31}});
-}
-
-// TODO(simd) 'Reverse' tests should be 2-operand shuffles, not swizzles.
-WASM_SIMD_TEST(S16x4Reverse) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{6, 7, 4, 5, 2, 3, 0, 1, 14, 15, 12, 13, 10, 11, 8, 9}});
-}
-
-WASM_SIMD_TEST(S16x2Reverse) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{2, 3, 0, 1, 6, 7, 4, 5, 10, 11, 8, 9, 14, 15, 12, 13}});
-}
-
-WASM_SIMD_TEST(S16x8Irregular) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{0, 1, 16, 17, 16, 17, 0, 1, 4, 5, 20, 21, 6, 7, 22, 23}});
-}
-
-WASM_SIMD_TEST(S8x16Dup) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19, 19}});
-}
-
-WASM_SIMD_TEST(S8x16ZipLeft) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}});
-}
-
-WASM_SIMD_TEST(S8x16ZipRight) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31}});
-}
-
-WASM_SIMD_TEST(S8x16UnzipLeft) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30}});
-}
-
-WASM_SIMD_TEST(S8x16UnzipRight) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31}});
-}
-
-WASM_SIMD_TEST(S8x16TransposeLeft) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30}});
-}
-
-WASM_SIMD_TEST(S8x16TransposeRight) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31}});
-}
-
-WASM_SIMD_TEST(S8x8Reverse) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8}});
-}
-
-WASM_SIMD_TEST(S8x4Reverse) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12}});
-}
-
-WASM_SIMD_TEST(S8x2Reverse) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14}});
-}
-
-WASM_SIMD_TEST(S8x16Irregular) {
-  RunShuffleOpTest<int8_t>(
-      execution_mode, lower_simd, kExprS8x16Shuffle,
-      {{0, 16, 0, 16, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23}});
-}
+#define SHUFFLE_TEST(Name)                                          \
+  WASM_SIMD_TEST(Name) {                                            \
+    ShuffleMap::const_iterator it = test_shuffles.find(k##Name);    \
+    DCHECK_NE(it, test_shuffles.end());                             \
+    RunShuffleOpTest(execution_mode, lower_simd, kExprS8x16Shuffle, \
+                     it->second);                                   \
+  }
+SHUFFLE_LIST(SHUFFLE_TEST)
+#undef SHUFFLE_TEST
+#undef SHUFFLE_LIST
 
 // Test shuffles that blend the two vectors (elements remain in their lanes.)
 WASM_SIMD_TEST(S8x16Blend) {
-  static const int kLanes = 16;
-  std::array<uint8_t, kLanes> expected;
-  for (int bias = 1; bias < kLanes; bias++) {
+  std::array<int8_t, kSimd128Size> expected;
+  for (int bias = 1; bias < kSimd128Size; bias++) {
     for (int i = 0; i < bias; i++) expected[i] = i;
-    for (int i = bias; i < kLanes; i++) expected[i] = i + kLanes;
+    for (int i = bias; i < kSimd128Size; i++) expected[i] = i + kSimd128Size;
     RunShuffleOpTest(execution_mode, lower_simd, kExprS8x16Shuffle, expected);
   }
 }
 
 // Test shuffles that concatenate the two vectors.
 WASM_SIMD_TEST(S8x16Concat) {
-  static const int kLanes = 16;
-  std::array<uint8_t, kLanes> expected;
+  std::array<int8_t, kSimd128Size> expected;
   // n is offset or bias of concatenation.
-  for (int n = 1; n < kLanes; ++n) {
+  for (int n = 1; n < kSimd128Size; ++n) {
     int i = 0;
     // last kLanes - n bytes of first vector.
-    for (int j = n; j < kLanes; ++j) {
+    for (int j = n; j < kSimd128Size; ++j) {
       expected[i++] = j;
     }
     // first n bytes of second vector
     for (int j = 0; j < n; ++j) {
-      expected[i++] = j + kLanes;
+      expected[i++] = j + kSimd128Size;
     }
     RunShuffleOpTest(execution_mode, lower_simd, kExprS8x16Shuffle, expected);
+  }
+}
+
+// Combine 3 shuffles a, b, and c by applying both a and b and then applying c
+// to those two results.
+Shuffle Combine(const Shuffle& a, const Shuffle& b, const Shuffle& c) {
+  Shuffle result;
+  for (int i = 0; i < kSimd128Size; ++i) {
+    result[i] = c[i] < kSimd128Size ? a[c[i]] : b[c[i] - kSimd128Size];
+  }
+  return result;
+}
+
+const Shuffle& GetRandomTestShuffle(v8::base::RandomNumberGenerator* rng) {
+  return test_shuffles[static_cast<ShuffleKey>(rng->NextInt(kNumShuffleKeys))];
+}
+
+// Test shuffles that are random combinations of 3 test shuffles. Completely
+// random shuffles almost always generate the slow general shuffle code, so
+// don't exercise as many code paths.
+WASM_SIMD_TEST(S8x16ShuffleFuzz) {
+  v8::base::RandomNumberGenerator* rng = CcTest::random_number_generator();
+  static const int kTests = 100;
+  for (int i = 0; i < kTests; ++i) {
+    auto shuffle = Combine(GetRandomTestShuffle(rng), GetRandomTestShuffle(rng),
+                           GetRandomTestShuffle(rng));
+    RunShuffleOpTest(execution_mode, lower_simd, kExprS8x16Shuffle, shuffle);
+  }
+}
+
+void AppendShuffle(const Shuffle& shuffle, std::vector<byte>* buffer) {
+  byte opcode[] = {WASM_SIMD_OP(kExprS8x16Shuffle)};
+  for (size_t i = 0; i < arraysize(opcode); ++i) buffer->push_back(opcode[i]);
+  for (size_t i = 0; i < kSimd128Size; ++i) buffer->push_back((shuffle[i]));
+}
+
+void BuildShuffle(std::vector<Shuffle>& shuffles, std::vector<byte>* buffer) {
+  // Perform the leaf shuffles on globals 0 and 1.
+  size_t row_index = (shuffles.size() - 1) / 2;
+  for (size_t i = row_index; i < shuffles.size(); ++i) {
+    byte operands[] = {WASM_GET_GLOBAL(0), WASM_GET_GLOBAL(1)};
+    for (size_t j = 0; j < arraysize(operands); ++j)
+      buffer->push_back(operands[j]);
+    AppendShuffle(shuffles[i], buffer);
+  }
+  // Now perform inner shuffles in the correct order on operands on the stack.
+  do {
+    for (size_t i = row_index / 2; i < row_index; ++i) {
+      AppendShuffle(shuffles[i], buffer);
+    }
+    row_index /= 2;
+  } while (row_index != 0);
+  byte epilog[] = {kExprSetGlobal, static_cast<byte>(0), WASM_ONE};
+  for (size_t j = 0; j < arraysize(epilog); ++j) buffer->push_back(epilog[j]);
+}
+
+// Runs tests of compiled code, using the interpreter as a reference.
+#define WASM_SIMD_COMPILED_TEST(name)                           \
+  void RunWasm_##name##_Impl(LowerSimd lower_simd,              \
+                             WasmExecutionMode execution_mode); \
+  TEST(RunWasm_##name##_turbofan) {                             \
+    EXPERIMENTAL_FLAG_SCOPE(simd);                              \
+    RunWasm_##name##_Impl(kNoLowerSimd, kExecuteTurbofan);      \
+  }                                                             \
+  TEST(RunWasm_##name##_simd_lowered) {                         \
+    EXPERIMENTAL_FLAG_SCOPE(simd);                              \
+    RunWasm_##name##_Impl(kLowerSimd, kExecuteTurbofan);        \
+  }                                                             \
+  void RunWasm_##name##_Impl(LowerSimd lower_simd,              \
+                             WasmExecutionMode execution_mode)
+
+void RunWasmCode(WasmExecutionMode execution_mode, LowerSimd lower_simd,
+                 const std::vector<byte>& code,
+                 std::array<int8_t, kSimd128Size>* result) {
+  WasmRunner<int32_t> r(execution_mode, lower_simd);
+  // Set up two test patterns as globals, e.g. [0, 1, 2, 3] and [4, 5, 6, 7].
+  int8_t* src0 = r.builder().AddGlobal<int8_t>(kWasmS128);
+  int8_t* src1 = r.builder().AddGlobal<int8_t>(kWasmS128);
+  for (int i = 0; i < kSimd128Size; ++i) {
+    src0[i] = i;
+    src1[i] = kSimd128Size + i;
+  }
+  r.Build(code.data(), code.data() + code.size());
+  CHECK_EQ(1, r.Call());
+  for (size_t i = 0; i < kSimd128Size; i++) {
+    (*result)[i] = src0[i];
+  }
+}
+
+// Test multiple shuffles executed in sequence.
+WASM_SIMD_COMPILED_TEST(S8x16MultiShuffleFuzz) {
+  v8::base::RandomNumberGenerator* rng = CcTest::random_number_generator();
+  static const int kShuffles = 100;
+  for (int i = 0; i < kShuffles; ++i) {
+    // Create an odd number in [3..23] of random test shuffles so we can build
+    // a complete binary tree (stored as a heap) of shuffle operations. The leaf
+    // shuffles operate on the test pattern inputs, while the interior shuffles
+    // operate on the results of the two child shuffles.
+    int num_shuffles = rng->NextInt(10) * 2 + 3;
+    std::vector<Shuffle> shuffles;
+    for (int j = 0; j < num_shuffles; ++j) {
+      shuffles.push_back(GetRandomTestShuffle(rng));
+    }
+    // Generate the code for the shuffle expression.
+    std::vector<byte> buffer;
+    BuildShuffle(shuffles, &buffer);
+
+    // Run the code using the interpreter to get the expected result.
+    std::array<int8_t, kSimd128Size> expected;
+    RunWasmCode(kExecuteInterpreter, kNoLowerSimd, buffer, &expected);
+    // Run the SIMD or scalar lowered compiled code and compare results.
+    std::array<int8_t, kSimd128Size> result;
+    RunWasmCode(execution_mode, lower_simd, buffer, &result);
+    for (size_t i = 0; i < kSimd128Size; ++i) {
+      CHECK_EQ(result[i], expected[i]);
+    }
   }
 }
 
@@ -2350,6 +2401,7 @@ WASM_SIMD_TEST(SimdLoadStoreLoad) {
 #undef WASM_SIMD_STORE_MEM
 #undef WASM_SIMD_SELECT_TEST
 #undef WASM_SIMD_NON_CANONICAL_SELECT_TEST
+#undef WASM_SIMD_COMPILED_TEST
 #undef WASM_SIMD_BOOL_REDUCTION_TEST
 
 }  // namespace test_run_wasm_simd

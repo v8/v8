@@ -2491,9 +2491,15 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
       DCHECK_GT(4, index);
       Emit(kArmS128Dup, g.DefineAsRegister(node), g.UseRegister(input0),
            g.UseImmediate(Neon32), g.UseImmediate(index % 4));
+    } else if (TryMatchIdentity(shuffle)) {
+      EmitIdentity(node);
     } else {
-      Emit(kArmS32x4Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-           g.UseRegister(input1), g.UseImmediate(Pack4Lanes(shuffle32x4)));
+      // 32x4 shuffles are implemented as s-register moves. To simplify these,
+      // make sure the destination is distinct from both sources.
+      InstructionOperand src0 = g.UseUniqueRegister(input0);
+      InstructionOperand src1 = is_swizzle ? src0 : g.UseUniqueRegister(input1);
+      Emit(kArmS32x4Shuffle, g.DefineAsRegister(node), src0, src1,
+           g.UseImmediate(Pack4Lanes(shuffle32x4)));
     }
     return;
   }
