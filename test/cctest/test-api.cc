@@ -15654,19 +15654,14 @@ static void MorphAString(i::String* string,
     string->set_map(roots.external_string_map());
     i::ExternalTwoByteString* morphed =
          i::ExternalTwoByteString::cast(string);
-    CcTest::heap()->UpdateExternalString(morphed, morphed->resource()->length(),
-                                         0);
-
-    morphed->SetResource(uc16_resource);
+    morphed->set_resource(uc16_resource);
   } else {
     // Check old map is not internalized or long.
     CHECK(string->map() == roots.external_string_map());
     // Morph external string to be one-byte string.
     string->set_map(roots.external_one_byte_string_map());
     i::ExternalOneByteString* morphed = i::ExternalOneByteString::cast(string);
-    CcTest::heap()->UpdateExternalString(morphed,
-                                         morphed->resource()->length() * 2, 0);
-    morphed->SetResource(one_byte_resource);
+    morphed->set_resource(one_byte_resource);
   }
 }
 
@@ -15754,13 +15749,13 @@ THREADED_TEST(MorphCompositeStringTest) {
 
     // This avoids the GC from trying to free a stack allocated resource.
     if (ilhs->IsExternalOneByteString())
-      i::ExternalOneByteString::cast(ilhs)->SetResource(nullptr);
+      i::ExternalOneByteString::cast(ilhs)->set_resource(nullptr);
     else
-      i::ExternalTwoByteString::cast(ilhs)->SetResource(nullptr);
+      i::ExternalTwoByteString::cast(ilhs)->set_resource(nullptr);
     if (irhs->IsExternalOneByteString())
-      i::ExternalOneByteString::cast(irhs)->SetResource(nullptr);
+      i::ExternalOneByteString::cast(irhs)->set_resource(nullptr);
     else
-      i::ExternalTwoByteString::cast(irhs)->SetResource(nullptr);
+      i::ExternalTwoByteString::cast(irhs)->set_resource(nullptr);
   }
   i::DeleteArray(two_byte_string);
 }
@@ -20380,7 +20375,7 @@ THREADED_TEST(TwoByteStringInOneByteCons) {
   CHECK_EQ(static_cast<int32_t>('e'),
            reresult->Int32Value(context.local()).FromJust());
   // This avoids the GC from trying to free stack allocated resources.
-  i::Handle<i::ExternalTwoByteString>::cast(flat_string)->SetResource(nullptr);
+  i::Handle<i::ExternalTwoByteString>::cast(flat_string)->set_resource(nullptr);
 }
 
 

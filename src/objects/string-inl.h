@@ -577,13 +577,6 @@ void ExternalOneByteString::update_data_cache() {
   *data_field = resource()->data();
 }
 
-void ExternalOneByteString::SetResource(
-    const ExternalOneByteString::Resource* resource) {
-  set_resource(resource);
-  size_t new_payload = resource == nullptr ? 0 : resource->length();
-  if (new_payload > 0) GetHeap()->UpdateExternalString(this, 0, new_payload);
-}
-
 void ExternalOneByteString::set_resource(
     const ExternalOneByteString::Resource* resource) {
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(resource), kPointerSize));
@@ -610,13 +603,6 @@ void ExternalTwoByteString::update_data_cache() {
   const uint16_t** data_field =
       reinterpret_cast<const uint16_t**>(FIELD_ADDR(this, kResourceDataOffset));
   *data_field = resource()->data();
-}
-
-void ExternalTwoByteString::SetResource(
-    const ExternalTwoByteString::Resource* resource) {
-  set_resource(resource);
-  size_t new_payload = resource == nullptr ? 0 : resource->length() * 2;
-  if (new_payload > 0) GetHeap()->UpdateExternalString(this, 0, new_payload);
 }
 
 void ExternalTwoByteString::set_resource(

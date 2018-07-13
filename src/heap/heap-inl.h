@@ -279,33 +279,12 @@ void Heap::UpdateAllocationsHash(uint32_t value) {
 
 
 void Heap::RegisterExternalString(String* string) {
-  DCHECK(string->IsExternalString());
-  DCHECK(!string->IsThinString());
   external_string_table_.AddString(string);
 }
 
-void Heap::UpdateExternalString(String* string, size_t old_payload,
-                                size_t new_payload) {
-  DCHECK(string->IsExternalString());
-  Page* page = Page::FromHeapObject(string);
-
-  if (old_payload > new_payload)
-    page->DecrementExternalBackingStoreBytes(
-        ExternalBackingStoreType::kExternalString, old_payload - new_payload);
-  else
-    page->IncrementExternalBackingStoreBytes(
-        ExternalBackingStoreType::kExternalString, new_payload - old_payload);
-}
 
 void Heap::FinalizeExternalString(String* string) {
   DCHECK(string->IsExternalString());
-  Page* page = Page::FromHeapObject(string);
-  ExternalString* ext_string = ExternalString::cast(string);
-
-  page->DecrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kExternalString,
-      ext_string->ExternalPayloadSize());
-
   v8::String::ExternalStringResourceBase** resource_addr =
       reinterpret_cast<v8::String::ExternalStringResourceBase**>(
           reinterpret_cast<byte*>(string) + ExternalString::kResourceOffset -
