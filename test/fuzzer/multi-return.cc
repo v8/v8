@@ -254,8 +254,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
   callee.Return(static_cast<int>(desc->ReturnCount()), returns.get());
 
-  OptimizedCompilationInfo info(ArrayVector("testing"), &zone,
-                                Code::WASM_FUNCTION);
+  OptimizedCompilationInfo info(ArrayVector("testing"), &zone, Code::STUB);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(
                           &info, i_isolate, desc, callee.graph(),
                           AssemblerOptions::Default(i_isolate), callee.Export())
