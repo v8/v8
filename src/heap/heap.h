@@ -652,7 +652,7 @@ class Heap {
 
   void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
 
-  inline uint32_t HashSeed();
+  inline uint64_t HashSeed();
 
   inline int NextScriptId();
   inline int NextDebuggingId();

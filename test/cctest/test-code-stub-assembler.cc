@@ -325,15 +325,21 @@ TEST(JSFunction) {
 
 TEST(ComputeIntegerHash) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  const int kNumParams = 2;
+  const int kNumParams = 1;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeStubAssembler m(asm_tester.state());
-  m.Return(m.SmiFromInt32(m.ComputeIntegerHash(m.SmiUntag(m.Parameter(0)),
-                                               m.SmiToInt32(m.Parameter(1)))));
+
+  TNode<Int32T> int32_seed;
+  if (m.Is64()) {
+    int32_seed = m.TruncateInt64ToInt32(m.HashSeed());
+  } else {
+    int32_seed = m.HashSeedLow();
+  }
+
+  m.Return(m.SmiFromInt32(
+      m.ComputeIntegerHash(m.SmiUntag(m.Parameter(0)), int32_seed)));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-
-  Handle<Smi> hash_seed = isolate->factory()->hash_seed();
 
   base::RandomNumberGenerator rand_gen(FLAG_random_seed);
 
@@ -341,9 +347,9 @@ TEST(ComputeIntegerHash) {
     int k = rand_gen.NextInt(Smi::kMaxValue);
 
     Handle<Smi> key(Smi::FromInt(k), isolate);
-    Handle<Object> result = ft.Call(key, hash_seed).ToHandleChecked();
+    Handle<Object> result = ft.Call(key).ToHandleChecked();
 
-    uint32_t hash = ComputeIntegerHash(k, hash_seed->value());
+    uint32_t hash = ComputeIntegerHash(k, isolate->heap()->HashSeed());
     Smi* expected = Smi::FromInt(hash & Smi::kMaxValue);
     CHECK_EQ(expected, Smi::cast(*result));
   }

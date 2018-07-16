@@ -244,8 +244,38 @@ HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR);
 HEAP_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_TEST);
 #undef HEAP_CONSTANT_TEST
 
-TNode<Int32T> CodeStubAssembler::HashSeed() {
-  return LoadAndUntagToWord32Root(Heap::kHashSeedRootIndex);
+TNode<Int64T> CodeStubAssembler::HashSeed() {
+  DCHECK(Is64());
+  TNode<HeapObject> hash_seed_root =
+      TNode<HeapObject>::UncheckedCast(LoadRoot(Heap::kHashSeedRootIndex));
+  return TNode<Int64T>::UncheckedCast(LoadObjectField(
+      hash_seed_root, ByteArray::kHeaderSize, MachineType::Int64()));
+}
+
+TNode<Int32T> CodeStubAssembler::HashSeedHigh() {
+  DCHECK(!Is64());
+#ifdef V8_TARGET_BIG_ENDIAN
+  static int kOffset = 0;
+#else
+  static int kOffset = kInt32Size;
+#endif
+  TNode<HeapObject> hash_seed_root =
+      TNode<HeapObject>::UncheckedCast(LoadRoot(Heap::kHashSeedRootIndex));
+  return TNode<Int32T>::UncheckedCast(LoadObjectField(
+      hash_seed_root, ByteArray::kHeaderSize + kOffset, MachineType::Int32()));
+}
+
+TNode<Int32T> CodeStubAssembler::HashSeedLow() {
+  DCHECK(!Is64());
+#ifdef V8_TARGET_BIG_ENDIAN
+  static int kOffset = kInt32Size;
+#else
+  static int kOffset = 0;
+#endif
+  TNode<HeapObject> hash_seed_root =
+      TNode<HeapObject>::UncheckedCast(LoadRoot(Heap::kHashSeedRootIndex));
+  return TNode<Int32T>::UncheckedCast(LoadObjectField(
+      hash_seed_root, ByteArray::kHeaderSize + kOffset, MachineType::Int32()));
 }
 
 Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
@@ -7433,7 +7463,14 @@ void CodeStubAssembler::NumberDictionaryLookup(
   TNode<IntPtrT> capacity = SmiUntag(GetCapacity<NumberDictionary>(dictionary));
   TNode<WordT> mask = IntPtrSub(capacity, IntPtrConstant(1));
 
-  TNode<Int32T> int32_seed = HashSeed();
+  TNode<Int32T> int32_seed;
+
+  if (Is64()) {
+    int32_seed = TruncateInt64ToInt32(HashSeed());
+  } else {
+    int32_seed = HashSeedLow();
+  }
+
   TNode<WordT> hash =
       ChangeUint32ToWord(ComputeIntegerHash(intptr_index, int32_seed));
   Node* key_as_float64 = RoundIntPtrToFloat64(intptr_index);

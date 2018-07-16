@@ -472,13 +472,13 @@ class BitSetComputer {
 // ----------------------------------------------------------------------------
 // Hash function.
 
-static const uint32_t kZeroHashSeed = 0;
+static const uint64_t kZeroHashSeed = 0;
 
 // Thomas Wang, Integer Hash Functions.
 // http://www.concentric.net/~Ttwang/tech/inthash.htm
-inline uint32_t ComputeIntegerHash(uint32_t key, uint32_t seed) {
+inline uint32_t ComputeIntegerHash(uint32_t key, uint64_t seed) {
   uint32_t hash = key;
-  hash = hash ^ seed;
+  hash = hash ^ static_cast<uint32_t>(seed);
   hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
   hash = hash ^ (hash >> 12);
   hash = hash + (hash << 2);
