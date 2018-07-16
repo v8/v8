@@ -1772,9 +1772,14 @@ void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
   int func_name_len = std::min(kMaxPrintedFunctionName, raw_func_name.length());
   memcpy(func_name, raw_func_name.start(), func_name_len);
   func_name[func_name_len] = '\0';
-  accumulator->Add("], function #%u ('%s'), pc=%p (+0x%x), pos=%d\n",
-                   function_index(), func_name, reinterpret_cast<void*>(pc()),
-                   static_cast<int>(pc() - instruction_start), position());
+  int pos = position();
+  const wasm::WasmModule* module = wasm_instance()->module_object()->module();
+  int func_index = function_index();
+  int func_code_offset = module->functions[func_index].code.offset();
+  accumulator->Add("], function #%u ('%s'), pc=%p (+0x%x), pos=%d (+%d)\n",
+                   func_index, func_name, reinterpret_cast<void*>(pc()),
+                   static_cast<int>(pc() - instruction_start), pos,
+                   pos - func_code_offset);
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
