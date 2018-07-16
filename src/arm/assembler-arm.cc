@@ -1421,7 +1421,8 @@ void Assembler::b(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
   RecordRelocInfo(rmode);
   DCHECK_EQ(branch_offset & 3, 0);
   int imm24 = branch_offset >> 2;
-  CHECK(is_int24(imm24));
+  const bool b_imm_check = is_int24(imm24);
+  CHECK(b_imm_check);
   emit(cond | B27 | B25 | (imm24 & kImm24Mask));
 
   if (cond == al) {
@@ -1434,7 +1435,8 @@ void Assembler::bl(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
   RecordRelocInfo(rmode);
   DCHECK_EQ(branch_offset & 3, 0);
   int imm24 = branch_offset >> 2;
-  CHECK(is_int24(imm24));
+  const bool bl_imm_check = is_int24(imm24);
+  CHECK(bl_imm_check);
   emit(cond | B27 | B25 | B24 | (imm24 & kImm24Mask));
 }
 
@@ -1442,7 +1444,8 @@ void Assembler::blx(int branch_offset) {
   DCHECK_EQ(branch_offset & 1, 0);
   int h = ((branch_offset & 2) >> 1)*B24;
   int imm24 = branch_offset >> 2;
-  CHECK(is_int24(imm24));
+  const bool blx_imm_check = is_int24(imm24);
+  CHECK(blx_imm_check);
   emit(kSpecialCondition | B27 | B25 | h | (imm24 & kImm24Mask));
 }
 
