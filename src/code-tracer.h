@@ -21,13 +21,11 @@ class CodeTracer final : public Malloced {
       return;
     }
 
-    if (FLAG_redirect_code_traces_to != nullptr) {
-      StrNCpy(filename_, FLAG_redirect_code_traces_to, filename_.length());
-    } else if (isolate_id >= 0) {
+    if (FLAG_redirect_code_traces_to == nullptr) {
       SNPrintF(filename_, "code-%d-%d.asm", base::OS::GetCurrentProcessId(),
                isolate_id);
     } else {
-      SNPrintF(filename_, "code-%d.asm", base::OS::GetCurrentProcessId());
+      StrNCpy(filename_, FLAG_redirect_code_traces_to, filename_.length());
     }
 
     WriteChars(filename_.start(), "", 0, false);
