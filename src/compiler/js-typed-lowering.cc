@@ -93,12 +93,13 @@ class JSBinopReduction final {
     if (BothInputsAre(Type::String()) ||
         BinaryOperationHintOf(node_->op()) == BinaryOperationHint::kString) {
       HeapObjectBinopMatcher m(node_);
-      if (m.right().HasValue() && m.right().Ref().IsString()) {
-        StringRef right_string(m.right().Value());
+      const JSHeapBroker* broker = lowering_->js_heap_broker();
+      if (m.right().HasValue() && m.right().Ref(broker).IsString()) {
+        StringRef right_string = m.right().Ref(broker).AsString();
         if (right_string.length() >= ConsString::kMinLength) return true;
       }
-      if (m.left().HasValue() && m.left().Ref().IsString()) {
-        StringRef left_string(m.left().Value());
+      if (m.left().HasValue() && m.left().Ref(broker).IsString()) {
+        StringRef left_string = m.left().Ref(broker).AsString();
         if (left_string.length() >= ConsString::kMinLength) {
           // The invariant for ConsString requires the left hand side to be
           // a sequential or external string if the right hand side is the
@@ -718,11 +719,11 @@ Node* JSTypedLowering::BuildGetStringLength(Node* value) {
   // TODO(bmeurer): Get rid of this hack and instead have a way to
   // express the string length in the types.
   HeapObjectMatcher m(value);
-  if (!m.HasValue() || !m.Ref().IsString()) {
+  if (!m.HasValue() || !m.Ref(js_heap_broker()).IsString()) {
     return graph()->NewNode(simplified()->StringLength(), value);
   }
 
-  return jsgraph()->Constant(m.Ref().AsString().length());
+  return jsgraph()->Constant(m.Ref(js_heap_broker()).AsString().length());
 }
 
 Reduction JSTypedLowering::ReduceSpeculativeNumberComparison(Node* node) {
@@ -959,17 +960,15 @@ Reduction JSTypedLowering::ReduceJSToNumberOrNumericInput(Node* input) {
 
   if (input_type.Is(Type::String())) {
     HeapObjectMatcher m(input);
-    if (m.HasValue() && m.Ref().IsString()) {
-      StringRef input_value = m.Ref().AsString();
-      return Replace(
-          jsgraph()->Constant(input_value.ToNumber(js_heap_broker())));
+    if (m.HasValue() && m.Ref(js_heap_broker()).IsString()) {
+      StringRef input_value = m.Ref(js_heap_broker()).AsString();
+      return Replace(jsgraph()->Constant(input_value.ToNumber()));
     }
   }
   if (input_type.IsHeapConstant()) {
     ObjectRef input_value = input_type.AsHeapConstant()->Ref();
-    if (input_value.oddball_type(js_heap_broker()) != OddballType::kNone) {
-      return Replace(
-          jsgraph()->Constant(input_value.OddballToNumber(js_heap_broker())));
+    if (input_value.oddball_type() != OddballType::kNone) {
+      return Replace(jsgraph()->Constant(input_value.OddballToNumber()));
     }
   }
   if (input_type.Is(Type::Number())) {
@@ -1135,8 +1134,8 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Type receiver_type = NodeProperties::GetType(receiver);
-  NameRef name(NamedAccessOf(node->op()).name());
-  NameRef length_str(factory()->length_string());
+  NameRef name(js_heap_broker(), NamedAccessOf(node->op()).name());
+  NameRef length_str(js_heap_broker(), factory()->length_string());
   // Optimize "length" property of strings.
   if (name.equals(length_str) && receiver_type.Is(Type::String())) {
     Node* value = graph()->NewNode(simplified()->StringLength(), receiver);
@@ -1371,9 +1370,8 @@ Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
 
   if (module_type.IsHeapConstant()) {
     ModuleRef module_constant = module_type.AsHeapConstant()->Ref().AsModule();
-    CellRef cell_constant(
-        module_constant.GetCell(js_heap_broker(), cell_index));
-    return jsgraph()->Constant(js_heap_broker(), cell_constant);
+    CellRef cell_constant(module_constant.GetCell(cell_index));
+    return jsgraph()->Constant(cell_constant);
   }
 
   FieldAccess field_access;
@@ -1560,7 +1558,7 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
   if (target_type.IsHeapConstant() &&
       target_type.AsHeapConstant()->Ref().IsJSFunction()) {
     JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();
-    SharedFunctionInfoRef shared = function.shared(js_heap_broker());
+    SharedFunctionInfoRef shared = function.shared();
 
     // Only optimize [[Construct]] here if {function} is a Constructor.
     if (!function.IsConstructor()) return NoChange();
@@ -1570,13 +1568,13 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
     // Patch {node} to an indirect call via the {function}s construct stub.
     bool use_builtin_construct_stub = shared.construct_as_builtin();
 
-    CodeRef code(use_builtin_construct_stub
+    CodeRef code(js_heap_broker(),
+                 use_builtin_construct_stub
                      ? BUILTIN_CODE(isolate(), JSBuiltinsConstructStub)
                      : BUILTIN_CODE(isolate(), JSConstructStubGeneric));
 
     node->RemoveInput(arity + 1);
-    node->InsertInput(graph()->zone(), 0,
-                      jsgraph()->Constant(js_heap_broker(), code));
+    node->InsertInput(graph()->zone(), 0, jsgraph()->Constant(code));
     node->InsertInput(graph()->zone(), 2, new_target);
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
@@ -1643,7 +1641,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   if (target_type.IsHeapConstant() &&
       target_type.AsHeapConstant()->Ref().IsJSFunction()) {
     JSFunctionRef function = target_type.AsHeapConstant()->Ref().AsJSFunction();
-    SharedFunctionInfoRef shared = function.shared(js_heap_broker());
+    SharedFunctionInfoRef shared = function.shared();
 
     if (shared.HasBreakInfo()) {
       // Do not inline the call if we need to check whether to break at entry.
@@ -1663,8 +1661,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     // Check if we need to convert the {receiver}.
     if (is_sloppy(shared.language_mode()) && !shared.native() &&
         !receiver_type.Is(Type::Receiver())) {
-      Node* global_proxy = jsgraph()->Constant(
-          js_heap_broker(), function.global_proxy(js_heap_broker()));
+      Node* global_proxy = jsgraph()->Constant(function.global_proxy());
       receiver = effect =
           graph()->NewNode(simplified()->ConvertReceiver(convert_mode),
                            receiver, global_proxy, effect, control);

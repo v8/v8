@@ -18,6 +18,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class JSHeapBroker;
+
 // A pattern matcher for nodes.
 struct NodeMatcher {
   explicit NodeMatcher(Node* node) : node_(node) {}
@@ -193,7 +195,9 @@ struct HeapObjectMatcher final
     return this->HasValue() && this->Value().address() == value.address();
   }
 
-  ObjectRef Ref() const { return ObjectRef(this->Value()); }
+  ObjectRef Ref(const JSHeapBroker* broker) const {
+    return ObjectRef(broker, this->Value());
+  }
 };
 
 

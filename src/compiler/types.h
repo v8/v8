@@ -541,11 +541,10 @@ class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
   friend class Type;
   friend class BitsetType;
 
-  static HeapConstantType* New(const JSHeapBroker* broker,
-                               const HeapObjectRef& heap_ref, Zone* zone) {
+  static HeapConstantType* New(const HeapObjectRef& heap_ref, Zone* zone) {
     DCHECK(!heap_ref.IsHeapNumber());
     DCHECK_IMPLIES(heap_ref.IsString(), heap_ref.IsInternalizedString());
-    BitsetType::bitset bitset = BitsetType::Lub(heap_ref.type(broker));
+    BitsetType::bitset bitset = BitsetType::Lub(heap_ref.type());
     return new (zone->New(sizeof(HeapConstantType)))
         HeapConstantType(bitset, heap_ref);
   }

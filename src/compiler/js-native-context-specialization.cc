@@ -68,7 +68,7 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
       global_object_(native_context->global_object(), jsgraph->isolate()),
       global_proxy_(JSGlobalProxy::cast(native_context->global_proxy()),
                     jsgraph->isolate()),
-      native_context_(native_context),
+      native_context_(js_heap_broker, native_context),
       dependencies_(dependencies),
       zone_(zone),
       type_cache_(TypeCache::Get()) {}
@@ -520,7 +520,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadContext(Node* node) {
   // context (if any), so we can constant-fold those fields, which is
   // safe, since the NATIVE_CONTEXT_INDEX slot is always immutable.
   if (access.index() == Context::NATIVE_CONTEXT_INDEX) {
-    Node* value = jsgraph()->Constant(js_heap_broker(), native_context());
+    Node* value = jsgraph()->Constant(native_context());
     ReplaceWithValue(node, value);
     return Replace(value);
   }
@@ -732,19 +732,19 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
-  NameRef name(LoadGlobalParametersOf(node->op()).name());
+  NameRef name(js_heap_broker(), LoadGlobalParametersOf(node->op()).name());
   Node* effect = NodeProperties::GetEffectInput(node);
 
   // Try to lookup the name on the script context table first (lexical scoping).
   base::Optional<ScriptContextTableRef::LookupResult> result =
-      native_context().script_context_table(js_heap_broker()).lookup(name);
+      native_context().script_context_table().lookup(name);
   if (result) {
-    ObjectRef contents = result->context.get(js_heap_broker(), result->index);
-    OddballType oddball_type = contents.oddball_type(js_heap_broker());
+    ObjectRef contents = result->context.get(result->index);
+    OddballType oddball_type = contents.oddball_type();
     if (oddball_type == OddballType::kHole) {
       return NoChange();
     }
-    Node* context = jsgraph()->Constant(js_heap_broker(), result->context);
+    Node* context = jsgraph()->Constant(result->context);
     Node* value = effect = graph()->NewNode(
         javascript()->LoadContext(0, result->index, result->immutable), context,
         effect);
@@ -759,21 +759,21 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
-  NameRef name(StoreGlobalParametersOf(node->op()).name());
+  NameRef name(js_heap_broker(), StoreGlobalParametersOf(node->op()).name());
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
   // Try to lookup the name on the script context table first (lexical scoping).
   base::Optional<ScriptContextTableRef::LookupResult> result =
-      native_context().script_context_table(js_heap_broker()).lookup(name);
+      native_context().script_context_table().lookup(name);
   if (result) {
-    ObjectRef contents = result->context.get(js_heap_broker(), result->index);
-    OddballType oddball_type = contents.oddball_type(js_heap_broker());
+    ObjectRef contents = result->context.get(result->index);
+    OddballType oddball_type = contents.oddball_type();
     if (oddball_type == OddballType::kHole || result->immutable) {
       return NoChange();
     }
-    Node* context = jsgraph()->Constant(js_heap_broker(), result->context);
+    Node* context = jsgraph()->Constant(result->context);
     effect = graph()->NewNode(javascript()->StoreContext(0, result->index),
                               value, context, effect, control);
     ReplaceWithValue(node, value, effect, control);
@@ -1774,7 +1774,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   Node* code = jsgraph()->HeapConstant(call_api_callback.code());
 
   // Add CallApiCallbackStub's register argument as well.
-  Node* context = jsgraph()->Constant(js_heap_broker(), native_context());
+  Node* context = jsgraph()->Constant(native_context());
   Node* inputs[10] = {code,    context, data, holder, function_reference,
                       receiver};
   int index = 6 + argc;
@@ -1913,7 +1913,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
             !FLAG_unbox_double_fields) {
           if (access_info.HasTransitionMap()) {
             // Allocate a MutableHeapNumber for the new property.
-            AllocationBuilder a(jsgraph(), js_heap_broker(), effect, control);
+            AllocationBuilder a(jsgraph(), effect, control);
             a.Allocate(HeapNumber::kSize, NOT_TENURED, Type::OtherInternal());
             a.Store(AccessBuilder::ForMap(),
                     factory()->mutable_heap_number_map());
@@ -2768,7 +2768,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
                        new_length_and_hash, effect, control);
 
   // Allocate and initialize the new properties.
-  AllocationBuilder a(jsgraph(), js_heap_broker(), effect, control);
+  AllocationBuilder a(jsgraph(), effect, control);
   a.Allocate(PropertyArray::SizeFor(new_length), NOT_TENURED,
              Type::OtherInternal());
   a.Store(AccessBuilder::ForMap(), jsgraph()->PropertyArrayMapConstant());

@@ -94,7 +94,8 @@ HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 
 class ObjectRef {
  public:
-  explicit ObjectRef(Handle<Object> object) : object_(object) {}
+  explicit ObjectRef(const JSHeapBroker* broker, Handle<Object> object)
+      : broker_(broker), object_(object) {}
 
   template <typename T>
   Handle<T> object() const {
@@ -102,7 +103,7 @@ class ObjectRef {
     return Handle<T>::cast(object_);
   }
 
-  OddballType oddball_type(const JSHeapBroker* broker) const;
+  OddballType oddball_type() const;
 
   bool IsSmi() const;
   int AsSmi() const;
@@ -117,11 +118,15 @@ class ObjectRef {
   HEAP_BROKER_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
 
-  StringRef TypeOf(const JSHeapBroker* broker) const;
-  bool BooleanValue(const JSHeapBroker* broker);
-  double OddballToNumber(const JSHeapBroker* broker) const;
+  StringRef TypeOf() const;
+  bool BooleanValue();
+  double OddballToNumber() const;
+
+ protected:
+  const JSHeapBroker* broker() const { return broker_; }
 
  private:
+  const JSHeapBroker* broker_;
   Handle<Object> object_;
 };
 
@@ -129,10 +134,9 @@ class HeapObjectRef : public ObjectRef {
  public:
   using ObjectRef::ObjectRef;
 
-  HeapObjectType type(const JSHeapBroker* broker) const;
-  MapRef map(const JSHeapBroker* broker) const;
-  base::Optional<MapRef> TryGetObjectCreateMap(
-      const JSHeapBroker* broker) const;
+  HeapObjectType type() const;
+  MapRef map() const;
+  base::Optional<MapRef> TryGetObjectCreateMap() const;
   bool IsSeqString() const;
   bool IsExternalString() const;
 };
@@ -143,11 +147,10 @@ class JSObjectRef : public HeapObjectRef {
 
   bool IsUnboxedDoubleField(FieldIndex index) const;
   double RawFastDoublePropertyAt(FieldIndex index) const;
-  ObjectRef RawFastPropertyAt(const JSHeapBroker* broker,
-                              FieldIndex index) const;
+  ObjectRef RawFastPropertyAt(FieldIndex index) const;
 
-  FixedArrayBaseRef elements(const JSHeapBroker* broker) const;
-  void EnsureElementsTenured(const JSHeapBroker* broker);
+  FixedArrayBaseRef elements() const;
+  void EnsureElementsTenured();
 };
 
 struct SlackTrackingResult {
@@ -166,15 +169,13 @@ class JSFunctionRef : public JSObjectRef {
   BuiltinFunctionId GetBuiltinFunctionId() const;
   bool IsConstructor() const;
   bool has_initial_map() const;
-  MapRef initial_map(const JSHeapBroker* broker) const;
+  MapRef initial_map() const;
 
-  MapRef DependOnInitialMap(const JSHeapBroker* broker,
-                            CompilationDependencies* dependencies) const;
+  MapRef DependOnInitialMap(CompilationDependencies* dependencies) const;
 
-  JSGlobalProxyRef global_proxy(const JSHeapBroker* broker) const;
+  JSGlobalProxyRef global_proxy() const;
   SlackTrackingResult FinishSlackTracking() const;
-  SharedFunctionInfoRef shared(const JSHeapBroker* broker) const;
-
+  SharedFunctionInfoRef shared() const;
   void EnsureHasInitialMap() const;
 };
 
@@ -182,11 +183,11 @@ class JSRegExpRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
 
-  ObjectRef raw_properties_or_hash(const JSHeapBroker* broker) const;
-  ObjectRef data(const JSHeapBroker* broker) const;
-  ObjectRef source(const JSHeapBroker* broker) const;
-  ObjectRef flags(const JSHeapBroker* broker) const;
-  ObjectRef last_index(const JSHeapBroker* broker) const;
+  ObjectRef raw_properties_or_hash() const;
+  ObjectRef data() const;
+  ObjectRef source() const;
+  ObjectRef flags() const;
+  ObjectRef last_index() const;
 };
 
 class HeapNumberRef : public HeapObjectRef {
@@ -207,28 +208,28 @@ class ContextRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
 
-  base::Optional<ContextRef> previous(const JSHeapBroker* broker) const;
-  ObjectRef get(const JSHeapBroker* broker, int index) const;
+  base::Optional<ContextRef> previous() const;
+  ObjectRef get(int index) const;
 };
 
 class NativeContextRef : public ContextRef {
  public:
   using ContextRef::ContextRef;
 
-  ScriptContextTableRef script_context_table(const JSHeapBroker* broker) const;
+  ScriptContextTableRef script_context_table() const;
 
-  MapRef fast_aliased_arguments_map(const JSHeapBroker* broker) const;
-  MapRef sloppy_arguments_map(const JSHeapBroker* broker) const;
-  MapRef strict_arguments_map(const JSHeapBroker* broker) const;
-  MapRef js_array_fast_elements_map_index(const JSHeapBroker* broker) const;
-  MapRef initial_array_iterator_map(const JSHeapBroker* broker) const;
-  MapRef set_value_iterator_map(const JSHeapBroker* broker) const;
-  MapRef set_key_value_iterator_map(const JSHeapBroker* broker) const;
-  MapRef map_key_iterator_map(const JSHeapBroker* broker) const;
-  MapRef map_value_iterator_map(const JSHeapBroker* broker) const;
-  MapRef map_key_value_iterator_map(const JSHeapBroker* broker) const;
+  MapRef fast_aliased_arguments_map() const;
+  MapRef sloppy_arguments_map() const;
+  MapRef strict_arguments_map() const;
+  MapRef js_array_fast_elements_map_index() const;
+  MapRef initial_array_iterator_map() const;
+  MapRef set_value_iterator_map() const;
+  MapRef set_key_value_iterator_map() const;
+  MapRef map_key_iterator_map() const;
+  MapRef map_value_iterator_map() const;
+  MapRef map_key_value_iterator_map() const;
 
-  MapRef GetFunctionMapFromIndex(const JSHeapBroker* broker, int index) const;
+  MapRef GetFunctionMapFromIndex(int index) const;
 };
 
 class NameRef : public HeapObjectRef {
@@ -253,16 +254,16 @@ class FeedbackVectorRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
 
-  ObjectRef get(const JSHeapBroker* broker, FeedbackSlot slot) const;
+  ObjectRef get(FeedbackSlot slot) const;
 };
 
 class AllocationSiteRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
 
-  JSObjectRef boilerplate(const JSHeapBroker* broker) const;
+  JSObjectRef boilerplate() const;
   PretenureFlag GetPretenureMode() const;
-  bool IsFastLiteral(const JSHeapBroker* broker) const;
+  bool IsFastLiteral() const;
 };
 
 class MapRef : public HeapObjectRef {
@@ -274,10 +275,10 @@ class MapRef : public HeapObjectRef {
   int GetInObjectProperties() const;
   int NumberOfOwnDescriptors() const;
   PropertyDetails GetPropertyDetails(int i) const;
-  NameRef GetPropertyKey(const JSHeapBroker* broker, int i) const;
+  NameRef GetPropertyKey(int i) const;
   FieldIndex GetFieldIndexFor(int i) const;
   int GetInObjectPropertyOffset(int index) const;
-  ObjectRef constructor_or_backpointer(const JSHeapBroker* broker) const;
+  ObjectRef constructor_or_backpointer() const;
 
   bool is_stable() const;
   bool has_prototype_slot() const;
@@ -286,10 +287,9 @@ class MapRef : public HeapObjectRef {
 
   bool is_dictionary_map() const;
   bool IsJSArrayMap() const;
-  bool IsFixedCowArrayMap(const JSHeapBroker* broker) const;
+  bool IsFixedCowArrayMap() const;
 
-  void DependOnStableMap(const JSHeapBroker* broker,
-                         CompilationDependencies* dependencies) const;
+  void DependOnStableMap(CompilationDependencies* dependencies) const;
 };
 
 class FixedArrayBaseRef : public HeapObjectRef {
@@ -303,8 +303,8 @@ class FixedArrayRef : public FixedArrayBaseRef {
  public:
   using FixedArrayBaseRef::FixedArrayBaseRef;
 
-  ObjectRef get(const JSHeapBroker* broker, int i) const;
-  bool is_the_hole(const JSHeapBroker* broker, int i) const;
+  ObjectRef get(int i) const;
+  bool is_the_hole(int i) const;
 };
 
 class FixedDoubleArrayRef : public FixedArrayBaseRef {
@@ -320,7 +320,7 @@ class JSArrayRef : public JSObjectRef {
   using JSObjectRef::JSObjectRef;
 
   ElementsKind GetElementsKind() const;
-  ObjectRef length(const JSHeapBroker* broker) const;
+  ObjectRef length() const;
 };
 
 class ScopeInfoRef : public HeapObjectRef {
@@ -354,29 +354,29 @@ class StringRef : public NameRef {
 
   int length() const;
   uint16_t GetFirstChar();
-  double ToNumber(const JSHeapBroker* broker);
+  double ToNumber();
 };
 
 class ModuleRef : public HeapObjectRef {
  public:
-  explicit ModuleRef(Handle<Object> object) : HeapObjectRef(object) {}
+  using HeapObjectRef::HeapObjectRef;
 
-  CellRef GetCell(const JSHeapBroker* broker, int cell_index);
+  CellRef GetCell(int cell_index);
 };
 
 class CellRef : public HeapObjectRef {
  public:
-  explicit CellRef(Handle<Object> object) : HeapObjectRef(object) {}
+  using HeapObjectRef::HeapObjectRef;
 };
 
 class JSGlobalProxyRef : public JSObjectRef {
  public:
-  explicit JSGlobalProxyRef(Handle<Object> object) : JSObjectRef(object) {}
+  using JSObjectRef::JSObjectRef;
 };
 
 class CodeRef : public HeapObjectRef {
  public:
-  explicit CodeRef(Handle<Object> object) : HeapObjectRef(object) {}
+  using HeapObjectRef::HeapObjectRef;
 };
 
 class InternalizedStringRef : public StringRef {

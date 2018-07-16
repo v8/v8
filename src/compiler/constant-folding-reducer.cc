@@ -37,12 +37,11 @@ Reduction ConstantFoldingReducer::Reduce(Node* node) {
     if (!upper.IsNone()) {
       Node* replacement = nullptr;
       if (upper.IsHeapConstant()) {
-        replacement = jsgraph()->Constant(js_heap_broker(),
-                                          upper.AsHeapConstant()->Ref());
+        replacement = jsgraph()->Constant(upper.AsHeapConstant()->Ref());
       } else if (upper.Is(Type::MinusZero())) {
         Factory* factory = jsgraph()->isolate()->factory();
-        ObjectRef minus_zero(factory->minus_zero_value());
-        replacement = jsgraph()->Constant(js_heap_broker(), minus_zero);
+        ObjectRef minus_zero(js_heap_broker(), factory->minus_zero_value());
+        replacement = jsgraph()->Constant(minus_zero);
       } else if (upper.Is(Type::NaN())) {
         replacement = jsgraph()->NaNConstant();
       } else if (upper.Is(Type::Null())) {

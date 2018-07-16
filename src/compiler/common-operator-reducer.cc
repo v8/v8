@@ -27,8 +27,8 @@ Decision DecideCondition(const JSHeapBroker* broker, Node* const cond) {
     }
     case IrOpcode::kHeapConstant: {
       HeapObjectMatcher mcond(cond);
-      ObjectRef object(mcond.Value());
-      return object.BooleanValue(broker) ? Decision::kTrue : Decision::kFalse;
+      return mcond.Ref(broker).BooleanValue() ? Decision::kTrue
+                                              : Decision::kFalse;
     }
     default:
       return Decision::kUnknown;
