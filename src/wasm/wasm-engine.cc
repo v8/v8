@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-engine.h"
 
+#include "src/code-tracer.h"
 #include "src/compilation-statistics.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-promise.h"
@@ -158,6 +159,7 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
 }
 
 CompilationStatistics* WasmEngine::GetOrCreateTurboStatistics() {
+  base::LockGuard<base::Mutex> guard(&mutex_);
   if (compilation_stats_ == nullptr) {
     compilation_stats_.reset(new CompilationStatistics());
   }
@@ -165,11 +167,18 @@ CompilationStatistics* WasmEngine::GetOrCreateTurboStatistics() {
 }
 
 void WasmEngine::DumpAndResetTurboStatistics() {
+  base::LockGuard<base::Mutex> guard(&mutex_);
   if (compilation_stats_ != nullptr) {
     StdoutStream os;
     os << AsPrintableStatistics{*compilation_stats_.get(), false} << std::endl;
   }
   compilation_stats_.reset();
+}
+
+CodeTracer* WasmEngine::GetCodeTracer() {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+  if (code_tracer_ == nullptr) code_tracer_.reset(new CodeTracer(-1));
+  return code_tracer_.get();
 }
 
 void WasmEngine::Register(CancelableTaskManager* task_manager) {

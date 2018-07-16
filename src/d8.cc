@@ -3344,7 +3344,9 @@ int Shell::Main(int argc, char* argv[]) {
   if (i::FLAG_trace_turbo_cfg_file == nullptr) {
     SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
   }
-  SetFlagsFromString("--redirect-code-traces-to=code.asm");
+  if (i::FLAG_redirect_code_traces_to == nullptr) {
+    SetFlagsFromString("--redirect-code-traces-to=code.asm");
+  }
   int result = 0;
   Isolate::CreateParams create_params;
   ShellArrayBufferAllocator shell_array_buffer_allocator;

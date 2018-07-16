@@ -141,14 +141,15 @@ class PipelineData {
 
   // For WebAssembly compile entry point.
   PipelineData(ZoneStats* zone_stats, Isolate* isolate,
-               OptimizedCompilationInfo* info, MachineGraph* mcgraph,
-               PipelineStatistics* pipeline_statistics,
+               wasm::WasmEngine* wasm_engine, OptimizedCompilationInfo* info,
+               MachineGraph* mcgraph, PipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
                NodeOriginTable* node_origins,
                WasmCompilationData* wasm_compilation_data,
                int wasm_function_index,
                const AssemblerOptions& assembler_options)
       : isolate_(isolate),
+        wasm_engine_(wasm_engine),
         info_(info),
         debug_name_(info_->GetDebugName()),
         wasm_function_index_(wasm_function_index),
@@ -295,6 +296,11 @@ class PipelineData {
     return jump_optimization_info_;
   }
 
+  CodeTracer* GetCodeTracer() const {
+    return wasm_engine_ == nullptr ? isolate_->GetCodeTracer()
+                                   : wasm_engine_->GetCodeTracer();
+  }
+
   void DeleteGraphZone() {
     if (graph_zone_ == nullptr) return;
     graph_zone_scope_.Destroy();
@@ -407,6 +413,7 @@ class PipelineData {
 
  private:
   Isolate* const isolate_;
+  wasm::WasmEngine* const wasm_engine_ = nullptr;
   OptimizedCompilationInfo* const info_;
   std::unique_ptr<char[]> debug_name_;
   int wasm_function_index_ = -1;
@@ -650,7 +657,7 @@ struct TurboCfgFile : public std::ofstream {
                       std::ios_base::app) {}
 };
 
-void TraceSchedule(OptimizedCompilationInfo* info, Isolate* isolate,
+void TraceSchedule(OptimizedCompilationInfo* info, PipelineData* data,
                    Schedule* schedule, const char* phase_name) {
   if (info->trace_turbo_json_enabled()) {
     AllowHandleDereference allow_deref;
@@ -667,7 +674,7 @@ void TraceSchedule(OptimizedCompilationInfo* info, Isolate* isolate,
   }
   if (info->trace_turbo_graph_enabled() || FLAG_trace_turbo_scheduler) {
     AllowHandleDereference allow_deref;
-    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
     OFStream os(tracing_scope.file());
     os << "-- Schedule --------------------------------------\n" << *schedule;
   }
@@ -987,9 +994,10 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
         zone_stats_(isolate->allocator()),
         pipeline_statistics_(CreatePipelineStatistics(
             wasm_engine, function_body, wasm_module, info, &zone_stats_)),
-        data_(&zone_stats_, isolate, info, mcgraph, pipeline_statistics_.get(),
-              source_positions, node_origins, wasm_compilation_data,
-              function_index, WasmAssemblerOptions(isolate)),
+        data_(&zone_stats_, isolate, wasm_engine, info, mcgraph,
+              pipeline_statistics_.get(), source_positions, node_origins,
+              wasm_compilation_data, function_index,
+              WasmAssemblerOptions(isolate)),
         pipeline_(&data_),
         linkage_(call_descriptor),
         native_module_(native_module),
@@ -1446,7 +1454,7 @@ struct EffectControlLinearizationPhase {
       Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph(),
                                                       Scheduler::kTempSchedule);
       if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
-      TraceSchedule(data->info(), data->isolate(), schedule,
+      TraceSchedule(data->info(), data, schedule,
                     "effect linearization schedule");
 
       EffectControlLinearizer::MaskArrayIndexEnable mask_array_index =
@@ -1894,13 +1902,13 @@ struct PrintGraphPhase {
       }
 
       AllowHandleDereference allow_deref;
-      CodeTracer::Scope tracing_scope(data->isolate()->GetCodeTracer());
+      CodeTracer::Scope tracing_scope(data->GetCodeTracer());
       OFStream os(tracing_scope.file());
       os << "-- Graph after " << phase << " -- " << std::endl;
       os << AsScheduledGraph(schedule);
     } else if (info->trace_turbo_graph_enabled()) {  // Simple textual RPO.
       AllowHandleDereference allow_deref;
-      CodeTracer::Scope tracing_scope(data->isolate()->GetCodeTracer());
+      CodeTracer::Scope tracing_scope(data->GetCodeTracer());
       OFStream os(tracing_scope.file());
       os << "-- Graph after " << phase << " -- " << std::endl;
       os << AsRPO(*graph);
@@ -1949,7 +1957,7 @@ bool PipelineImpl::CreateGraph() {
 
   if (info()->trace_turbo_json_enabled() ||
       info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Begin compiling method " << info()->GetDebugName().get()
@@ -2133,7 +2141,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   DCHECK_NOT_NULL(data.schedule());
 
   if (info.trace_turbo_json_enabled() || info.trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+    CodeTracer::Scope tracing_scope(data.GetCodeTracer());
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Begin compiling " << debug_name << " using Turbofan" << std::endl;
@@ -2148,7 +2156,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     pipeline.Run<PrintGraphPhase>("Machine");
   }
 
-  TraceSchedule(data.info(), data.isolate(), data.schedule(), "schedule");
+  TraceSchedule(data.info(), &data, data.schedule(), "schedule");
 
   pipeline.Run<VerifyGraphPhase>(false, true);
   return pipeline.GenerateCode(call_descriptor);
@@ -2269,7 +2277,7 @@ void PipelineImpl::ComputeScheduledGraph() {
   RunPrintAndVerify(LateGraphTrimmingPhase::phase_name(), true);
 
   Run<ComputeSchedulePhase>();
-  TraceSchedule(data->info(), data->isolate(), data->schedule(), "schedule");
+  TraceSchedule(data->info(), data, data->schedule(), "schedule");
 }
 
 bool PipelineImpl::SelectInstructions(Linkage* linkage) {
@@ -2300,7 +2308,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
         !strcmp(FLAG_turbo_verify_machine_graph, data->debug_name())))) {
     if (FLAG_trace_verify_csa) {
       AllowHandleDereference allow_deref;
-      CodeTracer::Scope tracing_scope(data->isolate()->GetCodeTracer());
+      CodeTracer::Scope tracing_scope(data->GetCodeTracer());
       OFStream os(tracing_scope.file());
       os << "--------------------------------------------------\n"
          << "--- Verifying " << data->debug_name() << " generated by TurboFan\n"
@@ -2504,7 +2512,7 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode() {
   }
   if (info()->trace_turbo_json_enabled() ||
       info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Finished compiling method " << info()->GetDebugName().get()
@@ -2556,7 +2564,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   Run<BuildLiveRangesPhase>();
   if (info()->trace_turbo_graph_enabled()) {
     AllowHandleDereference allow_deref;
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
     OFStream os(tracing_scope.file());
     os << "----- Instruction sequence before register allocation -----\n"
        << PrintableInstructionSequence({config, data->sequence()});
@@ -2600,7 +2608,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
 
   if (info()->trace_turbo_graph_enabled()) {
     AllowHandleDereference allow_deref;
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
     OFStream os(tracing_scope.file());
     os << "----- Instruction sequence after register allocation -----\n"
        << PrintableInstructionSequence({config, data->sequence()});

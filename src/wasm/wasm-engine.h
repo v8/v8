@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 
+class CodeTracer;
 class CompilationStatistics;
 class WasmModuleObject;
 class WasmInstanceObject;
@@ -99,6 +100,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Prints the gathered compilation statistics, then resets them.
   void DumpAndResetTurboStatistics();
 
+  // Used to redirect tracing output from {stdout} to a file.
+  CodeTracer* GetCodeTracer();
+
   // We register and unregister CancelableTaskManagers that run engine-dependent
   // tasks. These tasks need to be shutdown if the engine is shut down.
   void Register(CancelableTaskManager* task_manager);
@@ -127,13 +131,25 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // job from the map when it is finished.
   std::unordered_map<AsyncCompileJob*, std::unique_ptr<AsyncCompileJob>> jobs_;
   std::unique_ptr<WasmCodeManager> code_manager_;
-  std::unique_ptr<CompilationStatistics> compilation_stats_;
   WasmMemoryTracker memory_tracker_;
   AccountingAllocator allocator_;
 
   // Contains all CancelableTaskManagers that run tasks that are dependent
   // on the isolate.
   std::list<CancelableTaskManager*> task_managers_;
+
+  // This mutex protects all information which is mutated concurrently or
+  // fields that are initialized lazily on the first access.
+  base::Mutex mutex_;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Protected by {mutex_}:
+
+  std::unique_ptr<CompilationStatistics> compilation_stats_;
+  std::unique_ptr<CodeTracer> code_tracer_;
+
+  // End of fields protected by {mutex_}.
+  //////////////////////////////////////////////////////////////////////////////
 
   DISALLOW_COPY_AND_ASSIGN(WasmEngine);
 };
