@@ -2514,19 +2514,23 @@ Handle<PreParsedScopeData> Factory::NewPreParsedScopeData(int length) {
 
 Handle<UncompiledDataWithoutPreParsedScope>
 Factory::NewUncompiledDataWithoutPreParsedScope(int32_t start_position,
-                                                int32_t end_position) {
+                                                int32_t end_position,
+                                                int32_t function_literal_id) {
   Handle<UncompiledDataWithoutPreParsedScope> result(
       UncompiledDataWithoutPreParsedScope::cast(
           New(uncompiled_data_without_pre_parsed_scope_map(), TENURED)),
       isolate());
   result->set_start_position(start_position);
   result->set_end_position(end_position);
+  result->set_function_literal_id(function_literal_id);
+
+  result->clear_padding();
   return result;
 }
 
 Handle<UncompiledDataWithPreParsedScope>
 Factory::NewUncompiledDataWithPreParsedScope(
-    int32_t start_position, int32_t end_position,
+    int32_t start_position, int32_t end_position, int32_t function_literal_id,
     Handle<PreParsedScopeData> pre_parsed_scope_data) {
   Handle<UncompiledDataWithPreParsedScope> result(
       UncompiledDataWithPreParsedScope::cast(
@@ -2534,7 +2538,10 @@ Factory::NewUncompiledDataWithPreParsedScope(
       isolate());
   result->set_start_position(start_position);
   result->set_end_position(end_position);
+  result->set_function_literal_id(function_literal_id);
   result->set_pre_parsed_scope_data(*pre_parsed_scope_data);
+
+  result->clear_padding();
   return result;
 }
 
@@ -3416,7 +3423,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfoForBuiltin(
       literal->name(), Builtins::kCompileLazy, kind);
   SharedFunctionInfo::InitFromFunctionLiteral(shared, literal, is_toplevel);
-  SharedFunctionInfo::SetScript(shared, script, false);
+  SharedFunctionInfo::SetScript(shared, script, literal->function_literal_id(),
+                                false);
   return shared;
 }
 
@@ -3504,7 +3512,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
     share->set_function_identifier_or_debug_info(*undefined_value(),
                                                  SKIP_WRITE_BARRIER);
-    share->set_function_literal_id(FunctionLiteral::kIdTypeInvalid);
 #if V8_SFI_HAS_UNIQUE_ID
     share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
 #endif

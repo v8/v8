@@ -55,6 +55,16 @@ void PreParsedScopeData::clear_padding() {
 CAST_ACCESSOR(UncompiledData)
 INT32_ACCESSORS(UncompiledData, start_position, kStartPositionOffset)
 INT32_ACCESSORS(UncompiledData, end_position, kEndPositionOffset)
+INT32_ACCESSORS(UncompiledData, function_literal_id, kFunctionLiteralIdOffset)
+
+void UncompiledData::clear_padding() {
+  // For archs where kIntSize < kPointerSize, there will be padding at the end
+  // of the data.
+  if (kUnalignedSize < kSize) {
+    memset(reinterpret_cast<void*>(address() + kUnalignedSize), 0,
+           kSize - kUnalignedSize);
+  }
+}
 
 CAST_ACCESSOR(UncompiledDataWithoutPreParsedScope)
 
@@ -77,7 +87,6 @@ ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
 ACCESSORS(SharedFunctionInfo, function_identifier_or_debug_info, Object,
           kFunctionIdentifierOrDebugInfoOffset)
 
-INT_ACCESSORS(SharedFunctionInfo, function_literal_id, kFunctionLiteralIdOffset)
 #if V8_SFI_HAS_UNIQUE_ID
 INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
 #endif
@@ -650,6 +659,21 @@ WasmExportedFunctionData* SharedFunctionInfo::wasm_exported_function_data()
   return WasmExportedFunctionData::cast(function_data());
 }
 
+int SharedFunctionInfo::FunctionLiteralId(Isolate* isolate) const {
+  // Fast path for the common case when the SFI is uncompiled and so the
+  // function literal id is already in the uncompiled data.
+  if (HasUncompiledData()) {
+    int id = uncompiled_data()->function_literal_id();
+    // Make sure the id is what we should have found with the slow path.
+    DCHECK_EQ(id, FindIndexInScript(isolate));
+    return id;
+  }
+
+  // Otherwise, search for the function in the SFI's script's function list,
+  // and return its index in that list.
+  return FindIndexInScript(isolate);
+}
+
 bool SharedFunctionInfo::HasDebugInfo() const {
   return function_identifier_or_debug_info()->IsDebugInfo();
 }
@@ -737,8 +761,11 @@ void SharedFunctionInfo::DiscardCompiled(
 
   int start_position = shared_info->StartPosition();
   int end_position = shared_info->EndPosition();
+  int function_literal_id = shared_info->FunctionLiteralId(isolate);
 
   if (shared_info->is_compiled()) {
+    DisallowHeapAllocation no_gc;
+
     HeapObject* outer_scope_info;
     if (shared_info->scope_info()->HasOuterScopeInfo()) {
       outer_scope_info = shared_info->scope_info()->OuterScopeInfo();
@@ -764,7 +791,7 @@ void SharedFunctionInfo::DiscardCompiled(
     // validity checks, since we're performing the unusual task of decompiling.
     Handle<UncompiledData> data =
         isolate->factory()->NewUncompiledDataWithoutPreParsedScope(
-            start_position, end_position);
+            start_position, end_position, function_literal_id);
     shared_info->set_function_data(*data);
   }
 }

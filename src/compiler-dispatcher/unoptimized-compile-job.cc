@@ -121,7 +121,7 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
 
   unicode_cache_.reset(new UnicodeCache());
   parse_info_->set_unicode_cache(unicode_cache_.get());
-  parse_info_->set_function_literal_id(shared_->function_literal_id());
+  parse_info_->set_function_literal_id(shared_->FunctionLiteralId(isolate));
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
     parse_info_->set_runtime_call_stats(new (parse_info_->zone())
                                             RuntimeCallStats());
@@ -196,6 +196,7 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
                            shared_->EndPosition() - offset));
     parse_info_->set_character_stream(std::move(stream));
   }
+
   parser_.reset(new Parser(parse_info_.get()));
   parser_->DeserializeScopeChain(isolate, parse_info_.get(),
                                  parse_info_->maybe_outer_scope_info());
