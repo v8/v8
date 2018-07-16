@@ -528,32 +528,6 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
         NodeProperties::ReplaceValueInput(node, reduction.replacement(), 0);
       }
     }
-    // We might be able to constant-fold the String concatenation now.
-    if (r.BothInputsAre(Type::String())) {
-      HeapObjectBinopMatcher m(node);
-      if (m.IsFoldable()) {
-        StringRef left(m.left().Value());
-        StringRef right(m.right().Value());
-        if (left.length() + right.length() > String::kMaxLength) {
-          // No point in trying to optimize this, as it will just throw.
-          return NoChange();
-        }
-        // TODO(mslekova): get rid of these allows by doing either one of:
-        // 1. remove the optimization and check if it ruins the performance
-        // 2. leave a placeholder and do the actual allocations once back on the
-        // MT
-        AllowHandleDereference allow_handle_dereference;
-        AllowHandleAllocation allow_handle_allocation;
-        AllowHeapAllocation allow_heap_allocation;
-        ObjectRef cons(
-            factory()
-                ->NewConsString(left.object<String>(), right.object<String>())
-                .ToHandleChecked());
-        Node* value = jsgraph()->Constant(js_heap_broker(), cons);
-        ReplaceWithValue(node, value);
-        return Replace(value);
-      }
-    }
     // We might know for sure that we're creating a ConsString here.
     if (r.ShouldCreateConsString()) {
       return ReduceCreateConsString(node);
