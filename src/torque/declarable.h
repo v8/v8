@@ -242,7 +242,11 @@ class Macro : public Callable {
  protected:
   Macro(Declarable::Kind type, const std::string& name,
         const Signature& signature)
-      : Callable(type, name, signature) {}
+      : Callable(type, name, signature) {
+    if (signature.parameter_types.var_args) {
+      ReportError("Varargs are not supported for macros.");
+    }
+  }
 
  private:
   friend class Declarations;

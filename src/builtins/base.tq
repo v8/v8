@@ -644,7 +644,12 @@ extern macro IsElementsKindGreaterThan(
 extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64
 labels IfHole;
 
-extern macro Call(Context, Callable, Object, ...): Object;
+extern macro Call(Context, Callable, Object): Object;
+extern macro Call(Context, Callable, Object, Object): Object;
+extern macro Call(Context, Callable, Object, Object, Object): Object;
+extern macro Call(Context, Callable, Object, Object, Object, Object): Object;
+extern macro Call(Context, Callable, Object, Object, Object, Object, Object): Object;
+extern macro Call(Context, Callable, Object, Object, Object, Object, Object, Object): Object;
 
 extern macro ExtractFixedArray(
     FixedArray, Smi, Smi, Smi, constexpr ExtractFixedArrayFlags): FixedArray;
