@@ -838,7 +838,6 @@ void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
   VisitBinop(this, node, kX64Add, &cont);
 }
 
-
 void InstructionSelector::VisitInt32Sub(Node* node) {
   X64OperandGenerator g(this);
   DCHECK_EQ(node->InputCount(), 2);
@@ -846,30 +845,37 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
   Node* input2 = node->InputAt(1);
   if (input1->opcode() == IrOpcode::kTruncateInt64ToInt32 &&
       g.CanBeImmediate(input2)) {
-    // Omit truncation and turn subtractions of constant values into immediate
-    // "leal" instructions by negating the value.
-    Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(input1->InputAt(0)),
-         g.TempImmediate(-g.GetImmediateIntegerValue(input2)));
+    int32_t imm = g.GetImmediateIntegerValue(input2);
+    InstructionOperand int64_input = g.UseRegister(input1->InputAt(0));
+    if (imm == 0) {
+      // Emit "movl" for subtraction of 0.
+      Emit(kX64Movl, g.DefineAsRegister(node), int64_input);
+    } else {
+      // Omit truncation and turn subtractions of constant values into immediate
+      // "leal" instructions by negating the value.
+      Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
+           g.DefineAsRegister(node), int64_input, g.TempImmediate(-imm));
+    }
     return;
   }
 
   Int32BinopMatcher m(node);
   if (m.left().Is(0)) {
     Emit(kX64Neg32, g.DefineSameAsFirst(node), g.UseRegister(m.right().node()));
+  } else if (m.right().Is(0)) {
+    // TODO(jarin): We should be able to use {EmitIdentity} here
+    // (https://crbug.com/v8/7947).
+    Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(m.left().node()));
+  } else if (m.right().HasValue() && g.CanBeImmediate(m.right().node())) {
+    // Turn subtractions of constant values into immediate "leal" instructions
+    // by negating the value.
+    Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+         g.TempImmediate(-m.right().Value()));
   } else {
-    if (m.right().HasValue() && g.CanBeImmediate(m.right().node())) {
-      // Turn subtractions of constant values into immediate "leal" instructions
-      // by negating the value.
-      Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
-           g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-           g.TempImmediate(-m.right().Value()));
-      return;
-    }
     VisitBinop(this, node, kX64Sub32);
   }
 }
-
 
 void InstructionSelector::VisitInt64Sub(Node* node) {
   X64OperandGenerator g(this);

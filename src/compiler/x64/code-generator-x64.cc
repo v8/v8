@@ -1958,9 +1958,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (i.InputRegister(0) == i.OutputRegister()) {
         if (mode == kMode_MRI) {
           int32_t constant_summand = i.InputInt32(1);
+          DCHECK_NE(0, constant_summand);
           if (constant_summand > 0) {
             __ addl(i.OutputRegister(), Immediate(constant_summand));
-          } else if (constant_summand < 0) {
+          } else {
             __ subl(i.OutputRegister(), Immediate(-constant_summand));
           }
         } else if (mode == kMode_MR1) {
