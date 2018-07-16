@@ -246,8 +246,6 @@ Node* PromiseBuiltinsAssembler::CreatePromiseResolvingFunctionsContext(
   Node* const context =
       CreatePromiseContext(native_context, kPromiseContextLength);
   StoreContextElementNoWriteBarrier(context, kPromiseSlot, promise);
-  StoreContextElementNoWriteBarrier(context, kAlreadyResolvedSlot,
-                                    FalseConstant());
   StoreContextElementNoWriteBarrier(context, kDebugEventSlot, debug_event);
   return context;
 }
@@ -738,27 +736,17 @@ TF_BUILTIN(PromiseCapabilityDefaultReject, PromiseBuiltinsAssembler) {
   Node* const promise = LoadContextElement(context, kPromiseSlot);
 
   // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  Label if_already_resolved(this, Label::kDeferred);
-  Node* const already_resolved =
-      LoadContextElement(context, kAlreadyResolvedSlot);
-
   // 4. If alreadyResolved.[[Value]] is true, return undefined.
-  GotoIf(IsTrue(already_resolved), &if_already_resolved);
+  // We use undefined as a marker for the [[AlreadyResolved]] state.
+  ReturnIf(IsUndefined(promise), UndefinedConstant());
 
   // 5. Set alreadyResolved.[[Value]] to true.
-  StoreContextElementNoWriteBarrier(context, kAlreadyResolvedSlot,
-                                    TrueConstant());
+  StoreContextElementNoWriteBarrier(context, kPromiseSlot, UndefinedConstant());
 
   // 6. Return RejectPromise(promise, reason).
   Node* const debug_event = LoadContextElement(context, kDebugEventSlot);
   Return(CallBuiltin(Builtins::kRejectPromise, context, promise, reason,
                      debug_event));
-
-  BIND(&if_already_resolved);
-  {
-    Return(CallRuntime(Runtime::kPromiseRejectAfterResolved, context, promise,
-                       reason));
-  }
 }
 
 // ES #sec-promise-resolve-functions
@@ -770,26 +758,16 @@ TF_BUILTIN(PromiseCapabilityDefaultResolve, PromiseBuiltinsAssembler) {
   Node* const promise = LoadContextElement(context, kPromiseSlot);
 
   // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  Label if_already_resolved(this, Label::kDeferred);
-  Node* const already_resolved =
-      LoadContextElement(context, kAlreadyResolvedSlot);
-
   // 4. If alreadyResolved.[[Value]] is true, return undefined.
-  GotoIf(IsTrue(already_resolved), &if_already_resolved);
+  // We use undefined as a marker for the [[AlreadyResolved]] state.
+  ReturnIf(IsUndefined(promise), UndefinedConstant());
 
   // 5. Set alreadyResolved.[[Value]] to true.
-  StoreContextElementNoWriteBarrier(context, kAlreadyResolvedSlot,
-                                    TrueConstant());
+  StoreContextElementNoWriteBarrier(context, kPromiseSlot, UndefinedConstant());
 
   // The rest of the logic (and the catch prediction) is
   // encapsulated in the dedicated ResolvePromise builtin.
   Return(CallBuiltin(Builtins::kResolvePromise, context, promise, resolution));
-
-  BIND(&if_already_resolved);
-  {
-    Return(CallRuntime(Runtime::kPromiseResolveAfterResolved, context, promise,
-                       resolution));
-  }
 }
 
 TF_BUILTIN(PromiseConstructorLazyDeoptContinuation, PromiseBuiltinsAssembler) {
