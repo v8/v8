@@ -119,6 +119,7 @@ class ObjectRef {
 
   StringRef TypeOf(const JSHeapBroker* broker) const;
   bool BooleanValue(const JSHeapBroker* broker);
+  double OddballToNumber(const JSHeapBroker* broker) const;
 
  private:
   Handle<Object> object_;
@@ -340,6 +341,7 @@ class StringRef : public NameRef {
 
   int length() const;
   uint16_t GetFirstChar();
+  double ToNumber(const JSHeapBroker* broker);
 };
 
 class ModuleRef : public HeapObjectRef {

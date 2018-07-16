@@ -500,6 +500,15 @@ uint16_t StringRef::GetFirstChar() {
   return object<String>()->Get(0);
 }
 
+double StringRef::ToNumber(const JSHeapBroker* broker) {
+  AllowHandleDereference allow_handle_dereference;
+  AllowHandleAllocation allow_handle_allocation;
+  AllowHeapAllocation allow_heap_allocation;
+  int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
+  return StringToDouble(broker->isolate(), broker->isolate()->unicode_cache(),
+                        object<String>(), flags);
+}
+
 ObjectRef JSRegExpRef::raw_properties_or_hash(
     const JSHeapBroker* broker) const {
   AllowHandleAllocation handle_allocation;
@@ -703,6 +712,30 @@ MapRef NativeContextRef::GetFunctionMapFromIndex(const JSHeapBroker* broker,
 bool ObjectRef::BooleanValue(const JSHeapBroker* broker) {
   AllowHandleDereference allow_handle_dereference;
   return object<Object>()->BooleanValue(broker->isolate());
+}
+
+double ObjectRef::OddballToNumber(const JSHeapBroker* broker) const {
+  OddballType type = oddball_type(broker);
+
+  switch (type) {
+    case OddballType::kBoolean: {
+      ObjectRef true_ref(broker->isolate()->factory()->true_value());
+      return this->equals(true_ref) ? 1 : 0;
+      break;
+    }
+    case OddballType::kUndefined: {
+      return std::numeric_limits<double>::quiet_NaN();
+      break;
+    }
+    case OddballType::kNull: {
+      return 0;
+      break;
+    }
+    default: {
+      UNREACHABLE();
+      break;
+    }
+  }
 }
 
 CellRef ModuleRef::GetCell(const JSHeapBroker* broker, int cell_index) {

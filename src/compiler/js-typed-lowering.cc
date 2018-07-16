@@ -983,27 +983,19 @@ Reduction JSTypedLowering::ReduceJSToNumberOrNumericInput(Node* input) {
   // we only cover cases where ToNumber and ToNumeric coincide.
   Type input_type = NodeProperties::GetType(input);
 
-  // TODO(mslekova): get rid of these allows by doing either one of:
-  // 1. remove the optimization and check if it ruins the performance
-  // 2. leave a placeholder and do the actual allocations once back on the MT
   if (input_type.Is(Type::String())) {
     HeapObjectMatcher m(input);
     if (m.HasValue() && m.Ref().IsString()) {
-      AllowHandleDereference allow_handle_dereference;
-      AllowHandleAllocation allow_handle_allocation;
-      AllowHeapAllocation allow_heap_allocation;
       StringRef input_value = m.Ref().AsString();
-      return Replace(jsgraph()->Constant(
-          String::ToNumber(isolate(), input_value.object<String>())));
+      return Replace(
+          jsgraph()->Constant(input_value.ToNumber(js_heap_broker())));
     }
   }
   if (input_type.IsHeapConstant()) {
     ObjectRef input_value = input_type.AsHeapConstant()->Ref();
     if (input_value.oddball_type(js_heap_broker()) != OddballType::kNone) {
-      AllowHandleDereference allow_handle_dereference;
-      AllowHandleAllocation allow_handle_allocation;
-      return Replace(jsgraph()->Constant(
-          Oddball::ToNumber(isolate(), input_value.object<Oddball>())));
+      return Replace(
+          jsgraph()->Constant(input_value.OddballToNumber(js_heap_broker())));
     }
   }
   if (input_type.Is(Type::Number())) {
