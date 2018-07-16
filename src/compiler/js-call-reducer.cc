@@ -3665,6 +3665,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceDatePrototypeGetTime(node);
     case Builtins::kDateNow:
       return ReduceDateNow(node);
+    case Builtins::kNumberConstructor:
+      return ReduceNumberConstructor(node);
     default:
       break;
   }
@@ -7155,6 +7157,26 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   node->TrimInputCount(6);
   NodeProperties::ChangeOp(node, javascript()->RegExpTest());
   return Changed(node);
+}
+
+// ES section #sec-number-constructor
+Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+
+  if (p.arity() <= 2) {
+    ReplaceWithValue(node, jsgraph()->ZeroConstant());
+  }
+
+  // We don't have a new.target argument, so we can convert to number,
+  // but must also convert BigInts.
+  if (p.arity() == 3) {
+    Node* value = NodeProperties::GetValueInput(node, 2);
+    NodeProperties::ReplaceValueInputs(node, value);
+    NodeProperties::ChangeOp(node, javascript()->ToNumberConvertBigInt());
+    return Changed(node);
+  }
+  return NoChange();
 }
 
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }

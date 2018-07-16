@@ -35,6 +35,7 @@ class V8_EXPORT_PRIVATE OperationTyper {
 
   Type ToPrimitive(Type type);
   Type ToNumber(Type type);
+  Type ToNumberConvertBigInt(Type type);
   Type ToNumeric(Type type);
   Type ToBoolean(Type type);
 
@@ -78,6 +79,7 @@ class V8_EXPORT_PRIVATE OperationTyper {
   typedef base::Flags<ComparisonOutcomeFlags> ComparisonOutcome;
 
   Type ToNumberOrNumeric(Object::Conversion mode, Type type);
+  base::Optional<Type> ToNumberCommon(Type type);
 
   ComparisonOutcome Invert(ComparisonOutcome);
   Type Invert(Type);

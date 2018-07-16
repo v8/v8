@@ -186,6 +186,7 @@ namespace internal {
   TFC(NonNumberToNumber, TypeConversion, 1)                                    \
   TFC(NonNumberToNumeric, TypeConversion, 1)                                   \
   TFC(ToNumber, TypeConversion, 1)                                             \
+  TFC(ToNumberConvertBigInt, TypeConversion, 1)                                \
   TFC(ToNumeric, TypeConversion, 1)                                            \
   TFC(NumberToString, TypeConversion, 1)                                       \
   TFC(ToString, TypeConversion, 1)                                             \
