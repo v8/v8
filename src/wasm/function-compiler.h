@@ -20,6 +20,7 @@ class LiftoffCompilationUnit;
 struct ModuleWireBytes;
 class NativeModule;
 class WasmCode;
+class WasmEngine;
 struct WasmFunction;
 
 enum RuntimeExceptionSupport : bool {
@@ -83,8 +84,8 @@ class WasmCompilationUnit final {
   friend class LiftoffCompilationUnit;
   friend class compiler::TurbofanWasmCompilationUnit;
 
-  Isolate* isolate_;
   ModuleEnv* env_;
+  WasmEngine* wasm_engine_;
   wasm::FunctionBody func_body_;
   wasm::WasmName func_name_;
   Counters* counters_;

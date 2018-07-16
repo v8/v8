@@ -723,7 +723,7 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
     buffer << "-- ";
     // Turbolizer only needs the source position, as it can reconstruct
     // the inlining stack from other information.
-    if (info->trace_turbo_json_enabled() ||
+    if (info->trace_turbo_json_enabled() || !tasm()->isolate() ||
         tasm()->isolate()->concurrent_recompilation_enabled()) {
       buffer << source_position;
     } else {

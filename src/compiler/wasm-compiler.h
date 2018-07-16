@@ -504,7 +504,7 @@ V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptorForSimd(
     Zone* zone, CallDescriptor* call_descriptor);
 
-AssemblerOptions WasmAssemblerOptions(Isolate* isolate);
+AssemblerOptions WasmAssemblerOptions();
 
 }  // namespace compiler
 }  // namespace internal

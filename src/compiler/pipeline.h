@@ -49,7 +49,7 @@ class Pipeline : public AllStatic {
   // Returns a new compilation job for the WebAssembly compilation info.
   static OptimizedCompilationJob* NewWasmCompilationJob(
       OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
-      Isolate* isolate, MachineGraph* mcgraph, CallDescriptor* call_descriptor,
+      MachineGraph* mcgraph, CallDescriptor* call_descriptor,
       SourcePositionTable* source_positions, NodeOriginTable* node_origins,
       WasmCompilationData* wasm_compilation_data,
       wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,

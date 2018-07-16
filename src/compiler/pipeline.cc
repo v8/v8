@@ -105,6 +105,7 @@ class PipelineData {
                OptimizedCompilationInfo* info,
                PipelineStatistics* pipeline_statistics)
       : isolate_(isolate),
+        allocator_(isolate->allocator()),
         info_(info),
         debug_name_(info_->GetDebugName()),
         may_have_unverifiable_graph_(false),
@@ -140,16 +141,17 @@ class PipelineData {
   }
 
   // For WebAssembly compile entry point.
-  PipelineData(ZoneStats* zone_stats, Isolate* isolate,
-               wasm::WasmEngine* wasm_engine, OptimizedCompilationInfo* info,
-               MachineGraph* mcgraph, PipelineStatistics* pipeline_statistics,
+  PipelineData(ZoneStats* zone_stats, wasm::WasmEngine* wasm_engine,
+               OptimizedCompilationInfo* info, MachineGraph* mcgraph,
+               PipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
                NodeOriginTable* node_origins,
                WasmCompilationData* wasm_compilation_data,
                int wasm_function_index,
                const AssemblerOptions& assembler_options)
-      : isolate_(isolate),
+      : isolate_(nullptr),
         wasm_engine_(wasm_engine),
+        allocator_(wasm_engine->allocator()),
         info_(info),
         debug_name_(info_->GetDebugName()),
         wasm_function_index_(wasm_function_index),
@@ -179,6 +181,7 @@ class PipelineData {
                NodeOriginTable* node_origins, JumpOptimizationInfo* jump_opt,
                const AssemblerOptions& assembler_options)
       : isolate_(isolate),
+        allocator_(isolate->allocator()),
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
@@ -200,6 +203,7 @@ class PipelineData {
   PipelineData(ZoneStats* zone_stats, OptimizedCompilationInfo* info,
                Isolate* isolate, InstructionSequence* sequence)
       : isolate_(isolate),
+        allocator_(isolate->allocator()),
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
@@ -223,6 +227,7 @@ class PipelineData {
   }
 
   Isolate* isolate() const { return isolate_; }
+  AccountingAllocator* allocator() const { return allocator_; }
   OptimizedCompilationInfo* info() const { return info_; }
   ZoneStats* zone_stats() const { return zone_stats_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
@@ -414,6 +419,7 @@ class PipelineData {
  private:
   Isolate* const isolate_;
   wasm::WasmEngine* const wasm_engine_ = nullptr;
+  AccountingAllocator* const allocator_;
   OptimizedCompilationInfo* const info_;
   std::unique_ptr<char[]> debug_name_;
   int wasm_function_index_ = -1;
@@ -980,24 +986,27 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
   code->set_can_have_weak_objects(true);
 }
 
+// The stack limit used during compilation is used to limit the recursion
+// depth in, e.g. AST walking. No such recursion happens in WASM compilations.
+constexpr uintptr_t kNoStackLimit = 0;
+
 class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
  public:
   explicit PipelineWasmCompilationJob(
       OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
-      Isolate* isolate, MachineGraph* mcgraph, CallDescriptor* call_descriptor,
+      MachineGraph* mcgraph, CallDescriptor* call_descriptor,
       SourcePositionTable* source_positions, NodeOriginTable* node_origins,
       WasmCompilationData* wasm_compilation_data,
       wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
       wasm::NativeModule* native_module, int function_index, bool asmjs_origin)
-      : OptimizedCompilationJob(isolate->stack_guard()->real_climit(), info,
-                                "TurboFan", State::kReadyToExecute),
-        zone_stats_(isolate->allocator()),
+      : OptimizedCompilationJob(kNoStackLimit, info, "TurboFan",
+                                State::kReadyToExecute),
+        zone_stats_(wasm_engine->allocator()),
         pipeline_statistics_(CreatePipelineStatistics(
             wasm_engine, function_body, wasm_module, info, &zone_stats_)),
-        data_(&zone_stats_, isolate, wasm_engine, info, mcgraph,
+        data_(&zone_stats_, wasm_engine, info, mcgraph,
               pipeline_statistics_.get(), source_positions, node_origins,
-              wasm_compilation_data, function_index,
-              WasmAssemblerOptions(isolate)),
+              wasm_compilation_data, function_index, WasmAssemblerOptions()),
         pipeline_(&data_),
         linkage_(call_descriptor),
         native_module_(native_module),
@@ -1673,7 +1682,7 @@ struct InstructionSelectionPhase {
         FLAG_turbo_instruction_scheduling
             ? InstructionSelector::kEnableScheduling
             : InstructionSelector::kDisableScheduling,
-        data->isolate()->serializer_enabled()
+        !data->isolate() || data->isolate()->serializer_enabled()
             ? InstructionSelector::kDisableRootsRelativeAddressing
             : InstructionSelector::kEnableRootsRelativeAddressing,
         data->info()->GetPoisoningMitigationLevel(),
@@ -2242,14 +2251,14 @@ OptimizedCompilationJob* Pipeline::NewCompilationJob(
 // static
 OptimizedCompilationJob* Pipeline::NewWasmCompilationJob(
     OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
-    Isolate* isolate, MachineGraph* mcgraph, CallDescriptor* call_descriptor,
+    MachineGraph* mcgraph, CallDescriptor* call_descriptor,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
     WasmCompilationData* wasm_compilation_data,
     wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
     wasm::NativeModule* native_module, int function_index,
     wasm::ModuleOrigin asmjs_origin) {
   return new PipelineWasmCompilationJob(
-      info, wasm_engine, isolate, mcgraph, call_descriptor, source_positions,
+      info, wasm_engine, mcgraph, call_descriptor, source_positions,
       node_origins, wasm_compilation_data, function_body, wasm_module,
       native_module, function_index, asmjs_origin);
 }
@@ -2318,7 +2327,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
          << "--- End of " << data->debug_name() << " generated by TurboFan\n"
          << "--------------------------------------------------\n";
     }
-    Zone temp_zone(data->isolate()->allocator(), ZONE_NAME);
+    Zone temp_zone(data->allocator(), ZONE_NAME);
     MachineGraphVerifier::Run(data->graph(), data->schedule(), linkage,
                               data->info()->IsStub(), data->debug_name(),
                               &temp_zone);
@@ -2545,7 +2554,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   std::unique_ptr<Zone> verifier_zone;
   RegisterAllocatorVerifier* verifier = nullptr;
   if (run_verifier) {
-    verifier_zone.reset(new Zone(isolate()->allocator(), ZONE_NAME));
+    verifier_zone.reset(new Zone(data->allocator(), ZONE_NAME));
     verifier = new (verifier_zone.get()) RegisterAllocatorVerifier(
         verifier_zone.get(), config, data->sequence());
   }

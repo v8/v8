@@ -1840,7 +1840,7 @@ bool LiftoffCompilationUnit::ExecuteCompilation() {
     compile_timer.Start();
   }
 
-  Zone zone(wasm_unit_->isolate_->allocator(), "LiftoffCompilationZone");
+  Zone zone(wasm_unit_->wasm_engine_->allocator(), "LiftoffCompilationZone");
   const wasm::WasmModule* module =
       wasm_unit_->env_ ? wasm_unit_->env_->module : nullptr;
   auto call_descriptor =

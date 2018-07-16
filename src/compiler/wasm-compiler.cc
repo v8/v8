@@ -4852,7 +4852,7 @@ MaybeHandle<Code> CompileJSToWasmWrapper(
       &zone, false, params + 1, CallDescriptor::kNoFlags);
 
   MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForTesting(
-      &info, isolate, incoming, &graph, WasmAssemblerOptions(isolate));
+      &info, isolate, incoming, &graph, WasmAssemblerOptions());
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     return maybe_code;
@@ -5101,7 +5101,7 @@ SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
   WasmGraphBuilder builder(wasm_unit_->env_, mcgraph->zone(), mcgraph,
                            wasm_unit_->func_body_.sig, source_position_table);
   graph_construction_result_ =
-      wasm::BuildTFGraph(wasm_unit_->isolate_->allocator(), &builder,
+      wasm::BuildTFGraph(wasm_unit_->wasm_engine_->allocator(), &builder,
                          wasm_unit_->func_body_, node_origins);
   if (graph_construction_result_.failed()) {
     if (FLAG_trace_wasm_compiler) {
@@ -5123,8 +5123,9 @@ SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
 
   if (wasm_unit_->func_index_ >= FLAG_trace_wasm_ast_start &&
       wasm_unit_->func_index_ < FLAG_trace_wasm_ast_end) {
-    PrintRawWasmCode(wasm_unit_->isolate_->allocator(), wasm_unit_->func_body_,
-                     wasm_unit_->env_->module, wasm::kPrintLocals);
+    PrintRawWasmCode(wasm_unit_->wasm_engine_->allocator(),
+                     wasm_unit_->func_body_, wasm_unit_->env_->module,
+                     wasm::kPrintLocals);
   }
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();
@@ -5162,7 +5163,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
 
   // Scope for the {graph_zone}.
   {
-    Zone graph_zone(wasm_unit_->isolate_->allocator(), ZONE_NAME);
+    Zone graph_zone(wasm_unit_->wasm_engine_->allocator(), ZONE_NAME);
     MachineGraph* mcgraph = new (&graph_zone)
         MachineGraph(new (&graph_zone) Graph(&graph_zone),
                      new (&graph_zone) CommonOperatorBuilder(&graph_zone),
@@ -5171,7 +5172,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
                          InstructionSelector::SupportedMachineOperatorFlags(),
                          InstructionSelector::AlignmentRequirements()));
 
-    Zone compilation_zone(wasm_unit_->isolate_->allocator(), ZONE_NAME);
+    Zone compilation_zone(wasm_unit_->wasm_engine_->allocator(), ZONE_NAME);
 
     OptimizedCompilationInfo info(
         GetDebugName(&compilation_zone, wasm_unit_->func_name_,
@@ -5210,9 +5211,9 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
 
     std::unique_ptr<OptimizedCompilationJob> job(
         Pipeline::NewWasmCompilationJob(
-            &info, wasm_unit_->isolate_->wasm_engine(), wasm_unit_->isolate_,
-            mcgraph, call_descriptor, source_positions, node_origins,
-            &wasm_compilation_data_, wasm_unit_->func_body_,
+            &info, wasm_unit_->wasm_engine_, mcgraph, call_descriptor,
+            source_positions, node_origins, &wasm_compilation_data_,
+            wasm_unit_->func_body_,
             const_cast<wasm::WasmModule*>(wasm_unit_->env_->module),
             wasm_unit_->native_module_, wasm_unit_->func_index_,
             wasm_unit_->env_->module->origin));
@@ -5446,8 +5447,8 @@ CallDescriptor* GetI32WasmCallDescriptorForSimd(
                                          MachineRepresentation::kWord32);
 }
 
-AssemblerOptions WasmAssemblerOptions(Isolate* isolate) {
-  AssemblerOptions options = AssemblerOptions::Default(isolate);
+AssemblerOptions WasmAssemblerOptions() {
+  AssemblerOptions options;
   options.record_reloc_info_for_serialization = true;
   options.enable_root_array_delta_access = false;
   return options;
