@@ -165,6 +165,16 @@ MapRef JSFunctionRef::DependOnInitialMap(
   return MapRef(initial_map);
 }
 
+void JSFunctionRef::EnsureHasInitialMap() const {
+  AllowHandleAllocation handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  AllowHeapAllocation heap_allocation;
+  // TODO(jarin) Eventually, we will prepare initial maps for resumable
+  // functions (i.e., generators).
+  DCHECK(IsResumableFunction(object<JSFunction>()->shared()->kind()));
+  JSFunction::EnsureHasInitialMap(object<JSFunction>());
+}
+
 void MapRef::DependOnStableMap(const JSHeapBroker* broker,
                                CompilationDependencies* dependencies) const {
   AllowHandleAllocation handle_allocation;
@@ -172,11 +182,14 @@ void MapRef::DependOnStableMap(const JSHeapBroker* broker,
   dependencies->DependOnStableMap(object<Map>());
 }
 
-int JSFunctionRef::GetInstanceSizeWithFinishedSlackTracking() const {
-  AllowHandleAllocation handle_allocation;
+SlackTrackingResult JSFunctionRef::FinishSlackTracking() const {
   AllowHandleDereference allow_handle_dereference;
+  AllowHandleAllocation handle_allocation;
   object<JSFunction>()->CompleteInobjectSlackTrackingIfActive();
-  return object<JSFunction>()->initial_map()->instance_size();
+  int instance_size = object<JSFunction>()->initial_map()->instance_size();
+  int inobject_property_count =
+      object<JSFunction>()->initial_map()->GetInObjectProperties();
+  return SlackTrackingResult(instance_size, inobject_property_count);
 }
 
 bool JSFunctionRef::has_initial_map() const {
@@ -620,6 +633,16 @@ int SharedFunctionInfoRef::builtin_id() const {
 bool SharedFunctionInfoRef::construct_as_builtin() const {
   AllowHandleDereference allow_handle_dereference;
   return object<SharedFunctionInfo>()->construct_as_builtin();
+}
+
+bool SharedFunctionInfoRef::HasBytecodeArray() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<SharedFunctionInfo>()->HasBytecodeArray();
+}
+
+int SharedFunctionInfoRef::GetBytecodeArrayRegisterCount() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<SharedFunctionInfo>()->GetBytecodeArray()->register_count();
 }
 
 MapRef NativeContextRef::fast_aliased_arguments_map(

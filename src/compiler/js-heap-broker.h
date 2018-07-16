@@ -150,6 +150,14 @@ class JSObjectRef : public HeapObjectRef {
   void EnsureElementsTenured(const JSHeapBroker* broker);
 };
 
+struct SlackTrackingResult {
+  SlackTrackingResult(int instance_sizex, int inobject_property_countx)
+      : instance_size(instance_sizex),
+        inobject_property_count(inobject_property_countx) {}
+  int instance_size;
+  int inobject_property_count;
+};
+
 class JSFunctionRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
@@ -162,9 +170,12 @@ class JSFunctionRef : public JSObjectRef {
 
   MapRef DependOnInitialMap(const JSHeapBroker* broker,
                             CompilationDependencies* dependencies) const;
-  int GetInstanceSizeWithFinishedSlackTracking() const;
-  SharedFunctionInfoRef shared(const JSHeapBroker* broker) const;
+
   JSGlobalProxyRef global_proxy(const JSHeapBroker* broker) const;
+  SlackTrackingResult FinishSlackTracking() const;
+  SharedFunctionInfoRef shared(const JSHeapBroker* broker) const;
+
+  void EnsureHasInitialMap() const;
 };
 
 class JSRegExpRef : public JSObjectRef {
@@ -333,6 +344,8 @@ class SharedFunctionInfoRef : public HeapObjectRef {
   bool HasBuiltinId() const;
   int builtin_id() const;
   bool construct_as_builtin() const;
+  bool HasBytecodeArray() const;
+  int GetBytecodeArrayRegisterCount() const;
 };
 
 class StringRef : public NameRef {

@@ -148,19 +148,19 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
 
   // Force completion of inobject slack tracking before
   // generating code to finalize the instance size.
-  int const instance_size =
-      original_constructor.GetInstanceSizeWithFinishedSlackTracking();
+  SlackTrackingResult slack_tracking_result =
+      original_constructor.FinishSlackTracking();
 
   // Emit code to allocate the JSObject instance for the
   // {original_constructor}.
   AllocationBuilder a(jsgraph(), js_heap_broker(), effect, control);
-  a.Allocate(instance_size);
+  a.Allocate(slack_tracking_result.instance_size);
   a.Store(AccessBuilder::ForMap(), initial_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSObjectElements(),
           jsgraph()->EmptyFixedArrayConstant());
-  for (int i = 0; i < initial_map.GetInObjectProperties(); ++i) {
+  for (int i = 0; i < slack_tracking_result.inobject_property_count; ++i) {
     a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
             jsgraph()->UndefinedConstant());
   }
@@ -418,6 +418,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateGeneratorObject, node->opcode());
   Node* const closure = NodeProperties::GetValueInput(node, 0);
   Node* const receiver = NodeProperties::GetValueInput(node, 1);
@@ -426,29 +427,29 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
   if (closure_type.IsHeapConstant()) {
-    DCHECK(closure_type.AsHeapConstant()->Value()->IsJSFunction());
-    Handle<JSFunction> js_function =
-        Handle<JSFunction>::cast(closure_type.AsHeapConstant()->Value());
-    JSFunction::EnsureHasInitialMap(js_function);
+    DCHECK(closure_type.AsHeapConstant()->Ref().IsJSFunction());
+    JSFunctionRef js_function =
+        closure_type.AsHeapConstant()->Ref().AsJSFunction();
+    js_function.EnsureHasInitialMap();
 
     // Force completion of inobject slack tracking before
     // generating code to finalize the instance size.
-    js_function->CompleteInobjectSlackTrackingIfActive();
+    SlackTrackingResult slack_tracking_result =
+        js_function.FinishSlackTracking();
 
     // Add a dependency on the {initial_map} to make sure that this code is
     // deoptimized whenever the {initial_map} changes.
-    Handle<Map> initial_map = dependencies()->DependOnInitialMap(js_function);
-    DCHECK(initial_map->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
-           initial_map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
+    MapRef initial_map(
+        js_function.DependOnInitialMap(js_heap_broker(), dependencies()));
+    DCHECK(initial_map.instance_type() == JS_GENERATOR_OBJECT_TYPE ||
+           initial_map.instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
 
     // Allocate a register file.
-    DCHECK(js_function->shared()->HasBytecodeArray());
-    Handle<BytecodeArray> bytecode_array(
-        js_function->shared()->GetBytecodeArray(), isolate());
-    int parameter_count_no_receiver = bytecode_array->parameter_count() - 1;
-    DCHECK_EQ(parameter_count_no_receiver,
-              js_function->shared()->internal_formal_parameter_count());
-    int size = parameter_count_no_receiver + bytecode_array->register_count();
+    SharedFunctionInfoRef shared(js_function.shared(js_heap_broker()));
+    DCHECK(shared.HasBytecodeArray());
+    int parameter_count_no_receiver = shared.internal_formal_parameter_count();
+    int size =
+        parameter_count_no_receiver + shared.GetBytecodeArrayRegisterCount();
     AllocationBuilder ab(jsgraph(), js_heap_broker(), effect, control);
     ab.AllocateArray(size, factory()->fixed_array_map());
     for (int i = 0; i < size; ++i) {
@@ -459,7 +460,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
 
     // Emit code to allocate the JS[Async]GeneratorObject instance.
     AllocationBuilder a(jsgraph(), js_heap_broker(), effect, control);
-    a.Allocate(initial_map->instance_size());
+    a.Allocate(slack_tracking_result.instance_size);
     Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
     Node* undefined = jsgraph()->UndefinedConstant();
     a.Store(AccessBuilder::ForMap(), initial_map);
@@ -476,17 +477,16 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     a.Store(AccessBuilder::ForJSGeneratorObjectParametersAndRegisters(),
             parameters_and_registers);
 
-    if (initial_map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE) {
+    if (initial_map.instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE) {
       a.Store(AccessBuilder::ForJSAsyncGeneratorObjectQueue(), undefined);
       a.Store(AccessBuilder::ForJSAsyncGeneratorObjectIsAwaiting(),
               jsgraph()->ZeroConstant());
     }
 
     // Handle in-object properties, too.
-    for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
-      a.Store(
-          AccessBuilder::ForJSObjectInObjectProperty(MapRef(initial_map), i),
-          undefined);
+    for (int i = 0; i < slack_tracking_result.inobject_property_count; ++i) {
+      a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
+              undefined);
     }
     a.FinishAndChange(node);
     return Changed(node);
