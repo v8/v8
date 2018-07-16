@@ -277,9 +277,11 @@ void GCTracer::ResetIncrementalMarkingCounters() {
 void GCTracer::Stop(GarbageCollector collector) {
   start_counter_--;
   if (start_counter_ != 0) {
-    heap_->isolate()->PrintWithTimestamp("[Finished reentrant %s during %s.]\n",
-                                         Heap::CollectorName(collector),
-                                         current_.TypeName(false));
+    if (FLAG_trace_gc_verbose) {
+      heap_->isolate()->PrintWithTimestamp(
+          "[Finished reentrant %s during %s.]\n",
+          Heap::CollectorName(collector), current_.TypeName(false));
+    }
     return;
   }
 
