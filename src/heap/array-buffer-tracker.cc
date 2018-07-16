@@ -29,7 +29,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
   size_t moved_memory = 0;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end(); ++it) {
-    old_buffer = reinterpret_cast<JSArrayBuffer*>(it->first);
+    old_buffer = it->first;
     Page* old_page = Page::FromAddress(old_buffer->address());
     const CallbackResult result = callback(old_buffer, &new_buffer);
     if (result == kKeepEntry) {
@@ -48,6 +48,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
         const size_t size = NumberToSize(new_buffer->byte_length());
         // We should decrement before adding to avoid potential overflows in
         // the external memory counters.
+        DCHECK_EQ(it->first->is_wasm_memory(), it->second.is_wasm_memory);
         old_page->DecrementExternalBackingStoreBytes(
             ExternalBackingStoreType::kArrayBuffer, it->second.length);
         tracker->Add(new_buffer, size);
@@ -59,12 +60,9 @@ void LocalArrayBufferTracker::Process(Callback callback) {
       // We pass backing_store() and stored length to the collector for freeing
       // the backing store. Wasm allocations will go through their own tracker
       // based on the backing store.
-      backing_stores_to_free.emplace_back(
-          it->second.backing_store, it->second.length, it->second.backing_store,
-          old_buffer->is_wasm_memory());
+      backing_stores_to_free.push_back(it->second);
       old_page->DecrementExternalBackingStoreBytes(
           ExternalBackingStoreType::kArrayBuffer, it->second.length);
-
     } else {
       UNREACHABLE();
     }

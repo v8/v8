@@ -174,8 +174,6 @@ class JSArrayBuffer : public JSObject {
   void Neuter();
 
   struct Allocation {
-    using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
-
     Allocation(void* allocation_base, size_t length, void* backing_store,
                bool is_wasm_memory)
         : allocation_base(allocation_base),
