@@ -110,6 +110,7 @@ class PipelineData {
         may_have_unverifiable_graph_(false),
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
+        code_tracer_(isolate->GetCodeTracer()),
         graph_zone_scope_(zone_stats_, ZONE_NAME),
         graph_zone_(graph_zone_scope_.zone()),
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
@@ -142,7 +143,7 @@ class PipelineData {
   // For WebAssembly compile entry point.
   PipelineData(ZoneStats* zone_stats, Isolate* isolate,
                OptimizedCompilationInfo* info, MachineGraph* mcgraph,
-               PipelineStatistics* pipeline_statistics,
+               PipelineStatistics* pipeline_statistics, CodeTracer* code_tracer,
                SourcePositionTable* source_positions,
                NodeOriginTable* node_origins,
                WasmCompilationData* wasm_compilation_data,
@@ -154,6 +155,7 @@ class PipelineData {
         wasm_function_index_(wasm_function_index),
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
+        code_tracer_(code_tracer),
         graph_zone_scope_(zone_stats_, ZONE_NAME),
         graph_zone_(graph_zone_scope_.zone()),
         graph_(mcgraph->graph()),
@@ -181,6 +183,7 @@ class PipelineData {
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
+        code_tracer_(isolate->GetCodeTracer()),
         graph_zone_scope_(zone_stats_, ZONE_NAME),
         graph_(graph),
         source_positions_(source_positions),
@@ -202,6 +205,7 @@ class PipelineData {
         info_(info),
         debug_name_(info_->GetDebugName()),
         zone_stats_(zone_stats),
+        code_tracer_(isolate->GetCodeTracer()),
         graph_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(sequence->zone()),
@@ -226,6 +230,7 @@ class PipelineData {
   ZoneStats* zone_stats() const { return zone_stats_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   PipelineStatistics* pipeline_statistics() { return pipeline_statistics_; }
+  CodeTracer* code_tracer() const { return code_tracer_; }
   OsrHelper* osr_helper() { return &(*osr_helper_); }
   bool compilation_failed() const { return compilation_failed_; }
   void set_compilation_failed() { compilation_failed_ = true; }
@@ -413,6 +418,7 @@ class PipelineData {
   bool may_have_unverifiable_graph_ = true;
   ZoneStats* const zone_stats_;
   PipelineStatistics* pipeline_statistics_ = nullptr;
+  CodeTracer* const code_tracer_;
   bool compilation_failed_ = false;
   bool verify_graph_ = false;
   int start_source_position_ = kNoSourcePosition;
@@ -650,7 +656,7 @@ struct TurboCfgFile : public std::ofstream {
                       std::ios_base::app) {}
 };
 
-void TraceSchedule(OptimizedCompilationInfo* info, Isolate* isolate,
+void TraceSchedule(OptimizedCompilationInfo* info, CodeTracer* code_tracer,
                    Schedule* schedule, const char* phase_name) {
   if (info->trace_turbo_json_enabled()) {
     AllowHandleDereference allow_deref;
@@ -667,7 +673,7 @@ void TraceSchedule(OptimizedCompilationInfo* info, Isolate* isolate,
   }
   if (info->trace_turbo_graph_enabled() || FLAG_trace_turbo_scheduler) {
     AllowHandleDereference allow_deref;
-    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+    CodeTracer::Scope tracing_scope(code_tracer);
     OFStream os(tracing_scope.file());
     os << "-- Schedule --------------------------------------\n" << *schedule;
   }
@@ -988,8 +994,9 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
         pipeline_statistics_(CreatePipelineStatistics(
             wasm_engine, function_body, wasm_module, info, &zone_stats_)),
         data_(&zone_stats_, isolate, info, mcgraph, pipeline_statistics_.get(),
-              source_positions, node_origins, wasm_compilation_data,
-              function_index, WasmAssemblerOptions(isolate)),
+              wasm_engine->GetCodeTracer(), source_positions, node_origins,
+              wasm_compilation_data, function_index,
+              WasmAssemblerOptions(isolate)),
         pipeline_(&data_),
         linkage_(call_descriptor),
         native_module_(native_module),
@@ -1446,7 +1453,7 @@ struct EffectControlLinearizationPhase {
       Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph(),
                                                       Scheduler::kTempSchedule);
       if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
-      TraceSchedule(data->info(), data->isolate(), schedule,
+      TraceSchedule(data->info(), data->code_tracer(), schedule,
                     "effect linearization schedule");
 
       EffectControlLinearizer::MaskArrayIndexEnable mask_array_index =
@@ -1894,13 +1901,13 @@ struct PrintGraphPhase {
       }
 
       AllowHandleDereference allow_deref;
-      CodeTracer::Scope tracing_scope(data->isolate()->GetCodeTracer());
+      CodeTracer::Scope tracing_scope(data->code_tracer());
       OFStream os(tracing_scope.file());
       os << "-- Graph after " << phase << " -- " << std::endl;
       os << AsScheduledGraph(schedule);
     } else if (info->trace_turbo_graph_enabled()) {  // Simple textual RPO.
       AllowHandleDereference allow_deref;
-      CodeTracer::Scope tracing_scope(data->isolate()->GetCodeTracer());
+      CodeTracer::Scope tracing_scope(data->code_tracer());
       OFStream os(tracing_scope.file());
       os << "-- Graph after " << phase << " -- " << std::endl;
       os << AsRPO(*graph);
@@ -1949,7 +1956,7 @@ bool PipelineImpl::CreateGraph() {
 
   if (info()->trace_turbo_json_enabled() ||
       info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    CodeTracer::Scope tracing_scope(data->code_tracer());
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Begin compiling method " << info()->GetDebugName().get()
@@ -2133,7 +2140,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   DCHECK_NOT_NULL(data.schedule());
 
   if (info.trace_turbo_json_enabled() || info.trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+    CodeTracer::Scope tracing_scope(data.code_tracer());
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Begin compiling " << debug_name << " using Turbofan" << std::endl;
@@ -2148,7 +2155,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     pipeline.Run<PrintGraphPhase>("Machine");
   }
 
-  TraceSchedule(data.info(), data.isolate(), data.schedule(), "schedule");
+  TraceSchedule(data.info(), data.code_tracer(), data.schedule(), "schedule");
 
   pipeline.Run<VerifyGraphPhase>(false, true);
   return pipeline.GenerateCode(call_descriptor);
@@ -2269,7 +2276,8 @@ void PipelineImpl::ComputeScheduledGraph() {
   RunPrintAndVerify(LateGraphTrimmingPhase::phase_name(), true);
 
   Run<ComputeSchedulePhase>();
-  TraceSchedule(data->info(), data->isolate(), data->schedule(), "schedule");
+  TraceSchedule(data->info(), data->code_tracer(), data->schedule(),
+                "schedule");
 }
 
 bool PipelineImpl::SelectInstructions(Linkage* linkage) {
@@ -2300,7 +2308,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
         !strcmp(FLAG_turbo_verify_machine_graph, data->debug_name())))) {
     if (FLAG_trace_verify_csa) {
       AllowHandleDereference allow_deref;
-      CodeTracer::Scope tracing_scope(data->isolate()->GetCodeTracer());
+      CodeTracer::Scope tracing_scope(data->code_tracer());
       OFStream os(tracing_scope.file());
       os << "--------------------------------------------------\n"
          << "--- Verifying " << data->debug_name() << " generated by TurboFan\n"
@@ -2504,7 +2512,7 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode() {
   }
   if (info()->trace_turbo_json_enabled() ||
       info()->trace_turbo_graph_enabled()) {
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    CodeTracer::Scope tracing_scope(data->code_tracer());
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Finished compiling method " << info()->GetDebugName().get()
@@ -2556,7 +2564,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   Run<BuildLiveRangesPhase>();
   if (info()->trace_turbo_graph_enabled()) {
     AllowHandleDereference allow_deref;
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    CodeTracer::Scope tracing_scope(data->code_tracer());
     OFStream os(tracing_scope.file());
     os << "----- Instruction sequence before register allocation -----\n"
        << PrintableInstructionSequence({config, data->sequence()});
@@ -2600,7 +2608,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
 
   if (info()->trace_turbo_graph_enabled()) {
     AllowHandleDereference allow_deref;
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    CodeTracer::Scope tracing_scope(data->code_tracer());
     OFStream os(tracing_scope.file());
     os << "----- Instruction sequence after register allocation -----\n"
        << PrintableInstructionSequence({config, data->sequence()});

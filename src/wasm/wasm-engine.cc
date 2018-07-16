@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-engine.h"
 
+#include "src/code-tracer.h"
 #include "src/compilation-statistics.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-promise.h"
@@ -170,6 +171,11 @@ void WasmEngine::DumpAndResetTurboStatistics() {
     os << AsPrintableStatistics{*compilation_stats_.get(), false} << std::endl;
   }
   compilation_stats_.reset();
+}
+
+CodeTracer* WasmEngine::GetCodeTracer() {
+  if (code_tracer_ == nullptr) code_tracer_.reset(new CodeTracer(-1));
+  return code_tracer_.get();
 }
 
 void WasmEngine::Register(CancelableTaskManager* task_manager) {

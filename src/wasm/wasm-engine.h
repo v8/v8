@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 
+class CodeTracer;
 class CompilationStatistics;
 class WasmModuleObject;
 class WasmInstanceObject;
@@ -99,6 +100,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Prints the gathered compilation statistics, then resets them.
   void DumpAndResetTurboStatistics();
 
+  // Used to redirect tracing output from {stdout} to a file.
+  CodeTracer* GetCodeTracer();
+
   // We register and unregister CancelableTaskManagers that run engine-dependent
   // tasks. These tasks need to be shutdown if the engine is shut down.
   void Register(CancelableTaskManager* task_manager);
@@ -128,6 +132,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   std::unordered_map<AsyncCompileJob*, std::unique_ptr<AsyncCompileJob>> jobs_;
   std::unique_ptr<WasmCodeManager> code_manager_;
   std::unique_ptr<CompilationStatistics> compilation_stats_;
+  std::unique_ptr<CodeTracer> code_tracer_;
   WasmMemoryTracker memory_tracker_;
   AccountingAllocator allocator_;
 
