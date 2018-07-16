@@ -1520,14 +1520,14 @@ class HeapObject: public Object {
 
   // The Heap the object was allocated in. Used also to access Isolate.
 #ifdef DEPRECATE_GET_ISOLATE
-  [[deprecated("Pass Heap explicitly or use a NeverReadOnlyHeapObject")]]
+  [[deprecated("Pass Heap explicitly or use a NeverReadOnlySpaceObject")]]
 #endif
       inline Heap*
       GetHeap() const;
 
 // Convenience method to get current isolate.
 #ifdef DEPRECATE_GET_ISOLATE
-  [[deprecated("Pass Isolate explicitly or use a NeverReadOnlyHeapObject")]]
+  [[deprecated("Pass Isolate explicitly or use a NeverReadOnlySpaceObject")]]
 #endif
       inline Isolate*
       GetIsolate() const;
@@ -1657,6 +1657,8 @@ class HeapObject: public Object {
   static const int kHeaderSize = kMapOffset + kPointerSize;
 
   STATIC_ASSERT(kMapOffset == Internals::kHeapObjectMapOffset);
+
+  inline Address GetFieldAddress(int field_offset) const;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(HeapObject);
@@ -4260,8 +4262,11 @@ class AccessorPair: public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorPair);
 };
 
-class StackFrameInfo : public Struct {
+class StackFrameInfo : public Struct, public NeverReadOnlySpaceObject {
  public:
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   DECL_INT_ACCESSORS(line_number)
   DECL_INT_ACCESSORS(column_number)
   DECL_INT_ACCESSORS(script_id)

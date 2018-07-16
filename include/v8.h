@@ -146,6 +146,7 @@ class Heap;
 class HeapObject;
 class Isolate;
 class LocalEmbedderHeapTracer;
+class NeverReadOnlySpaceObject;
 class Object;
 struct ScriptStreamingData;
 template<typename T> class CustomArguments;
@@ -994,8 +995,8 @@ class V8_EXPORT HandleScope {
   void operator delete[](void*, size_t);
 
   // Uses heap_object to obtain the current Isolate.
-  static internal::Object** CreateHandle(internal::HeapObject* heap_object,
-                                         internal::Object* value);
+  static internal::Object** CreateHandle(
+      internal::NeverReadOnlySpaceObject* heap_object, internal::Object* value);
 
   internal::Isolate* isolate_;
   internal::Object** prev_next_;
@@ -1122,8 +1123,12 @@ class V8_EXPORT PrimitiveArray {
  public:
   static Local<PrimitiveArray> New(Isolate* isolate, int length);
   int Length() const;
-  void Set(int index, Local<Primitive> item);
-  Local<Primitive> Get(int index);
+  void Set(Isolate* isolate, int index, Local<Primitive> item);
+  Local<Primitive> Get(Isolate* isolate, int index);
+
+  V8_DEPRECATE_SOON("Use Isolate version",
+                    void Set(int index, Local<Primitive> item));
+  V8_DEPRECATE_SOON("Use Isolate version", Local<Primitive> Get(int index));
 };
 
 /**
@@ -1848,7 +1853,9 @@ class V8_EXPORT StackTrace {
   /**
    * Returns a StackFrame at a particular index.
    */
-  Local<StackFrame> GetFrame(uint32_t index) const;
+  V8_DEPRECATE_SOON("Use Isolate version",
+                    Local<StackFrame> GetFrame(uint32_t index) const);
+  Local<StackFrame> GetFrame(Isolate* isolate, uint32_t index) const;
 
   /**
    * Returns the number of StackFrames.
@@ -2746,20 +2753,25 @@ class V8_EXPORT String : public Name {
   };
 
   // 16-bit character codes.
-  int Write(uint16_t* buffer,
-            int start = 0,
-            int length = -1,
+  int Write(Isolate* isolate, uint16_t* buffer, int start = 0, int length = -1,
             int options = NO_OPTIONS) const;
+  V8_DEPRECATE_SOON("Use Isolate* version",
+                    int Write(uint16_t* buffer, int start = 0, int length = -1,
+                              int options = NO_OPTIONS) const);
   // One byte characters.
-  int WriteOneByte(uint8_t* buffer,
-                   int start = 0,
-                   int length = -1,
-                   int options = NO_OPTIONS) const;
+  int WriteOneByte(Isolate* isolate, uint8_t* buffer, int start = 0,
+                   int length = -1, int options = NO_OPTIONS) const;
+  V8_DEPRECATE_SOON("Use Isolate* version",
+                    int WriteOneByte(uint8_t* buffer, int start = 0,
+                                     int length = -1, int options = NO_OPTIONS)
+                        const);
   // UTF-8 encoded characters.
-  int WriteUtf8(char* buffer,
-                int length = -1,
-                int* nchars_ref = NULL,
-                int options = NO_OPTIONS) const;
+  int WriteUtf8(Isolate* isolate, char* buffer, int length = -1,
+                int* nchars_ref = NULL, int options = NO_OPTIONS) const;
+  V8_DEPRECATE_SOON("Use Isolate* version",
+                    int WriteUtf8(char* buffer, int length = -1,
+                                  int* nchars_ref = NULL,
+                                  int options = NO_OPTIONS) const);
 
   /**
    * A zero length string.
@@ -2921,7 +2933,11 @@ class V8_EXPORT String : public Name {
    * Creates a new string by concatenating the left and the right strings
    * passed in as parameters.
    */
-  static Local<String> Concat(Local<String> left, Local<String> right);
+  static Local<String> Concat(Isolate* isolate, Local<String> left,
+                              Local<String> right);
+  static V8_DEPRECATE_SOON("Use Isolate* version",
+                           Local<String> Concat(Local<String> left,
+                                                Local<String> right));
 
   /**
    * Creates a new external string using the data defined in the given
@@ -5220,7 +5236,9 @@ class V8_EXPORT BooleanObject : public Object {
  */
 class V8_EXPORT StringObject : public Object {
  public:
-  static Local<Value> New(Local<String> value);
+  static Local<Value> New(Isolate* isolate, Local<String> value);
+  static V8_DEPRECATE_SOON("Use Isolate* version",
+                           Local<Value> New(Local<String> value));
 
   Local<String> ValueOf() const;
 
@@ -10090,7 +10108,6 @@ AccessorSignature* AccessorSignature::Cast(Data* data) {
 Local<Value> Object::GetInternalField(int index) {
 #ifndef V8_ENABLE_CHECKS
   typedef internal::Object O;
-  typedef internal::HeapObject HO;
   typedef internal::Internals I;
   O* obj = *reinterpret_cast<O**>(this);
   // Fast path: If the object is a plain JSObject, which is the common case, we
@@ -10101,7 +10118,8 @@ Local<Value> Object::GetInternalField(int index) {
       instance_type == I::kJSSpecialApiObjectType) {
     int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
     O* value = I::ReadField<O*>(obj, offset);
-    O** result = HandleScope::CreateHandle(reinterpret_cast<HO*>(obj), value);
+    O** result = HandleScope::CreateHandle(
+        reinterpret_cast<internal::NeverReadOnlySpaceObject*>(obj), value);
     return Local<Value>(reinterpret_cast<Value*>(result));
   }
 #endif
@@ -10741,9 +10759,8 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
 Local<Value> Context::GetEmbedderData(int index) {
 #ifndef V8_ENABLE_CHECKS
   typedef internal::Object O;
-  typedef internal::HeapObject HO;
   typedef internal::Internals I;
-  HO* context = *reinterpret_cast<HO**>(this);
+  auto* context = *reinterpret_cast<internal::NeverReadOnlySpaceObject**>(this);
   O** result =
       HandleScope::CreateHandle(context, I::ReadEmbedderData<O*>(this, index));
   return Local<Value>(reinterpret_cast<Value*>(result));

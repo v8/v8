@@ -1838,6 +1838,10 @@ bool HeapObject::NeedsRehashing() const {
   }
 }
 
+Address HeapObject::GetFieldAddress(int field_offset) const {
+  return FIELD_ADDR(this, field_offset);
+}
+
 void PropertyArray::set(int index, Object* value, WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
