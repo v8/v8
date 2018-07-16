@@ -373,7 +373,7 @@ THREADED_TEST(HulIgennem) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::Primitive> undef = v8::Undefined(isolate);
   Local<String> undef_str = undef->ToString(env.local()).ToLocalChecked();
-  char* value = i::NewArray<char>(undef_str->Utf8Length() + 1);
+  char* value = i::NewArray<char>(undef_str->Utf8Length(isolate) + 1);
   undef_str->WriteUtf8(value);
   CHECK_EQ(0, strcmp(value, "undefined"));
   i::DeleteArray(value);
@@ -8271,12 +8271,12 @@ static int StrNCmp16(uint16_t* a, uint16_t* b, int n) {
 }
 
 int GetUtf8Length(v8::Isolate* isolate, Local<String> str) {
-  int len = str->Utf8Length();
+  int len = str->Utf8Length(isolate);
   if (len < 0) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     i::Handle<i::String> istr(v8::Utils::OpenHandle(*str));
     i::String::Flatten(i_isolate, istr);
-    len = str->Utf8Length();
+    len = str->Utf8Length(isolate);
   }
   return len;
 }
@@ -15676,7 +15676,8 @@ THREADED_TEST(MorphCompositeStringTest) {
   {
     LocalContext env;
     i::Factory* factory = CcTest::i_isolate()->factory();
-    v8::HandleScope scope(env->GetIsolate());
+    v8::Isolate* isolate = env->GetIsolate();
+    v8::HandleScope scope(isolate);
     OneByteVectorResource one_byte_resource(
         i::Vector<const char>(c_string, i::StrLength(c_string)));
     UC16VectorResource uc16_resource(
@@ -15708,7 +15709,7 @@ THREADED_TEST(MorphCompositeStringTest) {
     // This should UTF-8 without flattening, since everything is ASCII.
     Local<String> cons =
         v8_compile("cons")->Run(env.local()).ToLocalChecked().As<String>();
-    CHECK_EQ(128, cons->Utf8Length());
+    CHECK_EQ(128, cons->Utf8Length(isolate));
     int nchars = -1;
     CHECK_EQ(129, cons->WriteUtf8(utf_buffer, -1, &nchars));
     CHECK_EQ(128, nchars);

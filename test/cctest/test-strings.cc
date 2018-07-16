@@ -923,7 +923,7 @@ TEST(Utf8Conversion) {
                                     v8::NewStringType::kNormal,
                                     StrLength(one_byte_string))
                 .ToLocalChecked()
-                ->Utf8Length();
+                ->Utf8Length(CcTest::isolate());
   CHECK_EQ(StrLength(one_byte_string), len);
   // A mixed one-byte and two-byte string
   // U+02E4 -> CB A4
@@ -942,7 +942,7 @@ TEST(Utf8Conversion) {
       v8::String::NewFromTwoByte(CcTest::isolate(), mixed_string,
                                  v8::NewStringType::kNormal, 5)
           .ToLocalChecked();
-  CHECK_EQ(10, mixed->Utf8Length());
+  CHECK_EQ(10, mixed->Utf8Length(CcTest::isolate()));
   // Try encoding the string with all capacities
   char buffer[11];
   const char kNoChar = static_cast<char>(-1);

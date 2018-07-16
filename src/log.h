@@ -414,7 +414,7 @@ class TimerEventScope {
 
 class CodeEventLogger : public CodeEventListener {
  public:
-  CodeEventLogger();
+  explicit CodeEventLogger(Isolate* isolate);
   ~CodeEventLogger() override;
 
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
@@ -438,6 +438,9 @@ class CodeEventLogger : public CodeEventListener {
   void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override {}
 
+ protected:
+  Isolate* isolate_;
+
  private:
   class NameBuffer;
 
@@ -450,6 +453,7 @@ class CodeEventLogger : public CodeEventListener {
 };
 
 struct CodeEvent {
+  Isolate* isolate_;
   uintptr_t code_start_address;
   size_t code_size;
   Handle<String> function_name;

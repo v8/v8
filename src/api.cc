@@ -5602,10 +5602,14 @@ bool String::ContainsOnlyOneByte() const {
   return helper.Check(*str);
 }
 
-// TODO(v8:7786): Deprecate this function and pass the isolate in instead.
 int String::Utf8Length() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  return Utf8Length(reinterpret_cast<Isolate*>(isolate));
+}
+
+int String::Utf8Length(Isolate* isolate) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  str = i::String::Flatten(str->GetIsolate(), str);
+  str = i::String::Flatten(reinterpret_cast<i::Isolate*>(isolate), str);
   int length = str->length();
   if (length == 0) return 0;
   i::DisallowHeapAllocation no_gc;
@@ -5626,7 +5630,6 @@ int String::Utf8Length() const {
   }
   return utf8_length;
 }
-
 
 class Utf8WriterVisitor {
  public:
@@ -5846,7 +5849,7 @@ int String::WriteUtf8(Isolate* v8_isolate, char* buffer, int capacity,
     if (success) return writer.CompleteWrite(write_null, nchars_ref);
   } else if (capacity >= string_length) {
     // First check that the buffer is large enough.
-    int utf8_bytes = Utf8Length();
+    int utf8_bytes = Utf8Length(reinterpret_cast<Isolate*>(isolate));
     if (utf8_bytes <= capacity) {
       // one-byte fast path.
       if (utf8_bytes == string_length) {
@@ -9235,7 +9238,7 @@ String::Utf8Value::Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> obj)
   TryCatch try_catch(isolate);
   Local<String> str;
   if (!obj->ToString(context).ToLocal(&str)) return;
-  length_ = str->Utf8Length();
+  length_ = str->Utf8Length(isolate);
   str_ = i::NewArray<char>(length_ + 1);
   str->WriteUtf8(str_);
 }

@@ -20,7 +20,7 @@ namespace internal {
 
 class CodeAddressMap : public CodeEventLogger {
  public:
-  explicit CodeAddressMap(Isolate* isolate) : isolate_(isolate) {
+  explicit CodeAddressMap(Isolate* isolate) : CodeEventLogger(isolate) {
     isolate->logger()->AddCodeEventListener(this);
   }
 
@@ -125,7 +125,6 @@ class CodeAddressMap : public CodeEventLogger {
   }
 
   NameMap address_to_name_map_;
-  Isolate* isolate_;
 };
 
 template <class AllocatorT = DefaultSerializerAllocator>

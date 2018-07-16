@@ -2699,7 +2699,9 @@ class V8_EXPORT String : public Name {
    * Returns the number of bytes in the UTF-8 encoded
    * representation of this string.
    */
-  int Utf8Length() const;
+  V8_DEPRECATE_SOON("Use Isolate version instead", int Utf8Length() const);
+
+  int Utf8Length(Isolate* isolate) const;
 
   /**
    * Returns whether this string is known to contain only one byte data,
@@ -6986,6 +6988,8 @@ struct JitCodeEvent {
     // New location of instructions. Only valid for CODE_MOVED.
     void* new_code_start;
   };
+
+  Isolate* isolate;
 };
 
 /**

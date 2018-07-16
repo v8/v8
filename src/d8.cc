@@ -425,8 +425,8 @@ base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 // Dummy external source stream which returns the whole source in one go.
 class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
  public:
-  explicit DummySourceStream(Local<String> source) : done_(false) {
-    source_length_ = source->Utf8Length();
+  DummySourceStream(Local<String> source, Isolate* isolate) : done_(false) {
+    source_length_ = source->Utf8Length(isolate);
     source_buffer_.reset(new uint8_t[source_length_]);
     source->WriteUtf8(reinterpret_cast<char*>(source_buffer_.get()),
                       source_length_);
@@ -453,7 +453,7 @@ class BackgroundCompileThread : public base::Thread {
   BackgroundCompileThread(Isolate* isolate, Local<String> source)
       : base::Thread(GetThreadOptions("BackgroundCompileThread")),
         source_(source),
-        streamed_source_(new DummySourceStream(source),
+        streamed_source_(new DummySourceStream(source, isolate),
                          v8::ScriptCompiler::StreamedSource::UTF8),
         task_(v8::ScriptCompiler::StartStreamingScript(isolate,
                                                        &streamed_source_)) {}

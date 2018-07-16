@@ -164,7 +164,7 @@ void PerfJitLogger::CloseMarkerFile(void* marker_address) {
   munmap(marker_address, page_size);
 }
 
-PerfJitLogger::PerfJitLogger() {
+PerfJitLogger::PerfJitLogger(Isolate* isolate) : CodeEventLogger(isolate) {
   base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
 
   reference_count_++;

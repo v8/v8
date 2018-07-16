@@ -265,7 +265,7 @@ class ScopedLoggerInitializer {
 class TestCodeEventHandler : public v8::CodeEventHandler {
  public:
   explicit TestCodeEventHandler(v8::Isolate* isolate)
-      : v8::CodeEventHandler(isolate) {}
+      : v8::CodeEventHandler(isolate), isolate_(isolate) {}
 
   size_t CountLines(std::string prefix, std::string suffix = std::string()) {
     if (!log_.length()) return 0;
@@ -293,8 +293,9 @@ class TestCodeEventHandler : public v8::CodeEventHandler {
     std::string name = std::string(code_event->GetComment());
     if (name.empty()) {
       v8::Local<v8::String> functionName = code_event->GetFunctionName();
-      std::string buffer(functionName->Utf8Length() + 1, 0);
-      functionName->WriteUtf8(&buffer[0], functionName->Utf8Length() + 1);
+      std::string buffer(functionName->Utf8Length(isolate_) + 1, 0);
+      functionName->WriteUtf8(&buffer[0],
+                              functionName->Utf8Length(isolate_) + 1);
       // Sanitize name, removing unwanted \0 resulted from WriteUtf8
       name = std::string(buffer.c_str());
     }
@@ -303,6 +304,7 @@ class TestCodeEventHandler : public v8::CodeEventHandler {
   }
 
   std::string log_;
+  v8::Isolate* isolate_;
 };
 
 }  // namespace
@@ -712,7 +714,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
     // The result either be the "true" literal or problem description.
     if (!result->IsTrue()) {
       v8::Local<v8::String> s = result->ToString(logger.env()).ToLocalChecked();
-      i::ScopedVector<char> data(s->Utf8Length() + 1);
+      i::ScopedVector<char> data(s->Utf8Length(isolate) + 1);
       CHECK(data.start());
       s->WriteUtf8(data.start());
       FATAL("%s\n", data.start());
@@ -744,8 +746,11 @@ TEST(LogVersion) {
 // https://crbug.com/539892
 // CodeCreateEvents with really large names should not crash.
 TEST(Issue539892) {
-  class : public i::CodeEventLogger {
+  class FakeCodeEventLogger : public i::CodeEventLogger {
    public:
+    explicit FakeCodeEventLogger(i::Isolate* isolate)
+        : CodeEventLogger(isolate) {}
+
     void CodeMoveEvent(i::AbstractCode* from, Address to) override {}
     void CodeDisableOptEvent(i::AbstractCode* code,
                              i::SharedFunctionInfo* shared) override {}
@@ -755,7 +760,7 @@ TEST(Issue539892) {
                            const char* name, int length) override {}
     void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
                            int length) override {}
-  } code_event_logger;
+  } code_event_logger(CcTest::i_isolate());
   SETUP_FLAGS();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
