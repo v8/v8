@@ -70,15 +70,13 @@ class UncompiledData : public HeapObject {
  public:
   DECL_INT32_ACCESSORS(start_position)
   DECL_INT32_ACCESSORS(end_position)
-  DECL_INT32_ACCESSORS(function_literal_id)
 
   DECL_CAST(UncompiledData)
 
-#define UNCOMPILED_DATA_FIELDS(V)         \
-  V(kStartPositionOffset, kInt32Size)     \
-  V(kEndPositionOffset, kInt32Size)       \
-  V(kFunctionLiteralIdOffset, kInt32Size) \
-  /* Total size. */                       \
+#define UNCOMPILED_DATA_FIELDS(V)     \
+  V(kStartPositionOffset, kInt32Size) \
+  V(kEndPositionOffset, kInt32Size)   \
+  /* Total size. */                   \
   V(kUnalignedSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, UNCOMPILED_DATA_FIELDS)
@@ -187,7 +185,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   // function info is added to the list on the script.
   V8_EXPORT_PRIVATE static void SetScript(
       Handle<SharedFunctionInfo> shared, Handle<Object> script_object,
-      int function_literal_id, bool reset_preparsed_scope_data = true);
+      bool reset_preparsed_scope_data = true);
 
   // Layout description of the optimized code map.
   static const int kEntriesStart = 0;
@@ -256,6 +254,11 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   // [expected_nof_properties]: Expected number of properties for the
   // function. The value is only reliable when the function has been compiled.
   DECL_UINT16_ACCESSORS(expected_nof_properties)
+
+  // [function_literal_id] - uniquely identifies the FunctionLiteral this
+  // SharedFunctionInfo represents within its script, or -1 if this
+  // SharedFunctionInfo object doesn't correspond to a parsed FunctionLiteral.
+  DECL_INT_ACCESSORS(function_literal_id)
 
 #if V8_SFI_HAS_UNIQUE_ID
   // [unique_id] - For --trace-maps purposes, an identifier that's persistent
@@ -337,9 +340,6 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   inline bool HasInferredName();
   inline String* inferred_name();
   inline void set_inferred_name(String* inferred_name);
-
-  // Get the function literal id associated with this function, for parsing.
-  inline int FunctionLiteralId(Isolate* isolate) const;
 
   // The function is subject to debugging if a debug info is attached.
   inline bool HasDebugInfo() const;
@@ -530,7 +530,6 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
     ScriptIterator(Isolate* isolate,
                    Handle<WeakFixedArray> shared_function_infos);
     SharedFunctionInfo* Next();
-    int CurrentIndex() const { return index_ - 1; }
 
     // Reset the iterator to run on |script|.
     void Reset(Script* script);
@@ -583,6 +582,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   V(kFunctionIdentifierOrDebugInfoOffset, kPointerSize)    \
   V(kEndOfPointerFieldsOffset, 0)                          \
   /* Raw data fields. */                                   \
+  V(kFunctionLiteralIdOffset, kInt32Size)                  \
   V(kUniqueIdOffset, kUniqueIdFieldSize)                   \
   V(kLengthOffset, kUInt16Size)                            \
   V(kFormalParameterCountOffset, kUInt16Size)              \
@@ -661,10 +661,6 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   FRIEND_TEST(PreParserTest, LazyFunctionLength);
 
   inline uint16_t length() const;
-
-  // Find the index of this function in the parent script. Slow path of
-  // FunctionLiteralId.
-  int FindIndexInScript(Isolate* isolate) const;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
