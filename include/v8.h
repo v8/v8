@@ -6330,9 +6330,7 @@ typedef void (*PromiseHook)(PromiseHookType type, Local<Promise> promise,
 // --- Promise Reject Callback ---
 enum PromiseRejectEvent {
   kPromiseRejectWithNoHandler = 0,
-  kPromiseHandlerAddedAfterReject = 1,
-  kPromiseRejectAfterResolved = 2,
-  kPromiseResolveAfterResolved = 3,
+  kPromiseHandlerAddedAfterReject = 1
 };
 
 class PromiseRejectMessage {
