@@ -204,6 +204,9 @@ consts_misc = [
         'value': 'Context::EXTENSION_INDEX' },
     { 'name': 'context_min_slots',
         'value': 'Context::MIN_CONTEXT_SLOTS' },
+    { 'name': 'context_idx_embedder_data',
+        'value': 'Internals::kContextEmbedderDataIndex' },
+
 
     { 'name': 'namedictionaryshape_prefix_size',
         'value': 'NameDictionaryShape::kPrefixSize' },
@@ -224,6 +227,8 @@ consts_misc = [
         'value': 'SimpleNumberDictionaryShape::kPrefixSize' },
     { 'name': 'simplenumberdictionaryshape_entry_size',
         'value': 'SimpleNumberDictionaryShape::kEntrySize' },
+
+    { 'name': 'type_JSError__JS_ERROR_TYPE', 'value': 'JS_ERROR_TYPE' },
 ];
 
 #
