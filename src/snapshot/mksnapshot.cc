@@ -393,8 +393,11 @@ int main(int argc, char** argv) {
         // Set code range such that relative jumps for builtins to
         // builtin calls in the snapshot are possible.
         i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-        size_t code_range_size = std::min(i::kMaximalCodeRangeSize / i::MB,
-                                          i::kMaxPCRelativeCodeRangeInMB);
+        size_t code_range_size =
+            i::kMaximalCodeRangeSize == 0
+                ? i::kMaxPCRelativeCodeRangeInMB
+                : std::min(i::kMaximalCodeRangeSize / i::MB,
+                           i::kMaxPCRelativeCodeRangeInMB);
         i_isolate->heap()->ConfigureHeap(0, 0, code_range_size);
       }
       v8::SnapshotCreator snapshot_creator(isolate);
