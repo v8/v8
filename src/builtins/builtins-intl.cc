@@ -593,7 +593,46 @@ BUILTIN(NumberFormatInternalFormatNumber) {
                                         isolate, number_format_holder, number));
 }
 
-// Intl.Locale implementation
+namespace {
+
+MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
+                                   Handle<JSFunction> constructor,
+                                   Handle<JSReceiver> new_target,
+                                   Handle<Object> tag, Handle<Object> options) {
+  Handle<JSObject> result;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                             JSObject::New(constructor, new_target), JSLocale);
+
+  // First parameter is a locale, as a string/object. Can't be empty.
+  if (!tag->IsName() && !tag->IsJSReceiver()) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kLocaleNotEmpty),
+                    JSLocale);
+  }
+
+  Handle<String> locale_string;
+  if (tag->IsJSLocale() && Handle<JSLocale>::cast(tag)->locale()->IsString()) {
+    locale_string =
+        Handle<String>(Handle<JSLocale>::cast(tag)->locale(), isolate);
+  } else {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, locale_string,
+                               Object::ToString(isolate, tag), JSLocale);
+  }
+
+  Handle<JSReceiver> options_object;
+  if (options->IsNullOrUndefined(isolate)) {
+    // Make empty options bag.
+    options_object = isolate->factory()->NewJSObjectWithNullProto();
+  } else {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_object,
+                               Object::ToObject(isolate, options), JSLocale);
+  }
+
+  return JSLocale::InitializeLocale(isolate, Handle<JSLocale>::cast(result),
+                                    locale_string, options_object);
+}
+
+}  // namespace
+
 BUILTIN(LocaleConstructor) {
   HandleScope scope(isolate);
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
@@ -601,85 +640,40 @@ BUILTIN(LocaleConstructor) {
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   "Intl.Locale")));
-  } else {  // [[Construct]]
-    Handle<JSFunction> target = args.target();
-    Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
-
-    Handle<JSObject> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                       JSObject::New(target, new_target));
-
-    Handle<Object> tag = args.atOrUndefined(isolate, 1);
-    Handle<Object> options = args.atOrUndefined(isolate, 2);
-
-    // First parameter is a locale, as a string/object. Can't be empty.
-    if (!tag->IsName() && !tag->IsJSReceiver()) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kLocaleNotEmpty));
-    }
-
-    Handle<String> locale_string;
-    if (tag->IsJSLocale() &&
-        Handle<JSLocale>::cast(tag)->locale()->IsString()) {
-      locale_string =
-          Handle<String>(Handle<JSLocale>::cast(tag)->locale(), isolate);
-    } else {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, locale_string,
-                                         Object::ToString(isolate, tag));
-    }
-
-    Handle<JSReceiver> options_object;
-    if (options->IsNullOrUndefined(isolate)) {
-      // Make empty options bag.
-      options_object = isolate->factory()->NewJSObjectWithNullProto();
-    } else {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, options_object,
-                                         Object::ToObject(isolate, options));
-    }
-
-    RETURN_RESULT_OR_FAILURE(
-        isolate,
-        JSLocale::InitializeLocale(isolate, Handle<JSLocale>::cast(result),
-                                   locale_string, options_object));
-  }
-}
-
-BUILTIN(RelativeTimeFormatConstructor) {
-  HandleScope scope(isolate);
-  // 1. If NewTarget is undefined, throw a TypeError exception.
-  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              isolate->factory()->NewStringFromStaticChars(
-                                  "Intl.RelativeTimeFormat")));
   }
   // [[Construct]]
   Handle<JSFunction> target = args.target();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
 
-  Handle<JSObject> result;
-  // 2. Let relativeTimeFormat be
-  //    ! OrdinaryCreateFromConstructor(NewTarget,
-  //                                    "%RelativeTimeFormatPrototype%").
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::New(target, new_target));
-
-  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> tag = args.atOrUndefined(isolate, 1);
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
-  // 3. Return ? InitializeRelativeTimeFormat(relativeTimeFormat, locales,
-  //                                          options).
   RETURN_RESULT_OR_FAILURE(
-      isolate, JSRelativeTimeFormat::InitializeRelativeTimeFormat(
-                   isolate, Handle<JSRelativeTimeFormat>::cast(result), locales,
-                   options));
+      isolate, CreateLocale(isolate, target, new_target, tag, options));
 }
 
-BUILTIN(RelativeTimeFormatPrototypeResolvedOptions) {
+BUILTIN(LocalePrototypeMaximize) {
   HandleScope scope(isolate);
-  CHECK_RECEIVER(JSRelativeTimeFormat, format_holder,
-                 "Intl.RelativeTimeFormat.prototype.resolvedOptions");
-  return *JSRelativeTimeFormat::ResolvedOptions(isolate, format_holder);
+  CHECK_RECEIVER(JSLocale, locale_holder, "Intl.Locale.prototype.maximize");
+  Handle<JSFunction> constructor(
+      isolate->native_context()->intl_locale_function(), isolate);
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      CreateLocale(isolate, constructor, constructor,
+                   JSLocale::Maximize(isolate, locale_holder->locale()),
+                   isolate->factory()->NewJSObjectWithNullProto()));
+}
+
+BUILTIN(LocalePrototypeMinimize) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSLocale, locale_holder, "Intl.Locale.prototype.minimize");
+  Handle<JSFunction> constructor(
+      isolate->native_context()->intl_locale_function(), isolate);
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      CreateLocale(isolate, constructor, constructor,
+                   JSLocale::Minimize(isolate, locale_holder->locale()),
+                   isolate->factory()->NewJSObjectWithNullProto()));
 }
 
 // Locale getters.
@@ -760,6 +754,44 @@ BUILTIN(LocalePrototypeToString) {
   CHECK_RECEIVER(JSLocale, locale_holder, "Intl.Locale.prototype.toString");
 
   return locale_holder->locale();
+}
+
+BUILTIN(RelativeTimeFormatConstructor) {
+  HandleScope scope(isolate);
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
+                              isolate->factory()->NewStringFromStaticChars(
+                                  "Intl.RelativeTimeFormat")));
+  }
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+
+  Handle<JSObject> result;
+  // 2. Let relativeTimeFormat be
+  //    ! OrdinaryCreateFromConstructor(NewTarget,
+  //                                    "%RelativeTimeFormatPrototype%").
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     JSObject::New(target, new_target));
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  // 3. Return ? InitializeRelativeTimeFormat(relativeTimeFormat, locales,
+  //                                          options).
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSRelativeTimeFormat::InitializeRelativeTimeFormat(
+                   isolate, Handle<JSRelativeTimeFormat>::cast(result), locales,
+                   options));
+}
+
+BUILTIN(RelativeTimeFormatPrototypeResolvedOptions) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSRelativeTimeFormat, format_holder,
+                 "Intl.RelativeTimeFormat.prototype.resolvedOptions");
+  return *JSRelativeTimeFormat::ResolvedOptions(isolate, format_holder);
 }
 
 }  // namespace internal

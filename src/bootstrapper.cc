@@ -4534,6 +4534,10 @@ void Genesis::InitializeGlobal_harmony_locale() {
 
   SimpleInstallFunction(isolate(), prototype, "toString",
                         Builtins::kLocalePrototypeToString, 0, false);
+  SimpleInstallFunction(isolate(), prototype, "maximize",
+                        Builtins::kLocalePrototypeMaximize, 0, false);
+  SimpleInstallFunction(isolate(), prototype, "minimize",
+                        Builtins::kLocalePrototypeMinimize, 0, false);
   // Base locale getters.
   SimpleInstallGetter(isolate(), prototype,
                       factory()->InternalizeUtf8String("language"),

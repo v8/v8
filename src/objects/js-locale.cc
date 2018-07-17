@@ -21,6 +21,7 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-locale-inl.h"
 #include "unicode/locid.h"
+#include "unicode/uloc.h"
 #include "unicode/unistr.h"
 #include "unicode/uvernum.h"
 #include "unicode/uversion.h"
@@ -299,6 +300,34 @@ MaybeHandle<JSLocale> JSLocale::InitializeLocale(Isolate* isolate,
   locale_holder->set_locale(*locale_handle);
 
   return locale_holder;
+}
+
+namespace {
+
+Handle<String> MorphLocale(Isolate* isolate, String* input,
+                           int32_t (*morph_func)(const char*, char*, int32_t,
+                                                 UErrorCode*)) {
+  Factory* factory = isolate->factory();
+  char localeBuffer[ULOC_FULLNAME_CAPACITY];
+  UErrorCode status = U_ZERO_ERROR;
+  DCHECK_NOT_NULL(morph_func);
+  int32_t length = (*morph_func)(input->ToCString().get(), localeBuffer,
+                                 ULOC_FULLNAME_CAPACITY, &status);
+  DCHECK(U_SUCCESS(status));
+  DCHECK_GT(length, 0);
+  std::string locale(localeBuffer, length);
+  std::replace(locale.begin(), locale.end(), '_', '-');
+  return factory->NewStringFromAsciiChecked(locale.c_str());
+}
+
+}  // namespace
+
+Handle<String> JSLocale::Maximize(Isolate* isolate, String* locale) {
+  return MorphLocale(isolate, locale, uloc_addLikelySubtags);
+}
+
+Handle<String> JSLocale::Minimize(Isolate* isolate, String* locale) {
+  return MorphLocale(isolate, locale, uloc_minimizeSubtags);
 }
 
 }  // namespace internal

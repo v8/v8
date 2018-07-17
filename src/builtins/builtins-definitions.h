@@ -1341,6 +1341,10 @@ namespace internal {
   CPP(LocalePrototypeNumeric)                                          \
   CPP(LocalePrototypeNumberingSystem)                                  \
   CPP(LocalePrototypeToString)                                         \
+  /* ecma402 #sec-Intl.Locale.prototype.maximize */                    \
+  CPP(LocalePrototypeMaximize)                                         \
+  /* ecma402 #sec-Intl.Locale.prototype.minimize */                    \
+  CPP(LocalePrototypeMinimize)                                         \
   /* ecma402 #sec-number-format-functions */                           \
   CPP(NumberFormatInternalFormatNumber)                                \
   /* ecma402 #sec-intl.numberformat.prototype.format */                \

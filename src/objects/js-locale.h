@@ -30,6 +30,8 @@ class JSLocale : public JSObject {
                                                 Handle<JSLocale> locale_holder,
                                                 Handle<String> locale,
                                                 Handle<JSReceiver> options);
+  static Handle<String> Maximize(Isolate* isolate, String* locale);
+  static Handle<String> Minimize(Isolate* isolate, String* locale);
 
   DECL_CAST(JSLocale)
 

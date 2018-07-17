@@ -467,12 +467,6 @@
   'intl402/Locale/invalid-tag-throws': [FAIL],
   'intl402/Locale/likely-subtags': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
-  'intl402/Locale/prototype/maximize/length': [FAIL],
-  'intl402/Locale/prototype/maximize/name': [FAIL],
-  'intl402/Locale/prototype/maximize/prop-desc': [FAIL],
-  'intl402/Locale/prototype/minimize/length': [FAIL],
-  'intl402/Locale/prototype/minimize/name': [FAIL],
-  'intl402/Locale/prototype/minimize/prop-desc': [FAIL],
   'intl402/Locale/prototype/toStringTag/toStringTag': [FAIL],
   'intl402/Locale/prototype/toStringTag/toString': [FAIL],
 
