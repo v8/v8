@@ -18,6 +18,8 @@
 namespace v8 {
 namespace internal {
 
+class JSProxy;
+
 // A set of bit fields representing Smi handlers for loads and a HeapObject
 // that represents load handlers that can't be encoded in a Smi.
 // TODO(ishell): move to load-handler.h

@@ -39,6 +39,7 @@ class Isolate;
 class JSMap;
 class JSMapIterator;
 class JSModuleNamespace;
+class JSProxy;
 class JSSet;
 class JSSetIterator;
 class JSWeakMap;

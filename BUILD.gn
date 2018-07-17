@@ -2151,6 +2151,8 @@ v8_source_set("v8_base") {
     "src/objects/js-locale.h",
     "src/objects/js-promise-inl.h",
     "src/objects/js-promise.h",
+    "src/objects/js-proxy-inl.h",
+    "src/objects/js-proxy.h",
     "src/objects/js-regexp-inl.h",
     "src/objects/js-regexp-string-iterator-inl.h",
     "src/objects/js-regexp-string-iterator.h",

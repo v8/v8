@@ -32,6 +32,7 @@
 #include "src/lookup.h"
 #include "src/objects/bigint.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/js-proxy-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/regexp-match-info.h"
@@ -627,7 +628,6 @@ CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSGlobalProxy)
 CAST_ACCESSOR(JSMessageObject)
 CAST_ACCESSOR(JSObject)
-CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSStringIterator)
 CAST_ACCESSOR(JSValue)
@@ -2647,11 +2647,6 @@ Object* JSFunction::prototype() {
 bool JSFunction::is_compiled() {
   return code()->builtin_index() != Builtins::kCompileLazy;
 }
-
-ACCESSORS(JSProxy, target, Object, kTargetOffset)
-ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
-
-bool JSProxy::IsRevoked() const { return !handler()->IsJSReceiver(); }
 
 // static
 bool Foreign::IsNormalized(Object* value) {

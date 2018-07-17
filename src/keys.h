@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class JSProxy;
+
 enum AddKeyConversion { DO_NOT_CONVERT, CONVERT_TO_ARRAY_INDEX };
 
 // This is a helper class for JSReceiver::GetKeys which collects and sorts keys.
