@@ -33,29 +33,29 @@ class TorqueParser : public antlr4::Parser {
     T__17 = 18,
     T__18 = 19,
     T__19 = 20,
-    T__20 = 21,
-    MACRO = 22,
-    BUILTIN = 23,
-    RUNTIME = 24,
-    MODULE = 25,
-    JAVASCRIPT = 26,
-    DEFERRED = 27,
-    IF = 28,
-    FOR = 29,
-    WHILE = 30,
-    RETURN = 31,
-    CONSTEXPR = 32,
-    CONTINUE = 33,
-    BREAK = 34,
-    GOTO = 35,
-    OTHERWISE = 36,
-    TRY = 37,
-    LABEL = 38,
-    LABELS = 39,
-    TAIL = 40,
-    ISNT = 41,
-    IS = 42,
-    LET = 43,
+    MACRO = 21,
+    BUILTIN = 22,
+    RUNTIME = 23,
+    MODULE = 24,
+    JAVASCRIPT = 25,
+    DEFERRED = 26,
+    IF = 27,
+    FOR = 28,
+    WHILE = 29,
+    RETURN = 30,
+    CONSTEXPR = 31,
+    CONTINUE = 32,
+    BREAK = 33,
+    GOTO = 34,
+    OTHERWISE = 35,
+    TRY = 36,
+    LABEL = 37,
+    LABELS = 38,
+    TAIL = 39,
+    ISNT = 40,
+    IS = 41,
+    LET = 42,
+    CONST = 43,
     EXTERN = 44,
     ASSERT_TOKEN = 45,
     CHECK_TOKEN = 46,
@@ -893,9 +893,10 @@ class TorqueParser : public antlr4::Parser {
     VariableDeclarationContext(antlr4::ParserRuleContext* parent,
                                size_t invokingState);
     size_t getRuleIndex() const override;
-    antlr4::tree::TerminalNode* LET();
     antlr4::tree::TerminalNode* IDENTIFIER();
     TypeContext* type();
+    antlr4::tree::TerminalNode* LET();
+    antlr4::tree::TerminalNode* CONST();
 
     void enterRule(antlr4::tree::ParseTreeListener* listener) override;
     void exitRule(antlr4::tree::ParseTreeListener* listener) override;
@@ -1404,6 +1405,7 @@ class TorqueParser : public antlr4::Parser {
     ExternConstDeclarationContext(antlr4::ParserRuleContext* parent,
                                   size_t invokingState);
     size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode* CONST();
     antlr4::tree::TerminalNode* IDENTIFIER();
     TypeContext* type();
     GeneratesDeclarationContext* generatesDeclaration();
@@ -1421,6 +1423,7 @@ class TorqueParser : public antlr4::Parser {
     ConstDeclarationContext(antlr4::ParserRuleContext* parent,
                             size_t invokingState);
     size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode* CONST();
     antlr4::tree::TerminalNode* IDENTIFIER();
     TypeContext* type();
     antlr4::tree::TerminalNode* ASSIGNMENT();

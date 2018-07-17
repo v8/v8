@@ -158,8 +158,9 @@ void DeclarationVisitor::Visit(TorqueMacroDeclaration* decl,
   DeclareSignature(signature);
   Variable* return_variable = nullptr;
   if (!signature.return_type->IsVoidOrNever()) {
-    return_variable = declarations()->DeclareVariable(kReturnValueVariable,
-                                                      signature.return_type);
+    return_variable = declarations()->DeclareVariable(
+        kReturnValueVariable, signature.return_type,
+        signature.return_type->IsConstexpr());
   }
 
   PushControlSplit();
@@ -254,14 +255,23 @@ void DeclarationVisitor::Visit(ReturnStatement* stmt) {
 void DeclarationVisitor::Visit(VarDeclarationStatement* stmt) {
   std::string variable_name = stmt->name;
   const Type* type = declarations()->GetType(stmt->type);
-  if (type->IsConstexpr()) {
-    ReportError("cannot declare variable with constexpr type");
+  if (type->IsConstexpr() && !stmt->const_qualified) {
+    ReportError(
+        "cannot declare variable with constexpr type. Use 'const' instead.");
   }
-  declarations()->DeclareVariable(variable_name, type);
+  declarations()->DeclareVariable(variable_name, type, stmt->const_qualified);
   if (global_context_.verbose()) {
     std::cout << "declared variable " << variable_name << " with type " << *type
               << "\n";
   }
+
+  // const qualified variables are required to be initialized properly.
+  if (stmt->const_qualified && !stmt->initializer) {
+    std::stringstream stream;
+    stream << "local constant \"" << variable_name << "\" is not initialized.";
+    ReportError(stream.str());
+  }
+
   if (stmt->initializer) {
     Visit(*stmt->initializer);
     if (global_context_.verbose()) {
@@ -399,8 +409,14 @@ void DeclarationVisitor::Visit(TryLabelStatement* stmt) {
 
         size_t i = 0;
         for (auto p : block->parameters.names) {
-          shared_label->AddVariable(declarations()->DeclareVariable(
-              p, declarations()->GetType(block->parameters.types[i])));
+          const Type* type =
+              declarations()->GetType(block->parameters.types[i]);
+          if (type->IsConstexpr()) {
+            ReportError("no constexpr type allowed for label arguments");
+          }
+
+          shared_label->AddVariable(
+              declarations()->DeclareVariable(p, type, false));
           ++i;
         }
       }
@@ -549,9 +565,13 @@ void DeclarationVisitor::DeclareSignature(const Signature& signature) {
     Label* new_label = declarations()->DeclareLabel(label.name);
     size_t i = 0;
     for (auto var_type : label_params) {
+      if (var_type->IsConstexpr()) {
+        ReportError("no constexpr type allowed for label arguments");
+      }
+
       std::string var_name = label.name + std::to_string(i++);
       new_label->AddVariable(
-          declarations()->DeclareVariable(var_name, var_type));
+          declarations()->DeclareVariable(var_name, var_type, false));
     }
   }
 }

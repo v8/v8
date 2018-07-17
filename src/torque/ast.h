@@ -436,9 +436,14 @@ struct TailCallStatement : Statement {
 
 struct VarDeclarationStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(VarDeclarationStatement)
-  VarDeclarationStatement(SourcePosition p, std::string n, TypeExpression* t,
-                          base::Optional<Expression*> i)
-      : Statement(kKind, p), name(std::move(n)), type(t), initializer(i) {}
+  VarDeclarationStatement(SourcePosition p, bool c, std::string n,
+                          TypeExpression* t, base::Optional<Expression*> i)
+      : Statement(kKind, p),
+        const_qualified(c),
+        name(std::move(n)),
+        type(t),
+        initializer(i) {}
+  bool const_qualified;
   std::string name;
   TypeExpression* type;
   base::Optional<Expression*> initializer;

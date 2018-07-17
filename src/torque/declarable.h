@@ -132,19 +132,19 @@ class ModuleConstant : public Value {
 class Variable : public Value {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Variable, variable);
-  bool IsConst() const override { return false; }
+  bool IsConst() const override { return const_; }
   std::string value() const override { return value_; }
   std::string RValue() const override {
     if (!IsDefined()) {
       ReportError("Reading uninitialized variable.");
     }
     std::string result = "(*" + value() + ")";
-    if (!type()->IsConstexpr()) result += ".value()";
+    if (!IsConst()) result += ".value()";
     return result;
   }
   void Define() {
-    if (defined_ && type()->IsConstexpr()) {
-      ReportError("Cannot re-define a constexpr variable.");
+    if (defined_ && IsConst()) {
+      ReportError("Cannot re-define a const-bound variable.");
     }
     defined_ = true;
   }
@@ -152,13 +152,18 @@ class Variable : public Value {
 
  private:
   friend class Declarations;
-  Variable(const std::string& name, const std::string& value, const Type* type)
+  Variable(const std::string& name, const std::string& value, const Type* type,
+           bool is_const)
       : Value(Declarable::kVariable, type, name),
         value_(value),
-        defined_(false) {}
+        defined_(false),
+        const_(is_const) {
+    DCHECK_IMPLIES(type->IsConstexpr(), IsConst());
+  }
 
   std::string value_;
   bool defined_;
+  bool const_;
 };
 
 class Label : public Declarable {

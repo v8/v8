@@ -814,10 +814,6 @@ const Type* ImplementationVisitor::Visit(ReturnStatement* stmt) {
         source_out() << "Return(" << return_result.RValue() << ");"
                      << std::endl;
       }
-    } else if (current_callable->IsModuleConstant()) {
-      Variable* var =
-          Variable::cast(declarations()->LookupValue(kReturnValueVariable));
-      GenerateAssignToVariable(var, return_result);
     } else {
       UNREACHABLE();
     }
@@ -1231,7 +1227,7 @@ void ImplementationVisitor::GenerateChangedVarsFromControlSplit(AstNode* node) {
   source_out() << "{";
   bool first = true;
   for (auto v : changed_vars) {
-    if (v->type()->IsConstexpr()) continue;
+    if (v->IsConst()) continue;
     if (first) {
       first = false;
     } else {
@@ -1339,7 +1335,7 @@ Variable* ImplementationVisitor::GenerateVariableDeclaration(
   if (declarations()->TryLookup(name)) {
     variable = Variable::cast(declarations()->LookupValue(name));
   } else {
-    variable = declarations()->DeclareVariable(name, *type);
+    variable = declarations()->DeclareVariable(name, *type, false);
     // Because the variable is being defined during code generation, it must be
     // assumed that it changes along all control split paths because it's no
     // longer possible to run the control-flow anlaysis in the declaration pass
@@ -1352,17 +1348,20 @@ Variable* ImplementationVisitor::GenerateVariableDeclaration(
   GenerateIndent();
   if (variable->type()->IsConstexpr()) {
     source_out() << variable->type()->GetGeneratedTypeName();
-    source_out() << " " << variable->value() << "_impl;" << std::endl;
+    source_out() << " " << variable->value() << "_impl;\n";
+  } else if (variable->IsConst()) {
+    source_out() << "TNode<" << variable->type()->GetGeneratedTNodeTypeName();
+    source_out() << "> " << variable->value() << "_impl;\n";
   } else {
     source_out() << "TVARIABLE(";
     source_out() << variable->type()->GetGeneratedTNodeTypeName();
-    source_out() << ", " << variable->value() << "_impl);" << std::endl;
+    source_out() << ", " << variable->value() << "_impl);\n";
   }
   GenerateIndent();
   source_out() << "auto " << variable->value() << " = &" << variable->value()
-               << "_impl;" << std::endl;
+               << "_impl;\n";
   GenerateIndent();
-  source_out() << "USE(" << variable->value() << ");" << std::endl;
+  source_out() << "USE(" << variable->value() << ");\n";
   if (initialization) {
     GenerateAssignToVariable(variable, *initialization);
   }

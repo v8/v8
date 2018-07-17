@@ -238,4 +238,9 @@ module test {
     check(kIntptrConst == 4);
     check(kSmiConst == 3);
   }
+
+  macro TestLocalConstBindings() {
+    const kSmi: Smi = 3;
+    check(kSmi == 3);
+  }
 }

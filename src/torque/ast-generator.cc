@@ -345,8 +345,10 @@ antlrcpp::Any AstGenerator::visitTypeAliasDeclaration(
 
 antlrcpp::Any AstGenerator::visitVariableDeclaration(
     TorqueParser::VariableDeclarationContext* context) {
+  bool is_const_qualified = context->CONST() != nullptr;
   return RegisterNode(
       new VarDeclarationStatement{Pos(context),
+                                  is_const_qualified,
                                   context->IDENTIFIER()->getSymbol()->getText(),
                                   GetType(context->type()),
                                   {}});

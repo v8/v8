@@ -288,10 +288,10 @@ RuntimeFunction* Declarations::DeclareRuntimeFunction(
 }
 
 Variable* Declarations::DeclareVariable(const std::string& var,
-                                        const Type* type) {
+                                        const Type* type, bool is_const) {
   std::string name(var + std::to_string(GetNextUniqueDeclarationNumber()));
   CheckAlreadyDeclared(var, "variable");
-  Variable* result = new Variable(var, name, type);
+  Variable* result = new Variable(var, name, type, is_const);
   Declare(var, std::unique_ptr<Declarable>(result));
   return result;
 }

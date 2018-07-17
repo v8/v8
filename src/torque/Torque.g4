@@ -31,6 +31,7 @@ TAIL: 'tail';
 ISNT: 'isnt';
 IS: 'is';
 LET: 'let';
+CONST: 'const';
 EXTERN: 'extern';
 ASSERT_TOKEN: 'assert';
 CHECK_TOKEN: 'check';
@@ -227,7 +228,7 @@ argumentList: '(' argument? (',' argument)* ')';
 helperCall: (MIN | MAX | IDENTIFIER) genericSpecializationTypeList? argumentList optionalOtherwise;
 
 labelReference: IDENTIFIER;
-variableDeclaration: LET IDENTIFIER ':' type;
+variableDeclaration: (LET | CONST) IDENTIFIER ':' type;
 variableDeclarationWithInitialization: variableDeclaration (ASSIGNMENT expression)?;
 helperCallStatement: (TAIL)? helperCall;
 expressionStatement: assignment;
@@ -277,8 +278,8 @@ externalRuntime : EXTERN RUNTIME IDENTIFIER typeListMaybeVarArgs optionalType ';
 builtinDeclaration : JAVASCRIPT? BUILTIN IDENTIFIER optionalGenericTypeList parameterList optionalType (helperBody | ';');
 genericSpecialization: IDENTIFIER genericSpecializationTypeList parameterList optionalType optionalLabelList helperBody;
 macroDeclaration : ('operator' STRING_LITERAL)? MACRO IDENTIFIER optionalGenericTypeList parameterList optionalType optionalLabelList (helperBody | ';');
-externConstDeclaration : 'const' IDENTIFIER ':' type generatesDeclaration ';';
-constDeclaration: 'const' IDENTIFIER ':' type ASSIGNMENT expression ';';
+externConstDeclaration : CONST IDENTIFIER ':' type generatesDeclaration ';';
+constDeclaration: CONST IDENTIFIER ':' type ASSIGNMENT expression ';';
 
 declaration
         : typeDeclaration
