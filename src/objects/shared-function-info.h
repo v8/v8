@@ -603,7 +603,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
   typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
-                              kEndOfPointerFieldsOffset, kSize>
+                              kEndOfPointerFieldsOffset, kAlignedSize>
       BodyDescriptor;
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
