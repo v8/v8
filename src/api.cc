@@ -1085,11 +1085,6 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
 
 i::Object** V8::CopyPersistent(i::Object** obj) {
   i::Handle<i::Object> result = i::GlobalHandles::CopyGlobal(obj);
-#ifdef VERIFY_HEAP
-  if (i::FLAG_verify_heap) {
-    (*obj)->ObjectVerify();
-  }
-#endif  // VERIFY_HEAP
   return result.location();
 }
 

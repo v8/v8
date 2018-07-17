@@ -982,12 +982,12 @@ HeapObject* MapWord::ToForwardingAddress() {
 
 
 #ifdef VERIFY_HEAP
-void HeapObject::VerifyObjectField(int offset) {
-  VerifyPointer(READ_FIELD(this, offset));
+void HeapObject::VerifyObjectField(Isolate* isolate, int offset) {
+  VerifyPointer(isolate, READ_FIELD(this, offset));
 }
 
-void HeapObject::VerifyMaybeObjectField(int offset) {
-  MaybeObject::VerifyMaybeObjectPointer(READ_WEAK_FIELD(this, offset));
+void HeapObject::VerifyMaybeObjectField(Isolate* isolate, int offset) {
+  MaybeObject::VerifyMaybeObjectPointer(isolate, READ_WEAK_FIELD(this, offset));
 }
 
 void HeapObject::VerifySmiField(int offset) {

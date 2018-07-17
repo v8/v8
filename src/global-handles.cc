@@ -562,7 +562,14 @@ Handle<Object> GlobalHandles::Create(Object* value) {
 
 Handle<Object> GlobalHandles::CopyGlobal(Object** location) {
   DCHECK_NOT_NULL(location);
-  return Node::FromLocation(location)->GetGlobalHandles()->Create(*location);
+  GlobalHandles* global_handles =
+      Node::FromLocation(location)->GetGlobalHandles();
+#ifdef VERIFY_HEAP
+  if (i::FLAG_verify_heap) {
+    (*location)->ObjectVerify(global_handles->isolate());
+  }
+#endif  // VERIFY_HEAP
+  return global_handles->Create(*location);
 }
 
 

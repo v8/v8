@@ -59,7 +59,7 @@ class MaybeObject {
   static inline MaybeObject* MakeWeak(MaybeObject* object);
 
 #ifdef VERIFY_HEAP
-  static void VerifyMaybeObjectPointer(MaybeObject* p);
+  static void VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject* p);
 #endif
 
   // Prints this object without details.

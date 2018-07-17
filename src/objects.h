@@ -1273,10 +1273,7 @@ class Object {
   DECL_VERIFIER(Object)
 #ifdef VERIFY_HEAP
   // Verify a pointer is a valid object pointer.
-  static void VerifyPointer(Object* p);
-  // Special non-isolate overload for cases where we don't have an isolate.
-  // TODO(v8:7786): Remove this overload.
-  void ObjectVerify();
+  static void VerifyPointer(Isolate* isolate, Object* p);
 #endif
 
   inline void VerifyApiCallResultType();
@@ -1627,13 +1624,13 @@ class HeapObject: public Object {
   DECL_PRINTER(HeapObject)
   DECL_VERIFIER(HeapObject)
 #ifdef VERIFY_HEAP
-  inline void VerifyObjectField(int offset);
+  inline void VerifyObjectField(Isolate* isolate, int offset);
   inline void VerifySmiField(int offset);
-  inline void VerifyMaybeObjectField(int offset);
+  inline void VerifyMaybeObjectField(Isolate* isolate, int offset);
 
   // Verify a pointer is a valid HeapObject pointer that points to object
   // areas in the heap.
-  static void VerifyHeapPointer(Object* p);
+  static void VerifyHeapPointer(Isolate* isolate, Object* p);
 #endif
 
   static inline AllocationAlignment RequiredAlignment(Map* map);

@@ -626,7 +626,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
 void RelocInfo::Verify(Isolate* isolate) {
   switch (rmode_) {
     case EMBEDDED_OBJECT:
-      Object::VerifyPointer(target_object());
+      Object::VerifyPointer(isolate, target_object());
       break;
     case CODE_TARGET:
     case RELATIVE_CODE_TARGET: {
