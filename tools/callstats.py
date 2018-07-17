@@ -18,6 +18,7 @@ For each command, you can try ./runtime-call-stats.py help command.
 '''
 
 import argparse
+import copy
 import json
 import os
 import re
@@ -554,6 +555,8 @@ def do_json(args):
             if domain not in versions[version]: versions[version][domain] = {}
             read_stats(os.path.join(root, filename),
                        versions[version][domain], args)
+  # TODO(sergiyb): Remove after resolving https://crbug.com/861668.
+  raw_data = copy.deepcopy(versions)
   for version, domains in versions.items():
     if args.aggregate:
       create_total_page_stats(domains, args)
@@ -570,6 +573,8 @@ def do_json(args):
           entry.append(round(s['ci']['perc'], 2))
         stats.append(entry)
       domains[domain] = stats
+  # TODO(sergiyb): Remove after resolving https://crbug.com/861668.
+  versions['raw_data'] = raw_data
   print json.dumps(versions, separators=(',', ':'))
 
 
