@@ -14,8 +14,8 @@ namespace v8 {
 namespace internal {
 
 Handle<LayoutDescriptor> LayoutDescriptor::New(
-    Handle<Map> map, Handle<DescriptorArray> descriptors, int num_descriptors) {
-  Isolate* isolate = descriptors->GetIsolate();
+    Isolate* isolate, Handle<Map> map, Handle<DescriptorArray> descriptors,
+    int num_descriptors) {
   if (!FLAG_unbox_double_fields) return handle(FastPointerLayout(), isolate);
 
   int layout_descriptor_length =
@@ -37,11 +37,9 @@ Handle<LayoutDescriptor> LayoutDescriptor::New(
   return handle(layout_descriptor, isolate);
 }
 
-
 Handle<LayoutDescriptor> LayoutDescriptor::ShareAppend(
-    Handle<Map> map, PropertyDetails details) {
+    Isolate* isolate, Handle<Map> map, PropertyDetails details) {
   DCHECK(map->owns_descriptors());
-  Isolate* isolate = map->GetIsolate();
   Handle<LayoutDescriptor> layout_descriptor(map->GetLayoutDescriptor(),
                                              isolate);
 
@@ -63,9 +61,8 @@ Handle<LayoutDescriptor> LayoutDescriptor::ShareAppend(
   return handle(layout_desc, isolate);
 }
 
-
 Handle<LayoutDescriptor> LayoutDescriptor::AppendIfFastOrUseFull(
-    Handle<Map> map, PropertyDetails details,
+    Isolate* isolate, Handle<Map> map, PropertyDetails details,
     Handle<LayoutDescriptor> full_layout_descriptor) {
   DisallowHeapAllocation no_allocation;
   LayoutDescriptor* layout_descriptor = map->layout_descriptor();
@@ -75,7 +72,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::AppendIfFastOrUseFull(
   if (!InobjectUnboxedField(map->GetInObjectProperties(), details)) {
     DCHECK(details.location() != kField ||
            layout_descriptor->IsTagged(details.field_index()));
-    return handle(layout_descriptor, map->GetIsolate());
+    return handle(layout_descriptor, isolate);
   }
   int field_index = details.field_index();
   int new_capacity = field_index + details.field_width_in_words();
@@ -89,7 +86,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::AppendIfFastOrUseFull(
   if (details.field_width_in_words() > 1) {
     layout_descriptor = layout_descriptor->SetRawData(field_index + 1);
   }
-  return handle(layout_descriptor, map->GetIsolate());
+  return handle(layout_descriptor, isolate);
 }
 
 

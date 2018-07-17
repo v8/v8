@@ -6545,7 +6545,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   descriptors->Sort();
 
   Handle<LayoutDescriptor> layout_descriptor = LayoutDescriptor::New(
-      new_map, descriptors, descriptors->number_of_descriptors());
+      isolate, new_map, descriptors, descriptors->number_of_descriptors());
 
   DisallowHeapAllocation no_gc;
   new_map->InitializeDescriptors(*descriptors, *layout_descriptor);
@@ -9455,7 +9455,8 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, Handle<Map> map,
 
   Handle<LayoutDescriptor> layout_descriptor =
       FLAG_unbox_double_fields
-          ? LayoutDescriptor::ShareAppend(map, descriptor->GetDetails())
+          ? LayoutDescriptor::ShareAppend(isolate, map,
+                                          descriptor->GetDetails())
           : handle(LayoutDescriptor::FastPointerLayout(), isolate);
 
   {
@@ -9616,7 +9617,7 @@ void Map::InstallDescriptors(Isolate* isolate, Handle<Map> parent,
 
   if (FLAG_unbox_double_fields) {
     Handle<LayoutDescriptor> layout_descriptor =
-        LayoutDescriptor::AppendIfFastOrUseFull(parent, details,
+        LayoutDescriptor::AppendIfFastOrUseFull(isolate, parent, details,
                                                 full_layout_descriptor);
     child->set_layout_descriptor(*layout_descriptor);
 #ifdef VERIFY_HEAP
@@ -10118,7 +10119,7 @@ Handle<Map> Map::CopyAddDescriptor(Isolate* isolate, Handle<Map> map,
 
   Handle<LayoutDescriptor> new_layout_descriptor =
       FLAG_unbox_double_fields
-          ? LayoutDescriptor::New(map, new_descriptors, nof + 1)
+          ? LayoutDescriptor::New(isolate, map, new_descriptors, nof + 1)
           : handle(LayoutDescriptor::FastPointerLayout(), isolate);
 
   return CopyReplaceDescriptors(
@@ -10226,7 +10227,7 @@ Handle<Map> Map::CopyReplaceDescriptor(Isolate* isolate, Handle<Map> map,
 
   new_descriptors->Replace(insertion_index, descriptor);
   Handle<LayoutDescriptor> new_layout_descriptor = LayoutDescriptor::New(
-      map, new_descriptors, new_descriptors->number_of_descriptors());
+      isolate, map, new_descriptors, new_descriptors->number_of_descriptors());
 
   SimpleTransitionFlag simple_flag =
       (insertion_index == descriptors->number_of_descriptors() - 1)

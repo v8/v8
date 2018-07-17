@@ -689,7 +689,7 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   }
 
   Handle<LayoutDescriptor> new_layout_descriptor =
-      LayoutDescriptor::New(split_map, new_descriptors, old_nof_);
+      LayoutDescriptor::New(isolate_, split_map, new_descriptors, old_nof_);
 
   Handle<Map> new_map = Map::AddMissingTransitions(
       isolate_, split_map, new_descriptors, new_layout_descriptor);

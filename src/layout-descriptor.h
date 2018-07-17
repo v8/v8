@@ -51,20 +51,20 @@ class LayoutDescriptor : public ByteArray {
   // Builds layout descriptor optimized for given |map| by |num_descriptors|
   // elements of given descriptors array. The |map|'s descriptors could be
   // different.
-  static Handle<LayoutDescriptor> New(Handle<Map> map,
+  static Handle<LayoutDescriptor> New(Isolate* isolate, Handle<Map> map,
                                       Handle<DescriptorArray> descriptors,
                                       int num_descriptors);
 
   // Modifies |map|'s layout descriptor or creates a new one if necessary by
   // appending property with |details| to it.
-  static Handle<LayoutDescriptor> ShareAppend(Handle<Map> map,
+  static Handle<LayoutDescriptor> ShareAppend(Isolate* isolate, Handle<Map> map,
                                               PropertyDetails details);
 
   // Creates new layout descriptor by appending property with |details| to
   // |map|'s layout descriptor and if it is still fast then returns it.
   // Otherwise the |full_layout_descriptor| is returned.
   static Handle<LayoutDescriptor> AppendIfFastOrUseFull(
-      Handle<Map> map, PropertyDetails details,
+      Isolate* isolate, Handle<Map> map, PropertyDetails details,
       Handle<LayoutDescriptor> full_layout_descriptor);
 
   // Layout descriptor that corresponds to an object all fields of which are

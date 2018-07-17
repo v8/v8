@@ -19,8 +19,11 @@ class BytecodeArray;
 
 // The DebugInfo class holds additional information for a function being
 // debugged.
-class DebugInfo : public Struct {
+class DebugInfo : public Struct, public NeverReadOnlySpaceObject {
  public:
+  using NeverReadOnlySpaceObject::GetHeap;
+  using NeverReadOnlySpaceObject::GetIsolate;
+
   enum Flag {
     kNone = 0,
     kHasBreakInfo = 1 << 0,

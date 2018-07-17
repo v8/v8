@@ -192,7 +192,8 @@ TEST(LayoutDescriptorBasicSlow) {
 
     Handle<Map> map = Map::Create(isolate, kPropsCount);
 
-    layout_descriptor = LayoutDescriptor::New(map, descriptors, kPropsCount);
+    layout_descriptor =
+        LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     CHECK_EQ(kBitsInSmiLayout, layout_descriptor->capacity());
     InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
@@ -209,7 +210,8 @@ TEST(LayoutDescriptorBasicSlow) {
     Handle<Map> map = Map::Create(isolate, inobject_properties);
 
     // Should be fast as the only double property is the first one.
-    layout_descriptor = LayoutDescriptor::New(map, descriptors, kPropsCount);
+    layout_descriptor =
+        LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_NE(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     CHECK(!layout_descriptor->IsSlowLayout());
     CHECK(!layout_descriptor->IsFastPointerLayout());
@@ -225,7 +227,8 @@ TEST(LayoutDescriptorBasicSlow) {
     int inobject_properties = kPropsCount;
     Handle<Map> map = Map::Create(isolate, inobject_properties);
 
-    layout_descriptor = LayoutDescriptor::New(map, descriptors, kPropsCount);
+    layout_descriptor =
+        LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_NE(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     CHECK(layout_descriptor->IsSlowLayout());
     CHECK(!layout_descriptor->IsFastPointerLayout());
@@ -514,21 +517,24 @@ TEST(LayoutDescriptorCreateNewFast) {
 
   {
     Handle<Map> map = Map::Create(isolate, 0);
-    layout_descriptor = LayoutDescriptor::New(map, descriptors, kPropsCount);
+    layout_descriptor =
+        LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
   }
 
   {
     Handle<Map> map = Map::Create(isolate, 1);
-    layout_descriptor = LayoutDescriptor::New(map, descriptors, kPropsCount);
+    layout_descriptor =
+        LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
   }
 
   {
     Handle<Map> map = Map::Create(isolate, 2);
-    layout_descriptor = LayoutDescriptor::New(map, descriptors, kPropsCount);
+    layout_descriptor =
+        LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_NE(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     CHECK(!layout_descriptor->IsSlowLayout());
     CHECK(layout_descriptor->IsTagged(0));
@@ -557,21 +563,24 @@ TEST(LayoutDescriptorCreateNewSlow) {
 
   {
     Handle<Map> map = Map::Create(isolate, 0);
-    layout_descriptor = LayoutDescriptor::New(map, descriptors, kPropsCount);
+    layout_descriptor =
+        LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
   }
 
   {
     Handle<Map> map = Map::Create(isolate, 1);
-    layout_descriptor = LayoutDescriptor::New(map, descriptors, kPropsCount);
+    layout_descriptor =
+        LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_EQ(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
   }
 
   {
     Handle<Map> map = Map::Create(isolate, 2);
-    layout_descriptor = LayoutDescriptor::New(map, descriptors, kPropsCount);
+    layout_descriptor =
+        LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_NE(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     CHECK(!layout_descriptor->IsSlowLayout());
     CHECK(layout_descriptor->IsTagged(0));
@@ -584,7 +593,8 @@ TEST(LayoutDescriptorCreateNewSlow) {
   {
     int inobject_properties = kPropsCount / 2;
     Handle<Map> map = Map::Create(isolate, inobject_properties);
-    layout_descriptor = LayoutDescriptor::New(map, descriptors, kPropsCount);
+    layout_descriptor =
+        LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
     CHECK_NE(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     CHECK(layout_descriptor->IsSlowLayout());
     for (int i = 0; i < inobject_properties; i++) {
@@ -600,7 +610,7 @@ TEST(LayoutDescriptorCreateNewSlow) {
 
     // Now test LayoutDescriptor::cast_gc_safe().
     Handle<LayoutDescriptor> layout_descriptor_copy =
-        LayoutDescriptor::New(map, descriptors, kPropsCount);
+        LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
 
     LayoutDescriptor* layout_desc = *layout_descriptor;
     CHECK_EQ(layout_desc, LayoutDescriptor::cast(layout_desc));
@@ -652,7 +662,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
                                 representations[kind]);
     }
     PropertyDetails details = d.GetDetails();
-    layout_descriptor = LayoutDescriptor::ShareAppend(map, details);
+    layout_descriptor = LayoutDescriptor::ShareAppend(isolate, map, details);
     descriptors->Append(&d);
     if (details.location() == kField) {
       int field_width_in_words = details.field_width_in_words();
@@ -763,7 +773,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
   Handle<Map> initial_map = Map::Create(isolate, inobject_properties);
 
   Handle<LayoutDescriptor> full_layout_descriptor = LayoutDescriptor::New(
-      initial_map, descriptors, descriptors->number_of_descriptors());
+      isolate, initial_map, descriptors, descriptors->number_of_descriptors());
 
   int nof = 0;
   bool switched_to_slow_mode = false;
@@ -933,7 +943,7 @@ TEST(Regress436816) {
 
   Handle<Map> map = Map::Create(isolate, kPropsCount);
   Handle<LayoutDescriptor> layout_descriptor =
-      LayoutDescriptor::New(map, descriptors, kPropsCount);
+      LayoutDescriptor::New(isolate, map, descriptors, kPropsCount);
   map->InitializeDescriptors(*descriptors, *layout_descriptor);
 
   Handle<JSObject> object = factory->NewJSObjectFromMap(map, TENURED);
@@ -1215,7 +1225,7 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
   Handle<Map> map = Map::Create(isolate, inobject_properties);
 
   Handle<LayoutDescriptor> layout_descriptor = LayoutDescriptor::New(
-      map, descriptors, descriptors->number_of_descriptors());
+      isolate, map, descriptors, descriptors->number_of_descriptors());
   InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
 
   LayoutDescriptorHelper helper(*map);
