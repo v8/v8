@@ -243,6 +243,15 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
                        CodeReference(this), current_pc);
   os << "\n";
 
+  if (!protected_instructions_.is_empty()) {
+    os << "Protected instructions:\n pc offset  land pad\n";
+    for (auto& data : protected_instructions()) {
+      os << std::setw(10) << std::hex << data.instr_offset << std::setw(10)
+         << std::hex << data.landing_offset << "\n";
+    }
+    os << "\n";
+  }
+
   if (!source_positions().is_empty()) {
     os << "Source positions:\n pc offset  position\n";
     for (SourcePositionTableIterator it(source_positions()); !it.done();
