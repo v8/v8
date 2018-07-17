@@ -4,9 +4,9 @@
 
 module test {
   macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
-    if constexpr ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
-      return true;
-    }
+    if constexpr((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
+        return true;
+      }
     else {
       return false;
     }
@@ -82,7 +82,7 @@ module test {
     }
   }
 
-  builtin GenericBuiltinTest<T: type>(c: Context, param: T): Object {
+  builtin GenericBuiltinTest<T : type>(c: Context, param: T): Object {
     return Null;
   }
 
@@ -98,7 +98,8 @@ module test {
   }
 
   macro LabelTestHelper4(flag: constexpr bool): never labels Label4, Label5 {
-    if constexpr (flag) goto Label4;
+    if
+      constexpr(flag) goto Label4;
     else
       goto Label5;
   }
@@ -125,7 +126,7 @@ module test {
       return False;
   }
 
-  macro GenericMacroTest<T: type>(param: T): Object {
+  macro GenericMacroTest<T : type>(param: T): Object {
     return Undefined;
   }
 
@@ -133,7 +134,7 @@ module test {
     return param2;
   }
 
-  macro GenericMacroTestWithLabels<T: type>(param: T): Object labels X {
+  macro GenericMacroTestWithLabels<T : type>(param: T): Object labels X {
     return Undefined;
   }
 
@@ -158,29 +159,29 @@ module test {
     }
   }
 
-  builtin TestHelperPlus1(context : Context, x : Smi) : Smi {
+  builtin TestHelperPlus1(context: Context, x: Smi): Smi {
     return x + 1;
   }
-  builtin TestHelperPlus2(context : Context, x : Smi) : Smi {
+  builtin TestHelperPlus2(context: Context, x: Smi): Smi {
     return x + 2;
   }
 
-  macro TestFunctionPointers(context : Context) : Boolean {
-    let fptr : builtin(Context, Smi) => Smi = TestHelperPlus1;
+  macro TestFunctionPointers(context: Context): Boolean {
+    let fptr: builtin(Context, Smi) => Smi = TestHelperPlus1;
     check(fptr(context, 42) == 43);
     fptr = TestHelperPlus2;
     check(fptr(context, 42) == 44);
     return True;
   }
 
-  macro TestVariableRedeclaration(context : Context) : Boolean {
-    let var1 : int31 = from_constexpr<bool>(42 == 0) ? 0 : 1;
-    let var2 : int31 = from_constexpr<bool>(42 == 0) ? 1 : 0;
+  macro TestVariableRedeclaration(context: Context): Boolean {
+    let var1: int31 = from_constexpr<bool>(42 == 0) ? 0 : 1;
+    let var2: int31 = from_constexpr<bool>(42 == 0) ? 1 : 0;
     return True;
   }
 
-  macro TestTernaryOperator(x : Smi) : Smi {
-    let b : bool = x < 0 ? true : false;
+  macro TestTernaryOperator(x: Smi): Smi {
+    let b: bool = x < 0 ? true : false;
     return b ? x - 10 : x + 100;
   }
 
@@ -195,7 +196,7 @@ module test {
   }
 
   type SmiToSmi = builtin(Smi) => Smi;
-  macro TestTypeAlias(x : SmiToSmi) : Code {
+  macro TestTypeAlias(x: SmiToSmi): Code {
     return x;
   }
 
@@ -221,8 +222,9 @@ module test {
 
   macro TestMultilineAssert() {
     let someVeryLongVariableNameThatWillCauseLineBreaks: Smi = 5;
-    check(someVeryLongVariableNameThatWillCauseLineBreaks > 0
-           && someVeryLongVariableNameThatWillCauseLineBreaks < 10);
+    check(
+        someVeryLongVariableNameThatWillCauseLineBreaks > 0 &&
+        someVeryLongVariableNameThatWillCauseLineBreaks < 10);
   }
 
   macro TestNewlineInString() {
@@ -242,5 +244,49 @@ module test {
   macro TestLocalConstBindings() {
     const kSmi: Smi = 3;
     check(kSmi == 3);
+  }
+
+  struct TestStructA {
+    indexes: FixedArray;
+    i: Smi;
+    k: Number;
+  }
+
+  struct TestStructB {
+    x: TestStructA;
+    y: Smi;
+  }
+
+  macro TestStruct1(i: TestStructA): Smi {
+    return i.i;
+  }
+
+  macro TestStruct2(): TestStructA {
+    return TestStructA{unsafe_cast<FixedArray>(kEmptyFixedArray), 27, 31};
+  }
+
+  macro TestStruct3(): TestStructA {
+    let a: TestStructA =
+    TestStructA{unsafe_cast<FixedArray>(kEmptyFixedArray), 13, 5};
+    let b: TestStructA = a;
+    let c: TestStructA = TestStruct2();
+    a.i = TestStruct1(c);
+    a.k = a.i;
+    let d: TestStructB;
+    d.x = a;
+    d = TestStructB{a, 7};
+    let e: TestStructA = d.x;
+    let f: Smi = TestStructA{unsafe_cast<FixedArray>(kEmptyFixedArray), 27, 31}.i;
+    f = TestStruct2().i;
+    return a;
+  }
+
+  struct TestStructC {
+    x : TestStructA;
+    y : TestStructA;
+  }
+
+  macro TestStruct4(): TestStructC {
+    return TestStructC{TestStruct2(), TestStruct2()};
   }
 }

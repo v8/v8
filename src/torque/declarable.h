@@ -134,14 +134,7 @@ class Variable : public Value {
   DECLARE_DECLARABLE_BOILERPLATE(Variable, variable);
   bool IsConst() const override { return const_; }
   std::string value() const override { return value_; }
-  std::string RValue() const override {
-    if (!IsDefined()) {
-      ReportError("Reading uninitialized variable.");
-    }
-    std::string result = "(*" + value() + ")";
-    if (!IsConst()) result += ".value()";
-    return result;
-  }
+  std::string RValue() const override;
   void Define() {
     if (defined_ && IsConst()) {
       ReportError("Cannot re-define a const-bound variable.");

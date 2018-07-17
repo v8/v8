@@ -69,6 +69,9 @@ class AstGenerator : public TorqueBaseVisitor {
   antlrcpp::Any visitHelperCallStatement(
       TorqueParser::HelperCallStatementContext* context) override;
 
+  antlrcpp::Any visitStructExpression(
+      TorqueParser::StructExpressionContext* context) override;
+
   antlrcpp::Any visitConditionalExpression(
       TorqueParser::ConditionalExpressionContext* context) override;
 
@@ -108,6 +111,9 @@ class AstGenerator : public TorqueBaseVisitor {
   antlrcpp::Any visitAssignment(
       TorqueParser::AssignmentContext* context) override;
 
+  antlrcpp::Any visitFunctionPointerExpression(
+      TorqueParser::FunctionPointerExpressionContext* context) override;
+
   antlrcpp::Any visitPrimaryExpression(
       TorqueParser::PrimaryExpressionContext* context) override;
 
@@ -145,6 +151,9 @@ class AstGenerator : public TorqueBaseVisitor {
 
   antlrcpp::Any visitDiagnosticStatement(
       TorqueParser::DiagnosticStatementContext* context) override;
+
+  antlrcpp::Any visitStructDeclaration(
+      TorqueParser::StructDeclarationContext* context) override;
 
   antlrcpp::Any aggregateResult(antlrcpp::Any aggregate,
                                 const antlrcpp::Any& nextResult) override {

@@ -190,9 +190,11 @@ unaryExpression
         | op=(PLUS | MINUS | BIT_NOT | NOT) unaryExpression;
 
 locationExpression
-        : IDENTIFIER genericSpecializationTypeList?
+        : IDENTIFIER
         | locationExpression '.' IDENTIFIER
-        | locationExpression '[' expression ']';
+        | primaryExpression '.' IDENTIFIER
+        | locationExpression '[' expression ']'
+        | primaryExpression '[' expression ']';
 
 incrementDecrement
         : INCREMENT locationExpression
@@ -206,14 +208,24 @@ assignment
         | locationExpression ((ASSIGNMENT | ASSIGNMENT_OPERATOR) expression)?;
 
 assignmentExpression
-        : primaryExpression
+        : functionPointerExpression
         | assignment;
+
+structExpression
+        : IDENTIFIER '{' (expression (',' expression)*)? '}';
+
+functionPointerExpression
+        : primaryExpression
+        | IDENTIFIER genericSpecializationTypeList?
+        ;
 
 primaryExpression
         : helperCall
+        | structExpression
         | DECIMAL_LITERAL
         | STRING_LITERAL
-        | ('(' expression ')');
+        | ('(' expression ')')
+        ;
 
 forInitialization : variableDeclarationWithInitialization?;
 forLoop: FOR '(' forInitialization ';' expression ';' assignment ')' statementBlock;
@@ -266,6 +278,9 @@ statementBlock
 
 helperBody : statementScope;
 
+fieldDeclaration: IDENTIFIER ':' type ';';
+fieldListDeclaration: fieldDeclaration*;
+
 extendsDeclaration: 'extends' IDENTIFIER;
 generatesDeclaration: 'generates' STRING_LITERAL;
 constexprDeclaration: 'constexpr' STRING_LITERAL;
@@ -280,9 +295,11 @@ genericSpecialization: IDENTIFIER genericSpecializationTypeList parameterList op
 macroDeclaration : ('operator' STRING_LITERAL)? MACRO IDENTIFIER optionalGenericTypeList parameterList optionalType optionalLabelList (helperBody | ';');
 externConstDeclaration : CONST IDENTIFIER ':' type generatesDeclaration ';';
 constDeclaration: CONST IDENTIFIER ':' type ASSIGNMENT expression ';';
+structDeclaration : 'struct' IDENTIFIER '{' fieldListDeclaration '}';
 
 declaration
-        : typeDeclaration
+        : structDeclaration
+        | typeDeclaration
         | typeAliasDeclaration
         | builtinDeclaration
         | genericSpecialization

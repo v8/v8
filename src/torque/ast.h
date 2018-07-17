@@ -29,6 +29,7 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
 
 #define AST_EXPRESSION_NODE_KIND_LIST(V) \
   V(CallExpression)                      \
+  V(StructExpression)                    \
   V(LogicalOrExpression)                 \
   V(LogicalAndExpression)                \
   V(ConditionalExpression)               \
@@ -69,6 +70,7 @@ DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
   V(GenericDeclaration)                   \
   V(SpecializationDeclaration)            \
   V(ExternConstDeclaration)               \
+  V(StructDeclaration)                    \
   V(DefaultModuleDeclaration)             \
   V(ExplicitModuleDeclaration)            \
   V(ConstDeclaration)
@@ -258,6 +260,14 @@ struct CallExpression : Expression {
   bool is_operator;
   std::vector<Expression*> arguments;
   std::vector<std::string> labels;
+};
+
+struct StructExpression : Expression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(StructExpression)
+  StructExpression(SourcePosition p, std::string n, std::vector<Expression*> e)
+      : Expression(kKind, p), name(n), expressions(std::move(e)) {}
+  std::string name;
+  std::vector<Expression*> expressions;
 };
 
 struct LogicalOrExpression : Expression {
@@ -552,6 +562,11 @@ struct TypeAliasDeclaration : Declaration {
   TypeExpression* type;
 };
 
+struct FieldNameAndType {
+  std::string name;
+  TypeExpression* type;
+};
+
 struct LabelAndTypes {
   std::string name;
   std::vector<TypeExpression*> types;
@@ -691,6 +706,14 @@ struct ExternConstDeclaration : Declaration {
   std::string name;
   TypeExpression* type;
   std::string literal;
+};
+
+struct StructDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(StructDeclaration)
+  StructDeclaration(SourcePosition p, std::string n)
+      : Declaration(kKind, p), name(std::move(n)) {}
+  std::string name;
+  std::vector<FieldNameAndType> fields;
 };
 
 #define ENUM_ITEM(name)                     \

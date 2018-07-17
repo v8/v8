@@ -37,13 +37,19 @@ class Value;
 
 class TypeBase {
  public:
-  enum class Kind { kAbstractType, kFunctionPointerType, kUnionType };
+  enum class Kind {
+    kAbstractType,
+    kFunctionPointerType,
+    kUnionType,
+    kStructType
+  };
   virtual ~TypeBase() {}
   bool IsAbstractType() const { return kind() == Kind::kAbstractType; }
   bool IsFunctionPointerType() const {
     return kind() == Kind::kFunctionPointerType;
   }
   bool IsUnionType() const { return kind() == Kind::kUnionType; }
+  bool IsStructType() const { return kind() == Kind::kStructType; }
 
  protected:
   explicit TypeBase(Kind kind) : kind_(kind) {}
@@ -110,6 +116,13 @@ class Type : public TypeBase {
 };
 
 using TypeVector = std::vector<const Type*>;
+
+struct NameAndType {
+  std::string name;
+  const Type* type;
+};
+
+std::ostream& operator<<(std::ostream& os, const NameAndType& name_and_type);
 
 class AbstractType final : public Type {
  public:
@@ -285,6 +298,37 @@ class UnionType final : public Type {
   std::set<const Type*, TypeLess> types_;
 };
 
+class StructType final : public Type {
+ public:
+  DECLARE_TYPE_BOILERPLATE(StructType);
+  std::string ToExplicitString() const override;
+  std::string MangledName() const override { return name_; }
+  std::string GetGeneratedTypeName() const override { return GetStructName(); }
+  std::string GetGeneratedTNodeTypeName() const override { UNREACHABLE(); }
+  const Type* NonConstexprVersion() const override { return this; }
+
+  bool IsConstexpr() const override { return false; }
+
+  const std::vector<NameAndType>& fields() const { return fields_; }
+  const std::string& name() const { return name_; }
+  Module* module() const { return module_; }
+
+ private:
+  friend class TypeOracle;
+  StructType(Module* module, const std::string& name,
+             const std::vector<NameAndType>& fields)
+      : Type(Kind::kStructType, nullptr),
+        module_(module),
+        name_(name),
+        fields_(fields) {}
+
+  const std::string& GetStructName() const { return name_; }
+
+  Module* module_;
+  std::string name_;
+  std::vector<NameAndType> fields_;
+};
+
 inline std::ostream& operator<<(std::ostream& os, const Type& t) {
   os << t.ToString();
   return os;
@@ -324,11 +368,6 @@ class VisitResultVector : public std::vector<VisitResult> {
 };
 
 std::ostream& operator<<(std::ostream& os, const TypeVector& types);
-
-struct NameAndType {
-  std::string name;
-  const Type* type;
-};
 
 typedef std::vector<NameAndType> NameAndTypeVector;
 

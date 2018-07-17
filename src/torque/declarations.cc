@@ -224,6 +224,12 @@ void Declarations::DeclareType(const std::string& name, const Type* type) {
   Declare(name, std::unique_ptr<TypeAlias>(result));
 }
 
+void Declarations::DeclareStruct(Module* module, const std::string& name,
+                                 const std::vector<NameAndType>& fields) {
+  const StructType* new_type = TypeOracle::GetStructType(module, name, fields);
+  DeclareType(name, new_type);
+}
+
 Label* Declarations::DeclareLabel(const std::string& name) {
   CheckAlreadyDeclared(name, "label");
   Label* result = new Label(name);
@@ -289,7 +295,9 @@ RuntimeFunction* Declarations::DeclareRuntimeFunction(
 
 Variable* Declarations::DeclareVariable(const std::string& var,
                                         const Type* type, bool is_const) {
-  std::string name(var + std::to_string(GetNextUniqueDeclarationNumber()));
+  std::string name(var + "_" +
+                   std::to_string(GetNextUniqueDeclarationNumber()));
+  std::replace(name.begin(), name.end(), '.', '_');
   CheckAlreadyDeclared(var, "variable");
   Variable* result = new Variable(var, name, type, is_const);
   Declare(var, std::unique_ptr<Declarable>(result));

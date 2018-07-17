@@ -141,6 +141,16 @@ class TorqueBaseListener : public TorqueListener {
   void exitAssignmentExpression(
       TorqueParser::AssignmentExpressionContext* /*ctx*/) override {}
 
+  void enterStructExpression(
+      TorqueParser::StructExpressionContext* /*ctx*/) override {}
+  void exitStructExpression(
+      TorqueParser::StructExpressionContext* /*ctx*/) override {}
+
+  void enterFunctionPointerExpression(
+      TorqueParser::FunctionPointerExpressionContext* /*ctx*/) override {}
+  void exitFunctionPointerExpression(
+      TorqueParser::FunctionPointerExpressionContext* /*ctx*/) override {}
+
   void enterPrimaryExpression(
       TorqueParser::PrimaryExpressionContext* /*ctx*/) override {}
   void exitPrimaryExpression(
@@ -263,6 +273,16 @@ class TorqueBaseListener : public TorqueListener {
   void enterHelperBody(TorqueParser::HelperBodyContext* /*ctx*/) override {}
   void exitHelperBody(TorqueParser::HelperBodyContext* /*ctx*/) override {}
 
+  void enterFieldDeclaration(
+      TorqueParser::FieldDeclarationContext* /*ctx*/) override {}
+  void exitFieldDeclaration(
+      TorqueParser::FieldDeclarationContext* /*ctx*/) override {}
+
+  void enterFieldListDeclaration(
+      TorqueParser::FieldListDeclarationContext* /*ctx*/) override {}
+  void exitFieldListDeclaration(
+      TorqueParser::FieldListDeclarationContext* /*ctx*/) override {}
+
   void enterExtendsDeclaration(
       TorqueParser::ExtendsDeclarationContext* /*ctx*/) override {}
   void exitExtendsDeclaration(
@@ -327,6 +347,11 @@ class TorqueBaseListener : public TorqueListener {
       TorqueParser::ConstDeclarationContext* /*ctx*/) override {}
   void exitConstDeclaration(
       TorqueParser::ConstDeclarationContext* /*ctx*/) override {}
+
+  void enterStructDeclaration(
+      TorqueParser::StructDeclarationContext* /*ctx*/) override {}
+  void exitStructDeclaration(
+      TorqueParser::StructDeclarationContext* /*ctx*/) override {}
 
   void enterDeclaration(TorqueParser::DeclarationContext* /*ctx*/) override {}
   void exitDeclaration(TorqueParser::DeclarationContext* /*ctx*/) override {}

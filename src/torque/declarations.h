@@ -76,6 +76,9 @@ class Declarations {
 
   void DeclareType(const std::string& name, const Type* type);
 
+  void DeclareStruct(Module* module, const std::string& name,
+                     const std::vector<NameAndType>& fields);
+
   Label* DeclareLabel(const std::string& name);
 
   Macro* DeclareMacro(const std::string& name, const Signature& signature,

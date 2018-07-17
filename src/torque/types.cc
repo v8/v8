@@ -154,6 +154,14 @@ const Type* UnionType::NonConstexprVersion() const {
   return this;
 }
 
+std::string StructType::ToExplicitString() const {
+  std::stringstream result;
+  result << "{";
+  PrintCommaSeparatedList(result, fields_);
+  result << "}";
+  return result.str();
+}
+
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
   os << "(";
   for (size_t i = 0; i < sig.parameter_types.types.size(); ++i) {
@@ -179,6 +187,13 @@ void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
 
     if (sig.labels[i].types.size() > 0) os << "(" << sig.labels[i].types << ")";
   }
+}
+
+std::ostream& operator<<(std::ostream& os, const NameAndType& name_and_type) {
+  os << name_and_type.name;
+  os << ": ";
+  os << *name_and_type.type;
+  return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const Signature& sig) {
@@ -256,7 +271,17 @@ std::string VisitResult::LValue() const {
 }
 
 std::string VisitResult::RValue() const {
-  return declarable_ ? (*declarable_)->RValue() : value_;
+  if (declarable()) {
+    auto value = *declarable();
+    if (value->IsVariable() && !Variable::cast(value)->IsDefined()) {
+      std::stringstream s;
+      s << "\"" << value->name() << "\" is used before it is defined";
+      ReportError(s.str());
+    }
+    return value->RValue();
+  } else {
+    return value_;
+  }
 }
 
 }  // namespace torque

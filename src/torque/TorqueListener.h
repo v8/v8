@@ -137,6 +137,16 @@ class TorqueListener : public antlr4::tree::ParseTreeListener {
   virtual void exitAssignmentExpression(
       TorqueParser::AssignmentExpressionContext* ctx) = 0;
 
+  virtual void enterStructExpression(
+      TorqueParser::StructExpressionContext* ctx) = 0;
+  virtual void exitStructExpression(
+      TorqueParser::StructExpressionContext* ctx) = 0;
+
+  virtual void enterFunctionPointerExpression(
+      TorqueParser::FunctionPointerExpressionContext* ctx) = 0;
+  virtual void exitFunctionPointerExpression(
+      TorqueParser::FunctionPointerExpressionContext* ctx) = 0;
+
   virtual void enterPrimaryExpression(
       TorqueParser::PrimaryExpressionContext* ctx) = 0;
   virtual void exitPrimaryExpression(
@@ -248,6 +258,16 @@ class TorqueListener : public antlr4::tree::ParseTreeListener {
   virtual void enterHelperBody(TorqueParser::HelperBodyContext* ctx) = 0;
   virtual void exitHelperBody(TorqueParser::HelperBodyContext* ctx) = 0;
 
+  virtual void enterFieldDeclaration(
+      TorqueParser::FieldDeclarationContext* ctx) = 0;
+  virtual void exitFieldDeclaration(
+      TorqueParser::FieldDeclarationContext* ctx) = 0;
+
+  virtual void enterFieldListDeclaration(
+      TorqueParser::FieldListDeclarationContext* ctx) = 0;
+  virtual void exitFieldListDeclaration(
+      TorqueParser::FieldListDeclarationContext* ctx) = 0;
+
   virtual void enterExtendsDeclaration(
       TorqueParser::ExtendsDeclarationContext* ctx) = 0;
   virtual void exitExtendsDeclaration(
@@ -310,6 +330,11 @@ class TorqueListener : public antlr4::tree::ParseTreeListener {
       TorqueParser::ConstDeclarationContext* ctx) = 0;
   virtual void exitConstDeclaration(
       TorqueParser::ConstDeclarationContext* ctx) = 0;
+
+  virtual void enterStructDeclaration(
+      TorqueParser::StructDeclarationContext* ctx) = 0;
+  virtual void exitStructDeclaration(
+      TorqueParser::StructDeclarationContext* ctx) = 0;
 
   virtual void enterDeclaration(TorqueParser::DeclarationContext* ctx) = 0;
   virtual void exitDeclaration(TorqueParser::DeclarationContext* ctx) = 0;

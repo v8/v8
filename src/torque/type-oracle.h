@@ -29,6 +29,14 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return result;
   }
 
+  static const StructType* GetStructType(
+      Module* module, const std::string& name,
+      const std::vector<NameAndType>& fields) {
+    StructType* result = new StructType(module, name, fields);
+    Get().struct_types_.push_back(std::unique_ptr<StructType>(result));
+    return result;
+  }
+
   static const FunctionPointerType* GetFunctionPointerType(
       TypeVector argument_types, const Type* return_type) {
     const Type* code_type = Get().GetBuiltinType(CODE_TYPE_STRING);
@@ -101,6 +109,7 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   Deduplicator<FunctionPointerType> function_pointer_types_;
   Deduplicator<UnionType> union_types_;
   std::vector<std::unique_ptr<Type>> nominal_types_;
+  std::vector<std::unique_ptr<Type>> struct_types_;
 };
 
 }  // namespace torque

@@ -545,6 +545,21 @@ antlrcpp::Any AstGenerator::visitTryLabelStatement(
   return implicit_cast<Statement*>(result);
 }
 
+antlrcpp::Any AstGenerator::visitFunctionPointerExpression(
+    TorqueParser::FunctionPointerExpressionContext* context) {
+  if (context->IDENTIFIER()) {
+    std::vector<TypeExpression*> templateArguments;
+    if (context->genericSpecializationTypeList()) {
+      templateArguments =
+          GetTypeVector(context->genericSpecializationTypeList()->typeList());
+    }
+    return implicit_cast<Expression*>(RegisterNode(new IdentifierExpression{
+        Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
+        std::move(templateArguments)}));
+  }
+  return context->primaryExpression()->accept(this);
+}
+
 antlrcpp::Any AstGenerator::visitPrimaryExpression(
     TorqueParser::PrimaryExpressionContext* context) {
   if (auto* e = context->helperCall()) return e->accept(this);
@@ -554,7 +569,21 @@ antlrcpp::Any AstGenerator::visitPrimaryExpression(
   if (auto* e = context->STRING_LITERAL())
     return implicit_cast<Expression*>(RegisterNode(
         new StringLiteralExpression{Pos(context), e->getSymbol()->getText()}));
+  if (context->structExpression()) {
+    return context->structExpression()->accept(this);
+  }
   return context->expression()->accept(this);
+}
+
+antlrcpp::Any AstGenerator::visitStructExpression(
+    TorqueParser::StructExpressionContext* context) {
+  std::vector<Expression*> expressions;
+  for (auto& e : context->expression()) {
+    expressions.push_back(e->accept(this).as<Expression*>());
+  }
+  return implicit_cast<Expression*>(RegisterNode(new StructExpression{
+      Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
+      expressions}));
 }
 
 antlrcpp::Any AstGenerator::visitAssignment(
@@ -589,25 +618,23 @@ antlrcpp::Any AstGenerator::visitIncrementDecrement(
 
 antlrcpp::Any AstGenerator::visitLocationExpression(
     TorqueParser::LocationExpressionContext* context) {
-  if (auto* l = context->locationExpression()) {
-    Expression* location = l->accept(this).as<Expression*>();
-    if (auto* e = context->expression()) {
-      return implicit_cast<Expression*>(
-          RegisterNode(new ElementAccessExpression{
-              Pos(context), location, e->accept(this).as<Expression*>()}));
-    }
-    return implicit_cast<Expression*>(RegisterNode(new FieldAccessExpression{
-        Pos(context), location,
-        context->IDENTIFIER()->getSymbol()->getText()}));
+  Expression* location = nullptr;
+  if (auto* p = context->primaryExpression()) {
+    location = p->accept(this).as<Expression*>();
+  } else if (auto* l = context->locationExpression()) {
+    location = l->accept(this).as<Expression*>();
+  } else {
+    return implicit_cast<Expression*>(RegisterNode(new IdentifierExpression{
+        Pos(context), context->IDENTIFIER()->getSymbol()->getText(), {}}));
   }
-  std::vector<TypeExpression*> templateArguments;
-  if (context->genericSpecializationTypeList()) {
-    templateArguments =
-        GetTypeVector(context->genericSpecializationTypeList()->typeList());
+
+  if (auto* e = context->expression()) {
+    return implicit_cast<Expression*>(RegisterNode(new ElementAccessExpression{
+        Pos(context), location, e->accept(this).as<Expression*>()}));
   }
-  return implicit_cast<Expression*>(RegisterNode(new IdentifierExpression{
-      Pos(context), context->IDENTIFIER()->getSymbol()->getText(),
-      std::move(templateArguments)}));
+
+  return implicit_cast<Expression*>(RegisterNode(new FieldAccessExpression{
+      Pos(context), location, context->IDENTIFIER()->getSymbol()->getText()}));
 }
 
 antlrcpp::Any AstGenerator::visitUnaryExpression(
@@ -766,6 +793,22 @@ antlrcpp::Any AstGenerator::visitDiagnosticStatement(
     return implicit_cast<Statement*>(
         RegisterNode(new DebugStatement{Pos(context), "debug", false}));
   }
+}
+
+antlrcpp::Any AstGenerator::visitStructDeclaration(
+    TorqueParser::StructDeclarationContext* context) {
+  StructDeclaration* struct_declaration = RegisterNode(new StructDeclaration{
+      Pos(context), context->IDENTIFIER()->getSymbol()->getText()});
+
+  for (auto* fieldDeclaration :
+       context->fieldListDeclaration()->fieldDeclaration()) {
+    FieldNameAndType field = {
+        fieldDeclaration->IDENTIFIER()->getSymbol()->getText(),
+        GetType(fieldDeclaration->type())};
+    struct_declaration->fields.push_back(field);
+  }
+
+  return implicit_cast<Declaration*>(struct_declaration);
 }
 
 void AstGenerator::visitSourceFile(SourceFileContext* context) {

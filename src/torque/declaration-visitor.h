@@ -108,6 +108,10 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(VarDeclarationStatement* stmt);
   void Visit(ExternConstDeclaration* decl);
+
+  void Visit(StructDeclaration* decl);
+  void Visit(StructExpression* decl) {}
+
   void Visit(LogicalOrExpression* expr);
   void Visit(LogicalAndExpression* expr);
   void DeclareExpressionForBranch(Expression* node);
@@ -147,6 +151,10 @@ class DeclarationVisitor : public FileVisitor {
     live_and_changed.live = declarations()->GetLiveVariables();
     live_and_changed_variables_.push_back(live_and_changed);
   }
+
+  Variable* DeclareVariable(const std::string& name, const Type* type,
+                            bool is_const);
+  Parameter* DeclareParameter(const std::string& name, const Type* type);
 
   std::set<const Variable*> PopControlSplit() {
     auto result = live_and_changed_variables_.back().changed;
