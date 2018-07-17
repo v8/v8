@@ -1428,7 +1428,8 @@ void MacroAssembler::PopCalleeSavedRegisters() {
 }
 
 void TurboAssembler::AssertSpAligned() {
-  if (emit_debug_code() && use_real_aborts()) {
+  if (emit_debug_code()) {
+    TrapOnAbortScope trap_on_abort_scope(this);  // Avoid calls to Abort.
     // Arm64 requires the stack pointer to be 16-byte aligned prior to address
     // calculation.
     UseScratchRegisterScope scope(this);
