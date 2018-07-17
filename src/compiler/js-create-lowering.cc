@@ -1031,13 +1031,14 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateIterResultObject(Node* node) {
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateIterResultObject, node->opcode());
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* done = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  Node* iterator_result_map = jsgraph()->HeapConstant(
-      handle(native_context()->iterator_result_map(), isolate()));
+  Node* iterator_result_map =
+      jsgraph()->Constant(native_context_ref().iterator_result_map());
 
   // Emit code to allocate the JSIteratorResult instance.
   AllocationBuilder a(jsgraph(), effect, graph()->start());
@@ -1055,12 +1056,12 @@ Reduction JSCreateLowering::ReduceJSCreateIterResultObject(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateStringIterator(Node* node) {
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateStringIterator, node->opcode());
   Node* string = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  Node* map = jsgraph()->HeapConstant(
-      handle(native_context()->string_iterator_map(), isolate()));
+  Node* map = jsgraph()->Constant(native_context_ref().string_iterator_map());
   // Allocate new iterator and attach the iterator to this string.
   AllocationBuilder a(jsgraph(), effect, graph()->start());
   a.Allocate(JSStringIterator::kSize, NOT_TENURED, Type::OtherObject());
@@ -1077,13 +1078,14 @@ Reduction JSCreateLowering::ReduceJSCreateStringIterator(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateKeyValueArray, node->opcode());
   Node* key = NodeProperties::GetValueInput(node, 0);
   Node* value = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  Node* array_map = jsgraph()->HeapConstant(
-      handle(native_context()->js_array_fast_elements_map_index(), isolate()));
+  Node* array_map = jsgraph()->Constant(
+      native_context_ref().js_array_fast_elements_map_index());
   Node* properties = jsgraph()->EmptyFixedArrayConstant();
   Node* length = jsgraph()->Constant(2);
 
@@ -1107,14 +1109,14 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreatePromise, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  Handle<Map> promise_map(native_context()->promise_function()->initial_map(),
-                          isolate());
+  MapRef promise_map = native_context_ref().promise_function_initial_map();
 
   AllocationBuilder a(jsgraph(), effect, graph()->start());
-  a.Allocate(promise_map->instance_size());
+  a.Allocate(promise_map.instance_size());
   a.Store(AccessBuilder::ForMap(), promise_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
           jsgraph()->EmptyFixedArrayConstant());

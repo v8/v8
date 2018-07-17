@@ -228,6 +228,9 @@ class NativeContextRef : public ContextRef {
   MapRef map_key_iterator_map() const;
   MapRef map_value_iterator_map() const;
   MapRef map_key_value_iterator_map() const;
+  MapRef iterator_result_map() const;
+  MapRef string_iterator_map() const;
+  MapRef promise_function_initial_map() const;
 
   MapRef GetFunctionMapFromIndex(int index) const;
 };

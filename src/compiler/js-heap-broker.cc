@@ -726,6 +726,28 @@ MapRef NativeContextRef::map_key_value_iterator_map() const {
                        broker()->isolate()));
 }
 
+MapRef NativeContextRef::iterator_result_map() const {
+  AllowHandleAllocation handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(broker(), handle(object<Context>()->iterator_result_map(),
+                                 broker()->isolate()));
+}
+
+MapRef NativeContextRef::string_iterator_map() const {
+  AllowHandleAllocation handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(broker(), handle(object<Context>()->string_iterator_map(),
+                                 broker()->isolate()));
+}
+
+MapRef NativeContextRef::promise_function_initial_map() const {
+  AllowHandleAllocation handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(broker(),
+                handle(object<Context>()->promise_function()->initial_map(),
+                       broker()->isolate()));
+}
+
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   DCHECK_GE(index, Context::FIRST_FUNCTION_MAP_INDEX);
