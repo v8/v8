@@ -18715,7 +18715,8 @@ void JSArrayBuffer::Neuter() {
 
 void JSArrayBuffer::StopTrackingWasmMemory(Isolate* isolate) {
   DCHECK(is_wasm_memory());
-  isolate->wasm_engine()->memory_tracker()->ReleaseAllocation(backing_store());
+  isolate->wasm_engine()->memory_tracker()->ReleaseAllocation(isolate,
+                                                              backing_store());
   set_is_wasm_memory(false);
 }
 
@@ -18735,7 +18736,8 @@ void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
   if (allocation.is_wasm_memory) {
     wasm::WasmMemoryTracker* memory_tracker =
         isolate->wasm_engine()->memory_tracker();
-    if (!memory_tracker->FreeMemoryIfIsWasmMemory(allocation.backing_store)) {
+    if (!memory_tracker->FreeMemoryIfIsWasmMemory(isolate,
+                                                  allocation.backing_store)) {
       CHECK(FreePages(allocation.allocation_base, allocation.length));
     }
   } else {

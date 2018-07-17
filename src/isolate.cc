@@ -2968,10 +2968,6 @@ bool Isolate::Init(StartupDeserializer* des) {
     wasm_engine_.reset(
         new wasm::WasmEngine(std::unique_ptr<wasm::WasmCodeManager>(
             new wasm::WasmCodeManager(kMaxWasmCodeMemory))));
-    wasm_engine_->memory_tracker()->SetAllocationResultHistogram(
-        counters()->wasm_memory_allocation_result());
-    wasm_engine_->memory_tracker()->SetAddressSpaceUsageHistogram(
-        counters()->wasm_address_space_usage_mb());
     wasm_engine_->code_manager()->SetModuleCodeSizeHistogram(
         counters()->wasm_module_code_size_mb());
   }

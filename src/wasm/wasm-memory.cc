@@ -18,6 +18,12 @@ namespace {
 
 constexpr size_t kNegativeGuardSize = 1u << 31;  // 2GiB
 
+void AddAllocationStatusSample(Isolate* isolate,
+                               WasmMemoryTracker::AllocationStatus status) {
+  isolate->counters()->wasm_memory_allocation_result()->AddSample(
+      static_cast<int>(status));
+}
+
 void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
                               size_t size, bool require_full_guard_regions,
                               void** allocation_base,
@@ -62,8 +68,8 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
     if (FLAG_abort_on_stack_or_string_length_overflow) {
       FATAL("could not allocate wasm memory");
     }
-    memory_tracker->AddAllocationStatusSample(
-        AllocationStatus::kAddressSpaceLimitReachedFailure);
+    AddAllocationStatusSample(
+        heap->isolate(), AllocationStatus::kAddressSpaceLimitReachedFailure);
     return nullptr;
   }
 
@@ -72,7 +78,7 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
                                    PageAllocator::kNoAccess);
   if (*allocation_base == nullptr) {
     memory_tracker->ReleaseReservation(*allocation_length);
-    memory_tracker->AddAllocationStatusSample(AllocationStatus::kOtherFailure);
+    AddAllocationStatusSample(heap->isolate(), AllocationStatus::kOtherFailure);
     return nullptr;
   }
   byte* memory = reinterpret_cast<byte*>(*allocation_base);
@@ -91,11 +97,11 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
     }
   }
 
-  memory_tracker->RegisterAllocation(*allocation_base, *allocation_length,
-                                     memory, size);
-  memory_tracker->AddAllocationStatusSample(
-      did_retry ? AllocationStatus::kSuccessAfterRetry
-                : AllocationStatus::kSuccess);
+  memory_tracker->RegisterAllocation(heap->isolate(), *allocation_base,
+                                     *allocation_length, memory, size);
+  AddAllocationStatusSample(heap->isolate(),
+                            did_retry ? AllocationStatus::kSuccessAfterRetry
+                                      : AllocationStatus::kSuccess);
   return memory;
 }
 }  // namespace
@@ -138,14 +144,15 @@ void WasmMemoryTracker::ReleaseReservation(size_t num_bytes) {
   DCHECK_LE(num_bytes, old_reserved);
 }
 
-void WasmMemoryTracker::RegisterAllocation(void* allocation_base,
+void WasmMemoryTracker::RegisterAllocation(Isolate* isolate,
+                                           void* allocation_base,
                                            size_t allocation_length,
                                            void* buffer_start,
                                            size_t buffer_length) {
   base::LockGuard<base::Mutex> scope_lock(&mutex_);
 
   allocated_address_space_ += allocation_length;
-  AddAddressSpaceSample();
+  AddAddressSpaceSample(isolate);
 
   allocations_.emplace(buffer_start,
                        AllocationData{allocation_base, allocation_length,
@@ -153,12 +160,7 @@ void WasmMemoryTracker::RegisterAllocation(void* allocation_base,
 }
 
 WasmMemoryTracker::AllocationData WasmMemoryTracker::ReleaseAllocation(
-    const void* buffer_start) {
-  return InternalReleaseAllocation(buffer_start);
-}
-
-WasmMemoryTracker::AllocationData WasmMemoryTracker::InternalReleaseAllocation(
-    const void* buffer_start) {
+    Isolate* isolate, const void* buffer_start) {
   base::LockGuard<base::Mutex> scope_lock(&mutex_);
 
   auto find_result = allocations_.find(buffer_start);
@@ -170,7 +172,7 @@ WasmMemoryTracker::AllocationData WasmMemoryTracker::InternalReleaseAllocation(
     DCHECK_LE(num_bytes, allocated_address_space_);
     reserved_address_space_ -= num_bytes;
     allocated_address_space_ -= num_bytes;
-    AddAddressSpaceSample();
+    AddAddressSpaceSample(isolate);
 
     AllocationData allocation_data = find_result->second;
     allocations_.erase(find_result);
@@ -209,28 +211,21 @@ bool WasmMemoryTracker::HasFullGuardRegions(const void* buffer_start) {
   return start + kWasmMaxHeapOffset < limit;
 }
 
-bool WasmMemoryTracker::FreeMemoryIfIsWasmMemory(const void* buffer_start) {
+bool WasmMemoryTracker::FreeMemoryIfIsWasmMemory(Isolate* isolate,
+                                                 const void* buffer_start) {
   if (IsWasmMemory(buffer_start)) {
-    const AllocationData allocation = ReleaseAllocation(buffer_start);
+    const AllocationData allocation = ReleaseAllocation(isolate, buffer_start);
     CHECK(FreePages(allocation.allocation_base, allocation.allocation_length));
     return true;
   }
   return false;
 }
 
-void WasmMemoryTracker::AddAllocationStatusSample(AllocationStatus status) {
-  if (allocation_result_) {
-    allocation_result_->AddSample(static_cast<int>(status));
-  }
-}
-
-void WasmMemoryTracker::AddAddressSpaceSample() {
-  if (address_space_usage_mb_) {
-    // Report address space usage in MiB so the full range fits in an int on all
-    // platforms.
-    address_space_usage_mb_->AddSample(
-        static_cast<int>(allocated_address_space_ >> 20));
-  }
+void WasmMemoryTracker::AddAddressSpaceSample(Isolate* isolate) {
+  // Report address space usage in MiB so the full range fits in an int on all
+  // platforms.
+  isolate->counters()->wasm_address_space_usage_mb()->AddSample(
+      static_cast<int>(allocated_address_space_ >> 20));
 }
 
 Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,

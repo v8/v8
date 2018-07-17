@@ -15,9 +15,6 @@
 
 namespace v8 {
 namespace internal {
-
-class Histogram;  // defined in counters.h
-
 namespace wasm {
 
 class WasmMemoryTracker {
@@ -31,8 +28,9 @@ class WasmMemoryTracker {
   // allocate the buffer), false otherwise.
   bool ReserveAddressSpace(size_t num_bytes);
 
-  void RegisterAllocation(void* allocation_base, size_t allocation_length,
-                          void* buffer_start, size_t buffer_length);
+  void RegisterAllocation(Isolate* isolate, void* allocation_base,
+                          size_t allocation_length, void* buffer_start,
+                          size_t buffer_length);
 
   struct AllocationData {
     void* allocation_base = nullptr;
@@ -65,7 +63,7 @@ class WasmMemoryTracker {
   void ReleaseReservation(size_t num_bytes);
 
   // Removes an allocation from the tracker
-  AllocationData ReleaseAllocation(const void* buffer_start);
+  AllocationData ReleaseAllocation(Isolate* isolate, const void* buffer_start);
 
   bool IsWasmMemory(const void* buffer_start);
 
@@ -80,14 +78,7 @@ class WasmMemoryTracker {
   // Checks if a buffer points to a Wasm memory and if so does any necessary
   // work to reclaim the buffer. If this function returns false, the caller must
   // free the buffer manually.
-  bool FreeMemoryIfIsWasmMemory(const void* buffer_start);
-
-  void SetAllocationResultHistogram(Histogram* allocation_result) {
-    allocation_result_ = allocation_result;
-  }
-  void SetAddressSpaceUsageHistogram(Histogram* address_space_usage) {
-    address_space_usage_mb_ = address_space_usage;
-  }
+  bool FreeMemoryIfIsWasmMemory(Isolate* isolate, const void* buffer_start);
 
   // Allocation results are reported to UMA
   //
@@ -103,11 +94,8 @@ class WasmMemoryTracker {
     kOtherFailure  // Failed for an unknown reason
   };
 
-  void AddAllocationStatusSample(AllocationStatus status);
-
  private:
-  AllocationData InternalReleaseAllocation(const void* buffer_start);
-  void AddAddressSpaceSample();
+  void AddAddressSpaceSample(Isolate* isolate);
 
   // Clients use a two-part process. First they "reserve" the address space,
   // which signifies an intent to actually allocate it. This determines whether
@@ -128,10 +116,6 @@ class WasmMemoryTracker {
   // Track Wasm memory allocation information. This is keyed by the start of the
   // buffer, rather than by the start of the allocation.
   std::unordered_map<const void*, AllocationData> allocations_;
-
-  // Keep pointers to
-  Histogram* allocation_result_ = nullptr;
-  Histogram* address_space_usage_mb_ = nullptr;  // in MiB
 
   DISALLOW_COPY_AND_ASSIGN(WasmMemoryTracker);
 };
