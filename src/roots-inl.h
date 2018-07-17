@@ -83,6 +83,12 @@ STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_ACCESSOR)
 #undef ALLOCATION_SITE_MAP_ACCESSOR
 
+FixedTypedArrayBase* ReadOnlyRoots::EmptyFixedTypedArrayForMap(const Map* map) {
+  // TODO(delphick): All of these empty fixed type arrays are in RO_SPACE so
+  // this the method below can be moved into ReadOnlyRoots.
+  return heap_->EmptyFixedTypedArrayForMap(map);
+}
+
 }  // namespace internal
 
 }  // namespace v8

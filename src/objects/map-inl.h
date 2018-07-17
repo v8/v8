@@ -185,7 +185,7 @@ FixedArrayBase* Map::GetInitialElements() const {
   } else if (has_fast_sloppy_arguments_elements()) {
     result = GetReadOnlyRoots().empty_sloppy_arguments_elements();
   } else if (has_fixed_typed_array_elements()) {
-    result = GetHeap()->EmptyFixedTypedArrayForMap(this);
+    result = GetReadOnlyRoots().EmptyFixedTypedArrayForMap(this);
   } else if (has_dictionary_elements()) {
     result = GetReadOnlyRoots().empty_slow_element_dictionary();
   } else {
@@ -482,11 +482,11 @@ bool Map::CanBeDeprecated() const {
   return false;
 }
 
-void Map::NotifyLeafMapLayoutChange() {
+void Map::NotifyLeafMapLayoutChange(Isolate* isolate) {
   if (is_stable()) {
     mark_unstable();
     dependent_code()->DeoptimizeDependentCodeGroup(
-        GetIsolate(), DependentCode::kPrototypeCheckGroup);
+        isolate, DependentCode::kPrototypeCheckGroup);
   }
 }
 
@@ -536,7 +536,8 @@ Object* Map::prototype() const { return READ_FIELD(this, kPrototypeOffset); }
 void Map::set_prototype(Object* value, WriteBarrierMode mode) {
   DCHECK(value->IsNull() || value->IsJSReceiver());
   WRITE_FIELD(this, kPrototypeOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kPrototypeOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this,
+                            kPrototypeOffset, value, mode);
 }
 
 LayoutDescriptor* Map::layout_descriptor_gc_safe() const {
@@ -641,7 +642,10 @@ Object* Map::GetBackPointer() const {
 
 Map* Map::ElementsTransitionMap() {
   DisallowHeapAllocation no_gc;
-  return TransitionsAccessor(GetIsolate(), this, &no_gc)
+  // TODO(delphick): While it's safe to pass nullptr for Isolate* here as
+  // SearchSpecial doesn't need it, this is really ugly. Perhaps factor out a
+  // base class for methods not requiring an Isolate?
+  return TransitionsAccessor(nullptr, this, &no_gc)
       .SearchSpecial(GetReadOnlyRoots().elements_transition_symbol());
 }
 
@@ -653,8 +657,9 @@ Object* Map::prototype_info() const {
 void Map::set_prototype_info(Object* value, WriteBarrierMode mode) {
   CHECK(is_prototype_map());
   WRITE_FIELD(this, Map::kTransitionsOrPrototypeInfoOffset, value);
-  CONDITIONAL_WRITE_BARRIER(
-      GetHeap(), this, Map::kTransitionsOrPrototypeInfoOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this,
+                            Map::kTransitionsOrPrototypeInfoOffset, value,
+                            mode);
 }
 
 void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
@@ -740,16 +745,16 @@ int NormalizedMapCache::GetIndex(Handle<Map> map) {
   return map->Hash() % NormalizedMapCache::kEntries;
 }
 
-bool NormalizedMapCache::IsNormalizedMapCache(Isolate* isolate,
-                                              const HeapObject* obj) {
+bool NormalizedMapCache::IsNormalizedMapCache(const HeapObject* obj) {
   if (!obj->IsFixedArray()) return false;
   if (FixedArray::cast(obj)->length() != NormalizedMapCache::kEntries) {
     return false;
   }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    reinterpret_cast<NormalizedMapCache*>(const_cast<HeapObject*>(obj))
-        ->NormalizedMapCacheVerify(isolate);
+    NormalizedMapCache* cache =
+        reinterpret_cast<NormalizedMapCache*>(const_cast<HeapObject*>(obj));
+    cache->NormalizedMapCacheVerify(cache->GetIsolate());
   }
 #endif
   return true;

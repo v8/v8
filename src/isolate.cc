@@ -652,10 +652,11 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
     Handle<FixedArray> stack_trace = CaptureCurrentStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
-    RETURN_ON_EXCEPTION(this,
-                        JSReceiver::SetProperty(error_object, key, stack_trace,
-                                                LanguageMode::kStrict),
-                        JSReceiver);
+    RETURN_ON_EXCEPTION(
+        this,
+        JSReceiver::SetProperty(this, error_object, key, stack_trace,
+                                LanguageMode::kStrict),
+        JSReceiver);
   }
   return error_object;
 }
@@ -667,10 +668,11 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetSimpleStackTrace(
   Handle<Name> key = factory()->stack_trace_symbol();
   Handle<Object> stack_trace =
       CaptureSimpleStackTrace(error_object, mode, caller);
-  RETURN_ON_EXCEPTION(this,
-                      JSReceiver::SetProperty(error_object, key, stack_trace,
-                                              LanguageMode::kStrict),
-                      JSReceiver);
+  RETURN_ON_EXCEPTION(
+      this,
+      JSReceiver::SetProperty(this, error_object, key, stack_trace,
+                              LanguageMode::kStrict),
+      JSReceiver);
   return error_object;
 }
 
@@ -744,7 +746,7 @@ class CaptureStackTraceHelper {
       } else {
         cache = SimpleNumberDictionary::New(isolate_, 1);
       }
-      int entry = cache->FindEntry(code_offset);
+      int entry = cache->FindEntry(isolate_, code_offset);
       if (entry != NumberDictionary::kNotFound) {
         Handle<StackFrameInfo> frame(
             StackFrameInfo::cast(cache->ValueAt(entry)), isolate_);
@@ -3415,7 +3417,7 @@ bool Isolate::IsIsConcatSpreadableLookupChainIntact() {
   Handle<Object> array_prototype(array_function()->prototype(), this);
   Handle<Symbol> key = factory()->is_concat_spreadable_symbol();
   Handle<Object> value;
-  LookupIterator it(array_prototype, key);
+  LookupIterator it(this, array_prototype, key);
   if (it.IsFound() && !JSReceiver::GetDataProperty(&it)->IsUndefined(this)) {
     // TODO(cbruni): Currently we do not revert if we unset the
     // @@isConcatSpreadable property on Array.prototype or Object.prototype
@@ -3632,7 +3634,7 @@ Handle<Symbol> Isolate::SymbolFor(Heap::RootListIndex dictionary_index,
   Handle<String> key = factory()->InternalizeString(name);
   Handle<NameDictionary> dictionary =
       Handle<NameDictionary>::cast(heap()->root_handle(dictionary_index));
-  int entry = dictionary->FindEntry(key);
+  int entry = dictionary->FindEntry(this, key);
   Handle<Symbol> symbol;
   if (entry == NameDictionary::kNotFound) {
     symbol =

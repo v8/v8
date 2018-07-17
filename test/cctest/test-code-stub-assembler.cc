@@ -691,7 +691,7 @@ void TestNameDictionaryLookup() {
   }
 
   for (size_t i = 0; i < arraysize(keys); i++) {
-    int entry = dictionary->FindEntry(keys[i]);
+    int entry = dictionary->FindEntry(isolate, keys[i]);
     int name_index =
         Dictionary::EntryToIndex(entry) + Dictionary::kEntryKeyIndex;
     CHECK_NE(Dictionary::kNotFound, entry);
@@ -713,7 +713,7 @@ void TestNameDictionaryLookup() {
   };
 
   for (size_t i = 0; i < arraysize(non_existing_keys); i++) {
-    int entry = dictionary->FindEntry(non_existing_keys[i]);
+    int entry = dictionary->FindEntry(isolate, non_existing_keys[i]);
     CHECK_EQ(Dictionary::kNotFound, entry);
 
     ft.CheckTrue(dictionary, non_existing_keys[i], expect_not_found);
@@ -783,7 +783,8 @@ TEST(NumberDictionaryLookup) {
   for (int i = 0; i < kKeysCount; i++) {
     int random_key = rand_gen.NextInt(Smi::kMaxValue);
     keys[i] = static_cast<uint32_t>(random_key);
-    if (dictionary->FindEntry(keys[i]) != NumberDictionary::kNotFound) continue;
+    if (dictionary->FindEntry(isolate, keys[i]) != NumberDictionary::kNotFound)
+      continue;
 
     dictionary = NumberDictionary::Add(isolate, dictionary, keys[i], fake_value,
                                        fake_details);
@@ -791,7 +792,7 @@ TEST(NumberDictionaryLookup) {
 
   // Now try querying existing keys.
   for (int i = 0; i < kKeysCount; i++) {
-    int entry = dictionary->FindEntry(keys[i]);
+    int entry = dictionary->FindEntry(isolate, keys[i]);
     CHECK_NE(NumberDictionary::kNotFound, entry);
 
     Handle<Object> key(Smi::FromInt(keys[i]), isolate);
@@ -802,7 +803,7 @@ TEST(NumberDictionaryLookup) {
   // Now try querying random keys which do not exist in the dictionary.
   for (int i = 0; i < kKeysCount;) {
     int random_key = rand_gen.NextInt(Smi::kMaxValue);
-    int entry = dictionary->FindEntry(random_key);
+    int entry = dictionary->FindEntry(isolate, random_key);
     if (entry != NumberDictionary::kNotFound) continue;
     i++;
 

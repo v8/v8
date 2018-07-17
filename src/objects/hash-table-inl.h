@@ -63,11 +63,6 @@ int EphemeronHashTableShape::GetMapRootIndex() {
 }
 
 template <typename Derived, typename Shape>
-int HashTable<Derived, Shape>::FindEntry(Key key) {
-  return FindEntry(GetIsolate(), key);
-}
-
-template <typename Derived, typename Shape>
 int HashTable<Derived, Shape>::FindEntry(Isolate* isolate, Key key) {
   return FindEntry(ReadOnlyRoots(isolate), key, Shape::Hash(isolate, key));
 }

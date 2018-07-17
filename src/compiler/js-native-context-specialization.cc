@@ -326,7 +326,7 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
         return kMayBeInPrototypeChain;
       }
     }
-    for (PrototypeIterator j(receiver_map);; j.Advance()) {
+    for (PrototypeIterator j(isolate(), receiver_map);; j.Advance()) {
       if (j.IsAtEnd()) {
         all = false;
         break;
@@ -554,7 +554,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
   // Lookup on the global object. We only deal with own data properties
   // of the global object here (represented as PropertyCell).
-  LookupIterator it(global_object(), name, LookupIterator::OWN);
+  LookupIterator it(isolate(), global_object(), name, LookupIterator::OWN);
   it.TryLookupCachedProperty();
   if (it.state() != LookupIterator::DATA) return NoChange();
   if (!it.GetHolder<JSObject>()->IsJSGlobalObject()) return NoChange();

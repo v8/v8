@@ -51,7 +51,8 @@ MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
     JSRegExp::cast(*recv)->set_last_index(*value_as_object, SKIP_WRITE_BARRIER);
     return recv;
   } else {
-    return Object::SetProperty(recv, isolate->factory()->lastIndex_string(),
+    return Object::SetProperty(isolate, recv,
+                               isolate->factory()->lastIndex_string(),
                                value_as_object, LanguageMode::kStrict);
   }
 }
@@ -61,7 +62,8 @@ MaybeHandle<Object> RegExpUtils::GetLastIndex(Isolate* isolate,
   if (HasInitialRegExpMap(isolate, recv)) {
     return handle(JSRegExp::cast(*recv)->last_index(), isolate);
   } else {
-    return Object::GetProperty(recv, isolate->factory()->lastIndex_string());
+    return Object::GetProperty(isolate, recv,
+                               isolate->factory()->lastIndex_string());
   }
 }
 
@@ -75,7 +77,8 @@ MaybeHandle<Object> RegExpUtils::RegExpExec(Isolate* isolate,
   if (exec->IsUndefined(isolate)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, exec,
-        Object::GetProperty(regexp, isolate->factory()->exec_string()), Object);
+        Object::GetProperty(isolate, regexp, isolate->factory()->exec_string()),
+        Object);
   }
 
   if (exec->IsCallable()) {
@@ -188,7 +191,8 @@ MaybeHandle<Object> RegExpUtils::SetAdvancedStringIndex(
   Handle<Object> last_index_obj;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, last_index_obj,
-      Object::GetProperty(regexp, isolate->factory()->lastIndex_string()),
+      Object::GetProperty(isolate, regexp,
+                          isolate->factory()->lastIndex_string()),
       Object);
 
   ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,

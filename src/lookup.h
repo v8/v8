@@ -44,10 +44,6 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
     BEFORE_PROPERTY = INTERCEPTOR
   };
 
-  LookupIterator(Handle<Object> receiver, Handle<Name> name,
-                 Configuration configuration = DEFAULT)
-      : LookupIterator(name->GetIsolate(), receiver, name, configuration) {}
-
   LookupIterator(Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
                  Configuration configuration = DEFAULT)
       : LookupIterator(isolate, receiver, name, GetRoot(isolate, receiver),
@@ -110,7 +106,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
       it.name_ = name;
       return it;
     }
-    return LookupIterator(receiver, name, configuration);
+    return LookupIterator(isolate, receiver, name, configuration);
   }
 
   static LookupIterator PropertyOrElement(

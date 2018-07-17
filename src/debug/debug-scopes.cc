@@ -545,8 +545,8 @@ void ScopeIterator::VisitScriptScope(const Visitor& visitor) const {
   // Skip the first script since that just declares 'this'.
   for (int context_index = 1; context_index < script_contexts->used();
        context_index++) {
-    Handle<Context> context =
-        ScriptContextTable::GetContext(script_contexts, context_index);
+    Handle<Context> context = ScriptContextTable::GetContext(
+        isolate_, script_contexts, context_index);
     Handle<ScopeInfo> scope_info(context->scope_info(), isolate_);
     if (VisitContextLocals(visitor, scope_info, context)) return;
   }
@@ -718,7 +718,7 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode) const {
       // but don't force |this| to be context-allocated. Otherwise we'd find the
       // wrong |this| value.
       if (!closure_scope_->has_this_declaration() &&
-          !non_locals_->Has(isolate_->factory()->this_string())) {
+          !non_locals_->Has(isolate_, isolate_->factory()->this_string())) {
         if (visitor(isolate_->factory()->this_string(),
                     isolate_->factory()->undefined_value()))
           return;
@@ -843,7 +843,7 @@ bool ScopeIterator::SetContextExtensionValue(Handle<String> variable_name,
 
   DCHECK(context_->extension_object()->IsJSContextExtensionObject());
   Handle<JSObject> ext(context_->extension_object(), isolate_);
-  LookupIterator it(ext, variable_name, LookupIterator::OWN);
+  LookupIterator it(isolate_, ext, variable_name, LookupIterator::OWN);
   Maybe<bool> maybe = JSReceiver::HasOwnProperty(ext, variable_name);
   DCHECK(maybe.IsJust());
   if (!maybe.FromJust()) return false;
@@ -893,10 +893,10 @@ bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
       context_->global_object()->native_context()->script_context_table(),
       isolate_);
   ScriptContextTable::LookupResult lookup_result;
-  if (ScriptContextTable::Lookup(script_contexts, variable_name,
+  if (ScriptContextTable::Lookup(isolate_, script_contexts, variable_name,
                                  &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
-        script_contexts, lookup_result.context_index);
+        isolate_, script_contexts, lookup_result.context_index);
     script_context->set(lookup_result.slot_index, *new_value);
     return true;
   }

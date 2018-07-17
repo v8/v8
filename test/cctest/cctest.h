@@ -326,7 +326,7 @@ static inline i::Handle<T> GetGlobal(const char* name) {
       isolate->factory()->InternalizeUtf8String(name);
 
   i::Handle<i::Object> value =
-      i::Object::GetProperty(isolate->global_object(), str_name)
+      i::Object::GetProperty(isolate, isolate->global_object(), str_name)
           .ToHandleChecked();
   return i::Handle<T>::cast(value);
 }

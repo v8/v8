@@ -37,11 +37,11 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
   return result;
 }
 
-
-bool ScriptContextTable::Lookup(Handle<ScriptContextTable> table,
+bool ScriptContextTable::Lookup(Isolate* isolate,
+                                Handle<ScriptContextTable> table,
                                 Handle<String> name, LookupResult* result) {
   for (int i = 0; i < table->used(); i++) {
-    Handle<Context> context = GetContext(table, i);
+    Handle<Context> context = GetContext(isolate, table, i);
     DCHECK(context->IsScriptContext());
     Handle<ScopeInfo> scope_info(context->scope_info(), context->GetIsolate());
     int slot_index = ScopeInfo::ContextSlotIndex(
@@ -223,10 +223,10 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
             context->global_object()->native_context()->script_context_table(),
             isolate);
         ScriptContextTable::LookupResult r;
-        if (ScriptContextTable::Lookup(script_contexts, name, &r)) {
+        if (ScriptContextTable::Lookup(isolate, script_contexts, name, &r)) {
           if (FLAG_trace_contexts) {
-            Handle<Context> c = ScriptContextTable::GetContext(script_contexts,
-                                                               r.context_index);
+            Handle<Context> c = ScriptContextTable::GetContext(
+                isolate, script_contexts, r.context_index);
             PrintF("=> found property in script context %d: %p\n",
                    r.context_index, reinterpret_cast<void*>(*c));
           }
@@ -234,7 +234,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
           *variable_mode = r.mode;
           *init_flag = r.init_flag;
           *attributes = GetAttributesForMode(r.mode);
-          return ScriptContextTable::GetContext(script_contexts,
+          return ScriptContextTable::GetContext(isolate, script_contexts,
                                                 r.context_index);
         }
       }
@@ -378,7 +378,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       // to with, script or native contexts up the context chain.
       obj = context->get(WHITE_LIST_INDEX);
       if (obj->IsStringSet()) {
-        failed_whitelist = failed_whitelist || !StringSet::cast(obj)->Has(name);
+        failed_whitelist =
+            failed_whitelist || !StringSet::cast(obj)->Has(isolate, name);
       }
     }
 

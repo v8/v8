@@ -405,7 +405,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   Handle<Name> single_function_name(
       isolate->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName));
   MaybeHandle<Object> single_function =
-      Object::GetProperty(module_object, single_function_name);
+      Object::GetProperty(isolate, module_object, single_function_name);
   if (!single_function.is_null() &&
       !single_function.ToHandleChecked()->IsUndefined(isolate)) {
     return single_function;
@@ -413,7 +413,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
 
   Handle<String> exports_name =
       isolate->factory()->InternalizeUtf8String("exports");
-  return Object::GetProperty(module_object, exports_name);
+  return Object::GetProperty(isolate, module_object, exports_name);
 }
 
 }  // namespace internal

@@ -744,7 +744,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
       Handle<Object> len_;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, len_,
-          Object::GetProperty(object, isolate->factory()->length_string()));
+          Object::GetProperty(isolate, object,
+                              isolate->factory()->length_string()));
 
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len_,
                                          Object::ToLength(isolate, len_));
@@ -845,7 +846,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
       Handle<Object> len_;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, len_,
-          Object::GetProperty(object, isolate->factory()->length_string()));
+          Object::GetProperty(isolate, object,
+                              isolate->factory()->length_string()));
 
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len_,
                                          Object::ToLength(isolate, len_));

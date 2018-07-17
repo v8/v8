@@ -442,7 +442,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     update_receiver_map(object);
   }
   // Named lookup in the object.
-  LookupIterator it(object, name);
+  LookupIterator it(isolate(), object, name);
   LookupForRead(isolate(), &it);
 
   if (name->IsPrivate()) {
@@ -487,11 +487,12 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name) {
         global->native_context()->script_context_table(), isolate());
 
     ScriptContextTable::LookupResult lookup_result;
-    if (ScriptContextTable::Lookup(script_contexts, str_name, &lookup_result)) {
-      Handle<Object> result =
-          FixedArray::get(*ScriptContextTable::GetContext(
-                              script_contexts, lookup_result.context_index),
-                          lookup_result.slot_index, isolate());
+    if (ScriptContextTable::Lookup(isolate(), script_contexts, str_name,
+                                   &lookup_result)) {
+      Handle<Object> result = FixedArray::get(
+          *ScriptContextTable::GetContext(isolate(), script_contexts,
+                                          lookup_result.context_index),
+          lookup_result.slot_index, isolate());
       if (result->IsTheHole(isolate())) {
         // Do not install stubs and stay pre-monomorphic for
         // uninitialized accesses.
@@ -1134,7 +1135,7 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
       Map* tmap = receiver_map->FindElementsKindTransitionedMap(isolate(),
                                                                 *receiver_maps);
       if (tmap != nullptr) {
-        receiver_map->NotifyLeafMapLayoutChange();
+        receiver_map->NotifyLeafMapLayoutChange(isolate());
       }
     }
     handlers->push_back(
@@ -1345,9 +1346,10 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
       global->native_context()->script_context_table(), isolate());
 
   ScriptContextTable::LookupResult lookup_result;
-  if (ScriptContextTable::Lookup(script_contexts, str_name, &lookup_result)) {
+  if (ScriptContextTable::Lookup(isolate(), script_contexts, str_name,
+                                 &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
-        script_contexts, lookup_result.context_index);
+        isolate(), script_contexts, lookup_result.context_index);
     if (lookup_result.mode == VariableMode::kConst) {
       return TypeError(MessageTemplate::kConstAssign, global, name);
     }
@@ -1389,7 +1391,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        Object::SetProperty(object, name, value, language_mode()), Object);
+        Object::SetProperty(isolate(), object, name, value, language_mode()),
+        Object);
     return result;
   }
 
@@ -1409,7 +1412,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   if (state() != UNINITIALIZED) {
     JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
   }
-  LookupIterator it(object, name);
+  LookupIterator it(isolate(), object, name);
   bool use_ic = FLAG_use_ic;
 
   if (name->IsPrivate()) {
@@ -1835,8 +1838,9 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
          store_mode == STORE_AND_GROW_NO_TRANSITION_HANDLE_COW ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
-  DCHECK_IMPLIES(receiver_map->DictionaryElementsInPrototypeChainOnly(),
-                 IsStoreInArrayLiteralICKind(kind()));
+  DCHECK_IMPLIES(
+      receiver_map->DictionaryElementsInPrototypeChainOnly(isolate()),
+      IsStoreInArrayLiteralICKind(kind()));
 
   if (receiver_map->IsJSProxyMap()) {
     return StoreHandler::StoreProxy(isolate());
@@ -1899,7 +1903,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     Handle<Map> transition;
 
     if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE ||
-        receiver_map->DictionaryElementsInPrototypeChainOnly()) {
+        receiver_map->DictionaryElementsInPrototypeChainOnly(isolate())) {
       // TODO(mvstanton): Consider embedding store_mode in the state of the slow
       // keyed store ic for uniformity.
       TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
@@ -1911,7 +1915,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
             isolate(), *receiver_maps);
         if (tmap != nullptr) {
           if (receiver_map->is_stable()) {
-            receiver_map->NotifyLeafMapLayoutChange();
+            receiver_map->NotifyLeafMapLayoutChange(isolate());
           }
           transition = handle(tmap, isolate());
         }
@@ -2076,8 +2080,8 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
       } else if (key_is_valid_index) {
         if (old_receiver_map->is_abandoned_prototype_map()) {
           set_slow_stub_reason("receiver with prototype map");
-        } else if (!old_receiver_map
-                        ->DictionaryElementsInPrototypeChainOnly()) {
+        } else if (!old_receiver_map->DictionaryElementsInPrototypeChainOnly(
+                       isolate())) {
           // We should go generic if receiver isn't a dictionary, but our
           // prototype chain does have dictionary elements. This ensures that
           // other non-dictionary receivers in the polymorphic case benefit
@@ -2219,9 +2223,10 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
       native_context->script_context_table(), isolate);
 
   ScriptContextTable::LookupResult lookup_result;
-  if (ScriptContextTable::Lookup(script_contexts, name, &lookup_result)) {
+  if (ScriptContextTable::Lookup(isolate, script_contexts, name,
+                                 &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
-        script_contexts, lookup_result.context_index);
+        isolate, script_contexts, lookup_result.context_index);
     Handle<Object> result =
         FixedArray::get(*script_context, lookup_result.slot_index, isolate);
     if (*result == ReadOnlyRoots(isolate).the_hole_value()) {
@@ -2335,9 +2340,10 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
       native_context->script_context_table(), isolate);
 
   ScriptContextTable::LookupResult lookup_result;
-  if (ScriptContextTable::Lookup(script_contexts, name, &lookup_result)) {
+  if (ScriptContextTable::Lookup(isolate, script_contexts, name,
+                                 &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
-        script_contexts, lookup_result.context_index);
+        isolate, script_contexts, lookup_result.context_index);
     if (lookup_result.mode == VariableMode::kConst) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError(MessageTemplate::kConstAssign, global, name));

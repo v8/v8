@@ -165,7 +165,8 @@ HEAP_TEST(MarkCompactCollector) {
     // allocate a garbage
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
     Handle<JSFunction> function = factory->NewFunctionForTest(func_name);
-    JSReceiver::SetProperty(global, func_name, function, LanguageMode::kSloppy)
+    JSReceiver::SetProperty(isolate, global, func_name, function,
+                            LanguageMode::kSloppy)
         .Check();
 
     factory->NewJSObject(function);
@@ -177,17 +178,19 @@ HEAP_TEST(MarkCompactCollector) {
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
     CHECK(Just(true) == JSReceiver::HasOwnProperty(global, func_name));
     Handle<Object> func_value =
-        Object::GetProperty(global, func_name).ToHandleChecked();
+        Object::GetProperty(isolate, global, func_name).ToHandleChecked();
     CHECK(func_value->IsJSFunction());
     Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
     Handle<JSObject> obj = factory->NewJSObject(function);
 
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
-    JSReceiver::SetProperty(global, obj_name, obj, LanguageMode::kSloppy)
+    JSReceiver::SetProperty(isolate, global, obj_name, obj,
+                            LanguageMode::kSloppy)
         .Check();
     Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
     Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-    JSReceiver::SetProperty(obj, prop_name, twenty_three, LanguageMode::kSloppy)
+    JSReceiver::SetProperty(isolate, obj, prop_name, twenty_three,
+                            LanguageMode::kSloppy)
         .Check();
   }
 
@@ -197,10 +200,10 @@ HEAP_TEST(MarkCompactCollector) {
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
     CHECK(Just(true) == JSReceiver::HasOwnProperty(global, obj_name));
     Handle<Object> object =
-        Object::GetProperty(global, obj_name).ToHandleChecked();
+        Object::GetProperty(isolate, global, obj_name).ToHandleChecked();
     CHECK(object->IsJSObject());
     Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
-    CHECK_EQ(*Object::GetProperty(object, prop_name).ToHandleChecked(),
+    CHECK_EQ(*Object::GetProperty(isolate, object, prop_name).ToHandleChecked(),
              Smi::FromInt(23));
   }
 }

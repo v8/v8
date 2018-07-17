@@ -51,9 +51,9 @@ class PrototypeIterator {
     if (where_to_start == kStartAtPrototype) Advance();
   }
 
-  explicit PrototypeIterator(Map* receiver_map,
+  explicit PrototypeIterator(Isolate* isolate, Map* receiver_map,
                              WhereToEnd where_to_end = END_AT_NULL)
-      : isolate_(receiver_map->GetIsolate()),
+      : isolate_(isolate),
         object_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype()),
         where_to_end_(where_to_end),
         is_at_end_(object_->IsNull(isolate_)),
@@ -65,9 +65,9 @@ class PrototypeIterator {
     }
   }
 
-  explicit PrototypeIterator(Handle<Map> receiver_map,
+  explicit PrototypeIterator(Isolate* isolate, Handle<Map> receiver_map,
                              WhereToEnd where_to_end = END_AT_NULL)
-      : isolate_(receiver_map->GetIsolate()),
+      : isolate_(isolate),
         object_(nullptr),
         handle_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype(),
                 isolate_),

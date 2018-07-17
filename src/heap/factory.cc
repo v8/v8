@@ -3399,7 +3399,7 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
     map->set_is_prototype_map(true);
   }
   JSObject::NotifyMapChange(old_map, map, isolate());
-  old_map->NotifyLeafMapLayoutChange();
+  old_map->NotifyLeafMapLayoutChange(isolate());
 
   // Check that the already allocated object has the same size and type as
   // objects allocated using the constructor.
@@ -3697,10 +3697,12 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
   DCHECK(!isolate()->has_pending_exception());
   Handle<JSObject> result = NewJSObjectFromMap(map);
   Handle<Smi> value(Smi::FromInt(length), isolate());
-  Object::SetProperty(result, length_string(), value, LanguageMode::kStrict)
+  Object::SetProperty(isolate(), result, length_string(), value,
+                      LanguageMode::kStrict)
       .Assert();
   if (!strict_mode_callee) {
-    Object::SetProperty(result, callee_string(), callee, LanguageMode::kStrict)
+    Object::SetProperty(isolate(), result, callee_string(), callee,
+                        LanguageMode::kStrict)
         .Assert();
   }
   return result;

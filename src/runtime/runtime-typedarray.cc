@@ -175,7 +175,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySet) {
   Handle<Object> len;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, len,
-      Object::GetProperty(obj, isolate->factory()->length_string()));
+      Object::GetProperty(isolate, obj, isolate->factory()->length_string()));
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
                                      Object::ToLength(isolate, len));
 

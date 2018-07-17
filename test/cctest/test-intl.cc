@@ -123,7 +123,7 @@ TEST(GetStringOption) {
   }
 
   Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("foo");
-  v8::internal::LookupIterator it(options, key);
+  v8::internal::LookupIterator it(isolate, options, key);
   CHECK(Object::SetProperty(&it, Handle<Smi>(Smi::FromInt(42), isolate),
                             LanguageMode::kStrict,
                             AllocationMemento::MAY_BE_STORE_FROM_KEYED)
@@ -181,10 +181,11 @@ TEST(GetBoolOption) {
 
   Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("foo");
   {
-    v8::internal::LookupIterator it(options, key);
+    v8::internal::LookupIterator it(isolate, options, key);
     Handle<Object> false_value =
         handle(i::ReadOnlyRoots(isolate).false_value(), isolate);
-    Object::SetProperty(options, key, false_value, LanguageMode::kStrict)
+    Object::SetProperty(isolate, options, key, false_value,
+                        LanguageMode::kStrict)
         .Assert();
     bool result = false;
     Maybe<bool> found =
@@ -194,10 +195,11 @@ TEST(GetBoolOption) {
   }
 
   {
-    v8::internal::LookupIterator it(options, key);
+    v8::internal::LookupIterator it(isolate, options, key);
     Handle<Object> true_value =
         handle(i::ReadOnlyRoots(isolate).true_value(), isolate);
-    Object::SetProperty(options, key, true_value, LanguageMode::kStrict)
+    Object::SetProperty(isolate, options, key, true_value,
+                        LanguageMode::kStrict)
         .Assert();
     bool result = false;
     Maybe<bool> found =
@@ -273,13 +275,15 @@ TEST(IsObjectOfType) {
   for (auto type : types) {
     Handle<Smi> tag =
         Handle<Smi>(Smi::FromInt(static_cast<int>(type)), isolate);
-    JSObject::SetProperty(obj, marker, tag, LanguageMode::kStrict).Assert();
+    JSObject::SetProperty(isolate, obj, marker, tag, LanguageMode::kStrict)
+        .Assert();
 
     CHECK(Intl::IsObjectOfType(isolate, obj, type));
   }
 
   Handle<Object> tag = isolate->factory()->NewStringFromAsciiChecked("foo");
-  JSObject::SetProperty(obj, marker, tag, LanguageMode::kStrict).Assert();
+  JSObject::SetProperty(isolate, obj, marker, tag, LanguageMode::kStrict)
+      .Assert();
   CHECK(!Intl::IsObjectOfType(isolate, obj, types[0]));
 
   CHECK(!Intl::IsObjectOfType(isolate, tag, types[0]));
@@ -288,7 +292,8 @@ TEST(IsObjectOfType) {
 
   // Proxy with target as an initialized object should fail.
   tag = Handle<Smi>(Smi::FromInt(static_cast<int>(types[0])), isolate);
-  JSObject::SetProperty(obj, marker, tag, LanguageMode::kStrict).Assert();
+  JSObject::SetProperty(isolate, obj, marker, tag, LanguageMode::kStrict)
+      .Assert();
   Handle<JSReceiver> proxy = isolate->factory()->NewJSProxy(
       obj, isolate->factory()->NewJSObjectWithNullProto());
   CHECK(!Intl::IsObjectOfType(isolate, proxy, types[0]));

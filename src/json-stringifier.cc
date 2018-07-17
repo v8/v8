@@ -198,7 +198,7 @@ MaybeHandle<Object> JsonStringifier::ApplyToJsonFunction(Handle<Object> object,
   // Retrieve toJSON function.
   Handle<Object> fun;
   {
-    LookupIterator it(object_for_lookup, tojson_string_,
+    LookupIterator it(isolate_, object_for_lookup, tojson_string_,
                       LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
     ASSIGN_RETURN_ON_EXCEPTION(isolate_, fun, Object::GetProperty(&it), Object);
     if (!fun->IsCallable()) return object;

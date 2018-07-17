@@ -193,7 +193,8 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
     // TODO(turbofan): Given that we already have the field_index here, we
     // might be smarter in the future and not rely on the LookupIterator,
     // but for now let's just do what Crankshaft does.
-    LookupIterator it(m.Value(), name, LookupIterator::OWN_SKIP_INTERCEPTOR);
+    LookupIterator it(isolate(), m.Value(), name,
+                      LookupIterator::OWN_SKIP_INTERCEPTOR);
     if (it.state() == LookupIterator::DATA) {
       bool is_readonly_non_configurable =
           it.IsReadOnly() && !it.IsConfigurable();

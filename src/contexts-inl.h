@@ -32,11 +32,12 @@ void ScriptContextTable::set_used(int used) {
 
 
 // static
-Handle<Context> ScriptContextTable::GetContext(Handle<ScriptContextTable> table,
+Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
+                                               Handle<ScriptContextTable> table,
                                                int i) {
   DCHECK(i < table->used());
   return Handle<Context>::cast(
-      FixedArray::get(*table, i + kFirstContextSlotIndex, table->GetIsolate()));
+      FixedArray::get(*table, i + kFirstContextSlotIndex, isolate));
 }
 
 // static

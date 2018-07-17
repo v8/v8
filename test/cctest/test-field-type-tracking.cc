@@ -558,7 +558,8 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   Handle<String> obj_name = factory->InternalizeUtf8String("o");
 
   Handle<Object> obj_value =
-      Object::GetProperty(isolate->global_object(), obj_name).ToHandleChecked();
+      Object::GetProperty(isolate, isolate->global_object(), obj_name)
+          .ToHandleChecked();
   CHECK(obj_value->IsJSObject());
   Handle<JSObject> obj = Handle<JSObject>::cast(obj_value);
 

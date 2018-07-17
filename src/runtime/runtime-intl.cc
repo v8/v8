@@ -207,7 +207,8 @@ RUNTIME_FUNCTION(Runtime_MarkAsInitializedIntlObjectOfType) {
 #endif
 
   Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  JSObject::SetProperty(input, marker, type, LanguageMode::kStrict).Assert();
+  JSObject::SetProperty(isolate, input, marker, type, LanguageMode::kStrict)
+      .Assert();
 
   return ReadOnlyRoots(isolate).undefined_value();
 }

@@ -225,12 +225,12 @@ ScriptContextTableRef::lookup(const NameRef& name) const {
   if (!name.IsString()) return {};
   ScriptContextTable::LookupResult lookup_result;
   auto table = object<ScriptContextTable>();
-  if (!ScriptContextTable::Lookup(table, name.object<String>(),
-                                  &lookup_result)) {
+  if (!ScriptContextTable::Lookup(broker()->isolate(), table,
+                                  name.object<String>(), &lookup_result)) {
     return {};
   }
-  Handle<Context> script_context =
-      ScriptContextTable::GetContext(table, lookup_result.context_index);
+  Handle<Context> script_context = ScriptContextTable::GetContext(
+      broker()->isolate(), table, lookup_result.context_index);
   LookupResult result{ContextRef(broker(), script_context),
                       lookup_result.mode == VariableMode::kConst,
                       lookup_result.slot_index};

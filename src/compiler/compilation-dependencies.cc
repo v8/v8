@@ -313,13 +313,14 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
 }
 
 namespace {
-void DependOnStablePrototypeChain(CompilationDependencies* deps,
+void DependOnStablePrototypeChain(Isolate* isolate,
+                                  CompilationDependencies* deps,
                                   Handle<Map> map,
                                   MaybeHandle<JSReceiver> last_prototype) {
-  for (PrototypeIterator i(map); !i.IsAtEnd(); i.Advance()) {
+  for (PrototypeIterator i(isolate, map); !i.IsAtEnd(); i.Advance()) {
     Handle<JSReceiver> const current =
         PrototypeIterator::GetCurrent<JSReceiver>(i);
-    deps->DependOnStableMap(handle(current->map(), current->GetIsolate()));
+    deps->DependOnStableMap(handle(current->map(), isolate));
     Handle<JSReceiver> last;
     if (last_prototype.ToHandle(&last) && last.is_identical_to(current)) {
       break;
@@ -340,7 +341,7 @@ void CompilationDependencies::DependOnStablePrototypeChains(
             .ToHandle(&constructor)) {
       map = handle(constructor->initial_map(), isolate_);
     }
-    DependOnStablePrototypeChain(this, map, holder);
+    DependOnStablePrototypeChain(isolate_, this, map, holder);
   }
 }
 

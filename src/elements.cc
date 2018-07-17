@@ -1460,7 +1460,7 @@ class DictionaryElementsAccessor
             if (dict->IsKey(roots, index)) {
               uint32_t number = static_cast<uint32_t>(index->Number());
               if (length <= number && number < old_length) {
-                dict->ClearEntry(entry);
+                dict->ClearEntry(isolate, entry);
                 removed_entries++;
               }
             }
@@ -1571,7 +1571,7 @@ class DictionaryElementsAccessor
     details = PropertyDetails(kData, attributes, PropertyCellType::kNoCell,
                               details.dictionary_index());
 
-    dictionary->DetailsAtPut(entry, details);
+    dictionary->DetailsAtPut(object->GetIsolate(), entry, details);
   }
 
   static void AddImpl(Handle<JSObject> object, uint32_t index,
@@ -2075,7 +2075,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                               Handle<Object> value,
                               PropertyAttributes attributes) {
     Handle<NumberDictionary> dictionary = JSObject::NormalizeElements(object);
-    entry = dictionary->FindEntry(entry);
+    entry = dictionary->FindEntry(object->GetIsolate(), entry);
     DictionaryElementsAccessor::ReconfigureImpl(object, dictionary, entry,
                                                 value, attributes);
   }
@@ -4109,7 +4109,8 @@ class FastSloppyArgumentsElementsAccessor
     if (*entry == kMaxUInt32) return dictionary;
     uint32_t length = elements->parameter_map_length();
     if (*entry >= length) {
-      *entry = dictionary->FindEntry(*entry - length) + length;
+      *entry =
+          dictionary->FindEntry(object->GetIsolate(), *entry - length) + length;
     }
     return dictionary;
   }

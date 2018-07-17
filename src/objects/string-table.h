@@ -107,7 +107,7 @@ class StringSet : public HashTable<StringSet, StringSetShape> {
   static Handle<StringSet> New(Isolate* isolate);
   static Handle<StringSet> Add(Isolate* isolate, Handle<StringSet> blacklist,
                                Handle<String> name);
-  bool Has(Handle<String> name);
+  bool Has(Isolate* isolate, Handle<String> name);
 
   DECL_CAST(StringSet)
 };

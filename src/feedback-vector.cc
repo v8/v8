@@ -1068,7 +1068,7 @@ void FeedbackNexus::Collect(Handle<String> type, int position) {
 
   Handle<ArrayList> position_specific_types;
 
-  int entry = types->FindEntry(position);
+  int entry = types->FindEntry(isolate, position);
   if (entry == SimpleNumberDictionary::kNotFound) {
     position_specific_types = ArrayList::New(isolate, 1);
     types = SimpleNumberDictionary::Set(
@@ -1129,7 +1129,7 @@ std::vector<Handle<String>> FeedbackNexus::GetTypesForSourcePositions(
   Handle<SimpleNumberDictionary> types(
       SimpleNumberDictionary::cast(feedback->ToStrongHeapObject()), isolate);
 
-  int entry = types->FindEntry(position);
+  int entry = types->FindEntry(isolate, position);
   if (entry == SimpleNumberDictionary::kNotFound) {
     return types_for_position;
   }

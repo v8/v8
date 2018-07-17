@@ -144,7 +144,6 @@ class HashTable : public HashTableBase {
   void IterateElements(ObjectVisitor* visitor);
 
   // Find entry for key otherwise return kNotFound.
-  inline int FindEntry(Key key);
   inline int FindEntry(ReadOnlyRoots roots, Key key, int32_t hash);
   int FindEntry(Isolate* isolate, Key key);
 

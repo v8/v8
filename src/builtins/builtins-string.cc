@@ -528,14 +528,14 @@ BUILTIN(StringRaw) {
                                      Object::ToObject(isolate, templ));
 
   Handle<Object> raw;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, raw,
-                                     Object::GetProperty(cooked, raw_string));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, raw, Object::GetProperty(isolate, cooked, raw_string));
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, raw,
                                      Object::ToObject(isolate, raw));
   Handle<Object> raw_len;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, raw_len,
-      Object::GetProperty(raw, isolate->factory()->length_string()));
+      Object::GetProperty(isolate, raw, isolate->factory()->length_string()));
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, raw_len,
                                      Object::ToLength(isolate, raw_len));

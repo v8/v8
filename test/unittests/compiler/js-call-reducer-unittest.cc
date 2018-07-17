@@ -60,7 +60,7 @@ class JSCallReducerTest : public TypedGraphTest {
   Node* GlobalFunction(const char* name) {
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         Object::GetProperty(
-            isolate()->global_object(),
+            isolate(), isolate()->global_object(),
             isolate()->factory()->NewStringFromAsciiChecked(name))
             .ToHandleChecked());
     return HeapConstant(f);
@@ -74,7 +74,8 @@ class JSCallReducerTest : public TypedGraphTest {
             .ToHandleChecked();
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         Object::GetProperty(
-            m, isolate()->factory()->NewStringFromAsciiChecked(name.c_str()))
+            isolate(), m,
+            isolate()->factory()->NewStringFromAsciiChecked(name.c_str()))
             .ToHandleChecked());
     return HeapConstant(f);
   }
@@ -87,7 +88,7 @@ class JSCallReducerTest : public TypedGraphTest {
             .ToHandleChecked();
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         Object::GetProperty(
-            m, isolate()->factory()->NewStringFromAsciiChecked(name))
+            isolate(), m, isolate()->factory()->NewStringFromAsciiChecked(name))
             .ToHandleChecked());
     return HeapConstant(f);
   }
@@ -100,7 +101,7 @@ class JSCallReducerTest : public TypedGraphTest {
             .ToHandleChecked();
     Handle<JSFunction> f = Handle<JSFunction>::cast(
         Object::GetProperty(
-            m, isolate()->factory()->NewStringFromAsciiChecked(name))
+            isolate(), m, isolate()->factory()->NewStringFromAsciiChecked(name))
             .ToHandleChecked());
     return HeapConstant(f);
   }

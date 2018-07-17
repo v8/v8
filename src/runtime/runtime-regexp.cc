@@ -1075,7 +1075,8 @@ class VectorBackedMatch : public String::Match {
 
     Handle<Object> capture_obj;
     ASSIGN_RETURN_ON_EXCEPTION(isolate_, capture_obj,
-                               Object::GetProperty(groups_obj_, name), String);
+                               Object::GetProperty(isolate_, groups_obj_, name),
+                               String);
     if (capture_obj->IsUndefined(isolate_)) {
       *state = UNMATCHED;
       return isolate_->factory()->empty_string();
@@ -1188,7 +1189,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
     int32_t* current_match = global_cache.FetchNext();
     if (current_match == nullptr) break;
     match_start = current_match[0];
-    builder.EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
+    builder.EnsureCapacity(isolate, kMaxBuilderEntriesPerRegExpMatch);
     if (match_end < match_start) {
       ReplacementStringBuilder::AddSubjectSlice(&builder, match_end,
                                                 match_start);
@@ -1691,7 +1692,8 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
     Handle<Object> num_captures_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num_captures_obj,
-        Object::GetProperty(result, isolate->factory()->length_string()));
+        Object::GetProperty(isolate, result,
+                            isolate->factory()->length_string()));
 
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num_captures_obj, Object::ToLength(isolate, num_captures_obj));
@@ -1805,7 +1807,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     Handle<Object> captures_length_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, captures_length_obj,
-        Object::GetProperty(result, factory->length_string()));
+        Object::GetProperty(isolate, result, factory->length_string()));
 
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, captures_length_obj,
@@ -1826,7 +1828,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     Handle<Object> position_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, position_obj,
-        Object::GetProperty(result, factory->index_string()));
+        Object::GetProperty(isolate, result, factory->index_string()));
 
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, position_obj, Object::ToInteger(isolate, position_obj));
@@ -1851,7 +1853,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     Handle<Object> groups_obj = isolate->factory()->undefined_value();
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, groups_obj,
-        Object::GetProperty(result, factory->groups_string()));
+        Object::GetProperty(isolate, result, factory->groups_string()));
 
     const bool has_named_captures = !groups_obj->IsUndefined(isolate);
 

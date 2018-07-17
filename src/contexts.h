@@ -366,7 +366,8 @@ class ScriptContextTable : public FixedArray {
   inline int used() const;
   inline void set_used(int used);
 
-  static inline Handle<Context> GetContext(Handle<ScriptContextTable> table,
+  static inline Handle<Context> GetContext(Isolate* isolate,
+                                           Handle<ScriptContextTable> table,
                                            int i);
 
   // Lookup a variable `name` in a ScriptContextTable.
@@ -374,8 +375,8 @@ class ScriptContextTable : public FixedArray {
   // valid information about its location.
   // If it returns false, `result` is untouched.
   V8_WARN_UNUSED_RESULT
-  static bool Lookup(Handle<ScriptContextTable> table, Handle<String> name,
-                     LookupResult* result);
+  static bool Lookup(Isolate* isolate, Handle<ScriptContextTable> table,
+                     Handle<String> name, LookupResult* result);
 
   V8_WARN_UNUSED_RESULT
   static Handle<ScriptContextTable> Extend(Handle<ScriptContextTable> table,

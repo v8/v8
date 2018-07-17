@@ -43,8 +43,8 @@ class Dictionary : public HashTable<Derived, Shape> {
   }
 
   // Set the details for entry.
-  void DetailsAtPut(int entry, PropertyDetails value) {
-    Shape::DetailsAtPut(static_cast<Derived*>(this), entry, value);
+  void DetailsAtPut(Isolate* isolate, int entry, PropertyDetails value) {
+    Shape::DetailsAtPut(isolate, static_cast<Derived*>(this), entry, value);
   }
 
   // Delete a property from the dictionary.
@@ -69,8 +69,8 @@ class Dictionary : public HashTable<Derived, Shape> {
   Object* SlowReverseLookup(Object* value);
 
   // Sets the entry to (key, value) pair.
-  inline void ClearEntry(int entry);
-  inline void SetEntry(int entry, Object* key, Object* value,
+  inline void ClearEntry(Isolate* isolate, int entry);
+  inline void SetEntry(Isolate* isolate, int entry, Object* key, Object* value,
                        PropertyDetails details);
 
   V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
@@ -99,7 +99,7 @@ class BaseDictionaryShape : public BaseShape<Key> {
   }
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Dictionary* dict, int entry,
+  static inline void DetailsAtPut(Isolate* isolate, Dictionary* dict, int entry,
                                   PropertyDetails value) {
     STATIC_ASSERT(Dictionary::kEntrySize == 3);
     dict->set(Dictionary::EntryToIndex(entry) + Dictionary::kEntryDetailsIndex,
@@ -210,7 +210,7 @@ class GlobalDictionaryShape : public NameDictionaryShape {
   static inline PropertyDetails DetailsAt(Dictionary* dict, int entry);
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Dictionary* dict, int entry,
+  static inline void DetailsAtPut(Isolate* isolate, Dictionary* dict, int entry,
                                   PropertyDetails value);
 
   static inline Object* Unwrap(Object* key);
@@ -226,7 +226,7 @@ class GlobalDictionary
 
   inline Object* ValueAt(int entry);
   inline PropertyCell* CellAt(int entry);
-  inline void SetEntry(int entry, Object* key, Object* value,
+  inline void SetEntry(Isolate* isolate, int entry, Object* key, Object* value,
                        PropertyDetails details);
   inline Name* NameAt(int entry);
   inline void ValueAtPut(int entry, Object* value);
@@ -261,7 +261,7 @@ class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
   }
 
   template <typename Dictionary>
-  static inline void DetailsAtPut(Dictionary* dict, int entry,
+  static inline void DetailsAtPut(Isolate* isolate, Dictionary* dict, int entry,
                                   PropertyDetails value) {
     UNREACHABLE();
   }

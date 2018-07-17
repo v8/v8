@@ -6669,7 +6669,8 @@ bool FunctionTemplate::HasInstance(v8::Local<v8::Value> value) {
   if (obj->IsJSGlobalProxy()) {
     // If it's a global proxy, then test with the global object. Note that the
     // inner global object may not necessarily be a JSGlobalObject.
-    i::PrototypeIterator iter(i::JSObject::cast(*obj)->map());
+    i::PrototypeIterator iter(self->GetIsolate(),
+                              i::JSObject::cast(*obj)->map());
     // The global proxy should always have a prototype, as it is a bug to call
     // this on a detached JSGlobalProxy.
     DCHECK(!iter.IsAtEnd());
@@ -9982,7 +9983,8 @@ void debug::GlobalLexicalScopeNames(
       context->global_object()->native_context()->script_context_table(),
       isolate);
   for (int i = 0; i < table->used(); i++) {
-    i::Handle<i::Context> context = i::ScriptContextTable::GetContext(table, i);
+    i::Handle<i::Context> context =
+        i::ScriptContextTable::GetContext(isolate, table, i);
     DCHECK(context->IsScriptContext());
     i::Handle<i::ScopeInfo> scope_info(context->scope_info(), isolate);
     int local_count = scope_info->ContextLocalCount();
@@ -10010,8 +10012,8 @@ int debug::GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
   if (name->AsArrayIndex(&index)) {
     return static_cast<int>(debug::NativeAccessorType::None);
   }
-  i::LookupIterator it =
-      i::LookupIterator(object, name, i::LookupIterator::OWN);
+  i::LookupIterator it = i::LookupIterator(object->GetIsolate(), object, name,
+                                           i::LookupIterator::OWN);
   if (!it.IsFound()) return static_cast<int>(debug::NativeAccessorType::None);
   if (it.state() != i::LookupIterator::ACCESSOR) {
     return static_cast<int>(debug::NativeAccessorType::None);

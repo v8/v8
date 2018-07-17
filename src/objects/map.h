@@ -402,7 +402,7 @@ class Map : public HeapObject {
 
   // Returns true if the current map doesn't have DICTIONARY_ELEMENTS but if a
   // map with DICTIONARY_ELEMENTS was found in the prototype chain.
-  bool DictionaryElementsInPrototypeChainOnly();
+  bool DictionaryElementsInPrototypeChainOnly(Isolate* isolate);
 
   inline Map* ElementsTransitionMap();
 
@@ -853,7 +853,7 @@ class Map : public HeapObject {
   // Fires when the layout of an object with a leaf map changes.
   // This includes adding transitions to the leaf map or changing
   // the descriptor array.
-  inline void NotifyLeafMapLayoutChange();
+  inline void NotifyLeafMapLayoutChange(Isolate* isolate);
 
   static VisitorId GetVisitorId(Map* map);
 
@@ -985,8 +985,7 @@ class NormalizedMapCache : public FixedArray, public NeverReadOnlySpaceObject {
 
   DECL_CAST(NormalizedMapCache)
 
-  static inline bool IsNormalizedMapCache(Isolate* isolate,
-                                          const HeapObject* obj);
+  static inline bool IsNormalizedMapCache(const HeapObject* obj);
 
   DECL_VERIFIER(NormalizedMapCache)
 

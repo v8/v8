@@ -277,7 +277,7 @@ Object* DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
     } else {
       name = isolate->factory()->bound__string();
     }
-    LookupIterator it(function, isolate->factory()->name_string());
+    LookupIterator it(isolate, function, isolate->factory()->name_string());
     DCHECK_EQ(LookupIterator::ACCESSOR, it.state());
     RETURN_FAILURE_ON_EXCEPTION(isolate,
                                 JSObject::DefineOwnPropertyIgnoreAttributes(

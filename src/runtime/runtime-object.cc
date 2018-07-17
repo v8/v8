@@ -82,7 +82,7 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
         // Attempt dictionary lookup.
         GlobalDictionary* dictionary =
             JSGlobalObject::cast(*receiver)->global_dictionary();
-        int entry = dictionary->FindEntry(key);
+        int entry = dictionary->FindEntry(isolate, key);
         if (entry != GlobalDictionary::kNotFound) {
           PropertyCell* cell = dictionary->CellAt(entry);
           if (cell->property_details().kind() == kData) {
@@ -96,7 +96,7 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
       } else if (!receiver->HasFastProperties()) {
         // Attempt dictionary lookup.
         NameDictionary* dictionary = receiver->property_dictionary();
-        int entry = dictionary->FindEntry(key);
+        int entry = dictionary->FindEntry(isolate, key);
         if ((entry != NameDictionary::kNotFound) &&
             (dictionary->DetailsAt(entry).kind() == kData)) {
           Object* value = dictionary->ValueAt(entry);
@@ -198,7 +198,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // that depends on the assumption that no object that reached this map
   // transitions away from it without triggering the "deoptimize dependent
   // code" mechanism.
-  map->NotifyLeafMapLayoutChange();
+  map->NotifyLeafMapLayoutChange(isolate);
   // Finally, perform the map rollback.
   receiver->synchronized_set_map(Map::cast(backpointer));
 #if VERIFY_HEAP

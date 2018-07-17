@@ -126,7 +126,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
           MessageTemplate::kWasmExceptionError));
   isolate->set_wasm_caught_exception(*exception);
   CONVERT_ARG_HANDLE_CHECKED(Smi, id, 0);
-  CHECK(!JSReceiver::SetProperty(exception,
+  CHECK(!JSReceiver::SetProperty(isolate, exception,
                                  isolate->factory()->InternalizeUtf8String(
                                      wasm::WasmException::kRuntimeIdStr),
                                  id, LanguageMode::kStrict)
@@ -134,7 +134,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   CONVERT_SMI_ARG_CHECKED(size, 1);
   Handle<JSTypedArray> values =
       isolate->factory()->NewJSTypedArray(ElementsKind::UINT16_ELEMENTS, size);
-  CHECK(!JSReceiver::SetProperty(exception,
+  CHECK(!JSReceiver::SetProperty(isolate, exception,
                                  isolate->factory()->InternalizeUtf8String(
                                      wasm::WasmException::kRuntimeValuesStr),
                                  values, LanguageMode::kStrict)

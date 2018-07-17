@@ -226,7 +226,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
           // so overwrite both.
           PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
                                   enum_order);
-          dictionary->DetailsAtPut(entry, details);
+          dictionary->DetailsAtPut(isolate, entry, details);
           dictionary->ValueAtPut(entry, value);
 
         } else {
@@ -251,7 +251,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
         if (existing_value_index < key_index) {
           PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
                                   enum_order);
-          dictionary->DetailsAtPut(entry, details);
+          dictionary->DetailsAtPut(isolate, entry, details);
           dictionary->ValueAtPut(entry, value);
         }
       }
@@ -273,7 +273,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
         pair->set(component, value);
         PropertyDetails details(kAccessor, DONT_ENUM, PropertyCellType::kNoCell,
                                 enum_order);
-        dictionary->DetailsAtPut(entry, details);
+        dictionary->DetailsAtPut(isolate, entry, details);
         dictionary->ValueAtPut(entry, *pair);
       }
     }

@@ -772,7 +772,8 @@ MaybeHandle<Object> Object::OrdinaryHasInstance(Isolate* isolate,
   Handle<Object> prototype;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, prototype,
-      Object::GetProperty(callable, isolate->factory()->prototype_string()),
+      Object::GetProperty(isolate, callable,
+                          isolate->factory()->prototype_string()),
       Object);
   if (!prototype->IsJSReceiver()) {
     THROW_NEW_ERROR(
@@ -2053,7 +2054,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
   } else {
     Handle<NameDictionary> dictionary(object->property_dictionary(), isolate);
 
-    int entry = dictionary->FindEntry(name);
+    int entry = dictionary->FindEntry(isolate, name);
     if (entry == NameDictionary::kNotFound) {
       DCHECK_IMPLIES(object->map()->is_prototype_map(),
                      Map::IsPrototypeChainInvalidated(object->map()));
@@ -2065,7 +2066,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
       int enumeration_index = original_details.dictionary_index();
       DCHECK_GT(enumeration_index, 0);
       details = details.set_index(enumeration_index);
-      dictionary->SetEntry(entry, *name, *value, details);
+      dictionary->SetEntry(isolate, entry, *name, *value, details);
     }
   }
 }
@@ -2354,7 +2355,7 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
   if (is_array.FromJust()) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, constructor,
-        Object::GetProperty(original_array,
+        Object::GetProperty(isolate, original_array,
                             isolate->factory()->constructor_string()),
         Object);
     if (constructor->IsConstructor()) {
@@ -4565,7 +4566,7 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
   }
   dependent_code()->DeoptimizeDependentCodeGroup(
       isolate, DependentCode::kTransitionGroup);
-  NotifyLeafMapLayoutChange();
+  NotifyLeafMapLayoutChange(isolate);
 }
 
 
@@ -4921,11 +4922,11 @@ Maybe<bool> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
                                             should_throw, value);
 }
 
-MaybeHandle<Object> Object::SetProperty(Handle<Object> object,
+MaybeHandle<Object> Object::SetProperty(Isolate* isolate, Handle<Object> object,
                                         Handle<Name> name, Handle<Object> value,
                                         LanguageMode language_mode,
                                         StoreFromKeyed store_mode) {
-  LookupIterator it(object, name);
+  LookupIterator it(isolate, object, name);
   MAYBE_RETURN_NULL(SetProperty(&it, value, language_mode, store_mode));
   return value;
 }
@@ -5094,7 +5095,7 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
   LookupIterator::Configuration c = LookupIterator::OWN;
   LookupIterator own_lookup =
       it->IsElement() ? LookupIterator(isolate, receiver, it->index(), c)
-                      : LookupIterator(receiver, it->name(), c);
+                      : LookupIterator(isolate, receiver, it->name(), c);
 
   for (; own_lookup.IsFound(); own_lookup.Next()) {
     switch (own_lookup.state()) {
@@ -8552,7 +8553,7 @@ bool JSObject::IsExtensible(Handle<JSObject> object) {
 namespace {
 
 template <typename Dictionary>
-void ApplyAttributesToDictionary(ReadOnlyRoots roots,
+void ApplyAttributesToDictionary(Isolate* isolate, ReadOnlyRoots roots,
                                  Handle<Dictionary> dictionary,
                                  const PropertyAttributes attributes) {
   int capacity = dictionary->Capacity();
@@ -8568,7 +8569,7 @@ void ApplyAttributesToDictionary(ReadOnlyRoots roots,
       if (v->IsAccessorPair()) attrs &= ~READ_ONLY;
     }
     details = details.CopyAddAttributes(static_cast<PropertyAttributes>(attrs));
-    dictionary->DetailsAtPut(i, details);
+    dictionary->DetailsAtPut(isolate, i, details);
   }
 }
 
@@ -8684,11 +8685,11 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
       if (object->IsJSGlobalObject()) {
         Handle<GlobalDictionary> dictionary(
             JSGlobalObject::cast(*object)->global_dictionary(), isolate);
-        ApplyAttributesToDictionary(roots, dictionary, attrs);
+        ApplyAttributesToDictionary(isolate, roots, dictionary, attrs);
       } else {
         Handle<NameDictionary> dictionary(object->property_dictionary(),
                                           isolate);
-        ApplyAttributesToDictionary(roots, dictionary, attrs);
+        ApplyAttributesToDictionary(isolate, roots, dictionary, attrs);
       }
     }
   }
@@ -8717,7 +8718,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     // Make sure we never go back to the fast case
     object->RequireSlowElements(*dictionary);
     if (attrs != NONE) {
-      ApplyAttributesToDictionary(ReadOnlyRoots(isolate), dictionary, attrs);
+      ApplyAttributesToDictionary(isolate, ReadOnlyRoots(isolate), dictionary,
+                                  attrs);
     }
   }
 
@@ -8955,7 +8957,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that
       // the object has a simple shape, and that the key is a name.
-      LookupIterator it(object, next_key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+      LookupIterator it(isolate, object, next_key,
+                        LookupIterator::OWN_SKIP_INTERCEPTOR);
       if (!it.IsFound()) continue;
       DCHECK(it.state() == LookupIterator::DATA ||
              it.state() == LookupIterator::ACCESSOR);
@@ -9061,12 +9064,12 @@ Handle<FixedArray> JSReceiver::GetOwnElementIndices(Isolate* isolate,
   return keys;
 }
 
-bool Map::DictionaryElementsInPrototypeChainOnly() {
+bool Map::DictionaryElementsInPrototypeChainOnly(Isolate* isolate) {
   if (IsDictionaryElementsKind(elements_kind())) {
     return false;
   }
 
-  for (PrototypeIterator iter(this); !iter.IsAtEnd(); iter.Advance()) {
+  for (PrototypeIterator iter(isolate, this); !iter.IsAtEnd(); iter.Advance()) {
     // Be conservative, don't walk into proxies.
     if (iter.GetCurrent()->IsJSProxy()) return true;
     // String wrappers have non-configurable, non-writable elements.
@@ -9307,7 +9310,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
       LOG(isolate, MapEvent("Normalize", *fast_map, *new_map, reason));
     }
   }
-  fast_map->NotifyLeafMapLayoutChange();
+  fast_map->NotifyLeafMapLayoutChange(isolate);
   return new_map;
 }
 
@@ -9417,7 +9420,7 @@ Handle<Map> Map::CopyDropDescriptors(Isolate* isolate, Handle<Map> map) {
   if (map->IsJSObjectMap()) {
     result->CopyUnusedPropertyFields(*map);
   }
-  map->NotifyLeafMapLayoutChange();
+  map->NotifyLeafMapLayoutChange(isolate);
   return result;
 }
 
@@ -9587,7 +9590,7 @@ Handle<Map> Map::AddMissingTransitions(
                        full_layout_descriptor);
     map = new_map;
   }
-  map->NotifyLeafMapLayoutChange();
+  map->NotifyLeafMapLayoutChange(isolate);
   last_map->set_may_have_interesting_symbols(false);
   InstallDescriptors(isolate, map, last_map, nof_descriptors - 1, descriptors,
                      full_layout_descriptor);
@@ -9700,7 +9703,7 @@ Handle<Map> Map::AsLanguageMode(Isolate* isolate, Handle<Map> initial_map,
   if (maybe_transition != nullptr) {
     return handle(maybe_transition, isolate);
   }
-  initial_map->NotifyLeafMapLayoutChange();
+  initial_map->NotifyLeafMapLayoutChange(isolate);
 
   // Create new map taking descriptors from the |function_map| and all
   // the other details from the |initial_map|.
@@ -9879,9 +9882,10 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                                           PropertyConstness constness,
                                           StoreFromKeyed store_mode) {
   RuntimeCallTimerScope stats_scope(
-      *map, map->is_prototype_map()
-                ? RuntimeCallCounterId::kPrototypeMap_TransitionToDataProperty
-                : RuntimeCallCounterId::kMap_TransitionToDataProperty);
+      isolate, *map,
+      map->is_prototype_map()
+          ? RuntimeCallCounterId::kPrototypeMap_TransitionToDataProperty
+          : RuntimeCallCounterId::kMap_TransitionToDataProperty);
 
   DCHECK(name->IsUniqueName());
   DCHECK(!map->is_dictionary_map());
@@ -12713,7 +12717,7 @@ void JSObject::LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
   Handle<Map> current_user = user;
   Handle<PrototypeInfo> current_user_info =
       Map::GetOrCreatePrototypeInfo(user, isolate);
-  for (PrototypeIterator iter(user); !iter.IsAtEnd(); iter.Advance()) {
+  for (PrototypeIterator iter(isolate, user); !iter.IsAtEnd(); iter.Advance()) {
     // Walk up the prototype chain as far as links haven't been registered yet.
     if (current_user_info->registry_slot() != PrototypeInfo::UNREGISTERED) {
       break;
@@ -12960,7 +12964,7 @@ Handle<WeakCell> Map::GetOrCreatePrototypeWeakCell(Handle<JSReceiver> prototype,
 void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
                        Handle<Object> prototype,
                        bool enable_prototype_setup_mode) {
-  RuntimeCallTimerScope stats_scope(*map,
+  RuntimeCallTimerScope stats_scope(isolate, *map,
                                     RuntimeCallCounterId::kMap_SetPrototype);
 
   bool is_hidden = false;
@@ -16379,7 +16383,7 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
           Handle<JSReceiver>::cast(resolution), isolate->native_context());
   if (isolate->debug()->is_active() && resolution->IsJSPromise()) {
     // Mark the dependency of the new {promise} on the {resolution}.
-    Object::SetProperty(resolution,
+    Object::SetProperty(isolate, resolution,
                         isolate->factory()->promise_handled_by_symbol(),
                         promise, LanguageMode::kStrict)
         .Check();
@@ -16626,7 +16630,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
     // Map has changed, so use generic, but slower, method.
     RETURN_ON_EXCEPTION(
         isolate,
-        JSReceiver::SetProperty(regexp, factory->lastIndex_string(),
+        JSReceiver::SetProperty(isolate, regexp, factory->lastIndex_string(),
                                 Handle<Smi>(Smi::kZero, isolate),
                                 LanguageMode::kStrict),
         JSRegExp);
@@ -17084,7 +17088,7 @@ void JSGlobalObject::InvalidatePropertyCell(Handle<JSGlobalObject> global,
 
   DCHECK(!global->HasFastProperties());
   auto dictionary = handle(global->global_dictionary(), global->GetIsolate());
-  int entry = dictionary->FindEntry(name);
+  int entry = dictionary->FindEntry(global->GetIsolate(), name);
   if (entry == GlobalDictionary::kNotFound) return;
   PropertyCell::InvalidateEntry(global->GetIsolate(), dictionary, entry);
 }
@@ -17095,7 +17099,7 @@ Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
   Isolate* isolate = global->GetIsolate();
   DCHECK(!global->HasFastProperties());
   Handle<GlobalDictionary> dictionary(global->global_dictionary(), isolate);
-  int entry = dictionary->FindEntry(name);
+  int entry = dictionary->FindEntry(isolate, name);
   Handle<PropertyCell> cell;
   if (entry != GlobalDictionary::kNotFound) {
     if (entry_out) *entry_out = entry;
@@ -17183,7 +17187,7 @@ MaybeHandle<String> StringTable::LookupTwoCharsStringIfExists(
     uint16_t c2) {
   TwoCharHashTableKey key(c1, c2, isolate->heap()->HashSeed());
   Handle<StringTable> string_table = isolate->factory()->string_table();
-  int entry = string_table->FindEntry(&key);
+  int entry = string_table->FindEntry(isolate, &key);
   if (entry == kNotFound) return MaybeHandle<String>();
 
   Handle<String> result(String::cast(string_table->KeyAt(entry)), isolate);
@@ -17295,7 +17299,7 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
 // static
 Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
   Handle<StringTable> table = isolate->factory()->string_table();
-  int entry = table->FindEntry(key);
+  int entry = table->FindEntry(isolate, key);
 
   // String already in table.
   if (entry != kNotFound) {
@@ -17320,7 +17324,7 @@ Handle<String> StringTable::AddKeyNoResize(Isolate* isolate,
   // InvalidStringLength error.
   CHECK(!string.is_null());
   DCHECK(string->HasHashCode());
-  DCHECK_EQ(table->FindEntry(key), kNotFound);
+  DCHECK_EQ(table->FindEntry(isolate, key), kNotFound);
 
   // Add the new string and return it along with the string table.
   int entry = table->FindInsertionEntry(key->Hash());
@@ -17533,7 +17537,7 @@ Handle<StringSet> StringSet::New(Isolate* isolate) {
 
 Handle<StringSet> StringSet::Add(Isolate* isolate, Handle<StringSet> stringset,
                                  Handle<String> name) {
-  if (!stringset->Has(name)) {
+  if (!stringset->Has(isolate, name)) {
     stringset = EnsureCapacity(isolate, stringset, 1);
     uint32_t hash = ShapeT::Hash(isolate, *name);
     int entry = stringset->FindInsertionEntry(hash);
@@ -17543,8 +17547,8 @@ Handle<StringSet> StringSet::Add(Isolate* isolate, Handle<StringSet> stringset,
   return stringset;
 }
 
-bool StringSet::Has(Handle<String> name) {
-  return FindEntry(*name) != kNotFound;
+bool StringSet::Has(Isolate* isolate, Handle<String> name) {
+  return FindEntry(isolate, *name) != kNotFound;
 }
 
 Handle<ObjectHashSet> ObjectHashSet::Add(Isolate* isolate,
@@ -17565,7 +17569,7 @@ Handle<Object> CompilationCacheTable::Lookup(Handle<String> src,
                                              LanguageMode language_mode) {
   Isolate* isolate = GetIsolate();
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
-  int entry = FindEntry(&key);
+  int entry = FindEntry(isolate, &key);
   if (entry == kNotFound) return isolate->factory()->undefined_value();
   int index = EntryToIndex(entry);
   if (!get(index)->IsFixedArray()) return isolate->factory()->undefined_value();
@@ -17691,7 +17695,7 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheTable::LookupScript(
   Handle<SharedFunctionInfo> shared(native_context->empty_function()->shared(),
                                     native_context->GetIsolate());
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
-  int entry = FindEntry(&key);
+  int entry = FindEntry(GetIsolate(), &key);
   if (entry == kNotFound) return MaybeHandle<SharedFunctionInfo>();
   int index = EntryToIndex(entry);
   if (!get(index)->IsFixedArray()) return MaybeHandle<SharedFunctionInfo>();
@@ -17707,7 +17711,7 @@ InfoCellPair CompilationCacheTable::LookupEval(
     Handle<Context> native_context, LanguageMode language_mode, int position) {
   InfoCellPair empty_result;
   StringSharedKey key(src, outer_info, language_mode, position);
-  int entry = FindEntry(&key);
+  int entry = FindEntry(GetIsolate(), &key);
   if (entry == kNotFound) return empty_result;
   int index = EntryToIndex(entry);
   if (!get(index)->IsFixedArray()) return empty_result;
@@ -17725,7 +17729,7 @@ Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
   Isolate* isolate = GetIsolate();
   DisallowHeapAllocation no_allocation;
   RegExpKey key(src, flags);
-  int entry = FindEntry(&key);
+  int entry = FindEntry(isolate, &key);
   if (entry == kNotFound) return isolate->factory()->undefined_value();
   return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
 }
@@ -17771,7 +17775,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
   StringSharedKey key(src, outer_info, value->language_mode(), position);
   {
     Handle<Object> k = key.AsHandle(isolate);
-    int entry = cache->FindEntry(&key);
+    int entry = cache->FindEntry(isolate, &key);
     if (entry != kNotFound) {
       cache->set(EntryToIndex(entry), *k);
       cache->set(EntryToIndex(entry) + 1, *value);
@@ -17889,7 +17893,7 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::EnsureCapacity(
 
       PropertyDetails details = dictionary->DetailsAt(index);
       PropertyDetails new_details = details.set_index(enum_index);
-      dictionary->DetailsAtPut(index, new_details);
+      dictionary->DetailsAtPut(isolate, index, new_details);
     }
 
     // Set the next enumeration index.
@@ -17904,7 +17908,7 @@ Handle<Derived> Dictionary<Derived, Shape>::DeleteEntry(
     Isolate* isolate, Handle<Derived> dictionary, int entry) {
   DCHECK(Shape::kEntrySize != 3 ||
          dictionary->DetailsAt(entry).IsConfigurable());
-  dictionary->ClearEntry(entry);
+  dictionary->ClearEntry(isolate, entry);
   dictionary->ElementRemoved();
   return Shrink(isolate, dictionary);
 }
@@ -17914,7 +17918,7 @@ Handle<Derived> Dictionary<Derived, Shape>::AtPut(Isolate* isolate,
                                                   Handle<Derived> dictionary,
                                                   Key key, Handle<Object> value,
                                                   PropertyDetails details) {
-  int entry = dictionary->FindEntry(key);
+  int entry = dictionary->FindEntry(isolate, key);
 
   // If the entry is present set the value;
   if (entry == Dictionary::kNotFound) {
@@ -17923,7 +17927,7 @@ Handle<Derived> Dictionary<Derived, Shape>::AtPut(Isolate* isolate,
 
   // We don't need to copy over the enumeration index.
   dictionary->ValueAtPut(entry, *value);
-  if (Shape::kEntrySize == 3) dictionary->DetailsAtPut(entry, details);
+  if (Shape::kEntrySize == 3) dictionary->DetailsAtPut(isolate, entry, details);
   return dictionary;
 }
 
@@ -17968,7 +17972,7 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Isolate* isolate,
                                                 int* entry_out) {
   uint32_t hash = Shape::Hash(isolate, key);
   // Valdate key is absent.
-  SLOW_DCHECK((dictionary->FindEntry(key) == Dictionary::kNotFound));
+  SLOW_DCHECK((dictionary->FindEntry(isolate, key) == Dictionary::kNotFound));
   // Check whether the dictionary should be extended.
   dictionary = Derived::EnsureCapacity(isolate, dictionary, 1);
 
@@ -17976,7 +17980,7 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Isolate* isolate,
   Handle<Object> k = Shape::AsHandle(isolate, key);
 
   uint32_t entry = dictionary->FindInsertionEntry(hash);
-  dictionary->SetEntry(entry, *k, *value, details);
+  dictionary->SetEntry(isolate, entry, *k, *value, details);
   DCHECK(dictionary->KeyAt(entry)->IsNumber() ||
          Shape::Unwrap(dictionary->KeyAt(entry))->IsUniqueName());
   dictionary->ElementAdded();

@@ -291,7 +291,7 @@ MaybeHandle<JSObject> ProbeInstantiationsCache(Isolate* isolate,
               TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
     Handle<SimpleNumberDictionary> slow_cache =
         isolate->slow_template_instantiations_cache();
-    int entry = slow_cache->FindEntry(serial_number);
+    int entry = slow_cache->FindEntry(isolate, serial_number);
     if (entry == SimpleNumberDictionary::kNotFound) {
       return MaybeHandle<JSObject>();
     }
@@ -341,7 +341,7 @@ void UncacheTemplateInstantiation(Isolate* isolate, int serial_number,
               TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
     Handle<SimpleNumberDictionary> cache =
         isolate->slow_template_instantiations_cache();
-    int entry = cache->FindEntry(serial_number);
+    int entry = cache->FindEntry(isolate, serial_number);
     DCHECK_NE(SimpleNumberDictionary::kNotFound, entry);
     cache = SimpleNumberDictionary::DeleteEntry(isolate, cache, entry);
     isolate->native_context()->set_slow_template_instantiations_cache(*cache);

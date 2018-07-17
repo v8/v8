@@ -2581,7 +2581,8 @@ THREADED_TEST(AccessorIsPreservedOnAttributeChange) {
   CHECK_EQ(0, a->map()->instance_descriptors()->number_of_descriptors());
   // But we should still have an AccessorInfo.
   i::Handle<i::String> name(v8::Utils::OpenHandle(*v8_str("length")));
-  i::LookupIterator it(a, name, i::LookupIterator::OWN_SKIP_INTERCEPTOR);
+  i::LookupIterator it(CcTest::i_isolate(), a, name,
+                       i::LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_EQ(i::LookupIterator::ACCESSOR, it.state());
   CHECK(it.GetAccessors()->IsAccessorInfo());
 }

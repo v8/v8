@@ -383,7 +383,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     }
 #endif
     if (*target_map_ != *old_map_) {
-      old_map_->NotifyLeafMapLayoutChange();
+      old_map_->NotifyLeafMapLayoutChange(isolate_);
     }
     result_map_ = target_map_;
     state_ = kEnd;
@@ -655,7 +655,7 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
     return CopyGeneralizeAllFields("GenAll_CantHaveMoreTransitions");
   }
 
-  old_map_->NotifyLeafMapLayoutChange();
+  old_map_->NotifyLeafMapLayoutChange(isolate_);
 
   if (FLAG_trace_generalization && modified_descriptor_ >= 0) {
     PropertyDetails old_details =

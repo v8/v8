@@ -52,7 +52,7 @@ Object* DeclareGlobal(
   Handle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table(), isolate);
   ScriptContextTable::LookupResult lookup;
-  if (ScriptContextTable::Lookup(script_contexts, name, &lookup) &&
+  if (ScriptContextTable::Lookup(isolate, script_contexts, name, &lookup) &&
       IsLexicalVariableMode(lookup.mode)) {
     // ES#sec-globaldeclarationinstantiation 6.a:
     // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
@@ -634,7 +634,7 @@ static Object* FindNameClash(Isolate* isolate, Handle<ScopeInfo> scope_info,
     Handle<String> name(scope_info->ContextLocalName(var), isolate);
     VariableMode mode = scope_info->ContextLocalMode(var);
     ScriptContextTable::LookupResult lookup;
-    if (ScriptContextTable::Lookup(script_context, name, &lookup)) {
+    if (ScriptContextTable::Lookup(isolate, script_context, name, &lookup)) {
       if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
         // ES#sec-globaldeclarationinstantiation 5.b:
         // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
@@ -831,8 +831,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
     // GetProperty function.
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, value, Object::GetProperty(holder, name),
-        Object);
+        isolate, value, Object::GetProperty(isolate, holder, name), Object);
     if (receiver_return) {
       *receiver_return =
           (holder->IsJSGlobalObject() || holder->IsJSContextExtensionObject())
@@ -949,8 +948,8 @@ MaybeHandle<Object> StoreLookupSlot(
   }
 
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, value, Object::SetProperty(object, name, value, language_mode),
-      Object);
+      isolate, value,
+      Object::SetProperty(isolate, object, name, value, language_mode), Object);
   return value;
 }
 

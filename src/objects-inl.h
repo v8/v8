@@ -517,7 +517,7 @@ bool HeapObject::IsStringSet() const { return IsHashTable(); }
 bool HeapObject::IsObjectHashSet() const { return IsHashTable(); }
 
 bool HeapObject::IsNormalizedMapCache() const {
-  return NormalizedMapCache::IsNormalizedMapCache(GetIsolate(), this);
+  return NormalizedMapCache::IsNormalizedMapCache(this);
 }
 
 bool HeapObject::IsCompilationCacheTable() const { return IsHashTable(); }
@@ -853,9 +853,9 @@ MaybeHandle<Object> Object::ToIndex(Isolate* isolate, Handle<Object> input,
   return ConvertToIndex(isolate, input, error_index);
 }
 
-MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
+MaybeHandle<Object> Object::GetProperty(Isolate* isolate, Handle<Object> object,
                                         Handle<Name> name) {
-  LookupIterator it(object, name);
+  LookupIterator it(isolate, object, name);
   if (!it.IsFound()) return it.factory()->undefined_value();
   return GetProperty(&it);
 }
@@ -3120,14 +3120,15 @@ bool AccessorPair::IsJSAccessor(Object* obj) {
 }
 
 template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::ClearEntry(int entry) {
+void Dictionary<Derived, Shape>::ClearEntry(Isolate* isolate, int entry) {
   Object* the_hole = this->GetReadOnlyRoots().the_hole_value();
   PropertyDetails details = PropertyDetails::Empty();
-  Derived::cast(this)->SetEntry(entry, the_hole, the_hole, details);
+  Derived::cast(this)->SetEntry(isolate, entry, the_hole, the_hole, details);
 }
 
 template <typename Derived, typename Shape>
-void Dictionary<Derived, Shape>::SetEntry(int entry, Object* key, Object* value,
+void Dictionary<Derived, Shape>::SetEntry(Isolate* isolate, int entry,
+                                          Object* key, Object* value,
                                           PropertyDetails details) {
   DCHECK(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
   DCHECK(!key->IsName() || details.dictionary_index() > 0);
@@ -3136,7 +3137,7 @@ void Dictionary<Derived, Shape>::SetEntry(int entry, Object* key, Object* value,
   WriteBarrierMode mode = this->GetWriteBarrierMode(no_gc);
   this->set(index + Derived::kEntryKeyIndex, key, mode);
   this->set(index + Derived::kEntryValueIndex, value, mode);
-  if (Shape::kHasDetails) DetailsAtPut(entry, details);
+  if (Shape::kHasDetails) DetailsAtPut(isolate, entry, details);
 }
 
 Object* GlobalDictionaryShape::Unwrap(Object* object) {
@@ -3170,11 +3171,11 @@ bool GlobalDictionaryShape::IsKey(ReadOnlyRoots roots, Object* k) {
 Name* GlobalDictionary::NameAt(int entry) { return CellAt(entry)->name(); }
 Object* GlobalDictionary::ValueAt(int entry) { return CellAt(entry)->value(); }
 
-void GlobalDictionary::SetEntry(int entry, Object* key, Object* value,
-                                PropertyDetails details) {
+void GlobalDictionary::SetEntry(Isolate* isolate, int entry, Object* key,
+                                Object* value, PropertyDetails details) {
   DCHECK_EQ(key, PropertyCell::cast(value)->name());
   set(EntryToIndex(entry) + kEntryKeyIndex, value);
-  DetailsAtPut(entry, details);
+  DetailsAtPut(isolate, entry, details);
 }
 
 void GlobalDictionary::ValueAtPut(int entry, Object* value) {
@@ -3246,15 +3247,14 @@ PropertyDetails GlobalDictionaryShape::DetailsAt(Dictionary* dict, int entry) {
   return dict->CellAt(entry)->property_details();
 }
 
-
 template <typename Dictionary>
-void GlobalDictionaryShape::DetailsAtPut(Dictionary* dict, int entry,
-                                         PropertyDetails value) {
+void GlobalDictionaryShape::DetailsAtPut(Isolate* isolate, Dictionary* dict,
+                                         int entry, PropertyDetails value) {
   DCHECK_LE(0, entry);  // Not found is -1, which is not caught by get().
   PropertyCell* cell = dict->CellAt(entry);
   if (cell->property_details().IsReadOnly() != value.IsReadOnly()) {
     cell->dependent_code()->DeoptimizeDependentCodeGroup(
-        cell->GetIsolate(), DependentCode::kPropertyCellChangedGroup);
+        isolate, DependentCode::kPropertyCellChangedGroup);
   }
   cell->set_property_details(value);
 }

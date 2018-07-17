@@ -138,7 +138,7 @@ class FixedArrayBuilder {
     return (length >= required_length);
   }
 
-  void EnsureCapacity(int elements) {
+  void EnsureCapacity(Isolate* isolate, int elements) {
     int length = array_->length();
     int required_length = length_ + elements;
     if (length < required_length) {
@@ -147,7 +147,7 @@ class FixedArrayBuilder {
         new_length *= 2;
       } while (new_length < required_length);
       Handle<FixedArray> extended_array =
-          array_->GetIsolate()->factory()->NewFixedArrayWithHoles(new_length);
+          isolate->factory()->NewFixedArrayWithHoles(new_length);
       array_->CopyTo(0, *extended_array, 0, length_);
       array_ = extended_array;
     }
@@ -218,9 +218,9 @@ class ReplacementStringBuilder {
     }
   }
 
-
-  void EnsureCapacity(int elements) { array_builder_.EnsureCapacity(elements); }
-
+  void EnsureCapacity(int elements) {
+    array_builder_.EnsureCapacity(heap_->isolate(), elements);
+  }
 
   void AddSubjectSlice(int from, int to) {
     AddSubjectSlice(&array_builder_, from, to);

@@ -3937,7 +3937,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
                         iterator_prototype, NONE);
 
   {
-    PrototypeIterator iter(native_context->generator_function_map());
+    PrototypeIterator iter(isolate, native_context->generator_function_map());
     Handle<JSObject> generator_function_prototype(iter.GetCurrent<JSObject>(),
                                                   isolate);
 
@@ -3970,7 +3970,8 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
   }
 
   {
-    PrototypeIterator iter(native_context->async_generator_function_map());
+    PrototypeIterator iter(isolate,
+                           native_context->async_generator_function_map());
     Handle<JSObject> async_generator_function_prototype(
         iter.GetCurrent<JSObject>(), isolate);
 
@@ -4075,7 +4076,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
 
   {  // -- A s y n c F u n c t i o n
     // Builtin functions for AsyncFunction.
-    PrototypeIterator iter(native_context->async_function_map());
+    PrototypeIterator iter(isolate, native_context->async_function_map());
     Handle<JSObject> async_function_prototype(iter.GetCurrent<JSObject>(),
                                               isolate);
 
@@ -5413,7 +5414,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         } else {
           DCHECK_EQ(kAccessor, details.kind());
           Handle<Name> key(descs->GetKey(i), isolate());
-          LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+          LookupIterator it(isolate(), to, key,
+                            LookupIterator::OWN_SKIP_INTERCEPTOR);
           CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
           // If the property is already there we skip it
           if (it.IsFound()) continue;
@@ -5438,7 +5440,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       // If the property is already there we skip it.
       Handle<PropertyCell> cell(properties->CellAt(index), isolate());
       Handle<Name> key(cell->name(), isolate());
-      LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+      LookupIterator it(isolate(), to, key,
+                        LookupIterator::OWN_SKIP_INTERCEPTOR);
       CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
       if (it.IsFound()) continue;
       // Set the property.
@@ -5462,7 +5465,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       DCHECK(raw_key->IsName());
       // If the property is already there we skip it.
       Handle<Name> key(Name::cast(raw_key), isolate());
-      LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+      LookupIterator it(isolate(), to, key,
+                        LookupIterator::OWN_SKIP_INTERCEPTOR);
       CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
       if (it.IsFound()) continue;
       // Set the property.

@@ -913,8 +913,8 @@ BUILTIN(DatePrototypeToJson) {
     Handle<String> name =
         isolate->factory()->NewStringFromAsciiChecked("toISOString");
     Handle<Object> function;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, function,
-                                       Object::GetProperty(receiver_obj, name));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, function, Object::GetProperty(isolate, receiver_obj, name));
     if (!function->IsCallable()) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError(MessageTemplate::kCalledNonCallable, name));
