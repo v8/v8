@@ -2517,8 +2517,8 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
       source->host_defined_options);
   i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
       i::Compiler::GetSharedFunctionInfoForScript(
-          str, script_details, source->resource_options, nullptr, script_data,
-          options, no_cache_reason, i::NOT_NATIVES_CODE);
+          isolate, str, script_details, source->resource_options, nullptr,
+          script_data, options, no_cache_reason, i::NOT_NATIVES_CODE);
   if (options == kConsumeCodeCache) {
     source->cached_data->rejected = script_data->rejected();
   }
@@ -2726,7 +2726,7 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
 
   i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
       i::Compiler::GetSharedFunctionInfoForStreamedScript(
-          str, script_details, origin.Options(), streaming_data);
+          isolate, str, script_details, origin.Options(), streaming_data);
 
   i::Handle<i::SharedFunctionInfo> result;
   has_pending_exception = !maybe_function_info.ToHandle(&result);
@@ -5601,7 +5601,9 @@ bool String::ContainsOnlyOneByte() const {
 }
 
 int String::Utf8Length() const {
+  DISABLE_DEPRECATED_WARNINGS
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  RESET_DEPRECATED_WARNINGS
   return Utf8Length(reinterpret_cast<Isolate*>(isolate));
 }
 
@@ -9761,7 +9763,7 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
     i::ScriptData* script_data = nullptr;
     i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
         i::Compiler::GetSharedFunctionInfoForScript(
-            str, i::Compiler::ScriptDetails(), origin_options, nullptr,
+            isolate, str, i::Compiler::ScriptDetails(), origin_options, nullptr,
             script_data, ScriptCompiler::kNoCompileOptions,
             ScriptCompiler::kNoCacheBecauseInspector,
             i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE

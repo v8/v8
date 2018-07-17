@@ -31,8 +31,8 @@ class Descriptor final BASE_EMBEDDED {
 
   void SetSortedKeyIndex(int index) { details_ = details_.set_pointer(index); }
 
-  static Descriptor DataField(Handle<Name> key, int field_index,
-                              PropertyAttributes attributes,
+  static Descriptor DataField(Isolate* isolate, Handle<Name> key,
+                              int field_index, PropertyAttributes attributes,
                               Representation representation);
 
   static Descriptor DataField(Handle<Name> key, int field_index,
@@ -48,8 +48,8 @@ class Descriptor final BASE_EMBEDDED {
                       value->OptimalRepresentation(), 0);
   }
 
-  static Descriptor DataConstant(Handle<Name> key, int field_index,
-                                 Handle<Object> value,
+  static Descriptor DataConstant(Isolate* isolate, Handle<Name> key,
+                                 int field_index, Handle<Object> value,
                                  PropertyAttributes attributes);
 
   static Descriptor AccessorConstant(Handle<Name> key, Handle<Object> foreign,

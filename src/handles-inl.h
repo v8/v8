@@ -78,6 +78,10 @@ MaybeObjectHandle MaybeObjectHandle::Weak(Handle<Object> object) {
   return MaybeObjectHandle(object, HeapObjectReferenceType::WEAK);
 }
 
+MaybeObjectHandle MaybeObjectHandle::Weak(Object* object, Isolate* isolate) {
+  return MaybeObjectHandle(object, HeapObjectReferenceType::WEAK, isolate);
+}
+
 MaybeObject* MaybeObjectHandle::operator*() const {
   if (reference_type_ == HeapObjectReferenceType::WEAK) {
     return HeapObjectReference::Weak(*handle_.ToHandleChecked());

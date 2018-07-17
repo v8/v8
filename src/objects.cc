@@ -3852,9 +3852,9 @@ Handle<Context> JSReceiver::GetCreationContext() {
 }
 
 // static
-MaybeObjectHandle Map::WrapFieldType(Handle<FieldType> type) {
+MaybeObjectHandle Map::WrapFieldType(Isolate* isolate, Handle<FieldType> type) {
   if (type->IsClass()) {
-    return MaybeObjectHandle::Weak(type->AsClass());
+    return MaybeObjectHandle::Weak(type->AsClass(), isolate);
   }
   return MaybeObjectHandle(type);
 }
@@ -3898,7 +3898,7 @@ MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, Handle<Map> map,
         isolate, map->instance_type(), &constness, &representation, &type);
   }
 
-  MaybeObjectHandle wrapped_type = WrapFieldType(type);
+  MaybeObjectHandle wrapped_type = WrapFieldType(isolate, type);
 
   DCHECK_IMPLIES(!FLAG_track_constant_fields,
                  constness == PropertyConstness::kMutable);
@@ -3926,7 +3926,8 @@ MaybeHandle<Map> Map::CopyWithConstant(Isolate* isolate, Handle<Map> map,
                          PropertyConstness::kConst, representation, flag);
   } else {
     // Allocate new instance descriptors with (name, constant) added.
-    Descriptor d = Descriptor::DataConstant(name, 0, constant, attributes);
+    Descriptor d =
+        Descriptor::DataConstant(isolate, name, 0, constant, attributes);
     Handle<Map> new_map = Map::CopyAddDescriptor(isolate, map, &d, flag);
     return new_map;
   }
@@ -4523,8 +4524,8 @@ Handle<Map> Map::CopyGeneralizeAllFields(Isolate* isolate, Handle<Map> map,
                             ? details.field_index()
                             : new_map->NumberOfFields();
       Descriptor d = Descriptor::DataField(
-          handle(descriptors->GetKey(modify_index), isolate), field_index,
-          attributes, Representation::Tagged());
+          isolate, handle(descriptors->GetKey(modify_index), isolate),
+          field_index, attributes, Representation::Tagged());
       descriptors->Replace(modify_index, &d);
       if (details.location() != kField) {
         new_map->AccountAddedPropertyField();
@@ -4741,7 +4742,7 @@ void Map::GeneralizeField(Isolate* isolate, Handle<Map> map, int modify_index,
   PropertyDetails details = descriptors->GetDetails(modify_index);
   Handle<Name> name(descriptors->GetKey(modify_index), isolate);
 
-  MaybeObjectHandle wrapped_type(WrapFieldType(new_field_type));
+  MaybeObjectHandle wrapped_type(WrapFieldType(isolate, new_field_type));
   field_owner->UpdateFieldType(isolate, modify_index, name, new_constness,
                                new_representation, wrapped_type);
   field_owner->dependent_code()->DeoptimizeDependentCodeGroup(

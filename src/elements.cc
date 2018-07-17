@@ -2945,7 +2945,7 @@ class TypedElementsAccessor
 
   static Handle<Object> GetImpl(Isolate* isolate, FixedArrayBase* backing_store,
                                 uint32_t entry) {
-    return BackingStore::get(BackingStore::cast(backing_store), entry);
+    return BackingStore::get(isolate, BackingStore::cast(backing_store), entry);
   }
 
   static PropertyDetails GetDetailsImpl(JSObject* holder, uint32_t entry) {

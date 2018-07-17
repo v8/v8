@@ -195,7 +195,7 @@ class ObjectHashTableTest: public ObjectHashTable {
   }
 
   int lookup(int key) {
-    Handle<Object> key_obj(Smi::FromInt(key), GetIsolate());
+    Handle<Object> key_obj(Smi::FromInt(key), CcTest::i_isolate());
     return Smi::ToInt(Lookup(key_obj));
   }
 

@@ -1029,7 +1029,7 @@ Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
   Factory* factory = isolate->factory();
   Handle<String> result_string = Object::NoSideEffectsToString(isolate, arg);
   MaybeHandle<String> maybe_result_string = MessageTemplate::FormatMessage(
-      template_index, result_string, factory->empty_string(),
+      isolate, template_index, result_string, factory->empty_string(),
       factory->empty_string());
   if (!maybe_result_string.ToHandle(&result_string)) {
     DCHECK(isolate->has_pending_exception());
@@ -1058,12 +1058,11 @@ const char* MessageTemplate::TemplateString(int template_index) {
   }
 }
 
-
-MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
+MaybeHandle<String> MessageTemplate::FormatMessage(Isolate* isolate,
+                                                   int template_index,
                                                    Handle<String> arg0,
                                                    Handle<String> arg1,
                                                    Handle<String> arg2) {
-  Isolate* isolate = arg0->GetIsolate();
   const char* template_string = TemplateString(template_index);
   if (template_string == nullptr) {
     isolate->ThrowIllegalOperation();
@@ -1228,8 +1227,8 @@ Handle<String> FormatMessage(Isolate* isolate, int template_index,
   isolate->native_context()->IncrementErrorsThrown();
 
   Handle<String> msg;
-  if (!MessageTemplate::FormatMessage(template_index, arg0_str, arg1_str,
-                                      arg2_str)
+  if (!MessageTemplate::FormatMessage(isolate, template_index, arg0_str,
+                                      arg1_str, arg2_str)
            .ToHandle(&msg)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();

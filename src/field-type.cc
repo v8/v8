@@ -49,14 +49,13 @@ FieldType* FieldType::cast(Object* object) {
 
 bool FieldType::IsClass() { return this->IsMap(); }
 
-Handle<i::Map> FieldType::AsClass() {
+Map* FieldType::AsClass() {
   DCHECK(IsClass());
-  i::Map* map = Map::cast(this);
-  return handle(map, map->GetIsolate());
+  return Map::cast(this);
 }
 
 bool FieldType::NowStable() {
-  return !this->IsClass() || this->AsClass()->is_stable();
+  return !this->IsClass() || AsClass()->is_stable();
 }
 
 bool FieldType::NowIs(FieldType* other) {
@@ -78,7 +77,7 @@ void FieldType::PrintTo(std::ostream& os) {
     os << "None";
   } else {
     DCHECK(IsClass());
-    os << "Class(" << static_cast<void*>(*AsClass()) << ")";
+    os << "Class(" << static_cast<void*>(AsClass()) << ")";
   }
 }
 

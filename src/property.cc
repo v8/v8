@@ -22,12 +22,11 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
-                                 PropertyAttributes attributes,
+Descriptor Descriptor::DataField(Isolate* isolate, Handle<Name> key,
+                                 int field_index, PropertyAttributes attributes,
                                  Representation representation) {
   return DataField(key, field_index, attributes, PropertyConstness::kMutable,
-                   representation,
-                   MaybeObjectHandle(FieldType::Any(key->GetIsolate())));
+                   representation, MaybeObjectHandle(FieldType::Any(isolate)));
 }
 
 Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
@@ -41,11 +40,11 @@ Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
   return Descriptor(key, wrapped_field_type, details);
 }
 
-Descriptor Descriptor::DataConstant(Handle<Name> key, int field_index,
-                                    Handle<Object> value,
+Descriptor Descriptor::DataConstant(Isolate* isolate, Handle<Name> key,
+                                    int field_index, Handle<Object> value,
                                     PropertyAttributes attributes) {
   if (FLAG_track_constant_fields) {
-    MaybeObjectHandle any_type(FieldType::Any(), key->GetIsolate());
+    MaybeObjectHandle any_type(FieldType::Any(), isolate);
     return DataField(key, field_index, attributes, PropertyConstness::kConst,
                      Representation::Tagged(), any_type);
 

@@ -34,7 +34,7 @@ class FieldType : public Object {
   bool NowContains(Handle<Object> value) { return NowContains(*value); }
 
   bool IsClass();
-  Handle<i::Map> AsClass();
+  Map* AsClass();
   bool IsNone() { return this == None(); }
   bool IsAny() { return this == Any(); }
   bool NowStable();

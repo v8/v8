@@ -944,9 +944,8 @@ bool CanRestartFrame(Isolate* isolate, Address fp,
   return true;
 }
 
-void TranslateSourcePositionTable(Handle<BytecodeArray> code,
+void TranslateSourcePositionTable(Isolate* isolate, Handle<BytecodeArray> code,
                                   const std::vector<SourceChangeRange>& diffs) {
-  Isolate* isolate = code->GetIsolate();
   SourcePositionTableBuilder builder;
 
   Handle<ByteArray> source_position_table(code->SourcePositionTable(), isolate);
@@ -979,8 +978,8 @@ void UpdatePositions(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
   sfi->SetFunctionTokenPosition(new_function_token_position,
                                 new_start_position);
   if (sfi->HasBytecodeArray()) {
-    TranslateSourcePositionTable(handle(sfi->GetBytecodeArray(), isolate),
-                                 diffs);
+    TranslateSourcePositionTable(
+        isolate, handle(sfi->GetBytecodeArray(), isolate), diffs);
   }
 }
 }  // anonymous namespace

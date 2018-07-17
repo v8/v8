@@ -399,9 +399,9 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               dependencies()->DependOnFieldType(MapRef(js_heap_broker(), map),
                                                 number);
               // Remember the field map, and try to infer a useful type.
-              field_type = Type::For(js_heap_broker(),
-                                     descriptors_field_type->AsClass());
-              field_map = descriptors_field_type->AsClass();
+              Handle<Map> map(descriptors_field_type->AsClass(), isolate());
+              field_type = Type::For(js_heap_broker(), map);
+              field_map = MaybeHandle<Map>(map);
             }
           }
           *access_info = PropertyAccessInfo::DataField(
@@ -703,9 +703,9 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       dependencies()->DependOnFieldType(
           MapRef(js_heap_broker(), transition_map), number);
       // Remember the field map, and try to infer a useful type.
-      field_type =
-          Type::For(js_heap_broker(), descriptors_field_type->AsClass());
-      field_map = descriptors_field_type->AsClass();
+      Handle<Map> map(descriptors_field_type->AsClass(), isolate());
+      field_type = Type::For(js_heap_broker(), map);
+      field_map = MaybeHandle<Map>(map);
     }
   }
   dependencies()->DependOnTransition(MapRef(js_heap_broker(), transition_map));

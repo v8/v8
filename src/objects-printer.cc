@@ -2457,7 +2457,7 @@ extern void _v8_internal_Print_TransitionTree(void* object) {
 #if defined(DEBUG) || defined(OBJECT_PRINT)
     i::DisallowHeapAllocation no_gc;
     i::Map* map = reinterpret_cast<i::Map*>(object);
-    i::TransitionsAccessor transitions(map->GetIsolate(), map, &no_gc);
+    i::TransitionsAccessor transitions(i::Isolate::Current(), map, &no_gc);
     transitions.PrintTransitionTree();
 #endif
   }

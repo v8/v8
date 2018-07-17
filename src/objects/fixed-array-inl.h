@@ -688,9 +688,10 @@ inline uint64_t FixedTypedArray<BigUint64ArrayTraits>::FromHandle(
 }
 
 template <class Traits>
-Handle<Object> FixedTypedArray<Traits>::get(FixedTypedArray<Traits>* array,
+Handle<Object> FixedTypedArray<Traits>::get(Isolate* isolate,
+                                            FixedTypedArray<Traits>* array,
                                             int index) {
-  return Traits::ToHandle(array->GetIsolate(), array->get_scalar(index));
+  return Traits::ToHandle(isolate, array->get_scalar(index));
 }
 
 template <class Traits>

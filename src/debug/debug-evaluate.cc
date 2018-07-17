@@ -32,7 +32,8 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   ScriptOriginOptions origin_options(false, true);
   MaybeHandle<SharedFunctionInfo> maybe_function_info =
       Compiler::GetSharedFunctionInfoForScript(
-          source, Compiler::ScriptDetails(isolate->factory()->empty_string()),
+          isolate, source,
+          Compiler::ScriptDetails(isolate->factory()->empty_string()),
           origin_options, nullptr, nullptr, ScriptCompiler::kNoCompileOptions,
           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE);
 

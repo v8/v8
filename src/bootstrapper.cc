@@ -1104,15 +1104,15 @@ void Genesis::CreateJSProxyMaps() {
     Map::EnsureDescriptorSlack(isolate_, map, 2);
 
     {  // proxy
-      Descriptor d = Descriptor::DataField(factory()->proxy_string(),
+      Descriptor d = Descriptor::DataField(isolate(), factory()->proxy_string(),
                                            JSProxyRevocableResult::kProxyIndex,
                                            NONE, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // revoke
-      Descriptor d = Descriptor::DataField(factory()->revoke_string(),
-                                           JSProxyRevocableResult::kRevokeIndex,
-                                           NONE, Representation::Tagged());
+      Descriptor d = Descriptor::DataField(
+          isolate(), factory()->revoke_string(),
+          JSProxyRevocableResult::kRevokeIndex, NONE, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
 
@@ -2611,7 +2611,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // ECMA-262, section 15.10.7.5.
     PropertyAttributes writable =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-    Descriptor d = Descriptor::DataField(factory->lastIndex_string(),
+    Descriptor d = Descriptor::DataField(isolate(), factory->lastIndex_string(),
                                          JSRegExp::kLastIndexFieldIndex,
                                          writable, Representation::Tagged());
     initial_map->AppendDescriptor(&d);
@@ -3324,7 +3324,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       PropertyAttributes attribs =
           static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY);
       Descriptor d =
-          Descriptor::DataField(factory->to_string_tag_symbol(),
+          Descriptor::DataField(isolate(), factory->to_string_tag_symbol(),
                                 JSModuleNamespace::kToStringTagFieldIndex,
                                 attribs, Representation::Tagged());
       map->AppendDescriptor(&d);
@@ -3338,14 +3338,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Map::EnsureDescriptorSlack(isolate_, map, 2);
 
     {  // value
-      Descriptor d = Descriptor::DataField(factory->value_string(),
+      Descriptor d = Descriptor::DataField(isolate(), factory->value_string(),
                                            JSIteratorResult::kValueIndex, NONE,
                                            Representation::Tagged());
       map->AppendDescriptor(&d);
     }
 
     {  // done
-      Descriptor d = Descriptor::DataField(factory->done_string(),
+      Descriptor d = Descriptor::DataField(isolate(), factory->done_string(),
                                            JSIteratorResult::kDoneIndex, NONE,
                                            Representation::Tagged());
       map->AppendDescriptor(&d);
@@ -3556,15 +3556,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Map::EnsureDescriptorSlack(isolate_, map, 2);
 
     {  // length
-      Descriptor d = Descriptor::DataField(
-          factory->length_string(), JSSloppyArgumentsObject::kLengthIndex,
-          DONT_ENUM, Representation::Tagged());
+      Descriptor d =
+          Descriptor::DataField(isolate(), factory->length_string(),
+                                JSSloppyArgumentsObject::kLengthIndex,
+                                DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // callee
-      Descriptor d = Descriptor::DataField(
-          factory->callee_string(), JSSloppyArgumentsObject::kCalleeIndex,
-          DONT_ENUM, Representation::Tagged());
+      Descriptor d =
+          Descriptor::DataField(isolate(), factory->callee_string(),
+                                JSSloppyArgumentsObject::kCalleeIndex,
+                                DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     // @@iterator method is added later.
@@ -3608,9 +3610,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Map::EnsureDescriptorSlack(isolate_, map, 2);
 
     {  // length
-      Descriptor d = Descriptor::DataField(
-          factory->length_string(), JSStrictArgumentsObject::kLengthIndex,
-          DONT_ENUM, Representation::Tagged());
+      Descriptor d =
+          Descriptor::DataField(isolate(), factory->length_string(),
+                                JSStrictArgumentsObject::kLengthIndex,
+                                DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // callee
@@ -3763,9 +3766,10 @@ bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
       isolate->factory()->NewStringFromUtf8(name).ToHandleChecked();
   MaybeHandle<SharedFunctionInfo> maybe_function_info =
       Compiler::GetSharedFunctionInfoForScript(
-          source, Compiler::ScriptDetails(script_name), ScriptOriginOptions(),
-          nullptr, nullptr, ScriptCompiler::kNoCompileOptions,
-          ScriptCompiler::kNoCacheNoReason, natives_flag);
+          isolate, source, Compiler::ScriptDetails(script_name),
+          ScriptOriginOptions(), nullptr, nullptr,
+          ScriptCompiler::kNoCompileOptions, ScriptCompiler::kNoCacheNoReason,
+          natives_flag);
   Handle<SharedFunctionInfo> function_info;
   if (!maybe_function_info.ToHandle(&function_info)) return false;
 
@@ -3828,8 +3832,9 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
         factory->NewStringFromUtf8(name).ToHandleChecked();
     MaybeHandle<SharedFunctionInfo> maybe_function_info =
         Compiler::GetSharedFunctionInfoForScript(
-            source, Compiler::ScriptDetails(script_name), ScriptOriginOptions(),
-            extension, nullptr, ScriptCompiler::kNoCompileOptions,
+            isolate, source, Compiler::ScriptDetails(script_name),
+            ScriptOriginOptions(), extension, nullptr,
+            ScriptCompiler::kNoCompileOptions,
             ScriptCompiler::kNoCacheBecauseV8Extension, EXTENSION_CODE);
     if (!maybe_function_info.ToHandle(&function_info)) return false;
     cache->Add(isolate, name, function_info);
@@ -4885,27 +4890,29 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     Map::EnsureDescriptorSlack(isolate(), map, 4);
 
     {  // get
-      Descriptor d = Descriptor::DataField(
-          factory()->get_string(), JSAccessorPropertyDescriptor::kGetIndex,
-          NONE, Representation::Tagged());
+      Descriptor d =
+          Descriptor::DataField(isolate(), factory()->get_string(),
+                                JSAccessorPropertyDescriptor::kGetIndex, NONE,
+                                Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // set
-      Descriptor d = Descriptor::DataField(
-          factory()->set_string(), JSAccessorPropertyDescriptor::kSetIndex,
-          NONE, Representation::Tagged());
+      Descriptor d =
+          Descriptor::DataField(isolate(), factory()->set_string(),
+                                JSAccessorPropertyDescriptor::kSetIndex, NONE,
+                                Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // enumerable
       Descriptor d =
-          Descriptor::DataField(factory()->enumerable_string(),
+          Descriptor::DataField(isolate(), factory()->enumerable_string(),
                                 JSAccessorPropertyDescriptor::kEnumerableIndex,
                                 NONE, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // configurable
       Descriptor d = Descriptor::DataField(
-          factory()->configurable_string(),
+          isolate(), factory()->configurable_string(),
           JSAccessorPropertyDescriptor::kConfigurableIndex, NONE,
           Representation::Tagged());
       map->AppendDescriptor(&d);
@@ -4929,28 +4936,29 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     Map::EnsureDescriptorSlack(isolate(), map, 4);
 
     {  // value
-      Descriptor d = Descriptor::DataField(
-          factory()->value_string(), JSDataPropertyDescriptor::kValueIndex,
-          NONE, Representation::Tagged());
+      Descriptor d =
+          Descriptor::DataField(isolate(), factory()->value_string(),
+                                JSDataPropertyDescriptor::kValueIndex, NONE,
+                                Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // writable
       Descriptor d =
-          Descriptor::DataField(factory()->writable_string(),
+          Descriptor::DataField(isolate(), factory()->writable_string(),
                                 JSDataPropertyDescriptor::kWritableIndex, NONE,
                                 Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // enumerable
       Descriptor d =
-          Descriptor::DataField(factory()->enumerable_string(),
+          Descriptor::DataField(isolate(), factory()->enumerable_string(),
                                 JSDataPropertyDescriptor::kEnumerableIndex,
                                 NONE, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // configurable
       Descriptor d =
-          Descriptor::DataField(factory()->configurable_string(),
+          Descriptor::DataField(isolate(), factory()->configurable_string(),
                                 JSDataPropertyDescriptor::kConfigurableIndex,
                                 NONE, Representation::Tagged());
       map->AppendDescriptor(&d);
@@ -5005,7 +5013,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
     // index descriptor.
     {
-      Descriptor d = Descriptor::DataField(factory()->index_string(),
+      Descriptor d = Descriptor::DataField(isolate(), factory()->index_string(),
                                            JSRegExpResult::kIndexIndex, NONE,
                                            Representation::Tagged());
       initial_map->AppendDescriptor(&d);
@@ -5013,7 +5021,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
     // input descriptor.
     {
-      Descriptor d = Descriptor::DataField(factory()->input_string(),
+      Descriptor d = Descriptor::DataField(isolate(), factory()->input_string(),
                                            JSRegExpResult::kInputIndex, NONE,
                                            Representation::Tagged());
       initial_map->AppendDescriptor(&d);
@@ -5021,9 +5029,9 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
     // groups descriptor.
     {
-      Descriptor d = Descriptor::DataField(factory()->groups_string(),
-                                           JSRegExpResult::kGroupsIndex, NONE,
-                                           Representation::Tagged());
+      Descriptor d = Descriptor::DataField(
+          isolate(), factory()->groups_string(), JSRegExpResult::kGroupsIndex,
+          NONE, Representation::Tagged());
       initial_map->AppendDescriptor(&d);
     }
 
