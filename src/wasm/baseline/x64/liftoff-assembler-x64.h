@@ -1452,7 +1452,18 @@ void LiftoffStackSlots::Construct() {
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack:
-        asm_->pushq(liftoff::GetStackSlot(slot.src_index_));
+        if (src.type() == kWasmI32) {
+          // Load i32 values to a register first to ensure they are zero
+          // extended.
+          asm_->movl(kScratchRegister, liftoff::GetStackSlot(slot.src_index_));
+          asm_->pushq(kScratchRegister);
+        } else {
+          // For all other types, just push the whole (8-byte) stack slot.
+          // This is also ok for f32 values (even though we copy 4 uninitialized
+          // bytes), because f32 and f64 values are clearly distinguished in
+          // Turbofan, so the uninitialized bytes are never accessed.
+          asm_->pushq(liftoff::GetStackSlot(slot.src_index_));
+        }
         break;
       case LiftoffAssembler::VarState::kRegister:
         liftoff::push(asm_, src.reg(), src.type());
