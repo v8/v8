@@ -6,6 +6,7 @@
 #define V8_OBJECTS_PROTOTYPE_INFO_H_
 
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,8 +22,8 @@ class PrototypeInfo : public Struct {
   // [weak_cell]: A WeakCell containing this prototype. ICs cache the cell here.
   DECL_ACCESSORS(weak_cell, Object)
 
-  // [prototype_users]: FixedArrayOfWeakCells containing maps using this
-  // prototype, or Smi(0) if uninitialized.
+  // [prototype_users]: WeakArrayList containing weak references to maps using
+  // this prototype, or Smi(0) if uninitialized.
   DECL_ACCESSORS(prototype_users, Object)
 
   // [object_create_map]: A field caching the map for Object.create(prototype).
@@ -65,6 +66,42 @@ class PrototypeInfo : public Struct {
   DECL_ACCESSORS(object_create_map, MaybeObject)
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeInfo);
+};
+
+// A growing array with an additional API for marking slots "empty". When adding
+// new elements, we reuse the empty slots instead of growing the array.
+class PrototypeUsers : public WeakArrayList {
+ public:
+  static Handle<WeakArrayList> Add(Isolate* isolate,
+                                   Handle<WeakArrayList> array,
+                                   Handle<Map> value, int* assigned_index);
+
+  static inline void MarkSlotEmpty(WeakArrayList* array, int index);
+
+  // The callback is called when a weak pointer to HeapObject "object" is moved
+  // from index "from_index" to index "to_index" during compaction. The callback
+  // must not cause GC.
+  typedef void (*CompactionCallback)(HeapObject* object, int from_index,
+                                     int to_index);
+  static WeakArrayList* Compact(Handle<WeakArrayList> array, Heap* heap,
+                                CompactionCallback callback);
+
+#ifdef VERIFY_HEAP
+  static void Verify(WeakArrayList* array);
+#endif  // VERIFY_HEAP
+
+  static const int kEmptySlotIndex = 0;
+  static const int kFirstIndex = 1;
+
+  static const int kNoEmptySlotsMarker = 0;
+
+ private:
+  static inline Smi* empty_slot_index(WeakArrayList* array);
+  static inline void set_empty_slot_index(WeakArrayList* array, int index);
+
+  static void IsSlotEmpty(WeakArrayList* array, int index);
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeUsers);
 };
 
 }  // namespace internal

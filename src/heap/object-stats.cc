@@ -762,8 +762,8 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map* map) {
     if (map->prototype_info()->IsPrototypeInfo()) {
       PrototypeInfo* info = PrototypeInfo::cast(map->prototype_info());
       Object* users = info->prototype_users();
-      if (users->IsFixedArrayOfWeakCells()) {
-        RecordSimpleVirtualObjectStats(map, FixedArrayOfWeakCells::cast(users),
+      if (users->IsWeakFixedArray()) {
+        RecordSimpleVirtualObjectStats(map, WeakArrayList::cast(users),
                                        ObjectStats::PROTOTYPE_USERS_TYPE);
       }
     }

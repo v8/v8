@@ -5010,19 +5010,28 @@ void CompactFixedArrayOfWeakCells(Isolate* isolate, Object* object) {
 }  // anonymous namespace
 
 void Heap::CompactFixedArraysOfWeakCells() {
-  // Find known FixedArrayOfWeakCells and compact them.
-  HeapIterator iterator(this);
-  for (HeapObject* o = iterator.next(); o != nullptr; o = iterator.next()) {
-    if (o->IsPrototypeInfo()) {
-      Object* prototype_users = PrototypeInfo::cast(o)->prototype_users();
-      if (prototype_users->IsFixedArrayOfWeakCells()) {
-        FixedArrayOfWeakCells* array =
-            FixedArrayOfWeakCells::cast(prototype_users);
-        array->Compact<JSObject::PrototypeRegistryCompactionCallback>(
-            isolate());
+  // Find known PrototypeUsers and compact them.
+  std::vector<Handle<PrototypeInfo>> prototype_infos;
+  {
+    HeapIterator iterator(this);
+    for (HeapObject* o = iterator.next(); o != nullptr; o = iterator.next()) {
+      if (o->IsPrototypeInfo()) {
+        PrototypeInfo* prototype_info = PrototypeInfo::cast(o);
+        if (prototype_info->prototype_users()->IsWeakArrayList()) {
+          prototype_infos.emplace_back(handle(prototype_info, isolate()));
+        }
       }
     }
   }
+  for (auto& prototype_info : prototype_infos) {
+    Handle<WeakArrayList> array(
+        WeakArrayList::cast(prototype_info->prototype_users()), isolate());
+    WeakArrayList* new_array = PrototypeUsers::Compact(
+        array, this, JSObject::PrototypeRegistryCompactionCallback);
+    prototype_info->set_prototype_users(new_array);
+  }
+
+  // Find known FixedArrayOfWeakCells and compact them.
   CompactFixedArrayOfWeakCells(isolate(), noscript_shared_function_infos());
   CompactFixedArrayOfWeakCells(isolate(), script_list());
   CompactFixedArrayOfWeakCells(isolate(), weak_stack_trace_list());

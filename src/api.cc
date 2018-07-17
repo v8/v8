@@ -761,7 +761,10 @@ StartupData SnapshotCreator::CreateBlob(
   // context even after we have disposed of the context.
   isolate->heap()->CollectAllAvailableGarbage(
       i::GarbageCollectionReason::kSnapshotCreator);
-  isolate->heap()->CompactFixedArraysOfWeakCells();
+  {
+    i::HandleScope scope(isolate);
+    isolate->heap()->CompactFixedArraysOfWeakCells();
+  }
 
   isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
 

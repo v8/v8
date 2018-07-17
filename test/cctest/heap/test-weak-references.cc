@@ -578,6 +578,141 @@ TEST(Regress7768) {
   CcTest::CollectAllGarbage();
 }
 
+TEST(PrototypeUsersBasic) {
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  HandleScope outer_scope(isolate);
+
+  Handle<WeakArrayList> array(ReadOnlyRoots(heap).empty_weak_array_list(),
+                              isolate);
+
+  // Add some objects into the array.
+  int index = -1;
+  {
+    Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    array = PrototypeUsers::Add(isolate, array, map, &index);
+    CHECK_EQ(array->length(), index + 1);
+  }
+  CHECK_EQ(index, 1);
+
+  int empty_index = index;
+  PrototypeUsers::MarkSlotEmpty(*array, empty_index);
+
+  // Even though we have an empty slot, we still add to the end.
+  int last_index = index;
+  int old_capacity = array->capacity();
+  while (!array->IsFull()) {
+    Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    array = PrototypeUsers::Add(isolate, array, map, &index);
+    CHECK_EQ(index, last_index + 1);
+    CHECK_EQ(array->length(), index + 1);
+    last_index = index;
+  }
+
+  // The next addition will fill the empty slot.
+  {
+    Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    array = PrototypeUsers::Add(isolate, array, map, &index);
+  }
+  CHECK_EQ(index, empty_index);
+
+  // The next addition will make the arrow grow again.
+  {
+    Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    array = PrototypeUsers::Add(isolate, array, map, &index);
+    CHECK_EQ(array->length(), index + 1);
+    last_index = index;
+  }
+  CHECK_GT(array->capacity(), old_capacity);
+
+  // Make multiple slots empty.
+  int empty_index1 = 1;
+  int empty_index2 = 2;
+  PrototypeUsers::MarkSlotEmpty(*array, empty_index1);
+  PrototypeUsers::MarkSlotEmpty(*array, empty_index2);
+
+  // Fill the array (still adding to the end)
+  old_capacity = array->capacity();
+  while (!array->IsFull()) {
+    Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    array = PrototypeUsers::Add(isolate, array, map, &index);
+    CHECK_EQ(index, last_index + 1);
+    CHECK_EQ(array->length(), index + 1);
+    last_index = index;
+  }
+
+  // Make sure we use the empty slots in (reverse) order.
+  {
+    Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    array = PrototypeUsers::Add(isolate, array, map, &index);
+  }
+  CHECK_EQ(index, empty_index2);
+
+  {
+    Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    array = PrototypeUsers::Add(isolate, array, map, &index);
+  }
+  CHECK_EQ(index, empty_index1);
+}
+
+namespace {
+
+HeapObject* saved_heap_object = nullptr;
+
+static void TestCompactCallback(HeapObject* value, int old_index,
+                                int new_index) {
+  saved_heap_object = value;
+  CHECK_EQ(old_index, 2);
+  CHECK_EQ(new_index, 1);
+}
+
+}  // namespace
+
+TEST(PrototypeUsersCompacted) {
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  HandleScope outer_scope(isolate);
+
+  Handle<WeakArrayList> array(ReadOnlyRoots(heap).empty_weak_array_list(),
+                              isolate);
+
+  // Add some objects into the array.
+  int index = -1;
+  Handle<Map> map_cleared_by_user =
+      factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  array = PrototypeUsers::Add(isolate, array, map_cleared_by_user, &index);
+  CHECK_EQ(index, 1);
+  Handle<Map> live_map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  array = PrototypeUsers::Add(isolate, array, live_map, &index);
+  CHECK_EQ(index, 2);
+  {
+    HandleScope inner_scope(isolate);
+    Handle<Map> soon_dead_map =
+        factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    array = PrototypeUsers::Add(isolate, array, soon_dead_map, &index);
+    CHECK_EQ(index, 3);
+
+    array = inner_scope.CloseAndEscape(array);
+  }
+
+  PrototypeUsers::MarkSlotEmpty(*array, 1);
+  CcTest::CollectAllGarbage();
+  CHECK(array->Get(3)->IsClearedWeakHeapObject());
+
+  CHECK_EQ(array->length(), 3 + PrototypeUsers::kFirstIndex);
+  WeakArrayList* new_array =
+      PrototypeUsers::Compact(array, heap, TestCompactCallback);
+  CHECK_EQ(new_array->length(), 1 + PrototypeUsers::kFirstIndex);
+  CHECK_EQ(saved_heap_object, *live_map);
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

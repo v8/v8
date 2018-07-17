@@ -1543,11 +1543,43 @@ void Module::ModuleVerify(Isolate* isolate) {
 void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {
   CHECK(IsPrototypeInfo());
   CHECK(weak_cell()->IsWeakCell() || weak_cell()->IsUndefined(isolate));
-  if (prototype_users()->IsFixedArrayOfWeakCells()) {
-    FixedArrayOfWeakCells::cast(prototype_users())->FixedArrayVerify(isolate);
+  if (prototype_users()->IsWeakArrayList()) {
+    PrototypeUsers::Verify(WeakArrayList::cast(prototype_users()));
   } else {
     CHECK(prototype_users()->IsSmi());
   }
+}
+
+void PrototypeUsers::Verify(WeakArrayList* array) {
+  if (array->length() == 0) {
+    // Allow empty & uninitialized lists.
+    return;
+  }
+  // Verify empty slot chain.
+  int empty_slot = Smi::ToInt(empty_slot_index(array));
+  int empty_slots_count = 0;
+  while (empty_slot != kNoEmptySlotsMarker) {
+    CHECK_GT(empty_slot, 0);
+    CHECK_LT(empty_slot, array->length());
+    empty_slot = Smi::ToInt(array->Get(empty_slot)->ToSmi());
+    ++empty_slots_count;
+  }
+
+  // Verify that all elements are either weak pointers or SMIs marking empty
+  // slots.
+  int weak_maps_count = 0;
+  for (int i = kFirstIndex; i < array->length(); ++i) {
+    HeapObject* heap_object;
+    MaybeObject* object = array->Get(i);
+    if ((object->ToWeakHeapObject(&heap_object) && heap_object->IsMap()) ||
+        object->IsClearedWeakHeapObject()) {
+      ++weak_maps_count;
+    } else {
+      CHECK(object->IsSmi());
+    }
+  }
+
+  CHECK_EQ(weak_maps_count + empty_slots_count + 1, array->length());
 }
 
 void Tuple2::Tuple2Verify(Isolate* isolate) {

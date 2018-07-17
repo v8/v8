@@ -2260,11 +2260,9 @@ class JSObject: public JSReceiver {
   // Utility used by many Array builtins and runtime functions
   static inline bool PrototypeHasNoElements(Isolate* isolate, JSObject* object);
 
-  // Alternative implementation of FixedArrayOfWeakCells::NullCallback.
-  class PrototypeRegistryCompactionCallback {
-   public:
-    static void Callback(Object* value, int old_index, int new_index);
-  };
+  // To be passed to PrototypeUsers::Compact.
+  static void PrototypeRegistryCompactionCallback(HeapObject* value,
+                                                  int old_index, int new_index);
 
   // Retrieve interceptors.
   inline InterceptorInfo* GetNamedInterceptor();
