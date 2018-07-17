@@ -3909,7 +3909,7 @@ class PropertyCell : public HeapObject {
   // property.
   DECL_ACCESSORS(dependent_code, DependentCode)
 
-  inline PropertyDetails property_details();
+  inline PropertyDetails property_details() const;
   inline void set_property_details(PropertyDetails details);
 
   PropertyCellConstantType GetConstantType();

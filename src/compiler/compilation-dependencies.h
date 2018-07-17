@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_COMPILATION_DEPENDENCIES_H_
 #define V8_COMPILER_COMPILATION_DEPENDENCIES_H_
 
+#include "src/compiler/js-heap-broker.h"
 #include "src/objects.h"
 #include "src/zone/zone-containers.h"
 
@@ -21,42 +22,42 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
 
   // Return the initial map of {function} and record the assumption that it
   // stays the intial map.
-  Handle<Map> DependOnInitialMap(Handle<JSFunction> function);
+  MapRef DependOnInitialMap(const JSFunctionRef& function);
 
   // Record the assumption that {map} stays stable.
-  void DependOnStableMap(Handle<Map> map);
+  void DependOnStableMap(const MapRef& map);
 
   // Record the assumption that {target_map} can be transitioned to, i.e., that
   // it does not become deprecated.
-  void DependOnTransition(Handle<Map> target_map);
+  void DependOnTransition(const MapRef& target_map);
 
   // Return the pretenure mode of {site} and record the assumption that it does
   // not change.
-  PretenureFlag DependOnPretenureMode(Handle<AllocationSite> site);
+  PretenureFlag DependOnPretenureMode(const AllocationSiteRef& site);
 
   // Record the assumption that the field type of a field does not change. The
-  // field is identified by the argument(s).
-  void DependOnFieldType(Handle<Map> map, int descriptor);
-  void DependOnFieldType(const LookupIterator* it);
+  // field is identified by the arguments.
+  void DependOnFieldType(const MapRef& map, int descriptor);
 
   // Record the assumption that neither {cell}'s {CellType} changes, nor the
   // {IsReadOnly()} flag of {cell}'s {PropertyDetails}.
-  void DependOnGlobalProperty(Handle<PropertyCell> cell);
+  void DependOnGlobalProperty(const PropertyCellRef& cell);
 
   // Record the assumption that the protector remains valid.
-  void DependOnProtector(Handle<PropertyCell> cell);
+  void DependOnProtector(const PropertyCellRef& cell);
 
   // Record the assumption that {site}'s {ElementsKind} doesn't change.
-  void DependOnElementsKind(Handle<AllocationSite> site);
+  void DependOnElementsKind(const AllocationSiteRef& site);
 
   // Depend on the stability of (the maps of) all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.
+  // TODO(neis): Fully brokerize!
   void DependOnStablePrototypeChains(
-      Handle<Context> native_context,
+      const JSHeapBroker* broker, Handle<Context> native_context,
       std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder);
 
   // Like DependOnElementsKind but also applies to all nested allocation sites.
-  void DependOnElementsKinds(Handle<AllocationSite> site);
+  void DependOnElementsKinds(const AllocationSiteRef& site);
 
   // Exposed only for testing purposes.
   bool AreValid() const;
@@ -65,7 +66,6 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   class Dependency;
 
  private:
-  Isolate* isolate_;
   Zone* zone_;
   ZoneForwardList<Dependency*> dependencies_;
 };

@@ -594,7 +594,8 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
     }
     if (result == NodeProperties::kUnreliableReceiverMaps) {
       for (size_t i = 0; i < object_maps.size(); ++i) {
-        dependencies()->DependOnStableMap(object_maps[i]);
+        dependencies()->DependOnStableMap(
+            MapRef(js_heap_broker(), object_maps[i]));
       }
     }
     Node* value = jsgraph()->Constant(candidate_prototype);
@@ -1050,7 +1051,8 @@ Reduction JSCallReducer::ReduceArrayForEach(Node* node,
 
   // Install code dependencies on the {receiver} prototype maps and the
   // global array protector cell.
-  dependencies()->DependOnProtector(factory()->no_elements_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
 
   // If we have unreliable maps, we need a map check.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
@@ -1234,7 +1236,8 @@ Reduction JSCallReducer::ReduceArrayReduce(Node* node,
 
   // Install code dependencies on the {receiver} prototype maps and the
   // global array protector cell.
-  dependencies()->DependOnProtector(factory()->no_elements_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
 
   // If we have unreliable maps, we need a map check.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
@@ -1504,7 +1507,8 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
     if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
-  dependencies()->DependOnProtector(factory()->array_species_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->array_species_protector()));
 
   Handle<JSFunction> handle_constructor(
       JSFunction::cast(
@@ -1711,7 +1715,8 @@ Reduction JSCallReducer::ReduceArrayFilter(Node* node,
     if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
-  dependencies()->DependOnProtector(factory()->array_species_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->array_species_protector()));
 
   Handle<Map> initial_map(
       Map::cast(native_context()->GetInitialJSArrayMap(packed_kind)),
@@ -1989,7 +1994,8 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
 
   // Install code dependencies on the {receiver} prototype maps and the
   // global array protector cell.
-  dependencies()->DependOnProtector(factory()->no_elements_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
 
   // If we have unreliable maps, we need a map check.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
@@ -2304,7 +2310,8 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
     if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
-  dependencies()->DependOnProtector(factory()->array_species_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->array_species_protector()));
 
   // If we have unreliable maps, we need a map check.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
@@ -2644,7 +2651,8 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
     if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
-  dependencies()->DependOnProtector(factory()->array_species_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->array_species_protector()));
 
   Node* k = jsgraph()->ZeroConstant();
 
@@ -2892,7 +2900,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   // Install stability dependencies for unreliable {receiver_maps}.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
     for (size_t i = 0; i < receiver_maps.size(); ++i) {
-      dependencies()->DependOnStableMap(receiver_maps[i]);
+      dependencies()->DependOnStableMap(
+          MapRef(js_heap_broker(), receiver_maps[i]));
     }
   }
 
@@ -3062,7 +3071,8 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // that no one messed with the %ArrayIteratorPrototype%.next method.
   if (node->opcode() == IrOpcode::kJSCallWithSpread ||
       node->opcode() == IrOpcode::kJSConstructWithSpread) {
-    dependencies()->DependOnProtector(factory()->array_iterator_protector());
+    dependencies()->DependOnProtector(PropertyCellRef(
+        js_heap_broker(), factory()->array_iterator_protector()));
   }
 
   // Remove the {arguments_list} input from the {node}.
@@ -4336,7 +4346,8 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   }
 
   // Install code dependencies on the {receiver} global array protector cell.
-  dependencies()->DependOnProtector(factory()->no_elements_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
 
   // If the {receiver_maps} information is not reliable, we need
   // to check that the {receiver} still has one of these maps.
@@ -4450,7 +4461,8 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
   }
 
   // Install code dependencies on the {receiver} global array protector cell.
-  dependencies()->DependOnProtector(factory()->no_elements_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
 
   // If the {receiver_maps} information is not reliable, we need
   // to check that the {receiver} still has one of these maps.
@@ -4568,7 +4580,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
   }
 
   // Install code dependencies on the {receiver} global array protector cell.
-  dependencies()->DependOnProtector(factory()->no_elements_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
 
   // If the {receiver_maps} information is not reliable, we need
   // to check that the {receiver} still has one of these maps.
@@ -4849,7 +4862,8 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
 
   // Install code dependency on the array protector for holey arrays.
   if (IsHoleyElementsKind(elements_kind)) {
-    dependencies()->DependOnProtector(factory()->no_elements_protector());
+    dependencies()->DependOnProtector(
+        PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
   }
 
   // Load the (current) {iterated_object} from the {iterator}; this might be
@@ -4873,8 +4887,8 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     if (isolate()->IsArrayBufferNeuteringIntact()) {
       // Add a code dependency so we are deoptimized in case an ArrayBuffer
       // gets neutered.
-      dependencies()->DependOnProtector(
-          factory()->array_buffer_neutering_protector());
+      dependencies()->DependOnProtector(PropertyCellRef(
+          js_heap_broker(), factory()->array_buffer_neutering_protector()));
     } else {
       // Deoptimize if the array buffer was neutered.
       Node* buffer = effect = graph()->NewNode(
@@ -5359,7 +5373,8 @@ Reduction JSCallReducer::ReduceAsyncFunctionPromiseCreate(Node* node) {
   if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
 
   // Install a code dependency on the promise hook protector cell.
-  dependencies()->DependOnProtector(factory()->promise_hook_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
 
   // Morph this {node} into a JSCreatePromise node.
   RelaxControls(node);
@@ -5374,7 +5389,8 @@ Reduction JSCallReducer::ReduceAsyncFunctionPromiseRelease(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
 
-  dependencies()->DependOnProtector(factory()->promise_hook_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
 
   // The AsyncFunctionPromiseRelease builtin is a no-op as long as neither
   // the debugger is active nor any promise hook has been installed (ever).
@@ -5429,7 +5445,8 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   // Only handle builtins Promises, not subclasses.
   if (target != new_target) return NoChange();
 
-  dependencies()->DependOnProtector(factory()->promise_hook_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
 
   Handle<SharedFunctionInfo> promise_shared(
       handle(native_context()->promise_function()->shared(), isolate()));
@@ -5586,7 +5603,8 @@ Reduction JSCallReducer::ReducePromiseInternalConstructor(Node* node) {
   // Check that promises aren't being observed through (debug) hooks.
   if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
 
-  dependencies()->DependOnProtector(factory()->promise_hook_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
 
   // Create a new pending promise.
   Node* value = effect =
@@ -5678,7 +5696,8 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
     }
   }
 
-  dependencies()->DependOnProtector(factory()->promise_then_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->promise_then_protector()));
 
   // If the {receiver_maps} aren't reliable, we need to repeat the
   // map check here, guarded by the CALL_IC.
@@ -5754,9 +5773,12 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
     }
   }
 
-  dependencies()->DependOnProtector(factory()->promise_hook_protector());
-  dependencies()->DependOnProtector(factory()->promise_then_protector());
-  dependencies()->DependOnProtector(factory()->promise_species_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->promise_then_protector()));
+  dependencies()->DependOnProtector(PropertyCellRef(
+      js_heap_broker(), factory()->promise_species_protector()));
 
   // If the {receiver_maps} aren't reliable, we need to repeat the
   // map check here, guarded by the CALL_IC.
@@ -5906,8 +5928,10 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
     }
   }
 
-  dependencies()->DependOnProtector(factory()->promise_hook_protector());
-  dependencies()->DependOnProtector(factory()->promise_species_protector());
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->promise_hook_protector()));
+  dependencies()->DependOnProtector(PropertyCellRef(
+      js_heap_broker(), factory()->promise_species_protector()));
 
   // If the {receiver_maps} aren't reliable, we need to repeat the
   // map check here, guarded by the CALL_IC.
@@ -6584,8 +6608,8 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
     if (isolate()->IsArrayBufferNeuteringIntact()) {
       // Add a code dependency so we are deoptimized in case an ArrayBuffer
       // gets neutered.
-      dependencies()->DependOnProtector(
-          factory()->array_buffer_neutering_protector());
+      dependencies()->DependOnProtector(PropertyCellRef(
+          js_heap_broker(), factory()->array_buffer_neutering_protector()));
     } else {
       // Check if the {receiver}s buffer was neutered.
       Node* buffer = effect = graph()->NewNode(
@@ -7100,7 +7124,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
 
   // Compute property access info for "exec" on {resolution}.
   PropertyAccessInfo ai_exec;
-  AccessInfoFactory access_info_factory(dependencies(), js_heap_broker(),
+  AccessInfoFactory access_info_factory(js_heap_broker(), dependencies(),
                                         native_context(), graph()->zone());
   if (!access_info_factory.ComputePropertyAccessInfo(
           MapHandles(regexp_maps.begin(), regexp_maps.end()),
@@ -7112,13 +7136,14 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   Handle<Object> exec_on_proto = ai_exec.constant();
   if (*exec_on_proto != *isolate()->regexp_exec_function()) return NoChange();
 
-  PropertyAccessBuilder access_builder(jsgraph(), dependencies());
+  PropertyAccessBuilder access_builder(jsgraph(), js_heap_broker(),
+                                       dependencies());
 
   // Add proper dependencies on the {regexp}s [[Prototype]]s.
   Handle<JSObject> holder;
   if (ai_exec.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
-        native_context(), ai_exec.receiver_maps(), holder);
+        js_heap_broker(), native_context(), ai_exec.receiver_maps(), holder);
   }
 
   if (need_map_check) {

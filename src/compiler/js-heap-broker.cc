@@ -156,15 +156,6 @@ bool JSFunctionRef::IsConstructor() const {
   return object<JSFunction>()->IsConstructor();
 }
 
-MapRef JSFunctionRef::DependOnInitialMap(
-    CompilationDependencies* dependencies) const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  Handle<Map> initial_map =
-      dependencies->DependOnInitialMap(object<JSFunction>());
-  return MapRef(broker(), initial_map);
-}
-
 void JSFunctionRef::EnsureHasInitialMap() const {
   AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
@@ -173,13 +164,6 @@ void JSFunctionRef::EnsureHasInitialMap() const {
   // functions (i.e., generators).
   DCHECK(IsResumableFunction(object<JSFunction>()->shared()->kind()));
   JSFunction::EnsureHasInitialMap(object<JSFunction>());
-}
-
-// TODO(neis): Remove.
-void MapRef::DependOnStableMap(CompilationDependencies* dependencies) const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  dependencies->DependOnStableMap(object<Map>());
 }
 
 SlackTrackingResult JSFunctionRef::FinishSlackTracking() const {
@@ -265,6 +249,24 @@ JSObjectRef AllocationSiteRef::boilerplate() const {
   return JSObjectRef(broker(), value);
 }
 
+ObjectRef AllocationSiteRef::nested_site() const {
+  AllowHandleAllocation handle_allocation;
+  AllowHandleDereference handle_dereference;
+  Handle<Object> obj(object<AllocationSite>()->nested_site(),
+                     broker()->isolate());
+  return ObjectRef(broker(), obj);
+}
+
+bool AllocationSiteRef::PointsToLiteral() const {
+  AllowHandleDereference handle_dereference;
+  return object<AllocationSite>()->PointsToLiteral();
+}
+
+ElementsKind AllocationSiteRef::GetElementsKind() const {
+  AllowHandleDereference handle_dereference;
+  return object<AllocationSite>()->GetElementsKind();
+}
+
 bool JSObjectRef::IsUnboxedDoubleField(FieldIndex index) const {
   AllowHandleDereference handle_dereference;
   return object<JSObject>()->IsUnboxedDoubleField(index);
@@ -281,6 +283,11 @@ ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
   return ObjectRef(broker(),
                    handle(object<JSObject>()->RawFastPropertyAt(index),
                           broker()->isolate()));
+}
+
+ElementsKind JSObjectRef::GetElementsKind() {
+  AllowHandleDereference handle_dereference;
+  return object<JSObject>()->GetElementsKind();
 }
 
 FixedArrayBaseRef JSObjectRef::elements() const {
@@ -405,6 +412,21 @@ void JSObjectRef::EnsureElementsTenured() {
   }
 }
 
+ElementsKind MapRef::elements_kind() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<Map>()->elements_kind();
+}
+
+bool MapRef::is_deprecated() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<Map>()->is_deprecated();
+}
+
+bool MapRef::CanBeDeprecated() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<Map>()->CanBeDeprecated();
+}
+
 int MapRef::GetInObjectProperties() const {
   AllowHandleDereference allow_handle_dereference;
   return object<Map>()->GetInObjectProperties();
@@ -489,6 +511,24 @@ bool MapRef::is_stable() const {
 bool MapRef::CanTransition() const {
   AllowHandleDereference allow_handle_dereference;
   return object<Map>()->CanTransition();
+}
+
+MapRef MapRef::FindFieldOwner(int descriptor) const {
+  AllowHandleAllocation handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  Handle<Map> owner(
+      object<Map>()->FindFieldOwner(broker()->isolate(), descriptor),
+      broker()->isolate());
+  return MapRef(broker(), owner);
+}
+
+FieldTypeRef MapRef::GetFieldType(int descriptor) const {
+  AllowHandleAllocation handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  Handle<FieldType> field_type(
+      object<Map>()->instance_descriptors()->GetFieldType(descriptor),
+      broker()->isolate());
+  return FieldTypeRef(broker(), field_type);
 }
 
 ElementsKind JSArrayRef::GetElementsKind() const {
@@ -789,6 +829,18 @@ CellRef ModuleRef::GetCell(int cell_index) {
   AllowHandleDereference allow_handle_dereference;
   return CellRef(broker(), handle(object<Module>()->GetCell(cell_index),
                                   broker()->isolate()));
+}
+
+ObjectRef PropertyCellRef::value() const {
+  AllowHandleAllocation allow_handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  return ObjectRef(
+      broker(), handle(object<PropertyCell>()->value(), broker()->isolate()));
+}
+
+PropertyDetails PropertyCellRef::property_details() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<PropertyCell>()->property_details();
 }
 
 }  // namespace compiler

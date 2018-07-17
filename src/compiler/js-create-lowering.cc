@@ -139,7 +139,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
 
   // Add a dependency on the {initial_map} to make sure that this code is
   // deoptimized whenever the {initial_map} changes.
-  MapRef initial_map = original_constructor.DependOnInitialMap(dependencies());
+  MapRef initial_map = dependencies()->DependOnInitialMap(original_constructor);
 
   // Force completion of inobject slack tracking before
   // generating code to finalize the instance size.
@@ -425,7 +425,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
 
     // Add a dependency on the {initial_map} to make sure that this code is
     // deoptimized whenever the {initial_map} changes.
-    MapRef initial_map = js_function.DependOnInitialMap(dependencies());
+    MapRef initial_map = dependencies()->DependOnInitialMap(js_function);
     DCHECK(initial_map.instance_type() == JS_GENERATOR_OBJECT_TYPE ||
            initial_map.instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
 
@@ -727,8 +727,8 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
 
       // Add a dependency on the {initial_map} to make sure that this code is
       // deoptimized whenever the {initial_map} changes.
-      Handle<Map> initial_map =
-          dependencies()->DependOnInitialMap(original_constructor);
+      MapRef initial_map = dependencies()->DependOnInitialMap(
+          JSFunctionRef(js_heap_broker(), original_constructor));
 
       // Tells whether we are protected by either the {site} or a
       // protector cell to do certain speculative optimizations.
@@ -737,13 +737,16 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       // Check if we have a feedback {site} on the {node}.
       if (!site.is_null()) {
         ElementsKind elements_kind = site->GetElementsKind();
-        if (initial_map->elements_kind() != elements_kind) {
+        if (initial_map.elements_kind() != elements_kind) {
           initial_map =
-              Map::AsElementsKind(isolate(), initial_map, elements_kind);
+              MapRef(js_heap_broker(),
+                     Map::AsElementsKind(isolate(), initial_map.object<Map>(),
+                                         elements_kind));
         }
         can_inline_call = site->CanInlineCall();
-        pretenure = dependencies()->DependOnPretenureMode(site);
-        dependencies()->DependOnElementsKind(site);
+        auto site_ref = AllocationSiteRef(js_heap_broker(), site);
+        pretenure = dependencies()->DependOnPretenureMode(site_ref);
+        dependencies()->DependOnElementsKind(site_ref);
       } else {
         can_inline_call = isolate()->IsArrayConstructorIntact();
       }
@@ -751,31 +754,36 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       if (arity == 0) {
         Node* length = jsgraph()->ZeroConstant();
         int capacity = JSArray::kPreallocatedArrayElements;
-        return ReduceNewArray(node, length, capacity, initial_map, pretenure);
+        return ReduceNewArray(node, length, capacity, initial_map.object<Map>(),
+                              pretenure);
       } else if (arity == 1) {
         Node* length = NodeProperties::GetValueInput(node, 2);
         Type length_type = NodeProperties::GetType(length);
         if (!length_type.Maybe(Type::Number())) {
           // Handle the single argument case, where we know that the value
           // cannot be a valid Array length.
-          ElementsKind elements_kind = initial_map->elements_kind();
+          ElementsKind elements_kind = initial_map.elements_kind();
           elements_kind = GetMoreGeneralElementsKind(
               elements_kind, IsHoleyElementsKind(elements_kind)
                                  ? HOLEY_ELEMENTS
                                  : PACKED_ELEMENTS);
           initial_map =
-              Map::AsElementsKind(isolate(), initial_map, elements_kind);
-          return ReduceNewArray(node, std::vector<Node*>{length}, initial_map,
-                                pretenure);
+              MapRef(js_heap_broker(),
+                     Map::AsElementsKind(isolate(), initial_map.object<Map>(),
+                                         elements_kind));
+          return ReduceNewArray(node, std::vector<Node*>{length},
+                                initial_map.object<Map>(), pretenure);
         }
         if (length_type.Is(Type::SignedSmall()) && length_type.Min() >= 0 &&
             length_type.Max() <= kElementLoopUnrollLimit &&
             length_type.Min() == length_type.Max()) {
           int capacity = static_cast<int>(length_type.Max());
-          return ReduceNewArray(node, length, capacity, initial_map, pretenure);
+          return ReduceNewArray(node, length, capacity,
+                                initial_map.object<Map>(), pretenure);
         }
         if (length_type.Maybe(Type::UnsignedSmall()) && can_inline_call) {
-          return ReduceNewArray(node, length, initial_map, pretenure);
+          return ReduceNewArray(node, length, initial_map.object<Map>(),
+                                pretenure);
         }
       } else if (arity <= JSArray::kInitialMaxFastElementArray) {
         // Gather the values to store into the newly created array.
@@ -799,7 +807,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
         }
 
         // Try to figure out the ideal elements kind statically.
-        ElementsKind elements_kind = initial_map->elements_kind();
+        ElementsKind elements_kind = initial_map.elements_kind();
         if (values_all_smis) {
           // Smis can be stored with any elements kind.
         } else if (values_all_numbers) {
@@ -821,9 +829,12 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
           return NoChange();
         }
         initial_map =
-            Map::AsElementsKind(isolate(), initial_map, elements_kind);
+            MapRef(js_heap_broker(),
+                   Map::AsElementsKind(isolate(), initial_map.object<Map>(),
+                                       elements_kind));
 
-        return ReduceNewArray(node, values, initial_map, pretenure);
+        return ReduceNewArray(node, values, initial_map.object<Map>(),
+                              pretenure);
       }
     }
   }
@@ -1151,10 +1162,9 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
     if (site.IsFastLiteral()) {
       PretenureFlag pretenure = NOT_TENURED;
       if (FLAG_allocation_site_pretenuring) {
-        pretenure = dependencies()->DependOnPretenureMode(
-            site.object<AllocationSite>());
+        pretenure = dependencies()->DependOnPretenureMode(site);
       }
-      dependencies()->DependOnElementsKinds(site.object<AllocationSite>());
+      dependencies()->DependOnElementsKinds(site);
       JSObjectRef boilerplate = site.boilerplate();
       Node* value = effect =
           AllocateFastLiteral(effect, control, boilerplate, pretenure);
@@ -1176,8 +1186,10 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
     Handle<Map> const initial_map(
         native_context()->GetInitialJSArrayMap(site->GetElementsKind()),
         isolate());
-    PretenureFlag const pretenure = dependencies()->DependOnPretenureMode(site);
-    dependencies()->DependOnElementsKind(site);
+    auto site_ref = AllocationSiteRef(js_heap_broker(), site);
+    PretenureFlag const pretenure =
+        dependencies()->DependOnPretenureMode(site_ref);
+    dependencies()->DependOnElementsKind(site_ref);
     Node* length = jsgraph()->ZeroConstant();
     return ReduceNewArray(node, length, 0, initial_map, pretenure);
   }

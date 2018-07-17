@@ -11,6 +11,7 @@
 
 #include "src/compilation-cache.h"
 #include "src/compiler/compilation-dependencies.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/execution.h"
 #include "src/field-type.h"
 #include "src/global-handles.h"
@@ -608,6 +609,7 @@ static void TestGeneralizeField(int detach_property_at_index,
                                 bool expected_deprecation,
                                 bool expected_field_type_dependency) {
   Isolate* isolate = CcTest::i_isolate();
+  JSHeapBroker broker(isolate);
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
   CHECK(detach_property_at_index >= -1 &&
@@ -653,11 +655,12 @@ static void TestGeneralizeField(int detach_property_at_index,
   }
 
   // Create new maps by generalizing representation of propX field.
+  CanonicalHandleScope canonical(isolate);
+  CompilationDependencies dependencies(isolate, &zone);
+  dependencies.DependOnFieldType(MapRef(&broker, map), property_index);
+
   Handle<Map> field_owner(map->FindFieldOwner(isolate, property_index),
                           isolate);
-  CompilationDependencies dependencies(isolate, &zone);
-  dependencies.DependOnFieldType(map, property_index);
-
   Handle<Map> new_map = Map::ReconfigureProperty(
       isolate, map, property_index, kData, NONE, to.representation, to.type);
 
@@ -986,6 +989,7 @@ TEST(GeneralizeFieldWithAccessorProperties) {
 static void TestReconfigureDataFieldAttribute_GeneralizeField(
     const CRFTData& from, const CRFTData& to, const CRFTData& expected) {
   Isolate* isolate = CcTest::i_isolate();
+  JSHeapBroker broker(isolate);
 
   Expectations expectations(isolate);
 
@@ -1023,8 +1027,9 @@ static void TestReconfigureDataFieldAttribute_GeneralizeField(
   CHECK(expectations2.Check(*map2));
 
   Zone zone(isolate->allocator(), ZONE_NAME);
+  CanonicalHandleScope canonical(isolate);
   CompilationDependencies dependencies(isolate, &zone);
-  dependencies.DependOnFieldType(map, kSplitProp);
+  dependencies.DependOnFieldType(MapRef(&broker, map), kSplitProp);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1068,6 +1073,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
     const CRFTData& from, const CRFTData& to, const CRFTData& expected,
     bool expected_field_type_dependency = true) {
   Isolate* isolate = CcTest::i_isolate();
+  JSHeapBroker broker(isolate);
 
   Expectations expectations(isolate);
 
@@ -1105,8 +1111,9 @@ static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   CHECK(expectations2.Check(*map2));
 
   Zone zone(isolate->allocator(), ZONE_NAME);
+  CanonicalHandleScope canonical(isolate);
   CompilationDependencies dependencies(isolate, &zone);
-  dependencies.DependOnFieldType(map, kSplitProp);
+  dependencies.DependOnFieldType(MapRef(&broker, map), kSplitProp);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1746,6 +1753,7 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToDataFieldAfterTargetMap) {
 static void TestReconfigureElementsKind_GeneralizeField(
     const CRFTData& from, const CRFTData& to, const CRFTData& expected) {
   Isolate* isolate = CcTest::i_isolate();
+  JSHeapBroker broker(isolate);
 
   Expectations expectations(isolate, PACKED_SMI_ELEMENTS);
 
@@ -1784,8 +1792,9 @@ static void TestReconfigureElementsKind_GeneralizeField(
   CHECK(expectations2.Check(*map2));
 
   Zone zone(isolate->allocator(), ZONE_NAME);
+  CanonicalHandleScope canonical(isolate);
   CompilationDependencies dependencies(isolate, &zone);
-  dependencies.DependOnFieldType(map, kDiffProp);
+  dependencies.DependOnFieldType(MapRef(&broker, map), kDiffProp);
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
@@ -1839,6 +1848,7 @@ static void TestReconfigureElementsKind_GeneralizeField(
 static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
     const CRFTData& from, const CRFTData& to, const CRFTData& expected) {
   Isolate* isolate = CcTest::i_isolate();
+  JSHeapBroker broker(isolate);
 
   Expectations expectations(isolate, PACKED_SMI_ELEMENTS);
 
@@ -1877,8 +1887,9 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   CHECK(expectations2.Check(*map2));
 
   Zone zone(isolate->allocator(), ZONE_NAME);
+  CanonicalHandleScope canonical(isolate);
   CompilationDependencies dependencies(isolate, &zone);
-  dependencies.DependOnFieldType(map, kDiffProp);
+  dependencies.DependOnFieldType(MapRef(&broker, map), kDiffProp);
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.

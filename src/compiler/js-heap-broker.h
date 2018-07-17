@@ -81,6 +81,7 @@ class HeapObjectType {
   V(MutableHeapNumber)             \
   V(Name)                          \
   V(NativeContext)                 \
+  V(PropertyCell)                  \
   V(ScopeInfo)                     \
   V(ScriptContextTable)            \
   V(SharedFunctionInfo)            \
@@ -130,6 +131,11 @@ class ObjectRef {
   Handle<Object> object_;
 };
 
+class FieldTypeRef : public ObjectRef {
+ public:
+  using ObjectRef::ObjectRef;
+};
+
 class HeapObjectRef : public ObjectRef {
  public:
   using ObjectRef::ObjectRef;
@@ -139,6 +145,14 @@ class HeapObjectRef : public ObjectRef {
   base::Optional<MapRef> TryGetObjectCreateMap() const;
   bool IsSeqString() const;
   bool IsExternalString() const;
+};
+
+class PropertyCellRef : public HeapObjectRef {
+ public:
+  using HeapObjectRef::HeapObjectRef;
+
+  ObjectRef value() const;
+  PropertyDetails property_details() const;
 };
 
 class JSObjectRef : public HeapObjectRef {
@@ -151,6 +165,7 @@ class JSObjectRef : public HeapObjectRef {
 
   FixedArrayBaseRef elements() const;
   void EnsureElementsTenured();
+  ElementsKind GetElementsKind();
 };
 
 struct SlackTrackingResult {
@@ -170,9 +185,6 @@ class JSFunctionRef : public JSObjectRef {
   bool IsConstructor() const;
   bool has_initial_map() const;
   MapRef initial_map() const;
-
-  MapRef DependOnInitialMap(CompilationDependencies* dependencies) const;
-
   JSGlobalProxyRef global_proxy() const;
   SlackTrackingResult FinishSlackTracking() const;
   SharedFunctionInfoRef shared() const;
@@ -267,6 +279,9 @@ class AllocationSiteRef : public HeapObjectRef {
   JSObjectRef boilerplate() const;
   PretenureFlag GetPretenureMode() const;
   bool IsFastLiteral() const;
+  ObjectRef nested_site() const;
+  bool PointsToLiteral() const;
+  ElementsKind GetElementsKind() const;
 };
 
 class MapRef : public HeapObjectRef {
@@ -281,18 +296,21 @@ class MapRef : public HeapObjectRef {
   NameRef GetPropertyKey(int i) const;
   FieldIndex GetFieldIndexFor(int i) const;
   int GetInObjectPropertyOffset(int index) const;
+  ElementsKind elements_kind() const;
   ObjectRef constructor_or_backpointer() const;
-
   bool is_stable() const;
   bool has_prototype_slot() const;
+  bool is_deprecated() const;
+  bool CanBeDeprecated() const;
   bool CanTransition() const;
   bool IsInobjectSlackTrackingInProgress() const;
-
+  MapRef FindFieldOwner(int descriptor) const;
   bool is_dictionary_map() const;
   bool IsJSArrayMap() const;
   bool IsFixedCowArrayMap() const;
 
-  void DependOnStableMap(CompilationDependencies* dependencies) const;
+  // Concerning the underlying instance_descriptors:
+  FieldTypeRef GetFieldType(int descriptor) const;
 };
 
 class FixedArrayBaseRef : public HeapObjectRef {
