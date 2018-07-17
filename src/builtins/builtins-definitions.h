@@ -1349,10 +1349,14 @@ namespace internal {
   CPP(NumberFormatInternalFormatNumber)                                \
   /* ecma402 #sec-intl.numberformat.prototype.format */                \
   CPP(NumberFormatPrototypeFormatNumber)                               \
-  /* ecma402 #sec-intl-relativetimeformat-constructor */               \
+  /* ecma402 #sec-intl.RelativeTimeFormat.constructor */               \
   CPP(RelativeTimeFormatConstructor)                                   \
-  /* ecma402 #sec-intl.relativetimeformat.prototype.resolvedoptions */ \
-  CPP(RelativeTimeFormatPrototypeResolvedOptions)
+  /* ecma402 #sec-intl.RelativeTimeFormat.prototype.resolvedOptions */ \
+  CPP(RelativeTimeFormatPrototypeResolvedOptions)                      \
+  /* ecma402 #sec-intl.RelativeTimeFormat.prototype.format */          \
+  CPP(RelativeTimeFormatPrototypeFormat)                               \
+  /* ecma402 #sec-intl.RelativeTimeFormat.prototype.formatToParts */   \
+  CPP(RelativeTimeFormatPrototypeFormatToParts)
 #else
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)    \
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)     \

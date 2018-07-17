@@ -6,6 +6,8 @@
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
 
+#include <cmath>
+
 #include "src/builtins/builtins-intl.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
@@ -22,10 +24,12 @@
 #include "unicode/fpositer.h"
 #include "unicode/normalizer2.h"
 #include "unicode/numfmt.h"
+#include "unicode/reldatefmt.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/udat.h"
 #include "unicode/ufieldpositer.h"
 #include "unicode/unistr.h"
+#include "unicode/ureldatefmt.h"
 #include "unicode/ustring.h"
 
 namespace v8 {
@@ -212,11 +216,11 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
   }
 }
 
-bool AddElement(Handle<JSArray> array, int index,
-                Handle<String> field_type_string,
-                const icu::UnicodeString& formatted, int32_t begin, int32_t end,
-                Isolate* isolate) {
-  HandleScope scope(isolate);
+MaybeHandle<JSObject> InnerAddElement(Isolate* isolate, Handle<JSArray> array,
+                                      int index,
+                                      Handle<String> field_type_string,
+                                      const icu::UnicodeString& formatted,
+                                      int32_t begin, int32_t end) {
   Factory* factory = isolate->factory();
   Handle<JSObject> element = factory->NewJSObject(isolate->object_function());
   Handle<String> value;
@@ -224,16 +228,42 @@ bool AddElement(Handle<JSArray> array, int index,
                         field_type_string, NONE);
 
   icu::UnicodeString field(formatted.tempSubStringBetween(begin, end));
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, value,
       factory->NewStringFromTwoByte(Vector<const uint16_t>(
           reinterpret_cast<const uint16_t*>(field.getBuffer()),
           field.length())),
-      false);
+      JSObject);
 
   JSObject::AddProperty(isolate, element, factory->value_string(), value, NONE);
   JSObject::AddDataElement(array, index, element, NONE);
-  return true;
+  return element;
+}
+
+Maybe<bool> AddElement(Isolate* isolate, Handle<JSArray> array, int index,
+                       Handle<String> field_type_string,
+                       const icu::UnicodeString& formatted, int32_t begin,
+                       int32_t end) {
+  RETURN_ON_EXCEPTION_VALUE(
+      isolate,
+      InnerAddElement(isolate, array, index, field_type_string, formatted,
+                      begin, end),
+      Nothing<bool>());
+  return Just(true);
+}
+
+Maybe<bool> AddElement(Isolate* isolate, Handle<JSArray> array, int index,
+                       Handle<String> field_type_string,
+                       const icu::UnicodeString& formatted, int32_t begin,
+                       int32_t end, Handle<String> name, Handle<String> value) {
+  Handle<JSObject> element;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, element,
+      InnerAddElement(isolate, array, index, field_type_string, formatted,
+                      begin, end),
+      Nothing<bool>());
+  JSObject::AddProperty(isolate, element, name, value, NONE);
+  return Just(true);
 }
 
 bool cmp_NumberFormatSpan(const NumberFormatSpan& a,
@@ -289,10 +319,10 @@ Object* FormatNumberToParts(Isolate* isolate, icu::NumberFormat* fmt,
         part.field_id == -1
             ? isolate->factory()->literal_string()
             : IcuNumberFieldIdToNumberType(part.field_id, number, isolate);
-    if (!AddElement(result, index, field_type_string, formatted, part.begin_pos,
-                    part.end_pos, isolate)) {
-      return ReadOnlyRoots(isolate).undefined_value();
-    }
+    Maybe<bool> maybe_added_element =
+        AddElement(isolate, result, index, field_type_string, formatted,
+                   part.begin_pos, part.end_pos);
+    MAYBE_RETURN(maybe_added_element, ReadOnlyRoots(isolate).undefined_value());
     ++index;
   }
   JSObject::ValidateElements(*result);
@@ -322,25 +352,26 @@ Object* FormatDateToParts(Isolate* isolate, icu::DateFormat* format,
     int32_t end_pos = fp.getEndIndex();
 
     if (previous_end_pos < begin_pos) {
-      if (!AddElement(result, index, IcuDateFieldIdToDateType(-1, isolate),
-                      formatted, previous_end_pos, begin_pos, isolate)) {
-        return ReadOnlyRoots(isolate).undefined_value();
-      }
+      Maybe<bool> maybe_added_element = AddElement(
+          isolate, result, index, IcuDateFieldIdToDateType(-1, isolate),
+          formatted, previous_end_pos, begin_pos);
+      MAYBE_RETURN(maybe_added_element,
+                   ReadOnlyRoots(isolate).undefined_value());
       ++index;
     }
-    if (!AddElement(result, index,
-                    IcuDateFieldIdToDateType(fp.getField(), isolate), formatted,
-                    begin_pos, end_pos, isolate)) {
-      return ReadOnlyRoots(isolate).undefined_value();
-    }
+    Maybe<bool> maybe_added_element =
+        AddElement(isolate, result, index,
+                   IcuDateFieldIdToDateType(fp.getField(), isolate), formatted,
+                   begin_pos, end_pos);
+    MAYBE_RETURN(maybe_added_element, ReadOnlyRoots(isolate).undefined_value());
     previous_end_pos = end_pos;
     ++index;
   }
   if (previous_end_pos < length) {
-    if (!AddElement(result, index, IcuDateFieldIdToDateType(-1, isolate),
-                    formatted, previous_end_pos, length, isolate)) {
-      return ReadOnlyRoots(isolate).undefined_value();
-    }
+    Maybe<bool> maybe_added_element = AddElement(
+        isolate, result, index, IcuDateFieldIdToDateType(-1, isolate),
+        formatted, previous_end_pos, length);
+    MAYBE_RETURN(maybe_added_element, ReadOnlyRoots(isolate).undefined_value());
   }
   JSObject::ValidateElements(*result);
   return *result;
@@ -674,6 +705,211 @@ BUILTIN(LocalePrototypeMinimize) {
       CreateLocale(isolate, constructor, constructor,
                    JSLocale::Minimize(isolate, locale_holder->locale()),
                    isolate->factory()->NewJSObjectWithNullProto()));
+}
+
+namespace {
+
+MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
+    Isolate* isolate, icu::UnicodeString formatted,
+    icu::UnicodeString integer_part, Handle<String> unit) {
+  Factory* factory = isolate->factory();
+  Handle<JSArray> array = factory->NewJSArray(0);
+  int32_t found = formatted.indexOf(integer_part);
+
+  if (found < 0) {
+    // Cannot find the integer_part in the formatted.
+    // Return [{'type': 'literal', 'value': formatted}]
+    Maybe<bool> maybe_added_element =
+        AddElement(isolate, array,
+                   0,                          // index
+                   factory->literal_string(),  // field_type_string
+                   formatted,
+                   0,                    // begin
+                   formatted.length());  // end
+    MAYBE_RETURN(maybe_added_element, MaybeHandle<JSArray>());
+
+  } else {
+    // Found the formatted integer in the result.
+    int index = 0;
+
+    // array.push({
+    //     'type': 'literal',
+    //     'value': formatted.substring(0, found)})
+    if (found > 0) {
+      Maybe<bool> maybe_added_element =
+          AddElement(isolate, array, index++,
+                     factory->literal_string(),  // field_type_string
+                     formatted,
+                     0,       // begin
+                     found);  // end
+      MAYBE_RETURN(maybe_added_element, MaybeHandle<JSArray>());
+    }
+
+    // array.push({
+    //     'type': 'integer',
+    //     'value': formatted.substring(found, found + integer_part.length),
+    //     'unit': unit})
+    Maybe<bool> maybe_added_element =
+        AddElement(isolate, array, index++,
+                   factory->integer_string(),  // field_type_string
+                   formatted,
+                   found,                          // begin
+                   found + integer_part.length(),  // end
+                   factory->unit_string(), unit);
+    MAYBE_RETURN(maybe_added_element, MaybeHandle<JSArray>());
+
+    // array.push({
+    //     'type': 'literal',
+    //     'value': formatted.substring(
+    //         found + integer_part.length, formatted.length)})
+    if (found + integer_part.length() < formatted.length()) {
+      Maybe<bool> maybe_added_element =
+          AddElement(isolate, array, index,
+                     factory->literal_string(),  // field_type_string
+                     formatted,
+                     found + integer_part.length(),  // begin
+                     formatted.length());            // end
+      MAYBE_RETURN(maybe_added_element, MaybeHandle<JSArray>());
+    }
+  }
+  return array;
+}
+
+bool GetURelativeDateTimeUnit(Handle<String> unit,
+                              URelativeDateTimeUnit* unit_enum) {
+  std::unique_ptr<char[]> unit_str = unit->ToCString();
+  if ((strcmp("second", unit_str.get()) == 0) ||
+      (strcmp("seconds", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_SECOND;
+  } else if ((strcmp("minute", unit_str.get()) == 0) ||
+             (strcmp("minutes", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_MINUTE;
+  } else if ((strcmp("hour", unit_str.get()) == 0) ||
+             (strcmp("hours", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_HOUR;
+  } else if ((strcmp("day", unit_str.get()) == 0) ||
+             (strcmp("days", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_DAY;
+  } else if ((strcmp("week", unit_str.get()) == 0) ||
+             (strcmp("weeks", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_WEEK;
+  } else if ((strcmp("month", unit_str.get()) == 0) ||
+             (strcmp("months", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_MONTH;
+  } else if ((strcmp("quarter", unit_str.get()) == 0) ||
+             (strcmp("quarters", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_QUARTER;
+  } else if ((strcmp("year", unit_str.get()) == 0) ||
+             (strcmp("years", unit_str.get()) == 0)) {
+    *unit_enum = UDAT_REL_UNIT_YEAR;
+  } else {
+    return false;
+  }
+  return true;
+}
+
+Object* RelativeTimeFormatPrototypeFormatCommon(
+    BuiltinArguments args, Isolate* isolate,
+    Handle<JSRelativeTimeFormat> format_holder, const char* func_name,
+    bool to_parts) {
+  Factory* factory = isolate->factory();
+  Handle<Object> value_obj = args.atOrUndefined(isolate, 1);
+  Handle<Object> unit_obj = args.atOrUndefined(isolate, 2);
+
+  // 3. Let value be ? ToNumber(value).
+  Handle<Object> value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                     Object::ToNumber(isolate, value_obj));
+  double number = value->Number();
+  // 4. Let unit be ? ToString(unit).
+  Handle<String> unit;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, unit,
+                                     Object::ToString(isolate, unit_obj));
+
+  // 4. If isFinite(value) is false, then throw a RangeError exception.
+  if (!std::isfinite(number)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(
+                     MessageTemplate::kNotFiniteNumber,
+                     isolate->factory()->NewStringFromAsciiChecked(func_name)));
+  }
+
+  icu::RelativeDateTimeFormatter* formatter =
+      JSRelativeTimeFormat::UnpackFormatter(isolate, format_holder);
+  CHECK_NOT_NULL(formatter);
+
+  URelativeDateTimeUnit unit_enum;
+  if (!GetURelativeDateTimeUnit(unit, &unit_enum)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidUnit,
+                      isolate->factory()->NewStringFromAsciiChecked(func_name),
+                      unit));
+  }
+
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString formatted;
+  if (unit_enum == UDAT_REL_UNIT_QUARTER) {
+    // ICU have not yet implement UDAT_REL_UNIT_QUARTER.
+  } else {
+    if (format_holder->numeric() == JSRelativeTimeFormat::Numeric::ALWAYS) {
+      formatter->formatNumeric(number, unit_enum, formatted, status);
+    } else {
+      DCHECK_EQ(JSRelativeTimeFormat::Numeric::AUTO, format_holder->numeric());
+      formatter->format(number, unit_enum, formatted, status);
+    }
+  }
+
+  if (U_FAILURE(status)) {
+    // Internal ICU error.
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  if (to_parts) {
+    icu::UnicodeString integer;
+    icu::FieldPosition pos;
+    formatter->getNumberFormat().format(std::abs(number), integer, pos, status);
+    if (U_FAILURE(status)) {
+      // Internal ICU error.
+      return ReadOnlyRoots(isolate).undefined_value();
+    }
+    Handle<JSArray> elements;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, elements,
+        GenerateRelativeTimeFormatParts(isolate, formatted, integer, unit));
+    return *elements;
+  }
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, factory->NewStringFromTwoByte(Vector<const uint16_t>(
+                   reinterpret_cast<const uint16_t*>(formatted.getBuffer()),
+                   formatted.length())));
+}
+
+}  // namespace
+
+BUILTIN(RelativeTimeFormatPrototypeFormat) {
+  HandleScope scope(isolate);
+  // 1. Let relativeTimeFormat be the this value.
+  // 2. If Type(relativeTimeFormat) is not Object or relativeTimeFormat does not
+  //    have an [[InitializedRelativeTimeFormat]] internal slot whose value is
+  //    true, throw a TypeError exception.
+  CHECK_RECEIVER(JSRelativeTimeFormat, format_holder,
+                 "Intl.RelativeTimeFormat.prototype.format");
+  return RelativeTimeFormatPrototypeFormatCommon(args, isolate, format_holder,
+                                                 "format", false);
+}
+
+BUILTIN(RelativeTimeFormatPrototypeFormatToParts) {
+  HandleScope scope(isolate);
+  // 1. Let relativeTimeFormat be the this value.
+  // 2. If Type(relativeTimeFormat) is not Object or relativeTimeFormat does not
+  //    have an [[InitializedRelativeTimeFormat]] internal slot whose value is
+  //    true, throw a TypeError exception.
+  CHECK_RECEIVER(JSRelativeTimeFormat, format_holder,
+                 "Intl.RelativeTimeFormat.prototype.formatToParts");
+  return RelativeTimeFormatPrototypeFormatCommon(args, isolate, format_holder,
+                                                 "formatToParts", true);
 }
 
 // Locale getters.

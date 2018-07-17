@@ -372,6 +372,7 @@ class ErrorUtils : public AllStatic {
     "% is not a function or its return value is not iterable")                 \
   T(NotCallableOrAsyncIterable,                                                \
     "% is not a function or its return value is not async iterable")           \
+  T(NotFiniteNumber, "Value need to be finite number for %()")                 \
   T(NotIterable, "% is not iterable")                                          \
   T(NotAsyncIterable, "% is not async iterable")                               \
   T(NotPropertyName, "% is not a valid property name")                         \

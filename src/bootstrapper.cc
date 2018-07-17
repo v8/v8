@@ -4601,6 +4601,11 @@ void Genesis::InitializeGlobal_harmony_intl_relative_time_format() {
   SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
                         Builtins::kRelativeTimeFormatPrototypeResolvedOptions,
                         0, false);
+  SimpleInstallFunction(isolate(), prototype, "format",
+                        Builtins::kRelativeTimeFormatPrototypeFormat, 2, false);
+  SimpleInstallFunction(isolate(), prototype, "formatToParts",
+                        Builtins::kRelativeTimeFormatPrototypeFormatToParts, 2,
+                        false);
 }
 
 #endif  // V8_INTL_SUPPORT
