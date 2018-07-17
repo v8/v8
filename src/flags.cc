@@ -638,6 +638,7 @@ void FlagList::PrintHelp() {
         "  -e        execute a string in V8\n"
         "  --shell   run an interactive JavaScript shell\n"
         "  --module  execute a file as a JavaScript module\n\n"
+        "Note: the --module option is implicitly enabled for *.mjs files.\n\n"
         "Options:\n";
 
   for (const Flag& f : flags) {

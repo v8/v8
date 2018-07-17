@@ -2423,6 +2423,14 @@ SourceGroup::~SourceGroup() {
   thread_ = nullptr;
 }
 
+bool ends_with(const char* input, const char* suffix) {
+  size_t input_length = strlen(input);
+  size_t suffix_length = strlen(suffix);
+  if (suffix_length <= input_length) {
+    return strcmp(input + input_length - suffix_length, suffix) == 0;
+  }
+  return false;
+}
 
 void SourceGroup::Execute(Isolate* isolate) {
   bool exception_was_thrown = false;
@@ -2445,6 +2453,13 @@ void SourceGroup::Execute(Isolate* isolate) {
         break;
       }
       ++i;
+      continue;
+    } else if (ends_with(arg, ".mjs")) {
+      Shell::options.script_executed = true;
+      if (!Shell::ExecuteModule(isolate, arg)) {
+        exception_was_thrown = true;
+        break;
+      }
       continue;
     } else if (strcmp(arg, "--module") == 0 && i + 1 < end_offset_) {
       // Treat the next file as a module.
@@ -2905,8 +2920,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       current->Begin(argv, i + 1);
     } else if (strcmp(str, "--module") == 0) {
       // Pass on to SourceGroup, which understands this option.
-    } else if (strncmp(argv[i], "--", 2) == 0) {
-      printf("Warning: unknown flag %s.\nTry --help for options\n", argv[i]);
+    } else if (strncmp(str, "--", 2) == 0) {
+      printf("Warning: unknown flag %s.\nTry --help for options\n", str);
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
       options.script_executed = true;
     } else if (strncmp(str, "-", 1) != 0) {
