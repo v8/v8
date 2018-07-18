@@ -5269,32 +5269,20 @@ class LinkageLocationAllocator {
                                      const DoubleRegister (&fp)[kNumFpRegs])
       : allocator_(wasm::LinkageAllocator(gp, fp)) {}
 
-  LinkageLocation Next(MachineRepresentation type) {
-    MachineType mach_type = MachineType::TypeForRepresentation(type);
-    if (type == MachineRepresentation::kFloat32 ||
-        type == MachineRepresentation::kFloat64) {
-      if (allocator_.has_more_fp_regs()) {
-        DoubleRegister reg = allocator_.NextFpReg();
-#if V8_TARGET_ARCH_ARM
-        // Allocate floats using a double register, but modify the code to
-        // reflect how ARM FP registers alias.
-        // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
-        if (type == MachineRepresentation::kFloat32) {
-          int float_reg_code = reg.code() * 2;
-          DCHECK_GT(RegisterConfiguration::kMaxFPRegisters, float_reg_code);
-          return LinkageLocation::ForRegister(
-              DoubleRegister::from_code(float_reg_code).code(), mach_type);
-        }
-#endif
-        return LinkageLocation::ForRegister(reg.code(), mach_type);
+  LinkageLocation Next(MachineRepresentation rep) {
+    MachineType type = MachineType::TypeForRepresentation(rep);
+    if (IsFloatingPoint(rep)) {
+      if (allocator_.CanAllocateFP(rep)) {
+        int reg_code = allocator_.NextFpReg(rep);
+        return LinkageLocation::ForRegister(reg_code, type);
       }
-    } else if (allocator_.has_more_gp_regs()) {
-      return LinkageLocation::ForRegister(allocator_.NextGpReg().code(),
-                                          mach_type);
+    } else if (allocator_.CanAllocateGP()) {
+      int reg_code = allocator_.NextGpReg();
+      return LinkageLocation::ForRegister(reg_code, type);
     }
     // Cannot use register; use stack slot.
-    int index = -1 - allocator_.NextStackSlot(type);
-    return LinkageLocation::ForCallerFrameSlot(index, mach_type);
+    int index = -1 - allocator_.NextStackSlot(rep);
+    return LinkageLocation::ForCallerFrameSlot(index, type);
   }
 
   void SetStackOffset(int offset) { allocator_.SetStackOffset(offset); }
