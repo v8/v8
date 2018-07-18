@@ -542,9 +542,25 @@ struct SourcePositionEvent {
     if (a.position != b.position) return a.position < b.position;
     if (a.type != b.type) return a.type < b.type;
     if (a.type == LITERAL_STARTS && b.type == LITERAL_STARTS) {
-      return a.literal->end_position() < b.literal->end_position();
+      // If the literals start in the same position, we want the one with the
+      // furthest (i.e. largest) end position to be first.
+      if (a.literal->end_position() != b.literal->end_position()) {
+        return a.literal->end_position() > b.literal->end_position();
+      }
+      // If they also end in the same position, we want the first in order of
+      // literal ids to be first.
+      return a.literal->function_literal_id() <
+             b.literal->function_literal_id();
     } else if (a.type == LITERAL_ENDS && b.type == LITERAL_ENDS) {
-      return a.literal->start_position() > b.literal->start_position();
+      // If the literals end in the same position, we want the one with the
+      // nearest (i.e. largest) start position to be first.
+      if (a.literal->start_position() != b.literal->start_position()) {
+        return a.literal->start_position() > b.literal->start_position();
+      }
+      // If they also end in the same position, we want the last in order of
+      // literal ids to be first.
+      return a.literal->function_literal_id() >
+             b.literal->function_literal_id();
     } else {
       return a.pos_diff < b.pos_diff;
     }
@@ -658,20 +674,33 @@ using LiteralMap = std::unordered_map<FunctionLiteral*, FunctionLiteral*>;
 void MapLiterals(const FunctionLiteralChanges& changes,
                  const std::vector<FunctionLiteral*>& new_literals,
                  LiteralMap* unchanged, LiteralMap* changed) {
+  // Track the top-level script function separately as it can overlap fully with
+  // another function, e.g. the script "()=>42".
+  const std::pair<int, int> kTopLevelMarker = std::make_pair(-1, -1);
   std::map<std::pair<int, int>, FunctionLiteral*> position_to_new_literal;
   for (FunctionLiteral* literal : new_literals) {
     DCHECK(literal->start_position() != kNoSourcePosition);
     DCHECK(literal->end_position() != kNoSourcePosition);
-    position_to_new_literal[std::make_pair(literal->start_position(),
-                                           literal->end_position())] = literal;
+    std::pair<int, int> key =
+        literal->function_literal_id() == FunctionLiteral::kIdTypeTopLevel
+            ? kTopLevelMarker
+            : std::make_pair(literal->start_position(),
+                             literal->end_position());
+    // Make sure there are no duplicate keys.
+    DCHECK_EQ(position_to_new_literal.find(key), position_to_new_literal.end());
+    position_to_new_literal[key] = literal;
   }
   LiteralMap mappings;
   std::unordered_map<FunctionLiteral*, ChangeState> change_state;
   for (const auto& change_pair : changes) {
     FunctionLiteral* literal = change_pair.first;
     const FunctionLiteralChange& change = change_pair.second;
-    auto it = position_to_new_literal.find(
-        std::make_pair(change.new_start_position, change.new_end_position));
+    std::pair<int, int> key =
+        literal->function_literal_id() == FunctionLiteral::kIdTypeTopLevel
+            ? kTopLevelMarker
+            : std::make_pair(change.new_start_position,
+                             change.new_end_position);
+    auto it = position_to_new_literal.find(key);
     if (it == position_to_new_literal.end() ||
         HasChangedScope(literal, it->second)) {
       change_state[literal] = ChangeState::DAMAGED;
