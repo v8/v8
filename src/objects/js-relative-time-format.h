@@ -38,7 +38,6 @@ class JSRelativeTimeFormat : public JSObject {
 
   // Unpacks formatter object from corresponding JavaScript object.
   static icu::RelativeDateTimeFormatter* UnpackFormatter(
-      Isolate* isolate,
       Handle<JSRelativeTimeFormat> relative_time_format_holder);
   Handle<String> StyleAsString() const;
   Handle<String> NumericAsString() const;

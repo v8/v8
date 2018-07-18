@@ -2636,8 +2636,7 @@ struct SameMapChecker {
 // Checks that both |map1| and |map2| should stays non-deprecated, this is
 // the case when property kind is change.
 struct PropertyKindReconfigurationChecker {
-  void Check(Isolate* isolate, Expectations& expectations, Handle<Map> map1,
-             Handle<Map> map2) {
+  void Check(Expectations& expectations, Handle<Map> map1, Handle<Map> map2) {
     CHECK(!map1->is_deprecated());
     CHECK(!map2->is_deprecated());
     CHECK_NE(*map1, *map2);

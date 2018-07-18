@@ -22,7 +22,7 @@ namespace compiler {
 
 class StubTester {
  public:
-  StubTester(Isolate* isolate, Zone* zone, CodeStub* stub)
+  StubTester(Zone* zone, CodeStub* stub)
       : zone_(zone),
         info_(ArrayVector("test"), zone, Code::STUB),
         interface_descriptor_(stub->GetCallInterfaceDescriptor()),

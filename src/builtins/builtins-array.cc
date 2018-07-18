@@ -250,7 +250,7 @@ V8_WARN_UNUSED_RESULT bool TryFastArrayFill(
   CHECK(DoubleToUint32IfEqualToSelf(end_index, &end));
 
   ElementsAccessor* accessor = object->GetElementsAccessor();
-  accessor->Fill(isolate, object, value, start, end);
+  accessor->Fill(object, value, start, end);
   return true;
 }
 }  // namespace

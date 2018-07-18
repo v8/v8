@@ -939,7 +939,7 @@ MaybeHandle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
 }
 
 // May GC, because SetSpecializationMemInfoFrom may GC
-void SetInstanceMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
+void SetInstanceMemory(Handle<WasmInstanceObject> instance,
                        Handle<JSArrayBuffer> buffer) {
   instance->SetRawMemory(reinterpret_cast<byte*>(buffer->backing_store()),
                          buffer->byte_length()->Number());
@@ -1027,11 +1027,10 @@ void WasmMemoryObject::AddInstance(Isolate* isolate,
       FixedArrayOfWeakCells::Add(isolate, old_instances, instance);
   memory->set_instances(*new_instances);
   Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate);
-  SetInstanceMemory(isolate, instance, buffer);
+  SetInstanceMemory(instance, buffer);
 }
 
-void WasmMemoryObject::RemoveInstance(Isolate* isolate,
-                                      Handle<WasmMemoryObject> memory,
+void WasmMemoryObject::RemoveInstance(Handle<WasmMemoryObject> memory,
                                       Handle<WasmInstanceObject> instance) {
   if (memory->has_instances()) {
     memory->instances()->Remove(instance);
@@ -1067,7 +1066,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
       if (!elem->IsWasmInstanceObject()) continue;
       Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(elem),
                                           isolate);
-      SetInstanceMemory(isolate, instance, new_buffer);
+      SetInstanceMemory(instance, new_buffer);
     }
   }
   memory_object->set_array_buffer(*new_buffer);
@@ -1298,8 +1297,7 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   // the next GC cycle, so we need to manually break some links (such as
   // the weak references from {WasmMemoryObject::instances}.
   if (instance->has_memory_object()) {
-    WasmMemoryObject::RemoveInstance(isolate,
-                                     handle(instance->memory_object(), isolate),
+    WasmMemoryObject::RemoveInstance(handle(instance->memory_object(), isolate),
                                      handle(instance, isolate));
   }
 

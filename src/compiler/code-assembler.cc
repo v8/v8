@@ -1685,8 +1685,7 @@ void CodeAssemblerLabel::UpdateVariablesAfterBind() {
 
 }  // namespace compiler
 
-Smi* CheckObjectType(Isolate* isolate, Object* value, Smi* type,
-                     String* location) {
+Smi* CheckObjectType(Object* value, Smi* type, String* location) {
 #ifdef DEBUG
   const char* expected;
   switch (static_cast<ObjectType>(type->value())) {

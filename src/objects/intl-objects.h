@@ -40,8 +40,7 @@ class DateFormat {
       Handle<JSObject> resolved);
 
   // Unpacks date format object from corresponding JavaScript object.
-  static icu::SimpleDateFormat* UnpackDateFormat(Isolate* isolate,
-                                                 Handle<JSObject> obj);
+  static icu::SimpleDateFormat* UnpackDateFormat(Handle<JSObject> obj);
 
   // Release memory we allocated for the DateFormat once the JS object that
   // holds the pointer gets garbage collected.
@@ -65,8 +64,7 @@ class NumberFormat {
                                                     Handle<JSObject> resolved);
 
   // Unpacks number format object from corresponding JavaScript object.
-  static icu::DecimalFormat* UnpackNumberFormat(Isolate* isolate,
-                                                Handle<JSObject> obj);
+  static icu::DecimalFormat* UnpackNumberFormat(Handle<JSObject> obj);
 
   // Release memory we allocated for the NumberFormat once the JS object that
   // holds the pointer gets garbage collected.
@@ -129,7 +127,7 @@ class Collator {
                                  Handle<JSObject> resolved);
 
   // Unpacks collator object from corresponding JavaScript object.
-  static icu::Collator* UnpackCollator(Isolate* isolate, Handle<JSObject> obj);
+  static icu::Collator* UnpackCollator(Handle<JSObject> obj);
 
   // Layout description.
   static const int kCollator = JSObject::kHeaderSize;
@@ -150,13 +148,11 @@ class PluralRules {
                                     icu::DecimalFormat** decimal_format);
 
   // Unpacks PluralRules object from corresponding JavaScript object.
-  static icu::PluralRules* UnpackPluralRules(Isolate* isolate,
-                                             Handle<JSObject> obj);
+  static icu::PluralRules* UnpackPluralRules(Handle<JSObject> obj);
 
   // Unpacks NumberFormat object from corresponding JavaScript PluralRUles
   // object.
-  static icu::DecimalFormat* UnpackNumberFormat(Isolate* isolate,
-                                                Handle<JSObject> obj);
+  static icu::DecimalFormat* UnpackNumberFormat(Handle<JSObject> obj);
 
   // Release memory we allocated for the Collator once the JS object that holds
   // the pointer gets garbage collected.
@@ -186,8 +182,7 @@ class V8BreakIterator {
                                                      Handle<JSObject> resolved);
 
   // Unpacks break iterator object from corresponding JavaScript object.
-  static icu::BreakIterator* UnpackBreakIterator(Isolate* isolate,
-                                                 Handle<JSObject> obj);
+  static icu::BreakIterator* UnpackBreakIterator(Handle<JSObject> obj);
 
   // Release memory we allocated for the BreakIterator once the JS object that
   // holds the pointer gets garbage collected.

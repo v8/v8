@@ -78,10 +78,10 @@ class ExternalReferenceTable {
   void Add(Address address, const char* name, int* index);
 
   void AddReferences(Isolate* isolate, int* index);
-  void AddBuiltins(Isolate* isolate, int* index);
-  void AddRuntimeFunctions(Isolate* isolate, int* index);
+  void AddBuiltins(int* index);
+  void AddRuntimeFunctions(int* index);
   void AddIsolateAddresses(Isolate* isolate, int* index);
-  void AddAccessors(Isolate* isolate, int* index);
+  void AddAccessors(int* index);
   void AddStubCache(Isolate* isolate, int* index);
 
   ExternalReferenceEntry refs_[kSize];

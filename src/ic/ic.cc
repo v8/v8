@@ -891,7 +891,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
       Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
 
       if (v8::ToCData<Address>(info->getter()) == kNullAddress ||
-          !AccessorInfo::IsCompatibleReceiverMap(isolate(), info, map) ||
+          !AccessorInfo::IsCompatibleReceiverMap(info, map) ||
           !holder->HasFastProperties() ||
           (info->is_sloppy() && !receiver->IsJSReceiver())) {
         TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
@@ -1482,8 +1482,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           DCHECK_EQ(*lookup->GetReceiver(), *holder);
           DCHECK_EQ(*store_target, *holder);
 #endif
-          return StoreHandler::StoreGlobal(isolate(),
-                                           lookup->transition_cell());
+          return StoreHandler::StoreGlobal(lookup->transition_cell());
         }
 
         Handle<Smi> smi_handler = StoreHandler::StoreGlobalProxy(isolate());
@@ -1537,8 +1536,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return MaybeObjectHandle(slow_stub());
         }
-        if (!AccessorInfo::IsCompatibleReceiverMap(isolate(), info,
-                                                   receiver_map())) {
+        if (!AccessorInfo::IsCompatibleReceiverMap(info, receiver_map())) {
           set_slow_stub_reason("incompatible receiver type");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return MaybeObjectHandle(slow_stub());
@@ -1630,7 +1628,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         if (holder->IsJSGlobalObject()) {
           TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalDH);
           return MaybeObjectHandle(
-              StoreHandler::StoreGlobal(isolate(), lookup->GetPropertyCell()));
+              StoreHandler::StoreGlobal(lookup->GetPropertyCell()));
         }
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormalDH);
         DCHECK(holder.is_identical_to(receiver));

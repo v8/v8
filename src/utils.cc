@@ -405,7 +405,6 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
 
 static bool g_memcopy_functions_initialized = false;
 
-
 void init_memcopy_functions(Isolate* isolate) {
   if (g_memcopy_functions_initialized) return;
   g_memcopy_functions_initialized = true;

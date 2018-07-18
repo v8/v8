@@ -26,14 +26,14 @@ int AddToSetAndGetHash(Isolate* isolate, Handle<JSObject> obj,
   return Smi::ToInt(obj->GetHash());
 }
 
-void CheckFastObject(Isolate* isolate, Handle<JSObject> obj, int hash) {
+void CheckFastObject(Handle<JSObject> obj, int hash) {
   CHECK(obj->HasFastProperties());
   CHECK(obj->raw_properties_or_hash()->IsPropertyArray());
   CHECK_EQ(Smi::FromInt(hash), obj->GetHash());
   CHECK_EQ(hash, obj->property_array()->Hash());
 }
 
-void CheckDictionaryObject(Isolate* isolate, Handle<JSObject> obj, int hash) {
+void CheckDictionaryObject(Handle<JSObject> obj, int hash) {
   CHECK(!obj->HasFastProperties());
   CHECK(obj->raw_properties_or_hash()->IsDictionary());
   CHECK_EQ(Smi::FromInt(hash), obj->GetHash());
@@ -83,7 +83,7 @@ TEST(AddHashCodeToFastObjectWithPropertiesArray) {
   CHECK(obj->HasFastProperties());
 
   int hash = AddToSetAndGetHash(isolate, obj, true);
-  CheckFastObject(isolate, obj, hash);
+  CheckFastObject(obj, hash);
 }
 
 TEST(AddHashCodeToSlowObject) {
@@ -99,7 +99,7 @@ TEST(AddHashCodeToSlowObject) {
   CHECK(obj->raw_properties_or_hash()->IsDictionary());
 
   int hash = AddToSetAndGetHash(isolate, obj, false);
-  CheckDictionaryObject(isolate, obj, hash);
+  CheckDictionaryObject(obj, hash);
 }
 
 TEST(TransitionFastWithInObjectToFastWithPropertyArray) {
@@ -121,7 +121,7 @@ TEST(TransitionFastWithInObjectToFastWithPropertyArray) {
   int length = obj->property_array()->length();
   CompileRun("x.e = 5;");
   CHECK(obj->property_array()->length() > length);
-  CheckFastObject(isolate, obj, hash);
+  CheckFastObject(obj, hash);
 }
 
 TEST(TransitionFastWithPropertyArray) {
@@ -143,7 +143,7 @@ TEST(TransitionFastWithPropertyArray) {
   int length = obj->property_array()->length();
   CompileRun("x.f = 2; x.g = 5; x.h = 2");
   CHECK(obj->property_array()->length() > length);
-  CheckFastObject(isolate, obj, hash);
+  CheckFastObject(obj, hash);
 }
 
 TEST(TransitionFastWithPropertyArrayToSlow) {
@@ -165,7 +165,7 @@ TEST(TransitionFastWithPropertyArrayToSlow) {
 
   JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 0,
                                 "cctest/test-hashcode");
-  CheckDictionaryObject(isolate, obj, hash);
+  CheckDictionaryObject(obj, hash);
 }
 
 TEST(TransitionSlowToSlow) {
@@ -187,7 +187,7 @@ TEST(TransitionSlowToSlow) {
   int length = obj->property_dictionary()->length();
   CompileRun("for(var i = 0; i < 10; i++) { x['f'+i] = i };");
   CHECK(obj->property_dictionary()->length() > length);
-  CheckDictionaryObject(isolate, obj, hash);
+  CheckDictionaryObject(obj, hash);
 }
 
 TEST(TransitionSlowToFastWithoutProperties) {
@@ -225,7 +225,7 @@ TEST(TransitionSlowToFastWithPropertyArray) {
   CHECK_EQ(hash, obj->property_dictionary()->Hash());
 
   JSObject::MigrateSlowToFast(obj, 0, "cctest/test-hashcode");
-  CheckFastObject(isolate, obj, hash);
+  CheckFastObject(obj, hash);
 }
 
 }  // namespace internal

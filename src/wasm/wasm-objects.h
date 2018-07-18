@@ -301,7 +301,7 @@ class WasmMemoryObject : public JSObject {
   static void AddInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
                           Handle<WasmInstanceObject> object);
   // Remove an instance from the internal (weak) list.
-  static void RemoveInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
+  static void RemoveInstance(Handle<WasmMemoryObject> memory,
                              Handle<WasmInstanceObject> object);
   uint32_t current_pages();
   inline bool has_maximum_pages();

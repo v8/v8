@@ -1500,8 +1500,7 @@ WasmInitExpr DecodeWasmInitExprForTesting(const byte* start, const byte* end) {
 
 namespace {
 
-FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
-                                  const ModuleWireBytes& wire_bytes,
+FunctionResult DecodeWasmFunction(Zone* zone, const ModuleWireBytes& wire_bytes,
                                   const WasmModule* module,
                                   const byte* function_start,
                                   const byte* function_end,
@@ -1528,15 +1527,15 @@ FunctionResult SyncDecodeWasmFunction(Isolate* isolate, Zone* zone,
                                       const WasmModule* module,
                                       const byte* function_start,
                                       const byte* function_end) {
-  return DecodeWasmFunction(isolate, zone, wire_bytes, module, function_start,
+  return DecodeWasmFunction(zone, wire_bytes, module, function_start,
                             function_end, isolate->counters());
 }
 
 FunctionResult AsyncDecodeWasmFunction(
-    Isolate* isolate, Zone* zone, const ModuleWireBytes& wire_bytes,
-    const WasmModule* module, const byte* function_start,
-    const byte* function_end, std::shared_ptr<Counters> async_counters) {
-  return DecodeWasmFunction(isolate, zone, wire_bytes, module, function_start,
+    Zone* zone, const ModuleWireBytes& wire_bytes, const WasmModule* module,
+    const byte* function_start, const byte* function_end,
+    std::shared_ptr<Counters> async_counters) {
+  return DecodeWasmFunction(zone, wire_bytes, module, function_start,
                             function_end, async_counters.get());
 }
 

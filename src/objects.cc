@@ -1539,7 +1539,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
     if (info->replace_on_access() && receiver->IsJSReceiver()) {
       RETURN_ON_EXCEPTION(isolate,
                           Accessors::ReplaceAccessorWithDataProperty(
-                              isolate, receiver, holder, name, result),
+                              receiver, holder, name, result),
                           Object);
     }
     return reboxed_result;
@@ -1588,8 +1588,7 @@ Address CallHandlerInfo::redirected_callback() const {
   return ExternalReference::Create(&fun, type).address();
 }
 
-bool AccessorInfo::IsCompatibleReceiverMap(Isolate* isolate,
-                                           Handle<AccessorInfo> info,
+bool AccessorInfo::IsCompatibleReceiverMap(Handle<AccessorInfo> info,
                                            Handle<Map> map) {
   if (!info->HasExpectedReceiverType()) return true;
   if (!map->IsJSObjectMap()) return false;

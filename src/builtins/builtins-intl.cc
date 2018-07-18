@@ -492,7 +492,7 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
   }
 
   icu::DecimalFormat* number_format =
-      NumberFormat::UnpackNumberFormat(isolate, number_format_holder);
+      NumberFormat::UnpackNumberFormat(number_format_holder);
   CHECK_NOT_NULL(number_format);
 
   Object* result = FormatNumberToParts(isolate, number_format, x->Number());
@@ -528,7 +528,7 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
   }
 
   icu::SimpleDateFormat* date_format =
-      DateFormat::UnpackDateFormat(isolate, date_format_holder);
+      DateFormat::UnpackDateFormat(date_format_holder);
   CHECK_NOT_NULL(date_format);
 
   return FormatDateToParts(isolate, date_format, date_value);
@@ -835,7 +835,7 @@ Object* RelativeTimeFormatPrototypeFormatCommon(
   }
 
   icu::RelativeDateTimeFormatter* formatter =
-      JSRelativeTimeFormat::UnpackFormatter(isolate, format_holder);
+      JSRelativeTimeFormat::UnpackFormatter(format_holder);
   CHECK_NOT_NULL(formatter);
 
   URelativeDateTimeUnit unit_enum;

@@ -506,14 +506,13 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       // object.
       case kExternalReference + kPlain + kStartOfObject:
         current = reinterpret_cast<MaybeObject**>(ReadExternalReferenceCase(
-            kPlain, isolate, reinterpret_cast<void**>(current),
-            current_object_address));
+            kPlain, reinterpret_cast<void**>(current), current_object_address));
         break;
       // Find an external reference and write a pointer to it in the current
       // code object.
       case kExternalReference + kFromCode + kStartOfObject:
         current = reinterpret_cast<MaybeObject**>(ReadExternalReferenceCase(
-            kFromCode, isolate, reinterpret_cast<void**>(current),
+            kFromCode, reinterpret_cast<void**>(current),
             current_object_address));
         break;
 
@@ -761,8 +760,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
 
 template <class AllocatorT>
 void** Deserializer<AllocatorT>::ReadExternalReferenceCase(
-    HowToCode how, Isolate* isolate, void** current,
-    Address current_object_address) {
+    HowToCode how, void** current, Address current_object_address) {
   int skip = source_.GetInt();
   current = reinterpret_cast<void**>(reinterpret_cast<Address>(current) + skip);
   uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());

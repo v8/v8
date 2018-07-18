@@ -1415,8 +1415,8 @@ Reduction JSTypedLowering::ReduceJSStoreModule(Node* node) {
 
 namespace {
 
-void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
-                   int builtin_index, int arity, CallDescriptor::Flags flags) {
+void ReduceBuiltin(JSGraph* jsgraph, Node* node, int builtin_index, int arity,
+                   CallDescriptor::Flags flags) {
   // Patch {node} to a direct CEntry call.
   //
   // ----------- A r g u m e n t s -----------
@@ -1678,8 +1678,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     } else if (shared.HasBuiltinId() &&
                Builtins::HasCppImplementation(shared.builtin_id())) {
       // Patch {node} to a direct CEntry call.
-      ReduceBuiltin(isolate(), jsgraph(), node, shared.builtin_id(), arity,
-                    flags);
+      ReduceBuiltin(jsgraph(), node, shared.builtin_id(), arity, flags);
     } else if (shared.HasBuiltinId() &&
                Builtins::KindOf(shared.builtin_id()) == Builtins::TFJ) {
       // Patch {node} to a direct code object call.

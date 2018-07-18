@@ -30,7 +30,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
   size_t addr = (index << 2) + NumberToSize(sta->byte_offset());
 
-  return FutexEmulation::NumWaitersForTesting(isolate, array_buffer, addr);
+  return FutexEmulation::NumWaitersForTesting(array_buffer, addr);
 }
 
 RUNTIME_FUNCTION(Runtime_SetAllowAtomicsWait) {

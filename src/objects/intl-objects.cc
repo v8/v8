@@ -862,8 +862,7 @@ icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
   return date_format;
 }
 
-icu::SimpleDateFormat* DateFormat::UnpackDateFormat(Isolate* isolate,
-                                                    Handle<JSObject> obj) {
+icu::SimpleDateFormat* DateFormat::UnpackDateFormat(Handle<JSObject> obj) {
   return reinterpret_cast<icu::SimpleDateFormat*>(obj->GetEmbedderField(0));
 }
 
@@ -914,8 +913,7 @@ icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
   return number_format;
 }
 
-icu::DecimalFormat* NumberFormat::UnpackNumberFormat(Isolate* isolate,
-                                                     Handle<JSObject> obj) {
+icu::DecimalFormat* NumberFormat::UnpackNumberFormat(Handle<JSObject> obj) {
   return reinterpret_cast<icu::DecimalFormat*>(
       obj->GetEmbedderField(NumberFormat::kDecimalFormatIndex));
 }
@@ -970,8 +968,7 @@ bool Collator::InitializeCollator(Isolate* isolate,
   return true;
 }
 
-icu::Collator* Collator::UnpackCollator(Isolate* isolate,
-                                        Handle<JSObject> obj) {
+icu::Collator* Collator::UnpackCollator(Handle<JSObject> obj) {
   return Managed<icu::Collator>::cast(obj->GetEmbedderField(0))->raw();
 }
 
@@ -1019,13 +1016,11 @@ bool PluralRules::InitializePluralRules(Isolate* isolate, Handle<String> locale,
   return success;
 }
 
-icu::PluralRules* PluralRules::UnpackPluralRules(Isolate* isolate,
-                                                 Handle<JSObject> obj) {
+icu::PluralRules* PluralRules::UnpackPluralRules(Handle<JSObject> obj) {
   return reinterpret_cast<icu::PluralRules*>(obj->GetEmbedderField(0));
 }
 
-icu::DecimalFormat* PluralRules::UnpackNumberFormat(Isolate* isolate,
-                                                    Handle<JSObject> obj) {
+icu::DecimalFormat* PluralRules::UnpackNumberFormat(Handle<JSObject> obj) {
   return reinterpret_cast<icu::DecimalFormat*>(obj->GetEmbedderField(1));
 }
 
@@ -1077,8 +1072,7 @@ icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
   return break_iterator;
 }
 
-icu::BreakIterator* V8BreakIterator::UnpackBreakIterator(Isolate* isolate,
-                                                         Handle<JSObject> obj) {
+icu::BreakIterator* V8BreakIterator::UnpackBreakIterator(Handle<JSObject> obj) {
   return reinterpret_cast<icu::BreakIterator*>(obj->GetEmbedderField(0));
 }
 
@@ -1299,7 +1293,7 @@ MaybeHandle<JSObject> NumberFormat::Unwrap(Isolate* isolate,
 MaybeHandle<Object> NumberFormat::FormatNumber(
     Isolate* isolate, Handle<JSObject> number_format_holder, double value) {
   icu::DecimalFormat* number_format =
-      NumberFormat::UnpackNumberFormat(isolate, number_format_holder);
+      NumberFormat::UnpackNumberFormat(number_format_holder);
   CHECK_NOT_NULL(number_format);
 
   icu::UnicodeString result;

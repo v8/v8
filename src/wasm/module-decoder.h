@@ -80,7 +80,7 @@ V8_EXPORT_PRIVATE FunctionResult SyncDecodeWasmFunction(
     const byte* function_end);
 
 V8_EXPORT_PRIVATE FunctionResult AsyncDecodeWasmFunction(
-    Isolate* isolate, Zone* zone, ModuleEnv* env, const byte* function_start,
+    Zone* zone, ModuleEnv* env, const byte* function_start,
     const byte* function_end, const std::shared_ptr<Counters> async_counters);
 
 V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(const byte* start,

@@ -22659,7 +22659,7 @@ void Recompile(Args... args) {
   stub.GetCode();
 }
 
-void RecompileICStubs(i::Isolate* isolate) {
+void RecompileICStubs() {
   // BUG(5784): We had a list of IC stubs here to recompile. These are now
   // builtins and we can't compile them again (easily). Bug 5784 tracks
   // our progress in finding another way to do this.
@@ -22712,7 +22712,6 @@ void TestStubCache(bool primary) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
   {
     v8::Isolate::Scope isolate_scope(isolate);
@@ -22721,7 +22720,7 @@ void TestStubCache(bool primary) {
 
     // Enforce recompilation of IC stubs that access megamorphic stub cache
     // to respect enabled native code counters and stub cache test flags.
-    RecompileICStubs(i_isolate);
+    RecompileICStubs();
 
     int initial_probes = probes_counter;
     int initial_misses = misses_counter;
@@ -23652,7 +23651,6 @@ TEST(AccessCheckInIC) {
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
   {
     v8::Isolate::Scope isolate_scope(isolate);
@@ -23661,7 +23659,7 @@ TEST(AccessCheckInIC) {
 
     // Enforce recompilation of IC stubs that access megamorphic stub cache
     // to respect enabled native code counters and stub cache test flags.
-    RecompileICStubs(i_isolate);
+    RecompileICStubs();
 
     // Create an ObjectTemplate for global objects and install access
     // check callbacks that will block access.

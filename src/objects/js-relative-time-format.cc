@@ -190,7 +190,7 @@ Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
 }
 
 icu::RelativeDateTimeFormatter* JSRelativeTimeFormat::UnpackFormatter(
-    Isolate* isolate, Handle<JSRelativeTimeFormat> holder) {
+    Handle<JSRelativeTimeFormat> holder) {
   return Managed<icu::RelativeDateTimeFormatter>::cast(holder->formatter())
       ->raw();
 }

@@ -1175,8 +1175,7 @@ intptr_t CompareWords(int size, HeapObject* a, HeapObject* b) {
   return 0;
 }
 
-void ReportDuplicates(Isolate* isolate, int size,
-                      std::vector<HeapObject*>& objects) {
+void ReportDuplicates(int size, std::vector<HeapObject*>& objects) {
   if (objects.size() == 0) return;
 
   sort(objects.begin(), objects.end(), [size](HeapObject* a, HeapObject* b) {
@@ -1274,7 +1273,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
     }
     for (auto it = objects_by_size.rbegin(); it != objects_by_size.rend();
          ++it) {
-      ReportDuplicates(isolate(), it->first, it->second);
+      ReportDuplicates(it->first, it->second);
     }
   }
 }

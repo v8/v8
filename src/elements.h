@@ -157,9 +157,8 @@ class ElementsAccessor {
   virtual uint32_t GetCapacity(JSObject* holder,
                                FixedArrayBase* backing_store) = 0;
 
-  virtual Object* Fill(Isolate* isolate, Handle<JSObject> receiver,
-                       Handle<Object> obj_value, uint32_t start,
-                       uint32_t end) = 0;
+  virtual Object* Fill(Handle<JSObject> receiver, Handle<Object> obj_value,
+                       uint32_t start, uint32_t end) = 0;
 
   // Check an Object's own elements for an element (using SameValueZero
   // semantics)
@@ -174,8 +173,7 @@ class ElementsAccessor {
                                       Handle<Object> value, uint32_t start,
                                       uint32_t length) = 0;
 
-  virtual Maybe<int64_t> LastIndexOfValue(Isolate* isolate,
-                                          Handle<JSObject> receiver,
+  virtual Maybe<int64_t> LastIndexOfValue(Handle<JSObject> receiver,
                                           Handle<Object> value,
                                           uint32_t start) = 0;
 

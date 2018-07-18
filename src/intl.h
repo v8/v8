@@ -47,8 +47,7 @@ V8_WARN_UNUSED_RESULT Object* ConvertToUpper(Handle<String> s,
 V8_WARN_UNUSED_RESULT Object* ConvertCase(Handle<String> s, bool is_upper,
                                           Isolate* isolate);
 
-V8_WARN_UNUSED_RESULT Object* ConvertOneByteToLower(String* src, String* dst,
-                                                    Isolate* isolate);
+V8_WARN_UNUSED_RESULT Object* ConvertOneByteToLower(String* src, String* dst);
 
 const uint8_t* ToLatin1LowerTable();
 

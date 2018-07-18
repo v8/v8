@@ -269,8 +269,7 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
 }
 
 // static
-MaybeObjectHandle StoreHandler::StoreGlobal(Isolate* isolate,
-                                            Handle<PropertyCell> cell) {
+MaybeObjectHandle StoreHandler::StoreGlobal(Handle<PropertyCell> cell) {
   return MaybeObjectHandle::Weak(cell);
 }
 

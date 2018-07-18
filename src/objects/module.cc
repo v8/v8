@@ -176,7 +176,7 @@ void Module::StoreVariable(Handle<Module> module, int cell_index,
 }
 
 #ifdef DEBUG
-void Module::PrintStatusTransition(Isolate* isolate, Status new_status) {
+void Module::PrintStatusTransition(Status new_status) {
   if (FLAG_trace_module_status) {
     StdoutStream os;
     os << "Changing module status from " << status() << " to " << new_status
@@ -189,12 +189,12 @@ void Module::PrintStatusTransition(Isolate* isolate, Status new_status) {
 }
 #endif  // DEBUG
 
-void Module::SetStatus(Isolate* isolate, Status new_status) {
+void Module::SetStatus(Status new_status) {
   DisallowHeapAllocation no_alloc;
   DCHECK_LE(status(), new_status);
   DCHECK_NE(new_status, Module::kErrored);
 #ifdef DEBUG
-  PrintStatusTransition(isolate, new_status);
+  PrintStatusTransition(new_status);
 #endif  // DEBUG
   set_status(new_status);
 }
@@ -240,7 +240,7 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
     module->set_code(JSFunction::cast(module->code())->shared());
   }
 #ifdef DEBUG
-  module->PrintStatusTransition(isolate, kUninstantiated);
+  module->PrintStatusTransition(kUninstantiated);
 #endif  // DEBUG
   module->set_status(kUninstantiated);
   module->set_exports(*exports);
@@ -259,7 +259,7 @@ void Module::RecordError(Isolate* isolate) {
 
   set_code(info());
 #ifdef DEBUG
-  PrintStatusTransition(isolate, Module::kErrored);
+  PrintStatusTransition(Module::kErrored);
 #endif  // DEBUG
   set_status(Module::kErrored);
   set_exception(the_exception);
@@ -476,7 +476,7 @@ bool Module::PrepareInstantiate(Isolate* isolate, Handle<Module> module,
   DCHECK_NE(module->status(), kEvaluating);
   DCHECK_NE(module->status(), kInstantiating);
   if (module->status() >= kPreInstantiating) return true;
-  module->SetStatus(isolate, kPreInstantiating);
+  module->SetStatus(kPreInstantiating);
   STACK_CHECK(isolate, false);
 
   // Obtain requested modules.
@@ -571,7 +571,7 @@ bool Module::MaybeTransitionComponent(Isolate* isolate, Handle<Module> module,
       if (new_status == kInstantiated) {
         if (!RunInitializationCode(isolate, ancestor)) return false;
       }
-      ancestor->SetStatus(isolate, new_status);
+      ancestor->SetStatus(new_status);
     } while (*ancestor != *module);
   }
   return true;
@@ -593,7 +593,7 @@ bool Module::FinishInstantiate(Isolate* isolate, Handle<Module> module,
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           shared, isolate->native_context());
   module->set_code(*function);
-  module->SetStatus(isolate, kInstantiating);
+  module->SetStatus(kInstantiating);
   module->set_dfs_index(*dfs_index);
   module->set_dfs_ancestor_index(*dfs_index);
   stack->push_front(module);
@@ -715,7 +715,7 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module,
                                       isolate);
   module->set_code(
       generator->function()->shared()->scope_info()->ModuleDescriptorInfo());
-  module->SetStatus(isolate, kEvaluating);
+  module->SetStatus(kEvaluating);
   module->set_dfs_index(*dfs_index);
   module->set_dfs_ancestor_index(*dfs_index);
   stack->push_front(module);

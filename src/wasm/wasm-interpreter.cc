@@ -931,8 +931,7 @@ class CodeMap {
   bool call_indirect_through_module_ = false;
 
  public:
-  CodeMap(Isolate* isolate, const WasmModule* module,
-          const uint8_t* module_start, Zone* zone)
+  CodeMap(const WasmModule* module, const uint8_t* module_start, Zone* zone)
       : zone_(zone), module_(module), interpreter_code_(zone) {
     if (module == nullptr) return;
     interpreter_code_.reserve(module->functions.size());
@@ -3061,12 +3060,11 @@ class WasmInterpreterInternals : public ZoneObject {
   CodeMap codemap_;
   ZoneVector<ThreadImpl> threads_;
 
-  WasmInterpreterInternals(Isolate* isolate, Zone* zone,
-                           const WasmModule* module,
+  WasmInterpreterInternals(Zone* zone, const WasmModule* module,
                            const ModuleWireBytes& wire_bytes,
                            Handle<WasmInstanceObject> instance_object)
       : module_bytes_(wire_bytes.start(), wire_bytes.end(), zone),
-        codemap_(isolate, module, module_bytes_.data(), zone),
+        codemap_(module, module_bytes_.data(), zone),
         threads_(zone) {
     threads_.emplace_back(zone, &codemap_, instance_object);
   }
@@ -3098,8 +3096,7 @@ WasmInterpreter::WasmInterpreter(Isolate* isolate, const WasmModule* module,
                                  Handle<WasmInstanceObject> instance_object)
     : zone_(isolate->allocator(), ZONE_NAME),
       internals_(new (&zone_) WasmInterpreterInternals(
-          isolate, &zone_, module, wire_bytes,
-          MakeWeak(isolate, instance_object))) {}
+          &zone_, module, wire_bytes, MakeWeak(isolate, instance_object))) {}
 
 WasmInterpreter::~WasmInterpreter() { internals_->~WasmInterpreterInternals(); }
 
