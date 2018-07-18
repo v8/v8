@@ -5,9 +5,9 @@
 #ifndef V8_TORQUE_SCOPE_H_
 #define V8_TORQUE_SCOPE_H_
 
+#include <map>
 #include <string>
 
-#include "./antlr4-runtime.h"
 #include "src/torque/ast.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"

@@ -3143,24 +3143,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
   v8_executable("torque") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
-    defines = [ "ANTLR4CPP_STATIC" ]
-
-    include_dirs = [
-      "third_party/antlr4/runtime/Cpp/runtime/src",
-      "src/torque",
-    ]
-
     sources = [
-      "src/torque/TorqueBaseVisitor.cpp",
-      "src/torque/TorqueBaseVisitor.h",
-      "src/torque/TorqueLexer.cpp",
-      "src/torque/TorqueLexer.h",
-      "src/torque/TorqueParser.cpp",
-      "src/torque/TorqueParser.h",
-      "src/torque/TorqueVisitor.cpp",
-      "src/torque/TorqueVisitor.h",
-      "src/torque/ast-generator.cc",
-      "src/torque/ast-generator.h",
       "src/torque/ast.h",
       "src/torque/contextual.h",
       "src/torque/declarable.cc",
@@ -3169,6 +3152,8 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "src/torque/declaration-visitor.h",
       "src/torque/declarations.cc",
       "src/torque/declarations.h",
+      "src/torque/earley-parser.cc",
+      "src/torque/earley-parser.h",
       "src/torque/file-visitor.cc",
       "src/torque/file-visitor.h",
       "src/torque/global-context.h",
@@ -3176,6 +3161,9 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "src/torque/implementation-visitor.h",
       "src/torque/scope.cc",
       "src/torque/scope.h",
+      "src/torque/source-positions.h",
+      "src/torque/torque-parser.cc",
+      "src/torque/torque-parser.h",
       "src/torque/torque.cc",
       "src/torque/type-oracle.h",
       "src/torque/types.cc",
@@ -3186,19 +3174,10 @@ if (current_toolchain == v8_snapshot_toolchain) {
 
     deps = [
       ":v8_libbase",
-      "third_party/antlr4:antlr4",
       "//build/win:default_exe_manifest",
     ]
 
-    remove_configs = [
-      "//build/config/compiler:no_rtti",
-      "//build/config/compiler:no_exceptions",
-    ]
-
     configs = [
-      "//build/config/compiler:rtti",
-      "//build/config/compiler:exceptions",
-      "third_party/antlr4:antlr-compatibility",
       ":external_config",
       ":internal_config_base",
     ]

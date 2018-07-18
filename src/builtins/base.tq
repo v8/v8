@@ -280,8 +280,14 @@ extern operator '|' macro Word32Or(uint32, uint32): uint32;
 
 extern operator '+' macro NumberAdd(Number, Number): Number;
 extern operator '-' macro NumberSub(Number, Number): Number;
-extern operator 'min' macro NumberMin(Number, Number): Number;
-extern operator 'max' macro NumberMax(Number, Number): Number;
+extern macro NumberMin(Number, Number): Number;
+extern macro NumberMax(Number, Number): Number;
+macro min(x: Number, y : Number) : Number {
+    return NumberMin(x,y);
+}
+macro max(x: Number, y : Number) : Number {
+    return NumberMax(x,y);
+}
 
 extern operator '!' macro ConstexprBoolNot(constexpr bool): constexpr bool;
 extern operator '!' macro Word32BinaryNot(bool): bool;
@@ -709,7 +715,9 @@ extern macro Typeof(Object): Object;
 
 // Return true iff number is NaN.
 macro NumberIsNaN(number: Number): bool {
-  if (TaggedIsSmi(number)) return false;
+  if (TaggedIsSmi(number)) {
+      return false;
+  }
 
   let value: float64 = convert<float64>(unsafe_cast<HeapNumber>(number));
   return value != value;

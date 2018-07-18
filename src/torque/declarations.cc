@@ -85,7 +85,7 @@ const Type* Declarations::GetType(TypeExpression* type_expression) {
   } else {
     auto* function_type_exp = FunctionTypeExpression::cast(type_expression);
     TypeVector argument_types;
-    for (TypeExpression* type_exp : function_type_exp->parameters.types) {
+    for (TypeExpression* type_exp : function_type_exp->parameters) {
       argument_types.push_back(GetType(type_exp));
     }
     return TypeOracle::GetFunctionPointerType(

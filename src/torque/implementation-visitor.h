@@ -115,9 +115,6 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult Visit(LogicalOrExpression* expr);
   VisitResult Visit(LogicalAndExpression* expr);
 
-  LocationReference GetLocationReference(
-      TorqueParser::LocationExpressionContext* locationExpression);
-
   VisitResult Visit(IncrementDecrementExpression* expr);
   VisitResult Visit(AssignmentExpression* expr);
   VisitResult Visit(StringLiteralExpression* expr);
