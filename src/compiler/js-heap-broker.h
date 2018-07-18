@@ -247,7 +247,6 @@ class NativeContextRef : public ContextRef {
   JSFunctionRef array_function() const;
 
   MapRef GetFunctionMapFromIndex(int index) const;
-  MapRef ObjectLiteralMapFromCache() const;
 };
 
 class NameRef : public HeapObjectRef {
