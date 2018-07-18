@@ -1149,6 +1149,7 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
+  DisallowHeapAccess no_heap_access;
   DCHECK(node->opcode() == IrOpcode::kJSCreateLiteralArray ||
          node->opcode() == IrOpcode::kJSCreateLiteralObject);
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
@@ -1197,15 +1198,16 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralObject(Node* node) {
+  DisallowHeapAccess no_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateEmptyLiteralObject, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
   // Retrieve the initial map for the object.
-  Handle<Map> map = factory()->ObjectLiteralMapFromCache(native_context(), 0);
-  DCHECK(!map->is_dictionary_map());
-  DCHECK(!map->IsInobjectSlackTrackingInProgress());
-  Node* js_object_map = jsgraph()->HeapConstant(map);
+  MapRef map = native_context_ref().ObjectLiteralMapFromCache();
+  DCHECK(!map.is_dictionary_map());
+  DCHECK(!map.IsInobjectSlackTrackingInProgress());
+  Node* js_object_map = jsgraph()->Constant(map);
 
   // Setup elements and properties.
   Node* elements = jsgraph()->EmptyFixedArrayConstant();
@@ -1213,13 +1215,12 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralObject(Node* node) {
 
   // Perform the allocation of the actual JSArray object.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(map->instance_size());
+  a.Allocate(map.instance_size());
   a.Store(AccessBuilder::ForMap(), js_object_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
-  for (int i = 0; i < map->GetInObjectProperties(); i++) {
-    a.Store(AccessBuilder::ForJSObjectInObjectProperty(
-                MapRef(js_heap_broker(), map), i),
+  for (int i = 0; i < map.GetInObjectProperties(); i++) {
+    a.Store(AccessBuilder::ForJSObjectInObjectProperty(map, i),
             jsgraph()->UndefinedConstant());
   }
 
