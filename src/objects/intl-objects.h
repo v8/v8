@@ -294,6 +294,10 @@ class Intl {
   V8_WARN_UNUSED_RESULT static Maybe<bool> GetBoolOption(
       Isolate* isolate, Handle<JSReceiver> options, const char* property,
       const char* service, bool* result);
+
+  // Canonicalize the localeID.
+  static MaybeHandle<String> CanonicalizeLanguageTag(Isolate* isolate,
+                                                     Handle<Object> localeID);
 };
 
 }  // namespace internal

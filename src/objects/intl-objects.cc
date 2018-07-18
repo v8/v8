@@ -1488,9 +1488,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> Intl::GetBoolOption(
   return Just(false);
 }
 
-// TODO(bstell): enable this anonymous namespace once
-// IsStructurallyValidLanguageTag called.
-// namespace {
+namespace {
 
 char AsciiToLower(char c) {
   if (c < 'A' || c > 'Z') {
@@ -1603,7 +1601,83 @@ bool IsStructurallyValidLanguageTag(Isolate* isolate,
 
   return true;
 }
-// }  // anonymous namespace
+
+bool IsLowerAscii(char c) { return c >= 'a' && c < 'z'; }
+
+bool IsTwoLetterLanguage(const std::string& locale) {
+  // Two letters, both in range 'a'-'z'...
+  return locale.length() == 2 && IsLowerAscii(locale[0]) &&
+         IsLowerAscii(locale[1]);
+}
+
+bool IsDeprecatedLanguage(const std::string& locale) {
+  //  Not one of the deprecated language tags:
+  return locale != "in" && locale != "iw" && locale != "ji" && locale != "jw";
+}
+
+}  // anonymous namespace
+
+MaybeHandle<String> Intl::CanonicalizeLanguageTag(Isolate* isolate,
+                                                  Handle<Object> locale_in) {
+  Handle<String> locale_str;
+  if (locale_in->IsString()) {
+    locale_str = Handle<String>::cast(locale_in);
+  } else if (locale_in->IsJSReceiver()) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, locale_str,
+                               Object::ToString(isolate, locale_in), String);
+  } else {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kLanguageID),
+                    String);
+  }
+  std::string locale(locale_str->ToCString().get());
+
+  // Optimize for the most common case: a 2-letter language code in the
+  // canonical form/lowercase that is not one of the deprecated codes
+  // (in, iw, ji, jw). Don't check for ~70 of 3-letter deprecated language
+  // codes. Instead, let them be handled by ICU in the slow path. However,
+  // fast-track 'fil' (3-letter canonical code).
+  if ((IsTwoLetterLanguage(locale) && !IsDeprecatedLanguage(locale)) ||
+      locale == "fil") {
+    return locale_str;
+  }
+
+  if (!IsStructurallyValidLanguageTag(isolate, locale)) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidLanguageTag),
+                    String);
+  }
+
+  // // ECMA 402 6.2.3
+  // TODO(jshin): uloc_{for,to}TanguageTag can fail even for a structually valid
+  // language tag if it's too long (much longer than 100 chars). Even if we
+  // allocate a longer buffer, ICU will still fail if it's too long. Either
+  // propose to Ecma 402 to put a limit on the locale length or change ICU to
+  // handle long locale names better. See
+  // https://unicode-org.atlassian.net/browse/ICU-13417
+  UErrorCode error = U_ZERO_ERROR;
+  char icu_result[ULOC_FULLNAME_CAPACITY];
+  uloc_forLanguageTag(locale.c_str(), icu_result, ULOC_FULLNAME_CAPACITY,
+                      nullptr, &error);
+  if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
+    // TODO(jshin): This should not happen because the structural validity
+    // is already checked. If that's the case, remove this.
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalidLanguageTag), String);
+  }
+
+  // Force strict BCP47 rules.
+  char result[ULOC_FULLNAME_CAPACITY];
+  int32_t result_len = uloc_toLanguageTag(icu_result, result,
+                                          ULOC_FULLNAME_CAPACITY, TRUE, &error);
+
+  if (U_FAILURE(error)) {
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalidLanguageTag), String);
+  }
+
+  return isolate->factory()
+      ->NewStringFromOneByte(OneByteVector(result, result_len), NOT_TENURED)
+      .ToHandleChecked();
+}
 
 }  // namespace internal
 }  // namespace v8
