@@ -21,13 +21,10 @@ import v8_commands
 import v8_suppressions
 
 CONFIGS = dict(
-  default=[
-    '--suppress-asm-messages',
-  ],
+  default=[],
   ignition=[
     '--turbo-filter=~',
     '--noopt',
-    '--suppress-asm-messages',
     '--liftoff',
     '--no-wasm-tier-up',
   ],
@@ -36,21 +33,16 @@ CONFIGS = dict(
     '--noopt',
     '--validate-asm',
     '--stress-validate-asm',
-    '--suppress-asm-messages',
   ],
   ignition_eager=[
     '--turbo-filter=~',
     '--noopt',
     '--no-lazy',
     '--no-lazy-inner-functions',
-    '--suppress-asm-messages',
   ],
-  ignition_turbo=[
-    '--suppress-asm-messages',
-  ],
+  ignition_turbo=[],
   ignition_turbo_opt=[
     '--always-opt',
-    '--suppress-asm-messages',
     '--no-liftoff',
     '--no-wasm-tier-up',
   ],
@@ -58,25 +50,20 @@ CONFIGS = dict(
     '--always-opt',
     '--no-lazy',
     '--no-lazy-inner-functions',
-    '--suppress-asm-messages',
   ],
   slow_path=[
     '--force-slow-path',
-    '--suppress-asm-messages',
   ],
   slow_path_opt=[
     '--always-opt',
     '--force-slow-path',
-    '--suppress-asm-messages',
   ],
   trusted=[
     '--no-untrusted-code-mitigations',
-    '--suppress-asm-messages',
   ],
   trusted_opt=[
     '--always-opt',
     '--no-untrusted-code-mitigations',
-    '--suppress-asm-messages',
   ],
 )
 
@@ -106,7 +93,8 @@ ARCH_MOCKS = os.path.join(BASE_PATH, 'v8_mock_archs.js')
 
 FLAGS = ['--abort_on_stack_or_string_length_overflow', '--expose-gc',
          '--allow-natives-syntax', '--invoke-weak-callbacks', '--omit-quit',
-         '--es-staging', '--wasm-num-compilation-tasks=0']
+         '--es-staging', '--wasm-num-compilation-tasks=0',
+         '--suppress-asm-messages']
 
 SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
 
