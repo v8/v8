@@ -3350,7 +3350,9 @@ TEST(SmallOrderedHashMapAllocate) {
     CHECK_EQ(0, actual->NumberOfDeletedElements());
     CHECK_EQ(capacity / SmallOrderedHashMap::kLoadFactor,
              actual->NumberOfBuckets());
-    CHECK(memcmp(*expected, *actual, SmallOrderedHashMap::SizeFor(capacity)));
+    CHECK_EQ(0, memcmp(reinterpret_cast<void*>(expected->address()),
+                       reinterpret_cast<void*>(actual->address()),
+                       SmallOrderedHashMap::SizeFor(capacity)));
 #ifdef VERIFY_HEAP
     actual->SmallOrderedHashTableVerify(isolate);
 #endif
@@ -3387,7 +3389,9 @@ TEST(SmallOrderedHashSetAllocate) {
     CHECK_EQ(0, actual->NumberOfDeletedElements());
     CHECK_EQ(capacity / SmallOrderedHashSet::kLoadFactor,
              actual->NumberOfBuckets());
-    CHECK(memcmp(*expected, *actual, SmallOrderedHashSet::SizeFor(capacity)));
+    CHECK_EQ(0, memcmp(reinterpret_cast<void*>(expected->address()),
+                       reinterpret_cast<void*>(actual->address()),
+                       SmallOrderedHashSet::SizeFor(capacity)));
 #ifdef VERIFY_HEAP
     actual->SmallOrderedHashTableVerify(isolate);
 #endif
