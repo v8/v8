@@ -28,6 +28,8 @@ CONFIGS = dict(
     '--turbo-filter=~',
     '--noopt',
     '--suppress-asm-messages',
+    '--liftoff',
+    '--no-wasm-tier-up',
   ],
   ignition_asm=[
     '--turbo-filter=~',
@@ -49,16 +51,13 @@ CONFIGS = dict(
   ignition_turbo_opt=[
     '--always-opt',
     '--suppress-asm-messages',
+    '--no-liftoff',
+    '--no-wasm-tier-up',
   ],
   ignition_turbo_opt_eager=[
     '--always-opt',
     '--no-lazy',
     '--no-lazy-inner-functions',
-    '--suppress-asm-messages',
-  ],
-  liftoff=[
-    '--liftoff',
-    '--no-wasm-tier-up',
     '--suppress-asm-messages',
   ],
   slow_path=[
