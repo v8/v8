@@ -1068,6 +1068,11 @@ Type Type::HeapConstant(const JSHeapBroker* js_heap_broker,
 }
 
 // static
+Type Type::HeapConstant(const HeapObjectRef& value, Zone* zone) {
+  return HeapConstantType::New(value, zone);
+}
+
+// static
 Type Type::Range(double min, double max, Zone* zone) {
   return FromTypeBase(RangeType::New(min, max, zone));
 }

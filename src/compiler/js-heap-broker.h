@@ -185,6 +185,7 @@ class JSFunctionRef : public JSObjectRef {
   bool IsConstructor() const;
   bool has_initial_map() const;
   MapRef initial_map() const;
+
   JSGlobalProxyRef global_proxy() const;
   SlackTrackingResult FinishSlackTracking() const;
   SharedFunctionInfoRef shared() const;
@@ -243,6 +244,7 @@ class NativeContextRef : public ContextRef {
   MapRef iterator_result_map() const;
   MapRef string_iterator_map() const;
   MapRef promise_function_initial_map() const;
+  JSFunctionRef array_function() const;
 
   MapRef GetFunctionMapFromIndex(int index) const;
   MapRef ObjectLiteralMapFromCache() const;
@@ -283,6 +285,7 @@ class AllocationSiteRef : public HeapObjectRef {
   ObjectRef nested_site() const;
   bool PointsToLiteral() const;
   ElementsKind GetElementsKind() const;
+  bool CanInlineCall() const;
 };
 
 class MapRef : public HeapObjectRef {
@@ -297,8 +300,11 @@ class MapRef : public HeapObjectRef {
   NameRef GetPropertyKey(int i) const;
   FieldIndex GetFieldIndexFor(int i) const;
   int GetInObjectPropertyOffset(int index) const;
-  ElementsKind elements_kind() const;
   ObjectRef constructor_or_backpointer() const;
+  ElementsKind elements_kind() const;
+
+  MapRef AsElementsKind(ElementsKind kind, const JSHeapBroker* broker) const;
+
   bool is_stable() const;
   bool has_prototype_slot() const;
   bool is_deprecated() const;

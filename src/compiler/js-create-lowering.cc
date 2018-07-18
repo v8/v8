@@ -482,7 +482,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
 // Constructs an array with a variable {length} when no upper bound
 // is known for the capacity.
 Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
-                                           Handle<Map> initial_map,
+                                           MapRef initial_map,
                                            PretenureFlag pretenure) {
   DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -490,10 +490,9 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
 
   // Constructing an Array via new Array(N) where N is an unsigned
   // integer, always creates a holey backing store.
-  if (!IsHoleyElementsKind(initial_map->elements_kind())) {
-    initial_map =
-        Map::AsElementsKind(isolate(), initial_map,
-                            GetHoleyElementsKind(initial_map->elements_kind()));
+  if (!IsHoleyElementsKind(initial_map.elements_kind())) {
+    initial_map = initial_map.AsElementsKind(
+        GetHoleyElementsKind(initial_map.elements_kind()), js_heap_broker());
   }
 
   // Check that the {limit} is an unsigned integer in the valid range.
@@ -506,7 +505,7 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
 
   // Construct elements and properties for the resulting JSArray.
   Node* elements = effect =
-      graph()->NewNode(IsDoubleElementsKind(initial_map->elements_kind())
+      graph()->NewNode(IsDoubleElementsKind(initial_map.elements_kind())
                            ? simplified()->NewDoubleElements(pretenure)
                            : simplified()->NewSmiOrObjectElements(pretenure),
                        length, effect, control);
@@ -514,15 +513,13 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
 
   // Perform the allocation of the actual JSArray object.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(initial_map->instance_size(), pretenure);
+  a.Allocate(initial_map.instance_size(), pretenure);
   a.Store(AccessBuilder::ForMap(), initial_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
-  a.Store(AccessBuilder::ForJSArrayLength(initial_map->elements_kind()),
-          length);
-  for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
-    a.Store(AccessBuilder::ForJSObjectInObjectProperty(
-                MapRef(js_heap_broker(), initial_map), i),
+  a.Store(AccessBuilder::ForJSArrayLength(initial_map.elements_kind()), length);
+  for (int i = 0; i < initial_map.GetInObjectProperties(); ++i) {
+    a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
             jsgraph()->UndefinedConstant());
   }
   RelaxControls(node);
@@ -533,8 +530,7 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
 // Constructs an array with a variable {length} when an actual
 // upper bound is known for the {capacity}.
 Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
-                                           int capacity,
-                                           Handle<Map> initial_map,
+                                           int capacity, MapRef initial_map,
                                            PretenureFlag pretenure) {
   DCHECK(node->opcode() == IrOpcode::kJSCreateArray ||
          node->opcode() == IrOpcode::kJSCreateEmptyLiteralArray);
@@ -542,10 +538,10 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   Node* control = NodeProperties::GetControlInput(node);
 
   // Determine the appropriate elements kind.
-  ElementsKind elements_kind = initial_map->elements_kind();
+  ElementsKind elements_kind = initial_map.elements_kind();
   if (NodeProperties::GetType(length).Max() > 0.0) {
     elements_kind = GetHoleyElementsKind(elements_kind);
-    initial_map = Map::AsElementsKind(isolate(), initial_map, elements_kind);
+    initial_map = initial_map.AsElementsKind(elements_kind, js_heap_broker());
   }
   DCHECK(IsFastElementsKind(elements_kind));
 
@@ -561,14 +557,13 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
 
   // Perform the allocation of the actual JSArray object.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(initial_map->instance_size(), pretenure);
+  a.Allocate(initial_map.instance_size(), pretenure);
   a.Store(AccessBuilder::ForMap(), initial_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
   a.Store(AccessBuilder::ForJSArrayLength(elements_kind), length);
-  for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
-    a.Store(AccessBuilder::ForJSObjectInObjectProperty(
-                MapRef(js_heap_broker(), initial_map), i),
+  for (int i = 0; i < initial_map.GetInObjectProperties(); ++i) {
+    a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
             jsgraph()->UndefinedConstant());
   }
   RelaxControls(node);
@@ -578,14 +573,14 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
 
 Reduction JSCreateLowering::ReduceNewArray(Node* node,
                                            std::vector<Node*> values,
-                                           Handle<Map> initial_map,
+                                           MapRef initial_map,
                                            PretenureFlag pretenure) {
   DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
   // Determine the appropriate elements kind.
-  ElementsKind elements_kind = initial_map->elements_kind();
+  ElementsKind elements_kind = initial_map.elements_kind();
   DCHECK(IsFastElementsKind(elements_kind));
 
   // Check {values} based on the {elements_kind}. These checks are guarded
@@ -618,14 +613,13 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node,
 
   // Perform the allocation of the actual JSArray object.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(initial_map->instance_size(), pretenure);
+  a.Allocate(initial_map.instance_size(), pretenure);
   a.Store(AccessBuilder::ForMap(), initial_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
   a.Store(AccessBuilder::ForJSArrayLength(elements_kind), length);
-  for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
-    a.Store(AccessBuilder::ForJSObjectInObjectProperty(
-                MapRef(js_heap_broker(), initial_map), i),
+  for (int i = 0; i < initial_map.GetInObjectProperties(); ++i) {
+    a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
             jsgraph()->UndefinedConstant());
   }
   RelaxControls(node);
@@ -634,19 +628,19 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node,
 }
 
 Reduction JSCreateLowering::ReduceNewArrayToStubCall(
-    Node* node, Handle<AllocationSite> site) {
+    Node* node, base::Optional<AllocationSiteRef> site) {
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = NodeProperties::GetValueInput(node, 1);
   Type new_target_type = NodeProperties::GetType(new_target);
-  Node* type_info = site.is_null() ? jsgraph()->UndefinedConstant()
-                                   : jsgraph()->HeapConstant(site);
+  Node* type_info =
+      site ? jsgraph()->Constant(*site) : jsgraph()->UndefinedConstant();
 
   ElementsKind elements_kind =
-      site.is_null() ? GetInitialFastElementsKind() : site->GetElementsKind();
+      site ? site->GetElementsKind() : GetInitialFastElementsKind();
   AllocationSiteOverrideMode override_mode =
-      (site.is_null() || AllocationSite::ShouldTrack(elements_kind))
+      (!site || AllocationSite::ShouldTrack(elements_kind))
           ? DISABLE_ALLOCATION_SITES
           : DONT_OVERRIDE;
 
@@ -696,57 +690,55 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
 }
 
 Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
+  DisallowHeapAccess disallow_heap_access;
   DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
-  Handle<AllocationSite> const site = p.site();
+  base::Optional<AllocationSiteRef> site;
+  if (!p.site().is_null()) {
+    site = AllocationSiteRef(js_heap_broker(), p.site());
+  }
   PretenureFlag pretenure = NOT_TENURED;
-  Handle<JSFunction> constructor(native_context()->array_function(), isolate());
+  JSFunctionRef constructor = native_context_ref().array_function();
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = NodeProperties::GetValueInput(node, 1);
-  Type new_target_type =
-      (target == new_target)
-          ? Type::HeapConstant(js_heap_broker(), constructor, zone())
-          : NodeProperties::GetType(new_target);
+  Type new_target_type = (target == new_target)
+                             ? Type::HeapConstant(constructor, zone())
+                             : NodeProperties::GetType(new_target);
 
   // Extract original constructor function.
   if (new_target_type.IsHeapConstant() &&
-      new_target_type.AsHeapConstant()->Value()->IsJSFunction()) {
-    Handle<JSFunction> original_constructor =
-        Handle<JSFunction>::cast(new_target_type.AsHeapConstant()->Value());
-    DCHECK(constructor->IsConstructor());
-    DCHECK(original_constructor->IsConstructor());
+      new_target_type.AsHeapConstant()->Ref().IsJSFunction()) {
+    JSFunctionRef original_constructor =
+        new_target_type.AsHeapConstant()->Ref().AsJSFunction();
+    DCHECK(constructor.IsConstructor());
+    DCHECK(original_constructor.IsConstructor());
 
     // Check if we can inline the allocation.
-    if (IsAllocationInlineable(
-            JSFunctionRef(js_heap_broker(), constructor),
-            JSFunctionRef(js_heap_broker(), original_constructor))) {
+    if (IsAllocationInlineable(constructor, original_constructor)) {
       // Force completion of inobject slack tracking before
       // generating code to finalize the instance size.
-      original_constructor->CompleteInobjectSlackTrackingIfActive();
+      original_constructor.FinishSlackTracking();
 
       // Add a dependency on the {initial_map} to make sure that this code is
       // deoptimized whenever the {initial_map} changes.
-      MapRef initial_map = dependencies()->DependOnInitialMap(
-          JSFunctionRef(js_heap_broker(), original_constructor));
+      MapRef initial_map =
+          dependencies()->DependOnInitialMap(original_constructor);
 
       // Tells whether we are protected by either the {site} or a
       // protector cell to do certain speculative optimizations.
       bool can_inline_call = false;
 
       // Check if we have a feedback {site} on the {node}.
-      if (!site.is_null()) {
+      if (site) {
         ElementsKind elements_kind = site->GetElementsKind();
         if (initial_map.elements_kind() != elements_kind) {
           initial_map =
-              MapRef(js_heap_broker(),
-                     Map::AsElementsKind(isolate(), initial_map.object<Map>(),
-                                         elements_kind));
+              initial_map.AsElementsKind(elements_kind, js_heap_broker());
         }
         can_inline_call = site->CanInlineCall();
-        auto site_ref = AllocationSiteRef(js_heap_broker(), site);
-        pretenure = dependencies()->DependOnPretenureMode(site_ref);
-        dependencies()->DependOnElementsKind(site_ref);
+        pretenure = dependencies()->DependOnPretenureMode(*site);
+        dependencies()->DependOnElementsKind(*site);
       } else {
         can_inline_call = isolate()->IsArrayConstructorIntact();
       }
@@ -754,8 +746,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       if (arity == 0) {
         Node* length = jsgraph()->ZeroConstant();
         int capacity = JSArray::kPreallocatedArrayElements;
-        return ReduceNewArray(node, length, capacity, initial_map.object<Map>(),
-                              pretenure);
+        return ReduceNewArray(node, length, capacity, initial_map, pretenure);
       } else if (arity == 1) {
         Node* length = NodeProperties::GetValueInput(node, 2);
         Type length_type = NodeProperties::GetType(length);
@@ -768,22 +759,18 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
                                  ? HOLEY_ELEMENTS
                                  : PACKED_ELEMENTS);
           initial_map =
-              MapRef(js_heap_broker(),
-                     Map::AsElementsKind(isolate(), initial_map.object<Map>(),
-                                         elements_kind));
-          return ReduceNewArray(node, std::vector<Node*>{length},
-                                initial_map.object<Map>(), pretenure);
+              initial_map.AsElementsKind(elements_kind, js_heap_broker());
+          return ReduceNewArray(node, std::vector<Node*>{length}, initial_map,
+                                pretenure);
         }
         if (length_type.Is(Type::SignedSmall()) && length_type.Min() >= 0 &&
             length_type.Max() <= kElementLoopUnrollLimit &&
             length_type.Min() == length_type.Max()) {
           int capacity = static_cast<int>(length_type.Max());
-          return ReduceNewArray(node, length, capacity,
-                                initial_map.object<Map>(), pretenure);
+          return ReduceNewArray(node, length, capacity, initial_map, pretenure);
         }
         if (length_type.Maybe(Type::UnsignedSmall()) && can_inline_call) {
-          return ReduceNewArray(node, length, initial_map.object<Map>(),
-                                pretenure);
+          return ReduceNewArray(node, length, initial_map, pretenure);
         }
       } else if (arity <= JSArray::kInitialMaxFastElementArray) {
         // Gather the values to store into the newly created array.
@@ -829,12 +816,9 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
           return NoChange();
         }
         initial_map =
-            MapRef(js_heap_broker(),
-                   Map::AsElementsKind(isolate(), initial_map.object<Map>(),
-                                       elements_kind));
+            initial_map.AsElementsKind(elements_kind, js_heap_broker());
 
-        return ReduceNewArray(node, values, initial_map.object<Map>(),
-                              pretenure);
+        return ReduceNewArray(node, values, initial_map, pretenure);
       }
     }
   }
@@ -1192,7 +1176,8 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
         dependencies()->DependOnPretenureMode(site_ref);
     dependencies()->DependOnElementsKind(site_ref);
     Node* length = jsgraph()->ZeroConstant();
-    return ReduceNewArray(node, length, 0, initial_map, pretenure);
+    return ReduceNewArray(node, length, 0,
+                          MapRef(js_heap_broker(), initial_map), pretenure);
   }
   return NoChange();
 }

@@ -166,6 +166,16 @@ void JSFunctionRef::EnsureHasInitialMap() const {
   JSFunction::EnsureHasInitialMap(object<JSFunction>());
 }
 
+// TODO(mslekova): Pre-compute these on the main thread.
+MapRef MapRef::AsElementsKind(ElementsKind kind,
+                              const JSHeapBroker* broker) const {
+  AllowHandleAllocation handle_allocation;
+  AllowHeapAllocation heap_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  return MapRef(broker,
+                Map::AsElementsKind(broker->isolate(), object<Map>(), kind));
+}
+
 SlackTrackingResult JSFunctionRef::FinishSlackTracking() const {
   AllowHandleDereference allow_handle_dereference;
   AllowHandleAllocation handle_allocation;
@@ -265,6 +275,11 @@ bool AllocationSiteRef::PointsToLiteral() const {
 ElementsKind AllocationSiteRef::GetElementsKind() const {
   AllowHandleDereference handle_dereference;
   return object<AllocationSite>()->GetElementsKind();
+}
+
+bool AllocationSiteRef::CanInlineCall() const {
+  AllowHandleDereference handle_dereference;
+  return object<AllocationSite>()->CanInlineCall();
 }
 
 bool JSObjectRef::IsUnboxedDoubleField(FieldIndex index) const {
@@ -414,11 +429,6 @@ void JSObjectRef::EnsureElementsTenured() {
   }
 }
 
-ElementsKind MapRef::elements_kind() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->elements_kind();
-}
-
 bool MapRef::is_deprecated() const {
   AllowHandleDereference allow_handle_dereference;
   return object<Map>()->is_deprecated();
@@ -459,6 +469,11 @@ ObjectRef MapRef::constructor_or_backpointer() const {
   AllowHandleDereference allow_handle_dereference;
   return ObjectRef(broker(), handle(object<Map>()->constructor_or_backpointer(),
                                     broker()->isolate()));
+}
+
+ElementsKind MapRef::elements_kind() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<Map>()->elements_kind();
 }
 
 int MapRef::instance_size() const {
@@ -788,6 +803,13 @@ MapRef NativeContextRef::promise_function_initial_map() const {
   return MapRef(broker(),
                 handle(object<Context>()->promise_function()->initial_map(),
                        broker()->isolate()));
+}
+
+JSFunctionRef NativeContextRef::array_function() const {
+  AllowHandleAllocation handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  return JSFunctionRef(broker(), handle(object<Context>()->array_function(),
+                                        broker()->isolate()));
 }
 
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {

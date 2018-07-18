@@ -363,6 +363,7 @@ class V8_EXPORT_PRIVATE Type {
   static Type OtherNumberConstant(double value, Zone* zone);
   static Type HeapConstant(const JSHeapBroker* js_heap_broker,
                            Handle<i::Object> value, Zone* zone);
+  static Type HeapConstant(const HeapObjectRef& value, Zone* zone);
   static Type Range(double min, double max, Zone* zone);
   static Type Range(RangeType::Limits lims, Zone* zone);
   static Type Tuple(Type first, Type second, Type third, Zone* zone);
