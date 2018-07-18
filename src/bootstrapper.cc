@@ -4539,6 +4539,10 @@ void Genesis::InitializeGlobal_harmony_intl_list_format() {
   JSObject::AddProperty(isolate(), prototype, factory()->to_string_tag_symbol(),
                         factory()->Object_string(),
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+  SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
+                        Builtins::kListFormatPrototypeResolvedOptions, 0,
+                        false);
 }
 
 void Genesis::InitializeGlobal_harmony_locale() {

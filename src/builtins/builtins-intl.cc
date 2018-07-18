@@ -654,6 +654,13 @@ BUILTIN(ListFormatConstructor) {
                                         isolate, format, locales, options));
 }
 
+BUILTIN(ListFormatPrototypeResolvedOptions) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSListFormat, format_holder,
+                 "Intl.ListFormat.prototype.resolvedOptions");
+  return *JSListFormat::ResolvedOptions(isolate, format_holder);
+}
+
 namespace {
 
 MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
