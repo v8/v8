@@ -245,7 +245,6 @@ class NativeContextRef : public ContextRef {
   MapRef promise_function_initial_map() const;
 
   MapRef GetFunctionMapFromIndex(int index) const;
-  MapRef ObjectLiteralMapFromCache() const;
 };
 
 class NameRef : public HeapObjectRef {
