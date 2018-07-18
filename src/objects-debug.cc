@@ -1852,9 +1852,8 @@ void InterpreterData::InterpreterDataVerify(Isolate* isolate) {
 #ifdef V8_INTL_SUPPORT
 void JSListFormat::JSListFormatVerify(Isolate* isolate) {
   VerifyObjectField(isolate, kLocaleOffset);
-  VerifyObjectField(isolate, kStyleOffset);
-  VerifyObjectField(isolate, kTypeOffset);
   VerifyObjectField(isolate, kFormatterOffset);
+  VerifyObjectField(isolate, kFlagsOffset);
 }
 
 void JSLocale::JSLocaleVerify(Isolate* isolate) {

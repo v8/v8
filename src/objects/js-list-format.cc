@@ -120,6 +120,7 @@ MaybeHandle<JSListFormat> JSListFormat::InitializeListFormat(
     Isolate* isolate, Handle<JSListFormat> list_format_holder,
     Handle<Object> input_locales, Handle<Object> input_options) {
   Factory* factory = isolate->factory();
+  list_format_holder->set_flags(0);
 
   Handle<JSReceiver> options;
   // 2. If options is undefined, then

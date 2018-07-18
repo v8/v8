@@ -19,37 +19,30 @@ namespace v8 {
 namespace internal {
 
 // Base list format accessors.
-ACCESSORS(JSListFormat, locale, String, kLocaleOffset);
-ACCESSORS(JSListFormat, formatter, Foreign, kFormatterOffset);
-
-// TODO(ftang): Use bit field accessor for style and type later.
+ACCESSORS(JSListFormat, locale, String, kLocaleOffset)
+ACCESSORS(JSListFormat, formatter, Foreign, kFormatterOffset)
+SMI_ACCESSORS(JSListFormat, flags, kFlagsOffset)
 
 inline void JSListFormat::set_style(Style style) {
   DCHECK_GT(Style::COUNT, style);
-  int value = static_cast<int>(style);
-  WRITE_FIELD(this, kStyleOffset, Smi::FromInt(value));
+  int hints = flags();
+  hints = StyleBits::update(hints, style);
+  set_flags(hints);
 }
 
 inline JSListFormat::Style JSListFormat::style() const {
-  Object* value = READ_FIELD(this, kStyleOffset);
-  int style = Smi::ToInt(value);
-  DCHECK_LE(0, style);
-  DCHECK_GT(static_cast<int>(Style::COUNT), style);
-  return static_cast<Style>(style);
+  return StyleBits::decode(flags());
 }
 
 inline void JSListFormat::set_type(Type type) {
   DCHECK_GT(Type::COUNT, type);
-  int value = static_cast<int>(type);
-  WRITE_FIELD(this, kTypeOffset, Smi::FromInt(value));
+  int hints = flags();
+  hints = TypeBits::update(hints, type);
+  set_flags(hints);
 }
 
 inline JSListFormat::Type JSListFormat::type() const {
-  Object* value = READ_FIELD(this, kTypeOffset);
-  int type = Smi::ToInt(value);
-  DCHECK_LE(0, type);
-  DCHECK_GT(static_cast<int>(Type::COUNT), type);
-  return static_cast<Type>(type);
+  return TypeBits::decode(flags());
 }
 
 CAST_ACCESSOR(JSListFormat);

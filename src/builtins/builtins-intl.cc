@@ -643,15 +643,15 @@ BUILTIN(ListFormatConstructor) {
   //    "%ListFormatPrototype%").
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      JSObject::New(target, new_target));
+  Handle<JSListFormat> format = Handle<JSListFormat>::cast(result);
+  format->set_flags(0);
 
   Handle<Object> locales = args.atOrUndefined(isolate, 1);
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   // 3. Return InitializeListFormat(listFormat, locales, options).
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      JSListFormat::InitializeListFormat(
-          isolate, Handle<JSListFormat>::cast(result), locales, options));
+  RETURN_RESULT_OR_FAILURE(isolate, JSListFormat::InitializeListFormat(
+                                        isolate, format, locales, options));
 }
 
 namespace {
