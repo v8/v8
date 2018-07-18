@@ -61,7 +61,7 @@ JSRelativeTimeFormat::InitializeRelativeTimeFormat(
     Isolate* isolate, Handle<JSRelativeTimeFormat> relative_time_format_holder,
     Handle<Object> input_locales, Handle<Object> input_options) {
   Factory* factory = isolate->factory();
-
+  relative_time_format_holder->set_flags(0);
   // 4. If options is undefined, then
   Handle<JSReceiver> options;
   if (input_options->IsUndefined(isolate)) {

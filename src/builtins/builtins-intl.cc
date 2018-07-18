@@ -1011,16 +1011,18 @@ BUILTIN(RelativeTimeFormatConstructor) {
   //                                    "%RelativeTimeFormatPrototype%").
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      JSObject::New(target, new_target));
+  Handle<JSRelativeTimeFormat> format =
+      Handle<JSRelativeTimeFormat>::cast(result);
+  format->set_flags(0);
 
   Handle<Object> locales = args.atOrUndefined(isolate, 1);
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   // 3. Return ? InitializeRelativeTimeFormat(relativeTimeFormat, locales,
   //                                          options).
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSRelativeTimeFormat::InitializeRelativeTimeFormat(
-                   isolate, Handle<JSRelativeTimeFormat>::cast(result), locales,
-                   options));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSRelativeTimeFormat::InitializeRelativeTimeFormat(
+                               isolate, format, locales, options));
 }
 
 BUILTIN(RelativeTimeFormatPrototypeResolvedOptions) {

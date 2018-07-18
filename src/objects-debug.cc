@@ -1861,9 +1861,8 @@ void JSLocale::JSLocaleVerify(Isolate* isolate) {
 
 void JSRelativeTimeFormat::JSRelativeTimeFormatVerify(Isolate* isolate) {
   VerifyObjectField(isolate, kLocaleOffset);
-  VerifyObjectField(isolate, kStyleOffset);
-  VerifyObjectField(isolate, kNumericOffset);
   VerifyObjectField(isolate, kFormatterOffset);
+  VerifyObjectField(isolate, kFlagsOffset);
 }
 #endif  // V8_INTL_SUPPORT
 
