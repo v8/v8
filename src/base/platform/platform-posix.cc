@@ -354,7 +354,8 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   int prot = GetProtectionFromMemoryPermission(access);
   int ret = mprotect(address, size, prot);
   if (ret == 0 && access == OS::MemoryPermission::kNoAccess) {
-    ret = ReclaimInaccessibleMemory(address, size);
+    // This is advisory; ignore errors and continue execution.
+    ReclaimInaccessibleMemory(address, size);
   }
 
 // For accounting purposes, we want to call MADV_FREE_REUSE on macOS after
