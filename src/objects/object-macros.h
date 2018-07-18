@@ -28,6 +28,10 @@
   inline uint16_t name() const;     \
   inline void set_##name(int value);
 
+#define DECL_UINT8_ACCESSORS(name) \
+  inline uint8_t name() const;     \
+  inline void set_##name(int value);
+
 #define DECL_ACCESSORS(name, type)    \
   inline type* name() const;          \
   inline void set_##name(type* value, \
@@ -63,6 +67,14 @@
     DCHECK_GE(value, 0);                                                    \
     DCHECK_LE(value, static_cast<uint16_t>(-1));                            \
     WRITE_UINT16_FIELD(this, offset, value);                                \
+  }
+
+#define UINT8_ACCESSORS(holder, name, offset)                             \
+  uint8_t holder::name() const { return READ_UINT8_FIELD(this, offset); } \
+  void holder::set_##name(int value) {                                    \
+    DCHECK_GE(value, 0);                                                  \
+    DCHECK_LE(value, static_cast<uint8_t>(-1));                           \
+    WRITE_UINT8_FIELD(this, offset, value);                               \
   }
 
 #define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition,   \

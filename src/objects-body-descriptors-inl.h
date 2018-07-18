@@ -782,6 +782,9 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case PRE_PARSED_SCOPE_DATA_TYPE:
       return Op::template apply<PreParsedScopeData::BodyDescriptor>(p1, p2, p3,
                                                                     p4);
+    case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
+      return Op::template apply<
+          UncompiledDataWithoutPreParsedScope::BodyDescriptor>(p1, p2, p3, p4);
     case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
       return Op::template apply<
           UncompiledDataWithPreParsedScope::BodyDescriptor>(p1, p2, p3, p4);
@@ -791,7 +794,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case BYTE_ARRAY_TYPE:
     case FREE_SPACE_TYPE:
     case BIGINT_TYPE:
-    case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
       return ReturnType();
 
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \

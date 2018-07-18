@@ -943,9 +943,8 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
 
   VerifyObjectField(isolate, kFunctionDataOffset);
   VerifyObjectField(isolate, kOuterScopeInfoOrFeedbackMetadataOffset);
-  VerifyObjectField(isolate, kFunctionIdentifierOrDebugInfoOffset);
+  VerifyObjectField(isolate, kScriptOrDebugInfoOffset);
   VerifyObjectField(isolate, kNameOrScopeInfoOffset);
-  VerifyObjectField(isolate, kScriptOffset);
 
   Object* value = name_or_scope_info();
   CHECK(value == kNoSharedNameSentinel || value->IsString() ||
@@ -960,8 +959,8 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
         HasUncompiledDataWithPreParsedScope() ||
         HasUncompiledDataWithoutPreParsedScope());
 
-  CHECK(function_identifier_or_debug_info()->IsUndefined(isolate) ||
-        HasBuiltinFunctionId() || HasInferredName() || HasDebugInfo());
+  CHECK(script_or_debug_info()->IsUndefined(isolate) ||
+        script_or_debug_info()->IsScript() || HasDebugInfo());
 
   if (!is_compiled()) {
     CHECK(!HasFeedbackMetadata());
@@ -1802,7 +1801,7 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
 void DebugInfo::DebugInfoVerify(Isolate* isolate) {
   CHECK(IsDebugInfo());
   VerifyPointer(isolate, shared());
-  VerifyPointer(isolate, function_identifier());
+  VerifyPointer(isolate, script());
   VerifyPointer(isolate, original_bytecode_array());
   VerifyPointer(isolate, break_points());
 }
@@ -1829,12 +1828,14 @@ void PreParsedScopeData::PreParsedScopeDataVerify(Isolate* isolate) {
 void UncompiledDataWithPreParsedScope::UncompiledDataWithPreParsedScopeVerify(
     Isolate* isolate) {
   CHECK(IsUncompiledDataWithPreParsedScope());
+  VerifyPointer(isolate, inferred_name());
   VerifyPointer(isolate, pre_parsed_scope_data());
 }
 
 void UncompiledDataWithoutPreParsedScope::
     UncompiledDataWithoutPreParsedScopeVerify(Isolate* isolate) {
   CHECK(IsUncompiledDataWithoutPreParsedScope());
+  VerifyPointer(isolate, inferred_name());
 }
 
 void InterpreterData::InterpreterDataVerify(Isolate* isolate) {

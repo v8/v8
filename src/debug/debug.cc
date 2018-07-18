@@ -1571,11 +1571,10 @@ void Debug::FreeDebugInfoListNode(DebugInfoListNode* prev,
     prev->set_next(node->next());
   }
 
-  // Pack function_identifier back into the
-  // SFI::function_identifier_or_debug_info field.
+  // Pack script back into the
+  // SFI::script_or_debug_info field.
   Handle<DebugInfo> debug_info(node->debug_info());
-  debug_info->shared()->set_function_identifier_or_debug_info(
-      debug_info->function_identifier());
+  debug_info->shared()->set_script_or_debug_info(debug_info->script());
 
   delete node;
 }

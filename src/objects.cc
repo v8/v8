@@ -3110,6 +3110,9 @@ VisitorId Map::GetVisitorId(Map* map) {
     case PRE_PARSED_SCOPE_DATA_TYPE:
       return kVisitPreParsedScopeData;
 
+    case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
+      return kVisitUncompiledDataWithoutPreParsedScope;
+
     case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
       return kVisitUncompiledDataWithPreParsedScope;
 
@@ -3163,7 +3166,6 @@ VisitorId Map::GetVisitorId(Map* map) {
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FEEDBACK_METADATA_TYPE:
-    case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
       return kVisitDataObject;
 
     case BIGINT_TYPE:
@@ -14141,7 +14143,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_is_declaration(lit->is_declaration());
   shared_info->set_is_named_expression(lit->is_named_expression());
   shared_info->set_is_anonymous_expression(lit->is_anonymous_expression());
-  shared_info->set_inferred_name(*lit->inferred_name());
   shared_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   shared_info->set_language_mode(lit->language_mode());
   shared_info->set_is_wrapped(lit->is_wrapped());
@@ -14194,8 +14195,9 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
                 .ToHandle(&pre_parsed_scope_data)) {
           Handle<UncompiledData> data =
               isolate->factory()->NewUncompiledDataWithPreParsedScope(
-                  lit->start_position(), lit->end_position(),
-                  lit->function_literal_id(), pre_parsed_scope_data);
+                  lit->inferred_name(), lit->start_position(),
+                  lit->end_position(), lit->function_literal_id(),
+                  pre_parsed_scope_data);
           shared_info->set_uncompiled_data(*data);
           needs_position_info = false;
         }
@@ -14205,7 +14207,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   if (needs_position_info) {
     Handle<UncompiledData> data =
         isolate->factory()->NewUncompiledDataWithoutPreParsedScope(
-            lit->start_position(), lit->end_position(),
+            lit->inferred_name(), lit->start_position(), lit->end_position(),
             lit->function_literal_id());
     shared_info->set_uncompiled_data(*data);
   }
@@ -14223,9 +14225,10 @@ void SharedFunctionInfo::SetExpectedNofPropertiesFromEstimate(
   // so we can afford to adjust the estimate generously.
   estimate += 8;
 
-  // Limit actual estimate to fit in a 16 bit field, we will never allocate
+  // Limit actual estimate to fit in a 8 bit field, we will never allocate
   // more than this in any case.
-  estimate = std::min(estimate, kMaxUInt16);
+  STATIC_ASSERT(JSObject::kMaxInObjectProperties <= kMaxUInt8);
+  estimate = std::min(estimate, kMaxUInt8);
 
   set_expected_nof_properties(estimate);
 }

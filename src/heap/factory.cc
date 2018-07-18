@@ -2512,13 +2512,15 @@ Handle<PreParsedScopeData> Factory::NewPreParsedScopeData(int length) {
 }
 
 Handle<UncompiledDataWithoutPreParsedScope>
-Factory::NewUncompiledDataWithoutPreParsedScope(int32_t start_position,
+Factory::NewUncompiledDataWithoutPreParsedScope(Handle<String> inferred_name,
+                                                int32_t start_position,
                                                 int32_t end_position,
                                                 int32_t function_literal_id) {
   Handle<UncompiledDataWithoutPreParsedScope> result(
       UncompiledDataWithoutPreParsedScope::cast(
           New(uncompiled_data_without_pre_parsed_scope_map(), TENURED)),
       isolate());
+  result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);
   result->set_function_literal_id(function_literal_id);
@@ -2529,12 +2531,14 @@ Factory::NewUncompiledDataWithoutPreParsedScope(int32_t start_position,
 
 Handle<UncompiledDataWithPreParsedScope>
 Factory::NewUncompiledDataWithPreParsedScope(
-    int32_t start_position, int32_t end_position, int32_t function_literal_id,
+    Handle<String> inferred_name, int32_t start_position, int32_t end_position,
+    int32_t function_literal_id,
     Handle<PreParsedScopeData> pre_parsed_scope_data) {
   Handle<UncompiledDataWithPreParsedScope> result(
       UncompiledDataWithPreParsedScope::cast(
           New(uncompiled_data_with_pre_parsed_scope_map(), TENURED)),
       isolate());
+  result->set_inferred_name(*inferred_name);
   result->set_start_position(start_position);
   result->set_end_position(end_position);
   result->set_function_literal_id(function_literal_id);
@@ -3508,9 +3512,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
       share->set_raw_outer_scope_info_or_feedback_metadata(
           *empty_feedback_metadata(), SKIP_WRITE_BARRIER);
     }
-    share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
-    share->set_function_identifier_or_debug_info(*undefined_value(),
-                                                 SKIP_WRITE_BARRIER);
+    share->set_script_or_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
 #if V8_SFI_HAS_UNIQUE_ID
     share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
 #endif
@@ -3519,6 +3521,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     share->set_length(0);
     share->set_internal_formal_parameter_count(0);
     share->set_expected_nof_properties(0);
+    share->set_builtin_function_id(
+        BuiltinFunctionId::kInvalidBuiltinFunctionId);
     share->set_raw_function_token_offset(0);
     // All flags default to false or 0.
     share->set_flags(0);
@@ -3613,8 +3617,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   debug_info->set_debugger_hints(0);
   DCHECK_EQ(DebugInfo::kNoDebuggingId, debug_info->debugging_id());
   DCHECK(!shared->HasDebugInfo());
-  debug_info->set_function_identifier(
-      shared->function_identifier_or_debug_info());
+  debug_info->set_script(shared->script_or_debug_info());
   debug_info->set_original_bytecode_array(
       ReadOnlyRoots(heap).undefined_value());
   debug_info->set_break_points(ReadOnlyRoots(heap).empty_fixed_array());

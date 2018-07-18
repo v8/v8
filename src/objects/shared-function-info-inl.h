@@ -53,6 +53,7 @@ void PreParsedScopeData::clear_padding() {
 }
 
 CAST_ACCESSOR(UncompiledData)
+ACCESSORS(UncompiledData, inferred_name, String, kInferredNameOffset)
 INT32_ACCESSORS(UncompiledData, start_position, kStartPositionOffset)
 INT32_ACCESSORS(UncompiledData, end_position, kEndPositionOffset)
 INT32_ACCESSORS(UncompiledData, function_literal_id, kFunctionLiteralIdOffset)
@@ -83,9 +84,8 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
           kNameOrScopeInfoOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
-ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
-ACCESSORS(SharedFunctionInfo, function_identifier_or_debug_info, Object,
-          kFunctionIdentifierOrDebugInfoOffset)
+ACCESSORS(SharedFunctionInfo, script_or_debug_info, Object,
+          kScriptOrDebugInfoOffset)
 
 #if V8_SFI_HAS_UNIQUE_ID
 INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
@@ -93,8 +93,9 @@ INT_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
 UINT16_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 UINT16_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
                  kFormalParameterCountOffset)
-UINT16_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
-                 kExpectedNofPropertiesOffset)
+UINT8_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
+                kExpectedNofPropertiesOffset)
+UINT8_ACCESSORS(SharedFunctionInfo, raw_builtin_function_id, kBuiltinFunctionId)
 UINT16_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
                  kFunctionTokenOffsetOffset)
 INT_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
@@ -670,71 +671,74 @@ int SharedFunctionInfo::FunctionLiteralId(Isolate* isolate) const {
   }
 
   // Otherwise, search for the function in the SFI's script's function list,
-  // and return its index in that list.
+  // and return its index in that list.e
   return FindIndexInScript(isolate);
 }
 
+Object* SharedFunctionInfo::script() const {
+  Object* maybe_script = script_or_debug_info();
+  if (maybe_script->IsDebugInfo()) {
+    return DebugInfo::cast(maybe_script)->script();
+  }
+  return maybe_script;
+}
+
+void SharedFunctionInfo::set_script(Object* script) {
+  Object* maybe_debug_info = script_or_debug_info();
+  if (maybe_debug_info->IsDebugInfo()) {
+    DebugInfo::cast(maybe_debug_info)->set_script(script);
+  } else {
+    set_script_or_debug_info(script);
+  }
+}
+
 bool SharedFunctionInfo::HasDebugInfo() const {
-  return function_identifier_or_debug_info()->IsDebugInfo();
+  return script_or_debug_info()->IsDebugInfo();
 }
 
 DebugInfo* SharedFunctionInfo::GetDebugInfo() const {
   DCHECK(HasDebugInfo());
-  return DebugInfo::cast(function_identifier_or_debug_info());
-}
-
-Object* SharedFunctionInfo::function_identifier() const {
-  Object* result;
-  if (HasDebugInfo()) {
-    result = GetDebugInfo()->function_identifier();
-  } else {
-    result = function_identifier_or_debug_info();
-  }
-  DCHECK(result->IsSmi() || result->IsString() || result->IsUndefined());
-  return result;
+  return DebugInfo::cast(script_or_debug_info());
 }
 
 void SharedFunctionInfo::SetDebugInfo(DebugInfo* debug_info) {
   DCHECK(!HasDebugInfo());
-  DCHECK_EQ(debug_info->function_identifier(),
-            function_identifier_or_debug_info());
-  set_function_identifier_or_debug_info(debug_info);
+  DCHECK_EQ(debug_info->script(), script_or_debug_info());
+  set_script_or_debug_info(debug_info);
 }
 
 bool SharedFunctionInfo::HasBuiltinFunctionId() {
-  return function_identifier()->IsSmi();
+  return builtin_function_id() != BuiltinFunctionId::kInvalidBuiltinFunctionId;
 }
 
 BuiltinFunctionId SharedFunctionInfo::builtin_function_id() {
-  DCHECK(HasBuiltinFunctionId());
-  return static_cast<BuiltinFunctionId>(Smi::ToInt(function_identifier()));
+  return static_cast<BuiltinFunctionId>(raw_builtin_function_id());
 }
 
 void SharedFunctionInfo::set_builtin_function_id(BuiltinFunctionId id) {
-  DCHECK(!HasDebugInfo());
-  set_function_identifier_or_debug_info(Smi::FromInt(id));
+  set_raw_builtin_function_id(static_cast<uint8_t>(id));
 }
 
 bool SharedFunctionInfo::HasInferredName() {
-  return function_identifier()->IsString();
+  Object* scope_info = name_or_scope_info();
+  if (scope_info->IsScopeInfo()) {
+    return ScopeInfo::cast(scope_info)->HasInferredFunctionName();
+  }
+  return HasUncompiledData();
 }
 
 String* SharedFunctionInfo::inferred_name() {
-  if (HasInferredName()) {
-    return String::cast(function_identifier());
+  Object* maybe_scope_info = name_or_scope_info();
+  if (maybe_scope_info->IsScopeInfo()) {
+    ScopeInfo* scope_info = ScopeInfo::cast(maybe_scope_info);
+    if (scope_info->HasInferredFunctionName()) {
+      Object* name = ScopeInfo::cast(maybe_scope_info)->InferredFunctionName();
+      if (name->IsString()) return String::cast(name);
+    }
+  } else if (HasUncompiledData()) {
+    return uncompiled_data()->inferred_name();
   }
-  DCHECK(function_identifier()->IsUndefined() || HasBuiltinFunctionId());
   return GetReadOnlyRoots().empty_string();
-}
-
-void SharedFunctionInfo::set_inferred_name(String* inferred_name) {
-  DCHECK(function_identifier_or_debug_info()->IsUndefined() ||
-         HasInferredName() || HasDebugInfo());
-  if (HasDebugInfo()) {
-    GetDebugInfo()->set_function_identifier(inferred_name);
-  } else {
-    set_function_identifier_or_debug_info(inferred_name);
-  }
 }
 
 bool SharedFunctionInfo::IsUserJavaScript() {
@@ -791,7 +795,8 @@ void SharedFunctionInfo::DiscardCompiled(
     // validity checks, since we're performing the unusual task of decompiling.
     Handle<UncompiledData> data =
         isolate->factory()->NewUncompiledDataWithoutPreParsedScope(
-            start_position, end_position, function_literal_id);
+            handle(shared_info->inferred_name(), isolate), start_position,
+            end_position, function_literal_id);
     shared_info->set_function_data(*data);
   }
 }

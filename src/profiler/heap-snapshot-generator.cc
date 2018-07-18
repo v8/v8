@@ -1195,16 +1195,12 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry, "name_or_scope_info",
                        shared->name_or_scope_info(),
                        SharedFunctionInfo::kNameOrScopeInfoOffset);
-  SetInternalReference(obj, entry,
-                       "script", shared->script(),
-                       SharedFunctionInfo::kScriptOffset);
+  SetInternalReference(obj, entry, "script_or_debug_info",
+                       shared->script_or_debug_info(),
+                       SharedFunctionInfo::kScriptOrDebugInfoOffset);
   SetInternalReference(obj, entry,
                        "function_data", shared->function_data(),
                        SharedFunctionInfo::kFunctionDataOffset);
-  SetInternalReference(
-      obj, entry, "function_identifier_or_debug_info",
-      shared->function_identifier_or_debug_info(),
-      SharedFunctionInfo::kFunctionIdentifierOrDebugInfoOffset);
   SetInternalReference(
       obj, entry, "raw_outer_scope_info_or_feedback_metadata",
       shared->raw_outer_scope_info_or_feedback_metadata(),

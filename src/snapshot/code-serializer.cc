@@ -205,8 +205,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
         debug_bytecode_array = debug_info->DebugBytecodeArray();
         sfi->SetDebugBytecodeArray(debug_info->OriginalBytecodeArray());
       }
-      sfi->set_function_identifier_or_debug_info(
-          debug_info->function_identifier());
+      sfi->set_script_or_debug_info(debug_info->script());
     }
     DCHECK(!sfi->HasDebugInfo());
 
@@ -218,7 +217,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 
     // Restore debug info
     if (debug_info != nullptr) {
-      sfi->set_function_identifier_or_debug_info(debug_info);
+      sfi->set_script_or_debug_info(debug_info);
       if (debug_bytecode_array != nullptr) {
         sfi->SetDebugBytecodeArray(debug_bytecode_array);
       }

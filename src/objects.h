@@ -1672,9 +1672,11 @@ class NeverReadOnlySpaceObject {
 template <int start_offset, int end_offset, int size>
 class FixedBodyDescriptor;
 
-
 template <int start_offset>
 class FlexibleBodyDescriptor;
+
+template <class ParentBodyDescriptor, class ChildBodyDescriptor>
+class SubclassBodyDescriptor;
 
 // The HeapNumber class describes heap allocated numbers that cannot be
 // represented in a Smi (small integer). MutableHeapNumber is the same, but its
@@ -2915,8 +2917,7 @@ class AsyncGeneratorRequest : public Struct {
   V(Atomics, or, AtomicsOr)                           \
   V(Atomics, xor, AtomicsXor)
 
-enum BuiltinFunctionId {
-  kInvalidBuiltinFunctionId = -1,
+enum class BuiltinFunctionId : uint8_t {
   kArrayConstructor,
 #define DECL_FUNCTION_ID(ignored1, ignore2, name) k##name,
   FUNCTIONS_WITH_ID_LIST(DECL_FUNCTION_ID)
@@ -2960,7 +2961,8 @@ enum BuiltinFunctionId {
   kStringIterator,
   kStringIteratorNext,
   kStringToLowerCaseIntl,
-  kStringToUpperCaseIntl
+  kStringToUpperCaseIntl,
+  kInvalidBuiltinFunctionId = static_cast<uint8_t>(-1),
 };
 
 class JSGeneratorObject: public JSObject {

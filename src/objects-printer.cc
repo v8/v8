@@ -2046,7 +2046,7 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - flags: " << flags();
   os << "\n - debugger_hints: " << debugger_hints();
   os << "\n - shared: " << Brief(shared());
-  os << "\n - function_identifier: " << Brief(function_identifier());
+  os << "\n - script: " << Brief(script());
   os << "\n - original bytecode array: " << Brief(original_bytecode_array());
   os << "\n - break_points: ";
   break_points()->FixedArrayPrint(os);
