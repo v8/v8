@@ -1256,6 +1256,7 @@ class ThreadImpl {
   const WasmModule* module() const { return codemap_->module(); }
 
   void DoTrap(TrapReason trap, pc_t pc) {
+    TRACE("TRAP: %s\n", WasmOpcodes::TrapReasonMessage(trap));
     state_ = WasmInterpreter::TRAPPED;
     trap_reason_ = trap;
     CommitPc(pc);
