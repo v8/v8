@@ -110,7 +110,7 @@ enum ContextLookupFlags {
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)
 
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
-  V(GLOBAL_PROXY_INDEX, JSObject, global_proxy_object)                         \
+  V(GLOBAL_PROXY_INDEX, JSGlobalProxy, global_proxy_object)                    \
   V(EMBEDDER_DATA_INDEX, FixedArray, embedder_data)                            \
   /* Below is alpha-sorted */                                                  \
   V(ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX, Map,                               \
@@ -521,8 +521,8 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
   Context* closure_context();
 
   // Returns a JSGlobalProxy object or null.
-  JSObject* global_proxy();
-  void set_global_proxy(JSObject* global);
+  JSGlobalProxy* global_proxy();
+  void set_global_proxy(JSGlobalProxy* global);
 
   // Get the JSGlobalObject object.
   V8_EXPORT_PRIVATE JSGlobalObject* global_object();

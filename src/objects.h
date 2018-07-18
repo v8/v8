@@ -693,6 +693,7 @@ class PropertyArray;
 class FunctionLiteral;
 class FunctionTemplateInfo;
 class JSGlobalObject;
+class JSGlobalProxy;
 #ifdef V8_INTL_SUPPORT
 class JSLocale;
 class JSRelativeTimeFormat;
@@ -3114,7 +3115,7 @@ class JSFunction: public JSObject {
   inline Context* context();
   inline bool has_context() const;
   inline void set_context(Object* context);
-  inline JSObject* global_proxy();
+  inline JSGlobalProxy* global_proxy();
   inline Context* native_context();
 
   static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);

@@ -2564,10 +2564,7 @@ bool JSFunction::has_context() const {
   return READ_FIELD(this, kContextOffset)->IsContext();
 }
 
-JSObject* JSFunction::global_proxy() {
-  return context()->global_proxy();
-}
-
+JSGlobalProxy* JSFunction::global_proxy() { return context()->global_proxy(); }
 
 Context* JSFunction::native_context() { return context()->native_context(); }
 
