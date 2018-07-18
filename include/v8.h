@@ -6362,9 +6362,8 @@ class V8_EXPORT AccessorSignature : public Data {
 
 
 // --- Extensions ---
-V8_DEPRECATE_SOON("Implementation detail",
-                  class ExternalOneByteStringResourceImpl);
-class V8_EXPORT ExternalOneByteStringResourceImpl
+V8_DEPRECATE_SOON("Implementation detail", class)
+V8_EXPORT ExternalOneByteStringResourceImpl
     : public String::ExternalOneByteStringResource {
  public:
   ExternalOneByteStringResourceImpl() : data_(0), length_(0) {}
@@ -7115,7 +7114,18 @@ class V8_EXPORT EmbedderHeapTracer {
    * Returns true if there no more tracing work to be done (see AdvanceTracing)
    * and false otherwise.
    */
-  virtual bool IsTracingDone() { return NumberOfWrappersToTrace() == 0; }
+  virtual bool IsTracingDone() {
+// TODO(delphick): When NumberOfWrappersToTrace is removed, this should be
+// replaced with: return true;
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+    return NumberOfWrappersToTrace() == 0;
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+  }
 
   /**
    * Called at the end of a GC cycle.
@@ -7159,7 +7169,9 @@ class V8_EXPORT EmbedderHeapTracer {
    * Returns the number of wrappers that are still to be traced by the embedder.
    */
   V8_DEPRECATE_SOON("Use IsTracingDone",
-                    virtual size_t NumberOfWrappersToTrace() { return 0; });
+                    virtual size_t NumberOfWrappersToTrace()) {
+    return 0;
+  };
 
  protected:
   virtual ~EmbedderHeapTracer() = default;
