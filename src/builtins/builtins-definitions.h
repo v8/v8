@@ -283,6 +283,8 @@ namespace internal {
   CPP(ArrayConcat)                                                             \
   /* ES6 #sec-array.isarray */                                                 \
   TFJ(ArrayIsArray, 1, kReceiver, kArg)                                        \
+  /* ES6 #sec-array.prototype.fill */                                          \
+  CPP(ArrayPrototypeFill)                                                      \
   /* ES6 #sec-array.from */                                                    \
   TFJ(ArrayFrom, SharedFunctionInfo::kDontAdaptArgumentsSentinel)              \
   /* ES6 #sec-array.of */                                                      \

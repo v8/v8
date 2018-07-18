@@ -927,37 +927,6 @@ DEFINE_METHOD_LEN(
 );
 
 
-// ES6, draft 04-05-14, section 22.1.3.6
-DEFINE_METHOD_LEN(
-  GlobalArray.prototype,
-  fill(value, start, end) {
-    var array = TO_OBJECT(this);
-    var length = TO_LENGTH(array.length);
-
-    var i = IS_UNDEFINED(start) ? 0 : TO_INTEGER(start);
-    var end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
-
-    if (i < 0) {
-      i += length;
-      if (i < 0) i = 0;
-    } else {
-      if (i > length) i = length;
-    }
-
-    if (end < 0) {
-      end += length;
-      if (end < 0) end = 0;
-    } else {
-      if (end > length) end = length;
-    }
-
-    for (; i < end; i++)
-      array[i] = value;
-    return array;
-  },
-  1  /* Set function length */
-);
-
 // Set up unscopable properties on the Array.prototype object.
 var unscopables = {
   __proto__: null,

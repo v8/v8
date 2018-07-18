@@ -1757,6 +1757,38 @@ class DictionaryElementsAccessor
     return true;
   }
 
+  static Object* FillImpl(Isolate* isolate, Handle<JSObject> receiver,
+                          Handle<Object> obj_value, uint32_t start,
+                          uint32_t end) {
+    DCHECK(receiver->HasDictionaryElements());
+    Handle<NumberDictionary> dictionary(receiver->element_dictionary(),
+                                        isolate);
+    DCHECK(!dictionary->requires_slow_elements());
+
+    int min_capacity = end - start;
+    if (min_capacity > dictionary->Capacity()) {
+      DictionaryElementsAccessor::GrowCapacityAndConvertImpl(receiver,
+                                                             min_capacity);
+      CHECK(receiver->HasDictionaryElements());
+    }
+
+    for (uint32_t index = start; index < end; ++index) {
+      uint32_t entry = DictionaryElementsAccessor::GetEntryForIndexImpl(
+          isolate, *receiver, receiver->elements(), index, ALL_PROPERTIES);
+      if (entry != kMaxUInt32) {
+        DCHECK_EQ(kData,
+                  DictionaryElementsAccessor::GetDetailsImpl(*dictionary, entry)
+                      .kind());
+        DictionaryElementsAccessor::SetImpl(receiver, entry, *obj_value);
+      } else {
+        // new_capacity parameter is ignored.
+        DictionaryElementsAccessor::AddImpl(receiver, index, obj_value, NONE,
+                                            0);
+      }
+    }
+    return *receiver;
+  }
+
   static Maybe<bool> IncludesValueImpl(Isolate* isolate,
                                        Handle<JSObject> receiver,
                                        Handle<Object> value,
@@ -2303,6 +2335,33 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     if (hole_start != hole_end) {
       dst_elms->FillWithHoles(hole_start, hole_end);
     }
+  }
+
+  static Object* FillImpl(Isolate* isolate, Handle<JSObject> receiver,
+                          Handle<Object> obj_value, uint32_t start,
+                          uint32_t end) {
+    // Ensure indexes are within array bounds
+    DCHECK_LE(0, start);
+    DCHECK_LE(start, end);
+
+    // Make sure COW arrays are copied.
+    if (IsSmiOrObjectElementsKind(Subclass::kind())) {
+      JSObject::EnsureWritableFastElements(receiver);
+    }
+
+    // Make sure we have enough space.
+    uint32_t capacity =
+        Subclass::GetCapacityImpl(*receiver, receiver->elements());
+    if (end > capacity) {
+      Subclass::GrowCapacityAndConvertImpl(receiver, end);
+      CHECK_EQ(Subclass::kind(), receiver->GetElementsKind());
+    }
+    DCHECK_LE(end, Subclass::GetCapacityImpl(*receiver, receiver->elements()));
+
+    for (uint32_t index = start; index < end; ++index) {
+      Subclass::SetImpl(receiver, index, *obj_value);
+    }
+    return *receiver;
   }
 
   static Maybe<bool> IncludesValueImpl(Isolate* isolate,

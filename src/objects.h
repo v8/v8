@@ -993,6 +993,15 @@ class Object {
 
 #define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, MaybeHandle<Object>())
 
+#define MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call) \
+  do {                                                               \
+    Isolate* __isolate__ = (isolate);                                \
+    if (!(call).To(&dst)) {                                          \
+      DCHECK(__isolate__->has_pending_exception());                  \
+      return ReadOnlyRoots(__isolate__).exception();                 \
+    }                                                                \
+  } while (false)
+
 #define DECL_STRUCT_PREDICATE(NAME, Name, name) V8_INLINE bool Is##Name() const;
   STRUCT_LIST(DECL_STRUCT_PREDICATE)
 #undef DECL_STRUCT_PREDICATE
