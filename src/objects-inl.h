@@ -1001,19 +1001,6 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {
   return ReadOnlyRoots(MemoryChunk::FromHeapObject(this)->heap());
 }
 
-Heap* HeapObject::GetHeap() const {
-  Heap* heap = MemoryChunk::FromAddress(
-                   reinterpret_cast<Address>(const_cast<HeapObject*>(this)))
-                   ->heap();
-  SLOW_DCHECK(heap != nullptr);
-  return heap;
-}
-
-
-Isolate* HeapObject::GetIsolate() const {
-  return GetHeap()->isolate();
-}
-
 Heap* NeverReadOnlySpaceObject::GetHeap() const {
   MemoryChunk* chunk =
       MemoryChunk::FromAddress(reinterpret_cast<Address>(this));

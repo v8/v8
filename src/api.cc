@@ -207,17 +207,6 @@ namespace v8 {
 
 #define RETURN_ESCAPED(value) return handle_scope.Escape(value);
 
-// TODO(v8:7786): Remove this when HeapObject::GetIsolate is removed.
-#ifdef DEPRECATE_GET_ISOLATE
-#define DISABLE_DEPRECATED_WARNINGS \
-  _Pragma("clang diagnostic push")  \
-      _Pragma("clang diagnostic ignored \"-Wdeprecated\"")
-#define RESET_DEPRECATED_WARNINGS _Pragma("clang diagnostic pop")
-#else
-#define DISABLE_DEPRECATED_WARNINGS
-#define RESET_DEPRECATED_WARNINGS
-#endif
-
 namespace {
 
 Local<Context> ContextFromNeverReadOnlySpaceObject(
@@ -225,17 +214,22 @@ Local<Context> ContextFromNeverReadOnlySpaceObject(
   return reinterpret_cast<v8::Isolate*>(obj->GetIsolate())->GetCurrentContext();
 }
 
-// This is unsafe because obj could be in RO_SPACE which would not be tied to a
-// particular isolate.
-#ifdef DEPRECATE_GET_ISOLATE
-[[deprecated("Pass Context explicitly or use a NeverReadOnlySpaceObject")]]
-#endif
-    Local<Context>
-    UnsafeContextFromHeapObject(i::Handle<i::Object> obj) {
-  DISABLE_DEPRECATED_WARNINGS
-  return reinterpret_cast<v8::Isolate*>(i::HeapObject::cast(*obj)->GetIsolate())
+// TODO(delphick): Remove this completely when the deprecated functions that use
+// it are removed.
+// DO NOT USE THIS IN NEW CODE!
+i::Isolate* UnsafeIsolateFromHeapObject(i::Handle<i::HeapObject> obj) {
+  i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(*obj);
+  return chunk->heap()->isolate();
+}
+
+// TODO(delphick): Remove this completely when the deprecated functions that use
+// it are removed.
+// DO NOT USE THIS IN NEW CODE!
+Local<Context> UnsafeContextFromHeapObject(i::Handle<i::Object> obj) {
+  i::MemoryChunk* chunk =
+      i::MemoryChunk::FromHeapObject(i::HeapObject::cast(*obj));
+  return reinterpret_cast<Isolate*>(chunk->heap()->isolate())
       ->GetCurrentContext();
-  RESET_DEPRECATED_WARNINGS
 }
 
 class InternalEscapableScope : public v8::EscapableHandleScope {
@@ -2313,9 +2307,7 @@ void PrimitiveArray::Set(Isolate* v8_isolate, int index,
 
 void PrimitiveArray::Set(int index, Local<Primitive> item) {
   i::Handle<i::FixedArray> array = Utils::OpenHandle(this);
-  DISABLE_DEPRECATED_WARNINGS
-  i::Isolate* isolate = array->GetIsolate();
-  RESET_DEPRECATED_WARNINGS
+  i::Isolate* isolate = UnsafeIsolateFromHeapObject(array);
   Set(reinterpret_cast<Isolate*>(isolate), index, item);
 }
 
@@ -2333,9 +2325,7 @@ Local<Primitive> PrimitiveArray::Get(Isolate* v8_isolate, int index) {
 
 Local<Primitive> PrimitiveArray::Get(int index) {
   i::Handle<i::FixedArray> array = Utils::OpenHandle(this);
-  DISABLE_DEPRECATED_WARNINGS
-  i::Isolate* isolate = array->GetIsolate();
-  RESET_DEPRECATED_WARNINGS
+  i::Isolate* isolate = UnsafeIsolateFromHeapObject(array);
   return Get(reinterpret_cast<Isolate*>(isolate), index);
 }
 
@@ -2800,9 +2790,7 @@ MaybeLocal<Script> Script::Compile(Local<Context> context, Local<String> source,
 Local<Script> Script::Compile(v8::Local<String> source,
                               v8::ScriptOrigin* origin) {
   auto str = Utils::OpenHandle(*source);
-  DISABLE_DEPRECATED_WARNINGS
   auto context = UnsafeContextFromHeapObject(str);
-  RESET_DEPRECATED_WARNINGS
   RETURN_TO_LOCAL_UNCHECKED(Compile(context, source, origin), Script);
 }
 
@@ -2810,9 +2798,7 @@ Local<Script> Script::Compile(v8::Local<String> source,
 Local<Script> Script::Compile(v8::Local<String> source,
                               v8::Local<String> file_name) {
   auto str = Utils::OpenHandle(*source);
-  DISABLE_DEPRECATED_WARNINGS
   auto context = UnsafeContextFromHeapObject(str);
-  RESET_DEPRECATED_WARNINGS
   ScriptOrigin origin(file_name);
   return Compile(context, source, &origin).FromMaybe(Local<Script>());
 }
@@ -3124,9 +3110,7 @@ Local<StackFrame> StackTrace::GetFrame(Isolate* v8_isolate,
 }
 
 Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
-  DISABLE_DEPRECATED_WARNINGS
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  RESET_DEPRECATED_WARNINGS
+  i::Isolate* isolate = UnsafeIsolateFromHeapObject(Utils::OpenHandle(this));
   return GetFrame(reinterpret_cast<Isolate*>(isolate), index);
 }
 
@@ -4118,9 +4102,8 @@ bool Value::BooleanValue() const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) return *obj != i::Smi::kZero;
   DCHECK(obj->IsHeapObject());
-  DISABLE_DEPRECATED_WARNINGS
-  i::Isolate* isolate = i::Handle<i::HeapObject>::cast(obj)->GetIsolate();
-  RESET_DEPRECATED_WARNINGS
+  i::Isolate* isolate =
+      UnsafeIsolateFromHeapObject(i::Handle<i::HeapObject>::cast(obj));
   return obj->BooleanValue(isolate);
 }
 
@@ -4141,10 +4124,8 @@ Maybe<double> Value::NumberValue(Local<Context> context) const {
 double Value::NumberValue() const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsNumber()) return obj->Number();
-  DISABLE_DEPRECATED_WARNINGS
   return NumberValue(UnsafeContextFromHeapObject(obj))
       .FromMaybe(std::numeric_limits<double>::quiet_NaN());
-  RESET_DEPRECATED_WARNINGS
 }
 
 
@@ -4172,9 +4153,7 @@ int64_t Value::IntegerValue() const {
       return static_cast<int64_t>(obj->Number());
     }
   }
-  DISABLE_DEPRECATED_WARNINGS
   return IntegerValue(UnsafeContextFromHeapObject(obj)).FromMaybe(0);
-  RESET_DEPRECATED_WARNINGS
 }
 
 
@@ -4195,9 +4174,7 @@ Maybe<int32_t> Value::Int32Value(Local<Context> context) const {
 int32_t Value::Int32Value() const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsNumber()) return NumberToInt32(*obj);
-  DISABLE_DEPRECATED_WARNINGS
   return Int32Value(UnsafeContextFromHeapObject(obj)).FromMaybe(0);
-  RESET_DEPRECATED_WARNINGS
 }
 
 
@@ -4218,9 +4195,7 @@ Maybe<uint32_t> Value::Uint32Value(Local<Context> context) const {
 uint32_t Value::Uint32Value() const {
   auto obj = Utils::OpenHandle(this);
   if (obj->IsNumber()) return NumberToUint32(*obj);
-  DISABLE_DEPRECATED_WARNINGS
   return Uint32Value(UnsafeContextFromHeapObject(obj)).FromMaybe(0);
-  RESET_DEPRECATED_WARNINGS
 }
 
 
@@ -4268,9 +4243,7 @@ bool Value::Equals(Local<Value> that) const {
     return *self == *other;
   }
   auto heap_object = self->IsSmi() ? other : self;
-  DISABLE_DEPRECATED_WARNINGS
   auto context = UnsafeContextFromHeapObject(heap_object);
-  RESET_DEPRECATED_WARNINGS
   return Equals(context, that).FromMaybe(false);
 }
 
@@ -5601,9 +5574,7 @@ bool String::ContainsOnlyOneByte() const {
 }
 
 int String::Utf8Length() const {
-  DISABLE_DEPRECATED_WARNINGS
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  RESET_DEPRECATED_WARNINGS
+  i::Isolate* isolate = UnsafeIsolateFromHeapObject(Utils::OpenHandle(this));
   return Utf8Length(reinterpret_cast<Isolate*>(isolate));
 }
 
@@ -5877,9 +5848,7 @@ int String::WriteUtf8(Isolate* v8_isolate, char* buffer, int capacity,
 int String::WriteUtf8(char* buffer, int capacity, int* nchars_ref,
                       int options) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  DISABLE_DEPRECATED_WARNINGS
-  i::Isolate* isolate = str->GetIsolate();
-  RESET_DEPRECATED_WARNINGS
+  i::Isolate* isolate = UnsafeIsolateFromHeapObject(str);
   return WriteUtf8(reinterpret_cast<Isolate*>(isolate), buffer, capacity,
                    nchars_ref, options);
 }
@@ -5910,9 +5879,7 @@ int String::WriteOneByte(uint8_t* buffer,
                          int start,
                          int length,
                          int options) const {
-  DISABLE_DEPRECATED_WARNINGS
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  RESET_DEPRECATED_WARNINGS
+  i::Isolate* isolate = UnsafeIsolateFromHeapObject(Utils::OpenHandle(this));
   return WriteHelper(isolate, this, buffer, start, length, options);
 }
 
@@ -5927,9 +5894,7 @@ int String::Write(uint16_t* buffer,
                   int start,
                   int length,
                   int options) const {
-  DISABLE_DEPRECATED_WARNINGS
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  RESET_DEPRECATED_WARNINGS
+  i::Isolate* isolate = UnsafeIsolateFromHeapObject(Utils::OpenHandle(this));
   return WriteHelper(isolate, this, buffer, start, length, options);
 }
 
@@ -6827,9 +6792,7 @@ Local<String> v8::String::Concat(Isolate* v8_isolate, Local<String> left,
 
 Local<String> v8::String::Concat(Local<String> left, Local<String> right) {
   i::Handle<i::String> left_string = Utils::OpenHandle(*left);
-  DISABLE_DEPRECATED_WARNINGS
-  i::Isolate* isolate = left_string->GetIsolate();
-  RESET_DEPRECATED_WARNINGS
+  i::Isolate* isolate = UnsafeIsolateFromHeapObject(left_string);
   return Concat(reinterpret_cast<Isolate*>(isolate), left, right);
 }
 
@@ -7034,9 +6997,7 @@ bool v8::BooleanObject::ValueOf() const {
 
 Local<v8::Value> v8::StringObject::New(Local<String> value) {
   i::Handle<i::String> string = Utils::OpenHandle(*value);
-  DISABLE_DEPRECATED_WARNINGS
-  i::Isolate* isolate = string->GetIsolate();
-  RESET_DEPRECATED_WARNINGS
+  i::Isolate* isolate = UnsafeIsolateFromHeapObject(string);
   return New(reinterpret_cast<Isolate*>(isolate), value);
 }
 
@@ -7145,8 +7106,8 @@ MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
 
 
 Local<v8::RegExp> v8::RegExp::New(Local<String> pattern, Flags flags) {
-  auto isolate =
-      reinterpret_cast<Isolate*>(Utils::OpenHandle(*pattern)->GetIsolate());
+  auto* isolate = reinterpret_cast<Isolate*>(
+      UnsafeIsolateFromHeapObject(Utils::OpenHandle(*pattern)));
   auto context = isolate->GetCurrentContext();
   RETURN_TO_LOCAL_UNCHECKED(New(context, pattern, flags), RegExp);
 }
@@ -10974,8 +10935,6 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
 #undef SET_FIELD_WRAPPED
 #undef NEW_STRING
 #undef CALLBACK_SETTER
-#undef DISABLE_DEPRECATED_WARNINGS
-#undef RESET_DEPRECATED_WARNINGS
 
 }  // namespace internal
 }  // namespace v8

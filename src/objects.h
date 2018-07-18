@@ -1515,20 +1515,6 @@ class HeapObject: public Object {
   // places where it might not be safe to access it.
   inline ReadOnlyRoots GetReadOnlyRoots() const;
 
-  // The Heap the object was allocated in. Used also to access Isolate.
-#ifdef DEPRECATE_GET_ISOLATE
-  [[deprecated("Pass Heap explicitly or use a NeverReadOnlySpaceObject")]]
-#endif
-      inline Heap*
-      GetHeap() const;
-
-// Convenience method to get current isolate.
-#ifdef DEPRECATE_GET_ISOLATE
-  [[deprecated("Pass Isolate explicitly or use a NeverReadOnlySpaceObject")]]
-#endif
-      inline Isolate*
-      GetIsolate() const;
-
 #define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
