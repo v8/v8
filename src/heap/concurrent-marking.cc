@@ -310,7 +310,6 @@ class ConcurrentMarkingVisitor final
       VisitPointer(map, HeapObject::RawMaybeWeakField(
                             map, Map::kTransitionsOrPrototypeInfoOffset));
       VisitPointer(map, HeapObject::RawField(map, Map::kDependentCodeOffset));
-      VisitPointer(map, HeapObject::RawField(map, Map::kWeakCellCacheOffset));
       bailout_.Push(map);
     }
     return 0;

@@ -1852,7 +1852,6 @@ Map* Factory::InitializeMap(Map* map, InstanceType type, int instance_size,
   }
   map->set_dependent_code(DependentCode::cast(*empty_fixed_array()),
                           SKIP_WRITE_BARRIER);
-  map->set_weak_cell_cache(Smi::kZero);
   map->set_raw_transitions(MaybeObject::FromSmi(Smi::kZero));
   map->SetInObjectUnusedPropertyFields(inobject_properties);
   map->set_instance_descriptors(*empty_descriptor_array());

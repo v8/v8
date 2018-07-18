@@ -166,8 +166,6 @@ typedef std::vector<Handle<Map>> MapHandles;
 // +*************************************************************+
 // | TaggedPointer | [dependent_code]                            |
 // +---------------+---------------------------------------------+
-// | TaggedPointer | [weak_cell_cache]                           |
-// +---------------+---------------------------------------------+
 
 class Map : public HeapObject {
  public:
@@ -574,9 +572,6 @@ class Map : public HeapObject {
   // [dependent code]: list of optimized codes that weakly embed this map.
   DECL_ACCESSORS(dependent_code, DependentCode)
 
-  // [weak cell cache]: cache that stores a weak cell pointing to this map.
-  DECL_ACCESSORS(weak_cell_cache, Object)
-
   // [prototype_validity_cell]: Cell containing the validity bit for prototype
   // chains or Smi(0) if uninitialized.
   // The meaning of this validity cell is different for prototype maps and
@@ -780,8 +775,6 @@ class Map : public HeapObject {
 
   bool IsMapInArrayPrototypeChain(Isolate* isolate) const;
 
-  static Handle<WeakCell> WeakCellForMap(Isolate* isolate, Handle<Map> map);
-
   // Dispatched behavior.
   DECL_PRINTER(Map)
   DECL_VERIFIER(Map)
@@ -820,7 +813,6 @@ class Map : public HeapObject {
   V(kDescriptorsOffset, kPointerSize)                                       \
   V(kLayoutDescriptorOffset, FLAG_unbox_double_fields ? kPointerSize : 0)   \
   V(kDependentCodeOffset, kPointerSize)                                     \
-  V(kWeakCellCacheOffset, kPointerSize)                                     \
   V(kPrototypeValidityCellOffset, kPointerSize)                             \
   V(kPointerFieldsEndOffset, 0)                                             \
   /* Total size. */                                                         \
@@ -969,7 +961,8 @@ class Map : public HeapObject {
 // The cache for maps used by normalized (dictionary mode) objects.
 // Such maps do not have property descriptors, so a typical program
 // needs very limited number of distinct normalized maps.
-class NormalizedMapCache : public FixedArray, public NeverReadOnlySpaceObject {
+class NormalizedMapCache : public WeakFixedArray,
+                           public NeverReadOnlySpaceObject {
  public:
   using NeverReadOnlySpaceObject::GetHeap;
   using NeverReadOnlySpaceObject::GetIsolate;
@@ -978,10 +971,7 @@ class NormalizedMapCache : public FixedArray, public NeverReadOnlySpaceObject {
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Handle<Map> fast_map,
                                              PropertyNormalizationMode mode);
-  void Set(Handle<Map> fast_map, Handle<Map> normalized_map,
-           Handle<WeakCell> normalized_map_weak_cell);
-
-  void Clear();
+  void Set(Handle<Map> fast_map, Handle<Map> normalized_map);
 
   DECL_CAST(NormalizedMapCache)
 

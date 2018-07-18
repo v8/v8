@@ -108,15 +108,6 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
       Map::cast(result), instance_type, instance_size, elements_kind,
       inobject_properties);
 
-  if (!is_js_object) {
-    // Eagerly initialize the WeakCell cache for the map as it will not be
-    // writable in RO_SPACE.
-    HandleScope handle_scope(isolate());
-    Handle<WeakCell> weak_cell = isolate()->factory()->NewWeakCell(
-        Handle<Map>(map, isolate()), TENURED_READ_ONLY);
-    map->set_weak_cell_cache(*weak_cell);
-  }
-
   return map;
 }
 
@@ -148,7 +139,6 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
                    Map::OwnsDescriptorsBit::encode(true) |
                    Map::ConstructionCounterBits::encode(Map::kNoSlackTracking);
   map->set_bit_field3(bit_field3);
-  map->set_weak_cell_cache(Smi::kZero);
   map->set_elements_kind(TERMINAL_FAST_ELEMENTS_KIND);
   return map;
 }
@@ -163,13 +153,6 @@ void Heap::FinalizePartialMap(Map* map) {
   }
   map->set_prototype(roots.null_value());
   map->set_constructor_or_backpointer(roots.null_value());
-
-  // Eagerly initialize the WeakCell cache for the map as it will not be
-  // writable in RO_SPACE.
-  HandleScope handle_scope(isolate());
-  Handle<WeakCell> weak_cell = isolate()->factory()->NewWeakCell(
-      Handle<Map>(map, isolate()), TENURED_READ_ONLY);
-  map->set_weak_cell_cache(*weak_cell);
 }
 
 AllocationResult Heap::Allocate(Map* map, AllocationSpace space) {

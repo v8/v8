@@ -672,7 +672,6 @@ void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
 }
 
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
-ACCESSORS(Map, weak_cell_cache, Object, kWeakCellCacheOffset)
 ACCESSORS(Map, prototype_validity_cell, Object, kPrototypeValidityCellOffset)
 ACCESSORS(Map, constructor_or_backpointer, Object,
           kConstructorOrBackPointerOffset)
@@ -746,8 +745,8 @@ int NormalizedMapCache::GetIndex(Handle<Map> map) {
 }
 
 bool NormalizedMapCache::IsNormalizedMapCache(const HeapObject* obj) {
-  if (!obj->IsFixedArray()) return false;
-  if (FixedArray::cast(obj)->length() != NormalizedMapCache::kEntries) {
+  if (!obj->IsWeakFixedArray()) return false;
+  if (WeakFixedArray::cast(obj)->length() != NormalizedMapCache::kEntries) {
     return false;
   }
 #ifdef VERIFY_HEAP

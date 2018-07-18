@@ -5559,15 +5559,6 @@ bool Map::IsMapInArrayPrototypeChain(Isolate* isolate) const {
   return false;
 }
 
-Handle<WeakCell> Map::WeakCellForMap(Isolate* isolate, Handle<Map> map) {
-  if (map->weak_cell_cache()->IsWeakCell()) {
-    return Handle<WeakCell>(WeakCell::cast(map->weak_cell_cache()), isolate);
-  }
-  Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell(map);
-  map->set_weak_cell_cache(*weak_cell);
-  return weak_cell;
-}
-
 static Handle<Map> AddMissingElementsTransitions(Isolate* isolate,
                                                  Handle<Map> map,
                                                  ElementsKind to_kind) {
@@ -6343,8 +6334,8 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
 
 
 Handle<NormalizedMapCache> NormalizedMapCache::New(Isolate* isolate) {
-  Handle<FixedArray> array(
-      isolate->factory()->NewFixedArray(kEntries, TENURED));
+  Handle<WeakFixedArray> array(
+      isolate->factory()->NewWeakFixedArray(kEntries, TENURED));
   return Handle<NormalizedMapCache>::cast(array);
 }
 
@@ -6352,34 +6343,25 @@ Handle<NormalizedMapCache> NormalizedMapCache::New(Isolate* isolate) {
 MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
                                          PropertyNormalizationMode mode) {
   DisallowHeapAllocation no_gc;
-  Object* value = FixedArray::get(GetIndex(fast_map));
-  if (!value->IsWeakCell() || WeakCell::cast(value)->cleared()) {
+  MaybeObject* value = WeakFixedArray::Get(GetIndex(fast_map));
+  HeapObject* heap_object;
+  if (!value->ToWeakHeapObject(&heap_object)) {
     return MaybeHandle<Map>();
   }
 
-  Map* normalized_map = Map::cast(WeakCell::cast(value)->value());
+  Map* normalized_map = Map::cast(heap_object);
   if (!normalized_map->EquivalentToForNormalization(*fast_map, mode)) {
     return MaybeHandle<Map>();
   }
   return handle(normalized_map, GetIsolate());
 }
 
-void NormalizedMapCache::Set(Handle<Map> fast_map, Handle<Map> normalized_map,
-                             Handle<WeakCell> normalized_map_weak_cell) {
+void NormalizedMapCache::Set(Handle<Map> fast_map, Handle<Map> normalized_map) {
   DisallowHeapAllocation no_gc;
   DCHECK(normalized_map->is_dictionary_map());
-  DCHECK_EQ(normalized_map_weak_cell->value(), *normalized_map);
-  FixedArray::set(GetIndex(fast_map), *normalized_map_weak_cell);
+  WeakFixedArray::Set(GetIndex(fast_map),
+                      HeapObjectReference::Weak(*normalized_map));
 }
-
-
-void NormalizedMapCache::Clear() {
-  int entries = length();
-  for (int i = 0; i != entries; i++) {
-    set_undefined(i);
-  }
-}
-
 
 void JSObject::NormalizeProperties(Handle<JSObject> object,
                                    PropertyNormalizationMode mode,
@@ -9293,10 +9275,8 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                             reinterpret_cast<void*>(new_map->address()),
                             Map::kDependentCodeOffset));
       }
-      STATIC_ASSERT(Map::kWeakCellCacheOffset ==
-                    Map::kDependentCodeOffset + kPointerSize);
       STATIC_ASSERT(Map::kPrototypeValidityCellOffset ==
-                    Map::kWeakCellCacheOffset + kPointerSize);
+                    Map::kDependentCodeOffset + kPointerSize);
       int offset = Map::kPrototypeValidityCellOffset + kPointerSize;
       DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address() + offset),
                           reinterpret_cast<void*>(new_map->address() + offset),
@@ -9306,8 +9286,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
   } else {
     new_map = Map::CopyNormalized(isolate, fast_map, mode);
     if (use_cache) {
-      Handle<WeakCell> cell = Map::WeakCellForMap(isolate, new_map);
-      cache->Set(fast_map, new_map, cell);
+      cache->Set(fast_map, new_map);
       isolate->counters()->maps_normalized()->Increment();
     }
     if (FLAG_trace_maps) {
@@ -10321,9 +10300,8 @@ void FixedArrayOfWeakCells::Set(Isolate* isolate,
                                 Handle<FixedArrayOfWeakCells> array, int index,
                                 Handle<HeapObject> value) {
   DCHECK(array->IsEmptySlot(index));  // Don't overwrite anything.
-  Handle<WeakCell> cell =
-      value->IsMap() ? Map::WeakCellForMap(isolate, Handle<Map>::cast(value))
-                     : isolate->factory()->NewWeakCell(value);
+  DCHECK(!value->IsMap());
+  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(value);
   Handle<FixedArray>::cast(array)->set(index + kFirstIndex, *cell);
   array->set_last_used_index(index);
 }

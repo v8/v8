@@ -1783,16 +1783,17 @@ void Script::ScriptVerify(Isolate* isolate) {
 }
 
 void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
-  FixedArray::cast(this)->FixedArrayVerify(isolate);
+  WeakFixedArray::cast(this)->WeakFixedArrayVerify(isolate);
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < length(); i++) {
-      Object* e = FixedArray::get(i);
-      if (e->IsWeakCell()) {
-        if (!WeakCell::cast(e)->cleared()) {
-          Map::cast(WeakCell::cast(e)->value())->DictionaryMapVerify(isolate);
-        }
+      MaybeObject* e = WeakFixedArray::Get(i);
+      HeapObject* heap_object;
+      if (e->ToWeakHeapObject(&heap_object)) {
+        Map::cast(heap_object)->DictionaryMapVerify(isolate);
       } else {
-        CHECK(e->IsUndefined(isolate));
+        CHECK(e->IsClearedWeakHeapObject() ||
+              (e->ToStrongHeapObject(&heap_object) &&
+               heap_object->IsUndefined(isolate)));
       }
     }
   }
