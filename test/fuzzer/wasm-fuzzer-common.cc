@@ -332,6 +332,16 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
     return 0;
   }
 
+  // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
+  // This sign bit can make the difference between an infinite loop and
+  // terminating code. With possible non-determinism we cannot guarantee that
+  // the generated code will not go into an infinite loop and cause a timeout in
+  // Clusterfuzz. Therefore we do not execute the generated code if the result
+  // may be non-deterministic.
+  if (possible_nondeterminism) {
+    return 0;
+  }
+
   bool expect_exception =
       result_interpreter == static_cast<int32_t>(0xDEADBEEF);
 
@@ -349,19 +359,13 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
         "main", num_args, compiler_args.get());
   }
 
-  // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
-  // This sign bit may cause result_interpreter to be different than
-  // result_compiled. Therefore we do not check the equality of the results
-  // if the execution may have produced a NaN at some point.
-  if (!possible_nondeterminism) {
-    if (expect_exception != i_isolate->has_pending_exception()) {
-      const char* exception_text[] = {"no exception", "exception"};
-      FATAL("interpreter: %s; compiled: %s", exception_text[expect_exception],
-            exception_text[i_isolate->has_pending_exception()]);
-    }
-
-    if (!expect_exception) CHECK_EQ(result_interpreter, result_compiled);
+  if (expect_exception != i_isolate->has_pending_exception()) {
+    const char* exception_text[] = {"no exception", "exception"};
+    FATAL("interpreter: %s; compiled: %s", exception_text[expect_exception],
+          exception_text[i_isolate->has_pending_exception()]);
   }
+
+  if (!expect_exception) CHECK_EQ(result_interpreter, result_compiled);
 
   // Cleanup any pending exception.
   i_isolate->clear_pending_exception();
