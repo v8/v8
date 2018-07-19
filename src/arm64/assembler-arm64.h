@@ -1008,8 +1008,6 @@ class Assembler : public AssemblerBase {
   static constexpr int kSpecialTargetSize = 0;
 
   // The sizes of the call sequences emitted by MacroAssembler::Call.
-  // Wherever possible, use MacroAssembler::CallSize instead of these constants,
-  // as it will choose the correct value for a given relocation mode.
   //
   // A "near" call is encoded in a BL immediate instruction:
   //  bl target
@@ -1032,16 +1030,6 @@ class Assembler : public AssemblerBase {
     DCHECK(pc_offset() >= label->pos());
     DCHECK(pc_offset() < buffer_size_);
     return pc_offset() - label->pos();
-  }
-
-  // Check the size of the code generated since the given label. This function
-  // is used primarily to work around comparisons between signed and unsigned
-  // quantities, since V8 uses both.
-  // TODO(jbramley): Work out what sign to use for these things and if possible,
-  // change things to be consistent.
-  void AssertSizeOfCodeGeneratedSince(const Label* label, ptrdiff_t size) {
-    DCHECK_GE(size, 0);
-    DCHECK_EQ(static_cast<uint64_t>(size), SizeOfCodeGeneratedSince(label));
   }
 
   // Return the number of instructions generated from label to the

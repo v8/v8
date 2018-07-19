@@ -900,13 +900,6 @@ class TurboAssembler : public TurboAssemblerBase {
   void CallForDeoptimization(Address target, int deopt_id,
                              RelocInfo::Mode rmode);
 
-  // For every Call variant, there is a matching CallSize function that returns
-  // the size (in bytes) of the call sequence.
-  static int CallSize(Register target);
-  int CallSize(Address target, RelocInfo::Mode rmode);
-  int CallSize(Handle<Code> code,
-               RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
-
   // Calls a C function.
   // The called function is not allowed to trigger a
   // garbage collection, since that might move the code and invalidate the

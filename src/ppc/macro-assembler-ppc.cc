@@ -212,29 +212,16 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   Jump(static_cast<intptr_t>(code.address()), rmode, cond, cr);
 }
 
-int TurboAssembler::CallSize(Register target) { return 2 * kInstrSize; }
-
 void TurboAssembler::Call(Register target) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Label start;
-  bind(&start);
-
   // branch via link register and set LK bit for return point
   mtctr(target);
   bctrl();
-
-  DCHECK_EQ(CallSize(target), SizeOfCodeGeneratedSince(&start));
 }
 
 void MacroAssembler::CallJSEntry(Register target) {
   CHECK(target == r5);
   Call(target);
-}
-
-int TurboAssembler::CallSize(Address target, RelocInfo::Mode rmode,
-                             Condition cond) {
-  Operand mov_operand = Operand(target, rmode);
-  return (2 + instructions_required_for_mov(ip, mov_operand)) * kInstrSize;
 }
 
 int MacroAssembler::CallSizeNotPredictableCodeSize(Address target,
@@ -248,13 +235,6 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   DCHECK(cond == al);
 
-#ifdef DEBUG
-  // Check the expected size before generating code to ensure we assume the same
-  // constant pool availability (e.g., whether constant pool is full or not).
-  int expected_size = CallSize(target, rmode, cond);
-  Label start;
-  bind(&start);
-#endif
   // This can likely be optimized to make use of bc() with 24bit relative
   //
   // RecordRelocInfo(x.rmode_, x.immediate);
@@ -264,13 +244,6 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode,
   mov(ip, Operand(target, rmode));
   mtctr(ip);
   bctrl();
-
-  DCHECK_EQ(expected_size, SizeOfCodeGeneratedSince(&start));
-}
-
-int TurboAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode,
-                             Condition cond) {
-  return CallSize(code.address(), rmode, cond);
 }
 
 void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,

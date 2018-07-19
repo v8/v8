@@ -1717,14 +1717,12 @@ void TurboAssembler::CallStubDelayed(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
   BlockPoolsScope scope(this);
 #ifdef DEBUG
-  Label start_call;
-  Bind(&start_call);
+  Label start;
+  Bind(&start);
 #endif
   Operand operand = Operand::EmbeddedCode(stub);
   near_call(operand.heap_object_request());
-#ifdef DEBUG
-  AssertSizeOfCodeGeneratedSince(&start_call, kNearCallSize);
-#endif
+  DCHECK_EQ(kNearCallSize, SizeOfCodeGeneratedSince(&start));
 }
 
 void MacroAssembler::CallStub(CodeStub* stub) {
@@ -1970,26 +1968,11 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
 
 void TurboAssembler::Call(Register target) {
   BlockPoolsScope scope(this);
-#ifdef DEBUG
-  Label start_call;
-  Bind(&start_call);
-#endif
-
   Blr(target);
-
-#ifdef DEBUG
-  AssertSizeOfCodeGeneratedSince(&start_call, CallSize(target));
-#endif
 }
 
-// TurboAssembler::CallSize is sensitive to changes in this function, as it
-// requires to know how many instructions are used to branch to the target.
 void TurboAssembler::Call(Address target, RelocInfo::Mode rmode) {
   BlockPoolsScope scope(this);
-#ifdef DEBUG
-  Label start_call;
-  Bind(&start_call);
-#endif
 
   if (CanUseNearCallOrJump(rmode)) {
     int64_t offset = CalculateTargetOffset(target, rmode, pc_);
@@ -1998,17 +1981,10 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode) {
   } else {
     IndirectCall(target, rmode);
   }
-#ifdef DEBUG
-  AssertSizeOfCodeGeneratedSince(&start_call, CallSize(target, rmode));
-#endif
 }
 
 void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
   BlockPoolsScope scope(this);
-#ifdef DEBUG
-  Label start_call;
-  Bind(&start_call);
-#endif
 
   if (FLAG_embedded_builtins) {
     if (root_array_available_ && options().isolate_independent_code &&
@@ -2045,11 +2021,6 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
   } else {
     IndirectCall(code.address(), rmode);
   }
-
-#ifdef DEBUG
-  // Check the size of the code generated.
-  AssertSizeOfCodeGeneratedSince(&start_call, CallSize(code, rmode));
-#endif
 }
 
 void TurboAssembler::Call(ExternalReference target) {
@@ -2078,8 +2049,8 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
 
   BlockPoolsScope scope(this);
 #ifdef DEBUG
-  Label start_call;
-  Bind(&start_call);
+  Label start;
+  Bind(&start);
 #endif
   // The deoptimizer requires the deoptimization id to be in x16.
   UseScratchRegisterScope temps(this);
@@ -2096,24 +2067,7 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
   DCHECK(IsNearCallOffset(offset));
   near_call(static_cast<int>(offset), RelocInfo::RUNTIME_ENTRY);
 
-#ifdef DEBUG
-  AssertSizeOfCodeGeneratedSince(&start_call, kNearCallSize + kInstructionSize);
-#endif
-}
-
-int TurboAssembler::CallSize(Register target) {
-  USE(target);
-  return kInstructionSize;
-}
-
-int TurboAssembler::CallSize(Address target, RelocInfo::Mode rmode) {
-  USE(target);
-  return CanUseNearCallOrJump(rmode) ? kNearCallSize : kFarCallSize;
-}
-
-int TurboAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode) {
-  USE(code);
-  return CanUseNearCallOrJump(rmode) ? kNearCallSize : kFarCallSize;
+  DCHECK_EQ(kNearCallSize + kInstructionSize, SizeOfCodeGeneratedSince(&start));
 }
 
 void MacroAssembler::TryRepresentDoubleAsInt(Register as_int, VRegister value,

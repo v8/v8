@@ -850,10 +850,8 @@ class Assembler : public AssemblerBase {
   // Calls
   void call(Label* L);
   void call(Address entry, RelocInfo::Mode rmode);
-  int CallSize(Operand adr);
   void call(Register reg) { call(Operand(reg)); }
   void call(Operand adr);
-  int CallSize(Handle<Code> code, RelocInfo::Mode mode);
   void call(Handle<Code> code, RelocInfo::Mode rmode);
   void call(CodeStub* stub);
   void wasm_call(Address address, RelocInfo::Mode rmode);

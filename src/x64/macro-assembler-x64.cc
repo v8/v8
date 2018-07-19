@@ -186,27 +186,6 @@ Operand TurboAssembler::ExternalOperand(ExternalReference target,
   return Operand(scratch, 0);
 }
 
-int TurboAssembler::LoadAddressSize(ExternalReference source) {
-  if (root_array_available_ && options().enable_root_array_delta_access) {
-    // This calculation depends on the internals of LoadAddress.
-    // It's correctness is ensured by the asserts in the Call
-    // instruction below.
-    int64_t delta = RootRegisterDelta(source);
-    if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
-      // Operand is leap(scratch, Operand(kRootRegister, delta));
-      // Opcodes : REX.W 8D ModRM Disp8/Disp32  - 4 or 7.
-      int size = 4;
-      if (!is_int8(static_cast<int32_t>(delta))) {
-        size += 3;  // Need full four-byte displacement in lea.
-      }
-      return size;
-    }
-  }
-  // Size of movp(destination, src);
-  return Assembler::kMoveAddressIntoScratchRegisterInstructionLength;
-}
-
-
 void MacroAssembler::PushAddress(ExternalReference source) {
   LoadAddress(kScratchRegister, source);
   Push(kScratchRegister);
@@ -1521,19 +1500,9 @@ void MacroAssembler::JumpToInstructionStream(Address entry) {
   jmp(kOffHeapTrampolineRegister);
 }
 
-int TurboAssembler::CallSize(ExternalReference ext) {
-  // Opcode for call kScratchRegister is: Rex.B FF D4 (three bytes).
-  return LoadAddressSize(ext) +
-         Assembler::kCallScratchRegisterInstructionLength;
-}
-
 void TurboAssembler::Call(ExternalReference ext) {
-#ifdef DEBUG
-  int end_position = pc_offset() + CallSize(ext);
-#endif
   LoadAddress(kScratchRegister, ext);
   call(kScratchRegister);
-  DCHECK_EQ(end_position, pc_offset());
 }
 
 void TurboAssembler::Call(Operand op) {
@@ -1546,12 +1515,8 @@ void TurboAssembler::Call(Operand op) {
 }
 
 void TurboAssembler::Call(Address destination, RelocInfo::Mode rmode) {
-#ifdef DEBUG
-  int end_position = pc_offset() + CallSize(destination);
-#endif
   Move(kScratchRegister, destination, rmode);
   call(kScratchRegister);
-  DCHECK_EQ(pc_offset(), end_position);
 }
 
 void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
@@ -1581,12 +1546,8 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
       }
     }
   }
-#ifdef DEBUG
-  int end_position = pc_offset() + CallSize(code_object);
-#endif
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   call(code_object, rmode);
-  DCHECK_EQ(end_position, pc_offset());
 }
 
 void TurboAssembler::RetpolineCall(Register reg) {
@@ -1610,14 +1571,8 @@ void TurboAssembler::RetpolineCall(Register reg) {
 }
 
 void TurboAssembler::RetpolineCall(Address destination, RelocInfo::Mode rmode) {
-#ifdef DEBUG
-// TODO(titzer): CallSize() is wrong for RetpolineCalls
-//  int end_position = pc_offset() + CallSize(destination);
-#endif
   Move(kScratchRegister, destination, rmode);
   RetpolineCall(kScratchRegister);
-  // TODO(titzer): CallSize() is wrong for RetpolineCalls
-  //  DCHECK_EQ(pc_offset(), end_position);
 }
 
 void TurboAssembler::RetpolineJump(Register reg) {

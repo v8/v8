@@ -1606,20 +1606,10 @@ void Assembler::wasm_call(Address entry, RelocInfo::Mode rmode) {
   emit(entry, rmode);
 }
 
-int Assembler::CallSize(Operand adr) {
-  // Call size is 1 (opcode) + adr.len_ (operand).
-  return 1 + adr.len_;
-}
-
 void Assembler::call(Operand adr) {
   EnsureSpace ensure_space(this);
   EMIT(0xFF);
   emit_operand(edx, adr);
-}
-
-
-int Assembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode) {
-  return 1 /* EMIT */ + sizeof(uint32_t) /* emit */;
 }
 
 void Assembler::call(Handle<Code> code, RelocInfo::Mode rmode) {

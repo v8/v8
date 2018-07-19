@@ -3793,27 +3793,6 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   Jump(static_cast<intptr_t>(code.address()), rmode, cond, rs, rt, bd);
 }
 
-int TurboAssembler::CallSize(Register target, int16_t offset, Condition cond,
-                             Register rs, const Operand& rt,
-                             BranchDelaySlot bd) {
-  int size = 0;
-
-  if (cond == cc_always) {
-    size += 1;
-  } else {
-    size += 3;
-  }
-
-  if (bd == PROTECT && !IsMipsArchVariant(kMips32r6)) size += 1;
-
-  if (!IsMipsArchVariant(kMips32r6) && offset != 0) {
-    size += 1;
-  }
-
-  return size * kInstrSize;
-}
-
-
 // Note: To call gcc-compiled C code on mips, you must call through t9.
 void TurboAssembler::Call(Register target, int16_t offset, Condition cond,
                           Register rs, const Operand& rt, BranchDelaySlot bd) {
@@ -3823,8 +3802,6 @@ void TurboAssembler::Call(Register target, int16_t offset, Condition cond,
 #endif
 
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Label start;
-  bind(&start);
   if (IsMipsArchVariant(kMips32r6) && bd == PROTECT) {
     if (cond == cc_always) {
       jialc(target, offset);
@@ -3847,11 +3824,6 @@ void TurboAssembler::Call(Register target, int16_t offset, Condition cond,
     // Emit a nop in the branch delay slot if required.
     if (bd == PROTECT) nop();
   }
-
-#ifdef DEBUG
-  DCHECK_EQ(size + CallSize(target, offset, cond, rs, rt, bd),
-            SizeOfCodeGeneratedSince(&start));
-#endif
 }
 
 // Note: To call gcc-compiled C code on mips, you must call through t9.
@@ -3864,8 +3836,6 @@ void TurboAssembler::Call(Register target, Register base, int16_t offset,
 #endif
 
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Label start;
-  bind(&start);
   if (IsMipsArchVariant(kMips32r6) && bd == PROTECT) {
     if (cond == cc_always) {
       jialc(base, offset);
@@ -3890,29 +3860,12 @@ void TurboAssembler::Call(Register target, Register base, int16_t offset,
     // Emit a nop in the branch delay slot if required.
     if (bd == PROTECT) nop();
   }
-
-#ifdef DEBUG
-  DCHECK_EQ(size + CallSize(target, offset, cond, rs, rt, bd),
-            SizeOfCodeGeneratedSince(&start));
-#endif
-}
-
-int TurboAssembler::CallSize(Address target, RelocInfo::Mode rmode,
-                             Condition cond, Register rs, const Operand& rt,
-                             BranchDelaySlot bd) {
-  int size = CallSize(t9, 0, cond, rs, rt, bd);
-  if (IsMipsArchVariant(kMips32r6) && bd == PROTECT && cond == cc_always)
-    return size + 1 * kInstrSize;
-  else
-    return size + 2 * kInstrSize;
 }
 
 void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
                           Register rs, const Operand& rt, BranchDelaySlot bd) {
   CheckBuffer();
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Label start;
-  bind(&start);
   int32_t target_int = static_cast<int32_t>(target);
   if (IsMipsArchVariant(kMips32r6) && bd == PROTECT && cond == cc_always) {
     uint32_t lui_offset, jialc_offset;
@@ -3926,15 +3879,6 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
     li(t9, Operand(target_int, rmode), CONSTANT_SIZE);
     Call(t9, 0, cond, rs, rt, bd);
   }
-  DCHECK_EQ(CallSize(target, rmode, cond, rs, rt, bd),
-            SizeOfCodeGeneratedSince(&start));
-}
-
-int TurboAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode,
-                             Condition cond, Register rs, const Operand& rt,
-                             BranchDelaySlot bd) {
-  AllowDeferredHandleDereference using_raw_address;
-  return CallSize(code.address(), rmode, cond, rs, rt, bd);
 }
 
 void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
@@ -3960,13 +3904,9 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
       }
     }
   }
-  Label start;
-  bind(&start);
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   AllowDeferredHandleDereference embedding_raw_address;
   Call(code.address(), rmode, cond, rs, rt, bd);
-  DCHECK_EQ(CallSize(code, rmode, cond, rs, rt, bd),
-            SizeOfCodeGeneratedSince(&start));
 }
 
 void TurboAssembler::Ret(Condition cond, Register rs, const Operand& rt,
