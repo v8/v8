@@ -107,7 +107,7 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
     SendMessageTask(FrontendChannelImpl* channel,
                     const v8::internal::Vector<uint16_t>& message)
         : channel_(channel), message_(message) {}
-    virtual ~SendMessageTask() {}
+    virtual ~SendMessageTask() { message_.Dispose(); }
     bool is_priority_task() final { return false; }
 
    private:
@@ -215,6 +215,11 @@ class ExecuteStringTask : public TaskRunner::Task {
   ExecuteStringTask(const v8::internal::Vector<const char>& expression,
                     int context_group_id)
       : expression_utf8_(expression), context_group_id_(context_group_id) {}
+
+  virtual ~ExecuteStringTask() {
+    if (expression_.start()) expression_.Dispose();
+    if (expression_utf8_.start()) expression_utf8_.Dispose();
+  }
   bool is_priority_task() override { return false; }
   void Run(IsolateData* data) override {
     v8::MicrotasksScope microtasks_scope(data->isolate(),
@@ -391,8 +396,10 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     }
     v8::internal::Vector<const char> chars;
     v8::Isolate* isolate = args.GetIsolate();
-    if (ReadFile(isolate, args[0], &chars))
+    if (ReadFile(isolate, args[0], &chars)) {
       args.GetReturnValue().Set(ToV8String(isolate, chars.start()));
+      chars.Dispose();
+    }
   }
 
   static void Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
