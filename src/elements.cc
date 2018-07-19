@@ -1755,38 +1755,6 @@ class DictionaryElementsAccessor
     return true;
   }
 
-  static Object* FillImpl(Handle<JSObject> receiver, Handle<Object> obj_value,
-                          uint32_t start, uint32_t end) {
-    Isolate* isolate = receiver->GetIsolate();
-    DCHECK(receiver->HasDictionaryElements());
-    Handle<NumberDictionary> dictionary(receiver->element_dictionary(),
-                                        isolate);
-    DCHECK(!dictionary->requires_slow_elements());
-
-    int min_capacity = end - start;
-    if (min_capacity > dictionary->Capacity()) {
-      DictionaryElementsAccessor::GrowCapacityAndConvertImpl(receiver,
-                                                             min_capacity);
-      CHECK(receiver->HasDictionaryElements());
-    }
-
-    for (uint32_t index = start; index < end; ++index) {
-      uint32_t entry = DictionaryElementsAccessor::GetEntryForIndexImpl(
-          isolate, *receiver, receiver->elements(), index, ALL_PROPERTIES);
-      if (entry != kMaxUInt32) {
-        DCHECK_EQ(kData,
-                  DictionaryElementsAccessor::GetDetailsImpl(*dictionary, entry)
-                      .kind());
-        DictionaryElementsAccessor::SetImpl(receiver, entry, *obj_value);
-      } else {
-        // new_capacity parameter is ignored.
-        DictionaryElementsAccessor::AddImpl(receiver, index, obj_value, NONE,
-                                            0);
-      }
-    }
-    return *receiver;
-  }
-
   static Maybe<bool> IncludesValueImpl(Isolate* isolate,
                                        Handle<JSObject> receiver,
                                        Handle<Object> value,
@@ -3106,9 +3074,9 @@ class TypedElementsAccessor
     ctype value = BackingStore::FromHandle(obj_value);
 
     // Ensure indexes are within array bounds
-    DCHECK_LE(0, start);
-    DCHECK_LE(start, end);
-    DCHECK_LE(end, array->length_value());
+    CHECK_LE(0, start);
+    CHECK_LE(start, end);
+    CHECK_LE(end, array->length_value());
 
     DisallowHeapAllocation no_gc;
     BackingStore* elements = BackingStore::cast(receiver->elements());

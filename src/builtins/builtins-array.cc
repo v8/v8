@@ -219,28 +219,21 @@ V8_WARN_UNUSED_RESULT bool TryFastArrayFill(
   if (end_index > kMaxUInt32) return false;
   if (!receiver->IsJSObject()) return false;
 
-  Handle<JSObject> object = Handle<JSObject>::cast(receiver);
-
-  if (receiver->IsJSArray()) {
-    if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, args, 1, 1)) {
-      return false;
-    }
-
-    Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-
-    // If no argument was provided, we fill the array with 'undefined'.
-    // EnsureJSArrayWith... does not handle that case so we do it here.
-    // TODO(szuend): Pass target elements kind to EnsureJSArrayWith... when
-    //               it gets refactored.
-    if (args->length() == 1 && array->GetElementsKind() != PACKED_ELEMENTS) {
-      // Use a short-lived HandleScope to avoid creating several copies of the
-      // elements handle which would cause issues when left-trimming later-on.
-      HandleScope scope(isolate);
-      JSObject::TransitionElementsKind(array, PACKED_ELEMENTS);
-    }
-  } else if (!HasOnlySimpleReceiverElements(isolate, *object) ||
-             !object->map()->is_extensible()) {
+  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, args, 1, 1)) {
     return false;
+  }
+
+  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+
+  // If no argument was provided, we fill the array with 'undefined'.
+  // EnsureJSArrayWith... does not handle that case so we do it here.
+  // TODO(szuend): Pass target elements kind to EnsureJSArrayWith... when
+  //               it gets refactored.
+  if (args->length() == 1 && array->GetElementsKind() != PACKED_ELEMENTS) {
+    // Use a short-lived HandleScope to avoid creating several copies of the
+    // elements handle which would cause issues when left-trimming later-on.
+    HandleScope scope(isolate);
+    JSObject::TransitionElementsKind(array, PACKED_ELEMENTS);
   }
 
   DCHECK_LE(start_index, kMaxUInt32);
@@ -250,8 +243,8 @@ V8_WARN_UNUSED_RESULT bool TryFastArrayFill(
   CHECK(DoubleToUint32IfEqualToSelf(start_index, &start));
   CHECK(DoubleToUint32IfEqualToSelf(end_index, &end));
 
-  ElementsAccessor* accessor = object->GetElementsAccessor();
-  accessor->Fill(object, value, start, end);
+  ElementsAccessor* accessor = array->GetElementsAccessor();
+  accessor->Fill(array, value, start, end);
   return true;
 }
 }  // namespace
