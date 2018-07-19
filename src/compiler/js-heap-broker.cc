@@ -396,6 +396,8 @@ const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
 // all limits to be considered for fast deep-copying and computes the total
 // size of all objects that are part of the graph.
 bool AllocationSiteRef::IsFastLiteral() const {
+  AllowHeapAllocation
+      allow_heap_allocation;  // This is needed for TryMigrateInstance.
   AllowHandleAllocation allow_handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   int max_properties = kMaxFastLiteralProperties;
@@ -415,6 +417,8 @@ void JSObjectRef::EnsureElementsTenured() {
   // the compilation job starts.
   AllowHandleAllocation allow_handle_allocation;
   AllowHandleDereference allow_handle_dereference;
+  AllowHeapAllocation allow_heap_allocation;
+
   Handle<FixedArrayBase> object_elements = elements().object<FixedArrayBase>();
   if (Heap::InNewSpace(*object_elements)) {
     // If we would like to pretenure a fixed cow array, we must ensure that
@@ -814,6 +818,15 @@ MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   DCHECK_GE(index, Context::FIRST_FUNCTION_MAP_INDEX);
   return get(index).AsMap();
+}
+
+MapRef NativeContextRef::ObjectLiteralMapFromCache() const {
+  AllowHeapAllocation heap_allocation;
+  AllowHandleAllocation handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  Factory* factory = broker()->isolate()->factory();
+  Handle<Map> map = factory->ObjectLiteralMapFromCache(object<Context>(), 0);
+  return MapRef(broker(), map);
 }
 
 bool ObjectRef::BooleanValue() {
