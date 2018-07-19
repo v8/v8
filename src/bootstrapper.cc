@@ -2908,6 +2908,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           true);
     SimpleInstallFunction(atomics_object, "wake", Builtins::kAtomicsWake, 3,
                           true);
+    SimpleInstallFunction(atomics_object, "notify", Builtins::kAtomicsWake, 3,
+                          true);
   }
 
   {  // -- T y p e d A r r a y
