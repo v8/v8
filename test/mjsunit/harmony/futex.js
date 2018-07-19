@@ -244,5 +244,7 @@ if (this.Worker) {
   };
 
   TestWakeMulti(Atomics.wake);
-  TestWakeMulti(Atomics.notify);
+  // TODO(binji): This is hitting d8's max worker count when run with multiple
+  // isolates. Re-enable when workers are cleaned up after termination.
+  // TestWakeMulti(Atomics.notify);
 }
