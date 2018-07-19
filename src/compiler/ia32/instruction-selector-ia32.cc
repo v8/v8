@@ -1285,6 +1285,40 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   VisitWordCompare(selector, node, kIA32Cmp, cont);
 }
 
+void VisitAtomicExchange(InstructionSelector* selector, Node* node,
+                         ArchOpcode opcode, MachineRepresentation rep) {
+  IA32OperandGenerator g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  AddressingMode addressing_mode;
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  if (rep == MachineRepresentation::kWord8) {
+    inputs[input_count++] = g.UseFixed(value, edx);
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(value);
+  }
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  if (g.CanBeImmediate(index)) {
+    inputs[input_count++] = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  InstructionOperand outputs[1];
+  if (rep == MachineRepresentation::kWord8) {
+    // Using DefineSameAsFirst requires the register to be unallocated.
+    outputs[0] = g.DefineAsFixed(node, edx);
+  } else {
+    outputs[0] = g.DefineSameAsFirst(node);
+  }
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  selector->Emit(code, 1, outputs, input_count, inputs);
+}
+
 }  // namespace
 
 // Shared routine for word comparison with zero.
@@ -1553,10 +1587,6 @@ void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
 
 void InstructionSelector::VisitWord32AtomicStore(Node* node) {
   IA32OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
-
   MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
   ArchOpcode opcode = kArchNop;
   switch (rep) {
@@ -1573,32 +1603,11 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
       UNREACHABLE();
       break;
   }
-  AddressingMode addressing_mode;
-  InstructionOperand inputs[4];
-  size_t input_count = 0;
-  if (rep == MachineRepresentation::kWord8) {
-    inputs[input_count++] = g.UseByteRegister(value);
-  } else {
-    inputs[input_count++] = g.UseUniqueRegister(value);
-  }
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  if (g.CanBeImmediate(index)) {
-    inputs[input_count++] = g.UseImmediate(index);
-    addressing_mode = kMode_MRI;
-  } else {
-    inputs[input_count++] = g.UseUniqueRegister(index);
-    addressing_mode = kMode_MR1;
-  }
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  Emit(code, 0, nullptr, input_count, inputs);
+  VisitAtomicExchange(this, node, opcode, rep);
 }
 
 void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
   IA32OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
-
   MachineType type = AtomicOpRepresentationOf(node->op());
   ArchOpcode opcode = kArchNop;
   if (type == MachineType::Int8()) {
@@ -1615,31 +1624,7 @@ void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
     UNREACHABLE();
     return;
   }
-  InstructionOperand outputs[1];
-  AddressingMode addressing_mode;
-  InstructionOperand inputs[3];
-  size_t input_count = 0;
-  if (type == MachineType::Int8() || type == MachineType::Uint8()) {
-    inputs[input_count++] = g.UseFixed(value, edx);
-  } else {
-    inputs[input_count++] = g.UseUniqueRegister(value);
-  }
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  if (g.CanBeImmediate(index)) {
-    inputs[input_count++] = g.UseImmediate(index);
-    addressing_mode = kMode_MRI;
-  } else {
-    inputs[input_count++] = g.UseUniqueRegister(index);
-    addressing_mode = kMode_MR1;
-  }
-  if (type == MachineType::Int8() || type == MachineType::Uint8()) {
-    // Using DefineSameAsFirst requires the register to be unallocated.
-    outputs[0] = g.DefineAsFixed(node, edx);
-  } else {
-    outputs[0] = g.DefineSameAsFirst(node);
-  }
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  Emit(code, 1, outputs, input_count, inputs);
+  VisitAtomicExchange(this, node, opcode, type.representation());
 }
 
 void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
