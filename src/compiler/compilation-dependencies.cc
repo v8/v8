@@ -23,7 +23,7 @@ class CompilationDependencies::Dependency : public ZoneObject {
 
 class InitialMapDependency final : public CompilationDependencies::Dependency {
  public:
-  InitialMapDependency(JSFunctionRef function, MapRef initial_map)
+  InitialMapDependency(const JSFunctionRef& function, const MapRef& initial_map)
       : function_(function), initial_map_(initial_map) {
     DCHECK(IsSane());
   }
@@ -36,8 +36,8 @@ class InitialMapDependency final : public CompilationDependencies::Dependency {
 
   bool IsValid() const override {
     Handle<JSFunction> function = function_.object<JSFunction>();
-    CHECK(function->has_initial_map());
-    return function->initial_map() == *initial_map_.object<Map>();
+    return function->has_initial_map() &&
+           function->initial_map() == *initial_map_.object<Map>();
   }
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
