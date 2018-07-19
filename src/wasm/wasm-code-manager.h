@@ -9,6 +9,7 @@
 #include <list>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "src/base/macros.h"
 #include "src/handles.h"
@@ -21,7 +22,6 @@ namespace internal {
 
 struct CodeDesc;
 class Code;
-class Histogram;
 
 namespace wasm {
 
@@ -433,9 +433,14 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   WasmCode* GetCodeFromStartAddress(Address pc) const;
   size_t remaining_uncommitted_code_space() const;
 
-  void SetModuleCodeSizeHistogram(Histogram* histogram) {
-    module_code_size_mb_ = histogram;
-  }
+  // Add a sample of all module sizes.
+  void SampleModuleSizes(Isolate* isolate) const;
+
+  // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
+  // bias samples towards apps with high memory pressure. We should switch to
+  // using sampling based on regular intervals independent of the GC.
+  static void InstallSamplingGCCallback(Isolate* isolate);
+
   static size_t EstimateNativeModuleSize(const WasmModule* module);
 
  private:
@@ -452,13 +457,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   void AssignRanges(Address start, Address end, NativeModule*);
 
   std::map<Address, std::pair<Address, NativeModule*>> lookup_map_;
-  // Count of NativeModules not yet collected. Helps determine if it's
-  // worth requesting a GC on memory pressure.
-  size_t active_ = 0;
+  std::unordered_set<NativeModule*> native_modules_;
   std::atomic<size_t> remaining_uncommitted_code_space_;
-
-  // Histogram to update with the maximum used code space for each NativeModule.
-  Histogram* module_code_size_mb_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(WasmCodeManager);
 };

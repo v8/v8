@@ -793,6 +793,29 @@ void WasmCodeManager::TryAllocate(size_t size, VirtualMemory* ret, void* hint) {
              reinterpret_cast<void*>(ret->end()), ret->size());
 }
 
+void WasmCodeManager::SampleModuleSizes(Isolate* isolate) const {
+  for (NativeModule* native_module : native_modules_) {
+    int code_size = static_cast<int>(native_module->committed_code_space_ / MB);
+    isolate->counters()->wasm_module_code_size_mb()->AddSample(code_size);
+  }
+}
+
+namespace {
+
+void ModuleSamplingCallback(v8::Isolate* v8_isolate, v8::GCType type,
+                            v8::GCCallbackFlags flags, void* data) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  isolate->wasm_engine()->code_manager()->SampleModuleSizes(isolate);
+}
+
+}  // namespace
+
+// static
+void WasmCodeManager::InstallSamplingGCCallback(Isolate* isolate) {
+  isolate->heap()->AddGCEpilogueCallback(ModuleSamplingCallback,
+                                         v8::kGCTypeMarkSweepCompact, nullptr);
+}
+
 // static
 size_t WasmCodeManager::EstimateNativeModuleSize(const WasmModule* module) {
   constexpr size_t kCodeSizeMultiplier = 4;
@@ -825,7 +848,7 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   // all isolates, at the point of commit.
   constexpr size_t kCriticalThreshold = 32 * 1024 * 1024;
   bool force_critical_notification =
-      (active_ > 1) &&
+      (native_modules_.size() > 1) &&
       (remaining_uncommitted_code_space_.load() < kCriticalThreshold);
 
   if (force_critical_notification) {
@@ -846,7 +869,7 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
                size);
     AssignRanges(start, end, ret.get());
-    ++active_;
+    native_modules_.emplace(ret.get());
     return ret;
   }
 
@@ -899,8 +922,8 @@ bool NativeModule::SetExecutable(bool executable) {
 }
 
 void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
-  DCHECK_GE(active_, 1);
-  --active_;
+  DCHECK_EQ(1, native_modules_.count(native_module));
+  native_modules_.erase(native_module);
   TRACE_HEAP("Freeing NativeModule %p\n", this);
   for (auto& vmem : native_module->owned_code_space_) {
     lookup_map_.erase(vmem.address());
@@ -911,11 +934,6 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
 
   size_t code_size = native_module->committed_code_space_;
   DCHECK(IsAligned(code_size, AllocatePageSize()));
-
-  if (module_code_size_mb_) {
-    module_code_size_mb_->AddSample(static_cast<int>(code_size / MB));
-  }
-
   remaining_uncommitted_code_space_.fetch_add(code_size);
 }
 
