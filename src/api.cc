@@ -5820,11 +5820,12 @@ int String::WriteUtf8(Isolate* v8_isolate, char* buffer, int capacity,
     if (success) return writer.CompleteWrite(write_null, nchars_ref);
   } else if (capacity >= string_length) {
     // First check that the buffer is large enough.
-    int utf8_bytes = Utf8Length(reinterpret_cast<Isolate*>(isolate));
+    int utf8_bytes = Utf8Length(v8_isolate);
     if (utf8_bytes <= capacity) {
       // one-byte fast path.
       if (utf8_bytes == string_length) {
-        WriteOneByte(reinterpret_cast<uint8_t*>(buffer), 0, capacity, options);
+        WriteOneByte(v8_isolate, reinterpret_cast<uint8_t*>(buffer), 0,
+                     capacity, options);
         if (nchars_ref != nullptr) *nchars_ref = string_length;
         if (write_null && (utf8_bytes+1 <= capacity)) {
           return string_length + 1;
@@ -5837,7 +5838,7 @@ int String::WriteUtf8(Isolate* v8_isolate, char* buffer, int capacity,
       // Recurse once without a capacity limit.
       // This will get into the first branch above.
       // TODO(dcarney) Check max left rec. in Utf8Length and fall through.
-      return WriteUtf8(buffer, -1, nchars_ref, options);
+      return WriteUtf8(v8_isolate, buffer, -1, nchars_ref, options);
     }
   }
   Utf8WriterVisitor writer(buffer, capacity, false, replace_invalid_utf8);
@@ -9202,7 +9203,7 @@ String::Utf8Value::Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> obj)
   if (!obj->ToString(context).ToLocal(&str)) return;
   length_ = str->Utf8Length(isolate);
   str_ = i::NewArray<char>(length_ + 1);
-  str->WriteUtf8(str_);
+  str->WriteUtf8(isolate, str_);
 }
 
 String::Utf8Value::Utf8Value(v8::Local<v8::Value> obj)
@@ -9224,7 +9225,7 @@ String::Value::Value(v8::Isolate* isolate, v8::Local<v8::Value> obj)
   if (!obj->ToString(context).ToLocal(&str)) return;
   length_ = str->Length();
   str_ = i::NewArray<uint16_t>(length_ + 1);
-  str->Write(str_);
+  str->Write(isolate, str_);
 }
 
 String::Value::Value(v8::Local<v8::Value> obj)

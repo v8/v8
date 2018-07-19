@@ -428,7 +428,7 @@ class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
   DummySourceStream(Local<String> source, Isolate* isolate) : done_(false) {
     source_length_ = source->Utf8Length(isolate);
     source_buffer_.reset(new uint8_t[source_length_]);
-    source->WriteUtf8(reinterpret_cast<char*>(source_buffer_.get()),
+    source->WriteUtf8(isolate, reinterpret_cast<char*>(source_buffer_.get()),
                       source_length_);
   }
 
@@ -1339,20 +1339,22 @@ Local<String> Shell::ReadFromStdin(Isolate* isolate) {
       return accumulator;
     } else if (buffer[length-1] != '\n') {
       accumulator = String::Concat(
-          accumulator,
+          isolate, accumulator,
           String::NewFromUtf8(isolate, buffer, NewStringType::kNormal, length)
               .ToLocalChecked());
     } else if (length > 1 && buffer[length-2] == '\\') {
       buffer[length-2] = '\n';
-      accumulator = String::Concat(
-          accumulator,
-          String::NewFromUtf8(isolate, buffer, NewStringType::kNormal,
-                              length - 1).ToLocalChecked());
+      accumulator =
+          String::Concat(isolate, accumulator,
+                         String::NewFromUtf8(isolate, buffer,
+                                             NewStringType::kNormal, length - 1)
+                             .ToLocalChecked());
     } else {
       return String::Concat(
-          accumulator,
+          isolate, accumulator,
           String::NewFromUtf8(isolate, buffer, NewStringType::kNormal,
-                              length - 1).ToLocalChecked());
+                              length - 1)
+              .ToLocalChecked());
     }
   }
 }
@@ -2403,7 +2405,7 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
         InspectorClient::GetSession(context);
     int length = message->Length();
     std::unique_ptr<uint16_t[]> buffer(new uint16_t[length]);
-    message->Write(buffer.get(), 0, length);
+    message->Write(isolate, buffer.get(), 0, length);
     v8_inspector::StringView message_view(buffer.get(), length);
     session->dispatchProtocolMessage(message_view);
     args.GetReturnValue().Set(True(isolate));

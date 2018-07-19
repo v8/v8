@@ -38,10 +38,11 @@ class MaybeUtf8 {
       }
     } else {
       Local<v8::String> local = Utils::ToLocal(string);
-      len = local->Utf8Length(reinterpret_cast<v8::Isolate*>(isolate));
+      auto* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+      len = local->Utf8Length(v8_isolate);
       AllocateSufficientSpace(len);
       if (len > 0) {
-        local->WriteUtf8(reinterpret_cast<char*>(buf_));
+        local->WriteUtf8(v8_isolate, reinterpret_cast<char*>(buf_));
       }
     }
     buf_[len] = 0;
