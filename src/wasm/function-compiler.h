@@ -60,12 +60,12 @@ class WasmCompilationUnit final {
   // If constructing from a background thread, pass in a Counters*, and ensure
   // that the Counters live at least as long as this compilation unit (which
   // typically means to hold a std::shared_ptr<Counters>).
-  // If no such pointer is passed, Isolate::counters() will be called. This is
-  // only allowed to happen on the foreground thread.
-  WasmCompilationUnit(Isolate*, ModuleEnv*, wasm::NativeModule*,
-                      wasm::FunctionBody, wasm::WasmName, int index,
+  // If used exclusively from a foreground thread, Isolate::counters() may be
+  // used by callers to pass Counters.
+  WasmCompilationUnit(WasmEngine* wasm_engine, ModuleEnv*, wasm::NativeModule*,
+                      wasm::FunctionBody, wasm::WasmName, int index, Counters*,
                       CompilationMode = GetDefaultCompilationMode(),
-                      Counters* = nullptr, bool lower_simd = false);
+                      bool lower_simd = false);
 
   ~WasmCompilationUnit();
 

@@ -108,6 +108,7 @@ class CompilationState {
     return baseline_compilation_finished_;
   }
 
+  WasmEngine* wasm_engine() const { return wasm_engine_; }
   CompileMode compile_mode() const { return compile_mode_; }
   ModuleEnv* module_env() { return &module_env_; }
 
@@ -357,8 +358,8 @@ wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
                     module_start + func->code.end_offset()};
 
   ErrorThrower thrower(isolate, "WasmLazyCompile");
-  WasmCompilationUnit unit(isolate, module_env, native_module, body, func_name,
-                           func_index);
+  WasmCompilationUnit unit(isolate->wasm_engine(), module_env, native_module,
+                           body, func_name, func_index, isolate->counters());
   unit.ExecuteCompilation();
   wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
 
@@ -506,12 +507,12 @@ class CompilationUnitBuilder {
       Vector<const uint8_t> bytes, WasmName name,
       WasmCompilationUnit::CompilationMode mode) {
     return base::make_unique<WasmCompilationUnit>(
-        compilation_state_->isolate(), compilation_state_->module_env(),
+        compilation_state_->wasm_engine(), compilation_state_->module_env(),
         native_module_,
         wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
                            bytes.end()},
-        name, function->func_index, mode,
-        compilation_state_->isolate()->async_counters().get());
+        name, function->func_index,
+        compilation_state_->isolate()->async_counters().get(), mode);
   }
 
   NativeModule* native_module_;

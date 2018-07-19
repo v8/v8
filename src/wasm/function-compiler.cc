@@ -33,17 +33,15 @@ WasmCompilationUnit::GetDefaultCompilationMode() {
   return FLAG_liftoff ? CompilationMode::kLiftoff : CompilationMode::kTurbofan;
 }
 
-WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate, ModuleEnv* env,
-                                         wasm::NativeModule* native_module,
-                                         wasm::FunctionBody body,
-                                         wasm::WasmName name, int index,
-                                         CompilationMode mode,
-                                         Counters* counters, bool lower_simd)
+WasmCompilationUnit::WasmCompilationUnit(
+    WasmEngine* wasm_engine, ModuleEnv* env, wasm::NativeModule* native_module,
+    wasm::FunctionBody body, wasm::WasmName name, int index, Counters* counters,
+    CompilationMode mode, bool lower_simd)
     : env_(env),
-      wasm_engine_(isolate->wasm_engine()),
+      wasm_engine_(wasm_engine),
       func_body_(body),
       func_name_(name),
-      counters_(counters ? counters : isolate->counters()),
+      counters_(counters),
       func_index_(index),
       native_module_(native_module),
       lower_simd_(lower_simd),
@@ -141,9 +139,10 @@ wasm::WasmCode* WasmCompilationUnit::CompileWasmFunction(
       wire_bytes.start() + function->code.offset(),
       wire_bytes.start() + function->code.end_offset()};
 
-  WasmCompilationUnit unit(isolate, env, native_module, function_body,
+  WasmCompilationUnit unit(isolate->wasm_engine(), env, native_module,
+                           function_body,
                            wire_bytes.GetNameOrNull(function, env->module),
-                           function->func_index, mode);
+                           function->func_index, isolate->counters(), mode);
   unit.ExecuteCompilation();
   return unit.FinishCompilation(thrower);
 }

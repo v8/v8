@@ -422,9 +422,10 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
           : WasmCompilationUnit::CompilationMode::kTurbofan;
   NativeModule* native_module =
       builder_->instance_object()->module_object()->native_module();
-  WasmCompilationUnit unit(isolate(), &module_env, native_module, func_body,
-                           func_name, function_->func_index, comp_mode,
-                           isolate()->counters(), builder_->lower_simd());
+  WasmCompilationUnit unit(isolate()->wasm_engine(), &module_env, native_module,
+                           func_body, func_name, function_->func_index,
+                           isolate()->counters(), comp_mode,
+                           builder_->lower_simd());
   unit.ExecuteCompilation();
   wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
   if (wasm::WasmCode::ShouldBeLogged(isolate())) {
