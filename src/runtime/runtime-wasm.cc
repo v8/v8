@@ -195,7 +195,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
         CONVERT_SMI_ARG_CHECKED(index, 0);
         CHECK_LT(index, Smi::ToInt(values->length()));
         auto* vals =
-            reinterpret_cast<uint16_t*>(values->GetBuffer()->allocation_base());
+            reinterpret_cast<uint16_t*>(values->GetBuffer()->backing_store());
         return Smi::FromInt(vals[index]);
       }
     }
