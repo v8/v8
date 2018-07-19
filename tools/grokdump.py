@@ -761,7 +761,7 @@ class MinidumpReader(object):
 
   def IsValidExceptionStackAddress(self, address):
     if not self.IsValidAddress(address): return False
-    return self.isExceptionStackAddress(address)
+    return self.IsExceptionStackAddress(address)
 
   def IsModuleAddress(self, address):
     return self.GetModuleForAddress(address) != None
