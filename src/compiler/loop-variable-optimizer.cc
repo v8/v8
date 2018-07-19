@@ -240,8 +240,7 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
   // TODO(jarin) Support both sides.
   Node* input = arith->InputAt(0);
   if (input->opcode() == IrOpcode::kSpeculativeToNumber ||
-      input->opcode() == IrOpcode::kJSToNumber ||
-      input->opcode() == IrOpcode::kJSToNumberConvertBigInt) {
+      input->opcode() == IrOpcode::kJSToNumber) {
     input = input->InputAt(0);
   }
   if (input != phi) return nullptr;

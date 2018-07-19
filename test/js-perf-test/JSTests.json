@@ -1039,19 +1039,6 @@
         {"name": "OneLineComments"},
         {"name": "MultiLineComment"}
       ]
-    },
-    {
-      "name": "Numbers",
-      "path": ["Numbers"],
-      "main": "run.js",
-      "flags": ["--allow-natives-syntax"],
-      "resources": [ "toNumber.js"],
-      "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
-      "tests": [
-        {"name": "Constructor"},
-        {"name": "UnaryPlus"},
-        {"name": "ParseFloat"}
-      ]
     }
   ]
 }
