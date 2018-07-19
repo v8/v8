@@ -236,7 +236,7 @@ namespace internal {
   V(SimpleNumberDictionary, code_stubs, CodeStubs)                           \
   V(FixedArray, materialized_objects, MaterializedObjects)                   \
   V(FixedArray, microtask_queue, MicrotaskQueue)                             \
-  V(FixedArray, detached_contexts, DetachedContexts)                         \
+  V(WeakArrayList, detached_contexts, DetachedContexts)                      \
   V(HeapObject, retaining_path_targets, RetainingPathTargets)                \
   V(WeakArrayList, retained_maps, RetainedMaps)                              \
   /* Indirection lists for isolate-independent builtins */                   \

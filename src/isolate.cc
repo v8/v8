@@ -4011,50 +4011,50 @@ std::string Isolate::GetTurboCfgFileName() {
 // (number of GC since the context was detached, the context).
 void Isolate::AddDetachedContext(Handle<Context> context) {
   HandleScope scope(this);
-  Handle<WeakCell> cell = factory()->NewWeakCell(context);
-  Handle<FixedArray> detached_contexts =
-      factory()->CopyFixedArrayAndGrow(factory()->detached_contexts(), 2);
-  int new_length = detached_contexts->length();
-  detached_contexts->set(new_length - 2, Smi::kZero);
-  detached_contexts->set(new_length - 1, *cell);
+  Handle<WeakArrayList> detached_contexts = factory()->detached_contexts();
+  detached_contexts = WeakArrayList::AddToEnd(
+      this, detached_contexts, MaybeObjectHandle(Smi::kZero, this));
+  detached_contexts = WeakArrayList::AddToEnd(this, detached_contexts,
+                                              MaybeObjectHandle::Weak(context));
   heap()->set_detached_contexts(*detached_contexts);
 }
 
 
 void Isolate::CheckDetachedContextsAfterGC() {
   HandleScope scope(this);
-  Handle<FixedArray> detached_contexts = factory()->detached_contexts();
+  Handle<WeakArrayList> detached_contexts = factory()->detached_contexts();
   int length = detached_contexts->length();
   if (length == 0) return;
   int new_length = 0;
   for (int i = 0; i < length; i += 2) {
-    int mark_sweeps = Smi::ToInt(detached_contexts->get(i));
-    DCHECK(detached_contexts->get(i + 1)->IsWeakCell());
-    WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
-    if (!cell->cleared()) {
-      detached_contexts->set(new_length, Smi::FromInt(mark_sweeps + 1));
-      detached_contexts->set(new_length + 1, cell);
+    int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->ToSmi());
+    MaybeObject* context = detached_contexts->Get(i + 1);
+    DCHECK(context->IsWeakHeapObject() || context->IsClearedWeakHeapObject());
+    if (!context->IsClearedWeakHeapObject()) {
+      detached_contexts->Set(
+          new_length, MaybeObject::FromSmi(Smi::FromInt(mark_sweeps + 1)));
+      detached_contexts->Set(new_length + 1, context);
       new_length += 2;
     }
-    counters()->detached_context_age_in_gc()->AddSample(mark_sweeps + 1);
   }
+  detached_contexts->set_length(new_length);
+  while (new_length < length) {
+    detached_contexts->Set(new_length, MaybeObject::FromSmi(Smi::kZero));
+    ++new_length;
+  }
+
   if (FLAG_trace_detached_contexts) {
     PrintF("%d detached contexts are collected out of %d\n",
            length - new_length, length);
     for (int i = 0; i < new_length; i += 2) {
-      int mark_sweeps = Smi::ToInt(detached_contexts->get(i));
-      DCHECK(detached_contexts->get(i + 1)->IsWeakCell());
-      WeakCell* cell = WeakCell::cast(detached_contexts->get(i + 1));
+      int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->ToSmi());
+      MaybeObject* context = detached_contexts->Get(i + 1);
+      DCHECK(context->IsWeakHeapObject() || context->IsClearedWeakHeapObject());
       if (mark_sweeps > 3) {
         PrintF("detached context %p\n survived %d GCs (leak?)\n",
-               static_cast<void*>(cell->value()), mark_sweeps);
+               static_cast<void*>(context), mark_sweeps);
       }
     }
-  }
-  if (new_length == 0) {
-    heap()->set_detached_contexts(ReadOnlyRoots(heap()).empty_fixed_array());
-  } else if (new_length < length) {
-    heap()->RightTrimFixedArray(*detached_contexts, length - new_length);
   }
 }
 

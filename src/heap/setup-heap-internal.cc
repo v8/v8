@@ -760,7 +760,7 @@ void Heap::CreateInitialObjects() {
     cell->clear();
   }
 
-  set_detached_contexts(roots.empty_fixed_array());
+  set_detached_contexts(roots.empty_weak_array_list());
   set_retained_maps(roots.empty_weak_array_list());
   set_retaining_path_targets(roots.undefined_value());
 
