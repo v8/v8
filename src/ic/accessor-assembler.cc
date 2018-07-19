@@ -479,12 +479,15 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
     // Context is stored either in data2 or data3 field depending on whether
     // the access check is enabled for this handler or not.
-    TNode<Object> context_cell = Select<Object>(
+    TNode<MaybeObject> maybe_context = Select<MaybeObject>(
         IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
-        [=] { return CAST(LoadHandlerDataField(handler, 3)); },
-        [=] { return CAST(LoadHandlerDataField(handler, 2)); });
+        [=] { return LoadHandlerDataField(handler, 3); },
+        [=] { return LoadHandlerDataField(handler, 2); });
 
-    Node* context = LoadWeakCellValueUnchecked(CAST(context_cell));
+    CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_context));
+    TNode<Object> context = Select<Object>(
+        IsClearedWeakHeapObject(maybe_context), [=] { return SmiConstant(0); },
+        [=] { return ToWeakHeapObject(maybe_context); });
     Node* foreign =
         LoadObjectField(call_handler_info, CallHandlerInfo::kJsCallbackOffset);
     Node* callback = LoadObjectField(foreign, Foreign::kForeignAddressOffset,
@@ -670,8 +673,9 @@ Node* AccessorAssembler::HandleProtoHandler(
 
       BIND(&if_do_access_check);
       {
-        TNode<WeakCell> data2 = CAST(LoadHandlerDataField(handler, 2));
-        Node* expected_native_context = LoadWeakCellValue(data2, miss);
+        TNode<MaybeObject> data2 = LoadHandlerDataField(handler, 2);
+        CSA_ASSERT(this, IsWeakOrClearedHeapObject(data2));
+        TNode<Object> expected_native_context = ToWeakHeapObject(data2, miss);
         EmitAccessCheck(expected_native_context, p->context, p->receiver, &done,
                         miss);
       }
@@ -731,18 +735,20 @@ void AccessorAssembler::HandleLoadICProtoHandler(
       },
       miss, ic_mode);
 
-  TNode<Object> maybe_holder_cell = CAST(LoadHandlerDataField(handler, 1));
+  TNode<MaybeObject> maybe_holder = LoadHandlerDataField(handler, 1);
 
   Label load_from_cached_holder(this), done(this);
 
-  Branch(IsNull(maybe_holder_cell), &done, &load_from_cached_holder);
+  Branch(IsStrongReferenceTo(maybe_holder, NullConstant()), &done,
+         &load_from_cached_holder);
 
   BIND(&load_from_cached_holder);
   {
     // For regular holders, having passed the receiver map check and the
-    // validity cell check implies that |holder| is alive. However, for
-    // global object receivers, the |maybe_holder_cell| may be cleared.
-    Node* holder = LoadWeakCellValue(CAST(maybe_holder_cell), miss);
+    // validity cell check implies that |holder| is alive. However, for global
+    // object receivers, |maybe_holder| may be cleared.
+    CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_holder));
+    Node* holder = ToWeakHeapObject(maybe_holder, miss);
 
     var_holder->Bind(holder);
     Goto(&done);
@@ -1277,8 +1283,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kNormal)),
            &if_add_normal);
 
-    TNode<WeakCell> holder_cell = CAST(LoadHandlerDataField(handler, 1));
-    Node* holder = LoadWeakCellValue(holder_cell, miss);
+    TNode<MaybeObject> maybe_holder = LoadHandlerDataField(handler, 1);
+    CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_holder));
+    TNode<Object> holder = ToWeakHeapObject(maybe_holder, miss);
 
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kGlobalProxy)),
            &if_store_global_proxy);
@@ -1334,12 +1341,16 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
       // Context is stored either in data2 or data3 field depending on whether
       // the access check is enabled for this handler or not.
-      TNode<Object> context_cell = Select<Object>(
+      TNode<MaybeObject> maybe_context = Select<MaybeObject>(
           IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
-          [=] { return CAST(LoadHandlerDataField(handler, 3)); },
-          [=] { return CAST(LoadHandlerDataField(handler, 2)); });
+          [=] { return LoadHandlerDataField(handler, 3); },
+          [=] { return LoadHandlerDataField(handler, 2); });
 
-      Node* context = LoadWeakCellValueUnchecked(CAST(context_cell));
+      CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_context));
+      TNode<Object> context =
+          Select<Object>(IsClearedWeakHeapObject(maybe_context),
+                         [=] { return SmiConstant(0); },
+                         [=] { return ToWeakHeapObject(maybe_context); });
 
       Node* foreign = LoadObjectField(call_handler_info,
                                       CallHandlerInfo::kJsCallbackOffset);

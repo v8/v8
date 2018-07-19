@@ -1783,10 +1783,10 @@ void LoadHandler::LoadHandlerPrint(std::ostream& os) {  // NOLINT
     os << "\n - data1: " << MaybeObjectBrief(data1());
   }
   if (data_count >= 2) {
-    os << "\n - data2: " << Brief(data2());
+    os << "\n - data2: " << MaybeObjectBrief(data2());
   }
   if (data_count >= 3) {
-    os << "\n - data3: " << Brief(data3());
+    os << "\n - data3: " << MaybeObjectBrief(data3());
   }
   os << "\n";
 }
@@ -1801,10 +1801,10 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {  // NOLINT
     os << "\n - data1: " << MaybeObjectBrief(data1());
   }
   if (data_count >= 2) {
-    os << "\n - data2: " << Brief(data2());
+    os << "\n - data2: " << MaybeObjectBrief(data2());
   }
   if (data_count >= 3) {
-    os << "\n - data3: " << Brief(data3());
+    os << "\n - data3: " << MaybeObjectBrief(data3());
   }
   os << "\n";
 }

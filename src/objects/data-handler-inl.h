@@ -28,10 +28,10 @@ int DataHandler::data_field_count() const {
 
 WEAK_ACCESSORS_CHECKED(DataHandler, data1, kData1Offset,
                        map()->instance_size() >= kSizeWithData1)
-ACCESSORS_CHECKED(DataHandler, data2, Object, kData2Offset,
-                  map()->instance_size() >= kSizeWithData2)
-ACCESSORS_CHECKED(DataHandler, data3, Object, kData3Offset,
-                  map()->instance_size() >= kSizeWithData3)
+WEAK_ACCESSORS_CHECKED(DataHandler, data2, kData2Offset,
+                       map()->instance_size() >= kSizeWithData2)
+WEAK_ACCESSORS_CHECKED(DataHandler, data3, kData3Offset,
+                       map()->instance_size() >= kSizeWithData3)
 
 }  // namespace internal
 }  // namespace v8

@@ -616,10 +616,7 @@ class DataHandler::BodyDescriptor final : public BodyDescriptorBase {
     static_assert(kData1Offset < kSizeWithData1,
                   "Field order must be in sync with this iteration code");
     IteratePointers(obj, kSmiHandlerOffset, kData1Offset, v);
-    if (object_size >= kSizeWithData1) {
-      IterateMaybeWeakPointer(obj, kData1Offset, v);
-      IteratePointers(obj, kData1Offset + kPointerSize, object_size, v);
-    }
+    IterateMaybeWeakPointers(obj, kData1Offset, object_size, v);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {

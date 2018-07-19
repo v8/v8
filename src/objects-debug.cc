@@ -1664,10 +1664,10 @@ void DataHandler::DataHandlerVerify(Isolate* isolate) {
     VerifyMaybeObjectField(isolate, kData1Offset);
   }
   if (data_count >= 2) {
-    VerifyObjectField(isolate, kData2Offset);
+    VerifyMaybeObjectField(isolate, kData2Offset);
   }
   if (data_count >= 3) {
-    VerifyObjectField(isolate, kData3Offset);
+    VerifyMaybeObjectField(isolate, kData3Offset);
   }
 }
 

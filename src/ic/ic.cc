@@ -687,9 +687,9 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
   } else if (!lookup->IsFound()) {
     TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
     Handle<Smi> smi_handler = LoadHandler::LoadNonExistent(isolate());
-    code = LoadHandler::LoadFullChain(isolate(), receiver_map(),
-                                      isolate()->factory()->null_value(),
-                                      smi_handler);
+    code = LoadHandler::LoadFullChain(
+        isolate(), receiver_map(),
+        MaybeObjectHandle(isolate()->factory()->null_value()), smi_handler);
   } else {
     if (IsLoadGlobalIC()) {
       if (lookup->TryLookupCachedProperty()) {
@@ -771,9 +771,9 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
       Handle<Smi> smi_handler = LoadHandler::LoadInterceptor(isolate());
 
       if (holder->GetNamedInterceptor()->non_masking()) {
-        Handle<Object> holder_ref = isolate()->factory()->null_value();
+        MaybeObjectHandle holder_ref(isolate()->factory()->null_value());
         if (!receiver_is_holder || IsLoadGlobalIC()) {
-          holder_ref = Map::GetOrCreatePrototypeWeakCell(holder, isolate());
+          holder_ref = MaybeObjectHandle::Weak(holder);
         }
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonMaskingInterceptorDH);
         return LoadHandler::LoadFullChain(isolate(), map, holder_ref,
@@ -852,14 +852,12 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
 
           Handle<Context> context(
               call_optimization.GetAccessorContext(holder->map()), isolate());
-          Handle<WeakCell> context_cell =
-              isolate()->factory()->NewWeakCell(context);
-          Handle<WeakCell> data_cell = isolate()->factory()->NewWeakCell(
-              call_optimization.api_call_info());
 
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterFromPrototypeDH);
           return LoadHandler::LoadFromPrototype(
-              isolate(), map, holder, smi_handler, data_cell, context_cell);
+              isolate(), map, holder, smi_handler,
+              MaybeObjectHandle::Weak(call_optimization.api_call_info()),
+              MaybeObjectHandle::Weak(context));
         }
 
         if (holder->HasFastProperties()) {
@@ -872,10 +870,9 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
         } else if (holder->IsJSGlobalObject()) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobalFromPrototypeDH);
           smi_handler = LoadHandler::LoadGlobal(isolate());
-          Handle<WeakCell> cell =
-              isolate()->factory()->NewWeakCell(lookup->GetPropertyCell());
-          return LoadHandler::LoadFromPrototype(isolate(), map, holder,
-                                                smi_handler, cell);
+          return LoadHandler::LoadFromPrototype(
+              isolate(), map, holder, smi_handler,
+              MaybeObjectHandle::Weak(lookup->GetPropertyCell()));
         } else {
           smi_handler = LoadHandler::LoadNormal(isolate());
 
@@ -917,10 +914,9 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
           // workaround for code that leaks the global object.
           TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobalDH);
           smi_handler = LoadHandler::LoadGlobal(isolate());
-          Handle<WeakCell> cell =
-              isolate()->factory()->NewWeakCell(lookup->GetPropertyCell());
-          return LoadHandler::LoadFromPrototype(isolate(), map, holder,
-                                                smi_handler, cell);
+          return LoadHandler::LoadFromPrototype(
+              isolate(), map, holder, smi_handler,
+              MaybeObjectHandle::Weak(lookup->GetPropertyCell()));
         }
 
         smi_handler = LoadHandler::LoadNormal(isolate());
@@ -1486,10 +1482,9 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         }
 
         Handle<Smi> smi_handler = StoreHandler::StoreGlobalProxy(isolate());
-        Handle<WeakCell> cell =
-            isolate()->factory()->NewWeakCell(lookup->transition_cell());
         Handle<Object> handler = StoreHandler::StoreThroughPrototype(
-            isolate(), receiver_map(), store_target, smi_handler, cell);
+            isolate(), receiver_map(), store_target, smi_handler,
+            MaybeObjectHandle::Weak(lookup->transition_cell()));
         return MaybeObjectHandle(handler);
       }
       // Dictionary-to-fast transitions are not expected and not supported.
@@ -1582,14 +1577,11 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
             Handle<Context> context(
                 call_optimization.GetAccessorContext(holder->map()), isolate());
-            Handle<WeakCell> context_cell =
-                isolate()->factory()->NewWeakCell(context);
-            Handle<WeakCell> data_cell = isolate()->factory()->NewWeakCell(
-                call_optimization.api_call_info());
             TRACE_HANDLER_STATS(isolate(), StoreIC_StoreApiSetterOnPrototypeDH);
             return MaybeObjectHandle(StoreHandler::StoreThroughPrototype(
-                isolate(), receiver_map(), holder, smi_handler, data_cell,
-                context_cell));
+                isolate(), receiver_map(), holder, smi_handler,
+                MaybeObjectHandle::Weak(call_optimization.api_call_info()),
+                MaybeObjectHandle::Weak(context)));
           }
           set_slow_stub_reason("incompatible receiver");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
