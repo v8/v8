@@ -2969,8 +2969,7 @@ bool Isolate::Init(StartupDeserializer* des) {
     wasm_engine_.reset(
         new wasm::WasmEngine(std::unique_ptr<wasm::WasmCodeManager>(
             new wasm::WasmCodeManager(kMaxWasmCodeMemory))));
-    wasm_engine_->code_manager()->SetModuleCodeSizeHistogram(
-        counters()->wasm_module_code_size_mb());
+    wasm::WasmCodeManager::InstallSamplingGCCallback(this);
   }
 
   deoptimizer_data_ = new DeoptimizerData(heap());
