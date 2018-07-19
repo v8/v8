@@ -156,14 +156,14 @@ class ImplementationVisitor : public FileVisitor {
         : new_lines_(new_lines), visitor_(visitor) {
       if (new_lines) visitor->GenerateIndent();
       visitor->source_out() << "{";
-      if (new_lines) visitor->source_out() << std::endl;
+      if (new_lines) visitor->source_out() << "\n";
       visitor->indent_++;
     }
     ~ScopedIndent() {
       visitor_->indent_--;
       visitor_->GenerateIndent();
       visitor_->source_out() << "}";
-      if (new_lines_) visitor_->source_out() << std::endl;
+      if (new_lines_) visitor_->source_out() << "\n";
     }
 
    private:
