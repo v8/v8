@@ -238,7 +238,8 @@ V8_WARN_UNUSED_RESULT bool TryFastArrayFill(
       HandleScope scope(isolate);
       JSObject::TransitionElementsKind(array, PACKED_ELEMENTS);
     }
-  } else if (!HasOnlySimpleReceiverElements(isolate, *object)) {
+  } else if (!HasOnlySimpleReceiverElements(isolate, *object) ||
+             !object->map()->is_extensible()) {
     return false;
   }
 

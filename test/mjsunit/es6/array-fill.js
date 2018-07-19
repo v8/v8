@@ -109,3 +109,19 @@ function TestFillObjectWithPrototypeAccessors() {
   }
 }
 TestFillObjectWithPrototypeAccessors();
+
+function TestFillSealedObject() {
+  let object = { length: 42 };
+  Object.seal(object);
+
+  assertThrows(() => Array.prototype.fill.call(object), TypeError);
+}
+TestFillSealedObject();
+
+function TestFillFrozenObject() {
+  let object = { length: 42 };
+  Object.freeze(object);
+
+  assertThrows(() => Array.prototype.fill.call(object), TypeError);
+}
+TestFillFrozenObject();
