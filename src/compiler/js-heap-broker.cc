@@ -829,6 +829,14 @@ MapRef NativeContextRef::ObjectLiteralMapFromCache() const {
   return MapRef(broker(), map);
 }
 
+MapRef NativeContextRef::GetInitialJSArrayMap(ElementsKind kind) const {
+  AllowHandleAllocation handle_allocation;
+  AllowHandleDereference allow_handle_dereference;
+  Handle<Map> map(object<Context>()->GetInitialJSArrayMap(kind),
+                  broker()->isolate());
+  return MapRef(broker(), map);
+}
+
 bool ObjectRef::BooleanValue() {
   AllowHandleDereference allow_handle_dereference;
   return object<Object>()->BooleanValue(broker()->isolate());

@@ -248,6 +248,7 @@ class NativeContextRef : public ContextRef {
 
   MapRef GetFunctionMapFromIndex(int index) const;
   MapRef ObjectLiteralMapFromCache() const;
+  MapRef GetInitialJSArrayMap(ElementsKind kind) const;
 };
 
 class NameRef : public HeapObjectRef {
