@@ -33,20 +33,21 @@ void TraceMemoryOperation(ExecutionEngine engine, const MemoryTracingInfo* info,
     default:
       SNPrintF(value, "???");
   }
-  char eng_c = '?';
+  const char* eng = "?";
   switch (engine) {
     case ExecutionEngine::kTurbofan:
-      eng_c = 'T';
+      eng = "turbofan";
       break;
     case ExecutionEngine::kLiftoff:
-      eng_c = 'L';
+      eng = "liftoff";
       break;
     case ExecutionEngine::kInterpreter:
-      eng_c = 'I';
+      eng = "interpreter";
       break;
   }
-  printf("%c %8d+0x%-6x %s @%08x %s\n", eng_c, func_index, position,
-         info->is_store ? "store" : "load ", info->address, value.start());
+  printf("%-11s func:%6d+0x%-6x%s %08x val: %s\n", eng, func_index, position,
+         info->is_store ? " store to" : "load from", info->address,
+         value.start());
 }
 
 }  // namespace wasm
