@@ -38,7 +38,7 @@ class MaybeUtf8 {
       }
     } else {
       Local<v8::String> local = Utils::ToLocal(string);
-      len = local->Utf8Length();
+      len = local->Utf8Length(reinterpret_cast<v8::Isolate*>(isolate));
       AllocateSufficientSpace(len);
       if (len > 0) {
         local->WriteUtf8(reinterpret_cast<char*>(buf_));

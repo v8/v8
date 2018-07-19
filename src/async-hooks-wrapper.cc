@@ -182,10 +182,12 @@ void AsyncHooks::Initialize() {
                           async_hook_ctor.Get(isolate_)->InstanceTemplate());
   async_hooks_templ.Get(isolate_)->SetInternalFieldCount(1);
   async_hooks_templ.Get(isolate_)->Set(
-      String::NewFromUtf8(isolate_, "enable"),
+      String::NewFromUtf8(isolate_, "enable", v8::NewStringType::kNormal)
+          .ToLocalChecked(),
       FunctionTemplate::New(isolate_, EnableHook));
   async_hooks_templ.Get(isolate_)->Set(
-      String::NewFromUtf8(isolate_, "disable"),
+      String::NewFromUtf8(isolate_, "disable", v8::NewStringType::kNormal)
+          .ToLocalChecked(),
       FunctionTemplate::New(isolate_, DisableHook));
 
   async_id_smb.Reset(isolate_, Private::New(isolate_));
@@ -215,10 +217,9 @@ void AsyncHooks::PromiseHookDispatch(PromiseHookType type,
   try_catch.SetVerbose(true);
 
   Local<Value> rcv = Undefined(hooks->isolate_);
+  Local<Context> context = hooks->isolate_->GetCurrentContext();
   Local<Value> async_id =
-      promise
-          ->GetPrivate(hooks->isolate_->GetCurrentContext(),
-                       hooks->async_id_smb.Get(hooks->isolate_))
+      promise->GetPrivate(context, hooks->async_id_smb.Get(hooks->isolate_))
           .ToLocalChecked();
   Local<Value> args[1] = {async_id};
 
@@ -231,23 +232,24 @@ void AsyncHooks::PromiseHookDispatch(PromiseHookType type,
                               NewStringType::kNormal)
               .ToLocalChecked(),
           promise
-              ->GetPrivate(hooks->isolate_->GetCurrentContext(),
-                           hooks->trigger_id_smb.Get(hooks->isolate_))
+              ->GetPrivate(context, hooks->trigger_id_smb.Get(hooks->isolate_))
               .ToLocalChecked(),
           promise};
-      wrap->init_function()->Call(rcv, 4, initArgs);
+      wrap->init_function()->Call(context, rcv, 4, initArgs).ToLocalChecked();
     }
   } else if (type == PromiseHookType::kBefore) {
     if (!wrap->before_function().IsEmpty()) {
-      wrap->before_function()->Call(rcv, 1, args);
+      wrap->before_function()->Call(context, rcv, 1, args).ToLocalChecked();
     }
   } else if (type == PromiseHookType::kAfter) {
     if (!wrap->after_function().IsEmpty()) {
-      wrap->after_function()->Call(rcv, 1, args);
+      wrap->after_function()->Call(context, rcv, 1, args).ToLocalChecked();
     }
   } else if (type == PromiseHookType::kResolve) {
     if (!wrap->promiseResolve_function().IsEmpty()) {
-      wrap->promiseResolve_function()->Call(rcv, 1, args);
+      wrap->promiseResolve_function()
+          ->Call(context, rcv, 1, args)
+          .ToLocalChecked();
     }
   }
 
