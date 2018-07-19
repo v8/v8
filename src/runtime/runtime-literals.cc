@@ -507,10 +507,7 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
       }
       return boilerplate;
     } else {
-      PretenureFlag pretenure_flag =
-          Heap::InNewSpace(*vector) ? NOT_TENURED : TENURED;
-      boilerplate =
-          Boilerplate::Create(isolate, description, flags, pretenure_flag);
+      boilerplate = Boilerplate::Create(isolate, description, flags, TENURED);
     }
     // Install AllocationSite objects.
     AllocationSiteCreationContext creation_context(isolate);
