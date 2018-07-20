@@ -2588,11 +2588,11 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   int size = this->Size();  // Byte size of the original string.
   // Abort if size does not allow in-place conversion.
   if (size < ExternalString::kShortSize) return false;
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(this);
+  Isolate* isolate;
   // Read-only strings cannot be made external, since that would mutate the
   // string.
-  if (chunk->owner()->identity() == RO_SPACE) return false;
-  Heap* heap = chunk->heap();
+  if (!Isolate::FromWritableHeapObject(this, &isolate)) return false;
+  Heap* heap = isolate->heap();
   bool is_one_byte = this->IsOneByteRepresentation();
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(this).IsIndirect();
@@ -2673,11 +2673,11 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   int size = this->Size();  // Byte size of the original string.
   // Abort if size does not allow in-place conversion.
   if (size < ExternalString::kShortSize) return false;
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(this);
+  Isolate* isolate;
   // Read-only strings cannot be made external, since that would mutate the
   // string.
-  if (chunk->owner()->identity() == RO_SPACE) return false;
-  Heap* heap = chunk->heap();
+  if (!Isolate::FromWritableHeapObject(this, &isolate)) return false;
+  Heap* heap = isolate->heap();
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(this).IsIndirect();
 

@@ -219,6 +219,8 @@ Local<Context> ContextFromNeverReadOnlySpaceObject(
 // it are removed.
 // DO NOT USE THIS IN NEW CODE!
 i::Isolate* UnsafeIsolateFromHeapObject(i::Handle<i::HeapObject> obj) {
+  // Use MemoryChunk directly instead of Isolate::FromWritableHeapObject to
+  // temporarily allow isolate access from read-only space objects.
   i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(*obj);
   return chunk->heap()->isolate();
 }
@@ -227,6 +229,8 @@ i::Isolate* UnsafeIsolateFromHeapObject(i::Handle<i::HeapObject> obj) {
 // it are removed.
 // DO NOT USE THIS IN NEW CODE!
 Local<Context> UnsafeContextFromHeapObject(i::Handle<i::Object> obj) {
+  // Use MemoryChunk directly instead of Isolate::FromWritableHeapObject to
+  // temporarily allow isolate access from read-only space objects.
   i::MemoryChunk* chunk =
       i::MemoryChunk::FromHeapObject(i::HeapObject::cast(*obj));
   return reinterpret_cast<Isolate*>(chunk->heap()->isolate())
@@ -5973,17 +5977,18 @@ v8::String::GetExternalOneByteStringResource() const {
 Local<Value> Symbol::Name() const {
   i::Handle<i::Symbol> sym = Utils::OpenHandle(this);
 
-  i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(*sym);
-  // If the Symbol is in RO_SPACE, then its name must be too. Since RO_SPACE
-  // objects are immovable we can use the Handle(T**) constructor with the
-  // address of the name field in the Symbol object without needing an isolate.
-  if (chunk->owner()->identity() == i::RO_SPACE) {
+  i::Isolate* isolate;
+  if (!i::Isolate::FromWritableHeapObject(*sym, &isolate)) {
+    // If the Symbol is in RO_SPACE, then its name must be too. Since RO_SPACE
+    // objects are immovable we can use the Handle(T**) constructor with the
+    // address of the name field in the Symbol object without needing an
+    // isolate.
     i::Handle<i::HeapObject> ro_name(reinterpret_cast<i::HeapObject**>(
         sym->GetFieldAddress(i::Symbol::kNameOffset)));
     return Utils::ToLocal(ro_name);
   }
 
-  i::Handle<i::Object> name(sym->name(), chunk->heap()->isolate());
+  i::Handle<i::Object> name(sym->name(), isolate);
 
   return Utils::ToLocal(name);
 }
@@ -6852,13 +6857,13 @@ Local<String> v8::String::NewExternal(
 
 bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   i::Handle<i::String> obj = Utils::OpenHandle(this);
-  // RO_SPACE strings cannot be externalized.
-  i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(*obj);
-  if (chunk->owner()->identity() == i::RO_SPACE) {
+
+  i::Isolate* isolate;
+  if (!i::Isolate::FromWritableHeapObject(*obj, &isolate)) {
+    // RO_SPACE strings cannot be externalized.
     return false;
   }
 
-  i::Isolate* isolate = chunk->heap()->isolate();
   if (i::StringShape(*obj).IsExternal()) {
     return false;  // Already an external string.
   }
@@ -6882,13 +6887,12 @@ bool v8::String::MakeExternal(
     v8::String::ExternalOneByteStringResource* resource) {
   i::Handle<i::String> obj = Utils::OpenHandle(this);
 
-  // RO_SPACE strings cannot be externalized.
-  i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(*obj);
-  if (chunk->owner()->identity() == i::RO_SPACE) {
+  i::Isolate* isolate;
+  if (!i::Isolate::FromWritableHeapObject(*obj, &isolate)) {
+    // RO_SPACE strings cannot be externalized.
     return false;
   }
 
-  i::Isolate* isolate = chunk->heap()->isolate();
   if (i::StringShape(*obj).IsExternal()) {
     return false;  // Already an external string.
   }
@@ -6912,10 +6916,13 @@ bool v8::String::CanMakeExternal() {
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   if (obj->IsExternalString()) return false;
 
+  i::Isolate* isolate;
+  if (!i::Isolate::FromWritableHeapObject(*obj, &isolate)) {
+    // RO_SPACE strings cannot be externalized.
+    return false;
+  }
   // Only old space strings should be externalized.
-  i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(*obj);
-  i::AllocationSpace space = chunk->owner()->identity();
-  return space != i::NEW_SPACE && space != i::RO_SPACE;
+  return !i::Heap::InNewSpace(*obj);
 }
 
 

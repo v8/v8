@@ -11,6 +11,15 @@
 namespace v8 {
 namespace internal {
 
+bool Isolate::FromWritableHeapObject(HeapObject* obj, Isolate** isolate) {
+  i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(obj);
+  if (chunk->owner()->identity() == i::RO_SPACE) {
+    *isolate = nullptr;
+    return false;
+  }
+  *isolate = chunk->heap()->isolate();
+  return true;
+}
 
 void Isolate::set_context(Context* context) {
   DCHECK(context == nullptr || context->IsContext());

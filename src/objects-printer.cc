@@ -803,12 +803,12 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
     layout_descriptor()->ShortPrint(os);
   }
 
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(this);
+  Isolate* isolate;
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
-  if (chunk->owner()->identity() != RO_SPACE) {
+  if (Isolate::FromWritableHeapObject(this, &isolate)) {
     DisallowHeapAllocation no_gc;
-    TransitionsAccessor transitions(chunk->heap()->isolate(), this, &no_gc);
+    TransitionsAccessor transitions(isolate, this, &no_gc);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0) {
       os << "\n - transitions #" << nof_transitions << ": ";

@@ -556,6 +556,11 @@ class Isolate : private HiddenFactory {
     return isolate;
   }
 
+  // Get the isolate that the given HeapObject lives in, returning true on
+  // success. If the object is not writable (i.e. lives in read-only space),
+  // return false.
+  inline static bool FromWritableHeapObject(HeapObject* obj, Isolate** isolate);
+
   // Usually called by Init(), but can be called early e.g. to allow
   // testing components that require logging but not the whole
   // isolate.
