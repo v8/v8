@@ -1453,8 +1453,8 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
       kExprEnd    // body
   };
 
-  FunctionResult result = SyncDecodeWasmFunction(
-      isolate(), zone(), bytes, &module, data, data + sizeof(data));
+  FunctionResult result = DecodeWasmFunctionForTesting(
+      zone(), bytes, &module, data, data + sizeof(data), isolate()->counters());
   EXPECT_OK(result);
 
   if (result.val && result.ok()) {

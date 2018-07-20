@@ -1498,18 +1498,14 @@ WasmInitExpr DecodeWasmInitExprForTesting(const byte* start, const byte* end) {
   return decoder.DecodeInitExpr(start);
 }
 
-namespace {
-
-FunctionResult DecodeWasmFunction(Zone* zone, const ModuleWireBytes& wire_bytes,
-                                  const WasmModule* module,
-                                  const byte* function_start,
-                                  const byte* function_end,
-                                  Counters* counters) {
+FunctionResult DecodeWasmFunctionForTesting(
+    Zone* zone, const ModuleWireBytes& wire_bytes, const WasmModule* module,
+    const byte* function_start, const byte* function_end, Counters* counters) {
   size_t size = function_end - function_start;
   if (function_start > function_end)
     return FunctionResult::Error("start > end");
-  auto size_histogram =
-      SELECT_WASM_COUNTER(counters, module->origin, wasm, function_size_bytes);
+  auto size_histogram = SELECT_WASM_COUNTER(counters, module->origin, wasm,
+                                            function_size_bytes);
   // TODO(bradnelson): Improve histogram handling of ptrdiff_t.
   size_histogram->AddSample(static_cast<int>(size));
   if (size > kV8MaxWasmFunctionSize)
@@ -1518,25 +1514,6 @@ FunctionResult DecodeWasmFunction(Zone* zone, const ModuleWireBytes& wire_bytes,
   decoder.SetCounters(counters);
   return decoder.DecodeSingleFunction(zone, wire_bytes, module,
                                       base::make_unique<WasmFunction>());
-}
-
-}  // namespace
-
-FunctionResult SyncDecodeWasmFunction(Isolate* isolate, Zone* zone,
-                                      const ModuleWireBytes& wire_bytes,
-                                      const WasmModule* module,
-                                      const byte* function_start,
-                                      const byte* function_end) {
-  return DecodeWasmFunction(zone, wire_bytes, module, function_start,
-                            function_end, isolate->counters());
-}
-
-FunctionResult AsyncDecodeWasmFunction(
-    Zone* zone, const ModuleWireBytes& wire_bytes, const WasmModule* module,
-    const byte* function_start, const byte* function_end,
-    std::shared_ptr<Counters> async_counters) {
-  return DecodeWasmFunction(zone, wire_bytes, module, function_start,
-                            function_end, async_counters.get());
 }
 
 AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
