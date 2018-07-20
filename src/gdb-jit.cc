@@ -474,11 +474,11 @@ void ELFSection::PopulateHeader(Writer::Slot<ELFSection::Header> header,
 #if defined(__MACH_O)
 class MachO BASE_EMBEDDED {
  public:
-  explicit MachO(Zone* zone) : zone_(zone), sections_(6, zone) { }
+  explicit MachO(Zone* zone) : sections_(zone) {}
 
-  uint32_t AddSection(MachOSection* section) {
-    sections_.Add(section, zone_);
-    return sections_.length() - 1;
+  size_t AddSection(MachOSection* section) {
+    sections_.push_back(section);
+    return sections_.size() - 1;
   }
 
   void Write(Writer* w, uintptr_t code_start, uintptr_t code_size) {
@@ -571,7 +571,7 @@ class MachO BASE_EMBEDDED {
     cmd->maxprot = 7;
     cmd->initprot = 7;
     cmd->flags = 0;
-    cmd->nsects = sections_.length();
+    cmd->nsects = static_cast<uint32_t>(sections_.size());
     memset(cmd->segname, 0, 16);
     cmd->cmdsize = sizeof(MachOSegmentCommand) + sizeof(MachOSection::Header) *
         cmd->nsects;
@@ -584,19 +584,21 @@ class MachO BASE_EMBEDDED {
                      Writer::Slot<MachOHeader> header,
                      uintptr_t load_command_start) {
     Writer::Slot<MachOSection::Header> headers =
-        w->CreateSlotsHere<MachOSection::Header>(sections_.length());
+        w->CreateSlotsHere<MachOSection::Header>(
+            static_cast<uint32_t>(sections_.size()));
     cmd->fileoff = w->position();
     header->sizeofcmds =
         static_cast<uint32_t>(w->position() - load_command_start);
-    for (int section = 0; section < sections_.length(); ++section) {
-      sections_[section]->PopulateHeader(headers.at(section));
-      sections_[section]->WriteBody(headers.at(section), w);
+    uint32_t index = 0;
+    for (MachOSection* section : sections_) {
+      section->PopulateHeader(headers.at(index));
+      section->WriteBody(headers.at(index), w);
+      index++;
     }
     cmd->filesize = w->position() - (uintptr_t)cmd->fileoff;
   }
 
-  Zone* zone_;
-  ZoneList<MachOSection*> sections_;
+  ZoneChunkList<MachOSection*> sections_;
 };
 #endif  // defined(__MACH_O)
 
