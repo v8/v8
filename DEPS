@@ -8,6 +8,7 @@ vars = {
   'download_gcmole': False,
   'download_jsfunfuzz': False,
   'download_mips_toolchain': False,
+  'check_v8_header_includes': False,
 }
 
 deps = {
@@ -383,6 +384,15 @@ hooks = [
     'action': [ 'vpython',
                 '-vpython-spec', 'v8/.vpython',
                 '-vpython-tool', 'install',
+    ],
+  },
+  {
+    'name': 'check_v8_header_includes',
+    'pattern': '.',
+    'condition': 'check_v8_header_includes',
+    'action': [
+      'python',
+      'v8/tools/generate-header-include-checks.py',
     ],
   },
 ]
