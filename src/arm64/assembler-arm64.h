@@ -882,7 +882,7 @@ class ConstPool {
 // -----------------------------------------------------------------------------
 // Assembler.
 
-class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
+class Assembler : public AssemblerBase {
  public:
   // Create an assembler. Instructions and relocation information are emitted
   // into a buffer, with the instructions starting from the beginning and the

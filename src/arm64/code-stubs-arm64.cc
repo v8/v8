@@ -249,7 +249,7 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
 
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-  HardAbortScope hard_aborts(masm);
+  MacroAssembler::NoUseRealAbortsScope no_use_real_aborts(masm);
 
   // Save all kCallerSaved registers (including lr), since this can be called
   // from anywhere.

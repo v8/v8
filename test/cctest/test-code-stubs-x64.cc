@@ -37,7 +37,6 @@
 #include "src/register-configuration.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
-#include "test/common/assembler-tester.h"
 
 namespace v8 {
 namespace internal {

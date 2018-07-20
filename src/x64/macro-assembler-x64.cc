@@ -427,16 +427,6 @@ void TurboAssembler::Abort(AbortReason reason) {
     return;
   }
 
-  if (should_abort_hard()) {
-    // We don't care if we constructed a frame. Just pretend we did.
-    FrameScope assume_frame(this, StackFrame::NONE);
-    movl(arg_reg_1, Immediate(static_cast<int>(reason)));
-    PrepareCallCFunction(1);
-    LoadAddress(rax, ExternalReference::abort_with_reason());
-    call(rax);
-    return;
-  }
-
   Move(rdx, Smi::FromInt(static_cast<int>(reason)));
 
   if (!has_frame()) {

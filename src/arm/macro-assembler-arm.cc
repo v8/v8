@@ -1881,16 +1881,6 @@ void TurboAssembler::Abort(AbortReason reason) {
     return;
   }
 
-  if (should_abort_hard()) {
-    // We don't care if we constructed a frame. Just pretend we did.
-    FrameScope assume_frame(this, StackFrame::NONE);
-    Move32BitImmediate(r0, Operand(static_cast<int>(reason)));
-    PrepareCallCFunction(0, 0, r1);
-    Move(r1, ExternalReference::abort_with_reason());
-    Call(r1);
-    return;
-  }
-
   Move(r1, Smi::FromInt(static_cast<int>(reason)));
 
   // Disable stub call restrictions to always allow calls to abort.
@@ -2259,14 +2249,13 @@ int TurboAssembler::CalculateStackPassedWords(int num_reg_arguments,
 }
 
 void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
-                                          int num_double_arguments,
-                                          Register scratch) {
+                                          int num_double_arguments) {
   int frame_alignment = ActivationFrameAlignment();
   int stack_passed_arguments = CalculateStackPassedWords(
       num_reg_arguments, num_double_arguments);
   if (frame_alignment > kPointerSize) {
     UseScratchRegisterScope temps(this);
-    if (!scratch.is_valid()) scratch = temps.Acquire();
+    Register scratch = temps.Acquire();
     // Make stack end at alignment and make room for num_arguments - 4 words
     // and the original value of sp.
     mov(scratch, sp);
@@ -2274,7 +2263,7 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     and_(sp, sp, Operand(-frame_alignment));
     str(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
-  } else if (stack_passed_arguments > 0) {
+  } else {
     sub(sp, sp, Operand(stack_passed_arguments * kPointerSize));
   }
 }

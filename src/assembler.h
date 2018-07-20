@@ -167,7 +167,7 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
       Isolate* isolate, bool explicitly_support_serialization = false);
 };
 
-class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
+class AssemblerBase : public Malloced {
  public:
   AssemblerBase(const AssemblerOptions& options, void* buffer, int buffer_size);
   virtual ~AssemblerBase();

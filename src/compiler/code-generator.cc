@@ -90,7 +90,7 @@ CodeGenerator::CodeGenerator(
   if (code_kind == Code::WASM_FUNCTION ||
       code_kind == Code::WASM_TO_JS_FUNCTION ||
       code_kind == Code::WASM_INTERPRETER_ENTRY) {
-    tasm_.set_abort_hard(true);
+    tasm_.set_trap_on_abort(true);
   }
   tasm_.set_builtin_index(builtin_index);
 }

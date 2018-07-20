@@ -2300,7 +2300,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   // Convert to Smi for the runtime call.
   __ SmiTag(r15, r15);
   {
-    HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
+    TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
     FrameAndConstantPoolScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
     // Save all parameter registers (see wasm-linkage.cc). They might be
@@ -2531,7 +2531,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   Label out_of_range, only_low, negate, done, fastpath_done;
   Register result_reg = r3;
 
-  HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
+  TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
 
   // Immediate values for this stub fit in instructions, so it's safe to use ip.
   Register scratch = GetRegisterThatIsNotOneOf(result_reg);

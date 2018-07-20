@@ -125,7 +125,6 @@ enum class AbortReason {
 
 const char* GetBailoutReason(BailoutReason reason);
 const char* GetAbortReason(AbortReason reason);
-bool IsValidAbortReason(int reason_id);
 
 }  // namespace internal
 }  // namespace v8

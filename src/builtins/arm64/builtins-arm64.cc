@@ -2676,7 +2676,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   __ sxtw(x8, w8);
   __ SmiTag(x8, x8);
   {
-    HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
+    TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
 
     // Save all parameter registers (see wasm-linkage.cc). They might be
@@ -2718,7 +2718,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // fall-back Abort mechanism.
   //
   // Note that this stub must be generated before any use of Abort.
-  HardAbortScope hard_aborts(masm);
+  MacroAssembler::NoUseRealAbortsScope no_use_real_aborts(masm);
 
   ASM_LOCATION("CEntry::Generate entry");
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
@@ -2938,7 +2938,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
   DCHECK(result.Is64Bits());
 
-  HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
+  TrapOnAbortScope trap_on_abort_scope(masm);  // Avoid calls to Abort.
   UseScratchRegisterScope temps(masm);
   Register scratch1 = temps.AcquireX();
   Register scratch2 = temps.AcquireX();

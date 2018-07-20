@@ -11,7 +11,6 @@
 #include "src/simulator.h"
 #include "src/snapshot/macros.h"
 #include "src/snapshot/snapshot.h"
-#include "test/common/assembler-tester.h"
 
 // To generate the binary files for the test function, enable this section and
 // run GenerateTestFunctionData once on each arch.

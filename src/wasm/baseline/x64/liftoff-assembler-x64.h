@@ -1380,8 +1380,14 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
   }
   DCHECK_LE(arg_bytes, stack_bytes);
 
-  // Pass a pointer to the buffer with the arguments to the C function.
-  movp(arg_reg_1, rsp);
+// Pass a pointer to the buffer with the arguments to the C function.
+// On win64, the first argument is in {rcx}, otherwise it is {rdi}.
+#ifdef _WIN64
+  constexpr Register kFirstArgReg = rcx;
+#else
+  constexpr Register kFirstArgReg = rdi;
+#endif
+  movp(kFirstArgReg, rsp);
 
   constexpr int kNumCCallArgs = 1;
 
