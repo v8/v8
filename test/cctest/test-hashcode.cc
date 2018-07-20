@@ -6,7 +6,6 @@
 #include <sstream>
 #include <utility>
 
-#include "src/api.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/v8.h"

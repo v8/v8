@@ -4,7 +4,6 @@
 
 #include "src/unoptimized-compilation-info.h"
 
-#include "src/api.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/debug/debug.h"

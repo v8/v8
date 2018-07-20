@@ -7,7 +7,6 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/api.h"
 #include "src/heap/heap.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"

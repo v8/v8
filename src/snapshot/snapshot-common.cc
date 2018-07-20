@@ -6,7 +6,6 @@
 
 #include "src/snapshot/snapshot.h"
 
-#include "src/api.h"
 #include "src/assembler-inl.h"
 #include "src/base/platform/platform.h"
 #include "src/callable.h"

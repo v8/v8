@@ -4,7 +4,6 @@
 
 #include <cmath>
 
-#include "src/api.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/builtins-string-gen.h"

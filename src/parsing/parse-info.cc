@@ -4,7 +4,6 @@
 
 #include "src/parsing/parse-info.h"
 
-#include "src/api.h"
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"

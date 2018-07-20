@@ -89,6 +89,10 @@ TestWithIsolateAndZone::~TestWithIsolateAndZone() {}
 
 Factory* TestWithIsolate::factory() const { return isolate()->factory(); }
 
+Handle<Object> TestWithIsolate::RunJSInternal(const char* source) {
+  return Utils::OpenHandle(*::v8::TestWithIsolate::RunJS(source));
+}
+
 base::RandomNumberGenerator* TestWithIsolate::random_number_generator() const {
   return isolate()->random_number_generator();
 }
