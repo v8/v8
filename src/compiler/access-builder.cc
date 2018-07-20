@@ -12,6 +12,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/arguments.h"
 #include "src/objects/js-collection.h"
+#include "src/objects/js-generator.h"
 #include "src/objects/module.h"
 
 namespace v8 {

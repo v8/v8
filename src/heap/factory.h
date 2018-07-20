@@ -36,6 +36,7 @@ class DebugInfo;
 class EnumCache;
 class FreshlyAllocatedBigInt;
 class Isolate;
+class JSGeneratorObject;
 class JSMap;
 class JSMapIterator;
 class JSModuleNamespace;

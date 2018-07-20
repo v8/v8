@@ -15,6 +15,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-generator.h"
 
 namespace v8 {
 namespace internal {

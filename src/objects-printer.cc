@@ -17,6 +17,7 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-generator-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-locale-inl.h"
 #endif  // V8_INTL_SUPPORT

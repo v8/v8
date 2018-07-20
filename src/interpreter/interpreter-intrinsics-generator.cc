@@ -13,6 +13,7 @@
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-generator.h"
 #include "src/objects/module.h"
 
 namespace v8 {

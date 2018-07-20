@@ -9,6 +9,7 @@
 #include "src/debug/liveedit.h"
 #include "src/frames-inl.h"
 #include "src/isolate.h"
+#include "src/objects/js-generator-inl.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {

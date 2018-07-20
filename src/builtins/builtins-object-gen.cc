@@ -8,6 +8,7 @@
 #include "src/heap/factory-inl.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
+#include "src/objects/js-generator.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/shared-function-info.h"
 

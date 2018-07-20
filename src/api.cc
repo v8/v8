@@ -49,6 +49,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/module-inl.h"

@@ -2136,6 +2136,8 @@ v8_source_set("v8_base") {
     "src/objects/js-array.h",
     "src/objects/js-collection-inl.h",
     "src/objects/js-collection.h",
+    "src/objects/js-generator-inl.h",
+    "src/objects/js-generator.h",
     "src/objects/js-locale-inl.h",
     "src/objects/js-locale.cc",
     "src/objects/js-locale.h",

@@ -22,6 +22,7 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-generator-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/microtask-inl.h"

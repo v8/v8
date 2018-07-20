@@ -13,6 +13,7 @@
 #include "src/isolate.h"
 #include "src/objects/bigint.h"
 #include "src/objects/js-collection.h"
+#include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/module.h"
 #include "src/objects/templates.h"

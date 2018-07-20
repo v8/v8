@@ -30,6 +30,7 @@ namespace internal {
 
 // Forward declarations.
 class DebugScope;
+class JSGeneratorObject;
 
 // Step actions. NOTE: These values are in macros.py as well.
 enum StepAction : int8_t {

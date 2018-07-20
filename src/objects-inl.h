@@ -618,12 +618,10 @@ CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(JSAsyncFromSyncIterator)
-CAST_ACCESSOR(JSAsyncGeneratorObject)
 CAST_ACCESSOR(JSBoundFunction)
 CAST_ACCESSOR(JSDataView)
 CAST_ACCESSOR(JSDate)
 CAST_ACCESSOR(JSFunction)
-CAST_ACCESSOR(JSGeneratorObject)
 CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSGlobalProxy)
 CAST_ACCESSOR(JSMessageObject)
@@ -2654,32 +2652,6 @@ void SmallOrderedHashTable<Derived>::SetDataEntry(int entry, int relative_index,
   WRITE_BARRIER(Heap::FromWritableHeapObject(this), this,
                 static_cast<int>(entry_offset), value);
 }
-
-ACCESSORS(JSGeneratorObject, function, JSFunction, kFunctionOffset)
-ACCESSORS(JSGeneratorObject, context, Context, kContextOffset)
-ACCESSORS(JSGeneratorObject, receiver, Object, kReceiverOffset)
-ACCESSORS(JSGeneratorObject, input_or_debug_pos, Object, kInputOrDebugPosOffset)
-SMI_ACCESSORS(JSGeneratorObject, resume_mode, kResumeModeOffset)
-SMI_ACCESSORS(JSGeneratorObject, continuation, kContinuationOffset)
-ACCESSORS(JSGeneratorObject, parameters_and_registers, FixedArray,
-          kParametersAndRegistersOffset)
-
-bool JSGeneratorObject::is_suspended() const {
-  DCHECK_LT(kGeneratorExecuting, 0);
-  DCHECK_LT(kGeneratorClosed, 0);
-  return continuation() >= 0;
-}
-
-bool JSGeneratorObject::is_closed() const {
-  return continuation() == kGeneratorClosed;
-}
-
-bool JSGeneratorObject::is_executing() const {
-  return continuation() == kGeneratorExecuting;
-}
-
-ACCESSORS(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
-SMI_ACCESSORS(JSAsyncGeneratorObject, is_awaiting, kIsAwaitingOffset)
 
 ACCESSORS(JSValue, value, Object, kValueOffset)
 

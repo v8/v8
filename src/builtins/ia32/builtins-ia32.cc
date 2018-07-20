@@ -11,6 +11,7 @@
 #include "src/frame-constants.h"
 #include "src/frames.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-generator.h"
 #include "src/wasm/wasm-linkage.h"
 
 namespace v8 {
