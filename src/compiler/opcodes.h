@@ -121,7 +121,6 @@
   V(JSToLength)                    \
   V(JSToName)                      \
   V(JSToNumber)                    \
-  V(JSToNumberConvertBigInt)       \
   V(JSToNumeric)                   \
   V(JSToObject)                    \
   V(JSToString)                    \
