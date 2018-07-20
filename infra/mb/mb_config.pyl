@@ -73,6 +73,7 @@
       'V8 Linux64 - debug builder': 'debug_x64',
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'release_x64_internal',
+      'V8 Linux64 - debug - deprecation warnings': 'debug_x64_deprecation_warnings',
       'V8 Linux64 - verify csa': 'release_x64_verify_csa',
       # Jumbo.
       'V8 Linux64 Jumbo': 'release_x64_jumbo',
@@ -502,6 +503,8 @@
       'x64', 'asan', 'edge'],
     'debug_x64_custom': [
       'debug_bot', 'x64', 'v8_snapshot_custom'],
+    'debug_x64_deprecation_warnings': [
+      'debug_bot', 'x64', 'v8_imminent_deprecation_warnings'],
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
@@ -831,6 +834,10 @@
 
     'v8_full_debug': {
       'gn_args': 'v8_optimized_debug=false',
+    },
+
+    'v8_imminent_deprecation_warnings': {
+      'gn_args': 'v8_imminent_deprecation_warnings=true',
     },
 
     'v8_interpreted_regexp': {
