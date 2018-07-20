@@ -325,11 +325,9 @@ void RegExpBuiltinsAssembler::GetStringPointers(
   var_string_end->Bind(IntPtrAdd(string_data, to_offset));
 }
 
-Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
-                                                  Node* const regexp,
-                                                  Node* const string,
-                                                  Node* const last_index,
-                                                  Node* const match_info) {
+TNode<Object> RegExpBuiltinsAssembler::RegExpExecInternal(
+    TNode<Context> context, TNode<JSRegExp> regexp, TNode<String> string,
+    TNode<Number> last_index, TNode<FixedArray> match_info) {
 // Just jump directly to runtime if native RegExp is not selected at compile
 // time or if regexp entry in generated code is turned off runtime switch or
 // at compilation.
@@ -337,30 +335,20 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
   return CallRuntime(Runtime::kRegExpExec, context, regexp, string, last_index,
                      match_info);
 #else  // V8_INTERPRETED_REGEXP
-  CSA_ASSERT(this, TaggedIsNotSmi(regexp));
-  CSA_ASSERT(this, IsJSRegExp(regexp));
-
-  CSA_ASSERT(this, TaggedIsNotSmi(string));
-  CSA_ASSERT(this, IsString(string));
-
-  CSA_ASSERT(this, IsNumber(last_index));
-  CSA_ASSERT(this, IsFixedArrayMap(LoadReceiverMap(match_info)));
-
-  Node* const int_zero = IntPtrConstant(0);
-
   ToDirectStringAssembler to_direct(state(), string);
 
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(Object, var_result);
   Label out(this), atom(this), runtime(this, Label::kDeferred);
 
   // External constants.
-  Node* const isolate_address =
+  TNode<ExternalReference> isolate_address =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
-  Node* const regexp_stack_memory_address_address = ExternalConstant(
-      ExternalReference::address_of_regexp_stack_memory_address(isolate()));
-  Node* const regexp_stack_memory_size_address = ExternalConstant(
+  TNode<ExternalReference> regexp_stack_memory_address_address =
+      ExternalConstant(
+          ExternalReference::address_of_regexp_stack_memory_address(isolate()));
+  TNode<ExternalReference> regexp_stack_memory_size_address = ExternalConstant(
       ExternalReference::address_of_regexp_stack_memory_size(isolate()));
-  Node* const static_offsets_vector_address = ExternalConstant(
+  TNode<ExternalReference> static_offsets_vector_address = ExternalConstant(
       ExternalReference::address_of_static_offsets_vector(isolate()));
 
   // At this point, last_index is definitely a canonicalized non-negative
@@ -374,21 +362,18 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
   CSA_ASSERT(this, IsNumberPositive(last_index));
   GotoIf(TaggedIsNotSmi(last_index), &if_failure);
 
-  Node* const int_string_length = LoadStringLengthAsWord(string);
-  Node* const int_last_index = SmiUntag(last_index);
+  TNode<IntPtrT> int_string_length = LoadStringLengthAsWord(string);
+  TNode<IntPtrT> int_last_index = SmiUntag(CAST(last_index));
 
   GotoIf(UintPtrGreaterThan(int_last_index, int_string_length), &if_failure);
 
-  Node* const data = LoadObjectField(regexp, JSRegExp::kDataOffset);
+  // Since the RegExp has been compiled, data contains a fixed array.
+  TNode<FixedArray> data = CAST(LoadObjectField(regexp, JSRegExp::kDataOffset));
   {
-    // Check that the RegExp has been compiled (data contains a fixed array).
-    CSA_ASSERT(this, TaggedIsNotSmi(data));
-    CSA_ASSERT(this, HasInstanceType(data, FIXED_ARRAY_TYPE));
-
     // Dispatch on the type of the RegExp.
     {
       Label next(this), unreachable(this, Label::kDeferred);
-      Node* const tag = LoadAndUntagToWord32FixedArrayElement(
+      TNode<Int32T> tag = LoadAndUntagToWord32FixedArrayElement(
           data, IntPtrConstant(JSRegExp::kTagIndex));
 
       int32_t values[] = {
@@ -407,22 +392,21 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
 
     // Check (number_of_captures + 1) * 2 <= offsets vector size
     // Or              number_of_captures <= offsets vector size / 2 - 1
-    TNode<Smi> const capture_count =
+    TNode<Smi> capture_count =
         CAST(LoadFixedArrayElement(data, JSRegExp::kIrregexpCaptureCountIndex));
 
-    STATIC_ASSERT(Isolate::kJSRegexpStaticOffsetsVectorSize >= 2);
-    GotoIf(SmiAbove(
-               capture_count,
-               SmiConstant(Isolate::kJSRegexpStaticOffsetsVectorSize / 2 - 1)),
+    const int kOffsetsSize = Isolate::kJSRegexpStaticOffsetsVectorSize;
+    STATIC_ASSERT(kOffsetsSize >= 2);
+    GotoIf(SmiAbove(capture_count, SmiConstant(kOffsetsSize / 2 - 1)),
            &runtime);
   }
 
   // Ensure that a RegExp stack is allocated. This check is after branching off
   // for ATOM regexps to avoid unnecessary trips to runtime.
   {
-    Node* const stack_size =
-        Load(MachineType::IntPtr(), regexp_stack_memory_size_address);
-    GotoIf(IntPtrEqual(stack_size, int_zero), &runtime);
+    TNode<IntPtrT> stack_size = UncheckedCast<IntPtrT>(
+        Load(MachineType::IntPtr(), regexp_stack_memory_size_address));
+    GotoIf(IntPtrEqual(stack_size, IntPtrConstant(0)), &runtime);
   }
 
   // Unpack the string if possible.
@@ -432,12 +416,12 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
   // Load the irregexp code object and offsets into the subject string. Both
   // depend on whether the string is one- or two-byte.
 
-  VARIABLE(var_string_start, MachineType::PointerRepresentation());
-  VARIABLE(var_string_end, MachineType::PointerRepresentation());
-  VARIABLE(var_code, MachineRepresentation::kTagged);
+  TVARIABLE(RawPtrT, var_string_start);
+  TVARIABLE(RawPtrT, var_string_end);
+  TVARIABLE(Object, var_code);
 
   {
-    Node* const direct_string_data = to_direct.PointerToData(&runtime);
+    TNode<RawPtrT> direct_string_data = to_direct.PointerToData(&runtime);
 
     Label next(this), if_isonebyte(this), if_istwobyte(this, Label::kDeferred);
     Branch(IsOneByteStringInstanceType(to_direct.instance_type()),
@@ -448,8 +432,8 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
       GetStringPointers(direct_string_data, to_direct.offset(), int_last_index,
                         int_string_length, String::ONE_BYTE_ENCODING,
                         &var_string_start, &var_string_end);
-      var_code.Bind(
-          LoadFixedArrayElement(data, JSRegExp::kIrregexpLatin1CodeIndex));
+      var_code =
+          LoadFixedArrayElement(data, JSRegExp::kIrregexpLatin1CodeIndex);
       Goto(&next);
     }
 
@@ -458,8 +442,7 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
       GetStringPointers(direct_string_data, to_direct.offset(), int_last_index,
                         int_string_length, String::TWO_BYTE_ENCODING,
                         &var_string_start, &var_string_end);
-      var_code.Bind(
-          LoadFixedArrayElement(data, JSRegExp::kIrregexpUC16CodeIndex));
+      var_code = LoadFixedArrayElement(data, JSRegExp::kIrregexpUC16CodeIndex);
       Goto(&next);
     }
 
@@ -469,15 +452,19 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
   // Check that the irregexp code has been generated for the actual string
   // encoding. If it has, the field contains a code object; and otherwise it
   // contains the uninitialized sentinel as a smi.
+#ifdef DEBUG
+  {
+    Label next(this);
+    GotoIfNot(TaggedIsSmi(var_code.value()), &next);
+    CSA_ASSERT(this, SmiEqual(CAST(var_code.value()),
+                              SmiConstant(JSRegExp::kUninitializedValue)));
+    Goto(&next);
+    BIND(&next);
+  }
+#endif
 
-  Node* const code = var_code.value();
-  CSA_ASSERT_BRANCH(this, [=](Label* ok, Label* not_ok) {
-    GotoIfNot(TaggedIsSmi(code), ok);
-    Branch(SmiEqual(CAST(code), SmiConstant(JSRegExp::kUninitializedValue)), ok,
-           not_ok);
-  });
-  GotoIf(TaggedIsSmi(code), &runtime);
-  CSA_ASSERT(this, HasInstanceType(code, CODE_TYPE));
+  GotoIf(TaggedIsSmi(var_code.value()), &runtime);
+  TNode<Code> code = CAST(var_code.value());
 
   Label if_success(this), if_exception(this, Label::kDeferred);
   {
@@ -494,61 +481,62 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
 
     // Argument 0: Original subject string.
     MachineType arg0_type = type_tagged;
-    Node* const arg0 = string;
+    TNode<String> arg0 = string;
 
     // Argument 1: Previous index.
     MachineType arg1_type = type_int32;
-    Node* const arg1 = TruncateIntPtrToInt32(int_last_index);
+    TNode<Int32T> arg1 = TruncateIntPtrToInt32(int_last_index);
 
     // Argument 2: Start of string data.
     MachineType arg2_type = type_ptr;
-    Node* const arg2 = var_string_start.value();
+    TNode<RawPtrT> arg2 = var_string_start.value();
 
     // Argument 3: End of string data.
     MachineType arg3_type = type_ptr;
-    Node* const arg3 = var_string_end.value();
+    TNode<RawPtrT> arg3 = var_string_end.value();
 
     // Argument 4: static offsets vector buffer.
     MachineType arg4_type = type_ptr;
-    Node* const arg4 = static_offsets_vector_address;
+    TNode<ExternalReference> arg4 = static_offsets_vector_address;
 
     // Argument 5: Set the number of capture registers to zero to force global
     // regexps to behave as non-global.  This does not affect non-global
     // regexps.
     MachineType arg5_type = type_int32;
-    Node* const arg5 = Int32Constant(0);
+    TNode<Int32T> arg5 = Int32Constant(0);
 
     // Argument 6: Start (high end) of backtracking stack memory area.
-    Node* const stack_start =
-        Load(MachineType::Pointer(), regexp_stack_memory_address_address);
-    Node* const stack_size =
-        Load(MachineType::IntPtr(), regexp_stack_memory_size_address);
-    Node* const stack_end = IntPtrAdd(stack_start, stack_size);
+    TNode<RawPtrT> stack_start = UncheckedCast<RawPtrT>(
+        Load(MachineType::Pointer(), regexp_stack_memory_address_address));
+    TNode<IntPtrT> stack_size = UncheckedCast<IntPtrT>(
+        Load(MachineType::IntPtr(), regexp_stack_memory_size_address));
+    TNode<RawPtrT> stack_end =
+        ReinterpretCast<RawPtrT>(IntPtrAdd(stack_start, stack_size));
 
     MachineType arg6_type = type_ptr;
-    Node* const arg6 = stack_end;
+    TNode<RawPtrT> arg6 = stack_end;
 
     // Argument 7: Indicate that this is a direct call from JavaScript.
     MachineType arg7_type = type_int32;
-    Node* const arg7 = Int32Constant(1);
+    TNode<Int32T> arg7 = Int32Constant(1);
 
     // Argument 8: Pass current isolate address.
     MachineType arg8_type = type_ptr;
-    Node* const arg8 = isolate_address;
+    TNode<ExternalReference> arg8 = isolate_address;
 
-    Node* const code_entry =
+    TNode<RawPtrT> code_entry = ReinterpretCast<RawPtrT>(
         IntPtrAdd(BitcastTaggedToWord(code),
-                  IntPtrConstant(Code::kHeaderSize - kHeapObjectTag));
+                  IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
 
-    Node* const result = CallCFunction9(
+    TNode<Int32T> result = UncheckedCast<Int32T>(CallCFunction9(
         retval_type, arg0_type, arg1_type, arg2_type, arg3_type, arg4_type,
         arg5_type, arg6_type, arg7_type, arg8_type, code_entry, arg0, arg1,
-        arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+        arg2, arg3, arg4, arg5, arg6, arg7, arg8));
 
     // Check the result.
     // We expect exactly one result since we force the called regexp to behave
     // as non-global.
-    Node* const int_result = ChangeInt32ToIntPtr(result);
+    TNode<IntPtrT> int_result = ChangeInt32ToIntPtr(result);
     GotoIf(IntPtrEqual(int_result,
                        IntPtrConstant(NativeRegExpMacroAssembler::SUCCESS)),
            &if_success);
@@ -570,13 +558,13 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
     // Check that the last match info has space for the capture registers and
     // the additional information. Ensure no overflow in add.
     STATIC_ASSERT(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
-    TNode<Smi> const available_slots =
+    TNode<Smi> available_slots =
         SmiSub(LoadFixedArrayBaseLength(match_info),
                SmiConstant(RegExpMatchInfo::kLastMatchOverhead));
-    TNode<Smi> const capture_count =
+    TNode<Smi> capture_count =
         CAST(LoadFixedArrayElement(data, JSRegExp::kIrregexpCaptureCountIndex));
     // Calculate number of register_count = (capture_count + 1) * 2.
-    TNode<Smi> const register_count =
+    TNode<Smi> register_count =
         SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
     GotoIf(SmiGreaterThan(register_count, available_slots), &runtime);
 
@@ -591,21 +579,21 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
 
     // Fill match and capture offsets in match_info.
     {
-      Node* const limit_offset = ElementOffsetFromIndex(
+      TNode<IntPtrT> limit_offset = ElementOffsetFromIndex(
           register_count, INT32_ELEMENTS, SMI_PARAMETERS, 0);
 
-      Node* const to_offset = ElementOffsetFromIndex(
+      TNode<IntPtrT> to_offset = ElementOffsetFromIndex(
           IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), PACKED_ELEMENTS,
           INTPTR_PARAMETERS, RegExpMatchInfo::kHeaderSize - kHeapObjectTag);
-      VARIABLE(var_to_offset, MachineType::PointerRepresentation(), to_offset);
+      TVARIABLE(IntPtrT, var_to_offset, to_offset);
 
       VariableList vars({&var_to_offset}, zone());
       BuildFastLoop(
-          vars, int_zero, limit_offset,
+          vars, IntPtrConstant(0), limit_offset,
           [=, &var_to_offset](Node* offset) {
-            Node* const value = Load(MachineType::Int32(),
-                                     static_offsets_vector_address, offset);
-            Node* const smi_value = SmiFromInt32(value);
+            TNode<Int32T> value = UncheckedCast<Int32T>(Load(
+                MachineType::Int32(), static_offsets_vector_address, offset));
+            TNode<Smi> smi_value = SmiFromInt32(value);
             StoreNoWriteBarrier(MachineRepresentation::kTagged, match_info,
                                 var_to_offset.value(), smi_value);
             Increment(&var_to_offset, kPointerSize);
@@ -613,13 +601,13 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
           kInt32Size, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
     }
 
-    var_result.Bind(match_info);
+    var_result = match_info;
     Goto(&out);
   }
 
   BIND(&if_failure);
   {
-    var_result.Bind(NullConstant());
+    var_result = NullConstant();
     Goto(&out);
   }
 
@@ -627,7 +615,7 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
   {
 // A stack overflow was detected in RegExp code.
 #ifdef DEBUG
-    Node* const pending_exception_address =
+    TNode<ExternalReference> pending_exception_address =
         ExternalConstant(ExternalReference::Create(
             IsolateAddressId::kPendingExceptionAddress, isolate()));
     CSA_ASSERT(this, IsTheHole(Load(MachineType::AnyTagged(),
@@ -639,9 +627,8 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
 
   BIND(&runtime);
   {
-    Node* const result = CallRuntime(Runtime::kRegExpExec, context, regexp,
-                                     string, last_index, match_info);
-    var_result.Bind(result);
+    var_result = CallRuntime(Runtime::kRegExpExec, context, regexp, string,
+                             last_index, match_info);
     Goto(&out);
   }
 
@@ -649,9 +636,8 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
   {
     // TODO(jgruber): A call with 4 args stresses register allocation, this
     // should probably just be inlined.
-    Node* const result = CallBuiltin(Builtins::kRegExpExecAtom, context, regexp,
-                                     string, last_index, match_info);
-    var_result.Bind(result);
+    var_result = CallBuiltin(Builtins::kRegExpExecAtom, context, regexp, string,
+                             last_index, match_info);
     Goto(&out);
   }
 
@@ -758,8 +744,9 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
         native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
 
     // Call the exec stub.
-    match_indices = RegExpExecInternal(context, regexp, string,
-                                       var_lastindex.value(), last_match_info);
+    match_indices =
+        RegExpExecInternal(CAST(context), CAST(regexp), CAST(string),
+                           CAST(var_lastindex.value()), CAST(last_match_info));
     var_result.Bind(match_indices);
 
     // {match_indices} is either null or the RegExpMatchInfo array.

@@ -58,9 +58,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                          Variable* var_string_end);
 
   // Low level logic around the actual call into pattern matching code.
-  Node* RegExpExecInternal(Node* const context, Node* const regexp,
-                           Node* const string, Node* const last_index,
-                           Node* const match_info);
+  TNode<Object> RegExpExecInternal(TNode<Context> context,
+                                   TNode<JSRegExp> regexp, TNode<String> string,
+                                   TNode<Number> last_index,
+                                   TNode<FixedArray> match_info);
 
   Node* ConstructNewResultFromMatchInfo(Node* const context, Node* const regexp,
                                         Node* const match_info,

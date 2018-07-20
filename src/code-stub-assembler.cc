@@ -6088,11 +6088,11 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   return CAST(var_string_.value());
 }
 
-Node* ToDirectStringAssembler::TryToSequential(StringPointerKind ptr_kind,
-                                               Label* if_bailout) {
+TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
+    StringPointerKind ptr_kind, Label* if_bailout) {
   CHECK(ptr_kind == PTR_TO_DATA || ptr_kind == PTR_TO_STRING);
 
-  VARIABLE(var_result, MachineType::PointerRepresentation());
+  TVARIABLE(RawPtrT, var_result);
   Label out(this), if_issequential(this), if_isexternal(this, Label::kDeferred);
   Branch(is_external(), &if_isexternal, &if_issequential);
 
@@ -6100,12 +6100,12 @@ Node* ToDirectStringAssembler::TryToSequential(StringPointerKind ptr_kind,
   {
     STATIC_ASSERT(SeqOneByteString::kHeaderSize ==
                   SeqTwoByteString::kHeaderSize);
-    Node* result = BitcastTaggedToWord(var_string_.value());
+    TNode<IntPtrT> result = BitcastTaggedToWord(var_string_.value());
     if (ptr_kind == PTR_TO_DATA) {
       result = IntPtrAdd(result, IntPtrConstant(SeqOneByteString::kHeaderSize -
                                                 kHeapObjectTag));
     }
-    var_result.Bind(result);
+    var_result = ReinterpretCast<RawPtrT>(result);
     Goto(&out);
   }
 
@@ -6114,14 +6114,14 @@ Node* ToDirectStringAssembler::TryToSequential(StringPointerKind ptr_kind,
     GotoIf(IsShortExternalStringInstanceType(var_instance_type_.value()),
            if_bailout);
 
-    Node* const string = var_string_.value();
-    Node* result = LoadObjectField(string, ExternalString::kResourceDataOffset,
-                                   MachineType::Pointer());
+    TNode<String> string = CAST(var_string_.value());
+    TNode<IntPtrT> result =
+        LoadObjectField<IntPtrT>(string, ExternalString::kResourceDataOffset);
     if (ptr_kind == PTR_TO_STRING) {
       result = IntPtrSub(result, IntPtrConstant(SeqOneByteString::kHeaderSize -
                                                 kHeapObjectTag));
     }
-    var_result.Bind(result);
+    var_result = ReinterpretCast<RawPtrT>(result);
     Goto(&out);
   }
 
