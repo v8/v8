@@ -321,7 +321,7 @@ enum ScaleFactor {
   times_twice_pointer_size = times_8
 };
 
-class Operand {
+class V8_EXPORT_PRIVATE Operand {
  public:
   // reg
   V8_INLINE explicit Operand(Register reg) { set_modrm(3, reg); }
@@ -472,8 +472,7 @@ class Displacement BASE_EMBEDDED {
   void init(Label* L, Type type);
 };
 
-
-class Assembler : public AssemblerBase {
+class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  private:
   // We check before assembling an instruction that there is sufficient
   // space to write an instruction and its relocation information.

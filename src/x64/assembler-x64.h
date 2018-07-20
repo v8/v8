@@ -422,7 +422,7 @@ static_assert(sizeof(Operand) <= 2 * kPointerSize,
   V(shr, 0x5)                     \
   V(sar, 0x7)
 
-class Assembler : public AssemblerBase {
+class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  private:
   // We check before assembling an instruction that there is sufficient
   // space to write an instruction and its relocation information.

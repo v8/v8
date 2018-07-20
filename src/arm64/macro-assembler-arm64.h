@@ -177,34 +177,13 @@ enum PreShiftImmMode {
   kAnyShift          // Allow any pre-shift.
 };
 
-class TurboAssembler : public TurboAssemblerBase {
+class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
   TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
                  void* buffer, int buffer_size,
                  CodeObjectRequired create_code_object)
       : TurboAssemblerBase(isolate, options, buffer, buffer_size,
                            create_code_object) {}
-
-  // The Abort method should call a V8 runtime function, but the CallRuntime
-  // mechanism depends on CEntry. If use_real_aborts is false, Abort will
-  // use a simpler abort mechanism that doesn't depend on CEntry.
-  //
-  // The purpose of this is to allow Aborts to be compiled whilst CEntry is
-  // being generated.
-  bool use_real_aborts() const { return use_real_aborts_; }
-
-  class NoUseRealAbortsScope {
-   public:
-    explicit NoUseRealAbortsScope(TurboAssembler* tasm)
-        : saved_(tasm->use_real_aborts_), tasm_(tasm) {
-      tasm_->use_real_aborts_ = false;
-    }
-    ~NoUseRealAbortsScope() { tasm_->use_real_aborts_ = saved_; }
-
-   private:
-    bool saved_;
-    TurboAssembler* tasm_;
-  };
 
 #if DEBUG
   void set_allow_macro_instructions(bool value) {
@@ -1266,8 +1245,6 @@ class TurboAssembler : public TurboAssemblerBase {
   // Scratch registers available for use by the MacroAssembler.
   CPURegList tmp_list_ = DefaultTmpList();
   CPURegList fptmp_list_ = DefaultFPTmpList();
-
-  bool use_real_aborts_ = true;
 
   // Helps resolve branching to labels potentially out of range.
   // If the label is not bound, it registers the information necessary to later
