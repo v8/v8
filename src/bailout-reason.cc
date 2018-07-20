@@ -11,7 +11,7 @@ namespace internal {
 #define ERROR_MESSAGES_TEXTS(C, T) T,
 
 const char* GetBailoutReason(BailoutReason reason) {
-  DCHECK_LT(reason, BailoutReason::kLastErrorMessage);
+  DCHECK_LT(reason, BailoutReason::kNumberOfReasons);
   DCHECK_GE(reason, BailoutReason::kNoReason);
   static const char* error_messages_[] = {
       BAILOUT_MESSAGES_LIST(ERROR_MESSAGES_TEXTS)};
@@ -19,7 +19,7 @@ const char* GetBailoutReason(BailoutReason reason) {
 }
 
 const char* GetAbortReason(AbortReason reason) {
-  DCHECK_LT(reason, AbortReason::kLastErrorMessage);
+  DCHECK_LT(reason, AbortReason::kNumberOfReasons);
   DCHECK_GE(reason, AbortReason::kNoReason);
   static const char* error_messages_[] = {
       ABORT_MESSAGES_LIST(ERROR_MESSAGES_TEXTS)};
@@ -28,7 +28,7 @@ const char* GetAbortReason(AbortReason reason) {
 
 bool IsValidAbortReason(int reason_id) {
   return reason_id >= static_cast<int>(AbortReason::kNoReason) &&
-         reason_id < static_cast<int>(AbortReason::kLastErrorMessage);
+         reason_id < static_cast<int>(AbortReason::kNumberOfReasons);
 }
 
 #undef ERROR_MESSAGES_TEXTS
