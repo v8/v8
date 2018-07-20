@@ -30,6 +30,8 @@ enum RuntimeExceptionSupport : bool {
 
 enum UseTrapHandler : bool { kUseTrapHandler = true, kNoTrapHandler = false };
 
+enum LowerSimd : bool { kLowerSimd = true, kNoLowerSimd = false };
+
 // The {ModuleEnv} encapsulates the module data that is used during compilation.
 // ModuleEnvs are shareable across multiple compilations.
 struct ModuleEnv {
@@ -45,11 +47,15 @@ struct ModuleEnv {
   // be generated differently.
   const RuntimeExceptionSupport runtime_exception_support;
 
+  const LowerSimd lower_simd;
+
   constexpr ModuleEnv(const WasmModule* module, UseTrapHandler use_trap_handler,
-                      RuntimeExceptionSupport runtime_exception_support)
+                      RuntimeExceptionSupport runtime_exception_support,
+                      LowerSimd lower_simd = kNoLowerSimd)
       : module(module),
         use_trap_handler(use_trap_handler),
-        runtime_exception_support(runtime_exception_support) {}
+        runtime_exception_support(runtime_exception_support),
+        lower_simd(lower_simd) {}
 };
 
 class WasmCompilationUnit final {
@@ -64,8 +70,7 @@ class WasmCompilationUnit final {
   // used by callers to pass Counters.
   WasmCompilationUnit(WasmEngine* wasm_engine, ModuleEnv*, wasm::NativeModule*,
                       wasm::FunctionBody, wasm::WasmName, int index, Counters*,
-                      CompilationMode = GetDefaultCompilationMode(),
-                      bool lower_simd = false);
+                      CompilationMode = GetDefaultCompilationMode());
 
   ~WasmCompilationUnit();
 
@@ -91,8 +96,6 @@ class WasmCompilationUnit final {
   Counters* counters_;
   int func_index_;
   wasm::NativeModule* native_module_;
-  // TODO(wasm): Put {lower_simd_} inside the {ModuleEnv}.
-  bool lower_simd_;
   CompilationMode mode_;
   // LiftoffCompilationUnit, set if {mode_ == kLiftoff}.
   std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;

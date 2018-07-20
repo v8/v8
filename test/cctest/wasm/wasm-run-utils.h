@@ -54,8 +54,6 @@ enum WasmExecutionMode {
   kExecuteLiftoff
 };
 
-enum LowerSimd : bool { kLowerSimd = true, kNoLowerSimd = false };
-
 using compiler::CallDescriptor;
 using compiler::MachineTypeForC;
 using compiler::Node;

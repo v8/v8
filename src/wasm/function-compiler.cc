@@ -36,7 +36,7 @@ WasmCompilationUnit::GetDefaultCompilationMode() {
 WasmCompilationUnit::WasmCompilationUnit(
     WasmEngine* wasm_engine, ModuleEnv* env, wasm::NativeModule* native_module,
     wasm::FunctionBody body, wasm::WasmName name, int index, Counters* counters,
-    CompilationMode mode, bool lower_simd)
+    CompilationMode mode)
     : env_(env),
       wasm_engine_(wasm_engine),
       func_body_(body),
@@ -44,7 +44,6 @@ WasmCompilationUnit::WasmCompilationUnit(
       counters_(counters),
       func_index_(index),
       native_module_(native_module),
-      lower_simd_(lower_simd),
       mode_(mode) {
   DCHECK_GE(index, env->module->num_imported_functions);
   DCHECK_LT(index, env->module->functions.size());

@@ -5114,7 +5114,7 @@ SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
   builder.LowerInt64();
 
   if (builder.has_simd() &&
-      (!CpuFeatures::SupportsWasmSimd128() || wasm_unit_->lower_simd_)) {
+      (!CpuFeatures::SupportsWasmSimd128() || wasm_unit_->env_->lower_simd)) {
     SimdScalarLowering(
         mcgraph,
         CreateMachineSignature(mcgraph->zone(), wasm_unit_->func_body_.sig))

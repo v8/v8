@@ -195,7 +195,7 @@ ModuleEnv TestingModuleBuilder::CreateModuleEnv() {
   return {
       test_module_ptr_,
       trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler,
-      runtime_exception_support_};
+      runtime_exception_support_, lower_simd()};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
@@ -424,8 +424,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
       builder_->instance_object()->module_object()->native_module();
   WasmCompilationUnit unit(isolate()->wasm_engine(), &module_env, native_module,
                            func_body, func_name, function_->func_index,
-                           isolate()->counters(), comp_mode,
-                           builder_->lower_simd());
+                           isolate()->counters(), comp_mode);
   unit.ExecuteCompilation();
   wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
   if (wasm::WasmCode::ShouldBeLogged(isolate())) {
