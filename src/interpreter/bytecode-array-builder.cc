@@ -1207,7 +1207,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ReThrow() {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Abort(AbortReason reason) {
-  DCHECK_LT(reason, AbortReason::kNumberOfReasons);
+  DCHECK_LT(reason, AbortReason::kLastErrorMessage);
   DCHECK_GE(reason, AbortReason::kNoReason);
   OutputAbort(static_cast<int>(reason));
   return *this;
