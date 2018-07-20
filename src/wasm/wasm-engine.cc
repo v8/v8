@@ -25,8 +25,9 @@ WasmEngine::~WasmEngine() = default;
 bool WasmEngine::SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes) {
   // TODO(titzer): remove dependency on the isolate.
   if (bytes.start() == nullptr || bytes.length() == 0) return false;
-  ModuleResult result = SyncDecodeWasmModule(isolate, bytes.start(),
-                                             bytes.end(), true, kWasmOrigin);
+  ModuleResult result =
+      DecodeWasmModule(bytes.start(), bytes.end(), true, kWasmOrigin,
+                       isolate->counters(), allocator());
   return result.ok();
 }
 
@@ -34,8 +35,9 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
     Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
-  ModuleResult result = SyncDecodeWasmModule(isolate, bytes.start(),
-                                             bytes.end(), false, kAsmJsOrigin);
+  ModuleResult result =
+      DecodeWasmModule(bytes.start(), bytes.end(), false, kAsmJsOrigin,
+                       isolate->counters(), allocator());
   CHECK(!result.failed());
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
@@ -46,8 +48,9 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompileTranslatedAsmJs(
 
 MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes) {
-  ModuleResult result = SyncDecodeWasmModule(isolate, bytes.start(),
-                                             bytes.end(), false, kWasmOrigin);
+  ModuleResult result =
+      DecodeWasmModule(bytes.start(), bytes.end(), false, kWasmOrigin,
+                       isolate->counters(), allocator());
   if (result.failed()) {
     thrower->CompileFailed("Wasm decoding failed", result);
     return {};

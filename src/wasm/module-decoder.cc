@@ -288,11 +288,11 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  void StartDecoding(Isolate* isolate) {
+  void StartDecoding(Counters* counters, AccountingAllocator* allocator) {
     CHECK_NULL(module_);
-    SetCounters(isolate->counters());
-    module_.reset(new WasmModule(base::make_unique<Zone>(
-        isolate->wasm_engine()->allocator(), "signatures")));
+    SetCounters(counters);
+    module_.reset(
+        new WasmModule(base::make_unique<Zone>(allocator, "signatures")));
     module_->initial_pages = 0;
     module_->maximum_pages = 0;
     module_->mem_export = false;
@@ -849,8 +849,9 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   // Decodes an entire module.
-  ModuleResult DecodeModule(Isolate* isolate, bool verify_functions = true) {
-    StartDecoding(isolate);
+  ModuleResult DecodeModule(Counters* counters, AccountingAllocator* allocator,
+                            bool verify_functions = true) {
+    StartDecoding(counters, allocator);
     uint32_t offset = 0;
     Vector<const byte> orig_bytes(start(), end() - start());
     DecodeModuleHeader(Vector<const uint8_t>(start(), end() - start()), offset);
@@ -1379,9 +1380,10 @@ class ModuleDecoderImpl : public Decoder {
   }
 };
 
-ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
-                              const byte* module_end, bool verify_functions,
-                              ModuleOrigin origin, Counters* counters) {
+ModuleResult DecodeWasmModule(const byte* module_start, const byte* module_end,
+                              bool verify_functions, ModuleOrigin origin,
+                              Counters* counters,
+                              AccountingAllocator* allocator) {
   auto counter =
       SELECT_WASM_COUNTER(counters, origin, wasm_decode, module_time);
   TimedHistogramScope wasm_decode_module_time_scope(counter);
@@ -1396,7 +1398,8 @@ ModuleResult DecodeWasmModule(Isolate* isolate, const byte* module_start,
   // Signatures are stored in zone memory, which have the same lifetime
   // as the {module}.
   ModuleDecoderImpl decoder(module_start, module_end, origin);
-  ModuleResult result = decoder.DecodeModule(isolate, verify_functions);
+  ModuleResult result =
+      decoder.DecodeModule(counters, allocator, verify_functions);
   // TODO(bradnelson): Improve histogram handling of size_t.
   // TODO(titzer): this isn't accurate, since it doesn't count the data
   // allocated on the C++ heap.
@@ -1417,10 +1420,12 @@ const std::shared_ptr<WasmModule>& ModuleDecoder::shared_module() const {
   return impl_->shared_module();
 }
 
-void ModuleDecoder::StartDecoding(Isolate* isolate, ModuleOrigin origin) {
+void ModuleDecoder::StartDecoding(Counters* counters,
+                                  AccountingAllocator* allocator,
+                                  ModuleOrigin origin) {
   DCHECK_NULL(impl_);
   impl_.reset(new ModuleDecoderImpl(origin));
-  impl_->StartDecoding(isolate);
+  impl_->StartDecoding(counters, allocator);
 }
 
 void ModuleDecoder::DecodeModuleHeader(Vector<const uint8_t> bytes,
@@ -1470,21 +1475,6 @@ SectionCode ModuleDecoder::IdentifyUnknownSection(Decoder& decoder,
 }
 
 bool ModuleDecoder::ok() { return impl_->ok(); }
-
-ModuleResult SyncDecodeWasmModule(Isolate* isolate, const byte* module_start,
-                                  const byte* module_end, bool verify_functions,
-                                  ModuleOrigin origin) {
-  return DecodeWasmModule(isolate, module_start, module_end, verify_functions,
-                          origin, isolate->counters());
-}
-
-ModuleResult AsyncDecodeWasmModule(
-    Isolate* isolate, const byte* module_start, const byte* module_end,
-    bool verify_functions, ModuleOrigin origin,
-    const std::shared_ptr<Counters> async_counters) {
-  return DecodeWasmModule(isolate, module_start, module_end, verify_functions,
-                          origin, async_counters.get());
-}
 
 FunctionSig* DecodeWasmSignatureForTesting(Zone* zone, const byte* start,
                                            const byte* end) {

@@ -55,16 +55,9 @@ struct LocalNames {
 };
 
 // Decodes the bytes of a wasm module between {module_start} and {module_end}.
-V8_EXPORT_PRIVATE ModuleResult SyncDecodeWasmModule(Isolate* isolate,
-                                                    const byte* module_start,
-                                                    const byte* module_end,
-                                                    bool verify_functions,
-                                                    ModuleOrigin origin);
-
-V8_EXPORT_PRIVATE ModuleResult AsyncDecodeWasmModule(
-    Isolate* isolate, const byte* module_start, const byte* module_end,
-    bool verify_functions, ModuleOrigin origin,
-    const std::shared_ptr<Counters> async_counters);
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
+    const byte* module_start, const byte* module_end, bool verify_functions,
+    ModuleOrigin origin, Counters* counters, AccountingAllocator* allocator);
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone. Returns {nullptr} upon failure.
@@ -118,7 +111,7 @@ class ModuleDecoder {
   ModuleDecoder();
   ~ModuleDecoder();
 
-  void StartDecoding(Isolate* isolate,
+  void StartDecoding(Counters* counters, AccountingAllocator* allocator,
                      ModuleOrigin origin = ModuleOrigin::kWasmOrigin);
 
   void DecodeModuleHeader(Vector<const uint8_t> bytes, uint32_t offset);

@@ -534,9 +534,9 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   if (!IsSupportedVersion(isolate, data)) {
     return {};
   }
-  ModuleResult decode_result =
-      SyncDecodeWasmModule(isolate, wire_bytes.start(), wire_bytes.end(), false,
-                           i::wasm::kWasmOrigin);
+  ModuleResult decode_result = DecodeWasmModule(
+      wire_bytes.start(), wire_bytes.end(), false, i::wasm::kWasmOrigin,
+      isolate->counters(), isolate->allocator());
   if (!decode_result.ok()) return {};
   CHECK_NOT_NULL(decode_result.val);
   WasmModule* module = decode_result.val.get();

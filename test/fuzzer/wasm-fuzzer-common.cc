@@ -153,9 +153,9 @@ std::ostream& operator<<(std::ostream& os, const PrintName& name) {
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
   constexpr bool kVerifyFunctions = false;
-  ModuleResult module_res =
-      SyncDecodeWasmModule(isolate, wire_bytes.start(), wire_bytes.end(),
-                           kVerifyFunctions, ModuleOrigin::kWasmOrigin);
+  ModuleResult module_res = DecodeWasmModule(
+      wire_bytes.start(), wire_bytes.end(), kVerifyFunctions,
+      ModuleOrigin::kWasmOrigin, isolate->counters(), isolate->allocator());
   CHECK(module_res.ok());
   WasmModule* module = module_res.val.get();
   CHECK_NOT_NULL(module);

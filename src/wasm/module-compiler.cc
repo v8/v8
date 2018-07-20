@@ -2338,9 +2338,10 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       DisallowHeapAllocation no_allocation;
       // Decode the module bytes.
       TRACE_COMPILE("(1) Decoding module...\n");
-      result = AsyncDecodeWasmModule(job_->isolate_, job_->wire_bytes_.start(),
-                                     job_->wire_bytes_.end(), false,
-                                     kWasmOrigin, job_->async_counters());
+      result =
+          DecodeWasmModule(job_->wire_bytes_.start(), job_->wire_bytes_.end(),
+                           false, kWasmOrigin, job_->async_counters().get(),
+                           job_->isolate()->wasm_engine()->allocator());
     }
     if (result.failed()) {
       // Decoding failure; reject the promise and clean up.
@@ -2603,7 +2604,8 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
 bool AsyncStreamingProcessor::ProcessModuleHeader(Vector<const uint8_t> bytes,
                                                   uint32_t offset) {
   TRACE_STREAMING("Process module header...\n");
-  decoder_.StartDecoding(job_->isolate());
+  decoder_.StartDecoding(job_->async_counters().get(),
+                         job_->isolate()->wasm_engine()->allocator());
   job_->module_ = decoder_.shared_module();
   decoder_.DecodeModuleHeader(bytes, offset);
   if (!decoder_.ok()) {
