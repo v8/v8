@@ -199,12 +199,11 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   }
 
   // Emit table of bitmaps.
-  ZoneList<uint8_t> bits(bytes_per_entry, zone_);
+  ZoneVector<uint8_t> bits(bytes_per_entry, 0, zone_);
   for (int i = 0; i < length; i++) {
     ZoneList<int>* indexes = deoptimization_info_[i].indexes;
     ZoneList<int>* registers = deoptimization_info_[i].registers;
-    bits.Clear();
-    bits.AddBlock(0, bytes_per_entry, zone_);
+    std::fill(bits.begin(), bits.end(), 0);
 
     // Run through the registers (if any).
     DCHECK(IsAligned(kNumSafepointRegisters, kBitsPerByte));
