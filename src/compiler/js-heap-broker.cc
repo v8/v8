@@ -167,13 +167,12 @@ void JSFunctionRef::EnsureHasInitialMap() const {
 }
 
 // TODO(mslekova): Pre-compute these on the main thread.
-MapRef MapRef::AsElementsKind(ElementsKind kind,
-                              const JSHeapBroker* broker) const {
+MapRef MapRef::AsElementsKind(ElementsKind kind) const {
   AllowHandleAllocation handle_allocation;
   AllowHeapAllocation heap_allocation;
   AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker,
-                Map::AsElementsKind(broker->isolate(), object<Map>(), kind));
+  return MapRef(broker(),
+                Map::AsElementsKind(broker()->isolate(), object<Map>(), kind));
 }
 
 SlackTrackingResult JSFunctionRef::FinishSlackTracking() const {

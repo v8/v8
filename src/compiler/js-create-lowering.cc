@@ -491,7 +491,7 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   // integer, always creates a holey backing store.
   if (!IsHoleyElementsKind(initial_map.elements_kind())) {
     initial_map = initial_map.AsElementsKind(
-        GetHoleyElementsKind(initial_map.elements_kind()), js_heap_broker());
+        GetHoleyElementsKind(initial_map.elements_kind()));
   }
 
   // Check that the {limit} is an unsigned integer in the valid range.
@@ -540,7 +540,7 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   ElementsKind elements_kind = initial_map.elements_kind();
   if (NodeProperties::GetType(length).Max() > 0.0) {
     elements_kind = GetHoleyElementsKind(elements_kind);
-    initial_map = initial_map.AsElementsKind(elements_kind, js_heap_broker());
+    initial_map = initial_map.AsElementsKind(elements_kind);
   }
   DCHECK(IsFastElementsKind(elements_kind));
 
@@ -731,8 +731,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       if (site) {
         ElementsKind elements_kind = site->GetElementsKind();
         if (initial_map.elements_kind() != elements_kind) {
-          initial_map =
-              initial_map.AsElementsKind(elements_kind, js_heap_broker());
+          initial_map = initial_map.AsElementsKind(elements_kind);
         }
         can_inline_call = site->CanInlineCall();
         pretenure = dependencies()->DependOnPretenureMode(*site);
@@ -756,8 +755,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
               elements_kind, IsHoleyElementsKind(elements_kind)
                                  ? HOLEY_ELEMENTS
                                  : PACKED_ELEMENTS);
-          initial_map =
-              initial_map.AsElementsKind(elements_kind, js_heap_broker());
+          initial_map = initial_map.AsElementsKind(elements_kind);
           return ReduceNewArray(node, std::vector<Node*>{length}, initial_map,
                                 pretenure);
         }
@@ -813,8 +811,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
           // we cannot inline this invocation of the Array constructor here.
           return NoChange();
         }
-        initial_map =
-            initial_map.AsElementsKind(elements_kind, js_heap_broker());
+        initial_map = initial_map.AsElementsKind(elements_kind);
 
         return ReduceNewArray(node, values, initial_map, pretenure);
       }

@@ -304,7 +304,7 @@ class MapRef : public HeapObjectRef {
   ObjectRef constructor_or_backpointer() const;
   ElementsKind elements_kind() const;
 
-  MapRef AsElementsKind(ElementsKind kind, const JSHeapBroker* broker) const;
+  MapRef AsElementsKind(ElementsKind kind) const;
 
   bool is_stable() const;
   bool has_prototype_slot() const;
