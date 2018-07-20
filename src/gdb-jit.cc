@@ -19,6 +19,7 @@
 #include "src/ostreams.h"
 #include "src/snapshot/natives.h"
 #include "src/splay-tree-inl.h"
+#include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 namespace internal {
@@ -834,7 +835,7 @@ class ELFSymbol BASE_EMBEDDED {
   };
 #endif
 
-  void Write(Writer::Slot<SerializedLayout> s, ELFStringTable* t) {
+  void Write(Writer::Slot<SerializedLayout> s, ELFStringTable* t) const {
     // Convert symbol names from strings to indexes in the string table.
     s->name = static_cast<uint32_t>(t->Add(name));
     s->value = value;
@@ -858,17 +859,17 @@ class ELFSymbolTable : public ELFSection {
  public:
   ELFSymbolTable(const char* name, Zone* zone)
       : ELFSection(name, TYPE_SYMTAB, sizeof(uintptr_t)),
-        locals_(1, zone),
-        globals_(1, zone) {
-  }
+        locals_(zone),
+        globals_(zone) {}
 
   virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
     w->Align(header->alignment);
-    int total_symbols = locals_.length() + globals_.length() + 1;
+    size_t total_symbols = locals_.size() + globals_.size() + 1;
     header->offset = w->position();
 
     Writer::Slot<ELFSymbol::SerializedLayout> symbols =
-        w->CreateSlotsHere<ELFSymbol::SerializedLayout>(total_symbols);
+        w->CreateSlotsHere<ELFSymbol::SerializedLayout>(
+            static_cast<uint32_t>(total_symbols));
 
     header->size = w->position() - header->offset;
 
@@ -883,15 +884,17 @@ class ELFSymbolTable : public ELFSection {
                                                   ELFSymbol::TYPE_NOTYPE,
                                                   0));
     WriteSymbolsList(&locals_, symbols.at(1), strtab);
-    WriteSymbolsList(&globals_, symbols.at(locals_.length() + 1), strtab);
+    WriteSymbolsList(&globals_,
+                     symbols.at(static_cast<uint32_t>(locals_.size() + 1)),
+                     strtab);
     strtab->DetachWriter();
   }
 
-  void Add(const ELFSymbol& symbol, Zone* zone) {
+  void Add(const ELFSymbol& symbol) {
     if (symbol.binding() == ELFSymbol::BIND_LOCAL) {
-      locals_.Add(symbol, zone);
+      locals_.push_back(symbol);
     } else {
-      globals_.Add(symbol, zone);
+      globals_.push_back(symbol);
     }
   }
 
@@ -900,23 +903,22 @@ class ELFSymbolTable : public ELFSection {
     ELFSection::PopulateHeader(header);
     // We are assuming that string table will follow symbol table.
     header->link = index() + 1;
-    header->info = locals_.length() + 1;
+    header->info = static_cast<uint32_t>(locals_.size() + 1);
     header->entry_size = sizeof(ELFSymbol::SerializedLayout);
   }
 
  private:
-  void WriteSymbolsList(const ZoneList<ELFSymbol>* src,
+  void WriteSymbolsList(const ZoneChunkList<ELFSymbol>* src,
                         Writer::Slot<ELFSymbol::SerializedLayout> dst,
                         ELFStringTable* strtab) {
-    for (int i = 0, len = src->length();
-         i < len;
-         i++) {
+    size_t len = src->size();
+    for (uint32_t i = 0; i < len; i++) {
       src->at(i).Write(dst.at(i), strtab);
     }
   }
 
-  ZoneList<ELFSymbol> locals_;
-  ZoneList<ELFSymbol> globals_;
+  ZoneChunkList<ELFSymbol> locals_;
+  ZoneChunkList<ELFSymbol> globals_;
 };
 #endif  // defined(__ELF)
 
@@ -1050,21 +1052,12 @@ static void CreateSymbolsTable(CodeDescription* desc,
   elf->AddSection(symtab);
   elf->AddSection(strtab);
 
-  symtab->Add(ELFSymbol("V8 Code",
-                        0,
-                        0,
-                        ELFSymbol::BIND_LOCAL,
-                        ELFSymbol::TYPE_FILE,
-                        ELFSection::INDEX_ABSOLUTE),
-              zone);
+  symtab->Add(ELFSymbol("V8 Code", 0, 0, ELFSymbol::BIND_LOCAL,
+                        ELFSymbol::TYPE_FILE, ELFSection::INDEX_ABSOLUTE));
 
-  symtab->Add(ELFSymbol(desc->name(),
-                        0,
-                        desc->CodeSize(),
-                        ELFSymbol::BIND_GLOBAL,
-                        ELFSymbol::TYPE_FUNC,
-                        text_section_index),
-              zone);
+  symtab->Add(ELFSymbol(desc->name(), 0, desc->CodeSize(),
+                        ELFSymbol::BIND_GLOBAL, ELFSymbol::TYPE_FUNC,
+                        text_section_index));
 }
 #endif  // defined(__ELF)
 
