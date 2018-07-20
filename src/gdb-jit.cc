@@ -604,9 +604,9 @@ class MachO BASE_EMBEDDED {
 #if defined(__ELF)
 class ELF BASE_EMBEDDED {
  public:
-  explicit ELF(Zone* zone) : zone_(zone), sections_(6, zone) {
-    sections_.Add(new(zone) ELFSection("", ELFSection::TYPE_NULL, 0), zone);
-    sections_.Add(new(zone) ELFStringTable(".shstrtab"), zone);
+  explicit ELF(Zone* zone) : sections_(zone) {
+    sections_.push_back(new (zone) ELFSection("", ELFSection::TYPE_NULL, 0));
+    sections_.push_back(new (zone) ELFStringTable(".shstrtab"));
   }
 
   void Write(Writer* w) {
@@ -615,14 +615,12 @@ class ELF BASE_EMBEDDED {
     WriteSections(w);
   }
 
-  ELFSection* SectionAt(uint32_t index) {
-    return sections_[index];
-  }
+  ELFSection* SectionAt(uint32_t index) { return sections_.at(index); }
 
-  uint32_t AddSection(ELFSection* section) {
-    sections_.Add(section, zone_);
-    section->set_index(sections_.length() - 1);
-    return sections_.length() - 1;
+  size_t AddSection(ELFSection* section) {
+    sections_.push_back(section);
+    section->set_index(sections_.size() - 1);
+    return sections_.size() - 1;
   }
 
  private:
@@ -705,7 +703,7 @@ class ELF BASE_EMBEDDED {
     header->pht_entry_size = 0;
     header->pht_entry_num = 0;
     header->sht_entry_size = sizeof(ELFSection::Header);
-    header->sht_entry_num = sections_.length();
+    header->sht_entry_num = sections_.size();
     header->sht_strtab_index = 1;
   }
 
@@ -714,15 +712,16 @@ class ELF BASE_EMBEDDED {
     DCHECK(w->position() == sizeof(ELFHeader));
 
     Writer::Slot<ELFSection::Header> headers =
-        w->CreateSlotsHere<ELFSection::Header>(sections_.length());
+        w->CreateSlotsHere<ELFSection::Header>(
+            static_cast<uint32_t>(sections_.size()));
 
     // String table for section table is the first section.
     ELFStringTable* strtab = static_cast<ELFStringTable*>(SectionAt(1));
     strtab->AttachWriter(w);
-    for (int i = 0, length = sections_.length();
-         i < length;
-         i++) {
-      sections_[i]->PopulateHeader(headers.at(i), strtab);
+    uint32_t index = 0;
+    for (ELFSection* section : sections_) {
+      section->PopulateHeader(headers.at(index), strtab);
+      index++;
     }
     strtab->DetachWriter();
   }
@@ -735,15 +734,14 @@ class ELF BASE_EMBEDDED {
     Writer::Slot<ELFSection::Header> headers =
         w->SlotAt<ELFSection::Header>(sizeof(ELFHeader));
 
-    for (int i = 0, length = sections_.length();
-         i < length;
-         i++) {
-      sections_[i]->WriteBody(headers.at(i), w);
+    uint32_t index = 0;
+    for (ELFSection* section : sections_) {
+      section->WriteBody(headers.at(index), w);
+      index++;
     }
   }
 
-  Zone* zone_;
-  ZoneList<ELFSection*> sections_;
+  ZoneChunkList<ELFSection*> sections_;
 };
 
 
@@ -1041,10 +1039,8 @@ class CodeDescription BASE_EMBEDDED {
 };
 
 #if defined(__ELF)
-static void CreateSymbolsTable(CodeDescription* desc,
-                               Zone* zone,
-                               ELF* elf,
-                               int text_section_index) {
+static void CreateSymbolsTable(CodeDescription* desc, Zone* zone, ELF* elf,
+                               size_t text_section_index) {
   ELFSymbolTable* symtab = new(zone) ELFSymbolTable(".symtab", zone);
   ELFStringTable* strtab = new(zone) ELFStringTable(".strtab");
 
@@ -1921,15 +1917,9 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
   ELF elf(&zone);
   Writer w(&elf);
 
-  int text_section_index = elf.AddSection(
-      new(&zone) FullHeaderELFSection(
-          ".text",
-          ELFSection::TYPE_NOBITS,
-          kCodeAlignment,
-          desc->CodeStart(),
-          0,
-          desc->CodeSize(),
-          ELFSection::FLAG_ALLOC | ELFSection::FLAG_EXEC));
+  size_t text_section_index = elf.AddSection(new (&zone) FullHeaderELFSection(
+      ".text", ELFSection::TYPE_NOBITS, kCodeAlignment, desc->CodeStart(), 0,
+      desc->CodeSize(), ELFSection::FLAG_ALLOC | ELFSection::FLAG_EXEC));
 
   CreateSymbolsTable(desc, &zone, &elf, text_section_index);
 
