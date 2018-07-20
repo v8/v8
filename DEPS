@@ -16,7 +16,7 @@ deps = {
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '20c1311957dd95732ba224f0f071f286f31cd047',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3899f1bcce7bb87be6af32aec08f8a373e5ae417',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'a9a2bd3ee4f1d313651c5272252aaf2a3e7ed529',
   'v8/third_party/instrumented_libraries':
@@ -66,7 +66,7 @@ deps = {
   'v8/tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'f30572cab0ed7d31dc5547e709670ac9d252c6c0',
   'v8/tools/luci-go':
-    Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + 'abcd908f74fdb155cc8870f5cae48dff1ece7c3c',
+    Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '445d7c4b6a4f10e188edb395b132e3996b127691',
   'v8/test/wasm-js':
     Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '2113ea7e106f8a964e0445ba38f289d2aa845edd',
 }
