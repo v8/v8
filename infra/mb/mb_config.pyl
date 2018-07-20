@@ -716,7 +716,7 @@
     },
 
     'release': {
-      'gn_args': 'is_debug=false',
+      'gn_args': 'is_debug=false android_unstripped_runtime_outputs=false',
     },
 
     'release_bot': {
