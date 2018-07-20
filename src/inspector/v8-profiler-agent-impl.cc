@@ -55,9 +55,9 @@ std::unique_ptr<protocol::Profiler::ProfileNode> buildInspectorObjectFor(
   v8::HandleScope handleScope(isolate);
   auto callFrame =
       protocol::Runtime::CallFrame::create()
-          .setFunctionName(toProtocolString(node->GetFunctionName()))
+          .setFunctionName(toProtocolString(isolate, node->GetFunctionName()))
           .setScriptId(String16::fromInteger(node->GetScriptId()))
-          .setUrl(toProtocolString(node->GetScriptResourceName()))
+          .setUrl(toProtocolString(isolate, node->GetScriptResourceName()))
           .setLineNumber(node->GetLineNumber() - 1)
           .setColumnNumber(node->GetColumnNumber() - 1)
           .build();
@@ -354,6 +354,7 @@ Response coverageToProtocol(
       functions->addItem(
           protocol::Profiler::FunctionCoverage::create()
               .setFunctionName(toProtocolString(
+                  isolate,
                   function_data.Name().FromMaybe(v8::Local<v8::String>())))
               .setRanges(std::move(ranges))
               .setIsBlockCoverage(function_data.HasBlockCoverage())
@@ -362,7 +363,7 @@ Response coverageToProtocol(
     String16 url;
     v8::Local<v8::String> name;
     if (script->Name().ToLocal(&name) || script->SourceURL().ToLocal(&name)) {
-      url = toProtocolString(name);
+      url = toProtocolString(isolate, name);
     }
     result->addItem(protocol::Profiler::ScriptCoverage::create()
                         .setScriptId(String16::fromInteger(script->Id()))
@@ -414,10 +415,11 @@ typeProfileToProtocol(v8::Isolate* isolate,
       std::unique_ptr<protocol::Array<protocol::Profiler::TypeObject>> types =
           protocol::Array<protocol::Profiler::TypeObject>::create();
       for (const auto& type : entry.Types()) {
-        types->addItem(protocol::Profiler::TypeObject::create()
-                           .setName(toProtocolString(
-                               type.FromMaybe(v8::Local<v8::String>())))
-                           .build());
+        types->addItem(
+            protocol::Profiler::TypeObject::create()
+                .setName(toProtocolString(
+                    isolate, type.FromMaybe(v8::Local<v8::String>())))
+                .build());
       }
       entries->addItem(protocol::Profiler::TypeProfileEntry::create()
                            .setOffset(entry.SourcePosition())
@@ -427,7 +429,7 @@ typeProfileToProtocol(v8::Isolate* isolate,
     String16 url;
     v8::Local<v8::String> name;
     if (script->Name().ToLocal(&name) || script->SourceURL().ToLocal(&name)) {
-      url = toProtocolString(name);
+      url = toProtocolString(isolate, name);
     }
     result->addItem(protocol::Profiler::ScriptTypeProfile::create()
                         .setScriptId(String16::fromInteger(script->Id()))

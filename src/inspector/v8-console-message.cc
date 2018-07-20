@@ -168,7 +168,9 @@ class V8ValueStringBuilder {
 
   bool append(v8::Local<v8::String> string) {
     if (m_tryCatch.HasCaught()) return false;
-    if (!string.IsEmpty()) m_builder.append(toProtocolString(string));
+    if (!string.IsEmpty()) {
+      m_builder.append(toProtocolString(m_isolate, string));
+    }
     return true;
   }
 

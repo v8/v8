@@ -112,7 +112,7 @@ class ActualScript : public V8DebuggerScript {
   ActualScript(v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
                bool isLiveEdit)
       : V8DebuggerScript(isolate, String16::fromInteger(script->Id()),
-                         GetNameOrSourceUrl(script)),
+                         GetNameOrSourceUrl(isolate, script)),
         m_isLiveEdit(isLiveEdit) {
     Initialize(script);
   }
@@ -218,10 +218,11 @@ class ActualScript : public V8DebuggerScript {
   }
 
  private:
-  String16 GetNameOrSourceUrl(v8::Local<v8::debug::Script> script) {
+  String16 GetNameOrSourceUrl(v8::Isolate* isolate,
+                              v8::Local<v8::debug::Script> script) {
     v8::Local<v8::String> name;
     if (script->Name().ToLocal(&name) || script->SourceURL().ToLocal(&name))
-      return toProtocolString(name);
+      return toProtocolString(isolate, name);
     return String16();
   }
 
@@ -231,9 +232,10 @@ class ActualScript : public V8DebuggerScript {
 
   void Initialize(v8::Local<v8::debug::Script> script) {
     v8::Local<v8::String> tmp;
-    if (script->SourceURL().ToLocal(&tmp)) m_sourceURL = toProtocolString(tmp);
+    if (script->SourceURL().ToLocal(&tmp))
+      m_sourceURL = toProtocolString(m_isolate, tmp);
     if (script->SourceMappingURL().ToLocal(&tmp))
-      m_sourceMappingURL = toProtocolString(tmp);
+      m_sourceMappingURL = toProtocolString(m_isolate, tmp);
     m_startLine = script->LineOffset();
     m_startColumn = script->ColumnOffset();
     std::vector<int> lineEnds = script->LineEnds();
@@ -254,7 +256,7 @@ class ActualScript : public V8DebuggerScript {
     USE(script->ContextId().To(&m_executionContextId));
 
     if (script->Source().ToLocal(&tmp)) {
-      m_source = toProtocolString(tmp);
+      m_source = toProtocolString(m_isolate, tmp);
     }
 
     m_isModule = script->IsModule();
