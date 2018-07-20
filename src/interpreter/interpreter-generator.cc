@@ -2437,6 +2437,26 @@ IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
   Dispatch();
 }
 
+// CloneObject <source_idx> <flags> <feedback_slot>
+//
+// Allocates a new JSObject with each enumerable own property copied from
+// {source}, converting getters into data properties.
+IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
+  Node* source = LoadRegisterAtOperandIndex(0);
+  Node* bytecode_flags = BytecodeOperandFlag(1);
+  Node* raw_flags =
+      DecodeWordFromWord32<CreateObjectLiteralFlags::FlagsBits>(bytecode_flags);
+  Node* smi_flags = SmiTag(raw_flags);
+  Node* raw_slot = BytecodeOperandIdx(2);
+  Node* smi_slot = SmiTag(raw_slot);
+  Node* feedback_vector = LoadFeedbackVector();
+  Node* context = GetContext();
+  Node* result = CallBuiltin(Builtins::kCloneObjectIC, context, source,
+                             smi_flags, smi_slot, feedback_vector);
+  SetAccumulator(result);
+  Dispatch();
+}
+
 // GetTemplateObject <descriptor_idx> <literal_idx>
 //
 // Creates the template to pass for tagged templates and returns it in the

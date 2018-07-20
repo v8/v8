@@ -67,6 +67,7 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
       return 1;
 
     case FeedbackSlotKind::kCall:
+    case FeedbackSlotKind::kCloneObject:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
@@ -337,6 +338,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
       }
       case FeedbackSlotKind::kCreateClosure:
       case FeedbackSlotKind::kLiteral:
+      case FeedbackSlotKind::kCloneObject:
         break;
       case FeedbackSlotKind::kInvalid:
       case FeedbackSlotKind::kKindsNumber:

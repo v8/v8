@@ -1989,6 +1989,13 @@ TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
                                needs_poisoning));
 }
 
+TNode<IntPtrT> CodeStubAssembler::LoadPropertyArrayLength(
+    TNode<PropertyArray> object) {
+  TNode<IntPtrT> value =
+      LoadAndUntagObjectField(object, PropertyArray::kLengthAndHashOffset);
+  return Signed(DecodeWord<PropertyArray::LengthField>(value));
+}
+
 TNode<RawPtrT> CodeStubAssembler::LoadFixedTypedArrayBackingStore(
     TNode<FixedTypedArrayBase> typed_array) {
   // Backing store = external_pointer + base_pointer.

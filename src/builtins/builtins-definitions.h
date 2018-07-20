@@ -639,6 +639,7 @@ namespace internal {
   TFH(LoadGlobalICInsideTypeof, LoadGlobalWithVector)                          \
   TFH(LoadGlobalICTrampoline, LoadGlobal)                                      \
   TFH(LoadGlobalICInsideTypeofTrampoline, LoadGlobal)                          \
+  TFH(CloneObjectIC, CloneObjectWithVector)                                    \
                                                                                \
   /* Map */                                                                    \
   TFS(FindOrderedHashMapEntry, kTable, kKey)                                   \

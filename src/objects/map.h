@@ -212,6 +212,8 @@ class Map : public HeapObject {
   // Tells how many unused property fields (in-object or out-of object) are
   // available in the instance (only used for JSObject in fast mode).
   inline int UnusedPropertyFields() const;
+  // Tells how many unused in-object property words are present.
+  inline int UnusedInObjectProperties() const;
   // Updates the counters tracking unused fields in the object.
   inline void SetInObjectUnusedPropertyFields(int unused_property_fields);
   // Updates the counters tracking unused fields in the property array.
@@ -759,6 +761,9 @@ class Map : public HeapObject {
   inline bool CanTransition() const;
 
   inline bool IsBooleanMap() const;
+  inline bool IsNullMap() const;
+  inline bool IsUndefinedMap() const;
+  inline bool IsNullOrUndefinedMap() const;
   inline bool IsPrimitiveMap() const;
   inline bool IsJSReceiverMap() const;
   inline bool IsJSObjectMap() const;

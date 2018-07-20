@@ -2108,42 +2108,70 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     return;
   }
 
-  int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
   // Deep-copy the literal boilerplate.
   uint8_t flags = CreateObjectLiteralFlags::Encode(
       expr->ComputeFlags(), expr->IsFastCloningSupported());
 
   Register literal = register_allocator()->NewRegister();
-  size_t entry;
-  // If constant properties is an empty fixed array, use a cached empty fixed
-  // array to ensure it's only added to the constant pool once.
-  if (expr->properties_count() == 0) {
-    entry = builder()->EmptyObjectBoilerplateDescriptionConstantPoolEntry();
+
+  // Create literal object.
+  int property_index = 0;
+  bool is_spread =
+      expr->properties()->first()->kind() == ObjectLiteral::Property::SPREAD;
+  if (is_spread) {
+    // Avoid the slow path for spreads in the following common cases:
+    //   1) `let obj = { ...source }`
+    //   2) `let obj = { ...source, override: 1 }`
+    //   3) `let obj = { ...source, ...overrides }`
+    RegisterAllocationScope register_scope(this);
+    Expression* property = expr->properties()->first()->value();
+    Register from_value = VisitForRegisterValue(property);
+
+    BytecodeLabels clone_object(zone());
+    builder()->JumpIfUndefined(clone_object.New());
+    builder()->JumpIfNull(clone_object.New());
+    builder()->ToObject(from_value);
+
+    clone_object.Bind(builder());
+    int clone_index = feedback_index(feedback_spec()->AddCloneObjectSlot());
+    builder()->CloneObject(from_value, flags, clone_index);
+    builder()->StoreAccumulatorInRegister(literal);
+    property_index++;
+
+    // FIXME: incorporate compile-time constants following the initial spread
+    // into the CloneObject opcode, to be included in the final value.
   } else {
-    entry = builder()->AllocateDeferredConstantPoolEntry();
-    object_literals_.push_back(std::make_pair(expr, entry));
+    size_t entry;
+    // If constant properties is an empty fixed array, use a cached empty fixed
+    // array to ensure it's only added to the constant pool once.
+    if (expr->properties_count() == 0) {
+      entry = builder()->EmptyObjectBoilerplateDescriptionConstantPoolEntry();
+    } else {
+      entry = builder()->AllocateDeferredConstantPoolEntry();
+      object_literals_.push_back(std::make_pair(expr, entry));
+    }
+    // TODO(cbruni): Directly generate runtime call for literals we cannot
+    // optimize once the CreateShallowObjectLiteral stub is in sync with the TF
+    // optimizations.
+    int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
+    builder()->CreateObjectLiteral(entry, literal_index, flags, literal);
   }
-  // TODO(cbruni): Directly generate runtime call for literals we cannot
-  // optimize once the CreateShallowObjectLiteral stub is in sync with the TF
-  // optimizations.
-  builder()->CreateObjectLiteral(entry, literal_index, flags, literal);
 
   // Store computed values into the literal.
-  int property_index = 0;
   AccessorTable accessor_table(zone());
   for (; property_index < expr->properties()->length(); property_index++) {
     ObjectLiteral::Property* property = expr->properties()->at(property_index);
     if (property->is_computed_name()) break;
-    if (property->IsCompileTimeValue()) continue;
+    if (!is_spread && property->IsCompileTimeValue()) continue;
 
     RegisterAllocationScope inner_register_scope(this);
     Literal* key = property->key()->AsLiteral();
     switch (property->kind()) {
       case ObjectLiteral::Property::SPREAD:
-      case ObjectLiteral::Property::CONSTANT:
         UNREACHABLE();
+      case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-        DCHECK(!property->value()->IsCompileTimeValue());
+        DCHECK(is_spread || !property->value()->IsCompileTimeValue());
         V8_FALLTHROUGH;
       case ObjectLiteral::Property::COMPUTED: {
         // It is safe to use [[Put]] here because the boilerplate already

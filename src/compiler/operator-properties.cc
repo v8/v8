@@ -76,6 +76,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSCreateLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
     case IrOpcode::kJSCreateObject:
+    case IrOpcode::kJSCloneObject:
 
     // Property access operations
     case IrOpcode::kJSLoadNamed:

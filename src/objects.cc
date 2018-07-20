@@ -10179,6 +10179,38 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
   return descriptors;
 }
 
+// Create a new descriptor array with only enumerable, configurable, writeable
+// data properties, but identical field locations.
+Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
+    Isolate* isolate, Handle<DescriptorArray> src, int enumeration_index,
+    int slack) {
+  if (enumeration_index + slack == 0) {
+    return isolate->factory()->empty_descriptor_array();
+  }
+
+  int size = enumeration_index;
+  Handle<DescriptorArray> descriptors =
+      DescriptorArray::Allocate(isolate, size, slack);
+
+  for (int i = 0; i < size; ++i) {
+    Name* key = src->GetKey(i);
+    PropertyDetails details = src->GetDetails(i);
+
+    SLOW_DCHECK(!key->IsPrivateField() && details.IsEnumerable() &&
+                details.kind() == kData);
+
+    // Ensure the ObjectClone property details are NONE, and that all source
+    // details did not contain DONT_ENUM.
+    PropertyDetails new_details(
+        kData, NONE, details.location(), kDefaultFieldConstness,
+        details.representation(), details.field_index());
+    descriptors->Set(i, key, src->GetValue(i), new_details);
+  }
+
+  descriptors->Sort();
+
+  return descriptors;
+}
 
 bool DescriptorArray::IsEqualUpTo(DescriptorArray* desc, int nof_descriptors) {
   for (int i = 0; i < nof_descriptors; i++) {

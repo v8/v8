@@ -74,6 +74,7 @@ namespace internal {
   V(FrameDropperTrampoline)           \
   V(RunMicrotasks)                    \
   V(WasmGrowMemory)                   \
+  V(CloneObjectWithVector)            \
   BUILTIN_LIST_TFS(V)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -1019,6 +1020,17 @@ class WasmGrowMemoryDescriptor final : public CallInterfaceDescriptor {
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int32(),  // result 1
                                     MachineType::Int32())  // kNumPages
   DECLARE_DESCRIPTOR(WasmGrowMemoryDescriptor, CallInterfaceDescriptor)
+};
+
+class CloneObjectWithVectorDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kSource, kFlags, kSlot, kVector)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // result 1
+                                    MachineType::AnyTagged(),      // kSource
+                                    MachineType::TaggedSigned(),   // kFlags
+                                    MachineType::TaggedSigned(),   // kSlot
+                                    MachineType::AnyTagged())      // kVector
+  DECLARE_DESCRIPTOR(CloneObjectWithVectorDescriptor, CallInterfaceDescriptor)
 };
 
 #define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, ...)                          \

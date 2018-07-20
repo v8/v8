@@ -532,6 +532,17 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   }
 }
 
+void JSGenericLowering::LowerJSCloneObject(Node* node) {
+  CloneObjectParameters const& p = CloneObjectParametersOf(node->op());
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kCloneObjectIC);
+  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.flags()));
+  node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 3, jsgraph()->HeapConstant(p.feedback().vector()));
+  ReplaceWithStubCall(node, callable, flags);
+}
+
 void JSGenericLowering::LowerJSCreateEmptyLiteralObject(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }

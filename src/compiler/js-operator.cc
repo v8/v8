@@ -534,6 +534,29 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   return OpParameter<CreateLiteralParameters>(op);
 }
 
+bool operator==(CloneObjectParameters const& lhs,
+                CloneObjectParameters const& rhs) {
+  return lhs.feedback() == rhs.feedback() && lhs.flags() == rhs.flags();
+}
+
+bool operator!=(CloneObjectParameters const& lhs,
+                CloneObjectParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(CloneObjectParameters const& p) {
+  return base::hash_combine(p.feedback(), p.flags());
+}
+
+std::ostream& operator<<(std::ostream& os, CloneObjectParameters const& p) {
+  return os << p.flags();
+}
+
+const CloneObjectParameters& CloneObjectParametersOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSCloneObject);
+  return OpParameter<CloneObjectParameters>(op);
+}
+
 size_t hash_value(ForInMode mode) { return static_cast<uint8_t>(mode); }
 
 std::ostream& operator<<(std::ostream& os, ForInMode mode) {
@@ -1177,6 +1200,17 @@ const Operator* JSOperatorBuilder::CreateLiteralObject(
       "JSCreateLiteralObject",                             // name
       0, 1, 1, 1, 1, 2,                                    // counts
       parameters);                                         // parameter
+}
+
+const Operator* JSOperatorBuilder::CloneObject(VectorSlotPair const& feedback,
+                                               int literal_flags) {
+  CloneObjectParameters parameters(feedback, literal_flags);
+  return new (zone()) Operator1<CloneObjectParameters>(  // --
+      IrOpcode::kJSCloneObject,                          // opcode
+      Operator::kNoProperties,                           // properties
+      "JSCloneObject",                                   // name
+      1, 1, 1, 1, 1, 1,                                  // counts
+      parameters);                                       // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateEmptyLiteralObject() {

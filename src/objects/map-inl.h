@@ -298,6 +298,17 @@ int Map::UnusedPropertyFields() const {
   return unused;
 }
 
+int Map::UnusedInObjectProperties() const {
+  // Like Map::UnusedPropertyFields(), but returns 0 for out of object
+  // properties.
+  int value = used_or_unused_instance_size_in_words();
+  DCHECK_IMPLIES(!IsJSObjectMap(), value == 0);
+  if (value >= JSObject::kFieldsAdded) {
+    return instance_size_in_words() - value;
+  }
+  return 0;
+}
+
 int Map::used_or_unused_instance_size_in_words() const {
   return RELAXED_READ_BYTE_FIELD(this, kUsedOrUnusedInstanceSizeInWordsOffset);
 }
@@ -503,6 +514,17 @@ bool Map::CanTransition() const {
 bool Map::IsBooleanMap() const {
   return this == GetReadOnlyRoots().boolean_map();
 }
+
+bool Map::IsNullMap() const { return this == GetReadOnlyRoots().null_map(); }
+
+bool Map::IsUndefinedMap() const {
+  return this == GetReadOnlyRoots().undefined_map();
+}
+
+bool Map::IsNullOrUndefinedMap() const {
+  return IsNullMap() || IsUndefinedMap();
+}
+
 bool Map::IsPrimitiveMap() const {
   return instance_type() <= LAST_PRIMITIVE_TYPE;
 }

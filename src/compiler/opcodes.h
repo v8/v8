@@ -152,6 +152,7 @@
   V(JSCreateEmptyLiteralArray)  \
   V(JSCreateLiteralObject)      \
   V(JSCreateEmptyLiteralObject) \
+  V(JSCloneObject)              \
   V(JSCreateLiteralRegExp)
 
 #define JS_OBJECT_OP_LIST(V)      \

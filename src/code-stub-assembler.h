@@ -1002,6 +1002,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   TNode<Object> LoadPropertyArrayElement(SloppyTNode<PropertyArray> object,
                                          SloppyTNode<IntPtrT> index);
+  TNode<IntPtrT> LoadPropertyArrayLength(TNode<PropertyArray> object);
 
   // Load an array element from a FixedArray / WeakFixedArray, untag it and
   // return it as Word32.

@@ -716,6 +716,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kJSCreateLiteralObject:
     case IrOpcode::kJSCreateEmptyLiteralObject:
+    case IrOpcode::kJSCloneObject:
     case IrOpcode::kJSCreateLiteralRegExp:
       // Type is OtherObject.
       CheckTypeIs(node, Type::OtherObject());

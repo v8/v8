@@ -588,7 +588,9 @@ namespace internal {
   F(StoreGlobalIC_Slow, 5, 1)                \
   F(StoreIC_Miss, 5, 1)                      \
   F(StoreInArrayLiteralIC_Slow, 5, 1)        \
-  F(StorePropertyWithInterceptor, 5, 1)
+  F(StorePropertyWithInterceptor, 5, 1)      \
+  F(CloneObjectIC_Miss, 4, 1)                \
+  F(CloneObjectIC_Slow, 2, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
   FOR_EACH_INTRINSIC_ARRAY(F)               \

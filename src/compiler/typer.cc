@@ -1214,6 +1214,10 @@ Type Typer::Visitor::TypeJSCreateEmptyLiteralObject(Node* node) {
   return Type::OtherObject();
 }
 
+Type Typer::Visitor::TypeJSCloneObject(Node* node) {
+  return Type::OtherObject();
+}
+
 Type Typer::Visitor::TypeJSCreateLiteralRegExp(Node* node) {
   return Type::OtherObject();
 }

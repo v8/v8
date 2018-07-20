@@ -1625,6 +1625,18 @@ void BytecodeGraphBuilder::VisitCreateEmptyObjectLiteral() {
   environment()->BindAccumulator(literal);
 }
 
+void BytecodeGraphBuilder::VisitCloneObject() {
+  PrepareEagerCheckpoint();
+  Node* source =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  int flags = bytecode_iterator().GetFlagOperand(1);
+  int slot = bytecode_iterator().GetIndexOperand(2);
+  const Operator* op =
+      javascript()->CloneObject(CreateVectorSlotPair(slot), flags);
+  Node* value = NewNode(op, source);
+  environment()->BindAccumulator(value, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitGetTemplateObject() {
   Handle<TemplateObjectDescription> description(
       TemplateObjectDescription::cast(

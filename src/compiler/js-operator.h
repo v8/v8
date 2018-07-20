@@ -626,6 +626,28 @@ std::ostream& operator<<(std::ostream&, CreateLiteralParameters const&);
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
+class CloneObjectParameters final {
+ public:
+  CloneObjectParameters(VectorSlotPair const& feedback, int flags)
+      : feedback_(feedback), flags_(flags) {}
+
+  VectorSlotPair const& feedback() const { return feedback_; }
+  int flags() const { return flags_; }
+
+ private:
+  VectorSlotPair const feedback_;
+  int const flags_;
+};
+
+bool operator==(CloneObjectParameters const&, CloneObjectParameters const&);
+bool operator!=(CloneObjectParameters const&, CloneObjectParameters const&);
+
+size_t hash_value(CloneObjectParameters const&);
+
+std::ostream& operator<<(std::ostream&, CloneObjectParameters const&);
+
+const CloneObjectParameters& CloneObjectParametersOf(const Operator* op);
+
 // Descriptor used by the JSForInPrepare and JSForInNext opcodes.
 enum class ForInMode : uint8_t {
   kUseEnumCacheKeysAndIndices,
@@ -716,6 +738,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       Handle<ObjectBoilerplateDescription> constant,
       VectorSlotPair const& feedback, int literal_flags,
       int number_of_properties);
+  const Operator* CloneObject(VectorSlotPair const& feedback,
+                              int literal_flags);
   const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
                                       VectorSlotPair const& feedback,
                                       int literal_flags);

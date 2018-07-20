@@ -170,6 +170,8 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "ForIn";
     case FeedbackSlotKind::kInstanceOf:
       return "InstanceOf";
+    case FeedbackSlotKind::kCloneObject:
+      return "CloneObject";
     case FeedbackSlotKind::kKindsNumber:
       break;
   }
@@ -254,6 +256,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
         vector->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         extra_value = Smi::kZero;
         break;
+      case FeedbackSlotKind::kCloneObject:
       case FeedbackSlotKind::kLoadProperty:
       case FeedbackSlotKind::kLoadKeyed:
       case FeedbackSlotKind::kStoreNamedSloppy:
@@ -416,6 +419,7 @@ void FeedbackNexus::ConfigureUninitialized() {
                        SKIP_WRITE_BARRIER);
       break;
     }
+    case FeedbackSlotKind::kCloneObject:
     case FeedbackSlotKind::kCall: {
       SetFeedback(*FeedbackVector::UninitializedSentinel(isolate),
                   SKIP_WRITE_BARRIER);
@@ -480,6 +484,7 @@ bool FeedbackNexus::Clear() {
     case FeedbackSlotKind::kCall:
     case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kStoreDataPropertyInLiteral:
+    case FeedbackSlotKind::kCloneObject:
       if (!IsCleared()) {
         ConfigureUninitialized();
         feedback_updated = true;
@@ -499,6 +504,20 @@ void FeedbackNexus::ConfigurePremonomorphic() {
               SKIP_WRITE_BARRIER);
   SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(GetIsolate()),
                    SKIP_WRITE_BARRIER);
+}
+
+bool FeedbackNexus::ConfigureMegamorphic() {
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = GetIsolate();
+  MaybeObject* sentinel =
+      MaybeObject::FromObject(*FeedbackVector::MegamorphicSentinel(isolate));
+  if (GetFeedback() != sentinel) {
+    SetFeedback(sentinel, SKIP_WRITE_BARRIER);
+    SetFeedbackExtra(HeapObjectReference::ClearedValue());
+    return true;
+  }
+
+  return false;
 }
 
 bool FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
@@ -661,6 +680,23 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
       return MONOMORPHIC;
     }
 
+    case FeedbackSlotKind::kCloneObject: {
+      if (feedback == MaybeObject::FromObject(
+                          *FeedbackVector::UninitializedSentinel(isolate))) {
+        return UNINITIALIZED;
+      }
+      if (feedback == MaybeObject::FromObject(
+                          *FeedbackVector::MegamorphicSentinel(isolate))) {
+        return MEGAMORPHIC;
+      }
+      if (feedback->IsWeakOrClearedHeapObject()) {
+        return MONOMORPHIC;
+      }
+
+      DCHECK(feedback->ToStrongHeapObject()->IsWeakFixedArray());
+      return POLYMORPHIC;
+    }
+
     case FeedbackSlotKind::kInvalid:
     case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
@@ -701,6 +737,78 @@ void FeedbackNexus::ConfigureHandlerMode(const MaybeObjectHandle& handler) {
   DCHECK(IC::IsHandler(*handler));
   SetFeedback(HeapObjectReference::ClearedValue());
   SetFeedbackExtra(*handler);
+}
+
+void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
+                                         Handle<Map> result_map) {
+  Isolate* isolate = GetIsolate();
+  MaybeObject* maybe_feedback = GetFeedback();
+  Handle<HeapObject> feedback(maybe_feedback->IsStrongOrWeakHeapObject()
+                                  ? maybe_feedback->GetHeapObject()
+                                  : nullptr,
+                              isolate);
+  switch (ic_state()) {
+    case UNINITIALIZED:
+      // Cache the first map seen which meets the fast case requirements.
+      SetFeedback(HeapObjectReference::Weak(*source_map));
+      SetFeedbackExtra(*result_map);
+      break;
+    case MONOMORPHIC:
+      if (maybe_feedback->IsClearedWeakHeapObject()) {
+        // Remain in MONOMORPHIC state if previous feedback has been collected.
+        SetFeedback(HeapObjectReference::Weak(*source_map));
+        SetFeedbackExtra(*result_map);
+      } else {
+        // Transition to POLYMORPHIC.
+        DCHECK_NE(*source_map, *feedback);
+        Handle<WeakFixedArray> array =
+            EnsureArrayOfSize(2 * kCloneObjectPolymorphicEntrySize);
+        array->Set(0, maybe_feedback);
+        array->Set(1, GetFeedbackExtra());
+        array->Set(2, HeapObjectReference::Weak(*source_map));
+        array->Set(3, MaybeObject::FromObject(*result_map));
+        SetFeedbackExtra(HeapObjectReference::ClearedValue());
+      }
+      break;
+    case POLYMORPHIC: {
+      static constexpr int kMaxElements =
+          IC::kMaxPolymorphicMapCount * kCloneObjectPolymorphicEntrySize;
+      Handle<WeakFixedArray> array = Handle<WeakFixedArray>::cast(feedback);
+      int i = 0;
+      for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
+        if (array->Get(i)->IsClearedWeakHeapObject()) {
+          break;
+        }
+        DCHECK_NE(array->Get(i)->GetHeapObject(), *source_map);
+      }
+
+      if (i >= array->length()) {
+        if (i == kMaxElements) {
+          // Transition to MEGAMORPHIC.
+          MaybeObject* sentinel = MaybeObject::FromObject(
+              *FeedbackVector::MegamorphicSentinel(isolate));
+          SetFeedback(sentinel, SKIP_WRITE_BARRIER);
+          SetFeedbackExtra(HeapObjectReference::ClearedValue());
+          break;
+        }
+
+        // Grow polymorphic feedback array.
+        Handle<WeakFixedArray> new_array = EnsureArrayOfSize(
+            array->length() + kCloneObjectPolymorphicEntrySize);
+        for (int j = 0; j < array->length(); ++j) {
+          new_array->Set(j, array->Get(j));
+        }
+        array = new_array;
+      }
+
+      array->Set(i, HeapObjectReference::Weak(*source_map));
+      array->Set(i + 1, MaybeObject::FromObject(*result_map));
+      break;
+    }
+
+    default:
+      UNREACHABLE();
+  }
 }
 
 int FeedbackNexus::GetCallCount() {

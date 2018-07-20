@@ -3391,5 +3391,128 @@ void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
   StoreInArrayLiteralIC(&p);
 }
 
+void AccessorAssembler::GenerateCloneObjectIC() {
+  typedef CloneObjectWithVectorDescriptor Descriptor;
+  Node* source = Parameter(Descriptor::kSource);
+  Node* flags = Parameter(Descriptor::kFlags);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+  TVARIABLE(MaybeObject, var_handler);
+  Label if_handler(this, &var_handler);
+  Label miss(this, Label::kDeferred), try_polymorphic(this, Label::kDeferred),
+      try_megamorphic(this, Label::kDeferred);
+
+  CSA_SLOW_ASSERT(this, TaggedIsNotSmi(source));
+  Node* source_map = LoadMap(UncheckedCast<HeapObject>(source));
+  GotoIf(IsDeprecatedMap(source_map), &miss);
+  TNode<MaybeObject> feedback = TryMonomorphicCase(
+      slot, vector, source_map, &if_handler, &var_handler, &try_polymorphic);
+
+  BIND(&if_handler);
+  {
+    Comment("CloneObjectIC_if_handler");
+
+    // Handlers for the CloneObjectIC stub are weak references to the Map of
+    // a result object.
+    TNode<Map> result_map = CAST(var_handler.value());
+    TVARIABLE(Object, var_properties, EmptyFixedArrayConstant());
+    TVARIABLE(FixedArrayBase, var_elements, EmptyFixedArrayConstant());
+
+    Label allocate_object(this);
+    GotoIf(IsNullOrUndefined(source), &allocate_object);
+    CSA_SLOW_ASSERT(this, IsJSObjectMap(result_map));
+
+    // The IC fast case should only be taken if the result map a compatible
+    // elements kind with the source object.
+    TNode<FixedArrayBase> source_elements = LoadElements(source);
+
+    auto flags = ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW;
+    var_elements = CAST(CloneFixedArray(source_elements, flags));
+
+    // Copy the PropertyArray backing store. The source PropertyArray must be
+    // either an Smi, or a PropertyArray.
+    // FIXME: Make a CSA macro for this
+    TNode<Object> source_properties =
+        LoadObjectField(source, JSObject::kPropertiesOrHashOffset);
+    {
+      GotoIf(TaggedIsSmi(source_properties), &allocate_object);
+      GotoIf(IsEmptyFixedArray(source_properties), &allocate_object);
+
+      // This IC requires that the source object has fast properties
+      CSA_SLOW_ASSERT(this, IsPropertyArray(CAST(source_properties)));
+      TNode<IntPtrT> length = LoadPropertyArrayLength(
+          UncheckedCast<PropertyArray>(source_properties));
+      GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &allocate_object);
+
+      auto mode = INTPTR_PARAMETERS;
+      var_properties = CAST(AllocatePropertyArray(length, mode));
+      CopyPropertyArrayValues(source_properties, var_properties.value(), length,
+                              SKIP_WRITE_BARRIER, mode);
+    }
+
+    Goto(&allocate_object);
+    BIND(&allocate_object);
+    TNode<JSObject> object = UncheckedCast<JSObject>(AllocateJSObjectFromMap(
+        result_map, var_properties.value(), var_elements.value()));
+    ReturnIf(IsNullOrUndefined(source), object);
+
+    // Lastly, clone any in-object properties.
+    // Determine the inobject property capacity of both objects, and copy the
+    // smaller number into the resulting object.
+    Node* source_start = LoadMapInobjectPropertiesStartInWords(source_map);
+    Node* source_size = LoadMapInstanceSizeInWords(source_map);
+    Node* result_start = LoadMapInobjectPropertiesStartInWords(result_map);
+    Node* field_offset_difference =
+        TimesPointerSize(IntPtrSub(result_start, source_start));
+    BuildFastLoop(source_start, source_size,
+                  [=](Node* field_index) {
+                    Node* field_offset = TimesPointerSize(field_index);
+                    Node* field = LoadObjectField(source, field_offset);
+                    Node* result_offset =
+                        IntPtrAdd(field_offset, field_offset_difference);
+                    StoreObjectFieldNoWriteBarrier(object, result_offset,
+                                                   field);
+                  },
+                  1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+    Return(object);
+  }
+
+  BIND(&try_polymorphic);
+  TNode<HeapObject> strong_feedback = ToStrongHeapObject(feedback, &miss);
+  {
+    Comment("CloneObjectIC_try_polymorphic");
+    GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)), &try_megamorphic);
+    HandlePolymorphicCase(source_map, CAST(strong_feedback), &if_handler,
+                          &var_handler, &miss, 2);
+  }
+
+  BIND(&try_megamorphic);
+  {
+    Comment("CloneObjectIC_try_megamorphic");
+    CSA_ASSERT(
+        this,
+        Word32Or(WordEqual(strong_feedback,
+                           LoadRoot(Heap::kuninitialized_symbolRootIndex)),
+                 WordEqual(strong_feedback,
+                           LoadRoot(Heap::kmegamorphic_symbolRootIndex))));
+    GotoIfNot(WordEqual(strong_feedback,
+                        LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
+              &miss);
+    TailCallRuntime(Runtime::kCloneObjectIC_Slow, context, source, flags);
+  }
+
+  BIND(&miss);
+  {
+    Comment("CloneObjectIC_miss");
+    Node* map_or_result = CallRuntime(Runtime::kCloneObjectIC_Miss, context,
+                                      source, flags, slot, vector);
+    var_handler = UncheckedCast<MaybeObject>(map_or_result);
+    GotoIf(IsMap(map_or_result), &if_handler);
+    CSA_ASSERT(this, IsJSObject(map_or_result));
+    Return(map_or_result);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
