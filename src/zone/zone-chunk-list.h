@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 
+#include "src/base/iterator.h"
 #include "src/globals.h"
 #include "src/utils.h"
 #include "src/zone/zone.h"
@@ -145,7 +146,8 @@ class ZoneChunkList : public ZoneObject {
 };
 
 template <typename T, bool backwards, bool modifiable>
-class ZoneChunkListIterator {
+class ZoneChunkListIterator
+    : public base::iterator<std::bidirectional_iterator_tag, T> {
  private:
   template <typename S>
   using maybe_const =

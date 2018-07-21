@@ -439,10 +439,10 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
       // we also don't need to worry about them, since the GC has special
       // knowledge about those fields anyway.
       if (index < stackSlotToSpillSlotDelta) continue;
-      safepoint.DefinePointerSlot(index, zone());
+      safepoint.DefinePointerSlot(index);
     } else if (operand.IsRegister() && (kind & Safepoint::kWithRegisters)) {
       Register reg = LocationOperand::cast(operand).GetRegister();
-      safepoint.DefinePointerRegister(reg, zone());
+      safepoint.DefinePointerRegister(reg);
     }
   }
 }

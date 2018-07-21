@@ -9,6 +9,7 @@
 #include "src/assert-scope.h"
 #include "src/utils.h"
 #include "src/v8memory.h"
+#include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -188,14 +189,14 @@ class Safepoint BASE_EMBEDDED {
   static const int kNoDeoptimizationIndex =
       (1 << (SafepointEntry::kDeoptIndexBits)) - 1;
 
-  void DefinePointerSlot(int index, Zone* zone) { indexes_->Add(index, zone); }
-  void DefinePointerRegister(Register reg, Zone* zone);
+  void DefinePointerSlot(int index) { indexes_->push_back(index); }
+  void DefinePointerRegister(Register reg);
 
  private:
-  Safepoint(ZoneList<int>* indexes, ZoneList<int>* registers)
+  Safepoint(ZoneChunkList<int>* indexes, ZoneChunkList<int>* registers)
       : indexes_(indexes), registers_(registers) {}
-  ZoneList<int>* const indexes_;
-  ZoneList<int>* const registers_;
+  ZoneChunkList<int>* const indexes_;
+  ZoneChunkList<int>* const registers_;
 
   friend class SafepointTableBuilder;
 };
@@ -241,8 +242,8 @@ class SafepointTableBuilder BASE_EMBEDDED {
     unsigned arguments;
     bool has_doubles;
     int trampoline;
-    ZoneList<int>* indexes;
-    ZoneList<int>* registers;
+    ZoneChunkList<int>* indexes;
+    ZoneChunkList<int>* registers;
     unsigned deopt_index;
     DeoptimizationInfo(Zone* zone, unsigned pc, unsigned arguments,
                        Safepoint::Kind kind)
@@ -250,9 +251,11 @@ class SafepointTableBuilder BASE_EMBEDDED {
           arguments(arguments),
           has_doubles(kind & Safepoint::kWithDoubles),
           trampoline(-1),
-          indexes(new (zone) ZoneList<int>(8, zone)),
+          indexes(new (zone) ZoneChunkList<int>(
+              zone, ZoneChunkList<int>::StartMode::kSmall)),
           registers(kind & Safepoint::kWithRegisters
-                        ? new (zone) ZoneList<int>(4, zone)
+                        ? new (zone) ZoneChunkList<int>(
+                              zone, ZoneChunkList<int>::StartMode::kSmall)
                         : nullptr),
           deopt_index(Safepoint::kNoDeoptimizationIndex) {}
   };
