@@ -2305,6 +2305,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSToName:
       return ReduceJSToName(node);
     case IrOpcode::kJSToNumber:
+    case IrOpcode::kJSToNumberConvertBigInt:
     case IrOpcode::kJSToNumeric:
       return ReduceJSToNumberOrNumeric(node);
     case IrOpcode::kJSToString:

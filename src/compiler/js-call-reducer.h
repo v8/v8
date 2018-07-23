@@ -190,6 +190,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceDateNow(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
 
+  Reduction ReduceNumberConstructor(Node* node);
+
   // Returns the updated {to} node, and updates control and effect along the
   // way.
   Node* DoFilterPostCallbackWork(ElementsKind kind, Node** control,

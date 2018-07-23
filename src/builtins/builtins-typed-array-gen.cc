@@ -750,12 +750,6 @@ TF_BUILTIN(CreateTypedArray, TypedArrayBuiltinsAssembler) {
   Return(result);
 }
 
-TF_BUILTIN(TypedArrayConstructorLazyDeoptContinuation,
-           TypedArrayBuiltinsAssembler) {
-  Node* result = Parameter(Descriptor::kResult);
-  Return(result);
-}
-
 // ES #sec-typedarray-constructors
 TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));

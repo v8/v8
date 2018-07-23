@@ -52,8 +52,10 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   Zone* const zone_;
   TypeCache const& type_cache_;
   SetOncePointer<Node> to_number_code_;
+  SetOncePointer<Node> to_number_convert_big_int_code_;
   SetOncePointer<Node> to_numeric_code_;
   SetOncePointer<Operator const> to_number_operator_;
+  SetOncePointer<Operator const> to_number_convert_big_int_operator_;
   SetOncePointer<Operator const> to_numeric_operator_;
 
   // TODO(danno): SimplifiedLowering shouldn't know anything about the source
@@ -76,8 +78,10 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   Node* Uint32Mod(Node* const node);
 
   Node* ToNumberCode();
+  Node* ToNumberConvertBigIntCode();
   Node* ToNumericCode();
   Operator const* ToNumberOperator();
+  Operator const* ToNumberConvertBigIntOperator();
   Operator const* ToNumericOperator();
 
   friend class RepresentationSelector;

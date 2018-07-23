@@ -186,6 +186,7 @@ namespace internal {
   TFC(NonNumberToNumber, TypeConversion, 1)                                    \
   TFC(NonNumberToNumeric, TypeConversion, 1)                                   \
   TFC(ToNumber, TypeConversion, 1)                                             \
+  TFC(ToNumberConvertBigInt, TypeConversion, 1)                                \
   TFC(ToNumeric, TypeConversion, 1)                                            \
   TFC(NumberToString, TypeConversion, 1)                                       \
   TFC(ToString, TypeConversion, 1)                                             \
@@ -1132,7 +1133,7 @@ namespace internal {
   /* ES #sec-typedarray-constructors */                                        \
   TFS(CreateTypedArray, kTarget, kNewTarget, kArg1, kArg2, kArg3)              \
   TFJ(TypedArrayBaseConstructor, 0, kReceiver)                                 \
-  TFJ(TypedArrayConstructorLazyDeoptContinuation, 1, kReceiver, kResult)       \
+  TFJ(GenericConstructorLazyDeoptContinuation, 1, kReceiver, kResult)          \
   TFJ(TypedArrayConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
   CPP(TypedArrayPrototypeBuffer)                                               \
   /* ES6 #sec-get-%typedarray%.prototype.bytelength */                         \

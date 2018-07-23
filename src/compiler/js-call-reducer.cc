@@ -3675,6 +3675,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceDatePrototypeGetTime(node);
     case Builtins::kDateNow:
       return ReduceDateNow(node);
+    case Builtins::kNumberConstructor:
+      return ReduceNumberConstructor(node);
     default:
       break;
   }
@@ -6034,7 +6036,7 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
   Node* const parameters[] = {jsgraph()->TheHoleConstant()};
   int const num_parameters = static_cast<int>(arraysize(parameters));
   frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), shared, Builtins::kTypedArrayConstructorLazyDeoptContinuation,
+      jsgraph(), shared, Builtins::kGenericConstructorLazyDeoptContinuation,
       target, context, parameters, num_parameters, frame_state,
       ContinuationFrameStateMode::LAZY);
 
@@ -7180,6 +7182,45 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   node->TrimInputCount(6);
   NodeProperties::ChangeOp(node, javascript()->RegExpTest());
   return Changed(node);
+}
+
+// ES section #sec-number-constructor
+Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+
+  if (p.arity() <= 2) {
+    ReplaceWithValue(node, jsgraph()->ZeroConstant());
+  }
+
+  // We don't have a new.target argument, so we can convert to number,
+  // but must also convert BigInts.
+  if (p.arity() == 3) {
+    Node* target = NodeProperties::GetValueInput(node, 0);
+    Node* context = NodeProperties::GetContextInput(node);
+    Node* value = NodeProperties::GetValueInput(node, 2);
+    Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
+    Handle<SharedFunctionInfo> number_constructor(
+        handle(native_context()->number_function()->shared(), isolate()));
+
+    const std::vector<Node*> checkpoint_parameters({
+        jsgraph()->UndefinedConstant(), /* receiver */
+    });
+    int checkpoint_parameters_size =
+        static_cast<int>(checkpoint_parameters.size());
+
+    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+        jsgraph(), number_constructor,
+        Builtins::kGenericConstructorLazyDeoptContinuation, target, context,
+        checkpoint_parameters.data(), checkpoint_parameters_size,
+        outer_frame_state, ContinuationFrameStateMode::LAZY);
+
+    NodeProperties::ReplaceValueInputs(node, value);
+    NodeProperties::ChangeOp(node, javascript()->ToNumberConvertBigInt());
+    NodeProperties::ReplaceFrameStateInput(node, frame_state);
+    return Changed(node);
+  }
+  return NoChange();
 }
 
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }

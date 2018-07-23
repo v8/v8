@@ -730,6 +730,12 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
   }
 }
 
+TF_BUILTIN(GenericConstructorLazyDeoptContinuation,
+           ConstructorBuiltinsAssembler) {
+  Node* result = Parameter(Descriptor::kResult);
+  Return(result);
+}
+
 // https://tc39.github.io/ecma262/#sec-string-constructor
 TF_BUILTIN(StringConstructor, ConstructorBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);

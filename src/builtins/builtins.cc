@@ -294,7 +294,7 @@ bool Builtins::IsLazy(int index) {
     case kThrowWasmTrapUnreachable:           // Required by wasm.
     case kToBooleanLazyDeoptContinuation:
     case kToNumber:                           // Required by wasm.
-    case kTypedArrayConstructorLazyDeoptContinuation:
+    case kGenericConstructorLazyDeoptContinuation:
     case kWasmCompileLazy:                    // Required by wasm.
     case kWasmStackGuard:                     // Required by wasm.
       return false;

@@ -142,6 +142,14 @@ TF_BUILTIN(ToNumber, CodeStubAssembler) {
   Return(ToNumber(context, input));
 }
 
+// Like ToNumber, but also converts BigInts.
+TF_BUILTIN(ToNumberConvertBigInt, CodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
+
+  Return(ToNumber(context, input, BigIntHandling::kConvertToNumber));
+}
+
 // ES section #sec-tostring-applied-to-the-number-type
 TF_BUILTIN(NumberToString, CodeStubAssembler) {
   TNode<Number> input = CAST(Parameter(Descriptor::kArgument));
