@@ -6,7 +6,7 @@
 
 #include <stdint.h>
 #include <memory>
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/base/ieee754.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/frames-inl.h"

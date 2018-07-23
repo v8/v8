@@ -6,7 +6,7 @@
 
 #include <utility>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/code-stubs.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"

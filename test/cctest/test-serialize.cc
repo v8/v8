@@ -31,7 +31,7 @@
 
 #include "src/v8.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/bootstrapper.h"
 #include "src/compilation-cache.h"

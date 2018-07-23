@@ -7,7 +7,7 @@
 #include <memory>
 #include <unordered_set>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/arguments.h"
 #include "src/assembler-inl.h"
 #include "src/base/platform/mutex.h"

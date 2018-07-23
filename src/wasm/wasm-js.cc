@@ -4,8 +4,8 @@
 
 #include "src/wasm/wasm-js.h"
 
+#include "src/api-inl.h"
 #include "src/api-natives.h"
-#include "src/api.h"
 #include "src/assert-scope.h"
 #include "src/ast/ast.h"
 #include "src/execution.h"

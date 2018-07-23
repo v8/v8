@@ -11,8 +11,8 @@
 #include <cmath>
 #include <memory>
 
+#include "src/api-inl.h"
 #include "src/api-natives.h"
-#include "src/api.h"
 #include "src/arguments.h"
 #include "src/date.h"
 #include "src/global-handles.h"

@@ -4,7 +4,7 @@
 
 #include "src/accessors.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/contexts.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"

@@ -29,7 +29,7 @@
 
 #include "src/v8.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/frames-inl.h"
 #include "src/string-stream.h"
 #include "test/cctest/cctest.h"

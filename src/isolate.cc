@@ -11,7 +11,7 @@
 #include <sstream>
 #include <unordered_map>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/context-slot-cache.h"

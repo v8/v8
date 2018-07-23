@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/execution.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"

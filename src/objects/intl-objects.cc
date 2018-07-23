@@ -11,7 +11,7 @@
 
 #include <memory>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/intl.h"

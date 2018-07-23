@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"

@@ -4,7 +4,7 @@
 
 #include "src/profiler/heap-profiler.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
 #include "src/profiler/allocation-tracker.h"

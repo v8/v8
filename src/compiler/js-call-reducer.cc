@@ -4,7 +4,7 @@
 
 #include "src/compiler/js-call-reducer.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/code-factory.h"

@@ -38,7 +38,7 @@
 #endif
 
 #include "include/v8-util.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/arguments.h"
 #include "src/base/platform/platform.h"
 #include "src/code-stubs.h"

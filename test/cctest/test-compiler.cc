@@ -30,7 +30,7 @@
 
 #include "src/v8.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/compiler.h"
 #include "src/disasm.h"
 #include "src/heap/factory.h"

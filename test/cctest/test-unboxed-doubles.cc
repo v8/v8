@@ -8,7 +8,7 @@
 #include "src/v8.h"
 
 #include "src/accessors.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/field-type.h"

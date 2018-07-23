@@ -8,6 +8,9 @@
 #include <cmath>     // For isnan.
 #include <limits>
 #include <vector>
+
+#include "src/api-inl.h"
+
 #include "include/v8-profiler.h"
 #include "include/v8-testing.h"
 #include "include/v8-util.h"

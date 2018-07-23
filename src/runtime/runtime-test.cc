@@ -7,7 +7,7 @@
 #include <memory>
 #include <sstream>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/arguments.h"
 #include "src/assembler-inl.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"

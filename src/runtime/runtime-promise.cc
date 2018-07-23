@@ -4,7 +4,7 @@
 
 #include "src/runtime/runtime-utils.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/arguments.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"

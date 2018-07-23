@@ -39,7 +39,7 @@
 // The C++ style guide recommends using <re2> instead of <regex>. However, the
 // former isn't available in V8.
 #include <regex>  // NOLINT(build/c++11)
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/log-utils.h"
 #include "src/log.h"
 #include "src/objects-inl.h"

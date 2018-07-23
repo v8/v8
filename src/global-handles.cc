@@ -4,7 +4,7 @@
 
 #include "src/global-handles.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/cancelable-task.h"
 #include "src/objects-inl.h"
 #include "src/v8.h"

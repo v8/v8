@@ -34,7 +34,7 @@
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/base/hashmap.h"
 #include "src/collector.h"
