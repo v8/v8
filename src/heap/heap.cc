@@ -1038,29 +1038,6 @@ void Heap::GarbageCollectionEpilogue() {
   }
 }
 
-
-void Heap::PreprocessStackTraces() {
-  FixedArrayOfWeakCells::Iterator iterator(weak_stack_trace_list());
-  FixedArray* elements;
-  while ((elements = iterator.Next<FixedArray>()) != nullptr) {
-    for (int j = 1; j < elements->length(); j += 4) {
-      Object* maybe_code = elements->get(j + 2);
-      // If GC happens while adding a stack trace to the weak fixed array,
-      // which has been copied into a larger backing store, we may run into
-      // a stack trace that has already been preprocessed. Guard against this.
-      if (!maybe_code->IsAbstractCode()) break;
-      AbstractCode* abstract_code = AbstractCode::cast(maybe_code);
-      int offset = Smi::ToInt(elements->get(j + 3));
-      int pos = abstract_code->SourcePosition(offset);
-      elements->set(j + 2, Smi::FromInt(pos));
-    }
-  }
-  // We must not compact the weak fixed list here, as we may be in the middle
-  // of writing to it, when the GC triggered. Instead, we reset the root value.
-  set_weak_stack_trace_list(Smi::kZero);
-}
-
-
 class GCCallbacksScope {
  public:
   explicit GCCallbacksScope(Heap* heap) : heap_(heap) {
@@ -1925,7 +1902,6 @@ void Heap::MarkCompactEpilogue() {
 
   incremental_marking()->Epilogue();
 
-  PreprocessStackTraces();
   DCHECK(incremental_marking()->IsStopped());
 }
 
@@ -2661,7 +2637,6 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kRetainingPathTargetsRootIndex:
     case kFeedbackVectorsForProfilingToolsRootIndex:
     case kNoScriptSharedFunctionInfosRootIndex:
-    case kWeakStackTraceListRootIndex:
     case kSerializedObjectsRootIndex:
     case kSerializedGlobalProxySizesRootIndex:
     case kPublicSymbolTableRootIndex:
@@ -5060,7 +5035,6 @@ void Heap::CompactFixedArraysOfWeakCells() {
 
   // Find known FixedArrayOfWeakCells and compact them.
   CompactFixedArrayOfWeakCells(isolate(), noscript_shared_function_infos());
-  CompactFixedArrayOfWeakCells(isolate(), weak_stack_trace_list());
 
   // Find known WeakArrayLists and compact them.
   Handle<WeakArrayList> scripts(script_list(), isolate());

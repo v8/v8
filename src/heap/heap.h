@@ -1615,8 +1615,6 @@ class Heap {
 
   int NumberOfScavengeTasks();
 
-  void PreprocessStackTraces();
-
   // Checks whether a global GC is necessary
   GarbageCollector SelectGarbageCollector(AllocationSpace space,
                                           const char** reason);

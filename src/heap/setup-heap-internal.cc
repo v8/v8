@@ -866,8 +866,6 @@ void Heap::CreateInitialObjects() {
   set_serialized_objects(roots.empty_fixed_array());
   set_serialized_global_proxy_sizes(roots.empty_fixed_array());
 
-  set_weak_stack_trace_list(Smi::kZero);
-
   set_noscript_shared_function_infos(Smi::kZero);
 
   STATIC_ASSERT(interpreter::BytecodeOperands::kOperandScaleCount == 3);
