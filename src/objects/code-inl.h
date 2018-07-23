@@ -314,8 +314,10 @@ Address Code::entry() const { return raw_instruction_start(); }
 bool Code::contains(Address inner_pointer) {
   if (is_off_heap_trampoline()) {
     DCHECK(FLAG_embedded_builtins);
-    return (OffHeapInstructionStart() <= inner_pointer) &&
-           (inner_pointer < OffHeapInstructionEnd());
+    if (OffHeapInstructionStart() <= inner_pointer &&
+        inner_pointer < OffHeapInstructionEnd()) {
+      return true;
+    }
   }
   return (address() <= inner_pointer) && (inner_pointer < address() + Size());
 }
