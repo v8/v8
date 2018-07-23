@@ -43,6 +43,18 @@ static AsyncHooksWrap* UnwrapHook(
   Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
   Local<Object> hook = args.This();
+
+  AsyncHooks* hooks = PerIsolateData::Get(isolate)->GetAsyncHooks();
+
+  if (!hooks->async_hook_ctor.Get(isolate)->HasInstance(hook)) {
+    isolate->ThrowException(
+        String::NewFromUtf8(
+            isolate, "Invalid 'this' passed instead of AsyncHooks instance",
+            NewStringType::kNormal)
+            .ToLocalChecked());
+    return nullptr;
+  }
+
   Local<External> wrap = Local<External>::Cast(hook->GetInternalField(0));
   void* ptr = wrap->Value();
   return static_cast<AsyncHooksWrap*>(ptr);
@@ -50,12 +62,16 @@ static AsyncHooksWrap* UnwrapHook(
 
 static void EnableHook(const v8::FunctionCallbackInfo<v8::Value>& args) {
   AsyncHooksWrap* wrap = UnwrapHook(args);
-  wrap->Enable();
+  if (wrap) {
+    wrap->Enable();
+  }
 }
 
 static void DisableHook(const v8::FunctionCallbackInfo<v8::Value>& args) {
   AsyncHooksWrap* wrap = UnwrapHook(args);
-  wrap->Disable();
+  if (wrap) {
+    wrap->Disable();
+  }
 }
 
 async_id_t AsyncHooks::GetExecutionAsyncId() const {
