@@ -271,7 +271,8 @@ Address RelocInfo::target_off_heap_target() {
 void RelocInfo::WipeOut() {
   DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
-         IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_));
+         IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_) ||
+         IsOffHeapTarget(rmode_));
   if (IsInternalReference(rmode_)) {
     Memory::Address_at(pc_) = kNullAddress;
   } else if (IsInternalReferenceEncoded(rmode_)) {

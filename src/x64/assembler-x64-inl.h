@@ -385,7 +385,7 @@ Address RelocInfo::target_off_heap_target() {
 
 void RelocInfo::WipeOut() {
   if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-      IsInternalReference(rmode_)) {
+      IsInternalReference(rmode_) || IsOffHeapTarget(rmode_)) {
     Memory::Address_at(pc_) = kNullAddress;
   } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
     // Effectively write zero into the relocation.

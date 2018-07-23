@@ -1007,9 +1007,10 @@ void Serializer<AllocatorT>::ObjectSerializer::OutputCode(int size) {
   int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
-                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
                   RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
+                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
+                  RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
+                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
   for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
     RelocInfo* rinfo = it.rinfo();
     rinfo->WipeOut();

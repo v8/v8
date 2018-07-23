@@ -220,11 +220,12 @@ Address RelocInfo::target_off_heap_target() {
 void RelocInfo::WipeOut() {
   DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
-         IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_));
+         IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_) ||
+         IsOffHeapTarget(rmode_));
   if (IsInternalReference(rmode_)) {
     // Jump table entry
     Memory::Address_at(pc_) = kNullAddress;
-  } else if (IsInternalReferenceEncoded(rmode_)) {
+  } else if (IsInternalReferenceEncoded(rmode_) || IsOffHeapTarget(rmode_)) {
     // mov sequence
     // Currently used only by deserializer, no need to flush.
     Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress,
