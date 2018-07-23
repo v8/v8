@@ -294,7 +294,7 @@ class TestCodeEventHandler : public v8::CodeEventHandler {
     if (name.empty()) {
       v8::Local<v8::String> functionName = code_event->GetFunctionName();
       std::string buffer(functionName->Utf8Length(isolate_) + 1, 0);
-      functionName->WriteUtf8(&buffer[0],
+      functionName->WriteUtf8(isolate_, &buffer[0],
                               functionName->Utf8Length(isolate_) + 1);
       // Sanitize name, removing unwanted \0 resulted from WriteUtf8
       name = std::string(buffer.c_str());
@@ -716,7 +716,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
       v8::Local<v8::String> s = result->ToString(logger.env()).ToLocalChecked();
       i::ScopedVector<char> data(s->Utf8Length(isolate) + 1);
       CHECK(data.start());
-      s->WriteUtf8(data.start());
+      s->WriteUtf8(isolate, data.start());
       FATAL("%s\n", data.start());
     }
   }

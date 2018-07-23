@@ -951,7 +951,8 @@ TEST(Utf8Conversion) {
     for (int j = 0; j < 11; j++)
       buffer[j] = kNoChar;
     int chars_written;
-    int written = mixed->WriteUtf8(buffer, i, &chars_written);
+    int written =
+        mixed->WriteUtf8(CcTest::isolate(), buffer, i, &chars_written);
     CHECK_EQ(lengths[i], written);
     CHECK_EQ(char_lengths[i], chars_written);
     // Check that the contents are correct
@@ -1095,7 +1096,7 @@ TEST(JSONStringifySliceMadeExternal) {
 
   int length = underlying->Length();
   uc16* two_byte = NewArray<uc16>(length + 1);
-  underlying->Write(two_byte);
+  underlying->Write(CcTest::isolate(), two_byte);
   Resource* resource = new Resource(two_byte, length);
   CHECK(underlying->MakeExternal(resource));
   CHECK(v8::Utils::OpenHandle(*slice)->IsSlicedString());

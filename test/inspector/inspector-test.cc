@@ -38,10 +38,11 @@ void Exit() {
   Terminate();
 }
 
-v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
+v8::internal::Vector<uint16_t> ToVector(v8::Isolate* isolate,
+                                        v8::Local<v8::String> str) {
   v8::internal::Vector<uint16_t> buffer =
       v8::internal::Vector<uint16_t>::New(str->Length());
-  str->Write(buffer.start(), 0, str->Length());
+  str->Write(isolate, buffer.start(), 0, str->Length());
   return buffer;
 }
 
@@ -200,14 +201,14 @@ void RunAsyncTask(TaskRunner* task_runner,
 
 class ExecuteStringTask : public TaskRunner::Task {
  public:
-  ExecuteStringTask(int context_group_id,
+  ExecuteStringTask(v8::Isolate* isolate, int context_group_id,
                     const v8::internal::Vector<uint16_t>& expression,
                     v8::Local<v8::String> name,
                     v8::Local<v8::Integer> line_offset,
                     v8::Local<v8::Integer> column_offset,
                     v8::Local<v8::Boolean> is_module)
       : expression_(expression),
-        name_(ToVector(name)),
+        name_(ToVector(isolate, name)),
         line_offset_(line_offset.As<v8::Int32>()->Value()),
         column_offset_(column_offset.As<v8::Int32>()->Value()),
         is_module_(is_module->Value()),
@@ -430,7 +431,8 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     }
 
     backend_runner_->Append(new ExecuteStringTask(
-        args[0].As<v8::Int32>()->Value(), ToVector(args[1].As<v8::String>()),
+        args.GetIsolate(), args[0].As<v8::Int32>()->Value(),
+        ToVector(args.GetIsolate(), args[1].As<v8::String>()),
         args[2].As<v8::String>(), args[3].As<v8::Int32>(),
         args[4].As<v8::Int32>(), args[5].As<v8::Boolean>()));
   }
@@ -463,8 +465,10 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
               "'reason', 'details').");
       Exit();
     }
-    v8::internal::Vector<uint16_t> reason = ToVector(args[1].As<v8::String>());
-    v8::internal::Vector<uint16_t> details = ToVector(args[2].As<v8::String>());
+    v8::internal::Vector<uint16_t> reason =
+        ToVector(args.GetIsolate(), args[1].As<v8::String>());
+    v8::internal::Vector<uint16_t> details =
+        ToVector(args.GetIsolate(), args[2].As<v8::String>());
     int context_group_id = args[0].As<v8::Int32>()->Value();
     RunSyncTask(backend_runner_, [&context_group_id, &reason,
                                   &details](IsolateData* data) {
@@ -537,7 +541,8 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
         IsolateData::FromContext(context)->GetContextGroupId(context),
         args.GetIsolate(), args[2].As<v8::Function>());
 
-    v8::internal::Vector<uint16_t> state = ToVector(args[1].As<v8::String>());
+    v8::internal::Vector<uint16_t> state =
+        ToVector(args.GetIsolate(), args[1].As<v8::String>());
     int context_group_id = args[0].As<v8::Int32>()->Value();
     int session_id = 0;
     RunSyncTask(backend_runner_, [&context_group_id, &session_id, &channel,
@@ -575,7 +580,8 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
       Exit();
     }
     backend_runner_->Append(new SendMessageToBackendTask(
-        args[0].As<v8::Int32>()->Value(), ToVector(args[1].As<v8::String>())));
+        args[0].As<v8::Int32>()->Value(),
+        ToVector(args.GetIsolate(), args[1].As<v8::String>())));
   }
 
   static std::map<int, std::unique_ptr<FrontendChannelImpl>> channels_;
@@ -643,7 +649,8 @@ class SetTimeoutExtension : public IsolateData::SetupGlobalTask {
       RunAsyncTask(
           data->task_runner(), task_name_view,
           new ExecuteStringTask(
-              context_group_id, ToVector(args[0].As<v8::String>()),
+              isolate, context_group_id,
+              ToVector(isolate, args[0].As<v8::String>()),
               v8::String::Empty(isolate), v8::Integer::New(isolate, 0),
               v8::Integer::New(isolate, 0), v8::Boolean::New(isolate, false)));
     }
@@ -782,9 +789,11 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     }
     v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
-    v8::internal::Vector<uint16_t> reason = ToVector(args[0].As<v8::String>());
+    v8::internal::Vector<uint16_t> reason =
+        ToVector(args.GetIsolate(), args[0].As<v8::String>());
     v8_inspector::StringView reason_view(reason.start(), reason.length());
-    v8::internal::Vector<uint16_t> details = ToVector(args[1].As<v8::String>());
+    v8::internal::Vector<uint16_t> details =
+        ToVector(args.GetIsolate(), args[1].As<v8::String>());
     v8_inspector::StringView details_view(details.start(), details.length());
     data->BreakProgram(data->GetContextGroupId(context), reason_view,
                        details_view);
@@ -812,9 +821,11 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
               "Internal error: callWithScheduledBreak('reason', 'details').");
       Exit();
     }
-    v8::internal::Vector<uint16_t> reason = ToVector(args[1].As<v8::String>());
+    v8::internal::Vector<uint16_t> reason =
+        ToVector(args.GetIsolate(), args[1].As<v8::String>());
     v8_inspector::StringView reason_view(reason.start(), reason.length());
-    v8::internal::Vector<uint16_t> details = ToVector(args[2].As<v8::String>());
+    v8::internal::Vector<uint16_t> details =
+        ToVector(args.GetIsolate(), args[2].As<v8::String>());
     v8_inspector::StringView details_view(details.start(), details.length());
     v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
@@ -903,7 +914,7 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
     v8::internal::Vector<uint16_t> description =
-        ToVector(args[0].As<v8::String>());
+        ToVector(isolate, args[0].As<v8::String>());
     v8_inspector::StringView description_view(description.start(),
                                               description.length());
     v8_inspector::V8StackTraceId id =
@@ -960,7 +971,7 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     if (with_empty_stack) context->Exit();
 
     v8::internal::Vector<uint16_t> task_name =
-        ToVector(args[1].As<v8::String>());
+        ToVector(isolate, args[1].As<v8::String>());
     v8_inspector::StringView task_name_view(task_name.start(),
                                             task_name.length());
 
