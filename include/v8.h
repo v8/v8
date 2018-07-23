@@ -3048,12 +3048,6 @@ class V8_EXPORT String : public Name {
   void VerifyExternalStringResourceBase(ExternalStringResourceBase* v,
                                         Encoding encoding) const;
   void VerifyExternalStringResource(ExternalStringResource* val) const;
-  ExternalStringResource* GetExternalStringResourceSlow() const;
-  ExternalStringResourceBase* GetExternalStringResourceBaseSlow(
-      String::Encoding* encoding_out) const;
-  const ExternalOneByteStringResource* GetExternalOneByteStringResourceSlow()
-      const;
-
   static void CheckCast(v8::Value* obj);
 };
 
@@ -10188,13 +10182,12 @@ String::ExternalStringResource* String::GetExternalStringResource() const {
   typedef internal::Object O;
   typedef internal::Internals I;
   O* obj = *reinterpret_cast<O* const*>(this);
-
-  ExternalStringResource* result;
+  String::ExternalStringResource* result;
   if (I::IsExternalTwoByteString(I::GetInstanceType(obj))) {
     void* value = I::ReadField<void*>(obj, I::kStringResourceOffset);
     result = reinterpret_cast<String::ExternalStringResource*>(value);
   } else {
-    result = GetExternalStringResourceSlow();
+    result = NULL;
   }
 #ifdef V8_ENABLE_CHECKS
   VerifyExternalStringResource(result);
@@ -10210,16 +10203,14 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
   O* obj = *reinterpret_cast<O* const*>(this);
   int type = I::GetInstanceType(obj) & I::kFullStringRepresentationMask;
   *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
-  ExternalStringResourceBase* resource;
+  ExternalStringResourceBase* resource = NULL;
   if (type == I::kExternalOneByteRepresentationTag ||
       type == I::kExternalTwoByteRepresentationTag) {
     void* value = I::ReadField<void*>(obj, I::kStringResourceOffset);
     resource = static_cast<ExternalStringResourceBase*>(value);
-  } else {
-    resource = GetExternalStringResourceBaseSlow(encoding_out);
   }
 #ifdef V8_ENABLE_CHECKS
-  VerifyExternalStringResourceBase(resource, *encoding_out);
+    VerifyExternalStringResourceBase(resource, *encoding_out);
 #endif
   return resource;
 }

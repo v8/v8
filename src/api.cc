@@ -5961,74 +5961,15 @@ void v8::String::VerifyExternalStringResourceBase(
   CHECK_EQ(expectedEncoding, encoding);
 }
 
-String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
-  typedef internal::Internals I;
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  ExternalStringResource* result = nullptr;
-  internal::Object* obj;
-
-  if (str->IsThinString()) {
-    obj = i::Handle<i::ThinString>::cast(str)->actual();
-  } else {
-    obj = *str;
-  }
-
-  if (I::IsExternalTwoByteString(I::GetInstanceType(obj))) {
-    void* value = I::ReadField<void*>(obj, I::kStringResourceOffset);
-    result = reinterpret_cast<String::ExternalStringResource*>(value);
-  }
-  return result;
-}
-
-String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
-    String::Encoding* encoding_out) const {
-  typedef internal::Internals I;
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  ExternalStringResourceBase* resource = nullptr;
-  internal::Object* obj;
-
-  if (str->IsThinString()) {
-    obj = i::Handle<i::ThinString>::cast(str)->actual();
-  } else {
-    obj = *str;
-  }
-
-  int type = I::GetInstanceType(obj) & I::kFullStringRepresentationMask;
-  *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
-
-  if (type == I::kExternalOneByteRepresentationTag ||
-      type == I::kExternalTwoByteRepresentationTag) {
-    void* value = I::ReadField<void*>(obj, I::kStringResourceOffset);
-    resource = static_cast<ExternalStringResourceBase*>(value);
-  }
-  return resource;
-}
-
-const String::ExternalOneByteStringResource*
-String::GetExternalOneByteStringResourceSlow() const {
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  if (str->IsThinString()) {
-    i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(*str);
-    str = i::Handle<i::String>(i::Handle<i::ThinString>::cast(str)->actual(),
-                               chunk->heap()->isolate());
-  }
-  if (i::StringShape(*str).IsExternalOneByte()) {
-    const void* resource =
-        i::Handle<i::ExternalOneByteString>::cast(str)->resource();
-    return reinterpret_cast<const ExternalOneByteStringResource*>(resource);
-  }
-  return nullptr;
-}
-
 const v8::String::ExternalOneByteStringResource*
 v8::String::GetExternalOneByteStringResource() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   if (i::StringShape(*str).IsExternalOneByte()) {
-    const void* value =
+    const void* resource =
         i::Handle<i::ExternalOneByteString>::cast(str)->resource();
-    return reinterpret_cast<const ExternalOneByteStringResource*>(value);
+    return reinterpret_cast<const ExternalOneByteStringResource*>(resource);
   } else {
-    return GetExternalOneByteStringResourceSlow();
+    return nullptr;
   }
 }
 
@@ -6923,10 +6864,6 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
     return false;
   }
 
-  if (obj->IsThinString()) {
-    obj = i::Handle<i::String>(i::ThinString::cast(*obj)->actual(), isolate);
-  }
-
   if (i::StringShape(*obj).IsExternal()) {
     return false;  // Already an external string.
   }
@@ -6938,7 +6875,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
   bool result = obj->MakeExternal(resource);
   // Assert that if CanMakeExternal(), then externalizing actually succeeds.
-  DCHECK(!Utils::ToLocal(obj)->CanMakeExternal() || result);
+  DCHECK(!CanMakeExternal() || result);
   if (result) {
     DCHECK(obj->IsExternalString());
   }
@@ -6956,10 +6893,6 @@ bool v8::String::MakeExternal(
     return false;
   }
 
-  if (obj->IsThinString()) {
-    obj = i::Handle<i::String>(i::ThinString::cast(*obj)->actual(), isolate);
-  }
-
   if (i::StringShape(*obj).IsExternal()) {
     return false;  // Already an external string.
   }
@@ -6971,7 +6904,7 @@ bool v8::String::MakeExternal(
 
   bool result = obj->MakeExternal(resource);
   // Assert that if CanMakeExternal(), then externalizing actually succeeds.
-  DCHECK(!Utils::ToLocal(obj)->CanMakeExternal() || result);
+  DCHECK(!CanMakeExternal() || result);
   if (result) {
     DCHECK(obj->IsExternalString());
   }
