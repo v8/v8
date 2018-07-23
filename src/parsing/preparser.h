@@ -823,9 +823,9 @@ class PreParserFactory {
     return PreParserStatement::Default();
   }
 
-  PreParserExpression NewCallRuntime(Runtime::FunctionId id,
-                                     ZoneList<PreParserExpression>* arguments,
-                                     int pos) {
+  PreParserExpression NewCallRuntime(
+      Runtime::FunctionId id, ZoneChunkList<PreParserExpression>* arguments,
+      int pos) {
     return PreParserExpression::Default();
   }
 

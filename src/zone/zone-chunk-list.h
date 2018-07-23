@@ -61,6 +61,7 @@ class ZoneChunkList : public ZoneObject {
   }
 
   size_t size() const { return size_; }
+  bool is_empty() const { return size() == 0; }
 
   T& front() const;
   T& back() const;
@@ -158,6 +159,7 @@ class ZoneChunkListIterator
 
  public:
   maybe_const<T>& operator*() { return current_->items()[position_]; }
+  maybe_const<T>* operator->() { return &current_->items()[position_]; }
   bool operator==(const ZoneChunkListIterator& other) const {
     return other.current_ == current_ && other.position_ == position_;
   }
@@ -185,6 +187,30 @@ class ZoneChunkListIterator
     ZoneChunkListIterator clone(*this);
     Move<!backwards>();
     return clone;
+  }
+
+  void Advance(int amount) {
+    // Move forwards.
+    DCHECK_GE(amount, 0);
+#if DEBUG
+    ZoneChunkListIterator clone(*this);
+    for (int i = 0; i < amount; ++i) {
+      ++clone;
+    }
+#endif
+
+    position_ += amount;
+    while (position_ > 0 && position_ >= current_->capacity_) {
+      auto overshoot = position_ - current_->capacity_;
+      current_ = current_->next_;
+      position_ = overshoot;
+
+      DCHECK(position_ == 0 || current_);
+    }
+
+#if DEBUG
+    DCHECK_EQ(clone, *this);
+#endif
   }
 
  private:

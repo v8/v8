@@ -17,6 +17,7 @@
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
 #include "src/utils.h"
+#include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 
@@ -262,10 +263,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void ParseImportDeclaration(bool* ok);
   Statement* ParseExportDeclaration(bool* ok);
   Statement* ParseExportDefault(bool* ok);
-  void ParseExportClause(ZonePtrList<const AstRawString>* export_names,
-                         ZoneList<Scanner::Location>* export_locations,
-                         ZonePtrList<const AstRawString>* local_names,
-                         Scanner::Location* reserved_loc, bool* ok);
+  struct ExportClauseData {
+    const AstRawString* export_name;
+    const AstRawString* local_name;
+    Scanner::Location location;
+  };
+  ZoneChunkList<ExportClauseData>* ParseExportClause(
+      Scanner::Location* reserved_loc, bool* ok);
   struct NamedImport : public ZoneObject {
     const AstRawString* import_name;
     const AstRawString* local_name;

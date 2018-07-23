@@ -798,7 +798,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
       ParserFormalParameters formals(scope);
       // The outer FunctionState should not contain destructuring assignments.
       DCHECK_EQ(0,
-                function_state.destructuring_assignments_to_rewrite().length());
+                function_state.destructuring_assignments_to_rewrite().size());
       {
         // Parsing patterns as variable reference expression creates
         // NewUnresolved references in current scope. Enter arrow function
@@ -943,10 +943,8 @@ const AstRawString* Parser::ParseModuleSpecifier(bool* ok) {
   return GetSymbol();
 }
 
-void Parser::ParseExportClause(ZonePtrList<const AstRawString>* export_names,
-                               ZoneList<Scanner::Location>* export_locations,
-                               ZonePtrList<const AstRawString>* local_names,
-                               Scanner::Location* reserved_loc, bool* ok) {
+ZoneChunkList<Parser::ExportClauseData>* Parser::ParseExportClause(
+    Scanner::Location* reserved_loc, bool* ok) {
   // ExportClause :
   //   '{' '}'
   //   '{' ExportsList '}'
@@ -959,8 +957,10 @@ void Parser::ParseExportClause(ZonePtrList<const AstRawString>* export_names,
   // ExportSpecifier :
   //   IdentifierName
   //   IdentifierName 'as' IdentifierName
+  ZoneChunkList<ExportClauseData>* export_data =
+      new (zone()) ZoneChunkList<ExportClauseData>(zone());
 
-  Expect(Token::LBRACE, CHECK_OK_VOID);
+  Expect(Token::LBRACE, CHECK_OK);
 
   Token::Value name_tok;
   while ((name_tok = peek()) != Token::RBRACE) {
@@ -971,11 +971,11 @@ void Parser::ParseExportClause(ZonePtrList<const AstRawString>* export_names,
                              parsing_module_)) {
       *reserved_loc = scanner()->location();
     }
-    const AstRawString* local_name = ParseIdentifierName(CHECK_OK_VOID);
+    const AstRawString* local_name = ParseIdentifierName(CHECK_OK);
     const AstRawString* export_name = nullptr;
     Scanner::Location location = scanner()->location();
     if (CheckContextualKeyword(Token::AS)) {
-      export_name = ParseIdentifierName(CHECK_OK_VOID);
+      export_name = ParseIdentifierName(CHECK_OK);
       // Set the location to the whole "a as b" string, so that it makes sense
       // both for errors due to "a" and for errors due to "b".
       location.end_pos = scanner()->location().end_pos;
@@ -983,14 +983,13 @@ void Parser::ParseExportClause(ZonePtrList<const AstRawString>* export_names,
     if (export_name == nullptr) {
       export_name = local_name;
     }
-    export_names->Add(export_name, zone());
-    local_names->Add(local_name, zone());
-    export_locations->Add(location, zone());
+    export_data->push_back({export_name, local_name, location});
     if (peek() == Token::RBRACE) break;
-    Expect(Token::COMMA, CHECK_OK_VOID);
+    Expect(Token::COMMA, CHECK_OK);
   }
 
-  Expect(Token::RBRACE, CHECK_OK_VOID);
+  Expect(Token::RBRACE, CHECK_OK);
+  return export_data;
 }
 
 ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos,
@@ -1264,11 +1263,8 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       // encountered, and then throw a SyntaxError if we are in the
       // non-FromClause case.
       Scanner::Location reserved_loc = Scanner::Location::invalid();
-      ZonePtrList<const AstRawString> export_names(1, zone());
-      ZoneList<Scanner::Location> export_locations(1, zone());
-      ZonePtrList<const AstRawString> original_names(1, zone());
-      ParseExportClause(&export_names, &export_locations, &original_names,
-                        &reserved_loc, CHECK_OK);
+      ZoneChunkList<ExportClauseData>* export_data =
+          ParseExportClause(&reserved_loc, CHECK_OK);
       const AstRawString* module_specifier = nullptr;
       Scanner::Location specifier_loc;
       if (CheckContextualKeyword(Token::FROM)) {
@@ -1281,21 +1277,18 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
         return nullptr;
       }
       ExpectSemicolon(CHECK_OK);
-      const int length = export_names.length();
-      DCHECK_EQ(length, original_names.length());
-      DCHECK_EQ(length, export_locations.length());
       if (module_specifier == nullptr) {
-        for (int i = 0; i < length; ++i) {
-          module()->AddExport(original_names[i], export_names[i],
-                              export_locations[i], zone());
+        for (const ExportClauseData& data : *export_data) {
+          module()->AddExport(data.local_name, data.export_name, data.location,
+                              zone());
         }
-      } else if (length == 0) {
+      } else if (export_data->is_empty()) {
         module()->AddEmptyImport(module_specifier, specifier_loc);
       } else {
-        for (int i = 0; i < length; ++i) {
-          module()->AddExport(original_names[i], export_names[i],
-                              module_specifier, export_locations[i],
-                              specifier_loc, zone());
+        for (const ExportClauseData& data : *export_data) {
+          module()->AddExport(data.local_name, data.export_name,
+                              module_specifier, data.location, specifier_loc,
+                              zone());
         }
       }
       return factory()->NewEmptyStatement(pos);
@@ -3652,10 +3645,11 @@ void Parser::RewriteAsyncFunctionBody(ZonePtrList<Statement>* body,
 void Parser::RewriteDestructuringAssignments() {
   const auto& assignments =
       function_state_->destructuring_assignments_to_rewrite();
-  for (int i = assignments.length() - 1; i >= 0; --i) {
+  auto it = assignments.rbegin();
+  for (; it != assignments.rend(); ++it) {
     // Rewrite list in reverse, so that nested assignment patterns are rewritten
     // correctly.
-    RewritableExpression* to_rewrite = assignments[i];
+    RewritableExpression* to_rewrite = *it;
     DCHECK_NOT_NULL(to_rewrite);
     if (!to_rewrite->is_rewritten()) {
       // Since this function is called at the end of parsing the program,

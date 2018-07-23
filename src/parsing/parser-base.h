@@ -21,6 +21,7 @@
 #include "src/parsing/func-name-inferrer.h"
 #include "src/parsing/scanner.h"
 #include "src/parsing/token.h"
+#include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 namespace internal {
@@ -416,16 +417,18 @@ class ParserBase {
     void AdoptDestructuringAssignmentsFromParentState(int pos) {
       const auto& outer_assignments =
           outer_function_state_->destructuring_assignments_to_rewrite_;
-      DCHECK_GE(outer_assignments.length(), pos);
-      for (int i = pos; i < outer_assignments.length(); ++i) {
-        auto expr = outer_assignments[i];
+      DCHECK_GE(outer_assignments.size(), pos);
+      auto it = outer_assignments.begin();
+      it.Advance(pos);
+      for (; it != outer_assignments.end(); ++it) {
+        auto expr = *it;
         expr->set_scope(scope_);
-        destructuring_assignments_to_rewrite_.Add(expr, scope_->zone());
+        destructuring_assignments_to_rewrite_.push_back(expr);
       }
       outer_function_state_->RewindDestructuringAssignments(pos);
     }
 
-    const ZoneList<RewritableExpressionT>&
+    const ZoneChunkList<RewritableExpressionT>&
     destructuring_assignments_to_rewrite() const {
       return destructuring_assignments_to_rewrite_;
     }
@@ -472,7 +475,7 @@ class ParserBase {
 
    private:
     void AddDestructuringAssignment(RewritableExpressionT expr) {
-      destructuring_assignments_to_rewrite_.Add(expr, scope_->zone());
+      destructuring_assignments_to_rewrite_.push_back(expr);
     }
 
     // Properties count estimation.
@@ -482,7 +485,7 @@ class ParserBase {
     FunctionState* outer_function_state_;
     DeclarationScope* scope_;
 
-    ZoneList<RewritableExpressionT> destructuring_assignments_to_rewrite_;
+    ZoneChunkList<RewritableExpressionT> destructuring_assignments_to_rewrite_;
 
     ZoneList<typename ExpressionClassifier::Error> reported_errors_;
 
@@ -1577,7 +1580,7 @@ ParserBase<Impl>::FunctionState::FunctionState(
       function_state_stack_(function_state_stack),
       outer_function_state_(*function_state_stack),
       scope_(scope),
-      destructuring_assignments_to_rewrite_(16, scope->zone()),
+      destructuring_assignments_to_rewrite_(scope->zone()),
       reported_errors_(16, scope->zone()),
       dont_optimize_reason_(BailoutReason::kNoReason),
       suspend_count_(0),
@@ -2875,8 +2878,8 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
       this, classifier()->duplicate_finder());
 
   Scope::Snapshot scope_snapshot(scope());
-  int rewritable_length =
-      function_state_->destructuring_assignments_to_rewrite().length();
+  int rewritable_length = static_cast<int>(
+      function_state_->destructuring_assignments_to_rewrite().size());
 
   bool is_async = peek() == Token::ASYNC &&
                   !scanner()->HasAnyLineTerminatorAfterNext() &&
