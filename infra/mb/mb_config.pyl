@@ -74,6 +74,7 @@
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'release_x64_internal',
       'V8 Linux64 - debug - deprecation warnings': 'debug_x64_deprecation_warnings',
+      'V8 Linux64 - debug - header includes': 'debug_x64_header_includes',
       'V8 Linux64 - verify csa': 'release_x64_verify_csa',
       # Jumbo.
       'V8 Linux64 Jumbo': 'release_x64_jumbo',
@@ -219,6 +220,7 @@
       'v8_linux_shared_compile_rel': 'release_x86_shared_verify_heap',
       'v8_linux64_dbg_ng': 'debug_x64_trybot',
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
+      'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
       'v8_linux64_fyi_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_verify_csa_rel_ng': 'release_x64_verify_csa',
@@ -505,6 +507,8 @@
       'debug_bot', 'x64', 'v8_snapshot_custom'],
     'debug_x64_deprecation_warnings': [
       'debug_bot', 'x64', 'v8_imminent_deprecation_warnings'],
+    'debug_x64_header_includes': [
+      'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
@@ -838,6 +842,10 @@
 
     'v8_imminent_deprecation_warnings': {
       'gn_args': 'v8_imminent_deprecation_warnings=true',
+    },
+
+    'v8_check_header_includes': {
+      'gn_args': 'v8_check_header_includes=true',
     },
 
     'v8_interpreted_regexp': {
