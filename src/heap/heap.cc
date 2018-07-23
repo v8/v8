@@ -5006,6 +5006,34 @@ void CompactFixedArrayOfWeakCells(Isolate* isolate, Object* object) {
     array->Compact<FixedArrayOfWeakCells::NullCallback>(isolate);
   }
 }
+
+Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
+                                           Handle<WeakArrayList> array) {
+  if (array->length() == 0) {
+    return array;
+  }
+  int new_length = array->CountLiveWeakReferences();
+  if (new_length == array->length()) {
+    return array;
+  }
+
+  Handle<WeakArrayList> new_array = WeakArrayList::EnsureSpace(
+      heap->isolate(),
+      handle(ReadOnlyRoots(heap).empty_weak_array_list(), heap->isolate()),
+      new_length);
+  // Allocation might have caused GC and turned some of the elements into
+  // cleared weak heap objects. Count the number of live references again and
+  // fill in the new array.
+  int copy_to = 0;
+  for (int i = 0; i < array->length(); i++) {
+    MaybeObject* element = array->Get(i);
+    if (element->IsClearedWeakHeapObject()) continue;
+    new_array->Set(copy_to++, element);
+  }
+  new_array->set_length(copy_to);
+  return new_array;
+}
+
 }  // anonymous namespace
 
 void Heap::CompactFixedArraysOfWeakCells() {
@@ -5032,8 +5060,12 @@ void Heap::CompactFixedArraysOfWeakCells() {
 
   // Find known FixedArrayOfWeakCells and compact them.
   CompactFixedArrayOfWeakCells(isolate(), noscript_shared_function_infos());
-  CompactFixedArrayOfWeakCells(isolate(), script_list());
   CompactFixedArrayOfWeakCells(isolate(), weak_stack_trace_list());
+
+  // Find known WeakArrayLists and compact them.
+  Handle<WeakArrayList> scripts(script_list(), isolate());
+  scripts = CompactWeakArrayList(this, scripts);
+  set_script_list(*scripts);
 }
 
 void Heap::AddRetainedMap(Handle<Map> map) {
