@@ -11,6 +11,58 @@ module data_view {
   extern operator '.backing_store' macro LoadArrayBufferBackingStore(
       JSArrayBuffer): RawPtr;
 
+  macro MakeDataViewGetterNameString(kind: constexpr ElementsKind): String {
+    if constexpr (kind == UINT8_ELEMENTS) {
+      return 'DataView.prototype.getUint8';
+    } else if constexpr (kind == INT8_ELEMENTS) {
+      return 'DataView.prototype.getInt8';
+    } else if constexpr (kind == UINT16_ELEMENTS) {
+      return 'DataView.prototype.getUint16';
+    } else if constexpr (kind == INT16_ELEMENTS) {
+      return 'DataView.prototype.getInt16';
+    } else if constexpr (kind == UINT32_ELEMENTS) {
+      return 'DataView.prototype.getUint32';
+    } else if constexpr (kind == INT32_ELEMENTS) {
+      return 'DataView.prototype.getInt32';
+    } else if constexpr (kind == FLOAT32_ELEMENTS) {
+      return 'DataView.prototype.getFloat32';
+    } else if constexpr (kind == FLOAT64_ELEMENTS) {
+      return 'DataView.prototype.getFloat64';
+    } else if constexpr (kind == BIGINT64_ELEMENTS) {
+      return 'DataView.prototype.getBigInt64';
+    } else if constexpr (kind == BIGUINT64_ELEMENTS) {
+      return 'DataView.prototype.getBigUint64';
+    } else {
+      unreachable;
+    }
+  }
+
+  macro MakeDataViewSetterNameString(kind: constexpr ElementsKind): String {
+    if constexpr (kind == UINT8_ELEMENTS) {
+      return 'DataView.prototype.setUint8';
+    } else if constexpr (kind == INT8_ELEMENTS) {
+      return 'DataView.prototype.setInt8';
+    } else if constexpr (kind == UINT16_ELEMENTS) {
+      return 'DataView.prototype.setUint16';
+    } else if constexpr (kind == INT16_ELEMENTS) {
+      return 'DataView.prototype.setInt16';
+    } else if constexpr (kind == UINT32_ELEMENTS) {
+      return 'DataView.prototype.setUint32';
+    } else if constexpr (kind == INT32_ELEMENTS) {
+      return 'DataView.prototype.setInt32';
+    } else if constexpr (kind == FLOAT32_ELEMENTS) {
+      return 'DataView.prototype.setFloat32';
+    } else if constexpr (kind == FLOAT64_ELEMENTS) {
+      return 'DataView.prototype.setFloat64';
+    } else if constexpr (kind == BIGINT64_ELEMENTS) {
+      return 'DataView.prototype.setBigInt64';
+    } else if constexpr (kind == BIGUINT64_ELEMENTS) {
+      return 'DataView.prototype.setBigUint64';
+    } else {
+      unreachable;
+    }
+  }
+
   macro WasNeutered(view: JSArrayBufferView): bool {
     return IsDetachedBuffer(view.buffer);
   }
@@ -184,11 +236,11 @@ module data_view {
   extern macro DataViewEncodeBigIntBits(constexpr bool,
       constexpr int31): intptr;
 
-  const kPositiveBigInt: constexpr bool generates 'false';
-  const kNegativeBigInt: constexpr bool generates 'true';
-  const kZeroDigitBigInt: constexpr int31 generates '0';
-  const kOneDigitBigInt: constexpr int31 generates '1';
-  const kTwoDigitBigInt: constexpr int31 generates '2';
+  const kPositiveBigInt: constexpr bool = false;
+  const kNegativeBigInt: constexpr bool = true;
+  const kZeroDigitBigInt: constexpr int31 = 0;
+  const kOneDigitBigInt: constexpr int31 = 1;
+  const kTwoDigitBigInt: constexpr int31 = 2;
 
   macro CreateEmptyBigInt(is_positive: bool, length: constexpr int31): BigInt {
     // Allocate a BigInt with the desired length (number of digits).
@@ -355,10 +407,8 @@ module data_view {
                     requested_little_endian: Object,
                     kind: constexpr ElementsKind): Numeric {
 
-    // TODO(theotime): add more specific method name to match
-    // the former implementation.
     let data_view: JSDataView = ValidateDataView(
-        context, receiver, 'get DataView.prototype.get');
+        context, receiver, MakeDataViewGetterNameString(kind));
 
     let getIndexSmi: Smi;
     try {
@@ -373,7 +423,8 @@ module data_view {
     let buffer: JSArrayBuffer = data_view.buffer;
 
     if (IsDetachedBuffer(buffer)) {
-      ThrowTypeError(context, kDetachedOperation, 'DataView.prototype.get');
+      ThrowTypeError(context, kDetachedOperation,
+                     MakeDataViewGetterNameString(kind));
     }
 
     let viewOffset: intptr = convert<intptr>(data_view.byte_offset);
@@ -664,10 +715,8 @@ module data_view {
                     requested_little_endian: Object,
                     kind: constexpr ElementsKind): Object {
 
-    // TODO(theotime): add more specific method name to match
-    // the former implementation.
     let data_view: JSDataView = ValidateDataView(
-        context, receiver, 'get DataView.prototype.get');
+        context, receiver, MakeDataViewSetterNameString(kind));
 
     let getIndexSmi: Smi;
     try {
@@ -692,7 +741,8 @@ module data_view {
     }
 
     if (IsDetachedBuffer(buffer)) {
-      ThrowTypeError(context, kDetachedOperation, 'DataView.prototype.get');
+      ThrowTypeError(context, kDetachedOperation,
+                     MakeDataViewSetterNameString(kind));
     }
 
     let viewOffset: intptr = convert<intptr>(data_view.byte_offset);
