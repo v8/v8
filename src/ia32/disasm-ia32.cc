@@ -1500,6 +1500,8 @@ static const char* F0Mnem(byte f0byte) {
       return "bsf";
     case 0xBD:
       return "bsr";
+    case 0xC7:
+      return "cmpxchg8b";
     default:
       return nullptr;
   }
@@ -1800,6 +1802,13 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("%s %s,", f0mnem, NameOfCPURegister(regop));
+            data += PrintRightOperand(data);
+          } else if (f0byte == 0xC7) {
+            // cmpxchg8b
+            data += 2;
+            AppendToBuffer("%s ", f0mnem);
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
             data += PrintRightOperand(data);
           } else if (f0byte == 0xAE && (data[2] & 0xF8) == 0xE8) {
             AppendToBuffer("lfence");

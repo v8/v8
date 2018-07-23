@@ -667,6 +667,7 @@ class Assembler : public AssemblerBase {
   void cmpxchg(Operand dst, Register src);
   void cmpxchg_b(Operand dst, Register src);
   void cmpxchg_w(Operand dst, Register src);
+  void cmpxchg8b(Operand dst);
 
   // Memory Fence
   void lfence();

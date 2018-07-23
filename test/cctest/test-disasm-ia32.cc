@@ -871,6 +871,8 @@ TEST(DisasmIa320) {
     __ cmpxchg_b(Operand(esp, 12), eax);
     __ cmpxchg_w(Operand(ebx, ecx, times_4, 10000), eax);
     __ cmpxchg(Operand(ebx, ecx, times_4, 10000), eax);
+    __ cmpxchg(Operand(ebx, ecx, times_4, 10000), eax);
+    __ cmpxchg8b(Operand(ebx, ecx, times_8, 10000));
   }
 
   // lock prefix.
