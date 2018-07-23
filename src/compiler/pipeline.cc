@@ -40,6 +40,7 @@
 #include "src/compiler/js-create-lowering.h"
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/js-inlining-heuristic.h"
 #include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-native-context-specialization.h"
@@ -1279,6 +1280,20 @@ struct UntyperPhase {
   }
 };
 
+struct CopyMetadataForConcurrentCompilePhase {
+  static const char* phase_name() {
+    return "copy metadata for concurrent compile";
+  }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    GraphReducer graph_reducer(temp_zone, data->graph(),
+                               data->jsgraph()->Dead());
+    JSHeapCopyReducer heap_copy_reducer(data->js_heap_broker());
+    AddReducer(data, &graph_reducer, &heap_copy_reducer);
+    graph_reducer.ReduceGraph();
+  }
+};
+
 struct TypedLoweringPhase {
   static const char* phase_name() { return "typed lowering"; }
 
@@ -2015,14 +2030,18 @@ bool PipelineImpl::CreateGraph() {
     Run<TyperPhase>(&typer);
     RunPrintAndVerify(TyperPhase::phase_name());
 
+    // Do some hacky things to prepare for the optimization phase.
+    // (caching handles, etc.).
+    Run<ConcurrentOptimizationPrepPhase>();
+
+    if (FLAG_concurrent_compiler_frontend) {
+      Run<CopyMetadataForConcurrentCompilePhase>();
+    }
+
     // Lower JSOperators where we can determine types.
     Run<TypedLoweringPhase>();
     RunPrintAndVerify(TypedLoweringPhase::phase_name());
   }
-
-  // Do some hacky things to prepare for the optimization phase.
-  // (caching handles, etc.).
-  Run<ConcurrentOptimizationPrepPhase>();
 
   data->EndPhaseKind();
 
