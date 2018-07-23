@@ -820,7 +820,7 @@ class Isolate : private HiddenFactory {
   };
   CatchType PredictExceptionCatcher();
 
-  void ScheduleThrow(Object* exception);
+  V8_EXPORT_PRIVATE void ScheduleThrow(Object* exception);
   // Re-set pending message, script and positions reported to the TryCatch
   // back to the TLS for re-use when rethrowing.
   void RestorePendingMessageFromTryCatch(v8::TryCatch* handler);

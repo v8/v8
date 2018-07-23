@@ -4,6 +4,7 @@
 
 #include "src/async-hooks-wrapper.h"
 #include "src/d8.h"
+#include "src/isolate-inl.h"
 
 namespace v8 {
 
@@ -216,12 +217,25 @@ void AsyncHooks::PromiseHookDispatch(PromiseHookType type,
   TryCatch try_catch(hooks->isolate_);
   try_catch.SetVerbose(true);
 
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(hooks->isolate_);
+  if (isolate->has_scheduled_exception()) {
+    isolate->ScheduleThrow(isolate->scheduled_exception());
+
+    DCHECK(try_catch.HasCaught());
+    Shell::ReportException(hooks->isolate_, &try_catch);
+    return;
+  }
+
   Local<Value> rcv = Undefined(hooks->isolate_);
   Local<Context> context = hooks->isolate_->GetCurrentContext();
   Local<Value> async_id =
       promise->GetPrivate(context, hooks->async_id_smb.Get(hooks->isolate_))
           .ToLocalChecked();
   Local<Value> args[1] = {async_id};
+
+  // This is unused. It's here to silence the warning about
+  // not using the MaybeLocal return value from Call.
+  MaybeLocal<Value> result;
 
   // Sacrifice the brevity for readability and debugfulness
   if (type == PromiseHookType::kInit) {
@@ -235,21 +249,19 @@ void AsyncHooks::PromiseHookDispatch(PromiseHookType type,
               ->GetPrivate(context, hooks->trigger_id_smb.Get(hooks->isolate_))
               .ToLocalChecked(),
           promise};
-      wrap->init_function()->Call(context, rcv, 4, initArgs).ToLocalChecked();
+      result = wrap->init_function()->Call(context, rcv, 4, initArgs);
     }
   } else if (type == PromiseHookType::kBefore) {
     if (!wrap->before_function().IsEmpty()) {
-      wrap->before_function()->Call(context, rcv, 1, args).ToLocalChecked();
+      result = wrap->before_function()->Call(context, rcv, 1, args);
     }
   } else if (type == PromiseHookType::kAfter) {
     if (!wrap->after_function().IsEmpty()) {
-      wrap->after_function()->Call(context, rcv, 1, args).ToLocalChecked();
+      result = wrap->after_function()->Call(context, rcv, 1, args);
     }
   } else if (type == PromiseHookType::kResolve) {
     if (!wrap->promiseResolve_function().IsEmpty()) {
-      wrap->promiseResolve_function()
-          ->Call(context, rcv, 1, args)
-          .ToLocalChecked();
+      result = wrap->promiseResolve_function()->Call(context, rcv, 1, args);
     }
   }
 
