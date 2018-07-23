@@ -153,7 +153,7 @@ class BreakIterator {
  private:
   int BreakIndexFromPosition(int position);
 
-  Isolate* isolate() { return debug_info_->GetIsolate(); }
+  Isolate* isolate();
 
   DebugBreakType GetDebugBreakType();
 
@@ -350,9 +350,7 @@ class Debug {
   StackFrame::Id break_frame_id() { return thread_local_.break_frame_id_; }
   int break_id() { return thread_local_.break_id_; }
 
-  Handle<Object> return_value_handle() {
-    return handle(thread_local_.return_value_, isolate_);
-  }
+  Handle<Object> return_value_handle();
   Object* return_value() { return thread_local_.return_value_; }
   void set_return_value(Object* value) { thread_local_.return_value_ = value; }
 

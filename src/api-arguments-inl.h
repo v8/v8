@@ -15,6 +15,29 @@
 namespace v8 {
 namespace internal {
 
+CustomArgumentsBase::CustomArgumentsBase(Isolate* isolate)
+    : Relocatable(isolate) {}
+
+template <typename T>
+template <typename V>
+Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
+  // Check the ReturnValue.
+  Object** handle = &this->begin()[kReturnValueOffset];
+  // Nothing was set, return empty handle as per previous behaviour.
+  if ((*handle)->IsTheHole(isolate)) return Handle<V>();
+  Handle<V> result = Handle<V>::cast(Handle<Object>(handle));
+  result->VerifyApiCallResultType();
+  return result;
+}
+
+inline JSObject* PropertyCallbackArguments::holder() {
+  return JSObject::cast(this->begin()[T::kHolderIndex]);
+}
+
+inline JSObject* FunctionCallbackArguments::holder() {
+  return JSObject::cast(this->begin()[T::kHolderIndex]);
+}
+
 #define FOR_EACH_CALLBACK(F)                        \
   F(Query, query, Object, v8::Integer, interceptor) \
   F(Deleter, deleter, Object, v8::Boolean, Handle<Object>())

@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_FIXED_ARRAY_H_
 #define V8_OBJECTS_FIXED_ARRAY_H_
 
+#include "src/maybe-handles.h"
 #include "src/objects.h"
 
 // Has to be the last include (doesn't have include guards):

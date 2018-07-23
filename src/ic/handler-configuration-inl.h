@@ -8,6 +8,7 @@
 #include "src/ic/handler-configuration.h"
 
 #include "src/field-index-inl.h"
+#include "src/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/data-handler-inl.h"
 

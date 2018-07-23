@@ -6,6 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/conversions.h"
 #include "src/counters.h"
+#include "src/maybe-handles-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

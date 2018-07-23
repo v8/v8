@@ -18,6 +18,7 @@ namespace internal {
 class ByteArray;
 class BytecodeArray;
 class CodeDataContainer;
+class MaybeObject;
 
 namespace interpreter {
 class Register;

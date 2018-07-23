@@ -88,10 +88,7 @@ class ElementsAccessor {
                                      KeyAccumulator* keys) = 0;
 
   inline void CollectElementIndices(Handle<JSObject> object,
-                                    KeyAccumulator* keys) {
-    CollectElementIndices(object, handle(object->elements(), keys->isolate()),
-                          keys);
-  }
+                                    KeyAccumulator* keys);
 
   virtual Maybe<bool> CollectValuesOrEntries(
       Isolate* isolate, Handle<JSObject> object,
@@ -105,11 +102,7 @@ class ElementsAccessor {
 
   inline MaybeHandle<FixedArray> PrependElementIndices(
       Handle<JSObject> object, Handle<FixedArray> keys,
-      GetKeysConversion convert, PropertyFilter filter = ALL_PROPERTIES) {
-    return PrependElementIndices(
-        object, handle(object->elements(), object->GetIsolate()), keys, convert,
-        filter);
-  }
+      GetKeysConversion convert, PropertyFilter filter = ALL_PROPERTIES);
 
   virtual void AddElementsToKeyAccumulator(Handle<JSObject> receiver,
                                            KeyAccumulator* accumulator,

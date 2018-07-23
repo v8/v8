@@ -8,6 +8,7 @@
 #include "src/api.h"
 #include "src/base/logging.h"
 #include "src/identity-map.h"
+#include "src/maybe-handles.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

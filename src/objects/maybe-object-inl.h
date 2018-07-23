@@ -7,9 +7,6 @@
 
 #include "src/objects/maybe-object.h"
 
-#include "include/v8.h"
-#include "src/globals.h"
-
 namespace v8 {
 namespace internal {
 

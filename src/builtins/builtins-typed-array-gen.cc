@@ -10,6 +10,7 @@
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
 #include "src/handles-inl.h"
+#include "src/heap/factory-inl.h"
 
 namespace v8 {
 namespace internal {

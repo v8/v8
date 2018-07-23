@@ -87,6 +87,7 @@ void ImplementationVisitor::BeginModuleFile(Module* module) {
   source << "#include \"src/elements-kind.h\"\n";
   source << "#include \"src/heap/factory-inl.h\"\n";
   source << "#include \"src/objects.h\"\n";
+  source << "#include \"src/objects/bigint.h\"\n";
 
   source << "#include \"builtins-" + DashifyString(module->name()) +
                 "-from-dsl-gen.h\"\n\n";

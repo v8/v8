@@ -14,6 +14,7 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/machine-type.h"
+#include "src/maybe-handles.h"
 #include "src/objects.h"
 #include "src/type-hints.h"
 #include "src/vector-slot-pair.h"

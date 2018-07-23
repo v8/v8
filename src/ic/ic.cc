@@ -14,6 +14,7 @@
 #include "src/execution.h"
 #include "src/field-type.h"
 #include "src/frames-inl.h"
+#include "src/handles-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"

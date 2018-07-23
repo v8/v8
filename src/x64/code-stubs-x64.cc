@@ -4,7 +4,7 @@
 
 #if V8_TARGET_ARCH_X64
 
-#include "src/api-arguments.h"
+#include "src/api-arguments-inl.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/counters.h"

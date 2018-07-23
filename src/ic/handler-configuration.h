@@ -8,6 +8,7 @@
 #include "src/elements-kind.h"
 #include "src/field-index.h"
 #include "src/globals.h"
+#include "src/maybe-handles.h"
 #include "src/objects.h"
 #include "src/objects/data-handler.h"
 #include "src/utils.h"

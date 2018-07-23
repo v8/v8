@@ -11,6 +11,7 @@
 #include "src/compiler/code-assembler.h"
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/objects/bigint.h"
 #include "src/roots.h"
 
 namespace v8 {

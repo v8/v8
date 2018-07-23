@@ -7,12 +7,14 @@
 
 #include "include/v8.h"
 #include "src/globals.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
 
 class HeapObject;
 class Smi;
+class StringStream;
 
 // A MaybeObject is either a SMI, a strong reference to a HeapObject, a weak
 // reference to a HeapObject, or a cleared weak reference. It's used for

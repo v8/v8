@@ -46,7 +46,7 @@
 #include "src/isolate-inl.h"
 #include "src/keys.h"
 #include "src/log.h"
-#include "src/lookup.h"
+#include "src/lookup-inl.h"
 #include "src/macro-assembler.h"
 #include "src/map-updater.h"
 #include "src/messages.h"

@@ -323,6 +323,7 @@ BreakLocation BreakIterator::GetBreakLocation() {
                        generator_object_reg_index);
 }
 
+Isolate* BreakIterator::isolate() { return debug_info_->GetIsolate(); }
 
 void DebugFeatureTracker::Track(DebugFeatureTracker::Feature feature) {
   uint32_t mask = 1 << feature;
@@ -2171,6 +2172,10 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function,
   }
   UNREACHABLE();
   return false;
+}
+
+Handle<Object> Debug::return_value_handle() {
+  return handle(thread_local_.return_value_, isolate_);
 }
 
 bool Debug::PerformSideEffectCheckForCallback(Handle<Object> callback_info) {

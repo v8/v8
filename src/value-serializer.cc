@@ -14,6 +14,7 @@
 #include "src/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
+#include "src/maybe-handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"

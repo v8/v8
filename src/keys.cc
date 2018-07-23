@@ -5,7 +5,7 @@
 #include "src/keys.h"
 
 #include "src/api-arguments-inl.h"
-#include "src/elements.h"
+#include "src/elements-inl.h"
 #include "src/heap/factory.h"
 #include "src/identity-map.h"
 #include "src/isolate-inl.h"

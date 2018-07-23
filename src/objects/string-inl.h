@@ -8,6 +8,7 @@
 #include "src/objects/string.h"
 
 #include "src/conversions-inl.h"
+#include "src/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/name-inl.h"
 #include "src/string-hasher-inl.h"

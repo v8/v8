@@ -9,6 +9,7 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/heap/heap.h"
+#include "src/maybe-handles.h"
 #include "src/messages.h"
 #include "src/objects/code.h"
 #include "src/objects/dictionary.h"
