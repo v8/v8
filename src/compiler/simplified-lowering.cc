@@ -286,7 +286,7 @@ class RepresentationSelector {
     bool weakened_ = false;
   };
 
-  RepresentationSelector(JSGraph* jsgraph, const JSHeapBroker* js_heap_broker,
+  RepresentationSelector(JSGraph* jsgraph, JSHeapBroker* js_heap_broker,
                          Zone* zone, RepresentationChanger* changer,
                          SourcePositionTable* source_positions,
                          NodeOriginTable* node_origins)
@@ -3275,8 +3275,7 @@ class RepresentationSelector {
 };
 
 SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph,
-                                       const JSHeapBroker* js_heap_broker,
-                                       Zone* zone,
+                                       JSHeapBroker* js_heap_broker, Zone* zone,
                                        SourcePositionTable* source_positions,
                                        NodeOriginTable* node_origins,
                                        PoisoningMitigationLevel poisoning_level)

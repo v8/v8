@@ -63,12 +63,12 @@ class JSContextSpecialization final : public AdvancedReducer {
   JSGraph* jsgraph() const { return jsgraph_; }
   Maybe<OuterContext> outer() const { return outer_; }
   MaybeHandle<JSFunction> closure() const { return closure_; }
-  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
 
   JSGraph* const jsgraph_;
   Maybe<OuterContext> outer_;
   MaybeHandle<JSFunction> closure_;
-  const JSHeapBroker* const js_heap_broker_;
+  JSHeapBroker* const js_heap_broker_;
 
   DISALLOW_COPY_AND_ASSIGN(JSContextSpecialization);
 };

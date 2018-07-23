@@ -33,7 +33,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   JSCreateLowering(Editor* editor, CompilationDependencies* dependencies,
-                   JSGraph* jsgraph, const JSHeapBroker* js_heap_broker,
+                   JSGraph* jsgraph, JSHeapBroker* js_heap_broker,
                    Handle<Context> native_context, Zone* zone)
       : AdvancedReducer(editor),
         dependencies_(dependencies),
@@ -116,12 +116,12 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
   CompilationDependencies* dependencies() const { return dependencies_; }
-  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
   Zone* zone() const { return zone_; }
 
   CompilationDependencies* const dependencies_;
   JSGraph* const jsgraph_;
-  const JSHeapBroker* const js_heap_broker_;
+  JSHeapBroker* const js_heap_broker_;
   Handle<Context> const native_context_;
   Zone* const zone_;
 };

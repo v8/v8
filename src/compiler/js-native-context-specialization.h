@@ -47,7 +47,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   typedef base::Flags<Flag> Flags;
 
   JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph,
-                                const JSHeapBroker* js_heap_broker, Flags flags,
+                                JSHeapBroker* js_heap_broker, Flags flags,
                                 Handle<Context> native_context,
                                 CompilationDependencies* dependencies,
                                 Zone* zone);
@@ -217,7 +217,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
 
-  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
   Isolate* isolate() const;
   Factory* factory() const;
   CommonOperatorBuilder* common() const;
@@ -231,7 +231,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Zone* zone() const { return zone_; }
 
   JSGraph* const jsgraph_;
-  const JSHeapBroker* const js_heap_broker_;
+  JSHeapBroker* const js_heap_broker_;
   Flags const flags_;
   Handle<JSGlobalObject> global_object_;
   Handle<JSGlobalProxy> global_proxy_;

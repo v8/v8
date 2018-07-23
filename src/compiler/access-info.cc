@@ -237,7 +237,7 @@ Handle<Cell> PropertyAccessInfo::export_cell() const {
   return Handle<Cell>::cast(constant_);
 }
 
-AccessInfoFactory::AccessInfoFactory(const JSHeapBroker* js_heap_broker,
+AccessInfoFactory::AccessInfoFactory(JSHeapBroker* js_heap_broker,
                                      CompilationDependencies* dependencies,
                                      Handle<Context> native_context, Zone* zone)
     : js_heap_broker_(js_heap_broker),

@@ -33,7 +33,7 @@ class Typer::Decorator final : public GraphDecorator {
   Typer* const typer_;
 };
 
-Typer::Typer(Isolate* isolate, const JSHeapBroker* js_heap_broker, Flags flags,
+Typer::Typer(Isolate* isolate, JSHeapBroker* js_heap_broker, Flags flags,
              Graph* graph)
     : flags_(flags),
       graph_(graph),

@@ -16,8 +16,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-OperationTyper::OperationTyper(Isolate* isolate,
-                               const JSHeapBroker* js_heap_broker, Zone* zone)
+OperationTyper::OperationTyper(Isolate* isolate, JSHeapBroker* js_heap_broker,
+                               Zone* zone)
     : zone_(zone), cache_(TypeCache::Get()) {
   Factory* factory = isolate->factory();
   infinity_ =

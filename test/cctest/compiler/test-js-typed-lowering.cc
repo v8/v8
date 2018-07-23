@@ -23,7 +23,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
  public:
   explicit JSTypedLoweringTester(int num_parameters = 0)
       : isolate(main_isolate()),
-        js_heap_broker(isolate),
+        js_heap_broker(isolate, main_zone()),
         binop(nullptr),
         unop(nullptr),
         javascript(main_zone()),

@@ -58,9 +58,9 @@ struct JSNativeContextSpecialization::ScriptContextTableLookupResult {
 };
 
 JSNativeContextSpecialization::JSNativeContextSpecialization(
-    Editor* editor, JSGraph* jsgraph, const JSHeapBroker* js_heap_broker,
-    Flags flags, Handle<Context> native_context,
-    CompilationDependencies* dependencies, Zone* zone)
+    Editor* editor, JSGraph* jsgraph, JSHeapBroker* js_heap_broker, Flags flags,
+    Handle<Context> native_context, CompilationDependencies* dependencies,
+    Zone* zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
       js_heap_broker_(js_heap_broker),

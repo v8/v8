@@ -346,7 +346,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
 }
 
 namespace {
-void DependOnStablePrototypeChain(const JSHeapBroker* broker,
+void DependOnStablePrototypeChain(JSHeapBroker* broker,
                                   CompilationDependencies* deps,
                                   Handle<Map> map,
                                   MaybeHandle<JSReceiver> last_prototype) {
@@ -364,7 +364,7 @@ void DependOnStablePrototypeChain(const JSHeapBroker* broker,
 }  // namespace
 
 void CompilationDependencies::DependOnStablePrototypeChains(
-    const JSHeapBroker* broker, Handle<Context> native_context,
+    JSHeapBroker* broker, Handle<Context> native_context,
     std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder) {
   Isolate* isolate = holder->GetIsolate();
   // Determine actual holder and perform prototype chain checks.

@@ -94,7 +94,7 @@ class JSBinopReduction final {
     if (BothInputsAre(Type::String()) ||
         BinaryOperationHintOf(node_->op()) == BinaryOperationHint::kString) {
       HeapObjectBinopMatcher m(node_);
-      const JSHeapBroker* broker = lowering_->js_heap_broker();
+      JSHeapBroker* broker = lowering_->js_heap_broker();
       if (m.right().HasValue() && m.right().Ref(broker).IsString()) {
         StringRef right_string = m.right().Ref(broker).AsString();
         if (right_string.length() >= ConsString::kMinLength) return true;
@@ -409,7 +409,7 @@ class JSBinopReduction final {
 // - relax effects from generic but not-side-effecting operations
 
 JSTypedLowering::JSTypedLowering(Editor* editor, JSGraph* jsgraph,
-                                 const JSHeapBroker* js_heap_broker, Zone* zone)
+                                 JSHeapBroker* js_heap_broker, Zone* zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
       js_heap_broker_(js_heap_broker),
@@ -534,8 +534,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     if (r.BothInputsAre(Type::String())) {
       HeapObjectBinopMatcher m(node);
       if (m.IsFoldable()) {
-        StringRef left(js_heap_broker(), m.left().Value());
-        StringRef right(js_heap_broker(), m.right().Value());
+        StringRef left = m.left().Ref(js_heap_broker()).AsString();
+        StringRef right = m.right().Ref(js_heap_broker()).AsString();
         if (left.length() + right.length() > String::kMaxLength) {
           // No point in trying to optimize this, as it will just throw.
           return NoChange();
@@ -1384,7 +1384,7 @@ Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
 
   if (module_type.IsHeapConstant()) {
     ModuleRef module_constant = module_type.AsHeapConstant()->Ref().AsModule();
-    CellRef cell_constant(module_constant.GetCell(cell_index));
+    CellRef cell_constant = module_constant.GetCell(cell_index);
     return jsgraph()->Constant(cell_constant);
   }
 

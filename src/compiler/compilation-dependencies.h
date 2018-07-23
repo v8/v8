@@ -53,7 +53,7 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // {receiver_type} up to (and including) the {holder}.
   // TODO(neis): Fully brokerize!
   void DependOnStablePrototypeChains(
-      const JSHeapBroker* broker, Handle<Context> native_context,
+      JSHeapBroker* broker, Handle<Context> native_context,
       std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder);
 
   // Like DependOnElementsKind but also applies to all nested allocation sites.

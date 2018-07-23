@@ -233,7 +233,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
-  const JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
+  JSHeapBroker* js_heap_broker() const { return js_heap_broker_; }
   Isolate* isolate() const;
   Factory* factory() const;
   Handle<Context> native_context() const { return native_context_; }
@@ -245,7 +245,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   CompilationDependencies* dependencies() const { return dependencies_; }
 
   JSGraph* const jsgraph_;
-  const JSHeapBroker* const js_heap_broker_;
+  JSHeapBroker* const js_heap_broker_;
   Flags const flags_;
   Handle<Context> const native_context_;
   CompilationDependencies* const dependencies_;

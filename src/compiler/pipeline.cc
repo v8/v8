@@ -136,7 +136,7 @@ class PipelineData {
     javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);
     jsgraph_ = new (graph_zone_)
         JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
-    js_heap_broker_ = new (codegen_zone_) JSHeapBroker(isolate_);
+    js_heap_broker_ = new (codegen_zone_) JSHeapBroker(isolate_, codegen_zone_);
     dependencies_ =
         new (codegen_zone_) CompilationDependencies(isolate_, codegen_zone_);
   }

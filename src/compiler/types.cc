@@ -820,22 +820,19 @@ Type Type::NewConstant(double value, Zone* zone) {
   return OtherNumberConstant(value, zone);
 }
 
-Type Type::NewConstant(const JSHeapBroker* js_heap_broker,
-                       Handle<i::Object> value, Zone* zone) {
-  auto maybe_smi = JSHeapBroker::TryGetSmi(value);
-  if (maybe_smi.has_value()) {
-    return NewConstant(static_cast<double>(maybe_smi.value()), zone);
+Type Type::NewConstant(JSHeapBroker* js_heap_broker, Handle<i::Object> value,
+                       Zone* zone) {
+  ObjectRef ref(js_heap_broker, value);
+  if (ref.IsSmi()) {
+    return NewConstant(static_cast<double>(ref.AsSmi()), zone);
   }
-
-  HeapObjectRef heap_ref(js_heap_broker, value);
-  if (heap_ref.IsHeapNumber()) {
-    return NewConstant(heap_ref.AsHeapNumber().value(), zone);
+  if (ref.IsHeapNumber()) {
+    return NewConstant(ref.AsHeapNumber().value(), zone);
   }
-
-  if (heap_ref.IsString() && !heap_ref.IsInternalizedString()) {
+  if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
   }
-  return HeapConstant(js_heap_broker, value, zone);
+  return HeapConstant(ref.AsHeapObject(), zone);
 }
 
 Type Type::Union(Type type1, Type type2, Zone* zone) {
@@ -1061,8 +1058,8 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 }
 
 // static
-Type Type::HeapConstant(const JSHeapBroker* js_heap_broker,
-                        Handle<i::Object> value, Zone* zone) {
+Type Type::HeapConstant(JSHeapBroker* js_heap_broker, Handle<i::Object> value,
+                        Zone* zone) {
   return FromTypeBase(
       HeapConstantType::New(HeapObjectRef(js_heap_broker, value), zone));
 }
