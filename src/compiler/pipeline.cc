@@ -528,7 +528,9 @@ class PipelineImpl final {
 
   OptimizedCompilationInfo* info() const;
   Isolate* isolate() const;
+  CodeGenerator* code_generator() const;
 
+ private:
   PipelineData* const data_;
 };
 
@@ -1075,7 +1077,7 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
   if (!pipeline_.SelectInstructions(&linkage_)) return FAILED;
   pipeline_.AssembleCode(&linkage_);
 
-  CodeGenerator* code_generator = pipeline_.data_->code_generator();
+  CodeGenerator* code_generator = pipeline_.code_generator();
   CodeDesc code_desc;
   code_generator->tasm()->GetCode(nullptr, &code_desc);
 
@@ -2290,8 +2292,8 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                 Code::STUB);
   ZoneStats zone_stats(sequence->isolate()->allocator());
   PipelineData data(&zone_stats, &info, sequence->isolate(), sequence);
+  data.InitializeFrameData(nullptr);
   PipelineImpl pipeline(&data);
-  pipeline.data_->InitializeFrameData(nullptr);
   pipeline.AllocateRegisters(config, nullptr, run_verifier);
   return !data.compilation_failed();
 }
@@ -2660,6 +2662,10 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
 OptimizedCompilationInfo* PipelineImpl::info() const { return data_->info(); }
 
 Isolate* PipelineImpl::isolate() const { return data_->isolate(); }
+
+CodeGenerator* PipelineImpl::code_generator() const {
+  return data_->code_generator();
+}
 
 }  // namespace compiler
 }  // namespace internal
