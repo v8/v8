@@ -6650,10 +6650,11 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
   Node* control = NodeProperties::GetControlInput(node);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
 
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-
   CallParameters const& p = CallParametersOf(node->op());
+
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
 
   Node* offset = node->op()->ValueInputCount() > 2
                      ? NodeProperties::GetValueInput(node, 2)
@@ -6674,7 +6675,7 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
                                          jsgraph()->ZeroConstant(), offset);
 
     effect = graph()->NewNode(
-        simplified()->CheckIf(DeoptimizeReason::kNotASmi, p.feedback()),
+        simplified()->CheckIf(DeoptimizeReason::kOutOfBounds, p.feedback()),
         is_positive, effect, control);
 
     // Coerce {is_little_endian} to boolean.
@@ -6688,37 +6689,25 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
 
     Node* check_neutered = effect = graph()->NewNode(
         simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
-    Node* branch_neutered = graph()->NewNode(
-        common()->Branch(BranchHint::kFalse), check_neutered, control);
+    check_neutered =
+        graph()->NewNode(simplified()->BooleanNot(), check_neutered);
 
-    // Raise an error if it was neuteured.
-    Node* if_true_neutered =
-        graph()->NewNode(common()->IfTrue(), branch_neutered);
-    Node* etrue_neutered = effect;
-    {
-      if_true_neutered = etrue_neutered = graph()->NewNode(
-          javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
-          jsgraph()->Constant(MessageTemplate::kDetachedOperation),
-          jsgraph()->HeapConstant(
-              factory()->NewStringFromAsciiChecked("DataView.prototype.get")),
-          context, frame_state, etrue_neutered, if_true_neutered);
-    }
-
-    // Otherwise, proceed.
-    Node* if_false_neutered =
-        graph()->NewNode(common()->IfFalse(), branch_neutered);
-    Node* efalse_neutered = effect;
+    // If the buffer was neutered, deopt and let the unoptimized code throw.
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered,
+                              p.feedback()),
+        check_neutered, effect, control);
 
     // Get the byte offset and byte length of the {receiver}.
-    Node* byte_offset = efalse_neutered =
+    Node* byte_offset = effect =
         graph()->NewNode(simplified()->LoadField(
                              AccessBuilder::ForJSArrayBufferViewByteOffset()),
-                         receiver, efalse_neutered, if_false_neutered);
+                         receiver, effect, control);
 
-    Node* byte_length = efalse_neutered =
+    Node* byte_length = effect =
         graph()->NewNode(simplified()->LoadField(
                              AccessBuilder::ForJSArrayBufferViewByteLength()),
-                         receiver, efalse_neutered, if_false_neutered);
+                         receiver, effect, control);
 
     // The end offset is the offset plus the element size
     // of the type that we want to load.
@@ -6726,99 +6715,48 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
     Node* end_offset = graph()->NewNode(simplified()->NumberAdd(), offset,
                                         jsgraph()->Constant(element_size));
 
-    // We need to check that {end_offset} <= {byte_length}, ie
-    // throw a RangeError if {byte_length} < {end_offset}.
-    Node* check_range = graph()->NewNode(simplified()->NumberLessThan(),
-                                         byte_length, end_offset);
-    Node* branch_range = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                          check_range, if_false_neutered);
+    // We need to check that {end_offset} <= {byte_length}.
+    Node* check_bounds = graph()->NewNode(simplified()->NumberLessThanOrEqual(),
+                                          end_offset, byte_length);
 
-    Node* if_true_range = graph()->NewNode(common()->IfTrue(), branch_range);
-    Node* etrue_range = efalse_neutered;
-    {
-      if_true_range = etrue_range = graph()->NewNode(
-          javascript()->CallRuntime(Runtime::kThrowRangeError, 2),
-          jsgraph()->Constant(MessageTemplate::kInvalidDataViewAccessorOffset),
-          jsgraph()->HeapConstant(
-              factory()->NewStringFromAsciiChecked("DataView.prototype.get")),
-          context, frame_state, etrue_range, if_true_range);
-    }
+    // Also deopt and let the unoptimized code throw in this case.
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kOutOfBounds, p.feedback()),
+        check_bounds, effect, control);
 
-    Node* if_false_range = graph()->NewNode(common()->IfFalse(), branch_range);
-    Node* efalse_range = efalse_neutered;
-    Node* vfalse_range;
-    {
-      // Get the buffer's backing store.
-      Node* backing_store = efalse_range =
-          graph()->NewNode(simplified()->LoadField(
-                               AccessBuilder::ForJSArrayBufferBackingStore()),
-                           buffer, efalse_range, if_false_range);
+    // Get the buffer's backing store.
+    Node* backing_store = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayBufferBackingStore()),
+        buffer, effect, control);
 
-      // Compute the buffer index at which we'll read.
-      Node* buffer_index =
-          graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
+    // Compute the buffer index at which we'll read.
+    Node* buffer_index =
+        graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
 
-      // Perform the load.
-      vfalse_range = efalse_range =
-          graph()->NewNode(simplified()->LoadDataViewElement(element_type),
-                           buffer, backing_store, buffer_index,
-                           is_little_endian, efalse_range, if_false_range);
-    }
-
-    // Rewire potential exception edges.
-    Node* on_exception = nullptr;
-    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-      // Create appropriate {IfException} and {IfSuccess} nodes.
-      Node* extrue_neutered = graph()->NewNode(
-          common()->IfException(), etrue_neutered,
-          if_true_neutered);  // We threw because the array was neutered.
-      if_true_neutered =
-          graph()->NewNode(common()->IfSuccess(), if_true_neutered);
-
-      Node* extrue_range =
-          graph()->NewNode(common()->IfException(), etrue_range,
-                           if_true_range);  // We threw because out of bounds.
-      if_true_range = graph()->NewNode(common()->IfSuccess(), if_true_range);
-
-      // We can't throw in LoadDataViewElement(),
-      // so we don't need to handle that path here.
-
-      // Join the exception edges.
-      Node* merge =
-          graph()->NewNode(common()->Merge(2), extrue_neutered, extrue_range);
-      Node* ephi = graph()->NewNode(common()->EffectPhi(2), extrue_neutered,
-                                    extrue_range, merge);
-      Node* phi =
-          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                           extrue_neutered, extrue_range, merge);
-      ReplaceWithValue(on_exception, phi, ephi, merge);
-    }
-
-    // Connect the throwing paths to end.
-    if_true_neutered =
-        graph()->NewNode(common()->Throw(), etrue_neutered, if_true_neutered);
-    NodeProperties::MergeControlToEnd(graph(), common(), if_true_neutered);
-    if_true_range =
-        graph()->NewNode(common()->Throw(), etrue_range, if_true_range);
-    NodeProperties::MergeControlToEnd(graph(), common(), if_true_range);
+    // Perform the load.
+    Node* value = effect = graph()->NewNode(
+        simplified()->LoadDataViewElement(element_type), buffer, backing_store,
+        buffer_index, is_little_endian, effect, control);
 
     // Continue on the regular path.
-    ReplaceWithValue(node, vfalse_range, efalse_range, if_false_range);
-    return Changed(vfalse_range);
+    ReplaceWithValue(node, value, effect, control);
+    return Changed(value);
   }
 
   return NoChange();
 }
+
 Reduction JSCallReducer::ReduceDataViewPrototypeSet(
     Node* node, ExternalArrayType element_type) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
 
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-
   CallParameters const& p = CallParametersOf(node->op());
+
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
 
   Node* offset = node->op()->ValueInputCount() > 2
                      ? NodeProperties::GetValueInput(node, 2)
@@ -6843,7 +6781,7 @@ Reduction JSCallReducer::ReduceDataViewPrototypeSet(
                                          jsgraph()->ZeroConstant(), offset);
 
     effect = graph()->NewNode(
-        simplified()->CheckIf(DeoptimizeReason::kNotASmi, p.feedback()),
+        simplified()->CheckIf(DeoptimizeReason::kOutOfBounds, p.feedback()),
         is_positive, effect, control);
 
     // Coerce {is_little_endian} to boolean.
@@ -6863,37 +6801,25 @@ Reduction JSCallReducer::ReduceDataViewPrototypeSet(
 
     Node* check_neutered = effect = graph()->NewNode(
         simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
-    Node* branch_neutered = graph()->NewNode(
-        common()->Branch(BranchHint::kFalse), check_neutered, control);
+    check_neutered =
+        graph()->NewNode(simplified()->BooleanNot(), check_neutered);
 
-    // Raise an error if it was neuteured.
-    Node* if_true_neutered =
-        graph()->NewNode(common()->IfTrue(), branch_neutered);
-    Node* etrue_neutered = effect;
-    {
-      if_true_neutered = etrue_neutered = graph()->NewNode(
-          javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
-          jsgraph()->Constant(MessageTemplate::kDetachedOperation),
-          jsgraph()->HeapConstant(
-              factory()->NewStringFromAsciiChecked("DataView.prototype.set")),
-          context, frame_state, etrue_neutered, if_true_neutered);
-    }
-
-    // Otherwise, proceed.
-    Node* if_false_neutered =
-        graph()->NewNode(common()->IfFalse(), branch_neutered);
-    Node* efalse_neutered = effect;
+    // If the buffer was neutered, deopt and let the unoptimized code throw.
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered,
+                              p.feedback()),
+        check_neutered, effect, control);
 
     // Get the byte offset and byte length of the {receiver}.
-    Node* byte_offset = efalse_neutered =
+    Node* byte_offset = effect =
         graph()->NewNode(simplified()->LoadField(
                              AccessBuilder::ForJSArrayBufferViewByteOffset()),
-                         receiver, efalse_neutered, if_false_neutered);
+                         receiver, effect, control);
 
-    Node* byte_length = efalse_neutered =
+    Node* byte_length = effect =
         graph()->NewNode(simplified()->LoadField(
                              AccessBuilder::ForJSArrayBufferViewByteLength()),
-                         receiver, efalse_neutered, if_false_neutered);
+                         receiver, effect, control);
 
     // The end offset is the offset plus the element size
     // of the type that we want to store.
@@ -6901,85 +6827,34 @@ Reduction JSCallReducer::ReduceDataViewPrototypeSet(
     Node* end_offset = graph()->NewNode(simplified()->NumberAdd(), offset,
                                         jsgraph()->Constant(element_size));
 
-    // We need to check that {end_offset} <= {byte_length}, ie
-    // throw a RangeError if {byte_length} < {end_offset}.
-    Node* check_range = graph()->NewNode(simplified()->NumberLessThan(),
-                                         byte_length, end_offset);
-    Node* branch_range = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                          check_range, if_false_neutered);
+    // We need to check that {end_offset} <= {byte_length}.
+    Node* check_bounds = graph()->NewNode(simplified()->NumberLessThanOrEqual(),
+                                          end_offset, byte_length);
 
-    Node* if_true_range = graph()->NewNode(common()->IfTrue(), branch_range);
-    Node* etrue_range = efalse_neutered;
-    {
-      if_true_range = etrue_range = graph()->NewNode(
-          javascript()->CallRuntime(Runtime::kThrowRangeError, 2),
-          jsgraph()->Constant(MessageTemplate::kInvalidDataViewAccessorOffset),
-          jsgraph()->HeapConstant(
-              factory()->NewStringFromAsciiChecked("DataView.prototype.set")),
-          context, frame_state, etrue_range, if_true_range);
-    }
+    // Also deopt and let the unoptimized code throw in this case.
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kOutOfBounds, p.feedback()),
+        check_bounds, effect, control);
 
-    Node* if_false_range = graph()->NewNode(common()->IfFalse(), branch_range);
-    Node* efalse_range = efalse_neutered;
-    Node* vfalse_range = jsgraph()->UndefinedConstant();  // Return value.
-    {
-      // Get the buffer's backing store.
-      Node* backing_store = efalse_range =
-          graph()->NewNode(simplified()->LoadField(
-                               AccessBuilder::ForJSArrayBufferBackingStore()),
-                           buffer, efalse_range, if_false_range);
+    // Get the buffer's backing store.
+    Node* backing_store = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayBufferBackingStore()),
+        buffer, effect, control);
 
-      // Compute the buffer index at which we'll write.
-      Node* buffer_index =
-          graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
+    // Compute the buffer index at which we'll write.
+    Node* buffer_index =
+        graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
 
-      // Perform the store.
-      efalse_range =
-          graph()->NewNode(simplified()->StoreDataViewElement(element_type),
-                           buffer, backing_store, buffer_index, value,
-                           is_little_endian, efalse_range, if_false_range);
-    }
+    // Perform the store.
+    effect = graph()->NewNode(simplified()->StoreDataViewElement(element_type),
+                              buffer, backing_store, buffer_index, value,
+                              is_little_endian, effect, control);
 
-    // Rewire potential exception edges.
-    Node* on_exception = nullptr;
-    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-      // Create appropriate {IfException} and {IfSuccess} nodes.
-      Node* extrue_neutered = graph()->NewNode(
-          common()->IfException(), etrue_neutered,
-          if_true_neutered);  // We threw because the array was neutered.
-      if_true_neutered =
-          graph()->NewNode(common()->IfSuccess(), if_true_neutered);
-
-      Node* extrue_range =
-          graph()->NewNode(common()->IfException(), etrue_range,
-                           if_true_range);  // We threw because out of bounds.
-      if_true_range = graph()->NewNode(common()->IfSuccess(), if_true_range);
-
-      // We can't throw in StoreDataViewElement(),
-      // so we don't need to handle that path here.
-
-      // Join the exception edges.
-      Node* merge =
-          graph()->NewNode(common()->Merge(2), extrue_neutered, extrue_range);
-      Node* ephi = graph()->NewNode(common()->EffectPhi(2), extrue_neutered,
-                                    extrue_range, merge);
-      Node* phi =
-          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                           extrue_neutered, extrue_range, merge);
-      ReplaceWithValue(on_exception, phi, ephi, merge);
-    }
-
-    // Connect the throwing paths to end.
-    if_true_neutered =
-        graph()->NewNode(common()->Throw(), etrue_neutered, if_true_neutered);
-    NodeProperties::MergeControlToEnd(graph(), common(), if_true_neutered);
-    if_true_range =
-        graph()->NewNode(common()->Throw(), etrue_range, if_true_range);
-    NodeProperties::MergeControlToEnd(graph(), common(), if_true_range);
+    Node* value = jsgraph()->UndefinedConstant();
 
     // Continue on the regular path.
-    ReplaceWithValue(node, vfalse_range, efalse_range, if_false_range);
-    return Changed(vfalse_range);
+    ReplaceWithValue(node, value, effect, control);
+    return Changed(value);
   }
 
   return NoChange();
