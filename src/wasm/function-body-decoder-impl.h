@@ -8,6 +8,7 @@
 // Do only include this header for implementing new Interface of the
 // WasmFullDecoder.
 
+#include "src/base/platform/elapsed-timer.h"
 #include "src/bit-vector.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder.h"

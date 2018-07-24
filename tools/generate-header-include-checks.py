@@ -114,11 +114,6 @@ AUTO_EXCLUDE = [
   'src/third_party/utf8-decoder/utf8-decoder.h',
   'src/transitions.h',
   'src/v8memory.h',
-  'src/wasm/function-body-decoder-impl.h',
-  'src/wasm/streaming-decoder.h',
-  'src/wasm/wasm-constants.h',
-  'src/wasm/wasm-objects.h',
-  'src/wasm/wasm-serialization.h',
 ]
 AUTO_EXCLUDE_PATTERNS = [
   'src/base/atomicops_internals_.*',

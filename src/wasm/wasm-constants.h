@@ -5,6 +5,9 @@
 #ifndef V8_WASM_WASM_CONSTANTS_H_
 #define V8_WASM_WASM_CONSTANTS_H_
 
+#include <cstddef>
+#include <cstdint>
+
 namespace v8 {
 namespace internal {
 namespace wasm {
