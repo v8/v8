@@ -9397,12 +9397,13 @@ Node* CodeStubAssembler::CheckForCapacityGrow(
     Node* object, Node* elements, ElementsKind kind,
     KeyedAccessStoreMode store_mode, Node* length, Node* key,
     ParameterMode mode, bool is_js_array, Label* bailout) {
+  DCHECK(IsFastElementsKind(kind));
   VARIABLE(checked_elements, MachineRepresentation::kTagged);
   Label grow_case(this), no_grow_case(this), done(this),
       grow_bailout(this, Label::kDeferred);
 
   Node* condition;
-  if (IsHoleyOrDictionaryElementsKind(kind)) {
+  if (IsHoleyElementsKind(kind)) {
     condition = UintPtrGreaterThanOrEqual(key, length);
   } else {
     // We don't support growing here unless the value is being appended.

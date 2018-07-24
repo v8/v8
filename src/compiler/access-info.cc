@@ -583,9 +583,9 @@ namespace {
 
 Maybe<ElementsKind> GeneralizeElementsKind(ElementsKind this_kind,
                                            ElementsKind that_kind) {
-  if (IsHoleyOrDictionaryElementsKind(this_kind)) {
+  if (IsHoleyElementsKind(this_kind)) {
     that_kind = GetHoleyElementsKind(that_kind);
-  } else if (IsHoleyOrDictionaryElementsKind(that_kind)) {
+  } else if (IsHoleyElementsKind(that_kind)) {
     this_kind = GetHoleyElementsKind(this_kind);
   }
   if (this_kind == that_kind) return Just(this_kind);

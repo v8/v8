@@ -2474,7 +2474,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     if (access_mode == AccessMode::kLoad) {
       // Compute the real element access type, which includes the hole in case
       // of holey backing stores.
-      if (IsHoleyOrDictionaryElementsKind(elements_kind)) {
+      if (IsHoleyElementsKind(elements_kind)) {
         element_access.type =
             Type::Union(element_type, Type::Hole(), graph()->zone());
       }
