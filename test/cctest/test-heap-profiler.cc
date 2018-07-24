@@ -2134,6 +2134,35 @@ TEST(AccessorInfo) {
   CHECK(setter);
 }
 
+TEST(JSGeneratorObject) {
+  v8::Isolate* isolate = CcTest::isolate();
+  LocalContext env;
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  CompileRun(
+      "function* foo() { yield 1; }\n"
+      "g = foo();\n");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* g =
+      GetProperty(isolate, global, v8::HeapGraphEdge::kProperty, "g");
+  CHECK(g);
+  const v8::HeapGraphNode* function = GetProperty(
+      env->GetIsolate(), g, v8::HeapGraphEdge::kInternal, "function");
+  CHECK(function);
+  const v8::HeapGraphNode* context = GetProperty(
+      env->GetIsolate(), g, v8::HeapGraphEdge::kInternal, "context");
+  CHECK(context);
+  const v8::HeapGraphNode* receiver = GetProperty(
+      env->GetIsolate(), g, v8::HeapGraphEdge::kInternal, "receiver");
+  CHECK(receiver);
+  const v8::HeapGraphNode* parameters_and_registers =
+      GetProperty(env->GetIsolate(), g, v8::HeapGraphEdge::kInternal,
+                  "parameters_and_registers");
+  CHECK(parameters_and_registers);
+}
 
 bool HasWeakEdge(const v8::HeapGraphNode* node) {
   for (int i = 0; i < node->GetChildrenCount(); ++i) {

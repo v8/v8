@@ -692,6 +692,7 @@ class FixedArrayBase;
 class PropertyArray;
 class FunctionLiteral;
 class FunctionTemplateInfo;
+class JSGeneratorObject;
 class JSAsyncGeneratorObject;
 class JSGlobalObject;
 class JSGlobalProxy;
