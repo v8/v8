@@ -121,6 +121,14 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   void TearDown();
 
+  // Call on process start and exit.
+  static void InitializeOncePerProcess();
+  static void GlobalTearDown();
+
+  // Constructs a WasmEngine instance. Depending on whether we are sharing
+  // engines this might be a pointer to a new instance or to a shared one.
+  static std::shared_ptr<WasmEngine> GetWasmEngine();
+
  private:
   AsyncCompileJob* CreateAsyncCompileJob(
       Isolate* isolate, std::unique_ptr<byte[]> bytes_copy, size_t length,

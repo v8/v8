@@ -24,6 +24,7 @@
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/tracing-category-observer.h"
+#include "src/wasm/wasm-engine.h"
 
 namespace v8 {
 namespace internal {
@@ -47,6 +48,7 @@ void V8::TearDown() {
 #if defined(USE_SIMULATOR)
   Simulator::GlobalTearDown();
 #endif
+  wasm::WasmEngine::GlobalTearDown();
   CallDescriptors::TearDown();
   Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
@@ -84,6 +86,7 @@ void V8::InitializeOncePerProcessImpl() {
   ElementsAccessor::InitializeOncePerProcess();
   Bootstrapper::InitializeOncePerProcess();
   CallDescriptors::InitializeOncePerProcess();
+  wasm::WasmEngine::InitializeOncePerProcess();
 }
 
 

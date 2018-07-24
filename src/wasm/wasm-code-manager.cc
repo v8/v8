@@ -664,7 +664,7 @@ Address NativeModule::AllocateForCode(size_t size) {
       if (!wasm_code_manager_->Commit(start, commit_size)) {
         return kNullAddress;
       }
-      committed_code_space_ += commit_size;
+      committed_code_space_.fetch_add(commit_size);
       commit_end = start;
     }
 #else
@@ -673,7 +673,7 @@ Address NativeModule::AllocateForCode(size_t size) {
     if (!wasm_code_manager_->Commit(commit_start, commit_size)) {
       return kNullAddress;
     }
-    committed_code_space_ += commit_size;
+    committed_code_space_.fetch_add(commit_size);
 #endif
   }
   DCHECK(IsAligned(mem.start, kCodeAlignment));
@@ -794,9 +794,10 @@ void WasmCodeManager::TryAllocate(size_t size, VirtualMemory* ret, void* hint) {
 }
 
 void WasmCodeManager::SampleModuleSizes(Isolate* isolate) const {
+  base::LockGuard<base::Mutex> lock(&native_modules_mutex_);
   for (NativeModule* native_module : native_modules_) {
-    base::LockGuard<base::Mutex> lock(&native_module->allocation_mutex_);
-    int code_size = static_cast<int>(native_module->committed_code_space_ / MB);
+    int code_size =
+        static_cast<int>(native_module->committed_code_space_.load() / MB);
     isolate->counters()->wasm_module_code_size_mb()->AddSample(code_size);
   }
 }
@@ -840,19 +841,21 @@ size_t WasmCodeManager::EstimateNativeModuleSize(const WasmModule* module) {
   return estimate;
 }
 
-std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
-    Isolate* isolate, size_t memory_estimate, bool can_request_more,
-    std::shared_ptr<const WasmModule> module, const ModuleEnv& env) {
+bool WasmCodeManager::ShouldForceCriticalMemoryPressureNotification() {
+  base::LockGuard<base::Mutex> lock(&native_modules_mutex_);
   // TODO(titzer): we force a critical memory pressure notification
   // when the code space is almost exhausted, but only upon the next module
   // creation. This is only for one isolate, and it should really do this for
   // all isolates, at the point of commit.
   constexpr size_t kCriticalThreshold = 32 * 1024 * 1024;
-  bool force_critical_notification =
-      (native_modules_.size() > 1) &&
-      (remaining_uncommitted_code_space_.load() < kCriticalThreshold);
+  return native_modules_.size() > 1 &&
+         remaining_uncommitted_code_space_.load() < kCriticalThreshold;
+}
 
-  if (force_critical_notification) {
+std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
+    Isolate* isolate, size_t memory_estimate, bool can_request_more,
+    std::shared_ptr<const WasmModule> module, const ModuleEnv& env) {
+  if (ShouldForceCriticalMemoryPressureNotification()) {
     (reinterpret_cast<v8::Isolate*>(isolate))
         ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
   }
@@ -870,6 +873,7 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
                size);
     AssignRanges(start, end, ret.get());
+    base::LockGuard<base::Mutex> lock(&native_modules_mutex_);
     native_modules_.emplace(ret.get());
     return ret;
   }
@@ -923,6 +927,7 @@ bool NativeModule::SetExecutable(bool executable) {
 }
 
 void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
+  base::LockGuard<base::Mutex> lock(&native_modules_mutex_);
   DCHECK_EQ(1, native_modules_.count(native_module));
   native_modules_.erase(native_module);
   TRACE_HEAP("Freeing NativeModule %p\n", this);
@@ -933,7 +938,7 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
   }
   native_module->owned_code_space_.clear();
 
-  size_t code_size = native_module->committed_code_space_;
+  size_t code_size = native_module->committed_code_space_.load();
   DCHECK(IsAligned(code_size, AllocatePageSize()));
   remaining_uncommitted_code_space_.fetch_add(code_size);
 }

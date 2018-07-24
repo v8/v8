@@ -234,6 +234,44 @@ void WasmEngine::TearDown() {
   jobs_.clear();
 }
 
+namespace {
+
+WasmEngine* AllocateNewWasmEngine() {
+  return new WasmEngine(std::unique_ptr<WasmCodeManager>(
+      new WasmCodeManager(kMaxWasmCodeMemory)));
+}
+
+struct WasmEnginePointerConstructTrait final {
+  static void Construct(void* raw_ptr) {
+    auto engine_ptr = reinterpret_cast<std::shared_ptr<WasmEngine>*>(raw_ptr);
+    *engine_ptr = std::shared_ptr<WasmEngine>();
+  }
+};
+
+// Holds the global shared pointer to the single {WasmEngine} that is intended
+// to be shared among Isolates within the same process. The {LazyStaticInstance}
+// here is required because {std::shared_ptr} has a non-trivial initializer.
+base::LazyStaticInstance<std::shared_ptr<WasmEngine>,
+                         WasmEnginePointerConstructTrait>::type
+    global_wasm_engine;
+
+}  // namespace
+
+void WasmEngine::InitializeOncePerProcess() {
+  if (!FLAG_wasm_shared_engine) return;
+  global_wasm_engine.Pointer()->reset(AllocateNewWasmEngine());
+}
+
+void WasmEngine::GlobalTearDown() {
+  if (!FLAG_wasm_shared_engine) return;
+  global_wasm_engine.Pointer()->reset();
+}
+
+std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
+  if (FLAG_wasm_shared_engine) return global_wasm_engine.Get();
+  return std::shared_ptr<WasmEngine>(AllocateNewWasmEngine());
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

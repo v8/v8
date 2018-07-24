@@ -405,7 +405,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::list<VirtualMemory> owned_code_space_;
 
   WasmCodeManager* wasm_code_manager_;
-  size_t committed_code_space_ = 0;
+  std::atomic<size_t> committed_code_space_{0};
   int modification_scope_depth_ = 0;
   bool can_request_more_memory_;
   bool use_trap_handler_ = false;
@@ -455,7 +455,9 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   void FreeNativeModule(NativeModule*);
   void Free(VirtualMemory* mem);
   void AssignRanges(Address start, Address end, NativeModule*);
+  bool ShouldForceCriticalMemoryPressureNotification();
 
+  mutable base::Mutex native_modules_mutex_;
   std::map<Address, std::pair<Address, NativeModule*>> lookup_map_;
   std::unordered_set<NativeModule*> native_modules_;
   std::atomic<size_t> remaining_uncommitted_code_space_;
