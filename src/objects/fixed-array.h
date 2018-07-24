@@ -363,10 +363,27 @@ class WeakArrayList : public HeapObject {
   static const int kMaxCapacity =
       (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
 
- protected:
   static Handle<WeakArrayList> EnsureSpace(Isolate* isolate,
                                            Handle<WeakArrayList> array,
                                            int length);
+
+  // Returns the number of non-cleaned weak references in the array.
+  int CountLiveWeakReferences() const;
+
+  class Iterator {
+   public:
+    explicit Iterator(WeakArrayList* array) : index_(0), array_(array) {}
+
+    inline HeapObject* Next();
+
+   private:
+    int index_;
+    WeakArrayList* array_;
+#ifdef DEBUG
+    DisallowHeapAllocation no_gc_;
+#endif  // DEBUG
+    DISALLOW_COPY_AND_ASSIGN(Iterator);
+  };
 
  private:
   static int OffsetOfElementAt(int index) {
