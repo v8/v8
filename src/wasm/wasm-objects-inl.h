@@ -134,10 +134,8 @@ void WasmGlobalObject::SetF64(double value) {
 
 // WasmInstanceObject
 PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_start, byte*, kMemoryStartOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_size, uint32_t,
-                    kMemorySizeOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_mask, uint32_t,
-                    kMemoryMaskOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_size, size_t, kMemorySizeOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_mask, size_t, kMemoryMaskOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, roots_array_address, Address,
                     kRootsArrayAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, stack_limit_address, Address,

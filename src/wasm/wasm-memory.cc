@@ -37,6 +37,7 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
   //
   // To protect against 32-bit integer overflow issues, we also protect the 2GiB
   // before the valid part of the memory buffer.
+  // TODO(7881): do not use static_cast<uint32_t>() here
   *allocation_length =
       require_full_guard_regions
           ? RoundUp(kWasmMaxHeapOffset + kNegativeGuardSize, CommitPageSize())
@@ -129,12 +130,16 @@ bool WasmMemoryTracker::ReserveAddressSpace(size_t num_bytes) {
   constexpr size_t kAddressSpaceLimit = 0x80000000;  // 2 GiB
 #endif
 
-  size_t const old_count = reserved_address_space_.fetch_add(num_bytes);
-  DCHECK_GE(old_count + num_bytes, old_count);
-  if (old_count + num_bytes <= kAddressSpaceLimit) {
-    return true;
-  }
-  reserved_address_space_ -= num_bytes;
+  int retries = 5;  // cmpxchng can fail, retry some number of times.
+  do {
+    size_t old_count = reserved_address_space_;
+    if ((kAddressSpaceLimit - old_count) < num_bytes) return false;
+    if (reserved_address_space_.compare_exchange_weak(old_count,
+                                                      old_count + num_bytes)) {
+      return true;
+    }
+  } while (retries-- > 0);
+
   return false;
 }
 
@@ -233,11 +238,10 @@ Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
                                        SharedFlag shared) {
   Handle<JSArrayBuffer> buffer =
       isolate->factory()->NewJSArrayBuffer(shared, TENURED);
-  DCHECK_GE(kMaxInt, size);
   if (shared == SharedFlag::kShared) DCHECK(FLAG_experimental_wasm_threads);
   constexpr bool is_wasm_memory = true;
-  JSArrayBuffer::Setup(buffer, isolate, is_external, backing_store,
-                       static_cast<int>(size), shared, is_wasm_memory);
+  JSArrayBuffer::Setup(buffer, isolate, is_external, backing_store, size,
+                       shared, is_wasm_memory);
   buffer->set_is_neuterable(false);
   buffer->set_is_growable(true);
   return buffer;
@@ -245,13 +249,10 @@ Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
 
 MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
                                           SharedFlag shared) {
-  // Check against kMaxInt, since the byte length is stored as int in the
-  // JSArrayBuffer. Note that wasm_max_mem_pages can be raised from the command
-  // line, and we don't want to fail a CHECK then.
-  if (size > FLAG_wasm_max_mem_pages * kWasmPageSize || size > kMaxInt) {
-    // TODO(titzer): lift restriction on maximum memory allocated here.
-    return {};
-  }
+  // Enforce engine-limited maximum allocation size.
+  if (size > kV8MaxWasmMemoryBytes) return {};
+  // Enforce flag-limited maximum allocation size.
+  if (size > (FLAG_wasm_max_mem_pages * uint64_t{kWasmPageSize})) return {};
 
   WasmMemoryTracker* memory_tracker = isolate->wasm_engine()->memory_tracker();
 

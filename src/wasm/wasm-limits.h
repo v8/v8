@@ -26,9 +26,7 @@ constexpr size_t kV8MaxWasmExceptions = 1000000;
 constexpr size_t kV8MaxWasmExceptionTypes = 1000000;
 constexpr size_t kV8MaxWasmDataSegments = 100000;
 // Don't use this limit directly, but use the value of FLAG_wasm_max_mem_pages.
-// Current limit mimics the maximum allowed allocation on an ArrayBuffer
-// (2GiB - 1 page).
-constexpr size_t kV8MaxWasmMemoryPages = 32767;  // ~ 2 GiB
+constexpr size_t kV8MaxWasmMemoryPages = 32767;  // = ~ 2 GiB
 constexpr size_t kV8MaxWasmStringSize = 100000;
 constexpr size_t kV8MaxWasmModuleSize = 1024 * 1024 * 1024;  // = 1 GiB
 constexpr size_t kV8MaxWasmFunctionSize = 7654321;
@@ -47,9 +45,8 @@ static_assert(kV8MaxWasmMemoryPages <= kSpecMaxWasmMemoryPages,
               "v8 should not be more permissive than the spec");
 constexpr size_t kSpecMaxWasmTableSize = 0xFFFFFFFFu;
 
-constexpr size_t kV8MaxWasmMemoryBytes = kV8MaxWasmMemoryPages * kWasmPageSize;
-static_assert(kV8MaxWasmMemoryBytes <= std::numeric_limits<int32_t>::max(),
-              "max memory bytes should fit in int32_t");
+constexpr uint64_t kV8MaxWasmMemoryBytes =
+    kV8MaxWasmMemoryPages * uint64_t{kWasmPageSize};
 
 constexpr uint64_t kWasmMaxHeapOffset =
     static_cast<uint64_t>(

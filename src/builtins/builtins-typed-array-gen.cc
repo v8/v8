@@ -313,6 +313,7 @@ void TypedArrayBuiltinsAssembler::ConstructByLength(TNode<Context> context,
                                                     TNode<JSTypedArray> holder,
                                                     TNode<Object> length,
                                                     TNode<Smi> element_size) {
+  // TODO(7881): support larger-than-smi typed array lengths
   CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
 
   Label invalid_length(this, Label::kDeferred), done(this);
@@ -323,6 +324,7 @@ void TypedArrayBuiltinsAssembler::ConstructByLength(TNode<Context> context,
   // The maximum length of a TypedArray is MaxSmi().
   // Note: this is not per spec, but rather a constraint of our current
   // representation (which uses Smis).
+  // TODO(7881): support larger-than-smi typed array lengths
   GotoIf(TaggedIsNotSmi(converted_length), &invalid_length);
   // The goto above ensures that byte_length is a Smi.
   TNode<Smi> smi_converted_length = CAST(converted_length);
@@ -1802,6 +1804,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
 
   BIND(&from_array_like);
   {
+    // TODO(7881): support larger-than-smi typed array lengths
     Label if_length_not_smi(this, Label::kDeferred);
     final_source = source;
 

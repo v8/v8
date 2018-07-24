@@ -194,11 +194,14 @@ Object* JSTypedArray::length() const {
   return Object::cast(READ_FIELD(this, kLengthOffset));
 }
 
-uint32_t JSTypedArray::length_value() const {
+size_t JSTypedArray::length_value() const {
   if (WasNeutered()) return 0;
-  uint32_t index = 0;
-  CHECK(Object::cast(READ_FIELD(this, kLengthOffset))->ToArrayLength(&index));
-  return index;
+  double val = Object::cast(READ_FIELD(this, kLengthOffset))->Number();
+  DCHECK_LE(val, kMaxSafeInteger);   // 2^53-1
+  DCHECK_GE(val, -kMaxSafeInteger);  // -2^53+1
+  DCHECK_LE(val, std::numeric_limits<size_t>::max());
+  DCHECK_GE(val, std::numeric_limits<size_t>::min());
+  return static_cast<size_t>(val);
 }
 
 void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {

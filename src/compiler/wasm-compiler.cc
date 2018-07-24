@@ -2686,15 +2686,8 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
       LOAD_INSTANCE_FIELD(IndirectFunctionTableSigIds, MachineType::Pointer());
 
   int32_t expected_sig_id = env_->module->signature_ids[sig_index];
-  Node* scaled_key =
-      graph()->NewNode(machine->Word32Shl(), key, Int32Constant(2));
-  const Operator* add = nullptr;
-  if (machine->Is64()) {
-    scaled_key = graph()->NewNode(machine->ChangeUint32ToUint64(), scaled_key);
-    add = machine->Int64Add();
-  } else {
-    add = machine->Int32Add();
-  }
+  Node* scaled_key = Uint32ToUintptr(
+      graph()->NewNode(machine->Word32Shl(), key, Int32Constant(2)));
 
   Node* loaded_sig =
       graph()->NewNode(machine->Load(MachineType::Int32()), ift_sig_ids,
@@ -2718,7 +2711,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
   auto access = AccessBuilder::ForFixedArrayElement();
   Node* target_instance = graph()->NewNode(
       machine->Load(MachineType::TaggedPointer()),
-      graph()->NewNode(add, ift_instances, scaled_key),
+      graph()->NewNode(machine->IntAdd(), ift_instances, scaled_key),
       Int32Constant(access.header_size - access.tag()), *effect_, *control_);
 
   args[0] = target;
@@ -2818,7 +2811,7 @@ void WasmGraphBuilder::InitInstanceCache(
 
   // Load the memory size.
   Node* mem_size = graph()->NewNode(
-      mcgraph()->machine()->Load(MachineType::Uint32()), instance_node_.get(),
+      mcgraph()->machine()->Load(MachineType::UintPtr()), instance_node_.get(),
       mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(MemorySize)),
       *effect_, *control_);
   *effect_ = mem_size;
@@ -2827,7 +2820,8 @@ void WasmGraphBuilder::InitInstanceCache(
   if (untrusted_code_mitigations_) {
     // Load the memory mask.
     Node* mem_mask = graph()->NewNode(
-        mcgraph()->machine()->Load(MachineType::Uint32()), instance_node_.get(),
+        mcgraph()->machine()->Load(MachineType::UintPtr()),
+        instance_node_.get(),
         mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(MemoryMask)),
         *effect_, *control_);
     *effect_ = mem_mask;
@@ -2874,13 +2868,13 @@ void WasmGraphBuilder::NewInstanceCacheMerge(WasmInstanceCacheNodes* to,
 void WasmGraphBuilder::MergeInstanceCacheInto(WasmInstanceCacheNodes* to,
                                               WasmInstanceCacheNodes* from,
                                               Node* merge) {
-  to->mem_size = CreateOrMergeIntoPhi(MachineRepresentation::kWord32, merge,
-                                      to->mem_size, from->mem_size);
+  to->mem_size = CreateOrMergeIntoPhi(MachineType::PointerRepresentation(),
+                                      merge, to->mem_size, from->mem_size);
   to->mem_start = CreateOrMergeIntoPhi(MachineType::PointerRepresentation(),
                                        merge, to->mem_start, from->mem_start);
   if (untrusted_code_mitigations_) {
-    to->mem_mask = CreateOrMergeIntoPhi(MachineRepresentation::kWord32, merge,
-                                        to->mem_mask, from->mem_mask);
+    to->mem_mask = CreateOrMergeIntoPhi(MachineType::PointerRepresentation(),
+                                        merge, to->mem_mask, from->mem_mask);
   }
 }
 
@@ -2985,9 +2979,14 @@ Node* WasmGraphBuilder::CurrentMemoryPages() {
   DCHECK_NOT_NULL(instance_cache_);
   Node* mem_size = instance_cache_->mem_size;
   DCHECK_NOT_NULL(mem_size);
-  return graph()->NewNode(
-      mcgraph()->machine()->Word32Shr(), mem_size,
-      mcgraph()->Int32Constant(WhichPowerOf2(wasm::kWasmPageSize)));
+  Node* result =
+      graph()->NewNode(mcgraph()->machine()->WordShr(), mem_size,
+                       mcgraph()->Int32Constant(wasm::kWasmPageSizeLog2));
+  if (mcgraph()->machine()->Is64()) {
+    result =
+        graph()->NewNode(mcgraph()->machine()->TruncateInt64ToInt32(), result);
+  }
+  return result;
 }
 
 // Only call this function for code which is not reused across instantiations,
@@ -3067,35 +3066,28 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
                                        uint32_t offset,
                                        wasm::WasmCodePosition position,
                                        EnforceBoundsCheck enforce_check) {
-  if (FLAG_wasm_no_bounds_checks) return Uint32ToUintptr(index);
-  DCHECK_NOT_NULL(instance_cache_);
-  Node* mem_size = instance_cache_->mem_size;
-  DCHECK_NOT_NULL(mem_size);
+  DCHECK_LE(1, access_size);
+  index = Uint32ToUintptr(index);
+  if (FLAG_wasm_no_bounds_checks) return index;
 
-  auto m = mcgraph()->machine();
   if (use_trap_handler() && enforce_check == kCanOmitBoundsCheck) {
-    // Simply zero out the 32-bits on 64-bit targets and let the trap handler
-    // do its job.
-    return Uint32ToUintptr(index);
+    return index;
   }
 
-  uint32_t min_size = env_->module->initial_pages * wasm::kWasmPageSize;
-  uint32_t max_size =
+  uint64_t min_size =
+      env_->module->initial_pages * uint64_t{wasm::kWasmPageSize};
+  uint64_t max_size =
       (env_->module->has_maximum_pages ? env_->module->maximum_pages
                                        : wasm::kV8MaxWasmMemoryPages) *
-      wasm::kWasmPageSize;
+      uint64_t{wasm::kWasmPageSize};
 
   if (access_size > max_size || offset > max_size - access_size) {
     // The access will be out of bounds, even for the largest memory.
     TrapIfEq32(wasm::kTrapMemOutOfBounds, Int32Constant(0), 0, position);
     return mcgraph()->IntPtrConstant(0);
   }
-  DCHECK_LE(1, access_size);
-  // This computation cannot overflow, since
-  //   {offset <= max_size - access_size <= kMaxUint32 - access_size}.
-  // It also cannot underflow, since {access_size >= 1}.
-  uint32_t end_offset = offset + access_size - 1;
-  Node* end_offset_node = Int32Constant(end_offset);
+  uint64_t end_offset = offset + access_size - 1;
+  Node* end_offset_node = IntPtrConstant(end_offset);
 
   // The accessed memory is [index + offset, index + end_offset].
   // Check that the last read byte (at {index + end_offset}) is in bounds.
@@ -3106,42 +3098,42 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
   //    - computing {effective_size} as {mem_size - end_offset} and
   //    - checking that {index < effective_size}.
 
+  auto m = mcgraph()->machine();
+  Node* mem_size = instance_cache_->mem_size;
   if (end_offset >= min_size) {
     // The end offset is larger than the smallest memory.
-    // Dynamically check the end offset against the actual memory size, which
-    // is not known at compile time.
-    Node* cond = graph()->NewNode(mcgraph()->machine()->Uint32LessThan(),
-                                  end_offset_node, mem_size);
+    // Dynamically check the end offset against the dynamic memory size.
+    Node* cond = graph()->NewNode(m->UintLessThan(), end_offset_node, mem_size);
     TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
   } else {
-    // The end offset is within the bounds of the smallest memory, so only
-    // one check is required. Check to see if the index is also a constant.
-    Uint32Matcher match(index);
+    // The end offset is smaller than the smallest memory, so only one check is
+    // required. Check to see if the index is also a constant.
+    UintPtrMatcher match(index);
     if (match.HasValue()) {
-      uint32_t index_val = match.Value();
+      uintptr_t index_val = match.Value();
       if (index_val < min_size - end_offset) {
         // The input index is a constant and everything is statically within
         // bounds of the smallest possible memory.
-        return Uint32ToUintptr(index);
+        return index;
       }
     }
   }
 
   // This produces a positive number, since {end_offset < min_size <= mem_size}.
-  Node* effective_size = graph()->NewNode(mcgraph()->machine()->Int32Sub(),
-                                          mem_size, end_offset_node);
+  Node* effective_size =
+      graph()->NewNode(m->IntSub(), mem_size, end_offset_node);
 
   // Introduce the actual bounds check.
-  Node* cond = graph()->NewNode(m->Uint32LessThan(), index, effective_size);
+  Node* cond = graph()->NewNode(m->UintLessThan(), index, effective_size);
   TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
 
   if (untrusted_code_mitigations_) {
     // In the fallthrough case, condition the index with the memory mask.
     Node* mem_mask = instance_cache_->mem_mask;
     DCHECK_NOT_NULL(mem_mask);
-    index = graph()->NewNode(m->Word32And(), index, mem_mask);
+    index = graph()->NewNode(m->WordAnd(), index, mem_mask);
   }
-  return Uint32ToUintptr(index);
+  return index;
 }
 
 const Operator* WasmGraphBuilder::GetSafeLoadOperator(int offset,
@@ -3322,15 +3314,16 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
   DCHECK_NOT_NULL(mem_start);
   DCHECK_NOT_NULL(mem_size);
 
-  // Asm.js semantics are defined along the lines of typed arrays, hence OOB
+  // Asm.js semantics are defined in terms of typed arrays, hence OOB
   // reads return {undefined} coerced to the result type (0 for integers, NaN
   // for float and double).
   // Note that we check against the memory size ignoring the size of the
   // stored value, which is conservative if misaligned. Technically, asm.js
   // should never have misaligned accesses.
+  index = Uint32ToUintptr(index);
   Diamond bounds_check(
       graph(), mcgraph()->common(),
-      graph()->NewNode(mcgraph()->machine()->Uint32LessThan(), index, mem_size),
+      graph()->NewNode(mcgraph()->machine()->UintLessThan(), index, mem_size),
       BranchHint::kTrue);
   bounds_check.Chain(*control_);
 
@@ -3338,11 +3331,9 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
     // Condition the index with the memory mask.
     Node* mem_mask = instance_cache_->mem_mask;
     DCHECK_NOT_NULL(mem_mask);
-    index =
-        graph()->NewNode(mcgraph()->machine()->Word32And(), index, mem_mask);
+    index = graph()->NewNode(mcgraph()->machine()->WordAnd(), index, mem_mask);
   }
 
-  index = Uint32ToUintptr(index);
   Node* load = graph()->NewNode(mcgraph()->machine()->Load(type), mem_start,
                                 index, *effect_, bounds_check.if_true);
   Node* value_phi =
@@ -3357,7 +3348,7 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
 Node* WasmGraphBuilder::Uint32ToUintptr(Node* node) {
   if (mcgraph()->machine()->Is32()) return node;
   // Fold instances of ChangeUint32ToUint64(IntConstant) directly.
-  UintPtrMatcher matcher(node);
+  Uint32Matcher matcher(node);
   if (matcher.HasValue()) {
     uintptr_t value = matcher.Value();
     return mcgraph()->IntPtrConstant(bit_cast<intptr_t>(value));

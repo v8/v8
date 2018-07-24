@@ -283,7 +283,7 @@ class JSTypedArray : public JSArrayBufferView {
  public:
   // [length]: length of typed array in elements.
   DECL_ACCESSORS(length, Object)
-  inline uint32_t length_value() const;
+  inline size_t length_value() const;
 
   // ES6 9.4.5.3
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(

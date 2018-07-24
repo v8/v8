@@ -2221,7 +2221,8 @@ JSNativeContextSpecialization::BuildElementAccess(
       Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(m.Value());
 
       // Determine the {receiver}s (known) length.
-      length = jsgraph()->Constant(typed_array->length_value());
+      length =
+          jsgraph()->Constant(static_cast<double>(typed_array->length_value()));
 
       // Check if the {receiver}s buffer was neutered.
       buffer = jsgraph()->HeapConstant(typed_array->GetBuffer());

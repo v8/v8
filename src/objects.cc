@@ -867,13 +867,13 @@ MaybeHandle<FixedArray> CreateListFromArrayLikeFastPath(
           isolate, array, length);
     } else if (object->IsJSTypedArray()) {
       Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(object);
-      uint32_t length = array->length_value();
+      size_t length = array->length_value();
       if (array->WasNeutered() ||
-          length > static_cast<uint32_t>(FixedArray::kMaxLength)) {
+          length > static_cast<size_t>(FixedArray::kMaxLength)) {
         return MaybeHandle<FixedArray>();
       }
       return array->GetElementsAccessor()->CreateListFromArrayLike(
-          isolate, array, length);
+          isolate, array, static_cast<uint32_t>(length));
     }
   }
   return MaybeHandle<FixedArray>();

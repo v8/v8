@@ -1128,9 +1128,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     if (!memory_.is_null()) {
       // Double-check the {memory} array buffer matches the instance.
       Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
-      uint32_t mem_size = 0;
-      CHECK(memory->byte_length()->ToUint32(&mem_size));
-      CHECK_EQ(instance->memory_size(), mem_size);
+      CHECK_EQ(instance->memory_size(), memory->byte_length()->Number());
       CHECK_EQ(instance->memory_start(), memory->backing_store());
     }
   }
