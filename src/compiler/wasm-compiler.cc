@@ -4804,6 +4804,8 @@ MaybeHandle<Code> CompileJSToWasmWrapper(
     Isolate* isolate, const wasm::NativeModule* native_module,
     wasm::FunctionSig* sig, bool is_import,
     wasm::UseTrapHandler use_trap_handler) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+               "CompileJSToWasmWrapper");
   const wasm::WasmModule* module = native_module->module();
 
   //----------------------------------------------------------------------------
@@ -4877,6 +4879,8 @@ MaybeHandle<Code> CompileWasmToJSWrapper(
     Isolate* isolate, Handle<JSReceiver> target, wasm::FunctionSig* sig,
     uint32_t index, wasm::ModuleOrigin origin,
     wasm::UseTrapHandler use_trap_handler) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+               "CompileWasmToJSWrapper");
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
