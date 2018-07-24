@@ -338,11 +338,7 @@ void Int64Lowering::LowerNode(Node* node) {
         size_t return_arity = call_descriptor->ReturnCount();
         if (return_arity == 1) {
           // We access the additional return values through projections.
-          Node* low_node =
-              graph()->NewNode(common()->Projection(0), node, graph()->start());
-          Node* high_node =
-              graph()->NewNode(common()->Projection(1), node, graph()->start());
-          ReplaceNode(node, low_node, high_node);
+          ReplaceNodeWithProjections(node);
         } else {
           ZoneVector<Node*> projections(return_arity, zone());
           NodeProperties::CollectValueProjections(node, projections.data(),
@@ -405,11 +401,7 @@ void Int64Lowering::LowerNode(Node* node) {
 
       NodeProperties::ChangeOp(node, machine()->Int32PairAdd());
       // We access the additional return values through projections.
-      Node* low_node =
-          graph()->NewNode(common()->Projection(0), node, graph()->start());
-      Node* high_node =
-          graph()->NewNode(common()->Projection(1), node, graph()->start());
-      ReplaceNode(node, low_node, high_node);
+      ReplaceNodeWithProjections(node);
       break;
     }
     case IrOpcode::kInt64Sub: {
@@ -425,11 +417,7 @@ void Int64Lowering::LowerNode(Node* node) {
 
       NodeProperties::ChangeOp(node, machine()->Int32PairSub());
       // We access the additional return values through projections.
-      Node* low_node =
-          graph()->NewNode(common()->Projection(0), node, graph()->start());
-      Node* high_node =
-          graph()->NewNode(common()->Projection(1), node, graph()->start());
-      ReplaceNode(node, low_node, high_node);
+      ReplaceNodeWithProjections(node);
       break;
     }
     case IrOpcode::kInt64Mul: {
@@ -445,11 +433,7 @@ void Int64Lowering::LowerNode(Node* node) {
 
       NodeProperties::ChangeOp(node, machine()->Int32PairMul());
       // We access the additional return values through projections.
-      Node* low_node =
-          graph()->NewNode(common()->Projection(0), node, graph()->start());
-      Node* high_node =
-          graph()->NewNode(common()->Projection(1), node, graph()->start());
-      ReplaceNode(node, low_node, high_node);
+      ReplaceNodeWithProjections(node);
       break;
     }
     case IrOpcode::kWord64Or: {
@@ -497,11 +481,7 @@ void Int64Lowering::LowerNode(Node* node) {
 
       NodeProperties::ChangeOp(node, machine()->Word32PairShl());
       // We access the additional return values through projections.
-      Node* low_node =
-          graph()->NewNode(common()->Projection(0), node, graph()->start());
-      Node* high_node =
-          graph()->NewNode(common()->Projection(1), node, graph()->start());
-      ReplaceNode(node, low_node, high_node);
+      ReplaceNodeWithProjections(node);
       break;
     }
     case IrOpcode::kWord64Shr: {
@@ -521,11 +501,7 @@ void Int64Lowering::LowerNode(Node* node) {
 
       NodeProperties::ChangeOp(node, machine()->Word32PairShr());
       // We access the additional return values through projections.
-      Node* low_node =
-          graph()->NewNode(common()->Projection(0), node, graph()->start());
-      Node* high_node =
-          graph()->NewNode(common()->Projection(1), node, graph()->start());
-      ReplaceNode(node, low_node, high_node);
+      ReplaceNodeWithProjections(node);
       break;
     }
     case IrOpcode::kWord64Sar: {
@@ -545,11 +521,7 @@ void Int64Lowering::LowerNode(Node* node) {
 
       NodeProperties::ChangeOp(node, machine()->Word32PairSar());
       // We access the additional return values through projections.
-      Node* low_node =
-          graph()->NewNode(common()->Projection(0), node, graph()->start());
-      Node* high_node =
-          graph()->NewNode(common()->Projection(1), node, graph()->start());
-      ReplaceNode(node, low_node, high_node);
+      ReplaceNodeWithProjections(node);
       break;
     }
     case IrOpcode::kWord64Equal: {
@@ -987,6 +959,16 @@ void Int64Lowering::PreparePhiReplacement(Node* phi) {
                     value_count + 1, inputs_high, false));
   }
 }
+
+void Int64Lowering::ReplaceNodeWithProjections(Node* node) {
+  DCHECK(node != nullptr);
+  Node* low_node =
+      graph()->NewNode(common()->Projection(0), node, graph()->start());
+  Node* high_node =
+      graph()->NewNode(common()->Projection(1), node, graph()->start());
+  ReplaceNode(node, low_node, high_node);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
