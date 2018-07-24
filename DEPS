@@ -13,13 +13,13 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '181a98820c4e0ebf8cf38af6561a68a9e33956b0',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'd1e53db8d557a4ff9b33be05905e6e5263f788d0',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7e3c67f2c3322f146e8e81fabb8d85dde1d04a3c',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6ec6d27f2d1bd3d46eddaf469ee21cacc3e04999',
   'v8/third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'a9a2bd3ee4f1d313651c5272252aaf2a3e7ed529',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '297a4dd02b9d36c92ab9b4f121e433c9c3bc14f8',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '323cf32193caecbf074d1a0cb5b02b905f163e0f',
   'v8/buildtools':
@@ -35,7 +35,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '9e8a0b2b37d966544401445b117d192e1ec7f114',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '6a1002b4d937c97a958e28b63a34ac6fd591757a',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -55,7 +55,7 @@ deps = {
   'v8/third_party/proguard':
     Var('chromium_url') + '/chromium/src/third_party/proguard.git' + '@' + 'eba7a98d98735b2cc65c54d36baa5c9b46fe4f8e',
   'v8/tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '9a518d097dca20b7b00ce3bdfc5d418ccc79893a',
+    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '486c9b53c4d54dd4b95bb6ce0e31160e600dfc11',
   'v8/test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
   'v8/test/mozilla/data':
