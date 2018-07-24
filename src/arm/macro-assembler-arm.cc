@@ -834,7 +834,7 @@ void TurboAssembler::VmovHigh(Register dst, DwVfpRegister src) {
     const LowDwVfpRegister loc = LowDwVfpRegister::from_code(src.code());
     vmov(dst, loc.high());
   } else {
-    vmov(dst, VmovIndexHi, src);
+    vmov(NeonS32, dst, src, 1);
   }
 }
 
@@ -843,7 +843,7 @@ void TurboAssembler::VmovHigh(DwVfpRegister dst, Register src) {
     const LowDwVfpRegister loc = LowDwVfpRegister::from_code(dst.code());
     vmov(loc.high(), src);
   } else {
-    vmov(dst, VmovIndexHi, src);
+    vmov(NeonS32, dst, 1, src);
   }
 }
 
@@ -852,7 +852,7 @@ void TurboAssembler::VmovLow(Register dst, DwVfpRegister src) {
     const LowDwVfpRegister loc = LowDwVfpRegister::from_code(src.code());
     vmov(dst, loc.low());
   } else {
-    vmov(dst, VmovIndexLo, src);
+    vmov(NeonS32, dst, src, 0);
   }
 }
 
@@ -861,7 +861,7 @@ void TurboAssembler::VmovLow(DwVfpRegister dst, Register src) {
     const LowDwVfpRegister loc = LowDwVfpRegister::from_code(dst.code());
     vmov(loc.low(), src);
   } else {
-    vmov(dst, VmovIndexLo, src);
+    vmov(NeonS32, dst, 0, src);
   }
 }
 

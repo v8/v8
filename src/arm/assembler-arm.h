@@ -605,13 +605,6 @@ class NeonListOperand BASE_EMBEDDED {
   int register_count_;
 };
 
-
-struct VmovIndex {
-  unsigned char index;
-};
-constexpr VmovIndex VmovIndexLo = { 0 };
-constexpr VmovIndex VmovIndexHi = { 1 };
-
 class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  public:
   // Create an assembler. Instructions and relocation information are emitted
@@ -1068,16 +1061,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
             const SwVfpRegister src,
             const Condition cond = al);
   void vmov(const DwVfpRegister dst,
-            const DwVfpRegister src,
-            const Condition cond = al);
-  // TODO(bbudge) Replace uses of these with the more general core register to
-  // scalar register vmov's.
-  void vmov(const DwVfpRegister dst,
-            const VmovIndex index,
-            const Register src,
-            const Condition cond = al);
-  void vmov(const Register dst,
-            const VmovIndex index,
             const DwVfpRegister src,
             const Condition cond = al);
   void vmov(const DwVfpRegister dst,

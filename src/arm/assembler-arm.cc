@@ -2861,14 +2861,14 @@ void Assembler::vmov(const DwVfpRegister dst, Double imm,
     } else if (extra_scratch == no_reg) {
       // We only have one spare scratch register.
       mov(scratch, Operand(lo));
-      vmov(dst, VmovIndexLo, scratch);
+      vmov(NeonS32, dst, 0, scratch);
       if (((lo & 0xFFFF) == (hi & 0xFFFF)) && CpuFeatures::IsSupported(ARMv7)) {
         CpuFeatureScope scope(this, ARMv7);
         movt(scratch, hi >> 16);
       } else {
         mov(scratch, Operand(hi));
       }
-      vmov(dst, VmovIndexHi, scratch);
+      vmov(NeonS32, dst, 1, scratch);
     } else {
       // Move the low and high parts of the double to a D register in one
       // instruction.
@@ -2907,40 +2907,6 @@ void Assembler::vmov(const DwVfpRegister dst,
   emit(cond | 0x1D*B23 | d*B22 | 0x3*B20 | vd*B12 | 0x5*B9 | B8 | B6 | m*B5 |
        vm);
 }
-
-void Assembler::vmov(const DwVfpRegister dst,
-                     const VmovIndex index,
-                     const Register src,
-                     const Condition cond) {
-  // Dd[index] = Rt
-  // Instruction details available in ARM DDI 0406C.b, A8-940.
-  // cond(31-28) | 1110(27-24) | 0(23) | opc1=0index(22-21) | 0(20) |
-  // Vd(19-16) | Rt(15-12) | 1011(11-8) | D(7) | opc2=00(6-5) | 1(4) | 0000(3-0)
-  DCHECK(VfpRegisterIsAvailable(dst));
-  DCHECK(index.index == 0 || index.index == 1);
-  int vd, d;
-  dst.split_code(&vd, &d);
-  emit(cond | 0xE*B24 | index.index*B21 | vd*B16 | src.code()*B12 | 0xB*B8 |
-       d*B7 | B4);
-}
-
-
-void Assembler::vmov(const Register dst,
-                     const VmovIndex index,
-                     const DwVfpRegister src,
-                     const Condition cond) {
-  // Dd[index] = Rt
-  // Instruction details available in ARM DDI 0406C.b, A8.8.342.
-  // cond(31-28) | 1110(27-24) | U=0(23) | opc1=0index(22-21) | 1(20) |
-  // Vn(19-16) | Rt(15-12) | 1011(11-8) | N(7) | opc2=00(6-5) | 1(4) | 0000(3-0)
-  DCHECK(VfpRegisterIsAvailable(src));
-  DCHECK(index.index == 0 || index.index == 1);
-  int vn, n;
-  src.split_code(&vn, &n);
-  emit(cond | 0xE*B24 | index.index*B21 | B20 | vn*B16 | dst.code()*B12 |
-       0xB*B8 | n*B7 | B4);
-}
-
 
 void Assembler::vmov(const DwVfpRegister dst,
                      const Register src1,
