@@ -513,22 +513,25 @@ void Heap::AddRetainingPathTarget(Handle<HeapObject> object,
   if (!FLAG_track_retaining_path) {
     PrintF("Retaining path tracking requires --track-retaining-path\n");
   } else {
-    int index = 0;
-    Handle<FixedArrayOfWeakCells> array = FixedArrayOfWeakCells::Add(
-        isolate(), handle(retaining_path_targets(), isolate()), object, &index);
+    Handle<WeakArrayList> array(retaining_path_targets(), isolate());
+    int index = array->length();
+    array = WeakArrayList::AddToEnd(isolate(), array,
+                                    MaybeObjectHandle::Weak(object));
     set_retaining_path_targets(*array);
+    DCHECK_EQ(array->length(), index + 1);
     retaining_path_target_option_[index] = option;
   }
 }
 
 bool Heap::IsRetainingPathTarget(HeapObject* object,
                                  RetainingPathOption* option) {
-  if (!retaining_path_targets()->IsFixedArrayOfWeakCells()) return false;
-  FixedArrayOfWeakCells* targets =
-      FixedArrayOfWeakCells::cast(retaining_path_targets());
-  int length = targets->Length();
+  WeakArrayList* targets = retaining_path_targets();
+  int length = targets->length();
+  MaybeObject* object_to_check = HeapObjectReference::Weak(object);
   for (int i = 0; i < length; i++) {
-    if (targets->Get(i) == object) {
+    MaybeObject* target = targets->Get(i);
+    DCHECK(target->IsWeakOrClearedHeapObject());
+    if (target == object_to_check) {
       DCHECK(retaining_path_target_option_.count(i));
       *option = retaining_path_target_option_[i];
       return true;

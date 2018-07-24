@@ -237,7 +237,7 @@ namespace internal {
   V(FixedArray, materialized_objects, MaterializedObjects)                   \
   V(FixedArray, microtask_queue, MicrotaskQueue)                             \
   V(WeakArrayList, detached_contexts, DetachedContexts)                      \
-  V(HeapObject, retaining_path_targets, RetainingPathTargets)                \
+  V(WeakArrayList, retaining_path_targets, RetainingPathTargets)             \
   V(WeakArrayList, retained_maps, RetainedMaps)                              \
   /* Indirection lists for isolate-independent builtins */                   \
   V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)            \
