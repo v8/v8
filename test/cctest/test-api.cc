@@ -911,7 +911,8 @@ TEST(ExternalStringWithDisposeHandling) {
 THREADED_TEST(StringConcat) {
   {
     LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::Isolate* isolate = env->GetIsolate();
+    v8::HandleScope scope(isolate);
     const char* one_byte_string_1 = "function a_times_t";
     const char* two_byte_string_1 = "wo_plus_b(a, b) {return ";
     const char* one_byte_extern_1 = "a * 2 + b;} a_times_two_plus_b(4, 8) + ";
@@ -928,19 +929,19 @@ THREADED_TEST(StringConcat) {
             .ToLocalChecked();
     i::DeleteArray(two_byte_source);
 
-    Local<String> source = String::Concat(env->GetIsolate(), left, right);
+    Local<String> source = String::Concat(isolate, left, right);
     right = String::NewExternalOneByte(
                 env->GetIsolate(),
                 new TestOneByteResource(i::StrDup(one_byte_extern_1)))
                 .ToLocalChecked();
-    source = String::Concat(env->GetIsolate(), source, right);
+    source = String::Concat(isolate, source, right);
     right = String::NewExternalTwoByte(
                 env->GetIsolate(),
                 new TestResource(AsciiToTwoByteString(two_byte_extern_1)))
                 .ToLocalChecked();
-    source = String::Concat(env->GetIsolate(), source, right);
+    source = String::Concat(isolate, source, right);
     right = v8_str(one_byte_string_2);
-    source = String::Concat(env->GetIsolate(), source, right);
+    source = String::Concat(isolate, source, right);
 
     two_byte_source = AsciiToTwoByteString(two_byte_string_2);
     right = String::NewFromTwoByte(env->GetIsolate(), two_byte_source,
@@ -948,12 +949,12 @@ THREADED_TEST(StringConcat) {
                 .ToLocalChecked();
     i::DeleteArray(two_byte_source);
 
-    source = String::Concat(env->GetIsolate(), source, right);
+    source = String::Concat(isolate, source, right);
     right = String::NewExternalTwoByte(
                 env->GetIsolate(),
                 new TestResource(AsciiToTwoByteString(two_byte_extern_2)))
                 .ToLocalChecked();
-    source = String::Concat(env->GetIsolate(), source, right);
+    source = String::Concat(isolate, source, right);
     Local<Script> script = v8_compile(source);
     Local<Value> value = script->Run(env.local()).ToLocalChecked();
     CHECK(value->IsNumber());
@@ -26235,15 +26236,16 @@ TEST(InvalidCodeCacheData) {
 
 TEST(StringConcatOverflow) {
   v8::V8::Initialize();
-  v8::HandleScope scope(CcTest::isolate());
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
   RandomLengthOneByteResource* r =
       new RandomLengthOneByteResource(i::String::kMaxLength);
   v8::Local<v8::String> str =
-      v8::String::NewExternalOneByte(CcTest::isolate(), r).ToLocalChecked();
+      v8::String::NewExternalOneByte(isolate, r).ToLocalChecked();
   CHECK(!str.IsEmpty());
-  v8::TryCatch try_catch(CcTest::isolate());
-  v8::Local<v8::String> result =
-      v8::String::Concat(CcTest::isolate(), str, str);
+  v8::TryCatch try_catch(isolate);
+  v8::Local<v8::String> result = v8::String::Concat(isolate, str, str);
+  v8::String::Concat(CcTest::isolate(), str, str);
   CHECK(result.IsEmpty());
   CHECK(!try_catch.HasCaught());
 }
