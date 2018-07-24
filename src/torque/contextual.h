@@ -27,6 +27,8 @@ namespace torque {
 template <class Derived, class VarType>
 class ContextualVariable {
  public:
+  using VariableType = VarType;
+
   // A {Scope} contains a new object of type {VarType} and gives
   // ContextualVariable::Get() access to it. Upon destruction, the contextual
   // variable is restored to the state before the {Scope} was created. Scopes
@@ -67,13 +69,15 @@ class ContextualVariable {
   static thread_local VarType* top_;
 };
 
-template <class Derived, class VarType>
-thread_local VarType* ContextualVariable<Derived, VarType>::top_ = nullptr;
-
 // Usage: DECLARE_CONTEXTUAL_VARIABLE(VarName, VarType)
 #define DECLARE_CONTEXTUAL_VARIABLE(VarName, ...) \
   struct VarName                                  \
       : v8::internal::torque::ContextualVariable<VarName, __VA_ARGS__> {};
+
+#define DEFINE_CONTEXTUAL_VARIABLE(VarName) \
+  template <>                               \
+  thread_local VarName::VariableType*       \
+      ContextualVariable<VarName, VarName::VariableType>::top_ = nullptr;
 
 // By inheriting from {ContextualClass} a class can become a contextual variable
 // of itself, which is very similar to a singleton.
