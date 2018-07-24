@@ -167,7 +167,7 @@ void FeedbackVector::set(int index, MaybeObject* value, WriteBarrierMode mode) {
   DCHECK_LT(index, this->length());
   int offset = kFeedbackSlotsOffset + index * kPointerSize;
   RELAXED_WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WEAK_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+  CONDITIONAL_WEAK_WRITE_BARRIER(this, offset, value, mode);
 }
 
 void FeedbackVector::Set(FeedbackSlot slot, Object* value,

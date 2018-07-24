@@ -1389,7 +1389,7 @@ void JSObject::SetMapAndElements(Handle<JSObject> object,
 
 void JSObject::set_elements(FixedArrayBase* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kElementsOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kElementsOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(this, kElementsOffset, value, mode);
 }
 
 
@@ -1475,7 +1475,7 @@ void WeakCell::initialize(HeapObject* val) {
       heap->incremental_marking()->marking_state()->IsBlack(this)
           ? UPDATE_WRITE_BARRIER
           : UPDATE_WEAK_WRITE_BARRIER;
-  CONDITIONAL_WRITE_BARRIER(heap, this, kValueOffset, val, mode);
+  CONDITIONAL_WRITE_BARRIER(this, kValueOffset, val, mode);
 }
 
 bool WeakCell::cleared() const { return value() == Smi::kZero; }
@@ -1547,7 +1547,7 @@ void JSObject::SetEmbedderField(int index, Object* value) {
   // to adjust the index here.
   int offset = GetHeaderSize() + (kPointerSize * index);
   WRITE_FIELD(this, offset, value);
-  WRITE_BARRIER(GetHeap(), this, offset, value);
+  WRITE_BARRIER(this, offset, value);
 }
 
 void JSObject::SetEmbedderField(int index, Smi* value) {
@@ -1592,7 +1592,7 @@ void JSObject::RawFastPropertyAtPut(FieldIndex index, Object* value) {
   if (index.is_inobject()) {
     int offset = index.offset();
     WRITE_FIELD(this, offset, value);
-    WRITE_BARRIER(GetHeap(), this, offset, value);
+    WRITE_BARRIER(this, offset, value);
   } else {
     property_array()->set(index.outobject_array_index(), value);
   }
@@ -1668,7 +1668,7 @@ Object* JSObject::InObjectPropertyAtPut(int index,
   // Adjust for the number of properties stored in the object.
   int offset = GetInObjectPropertyOffset(index);
   WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
   return value;
 }
 
@@ -1735,7 +1735,7 @@ void PropertyArray::set(int index, Object* value) {
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
   RELAXED_WRITE_FIELD(this, offset, value);
-  WRITE_BARRIER(Heap::FromWritableHeapObject(this), this, offset, value);
+  WRITE_BARRIER(this, offset, value);
 }
 
 int RegExpMatchInfo::NumberOfCaptureRegisters() {
@@ -1834,8 +1834,7 @@ void PropertyArray::set(int index, Object* value, WriteBarrierMode mode) {
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
   RELAXED_WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this, offset,
-                            value, mode);
+  CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
 
 Object** PropertyArray::data_start() {
@@ -2572,7 +2571,7 @@ Context* JSFunction::native_context() { return context()->native_context(); }
 void JSFunction::set_context(Object* value) {
   DCHECK(value->IsUndefined() || value->IsContext());
   WRITE_FIELD(this, kContextOffset, value);
-  WRITE_BARRIER(GetHeap(), this, kContextOffset, value);
+  WRITE_BARRIER(this, kContextOffset, value);
 }
 
 ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map, Object,
@@ -2651,8 +2650,7 @@ void SmallOrderedHashTable<Derived>::SetDataEntry(int entry, int relative_index,
                                                   Object* value) {
   Address entry_offset = GetDataEntryOffset(entry, relative_index);
   RELAXED_WRITE_FIELD(this, entry_offset, value);
-  WRITE_BARRIER(Heap::FromWritableHeapObject(this), this,
-                static_cast<int>(entry_offset), value);
+  WRITE_BARRIER(this, static_cast<int>(entry_offset), value);
 }
 
 ACCESSORS(JSValue, value, Object, kValueOffset)

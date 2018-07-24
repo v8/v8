@@ -3719,8 +3719,8 @@ void TranslatedState::InitializeJSObjectAt(
     Handle<Object> properties = GetValueAndAdvance(frame, value_index);
     WRITE_FIELD(*object_storage, JSObject::kPropertiesOrHashOffset,
                 *properties);
-    WRITE_BARRIER(isolate()->heap(), *object_storage,
-                  JSObject::kPropertiesOrHashOffset, *properties);
+    WRITE_BARRIER(*object_storage, JSObject::kPropertiesOrHashOffset,
+                  *properties);
   }
 
   // For all the other fields we first look at the fixed array and check the
@@ -3747,11 +3747,11 @@ void TranslatedState::InitializeJSObjectAt(
     } else if (marker == kStoreMutableHeapNumber) {
       CHECK(field_value->IsMutableHeapNumber());
       WRITE_FIELD(*object_storage, offset, *field_value);
-      WRITE_BARRIER(isolate()->heap(), *object_storage, offset, *field_value);
+      WRITE_BARRIER(*object_storage, offset, *field_value);
     } else {
       CHECK_EQ(kStoreTagged, marker);
       WRITE_FIELD(*object_storage, offset, *field_value);
-      WRITE_BARRIER(isolate()->heap(), *object_storage, offset, *field_value);
+      WRITE_BARRIER(*object_storage, offset, *field_value);
     }
   }
   object_storage->synchronized_set_map(*map);
@@ -3787,7 +3787,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     }
 
     WRITE_FIELD(*object_storage, offset, *field_value);
-    WRITE_BARRIER(isolate()->heap(), *object_storage, offset, *field_value);
+    WRITE_BARRIER(*object_storage, offset, *field_value);
   }
 
   object_storage->synchronized_set_map(*map);

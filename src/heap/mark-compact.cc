@@ -1249,8 +1249,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   bool AbortCompactionForTesting(HeapObject* object) {
     if (FLAG_stress_compaction) {
       const uintptr_t mask = static_cast<uintptr_t>(FLAG_random_seed) &
-                             Page::kPageAlignmentMask & ~kPointerAlignmentMask;
-      if ((object->address() & Page::kPageAlignmentMask) == mask) {
+                             kPageAlignmentMask & ~kPointerAlignmentMask;
+      if ((object->address() & kPageAlignmentMask) == mask) {
         Page* page = Page::FromAddress(object->address());
         if (page->IsFlagSet(Page::COMPACTION_WAS_ABORTED_FOR_TESTING)) {
           page->ClearFlag(Page::COMPACTION_WAS_ABORTED_FOR_TESTING);

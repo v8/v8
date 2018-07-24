@@ -110,7 +110,7 @@ class Space;
 // Some assertion macros used in the debugging mode.
 
 #define DCHECK_PAGE_ALIGNED(address) \
-  DCHECK((OffsetFrom(address) & Page::kPageAlignmentMask) == 0)
+  DCHECK((OffsetFrom(address) & kPageAlignmentMask) == 0)
 
 #define DCHECK_OBJECT_ALIGNED(address) \
   DCHECK((OffsetFrom(address) & kObjectAlignmentMask) == 0)
@@ -312,7 +312,11 @@ class MemoryChunk {
 
     // |SWEEP_TO_ITERATE|: The page requires sweeping using external markbits
     // to iterate the page.
-    SWEEP_TO_ITERATE = 1u << 17
+    SWEEP_TO_ITERATE = 1u << 17,
+
+    // |INCREMENTAL_MARKING|: Indicates whether incremental marking is currently
+    // enabled.
+    INCREMENTAL_MARKING = 1u << 18
   };
 
   using Flags = uintptr_t;
@@ -403,7 +407,6 @@ class MemoryChunk {
 
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
-  static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;
 
   static const int kAllocatableMemory = kPageSize - kObjectStartOffset;
 
@@ -758,7 +761,8 @@ class Page : public MemoryChunk {
   // Page flags copied from from-space to to-space when flipping semispaces.
   static const intptr_t kCopyOnFlipFlagsMask =
       static_cast<intptr_t>(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
-      static_cast<intptr_t>(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
+      static_cast<intptr_t>(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING) |
+      static_cast<intptr_t>(MemoryChunk::INCREMENTAL_MARKING);
 
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize[. This only works if the object
@@ -1177,7 +1181,7 @@ class SkipList {
   }
 
   static inline int RegionNumber(Address addr) {
-    return (OffsetFrom(addr) & Page::kPageAlignmentMask) >> kRegionSizeLog2;
+    return (OffsetFrom(addr) & kPageAlignmentMask) >> kRegionSizeLog2;
   }
 
   static void Update(Address addr, int size) {

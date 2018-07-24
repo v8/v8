@@ -498,7 +498,7 @@ void SlicedString::set_parent(Isolate* isolate, String* parent,
                               WriteBarrierMode mode) {
   DCHECK(parent->IsSeqString() || parent->IsExternalString());
   WRITE_FIELD(this, kParentOffset, parent);
-  CONDITIONAL_WRITE_BARRIER(isolate->heap(), this, kParentOffset, parent, mode);
+  CONDITIONAL_WRITE_BARRIER(this, kParentOffset, parent, mode);
 }
 
 SMI_ACCESSORS(SlicedString, offset, kOffsetOffset)
@@ -512,7 +512,7 @@ Object* ConsString::unchecked_first() { return READ_FIELD(this, kFirstOffset); }
 void ConsString::set_first(Isolate* isolate, String* value,
                            WriteBarrierMode mode) {
   WRITE_FIELD(this, kFirstOffset, value);
-  CONDITIONAL_WRITE_BARRIER(isolate->heap(), this, kFirstOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(this, kFirstOffset, value, mode);
 }
 
 String* ConsString::second() {
@@ -526,7 +526,7 @@ Object* ConsString::unchecked_second() {
 void ConsString::set_second(Isolate* isolate, String* value,
                             WriteBarrierMode mode) {
   WRITE_FIELD(this, kSecondOffset, value);
-  CONDITIONAL_WRITE_BARRIER(isolate->heap(), this, kSecondOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(this, kSecondOffset, value, mode);
 }
 
 ACCESSORS(ThinString, actual, String, kActualOffset);

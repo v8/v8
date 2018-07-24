@@ -569,8 +569,7 @@ Object* Map::prototype() const { return READ_FIELD(this, kPrototypeOffset); }
 void Map::set_prototype(Object* value, WriteBarrierMode mode) {
   DCHECK(value->IsNull() || value->IsJSReceiver());
   WRITE_FIELD(this, kPrototypeOffset, value);
-  CONDITIONAL_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this,
-                            kPrototypeOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(this, kPrototypeOffset, value, mode);
 }
 
 LayoutDescriptor* Map::layout_descriptor_gc_safe() const {
@@ -690,8 +689,7 @@ Object* Map::prototype_info() const {
 void Map::set_prototype_info(Object* value, WriteBarrierMode mode) {
   CHECK(is_prototype_map());
   WRITE_FIELD(this, Map::kTransitionsOrPrototypeInfoOffset, value);
-  CONDITIONAL_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this,
-                            Map::kTransitionsOrPrototypeInfoOffset, value,
+  CONDITIONAL_WRITE_BARRIER(this, Map::kTransitionsOrPrototypeInfoOffset, value,
                             mode);
 }
 

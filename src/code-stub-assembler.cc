@@ -9580,7 +9580,7 @@ void CodeStubAssembler::TrapAllocationMemento(Node* object,
 }
 
 TNode<IntPtrT> CodeStubAssembler::PageFromAddress(TNode<IntPtrT> address) {
-  return WordAnd(address, IntPtrConstant(~Page::kPageAlignmentMask));
+  return WordAnd(address, IntPtrConstant(~kPageAlignmentMask));
 }
 
 TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(

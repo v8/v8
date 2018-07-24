@@ -8,12 +8,15 @@
 #include <cmath>
 
 // Clients of this interface shouldn't depend on lots of heap internals.
-// Do not include anything from src/heap other than src/heap/heap.h here!
+// Do not include anything from src/heap other than src/heap/heap.h and its
+// write barrier here!
+#include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 
 #include "src/base/platform/platform.h"
 #include "src/counters-inl.h"
 #include "src/feedback-vector.h"
+
 // TODO(mstarzinger): There are 3 more includes to remove in order to no longer
 // leak heap internals to users of this interface!
 #include "src/heap/incremental-marking-inl.h"
@@ -31,6 +34,12 @@
 #include "src/profiler/heap-profiler.h"
 #include "src/string-hasher.h"
 #include "src/zone/zone-list-inl.h"
+
+// The following header includes the write barrier essentials that can also be
+// used stand-alone without including heap-inl.h.
+// TODO(mlippautz): Remove once users of object-macros.h include this file on
+// their own.
+#include "src/heap/heap-write-barrier-inl.h"
 
 namespace v8 {
 namespace internal {

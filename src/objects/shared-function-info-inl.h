@@ -35,8 +35,7 @@ void PreParsedScopeData::set_child_data(int index, Object* value,
   DCHECK_LT(index, this->length());
   int offset = kChildDataStartOffset + index * kPointerSize;
   RELAXED_WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(Heap::FromWritableHeapObject(this), this, offset,
-                            value, mode);
+  CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
 
 Object** PreParsedScopeData::child_data_start() const {
@@ -361,7 +360,7 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* scope_info,
   }
   WRITE_FIELD(this, kNameOrScopeInfoOffset,
               reinterpret_cast<Object*>(scope_info));
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kNameOrScopeInfoOffset,
+  CONDITIONAL_WRITE_BARRIER(this, kNameOrScopeInfoOffset,
                             reinterpret_cast<Object*>(scope_info), mode);
 }
 

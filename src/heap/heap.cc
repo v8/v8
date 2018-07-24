@@ -31,6 +31,7 @@
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/item-parallel-job.h"
 #include "src/heap/mark-compact-inl.h"
@@ -5786,6 +5787,49 @@ Code* Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
     addr = next_addr;
   }
 }
+
+void Heap::GenerationalBarrierSlow(HeapObject* object, Address slot,
+                                   HeapObject* value) {
+  Heap* heap = Heap::FromWritableHeapObject(object);
+  heap->store_buffer()->InsertEntry(slot);
+}
+
+void Heap::MarkingBarrierSlow(HeapObject* object, Address slot,
+                              HeapObject* value) {
+  Heap* heap = Heap::FromWritableHeapObject(object);
+  heap->incremental_marking()->RecordWriteSlow(
+      object, reinterpret_cast<HeapObjectReference**>(slot), value);
+}
+
+bool Heap::PageFlagsAreConsistent(HeapObject* object) {
+  Heap* heap = Heap::FromWritableHeapObject(object);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  heap_internals::MemoryChunk* slim_chunk =
+      heap_internals::MemoryChunk::FromHeapObject(object);
+
+  const bool generation_consistency =
+      chunk->owner()->identity() != NEW_SPACE ||
+      (chunk->InNewSpace() && slim_chunk->InNewSpace());
+  const bool marking_consistency =
+      !heap->incremental_marking()->IsMarking() ||
+      (chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING) &&
+       slim_chunk->IsMarking());
+
+  return generation_consistency && marking_consistency;
+}
+
+static_assert(MemoryChunk::Flag::INCREMENTAL_MARKING ==
+                  heap_internals::MemoryChunk::kMarkingBit,
+              "Incremental marking flag inconsistent");
+static_assert(MemoryChunk::Flag::IN_FROM_SPACE ==
+                  heap_internals::MemoryChunk::kFromSpaceBit,
+              "From space flag inconsistent");
+static_assert(MemoryChunk::Flag::IN_TO_SPACE ==
+                  heap_internals::MemoryChunk::kToSpaceBit,
+              "To space flag inconsistent");
+static_assert(MemoryChunk::kFlagsOffset ==
+                  heap_internals::MemoryChunk::kFlagsOffset,
+              "Flag offset inconsistent");
 
 }  // namespace internal
 }  // namespace v8

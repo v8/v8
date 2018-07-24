@@ -221,7 +221,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
   }
 
   Node* IsPageFlagSet(Node* object, int mask) {
-    Node* page = WordAnd(object, IntPtrConstant(~Page::kPageAlignmentMask));
+    Node* page = WordAnd(object, IntPtrConstant(~kPageAlignmentMask));
     Node* flags = Load(MachineType::Pointer(), page,
                        IntPtrConstant(MemoryChunk::kFlagsOffset));
     return WordNotEqual(WordAnd(flags, IntPtrConstant(mask)),
@@ -241,7 +241,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
   }
 
   void GetMarkBit(Node* object, Node** cell, Node** mask) {
-    Node* page = WordAnd(object, IntPtrConstant(~Page::kPageAlignmentMask));
+    Node* page = WordAnd(object, IntPtrConstant(~kPageAlignmentMask));
 
     {
       // Temp variable to calculate cell offset in bitmap.
@@ -249,7 +249,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
       int shift = Bitmap::kBitsPerCellLog2 + kPointerSizeLog2 -
                   Bitmap::kBytesPerCellLog2;
       r0 = WordShr(object, IntPtrConstant(shift));
-      r0 = WordAnd(r0, IntPtrConstant((Page::kPageAlignmentMask >> shift) &
+      r0 = WordAnd(r0, IntPtrConstant((kPageAlignmentMask >> shift) &
                                       ~(Bitmap::kBytesPerCell - 1)));
       *cell = IntPtrAdd(IntPtrAdd(page, r0),
                         IntPtrConstant(MemoryChunk::kHeaderSize));

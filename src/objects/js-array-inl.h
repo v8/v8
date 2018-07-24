@@ -168,7 +168,7 @@ Object* JSArrayBufferView::byte_offset() const {
 
 void JSArrayBufferView::set_byte_offset(Object* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kByteOffsetOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kByteOffsetOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(this, kByteOffsetOffset, value, mode);
 }
 
 Object* JSArrayBufferView::byte_length() const {
@@ -178,7 +178,7 @@ Object* JSArrayBufferView::byte_length() const {
 
 void JSArrayBufferView::set_byte_length(Object* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kByteLengthOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kByteLengthOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(this, kByteLengthOffset, value, mode);
 }
 
 ACCESSORS(JSArrayBufferView, buffer, Object, kBufferOffset)
@@ -208,7 +208,7 @@ size_t JSTypedArray::length_value() const {
 
 void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kLengthOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kLengthOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(this, kLengthOffset, value, mode);
 }
 
 bool JSTypedArray::is_on_heap() const {

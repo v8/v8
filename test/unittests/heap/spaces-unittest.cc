@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/spaces-inl.h"
 #include "src/isolate.h"
 #include "test/unittests/test-utils.h"
@@ -49,6 +50,71 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
             old_space->CountTotalPages());
 
   delete compaction_space;
+}
+
+TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
+  Heap* heap = i_isolate()->heap();
+  CompactionSpace* temporary_space =
+      new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
+  EXPECT_NE(nullptr, temporary_space);
+  HeapObject* object =
+      temporary_space->AllocateRawUnaligned(kMaxRegularHeapObjectSize)
+          .ToObjectChecked();
+  EXPECT_NE(nullptr, object);
+
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  heap_internals::MemoryChunk* slim_chunk =
+      heap_internals::MemoryChunk::FromHeapObject(object);
+  EXPECT_EQ(static_cast<void*>(chunk), static_cast<void*>(slim_chunk));
+  delete temporary_space;
+}
+
+TEST_F(SpacesTest, WriteBarrierIsMarking) {
+  char memory[256];
+  memset(&memory, 0, sizeof(memory));
+  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
+  heap_internals::MemoryChunk* slim_chunk =
+      reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
+  EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
+  EXPECT_FALSE(slim_chunk->IsMarking());
+  chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
+  EXPECT_TRUE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
+  EXPECT_TRUE(slim_chunk->IsMarking());
+  chunk->ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
+  EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
+  EXPECT_FALSE(slim_chunk->IsMarking());
+}
+
+TEST_F(SpacesTest, WriteBarrierInNewSpaceToSpace) {
+  char memory[256];
+  memset(&memory, 0, sizeof(memory));
+  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
+  heap_internals::MemoryChunk* slim_chunk =
+      reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
+  EXPECT_FALSE(chunk->InNewSpace());
+  EXPECT_FALSE(slim_chunk->InNewSpace());
+  chunk->SetFlag(MemoryChunk::IN_TO_SPACE);
+  EXPECT_TRUE(chunk->InNewSpace());
+  EXPECT_TRUE(slim_chunk->InNewSpace());
+  chunk->ClearFlag(MemoryChunk::IN_TO_SPACE);
+  EXPECT_FALSE(chunk->InNewSpace());
+  EXPECT_FALSE(slim_chunk->InNewSpace());
+}
+
+TEST_F(SpacesTest, WriteBarrierInNewSpaceFromSpace) {
+  char memory[256];
+  memset(&memory, 0, sizeof(memory));
+  MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
+  heap_internals::MemoryChunk* slim_chunk =
+      reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
+  EXPECT_FALSE(chunk->InNewSpace());
+  EXPECT_FALSE(slim_chunk->InNewSpace());
+  chunk->SetFlag(MemoryChunk::IN_FROM_SPACE);
+  EXPECT_TRUE(chunk->InNewSpace());
+  EXPECT_TRUE(slim_chunk->InNewSpace());
+  chunk->ClearFlag(MemoryChunk::IN_FROM_SPACE);
+  EXPECT_FALSE(chunk->InNewSpace());
+  EXPECT_FALSE(slim_chunk->InNewSpace());
 }
 
 }  // namespace internal

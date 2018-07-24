@@ -15,6 +15,7 @@
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/instruction-stream.h"
 #include "src/objects-inl.h"
@@ -2595,9 +2596,9 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Label::Distance condition_met_distance) {
   DCHECK(cc == zero || cc == not_zero);
   if (scratch == object) {
-    andp(scratch, Immediate(~Page::kPageAlignmentMask));
+    andp(scratch, Immediate(~kPageAlignmentMask));
   } else {
-    movp(scratch, Immediate(~Page::kPageAlignmentMask));
+    movp(scratch, Immediate(~kPageAlignmentMask));
     andp(scratch, object);
   }
   if (mask < (1 << kBitsPerByte)) {

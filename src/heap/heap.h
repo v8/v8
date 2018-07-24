@@ -492,6 +492,14 @@ class Heap {
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);
 
+  V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject* object,
+                                                        Address slot,
+                                                        HeapObject* value);
+  V8_EXPORT_PRIVATE static void MarkingBarrierSlow(HeapObject* object,
+                                                   Address slot,
+                                                   HeapObject* value);
+  V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(HeapObject* object);
+
   // Notifies the heap that is ok to start marking or other activities that
   // should not happen during deserialization.
   void NotifyDeserializationComplete();
