@@ -30,7 +30,8 @@ enum class IcuService {
   kNumberFormat,
   kPluralRules,
   kResourceBundle,
-  kRelativeDateTimeFormatter
+  kRelativeDateTimeFormatter,
+  kListFormatter
 };
 
 const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,

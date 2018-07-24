@@ -45,6 +45,7 @@
   V(configurable_string, "configurable")                           \
   V(construct_string, "construct")                                 \
   V(constructor_string, "constructor")                             \
+  V(conjunction_string, "conjunction")                             \
   V(create_string, "create")                                       \
   V(currency_string, "currency")                                   \
   V(Date_string, "Date")                                           \
@@ -56,6 +57,7 @@
   V(defineProperty_string, "defineProperty")                       \
   V(deleteProperty_string, "deleteProperty")                       \
   V(did_handle_string, "didHandle")                                \
+  V(disjunction_string, "disjunction")                             \
   V(display_name_string, "displayName")                            \
   V(done_string, "done")                                           \
   V(dot_catch_string, ".catch")                                    \
@@ -179,7 +181,6 @@
   V(Script_string, "Script")                                       \
   V(script_string, "script")                                       \
   V(short_string, "short")                                         \
-  V(style_string, "style")                                         \
   V(second_string, "second")                                       \
   V(set_space_string, "set ")                                      \
   V(Set_string, "Set")                                             \
@@ -196,6 +197,7 @@
   V(String_string, "String")                                       \
   V(string_string, "string")                                       \
   V(string_to_string, "[object String]")                           \
+  V(style_string, "style")                                         \
   V(symbol_species_string, "[Symbol.species]")                     \
   V(Symbol_string, "Symbol")                                       \
   V(symbol_string, "symbol")                                       \

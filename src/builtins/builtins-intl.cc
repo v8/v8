@@ -15,6 +15,7 @@
 #include "src/intl.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
 #include "src/objects/js-relative-time-format-inl.h"
 
@@ -624,6 +625,35 @@ BUILTIN(NumberFormatInternalFormatNumber) {
                                         isolate, number_format_holder, number));
 }
 
+BUILTIN(ListFormatConstructor) {
+  HandleScope scope(isolate);
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
+                              isolate->factory()->NewStringFromStaticChars(
+                                  "Intl.ListFormat")));
+  }
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+
+  Handle<JSObject> result;
+  // 2. Let listFormat be OrdinaryCreateFromConstructor(NewTarget,
+  //    "%ListFormatPrototype%").
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     JSObject::New(target, new_target));
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  // 3. Return InitializeListFormat(listFormat, locales, options).
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      JSListFormat::InitializeListFormat(
+          isolate, Handle<JSListFormat>::cast(result), locales, options));
+}
+
 namespace {
 
 MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
@@ -664,6 +694,7 @@ MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
 
 }  // namespace
 
+// Intl.Locale implementation
 BUILTIN(LocaleConstructor) {
   HandleScope scope(isolate);
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]

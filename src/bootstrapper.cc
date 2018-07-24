@@ -24,6 +24,7 @@
 #include "src/objects/hash-table-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-list-format.h"
 #include "src/objects/js-locale.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-regexp-string-iterator.h"
@@ -4514,6 +4515,31 @@ void Genesis::InitializeGlobal_harmony_await_optimization() {
 }
 
 #ifdef V8_INTL_SUPPORT
+void Genesis::InitializeGlobal_harmony_intl_list_format() {
+  if (!FLAG_harmony_intl_list_format) return;
+  Handle<JSObject> intl = Handle<JSObject>::cast(
+      JSReceiver::GetProperty(
+          isolate(),
+          Handle<JSReceiver>(native_context()->global_object(), isolate()),
+          factory()->InternalizeUtf8String("Intl"))
+          .ToHandleChecked());
+
+  Handle<JSFunction> list_format_fun =
+      InstallFunction(isolate(), intl, "ListFormat", JS_INTL_LIST_FORMAT_TYPE,
+                      JSListFormat::kSize, 0, factory()->the_hole_value(),
+                      Builtins::kListFormatConstructor);
+  list_format_fun->shared()->set_length(0);
+  list_format_fun->shared()->DontAdaptArguments();
+
+  // Setup %ListFormatPrototype%.
+  Handle<JSObject> prototype(
+      JSObject::cast(list_format_fun->instance_prototype()), isolate());
+
+  // Install the @@toStringTag property on the {prototype}.
+  JSObject::AddProperty(isolate(), prototype, factory()->to_string_tag_symbol(),
+                        factory()->Object_string(),
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+}
 
 void Genesis::InitializeGlobal_harmony_locale() {
   if (!FLAG_harmony_locale) return;

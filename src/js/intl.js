@@ -138,6 +138,7 @@ var AVAILABLE_LOCALES = {
   'breakiterator': UNDEFINED,
   'pluralrules': UNDEFINED,
   'relativetimeformat': UNDEFINED,
+  'listformat': UNDEFINED,
 };
 
 /**

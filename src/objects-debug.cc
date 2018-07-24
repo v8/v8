@@ -22,6 +22,7 @@
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #ifdef V8_INTL_SUPPORT
+#include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-regexp-inl.h"
@@ -351,6 +352,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       CodeDataContainer::cast(this)->CodeDataContainerVerify(isolate);
       break;
 #ifdef V8_INTL_SUPPORT
+    case JS_INTL_LIST_FORMAT_TYPE:
+      JSListFormat::cast(this)->JSListFormatVerify(isolate);
+      break;
     case JS_INTL_LOCALE_TYPE:
       JSLocale::cast(this)->JSLocaleVerify(isolate);
       break;
@@ -1846,6 +1850,13 @@ void InterpreterData::InterpreterDataVerify(Isolate* isolate) {
 }
 
 #ifdef V8_INTL_SUPPORT
+void JSListFormat::JSListFormatVerify(Isolate* isolate) {
+  VerifyObjectField(isolate, kLocaleOffset);
+  VerifyObjectField(isolate, kStyleOffset);
+  VerifyObjectField(isolate, kTypeOffset);
+  VerifyObjectField(isolate, kFormatterOffset);
+}
+
 void JSLocale::JSLocaleVerify(Isolate* isolate) {
   VerifyObjectField(isolate, kLanguageOffset);
   VerifyObjectField(isolate, kScriptOffset);

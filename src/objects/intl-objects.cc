@@ -1135,6 +1135,14 @@ std::set<std::string> Intl::GetAvailableLocales(const IcuService& service) {
                        std::inserter(locales, locales.begin()));
       return locales;
     }
+    case IcuService::kListFormatter: {
+      // TODO(ftang): for now just use
+      // icu::Locale::getAvailableLocales(count) until we migrate to
+      // Intl::GetAvailableLocales().
+      // ICU FR at https://unicode-org.atlassian.net/browse/ICU-20015
+      icu_available_locales = icu::Locale::getAvailableLocales(count);
+      break;
+    }
   }
 
   UErrorCode error = U_ZERO_ERROR;
@@ -1177,6 +1185,8 @@ IcuService StringToIcuService(Handle<String> service) {
     return IcuService::kPluralRules;
   } else if (service->IsUtf8EqualTo(CStrVector("relativetimeformat"))) {
     return IcuService::kRelativeDateTimeFormatter;
+  } else if (service->IsUtf8EqualTo(CStrVector("listformat"))) {
+    return IcuService::kListFormatter;
   }
   UNREACHABLE();
 }

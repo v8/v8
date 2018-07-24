@@ -1335,6 +1335,8 @@ namespace internal {
   /* ecma402 #sec-intl.datetimeformat.prototype.formattoparts */       \
   CPP(DateTimeFormatPrototypeFormatToParts)                            \
   /* ecma402 #new proposal */                                          \
+  /* ecma402 #sec-intl-list-format-constructor */                      \
+  CPP(ListFormatConstructor)                                           \
   /* ecma402 #sec-intl-locale-constructor */                           \
   CPP(LocaleConstructor)                                               \
   CPP(LocalePrototypeLanguage)                                         \

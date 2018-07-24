@@ -75,6 +75,7 @@
 //           - JSDate
 //         - JSMessageObject
 //         - JSModuleNamespace
+//         - JSListFormat  // If V8_INTL_SUPPORT enabled.
 //         - JSLocale  // If V8_INTL_SUPPORT enabled.
 //         - JSRelativeTimeFormat  // If V8_INTL_SUPPORT enabled.
 //         - WasmGlobalObject
@@ -582,6 +583,7 @@ enum InstanceType : uint16_t {
   JS_DATA_VIEW_TYPE,
 
 #ifdef V8_INTL_SUPPORT
+  JS_INTL_LIST_FORMAT_TYPE,
   JS_INTL_LOCALE_TYPE,
   JS_INTL_RELATIVE_TIME_FORMAT_TYPE,
 #endif  // V8_INTL_SUPPORT
@@ -697,6 +699,7 @@ class JSAsyncGeneratorObject;
 class JSGlobalObject;
 class JSGlobalProxy;
 #ifdef V8_INTL_SUPPORT
+class JSListFormat;
 class JSLocale;
 class JSRelativeTimeFormat;
 #endif  // V8_INTL_SUPPORT
@@ -910,6 +913,7 @@ template <class C> inline bool Is(Object* obj);
 #ifdef V8_INTL_SUPPORT
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
   HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)  \
+  V(JSListFormat)                         \
   V(JSLocale)                             \
   V(JSRelativeTimeFormat)
 #else

@@ -20,9 +20,6 @@
 #include "unicode/numfmt.h"
 #include "unicode/reldatefmt.h"
 
-// Has to be the last include (doesn't have include guards):
-#include "src/objects/object-macros.h"
-
 namespace v8 {
 namespace internal {
 
@@ -40,21 +37,21 @@ UDateRelativeDateTimeFormatterStyle getIcuStyle(
       UNREACHABLE();
   }
 }
+}  // namespace
 
-JSRelativeTimeFormat::Style getStyle(const char* str) {
+JSRelativeTimeFormat::Style JSRelativeTimeFormat::getStyle(const char* str) {
   if (strcmp(str, "long") == 0) return JSRelativeTimeFormat::Style::LONG;
   if (strcmp(str, "short") == 0) return JSRelativeTimeFormat::Style::SHORT;
   if (strcmp(str, "narrow") == 0) return JSRelativeTimeFormat::Style::NARROW;
   UNREACHABLE();
 }
 
-JSRelativeTimeFormat::Numeric getNumeric(const char* str) {
+JSRelativeTimeFormat::Numeric JSRelativeTimeFormat::getNumeric(
+    const char* str) {
   if (strcmp(str, "auto") == 0) return JSRelativeTimeFormat::Numeric::AUTO;
   if (strcmp(str, "always") == 0) return JSRelativeTimeFormat::Numeric::ALWAYS;
   UNREACHABLE();
 }
-
-}  // namespace
 
 MaybeHandle<JSRelativeTimeFormat>
 JSRelativeTimeFormat::InitializeRelativeTimeFormat(
@@ -221,5 +218,3 @@ Handle<String> JSRelativeTimeFormat::NumericAsString() const {
 
 }  // namespace internal
 }  // namespace v8
-
-#include "src/objects/object-macros-undef.h"
