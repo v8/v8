@@ -17,6 +17,8 @@ namespace internal {
 namespace torque {
 
 class ScopeChain;
+class Variable;
+class Declarable;
 
 class Scope {
  public:

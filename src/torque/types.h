@@ -34,6 +34,7 @@ static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 
 class Label;
 class Value;
+class Module;
 
 class TypeBase {
  public:

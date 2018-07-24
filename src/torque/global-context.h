@@ -17,6 +17,8 @@ namespace torque {
 class GlobalContext;
 class Scope;
 class TypeOracle;
+class Builtin;
+class Label;
 
 class Module {
  public:

@@ -122,7 +122,6 @@ AUTO_EXCLUDE = [
 ]
 AUTO_EXCLUDE_PATTERNS = [
   'src/base/atomicops_internals_.*',
-  'src/torque/.*',
 ] + [
   # platform-specific headers
   '\\b{}\\b'.format(p) for p in
