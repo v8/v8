@@ -369,24 +369,22 @@ static bool MigrateDeprecated(Handle<Object> object) {
 }
 
 bool IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
-  bool changed = true;
-  if (new_state == PREMONOMORPHIC) {
-    nexus()->ConfigurePremonomorphic();
-  } else if (new_state == MEGAMORPHIC) {
-    DCHECK_IMPLIES(!is_keyed(), key->IsName());
-    // Even though we don't change the feedback data, we still want to reset the
-    // profiler ticks. Real-world observations suggest that optimizing these
-    // functions doesn't improve performance.
-    changed = nexus()->ConfigureMegamorphic(key->IsName() ? PROPERTY : ELEMENT);
-  } else {
-    UNREACHABLE();
-  }
-
+  DCHECK_EQ(MEGAMORPHIC, new_state);
+  DCHECK_IMPLIES(!is_keyed(), key->IsName());
+  // Even though we don't change the feedback data, we still want to reset the
+  // profiler ticks. Real-world observations suggest that optimizing these
+  // functions doesn't improve performance.
+  bool changed =
+      nexus()->ConfigureMegamorphic(key->IsName() ? PROPERTY : ELEMENT);
   vector_set_ = true;
-  OnFeedbackChanged(
-      isolate(), nexus(), GetHostFunction(),
-      new_state == PREMONOMORPHIC ? "Premonomorphic" : "Megamorphic");
+  OnFeedbackChanged(isolate(), nexus(), GetHostFunction(), "Megamorphic");
   return changed;
+}
+
+void IC::ConfigureVectorState(Handle<Map> map) {
+  nexus()->ConfigurePremonomorphic(map);
+  vector_set_ = true;
+  OnFeedbackChanged(isolate(), nexus(), GetHostFunction(), "Premonomorphic");
 }
 
 void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
@@ -679,7 +677,7 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
     // This is the first time we execute this inline cache. Set the target to
     // the pre monomorphic stub to delay setting the monomorphic state.
     TRACE_HANDLER_STATS(isolate(), LoadIC_Premonomorphic);
-    ConfigureVectorState(PREMONOMORPHIC, Handle<Object>());
+    ConfigureVectorState(receiver_map());
     TraceIC("LoadIC", lookup->name());
     return;
   }
@@ -1436,10 +1434,10 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                            JSReceiver::StoreFromKeyed store_mode) {
   if (state() == UNINITIALIZED && !IsStoreGlobalIC()) {
-    // This is the first time we execute this inline cache. Set the target to
-    // the pre monomorphic stub to delay setting the monomorphic state.
+    // This is the first time we execute this inline cache. Transition
+    // to premonomorphic state to delay setting the monomorphic state.
     TRACE_HANDLER_STATS(isolate(), StoreIC_Premonomorphic);
-    ConfigureVectorState(PREMONOMORPHIC, Handle<Object>());
+    ConfigureVectorState(receiver_map());
     TraceIC("StoreIC", lookup->name());
     return;
   }
@@ -1788,7 +1786,10 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   handlers.reserve(target_receiver_maps.size());
   StoreElementPolymorphicHandlers(&target_receiver_maps, &handlers, store_mode);
   if (target_receiver_maps.size() == 0) {
-    ConfigureVectorState(PREMONOMORPHIC, Handle<Name>());
+    // Transition to PREMONOMORPHIC state here and remember a weak-reference
+    // to the {receiver_map} in case TurboFan sees this function before the
+    // IC can transition further.
+    ConfigureVectorState(receiver_map);
   } else if (target_receiver_maps.size() == 1) {
     ConfigureVectorState(Handle<Name>(), target_receiver_maps[0], handlers[0]);
   } else {

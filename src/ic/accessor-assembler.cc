@@ -2482,6 +2482,8 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
   StoreFeedbackVectorSlot(p->vector, p->slot,
                           LoadRoot(Heap::kpremonomorphic_symbolRootIndex),
                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+  StoreWeakReferenceInFeedbackVector(p->vector, p->slot, receiver_map,
+                                     kPointerSize, SMI_PARAMETERS);
 
   {
     // Special case for Function.prototype load, because it's very common

@@ -431,6 +431,14 @@ void FeedbackNexus::ConfigureUninitialized() {
                   SKIP_WRITE_BARRIER);
       break;
     }
+    case FeedbackSlotKind::kStoreNamedSloppy:
+    case FeedbackSlotKind::kStoreNamedStrict:
+    case FeedbackSlotKind::kStoreKeyedSloppy:
+    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kStoreInArrayLiteral:
+    case FeedbackSlotKind::kStoreOwnNamed:
+    case FeedbackSlotKind::kLoadProperty:
+    case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
       SetFeedback(*FeedbackVector::UninitializedSentinel(isolate),
                   SKIP_WRITE_BARRIER);
@@ -471,12 +479,6 @@ bool FeedbackNexus::Clear() {
     case FeedbackSlotKind::kStoreOwnNamed:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadKeyed:
-      if (!IsCleared()) {
-        ConfigurePremonomorphic();
-        feedback_updated = true;
-      }
-      break;
-
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
@@ -499,11 +501,10 @@ bool FeedbackNexus::Clear() {
   return feedback_updated;
 }
 
-void FeedbackNexus::ConfigurePremonomorphic() {
+void FeedbackNexus::ConfigurePremonomorphic(Handle<Map> receiver_map) {
   SetFeedback(*FeedbackVector::PremonomorphicSentinel(GetIsolate()),
               SKIP_WRITE_BARRIER);
-  SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(GetIsolate()),
-                   SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(HeapObjectReference::Weak(*receiver_map));
 }
 
 bool FeedbackNexus::ConfigureMegamorphic() {
@@ -931,6 +932,14 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
     Map* map = Map::cast(heap_object);
     maps->push_back(handle(map, isolate));
     return 1;
+  } else if (feedback->ToStrongHeapObject(&heap_object) &&
+             heap_object ==
+                 heap_object->GetReadOnlyRoots().premonomorphic_symbol()) {
+    if (GetFeedbackExtra()->ToWeakHeapObject(&heap_object)) {
+      Map* map = Map::cast(heap_object);
+      maps->push_back(handle(map, isolate));
+      return 1;
+    }
   }
 
   return 0;
