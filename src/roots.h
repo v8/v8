@@ -232,7 +232,7 @@ namespace internal {
   V(NameDictionary, public_symbol_table, PublicSymbolTable)                  \
   V(NameDictionary, api_symbol_table, ApiSymbolTable)                        \
   V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)         \
-  V(WeakArrayList, script_list, ScriptList)                                  \
+  V(Object, script_list, ScriptList)                                         \
   V(SimpleNumberDictionary, code_stubs, CodeStubs)                           \
   V(FixedArray, materialized_objects, MaterializedObjects)                   \
   V(FixedArray, microtask_queue, MicrotaskQueue)                             \

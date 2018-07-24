@@ -85,9 +85,8 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
         ScriptEvent(Logger::ScriptEventType::kDeserialize, script->id()));
     LOG(isolate(), ScriptDetails(*script));
     // Add script to list.
-    Handle<WeakArrayList> list = factory->script_list();
-    list = WeakArrayList::AddToEnd(isolate(), list,
-                                   MaybeObjectHandle::Weak(script));
+    Handle<Object> list =
+        FixedArrayOfWeakCells::Add(isolate(), factory->script_list(), script);
     heap->SetRootScriptList(*list);
   }
 }
