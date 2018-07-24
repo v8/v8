@@ -1757,7 +1757,9 @@ void TurboAssembler::Abort(AbortReason reason) {
 #endif
 
   // Avoid emitting call to builtin if requested.
-  if (trap_on_abort()) {
+  if (trap_on_abort() || should_abort_hard()) {
+    // TODO(ppc): Call {ExternalReference::abort_with_reason} if
+    // {should_abort_hard} is set.
     stop(msg);
     return;
   }

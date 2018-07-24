@@ -13,7 +13,7 @@ namespace internal {
 
 // Common base class for platform-specific TurboAssemblers containing
 // platform-independent bits.
-class TurboAssemblerBase : public Assembler {
+class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
  public:
   Isolate* isolate() const { return isolate_; }
 
@@ -26,7 +26,9 @@ class TurboAssemblerBase : public Assembler {
   void set_root_array_available(bool v) { root_array_available_ = v; }
 
   bool trap_on_abort() const { return trap_on_abort_; }
-  void set_trap_on_abort(bool v) { trap_on_abort_ = v; }
+
+  bool should_abort_hard() const { return hard_abort_; }
+  void set_abort_hard(bool v) { hard_abort_ = v; }
 
   void set_builtin_index(int i) { maybe_builtin_index_ = i; }
 
@@ -78,6 +80,9 @@ class TurboAssemblerBase : public Assembler {
   // Immediately trap instead of calling {Abort} when debug code fails.
   bool trap_on_abort_ = FLAG_trap_on_abort;
 
+  // Emit a C call to abort instead of a runtime call.
+  bool hard_abort_ = false;
+
   // May be set while generating builtins.
   int maybe_builtin_index_ = Builtins::kNoBuiltinId;
 
@@ -89,13 +94,13 @@ class TurboAssemblerBase : public Assembler {
 // Avoids emitting calls to the {Builtins::kAbort} builtin when emitting debug
 // code during the lifetime of this scope object. For disabling debug code
 // entirely use the {DontEmitDebugCodeScope} instead.
-class TrapOnAbortScope BASE_EMBEDDED {
+class HardAbortScope BASE_EMBEDDED {
  public:
-  explicit TrapOnAbortScope(TurboAssemblerBase* assembler)
-      : assembler_(assembler), old_value_(assembler->trap_on_abort()) {
-    assembler_->set_trap_on_abort(true);
+  explicit HardAbortScope(TurboAssemblerBase* assembler)
+      : assembler_(assembler), old_value_(assembler->should_abort_hard()) {
+    assembler_->set_abort_hard(true);
   }
-  ~TrapOnAbortScope() { assembler_->set_trap_on_abort(old_value_); }
+  ~HardAbortScope() { assembler_->set_abort_hard(old_value_); }
 
  private:
   TurboAssemblerBase* assembler_;

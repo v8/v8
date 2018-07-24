@@ -548,32 +548,6 @@ static inline void CheckDoubleEquals(double expected, double actual) {
   CHECK_GE(expected, actual - kEpsilon);
 }
 
-static inline uint8_t* AllocateAssemblerBuffer(
-    size_t* allocated,
-    size_t requested = v8::internal::AssemblerBase::kMinimalBufferSize) {
-  size_t page_size = v8::internal::AllocatePageSize();
-  size_t alloc_size = RoundUp(requested, page_size);
-  void* result = v8::internal::AllocatePages(
-      nullptr, alloc_size, page_size, v8::PageAllocator::kReadWriteExecute);
-  CHECK(result);
-  *allocated = alloc_size;
-  return static_cast<uint8_t*>(result);
-}
-
-static inline void MakeAssemblerBufferExecutable(uint8_t* buffer,
-                                                 size_t allocated) {
-  bool result = v8::internal::SetPermissions(buffer, allocated,
-                                             v8::PageAllocator::kReadExecute);
-  CHECK(result);
-}
-
-static inline void MakeAssemblerBufferWritable(uint8_t* buffer,
-                                               size_t allocated) {
-  bool result = v8::internal::SetPermissions(buffer, allocated,
-                                             v8::PageAllocator::kReadWrite);
-  CHECK(result);
-}
-
 static v8::debug::DebugDelegate dummy_delegate;
 
 static inline void EnableDebugger(v8::Isolate* isolate) {

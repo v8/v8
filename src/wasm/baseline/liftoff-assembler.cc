@@ -349,7 +349,7 @@ constexpr AssemblerOptions DefaultLiftoffOptions() {
 LiftoffAssembler::LiftoffAssembler()
     : TurboAssembler(nullptr, DefaultLiftoffOptions(), nullptr, 0,
                      CodeObjectRequired::kNo) {
-  set_trap_on_abort(true);  // Avoid calls to Abort.
+  set_abort_hard(true);  // Avoid calls to Abort.
 }
 
 LiftoffAssembler::~LiftoffAssembler() {
