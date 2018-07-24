@@ -77,7 +77,6 @@ AUTO_EXCLUDE = [
   'src/objects/frame-array.h',
   'src/objects/hash-table-inl.h',
   'src/objects/intl-objects-inl.h',
-  'src/objects/js-array-inl.h',
   'src/objects/js-collection.h',
   'src/objects/js-collection-inl.h',
   'src/objects/js-generator-inl.h',

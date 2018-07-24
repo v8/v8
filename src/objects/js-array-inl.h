@@ -6,6 +6,8 @@
 #define V8_OBJECTS_JS_ARRAY_INL_H_
 
 #include "src/objects/js-array.h"
+
+#include "src/objects-inl.h"  // Needed for write barriers
 #include "src/wasm/wasm-engine.h"
 
 // Has to be the last include (doesn't have include guards):

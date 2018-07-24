@@ -12,6 +12,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/managed.h"
 #include "src/v8memory.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
 
 // Has to be the last include (doesn't have include guards)
