@@ -1495,8 +1495,10 @@ bool IsStructurallyValidLanguageTag(Isolate* isolate,
       GetLanguageTagRegexMatcher(isolate);
 
   // Check if it's well-formed, including grandfathered tags.
-  language_tag_regexp_matcher->reset(
-      icu::UnicodeString(locale.c_str(), -1, US_INV));
+  icu::UnicodeString locale_uni(locale.c_str(), -1, US_INV);
+  // Note: icu::RegexMatcher::reset does not make a copy of the input string
+  // so cannot use a temp value; ie: cannot create it as a call parameter.
+  language_tag_regexp_matcher->reset(locale_uni);
   UErrorCode status = U_ZERO_ERROR;
   bool is_valid_lang_tag = language_tag_regexp_matcher->matches(status);
   if (!is_valid_lang_tag || V8_UNLIKELY(U_FAILURE(status))) {
@@ -1537,33 +1539,33 @@ bool IsStructurallyValidLanguageTag(Isolate* isolate,
 
   std::vector<std::string> variants;
   std::vector<std::string> extensions;
-  for (const auto& value : parts) {
-    language_variant_regexp_matcher->reset(
-        icu::UnicodeString::fromUTF8(value.c_str()));
+  for (auto it = parts.begin() + 1; it != parts.end(); it++) {
+    icu::UnicodeString part(it->data(), -1, US_INV);
+    // Note: icu::RegexMatcher::reset does not make a copy of the input string
+    // so cannot use a temp value; ie: cannot create it as a call parameter.
+    language_variant_regexp_matcher->reset(part);
     bool is_language_variant = language_variant_regexp_matcher->matches(status);
     if (V8_UNLIKELY(U_FAILURE(status))) {
       return false;
     }
     if (is_language_variant && extensions.size() == 0) {
-      if (std::find(variants.begin(), variants.end(), value) ==
-          variants.end()) {
-        variants.push_back(value);
+      if (std::find(variants.begin(), variants.end(), *it) == variants.end()) {
+        variants.push_back(*it);
       } else {
         return false;
       }
     }
 
-    language_singleton_regexp_matcher->reset(
-        icu::UnicodeString(value.c_str(), -1, US_INV));
+    language_singleton_regexp_matcher->reset(part);
     bool is_language_singleton =
         language_singleton_regexp_matcher->matches(status);
     if (V8_UNLIKELY(U_FAILURE(status))) {
       return false;
     }
     if (is_language_singleton) {
-      if (std::find(extensions.begin(), extensions.end(), value) ==
+      if (std::find(extensions.begin(), extensions.end(), *it) ==
           extensions.end()) {
-        extensions.push_back(value);
+        extensions.push_back(*it);
       } else {
         return false;
       }
@@ -1582,8 +1584,8 @@ bool IsTwoLetterLanguage(const std::string& locale) {
 }
 
 bool IsDeprecatedLanguage(const std::string& locale) {
-  //  Not one of the deprecated language tags:
-  return locale != "in" && locale != "iw" && locale != "ji" && locale != "jw";
+  //  Check if locale is one of the deprecated language tags:
+  return locale == "in" || locale == "iw" || locale == "ji" || locale == "jw";
 }
 
 }  // anonymous namespace
@@ -1613,8 +1615,10 @@ MaybeHandle<String> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   }
 
   if (!IsStructurallyValidLanguageTag(isolate, locale)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidLanguageTag),
-                    String);
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        String);
   }
 
   // // ECMA 402 6.2.3
@@ -1632,7 +1636,9 @@ MaybeHandle<String> Intl::CanonicalizeLanguageTag(Isolate* isolate,
     // TODO(jshin): This should not happen because the structural validity
     // is already checked. If that's the case, remove this.
     THROW_NEW_ERROR(
-        isolate, NewRangeError(MessageTemplate::kInvalidLanguageTag), String);
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        String);
   }
 
   // Force strict BCP47 rules.
@@ -1642,7 +1648,9 @@ MaybeHandle<String> Intl::CanonicalizeLanguageTag(Isolate* isolate,
 
   if (U_FAILURE(error)) {
     THROW_NEW_ERROR(
-        isolate, NewRangeError(MessageTemplate::kInvalidLanguageTag), String);
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        String);
   }
 
   return isolate->factory()
