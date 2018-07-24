@@ -803,14 +803,7 @@ function canonicalizeLanguageTag(localeID) {
   }
 
   // ECMA 402 6.2.3
-  var tag = %CanonicalizeLanguageTag(localeString);
-  // TODO(jshin): This should not happen because the structural validity
-  // is already checked. If that's the case, remove this.
-  if (tag === 'invalid-tag') {
-    throw %make_range_error(kInvalidLanguageTag, localeString);
-  }
-
-  return tag;
+  return %CanonicalizeLanguageTag(localeString);
 }
 
 

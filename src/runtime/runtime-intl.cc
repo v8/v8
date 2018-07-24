@@ -55,12 +55,13 @@ namespace internal {
 // ECMA 402 6.2.3
 RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
   HandleScope scope(isolate);
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-
-  Factory* factory = isolate->factory();
 
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, locale_id_str, 0);
+
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+
+  Factory* factory = isolate->factory();
 
   v8::String::Utf8Value locale_id(v8_isolate,
                                   v8::Utils::ToLocal(locale_id_str));
@@ -72,15 +73,14 @@ RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
   // handle long locale names better. See
   // https://ssl.icu-project.org/trac/ticket/13417 .
 
-  // Return value which denotes invalid language tag.
-  const char* const kInvalidTag = "invalid-tag";
-
   UErrorCode error = U_ZERO_ERROR;
   char icu_result[ULOC_FULLNAME_CAPACITY];
   uloc_forLanguageTag(*locale_id, icu_result, ULOC_FULLNAME_CAPACITY, nullptr,
                       &error);
   if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
-    return *factory->NewStringFromAsciiChecked(kInvalidTag);
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_id_str));
   }
 
   char result[ULOC_FULLNAME_CAPACITY];
@@ -89,9 +89,12 @@ RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
   uloc_toLanguageTag(icu_result, result, ULOC_FULLNAME_CAPACITY, TRUE, &error);
 
   if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
-    return *factory->NewStringFromAsciiChecked(kInvalidTag);
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_id_str));
   }
 
+  DCHECK_NOT_NULL(result);
   return *factory->NewStringFromAsciiChecked(result);
 }
 
