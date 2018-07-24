@@ -97,85 +97,19 @@ RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
 
 RUNTIME_FUNCTION(Runtime_AvailableLocalesOf) {
   HandleScope scope(isolate);
-  Factory* factory = isolate->factory();
-
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, service, 0);
-
-  const icu::Locale* available_locales = nullptr;
-  int32_t count = 0;
-
-  if (service->IsUtf8EqualTo(CStrVector("collator"))) {
-    available_locales = icu::Collator::getAvailableLocales(count);
-  } else if (service->IsUtf8EqualTo(CStrVector("numberformat"))) {
-    available_locales = icu::NumberFormat::getAvailableLocales(count);
-  } else if (service->IsUtf8EqualTo(CStrVector("dateformat"))) {
-    available_locales = icu::DateFormat::getAvailableLocales(count);
-  } else if (service->IsUtf8EqualTo(CStrVector("breakiterator"))) {
-    available_locales = icu::BreakIterator::getAvailableLocales(count);
-  } else if (service->IsUtf8EqualTo(CStrVector("pluralrules"))) {
-    // TODO(littledan): For PluralRules, filter out locales that
-    // don't support PluralRules.
-    // PluralRules is missing an appropriate getAvailableLocales method,
-    // so we should filter from all locales, but it's not clear how; see
-    // https://ssl.icu-project.org/trac/ticket/12756
-    available_locales = icu::Locale::getAvailableLocales(count);
-  } else if (service->IsUtf8EqualTo(CStrVector("relativetimeformat"))) {
-    // TODO(ftang): for now just use
-    // icu::NumberFormat::getAvailableLocales(count) until we migrate to
-    // Intl::GetAvailableLocales()
-    available_locales = icu::NumberFormat::getAvailableLocales(count);
-  } else {
-    UNREACHABLE();
-  }
-
-  UErrorCode error = U_ZERO_ERROR;
-  char result[ULOC_FULLNAME_CAPACITY];
-  Handle<JSObject> locales = factory->NewJSObject(isolate->object_function());
-
-  for (int32_t i = 0; i < count; ++i) {
-    const char* icu_name = available_locales[i].getName();
-
-    error = U_ZERO_ERROR;
-    // No need to force strict BCP47 rules.
-    uloc_toLanguageTag(icu_name, result, ULOC_FULLNAME_CAPACITY, FALSE, &error);
-    if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
-      // This shouldn't happen, but lets not break the user.
-      continue;
-    }
-
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                     locales, factory->NewStringFromAsciiChecked(result),
-                     factory->NewNumber(i), NONE));
-  }
-
+  Handle<JSObject> locales;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, locales, Intl::AvailableLocalesOf(isolate, service));
   return *locales;
 }
 
 RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
   HandleScope scope(isolate);
-  Factory* factory = isolate->factory();
 
   DCHECK_EQ(0, args.length());
-
-  icu::Locale default_locale;
-
-  // Translate ICU's fallback locale to a well-known locale.
-  if (strcmp(default_locale.getName(), "en_US_POSIX") == 0) {
-    return *factory->NewStringFromStaticChars("en-US");
-  }
-
-  // Set the locale
-  char result[ULOC_FULLNAME_CAPACITY];
-  UErrorCode status = U_ZERO_ERROR;
-  uloc_toLanguageTag(default_locale.getName(), result, ULOC_FULLNAME_CAPACITY,
-                     FALSE, &status);
-  if (U_SUCCESS(status)) {
-    return *factory->NewStringFromAsciiChecked(result);
-  }
-
-  return *factory->NewStringFromStaticChars("und");
+  return *Intl::DefaultLocale(isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_IsInitializedIntlObjectOfType) {

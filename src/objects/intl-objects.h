@@ -227,6 +227,11 @@ class Intl {
   // pa_IN.
   static std::set<std::string> GetAvailableLocales(const IcuService& service);
 
+  static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> AvailableLocalesOf(
+      Isolate* isolate, Handle<String> service);
+
+  static V8_WARN_UNUSED_RESULT Handle<String> DefaultLocale(Isolate* isolate);
+
   // If locale has a script tag then return true and the locale without the
   // script else return false and an empty string
   static bool RemoveLocaleScriptTag(const std::string& icu_locale,

@@ -1163,6 +1163,66 @@ std::set<std::string> Intl::GetAvailableLocales(const IcuService& service) {
   return locales;
 }
 
+namespace {
+IcuService StringToIcuService(Handle<String> service) {
+  if (service->IsUtf8EqualTo(CStrVector("collator"))) {
+    return IcuService::kCollator;
+  } else if (service->IsUtf8EqualTo(CStrVector("numberformat"))) {
+    return IcuService::kNumberFormat;
+  } else if (service->IsUtf8EqualTo(CStrVector("dateformat"))) {
+    return IcuService::kDateFormat;
+  } else if (service->IsUtf8EqualTo(CStrVector("breakiterator"))) {
+    return IcuService::kBreakIterator;
+  } else if (service->IsUtf8EqualTo(CStrVector("pluralrules"))) {
+    return IcuService::kPluralRules;
+  } else if (service->IsUtf8EqualTo(CStrVector("relativetimeformat"))) {
+    return IcuService::kRelativeDateTimeFormatter;
+  }
+  UNREACHABLE();
+}
+}  // namespace
+
+V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> Intl::AvailableLocalesOf(
+    Isolate* isolate, Handle<String> service) {
+  Factory* factory = isolate->factory();
+  std::set<std::string> results =
+      Intl::GetAvailableLocales(StringToIcuService(service));
+  Handle<JSObject> locales = factory->NewJSObject(isolate->object_function());
+
+  int32_t i = 0;
+  for (auto iter = results.begin(); iter != results.end(); ++iter) {
+    RETURN_ON_EXCEPTION(
+        isolate,
+        JSObject::SetOwnPropertyIgnoreAttributes(
+            locales, factory->NewStringFromAsciiChecked(iter->c_str()),
+            factory->NewNumber(i++), NONE),
+        JSObject);
+  }
+  return locales;
+}
+
+V8_WARN_UNUSED_RESULT Handle<String> Intl::DefaultLocale(Isolate* isolate) {
+  Factory* factory = isolate->factory();
+
+  icu::Locale default_locale;
+
+  // Translate ICU's fallback locale to a well-known locale.
+  if (strcmp(default_locale.getName(), "en_US_POSIX") == 0) {
+    return factory->NewStringFromStaticChars("en-US");
+  }
+
+  // Set the locale
+  char result[ULOC_FULLNAME_CAPACITY];
+  UErrorCode status = U_ZERO_ERROR;
+  uloc_toLanguageTag(default_locale.getName(), result, ULOC_FULLNAME_CAPACITY,
+                     FALSE, &status);
+  if (U_SUCCESS(status)) {
+    return factory->NewStringFromAsciiChecked(result);
+  }
+
+  return factory->NewStringFromStaticChars("und");
+}
+
 bool Intl::IsObjectOfType(Isolate* isolate, Handle<Object> input,
                           Intl::Type expected_type) {
   if (!input->IsJSObject()) return false;
