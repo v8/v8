@@ -191,12 +191,6 @@ class GlobalHandles::Node {
     set_state(PENDING);
   }
 
-  // Independent flag accessors.
-  void MarkIndependent() {
-    DCHECK(IsInUse());
-    set_independent(true);
-  }
-
   // Callback parameter accessors.
   void set_parameter(void* parameter) {
     DCHECK(IsInUse());
@@ -598,14 +592,6 @@ void* GlobalHandles::ClearWeakness(Object** location) {
 void GlobalHandles::AnnotateStrongRetainer(Object** location,
                                            const char* label) {
   Node::FromLocation(location)->AnnotateStrongRetainer(label);
-}
-
-void GlobalHandles::MarkIndependent(Object** location) {
-  Node::FromLocation(location)->MarkIndependent();
-}
-
-bool GlobalHandles::IsIndependent(Object** location) {
-  return Node::FromLocation(location)->is_independent();
 }
 
 bool GlobalHandles::IsNearDeath(Object** location) {
