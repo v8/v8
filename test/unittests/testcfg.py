@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright 2017 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -30,13 +31,13 @@ class TestSuite(testsuite.TestSuite):
       output = cmd.execute()
       if output.exit_code == 0:
         break
-      print "Test executable failed to list the tests (try %d).\n\nCmd:" % i
-      print cmd
-      print "\nStdout:"
-      print output.stdout
-      print "\nStderr:"
-      print output.stderr
-      print "\nExit code: %d" % output.exit_code
+      print("Test executable failed to list the tests (try %d).\n\nCmd:" % i)
+      print(cmd)
+      print("\nStdout:")
+      print(output.stdout)
+      print("\nStderr:")
+      print(output.stderr)
+      print("\nExit code: %d" % output.exit_code)
     else:
       raise Exception("Test executable failed to list the tests.")
 

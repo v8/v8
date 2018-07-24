@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from __future__ import print_function
 from Queue import Empty
 from contextlib import contextmanager
 from multiprocessing import Process, Queue
@@ -67,7 +68,7 @@ def Worker(fn, work_queue, done_queue,
       except command.AbortException:
         # SIGINT, SIGTERM or internal hard timeout.
         break
-      except Exception, e:
+      except Exception as e:
         traceback.print_exc()
         print(">>> EXCEPTION: %s" % e)
         done_queue.put(ExceptionResult(e))
@@ -195,7 +196,7 @@ class Pool():
   def _advance_more(self, gen):
     while self.processing_count < self.num_workers * self.BUFFER_FACTOR:
       try:
-        self.work_queue.put(gen.next())
+        self.work_queue.put(next(gen))
         self.processing_count += 1
       except StopIteration:
         self.advance = self._advance_empty

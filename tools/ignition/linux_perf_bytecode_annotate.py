@@ -5,6 +5,7 @@
 # found in the LICENSE file.
 #
 
+from __future__ import print_function
 import argparse
 import collections
 import os
@@ -94,18 +95,18 @@ def print_disassembly_annotation(offset_counts, bytecode_disassembly):
     return offsets.pop() if offsets else -1
 
   current_offset = next_offset()
-  print current_offset;
+  print(current_offset);
 
   for line in bytecode_disassembly:
     disassembly_offset = int(line.split()[1])
     if disassembly_offset == current_offset:
       count = offset_counts[current_offset]
       percentage = 100.0 * count / total
-      print "{:>8d} ({:>5.1f}%) ".format(count, percentage),
+      print("{:>8d} ({:>5.1f}%) ".format(count, percentage), end=' ')
       current_offset = next_offset()
     else:
-      print "                ",
-    print line
+      print("                ", end=' ')
+    print(line)
 
   if offsets:
     print ("WARNING: Offsets not empty. Output is most likely invalid due to "

@@ -9,6 +9,7 @@ Global system tests for V8 test runners and fuzzers.
 This hooks up the framework under tools/testrunner testing high-level scenarios
 with different test suite extensions and build configurations.
 """
+from __future__ import print_function
 
 # TODO(machenbach): Mock out util.GuessOS to make these tests really platform
 # independent.
@@ -127,7 +128,7 @@ class SystemTest(unittest.TestCase):
       import coverage
       if int(coverage.__version__.split('.')[0]) < 4:
         cls._cov = None
-        print 'Python coverage version >= 4 required.'
+        print('Python coverage version >= 4 required.')
         raise ImportError()
       cls._cov = coverage.Coverage(
           source=([os.path.join(TOOLS_ROOT, 'testrunner')]),
@@ -143,7 +144,7 @@ class SystemTest(unittest.TestCase):
       cls._cov.exclude('assert False')
       cls._cov.start()
     except ImportError:
-      print 'Running without python coverage.'
+      print('Running without python coverage.')
     sys.path.append(TOOLS_ROOT)
     global standard_runner
     from testrunner import standard_runner
@@ -156,8 +157,8 @@ class SystemTest(unittest.TestCase):
   def tearDownClass(cls):
     if cls._cov:
       cls._cov.stop()
-      print ''
-      print cls._cov.report(show_missing=True)
+      print('')
+      print(cls._cov.report(show_missing=True))
 
   def testPass(self):
     """Test running only passing tests in two variants.

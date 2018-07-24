@@ -26,6 +26,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from __future__ import print_function
 import argparse
 from collections import OrderedDict
 import sys
@@ -186,10 +187,10 @@ class CleanUp(Step):
 
   def RunStep(self):
     self.CommonCleanup()
-    print "*** SUMMARY ***"
-    print "branch: %s" % self["merge_to_branch"]
+    print("*** SUMMARY ***")
+    print("branch: %s" % self["merge_to_branch"])
     if self["revision_list"]:
-      print "patches: %s" % self["revision_list"]
+      print("patches: %s" % self["revision_list"])
 
 
 class MergeToBranch(ScriptsBase):
@@ -215,10 +216,10 @@ class MergeToBranch(ScriptsBase):
   def _ProcessOptions(self, options):
     if len(options.revisions) < 1:
       if not options.patch:
-        print "Either a patch file or revision numbers must be specified"
+        print("Either a patch file or revision numbers must be specified")
         return False
       if not options.message:
-        print "You must specify a merge comment if no patches are specified"
+        print("You must specify a merge comment if no patches are specified")
         return False
     options.bypass_upload_hooks = True
     # CC ulan to make sure that fixes are merged to Google3.
@@ -233,8 +234,8 @@ class MergeToBranch(ScriptsBase):
     for revision in options.revisions:
       if (IsSvnNumber(revision) or
           (revision[0:1] == "r" and IsSvnNumber(revision[1:]))):
-        print "Please provide full git hashes of the patches to merge."
-        print "Got: %s" % revision
+        print("Please provide full git hashes of the patches to merge.")
+        print("Got: %s" % revision)
         return False
     return True
 

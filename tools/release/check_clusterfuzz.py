@@ -12,6 +12,7 @@ Security considerations: The security key and request data must never be
 written to public logs. Public automated callers of this script should
 suppress stdout and stderr and only process contents of the results_file.
 """
+from __future__ import print_function
 
 
 import argparse
@@ -222,7 +223,7 @@ def Main():
     with open(options.results_file, "w") as f:
       f.write(json.dumps(results))
   else:
-    print results
+    print(results)
 
 
 if __name__ == "__main__":

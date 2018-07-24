@@ -31,6 +31,7 @@
 # WebKit/Source/devtools/scripts/check_injected_script_source.py
 #
 
+from __future__ import print_function
 import re
 import sys
 import os
@@ -71,10 +72,10 @@ def validate_injected_script(fileName):
             continue
         for match in re.finditer(black_list_call_regex, line):
             errors_found = True
-            print "ERROR: Black listed expression in %s at line %02d column %02d: %s" % (os.path.basename(fileName), i + 1, match.start(), match.group(0))
+            print("ERROR: Black listed expression in %s at line %02d column %02d: %s" % (os.path.basename(fileName), i + 1, match.start(), match.group(0)))
 
     if not errors_found:
-        print "OK"
+        print("OK")
 
 
 def main(argv):

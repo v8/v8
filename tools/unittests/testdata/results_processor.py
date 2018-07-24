@@ -6,6 +6,7 @@
 """
 Fake results processor for testing that just sums some things up.
 """
+from __future__ import print_function
 
 import fileinput
 import re
@@ -21,5 +22,5 @@ for line in fileinput.input():
   if match:
     deltablue += float(match.group(1))
 
-print 'Richards: %f' % richards
-print 'DeltaBlue: %f' % deltablue
+print('Richards: %f' % richards)
+print('DeltaBlue: %f' % deltablue)

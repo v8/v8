@@ -4,8 +4,9 @@
 # found in the LICENSE file.
 
 """Corrects objdump output. The logic is from sancov.py, see comments there."""
+from __future__ import print_function
 
 import sys;
 
 for line in sys.stdin:
-  print '0x%x' % (int(line.strip(), 16) + 4)
+  print('0x%x' % (int(line.strip(), 16) + 4))

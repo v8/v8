@@ -20,6 +20,7 @@ Usage:
 Optional flags:
   --no-review  Run `gclient sync` on the V8 checkout before updating.
 """
+from __future__ import print_function
 
 import argparse
 import os
@@ -41,12 +42,12 @@ def TextToFile(text, file_name):
 
 
 def Clean(options):
-  print ">> Cleaning target directory."
+  print(">> Cleaning target directory.")
   subprocess.check_call(["git", "clean", "-fd"],
                         cwd = os.path.join(options.node_path, TARGET_SUBDIR))
 
 def CherryPick(options):
-  print ">> Apply patch."
+  print(">> Apply patch.")
   patch = subprocess.Popen(["git", "diff-tree", "-p", options.commit],
                            stdout=subprocess.PIPE, cwd=options.v8_path)
   patch.wait()
@@ -54,14 +55,14 @@ def CherryPick(options):
     subprocess.check_output(["git", "apply", "-3", "--directory=%s" % TARGET_SUBDIR],
                             stdin=patch.stdout, cwd=options.node_path)
   except:
-    print ">> In another shell, please resolve patch conflicts"
-    print ">> and `git add` affected files."
-    print ">> Finally continue by entering RESOLVED."
+    print(">> In another shell, please resolve patch conflicts")
+    print(">> and `git add` affected files.")
+    print(">> Finally continue by entering RESOLVED.")
     while raw_input("[RESOLVED]") != "RESOLVED":
-      print ">> You need to type RESOLVED"
+      print(">> You need to type RESOLVED")
 
 def UpdateVersion(options):
-  print ">> Increment patch level."
+  print(">> Increment patch level.")
   version_file = os.path.join(options.node_path, TARGET_SUBDIR, VERSION_FILE)
   text = FileToText(version_file)
   def increment(match):
@@ -71,7 +72,7 @@ def UpdateVersion(options):
   TextToFile(text, version_file)
 
 def CreateCommit(options):
-  print ">> Creating commit."
+  print(">> Creating commit.")
   # Find short hash from source.
   shorthash = subprocess.check_output(
       ["git", "rev-parse", "--short", options.commit],
@@ -118,7 +119,7 @@ def Main(args):
     UpdateVersion(options)
     CreateCommit(options)
   except:
-    print ">> Failed. Resetting."
+    print(">> Failed. Resetting.")
     subprocess.check_output(["git", "reset", "--hard"], cwd=options.node_path)
     raise
 

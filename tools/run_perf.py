@@ -98,6 +98,7 @@ Path pieces are concatenated. D8 is always run with the suite's path as cwd.
 
 The test flags are passed to the js test file after '--'.
 """
+from __future__ import print_function
 
 from collections import OrderedDict
 import json
@@ -111,6 +112,7 @@ import sys
 
 from testrunner.local import command
 from testrunner.local import utils
+from functools import reduce
 
 ARCH_GUESS = utils.DefaultArch()
 SUPPORTED_ARCHS = ["arm",
@@ -257,8 +259,8 @@ def RunResultsProcessor(results_processor, stdout, count):
       stderr=subprocess.PIPE,
   )
   result, _ = p.communicate(input=stdout)
-  print ">>> Processed stdout (#%d):" % count
-  print result
+  print(">>> Processed stdout (#%d):" % count)
+  print(result)
   return result
 
 
@@ -504,7 +506,7 @@ class RunnableConfig(GraphConfig):
     # TODO(machenbach): This requires +.exe if run on windows.
     extra_flags = extra_flags or []
     if self.binary != 'd8' and '--prof' in extra_flags:
-      print "Profiler supported only on a benchmark run with d8"
+      print("Profiler supported only on a benchmark run with d8")
 
     if self.process_size:
       cmd_prefix = ["/usr/bin/time", "--format=MaxMemory: %MKB"] + cmd_prefix
@@ -696,25 +698,25 @@ class DesktopPlatform(Platform):
     try:
       output = cmd.execute()
     except OSError as e:  # pragma: no cover
-      print title % "OSError"
-      print e
+      print(title % "OSError")
+      print(e)
       return ""
 
-    print title % "Stdout"
-    print output.stdout
+    print(title % "Stdout")
+    print(output.stdout)
     if output.stderr:  # pragma: no cover
       # Print stderr for debugging.
-      print title % "Stderr"
-      print output.stderr
+      print(title % "Stderr")
+      print(output.stderr)
     if output.timed_out:
-      print ">>> Test timed out after %ss." % runnable.timeout
+      print(">>> Test timed out after %ss." % runnable.timeout)
     if '--prof' in self.extra_flags:
       os_prefix = {"linux": "linux", "macos": "mac"}.get(utils.GuessOS())
       if os_prefix:
         tick_tools = os.path.join(TOOLS_BASE, "%s-tick-processor" % os_prefix)
         subprocess.check_call(tick_tools + " --only-summary", shell=True)
       else:  # pragma: no cover
-        print "Profiler option currently supported on Linux and Mac OS."
+        print("Profiler option currently supported on Linux and Mac OS.")
 
     # time outputs to stderr
     if runnable.process_size:
@@ -859,10 +861,10 @@ class AndroidPlatform(Platform):  # pragma: no cover
           retries=0,
       )
       stdout = "\n".join(output)
-      print title % "Stdout"
-      print stdout
+      print(title % "Stdout")
+      print(stdout)
     except device_errors.CommandTimeoutError:
-      print ">>> Test timed out after %ss." % runnable.timeout
+      print(">>> Test timed out after %ss." % runnable.timeout)
       stdout = ""
     if runnable.process_size:
       return stdout + "MaxMemory: Unsupported"
@@ -896,7 +898,7 @@ class CustomMachineConfiguration:
       with open("/proc/sys/kernel/randomize_va_space", "r") as f:
         return int(f.readline().strip())
     except Exception as e:
-      print "Failed to get current ASLR settings."
+      print("Failed to get current ASLR settings.")
       raise e
 
   @staticmethod
@@ -905,8 +907,8 @@ class CustomMachineConfiguration:
       with open("/proc/sys/kernel/randomize_va_space", "w") as f:
         f.write(str(value))
     except Exception as e:
-      print "Failed to update ASLR to %s." % value
-      print "Are we running under sudo?"
+      print("Failed to update ASLR to %s." % value)
+      print("Are we running under sudo?")
       raise e
 
     new_value = CustomMachineConfiguration.GetASLR()
@@ -923,7 +925,7 @@ class CustomMachineConfiguration:
           return range(r[0], r[0] + 1)
         return range(r[0], r[1] + 1)
     except Exception as e:
-      print "Failed to retrieve number of CPUs."
+      print("Failed to retrieve number of CPUs.")
       raise e
 
   @staticmethod
@@ -949,8 +951,8 @@ class CustomMachineConfiguration:
             raise Exception("CPU cores have differing governor settings")
       return ret
     except Exception as e:
-      print "Failed to get the current CPU governor."
-      print "Is the CPU governor disabled? Check BIOS."
+      print("Failed to get the current CPU governor.")
+      print("Is the CPU governor disabled? Check BIOS.")
       raise e
 
   @staticmethod
@@ -963,8 +965,8 @@ class CustomMachineConfiguration:
           f.write(value)
 
     except Exception as e:
-      print "Failed to change CPU governor to %s." % value
-      print "Are we running under sudo?"
+      print("Failed to change CPU governor to %s." % value)
+      print("Are we running under sudo?")
       raise e
 
     cur_value = CustomMachineConfiguration.GetCPUGovernor()
@@ -1045,11 +1047,11 @@ def Main(args):
     options.arch = ARCH_GUESS
 
   if not options.arch in SUPPORTED_ARCHS:  # pragma: no cover
-    print "Unknown architecture %s" % options.arch
+    print("Unknown architecture %s" % options.arch)
     return 1
 
   if options.device and not options.android_build_tools:  # pragma: no cover
-    print "Specifying a device requires Android build tools."
+    print("Specifying a device requires Android build tools.")
     return 1
 
   if (options.json_test_results_secondary and
@@ -1070,10 +1072,10 @@ def Main(args):
     default_binary_name = "d8"
   else:
     if not os.path.isfile(options.binary_override_path):
-      print "binary-override-path must be a file name"
+      print("binary-override-path must be a file name")
       return 1
     if options.outdir_secondary:
-      print "specify either binary-override-path or outdir-secondary"
+      print("specify either binary-override-path or outdir-secondary")
       return 1
     options.shell_dir = os.path.abspath(
         os.path.dirname(options.binary_override_path))
@@ -1132,7 +1134,7 @@ def Main(args):
         if (not runnable_name.startswith(options.filter) and
             runnable_name + "/" != options.filter):
           continue
-        print ">>> Running suite: %s" % runnable_name
+        print(">>> Running suite: %s" % runnable_name)
 
         def Runner():
           """Output generator that reruns several times."""
@@ -1151,12 +1153,12 @@ def Main(args):
     if options.json_test_results:
       results.WriteToFile(options.json_test_results)
     else:  # pragma: no cover
-      print results
+      print(results)
 
   if options.json_test_results_secondary:
     results_secondary.WriteToFile(options.json_test_results_secondary)
   else:  # pragma: no cover
-    print results_secondary
+    print(results_secondary)
 
   return min(1, len(results.errors))
 

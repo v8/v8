@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright 2017 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -45,7 +46,7 @@ class BaseCommand(object):
 
   def execute(self, **additional_popen_kwargs):
     if self.verbose:
-      print '# %s' % self
+      print('# %s' % self)
 
     process = self._start_process(**additional_popen_kwargs)
 
@@ -171,7 +172,7 @@ class WindowsCommand(BaseCommand):
 
   def _kill_process(self, process):
     if self.verbose:
-      print 'Attempting to kill process %d' % process.pid
+      print('Attempting to kill process %d' % process.pid)
       sys.stdout.flush()
     tk = subprocess.Popen(
         'taskkill /T /F /PID %d' % process.pid,
@@ -180,10 +181,10 @@ class WindowsCommand(BaseCommand):
     )
     stdout, stderr = tk.communicate()
     if self.verbose:
-      print 'Taskkill results for %d' % process.pid
-      print stdout
-      print stderr
-      print 'Return code: %d' % tk.returncode
+      print('Taskkill results for %d' % process.pid)
+      print(stdout)
+      print(stderr)
+      print('Return code: %d' % tk.returncode)
       sys.stdout.flush()
 
 

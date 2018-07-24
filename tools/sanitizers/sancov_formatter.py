@@ -38,6 +38,7 @@ directory. It's not checked out by default and must be added as a custom deps:
 'v8/third_party/llvm/projects/compiler-rt':
     'https://chromium.googlesource.com/external/llvm.org/compiler-rt.git'
 """
+from __future__ import print_function
 
 import argparse
 import json
@@ -48,6 +49,7 @@ import subprocess
 import sys
 
 from multiprocessing import Pool, cpu_count
+from functools import reduce
 
 
 logging.basicConfig(level=logging.INFO)
@@ -426,26 +428,26 @@ def main(args=None):
   options.build_dir = os.path.abspath(options.build_dir)
   if options.action.lower() == 'all':
     if not options.json_output:
-      print '--json-output is required'
+      print('--json-output is required')
       return 1
     write_instrumented(options)
   elif options.action.lower() == 'merge':
     if not options.coverage_dir:
-      print '--coverage-dir is required'
+      print('--coverage-dir is required')
       return 1
     if not options.json_input:
-      print '--json-input is required'
+      print('--json-input is required')
       return 1
     if not options.json_output:
-      print '--json-output is required'
+      print('--json-output is required')
       return 1
     merge(options)
   elif options.action.lower() == 'split':
     if not options.json_input:
-      print '--json-input is required'
+      print('--json-input is required')
       return 1
     if not options.output_dir:
-      print '--output-dir is required'
+      print('--output-dir is required')
       return 1
     split(options)
   return 0

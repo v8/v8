@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright 2017 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -10,6 +11,7 @@ import optparse
 import os
 import shlex
 import sys
+from functools import reduce
 
 
 # Add testrunner to the path.
@@ -231,7 +233,7 @@ class BaseTestRunner(object):
       if options.swarming:
         # Swarming doesn't print how isolated commands are called. Lets make
         # this less cryptic by printing it ourselves.
-        print ' '.join(sys.argv)
+        print(' '.join(sys.argv))
 
       self._load_build_config(options)
 
@@ -348,7 +350,7 @@ class BaseTestRunner(object):
 
     if any(map(lambda v: v and ',' in v,
                 [options.arch, options.mode])):  # pragma: no cover
-      print 'Multiple arch/mode are deprecated'
+      print('Multiple arch/mode are deprecated')
       raise TestRunnerError()
 
     return options, args
@@ -361,13 +363,13 @@ class BaseTestRunner(object):
         pass
 
     if not self.build_config:  # pragma: no cover
-      print 'Failed to load build config'
+      print('Failed to load build config')
       raise TestRunnerError
 
-    print 'Build found: %s' % self.outdir
+    print('Build found: %s' % self.outdir)
     if str(self.build_config):
-      print '>>> Autodetected:'
-      print self.build_config
+      print('>>> Autodetected:')
+      print(self.build_config)
 
   # Returns possible build paths in order:
   # gn
@@ -437,7 +439,7 @@ class BaseTestRunner(object):
     build_config_mode = 'debug' if self.build_config.is_debug else 'release'
     if options.mode:
       if options.mode not in MODES:  # pragma: no cover
-        print '%s mode is invalid' % options.mode
+        print('%s mode is invalid' % options.mode)
         raise TestRunnerError()
       if MODES[options.mode].execution_mode != build_config_mode:
         print ('execution mode (%s) for %s is inconsistent with build config '
@@ -578,7 +580,7 @@ class BaseTestRunner(object):
     test_config = self._create_test_config(options)
     def load_suite(name):
       if options.verbose:
-        print '>>> Loading test suite: %s' % name
+        print('>>> Loading test suite: %s' % name)
       return testsuite.TestSuite.LoadTestSuite(
           os.path.join(options.test_root, name),
           test_config)
@@ -710,8 +712,8 @@ class BaseTestRunner(object):
       # TODO(machenbach): Turn this into an assert. If that's wrong on the
       # bots, printing will be quite useless. Or refactor this code to make
       # sure we get a return code != 0 after testing if we got here.
-      print "shard-run not a valid number, should be in [1:shard-count]"
-      print "defaulting back to running all tests"
+      print("shard-run not a valid number, should be in [1:shard-count]")
+      print("defaulting back to running all tests")
       return 1, 1
 
     return shard_run, shard_count

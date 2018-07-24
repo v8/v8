@@ -27,6 +27,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from __future__ import print_function
 import os
 import re
 import json
@@ -90,7 +91,7 @@ def param_type(domain_name, param):
         if type_id in ref_types:
             return ref_types[type_id]
         else:
-            print "Type not found: " + type_id
+            print("Type not found: " + type_id)
             return "!! Type not found: " + type_id
 
 

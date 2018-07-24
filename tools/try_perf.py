@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from __future__ import print_function
 import argparse
 import os
 import subprocess
@@ -83,11 +84,11 @@ def main():
         help='Add %s trybot.' % BOTS[option])
   options = parser.parse_args()
   if not options.bots:
-    print 'No trybots specified. Using default %s.' % ','.join(DEFAULT_BOTS)
+    print('No trybots specified. Using default %s.' % ','.join(DEFAULT_BOTS))
     options.bots = DEFAULT_BOTS
 
   if not options.benchmarks:
-    print 'Please specify the benchmarks to run as arguments.'
+    print('Please specify the benchmarks to run as arguments.')
     return 1
 
   for benchmark in options.benchmarks:
@@ -95,7 +96,7 @@ def main():
       print ('%s not found in our benchmark list. The respective trybot might '
             'fail, unless you run something this script isn\'t aware of. '
             'Available public benchmarks: %s' % (benchmark, PUBLIC_BENCHMARKS))
-      print 'Proceed anyways? [Y/n] ',
+      print('Proceed anyways? [Y/n] ', end=' ')
       answer = sys.stdin.readline().strip()
       if answer != "" and answer != "Y" and answer != "y":
         return 1
