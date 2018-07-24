@@ -1621,12 +1621,12 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   isolate_->heap()->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
                                       GarbageCollectionReason::kDebugger);
   Factory* factory = isolate_->factory();
-  if (!factory->script_list()->IsWeakArrayList()) {
+  if (!factory->script_list()->IsFixedArrayOfWeakCells()) {
     return factory->empty_fixed_array();
   }
-  Handle<WeakArrayList> array =
-      Handle<WeakArrayList>::cast(factory->script_list());
-  Handle<FixedArray> results = factory->NewFixedArray(array->length());
+  Handle<FixedArrayOfWeakCells> array =
+      Handle<FixedArrayOfWeakCells>::cast(factory->script_list());
+  Handle<FixedArray> results = factory->NewFixedArray(array->Length());
   int length = 0;
   {
     Script::Iterator iterator(isolate_);

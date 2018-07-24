@@ -10587,16 +10587,6 @@ Handle<WeakArrayList> WeakArrayList::EnsureSpace(Isolate* isolate,
   return array;
 }
 
-int WeakArrayList::CountLiveWeakReferences() const {
-  int live_weak_references = 0;
-  for (int i = 0; i < length(); i++) {
-    if (Get(i)->IsWeakHeapObject()) {
-      ++live_weak_references;
-    }
-  }
-  return live_weak_references;
-}
-
 // static
 Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
                                           Handle<WeakArrayList> array,
@@ -10650,7 +10640,14 @@ WeakArrayList* PrototypeUsers::Compact(Handle<WeakArrayList> array, Heap* heap,
   if (array->length() == 0) {
     return *array;
   }
-  int new_length = array->CountLiveWeakReferences();
+  // Count the amount of live references.
+  int new_length = kFirstIndex;
+  for (int i = kFirstIndex; i < array->length(); i++) {
+    MaybeObject* element = array->Get(i);
+    if (element->IsSmi()) continue;
+    if (element->IsClearedWeakHeapObject()) continue;
+    ++new_length;
+  }
   if (new_length == array->length()) {
     return *array;
   }
@@ -13821,13 +13818,8 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
 Script::Iterator::Iterator(Isolate* isolate)
     : iterator_(isolate->heap()->script_list()) {}
 
-Script* Script::Iterator::Next() {
-  Object* o = iterator_.Next();
-  if (o != nullptr) {
-    return Script::cast(o);
-  }
-  return nullptr;
-}
+
+Script* Script::Iterator::Next() { return iterator_.Next<Script>(); }
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(Isolate* isolate,
                                                    Script* script)

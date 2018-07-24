@@ -182,7 +182,7 @@ class Script : public Struct, public NeverReadOnlySpaceObject {
     Script* Next();
 
    private:
-    WeakArrayList::Iterator iterator_;
+    FixedArrayOfWeakCells::Iterator iterator_;
     DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 
