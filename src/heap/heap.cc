@@ -2296,6 +2296,16 @@ void Heap::ProtectUnprotectedMemoryChunks() {
   unprotected_memory_chunks_.clear();
 }
 
+bool Heap::ExternalStringTable::Contains(HeapObject* obj) {
+  for (size_t i = 0; i < new_space_strings_.size(); ++i) {
+    if (new_space_strings_[i] == obj) return true;
+  }
+  for (size_t i = 0; i < old_space_strings_.size(); ++i) {
+    if (old_space_strings_[i] == obj) return true;
+  }
+  return false;
+}
+
 String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
                                                                 Object** p) {
   MapWord first_word = HeapObject::cast(*p)->map_word();

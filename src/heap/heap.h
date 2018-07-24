@@ -1481,6 +1481,7 @@ class Heap {
 
     // Registers an external string.
     inline void AddString(String* string);
+    bool Contains(HeapObject* obj);
 
     void IterateAll(RootVisitor* v);
     void IterateNewSpaceStrings(RootVisitor* v);
