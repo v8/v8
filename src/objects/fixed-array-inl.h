@@ -8,6 +8,7 @@
 #include "src/objects/fixed-array.h"
 
 #include "src/objects/bigint.h"
+#include "src/objects/maybe-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -284,6 +285,18 @@ void WeakArrayList::Set(int index, MaybeObject* value, WriteBarrierMode mode) {
 
 MaybeObject** WeakArrayList::data_start() {
   return HeapObject::RawMaybeWeakField(this, kHeaderSize);
+}
+
+HeapObject* WeakArrayList::Iterator::Next() {
+  if (array_ != nullptr) {
+    while (index_ < array_->length()) {
+      MaybeObject* item = array_->Get(index_++);
+      DCHECK(item->IsWeakHeapObject() || item->IsClearedWeakHeapObject());
+      if (!item->IsClearedWeakHeapObject()) return item->ToWeakHeapObject();
+    }
+    array_ = nullptr;
+  }
+  return nullptr;
 }
 
 Object* FixedArrayOfWeakCells::Get(int index) const {

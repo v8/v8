@@ -1556,8 +1556,10 @@ Handle<Script> Factory::NewScriptWithId(Handle<String> source, int script_id,
                                     SKIP_WRITE_BARRIER);
   script->set_flags(0);
   script->set_host_defined_options(*empty_fixed_array());
-  heap->set_script_list(
-      *FixedArrayOfWeakCells::Add(isolate(), script_list(), script));
+  Handle<WeakArrayList> scripts = script_list();
+  scripts = WeakArrayList::AddToEnd(isolate(), scripts,
+                                    MaybeObjectHandle::Weak(script));
+  heap->set_script_list(*scripts);
   LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
   return script;
 }
@@ -1582,8 +1584,10 @@ Handle<Script> Factory::CloneScript(Handle<Script> script) {
   new_script->set_eval_from_position(script->eval_from_position());
   new_script->set_flags(script->flags());
   new_script->set_host_defined_options(script->host_defined_options());
-  heap->set_script_list(
-      *FixedArrayOfWeakCells::Add(isolate(), script_list(), new_script));
+  Handle<WeakArrayList> scripts = script_list();
+  scripts = WeakArrayList::AddToEnd(isolate(), scripts,
+                                    MaybeObjectHandle::Weak(new_script));
+  heap->set_script_list(*scripts);
   LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
   return new_script;
 }

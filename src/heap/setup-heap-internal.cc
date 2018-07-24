@@ -766,7 +766,7 @@ void Heap::CreateInitialObjects() {
 
   set_feedback_vectors_for_profiling_tools(roots.undefined_value());
 
-  set_script_list(Smi::kZero);
+  set_script_list(roots.empty_weak_array_list());
 
   Handle<NumberDictionary> slow_element_dictionary = NumberDictionary::New(
       isolate(), 1, TENURED_READ_ONLY, USE_CUSTOM_MINIMUM_CAPACITY);
