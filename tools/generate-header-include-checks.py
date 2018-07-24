@@ -48,7 +48,6 @@ AUTO_EXCLUDE = [
   'src/debug/debug-scopes.h',
   'src/debug/debug-stack-trace-iterator.h',
   'src/deoptimizer.h',
-  'src/double.h',
   'src/elements.h',
   'src/elements-inl.h',
   'src/field-type.h',
