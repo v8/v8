@@ -54,7 +54,7 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   CHECK_EQ(N, stack->GetFrameCount());
 
   for (int frameNr = 0; frameNr < N; ++frameNr) {
-    v8::Local<v8::StackFrame> frame = stack->GetFrame(frameNr);
+    v8::Local<v8::StackFrame> frame = stack->GetFrame(v8_isolate, frameNr);
     v8::String::Utf8Value funName(v8_isolate, frame->GetFunctionName());
     CHECK_CSTREQ(excInfos[frameNr].func_name, *funName);
     CHECK_EQ(excInfos[frameNr].line_nr, frame->GetLineNumber());
