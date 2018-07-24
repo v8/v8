@@ -5,11 +5,12 @@
 """
 Dummy d8 replacement. Just passes all test, except if 'berries' is in args.
 """
+from __future__ import print_function
 
 import sys
 
 args = ' '.join(sys.argv[1:])
-print args
+print(args)
 # Let all berries fail.
 if 'berries' in args:
   sys.exit(1)

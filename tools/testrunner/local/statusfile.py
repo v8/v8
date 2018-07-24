@@ -1,3 +1,5 @@
+from __future__ import print_function
+from __future__ import absolute_import
 # Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -28,8 +30,8 @@
 import os
 import re
 
-from variants import ALL_VARIANTS
-from utils import Freeze
+from .variants import ALL_VARIANTS
+from .utils import Freeze
 
 # Possible outcomes
 FAIL = "FAIL"
@@ -132,7 +134,7 @@ class StatusFile(object):
             variant_desc = 'variant independent'
           else:
             variant_desc = 'variant: %s' % variant
-          print 'Unused rule: %s -> %s (%s)' % (rule, value, variant_desc)
+          print('Unused rule: %s -> %s (%s)' % (rule, value, variant_desc))
 
 
 def _JoinsPassAndFail(outcomes1, outcomes2):
@@ -328,5 +330,5 @@ def PresubmitCheck(path):
                   "missing file for %s test %s" % (basename, rule))
     return status["success"]
   except Exception as e:
-    print e
+    print(e)
     return False

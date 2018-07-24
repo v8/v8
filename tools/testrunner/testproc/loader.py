@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright 2018 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -13,7 +14,7 @@ class LoadProc(base.TestProc):
     loaded = set()
     for test in tests:
       if test.procid in loaded:
-        print 'Warning: %s already obtained' % test.procid
+        print('Warning: %s already obtained' % test.procid)
         continue
 
       loaded.add(test.procid)

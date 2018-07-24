@@ -11,6 +11,7 @@
 # Usage: gc-nvp-to-csv.py <GC-trace-filename>
 #
 
+from __future__ import print_function
 import sys
 import gc_nvp_common
 
@@ -18,13 +19,13 @@ def process_trace(filename):
   trace = gc_nvp_common.parse_gc_trace(filename)
   if len(trace):
     keys = trace[0].keys()
-    print ', '.join(keys)
+    print(', '.join(keys))
     for entry in trace:
-      print ', '.join(map(lambda key: str(entry[key]), keys))
+      print(', '.join(map(lambda key: str(entry[key]), keys)))
 
 
 if len(sys.argv) != 2:
-  print "Usage: %s <GC-trace-filename>" % sys.argv[0]
+  print("Usage: %s <GC-trace-filename>" % sys.argv[0])
   sys.exit(1)
 
 process_trace(sys.argv[1])

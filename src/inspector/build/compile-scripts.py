@@ -4,6 +4,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from __future__ import print_function
 import os
 import os.path as path
 import generate_protocol_externs
@@ -47,7 +48,7 @@ def popen(arguments):
     stderr=subprocess.STDOUT)
 
 def error_excepthook(exctype, value, traceback):
-  print 'ERROR:'
+  print('ERROR:')
   sys.__excepthook__(exctype, value, traceback)
 sys.excepthook = error_excepthook
 
@@ -80,7 +81,7 @@ def find_java():
     java_path = which('java.exe')
 
   if not java_path:
-    print 'NOTE: No Java executable found in $PATH.'
+    print('NOTE: No Java executable found in $PATH.')
     sys.exit(0)
 
   is_ok = False
@@ -103,9 +104,9 @@ def find_java():
       has_server_jvm = False
 
   if not is_ok:
-    print 'NOTE: Java executable version %d.%d or above not found in $PATH.' % (java_required_major, java_required_minor)
+    print('NOTE: Java executable version %d.%d or above not found in $PATH.' % (java_required_major, java_required_minor))
     sys.exit(0)
-  print 'Java executable: %s%s' % (java_path, '' if has_server_jvm else ' (no server JVM)')
+  print('Java executable: %s%s' % (java_path, '' if has_server_jvm else ' (no server JVM)'))
   return exec_command
 
 java_exec = find_java()
@@ -115,7 +116,7 @@ spawned_compiler_command = java_exec + [
   closure_compiler_jar
 ] + common_closure_args
 
-print 'Compiling injected-script-source.js...'
+print('Compiling injected-script-source.js...')
 
 command = spawned_compiler_command + [
   '--externs', injected_script_externs_file,
@@ -125,26 +126,26 @@ command = spawned_compiler_command + [
 
 injected_script_compile_proc = popen(command)
 
-print 'Validating injected-script-source.js...'
+print('Validating injected-script-source.js...')
 injectedscript_check_script_path = path.join(v8_inspector_path, 'build',
   'check_injected_script_source.py')
 validate_injected_script_proc = popen([sys.executable,
   injectedscript_check_script_path, injected_script_source_name])
 
-print
+print()
 
 (injected_script_compile_out, _) = injected_script_compile_proc.communicate()
-print 'injected-script-source.js compilation output:%s' % os.linesep
-print injected_script_compile_out
+print('injected-script-source.js compilation output:%s' % os.linesep)
+print(injected_script_compile_out)
 errors_found |= has_errors(injected_script_compile_out)
 
 (validate_injected_script_out, _) = validate_injected_script_proc.communicate()
-print 'Validate injected-script-source.js output:%s' % os.linesep
-print validate_injected_script_out if validate_injected_script_out else '<empty>'
+print('Validate injected-script-source.js output:%s' % os.linesep)
+print(validate_injected_script_out if validate_injected_script_out else '<empty>')
 errors_found |= has_errors(validate_injected_script_out)
 
 os.remove(protocol_externs_file)
 
 if errors_found:
-  print 'ERRORS DETECTED'
+  print('ERRORS DETECTED')
   sys.exit(1)

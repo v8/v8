@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from __future__ import print_function
 import argparse
 import operator
 import os
@@ -17,7 +18,7 @@ def search_all_related_commits(
   all_commits_raw = _find_commits_inbetween(
       start_hash, until, git_working_dir, verbose)
   if verbose:
-    print "All commits between <of> and <until>: " + all_commits_raw
+    print("All commits between <of> and <until>: " + all_commits_raw)
 
   # Adding start hash too
   all_commits = [start_hash]
@@ -61,7 +62,7 @@ def _search_related_commits(
 
   commit_position = matches.group(2)
   if verbose:
-    print "1.) Commit position to look for: " + commit_position
+    print("1.) Commit position to look for: " + commit_position)
 
   search_range = start_hash + ".." + until
 
@@ -78,13 +79,13 @@ def _search_related_commits(
       git_working_dir, git_args(start_hash), verbose).strip()
 
   if verbose:
-    print "2.) Found by hash: " + found_by_hash
+    print("2.) Found by hash: " + found_by_hash)
 
   found_by_commit_pos = git_execute(
       git_working_dir, git_args(commit_position), verbose).strip()
 
   if verbose:
-    print "3.) Found by commit position: " + found_by_commit_pos
+    print("3.) Found by commit position: " + found_by_commit_pos)
 
   # Replace brackets or else they are wrongly interpreted by --grep
   title = title.replace("[", "\\[")
@@ -94,7 +95,7 @@ def _search_related_commits(
       git_working_dir, git_args(title), verbose).strip()
 
   if verbose:
-    print "4.) Found by title: " + found_by_title
+    print("4.) Found by title: " + found_by_title)
 
   hits = (
       _convert_to_array(found_by_hash) +
@@ -132,8 +133,8 @@ def _remove_duplicates(array):
 def git_execute(working_dir, args, verbose=False):
   command = ["git", "-C", working_dir] + args
   if verbose:
-    print "Git working dir: " + working_dir
-    print "Executing git command:" + str(command)
+    print("Git working dir: " + working_dir)
+    print("Executing git command:" + str(command))
   p = Popen(args=command, stdin=PIPE,
             stdout=PIPE, stderr=PIPE)
   output, err = p.communicate()
@@ -141,7 +142,7 @@ def git_execute(working_dir, args, verbose=False):
   if rc != 0:
     raise Exception(err)
   if verbose:
-    print "Git return value: " + output
+    print("Git return value: " + output)
   return output
 
 def _pretty_print_entry(hash, git_dir, pre_text, verbose):
@@ -215,4 +216,4 @@ if __name__ == "__main__":  # pragma: no cover
   args = sys.argv[1:]
   options = parser.parse_args(args)
   for current_line in main(options):
-    print current_line
+    print(current_line)

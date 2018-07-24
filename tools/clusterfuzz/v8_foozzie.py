@@ -6,6 +6,7 @@
 """
 V8 correctness fuzzer launcher script.
 """
+from __future__ import print_function
 
 import argparse
 import hashlib
@@ -219,8 +220,8 @@ def content_bailout(content, ignore_fun):
   """Print failure state and return if ignore_fun matches content."""
   bug = (ignore_fun(content) or '').strip()
   if bug:
-    print FAILURE_HEADER_TEMPLATE % dict(
-        configs='', source_key='', suppression=bug)
+    print(FAILURE_HEADER_TEMPLATE % dict(
+        configs='', source_key='', suppression=bug))
     return True
   return False
 
@@ -230,10 +231,10 @@ def pass_bailout(output, step_number):
   if output.HasTimedOut():
     # Dashed output, so that no other clusterfuzz tools can match the
     # words timeout or crash.
-    print '# V8 correctness - T-I-M-E-O-U-T %d' % step_number
+    print('# V8 correctness - T-I-M-E-O-U-T %d' % step_number)
     return True
   if output.HasCrashed():
-    print '# V8 correctness - C-R-A-S-H %d' % step_number
+    print('# V8 correctness - C-R-A-S-H %d' % step_number)
     return True
   return False
 
@@ -242,8 +243,8 @@ def fail_bailout(output, ignore_by_output_fun):
   """Print failure state and return if ignore_by_output_fun matches output."""
   bug = (ignore_by_output_fun(output.stdout) or '').strip()
   if bug:
-    print FAILURE_HEADER_TEMPLATE % dict(
-        configs='', source_key='', suppression=bug)
+    print(FAILURE_HEADER_TEMPLATE % dict(
+        configs='', source_key='', suppression=bug))
     return True
   return False
 
@@ -281,7 +282,7 @@ def main():
     if options.first_arch != options.second_arch:
       preamble.append(ARCH_MOCKS)
     args = [d8] + config_flags + preamble + [options.testcase]
-    print " ".join(args)
+    print(" ".join(args))
     if d8.endswith('.py'):
       # Wrap with python in tests.
       args = [sys.executable] + args
@@ -325,7 +326,7 @@ def main():
     # will require changes on the clusterfuzz side.
     first_config_label = '%s,%s' % (options.first_arch, options.first_config)
     second_config_label = '%s,%s' % (options.second_arch, options.second_config)
-    print (FAILURE_TEMPLATE % dict(
+    print((FAILURE_TEMPLATE % dict(
         configs='%s:%s' % (first_config_label, second_config_label),
         source_key=source_key,
         suppression='', # We can't tie bugs to differences.
@@ -339,14 +340,14 @@ def main():
             second_config_output.stdout.decode('utf-8', 'replace'),
         source=source,
         difference=difference.decode('utf-8', 'replace'),
-    )).encode('utf-8', 'replace')
+    )).encode('utf-8', 'replace'))
     return RETURN_FAIL
 
   # TODO(machenbach): Figure out if we could also return a bug in case there's
   # no difference, but one of the line suppressions has matched - and without
   # the match there would be a difference.
 
-  print '# V8 correctness - pass'
+  print('# V8 correctness - pass')
   return RETURN_PASS
 
 
@@ -356,17 +357,17 @@ if __name__ == "__main__":
   except SystemExit:
     # Make sure clusterfuzz reports internal errors and wrong usage.
     # Use one label for all internal and usage errors.
-    print FAILURE_HEADER_TEMPLATE % dict(
-        configs='', source_key='', suppression='wrong_usage')
+    print(FAILURE_HEADER_TEMPLATE % dict(
+        configs='', source_key='', suppression='wrong_usage'))
     result = RETURN_FAIL
   except MemoryError:
     # Running out of memory happens occasionally but is not actionable.
-    print '# V8 correctness - pass'
+    print('# V8 correctness - pass')
     result = RETURN_PASS
   except Exception as e:
-    print FAILURE_HEADER_TEMPLATE % dict(
-        configs='', source_key='', suppression='internal_error')
-    print '# Internal error: %s' % e
+    print(FAILURE_HEADER_TEMPLATE % dict(
+        configs='', source_key='', suppression='internal_error'))
+    print('# Internal error: %s' % e)
     traceback.print_exc(file=sys.stdout)
     result = RETURN_FAIL
 

@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright 2008 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -47,9 +48,9 @@ class TestSuite(testsuite.TestSuite):
         args=["--list"] + self.test_config.extra_flags)
     output = cmd.execute()
     if output.exit_code != 0:
-      print cmd
-      print output.stdout
-      print output.stderr
+      print(cmd)
+      print(output.stdout)
+      print(output.stderr)
       return []
     tests = map(self._create_test, output.stdout.strip().split())
     tests.sort(key=lambda t: t.path)

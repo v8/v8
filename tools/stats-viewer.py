@@ -33,6 +33,7 @@
 The stats viewer reads counters from a binary file and displays them
 in a window, re-reading and re-displaying with regular intervals.
 """
+from __future__ import print_function
 
 import mmap
 import optparse
@@ -100,7 +101,7 @@ class StatsViewer(object):
     if not os.path.exists(self.data_name):
       maps_name = "/proc/%s/maps" % self.data_name
       if not os.path.exists(maps_name):
-        print "\"%s\" is neither a counter file nor a PID." % self.data_name
+        print("\"%s\" is neither a counter file nor a PID." % self.data_name)
         sys.exit(1)
       maps_file = open(maps_name, "r")
       try:
@@ -110,7 +111,7 @@ class StatsViewer(object):
             self.data_name = m.group(0)
             break
         if self.data_name is None:
-          print "Can't find counter file in maps for PID %s." % self.data_name
+          print("Can't find counter file in maps for PID %s." % self.data_name)
           sys.exit(1)
       finally:
         maps_file.close()
@@ -123,7 +124,7 @@ class StatsViewer(object):
       return CounterCollection(data_access)
     elif data_access.IntAt(0) == CHROME_COUNTERS_FILE_MAGIC_NUMBER:
       return ChromeCounterCollection(data_access)
-    print "File %s is not stats data." % self.data_name
+    print("File %s is not stats data." % self.data_name)
     sys.exit(1)
 
   def CleanUp(self):

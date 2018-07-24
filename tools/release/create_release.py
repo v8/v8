@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from __future__ import print_function
 import argparse
 import os
 import sys
@@ -27,7 +28,7 @@ class PrepareBranchRevision(Step):
     self["push_hash"] = (self._options.revision or
                          self.GitLog(n=1, format="%H", branch="origin/master"))
     assert self["push_hash"]
-    print "Release revision %s" % self["push_hash"]
+    print("Release revision %s" % self["push_hash"])
 
 
 class IncrementVersion(Step):
@@ -138,7 +139,7 @@ class PushBranchRef(Step):
   def RunStep(self):
     cmd = "push origin %s:refs/heads/%s" % (self["push_hash"], self["version"])
     if self._options.dry_run:
-      print "Dry run. Command:\ngit %s" % cmd
+      print("Dry run. Command:\ngit %s" % cmd)
     else:
       self.Git(cmd)
 
@@ -217,7 +218,7 @@ class LandBranch(Step):
 
   def RunStep(self):
     if self._options.dry_run:
-      print "Dry run - upload CL."
+      print("Dry run - upload CL.")
     else:
       self.GitUpload(author=self._options.author,
                      force=True,
@@ -225,7 +226,7 @@ class LandBranch(Step):
                      private=True)
     cmd = "cl land --bypass-hooks -f"
     if self._options.dry_run:
-      print "Dry run. Command:\ngit %s" % cmd
+      print("Dry run. Command:\ngit %s" % cmd)
     else:
       self.Git(cmd)
 
@@ -269,7 +270,7 @@ class CreateRelease(ScriptsBase):
 
   def _ProcessOptions(self, options):  # pragma: no cover
     if not options.author or not options.reviewer:
-      print "Reviewer (-r) and author (-a) are required."
+      print("Reviewer (-r) and author (-a) are required.")
       return False
     return True
 

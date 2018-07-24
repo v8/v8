@@ -12,6 +12,7 @@ All these .cc files are then added to a sources.gni file which is included in
 BUILD.gn. Just compile to check whether there are any violations to the rule
 that each header must be includable in isolation.
 """
+from __future__ import print_function
 
 import argparse
 import os
@@ -142,7 +143,7 @@ def parse_args():
 
 def printv(line):
   if args.verbose:
-    print line
+    print(line)
 
 
 def find_all_headers():

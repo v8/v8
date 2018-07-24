@@ -29,6 +29,7 @@
 # Wraps test execution with a coverage analysis. To get the best speed, the
 # native python coverage version >= 3.7.1 should be installed.
 
+from __future__ import print_function
 import coverage
 import os
 import unittest
@@ -46,7 +47,7 @@ def Main(argv):
   ])
   unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(alltests))
   cov.stop()
-  print cov.report()
+  print(cov.report())
 
 
 if __name__ == '__main__':

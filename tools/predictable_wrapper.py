@@ -13,6 +13,7 @@ predictable_wrapper.py path/to/d8 --test --predictable --flag1 --flag2
 The command is run up to three times and the printed allocation hash is
 compared. Differences are reported as errors.
 """
+from __future__ import print_function
 
 import sys
 
@@ -32,19 +33,19 @@ def main(args):
 
   previous_allocations = None
   for run in range(1, MAX_TRIES + 1):
-    print '### Predictable run #%d' % run
+    print('### Predictable run #%d' % run)
     output = cmd.execute()
     if output.stdout:
-      print '### Stdout:'
-      print output.stdout
+      print('### Stdout:')
+      print(output.stdout)
     if output.stderr:
-      print '### Stderr:'
-      print output.stderr
-    print '### Return code: %s' % output.exit_code
+      print('### Stderr:')
+      print(output.stderr)
+    print('### Return code: %s' % output.exit_code)
     if output.HasTimedOut():
       # If we get a timeout in any run, we are in an unpredictable state. Just
       # report it as a failure and don't rerun.
-      print '### Test timed out'
+      print('### Test timed out')
       return 1
     allocations = allocation_str(output.stdout)
     if not allocations:
@@ -53,7 +54,7 @@ def main(args):
              '--verify-predictable is passed at the cmd line.')
       return 2
     if previous_allocations and previous_allocations != allocations:
-      print '### Allocations differ'
+      print('### Allocations differ')
       return 3
     if run >= MAX_TRIES:
       # No difference on the last run -> report a success.
