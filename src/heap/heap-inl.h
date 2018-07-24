@@ -530,8 +530,6 @@ Isolate* Heap::isolate() {
 
 void Heap::ExternalStringTable::AddString(String* string) {
   DCHECK(string->IsExternalString());
-  DCHECK(!Contains(string));
-
   if (InNewSpace(string)) {
     new_space_strings_.push_back(string);
   } else {

@@ -84,14 +84,12 @@ void ExternalizeStringExtension::Externalize(
     }
   }
   bool result = false;
-  v8::String* v8_string = *args[0].As<v8::String>();
-  Handle<String> string = Utils::OpenHandle(v8_string);
-  if (!string->SupportsExternalization()) {
+  Handle<String> string = Utils::OpenHandle(*args[0].As<v8::String>());
+  if (string->IsExternalString()) {
     args.GetIsolate()->ThrowException(
         v8::String::NewFromUtf8(args.GetIsolate(),
-                                "string does not support externalization.",
-                                NewStringType::kNormal)
-            .ToLocalChecked());
+                                "externalizeString() can't externalize twice.",
+                                NewStringType::kNormal).ToLocalChecked());
     return;
   }
   if (string->IsOneByteRepresentation() && !force_two_byte) {
@@ -99,14 +97,14 @@ void ExternalizeStringExtension::Externalize(
     String::WriteToFlat(*string, data, 0, string->length());
     SimpleOneByteStringResource* resource = new SimpleOneByteStringResource(
         reinterpret_cast<char*>(data), string->length());
-    result = v8_string->MakeExternal(resource);
+    result = string->MakeExternal(resource);
     if (!result) delete resource;
   } else {
     uc16* data = new uc16[string->length()];
     String::WriteToFlat(*string, data, 0, string->length());
     SimpleTwoByteStringResource* resource = new SimpleTwoByteStringResource(
         data, string->length());
-    result = v8_string->MakeExternal(resource);
+    result = string->MakeExternal(resource);
     if (!result) delete resource;
   }
   if (!result) {

@@ -311,7 +311,6 @@ class String : public Name {
   // Externalization.
   bool MakeExternal(v8::String::ExternalStringResource* resource);
   bool MakeExternal(v8::String::ExternalOneByteStringResource* resource);
-  bool SupportsExternalization();
 
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
