@@ -928,19 +928,19 @@ THREADED_TEST(StringConcat) {
             .ToLocalChecked();
     i::DeleteArray(two_byte_source);
 
-    Local<String> source = String::Concat(left, right);
+    Local<String> source = String::Concat(env->GetIsolate(), left, right);
     right = String::NewExternalOneByte(
                 env->GetIsolate(),
                 new TestOneByteResource(i::StrDup(one_byte_extern_1)))
                 .ToLocalChecked();
-    source = String::Concat(source, right);
+    source = String::Concat(env->GetIsolate(), source, right);
     right = String::NewExternalTwoByte(
                 env->GetIsolate(),
                 new TestResource(AsciiToTwoByteString(two_byte_extern_1)))
                 .ToLocalChecked();
-    source = String::Concat(source, right);
+    source = String::Concat(env->GetIsolate(), source, right);
     right = v8_str(one_byte_string_2);
-    source = String::Concat(source, right);
+    source = String::Concat(env->GetIsolate(), source, right);
 
     two_byte_source = AsciiToTwoByteString(two_byte_string_2);
     right = String::NewFromTwoByte(env->GetIsolate(), two_byte_source,
@@ -948,12 +948,12 @@ THREADED_TEST(StringConcat) {
                 .ToLocalChecked();
     i::DeleteArray(two_byte_source);
 
-    source = String::Concat(source, right);
+    source = String::Concat(env->GetIsolate(), source, right);
     right = String::NewExternalTwoByte(
                 env->GetIsolate(),
                 new TestResource(AsciiToTwoByteString(two_byte_extern_2)))
                 .ToLocalChecked();
-    source = String::Concat(source, right);
+    source = String::Concat(env->GetIsolate(), source, right);
     Local<Script> script = v8_compile(source);
     Local<Value> value = script->Run(env.local()).ToLocalChecked();
     CHECK(value->IsNumber());
@@ -2470,7 +2470,7 @@ THREADED_TEST(DescriptorInheritance2) {
   for (int i = 0; i < kDataPropertiesNumber; i++) {
     v8::Local<v8::Value> val = v8_num(i);
     v8::Local<v8::String> val_str = val->ToString(env.local()).ToLocalChecked();
-    v8::Local<v8::String> name = String::Concat(v8_str("p"), val_str);
+    v8::Local<v8::String> name = String::Concat(isolate, v8_str("p"), val_str);
 
     templ->Set(name, val);
     templ->Set(val_str, val);
@@ -2507,7 +2507,7 @@ THREADED_TEST(DescriptorInheritance2) {
   for (int i = 0; i < kDataPropertiesNumber; i++) {
     v8::Local<v8::Value> val = v8_num(i);
     v8::Local<v8::String> val_str = val->ToString(env.local()).ToLocalChecked();
-    v8::Local<v8::String> name = String::Concat(v8_str("p"), val_str);
+    v8::Local<v8::String> name = String::Concat(isolate, v8_str("p"), val_str);
 
     CHECK_EQ(i, object->Get(env.local(), name)
                     .ToLocalChecked()
@@ -2526,16 +2526,18 @@ THREADED_TEST(DescriptorInheritance2) {
 void SimpleAccessorGetter(Local<String> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   Local<Object> self = Local<Object>::Cast(info.This());
-  info.GetReturnValue().Set(self->Get(info.GetIsolate()->GetCurrentContext(),
-                                      String::Concat(v8_str("accessor_"), name))
-                                .ToLocalChecked());
+  info.GetReturnValue().Set(
+      self->Get(info.GetIsolate()->GetCurrentContext(),
+                String::Concat(info.GetIsolate(), v8_str("accessor_"), name))
+          .ToLocalChecked());
 }
 
 void SimpleAccessorSetter(Local<String> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
   Local<Object> self = Local<Object>::Cast(info.This());
   CHECK(self->Set(info.GetIsolate()->GetCurrentContext(),
-                  String::Concat(v8_str("accessor_"), name), value)
+                  String::Concat(info.GetIsolate(), v8_str("accessor_"), name),
+                  value)
             .FromJust());
 }
 
@@ -20408,11 +20410,11 @@ TEST(ContainsOnlyOneByte) {
   Local<String> left = base;
   Local<String> right = base;
   for (int i = 0; i < 1000; i++) {
-    left = String::Concat(base, left);
-    right = String::Concat(right, base);
+    left = String::Concat(isolate, base, left);
+    right = String::Concat(isolate, right, base);
   }
-  Local<String> balanced = String::Concat(left, base);
-  balanced = String::Concat(balanced, right);
+  Local<String> balanced = String::Concat(isolate, left, base);
+  balanced = String::Concat(isolate, balanced, right);
   Local<String> cons_strings[] = {left, balanced, right};
   Local<String> two_byte =
       String::NewExternalTwoByte(
@@ -20424,9 +20426,9 @@ TEST(ContainsOnlyOneByte) {
     string = cons_strings[i];
     CHECK(string->IsOneByte() && string->ContainsOnlyOneByte());
     // Test left and right concatentation.
-    string = String::Concat(two_byte, cons_strings[i]);
+    string = String::Concat(isolate, two_byte, cons_strings[i]);
     CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
-    string = String::Concat(cons_strings[i], two_byte);
+    string = String::Concat(isolate, cons_strings[i], two_byte);
     CHECK(!string->IsOneByte() && string->ContainsOnlyOneByte());
   }
   // Set bits in different positions
@@ -26240,7 +26242,8 @@ TEST(StringConcatOverflow) {
       v8::String::NewExternalOneByte(CcTest::isolate(), r).ToLocalChecked();
   CHECK(!str.IsEmpty());
   v8::TryCatch try_catch(CcTest::isolate());
-  v8::Local<v8::String> result = v8::String::Concat(str, str);
+  v8::Local<v8::String> result =
+      v8::String::Concat(CcTest::isolate(), str, str);
   CHECK(result.IsEmpty());
   CHECK(!try_catch.HasCaught());
 }

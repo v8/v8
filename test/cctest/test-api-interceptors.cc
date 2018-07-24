@@ -76,16 +76,17 @@ void EmptyInterceptorEnumerator(
 void SimpleAccessorGetter(Local<String> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
   Local<Object> self = Local<Object>::Cast(info.This());
-  info.GetReturnValue().Set(self->Get(info.GetIsolate()->GetCurrentContext(),
-                                      String::Concat(v8_str("accessor_"), name))
-                                .ToLocalChecked());
+  info.GetReturnValue().Set(
+      self->Get(info.GetIsolate()->GetCurrentContext(),
+                String::Concat(info.GetIsolate(), v8_str("accessor_"), name))
+          .ToLocalChecked());
 }
 
 void SimpleAccessorSetter(Local<String> name, Local<Value> value,
                           const v8::PropertyCallbackInfo<void>& info) {
   Local<Object> self = Local<Object>::Cast(info.This());
   self->Set(info.GetIsolate()->GetCurrentContext(),
-            String::Concat(v8_str("accessor_"), name), value)
+            String::Concat(info.GetIsolate(), v8_str("accessor_"), name), value)
       .FromJust();
 }
 
@@ -155,13 +156,14 @@ void GenericInterceptorGetter(Local<Name> generic_name,
   if (generic_name->IsSymbol()) {
     Local<Value> name = Local<Symbol>::Cast(generic_name)->Name();
     if (name->IsUndefined()) return;
-    str = String::Concat(v8_str("_sym_"), Local<String>::Cast(name));
+    str = String::Concat(info.GetIsolate(), v8_str("_sym_"),
+                         Local<String>::Cast(name));
   } else {
     Local<String> name = Local<String>::Cast(generic_name);
     String::Utf8Value utf8(info.GetIsolate(), name);
     char* name_str = *utf8;
     if (*name_str == '_') return;
-    str = String::Concat(v8_str("_str_"), name);
+    str = String::Concat(info.GetIsolate(), v8_str("_str_"), name);
   }
 
   Local<Object> self = Local<Object>::Cast(info.This());
@@ -175,13 +177,14 @@ void GenericInterceptorSetter(Local<Name> generic_name, Local<Value> value,
   if (generic_name->IsSymbol()) {
     Local<Value> name = Local<Symbol>::Cast(generic_name)->Name();
     if (name->IsUndefined()) return;
-    str = String::Concat(v8_str("_sym_"), Local<String>::Cast(name));
+    str = String::Concat(info.GetIsolate(), v8_str("_sym_"),
+                         Local<String>::Cast(name));
   } else {
     Local<String> name = Local<String>::Cast(generic_name);
     String::Utf8Value utf8(info.GetIsolate(), name);
     char* name_str = *utf8;
     if (*name_str == '_') return;
-    str = String::Concat(v8_str("_str_"), name);
+    str = String::Concat(info.GetIsolate(), v8_str("_str_"), name);
   }
 
   Local<Object> self = Local<Object>::Cast(info.This());
@@ -5026,7 +5029,7 @@ void ConcatNamedPropertyGetter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(
       // Return the property name concatenated with itself.
-      String::Concat(name.As<String>(), name.As<String>()));
+      String::Concat(info.GetIsolate(), name.As<String>(), name.As<String>()));
 }
 
 void ConcatIndexedPropertyGetter(
