@@ -19,8 +19,6 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-size_t Label::next_id_ = 0;
-
 int WrappedMain(int argc, const char** argv) {
   std::string output_directory;
   bool verbose = false;

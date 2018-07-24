@@ -48,7 +48,7 @@ class ParseResultHolder : public ParseResultHolderBase {
       : ParseResultHolderBase(id), value_(std::move(value)) {}
 
  private:
-  static const TypeId id;
+  V8_EXPORT_PRIVATE static const TypeId id;
   friend class ParseResultHolderBase;
   T value_;
 };
@@ -157,8 +157,8 @@ class Rule final {
     left_hand_side_ = left_hand_side;
   }
 
-  base::Optional<ParseResult> RunAction(const Item* completed_item,
-                                        const LexerResult& tokens) const;
+  V8_EXPORT_PRIVATE base::Optional<ParseResult> RunAction(
+      const Item* completed_item, const LexerResult& tokens) const;
 
  private:
   Symbol* left_hand_side_ = nullptr;
@@ -178,7 +178,7 @@ class Symbol {
   Symbol() : Symbol({}) {}
   Symbol(std::initializer_list<Rule> rules) { *this = rules; }
 
-  Symbol& operator=(std::initializer_list<Rule> rules);
+  V8_EXPORT_PRIVATE Symbol& operator=(std::initializer_list<Rule> rules);
 
   bool IsTerminal() const { return rules_.empty(); }
   Rule* rule(size_t index) const { return rules_[index].get(); }
@@ -189,8 +189,8 @@ class Symbol {
     rules_.back()->SetLeftHandSide(this);
   }
 
-  base::Optional<ParseResult> RunAction(const Item* item,
-                                        const LexerResult& tokens);
+  V8_EXPORT_PRIVATE base::Optional<ParseResult> RunAction(
+      const Item* item, const LexerResult& tokens);
 
  private:
   std::vector<std::unique_ptr<Rule>> rules_;
@@ -292,7 +292,7 @@ inline base::Optional<ParseResult> Symbol::RunAction(
   return item->rule()->RunAction(item, tokens);
 }
 
-const Item* RunEarleyAlgorithm(
+V8_EXPORT_PRIVATE const Item* RunEarleyAlgorithm(
     Symbol* start, const LexerResult& tokens,
     std::unordered_set<Item, base::hash<Item>>* processed);
 
@@ -327,7 +327,7 @@ class Lexer {
 
   Symbol* Pattern(PatternFunction pattern) { return &patterns_[pattern]; }
   Symbol* Token(const std::string& keyword) { return &keywords_[keyword]; }
-  LexerResult RunLexer(const std::string& input);
+  V8_EXPORT_PRIVATE LexerResult RunLexer(const std::string& input);
 
  private:
   PatternFunction match_whitespace_ = [](InputPosition*) { return false; };
@@ -365,10 +365,12 @@ class Grammar {
 
   // Helper functions to define lexer patterns. If they match, they return true
   // and advance {pos}. Otherwise, {pos} is unchanged.
-  static bool MatchChar(int (*char_class)(int), InputPosition* pos);
-  static bool MatchChar(bool (*char_class)(char), InputPosition* pos);
-  static bool MatchAnyChar(InputPosition* pos);
-  static bool MatchString(const char* s, InputPosition* pos);
+  V8_EXPORT_PRIVATE static bool MatchChar(int (*char_class)(int),
+                                          InputPosition* pos);
+  V8_EXPORT_PRIVATE static bool MatchChar(bool (*char_class)(char),
+                                          InputPosition* pos);
+  V8_EXPORT_PRIVATE static bool MatchAnyChar(InputPosition* pos);
+  V8_EXPORT_PRIVATE static bool MatchString(const char* s, InputPosition* pos);
 
   // The action MatchInput() produces the input matched by the rule as
   // result.

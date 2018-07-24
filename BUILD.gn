@@ -2860,6 +2860,46 @@ v8_source_set("v8_base") {
   }
 }
 
+v8_source_set("torque_base") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  sources = [
+    "src/torque/ast.h",
+    "src/torque/contextual.h",
+    "src/torque/declarable.cc",
+    "src/torque/declarable.h",
+    "src/torque/declaration-visitor.cc",
+    "src/torque/declaration-visitor.h",
+    "src/torque/declarations.cc",
+    "src/torque/declarations.h",
+    "src/torque/earley-parser.cc",
+    "src/torque/earley-parser.h",
+    "src/torque/file-visitor.cc",
+    "src/torque/file-visitor.h",
+    "src/torque/global-context.h",
+    "src/torque/implementation-visitor.cc",
+    "src/torque/implementation-visitor.h",
+    "src/torque/scope.cc",
+    "src/torque/scope.h",
+    "src/torque/source-positions.cc",
+    "src/torque/source-positions.h",
+    "src/torque/torque-parser.cc",
+    "src/torque/torque-parser.h",
+    "src/torque/type-oracle.cc",
+    "src/torque/type-oracle.h",
+    "src/torque/types.cc",
+    "src/torque/types.h",
+    "src/torque/utils.cc",
+    "src/torque/utils.h",
+  ]
+
+  deps = [
+    ":v8_libbase",
+  ]
+
+  configs = [ ":internal_config" ]
+}
+
 v8_component("v8_libbase") {
   sources = [
     "src/base/adapters.h",
@@ -3165,45 +3205,15 @@ if (current_toolchain == v8_snapshot_toolchain) {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     sources = [
-      "src/torque/ast.h",
-      "src/torque/contextual.h",
-      "src/torque/declarable.cc",
-      "src/torque/declarable.h",
-      "src/torque/declaration-visitor.cc",
-      "src/torque/declaration-visitor.h",
-      "src/torque/declarations.cc",
-      "src/torque/declarations.h",
-      "src/torque/earley-parser.cc",
-      "src/torque/earley-parser.h",
-      "src/torque/file-visitor.cc",
-      "src/torque/file-visitor.h",
-      "src/torque/global-context.h",
-      "src/torque/implementation-visitor.cc",
-      "src/torque/implementation-visitor.h",
-      "src/torque/scope.cc",
-      "src/torque/scope.h",
-      "src/torque/source-positions.cc",
-      "src/torque/source-positions.h",
-      "src/torque/torque-parser.cc",
-      "src/torque/torque-parser.h",
       "src/torque/torque.cc",
-      "src/torque/type-oracle.cc",
-      "src/torque/type-oracle.h",
-      "src/torque/types.cc",
-      "src/torque/types.h",
-      "src/torque/utils.cc",
-      "src/torque/utils.h",
     ]
 
     deps = [
-      ":v8_libbase",
+      ":torque_base",
       "//build/win:default_exe_manifest",
     ]
 
-    configs = [
-      ":external_config",
-      ":internal_config_base",
-    ]
+    configs = [ ":internal_config" ]
   }
 }
 
@@ -3308,6 +3318,7 @@ if (is_component_build) {
     ]
 
     public_deps = [
+      ":torque_base",
       ":v8_base",
       ":v8_maybe_snapshot",
     ]
@@ -3334,6 +3345,7 @@ if (is_component_build) {
     testonly = true
 
     public_deps = [
+      ":torque_base",
       ":v8_base",
       ":v8_maybe_snapshot",
     ]

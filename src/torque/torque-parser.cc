@@ -53,86 +53,104 @@ enum class ParseResultHolderBase::TypeId {
 };
 
 template <>
-const ParseResultTypeId ParseResultHolder<std::string>::id =
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<std::string>::id =
     ParseResultTypeId::kStdString;
 template <>
-const ParseResultTypeId ParseResultHolder<bool>::id = ParseResultTypeId::kBool;
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<bool>::id =
+    ParseResultTypeId::kBool;
 template <>
-const ParseResultTypeId ParseResultHolder<std::vector<std::string>>::id =
-    ParseResultTypeId::kStdVectorOfString;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<std::vector<std::string>>::id =
+        ParseResultTypeId::kStdVectorOfString;
 template <>
-const ParseResultTypeId ParseResultHolder<Declaration*>::id =
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<Declaration*>::id =
     ParseResultTypeId::kDeclarationPtr;
 template <>
-const ParseResultTypeId ParseResultHolder<TypeExpression*>::id =
-    ParseResultTypeId::kTypeExpressionPtr;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<TypeExpression*>::id =
+        ParseResultTypeId::kTypeExpressionPtr;
 template <>
-const ParseResultTypeId ParseResultHolder<LabelBlock*>::id =
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<LabelBlock*>::id =
     ParseResultTypeId::kLabelBlockPtr;
 template <>
-const ParseResultTypeId ParseResultHolder<Expression*>::id =
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<Expression*>::id =
     ParseResultTypeId::kExpressionPtr;
 template <>
-const ParseResultTypeId ParseResultHolder<LocationExpression*>::id =
-    ParseResultTypeId::kLocationExpressionPtr;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<LocationExpression*>::id =
+        ParseResultTypeId::kLocationExpressionPtr;
 template <>
-const ParseResultTypeId ParseResultHolder<Statement*>::id =
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<Statement*>::id =
     ParseResultTypeId::kStatementPtr;
 template <>
-const ParseResultTypeId ParseResultHolder<NameAndTypeExpression>::id =
-    ParseResultTypeId::kNameAndTypeExpression;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<NameAndTypeExpression>::id =
+        ParseResultTypeId::kNameAndTypeExpression;
 template <>
-const ParseResultTypeId
+V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<NameAndTypeExpression>>::id =
         ParseResultTypeId::kStdVectorOfNameAndTypeExpression;
 template <>
-const ParseResultTypeId ParseResultHolder<IncrementDecrementOperator>::id =
-    ParseResultTypeId::kIncrementDecrementOperator;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<IncrementDecrementOperator>::id =
+        ParseResultTypeId::kIncrementDecrementOperator;
 template <>
-const ParseResultTypeId ParseResultHolder<base::Optional<std::string>>::id =
-    ParseResultTypeId::kOptionalStdString;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<base::Optional<std::string>>::id =
+        ParseResultTypeId::kOptionalStdString;
 template <>
-const ParseResultTypeId ParseResultHolder<std::vector<Statement*>>::id =
-    ParseResultTypeId::kStdVectorOfStatementPtr;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<std::vector<Statement*>>::id =
+        ParseResultTypeId::kStdVectorOfStatementPtr;
 template <>
-const ParseResultTypeId ParseResultHolder<std::vector<Declaration*>>::id =
-    ParseResultTypeId::kStdVectorOfDeclarationPtr;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<std::vector<Declaration*>>::id =
+        ParseResultTypeId::kStdVectorOfDeclarationPtr;
 template <>
-const ParseResultTypeId ParseResultHolder<std::vector<Expression*>>::id =
-    ParseResultTypeId::kStdVectorOfExpressionPtr;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<std::vector<Expression*>>::id =
+        ParseResultTypeId::kStdVectorOfExpressionPtr;
 template <>
-const ParseResultTypeId ParseResultHolder<ExpressionWithSource>::id =
-    ParseResultTypeId::kExpressionWithSource;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<ExpressionWithSource>::id =
+        ParseResultTypeId::kExpressionWithSource;
 template <>
-const ParseResultTypeId ParseResultHolder<ParameterList>::id =
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<ParameterList>::id =
     ParseResultTypeId::kParameterList;
 template <>
-const ParseResultTypeId ParseResultHolder<RangeExpression>::id =
-    ParseResultTypeId::kRangeExpression;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<RangeExpression>::id =
+        ParseResultTypeId::kRangeExpression;
 template <>
-const ParseResultTypeId ParseResultHolder<base::Optional<RangeExpression>>::id =
-    ParseResultTypeId::kOptionalRangeExpression;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<base::Optional<RangeExpression>>::id =
+        ParseResultTypeId::kOptionalRangeExpression;
 template <>
-const ParseResultTypeId ParseResultHolder<TypeList>::id =
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<TypeList>::id =
     ParseResultTypeId::kTypeList;
 template <>
-const ParseResultTypeId ParseResultHolder<base::Optional<TypeList>>::id =
-    ParseResultTypeId::kOptionalTypeList;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<base::Optional<TypeList>>::id =
+        ParseResultTypeId::kOptionalTypeList;
 template <>
-const ParseResultTypeId ParseResultHolder<LabelAndTypes>::id =
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<LabelAndTypes>::id =
     ParseResultTypeId::kLabelAndTypes;
 template <>
-const ParseResultTypeId ParseResultHolder<std::vector<LabelAndTypes>>::id =
-    ParseResultTypeId::kStdVectorOfLabelAndTypes;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<std::vector<LabelAndTypes>>::id =
+        ParseResultTypeId::kStdVectorOfLabelAndTypes;
 template <>
-const ParseResultTypeId ParseResultHolder<std::vector<LabelBlock*>>::id =
-    ParseResultTypeId::kStdVectorOfLabelBlockPtr;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<std::vector<LabelBlock*>>::id =
+        ParseResultTypeId::kStdVectorOfLabelBlockPtr;
 template <>
-const ParseResultTypeId ParseResultHolder<base::Optional<Statement*>>::id =
-    ParseResultTypeId::kOptionalStatementPtr;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<base::Optional<Statement*>>::id =
+        ParseResultTypeId::kOptionalStatementPtr;
 template <>
-const ParseResultTypeId ParseResultHolder<base::Optional<Expression*>>::id =
-    ParseResultTypeId::kOptionalExpressionPtr;
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<base::Optional<Expression*>>::id =
+        ParseResultTypeId::kOptionalExpressionPtr;
 
 namespace {
 

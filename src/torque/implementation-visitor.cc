@@ -7,8 +7,6 @@
 #include "src/torque/implementation-visitor.h"
 #include "src/torque/parameter-difference.h"
 
-#include "include/v8.h"
-
 namespace v8 {
 namespace internal {
 namespace torque {
