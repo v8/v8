@@ -555,27 +555,29 @@ void Scanner::TryToParseSourceURLComment() {
   }
 }
 
-
 Token::Value Scanner::SkipMultiLineComment() {
   DCHECK_EQ(c0_, '*');
   Advance();
 
   while (c0_ != kEndOfInput) {
-    uc32 ch = c0_;
-    Advance();
     DCHECK(!unibrow::IsLineTerminator(kEndOfInput));
-    if (unibrow::IsLineTerminator(ch)) {
+    if (!has_multiline_comment_before_next_ && unibrow::IsLineTerminator(c0_)) {
       // Following ECMA-262, section 7.4, a comment containing
       // a newline will make the comment count as a line-terminator.
       has_multiline_comment_before_next_ = true;
     }
-    // If we have reached the end of the multi-line comment, we
-    // consume the '/' and insert a whitespace. This way all
-    // multi-line comments are treated as whitespace.
-    if (ch == '*' && c0_ == '/') {
-      c0_ = ' ';
-      return Token::WHITESPACE;
+
+    while (V8_UNLIKELY(c0_ == '*')) {
+      Advance();
+      // If we have reached the end of the multi-line comment, we
+      // consume the '/' and insert a whitespace. This way all
+      // multi-line comments are treated as whitespace.
+      if (c0_ == '/') {
+        c0_ = ' ';
+        return Token::WHITESPACE;
+      }
     }
+    Advance();
   }
 
   // Unterminated multi-line comment.
