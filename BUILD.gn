@@ -1099,6 +1099,7 @@ action("v8_dump_build_config") {
     rebase_path("$root_out_dir/v8_build_config.json", root_build_dir),
     "current_cpu=\"$current_cpu\"",
     "dcheck_always_on=$dcheck_always_on",
+    "is_android=$is_android",
     "is_asan=$is_asan",
     "is_cfi=$is_cfi",
     "is_component_build=$is_component_build",
