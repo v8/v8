@@ -678,7 +678,7 @@ class Heap {
     external_memory_concurrently_freed_ = 0;
   }
 
-  void CompactFixedArraysOfWeakCells();
+  void CompactWeakArrayLists();
 
   void AddRetainedMap(Handle<Map> map);
 

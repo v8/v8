@@ -765,7 +765,7 @@ StartupData SnapshotCreator::CreateBlob(
       i::GarbageCollectionReason::kSnapshotCreator);
   {
     i::HandleScope scope(isolate);
-    isolate->heap()->CompactFixedArraysOfWeakCells();
+    isolate->heap()->CompactWeakArrayLists();
   }
 
   isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
