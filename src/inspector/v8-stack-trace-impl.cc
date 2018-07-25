@@ -27,7 +27,8 @@ std::vector<std::shared_ptr<StackFrame>> toFramesVector(
   int frameCount = std::min(v8StackTrace->GetFrameCount(), maxStackSize);
   std::vector<std::shared_ptr<StackFrame>> frames(frameCount);
   for (int i = 0; i < frameCount; ++i) {
-    frames[i] = debugger->symbolize(v8StackTrace->GetFrame(i));
+    frames[i] =
+        debugger->symbolize(v8StackTrace->GetFrame(debugger->isolate(), i));
   }
   return frames;
 }

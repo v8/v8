@@ -2976,6 +2976,10 @@ Local<String> Message::Get() const {
   return scope.Escape(result);
 }
 
+v8::Isolate* Message::GetIsolate() const {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  return reinterpret_cast<Isolate*>(isolate);
+}
 
 ScriptOrigin Message::GetScriptOrigin() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();

@@ -17273,6 +17273,7 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK_EQ(args.Length(), 1);
 
   v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+  v8::Isolate* isolate = args.GetIsolate();
   int testGroup = args[0]->Int32Value(context).FromJust();
   if (testGroup == kOverviewTest) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
@@ -17281,58 +17282,58 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
     checkStackFrame(origin, "bar", 2, 10, false, false,
                     stackTrace->GetFrame(args.GetIsolate(), 0));
     checkStackFrame(origin, "foo", 6, 3, false, true,
-                    stackTrace->GetFrame(args.GetIsolate(), 1));
+                    stackTrace->GetFrame(isolate, 1));
     // This is the source string inside the eval which has the call to foo.
     checkStackFrame(nullptr, "", 1, 1, true, false,
-                    stackTrace->GetFrame(args.GetIsolate(), 2));
+                    stackTrace->GetFrame(isolate, 2));
     // The last frame is an anonymous function which has the initial eval call.
     checkStackFrame(origin, "", 8, 7, false, false,
-                    stackTrace->GetFrame(args.GetIsolate(), 3));
+                    stackTrace->GetFrame(isolate, 3));
   } else if (testGroup == kDetailedTest) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 10, v8::StackTrace::kDetailed);
     CHECK_EQ(4, stackTrace->GetFrameCount());
     checkStackFrame(origin, "bat", 4, 22, false, false,
-                    stackTrace->GetFrame(args.GetIsolate(), 0));
+                    stackTrace->GetFrame(isolate, 0));
     checkStackFrame(origin, "baz", 8, 3, false, true,
-                    stackTrace->GetFrame(args.GetIsolate(), 1));
+                    stackTrace->GetFrame(isolate, 1));
     bool is_eval = true;
     // This is the source string inside the eval which has the call to baz.
     checkStackFrame(nullptr, "", 1, 1, is_eval, false,
-                    stackTrace->GetFrame(args.GetIsolate(), 2));
+                    stackTrace->GetFrame(isolate, 2));
     // The last frame is an anonymous function which has the initial eval call.
     checkStackFrame(origin, "", 10, 1, false, false,
-                    stackTrace->GetFrame(args.GetIsolate(), 3));
+                    stackTrace->GetFrame(isolate, 3));
   } else if (testGroup == kFunctionName) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
     checkStackFrame(nullptr, "function.name", 3, 1, true, false,
-                    stackTrace->GetFrame(args.GetIsolate(), 0));
+                    stackTrace->GetFrame(isolate, 0));
   } else if (testGroup == kDisplayName) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
     checkStackFrame(nullptr, "function.displayName", 3, 1, true, false,
-                    stackTrace->GetFrame(args.GetIsolate(), 0));
+                    stackTrace->GetFrame(isolate, 0));
   } else if (testGroup == kFunctionNameAndDisplayName) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
     checkStackFrame(nullptr, "function.displayName", 3, 1, true, false,
-                    stackTrace->GetFrame(args.GetIsolate(), 0));
+                    stackTrace->GetFrame(isolate, 0));
   } else if (testGroup == kDisplayNameIsNotString) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
     checkStackFrame(nullptr, "function.name", 3, 1, true, false,
-                    stackTrace->GetFrame(args.GetIsolate(), 0));
+                    stackTrace->GetFrame(isolate, 0));
   } else if (testGroup == kFunctionNameIsNotString) {
     v8::Local<v8::StackTrace> stackTrace = v8::StackTrace::CurrentStackTrace(
         args.GetIsolate(), 5, v8::StackTrace::kOverview);
     CHECK_EQ(3, stackTrace->GetFrameCount());
     checkStackFrame(nullptr, "", 3, 1, true, false,
-                    stackTrace->GetFrame(args.GetIsolate(), 0));
+                    stackTrace->GetFrame(isolate, 0));
   }
 }
 
@@ -17435,9 +17436,9 @@ static void StackTraceForUncaughtExceptionListener(
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
   CHECK_EQ(2, stack_trace->GetFrameCount());
   checkStackFrame("origin", "foo", 2, 3, false, false,
-                  stack_trace->GetFrame(CcTest::isolate(), 0));
+                  stack_trace->GetFrame(message->GetIsolate(), 0));
   checkStackFrame("origin", "bar", 5, 3, false, false,
-                  stack_trace->GetFrame(CcTest::isolate(), 1));
+                  stack_trace->GetFrame(message->GetIsolate(), 1));
 }
 
 
@@ -17566,17 +17567,18 @@ TEST(ErrorLevelWarning) {
 static void StackTraceFunctionNameListener(v8::Local<v8::Message> message,
                                            v8::Local<Value>) {
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
+  v8::Isolate* isolate = message->GetIsolate();
   CHECK_EQ(5, stack_trace->GetFrameCount());
   checkStackFrame("origin", "foo:0", 4, 7, false, false,
-                  stack_trace->GetFrame(CcTest::isolate(), 0));
+                  stack_trace->GetFrame(isolate, 0));
   checkStackFrame("origin", "foo:1", 5, 27, false, false,
-                  stack_trace->GetFrame(CcTest::isolate(), 1));
+                  stack_trace->GetFrame(isolate, 1));
   checkStackFrame("origin", "foo", 5, 27, false, false,
-                  stack_trace->GetFrame(CcTest::isolate(), 2));
+                  stack_trace->GetFrame(isolate, 2));
   checkStackFrame("origin", "foo", 5, 27, false, false,
-                  stack_trace->GetFrame(CcTest::isolate(), 3));
+                  stack_trace->GetFrame(isolate, 3));
   checkStackFrame("origin", "", 1, 14, false, false,
-                  stack_trace->GetFrame(CcTest::isolate(), 4));
+                  stack_trace->GetFrame(isolate, 4));
 }
 
 
@@ -17623,7 +17625,7 @@ static void RethrowStackTraceHandler(v8::Local<v8::Message> message,
   int line_number[] = {1, 2, 5};
   for (int i = 0; i < frame_count; i++) {
     CHECK_EQ(line_number[i],
-             stack_trace->GetFrame(CcTest::isolate(), i)->GetLineNumber());
+             stack_trace->GetFrame(message->GetIsolate(), i)->GetLineNumber());
   }
 }
 
@@ -17668,7 +17670,7 @@ static void RethrowPrimitiveStackTraceHandler(v8::Local<v8::Message> message,
   int line_number[] = {3, 7};
   for (int i = 0; i < frame_count; i++) {
     CHECK_EQ(line_number[i],
-             stack_trace->GetFrame(CcTest::isolate(), i)->GetLineNumber());
+             stack_trace->GetFrame(message->GetIsolate(), i)->GetLineNumber());
   }
 }
 
@@ -17703,7 +17705,7 @@ static void RethrowExistingStackTraceHandler(v8::Local<v8::Message> message,
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
   CHECK(!stack_trace.IsEmpty());
   CHECK_EQ(1, stack_trace->GetFrameCount());
-  CHECK_EQ(1, stack_trace->GetFrame(CcTest::isolate(), 0)->GetLineNumber());
+  CHECK_EQ(1, stack_trace->GetFrame(message->GetIsolate(), 0)->GetLineNumber());
 }
 
 
@@ -17730,7 +17732,7 @@ static void RethrowBogusErrorStackTraceHandler(v8::Local<v8::Message> message,
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
   CHECK(!stack_trace.IsEmpty());
   CHECK_EQ(1, stack_trace->GetFrameCount());
-  CHECK_EQ(2, stack_trace->GetFrame(CcTest::isolate(), 0)->GetLineNumber());
+  CHECK_EQ(2, stack_trace->GetFrame(message->GetIsolate(), 0)->GetLineNumber());
 }
 
 
@@ -18250,7 +18252,7 @@ void AnalyzeStackOfEvalWithSourceURL(
   v8::Local<v8::String> url = v8_str("eval_url");
   for (int i = 0; i < 3; i++) {
     v8::Local<v8::String> name =
-        stackTrace->GetFrame(CcTest::isolate(), i)->GetScriptNameOrSourceURL();
+        stackTrace->GetFrame(args.GetIsolate(), i)->GetScriptNameOrSourceURL();
     CHECK(!name.IsEmpty());
     CHECK(url->Equals(args.GetIsolate()->GetCurrentContext(), name).FromJust());
   }
@@ -18297,7 +18299,7 @@ void AnalyzeScriptIdInStack(
   CHECK_EQ(2, stackTrace->GetFrameCount());
   for (int i = 0; i < 2; i++) {
     scriptIdInStack[i] =
-        stackTrace->GetFrame(CcTest::isolate(), i)->GetScriptId();
+        stackTrace->GetFrame(args.GetIsolate(), i)->GetScriptId();
   }
 }
 
@@ -18333,7 +18335,7 @@ void AnalyzeStackOfInlineScriptWithSourceURL(
   v8::Local<v8::String> url = v8_str("source_url");
   for (int i = 0; i < 3; i++) {
     v8::Local<v8::String> name =
-        stackTrace->GetFrame(CcTest::isolate(), i)->GetScriptNameOrSourceURL();
+        stackTrace->GetFrame(args.GetIsolate(), i)->GetScriptNameOrSourceURL();
     CHECK(!name.IsEmpty());
     CHECK(url->Equals(args.GetIsolate()->GetCurrentContext(), name).FromJust());
   }
@@ -18748,7 +18750,7 @@ void AnalyzeStackOfDynamicScriptWithSourceURL(
   v8::Local<v8::String> url = v8_str("source_url");
   for (int i = 0; i < 3; i++) {
     v8::Local<v8::String> name =
-        stackTrace->GetFrame(CcTest::isolate(), i)->GetScriptNameOrSourceURL();
+        stackTrace->GetFrame(args.GetIsolate(), i)->GetScriptNameOrSourceURL();
     CHECK(!name.IsEmpty());
     CHECK(url->Equals(args.GetIsolate()->GetCurrentContext(), name).FromJust());
   }

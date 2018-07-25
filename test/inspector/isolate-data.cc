@@ -251,7 +251,7 @@ int IsolateData::HandleMessage(v8::Local<v8::Message> message,
   int script_id =
       static_cast<int>(message->GetScriptOrigin().ScriptID()->Value());
   if (!stack.IsEmpty() && stack->GetFrameCount() > 0) {
-    int top_script_id = stack->GetFrame(0)->GetScriptId();
+    int top_script_id = stack->GetFrame(isolate, 0)->GetScriptId();
     if (top_script_id == script_id) script_id = 0;
   }
   int line_number = message->GetLineNumber(context).FromMaybe(0);
