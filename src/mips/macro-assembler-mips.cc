@@ -3797,10 +3797,6 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
 void TurboAssembler::Call(Register target, int16_t offset, Condition cond,
                           Register rs, const Operand& rt, BranchDelaySlot bd) {
   DCHECK(is_int16(offset));
-#ifdef DEBUG
-  int size = IsPrevInstrCompactBranch() ? kInstrSize : 0;
-#endif
-
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (IsMipsArchVariant(kMips32r6) && bd == PROTECT) {
     if (cond == cc_always) {
@@ -3831,10 +3827,6 @@ void TurboAssembler::Call(Register target, Register base, int16_t offset,
                           Condition cond, Register rs, const Operand& rt,
                           BranchDelaySlot bd) {
   DCHECK(is_uint16(offset));
-#ifdef DEBUG
-  int size = IsPrevInstrCompactBranch() ? kInstrSize : 0;
-#endif
-
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (IsMipsArchVariant(kMips32r6) && bd == PROTECT) {
     if (cond == cc_always) {

@@ -4221,10 +4221,6 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
 // Note: To call gcc-compiled C code on mips, you must call through t9.
 void TurboAssembler::Call(Register target, Condition cond, Register rs,
                           const Operand& rt, BranchDelaySlot bd) {
-#ifdef DEBUG
-  int size = IsPrevInstrCompactBranch() ? kInstrSize : 0;
-#endif
-
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (kArchVariant == kMips64r6 && bd == PROTECT) {
     if (cond == cc_always) {
