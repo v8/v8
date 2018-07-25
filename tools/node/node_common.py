@@ -8,6 +8,7 @@ import pipes
 import shutil
 import stat
 import subprocess
+import sys
 
 DEPOT_TOOLS_URL = \
   "https://chromium.googlesource.com/chromium/tools/depot_tools.git"
