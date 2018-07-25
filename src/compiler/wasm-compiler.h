@@ -270,8 +270,22 @@ class WasmGraphBuilder {
     this->instance_node_ = instance_node;
   }
 
-  Node* Control() { return *control_; }
-  Node* Effect() { return *effect_; }
+  Node* Control() {
+    DCHECK_NOT_NULL(*control_);
+    return *control_;
+  }
+  Node* Effect() {
+    DCHECK_NOT_NULL(*effect_);
+    return *effect_;
+  }
+  Node* SetControl(Node* node) {
+    *control_ = node;
+    return node;
+  }
+  Node* SetEffect(Node* node) {
+    *effect_ = node;
+    return node;
+  }
 
   void set_control_ptr(Node** control) { this->control_ = control; }
 
