@@ -173,7 +173,7 @@ class ImplementationVisitor : public FileVisitor {
   bool GenerateChangedVarFromControlSplit(const Variable* v, bool first = true);
 
   void GetFlattenedStructsVars(const Variable* base,
-                               std::set<const Variable*>& vars);
+                               std::set<const Variable*>* vars);
 
   void GenerateChangedVarsFromControlSplit(AstNode* node);
 

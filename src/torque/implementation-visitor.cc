@@ -1232,7 +1232,7 @@ Callable* ImplementationVisitor::LookupCall(const std::string& name,
 }
 
 void ImplementationVisitor::GetFlattenedStructsVars(
-    const Variable* base, std::set<const Variable*>& vars) {
+    const Variable* base, std::set<const Variable*>* vars) {
   const Type* type = base->type();
   if (base->IsConst()) return;
   if (type->IsStructType()) {
@@ -1243,7 +1243,7 @@ void ImplementationVisitor::GetFlattenedStructsVars(
           Variable::cast(declarations()->LookupValue(field_var_name)), vars);
     }
   } else {
-    vars.insert(base);
+    vars->insert(base);
   }
 }
 
@@ -1253,11 +1253,18 @@ void ImplementationVisitor::GenerateChangedVarsFromControlSplit(AstNode* node) {
           node, declarations()->GetCurrentSpecializationTypeNamesVector());
   std::set<const Variable*> flattened_vars;
   for (auto v : changed_vars) {
-    GetFlattenedStructsVars(v, flattened_vars);
+    GetFlattenedStructsVars(v, &flattened_vars);
   }
+  std::vector<const Variable*> flattened_vars_sorted(flattened_vars.begin(),
+                                                     flattened_vars.end());
+  auto compare_variables = [](const Variable* a, const Variable* b) {
+    return a->value() < b->value();
+  };
+  std::sort(flattened_vars_sorted.begin(), flattened_vars_sorted.end(),
+            compare_variables);
   source_out() << "{";
-  PrintCommaSeparatedList(source_out(), flattened_vars,
-                          [&](const Variable* v) { return v->value(); });
+  PrintCommaSeparatedList(source_out(), flattened_vars_sorted,
+                          [](const Variable* v) { return v->value(); });
   source_out() << "}";
 }
 
