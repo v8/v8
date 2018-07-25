@@ -187,7 +187,10 @@ MaybeHandle<JSListFormat> JSListFormat::InitializeListFormat(
   UErrorCode status = U_ZERO_ERROR;
   icu::ListFormatter* formatter = icu::ListFormatter::createInstance(
       icu_locale, GetIcuStyleString(style_enum, type_enum), status);
-  CHECK(U_SUCCESS(status));
+  if (U_FAILURE(status)) {
+    delete formatter;
+    FATAL("Failed to create ICU list formatter, are ICU data files missing?");
+  }
   CHECK_NOT_NULL(formatter);
 
   Handle<Managed<icu::ListFormatter>> managed_formatter =

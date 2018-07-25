@@ -94,15 +94,11 @@ bool ExtractBooleanSetting(Isolate* isolate, Handle<JSObject> options,
   return false;
 }
 
-icu::Locale CreateICULocale(Isolate* isolate, Handle<String> bcp47_locale_str,
-                            bool* success) {
-  *success = false;
+icu::Locale CreateICULocale(Isolate* isolate, Handle<String> bcp47_locale_str) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::String::Utf8Value bcp47_locale(v8_isolate,
                                      v8::Utils::ToLocal(bcp47_locale_str));
-  if (bcp47_locale.length() == 0) {
-    return icu::Locale();
-  }
+  CHECK_NOT_NULL(*bcp47_locale);
 
   DisallowHeapAllocation no_gc;
 
@@ -111,18 +107,18 @@ icu::Locale CreateICULocale(Isolate* isolate, Handle<String> bcp47_locale_str,
   char icu_result[ULOC_FULLNAME_CAPACITY];
   int icu_length = 0;
 
+  // bcp47_locale_str should be a canonicalized language tag, which
+  // means this shouldn't fail.
   uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                       &icu_length, &status);
-  if (U_FAILURE(status) || icu_length == 0) {
-    return icu::Locale();
-  }
+  CHECK(U_SUCCESS(status));
+  CHECK_LT(0, icu_length);
 
   icu::Locale icu_locale(icu_result);
   if (icu_locale.isBogus()) {
-    return icu::Locale();
+    FATAL("Failed to create ICU locale, are ICU data files missing?");
   }
 
-  *success = true;
   return icu_locale;
 }
 
@@ -857,9 +853,8 @@ void SetResolvedBreakIteratorSettings(Isolate* isolate,
 icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
-  bool success = false;
-  icu::Locale icu_locale = CreateICULocale(isolate, locale, &success);
-  if (!success) return nullptr;
+  icu::Locale icu_locale = CreateICULocale(isolate, locale);
+  DCHECK(!icu_locale.isBogus());
 
   icu::SimpleDateFormat* date_format =
       CreateICUDateFormat(isolate, icu_locale, options);
@@ -879,6 +874,7 @@ icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
     SetResolvedDateSettings(isolate, icu_locale, date_format, resolved);
   }
 
+  CHECK_NOT_NULL(date_format);
   return date_format;
 }
 
@@ -894,9 +890,8 @@ void DateFormat::DeleteDateFormat(const v8::WeakCallbackInfo<void>& data) {
 icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
-  bool success = false;
-  icu::Locale icu_locale = CreateICULocale(isolate, locale, &success);
-  if (!success) return nullptr;
+  icu::Locale icu_locale = CreateICULocale(isolate, locale);
+  DCHECK(!icu_locale.isBogus());
 
   icu::DecimalFormat* number_format =
       CreateICUNumberFormat(isolate, icu_locale, options);
@@ -917,6 +912,7 @@ icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
     SetResolvedNumberSettings(isolate, icu_locale, number_format, resolved);
   }
 
+  CHECK_NOT_NULL(number_format);
   return number_format;
 }
 
@@ -930,14 +926,12 @@ void NumberFormat::DeleteNumberFormat(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
 }
 
-bool Collator::InitializeCollator(Isolate* isolate,
-                                  Handle<JSObject> collator_holder,
-                                  Handle<String> locale,
-                                  Handle<JSObject> options,
-                                  Handle<JSObject> resolved) {
-  bool success = false;
-  icu::Locale icu_locale = CreateICULocale(isolate, locale, &success);
-  if (!success) return false;
+icu::Collator* Collator::InitializeCollator(Isolate* isolate,
+                                            Handle<String> locale,
+                                            Handle<JSObject> options,
+                                            Handle<JSObject> resolved) {
+  icu::Locale icu_locale = CreateICULocale(isolate, locale);
+  DCHECK(!icu_locale.isBogus());
 
   icu::Collator* collator = CreateICUCollator(isolate, icu_locale, options);
   if (!collator) {
@@ -956,28 +950,24 @@ bool Collator::InitializeCollator(Isolate* isolate,
     SetResolvedCollatorSettings(isolate, icu_locale, collator, resolved);
   }
 
-  Handle<Managed<icu::Collator>> managed =
-      Managed<icu::Collator>::FromRawPtr(isolate, 0, collator);
-  collator_holder->SetEmbedderField(0, *managed);
-
-  return true;
+  CHECK_NOT_NULL(collator);
+  return collator;
 }
 
 icu::Collator* Collator::UnpackCollator(Handle<JSObject> obj) {
   return Managed<icu::Collator>::cast(obj->GetEmbedderField(0))->raw();
 }
 
-bool PluralRules::InitializePluralRules(Isolate* isolate, Handle<String> locale,
+void PluralRules::InitializePluralRules(Isolate* isolate, Handle<String> locale,
                                         Handle<JSObject> options,
                                         Handle<JSObject> resolved,
                                         icu::PluralRules** plural_rules,
                                         icu::DecimalFormat** number_format) {
-  bool success = false;
-  icu::Locale icu_locale = CreateICULocale(isolate, locale, &success);
-  if (!success) return false;
+  icu::Locale icu_locale = CreateICULocale(isolate, locale);
+  DCHECK(!icu_locale.isBogus());
 
-  success = CreateICUPluralRules(isolate, icu_locale, options, plural_rules,
-                                 number_format);
+  bool success = CreateICUPluralRules(isolate, icu_locale, options,
+                                      plural_rules, number_format);
   if (!success) {
     // Remove extensions and try again.
     icu::Locale no_extension_locale(icu_locale.getBaseName());
@@ -996,7 +986,8 @@ bool PluralRules::InitializePluralRules(Isolate* isolate, Handle<String> locale,
                                              *number_format, resolved);
   }
 
-  return success;
+  CHECK_NOT_NULL(*plural_rules);
+  CHECK_NOT_NULL(*number_format);
 }
 
 icu::PluralRules* PluralRules::UnpackPluralRules(Handle<JSObject> obj) {
@@ -1016,9 +1007,8 @@ void PluralRules::DeletePluralRules(const v8::WeakCallbackInfo<void>& data) {
 icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
-  bool success = false;
-  icu::Locale icu_locale = CreateICULocale(isolate, locale, &success);
-  if (!success) return nullptr;
+  icu::Locale icu_locale = CreateICULocale(isolate, locale);
+  DCHECK(!icu_locale.isBogus());
 
   icu::BreakIterator* break_iterator =
       CreateICUBreakIterator(isolate, icu_locale, options);
@@ -1040,6 +1030,7 @@ icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
                                      resolved);
   }
 
+  CHECK_NOT_NULL(break_iterator);
   return break_iterator;
 }
 

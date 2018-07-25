@@ -120,11 +120,10 @@ class Collator {
  public:
   // Create a collator for the specificied locale and options. Stores the
   // collator in the provided collator_holder.
-  static bool InitializeCollator(Isolate* isolate,
-                                 Handle<JSObject> collator_holder,
-                                 Handle<String> locale,
-                                 Handle<JSObject> options,
-                                 Handle<JSObject> resolved);
+  static icu::Collator* InitializeCollator(Isolate* isolate,
+                                           Handle<String> locale,
+                                           Handle<JSObject> options,
+                                           Handle<JSObject> resolved);
 
   // Unpacks collator object from corresponding JavaScript object.
   static icu::Collator* UnpackCollator(Handle<JSObject> obj);
@@ -141,7 +140,7 @@ class PluralRules {
  public:
   // Create a PluralRules and DecimalFormat for the specificied locale and
   // options. Returns false on an ICU failure.
-  static bool InitializePluralRules(Isolate* isolate, Handle<String> locale,
+  static void InitializePluralRules(Isolate* isolate, Handle<String> locale,
                                     Handle<JSObject> options,
                                     Handle<JSObject> resolved,
                                     icu::PluralRules** plural_rules,

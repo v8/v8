@@ -169,8 +169,7 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
   // Set date time formatter as embedder field of the resulting JS object.
   icu::SimpleDateFormat* date_format =
       DateFormat::InitializeDateTimeFormat(isolate, locale, options, resolved);
-
-  if (!date_format) return isolate->ThrowIllegalOperation();
+  CHECK_NOT_NULL(date_format);
 
   local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(date_format));
 
@@ -228,8 +227,7 @@ RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
   // Set number formatter as embedder field of the resulting JS object.
   icu::DecimalFormat* number_format =
       NumberFormat::InitializeNumberFormat(isolate, locale, options, resolved);
-
-  if (!number_format) return isolate->ThrowIllegalOperation();
+  CHECK_NOT_NULL(number_format);
 
   local_object->SetEmbedderField(NumberFormat::kDecimalFormatIndex,
                                  reinterpret_cast<Smi*>(number_format));
@@ -291,10 +289,13 @@ RUNTIME_FUNCTION(Runtime_CreateCollator) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, collator_holder,
                                      JSObject::New(constructor, constructor));
 
-  if (!Collator::InitializeCollator(isolate, collator_holder, locale, options,
-                                    resolved)) {
-    return isolate->ThrowIllegalOperation();
-  }
+  icu::Collator* collator =
+      Collator::InitializeCollator(isolate, locale, options, resolved);
+  CHECK_NOT_NULL(collator);
+
+  Handle<Managed<icu::Collator>> managed =
+      Managed<icu::Collator>::FromRawPtr(isolate, 0, collator);
+  collator_holder->SetEmbedderField(0, *managed);
 
   return *collator_holder;
 }
@@ -354,10 +355,10 @@ RUNTIME_FUNCTION(Runtime_CreatePluralRules) {
   // Set pluralRules as internal field of the resulting JS object.
   icu::PluralRules* plural_rules;
   icu::DecimalFormat* decimal_format;
-  bool success = PluralRules::InitializePluralRules(
-      isolate, locale, options, resolved, &plural_rules, &decimal_format);
-
-  if (!success) return isolate->ThrowIllegalOperation();
+  PluralRules::InitializePluralRules(isolate, locale, options, resolved,
+                                     &plural_rules, &decimal_format);
+  CHECK_NOT_NULL(plural_rules);
+  CHECK_NOT_NULL(decimal_format);
 
   local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(plural_rules));
   local_object->SetEmbedderField(1, reinterpret_cast<Smi*>(decimal_format));
@@ -430,6 +431,7 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   // Set break iterator as embedder field of the resulting JS object.
   icu::BreakIterator* break_iterator = V8BreakIterator::InitializeBreakIterator(
       isolate, locale, options, resolved);
+  CHECK_NOT_NULL(break_iterator);
 
   if (!break_iterator) return isolate->ThrowIllegalOperation();
 

@@ -134,12 +134,12 @@ JSRelativeTimeFormat::InitializeRelativeTimeFormat(
   //     ? Construct(%NumberFormat%, « nfLocale, nfOptions »).
   icu::NumberFormat* number_format =
       icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status);
-  if (U_FAILURE(status) || number_format == nullptr) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kRelativeDateTimeFormatterBadParameters),
-        JSRelativeTimeFormat);
+  if (U_FAILURE(status)) {
+    delete number_format;
+    FATAL("Failed to create ICU number format, are ICU data files missing?");
   }
+  CHECK_NOT_NULL(number_format);
+
   // 23. Perform ! CreateDataPropertyOrThrow(nfOptions, "useGrouping", false).
   number_format->setGroupingUsed(false);
 
@@ -155,13 +155,14 @@ JSRelativeTimeFormat::InitializeRelativeTimeFormat(
       new icu::RelativeDateTimeFormatter(icu_locale, number_format,
                                          getIcuStyle(style_enum),
                                          UDISPCTX_CAPITALIZATION_NONE, status);
-
-  if (U_FAILURE(status) || (icu_formatter == nullptr)) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewRangeError(MessageTemplate::kRelativeDateTimeFormatterBadParameters),
-        JSRelativeTimeFormat);
+  if (U_FAILURE(status)) {
+    delete icu_formatter;
+    FATAL(
+        "Failed to create ICU relative date time formatter, are ICU data files "
+        "missing?");
   }
+  CHECK_NOT_NULL(icu_formatter);
+
   Handle<Managed<icu::RelativeDateTimeFormatter>> managed_formatter =
       Managed<icu::RelativeDateTimeFormatter>::FromRawPtr(isolate, 0,
                                                           icu_formatter);
