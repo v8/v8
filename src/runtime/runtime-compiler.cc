@@ -12,6 +12,7 @@
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/js-array-inl.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
 

@@ -16,6 +16,8 @@
 #include "src/ia32/assembler-ia32.h"
 #include "src/ia32/macro-assembler-ia32.h"
 #include "src/optimized-compilation-info.h"
+#include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {

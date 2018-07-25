@@ -4,9 +4,11 @@
 
 #include "src/api-inl.h"
 #include "src/heap/array-buffer-tracker.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 

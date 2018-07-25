@@ -22,6 +22,7 @@
 #include "src/messages.h"
 #include "src/objects/intl-objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/managed.h"
 #include "src/utils.h"
 
 #include "unicode/brkiter.h"
