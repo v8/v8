@@ -7,6 +7,7 @@
 
 #include "src/objects/fixed-array.h"
 
+#include "src/objects-inl.h"  // Needed for write barriers
 #include "src/objects/bigint.h"
 #include "src/objects/maybe-object-inl.h"
 
