@@ -2576,7 +2576,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   DisallowHeapAllocation no_allocation;
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
-  DCHECK(!this->IsExternalString());
+  DCHECK(this->SupportsExternalization());
   DCHECK(!resource->IsCompressible());
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {
@@ -2656,7 +2656,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   DisallowHeapAllocation no_allocation;
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
-  DCHECK(!this->IsExternalString());
+  DCHECK(this->SupportsExternalization());
   DCHECK(!resource->IsCompressible());
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {
@@ -2723,6 +2723,25 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   heap->RegisterExternalString(this);
   if (is_internalized) self->Hash();  // Force regeneration of the hash value.
   return true;
+}
+
+bool String::SupportsExternalization() {
+  if (this->IsThinString()) {
+    return i::ThinString::cast(this)->actual()->SupportsExternalization();
+  }
+
+  Isolate* isolate;
+  // RO_SPACE strings cannot be externalized.
+  if (!Isolate::FromWritableHeapObject(this, &isolate)) {
+    return false;
+  }
+
+  // Already an external string.
+  if (StringShape(this).IsExternal()) {
+    return false;
+  }
+
+  return !isolate->heap()->IsInGCPostProcessing();
 }
 
 void String::StringShortPrint(StringStream* accumulator, bool show_details) {

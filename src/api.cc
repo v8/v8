@@ -5932,11 +5932,16 @@ bool v8::String::IsExternalOneByte() const {
 
 void v8::String::VerifyExternalStringResource(
     v8::String::ExternalStringResource* value) const {
-  i::Handle<i::String> str = Utils::OpenHandle(this);
+  i::DisallowHeapAllocation no_allocation;
+  i::String* str = *Utils::OpenHandle(this);
   const v8::String::ExternalStringResource* expected;
-  if (i::StringShape(*str).IsExternalTwoByte()) {
-    const void* resource =
-        i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
+
+  if (str->IsThinString()) {
+    str = i::ThinString::cast(str)->actual();
+  }
+
+  if (i::StringShape(str).IsExternalTwoByte()) {
+    const void* resource = i::ExternalTwoByteString::cast(str)->resource();
     expected = reinterpret_cast<const ExternalStringResource*>(resource);
   } else {
     expected = nullptr;
@@ -5946,17 +5951,21 @@ void v8::String::VerifyExternalStringResource(
 
 void v8::String::VerifyExternalStringResourceBase(
     v8::String::ExternalStringResourceBase* value, Encoding encoding) const {
-  i::Handle<i::String> str = Utils::OpenHandle(this);
+  i::DisallowHeapAllocation no_allocation;
+  i::String* str = *Utils::OpenHandle(this);
   const v8::String::ExternalStringResourceBase* expected;
   Encoding expectedEncoding;
-  if (i::StringShape(*str).IsExternalOneByte()) {
-    const void* resource =
-        i::Handle<i::ExternalOneByteString>::cast(str)->resource();
+
+  if (str->IsThinString()) {
+    str = i::ThinString::cast(str)->actual();
+  }
+
+  if (i::StringShape(str).IsExternalOneByte()) {
+    const void* resource = i::ExternalOneByteString::cast(str)->resource();
     expected = reinterpret_cast<const ExternalStringResourceBase*>(resource);
     expectedEncoding = ONE_BYTE_ENCODING;
-  } else if (i::StringShape(*str).IsExternalTwoByte()) {
-    const void* resource =
-        i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
+  } else if (i::StringShape(str).IsExternalTwoByte()) {
+    const void* resource = i::ExternalTwoByteString::cast(str)->resource();
     expected = reinterpret_cast<const ExternalStringResourceBase*>(resource);
     expectedEncoding = TWO_BYTE_ENCODING;
   } else {
@@ -5968,15 +5977,69 @@ void v8::String::VerifyExternalStringResourceBase(
   CHECK_EQ(expectedEncoding, encoding);
 }
 
+String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
+  i::DisallowHeapAllocation no_allocation;
+  typedef internal::Internals I;
+  ExternalStringResource* result = nullptr;
+  i::String* str = *Utils::OpenHandle(this);
+
+  if (str->IsThinString()) {
+    str = i::ThinString::cast(str)->actual();
+  }
+
+  if (i::StringShape(str).IsExternalTwoByte()) {
+    void* value = I::ReadField<void*>(str, I::kStringResourceOffset);
+    result = reinterpret_cast<String::ExternalStringResource*>(value);
+  }
+  return result;
+}
+
+String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
+    String::Encoding* encoding_out) const {
+  i::DisallowHeapAllocation no_allocation;
+  typedef internal::Internals I;
+  ExternalStringResourceBase* resource = nullptr;
+  i::String* str = *Utils::OpenHandle(this);
+
+  if (str->IsThinString()) {
+    str = i::ThinString::cast(str)->actual();
+  }
+
+  int type = I::GetInstanceType(str) & I::kFullStringRepresentationMask;
+  *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
+  if (i::StringShape(str).IsExternalOneByte() ||
+      i::StringShape(str).IsExternalTwoByte()) {
+    void* value = I::ReadField<void*>(str, I::kStringResourceOffset);
+    resource = static_cast<ExternalStringResourceBase*>(value);
+  }
+  return resource;
+}
+
+const String::ExternalOneByteStringResource*
+String::GetExternalOneByteStringResourceSlow() const {
+  i::DisallowHeapAllocation no_allocation;
+  i::String* str = *Utils::OpenHandle(this);
+
+  if (str->IsThinString()) {
+    str = i::ThinString::cast(str)->actual();
+  }
+
+  if (i::StringShape(str).IsExternalOneByte()) {
+    const void* resource = i::ExternalOneByteString::cast(str)->resource();
+    return reinterpret_cast<const ExternalOneByteStringResource*>(resource);
+  }
+  return nullptr;
+}
+
 const v8::String::ExternalOneByteStringResource*
 v8::String::GetExternalOneByteStringResource() const {
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  if (i::StringShape(*str).IsExternalOneByte()) {
-    const void* resource =
-        i::Handle<i::ExternalOneByteString>::cast(str)->resource();
+  i::DisallowHeapAllocation no_allocation;
+  i::String* str = *Utils::OpenHandle(this);
+  if (i::StringShape(str).IsExternalOneByte()) {
+    const void* resource = i::ExternalOneByteString::cast(str)->resource();
     return reinterpret_cast<const ExternalOneByteStringResource*>(resource);
   } else {
-    return nullptr;
+    return GetExternalOneByteStringResourceSlow();
   }
 }
 
@@ -6863,73 +6926,76 @@ Local<String> v8::String::NewExternal(
 
 
 bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
-  i::Handle<i::String> obj = Utils::OpenHandle(this);
+  i::DisallowHeapAllocation no_allocation;
 
+  i::String* obj = *Utils::OpenHandle(this);
+
+  if (obj->IsThinString()) {
+    obj = i::ThinString::cast(obj)->actual();
+  }
+
+  if (!obj->SupportsExternalization()) {
+    return false;
+  }
+
+  // It is safe to call FromWritable because SupportsExternalization already
+  // checked that the object is writable.
   i::Isolate* isolate;
-  if (!i::Isolate::FromWritableHeapObject(*obj, &isolate)) {
-    // RO_SPACE strings cannot be externalized.
-    return false;
-  }
-
-  if (i::StringShape(*obj).IsExternal()) {
-    return false;  // Already an external string.
-  }
+  i::Isolate::FromWritableHeapObject(obj, &isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  if (isolate->heap()->IsInGCPostProcessing()) {
-    return false;
-  }
+
   CHECK(resource && resource->data());
 
   bool result = obj->MakeExternal(resource);
-  // Assert that if CanMakeExternal(), then externalizing actually succeeds.
-  DCHECK(!CanMakeExternal() || result);
-  if (result) {
-    DCHECK(obj->IsExternalString());
-  }
+  DCHECK(result);
+  DCHECK(obj->IsExternalString());
   return result;
 }
 
 
 bool v8::String::MakeExternal(
     v8::String::ExternalOneByteStringResource* resource) {
-  i::Handle<i::String> obj = Utils::OpenHandle(this);
+  i::DisallowHeapAllocation no_allocation;
 
+  i::String* obj = *Utils::OpenHandle(this);
+
+  if (obj->IsThinString()) {
+    obj = i::ThinString::cast(obj)->actual();
+  }
+
+  if (!obj->SupportsExternalization()) {
+    return false;
+  }
+
+  // It is safe to call FromWritable because SupportsExternalization already
+  // checked that the object is writable.
   i::Isolate* isolate;
-  if (!i::Isolate::FromWritableHeapObject(*obj, &isolate)) {
-    // RO_SPACE strings cannot be externalized.
-    return false;
-  }
-
-  if (i::StringShape(*obj).IsExternal()) {
-    return false;  // Already an external string.
-  }
+  i::Isolate::FromWritableHeapObject(obj, &isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  if (isolate->heap()->IsInGCPostProcessing()) {
-    return false;
-  }
+
   CHECK(resource && resource->data());
 
   bool result = obj->MakeExternal(resource);
-  // Assert that if CanMakeExternal(), then externalizing actually succeeds.
-  DCHECK(!CanMakeExternal() || result);
-  if (result) {
-    DCHECK(obj->IsExternalString());
-  }
+  DCHECK(result);
+  DCHECK(obj->IsExternalString());
   return result;
 }
 
 
 bool v8::String::CanMakeExternal() {
-  i::Handle<i::String> obj = Utils::OpenHandle(this);
-  if (obj->IsExternalString()) return false;
+  i::DisallowHeapAllocation no_allocation;
+  i::String* obj = *Utils::OpenHandle(this);
 
-  i::Isolate* isolate;
-  if (!i::Isolate::FromWritableHeapObject(*obj, &isolate)) {
-    // RO_SPACE strings cannot be externalized.
+  if (obj->IsThinString()) {
+    obj = i::ThinString::cast(obj)->actual();
+  }
+
+  if (!obj->SupportsExternalization()) {
     return false;
   }
+
   // Only old space strings should be externalized.
-  return !i::Heap::InNewSpace(*obj);
+  return !i::Heap::InNewSpace(obj);
 }
 
 
