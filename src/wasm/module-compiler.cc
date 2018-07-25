@@ -526,10 +526,7 @@ class CompilationUnitBuilder {
 // within the result_mutex_ lock when no finishing task is running, i.e. when
 // the finisher_is_running_ flag is not set.
 bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state) {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
-  DisallowCodeDependencyChange no_dependency_change;
+  DisallowHeapAccess no_heap_access;
 
   std::unique_ptr<WasmCompilationUnit> unit =
       compilation_state->GetNextCompilationUnit();
