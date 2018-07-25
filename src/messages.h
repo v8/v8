@@ -263,6 +263,7 @@ class ErrorUtils : public AllStatic {
   T(Unsupported, "Not supported")                                              \
   T(WrongServiceType, "Internal error, wrong service type: %")                 \
   T(WrongValueType, "Internal error. Wrong value type.")                       \
+  T(IcuError, "Internal error. Icu error.")                                    \
   /* TypeError */                                                              \
   T(ApplyNonFunction,                                                          \
     "Function.prototype.apply was called on %, which is a % and not a "        \
