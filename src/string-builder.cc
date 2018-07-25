@@ -6,7 +6,6 @@
 
 #include "src/isolate-inl.h"
 #include "src/objects/fixed-array-inl.h"
-#include "src/objects/js-array-inl.h"
 
 namespace v8 {
 namespace internal {

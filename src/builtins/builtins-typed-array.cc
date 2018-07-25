@@ -7,7 +7,6 @@
 #include "src/counters.h"
 #include "src/elements.h"
 #include "src/objects-inl.h"
-#include "src/objects/js-array-inl.h"
 
 namespace v8 {
 namespace internal {

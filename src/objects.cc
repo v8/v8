@@ -13813,53 +13813,6 @@ Script* Script::Iterator::Next() {
   return nullptr;
 }
 
-Code* SharedFunctionInfo::GetCode() const {
-  // ======
-  // NOTE: This chain of checks MUST be kept in sync with the equivalent CSA
-  // GetSharedFunctionInfoCode method in code-stub-assembler.cc.
-  // ======
-
-  Isolate* isolate = GetIsolate();
-  Object* data = function_data();
-  if (data->IsSmi()) {
-    // Holding a Smi means we are a builtin.
-    DCHECK(HasBuiltinId());
-    return isolate->builtins()->builtin(builtin_id());
-  } else if (data->IsBytecodeArray()) {
-    // Having a bytecode array means we are a compiled, interpreted function.
-    DCHECK(HasBytecodeArray());
-    return isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
-  } else if (data->IsFixedArray()) {
-    // Having a fixed array means we are an asm.js/wasm function.
-    DCHECK(HasAsmWasmData());
-    return isolate->builtins()->builtin(Builtins::kInstantiateAsmJs);
-  } else if (data->IsUncompiledData()) {
-    // Having uncompiled data (with or without scope) means we need to compile.
-    DCHECK(HasUncompiledData());
-    return isolate->builtins()->builtin(Builtins::kCompileLazy);
-  } else if (data->IsFunctionTemplateInfo()) {
-    // Having a function template info means we are an API function.
-    DCHECK(IsApiFunction());
-    return isolate->builtins()->builtin(Builtins::kHandleApiCall);
-  } else if (data->IsWasmExportedFunctionData()) {
-    // Having a WasmExportedFunctionData means the code is in there.
-    DCHECK(HasWasmExportedFunctionData());
-    return wasm_exported_function_data()->wrapper_code();
-  } else if (data->IsInterpreterData()) {
-    Code* code = InterpreterTrampoline();
-    DCHECK(code->IsCode());
-    DCHECK(code->is_interpreter_trampoline_builtin());
-    return code;
-  }
-  UNREACHABLE();
-}
-
-WasmExportedFunctionData* SharedFunctionInfo::wasm_exported_function_data()
-    const {
-  DCHECK(HasWasmExportedFunctionData());
-  return WasmExportedFunctionData::cast(function_data());
-}
-
 SharedFunctionInfo::ScriptIterator::ScriptIterator(Isolate* isolate,
                                                    Script* script)
     : ScriptIterator(isolate,

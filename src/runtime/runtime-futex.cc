@@ -9,7 +9,6 @@
 #include "src/conversions-inl.h"
 #include "src/futex-emulation.h"
 #include "src/globals.h"
-#include "src/objects/js-array-inl.h"
 
 // Implement Futex API for SharedArrayBuffers as defined in the
 // SharedArrayBuffer draft spec, found here:

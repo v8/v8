@@ -4,12 +4,10 @@
 
 #include <limits>
 
-#include "src/heap/heap-inl.h"
+#include "src/wasm/wasm-memory.h"
 #include "src/objects-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
-#include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {

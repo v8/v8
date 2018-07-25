@@ -46,7 +46,6 @@
 #include "src/ic/ic.h"
 #include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/snapshot/snapshot.h"

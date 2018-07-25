@@ -13,7 +13,6 @@
 #include "src/frames.h"
 #include "src/objects/js-generator.h"
 #include "src/runtime/runtime.h"
-#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {

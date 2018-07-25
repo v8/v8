@@ -12,7 +12,6 @@
 #include "src/handles-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
-#include "src/objects/js-array-inl.h"
 
 namespace v8 {
 namespace internal {

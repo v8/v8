@@ -14,7 +14,6 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/vector-slot-pair.h"

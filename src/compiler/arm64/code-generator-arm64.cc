@@ -13,7 +13,6 @@
 #include "src/frame-constants.h"
 #include "src/heap/heap-inl.h"
 #include "src/optimized-compilation-info.h"
-#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {

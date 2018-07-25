@@ -9,7 +9,6 @@
 #include "src/handles-inl.h"
 #include "src/log.h"
 #include "src/objects-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/prototype.h"
 
 namespace v8 {

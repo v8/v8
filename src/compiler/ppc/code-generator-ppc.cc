@@ -13,7 +13,6 @@
 #include "src/double.h"
 #include "src/optimized-compilation-info.h"
 #include "src/ppc/macro-assembler-ppc.h"
-#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {

@@ -13,7 +13,6 @@
 #include "src/objects-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/wasm/wasm-linkage.h"
-#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {

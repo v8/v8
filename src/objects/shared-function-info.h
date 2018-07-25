@@ -189,7 +189,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   inline void SetName(String* name);
 
   // Get the code object which represents the execution of this function.
-  Code* GetCode() const;
+  inline Code* GetCode() const;
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
@@ -331,7 +331,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
       UncompiledDataWithPreParsedScope* data);
   inline bool HasUncompiledDataWithoutPreParsedScope() const;
   inline bool HasWasmExportedFunctionData() const;
-  WasmExportedFunctionData* wasm_exported_function_data() const;
+  inline WasmExportedFunctionData* wasm_exported_function_data() const;
   inline void set_wasm_exported_function_data(WasmExportedFunctionData* data);
 
   // Clear out pre-parsed scope data from UncompiledDataWithPreParsedScope,

@@ -12,7 +12,6 @@
 #include "src/compiler/osr.h"
 #include "src/optimized-compilation-info.h"
 #include "src/s390/macro-assembler-s390.h"
-#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {

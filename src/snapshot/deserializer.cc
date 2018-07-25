@@ -8,7 +8,6 @@
 #include "src/isolate.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/string.h"
 #include "src/snapshot/builtin-deserializer-allocator.h"

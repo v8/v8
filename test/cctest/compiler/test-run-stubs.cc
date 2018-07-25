@@ -13,7 +13,6 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/pipeline.h"
 #include "src/objects-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/optimized-compilation-info.h"
 #include "test/cctest/compiler/function-tester.h"
 

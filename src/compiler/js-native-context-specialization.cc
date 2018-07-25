@@ -20,7 +20,6 @@
 #include "src/feedback-vector.h"
 #include "src/field-index-inl.h"
 #include "src/isolate-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/templates.h"
 #include "src/vector-slot-pair.h"
 

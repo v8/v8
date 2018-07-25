@@ -16,7 +16,6 @@
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-list-format-inl.h"
-#include "src/objects/managed.h"
 #include "unicode/listformatter.h"
 
 namespace v8 {

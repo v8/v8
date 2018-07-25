@@ -24,7 +24,6 @@
 #include "src/macro-assembler.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/prototype.h"
 #include "src/runtime-profiler.h"

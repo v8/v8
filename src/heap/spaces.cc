@@ -21,7 +21,6 @@
 #include "src/heap/sweeper.h"
 #include "src/msan.h"
 #include "src/objects-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/snapshot/snapshot.h"
 #include "src/v8.h"
 #include "src/vm-state-inl.h"

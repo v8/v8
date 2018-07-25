@@ -15,7 +15,6 @@
 #include "src/messages.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/hash-table-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/prototype.h"
 
 namespace v8 {

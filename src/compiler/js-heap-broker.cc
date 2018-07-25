@@ -6,7 +6,6 @@
 
 #include "src/compiler/compilation-dependencies.h"
 #include "src/objects-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/module-inl.h"
 

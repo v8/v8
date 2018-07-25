@@ -52,7 +52,6 @@
 #include "src/lookup.h"
 #include "src/objects-inl.h"
 #include "src/objects/hash-table-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/parsing/preparse-data.h"
 #include "src/profiler/cpu-profiler.h"

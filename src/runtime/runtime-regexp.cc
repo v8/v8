@@ -10,7 +10,6 @@
 #include "src/conversions-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
-#include "src/objects/js-array-inl.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-utils.h"

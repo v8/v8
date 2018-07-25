@@ -7,7 +7,6 @@
 #include "src/assembler-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/code.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/map.h"
 #include "src/snapshot/builtin-serializer-allocator.h"
 #include "src/snapshot/natives.h"
