@@ -84,6 +84,7 @@
 #include "src/register-configuration.h"
 #include "src/utils.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/wasm-engine.h"
 
 namespace v8 {
 namespace internal {

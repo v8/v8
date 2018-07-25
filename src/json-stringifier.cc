@@ -5,9 +5,11 @@
 #include "src/json-stringifier.h"
 
 #include "src/conversions.h"
+#include "src/heap/heap-inl.h"
 #include "src/lookup.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/utils.h"
 
 namespace v8 {

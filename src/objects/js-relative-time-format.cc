@@ -17,6 +17,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-relative-time-format-inl.h"
+#include "src/objects/managed.h"
 #include "unicode/numfmt.h"
 #include "unicode/reldatefmt.h"
 
