@@ -2116,9 +2116,9 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
   // Create literal object.
   int property_index = 0;
-  bool is_spread =
+  bool clone_object_spread =
       expr->properties()->first()->kind() == ObjectLiteral::Property::SPREAD;
-  if (is_spread) {
+  if (clone_object_spread) {
     // Avoid the slow path for spreads in the following common cases:
     //   1) `let obj = { ...source }`
     //   2) `let obj = { ...source, override: 1 }`
@@ -2137,9 +2137,6 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     builder()->CloneObject(from_value, flags, clone_index);
     builder()->StoreAccumulatorInRegister(literal);
     property_index++;
-
-    // FIXME: incorporate compile-time constants following the initial spread
-    // into the CloneObject opcode, to be included in the final value.
   } else {
     size_t entry;
     // If constant properties is an empty fixed array, use a cached empty fixed
@@ -2162,7 +2159,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   for (; property_index < expr->properties()->length(); property_index++) {
     ObjectLiteral::Property* property = expr->properties()->at(property_index);
     if (property->is_computed_name()) break;
-    if (!is_spread && property->IsCompileTimeValue()) continue;
+    if (!clone_object_spread && property->IsCompileTimeValue()) continue;
 
     RegisterAllocationScope inner_register_scope(this);
     Literal* key = property->key()->AsLiteral();
@@ -2171,7 +2168,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         UNREACHABLE();
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-        DCHECK(is_spread || !property->value()->IsCompileTimeValue());
+        DCHECK(clone_object_spread || !property->value()->IsCompileTimeValue());
         V8_FALLTHROUGH;
       case ObjectLiteral::Property::COMPUTED: {
         // It is safe to use [[Put]] here because the boilerplate already

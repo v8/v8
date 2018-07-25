@@ -219,6 +219,7 @@ class Map : public HeapObject {
   // Updates the counters tracking unused fields in the property array.
   inline void SetOutOfObjectUnusedPropertyFields(int unused_property_fields);
   inline void CopyUnusedPropertyFields(Map* map);
+  inline void CopyUnusedPropertyFieldsAdjustedForInstanceSize(Map* map);
   inline void AccountAddedPropertyField();
   inline void AccountAddedOutOfObjectPropertyField(
       int unused_in_property_array);

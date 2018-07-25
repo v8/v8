@@ -10224,9 +10224,9 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
 
     // Ensure the ObjectClone property details are NONE, and that all source
     // details did not contain DONT_ENUM.
-    PropertyDetails new_details(
-        kData, NONE, details.location(), kDefaultFieldConstness,
-        details.representation(), details.field_index());
+    PropertyDetails new_details(kData, NONE, details.location(),
+                                details.constness(), details.representation(),
+                                details.field_index());
     descriptors->Set(i, key, src->GetValue(i), new_details);
   }
 

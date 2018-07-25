@@ -1210,7 +1210,7 @@ const Operator* JSOperatorBuilder::CloneObject(VectorSlotPair const& feedback,
       IrOpcode::kJSCloneObject,                          // opcode
       Operator::kNoProperties,                           // properties
       "JSCloneObject",                                   // name
-      1, 1, 1, 1, 1, 1,                                  // counts
+      1, 1, 1, 1, 1, 2,                                  // counts
       parameters);                                       // parameter
 }
 

@@ -360,6 +360,17 @@ void Map::CopyUnusedPropertyFields(Map* map) {
   DCHECK_EQ(UnusedPropertyFields(), map->UnusedPropertyFields());
 }
 
+void Map::CopyUnusedPropertyFieldsAdjustedForInstanceSize(Map* map) {
+  int value = map->used_or_unused_instance_size_in_words();
+  if (value >= JSValue::kFieldsAdded) {
+    // Unused in-object fields. Adjust the offset from the object’s start
+    // so it matches the distance to the object’s end.
+    value += instance_size_in_words() - map->instance_size_in_words();
+  }
+  set_used_or_unused_instance_size_in_words(value);
+  DCHECK_EQ(UnusedPropertyFields(), map->UnusedPropertyFields());
+}
+
 void Map::AccountAddedPropertyField() {
   // Update used instance size and unused property fields number.
   STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kPointerSize);

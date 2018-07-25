@@ -2517,7 +2517,7 @@ static Handle<Map> FastCloneObjectMap(Isolate* isolate,
   Handle<LayoutDescriptor> layout =
       LayoutDescriptor::New(isolate, map, descriptors, size);
   map->InitializeDescriptors(*descriptors, *layout);
-  map->CopyUnusedPropertyFields(*source_map);
+  map->CopyUnusedPropertyFieldsAdjustedForInstanceSize(*source_map);
 
   return map;
 }
@@ -2571,7 +2571,7 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
 RUNTIME_FUNCTION(Runtime_CloneObjectIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSReceiver> source = args.at<JSReceiver>(0);
+  Handle<HeapObject> source = args.at<HeapObject>(0);
   int flags = args.smi_at(1);
   RETURN_RESULT_OR_FAILURE(isolate,
                            CloneObjectSlowPath(isolate, source, flags));
