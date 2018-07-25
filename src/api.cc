@@ -7677,7 +7677,7 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
 // move to wasm-js.cc.
 class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
  public:
-  AsyncCompilationResolver(Isolate* isolate, Handle<Promise> promise)
+  AsyncCompilationResolver(Isolate* isolate, Local<Promise> promise)
       : promise_(
             reinterpret_cast<i::Isolate*>(isolate)->global_handles()->Create(
                 *Utils::OpenHandle(*promise))) {}
