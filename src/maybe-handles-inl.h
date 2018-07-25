@@ -8,7 +8,7 @@
 #include "src/maybe-handles.h"
 
 #include "src/handles-inl.h"
-#include "src/objects/maybe-object.h"
+#include "src/objects/maybe-object-inl.h"
 
 namespace v8 {
 namespace internal {
