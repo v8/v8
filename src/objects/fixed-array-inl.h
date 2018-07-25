@@ -24,7 +24,6 @@ CAST_ACCESSOR(FixedArrayBase)
 CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(TemplateList)
-CAST_ACCESSOR(FixedArrayOfWeakCells)
 CAST_ACCESSOR(WeakFixedArray)
 CAST_ACCESSOR(WeakArrayList)
 
@@ -293,48 +292,6 @@ HeapObject* WeakArrayList::Iterator::Next() {
       if (!item->IsClearedWeakHeapObject()) return item->ToWeakHeapObject();
     }
     array_ = nullptr;
-  }
-  return nullptr;
-}
-
-Object* FixedArrayOfWeakCells::Get(int index) const {
-  Object* raw = FixedArray::cast(this)->get(index + kFirstIndex);
-  if (raw->IsSmi()) return raw;
-  DCHECK(raw->IsWeakCell());
-  return WeakCell::cast(raw)->value();
-}
-
-bool FixedArrayOfWeakCells::IsEmptySlot(int index) const {
-  DCHECK(index < Length());
-  return Get(index)->IsSmi();
-}
-
-void FixedArrayOfWeakCells::Clear(int index) {
-  FixedArray::cast(this)->set(index + kFirstIndex, Smi::kZero);
-}
-
-int FixedArrayOfWeakCells::Length() const {
-  return FixedArray::cast(this)->length() - kFirstIndex;
-}
-
-int FixedArrayOfWeakCells::last_used_index() const {
-  return Smi::ToInt(FixedArray::cast(this)->get(kLastUsedIndexIndex));
-}
-
-void FixedArrayOfWeakCells::set_last_used_index(int index) {
-  FixedArray::cast(this)->set(kLastUsedIndexIndex, Smi::FromInt(index));
-}
-
-template <class T>
-T* FixedArrayOfWeakCells::Iterator::Next() {
-  if (list_ != nullptr) {
-    // Assert that list did not change during iteration.
-    DCHECK_EQ(last_used_index_, list_->last_used_index());
-    while (index_ < list_->Length()) {
-      Object* item = list_->Get(index_++);
-      if (item != Empty()) return T::cast(item);
-    }
-    list_ = nullptr;
   }
   return nullptr;
 }
