@@ -130,11 +130,9 @@ static inline bool IsFastTransitionTarget(ElementsKind elements_kind) {
 
 bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
                                          ElementsKind to_kind) {
-  if (IsFixedTypedArrayElementsKind(from_kind) ||
-      IsFixedTypedArrayElementsKind(to_kind)) {
-    return false;
-  }
   if (IsFastElementsKind(from_kind) && IsFastTransitionTarget(to_kind)) {
+    DCHECK(!IsFixedTypedArrayElementsKind(from_kind));
+    DCHECK(!IsFixedTypedArrayElementsKind(to_kind));
     switch (from_kind) {
       case PACKED_SMI_ELEMENTS:
         return to_kind != PACKED_SMI_ELEMENTS;
