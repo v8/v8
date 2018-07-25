@@ -27,6 +27,9 @@ static inline void MakeAssemblerBufferExecutable(uint8_t* buffer,
   bool result = v8::internal::SetPermissions(buffer, allocated,
                                              v8::PageAllocator::kReadExecute);
   CHECK(result);
+
+  // Flush the instruction cache as part of making the buffer executable.
+  Assembler::FlushICache(buffer, allocated);
 }
 
 static inline void MakeAssemblerBufferWritable(uint8_t* buffer,

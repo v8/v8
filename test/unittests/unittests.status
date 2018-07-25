@@ -15,10 +15,4 @@
   'RandomNumberGenerator.NextSampleSlowInvalidParam1': [SKIP],
   'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],
 }],  # 'system == macos and asan'
-
-['arch == arm and not simulator_run', {
-  # Crashes flakily: https://crbug.com/v8/7977
-  'TurboAssemblerTest.TestCheck': [SKIP],
-}],  # arch == arm and not simulator_run
-
 ]
