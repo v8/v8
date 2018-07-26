@@ -253,6 +253,7 @@
   'regress/regress-2249': [SKIP],
   'regress/regress-4121': [SKIP],
   'compare-known-objects-slow': [SKIP],
+  'compiler/array-multiple-receiver-maps': [SKIP],
   # Tests taking too long
   'packed-elements': [SKIP],
   'regress/regress-1122': [SKIP],
