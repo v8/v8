@@ -53,6 +53,7 @@ class BasicBlockProfiler {
   BasicBlockProfiler();
   ~BasicBlockProfiler();
 
+  V8_EXPORT_PRIVATE static BasicBlockProfiler* Get();
   Data* NewData(size_t n_blocks);
   void ResetCounts();
 

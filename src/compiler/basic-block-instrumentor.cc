@@ -53,8 +53,7 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
   // Skip the exit block in profiles, since the register allocator can't handle
   // it and entry into it means falling off the end of the function anyway.
   size_t n_blocks = static_cast<size_t>(schedule->RpoBlockCount()) - 1;
-  BasicBlockProfiler::Data* data =
-      isolate->GetOrCreateBasicBlockProfiler()->NewData(n_blocks);
+  BasicBlockProfiler::Data* data = BasicBlockProfiler::Get()->NewData(n_blocks);
   // Set the function name.
   if (info->has_shared_info()) {
     std::ostringstream os;

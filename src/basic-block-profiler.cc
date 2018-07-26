@@ -6,8 +6,19 @@
 
 #include <sstream>
 
+#include "src/base/lazy-instance.h"
+
 namespace v8 {
 namespace internal {
+
+namespace {
+base::LazyInstance<BasicBlockProfiler>::type kBasicBlockProfiler =
+    LAZY_INSTANCE_INITIALIZER;
+}
+
+BasicBlockProfiler* BasicBlockProfiler::Get() {
+  return kBasicBlockProfiler.Pointer();
+}
 
 BasicBlockProfiler::Data::Data(size_t n_blocks)
     : n_blocks_(n_blocks), block_ids_(n_blocks_), counts_(n_blocks_, 0) {}

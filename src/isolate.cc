@@ -20,7 +20,6 @@
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/basic-block-profiler.h"
 #include "src/bootstrapper.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/cancelable-task.h"
@@ -2507,7 +2506,6 @@ Isolate::Isolate()
 #endif
       is_running_microtasks_(false),
       use_counter_callback_(nullptr),
-      basic_block_profiler_(nullptr),
       cancelable_task_manager_(new CancelableTaskManager()),
       abort_on_uncaught_exception_callback_(nullptr),
       total_regexp_code_generated_(0) {
@@ -2647,9 +2645,6 @@ void Isolate::Deinit() {
     delete runtime_profiler_;
     runtime_profiler_ = nullptr;
   }
-
-  delete basic_block_profiler_;
-  basic_block_profiler_ = nullptr;
 
   delete heap_profiler_;
   heap_profiler_ = nullptr;
@@ -3986,15 +3981,6 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
     heap_.IncrementDeferredCount(feature);
   }
 }
-
-
-BasicBlockProfiler* Isolate::GetOrCreateBasicBlockProfiler() {
-  if (basic_block_profiler_ == nullptr) {
-    basic_block_profiler_ = new BasicBlockProfiler();
-  }
-  return basic_block_profiler_;
-}
-
 
 std::string Isolate::GetTurboCfgFileName() {
   if (FLAG_trace_turbo_cfg_file == nullptr) {

@@ -61,7 +61,6 @@ class HeapTester;
 class AccessCompilerData;
 class AddressToIndexHashMap;
 class AstStringConstants;
-class BasicBlockProfiler;
 class Bootstrapper;
 class BuiltinsConstantsTableBuilder;
 class CancelableTaskManager;
@@ -1285,9 +1284,6 @@ class Isolate : private HiddenFactory {
   void SetUseCounterCallback(v8::Isolate::UseCounterCallback callback);
   void CountUsage(v8::Isolate::UseCounterFeature feature);
 
-  BasicBlockProfiler* GetOrCreateBasicBlockProfiler();
-  BasicBlockProfiler* basic_block_profiler() { return basic_block_profiler_; }
-
   std::string GetTurboCfgFileName();
 
 #if V8_SFI_HAS_UNIQUE_ID
@@ -1720,7 +1716,6 @@ class Isolate : private HiddenFactory {
   bool is_running_microtasks_;
 
   v8::Isolate::UseCounterCallback use_counter_callback_;
-  BasicBlockProfiler* basic_block_profiler_;
 
   std::vector<Object*> partial_snapshot_cache_;
 
