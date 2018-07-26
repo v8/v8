@@ -2286,6 +2286,16 @@ bool Heap::ExternalStringTable::Contains(HeapObject* obj) {
   return false;
 }
 
+
+void Heap::ProcessMovedExternalString(Page* old_page, Page* new_page,
+                                      ExternalString* string) {
+  size_t size = string->ExternalPayloadSize();
+  new_page->IncrementExternalBackingStoreBytes(
+      ExternalBackingStoreType::kExternalString, size);
+  old_page->DecrementExternalBackingStoreBytes(
+      ExternalBackingStoreType::kExternalString, size);
+}
+
 String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
                                                                 Object** p) {
   MapWord first_word = HeapObject::cast(*p)->map_word();
@@ -2303,24 +2313,53 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
   }
 
   // String is still reachable.
-  String* string = String::cast(first_word.ToForwardingAddress());
-  if (string->IsThinString()) string = ThinString::cast(string)->actual();
+  String* new_string = String::cast(first_word.ToForwardingAddress());
+  if (new_string->IsThinString()) {
+    // Filtering Thin strings out of the external string table.
+    return nullptr;
+  } else if (new_string->IsExternalString()) {
+    heap->ProcessMovedExternalString(
+        Page::FromAddress(reinterpret_cast<Address>(*p)),
+        Page::FromHeapObject(new_string), ExternalString::cast(new_string));
+    return new_string;
+  }
+
   // Internalization can replace external strings with non-external strings.
-  return string->IsExternalString() ? string : nullptr;
+  return new_string->IsExternalString() ? new_string : nullptr;
 }
 
 void Heap::ExternalStringTable::Verify() {
 #ifdef DEBUG
+  std::set<String*> visited_map;
+  std::map<MemoryChunk*, size_t> size_map;
+  ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
   for (size_t i = 0; i < new_space_strings_.size(); ++i) {
-    Object* obj = Object::cast(new_space_strings_[i]);
-    DCHECK(InNewSpace(obj));
+    String* obj = String::cast(new_space_strings_[i]);
+    MemoryChunk* mc = MemoryChunk::FromHeapObject(obj);
+    DCHECK(mc->InNewSpace());
+    DCHECK(heap_->InNewSpace(obj));
     DCHECK(!obj->IsTheHole(heap_->isolate()));
+    DCHECK(obj->IsExternalString());
+    // Note: we can have repeated elements in the table.
+    DCHECK_EQ(0, visited_map.count(obj));
+    visited_map.insert(obj);
+    size_map[mc] += ExternalString::cast(obj)->ExternalPayloadSize();
   }
   for (size_t i = 0; i < old_space_strings_.size(); ++i) {
-    Object* obj = Object::cast(old_space_strings_[i]);
-    DCHECK(!InNewSpace(obj));
+    String* obj = String::cast(old_space_strings_[i]);
+    MemoryChunk* mc = MemoryChunk::FromHeapObject(obj);
+    DCHECK(!mc->InNewSpace());
+    DCHECK(!heap_->InNewSpace(obj));
     DCHECK(!obj->IsTheHole(heap_->isolate()));
+    DCHECK(obj->IsExternalString());
+    // Note: we can have repeated elements in the table.
+    DCHECK_EQ(0, visited_map.count(obj));
+    visited_map.insert(obj);
+    size_map[mc] += ExternalString::cast(obj)->ExternalPayloadSize();
   }
+  for (std::map<MemoryChunk*, size_t>::iterator it = size_map.begin();
+       it != size_map.end(); it++)
+    DCHECK_EQ(it->first->ExternalBackingStoreBytes(type), it->second);
 #endif
 }
 
@@ -5465,19 +5504,15 @@ void Heap::ExternalStringTable::CleanUpAll() {
 void Heap::ExternalStringTable::TearDown() {
   for (size_t i = 0; i < new_space_strings_.size(); ++i) {
     Object* o = new_space_strings_[i];
-    if (o->IsThinString()) {
-      o = ThinString::cast(o)->actual();
-      if (!o->IsExternalString()) continue;
-    }
+    // Dont finalize thin strings.
+    if (o->IsThinString()) continue;
     heap_->FinalizeExternalString(ExternalString::cast(o));
   }
   new_space_strings_.clear();
   for (size_t i = 0; i < old_space_strings_.size(); ++i) {
     Object* o = old_space_strings_[i];
-    if (o->IsThinString()) {
-      o = ThinString::cast(o)->actual();
-      if (!o->IsExternalString()) continue;
-    }
+    // Dont finalize thin strings.
+    if (o->IsThinString()) continue;
     heap_->FinalizeExternalString(ExternalString::cast(o));
   }
   old_space_strings_.clear();

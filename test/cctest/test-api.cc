@@ -15670,6 +15670,7 @@ class UC16VectorResource : public v8::String::ExternalStringResource {
 static void MorphAString(i::String* string,
                          OneByteVectorResource* one_byte_resource,
                          UC16VectorResource* uc16_resource) {
+  i::Isolate* isolate = CcTest::i_isolate();
   CHECK(i::StringShape(string).IsExternal());
   i::ReadOnlyRoots roots(CcTest::heap());
   if (string->IsOneByteRepresentation()) {
@@ -15679,14 +15680,16 @@ static void MorphAString(i::String* string,
     string->set_map(roots.external_string_map());
     i::ExternalTwoByteString* morphed =
          i::ExternalTwoByteString::cast(string);
-    morphed->set_resource(uc16_resource);
+    CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
+    morphed->SetResource(isolate, uc16_resource);
   } else {
     // Check old map is not internalized or long.
     CHECK(string->map() == roots.external_string_map());
     // Morph external string to be one-byte string.
     string->set_map(roots.external_one_byte_string_map());
     i::ExternalOneByteString* morphed = i::ExternalOneByteString::cast(string);
-    morphed->set_resource(one_byte_resource);
+    CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
+    morphed->SetResource(isolate, one_byte_resource);
   }
 }
 
@@ -15702,6 +15705,7 @@ THREADED_TEST(MorphCompositeStringTest) {
     LocalContext env;
     i::Factory* factory = CcTest::i_isolate()->factory();
     v8::Isolate* isolate = env->GetIsolate();
+    i::Isolate* i_isolate = CcTest::i_isolate();
     v8::HandleScope scope(isolate);
     OneByteVectorResource one_byte_resource(
         i::Vector<const char>(c_string, i::StrLength(c_string)));
@@ -15775,13 +15779,13 @@ THREADED_TEST(MorphCompositeStringTest) {
 
     // This avoids the GC from trying to free a stack allocated resource.
     if (ilhs->IsExternalOneByteString())
-      i::ExternalOneByteString::cast(ilhs)->set_resource(nullptr);
+      i::ExternalOneByteString::cast(ilhs)->SetResource(i_isolate, nullptr);
     else
-      i::ExternalTwoByteString::cast(ilhs)->set_resource(nullptr);
+      i::ExternalTwoByteString::cast(ilhs)->SetResource(i_isolate, nullptr);
     if (irhs->IsExternalOneByteString())
-      i::ExternalOneByteString::cast(irhs)->set_resource(nullptr);
+      i::ExternalOneByteString::cast(irhs)->SetResource(i_isolate, nullptr);
     else
-      i::ExternalTwoByteString::cast(irhs)->set_resource(nullptr);
+      i::ExternalTwoByteString::cast(irhs)->SetResource(i_isolate, nullptr);
   }
   i::DeleteArray(two_byte_string);
 }
@@ -20414,7 +20418,8 @@ THREADED_TEST(TwoByteStringInOneByteCons) {
   CHECK_EQ(static_cast<int32_t>('e'),
            reresult->Int32Value(context.local()).FromJust());
   // This avoids the GC from trying to free stack allocated resources.
-  i::Handle<i::ExternalTwoByteString>::cast(flat_string)->set_resource(nullptr);
+  i::Handle<i::ExternalTwoByteString>::cast(flat_string)
+      ->SetResource(i_isolate, nullptr);
 }
 
 

@@ -535,7 +535,7 @@ TEST(Issue23768) {
       CcTest::i_isolate());
   // This situation can happen if source was an external string disposed
   // by its owner.
-  i_source->set_resource(nullptr);
+  i_source->SetResource(CcTest::i_isolate(), nullptr);
 
   // Must not crash.
   CcTest::i_isolate()->logger()->LogCompiledFunctions();
