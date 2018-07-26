@@ -129,7 +129,7 @@ class PretenureModeDependency final
 class FieldTypeDependency final : public CompilationDependencies::Dependency {
  public:
   FieldTypeDependency(const MapRef& owner, int descriptor,
-                      const FieldTypeRef& type)
+                      const ObjectRef& type)
       : owner_(owner), descriptor_(descriptor), type_(type) {
     DCHECK(IsSane());
   }
@@ -156,7 +156,7 @@ class FieldTypeDependency final : public CompilationDependencies::Dependency {
  private:
   MapRef owner_;
   int descriptor_;
-  FieldTypeRef type_;
+  ObjectRef type_;
 };
 
 class GlobalPropertyDependency final
@@ -291,7 +291,7 @@ PretenureFlag CompilationDependencies::DependOnPretenureMode(
 void CompilationDependencies::DependOnFieldType(const MapRef& map,
                                                 int descriptor) {
   MapRef owner = map.FindFieldOwner(descriptor);
-  FieldTypeRef type = owner.GetFieldType(descriptor);
+  ObjectRef type = owner.GetFieldType(descriptor);
   DCHECK(type.equals(map.GetFieldType(descriptor)));
   dependencies_.push_front(new (zone_)
                                FieldTypeDependency(owner, descriptor, type));

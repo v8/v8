@@ -53,37 +53,33 @@ class HeapObjectType {
   Flags const flags_;
 };
 
-#define HEAP_BROKER_NORMAL_OBJECT_LIST(V) \
-  V(AllocationSite)                       \
-  V(Cell)                                 \
-  V(Code)                                 \
-  V(Context)                              \
-  V(FeedbackVector)                       \
-  V(FixedArray)                           \
-  V(FixedArrayBase)                       \
-  V(FixedDoubleArray)                     \
-  V(HeapNumber)                           \
-  V(HeapObject)                           \
-  V(InternalizedString)                   \
-  V(JSArray)                              \
-  V(JSFunction)                           \
-  V(JSGlobalProxy)                        \
-  V(JSObject)                             \
-  V(JSRegExp)                             \
-  V(Map)                                  \
-  V(Module)                               \
-  V(MutableHeapNumber)                    \
-  V(Name)                                 \
-  V(NativeContext)                        \
-  V(PropertyCell)                         \
-  V(ScopeInfo)                            \
-  V(ScriptContextTable)                   \
-  V(SharedFunctionInfo)                   \
+#define HEAP_BROKER_OBJECT_LIST(V) \
+  V(AllocationSite)                \
+  V(Cell)                          \
+  V(Code)                          \
+  V(Context)                       \
+  V(FeedbackVector)                \
+  V(FixedArray)                    \
+  V(FixedArrayBase)                \
+  V(FixedDoubleArray)              \
+  V(HeapNumber)                    \
+  V(HeapObject)                    \
+  V(InternalizedString)            \
+  V(JSArray)                       \
+  V(JSFunction)                    \
+  V(JSGlobalProxy)                 \
+  V(JSObject)                      \
+  V(JSRegExp)                      \
+  V(Map)                           \
+  V(Module)                        \
+  V(MutableHeapNumber)             \
+  V(Name)                          \
+  V(NativeContext)                 \
+  V(PropertyCell)                  \
+  V(ScopeInfo)                     \
+  V(ScriptContextTable)            \
+  V(SharedFunctionInfo)            \
   V(String)
-
-#define HEAP_BROKER_OBJECT_LIST(V)  \
-  HEAP_BROKER_NORMAL_OBJECT_LIST(V) \
-  V(FieldType)
 
 class CompilationDependencies;
 class JSHeapBroker;
@@ -113,7 +109,7 @@ class ObjectRef {
   int AsSmi() const;
 
 #define HEAP_IS_METHOD_DECL(Name) bool Is##Name() const;
-  HEAP_BROKER_NORMAL_OBJECT_LIST(HEAP_IS_METHOD_DECL)
+  HEAP_BROKER_OBJECT_LIST(HEAP_IS_METHOD_DECL)
 #undef HEAP_IS_METHOD_DECL
 
 #define HEAP_AS_METHOD_DECL(Name) Name##Ref As##Name() const;
@@ -130,11 +126,6 @@ class ObjectRef {
 
  private:
   ObjectData* data_;
-};
-
-class FieldTypeRef : public ObjectRef {
- public:
-  using ObjectRef::ObjectRef;
 };
 
 class HeapObjectRef : public ObjectRef {
@@ -319,7 +310,7 @@ class MapRef : public HeapObjectRef {
   bool IsFixedCowArrayMap() const;
 
   // Concerning the underlying instance_descriptors:
-  FieldTypeRef GetFieldType(int descriptor) const;
+  ObjectRef GetFieldType(int descriptor) const;
 };
 
 class FixedArrayBaseRef : public HeapObjectRef {

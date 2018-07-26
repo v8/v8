@@ -28,7 +28,7 @@ class ObjectData : public ZoneObject {
     AllowHandleDereference allow_handle_dereference; \
     return object->Is##Name();                       \
   }
-  HEAP_BROKER_NORMAL_OBJECT_LIST(DEFINE_IS)
+  HEAP_BROKER_OBJECT_LIST(DEFINE_IS)
   DEFINE_IS(Smi)
 #undef DEFINE_IS
 };
@@ -118,14 +118,10 @@ HeapObjectType JSHeapBroker::HeapObjectTypeFromMap(Map* map) const {
     DCHECK(Is##Name());                                           \
     return Name##Ref(data());                                     \
   }
-HEAP_BROKER_NORMAL_OBJECT_LIST(DEFINE_IS_AND_AS)
+HEAP_BROKER_OBJECT_LIST(DEFINE_IS_AND_AS)
 #undef DEFINE_IS_AND_AS
 
 bool ObjectRef::IsSmi() const { return data()->IsSmi(); }
-
-FieldTypeRef ObjectRef::AsFieldType() const {
-  return FieldTypeRef(broker(), object<Object>());
-}
 
 HeapObjectType HeapObjectRef::type() const {
   AllowHandleDereference allow_handle_dereference;
@@ -555,13 +551,13 @@ MapRef MapRef::FindFieldOwner(int descriptor) const {
   return MapRef(broker(), owner);
 }
 
-FieldTypeRef MapRef::GetFieldType(int descriptor) const {
+ObjectRef MapRef::GetFieldType(int descriptor) const {
   AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   Handle<FieldType> field_type(
       object<Map>()->instance_descriptors()->GetFieldType(descriptor),
       broker()->isolate());
-  return FieldTypeRef(broker(), field_type);
+  return ObjectRef(broker(), field_type);
 }
 
 ElementsKind JSArrayRef::GetElementsKind() const {
