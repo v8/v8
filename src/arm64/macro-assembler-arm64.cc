@@ -3000,6 +3000,13 @@ void TurboAssembler::Abort(AbortReason reason) {
   TmpList()->Combine(MacroAssembler::DefaultTmpList());
 
   if (should_abort_hard()) {
+    // TODO(7985): Isolate independent builtins cannot tolerate external
+    // references, so we just provoke a segfault to indicate the error.
+    if (options().isolate_independent_code) {
+      Move(x1, 0);
+      Ldr(x1, MemOperand(x1));
+      return;
+    }
     // We don't care if we constructed a frame. Just pretend we did.
     FrameScope assume_frame(this, StackFrame::NONE);
     Mov(w0, static_cast<int>(reason));
