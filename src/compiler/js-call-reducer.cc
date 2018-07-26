@@ -6636,6 +6636,7 @@ uint32_t ExternalArrayElementSize(const ExternalArrayType element_type) {
   switch (element_type) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
   case kExternal##Type##Array:                          \
+    DCHECK_LE(size, 8);                                 \
     return size;
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
     default:
@@ -6679,6 +6680,10 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
         simplified()->CheckIf(DeoptimizeReason::kOutOfBounds, p.feedback()),
         is_positive, effect, control);
 
+    // Tell the typer that we're a positive Smi, so we'll fit in Int32 math.
+    offset = effect = graph()->NewNode(
+        common()->TypeGuard(Type::UnsignedSmall()), offset, effect, control);
+
     // Coerce {is_little_endian} to boolean.
     is_little_endian =
         graph()->NewNode(simplified()->ToBoolean(), is_little_endian);
@@ -6720,6 +6725,7 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
     // The end offset is the offset plus the element size
     // of the type that we want to load.
     uint32_t element_size = ExternalArrayElementSize(element_type);
+
     Node* end_offset = graph()->NewNode(simplified()->NumberAdd(), offset,
                                         jsgraph()->Constant(element_size));
 
@@ -6796,6 +6802,10 @@ Reduction JSCallReducer::ReduceDataViewPrototypeSet(
         simplified()->CheckIf(DeoptimizeReason::kOutOfBounds, p.feedback()),
         is_positive, effect, control);
 
+    // Tell the typer that we're a positive Smi, so we'll fit in Int32 math.
+    offset = effect = graph()->NewNode(
+        common()->TypeGuard(Type::UnsignedSmall()), offset, effect, control);
+
     // Coerce {is_little_endian} to boolean.
     is_little_endian =
         graph()->NewNode(simplified()->ToBoolean(), is_little_endian);
@@ -6843,6 +6853,7 @@ Reduction JSCallReducer::ReduceDataViewPrototypeSet(
     // The end offset is the offset plus the element size
     // of the type that we want to store.
     uint32_t element_size = ExternalArrayElementSize(element_type);
+
     Node* end_offset = graph()->NewNode(simplified()->NumberAdd(), offset,
                                         jsgraph()->Constant(element_size));
 
