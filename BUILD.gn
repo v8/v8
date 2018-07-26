@@ -39,7 +39,7 @@ declare_args() {
   v8_enable_verify_predictable = false
 
   # Enable compiler warnings when using V8_DEPRECATED apis.
-  v8_deprecation_warnings = false
+  v8_deprecation_warnings = true
 
   # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
   v8_imminent_deprecation_warnings = true
@@ -260,6 +260,12 @@ config("external_config") {
   }
   if (v8_enable_v8_checks) {
     defines += [ "V8_ENABLE_CHECKS" ]  # Used in "include/v8.h".
+  }
+  if (v8_deprecation_warnings) {
+    defines += [ "V8_DEPRECATION_WARNINGS" ]
+  }
+  if (v8_imminent_deprecation_warnings) {
+    defines += [ "V8_IMMINENT_DEPRECATION_WARNINGS" ]
   }
   include_dirs = [
     "include",
