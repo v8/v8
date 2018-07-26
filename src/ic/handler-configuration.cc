@@ -6,6 +6,7 @@
 
 #include "src/code-stubs.h"
 #include "src/ic/handler-configuration-inl.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/transitions.h"
 

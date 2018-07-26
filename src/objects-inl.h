@@ -205,6 +205,10 @@ bool HeapObject::IsJSGeneratorObject() const {
          IsJSAsyncGeneratorObject();
 }
 
+bool HeapObject::IsDataHandler() const {
+  return IsLoadHandler() || IsStoreHandler();
+}
+
 bool HeapObject::IsClassBoilerplate() const { return IsFixedArrayExact(); }
 
 bool HeapObject::IsExternal(Isolate* isolate) const {
@@ -612,6 +616,7 @@ CAST_ACCESSOR(BigInt)
 CAST_ACCESSOR(ObjectBoilerplateDescription)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(ArrayBoilerplateDescription)
+CAST_ACCESSOR(DataHandler)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(EphemeronHashTable)
 CAST_ACCESSOR(EnumCache)

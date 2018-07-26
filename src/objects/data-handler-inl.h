@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_DATA_HANDLER_INL_H_
 #define V8_OBJECTS_DATA_HANDLER_INL_H_
 
+#include "src/objects-inl.h"  // Needed for write barriers
 #include "src/objects/data-handler.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -12,12 +13,6 @@
 
 namespace v8 {
 namespace internal {
-
-bool HeapObject::IsDataHandler() const {
-  return IsLoadHandler() || IsStoreHandler();
-}
-
-CAST_ACCESSOR(DataHandler)
 
 ACCESSORS(DataHandler, smi_handler, Object, kSmiHandlerOffset)
 ACCESSORS(DataHandler, validity_cell, Object, kValidityCellOffset)

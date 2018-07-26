@@ -7,6 +7,7 @@
 #include "src/feedback-vector-inl.h"
 #include "src/ic/ic-inl.h"
 #include "src/objects.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/object-macros.h"
 

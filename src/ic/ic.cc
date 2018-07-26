@@ -23,6 +23,7 @@
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects/api-callbacks.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"

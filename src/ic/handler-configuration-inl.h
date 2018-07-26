@@ -10,7 +10,6 @@
 #include "src/field-index-inl.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
-#include "src/objects/data-handler-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
