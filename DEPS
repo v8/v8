@@ -13,17 +13,17 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2c97c105b7aa2090005dbddf39ecacf05ec36926',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ad6fe7d91c868fe25f6986c0abed6990a1500fca',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '01ce05914f99eb5d6676f415706467b828ba5ad6',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'ad463c9517e348df1ea5cb5f0f9a615365f52bf6',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '297a4dd02b9d36c92ab9b4f121e433c9c3bc14f8',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '323cf32193caecbf074d1a0cb5b02b905f163e0f',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '0dd5c6f980d22be96b728155249df2da355989d9',
+    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '691bfec9d73bfefae30bad32e7a6496f2beceb9c',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '211b3ed9d0481b4caddbee1322321b86a483ca1f',
   'v8/third_party/android_ndk': {
@@ -35,7 +35,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '6cf86b3c343ec8df60c559b00e1cb74c17c3141c',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c829a63538ba53b1f31e3d2eb2e2fdd6f390619a',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -43,7 +43,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/fuchsia-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '9a5d7cecc5bf96bedfe954c6ae4e93ae75ec05e8',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '12961e50abd46eee97f8e1e02257dc077fa8f8bc',
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
