@@ -1337,57 +1337,82 @@ MaybeHandle<Object> NumberFormat::FormatNumber(
 
 namespace {
 
-// TODO(bstell): Make all these a constexpr on the Intl class.
+// Define general regexp macros.
+// Note "(?:" means the regexp group a non-capture group.
+#define REGEX_ALPHA "[a-zA-Z]"
+#define REGEX_DIGIT "[0-9]"
+#define REGEX_ALPHANUM "(?:" REGEX_ALPHA "|" REGEX_DIGIT ")"
+
 void BuildLanguageTagRegexps(Isolate* isolate) {
-  std::string alpha = "[a-zA-Z]";
-  std::string digit = "[0-9]";
-  std::string alphanum = "(" + alpha + "|" + digit + ")";
-  std::string regular =
-      "(art-lojban|cel-gaulish|no-bok|no-nyn|zh-guoyu|zh-hakka|"
-      "zh-min|zh-min-nan|zh-xiang)";
-  std::string irregular =
-      "(en-GB-oed|i-ami|i-bnn|i-default|i-enochian|i-hak|"
-      "i-klingon|i-lux|i-mingo|i-navajo|i-pwn|i-tao|i-tay|"
-      "i-tsu|sgn-BE-FR|sgn-BE-NL|sgn-CH-DE)";
-  std::string grandfathered = "(" + irregular + "|" + regular + ")";
-  std::string private_use = "(x(-" + alphanum + "{1,8})+)";
+// Define the language tag regexp macros.
+// For info on BCP 47 see https://tools.ietf.org/html/bcp47
+// clang-format off
+#define BCP47_REGULAR                                          \
+  "(?:art-lojban|cel-gaulish|no-bok|no-nyn|zh-guoyu|zh-hakka|" \
+  "zh-min|zh-min-nan|zh-xiang)"
+#define BCP47_IRREGULAR                                  \
+  "(?:en-GB-oed|i-ami|i-bnn|i-default|i-enochian|i-hak|" \
+  "i-klingon|i-lux|i-mingo|i-navajo|i-pwn|i-tao|i-tay|"  \
+  "i-tsu|sgn-BE-FR|sgn-BE-NL|sgn-CH-DE)"
+#define BCP47_GRANDFATHERED "(?:" BCP47_IRREGULAR "|" BCP47_REGULAR ")"
+#define BCP47_PRIVATE_USE "(?:x(?:-" REGEX_ALPHANUM "{1,8})+)"
 
-  std::string singleton = "(" + digit + "|[A-WY-Za-wy-z])";
-  std::string language_singleton_regexp = "^" + singleton + "$";
+#define BCP47_SINGLETON "(?:" REGEX_DIGIT "|" "[A-WY-Za-wy-z])"
 
-  std::string extension = "(" + singleton + "(-" + alphanum + "{2,8})+)";
+#define BCP47_EXTENSION "(?:" BCP47_SINGLETON "(?:-" REGEX_ALPHANUM "{2,8})+)"
+#define BCP47_VARIANT  \
+  "(?:" REGEX_ALPHANUM "{5,8}" "|" "(?:" REGEX_DIGIT REGEX_ALPHANUM "{3}))"
 
-  std::string variant = "(" + alphanum + "{5,8}|(" + digit + alphanum + "{3}))";
-  std::string language_variant_regexp = "^" + variant + "$";
+#define BCP47_REGION "(?:" REGEX_ALPHA "{2}" "|" REGEX_DIGIT "{3})"
+#define BCP47_SCRIPT "(?:" REGEX_ALPHA "{4})"
+#define BCP47_EXT_LANG "(?:" REGEX_ALPHA "{3}(?:-" REGEX_ALPHA "{3}){0,2})"
+#define BCP47_LANGUAGE "(?:" REGEX_ALPHA "{2,3}(?:-" BCP47_EXT_LANG ")?" \
+  "|" REGEX_ALPHA "{4}" "|" REGEX_ALPHA "{5,8})"
+#define BCP47_LANG_TAG         \
+  BCP47_LANGUAGE               \
+  "(?:-" BCP47_SCRIPT ")?"     \
+  "(?:-" BCP47_REGION ")?"     \
+  "(?:-" BCP47_VARIANT ")*"    \
+  "(?:-" BCP47_EXTENSION ")*"  \
+  "(?:-" BCP47_PRIVATE_USE ")?"
+  // clang-format on
 
-  std::string region = "(" + alpha + "{2}|" + digit + "{3})";
-  std::string script = "(" + alpha + "{4})";
-  std::string ext_lang = "(" + alpha + "{3}(-" + alpha + "{3}){0,2})";
-  std::string language = "(" + alpha + "{2,3}(-" + ext_lang + ")?|" + alpha +
-                         "{4}|" + alpha + "{5,8})";
-  std::string lang_tag = language + "(-" + script + ")?(-" + region + ")?(-" +
-                         variant + ")*(-" + extension + ")*(-" + private_use +
-                         ")?";
-
-  std::string language_tag =
-      "^(" + lang_tag + "|" + private_use + "|" + grandfathered + ")$";
-  std::string language_tag_regexp = std::string(language_tag);
+  constexpr char kLanguageTagSingletonRegexp[] = "^" BCP47_SINGLETON "$";
+  constexpr char kLanguageTagVariantRegexp[] = "^" BCP47_VARIANT "$";
+  constexpr char kLanguageTagRegexp[] =
+      "^(?:" BCP47_LANG_TAG "|" BCP47_PRIVATE_USE "|" BCP47_GRANDFATHERED ")$";
 
   UErrorCode status = U_ZERO_ERROR;
   icu::RegexMatcher* language_singleton_regexp_matcher = new icu::RegexMatcher(
-      icu::UnicodeString::fromUTF8(language_singleton_regexp), 0, status);
-  CHECK(U_SUCCESS(status));
+      icu::UnicodeString(kLanguageTagSingletonRegexp, -1, US_INV), 0, status);
   icu::RegexMatcher* language_tag_regexp_matcher = new icu::RegexMatcher(
-      icu::UnicodeString::fromUTF8(language_tag_regexp), 0, status);
-  CHECK(U_SUCCESS(status));
+      icu::UnicodeString(kLanguageTagRegexp, -1, US_INV), 0, status);
   icu::RegexMatcher* language_variant_regexp_matcher = new icu::RegexMatcher(
-      icu::UnicodeString::fromUTF8(language_variant_regexp), 0, status);
+      icu::UnicodeString(kLanguageTagVariantRegexp, -1, US_INV), 0, status);
   CHECK(U_SUCCESS(status));
 
   isolate->set_language_tag_regexp_matchers(language_singleton_regexp_matcher,
                                             language_tag_regexp_matcher,
                                             language_variant_regexp_matcher);
+// Undefine the language tag regexp macros.
+#undef BCP47_EXTENSION
+#undef BCP47_EXT_LANG
+#undef BCP47_GRANDFATHERED
+#undef BCP47_IRREGULAR
+#undef BCP47_LANG_TAG
+#undef BCP47_LANGUAGE
+#undef BCP47_PRIVATE_USE
+#undef BCP47_REGION
+#undef BCP47_REGULAR
+#undef BCP47_SCRIPT
+#undef BCP47_SINGLETON
+#undef BCP47_VARIANT
 }
+
+// Undefine the general regexp macros.
+#undef REGEX_ALPHA
+#undef REGEX_DIGIT
+#undef REGEX_ALPHANUM
 
 icu::RegexMatcher* GetLanguageSingletonRegexMatcher(Isolate* isolate) {
   icu::RegexMatcher* language_singleton_regexp_matcher =
