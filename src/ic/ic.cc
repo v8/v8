@@ -753,8 +753,7 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
 
   // Use specialized code for getting prototype of functions.
   if (receiver->IsJSFunction() && *lookup->name() == roots.prototype_string() &&
-      JSFunction::cast(*receiver)->has_prototype_slot() &&
-      !JSFunction::cast(*receiver)->map()->has_non_instance_prototype()) {
+      !JSFunction::cast(*receiver)->PrototypeRequiresRuntimeLookup()) {
     Handle<Code> stub;
     TRACE_HANDLER_STATS(isolate(), LoadIC_FunctionPrototypeStub);
     return BUILTIN_CODE(isolate(), LoadIC_FunctionPrototype);

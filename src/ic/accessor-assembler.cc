@@ -2493,15 +2493,8 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
               &not_function_prototype);
     GotoIfNot(IsPrototypeString(p->name), &not_function_prototype);
 
-    // if (!(has_prototype_slot() && !has_non_instance_prototype())) use generic
-    // property loading mechanism.
-    GotoIfNot(
-        Word32Equal(
-            Word32And(LoadMapBitField(receiver_map),
-                      Int32Constant(Map::HasPrototypeSlotBit::kMask |
-                                    Map::HasNonInstancePrototypeBit::kMask)),
-            Int32Constant(Map::HasPrototypeSlotBit::kMask)),
-        &not_function_prototype);
+    GotoIf(PrototypeRequiresRuntimeLookup(CAST(receiver)),
+           &not_function_prototype);
     Return(LoadJSFunctionPrototype(receiver, &miss));
     BIND(&not_function_prototype);
   }

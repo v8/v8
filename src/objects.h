@@ -3136,6 +3136,8 @@ class JSFunction: public JSObject {
   inline bool has_instance_prototype();
   inline Object* prototype();
   inline Object* instance_prototype();
+  inline bool has_prototype_property();
+  inline bool PrototypeRequiresRuntimeLookup();
   static void SetPrototype(Handle<JSFunction> function,
                            Handle<Object> value);
 

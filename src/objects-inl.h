@@ -2607,6 +2607,14 @@ bool JSFunction::has_prototype() {
   return map()->has_non_instance_prototype() || has_instance_prototype();
 }
 
+bool JSFunction::has_prototype_property() {
+  return (has_prototype_slot() && IsConstructor()) ||
+         IsGeneratorFunction(shared()->kind());
+}
+
+bool JSFunction::PrototypeRequiresRuntimeLookup() {
+  return !has_prototype_property() || map()->has_non_instance_prototype();
+}
 
 Object* JSFunction::instance_prototype() {
   DCHECK(has_instance_prototype());

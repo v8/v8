@@ -3436,21 +3436,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- P r o x y
     CreateJSProxyMaps();
-
     // Proxy function map has prototype slot for storing initial map but does
     // not have a prototype property.
     Handle<Map> proxy_function_map = Map::Copy(
         isolate_, isolate_->strict_function_without_prototype_map(), "Proxy");
-    // Re-set the unused property fields after changing the instance size.
-    // TODO(ulan): Do not change instance size after map creation.
-    int unused_property_fields = proxy_function_map->UnusedPropertyFields();
-    proxy_function_map->set_instance_size(JSFunction::kSizeWithPrototype);
-    // The prototype slot shifts the in-object properties area by one slot.
-    proxy_function_map->SetInObjectPropertiesStartInWords(
-        proxy_function_map->GetInObjectPropertiesStartInWords() + 1);
-    proxy_function_map->set_has_prototype_slot(true);
     proxy_function_map->set_is_constructor(true);
-    proxy_function_map->SetInObjectUnusedPropertyFields(unused_property_fields);
 
     Handle<String> name = factory->Proxy_string();
 
@@ -3458,15 +3448,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         name, proxy_function_map, Builtins::kProxyConstructor);
     Handle<JSFunction> proxy_function = factory->NewFunction(args);
 
-    JSFunction::SetInitialMap(proxy_function, isolate_->proxy_map(),
-                              factory->null_value());
-
     proxy_function->shared()->set_internal_formal_parameter_count(2);
     proxy_function->shared()->set_length(2);
 
     native_context()->set_proxy_function(*proxy_function);
     InstallFunction(isolate_, global, name, proxy_function,
                     factory->Object_string());
+
+    DCHECK(!proxy_function->has_prototype_property());
 
     SimpleInstallFunction(isolate_, proxy_function, "revocable",
                           Builtins::kProxyRevocable, 2, true);

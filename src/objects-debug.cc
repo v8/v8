@@ -938,8 +938,20 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   CHECK(feedback_cell()->IsFeedbackCell());
   CHECK(code()->IsCode());
   CHECK(map()->is_callable());
+  Handle<JSFunction> function(this, isolate);
+  LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
+                    LookupIterator::OWN_SKIP_INTERCEPTOR);
   if (has_prototype_slot()) {
     VerifyObjectField(isolate, kPrototypeOrInitialMapOffset);
+  }
+
+  if (has_prototype_property()) {
+    CHECK(it.IsFound());
+    CHECK_EQ(LookupIterator::ACCESSOR, it.state());
+    CHECK(it.GetAccessors()->IsAccessorInfo());
+  } else {
+    CHECK(!it.IsFound() || it.state() != LookupIterator::ACCESSOR ||
+          !it.GetAccessors()->IsAccessorInfo());
   }
 }
 
