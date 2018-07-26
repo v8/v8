@@ -1734,5 +1734,32 @@ Handle<Smi> Intl::CurrencyDigits(Isolate* isolate, Handle<String> currency) {
   return Handle<Smi>(Smi::FromInt(fraction_digits), isolate);
 }
 
+MaybeHandle<JSObject> Intl::CreateNumberFormat(Isolate* isolate,
+                                               Handle<String> locale,
+                                               Handle<JSObject> options,
+                                               Handle<JSObject> resolved) {
+  Handle<JSFunction> constructor(
+      isolate->native_context()->intl_number_format_function(), isolate);
+
+  Handle<JSObject> local_object;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, local_object,
+                             JSObject::New(constructor, constructor), JSObject);
+
+  // Set number formatter as embedder field of the resulting JS object.
+  icu::DecimalFormat* number_format =
+      NumberFormat::InitializeNumberFormat(isolate, locale, options, resolved);
+
+  CHECK_NOT_NULL(number_format);
+
+  local_object->SetEmbedderField(NumberFormat::kDecimalFormatIndex,
+                                 reinterpret_cast<Smi*>(number_format));
+
+  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
+  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
+                          NumberFormat::DeleteNumberFormat,
+                          WeakCallbackType::kInternalFields);
+  return local_object;
+}
+
 }  // namespace internal
 }  // namespace v8
