@@ -10600,6 +10600,22 @@ int WeakArrayList::CountLiveWeakReferences() const {
   return live_weak_references;
 }
 
+bool WeakArrayList::RemoveOne(MaybeObjectHandle value) {
+  if (length() == 0) return false;
+  // Optimize for the most recently added element to be removed again.
+  for (int i = length() - 1; i >= 0; --i) {
+    if (Get(i) == *value) {
+      // Users should make sure that there are no duplicates.
+      Set(i, HeapObjectReference::ClearedValue());
+      if (i == length() - 1) {
+        set_length(length() - 1);
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
 // static
 Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
                                           Handle<WeakArrayList> array,
@@ -13914,11 +13930,11 @@ SharedFunctionInfo::GlobalIterator::GlobalIterator(Isolate* isolate)
       sfi_iterator_(isolate, script_iterator_.Next()) {}
 
 SharedFunctionInfo* SharedFunctionInfo::GlobalIterator::Next() {
-  SharedFunctionInfo* next = noscript_sfi_iterator_.Next<SharedFunctionInfo>();
-  if (next != nullptr) return next;
+  HeapObject* next = noscript_sfi_iterator_.Next();
+  if (next != nullptr) return SharedFunctionInfo::cast(next);
   for (;;) {
     next = sfi_iterator_.Next();
-    if (next != nullptr) return next;
+    if (next != nullptr) return SharedFunctionInfo::cast(next);
     Script* next_script = script_iterator_.Next();
     if (next_script == nullptr) return nullptr;
     sfi_iterator_.Reset(next_script);
@@ -13955,19 +13971,21 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
 #endif
     list->Set(function_literal_id, HeapObjectReference::Weak(*shared));
   } else {
-    Handle<Object> list = isolate->factory()->noscript_shared_function_infos();
+    Handle<WeakArrayList> list =
+        isolate->factory()->noscript_shared_function_infos();
 
 #ifdef DEBUG
     if (FLAG_enable_slow_asserts) {
-      FixedArrayOfWeakCells::Iterator iterator(*list);
-      SharedFunctionInfo* next;
-      while ((next = iterator.Next<SharedFunctionInfo>()) != nullptr) {
+      WeakArrayList::Iterator iterator(*list);
+      HeapObject* next;
+      while ((next = iterator.Next()) != nullptr) {
         DCHECK_NE(next, *shared);
       }
     }
 #endif  // DEBUG
 
-    list = FixedArrayOfWeakCells::Add(isolate, list, shared);
+    list =
+        WeakArrayList::AddToEnd(isolate, list, MaybeObjectHandle::Weak(shared));
 
     isolate->heap()->SetRootNoScriptSharedFunctionInfos(*list);
   }
@@ -13991,8 +14009,8 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
     }
   } else {
     // Remove shared function info from root array.
-    Object* list = isolate->heap()->noscript_shared_function_infos();
-    CHECK(FixedArrayOfWeakCells::cast(list)->Remove(shared));
+    WeakArrayList* list = isolate->heap()->noscript_shared_function_infos();
+    CHECK(list->RemoveOne(MaybeObjectHandle::Weak(shared)));
   }
 
   // Finally set new script.

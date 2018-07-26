@@ -244,7 +244,8 @@ namespace internal {
   /* Feedback vectors that we need for code coverage or type profile */      \
   V(Object, feedback_vectors_for_profiling_tools,                            \
     FeedbackVectorsForProfilingTools)                                        \
-  V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)     \
+  V(WeakArrayList, noscript_shared_function_infos,                           \
+    NoScriptSharedFunctionInfos)                                             \
   V(FixedArray, serialized_objects, SerializedObjects)                       \
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)   \
   V(TemplateList, message_listeners, MessageListeners)                       \

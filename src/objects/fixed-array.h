@@ -370,6 +370,9 @@ class WeakArrayList : public HeapObject {
   // Returns the number of non-cleaned weak references in the array.
   int CountLiveWeakReferences() const;
 
+  // Returns whether an entry was found and removed.
+  bool RemoveOne(MaybeObjectHandle value);
+
   class Iterator {
    public:
     explicit Iterator(WeakArrayList* array) : index_(0), array_(array) {}
