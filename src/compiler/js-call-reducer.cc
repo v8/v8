@@ -6632,7 +6632,7 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
 }
 
 namespace {
-int ExternalArrayElementSize(const ExternalArrayType element_type) {
+uint32_t ExternalArrayElementSize(const ExternalArrayType element_type) {
   switch (element_type) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
   case kExternal##Type##Array:                          \
@@ -6699,22 +6699,33 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
                               p.feedback()),
         check_neutered, effect, control);
 
-    // Get the byte offset and byte length of the {receiver}.
+    // Get the byte offset and byte length of the {receiver},
+    // and deopt if they aren't Smis.
     Node* byte_offset = effect =
         graph()->NewNode(simplified()->LoadField(
                              AccessBuilder::ForJSArrayBufferViewByteOffset()),
                          receiver, effect, control);
+
+    byte_offset = effect = graph()->NewNode(
+        simplified()->CheckSmi(p.feedback()), byte_offset, effect, control);
 
     Node* byte_length = effect =
         graph()->NewNode(simplified()->LoadField(
                              AccessBuilder::ForJSArrayBufferViewByteLength()),
                          receiver, effect, control);
 
+    byte_length = effect = graph()->NewNode(
+        simplified()->CheckSmi(p.feedback()), byte_length, effect, control);
+
     // The end offset is the offset plus the element size
     // of the type that we want to load.
-    int element_size = ExternalArrayElementSize(element_type);
+    uint32_t element_size = ExternalArrayElementSize(element_type);
     Node* end_offset = graph()->NewNode(simplified()->NumberAdd(), offset,
                                         jsgraph()->Constant(element_size));
+
+    // Also deopt if this is not a Smi to avoid Float64 math.
+    end_offset = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
+                                           end_offset, effect, control);
 
     // We need to check that {end_offset} <= {byte_length}.
     Node* check_bounds = graph()->NewNode(simplified()->NumberLessThanOrEqual(),
@@ -6811,22 +6822,33 @@ Reduction JSCallReducer::ReduceDataViewPrototypeSet(
                               p.feedback()),
         check_neutered, effect, control);
 
-    // Get the byte offset and byte length of the {receiver}.
+    // Get the byte offset and byte length of the {receiver},
+    // and deopt if they aren't Smis.
     Node* byte_offset = effect =
         graph()->NewNode(simplified()->LoadField(
                              AccessBuilder::ForJSArrayBufferViewByteOffset()),
                          receiver, effect, control);
+
+    byte_offset = effect = graph()->NewNode(
+        simplified()->CheckSmi(p.feedback()), byte_offset, effect, control);
 
     Node* byte_length = effect =
         graph()->NewNode(simplified()->LoadField(
                              AccessBuilder::ForJSArrayBufferViewByteLength()),
                          receiver, effect, control);
 
+    byte_length = effect = graph()->NewNode(
+        simplified()->CheckSmi(p.feedback()), byte_length, effect, control);
+
     // The end offset is the offset plus the element size
     // of the type that we want to store.
-    int element_size = ExternalArrayElementSize(element_type);
+    uint32_t element_size = ExternalArrayElementSize(element_type);
     Node* end_offset = graph()->NewNode(simplified()->NumberAdd(), offset,
                                         jsgraph()->Constant(element_size));
+
+    // Also deopt if this is not a Smi to avoid Float64 math.
+    end_offset = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
+                                           end_offset, effect, control);
 
     // We need to check that {end_offset} <= {byte_length}.
     Node* check_bounds = graph()->NewNode(simplified()->NumberLessThanOrEqual(),
