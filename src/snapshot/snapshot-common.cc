@@ -377,8 +377,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
 
   // Store instruction stream lengths and offsets.
-  std::vector<uint32_t> lengths(kTableSize);
-  std::vector<uint32_t> offsets(kTableSize);
+  std::vector<struct Metadata> metadata(kTableSize);
 
   bool saw_unsafe_builtin = false;
   uint32_t raw_data_size = 0;
@@ -403,14 +402,13 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
       uint32_t length = static_cast<uint32_t>(code->raw_instruction_size());
 
       DCHECK_EQ(0, raw_data_size % kCodeAlignment);
-      offsets[i] = raw_data_size;
-      lengths[i] = length;
+      metadata[i].instructions_offset = raw_data_size;
+      metadata[i].instructions_length = length;
 
       // Align the start of each instruction stream.
       raw_data_size += RoundUp<kCodeAlignment>(length);
     } else {
-      offsets[i] = raw_data_size;
-      lengths[i] = 0;
+      metadata[i].instructions_offset = raw_data_size;
     }
   }
   CHECK_WITH_MSG(
@@ -423,18 +421,15 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   uint8_t* blob = new uint8_t[blob_size];
   std::memset(blob, 0, blob_size);
 
-  // Write the offsets and length tables.
-  DCHECK_EQ(OffsetsSize(), sizeof(offsets[0]) * offsets.size());
-  std::memcpy(blob + OffsetsOffset(), offsets.data(), OffsetsSize());
-
-  DCHECK_EQ(LengthsSize(), sizeof(lengths[0]) * lengths.size());
-  std::memcpy(blob + LengthsOffset(), lengths.data(), LengthsSize());
+  // Write the metadata tables.
+  DCHECK_EQ(MetadataSize(), sizeof(metadata[0]) * metadata.size());
+  std::memcpy(blob + MetadataOffset(), metadata.data(), MetadataSize());
 
   // Write the raw data section.
   for (int i = 0; i < Builtins::builtin_count; i++) {
     if (!Builtins::IsIsolateIndependent(i)) continue;
     Code* code = builtins->builtin(i);
-    uint32_t offset = offsets[i];
+    uint32_t offset = metadata[i].instructions_offset;
     uint8_t* dst = blob + RawDataOffset() + offset;
     DCHECK_LE(RawDataOffset() + offset + code->raw_instruction_size(),
               blob_size);
@@ -470,8 +465,8 @@ EmbeddedData EmbeddedData::FromBlob() {
 
 Address EmbeddedData::InstructionStartOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
-  const uint32_t* offsets = Offsets();
-  const uint8_t* result = RawData() + offsets[i];
+  const struct Metadata* metadata = Metadata();
+  const uint8_t* result = RawData() + metadata[i].instructions_offset;
   DCHECK_LE(result, data_ + size_);
   DCHECK_IMPLIES(result == data_ + size_, InstructionSizeOfBuiltin(i) == 0);
   return reinterpret_cast<Address>(result);
@@ -479,8 +474,8 @@ Address EmbeddedData::InstructionStartOfBuiltin(int i) const {
 
 uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
-  const uint32_t* lengths = Lengths();
-  return lengths[i];
+  const struct Metadata* metadata = Metadata();
+  return metadata[i].instructions_length;
 }
 
 size_t EmbeddedData::CreateHash() const {
@@ -519,8 +514,7 @@ void EmbeddedData::PrintStatistics() const {
   const int k90th = embedded_count * 0.90;
   const int k99th = embedded_count * 0.99;
 
-  const int metadata_size =
-      static_cast<int>(HashSize() + OffsetsSize() + LengthsSize());
+  const int metadata_size = static_cast<int>(HashSize() + MetadataSize());
 
   PrintF("EmbeddedData:\n");
   PrintF("  Total size:                         %d\n",
