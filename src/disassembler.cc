@@ -175,7 +175,8 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
   v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
   StringBuilder out(out_buffer.start(), out_buffer.length());
   byte* pc = begin;
-  disasm::Disassembler d(converter);
+  disasm::Disassembler d(converter,
+                         disasm::Disassembler::kContinueOnUnimplementedOpcode);
   RelocIterator* it = nullptr;
   if (!converter.code().is_null()) {
     it = new RelocIterator(converter.code());

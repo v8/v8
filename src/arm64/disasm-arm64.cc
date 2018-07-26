@@ -4106,15 +4106,9 @@ class BufferDisassembler : public v8::internal::DisassemblingDecoder {
   v8::internal::Vector<char> out_buffer_;
 };
 
-Disassembler::Disassembler(const NameConverter& converter)
-    : converter_(converter) {}
-
-
-Disassembler::~Disassembler() { USE(converter_); }
-
-
 int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
                                     byte* instr) {
+  USE(converter_);  // avoid unused field warning
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;
   BufferDisassembler disasm(buffer);
   decoder.AppendVisitor(&disasm);
@@ -4129,8 +4123,8 @@ int Disassembler::ConstantPoolSizeAt(byte* instr) {
       reinterpret_cast<v8::internal::Instruction*>(instr));
 }
 
-
-void Disassembler::Disassemble(FILE* file, byte* start, byte* end) {
+void Disassembler::Disassemble(FILE* file, byte* start, byte* end,
+                               UnimplementedOpcodeAction) {
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;
   v8::internal::PrintDisassembler disasm(file);
   decoder.AppendVisitor(&disasm);
