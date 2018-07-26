@@ -5255,7 +5255,11 @@ CallDescriptor* GetWasmCallDescriptor(
   // Add return location(s).
   LinkageLocationAllocator rets(wasm::kGpReturnRegisters,
                                 wasm::kFpReturnRegisters);
-  rets.SetStackOffset(params.NumStackSlots());
+
+  int parameter_slots = params.NumStackSlots();
+  if (kPadArguments) parameter_slots = RoundUp(parameter_slots, 2);
+
+  rets.SetStackOffset(parameter_slots);
 
   const int return_count = static_cast<int>(locations.return_count_);
   for (int i = 0; i < return_count; i++) {
@@ -5276,19 +5280,19 @@ CallDescriptor* GetWasmCallDescriptor(
 
   CallDescriptor::Flags flags =
       use_retpoline ? CallDescriptor::kRetpoline : CallDescriptor::kNoFlags;
-  return new (zone) CallDescriptor(                    // --
-      kind,                                            // kind
-      target_type,                                     // target MachineType
-      target_loc,                                      // target location
-      locations.Build(),                               // location_sig
-      params.NumStackSlots(),                          // stack_parameter_count
-      compiler::Operator::kNoProperties,               // properties
-      kCalleeSaveRegisters,                            // callee-saved registers
-      kCalleeSaveFPRegisters,                          // callee-saved fp regs
-      flags,                                           // flags
-      "wasm-call",                                     // debug name
-      0,                                               // allocatable registers
-      rets.NumStackSlots() - params.NumStackSlots());  // stack_return_count
+  return new (zone) CallDescriptor(             // --
+      kind,                                     // kind
+      target_type,                              // target MachineType
+      target_loc,                               // target location
+      locations.Build(),                        // location_sig
+      parameter_slots,                          // stack_parameter_count
+      compiler::Operator::kNoProperties,        // properties
+      kCalleeSaveRegisters,                     // callee-saved registers
+      kCalleeSaveFPRegisters,                   // callee-saved fp regs
+      flags,                                    // flags
+      "wasm-call",                              // debug name
+      0,                                        // allocatable registers
+      rets.NumStackSlots() - parameter_slots);  // stack_return_count
 }
 
 namespace {

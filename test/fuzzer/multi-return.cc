@@ -306,6 +306,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
           &wrapper_info, i_isolate, wrapper_desc, caller.graph(),
           AssemblerOptions::Default(i_isolate), caller.Export())
           .ToHandleChecked();
+
   auto fn = GeneratedCode<int32_t>::FromCode(*wrapper_code);
   int result = fn.Call();
 
