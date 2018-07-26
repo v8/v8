@@ -232,6 +232,8 @@ TEST(SharedEngineRunThreadedBuilding) {
   thread2.Join();
 }
 
+// TODO(v8:7424): Re-enable this test once race in modification scope is fixed.
+#if 0
 TEST(SharedEngineRunThreadedExecution) {
   SharedEngine engine;
   SharedModule module;
@@ -257,6 +259,7 @@ TEST(SharedEngineRunThreadedExecution) {
   thread1.Join();
   thread2.Join();
 }
+#endif
 
 }  // namespace test_wasm_shared_engine
 }  // namespace wasm
