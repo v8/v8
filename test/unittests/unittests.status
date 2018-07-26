@@ -3,6 +3,12 @@
 # found in the LICENSE file.
 
 [
+
+[ALWAYS, {
+  # BUG(v8:7984).
+  'SpacesTest.WriteBarrierFromHeapObject': [SKIP],
+}], # ALWAYS
+
 ['system == macos and asan', {
   # BUG(820416).
   'BitsDeathTest*': [SKIP],
