@@ -155,7 +155,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kWord32AtomicOr:
           case IrOpcode::kWord32AtomicXor:
             representation_vector_[node->id()] = PromoteRepresentation(
-                AtomicOpRepresentationOf(node->op()).representation());
+                AtomicOpType(node->op()).representation());
             break;
           case IrOpcode::kStore:
           case IrOpcode::kProtectedStore:

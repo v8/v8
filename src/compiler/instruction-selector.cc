@@ -1705,11 +1705,11 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitWord32AtomicStore(node);
     case IrOpcode::kWord64AtomicStore:
       return VisitWord64AtomicStore(node);
-#define ATOMIC_CASE(name, rep)                               \
-  case IrOpcode::k##rep##Atomic##name: {                     \
-    MachineType type = AtomicOpRepresentationOf(node->op()); \
-    MarkAsRepresentation(type.representation(), node);       \
-    return Visit##rep##Atomic##name(node);                   \
+#define ATOMIC_CASE(name, rep)                         \
+  case IrOpcode::k##rep##Atomic##name: {               \
+    MachineType type = AtomicOpType(node->op());       \
+    MarkAsRepresentation(type.representation(), node); \
+    return Visit##rep##Atomic##name(node);             \
   }
       ATOMIC_CASE(Add, Word32)
       ATOMIC_CASE(Add, Word64)

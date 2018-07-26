@@ -110,7 +110,7 @@ V8_EXPORT_PRIVATE StackSlotRepresentation const& StackSlotRepresentationOf(
 MachineRepresentation AtomicStoreRepresentationOf(Operator const* op)
     V8_WARN_UNUSED_RESULT;
 
-MachineType AtomicOpRepresentationOf(Operator const* op) V8_WARN_UNUSED_RESULT;
+MachineType AtomicOpType(Operator const* op) V8_WARN_UNUSED_RESULT;
 
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
@@ -624,33 +624,33 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // atomic-store [base + index], value
   const Operator* Word64AtomicStore(MachineRepresentation rep);
   // atomic-exchange [base + index], value
-  const Operator* Word32AtomicExchange(MachineType rep);
+  const Operator* Word32AtomicExchange(MachineType type);
   // atomic-exchange [base + index], value
-  const Operator* Word64AtomicExchange(MachineType rep);
+  const Operator* Word64AtomicExchange(MachineType type);
   // atomic-compare-exchange [base + index], old_value, new_value
-  const Operator* Word32AtomicCompareExchange(MachineType rep);
+  const Operator* Word32AtomicCompareExchange(MachineType type);
   // atomic-compare-exchange [base + index], old_value, new_value
-  const Operator* Word64AtomicCompareExchange(MachineType rep);
+  const Operator* Word64AtomicCompareExchange(MachineType type);
   // atomic-add [base + index], value
-  const Operator* Word32AtomicAdd(MachineType rep);
+  const Operator* Word32AtomicAdd(MachineType type);
   // atomic-sub [base + index], value
-  const Operator* Word32AtomicSub(MachineType rep);
+  const Operator* Word32AtomicSub(MachineType type);
   // atomic-and [base + index], value
-  const Operator* Word32AtomicAnd(MachineType rep);
+  const Operator* Word32AtomicAnd(MachineType type);
   // atomic-or [base + index], value
-  const Operator* Word32AtomicOr(MachineType rep);
+  const Operator* Word32AtomicOr(MachineType type);
   // atomic-xor [base + index], value
-  const Operator* Word32AtomicXor(MachineType rep);
+  const Operator* Word32AtomicXor(MachineType type);
   // atomic-load [base + index]
-  const Operator* Word64AtomicAdd(MachineType rep);
+  const Operator* Word64AtomicAdd(MachineType type);
   // atomic-sub [base + index], value
-  const Operator* Word64AtomicSub(MachineType rep);
+  const Operator* Word64AtomicSub(MachineType type);
   // atomic-and [base + index], value
-  const Operator* Word64AtomicAnd(MachineType rep);
+  const Operator* Word64AtomicAnd(MachineType type);
   // atomic-or [base + index], value
-  const Operator* Word64AtomicOr(MachineType rep);
+  const Operator* Word64AtomicOr(MachineType type);
   // atomic-xor [base + index], value
-  const Operator* Word64AtomicXor(MachineType rep);
+  const Operator* Word64AtomicXor(MachineType type);
 
   const OptionalOperator SpeculationFence();
 
