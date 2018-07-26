@@ -165,7 +165,7 @@ class BufferedCharacterStream : public Utf16CharacterStream {
   }
 
  protected:
-  bool ReadBlock() override {
+  bool ReadBlock() final {
     size_t position = pos();
     buffer_pos_ = position;
     buffer_start_ = &buffer_[0];
@@ -183,9 +183,7 @@ class BufferedCharacterStream : public Utf16CharacterStream {
     return true;
   }
 
-  bool can_access_heap() override {
-    return ByteStream<uint16_t>::kCanAccessHeap;
-  }
+  bool can_access_heap() final { return ByteStream<uint16_t>::kCanAccessHeap; }
 
  private:
   static const size_t kBufferSize = 512;
@@ -200,12 +198,11 @@ class UnbufferedCharacterStream : public Utf16CharacterStream {
  public:
   template <class... TArgs>
   UnbufferedCharacterStream(size_t pos, TArgs... args) : byte_stream_(args...) {
-    DCHECK(!ByteStream<uint16_t>::kCanAccessHeap);
     buffer_pos_ = pos;
   }
 
  protected:
-  bool ReadBlock() override {
+  bool ReadBlock() final {
     size_t position = pos();
     buffer_pos_ = position;
     Range<uint16_t> range = byte_stream_.GetDataAt(position);
@@ -219,10 +216,48 @@ class UnbufferedCharacterStream : public Utf16CharacterStream {
     return true;
   }
 
-  bool can_access_heap() override { return false; }
+  bool can_access_heap() final { return ByteStream<uint16_t>::kCanAccessHeap; }
+
+  ByteStream<uint16_t> byte_stream_;
+};
+
+// Provides a unbuffered utf-16 view on the bytes from the underlying
+// ByteStream.
+class RelocatingCharacterStream
+    : public UnbufferedCharacterStream<OnHeapStream> {
+ public:
+  template <class... TArgs>
+  RelocatingCharacterStream(Isolate* isolate, size_t pos, TArgs... args)
+      : UnbufferedCharacterStream<OnHeapStream>(pos, args...),
+        isolate_(isolate) {
+    isolate->heap()->AddGCEpilogueCallback(UpdateBufferPointersCallback,
+                                           v8::kGCTypeAll, this);
+  }
 
  private:
-  ByteStream<uint16_t> byte_stream_;
+  ~RelocatingCharacterStream() final {
+    isolate_->heap()->RemoveGCEpilogueCallback(UpdateBufferPointersCallback,
+                                               this);
+  }
+
+  static void UpdateBufferPointersCallback(v8::Isolate* v8_isolate,
+                                           v8::GCType type,
+                                           v8::GCCallbackFlags flags,
+                                           void* stream) {
+    reinterpret_cast<RelocatingCharacterStream*>(stream)
+        ->UpdateBufferPointers();
+  }
+
+  void UpdateBufferPointers() {
+    Range<uint16_t> range = byte_stream_.GetDataAt(0);
+    if (range.start != buffer_start_) {
+      buffer_cursor_ = (buffer_cursor_ - buffer_start_) + range.start;
+      buffer_start_ = range.start;
+      buffer_end_ = range.end;
+    }
+  }
+
+  Isolate* isolate_;
 };
 
 // ----------------------------------------------------------------------------
@@ -240,7 +275,7 @@ class BufferedUtf16CharacterStream : public Utf16CharacterStream {
  protected:
   static const size_t kBufferSize = 512;
 
-  bool ReadBlock() override;
+  bool ReadBlock() final;
 
   // FillBuffer should read up to kBufferSize characters at position and store
   // them into buffer_[0..]. It returns the number of characters stored.
@@ -285,14 +320,14 @@ class Utf8ExternalStreamingStream : public BufferedUtf16CharacterStream {
       : current_({0, {0, 0, 0, unibrow::Utf8::State::kAccept}}),
         source_stream_(source_stream),
         stats_(stats) {}
-  ~Utf8ExternalStreamingStream() override {
+  ~Utf8ExternalStreamingStream() final {
     for (size_t i = 0; i < chunks_.size(); i++) delete[] chunks_[i].data;
   }
 
-  bool can_access_heap() override { return false; }
+  bool can_access_heap() final { return false; }
 
  protected:
-  size_t FillBuffer(size_t position) override;
+  size_t FillBuffer(size_t position) final;
 
  private:
   // A position within the data stream. It stores:
@@ -585,9 +620,10 @@ Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
         static_cast<size_t>(start_pos), Handle<SeqOneByteString>::cast(data),
         start_offset, static_cast<size_t>(end_pos));
   } else if (data->IsSeqTwoByteString()) {
-    return new BufferedCharacterStream<uint16_t, OnHeapStream>(
-        static_cast<size_t>(start_pos), Handle<SeqTwoByteString>::cast(data),
-        start_offset, static_cast<size_t>(end_pos));
+    return new RelocatingCharacterStream(
+        isolate, static_cast<size_t>(start_pos),
+        Handle<SeqTwoByteString>::cast(data), start_offset,
+        static_cast<size_t>(end_pos));
   } else {
     UNREACHABLE();
   }

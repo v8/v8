@@ -560,3 +560,34 @@ TEST(TestOverlongAndInvalidSequences) {
   CHECK_EQ(unicode_expected.size(), arraysize(cases));
   TestChunkStreamAgainstReference(cases, unicode_expected);
 }
+
+TEST(RelocatingCharacterStream) {
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  i::Isolate* i_isolate = CcTest::i_isolate();
+  v8::HandleScope scope(CcTest::isolate());
+
+  const char* string = "abcd";
+  int length = static_cast<int>(strlen(string));
+  std::unique_ptr<i::uc16[]> uc16_buffer(new i::uc16[length]);
+  for (int i = 0; i < length; i++) {
+    uc16_buffer[i] = string[i];
+  }
+  i::Vector<const i::uc16> two_byte_vector(uc16_buffer.get(), length);
+  i::Handle<i::String> two_byte_string =
+      i_isolate->factory()
+          ->NewStringFromTwoByte(two_byte_vector, i::NOT_TENURED)
+          .ToHandleChecked();
+  std::unique_ptr<i::Utf16CharacterStream> two_byte_string_stream(
+      i::ScannerStream::For(i_isolate, two_byte_string, 0, length));
+  CHECK_EQ('a', two_byte_string_stream->Advance());
+  CHECK_EQ('b', two_byte_string_stream->Advance());
+  CHECK_EQ(size_t{2}, two_byte_string_stream->pos());
+  i::String* raw = *two_byte_string;
+  i_isolate->heap()->CollectGarbage(i::NEW_SPACE,
+                                    i::GarbageCollectionReason::kUnknown);
+  // GC moved the string.
+  CHECK_NE(raw, *two_byte_string);
+  CHECK_EQ('c', two_byte_string_stream->Advance());
+  CHECK_EQ('d', two_byte_string_stream->Advance());
+}
