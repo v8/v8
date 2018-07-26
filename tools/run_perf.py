@@ -126,6 +126,7 @@ RESULT_LIST_RE = re.compile(r"^\[([^\]]+)\]$")
 TOOLS_BASE = os.path.abspath(os.path.dirname(__file__))
 ANDROID_BUILD_TOOLS = os.path.join(
     os.path.dirname(TOOLS_BASE), 'build', 'android')
+V8_PERF_INTERNAL_REPO = 'https://chrome-internal.googlesource.com/v8/v8-perf'
 
 
 def LoadAndroidBuildTools(path):  # pragma: no cover
@@ -1042,6 +1043,11 @@ def Main(args):
                     "--filter=JSTests/TypedArrays/ will run only TypedArray "
                     "benchmarks from the JSTests suite.",
                     default="")
+  parser.add_option('--checkout-internal-perf-at',
+                    help="When specified the script will clone V8 repository "
+                    "with internal perf tests at the specified revision to "
+                    "v8-perf subdirectory in current working directory. The "
+                    "caller must have read access to the repo.")
 
   (options, args) = parser.parse_args(args)
 
@@ -1095,6 +1101,15 @@ def Main(args):
   if options.json_test_results_secondary:
     options.json_test_results_secondary = os.path.abspath(
         options.json_test_results_secondary)
+
+  if options.checkout_internal_perf_at:
+    v8_perf_internal_path = os.path.abspath('v8-perf')
+    # TODO(sergiyb): Add logic to reuse Git cache on the bot if available.
+    subprocess.check_call(
+        ['git', 'clone', V8_PERF_INTERNAL_REPO, v8_perf_internal_path])
+    subprocess.check_call(
+        ['git', 'reset', '--hard', options.checkout_internal_perf_at],
+        cwd=v8_perf_internal_path)
 
   # Ensure all arguments have absolute path before we start changing current
   # directory.
