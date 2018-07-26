@@ -1927,10 +1927,8 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 bool IsNodeUnsigned(Node* n) {
   NodeMatcher m(n);
 
-  if (m.IsLoad()) {
-    LoadRepresentation load_rep = LoadRepresentationOf(n->op());
-    return load_rep.IsUnsigned();
-  } else if (m.IsUnalignedLoad()) {
+  if (m.IsLoad() || m.IsUnalignedLoad() || m.IsPoisonedLoad() ||
+      m.IsProtectedLoad() || m.IsWord32AtomicLoad() || m.IsWord64AtomicLoad()) {
     LoadRepresentation load_rep = LoadRepresentationOf(n->op());
     return load_rep.IsUnsigned();
   } else {
