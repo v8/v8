@@ -872,8 +872,8 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
         isolate, can_request_more, &mem, this, std::move(module), env));
     TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
                size);
-    AssignRanges(start, end, ret.get());
     base::LockGuard<base::Mutex> lock(&native_modules_mutex_);
+    AssignRanges(start, end, ret.get());
     native_modules_.emplace(ret.get());
     return ret;
   }

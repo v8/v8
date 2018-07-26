@@ -117,9 +117,12 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Cancel all AsyncCompileJobs that belong to the given Isolate. Their
   // deletion is delayed until all tasks accessing the AsyncCompileJob finish
   // their execution. This is used to clean-up the isolate to be reused.
-  void AbortCompileJobsOnIsolate(Isolate*);
+  void AbortCompileJobsOnIsolate(Isolate* isolate);
 
-  void TearDown();
+  // Deletes all AsyncCompileJobs that belong to the given Isolate. Similar to
+  // the above {AbortCompileJobsOnIsolate} but does not delay deletion because
+  // this is only used during tear-down of the Isolate.
+  void DeleteCompileJobsOnIsolate(Isolate* isolate);
 
   // Call on process start and exit.
   static void InitializeOncePerProcess();
@@ -134,6 +137,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, std::unique_ptr<byte[]> bytes_copy, size_t length,
       Handle<Context> context,
       std::unique_ptr<CompilationResultResolver> resolver);
+  void TearDown();
 
   // We use an AsyncCompileJob as the key for itself so that we can delete the
   // job from the map when it is finished.
@@ -142,16 +146,16 @@ class V8_EXPORT_PRIVATE WasmEngine {
   WasmMemoryTracker memory_tracker_;
   AccountingAllocator allocator_;
 
-  // Contains all CancelableTaskManagers that run tasks that are dependent
-  // on the isolate.
-  std::list<CancelableTaskManager*> task_managers_;
-
   // This mutex protects all information which is mutated concurrently or
   // fields that are initialized lazily on the first access.
   base::Mutex mutex_;
 
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
+
+  // Contains all CancelableTaskManagers that run tasks that are dependent
+  // on the engine. Will be canceled on engine tear down.
+  std::list<CancelableTaskManager*> task_managers_;
 
   std::unique_ptr<CompilationStatistics> compilation_stats_;
   std::unique_ptr<CodeTracer> code_tracer_;

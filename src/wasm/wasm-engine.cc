@@ -20,7 +20,7 @@ namespace wasm {
 WasmEngine::WasmEngine(std::unique_ptr<WasmCodeManager> code_manager)
     : code_manager_(std::move(code_manager)) {}
 
-WasmEngine::~WasmEngine() = default;
+WasmEngine::~WasmEngine() { TearDown(); }
 
 bool WasmEngine::SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes) {
   // TODO(titzer): remove dependency on the isolate.
@@ -185,10 +185,12 @@ CodeTracer* WasmEngine::GetCodeTracer() {
 }
 
 void WasmEngine::Register(CancelableTaskManager* task_manager) {
+  base::LockGuard<base::Mutex> guard(&mutex_);
   task_managers_.emplace_back(task_manager);
 }
 
 void WasmEngine::Unregister(CancelableTaskManager* task_manager) {
+  base::LockGuard<base::Mutex> guard(&mutex_);
   task_managers_.remove(task_manager);
 }
 
@@ -224,14 +226,25 @@ void WasmEngine::AbortCompileJobsOnIsolate(Isolate* isolate) {
   for (auto* job : isolate_jobs) job->Abort();
 }
 
+void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
+  for (auto it = jobs_.begin(); it != jobs_.end();) {
+    if (it->first->isolate() == isolate) {
+      it = jobs_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
 void WasmEngine::TearDown() {
-  // Cancel all registered task managers.
+  // Cancel all registered task managers. Locking not required since no more
+  // Isolates that could register or unregister task managers exist.
   for (auto task_manager : task_managers_) {
     task_manager->CancelAndWait();
   }
 
-  // Cancel all AsyncCompileJobs.
-  jobs_.clear();
+  // All AsyncCompileJobs have been canceled.
+  DCHECK(jobs_.empty());
 }
 
 namespace {
