@@ -310,6 +310,10 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> CreateNumberFormat(
       Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
       Handle<JSObject> resolved);
+
+  // ecma402/#sec-iswellformedcurrencycode
+  static bool IsWellFormedCurrencyCode(Isolate* isolate,
+                                       Handle<String> currency);
 };
 
 }  // namespace internal

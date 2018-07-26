@@ -1228,17 +1228,6 @@ DEFINE_METHOD(
   }
 );
 
-/**
- * Verifies that the input is a well-formed ISO 4217 currency code.
- * Don't uppercase to test. It could convert invalid code into a valid one.
- * For example \u00DFP (Eszett+P) becomes SSP.
- */
-function isWellFormedCurrencyCode(currency) {
-  return typeof currency === "string" && currency.length === 3 &&
-      IS_NULL(%regexp_internal_match(/[^A-Za-z]/, currency));
-}
-
-
 function defaultNumberOption(value, min, max, fallback, property) {
   if (!IS_UNDEFINED(value)) {
     value = TO_NUMBER(value);
@@ -1308,7 +1297,7 @@ function CreateNumberFormat(locales, options) {
     'style', 'string', ['decimal', 'percent', 'currency'], 'decimal'));
 
   var currency = getOption('currency', 'string');
-  if (!IS_UNDEFINED(currency) && !isWellFormedCurrencyCode(currency)) {
+  if (!IS_UNDEFINED(currency) && !%IsWellFormedCurrencyCode(currency)) {
     throw %make_range_error(kInvalidCurrencyCode, currency);
   }
 

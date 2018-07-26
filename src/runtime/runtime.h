@@ -222,6 +222,7 @@ namespace internal {
   F(InternalNumberFormat, 2, 1)              \
   F(IntlUnwrapReceiver, 5, 1)                \
   F(IsInitializedIntlObjectOfType, 2, 1)     \
+  F(IsWellFormedCurrencyCode, 1, 1)          \
   F(MarkAsInitializedIntlObjectOfType, 2, 1) \
   F(PluralRulesSelect, 2, 1)                 \
   F(StringLocaleConvertCase, 3, 1)           \

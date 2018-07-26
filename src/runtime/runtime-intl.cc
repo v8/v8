@@ -116,6 +116,14 @@ RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
   return *Intl::DefaultLocale(isolate);
 }
 
+RUNTIME_FUNCTION(Runtime_IsWellFormedCurrencyCode) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, currency, 0);
+  return *(isolate->factory()->ToBoolean(
+      Intl::IsWellFormedCurrencyCode(isolate, currency)));
+}
+
 RUNTIME_FUNCTION(Runtime_IsInitializedIntlObjectOfType) {
   HandleScope scope(isolate);
 

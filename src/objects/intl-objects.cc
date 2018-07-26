@@ -1761,5 +1761,33 @@ MaybeHandle<JSObject> Intl::CreateNumberFormat(Isolate* isolate,
   return local_object;
 }
 
+namespace {
+
+bool IsAToZ(char ch) {
+  return (('A' <= ch) && (ch <= 'Z')) || (('a' <= ch) && (ch <= 'z'));
+}
+
+}  // namespace
+
+// Verifies that the input is a well-formed ISO 4217 currency code.
+// ecma402/#sec-currency-codes
+bool Intl::IsWellFormedCurrencyCode(Isolate* isolate, Handle<String> currency) {
+  // 2. If the number of elements in normalized is not 3, return false.
+  if (currency->length() != 3) return false;
+
+  currency = String::Flatten(isolate, currency);
+  {
+    DisallowHeapAllocation no_gc;
+    String::FlatContent flat = currency->GetFlatContent();
+
+    // 1. Let normalized be the result of mapping currency to upper case as
+    // described in 6.1. 3. If normalized contains any character that is not in
+    // the range "A" to "Z" (U+0041 to U+005A), return false. 4. Return true.
+    // Don't uppercase to test. It could convert invalid code into a valid one.
+    // For example \u00DFP (Eszett+P) becomes SSP.
+    return (IsAToZ(flat.Get(0)) && IsAToZ(flat.Get(1)) && IsAToZ(flat.Get(2)));
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
