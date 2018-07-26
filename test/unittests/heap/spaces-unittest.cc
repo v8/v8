@@ -53,20 +53,18 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
 }
 
 TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
-  Heap* heap = i_isolate()->heap();
-  CompactionSpace* temporary_space =
-      new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
-  EXPECT_NE(nullptr, temporary_space);
-  HeapObject* object =
-      temporary_space->AllocateRawUnaligned(kMaxRegularHeapObjectSize)
-          .ToObjectChecked();
-  EXPECT_NE(nullptr, object);
-
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  heap_internals::MemoryChunk* slim_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(object);
-  EXPECT_EQ(static_cast<void*>(chunk), static_cast<void*>(slim_chunk));
-  delete temporary_space;
+  constexpr Address address1 = Page::kPageSize;
+  HeapObject* object1 = reinterpret_cast<HeapObject*>(address1);
+  MemoryChunk* chunk1 = MemoryChunk::FromHeapObject(object1);
+  heap_internals::MemoryChunk* slim_chunk1 =
+      heap_internals::MemoryChunk::FromHeapObject(object1);
+  EXPECT_EQ(static_cast<void*>(chunk1), static_cast<void*>(slim_chunk1));
+  constexpr Address address2 = 2 * Page::kPageSize - 1;
+  HeapObject* object2 = reinterpret_cast<HeapObject*>(address2);
+  MemoryChunk* chunk2 = MemoryChunk::FromHeapObject(object2);
+  heap_internals::MemoryChunk* slim_chunk2 =
+      heap_internals::MemoryChunk::FromHeapObject(object2);
+  EXPECT_EQ(static_cast<void*>(chunk2), static_cast<void*>(slim_chunk2));
 }
 
 TEST_F(SpacesTest, WriteBarrierIsMarking) {
