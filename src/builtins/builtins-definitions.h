@@ -1367,7 +1367,11 @@ namespace internal {
   /* ecma402 #sec-intl.RelativeTimeFormat.prototype.format */          \
   CPP(RelativeTimeFormatPrototypeFormat)                               \
   /* ecma402 #sec-intl.RelativeTimeFormat.prototype.formatToParts */   \
-  CPP(RelativeTimeFormatPrototypeFormatToParts)
+  CPP(RelativeTimeFormatPrototypeFormatToParts)                        \
+  /* ecma402 #sup-string.prototype.tolocalelowercase */                \
+  CPP(StringPrototypeToLocaleLowerCase)                                \
+  /* ecma402 #sup-string.prototype.tolocaleuppercase */                \
+  CPP(StringPrototypeToLocaleUpperCase)
 #else
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)    \
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)     \

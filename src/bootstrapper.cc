@@ -2077,18 +2077,18 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kStringPrototypeTrimStart, 0, false);
     SimpleInstallFunction(isolate_, prototype, "trimRight",
                           Builtins::kStringPrototypeTrimEnd, 0, false);
-#ifdef V8_INTL_SUPPORT
-    SimpleInstallFunction(isolate_, prototype, "toLowerCase",
-                          Builtins::kStringPrototypeToLowerCaseIntl, 0, true);
-    SimpleInstallFunction(isolate_, prototype, "toUpperCase",
-                          Builtins::kStringPrototypeToUpperCaseIntl, 0, false);
-#else
     SimpleInstallFunction(isolate_, prototype, "toLocaleLowerCase",
                           Builtins::kStringPrototypeToLocaleLowerCase, 0,
                           false);
     SimpleInstallFunction(isolate_, prototype, "toLocaleUpperCase",
                           Builtins::kStringPrototypeToLocaleUpperCase, 0,
                           false);
+#ifdef V8_INTL_SUPPORT
+    SimpleInstallFunction(isolate_, prototype, "toLowerCase",
+                          Builtins::kStringPrototypeToLowerCaseIntl, 0, true);
+    SimpleInstallFunction(isolate_, prototype, "toUpperCase",
+                          Builtins::kStringPrototypeToUpperCaseIntl, 0, false);
+#else
     SimpleInstallFunction(isolate_, prototype, "toLowerCase",
                           Builtins::kStringPrototypeToLowerCase, 0, false);
     SimpleInstallFunction(isolate_, prototype, "toUpperCase",

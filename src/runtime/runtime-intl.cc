@@ -547,49 +547,6 @@ RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
   return ConvertToUpper(s, isolate);
 }
 
-RUNTIME_FUNCTION(Runtime_StringLocaleConvertCase) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 3);
-  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(is_upper, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, lang_arg, 2);
-
-  // Primary language tag can be up to 8 characters long in theory.
-  // https://tools.ietf.org/html/bcp47#section-2.2.1
-  DCHECK_LE(lang_arg->length(), 8);
-  lang_arg = String::Flatten(isolate, lang_arg);
-  s = String::Flatten(isolate, s);
-
-  // All the languages requiring special-handling have two-letter codes.
-  // Note that we have to check for '!= 2' here because private-use language
-  // tags (x-foo) or grandfathered irregular tags (e.g. i-enochian) would have
-  // only 'x' or 'i' when they get here.
-  if (V8_UNLIKELY(lang_arg->length() != 2))
-    return ConvertCase(s, is_upper, isolate);
-
-  char c1, c2;
-  {
-    DisallowHeapAllocation no_gc;
-    String::FlatContent lang = lang_arg->GetFlatContent();
-    c1 = lang.Get(0);
-    c2 = lang.Get(1);
-  }
-  // TODO(jshin): Consider adding a fast path for ASCII or Latin-1. The fastpath
-  // in the root locale needs to be adjusted for az, lt and tr because even case
-  // mapping of ASCII range characters are different in those locales.
-  // Greek (el) does not require any adjustment.
-  if (V8_UNLIKELY(c1 == 't' && c2 == 'r'))
-    return LocaleConvertCase(s, isolate, is_upper, "tr");
-  if (V8_UNLIKELY(c1 == 'e' && c2 == 'l'))
-    return LocaleConvertCase(s, isolate, is_upper, "el");
-  if (V8_UNLIKELY(c1 == 'l' && c2 == 't'))
-    return LocaleConvertCase(s, isolate, is_upper, "lt");
-  if (V8_UNLIKELY(c1 == 'a' && c2 == 'z'))
-    return LocaleConvertCase(s, isolate, is_upper, "az");
-
-  return ConvertCase(s, is_upper, isolate);
-}
-
 RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());

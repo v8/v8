@@ -807,7 +807,6 @@ function canonicalizeLanguageTag(localeID) {
   return %CanonicalizeLanguageTag(localeString);
 }
 
-
 /**
  * Returns an InternalArray where all locales are canonicalized and duplicates
  * removed.
@@ -845,6 +844,13 @@ function canonicalizeLocaleList(locales) {
 function initializeLocaleList(locales) {
   return freezeArray(canonicalizeLocaleList(locales));
 }
+
+// TODO(ftang): remove the %InstallToContext once
+// initializeLocaleList is available in C++
+// https://bugs.chromium.org/p/v8/issues/detail?id=7987
+%InstallToContext([
+  "initialize_locale_list", initializeLocaleList
+]);
 
 /**
  * Check the structural Validity of the language tag per ECMA 402 6.2.2:
@@ -2083,30 +2089,6 @@ function cachedOrNewService(service, locales, options, defaults) {
   return new savedObjects[service](locales, useOptions);
 }
 
-function LocaleConvertCase(s, locales, isToUpper) {
-  // ECMA 402 section 13.1.2 steps 1 through 12.
-  var language;
-  // Optimize for the most common two cases. initializeLocaleList() can handle
-  // them as well, but it's rather slow accounting for over 60% of
-  // toLocale{U,L}Case() and about 40% of toLocale{U,L}Case("<locale>").
-  if (IS_UNDEFINED(locales)) {
-    language = GetDefaultICULocaleJS();
-  } else if (IS_STRING(locales)) {
-    language = canonicalizeLanguageTag(locales);
-  } else {
-    var locales = initializeLocaleList(locales);
-    language = locales.length > 0 ? locales[0] : GetDefaultICULocaleJS();
-  }
-
-  // StringSplit is slower than this.
-  var pos = %StringIndexOf(language, '-', 0);
-  if (pos !== -1) {
-    language = %_Call(StringSubstring, language, 0, pos);
-  }
-
-  return %StringLocaleConvertCase(s, isToUpper, language);
-}
-
 /**
  * Compares this and that, and returns less than 0, 0 or greater than 0 value.
  * Overrides the built-in method.
@@ -2124,23 +2106,6 @@ DEFINE_METHOD(
     return compare(collator, this, that);
   }
 );
-
-DEFINE_METHODS_LEN(
-  GlobalString.prototype,
-  {
-    toLocaleLowerCase(locales) {
-      REQUIRE_OBJECT_COERCIBLE(this, "String.prototype.toLocaleLowerCase");
-      return LocaleConvertCase(TO_STRING(this), locales, false);
-    }
-
-    toLocaleUpperCase(locales) {
-      REQUIRE_OBJECT_COERCIBLE(this, "String.prototype.toLocaleUpperCase");
-      return LocaleConvertCase(TO_STRING(this), locales, true);
-    }
-  },
-  0  /* Set function length of both methods. */
-);
-
 
 /**
  * Formats a Number object (this) using locale and options values.

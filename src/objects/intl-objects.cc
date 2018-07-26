@@ -1763,6 +1763,22 @@ MaybeHandle<JSObject> Intl::CreateNumberFormat(Isolate* isolate,
 
 namespace {
 
+// Remove the following after we port InitializeLocaleList from src/js/intl.js
+// to c++ https://bugs.chromium.org/p/v8/issues/detail?id=7987
+MaybeHandle<JSObject> InitializeLocaleList(Isolate* isolate,
+                                           Handle<Object> list) {
+  Handle<Object> result;
+  Handle<Object> undefined_value(ReadOnlyRoots(isolate).undefined_value(),
+                                 isolate);
+  Handle<Object> args[] = {list};
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, isolate->initialize_locale_list(),
+                      undefined_value, arraysize(args), args),
+      JSArray);
+  return Handle<JSObject>::cast(result);
+}
+
 bool IsAToZ(char ch) {
   return (('A' <= ch) && (ch <= 'Z')) || (('a' <= ch) && (ch <= 'z'));
 }
@@ -1787,6 +1803,93 @@ bool Intl::IsWellFormedCurrencyCode(Isolate* isolate, Handle<String> currency) {
     // For example \u00DFP (Eszett+P) becomes SSP.
     return (IsAToZ(flat.Get(0)) && IsAToZ(flat.Get(1)) && IsAToZ(flat.Get(2)));
   }
+}
+
+// ecma402 #sup-string.prototype.tolocalelowercase
+// ecma402 #sup-string.prototype.tolocaleuppercase
+MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
+                                                  Handle<String> s,
+                                                  bool to_upper,
+                                                  Handle<Object> locales) {
+  Factory* factory = isolate->factory();
+  Handle<String> requested_locale;
+  if (locales->IsUndefined()) {
+    requested_locale = Intl::DefaultLocale(isolate);
+  } else if (locales->IsString()) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, requested_locale,
+                               CanonicalizeLanguageTag(isolate, locales),
+                               String);
+  } else {
+    Handle<JSObject> list;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, list,
+                               InitializeLocaleList(isolate, locales), String);
+    Handle<Object> length;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, length, Object::GetLengthFromArrayLike(isolate, list), String);
+    if (length->Number() > 0) {
+      Handle<Object> element;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, element,
+          JSObject::GetPropertyOrElement(
+              isolate, list, factory->NumberToString(factory->NewNumber(0))),
+          String);
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, requested_locale,
+                                 Object::ToString(isolate, element), String);
+    } else {
+      requested_locale = Intl::DefaultLocale(isolate);
+    }
+  }
+  int dash = String::IndexOf(isolate, requested_locale,
+                             factory->NewStringFromStaticChars("-"), 0);
+  if (dash > 0) {
+    requested_locale = factory->NewSubString(requested_locale, 0, dash);
+  }
+
+  // Primary language tag can be up to 8 characters long in theory.
+  // https://tools.ietf.org/html/bcp47#section-2.2.1
+  DCHECK_LE(requested_locale->length(), 8);
+  requested_locale = String::Flatten(isolate, requested_locale);
+  s = String::Flatten(isolate, s);
+
+  // All the languages requiring special-handling have two-letter codes.
+  // Note that we have to check for '!= 2' here because private-use language
+  // tags (x-foo) or grandfathered irregular tags (e.g. i-enochian) would have
+  // only 'x' or 'i' when they get here.
+  if (V8_UNLIKELY(requested_locale->length() != 2)) {
+    Handle<Object> obj(ConvertCase(s, to_upper, isolate), isolate);
+    return Object::ToString(isolate, obj);
+  }
+
+  char c1, c2;
+  {
+    DisallowHeapAllocation no_gc;
+    String::FlatContent lang = requested_locale->GetFlatContent();
+    c1 = lang.Get(0);
+    c2 = lang.Get(1);
+  }
+  // TODO(jshin): Consider adding a fast path for ASCII or Latin-1. The fastpath
+  // in the root locale needs to be adjusted for az, lt and tr because even case
+  // mapping of ASCII range characters are different in those locales.
+  // Greek (el) does not require any adjustment.
+  if (V8_UNLIKELY(c1 == 't' && c2 == 'r')) {
+    Handle<Object> obj(LocaleConvertCase(s, isolate, to_upper, "tr"), isolate);
+    return Object::ToString(isolate, obj);
+  }
+  if (V8_UNLIKELY(c1 == 'e' && c2 == 'l')) {
+    Handle<Object> obj(LocaleConvertCase(s, isolate, to_upper, "el"), isolate);
+    return Object::ToString(isolate, obj);
+  }
+  if (V8_UNLIKELY(c1 == 'l' && c2 == 't')) {
+    Handle<Object> obj(LocaleConvertCase(s, isolate, to_upper, "lt"), isolate);
+    return Object::ToString(isolate, obj);
+  }
+  if (V8_UNLIKELY(c1 == 'a' && c2 == 'z')) {
+    Handle<Object> obj(LocaleConvertCase(s, isolate, to_upper, "az"), isolate);
+    return Object::ToString(isolate, obj);
+  }
+
+  Handle<Object> obj(ConvertCase(s, to_upper, isolate), isolate);
+  return Object::ToString(isolate, obj);
 }
 
 }  // namespace internal

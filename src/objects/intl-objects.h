@@ -314,6 +314,11 @@ class Intl {
   // ecma402/#sec-iswellformedcurrencycode
   static bool IsWellFormedCurrencyCode(Isolate* isolate,
                                        Handle<String> currency);
+
+  // For locale sensitive functions
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> StringLocaleConvertCase(
+      Isolate* isolate, Handle<String> s, bool is_upper,
+      Handle<Object> locales);
 };
 
 }  // namespace internal
