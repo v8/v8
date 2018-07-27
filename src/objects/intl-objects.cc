@@ -1322,7 +1322,7 @@ MaybeHandle<JSObject> NumberFormat::Unwrap(Isolate* isolate,
                               Intl::Type::kNumberFormat, method_name_str, true);
 }
 
-MaybeHandle<Object> NumberFormat::FormatNumber(
+MaybeHandle<String> NumberFormat::FormatNumber(
     Isolate* isolate, Handle<JSObject> number_format_holder, double value) {
   icu::DecimalFormat* number_format =
       NumberFormat::UnpackNumberFormat(number_format_holder);
@@ -1986,5 +1986,32 @@ Handle<Object> Intl::InternalCompare(Isolate* isolate,
 
   return factory->NewNumberFromInt(result);
 }
+
+// ecma402/#sup-properties-of-the-number-prototype-object
+MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
+                                               Handle<Object> num,
+                                               Handle<Object> locales,
+                                               Handle<Object> options) {
+  Factory* factory = isolate->factory();
+  Handle<JSObject> number_format_holder;
+  // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, number_format_holder,
+      CachedOrNewService(isolate,
+                         factory->NewStringFromStaticChars("numberformat"),
+                         locales, options),
+      String);
+  DCHECK(
+      Intl::IsObjectOfType(isolate, number_format_holder, Intl::kNumberFormat));
+  Handle<Object> number_obj;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_obj,
+                             Object::ToNumber(isolate, num), String);
+
+  // Spec treats -0 and +0 as 0.
+  double number = number_obj->Number() + 0;
+  // Return FormatNumber(numberFormat, x).
+  return NumberFormat::FormatNumber(isolate, number_format_holder, number);
+}
+
 }  // namespace internal
 }  // namespace v8
