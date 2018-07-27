@@ -264,32 +264,7 @@ RUNTIME_FUNCTION(Runtime_InternalCompare) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, collator_holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, string1, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, string2, 2);
-
-  icu::Collator* collator = Collator::UnpackCollator(collator_holder);
-  CHECK_NOT_NULL(collator);
-
-  string1 = String::Flatten(isolate, string1);
-  string2 = String::Flatten(isolate, string2);
-
-  UCollationResult result;
-  UErrorCode status = U_ZERO_ERROR;
-  {
-    DisallowHeapAllocation no_gc;
-    int32_t length1 = string1->length();
-    int32_t length2 = string2->length();
-    String::FlatContent flat1 = string1->GetFlatContent();
-    String::FlatContent flat2 = string2->GetFlatContent();
-    std::unique_ptr<uc16[]> sap1;
-    std::unique_ptr<uc16[]> sap2;
-    icu::UnicodeString string_val1(
-        FALSE, GetUCharBufferFromFlat(flat1, &sap1, length1), length1);
-    icu::UnicodeString string_val2(
-        FALSE, GetUCharBufferFromFlat(flat2, &sap2, length2), length2);
-    result = collator->compare(string_val1, string_val2, status);
-  }
-  if (U_FAILURE(status)) return isolate->ThrowIllegalOperation();
-
-  return *isolate->factory()->NewNumberFromInt(result);
+  return *Intl::InternalCompare(isolate, collator_holder, string1, string2);
 }
 
 RUNTIME_FUNCTION(Runtime_CreatePluralRules) {

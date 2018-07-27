@@ -2030,8 +2030,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kStringPrototypeLastIndexOf, 1, false);
     SimpleInstallFunction(isolate_, prototype, "link",
                           Builtins::kStringPrototypeLink, 1, true);
+#ifdef V8_INTL_SUPPORT
+    SimpleInstallFunction(isolate_, prototype, "localeCompare",
+                          Builtins::kStringPrototypeLocaleCompare, 1, false);
+#else
     SimpleInstallFunction(isolate_, prototype, "localeCompare",
                           Builtins::kStringPrototypeLocaleCompare, 1, true);
+#endif  // V8_INTL_SUPPORT
     SimpleInstallFunction(isolate_, prototype, "match",
                           Builtins::kStringPrototypeMatch, 1, true);
 #ifdef V8_INTL_SUPPORT
