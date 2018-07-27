@@ -7,6 +7,7 @@
 
 #include "src/heap/incremental-marking.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/objects/maybe-object.h"
 
 namespace v8 {

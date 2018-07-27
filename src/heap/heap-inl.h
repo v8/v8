@@ -21,7 +21,7 @@
 // leak heap internals to users of this interface!
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/spaces-inl.h"
-#include "src/heap/store-buffer.h"
+#include "src/heap/store-buffer-inl.h"
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/msan.h"
