@@ -1790,6 +1790,12 @@ namespace {
 
 // Remove the following after we port InitializeLocaleList from src/js/intl.js
 // to c++ https://bugs.chromium.org/p/v8/issues/detail?id=7987
+// The following are temporary function calling back into js code in
+// src/js/intl.js to call pre-existing functions until they are all moved to C++
+// under src/objects/*.
+// TODO(ftang): remove these temp function after bstell move them from js into
+// C++
+
 MaybeHandle<JSObject> InitializeLocaleList(Isolate* isolate,
                                            Handle<Object> list) {
   Handle<Object> result;
@@ -1806,6 +1812,22 @@ MaybeHandle<JSObject> InitializeLocaleList(Isolate* isolate,
 
 bool IsAToZ(char ch) {
   return (('A' <= ch) && (ch <= 'Z')) || (('a' <= ch) && (ch <= 'z'));
+}
+
+MaybeHandle<JSObject> CachedOrNewService(Isolate* isolate,
+                                         Handle<String> service,
+                                         Handle<Object> locales,
+                                         Handle<Object> options) {
+  Handle<Object> result;
+  Handle<Object> undefined_value(ReadOnlyRoots(isolate).undefined_value(),
+                                 isolate);
+  Handle<Object> args[] = {service, locales, options};
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, isolate->cached_or_new_service(),
+                      undefined_value, arraysize(args), args),
+      JSArray);
+  return Handle<JSObject>::cast(result);
 }
 
 }  // namespace
@@ -1917,5 +1939,52 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
   return Object::ToString(isolate, obj);
 }
 
+MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
+                                              Handle<String> string1,
+                                              Handle<String> string2,
+                                              Handle<Object> locales,
+                                              Handle<Object> options) {
+  Factory* factory = isolate->factory();
+  Handle<JSObject> collator_holder;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, collator_holder,
+      CachedOrNewService(isolate, factory->NewStringFromStaticChars("collator"),
+                         locales, options),
+      Object);
+  DCHECK(Intl::IsObjectOfType(isolate, collator_holder, Intl::kCollator));
+  return Intl::InternalCompare(isolate, collator_holder, string1, string2);
+}
+
+Handle<Object> Intl::InternalCompare(Isolate* isolate,
+                                     Handle<JSObject> collator_holder,
+                                     Handle<String> string1,
+                                     Handle<String> string2) {
+  Factory* factory = isolate->factory();
+  icu::Collator* collator = Collator::UnpackCollator(collator_holder);
+  CHECK_NOT_NULL(collator);
+
+  string1 = String::Flatten(isolate, string1);
+  string2 = String::Flatten(isolate, string2);
+
+  UCollationResult result;
+  UErrorCode status = U_ZERO_ERROR;
+  {
+    DisallowHeapAllocation no_gc;
+    int32_t length1 = string1->length();
+    int32_t length2 = string2->length();
+    String::FlatContent flat1 = string1->GetFlatContent();
+    String::FlatContent flat2 = string2->GetFlatContent();
+    std::unique_ptr<uc16[]> sap1;
+    std::unique_ptr<uc16[]> sap2;
+    icu::UnicodeString string_val1(
+        FALSE, GetUCharBufferFromFlat(flat1, &sap1, length1), length1);
+    icu::UnicodeString string_val2(
+        FALSE, GetUCharBufferFromFlat(flat2, &sap2, length2), length2);
+    result = collator->compare(string_val1, string_val2, status);
+  }
+  DCHECK(U_SUCCESS(status));
+
+  return factory->NewNumberFromInt(result);
+}
 }  // namespace internal
 }  // namespace v8

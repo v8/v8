@@ -319,6 +319,14 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> StringLocaleConvertCase(
       Isolate* isolate, Handle<String> s, bool is_upper,
       Handle<Object> locales);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> StringLocaleCompare(
+      Isolate* isolate, Handle<String> s1, Handle<String> s2,
+      Handle<Object> locales, Handle<Object> options);
+
+  V8_WARN_UNUSED_RESULT static Handle<Object> InternalCompare(
+      Isolate* isolate, Handle<JSObject> collator, Handle<String> s1,
+      Handle<String> s2);
 };
 
 }  // namespace internal
