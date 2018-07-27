@@ -745,7 +745,7 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
 }
 
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
-  UNREACHABLE();
+  // This is a nop on mips32.
 }
 
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {

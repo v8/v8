@@ -50,12 +50,17 @@ inline Operand GetInstanceOperand() { return Operand(rbp, -16); }
 
 inline Operand GetMemOp(LiftoffAssembler* assm, Register addr, Register offset,
                         uint32_t offset_imm, LiftoffRegList pinned) {
-  // Wasm memory is limited to a size <2GB, so all offsets can be encoded as
-  // immediate value (in 31 bits, interpreted as signed value).
-  // If the offset is bigger, we always trap and this code is not reached.
-  DCHECK(is_uint31(offset_imm));
-  if (offset == no_reg) return Operand(addr, offset_imm);
-  return Operand(addr, offset, times_1, offset_imm);
+  if (is_uint31(offset_imm)) {
+    if (offset == no_reg) return Operand(addr, offset_imm);
+    return Operand(addr, offset, times_1, offset_imm);
+  }
+  // Offset immediate does not fit in 31 bits.
+  Register scratch = kScratchRegister;
+  assm->movl(scratch, Immediate(offset_imm));
+  if (offset != no_reg) {
+    assm->addq(scratch, offset);
+  }
+  return Operand(addr, scratch, times_1, 0);
 }
 
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Operand src,

@@ -258,7 +258,11 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
 }
 
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
-  UNREACHABLE();
+#ifdef V8_TARGET_ARCH_PPC64
+  BAILOUT("emit_i32_to_intptr");
+#else
+// This is a nop on ppc32.
+#endif
 }
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,

@@ -249,7 +249,7 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
 }
 
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
-  UNREACHABLE();
+  // This is a nop on arm.
 }
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,

@@ -6,6 +6,8 @@
 #define V8_WASM_FUNCTION_COMPILER_H_
 
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -47,6 +49,14 @@ struct ModuleEnv {
   // be generated differently.
   const RuntimeExceptionSupport runtime_exception_support;
 
+  // The smallest size of any memory that could be used with this module, in
+  // bytes.
+  const uint64_t min_memory_size;
+
+  // The largest size of any memory that could be used with this module, in
+  // bytes.
+  const uint64_t max_memory_size;
+
   const LowerSimd lower_simd;
 
   constexpr ModuleEnv(const WasmModule* module, UseTrapHandler use_trap_handler,
@@ -55,6 +65,12 @@ struct ModuleEnv {
       : module(module),
         use_trap_handler(use_trap_handler),
         runtime_exception_support(runtime_exception_support),
+        min_memory_size(
+            module ? module->initial_pages * uint64_t{wasm::kWasmPageSize} : 0),
+        max_memory_size(
+            module && module->has_maximum_pages
+                ? (module->maximum_pages * uint64_t{wasm::kWasmPageSize})
+                : wasm::kSpecMaxWasmMemoryBytes),
         lower_simd(lower_simd) {}
 };
 

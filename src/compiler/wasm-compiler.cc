@@ -3038,19 +3038,14 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
     return index;
   }
 
-  uint64_t min_size =
-      env_->module->initial_pages * uint64_t{wasm::kWasmPageSize};
-  uint64_t max_size =
-      (env_->module->has_maximum_pages ? env_->module->maximum_pages
-                                       : wasm::kV8MaxWasmMemoryPages) *
-      uint64_t{wasm::kWasmPageSize};
-
-  if (access_size > max_size || offset > max_size - access_size) {
+  const bool statically_oob = access_size > env_->max_memory_size ||
+                              offset > env_->max_memory_size - access_size;
+  if (statically_oob) {
     // The access will be out of bounds, even for the largest memory.
     TrapIfEq32(wasm::kTrapMemOutOfBounds, Int32Constant(0), 0, position);
     return mcgraph()->IntPtrConstant(0);
   }
-  uint64_t end_offset = offset + access_size - 1;
+  uint64_t end_offset = uint64_t{offset} + access_size - 1u;
   Node* end_offset_node = IntPtrConstant(end_offset);
 
   // The accessed memory is [index + offset, index + end_offset].
@@ -3064,7 +3059,7 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
 
   auto m = mcgraph()->machine();
   Node* mem_size = instance_cache_->mem_size;
-  if (end_offset >= min_size) {
+  if (end_offset >= env_->min_memory_size) {
     // The end offset is larger than the smallest memory.
     // Dynamically check the end offset against the dynamic memory size.
     Node* cond = graph()->NewNode(m->UintLessThan(), end_offset_node, mem_size);
@@ -3075,7 +3070,7 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
     UintPtrMatcher match(index);
     if (match.HasValue()) {
       uintptr_t index_val = match.Value();
-      if (index_val < min_size - end_offset) {
+      if (index_val < env_->min_memory_size - end_offset) {
         // The input index is a constant and everything is statically within
         // bounds of the smallest possible memory.
         return index;

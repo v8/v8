@@ -138,11 +138,6 @@ class LiftoffCompiler {
       : descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
         env_(env),
-        min_size_(uint64_t{env_->module->initial_pages} * wasm::kWasmPageSize),
-        max_size_(uint64_t{env_->module->has_maximum_pages
-                               ? env_->module->maximum_pages
-                               : wasm::kV8MaxWasmMemoryPages} *
-                  wasm::kWasmPageSize),
         compilation_zone_(compilation_zone),
         safepoint_table_builder_(compilation_zone_) {}
 
@@ -1321,15 +1316,15 @@ class LiftoffCompiler {
   // (a jump to the trap was generated then); return false otherwise.
   bool BoundsCheckMem(Decoder* decoder, uint32_t access_size, uint32_t offset,
                       Register index, LiftoffRegList pinned) {
-    const bool statically_oob =
-        access_size > max_size_ || offset > max_size_ - access_size;
+    const bool statically_oob = access_size > env_->max_memory_size ||
+                                offset > env_->max_memory_size - access_size;
 
     if (!statically_oob &&
         (FLAG_wasm_no_bounds_checks || env_->use_trap_handler)) {
       return false;
     }
 
-    // TODO(eholk): This adds protected instruction information for the jump
+    // TODO(wasm): This adds protected instruction information for the jump
     // instruction we are about to generate. It would be better to just not add
     // protected instruction info when the pc is 0.
     Label* trap_label = AddOutOfLineTrap(
@@ -1348,7 +1343,7 @@ class LiftoffCompiler {
     DCHECK(!env_->use_trap_handler);
     DCHECK(!FLAG_wasm_no_bounds_checks);
 
-    uint32_t end_offset = offset + access_size - 1;
+    uint64_t end_offset = uint64_t{offset} + access_size - 1u;
 
     // If the end offset is larger than the smallest memory, dynamically check
     // the end offset against the actual memory size, which is not known at
@@ -1356,19 +1351,30 @@ class LiftoffCompiler {
     LiftoffRegister end_offset_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LiftoffRegister mem_size = __ GetUnusedRegister(kGpReg, pinned);
-    LOAD_INSTANCE_FIELD(mem_size, MemorySize, LoadType::kI32Load);
-    __ LoadConstant(end_offset_reg, WasmValue(end_offset));
-    if (end_offset >= min_size_) {
-      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kWasmI32,
-                        end_offset_reg.gp(), mem_size.gp());
+    LOAD_INSTANCE_FIELD(mem_size, MemorySize, kPointerLoadType);
+
+    if (kPointerSize == 8) {
+      __ LoadConstant(end_offset_reg, WasmValue(end_offset));
+    } else {
+      __ LoadConstant(end_offset_reg,
+                      WasmValue(static_cast<uint32_t>(end_offset)));
+    }
+
+    if (end_offset >= env_->min_memory_size) {
+      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label,
+                        LiftoffAssembler::kWasmIntPtr, end_offset_reg.gp(),
+                        mem_size.gp());
     }
 
     // Just reuse the end_offset register for computing the effective size.
     LiftoffRegister effective_size_reg = end_offset_reg;
-    __ emit_i32_sub(effective_size_reg.gp(), mem_size.gp(),
-                    end_offset_reg.gp());
+    __ emit_ptrsize_sub(effective_size_reg.gp(), mem_size.gp(),
+                        end_offset_reg.gp());
 
-    __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kWasmI32, index,
+    __ emit_i32_to_intptr(index, index);
+
+    __ emit_cond_jump(kUnsignedGreaterEqual, trap_label,
+                      LiftoffAssembler::kWasmIntPtr, index,
                       effective_size_reg.gp());
     return false;
   }
@@ -1797,9 +1803,6 @@ class LiftoffCompiler {
   LiftoffAssembler asm_;
   compiler::CallDescriptor* const descriptor_;
   ModuleEnv* const env_;
-  // {min_size_} and {max_size_} are cached values computed from the ModuleEnv.
-  const uint64_t min_size_;
-  const uint64_t max_size_;
   bool ok_ = true;
   std::vector<OutOfLineCode> out_of_line_code_;
   SourcePositionTableBuilder source_position_table_builder_;
