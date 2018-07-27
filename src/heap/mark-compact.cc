@@ -20,7 +20,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/item-parallel-job.h"
-#include "src/heap/local-allocator.h"
+#include "src/heap/local-allocator-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"

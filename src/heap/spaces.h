@@ -1979,7 +1979,10 @@ class LocalAllocationBuffer {
   // Indicates that a buffer cannot be used for allocations anymore. Can result
   // from either reassigning a buffer, or trying to construct it from an
   // invalid {AllocationResult}.
-  static inline LocalAllocationBuffer InvalidBuffer();
+  static LocalAllocationBuffer InvalidBuffer() {
+    return LocalAllocationBuffer(
+        nullptr, LinearAllocationArea(kNullAddress, kNullAddress));
+  }
 
   // Creates a new LAB from a given {AllocationResult}. Results in
   // InvalidBuffer if the result indicates a retry.

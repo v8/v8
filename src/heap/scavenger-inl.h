@@ -6,6 +6,8 @@
 #define V8_HEAP_SCAVENGER_INL_H_
 
 #include "src/heap/scavenger.h"
+
+#include "src/heap/local-allocator-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/map.h"
 

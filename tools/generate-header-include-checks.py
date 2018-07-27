@@ -49,7 +49,6 @@ AUTO_EXCLUDE = [
   'src/field-type.h',
   'src/heap/incremental-marking.h',
   'src/heap/incremental-marking-inl.h',
-  'src/heap/local-allocator.h',
   'src/heap/mark-compact.h',
   'src/heap/objects-visiting.h',
   'src/heap/scavenger.h',
