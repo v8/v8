@@ -434,9 +434,15 @@ void DeclarationVisitor::Visit(ForLoopStatement* stmt) {
   Declarations::NodeScopeActivator scope(declarations(), stmt);
   if (stmt->var_declaration) Visit(*stmt->var_declaration);
   PushControlSplit();
-  DeclareExpressionForBranch(stmt->test);
+
+  // Same as DeclareExpressionForBranch, but without the extra scope.
+  // If no test expression is present we can not use it for the scope.
+  declarations()->DeclareLabel(kTrueLabelName);
+  declarations()->DeclareLabel(kFalseLabelName);
+  if (stmt->test) Visit(*stmt->test);
+
   Visit(stmt->body);
-  Visit(stmt->action);
+  if (stmt->action) Visit(*stmt->action);
   auto changed_vars = PopControlSplit();
   global_context_.AddControlSplitChangedVariables(
       stmt, declarations()->GetCurrentSpecializationTypeNamesVector(),

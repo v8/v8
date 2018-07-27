@@ -550,8 +550,8 @@ base::Optional<ParseResult> MakeForOfLoopStatement(
 base::Optional<ParseResult> MakeForLoopStatement(
     ParseResultIterator* child_results) {
   auto var_decl = child_results->NextAs<base::Optional<Statement*>>();
-  auto test = child_results->NextAs<Expression*>();
-  auto action = child_results->NextAs<Expression*>();
+  auto test = child_results->NextAs<base::Optional<Expression*>>();
+  auto action = child_results->NextAs<base::Optional<Expression*>>();
   auto body = child_results->NextAs<Statement*>();
   Statement* result = MakeNode<ForLoopStatement>(var_decl, test, action, body);
   return ParseResult{result};
@@ -1075,7 +1075,8 @@ struct TorqueGrammar : Grammar {
            MakeForOfLoopStatement),
       Rule({Token("for"), Token("("),
             Optional<Statement*>(&varDeclarationWithInitialization), Token(";"),
-            expression, Token(";"), expression, Token(")"), &atomarStatement},
+            Optional<Expression*>(expression), Token(";"),
+            Optional<Expression*>(expression), Token(")"), &atomarStatement},
            MakeForLoopStatement)};
 
   // Result: base::Optional<Statement*>

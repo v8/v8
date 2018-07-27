@@ -477,7 +477,8 @@ struct GotoStatement : Statement {
 struct ForLoopStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ForLoopStatement)
   ForLoopStatement(SourcePosition pos, base::Optional<Statement*> declaration,
-                   Expression* test, Expression* action, Statement* body)
+                   base::Optional<Expression*> test,
+                   base::Optional<Expression*> action, Statement* body)
       : Statement(kKind, pos),
         var_declaration(),
         test(std::move(test)),
@@ -487,8 +488,8 @@ struct ForLoopStatement : Statement {
       var_declaration = VarDeclarationStatement::cast(*declaration);
   }
   base::Optional<VarDeclarationStatement*> var_declaration;
-  Expression* test;
-  Expression* action;
+  base::Optional<Expression*> test;
+  base::Optional<Expression*> action;
   Statement* body;
 };
 

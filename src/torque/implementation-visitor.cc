@@ -993,33 +993,47 @@ const Type* ImplementationVisitor::Visit(ForLoopStatement* stmt) {
 
   if (stmt->var_declaration) Visit(*stmt->var_declaration);
 
-  Label* body_label = nullptr;
-  Label* exit_label = nullptr;
-  {
-    Declarations::NodeScopeActivator scope(declarations(), stmt->test);
-    body_label = declarations()->LookupLabel(kTrueLabelName);
-    GenerateLabelDefinition(body_label);
-    exit_label = declarations()->LookupLabel(kFalseLabelName);
-    GenerateLabelDefinition(exit_label);
-  }
+  Label* body_label = declarations()->LookupLabel(kTrueLabelName);
+  GenerateLabelDefinition(body_label);
+  Label* exit_label = declarations()->LookupLabel(kFalseLabelName);
+  GenerateLabelDefinition(exit_label);
 
   Label* header_label = declarations()->DeclarePrivateLabel("header");
   GenerateLabelDefinition(header_label, stmt);
   GenerateLabelGoto(header_label);
   GenerateLabelBind(header_label);
 
-  Label* assignment_label = declarations()->DeclarePrivateLabel("assignment");
-  GenerateLabelDefinition(assignment_label);
+  // The continue label is where "continue" statements jump to. If no action
+  // expression is provided, we jump directly to the header.
+  Label* continue_label = header_label;
 
-  BreakContinueActivator activator(global_context_, exit_label,
-                                   assignment_label);
+  // The action label is only needed when an action expression was provided.
+  Label* action_label = nullptr;
+  if (stmt->action) {
+    action_label = declarations()->DeclarePrivateLabel("action");
+    GenerateLabelDefinition(action_label);
+
+    // The action expression needs to be executed on a continue.
+    continue_label = action_label;
+  }
+
+  BreakContinueActivator activator(global_context_, exit_label, continue_label);
 
   std::vector<Label*> labels = {body_label, exit_label};
-  if (GenerateExpressionBranch(stmt->test, labels, {stmt->body},
-                               assignment_label)) {
+  bool generate_action = true;
+  if (stmt->test) {
+    generate_action = GenerateExpressionBranch(*stmt->test, labels,
+                                               {stmt->body}, continue_label);
+  } else {
+    GenerateLabelGoto(body_label);
+    generate_action =
+        GenerateLabeledStatementBlocks({stmt->body}, labels, continue_label);
+  }
+
+  if (generate_action && stmt->action) {
     ScopedIndent indent(this);
-    GenerateLabelBind(assignment_label);
-    Visit(stmt->action);
+    GenerateLabelBind(action_label);
+    Visit(*stmt->action);
     GenerateLabelGoto(header_label);
   }
 

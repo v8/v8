@@ -223,6 +223,18 @@ TEST(TestLocalConstBindings) {
   ft.Call();
 }
 
+TEST(TestForLoop) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester asm_tester(isolate, 0);
+  TestBuiltinsFromDSLAssembler m(asm_tester.state());
+  {
+    m.TestForLoop();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
