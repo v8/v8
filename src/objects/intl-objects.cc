@@ -1335,6 +1335,18 @@ MaybeHandle<Object> NumberFormat::FormatNumber(
       reinterpret_cast<const uint16_t*>(result.getBuffer()), result.length()));
 }
 
+void Intl::DefineWEProperty(Isolate* isolate, Handle<JSObject> target,
+                            Handle<Name> key, Handle<Object> value) {
+  PropertyDescriptor desc;
+  desc.set_writable(true);
+  desc.set_enumerable(true);
+  desc.set_value(value);
+  Maybe<bool> success =
+      JSReceiver::DefineOwnProperty(isolate, target, key, &desc, kDontThrow);
+  DCHECK(success.IsJust() && success.FromJust());
+  USE(success);
+}
+
 namespace {
 
 // Define general regexp macros.

@@ -213,6 +213,7 @@ namespace internal {
   F(CreateCollator, 3, 1)                    \
   F(CreateDateTimeFormat, 3, 1)              \
   F(CreateNumberFormat, 3, 1)                \
+  F(DefineWEProperty, 3, 1)                  \
   F(CreatePluralRules, 3, 1)                 \
   F(CurrencyDigits, 1, 1)                    \
   F(DateCacheVersion, 0, 1)                  \

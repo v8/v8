@@ -89,6 +89,17 @@ RUNTIME_FUNCTION(Runtime_IsWellFormedCurrencyCode) {
       Intl::IsWellFormedCurrencyCode(isolate, currency)));
 }
 
+RUNTIME_FUNCTION(Runtime_DefineWEProperty) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  Intl::DefineWEProperty(isolate, target, key, value);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_IsInitializedIntlObjectOfType) {
   HandleScope scope(isolate);
 

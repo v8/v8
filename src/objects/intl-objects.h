@@ -231,6 +231,9 @@ class Intl {
 
   static V8_WARN_UNUSED_RESULT Handle<String> DefaultLocale(Isolate* isolate);
 
+  static void DefineWEProperty(Isolate* isolate, Handle<JSObject> target,
+                               Handle<Name> key, Handle<Object> value);
+
   // If locale has a script tag then return true and the locale without the
   // script else return false and an empty string
   static bool RemoveLocaleScriptTag(const std::string& icu_locale,
