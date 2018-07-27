@@ -199,7 +199,6 @@ static void InitializeVM() {
 
 #define RUN()                                              \
   MakeAssemblerBufferExecutable(buf, allocated);           \
-  Assembler::FlushICache(buf, masm.SizeOfGeneratedCode()); \
   {                                                        \
     void (*test_function)(void);                           \
     memcpy(&test_function, &buf, sizeof(buf));             \
