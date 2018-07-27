@@ -2089,11 +2089,23 @@ function cachedOrNewService(service, locales, options, defaults) {
   return new savedObjects[service](locales, useOptions);
 }
 
-// TODO(ftang) remove the %InstallToContext once
-// cachedOrNewService is available in C++
-%InstallToContext([
-  "cached_or_new_service", cachedOrNewService
-]);
+/**
+ * Compares this and that, and returns less than 0, 0 or greater than 0 value.
+ * Overrides the built-in method.
+ */
+DEFINE_METHOD(
+  GlobalString.prototype,
+  localeCompare(that) {
+    if (IS_NULL_OR_UNDEFINED(this)) {
+      throw %make_type_error(kMethodInvokedOnNullOrUndefined);
+    }
+
+    var locales = arguments[1];
+    var options = arguments[2];
+    var collator = cachedOrNewService('collator', locales, options);
+    return compare(collator, this, that);
+  }
+);
 
 /**
  * Formats a Number object (this) using locale and options values.

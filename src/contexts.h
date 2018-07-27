@@ -95,8 +95,6 @@ enum ContextLookupFlags {
   V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                      \
   V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)              \
   V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function)      \
-  V(CACHED_OR_NEW_SERVICE_LOCALE_FUNCTION_INDEX, JSFunction,                   \
-    cached_or_new_service)                                                     \
   V(RESOLVE_LOCALE_FUNCTION_INDEX, JSFunction, resolve_locale)                 \
   V(SET_ADD_INDEX, JSFunction, set_add)                                        \
   V(SET_DELETE_INDEX, JSFunction, set_delete)                                  \
