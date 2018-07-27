@@ -756,14 +756,13 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
       SetFeedbackExtra(*result_map);
       break;
     case MONOMORPHIC:
-      if (maybe_feedback->IsClearedWeakHeapObject() ||
-          Map::cast(*feedback)->is_deprecated()) {
+      if (maybe_feedback->IsClearedWeakHeapObject()) {
         // Remain in MONOMORPHIC state if previous feedback has been collected.
         SetFeedback(HeapObjectReference::Weak(*source_map));
         SetFeedbackExtra(*result_map);
       } else {
         // Transition to POLYMORPHIC.
-        DCHECK(!source_map.is_identical_to(feedback));
+        DCHECK_NE(*source_map, *feedback);
         Handle<WeakFixedArray> array =
             EnsureArrayOfSize(2 * kCloneObjectPolymorphicEntrySize);
         array->Set(0, maybe_feedback);
@@ -779,12 +778,10 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
       Handle<WeakFixedArray> array = Handle<WeakFixedArray>::cast(feedback);
       int i = 0;
       for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
-        MaybeObjectHandle feedback(array->Get(i), isolate);
-        if (feedback->IsClearedWeakHeapObject() ||
-            Map::cast(*feedback.object())->is_deprecated()) {
+        if (array->Get(i)->IsClearedWeakHeapObject()) {
           break;
         }
-        DCHECK(!feedback.object().is_identical_to(source_map));
+        DCHECK_NE(array->Get(i)->GetHeapObject(), *source_map);
       }
 
       if (i >= array->length()) {
