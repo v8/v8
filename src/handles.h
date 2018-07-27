@@ -123,10 +123,7 @@ class Handle final : public HandleBase {
   }
 
   template <typename S>
-  static const Handle<T> cast(Handle<S> that) {
-    T::cast(*reinterpret_cast<T**>(that.location()));
-    return Handle<T>(reinterpret_cast<T**>(that.location_));
-  }
+  inline static const Handle<T> cast(Handle<S> that);
 
   // TODO(yangguo): Values that contain empty handles should be declared as
   // MaybeHandle to force validation before being used as handles.

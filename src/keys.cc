@@ -6,6 +6,7 @@
 
 #include "src/api-arguments-inl.h"
 #include "src/elements-inl.h"
+#include "src/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/identity-map.h"
 #include "src/isolate-inl.h"
@@ -58,6 +59,10 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
       OrderedHashSet::ConvertToKeysArray(isolate(), keys(), convert);
   DCHECK(ContainsOnlyValidKeys(result));
   return result;
+}
+
+Handle<OrderedHashSet> KeyAccumulator::keys() {
+  return Handle<OrderedHashSet>::cast(keys_);
 }
 
 void KeyAccumulator::AddKey(Object* key, AddKeyConversion convert) {

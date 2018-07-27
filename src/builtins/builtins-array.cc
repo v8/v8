@@ -10,7 +10,7 @@
 #include "src/contexts.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
-#include "src/elements.h"
+#include "src/elements-inl.h"
 #include "src/global-handles.h"
 #include "src/isolate.h"
 #include "src/lookup.h"

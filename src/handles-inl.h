@@ -23,6 +23,12 @@ Handle<T> Handle<T>::New(T* object, Isolate* isolate) {
       reinterpret_cast<T**>(HandleScope::CreateHandle(isolate, object)));
 }
 
+template <typename T>
+template <typename S>
+const Handle<T> Handle<T>::cast(Handle<S> that) {
+  T::cast(*reinterpret_cast<T**>(that.location()));
+  return Handle<T>(reinterpret_cast<T**>(that.location_));
+}
 
 HandleScope::HandleScope(Isolate* isolate) {
   HandleScopeData* data = isolate->handle_scope_data();

@@ -7,8 +7,11 @@
 
 #include "src/elements.h"
 
+#include "src/handles-inl.h"
+
 namespace v8 {
 namespace internal {
+
 inline void ElementsAccessor::CollectElementIndices(Handle<JSObject> object,
                                                     KeyAccumulator* keys) {
   CollectElementIndices(object, handle(object->elements(), keys->isolate()),
@@ -21,6 +24,11 @@ inline MaybeHandle<FixedArray> ElementsAccessor::PrependElementIndices(
   return PrependElementIndices(object,
                                handle(object->elements(), object->GetIsolate()),
                                keys, convert, filter);
+}
+
+inline bool ElementsAccessor::HasElement(JSObject* holder, uint32_t index,
+                                         PropertyFilter filter) {
+  return HasElement(holder, index, holder->elements(), filter);
 }
 
 }  // namespace internal

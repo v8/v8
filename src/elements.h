@@ -48,9 +48,7 @@ class ElementsAccessor {
                           PropertyFilter filter = ALL_PROPERTIES) = 0;
 
   inline bool HasElement(JSObject* holder, uint32_t index,
-                         PropertyFilter filter = ALL_PROPERTIES) {
-    return HasElement(holder, index, holder->elements(), filter);
-  }
+                         PropertyFilter filter = ALL_PROPERTIES);
 
   // Note: this is currently not implemented for string wrapper and
   // typed array elements.

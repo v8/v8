@@ -103,7 +103,7 @@ class KeyAccumulator final BASE_EMBEDDED {
                                  Handle<FixedArray> keys);
   bool IsShadowed(Handle<Object> key);
   bool HasShadowingKeys();
-  Handle<OrderedHashSet> keys() { return Handle<OrderedHashSet>::cast(keys_); }
+  Handle<OrderedHashSet> keys();
 
   Isolate* isolate_;
   // keys_ is either an Handle<OrderedHashSet> or in the case of own JSProxy
