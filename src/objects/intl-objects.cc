@@ -1627,8 +1627,6 @@ bool IsStructurallyValidLanguageTag(Isolate* isolate,
   std::vector<std::string> extensions;
   for (auto it = parts.begin() + 1; it != parts.end(); it++) {
     icu::UnicodeString part(it->data(), -1, US_INV);
-    // Note: icu::RegexMatcher::reset does not make a copy of the input string
-    // so cannot use a temp value; ie: cannot create it as a call parameter.
     language_variant_regexp_matcher->reset(part);
     bool is_language_variant = language_variant_regexp_matcher->matches(status);
     if (V8_UNLIKELY(U_FAILURE(status))) {

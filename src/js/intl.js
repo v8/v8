@@ -203,43 +203,6 @@ function GetServiceRE() {
 }
 
 /**
- * Validates a language tag against bcp47 spec.
- * Actual value is assigned on first run.
- */
-var LANGUAGE_TAG_RE = UNDEFINED;
-
-function GetLanguageTagRE() {
-  if (IS_UNDEFINED(LANGUAGE_TAG_RE)) {
-    BuildLanguageTagREs();
-  }
-  return LANGUAGE_TAG_RE;
-}
-
-/**
- * Helps find duplicate variants in the language tag.
- */
-var LANGUAGE_VARIANT_RE = UNDEFINED;
-
-function GetLanguageVariantRE() {
-  if (IS_UNDEFINED(LANGUAGE_VARIANT_RE)) {
-    BuildLanguageTagREs();
-  }
-  return LANGUAGE_VARIANT_RE;
-}
-
-/**
- * Helps find duplicate singletons in the language tag.
- */
-var LANGUAGE_SINGLETON_RE = UNDEFINED;
-
-function GetLanguageSingletonRE() {
-  if (IS_UNDEFINED(LANGUAGE_SINGLETON_RE)) {
-    BuildLanguageTagREs();
-  }
-  return LANGUAGE_SINGLETON_RE;
-}
-
-/**
  * Matches valid IANA time zone names.
  */
 var TIMEZONE_NAME_CHECK_RE = UNDEFINED;
@@ -775,37 +738,6 @@ function toTitleCaseTimezoneLocation(location) {
   return result;
 }
 
-/**
- * Canonicalizes the language tag, or throws in case the tag is invalid.
- * ECMA 402 9.2.1 steps 7.c ii ~ v.
- */
-function canonicalizeLanguageTag(localeID) {
-  // null is typeof 'object' so we have to do extra check.
-  if ((!IS_STRING(localeID) && !IS_RECEIVER(localeID)) ||
-      IS_NULL(localeID)) {
-    throw %make_type_error(kLanguageID);
-  }
-
-  var localeString = TO_STRING(localeID);
-
-  // Optimize for the most common case; a 2-letter language code in the
-  // canonical form/lowercase that is not one of deprecated codes
-  // (in, iw, ji, jw). Don't check for ~70 of 3-letter deprecated language
-  // codes. Instead, let them be handled by ICU in the slow path. Besides,
-  // fast-track 'fil' (3-letter canonical code).
-  if ((!IS_NULL(%regexp_internal_match(/^[a-z]{2}$/, localeString)) &&
-      IS_NULL(%regexp_internal_match(/^(in|iw|ji|jw)$/, localeString))) ||
-      localeString === "fil") {
-    return localeString;
-  }
-
-  if (isStructuallyValidLanguageTag(localeString) === false) {
-    throw %make_range_error(kInvalidLanguageTag, localeString);
-  }
-
-  // ECMA 402 6.2.3
-  return %CanonicalizeLanguageTag(localeString);
-}
 
 /**
  * Returns an InternalArray where all locales are canonicalized and duplicates
@@ -818,7 +750,7 @@ function canonicalizeLocaleList(locales) {
   if (!IS_UNDEFINED(locales)) {
     // We allow single string localeID.
     if (typeof locales === 'string') {
-      %_Call(ArrayPush, seen, canonicalizeLanguageTag(locales));
+      %_Call(ArrayPush, seen, %CanonicalizeLanguageTag(locales));
       return seen;
     }
 
@@ -829,7 +761,7 @@ function canonicalizeLocaleList(locales) {
       if (k in o) {
         var value = o[k];
 
-        var tag = canonicalizeLanguageTag(value);
+        var tag = %CanonicalizeLanguageTag(value);
 
         if (%ArrayIndexOf(seen, tag, 0) === -1) {
           %_Call(ArrayPush, seen, tag);
@@ -851,109 +783,6 @@ function initializeLocaleList(locales) {
 %InstallToContext([
   "initialize_locale_list", initializeLocaleList
 ]);
-
-/**
- * Check the structural Validity of the language tag per ECMA 402 6.2.2:
- *   - Well-formed per RFC 5646 2.1
- *   - There are no duplicate variant subtags
- *   - There are no duplicate singletion (extension) subtags
- *
- * One extra-check is done (from RFC 5646 2.2.9): the tag is compared
- * against the list of grandfathered tags. However, subtags for
- * primary/extended language, script, region, variant are not checked
- * against the IANA language subtag registry.
- *
- * ICU is too permissible and lets invalid tags, like
- * hant-cmn-cn, through.
- *
- * Returns false if the language tag is invalid.
- */
-function isStructuallyValidLanguageTag(locale) {
-  // Check if it's well-formed, including grandfadered tags.
-  if (IS_NULL(%regexp_internal_match(GetLanguageTagRE(), locale))) {
-    return false;
-  }
-
-  locale = %StringToLowerCaseIntl(locale);
-
-  // Just return if it's a x- form. It's all private.
-  if (%StringIndexOf(locale, 'x-', 0) === 0) {
-    return true;
-  }
-
-  // Check if there are any duplicate variants or singletons (extensions).
-
-  // Remove private use section.
-  locale = %StringSplit(locale, '-x-', kMaxUint32)[0];
-
-  // Skip language since it can match variant regex, so we start from 1.
-  // We are matching i-klingon here, but that's ok, since i-klingon-klingon
-  // is not valid and would fail LANGUAGE_TAG_RE test.
-  var variants = new InternalArray();
-  var extensions = new InternalArray();
-  var parts = %StringSplit(locale, '-', kMaxUint32);
-  for (var i = 1; i < parts.length; i++) {
-    var value = parts[i];
-    if (!IS_NULL(%regexp_internal_match(GetLanguageVariantRE(), value)) &&
-        extensions.length === 0) {
-      if (%ArrayIndexOf(variants, value, 0) === -1) {
-        %_Call(ArrayPush, variants, value);
-      } else {
-        return false;
-      }
-    }
-
-    if (!IS_NULL(%regexp_internal_match(GetLanguageSingletonRE(), value))) {
-      if (%ArrayIndexOf(extensions, value, 0) === -1) {
-        %_Call(ArrayPush, extensions, value);
-      } else {
-        return false;
-      }
-    }
-  }
-
-  return true;
- }
-
-
-/**
- * Builds a regular expresion that validates the language tag
- * against bcp47 spec.
- * Uses http://tools.ietf.org/html/bcp47, section 2.1, ABNF.
- * Runs on load and initializes the global REs.
- */
-function BuildLanguageTagREs() {
-  var alpha = '[a-zA-Z]';
-  var digit = '[0-9]';
-  var alphanum = '(' + alpha + '|' + digit + ')';
-  var regular = '(art-lojban|cel-gaulish|no-bok|no-nyn|zh-guoyu|zh-hakka|' +
-                'zh-min|zh-min-nan|zh-xiang)';
-  var irregular = '(en-GB-oed|i-ami|i-bnn|i-default|i-enochian|i-hak|' +
-                  'i-klingon|i-lux|i-mingo|i-navajo|i-pwn|i-tao|i-tay|' +
-                  'i-tsu|sgn-BE-FR|sgn-BE-NL|sgn-CH-DE)';
-  var grandfathered = '(' + irregular + '|' + regular + ')';
-  var privateUse = '(x(-' + alphanum + '{1,8})+)';
-
-  var singleton = '(' + digit + '|[A-WY-Za-wy-z])';
-  LANGUAGE_SINGLETON_RE = new GlobalRegExp('^' + singleton + '$', 'i');
-
-  var extension = '(' + singleton + '(-' + alphanum + '{2,8})+)';
-
-  var variant = '(' + alphanum + '{5,8}|(' + digit + alphanum + '{3}))';
-  LANGUAGE_VARIANT_RE = new GlobalRegExp('^' + variant + '$', 'i');
-
-  var region = '(' + alpha + '{2}|' + digit + '{3})';
-  var script = '(' + alpha + '{4})';
-  var extLang = '(' + alpha + '{3}(-' + alpha + '{3}){0,2})';
-  var language = '(' + alpha + '{2,3}(-' + extLang + ')?|' + alpha + '{4}|' +
-                 alpha + '{5,8})';
-  var langTag = language + '(-' + script + ')?(-' + region + ')?(-' +
-                variant + ')*(-' + extension + ')*(-' + privateUse + ')?';
-
-  var languageTag =
-      '^(' + langTag + '|' + privateUse + '|' + grandfathered + ')$';
-  LANGUAGE_TAG_RE = new GlobalRegExp(languageTag, 'i');
-}
 
 // ECMA 402 section 8.2.1
 DEFINE_METHOD(

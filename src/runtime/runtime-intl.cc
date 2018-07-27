@@ -58,45 +58,10 @@ RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, locale_id_str, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, locale, 0);
 
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-
-  Factory* factory = isolate->factory();
-
-  v8::String::Utf8Value locale_id(v8_isolate,
-                                  v8::Utils::ToLocal(locale_id_str));
-
-  // TODO(jshin): uloc_{for,to}TanguageTag can fail even for a structually valid
-  // language tag if it's too long (much longer than 100 chars). Even if we
-  // allocate a longer buffer, ICU will still fail if it's too long. Either
-  // propose to Ecma 402 to put a limit on the locale length or change ICU to
-  // handle long locale names better. See
-  // https://ssl.icu-project.org/trac/ticket/13417 .
-
-  UErrorCode error = U_ZERO_ERROR;
-  char icu_result[ULOC_FULLNAME_CAPACITY];
-  uloc_forLanguageTag(*locale_id, icu_result, ULOC_FULLNAME_CAPACITY, nullptr,
-                      &error);
-  if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_id_str));
-  }
-
-  char result[ULOC_FULLNAME_CAPACITY];
-
-  // Force strict BCP47 rules.
-  uloc_toLanguageTag(icu_result, result, ULOC_FULLNAME_CAPACITY, TRUE, &error);
-
-  if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_id_str));
-  }
-
-  DCHECK_NOT_NULL(result);
-  return *factory->NewStringFromAsciiChecked(result);
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           Intl::CanonicalizeLanguageTag(isolate, locale));
 }
 
 RUNTIME_FUNCTION(Runtime_AvailableLocalesOf) {
