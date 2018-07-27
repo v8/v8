@@ -81,7 +81,7 @@ class NumberFormat {
                                       const char* method_name);
 
   // ecm402/#sec-formatnumber
-  static MaybeHandle<String> FormatNumber(Isolate* isolate,
+  static MaybeHandle<Object> FormatNumber(Isolate* isolate,
                                           Handle<JSObject> number_format_holder,
                                           double value);
 
@@ -327,11 +327,6 @@ class Intl {
   V8_WARN_UNUSED_RESULT static Handle<Object> InternalCompare(
       Isolate* isolate, Handle<JSObject> collator, Handle<String> s1,
       Handle<String> s2);
-
-  // ecma402/#sup-properties-of-the-number-prototype-object
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> NumberToLocaleString(
-      Isolate* isolate, Handle<Object> num, Handle<Object> locales,
-      Handle<Object> options);
 };
 
 }  // namespace internal

@@ -1452,6 +1452,19 @@ DEFINE_METHOD(
   }
 );
 
+
+/**
+ * Returns a String value representing the result of calling ToNumber(value)
+ * according to the effective locale and the formatting options of this
+ * NumberFormat.
+ */
+function formatNumber(formatter, value) {
+  // Spec treats -0 and +0 as 0.
+  var number = TO_NUMBER(value) + 0;
+
+  return %InternalNumberFormat(formatter, number);
+}
+
 /**
  * Returns a string that matches LDML representation of the options object.
  */
@@ -2081,6 +2094,25 @@ function cachedOrNewService(service, locales, options, defaults) {
 %InstallToContext([
   "cached_or_new_service", cachedOrNewService
 ]);
+
+/**
+ * Formats a Number object (this) using locale and options values.
+ * If locale or options are omitted, defaults are used.
+ */
+DEFINE_METHOD(
+  GlobalNumber.prototype,
+  toLocaleString() {
+    if (!(this instanceof GlobalNumber) && typeof(this) !== 'number') {
+      throw %make_type_error(kMethodInvokedOnWrongType, "Number");
+    }
+
+    var locales = arguments[0];
+    var options = arguments[1];
+    var numberFormat = cachedOrNewService('numberformat', locales, options);
+    return formatNumber(numberFormat, this);
+  }
+);
+
 
 /**
  * Returns actual formatted date or fails if date parameter is invalid.
