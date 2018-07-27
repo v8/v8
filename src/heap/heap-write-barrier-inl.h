@@ -5,10 +5,12 @@
 #ifndef V8_HEAP_HEAP_WRITE_BARRIER_INL_H_
 #define V8_HEAP_HEAP_WRITE_BARRIER_INL_H_
 
+// Clients of this interface shouldn't depend on lots of heap internals.
+// Do not include anything from src/heap here!
+
 #include "src/heap/heap-write-barrier.h"
 
 #include "src/globals.h"
-#include "src/heap/heap.h"
 #include "src/objects-inl.h"
 #include "src/objects/maybe-object-inl.h"
 

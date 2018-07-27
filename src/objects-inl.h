@@ -1035,8 +1035,7 @@ void HeapObject::set_map(Map* value) {
   if (value != nullptr) {
     // TODO(1600) We are passing nullptr as a slot because maps can never be on
     // evacuation candidate.
-    Heap::FromWritableHeapObject(this)->incremental_marking()->RecordWrite(
-        this, nullptr, value);
+    MarkingBarrier(this, nullptr, value);
   }
 }
 
@@ -1055,8 +1054,7 @@ void HeapObject::synchronized_set_map(Map* value) {
   if (value != nullptr) {
     // TODO(1600) We are passing nullptr as a slot because maps can never be on
     // evacuation candidate.
-    Heap::FromWritableHeapObject(this)->incremental_marking()->RecordWrite(
-        this, nullptr, value);
+    MarkingBarrier(this, nullptr, value);
   }
 }
 
@@ -1077,8 +1075,7 @@ void HeapObject::set_map_after_allocation(Map* value, WriteBarrierMode mode) {
     DCHECK_NOT_NULL(value);
     // TODO(1600) We are passing nullptr as a slot because maps can never be on
     // evacuation candidate.
-    Heap::FromWritableHeapObject(this)->incremental_marking()->RecordWrite(
-        this, nullptr, value);
+    MarkingBarrier(this, nullptr, value);
   }
 }
 
@@ -2526,8 +2523,7 @@ Code* JSFunction::code() { return Code::cast(READ_FIELD(this, kCodeOffset)); }
 void JSFunction::set_code(Code* value) {
   DCHECK(!Heap::InNewSpace(value));
   WRITE_FIELD(this, kCodeOffset, value);
-  GetHeap()->incremental_marking()->RecordWrite(
-      this, HeapObject::RawField(this, kCodeOffset), value);
+  MarkingBarrier(this, HeapObject::RawField(this, kCodeOffset), value);
 }
 
 

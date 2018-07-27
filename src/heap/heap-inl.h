@@ -429,21 +429,6 @@ bool Heap::ShouldBePromoted(Address old_address) {
          (!page->ContainsLimit(age_mark) || old_address < age_mark);
 }
 
-void Heap::RecordWrite(Object* object, Object** slot, Object* value) {
-  DCHECK(!HasWeakHeapObjectTag(*slot));
-  DCHECK(!HasWeakHeapObjectTag(value));
-  DCHECK(object->IsHeapObject());  // Can't write to slots of a Smi.
-  if (!InNewSpace(value) || InNewSpace(HeapObject::cast(object))) return;
-  store_buffer()->InsertEntry(reinterpret_cast<Address>(slot));
-}
-
-void Heap::RecordWrite(Object* object, MaybeObject** slot, MaybeObject* value) {
-  if (!InNewSpace(value) || !object->IsHeapObject() || InNewSpace(object)) {
-    return;
-  }
-  store_buffer()->InsertEntry(reinterpret_cast<Address>(slot));
-}
-
 void Heap::RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value) {
   if (InNewSpace(value)) {
     RecordWriteIntoCodeSlow(host, rinfo, value);

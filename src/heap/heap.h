@@ -983,9 +983,7 @@ class Heap {
   // ===========================================================================
 
   // Write barrier support for object[offset] = o;
-  inline void RecordWrite(Object* object, MaybeObject** slot,
-                          MaybeObject* value);
-  inline void RecordWrite(Object* object, Object** slot, Object* value);
+  // See heap/heap-write-barrier-inl.h for stand-alone methods.
   inline void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* target);
   void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* target);
   void RecordWritesIntoCode(Code* code);

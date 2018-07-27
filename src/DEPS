@@ -12,6 +12,7 @@ include_rules = [
   "+src/heap/factory-inl.h",
   "+src/heap/heap.h",
   "+src/heap/heap-inl.h",
+  "+src/heap/heap-write-barrier-inl.h",
   "-src/inspector",
   "-src/interpreter",
   "+src/interpreter/bytecode-array-accessor.h",

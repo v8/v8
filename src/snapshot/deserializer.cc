@@ -5,6 +5,7 @@
 #include "src/snapshot/deserializer.h"
 
 #include "src/assembler-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/isolate.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table.h"
@@ -713,10 +714,9 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         UnalignedCopy(current, &hot_maybe_object);
         if (write_barrier_needed && Heap::InNewSpace(hot_object)) {
           Address current_address = reinterpret_cast<Address>(current);
-          isolate->heap()->RecordWrite(
-              HeapObject::FromAddress(current_object_address),
-              reinterpret_cast<MaybeObject**>(current_address),
-              hot_maybe_object);
+          GenerationalBarrier(HeapObject::FromAddress(current_object_address),
+                              reinterpret_cast<MaybeObject**>(current_address),
+                              hot_maybe_object);
         }
         current++;
         break;
@@ -874,10 +874,9 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
   if (emit_write_barrier && write_barrier_needed) {
     Address current_address = reinterpret_cast<Address>(current);
     SLOW_DCHECK(isolate->heap()->ContainsSlow(current_object_address));
-    isolate->heap()->RecordWrite(
-        HeapObject::FromAddress(current_object_address),
-        reinterpret_cast<MaybeObject**>(current_address),
-        *reinterpret_cast<MaybeObject**>(current_address));
+    GenerationalBarrier(HeapObject::FromAddress(current_object_address),
+                        reinterpret_cast<MaybeObject**>(current_address),
+                        *reinterpret_cast<MaybeObject**>(current_address));
   }
   if (!current_was_incremented) {
     current++;
