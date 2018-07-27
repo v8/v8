@@ -15,7 +15,7 @@
 #include "src/conversions-inl.h"
 #include "src/objects/bigint.h"
 #include "src/parsing/duplicate-finder.h"  // For Scanner::FindSymbol
-#include "src/unicode-cache-inl.h"
+#include "src/parsing/scanner-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -420,32 +420,13 @@ Token::Value Scanner::PeekAhead() {
   return ret;
 }
 
-
-Token::Value Scanner::SkipWhiteSpace() {
-  int start_position = source_pos();
-
+Token::Value Scanner::TryToSkipHTMLCommentAndWhiteSpaces(int start_position) {
   while (true) {
-    while (true) {
-      // We won't skip behind the end of input.
-      DCHECK(!unicode_cache_->IsWhiteSpace(kEndOfInput));
-
-      // Advance as long as character is a WhiteSpace or LineTerminator.
-      // Remember if the latter is the case.
-      if (unibrow::IsLineTerminator(c0_)) {
-        has_line_terminator_before_next_ = true;
-      } else if (!unicode_cache_->IsWhiteSpace(c0_)) {
-        break;
-      }
-      Advance();
-    }
+    Advance();
 
     // If there is an HTML comment end '-->' at the beginning of a
-    // line (with only whitespace in front of it), we treat the rest
-    // of the line as a comment. This is in line with the way
-    // SpiderMonkey handles it.
-    if (c0_ != '-' || !has_line_terminator_before_next_) break;
-
-    Advance();
+    // line, we treat the rest of the line as a comment. This is in line with
+    // the way SpiderMonkey handles it.
     if (c0_ != '-') {
       PushBack('-');  // undo Advance()
       break;
@@ -462,6 +443,12 @@ Token::Value Scanner::SkipWhiteSpace() {
     if (token == Token::ILLEGAL) {
       return token;
     }
+
+    // Skip remaining whitespaces after the HTML comment.
+    SkipWhiteSpaceImpl();
+
+    // Only repeat loop if we find another HTML comment
+    if (c0_ != '-' || !has_line_terminator_before_next_) break;
   }
 
   // Return whether or not we skipped any characters.
