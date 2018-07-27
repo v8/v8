@@ -115,6 +115,8 @@ class Declarations {
     return chain_.GetLiveVariables();
   }
 
+  bool IsDeclaredInCurrentScope(const std::string& name);
+
   Statement* next_body() const { return next_body_; }
 
   void PrintScopeChain() { chain_.Print(); }

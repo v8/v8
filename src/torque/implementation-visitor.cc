@@ -220,7 +220,7 @@ void ImplementationVisitor::Visit(TorqueMacroDeclaration* decl,
     const Variable* result_var = nullptr;
     if (macro->HasReturnValue()) {
       result_var =
-          GenerateVariableDeclaration(decl, kReturnValueVariable, {}, {});
+          GeneratePredeclaredVariableDeclaration(kReturnValueVariable, {});
     }
     Label* macro_end = declarations()->DeclareLabel("macro_end");
     GenerateLabelDefinition(macro_end, decl);
@@ -320,7 +320,10 @@ const Type* ImplementationVisitor::Visit(VarDeclarationStatement* stmt) {
   if (stmt->initializer) {
     init_result = Visit(*stmt->initializer);
   }
-  GenerateVariableDeclaration(stmt, stmt->name, {}, init_result);
+  base::Optional<const Type*> type;
+  if (stmt->type) type = declarations()->GetType(*stmt->type);
+  GenerateVariableDeclaration(stmt, stmt->name, stmt->const_qualified, type,
+                              init_result);
   return TypeOracle::GetVoidType();
 }
 
@@ -360,7 +363,8 @@ VisitResult ImplementationVisitor::Visit(ConditionalExpression* expr) {
 
   const Type* common_type = GetCommonType(left.type(), right.type());
   std::string result_var = NewTempVariable();
-  Variable* result = GenerateVariableDeclaration(expr, result_var, common_type);
+  Variable* result =
+      GenerateVariableDeclaration(expr, result_var, false, common_type);
 
   {
     ScopedIndent indent(this);
@@ -861,7 +865,7 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
   const Type* common_type = GetCommonType(begin.type(), end.type());
   Variable* index_var = GenerateVariableDeclaration(
       stmt, std::string(kForIndexValueVariable) + "_" + NewTempVariable(),
-      common_type, begin);
+      false, common_type, begin);
 
   VisitResult index_for_read = {index_var->type(), index_var};
 
@@ -881,8 +885,12 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
   GenerateLabelBind(body_label);
   VisitResult element_result =
       GenerateCall("[]", {{expression_result, index_for_read}, {}});
-  GenerateVariableDeclaration(stmt->var_declaration,
-                              stmt->var_declaration->name, {}, element_result);
+  base::Optional<const Type*> declared_type;
+  if (stmt->var_declaration->type)
+    declared_type = declarations()->GetType(*stmt->var_declaration->type);
+  GenerateVariableDeclaration(
+      stmt->var_declaration, stmt->var_declaration->name,
+      stmt->var_declaration->const_qualified, declared_type, element_result);
   Visit(stmt->body);
   GenerateLabelGoto(increment_label);
 
@@ -923,7 +931,7 @@ const Type* ImplementationVisitor::Visit(TryLabelStatement* stmt) {
       Declarations::NodeScopeActivator scope(declarations(),
                                              stmt->label_blocks[i]->body);
       for (auto& v : label->GetParameters()) {
-        GenerateVariableDeclaration(stmt, v->name(), v->type());
+        GenerateVariableDeclaration(stmt, v->name(), false, v->type());
         v->Define();
       }
       ++i;
@@ -1519,23 +1527,36 @@ void ImplementationVisitor::GenerateVariableDeclaration(const Variable* var) {
   }
 }
 
+Variable* ImplementationVisitor::GeneratePredeclaredVariableDeclaration(
+    const std::string& name,
+    const base::Optional<VisitResult>& initialization) {
+  Variable* variable = Variable::cast(declarations()->LookupValue(name));
+  GenerateVariableDeclaration(variable);
+  if (initialization) {
+    GenerateAssignToVariable(variable, *initialization);
+  }
+  return variable;
+}
+
 Variable* ImplementationVisitor::GenerateVariableDeclaration(
-    AstNode* node, const std::string& name,
+    AstNode* node, const std::string& name, bool is_const,
     const base::Optional<const Type*>& type,
     const base::Optional<VisitResult>& initialization) {
-
   Variable* variable = nullptr;
-  if (declarations()->TryLookup(name)) {
+  if (declarations()->IsDeclaredInCurrentScope(name)) {
     variable = Variable::cast(declarations()->LookupValue(name));
   } else {
-    variable = declarations()->DeclareVariable(name, *type, false);
-    // Because the variable is being defined during code generation, it must be
-    // assumed that it changes along all control split paths because it's no
-    // longer possible to run the control-flow anlaysis in the declaration pass
-    // over the variable.
-    global_context_.MarkVariableChanged(
-        node, declarations()->GetCurrentSpecializationTypeNamesVector(),
-        variable);
+    variable = declarations()->DeclareVariable(
+        name, type ? *type : initialization->type(), is_const);
+    if (!is_const) {
+      // Because the variable is being defined during code generation, it must
+      // be assumed that it changes along all control split paths because it's
+      // no longer possible to run the control-flow anlaysis in the declaration
+      // pass over the variable.
+      global_context_.MarkVariableChanged(
+          node, declarations()->GetCurrentSpecializationTypeNamesVector(),
+          variable);
+    }
   }
   GenerateVariableDeclaration(variable);
   if (initialization) {

@@ -440,7 +440,7 @@ struct VarDeclarationStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(VarDeclarationStatement)
   VarDeclarationStatement(
       SourcePosition pos, bool const_qualified, std::string name,
-      TypeExpression* type,
+      base::Optional<TypeExpression*> type,
       base::Optional<Expression*> initializer = base::nullopt)
       : Statement(kKind, pos),
         const_qualified(const_qualified),
@@ -449,7 +449,7 @@ struct VarDeclarationStatement : Statement {
         initializer(initializer) {}
   bool const_qualified;
   std::string name;
-  TypeExpression* type;
+  base::Optional<TypeExpression*> type;
   base::Optional<Expression*> initializer;
 };
 

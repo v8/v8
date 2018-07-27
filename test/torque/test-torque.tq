@@ -242,8 +242,17 @@ module test {
   }
 
   macro TestLocalConstBindings() {
-    const kSmi: Smi = 3;
-    check(kSmi == 3);
+    const x : constexpr int31 = 3;
+    const x_smi : Smi = x;
+    {
+      const x : Smi = x + from_constexpr<Smi>(1);
+      check(x == x_smi + 1);
+      const x_smi : Smi = x;
+      check(x == x_smi);
+      check(x == 4);
+    }
+    check(x_smi == 3);
+    check(x == x_smi);
   }
 
   struct TestStructA {

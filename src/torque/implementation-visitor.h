@@ -189,8 +189,12 @@ class ImplementationVisitor : public FileVisitor {
 
   void GenerateVariableDeclaration(const Variable* var);
 
+  Variable* GeneratePredeclaredVariableDeclaration(
+      const std::string& name,
+      const base::Optional<VisitResult>& initialization);
+
   Variable* GenerateVariableDeclaration(
-      AstNode* node, const std::string& name,
+      AstNode* node, const std::string& name, bool is_const,
       const base::Optional<const Type*>& type,
       const base::Optional<VisitResult>& initialization = {});
 

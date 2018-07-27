@@ -43,10 +43,13 @@ Scope* Declarations::GetGenericScope(Generic* generic,
   return result;
 }
 
+bool Declarations::IsDeclaredInCurrentScope(const std::string& name) {
+  return chain_.ShallowLookup(name) != nullptr;
+}
+
 void Declarations::CheckAlreadyDeclared(const std::string& name,
                                         const char* new_type) {
-  auto i = chain_.ShallowLookup(name);
-  if (i != nullptr) {
+  if (IsDeclaredInCurrentScope(name)) {
     std::stringstream s;
     s << "cannot redeclare " << name << " (type " << new_type << ")";
     ReportError(s.str());

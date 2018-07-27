@@ -299,15 +299,22 @@ Parameter* DeclarationVisitor::DeclareParameter(const std::string& name,
 
 void DeclarationVisitor::Visit(VarDeclarationStatement* stmt) {
   std::string variable_name = stmt->name;
-  const Type* type = declarations()->GetType(stmt->type);
-  if (type->IsConstexpr() && !stmt->const_qualified) {
-    ReportError(
-        "cannot declare variable with constexpr type. Use 'const' instead.");
-  }
-  DeclareVariable(variable_name, type, stmt->const_qualified);
-  if (global_context_.verbose()) {
-    std::cout << "declared variable " << variable_name << " with type " << *type
-              << "\n";
+  if (!stmt->const_qualified) {
+    if (!stmt->type) {
+      ReportError(
+          "variable declaration is missing type. Only 'const' bindings can "
+          "infer the type.");
+    }
+    const Type* type = declarations()->GetType(*stmt->type);
+    if (type->IsConstexpr()) {
+      ReportError(
+          "cannot declare variable with constexpr type. Use 'const' instead.");
+    }
+    DeclareVariable(variable_name, type, stmt->const_qualified);
+    if (global_context_.verbose()) {
+      std::cout << "declared variable " << variable_name << " with type "
+                << *type << "\n";
+    }
   }
 
   // const qualified variables are required to be initialized properly.
