@@ -61,7 +61,7 @@ parts = longAlways.formatToParts(-0, "day");
 assertEquals(2, parts.length);
 assertEquals(3, Object.getOwnPropertyNames(parts[0]).length);
 assertEquals('integer', parts[0].type);
-assertEquals('00', parts[0].value);
+assertEquals('0', parts[0].value);
 assertEquals('day', parts[0].unit);
 assertEquals(2, Object.getOwnPropertyNames(parts[1]).length);
 assertEquals('literal', parts[1].type);

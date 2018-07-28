@@ -141,14 +141,6 @@ JSRelativeTimeFormat::InitializeRelativeTimeFormat(
   }
   CHECK_NOT_NULL(number_format);
 
-  // 23. Perform ! CreateDataPropertyOrThrow(nfOptions, "useGrouping", false).
-  number_format->setGroupingUsed(false);
-
-  // 24. Perform ! CreateDataPropertyOrThrow(nfOptions,
-  //                                         "minimumIntegerDigits", 2).
-  // Ref: https://github.com/tc39/proposal-intl-relative-time/issues/80
-  number_format->setMinimumIntegerDigits(2);
-
   // Change UDISPCTX_CAPITALIZATION_NONE to other values if
   // ECMA402 later include option to change capitalization.
   // Ref: https://github.com/tc39/proposal-intl-relative-time/issues/11
