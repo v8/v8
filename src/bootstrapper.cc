@@ -1834,7 +1834,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, prototype, "valueOf",
                           Builtins::kNumberPrototypeValueOf, 0, true);
 
-    // Install Intl fallback functions.
     SimpleInstallFunction(isolate_, prototype, "toLocaleString",
                           Builtins::kNumberPrototypeToLocaleString, 0, false);
 

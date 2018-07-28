@@ -220,7 +220,6 @@ namespace internal {
   F(GetDefaultICULocale, 0, 1)               \
   F(InternalCompare, 3, 1)                   \
   F(InternalDateFormat, 2, 1)                \
-  F(InternalNumberFormat, 2, 1)              \
   F(IntlUnwrapReceiver, 5, 1)                \
   F(IsInitializedIntlObjectOfType, 2, 1)     \
   F(IsWellFormedCurrencyCode, 1, 1)          \
