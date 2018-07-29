@@ -24,6 +24,20 @@ inline bool EqualImmutableValues(Object* obj1, Object* obj2) {
 
 }  // namespace
 
+MapUpdater::MapUpdater(Isolate* isolate, Handle<Map> old_map)
+    : isolate_(isolate),
+      old_map_(old_map),
+      old_descriptors_(old_map->instance_descriptors(), isolate_),
+      old_nof_(old_map_->NumberOfOwnDescriptors()),
+      new_elements_kind_(old_map_->elements_kind()),
+      is_transitionable_fast_elements_kind_(
+          IsTransitionableFastElementsKind(new_elements_kind_)) {
+  // We shouldn't try to update remote objects.
+  DCHECK(!old_map->FindRootMap(isolate)
+              ->GetConstructor()
+              ->IsFunctionTemplateInfo());
+}
+
 Name* MapUpdater::GetKey(int descriptor) const {
   return old_descriptors_->GetKey(descriptor);
 }

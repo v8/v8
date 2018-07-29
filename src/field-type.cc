@@ -81,5 +81,12 @@ void FieldType::PrintTo(std::ostream& os) {
   }
 }
 
+bool FieldType::NowContains(Object* value) {
+  if (this == Any()) return true;
+  if (this == None()) return false;
+  if (!value->IsHeapObject()) return false;
+  return HeapObject::cast(value)->map() == Map::cast(this);
+}
+
 }  // namespace internal
 }  // namespace v8

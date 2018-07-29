@@ -5,11 +5,12 @@
 #ifndef V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 
+#include "src/objects/shared-function-info.h"
+
 #include "src/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/scope-info.h"
-#include "src/objects/shared-function-info.h"
 #include "src/objects/templates.h"
 
 // Has to be the last include (doesn't have include guards):

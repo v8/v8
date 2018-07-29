@@ -7,6 +7,8 @@
 
 #include "src/objects/prototype-info.h"
 
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 
 // Has to be the last include (doesn't have include guards):
