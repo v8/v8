@@ -574,20 +574,6 @@ TEST(12) {
   __ brxhg(r1, r3, &continue2);
   __ b(&failed);
 
-  __ lgfi(r1, Operand(1));
-  __ lgfi(r3, Operand(1));
-  __ brxhg(r1, r3, &continue1);
-  __ b(&failed);
-
-  __ bind(&continue1);
-  __ lgfi(r1, Operand(-2));
-  __ lgfi(r3, Operand(1));
-  __ brxhg(r1, r3, &failed);
-  __ brxhg(r1, r3, &failed);
-  __ brxhg(r1, r3, &failed);
-  __ brxhg(r1, r3, &continue2);
-  __ b(&failed);
-
   //r1 - operand; r4 - inc; r5 - test val
   __ bind(&continue2);
   __ lgfi(r1, Operand(-2));
