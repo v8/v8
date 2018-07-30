@@ -1319,6 +1319,100 @@ void VisitAtomicExchange(InstructionSelector* selector, Node* node,
   selector->Emit(code, 1, outputs, input_count, inputs);
 }
 
+void VisitAtomicBinOp(InstructionSelector* selector, Node* node,
+                      ArchOpcode opcode, MachineType type) {
+  AddressingMode addressing_mode;
+  IA32OperandGenerator g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  InstructionOperand index_operand;
+  if (g.CanBeImmediate(index)) {
+    index_operand = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    index_operand = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  InstructionOperand inputs[] = {g.UseUniqueRegister(value),
+                                 g.UseUniqueRegister(base), index_operand};
+  InstructionOperand outputs[] = {g.DefineAsFixed(node, eax)};
+  InstructionOperand temp[1];
+  if (type == MachineType::Int8() || type == MachineType::Uint8()) {
+    temp[0] = g.UseByteRegister(node);
+  } else {
+    temp[0] = g.TempRegister();
+  }
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                 arraysize(temp), temp);
+}
+
+void VisitPairAtomicBinOp(InstructionSelector* selector, Node* node,
+                          ArchOpcode opcode) {
+  IA32OperandGenerator g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  // For Word64 operations, the value input is split into the a high node,
+  // and a low node in the int64-lowering phase.
+  Node* value_high = node->InputAt(3);
+
+  // Wasm lives in 32-bit address space, so we do not need to worry about
+  // base/index lowering. This will need to be fixed for Wasm64.
+  AddressingMode addressing_mode;
+  InstructionOperand index_operand;
+  if (g.CanBeImmediate(index)) {
+    index_operand = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    index_operand = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  InstructionOperand inputs[] = {g.UseFixed(value, ebx),
+                                 g.UseFixed(value_high, ecx),
+                                 g.UseUniqueRegister(base), index_operand};
+  InstructionOperand outputs[] = {
+      g.DefineAsFixed(NodeProperties::FindProjection(node, 0), eax),
+      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
+}
+
+void VisitNarrowAtomicBinOp(InstructionSelector* selector, Node* node,
+                            ArchOpcode opcode, MachineType type) {
+  IA32OperandGenerator g(selector);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  // Wasm lives in 32-bit address space, so we do not need to worry about
+  // base/index lowering. This will need to be fixed for Wasm64.
+  AddressingMode addressing_mode;
+  InstructionOperand index_operand;
+  if (g.CanBeImmediate(index)) {
+    index_operand = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    index_operand = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  InstructionOperand inputs[] = {g.UseUniqueRegister(value),
+                                 g.UseUniqueRegister(base), index_operand};
+  InstructionOperand outputs[] = {
+      g.DefineAsFixed(NodeProperties::FindProjection(node, 0), eax),
+      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
+  InstructionOperand temp[1];
+  if (type == MachineType::Uint8()) {
+    temp[0] = g.UseByteRegister(node);
+  } else {
+    temp[0] = g.TempRegister();
+  }
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                 arraysize(temp), temp);
+}
+
 }  // namespace
 
 // Shared routine for word comparison with zero.
@@ -1676,11 +1770,6 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
 void InstructionSelector::VisitWord32AtomicBinaryOperation(
     Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
-  IA32OperandGenerator g(this);
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
-
   MachineType type = AtomicOpType(node->op());
   ArchOpcode opcode = kArchNop;
   if (type == MachineType::Int8()) {
@@ -1697,28 +1786,7 @@ void InstructionSelector::VisitWord32AtomicBinaryOperation(
     UNREACHABLE();
     return;
   }
-  InstructionOperand outputs[1];
-  AddressingMode addressing_mode;
-  InstructionOperand inputs[3];
-  size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(value);
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  if (g.CanBeImmediate(index)) {
-    inputs[input_count++] = g.UseImmediate(index);
-    addressing_mode = kMode_MRI;
-  } else {
-    inputs[input_count++] = g.UseUniqueRegister(index);
-    addressing_mode = kMode_MR1;
-  }
-  outputs[0] = g.DefineAsFixed(node, eax);
-  InstructionOperand temp[1];
-  if (type == MachineType::Int8() || type == MachineType::Uint8()) {
-    temp[0] = g.UseByteRegister(node);
-  } else {
-    temp[0] = g.TempRegister();
-  }
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  Emit(code, 1, outputs, input_count, inputs, 1, temp);
+  VisitAtomicBinOp(this, node, opcode, type);
 }
 
 #define VISIT_ATOMIC_BINOP(op)                                   \
@@ -1727,6 +1795,59 @@ void InstructionSelector::VisitWord32AtomicBinaryOperation(
         node, kWord32Atomic##op##Int8, kWord32Atomic##op##Uint8, \
         kWord32Atomic##op##Int16, kWord32Atomic##op##Uint16,     \
         kWord32Atomic##op##Word32);                              \
+  }
+VISIT_ATOMIC_BINOP(Add)
+VISIT_ATOMIC_BINOP(Sub)
+VISIT_ATOMIC_BINOP(And)
+VISIT_ATOMIC_BINOP(Or)
+VISIT_ATOMIC_BINOP(Xor)
+#undef VISIT_ATOMIC_BINOP
+
+void InstructionSelector::VisitWord32AtomicPairAdd(Node* node) {
+  VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairAdd);
+}
+
+void InstructionSelector::VisitWord32AtomicPairSub(Node* node) {
+  VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairSub);
+}
+
+void InstructionSelector::VisitWord32AtomicPairAnd(Node* node) {
+  VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairAnd);
+}
+
+void InstructionSelector::VisitWord32AtomicPairOr(Node* node) {
+  VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairOr);
+}
+
+void InstructionSelector::VisitWord32AtomicPairXor(Node* node) {
+  VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairXor);
+}
+
+void InstructionSelector::VisitWord64AtomicNarrowBinop(Node* node,
+                                                       ArchOpcode uint8_op,
+                                                       ArchOpcode uint16_op,
+                                                       ArchOpcode uint32_op) {
+  MachineType type = AtomicOpType(node->op());
+  DCHECK(type != MachineType::Uint64());
+  ArchOpcode opcode = kArchNop;
+  if (type == MachineType::Uint32()) {
+    opcode = uint32_op;
+  } else if (type == MachineType::Uint16()) {
+    opcode = uint16_op;
+  } else if (type == MachineType::Uint8()) {
+    opcode = uint8_op;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+  VisitNarrowAtomicBinOp(this, node, opcode, type);
+}
+
+#define VISIT_ATOMIC_BINOP(op)                                             \
+  void InstructionSelector::VisitWord64AtomicNarrow##op(Node* node) {      \
+    VisitWord64AtomicNarrowBinop(node, kIA32Word64AtomicNarrow##op##Uint8, \
+                                 kIA32Word64AtomicNarrow##op##Uint16,      \
+                                 kIA32Word64AtomicNarrow##op##Uint32);     \
   }
 VISIT_ATOMIC_BINOP(Add)
 VISIT_ATOMIC_BINOP(Sub)

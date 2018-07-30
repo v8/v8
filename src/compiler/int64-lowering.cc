@@ -117,6 +117,23 @@ int GetReturnCountAfterLowering(Signature<MachineRepresentation>* signature) {
 
 }  // namespace
 
+void Int64Lowering::LowerWord64AtomicBinop(Node* node, const Operator* op) {
+  DCHECK_EQ(5, node->InputCount());
+  Node* value = node->InputAt(2);
+  node->ReplaceInput(2, GetReplacementLow(value));
+  node->InsertInput(zone(), 3, GetReplacementHigh(value));
+  NodeProperties::ChangeOp(node, op);
+  ReplaceNodeWithProjections(node);
+}
+
+void Int64Lowering::LowerWord64AtomicNarrowBinop(Node* node,
+                                                 const Operator* op) {
+  DCHECK_EQ(5, node->InputCount());
+  DefaultLowering(node, true);
+  NodeProperties::ChangeOp(node, op);
+  ReplaceNodeWithProjections(node);
+}
+
 // static
 int Int64Lowering::GetParameterCountAfterLowering(
     Signature<MachineRepresentation>* signature) {
@@ -867,6 +884,23 @@ void Int64Lowering::LowerNode(Node* node) {
       node->NullAllInputs();
       break;
     }
+#define ATOMIC_CASE(name)                                                      \
+  case IrOpcode::kWord64Atomic##name: {                                        \
+    MachineType type = AtomicOpType(node->op());                               \
+    if (type == MachineType::Uint64()) {                                       \
+      LowerWord64AtomicBinop(node, machine()->Word32AtomicPair##name());       \
+    } else {                                                                   \
+      LowerWord64AtomicNarrowBinop(node,                                       \
+                                   machine()->Word64AtomicNarrow##name(type)); \
+    }                                                                          \
+    break;                                                                     \
+  }
+      ATOMIC_CASE(Add)
+      ATOMIC_CASE(Sub)
+      ATOMIC_CASE(And)
+      ATOMIC_CASE(Or)
+      ATOMIC_CASE(Xor)
+#undef ATOMIC_CASE
 
     default: { DefaultLowering(node); }
   }

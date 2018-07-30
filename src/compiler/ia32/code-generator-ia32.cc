@@ -168,6 +168,22 @@ class IA32OperandConverter : public InstructionOperandConverter {
   Operand MemoryOperand(size_t first_input = 0) {
     return MemoryOperand(&first_input);
   }
+
+  Operand NextMemoryOperand(size_t offset = 0) {
+    AddressingMode mode = AddressingModeField::decode(instr_->opcode());
+    Register base = InputRegister(NextOffset(&offset));
+    const int32_t disp = 4;
+    if (mode == kMode_MR1) {
+      Register index = InputRegister(NextOffset(&offset));
+      ScaleFactor scale = ScaleFor(kMode_MR1, kMode_MR1);
+      return Operand(base, index, scale, disp);
+    } else if (mode == kMode_MRI) {
+      Constant ctant = ToConstant(instr_->InputAt(NextOffset(&offset)));
+      return Operand(base, ctant.ToInt32() + disp, ctant.rmode());
+    } else {
+      UNREACHABLE();
+    }
+  }
 };
 
 
@@ -410,6 +426,23 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));     \
     __ j(not_equal, &binop);                                    \
   } while (false)
+
+#define ASSEMBLE_I64ATOMIC_BINOP(instr1, instr2)         \
+  do {                                                   \
+    Label binop;                                         \
+    __ bind(&binop);                                     \
+    __ mov(i.OutputRegister(0), i.MemoryOperand(2));     \
+    __ mov(i.OutputRegister(1), i.NextMemoryOperand(2)); \
+    __ push(i.InputRegister(0));                         \
+    __ push(i.InputRegister(1));                         \
+    __ instr1(i.InputRegister(0), i.OutputRegister(0));  \
+    __ instr2(i.InputRegister(1), i.OutputRegister(1));  \
+    __ lock();                                           \
+    __ cmpxchg8b(i.MemoryOperand(2));                    \
+    __ pop(i.InputRegister(1));                          \
+    __ pop(i.InputRegister(0));                          \
+    __ j(not_equal, &binop);                             \
+  } while (false);
 
 #define ASSEMBLE_MOVX(mov_instr)                            \
   do {                                                      \
@@ -3652,30 +3685,47 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cmpxchg(i.MemoryOperand(2), i.InputRegister(1));
       break;
     }
-#define ATOMIC_BINOP_CASE(op, inst)                \
-  case kWord32Atomic##op##Int8: {                  \
-    ASSEMBLE_ATOMIC_BINOP(inst, mov_b, cmpxchg_b); \
-    __ movsx_b(eax, eax);                          \
-    break;                                         \
-  }                                                \
-  case kWord32Atomic##op##Uint8: {                 \
-    ASSEMBLE_ATOMIC_BINOP(inst, mov_b, cmpxchg_b); \
-    __ movzx_b(eax, eax);                          \
-    break;                                         \
-  }                                                \
-  case kWord32Atomic##op##Int16: {                 \
-    ASSEMBLE_ATOMIC_BINOP(inst, mov_w, cmpxchg_w); \
-    __ movsx_w(eax, eax);                          \
-    break;                                         \
-  }                                                \
-  case kWord32Atomic##op##Uint16: {                \
-    ASSEMBLE_ATOMIC_BINOP(inst, mov_w, cmpxchg_w); \
-    __ movzx_w(eax, eax);                          \
-    break;                                         \
-  }                                                \
-  case kWord32Atomic##op##Word32: {                \
-    ASSEMBLE_ATOMIC_BINOP(inst, mov, cmpxchg);     \
-    break;                                         \
+#define ATOMIC_BINOP_CASE(op, inst)                       \
+  case kWord32Atomic##op##Int8: {                         \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_b, cmpxchg_b);        \
+    __ movsx_b(eax, eax);                                 \
+    break;                                                \
+  }                                                       \
+  case kIA32Word64AtomicNarrow##op##Uint8: {              \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_b, cmpxchg_b);        \
+    __ movzx_b(i.OutputRegister(0), i.OutputRegister(0)); \
+    __ xor_(i.OutputRegister(1), i.OutputRegister(1));    \
+    break;                                                \
+  }                                                       \
+  case kWord32Atomic##op##Uint8: {                        \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_b, cmpxchg_b);        \
+    __ movzx_b(eax, eax);                                 \
+    break;                                                \
+  }                                                       \
+  case kWord32Atomic##op##Int16: {                        \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_w, cmpxchg_w);        \
+    __ movsx_w(eax, eax);                                 \
+    break;                                                \
+  }                                                       \
+  case kIA32Word64AtomicNarrow##op##Uint16: {             \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_w, cmpxchg_w);        \
+    __ movzx_w(i.OutputRegister(0), i.OutputRegister(0)); \
+    __ xor_(i.OutputRegister(1), i.OutputRegister(1));    \
+    break;                                                \
+  }                                                       \
+  case kWord32Atomic##op##Uint16: {                       \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov_w, cmpxchg_w);        \
+    __ movzx_w(eax, eax);                                 \
+    break;                                                \
+  }                                                       \
+  case kIA32Word64AtomicNarrow##op##Uint32: {             \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov, cmpxchg);            \
+    __ xor_(i.OutputRegister(1), i.OutputRegister(1));    \
+    break;                                                \
+  }                                                       \
+  case kWord32Atomic##op##Word32: {                       \
+    ASSEMBLE_ATOMIC_BINOP(inst, mov, cmpxchg);            \
+    break;                                                \
   }
       ATOMIC_BINOP_CASE(Add, add)
       ATOMIC_BINOP_CASE(Sub, sub)
@@ -3683,6 +3733,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, or_)
       ATOMIC_BINOP_CASE(Xor, xor_)
 #undef ATOMIC_BINOP_CASE
+#define ATOMIC_BINOP_CASE(op, instr1, instr2) \
+  case kIA32Word32AtomicPair##op: {           \
+    ASSEMBLE_I64ATOMIC_BINOP(instr1, instr2)  \
+    break;                                    \
+  }
+      ATOMIC_BINOP_CASE(Add, add, adc)
+      ATOMIC_BINOP_CASE(And, and_, and_)
+      ATOMIC_BINOP_CASE(Or, or_, or_)
+      ATOMIC_BINOP_CASE(Xor, xor_, xor_)
+#undef ATOMIC_BINOP_CASE
+    case kIA32Word32AtomicPairSub: {
+      Label binop;
+      __ bind(&binop);
+      // Move memory operand into edx:eax
+      __ mov(i.OutputRegister(0), i.MemoryOperand(2));
+      __ mov(i.OutputRegister(1), i.NextMemoryOperand(2));
+      // Save input registers temporarily on the stack.
+      __ push(i.InputRegister(0));
+      __ push(i.InputRegister(1));
+      // Negate input in place
+      __ neg(i.InputRegister(0));
+      __ adc(i.InputRegister(1), 0);
+      __ neg(i.InputRegister(1));
+      // Add memory operand, negated input.
+      __ add(i.InputRegister(0), i.OutputRegister(0));
+      __ adc(i.InputRegister(1), i.OutputRegister(1));
+      __ lock();
+      __ cmpxchg8b(i.MemoryOperand(2));
+      // Restore input registers
+      __ pop(i.InputRegister(1));
+      __ pop(i.InputRegister(0));
+      __ j(not_equal, &binop);
+      break;
+    }
     case kWord32AtomicLoadInt8:
     case kWord32AtomicLoadUint8:
     case kWord32AtomicLoadInt16:
@@ -4452,6 +4536,7 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
 #undef ASSEMBLE_IEEE754_UNOP
 #undef ASSEMBLE_BINOP
 #undef ASSEMBLE_ATOMIC_BINOP
+#undef ASSEMBLE_I64ATOMIC_BINOP
 #undef ASSEMBLE_MOVX
 #undef ASSEMBLE_SIMD_PUNPCK_SHUFFLE
 #undef ASSEMBLE_SIMD_IMM_SHUFFLE

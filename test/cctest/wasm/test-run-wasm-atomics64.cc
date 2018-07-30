@@ -47,9 +47,11 @@ WASM_EXEC_TEST(I64AtomicOr) {
 WASM_EXEC_TEST(I64AtomicXor) {
   RunU64BinOp(execution_mode, kExprI64AtomicXor, Xor);
 }
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_EXEC_TEST(I64AtomicExchange) {
   RunU64BinOp(execution_mode, kExprI64AtomicExchange, Exchange);
 }
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 void RunU32BinOp(WasmExecutionMode execution_mode, WasmOpcode wasm_op,
                  Uint32BinOp expected_op) {
@@ -88,9 +90,11 @@ WASM_EXEC_TEST(I64AtomicOr32U) {
 WASM_EXEC_TEST(I64AtomicXor32U) {
   RunU32BinOp(execution_mode, kExprI64AtomicXor32U, Xor);
 }
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_EXEC_TEST(I64AtomicExchange32U) {
   RunU32BinOp(execution_mode, kExprI64AtomicExchange32U, Exchange);
 }
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 void RunU16BinOp(WasmExecutionMode mode, WasmOpcode wasm_op,
                  Uint16BinOp expected_op) {
@@ -129,9 +133,11 @@ WASM_EXEC_TEST(I64AtomicOr16U) {
 WASM_EXEC_TEST(I64AtomicXor16U) {
   RunU16BinOp(execution_mode, kExprI64AtomicXor16U, Xor);
 }
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_EXEC_TEST(I64AtomicExchange16U) {
   RunU16BinOp(execution_mode, kExprI64AtomicExchange16U, Exchange);
 }
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 void RunU8BinOp(WasmExecutionMode execution_mode, WasmOpcode wasm_op,
                 Uint8BinOp expected_op) {
@@ -169,6 +175,7 @@ WASM_EXEC_TEST(I64AtomicOr8U) {
 WASM_EXEC_TEST(I64AtomicXor8U) {
   RunU8BinOp(execution_mode, kExprI64AtomicXor8U, Xor);
 }
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 WASM_EXEC_TEST(I64AtomicExchange8U) {
   RunU8BinOp(execution_mode, kExprI64AtomicExchange8U, Exchange);
 }
@@ -401,6 +408,7 @@ WASM_EXEC_TEST(I64AtomicStoreLoad8U) {
     CHECK_EQ(*i, r.builder().ReadMemory(&memory[0]));
   }
 }
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
 
 }  // namespace test_run_wasm_atomics_64
 }  // namespace wasm

@@ -640,9 +640,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // atomic-or [base + index], value
   const Operator* Word32AtomicOr(MachineType type);
   // atomic-xor [base + index], value
-  const Operator* Word32AtomicXor(MachineType type);
-  // atomic-load [base + index]
-  const Operator* Word64AtomicAdd(MachineType type);
+  const Operator* Word32AtomicXor(MachineType rep);
+  // atomic-add [base + index], value
+  const Operator* Word64AtomicAdd(MachineType rep);
   // atomic-sub [base + index], value
   const Operator* Word64AtomicSub(MachineType type);
   // atomic-and [base + index], value
@@ -650,7 +650,27 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // atomic-or [base + index], value
   const Operator* Word64AtomicOr(MachineType type);
   // atomic-xor [base + index], value
-  const Operator* Word64AtomicXor(MachineType type);
+  const Operator* Word64AtomicXor(MachineType rep);
+  // atomic-narrow-add [base + index], value
+  const Operator* Word64AtomicNarrowAdd(MachineType type);
+  // atomic-narow-sub [base + index], value
+  const Operator* Word64AtomicNarrowSub(MachineType type);
+  // atomic-narrow-and [base + index], value
+  const Operator* Word64AtomicNarrowAnd(MachineType type);
+  // atomic-narrow-or [base + index], value
+  const Operator* Word64AtomicNarrowOr(MachineType type);
+  // atomic-narrow-xor [base + index], value
+  const Operator* Word64AtomicNarrowXor(MachineType type);
+  // atomic-pair-add [base + index], value_high, value_low
+  const Operator* Word32AtomicPairAdd();
+  // atomic-pair-sub [base + index], value_high, value-low
+  const Operator* Word32AtomicPairSub();
+  // atomic-pair-and [base + index], value_high, value_low
+  const Operator* Word32AtomicPairAnd();
+  // atomic-pair-or [base + index], value_high, value_low
+  const Operator* Word32AtomicPairOr();
+  // atomic-pair-xor [base + index], value_high, value_low
+  const Operator* Word32AtomicPairXor();
 
   const OptionalOperator SpeculationFence();
 
