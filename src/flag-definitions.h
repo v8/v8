@@ -383,6 +383,7 @@ DEFINE_BOOL(block_concurrent_recompilation, false,
             "block queued jobs until released")
 DEFINE_BOOL(concurrent_compiler_frontend, false,
             "run optimizing compiler's frontend phases on a separate thread")
+DEFINE_BOOL(trace_heap_broker, false, "trace the heap broker")
 
 // Flags for stress-testing the compiler.
 DEFINE_INT(stress_runs, 0, "number of stress runs")

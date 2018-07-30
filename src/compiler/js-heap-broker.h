@@ -91,7 +91,7 @@ HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 class ObjectRef {
  public:
   ObjectRef(JSHeapBroker* broker, Handle<Object> object);
-  explicit ObjectRef(ObjectData* data) : data_(data) { CHECK_NOT_NULL(data); }
+  explicit ObjectRef(ObjectData* data) : data_(data) { CHECK_NOT_NULL(data_); }
 
   bool equals(const ObjectRef& other) const;
 
@@ -408,6 +408,7 @@ class InternalizedStringRef : public StringRef {
 class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   JSHeapBroker(Isolate* isolate, Zone* zone);
+  void SerializeStandardObjects();
 
   HeapObjectType HeapObjectTypeFromMap(Handle<Map> map) const {
     AllowHandleDereference handle_dereference;
@@ -415,15 +416,32 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   Isolate* isolate() const { return isolate_; }
+  Zone* zone() const { return zone_; }
+
+  enum BrokerMode { kDisabled, kSerializing, kSerialized };
+  BrokerMode mode() const { return mode_; }
+  void StopSerializing() {
+    CHECK_EQ(mode_, kSerializing);
+    mode_ = kSerialized;
+  }
+
+  // Returns nullptr iff handle unknown.
+  ObjectData* GetData(Handle<Object>) const;
+  // Never returns nullptr.
+  ObjectData* GetOrCreateData(Handle<Object>);
+  void AddData(Handle<Object> object, ObjectData* data);
 
  private:
-  friend class ObjectRef;
   friend class HeapObjectRef;
+  friend class ObjectRef;
+
+  // TODO(neis): Remove eventually.
   HeapObjectType HeapObjectTypeFromMap(Map* map) const;
 
   Isolate* const isolate_;
   Zone* const zone_;
   ZoneUnorderedMap<Address, ObjectData*> refs_;
+  BrokerMode mode_;
 };
 
 }  // namespace compiler

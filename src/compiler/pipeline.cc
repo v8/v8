@@ -1294,6 +1294,7 @@ struct CopyMetadataForConcurrentCompilePhase {
     JSHeapCopyReducer heap_copy_reducer(data->js_heap_broker());
     AddReducer(data, &graph_reducer, &heap_copy_reducer);
     graph_reducer.ReduceGraph();
+    data->js_heap_broker()->StopSerializing();
   }
 };
 
@@ -2038,6 +2039,7 @@ bool PipelineImpl::CreateGraph() {
     Run<ConcurrentOptimizationPrepPhase>();
 
     if (FLAG_concurrent_compiler_frontend) {
+      data->js_heap_broker()->SerializeStandardObjects();
       Run<CopyMetadataForConcurrentCompilePhase>();
     }
 
