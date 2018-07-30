@@ -4531,7 +4531,7 @@ void Genesis::InitializeGlobal_harmony_intl_list_format() {
 
   // Install the @@toStringTag property on the {prototype}.
   JSObject::AddProperty(isolate(), prototype, factory()->to_string_tag_symbol(),
-                        factory()->Object_string(),
+                        factory()->NewStringFromStaticChars("Intl.ListFormat"),
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
   SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
@@ -4628,9 +4628,10 @@ void Genesis::InitializeGlobal_harmony_intl_relative_time_format() {
       isolate());
 
   // Install the @@toStringTag property on the {prototype}.
-  JSObject::AddProperty(isolate(), prototype, factory()->to_string_tag_symbol(),
-                        factory()->Object_string(),
-                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+  JSObject::AddProperty(
+      isolate(), prototype, factory()->to_string_tag_symbol(),
+      factory()->NewStringFromStaticChars("Intl.RelativeTimeFormat"),
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
   SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
                         Builtins::kRelativeTimeFormatPrototypeResolvedOptions,
