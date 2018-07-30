@@ -53,6 +53,32 @@
 namespace v8 {
 namespace internal {
 
+RUNTIME_FUNCTION(Runtime_GetNumberOption) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, options, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, property, 1);
+  CONVERT_SMI_ARG_CHECKED(min, 2);
+  CONVERT_SMI_ARG_CHECKED(max, 3);
+  CONVERT_SMI_ARG_CHECKED(fallback, 4);
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      Intl::GetNumberOption(isolate, options, property, min, max, fallback));
+}
+
+RUNTIME_FUNCTION(Runtime_DefaultNumberOption) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  CONVERT_SMI_ARG_CHECKED(min, 1);
+  CONVERT_SMI_ARG_CHECKED(max, 2);
+  CONVERT_SMI_ARG_CHECKED(fallback, 3);
+  CONVERT_ARG_HANDLE_CHECKED(String, property, 4);
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      Intl::DefaultNumberOption(isolate, value, min, max, fallback, property));
+}
+
 // ECMA 402 6.2.3
 RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
   HandleScope scope(isolate);

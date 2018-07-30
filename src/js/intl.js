@@ -1053,42 +1053,21 @@ DEFINE_METHOD(
   }
 );
 
-function defaultNumberOption(value, min, max, fallback, property) {
-  if (!IS_UNDEFINED(value)) {
-    value = TO_NUMBER(value);
-    if (NUMBER_IS_NAN(value) || value < min || value > max) {
-      throw %make_range_error(kPropertyValueOutOfRange, property);
-    }
-    return %math_floor(value);
-  }
-
-  return fallback;
-}
-
-/**
- * Returns the valid digit count for a property, or throws RangeError on
- * a value out of the range.
- */
-function getNumberOption(options, property, min, max, fallback) {
-  var value = options[property];
-  return defaultNumberOption(value, min, max, fallback, property);
-}
-
 // ECMA 402 #sec-setnfdigitoptions
 // SetNumberFormatDigitOptions ( intlObj, options, mnfdDefault, mxfdDefault )
 function SetNumberFormatDigitOptions(internalOptions, options,
                                      mnfdDefault, mxfdDefault) {
   // Digit ranges.
-  var mnid = getNumberOption(options, 'minimumIntegerDigits', 1, 21, 1);
+  var mnid = %GetNumberOption(options, 'minimumIntegerDigits', 1, 21, 1);
   %DefineWEProperty(internalOptions, 'minimumIntegerDigits', mnid);
 
-  var mnfd = getNumberOption(options, 'minimumFractionDigits', 0, 20,
+  var mnfd = %GetNumberOption(options, 'minimumFractionDigits', 0, 20,
                              mnfdDefault);
   %DefineWEProperty(internalOptions, 'minimumFractionDigits', mnfd);
 
   var mxfdActualDefault = MathMax(mnfd, mxfdDefault);
 
-  var mxfd = getNumberOption(options, 'maximumFractionDigits', mnfd, 20,
+  var mxfd = %GetNumberOption(options, 'maximumFractionDigits', mnfd, 20,
                              mxfdActualDefault);
 
   %DefineWEProperty(internalOptions, 'maximumFractionDigits', mxfd);
@@ -1096,10 +1075,10 @@ function SetNumberFormatDigitOptions(internalOptions, options,
   var mnsd = options['minimumSignificantDigits'];
   var mxsd = options['maximumSignificantDigits'];
   if (!IS_UNDEFINED(mnsd) || !IS_UNDEFINED(mxsd)) {
-    mnsd = defaultNumberOption(mnsd, 1, 21, 1, 'minimumSignificantDigits');
+    mnsd = %DefaultNumberOption(mnsd, 1, 21, 1, 'minimumSignificantDigits');
     %DefineWEProperty(internalOptions, 'minimumSignificantDigits', mnsd);
 
-    mxsd = defaultNumberOption(mxsd, mnsd, 21, 21, 'maximumSignificantDigits');
+    mxsd = %DefaultNumberOption(mxsd, mnsd, 21, 21, 'maximumSignificantDigits');
     %DefineWEProperty(internalOptions, 'maximumSignificantDigits', mxsd);
   }
 }

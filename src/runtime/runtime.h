@@ -217,7 +217,9 @@ namespace internal {
   F(CreatePluralRules, 3, 1)                 \
   F(CurrencyDigits, 1, 1)                    \
   F(DateCacheVersion, 0, 1)                  \
+  F(DefaultNumberOption, 5, 1)               \
   F(GetDefaultICULocale, 0, 1)               \
+  F(GetNumberOption, 5, 1)                   \
   F(InternalCompare, 3, 1)                   \
   F(InternalDateFormat, 2, 1)                \
   F(IntlUnwrapReceiver, 5, 1)                \

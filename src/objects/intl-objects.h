@@ -335,6 +335,16 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> NumberToLocaleString(
       Isolate* isolate, Handle<Object> num, Handle<Object> locales,
       Handle<Object> options);
+
+  // ecma402/#sec-defaultnumberoption
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> DefaultNumberOption(
+      Isolate* isolate, Handle<Object> value, int min, int max, int fallback,
+      Handle<String> property);
+
+  // ecma402/#sec-getnumberoption
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> GetNumberOption(
+      Isolate* isolate, Handle<JSReceiver> options, Handle<String> property,
+      int min, int max, int fallback);
 };
 
 }  // namespace internal

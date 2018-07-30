@@ -2023,5 +2023,46 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   return NumberFormat::FormatNumber(isolate, number_format_holder, number);
 }
 
+// ecma402/#sec-defaultnumberoption
+MaybeHandle<Smi> Intl::DefaultNumberOption(Isolate* isolate,
+                                           Handle<Object> value, int min,
+                                           int max, int fallback,
+                                           Handle<String> property) {
+  // 2. Else, return fallback.
+  if (value->IsUndefined()) {
+    return Handle<Smi>(Smi::FromInt(fallback), isolate);
+  }
+  // 1. If value is not undefined, then
+  // a. Let value be ? ToNumber(value).
+  Handle<Object> value_num;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value_num,
+                             Object::ToNumber(isolate, value), Smi);
+  DCHECK(value_num->IsNumber());
+  // b. If value is NaN or less than minimum or greater than maximum, throw a
+  // RangeError exception.
+  if (value_num->IsNaN() || value_num->Number() < min ||
+      value_num->Number() > max) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
+        Smi);
+  }
+  // c. Return floor(value).
+  return Handle<Smi>(Smi::FromInt(floor(value_num->Number())), isolate);
+}
+
+// ecma402/#sec-getnumberoption
+MaybeHandle<Smi> Intl::GetNumberOption(Isolate* isolate,
+                                       Handle<JSReceiver> options,
+                                       Handle<String> property, int min,
+                                       int max, int fallback) {
+  Handle<Object> value;
+  // 1. Let value be ? Get(options, property).
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, JSReceiver::GetProperty(isolate, options, property), Smi);
+  // Return ? DefaultNumberOption(value, minimum, maximum, fallback).
+  return DefaultNumberOption(isolate, value, min, max, fallback, property);
+}
+
 }  // namespace internal
 }  // namespace v8
