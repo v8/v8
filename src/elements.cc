@@ -605,9 +605,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     Handle<FixedArrayBase> backing_store(array->elements(),
                                          array->GetIsolate());
     int length = Smi::ToInt(array->length());
-    if (!Subclass::IsPackedImpl(*array, *backing_store, 0, length)) {
-      return;
-    }
+    if (!Subclass::IsPackedImpl(*array, *backing_store, 0, length)) return;
+
     ElementsKind packed_kind = GetPackedElementsKind(kind());
     Handle<Map> new_map =
         JSObject::GetElementsTransitionMap(array, packed_kind);
@@ -937,8 +936,9 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     Handle<FixedArrayBase> elements =
         ConvertElementsWithCapacity(object, old_elements, from_kind, capacity);
 
-    if (IsHoleyOrDictionaryElementsKind(from_kind))
+    if (IsHoleyOrDictionaryElementsKind(from_kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
+    }
     Handle<Map> new_map = JSObject::GetElementsTransitionMap(object, to_kind);
     JSObject::SetMapAndElements(object, new_map, elements);
 
@@ -1348,8 +1348,9 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   static uint32_t GetEntryForIndexImpl(Isolate* isolate, JSObject* holder,
                                        FixedArrayBase* backing_store,
                                        uint32_t index, PropertyFilter filter) {
+    DCHECK(IsFastElementsKind(kind()));
     uint32_t length = Subclass::GetMaxIndex(holder, backing_store);
-    if (IsHoleyOrDictionaryElementsKind(kind())) {
+    if (IsHoleyElementsKind(kind())) {
       return index < length &&
                      !BackingStore::cast(backing_store)
                           ->is_the_hole(isolate, index)
@@ -1959,7 +1960,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     int j = 0;
     int max_number_key = -1;
     for (int i = 0; j < capacity; i++) {
-      if (IsHoleyOrDictionaryElementsKind(kind)) {
+      if (IsHoleyElementsKind(kind)) {
         if (BackingStore::cast(*store)->is_the_hole(isolate, i)) continue;
       }
       max_number_key = i;
@@ -2561,7 +2562,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     }
     Subclass::SetLengthImpl(isolate, receiver, new_length, backing_store);
 
-    if (IsHoleyOrDictionaryElementsKind(kind) && result->IsTheHole(isolate)) {
+    if (IsHoleyElementsKind(kind) && result->IsTheHole(isolate)) {
       return isolate->factory()->undefined_value();
     }
     return result;
