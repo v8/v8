@@ -1016,6 +1016,7 @@ void JSGlobalProxy::JSGlobalProxyVerify(Isolate* isolate) {
   CHECK(IsJSGlobalProxy());
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, JSGlobalProxy::kNativeContextOffset);
+  CHECK(map()->is_access_check_needed());
   // Make sure that this object has no properties, elements.
   CHECK_EQ(0, FixedArray::cast(elements())->length());
 }

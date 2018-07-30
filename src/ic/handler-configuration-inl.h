@@ -17,7 +17,6 @@
 namespace v8 {
 namespace internal {
 
-TYPE_CHECKER(LoadHandler, LOAD_HANDLER_TYPE)
 CAST_ACCESSOR(LoadHandler)
 
 // Decodes kind from Smi-handler.
@@ -110,7 +109,6 @@ Handle<Smi> LoadHandler::LoadIndexedString(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
-TYPE_CHECKER(StoreHandler, STORE_HANDLER_TYPE)
 CAST_ACCESSOR(StoreHandler)
 
 Handle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {

@@ -164,9 +164,14 @@
     set_##field(BitField::update(field(), value));              \
   }
 
-#define TYPE_CHECKER(type, instancetype)           \
-  bool HeapObject::Is##type() const {              \
-    return map()->instance_type() == instancetype; \
+#define INSTANCE_TYPE_CHECKER(type, forinstancetype)    \
+  V8_INLINE bool Is##type(InstanceType instance_type) { \
+    return instance_type == forinstancetype;            \
+  }
+
+#define TYPE_CHECKER(type, ...)                                   \
+  bool HeapObject::Is##type() const {                             \
+    return InstanceTypeChecker::Is##type(map()->instance_type()); \
   }
 
 #define FIELD_ADDR(p, offset) \

@@ -731,9 +731,6 @@ class TemplateList;
 template <typename T>
 class ZoneForwardList;
 
-// A template-ized version of the IsXXX functions.
-template <class C> inline bool Is(Object* obj);
-
 #ifdef OBJECT_PRINT
 #define DECL_PRINTER(Name) void Name##Print(std::ostream& os);  // NOLINT
 #else
@@ -939,6 +936,152 @@ template <class C> inline bool Is(Object* obj);
   V(ArgumentsMarker, arguments_marker)  \
   V(OptimizedOut, optimized_out)        \
   V(StaleRegister, stale_register)
+
+// List of object types that have a single unique instance type.
+#define INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)                          \
+  V(AllocationSite, ALLOCATION_SITE_TYPE)                              \
+  V(BigInt, BIGINT_TYPE)                                               \
+  V(ObjectBoilerplateDescription, OBJECT_BOILERPLATE_DESCRIPTION_TYPE) \
+  V(BreakPoint, TUPLE2_TYPE)                                           \
+  V(BreakPointInfo, TUPLE2_TYPE)                                       \
+  V(ByteArray, BYTE_ARRAY_TYPE)                                        \
+  V(BytecodeArray, BYTECODE_ARRAY_TYPE)                                \
+  V(CallHandlerInfo, CALL_HANDLER_INFO_TYPE)                           \
+  V(Cell, CELL_TYPE)                                                   \
+  V(Code, CODE_TYPE)                                                   \
+  V(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)                       \
+  V(CoverageInfo, FIXED_ARRAY_TYPE)                                    \
+  V(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)                            \
+  V(EphemeronHashTable, EPHEMERON_HASH_TABLE_TYPE)                     \
+  V(FeedbackCell, FEEDBACK_CELL_TYPE)                                  \
+  V(FeedbackMetadata, FEEDBACK_METADATA_TYPE)                          \
+  V(FeedbackVector, FEEDBACK_VECTOR_TYPE)                              \
+  V(FixedArrayExact, FIXED_ARRAY_TYPE)                                 \
+  V(FixedArrayOfWeakCells, FIXED_ARRAY_TYPE)                           \
+  V(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)                         \
+  V(Foreign, FOREIGN_TYPE)                                             \
+  V(FreeSpace, FREE_SPACE_TYPE)                                        \
+  V(GlobalDictionary, GLOBAL_DICTIONARY_TYPE)                          \
+  V(HeapNumber, HEAP_NUMBER_TYPE)                                      \
+  V(JSArgumentsObject, JS_ARGUMENTS_TYPE)                              \
+  V(JSArray, JS_ARRAY_TYPE)                                            \
+  V(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)                               \
+  V(JSArrayIterator, JS_ARRAY_ITERATOR_TYPE)                           \
+  V(JSAsyncFromSyncIterator, JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)         \
+  V(JSAsyncGeneratorObject, JS_ASYNC_GENERATOR_OBJECT_TYPE)            \
+  V(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)                           \
+  V(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)        \
+  V(JSDataView, JS_DATA_VIEW_TYPE)                                     \
+  V(JSDate, JS_DATE_TYPE)                                              \
+  V(JSError, JS_ERROR_TYPE)                                            \
+  V(JSFunction, JS_FUNCTION_TYPE)                                      \
+  V(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)                             \
+  V(JSGlobalProxy, JS_GLOBAL_PROXY_TYPE)                               \
+  V(JSMap, JS_MAP_TYPE)                                                \
+  V(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)                           \
+  V(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)                       \
+  V(JSPromise, JS_PROMISE_TYPE)                                        \
+  V(JSRegExp, JS_REGEXP_TYPE)                                          \
+  V(JSRegExpStringIterator, JS_REGEXP_STRING_ITERATOR_TYPE)            \
+  V(JSSet, JS_SET_TYPE)                                                \
+  V(JSStringIterator, JS_STRING_ITERATOR_TYPE)                         \
+  V(JSTypedArray, JS_TYPED_ARRAY_TYPE)                                 \
+  V(JSValue, JS_VALUE_TYPE)                                            \
+  V(JSWeakMap, JS_WEAK_MAP_TYPE)                                       \
+  V(JSWeakSet, JS_WEAK_SET_TYPE)                                       \
+  V(LoadHandler, LOAD_HANDLER_TYPE)                                    \
+  V(Map, MAP_TYPE)                                                     \
+  V(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)                       \
+  V(NameDictionary, NAME_DICTIONARY_TYPE)                              \
+  V(NativeContext, NATIVE_CONTEXT_TYPE)                                \
+  V(NumberDictionary, NUMBER_DICTIONARY_TYPE)                          \
+  V(Oddball, ODDBALL_TYPE)                                             \
+  V(OrderedHashMap, ORDERED_HASH_MAP_TYPE)                             \
+  V(OrderedHashSet, ORDERED_HASH_SET_TYPE)                             \
+  V(PreParsedScopeData, PRE_PARSED_SCOPE_DATA_TYPE)                    \
+  V(PropertyArray, PROPERTY_ARRAY_TYPE)                                \
+  V(PropertyCell, PROPERTY_CELL_TYPE)                                  \
+  V(PropertyDescriptorObject, FIXED_ARRAY_TYPE)                        \
+  V(ScopeInfo, SCOPE_INFO_TYPE)                                        \
+  V(ScriptContextTable, SCRIPT_CONTEXT_TABLE_TYPE)                     \
+  V(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)                     \
+  V(SimpleNumberDictionary, SIMPLE_NUMBER_DICTIONARY_TYPE)             \
+  V(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)                  \
+  V(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)                  \
+  V(SourcePositionTableWithFrameCache, TUPLE2_TYPE)                    \
+  V(StoreHandler, STORE_HANDLER_TYPE)                                  \
+  V(StringTable, STRING_TABLE_TYPE)                                    \
+  V(Symbol, SYMBOL_TYPE)                                               \
+  V(TemplateObjectDescription, TUPLE2_TYPE)                            \
+  V(TransitionArray, TRANSITION_ARRAY_TYPE)                            \
+  V(UncompiledDataWithoutPreParsedScope,                               \
+    UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE)                     \
+  V(UncompiledDataWithPreParsedScope,                                  \
+    UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE)                        \
+  V(WasmGlobalObject, WASM_GLOBAL_TYPE)                                \
+  V(WasmInstanceObject, WASM_INSTANCE_TYPE)                            \
+  V(WasmMemoryObject, WASM_MEMORY_TYPE)                                \
+  V(WasmModuleObject, WASM_MODULE_TYPE)                                \
+  V(WasmTableObject, WASM_TABLE_TYPE)                                  \
+  V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)                               \
+  V(WeakCell, WEAK_CELL_TYPE)
+
+#ifdef V8_INTL_SUPPORT
+
+#define INSTANCE_TYPE_CHECKERS_SINGLE(V)    \
+  INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)     \
+  V(JSListFormat, JS_INTL_LIST_FORMAT_TYPE) \
+  V(JSLocale, JS_INTL_LOCALE_TYPE)          \
+  V(JSRelativeTimeFormat, JS_INTL_RELATIVE_TIME_FORMAT_TYPE)
+
+#else
+
+#define INSTANCE_TYPE_CHECKERS_SINGLE(V) INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)
+
+#endif  // V8_INTL_SUPPORT
+
+#define INSTANCE_TYPE_CHECKERS_RANGE(V)                             \
+  V(Context, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)                 \
+  V(Dictionary, FIRST_DICTIONARY_TYPE, LAST_DICTIONARY_TYPE)        \
+  V(FixedArray, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)      \
+  V(FixedTypedArrayBase, FIRST_FIXED_TYPED_ARRAY_TYPE,              \
+    LAST_FIXED_TYPED_ARRAY_TYPE)                                    \
+  V(HashTable, FIRST_HASH_TABLE_TYPE, LAST_HASH_TABLE_TYPE)         \
+  V(JSMapIterator, FIRST_MAP_ITERATOR_TYPE, LAST_MAP_ITERATOR_TYPE) \
+  V(JSSetIterator, FIRST_SET_ITERATOR_TYPE, LAST_SET_ITERATOR_TYPE) \
+  V(Microtask, FIRST_MICROTASK_TYPE, LAST_MICROTASK_TYPE)           \
+  V(Name, FIRST_TYPE, LAST_NAME_TYPE)                               \
+  V(String, FIRST_TYPE, FIRST_NONSTRING_TYPE - 1)                   \
+  V(WeakFixedArray, FIRST_WEAK_FIXED_ARRAY_TYPE, LAST_WEAK_FIXED_ARRAY_TYPE)
+
+#define INSTANCE_TYPE_CHECKERS_CUSTOM(V) \
+  V(FixedArrayBase)                      \
+  V(InternalizedString)                  \
+  V(JSObject)
+
+#define INSTANCE_TYPE_CHECKERS(V)  \
+  INSTANCE_TYPE_CHECKERS_SINGLE(V) \
+  INSTANCE_TYPE_CHECKERS_RANGE(V)  \
+  INSTANCE_TYPE_CHECKERS_CUSTOM(V)
+
+namespace InstanceTypeChecker {
+#define IS_TYPE_FUNCTION_DECL(Type, ...) \
+  V8_INLINE bool Is##Type(InstanceType instance_type);
+
+INSTANCE_TYPE_CHECKERS(IS_TYPE_FUNCTION_DECL)
+
+#define TYPED_ARRAY_IS_TYPE_FUNCTION_DECL(Type, ...) \
+  IS_TYPE_FUNCTION_DECL(Fixed##Type##Array)
+TYPED_ARRAYS(TYPED_ARRAY_IS_TYPE_FUNCTION_DECL)
+#undef TYPED_ARRAY_IS_TYPE_FUNCTION_DECL
+
+#define STRUCT_IS_TYPE_FUNCTION_DECL(NAME, Name, name) \
+  IS_TYPE_FUNCTION_DECL(Name)
+STRUCT_LIST(STRUCT_IS_TYPE_FUNCTION_DECL)
+#undef STRUCT_IS_TYPE_FUNCTION_DECL
+
+#undef IS_TYPE_FUNCTION_DECL
+}  // namespace InstanceTypeChecker
 
 // The element types selection for CreateListFromArrayLike.
 enum class ElementTypes { kAll, kStringAndSymbol };

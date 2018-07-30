@@ -73,123 +73,64 @@ int PropertyDetails::field_width_in_words() const {
   return representation().IsDouble() ? kDoubleSize / kPointerSize : 1;
 }
 
+namespace InstanceTypeChecker {
+
+// Define type checkers for classes with single instance type.
+INSTANCE_TYPE_CHECKERS_SINGLE(INSTANCE_TYPE_CHECKER);
+
+#define TYPED_ARRAY_INSTANCE_TYPE_CHECKER(Type, type, TYPE, ctype, size) \
+  INSTANCE_TYPE_CHECKER(Fixed##Type##Array, FIXED_##TYPE##_ARRAY_TYPE)
+TYPED_ARRAYS(TYPED_ARRAY_INSTANCE_TYPE_CHECKER)
+#undef TYPED_ARRAY_INSTANCE_TYPE_CHECKER
+
+#define STRUCT_INSTANCE_TYPE_CHECKER(NAME, Name, name) \
+  INSTANCE_TYPE_CHECKER(Name, NAME##_TYPE)
+STRUCT_LIST(STRUCT_INSTANCE_TYPE_CHECKER)
+#undef STRUCT_INSTANCE_TYPE_CHECKER
+
+// Define type checkers for classes with ranges of instance types.
+#define INSTANCE_TYPE_CHECKER_RANGE(type, first_instance_type, \
+                                    last_instance_type)        \
+  V8_INLINE bool Is##type(InstanceType instance_type) {        \
+    return instance_type >= first_instance_type &&             \
+           instance_type <= last_instance_type;                \
+  }
+INSTANCE_TYPE_CHECKERS_RANGE(INSTANCE_TYPE_CHECKER_RANGE);
+#undef INSTANCE_TYPE_CHECKER_RANGE
+
+V8_INLINE bool IsFixedArrayBase(InstanceType instance_type) {
+  return IsFixedArray(instance_type) || IsFixedDoubleArray(instance_type) ||
+         IsFixedTypedArrayBase(instance_type);
+}
+
+V8_INLINE bool IsHeapObject(InstanceType instance_type) { return true; }
+
+V8_INLINE bool IsInternalizedString(InstanceType instance_type) {
+  STATIC_ASSERT(kNotInternalizedTag != 0);
+  return (instance_type & (kIsNotStringMask | kIsNotInternalizedMask)) ==
+         (kStringTag | kInternalizedTag);
+}
+
+V8_INLINE bool IsJSObject(InstanceType instance_type) {
+  STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
+  return instance_type >= FIRST_JS_OBJECT_TYPE;
+}
+
+}  // namespace InstanceTypeChecker
+
 // TODO(v8:7786): For instance types that have a single map instance on the
 // roots, and when that map is a embedded in the binary, compare against the map
 // pointer rather than looking up the instance type.
-TYPE_CHECKER(AllocationSite, ALLOCATION_SITE_TYPE)
-TYPE_CHECKER(BigInt, BIGINT_TYPE)
-TYPE_CHECKER(ObjectBoilerplateDescription, OBJECT_BOILERPLATE_DESCRIPTION_TYPE)
-TYPE_CHECKER(BreakPoint, TUPLE2_TYPE)
-TYPE_CHECKER(BreakPointInfo, TUPLE2_TYPE)
-TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
-TYPE_CHECKER(BytecodeArray, BYTECODE_ARRAY_TYPE)
-TYPE_CHECKER(CallHandlerInfo, CALL_HANDLER_INFO_TYPE)
-TYPE_CHECKER(Cell, CELL_TYPE)
-TYPE_CHECKER(Code, CODE_TYPE)
-TYPE_CHECKER(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)
-TYPE_CHECKER(CoverageInfo, FIXED_ARRAY_TYPE)
-TYPE_CHECKER(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)
-TYPE_CHECKER(EphemeronHashTable, EPHEMERON_HASH_TABLE_TYPE)
-TYPE_CHECKER(FeedbackCell, FEEDBACK_CELL_TYPE)
-TYPE_CHECKER(FeedbackMetadata, FEEDBACK_METADATA_TYPE)
-TYPE_CHECKER(FeedbackVector, FEEDBACK_VECTOR_TYPE)
-TYPE_CHECKER(FixedArrayExact, FIXED_ARRAY_TYPE)
-TYPE_CHECKER(FixedArrayOfWeakCells, FIXED_ARRAY_TYPE)
-TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
-TYPE_CHECKER(Foreign, FOREIGN_TYPE)
-TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
-TYPE_CHECKER(GlobalDictionary, GLOBAL_DICTIONARY_TYPE)
-TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
-TYPE_CHECKER(JSArgumentsObject, JS_ARGUMENTS_TYPE)
-TYPE_CHECKER(JSArray, JS_ARRAY_TYPE)
-TYPE_CHECKER(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)
-TYPE_CHECKER(JSArrayIterator, JS_ARRAY_ITERATOR_TYPE)
-TYPE_CHECKER(JSAsyncFromSyncIterator, JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)
-TYPE_CHECKER(JSAsyncGeneratorObject, JS_ASYNC_GENERATOR_OBJECT_TYPE)
-TYPE_CHECKER(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)
-TYPE_CHECKER(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)
-TYPE_CHECKER(JSDataView, JS_DATA_VIEW_TYPE)
-TYPE_CHECKER(JSDate, JS_DATE_TYPE)
-TYPE_CHECKER(JSError, JS_ERROR_TYPE)
-TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
-TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
-TYPE_CHECKER(JSMap, JS_MAP_TYPE)
-TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
-TYPE_CHECKER(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)
-TYPE_CHECKER(JSPromise, JS_PROMISE_TYPE)
-TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
-TYPE_CHECKER(JSRegExpStringIterator, JS_REGEXP_STRING_ITERATOR_TYPE)
-TYPE_CHECKER(JSSet, JS_SET_TYPE)
-TYPE_CHECKER(JSStringIterator, JS_STRING_ITERATOR_TYPE)
-TYPE_CHECKER(JSTypedArray, JS_TYPED_ARRAY_TYPE)
-TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
-TYPE_CHECKER(JSWeakMap, JS_WEAK_MAP_TYPE)
-TYPE_CHECKER(JSWeakSet, JS_WEAK_SET_TYPE)
-TYPE_CHECKER(Map, MAP_TYPE)
-TYPE_CHECKER(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)
-TYPE_CHECKER(NameDictionary, NAME_DICTIONARY_TYPE)
-TYPE_CHECKER(NativeContext, NATIVE_CONTEXT_TYPE)
-TYPE_CHECKER(NumberDictionary, NUMBER_DICTIONARY_TYPE)
-TYPE_CHECKER(Oddball, ODDBALL_TYPE)
-TYPE_CHECKER(OrderedHashMap, ORDERED_HASH_MAP_TYPE)
-TYPE_CHECKER(OrderedHashSet, ORDERED_HASH_SET_TYPE)
-TYPE_CHECKER(PreParsedScopeData, PRE_PARSED_SCOPE_DATA_TYPE)
-TYPE_CHECKER(PropertyArray, PROPERTY_ARRAY_TYPE)
-TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
-TYPE_CHECKER(PropertyDescriptorObject, FIXED_ARRAY_TYPE)
-TYPE_CHECKER(ScopeInfo, SCOPE_INFO_TYPE)
-TYPE_CHECKER(ScriptContextTable, SCRIPT_CONTEXT_TABLE_TYPE)
-TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
-TYPE_CHECKER(SimpleNumberDictionary, SIMPLE_NUMBER_DICTIONARY_TYPE)
-TYPE_CHECKER(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)
-TYPE_CHECKER(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)
-TYPE_CHECKER(SourcePositionTableWithFrameCache, TUPLE2_TYPE)
-TYPE_CHECKER(StringTable, STRING_TABLE_TYPE)
-TYPE_CHECKER(Symbol, SYMBOL_TYPE)
-TYPE_CHECKER(TemplateObjectDescription, TUPLE2_TYPE)
-TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
-TYPE_CHECKER(UncompiledDataWithoutPreParsedScope,
-             UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE)
-TYPE_CHECKER(UncompiledDataWithPreParsedScope,
-             UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE)
-TYPE_CHECKER(WasmGlobalObject, WASM_GLOBAL_TYPE)
-TYPE_CHECKER(WasmInstanceObject, WASM_INSTANCE_TYPE)
-TYPE_CHECKER(WasmMemoryObject, WASM_MEMORY_TYPE)
-TYPE_CHECKER(WasmModuleObject, WASM_MODULE_TYPE)
-TYPE_CHECKER(WasmTableObject, WASM_TABLE_TYPE)
-TYPE_CHECKER(WeakArrayList, WEAK_ARRAY_LIST_TYPE)
-TYPE_CHECKER(WeakCell, WEAK_CELL_TYPE)
-
-#ifdef V8_INTL_SUPPORT
-TYPE_CHECKER(JSListFormat, JS_INTL_LIST_FORMAT_TYPE)
-TYPE_CHECKER(JSLocale, JS_INTL_LOCALE_TYPE)
-TYPE_CHECKER(JSRelativeTimeFormat, JS_INTL_RELATIVE_TIME_FORMAT_TYPE)
-#endif  // V8_INTL_SUPPORT
+INSTANCE_TYPE_CHECKERS(TYPE_CHECKER);
 
 #define TYPED_ARRAY_TYPE_CHECKER(Type, type, TYPE, ctype, size) \
-  TYPE_CHECKER(Fixed##Type##Array, FIXED_##TYPE##_ARRAY_TYPE)
+  TYPE_CHECKER(Fixed##Type##Array)
 TYPED_ARRAYS(TYPED_ARRAY_TYPE_CHECKER)
 #undef TYPED_ARRAY_TYPE_CHECKER
 
 bool HeapObject::IsUncompiledData() const {
   return IsUncompiledDataWithoutPreParsedScope() ||
          IsUncompiledDataWithPreParsedScope();
-}
-
-bool HeapObject::IsFixedArrayBase() const {
-  return IsFixedArray() || IsFixedDoubleArray() || IsFixedTypedArrayBase();
-}
-
-bool HeapObject::IsFixedArray() const {
-  InstanceType instance_type = map()->instance_type();
-  return instance_type >= FIRST_FIXED_ARRAY_TYPE &&
-         instance_type <= LAST_FIXED_ARRAY_TYPE;
-}
-
-bool HeapObject::IsWeakFixedArray() const {
-  InstanceType instance_type = map()->instance_type();
-  return instance_type >= FIRST_WEAK_FIXED_ARRAY_TYPE &&
-         instance_type <= LAST_WEAK_FIXED_ARRAY_TYPE;
 }
 
 bool HeapObject::IsSloppyArgumentsElements() const {
@@ -266,14 +207,6 @@ bool HeapObject::IsNullOrUndefined() const {
   return IsNullOrUndefined(GetReadOnlyRoots());
 }
 
-bool HeapObject::IsString() const {
-  return map()->instance_type() < FIRST_NONSTRING_TYPE;
-}
-
-bool HeapObject::IsName() const {
-  return map()->instance_type() <= LAST_NAME_TYPE;
-}
-
 bool HeapObject::IsUniqueName() const {
   return IsInternalizedString() || IsSymbol();
 }
@@ -293,13 +226,6 @@ bool HeapObject::IsModuleInfo() const {
 
 bool HeapObject::IsTemplateInfo() const {
   return IsObjectTemplateInfo() || IsFunctionTemplateInfo();
-}
-
-bool HeapObject::IsInternalizedString() const {
-  uint32_t type = map()->instance_type();
-  STATIC_ASSERT(kNotInternalizedTag != 0);
-  return (type & (kIsNotStringMask | kIsNotInternalizedMask)) ==
-      (kStringTag | kInternalizedTag);
 }
 
 bool HeapObject::IsConsString() const {
@@ -360,50 +286,18 @@ bool HeapObject::IsFiller() const {
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
 
-bool HeapObject::IsFixedTypedArrayBase() const {
-  InstanceType instance_type = map()->instance_type();
-  return (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
-          instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE);
-}
-
 bool HeapObject::IsJSReceiver() const {
   STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
   return map()->instance_type() >= FIRST_JS_RECEIVER_TYPE;
 }
 
-bool HeapObject::IsJSObject() const {
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  return map()->IsJSObjectMap();
-}
-
 bool HeapObject::IsJSProxy() const { return map()->IsJSProxyMap(); }
-
-bool HeapObject::IsJSMapIterator() const {
-  InstanceType instance_type = map()->instance_type();
-  STATIC_ASSERT(JS_MAP_KEY_ITERATOR_TYPE + 1 == JS_MAP_KEY_VALUE_ITERATOR_TYPE);
-  STATIC_ASSERT(JS_MAP_KEY_VALUE_ITERATOR_TYPE + 1 ==
-                JS_MAP_VALUE_ITERATOR_TYPE);
-  return (instance_type >= JS_MAP_KEY_ITERATOR_TYPE &&
-          instance_type <= JS_MAP_VALUE_ITERATOR_TYPE);
-}
-
-bool HeapObject::IsJSSetIterator() const {
-  InstanceType instance_type = map()->instance_type();
-  return (instance_type == JS_SET_VALUE_ITERATOR_TYPE ||
-          instance_type == JS_SET_KEY_VALUE_ITERATOR_TYPE);
-}
 
 bool HeapObject::IsJSWeakCollection() const {
   return IsJSWeakMap() || IsJSWeakSet();
 }
 
 bool HeapObject::IsJSCollection() const { return IsJSMap() || IsJSSet(); }
-
-bool HeapObject::IsMicrotask() const {
-  InstanceType instance_type = map()->instance_type();
-  return (instance_type >= FIRST_MICROTASK_TYPE &&
-          instance_type <= LAST_MICROTASK_TYPE);
-}
 
 bool HeapObject::IsPromiseReactionJobTask() const {
   return IsPromiseFulfillReactionJobTask() || IsPromiseRejectReactionJobTask();
@@ -459,17 +353,6 @@ bool HeapObject::IsDependentCode() const {
   return true;
 }
 
-bool HeapObject::IsContext() const {
-  int instance_type = map()->instance_type();
-  return instance_type >= FIRST_CONTEXT_TYPE &&
-         instance_type <= LAST_CONTEXT_TYPE;
-}
-
-template <>
-inline bool Is<JSFunction>(Object* obj) {
-  return obj->IsJSFunction();
-}
-
 bool HeapObject::IsAbstractCode() const {
   return IsBytecodeArray() || IsCode();
 }
@@ -507,18 +390,6 @@ bool HeapObject::IsJSArrayBufferView() const {
   return IsJSDataView() || IsJSTypedArray();
 }
 
-bool HeapObject::IsHashTable() const {
-  int instance_type = map()->instance_type();
-  return instance_type >= FIRST_HASH_TABLE_TYPE &&
-         instance_type <= LAST_HASH_TABLE_TYPE;
-}
-
-bool HeapObject::IsDictionary() const {
-  int instance_type = map()->instance_type();
-  return instance_type >= FIRST_DICTIONARY_TYPE &&
-         instance_type <= LAST_DICTIONARY_TYPE;
-}
-
 bool HeapObject::IsStringSet() const { return IsHashTable(); }
 
 bool HeapObject::IsObjectHashSet() const { return IsHashTable(); }
@@ -550,12 +421,6 @@ Maybe<bool> Object::IsArray(Handle<Object> object) {
   return JSProxy::IsArray(Handle<JSProxy>::cast(object));
 }
 
-bool HeapObject::IsJSGlobalProxy() const {
-  bool result = map()->instance_type() == JS_GLOBAL_PROXY_TYPE;
-  DCHECK(!result || map()->is_access_check_needed());
-  return result;
-}
-
 bool HeapObject::IsUndetectable() const { return map()->is_undetectable(); }
 
 bool HeapObject::IsAccessCheckNeeded() const {
@@ -583,9 +448,7 @@ bool HeapObject::IsStruct() const {
   bool Object::Is##Name() const {                                \
     return IsHeapObject() && HeapObject::cast(this)->Is##Name(); \
   }                                                              \
-  bool HeapObject::Is##Name() const {                            \
-    return map()->instance_type() == NAME##_TYPE;                \
-  }
+  TYPE_CHECKER(Name)
 STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 #undef MAKE_STRUCT_PREDICATE
 
