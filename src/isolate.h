@@ -1116,6 +1116,13 @@ class Isolate : private HiddenFactory {
     return language_variant_regexp_matcher_;
   }
 
+  const std::string& default_locale() { return default_locale_; }
+
+  void set_default_locale(const std::string& locale) {
+    DCHECK_EQ(default_locale_.length(), 0);
+    default_locale_ = locale;
+  }
+
   void set_language_tag_regexp_matchers(
       icu::RegexMatcher* language_singleton_regexp_matcher,
       icu::RegexMatcher* language_tag_regexp_matcher,
@@ -1625,6 +1632,7 @@ class Isolate : private HiddenFactory {
   icu::RegexMatcher* language_singleton_regexp_matcher_;
   icu::RegexMatcher* language_tag_regexp_matcher_;
   icu::RegexMatcher* language_variant_regexp_matcher_;
+  std::string default_locale_;
 #endif  // V8_INTL_SUPPORT
 
   // Whether the isolate has been created for snapshotting.

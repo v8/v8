@@ -142,18 +142,6 @@ var AVAILABLE_LOCALES = {
 };
 
 /**
- * Caches default ICU locale.
- */
-var DEFAULT_ICU_LOCALE = UNDEFINED;
-
-function GetDefaultICULocaleJS() {
-  if (IS_UNDEFINED(DEFAULT_ICU_LOCALE)) {
-    DEFAULT_ICU_LOCALE = %GetDefaultICULocale();
-  }
-  return DEFAULT_ICU_LOCALE;
-}
-
-/**
  * Unicode extension regular expression.
  */
 var UNICODE_EXTENSION_RE = UNDEFINED;
@@ -453,7 +441,7 @@ function lookupMatcher(service, requestedLocales) {
     }
   }
 
-  var defLocale = GetDefaultICULocaleJS();
+  var defLocale = %GetDefaultICULocale();
 
   // While ECMA-402 returns defLocale directly, we have to check if it is
   // supported, as such support is not guaranteed.

@@ -1203,25 +1203,25 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> Intl::AvailableLocalesOf(
 }
 
 V8_WARN_UNUSED_RESULT Handle<String> Intl::DefaultLocale(Isolate* isolate) {
-  Factory* factory = isolate->factory();
-
-  icu::Locale default_locale;
-
-  // Translate ICU's fallback locale to a well-known locale.
-  if (strcmp(default_locale.getName(), "en_US_POSIX") == 0) {
-    return factory->NewStringFromStaticChars("en-US");
+  if (isolate->default_locale().empty()) {
+    icu::Locale default_locale;
+    // Translate ICU's fallback locale to a well-known locale.
+    if (strcmp(default_locale.getName(), "en_US_POSIX") == 0) {
+      isolate->set_default_locale("en-US");
+    } else {
+      // Set the locale
+      char result[ULOC_FULLNAME_CAPACITY];
+      UErrorCode status = U_ZERO_ERROR;
+      int32_t length =
+          uloc_toLanguageTag(default_locale.getName(), result,
+                             ULOC_FULLNAME_CAPACITY, FALSE, &status);
+      isolate->set_default_locale(
+          U_SUCCESS(status) ? std::string(result, length) : "und");
+    }
+    DCHECK(!isolate->default_locale().empty());
   }
-
-  // Set the locale
-  char result[ULOC_FULLNAME_CAPACITY];
-  UErrorCode status = U_ZERO_ERROR;
-  uloc_toLanguageTag(default_locale.getName(), result, ULOC_FULLNAME_CAPACITY,
-                     FALSE, &status);
-  if (U_SUCCESS(status)) {
-    return factory->NewStringFromAsciiChecked(result);
-  }
-
-  return factory->NewStringFromStaticChars("und");
+  return isolate->factory()->NewStringFromAsciiChecked(
+      isolate->default_locale().c_str());
 }
 
 bool Intl::IsObjectOfType(Isolate* isolate, Handle<Object> input,

@@ -2486,6 +2486,7 @@ Isolate::Isolate()
       language_singleton_regexp_matcher_(nullptr),
       language_tag_regexp_matcher_(nullptr),
       language_variant_regexp_matcher_(nullptr),
+      default_locale_(""),
 #endif  // V8_INTL_SUPPORT
       serializer_enabled_(false),
       has_fatal_error_(false),
