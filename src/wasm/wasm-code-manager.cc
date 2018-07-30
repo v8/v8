@@ -885,10 +885,10 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
 bool NativeModule::SetExecutable(bool executable) {
   if (is_executable_ == executable) return true;
   TRACE_HEAP("Setting module %p as executable: %d.\n", this, executable);
-  PageAllocator::Permission permission =
-      executable ? PageAllocator::kReadExecute : PageAllocator::kReadWrite;
 
   if (FLAG_wasm_write_protect_code_memory) {
+    PageAllocator::Permission permission =
+        executable ? PageAllocator::kReadExecute : PageAllocator::kReadWrite;
 #if V8_OS_WIN
     // On windows, we need to switch permissions per separate virtual memory
     // reservation. This is really just a problem when the NativeModule is
@@ -988,17 +988,21 @@ size_t WasmCodeManager::remaining_uncommitted_code_space() const {
   return remaining_uncommitted_code_space_.load();
 }
 
+// TODO(v8:7424): Code protection scopes are not yet supported with shared code
+// enabled and need to be revisited to work with --wasm-shared-code as well.
 NativeModuleModificationScope::NativeModuleModificationScope(
     NativeModule* native_module)
     : native_module_(native_module) {
-  if (native_module_ && (native_module_->modification_scope_depth_++) == 0) {
+  if (FLAG_wasm_write_protect_code_memory && native_module_ &&
+      (native_module_->modification_scope_depth_++) == 0) {
     bool success = native_module_->SetExecutable(false);
     CHECK(success);
   }
 }
 
 NativeModuleModificationScope::~NativeModuleModificationScope() {
-  if (native_module_ && (native_module_->modification_scope_depth_--) == 1) {
+  if (FLAG_wasm_write_protect_code_memory && native_module_ &&
+      (native_module_->modification_scope_depth_--) == 1) {
     bool success = native_module_->SetExecutable(true);
     CHECK(success);
   }
