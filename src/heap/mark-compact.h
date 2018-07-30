@@ -257,7 +257,7 @@ class MarkCompactCollectorBase {
   virtual void CollectGarbage() = 0;
 
   inline Heap* heap() const { return heap_; }
-  inline Isolate* isolate() { return heap()->isolate(); }
+  inline Isolate* isolate();
 
  protected:
   static const int kMainThread = 0;

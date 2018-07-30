@@ -48,8 +48,6 @@ AUTO_EXCLUDE = [
   'src/elements-inl.h',
   'src/field-type.h',
   'src/heap/incremental-marking.h',
-  'src/heap/mark-compact.h',
-  'src/heap/objects-visiting.h',
   'src/ic/ic.h',
   'src/json-stringifier.h',
   'src/keys.h',
