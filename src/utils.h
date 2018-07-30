@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <cmath>
+#include <string>
 #include <type_traits>
 
 #include "include/v8.h"
@@ -1079,12 +1080,6 @@ inline void Flush() {
 char* ReadLine(const char* prompt);
 
 
-// Read and return the raw bytes in a file. the size of the buffer is returned
-// in size.
-// The returned buffer must be freed by the caller.
-byte* ReadBytes(const char* filename, int* size, bool verbose = true);
-
-
 // Append size chars from str to the file given by filename.
 // The file is overwritten. Returns the number of chars written.
 int AppendChars(const char* filename,
@@ -1228,16 +1223,11 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 #undef STOS
 }
 
-
-// Simple support to read a file into a 0-terminated C-string.
-// The returned buffer must be freed by the caller.
+// Simple support to read a file into std::string.
 // On return, *exits tells whether the file existed.
-V8_EXPORT_PRIVATE Vector<const char> ReadFile(const char* filename,
-                                              bool* exists,
-                                              bool verbose = true);
-Vector<const char> ReadFile(FILE* file,
-                            bool* exists,
-                            bool verbose = true);
+V8_EXPORT_PRIVATE std::string ReadFile(const char* filename, bool* exists,
+                                       bool verbose = true);
+std::string ReadFile(FILE* file, bool* exists, bool verbose = true);
 
 template <typename sourcechar, typename sinkchar>
 V8_INLINE static void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src,

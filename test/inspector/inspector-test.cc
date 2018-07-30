@@ -7,6 +7,8 @@
 #endif               // !defined(_WIN32) && !defined(_WIN64)
 
 #include <locale.h>
+#include <string>
+#include <vector>
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
@@ -38,11 +40,10 @@ void Exit() {
   Terminate();
 }
 
-v8::internal::Vector<uint16_t> ToVector(v8::Isolate* isolate,
-                                        v8::Local<v8::String> str) {
-  v8::internal::Vector<uint16_t> buffer =
-      v8::internal::Vector<uint16_t>::New(str->Length());
-  str->Write(isolate, buffer.start(), 0, str->Length());
+std::vector<uint16_t> ToVector(v8::Isolate* isolate,
+                               v8::Local<v8::String> str) {
+  std::vector<uint16_t> buffer(str->Length());
+  str->Write(isolate, buffer.data(), 0, str->Length());
   return buffer;
 }
 
@@ -51,24 +52,24 @@ v8::Local<v8::String> ToV8String(v8::Isolate* isolate, const char* str) {
       .ToLocalChecked();
 }
 
-v8::Local<v8::String> ToV8String(v8::Isolate* isolate, const char* str,
-                                 int length) {
-  return v8::String::NewFromUtf8(isolate, str, v8::NewStringType::kNormal,
-                                 length)
+v8::Local<v8::String> ToV8String(v8::Isolate* isolate,
+                                 const std::string& buffer) {
+  int length = static_cast<int>(buffer.size());
+  return v8::String::NewFromUtf8(isolate, buffer.data(),
+                                 v8::NewStringType::kNormal, length)
       .ToLocalChecked();
 }
 
 v8::Local<v8::String> ToV8String(v8::Isolate* isolate,
-                                 const v8::internal::Vector<uint16_t>& buffer) {
-  return v8::String::NewFromTwoByte(isolate, buffer.start(),
-                                    v8::NewStringType::kNormal, buffer.length())
+                                 const std::vector<uint16_t>& buffer) {
+  int length = static_cast<int>(buffer.size());
+  return v8::String::NewFromTwoByte(isolate, buffer.data(),
+                                    v8::NewStringType::kNormal, length)
       .ToLocalChecked();
 }
 
-v8::internal::Vector<uint16_t> ToVector(
-    const v8_inspector::StringView& string) {
-  v8::internal::Vector<uint16_t> buffer =
-      v8::internal::Vector<uint16_t>::New(static_cast<int>(string.length()));
+std::vector<uint16_t> ToVector(const v8_inspector::StringView& string) {
+  std::vector<uint16_t> buffer(string.length());
   for (size_t i = 0; i < string.length(); i++) {
     if (string.is8Bit())
       buffer[i] = string.characters8()[i];
@@ -106,9 +107,9 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
   class SendMessageTask : public TaskRunner::Task {
    public:
     SendMessageTask(FrontendChannelImpl* channel,
-                    const v8::internal::Vector<uint16_t>& message)
+                    const std::vector<uint16_t>& message)
         : channel_(channel), message_(message) {}
-    virtual ~SendMessageTask() { message_.Dispose(); }
+    virtual ~SendMessageTask() {}
     bool is_priority_task() final { return false; }
 
    private:
@@ -125,7 +126,7 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
                    ->Call(context, context->Global(), 1, &message);
     }
     FrontendChannelImpl* channel_;
-    v8::internal::Vector<uint16_t> message_;
+    std::vector<uint16_t> message_;
   };
 
   TaskRunner* task_runner_;
@@ -161,19 +162,18 @@ void RunSyncTask(TaskRunner* task_runner, T callback) {
 
 class SendMessageToBackendTask : public TaskRunner::Task {
  public:
-  SendMessageToBackendTask(int session_id,
-                           const v8::internal::Vector<uint16_t>& message)
+  SendMessageToBackendTask(int session_id, const std::vector<uint16_t>& message)
       : session_id_(session_id), message_(message) {}
   bool is_priority_task() final { return true; }
 
  private:
   void Run(IsolateData* data) override {
-    v8_inspector::StringView message_view(message_.start(), message_.length());
+    v8_inspector::StringView message_view(message_.data(), message_.size());
     data->SendMessage(session_id_, message_view);
   }
 
   int session_id_;
-  v8::internal::Vector<uint16_t> message_;
+  std::vector<uint16_t> message_;
 };
 
 void RunAsyncTask(TaskRunner* task_runner,
@@ -202,7 +202,7 @@ void RunAsyncTask(TaskRunner* task_runner,
 class ExecuteStringTask : public TaskRunner::Task {
  public:
   ExecuteStringTask(v8::Isolate* isolate, int context_group_id,
-                    const v8::internal::Vector<uint16_t>& expression,
+                    const std::vector<uint16_t>& expression,
                     v8::Local<v8::String> name,
                     v8::Local<v8::Integer> line_offset,
                     v8::Local<v8::Integer> column_offset,
@@ -213,13 +213,10 @@ class ExecuteStringTask : public TaskRunner::Task {
         column_offset_(column_offset.As<v8::Int32>()->Value()),
         is_module_(is_module->Value()),
         context_group_id_(context_group_id) {}
-  ExecuteStringTask(const v8::internal::Vector<const char>& expression,
-                    int context_group_id)
+  ExecuteStringTask(const std::string& expression, int context_group_id)
       : expression_utf8_(expression), context_group_id_(context_group_id) {}
 
   virtual ~ExecuteStringTask() {
-    if (expression_.start()) expression_.Dispose();
-    if (expression_utf8_.start()) expression_utf8_.Dispose();
   }
   bool is_priority_task() override { return false; }
   void Run(IsolateData* data) override {
@@ -239,11 +236,10 @@ class ExecuteStringTask : public TaskRunner::Task {
         /* is_wasm */ v8::Local<v8::Boolean>(),
         v8::Boolean::New(data->isolate(), is_module_));
     v8::Local<v8::String> source;
-    if (expression_.length())
+    if (expression_.size() != 0)
       source = ToV8String(data->isolate(), expression_);
     else
-      source = ToV8String(data->isolate(), expression_utf8_.start(),
-                          expression_utf8_.length());
+      source = ToV8String(data->isolate(), expression_utf8_);
 
     v8::ScriptCompiler::Source scriptSource(source, origin);
     v8::Isolate::SafeForTerminationScope allowTermination(data->isolate());
@@ -254,14 +250,19 @@ class ExecuteStringTask : public TaskRunner::Task {
       v8::MaybeLocal<v8::Value> result;
       result = script->Run(context);
     } else {
-      data->RegisterModule(context, name_, &scriptSource);
+      // Register Module takes ownership of {buffer}, so we need to make a copy.
+      int length = static_cast<int>(name_.size());
+      v8::internal::Vector<uint16_t> buffer =
+          v8::internal::Vector<uint16_t>::New(length);
+      std::copy(name_.begin(), name_.end(), buffer.start());
+      data->RegisterModule(context, buffer, &scriptSource);
     }
   }
 
  private:
-  v8::internal::Vector<uint16_t> expression_;
-  v8::internal::Vector<const char> expression_utf8_;
-  v8::internal::Vector<uint16_t> name_;
+  std::vector<uint16_t> expression_;
+  std::string expression_utf8_;
+  std::vector<uint16_t> name_;
   int32_t line_offset_ = 0;
   int32_t column_offset_ = 0;
   bool is_module_ = false;
@@ -378,7 +379,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
   }
 
   static bool ReadFile(v8::Isolate* isolate, v8::Local<v8::Value> name,
-                       v8::internal::Vector<const char>* chars) {
+                       std::string* chars) {
     v8::String::Utf8Value str(isolate, name);
     bool exists = false;
     std::string filename(*str, str.length());
@@ -395,11 +396,10 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
       fprintf(stderr, "Internal error: read gets one string argument.");
       Exit();
     }
-    v8::internal::Vector<const char> chars;
+    std::string chars;
     v8::Isolate* isolate = args.GetIsolate();
     if (ReadFile(isolate, args[0], &chars)) {
-      args.GetReturnValue().Set(ToV8String(isolate, chars.start()));
-      chars.Dispose();
+      args.GetReturnValue().Set(ToV8String(isolate, chars));
     }
   }
 
@@ -408,7 +408,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
       fprintf(stderr, "Internal error: load gets one string argument.");
       Exit();
     }
-    v8::internal::Vector<const char> chars;
+    std::string chars;
     v8::Isolate* isolate = args.GetIsolate();
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
@@ -465,18 +465,18 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
               "'reason', 'details').");
       Exit();
     }
-    v8::internal::Vector<uint16_t> reason =
+    std::vector<uint16_t> reason =
         ToVector(args.GetIsolate(), args[1].As<v8::String>());
-    v8::internal::Vector<uint16_t> details =
+    std::vector<uint16_t> details =
         ToVector(args.GetIsolate(), args[2].As<v8::String>());
     int context_group_id = args[0].As<v8::Int32>()->Value();
-    RunSyncTask(backend_runner_, [&context_group_id, &reason,
-                                  &details](IsolateData* data) {
-      data->SchedulePauseOnNextStatement(
-          context_group_id,
-          v8_inspector::StringView(reason.start(), reason.length()),
-          v8_inspector::StringView(details.start(), details.length()));
-    });
+    RunSyncTask(backend_runner_,
+                [&context_group_id, &reason, &details](IsolateData* data) {
+                  data->SchedulePauseOnNextStatement(
+                      context_group_id,
+                      v8_inspector::StringView(reason.data(), reason.size()),
+                      v8_inspector::StringView(details.data(), details.size()));
+                });
   }
 
   static void CancelPauseOnNextStatement(
@@ -541,7 +541,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
         IsolateData::FromContext(context)->GetContextGroupId(context),
         args.GetIsolate(), args[2].As<v8::Function>());
 
-    v8::internal::Vector<uint16_t> state =
+    std::vector<uint16_t> state =
         ToVector(args.GetIsolate(), args[1].As<v8::String>());
     int context_group_id = args[0].As<v8::Int32>()->Value();
     int session_id = 0;
@@ -549,7 +549,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
                                   &state](IsolateData* data) {
       session_id = data->ConnectSession(
           context_group_id,
-          v8_inspector::StringView(state.start(), state.length()), channel);
+          v8_inspector::StringView(state.data(), state.size()), channel);
       channel->set_session_id(session_id);
     });
 
@@ -564,7 +564,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
       Exit();
     }
     int session_id = args[0].As<v8::Int32>()->Value();
-    v8::internal::Vector<uint16_t> state;
+    std::vector<uint16_t> state;
     RunSyncTask(backend_runner_, [&session_id, &state](IsolateData* data) {
       state = ToVector(data->DisconnectSession(session_id)->string());
     });
@@ -789,12 +789,12 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     }
     v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
-    v8::internal::Vector<uint16_t> reason =
+    std::vector<uint16_t> reason =
         ToVector(args.GetIsolate(), args[0].As<v8::String>());
-    v8_inspector::StringView reason_view(reason.start(), reason.length());
-    v8::internal::Vector<uint16_t> details =
+    v8_inspector::StringView reason_view(reason.data(), reason.size());
+    std::vector<uint16_t> details =
         ToVector(args.GetIsolate(), args[1].As<v8::String>());
-    v8_inspector::StringView details_view(details.start(), details.length());
+    v8_inspector::StringView details_view(details.data(), details.size());
     data->BreakProgram(data->GetContextGroupId(context), reason_view,
                        details_view);
   }
@@ -821,12 +821,12 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
               "Internal error: callWithScheduledBreak('reason', 'details').");
       Exit();
     }
-    v8::internal::Vector<uint16_t> reason =
+    std::vector<uint16_t> reason =
         ToVector(args.GetIsolate(), args[1].As<v8::String>());
-    v8_inspector::StringView reason_view(reason.start(), reason.length());
-    v8::internal::Vector<uint16_t> details =
+    v8_inspector::StringView reason_view(reason.data(), reason.size());
+    std::vector<uint16_t> details =
         ToVector(args.GetIsolate(), args[2].As<v8::String>());
-    v8_inspector::StringView details_view(details.start(), details.length());
+    v8_inspector::StringView details_view(details.data(), details.size());
     v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
     int context_group_id = data->GetContextGroupId(context);
@@ -913,10 +913,10 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     v8::Isolate* isolate = args.GetIsolate();
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     IsolateData* data = IsolateData::FromContext(context);
-    v8::internal::Vector<uint16_t> description =
+    std::vector<uint16_t> description =
         ToVector(isolate, args[0].As<v8::String>());
-    v8_inspector::StringView description_view(description.start(),
-                                              description.length());
+    v8_inspector::StringView description_view(description.data(),
+                                              description.size());
     v8_inspector::V8StackTraceId id =
         data->StoreCurrentStackTrace(description_view);
     v8::Local<v8::ArrayBuffer> buffer =
@@ -970,10 +970,9 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
     bool with_empty_stack = args[2].As<v8::Boolean>()->Value();
     if (with_empty_stack) context->Exit();
 
-    v8::internal::Vector<uint16_t> task_name =
+    std::vector<uint16_t> task_name =
         ToVector(isolate, args[1].As<v8::String>());
-    v8_inspector::StringView task_name_view(task_name.start(),
-                                            task_name.length());
+    v8_inspector::StringView task_name_view(task_name.data(), task_name.size());
 
     RunAsyncTask(data->task_runner(), task_name_view,
                  new SetTimeoutTask(context_group_id, isolate,
@@ -1088,8 +1087,7 @@ int main(int argc, char* argv[]) {
     if (argv[i] == nullptr || argv[i][0] == '-') continue;
 
     bool exists = false;
-    v8::internal::Vector<const char> chars =
-        v8::internal::ReadFile(argv[i], &exists, true);
+    std::string chars = v8::internal::ReadFile(argv[i], &exists, true);
     if (!exists) {
       fprintf(stderr, "Internal error: script file doesn't exists: %s\n",
               argv[i]);
