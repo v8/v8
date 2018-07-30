@@ -481,6 +481,11 @@ uint8_t ConsumedPreParsedScopeData::ByteData::ReadQuarter() {
   return result;
 }
 
+size_t ConsumedPreParsedScopeData::ByteData::RemainingBytes() const {
+  DCHECK_NOT_NULL(data_);
+  return data_->length() - index_;
+}
+
 ConsumedPreParsedScopeData::ConsumedPreParsedScopeData()
     : isolate_(nullptr), scope_data_(new ByteData()), child_index_(0) {}
 

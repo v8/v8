@@ -7,6 +7,7 @@
 #include "src/field-type.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/name-inl.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -20,6 +21,27 @@ std::ostream& operator<<(std::ostream& os,
   os << (((attributes & DONT_DELETE) == 0) ? "C" : "_");  // configurable
   os << "]";
   return os;
+}
+
+Descriptor::Descriptor() : details_(Smi::kZero) {}
+
+Descriptor::Descriptor(Handle<Name> key, MaybeObjectHandle value,
+                       PropertyKind kind, PropertyAttributes attributes,
+                       PropertyLocation location, PropertyConstness constness,
+                       Representation representation, int field_index)
+    : key_(key),
+      value_(value),
+      details_(kind, attributes, location, constness, representation,
+               field_index) {
+  DCHECK(key->IsUniqueName());
+  DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
+}
+
+Descriptor::Descriptor(Handle<Name> key, MaybeObjectHandle value,
+                       PropertyDetails details)
+    : key_(key), value_(value), details_(details) {
+  DCHECK(key->IsUniqueName());
+  DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
 }
 
 Descriptor Descriptor::DataField(Isolate* isolate, Handle<Name> key,
@@ -40,6 +62,13 @@ Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
   return Descriptor(key, wrapped_field_type, details);
 }
 
+Descriptor Descriptor::DataConstant(Handle<Name> key, Handle<Object> value,
+                                    PropertyAttributes attributes) {
+  return Descriptor(key, MaybeObjectHandle(value), kData, attributes,
+                    kDescriptor, PropertyConstness::kConst,
+                    value->OptimalRepresentation(), 0);
+}
+
 Descriptor Descriptor::DataConstant(Isolate* isolate, Handle<Name> key,
                                     int field_index, Handle<Object> value,
                                     PropertyAttributes attributes) {
@@ -53,6 +82,14 @@ Descriptor Descriptor::DataConstant(Isolate* isolate, Handle<Name> key,
                       kDescriptor, PropertyConstness::kConst,
                       value->OptimalRepresentation(), field_index);
   }
+}
+
+Descriptor Descriptor::AccessorConstant(Handle<Name> key,
+                                        Handle<Object> foreign,
+                                        PropertyAttributes attributes) {
+  return Descriptor(key, MaybeObjectHandle(foreign), kAccessor, attributes,
+                    kDescriptor, PropertyConstness::kConst,
+                    Representation::Tagged(), 0);
 }
 
 // Outputs PropertyDetails as a dictionary details.

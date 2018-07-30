@@ -212,10 +212,7 @@ class ConsumedPreParsedScopeData {
     uint8_t ReadUint8();
     uint8_t ReadQuarter();
 
-    size_t RemainingBytes() const {
-      DCHECK_NOT_NULL(data_);
-      return data_->length() - index_;
-    }
+    size_t RemainingBytes() const;
 
     // private:
     PodArray<uint8_t>* data_;

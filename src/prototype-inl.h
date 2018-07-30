@@ -5,8 +5,10 @@
 #ifndef V8_PROTOTYPE_INL_H_
 #define V8_PROTOTYPE_INL_H_
 
-#include "src/handles-inl.h"
 #include "src/prototype.h"
+
+#include "src/handles-inl.h"
+#include "src/objects/map-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -34,6 +36,36 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate, JSReceiver* receiver,
       is_at_end_(false),
       seen_proxies_(0) {
   if (where_to_start == kStartAtPrototype) Advance();
+}
+
+PrototypeIterator::PrototypeIterator(Isolate* isolate, Map* receiver_map,
+                                     WhereToEnd where_to_end)
+    : isolate_(isolate),
+      object_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype()),
+      where_to_end_(where_to_end),
+      is_at_end_(object_->IsNull(isolate_)),
+      seen_proxies_(0) {
+  if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
+    DCHECK(object_->IsJSReceiver());
+    Map* map = JSReceiver::cast(object_)->map();
+    is_at_end_ = !map->has_hidden_prototype();
+  }
+}
+
+PrototypeIterator::PrototypeIterator(Isolate* isolate, Handle<Map> receiver_map,
+                                     WhereToEnd where_to_end)
+    : isolate_(isolate),
+      object_(nullptr),
+      handle_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype(),
+              isolate_),
+      where_to_end_(where_to_end),
+      is_at_end_(handle_->IsNull(isolate_)),
+      seen_proxies_(0) {
+  if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
+    DCHECK(handle_->IsJSReceiver());
+    Map* map = JSReceiver::cast(*handle_)->map();
+    is_at_end_ = !map->has_hidden_prototype();
+  }
 }
 
 bool PrototypeIterator::HasAccess() const {

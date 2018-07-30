@@ -611,7 +611,7 @@ class PodArray : public ByteArray {
     copy_in(index * sizeof(T), reinterpret_cast<const byte*>(&value),
             sizeof(T));
   }
-  int length() { return ByteArray::length() / sizeof(T); }
+  inline int length();
   DECL_CAST(PodArray<T>)
 
  private:

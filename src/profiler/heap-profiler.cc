@@ -222,6 +222,8 @@ void HeapProfiler::ClearHeapObjectMap() {
 
 Heap* HeapProfiler::heap() const { return ids_->heap(); }
 
+Isolate* HeapProfiler::isolate() const { return heap()->isolate(); }
+
 void HeapProfiler::QueryObjects(Handle<Context> context,
                                 debug::QueryObjectPredicate* predicate,
                                 PersistentValueVector<v8::Object>* objects) {

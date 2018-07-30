@@ -449,6 +449,11 @@ Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, int length,
       isolate->factory()->NewByteArray(length * sizeof(T), pretenure));
 }
 
+template <class T>
+int PodArray<T>::length() {
+  return ByteArray::length() / sizeof(T);
+}
+
 void* FixedTypedArrayBase::external_pointer() const {
   intptr_t ptr = READ_INTPTR_FIELD(this, kExternalPointerOffset);
   return reinterpret_cast<void*>(ptr);
