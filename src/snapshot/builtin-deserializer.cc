@@ -152,13 +152,22 @@ Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
   source()->set_position(code_offsets_[builtin_id]);
 
   Object* o = ReadDataSingle();
-  DCHECK(o->IsCode() && Code::cast(o)->is_builtin());
+  Code* code = Code::cast(o);
+  DCHECK(o->IsCode() && code->is_builtin());
 
   // Rewind.
   source()->set_position(initial_position);
 
+#ifdef DEBUG
+  // Off-heap trampolines should not have any attached reloc infos. We clear
+  // them explicitly during serialization in SerializeContent.
+  if (code->is_off_heap_trampoline()) {
+    RelocIterator it(code);
+    CHECK(it.done());
+  }
+#endif  // DEBUG
+
   // Flush the instruction cache.
-  Code* code = Code::cast(o);
   Assembler::FlushICache(code->raw_instruction_start(),
                          code->raw_instruction_size());
 

@@ -437,6 +437,50 @@ int32_t Serializer<AllocatorT>::ObjectSerializer::SerializeBackingStore(
 }
 
 template <class AllocatorT>
+void Serializer<AllocatorT>::ObjectSerializer::SerializeCode() {
+  Code* code = Code::cast(object_);
+  const int size = code->Size();
+
+  // For code objects, output raw bytes first.
+  OutputCode(size);
+
+  // Then iterate references.
+  if (code->is_off_heap_trampoline()) {
+    // This check ensures that OutputRawData (called as part of VisitPointers)
+    // would do nothing, and thus it's safe to skip here. We can go ahead and
+    // SerializeObject.
+    CHECK_EQ(bytes_processed_so_far_, Code::kRelocationInfoOffset);
+
+    // Ensure the Code object layout has not changed in unexpected ways.
+    STATIC_ASSERT(Code::kRelocationInfoOffset == HeapObject::kHeaderSize);
+    STATIC_ASSERT(Code::kDeoptimizationDataOffset ==
+                  Code::kRelocationInfoOffset + kPointerSize);
+
+    // Fix up an empty RelocInfo for off-heap trampolines by acting as if the
+    // empty byte array were located at kRelocationInfoOffset.
+    ByteArray* empty_byte_array =
+        ReadOnlyRoots(serializer_->isolate()->heap()).empty_byte_array();
+    serializer_->SerializeObject(empty_byte_array, kPlain, kStartOfObject, 0);
+    bytes_processed_so_far_ += kPointerSize;
+
+    // Then continue body visitation as usual at the next field.
+    VisitPointers(code,
+                  HeapObject::RawField(code, Code::kDeoptimizationDataOffset),
+                  HeapObject::RawField(code, Code::kDataStart));
+
+    // Then iterate embedded references via the reloc info.
+    RelocIterator it(code, RelocInfo::ModeMaskForIteration());
+    VisitRelocInfo(&it);
+  } else {
+    // Other (non-off-heap-trampoline) code objects iterate references normally.
+    object_->IterateBody(code->map(), size, this);
+  }
+
+  // Finally skip to the end.
+  serializer_->FlushSkip(SkipTo(object_->address() + size));
+}
+
+template <class AllocatorT>
 void Serializer<AllocatorT>::ObjectSerializer::SerializeJSTypedArray() {
   JSTypedArray* typed_array = JSTypedArray::cast(object_);
   FixedTypedArrayBase* elements =
@@ -712,12 +756,10 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeContent(Map* map,
                                                                 int size) {
   UnlinkWeakNextScope unlink_weak_next(serializer_->isolate()->heap(), object_);
   if (object_->IsCode()) {
-    // For code objects, output raw bytes first.
-    OutputCode(size);
-    // Then iterate references via reloc info.
-    object_->IterateBody(map, size, this);
-    // Finally skip to the end.
-    serializer_->FlushSkip(SkipTo(object_->address() + size));
+    // Code objects have special iteration logic. Raw bytes are output first,
+    // then references are visited. Also, we artificially clear the reloc info
+    // for off-heap trampolines for serialization.
+    SerializeCode();
   } else {
     // For other objects, iterate references first.
     object_->IterateBody(map, size, this);
@@ -1005,13 +1047,7 @@ void Serializer<AllocatorT>::ObjectSerializer::OutputCode(int size) {
   // To make snapshots reproducible, we make a copy of the code object
   // and wipe all pointers in the copy, which we then serialize.
   code = serializer_->CopyCode(code);
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
-                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
-                  RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
-                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+  const int mode_mask = RelocInfo::ModeMaskForIteration();
   for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
     RelocInfo* rinfo = it.rinfo();
     rinfo->WipeOut();
