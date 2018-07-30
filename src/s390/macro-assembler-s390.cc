@@ -986,7 +986,7 @@ void TurboAssembler::ShiftRightPair(Register dst_low, Register dst_high,
                                     uint32_t shift) {
   LoadRR(r0, src_high);
   LoadRR(r1, src_low);
-  srdl(r0, r0, Operand(shift));
+  srdl(r0, Operand(shift));
   LoadRR(dst_high, r0);
   LoadRR(dst_low, r1);
 }
@@ -2267,7 +2267,7 @@ void TurboAssembler::Div32(Register dst, Register src1, Register src2) {
 #define Generate_DivU32(instr) \
   {                            \
     lr(r0, src1);              \
-    srdl(r0, r0, Operand(32)); \
+    srdl(r0, Operand(32)); \
     instr(r0, src2);           \
     LoadlW(dst, r1);           \
   }
@@ -2341,7 +2341,7 @@ void TurboAssembler::Mod32(Register dst, Register src1, Register src2) {
 #define Generate_ModU32(instr) \
   {                            \
     lr(r0, src1);              \
-    srdl(r0, r0, Operand(32)); \
+    srdl(r0, Operand(32)); \
     instr(r0, src2);           \
     LoadlW(dst, r0);           \
   }

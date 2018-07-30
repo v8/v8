@@ -980,7 +980,7 @@ enum FIDBRA_FLAGS {
 
 inline void rsi_format(Opcode op, int f1, int f2, int f3) {
   DCHECK(is_uint8(op));
-  DCHECK(is_uint16(f3));
+  DCHECK(is_uint16(f3) || is_int16(f3));
   uint32_t code = getfield<uint32_t, 4, 0, 8>(op) |
                   getfield<uint32_t, 4, 8, 12>(f1) |
                   getfield<uint32_t, 4, 12, 16>(f2) |
@@ -1074,7 +1074,7 @@ inline void si_format(Opcode op, int f1, int f2, int f3) {
 inline void siy_format(Opcode op, int f1, int f2, int f3) {
   DCHECK(is_uint20(f3) || is_int20(f3));
   DCHECK(is_uint16(op));
-  DCHECK(is_uint8(f1));
+  DCHECK(is_uint8(f1) || is_int8(f1));
   uint64_t code = getfield<uint64_t, 6, 0, 8>(op >> 8) |
                   getfield<uint64_t, 6, 8, 16>(f1) |
                   getfield<uint64_t, 6, 16, 20>(f2) |
