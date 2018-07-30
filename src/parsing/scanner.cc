@@ -468,20 +468,15 @@ Token::Value Scanner::SkipSingleHTMLComment() {
 }
 
 Token::Value Scanner::SkipSingleLineComment() {
-  Advance();
-
   // The line terminator at the end of the line is not considered
   // to be part of the single-line comment; it is recognized
   // separately by the lexical grammar and becomes part of the
   // stream of input elements for the syntactic grammar (see
   // ECMA-262, section 7.4).
-  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
-    Advance();
-  }
+  AdvanceUntil([](uc32 c0_) { return unibrow::IsLineTerminator(c0_); });
 
   return Token::WHITESPACE;
 }
-
 
 Token::Value Scanner::SkipSourceURLComment() {
   TryToParseSourceURLComment();

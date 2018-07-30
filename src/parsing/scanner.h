@@ -7,6 +7,8 @@
 #ifndef V8_PARSING_SCANNER_H_
 #define V8_PARSING_SCANNER_H_
 
+#include <algorithm>
+
 #include "src/allocation.h"
 #include "src/base/logging.h"
 #include "src/char-predicates.h"
@@ -52,6 +54,31 @@ class Utf16CharacterStream {
       // position.
       buffer_cursor_++;
       return kEndOfInput;
+    }
+  }
+
+  // Returns and advances past the next UTF-16 code unit in the input stream
+  // that meets the checks requirement. If there are no more code units it
+  // returns kEndOfInput.
+  template <typename FunctionType>
+  V8_INLINE uc32 AdvanceUntil(FunctionType check) {
+    while (true) {
+      auto next_cursor_pos =
+          std::find_if(buffer_cursor_, buffer_end_, [&check](uint16_t raw_c0_) {
+            uc32 c0_ = static_cast<uc32>(raw_c0_);
+            return check(c0_);
+          });
+
+      if (next_cursor_pos == buffer_end_) {
+        buffer_cursor_ = buffer_end_;
+        if (!ReadBlockChecked()) {
+          buffer_cursor_++;
+          return kEndOfInput;
+        }
+      } else {
+        buffer_cursor_ = next_cursor_pos + 1;
+        return static_cast<uc32>(*next_cursor_pos);
+      }
     }
   }
 
@@ -614,6 +641,11 @@ class Scanner {
       AddRawLiteralChar(c0_);
     }
     c0_ = source_->Advance();
+  }
+
+  template <typename FunctionType>
+  V8_INLINE void AdvanceUntil(FunctionType check) {
+    c0_ = source_->AdvanceUntil(check);
   }
 
   bool CombineSurrogatePair() {
