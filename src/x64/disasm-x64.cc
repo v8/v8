@@ -12,6 +12,7 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/disasm.h"
+#include "src/macro-assembler.h"
 #include "src/x64/sse-instr.h"
 
 namespace disasm {
@@ -450,6 +451,7 @@ class DisassemblerX64 {
 
   typedef const char* (DisassemblerX64::*RegisterNameMapping)(int reg) const;
 
+  void TryAppendRootRelativeName(int offset);
   int PrintRightOperandHelper(byte* modrmp,
                               RegisterNameMapping register_name);
   int PrintRightOperand(byte* modrmp);
@@ -493,6 +495,10 @@ void DisassemblerX64::AppendToBuffer(const char* format, ...) {
   tmp_buffer_pos_ += result;
 }
 
+void DisassemblerX64::TryAppendRootRelativeName(int offset) {
+  const char* maybe_name = converter_.RootRelativeName(offset);
+  if (maybe_name != nullptr) AppendToBuffer(" (%s)", maybe_name);
+}
 
 int DisassemblerX64::PrintRightOperandHelper(
     byte* modrmp,
@@ -572,6 +578,10 @@ int DisassemblerX64::PrintRightOperandHelper(
                        NameOfCPURegister(rm),
                        disp < 0 ? "-" : "+",
                        disp < 0 ? -disp : disp);
+        if (rm == i::kRootRegister.code()) {
+          // For root-relative accesses, try to append a description.
+          TryAppendRootRelativeName(i::kRootRegisterBias + disp);
+        }
         return (mod == 2) ? 5 : 2;
       }
       break;

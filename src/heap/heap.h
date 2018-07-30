@@ -853,6 +853,10 @@ class Heap {
     return kRootsBuiltinsOffset;
   }
 
+  static constexpr int root_register_addressable_end_offset() {
+    return kRootRegisterAddressableEndOffset;
+  }
+
   Address root_register_addressable_end() {
     return reinterpret_cast<Address>(roots_array_start()) +
            kRootRegisterAddressableEndOffset;

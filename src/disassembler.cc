@@ -30,8 +30,10 @@ class V8NameConverter: public disasm::NameConverter {
  public:
   explicit V8NameConverter(Isolate* isolate, CodeReference code = {})
       : isolate_(isolate), code_(code) {}
-  virtual const char* NameOfAddress(byte* pc) const;
-  virtual const char* NameInCode(byte* addr) const;
+  const char* NameOfAddress(byte* pc) const override;
+  const char* NameInCode(byte* addr) const override;
+  const char* RootRelativeName(int offset) const override;
+
   const CodeReference& code() const { return code_; }
 
  private:
@@ -82,6 +84,51 @@ const char* V8NameConverter::NameInCode(byte* addr) const {
   return code_.is_null() ? "" : reinterpret_cast<const char*>(addr);
 }
 
+const char* V8NameConverter::RootRelativeName(int offset) const {
+  if (isolate_ == nullptr) return nullptr;
+
+  const int kRootsStart = 0;
+  const int kRootsEnd = Heap::roots_to_external_reference_table_offset();
+  const int kExtRefsStart = Heap::roots_to_external_reference_table_offset();
+  const int kExtRefsEnd = Heap::roots_to_builtins_offset();
+
+  if (kRootsStart <= offset && offset < kRootsEnd) {
+    uint32_t offset_in_roots_table = offset - kRootsStart;
+
+    // Fail safe in the unlikely case of an arbitrary root-relative offset.
+    if (offset_in_roots_table % kPointerSize != 0) return nullptr;
+
+    Heap::RootListIndex root_index =
+        static_cast<Heap::RootListIndex>(offset_in_roots_table / kPointerSize);
+
+    HeapStringAllocator allocator;
+    StringStream accumulator(&allocator);
+    isolate_->heap()->root(root_index)->ShortPrint(&accumulator);
+    std::unique_ptr<char[]> obj_name = accumulator.ToCString();
+
+    SNPrintF(v8_buffer_, "root (%s)", obj_name.get());
+    return v8_buffer_.start();
+  } else if (kExtRefsStart <= offset && offset < kExtRefsEnd) {
+    uint32_t offset_in_extref_table = offset - kExtRefsStart;
+
+    // Fail safe in the unlikely case of an arbitrary root-relative offset.
+    if (offset_in_extref_table % ExternalReferenceTable::EntrySize() != 0) {
+      return nullptr;
+    }
+
+    // Likewise if the external reference table is uninitialized.
+    if (!isolate_->heap()->external_reference_table()->is_initialized()) {
+      return nullptr;
+    }
+
+    SNPrintF(v8_buffer_, "external reference (%s)",
+             isolate_->heap()->external_reference_table()->NameFromOffset(
+                 offset_in_extref_table));
+    return v8_buffer_.start();
+  } else {
+    return nullptr;
+  }
+}
 
 static void DumpBuffer(std::ostream* os, StringBuilder* out) {
   (*os) << out->Finalize() << std::endl;
