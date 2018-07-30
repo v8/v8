@@ -535,6 +535,62 @@ TEST(WeakArrayListBasic) {
   CHECK_EQ(Smi::ToInt(array->Get(7)->ToSmi()), 7);
 }
 
+TEST(WeakArrayListRemove) {
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  HandleScope outer_scope(isolate);
+
+  Handle<WeakArrayList> array(ReadOnlyRoots(heap).empty_weak_array_list(),
+                              isolate);
+
+  Handle<FixedArray> elem0 = factory->NewFixedArray(1);
+  Handle<FixedArray> elem1 = factory->NewFixedArray(1);
+  Handle<FixedArray> elem2 = factory->NewFixedArray(1);
+
+  array =
+      WeakArrayList::AddToEnd(isolate, array, MaybeObjectHandle::Weak(elem0));
+  array =
+      WeakArrayList::AddToEnd(isolate, array, MaybeObjectHandle::Weak(elem1));
+  array =
+      WeakArrayList::AddToEnd(isolate, array, MaybeObjectHandle::Weak(elem2));
+
+  CHECK_EQ(array->length(), 3);
+  CHECK_EQ(array->Get(0), HeapObjectReference::Weak(*elem0));
+  CHECK_EQ(array->Get(1), HeapObjectReference::Weak(*elem1));
+  CHECK_EQ(array->Get(2), HeapObjectReference::Weak(*elem2));
+
+  CHECK(array->RemoveOne(MaybeObjectHandle::Weak(elem1)));
+
+  CHECK_EQ(array->length(), 3);
+  CHECK_EQ(array->Get(0), HeapObjectReference::Weak(*elem0));
+  CHECK(array->Get(1)->IsClearedWeakHeapObject());
+  CHECK_EQ(array->Get(2), HeapObjectReference::Weak(*elem2));
+
+  CHECK(!array->RemoveOne(MaybeObjectHandle::Weak(elem1)));
+
+  CHECK_EQ(array->length(), 3);
+  CHECK_EQ(array->Get(0), HeapObjectReference::Weak(*elem0));
+  CHECK(array->Get(1)->IsClearedWeakHeapObject());
+  CHECK_EQ(array->Get(2), HeapObjectReference::Weak(*elem2));
+
+  CHECK(array->RemoveOne(MaybeObjectHandle::Weak(elem0)));
+
+  CHECK_EQ(array->length(), 3);
+  CHECK(array->Get(0)->IsClearedWeakHeapObject());
+  CHECK(array->Get(1)->IsClearedWeakHeapObject());
+  CHECK_EQ(array->Get(2), HeapObjectReference::Weak(*elem2));
+
+  CHECK(array->RemoveOne(MaybeObjectHandle::Weak(elem2)));
+
+  // Removing the last element decreases the array length.
+  CHECK_EQ(array->length(), 2);
+  CHECK(array->Get(0)->IsClearedWeakHeapObject());
+  CHECK(array->Get(1)->IsClearedWeakHeapObject());
+}
+
 TEST(Regress7768) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_turbo_inlining = false;
