@@ -170,6 +170,55 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
                   old_backing_store_before);
 }
 
+TEST(ExternalString_PromotedThinString) {
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = CcTest::i_isolate();
+  i::Factory* factory = i_isolate->factory();
+  Heap* heap = i_isolate->heap();
+
+  {
+    v8::HandleScope handle_scope(isolate);
+
+    // New external string in the old space.
+    v8::internal::Handle<v8::internal::String> string1 =
+        factory
+            ->NewExternalStringFromOneByte(
+                new TestOneByteResource(i::StrDup(TEST_STR)))
+            .ToHandleChecked();
+
+    // Internalize external string.
+    i::Handle<i::String> isymbol1 = factory->InternalizeString(string1);
+    CHECK(isymbol1->IsInternalizedString());
+    CHECK(string1->IsExternalString());
+    CHECK(!heap->InNewSpace(*isymbol1));
+
+    // New external string in the young space. This string has the same content
+    // as the previous one (that was already internalized).
+    v8::Local<v8::String> string2 =
+        v8::String::NewFromUtf8(isolate, TEST_STR, v8::NewStringType::kNormal)
+            .ToLocalChecked();
+    bool success =
+        string2->MakeExternal(new TestOneByteResource(i::StrDup(TEST_STR)));
+    CHECK(success);
+
+    // Internalize (it will create a thin string in the new space).
+    i::Handle<i::String> istring = v8::Utils::OpenHandle(*string2);
+    i::Handle<i::String> isymbol2 = factory->InternalizeString(istring);
+    CHECK(isymbol2->IsInternalizedString());
+    CHECK(istring->IsThinString());
+    CHECK(heap->InNewSpace(*istring));
+
+    // Collect thin string. References to the thin string will be updated to
+    // point to the actual external string in the old space.
+    heap::GcAndSweep(heap, NEW_SPACE);
+
+    USE(isymbol1);
+    USE(isymbol2);
+  }
+}
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

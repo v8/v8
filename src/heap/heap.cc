@@ -2286,7 +2286,6 @@ bool Heap::ExternalStringTable::Contains(HeapObject* obj) {
   return false;
 }
 
-
 void Heap::ProcessMovedExternalString(Page* old_page, Page* new_page,
                                       ExternalString* string) {
   size_t size = string->ExternalPayloadSize();
@@ -2314,7 +2313,12 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
 
   // String is still reachable.
   String* new_string = String::cast(first_word.ToForwardingAddress());
-  if (new_string->IsThinString()) {
+  String* original_string = reinterpret_cast<String*>(*p);
+  // The length of the original string is used to disambiguate the scenario
+  // of a ThingString being forwarded to an ExternalString (which already exists
+  // in the OLD space), and an ExternalString being forwarded to its promoted
+  // copy. See Scavenger::EvacuateThinString.
+  if (new_string->IsThinString() || original_string->length() == 0) {
     // Filtering Thin strings out of the external string table.
     return nullptr;
   } else if (new_string->IsExternalString()) {
