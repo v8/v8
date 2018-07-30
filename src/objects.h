@@ -106,6 +106,7 @@
 //         - ScopeInfo
 //         - ModuleInfo
 //         - ScriptContextTable
+//         - FixedArrayOfWeakCells
 //       - FixedDoubleArray
 //     - Name
 //       - String
@@ -788,6 +789,7 @@ template <class C> inline bool Is(Object* obj);
   V(FixedArray)                                \
   V(FixedArrayBase)                            \
   V(FixedArrayExact)                           \
+  V(FixedArrayOfWeakCells)                     \
   V(FixedBigInt64Array)                        \
   V(FixedBigUint64Array)                       \
   V(FixedDoubleArray)                          \

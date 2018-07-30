@@ -4773,6 +4773,20 @@ TEST(WritableVsImmortalRoots) {
   }
 }
 
+TEST(FixedArrayOfWeakCells) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(1);
+  Handle<FixedArrayOfWeakCells> array =
+      FixedArrayOfWeakCells::Add(isolate, Handle<Object>(), number);
+  array->Remove(number);
+  array->Compact<FixedArrayOfWeakCells::NullCallback>(isolate);
+  FixedArrayOfWeakCells::Add(isolate, array, number);
+}
+
+
 TEST(PreprocessStackTrace) {
   // Do not automatically trigger early GC.
   FLAG_gc_interval = -1;
