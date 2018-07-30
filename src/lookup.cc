@@ -256,7 +256,7 @@ namespace {
 
 bool IsTypedArrayFunctionInAnyContext(Isolate* isolate, JSReceiver* holder) {
   static uint32_t context_slots[] = {
-#define TYPED_ARRAY_CONTEXT_SLOTS(Type, type, TYPE, ctype, size) \
+#define TYPED_ARRAY_CONTEXT_SLOTS(Type, type, TYPE, ctype) \
   Context::TYPE##_ARRAY_FUN_INDEX,
 
       TYPED_ARRAYS(TYPED_ARRAY_CONTEXT_SLOTS)

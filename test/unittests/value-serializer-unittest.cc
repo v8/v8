@@ -1689,12 +1689,12 @@ TEST_F(ValueSerializerTest, RoundTripTypedArray) {
   // Check that the right type comes out the other side for every kind of typed
   // array.
   Local<Value> value;
-#define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype, size) \
-  value = RoundTripTest("new " #Type "Array(2)");                  \
-  ASSERT_TRUE(value->Is##Type##Array());                           \
-  EXPECT_EQ(2u * size, TypedArray::Cast(*value)->ByteLength());    \
-  EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());               \
-  ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type      \
+#define TYPED_ARRAY_ROUND_TRIP_TEST(Type, type, TYPE, ctype)             \
+  value = RoundTripTest("new " #Type "Array(2)");                        \
+  ASSERT_TRUE(value->Is##Type##Array());                                 \
+  EXPECT_EQ(2u * sizeof(ctype), TypedArray::Cast(*value)->ByteLength()); \
+  EXPECT_EQ(2u, TypedArray::Cast(*value)->Length());                     \
+  ExpectScriptTrue("Object.getPrototypeOf(result) === " #Type            \
                    "Array.prototype");
 
   TYPED_ARRAYS(TYPED_ARRAY_ROUND_TRIP_TEST)

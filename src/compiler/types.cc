@@ -306,7 +306,7 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     // require bit set types, they should get kOtherInternal.
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FREE_SPACE_TYPE:
-#define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+#define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
   case FIXED_##TYPE##_ARRAY_TYPE:
 
       TYPED_ARRAYS(FIXED_TYPED_ARRAY_CASE)

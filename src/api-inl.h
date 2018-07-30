@@ -55,7 +55,7 @@ inline Local<To> Utils::Convert(v8::internal::Handle<From> obj) {
     return Convert<v8::internal::From, v8::To>(obj);                        \
   }
 
-#define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)  \
+#define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype)        \
   Local<v8::Type##Array> Utils::ToLocal##Type##Array(                 \
       v8::internal::Handle<v8::internal::JSTypedArray> obj) {         \
     DCHECK(obj->type() == v8::internal::kExternal##Type##Array);      \

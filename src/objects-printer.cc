@@ -162,12 +162,12 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       FreeSpace::cast(this)->FreeSpacePrint(os);
       break;
 
-#define PRINT_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype, size) \
-  case Fixed##Type##Array::kInstanceType:                      \
-    Fixed##Type##Array::cast(this)->FixedTypedArrayPrint(os);  \
+#define PRINT_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype)      \
+  case Fixed##Type##Array::kInstanceType:                     \
+    Fixed##Type##Array::cast(this)->FixedTypedArrayPrint(os); \
     break;
 
-    TYPED_ARRAYS(PRINT_FIXED_TYPED_ARRAY)
+      TYPED_ARRAYS(PRINT_FIXED_TYPED_ARRAY)
 #undef PRINT_FIXED_TYPED_ARRAY
 
     case FILLER_TYPE:
@@ -580,10 +580,10 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
       break;
     }
 
-#define PRINT_ELEMENTS(Type, type, TYPE, elementType, size) \
-  case TYPE##_ELEMENTS: {                                   \
-    DoPrintElements<Fixed##Type##Array>(os, elements());    \
-    break;                                                  \
+#define PRINT_ELEMENTS(Type, type, TYPE, elementType)    \
+  case TYPE##_ELEMENTS: {                                \
+    DoPrintElements<Fixed##Type##Array>(os, elements()); \
+    break;                                               \
   }
       TYPED_ARRAYS(PRINT_ELEMENTS)
 #undef PRINT_ELEMENTS

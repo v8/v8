@@ -109,7 +109,6 @@ ATOMIC_OPS(uint16_t, 16, short) /* NOLINT(runtime/int) */
 ATOMIC_OPS(int32_t, 32, long)   /* NOLINT(runtime/int) */
 ATOMIC_OPS(uint32_t, 32, long)  /* NOLINT(runtime/int) */
 
-#undef ATOMIC_OPS_INTEGER
 #undef ATOMIC_OPS
 
 #undef InterlockedExchange32
@@ -241,14 +240,14 @@ inline Object* DoXor(Isolate* isolate, void* buffer, size_t index,
 }  // anonymous namespace
 
 // Duplicated from objects.h
-// V has parameters (Type, type, TYPE, C type, element_size)
-#define INTEGER_TYPED_ARRAYS(V)          \
-  V(Uint8, uint8, UINT8, uint8_t, 1)     \
-  V(Int8, int8, INT8, int8_t, 1)         \
-  V(Uint16, uint16, UINT16, uint16_t, 2) \
-  V(Int16, int16, INT16, int16_t, 2)     \
-  V(Uint32, uint32, UINT32, uint32_t, 4) \
-  V(Int32, int32, INT32, int32_t, 4)
+// V has parameters (Type, type, TYPE, C type)
+#define INTEGER_TYPED_ARRAYS(V)       \
+  V(Uint8, uint8, UINT8, uint8_t)     \
+  V(Int8, int8, INT8, int8_t)         \
+  V(Uint16, uint16, UINT16, uint16_t) \
+  V(Int16, int16, INT16, int16_t)     \
+  V(Uint32, uint32, UINT32, uint32_t) \
+  V(Int32, int32, INT32, int32_t)
 
 RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
   HandleScope scope(isolate);
@@ -263,8 +262,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
                     NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
+  case kExternal##Type##Array:                        \
     return DoExchange<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -291,8 +290,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
                     NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
+  case kExternal##Type##Array:                        \
     return DoCompareExchange<ctype>(isolate, source, index, oldobj, newobj);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -320,8 +319,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
                     NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
+  case kExternal##Type##Array:                        \
     return DoAdd<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -349,8 +348,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsSub) {
                     NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
+  case kExternal##Type##Array:                        \
     return DoSub<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -378,8 +377,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
                     NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
+  case kExternal##Type##Array:                        \
     return DoAnd<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -407,8 +406,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsOr) {
                     NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
+  case kExternal##Type##Array:                        \
     return DoOr<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -436,8 +435,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) {
                     NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
+  case kExternal##Type##Array:                        \
     return DoXor<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -449,6 +448,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) {
 
   UNREACHABLE();
 }
+
+#undef INTEGER_TYPED_ARRAYS
 
 }  // namespace internal
 }  // namespace v8

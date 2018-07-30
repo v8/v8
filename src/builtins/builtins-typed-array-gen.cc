@@ -1161,18 +1161,17 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
   Label next(this), if_unknown_type(this, Label::kDeferred);
 
   int32_t elements_kinds[] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) TYPE##_ELEMENTS,
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) TYPE##_ELEMENTS,
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  Label if_##type##array(this);
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) Label if_##type##array(this);
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
   Label* elements_kind_labels[] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) &if_##type##array,
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) &if_##type##array,
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
@@ -1181,11 +1180,12 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
   Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
          arraysize(elements_kinds));
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                    \
-  BIND(&if_##type##array);                                                 \
-  {                                                                        \
-    case_function(TYPE##_ELEMENTS, size, Context::TYPE##_ARRAY_FUN_INDEX); \
-    Goto(&next);                                                           \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)   \
+  BIND(&if_##type##array);                          \
+  {                                                 \
+    case_function(TYPE##_ELEMENTS, sizeof(ctype),   \
+                  Context::TYPE##_ARRAY_FUN_INDEX); \
+    Goto(&next);                                    \
   }
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -1488,19 +1488,19 @@ TF_BUILTIN(TypedArrayPrototypeToStringTag, TypedArrayBuiltinsAssembler) {
   size_t const kTypedElementsKindCount = LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
                                          FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
                                          1;
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  Label return_##type##array(this);                     \
-  BIND(&return_##type##array);                          \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  Label return_##type##array(this);               \
+  BIND(&return_##type##array);                    \
   Return(StringConstant(#Type "Array"));
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   Label* elements_kind_labels[kTypedElementsKindCount] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) &return_##type##array,
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) &return_##type##array,
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
   int32_t elements_kinds[kTypedElementsKindCount] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
   TYPE##_ELEMENTS - FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE

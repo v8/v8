@@ -78,7 +78,7 @@ namespace InstanceTypeChecker {
 // Define type checkers for classes with single instance type.
 INSTANCE_TYPE_CHECKERS_SINGLE(INSTANCE_TYPE_CHECKER);
 
-#define TYPED_ARRAY_INSTANCE_TYPE_CHECKER(Type, type, TYPE, ctype, size) \
+#define TYPED_ARRAY_INSTANCE_TYPE_CHECKER(Type, type, TYPE, ctype) \
   INSTANCE_TYPE_CHECKER(Fixed##Type##Array, FIXED_##TYPE##_ARRAY_TYPE)
 TYPED_ARRAYS(TYPED_ARRAY_INSTANCE_TYPE_CHECKER)
 #undef TYPED_ARRAY_INSTANCE_TYPE_CHECKER
@@ -123,7 +123,7 @@ V8_INLINE bool IsJSObject(InstanceType instance_type) {
 // pointer rather than looking up the instance type.
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER);
 
-#define TYPED_ARRAY_TYPE_CHECKER(Type, type, TYPE, ctype, size) \
+#define TYPED_ARRAY_TYPE_CHECKER(Type, type, TYPE, ctype) \
   TYPE_CHECKER(Fixed##Type##Array)
 TYPED_ARRAYS(TYPED_ARRAY_TYPE_CHECKER)
 #undef TYPED_ARRAY_TYPE_CHECKER
@@ -2639,7 +2639,7 @@ bool JSObject::HasFixedTypedArrayElements() {
   return map()->has_fixed_typed_array_elements();
 }
 
-#define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype, size)      \
+#define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype)            \
   bool JSObject::HasFixed##Type##Elements() {                          \
     HeapObject* array = elements();                                    \
     DCHECK_NOT_NULL(array);                                            \

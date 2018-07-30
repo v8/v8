@@ -3134,10 +3134,10 @@ void Factory::TypeAndSizeForElementsKind(ElementsKind kind,
                                          ExternalArrayType* array_type,
                                          size_t* element_size) {
   switch (kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case TYPE##_ELEMENTS:                                 \
-    *array_type = kExternal##Type##Array;               \
-    *element_size = size;                               \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                           \
+    *array_type = kExternal##Type##Array;         \
+    *element_size = sizeof(ctype);                \
     break;
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -3153,10 +3153,10 @@ static void ForFixedTypedArray(ExternalArrayType array_type,
                                size_t* element_size,
                                ElementsKind* element_kind) {
   switch (array_type) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array:                          \
-    *element_size = size;                               \
-    *element_kind = TYPE##_ELEMENTS;                    \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case kExternal##Type##Array:                    \
+    *element_size = sizeof(ctype);                \
+    *element_kind = TYPE##_ELEMENTS;              \
     return;
 
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -3168,8 +3168,8 @@ static void ForFixedTypedArray(ExternalArrayType array_type,
 JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
   Context* native_context = isolate->context()->native_context();
   switch (type) {
-#define TYPED_ARRAY_FUN(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array:                         \
+#define TYPED_ARRAY_FUN(Type, type, TYPE, ctype) \
+  case kExternal##Type##Array:                   \
     return native_context->type##_array_fun();
 
     TYPED_ARRAYS(TYPED_ARRAY_FUN)
@@ -3181,8 +3181,8 @@ JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
 JSFunction* GetTypedArrayFun(ElementsKind elements_kind, Isolate* isolate) {
   Context* native_context = isolate->context()->native_context();
   switch (elements_kind) {
-#define TYPED_ARRAY_FUN(Type, type, TYPE, ctype, size) \
-  case TYPE##_ELEMENTS:                                \
+#define TYPED_ARRAY_FUN(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                          \
     return native_context->type##_array_fun();
 
     TYPED_ARRAYS(TYPED_ARRAY_FUN)

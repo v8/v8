@@ -121,8 +121,8 @@ namespace {
 
 const char* ElementsKindToType(ElementsKind fixed_elements_kind) {
   switch (fixed_elements_kind) {
-#define ELEMENTS_KIND_CASE(Type, type, TYPE, ctype, size) \
-  case TYPE##_ELEMENTS:                                   \
+#define ELEMENTS_KIND_CASE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                             \
     return #Type "Array";
 
     TYPED_ARRAYS(ELEMENTS_KIND_CASE)

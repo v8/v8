@@ -3458,13 +3458,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case FREE_SPACE_TYPE:
       os << "<FreeSpace[" << FreeSpace::cast(this)->size() << "]>";
       break;
-#define TYPED_ARRAY_SHORT_PRINT(Type, type, TYPE, ctype, size)                \
+#define TYPED_ARRAY_SHORT_PRINT(Type, type, TYPE, ctype)                      \
   case FIXED_##TYPE##_ARRAY_TYPE:                                             \
     os << "<Fixed" #Type "Array[" << Fixed##Type##Array::cast(this)->length() \
        << "]>";                                                               \
     break;
 
-    TYPED_ARRAYS(TYPED_ARRAY_SHORT_PRINT)
+      TYPED_ARRAYS(TYPED_ARRAY_SHORT_PRINT)
 #undef TYPED_ARRAY_SHORT_PRINT
 
     case PRE_PARSED_SCOPE_DATA_TYPE: {
@@ -3701,7 +3701,7 @@ String* JSReceiver::class_name() {
   if (IsJSSet()) return roots.Set_string();
   if (IsJSSetIterator()) return roots.SetIterator_string();
   if (IsJSTypedArray()) {
-#define SWITCH_KIND(Type, type, TYPE, ctype, size) \
+#define SWITCH_KIND(Type, type, TYPE, ctype)       \
   if (map()->elements_kind() == TYPE##_ELEMENTS) { \
     return roots.Type##Array_string();             \
   }
@@ -8095,9 +8095,9 @@ bool JSObject::ReferencesObject(Object* obj) {
   switch (kind) {
     // Raw pixels and external arrays do not reference other
     // objects.
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
-    case TYPE##_ELEMENTS:                                                      \
-      break;
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                           \
+    break;
 
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -8850,8 +8850,7 @@ bool JSObject::HasEnumerableElements() {
       }
       return false;
     }
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-    case TYPE##_ELEMENTS:
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -16146,10 +16145,9 @@ int JSObject::GetFastElementsUsage() {
     case SLOW_STRING_WRAPPER_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NO_ELEMENTS:
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                      \
-    case TYPE##_ELEMENTS:                                                    \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
     UNREACHABLE();
   }
@@ -17168,9 +17166,9 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
 
 ExternalArrayType JSTypedArray::type() {
   switch (elements()->map()->instance_type()) {
-#define INSTANCE_TYPE_TO_ARRAY_TYPE(Type, type, TYPE, ctype, size)            \
-    case FIXED_##TYPE##_ARRAY_TYPE:                                           \
-      return kExternal##Type##Array;
+#define INSTANCE_TYPE_TO_ARRAY_TYPE(Type, type, TYPE, ctype) \
+  case FIXED_##TYPE##_ARRAY_TYPE:                            \
+    return kExternal##Type##Array;
 
     TYPED_ARRAYS(INSTANCE_TYPE_TO_ARRAY_TYPE)
 #undef INSTANCE_TYPE_TO_ARRAY_TYPE
@@ -17183,9 +17181,9 @@ ExternalArrayType JSTypedArray::type() {
 
 size_t JSTypedArray::element_size() {
   switch (elements()->map()->instance_type()) {
-#define INSTANCE_TYPE_TO_ELEMENT_SIZE(Type, type, TYPE, ctype, size) \
-  case FIXED_##TYPE##_ARRAY_TYPE:                                    \
-    return size;
+#define INSTANCE_TYPE_TO_ELEMENT_SIZE(Type, type, TYPE, ctype) \
+  case FIXED_##TYPE##_ARRAY_TYPE:                              \
+    return sizeof(ctype);
 
     TYPED_ARRAYS(INSTANCE_TYPE_TO_ELEMENT_SIZE)
 #undef INSTANCE_TYPE_TO_ELEMENT_SIZE

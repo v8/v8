@@ -707,18 +707,18 @@ class FixedTypedArray : public FixedTypedArrayBase {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArray);
 };
 
-#define FIXED_TYPED_ARRAY_TRAITS(Type, type, TYPE, elementType, size)    \
-  STATIC_ASSERT(size <= FixedTypedArrayBase::kMaxElementSize);           \
-  class Type##ArrayTraits {                                              \
-   public: /* NOLINT */                                                  \
-    typedef elementType ElementType;                                     \
-    static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE; \
-    static const char* Designator() { return #type " array"; }           \
-    static inline Handle<Object> ToHandle(Isolate* isolate,              \
-                                          elementType scalar);           \
-    static inline elementType defaultValue();                            \
-  };                                                                     \
-                                                                         \
+#define FIXED_TYPED_ARRAY_TRAITS(Type, type, TYPE, elementType)               \
+  STATIC_ASSERT(sizeof(elementType) <= FixedTypedArrayBase::kMaxElementSize); \
+  class Type##ArrayTraits {                                                   \
+   public: /* NOLINT */                                                       \
+    typedef elementType ElementType;                                          \
+    static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;      \
+    static const char* Designator() { return #type " array"; }                \
+    static inline Handle<Object> ToHandle(Isolate* isolate,                   \
+                                          elementType scalar);                \
+    static inline elementType defaultValue();                                 \
+  };                                                                          \
+                                                                              \
   typedef FixedTypedArray<Type##ArrayTraits> Fixed##Type##Array;
 
 TYPED_ARRAYS(FIXED_TYPED_ARRAY_TRAITS)

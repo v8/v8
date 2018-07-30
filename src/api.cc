@@ -3580,14 +3580,12 @@ bool Value::IsTypedArray() const {
   return Utils::OpenHandle(this)->IsJSTypedArray();
 }
 
-
-#define VALUE_IS_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)              \
+#define VALUE_IS_TYPED_ARRAY(Type, typeName, TYPE, ctype)                    \
   bool Value::Is##Type##Array() const {                                      \
     i::Handle<i::Object> obj = Utils::OpenHandle(this);                      \
     return obj->IsJSTypedArray() &&                                          \
            i::JSTypedArray::cast(*obj)->type() == i::kExternal##Type##Array; \
   }
-
 
 TYPED_ARRAYS(VALUE_IS_TYPED_ARRAY)
 
@@ -4023,8 +4021,7 @@ void v8::TypedArray::CheckCast(Value* that) {
                   "Could not convert to TypedArray");
 }
 
-
-#define CHECK_TYPED_ARRAY_CAST(Type, typeName, TYPE, ctype, size)             \
+#define CHECK_TYPED_ARRAY_CAST(Type, typeName, TYPE, ctype)                   \
   void v8::Type##Array::CheckCast(Value* that) {                              \
     i::Handle<i::Object> obj = Utils::OpenHandle(that);                       \
     Utils::ApiCheck(                                                          \
@@ -4032,7 +4029,6 @@ void v8::TypedArray::CheckCast(Value* that) {
             i::JSTypedArray::cast(*obj)->type() == i::kExternal##Type##Array, \
         "v8::" #Type "Array::Cast()", "Could not convert to " #Type "Array"); \
   }
-
 
 TYPED_ARRAYS(CHECK_TYPED_ARRAY_CAST)
 
@@ -8014,7 +8010,7 @@ size_t v8::TypedArray::Length() {
 static_assert(v8::TypedArray::kMaxLength == i::Smi::kMaxValue,
               "v8::TypedArray::kMaxLength must match i::Smi::kMaxValue");
 
-#define TYPED_ARRAY_NEW(Type, type, TYPE, ctype, size)                     \
+#define TYPED_ARRAY_NEW(Type, type, TYPE, ctype)                           \
   Local<Type##Array> Type##Array::New(Local<ArrayBuffer> array_buffer,     \
                                       size_t byte_offset, size_t length) { \
     i::Isolate* isolate = Utils::OpenHandle(*array_buffer)->GetIsolate();  \

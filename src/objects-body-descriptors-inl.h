@@ -794,7 +794,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case BIGINT_TYPE:
       return ReturnType();
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                              \
   case FIXED_##TYPE##_ARRAY_TYPE:                                              \
     return Op::template apply<FixedTypedArrayBase::BodyDescriptor>(p1, p2, p3, \
                                                                    p4);

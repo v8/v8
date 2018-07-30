@@ -2048,8 +2048,8 @@ Type Typer::Visitor::TypeLoadElement(Node* node) {
 
 Type Typer::Visitor::TypeLoadTypedElement(Node* node) {
   switch (ExternalArrayTypeOf(node->op())) {
-#define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype, size) \
-  case kExternal##ElemType##Array:                          \
+#define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype) \
+  case kExternal##ElemType##Array:                    \
     return typer_->cache_.k##ElemType;
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -2059,8 +2059,8 @@ Type Typer::Visitor::TypeLoadTypedElement(Node* node) {
 
 Type Typer::Visitor::TypeLoadDataViewElement(Node* node) {
   switch (ExternalArrayTypeOf(node->op())) {
-#define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype, size) \
-  case kExternal##ElemType##Array:                          \
+#define TYPED_ARRAY_CASE(ElemType, type, TYPE, ctype) \
+  case kExternal##ElemType##Array:                    \
     return typer_->cache_.k##ElemType;
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE

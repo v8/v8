@@ -866,11 +866,10 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastProperties)
 
 #undef ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION
 
-
-#define FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION(Type, type, TYPE, ctype, s) \
-  RUNTIME_FUNCTION(Runtime_HasFixed##Type##Elements) {                        \
-    CONVERT_ARG_CHECKED(JSObject, obj, 0);                                    \
-    return isolate->heap()->ToBoolean(obj->HasFixed##Type##Elements());       \
+#define FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION(Type, type, TYPE, ctype) \
+  RUNTIME_FUNCTION(Runtime_HasFixed##Type##Elements) {                     \
+    CONVERT_ARG_CHECKED(JSObject, obj, 0);                                 \
+    return isolate->heap()->ToBoolean(obj->HasFixed##Type##Elements());    \
   }
 
 TYPED_ARRAYS(FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)

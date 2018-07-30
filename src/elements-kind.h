@@ -11,19 +11,19 @@
 namespace v8 {
 namespace internal {
 
-// V has parameters (Type, type, TYPE, C type, element_size)
-#define TYPED_ARRAYS(V)                                     \
-  V(Uint8, uint8, UINT8, uint8_t, 1)                        \
-  V(Int8, int8, INT8, int8_t, 1)                            \
-  V(Uint16, uint16, UINT16, uint16_t, 2)                    \
-  V(Int16, int16, INT16, int16_t, 2)                        \
-  V(Uint32, uint32, UINT32, uint32_t, 4)                    \
-  V(Int32, int32, INT32, int32_t, 4)                        \
-  V(Float32, float32, FLOAT32, float, 4)                    \
-  V(Float64, float64, FLOAT64, double, 8)                   \
-  V(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t, 1) \
-  V(BigUint64, biguint64, BIGUINT64, uint64_t, 8)           \
-  V(BigInt64, bigint64, BIGINT64, int64_t, 8)
+// V has parameters (Type, type, TYPE, C type)
+#define TYPED_ARRAYS(V)                                  \
+  V(Uint8, uint8, UINT8, uint8_t)                        \
+  V(Int8, int8, INT8, int8_t)                            \
+  V(Uint16, uint16, UINT16, uint16_t)                    \
+  V(Int16, int16, INT16, int16_t)                        \
+  V(Uint32, uint32, UINT32, uint32_t)                    \
+  V(Int32, int32, INT32, int32_t)                        \
+  V(Float32, float32, FLOAT32, float)                    \
+  V(Float64, float64, FLOAT64, double)                   \
+  V(Uint8Clamped, uint8_clamped, UINT8_CLAMPED, uint8_t) \
+  V(BigUint64, biguint64, BIGUINT64, uint64_t)           \
+  V(BigInt64, bigint64, BIGINT64, int64_t)
 
 enum ElementsKind {
   // The "fast" kind for elements that only contain SMI values. Must be first
@@ -54,8 +54,7 @@ enum ElementsKind {
   SLOW_STRING_WRAPPER_ELEMENTS,
 
 // Fixed typed arrays.
-#define TYPED_ARRAY_ELEMENTS_KIND(Type, type, TYPE, ctype, size) \
-  TYPE##_ELEMENTS,
+#define TYPED_ARRAY_ELEMENTS_KIND(Type, type, TYPE, ctype) TYPE##_ELEMENTS,
   TYPED_ARRAYS(TYPED_ARRAY_ELEMENTS_KIND)
 #undef TYPED_ARRAY_ELEMENTS_KIND
 

@@ -831,7 +831,7 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
       }
       break;
     }
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) case TYPE##_ELEMENTS:
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -902,7 +902,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       });
       break;
     }
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) case TYPE##_ELEMENTS:
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -1127,7 +1127,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     }
     case NO_ELEMENTS:
       break;
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) case TYPE##_ELEMENTS:
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       return IterateElementsSlow(isolate, receiver, length, visitor);

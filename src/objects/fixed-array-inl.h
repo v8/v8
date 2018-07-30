@@ -474,9 +474,9 @@ void* FixedTypedArrayBase::DataPtr() {
 int FixedTypedArrayBase::ElementSize(InstanceType type) {
   int element_size;
   switch (type) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case FIXED_##TYPE##_ARRAY_TYPE:                       \
-    element_size = size;                                \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case FIXED_##TYPE##_ARRAY_TYPE:                 \
+    element_size = sizeof(ctype);                 \
     break;
 
     TYPED_ARRAYS(TYPED_ARRAY_CASE)

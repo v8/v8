@@ -4972,9 +4972,9 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
 
         ExternalArrayType array_type = kExternalInt8Array;
         switch (elements_kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case TYPE##_ELEMENTS:                                 \
-    array_type = kExternal##Type##Array;                \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                           \
+    array_type = kExternal##Type##Array;          \
     break;
           TYPED_ARRAYS(TYPED_ARRAY_CASE)
           default:
@@ -6085,7 +6085,7 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
       simplified()->NumberSubtract(), receiver_elements_kind,
       jsgraph()->Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                      \
   do {                                                                 \
     Node* check = graph()->NewNode(                                    \
         simplified()->NumberEqual(), receiver_elements_kind,           \
@@ -6634,10 +6634,10 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
 namespace {
 uint32_t ExternalArrayElementSize(const ExternalArrayType element_type) {
   switch (element_type) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array:                          \
-    DCHECK_LE(size, 8);                                 \
-    return size;
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case kExternal##Type##Array:                    \
+    DCHECK_LE(sizeof(ctype), 8);                  \
+    return sizeof(ctype);
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
     default:
       UNREACHABLE();

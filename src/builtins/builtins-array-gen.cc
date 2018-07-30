@@ -536,7 +536,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     Unreachable();
 
     std::vector<int32_t> instance_types = {
-#define INSTANCE_TYPE(Type, type, TYPE, ctype, size) FIXED_##TYPE##_ARRAY_TYPE,
+#define INSTANCE_TYPE(Type, type, TYPE, ctype) FIXED_##TYPE##_ARRAY_TYPE,
         TYPED_ARRAYS(INSTANCE_TYPE)
 #undef INSTANCE_TYPE
     };
@@ -643,8 +643,8 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
   ElementsKind ArrayBuiltinsAssembler::ElementsKindForInstanceType(
       InstanceType type) {
     switch (type) {
-#define INSTANCE_TYPE_TO_ELEMENTS_KIND(Type, type, TYPE, ctype, size) \
-  case FIXED_##TYPE##_ARRAY_TYPE:                                     \
+#define INSTANCE_TYPE_TO_ELEMENTS_KIND(Type, type, TYPE, ctype) \
+  case FIXED_##TYPE##_ARRAY_TYPE:                               \
     return TYPE##_ELEMENTS;
 
       TYPED_ARRAYS(INSTANCE_TYPE_TO_ELEMENTS_KIND)
@@ -3682,18 +3682,17 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
     Label if_unknown_type(this, Label::kDeferred);
     int32_t elements_kinds[] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) TYPE##_ELEMENTS,
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) TYPE##_ELEMENTS,
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
     };
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  Label if_##type##array(this);
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) Label if_##type##array(this);
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
     Label* elements_kind_labels[] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) &if_##type##array,
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) &if_##type##array,
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
     };
@@ -3705,7 +3704,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     BIND(&if_unknown_type);
     Unreachable();
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)     \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)           \
   BIND(&if_##type##array);                                  \
   {                                                         \
     var_value.Bind(LoadFixedTypedArrayElementAsTagged(      \

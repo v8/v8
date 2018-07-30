@@ -3137,7 +3137,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- T y p e d A r r a y s
-#define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype, size)             \
+#define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype)                   \
   {                                                                    \
     Handle<JSFunction> fun =                                           \
         InstallTypedArray(#Type "Array", TYPE##_ELEMENTS);             \

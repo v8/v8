@@ -409,8 +409,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(SMALL_ORDERED_HASH_MAP_TYPE, small_ordered_hash_map)
     ALLOCATE_VARSIZE_MAP(SMALL_ORDERED_HASH_SET_TYPE, small_ordered_hash_set)
 
-#define ALLOCATE_FIXED_TYPED_ARRAY_MAP(Type, type, TYPE, ctype, size) \
-    ALLOCATE_VARSIZE_MAP(FIXED_##TYPE##_ARRAY_TYPE, fixed_##type##_array)
+#define ALLOCATE_FIXED_TYPED_ARRAY_MAP(Type, type, TYPE, ctype) \
+  ALLOCATE_VARSIZE_MAP(FIXED_##TYPE##_ARRAY_TYPE, fixed_##type##_array)
 
     TYPED_ARRAYS(ALLOCATE_FIXED_TYPED_ARRAY_MAP)
 #undef ALLOCATE_FIXED_TYPED_ARRAY_MAP
@@ -556,7 +556,7 @@ bool Heap::CreateInitialMaps() {
     set_empty_property_array(PropertyArray::cast(obj));
   }
 
-#define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype, size) \
+#define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype)       \
   {                                                                     \
     FixedTypedArrayBase* obj;                                           \
     if (!AllocateEmptyFixedTypedArray(kExternal##Type##Array).To(&obj)) \

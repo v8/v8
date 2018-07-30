@@ -850,9 +850,9 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
   ArrayBufferViewTag tag = ArrayBufferViewTag::kInt8Array;
   if (view->IsJSTypedArray()) {
     switch (JSTypedArray::cast(view)->type()) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array:                          \
-    tag = ArrayBufferViewTag::k##Type##Array;           \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case kExternal##Type##Array:                    \
+    tag = ArrayBufferViewTag::k##Type##Array;     \
     break;
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
@@ -1731,10 +1731,10 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
       AddObjectWithID(id, data_view);
       return data_view;
     }
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case ArrayBufferViewTag::k##Type##Array:              \
-    external_array_type = kExternal##Type##Array;       \
-    element_size = size;                                \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case ArrayBufferViewTag::k##Type##Array:        \
+    external_array_type = kExternal##Type##Array; \
+    element_size = sizeof(ctype);                 \
     break;
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE

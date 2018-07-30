@@ -198,7 +198,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       FeedbackVector::cast(this)->FeedbackVectorVerify(isolate);
       break;
 
-#define VERIFY_TYPED_ARRAY(Type, type, TYPE, ctype, size)           \
+#define VERIFY_TYPED_ARRAY(Type, type, TYPE, ctype)                 \
   case FIXED_##TYPE##_ARRAY_TYPE:                                   \
     Fixed##Type##Array::cast(this)->FixedTypedArrayVerify(isolate); \
     break;
@@ -1935,16 +1935,16 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
       break;
     }
 
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
-    case TYPE##_ELEMENTS:
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-    { info->number_of_objects_with_fast_elements_++;
-      FixedArrayBase* e = FixedArrayBase::cast(elements());
-      info->number_of_fast_used_elements_ += e->length();
-      break;
-    }
+      {
+        info->number_of_objects_with_fast_elements_++;
+        FixedArrayBase* e = FixedArrayBase::cast(elements());
+        info->number_of_fast_used_elements_ += e->length();
+        break;
+      }
     case DICTIONARY_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS: {
       NumberDictionary* dict = element_dictionary();

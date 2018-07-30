@@ -2749,8 +2749,8 @@ namespace {
 
 Heap::RootListIndex RootIndexForFixedTypedArray(ExternalArrayType array_type) {
   switch (array_type) {
-#define ARRAY_TYPE_TO_ROOT_INDEX(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array:                                  \
+#define ARRAY_TYPE_TO_ROOT_INDEX(Type, type, TYPE, ctype) \
+  case kExternal##Type##Array:                            \
     return Heap::kFixed##Type##ArrayMapRootIndex;
 
     TYPED_ARRAYS(ARRAY_TYPE_TO_ROOT_INDEX)
@@ -2761,8 +2761,8 @@ Heap::RootListIndex RootIndexForFixedTypedArray(ExternalArrayType array_type) {
 
 Heap::RootListIndex RootIndexForFixedTypedArray(ElementsKind elements_kind) {
   switch (elements_kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case TYPE##_ELEMENTS:                                 \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                           \
     return Heap::kFixed##Type##ArrayMapRootIndex;
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
     default:
@@ -2774,8 +2774,8 @@ Heap::RootListIndex RootIndexForFixedTypedArray(ElementsKind elements_kind) {
 Heap::RootListIndex RootIndexForEmptyFixedTypedArray(
     ElementsKind elements_kind) {
   switch (elements_kind) {
-#define ELEMENT_KIND_TO_ROOT_INDEX(Type, type, TYPE, ctype, size) \
-  case TYPE##_ELEMENTS:                                           \
+#define ELEMENT_KIND_TO_ROOT_INDEX(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                                     \
     return Heap::kEmptyFixed##Type##ArrayRootIndex;
 
     TYPED_ARRAYS(ELEMENT_KIND_TO_ROOT_INDEX)
