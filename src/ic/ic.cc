@@ -2549,6 +2549,9 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
   DCHECK_EQ(4, args.length());
   Handle<HeapObject> source = args.at<HeapObject>(0);
   int flags = args.smi_at(1);
+
+  MigrateDeprecated(source);
+
   FeedbackSlot slot = FeedbackVector::ToSlot(args.smi_at(2));
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
 
