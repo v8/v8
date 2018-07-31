@@ -435,7 +435,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7669
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
-  'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
 
   # Tests assume that the sort order of "same elements" (comparator returns 0)
   # is deterministic.

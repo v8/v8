@@ -1351,25 +1351,28 @@ namespace {
 
 // Define general regexp macros.
 // Note "(?:" means the regexp group a non-capture group.
-#define REGEX_ALPHA "[a-zA-Z]"
+#define REGEX_ALPHA "[a-z]"
 #define REGEX_DIGIT "[0-9]"
 #define REGEX_ALPHANUM "(?:" REGEX_ALPHA "|" REGEX_DIGIT ")"
 
 void BuildLanguageTagRegexps(Isolate* isolate) {
 // Define the language tag regexp macros.
-// For info on BCP 47 see https://tools.ietf.org/html/bcp47
+// For info on BCP 47 see https://tools.ietf.org/html/bcp47 .
+// Because language tags are case insensitive per BCP 47 2.1.1 and regexp's
+// defined below will always be used after lowercasing the input, uppercase
+// ranges in BCP 47 2.1 are dropped and grandfathered tags are all lowercased.
 // clang-format off
 #define BCP47_REGULAR                                          \
   "(?:art-lojban|cel-gaulish|no-bok|no-nyn|zh-guoyu|zh-hakka|" \
   "zh-min|zh-min-nan|zh-xiang)"
 #define BCP47_IRREGULAR                                  \
-  "(?:en-GB-oed|i-ami|i-bnn|i-default|i-enochian|i-hak|" \
+  "(?:en-gb-oed|i-ami|i-bnn|i-default|i-enochian|i-hak|" \
   "i-klingon|i-lux|i-mingo|i-navajo|i-pwn|i-tao|i-tay|"  \
-  "i-tsu|sgn-BE-FR|sgn-BE-NL|sgn-CH-DE)"
+  "i-tsu|sgn-be-fr|sgn-be-nl|sgn-ch-de)"
 #define BCP47_GRANDFATHERED "(?:" BCP47_IRREGULAR "|" BCP47_REGULAR ")"
 #define BCP47_PRIVATE_USE "(?:x(?:-" REGEX_ALPHANUM "{1,8})+)"
 
-#define BCP47_SINGLETON "(?:" REGEX_DIGIT "|" "[A-WY-Za-wy-z])"
+#define BCP47_SINGLETON "(?:" REGEX_DIGIT "|" "[a-wy-z])"
 
 #define BCP47_EXTENSION "(?:" BCP47_SINGLETON "(?:-" REGEX_ALPHANUM "{2,8})+)"
 #define BCP47_VARIANT  \
@@ -1603,8 +1606,6 @@ bool IsStructurallyValidLanguageTag(Isolate* isolate,
     return false;
   }
 
-  std::transform(locale.begin(), locale.end(), locale.begin(), AsciiToLower);
-
   // Just return if it's a x- form. It's all private.
   if (locale.find("x-") == 0) {
     return true;
@@ -1684,6 +1685,18 @@ bool IsDeprecatedLanguage(const std::string& locale) {
   return locale == "in" || locale == "iw" || locale == "ji" || locale == "jw";
 }
 
+// Reference:
+// https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
+bool IsGrandfatheredTagWithoutPreferredVaule(const std::string& locale) {
+  if (V8_UNLIKELY(locale == "zh-min" || locale == "cel-gaulish")) return true;
+  if (locale.length() > 6 /* i-mingo is 7 chars long */ &&
+      V8_UNLIKELY(locale[0] == 'i' && locale[1] == '-')) {
+    return locale.substr(2) == "default" || locale.substr(2) == "enochian" ||
+           locale.substr(2) == "mingo";
+  }
+  return false;
+}
+
 }  // anonymous namespace
 
 MaybeHandle<String> Intl::CanonicalizeLanguageTag(Isolate* isolate,
@@ -1710,12 +1723,21 @@ MaybeHandle<String> Intl::CanonicalizeLanguageTag(Isolate* isolate,
     return locale_str;
   }
 
+  // Because per BCP 47 2.1.1 language tags are case-insensitive, lowercase
+  // the input before any more check.
+  std::transform(locale.begin(), locale.end(), locale.begin(), AsciiToLower);
   if (!IsStructurallyValidLanguageTag(isolate, locale)) {
     THROW_NEW_ERROR(
         isolate,
         NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
         String);
   }
+
+  // ICU maps a few grandfathered tags to what looks like a regular language
+  // tag even though IANA language tag registry does not have a preferred
+  // entry map for them. Return them as they're with lowercasing.
+  if (IsGrandfatheredTagWithoutPreferredVaule(locale))
+    return isolate->factory()->NewStringFromAsciiChecked(locale.data());
 
   // // ECMA 402 6.2.3
   // TODO(jshin): uloc_{for,to}TanguageTag can fail even for a structually valid
