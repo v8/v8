@@ -16,6 +16,7 @@ namespace compiler {
 GraphTest::GraphTest(int num_parameters)
     : TestWithNativeContext(),
       TestWithIsolateAndZone(),
+      canonical_(isolate()),
       common_(zone()),
       graph_(zone()),
       js_heap_broker_(isolate(), zone()),

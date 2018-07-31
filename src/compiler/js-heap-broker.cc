@@ -193,9 +193,7 @@ double MutableHeapNumberRef::value() const {
 }
 
 bool ObjectRef::equals(const ObjectRef& other) const {
-  // TODO(neis): Change this to "data_ == other.data_" once the canonical handle
-  // scopes are fixed in tests.
-  return data_->object.equals(other.data_->object);
+  return data_ == other.data_;
 }
 
 StringRef ObjectRef::TypeOf() const {
@@ -309,16 +307,7 @@ void JSHeapBroker::AddData(Handle<Object> object, ObjectData* data) {
     object->ShortPrint();
     PrintF(")\n");
   }
-  if (isolate()->handle_scope_data()->canonical_scope == nullptr) {
-    // TODO(neis): Change the tests to always have canonical handle scopes.
-    CHECK_EQ(mode(), kDisabled);
-    if (FLAG_trace_heap_broker) {
-      PrintF(
-          "... but not remembering it because there's no canonical handle "
-          "scope\n");
-    }
-    return;
-  }
+  CHECK_NOT_NULL(isolate()->handle_scope_data()->canonical_scope);
   CHECK(refs_.insert({object.address(), data}).second);
 }
 
