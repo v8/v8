@@ -379,11 +379,6 @@ wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
   auto counters = isolate->counters();
   counters->wasm_lazily_compiled_functions()->Increment();
 
-  counters->wasm_generated_code_size()->Increment(
-      static_cast<int>(wasm_code->instructions().size()));
-  counters->wasm_reloc_size()->Increment(
-      static_cast<int>(wasm_code->reloc_info().size()));
-
   counters->wasm_lazy_compilation_throughput()->AddSample(
       compilation_time != 0 ? static_cast<int>(func_size / compilation_time)
                             : 0);
@@ -421,22 +416,6 @@ byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
 void RecordStats(const Code* code, Counters* counters) {
   counters->wasm_generated_code_size()->Increment(code->body_size());
   counters->wasm_reloc_size()->Increment(code->relocation_info()->length());
-}
-
-void RecordStats(const wasm::WasmCode* code, Counters* counters) {
-  counters->wasm_generated_code_size()->Increment(
-      static_cast<int>(code->instructions().size()));
-  counters->wasm_reloc_size()->Increment(
-      static_cast<int>(code->reloc_info().size()));
-}
-
-void RecordStats(const wasm::NativeModule* native_module, Counters* counters) {
-  for (uint32_t i = native_module->num_imported_functions(),
-                e = native_module->num_functions();
-       i < e; ++i) {
-    const wasm::WasmCode* code = native_module->code(i);
-    if (code != nullptr) RecordStats(code, counters);
-  }
 }
 
 bool in_bounds(uint32_t offset, size_t size, size_t upper) {
@@ -753,8 +732,6 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
       CompileSequentially(isolate, native_module, env, thrower);
     }
     if (thrower->error()) return;
-
-    RecordStats(native_module, isolate->counters());
   }
 }
 
@@ -817,10 +794,6 @@ class FinishCompileTask : public CancelableTask {
         DCHECK(!result->is_liftoff());
 
         if (wasm::WasmCode::ShouldBeLogged(isolate)) result->LogCode(isolate);
-
-        // Update the counters to include the top-tier code.
-        RecordStats(result,
-                    compilation_state_->isolate()->async_counters().get());
       }
 
       // Update the compilation state, and possibly notify
@@ -2204,8 +2177,6 @@ AsyncCompileJob::~AsyncCompileJob() {
 }
 
 void AsyncCompileJob::FinishCompile() {
-  RecordStats(native_module_, counters());
-
   // Finish the wasm script now and make it public to the debugger.
   Handle<Script> script(module_object_->script(), isolate_);
   isolate_->debug()->OnAfterCompile(script);

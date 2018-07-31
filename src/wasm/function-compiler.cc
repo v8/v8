@@ -15,6 +15,7 @@ namespace internal {
 namespace wasm {
 
 namespace {
+
 const char* GetCompilationModeAsString(
     WasmCompilationUnit::CompilationMode mode) {
   switch (mode) {
@@ -25,6 +26,14 @@ const char* GetCompilationModeAsString(
   }
   UNREACHABLE();
 }
+
+void RecordStats(const wasm::WasmCode* code, Counters* counters) {
+  counters->wasm_generated_code_size()->Increment(
+      static_cast<int>(code->instructions().size()));
+  counters->wasm_reloc_size()->Increment(
+      static_cast<int>(code->reloc_info().size()));
+}
+
 }  // namespace
 
 // static
@@ -103,6 +112,8 @@ wasm::WasmCode* WasmCompilationUnit::FinishCompilation(
   }
   if (ret == nullptr) {
     thrower->RuntimeError("Error finalizing code.");
+  } else {
+    RecordStats(ret, counters_);
   }
   return ret;
 }
