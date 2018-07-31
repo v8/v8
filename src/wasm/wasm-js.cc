@@ -787,9 +787,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     if (!maybe.ToLocal(&value)) return;
     v8::Local<v8::String> string;
     if (!value->ToString(context).ToLocal(&string)) return;
-    bool equal;
-    if (!string->Equals(context, v8_str(isolate, "anyfunc")).To(&equal)) return;
-    if (!equal) {
+    if (!string->StringEquals(v8_str(isolate, "anyfunc"))) {
       thrower.TypeError("Descriptor property 'element' must be 'anyfunc'");
       return;
     }
@@ -937,14 +935,11 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::Local<v8::String> string;
     if (!value->ToString(context).ToLocal(&string)) return;
 
-    bool equal;
-    if (string->Equals(context, v8_str(isolate, "i32")).To(&equal) && equal) {
+    if (string->StringEquals(v8_str(isolate, "i32"))) {
       type = i::wasm::kWasmI32;
-    } else if (string->Equals(context, v8_str(isolate, "f32")).To(&equal) &&
-               equal) {
+    } else if (string->StringEquals(v8_str(isolate, "f32"))) {
       type = i::wasm::kWasmF32;
-    } else if (string->Equals(context, v8_str(isolate, "f64")).To(&equal) &&
-               equal) {
+    } else if (string->StringEquals(v8_str(isolate, "f64"))) {
       type = i::wasm::kWasmF64;
     } else {
       thrower.TypeError(

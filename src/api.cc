@@ -6998,6 +6998,11 @@ bool v8::String::CanMakeExternal() {
   return !i::Heap::InNewSpace(obj);
 }
 
+bool v8::String::StringEquals(Local<String> that) {
+  auto self = Utils::OpenHandle(this);
+  auto other = Utils::OpenHandle(*that);
+  return self->Equals(*other);
+}
 
 Isolate* v8::Object::GetIsolate() {
   i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();

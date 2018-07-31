@@ -3000,6 +3000,11 @@ class V8_EXPORT String : public Name {
   bool CanMakeExternal();
 
   /**
+   * Returns true if the strings values are equal. Same as JS ==/===.
+   */
+  bool StringEquals(Local<String> str);
+
+  /**
    * Converts an object to a UTF-8-encoded character array.  Useful if
    * you want to print the object.  If conversion to a string fails
    * (e.g. due to an exception in the toString() method of the object)

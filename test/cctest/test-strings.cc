@@ -1664,6 +1664,35 @@ TEST(HashArrayIndexStrings) {
            isolate->factory()->one_string()->Hash());
 }
 
+TEST(StringEquals) {
+  v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  auto foo_str =
+      v8::String::NewFromUtf8(isolate, "foo", v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  auto bar_str =
+      v8::String::NewFromUtf8(isolate, "bar", v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  auto foo_str2 =
+      v8::String::NewFromUtf8(isolate, "foo", v8::NewStringType::kNormal)
+          .ToLocalChecked();
+
+  uint16_t* two_byte_source = AsciiToTwoByteString("foo");
+  auto foo_two_byte_str =
+      v8::String::NewFromTwoByte(isolate, two_byte_source,
+                                 v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  i::DeleteArray(two_byte_source);
+
+  CHECK(foo_str->StringEquals(foo_str));
+  CHECK(!foo_str->StringEquals(bar_str));
+  CHECK(foo_str->StringEquals(foo_str2));
+  CHECK(foo_str->StringEquals(foo_two_byte_str));
+  CHECK(!bar_str->StringEquals(foo_str2));
+}
+
 }  // namespace test_strings
 }  // namespace internal
 }  // namespace v8
