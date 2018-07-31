@@ -4291,17 +4291,24 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
       (!L->is_bound() || is_near_r6(L))) {
     BranchShortHelperR6(0, L);
   } else {
-    EmitForbiddenSlotInstruction();
+    // Generate position independent jong branch.
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    {
-      BlockGrowBufferScope block_buf_growth(this);
-      // Buffer growth (and relocation) must be blocked for internal references
-      // until associated instructions are emitted and available to be patched.
-      RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-      j(L);
+    Label find_pc;
+    int64_t imm64;
+    imm64 = branch_long_offset(L);
+    DCHECK(is_int32(imm64));
+    or_(t8, ra, zero_reg);
+    bal(&find_pc);
+    lui(t9, (imm64 & kHiMaskOf32) >> kLuiShift);
+    bind(&find_pc);
+    ori(t9, t9, (imm64 & kImm16Mask));
+    daddu(t9, ra, t9);
+    if (bdslot == USE_DELAY_SLOT) {
+      or_(ra, t8, zero_reg);
     }
-    // Emit a nop in the branch delay slot if required.
-    if (bdslot == PROTECT) nop();
+    jr(t9);
+    // Emit a or_ in the branch delay slot if it's protected.
+    if (bdslot == PROTECT) or_(ra, t8, zero_reg);
   }
 }
 
@@ -4310,15 +4317,17 @@ void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
       (!L->is_bound() || is_near_r6(L))) {
     BranchAndLinkShortHelperR6(0, L);
   } else {
-    EmitForbiddenSlotInstruction();
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    {
-      BlockGrowBufferScope block_buf_growth(this);
-      // Buffer growth (and relocation) must be blocked for internal references
-      // until associated instructions are emitted and available to be patched.
-      RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-      jal(L);
-    }
+    Label find_pc;
+    int64_t imm64;
+    imm64 = branch_long_offset(L);
+    DCHECK(is_int32(imm64));
+    lui(t8, (imm64 & kHiMaskOf32) >> kLuiShift);
+    bal(&find_pc);
+    ori(t8, t8, (imm64 & kImm16Mask));
+    bind(&find_pc);
+    daddu(t8, ra, t8);
+    jalr(t8);
     // Emit a nop in the branch delay slot if required.
     if (bdslot == PROTECT) nop();
   }

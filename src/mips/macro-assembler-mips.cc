@@ -3914,41 +3914,23 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
       (!L->is_bound() || is_near_r6(L))) {
     BranchShortHelperR6(0, L);
   } else {
+    // Generate position independent long branch.
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    uint32_t imm32;
-    imm32 = jump_address(L);
-    if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT) {
-      uint32_t lui_offset, jic_offset;
-      UnpackTargetAddressUnsigned(imm32, lui_offset, jic_offset);
-      {
-        BlockGrowBufferScope block_buf_growth(this);
-        // Buffer growth (and relocation) must be blocked for internal
-        // references until associated instructions are emitted and
-        // available to be patched.
-        RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-        UseScratchRegisterScope temps(this);
-        Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
-        lui(scratch, lui_offset);
-        jic(scratch, jic_offset);
-      }
-      CheckBuffer();
-    } else {
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
-      {
-        BlockGrowBufferScope block_buf_growth(this);
-        // Buffer growth (and relocation) must be blocked for internal
-        // references until associated instructions are emitted and
-        // available to be patched.
-        RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-        lui(scratch, (imm32 & kHiMask) >> kLuiShift);
-        ori(scratch, scratch, (imm32 & kImm16Mask));
-      }
-      CheckBuffer();
-      jr(scratch);
-      // Emit a nop in the branch delay slot if required.
-      if (bdslot == PROTECT) nop();
+    Label find_pc;
+    int32_t imm32;
+    imm32 = branch_long_offset(L);
+    or_(t8, ra, zero_reg);
+    bal(&find_pc);
+    lui(t9, (imm32 & kHiMask) >> kLuiShift);
+    bind(&find_pc);
+    ori(t9, t9, (imm32 & kImm16Mask));
+    addu(t9, ra, t9);
+    if (bdslot == USE_DELAY_SLOT) {
+      or_(ra, t8, zero_reg);
     }
+    jr(t9);
+    // Emit a or_ in the branch delay slot if it's protected.
+    if (bdslot == PROTECT) or_(ra, t8, zero_reg);
   }
 }
 
@@ -3957,41 +3939,19 @@ void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
       (!L->is_bound() || is_near_r6(L))) {
     BranchAndLinkShortHelperR6(0, L);
   } else {
+    // Generate position independent long branch and link.
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    uint32_t imm32;
-    imm32 = jump_address(L);
-    if (IsMipsArchVariant(kMips32r6) && bdslot == PROTECT) {
-      uint32_t lui_offset, jialc_offset;
-      UnpackTargetAddressUnsigned(imm32, lui_offset, jialc_offset);
-      {
-        BlockGrowBufferScope block_buf_growth(this);
-        // Buffer growth (and relocation) must be blocked for internal
-        // references until associated instructions are emitted and
-        // available to be patched.
-        RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-        UseScratchRegisterScope temps(this);
-        Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
-        lui(scratch, lui_offset);
-        jialc(scratch, jialc_offset);
-      }
-      CheckBuffer();
-    } else {
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
-      {
-        BlockGrowBufferScope block_buf_growth(this);
-        // Buffer growth (and relocation) must be blocked for internal
-        // references until associated instructions are emitted and
-        // available to be patched.
-        RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-        lui(scratch, (imm32 & kHiMask) >> kLuiShift);
-        ori(scratch, scratch, (imm32 & kImm16Mask));
-      }
-      CheckBuffer();
-      jalr(scratch);
-      // Emit a nop in the branch delay slot if required.
-      if (bdslot == PROTECT) nop();
-    }
+    Label find_pc;
+    int32_t imm32;
+    imm32 = branch_long_offset(L);
+    lui(t8, (imm32 & kHiMask) >> kLuiShift);
+    bal(&find_pc);
+    ori(t8, t8, (imm32 & kImm16Mask));
+    bind(&find_pc);
+    addu(t8, ra, t8);
+    jalr(t8);
+    // Emit a nop in the branch delay slot if required.
+    if (bdslot == PROTECT) nop();
   }
 }
 
