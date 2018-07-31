@@ -2098,6 +2098,9 @@ class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
 
   // ES6 7.3.4 (when passed kDontThrow)
   V8_WARN_UNUSED_RESULT static Maybe<bool> CreateDataProperty(
+      Isolate* isolate, Handle<JSReceiver> object, Handle<Name> key,
+      Handle<Object> value, ShouldThrow should_throw);
+  V8_WARN_UNUSED_RESULT static Maybe<bool> CreateDataProperty(
       LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
 
   // ES6 9.1.6.1

@@ -394,10 +394,8 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
     if (!did_get_descriptor.FromJust()) continue;
     Handle<Object> from_descriptor = descriptor.ToObject(isolate);
 
-    LookupIterator it = LookupIterator::PropertyOrElement(
-        isolate, descriptors, key, descriptors, LookupIterator::OWN);
-    Maybe<bool> success =
-        JSReceiver::CreateDataProperty(&it, from_descriptor, kDontThrow);
+    Maybe<bool> success = JSReceiver::CreateDataProperty(
+        isolate, descriptors, key, from_descriptor, kDontThrow);
     CHECK(success.FromJust());
   }
 

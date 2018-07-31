@@ -4341,10 +4341,8 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
 
-  i::LookupIterator it = i::LookupIterator::PropertyOrElement(
-      isolate, self, key_obj, self, i::LookupIterator::OWN);
-  Maybe<bool> result =
-      i::JSReceiver::CreateDataProperty(&it, value_obj, i::kDontThrow);
+  Maybe<bool> result = i::JSReceiver::CreateDataProperty(
+      isolate, self, key_obj, value_obj, i::kDontThrow);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;

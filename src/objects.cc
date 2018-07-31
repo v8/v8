@@ -7393,6 +7393,16 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
   return Just(true);
 }
 
+// static
+Maybe<bool> JSReceiver::CreateDataProperty(Isolate* isolate,
+                                           Handle<JSReceiver> object,
+                                           Handle<Name> key,
+                                           Handle<Object> value,
+                                           ShouldThrow should_throw) {
+  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, key,
+                                                        LookupIterator::OWN);
+  return CreateDataProperty(&it, value, should_throw);
+}
 
 // static
 Maybe<bool> JSReceiver::CreateDataProperty(LookupIterator* it,
