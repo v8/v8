@@ -1251,6 +1251,10 @@ DEFINE_BOOL(log_function_events, false,
 DEFINE_BOOL(prof, false,
             "Log statistical profiling information (implies --log-code).")
 
+DEFINE_BOOL(detailed_line_info, false,
+            "Always generate detailed line information for CPU profiling.")
+DEFINE_IMPLICATION(future, detailed_line_info)
+
 #if defined(ANDROID)
 // Phones and tablets have processors that are much slower than desktop
 // and laptop computers for which current heuristics are tuned.
