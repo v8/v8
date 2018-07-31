@@ -13,17 +13,17 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b668f37ee7ed5c3c2806fe8ea8728b389310747c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3e09e239352604f23ae6476b6dce1b2d03fe2ea4',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd795ab891c157bcda542f9cab5375805a19af7b0',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'b0e855a33353ca30a2ecb1c0e9084ca3ef26836a',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '297a4dd02b9d36c92ab9b4f121e433c9c3bc14f8',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '323cf32193caecbf074d1a0cb5b02b905f163e0f',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '0dd5c6f980d22be96b728155249df2da355989d9',
+    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '9a90d9aaadeb5e04327ed05775f45132e4b3523f',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '211b3ed9d0481b4caddbee1322321b86a483ca1f',
   'v8/third_party/android_ndk': {
@@ -35,7 +35,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e05f902a692909dd57b3d3ddbf081c9e1ce2dbad',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '65f883bb77390e3208346e653f3a518c3a63ded7',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -53,7 +53,7 @@ deps = {
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'v8/third_party/proguard':
-    Var('chromium_url') + '/chromium/src/third_party/proguard.git' + '@' + 'eba7a98d98735b2cc65c54d36baa5c9b46fe4f8e',
+    Var('chromium_url') + '/chromium/src/third_party/proguard.git' + '@' + '63f6c0bd0f86b9b90ec41c4cc93de7a06b5c4102',
   'v8/tools/swarming_client':
     Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '486c9b53c4d54dd4b95bb6ce0e31160e600dfc11',
   'v8/test/benchmarks/data':
@@ -65,7 +65,7 @@ deps = {
   'v8/test/test262/harness':
     Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '0f2acdd882c84cff43b9d60df7574a1901e2cdcd',
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e26243cb64cf8f73131b7d7e4496e511d317a9d5',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '24c49163155ecdde1303b3b4304e15cc97db0c3a',
   'v8/tools/luci-go':
     Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '445d7c4b6a4f10e188edb395b132e3996b127691',
   'v8/test/wasm-js':
