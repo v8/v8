@@ -149,9 +149,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
       std::unique_ptr<CompilationResultResolver> resolver);
   void TearDown();
 
-  // We use an AsyncCompileJob as the key for itself so that we can delete the
-  // job from the map when it is finished.
-  std::unordered_map<AsyncCompileJob*, std::unique_ptr<AsyncCompileJob>> jobs_;
   std::unique_ptr<WasmCodeManager> code_manager_;
   WasmMemoryTracker memory_tracker_;
   AccountingAllocator allocator_;
@@ -162,6 +159,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
+
+  // We use an AsyncCompileJob as the key for itself so that we can delete the
+  // job from the map when it is finished.
+  std::unordered_map<AsyncCompileJob*, std::unique_ptr<AsyncCompileJob>> jobs_;
 
   // Contains all CancelableTaskManagers that run tasks that are dependent
   // on the engine. Will be canceled on engine tear down.

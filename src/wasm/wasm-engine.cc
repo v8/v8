@@ -222,12 +222,14 @@ AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
   AsyncCompileJob* job = new AsyncCompileJob(
       isolate, std::move(bytes_copy), length, context, std::move(resolver));
   // Pass ownership to the unique_ptr in {jobs_}.
+  base::LockGuard<base::Mutex> guard(&mutex_);
   jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);
   return job;
 }
 
 std::unique_ptr<AsyncCompileJob> WasmEngine::RemoveCompileJob(
     AsyncCompileJob* job) {
+  base::LockGuard<base::Mutex> guard(&mutex_);
   auto item = jobs_.find(job);
   DCHECK(item != jobs_.end());
   std::unique_ptr<AsyncCompileJob> result = std::move(item->second);
@@ -239,15 +241,19 @@ void WasmEngine::AbortCompileJobsOnIsolate(Isolate* isolate) {
   // Iterate over a copy of {jobs_}, because {job->Abort} modifies {jobs_}.
   std::vector<AsyncCompileJob*> isolate_jobs;
 
-  for (auto& entry : jobs_) {
-    if (entry.first->isolate() != isolate) continue;
-    isolate_jobs.push_back(entry.first);
+  {
+    base::LockGuard<base::Mutex> guard(&mutex_);
+    for (auto& entry : jobs_) {
+      if (entry.first->isolate() != isolate) continue;
+      isolate_jobs.push_back(entry.first);
+    }
   }
 
   for (auto* job : isolate_jobs) job->Abort();
 }
 
 void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
+  base::LockGuard<base::Mutex> guard(&mutex_);
   for (auto it = jobs_.begin(); it != jobs_.end();) {
     if (it->first->isolate() == isolate) {
       it = jobs_.erase(it);
