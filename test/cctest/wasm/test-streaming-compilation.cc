@@ -114,7 +114,7 @@ class StreamTester {
 
     stream_ = i_isolate->wasm_engine()->StartStreamingCompilation(
         i_isolate, v8::Utils::OpenHandle(*context),
-        base::make_unique<TestResolver>(&state_));
+        std::make_shared<TestResolver>(&state_));
   }
 
   std::shared_ptr<StreamingDecoder> stream() { return stream_; }

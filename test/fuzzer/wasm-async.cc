@@ -69,7 +69,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   bool done = false;
   i_isolate->wasm_engine()->AsyncCompile(
-      i_isolate, base::make_unique<AsyncFuzzerResolver>(i_isolate, &done),
+      i_isolate, std::make_shared<AsyncFuzzerResolver>(i_isolate, &done),
       ModuleWireBytes(data, data + size), false);
 
   // Wait for the promise to resolve.
