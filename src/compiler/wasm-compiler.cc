@@ -5168,6 +5168,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
     }
     if (ok_) wasm_code_ = info.wasm_code();
   }
+  if (ok_) wasm_unit_->native_module()->PublishCode(wasm_code_);
 }
 
 wasm::WasmCode* TurbofanWasmCompilationUnit::FinishCompilation(
@@ -5190,8 +5191,6 @@ wasm::WasmCode* TurbofanWasmCompilationUnit::FinishCompilation(
 
     return nullptr;
   }
-
-  wasm_unit_->native_module()->PublishCode(wasm_code_);
   return wasm_code_;
 }
 
