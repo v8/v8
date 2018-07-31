@@ -57,7 +57,7 @@ class HeapObjectData : public ObjectData {
         map(broker->GetOrCreateData(handle(object_->map(), broker_->isolate()))
                 ->AsMap()) {
     CHECK_NOT_NULL(map);
-    CHECK_EQ(broker_->mode(), JSHeapBroker::kSerializing);
+    CHECK(broker_->SerializingAllowed());
   }
 };
 
@@ -100,8 +100,7 @@ class NativeContextData : public ContextData {
       : ContextData(broker_, object_, type_), sloppy_arguments_map_(nullptr) {
     // There's no NativeContext class, so we take object_ as Context.
     CHECK(object_->IsNativeContext());
-    CHECK_EQ(broker->mode(), JSHeapBroker::kSerializing);
-
+    CHECK(broker->SerializingAllowed());
     Handle<Map> map(object_->sloppy_arguments_map(), broker->isolate());
     sloppy_arguments_map_ = broker->GetOrCreateData(map)->AsMap();
     CHECK_NOT_NULL(sloppy_arguments_map_);
@@ -146,7 +145,7 @@ HEAP_BROKER_OBJECT_LIST(DEFINE_IS_AND_AS)
 #undef DEFINE_IS_AND_AS
 
 ObjectData* ObjectData::Serialize(JSHeapBroker* broker, Handle<Object> object) {
-  CHECK_EQ(broker->mode(), JSHeapBroker::kSerializing);
+  CHECK(broker->SerializingAllowed());
   return object->IsSmi() ? new (broker->zone()) ObjectData(broker, object, true)
                          : HeapObjectData::Serialize(
                                broker, Handle<HeapObject>::cast(object));
@@ -154,7 +153,7 @@ ObjectData* ObjectData::Serialize(JSHeapBroker* broker, Handle<Object> object) {
 
 HeapObjectData* HeapObjectData::Serialize(JSHeapBroker* broker,
                                           Handle<HeapObject> object) {
-  CHECK_EQ(broker->mode(), JSHeapBroker::kSerializing);
+  CHECK(broker->SerializingAllowed());
   Handle<Map> map(object->map(), broker->isolate());
   HeapObjectType type = broker->HeapObjectTypeFromMap(map);
 
@@ -228,6 +227,11 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* zone)
   }
 }
 
+bool JSHeapBroker::SerializingAllowed() const {
+  return mode() == kSerializing ||
+         (!FLAG_strict_heap_broker && mode() == kSerialized);
+}
+
 void JSHeapBroker::SerializeStandardObjects() {
   if (FLAG_trace_heap_broker) {
     PrintF("[%p] Serializing standard objects.\n", this);
@@ -287,13 +291,12 @@ ObjectData* JSHeapBroker::GetData(Handle<Object> object) const {
 }
 
 ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
-  CHECK_EQ(mode(), JSHeapBroker::kSerializing);
+  CHECK(SerializingAllowed());
   ObjectData* data = GetData(object);
   if (data == nullptr) {
     // TODO(neis): Remove these Allow* once we serialize everything upfront.
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
-    CHECK_EQ(mode(), JSHeapBroker::kSerializing);
     data = ObjectData::Serialize(this, object);
   }
   CHECK_NOT_NULL(data);
@@ -1115,7 +1118,8 @@ PropertyDetails PropertyCellRef::property_details() const {
 ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object) {
   switch (broker->mode()) {
     case JSHeapBroker::kSerialized:
-      data_ = broker->GetData(object);
+      data_ = FLAG_strict_heap_broker ? broker->GetData(object)
+                                      : broker->GetOrCreateData(object);
       break;
     case JSHeapBroker::kSerializing:
       data_ = broker->GetOrCreateData(object);

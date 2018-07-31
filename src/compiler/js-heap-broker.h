@@ -424,6 +424,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
     CHECK_EQ(mode_, kSerializing);
     mode_ = kSerialized;
   }
+  bool SerializingAllowed() const;
 
   // Returns nullptr iff handle unknown.
   ObjectData* GetData(Handle<Object>) const;
