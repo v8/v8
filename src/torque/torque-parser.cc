@@ -702,7 +702,7 @@ base::Optional<ParseResult> MakeNameAndType(
 base::Optional<ParseResult> ExtractAssignmentOperator(
     ParseResultIterator* child_results) {
   auto op = child_results->NextAs<std::string>();
-  base::Optional<std::string> result = std::string(op.begin() + 1, op.end());
+  base::Optional<std::string> result = std::string(op.begin(), op.end() - 1);
   return ParseResult(std::move(result));
 }
 

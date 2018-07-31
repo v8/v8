@@ -303,24 +303,24 @@ module test {
   // are (not) present.
   macro TestForLoop() {
     let sum: Smi = 0;
-    for (let i: Smi = 0; i < 5; ++i) sum = sum + i;
+    for (let i: Smi = 0; i < 5; ++i) sum += i;
     check(sum == 10);
 
     sum = 0;
     let j: Smi = 0;
-    for (; j < 5; ++j) sum = sum + j;
+    for (; j < 5; ++j) sum += j;
     check(sum == 10);
 
     sum = 0;
     j = 0;
-    for (; j < 5;) sum = sum + j++;
+    for (; j < 5;) sum += j++;
     check(sum == 10);
 
     // Check that break works. No test expression.
     sum = 0;
     for (let i: Smi = 0;; ++i) {
       if (i == 5) break;
-      sum = sum + i;
+      sum += i;
     }
     check(sum == 10);
 
@@ -328,7 +328,7 @@ module test {
     j = 0;
     for (;;) {
       if (j == 5) break;
-      sum = sum + j;
+      sum += j;
       j++;
     }
     check(sum == 10);
@@ -338,7 +338,7 @@ module test {
     sum = 0;
     for (let i: Smi = 0; i < 5; ++i) {
       if (i == 3) continue;
-      sum = sum + i;
+      sum += i;
     }
     check(sum == 7);
 
@@ -346,7 +346,7 @@ module test {
     j = 0;
     for (; j < 5; ++j) {
       if (j == 3) continue;
-      sum = sum + j;
+      sum += j;
     }
     check(sum == 7);
 
@@ -357,7 +357,7 @@ module test {
         j++;
         continue;
       }
-      sum = sum + j;
+      sum += j;
       j++;
     }
     check(sum == 7);
@@ -366,7 +366,7 @@ module test {
     for (let i: Smi = 0;; ++i) {
       if (i == 3) continue;
       if (i == 5) break;
-      sum = sum + i;
+      sum += i;
     }
     check(sum == 7);
 
@@ -379,7 +379,7 @@ module test {
       }
 
       if (j == 5) break;
-      sum = sum + j;
+      sum += j;
       j++;
     }
     check(sum == 7);

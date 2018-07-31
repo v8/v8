@@ -491,7 +491,7 @@ VisitResult ImplementationVisitor::Visit(AssignmentExpression* expr) {
         GenerateFetchFromLocation(expr->location, location_ref);
     assignment_value = Visit(expr->value);
     Arguments args;
-    args.parameters = {assignment_value, assignment_value};
+    args.parameters = {location_value, assignment_value};
     assignment_value = GenerateCall(*expr->op, args);
     GenerateAssignToLocation(expr->location, location_ref, assignment_value);
   } else {
