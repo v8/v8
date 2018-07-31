@@ -531,7 +531,12 @@ wasm::InterpreterHandle* GetOrCreateInterpreterHandle(
     Isolate* isolate, Handle<WasmDebugInfo> debug_info) {
   Handle<Object> handle(debug_info->interpreter_handle(), isolate);
   if (handle->IsUndefined(isolate)) {
-    size_t interpreter_size = 0;  // TODO(titzer): estimate size properly.
+    // Use the maximum stack size to estimate the maximum size of the
+    // interpreter. The interpreter keeps its own stack internally, and the size
+    // of the stack should dominate the overall size of the interpreter. We
+    // multiply by '2' to account for the growing strategy for the backing store
+    // of the stack.
+    size_t interpreter_size = FLAG_stack_size * KB * 2;
     handle = Managed<wasm::InterpreterHandle>::Allocate(
         isolate, interpreter_size, isolate, *debug_info);
     debug_info->set_interpreter_handle(*handle);
@@ -582,7 +587,11 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
     Handle<WasmInstanceObject> instance_obj) {
   Handle<WasmDebugInfo> debug_info = WasmDebugInfo::New(instance_obj);
   Isolate* isolate = instance_obj->GetIsolate();
-  size_t interpreter_size = 0;  // TODO(titzer): estimate size properly.
+  // Use the maximum stack size to estimate the maximum size of the interpreter.
+  // The interpreter keeps its own stack internally, and the size of the stack
+  // should dominate the overall size of the interpreter. We multiply by '2' to
+  // account for the growing strategy for the backing store of the stack.
+  size_t interpreter_size = FLAG_stack_size * KB * 2;
   auto interp_handle = Managed<wasm::InterpreterHandle>::Allocate(
       isolate, interpreter_size, isolate, *debug_info);
   debug_info->set_interpreter_handle(*interp_handle);
