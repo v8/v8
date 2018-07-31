@@ -11,7 +11,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -159,6 +159,27 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
       CreateAsyncCompileJob(isolate, std::unique_ptr<byte[]>(nullptr), 0,
                             context, std::move(resolver));
   return job->CreateStreamingDecoder();
+}
+
+std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
+    Handle<WasmModuleObject> module_object) {
+  return module_object->managed_native_module()->get();
+}
+
+Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
+    Isolate* isolate, std::shared_ptr<NativeModule> shared_module) {
+  CHECK_EQ(code_manager(), shared_module->code_manager());
+  Vector<const byte> wire_bytes = shared_module->wire_bytes();
+  Handle<Script> script = CreateWasmScript(isolate, wire_bytes);
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate, shared_module, script);
+
+  // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}.
+  // This requires unlocking the code space here. This should eventually be
+  // moved into the allocator.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+  CompileJsToWasmWrappers(isolate, module_object);
+  return module_object;
 }
 
 CompilationStatistics* WasmEngine::GetOrCreateTurboStatistics() {

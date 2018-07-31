@@ -88,6 +88,16 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, Handle<Context> context,
       std::unique_ptr<CompilationResultResolver> resolver);
 
+  // Exports the sharable parts of the given module object so that they can be
+  // transferred to a different Context/Isolate using the same engine.
+  std::shared_ptr<NativeModule> ExportNativeModule(
+      Handle<WasmModuleObject> module_object);
+
+  // Imports the shared part of a module from a different Context/Isolate using
+  // the the same engine, recreating a full module object in the given Isolate.
+  Handle<WasmModuleObject> ImportNativeModule(
+      Isolate* isolate, std::shared_ptr<NativeModule> shared_module);
+
   WasmCodeManager* code_manager() const { return code_manager_.get(); }
 
   WasmMemoryTracker* memory_tracker() { return &memory_tracker_; }

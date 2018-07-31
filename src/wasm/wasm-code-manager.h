@@ -333,6 +333,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     wire_bytes_ = std::move(wire_bytes);
   }
   const WasmModule* module() const { return module_.get(); }
+  WasmCodeManager* code_manager() const { return wasm_code_manager_; }
 
   WasmCode* Lookup(Address) const;
 

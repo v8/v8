@@ -615,6 +615,8 @@ DEFINE_BOOL(wasm_no_stack_checks, false,
 
 DEFINE_BOOL(wasm_shared_engine, false,
             "shares one wasm engine between all isolates within a process")
+DEFINE_BOOL(wasm_shared_code, false,
+            "shares code underlying a wasm module when it is transferred")
 DEFINE_BOOL(wasm_trap_handler, true,
             "use signal handlers to catch out of bounds memory access in wasm"
             " (currently Linux x86_64 only)")

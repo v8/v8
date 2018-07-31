@@ -155,7 +155,7 @@ class FunctionCallbackArguments;
 class GlobalHandles;
 
 namespace wasm {
-class CompilationResultResolver;
+class NativeModule;
 class StreamingDecoder;
 }  // namespace wasm
 
@@ -4422,13 +4422,17 @@ class V8_EXPORT WasmCompiledModule : public Object {
     TransferrableModule& operator=(const TransferrableModule& src) = delete;
 
    private:
+    typedef std::shared_ptr<internal::wasm::NativeModule> SharedModule;
     typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> OwnedBuffer;
     friend class WasmCompiledModule;
-    TransferrableModule(OwnedBuffer code, OwnedBuffer bytes)
-        : compiled_code(std::move(code)), wire_bytes(std::move(bytes)) {}
+    explicit TransferrableModule(SharedModule shared_module)
+        : shared_module_(std::move(shared_module)) {}
+    TransferrableModule(OwnedBuffer serialized, OwnedBuffer bytes)
+        : serialized_(std::move(serialized)), wire_bytes_(std::move(bytes)) {}
 
-    OwnedBuffer compiled_code = {nullptr, 0};
-    OwnedBuffer wire_bytes = {nullptr, 0};
+    SharedModule shared_module_;
+    OwnedBuffer serialized_ = {nullptr, 0};
+    OwnedBuffer wire_bytes_ = {nullptr, 0};
   };
 
   /**

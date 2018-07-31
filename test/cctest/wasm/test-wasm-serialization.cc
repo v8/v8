@@ -269,46 +269,74 @@ TEST(BlockWasmCodeGenAtDeserialization) {
   Cleanup();
 }
 
-TEST(TransferrableWasmModules) {
+namespace {
+
+void TestTransferrableWasmModules(bool should_share) {
+  i::wasm::WasmEngine::InitializeOncePerProcess();
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
   ZoneBuffer buffer(&zone);
   WasmSerializationTest::BuildWireBytes(&zone, &buffer);
 
-  Isolate* from_isolate = CcTest::InitIsolateOnce();
-  ErrorThrower thrower(from_isolate, "");
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* from_isolate = v8::Isolate::New(create_params);
   std::vector<v8::WasmCompiledModule::TransferrableModule> store;
+  std::shared_ptr<NativeModule> original_native_module;
   {
-    HandleScope scope(from_isolate);
-    testing::SetupIsolateForWasmModule(from_isolate);
+    v8::HandleScope scope(from_isolate);
+    LocalContext env(from_isolate);
 
-    MaybeHandle<WasmModuleObject> module_object =
-        from_isolate->wasm_engine()->SyncCompile(
-            from_isolate, &thrower,
+    Isolate* from_i_isolate = reinterpret_cast<Isolate*>(from_isolate);
+    testing::SetupIsolateForWasmModule(from_i_isolate);
+    ErrorThrower thrower(from_i_isolate, "TestTransferrableWasmModules");
+    MaybeHandle<WasmModuleObject> maybe_module_object =
+        from_i_isolate->wasm_engine()->SyncCompile(
+            from_i_isolate, &thrower,
             ModuleWireBytes(buffer.begin(), buffer.end()));
+    Handle<WasmModuleObject> module_object =
+        maybe_module_object.ToHandleChecked();
     v8::Local<v8::WasmCompiledModule> v8_module =
-        v8::Local<v8::WasmCompiledModule>::Cast(v8::Utils::ToLocal(
-            Handle<JSObject>::cast(module_object.ToHandleChecked())));
+        v8::Local<v8::WasmCompiledModule>::Cast(
+            v8::Utils::ToLocal(Handle<JSObject>::cast(module_object)));
     store.push_back(v8_module->GetTransferrableModule());
+    original_native_module = module_object->managed_native_module()->get();
   }
 
   {
-    v8::Isolate::CreateParams create_params;
-    create_params.array_buffer_allocator =
-        from_isolate->array_buffer_allocator();
     v8::Isolate* to_isolate = v8::Isolate::New(create_params);
     {
-      v8::HandleScope new_scope(to_isolate);
-      v8::Local<v8::Context> deserialization_context =
-          v8::Context::New(to_isolate);
-      deserialization_context->Enter();
-      v8::MaybeLocal<v8::WasmCompiledModule> mod =
+      v8::HandleScope scope(to_isolate);
+      LocalContext env(to_isolate);
+
+      v8::MaybeLocal<v8::WasmCompiledModule> transferred_module =
           v8::WasmCompiledModule::FromTransferrableModule(to_isolate, store[0]);
-      CHECK(!mod.IsEmpty());
+      CHECK(!transferred_module.IsEmpty());
+      Handle<WasmModuleObject> module_object = Handle<WasmModuleObject>::cast(
+          v8::Utils::OpenHandle(*transferred_module.ToLocalChecked()));
+      std::shared_ptr<NativeModule> transferred_native_module =
+          module_object->managed_native_module()->get();
+      bool is_sharing = (original_native_module == transferred_native_module);
+      CHECK_EQ(should_share, is_sharing);
     }
     to_isolate->Dispose();
   }
+  original_native_module.reset();
+  from_isolate->Dispose();
+}
+
+}  // namespace
+
+UNINITIALIZED_TEST(TransferrableWasmModulesCloned) {
+  FlagScope<bool> flag_scope_code(&FLAG_wasm_shared_code, false);
+  TestTransferrableWasmModules(false);
+}
+
+UNINITIALIZED_TEST(TransferrableWasmModulesShared) {
+  FlagScope<bool> flag_scope_engine(&FLAG_wasm_shared_engine, true);
+  FlagScope<bool> flag_scope_code(&FLAG_wasm_shared_code, true);
+  TestTransferrableWasmModules(true);
 }
 
 #undef EMIT_CODE_WITH_END

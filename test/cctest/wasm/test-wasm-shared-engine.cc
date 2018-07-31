@@ -83,20 +83,9 @@ class SharedEngineIsolate {
     return instance.ToHandleChecked();
   }
 
-  // TODO(mstarzinger): Switch over to a public API for sharing modules via the
-  // {v8::WasmCompiledModule::TransferrableModule} class once it is ready.
   Handle<WasmInstanceObject> ImportInstance(SharedModule shared_module) {
-    Vector<const byte> wire_bytes = shared_module->wire_bytes();
-    Handle<Script> script = CreateWasmScript(isolate(), wire_bytes);
     Handle<WasmModuleObject> module_object =
-        WasmModuleObject::New(isolate(), shared_module, script);
-
-    // TODO(6792): Wrappers below might be cloned using {Factory::CopyCode}.
-    // This requires unlocking the code space here. This should eventually be
-    // moved into the allocator.
-    CodeSpaceMemoryModificationScope modification_scope(isolate()->heap());
-    CompileJsToWasmWrappers(isolate(), module_object);
-
+        isolate()->wasm_engine()->ImportNativeModule(isolate(), shared_module);
     ErrorThrower thrower(isolate(), "ImportInstance");
     MaybeHandle<WasmInstanceObject> instance =
         isolate()->wasm_engine()->SyncInstantiate(isolate(), &thrower,

@@ -7659,31 +7659,37 @@ Local<String> WasmCompiledModule::GetWasmWireBytes() {
       .ToLocalChecked();
 }
 
-// Currently, wasm modules are bound, both to Isolate and to
-// the Context they were created in. The currently-supported means to
-// decontextualize and then re-contextualize a module is via
-// serialization/deserialization.
 WasmCompiledModule::TransferrableModule
 WasmCompiledModule::GetTransferrableModule() {
-  i::DisallowHeapAllocation no_gc;
-  WasmCompiledModule::SerializedModule compiled_part = Serialize();
-
-  BufferReference wire_bytes_ref = GetWasmWireBytesRef();
-  size_t wire_size = wire_bytes_ref.size;
-  std::unique_ptr<uint8_t[]> wire_bytes_copy(new uint8_t[wire_size]);
-  memcpy(wire_bytes_copy.get(), wire_bytes_ref.start, wire_size);
-
-  return TransferrableModule(std::move(compiled_part),
-                             {std::move(wire_bytes_copy), wire_size});
+  if (i::FLAG_wasm_shared_code) {
+    i::Handle<i::WasmModuleObject> obj =
+        i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
+    return TransferrableModule(obj->managed_native_module()->get());
+  } else {
+    WasmCompiledModule::SerializedModule serialized_module = Serialize();
+    BufferReference wire_bytes_ref = GetWasmWireBytesRef();
+    size_t wire_size = wire_bytes_ref.size;
+    std::unique_ptr<uint8_t[]> wire_bytes_copy(new uint8_t[wire_size]);
+    memcpy(wire_bytes_copy.get(), wire_bytes_ref.start, wire_size);
+    return TransferrableModule(std::move(serialized_module),
+                               {std::move(wire_bytes_copy), wire_size});
+  }
 }
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::FromTransferrableModule(
     Isolate* isolate,
     const WasmCompiledModule::TransferrableModule& transferrable_module) {
-  MaybeLocal<WasmCompiledModule> ret =
-      Deserialize(isolate, AsReference(transferrable_module.compiled_code),
-                  AsReference(transferrable_module.wire_bytes));
-  return ret;
+  if (i::FLAG_wasm_shared_code) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::Handle<i::WasmModuleObject> module_object =
+        i_isolate->wasm_engine()->ImportNativeModule(
+            i_isolate, transferrable_module.shared_module_);
+    return Local<WasmCompiledModule>::Cast(
+        Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
+  } else {
+    return Deserialize(isolate, AsReference(transferrable_module.serialized_),
+                       AsReference(transferrable_module.wire_bytes_));
+  }
 }
 
 WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
