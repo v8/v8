@@ -130,16 +130,21 @@ class JSGlobalProxyData : public JSObjectData {};
 class CodeData : public HeapObjectData {};
 class InternalizedStringData : public StringData {};
 
-// TODO(neis): Check serialized instance type rather than look into handle.
-#define DEFINE_IS_AND_AS(Name)                         \
-  bool ObjectData::Is##Name() const {                  \
-    AllowHandleDereference allow_handle_dereference;   \
-    return object->Is##Name();                         \
-  }                                                    \
-  Name##Data* ObjectData::As##Name() {                 \
-    CHECK_NE(broker->mode(), JSHeapBroker::kDisabled); \
-    CHECK(Is##Name());                                 \
-    return static_cast<Name##Data*>(this);             \
+#define DEFINE_IS_AND_AS(Name)                                          \
+  bool ObjectData::Is##Name() const {                                   \
+    if (broker->mode() == JSHeapBroker::kDisabled) {                    \
+      AllowHandleDereference allow_handle_dereference;                  \
+      return object->Is##Name();                                        \
+    }                                                                   \
+    if (is_smi) return false;                                           \
+    InstanceType instance_type =                                        \
+        static_cast<const HeapObjectData*>(this)->type.instance_type(); \
+    return InstanceTypeChecker::Is##Name(instance_type);                \
+  }                                                                     \
+  Name##Data* ObjectData::As##Name() {                                  \
+    CHECK_NE(broker->mode(), JSHeapBroker::kDisabled);                  \
+    CHECK(Is##Name());                                                  \
+    return static_cast<Name##Data*>(this);                              \
   }
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS_AND_AS)
 #undef DEFINE_IS_AND_AS
