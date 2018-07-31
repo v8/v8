@@ -355,6 +355,7 @@ void TurboAssembler::Mov(const Register& rd, ExternalReference reference) {
       return;
     }
   }
+  // The Immediate in Operand sets the relocation mode.
   Mov(rd, Operand(reference));
 }
 
@@ -2027,9 +2028,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
 void TurboAssembler::Call(ExternalReference target) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
-  // Immediate is in charge of setting the relocation mode to
-  // EXTERNAL_REFERENCE.
-  Mov(temp, Immediate(target));
+  Mov(temp, target);
   Call(temp);
 }
 
@@ -3000,13 +2999,6 @@ void TurboAssembler::Abort(AbortReason reason) {
   TmpList()->Combine(MacroAssembler::DefaultTmpList());
 
   if (should_abort_hard()) {
-    // TODO(7985): Isolate independent builtins cannot tolerate external
-    // references, so we just provoke a segfault to indicate the error.
-    if (options().isolate_independent_code) {
-      Move(x1, 0);
-      Ldr(x1, MemOperand(x1));
-      return;
-    }
     // We don't care if we constructed a frame. Just pretend we did.
     FrameScope assume_frame(this, StackFrame::NONE);
     Mov(w0, static_cast<int>(reason));
