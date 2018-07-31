@@ -675,7 +675,11 @@ Handle<String> WasmModuleObject::GetFunctionName(
   MaybeHandle<String> name =
       GetFunctionNameOrNull(isolate, module_object, func_index);
   if (!name.is_null()) return name.ToHandleChecked();
-  return isolate->factory()->NewStringFromStaticChars("<WASM UNNAMED>");
+  EmbeddedVector<char, 32> buffer;
+  int length = SNPrintF(buffer, "wasm-function[%u]", func_index);
+  return isolate->factory()
+      ->NewStringFromOneByte(Vector<uint8_t>::cast(buffer.SubVector(0, length)))
+      .ToHandleChecked();
 }
 
 Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
