@@ -577,17 +577,6 @@ class RelocInfo {
 
   static constexpr int ModeMask(Mode mode) { return 1 << mode; }
 
-  // The mode mask used by GC and serialization Code object iteration.
-  static constexpr int ModeMaskForIteration() {
-    return RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-           RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-           RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
-           RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-           RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
-           RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
-           RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
-  }
-
   // Accessors
   Address pc() const { return pc_; }
   Mode rmode() const {  return rmode_; }

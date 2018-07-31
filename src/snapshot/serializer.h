@@ -316,7 +316,6 @@ class Serializer<AllocatorT>::ObjectSerializer : public ObjectVisitor {
   void OutputCode(int size);
   int SkipTo(Address to);
   int32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
-  void SerializeCode();
   void SerializeJSTypedArray();
   void SerializeJSArrayBuffer();
   void SerializeExternalString();
