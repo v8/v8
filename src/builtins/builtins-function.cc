@@ -11,7 +11,7 @@
 #include "src/lookup.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
-#include "src/string-builder.h"
+#include "src/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {

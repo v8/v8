@@ -8,14 +8,16 @@
 #include "src/allocation.h"
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
-#include "src/string-builder.h"
 
 namespace v8 {
 namespace internal {
 
+class IncrementalStringBuilder;  // to avoid including string-builder-inl.h
+
 class CallPrinter final : public AstVisitor<CallPrinter> {
  public:
   explicit CallPrinter(Isolate* isolate, bool is_user_js);
+  ~CallPrinter();
 
   // The following routine prints the node with position |position| into a
   // string.
@@ -42,7 +44,8 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
 
   Isolate* isolate_;
   int num_prints_;
-  IncrementalStringBuilder builder_;
+  // Allocate the builder on the heap simply because it's forward declared.
+  std::unique_ptr<IncrementalStringBuilder> builder_;
   int position_;  // position of ast node to print
   bool found_;
   bool done_;

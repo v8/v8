@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_STRING_BUILDER_H_
-#define V8_STRING_BUILDER_H_
+#ifndef V8_STRING_BUILDER_INL_H_
+#define V8_STRING_BUILDER_INL_H_
 
 #include "src/assert-scope.h"
-#include "src/handles.h"
+#include "src/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/string-inl.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -58,7 +59,6 @@ class FixedArrayBuilder {
   int length_;
   bool has_non_smi_elements_;
 };
-
 
 class ReplacementStringBuilder {
  public:
@@ -111,7 +111,6 @@ class ReplacementStringBuilder {
   int character_count_;
   bool is_one_byte_;
 };
-
 
 class IncrementalStringBuilder {
  public:
@@ -287,7 +286,6 @@ class IncrementalStringBuilder {
   Handle<String> current_part_;
 };
 
-
 template <typename SrcChar, typename DestChar>
 void IncrementalStringBuilder::Append(SrcChar c) {
   DCHECK_EQ(encoding_ == String::ONE_BYTE_ENCODING, sizeof(DestChar) == 1);
@@ -305,4 +303,4 @@ void IncrementalStringBuilder::Append(SrcChar c) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_STRING_BUILDER_H_
+#endif  // V8_STRING_BUILDER_INL_H_

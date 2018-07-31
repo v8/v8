@@ -167,12 +167,11 @@ BUILTIN(Trace) {
     // could have perf costs. It is also subject to all the same
     // limitations as JSON.stringify() as it relates to circular
     // references and value limitations (e.g. BigInt is not supported).
-    JsonStringifier stringifier(isolate);
     Handle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
-        stringifier.Stringify(data_arg, isolate->factory()->undefined_value(),
-                              isolate->factory()->undefined_value()));
+        JsonStringify(isolate, data_arg, isolate->factory()->undefined_value(),
+                      isolate->factory()->undefined_value()));
     std::unique_ptr<JsonTraceValue> traced_value;
     traced_value.reset(
         new JsonTraceValue(isolate, Handle<String>::cast(result)));

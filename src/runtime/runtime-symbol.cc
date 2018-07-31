@@ -7,7 +7,7 @@
 #include "src/arguments.h"
 #include "src/isolate-inl.h"
 #include "src/objects-inl.h"
-#include "src/string-builder.h"
+#include "src/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {

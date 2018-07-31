@@ -83,7 +83,7 @@
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/source-position-table.h"
-#include "src/string-builder.h"
+#include "src/string-builder-inl.h"
 #include "src/string-search.h"
 #include "src/string-stream.h"
 #include "src/unicode-cache-inl.h"

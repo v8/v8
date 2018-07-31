@@ -11,12 +11,13 @@
 #include "src/base/platform/platform.h"
 #include "src/globals.h"
 #include "src/objects-inl.h"
+#include "src/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {
 
 CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
-    : builder_(isolate) {
+    : builder_(new IncrementalStringBuilder(isolate)) {
   isolate_ = isolate;
   position_ = 0;
   num_prints_ = 0;
@@ -29,6 +30,8 @@ CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
   function_kind_ = kNormalFunction;
   InitializeAstVisitor(isolate);
 }
+
+CallPrinter::~CallPrinter() {}
 
 CallPrinter::ErrorHint CallPrinter::GetErrorHint() const {
   if (is_call_error_) {
@@ -45,7 +48,7 @@ Handle<String> CallPrinter::Print(FunctionLiteral* program, int position) {
   num_prints_ = 0;
   position_ = position;
   Find(program);
-  return builder_.Finish().ToHandleChecked();
+  return builder_->Finish().ToHandleChecked();
 }
 
 
@@ -65,13 +68,13 @@ void CallPrinter::Find(AstNode* node, bool print) {
 void CallPrinter::Print(const char* str) {
   if (!found_ || done_) return;
   num_prints_++;
-  builder_.AppendCString(str);
+  builder_->AppendCString(str);
 }
 
 void CallPrinter::Print(Handle<String> str) {
   if (!found_ || done_) return;
   num_prints_++;
-  builder_.AppendString(str);
+  builder_->AppendString(str);
 }
 
 void CallPrinter::VisitBlock(Block* node) {

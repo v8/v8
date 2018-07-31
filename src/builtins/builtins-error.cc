@@ -11,7 +11,6 @@
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/property-descriptor.h"
-#include "src/string-builder.h"
 
 namespace v8 {
 namespace internal {
