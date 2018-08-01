@@ -2734,16 +2734,11 @@ CompilationState::CompilationState(internal::Isolate* isolate,
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   v8::Platform* platform = V8::GetCurrentPlatform();
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
-
-  // Register task manager for clean shutdown in case of an engine shutdown.
-  wasm_engine_->Register(&background_task_manager_);
-  wasm_engine_->Register(&foreground_task_manager_);
 }
 
 CompilationState::~CompilationState() {
   CancelAndWait();
   foreground_task_manager_.CancelAndWait();
-  wasm_engine_->Unregister(&foreground_task_manager_);
   NotifyOnEvent(CompilationEvent::kDestroyed, nullptr);
 }
 
@@ -2877,7 +2872,6 @@ void CompilationState::ScheduleUnitForFinishing(
 
 void CompilationState::CancelAndWait() {
   background_task_manager_.CancelAndWait();
-  wasm_engine_->Unregister(&background_task_manager_);
 }
 
 void CompilationState::OnBackgroundTaskStopped() {

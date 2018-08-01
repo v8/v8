@@ -113,11 +113,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Used to redirect tracing output from {stdout} to a file.
   CodeTracer* GetCodeTracer();
 
-  // We register and unregister CancelableTaskManagers that run engine-dependent
-  // tasks. These tasks need to be shutdown if the engine is shut down.
-  void Register(CancelableTaskManager* task_manager);
-  void Unregister(CancelableTaskManager* task_manager);
-
   // Remove {job} from the list of active compile jobs.
   std::unique_ptr<AsyncCompileJob> RemoveCompileJob(AsyncCompileJob* job);
 
@@ -148,8 +143,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Handle<Context> context,
       std::shared_ptr<CompilationResultResolver> resolver);
 
-  void TearDown();
-
   std::unique_ptr<WasmCodeManager> code_manager_;
   WasmMemoryTracker memory_tracker_;
   AccountingAllocator allocator_;
@@ -164,10 +157,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // We use an AsyncCompileJob as the key for itself so that we can delete the
   // job from the map when it is finished.
   std::unordered_map<AsyncCompileJob*, std::unique_ptr<AsyncCompileJob>> jobs_;
-
-  // Contains all CancelableTaskManagers that run tasks that are dependent
-  // on the engine. Will be canceled on engine tear down.
-  std::list<CancelableTaskManager*> task_managers_;
 
   std::unique_ptr<CompilationStatistics> compilation_stats_;
   std::unique_ptr<CodeTracer> code_tracer_;
