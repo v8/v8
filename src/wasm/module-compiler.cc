@@ -2123,15 +2123,8 @@ void AsyncCompileJob::Start() {
 void AsyncCompileJob::Abort() {
   background_task_manager_.CancelAndWait();
   if (native_module_) native_module_->compilation_state()->Abort();
-  if (num_pending_foreground_tasks_ == 0) {
-    // No task is pending, we can just remove the AsyncCompileJob.
-    isolate_->wasm_engine()->RemoveCompileJob(this);
-  } else {
-    // There is still a compilation task in the task queue. We enter the
-    // AbortCompilation state and wait for this compilation task to abort the
-    // AsyncCompileJob.
-    NextStep<AbortCompilation>();
-  }
+  CancelPendingForegroundTask();
+  isolate_->wasm_engine()->RemoveCompileJob(this);
 }
 
 class AsyncStreamingProcessor final : public StreamingProcessor {
@@ -2217,9 +2210,9 @@ class AsyncCompileJob::CompileStep {
 
   void Run(bool on_foreground) {
     if (on_foreground) {
+      DCHECK_NOT_NULL(job_->pending_foreground_task_);
+      job_->pending_foreground_task_ = nullptr;
       HandleScope scope(job_->isolate_);
-      --job_->num_pending_foreground_tasks_;
-      DCHECK_EQ(0, job_->num_pending_foreground_tasks_);
       SaveContext saved_context(job_->isolate_);
       job_->isolate_->set_context(*job_->native_context_);
       RunInForeground();
@@ -2249,18 +2242,41 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
         job_(job),
         on_foreground_(on_foreground) {}
 
-  void RunInternal() override { job_->step_->Run(on_foreground_); }
+  void RunInternal() final {
+    if (job_) job_->step_->Run(on_foreground_);
+  }
+
+  void Cancel() {
+    DCHECK_NOT_NULL(job_);
+    job_ = nullptr;
+  }
 
  private:
+  // {job_} will be cleared to cancel a pending task.
   AsyncCompileJob* job_;
   bool on_foreground_;
 };
 
 void AsyncCompileJob::StartForegroundTask() {
-  ++num_pending_foreground_tasks_;
-  DCHECK_EQ(1, num_pending_foreground_tasks_);
+  DCHECK_NULL(pending_foreground_task_);
 
-  foreground_task_runner_->PostTask(base::make_unique<CompileTask>(this, true));
+  auto new_task = base::make_unique<CompileTask>(this, true);
+  pending_foreground_task_ = new_task.get();
+  foreground_task_runner_->PostTask(std::move(new_task));
+}
+
+void AsyncCompileJob::ExecuteForegroundTaskImmediately() {
+  DCHECK_NULL(pending_foreground_task_);
+
+  auto new_task = base::make_unique<CompileTask>(this, true);
+  pending_foreground_task_ = new_task.get();
+  new_task->Run();
+}
+
+void AsyncCompileJob::CancelPendingForegroundTask() {
+  if (!pending_foreground_task_) return;
+  pending_foreground_task_->Cancel();
+  pending_foreground_task_ = nullptr;
 }
 
 template <typename Step, typename... Args>
@@ -2421,17 +2437,14 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                 }
                 return;
               case CompilationEvent::kFinishedTopTierCompilation:
-                // It is only safe to remove the AsyncCompileJob if no
-                // foreground task is currently pending, and no finisher is
-                // outstanding (streaming compilation).
-                if (job->num_pending_foreground_tasks_ == 0 &&
-                    job->outstanding_finishers_.load() == 0) {
-                  job->isolate_->wasm_engine()->RemoveCompileJob(job);
-                } else {
-                  // If a foreground task was pending or a finsher was pending,
-                  // we will rely on FinishModule to remove the job.
+                // If a foreground task or a finisher is pending, we rely on
+                // FinishModule to remove the job.
+                if (job->pending_foreground_task_ ||
+                    job->outstanding_finishers_.load() > 0) {
                   job->tiering_completed_ = true;
+                  return;
                 }
+                job->isolate_->wasm_engine()->RemoveCompileJob(job);
                 return;
               case CompilationEvent::kFailedCompilation: {
                 // Tier-up compilation should not fail if baseline compilation
@@ -2532,13 +2545,6 @@ class AsyncCompileJob::FinishModule : public CompileStep {
   }
 };
 
-class AsyncCompileJob::AbortCompilation : public CompileStep {
-  void RunInForeground() override {
-    TRACE_COMPILE("Abort asynchronous compilation ...\n");
-    job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
-  }
-};
-
 AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
     : job_(job), compilation_unit_builder_(nullptr) {}
 
@@ -2557,7 +2563,7 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
   if (job_->native_module_) {
     job_->native_module_->compilation_state()->Abort();
 
-    if (job_->num_pending_foreground_tasks_ == 0) {
+    if (job_->pending_foreground_task_ == nullptr) {
       job_->DoSync<AsyncCompileJob::DecodeFail>(std::move(result));
     } else {
       job_->NextStep<AsyncCompileJob::DecodeFail>(std::move(result));
@@ -2631,12 +2637,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
   }
   job_->NextStep<AsyncCompileJob::PrepareAndStartCompile>(false);
   // Execute the PrepareAndStartCompile step immediately and not in a separate
-  // task. The step expects to be run on a separate foreground thread though, so
-  // we to increment {num_pending_foreground_tasks_} to look like one.
-  ++job_->num_pending_foreground_tasks_;
-  DCHECK_EQ(1, job_->num_pending_foreground_tasks_);
-  constexpr bool on_foreground = true;
-  job_->step_->Run(on_foreground);
+  // task.
+  job_->ExecuteForegroundTaskImmediately();
 
   job_->native_module_->compilation_state()->SetNumberOfFunctionsToCompile(
       functions_count);

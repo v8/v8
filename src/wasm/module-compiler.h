@@ -87,6 +87,7 @@ class AsyncCompileJob {
   std::shared_ptr<StreamingDecoder> CreateStreamingDecoder();
 
   void Abort();
+  void CancelPendingForegroundTask();
 
   Isolate* isolate() const { return isolate_; }
 
@@ -101,7 +102,6 @@ class AsyncCompileJob {
   class CompileFailed;
   class CompileWrappers;
   class FinishModule;
-  class AbortCompilation;
   class UpdateToTopTierCompiledCode;
 
   const std::shared_ptr<Counters>& async_counters() const {
@@ -116,6 +116,7 @@ class AsyncCompileJob {
   void AsyncCompileSucceeded(Handle<WasmModuleObject> result);
 
   void StartForegroundTask();
+  void ExecuteForegroundTaskImmediately();
 
   void StartBackgroundTask();
 
@@ -169,8 +170,8 @@ class AsyncCompileJob {
     return outstanding_finishers_.fetch_sub(1) == 1;
   }
 
-  // Counts the number of pending foreground tasks.
-  int32_t num_pending_foreground_tasks_ = 0;
+  // A reference to a pending foreground task, or {nullptr} if none is pending.
+  CompileTask* pending_foreground_task_ = nullptr;
 
   // The AsyncCompileJob owns the StreamingDecoder because the StreamingDecoder
   // contains data which is needed by the AsyncCompileJob for streaming
