@@ -269,6 +269,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // threads executing the old code.
   void PublishCode(WasmCode* code);
 
+  // Creates a snapshot of the current state of the code table. This is useful
+  // to get a consistent view of the table (e.g. used by the serializer).
+  std::vector<WasmCode*> SnapshotCodeTable() const;
+
   WasmCode* code(uint32_t index) const {
     DCHECK_LT(index, num_functions());
     DCHECK_LE(module_->num_imported_functions, index);
@@ -322,9 +326,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   uint32_t num_imported_functions() const {
     return module_->num_imported_functions;
   }
-  Vector<WasmCode*> code_table() const {
-    return {code_table_.get(), module_->num_declared_functions};
-  }
   bool use_trap_handler() const { return use_trap_handler_; }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
@@ -369,6 +370,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void PatchJumpTable(uint32_t func_index, Address target,
                       WasmCode::FlushICache);
 
+  Vector<WasmCode*> code_table() const {
+    return {code_table_.get(), module_->num_declared_functions};
+  }
   void set_code(uint32_t index, WasmCode* code) {
     DCHECK_LT(index, num_functions());
     DCHECK_LE(module_->num_imported_functions, index);

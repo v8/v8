@@ -211,7 +211,8 @@ constexpr size_t kCodeHeaderSize =
 class V8_EXPORT_PRIVATE NativeModuleSerializer {
  public:
   NativeModuleSerializer() = delete;
-  NativeModuleSerializer(Isolate*, const NativeModule*);
+  NativeModuleSerializer(Isolate*, const NativeModule*,
+                         Vector<WasmCode* const>);
 
   size_t Measure() const;
   bool Write(Writer* writer);
@@ -223,6 +224,7 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
 
   Isolate* const isolate_;
   const NativeModule* const native_module_;
+  Vector<WasmCode* const> code_table_;
   bool write_called_;
 
   // Reverse lookup tables for embedded addresses.
@@ -232,9 +234,13 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   DISALLOW_COPY_AND_ASSIGN(NativeModuleSerializer);
 };
 
-NativeModuleSerializer::NativeModuleSerializer(Isolate* isolate,
-                                               const NativeModule* module)
-    : isolate_(isolate), native_module_(module), write_called_(false) {
+NativeModuleSerializer::NativeModuleSerializer(
+    Isolate* isolate, const NativeModule* module,
+    Vector<WasmCode* const> code_table)
+    : isolate_(isolate),
+      native_module_(module),
+      code_table_(code_table),
+      write_called_(false) {
   DCHECK_NOT_NULL(isolate_);
   DCHECK_NOT_NULL(native_module_);
   // TODO(mtrofin): persist the export wrappers. Ideally, we'd only persist
@@ -263,7 +269,7 @@ size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
 
 size_t NativeModuleSerializer::Measure() const {
   size_t size = kHeaderSize;
-  for (WasmCode* code : native_module_->code_table()) {
+  for (WasmCode* code : code_table_) {
     size += MeasureCode(code);
   }
   return size;
@@ -370,26 +376,31 @@ bool NativeModuleSerializer::Write(Writer* writer) {
 
   WriteHeader(writer);
 
-  for (WasmCode* code : native_module_->code_table()) {
+  for (WasmCode* code : code_table_) {
     WriteCode(code, writer);
   }
   return true;
 }
 
-size_t GetSerializedNativeModuleSize(Isolate* isolate,
-                                     NativeModule* native_module) {
-  NativeModuleSerializer serializer(isolate, native_module);
+WasmSerializer::WasmSerializer(Isolate* isolate, NativeModule* native_module)
+    : isolate_(isolate),
+      native_module_(native_module),
+      code_table_(native_module->SnapshotCodeTable()) {}
+
+size_t WasmSerializer::GetSerializedNativeModuleSize() const {
+  Vector<WasmCode* const> code_table(code_table_.data(), code_table_.size());
+  NativeModuleSerializer serializer(isolate_, native_module_, code_table);
   return kVersionSize + serializer.Measure();
 }
 
-bool SerializeNativeModule(Isolate* isolate, NativeModule* native_module,
-                           Vector<byte> buffer) {
-  NativeModuleSerializer serializer(isolate, native_module);
+bool WasmSerializer::SerializeNativeModule(Vector<byte> buffer) const {
+  Vector<WasmCode* const> code_table(code_table_.data(), code_table_.size());
+  NativeModuleSerializer serializer(isolate_, native_module_, code_table);
   size_t measured_size = kVersionSize + serializer.Measure();
   if (buffer.size() < measured_size) return false;
 
   Writer writer(buffer);
-  WriteVersion(isolate, &writer);
+  WriteVersion(isolate_, &writer);
 
   if (!serializer.Write(&writer)) return false;
   DCHECK_EQ(measured_size, writer.bytes_written());

@@ -588,6 +588,14 @@ void NativeModule::PublishCode(WasmCode* code) {
                  WasmCode::kFlushICache);
 }
 
+std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
+  base::LockGuard<base::Mutex> lock(&allocation_mutex_);
+  std::vector<WasmCode*> result;
+  result.reserve(code_table().size());
+  for (wasm::WasmCode* code : code_table()) result.push_back(code);
+  return result;
+}
+
 WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t num_wasm_functions) {
   // Only call this if we really need a jump table.
   DCHECK_LT(0, num_wasm_functions);
