@@ -368,6 +368,13 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kLFence:
       return kHasSideEffect;
 
+    case kIA32Word32AtomicPairAdd:
+    case kIA32Word32AtomicPairSub:
+    case kIA32Word32AtomicPairAnd:
+    case kIA32Word32AtomicPairOr:
+    case kIA32Word32AtomicPairXor:
+    case kIA32Word32AtomicPairExchange:
+    case kIA32Word32AtomicPairCompareExchange:
     case kIA32Word64AtomicNarrowAddUint8:
     case kIA32Word64AtomicNarrowAddUint16:
     case kIA32Word64AtomicNarrowAddUint32:
@@ -383,11 +390,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Word64AtomicNarrowXorUint8:
     case kIA32Word64AtomicNarrowXorUint16:
     case kIA32Word64AtomicNarrowXorUint32:
-    case kIA32Word32AtomicPairAdd:
-    case kIA32Word32AtomicPairSub:
-    case kIA32Word32AtomicPairAnd:
-    case kIA32Word32AtomicPairOr:
-    case kIA32Word32AtomicPairXor:
+    case kIA32Word64AtomicNarrowExchangeUint8:
+    case kIA32Word64AtomicNarrowExchangeUint16:
+    case kIA32Word64AtomicNarrowExchangeUint32:
+    case kIA32Word64AtomicNarrowCompareExchangeUint8:
+    case kIA32Word64AtomicNarrowCompareExchangeUint16:
+    case kIA32Word64AtomicNarrowCompareExchangeUint32:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:

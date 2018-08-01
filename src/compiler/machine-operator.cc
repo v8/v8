@@ -419,7 +419,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(Sub)                          \
   V(And)                          \
   V(Or)                           \
-  V(Xor)
+  V(Xor)                          \
+  V(Exchange)
 
 #define SIMD_LANE_OP_LIST(V) \
   V(F32x4, 4)                \
@@ -712,10 +713,33 @@ struct MachineOperatorGlobalCache {
   ATOMIC64_NARROW_OP(Word64AtomicNarrowSub, type) \
   ATOMIC64_NARROW_OP(Word64AtomicNarrowAnd, type) \
   ATOMIC64_NARROW_OP(Word64AtomicNarrowOr, type)  \
-  ATOMIC64_NARROW_OP(Word64AtomicNarrowXor, type)
+  ATOMIC64_NARROW_OP(Word64AtomicNarrowXor, type) \
+  ATOMIC64_NARROW_OP(Word64AtomicNarrowExchange, type)
   ATOMIC_U32_TYPE_LIST(ATOMIC_OP_LIST)
 #undef ATOMIC_OP_LIST
 #undef ATOMIC64_NARROW_OP
+
+  struct Word32AtomicPairCompareExchangeOperator : public Operator {
+    Word32AtomicPairCompareExchangeOperator()
+        : Operator(IrOpcode::kWord32AtomicPairCompareExchange,
+                   Operator::kNoDeopt | Operator::kNoThrow,
+                   "Word32AtomicPairCompareExchange", 6, 1, 1, 2, 1, 0) {}
+  };
+  Word32AtomicPairCompareExchangeOperator kWord32AtomicPairCompareExchange;
+
+#define ATOMIC_COMPARE_EXCHANGE(Type)                                          \
+  struct Word64AtomicNarrowCompareExchange##Type##Operator                     \
+      : public Operator1<MachineType> {                                        \
+    Word64AtomicNarrowCompareExchange##Type##Operator()                        \
+        : Operator1<MachineType>(IrOpcode::kWord64AtomicNarrowCompareExchange, \
+                                 Operator::kNoDeopt | Operator::kNoThrow,      \
+                                 "Word64AtomicNarrowCompareExchange", 4, 1, 1, \
+                                 2, 1, 0, MachineType::Type()) {}              \
+  };                                                                           \
+  Word64AtomicNarrowCompareExchange##Type##Operator                            \
+      kWord64AtomicNarrowCompareExchange##Type;
+  ATOMIC_TYPE_LIST(ATOMIC_COMPARE_EXCHANGE)
+#undef ATOMIC_COMPARE_EXCHANGE
 
   // The {BitcastWordToTagged} operator must not be marked as pure (especially
   // not idempotent), because otherwise the splitting logic in the Scheduler
@@ -1187,6 +1211,14 @@ const Operator* MachineOperatorBuilder::Word32AtomicPairXor() {
   return &cache_.kWord32AtomicPairXor;
 }
 
+const Operator* MachineOperatorBuilder::Word32AtomicPairExchange() {
+  return &cache_.kWord32AtomicPairExchange;
+}
+
+const Operator* MachineOperatorBuilder::Word32AtomicPairCompareExchange() {
+  return &cache_.kWord32AtomicPairCompareExchange;
+}
+
 const Operator* MachineOperatorBuilder::Word64AtomicNarrowAdd(
     MachineType type) {
 #define ADD(kType)                                \
@@ -1238,6 +1270,28 @@ const Operator* MachineOperatorBuilder::Word64AtomicNarrowXor(
   }
   ATOMIC_U32_TYPE_LIST(XOR)
 #undef XOR
+  UNREACHABLE();
+}
+
+const Operator* MachineOperatorBuilder::Word64AtomicNarrowExchange(
+    MachineType type) {
+#define EXCHANGE(kType)                                \
+  if (type == MachineType::kType()) {                  \
+    return &cache_.kWord64AtomicNarrowExchange##kType; \
+  }
+  ATOMIC_U32_TYPE_LIST(EXCHANGE)
+#undef EXCHANGE
+  UNREACHABLE();
+}
+
+const Operator* MachineOperatorBuilder::Word64AtomicNarrowCompareExchange(
+    MachineType type) {
+#define CMP_EXCHANGE(kType)                                   \
+  if (type == MachineType::kType()) {                         \
+    return &cache_.kWord64AtomicNarrowCompareExchange##kType; \
+  }
+  ATOMIC_U32_TYPE_LIST(CMP_EXCHANGE)
+#undef CMP_EXCHANGE
   UNREACHABLE();
 }
 

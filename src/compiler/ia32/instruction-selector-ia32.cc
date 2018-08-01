@@ -1823,6 +1823,37 @@ void InstructionSelector::VisitWord32AtomicPairXor(Node* node) {
   VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairXor);
 }
 
+void InstructionSelector::VisitWord32AtomicPairExchange(Node* node) {
+  VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairExchange);
+}
+
+void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
+  IA32OperandGenerator g(this);
+  Node* index = node->InputAt(1);
+  AddressingMode addressing_mode;
+  InstructionOperand index_operand;
+  if (g.CanBeImmediate(index)) {
+    index_operand = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    index_operand = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  InstructionOperand inputs[] = {
+      // High, Low values of old value
+      g.UseFixed(node->InputAt(2), eax), g.UseFixed(node->InputAt(3), edx),
+      // High, Low values of new value
+      g.UseFixed(node->InputAt(4), ebx), g.UseFixed(node->InputAt(5), ecx),
+      // InputAt(0) => base
+      g.UseUniqueRegister(node->InputAt(0)), index_operand};
+  InstructionOperand outputs[] = {
+      g.DefineAsFixed(NodeProperties::FindProjection(node, 0), eax),
+      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), edx)};
+  InstructionCode code = kIA32Word32AtomicPairCompareExchange |
+                         AddressingModeField::encode(addressing_mode);
+  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
+}
+
 void InstructionSelector::VisitWord64AtomicNarrowBinop(Node* node,
                                                        ArchOpcode uint8_op,
                                                        ArchOpcode uint16_op,
@@ -1855,6 +1886,95 @@ VISIT_ATOMIC_BINOP(And)
 VISIT_ATOMIC_BINOP(Or)
 VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
+
+void InstructionSelector::VisitWord64AtomicNarrowExchange(Node* node) {
+  MachineType type = AtomicOpType(node->op());
+  DCHECK(type != MachineType::Uint64());
+  ArchOpcode opcode = kArchNop;
+  if (type == MachineType::Uint32()) {
+    opcode = kIA32Word64AtomicNarrowExchangeUint32;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kIA32Word64AtomicNarrowExchangeUint16;
+  } else if (type == MachineType::Uint8()) {
+    opcode = kIA32Word64AtomicNarrowExchangeUint8;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+  IA32OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  AddressingMode addressing_mode;
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  if (type.representation() == MachineRepresentation::kWord8) {
+    inputs[input_count++] = g.UseFixed(value, edx);
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(value);
+  }
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  if (g.CanBeImmediate(index)) {
+    inputs[input_count++] = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  InstructionOperand outputs[2];
+  if (type.representation() == MachineRepresentation::kWord8) {
+    // Using DefineSameAsFirst requires the register to be unallocated.
+    outputs[0] = g.DefineAsFixed(NodeProperties::FindProjection(node, 0), edx);
+  } else {
+    outputs[0] = g.DefineSameAsFirst(NodeProperties::FindProjection(node, 0));
+  }
+  outputs[1] = g.DefineAsRegister(NodeProperties::FindProjection(node, 1));
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
+}
+
+void InstructionSelector::VisitWord64AtomicNarrowCompareExchange(Node* node) {
+  MachineType type = AtomicOpType(node->op());
+  DCHECK(type != MachineType::Uint64());
+  ArchOpcode opcode = kArchNop;
+  if (type == MachineType::Uint32()) {
+    opcode = kIA32Word64AtomicNarrowCompareExchangeUint32;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kIA32Word64AtomicNarrowCompareExchangeUint16;
+  } else if (type == MachineType::Uint8()) {
+    opcode = kIA32Word64AtomicNarrowCompareExchangeUint8;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+  IA32OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* old_value = node->InputAt(2);
+  Node* new_value = node->InputAt(3);
+  AddressingMode addressing_mode;
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseFixed(old_value, eax);
+  if (type == MachineType::Int8() || type == MachineType::Uint8()) {
+    inputs[input_count++] = g.UseByteRegister(new_value);
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(new_value);
+  }
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  if (g.CanBeImmediate(index)) {
+    inputs[input_count++] = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  InstructionOperand outputs[] = {
+      g.DefineAsFixed(NodeProperties::FindProjection(node, 0), eax),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
+}
 
 #define SIMD_INT_TYPES(V) \
   V(I32x4)                \

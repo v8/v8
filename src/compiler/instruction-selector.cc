@@ -1737,6 +1737,8 @@ void InstructionSelector::VisitNode(Node* node) {
       ATOMIC_CASE(And)
       ATOMIC_CASE(Or)
       ATOMIC_CASE(Xor)
+      ATOMIC_CASE(Exchange)
+      ATOMIC_CASE(CompareExchange)
 #undef ATOMIC_CASE
 #define ATOMIC_CASE(name)                              \
   case IrOpcode::kWord64AtomicNarrow##name: {          \
@@ -1750,6 +1752,8 @@ void InstructionSelector::VisitNode(Node* node) {
       ATOMIC_CASE(And)
       ATOMIC_CASE(Or)
       ATOMIC_CASE(Xor)
+      ATOMIC_CASE(Exchange)
+      ATOMIC_CASE(CompareExchange)
 #undef ATOMIC_CASE
     case IrOpcode::kSpeculationFence:
       return VisitSpeculationFence(node);
@@ -2399,6 +2403,14 @@ void InstructionSelector::VisitWord32AtomicPairXor(Node* node) {
   UNIMPLEMENTED();
 }
 
+void InstructionSelector::VisitWord32AtomicPairExchange(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitWord64AtomicNarrowAdd(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2416,6 +2428,14 @@ void InstructionSelector::VisitWord64AtomicNarrowOr(Node* node) {
 }
 
 void InstructionSelector::VisitWord64AtomicNarrowXor(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitWord64AtomicNarrowExchange(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitWord64AtomicNarrowCompareExchange(Node* node) {
   UNIMPLEMENTED();
 }
 #endif  // !V8_TARGET_ARCH_IA32

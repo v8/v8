@@ -661,6 +661,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Word64AtomicNarrowOr(MachineType type);
   // atomic-narrow-xor [base + index], value
   const Operator* Word64AtomicNarrowXor(MachineType type);
+  // atomic-narrow-exchange [base + index], value
+  const Operator* Word64AtomicNarrowExchange(MachineType type);
+  // atomic-narrow-compare-exchange [base + index], old_value, new_value
+  const Operator* Word64AtomicNarrowCompareExchange(MachineType type);
   // atomic-pair-add [base + index], value_high, value_low
   const Operator* Word32AtomicPairAdd();
   // atomic-pair-sub [base + index], value_high, value-low
@@ -671,6 +675,11 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Word32AtomicPairOr();
   // atomic-pair-xor [base + index], value_high, value_low
   const Operator* Word32AtomicPairXor();
+  // atomic-pair-exchange [base + index], value_high, value_low
+  const Operator* Word32AtomicPairExchange();
+  // atomic-pair-compare-exchange [base + index], old_value_high, old_value_low,
+  // new_value_high, new_value_low
+  const Operator* Word32AtomicPairCompareExchange();
 
   const OptionalOperator SpeculationFence();
 

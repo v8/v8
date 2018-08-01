@@ -51,7 +51,7 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   void LowerComparison(Node* node, const Operator* signed_op,
                        const Operator* unsigned_op);
   void LowerWord64AtomicBinop(Node* node, const Operator* op);
-  void LowerWord64AtomicNarrowBinop(Node* node, const Operator* op);
+  void LowerWord64AtomicNarrowOp(Node* node, const Operator* op);
 
   void ReplaceNode(Node* old, Node* new_low, Node* new_high);
   bool HasReplacementLow(Node* node);

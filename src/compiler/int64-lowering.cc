@@ -126,9 +126,7 @@ void Int64Lowering::LowerWord64AtomicBinop(Node* node, const Operator* op) {
   ReplaceNodeWithProjections(node);
 }
 
-void Int64Lowering::LowerWord64AtomicNarrowBinop(Node* node,
-                                                 const Operator* op) {
-  DCHECK_EQ(5, node->InputCount());
+void Int64Lowering::LowerWord64AtomicNarrowOp(Node* node, const Operator* op) {
   DefaultLowering(node, true);
   NodeProperties::ChangeOp(node, op);
   ReplaceNodeWithProjections(node);
@@ -884,23 +882,42 @@ void Int64Lowering::LowerNode(Node* node) {
       node->NullAllInputs();
       break;
     }
-#define ATOMIC_CASE(name)                                                      \
-  case IrOpcode::kWord64Atomic##name: {                                        \
-    MachineType type = AtomicOpType(node->op());                               \
-    if (type == MachineType::Uint64()) {                                       \
-      LowerWord64AtomicBinop(node, machine()->Word32AtomicPair##name());       \
-    } else {                                                                   \
-      LowerWord64AtomicNarrowBinop(node,                                       \
-                                   machine()->Word64AtomicNarrow##name(type)); \
-    }                                                                          \
-    break;                                                                     \
+#define ATOMIC_CASE(name)                                                   \
+  case IrOpcode::kWord64Atomic##name: {                                     \
+    MachineType type = AtomicOpType(node->op());                            \
+    if (type == MachineType::Uint64()) {                                    \
+      LowerWord64AtomicBinop(node, machine()->Word32AtomicPair##name());    \
+    } else {                                                                \
+      LowerWord64AtomicNarrowOp(node,                                       \
+                                machine()->Word64AtomicNarrow##name(type)); \
+    }                                                                       \
+    break;                                                                  \
   }
       ATOMIC_CASE(Add)
       ATOMIC_CASE(Sub)
       ATOMIC_CASE(And)
       ATOMIC_CASE(Or)
       ATOMIC_CASE(Xor)
+      ATOMIC_CASE(Exchange)
 #undef ATOMIC_CASE
+    case IrOpcode::kWord64AtomicCompareExchange: {
+      MachineType type = AtomicOpType(node->op());
+      if (type == MachineType::Uint64()) {
+        Node* old_value = node->InputAt(2);
+        Node* new_value = node->InputAt(3);
+        node->ReplaceInput(2, GetReplacementLow(old_value));
+        node->ReplaceInput(3, GetReplacementHigh(old_value));
+        node->InsertInput(zone(), 4, GetReplacementLow(new_value));
+        node->InsertInput(zone(), 5, GetReplacementHigh(new_value));
+        NodeProperties::ChangeOp(node,
+                                 machine()->Word32AtomicPairCompareExchange());
+        ReplaceNodeWithProjections(node);
+      } else {
+        LowerWord64AtomicNarrowOp(
+            node, machine()->Word64AtomicNarrowCompareExchange(type));
+      }
+      break;
+    }
 
     default: { DefaultLowering(node); }
   }
