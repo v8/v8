@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "src/objects-inl.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
@@ -322,6 +323,43 @@ TEST(SharedEngineRunThreadedExecution) {
   thread2.Start();
   thread1.Join();
   thread2.Join();
+}
+
+TEST(SharedEngineRunThreadedTierUp) {
+  SharedEngine engine;
+  SharedModule module;
+  {
+    SharedEngineIsolate isolate(&engine);
+    HandleScope scope(isolate.isolate());
+    ZoneBuffer* buffer = BuildReturnConstantModule(isolate.zone(), 23);
+    Handle<WasmInstanceObject> instance = isolate.CompileAndInstantiate(buffer);
+    module = isolate.ExportInstance(instance);
+  }
+  constexpr int kNumberOfThreads = 5;
+  std::list<SharedEngineThread> threads;
+  for (int i = 0; i < kNumberOfThreads; ++i) {
+    threads.emplace_back(&engine, [module](SharedEngineIsolate& isolate) {
+      constexpr int kNumberOfIterations = 100;
+      HandleScope scope(isolate.isolate());
+      Handle<WasmInstanceObject> instance = isolate.ImportInstance(module);
+      for (int j = 0; j < kNumberOfIterations; ++j) {
+        CHECK_EQ(23, isolate.Run(instance));
+      }
+    });
+  }
+  threads.emplace_back(&engine, [module](SharedEngineIsolate& isolate) {
+    HandleScope scope(isolate.isolate());
+    Handle<WasmInstanceObject> instance = isolate.ImportInstance(module);
+    ErrorThrower thrower(isolate.isolate(), "Forced Tier Up");
+    WasmCompilationUnit::CompileWasmFunction(
+        module.get(), &thrower, isolate.isolate(),
+        GetModuleEnv(module->compilation_state()),
+        &module->module()->functions[0],
+        WasmCompilationUnit::CompilationMode::kTurbofan);
+    CHECK_EQ(23, isolate.Run(instance));
+  });
+  for (auto& thread : threads) thread.Start();
+  for (auto& thread : threads) thread.Join();
 }
 
 }  // namespace test_wasm_shared_engine
