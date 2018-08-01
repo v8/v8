@@ -63,12 +63,12 @@ class AsmTypeTest : public TestWithZone {
 
   class FunctionTypeBuilder {
    public:
-    FunctionTypeBuilder(FunctionTypeBuilder&& b) V8_NOEXCEPT
+    FunctionTypeBuilder(FunctionTypeBuilder&& b)
         : function_type_(b.function_type_) {
       b.function_type_ = nullptr;
     }
 
-    FunctionTypeBuilder& operator=(FunctionTypeBuilder&& b) V8_NOEXCEPT {
+    FunctionTypeBuilder& operator=(FunctionTypeBuilder&& b) {
       if (this != &b) {
         function_type_ = b.function_type_;
         b.function_type_ = nullptr;

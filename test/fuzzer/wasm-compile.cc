@@ -43,10 +43,8 @@ class DataRange {
   // lead to OOM because the end might not be reached.
   // Define move constructor and move assignment, disallow copy constructor and
   // copy assignment (below).
-  DataRange(DataRange&& other) V8_NOEXCEPT : DataRange(other.data_) {
-    other.data_ = {};
-  }
-  DataRange& operator=(DataRange&& other) V8_NOEXCEPT {
+  DataRange(DataRange&& other) : DataRange(other.data_) { other.data_ = {}; }
+  DataRange& operator=(DataRange&& other) {
     data_ = other.data_;
     other.data_ = {};
     return *this;
