@@ -259,8 +259,7 @@ def RunResultsProcessor(results_processor, stdout, count):
       stderr=subprocess.PIPE,
   )
   result, _ = p.communicate(input=stdout)
-  print ">>> Processed stdout (#%d):" % count
-  print result
+  logging.info(">>> Processed stdout (#%d):\n%s", count, result)
   return result
 
 
@@ -506,7 +505,7 @@ class RunnableConfig(GraphConfig):
     # TODO(machenbach): This requires +.exe if run on windows.
     extra_flags = extra_flags or []
     if self.binary != 'd8' and '--prof' in extra_flags:
-      print "Profiler supported only on a benchmark run with d8"
+      logging.info("Profiler supported only on a benchmark run with d8")
 
     if self.process_size:
       cmd_prefix = ["/usr/bin/time", "--format=MaxMemory: %MKB"] + cmd_prefix
@@ -705,26 +704,24 @@ class DesktopPlatform(Platform):
     cmd = runnable.GetCommand(self.command_prefix, shell_dir, self.extra_flags)
     try:
       output = cmd.execute()
-    except OSError as e:  # pragma: no cover
-      print title % "OSError"
-      print e
+    except OSError:  # pragma: no cover
+      logging.exception(title % "OSError")
       return ""
 
-    print title % "Stdout"
-    print output.stdout
+    logging.info(title % "Stdout" + "\n%s", output.stdout)
     if output.stderr:  # pragma: no cover
       # Print stderr for debugging.
-      print title % "Stderr"
-      print output.stderr
+      logging.info(title % "Stderr" + "\n%s", output.stderr)
     if output.timed_out:
-      print ">>> Test timed out after %ss." % runnable.timeout
+      logging.warning(">>> Test timed out after %ss.", runnable.timeout)
     if '--prof' in self.extra_flags:
       os_prefix = {"linux": "linux", "macos": "mac"}.get(utils.GuessOS())
       if os_prefix:
         tick_tools = os.path.join(TOOLS_BASE, "%s-tick-processor" % os_prefix)
         subprocess.check_call(tick_tools + " --only-summary", shell=True)
       else:  # pragma: no cover
-        print "Profiler option currently supported on Linux and Mac OS."
+        logging.warning(
+            "Profiler option currently supported on Linux and Mac OS.")
 
     # time outputs to stderr
     if runnable.process_size:
@@ -774,7 +771,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
     # Only attempt to push files that exist.
     if not os.path.exists(file_on_host):
       if not skip_if_missing:
-        logging.critical('Missing file on host: %s' % file_on_host)
+        logging.warning('Missing file on host: %s', file_on_host)
       return
 
     # Only push files not yet pushed in one execution.
@@ -789,7 +786,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
     # Success looks like this: "3035 KB/s (12512056 bytes in 4.025s)".
     # Errors look like this: "failed to copy  ... ".
     if output and not re.search('^[0-9]', output.splitlines()[-1]):
-      logging.critical('PUSH FAILED: ' + output)
+      logging.warning('PUSH FAILED: %s', output)
     self.adb_wrapper.Shell("mkdir -p %s" % folder_on_device)
     self.adb_wrapper.Shell("cp %s %s" % (file_on_device_tmp, file_on_device))
 
@@ -869,10 +866,9 @@ class AndroidPlatform(Platform):  # pragma: no cover
           retries=0,
       )
       stdout = "\n".join(output)
-      print title % "Stdout"
-      print stdout
+      logging.info(title % "Stdout" + "\n%s", stdout)
     except device_errors.CommandTimeoutError:
-      print ">>> Test timed out after %ss." % runnable.timeout
+      logging.warning(">>> Test timed out after %ss.", runnable.timeout)
       stdout = ""
     if runnable.process_size:
       return stdout + "MaxMemory: Unsupported"
@@ -905,19 +901,19 @@ class CustomMachineConfiguration:
     try:
       with open("/proc/sys/kernel/randomize_va_space", "r") as f:
         return int(f.readline().strip())
-    except Exception as e:
-      print "Failed to get current ASLR settings."
-      raise e
+    except Exception:
+      logging.exception("Failed to get current ASLR settings.")
+      raise
 
   @staticmethod
   def SetASLR(value):
     try:
       with open("/proc/sys/kernel/randomize_va_space", "w") as f:
         f.write(str(value))
-    except Exception as e:
-      print "Failed to update ASLR to %s." % value
-      print "Are we running under sudo?"
-      raise e
+    except Exception:
+      logging.exception(
+          "Failed to update ASLR to %s. Are we running under sudo?", value)
+      raise
 
     new_value = CustomMachineConfiguration.GetASLR()
     if value != new_value:
@@ -932,9 +928,9 @@ class CustomMachineConfiguration:
         if len(r) == 1:
           return range(r[0], r[0] + 1)
         return range(r[0], r[1] + 1)
-    except Exception as e:
-      print "Failed to retrieve number of CPUs."
-      raise e
+    except Exception:
+      logging.exception("Failed to retrieve number of CPUs.")
+      raise
 
   @staticmethod
   def GetCPUPathForId(cpu_index):
@@ -958,10 +954,10 @@ class CustomMachineConfiguration:
           elif ret != val:
             raise Exception("CPU cores have differing governor settings")
       return ret
-    except Exception as e:
-      print "Failed to get the current CPU governor."
-      print "Is the CPU governor disabled? Check BIOS."
-      raise e
+    except Exception:
+      logging.exception("Failed to get the current CPU governor. Is the CPU "
+                        "governor disabled? Check BIOS.")
+      raise
 
   @staticmethod
   def SetCPUGovernor(value):
@@ -972,10 +968,10 @@ class CustomMachineConfiguration:
         with open(cpu_device, "w") as f:
           f.write(value)
 
-    except Exception as e:
-      print "Failed to change CPU governor to %s." % value
-      print "Are we running under sudo?"
-      raise e
+    except Exception:
+      logging.exception("Failed to change CPU governor to %s. Are we "
+                        "running under sudo?", value)
+      raise
 
     cur_value = CustomMachineConfiguration.GetCPUGovernor()
     if cur_value != value:
@@ -983,7 +979,6 @@ class CustomMachineConfiguration:
                       % cur_value )
 
 def Main(args):
-  logging.getLogger().setLevel(logging.INFO)
   parser = optparse.OptionParser()
   parser.add_option("--android-build-tools", help="Deprecated.")
   parser.add_option("--arch",
@@ -991,7 +986,8 @@ def Main(args):
                           "'auto' or 'native' for auto-detect"),
                     default="x64")
   parser.add_option("--buildbot",
-                    help="Adapt to path structure used on buildbots",
+                    help="Adapt to path structure used on buildbots and adds "
+                         "timestamps/level to all logged status messages",
                     default=False, action="store_true")
   parser.add_option("--device",
                     help="The device ID to run Android tests on. If not given "
@@ -1045,6 +1041,12 @@ def Main(args):
 
   (options, args) = parser.parse_args(args)
 
+  if options.buildbot:
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+  else:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+
   if len(args) == 0:  # pragma: no cover
     parser.print_help()
     return 1
@@ -1053,13 +1055,13 @@ def Main(args):
     options.arch = ARCH_GUESS
 
   if not options.arch in SUPPORTED_ARCHS:  # pragma: no cover
-    print "Unknown architecture %s" % options.arch
+    logging.error("Unknown architecture %s", options.arch)
     return 1
 
   if (options.json_test_results_secondary and
       not options.outdir_secondary):  # pragma: no cover
-    print("For writing secondary json test results, a secondary outdir patch "
-          "must be specified.")
+    logging.error("For writing secondary json test results, a secondary outdir "
+                  "patch must be specified.")
     return 1
 
   workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -1074,10 +1076,10 @@ def Main(args):
     default_binary_name = "d8"
   else:
     if not os.path.isfile(options.binary_override_path):
-      print "binary-override-path must be a file name"
+      logging.error("binary-override-path must be a file name")
       return 1
     if options.outdir_secondary:
-      print "specify either binary-override-path or outdir-secondary"
+      logging.error("specify either binary-override-path or outdir-secondary")
       return 1
     options.shell_dir = os.path.abspath(
         os.path.dirname(options.binary_override_path))
@@ -1136,7 +1138,7 @@ def Main(args):
         if (not runnable_name.startswith(options.filter) and
             runnable_name + "/" != options.filter):
           continue
-        print ">>> Running suite: %s" % runnable_name
+        logging.info(">>> Running suite: %s", runnable_name)
 
         def Runner():
           """Output generator that reruns several times."""
