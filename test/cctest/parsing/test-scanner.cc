@@ -21,7 +21,7 @@ const char src_simple[] = "function foo() { var x = 2 * a() + b; }";
 
 struct ScannerTestHelper {
   ScannerTestHelper() = default;
-  ScannerTestHelper(ScannerTestHelper&& other)
+  ScannerTestHelper(ScannerTestHelper&& other) V8_NOEXCEPT
       : unicode_cache(std::move(other.unicode_cache)),
         stream(std::move(other.stream)),
         scanner(std::move(other.scanner)) {}
