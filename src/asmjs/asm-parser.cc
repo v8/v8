@@ -69,9 +69,9 @@ namespace wasm {
 #define TOK(name) AsmJsScanner::kToken_##name
 
 AsmJsParser::AsmJsParser(Zone* zone, uintptr_t stack_limit,
-                         Utf16CharacterStream* stream)
+                         ScannerStream* stream, int start)
     : zone_(zone),
-      scanner_(stream),
+      scanner_(static_cast<CharacterStream<uint16_t>*>(stream), start),
       module_builder_(new (zone) WasmModuleBuilder(zone)),
       return_type_(nullptr),
       stack_limit_(stack_limit),

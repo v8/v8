@@ -234,13 +234,13 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
   Zone* compile_zone = compilation_info()->zone();
   Zone translate_zone(allocator_, ZONE_NAME);
 
-  Utf16CharacterStream* stream = parse_info()->character_stream();
+  ScannerStream* stream = parse_info()->character_stream();
   base::Optional<AllowHandleDereference> allow_deref;
   if (stream->can_access_heap()) {
     allow_deref.emplace();
   }
-  stream->Seek(compilation_info()->literal()->start_position());
-  wasm::AsmJsParser parser(&translate_zone, stack_limit(), stream);
+  wasm::AsmJsParser parser(&translate_zone, stack_limit(), stream,
+                           compilation_info()->literal()->start_position());
   if (!parser.Run()) {
     if (!FLAG_suppress_asm_messages) {
       ReportCompilationFailure(parse_info(), parser.failure_location(),

@@ -31,7 +31,7 @@ class RuntimeCallStats;
 class Logger;
 class SourceRangeMap;
 class UnicodeCache;
-class Utf16CharacterStream;
+class ScannerStream;
 class Zone;
 
 // A container for the inputs, configuration options, and outputs of parsing.
@@ -97,11 +97,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
                                       : NO_PARSE_RESTRICTION;
   }
 
-  Utf16CharacterStream* character_stream() const {
-    return character_stream_.get();
-  }
-  void set_character_stream(
-      std::unique_ptr<Utf16CharacterStream> character_stream);
+  ScannerStream* character_stream() const { return character_stream_.get(); }
+  void set_character_stream(std::unique_ptr<ScannerStream> character_stream);
   void ResetCharacterStream();
 
   v8::Extension* extension() const { return extension_; }
@@ -274,7 +271,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   MaybeHandle<ScopeInfo> maybe_outer_scope_info_;
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
-  std::unique_ptr<Utf16CharacterStream> character_stream_;
+  std::unique_ptr<ScannerStream> character_stream_;
   ConsumedPreParsedScopeData consumed_preparsed_scope_data_;
   std::shared_ptr<AstValueFactory> ast_value_factory_;
   const class AstStringConstants* ast_string_constants_;

@@ -966,7 +966,7 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* source,
     info->set_runtime_call_stats(nullptr);
   }
   info->set_toplevel();
-  std::unique_ptr<Utf16CharacterStream> stream(
+  std::unique_ptr<ScannerStream> stream(
       ScannerStream::For(source->source_stream.get(), source->encoding,
                          info->runtime_call_stats()));
   info->set_character_stream(std::move(stream));

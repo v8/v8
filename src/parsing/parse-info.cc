@@ -198,7 +198,7 @@ void ParseInfo::AllocateSourceRangeMap() {
 void ParseInfo::ResetCharacterStream() { character_stream_.reset(); }
 
 void ParseInfo::set_character_stream(
-    std::unique_ptr<Utf16CharacterStream> character_stream) {
+    std::unique_ptr<ScannerStream> character_stream) {
   DCHECK_NULL(character_stream_);
   character_stream_.swap(character_stream);
 }

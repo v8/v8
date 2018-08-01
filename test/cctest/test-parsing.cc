@@ -396,8 +396,7 @@ TEST(PreParseOverflow) {
   CHECK_EQ(i::PreParser::kPreParseStackOverflow, result);
 }
 
-
-void TestStreamScanner(i::Utf16CharacterStream* stream,
+void TestStreamScanner(i::CharacterStream<uint16_t>* stream,
                        i::Token::Value* expected_tokens,
                        int skip_pos = 0,  // Zero means not skipping.
                        int skip_to = 0) {
@@ -420,8 +419,7 @@ void TestStreamScanner(i::Utf16CharacterStream* stream,
 TEST(StreamScanner) {
   v8::V8::Initialize();
   const char* str1 = "{ foo get for : */ <- \n\n /*foo*/ bib";
-  std::unique_ptr<i::Utf16CharacterStream> stream1(
-      i::ScannerStream::ForTesting(str1));
+  auto stream1(i::ScannerStream::ForTesting(str1));
   i::Token::Value expectations1[] = {
       i::Token::LBRACE,
       i::Token::IDENTIFIER,
@@ -439,8 +437,7 @@ TEST(StreamScanner) {
   TestStreamScanner(stream1.get(), expectations1, 0, 0);
 
   const char* str2 = "case default const {THIS\nPART\nSKIPPED} do";
-  std::unique_ptr<i::Utf16CharacterStream> stream2(
-      i::ScannerStream::ForTesting(str2));
+  auto stream2(i::ScannerStream::ForTesting(str2));
   i::Token::Value expectations2[] = {
       i::Token::CASE,
       i::Token::DEFAULT,
@@ -470,8 +467,7 @@ TEST(StreamScanner) {
   for (int i = 0; i <= 4; i++) {
      expectations3[6 - i] = i::Token::ILLEGAL;
      expectations3[5 - i] = i::Token::EOS;
-     std::unique_ptr<i::Utf16CharacterStream> stream3(
-         i::ScannerStream::ForTesting(str3));
+     auto stream3(i::ScannerStream::ForTesting(str3));
      TestStreamScanner(stream3.get(), expectations3, 1, 1 + i);
   }
 }
@@ -1159,6 +1155,7 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyNumericSeparator));
 }
 
+template <typename Char>
 void TestParserSyncWithFlags(i::Handle<i::String> source,
                              i::EnumSet<ParserFlag> flags,
                              ParserSyncTestResult result,
@@ -1173,7 +1170,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   i::PendingCompilationErrorHandler pending_error_handler;
   if (test_preparser) {
     i::Scanner scanner(isolate->unicode_cache());
-    std::unique_ptr<i::Utf16CharacterStream> stream(
+    std::unique_ptr<i::ScannerStream> stream(
         i::ScannerStream::For(isolate, source));
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
@@ -1184,7 +1181,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
                            isolate->counters()->runtime_call_stats(),
                            isolate->logger(), -1, is_module);
     SetParserFlags(&preparser, flags);
-    scanner.Initialize(stream.get(), is_module);
+    scanner.Initialize(static_cast<CharacterStream<Char>*>(stream.get()),
+                       is_module);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   }
@@ -1294,8 +1292,15 @@ void TestParserSync(const char* source, const ParserFlag* varying_flags,
          ++flag_index) {
       flags.Remove(always_false_flags[flag_index]);
     }
-    TestParserSyncWithFlags(str, flags, result, is_module, test_preparser,
-                            ignore_error_msg);
+    if (str->IsSeqOneByteString()) {
+      // TODO(verwaest): Switch to uint8_t.
+      TestParserSyncWithFlags<uint16_t>(str, flags, result, is_module,
+                                        test_preparser, ignore_error_msg);
+    } else {
+      DCHECK(str->IsSeqTwoByteString());
+      TestParserSyncWithFlags<uint16_t>(str, flags, result, is_module,
+                                        test_preparser, ignore_error_msg);
+    }
   }
 }
 

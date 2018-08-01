@@ -27,7 +27,7 @@ struct ScannerTestHelper {
         scanner(std::move(other.scanner)) {}
 
   std::unique_ptr<UnicodeCache> unicode_cache;
-  std::unique_ptr<Utf16CharacterStream> stream;
+  std::unique_ptr<CharacterStream<uint16_t>> stream;
   std::unique_ptr<Scanner> scanner;
 
   Scanner* operator->() const { return scanner.get(); }

@@ -157,7 +157,7 @@ class ChunkedStream {
 // Chars are buffered if either the underlying stream isn't utf-16 or the
 // underlying utf-16 stream might move (is on-heap).
 template <typename Char, template <typename T> class ByteStream>
-class BufferedCharacterStream : public Utf16CharacterStream {
+class BufferedCharacterStream : public CharacterStream<uint16_t> {
  public:
   template <class... TArgs>
   BufferedCharacterStream(size_t pos, TArgs... args) : byte_stream_(args...) {
@@ -194,7 +194,7 @@ class BufferedCharacterStream : public Utf16CharacterStream {
 // Provides a unbuffered utf-16 view on the bytes from the underlying
 // ByteStream.
 template <template <typename T> class ByteStream>
-class UnbufferedCharacterStream : public Utf16CharacterStream {
+class UnbufferedCharacterStream : public CharacterStream<uint16_t> {
  public:
   template <class... TArgs>
   UnbufferedCharacterStream(size_t pos, TArgs... args) : byte_stream_(args...) {
@@ -268,7 +268,7 @@ class RelocatingCharacterStream
 // even positions before the current).
 //
 // TODO(verwaest): Remove together with Utf8 external streaming streams.
-class BufferedUtf16CharacterStream : public Utf16CharacterStream {
+class BufferedUtf16CharacterStream : public CharacterStream<uint16_t> {
  public:
   BufferedUtf16CharacterStream();
 
@@ -287,7 +287,7 @@ class BufferedUtf16CharacterStream : public Utf16CharacterStream {
 };
 
 BufferedUtf16CharacterStream::BufferedUtf16CharacterStream()
-    : Utf16CharacterStream(buffer_, buffer_, buffer_, 0) {}
+    : CharacterStream(buffer_, buffer_, buffer_, 0) {}
 
 bool BufferedUtf16CharacterStream::ReadBlock() {
   DCHECK_EQ(buffer_start_, buffer_);
@@ -585,13 +585,12 @@ size_t Utf8ExternalStreamingStream::FillBuffer(size_t position) {
 // ----------------------------------------------------------------------------
 // ScannerStream: Create stream instances.
 
-Utf16CharacterStream* ScannerStream::For(Isolate* isolate,
-                                         Handle<String> data) {
+ScannerStream* ScannerStream::For(Isolate* isolate, Handle<String> data) {
   return ScannerStream::For(isolate, data, 0, data->length());
 }
 
-Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
-                                         int start_pos, int end_pos) {
+ScannerStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
+                                  int start_pos, int end_pos) {
   DCHECK_GE(start_pos, 0);
   DCHECK_LE(start_pos, end_pos);
   DCHECK_LE(end_pos, data->length());
@@ -629,20 +628,20 @@ Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
   }
 }
 
-std::unique_ptr<Utf16CharacterStream> ScannerStream::ForTesting(
+std::unique_ptr<CharacterStream<uint16_t>> ScannerStream::ForTesting(
     const char* data) {
   return ScannerStream::ForTesting(data, strlen(data));
 }
 
-std::unique_ptr<Utf16CharacterStream> ScannerStream::ForTesting(
+std::unique_ptr<CharacterStream<uint16_t>> ScannerStream::ForTesting(
     const char* data, size_t length) {
-  return std::unique_ptr<Utf16CharacterStream>(
+  return std::unique_ptr<CharacterStream<uint16_t>>(
       new BufferedCharacterStream<uint8_t, ExternalStringStream>(
           static_cast<size_t>(0), reinterpret_cast<const uint8_t*>(data),
           static_cast<size_t>(length)));
 }
 
-Utf16CharacterStream* ScannerStream::For(
+ScannerStream* ScannerStream::For(
     ScriptCompiler::ExternalSourceStream* source_stream,
     v8::ScriptCompiler::StreamedSource::Encoding encoding,
     RuntimeCallStats* stats) {

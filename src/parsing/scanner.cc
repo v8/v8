@@ -188,7 +188,7 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
       allow_harmony_bigint_(false),
       allow_harmony_numeric_separator_(false) {}
 
-void Scanner::Initialize(Utf16CharacterStream* source, bool is_module) {
+void Scanner::Initialize(CharacterStream<uint16_t>* source, bool is_module) {
   DCHECK_NOT_NULL(source);
   source_ = source;
   is_module_ = is_module;

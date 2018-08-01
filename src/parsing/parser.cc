@@ -507,7 +507,9 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   // Initialize parser state.
   DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info());
 
-  scanner_.Initialize(info->character_stream(), info->is_module());
+  auto stream =
+      static_cast<CharacterStream<uint16_t>*>(info->character_stream());
+  scanner_.Initialize(stream, info->is_module());
   FunctionLiteral* result = DoParseProgram(isolate, info);
   MaybeResetCharacterStream(info, result);
 
@@ -701,7 +703,9 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   // Initialize parser state.
   Handle<String> name(shared_info->Name(), isolate);
   info->set_function_name(ast_value_factory()->GetString(name));
-  scanner_.Initialize(info->character_stream(), info->is_module());
+  auto stream =
+      static_cast<CharacterStream<uint16_t>*>(info->character_stream());
+  scanner_.Initialize(stream, info->is_module());
 
   FunctionLiteral* result =
       DoParseFunction(isolate, info, info->function_name());
@@ -3435,7 +3439,9 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   DCHECK_NULL(info->literal());
   FunctionLiteral* result = nullptr;
 
-  scanner_.Initialize(info->character_stream(), info->is_module());
+  auto stream =
+      static_cast<CharacterStream<uint16_t>*>(info->character_stream());
+  scanner_.Initialize(stream, info->is_module());
   DCHECK(info->maybe_outer_scope_info().is_null());
 
   DCHECK(original_scope_);
