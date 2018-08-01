@@ -10,8 +10,8 @@
 #include "include/v8config.h"
 
 #include "src/base/bits.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
+#include "src/v8memory.h"
 #include "src/wasm/wasm-external-refs.h"
 
 namespace v8 {

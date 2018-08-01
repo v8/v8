@@ -7,7 +7,7 @@
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/wasm-translation.h"
-#include "src/utils.h"
+#include "src/v8memory.h"
 
 namespace v8_inspector {
 

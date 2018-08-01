@@ -5,6 +5,7 @@
 #include "src/wasm/memory-tracing.h"
 
 #include "src/utils.h"
+#include "src/v8memory.h"
 
 namespace v8 {
 namespace internal {
