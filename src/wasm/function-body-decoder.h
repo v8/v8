@@ -17,7 +17,6 @@ namespace v8 {
 namespace internal {
 
 class BitVector;  // forward declaration
-class Counters;
 
 namespace compiler {  // external declarations from compiler.
 class NodeOriginTable;
@@ -28,7 +27,6 @@ namespace wasm {
 
 typedef compiler::WasmGraphBuilder TFBuilder;
 struct WasmModule;  // forward declaration of module interface.
-enum ModuleOrigin : uint8_t;
 
 // A wrapper around the signature and bytes of a function.
 struct FunctionBody {
@@ -43,15 +41,8 @@ struct FunctionBody {
 };
 
 V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
-                                              const wasm::WasmModule* module,
+                                              const WasmModule* module,
                                               FunctionBody& body);
-
-// Note: If run in the background thread, must follow protocol using
-// isolate::async_counters() to guarantee usability of counters argument.
-DecodeResult VerifyWasmCodeWithStats(AccountingAllocator* allocator,
-                                     const wasm::WasmModule* module,
-                                     FunctionBody& body, ModuleOrigin origin,
-                                     Counters* counters);
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
                           FunctionBody& body,
@@ -59,11 +50,11 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
 enum PrintLocals { kPrintLocals, kOmitLocals };
 V8_EXPORT_PRIVATE
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                      const wasm::WasmModule* module, PrintLocals print_locals);
+                      const WasmModule* module, PrintLocals print_locals);
 
 V8_EXPORT_PRIVATE
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                      const wasm::WasmModule* module, PrintLocals print_locals,
+                      const WasmModule* module, PrintLocals print_locals,
                       std::ostream& out,
                       std::vector<int>* line_numbers = nullptr);
 

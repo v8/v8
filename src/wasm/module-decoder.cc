@@ -1046,8 +1046,16 @@ class ModuleDecoderImpl : public Decoder {
         function->sig, function->code.offset(),
         start_ + GetBufferRelativeOffset(function->code.offset()),
         start_ + GetBufferRelativeOffset(function->code.end_offset())};
-    DecodeResult result = VerifyWasmCodeWithStats(allocator, module, body,
-                                                  origin_, GetCounters());
+
+    DecodeResult result;
+    {
+      auto time_counter = SELECT_WASM_COUNTER(GetCounters(), origin_,
+                                              wasm_decode, function_time);
+
+      TimedHistogramScope wasm_decode_function_time_scope(time_counter);
+      result = VerifyWasmCode(allocator, module, body);
+    }
+
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream wrapped;

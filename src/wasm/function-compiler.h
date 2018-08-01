@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class Counters;
+
 namespace compiler {
 class TurbofanWasmCompilationUnit;
 }  // namespace compiler

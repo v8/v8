@@ -13,6 +13,9 @@
 
 namespace v8 {
 namespace internal {
+
+class Counters;
+
 namespace wasm {
 
 struct ModuleEnv;

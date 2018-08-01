@@ -686,9 +686,15 @@ void ValidateSequentially(Isolate* isolate, NativeModule* native_module,
     const byte* base = wire_bytes.start();
     FunctionBody body{func.sig, func.code.offset(), base + func.code.offset(),
                       base + func.code.end_offset()};
-    DecodeResult result = VerifyWasmCodeWithStats(
-        isolate->allocator(), module, body, module->origin,
-        isolate->async_counters().get());
+    DecodeResult result;
+    {
+      auto time_counter =
+          SELECT_WASM_COUNTER(isolate->async_counters(), module->origin,
+                              wasm_decode, function_time);
+
+      TimedHistogramScope wasm_decode_function_time_scope(time_counter);
+      result = VerifyWasmCode(isolate->allocator(), module, body);
+    }
     if (result.failed()) {
       TruncatedUserString<> name(wire_bytes.GetName(&func, module));
       thrower->CompileError("Compiling function #%d:%.*s failed: %s @+%u", i,
