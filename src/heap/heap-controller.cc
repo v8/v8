@@ -52,48 +52,49 @@ const double HeapController::kTargetMutatorUtilization = 0.97;
 //   F * (1 - MU / (R * (1 - MU))) = 1
 //   F * (R * (1 - MU) - MU) / (R * (1 - MU)) = 1
 //   F = R * (1 - MU) / (R * (1 - MU) - MU)
-double HeapController::HeapGrowingFactor(double gc_speed, double mutator_speed,
-                                         double max_factor) {
-  DCHECK_LE(kMinHeapGrowingFactor, max_factor);
-  DCHECK_GE(kMaxHeapGrowingFactor, max_factor);
+double MemoryController::GrowingFactor(double min_growing_factor,
+                                       double max_growing_factor,
+                                       double target_mutator_utilization,
+                                       double gc_speed, double mutator_speed,
+                                       double max_factor) {
+  DCHECK_LE(min_growing_factor, max_factor);
+  DCHECK_GE(max_growing_factor, max_factor);
   if (gc_speed == 0 || mutator_speed == 0) return max_factor;
 
   const double speed_ratio = gc_speed / mutator_speed;
-  const double mu = kTargetMutatorUtilization;
 
-  const double a = speed_ratio * (1 - mu);
-  const double b = speed_ratio * (1 - mu) - mu;
+  const double a = speed_ratio * (1 - target_mutator_utilization);
+  const double b = speed_ratio * (1 - target_mutator_utilization) -
+                   target_mutator_utilization;
 
   // The factor is a / b, but we need to check for small b first.
   double factor = (a < b * max_factor) ? a / b : max_factor;
   factor = Min(factor, max_factor);
-  factor = Max(factor, kMinHeapGrowingFactor);
+  factor = Max(factor, min_growing_factor);
   return factor;
 }
-
-double HeapController::MaxHeapGrowingFactor(size_t max_old_generation_size) {
+double MemoryController::MaxGrowingFactor(size_t curr_max_size, size_t min_size,
+                                          size_t max_size) {
   const double min_small_factor = 1.3;
   const double max_small_factor = 2.0;
   const double high_factor = 4.0;
 
-  size_t max_old_generation_size_in_mb = max_old_generation_size / MB;
-  max_old_generation_size_in_mb =
-      Max(max_old_generation_size_in_mb,
-          static_cast<size_t>(kMinOldGenerationSize));
+  size_t max_size_in_mb = curr_max_size / MB;
+  max_size_in_mb = Max(max_size_in_mb, static_cast<size_t>(min_size));
 
   // If we are on a device with lots of memory, we allow a high heap
   // growing factor.
-  if (max_old_generation_size_in_mb >= kMaxOldGenerationSize) {
+  if (max_size_in_mb >= max_size) {
     return high_factor;
   }
 
-  DCHECK_GE(max_old_generation_size_in_mb, kMinOldGenerationSize);
-  DCHECK_LT(max_old_generation_size_in_mb, kMaxOldGenerationSize);
+  DCHECK_GE(max_size_in_mb, min_size);
+  DCHECK_LT(max_size_in_mb, max_size);
 
   // On smaller devices we linearly scale the factor: (X-A)/(B-A)*(D-C)+C
-  double factor = (max_old_generation_size_in_mb - kMinOldGenerationSize) *
+  double factor = (max_size_in_mb - min_size) *
                       (max_small_factor - min_small_factor) /
-                      (kMaxOldGenerationSize - kMinOldGenerationSize) +
+                      (max_size - min_size) +
                   min_small_factor;
   return factor;
 }
@@ -102,8 +103,11 @@ size_t HeapController::CalculateOldGenerationAllocationLimit(
     size_t old_gen_size, size_t max_old_generation_size, double gc_speed,
     double mutator_speed, size_t new_space_capacity,
     Heap::HeapGrowingMode growing_mode) {
-  double max_factor = MaxHeapGrowingFactor(max_old_generation_size);
-  double factor = HeapGrowingFactor(gc_speed, mutator_speed, max_factor);
+  double max_factor = MaxGrowingFactor(
+      max_old_generation_size, kMinOldGenerationSize, kMaxOldGenerationSize);
+  double factor = GrowingFactor(kMinHeapGrowingFactor, kMaxHeapGrowingFactor,
+                                kTargetMutatorUtilization, gc_speed,
+                                mutator_speed, max_factor);
 
   if (FLAG_trace_gc_verbose) {
     heap_->isolate()->PrintWithTimestamp(

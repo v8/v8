@@ -13,7 +13,22 @@
 namespace v8 {
 namespace internal {
 
-class HeapController {
+class MemoryController {
+ protected:
+  V8_EXPORT_PRIVATE static double GrowingFactor(
+      double min_growing_factor, double max_growing_factor,
+      double target_mutator_utilization, double gc_speed, double mutator_speed,
+      double max_factor);
+  V8_EXPORT_PRIVATE static double MaxGrowingFactor(size_t curr_max_size,
+                                                   size_t min_size,
+                                                   size_t max_size);
+
+  FRIEND_TEST(HeapController, HeapGrowingFactor);
+  FRIEND_TEST(HeapController, MaxHeapGrowingFactor);
+  FRIEND_TEST(HeapControllerTest, OldGenerationAllocationLimit);
+};
+
+class HeapController : public MemoryController {
  public:
   explicit HeapController(Heap* heap) : heap_(heap) {}
 
@@ -38,13 +53,7 @@ class HeapController {
   V8_EXPORT_PRIVATE static const double kMinHeapGrowingFactor;
   V8_EXPORT_PRIVATE static const double kMaxHeapGrowingFactor;
   V8_EXPORT_PRIVATE static const double kConservativeHeapGrowingFactor;
-  V8_EXPORT_PRIVATE static double MaxHeapGrowingFactor(
-      size_t max_old_generation_size);
-  V8_EXPORT_PRIVATE static double HeapGrowingFactor(double gc_speed,
-                                                    double mutator_speed,
-                                                    double max_factor);
-
-  static const double kTargetMutatorUtilization;
+  V8_EXPORT_PRIVATE static const double kTargetMutatorUtilization;
 
   Heap* heap_;
 };
