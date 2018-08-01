@@ -116,8 +116,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Remove {job} from the list of active compile jobs.
   std::unique_ptr<AsyncCompileJob> RemoveCompileJob(AsyncCompileJob* job);
 
-  // Returns true if at lease one AsyncCompileJob is currently running.
-  bool HasRunningCompileJob() const { return !jobs_.empty(); }
+  // Returns true if at least one AsyncCompileJob that belongs to the given
+  // Isolate is currently running.
+  bool HasRunningCompileJob(Isolate* isolate);
 
   // Cancel all AsyncCompileJobs that belong to the given Isolate. Their
   // deletion is delayed until all tasks accessing the AsyncCompileJob finish

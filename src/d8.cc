@@ -3041,9 +3041,9 @@ void Shell::CompleteMessageLoop(Isolate* isolate) {
     DCHECK_GT(isolate_status_.count(isolate), 0);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     i::wasm::WasmEngine* wasm_engine = i_isolate->wasm_engine();
-    bool should_wait =
-        (options.wait_for_wasm && wasm_engine->HasRunningCompileJob()) ||
-        isolate_status_[isolate];
+    bool should_wait = (options.wait_for_wasm &&
+                        wasm_engine->HasRunningCompileJob(i_isolate)) ||
+                       isolate_status_[isolate];
     return should_wait ? platform::MessageLoopBehavior::kWaitForWork
                        : platform::MessageLoopBehavior::kDoNotWait;
   };

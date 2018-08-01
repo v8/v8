@@ -230,6 +230,14 @@ std::unique_ptr<AsyncCompileJob> WasmEngine::RemoveCompileJob(
   return result;
 }
 
+bool WasmEngine::HasRunningCompileJob(Isolate* isolate) {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+  for (auto& entry : jobs_) {
+    if (entry.first->isolate() == isolate) return true;
+  }
+  return false;
+}
+
 void WasmEngine::AbortCompileJobsOnIsolate(Isolate* isolate) {
   // Iterate over a copy of {jobs_}, because {job->Abort} modifies {jobs_}.
   std::vector<AsyncCompileJob*> isolate_jobs;
