@@ -966,11 +966,11 @@ MapRef NativeContextRef::strict_arguments_map() const {
                                  broker()->isolate()));
 }
 
-MapRef NativeContextRef::js_array_fast_elements_map_index() const {
+MapRef NativeContextRef::js_array_fast_elements_map() const {
   AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
   return MapRef(broker(),
-                handle(object<Context>()->js_array_fast_elements_map_index(),
+                handle(object<Context>()->js_array_fast_elements_map(),
                        broker()->isolate()));
 }
 

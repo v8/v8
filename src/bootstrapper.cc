@@ -4376,7 +4376,7 @@ void Genesis::InitializeGlobal_harmony_string_matchall() {
         JS_REGEXP_STRING_ITERATOR_TYPE, JSRegExpStringIterator::kSize, 0,
         regexp_string_iterator_prototype, Builtins::kIllegal);
     regexp_string_iterator_function->shared()->set_native(false);
-    native_context()->set_initial_regexp_string_iterator_prototype_map_index(
+    native_context()->set_initial_regexp_string_iterator_prototype_map(
         regexp_string_iterator_function->initial_map());
   }
 
