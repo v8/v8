@@ -87,7 +87,6 @@ class CompilationState {
   void ScheduleUnitForFinishing(std::unique_ptr<WasmCompilationUnit> unit,
                                 WasmCompilationUnit::CompilationMode mode);
 
-  void CancelAndWait();
   void OnBackgroundTaskStopped();
   void RestartBackgroundTasks(size_t max = std::numeric_limits<size_t>::max());
   // Only one foreground thread (finisher) is allowed to run at a time.
@@ -154,8 +153,6 @@ class CompilationState {
   // the given {ErrorThrower} can be done at most once.
   std::vector<std::function<void(CompilationEvent, ErrorThrower*)>> callbacks_;
 
-  // When canceling the background_task_manager_, use {CancelAndWait} on
-  // the CompilationState in order to cleanly clean up.
   CancelableTaskManager background_task_manager_;
   CancelableTaskManager foreground_task_manager_;
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
@@ -2734,7 +2731,7 @@ CompilationState::CompilationState(internal::Isolate* isolate,
 }
 
 CompilationState::~CompilationState() {
-  CancelAndWait();
+  background_task_manager_.CancelAndWait();
   foreground_task_manager_.CancelAndWait();
   NotifyOnEvent(CompilationEvent::kDestroyed, nullptr);
 }
@@ -2823,7 +2820,7 @@ void CompilationState::OnFinishedUnit() {
   --outstanding_units_;
 
   if (outstanding_units_ == 0) {
-    CancelAndWait();
+    background_task_manager_.CancelAndWait();
     baseline_compilation_finished_ = true;
 
     DCHECK(compile_mode_ == CompileMode::kRegular ||
@@ -2865,10 +2862,6 @@ void CompilationState::ScheduleUnitForFinishing(
     // We set the flag here so that not more than one finisher is started.
     finisher_is_running_ = true;
   }
-}
-
-void CompilationState::CancelAndWait() {
-  background_task_manager_.CancelAndWait();
 }
 
 void CompilationState::OnBackgroundTaskStopped() {
@@ -2924,7 +2917,7 @@ void CompilationState::Abort() {
     base::LockGuard<base::Mutex> guard(&mutex_);
     failed_ = true;
   }
-  CancelAndWait();
+  background_task_manager_.CancelAndWait();
 }
 
 void CompilationState::NotifyOnEvent(CompilationEvent event,
