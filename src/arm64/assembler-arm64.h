@@ -848,7 +848,6 @@ class ConstPool {
   void Clear();
 
  private:
-  bool CanBeShared(RelocInfo::Mode mode);
   void EmitMarker();
   void EmitGuard();
   void EmitEntries();

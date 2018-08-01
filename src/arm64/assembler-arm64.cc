@@ -347,7 +347,7 @@ bool ConstPool::RecordEntry(intptr_t data, RelocInfo::Mode mode) {
     first_use_ = offset;
   }
 
-  if (CanBeShared(mode)) {
+  if (RelocInfo::IsShareableRelocMode(mode)) {
     write_reloc_info = AddSharedEntry(shared_entries_, raw_data, offset);
   } else if (mode == RelocInfo::CODE_TARGET && raw_data != 0) {
     // A zero data value is a placeholder and must not be shared.
@@ -473,11 +473,6 @@ void ConstPool::Clear() {
   handle_to_index_map_.clear();
   entries_.clear();
   first_use_ = -1;
-}
-
-
-bool ConstPool::CanBeShared(RelocInfo::Mode mode) {
-  return RelocInfo::IsNone(mode) || RelocInfo::IsShareableRelocMode(mode);
 }
 
 
