@@ -41,7 +41,6 @@ AUTO_EXCLUDE = [
   'src/parsing/preparser.h',
   'src/regexp/jsregexp.h',
   'src/snapshot/object-deserializer.h',
-  'src/third_party/utf8-decoder/utf8-decoder.h',
   'src/transitions.h',
 ]
 AUTO_EXCLUDE_PATTERNS = [
