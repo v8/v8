@@ -2203,9 +2203,6 @@ void AsyncCompileJob::AsyncCompileSucceeded(Handle<WasmModuleObject> result) {
 // task) and schedule the next step(s), if any.
 class AsyncCompileJob::CompileStep {
  public:
-  explicit CompileStep(int num_background_tasks = 0)
-      : num_background_tasks_(num_background_tasks) {}
-
   virtual ~CompileStep() {}
 
   void Run(bool on_foreground) {
@@ -2224,10 +2221,7 @@ class AsyncCompileJob::CompileStep {
   virtual void RunInForeground() { UNREACHABLE(); }
   virtual void RunInBackground() { UNREACHABLE(); }
 
-  int NumberOfBackgroundTasks() { return num_background_tasks_; }
-
   AsyncCompileJob* job_ = nullptr;
-  const int num_background_tasks_;
 };
 
 class AsyncCompileJob::CompileTask : public CancelableTask {
@@ -2300,10 +2294,7 @@ void AsyncCompileJob::StartBackgroundTask() {
 template <typename Step, typename... Args>
 void AsyncCompileJob::DoAsync(Args&&... args) {
   NextStep<Step>(std::forward<Args>(args)...);
-  int end = step_->NumberOfBackgroundTasks();
-  for (int i = 0; i < end; ++i) {
-    StartBackgroundTask();
-  }
+  StartBackgroundTask();
 }
 
 template <typename Step, typename... Args>
@@ -2317,8 +2308,6 @@ void AsyncCompileJob::NextStep(Args&&... args) {
 //==========================================================================
 class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
  public:
-  DecodeModule() : CompileStep(1) {}
-
   void RunInBackground() override {
     ModuleResult result;
     {
