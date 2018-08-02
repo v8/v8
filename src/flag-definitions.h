@@ -614,7 +614,7 @@ DEFINE_BOOL(wasm_no_bounds_checks, false,
 DEFINE_BOOL(wasm_no_stack_checks, false,
             "disable stack checks (performance testing only)")
 
-DEFINE_BOOL(wasm_shared_engine, true,
+DEFINE_BOOL(wasm_shared_engine, false,
             "shares one wasm engine between all isolates within a process")
 DEFINE_IMPLICATION(future, wasm_shared_engine)
 DEFINE_BOOL(wasm_shared_code, false,
