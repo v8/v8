@@ -34,7 +34,6 @@ AUTO_EXCLUDE = [
   'src/builtins/builtins-constructor.h',
   'src/builtins/builtins-utils.h',
   'src/compiler/allocation-builder.h',
-  'src/compiler/graph-visualizer.h',
   'src/compiler/js-context-specialization.h',
   'src/compiler/raw-machine-assembler.h',
   'src/dateparser-inl.h',
