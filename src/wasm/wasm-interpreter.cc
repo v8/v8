@@ -1419,7 +1419,7 @@ class ThreadImpl {
     len = 1 + imm.length;
 
     if (FLAG_wasm_trace_memory) {
-      wasm::MemoryTracingInfo info(imm.offset + index, false, rep);
+      MemoryTracingInfo info(imm.offset + index, false, rep);
       TraceMemoryOperation(ExecutionEngine::kInterpreter, &info,
                            code->function->func_index, static_cast<int>(pc),
                            instance_object_->memory_start());
@@ -1445,7 +1445,7 @@ class ThreadImpl {
     len = 1 + imm.length;
 
     if (FLAG_wasm_trace_memory) {
-      wasm::MemoryTracingInfo info(imm.offset + index, true, rep);
+      MemoryTracingInfo info(imm.offset + index, true, rep);
       TraceMemoryOperation(ExecutionEngine::kInterpreter, &info,
                            code->function->func_index, static_cast<int>(pc),
                            instance_object_->memory_start());
@@ -2122,9 +2122,9 @@ class ThreadImpl {
 #ifdef DEBUG
       // Compute the stack effect of this opcode, and verify later that the
       // stack was modified accordingly.
-      std::pair<uint32_t, uint32_t> stack_effect = wasm::StackEffect(
-          codemap_->module(), frames_.back().code->function->sig,
-          code->orig_start + pc, code->orig_end);
+      std::pair<uint32_t, uint32_t> stack_effect =
+          StackEffect(codemap_->module(), frames_.back().code->function->sig,
+                      code->orig_start + pc, code->orig_end);
       sp_t expected_new_stack_height =
           StackHeight() - stack_effect.first + stack_effect.second;
 #endif
@@ -2687,8 +2687,8 @@ class ThreadImpl {
 
   ExternalCallResult CallExternalWasmFunction(
       Isolate* isolate, Handle<WasmInstanceObject> instance,
-      const wasm::WasmCode* code, FunctionSig* sig) {
-    if (code->kind() == wasm::WasmCode::kWasmToJsWrapper &&
+      const WasmCode* code, FunctionSig* sig) {
+    if (code->kind() == WasmCode::kWasmToJsWrapper &&
         !IsJSCompatibleSignature(sig)) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kWasmTrapTypeError));
@@ -2881,7 +2881,7 @@ class ThreadImpl {
     HandleScope scope(isolate);
     FunctionSig* signature = module()->signatures[sig_index];
 
-    if (code->kind() == wasm::WasmCode::kFunction) {
+    if (code->kind() == WasmCode::kFunction) {
       if (!instance_object_.is_identical_to(instance)) {
         // Cross instance call.
         return CallExternalWasmFunction(isolate, instance, code, signature);
@@ -2890,8 +2890,8 @@ class ThreadImpl {
     }
 
     // Call to external function.
-    if (code->kind() == wasm::WasmCode::kInterpreterEntry ||
-        code->kind() == wasm::WasmCode::kWasmToJsWrapper) {
+    if (code->kind() == WasmCode::kInterpreterEntry ||
+        code->kind() == WasmCode::kWasmToJsWrapper) {
       return CallExternalWasmFunction(isolate, instance, code, signature);
     }
     return {ExternalCallResult::INVALID_FUNC};

@@ -167,13 +167,14 @@ namespace {
 
 class JSToWasmWrapperCache {
  public:
-  Handle<Code> GetOrCompileJSToWasmWrapper(
-      Isolate* isolate, const wasm::NativeModule* native_module,
-      uint32_t func_index, wasm::UseTrapHandler use_trap_handler) {
-    const wasm::WasmModule* module = native_module->module();
-    const wasm::WasmFunction* func = &module->functions[func_index];
+  Handle<Code> GetOrCompileJSToWasmWrapper(Isolate* isolate,
+                                           const NativeModule* native_module,
+                                           uint32_t func_index,
+                                           UseTrapHandler use_trap_handler) {
+    const WasmModule* module = native_module->module();
+    const WasmFunction* func = &module->functions[func_index];
     bool is_import = func_index < module->num_imported_functions;
-    std::pair<bool, wasm::FunctionSig> key(is_import, *func->sig);
+    std::pair<bool, FunctionSig> key(is_import, *func->sig);
     Handle<Code>& cached = cache_[key];
     if (!cached.is_null()) return cached;
 
@@ -188,7 +189,7 @@ class JSToWasmWrapperCache {
  private:
   // We generate different code for calling imports than calling wasm functions
   // in this module. Both are cached separately.
-  using CacheKey = std::pair<bool, wasm::FunctionSig>;
+  using CacheKey = std::pair<bool, FunctionSig>;
   std::unordered_map<CacheKey, Handle<Code>, base::hash<CacheKey>> cache_;
 };
 
@@ -234,7 +235,7 @@ class InstanceBuilder {
   JSToWasmWrapperCache js_to_wasm_cache_;
   std::vector<SanitizedImport> sanitized_imports_;
 
-  wasm::UseTrapHandler use_trap_handler() const {
+  UseTrapHandler use_trap_handler() const {
     return module_object_->native_module()->use_trap_handler() ? kUseTrapHandler
                                                                : kNoTrapHandler;
   }
@@ -325,9 +326,8 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
   return {};
 }
 
-wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
-                                    NativeModule* native_module,
-                                    int func_index) {
+WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
+                              int func_index) {
   base::ElapsedTimer compilation_timer;
   DCHECK(!native_module->has_code(static_cast<uint32_t>(func_index)));
 
@@ -358,9 +358,9 @@ wasm::WasmCode* LazyCompileFunction(Isolate* isolate,
   WasmCompilationUnit unit(isolate->wasm_engine(), module_env, native_module,
                            body, func_name, func_index, isolate->counters());
   unit.ExecuteCompilation();
-  wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
+  WasmCode* wasm_code = unit.FinishCompilation(&thrower);
 
-  if (wasm::WasmCode::ShouldBeLogged(isolate)) wasm_code->LogCode(isolate);
+  if (WasmCode::ShouldBeLogged(isolate)) wasm_code->LogCode(isolate);
 
   // If there is a pending error, something really went wrong. The module was
   // verified before starting execution with lazy compilation.
@@ -392,8 +392,7 @@ Address CompileLazy(Isolate* isolate, NativeModule* native_module,
 
   NativeModuleModificationScope native_module_modification_scope(native_module);
 
-  wasm::WasmCode* result =
-      LazyCompileFunction(isolate, native_module, func_index);
+  WasmCode* result = LazyCompileFunction(isolate, native_module, func_index);
   DCHECK_NOT_NULL(result);
   DCHECK_EQ(func_index, result->index());
 
@@ -485,8 +484,7 @@ class CompilationUnitBuilder {
     return base::make_unique<WasmCompilationUnit>(
         compilation_state_->wasm_engine(), compilation_state_->module_env(),
         native_module_,
-        wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
-                           bytes.end()},
+        FunctionBody{function->sig, buffer_offset, bytes.begin(), bytes.end()},
         name, function->func_index,
         compilation_state_->isolate()->async_counters().get(), mode);
   }
@@ -547,7 +545,7 @@ void FinishCompilationUnits(CompilationState* compilation_state,
     std::unique_ptr<WasmCompilationUnit> unit =
         compilation_state->GetNextExecutedUnit();
     if (unit == nullptr) break;
-    wasm::WasmCode* result = unit->FinishCompilation(thrower);
+    WasmCode* result = unit->FinishCompilation(thrower);
 
     if (thrower->error()) {
       compilation_state->Abort();
@@ -658,7 +656,7 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
     if (func.imported) continue;  // Imports are compiled at instantiation time.
 
     // Compile the function.
-    wasm::WasmCode* code = WasmCompilationUnit::CompileWasmFunction(
+    WasmCode* code = WasmCompilationUnit::CompileWasmFunction(
         native_module, thrower, isolate, module_env, &func);
     if (code == nullptr) {
       TruncatedUserString<> name(wire_bytes.GetName(&func, module));
@@ -779,7 +777,7 @@ class FinishCompileTask : public CancelableTask {
       }
 
       ErrorThrower thrower(compilation_state_->isolate(), "AsyncCompile");
-      wasm::WasmCode* result = unit->FinishCompilation(&thrower);
+      WasmCode* result = unit->FinishCompilation(&thrower);
 
       if (thrower.error()) {
         DCHECK_NULL(result);
@@ -796,7 +794,7 @@ class FinishCompileTask : public CancelableTask {
         DCHECK_EQ(CompileMode::kTiering, compilation_state_->compile_mode());
         DCHECK(!result->is_liftoff());
 
-        if (wasm::WasmCode::ShouldBeLogged(isolate)) result->LogCode(isolate);
+        if (WasmCode::ShouldBeLogged(isolate)) result->LogCode(isolate);
       }
 
       // Update the compilation state, and possibly notify
@@ -1011,11 +1009,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Create the WebAssembly.Instance object.
   //--------------------------------------------------------------------------
-  wasm::NativeModule* native_module = module_object_->native_module();
+  NativeModule* native_module = module_object_->native_module();
   TRACE("New module instantiation for %p\n", native_module);
   Handle<WasmInstanceObject> instance =
       WasmInstanceObject::New(isolate_, module_object_);
-  wasm::NativeModuleModificationScope native_modification_scope(native_module);
+  NativeModuleModificationScope native_modification_scope(native_module);
 
   //--------------------------------------------------------------------------
   // Set up the globals for the new instance.
@@ -1491,7 +1489,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
           RecordStats(*wrapper_code, isolate_->counters());
 
           WasmCode* wasm_code = native_module->AddCodeCopy(
-              wrapper_code, wasm::WasmCode::kWasmToJsWrapper, func_index);
+              wrapper_code, WasmCode::kWasmToJsWrapper, func_index);
           ImportedFunctionEntry entry(instance, func_index);
           entry.set_wasm_to_js(*js_receiver, wasm_code);
         }
@@ -2933,7 +2931,7 @@ void CompileJsToWasmWrappers(Isolate* isolate,
   int wrapper_index = 0;
   Handle<FixedArray> export_wrappers(module_object->export_wrappers(), isolate);
   NativeModule* native_module = module_object->native_module();
-  wasm::UseTrapHandler use_trap_handler =
+  UseTrapHandler use_trap_handler =
       native_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
   const WasmModule* module = native_module->module();
   for (auto exp : module->export_table) {

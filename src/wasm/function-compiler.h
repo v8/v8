@@ -67,12 +67,11 @@ struct ModuleEnv {
       : module(module),
         use_trap_handler(use_trap_handler),
         runtime_exception_support(runtime_exception_support),
-        min_memory_size(
-            module ? module->initial_pages * uint64_t{wasm::kWasmPageSize} : 0),
-        max_memory_size(
-            module && module->has_maximum_pages
-                ? (module->maximum_pages * uint64_t{wasm::kWasmPageSize})
-                : wasm::kSpecMaxWasmMemoryBytes),
+        min_memory_size(module ? module->initial_pages * uint64_t{kWasmPageSize}
+                               : 0),
+        max_memory_size(module && module->has_maximum_pages
+                            ? (module->maximum_pages * uint64_t{kWasmPageSize})
+                            : kSpecMaxWasmMemoryBytes),
         lower_simd(lower_simd) {}
 };
 
@@ -86,21 +85,21 @@ class WasmCompilationUnit final {
   // typically means to hold a std::shared_ptr<Counters>).
   // If used exclusively from a foreground thread, Isolate::counters() may be
   // used by callers to pass Counters.
-  WasmCompilationUnit(WasmEngine* wasm_engine, ModuleEnv*, wasm::NativeModule*,
-                      wasm::FunctionBody, wasm::WasmName, int index, Counters*,
+  WasmCompilationUnit(WasmEngine* wasm_engine, ModuleEnv*, NativeModule*,
+                      FunctionBody, WasmName, int index, Counters*,
                       CompilationMode = GetDefaultCompilationMode());
 
   ~WasmCompilationUnit();
 
   void ExecuteCompilation();
-  wasm::WasmCode* FinishCompilation(wasm::ErrorThrower* thrower);
+  WasmCode* FinishCompilation(ErrorThrower* thrower);
 
-  static wasm::WasmCode* CompileWasmFunction(
-      wasm::NativeModule* native_module, wasm::ErrorThrower* thrower,
-      Isolate* isolate, ModuleEnv* env, const wasm::WasmFunction* function,
+  static WasmCode* CompileWasmFunction(
+      NativeModule* native_module, ErrorThrower* thrower, Isolate* isolate,
+      ModuleEnv* env, const WasmFunction* function,
       CompilationMode = GetDefaultCompilationMode());
 
-  wasm::NativeModule* native_module() const { return native_module_; }
+  NativeModule* native_module() const { return native_module_; }
   CompilationMode mode() const { return mode_; }
 
  private:
@@ -109,11 +108,11 @@ class WasmCompilationUnit final {
 
   ModuleEnv* env_;
   WasmEngine* wasm_engine_;
-  wasm::FunctionBody func_body_;
-  wasm::WasmName func_name_;
+  FunctionBody func_body_;
+  WasmName func_name_;
   Counters* counters_;
   int func_index_;
-  wasm::NativeModule* native_module_;
+  NativeModule* native_module_;
   CompilationMode mode_;
   // LiftoffCompilationUnit, set if {mode_ == kLiftoff}.
   std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;

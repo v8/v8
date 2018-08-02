@@ -451,8 +451,8 @@ class ModuleDecoderImpl : public Decoder {
       });
       WasmImport* import = &module_->import_table.back();
       const byte* pos = pc_;
-      import->module_name = consume_string(true, "module name");
-      import->field_name = consume_string(true, "field name");
+      import->module_name = consume_string(*this, true, "module name");
+      import->field_name = consume_string(*this, true, "field name");
       import->kind =
           static_cast<ImportExportKindCode>(consume_u8("import kind"));
       switch (import->kind) {
@@ -615,7 +615,7 @@ class ModuleDecoderImpl : public Decoder {
       });
       WasmExport* exp = &module_->export_table.back();
 
-      exp->name = consume_string(true, "field name");
+      exp->name = consume_string(*this, true, "field name");
 
       const byte* pos = pc();
       exp->kind = static_cast<ImportExportKindCode>(consume_u8("export kind"));
@@ -816,7 +816,7 @@ class ModuleDecoderImpl : public Decoder {
       // Decode module name, ignore the rest.
       // Function and local names will be decoded when needed.
       if (name_type == NameSectionKindCode::kModule) {
-        WireBytesRef name = wasm::consume_string(inner, false, "module name");
+        WireBytesRef name = consume_string(inner, false, "module name");
         if (inner.ok() && validate_utf8(&inner, name)) module_->name = name;
       } else {
         inner.consume_bytes(name_payload_len, "name subsection payload");
@@ -1067,10 +1067,6 @@ class ModuleDecoderImpl : public Decoder {
         intermediate_result_.MoveErrorFrom(result);
       }
     }
-  }
-
-  WireBytesRef consume_string(bool validate_utf8, const char* name) {
-    return wasm::consume_string(*this, validate_utf8, name);
   }
 
   uint32_t consume_sig_index(WasmModule* module, FunctionSig** sig) {
@@ -1464,7 +1460,7 @@ ModuleResult ModuleDecoder::FinishDecoding(bool verify_functions) {
 
 SectionCode ModuleDecoder::IdentifyUnknownSection(Decoder& decoder,
                                                   const byte* end) {
-  WireBytesRef string = wasm::consume_string(decoder, true, "section name");
+  WireBytesRef string = consume_string(decoder, true, "section name");
   if (decoder.failed() || decoder.pc() > end) {
     return kUnknownSectionCode;
   }
@@ -1645,7 +1641,7 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
 
     for (; decoder.ok() && functions_count > 0; --functions_count) {
       uint32_t function_index = decoder.consume_u32v("function index");
-      WireBytesRef name = wasm::consume_string(decoder, false, "function name");
+      WireBytesRef name = consume_string(decoder, false, "function name");
 
       // Be lenient with errors in the name section: Ignore non-UTF8 names. You
       // can even assign to the same function multiple times (last valid one
@@ -1688,7 +1684,7 @@ void DecodeLocalNames(const byte* module_start, const byte* module_end,
       uint32_t num_names = decoder.consume_u32v("namings count");
       for (uint32_t k = 0; k < num_names; ++k) {
         uint32_t local_index = decoder.consume_u32v("local index");
-        WireBytesRef name = wasm::consume_string(decoder, true, "local name");
+        WireBytesRef name = consume_string(decoder, true, "local name");
         if (!decoder.ok()) break;
         if (local_index > kMaxInt) continue;
         func_names.max_local_index =

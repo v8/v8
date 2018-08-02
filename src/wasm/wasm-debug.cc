@@ -72,8 +72,7 @@ MaybeHandle<String> GetLocalName(Isolate* isolate,
   if (!debug_info->has_locals_names()) {
     Handle<WasmModuleObject> module_object(
         debug_info->wasm_instance()->module_object(), isolate);
-    Handle<FixedArray> locals_names =
-        wasm::DecodeLocalNames(isolate, module_object);
+    Handle<FixedArray> locals_names = DecodeLocalNames(isolate, module_object);
     debug_info->set_locals_names(*locals_names);
   }
 
@@ -290,7 +289,7 @@ class InterpreterHandle {
     Handle<WasmInstanceObject> instance_obj(frame->wasm_instance(), isolate_);
     // Check that this is indeed the instance which is connected to this
     // interpreter.
-    DCHECK_EQ(this, Managed<wasm::InterpreterHandle>::cast(
+    DCHECK_EQ(this, Managed<InterpreterHandle>::cast(
                         instance_obj->debug_info()->interpreter_handle())
                         ->raw());
     return instance_obj;
@@ -406,7 +405,7 @@ class InterpreterHandle {
     return interpreter()->GetThread(0)->NumInterpretedCalls();
   }
 
-  Handle<JSObject> GetGlobalScopeObject(wasm::InterpretedFrame* frame,
+  Handle<JSObject> GetGlobalScopeObject(InterpretedFrame* frame,
                                         Handle<WasmDebugInfo> debug_info) {
     Isolate* isolate = isolate_;
     Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
@@ -430,7 +429,7 @@ class InterpreterHandle {
     return global_scope_object;
   }
 
-  Handle<JSObject> GetLocalScopeObject(wasm::InterpretedFrame* frame,
+  Handle<JSObject> GetLocalScopeObject(InterpretedFrame* frame,
                                        Handle<WasmDebugInfo> debug_info) {
     Isolate* isolate = isolate_;
 

@@ -1214,7 +1214,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
  public:
   template <typename... InterfaceArgs>
-  WasmFullDecoder(Zone* zone, const wasm::WasmModule* module,
+  WasmFullDecoder(Zone* zone, const WasmModule* module,
                   const FunctionBody& body, InterfaceArgs&&... interface_args)
       : WasmDecoder<validate>(module, body.sig, body.start, body.end,
                               body.offset),
@@ -1301,7 +1301,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return local_type_vec_[index];
   }
 
-  inline wasm::WasmCodePosition position() {
+  inline WasmCodePosition position() {
     int offset = static_cast<int>(this->pc_ - this->start_);
     DCHECK_EQ(this->pc_ - this->start_, offset);  // overflows cannot happen
     return offset;
@@ -2476,14 +2476,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
 class EmptyInterface {
  public:
-  static constexpr wasm::Decoder::ValidateFlag validate =
-      wasm::Decoder::kValidate;
+  static constexpr Decoder::ValidateFlag validate = Decoder::kValidate;
   using Value = ValueBase;
   using Control = ControlBase<Value>;
-  using Decoder = WasmFullDecoder<validate, EmptyInterface>;
+  using FullDecoder = WasmFullDecoder<validate, EmptyInterface>;
 
 #define DEFINE_EMPTY_CALLBACK(name, ...) \
-  void name(Decoder* decoder, ##__VA_ARGS__) {}
+  void name(FullDecoder* decoder, ##__VA_ARGS__) {}
   INTERFACE_FUNCTIONS(DEFINE_EMPTY_CALLBACK)
 #undef DEFINE_EMPTY_CALLBACK
 };

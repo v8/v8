@@ -88,7 +88,7 @@ enum class CompilationState {
   kFailed,
 };
 
-class TestResolver : public i::wasm::CompilationResultResolver {
+class TestResolver : public CompilationResultResolver {
  public:
   explicit TestResolver(CompilationState* state) : state_(state) {}
 

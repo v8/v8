@@ -47,8 +47,7 @@ TestingModuleBuilder::TestingModuleBuilder(
         trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                              : kNoTrapHandler);
     auto wasm_to_js_wrapper = native_module_->AddCodeCopy(
-        code.ToHandleChecked(), wasm::WasmCode::kWasmToJsWrapper,
-        maybe_import_index);
+        code.ToHandleChecked(), WasmCode::kWasmToJsWrapper, maybe_import_index);
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
         .set_wasm_to_js(*maybe_import->js_function, wasm_to_js_wrapper);
@@ -69,7 +68,7 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   test_module_->has_memory = true;
   uint32_t alloc_size = RoundUp(size, kWasmPageSize);
   Handle<JSArrayBuffer> new_buffer;
-  CHECK(wasm::NewArrayBuffer(isolate_, alloc_size).ToHandle(&new_buffer));
+  CHECK(NewArrayBuffer(isolate_, alloc_size).ToHandle(&new_buffer));
   CHECK(!new_buffer.is_null());
   mem_start_ = reinterpret_cast<byte*>(new_buffer->backing_store());
   mem_size_ = size;
@@ -426,8 +425,8 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                            func_body, func_name, function_->func_index,
                            isolate()->counters(), comp_mode);
   unit.ExecuteCompilation();
-  wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
-  if (wasm::WasmCode::ShouldBeLogged(isolate())) {
+  WasmCode* wasm_code = unit.FinishCompilation(&thrower);
+  if (WasmCode::ShouldBeLogged(isolate())) {
     wasm_code->LogCode(isolate());
   }
   CHECK(!thrower.error());

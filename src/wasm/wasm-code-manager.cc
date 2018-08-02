@@ -117,7 +117,7 @@ void WasmCode::set_trap_handler_index(size_t value) {
 
 void WasmCode::RegisterTrapHandlerData() {
   DCHECK(!HasTrapHandlerIndex());
-  if (kind() != wasm::WasmCode::kFunction) return;
+  if (kind() != WasmCode::kFunction) return;
 
   Address base = instruction_start();
 
@@ -338,11 +338,11 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
 }
 
 void NativeModule::LogWasmCodes(Isolate* isolate) {
-  if (!wasm::WasmCode::ShouldBeLogged(isolate)) return;
+  if (!WasmCode::ShouldBeLogged(isolate)) return;
 
   // TODO(titzer): we skip the logging of the import wrappers
   // here, but they should be included somehow.
-  for (wasm::WasmCode* code : code_table()) {
+  for (WasmCode* code : code_table()) {
     if (code != nullptr) code->LogCode(isolate);
   }
 }
@@ -592,7 +592,7 @@ std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
   base::LockGuard<base::Mutex> lock(&allocation_mutex_);
   std::vector<WasmCode*> result;
   result.reserve(code_table().size());
-  for (wasm::WasmCode* code : code_table()) result.push_back(code);
+  for (WasmCode* code : code_table()) result.push_back(code);
   return result;
 }
 

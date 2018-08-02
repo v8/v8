@@ -93,7 +93,7 @@ class CWasmEntryArgTester {
   std::function<ReturnType(Args...)> expected_fn_;
   FunctionSig* sig_;
   Handle<JSFunction> c_wasm_entry_fn_;
-  wasm::WasmCode* wasm_code_;
+  WasmCode* wasm_code_;
 };
 
 }  // namespace

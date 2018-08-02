@@ -201,7 +201,7 @@ class TestingModuleBuilder {
   Handle<WasmInstanceObject> instance_object() const {
     return instance_object_;
   }
-  wasm::WasmCode* GetFunctionCode(uint32_t index) const {
+  WasmCode* GetFunctionCode(uint32_t index) const {
     return native_module_->code(index);
   }
   Address globals_start() const {
@@ -263,7 +263,7 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
     Init(call_descriptor, MachineTypeForC<ReturnType>(), param_vec);
   }
 
-  void SetInnerCode(wasm::WasmCode* code) {
+  void SetInnerCode(WasmCode* code) {
     intptr_t address = static_cast<intptr_t>(code->instruction_start());
     compiler::NodeProperties::ChangeOp(
         inner_code_node_,

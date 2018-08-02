@@ -557,8 +557,8 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   // handler was used or not when serializing.
   UseTrapHandler use_trap_handler =
       trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler;
-  wasm::ModuleEnv env(module, use_trap_handler,
-                      wasm::RuntimeExceptionSupport::kRuntimeExceptionSupport);
+  ModuleEnv env(module, use_trap_handler,
+                RuntimeExceptionSupport::kRuntimeExceptionSupport);
 
   OwnedVector<uint8_t> wire_bytes_copy = OwnedVector<uint8_t>::Of(wire_bytes);
 

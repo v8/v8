@@ -27,7 +27,7 @@ const char* GetCompilationModeAsString(
   UNREACHABLE();
 }
 
-void RecordStats(const wasm::WasmCode* code, Counters* counters) {
+void RecordStats(const WasmCode* code, Counters* counters) {
   counters->wasm_generated_code_size()->Increment(
       static_cast<int>(code->instructions().size()));
   counters->wasm_reloc_size()->Increment(
@@ -42,10 +42,12 @@ WasmCompilationUnit::GetDefaultCompilationMode() {
   return FLAG_liftoff ? CompilationMode::kLiftoff : CompilationMode::kTurbofan;
 }
 
-WasmCompilationUnit::WasmCompilationUnit(
-    WasmEngine* wasm_engine, ModuleEnv* env, wasm::NativeModule* native_module,
-    wasm::FunctionBody body, wasm::WasmName name, int index, Counters* counters,
-    CompilationMode mode)
+WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
+                                         ModuleEnv* env,
+                                         NativeModule* native_module,
+                                         FunctionBody body, WasmName name,
+                                         int index, Counters* counters,
+                                         CompilationMode mode)
     : env_(env),
       wasm_engine_(wasm_engine),
       func_body_(body),
@@ -97,9 +99,8 @@ void WasmCompilationUnit::ExecuteCompilation() {
   }
 }
 
-wasm::WasmCode* WasmCompilationUnit::FinishCompilation(
-    wasm::ErrorThrower* thrower) {
-  wasm::WasmCode* ret;
+WasmCode* WasmCompilationUnit::FinishCompilation(ErrorThrower* thrower) {
+  WasmCode* ret;
   switch (mode_) {
     case CompilationMode::kLiftoff:
       ret = liftoff_unit_->FinishCompilation(thrower);
@@ -139,15 +140,13 @@ void WasmCompilationUnit::SwitchMode(CompilationMode new_mode) {
 }
 
 // static
-wasm::WasmCode* WasmCompilationUnit::CompileWasmFunction(
-    wasm::NativeModule* native_module, wasm::ErrorThrower* thrower,
-    Isolate* isolate, ModuleEnv* env, const wasm::WasmFunction* function,
-    CompilationMode mode) {
+WasmCode* WasmCompilationUnit::CompileWasmFunction(
+    NativeModule* native_module, ErrorThrower* thrower, Isolate* isolate,
+    ModuleEnv* env, const WasmFunction* function, CompilationMode mode) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
-  wasm::FunctionBody function_body{
-      function->sig, function->code.offset(),
-      wire_bytes.start() + function->code.offset(),
-      wire_bytes.start() + function->code.end_offset()};
+  FunctionBody function_body{function->sig, function->code.offset(),
+                             wire_bytes.start() + function->code.offset(),
+                             wire_bytes.start() + function->code.end_offset()};
 
   WasmCompilationUnit unit(isolate->wasm_engine(), env, native_module,
                            function_body,

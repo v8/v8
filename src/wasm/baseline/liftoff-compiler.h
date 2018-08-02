@@ -21,7 +21,7 @@ class LiftoffCompilationUnit final {
       : wasm_unit_(wasm_unit) {}
 
   bool ExecuteCompilation();
-  wasm::WasmCode* FinishCompilation(wasm::ErrorThrower*);
+  WasmCode* FinishCompilation(ErrorThrower*);
 
  private:
   WasmCompilationUnit* const wasm_unit_;

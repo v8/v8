@@ -39,8 +39,8 @@ WireBytesRef WasmModule::LookupFunctionName(const ModuleWireBytes& wire_bytes,
                                             uint32_t function_index) const {
   if (!function_names) {
     function_names.reset(new std::unordered_map<uint32_t, WireBytesRef>());
-    wasm::DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(),
-                              function_names.get());
+    DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(),
+                        function_names.get());
   }
   auto it = function_names->find(function_index);
   if (it == function_names->end()) return WireBytesRef();
