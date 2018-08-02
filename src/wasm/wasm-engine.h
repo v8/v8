@@ -75,7 +75,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // The {is_shared} flag indicates if the bytes backing the module could
   // be shared across threads, i.e. could be concurrently modified.
   void AsyncCompile(Isolate* isolate,
-                    std::shared_ptr<CompilationResultResolver> resolver,
+                    std::unique_ptr<CompilationResultResolver> resolver,
                     const ModuleWireBytes& bytes, bool is_shared);
 
   // Begin an asynchronous instantiation of the given WASM module.
@@ -86,7 +86,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   std::shared_ptr<StreamingDecoder> StartStreamingCompilation(
       Isolate* isolate, Handle<Context> context,
-      std::shared_ptr<CompilationResultResolver> resolver);
+      std::unique_ptr<CompilationResultResolver> resolver);
 
   // Exports the sharable parts of the given module object so that they can be
   // transferred to a different Context/Isolate using the same engine.
@@ -142,7 +142,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   AsyncCompileJob* CreateAsyncCompileJob(
       Isolate* isolate, std::unique_ptr<byte[]> bytes_copy, size_t length,
       Handle<Context> context,
-      std::shared_ptr<CompilationResultResolver> resolver);
+      std::unique_ptr<CompilationResultResolver> resolver);
 
   std::unique_ptr<WasmCodeManager> code_manager_;
   WasmMemoryTracker memory_tracker_;

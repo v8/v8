@@ -110,7 +110,7 @@ void WasmEngine::AsyncInstantiate(
 }
 
 void WasmEngine::AsyncCompile(
-    Isolate* isolate, std::shared_ptr<CompilationResultResolver> resolver,
+    Isolate* isolate, std::unique_ptr<CompilationResultResolver> resolver,
     const ModuleWireBytes& bytes, bool is_shared) {
   if (!FLAG_wasm_async_compilation) {
     // Asynchronous compilation disabled; fall back on synchronous compilation.
@@ -156,7 +156,7 @@ void WasmEngine::AsyncCompile(
 
 std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
     Isolate* isolate, Handle<Context> context,
-    std::shared_ptr<CompilationResultResolver> resolver) {
+    std::unique_ptr<CompilationResultResolver> resolver) {
   AsyncCompileJob* job =
       CreateAsyncCompileJob(isolate, std::unique_ptr<byte[]>(nullptr), 0,
                             context, std::move(resolver));
@@ -210,7 +210,7 @@ CodeTracer* WasmEngine::GetCodeTracer() {
 AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     Isolate* isolate, std::unique_ptr<byte[]> bytes_copy, size_t length,
     Handle<Context> context,
-    std::shared_ptr<CompilationResultResolver> resolver) {
+    std::unique_ptr<CompilationResultResolver> resolver) {
   AsyncCompileJob* job = new AsyncCompileJob(
       isolate, std::move(bytes_copy), length, context, std::move(resolver));
   // Pass ownership to the unique_ptr in {jobs_}.

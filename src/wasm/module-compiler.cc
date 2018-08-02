@@ -2095,7 +2095,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
 AsyncCompileJob::AsyncCompileJob(
     Isolate* isolate, std::unique_ptr<byte[]> bytes_copy, size_t length,
     Handle<Context> context,
-    std::shared_ptr<CompilationResultResolver> resolver)
+    std::unique_ptr<CompilationResultResolver> resolver)
     : isolate_(isolate),
       async_counters_(isolate->async_counters()),
       bytes_copy_(std::move(bytes_copy)),

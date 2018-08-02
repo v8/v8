@@ -83,10 +83,7 @@ void StreamingDecoder::Finish() {
 
 void StreamingDecoder::Abort() {
   TRACE_STREAMING("Abort\n");
-  if (ok()) {
-    ok_ = false;
-    processor_->OnAbort();
-  }
+  if (ok()) processor_->OnAbort();
 }
 
 // An abstract class to share code among the states which decode VarInts. This
