@@ -12,8 +12,8 @@ namespace internal {
 
 // Memory provides an interface to 'raw' memory. It encapsulates the casts
 // that typically are needed when incompatible pointer types are used.
-// TODO(all): Avoid using this class, it's undefined behaviour in C++. Use
-// {ReadUnalignedValue} and {WriteUnalignedValue} instead.
+// Note that this class currently relies on undefined behaviour. There is a
+// proposal (http://wg21.link/p0593r2) to make it defined behaviour though.
 class Memory {
  public:
   static uint8_t& uint8_at(Address addr) {
