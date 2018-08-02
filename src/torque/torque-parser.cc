@@ -456,6 +456,13 @@ base::Optional<ParseResult> MakeIfStatement(
   auto condition = child_results->NextAs<Expression*>();
   auto if_true = child_results->NextAs<Statement*>();
   auto if_false = child_results->NextAs<base::Optional<Statement*>>();
+
+  if (if_false && !(BlockStatement::DynamicCast(if_true) &&
+                    (BlockStatement::DynamicCast(*if_false) ||
+                     IfStatement::DynamicCast(*if_false)))) {
+    ReportError("if-else statements require curly braces");
+  }
+
   Statement* result =
       MakeNode<IfStatement>(is_constexpr, condition, if_true, if_false);
   return ParseResult{result};

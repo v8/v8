@@ -98,10 +98,11 @@ module test {
   }
 
   macro LabelTestHelper4(flag: constexpr bool): never labels Label4, Label5 {
-    if
-      constexpr(flag) goto Label4;
-    else
+    if constexpr(flag) {
+      goto Label4;
+    } else {
       goto Label5;
+    }
   }
 
   macro CallLabelTestHelper4(flag: constexpr bool): bool {
@@ -120,10 +121,11 @@ module test {
     let r1: bool = CallLabelTestHelper4(true);
     let r2: bool = CallLabelTestHelper4(false);
 
-    if (r1 && !r2)
+    if (r1 && !r2) {
       return True;
-    else
+    } else {
       return False;
+    }
   }
 
   macro GenericMacroTest<T : type>(param: T): Object {
