@@ -85,6 +85,15 @@ class FixedArrayBase : public HeapObject {
 
   bool IsCowArray() const;
 
+// Maximal allowed size, in bytes, of a single FixedArrayBase.
+// Prevents overflowing size computations, as well as extreme memory
+// consumption.
+#ifdef V8_HOST_ARCH_32_BIT
+  static const int kMaxSize = 512 * MB;
+#else
+  static const int kMaxSize = 1024 * MB;
+#endif  // V8_HOST_ARCH_32_BIT
+
   // Layout description.
   // Length is smi tagged when it is stored.
   static const int kLengthOffset = HeapObject::kHeaderSize;
@@ -160,13 +169,11 @@ class FixedArray : public FixedArrayBase {
   inline Object** RawFieldOfElementAt(int index);
 
   DECL_CAST(FixedArray)
-
-  // Maximal allowed size, in bytes, of a single FixedArray.
-  // Prevents overflowing size computations, as well as extreme memory
-  // consumption.
-  static const int kMaxSize = 128 * MB * kPointerSize;
   // Maximally allowed length of a FixedArray.
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kPointerSize;
+  static_assert(Internals::IsValidSmi(kMaxLength),
+                "FixedArray maxLength not a Smi");
+
   // Maximally allowed length for regular (non large object space) object.
   STATIC_ASSERT(kMaxRegularHeapObjectSize < kMaxSize);
   static const int kMaxRegularLength =
@@ -239,12 +246,10 @@ class FixedDoubleArray : public FixedArrayBase {
 
   DECL_CAST(FixedDoubleArray)
 
-  // Maximal allowed size, in bytes, of a single FixedDoubleArray.
-  // Prevents overflowing size computations, as well as extreme memory
-  // consumption.
-  static const int kMaxSize = 512 * MB;
   // Maximally allowed length of a FixedArray.
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kDoubleSize;
+  static_assert(Internals::IsValidSmi(kMaxLength),
+                "FixedDoubleArray maxLength not a Smi");
 
   // Dispatched behavior.
   DECL_PRINTER(FixedDoubleArray)
@@ -300,6 +305,8 @@ class WeakFixedArray : public HeapObject {
 
   static const int kMaxLength =
       (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
+  static_assert(Internals::IsValidSmi(kMaxLength),
+                "WeakFixedArray maxLength not a Smi");
 
  protected:
   static int OffsetOfElementAt(int index) {
@@ -581,10 +588,10 @@ class ByteArray : public FixedArrayBase {
   // Layout description.
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 
-  // Maximal memory consumption for a single ByteArray.
-  static const int kMaxSize = 512 * MB;
   // Maximal length of a single ByteArray.
   static const int kMaxLength = kMaxSize - kHeaderSize;
+  static_assert(Internals::IsValidSmi(kMaxLength),
+                "ByteArray maxLength not a Smi");
 
   class BodyDescriptor;
   // No weak fields.
