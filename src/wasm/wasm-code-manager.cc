@@ -965,6 +965,7 @@ WasmCode* WasmCodeManager::GetCodeFromStartAddress(Address pc) const {
 }
 
 NativeModule* WasmCodeManager::LookupNativeModule(Address pc) const {
+  base::LockGuard<base::Mutex> lock(&native_modules_mutex_);
   if (lookup_map_.empty()) return nullptr;
 
   auto iter = lookup_map_.upper_bound(pc);
