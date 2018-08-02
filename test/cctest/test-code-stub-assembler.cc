@@ -3453,6 +3453,54 @@ TEST(IsDoubleElementsKind) {
            0);
 }
 
+TEST(TestCallBuiltinInlineTrampoline) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  const int kContextOffset = 2;
+  Node* str = m.Parameter(0);
+  Node* context = m.Parameter(kNumParams + kContextOffset);
+
+  Node* index = m.SmiConstant(2);
+
+  m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtins::kStringRepeat),
+                      context, str, index));
+  AssemblerOptions options = AssemblerOptions::Default(isolate);
+  options.inline_offheap_trampolines = true;
+  options.use_pc_relative_calls_and_jumps = false;
+  options.isolate_independent_code = false;
+  FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
+  MaybeHandle<Object> result = ft.Call(MakeString("abcdef"));
+  CHECK(String::Equals(isolate, MakeString("abcdefabcdef"),
+                       Handle<String>::cast(result.ToHandleChecked())));
+}
+
+TEST(TestCallBuiltinIndirectLoad) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  const int kContextOffset = 2;
+  Node* str = m.Parameter(0);
+  Node* context = m.Parameter(kNumParams + kContextOffset);
+
+  Node* index = m.SmiConstant(2);
+
+  m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtins::kStringRepeat),
+                      context, str, index));
+  AssemblerOptions options = AssemblerOptions::Default(isolate);
+  options.inline_offheap_trampolines = false;
+  options.use_pc_relative_calls_and_jumps = false;
+  options.isolate_independent_code = true;
+  FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
+  MaybeHandle<Object> result = ft.Call(MakeString("abcdef"));
+  CHECK(String::Equals(isolate, MakeString("abcdefabcdef"),
+                       Handle<String>::cast(result.ToHandleChecked())));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

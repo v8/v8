@@ -25,7 +25,6 @@ TurboAssemblerBase::TurboAssemblerBase(Isolate* isolate,
 
 void TurboAssemblerBase::IndirectLoadConstant(Register destination,
                                               Handle<HeapObject> object) {
-  CHECK(isolate()->ShouldLoadConstantsFromRootList());
   CHECK(root_array_available_);
 
   // Before falling back to the (fairly slow) lookup from the constants table,
@@ -47,6 +46,7 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
     LoadRootRelative(destination,
                      RootRegisterOffsetForBuiltinIndex(maybe_builtin_index_));
   } else {
+    CHECK(isolate()->ShouldLoadConstantsFromRootList());
     // Ensure the given object is in the builtins constants table and fetch its
     // index.
     BuiltinsConstantsTableBuilder* builder =
@@ -60,7 +60,6 @@ void TurboAssemblerBase::IndirectLoadConstant(Register destination,
 
 void TurboAssemblerBase::IndirectLoadExternalReference(
     Register destination, ExternalReference reference) {
-  CHECK(isolate()->ShouldLoadConstantsFromRootList());
   CHECK(root_array_available_);
 
   if (IsAddressableThroughRootRegister(isolate(), reference)) {
