@@ -359,14 +359,15 @@ void JSGenericLowering::LowerJSCreateArguments(Node* node) {
 void JSGenericLowering::LowerJSCreateArray(Node* node) {
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
-  Handle<AllocationSite> const site = p.site();
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), ArrayConstructorDescriptor{}, arity + 1,
       CallDescriptor::kNeedsFrameState, node->op()->properties());
   Node* stub_code = jsgraph()->ArrayConstructorStubConstant();
   Node* stub_arity = jsgraph()->Int32Constant(arity);
-  Node* type_info = site.is_null() ? jsgraph()->UndefinedConstant()
-                                   : jsgraph()->HeapConstant(site);
+  MaybeHandle<AllocationSite> const maybe_site = p.site();
+  Handle<AllocationSite> site;
+  Node* type_info = maybe_site.ToHandle(&site) ? jsgraph()->HeapConstant(site)
+                                               : jsgraph()->UndefinedConstant();
   Node* receiver = jsgraph()->UndefinedConstant();
   node->InsertInput(zone(), 0, stub_code);
   node->InsertInput(zone(), 3, stub_arity);

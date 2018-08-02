@@ -692,9 +692,12 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
-  base::Optional<AllocationSiteRef> site;
-  if (!p.site().is_null()) {
-    site = AllocationSiteRef(js_heap_broker(), p.site());
+  base::Optional<AllocationSiteRef> site_ref;
+  {
+    Handle<AllocationSite> site;
+    if (p.site().ToHandle(&site)) {
+      site_ref = AllocationSiteRef(js_heap_broker(), site);
+    }
   }
   PretenureFlag pretenure = NOT_TENURED;
   JSFunctionRef constructor = native_context_ref().array_function();
@@ -728,14 +731,14 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       bool can_inline_call = false;
 
       // Check if we have a feedback {site} on the {node}.
-      if (site) {
-        ElementsKind elements_kind = site->GetElementsKind();
+      if (site_ref) {
+        ElementsKind elements_kind = site_ref->GetElementsKind();
         if (initial_map.elements_kind() != elements_kind) {
           initial_map = initial_map.AsElementsKind(elements_kind);
         }
-        can_inline_call = site->CanInlineCall();
-        pretenure = dependencies()->DependOnPretenureMode(*site);
-        dependencies()->DependOnElementsKind(*site);
+        can_inline_call = site_ref->CanInlineCall();
+        pretenure = dependencies()->DependOnPretenureMode(*site_ref);
+        dependencies()->DependOnElementsKind(*site_ref);
       } else {
         can_inline_call = isolate()->IsArrayConstructorIntact();
       }
@@ -821,7 +824,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   // TODO(bmeurer): Optimize the subclassing case.
   if (target != new_target) return NoChange();
 
-  return ReduceNewArrayToStubCall(node, site);
+  return ReduceNewArrayToStubCall(node, site_ref);
 }
 
 Reduction JSCreateLowering::ReduceJSCreateArrayIterator(Node* node) {

@@ -7,7 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
-#include "src/handles.h"
+#include "src/maybe-handles.h"
 #include "src/runtime/runtime.h"
 #include "src/type-hints.h"
 #include "src/vector-slot-pair.h"
@@ -457,15 +457,15 @@ CreateArgumentsType const& CreateArgumentsTypeOf(const Operator* op);
 // used as parameter by JSCreateArray operators.
 class CreateArrayParameters final {
  public:
-  explicit CreateArrayParameters(size_t arity, Handle<AllocationSite> site)
+  explicit CreateArrayParameters(size_t arity, MaybeHandle<AllocationSite> site)
       : arity_(arity), site_(site) {}
 
   size_t arity() const { return arity_; }
-  Handle<AllocationSite> site() const { return site_; }
+  MaybeHandle<AllocationSite> site() const { return site_; }
 
  private:
   size_t const arity_;
-  Handle<AllocationSite> const site_;
+  MaybeHandle<AllocationSite> const site_;
 };
 
 bool operator==(CreateArrayParameters const&, CreateArrayParameters const&);
@@ -714,7 +714,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* Create();
   const Operator* CreateArguments(CreateArgumentsType type);
-  const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
+  const Operator* CreateArray(size_t arity, MaybeHandle<AllocationSite> site);
   const Operator* CreateArrayIterator(IterationKind);
   const Operator* CreateCollectionIterator(CollectionKind, IterationKind);
   const Operator* CreateBoundFunction(size_t arity, Handle<Map> map);
