@@ -69,7 +69,6 @@
       'V8 Linux - verify csa': 'release_x86_verify_csa',
       # Linux64.
       'V8 Linux64 - builder': 'release_x64',
-      'V8 Linux64 - concurrent marking - builder': 'release_x64_concurrent_marking',
       'V8 Linux64 - debug builder': 'debug_x64',
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'release_x64_internal',
@@ -97,9 +96,10 @@
       'V8 Mac64 ASAN': 'release_x64_asan_no_lsan',
       # Sanitizers.
       'V8 Linux64 ASAN': 'release_x64_asan',
+      'V8 Linux64 TSAN builder': 'release_x64_tsan',
+      # TODO(machenbach): Remove when turning into testers on infra side.
       'V8 Linux64 TSAN': 'release_x64_tsan',
-      'V8 Linux64 TSAN - concurrent marking':
-          'release_x64_tsan_concurrent_marking',
+      'V8 Linux64 TSAN - concurrent marking': 'release_x64_tsan',
       'V8 Linux - arm64 - sim - MSAN': 'release_simulate_arm64_msan',
       # Misc.
       'V8 Linux gcc 4.8': 'release_x86_gcc',
@@ -232,7 +232,7 @@
       'v8_linux64_jumbo_limited_compile_rel': 'release_x64_jumbo_limited_trybot',
       'v8_linux64_tsan_rel': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_concurrent_marking_rel_ng':
-          'release_x64_tsan_concurrent_marking_minimal_symbols',
+          'release_x64_tsan_minimal_symbols',
       'v8_linux64_ubsan_rel_ng': 'release_x64_ubsan_vptr_minimal_symbols',
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'v8_win_dbg': 'debug_x86_trybot',
@@ -445,8 +445,6 @@
       'release_bot', 'x64', 'cfi_clusterfuzz'],
     'release_x64_msvc': [
       'release_bot', 'x64', 'msvc'],
-    'release_x64_concurrent_marking': [
-      'release_bot', 'x64', 'v8_enable_concurrent_marking'],
     'release_x64_correctness_fuzzer' : [
       'release_bot', 'x64', 'v8_correctness_fuzzer'],
     'release_x64_fuchsia': [
@@ -475,11 +473,6 @@
       'release_trybot', 'x64', 'v8_enable_test_features'],
     'release_x64_tsan': [
       'release_bot', 'x64', 'tsan'],
-    'release_x64_tsan_concurrent_marking': [
-      'release_bot', 'x64', 'v8_enable_concurrent_marking', 'tsan'],
-    'release_x64_tsan_concurrent_marking_minimal_symbols': [
-      'release_bot', 'x64', 'v8_enable_concurrent_marking', 'tsan',
-      'minimal_symbols'],
     'release_x64_tsan_minimal_symbols': [
       'release_bot', 'x64', 'tsan', 'minimal_symbols'],
     'release_x64_ubsan': [
@@ -806,10 +799,6 @@
 
     'v8_check_header_includes': {
       'gn_args': 'v8_check_header_includes=true',
-    },
-
-    'v8_enable_concurrent_marking': {
-      'gn_args': 'v8_enable_concurrent_marking=true',
     },
 
     'v8_correctness_fuzzer': {
