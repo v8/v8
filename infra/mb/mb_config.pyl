@@ -97,9 +97,6 @@
       # Sanitizers.
       'V8 Linux64 ASAN': 'release_x64_asan',
       'V8 Linux64 TSAN - builder': 'release_x64_tsan',
-      # TODO(machenbach): Remove when turning into testers on infra side.
-      'V8 Linux64 TSAN': 'release_x64_tsan',
-      'V8 Linux64 TSAN - concurrent marking': 'release_x64_tsan',
       'V8 Linux - arm64 - sim - MSAN': 'release_simulate_arm64_msan',
       # Misc.
       'V8 Linux gcc 4.8': 'release_x86_gcc',
