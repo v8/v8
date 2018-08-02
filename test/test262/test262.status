@@ -478,9 +478,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7993
   'intl402/RelativeTimeFormat/prototype/toStringTag/toStringTag': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7813
-  'built-ins/Array/prototype/lastIndexOf/calls-only-has-on-prototype-after-length-zeroed': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7814
   'built-ins/Array/prototype/splice/property-traps-order-with-species': [FAIL],
 

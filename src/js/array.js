@@ -855,12 +855,12 @@ DEFINE_METHOD_LEN(
     // Lookup through the array.
     if (!IS_UNDEFINED(element)) {
       for (var i = max; i >= min; i--) {
-        if (array[i] === element) return i;
+        if (i in array && array[i] === element) return i;
       }
       return -1;
     }
     for (var i = max; i >= min; i--) {
-      if (IS_UNDEFINED(array[i]) && i in array) {
+      if (i in array && IS_UNDEFINED(array[i])) {
         return i;
       }
     }
