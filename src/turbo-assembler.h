@@ -69,6 +69,8 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
                      void* buffer, int buffer_size,
                      CodeObjectRequired create_code_object);
 
+  void RecordCommentForOffHeapTrampoline(int builtin_index);
+
   Isolate* const isolate_ = nullptr;
 
   // This handle will be patched with the code object on installation.

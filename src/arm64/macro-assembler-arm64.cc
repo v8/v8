@@ -1950,6 +1950,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
       if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
           Builtins::IsIsolateIndependent(builtin_index)) {
         // Inline the trampoline.
+        RecordCommentForOffHeapTrampoline(builtin_index);
         CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
         UseScratchRegisterScope temps(this);
         Register scratch = temps.AcquireX();
@@ -2007,6 +2008,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
       if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
           Builtins::IsIsolateIndependent(builtin_index)) {
         // Inline the trampoline.
+        RecordCommentForOffHeapTrampoline(builtin_index);
         CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
         UseScratchRegisterScope temps(this);
         Register scratch = temps.AcquireX();

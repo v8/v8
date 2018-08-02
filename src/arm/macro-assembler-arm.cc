@@ -207,6 +207,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     } else if (target_is_isolate_independent_builtin &&
                options().inline_offheap_trampolines) {
       // Inline the trampoline.
+      RecordCommentForOffHeapTrampoline(builtin_index);
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
       // Use ip directly instead of using UseScratchRegisterScope, as we do not
@@ -286,7 +287,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     } else if (target_is_isolate_independent_builtin &&
                options().inline_offheap_trampolines) {
       // Inline the trampoline.
-      DCHECK(Builtins::IsBuiltinId(builtin_index));
+      RecordCommentForOffHeapTrampoline(builtin_index);
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
       // Use ip directly instead of using UseScratchRegisterScope, as we do not
