@@ -3448,6 +3448,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         name, proxy_function_map, Builtins::kProxyConstructor);
     Handle<JSFunction> proxy_function = factory->NewFunction(args);
 
+    isolate_->proxy_map()->SetConstructor(*proxy_function);
+
     proxy_function->shared()->set_internal_formal_parameter_count(2);
     proxy_function->shared()->set_length(2);
 

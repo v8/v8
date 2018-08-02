@@ -1426,6 +1426,7 @@ void JSRegExpStringIterator::JSRegExpStringIteratorVerify(Isolate* isolate) {
 
 void JSProxy::JSProxyVerify(Isolate* isolate) {
   CHECK(IsJSProxy());
+  CHECK(map()->GetConstructor()->IsJSFunction());
   VerifyPointer(isolate, target());
   VerifyPointer(isolate, handler());
   if (!IsRevoked()) {

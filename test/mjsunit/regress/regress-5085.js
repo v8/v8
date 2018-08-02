@@ -64,3 +64,11 @@ Proxy.__proto__ = {
   a: 1
 };
 assertEquals(Proxy.prototype, {b: 2});
+
+(function testProxyCreationContext() {
+  let realm = Realm.create();
+  let p1 = new Proxy({}, {});
+  let p2 = Realm.eval(realm, "new Proxy({}, {})");
+  assertEquals(0, Realm.owner(p1));
+  assertEquals(1, Realm.owner(p2));
+})();
