@@ -6,14 +6,12 @@
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
 
-#include "src/runtime/runtime-utils.h"
-
 #include <cmath>
 #include <memory>
 
 #include "src/api-inl.h"
 #include "src/api-natives.h"
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/date.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
@@ -23,6 +21,7 @@
 #include "src/objects/intl-objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/utils.h"
 
 #include "unicode/brkiter.h"

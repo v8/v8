@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
 #include <memory>
 
 #include "src/api.h"
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
@@ -19,6 +17,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {

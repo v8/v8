@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/conversions-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/js-array-inl.h"
+#include "src/runtime/runtime-utils.h"
 
 // Implement Atomic accesses to SharedArrayBuffers as defined in the
 // SharedArrayBuffer draft spec, found here

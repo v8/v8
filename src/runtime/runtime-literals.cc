@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
 #include "src/allocation-site-scopes.h"
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/ast/ast.h"
 #include "src/isolate-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects-inl.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

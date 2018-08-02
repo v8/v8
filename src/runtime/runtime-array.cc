@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/code-stubs.h"
 #include "src/conversions-inl.h"
 #include "src/debug/debug.h"
@@ -17,6 +15,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/prototype.h"
+#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {

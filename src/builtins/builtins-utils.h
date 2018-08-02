@@ -51,13 +51,8 @@ class BuiltinArguments : public Arguments {
   static const int kNumExtraArgs = 4;
   static const int kNumExtraArgsWithReceiver = 5;
 
-  Handle<JSFunction> target() {
-    return Arguments::at<JSFunction>(Arguments::length() - 1 - kTargetOffset);
-  }
-  Handle<HeapObject> new_target() {
-    return Arguments::at<HeapObject>(Arguments::length() - 1 -
-                                     kNewTargetOffset);
-  }
+  inline Handle<JSFunction> target();
+  inline Handle<HeapObject> new_target();
 
   // Gets the total number of arguments including the receiver (but
   // excluding extra arguments).

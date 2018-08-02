@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/elements.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

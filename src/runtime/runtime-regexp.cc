@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
 #include <functional>
 
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/conversions-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
@@ -14,6 +12,7 @@
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-utils.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/string-builder-inl.h"
 #include "src/string-search.h"
 #include "src/zone/zone-chunk-list.h"

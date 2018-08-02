@@ -7,7 +7,7 @@
 #include "src/accessors.h"
 #include "src/api-arguments-inl.h"
 #include "src/api.h"
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
 #include "src/conversions.h"

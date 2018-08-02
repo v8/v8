@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/assembler.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/conversions.h"
@@ -13,6 +11,7 @@
 #include "src/heap/factory.h"
 #include "src/objects-inl.h"
 #include "src/objects/frame-array-inl.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/v8memory.h"
 #include "src/wasm/module-compiler.h"

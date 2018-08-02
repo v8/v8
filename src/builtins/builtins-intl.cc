@@ -9,7 +9,7 @@
 #include <cmath>
 
 #include "src/builtins/builtins-intl.h"
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/date.h"
 #include "src/intl.h"
