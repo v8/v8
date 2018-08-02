@@ -121,12 +121,19 @@ def get_cc_file_name(header):
 
 
 def create_including_cc_files(header_files):
+  comment = 'check including this header in isolation'
   for header in header_files:
     cc_file_name = get_cc_file_name(header)
-    printv('Creating file {}'.format(os.path.relpath(cc_file_name, V8_DIR)))
+    rel_cc_file_name = os.path.relpath(cc_file_name, V8_DIR)
+    content = '#include "{}"  // {}\n'.format(header, comment)
+    if os.path.exists(cc_file_name):
+      with open(cc_file_name) as cc_file:
+        if cc_file.read() == content:
+          printv('File {} is up to date'.format(rel_cc_file_name))
+          continue
+    printv('Creating file {}'.format(rel_cc_file_name))
     with open(cc_file_name, 'w') as cc_file:
-      cc_file.write('#include "{}"  // check including this header in '
-                    'isolation\n'.format(header))
+      cc_file.write(content)
 
 
 def generate_gni(header_files):
