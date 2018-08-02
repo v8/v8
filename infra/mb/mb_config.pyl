@@ -96,7 +96,7 @@
       'V8 Mac64 ASAN': 'release_x64_asan_no_lsan',
       # Sanitizers.
       'V8 Linux64 ASAN': 'release_x64_asan',
-      'V8 Linux64 TSAN builder': 'release_x64_tsan',
+      'V8 Linux64 TSAN - builder': 'release_x64_tsan',
       # TODO(machenbach): Remove when turning into testers on infra side.
       'V8 Linux64 TSAN': 'release_x64_tsan',
       'V8 Linux64 TSAN - concurrent marking': 'release_x64_tsan',
