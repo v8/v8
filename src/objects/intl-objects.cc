@@ -225,11 +225,10 @@ void SetResolvedDateSettings(Isolate* isolate, const icu::Locale& icu_locale,
   if (U_SUCCESS(status)) {
     // In CLDR (http://unicode.org/cldr/trac/ticket/9943), Etc/UTC is made
     // a separate timezone ID from Etc/GMT even though they're still the same
-    // timezone. We'd not have "Etc/GMT" here because we canonicalize it and
-    // other GMT-variants to "UTC" in intl.js and "UTC" is turned to "Etc/UTC"
-    // by ICU before getting here.
-    // TODO(jshin): Figure out the cause of crbug.com/719609 and re-enable
-    //  DCHECK(canonical_time_zone != UNICODE_STRING_SIMPLE("Etc/GMT")) .
+    // timezone. We have Etc/UTC because 'UTC', 'Etc/Universal',
+    // 'Etc/Zulu' and others are turned to 'Etc/UTC' by ICU. Etc/GMT comes
+    // from Etc/GMT0, Etc/GMT+0, Etc/GMT-0, Etc/Greenwich.
+    // ecma402##sec-canonicalizetimezonename step 3
     if (canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/UTC") ||
         canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/GMT")) {
       JSObject::SetProperty(

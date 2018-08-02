@@ -194,6 +194,7 @@ function GetServiceRE() {
  * Matches valid IANA time zone names.
  */
 var TIMEZONE_NAME_CHECK_RE = UNDEFINED;
+var GMT_OFFSET_TIMEZONE_NAME_CHECK_RE = UNDEFINED;
 
 function GetTimezoneNameCheckRE() {
   if (IS_UNDEFINED(TIMEZONE_NAME_CHECK_RE)) {
@@ -201,6 +202,14 @@ function GetTimezoneNameCheckRE() {
         '^([A-Za-z]+)/([A-Za-z_-]+)((?:\/[A-Za-z_-]+)+)*$');
   }
   return TIMEZONE_NAME_CHECK_RE;
+}
+
+function GetGMTOffsetTimezoneNameCheckRE() {
+  if (IS_UNDEFINED(GMT_OFFSET_TIMEZONE_NAME_CHECK_RE)) {
+     GMT_OFFSET_TIMEZONE_NAME_CHECK_RE = new GlobalRegExp(
+         '^(?:ETC/GMT)(?<offset>0|[+-](?:[0-9]|1[0-4]))$');
+  }
+  return GMT_OFFSET_TIMEZONE_NAME_CHECK_RE;
 }
 
 /**
@@ -1510,7 +1519,7 @@ function CreateDateTimeFormat(locales, options) {
     {__proto__: null, skeleton: ldmlString, timeZone: tz}, resolved);
 
   if (resolved.timeZone === "Etc/Unknown") {
-    throw %make_range_error(kUnsupportedTimeZone, tz);
+    throw %make_range_error(kInvalidTimeZone, tz);
   }
 
   %MarkAsInitializedIntlObjectOfType(dateFormat, DATE_TIME_FORMAT_TYPE);
@@ -1644,18 +1653,28 @@ function canonicalizeTimeZoneID(tzID) {
     return 'UTC';
   }
 
-  // TODO(jshin): Add support for Etc/GMT[+-]([1-9]|1[0-2])
-
   // We expect only _, '-' and / beside ASCII letters.
-  // All inputs should conform to Area/Location(/Location)* from now on.
-  var match = %regexp_internal_match(GetTimezoneNameCheckRE(), tzID);
-  if (IS_NULL(match)) throw %make_range_error(kExpectedTimezoneID, tzID);
+  // All inputs should conform to Area/Location(/Location)*, or Etc/GMT* .
+  // TODO(jshin): 1. Support 'GB-Eire", 'EST5EDT", "ROK', 'US/*', 'NZ' and many
+  // other aliases/linked names when moving timezone validation code to C++.
+  // See crbug.com/364374 and crbug.com/v8/8007 .
+  // 2. Resolve the difference betwee CLDR/ICU and IANA time zone db.
+  // See http://unicode.org/cldr/trac/ticket/9892 and crbug.com/645807 .
+  let match = %regexp_internal_match(GetTimezoneNameCheckRE(), tzID);
+  if (IS_NULL(match)) {
+    let match =
+      %regexp_internal_match(GetGMTOffsetTimezoneNameCheckRE(), upperID);
+     if (!IS_NULL(match) && match.length == 2)
+       return "Etc/GMT" + match.groups.offset;
+     else
+       throw %make_range_error(kInvalidTimeZone, tzID);
+  }
 
-  var result = toTitleCaseTimezoneLocation(match[1]) + '/' +
+  let result = toTitleCaseTimezoneLocation(match[1]) + '/' +
                toTitleCaseTimezoneLocation(match[2]);
 
   if (!IS_UNDEFINED(match[3]) && 3 < match.length) {
-    var locations = %StringSplit(match[3], '/', kMaxUint32);
+    let locations = %StringSplit(match[3], '/', kMaxUint32);
     // The 1st element is empty. Starts with i=1.
     for (var i = 1; i < locations.length; i++) {
       result = result + '/' + toTitleCaseTimezoneLocation(locations[i]);

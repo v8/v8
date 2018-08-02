@@ -533,8 +533,6 @@ class ErrorUtils : public AllStatic {
   T(BigIntNegativeExponent, "Exponent must be positive")                       \
   T(BigIntTooBig, "Maximum BigInt size exceeded")                              \
   T(DateRange, "Provided date is not in valid range.")                         \
-  T(ExpectedTimezoneID,                                                        \
-    "Expected Area/Location(/Location)* for time zone, got %")                 \
   T(ExpectedLocation,                                                          \
     "Expected letters optionally connected with underscores or hyphens for "   \
     "a location, got %")                                                       \
@@ -556,6 +554,7 @@ class ErrorUtils : public AllStatic {
   T(InvalidWeakSetValue, "Invalid value used in weak set")                     \
   T(InvalidStringLength, "Invalid string length")                              \
   T(InvalidTimeValue, "Invalid time value")                                    \
+  T(InvalidTimeZone, "Invalid time zone specified: %")                         \
   T(InvalidTypedArrayAlignment, "% of % should be a multiple of %")            \
   T(InvalidTypedArrayIndex, "Invalid typed array index")                       \
   T(InvalidTypedArrayLength, "Invalid typed array length: %")                  \
@@ -576,7 +575,6 @@ class ErrorUtils : public AllStatic {
   T(ToRadixFormatRange, "toString() radix argument must be between 2 and 36")  \
   T(TypedArraySetOffsetOutOfBounds, "offset is out of bounds")                 \
   T(TypedArraySetSourceTooLarge, "Source is too large")                        \
-  T(UnsupportedTimeZone, "Unsupported time zone specified %")                  \
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   /* SyntaxError */                                                            \
   T(AmbiguousExport,                                                           \
