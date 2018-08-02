@@ -188,6 +188,18 @@ TEST(Utf8SplitBOM) {
   }
 }
 
+TEST(Utf8SplitMultiBOM) {
+  // Construct chunks with a split BOM followed by another split BOM.
+  const char* chunks = "\xef\xbb\0\xbf\xef\xbb\0\xbf\0\0";
+  ChunkSource<char> chunk_source(chunks);
+  std::unique_ptr<i::ScannerStream> stream(v8::internal::ScannerStream::For(
+      &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
+
+  // Read the data, ensuring we get exactly one of the two BOMs back.
+  CHECK_EQ(0xFEFF, stream->Advance());
+  CHECK_EQ(i::ScannerStream::kEndOfInput, stream->Advance());
+}
+
 TEST(Ucs2AdvanceUntil) {
   // Test utf-8 advancing until a certain char.
 
