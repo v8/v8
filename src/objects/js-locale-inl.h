@@ -39,4 +39,6 @@ CAST_ACCESSOR(JSLocale);
 }  // namespace internal
 }  // namespace v8
 
+#include "src/objects/object-macros-undef.h"
+
 #endif  // V8_OBJECTS_JS_LOCALE_INL_H_
