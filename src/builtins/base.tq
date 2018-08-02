@@ -66,6 +66,8 @@ type RootListIndex generates 'TNode<Int32T>' constexpr 'Heap::RootListIndex';
 type MessageTemplate constexpr 'MessageTemplate';
 type HasPropertyLookupMode constexpr 'HasPropertyLookupMode';
 
+type ToIntegerTruncationMode constexpr 'ToIntegerTruncationMode';
+
 const NO_ELEMENTS: constexpr ElementsKind generates 'NO_ELEMENTS';
 
 const PACKED_SMI_ELEMENTS: constexpr ElementsKind generates
@@ -124,6 +126,9 @@ const kHasProperty: constexpr HasPropertyLookupMode generates 'kHasProperty';
 
 const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
 
+const kTruncateMinusZero: constexpr ToIntegerTruncationMode generates
+'ToIntegerTruncationMode::kTruncateMinusZero';
+
 const kNotTypedArray: constexpr MessageTemplate generates
 'MessageTemplate::kNotTypedArray';
 const kDetachedOperation: constexpr MessageTemplate generates
@@ -165,6 +170,8 @@ extern macro Print(constexpr string, Object);
 extern macro Print(Object);
 extern macro DebugBreak();
 extern macro ToInteger_Inline(Context, Object): Number;
+extern macro ToInteger_Inline(
+    Context, Object, constexpr ToIntegerTruncationMode): Number;
 extern macro ToLength_Inline(Context, Object): Number;
 extern macro ToNumber_Inline(Context, Object): Number;
 extern macro ToString_Inline(Context, Object): String;
@@ -359,9 +366,11 @@ extern macro SmiTag(intptr): Smi;
 extern macro SmiFromInt32(int32): Smi;
 extern macro SmiUntag(Smi): intptr;
 extern macro SmiToInt32(Smi): int32;
+extern macro RoundIntPtrToFloat64(intptr): float64;
 extern macro LoadHeapNumberValue(HeapNumber): float64;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro ChangeNumberToFloat64(Number): float64;
+extern macro ChangeFloat64ToUintPtr(float64): uintptr;
 extern macro ChangeInt32ToIntPtr(int32): intptr;  // Sign-extends.
 extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
 
@@ -493,6 +502,9 @@ convert<float64>(f: float32): float64 {
 macro convert<A : type>(d: float64): A;
 convert<Number>(d: float64): Number {
   return AllocateHeapNumberWithValue(d);
+}
+convert<uintptr>(d: float64): uintptr {
+  return ChangeFloat64ToUintPtr(d);
 }
 macro convert<A : type>(r: RawPtr): A;
 convert<uintptr>(r: RawPtr): uintptr {
@@ -731,4 +743,17 @@ macro ToBoolean(obj: Object): bool {
   } else {
     return false;
   }
+}
+
+macro ToIndex(input: Object, context: Context): Number labels RangeError {
+  if (input == Undefined) {
+    return 0;
+  }
+
+  let value: Number = ToInteger_Inline(context, input, kTruncateMinusZero);
+  if (value < 0 || value > kMaxSafeInteger) {
+    goto RangeError;
+  }
+
+  return value;
 }
