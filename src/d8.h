@@ -320,8 +320,7 @@ class ShellOptions {
   };
 
   ShellOptions()
-      : script_executed(false),
-        send_idle_notification(false),
+      : send_idle_notification(false),
         invoke_weak_callbacks(false),
         omit_quit(false),
         wait_for_wasm(true),
@@ -352,11 +351,6 @@ class ShellOptions {
     delete[] isolate_sources;
   }
 
-  bool use_interactive_shell() {
-    return (interactive_shell || !script_executed) && !test_shell;
-  }
-
-  bool script_executed;
   bool send_idle_notification;
   bool invoke_weak_callbacks;
   bool omit_quit;
@@ -530,6 +524,12 @@ class Shell : public i::AllStatic {
 
   static char* ReadCharsFromTcpPort(const char* name, int* size_out);
 
+  static void set_script_executed() { script_executed_.store(true); }
+  static bool use_interactive_shell() {
+    return (options.interactive_shell || !script_executed_.load()) &&
+           !options.test_shell;
+  }
+
  private:
   static Global<Context> evaluation_context_;
   static base::OnceType quit_once_;
@@ -547,6 +547,9 @@ class Shell : public i::AllStatic {
   static bool allow_new_workers_;
   static std::vector<Worker*> workers_;
   static std::vector<ExternalizedContents> externalized_contents_;
+
+  // Multiple isolates may update this flag concurrently.
+  static std::atomic<bool> script_executed_;
 
   static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
   // Append LCOV coverage data to file.

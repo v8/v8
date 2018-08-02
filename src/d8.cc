@@ -411,6 +411,7 @@ base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 std::vector<Worker*> Shell::workers_;
 std::vector<ExternalizedContents> Shell::externalized_contents_;
+std::atomic<bool> Shell::script_executed_{false};
 base::LazyMutex Shell::isolate_status_lock_;
 std::map<v8::Isolate*, bool> Shell::isolate_status_;
 base::LazyMutex Shell::cached_code_mutex_;
@@ -2447,7 +2448,7 @@ void SourceGroup::Execute(Isolate* isolate) {
       Local<String> source =
           String::NewFromUtf8(isolate, argv_[i + 1], NewStringType::kNormal)
               .ToLocalChecked();
-      Shell::options.script_executed = true;
+      Shell::set_script_executed();
       if (!Shell::ExecuteString(isolate, source, file_name,
                                 Shell::kNoPrintResult, Shell::kReportExceptions,
                                 Shell::kNoProcessMessageQueue)) {
@@ -2457,7 +2458,7 @@ void SourceGroup::Execute(Isolate* isolate) {
       ++i;
       continue;
     } else if (ends_with(arg, ".mjs")) {
-      Shell::options.script_executed = true;
+      Shell::set_script_executed();
       if (!Shell::ExecuteModule(isolate, arg)) {
         exception_was_thrown = true;
         break;
@@ -2466,7 +2467,7 @@ void SourceGroup::Execute(Isolate* isolate) {
     } else if (strcmp(arg, "--module") == 0 && i + 1 < end_offset_) {
       // Treat the next file as a module.
       arg = argv_[++i];
-      Shell::options.script_executed = true;
+      Shell::set_script_executed();
       if (!Shell::ExecuteModule(isolate, arg)) {
         exception_was_thrown = true;
         break;
@@ -2487,7 +2488,7 @@ void SourceGroup::Execute(Isolate* isolate) {
       printf("Error reading '%s'\n", arg);
       base::OS::ExitProcess(1);
     }
-    Shell::options.script_executed = true;
+    Shell::set_script_executed();
     if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
                               Shell::kReportExceptions,
                               Shell::kProcessMessageQueue)) {
@@ -2925,10 +2926,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strncmp(str, "--", 2) == 0) {
       printf("Warning: unknown flag %s.\nTry --help for options\n", str);
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
-      options.script_executed = true;
+      set_script_executed();
     } else if (strncmp(str, "-", 1) != 0) {
       // Not a flag, so it must be a script to execute.
-      options.script_executed = true;
+      set_script_executed();
     }
   }
   current->End(argc);
@@ -2951,7 +2952,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     }
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
-    bool use_existing_context = last_run && options.use_interactive_shell();
+    bool use_existing_context = last_run && use_interactive_shell();
     if (use_existing_context) {
       // Keep using the same context in the interactive shell.
       evaluation_context_.Reset(isolate, context);
@@ -3484,7 +3485,7 @@ int Shell::Main(int argc, char* argv[]) {
 
     // Run interactive shell if explicitly requested or if no script has been
     // executed, but never on --test
-    if (options.use_interactive_shell()) {
+    if (use_interactive_shell()) {
       RunShell(isolate);
     }
 
