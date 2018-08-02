@@ -134,9 +134,9 @@ V8_INLINE Dest bit_cast(Source const& source) {
 
 // Disallow copying a type, and only provide move construction and move
 // assignment. Especially useful for move-only structs.
-#define MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeName) \
-  TypeName(TypeName&&) = default;                  \
-  TypeName& operator=(TypeName&&) = default;       \
+#define MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeName)       \
+  TypeName(TypeName&&) V8_NOEXCEPT = default;            \
+  TypeName& operator=(TypeName&&) V8_NOEXCEPT = default; \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 // A macro to disallow the dynamic allocation.
