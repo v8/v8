@@ -10612,13 +10612,14 @@ int WeakArrayList::CountLiveWeakReferences() const {
 bool WeakArrayList::RemoveOne(MaybeObjectHandle value) {
   if (length() == 0) return false;
   // Optimize for the most recently added element to be removed again.
-  for (int i = length() - 1; i >= 0; --i) {
+  int last_index = length() - 1;
+  for (int i = last_index; i >= 0; --i) {
     if (Get(i) == *value) {
-      // Users should make sure that there are no duplicates.
-      Set(i, HeapObjectReference::ClearedValue());
-      if (i == length() - 1) {
-        set_length(length() - 1);
-      }
+      // Move the last element into the this slot (or no-op, if this is the
+      // last slot).
+      Set(i, Get(last_index));
+      Set(last_index, HeapObjectReference::ClearedValue());
+      set_length(last_index);
       return true;
     }
   }

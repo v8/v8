@@ -370,7 +370,10 @@ class WeakArrayList : public HeapObject {
   // Returns the number of non-cleaned weak references in the array.
   int CountLiveWeakReferences() const;
 
-  // Returns whether an entry was found and removed.
+  // Returns whether an entry was found and removed. Will move the elements
+  // around in the array - this method can only be used in cases where the user
+  // doesn't care about the indices! Users should make sure there are no
+  // duplicates.
   bool RemoveOne(MaybeObjectHandle value);
 
   class Iterator {
