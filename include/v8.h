@@ -7103,6 +7103,8 @@ class V8_EXPORT EmbedderHeapTracer {
     ForceCompletionAction force_completion;
   };
 
+  virtual ~EmbedderHeapTracer() = default;
+
   /**
    * Called by v8 to register internal fields of found wrappers.
    *
@@ -7194,8 +7196,6 @@ class V8_EXPORT EmbedderHeapTracer {
   };
 
  protected:
-  virtual ~EmbedderHeapTracer() = default;
-
   v8::Isolate* isolate_ = nullptr;
 
   friend class internal::LocalEmbedderHeapTracer;
