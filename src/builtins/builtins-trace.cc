@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api-inl.h"
-#include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/counters.h"
 #include "src/json-stringifier.h"
