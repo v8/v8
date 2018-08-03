@@ -2216,14 +2216,6 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
   abort_on_uncaught_exception_callback_ = callback;
 }
 
-Handle<Context> Isolate::GetCallingNativeContext() {
-  JavaScriptFrameIterator it(this);
-  if (it.done()) return Handle<Context>::null();
-  JavaScriptFrame* frame = it.frame();
-  Context* context = Context::cast(frame->context());
-  return Handle<Context>(context->native_context(), this);
-}
-
 Handle<Context> Isolate::GetIncumbentContext() {
   JavaScriptFrameIterator it(this);
 
