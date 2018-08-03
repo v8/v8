@@ -159,6 +159,7 @@
       'V8 Linux - arm - sim - debug': 'debug_simulate_arm',
       # Arm64.
       'V8 Android Arm64 - builder': 'release_android_arm64',
+      'V8 Android Arm64 - debug builder': 'debug_android_arm64',
       'V8 Linux - arm64 - sim': 'release_simulate_arm64',
       'V8 Linux - arm64 - sim - debug': 'debug_simulate_arm64',
       'V8 Linux - arm64 - sim - nosnap - debug':
@@ -202,6 +203,8 @@
       'V8 s390x - sim - stable branch': 'release_simulate_s390x',
     },
     'tryserver.v8': {
+      'v8_android_arm_compile_rel': 'release_android_arm',
+      'v8_android_arm64_compile_dbg': 'debug_android_arm64',
       'v8_fuchsia_rel_ng': 'release_x64_fuchsia_trybot',
       'v8_linux_rel_ng': 'release_x86_gcmole_trybot',
       'v8_linux_verify_csa_rel_ng': 'release_x86_verify_csa',
@@ -257,7 +260,6 @@
       'v8_linux_arm64_gc_stress_dbg': 'debug_simulate_arm64',
       'v8_linux_mipsel_compile_rel': 'release_simulate_mipsel',
       'v8_linux_mips64el_compile_rel': 'release_simulate_mips64el',
-      'v8_android_arm_compile_rel': 'release_android_arm',
     },
   },
 
@@ -404,6 +406,8 @@
       'release_bot', 'simulate_s390x'],
 
     # Debug configs for arm.
+    'debug_android_arm64': [
+      'debug_bot', 'arm64', 'android', 'minimal_symbols'],
     'debug_arm': [
       'debug_bot', 'arm', 'hard_float'],
 
