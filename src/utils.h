@@ -1562,14 +1562,13 @@ bool DoubleToBoolean(double d);
 template <typename Stream>
 bool StringToArrayIndex(Stream* stream, uint32_t* index);
 
-// Returns current value of top of the stack. Works correctly with ASAN and
-// SafeStack.
+// Returns current value of top of the stack. Works correctly with ASAN.
+DISABLE_ASAN
 inline uintptr_t GetCurrentStackPosition() {
-#if V8_CC_MSVC
-  return reinterpret_cast<uintptr_t>(_AddressOfReturnAddress());
-#else
-  return reinterpret_cast<uintptr_t>(__builtin_frame_address(0));
-#endif
+  // Takes the address of the limit variable in order to find out where
+  // the top of stack is right now.
+  uintptr_t limit = reinterpret_cast<uintptr_t>(&limit);
+  return limit;
 }
 
 template <typename V>
