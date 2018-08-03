@@ -23,6 +23,8 @@ class CompilationDependencies::Dependency : public ZoneObject {
 
 class InitialMapDependency final : public CompilationDependencies::Dependency {
  public:
+  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
+  // longer need to explicitly store the initial map.
   InitialMapDependency(const JSFunctionRef& function, const MapRef& initial_map)
       : function_(function), initial_map_(initial_map) {
     DCHECK(IsSane());
@@ -100,6 +102,8 @@ class TransitionDependency final : public CompilationDependencies::Dependency {
 class PretenureModeDependency final
     : public CompilationDependencies::Dependency {
  public:
+  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
+  // longer need to explicitly store the mode.
   PretenureModeDependency(const AllocationSiteRef& site, PretenureFlag mode)
       : site_(site), mode_(mode) {
     DCHECK(IsSane());
@@ -128,6 +132,8 @@ class PretenureModeDependency final
 
 class FieldTypeDependency final : public CompilationDependencies::Dependency {
  public:
+  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
+  // longer need to explicitly store the type.
   FieldTypeDependency(const MapRef& owner, int descriptor,
                       const ObjectRef& type)
       : owner_(owner), descriptor_(descriptor), type_(type) {
@@ -162,6 +168,8 @@ class FieldTypeDependency final : public CompilationDependencies::Dependency {
 class GlobalPropertyDependency final
     : public CompilationDependencies::Dependency {
  public:
+  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
+  // longer need to explicitly store the type and the read_only flag.
   GlobalPropertyDependency(const PropertyCellRef& cell, PropertyCellType type,
                            bool read_only)
       : cell_(cell), type_(type), read_only_(read_only) {
@@ -224,6 +232,8 @@ class ProtectorDependency final : public CompilationDependencies::Dependency {
 class ElementsKindDependency final
     : public CompilationDependencies::Dependency {
  public:
+  // TODO(neis): Once the concurrent compiler frontend is always-on, we no
+  // longer need to explicitly store the elements kind.
   ElementsKindDependency(const AllocationSiteRef& site, ElementsKind kind)
       : site_(site), kind_(kind) {
     DCHECK(IsSane());
