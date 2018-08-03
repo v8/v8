@@ -915,7 +915,7 @@ class V8_EXPORT HeapProfiler {
       "Use AddBuildEmbedderGraphCallback to provide info about embedder nodes",
       void SetGetRetainerInfosCallback(GetRetainerInfosCallback callback));
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use AddBuildEmbedderGraphCallback to provide info about embedder nodes",
       void SetBuildEmbedderGraphCallback(
           LegacyBuildEmbedderGraphCallback callback));
