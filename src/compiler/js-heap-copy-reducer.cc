@@ -28,10 +28,14 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       ObjectRef(broker(), HeapConstantOf(node->op()));
       break;
     }
-    case IrOpcode::kJSCreateFunctionContext: {
-      CreateFunctionContextParameters const& p =
-          CreateFunctionContextParametersOf(node->op());
-      ScopeInfoRef(broker(), p.scope_info());
+    case IrOpcode::kJSCreateArray: {
+      CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
+      Handle<AllocationSite> site;
+      if (p.site().ToHandle(&site)) AllocationSiteRef(broker(), site);
+      break;
+    }
+    case IrOpcode::kJSCreateCatchContext: {
+      ScopeInfoRef(broker(), ScopeInfoOf(node->op()));
       break;
     }
     case IrOpcode::kJSCreateClosure: {
@@ -39,6 +43,12 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       SharedFunctionInfoRef(broker(), p.shared_info());
       HeapObjectRef(broker(), p.feedback_cell());
       HeapObjectRef(broker(), p.code());
+      break;
+    }
+    case IrOpcode::kJSCreateFunctionContext: {
+      CreateFunctionContextParameters const& p =
+          CreateFunctionContextParametersOf(node->op());
+      ScopeInfoRef(broker(), p.scope_info());
       break;
     }
     case IrOpcode::kJSLoadNamed:

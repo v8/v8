@@ -42,21 +42,25 @@ class ObjectData : public ZoneObject {
   bool const is_smi;
 };
 
+// TODO(neis): Perhaps add a boolean that indicates whether serialization of an
+// object has completed. That could be used to add safety checks.
+
+#define GET_OR_CREATE(name) \
+  broker->GetOrCreateData(handle(object_->name(), broker->isolate()))
+
 class HeapObjectData : public ObjectData {
  public:
   static HeapObjectData* Serialize(JSHeapBroker* broker,
                                    Handle<HeapObject> object);
 
   HeapObjectType const type;
-  MapData* const map;
+  ObjectData* const map;
 
   HeapObjectData(JSHeapBroker* broker_, Handle<HeapObject> object_,
                  HeapObjectType type_)
       : ObjectData(broker_, object_, false),
         type(type_),
-        map(broker->GetOrCreateData(handle(object_->map(), broker_->isolate()))
-                ->AsMap()) {
-    CHECK_NOT_NULL(map);
+        map(GET_OR_CREATE(map)) {
     CHECK(broker_->SerializingAllowed());
   }
 };
@@ -69,17 +73,18 @@ class JSObjectData : public HeapObjectData {
 
 class JSFunctionData : public JSObjectData {
  public:
-  SharedFunctionInfoData* const shared;
+  ObjectData* const global_proxy;
+  ObjectData* const prototype_or_initial_map;
+  ObjectData* const shared;
 
   JSFunctionData(JSHeapBroker* broker_, Handle<JSFunction> object_,
                  HeapObjectType type_)
       : JSObjectData(broker_, object_, type_),
-        shared(
-            broker
-                ->GetOrCreateData(handle(object_->shared(), broker->isolate()))
-                ->AsSharedFunctionInfo()) {
-    CHECK_NOT_NULL(shared);
-  }
+        global_proxy(GET_OR_CREATE(global_proxy)),
+        prototype_or_initial_map(object_->map()->has_prototype_slot()
+                                     ? GET_OR_CREATE(prototype_or_initial_map)
+                                     : nullptr),
+        shared(GET_OR_CREATE(shared)) {}
 };
 
 class JSRegExpData : public JSObjectData {};
@@ -93,23 +98,36 @@ class ContextData : public HeapObjectData {
       : HeapObjectData(broker_, object_, type_) {}
 };
 
+#define NATIVE_CONTEXT_DATA(V)  \
+  V(fast_aliased_arguments_map) \
+  V(initial_array_iterator_map) \
+  V(iterator_result_map)        \
+  V(js_array_fast_elements_map) \
+  V(map_key_iterator_map)       \
+  V(map_key_value_iterator_map) \
+  V(map_value_iterator_map)     \
+  V(set_key_value_iterator_map) \
+  V(set_value_iterator_map)     \
+  V(sloppy_arguments_map)       \
+  V(strict_arguments_map)       \
+  V(string_iterator_map)
+
 class NativeContextData : public ContextData {
  public:
+#define DECL_MEMBER(name) ObjectData* const name;
+  NATIVE_CONTEXT_DATA(DECL_MEMBER)
+#undef DECL_MEMBER
+
+  // There's no NativeContext class, so we take object_ as Context.
   NativeContextData(JSHeapBroker* broker_, Handle<Context> object_,
                     HeapObjectType type_)
-      : ContextData(broker_, object_, type_), sloppy_arguments_map_(nullptr) {
-    // There's no NativeContext class, so we take object_ as Context.
+      : ContextData(broker_, object_, type_)
+#define INIT_MEMBER(name) , name(GET_OR_CREATE(name))
+            NATIVE_CONTEXT_DATA(INIT_MEMBER)
+#undef INIT_MEMBER
+  {
     CHECK(object_->IsNativeContext());
-    CHECK(broker->SerializingAllowed());
-    Handle<Map> map(object_->sloppy_arguments_map(), broker->isolate());
-    sloppy_arguments_map_ = broker->GetOrCreateData(map)->AsMap();
-    CHECK_NOT_NULL(sloppy_arguments_map_);
   }
-
-  MapData* sloppy_arguments_map() const { return sloppy_arguments_map_; }
-
- private:
-  MapData* sloppy_arguments_map_;
 };
 
 class NameData : public HeapObjectData {};
@@ -175,27 +193,6 @@ HeapObjectData* HeapObjectData::Serialize(JSHeapBroker* broker,
   return result;
 }
 
-MapRef HeapObjectRef::map() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHandleAllocation handle_allocation;
-    AllowHandleDereference allow_handle_dereference;
-    return MapRef(broker(),
-                  handle(object<HeapObject>()->map(), broker()->isolate()));
-  } else {
-    return MapRef(data()->AsHeapObject()->map);
-  }
-}
-
-double HeapNumberRef::value() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<HeapNumber>()->value();
-}
-
-double MutableHeapNumberRef::value() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<MutableHeapNumber>()->value();
-}
-
 bool ObjectRef::equals(const ObjectRef& other) const {
   return data_ == other.data_;
 }
@@ -242,22 +239,55 @@ void JSHeapBroker::SerializeStandardObjects() {
     PrintF("[%p] Serializing standard objects.\n", this);
   }
 
+  Builtins* const b = isolate()->builtins();
+  Factory* const f = isolate()->factory();
+
   // Stuff used by JSGraph:
-  GetOrCreateData(isolate()->factory()->empty_fixed_array());
+  GetOrCreateData(f->empty_fixed_array());
 
   // Stuff used by JSCreateLowering:
-  GetOrCreateData(isolate()->factory()->eval_context_map());
-  GetOrCreateData(isolate()->factory()->function_context_map());
-  GetOrCreateData(isolate()->factory()->many_closures_cell_map());
-  // TODO(neis): Strings used by typeof.
+  GetOrCreateData(f->block_context_map());
+  GetOrCreateData(f->catch_context_map());
+  GetOrCreateData(f->eval_context_map());
+  GetOrCreateData(f->fixed_array_map());
+  GetOrCreateData(f->fixed_double_array_map());
+  GetOrCreateData(f->function_context_map());
+  GetOrCreateData(f->many_closures_cell_map());
+  GetOrCreateData(f->mutable_heap_number_map());
+  GetOrCreateData(f->name_dictionary_map());
+  GetOrCreateData(f->one_pointer_filler_map());
+  GetOrCreateData(f->sloppy_arguments_elements_map());
+  GetOrCreateData(f->with_context_map());
+
+  // Stuff used by TypedOptimization:
+  // Strings produced by typeof:
+  GetOrCreateData(f->boolean_string());
+  GetOrCreateData(f->number_string());
+  GetOrCreateData(f->string_string());
+  GetOrCreateData(f->bigint_string());
+  GetOrCreateData(f->symbol_string());
+  GetOrCreateData(f->undefined_string());
+  GetOrCreateData(f->object_string());
+  GetOrCreateData(f->function_string());
 
   // Stuff used by JSTypedLowering:
-  GetOrCreateData(isolate()->factory()->length_string());
-  GetOrCreateData(
-      isolate()->builtins()->builtin_handle(Builtins::kArrayPrototypeShift));
-  GetOrCreateData(isolate()->builtins()->builtin_handle(
-      Builtins::kCallFunctionForwardVarargs));
-  // TODO(neis): Other code objects corresponding to TFJ builtins.
+  GetOrCreateData(f->length_string());
+  Builtins::Name builtins[] = {
+      Builtins::kArgumentsAdaptorTrampoline,
+      Builtins::kCallFunctionForwardVarargs,
+      Builtins::kStringAdd_CheckNone_NotTenured,
+      Builtins::kStringAdd_CheckNone_Tenured,
+      Builtins::kStringAdd_ConvertLeft_NotTenured,
+      Builtins::kStringAdd_ConvertRight_NotTenured,
+  };
+  for (auto id : builtins) {
+    GetOrCreateData(b->builtin_handle(id));
+  }
+  for (int32_t id = 0; id < Builtins::builtin_count; ++id) {
+    if (Builtins::KindOf(id) == Builtins::TFJ) {
+      GetOrCreateData(b->builtin_handle(id));
+    }
+  }
 }
 
 HeapObjectType JSHeapBroker::HeapObjectTypeFromMap(Map* map) const {
@@ -357,33 +387,6 @@ base::Optional<MapRef> HeapObjectRef::TryGetObjectCreateMap() const {
   }
 }
 
-bool HeapObjectRef::IsSeqString() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<HeapObject>()->IsSeqString();
-}
-
-// TODO(neis): Provide StringShape() on StringRef.
-
-bool HeapObjectRef::IsExternalString() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<HeapObject>()->IsExternalString();
-}
-
-bool JSFunctionRef::HasBuiltinFunctionId() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<JSFunction>()->shared()->HasBuiltinFunctionId();
-}
-
-BuiltinFunctionId JSFunctionRef::GetBuiltinFunctionId() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<JSFunction>()->shared()->builtin_function_id();
-}
-
-bool JSFunctionRef::IsConstructor() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<JSFunction>()->IsConstructor();
-}
-
 void JSFunctionRef::EnsureHasInitialMap() const {
   AllowHandleAllocation handle_allocation;
   AllowHandleDereference allow_handle_dereference;
@@ -413,36 +416,6 @@ SlackTrackingResult JSFunctionRef::FinishSlackTracking() const {
   return SlackTrackingResult(instance_size, inobject_property_count);
 }
 
-bool JSFunctionRef::has_initial_map() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<JSFunction>()->has_initial_map();
-}
-
-MapRef JSFunctionRef::initial_map() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(), handle(object<JSFunction>()->initial_map(),
-                                 broker()->isolate()));
-}
-
-SharedFunctionInfoRef JSFunctionRef::shared() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHandleAllocation handle_allocation;
-    AllowHandleDereference allow_handle_dereference;
-    return SharedFunctionInfoRef(
-        broker(), handle(object<JSFunction>()->shared(), broker()->isolate()));
-  } else {
-    return SharedFunctionInfoRef(data()->AsJSFunction()->shared);
-  }
-}
-
-JSGlobalProxyRef JSFunctionRef::global_proxy() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return JSGlobalProxyRef(broker(), handle(object<JSFunction>()->global_proxy(),
-                                           broker()->isolate()));
-}
-
 base::Optional<ScriptContextTableRef::LookupResult>
 ScriptContextTableRef::lookup(const NameRef& name) const {
   AllowHandleAllocation handle_allocation;
@@ -462,14 +435,6 @@ ScriptContextTableRef::lookup(const NameRef& name) const {
   return result;
 }
 
-ScriptContextTableRef NativeContextRef::script_context_table() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference handle_dereference;
-  return ScriptContextTableRef(
-      broker(),
-      handle(object<Context>()->script_context_table(), broker()->isolate()));
-}
-
 OddballType ObjectRef::oddball_type() const {
   return IsSmi() ? OddballType::kNone : AsHeapObject().type().oddball_type();
 }
@@ -480,37 +445,6 @@ ObjectRef FeedbackVectorRef::get(FeedbackSlot slot) const {
   Handle<Object> value(object<FeedbackVector>()->Get(slot)->ToObject(),
                        broker()->isolate());
   return ObjectRef(broker(), value);
-}
-
-JSObjectRef AllocationSiteRef::boilerplate() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference handle_dereference;
-  Handle<JSObject> value(object<AllocationSite>()->boilerplate(),
-                         broker()->isolate());
-  return JSObjectRef(broker(), value);
-}
-
-ObjectRef AllocationSiteRef::nested_site() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference handle_dereference;
-  Handle<Object> obj(object<AllocationSite>()->nested_site(),
-                     broker()->isolate());
-  return ObjectRef(broker(), obj);
-}
-
-bool AllocationSiteRef::PointsToLiteral() const {
-  AllowHandleDereference handle_dereference;
-  return object<AllocationSite>()->PointsToLiteral();
-}
-
-ElementsKind AllocationSiteRef::GetElementsKind() const {
-  AllowHandleDereference handle_dereference;
-  return object<AllocationSite>()->GetElementsKind();
-}
-
-bool AllocationSiteRef::CanInlineCall() const {
-  AllowHandleDereference handle_dereference;
-  return object<AllocationSite>()->CanInlineCall();
 }
 
 bool JSObjectRef::IsUnboxedDoubleField(FieldIndex index) const {
@@ -531,17 +465,6 @@ ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
                           broker()->isolate()));
 }
 
-ElementsKind JSObjectRef::GetElementsKind() {
-  AllowHandleDereference handle_dereference;
-  return object<JSObject>()->GetElementsKind();
-}
-
-FixedArrayBaseRef JSObjectRef::elements() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference handle_dereference;
-  return FixedArrayBaseRef(
-      broker(), handle(object<JSObject>()->elements(), broker()->isolate()));
-}
 
 namespace {
 
@@ -638,11 +561,6 @@ bool AllocationSiteRef::IsFastLiteral() const {
                              &max_properties);
 }
 
-PretenureFlag AllocationSiteRef::GetPretenureMode() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<AllocationSite>()->GetPretenureMode();
-}
-
 void JSObjectRef::EnsureElementsTenured() {
   // TODO(jarin) Eventually, we will pretenure the boilerplates before
   // the compilation job starts.
@@ -662,26 +580,6 @@ void JSObjectRef::EnsureElementsTenured() {
   }
 }
 
-bool MapRef::is_deprecated() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->is_deprecated();
-}
-
-bool MapRef::CanBeDeprecated() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->CanBeDeprecated();
-}
-
-int MapRef::GetInObjectProperties() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->GetInObjectProperties();
-}
-
-int MapRef::NumberOfOwnDescriptors() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->NumberOfOwnDescriptors();
-}
-
 FieldIndex MapRef::GetFieldIndexFor(int i) const {
   AllowHandleDereference allow_handle_dereference;
   return FieldIndex::ForDescriptor(*object<Map>(), i);
@@ -690,33 +588,6 @@ FieldIndex MapRef::GetFieldIndexFor(int i) const {
 int MapRef::GetInObjectPropertyOffset(int i) const {
   AllowHandleDereference allow_handle_dereference;
   return object<Map>()->GetInObjectPropertyOffset(i);
-}
-
-bool MapRef::is_dictionary_map() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->is_dictionary_map();
-}
-
-ObjectRef MapRef::constructor_or_backpointer() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return ObjectRef(broker(), handle(object<Map>()->constructor_or_backpointer(),
-                                    broker()->isolate()));
-}
-
-ElementsKind MapRef::elements_kind() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->elements_kind();
-}
-
-int MapRef::instance_size() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->instance_size();
-}
-
-InstanceType MapRef::instance_type() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->instance_type();
 }
 
 PropertyDetails MapRef::GetPropertyDetails(int i) const {
@@ -732,35 +603,10 @@ NameRef MapRef::GetPropertyKey(int i) const {
                         broker()->isolate()));
 }
 
-bool MapRef::IsJSArrayMap() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->IsJSArrayMap();
-}
-
-bool MapRef::IsInobjectSlackTrackingInProgress() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->IsInobjectSlackTrackingInProgress();
-}
-
 bool MapRef::IsFixedCowArrayMap() const {
   AllowHandleDereference allow_handle_dereference;
   return *object<Map>() ==
          ReadOnlyRoots(broker()->isolate()).fixed_cow_array_map();
-}
-
-bool MapRef::has_prototype_slot() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->has_prototype_slot();
-}
-
-bool MapRef::is_stable() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->is_stable();
-}
-
-bool MapRef::CanTransition() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->CanTransition();
 }
 
 MapRef MapRef::FindFieldOwner(int descriptor) const {
@@ -781,23 +627,6 @@ ObjectRef MapRef::GetFieldType(int descriptor) const {
   return ObjectRef(broker(), field_type);
 }
 
-ElementsKind JSArrayRef::GetElementsKind() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<JSArray>()->GetElementsKind();
-}
-
-ObjectRef JSArrayRef::length() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return ObjectRef(broker(),
-                   handle(object<JSArray>()->length(), broker()->isolate()));
-}
-
-int StringRef::length() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<String>()->length();
-}
-
 uint16_t StringRef::GetFirstChar() {
   AllowHandleDereference allow_handle_dereference;
   return object<String>()->Get(0);
@@ -811,47 +640,6 @@ double StringRef::ToNumber() {
   return StringToDouble(broker()->isolate(),
                         broker()->isolate()->unicode_cache(), object<String>(),
                         flags);
-}
-
-ObjectRef JSRegExpRef::raw_properties_or_hash() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return ObjectRef(broker(),
-                   handle(object<JSRegExp>()->raw_properties_or_hash(),
-                          broker()->isolate()));
-}
-
-ObjectRef JSRegExpRef::data() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return ObjectRef(broker(),
-                   handle(object<JSRegExp>()->data(), broker()->isolate()));
-}
-
-ObjectRef JSRegExpRef::source() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return ObjectRef(broker(),
-                   handle(object<JSRegExp>()->source(), broker()->isolate()));
-}
-
-ObjectRef JSRegExpRef::flags() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return ObjectRef(broker(),
-                   handle(object<JSRegExp>()->flags(), broker()->isolate()));
-}
-
-ObjectRef JSRegExpRef::last_index() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return ObjectRef(
-      broker(), handle(object<JSRegExp>()->last_index(), broker()->isolate()));
-}
-
-int FixedArrayBaseRef::length() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<FixedArrayBase>()->length();
 }
 
 bool FixedArrayRef::is_the_hole(int i) const {
@@ -876,162 +664,146 @@ double FixedDoubleArrayRef::get_scalar(int i) const {
   return object<FixedDoubleArray>()->get_scalar(i);
 }
 
-int ScopeInfoRef::ContextLength() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<ScopeInfo>()->ContextLength();
-}
-
-int SharedFunctionInfoRef::internal_formal_parameter_count() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<SharedFunctionInfo>()->internal_formal_parameter_count();
-}
-
-int SharedFunctionInfoRef::function_map_index() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<SharedFunctionInfo>()->function_map_index();
-}
-
-bool SharedFunctionInfoRef::has_duplicate_parameters() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<SharedFunctionInfo>()->has_duplicate_parameters();
-}
-
-FunctionKind SharedFunctionInfoRef::kind() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<SharedFunctionInfo>()->kind();
-}
-
-LanguageMode SharedFunctionInfoRef::language_mode() {
-  AllowHandleDereference allow_handle_dereference;
-  return object<SharedFunctionInfo>()->language_mode();
-}
-
-bool SharedFunctionInfoRef::native() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<SharedFunctionInfo>()->native();
-}
-
-bool SharedFunctionInfoRef::HasBreakInfo() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<SharedFunctionInfo>()->HasBreakInfo();
-}
-
-bool SharedFunctionInfoRef::HasBuiltinId() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<SharedFunctionInfo>()->HasBuiltinId();
-}
-
-int SharedFunctionInfoRef::builtin_id() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<SharedFunctionInfo>()->builtin_id();
-}
-
-bool SharedFunctionInfoRef::construct_as_builtin() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<SharedFunctionInfo>()->construct_as_builtin();
-}
-
-bool SharedFunctionInfoRef::HasBytecodeArray() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<SharedFunctionInfo>()->HasBytecodeArray();
-}
-
 int SharedFunctionInfoRef::GetBytecodeArrayRegisterCount() const {
   AllowHandleDereference allow_handle_dereference;
   return object<SharedFunctionInfo>()->GetBytecodeArray()->register_count();
 }
 
-MapRef NativeContextRef::fast_aliased_arguments_map() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(),
-                handle(object<Context>()->fast_aliased_arguments_map(),
-                       broker()->isolate()));
-}
-
-MapRef NativeContextRef::sloppy_arguments_map() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHandleAllocation handle_allocation;
-    AllowHandleDereference allow_handle_dereference;
-    return MapRef(broker(), handle(object<Context>()->sloppy_arguments_map(),
-                                   broker()->isolate()));
-  } else {
-    return MapRef(data()->AsNativeContext()->sloppy_arguments_map());
+// Macros for definining a const getter that, depending on the broker mode,
+// either looks into the handle or into the serialized data. The first one is
+// used for the rare case of a XYZRef class that does not have a corresponding
+// XYZ class in objects.h. The second one is used otherwise.
+#define BIMODAL_ACCESSOR_(holder, v8class, result, method)                     \
+  result##Ref holder##Ref::method() const {                                    \
+    if (broker()->mode() == JSHeapBroker::kDisabled) {                         \
+      AllowHandleAllocation handle_allocation;                                 \
+      AllowHandleDereference allow_handle_dereference;                         \
+      return result##Ref(                                                      \
+          broker(), handle(object<v8class>()->method(), broker()->isolate())); \
+    } else {                                                                   \
+      return result##Ref(data()->As##holder()->method);                        \
+    }                                                                          \
   }
+#define BIMODAL_ACCESSOR(holder, result, method) \
+  BIMODAL_ACCESSOR_(holder, holder, result, method)
+
+// Macros for definining a const getter that always looks into the handle.
+// (These will go away once we serialize everything.) The first one is used for
+// the rare case of a XYZRef class that does not have a corresponding XYZ class
+// in objects.h. The second one is used otherwise.
+#define HANDLE_ACCESSOR_(holder, v8class, result, method)                    \
+  result##Ref holder##Ref::method() const {                                  \
+    AllowHandleAllocation handle_allocation;                                 \
+    AllowHandleDereference allow_handle_dereference;                         \
+    return result##Ref(                                                      \
+        broker(), handle(object<v8class>()->method(), broker()->isolate())); \
+  }
+#define HANDLE_ACCESSOR(holder, result, method) \
+  HANDLE_ACCESSOR_(holder, holder, result, method)
+
+// Like HANDLE_ACCESSOR except that the result type is not an XYZRef.
+#define HANDLE_ACCESSOR_C(holder, result, method)    \
+  result holder##Ref::method() const {               \
+    AllowHandleAllocation handle_allocation;         \
+    AllowHandleDereference allow_handle_dereference; \
+    return object<holder>()->method();               \
+  }
+
+HANDLE_ACCESSOR(AllocationSite, JSObject, boilerplate)
+HANDLE_ACCESSOR(AllocationSite, Object, nested_site)
+HANDLE_ACCESSOR_C(AllocationSite, bool, CanInlineCall)
+HANDLE_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
+HANDLE_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
+HANDLE_ACCESSOR_C(AllocationSite, PretenureFlag, GetPretenureMode)
+
+HANDLE_ACCESSOR_C(FixedArrayBase, int, length)
+
+BIMODAL_ACCESSOR(HeapObject, Map, map)
+HANDLE_ACCESSOR_C(HeapObject, bool, IsExternalString)
+HANDLE_ACCESSOR_C(HeapObject, bool, IsSeqString)
+
+HANDLE_ACCESSOR_C(HeapNumber, double, value)
+
+HANDLE_ACCESSOR_C(JSArray, ElementsKind, GetElementsKind)
+HANDLE_ACCESSOR(JSArray, Object, length)
+
+HANDLE_ACCESSOR_C(JSFunction, bool, has_initial_map)
+HANDLE_ACCESSOR_C(JSFunction, bool, IsConstructor)
+HANDLE_ACCESSOR(JSFunction, JSGlobalProxy, global_proxy)
+HANDLE_ACCESSOR(JSFunction, Map, initial_map)
+HANDLE_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
+
+HANDLE_ACCESSOR_C(JSObject, ElementsKind, GetElementsKind)
+HANDLE_ACCESSOR(JSObject, FixedArrayBase, elements)
+
+HANDLE_ACCESSOR(JSRegExp, Object, data)
+HANDLE_ACCESSOR(JSRegExp, Object, flags)
+HANDLE_ACCESSOR(JSRegExp, Object, last_index)
+HANDLE_ACCESSOR(JSRegExp, Object, raw_properties_or_hash)
+HANDLE_ACCESSOR(JSRegExp, Object, source)
+
+HANDLE_ACCESSOR_C(Map, bool, CanBeDeprecated)
+HANDLE_ACCESSOR_C(Map, bool, CanTransition)
+HANDLE_ACCESSOR_C(Map, bool, has_prototype_slot)
+HANDLE_ACCESSOR_C(Map, bool, is_deprecated)
+HANDLE_ACCESSOR_C(Map, bool, is_dictionary_map)
+HANDLE_ACCESSOR_C(Map, bool, IsInobjectSlackTrackingInProgress)
+HANDLE_ACCESSOR_C(Map, bool, IsJSArrayMap)
+HANDLE_ACCESSOR_C(Map, bool, is_stable)
+HANDLE_ACCESSOR_C(Map, ElementsKind, elements_kind)
+HANDLE_ACCESSOR_C(Map, InstanceType, instance_type)
+HANDLE_ACCESSOR_C(Map, int, GetInObjectProperties)
+HANDLE_ACCESSOR_C(Map, int, instance_size)
+HANDLE_ACCESSOR_C(Map, int, NumberOfOwnDescriptors)
+HANDLE_ACCESSOR(Map, Object, constructor_or_backpointer)
+
+HANDLE_ACCESSOR_C(MutableHeapNumber, double, value)
+
+BIMODAL_ACCESSOR_(NativeContext, Context, Map, fast_aliased_arguments_map)
+BIMODAL_ACCESSOR_(NativeContext, Context, Map, js_array_fast_elements_map)
+BIMODAL_ACCESSOR_(NativeContext, Context, Map, sloppy_arguments_map)
+BIMODAL_ACCESSOR_(NativeContext, Context, Map, strict_arguments_map)
+HANDLE_ACCESSOR_(NativeContext, Context, JSFunction, array_function)
+HANDLE_ACCESSOR_(NativeContext, Context, Map, initial_array_iterator_map)
+HANDLE_ACCESSOR_(NativeContext, Context, Map, iterator_result_map)
+HANDLE_ACCESSOR_(NativeContext, Context, Map, map_key_iterator_map)
+HANDLE_ACCESSOR_(NativeContext, Context, Map, map_key_value_iterator_map)
+HANDLE_ACCESSOR_(NativeContext, Context, Map, map_value_iterator_map)
+HANDLE_ACCESSOR_(NativeContext, Context, Map, set_key_value_iterator_map)
+HANDLE_ACCESSOR_(NativeContext, Context, Map, set_value_iterator_map)
+HANDLE_ACCESSOR_(NativeContext, Context, Map, string_iterator_map)
+HANDLE_ACCESSOR_(NativeContext, Context, ScriptContextTable,
+                 script_context_table)
+
+HANDLE_ACCESSOR(PropertyCell, Object, value)
+HANDLE_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
+
+HANDLE_ACCESSOR_C(ScopeInfo, int, ContextLength)
+
+HANDLE_ACCESSOR_C(SharedFunctionInfo, bool, construct_as_builtin)
+HANDLE_ACCESSOR_C(SharedFunctionInfo, bool, HasBreakInfo)
+HANDLE_ACCESSOR_C(SharedFunctionInfo, bool, HasBuiltinId)
+HANDLE_ACCESSOR_C(SharedFunctionInfo, bool, HasBytecodeArray)
+HANDLE_ACCESSOR_C(SharedFunctionInfo, bool, has_duplicate_parameters)
+HANDLE_ACCESSOR_C(SharedFunctionInfo, bool, native)
+HANDLE_ACCESSOR_C(SharedFunctionInfo, FunctionKind, kind)
+HANDLE_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
+HANDLE_ACCESSOR_C(SharedFunctionInfo, int, function_map_index)
+HANDLE_ACCESSOR_C(SharedFunctionInfo, int, internal_formal_parameter_count)
+HANDLE_ACCESSOR_C(SharedFunctionInfo, LanguageMode, language_mode)
+
+HANDLE_ACCESSOR_C(String, int, length)
+
+// TODO(neis): Provide StringShape() on StringRef.
+
+bool JSFunctionRef::HasBuiltinFunctionId() const {
+  AllowHandleDereference allow_handle_dereference;
+  return object<JSFunction>()->shared()->HasBuiltinFunctionId();
 }
 
-MapRef NativeContextRef::strict_arguments_map() const {
-  AllowHandleAllocation handle_allocation;
+BuiltinFunctionId JSFunctionRef::GetBuiltinFunctionId() const {
   AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(), handle(object<Context>()->strict_arguments_map(),
-                                 broker()->isolate()));
-}
-
-MapRef NativeContextRef::js_array_fast_elements_map() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(),
-                handle(object<Context>()->js_array_fast_elements_map(),
-                       broker()->isolate()));
-}
-
-MapRef NativeContextRef::initial_array_iterator_map() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(),
-                handle(object<Context>()->initial_array_iterator_map(),
-                       broker()->isolate()));
-}
-
-MapRef NativeContextRef::set_value_iterator_map() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(), handle(object<Context>()->set_value_iterator_map(),
-                                 broker()->isolate()));
-}
-
-MapRef NativeContextRef::set_key_value_iterator_map() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(),
-                handle(object<Context>()->set_key_value_iterator_map(),
-                       broker()->isolate()));
-}
-
-MapRef NativeContextRef::map_key_iterator_map() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(), handle(object<Context>()->map_key_iterator_map(),
-                                 broker()->isolate()));
-}
-
-MapRef NativeContextRef::map_value_iterator_map() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(), handle(object<Context>()->map_value_iterator_map(),
-                                 broker()->isolate()));
-}
-
-MapRef NativeContextRef::map_key_value_iterator_map() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(),
-                handle(object<Context>()->map_key_value_iterator_map(),
-                       broker()->isolate()));
-}
-
-MapRef NativeContextRef::iterator_result_map() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(), handle(object<Context>()->iterator_result_map(),
-                                 broker()->isolate()));
-}
-
-MapRef NativeContextRef::string_iterator_map() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(), handle(object<Context>()->string_iterator_map(),
-                                 broker()->isolate()));
+  return object<JSFunction>()->shared()->builtin_function_id();
 }
 
 MapRef NativeContextRef::promise_function_initial_map() const {
@@ -1040,13 +812,6 @@ MapRef NativeContextRef::promise_function_initial_map() const {
   return MapRef(broker(),
                 handle(object<Context>()->promise_function()->initial_map(),
                        broker()->isolate()));
-}
-
-JSFunctionRef NativeContextRef::array_function() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return JSFunctionRef(broker(), handle(object<Context>()->array_function(),
-                                        broker()->isolate()));
 }
 
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
@@ -1109,18 +874,6 @@ CellRef ModuleRef::GetCell(int cell_index) {
                                   broker()->isolate()));
 }
 
-ObjectRef PropertyCellRef::value() const {
-  AllowHandleAllocation allow_handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return ObjectRef(
-      broker(), handle(object<PropertyCell>()->value(), broker()->isolate()));
-}
-
-PropertyDetails PropertyCellRef::property_details() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<PropertyCell>()->property_details();
-}
-
 ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object) {
   switch (broker->mode()) {
     case JSHeapBroker::kSerialized:
@@ -1147,6 +900,14 @@ Handle<Object> ObjectRef::object() const { return data_->object; }
 JSHeapBroker* ObjectRef::broker() const { return data_->broker; }
 
 ObjectData* ObjectRef::data() const { return data_; }
+
+#undef BIMODAL_ACCESSOR
+#undef BIMODAL_ACCESSOR_
+#undef GET_OR_CREATE
+#undef HANDLE_ACCESSOR
+#undef HANDLE_ACCESSOR_
+#undef HANDLE_ACCESSOR_C
+#undef NATIVE_CONTEXT_DATA
 
 }  // namespace compiler
 }  // namespace internal

@@ -188,7 +188,7 @@ BailoutReason SharedFunctionInfo::disable_optimization_reason() const {
   return DisabledOptimizationReasonBits::decode(flags());
 }
 
-LanguageMode SharedFunctionInfo::language_mode() {
+LanguageMode SharedFunctionInfo::language_mode() const {
   STATIC_ASSERT(LanguageModeSize == 2);
   return construct_language_mode(IsStrictBit::decode(flags()));
 }

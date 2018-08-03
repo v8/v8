@@ -415,7 +415,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
 
   // Indicates the language mode.
-  inline LanguageMode language_mode();
+  inline LanguageMode language_mode() const;
   inline void set_language_mode(LanguageMode language_mode);
 
   // Indicates whether the source is implicitly wrapped in a function.

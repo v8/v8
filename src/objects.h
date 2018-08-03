@@ -2265,7 +2265,7 @@ class JSObject: public JSReceiver {
   static inline void SetMapAndElements(Handle<JSObject> object,
                                        Handle<Map> map,
                                        Handle<FixedArrayBase> elements);
-  inline ElementsKind GetElementsKind();
+  inline ElementsKind GetElementsKind() const;
   ElementsAccessor* GetElementsAccessor();
   // Returns true if an object has elements of PACKED_SMI_ELEMENTS or
   // HOLEY_SMI_ELEMENTS ElementsKind.
@@ -2655,7 +2655,7 @@ class JSObject: public JSReceiver {
   // If a GC was caused while constructing this object, the elements pointer
   // may point to a one pointer filler map. The object won't be rooted, but
   // our heap verification code could stumble across it.
-  bool ElementsAreSafeToExamine();
+  bool ElementsAreSafeToExamine() const;
 #endif
 
   Object* SlowReverseLookup(Object* value);

@@ -2547,7 +2547,7 @@ SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
 SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)
 
-ElementsKind JSObject::GetElementsKind() {
+ElementsKind JSObject::GetElementsKind() const {
   ElementsKind kind = map()->elements_kind();
 #if VERIFY_HEAP && DEBUG
   FixedArrayBase* fixed_array =

@@ -157,7 +157,7 @@ class JSObjectRef : public HeapObjectRef {
 
   FixedArrayBaseRef elements() const;
   void EnsureElementsTenured();
-  ElementsKind GetElementsKind();
+  ElementsKind GetElementsKind() const;
 };
 
 struct SlackTrackingResult {
@@ -359,7 +359,7 @@ class SharedFunctionInfoRef : public HeapObjectRef {
   bool has_duplicate_parameters() const;
   int function_map_index() const;
   FunctionKind kind() const;
-  LanguageMode language_mode();
+  LanguageMode language_mode() const;
   bool native() const;
   bool HasBreakInfo() const;
   bool HasBuiltinId() const;

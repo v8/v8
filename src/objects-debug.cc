@@ -445,8 +445,7 @@ void FixedTypedArray<Traits>::FixedTypedArrayVerify(Isolate* isolate) {
   }
 }
 
-
-bool JSObject::ElementsAreSafeToExamine() {
+bool JSObject::ElementsAreSafeToExamine() const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
   return reinterpret_cast<Map*>(elements()) !=
