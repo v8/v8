@@ -634,8 +634,6 @@ class DependentCode : public FixedArray {
   bool Contains(DependencyGroup group, WeakCell* code_cell);
   bool IsEmpty(DependencyGroup group);
 
-  void RemoveCompilationDependencies(DependencyGroup group, Foreign* info);
-
   void DeoptimizeDependentCodeGroup(Isolate* isolate, DependencyGroup group);
 
   bool MarkCodeForDeoptimization(Isolate* isolate, DependencyGroup group);
