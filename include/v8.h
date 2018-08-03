@@ -6684,6 +6684,7 @@ class V8_EXPORT HeapStatistics {
   size_t used_heap_size() { return used_heap_size_; }
   size_t heap_size_limit() { return heap_size_limit_; }
   size_t malloced_memory() { return malloced_memory_; }
+  size_t external_memory() { return external_memory_; }
   size_t peak_malloced_memory() { return peak_malloced_memory_; }
   size_t number_of_native_contexts() { return number_of_native_contexts_; }
   size_t number_of_detached_contexts() { return number_of_detached_contexts_; }
@@ -6702,6 +6703,7 @@ class V8_EXPORT HeapStatistics {
   size_t used_heap_size_;
   size_t heap_size_limit_;
   size_t malloced_memory_;
+  size_t external_memory_;
   size_t peak_malloced_memory_;
   bool does_zap_garbage_;
   size_t number_of_native_contexts_;
