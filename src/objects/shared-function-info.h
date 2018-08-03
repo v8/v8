@@ -574,7 +574,7 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
 
    private:
     Script::Iterator script_iterator_;
-    WeakArrayList::Iterator noscript_sfi_iterator_;
+    FixedArrayOfWeakCells::Iterator noscript_sfi_iterator_;
     SharedFunctionInfo::ScriptIterator sfi_iterator_;
     DisallowHeapAllocation no_gc_;
     DISALLOW_COPY_AND_ASSIGN(GlobalIterator);

@@ -5032,6 +5032,13 @@ void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
 }
 
 namespace {
+void CompactFixedArrayOfWeakCells(Isolate* isolate, Object* object) {
+  if (object->IsFixedArrayOfWeakCells()) {
+    FixedArrayOfWeakCells* array = FixedArrayOfWeakCells::cast(object);
+    array->Compact<FixedArrayOfWeakCells::NullCallback>(isolate);
+  }
+}
+
 Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
                                            Handle<WeakArrayList> array) {
   if (array->length() == 0) {
@@ -5061,7 +5068,7 @@ Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
 
 }  // anonymous namespace
 
-void Heap::CompactWeakArrayLists() {
+void Heap::CompactFixedArraysOfWeakCells() {
   // Find known PrototypeUsers and compact them.
   std::vector<Handle<PrototypeInfo>> prototype_infos;
   {
@@ -5083,15 +5090,13 @@ void Heap::CompactWeakArrayLists() {
     prototype_info->set_prototype_users(new_array);
   }
 
+  // Find known FixedArrayOfWeakCells and compact them.
+  CompactFixedArrayOfWeakCells(isolate(), noscript_shared_function_infos());
+
   // Find known WeakArrayLists and compact them.
   Handle<WeakArrayList> scripts(script_list(), isolate());
   scripts = CompactWeakArrayList(this, scripts);
   set_script_list(*scripts);
-
-  Handle<WeakArrayList> no_script_list(noscript_shared_function_infos(),
-                                       isolate());
-  no_script_list = CompactWeakArrayList(this, no_script_list);
-  set_noscript_shared_function_infos(*no_script_list);
 }
 
 void Heap::AddRetainedMap(Handle<Map> map) {
