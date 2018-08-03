@@ -218,6 +218,11 @@
       {'name': 'v8testing', 'variant': 'slow_path'},
     ],
   },
+  'v8_linux64_tsan_isolates_rel_ng_triggered': {
+    'tests': [
+      {'name': 'v8testing', 'test_args': ['--isolates'], 'shards': 7},
+    ],
+  },
   'v8_linux64_ubsan_rel_ng_triggered': {
     'tests': [
       {'name': 'v8testing', 'shards': 2},

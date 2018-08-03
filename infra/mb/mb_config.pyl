@@ -228,7 +228,7 @@
       'v8_linux64_jumbo_compile_rel': 'release_x64_jumbo_trybot',
       'v8_linux64_jumbo_limited_compile_rel': 'release_x64_jumbo_limited_trybot',
       'v8_linux64_tsan_rel': 'release_x64_tsan_minimal_symbols',
-      'v8_linux64_tsan_concurrent_marking_rel_ng':
+      'v8_linux64_tsan_isolates_rel_ng':
           'release_x64_tsan_minimal_symbols',
       'v8_linux64_ubsan_rel_ng': 'release_x64_ubsan_vptr_minimal_symbols',
       # TODO(machenbach): Remove after switching to x64 on infra side.
