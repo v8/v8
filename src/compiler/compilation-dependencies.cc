@@ -16,7 +16,6 @@ CompilationDependencies::CompilationDependencies(Isolate* isolate, Zone* zone)
 
 class CompilationDependencies::Dependency : public ZoneObject {
  public:
-  virtual bool IsSane() const = 0;
   virtual bool IsValid() const = 0;
   virtual void Install(Isolate* isolate, Handle<WeakCell> code) = 0;
 };
@@ -27,13 +26,8 @@ class InitialMapDependency final : public CompilationDependencies::Dependency {
   // longer need to explicitly store the initial map.
   InitialMapDependency(const JSFunctionRef& function, const MapRef& initial_map)
       : function_(function), initial_map_(initial_map) {
-    DCHECK(IsSane());
-  }
-
-  bool IsSane() const override {
-    DisallowHeapAccess no_heap_access;
-    CHECK(function_.has_initial_map());
-    return function_.initial_map().equals(initial_map_);
+    DCHECK(function_.has_initial_map());
+    DCHECK(function_.initial_map().equals(initial_map_));
   }
 
   bool IsValid() const override {
@@ -43,7 +37,7 @@ class InitialMapDependency final : public CompilationDependencies::Dependency {
   }
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
-    DCHECK(IsValid());
+    SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(isolate, code, initial_map_.object<Map>(),
                                      DependentCode::kInitialMapChangedGroup);
   }
@@ -56,18 +50,13 @@ class InitialMapDependency final : public CompilationDependencies::Dependency {
 class StableMapDependency final : public CompilationDependencies::Dependency {
  public:
   explicit StableMapDependency(const MapRef& map) : map_(map) {
-    DCHECK(IsSane());
-  }
-
-  bool IsSane() const override {
-    DisallowHeapAccess no_heap_access;
-    return map_.is_stable();
+    DCHECK(map_.is_stable());
   }
 
   bool IsValid() const override { return map_.object<Map>()->is_stable(); }
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
-    DCHECK(IsValid());
+    SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(isolate, code, map_.object<Map>(),
                                      DependentCode::kPrototypeCheckGroup);
   }
@@ -79,18 +68,13 @@ class StableMapDependency final : public CompilationDependencies::Dependency {
 class TransitionDependency final : public CompilationDependencies::Dependency {
  public:
   explicit TransitionDependency(const MapRef& map) : map_(map) {
-    DCHECK(IsSane());
-  }
-
-  bool IsSane() const override {
-    DisallowHeapAccess no_heap_access;
-    return !map_.is_deprecated();
+    DCHECK(!map_.is_deprecated());
   }
 
   bool IsValid() const override { return !map_.object<Map>()->is_deprecated(); }
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
-    DCHECK(IsValid());
+    SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(isolate, code, map_.object<Map>(),
                                      DependentCode::kTransitionGroup);
   }
@@ -106,12 +90,7 @@ class PretenureModeDependency final
   // longer need to explicitly store the mode.
   PretenureModeDependency(const AllocationSiteRef& site, PretenureFlag mode)
       : site_(site), mode_(mode) {
-    DCHECK(IsSane());
-  }
-
-  bool IsSane() const override {
-    DisallowHeapAccess no_heap_access;
-    return mode_ == site_.GetPretenureMode();
+    DCHECK_EQ(mode_, site_.GetPretenureMode());
   }
 
   bool IsValid() const override {
@@ -119,7 +98,7 @@ class PretenureModeDependency final
   }
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
-    DCHECK(IsValid());
+    SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(
         isolate, code, site_.object<AllocationSite>(),
         DependentCode::kAllocationSiteTenuringChangedGroup);
@@ -137,13 +116,8 @@ class FieldTypeDependency final : public CompilationDependencies::Dependency {
   FieldTypeDependency(const MapRef& owner, int descriptor,
                       const ObjectRef& type)
       : owner_(owner), descriptor_(descriptor), type_(type) {
-    DCHECK(IsSane());
-  }
-
-  bool IsSane() const override {
-    DisallowHeapAccess no_heap_access;
-    CHECK(owner_.equals(owner_.FindFieldOwner(descriptor_)));
-    return type_.equals(owner_.GetFieldType(descriptor_));
+    DCHECK(owner_.equals(owner_.FindFieldOwner(descriptor_)));
+    DCHECK(type_.equals(owner_.GetFieldType(descriptor_)));
   }
 
   bool IsValid() const override {
@@ -154,7 +128,7 @@ class FieldTypeDependency final : public CompilationDependencies::Dependency {
   }
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
-    DCHECK(IsValid());
+    SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(isolate, code, owner_.object<Map>(),
                                      DependentCode::kFieldOwnerGroup);
   }
@@ -173,13 +147,8 @@ class GlobalPropertyDependency final
   GlobalPropertyDependency(const PropertyCellRef& cell, PropertyCellType type,
                            bool read_only)
       : cell_(cell), type_(type), read_only_(read_only) {
-    DCHECK(IsSane());
-  }
-
-  bool IsSane() const override {
-    DisallowHeapAccess no_heap_access;
-    return type_ == cell_.property_details().cell_type() &&
-           read_only_ == cell_.property_details().IsReadOnly();
+    DCHECK_EQ(type_, cell_.property_details().cell_type());
+    DCHECK_EQ(read_only_, cell_.property_details().IsReadOnly());
   }
 
   bool IsValid() const override {
@@ -189,7 +158,7 @@ class GlobalPropertyDependency final
   }
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
-    DCHECK(IsValid());
+    SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(isolate, code,
                                      cell_.object<PropertyCell>(),
                                      DependentCode::kPropertyCellChangedGroup);
@@ -204,13 +173,7 @@ class GlobalPropertyDependency final
 class ProtectorDependency final : public CompilationDependencies::Dependency {
  public:
   explicit ProtectorDependency(const PropertyCellRef& cell) : cell_(cell) {
-    DCHECK(IsSane());
-  }
-
-  bool IsSane() const override {
-    DisallowHeapAccess no_heap_access;
-    return cell_.value().IsSmi() &&
-           cell_.value().AsSmi() == Isolate::kProtectorValid;
+    DCHECK_EQ(cell_.value().AsSmi(), Isolate::kProtectorValid);
   }
 
   bool IsValid() const override {
@@ -219,7 +182,7 @@ class ProtectorDependency final : public CompilationDependencies::Dependency {
   }
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
-    DCHECK(IsValid());
+    SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(isolate, code,
                                      cell_.object<PropertyCell>(),
                                      DependentCode::kPropertyCellChangedGroup);
@@ -236,16 +199,10 @@ class ElementsKindDependency final
   // longer need to explicitly store the elements kind.
   ElementsKindDependency(const AllocationSiteRef& site, ElementsKind kind)
       : site_(site), kind_(kind) {
-    DCHECK(IsSane());
-  }
-
-  bool IsSane() const override {
-    DisallowHeapAccess no_heap_access;
     DCHECK(AllocationSite::ShouldTrack(kind_));
-    ElementsKind kind = site_.PointsToLiteral()
-                            ? site_.boilerplate().GetElementsKind()
-                            : site_.GetElementsKind();
-    return kind_ == kind;
+    DCHECK_EQ(kind_, site_.PointsToLiteral()
+                         ? site_.boilerplate().GetElementsKind()
+                         : site_.GetElementsKind());
   }
 
   bool IsValid() const override {
@@ -257,7 +214,7 @@ class ElementsKindDependency final
   }
 
   void Install(Isolate* isolate, Handle<WeakCell> code) override {
-    DCHECK(IsValid());
+    SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(
         isolate, code, site_.object<AllocationSite>(),
         DependentCode::kAllocationSiteTransitionChangedGroup);
@@ -340,8 +297,8 @@ bool CompilationDependencies::AreValid() const {
 bool CompilationDependencies::Commit(Handle<Code> code) {
   Isolate* isolate = code->GetIsolate();
 
-  // Check validity of all dependencies first, such that we can abort before
-  // installing anything.
+  // Check validity of all dependencies first, such that we can avoid installing
+  // anything when there's already an invalid dependency.
   if (!AreValid()) {
     dependencies_.clear();
     return false;
@@ -349,6 +306,12 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
 
   Handle<WeakCell> cell = Code::WeakCellFor(code);
   for (auto dep : dependencies_) {
+    // Check each dependency's validity again right before installing it,
+    // because a GC can trigger invalidation for some dependency kinds.
+    if (!dep->IsValid()) {
+      dependencies_.clear();
+      return false;
+    }
     dep->Install(isolate, cell);
   }
   dependencies_.clear();

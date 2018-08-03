@@ -331,6 +331,7 @@ HEAP_BROKER_OBJECT_LIST(DEFINE_IS_AND_AS)
 bool ObjectRef::IsSmi() const { return data()->is_smi; }
 
 int ObjectRef::AsSmi() const {
+  DCHECK(IsSmi());
   // Handle-dereference is always allowed for Handle<Smi>.
   return object<Smi>()->value();
 }
