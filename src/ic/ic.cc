@@ -2519,6 +2519,10 @@ static Handle<Map> FastCloneObjectMap(Isolate* isolate,
   map->InitializeDescriptors(*descriptors, *layout);
   map->CopyUnusedPropertyFieldsAdjustedForInstanceSize(*source_map);
 
+  // Update bitfields
+  map->set_may_have_interesting_symbols(
+      source_map->may_have_interesting_symbols());
+
   return map;
 }
 
