@@ -1513,7 +1513,7 @@ static void TestLoadLiteral(byte* buffer, Assembler* assm, bool* failure,
   char expected_string[80];
   snprintf(expected_string, sizeof(expected_string), expected_string_template,
            abs(offset), offset,
-           progcounter + Instruction::kPCReadOffset + offset);
+           progcounter + Instruction::kPcLoadDelta + offset);
   if (!DisassembleAndCompare(progcounter, kRawString, expected_string)) {
     *failure = true;
   }

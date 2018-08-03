@@ -736,7 +736,7 @@ int32_t Simulator::get_register(int reg) const {
   // See: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43949
   if (reg >= num_registers) return 0;
   // End stupid code.
-  return registers_[reg] + ((reg == pc) ? Instruction::kPCReadOffset : 0);
+  return registers_[reg] + ((reg == pc) ? Instruction::kPcLoadDelta : 0);
 }
 
 

@@ -463,12 +463,8 @@ inline Hint NegateHint(Hint ignored) { return no_hint; }
 //
 class Instruction {
  public:
-  enum {
-    kInstrSize = 4,
-    kInstrSizeLog2 = 2,
-    kPCReadOffset = 8
-  };
-
+  static constexpr int kInstrSize = 4;
+  static constexpr int kInstrSizeLog2 = 2;
   // Difference between address of current opcode and value read from pc
   // register.
   static constexpr int kPcLoadDelta = 8;

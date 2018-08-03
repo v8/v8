@@ -2758,7 +2758,7 @@ const Instr rtCallRedirInstr = TWI;
 //
 class Instruction {
  public:
-  enum { kInstrSize = 4, kInstrSizeLog2 = 2, kPCReadOffset = 8 };
+  enum { kInstrSize = 4, kInstrSizeLog2 = 2, kPcLoadDelta = 8 };
 
 // Helper macro to define static accessors.
 // We use the cast to char* trick to bypass the strict anti-aliasing rules.

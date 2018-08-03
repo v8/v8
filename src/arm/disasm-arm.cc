@@ -669,7 +669,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     case 'A': {
       // Print pc-relative address.
       int offset = instr->Offset12Value();
-      byte* pc = reinterpret_cast<byte*>(instr) + Instruction::kPCReadOffset;
+      byte* pc = reinterpret_cast<byte*>(instr) + Instruction::kPcLoadDelta;
       byte* addr;
       switch (instr->PUField()) {
         case db_x: {
