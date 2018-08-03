@@ -439,18 +439,22 @@ class SloppyTNode : public TNode<T> {
   V(Float64LessThanOrEqual, BoolT, Float64T, Float64T)    \
   V(Float64GreaterThan, BoolT, Float64T, Float64T)        \
   V(Float64GreaterThanOrEqual, BoolT, Float64T, Float64T) \
+  /* Use Word32Equal if you need Int32Equal */            \
   V(Int32GreaterThan, BoolT, Word32T, Word32T)            \
   V(Int32GreaterThanOrEqual, BoolT, Word32T, Word32T)     \
   V(Int32LessThan, BoolT, Word32T, Word32T)               \
   V(Int32LessThanOrEqual, BoolT, Word32T, Word32T)        \
+  /* Use WordEqual if you need IntPtrEqual */             \
   V(IntPtrLessThan, BoolT, WordT, WordT)                  \
   V(IntPtrLessThanOrEqual, BoolT, WordT, WordT)           \
   V(IntPtrGreaterThan, BoolT, WordT, WordT)               \
   V(IntPtrGreaterThanOrEqual, BoolT, WordT, WordT)        \
+  /* Use Word32Equal if you need Uint32Equal */           \
   V(Uint32LessThan, BoolT, Word32T, Word32T)              \
   V(Uint32LessThanOrEqual, BoolT, Word32T, Word32T)       \
   V(Uint32GreaterThan, BoolT, Word32T, Word32T)           \
   V(Uint32GreaterThanOrEqual, BoolT, Word32T, Word32T)    \
+  /* Use WordEqual if you need UintPtrEqual */            \
   V(UintPtrLessThan, BoolT, WordT, WordT)                 \
   V(UintPtrLessThanOrEqual, BoolT, WordT, WordT)          \
   V(UintPtrGreaterThan, BoolT, WordT, WordT)              \
