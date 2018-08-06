@@ -953,11 +953,11 @@ MaybeHandle<FixedArray> Object::CreateListFromArrayLike(
 
 // static
 MaybeHandle<Object> Object::GetLengthFromArrayLike(Isolate* isolate,
-                                                   Handle<Object> object) {
+                                                   Handle<JSReceiver> object) {
   Handle<Object> val;
-  Handle<Object> key = isolate->factory()->length_string();
+  Handle<Name> key = isolate->factory()->length_string();
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, val, Runtime::GetObjectProperty(isolate, object, key), Object);
+      isolate, val, JSReceiver::GetProperty(isolate, object, key), Object);
   return Object::ToLength(isolate, val);
 }
 

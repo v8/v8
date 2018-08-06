@@ -94,8 +94,11 @@ RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, locale, 0);
 
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           Intl::CanonicalizeLanguageTag(isolate, locale));
+  std::string canonicalized;
+  if (!Intl::CanonicalizeLanguageTag(isolate, locale).To(&canonicalized)) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  return *isolate->factory()->NewStringFromAsciiChecked(canonicalized.c_str());
 }
 
 RUNTIME_FUNCTION(Runtime_AvailableLocalesOf) {
@@ -112,7 +115,8 @@ RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(0, args.length());
-  return *Intl::DefaultLocale(isolate);
+  return *isolate->factory()->NewStringFromAsciiChecked(
+      Intl::DefaultLocale(isolate).c_str());
 }
 
 RUNTIME_FUNCTION(Runtime_IsWellFormedCurrencyCode) {
@@ -476,7 +480,7 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
   DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   s = String::Flatten(isolate, s);
-  return ConvertToLower(s, isolate);
+  RETURN_RESULT_OR_FAILURE(isolate, ConvertToLower(s, isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
@@ -484,7 +488,7 @@ RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
   DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   s = String::Flatten(isolate, s);
-  return ConvertToUpper(s, isolate);
+  RETURN_RESULT_OR_FAILURE(isolate, ConvertToUpper(s, isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_DateCacheVersion) {

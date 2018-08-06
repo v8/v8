@@ -9,7 +9,9 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/intl-objects-inl.h"
 
+#include <algorithm>
 #include <memory>
+#include <string>
 
 #include "src/api-inl.h"
 #include "src/global-handles.h"
@@ -1073,7 +1075,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> Intl::AvailableLocalesOf(
   return locales;
 }
 
-V8_WARN_UNUSED_RESULT Handle<String> Intl::DefaultLocale(Isolate* isolate) {
+std::string Intl::DefaultLocale(Isolate* isolate) {
   if (isolate->default_locale().empty()) {
     icu::Locale default_locale;
     // Translate ICU's fallback locale to a well-known locale.
@@ -1091,8 +1093,7 @@ V8_WARN_UNUSED_RESULT Handle<String> Intl::DefaultLocale(Isolate* isolate) {
     }
     DCHECK(!isolate->default_locale().empty());
   }
-  return isolate->factory()->NewStringFromAsciiChecked(
-      isolate->default_locale().c_str());
+  return isolate->default_locale();
 }
 
 bool Intl::IsObjectOfType(Isolate* isolate, Handle<Object> input,
@@ -1354,8 +1355,8 @@ MaybeHandle<JSObject> Intl::ResolveLocale(Isolate* isolate, const char* service,
   return Handle<JSObject>::cast(result);
 }
 
-MaybeHandle<JSObject> Intl::CanonicalizeLocaleList(Isolate* isolate,
-                                                   Handle<Object> locales) {
+MaybeHandle<JSObject> Intl::CanonicalizeLocaleListJS(Isolate* isolate,
+                                                     Handle<Object> locales) {
   Handle<JSFunction> canonicalize_locale_list_function =
       isolate->canonicalize_locale_list();
 
@@ -1586,17 +1587,26 @@ bool IsGrandfatheredTagWithoutPreferredVaule(const std::string& locale) {
 
 }  // anonymous namespace
 
-MaybeHandle<String> Intl::CanonicalizeLanguageTag(Isolate* isolate,
-                                                  Handle<Object> locale_in) {
+Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
+                                                 Handle<Object> locale_in) {
   Handle<String> locale_str;
+  // This does part of the validity checking spec'ed in CanonicalizeLocaleList:
+  // 7c ii. If Type(kValue) is not String or Object, throw a TypeError
+  // exception.
+  // 7c iii. Let tag be ? ToString(kValue).
+  // 7c iv. If IsStructurallyValidLanguageTag(tag) is false, throw a
+  // RangeError exception.
+
   if (locale_in->IsString()) {
     locale_str = Handle<String>::cast(locale_in);
   } else if (locale_in->IsJSReceiver()) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, locale_str,
-                               Object::ToString(isolate, locale_in), String);
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, locale_str,
+                                     Object::ToString(isolate, locale_in),
+                                     Nothing<std::string>());
   } else {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kLanguageID),
-                    String);
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NewTypeError(MessageTemplate::kLanguageID),
+                                 Nothing<std::string>());
   }
   std::string locale(locale_str->ToCString().get());
 
@@ -1607,24 +1617,25 @@ MaybeHandle<String> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   // fast-track 'fil' (3-letter canonical code).
   if ((IsTwoLetterLanguage(locale) && !IsDeprecatedLanguage(locale)) ||
       locale == "fil") {
-    return locale_str;
+    return Just(locale);
   }
 
   // Because per BCP 47 2.1.1 language tags are case-insensitive, lowercase
   // the input before any more check.
   std::transform(locale.begin(), locale.end(), locale.begin(), AsciiToLower);
   if (!IsStructurallyValidLanguageTag(isolate, locale)) {
-    THROW_NEW_ERROR(
+    THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
-        String);
+        Nothing<std::string>());
   }
 
   // ICU maps a few grandfathered tags to what looks like a regular language
   // tag even though IANA language tag registry does not have a preferred
   // entry map for them. Return them as they're with lowercasing.
-  if (IsGrandfatheredTagWithoutPreferredVaule(locale))
-    return isolate->factory()->NewStringFromAsciiChecked(locale.data());
+  if (IsGrandfatheredTagWithoutPreferredVaule(locale)) {
+    return Just(locale);
+  }
 
   // // ECMA 402 6.2.3
   // TODO(jshin): uloc_{for,to}TanguageTag can fail even for a structually valid
@@ -1640,10 +1651,10 @@ MaybeHandle<String> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
     // TODO(jshin): This should not happen because the structural validity
     // is already checked. If that's the case, remove this.
-    THROW_NEW_ERROR(
+    THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
-        String);
+        Nothing<std::string>());
   }
 
   // Force strict BCP47 rules.
@@ -1652,15 +1663,87 @@ MaybeHandle<String> Intl::CanonicalizeLanguageTag(Isolate* isolate,
                                           ULOC_FULLNAME_CAPACITY, TRUE, &error);
 
   if (U_FAILURE(error)) {
-    THROW_NEW_ERROR(
+    THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
-        String);
+        Nothing<std::string>());
   }
 
-  return isolate->factory()
-      ->NewStringFromOneByte(OneByteVector(result, result_len), NOT_TENURED)
-      .ToHandleChecked();
+  return Just(std::string(result, result_len));
+}
+
+Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
+    Isolate* isolate, Handle<Object> locales, bool only_return_one_result) {
+  // 1. If locales is undefined, then
+  if (locales->IsUndefined(isolate)) {
+    // 1a. Return a new empty List.
+    return Just(std::vector<std::string>());
+  }
+  // 2. Let seen be a new empty List.
+  std::vector<std::string> seen;
+  // 3. If Type(locales) is String, then
+  if (locales->IsString()) {
+    // 3a. Let O be CreateArrayFromList(« locales »).
+    // Instead of creating a one-element array and then iterating over it,
+    // we inline the body of the iteration:
+    std::string canonicalized_tag;
+    if (!CanonicalizeLanguageTag(isolate, locales).To(&canonicalized_tag)) {
+      return Nothing<std::vector<std::string>>();
+    }
+    seen.push_back(canonicalized_tag);
+    return Just(seen);
+  }
+  // 4. Else,
+  // 4a. Let O be ? ToObject(locales).
+  Handle<JSReceiver> o;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, o,
+                                   Object::ToObject(isolate, locales),
+                                   Nothing<std::vector<std::string>>());
+  // 5. Let len be ? ToLength(? Get(O, "length")).
+  Handle<Object> length_obj;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, length_obj,
+                                   Object::GetLengthFromArrayLike(isolate, o),
+                                   Nothing<std::vector<std::string>>());
+  // TODO(jkummerow): Spec violation: strictly speaking, we have to iterate
+  // up to 2^53-1 if {length_obj} says so. Since cases above 2^32 probably
+  // don't happen in practice (and would be very slow if they do), we'll keep
+  // the code simple for now by using a saturating to-uint32 conversion.
+  double raw_length = length_obj->Number();
+  uint32_t len =
+      raw_length >= kMaxUInt32 ? kMaxUInt32 : static_cast<uint32_t>(raw_length);
+  // 6. Let k be 0.
+  // 7. Repeat, while k < len
+  for (uint32_t k = 0; k < len; k++) {
+    // 7a. Let Pk be ToString(k).
+    // 7b. Let kPresent be ? HasProperty(O, Pk).
+    LookupIterator it(isolate, o, k);
+    // 7c. If kPresent is true, then
+    if (!it.IsFound()) continue;
+    // 7c i. Let kValue be ? Get(O, Pk).
+    Handle<Object> k_value;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, k_value, Object::GetProperty(&it),
+                                     Nothing<std::vector<std::string>>());
+    // 7c ii. If Type(kValue) is not String or Object, throw a TypeError
+    // exception.
+    // 7c iii. Let tag be ? ToString(kValue).
+    // 7c iv. If IsStructurallyValidLanguageTag(tag) is false, throw a
+    // RangeError exception.
+    // 7c v. Let canonicalizedTag be CanonicalizeLanguageTag(tag).
+    std::string canonicalized_tag;
+    if (!CanonicalizeLanguageTag(isolate, k_value).To(&canonicalized_tag)) {
+      return Nothing<std::vector<std::string>>();
+    }
+    // 7c vi. If canonicalizedTag is not an element of seen, append
+    // canonicalizedTag as the last element of seen.
+    if (std::find(seen.begin(), seen.end(), canonicalized_tag) == seen.end()) {
+      seen.push_back(canonicalized_tag);
+    }
+    // 7d. Increase k by 1. (See loop header.)
+    // Optimization: some callers only need one result.
+    if (only_return_one_result) return Just(seen);
+  }
+  // 8. Return seen.
+  return Just(seen);
 }
 
 // ecma-402/#sec-currencydigits
@@ -1707,31 +1790,15 @@ MaybeHandle<JSObject> Intl::CreateNumberFormat(Isolate* isolate,
 
 namespace {
 
-// Remove the following after we port InitializeLocaleList from src/js/intl.js
-// to c++ https://bugs.chromium.org/p/v8/issues/detail?id=7987
+bool IsAToZ(char ch) {
+  return IsInRange(AsciiAlphaToLower(ch), 'a', 'z');
+}
+
 // The following are temporary function calling back into js code in
 // src/js/intl.js to call pre-existing functions until they are all moved to C++
 // under src/objects/*.
 // TODO(ftang): remove these temp function after bstell move them from js into
 // C++
-
-MaybeHandle<JSObject> InitializeLocaleList(Isolate* isolate,
-                                           Handle<Object> list) {
-  Handle<Object> result;
-  Handle<Object> undefined_value(ReadOnlyRoots(isolate).undefined_value(),
-                                 isolate);
-  Handle<Object> args[] = {list};
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, isolate->initialize_locale_list(),
-                      undefined_value, arraysize(args), args),
-      JSArray);
-  return Handle<JSObject>::cast(result);
-}
-
-bool IsAToZ(char ch) {
-  return (('A' <= ch) && (ch <= 'Z')) || (('a' <= ch) && (ch <= 'z'));
-}
 
 MaybeHandle<JSObject> CachedOrNewService(Isolate* isolate,
                                          Handle<String> service,
@@ -1777,85 +1844,40 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
                                                   Handle<String> s,
                                                   bool to_upper,
                                                   Handle<Object> locales) {
-  Factory* factory = isolate->factory();
-  Handle<String> requested_locale;
-  if (locales->IsUndefined()) {
-    requested_locale = Intl::DefaultLocale(isolate);
-  } else if (locales->IsString()) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, requested_locale,
-                               CanonicalizeLanguageTag(isolate, locales),
-                               String);
-  } else {
-    Handle<JSObject> list;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, list,
-                               InitializeLocaleList(isolate, locales), String);
-    Handle<Object> length;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, length, Object::GetLengthFromArrayLike(isolate, list), String);
-    if (length->Number() > 0) {
-      Handle<Object> element;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, element,
-          JSObject::GetPropertyOrElement(
-              isolate, list, factory->NumberToString(factory->NewNumber(0))),
-          String);
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, requested_locale,
-                                 Object::ToString(isolate, element), String);
-    } else {
-      requested_locale = Intl::DefaultLocale(isolate);
-    }
+  std::vector<std::string> requested_locales;
+  if (!CanonicalizeLocaleList(isolate, locales, true).To(&requested_locales)) {
+    return MaybeHandle<String>();
   }
-  int dash = String::IndexOf(isolate, requested_locale,
-                             factory->NewStringFromStaticChars("-"), 0);
-  if (dash > 0) {
-    requested_locale = factory->NewSubString(requested_locale, 0, dash);
+  std::string requested_locale = requested_locales.size() == 0
+                                     ? Intl::DefaultLocale(isolate)
+                                     : requested_locales[0];
+  size_t dash = requested_locale.find("-");
+  if (dash != std::string::npos) {
+    requested_locale = requested_locale.substr(0, dash);
   }
 
   // Primary language tag can be up to 8 characters long in theory.
   // https://tools.ietf.org/html/bcp47#section-2.2.1
-  DCHECK_LE(requested_locale->length(), 8);
-  requested_locale = String::Flatten(isolate, requested_locale);
+  DCHECK_LE(requested_locale.length(), 8);
   s = String::Flatten(isolate, s);
 
   // All the languages requiring special-handling have two-letter codes.
   // Note that we have to check for '!= 2' here because private-use language
   // tags (x-foo) or grandfathered irregular tags (e.g. i-enochian) would have
   // only 'x' or 'i' when they get here.
-  if (V8_UNLIKELY(requested_locale->length() != 2)) {
-    Handle<Object> obj(ConvertCase(s, to_upper, isolate), isolate);
-    return Object::ToString(isolate, obj);
-  }
-
-  char c1, c2;
-  {
-    DisallowHeapAllocation no_gc;
-    String::FlatContent lang = requested_locale->GetFlatContent();
-    c1 = lang.Get(0);
-    c2 = lang.Get(1);
+  if (V8_UNLIKELY(requested_locale.length() != 2)) {
+    return ConvertCase(s, to_upper, isolate);
   }
   // TODO(jshin): Consider adding a fast path for ASCII or Latin-1. The fastpath
   // in the root locale needs to be adjusted for az, lt and tr because even case
   // mapping of ASCII range characters are different in those locales.
   // Greek (el) does not require any adjustment.
-  if (V8_UNLIKELY(c1 == 't' && c2 == 'r')) {
-    Handle<Object> obj(LocaleConvertCase(s, isolate, to_upper, "tr"), isolate);
-    return Object::ToString(isolate, obj);
+  if (V8_UNLIKELY((requested_locale == "tr") || (requested_locale == "el") ||
+                  (requested_locale == "lt") || (requested_locale == "az"))) {
+    return LocaleConvertCase(s, isolate, to_upper, requested_locale.c_str());
+  } else {
+    return ConvertCase(s, to_upper, isolate);
   }
-  if (V8_UNLIKELY(c1 == 'e' && c2 == 'l')) {
-    Handle<Object> obj(LocaleConvertCase(s, isolate, to_upper, "el"), isolate);
-    return Object::ToString(isolate, obj);
-  }
-  if (V8_UNLIKELY(c1 == 'l' && c2 == 't')) {
-    Handle<Object> obj(LocaleConvertCase(s, isolate, to_upper, "lt"), isolate);
-    return Object::ToString(isolate, obj);
-  }
-  if (V8_UNLIKELY(c1 == 'a' && c2 == 'z')) {
-    Handle<Object> obj(LocaleConvertCase(s, isolate, to_upper, "az"), isolate);
-    return Object::ToString(isolate, obj);
-  }
-
-  Handle<Object> obj(ConvertCase(s, to_upper, isolate), isolate);
-  return Object::ToString(isolate, obj);
 }
 
 MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,

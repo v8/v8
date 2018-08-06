@@ -89,9 +89,11 @@ MaybeHandle<JSPluralRules> JSPluralRules::InitializePluralRules(
     Isolate* isolate, Handle<JSPluralRules> plural_rules,
     Handle<Object> locales, Handle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
+  // TODO(jkummerow): Port ResolveLocale, then use the C++ version of
+  // CanonicalizeLocaleList here.
   Handle<JSObject> requested_locales;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, requested_locales,
-                             Intl::CanonicalizeLocaleList(isolate, locales),
+                             Intl::CanonicalizeLocaleListJS(isolate, locales),
                              JSPluralRules);
 
   // 2. If options is undefined, then

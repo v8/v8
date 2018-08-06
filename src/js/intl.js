@@ -772,13 +772,6 @@ function initializeLocaleList(locales) {
   return freezeArray(canonicalizeLocaleList(locales));
 }
 
-// TODO(ftang): remove the %InstallToContext once
-// initializeLocaleList is available in C++
-// https://bugs.chromium.org/p/v8/issues/detail?id=7987
-%InstallToContext([
-  "initialize_locale_list", initializeLocaleList
-]);
-
 // ECMA 402 section 8.2.1
 DEFINE_METHOD(
   GlobalIntl,

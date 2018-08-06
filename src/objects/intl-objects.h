@@ -195,7 +195,7 @@ class Intl {
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> AvailableLocalesOf(
       Isolate* isolate, Handle<String> service);
 
-  static V8_WARN_UNUSED_RESULT Handle<String> DefaultLocale(Isolate* isolate);
+  static std::string DefaultLocale(Isolate* isolate);
 
   static void DefineWEProperty(Isolate* isolate, Handle<JSObject> target,
                                Handle<Name> key, Handle<Object> value);
@@ -234,9 +234,12 @@ class Intl {
 
   // This currently calls out to the JavaScript implementation of
   // CanonicalizeLocaleList.
+  // Note: This is deprecated glue code, required only as long as ResolveLocale
+  // still calls a JS implementation. The C++ successor is the overloaded
+  // version below that returns a Maybe<std::vector<std::string>>.
   //
   // ecma402/#sec-canonicalizelocalelist
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> CanonicalizeLocaleList(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> CanonicalizeLocaleListJS(
       Isolate* isolate, Handle<Object> locales);
 
   // ECMA402 9.2.10. GetOption( options, property, type, values, fallback)
@@ -275,9 +278,18 @@ class Intl {
       Isolate* isolate, Handle<JSReceiver> options, const char* property,
       const char* service, bool* result);
 
-  // Canonicalize the localeID.
-  static MaybeHandle<String> CanonicalizeLanguageTag(Isolate* isolate,
-                                                     Handle<Object> localeID);
+  // Canonicalize the locale.
+  // https://tc39.github.io/ecma402/#sec-canonicalizelanguagetag,
+  // including type check and structural validity check.
+  static Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
+                                                    Handle<Object> locale_in);
+
+  // https://tc39.github.io/ecma402/#sec-canonicalizelocalelist
+  // {only_return_one_result} is an optimization for callers that only
+  // care about the first result.
+  static Maybe<std::vector<std::string>> CanonicalizeLocaleList(
+      Isolate* isolate, Handle<Object> locales,
+      bool only_return_one_result = false);
 
   // ecma-402/#sec-currencydigits
   // The currency is expected to an all upper case string value.

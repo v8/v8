@@ -90,7 +90,6 @@ enum ContextLookupFlags {
   V(MAP_HAS_INDEX, JSFunction, map_has)                                        \
   V(MAP_SET_INDEX, JSFunction, map_set)                                        \
   V(FUNCTION_HAS_INSTANCE_INDEX, JSFunction, function_has_instance)            \
-  V(INITIALIZE_LOCALE_LIST_FUNCTION_INDEX, JSFunction, initialize_locale_list) \
   V(OBJECT_VALUE_OF, JSFunction, object_value_of)                              \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                            \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                            \

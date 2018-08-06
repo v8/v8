@@ -316,7 +316,7 @@ V8_WARN_UNUSED_RESULT Object* GenericArrayPush(Isolate* isolate,
   Handle<Object> raw_length_number;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, raw_length_number,
-      Object::GetLengthFromArrayLike(isolate, Handle<Object>::cast(receiver)));
+      Object::GetLengthFromArrayLike(isolate, receiver));
 
   // 3. Let args be a List whose elements are, in left to right order,
   //    the arguments that were passed to this function invocation.

@@ -226,7 +226,9 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
     Handle<Object> length_obj;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, length_obj,
-        Object::GetLengthFromArrayLike(isolate_, replacer), false);
+        Object::GetLengthFromArrayLike(isolate_,
+                                       Handle<JSReceiver>::cast(replacer)),
+        false);
     uint32_t length;
     if (!length_obj->ToUint32(&length)) length = kMaxUInt32;
     for (uint32_t i = 0; i < length; i++) {
@@ -720,7 +722,9 @@ JsonStringifier::Result JsonStringifier::SerializeJSProxy(
     Handle<Object> length_object;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, length_object,
-        Object::GetLengthFromArrayLike(isolate_, object), EXCEPTION);
+        Object::GetLengthFromArrayLike(isolate_,
+                                       Handle<JSReceiver>::cast(object)),
+        EXCEPTION);
     uint32_t length;
     if (!length_object->ToUint32(&length)) {
       // Technically, we need to be able to handle lengths outside the

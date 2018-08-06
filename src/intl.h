@@ -37,18 +37,14 @@ enum class IcuService {
 const UChar* GetUCharBufferFromFlat(const String::FlatContent& flat,
                                     std::unique_ptr<uc16[]>* dest,
                                     int32_t length);
-V8_WARN_UNUSED_RESULT Object* LocaleConvertCase(Handle<String> s,
-                                                Isolate* isolate,
-                                                bool is_to_upper,
-                                                const char* lang);
-V8_WARN_UNUSED_RESULT Object* ConvertToLower(Handle<String> s,
-                                             Isolate* isolate);
-V8_WARN_UNUSED_RESULT Object* ConvertToUpper(Handle<String> s,
-                                             Isolate* isolate);
-V8_WARN_UNUSED_RESULT Object* ConvertCase(Handle<String> s, bool is_upper,
-                                          Isolate* isolate);
+MaybeHandle<String> LocaleConvertCase(Handle<String> s, Isolate* isolate,
+                                      bool is_to_upper, const char* lang);
+MaybeHandle<String> ConvertToLower(Handle<String> s, Isolate* isolate);
+MaybeHandle<String> ConvertToUpper(Handle<String> s, Isolate* isolate);
+MaybeHandle<String> ConvertCase(Handle<String> s, bool is_upper,
+                                Isolate* isolate);
 
-V8_WARN_UNUSED_RESULT Object* ConvertOneByteToLower(String* src, String* dst);
+V8_WARN_UNUSED_RESULT String* ConvertOneByteToLower(String* src, String* dst);
 
 const uint8_t* ToLatin1LowerTable();
 
