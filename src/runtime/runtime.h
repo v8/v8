@@ -214,7 +214,6 @@ namespace internal {
   F(CreateDateTimeFormat, 3, 1)              \
   F(CreateNumberFormat, 3, 1)                \
   F(DefineWEProperty, 3, 1)                  \
-  F(CreatePluralRules, 3, 1)                 \
   F(CurrencyDigits, 1, 1)                    \
   F(DateCacheVersion, 0, 1)                  \
   F(DefaultNumberOption, 5, 1)               \
@@ -226,6 +225,7 @@ namespace internal {
   F(IsInitializedIntlObjectOfType, 2, 1)     \
   F(IsWellFormedCurrencyCode, 1, 1)          \
   F(MarkAsInitializedIntlObjectOfType, 2, 1) \
+  F(PluralRulesResolvedOptions, 1, 1)        \
   F(PluralRulesSelect, 2, 1)                 \
   F(StringToLowerCaseIntl, 1, 1)             \
   F(StringToUpperCaseIntl, 1, 1)

@@ -77,6 +77,7 @@
 //         - JSModuleNamespace
 //         - JSListFormat  // If V8_INTL_SUPPORT enabled.
 //         - JSLocale  // If V8_INTL_SUPPORT enabled.
+//         - JSPluralRules  // If V8_INTL_SUPPORT enabled.
 //         - JSRelativeTimeFormat  // If V8_INTL_SUPPORT enabled.
 //         - WasmGlobalObject
 //         - WasmInstanceObject
@@ -585,6 +586,7 @@ enum InstanceType : uint16_t {
 #ifdef V8_INTL_SUPPORT
   JS_INTL_LIST_FORMAT_TYPE,
   JS_INTL_LOCALE_TYPE,
+  JS_INTL_PLURAL_RULES_TYPE,
   JS_INTL_RELATIVE_TIME_FORMAT_TYPE,
 #endif  // V8_INTL_SUPPORT
 
@@ -701,6 +703,7 @@ class JSGlobalProxy;
 #ifdef V8_INTL_SUPPORT
 class JSListFormat;
 class JSLocale;
+class JSPluralRules;
 class JSRelativeTimeFormat;
 #endif  // V8_INTL_SUPPORT
 class JSPromise;
@@ -912,6 +915,7 @@ class ZoneForwardList;
   HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)  \
   V(JSListFormat)                         \
   V(JSLocale)                             \
+  V(JSPluralRules)                        \
   V(JSRelativeTimeFormat)
 #else
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)
@@ -1028,10 +1032,11 @@ class ZoneForwardList;
 
 #ifdef V8_INTL_SUPPORT
 
-#define INSTANCE_TYPE_CHECKERS_SINGLE(V)    \
-  INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)     \
-  V(JSListFormat, JS_INTL_LIST_FORMAT_TYPE) \
-  V(JSLocale, JS_INTL_LOCALE_TYPE)          \
+#define INSTANCE_TYPE_CHECKERS_SINGLE(V)      \
+  INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)       \
+  V(JSListFormat, JS_INTL_LIST_FORMAT_TYPE)   \
+  V(JSLocale, JS_INTL_LOCALE_TYPE)            \
+  V(JSPluralRules, JS_INTL_PLURAL_RULES_TYPE) \
   V(JSRelativeTimeFormat, JS_INTL_RELATIVE_TIME_FORMAT_TYPE)
 
 #else

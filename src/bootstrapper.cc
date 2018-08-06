@@ -31,6 +31,7 @@
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-regexp.h"
 #ifdef V8_INTL_SUPPORT
+#include "src/objects/js-plural-rules.h"
 #include "src/objects/js-relative-time-format.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/templates.h"
@@ -2968,10 +2969,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     {
       Handle<JSFunction> plural_rules_constructor = InstallFunction(
-          isolate_, intl, "PluralRules", JS_OBJECT_TYPE, PluralRules::kSize, 0,
-          factory->the_hole_value(), Builtins::kIllegal);
-      native_context()->set_intl_plural_rules_function(
-          *plural_rules_constructor);
+          isolate_, intl, "PluralRules", JS_INTL_PLURAL_RULES_TYPE,
+          JSPluralRules::kSize, 0, factory->the_hole_value(),
+          Builtins::kPluralRulesConstructor);
+      plural_rules_constructor->shared()->DontAdaptArguments();
+      InstallWithIntrinsicDefaultProto(
+          isolate_, plural_rules_constructor,
+          Context::INTL_PLURAL_RULES_FUNCTION_INDEX);
 
       Handle<JSObject> prototype(
           JSObject::cast(plural_rules_constructor->prototype()), isolate_);

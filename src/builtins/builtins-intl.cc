@@ -17,6 +17,7 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
+#include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/js-relative-time-format-inl.h"
 
 #include "unicode/datefmt.h"
@@ -1093,6 +1094,41 @@ BUILTIN(StringPrototypeToLocaleUpperCase) {
   RETURN_RESULT_OR_FAILURE(
       isolate, Intl::StringLocaleConvertCase(isolate, string, true,
                                              args.atOrUndefined(isolate, 1)));
+}
+
+BUILTIN(PluralRulesConstructor) {
+  HandleScope scope(isolate);
+
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
+                              isolate->factory()->NewStringFromStaticChars(
+                                  "Intl.PluralRules")));
+  }
+
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  // 2. Let pluralRules be ? OrdinaryCreateFromConstructor(newTarget,
+  // "%PluralRulesPrototype%", « [[InitializedPluralRules]],
+  // [[Locale]], [[Type]], [[MinimumIntegerDigits]],
+  // [[MinimumFractionDigits]], [[MaximumFractionDigits]],
+  // [[MinimumSignificantDigits]], [[MaximumSignificantDigits]] »).
+  Handle<JSObject> plural_rules_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, plural_rules_obj,
+                                     JSObject::New(target, new_target));
+  Handle<JSPluralRules> plural_rules =
+      Handle<JSPluralRules>::cast(plural_rules_obj);
+
+  // 3. Return ? InitializePluralRules(pluralRules, locales, options).
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSPluralRules::InitializePluralRules(isolate, plural_rules,
+                                                    locales, options));
 }
 
 }  // namespace internal

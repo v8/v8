@@ -26,6 +26,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
 #ifdef V8_INTL_SUPPORT
+#include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/js-relative-time-format-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/literal-objects-inl.h"
@@ -309,6 +310,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case JS_INTL_LOCALE_TYPE:
       JSLocale::cast(this)->JSLocalePrint(os);
+      break;
+    case JS_INTL_PLURAL_RULES_TYPE:
+      JSPluralRules::cast(this)->JSPluralRulesPrint(os);
       break;
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
       JSRelativeTimeFormat::cast(this)->JSRelativeTimeFormatPrint(os);
@@ -1973,6 +1977,16 @@ void JSLocale::JSLocalePrint(std::ostream& os) {  // NOLINT
   os << "\n - hourCycle: " << Brief(hour_cycle());
   os << "\n - numeric: " << Brief(numeric());
   os << "\n - numberingSystem: " << Brief(numbering_system());
+  os << "\n";
+}
+
+void JSPluralRules::JSPluralRulesPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "JSPluralRules");
+  JSObjectPrint(os);
+  os << "\n - locale: " << Brief(locale());
+  os << "\n - type: " << Brief(type());
+  os << "\n - icu plural rules: " << Brief(icu_plural_rules());
+  os << "\n - icu decimal format: " << Brief(icu_decimal_format());
   os << "\n";
 }
 

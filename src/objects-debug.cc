@@ -28,6 +28,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
 #ifdef V8_INTL_SUPPORT
+#include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/js-relative-time-format-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/maybe-object.h"
@@ -357,6 +358,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
     case JS_INTL_LOCALE_TYPE:
       JSLocale::cast(this)->JSLocaleVerify(isolate);
+      break;
+    case JS_INTL_PLURAL_RULES_TYPE:
+      JSPluralRules::cast(this)->JSPluralRulesVerify(isolate);
       break;
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
       JSRelativeTimeFormat::cast(this)->JSRelativeTimeFormatVerify(isolate);
@@ -1865,12 +1869,14 @@ void InterpreterData::InterpreterDataVerify(Isolate* isolate) {
 
 #ifdef V8_INTL_SUPPORT
 void JSListFormat::JSListFormatVerify(Isolate* isolate) {
+  JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);
   VerifyObjectField(isolate, kFormatterOffset);
   VerifyObjectField(isolate, kFlagsOffset);
 }
 
 void JSLocale::JSLocaleVerify(Isolate* isolate) {
+  JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLanguageOffset);
   VerifyObjectField(isolate, kScriptOffset);
   VerifyObjectField(isolate, kRegionOffset);
@@ -1885,7 +1891,17 @@ void JSLocale::JSLocaleVerify(Isolate* isolate) {
   VerifyObjectField(isolate, kNumberingSystemOffset);
 }
 
+void JSPluralRules::JSPluralRulesVerify(Isolate* isolate) {
+  CHECK(IsJSPluralRules());
+  JSObjectVerify(isolate);
+  VerifyObjectField(isolate, kLocaleOffset);
+  VerifyObjectField(isolate, kTypeOffset);
+  VerifyObjectField(isolate, kICUPluralRulesOffset);
+  VerifyObjectField(isolate, kICUDecimalFormatOffset);
+}
+
 void JSRelativeTimeFormat::JSRelativeTimeFormatVerify(Isolate* isolate) {
+  JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);
   VerifyObjectField(isolate, kFormatterOffset);
   VerifyObjectField(isolate, kFlagsOffset);

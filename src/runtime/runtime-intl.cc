@@ -20,6 +20,7 @@
 #include "src/messages.h"
 #include "src/objects/intl-objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/managed.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/utils.h"
@@ -60,9 +61,13 @@ RUNTIME_FUNCTION(Runtime_GetNumberOption) {
   CONVERT_SMI_ARG_CHECKED(min, 2);
   CONVERT_SMI_ARG_CHECKED(max, 3);
   CONVERT_SMI_ARG_CHECKED(fallback, 4);
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      Intl::GetNumberOption(isolate, options, property, min, max, fallback));
+
+  Maybe<int> num =
+      Intl::GetNumberOption(isolate, options, property, min, max, fallback);
+  if (num.IsNothing()) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  return Smi::FromInt(num.FromJust());
 }
 
 RUNTIME_FUNCTION(Runtime_DefaultNumberOption) {
@@ -73,9 +78,13 @@ RUNTIME_FUNCTION(Runtime_DefaultNumberOption) {
   CONVERT_SMI_ARG_CHECKED(max, 2);
   CONVERT_SMI_ARG_CHECKED(fallback, 3);
   CONVERT_ARG_HANDLE_CHECKED(String, property, 4);
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      Intl::DefaultNumberOption(isolate, value, min, max, fallback, property));
+
+  Maybe<int> num =
+      Intl::DefaultNumberOption(isolate, value, min, max, fallback, property);
+  if (num.IsNothing()) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  return Smi::FromInt(num.FromJust());
 }
 
 // ECMA 402 6.2.3
@@ -275,80 +284,52 @@ RUNTIME_FUNCTION(Runtime_InternalCompare) {
   return *Intl::InternalCompare(isolate, collator_holder, string1, string2);
 }
 
-RUNTIME_FUNCTION(Runtime_CreatePluralRules) {
+RUNTIME_FUNCTION(Runtime_PluralRulesResolvedOptions) {
   HandleScope scope(isolate);
 
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, plural_rules_obj, 0);
 
-  CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
+  // 3. If pr does not have an [[InitializedPluralRules]] internal
+  // slot, throw a TypeError exception.
+  if (!plural_rules_obj->IsJSPluralRules()) {
+    Handle<String> method_str = isolate->factory()->NewStringFromStaticChars(
+        "Intl.PluralRules.prototype.resolvedOptions");
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              method_str, plural_rules_obj));
+  }
 
-  Handle<JSFunction> constructor(
-      isolate->native_context()->intl_plural_rules_function(), isolate);
+  Handle<JSPluralRules> plural_rules =
+      Handle<JSPluralRules>::cast(plural_rules_obj);
 
-  Handle<JSObject> local_object;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
-                                     JSObject::New(constructor, constructor));
-
-  // Set pluralRules as internal field of the resulting JS object.
-  icu::PluralRules* plural_rules;
-  icu::DecimalFormat* decimal_format;
-  PluralRules::InitializePluralRules(isolate, locale, options, resolved,
-                                     &plural_rules, &decimal_format);
-  CHECK_NOT_NULL(plural_rules);
-  CHECK_NOT_NULL(decimal_format);
-
-  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(plural_rules));
-  local_object->SetEmbedderField(1, reinterpret_cast<Smi*>(decimal_format));
-
-  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
-                          PluralRules::DeletePluralRules,
-                          WeakCallbackType::kInternalFields);
-  return *local_object;
+  return *JSPluralRules::ResolvedOptions(isolate, plural_rules);
 }
 
 RUNTIME_FUNCTION(Runtime_PluralRulesSelect) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, plural_rules_holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, plural_rules_obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, number, 1);
 
-  icu::PluralRules* plural_rules =
-      PluralRules::UnpackPluralRules(plural_rules_holder);
-  CHECK_NOT_NULL(plural_rules);
+  // 3. If pr does not have an [[InitializedPluralRules]] internal
+  // slot, throw a TypeError exception.
+  if (!plural_rules_obj->IsJSPluralRules()) {
+    Handle<String> method_str = isolate->factory()->NewStringFromStaticChars(
+        "Intl.PluralRules.prototype.select");
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              method_str, plural_rules_obj));
+  }
 
-  icu::DecimalFormat* number_format =
-      PluralRules::UnpackNumberFormat(plural_rules_holder);
-  CHECK_NOT_NULL(number_format);
+  Handle<JSPluralRules> plural_rules =
+      Handle<JSPluralRules>::cast(plural_rules_obj);
 
-  // Currently, PluralRules doesn't implement all the options for rounding that
-  // the Intl spec provides; format and parse the number to round to the
-  // appropriate amount, then apply PluralRules.
-  //
-  // TODO(littledan): If a future ICU version supports an extended API to avoid
-  // this step, then switch to that API. Bug thread:
-  // http://bugs.icu-project.org/trac/ticket/12763
-  icu::UnicodeString rounded_string;
-  number_format->format(number->Number(), rounded_string);
+  // 4. Return ? ResolvePlural(pr, n).
 
-  icu::Formattable formattable;
-  UErrorCode status = U_ZERO_ERROR;
-  number_format->parse(rounded_string, formattable, status);
-  if (!U_SUCCESS(status)) return isolate->ThrowIllegalOperation();
-
-  double rounded = formattable.getDouble(status);
-  if (!U_SUCCESS(status)) return isolate->ThrowIllegalOperation();
-
-  icu::UnicodeString result = plural_rules->select(rounded);
-  return *isolate->factory()
-              ->NewStringFromTwoByte(Vector<const uint16_t>(
-                  reinterpret_cast<const uint16_t*>(result.getBuffer()),
-                  result.length()))
-              .ToHandleChecked();
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSPluralRules::ResolvePlural(isolate, plural_rules, number));
 }
 
 RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {

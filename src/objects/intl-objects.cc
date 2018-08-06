@@ -94,34 +94,6 @@ bool ExtractBooleanSetting(Isolate* isolate, Handle<JSObject> options,
   return false;
 }
 
-icu::Locale CreateICULocale(Isolate* isolate, Handle<String> bcp47_locale_str) {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8::String::Utf8Value bcp47_locale(v8_isolate,
-                                     v8::Utils::ToLocal(bcp47_locale_str));
-  CHECK_NOT_NULL(*bcp47_locale);
-
-  DisallowHeapAllocation no_gc;
-
-  // Convert BCP47 into ICU locale format.
-  UErrorCode status = U_ZERO_ERROR;
-  char icu_result[ULOC_FULLNAME_CAPACITY];
-  int icu_length = 0;
-
-  // bcp47_locale_str should be a canonicalized language tag, which
-  // means this shouldn't fail.
-  uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
-                      &icu_length, &status);
-  CHECK(U_SUCCESS(status));
-  CHECK_LT(0, icu_length);
-
-  icu::Locale icu_locale(icu_result);
-  if (icu_locale.isBogus()) {
-    FATAL("Failed to create ICU locale, are ICU data files missing?");
-  }
-
-  return icu_locale;
-}
-
 icu::SimpleDateFormat* CreateICUDateFormat(Isolate* isolate,
                                            const icu::Locale& icu_locale,
                                            Handle<JSObject> options) {
@@ -707,89 +679,6 @@ void SetResolvedCollatorSettings(Isolate* isolate,
   }
 }
 
-bool CreateICUPluralRules(Isolate* isolate, const icu::Locale& icu_locale,
-                          Handle<JSObject> options, icu::PluralRules** pl,
-                          icu::DecimalFormat** nf) {
-  // Make formatter from options. Numbering system is added
-  // to the locale as Unicode extension (if it was specified at all).
-  UErrorCode status = U_ZERO_ERROR;
-
-  UPluralType type = UPLURAL_TYPE_CARDINAL;
-
-  icu::UnicodeString type_string;
-  if (ExtractStringSetting(isolate, options, "type", &type_string)) {
-    if (type_string == UNICODE_STRING_SIMPLE("ordinal")) {
-      type = UPLURAL_TYPE_ORDINAL;
-    } else {
-      CHECK(type_string == UNICODE_STRING_SIMPLE("cardinal"));
-    }
-  }
-
-  icu::PluralRules* plural_rules =
-      icu::PluralRules::forLocale(icu_locale, type, status);
-
-  if (U_FAILURE(status)) {
-    delete plural_rules;
-    return false;
-  }
-
-  icu::DecimalFormat* number_format = static_cast<icu::DecimalFormat*>(
-      icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status));
-
-  if (U_FAILURE(status)) {
-    delete plural_rules;
-    delete number_format;
-    return false;
-  }
-
-  *pl = plural_rules;
-  *nf = number_format;
-
-  SetNumericSettings(isolate, number_format, options);
-
-  // Set rounding mode.
-
-  return true;
-}
-
-bool SetResolvedPluralRulesSettings(Isolate* isolate,
-                                    const icu::Locale& icu_locale,
-                                    icu::PluralRules* plural_rules,
-                                    icu::DecimalFormat* number_format,
-                                    Handle<JSObject> resolved) {
-  SetResolvedNumericSettings(isolate, icu_locale, number_format, resolved);
-
-  Factory* factory = isolate->factory();
-
-  Handle<JSObject> pluralCategories = Handle<JSObject>::cast(
-      JSObject::GetProperty(
-          isolate, resolved,
-          factory->NewStringFromStaticChars("pluralCategories"))
-          .ToHandleChecked());
-
-  UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::StringEnumeration> categories(
-      plural_rules->getKeywords(status));
-  if (U_FAILURE(status)) return false;
-
-  if (U_FAILURE(status)) return false;
-
-  for (int32_t i = 0;; i++) {
-    const icu::UnicodeString* category = categories->snext(status);
-    if (U_FAILURE(status)) return false;
-    if (category == nullptr) return true;
-
-    std::string keyword;
-    Handle<String> value = factory->NewStringFromAsciiChecked(
-        category->toUTF8String(keyword).data());
-
-    LookupIterator it(isolate, pluralCategories, i, LookupIterator::OWN);
-    JSObject::DefineOwnPropertyIgnoreAttributes(&it, value,
-                                                PropertyAttributes::NONE)
-        .ToHandleChecked();
-  }
-}
-
 icu::BreakIterator* CreateICUBreakIterator(Isolate* isolate,
                                            const icu::Locale& icu_locale,
                                            Handle<JSObject> options) {
@@ -848,11 +737,40 @@ void SetResolvedBreakIteratorSettings(Isolate* isolate,
 }
 }  // namespace
 
+icu::Locale Intl::CreateICULocale(Isolate* isolate,
+                                  Handle<String> bcp47_locale_str) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8::String::Utf8Value bcp47_locale(v8_isolate,
+                                     v8::Utils::ToLocal(bcp47_locale_str));
+  CHECK_NOT_NULL(*bcp47_locale);
+
+  DisallowHeapAllocation no_gc;
+
+  // Convert BCP47 into ICU locale format.
+  UErrorCode status = U_ZERO_ERROR;
+  char icu_result[ULOC_FULLNAME_CAPACITY];
+  int icu_length = 0;
+
+  // bcp47_locale_str should be a canonicalized language tag, which
+  // means this shouldn't fail.
+  uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
+                      &icu_length, &status);
+  CHECK(U_SUCCESS(status));
+  CHECK_LT(0, icu_length);
+
+  icu::Locale icu_locale(icu_result);
+  if (icu_locale.isBogus()) {
+    FATAL("Failed to create ICU locale, are ICU data files missing?");
+  }
+
+  return icu_locale;
+}
+
 // static
 icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
-  icu::Locale icu_locale = CreateICULocale(isolate, locale);
+  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
   DCHECK(!icu_locale.isBogus());
 
   icu::SimpleDateFormat* date_format =
@@ -889,7 +807,7 @@ void DateFormat::DeleteDateFormat(const v8::WeakCallbackInfo<void>& data) {
 icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
-  icu::Locale icu_locale = CreateICULocale(isolate, locale);
+  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
   DCHECK(!icu_locale.isBogus());
 
   icu::DecimalFormat* number_format =
@@ -929,7 +847,7 @@ icu::Collator* Collator::InitializeCollator(Isolate* isolate,
                                             Handle<String> locale,
                                             Handle<JSObject> options,
                                             Handle<JSObject> resolved) {
-  icu::Locale icu_locale = CreateICULocale(isolate, locale);
+  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
   DCHECK(!icu_locale.isBogus());
 
   icu::Collator* collator = CreateICUCollator(isolate, icu_locale, options);
@@ -957,56 +875,10 @@ icu::Collator* Collator::UnpackCollator(Handle<JSObject> obj) {
   return Managed<icu::Collator>::cast(obj->GetEmbedderField(0))->raw();
 }
 
-void PluralRules::InitializePluralRules(Isolate* isolate, Handle<String> locale,
-                                        Handle<JSObject> options,
-                                        Handle<JSObject> resolved,
-                                        icu::PluralRules** plural_rules,
-                                        icu::DecimalFormat** number_format) {
-  icu::Locale icu_locale = CreateICULocale(isolate, locale);
-  DCHECK(!icu_locale.isBogus());
-
-  bool success = CreateICUPluralRules(isolate, icu_locale, options,
-                                      plural_rules, number_format);
-  if (!success) {
-    // Remove extensions and try again.
-    icu::Locale no_extension_locale(icu_locale.getBaseName());
-    success = CreateICUPluralRules(isolate, no_extension_locale, options,
-                                   plural_rules, number_format);
-
-    if (!success) {
-      FATAL("Failed to create ICU PluralRules, are ICU data files missing?");
-    }
-
-    // Set resolved settings (pattern, numbering system).
-    success = SetResolvedPluralRulesSettings(
-        isolate, no_extension_locale, *plural_rules, *number_format, resolved);
-  } else {
-    success = SetResolvedPluralRulesSettings(isolate, icu_locale, *plural_rules,
-                                             *number_format, resolved);
-  }
-
-  CHECK_NOT_NULL(*plural_rules);
-  CHECK_NOT_NULL(*number_format);
-}
-
-icu::PluralRules* PluralRules::UnpackPluralRules(Handle<JSObject> obj) {
-  return reinterpret_cast<icu::PluralRules*>(obj->GetEmbedderField(0));
-}
-
-icu::DecimalFormat* PluralRules::UnpackNumberFormat(Handle<JSObject> obj) {
-  return reinterpret_cast<icu::DecimalFormat*>(obj->GetEmbedderField(1));
-}
-
-void PluralRules::DeletePluralRules(const v8::WeakCallbackInfo<void>& data) {
-  delete reinterpret_cast<icu::PluralRules*>(data.GetInternalField(0));
-  delete reinterpret_cast<icu::DecimalFormat*>(data.GetInternalField(1));
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
-}
-
 icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
-  icu::Locale icu_locale = CreateICULocale(isolate, locale);
+  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
   DCHECK(!icu_locale.isBogus());
 
   icu::BreakIterator* break_iterator =
@@ -1471,13 +1343,29 @@ MaybeHandle<JSObject> Intl::ResolveLocale(Isolate* isolate, const char* service,
   Handle<JSFunction> resolve_locale_function = isolate->resolve_locale();
 
   Handle<Object> result;
-  Handle<Object> undefined_value(ReadOnlyRoots(isolate).undefined_value(),
-                                 isolate);
+  Handle<Object> undefined_value = isolate->factory()->undefined_value();
   Handle<Object> args[] = {service_str, requestedLocales, options};
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result,
       Execution::Call(isolate, resolve_locale_function, undefined_value,
                       arraysize(args), args),
+      JSObject);
+
+  return Handle<JSObject>::cast(result);
+}
+
+MaybeHandle<JSObject> Intl::CanonicalizeLocaleList(Isolate* isolate,
+                                                   Handle<Object> locales) {
+  Handle<JSFunction> canonicalize_locale_list_function =
+      isolate->canonicalize_locale_list();
+
+  Handle<Object> result;
+  Handle<Object> undefined_value = isolate->factory()->undefined_value();
+  Handle<Object> args[] = {locales};
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, canonicalize_locale_list_function,
+                      undefined_value, arraysize(args), args),
       JSObject);
 
   return Handle<JSObject>::cast(result);
@@ -2045,44 +1933,148 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
 }
 
 // ecma402/#sec-defaultnumberoption
-MaybeHandle<Smi> Intl::DefaultNumberOption(Isolate* isolate,
-                                           Handle<Object> value, int min,
-                                           int max, int fallback,
-                                           Handle<String> property) {
+Maybe<int> Intl::DefaultNumberOption(Isolate* isolate, Handle<Object> value,
+                                     int min, int max, int fallback,
+                                     Handle<String> property) {
   // 2. Else, return fallback.
-  if (value->IsUndefined()) {
-    return Handle<Smi>(Smi::FromInt(fallback), isolate);
-  }
+  if (value->IsUndefined()) return Just(fallback);
+
   // 1. If value is not undefined, then
   // a. Let value be ? ToNumber(value).
   Handle<Object> value_num;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, value_num,
-                             Object::ToNumber(isolate, value), Smi);
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value_num, Object::ToNumber(isolate, value), Nothing<int>());
   DCHECK(value_num->IsNumber());
+
   // b. If value is NaN or less than minimum or greater than maximum, throw a
   // RangeError exception.
   if (value_num->IsNaN() || value_num->Number() < min ||
       value_num->Number() > max) {
-    THROW_NEW_ERROR(
+    THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
-        Smi);
+        Nothing<int>());
   }
+
+  // The max and min arguments are integers and the above check makes
+  // sure that we are within the integer range making this double to
+  // int conversion safe.
+  //
   // c. Return floor(value).
-  return Handle<Smi>(Smi::FromInt(floor(value_num->Number())), isolate);
+  return Just(FastD2I(floor(value_num->Number())));
 }
 
 // ecma402/#sec-getnumberoption
-MaybeHandle<Smi> Intl::GetNumberOption(Isolate* isolate,
-                                       Handle<JSReceiver> options,
-                                       Handle<String> property, int min,
-                                       int max, int fallback) {
-  Handle<Object> value;
+Maybe<int> Intl::GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
+                                 Handle<String> property, int min, int max,
+                                 int fallback) {
   // 1. Let value be ? Get(options, property).
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, value, JSReceiver::GetProperty(isolate, options, property), Smi);
+  Handle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value, JSReceiver::GetProperty(isolate, options, property),
+      Nothing<int>());
+
   // Return ? DefaultNumberOption(value, minimum, maximum, fallback).
   return DefaultNumberOption(isolate, value, min, max, fallback, property);
+}
+
+Maybe<int> Intl::GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
+                                 const char* property, int min, int max,
+                                 int fallback) {
+  Handle<String> property_str =
+      isolate->factory()->NewStringFromAsciiChecked(property);
+  return GetNumberOption(isolate, options, property_str, min, max, fallback);
+}
+
+Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
+                                              icu::DecimalFormat* number_format,
+                                              Handle<JSReceiver> options,
+                                              int mnfd_default,
+                                              int mxfd_default) {
+  CHECK_NOT_NULL(number_format);
+
+  // 5. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21,
+  // 1).
+  int mnid;
+  if (!GetNumberOption(isolate, options, "minimumIntegerDigits", 1, 21, 1)
+           .To(&mnid)) {
+    return Nothing<bool>();
+  }
+
+  // 6. Let mnfd be ? GetNumberOption(options, "minimumFractionDigits", 0, 20,
+  // mnfdDefault).
+  int mnfd;
+  if (!GetNumberOption(isolate, options, "minimumFractionDigits", 0, 20,
+                       mnfd_default)
+           .To(&mnfd)) {
+    return Nothing<bool>();
+  }
+
+  // 7. Let mxfdActualDefault be max( mnfd, mxfdDefault ).
+  int mxfd_actual_default = std::max(mnfd, mxfd_default);
+
+  // 8. Let mxfd be ? GetNumberOption(options,
+  // "maximumFractionDigits", mnfd, 20, mxfdActualDefault).
+  int mxfd;
+  if (!GetNumberOption(isolate, options, "maximumFractionDigits", mnfd, 20,
+                       mxfd_actual_default)
+           .To(&mxfd)) {
+    return Nothing<bool>();
+  }
+
+  // 9.  Let mnsd be ? Get(options, "minimumSignificantDigits").
+  Handle<Object> mnsd_obj;
+  Handle<String> mnsd_str =
+      isolate->factory()->NewStringFromStaticChars("minimumSignificantDigits");
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, mnsd_obj, JSReceiver::GetProperty(isolate, options, mnsd_str),
+      Nothing<bool>());
+
+  // 10. Let mxsd be ? Get(options, "maximumSignificantDigits").
+  Handle<Object> mxsd_obj;
+  Handle<String> mxsd_str =
+      isolate->factory()->NewStringFromStaticChars("maximumSignificantDigits");
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, mxsd_obj, JSReceiver::GetProperty(isolate, options, mxsd_str),
+      Nothing<bool>());
+
+  // 11. Set intlObj.[[MinimumIntegerDigits]] to mnid.
+  number_format->setMinimumIntegerDigits(mnid);
+
+  // 12. Set intlObj.[[MinimumFractionDigits]] to mnfd.
+  number_format->setMinimumFractionDigits(mnfd);
+
+  // 13. Set intlObj.[[MaximumFractionDigits]] to mxfd.
+  number_format->setMaximumFractionDigits(mxfd);
+
+  bool significant_digits_used = false;
+  // 14. If mnsd is not undefined or mxsd is not undefined, then
+  if (!mnsd_obj->IsUndefined(isolate) || !mxsd_obj->IsUndefined(isolate)) {
+    // 14. a. Let mnsd be ? DefaultNumberOption(mnsd, 1, 21, 1).
+    int mnsd;
+    if (!DefaultNumberOption(isolate, mnsd_obj, 1, 21, 1, mnsd_str).To(&mnsd)) {
+      return Nothing<bool>();
+    }
+
+    // 14. b. Let mxsd be ? DefaultNumberOption(mxsd, mnsd, 21, 21).
+    int mxsd;
+    if (!DefaultNumberOption(isolate, mxsd_obj, mnsd, 21, 21, mxsd_str)
+             .To(&mxsd)) {
+      return Nothing<bool>();
+    }
+
+    significant_digits_used = true;
+
+    // 14. c. Set intlObj.[[MinimumSignificantDigits]] to mnsd.
+    number_format->setMinimumSignificantDigits(mnsd);
+
+    // 14. d. Set intlObj.[[MaximumSignificantDigits]] to mxsd.
+    number_format->setMaximumSignificantDigits(mxsd);
+  }
+
+  number_format->setSignificantDigitsUsed(significant_digits_used);
+  number_format->setRoundingMode(icu::DecimalFormat::kRoundHalfUp);
+  return Just(true);
 }
 
 }  // namespace internal

@@ -760,6 +760,14 @@ function canonicalizeLocaleList(locales) {
   return seen;
 }
 
+// TODO(ftang): remove the %InstallToContext once
+// initializeLocaleList is available in C++
+// https://bugs.chromium.org/p/v8/issues/detail?id=7987
+%InstallToContext([
+  "canonicalize_locale_list", canonicalizeLocaleList
+]);
+
+
 function initializeLocaleList(locales) {
   return freezeArray(canonicalizeLocaleList(locales));
 }
@@ -949,84 +957,10 @@ function compare(collator, x, y) {
 
 AddBoundMethod(GlobalIntlCollator, 'compare', compare, 2, COLLATOR_TYPE, false);
 
-function PluralRulesConstructor() {
-  if (IS_UNDEFINED(new.target)) {
-    throw %make_type_error(kConstructorNotFunction, "PluralRules");
-  }
-
-  var locales = arguments[0];
-  var options = arguments[1];
-
-  if (IS_UNDEFINED(options)) {
-    options = {__proto__: null};
-  }
-
-  var getOption = getGetOption(options, 'pluralrules');
-
-  var locale = resolveLocale('pluralrules', locales, options);
-
-  var internalOptions = {__proto__: null};
-  %DefineWEProperty(internalOptions, 'type', getOption(
-    'type', 'string', ['cardinal', 'ordinal'], 'cardinal'));
-
-  SetNumberFormatDigitOptions(internalOptions, options, 0, 3);
-
-  var requestedLocale = locale.locale;
-  var resolved = %object_define_properties({__proto__: null}, {
-    type: {value: internalOptions.type, writable: true},
-    locale: {writable: true},
-    maximumFractionDigits: {writable: true},
-    minimumFractionDigits: {writable: true},
-    minimumIntegerDigits: {writable: true},
-    requestedLocale: {value: requestedLocale, writable: true},
-  });
-  if (HAS_OWN_PROPERTY(internalOptions, 'minimumSignificantDigits')) {
-    %DefineWEProperty(resolved, 'minimumSignificantDigits', UNDEFINED);
-  }
-  if (HAS_OWN_PROPERTY(internalOptions, 'maximumSignificantDigits')) {
-    %DefineWEProperty(resolved, 'maximumSignificantDigits', UNDEFINED);
-  }
-  %DefineWEProperty(resolved, 'pluralCategories', []);
-  var pluralRules = %CreatePluralRules(requestedLocale, internalOptions,
-                                       resolved);
-
-  %MarkAsInitializedIntlObjectOfType(pluralRules, PLURAL_RULES_TYPE);
-  pluralRules[resolvedSymbol] = resolved;
-
-  return pluralRules;
-}
-%SetCode(GlobalIntlPluralRules, PluralRulesConstructor);
-
 DEFINE_METHOD(
   GlobalIntlPluralRules.prototype,
   resolvedOptions() {
-    if (!%IsInitializedIntlObjectOfType(this, PLURAL_RULES_TYPE)) {
-      throw %make_type_error(kIncompatibleMethodReceiver,
-                             'Intl.PluralRules.prototype.resolvedOptions',
-                             this);
-    }
-
-    var result = {
-      locale: this[resolvedSymbol].locale,
-      type: this[resolvedSymbol].type,
-      minimumIntegerDigits: this[resolvedSymbol].minimumIntegerDigits,
-      minimumFractionDigits: this[resolvedSymbol].minimumFractionDigits,
-      maximumFractionDigits: this[resolvedSymbol].maximumFractionDigits,
-    };
-
-    if (HAS_OWN_PROPERTY(this[resolvedSymbol], 'minimumSignificantDigits')) {
-      defineWECProperty(result, 'minimumSignificantDigits',
-                        this[resolvedSymbol].minimumSignificantDigits);
-    }
-
-    if (HAS_OWN_PROPERTY(this[resolvedSymbol], 'maximumSignificantDigits')) {
-      defineWECProperty(result, 'maximumSignificantDigits',
-                        this[resolvedSymbol].maximumSignificantDigits);
-    }
-
-    defineWECProperty(result, 'pluralCategories',
-        %_Call(ArraySlice, this[resolvedSymbol].pluralCategories));
-    return result;
+    return %PluralRulesResolvedOptions(this);
   }
 );
 
@@ -1040,12 +974,6 @@ DEFINE_METHOD(
 DEFINE_METHOD(
   GlobalIntlPluralRules.prototype,
   select(value) {
-    if (!%IsInitializedIntlObjectOfType(this, PLURAL_RULES_TYPE)) {
-      throw %make_type_error(kIncompatibleMethodReceiver,
-                            'Intl.PluralRules.prototype.select',
-                            this);
-    }
-
     return %PluralRulesSelect(this, TO_NUMBER(value) + 0);
   }
 );
