@@ -338,8 +338,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 // time or if regexp entry in generated code is turned off runtime switch or
 // at compilation.
 #ifdef V8_INTERPRETED_REGEXP
-  return CallRuntime(Runtime::kRegExpExec, context, regexp, string, last_index,
-                     match_info);
+  return CAST(CallRuntime(Runtime::kRegExpExec, context, regexp, string,
+                          last_index, match_info));
 #else  // V8_INTERPRETED_REGEXP
   ToDirectStringAssembler to_direct(state(), string);
 
