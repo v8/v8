@@ -1097,6 +1097,9 @@ bool UseMovImmediateLoad(const Operand& x, const Assembler* assembler) {
   if (x.MustOutputRelocInfo(assembler)) {
     // Prefer constant pool if data is likely to be patched.
     return false;
+  } else if (x.IsOffHeapTarget()) {
+    // Use constant pool for off heap targets.
+    return false;
   } else {
     // Otherwise, use immediate load if movw / movt is available.
     return CpuFeatures::IsSupported(ARMv7);
