@@ -689,7 +689,7 @@ class Heap {
   void ProcessMovedExternalString(Page* old_page, Page* new_page,
                                   ExternalString* string);
 
-  void CompactFixedArraysOfWeakCells();
+  void CompactWeakArrayLists();
 
   void AddRetainedMap(Handle<Map> map);
 
