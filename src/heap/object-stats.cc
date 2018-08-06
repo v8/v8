@@ -704,7 +704,7 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   RecordSimpleVirtualObjectStats(nullptr, heap_->retained_maps(),
                                  ObjectStats::RETAINED_MAPS_TYPE);
 
-  // FixedArrayOfWeakCells.
+  // WeakArrayList.
   RecordSimpleVirtualObjectStats(
       nullptr, WeakArrayList::cast(heap_->noscript_shared_function_infos()),
       ObjectStats::NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE);

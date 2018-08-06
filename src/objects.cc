@@ -10366,78 +10366,6 @@ bool FixedArray::IsEqualTo(FixedArray* other) {
 }
 #endif
 
-// static
-void FixedArrayOfWeakCells::Set(Isolate* isolate,
-                                Handle<FixedArrayOfWeakCells> array, int index,
-                                Handle<HeapObject> value) {
-  DCHECK(array->IsEmptySlot(index));  // Don't overwrite anything.
-  DCHECK(!value->IsMap());
-  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(value);
-  Handle<FixedArray>::cast(array)->set(index + kFirstIndex, *cell);
-  array->set_last_used_index(index);
-}
-
-
-// static
-Handle<FixedArrayOfWeakCells> FixedArrayOfWeakCells::Add(
-    Isolate* isolate, Handle<Object> maybe_array, Handle<HeapObject> value,
-    int* assigned_index) {
-  Handle<FixedArrayOfWeakCells> array =
-      (maybe_array.is_null() || !maybe_array->IsFixedArrayOfWeakCells())
-          ? Allocate(isolate, 1, Handle<FixedArrayOfWeakCells>::null())
-          : Handle<FixedArrayOfWeakCells>::cast(maybe_array);
-  // Try to store the new entry if there's room. Optimize for consecutive
-  // accesses.
-  int first_index = array->last_used_index();
-  int length = array->Length();
-  if (length > 0) {
-    for (int i = first_index;;) {
-      if (array->IsEmptySlot((i))) {
-        FixedArrayOfWeakCells::Set(isolate, array, i, value);
-        if (assigned_index != nullptr) *assigned_index = i;
-        return array;
-      }
-      i = (i + 1) % length;
-      if (i == first_index) break;
-    }
-  }
-
-  // No usable slot found, grow the array.
-  int new_length = length == 0 ? 1 : length + (length >> 1) + 4;
-  Handle<FixedArrayOfWeakCells> new_array =
-      Allocate(isolate, new_length, array);
-  FixedArrayOfWeakCells::Set(isolate, new_array, length, value);
-  if (assigned_index != nullptr) *assigned_index = length;
-  return new_array;
-}
-
-template <class CompactionCallback>
-void FixedArrayOfWeakCells::Compact(Isolate* isolate) {
-  FixedArray* array = FixedArray::cast(this);
-  int new_length = kFirstIndex;
-  for (int i = kFirstIndex; i < array->length(); i++) {
-    Object* element = array->get(i);
-    if (element->IsSmi()) continue;
-    if (WeakCell::cast(element)->cleared()) continue;
-    Object* value = WeakCell::cast(element)->value();
-    CompactionCallback::Callback(value, i - kFirstIndex,
-                                 new_length - kFirstIndex);
-    array->set(new_length++, element);
-  }
-  array->Shrink(isolate, new_length);
-  set_last_used_index(0);
-}
-
-void FixedArrayOfWeakCells::Iterator::Reset(Object* maybe_array) {
-  if (maybe_array->IsFixedArrayOfWeakCells()) {
-    list_ = FixedArrayOfWeakCells::cast(maybe_array);
-    index_ = 0;
-#ifdef DEBUG
-    last_used_index_ = list_->last_used_index();
-#endif  // DEBUG
-  }
-}
-
 void JSObject::PrototypeRegistryCompactionCallback(HeapObject* value,
                                                    int old_index,
                                                    int new_index) {
@@ -10447,51 +10375,6 @@ void JSObject::PrototypeRegistryCompactionCallback(HeapObject* value,
   PrototypeInfo* proto_info = PrototypeInfo::cast(map->prototype_info());
   DCHECK_EQ(old_index, proto_info->registry_slot());
   proto_info->set_registry_slot(new_index);
-}
-
-template void FixedArrayOfWeakCells::Compact<
-    FixedArrayOfWeakCells::NullCallback>(Isolate* isolate);
-
-bool FixedArrayOfWeakCells::Remove(Handle<HeapObject> value) {
-  if (Length() == 0) return false;
-  // Optimize for the most recently added element to be removed again.
-  int first_index = last_used_index();
-  for (int i = first_index;;) {
-    if (Get(i) == *value) {
-      Clear(i);
-      // Users of FixedArrayOfWeakCells should make sure that there are no
-      // duplicates.
-      return true;
-    }
-    i = (i + 1) % Length();
-    if (i == first_index) return false;
-  }
-  UNREACHABLE();
-}
-
-
-// static
-Handle<FixedArrayOfWeakCells> FixedArrayOfWeakCells::Allocate(
-    Isolate* isolate, int size, Handle<FixedArrayOfWeakCells> initialize_from) {
-  DCHECK_LE(0, size);
-  Handle<FixedArray> result =
-      isolate->factory()->NewUninitializedFixedArray(size + kFirstIndex);
-  int index = 0;
-  if (!initialize_from.is_null()) {
-    DCHECK(initialize_from->Length() <= size);
-    Handle<FixedArray> raw_source = Handle<FixedArray>::cast(initialize_from);
-    // Copy the entries without compacting, since the PrototypeInfo relies on
-    // the index of the entries not to change.
-    while (index < raw_source->length()) {
-      result->set(index, raw_source->get(index));
-      index++;
-    }
-  }
-  while (index < result->length()) {
-    result->set(index, Smi::kZero);
-    index++;
-  }
-  return Handle<FixedArrayOfWeakCells>::cast(result);
 }
 
 // static
@@ -10580,8 +10463,8 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               MaybeObjectHandle value) {
   int length = array->length();
   array = EnsureSpace(isolate, array, length + 1);
-  // Check that GC didn't remove elements from the array.
-  DCHECK_EQ(array->length(), length);
+  // Reload length; GC might have removed elements from the array.
+  length = array->length();
   array->Set(length, *value);
   array->set_length(length + 1);
   return array;

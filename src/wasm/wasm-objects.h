@@ -34,7 +34,6 @@ using FunctionSig = Signature<ValueType>;
 
 class BreakPoint;
 class JSArrayBuffer;
-class FixedArrayOfWeakCells;
 class SeqOneByteString;
 class WasmDebugInfo;
 class WasmInstanceObject;
@@ -284,7 +283,7 @@ class WasmMemoryObject : public JSObject {
 
   DECL_ACCESSORS(array_buffer, JSArrayBuffer)
   DECL_INT_ACCESSORS(maximum_pages)
-  DECL_OPTIONAL_ACCESSORS(instances, FixedArrayOfWeakCells)
+  DECL_OPTIONAL_ACCESSORS(instances, WeakArrayList)
 
 // Layout description.
 #define WASM_MEMORY_OBJECT_FIELDS(V)   \

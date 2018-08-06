@@ -107,7 +107,6 @@
 //         - ScopeInfo
 //         - ModuleInfo
 //         - ScriptContextTable
-//         - FixedArrayOfWeakCells
 //       - FixedDoubleArray
 //     - Name
 //       - String
@@ -789,7 +788,6 @@ class ZoneForwardList;
   V(FixedArray)                                \
   V(FixedArrayBase)                            \
   V(FixedArrayExact)                           \
-  V(FixedArrayOfWeakCells)                     \
   V(FixedBigInt64Array)                        \
   V(FixedBigUint64Array)                       \
   V(FixedDoubleArray)                          \
@@ -961,7 +959,6 @@ class ZoneForwardList;
   V(FeedbackMetadata, FEEDBACK_METADATA_TYPE)                          \
   V(FeedbackVector, FEEDBACK_VECTOR_TYPE)                              \
   V(FixedArrayExact, FIXED_ARRAY_TYPE)                                 \
-  V(FixedArrayOfWeakCells, FIXED_ARRAY_TYPE)                           \
   V(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)                         \
   V(Foreign, FOREIGN_TYPE)                                             \
   V(FreeSpace, FREE_SPACE_TYPE)                                        \

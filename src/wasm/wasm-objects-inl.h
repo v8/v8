@@ -86,8 +86,7 @@ ACCESSORS(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
 // WasmMemoryObject
 ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
 SMI_ACCESSORS(WasmMemoryObject, maximum_pages, kMaximumPagesOffset)
-OPTIONAL_ACCESSORS(WasmMemoryObject, instances, FixedArrayOfWeakCells,
-                   kInstancesOffset)
+OPTIONAL_ACCESSORS(WasmMemoryObject, instances, WeakArrayList, kInstancesOffset)
 
 // WasmGlobalObject
 ACCESSORS(WasmGlobalObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)

@@ -1019,12 +1019,13 @@ bool WasmMemoryObject::has_full_guard_region(Isolate* isolate) {
 void WasmMemoryObject::AddInstance(Isolate* isolate,
                                    Handle<WasmMemoryObject> memory,
                                    Handle<WasmInstanceObject> instance) {
-  Handle<FixedArrayOfWeakCells> old_instances =
+  Handle<WeakArrayList> old_instances =
       memory->has_instances()
-          ? Handle<FixedArrayOfWeakCells>(memory->instances(), isolate)
-          : Handle<FixedArrayOfWeakCells>::null();
-  Handle<FixedArrayOfWeakCells> new_instances =
-      FixedArrayOfWeakCells::Add(isolate, old_instances, instance);
+          ? Handle<WeakArrayList>(memory->instances(), isolate)
+          : handle(ReadOnlyRoots(isolate->heap()).empty_weak_array_list(),
+                   isolate);
+  Handle<WeakArrayList> new_instances = WeakArrayList::AddToEnd(
+      isolate, old_instances, MaybeObjectHandle::Weak(instance));
   memory->set_instances(*new_instances);
   Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate);
   SetInstanceMemory(instance, buffer);
@@ -1033,7 +1034,7 @@ void WasmMemoryObject::AddInstance(Isolate* isolate,
 void WasmMemoryObject::RemoveInstance(Handle<WasmMemoryObject> memory,
                                       Handle<WasmInstanceObject> instance) {
   if (memory->has_instances()) {
-    memory->instances()->Remove(instance);
+    memory->instances()->RemoveOne(MaybeObjectHandle::Weak(instance));
   }
 }
 
@@ -1059,14 +1060,17 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   }
 
   if (memory_object->has_instances()) {
-    Handle<FixedArrayOfWeakCells> instances(memory_object->instances(),
-                                            isolate);
-    for (int i = 0; i < instances->Length(); i++) {
-      Object* elem = instances->Get(i);
-      if (!elem->IsWasmInstanceObject()) continue;
-      Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(elem),
-                                          isolate);
-      SetInstanceMemory(instance, new_buffer);
+    Handle<WeakArrayList> instances(memory_object->instances(), isolate);
+    for (int i = 0; i < instances->length(); i++) {
+      MaybeObject* elem = instances->Get(i);
+      HeapObject* heap_object;
+      if (elem->ToWeakHeapObject(&heap_object)) {
+        Handle<WasmInstanceObject> instance(
+            WasmInstanceObject::cast(heap_object), isolate);
+        SetInstanceMemory(instance, new_buffer);
+      } else {
+        DCHECK(elem->IsClearedWeakHeapObject());
+      }
     }
   }
   memory_object->set_array_buffer(*new_buffer);
