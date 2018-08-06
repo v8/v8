@@ -109,6 +109,7 @@ import re
 import subprocess
 import sys
 
+from testrunner.local import android
 from testrunner.local import command
 from testrunner.local import utils
 
@@ -124,27 +125,6 @@ GENERIC_RESULTS_RE = re.compile(r"^RESULT ([^:]+): ([^=]+)= ([^ ]+) ([^ ]*)$")
 RESULT_STDDEV_RE = re.compile(r"^\{([^\}]+)\}$")
 RESULT_LIST_RE = re.compile(r"^\[([^\]]+)\]$")
 TOOLS_BASE = os.path.abspath(os.path.dirname(__file__))
-ANDROID_BUILD_TOOLS = os.path.join(
-    os.path.dirname(TOOLS_BASE), 'build', 'android')
-
-
-def LoadAndroidBuildTools(path):  # pragma: no cover
-  assert os.path.exists(path)
-  sys.path.insert(0, path)
-
-  import devil_chromium
-  from devil.android import device_errors  # pylint: disable=import-error
-  from devil.android import device_utils  # pylint: disable=import-error
-  from devil.android.sdk import adb_wrapper  # pylint: disable=import-error
-  from devil.android.perf import cache_control  # pylint: disable=import-error
-  from devil.android.perf import perf_control  # pylint: disable=import-error
-  global adb_wrapper
-  global cache_control
-  global device_errors
-  global device_utils
-  global perf_control
-
-  devil_chromium.Initialize()
 
 
 def GeometricMean(values):
@@ -730,95 +710,17 @@ class DesktopPlatform(Platform):
 
 
 class AndroidPlatform(Platform):  # pragma: no cover
-  DEVICE_DIR = "/data/local/tmp/v8/"
 
   def __init__(self, options):
     super(AndroidPlatform, self).__init__(options)
-    LoadAndroidBuildTools(ANDROID_BUILD_TOOLS)
-
-    if not options.device:
-      # Detect attached device if not specified.
-      devices = adb_wrapper.AdbWrapper.Devices()
-      assert devices and len(devices) == 1, (
-          "None or multiple devices detected. Please specify the device on "
-          "the command-line with --device")
-      options.device = str(devices[0])
-    self.adb_wrapper = adb_wrapper.AdbWrapper(options.device)
-    self.device = device_utils.DeviceUtils(self.adb_wrapper)
+    self.driver = android.android_driver(options.device)
 
   def PreExecution(self):
-    perf = perf_control.PerfControl(self.device)
-    perf.SetHighPerfMode()
-
-    # Remember what we have already pushed to the device.
-    self.pushed = set()
+    self.driver.set_high_perf_mode()
 
   def PostExecution(self):
-    perf = perf_control.PerfControl(self.device)
-    perf.SetDefaultPerfMode()
-    self.device.RemovePath(
-        AndroidPlatform.DEVICE_DIR, force=True, recursive=True)
-
-  def _PushFile(self, host_dir, file_name, target_rel=".",
-                skip_if_missing=False):
-    file_on_host = os.path.join(host_dir, file_name)
-    file_on_device_tmp = os.path.join(
-        AndroidPlatform.DEVICE_DIR, "_tmp_", file_name)
-    file_on_device = os.path.join(
-        AndroidPlatform.DEVICE_DIR, target_rel, file_name)
-    folder_on_device = os.path.dirname(file_on_device)
-
-    # Only attempt to push files that exist.
-    if not os.path.exists(file_on_host):
-      if not skip_if_missing:
-        logging.warning('Missing file on host: %s', file_on_host)
-      return
-
-    # Only push files not yet pushed in one execution.
-    if file_on_host in self.pushed:
-      return
-    else:
-      self.pushed.add(file_on_host)
-
-    # Work-around for "text file busy" errors. Push the files to a temporary
-    # location and then copy them with a shell command.
-    output = self.adb_wrapper.Push(file_on_host, file_on_device_tmp)
-    # Success looks like this: "3035 KB/s (12512056 bytes in 4.025s)".
-    # Errors look like this: "failed to copy  ... ".
-    if output and not re.search('^[0-9]', output.splitlines()[-1]):
-      logging.warning('PUSH FAILED: %s', output)
-    self.adb_wrapper.Shell("mkdir -p %s" % folder_on_device)
-    self.adb_wrapper.Shell("cp %s %s" % (file_on_device_tmp, file_on_device))
-
-  def _PushExecutable(self, shell_dir, target_dir, binary):
-    self._PushFile(shell_dir, binary, target_dir)
-
-    # Push external startup data. Backwards compatible for revisions where
-    # these files didn't exist.
-    self._PushFile(
-        shell_dir,
-        "natives_blob.bin",
-        target_dir,
-        skip_if_missing=True,
-    )
-    self._PushFile(
-        shell_dir,
-        "snapshot_blob.bin",
-        target_dir,
-        skip_if_missing=True,
-    )
-    self._PushFile(
-        shell_dir,
-        "snapshot_blob_trusted.bin",
-        target_dir,
-        skip_if_missing=True,
-    )
-    self._PushFile(
-        shell_dir,
-        "icudtl.dat",
-        target_dir,
-        skip_if_missing=True,
-    )
+    self.driver.set_default_perf_mode()
+    self.driver.tear_down()
 
   def PreTests(self, node, path):
     if isinstance(node, RunnableConfig):
@@ -831,25 +733,21 @@ class AndroidPlatform(Platform):  # pragma: no cover
       bench_rel = "."
       bench_abs = suite_dir
 
-    self._PushExecutable(self.shell_dir, "bin", node.binary)
+    self.driver.push_executable(self.shell_dir, "bin", node.binary)
     if self.shell_dir_secondary:
-      self._PushExecutable(
+      self.driver.push_executable(
           self.shell_dir_secondary, "bin_secondary", node.binary)
 
     if isinstance(node, RunnableConfig):
-      self._PushFile(bench_abs, node.main, bench_rel)
+      self.driver.push_file(bench_abs, node.main, bench_rel)
     for resource in node.resources:
-      self._PushFile(bench_abs, resource, bench_rel)
+      self.driver.push_file(bench_abs, resource, bench_rel)
 
   def _Run(self, runnable, count, secondary=False):
     suffix = ' - secondary' if secondary else ''
     target_dir = "bin_secondary" if secondary else "bin"
     title = ">>> %%s (#%d)%s:" % ((count + 1), suffix)
-    cache = cache_control.CacheControl(self.device)
-    cache.DropRamCaches()
-    binary_on_device = os.path.join(
-        AndroidPlatform.DEVICE_DIR, target_dir, runnable.binary)
-    cmd = [binary_on_device] + runnable.GetCommandFlags(self.extra_flags)
+    self.driver.drop_ram_caches()
 
     # Relative path to benchmark directory.
     if runnable.path:
@@ -858,16 +756,15 @@ class AndroidPlatform(Platform):  # pragma: no cover
       bench_rel = "."
 
     try:
-      output = self.device.RunShellCommand(
-          cmd,
-          cwd=os.path.join(AndroidPlatform.DEVICE_DIR, bench_rel),
-          check_return=True,
+      stdout = self.driver.run(
+          target_dir=target_dir,
+          binary=runnable.binary,
+          args=runnable.GetCommandFlags(self.extra_flags),
+          rel_path=bench_rel,
           timeout=runnable.timeout,
-          retries=0,
       )
-      stdout = "\n".join(output)
       logging.info(title % "Stdout" + "\n%s", stdout)
-    except device_errors.CommandTimeoutError:
+    except android.TimeoutException:
       logging.warning(">>> Test timed out after %ss.", runnable.timeout)
       stdout = ""
     if runnable.process_size:

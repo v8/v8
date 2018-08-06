@@ -52,6 +52,7 @@ group("v8_perf") {
 
     # TODO(machenbach): These files are referenced by the perf runner.
     # They should be transformed into a proper python module.
+    "../tools/testrunner/local/android.py",
     "../tools/testrunner/local/command.py",
     "../tools/testrunner/local/utils.py",
     "../tools/testrunner/objects/output.py",
