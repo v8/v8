@@ -5108,14 +5108,17 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                                      intptr_t value) {
   DCHECK(rmode != RelocInfo::COMMENT && rmode != RelocInfo::CONST_POOL);
-  bool sharing_ok =
-      RelocInfo::IsNone(rmode) || RelocInfo::IsShareableRelocMode(rmode);
+  // We can share CODE_TARGETs because we don't patch the code objects anymore,
+  // and we make sure we emit only one reloc info for them (thus delta patching)
+  // will apply the delta only once. At the moment, we do not dedup code targets
+  // if they are wrapped in a heap object request (value == 0).
+  bool sharing_ok = RelocInfo::IsShareableRelocMode(rmode) ||
+                    (rmode == RelocInfo::CODE_TARGET && value != 0);
   DCHECK_LT(pending_32_bit_constants_.size(), kMaxNumPending32Constants);
   if (pending_32_bit_constants_.empty()) {
     first_const_pool_32_use_ = position;
   }
-  ConstantPoolEntry entry(
-      position, value, sharing_ok || (rmode == RelocInfo::CODE_TARGET), rmode);
+  ConstantPoolEntry entry(position, value, sharing_ok, rmode);
 
   bool shared = false;
   if (sharing_ok) {
@@ -5129,24 +5132,6 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
         shared = true;
         break;
       }
-    }
-  }
-
-  // Share entries if allowed and possible.
-  // Null-values are placeholders and must be ignored.
-  if (rmode == RelocInfo::CODE_TARGET && value != 0) {
-    // Sharing entries here relies on canonicalized handles - without them, we
-    // will miss the optimisation opportunity.
-    Address handle_address = static_cast<Address>(value);
-    auto existing = handle_to_index_map_.find(handle_address);
-    if (existing != handle_to_index_map_.end()) {
-      int index = existing->second;
-      entry.set_merged_index(index);
-      shared = true;
-    } else {
-      // Keep track of this code handle.
-      handle_to_index_map_[handle_address] =
-          static_cast<int>(pending_32_bit_constants_.size());
     }
   }
 
@@ -5387,7 +5372,6 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
     pending_32_bit_constants_.clear();
     pending_64_bit_constants_.clear();
-    handle_to_index_map_.clear();
 
     first_const_pool_32_use_ = -1;
     first_const_pool_64_use_ = -1;

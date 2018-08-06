@@ -1621,9 +1621,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   std::vector<ConstantPoolEntry> pending_32_bit_constants_;
   std::vector<ConstantPoolEntry> pending_64_bit_constants_;
 
-  // Map of address of handle to index in pending_32_bit_constants_.
-  std::map<Address, int> handle_to_index_map_;
-
   // Scratch registers available for use by the Assembler.
   RegList scratch_register_list_;
   VfpRegList scratch_vfp_register_list_;
