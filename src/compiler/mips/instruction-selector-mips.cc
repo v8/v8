@@ -534,7 +534,8 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
 
 void InstructionSelector::VisitWord32Sar(Node* node) {
   Int32BinopMatcher m(node);
-  if (m.left().IsWord32Shl() && CanCover(node, m.left().node())) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+      m.left().IsWord32Shl() && CanCover(node, m.left().node())) {
     Int32BinopMatcher mleft(m.left().node());
     if (m.right().HasValue() && mleft.right().HasValue()) {
       MipsOperandGenerator g(this);
