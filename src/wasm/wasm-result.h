@@ -123,6 +123,7 @@ class V8_EXPORT_PRIVATE ErrorThrower {
 
   bool error() const { return error_type_ != kNone; }
   bool wasm_error() { return error_type_ >= kFirstWasmError; }
+  const char* error_msg() { return error_msg_.c_str(); }
 
   Isolate* isolate() const { return isolate_; }
 

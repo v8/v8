@@ -392,8 +392,14 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
     // An exception caused by the module start function will be set as pending
     // and bypass the {ErrorThrower}, this happens in case of a stack overflow.
     if (isolate->has_pending_exception()) isolate->clear_pending_exception();
+    if (thrower.error()) {
+      ScopedVector<char> error_reason(100);
+      SNPrintF(error_reason, "Internal wasm failure: %s", thrower.error_msg());
+      ReportInstantiationFailure(script, position, error_reason.start());
+    } else {
+      ReportInstantiationFailure(script, position, "Internal wasm failure");
+    }
     thrower.Reset();  // Ensure exceptions do not propagate.
-    ReportInstantiationFailure(script, position, "Internal wasm failure");
     return MaybeHandle<Object>();
   }
   DCHECK(!thrower.error());
