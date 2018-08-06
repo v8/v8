@@ -1150,7 +1150,7 @@ bool ConvertKeyToIndex(Handle<Object> receiver, Handle<Object> key,
   // For regular JSReceiver or String receivers, the {key} must be a positive
   // array index.
   if (receiver->IsJSReceiver() || receiver->IsString()) {
-    return key->ToArrayIndex(index);
+    if (key->ToArrayIndex(index)) return true;
   }
   // For JSTypedArray receivers, we can also support negative keys, which we
   // just map into the [2**31, 2**32 - 1] range via a bit_cast. This is valid
