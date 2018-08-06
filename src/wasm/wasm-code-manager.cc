@@ -417,16 +417,11 @@ void NativeModule::SetLazyBuiltin(Handle<Code> code) {
   WasmCode* lazy_builtin = AddAnonymousCode(code, WasmCode::kLazyStub);
   // Fill the jump table with jumps to the lazy compile stub.
   Address lazy_compile_target = lazy_builtin->instruction_start();
-  JumpTableAssembler jtasm(
-      jump_table_->instruction_start(),
-      static_cast<int>(jump_table_->instructions().size()) + 256);
   for (uint32_t i = 0; i < num_wasm_functions; ++i) {
-    // Check that the offset in the jump table increases as expected.
-    DCHECK_EQ(i * JumpTableAssembler::kJumpTableSlotSize, jtasm.pc_offset());
-    jtasm.EmitLazyCompileJumpSlot(i + module_->num_imported_functions,
-                                  lazy_compile_target);
-    jtasm.NopBytes((i + 1) * JumpTableAssembler::kJumpTableSlotSize -
-                   jtasm.pc_offset());
+    JumpTableAssembler::EmitLazyCompileJumpSlot(
+        jump_table_->instruction_start(), i,
+        i + module_->num_imported_functions, lazy_compile_target,
+        WasmCode::kNoFlushICache);
   }
   Assembler::FlushICache(jump_table_->instructions().start(),
                          jump_table_->instructions().size());
@@ -600,7 +595,7 @@ WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t num_wasm_functions) {
   // Only call this if we really need a jump table.
   DCHECK_LT(0, num_wasm_functions);
   OwnedVector<byte> instructions = OwnedVector<byte>::New(
-      num_wasm_functions * JumpTableAssembler::kJumpTableSlotSize);
+      JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions));
   memset(instructions.start(), 0, instructions.size());
   return AddOwnedCode(Nothing<uint32_t>(),       // index
                       instructions.as_vector(),  // instructions
@@ -619,9 +614,8 @@ void NativeModule::PatchJumpTable(uint32_t func_index, Address target,
                                   WasmCode::FlushICache flush_icache) {
   DCHECK_LE(module_->num_imported_functions, func_index);
   uint32_t slot_idx = func_index - module_->num_imported_functions;
-  Address jump_table_slot = jump_table_->instruction_start() +
-                            slot_idx * JumpTableAssembler::kJumpTableSlotSize;
-  JumpTableAssembler::PatchJumpTableSlot(jump_table_slot, target, flush_icache);
+  JumpTableAssembler::PatchJumpTableSlot(jump_table_->instruction_start(),
+                                         slot_idx, target, flush_icache);
 }
 
 Address NativeModule::AllocateForCode(size_t size) {
@@ -710,18 +704,17 @@ Address NativeModule::GetCallTargetForFunction(uint32_t func_index) const {
   // Return the jump table slot for that function index.
   DCHECK_NOT_NULL(jump_table_);
   uint32_t slot_idx = func_index - module_->num_imported_functions;
-  DCHECK_LT(slot_idx, jump_table_->instructions().size() /
-                          JumpTableAssembler::kJumpTableSlotSize);
-  return jump_table_->instruction_start() +
-         slot_idx * JumpTableAssembler::kJumpTableSlotSize;
+  uint32_t slot_offset = JumpTableAssembler::SlotIndexToOffset(slot_idx);
+  DCHECK_LT(slot_offset, jump_table_->instructions().size());
+  return jump_table_->instruction_start() + slot_offset;
 }
 
 uint32_t NativeModule::GetFunctionIndexFromJumpTableSlot(
     Address slot_address) const {
   DCHECK(is_jump_table_slot(slot_address));
-  uint32_t offset =
+  uint32_t slot_offset =
       static_cast<uint32_t>(slot_address - jump_table_->instruction_start());
-  uint32_t slot_idx = offset / JumpTableAssembler::kJumpTableSlotSize;
+  uint32_t slot_idx = JumpTableAssembler::SlotOffsetToIndex(slot_offset);
   DCHECK_LT(slot_idx, module_->num_declared_functions);
   return module_->num_imported_functions + slot_idx;
 }
@@ -839,8 +832,7 @@ size_t WasmCodeManager::EstimateNativeModuleSize(const WasmModule* module) {
       (sizeof(WasmCode*) * num_wasm_functions /* code table size */) +
       (sizeof(WasmCode) * num_wasm_functions /* code object size */) +
       (kImportSize * module->num_imported_functions /* import size */) +
-      (JumpTableAssembler::kJumpTableSlotSize *
-       num_wasm_functions /* jump table size */);
+      (JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions));
 
   for (auto& function : module->functions) {
     estimate += kCodeSizeMultiplier * function.code.length();

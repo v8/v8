@@ -27,6 +27,22 @@ class JumpTableAssembler : public TurboAssembler {
                        reinterpret_cast<void*>(slot_addr), size,
                        CodeObjectRequired::kNo) {}
 
+  // To allow concurrent patching of the jump table entries we need to ensure
+  // that slots do not cross cache-line boundaries. Hence translation between
+  // slot offsets and index is encapsulated in the following methods.
+  static uint32_t SlotOffsetToIndex(uint32_t slot_offset) {
+    DCHECK_EQ(0, slot_offset % kJumpTableSlotSize);
+    return slot_offset / kJumpTableSlotSize;
+  }
+  static uint32_t SlotIndexToOffset(uint32_t slot_index) {
+    return slot_index * kJumpTableSlotSize;
+  }
+
+  // Determine the size of a jump table containing the given number of slots.
+  static size_t SizeForNumberOfSlots(uint32_t slot_count) {
+    return slot_count * kJumpTableSlotSize;
+  }
+
 #if V8_TARGET_ARCH_X64
   static constexpr int kJumpTableSlotSize = 18;
 #elif V8_TARGET_ARCH_IA32
@@ -51,22 +67,38 @@ class JumpTableAssembler : public TurboAssembler {
   static constexpr int kJumpTableSlotSize = 1;
 #endif
 
+  static void EmitLazyCompileJumpSlot(Address base, uint32_t slot_index,
+                                      uint32_t func_index,
+                                      Address lazy_compile_target,
+                                      WasmCode::FlushICache flush_i_cache) {
+    Address slot = base + SlotIndexToOffset(slot_index);
+    JumpTableAssembler jtasm(slot);
+    jtasm.EmitLazyCompileJumpSlot(func_index, lazy_compile_target);
+    jtasm.NopBytes(kJumpTableSlotSize - jtasm.pc_offset());
+    if (flush_i_cache) {
+      Assembler::FlushICache(slot, kJumpTableSlotSize);
+    }
+  }
+
+  static void PatchJumpTableSlot(Address base, uint32_t slot_index,
+                                 Address new_target,
+                                 WasmCode::FlushICache flush_i_cache) {
+    Address slot = base + SlotIndexToOffset(slot_index);
+    JumpTableAssembler jtasm(slot);
+    jtasm.EmitJumpSlot(new_target);
+    jtasm.NopBytes(kJumpTableSlotSize - jtasm.pc_offset());
+    if (flush_i_cache) {
+      Assembler::FlushICache(slot, kJumpTableSlotSize);
+    }
+  }
+
+ private:
   void EmitLazyCompileJumpSlot(uint32_t func_index,
                                Address lazy_compile_target);
 
   void EmitJumpSlot(Address target);
 
   void NopBytes(int bytes);
-
-  static void PatchJumpTableSlot(Address slot, Address new_target,
-                                 WasmCode::FlushICache flush_i_cache) {
-    JumpTableAssembler jsasm(slot);
-    jsasm.EmitJumpSlot(new_target);
-    jsasm.NopBytes(kJumpTableSlotSize - jsasm.pc_offset());
-    if (flush_i_cache) {
-      Assembler::FlushICache(slot, kJumpTableSlotSize);
-    }
-  }
 };
 
 }  // namespace wasm
