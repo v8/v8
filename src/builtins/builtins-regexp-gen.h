@@ -34,6 +34,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                  char const* method_name);
 
  protected:
+  TNode<Smi> SmiZero();
+  TNode<IntPtrT> IntPtrZero();
+
   // Allocate a RegExpResult with the given length (the number of captures,
   // including the match itself), index (the index where the match starts),
   // and input string. |length| and |index| are expected to be tagged, and
@@ -41,9 +44,10 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   Node* AllocateRegExpResult(Node* context, Node* length, Node* index,
                              Node* input);
 
-  TNode<Object> FastLoadLastIndex(Node* regexp);
-  Node* SlowLoadLastIndex(Node* context, Node* regexp);
-  Node* LoadLastIndex(Node* context, Node* regexp, bool is_fastpath);
+  TNode<Object> FastLoadLastIndex(TNode<JSRegExp> regexp);
+  TNode<Object> SlowLoadLastIndex(TNode<Context> context, TNode<Object> regexp);
+  TNode<Object> LoadLastIndex(TNode<Context> context, TNode<Object> regexp,
+                              bool is_fastpath);
 
   void FastStoreLastIndex(Node* regexp, Node* value);
   void SlowStoreLastIndex(Node* context, Node* regexp, Node* value);
@@ -58,20 +62,19 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                          Variable* var_string_end);
 
   // Low level logic around the actual call into pattern matching code.
-  TNode<Object> RegExpExecInternal(TNode<Context> context,
-                                   TNode<JSRegExp> regexp, TNode<String> string,
-                                   TNode<Number> last_index,
-                                   TNode<FixedArray> match_info);
+  TNode<HeapObject> RegExpExecInternal(TNode<Context> context,
+                                       TNode<JSRegExp> regexp,
+                                       TNode<String> string,
+                                       TNode<Number> last_index,
+                                       TNode<RegExpMatchInfo> match_info);
 
   Node* ConstructNewResultFromMatchInfo(Node* const context, Node* const regexp,
                                         Node* const match_info,
                                         TNode<String> const string);
 
-  Node* RegExpPrototypeExecBodyWithoutResult(Node* const context,
-                                             Node* const regexp,
-                                             Node* const string,
-                                             Label* if_didnotmatch,
-                                             const bool is_fastpath);
+  TNode<HeapObject> RegExpPrototypeExecBodyWithoutResult(
+      TNode<Context> context, TNode<JSReceiver> maybe_regexp,
+      TNode<String> string, Label* if_didnotmatch, const bool is_fastpath);
   Node* RegExpPrototypeExecBody(Node* const context, Node* const regexp,
                                 TNode<String> string, const bool is_fastpath);
 
