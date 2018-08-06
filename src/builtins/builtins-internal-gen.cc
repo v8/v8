@@ -1258,5 +1258,18 @@ TF_BUILTIN(GetProperty, CodeStubAssembler) {
   Return(var_result.value());
 }
 
+// ES6 [[Set]] operation.
+TF_BUILTIN(SetProperty, CodeStubAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
+  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+
+  // TODO(szuend): Add implementation similar to KeyedStoreGeneric().
+
+  TailCallRuntime(Runtime::kSetProperty, context, receiver, key, value,
+                  SmiConstant(LanguageMode::kStrict));
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -709,9 +709,10 @@ void PromiseBuiltinsAssembler::SetForwardingHandlerIfTrue(
     Node* context, Node* condition, const NodeGenerator& object) {
   Label done(this);
   GotoIfNot(condition, &done);
-  CallRuntime(Runtime::kSetProperty, context, object(),
-              HeapConstant(factory()->promise_forwarding_handler_symbol()),
-              TrueConstant(), SmiConstant(LanguageMode::kStrict));
+  SetPropertyStrict(
+      CAST(context), CAST(object()),
+      HeapConstant(factory()->promise_forwarding_handler_symbol()),
+      TrueConstant());
   Goto(&done);
   BIND(&done);
 }
@@ -723,9 +724,9 @@ void PromiseBuiltinsAssembler::SetPromiseHandledByIfTrue(
   GotoIfNot(condition, &done);
   GotoIf(TaggedIsSmi(promise), &done);
   GotoIfNot(HasInstanceType(promise, JS_PROMISE_TYPE), &done);
-  CallRuntime(Runtime::kSetProperty, context, promise,
-              HeapConstant(factory()->promise_handled_by_symbol()),
-              handled_by(), SmiConstant(LanguageMode::kStrict));
+  SetPropertyStrict(CAST(context), CAST(promise),
+                    HeapConstant(factory()->promise_handled_by_symbol()),
+                    CAST(handled_by()));
   Goto(&done);
   BIND(&done);
 }

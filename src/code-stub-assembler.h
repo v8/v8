@@ -2255,8 +2255,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Object> GetProperty(SloppyTNode<Context> context,
                             SloppyTNode<Object> receiver,
                             SloppyTNode<Object> name) {
-    return CallStub(Builtins::CallableFor(isolate(), Builtins::kGetProperty),
-                    context, receiver, name);
+    return CallBuiltin(Builtins::kGetProperty, context, receiver, name);
+  }
+
+  TNode<Object> SetPropertyStrict(TNode<Context> context,
+                                  TNode<Object> receiver, TNode<Object> key,
+                                  TNode<Object> value) {
+    return CallBuiltin(Builtins::kSetProperty, context, receiver, key, value);
   }
 
   Node* GetMethod(Node* context, Node* object, Handle<Name> name,

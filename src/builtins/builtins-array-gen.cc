@@ -366,8 +366,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     Goto(&done);
 
     BIND(&slow);
-    CallRuntime(Runtime::kSetProperty, context(), a(), k, mapped_value,
-                SmiConstant(LanguageMode::kStrict));
+    SetPropertyStrict(context(), CAST(a()), CAST(k), CAST(mapped_value));
     Goto(&done);
 
     BIND(&detached);
@@ -1065,8 +1064,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     Node* length = LoadJSArrayLength(array_receiver);
     // TODO(danno): Use the KeyedStoreGeneric stub here when possible,
     // calling into the runtime to do the elements transition is overkill.
-    CallRuntime(Runtime::kSetProperty, context, array_receiver, length, arg,
-                SmiConstant(LanguageMode::kStrict));
+    SetPropertyStrict(context, array_receiver, CAST(length), CAST(arg));
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
@@ -1112,8 +1110,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     Node* length = LoadJSArrayLength(array_receiver);
     // TODO(danno): Use the KeyedStoreGeneric stub here when possible,
     // calling into the runtime to do the elements transition is overkill.
-    CallRuntime(Runtime::kSetProperty, context, array_receiver, length, arg,
-                SmiConstant(LanguageMode::kStrict));
+    SetPropertyStrict(context, array_receiver, CAST(length), CAST(arg));
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
@@ -1132,8 +1129,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
     args.ForEach(
         [this, array_receiver, context](Node* arg) {
           Node* length = LoadJSArrayLength(array_receiver);
-          CallRuntime(Runtime::kSetProperty, context, array_receiver, length,
-                      arg, SmiConstant(LanguageMode::kStrict));
+          SetPropertyStrict(context, array_receiver, CAST(length), CAST(arg));
         },
         arg_index.value());
     args.PopAndReturn(LoadJSArrayLength(array_receiver));
@@ -1480,10 +1476,8 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
 
   // 16. Let setStatus be Set(A, "length", n, true).
   // 17. ReturnIfAbrupt(setStatus).
-  CallRuntime(Runtime::kSetProperty, context, a,
-              HeapConstant(isolate()->factory()->length_string()), n.value(),
-              SmiConstant(static_cast<int>(LanguageMode::kStrict)));
-
+  SetPropertyStrict(context, CAST(a), CodeStubAssembler::LengthStringConstant(),
+                    CAST(n.value()));
   args.PopAndReturn(a);
 }
 
@@ -1995,9 +1989,8 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
 
     BIND(&runtime);
     {
-      CallRuntime(Runtime::kSetProperty, context, static_cast<Node*>(array),
-                  CodeStubAssembler::LengthStringConstant(), length,
-                  SmiConstant(LanguageMode::kStrict));
+      SetPropertyStrict(context, array,
+                        CodeStubAssembler::LengthStringConstant(), length);
       Goto(&done);
     }
 
