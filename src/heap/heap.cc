@@ -3290,8 +3290,13 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
 
 void Heap::NotifyObjectLayoutChange(HeapObject* object, int size,
                                     const DisallowHeapAllocation&) {
+  // In large object space, we only allow changing from non-pointers to
+  // pointers, so that there are no slots in the invalidated slots buffer.
+  // TODO(ulan) Make the IsString assertion stricter, we only want to allow
+  // strings that cannot have slots in them (seq-strings and such).
   DCHECK(InOldSpace(object) || InNewSpace(object) ||
-         (lo_space()->Contains(object) && object->IsString()));
+         (lo_space()->Contains(object) &&
+          (object->IsString() || object->IsByteArray())));
   if (FLAG_incremental_marking && incremental_marking()->IsMarking()) {
     incremental_marking()->MarkBlackAndPush(object);
     if (InOldSpace(object) && incremental_marking()->IsCompacting()) {
