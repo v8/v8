@@ -4,12 +4,14 @@
 
 module data_view {
 
-  extern operator '.buffer' macro LoadArrayBufferViewBuffer(
-      JSArrayBufferView): JSArrayBuffer;
-  extern operator '.byte_length' macro LoadDataViewByteLength(JSDataView): Smi;
-  extern operator '.byte_offset' macro LoadDataViewByteOffset(JSDataView): Smi;
-  extern operator '.backing_store' macro LoadArrayBufferBackingStore(
-      JSArrayBuffer): RawPtr;
+  extern operator '.buffer'
+      macro LoadArrayBufferViewBuffer(JSArrayBufferView): JSArrayBuffer;
+  extern operator '.byte_length'
+      macro LoadDataViewByteLength(JSDataView): Number;
+  extern operator '.byte_offset'
+      macro LoadDataViewByteOffset(JSDataView): Number;
+  extern operator '.backing_store'
+      macro LoadArrayBufferBackingStore(JSArrayBuffer): RawPtr;
 
   macro WasNeutered(view: JSArrayBufferView): bool {
     return IsDetachedBuffer(view.buffer);
@@ -35,7 +37,7 @@ module data_view {
 
   // ES6 section 24.2.4.2 get DataView.prototype.byteLength
   javascript builtin DataViewPrototypeGetByteLength(
-      context: Context, receiver: Object, ...arguments): Smi {
+      context: Context, receiver: Object, ...arguments): Number {
     let data_view: JSDataView = ValidateDataView(
         context, receiver, 'get DataView.prototype.byte_length');
     if (WasNeutered(data_view)) {
@@ -48,7 +50,7 @@ module data_view {
 
   // ES6 section 24.2.4.3 get DataView.prototype.byteOffset
   javascript builtin DataViewPrototypeGetByteOffset(
-      context: Context, receiver: Object, ...arguments): Smi {
+      context: Context, receiver: Object, ...arguments): Number {
     let data_view: JSDataView = ValidateDataView(
         context, receiver, 'get DataView.prototype.byte_offset');
     if (WasNeutered(data_view)) {
@@ -360,14 +362,13 @@ module data_view {
     let data_view: JSDataView = ValidateDataView(
         context, receiver, 'get DataView.prototype.get');
 
-    let getIndexSmi: Smi;
+    let getIndex: Number;
     try {
-      getIndexSmi = ToSmiIndex(offset, context) otherwise RangeError;
+      getIndex = ToIndex(offset, context) otherwise RangeError;
     }
     label RangeError {
       ThrowRangeError(context, kInvalidDataViewAccessorOffset);
     }
-    let getIndex: intptr = convert<intptr>(getIndexSmi);
 
     let littleEndian: bool = ToBoolean(requested_little_endian);
     let buffer: JSArrayBuffer = data_view.buffer;
@@ -376,15 +377,20 @@ module data_view {
       ThrowTypeError(context, kDetachedOperation, 'DataView.prototype.get');
     }
 
-    let viewOffset: intptr = convert<intptr>(data_view.byte_offset);
-    let viewSize: intptr = convert<intptr>(data_view.byte_length);
-    let elementSize: intptr = DataViewElementSize(kind);
+    let viewOffset: Number = data_view.byte_offset;
+    let viewSize: Number = data_view.byte_length;
+    let elementSize: Number = DataViewElementSize(kind);
 
     if (getIndex + elementSize > viewSize) {
       ThrowRangeError(context, kInvalidDataViewAccessorOffset);
     }
 
-    let bufferIndex: intptr = getIndex + viewOffset;
+    let getIndexFloat: float64 = convert<float64>(getIndex);
+    let getIndexIntptr: intptr = Signed(convert<uintptr>(getIndexFloat));
+    let viewOffsetFloat: float64 = convert<float64>(viewOffset);
+    let viewOffsetIntptr: intptr = Signed(convert<uintptr>(viewOffsetFloat));
+
+    let bufferIndex: intptr = getIndexIntptr + viewOffsetIntptr;
 
     if constexpr (kind == UINT8_ELEMENTS) {
       return LoadDataViewUint8(buffer, bufferIndex);
@@ -669,14 +675,13 @@ module data_view {
     let data_view: JSDataView = ValidateDataView(
         context, receiver, 'get DataView.prototype.get');
 
-    let getIndexSmi: Smi;
+    let getIndex: Number;
     try {
-      getIndexSmi = ToSmiIndex(offset, context) otherwise RangeError;
+      getIndex = ToIndex(offset, context) otherwise RangeError;
     }
     label RangeError {
       ThrowRangeError(context, kInvalidDataViewAccessorOffset);
     }
-    let getIndex: intptr = convert<intptr>(getIndexSmi);
 
     let littleEndian: bool = ToBoolean(requested_little_endian);
     let buffer: JSArrayBuffer = data_view.buffer;
@@ -695,15 +700,20 @@ module data_view {
       ThrowTypeError(context, kDetachedOperation, 'DataView.prototype.get');
     }
 
-    let viewOffset: intptr = convert<intptr>(data_view.byte_offset);
-    let viewSize: intptr = convert<intptr>(data_view.byte_length);
-    let elementSize: intptr = DataViewElementSize(kind);
+    let viewOffset: Number = data_view.byte_offset;
+    let viewSize: Number = data_view.byte_length;
+    let elementSize: Number = DataViewElementSize(kind);
 
     if (getIndex + elementSize > viewSize) {
       ThrowRangeError(context, kInvalidDataViewAccessorOffset);
     }
 
-    let bufferIndex: intptr = getIndex + viewOffset;
+    let getIndexFloat: float64 = convert<float64>(getIndex);
+    let getIndexIntptr: intptr = Signed(convert<uintptr>(getIndexFloat));
+    let viewOffsetFloat: float64 = convert<float64>(viewOffset);
+    let viewOffsetIntptr: intptr = Signed(convert<uintptr>(viewOffsetFloat));
+
+    let bufferIndex: intptr = getIndexIntptr + viewOffsetIntptr;
 
     if constexpr (kind == BIGUINT64_ELEMENTS || kind == BIGINT64_ELEMENTS) {
       StoreDataViewBigInt(buffer, bufferIndex, bigint_value,

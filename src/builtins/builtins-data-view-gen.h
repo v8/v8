@@ -17,11 +17,11 @@ class DataViewBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
   explicit DataViewBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : BaseBuiltinsFromDSLAssembler(state) {}
 
-  TNode<Smi> LoadDataViewByteOffset(TNode<JSDataView> data_view) {
+  TNode<Number> LoadDataViewByteOffset(TNode<JSDataView> data_view) {
     return CAST(LoadObjectField(data_view, JSDataView::kByteOffsetOffset));
   }
 
-  TNode<Smi> LoadDataViewByteLength(TNode<JSDataView> data_view) {
+  TNode<Number> LoadDataViewByteLength(TNode<JSDataView> data_view) {
     return CAST(LoadObjectField(data_view, JSDataView::kByteLengthOffset));
   }
 
