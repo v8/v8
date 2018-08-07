@@ -3378,6 +3378,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
           // function literal eagerly, we can also compile it eagerly.
           if (result->IsFunctionLiteral()) {
             result->AsFunctionLiteral()->SetShouldEagerCompile();
+            result->AsFunctionLiteral()->mark_as_iife();
           }
         }
         Scanner::Location spread_pos;

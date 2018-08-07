@@ -26,6 +26,7 @@ namespace interpreter {
   V(CreateIterResultObject, create_iter_result_object, 2)             \
   V(CreateAsyncFromSyncIterator, create_async_from_sync_iterator, 1)  \
   V(HasProperty, has_property, 2)                                     \
+  V(GetProperty, get_property, 2)                                     \
   V(IsArray, is_array, 1)                                             \
   V(IsJSProxy, is_js_proxy, 1)                                        \
   V(IsJSReceiver, is_js_receiver, 1)                                  \

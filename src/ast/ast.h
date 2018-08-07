@@ -2201,6 +2201,12 @@ class FunctionLiteral final : public Expression {
   bool is_anonymous_expression() const {
     return function_type() == kAnonymousExpression;
   }
+
+  void mark_as_iife() { bit_field_ = IIFEBit::update(bit_field_, true); }
+  bool is_iife() const { return IIFEBit::decode(bit_field_); }
+  bool is_top_level() const {
+    return function_literal_id() == FunctionLiteral::kIdTypeTopLevel;
+  }
   bool is_wrapped() const { return function_type() == kWrapped; }
   LanguageMode language_mode() const;
 
@@ -2333,7 +2339,7 @@ class FunctionLiteral final : public Expression {
                                                  kHasDuplicateParameters) |
                   DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
                   RequiresInstanceFieldsInitializer::encode(false) |
-                  HasBracesField::encode(has_braces);
+                  HasBracesField::encode(has_braces) | IIFEBit::encode(false);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
     DCHECK_EQ(body == nullptr, expected_property_count < 0);
   }
@@ -2348,6 +2354,7 @@ class FunctionLiteral final : public Expression {
       : public BitField<bool, DontOptimizeReasonField::kNext, 1> {};
   class HasBracesField
       : public BitField<bool, RequiresInstanceFieldsInitializer::kNext, 1> {};
+  class IIFEBit : public BitField<bool, HasBracesField::kNext, 1> {};
 
   int expected_property_count_;
   int parameter_count_;

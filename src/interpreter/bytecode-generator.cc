@@ -1815,6 +1815,14 @@ void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
   }
 }
 
+bool BytecodeGenerator::ShouldOptimizeAsOneShot() const {
+  if (!FLAG_enable_one_shot_optimization) return false;
+
+  if (loop_depth_ > 0) return false;
+
+  return info()->literal()->is_top_level() || info()->literal()->is_iife();
+}
+
 void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
   size_t class_boilerplate_entry =
       builder()->AllocateDeferredConstantPoolEntry();
@@ -2776,6 +2784,54 @@ void BytecodeGenerator::BuildVariableAssignment(
   }
 }
 
+void BytecodeGenerator::BuildLoadNamedProperty(Property* property,
+                                               Register object,
+                                               const AstRawString* name) {
+  if (ShouldOptimizeAsOneShot()) {
+    RegisterList args = register_allocator()->NewRegisterList(2);
+    size_t name_index = builder()->GetConstantPoolEntry(name);
+    builder()
+        ->MoveRegister(object, args[0])
+        .LoadConstantPoolEntry(name_index)
+        .StoreAccumulatorInRegister(args[1])
+        .CallRuntime(Runtime::kInlineGetProperty, args);
+  } else {
+    FeedbackSlot slot = GetCachedLoadICSlot(property->obj(), name);
+    builder()->LoadNamedProperty(object, name, feedback_index(slot));
+  }
+}
+
+void BytecodeGenerator::BuildStoreNamedProperty(Property* property,
+                                                Register object,
+                                                const AstRawString* name) {
+  Register value;
+  if (!execution_result()->IsEffect()) {
+    value = register_allocator()->NewRegister();
+    builder()->StoreAccumulatorInRegister(value);
+  }
+
+  if (ShouldOptimizeAsOneShot()) {
+    RegisterList args = register_allocator()->NewRegisterList(4);
+    size_t name_index = builder()->GetConstantPoolEntry(name);
+    builder()
+        ->MoveRegister(object, args[0])
+        .StoreAccumulatorInRegister(args[2])
+        .LoadConstantPoolEntry(name_index)
+        .StoreAccumulatorInRegister(args[1])
+        .LoadLiteral(Smi::FromEnum(language_mode()))
+        .StoreAccumulatorInRegister(args[3])
+        .CallRuntime(Runtime::kSetProperty, args);
+  } else {
+    FeedbackSlot slot = GetCachedStoreICSlot(property->obj(), name);
+    builder()->StoreNamedProperty(object, name, feedback_index(slot),
+                                  language_mode());
+  }
+
+  if (!execution_result()->IsEffect()) {
+    builder()->LoadAccumulatorWithRegister(value);
+  }
+}
+
 void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   DCHECK(expr->target()->IsValidReferenceExpression() ||
          (expr->op() == Token::INIT && expr->target()->IsVariableProxy() &&
@@ -2837,8 +2893,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
         break;
       }
       case NAMED_PROPERTY: {
-        FeedbackSlot slot = GetCachedLoadICSlot(property->obj(), name);
-        builder()->LoadNamedProperty(object, name, feedback_index(slot));
+        BuildLoadNamedProperty(property, object, name);
         break;
       }
       case KEYED_PROPERTY: {
@@ -2888,17 +2943,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       break;
     }
     case NAMED_PROPERTY: {
-      FeedbackSlot slot = GetCachedStoreICSlot(property->obj(), name);
-      Register value;
-      if (!execution_result()->IsEffect()) {
-        value = register_allocator()->NewRegister();
-        builder()->StoreAccumulatorInRegister(value);
-      }
-      builder()->StoreNamedProperty(object, name, feedback_index(slot),
-                                    language_mode());
-      if (!execution_result()->IsEffect()) {
-        builder()->LoadAccumulatorWithRegister(value);
-      }
+      BuildStoreNamedProperty(property, object, name);
       break;
     }
     case KEYED_PROPERTY: {
@@ -3364,11 +3409,9 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
       UNREACHABLE();
     case NAMED_PROPERTY: {
       builder()->SetExpressionPosition(property);
-      builder()->LoadNamedProperty(
-          obj, property->key()->AsLiteral()->AsRawPropertyName(),
-          feedback_index(GetCachedLoadICSlot(
-              property->obj(),
-              property->key()->AsLiteral()->AsRawPropertyName())));
+      const AstRawString* name =
+          property->key()->AsLiteral()->AsRawPropertyName();
+      BuildLoadNamedProperty(property, obj, name);
       break;
     }
     case KEYED_PROPERTY: {
