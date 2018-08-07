@@ -36,9 +36,6 @@
 
 #include <unordered_set>
 #include <vector>
-// The C++ style guide recommends using <re2> instead of <regex>. However, the
-// former isn't available in V8.
-#include <regex>  // NOLINT(build/c++11)
 #include "src/api-inl.h"
 #include "src/log-utils.h"
 #include "src/log.h"
@@ -268,15 +265,20 @@ class TestCodeEventHandler : public v8::CodeEventHandler {
       : v8::CodeEventHandler(isolate), isolate_(isolate) {}
 
   size_t CountLines(std::string prefix, std::string suffix = std::string()) {
-    if (!log_.length()) return 0;
+    if (log_.empty()) return 0;
 
-    std::regex expression("(^|\\n)" + prefix + ".*" + suffix + "(?=\\n|$)");
+    size_t match = 0;
+    for (const std::string& line : log_) {
+      size_t prefix_pos = line.find(prefix);
+      if (prefix_pos == std::string::npos) continue;
+      size_t suffix_pos = line.rfind(suffix);
+      if (suffix_pos == std::string::npos) continue;
+      if (suffix_pos != line.length() - suffix.length()) continue;
+      if (prefix_pos >= suffix_pos) continue;
+      match++;
+    }
 
-    size_t match_count(std::distance(
-        std::sregex_iterator(log_.begin(), log_.end(), expression),
-        std::sregex_iterator()));
-
-    return match_count;
+    return match;
   }
 
   void Handle(v8::CodeEvent* code_event) override {
@@ -284,8 +286,7 @@ class TestCodeEventHandler : public v8::CodeEventHandler {
     log_line += v8::CodeEvent::GetCodeEventTypeName(code_event->GetCodeType());
     log_line += " ";
     log_line += FormatName(code_event);
-    log_line += "\n";
-    log_ += log_line;
+    log_.push_back(log_line);
   }
 
  private:
@@ -303,7 +304,7 @@ class TestCodeEventHandler : public v8::CodeEventHandler {
     return name;
   }
 
-  std::string log_;
+  std::vector<std::string> log_;
   v8::Isolate* isolate_;
 };
 
