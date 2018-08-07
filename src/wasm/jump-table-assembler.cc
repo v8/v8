@@ -36,6 +36,8 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   pushq(Immediate(func_index));                           // max 5 bytes
   movq(kScratchRegister, uint64_t{lazy_compile_target});  // max 10 bytes
   jmp(kScratchRegister);                                  // 3 bytes
+
+  PatchConstPool();  // force patching entries for partial const pool
 }
 
 void JumpTableAssembler::EmitJumpSlot(Address target) {

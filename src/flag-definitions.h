@@ -836,6 +836,8 @@ DEFINE_BOOL(enable_vldr_imm, false,
 DEFINE_BOOL(force_long_branches, false,
             "force all emitted branches to be in long mode (MIPS/PPC only)")
 DEFINE_STRING(mcpu, "auto", "enable optimization for specific cpu")
+DEFINE_BOOL(partial_constant_pool, true,
+            "enable use of partial constant pools (X64 only)")
 
 // Deprecated ARM flags (replaced by arm_arch).
 DEFINE_MAYBE_BOOL(enable_armv7, "deprecated (use --arm_arch instead)")

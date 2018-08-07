@@ -422,6 +422,67 @@ static_assert(sizeof(Operand) <= 2 * kPointerSize,
   V(shr, 0x5)                     \
   V(sar, 0x7)
 
+// Partial Constant Pool
+// Different from complete constant pool (like arm does), partial constant pool
+// only takes effects for shareable constants in order to reduce code size.
+// Partial constant pool does not emit constant pool entries at the end of each
+// code object. Instead, it keeps the first shareable constant inlined in the
+// instructions and uses rip-relative memory loadings for the same constants in
+// subsequent instructions. These rip-relative memory loadings will target at
+// the position of the first inlined constant. For example:
+//
+//  REX.W movq r10,0x7f9f75a32c20   ; 10 bytes
+//  …
+//  REX.W movq r10,0x7f9f75a32c20   ; 10 bytes
+//  …
+//
+// turns into
+//
+//  REX.W movq r10,0x7f9f75a32c20   ; 10 bytes
+//  …
+//  REX.W movq r10,[rip+0xffffff96] ; 7 bytes
+//  …
+
+class ConstPool {
+ public:
+  explicit ConstPool(Assembler* assm) : assm_(assm) {}
+  // Returns true when partial constant pool is valid for this entry.
+  bool TryRecordEntry(intptr_t data, RelocInfo::Mode mode);
+  bool IsEmpty() const { return entries_.empty(); }
+
+  void PatchEntries();
+  // Discard any pending pool entries.
+  void Clear();
+
+ private:
+  // Adds a shared entry to entries_. Returns true if this is not the first time
+  // we add this entry, false otherwise.
+  bool AddSharedEntry(uint64_t data, int offset);
+
+  // Check if the instruction is a rip-relative move.
+  bool IsMoveRipRelative(byte* instr);
+
+  Assembler* assm_;
+
+  // Values, pc offsets of entries.
+  typedef std::multimap<uint64_t, int> EntryMap;
+  EntryMap entries_;
+
+  // Number of bytes taken up by the displacement of rip-relative addressing.
+  static constexpr int kRipRelativeDispSize = 4;  // 32-bit displacement.
+  // Distance between the address of the displacement in the rip-relative move
+  // instruction and the head address of the instruction.
+  static constexpr int kMoveRipRelativeDispOffset =
+      3;  // REX Opcode ModRM Displacement
+  // Distance between the address of the imm64 in the 'movq reg, imm64'
+  // instruction and the head address of the instruction.
+  static constexpr int kMoveImm64Offset = 2;  // REX Opcode imm64
+  // A mask for rip-relative move instruction.
+  static constexpr uint32_t kMoveRipRelativeMask = 0x00C7FFFB;
+  // The bits for a rip-relative move instruction after mask.
+  static constexpr uint32_t kMoveRipRelativeInstr = 0x00058B48;
+};
+
 class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  private:
   // We check before assembling an instruction that there is sufficient
@@ -1894,6 +1955,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dp(uintptr_t data) { dq(data); }
   void dq(Label* label);
 
+  // Patch entries for partial constant pool.
+  void PatchConstPool();
+
+  // Check if use partial constant pool for this rmode.
+  static bool UseConstPoolFor(RelocInfo::Mode rmode);
+
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
   // an instruction or relocation information.
@@ -2374,6 +2441,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   int farjmp_num_ = 0;
   std::deque<int> farjmp_positions_;
   std::map<Label*, std::vector<int>> label_farjmp_maps_;
+
+  ConstPool constpool_;
+
+  friend class ConstPool;
 };
 
 
