@@ -58,7 +58,7 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
 
   std::vector<std::string> expected_disassembly = {expected_strings...};
   size_t n_expected = expected_disassembly.size();
-  byte* end = begin + (n_expected * Assembler::kInstrSize);
+  byte* end = begin + (n_expected * kInstrSize);
 
   std::vector<std::string> disassembly;
   for (byte* pc = begin; pc < end;) {

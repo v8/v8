@@ -194,8 +194,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
     if (target_is_isolate_independent_builtin &&
         options().use_pc_relative_calls_and_jumps) {
       int32_t code_target_index = AddCodeTarget(code);
-      b(code_target_index * Instruction::kInstrSize, cond,
-        RelocInfo::RELATIVE_CODE_TARGET);
+      b(code_target_index * kInstrSize, cond, RelocInfo::RELATIVE_CODE_TARGET);
       return;
     } else if (root_array_available_ && options().isolate_independent_code) {
       UseScratchRegisterScope temps(this);
@@ -274,8 +273,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
     if (target_is_isolate_independent_builtin &&
         options().use_pc_relative_calls_and_jumps) {
       int32_t code_target_index = AddCodeTarget(code);
-      bl(code_target_index * Instruction::kInstrSize, cond,
-         RelocInfo::RELATIVE_CODE_TARGET);
+      bl(code_target_index * kInstrSize, cond, RelocInfo::RELATIVE_CODE_TARGET);
       return;
     } else if (root_array_available_ && options().isolate_independent_code) {
       // Use ip directly instead of using UseScratchRegisterScope, as we do not

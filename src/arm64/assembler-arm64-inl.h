@@ -549,8 +549,8 @@ Handle<Code> Assembler::code_target_object_handle_at(Address pc) {
         Assembler::target_address_at(pc, 0 /* unused */)));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-    DCHECK_EQ(instr->ImmPCOffset() % kInstructionSize, 0);
-    return GetCodeTarget(instr->ImmPCOffset() >> kInstructionSizeLog2);
+    DCHECK_EQ(instr->ImmPCOffset() % kInstrSize, 0);
+    return GetCodeTarget(instr->ImmPCOffset() >> kInstrSizeLog2);
   }
 }
 
@@ -570,7 +570,7 @@ Address Assembler::target_address_from_return_address(Address pc) {
   // Call sequence on ARM64 is:
   //  ldr ip0, #... @ load from literal pool
   //  blr ip0
-  Address candidate = pc - 2 * kInstructionSize;
+  Address candidate = pc - 2 * kInstrSize;
   Instruction* instr = reinterpret_cast<Instruction*>(candidate);
   USE(instr);
   DCHECK(instr->IsLdrLiteralX());
@@ -598,7 +598,7 @@ void Assembler::deserialization_set_special_target_at(Address location,
       target = location;
     }
     instr->SetBranchImmTarget(reinterpret_cast<Instruction*>(target));
-    Assembler::FlushICache(location, kInstructionSize);
+    Assembler::FlushICache(location, kInstrSize);
   } else {
     DCHECK_EQ(instr->InstructionBits(), 0);
     Memory::Address_at(location) = target;
@@ -635,7 +635,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     }
     instr->SetBranchImmTarget(reinterpret_cast<Instruction*>(target));
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(pc, kInstructionSize);
+      Assembler::FlushICache(pc, kInstrSize);
     }
   }
 }
@@ -874,8 +874,8 @@ LoadLiteralOp Assembler::LoadLiteralOpFor(const CPURegister& rt) {
 int Assembler::LinkAndGetInstructionOffsetTo(Label* label) {
   DCHECK_EQ(kStartOfLabelLinkChain, 0);
   int offset = LinkAndGetByteOffsetTo(label);
-  DCHECK(IsAligned(offset, kInstructionSize));
-  return offset >> kInstructionSizeLog2;
+  DCHECK(IsAligned(offset, kInstrSize));
+  return offset >> kInstrSizeLog2;
 }
 
 
@@ -1092,7 +1092,7 @@ Instr Assembler::ImmBarrierType(int imm2) {
 }
 
 unsigned Assembler::CalcLSDataSize(LoadStoreOp op) {
-  DCHECK((LSSize_offset + LSSize_width) == (kInstructionSize * 8));
+  DCHECK((LSSize_offset + LSSize_width) == (kInstrSize * 8));
   unsigned size = static_cast<Instr>(op >> LSSize_offset);
   if ((op & LSVector_mask) != 0) {
     // Vector register memory operations encode the access size in the "size"

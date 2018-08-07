@@ -2756,10 +2756,13 @@ const Instr rtCallRedirInstr = TWI;
 //   return ((type == 0) || (type == 1)) && instr->HasS();
 // }
 //
+
+constexpr uint8_t kInstrSize = 4;
+constexpr uint8_t kInstrSizeLog2 = 2;
+constexpr uint8_t kPcLoadDelta = 8;
+
 class Instruction {
  public:
-  enum { kInstrSize = 4, kInstrSizeLog2 = 2, kPcLoadDelta = 8 };
-
 // Helper macro to define static accessors.
 // We use the cast to char* trick to bypass the strict anti-aliasing rules.
 #define DECLARE_STATIC_TYPED_ACCESSOR(return_type, Name) \

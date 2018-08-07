@@ -1281,7 +1281,7 @@ void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
     bind(&here);
     daddu(scratch, scratch, ra);
     pop(ra);
-    Ld(scratch, MemOperand(scratch, 6 * v8::internal::Assembler::kInstrSize));
+    Ld(scratch, MemOperand(scratch, 6 * v8::internal::kInstrSize));
   }
   jr(scratch);
   nop();  // Branch delay slot nop.

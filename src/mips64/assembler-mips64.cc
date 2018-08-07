@@ -795,8 +795,8 @@ int Assembler::target_at(int pos, bool is_internal) {
     return AddBranchOffset(pos, instr);
   } else if (IsMov(instr, t8, ra)) {
     int32_t imm32;
-    Instr instr_lui = instr_at(pos + 2 * Assembler::kInstrSize);
-    Instr instr_ori = instr_at(pos + 3 * Assembler::kInstrSize);
+    Instr instr_lui = instr_at(pos + 2 * kInstrSize);
+    Instr instr_ori = instr_at(pos + 3 * kInstrSize);
     DCHECK(IsLui(instr_lui));
     DCHECK(IsOri(instr_ori));
     imm32 = (instr_lui & static_cast<int32_t>(kImm16Mask)) << kLuiShift;
@@ -807,10 +807,10 @@ int Assembler::target_at(int pos, bool is_internal) {
     }
     return pos + Assembler::kLongBranchPCOffset + imm32;
   } else if (IsLui(instr)) {
-    if (IsBal(instr_at(pos + Assembler::kInstrSize))) {
+    if (IsBal(instr_at(pos + kInstrSize))) {
       int32_t imm32;
-      Instr instr_lui = instr_at(pos + 0 * Assembler::kInstrSize);
-      Instr instr_ori = instr_at(pos + 2 * Assembler::kInstrSize);
+      Instr instr_lui = instr_at(pos + 0 * kInstrSize);
+      Instr instr_ori = instr_at(pos + 2 * kInstrSize);
       DCHECK(IsLui(instr_lui));
       DCHECK(IsOri(instr_ori));
       imm32 = (instr_lui & static_cast<int32_t>(kImm16Mask)) << kLuiShift;
@@ -821,9 +821,9 @@ int Assembler::target_at(int pos, bool is_internal) {
       }
       return pos + Assembler::kLongBranchPCOffset + imm32;
     } else {
-      Instr instr_lui = instr_at(pos + 0 * Assembler::kInstrSize);
-      Instr instr_ori = instr_at(pos + 1 * Assembler::kInstrSize);
-      Instr instr_ori2 = instr_at(pos + 3 * Assembler::kInstrSize);
+      Instr instr_lui = instr_at(pos + 0 * kInstrSize);
+      Instr instr_ori = instr_at(pos + 1 * kInstrSize);
+      Instr instr_ori2 = instr_at(pos + 3 * kInstrSize);
       DCHECK(IsOri(instr_ori));
       DCHECK(IsOri(instr_ori2));
 
@@ -894,9 +894,9 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
     instr = SetBranchOffset(pos, target_pos, instr);
     instr_at_put(pos, instr);
   } else if (IsLui(instr)) {
-    if (IsBal(instr_at(pos + Assembler::kInstrSize))) {
-      Instr instr_lui = instr_at(pos + 0 * Assembler::kInstrSize);
-      Instr instr_ori = instr_at(pos + 2 * Assembler::kInstrSize);
+    if (IsBal(instr_at(pos + kInstrSize))) {
+      Instr instr_lui = instr_at(pos + 0 * kInstrSize);
+      Instr instr_ori = instr_at(pos + 2 * kInstrSize);
       DCHECK(IsLui(instr_lui));
       DCHECK(IsOri(instr_ori));
       int32_t imm = target_pos - (pos + Assembler::kLongBranchPCOffset);
@@ -905,14 +905,13 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
       instr_lui &= ~kImm16Mask;
       instr_ori &= ~kImm16Mask;
 
-      instr_at_put(pos + 0 * Assembler::kInstrSize,
+      instr_at_put(pos + 0 * kInstrSize,
                    instr_lui | ((imm >> kLuiShift) & kImm16Mask));
-      instr_at_put(pos + 2 * Assembler::kInstrSize,
-                   instr_ori | (imm & kImm16Mask));
+      instr_at_put(pos + 2 * kInstrSize, instr_ori | (imm & kImm16Mask));
     } else {
-      Instr instr_lui = instr_at(pos + 0 * Assembler::kInstrSize);
-      Instr instr_ori = instr_at(pos + 1 * Assembler::kInstrSize);
-      Instr instr_ori2 = instr_at(pos + 3 * Assembler::kInstrSize);
+      Instr instr_lui = instr_at(pos + 0 * kInstrSize);
+      Instr instr_ori = instr_at(pos + 1 * kInstrSize);
+      Instr instr_ori2 = instr_at(pos + 3 * kInstrSize);
       DCHECK(IsOri(instr_ori));
       DCHECK(IsOri(instr_ori2));
 
@@ -923,16 +922,15 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
       instr_ori &= ~kImm16Mask;
       instr_ori2 &= ~kImm16Mask;
 
-      instr_at_put(pos + 0 * Assembler::kInstrSize,
+      instr_at_put(pos + 0 * kInstrSize,
                    instr_lui | ((imm >> 32) & kImm16Mask));
-      instr_at_put(pos + 1 * Assembler::kInstrSize,
+      instr_at_put(pos + 1 * kInstrSize,
                    instr_ori | ((imm >> 16) & kImm16Mask));
-      instr_at_put(pos + 3 * Assembler::kInstrSize,
-                   instr_ori2 | (imm & kImm16Mask));
+      instr_at_put(pos + 3 * kInstrSize, instr_ori2 | (imm & kImm16Mask));
     }
   } else if (IsMov(instr, t8, ra)) {
-    Instr instr_lui = instr_at(pos + 2 * Assembler::kInstrSize);
-    Instr instr_ori = instr_at(pos + 3 * Assembler::kInstrSize);
+    Instr instr_lui = instr_at(pos + 2 * kInstrSize);
+    Instr instr_ori = instr_at(pos + 3 * kInstrSize);
     DCHECK(IsLui(instr_lui));
     DCHECK(IsOri(instr_ori));
 
@@ -945,7 +943,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
       instr_b = SetBranchOffset(pos, target_pos, instr_b);
 
       instr_at_put(pos, instr_b);
-      instr_at_put(pos + 1 * Assembler::kInstrSize, 0);
+      instr_at_put(pos + 1 * kInstrSize, 0);
     } else {
       int32_t imm = target_pos - (pos + Assembler::kLongBranchPCOffset);
       DCHECK_EQ(imm & 3, 0);
@@ -953,10 +951,9 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
       instr_lui &= ~kImm16Mask;
       instr_ori &= ~kImm16Mask;
 
-      instr_at_put(pos + 2 * Assembler::kInstrSize,
+      instr_at_put(pos + 2 * kInstrSize,
                    instr_lui | ((imm >> kLuiShift) & kImm16Mask));
-      instr_at_put(pos + 3 * Assembler::kInstrSize,
-                   instr_ori | (imm & kImm16Mask));
+      instr_at_put(pos + 3 * kInstrSize, instr_ori | (imm & kImm16Mask));
     }
   } else if (IsJ(instr) || IsJal(instr)) {
     int32_t imm28 = target_pos - pos;
@@ -4057,9 +4054,9 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
   Instr instr = instr_at(pc);
   DCHECK(RelocInfo::IsInternalReferenceEncoded(rmode));
   if (IsLui(instr)) {
-    Instr instr_lui = instr_at(pc + 0 * Assembler::kInstrSize);
-    Instr instr_ori = instr_at(pc + 1 * Assembler::kInstrSize);
-    Instr instr_ori2 = instr_at(pc + 3 * Assembler::kInstrSize);
+    Instr instr_lui = instr_at(pc + 0 * kInstrSize);
+    Instr instr_ori = instr_at(pc + 1 * kInstrSize);
+    Instr instr_ori2 = instr_at(pc + 3 * kInstrSize);
     DCHECK(IsOri(instr_ori));
     DCHECK(IsOri(instr_ori2));
     // TODO(plind): symbolic names for the shifts.
@@ -4079,12 +4076,9 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
     instr_ori &= ~kImm16Mask;
     instr_ori2 &= ~kImm16Mask;
 
-    instr_at_put(pc + 0 * Assembler::kInstrSize,
-                 instr_lui | ((imm >> 32) & kImm16Mask));
-    instr_at_put(pc + 1 * Assembler::kInstrSize,
-                 instr_ori | (imm >> 16 & kImm16Mask));
-    instr_at_put(pc + 3 * Assembler::kInstrSize,
-                 instr_ori2 | (imm & kImm16Mask));
+    instr_at_put(pc + 0 * kInstrSize, instr_lui | ((imm >> 32) & kImm16Mask));
+    instr_at_put(pc + 1 * kInstrSize, instr_ori | (imm >> 16 & kImm16Mask));
+    instr_at_put(pc + 3 * kInstrSize, instr_ori2 | (imm & kImm16Mask));
     return 4;  // Number of instructions patched.
   } else if (IsJ(instr) || IsJal(instr)) {
     // Regular j/jal relocation.
@@ -4366,7 +4360,7 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
              (target & kImm16Mask);
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc, 4 * Assembler::kInstrSize);
+    Assembler::FlushICache(pc, 4 * kInstrSize);
   }
 }
 

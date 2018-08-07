@@ -2387,7 +2387,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
       // This branch-and-link sequence is needed to find the current PC on mips
       // before r6, saved to the ra register.
       __ bal(&find_ra);  // bal exposes branch delay slot.
-      __ Daddu(ra, ra, kNumInstructionsToJump * Instruction::kInstrSize);
+      __ Daddu(ra, ra, kNumInstructionsToJump * kInstrSize);
     }
     __ bind(&find_ra);
 

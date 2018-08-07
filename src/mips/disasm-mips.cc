@@ -2704,7 +2704,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
       UNSUPPORTED_MIPS();
     }
   }
-  return Instruction::kInstrSize;
+  return kInstrSize;
 }
 
 

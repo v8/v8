@@ -1896,7 +1896,7 @@ void TurboAssembler::JumpHelper(int64_t offset, RelocInfo::Mode rmode,
   } else {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
-    uint64_t imm = reinterpret_cast<uint64_t>(pc_) + offset * kInstructionSize;
+    uint64_t imm = reinterpret_cast<uint64_t>(pc_) + offset * kInstrSize;
     Mov(temp, Immediate(imm, rmode));
     Br(temp);
   }
@@ -1916,8 +1916,8 @@ static int64_t CalculateTargetOffset(Address target, RelocInfo::Mode rmode,
   // address at this point, and needs to be encoded as-is.
   if (rmode != RelocInfo::WASM_CALL && rmode != RelocInfo::WASM_STUB_CALL) {
     offset -= reinterpret_cast<int64_t>(pc);
-    DCHECK_EQ(offset % kInstructionSize, 0);
-    offset = offset / static_cast<int>(kInstructionSize);
+    DCHECK_EQ(offset % kInstrSize, 0);
+    offset = offset / static_cast<int>(kInstrSize);
   }
   return offset;
 }
@@ -2064,12 +2064,12 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
   movz(temp, deopt_id);
   int64_t offset = static_cast<int64_t>(target) -
                    static_cast<int64_t>(options().code_range_start);
-  DCHECK_EQ(offset % kInstructionSize, 0);
-  offset = offset / static_cast<int>(kInstructionSize);
+  DCHECK_EQ(offset % kInstrSize, 0);
+  offset = offset / static_cast<int>(kInstrSize);
   DCHECK(IsNearCallOffset(offset));
   near_call(static_cast<int>(offset), RelocInfo::RUNTIME_ENTRY);
 
-  DCHECK_EQ(kNearCallSize + kInstructionSize, SizeOfCodeGeneratedSince(&start));
+  DCHECK_EQ(kNearCallSize + kInstrSize, SizeOfCodeGeneratedSince(&start));
 }
 
 void MacroAssembler::TryRepresentDoubleAsInt(Register as_int, VRegister value,
@@ -3160,7 +3160,8 @@ void TurboAssembler::CallPrintf(int arg_count, const CPURegister* args) {
 // printf function will use a different instruction set and the procedure-call
 // standard will not be compatible.
 #ifdef USE_SIMULATOR
-  { InstructionAccurateScope scope(this, kPrintfLength / kInstructionSize);
+  {
+    InstructionAccurateScope scope(this, kPrintfLength / kInstrSize);
     hlt(kImmExceptionIsPrintf);
     dc32(arg_count);          // kPrintfArgCountOffset
 

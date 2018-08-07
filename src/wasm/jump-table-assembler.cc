@@ -116,8 +116,8 @@ void JumpTableAssembler::EmitJumpSlot(Address target) {
 
 void JumpTableAssembler::NopBytes(int bytes) {
   DCHECK_LE(0, bytes);
-  DCHECK_EQ(0, bytes % kInstructionSize);
-  for (; bytes > 0; bytes -= kInstructionSize) {
+  DCHECK_EQ(0, bytes % kInstrSize);
+  for (; bytes > 0; bytes -= kInstrSize) {
     nop();
   }
 }

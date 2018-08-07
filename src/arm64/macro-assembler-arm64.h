@@ -2046,7 +2046,7 @@ class InstructionAccurateScope BASE_EMBEDDED {
       : tasm_(tasm)
 #ifdef DEBUG
         ,
-        size_(count * kInstructionSize)
+        size_(count * kInstrSize)
 #endif
   {
     // Before blocking the const pool, see if it needs to be emitted.

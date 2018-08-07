@@ -1835,7 +1835,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
         } else {
           __ li(i.OutputRegister(1), Operand::Zero());
-          __ bc(v8::internal::Assembler::kInstrSize * 2, BT, crbit);
+          __ bc(v8::internal::kInstrSize * 2, BT, crbit);
           __ li(i.OutputRegister(1), Operand(1));
         }
       }
@@ -1862,7 +1862,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ isel(i.OutputRegister(1), r0, i.OutputRegister(1), crbit);
         } else {
           __ li(i.OutputRegister(1), Operand::Zero());
-          __ bc(v8::internal::Assembler::kInstrSize * 2, BT, crbit);
+          __ bc(v8::internal::kInstrSize * 2, BT, crbit);
           __ li(i.OutputRegister(1), Operand(1));
         }
       }

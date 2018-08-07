@@ -694,9 +694,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // pointer.
   static constexpr int kSpecialTargetSize = kPointerSize;
 
-  // Size of an instruction.
-  static constexpr int kInstrSize = sizeof(Instr);
-
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
   VfpRegList* GetScratchVfpRegisterList() {
     return &scratch_vfp_register_list_;

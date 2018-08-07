@@ -215,7 +215,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
 // The entry hook is a Push (stp) instruction, followed by a near call.
 static const unsigned int kProfileEntryHookCallSize =
-    (1 * kInstructionSize) + Assembler::kNearCallSize;
+    (1 * kInstrSize) + Assembler::kNearCallSize;
 
 void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
                                                      Zone* zone) {

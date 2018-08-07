@@ -96,7 +96,7 @@ Address RelocInfo::target_address_address() {
   // place, ready to be patched with the target. After jump optimization,
   // that is the address of the instruction that follows J/JAL/JR/JALR
   // instruction.
-  return pc_ + Assembler::kInstructionsFor64BitConstant * Assembler::kInstrSize;
+  return pc_ + Assembler::kInstructionsFor64BitConstant * kInstrSize;
 }
 
 
@@ -128,7 +128,7 @@ int Assembler::deserialization_special_target_size(
 void Assembler::set_target_internal_reference_encoded_at(Address pc,
                                                          Address target) {
   // Encoded internal references are j/jal instructions.
-  Instr instr = Assembler::instr_at(pc + 0 * Assembler::kInstrSize);
+  Instr instr = Assembler::instr_at(pc + 0 * kInstrSize);
 
   uint64_t imm28 = target & static_cast<uint64_t>(kImm28Mask);
 
@@ -198,7 +198,7 @@ Address RelocInfo::target_internal_reference() {
   } else {
     // Encoded internal references are j/jal instructions.
     DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
-    Instr instr = Assembler::instr_at(pc_ + 0 * Assembler::kInstrSize);
+    Instr instr = Assembler::instr_at(pc_ + 0 * kInstrSize);
     instr &= kImm26Mask;
     uint64_t imm28 = instr << 2;
     uint64_t segment = pc_ & ~static_cast<uint64_t>(kImm28Mask);

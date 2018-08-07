@@ -1079,15 +1079,14 @@ int Decoder::DecodeBreakInstr(Instruction* instr) {
     Format(instr, "break, code: 'code");
     out_buffer_pos_ += SNPrintF(
         out_buffer_ + out_buffer_pos_, "\n%p       %08" PRIx64,
-        static_cast<void*>(
-            reinterpret_cast<int32_t*>(instr + Instruction::kInstrSize)),
+        static_cast<void*>(reinterpret_cast<int32_t*>(instr + kInstrSize)),
         reinterpret_cast<uint64_t>(
-            *reinterpret_cast<char**>(instr + Instruction::kInstrSize)));
+            *reinterpret_cast<char**>(instr + kInstrSize)));
     // Size 3: the break_ instr, plus embedded 64-bit char pointer.
-    return 3 * Instruction::kInstrSize;
+    return 3 * kInstrSize;
   } else {
     Format(instr, "break, code: 'code");
-    return Instruction::kInstrSize;
+    return kInstrSize;
   }
 }
 
@@ -1897,9 +1896,8 @@ int Decoder::DecodeTypeRegister(Instruction* instr) {
     default:
       UNREACHABLE();
   }
-  return Instruction::kInstrSize;
+  return kInstrSize;
 }
-
 
 void Decoder::DecodeTypeImmediateCOP1(Instruction* instr) {
   switch (instr->RsFieldRaw()) {
@@ -3023,9 +3021,8 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
       UNSUPPORTED_MIPS();
     }
   }
-  return Instruction::kInstrSize;
+  return kInstrSize;
 }
-
 
 }  // namespace internal
 }  // namespace v8

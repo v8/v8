@@ -2417,14 +2417,14 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // we can store the address on the stack to be able to find it again and
   // we never have to restore it, because it will not change.
   Label start_call;
-  constexpr int after_call_offset = 5 * Assembler::kInstrSize;
+  constexpr int after_call_offset = 5 * kInstrSize;
   DCHECK_NE(r7, target);
   __ LoadPC(r7);
   __ bind(&start_call);
   __ addi(r7, r7, Operand(after_call_offset));
   __ StoreP(r7, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
   __ Call(target);
-  DCHECK_EQ(after_call_offset - Assembler::kInstrSize,
+  DCHECK_EQ(after_call_offset - kInstrSize,
             __ SizeOfCodeGeneratedSince(&start_call));
 
   // If return value is on the stack, pop it to registers.

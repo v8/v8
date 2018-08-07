@@ -359,7 +359,7 @@ void ArmDebugger::Debug() {
 
         if (argc == 1) {
           cur = reinterpret_cast<byte*>(sim_->get_pc());
-          end = cur + (10 * Instruction::kInstrSize);
+          end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           int regnum = Registers::Number(arg1);
           if (regnum != kNoRegister || strncmp(arg1, "0x", 2) == 0) {
@@ -368,7 +368,7 @@ void ArmDebugger::Debug() {
             if (GetValue(arg1, &value)) {
               cur = reinterpret_cast<byte*>(value);
               // Disassemble 10 instructions at <arg1>.
-              end = cur + (10 * Instruction::kInstrSize);
+              end = cur + (10 * kInstrSize);
             }
           } else {
             // The argument is the number of instructions.
@@ -376,7 +376,7 @@ void ArmDebugger::Debug() {
             if (GetValue(arg1, &value)) {
               cur = reinterpret_cast<byte*>(sim_->get_pc());
               // Disassemble <arg1> instructions.
-              end = cur + (value * Instruction::kInstrSize);
+              end = cur + (value * kInstrSize);
             }
           }
         } else {
@@ -384,7 +384,7 @@ void ArmDebugger::Debug() {
           int32_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
             cur = reinterpret_cast<byte*>(value1);
-            end = cur + (value2 * Instruction::kInstrSize);
+            end = cur + (value2 * kInstrSize);
           }
         }
 
@@ -427,7 +427,7 @@ void ArmDebugger::Debug() {
         PrintF("INEXACT flag: %d;\n", sim_->inexact_vfp_flag_);
       } else if (strcmp(cmd, "stop") == 0) {
         int32_t value;
-        intptr_t stop_pc = sim_->get_pc() - Instruction::kInstrSize;
+        intptr_t stop_pc = sim_->get_pc() - kInstrSize;
         Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
         if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
           // Remove the current stop.
@@ -632,9 +632,8 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
   char* cached_line = cache_page->CachedData(offset & ~CachePage::kLineMask);
   if (cache_hit) {
     // Check that the data in memory matches the contents of the I-cache.
-    CHECK_EQ(0,
-             memcmp(reinterpret_cast<void*>(instr),
-                    cache_page->CachedData(offset), Instruction::kInstrSize));
+    CHECK_EQ(0, memcmp(reinterpret_cast<void*>(instr),
+                       cache_page->CachedData(offset), kInstrSize));
   } else {
     // Cache miss.  Load memory into the cache.
     memcpy(cached_line, line, CachePage::kLineLength);
@@ -2272,7 +2271,7 @@ void Simulator::DecodeType01(Instruction* instr) {
         case BLX: {
           uint32_t old_pc = get_pc();
           set_pc(get_register(rm));
-          set_register(lr, old_pc + Instruction::kInstrSize);
+          set_register(lr, old_pc + kInstrSize);
           break;
         }
         case BKPT: {
@@ -3046,7 +3045,7 @@ void Simulator::DecodeType5(Instruction* instr) {
   int off = (instr->SImmed24Value() << 2);
   intptr_t pc_address = get_pc();
   if (instr->HasLink()) {
-    set_register(lr, pc_address + Instruction::kInstrSize);
+    set_register(lr, pc_address + kInstrSize);
   }
   int pc_reg = get_register(pc);
   set_pc(pc_reg + off);
@@ -5697,11 +5696,9 @@ void Simulator::InstructionDecode(Instruction* instr) {
     }
   }
   if (!pc_modified_) {
-    set_register(pc, reinterpret_cast<int32_t>(instr)
-                         + Instruction::kInstrSize);
+    set_register(pc, reinterpret_cast<int32_t>(instr) + kInstrSize);
   }
 }
-
 
 void Simulator::Execute() {
   // Get the PC to simulate. Cannot use the accessor here as we need the

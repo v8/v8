@@ -1157,7 +1157,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
     // The first field will be identified as a jump table entry.  We
     // emit the rest of the structure as zero, so just skip past them.
     Format(instr, "constant");
-    return Instruction::kInstrSize;
+    return kInstrSize;
   }
 
   uint32_t opcode = instr->OpcodeValue() << 26;
@@ -1466,7 +1466,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
     }
   }
 
-  return Instruction::kInstrSize;
+  return kInstrSize;
 }
 }  // namespace internal
 }  // namespace v8

@@ -461,10 +461,12 @@ inline Hint NegateHint(Hint ignored) { return no_hint; }
 //   return ((type == 0) || (type == 1)) && instr->HasS();
 // }
 //
+
+constexpr uint8_t kInstrSize = 4;
+constexpr uint8_t kInstrSizeLog2 = 2;
+
 class Instruction {
  public:
-  static constexpr int kInstrSize = 4;
-  static constexpr int kInstrSizeLog2 = 2;
   // Difference between address of current opcode and value read from pc
   // register.
   static constexpr int kPcLoadDelta = 8;

@@ -3293,15 +3293,15 @@ TEST(jump_tables1) {
   Label done;
   {
     __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
-    PredictableCodeSizeScope predictable(
-        &assm, (kNumCases * 2 + 6) * Assembler::kInstrSize);
+    PredictableCodeSizeScope predictable(&assm,
+                                         (kNumCases * 2 + 6) * kInstrSize);
     Label here;
 
     __ bal(&here);
     __ dsll(at, a0, 3);  // In delay slot.
     __ bind(&here);
     __ daddu(at, at, ra);
-    __ Ld(at, MemOperand(at, 4 * Assembler::kInstrSize));
+    __ Ld(at, MemOperand(at, 4 * kInstrSize));
     __ jr(at);
     __ nop();
     for (int i = 0; i < kNumCases; ++i) {
@@ -3373,15 +3373,15 @@ TEST(jump_tables2) {
   __ bind(&dispatch);
   {
     __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
-    PredictableCodeSizeScope predictable(
-        &assm, (kNumCases * 2 + 6) * Assembler::kInstrSize);
+    PredictableCodeSizeScope predictable(&assm,
+                                         (kNumCases * 2 + 6) * kInstrSize);
     Label here;
 
     __ bal(&here);
     __ dsll(at, a0, 3);  // In delay slot.
     __ bind(&here);
     __ daddu(at, at, ra);
-    __ Ld(at, MemOperand(at, 4 * Assembler::kInstrSize));
+    __ Ld(at, MemOperand(at, 4 * kInstrSize));
     __ jr(at);
     __ nop();
     for (int i = 0; i < kNumCases; ++i) {
@@ -3453,15 +3453,15 @@ TEST(jump_tables3) {
   __ bind(&dispatch);
   {
     __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
-    PredictableCodeSizeScope predictable(
-        &assm, (kNumCases * 2 + 6) * Assembler::kInstrSize);
+    PredictableCodeSizeScope predictable(&assm,
+                                         (kNumCases * 2 + 6) * kInstrSize);
     Label here;
 
     __ bal(&here);
     __ dsll(at, a0, 3);  // In delay slot.
     __ bind(&here);
     __ daddu(at, at, ra);
-    __ Ld(at, MemOperand(at, 4 * Assembler::kInstrSize));
+    __ Ld(at, MemOperand(at, 4 * kInstrSize));
     __ jr(at);
     __ nop();
     for (int i = 0; i < kNumCases; ++i) {
@@ -6263,7 +6263,7 @@ TEST(Trampoline) {
   MacroAssembler assm(isolate, nullptr, 0,
                       v8::internal::CodeObjectRequired::kYes);
   Label done;
-  size_t nr_calls = kMaxBranchOffset / (2 * Instruction::kInstrSize) + 2;
+  size_t nr_calls = kMaxBranchOffset / (2 * kInstrSize) + 2;
 
   for (size_t i = 0; i < nr_calls; ++i) {
     __ BranchShort(&done, eq, a0, Operand(a1));

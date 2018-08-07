@@ -151,7 +151,7 @@ void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     instr->SetBranchImmTarget(
-        reinterpret_cast<Instruction*>(rinfo->pc() + tag * kInstructionSize));
+        reinterpret_cast<Instruction*>(rinfo->pc() + tag * kInstrSize));
   }
 #else
   Address addr = static_cast<Address>(tag);
@@ -175,7 +175,7 @@ uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
         Memory::Address_at(rinfo->constant_pool_entry_address()));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
-    return static_cast<uint32_t>(instr->ImmPCOffset() / kInstructionSize);
+    return static_cast<uint32_t>(instr->ImmPCOffset() / kInstrSize);
   }
 #else
   Address addr;

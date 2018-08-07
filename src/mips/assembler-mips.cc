@@ -861,8 +861,8 @@ int Assembler::target_at(int pos, bool is_internal) {
     return AddBranchOffset(pos, instr);
   } else if (IsMov(instr, t8, ra)) {
     int32_t imm32;
-    Instr instr_lui = instr_at(pos + 2 * Assembler::kInstrSize);
-    Instr instr_ori = instr_at(pos + 3 * Assembler::kInstrSize);
+    Instr instr_lui = instr_at(pos + 2 * kInstrSize);
+    Instr instr_ori = instr_at(pos + 3 * kInstrSize);
     DCHECK(IsLui(instr_lui));
     DCHECK(IsOri(instr_ori));
     imm32 = (instr_lui & static_cast<int32_t>(kImm16Mask)) << kLuiShift;
@@ -874,10 +874,10 @@ int Assembler::target_at(int pos, bool is_internal) {
     return pos + Assembler::kLongBranchPCOffset + imm32;
   } else {
     DCHECK(IsLui(instr));
-    if (IsBal(instr_at(pos + Assembler::kInstrSize))) {
+    if (IsBal(instr_at(pos + kInstrSize))) {
       int32_t imm32;
-      Instr instr_lui = instr_at(pos + 0 * Assembler::kInstrSize);
-      Instr instr_ori = instr_at(pos + 2 * Assembler::kInstrSize);
+      Instr instr_lui = instr_at(pos + 0 * kInstrSize);
+      Instr instr_ori = instr_at(pos + 2 * kInstrSize);
       DCHECK(IsLui(instr_lui));
       DCHECK(IsOri(instr_ori));
       imm32 = (instr_lui & static_cast<int32_t>(kImm16Mask)) << kLuiShift;
@@ -888,8 +888,8 @@ int Assembler::target_at(int pos, bool is_internal) {
       }
       return pos + Assembler::kLongBranchPCOffset + imm32;
     } else {
-      Instr instr1 = instr_at(pos + 0 * Assembler::kInstrSize);
-      Instr instr2 = instr_at(pos + 1 * Assembler::kInstrSize);
+      Instr instr1 = instr_at(pos + 0 * kInstrSize);
+      Instr instr2 = instr_at(pos + 1 * kInstrSize);
       DCHECK(IsOri(instr2) || IsJicOrJialc(instr2));
       int32_t imm;
       if (IsJicOrJialc(instr2)) {
@@ -951,8 +951,8 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
     instr = SetBranchOffset(pos, target_pos, instr);
     instr_at_put(pos, instr);
   } else if (IsMov(instr, t8, ra)) {
-    Instr instr_lui = instr_at(pos + 2 * Assembler::kInstrSize);
-    Instr instr_ori = instr_at(pos + 3 * Assembler::kInstrSize);
+    Instr instr_lui = instr_at(pos + 2 * kInstrSize);
+    Instr instr_ori = instr_at(pos + 3 * kInstrSize);
     DCHECK(IsLui(instr_lui));
     DCHECK(IsOri(instr_ori));
 
@@ -965,7 +965,7 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
       instr_b = SetBranchOffset(pos, target_pos, instr_b);
 
       instr_at_put(pos, instr_b);
-      instr_at_put(pos + 1 * Assembler::kInstrSize, 0);
+      instr_at_put(pos + 1 * kInstrSize, 0);
     } else {
       int32_t imm = target_pos - (pos + Assembler::kLongBranchPCOffset);
       DCHECK_EQ(imm & 3, 0);
@@ -973,16 +973,15 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
       instr_lui &= ~kImm16Mask;
       instr_ori &= ~kImm16Mask;
 
-      instr_at_put(pos + 2 * Assembler::kInstrSize,
+      instr_at_put(pos + 2 * kInstrSize,
                    instr_lui | ((imm >> kLuiShift) & kImm16Mask));
-      instr_at_put(pos + 3 * Assembler::kInstrSize,
-                   instr_ori | (imm & kImm16Mask));
+      instr_at_put(pos + 3 * kInstrSize, instr_ori | (imm & kImm16Mask));
     }
   } else {
     DCHECK(IsLui(instr));
-    if (IsBal(instr_at(pos + Assembler::kInstrSize))) {
-      Instr instr_lui = instr_at(pos + 0 * Assembler::kInstrSize);
-      Instr instr_ori = instr_at(pos + 2 * Assembler::kInstrSize);
+    if (IsBal(instr_at(pos + kInstrSize))) {
+      Instr instr_lui = instr_at(pos + 0 * kInstrSize);
+      Instr instr_ori = instr_at(pos + 2 * kInstrSize);
       DCHECK(IsLui(instr_lui));
       DCHECK(IsOri(instr_ori));
       int32_t imm = target_pos - (pos + Assembler::kLongBranchPCOffset);
@@ -991,13 +990,12 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
       instr_lui &= ~kImm16Mask;
       instr_ori &= ~kImm16Mask;
 
-      instr_at_put(pos + 0 * Assembler::kInstrSize,
+      instr_at_put(pos + 0 * kInstrSize,
                    instr_lui | ((imm >> 16) & kImm16Mask));
-      instr_at_put(pos + 2 * Assembler::kInstrSize,
-                   instr_ori | (imm & kImm16Mask));
+      instr_at_put(pos + 2 * kInstrSize, instr_ori | (imm & kImm16Mask));
     } else {
-      Instr instr1 = instr_at(pos + 0 * Assembler::kInstrSize);
-      Instr instr2 = instr_at(pos + 1 * Assembler::kInstrSize);
+      Instr instr1 = instr_at(pos + 0 * kInstrSize);
+      Instr instr2 = instr_at(pos + 1 * kInstrSize);
       DCHECK(IsOri(instr2) || IsJicOrJialc(instr2));
       uint32_t imm = reinterpret_cast<uint32_t>(buffer_) + target_pos;
       DCHECK_EQ(imm & 3, 0);
@@ -1008,13 +1006,12 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
       if (IsJicOrJialc(instr2)) {
         uint32_t lui_offset_u, jic_offset_u;
         UnpackTargetAddressUnsigned(imm, lui_offset_u, jic_offset_u);
-        instr_at_put(pos + 0 * Assembler::kInstrSize, instr1 | lui_offset_u);
-        instr_at_put(pos + 1 * Assembler::kInstrSize, instr2 | jic_offset_u);
+        instr_at_put(pos + 0 * kInstrSize, instr1 | lui_offset_u);
+        instr_at_put(pos + 1 * kInstrSize, instr2 | jic_offset_u);
       } else {
-        instr_at_put(pos + 0 * Assembler::kInstrSize,
+        instr_at_put(pos + 0 * kInstrSize,
                      instr1 | ((imm & kHiMask) >> kLuiShift));
-        instr_at_put(pos + 1 * Assembler::kInstrSize,
-                     instr2 | (imm & kImm16Mask));
+        instr_at_put(pos + 1 * kInstrSize, instr2 | (imm & kImm16Mask));
       }
     }
   }
@@ -3732,8 +3729,8 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
   } else {
     DCHECK(RelocInfo::IsInternalReferenceEncoded(rmode));
     if (IsLui(instr)) {
-      Instr instr1 = instr_at(pc + 0 * Assembler::kInstrSize);
-      Instr instr2 = instr_at(pc + 1 * Assembler::kInstrSize);
+      Instr instr1 = instr_at(pc + 0 * kInstrSize);
+      Instr instr2 = instr_at(pc + 1 * kInstrSize);
       DCHECK(IsOri(instr2) || IsJicOrJialc(instr2));
       int32_t imm;
       if (IsJicOrJialc(instr2)) {
@@ -3754,13 +3751,12 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
       if (IsJicOrJialc(instr2)) {
         uint32_t lui_offset_u, jic_offset_u;
         Assembler::UnpackTargetAddressUnsigned(imm, lui_offset_u, jic_offset_u);
-        instr_at_put(pc + 0 * Assembler::kInstrSize, instr1 | lui_offset_u);
-        instr_at_put(pc + 1 * Assembler::kInstrSize, instr2 | jic_offset_u);
+        instr_at_put(pc + 0 * kInstrSize, instr1 | lui_offset_u);
+        instr_at_put(pc + 1 * kInstrSize, instr2 | jic_offset_u);
       } else {
-        instr_at_put(pc + 0 * Assembler::kInstrSize,
+        instr_at_put(pc + 0 * kInstrSize,
                      instr1 | ((imm >> kLuiShift) & kImm16Mask));
-        instr_at_put(pc + 1 * Assembler::kInstrSize,
-                     instr2 | (imm & kImm16Mask));
+        instr_at_put(pc + 1 * kInstrSize, instr2 | (imm & kImm16Mask));
       }
       return 2;  // Number of instructions patched.
     } else {

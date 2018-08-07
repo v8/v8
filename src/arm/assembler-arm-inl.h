@@ -181,7 +181,7 @@ void RelocInfo::WipeOut() {
 Handle<Code> Assembler::relative_code_target_object_handle_at(
     Address pc) const {
   Instruction* branch = Instruction::At(pc);
-  int code_target_index = branch->GetBranchOffset() / Instruction::kInstrSize;
+  int code_target_index = branch->GetBranchOffset() / kInstrSize;
   return GetCodeTarget(code_target_index);
 }
 
@@ -255,22 +255,21 @@ Address Assembler::target_address_from_return_address(Address pc) {
   //  ldr   ip, [pc, #...] @ call address
   //  blx   ip
   //                      @ return address
-  Address candidate = pc - 2 * Assembler::kInstrSize;
+  Address candidate = pc - 2 * kInstrSize;
   Instr candidate_instr(Memory::int32_at(candidate));
   if (IsLdrPcImmediateOffset(candidate_instr)) {
     return candidate;
   } else {
     if (CpuFeatures::IsSupported(ARMv7)) {
-      candidate -= 1 * Assembler::kInstrSize;
+      candidate -= 1 * kInstrSize;
       DCHECK(IsMovW(Memory::int32_at(candidate)) &&
-             IsMovT(Memory::int32_at(candidate + Assembler::kInstrSize)));
+             IsMovT(Memory::int32_at(candidate + kInstrSize)));
     } else {
-      candidate -= 3 * Assembler::kInstrSize;
-      DCHECK(
-          IsMovImmed(Memory::int32_at(candidate)) &&
-          IsOrrImmed(Memory::int32_at(candidate + Assembler::kInstrSize)) &&
-          IsOrrImmed(Memory::int32_at(candidate + 2 * Assembler::kInstrSize)) &&
-          IsOrrImmed(Memory::int32_at(candidate + 3 * Assembler::kInstrSize)));
+      candidate -= 3 * kInstrSize;
+      DCHECK(IsMovImmed(Memory::int32_at(candidate)) &&
+             IsOrrImmed(Memory::int32_at(candidate + kInstrSize)) &&
+             IsOrrImmed(Memory::int32_at(candidate + 2 * kInstrSize)) &&
+             IsOrrImmed(Memory::int32_at(candidate + 3 * kInstrSize)));
     }
     return candidate;
   }

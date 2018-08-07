@@ -1714,7 +1714,7 @@ TEST(adr_far) {
   INIT_V8();
 
   int max_range = 1 << (Instruction::ImmPCRelRangeBitwidth - 1);
-  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+  SETUP_SIZE(max_range + 1000 * kInstrSize);
 
   Label done, fail;
   Label test_near, near_forward, near_backward;
@@ -1744,7 +1744,7 @@ TEST(adr_far) {
   __ Orr(x0, x0, 1 << 3);
   __ B(&done);
 
-  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
     if (i % 100 == 0) {
       // If we do land in this code, we do not want to execute so many nops
       // before reaching the end of test (especially if tracing is activated).
@@ -1906,7 +1906,7 @@ TEST(branch_to_reg) {
 
   RUN();
 
-  CHECK_EQUAL_64(core.xreg(3) + kInstructionSize, x0);
+  CHECK_EQUAL_64(core.xreg(3) + kInstrSize, x0);
   CHECK_EQUAL_64(42, x1);
   CHECK_EQUAL_64(84, x2);
 
@@ -2048,7 +2048,7 @@ TEST(far_branch_backward) {
              std::max(Instruction::ImmBranchRange(CompareBranchType),
                       Instruction::ImmBranchRange(CondBranchType)));
 
-  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+  SETUP_SIZE(max_range + 1000 * kInstrSize);
 
   START();
 
@@ -2074,7 +2074,7 @@ TEST(far_branch_backward) {
 
   // Generate enough code to overflow the immediate range of the three types of
   // branches below.
-  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
     if (i % 100 == 0) {
       // If we do land in this code, we do not want to execute so many nops
       // before reaching the end of test (especially if tracing is activated).
@@ -2095,7 +2095,7 @@ TEST(far_branch_backward) {
 
   // For each out-of-range branch instructions, at least two instructions should
   // have been generated.
-  CHECK_GE(7 * kInstructionSize, __ SizeOfCodeGeneratedSince(&test_tbz));
+  CHECK_GE(7 * kInstrSize, __ SizeOfCodeGeneratedSince(&test_tbz));
 
   __ Bind(&fail);
   __ Mov(x1, 0);
@@ -2122,7 +2122,7 @@ TEST(far_branch_simple_veneer) {
              std::max(Instruction::ImmBranchRange(CompareBranchType),
                       Instruction::ImmBranchRange(CondBranchType)));
 
-  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+  SETUP_SIZE(max_range + 1000 * kInstrSize);
 
   START();
 
@@ -2144,7 +2144,7 @@ TEST(far_branch_simple_veneer) {
 
   // Generate enough code to overflow the immediate range of the three types of
   // branches below.
-  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
     if (i % 100 == 0) {
       // If we do land in this code, we do not want to execute so many nops
       // before reaching the end of test (especially if tracing is activated).
@@ -2198,7 +2198,7 @@ TEST(far_branch_veneer_link_chain) {
              std::max(Instruction::ImmBranchRange(CompareBranchType),
                       Instruction::ImmBranchRange(CondBranchType)));
 
-  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+  SETUP_SIZE(max_range + 1000 * kInstrSize);
 
   START();
 
@@ -2239,7 +2239,7 @@ TEST(far_branch_veneer_link_chain) {
 
   // Generate enough code to overflow the immediate range of the three types of
   // branches below.
-  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+  for (int i = 0; i < max_range / kInstrSize + 1; ++i) {
     if (i % 100 == 0) {
       // If we do land in this code, we do not want to execute so many nops
       // before reaching the end of test (especially if tracing is activated).
@@ -2288,7 +2288,7 @@ TEST(far_branch_veneer_broken_link_chain) {
   int max_range = Instruction::ImmBranchRange(TestBranchType);
   int inter_range = max_range / 2 + max_range / 10;
 
-  SETUP_SIZE(3 * inter_range + 1000 * kInstructionSize);
+  SETUP_SIZE(3 * inter_range + 1000 * kInstrSize);
 
   START();
 
@@ -2305,7 +2305,7 @@ TEST(far_branch_veneer_broken_link_chain) {
   __ Mov(x0, 1);
   __ B(&far_target);
 
-  for (unsigned i = 0; i < inter_range / kInstructionSize; ++i) {
+  for (int i = 0; i < inter_range / kInstrSize; ++i) {
     if (i % 100 == 0) {
       // Do not allow generating veneers. They should not be needed.
       __ b(&fail);
@@ -2319,7 +2319,7 @@ TEST(far_branch_veneer_broken_link_chain) {
   __ Mov(x0, 2);
   __ Tbz(x10, 7, &far_target);
 
-  for (unsigned i = 0; i < inter_range / kInstructionSize; ++i) {
+  for (int i = 0; i < inter_range / kInstrSize; ++i) {
     if (i % 100 == 0) {
       // Do not allow generating veneers. They should not be needed.
       __ b(&fail);
@@ -2334,7 +2334,7 @@ TEST(far_branch_veneer_broken_link_chain) {
   __ Mov(x0, 3);
   __ Tbz(x10, 7, &far_target);
 
-  for (unsigned i = 0; i < inter_range / kInstructionSize; ++i) {
+  for (int i = 0; i < inter_range / kInstrSize; ++i) {
     if (i % 100 == 0) {
       // Allow generating veneers.
       __ B(&fail);
@@ -6757,7 +6757,7 @@ static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
 
   if (option == NoJumpRequired) {
     // Space for an explicit branch.
-    pool_guard_size = kInstructionSize;
+    pool_guard_size = kInstrSize;
   } else {
     pool_guard_size = 0;
   }
@@ -6771,26 +6771,26 @@ static void LdrLiteralRangeHelper(int range_, LiteralPoolEmitOption option,
   LoadLiteral(&masm, x1, 0xABCDEF1234567890UL);
   CHECK_CONSTANT_POOL_SIZE(16);
 
-  code_size += 2 * kInstructionSize;
+  code_size += 2 * kInstrSize;
 
   // Check that the requested range (allowing space for a branch over the pool)
   // can be handled by this test.
   CHECK_LE(code_size + pool_guard_size, range);
 
   // Emit NOPs up to 'range', leaving space for the pool guard.
-  while ((code_size + pool_guard_size + kInstructionSize) < range) {
+  while ((code_size + pool_guard_size + kInstrSize) < range) {
     __ Nop();
-    code_size += kInstructionSize;
+    code_size += kInstrSize;
   }
 
   // Emit the guard sequence before the literal pool.
   if (option == NoJumpRequired) {
     __ B(&label_1);
-    code_size += kInstructionSize;
+    code_size += kInstrSize;
   }
 
   // The next instruction will trigger pool emission when expect_dump is true.
-  CHECK_EQ(code_size, range - kInstructionSize);
+  CHECK_EQ(code_size, range - kInstrSize);
   CHECK_CONSTANT_POOL_SIZE(16);
 
   // Possibly generate a literal pool.
@@ -6834,8 +6834,7 @@ TEST(ldr_literal_range_1) {
 TEST(ldr_literal_range_2) {
   INIT_V8();
   LdrLiteralRangeHelper(
-      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() -
-          kInstructionSize,
+      MacroAssembler::GetApproxMaxDistToConstPoolForTesting() - kInstrSize,
       NoJumpRequired, false);
 }
 
@@ -6850,7 +6849,7 @@ TEST(ldr_literal_range_3) {
 TEST(ldr_literal_range_4) {
   INIT_V8();
   LdrLiteralRangeHelper(
-      MacroAssembler::GetCheckConstPoolIntervalForTesting() - kInstructionSize,
+      MacroAssembler::GetCheckConstPoolIntervalForTesting() - kInstrSize,
       JumpRequired, false);
 }
 #endif
@@ -15251,7 +15250,7 @@ TEST(pool_size) {
   }
 
   __ RecordVeneerPool(masm.pc_offset(), veneer_pool_size);
-  for (unsigned i = 0; i < veneer_pool_size / kInstructionSize; ++i) {
+  for (unsigned i = 0; i < veneer_pool_size / kInstrSize; ++i) {
     __ nop();
   }
 
@@ -15289,7 +15288,7 @@ TEST(jump_tables_forward) {
   const int kNumCases = 512;
 
   INIT_V8();
-  SETUP_SIZE(kNumCases * 5 * kInstructionSize + 8192);
+  SETUP_SIZE(kNumCases * 5 * kInstrSize + 8192);
   START();
 
   int32_t values[kNumCases];
@@ -15353,7 +15352,7 @@ TEST(jump_tables_backward) {
   const int kNumCases = 512;
 
   INIT_V8();
-  SETUP_SIZE(kNumCases * 5 * kInstructionSize + 8192);
+  SETUP_SIZE(kNumCases * 5 * kInstrSize + 8192);
   START();
 
   int32_t values[kNumCases];

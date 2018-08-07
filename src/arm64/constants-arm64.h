@@ -28,10 +28,10 @@ namespace internal {
 
 constexpr size_t kMaxPCRelativeCodeRangeInMB = 128;
 
-const unsigned kInstructionSize = 4;
-const unsigned kInstructionSizeLog2 = 2;
-const unsigned kLoadLiteralScaleLog2 = 2;
-const unsigned kMaxLoadLiteralRange = 1 * MB;
+constexpr uint8_t kInstrSize = 4;
+constexpr uint8_t kInstrSizeLog2 = 2;
+constexpr size_t kLoadLiteralScaleLog2 = 2;
+constexpr size_t kMaxLoadLiteralRange = 1 * MB;
 
 const int kNumberOfRegisters = 32;
 const int kNumberOfVRegisters = 32;
@@ -42,7 +42,7 @@ const int kFirstCalleeSavedRegisterIndex = 19;
 const int kNumberOfCalleeSavedVRegisters = 8;
 const int kFirstCalleeSavedVRegisterIndex = 8;
 // Callee saved registers with no specific purpose in JS are x19-x25.
-const unsigned kJSCalleeSavedRegList = 0x03f80000;
+const size_t kJSCalleeSavedRegList = 0x03f80000;
 const int kWRegSizeInBits = 32;
 const int kWRegSizeInBitsLog2 = 5;
 const int kWRegSize = kWRegSizeInBits >> 3;
