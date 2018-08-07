@@ -100,7 +100,7 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
     BIND(&if_notempty);
     {
       // Allocate a FixedArray in new space.
-      Node* result = AllocateFixedArray(kind, length);
+      TNode<FixedArray> result = AllocateFixedArray(kind, length);
 
       // The elements might be used to back mapped arguments. In that case fill
       // the mapped elements (i.e. the first {mapped_count}) with the hole, but
@@ -109,14 +109,13 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
       Node* the_hole = TheHoleConstant();
 
       // Fill the first elements up to {number_of_holes} with the hole.
-      VARIABLE(var_index, MachineType::PointerRepresentation());
+      TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
       Label loop1(this, &var_index), done_loop1(this);
-      var_index.Bind(IntPtrConstant(0));
       Goto(&loop1);
       BIND(&loop1);
       {
         // Load the current {index}.
-        Node* index = var_index.value();
+        TNode<IntPtrT> index = var_index.value();
 
         // Check if we are done.
         GotoIf(WordEqual(index, number_of_holes), &done_loop1);
@@ -125,13 +124,13 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
         StoreFixedArrayElement(result, index, the_hole, SKIP_WRITE_BARRIER);
 
         // Continue with next {index}.
-        var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
+        var_index = IntPtrAdd(index, IntPtrConstant(1));
         Goto(&loop1);
       }
       BIND(&done_loop1);
 
       // Compute the effective {offset} into the {frame}.
-      Node* offset = IntPtrAdd(length, IntPtrConstant(1));
+      TNode<IntPtrT> offset = IntPtrAdd(length, IntPtrConstant(1));
 
       // Copy the parameters from {frame} (starting at {offset}) to {result}.
       Label loop2(this, &var_index), done_loop2(this);
@@ -139,20 +138,21 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
       BIND(&loop2);
       {
         // Load the current {index}.
-        Node* index = var_index.value();
+        TNode<IntPtrT> index = var_index.value();
 
         // Check if we are done.
         GotoIf(WordEqual(index, length), &done_loop2);
 
         // Load the parameter at the given {index}.
-        Node* value = Load(MachineType::AnyTagged(), frame,
-                           TimesPointerSize(IntPtrSub(offset, index)));
+        TNode<Object> value =
+            CAST(Load(MachineType::AnyTagged(), frame,
+                      TimesPointerSize(IntPtrSub(offset, index))));
 
         // Store the {value} into the {result}.
         StoreFixedArrayElement(result, index, value, SKIP_WRITE_BARRIER);
 
         // Continue with next {index}.
-        var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
+        var_index = IntPtrAdd(index, IntPtrConstant(1));
         Goto(&loop2);
       }
       BIND(&done_loop2);

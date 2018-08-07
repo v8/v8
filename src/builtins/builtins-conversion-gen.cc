@@ -376,7 +376,7 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   Goto(&if_wrapjsvalue);
 
   BIND(&if_wrapjsvalue);
-  Node* native_context = LoadNativeContext(context);
+  TNode<Context> native_context = LoadNativeContext(context);
   Node* constructor = LoadFixedArrayElement(
       native_context, constructor_function_index_var.value());
   Node* initial_map =

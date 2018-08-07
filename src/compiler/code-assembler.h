@@ -671,12 +671,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return TNode<T>::UncheckedCast(value);
   }
 
-  CheckedNode<Object, false> Cast(Node* value, const char* location) {
+  CheckedNode<Object, false> Cast(Node* value, const char* location = "") {
     return {value, this, location};
   }
 
   template <class T>
-  CheckedNode<T, true> Cast(TNode<T> value, const char* location) {
+  CheckedNode<T, true> Cast(TNode<T> value, const char* location = "") {
     return {value, this, location};
   }
 
@@ -686,7 +686,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #define CAST(x) \
   Cast(x, "CAST(" #x ") at " __FILE__ ":" TO_STRING_LITERAL(__LINE__))
 #else
-#define CAST(x) Cast(x, "")
+#define CAST(x) Cast(x)
 #endif
 
 #ifdef DEBUG

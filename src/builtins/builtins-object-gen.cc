@@ -361,8 +361,8 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
         std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
             PACKED_ELEMENTS, array_map, SmiConstant(2), nullptr,
             IntPtrConstant(2));
-        StoreFixedArrayElement(elements, 0, next_key, SKIP_WRITE_BARRIER);
-        StoreFixedArrayElement(elements, 1, value, SKIP_WRITE_BARRIER);
+        StoreFixedArrayElement(CAST(elements), 0, next_key, SKIP_WRITE_BARRIER);
+        StoreFixedArrayElement(CAST(elements), 1, value, SKIP_WRITE_BARRIER);
         value = TNode<JSArray>::UncheckedCast(array);
       }
 

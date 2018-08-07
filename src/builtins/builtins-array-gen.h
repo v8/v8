@@ -72,9 +72,9 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
   TNode<Object> LoadFixedArrayElementInt(TNode<FixedArray> array, int index) {
     return LoadFixedArrayElement(array, index);
   }
-  Node* StoreFixedArrayElementInt(TNode<FixedArray> array, int index,
-                                  TNode<Object> value) {
-    return StoreFixedArrayElement(array, index, value);
+  void StoreFixedArrayElementInt(TNode<FixedArray> array, int index,
+                                 TNode<Object> value) {
+    StoreFixedArrayElement(array, index, value);
   }
 
  protected:

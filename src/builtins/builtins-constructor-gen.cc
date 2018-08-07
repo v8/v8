@@ -233,7 +233,8 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
   Node* size = GetFixedArrayAllocationSize(length, PACKED_ELEMENTS, mode);
 
   // Create a new closure from the given function info in new space
-  Node* function_context = AllocateInNewSpace(size);
+  TNode<Context> function_context =
+      UncheckedCast<Context>(AllocateInNewSpace(size));
 
   Heap::RootListIndex context_type;
   switch (scope_type) {

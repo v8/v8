@@ -681,8 +681,8 @@ IGNITION_HANDLER(LdaModuleVariable, InterpreterAssembler) {
 
   BIND(&if_export);
   {
-    Node* regular_exports =
-        LoadObjectField(module, Module::kRegularExportsOffset);
+    TNode<FixedArray> regular_exports =
+        CAST(LoadObjectField(module, Module::kRegularExportsOffset));
     // The actual array index is (cell_index - 1).
     Node* export_index = IntPtrSub(cell_index, IntPtrConstant(1));
     Node* cell = LoadFixedArrayElement(regular_exports, export_index);
@@ -692,8 +692,8 @@ IGNITION_HANDLER(LdaModuleVariable, InterpreterAssembler) {
 
   BIND(&if_import);
   {
-    Node* regular_imports =
-        LoadObjectField(module, Module::kRegularImportsOffset);
+    TNode<FixedArray> regular_imports =
+        CAST(LoadObjectField(module, Module::kRegularImportsOffset));
     // The actual array index is (-cell_index - 1).
     Node* import_index = IntPtrSub(IntPtrConstant(-1), cell_index);
     Node* cell = LoadFixedArrayElement(regular_imports, import_index);
@@ -723,8 +723,8 @@ IGNITION_HANDLER(StaModuleVariable, InterpreterAssembler) {
 
   BIND(&if_export);
   {
-    Node* regular_exports =
-        LoadObjectField(module, Module::kRegularExportsOffset);
+    TNode<FixedArray> regular_exports =
+        CAST(LoadObjectField(module, Module::kRegularExportsOffset));
     // The actual array index is (cell_index - 1).
     Node* export_index = IntPtrSub(cell_index, IntPtrConstant(1));
     Node* cell = LoadFixedArrayElement(regular_exports, export_index);
@@ -2932,7 +2932,7 @@ IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
   Node* feedback_vector = LoadFeedbackVector();
 
   // Load the next key from the enumeration array.
-  Node* key = LoadFixedArrayElement(cache_array, index, 0,
+  Node* key = LoadFixedArrayElement(CAST(cache_array), index, 0,
                                     CodeStubAssembler::SMI_PARAMETERS);
 
   // Check if we can use the for-in fast path potentially using the enum cache.
@@ -3025,8 +3025,8 @@ IGNITION_HANDLER(Illegal, InterpreterAssembler) {
 // in the accumulator.
 IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* generator = LoadRegisterAtOperandIndex(0);
-  Node* array = LoadObjectField(
-      generator, JSGeneratorObject::kParametersAndRegistersOffset);
+  TNode<FixedArray> array = CAST(LoadObjectField(
+      generator, JSGeneratorObject::kParametersAndRegistersOffset));
   Node* closure = LoadRegister(Register::function_closure());
   Node* context = GetContext();
   RegListNodePair registers = GetRegisterListAtOperandIndex(1);
@@ -3034,9 +3034,9 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
 
   Node* shared =
       LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
-  Node* formal_parameter_count =
+  TNode<Int32T> formal_parameter_count = UncheckedCast<Int32T>(
       LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
-                      MachineType::Uint16());
+                      MachineType::Uint16()));
 
   ExportParametersAndRegisterFile(array, registers, formal_parameter_count);
   StoreObjectField(generator, JSGeneratorObject::kContextOffset, context);
@@ -3108,13 +3108,13 @@ IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
 
   Node* shared =
       LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
-  Node* formal_parameter_count =
+  TNode<Int32T> formal_parameter_count = UncheckedCast<Int32T>(
       LoadObjectField(shared, SharedFunctionInfo::kFormalParameterCountOffset,
-                      MachineType::Uint16());
+                      MachineType::Uint16()));
 
   ImportRegisterFile(
-      LoadObjectField(generator,
-                      JSGeneratorObject::kParametersAndRegistersOffset),
+      CAST(LoadObjectField(generator,
+                           JSGeneratorObject::kParametersAndRegistersOffset)),
       registers, formal_parameter_count);
 
   // Return the generator's input_or_debug_pos in the accumulator.

@@ -970,11 +970,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Load an array element from a FixedArray.
   TNode<Object> LoadFixedArrayElement(
-      SloppyTNode<HeapObject> object, Node* index, int additional_offset = 0,
+      TNode<FixedArray> object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
-  TNode<Object> LoadFixedArrayElement(SloppyTNode<HeapObject> object,
+  TNode<Object> LoadFixedArrayElement(TNode<FixedArray> object,
                                       TNode<IntPtrT> index,
                                       LoadSensitivity needs_poisoning) {
     return LoadFixedArrayElement(object, index, 0, INTPTR_PARAMETERS,
@@ -982,21 +982,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   }
 
   TNode<Object> LoadFixedArrayElement(
-      SloppyTNode<HeapObject> object, TNode<IntPtrT> index,
-      int additional_offset = 0,
+      TNode<FixedArray> object, TNode<IntPtrT> index, int additional_offset = 0,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     return LoadFixedArrayElement(object, index, additional_offset,
                                  INTPTR_PARAMETERS, needs_poisoning);
   }
 
   TNode<Object> LoadFixedArrayElement(
-      SloppyTNode<HeapObject> object, int index, int additional_offset = 0,
+      TNode<FixedArray> object, int index, int additional_offset = 0,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     return LoadFixedArrayElement(object, IntPtrConstant(index),
                                  additional_offset, INTPTR_PARAMETERS,
                                  needs_poisoning);
   }
-  TNode<Object> LoadFixedArrayElement(TNode<HeapObject> object,
+  TNode<Object> LoadFixedArrayElement(TNode<FixedArray> object,
                                       TNode<Smi> index) {
     return LoadFixedArrayElement(object, index, 0, SMI_PARAMETERS);
   }
@@ -1142,8 +1141,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* StoreObjectFieldRoot(Node* object, int offset,
                              Heap::RootListIndex root);
   // Store an array element to a FixedArray.
-  Node* StoreFixedArrayElement(
-      Node* object, int index, Node* value,
+  void StoreFixedArrayElement(
+      TNode<FixedArray> object, int index, SloppyTNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
     return StoreFixedArrayElement(object, IntPtrConstant(index), value,
                                   barrier_mode);
@@ -1152,17 +1151,35 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* StoreJSArrayLength(TNode<JSArray> array, TNode<Smi> length);
   Node* StoreElements(TNode<Object> object, TNode<FixedArrayBase> elements);
 
-  Node* StoreFixedArrayElement(
-      Node* object, Node* index, Node* value,
+  void StoreFixedArrayOrPropertyArrayElement(
+      Node* array, Node* index, Node* value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
-  Node* StoreFixedArrayElementSmi(
-      TNode<FixedArray> object, TNode<Smi> index, TNode<Object> value,
+  void StoreFixedArrayElement(
+      TNode<FixedArray> array, Node* index, SloppyTNode<Object> value,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      int additional_offset = 0,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS) {
+    StoreFixedArrayOrPropertyArrayElement(array, index, value, barrier_mode,
+                                          additional_offset, parameter_mode);
+  }
+
+  void StorePropertyArrayElement(
+      TNode<PropertyArray> array, Node* index, SloppyTNode<Object> value,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      int additional_offset = 0,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS) {
+    StoreFixedArrayOrPropertyArrayElement(array, index, value, barrier_mode,
+                                          additional_offset, parameter_mode);
+  }
+
+  void StoreFixedArrayElementSmi(
+      TNode<FixedArray> array, TNode<Smi> index, TNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
-    return StoreFixedArrayElement(object, index, value, barrier_mode, 0,
-                                  SMI_PARAMETERS);
+    StoreFixedArrayElement(array, index, value, barrier_mode, 0,
+                           SMI_PARAMETERS);
   }
 
   Node* StoreFixedDoubleArrayElement(
@@ -2083,8 +2100,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     const int kKeyToDetailsOffset =
         (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
         kPointerSize;
-    return Unsigned(LoadAndUntagToWord32FixedArrayElement(container, key_index,
-                                                          kKeyToDetailsOffset));
+    return Unsigned(LoadAndUntagToWord32FixedArrayElement(
+        CAST(container), key_index, kKeyToDetailsOffset));
   }
 
   // Loads the value for the entry with the given key_index.
@@ -2096,8 +2113,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     const int kKeyToValueOffset =
         (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
         kPointerSize;
-    return UncheckedCast<Object>(
-        LoadFixedArrayElement(container, key_index, kKeyToValueOffset));
+    return LoadFixedArrayElement(CAST(container), key_index, kKeyToValueOffset);
   }
 
   TNode<Uint32T> LoadDetailsByKeyIndex(TNode<DescriptorArray> container,
@@ -2110,7 +2126,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Stores the details for the entry with the given key_index.
   // |details| must be a Smi.
   template <class ContainerType>
-  void StoreDetailsByKeyIndex(Node* container, Node* key_index, Node* details) {
+  void StoreDetailsByKeyIndex(TNode<ContainerType> container,
+                              TNode<IntPtrT> key_index, TNode<Smi> details) {
     const int kKeyToDetailsOffset =
         (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
         kPointerSize;
@@ -2121,7 +2138,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Stores the value for the entry with the given key_index.
   template <class ContainerType>
   void StoreValueByKeyIndex(
-      Node* container, Node* key_index, Node* value,
+      TNode<ContainerType> container, TNode<IntPtrT> key_index,
+      TNode<Object> value,
       WriteBarrierMode write_barrier = UPDATE_WRITE_BARRIER) {
     const int kKeyToValueOffset =
         (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *

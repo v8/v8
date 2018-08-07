@@ -994,8 +994,8 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
 
     BIND(&fast_elements);
     {
-      Node* value = LoadFixedArrayElement(elements, new_length);
-      StoreFixedArrayElement(elements, new_length, TheHoleConstant());
+      Node* value = LoadFixedArrayElement(CAST(elements), new_length);
+      StoreFixedArrayElement(CAST(elements), new_length, TheHoleConstant());
       GotoIf(WordEqual(value, TheHoleConstant()), &return_undefined);
       args.PopAndReturn(value);
     }
@@ -1194,7 +1194,7 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
         native_context, Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX);
     GotoIf(WordNotEqual(map, fast_aliasted_arguments_map), &try_simple_slice);
 
-    Node* sloppy_elements = LoadElements(array);
+    TNode<SloppyArgumentsElements> sloppy_elements = CAST(LoadElements(array));
     TNode<Smi> sloppy_elements_length =
         LoadFixedArrayBaseLength(sloppy_elements);
     TNode<Smi> parameter_map_length =
@@ -1213,8 +1213,8 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
 
     TNode<Smi> end = SmiAdd(CAST(from), CAST(count));
 
-    Node* unmapped_elements = LoadFixedArrayElement(
-        sloppy_elements, SloppyArgumentsElements::kArgumentsIndex);
+    TNode<FixedArray> unmapped_elements = CAST(LoadFixedArrayElement(
+        sloppy_elements, SloppyArgumentsElements::kArgumentsIndex));
     TNode<Smi> unmapped_elements_length =
         LoadFixedArrayBaseLength(unmapped_elements);
 
@@ -1225,7 +1225,7 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
                                 nullptr, SMI_PARAMETERS));
 
     index_out.Bind(IntPtrConstant(0));
-    Node* result_elements = LoadElements(result.value());
+    TNode<FixedArray> result_elements = CAST(LoadElements(result.value()));
     TNode<Smi> from_mapped = SmiMin(parameter_map_length, CAST(from));
     TNode<Smi> to = SmiMin(parameter_map_length, end);
     Node* arguments_context = LoadFixedArrayElement(
@@ -1595,35 +1595,39 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
 
     BIND(&fast_elements_tagged);
     {
-      Node* value = LoadFixedArrayElement(elements, 0);
-      BuildFastLoop(IntPtrConstant(0), new_length,
-                    [&](Node* index) {
-                      StoreFixedArrayElement(
-                          elements, index,
-                          LoadFixedArrayElement(
-                              elements, IntPtrAdd(index, IntPtrConstant(1))));
-                    },
-                    1, ParameterMode::INTPTR_PARAMETERS,
-                    IndexAdvanceMode::kPost);
-      StoreFixedArrayElement(elements, new_length, TheHoleConstant());
+      TNode<FixedArray> elements_fixed_array = CAST(elements);
+      Node* value = LoadFixedArrayElement(elements_fixed_array, 0);
+      BuildFastLoop(
+          IntPtrConstant(0), new_length,
+          [&](Node* index) {
+            StoreFixedArrayElement(
+                elements_fixed_array, index,
+                LoadFixedArrayElement(elements_fixed_array,
+                                      IntPtrAdd(index, IntPtrConstant(1))));
+          },
+          1, ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      StoreFixedArrayElement(elements_fixed_array, new_length,
+                             TheHoleConstant());
       GotoIf(WordEqual(value, TheHoleConstant()), &return_undefined);
       args.PopAndReturn(value);
     }
 
     BIND(&fast_elements_smi);
     {
-      Node* value = LoadFixedArrayElement(elements, 0);
-      BuildFastLoop(IntPtrConstant(0), new_length,
-                    [&](Node* index) {
-                      StoreFixedArrayElement(
-                          elements, index,
-                          LoadFixedArrayElement(
-                              elements, IntPtrAdd(index, IntPtrConstant(1))),
-                          SKIP_WRITE_BARRIER);
-                    },
-                    1, ParameterMode::INTPTR_PARAMETERS,
-                    IndexAdvanceMode::kPost);
-      StoreFixedArrayElement(elements, new_length, TheHoleConstant());
+      TNode<FixedArray> elements_fixed_array = CAST(elements);
+      Node* value = LoadFixedArrayElement(elements_fixed_array, 0);
+      BuildFastLoop(
+          IntPtrConstant(0), new_length,
+          [&](Node* index) {
+            StoreFixedArrayElement(
+                elements_fixed_array, index,
+                LoadFixedArrayElement(elements_fixed_array,
+                                      IntPtrAdd(index, IntPtrConstant(1))),
+                SKIP_WRITE_BARRIER);
+          },
+          1, ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+      StoreFixedArrayElement(elements_fixed_array, new_length,
+                             TheHoleConstant());
       GotoIf(WordEqual(value, TheHoleConstant()), &return_undefined);
       args.PopAndReturn(value);
     }
@@ -3090,7 +3094,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
   {
     GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
               &return_not_found);
-    Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+    Node* element_k = LoadFixedArrayElement(CAST(elements), index_var.value());
     GotoIf(WordEqual(element_k, search_element), &return_found);
 
     Increment(&index_var);
@@ -3102,7 +3106,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
 
     GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
               &return_not_found);
-    Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+    Node* element_k = LoadFixedArrayElement(CAST(elements), index_var.value());
     GotoIf(IsUndefined(element_k), &return_found);
     GotoIf(IsTheHole(element_k), &return_found);
 
@@ -3121,7 +3125,8 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
       Label continue_loop(this), not_smi(this);
       GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
                 &return_not_found);
-      Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+      Node* element_k =
+          LoadFixedArrayElement(CAST(elements), index_var.value());
       GotoIfNot(TaggedIsSmi(element_k), &not_smi);
       Branch(Float64Equal(search_num.value(), SmiToFloat64(element_k)),
              &return_found, &continue_loop);
@@ -3142,7 +3147,8 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
       Label continue_loop(this);
       GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
                 &return_not_found);
-      Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+      Node* element_k =
+          LoadFixedArrayElement(CAST(elements), index_var.value());
       GotoIf(TaggedIsSmi(element_k), &continue_loop);
       GotoIfNot(IsHeapNumber(CAST(element_k)), &continue_loop);
       BranchIfFloat64IsNaN(LoadHeapNumberValue(element_k), &return_found,
@@ -3165,7 +3171,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     BIND(&next_iteration);
     GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
               &return_not_found);
-    Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+    Node* element_k = LoadFixedArrayElement(CAST(elements), index_var.value());
     GotoIf(TaggedIsSmi(element_k), &continue_loop);
     GotoIf(WordEqual(search_element_string, element_k), &return_found);
     Node* element_k_type = LoadInstanceType(element_k);
@@ -3193,7 +3199,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
               &return_not_found);
 
-    Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+    Node* element_k = LoadFixedArrayElement(CAST(elements), index_var.value());
     Label continue_loop(this);
     GotoIf(TaggedIsSmi(element_k), &continue_loop);
     GotoIfNot(IsBigInt(CAST(element_k)), &continue_loop);
@@ -3575,13 +3581,15 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
     BIND(&if_packed);
     {
-      var_value.Bind(LoadFixedArrayElement(elements, index, 0, SMI_PARAMETERS));
+      var_value.Bind(
+          LoadFixedArrayElement(CAST(elements), index, 0, SMI_PARAMETERS));
       Goto(&allocate_entry_if_needed);
     }
 
     BIND(&if_holey);
     {
-      Node* element = LoadFixedArrayElement(elements, index, 0, SMI_PARAMETERS);
+      Node* element =
+          LoadFixedArrayElement(CAST(elements), index, 0, SMI_PARAMETERS);
       var_value.Bind(element);
       GotoIfNot(WordEqual(element, TheHoleConstant()),
                 &allocate_entry_if_needed);
@@ -3725,7 +3733,8 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
                        Int32Constant(static_cast<int>(IterationKind::kValues))),
            &allocate_iterator_result);
 
-    Node* elements = AllocateFixedArray(PACKED_ELEMENTS, IntPtrConstant(2));
+    TNode<FixedArray> elements =
+        AllocateFixedArray(PACKED_ELEMENTS, IntPtrConstant(2));
     StoreFixedArrayElement(elements, 0, index, SKIP_WRITE_BARRIER);
     StoreFixedArrayElement(elements, 1, var_value.value(), SKIP_WRITE_BARRIER);
 
