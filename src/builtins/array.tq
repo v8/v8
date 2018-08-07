@@ -110,7 +110,7 @@ module array {
   javascript builtin ArraySpliceTorque(
       context: Context, receiver: Object, ...arguments): Object {
     // 1. Let O be ? ToObject(this value).
-    let o: Object = ToObject(context, receiver);
+    let o: JSReceiver = ToObject(context, receiver);
 
     // 2. Let len be ? ToLength(? Get(O, "length")).
     let len: Number = GetLengthProperty(context, o);
@@ -178,8 +178,7 @@ module array {
       let from: String = ToString_Inline(context, actualStart + k);
 
       // b. Let fromPresent be ? HasProperty(O, from).
-      let fromPresent: Oddball =
-          HasPropertyObject(o, from, context, kHasProperty);
+      let fromPresent: Oddball = TorqueHasProperty(context, o, from);
 
       // c. If fromPresent is true, then
       if (fromPresent == True) {
@@ -217,8 +216,7 @@ module array {
         let to: String = ToString_Inline(context, k + itemCount);
 
         // iii. Let fromPresent be ? HasProperty(O, from).
-        let fromPresent: Oddball =
-            HasPropertyObject(o, from, context, kHasProperty);
+        let fromPresent: Oddball = TorqueHasProperty(context, o, from);
 
         // iv. If fromPresent is true, then
         if (fromPresent == True) {
@@ -261,8 +259,7 @@ module array {
         let to: String = ToString_Inline(context, k + itemCount - 1);
 
         // iii. Let fromPresent be ? HasProperty(O, from).
-        let fromPresent: Oddball =
-            HasPropertyObject(o, from, context, kHasProperty);
+        let fromPresent: Oddball = TorqueHasProperty(context, o, from);
 
         // iv. If fromPresent is true, then
         if (fromPresent == True) {

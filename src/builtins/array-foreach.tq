@@ -4,7 +4,7 @@
 
 module array {
   macro ArrayForEachTorqueContinuation(
-      context: Context, o: Object, len: Number, callbackfn: Callable,
+      context: Context, o: JSReceiver, len: Number, callbackfn: Callable,
       thisArg: Object, initial_k: Smi): Object {
     // 5. Let k be 0.
     // 6. Repeat, while k < len
@@ -13,7 +13,7 @@ module array {
       let pK: String = ToString_Inline(context, k);
 
       // 6b. Let kPresent be ? HasProperty(O, Pk).
-      let kPresent: Oddball = HasPropertyObject(o, pK, context, kHasProperty);
+      let kPresent: Oddball = TorqueHasProperty(context, o, pK);
 
       // 6c. If kPresent is true, then
       if (kPresent == True) {
@@ -32,21 +32,29 @@ module array {
   javascript builtin ArrayForEachLoopEagerDeoptContinuation(
       context: Context, receiver: Object, callback: Object, thisArg: Object,
       initialK: Object, length: Object): Object {
+    // The unsafe cast is safe because all continuation points in forEach are
+    // after the ToObject(O) call that ensures we are dealing with a
+    // JSReceiver.
+    let jsreceiver: JSReceiver = unsafe_cast<JSReceiver>(receiver);
     return ArrayForEachLoopContinuation(
-        context, receiver, callback, thisArg, Undefined, receiver, initialK,
+        context, jsreceiver, callback, thisArg, Undefined, jsreceiver, initialK,
         length, Undefined);
   }
 
   javascript builtin ArrayForEachLoopLazyDeoptContinuation(
       context: Context, receiver: Object, callback: Object, thisArg: Object,
       initialK: Object, length: Object, result: Object): Object {
+    // The unsafe cast is safe because all continuation points in forEach are
+    // after the ToObject(O) call that ensures we are dealing with a
+    // JSReceiver.
+    let jsreceiver: JSReceiver = unsafe_cast<JSReceiver>(receiver);
     return ArrayForEachLoopContinuation(
-        context, receiver, callback, thisArg, Undefined, receiver, initialK,
+        context, jsreceiver, callback, thisArg, Undefined, jsreceiver, initialK,
         length, Undefined);
   }
 
   builtin ArrayForEachLoopContinuation(
-      context: Context, receiver: Object, callback: Object, thisArg: Object,
+      context: Context, receiver: JSReceiver, callback: Object, thisArg: Object,
       array: Object, object: Object, initialK: Object, length: Object,
       to: Object): Object {
     try {
@@ -55,7 +63,7 @@ module array {
       let number_length: Number = cast<Number>(length) otherwise Unexpected;
 
       return ArrayForEachTorqueContinuation(
-          context, object, number_length, callbackfn, thisArg, k);
+          context, receiver, number_length, callbackfn, thisArg, k);
     }
     label Unexpected {
       unreachable;
@@ -97,7 +105,7 @@ module array {
   }
 
   macro FastArrayForEach(
-      context: Context, o: Object, len: Number, callbackfn: Callable,
+      context: Context, o: JSReceiver, len: Number, callbackfn: Callable,
       thisArg: Object): Object labels
   Bailout(Smi) {
     let k: Smi = 0;
@@ -134,7 +142,7 @@ module array {
       }
 
       // 1. Let O be ? ToObject(this value).
-      let o: Object = ToObject(context, receiver);
+      let o: JSReceiver = ToObject(context, receiver);
 
       // 2. Let len be ? ToLength(? Get(O, "length")).
       let len: Number = GetLengthProperty(context, o);

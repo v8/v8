@@ -64,23 +64,22 @@ type ParameterMode generates 'TNode<Int32T>' constexpr 'ParameterMode';
 type RootListIndex generates 'TNode<Int32T>' constexpr 'Heap::RootListIndex';
 
 type MessageTemplate constexpr 'MessageTemplate::Template';
-type HasPropertyLookupMode constexpr 'HasPropertyLookupMode';
 
 type ToIntegerTruncationMode constexpr 'ToIntegerTruncationMode';
 
 const NO_ELEMENTS: constexpr ElementsKind generates 'NO_ELEMENTS';
 
 const PACKED_SMI_ELEMENTS: constexpr ElementsKind generates
-    'PACKED_SMI_ELEMENTS';
+'PACKED_SMI_ELEMENTS';
 const HOLEY_SMI_ELEMENTS: constexpr ElementsKind generates 'HOLEY_SMI_ELEMENTS';
 const PACKED_ELEMENTS: constexpr ElementsKind generates 'PACKED_ELEMENTS';
 const HOLEY_ELEMENTS: constexpr ElementsKind generates 'HOLEY_ELEMENTS';
 const PACKED_DOUBLE_ELEMENTS: constexpr ElementsKind generates
-    'PACKED_DOUBLE_ELEMENTS';
+'PACKED_DOUBLE_ELEMENTS';
 const HOLEY_DOUBLE_ELEMENTS: constexpr ElementsKind generates
-    'HOLEY_DOUBLE_ELEMENTS';
+'HOLEY_DOUBLE_ELEMENTS';
 const DICTIONARY_ELEMENTS: constexpr ElementsKind generates
-    'DICTIONARY_ELEMENTS';
+'DICTIONARY_ELEMENTS';
 
 const UINT8_ELEMENTS: constexpr ElementsKind generates 'UINT8_ELEMENTS';
 const INT8_ELEMENTS: constexpr ElementsKind generates 'INT8_ELEMENTS';
@@ -91,7 +90,7 @@ const INT32_ELEMENTS: constexpr ElementsKind generates 'INT32_ELEMENTS';
 const FLOAT32_ELEMENTS: constexpr ElementsKind generates 'FLOAT32_ELEMENTS';
 const FLOAT64_ELEMENTS: constexpr ElementsKind generates 'FLOAT64_ELEMENTS';
 const UINT8_CLAMPED_ELEMENTS: constexpr ElementsKind generates
-    'UINT8_CLAMPED_ELEMENTS';
+'UINT8_CLAMPED_ELEMENTS';
 const BIGUINT64_ELEMENTS: constexpr ElementsKind generates 'BIGUINT64_ELEMENTS';
 const BIGINT64_ELEMENTS: constexpr ElementsKind generates 'BIGINT64_ELEMENTS';
 
@@ -121,8 +120,6 @@ const kCalledNonCallable: constexpr MessageTemplate generates
 'MessageTemplate::kCalledNonCallable';
 const kCalledOnNullOrUndefined: constexpr MessageTemplate generates
 'MessageTemplate::kCalledOnNullOrUndefined';
-
-const kHasProperty: constexpr HasPropertyLookupMode generates 'kHasProperty';
 
 const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
 
@@ -176,13 +173,21 @@ extern macro ToLength_Inline(Context, Object): Number;
 extern macro ToNumber_Inline(Context, Object): Number;
 extern macro ToString_Inline(Context, Object): String;
 extern macro GetProperty(Context, Object, Object): Object;
-extern macro HasProperty(
-    HeapObject, Object, Context, constexpr HasPropertyLookupMode): Oddball;
+
+// TODO(mvstanton): the HasProperty builtin takes the key as the first argument,
+// and the object as the second, reversing the usual order. Reverse this in the
+// builtin definition at some point.
+extern builtin HasProperty(Context, Object, JSReceiver): Boolean;
+macro TorqueHasProperty(
+    context: Context, receiver: JSReceiver, key: Object): Boolean {
+  return HasProperty(context, key, receiver);
+}
+
 extern macro ThrowRangeError(Context, constexpr MessageTemplate): never;
 extern macro ThrowTypeError(Context, constexpr MessageTemplate): never;
 extern macro ThrowTypeError(Context, constexpr MessageTemplate, Object): never;
-extern macro ThrowTypeError(Context, constexpr MessageTemplate, Object, Object,
-    Object): never;
+extern macro ThrowTypeError(
+    Context, constexpr MessageTemplate, Object, Object, Object): never;
 extern macro ArraySpeciesCreate(Context, Object, Number): Object;
 extern macro EnsureArrayPushable(Map): ElementsKind labels Bailout;
 
@@ -289,11 +294,11 @@ extern operator '+' macro NumberAdd(Number, Number): Number;
 extern operator '-' macro NumberSub(Number, Number): Number;
 extern macro NumberMin(Number, Number): Number;
 extern macro NumberMax(Number, Number): Number;
-macro min(x: Number, y : Number) : Number {
-    return NumberMin(x,y);
+macro min(x: Number, y: Number): Number {
+  return NumberMin(x, y);
 }
-macro max(x: Number, y : Number) : Number {
-    return NumberMax(x,y);
+macro max(x: Number, y: Number): Number {
+  return NumberMax(x, y);
 }
 
 extern operator '!' macro ConstexprBoolNot(constexpr bool): constexpr bool;
@@ -371,7 +376,7 @@ extern macro LoadHeapNumberValue(HeapNumber): float64;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro ChangeNumberToFloat64(Number): float64;
 extern macro ChangeFloat64ToUintPtr(float64): uintptr;
-extern macro ChangeInt32ToIntPtr(int32): intptr;  // Sign-extends.
+extern macro ChangeInt32ToIntPtr(int32): intptr;   // Sign-extends.
 extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
 
 extern macro NumberConstant(constexpr float64): Number;
@@ -579,8 +584,8 @@ unsafe_cast<FixedArrayBase>(o: Object): FixedArrayBase {
 }
 
 const kCOWMap: Map = unsafe_cast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
-const kEmptyFixedArray: FixedArrayBase = unsafe_cast<FixedArrayBase>(
-    LoadRoot(kEmptyFixedArrayRootIndex));
+const kEmptyFixedArray: FixedArrayBase =
+    unsafe_cast<FixedArrayBase>(LoadRoot(kEmptyFixedArrayRootIndex));
 
 extern macro BranchIfFastJSArray(Object, Context): never labels Taken, NotTaken;
 extern macro BranchIfNotFastJSArray(Object, Context): never labels Taken,
@@ -635,7 +640,8 @@ macro StoreFixedDoubleArrayElementWithSmiIndex(
 }
 
 extern macro BasicLoadNumberDictionaryElement(NumberDictionary, intptr):
-    Object labels NotData, IfHole;
+    Object labels NotData,
+    IfHole;
 extern macro BasicStoreNumberDictionaryElement(NumberDictionary, intptr, Object)
 labels NotData, IfHole, ReadOnly;
 
@@ -666,8 +672,10 @@ extern macro Call(Context, Callable, Object): Object;
 extern macro Call(Context, Callable, Object, Object): Object;
 extern macro Call(Context, Callable, Object, Object, Object): Object;
 extern macro Call(Context, Callable, Object, Object, Object, Object): Object;
-extern macro Call(Context, Callable, Object, Object, Object, Object, Object): Object;
-extern macro Call(Context, Callable, Object, Object, Object, Object, Object, Object): Object;
+extern macro Call(
+    Context, Callable, Object, Object, Object, Object, Object): Object;
+extern macro Call(
+    Context, Callable, Object, Object, Object, Object, Object, Object): Object;
 
 extern macro ExtractFixedArray(
     FixedArray, Smi, Smi, Smi, constexpr ExtractFixedArrayFlags): FixedArray;
@@ -705,17 +713,6 @@ labels IfHole {
   }
 }
 
-macro HasPropertyObject(
-    o: Object, p: Object, c: Context,
-    f: constexpr HasPropertyLookupMode): Oddball {
-  try {
-    return HasProperty((cast<HeapObject>(o) otherwise CastError), p, c, f);
-  }
-  label CastError {
-    return False;
-  }
-}
-
 extern macro IsCallable(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
@@ -728,7 +725,7 @@ extern macro Typeof(Object): Object;
 // Return true iff number is NaN.
 macro NumberIsNaN(number: Number): bool {
   if (TaggedIsSmi(number)) {
-      return false;
+    return false;
   }
 
   let value: float64 = convert<float64>(unsafe_cast<HeapNumber>(number));
