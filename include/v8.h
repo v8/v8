@@ -6767,6 +6767,9 @@ typedef void (*ApiImplementationCallback)(const FunctionCallbackInfo<Value>&);
 // --- Callback for WebAssembly.compileStreaming ---
 typedef void (*WasmStreamingCallback)(const FunctionCallbackInfo<Value>&);
 
+// --- Callback for checking if WebAssembly threads are enabled ---
+typedef bool (*WasmThreadsEnabledCallback)(Local<Context> context);
+
 // --- Garbage Collection Callbacks ---
 
 /**
@@ -8297,6 +8300,8 @@ class V8_EXPORT Isolate {
   void SetWasmCompileStreamingCallback(ApiImplementationCallback callback);
 
   void SetWasmStreamingCallback(WasmStreamingCallback callback);
+
+  void SetWasmThreadsEnabledCallback(WasmThreadsEnabledCallback callback);
 
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after
