@@ -245,9 +245,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
     state_ = kEnd;
     result_map_ = handle(
         JSFunction::cast(root_map_->GetConstructor())->initial_map(), isolate_);
-    if (from_kind != to_kind) {
-      result_map_ = Map::AsElementsKind(isolate_, result_map_, to_kind);
-    }
+    result_map_ = Map::AsElementsKind(isolate_, result_map_, to_kind);
     DCHECK(result_map_->is_dictionary_map());
     return state_;
   }
@@ -307,9 +305,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
   }
 
   // From here on, use the map with correct elements kind as root map.
-  if (from_kind != to_kind) {
-    root_map_ = Map::AsElementsKind(isolate_, root_map_, to_kind);
-  }
+  root_map_ = Map::AsElementsKind(isolate_, root_map_, to_kind);
   state_ = kAtRootMap;
   return state_;  // Not done yet.
 }

@@ -489,10 +489,8 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
 
   // Constructing an Array via new Array(N) where N is an unsigned
   // integer, always creates a holey backing store.
-  if (!IsHoleyElementsKind(initial_map.elements_kind())) {
-    initial_map = initial_map.AsElementsKind(
-        GetHoleyElementsKind(initial_map.elements_kind()));
-  }
+  initial_map = initial_map.AsElementsKind(
+      GetHoleyElementsKind(initial_map.elements_kind()));
 
   // Check that the {limit} is an unsigned integer in the valid range.
   // This has to be kept in sync with src/runtime/runtime-array.cc,
@@ -733,9 +731,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       // Check if we have a feedback {site} on the {node}.
       if (site_ref) {
         ElementsKind elements_kind = site_ref->GetElementsKind();
-        if (initial_map.elements_kind() != elements_kind) {
-          initial_map = initial_map.AsElementsKind(elements_kind);
-        }
+        initial_map = initial_map.AsElementsKind(elements_kind);
         can_inline_call = site_ref->CanInlineCall();
         pretenure = dependencies()->DependOnPretenureMode(*site_ref);
         dependencies()->DependOnElementsKind(*site_ref);
