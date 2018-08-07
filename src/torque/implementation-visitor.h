@@ -119,6 +119,7 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult Visit(AssignmentExpression* expr);
   VisitResult Visit(StringLiteralExpression* expr);
   VisitResult Visit(NumberLiteralExpression* expr);
+  VisitResult Visit(AssumeTypeImpossibleExpression* expr);
 
   const Type* Visit(TryLabelStatement* stmt);
   const Type* Visit(ReturnStatement* stmt);

@@ -22,6 +22,13 @@ struct ExpressionWithSource {
   std::string source;
 };
 
+struct TypeswitchCase {
+  SourcePosition pos;
+  base::Optional<std::string> name;
+  TypeExpression* type;
+  Statement* block;
+};
+
 enum class ParseResultHolderBase::TypeId {
   kStdString,
   kBool,
@@ -49,7 +56,9 @@ enum class ParseResultHolderBase::TypeId {
   kStdVectorOfLabelAndTypes,
   kStdVectorOfLabelBlockPtr,
   kOptionalStatementPtr,
-  kOptionalExpressionPtr
+  kOptionalExpressionPtr,
+  kTypeswitchCase,
+  kStdVectorOfTypeswitchCase
 };
 
 template <>
@@ -151,6 +160,13 @@ template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<base::Optional<Expression*>>::id =
         ParseResultTypeId::kOptionalExpressionPtr;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<TypeswitchCase>::id = ParseResultTypeId::kTypeswitchCase;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<std::vector<TypeswitchCase>>::id =
+        ParseResultTypeId::kStdVectorOfTypeswitchCase;
 
 namespace {
 
@@ -466,6 +482,93 @@ base::Optional<ParseResult> MakeIfStatement(
   Statement* result =
       MakeNode<IfStatement>(is_constexpr, condition, if_true, if_false);
   return ParseResult{result};
+}
+
+base::Optional<ParseResult> MakeTypeswitchStatement(
+    ParseResultIterator* child_results) {
+  auto expression = child_results->NextAs<Expression*>();
+  auto cases = child_results->NextAs<std::vector<TypeswitchCase>>();
+  CurrentSourcePosition::Scope current_source_position(
+      child_results->matched_input().pos);
+
+  // typeswitch (expression) case (x1 : T1) {
+  //   ...b1
+  // } case (x2 : T2) {
+  //   ...b2
+  // } case (x3 : T3) {
+  //   ...b3
+  // }
+  //
+  // desugars to
+  //
+  // {
+  //   const _value = expression;
+  //   try {
+  //     const x1 : T1 = cast<T1>(_value) otherwise _NextCase;
+  //     ...b1
+  //   } label _NextCase {
+  //     try {
+  //       const x2 : T2 = cast<T2>(%assume_impossible<T1>(_value));
+  //       ...b2
+  //     } label _NextCase {
+  //       const x3 : T3 = %assume_impossible<T1|T2>(_value);
+  //       ...b3
+  //     }
+  //   }
+  // }
+
+  BlockStatement* current_block = MakeNode<BlockStatement>();
+  Statement* result = current_block;
+  {
+    CurrentSourcePosition::Scope current_source_position(expression->pos);
+    current_block->statements.push_back(MakeNode<VarDeclarationStatement>(
+        true, "_value", base::nullopt, expression));
+  }
+
+  TypeExpression* accumulated_types;
+  for (size_t i = 0; i < cases.size(); ++i) {
+    CurrentSourcePosition::Scope current_source_position(cases[i].pos);
+    Expression* value = MakeNode<IdentifierExpression>("_value");
+    if (i >= 1) {
+      value =
+          MakeNode<AssumeTypeImpossibleExpression>(accumulated_types, value);
+    }
+    BlockStatement* case_block;
+    if (i < cases.size() - 1) {
+      value = MakeNode<CallExpression>(
+          "cast", false, std::vector<TypeExpression*>{cases[i].type},
+          std::vector<Expression*>{value},
+          std::vector<std::string>{"_NextCase"});
+      case_block = MakeNode<BlockStatement>();
+    } else {
+      case_block = current_block;
+    }
+    std::string name = "_case_value";
+    if (cases[i].name) name = *cases[i].name;
+    case_block->statements.push_back(
+        MakeNode<VarDeclarationStatement>(true, name, cases[i].type, value));
+    case_block->statements.push_back(cases[i].block);
+    if (i < cases.size() - 1) {
+      BlockStatement* next_block = MakeNode<BlockStatement>();
+      current_block->statements.push_back(MakeNode<TryLabelStatement>(
+          case_block, std::vector<LabelBlock*>{MakeNode<LabelBlock>(
+                          "_NextCase", ParameterList::Empty(), next_block)}));
+      current_block = next_block;
+    }
+    accumulated_types =
+        i > 0 ? MakeNode<UnionTypeExpression>(accumulated_types, cases[i].type)
+              : cases[i].type;
+  }
+  return ParseResult{result};
+}
+
+base::Optional<ParseResult> MakeTypeswitchCase(
+    ParseResultIterator* child_results) {
+  auto name = child_results->NextAs<base::Optional<std::string>>();
+  auto type = child_results->NextAs<TypeExpression*>();
+  auto block = child_results->NextAs<Statement*>();
+  return ParseResult{TypeswitchCase{child_results->matched_input().pos,
+                                    std::move(name), type, block}};
 }
 
 base::Optional<ParseResult> MakeWhileStatement(
@@ -1068,6 +1171,13 @@ struct TorqueGrammar : Grammar {
             Token(")"), &atomarStatement,
             Optional<Statement*>(Sequence({Token("else"), &statement}))},
            MakeIfStatement),
+      Rule(
+          {
+              Token("typeswitch"), Token("("), expression, Token(")"),
+              Token("{"), NonemptyList<TypeswitchCase>(&typeswitchCase),
+              Token("}"),
+          },
+          MakeTypeswitchStatement),
       Rule({Token("try"), &block, NonemptyList<LabelBlock*>(&labelBlock)},
            MakeTryLabelStatement),
       Rule({OneOf({"assert", "check"}), Token("("), &expressionWithSource,
@@ -1085,6 +1195,13 @@ struct TorqueGrammar : Grammar {
             Optional<Expression*>(expression), Token(";"),
             Optional<Expression*>(expression), Token(")"), &atomarStatement},
            MakeForLoopStatement)};
+
+  // Result: TypeswitchCase
+  Symbol typeswitchCase = {
+      Rule({Token("case"), Token("("),
+            Optional<std::string>(Sequence({&identifier, Token(":")})), &type,
+            Token(")"), &block},
+           MakeTypeswitchCase)};
 
   // Result: base::Optional<Statement*>
   Symbol optionalBody = {

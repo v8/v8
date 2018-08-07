@@ -20,9 +20,8 @@ VisitResult ImplementationVisitor::Visit(Expression* expr) {
     AST_EXPRESSION_NODE_KIND_LIST(ENUM_ITEM)
 #undef ENUM_ITEM
     default:
-      UNIMPLEMENTED();
+      UNREACHABLE();
   }
-  return VisitResult();
 }
 
 const Type* ImplementationVisitor::Visit(Statement* stmt) {
@@ -517,6 +516,18 @@ VisitResult ImplementationVisitor::Visit(NumberLiteralExpression* expr) {
   std::string temp = GenerateNewTempVariable(result_type);
   source_out() << expr->number << ";\n";
   return VisitResult{result_type, temp};
+}
+
+VisitResult ImplementationVisitor::Visit(AssumeTypeImpossibleExpression* expr) {
+  VisitResult result = Visit(expr->expression);
+  const Type* result_type =
+      SubtractType(result.type(), declarations()->GetType(expr->excluded_type));
+  if (result_type->IsNever()) {
+    ReportError("unreachable code");
+  }
+  return VisitResult{result_type, "UncheckedCast<" +
+                                      result_type->GetGeneratedTNodeTypeName() +
+                                      ">(" + result.RValue() + ")"};
 }
 
 VisitResult ImplementationVisitor::Visit(StringLiteralExpression* expr) {
@@ -1429,10 +1440,11 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
 
 VisitResult ImplementationVisitor::GenerateFetchFromLocation(
     FieldAccessExpression* expr, LocationReference reference) {
-  const Type* type = reference.base.type();
   if (reference.value != nullptr) {
     return GenerateFetchFromLocation(reference);
-  } else if (const StructType* struct_type = StructType::DynamicCast(type)) {
+  }
+  const Type* type = reference.base.type();
+  if (const StructType* struct_type = StructType::DynamicCast(type)) {
     return VisitResult(struct_type->GetFieldType(expr->field),
                        reference.base.RValue() + "." + expr->field);
   } else {
@@ -1940,7 +1952,6 @@ VisitResult ImplementationVisitor::GenerateImplicitConvert(
       << " as a value of type " << *destination_type;
     ReportError(s.str());
   }
-  return VisitResult(TypeOracle::GetVoidType(), "");
 }
 
 std::string ImplementationVisitor::NewTempVariable() {

@@ -387,6 +387,53 @@ module test {
     check(sum == 7);
   }
 
+  macro TestSubtyping(x : Smi) {
+    const foo : Object = x;
+  }
+
+  macro IncrementIfSmi<A : type>(x : A) : A {
+    typeswitch (x) {
+      case (x : Smi) {
+        return x + 1;
+      } case (o : A) {
+        return o;
+      }
+    }
+  }
+
+  macro TypeswitchExample(x : Number | FixedArray) : int32 {
+    let result : int32 = 0;
+    typeswitch (IncrementIfSmi<(Number|FixedArray)>(x)) {
+      case (x : FixedArray) {
+        result = result + 1;
+      } case (Number) {
+        result = result + 2;
+      }
+    }
+
+    result = result * 10;
+
+    typeswitch (IncrementIfSmi<(Number|FixedArray)>(x)) {
+      case (x : Smi) {
+        result = result + convert<int32>(x);
+      } case (a : FixedArray) {
+        result = result + convert<int32>(a.length);
+      } case (x : HeapNumber) {
+        result = result + 7;
+      }
+    }
+
+    return result;
+  }
+
+  macro TestTypeswitch() {
+    check(TypeswitchExample(from_constexpr<Smi>(5)) == 26);
+    const a : FixedArray = AllocateFixedArray(PACKED_ELEMENTS, 3);
+    a[0] = a[1] = a[2] = from_constexpr<Smi>(0);
+    check(TypeswitchExample(a) == 13);
+    check(TypeswitchExample(from_constexpr<Number>(0.5)) == 27);
+  }
+
   macro ExampleGenericOverload<A: type>(o : Object) : A {
     return o;
   }

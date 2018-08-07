@@ -32,6 +32,7 @@ std::string Type::ToString() const {
 }
 
 bool Type::IsSubtypeOf(const Type* supertype) const {
+  if (IsNever()) return true;
   if (const UnionType* union_type = UnionType::DynamicCast(supertype)) {
     return union_type->IsSupertypeOf(this);
   }
@@ -151,6 +152,36 @@ const Type* UnionType::NonConstexprVersion() const {
     return TypeOracle::GetUnionType(std::move(result));
   }
   return this;
+}
+
+void UnionType::RecomputeParent() {
+  const Type* parent = nullptr;
+  for (const Type* t : types_) {
+    if (parent == nullptr) {
+      parent = t;
+    } else {
+      parent = CommonSupertype(parent, t);
+    }
+  }
+  set_parent(parent);
+}
+
+void UnionType::Subtract(const Type* t) {
+  for (auto it = types_.begin(); it != types_.end();) {
+    if ((*it)->IsSubtypeOf(t)) {
+      it = types_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  if (types_.size() == 0) types_.insert(TypeOracle::GetNeverType());
+  RecomputeParent();
+}
+
+const Type* SubtractType(const Type* a, const Type* b) {
+  UnionType result = UnionType::FromType(a);
+  result.Subtract(b);
+  return TypeOracle::GetUnionType(result);
 }
 
 std::string StructType::ToExplicitString() const {

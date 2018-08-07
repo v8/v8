@@ -306,9 +306,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return UncheckedCast<HeapObject>(value);
   }
 
-  TNode<JSArray> TaggedToJSArray(TNode<Object> value, Label* fail) {
-    GotoIf(TaggedIsSmi(value), fail);
-    TNode<HeapObject> heap_object = CAST(value);
+  TNode<JSArray> HeapObjectToJSArray(TNode<HeapObject> heap_object,
+                                     Label* fail) {
     GotoIfNot(IsJSArray(heap_object), fail);
     return UncheckedCast<JSArray>(heap_object);
   }
@@ -321,18 +320,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return UncheckedCast<JSArray>(heap_object);
   }
 
-  TNode<JSDataView> TaggedToJSDataView(TNode<Object> value, Label* fail) {
-    GotoIf(TaggedIsSmi(value), fail);
-    TNode<HeapObject> heap_object = CAST(value);
+  TNode<JSDataView> HeapObjectToJSDataView(TNode<HeapObject> heap_object,
+                                           Label* fail) {
     GotoIfNot(IsJSDataView(heap_object), fail);
-    return UncheckedCast<JSDataView>(heap_object);
+    return CAST(heap_object);
   }
 
-  TNode<JSReceiver> TaggedToCallable(TNode<Object> value, Label* fail) {
-    GotoIf(TaggedIsSmi(value), fail);
-    TNode<HeapObject> result = UncheckedCast<HeapObject>(value);
-    GotoIfNot(IsCallable(result), fail);
-    return CAST(result);
+  TNode<JSReceiver> HeapObjectToCallable(TNode<HeapObject> heap_object,
+                                         Label* fail) {
+    GotoIfNot(IsCallable(heap_object), fail);
+    return CAST(heap_object);
   }
 
   TNode<HeapNumber> UnsafeCastNumberToHeapNumber(TNode<Number> p_n) {
@@ -1462,11 +1459,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                            SMI_PARAMETERS);
   }
 
-  TNode<FixedArray> ConvertFixedArrayBaseToFixedArray(
-      TNode<FixedArrayBase> base, Label* cast_fail);
+  TNode<FixedArray> HeapObjectToFixedArray(TNode<HeapObject> base,
+                                           Label* cast_fail);
 
-  TNode<FixedDoubleArray> ConvertFixedArrayBaseToFixedDoubleArray(
-      TNode<FixedArrayBase> base, Label* cast_fail) {
+  TNode<FixedDoubleArray> HeapObjectToFixedDoubleArray(TNode<HeapObject> base,
+                                                       Label* cast_fail) {
     GotoIf(WordNotEqual(LoadMap(base),
                         LoadRoot(Heap::kFixedDoubleArrayMapRootIndex)),
            cast_fail);

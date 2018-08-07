@@ -4248,8 +4248,8 @@ void CodeStubAssembler::CopyFixedArrayElements(
   Comment("] CopyFixedArrayElements");
 }
 
-TNode<FixedArray> CodeStubAssembler::ConvertFixedArrayBaseToFixedArray(
-    TNode<FixedArrayBase> base, Label* cast_fail) {
+TNode<FixedArray> CodeStubAssembler::HeapObjectToFixedArray(
+    TNode<HeapObject> base, Label* cast_fail) {
   Label fixed_array(this);
   TNode<Map> map = LoadMap(base);
   GotoIf(WordEqual(map, LoadRoot(Heap::kFixedArrayMapRootIndex)), &fixed_array);

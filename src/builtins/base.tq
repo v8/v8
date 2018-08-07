@@ -319,42 +319,50 @@ extern operator 'is<Smi>' macro TaggedIsSmi(Object): bool;
 extern operator 'isnt<Smi>' macro TaggedIsNotSmi(Object): bool;
 extern macro TaggedIsPositiveSmi(Object): bool;
 
-extern macro TaggedToJSDataView(Object): JSDataView labels CastError;
+extern macro HeapObjectToJSDataView(HeapObject): JSDataView labels CastError;
 extern macro TaggedToHeapObject(Object): HeapObject labels CastError;
 extern macro TaggedToSmi(Object): Smi labels CastError;
-extern macro TaggedToJSArray(Object): JSArray labels CastError;
-extern macro TaggedToCallable(Object): Callable labels CastError;
-extern macro ConvertFixedArrayBaseToFixedArray(FixedArrayBase):
+extern macro HeapObjectToJSArray(HeapObject): JSArray labels CastError;
+extern macro HeapObjectToCallable(HeapObject): Callable labels CastError;
+extern macro HeapObjectToFixedArray(HeapObject):
     FixedArray labels CastError;
-extern macro ConvertFixedArrayBaseToFixedDoubleArray(FixedArrayBase):
+extern macro HeapObjectToFixedDoubleArray(HeapObject):
     FixedDoubleArray labels CastError;
 extern macro TaggedToNumber(Object): Number labels CastError;
 
-macro cast<A : type>(o: Object): A labels CastError;
-cast<Number>(o: Object): Number labels CastError {
-  return TaggedToNumber(o) otherwise CastError;
+macro cast_HeapObject<A : type>(o : HeapObject) : A labels CastError;
+cast_HeapObject<HeapObject>(o : HeapObject) : HeapObject labels CastError { return o; }
+cast_HeapObject<FixedArray>(o: HeapObject): FixedArray labels CastError {
+  return HeapObjectToFixedArray(o) otherwise CastError;
 }
-cast<HeapObject>(o: Object): HeapObject labels CastError {
-  return TaggedToHeapObject(o) otherwise CastError;
+cast_HeapObject<FixedDoubleArray>(o: HeapObject): FixedDoubleArray labels CastError {
+  return HeapObjectToFixedDoubleArray(o) otherwise CastError;
+}
+cast_HeapObject<JSDataView>(o: HeapObject): JSDataView labels CastError {
+  return HeapObjectToJSDataView(o) otherwise CastError;
+}
+cast_HeapObject<Callable>(o: HeapObject): Callable labels CastError {
+  return HeapObjectToCallable(o) otherwise CastError;
+}
+cast_HeapObject<JSArray>(o: HeapObject): JSArray labels CastError {
+  return HeapObjectToJSArray(o) otherwise CastError;
+}
+
+macro cast<A : type>(o: HeapObject): A labels CastError {
+  return cast_HeapObject<A>(o) otherwise CastError;
+}
+
+// cast_HeapObject allows this default-implementation to be non-recursive.
+// Otherwise the generated CSA code might run into infinite recursion.
+macro cast<A : type>(o: Object): A labels CastError {
+  return cast_HeapObject<A>(
+    TaggedToHeapObject(o) otherwise CastError) otherwise CastError;
 }
 cast<Smi>(o: Object): Smi labels CastError {
   return TaggedToSmi(o) otherwise CastError;
 }
-cast<JSDataView>(o: Object): JSDataView labels CastError {
-  return TaggedToJSDataView(o) otherwise CastError;
-}
-cast<Callable>(o: Object): Callable labels CastError {
-  return TaggedToCallable(o) otherwise CastError;
-}
-cast<JSArray>(o: Object): JSArray labels CastError {
-  return TaggedToJSArray(o) otherwise CastError;
-}
-macro cast<A : type>(o: FixedArrayBase): A labels CastError;
-cast<FixedArray>(o: FixedArrayBase): FixedArray labels CastError {
-  return ConvertFixedArrayBaseToFixedArray(o) otherwise CastError;
-}
-cast<FixedDoubleArray>(o: FixedArrayBase): FixedDoubleArray labels CastError {
-  return ConvertFixedArrayBaseToFixedDoubleArray(o) otherwise CastError;
+cast<Number>(o: Object): Number labels CastError {
+  return TaggedToNumber(o) otherwise CastError;
 }
 
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
@@ -622,7 +630,7 @@ extern operator
 extern operator
 '[]=' macro StoreFixedArrayElement(FixedArray, intptr, Object): void;
 extern operator
-'[]=' macro StoreFixedArrayElementInt(
+'[]=' macro StoreFixedArrayElement(
     FixedArray, constexpr int31, Object): void;
 extern operator
 '[]=' macro StoreFixedArrayElementSmi(FixedArray, Smi, Object): void;
@@ -724,12 +732,14 @@ extern macro Typeof(Object): Object;
 
 // Return true iff number is NaN.
 macro NumberIsNaN(number: Number): bool {
-  if (TaggedIsSmi(number)) {
-    return false;
+  typeswitch(number) {
+    case (Smi) {
+      return false;
+    } case (hn : HeapNumber) {
+      let value: float64 = convert<float64>(hn);
+      return value != value;
+    }
   }
-
-  let value: float64 = convert<float64>(unsafe_cast<HeapNumber>(number));
-  return value != value;
 }
 
 extern macro BranchIfToBooleanIsTrue(Object): never labels Taken, NotTaken;

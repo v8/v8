@@ -68,15 +68,6 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
 
   void NullPostLoopAction();
 
-  // TODO(szuend): Remove once overload resolution is fixed in Torque.
-  TNode<Object> LoadFixedArrayElementInt(TNode<FixedArray> array, int index) {
-    return LoadFixedArrayElement(array, index);
-  }
-  void StoreFixedArrayElementInt(TNode<FixedArray> array, int index,
-                                 TNode<Object> value) {
-    StoreFixedArrayElement(array, index, value);
-  }
-
  protected:
   TNode<Context> context() { return context_; }
   TNode<Object> receiver() { return receiver_; }
