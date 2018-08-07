@@ -1532,7 +1532,6 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
       effect, control);
 
-  // This array should be HOLEY_SMI_ELEMENTS because of the non-zero length.
   // Even though {JSCreateArray} is not marked as {kNoThrow}, we can elide the
   // exceptional projections because it cannot throw with the given parameters.
   Node* a = control = effect = graph()->NewNode(
@@ -1634,6 +1633,9 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
                                      &check_fail, &control);
   }
 
+  // The array {a} should be HOLEY_SMI_ELEMENTS because we'd only come into this
+  // loop if the input array length is non-zero, and "new Array({x > 0})" always
+  // produces a HOLEY array.
   Handle<Map> double_map(Map::cast(native_context()->get(
                              Context::ArrayMapIndex(HOLEY_DOUBLE_ELEMENTS))),
                          isolate());
