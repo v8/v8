@@ -1278,10 +1278,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_module_object(*module_object);
   instance->set_undefined_value(ReadOnlyRoots(isolate).undefined_value());
   instance->set_null_value(ReadOnlyRoots(isolate).null_value());
-  instance->set_jump_table_adjusted_start(
-      module_object->native_module()->jump_table_start() -
-      wasm::JumpTableAssembler::kJumpTableSlotSize *
-          module->num_imported_functions);
+  instance->set_jump_table_start(
+      module_object->native_module()->jump_table_start());
 
   // Insert the new instance into the modules weak list of instances.
   // TODO(mstarzinger): Allow to reuse holes in the {WeakArrayList} below.
@@ -1366,11 +1364,21 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
     MaybeHandle<String> maybe_name, int func_index, int arity,
     Handle<Code> export_wrapper) {
   DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
+  int num_imported_functions = instance->module()->num_imported_functions;
+  int jump_table_offset = -1;
+  if (func_index >= num_imported_functions) {
+    ptrdiff_t jump_table_diff =
+        instance->module_object()->native_module()->jump_table_offset(
+            func_index);
+    DCHECK(jump_table_diff >= 0 && jump_table_diff <= INT_MAX);
+    jump_table_offset = static_cast<int>(jump_table_diff);
+  }
   Handle<WasmExportedFunctionData> function_data =
       Handle<WasmExportedFunctionData>::cast(isolate->factory()->NewStruct(
           WASM_EXPORTED_FUNCTION_DATA_TYPE, TENURED));
   function_data->set_wrapper_code(*export_wrapper);
   function_data->set_instance(*instance);
+  function_data->set_jump_table_offset(jump_table_offset);
   function_data->set_function_index(func_index);
   Handle<String> name;
   if (!maybe_name.ToHandle(&name)) {

@@ -400,7 +400,7 @@ class WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_size, uint32_t)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_sig_ids, uint32_t*)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_targets, Address*)
-  DECL_PRIMITIVE_ACCESSORS(jump_table_adjusted_start, Address)
+  DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmInstanceObject)
@@ -435,7 +435,7 @@ class WasmInstanceObject : public JSObject {
   V(kImportedMutableGlobalsOffset, kPointerSize)         /* untagged */ \
   V(kIndirectFunctionTableSigIdsOffset, kPointerSize)    /* untagged */ \
   V(kIndirectFunctionTableTargetsOffset, kPointerSize)   /* untagged */ \
-  V(kJumpTableAdjustedStartOffset, kPointerSize)         /* untagged */ \
+  V(kJumpTableStartOffset, kPointerSize)                 /* untagged */ \
   V(kIndirectFunctionTableSizeOffset, kUInt32Size)       /* untagged */ \
   V(k64BitArchPaddingOffset, kPointerSize - kUInt32Size) /* padding */  \
   V(kSize, 0)
@@ -495,6 +495,7 @@ class WasmExportedFunctionData : public Struct {
  public:
   DECL_ACCESSORS(wrapper_code, Code);
   DECL_ACCESSORS(instance, WasmInstanceObject)
+  DECL_INT_ACCESSORS(jump_table_offset);
   DECL_INT_ACCESSORS(function_index);
 
   DECL_CAST(WasmExportedFunctionData)
@@ -504,10 +505,11 @@ class WasmExportedFunctionData : public Struct {
   DECL_VERIFIER(WasmExportedFunctionData)
 
 // Layout description.
-#define WASM_EXPORTED_FUNCTION_DATA_FIELDS(V)     \
-  V(kWrapperCodeOffset, kPointerSize)             \
-  V(kInstanceOffset, kPointerSize)                \
-  V(kFunctionIndexOffset, kPointerSize) /* Smi */ \
+#define WASM_EXPORTED_FUNCTION_DATA_FIELDS(V)       \
+  V(kWrapperCodeOffset, kPointerSize)               \
+  V(kInstanceOffset, kPointerSize)                  \
+  V(kJumpTableOffsetOffset, kPointerSize) /* Smi */ \
+  V(kFunctionIndexOffset, kPointerSize)   /* Smi */ \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,

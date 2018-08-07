@@ -727,6 +727,7 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
             WASM_EXPORTED_FUNCTION_DATA_TYPE, TENURED));
     function_data->set_wrapper_code(*new_entry_code);
     function_data->set_instance(debug_info->wasm_instance());
+    function_data->set_jump_table_offset(-1);
     function_data->set_function_index(-1);
     Handle<String> name = isolate->factory()->InternalizeOneByteString(
         STATIC_CHAR_VECTOR("c-wasm-entry"));

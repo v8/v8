@@ -4344,6 +4344,16 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     return function_index;
   }
 
+  Node* BuildLoadJumpTableOffsetFromExportedFunctionData(Node* function_data) {
+    Node* jump_table_offset_smi = SetEffect(graph()->NewNode(
+        jsgraph()->machine()->Load(MachineType::AnyTagged()), function_data,
+        jsgraph()->Int32Constant(
+            WasmExportedFunctionData::kJumpTableOffsetOffset - kHeapObjectTag),
+        Effect(), Control()));
+    Node* jump_table_offset = BuildChangeSmiToInt32(jump_table_offset_smi);
+    return jump_table_offset;
+  }
+
   void BuildJSToWasmWrapper(bool is_import) {
     const int wasm_count = static_cast<int>(sig_->parameter_count());
 
@@ -4392,28 +4402,22 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Set the ThreadInWasm flag before we do the actual call.
     BuildModifyThreadInWasmFlag(true);
 
-    // Load function index from {WasmExportedFunctionData}.
-    Node* function_index =
-        BuildLoadFunctionIndexFromExportedFunctionData(function_data);
-
     if (is_import) {
       // Call to an imported function.
+      // Load function index from {WasmExportedFunctionData}.
+      Node* function_index =
+          BuildLoadFunctionIndexFromExportedFunctionData(function_data);
       BuildImportWasmCall(sig_, args, &rets, wasm::kNoCodePosition,
                           function_index);
     } else {
       // Call to a wasm function defined in this module.
-      // The call target is the jump table slot for that function. This is
-      // {jump_table + (func_index - num_imports) * kJumpTableSlotSize}
-      // == {jump_table_adjusted + func_index * kJumpTableSlotSize}.
-      Node* jump_table_adjusted =
-          LOAD_INSTANCE_FIELD(JumpTableAdjustedStart, MachineType::Pointer());
-      Node* jump_table_offset = graph()->NewNode(
-          mcgraph()->machine()->IntMul(), Uint32ToUintptr(function_index),
-          mcgraph()->IntPtrConstant(
-              wasm::JumpTableAssembler::kJumpTableSlotSize));
-      Node* jump_table_slot =
-          graph()->NewNode(mcgraph()->machine()->IntAdd(), jump_table_adjusted,
-                           jump_table_offset);
+      // The call target is the jump table slot for that function.
+      Node* jump_table_start =
+          LOAD_INSTANCE_FIELD(JumpTableStart, MachineType::Pointer());
+      Node* jump_table_offset =
+          BuildLoadJumpTableOffsetFromExportedFunctionData(function_data);
+      Node* jump_table_slot = graph()->NewNode(
+          mcgraph()->machine()->IntAdd(), jump_table_start, jump_table_offset);
       args[0] = jump_table_slot;
 
       BuildWasmCall(sig_, args, &rets, wasm::kNoCodePosition, nullptr,

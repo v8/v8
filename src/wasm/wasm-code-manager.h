@@ -292,6 +292,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return jump_table_ ? jump_table_->instruction_start() : kNullAddress;
   }
 
+  ptrdiff_t jump_table_offset(uint32_t func_index) const {
+    DCHECK_GE(func_index, num_imported_functions());
+    return GetCallTargetForFunction(func_index) - jump_table_start();
+  }
+
   bool is_jump_table_slot(Address address) const {
     return jump_table_->contains(address);
   }

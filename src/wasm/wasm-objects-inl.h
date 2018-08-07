@@ -154,8 +154,8 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_sig_ids,
                     uint32_t*, kIndirectFunctionTableSigIdsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_targets,
                     Address*, kIndirectFunctionTableTargetsOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, jump_table_adjusted_start, Address,
-                    kJumpTableAdjustedStartOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, jump_table_start, Address,
+                    kJumpTableStartOffset)
 
 ACCESSORS(WasmInstanceObject, module_object, WasmModuleObject,
           kModuleObjectOffset)
@@ -205,6 +205,8 @@ ImportedFunctionEntry::ImportedFunctionEntry(
 ACCESSORS(WasmExportedFunctionData, wrapper_code, Code, kWrapperCodeOffset)
 ACCESSORS(WasmExportedFunctionData, instance, WasmInstanceObject,
           kInstanceOffset)
+SMI_ACCESSORS(WasmExportedFunctionData, jump_table_offset,
+              kJumpTableOffsetOffset)
 SMI_ACCESSORS(WasmExportedFunctionData, function_index, kFunctionIndexOffset)
 
 // WasmDebugInfo

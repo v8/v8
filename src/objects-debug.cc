@@ -1664,6 +1664,7 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
   CHECK(wrapper_code()->kind() == Code::JS_TO_WASM_FUNCTION ||
         wrapper_code()->kind() == Code::C_WASM_ENTRY);
   VerifyObjectField(isolate, kInstanceOffset);
+  VerifySmiField(kJumpTableOffsetOffset);
   VerifySmiField(kFunctionIndexOffset);
 }
 
