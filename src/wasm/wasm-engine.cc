@@ -76,7 +76,7 @@ MaybeHandle<WasmInstanceObject> WasmEngine::SyncInstantiate(
 void WasmEngine::AsyncInstantiate(
     Isolate* isolate, std::unique_ptr<InstantiationResultResolver> resolver,
     Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports) {
-  ErrorThrower thrower(isolate, nullptr);
+  ErrorThrower thrower(isolate, "WebAssembly Instantiation");
   // Instantiate a TryCatch so that caught exceptions won't progagate out.
   // They will still be set as pending exceptions on the isolate.
   // TODO(clemensh): Avoid TryCatch, use Execution::TryCall internally to invoke
@@ -93,19 +93,18 @@ void WasmEngine::AsyncInstantiate(
     return;
   }
 
-  // We either have a pending exception (if the start function threw), or an
-  // exception in the ErrorThrower.
-  DCHECK_EQ(1, isolate->has_pending_exception() + thrower.error());
-  if (thrower.error()) {
-    resolver->OnInstantiationFailed(thrower.Reify());
-  } else {
-    // The start function has thrown an exception. We have to move the
-    // exception to the promise chain.
+  if (isolate->has_pending_exception()) {
+    // The JS code executed during instantiation has thrown an exception.
+    // We have to move the exception to the promise chain.
     Handle<Object> exception(isolate->pending_exception(), isolate);
     isolate->clear_pending_exception();
     DCHECK(*isolate->external_caught_exception_address());
     *isolate->external_caught_exception_address() = false;
     resolver->OnInstantiationFailed(exception);
+    thrower.Reset();
+  } else {
+    DCHECK(thrower.error());
+    resolver->OnInstantiationFailed(thrower.Reify());
   }
 }
 
