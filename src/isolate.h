@@ -167,6 +167,24 @@ class WasmEngine;
     }                                                             \
   } while (false)
 
+/**
+ * RETURN_RESULT_OR_FAILURE is used in functions with return type Object* (such
+ * as "RUNTIME_FUNCTION(...) {...}" or "BUILTIN(...) {...}" ) to return either
+ * the contents of a MaybeHandle<X>, or the "exception" sentinel value.
+ * Example usage:
+ *
+ * RUNTIME_FUNCTION(Runtime_Func) {
+ *   ...
+ *   RETURN_RESULT_OR_FAILURE(
+ *       isolate,
+ *       FunctionWithReturnTypeMaybeHandleX(...));
+ * }
+ *
+ * If inside a function with return type MaybeHandle<X> use RETURN_ON_EXCEPTION
+ * instead.
+ * If inside a function with return type Handle<X>, or Maybe<X> use
+ * RETURN_ON_EXCEPTION_VALUE instead.
+ */
 #define RETURN_RESULT_OR_FAILURE(isolate, call)      \
   do {                                               \
     Handle<Object> __result__;                       \
@@ -216,6 +234,36 @@ class WasmEngine;
     return value;                                          \
   } while (false)
 
+/**
+ * RETURN_ON_EXCEPTION_VALUE conditionally returns the given value when the
+ * given MaybeHandle is empty. It is typically used in functions with return
+ * type Maybe<X> or Handle<X>. Example usage:
+ *
+ * Handle<X> Func() {
+ *   ...
+ *   RETURN_ON_EXCEPTION_VALUE(
+ *       isolate,
+ *       FunctionWithReturnTypeMaybeHandleX(...),
+ *       Handle<X>());
+ *   // code to handle non exception
+ *   ...
+ * }
+ *
+ * Maybe<bool> Func() {
+ *   ..
+ *   RETURN_ON_EXCEPTION_VALUE(
+ *       isolate,
+ *       FunctionWithReturnTypeMaybeHandleX(...),
+ *       Nothing<bool>);
+ *   // code to handle non exception
+ *   return Just(true);
+ * }
+ *
+ * If inside a function with return type MaybeHandle<X>, use RETURN_ON_EXCEPTION
+ * instead.
+ * If inside a function with return type Object*, use
+ * RETURN_FAILURE_ON_EXCEPTION instead.
+ */
 #define RETURN_ON_EXCEPTION_VALUE(isolate, call, value)            \
   do {                                                             \
     if ((call).is_null()) {                                        \
@@ -224,6 +272,26 @@ class WasmEngine;
     }                                                              \
   } while (false)
 
+/**
+ * RETURN_FAILURE_ON_EXCEPTION conditionally returns the "exception" sentinel if
+ * the given MaybeHandle is empty; so it can only be used in functions with
+ * return type Object*, such as RUNTIME_FUNCTION(...) {...} or BUILTIN(...)
+ * {...}. Example usage:
+ *
+ * RUNTIME_FUNCTION(Runtime_Func) {
+ *   ...
+ *   RETURN_FAILURE_ON_EXCEPTION(
+ *       isolate,
+ *       FunctionWithReturnTypeMaybeHandleX(...));
+ *   // code to handle non exception
+ *   ...
+ * }
+ *
+ * If inside a function with return type MaybeHandle<X>, use RETURN_ON_EXCEPTION
+ * instead.
+ * If inside a function with return type Maybe<X> or Handle<X>, use
+ * RETURN_ON_EXCEPTION_VALUE instead.
+ */
 #define RETURN_FAILURE_ON_EXCEPTION(isolate, call)                     \
   do {                                                                 \
     Isolate* __isolate__ = (isolate);                                  \
@@ -231,6 +299,26 @@ class WasmEngine;
                               ReadOnlyRoots(__isolate__).exception()); \
   } while (false);
 
+/**
+ * RETURN_ON_EXCEPTION conditionally returns an empty MaybeHandle<T> if the
+ * given MaybeHandle is empty. Use it to return immediately from a function with
+ * return type MaybeHandle when an exception was thrown. Example usage:
+ *
+ * MaybeHandle<X> Func() {
+ *   ...
+ *   RETURN_ON_EXCEPTION(
+ *       isolate,
+ *       FunctionWithReturnTypeMaybeHandleY(...),
+ *       X);
+ *   // code to handle non exception
+ *   ...
+ * }
+ *
+ * If inside a function with return type Object*, use
+ * RETURN_FAILURE_ON_EXCEPTION instead.
+ * If inside a function with return type
+ * Maybe<X> or Handle<X>, use RETURN_ON_EXCEPTION_VALUE instead.
+ */
 #define RETURN_ON_EXCEPTION(isolate, call, T)  \
   RETURN_ON_EXCEPTION_VALUE(isolate, call, MaybeHandle<T>())
 
