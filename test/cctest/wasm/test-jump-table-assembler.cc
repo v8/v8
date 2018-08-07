@@ -21,7 +21,7 @@ namespace wasm {
 #define __ masm.
 
 // TODO(v8:7424,v8:8018): Extend this test to all architectures.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
 
 namespace {
 
@@ -47,6 +47,12 @@ Address GenerateJumpTableThunk(Address jump_target) {
   __ test(MemOperand(scratch, 0), Immediate(1));
   __ j(not_zero, &exit);
   __ jmp(jump_target, RelocInfo::NONE);
+#elif V8_TARGET_ARCH_ARM
+  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ ldr(scratch, MemOperand(scratch, 0));
+  __ tst(scratch, Operand(1));
+  __ b(ne, &exit);
+  __ Jump(jump_target, RelocInfo::NONE);
 #else
 #error Unsupported architecture
 #endif
@@ -68,7 +74,7 @@ class JumpTableRunner : public v8::base::Thread {
 
   void Run() override {
     TRACE("Runner #%d is starting ...\n", runner_id_);
-    GeneratedCode<void>::FromAddress(nullptr, slot_address_).Call();
+    GeneratedCode<void>::FromAddress(CcTest::i_isolate(), slot_address_).Call();
     TRACE("Runner #%d is stopping ...\n", runner_id_);
     USE(runner_id_);
   }
@@ -156,7 +162,7 @@ TEST(JumpTablePatchingStress) {
   }
 }
 
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
 
 #undef __
 #undef TRACE

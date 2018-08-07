@@ -82,18 +82,9 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 void JumpTableAssembler::EmitJumpSlot(Address target) {
-  int offset =
-      target - reinterpret_cast<Address>(pc_) - Instruction::kPcLoadDelta;
-  DCHECK_EQ(0, offset % kInstrSize);
-  // If the offset is within 64 MB, emit a direct jump. Otherwise jump
-  // indirectly.
-  if (is_int26(offset)) {
-    b(offset);  // 1 instr
-  } else {
-    // {Move32BitImmediate} emits either [movw, movt, mov] or [ldr, constant].
-    Move32BitImmediate(pc, Operand(target));
-  }
-
+  // Note that {Move32BitImmediate} emits [ldr, constant] for the relocation
+  // mode used below, we need this to allow concurrent patching of this slot.
+  Move32BitImmediate(pc, Operand(target, RelocInfo::WASM_CALL));
   CheckConstPool(true, false);  // force emit of const pool
 }
 
