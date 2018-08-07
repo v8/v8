@@ -10,7 +10,7 @@ module typed_array {
   extern macro LoadFixedTypedArrayElementAsTagged(
       RawPtr, Smi, constexpr ElementsKind, constexpr ParameterMode): Object;
   extern macro StoreFixedTypedArrayElementFromTagged(
-      Context, FixedArrayBase, Smi, Object, constexpr ElementsKind,
+      Context, FixedTypedArrayBase, Smi, Object, constexpr ElementsKind,
       constexpr ParameterMode);
 
   type LoadFn = builtin(Context, JSTypedArray, Smi) => Object;

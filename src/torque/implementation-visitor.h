@@ -19,8 +19,8 @@ namespace internal {
 namespace torque {
 
 struct LocationReference {
-  LocationReference(Value* v, VisitResult b, VisitResult i)
-      : value(v), base(b), index(i) {}
+  LocationReference(Value* value, VisitResult base, VisitResult index)
+      : value(value), base(base), index(index) {}
   Value* value;
   VisitResult base;
   VisitResult index;

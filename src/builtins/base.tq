@@ -63,7 +63,7 @@ type ExtractFixedArrayFlags generates
 type ParameterMode generates 'TNode<Int32T>' constexpr 'ParameterMode';
 type RootListIndex generates 'TNode<Int32T>' constexpr 'Heap::RootListIndex';
 
-type MessageTemplate constexpr 'MessageTemplate';
+type MessageTemplate constexpr 'MessageTemplate::Template';
 type HasPropertyLookupMode constexpr 'HasPropertyLookupMode';
 
 type ToIntegerTruncationMode constexpr 'ToIntegerTruncationMode';

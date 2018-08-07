@@ -1367,11 +1367,6 @@ LocationReference ImplementationVisitor::GetLocationReference(
           declarations()->LookupValue((*result.declarable())->name() + "." +
                                       expr->field),
           {}, {});
-
-    } else {
-      return LocationReference(
-          nullptr,
-          VisitResult(result.type(), result.RValue() + "." + expr->field), {});
     }
   }
   return LocationReference(nullptr, result, {});
@@ -1422,17 +1417,8 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
   if (reference.value != nullptr) {
     return GenerateFetchFromLocation(reference);
   } else if (const StructType* struct_type = StructType::DynamicCast(type)) {
-    auto& fields = struct_type->fields();
-    auto i = std::find_if(
-        fields.begin(), fields.end(),
-        [&](const NameAndType& f) { return f.name == expr->field; });
-    if (i == fields.end()) {
-      std::stringstream s;
-      s << "\"" << expr->field << "\" is not a field of struct type \""
-        << struct_type->name() << "\"";
-      ReportError(s.str());
-    }
-    return VisitResult(i->type, reference.base.RValue());
+    return VisitResult(struct_type->GetFieldType(expr->field),
+                       reference.base.RValue() + "." + expr->field);
   } else {
     Arguments arguments;
     arguments.parameters = {reference.base};
@@ -1488,7 +1474,7 @@ void ImplementationVisitor::GenerateAssignToLocation(
       ReportError(s.str());
     }
     GenerateAssignToVariable(var, assignment_value);
-  } else if (auto access = FieldAccessExpression::cast(location)) {
+  } else if (auto access = FieldAccessExpression::DynamicCast(location)) {
     GenerateCall(std::string(".") + access->field + "=",
                  {{reference.base, assignment_value}, {}});
   } else {

@@ -311,6 +311,15 @@ class StructType final : public Type {
   bool IsConstexpr() const override { return false; }
 
   const std::vector<NameAndType>& fields() const { return fields_; }
+  const Type* GetFieldType(const std::string& fieldname) const {
+    for (const NameAndType& field : fields()) {
+      if (field.name == fieldname) return field.type;
+    }
+    std::stringstream s;
+    s << "\"" << fieldname << "\" is not a field of struct type \"" << name()
+      << "\"";
+    ReportError(s.str());
+  }
   const std::string& name() const { return name_; }
   Module* module() const { return module_; }
 

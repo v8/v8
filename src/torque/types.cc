@@ -270,6 +270,7 @@ std::string VisitResult::LValue() const {
 }
 
 std::string VisitResult::RValue() const {
+  std::string result;
   if (declarable()) {
     auto value = *declarable();
     if (value->IsVariable() && !Variable::cast(value)->IsDefined()) {
@@ -277,10 +278,12 @@ std::string VisitResult::RValue() const {
       s << "\"" << value->name() << "\" is used before it is defined";
       ReportError(s.str());
     }
-    return value->RValue();
+    result = value->RValue();
   } else {
-    return value_;
+    result = value_;
   }
+  return "implicit_cast<" + type()->GetGeneratedTypeName() + ">(" + result +
+         ")";
 }
 
 }  // namespace torque
