@@ -2882,17 +2882,6 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
 }  // namespace
 #endif  // ENABLE_SLOW_DCHECKS
 
-namespace {
-bool MayContainRecordedSlots(HeapObject* object) {
-  // New space object do not have recorded slots.
-  if (MemoryChunk::FromHeapObject(object)->InNewSpace()) return false;
-  // Whitelist objects that definitely do not have pointers.
-  if (object->IsByteArray() || object->IsFixedDoubleArray()) return false;
-  // Conservatively return true for other objects.
-  return true;
-}
-}  // namespace
-
 FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
                                          int elements_to_trim) {
   CHECK_NOT_NULL(object);
@@ -2929,17 +2918,7 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  // For arrays that can have recorded slots we clear the freed memory to
-  // avoid invalid old-to-old remembered set slots. Note that we cannot
-  // register invalidated slot because the start of the object can move if the
-  // array is left-trimmed later on.
-  DCHECK(HAS_SMI_TAG(static_cast<intptr_t>(kClearedFreeMemoryValue)));
-  ClearFreedMemoryMode clear_memory_mode =
-      MayContainRecordedSlots(object)
-          ? ClearFreedMemoryMode::kClearFreedMemory
-          : ClearFreedMemoryMode::kDontClearFreedMemory;
-  CreateFillerObjectAt(old_start, bytes_to_trim, ClearRecordedSlots::kYes,
-                       clear_memory_mode);
+  CreateFillerObjectAt(old_start, bytes_to_trim, ClearRecordedSlots::kYes);
 
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
@@ -3020,19 +2999,8 @@ void Heap::CreateFillerForArray(T* object, int elements_to_trim,
   }
 
   // Calculate location of new array end.
-  int old_size = object->Size();
-  Address old_end = object->address() + old_size;
+  Address old_end = object->address() + object->Size();
   Address new_end = old_end - bytes_to_trim;
-
-  // For arrays that can have recorded slots we clear the freed memory to
-  // avoid invalid old-to-old remembered set slots. Note that we cannot
-  // register invalidated slot because the start of the object can move if the
-  // array is left-trimmed later on.
-  ClearFreedMemoryMode clear_memory_mode =
-      MayContainRecordedSlots(object)
-          ? ClearFreedMemoryMode::kClearFreedMemory
-          : ClearFreedMemoryMode::kDontClearFreedMemory;
-  DCHECK(HAS_SMI_TAG(static_cast<intptr_t>(kClearedFreeMemoryValue)));
 
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
@@ -3041,8 +3009,8 @@ void Heap::CreateFillerForArray(T* object, int elements_to_trim,
   // TODO(hpayer): We should shrink the large object page if the size
   // of the object changed significantly.
   if (!lo_space()->Contains(object)) {
-    HeapObject* filler = CreateFillerObjectAt(
-        new_end, bytes_to_trim, ClearRecordedSlots::kYes, clear_memory_mode);
+    HeapObject* filler =
+        CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kYes);
     DCHECK_NOT_NULL(filler);
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
@@ -3053,11 +3021,6 @@ void Heap::CreateFillerForArray(T* object, int elements_to_trim,
           page->AddressToMarkbitIndex(new_end),
           page->AddressToMarkbitIndex(new_end + bytes_to_trim));
     }
-  } else if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
-    // Even though we do not create filler for large object space arrays, we
-    // have to clear the free memory if old-to-old slots may have been recorded.
-    memset(reinterpret_cast<void*>(new_end), kClearedFreeMemoryValue,
-           bytes_to_trim);
   }
 
   // Initialize header of the trimmed array. We are storing the new length
@@ -3327,12 +3290,20 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
 
 void Heap::NotifyObjectLayoutChange(HeapObject* object, int size,
                                     const DisallowHeapAllocation&) {
-  if (incremental_marking()->IsMarking()) {
+  // In large object space, we only allow changing from non-pointers to
+  // pointers, so that there are no slots in the invalidated slots buffer.
+  // TODO(ulan) Make the IsString assertion stricter, we only want to allow
+  // strings that cannot have slots in them (seq-strings and such).
+  DCHECK(InOldSpace(object) || InNewSpace(object) ||
+         (lo_space()->Contains(object) &&
+          (object->IsString() || object->IsByteArray())));
+  if (FLAG_incremental_marking && incremental_marking()->IsMarking()) {
     incremental_marking()->MarkBlackAndPush(object);
-    if (incremental_marking()->IsCompacting() &&
-        MayContainRecordedSlots(object)) {
-      MemoryChunk::FromHeapObject(object)->RegisterObjectWithInvalidatedSlots(
-          object, size);
+    if (InOldSpace(object) && incremental_marking()->IsCompacting()) {
+      // The concurrent marker might have recorded slots for the object.
+      // Register this object as invalidated to filter out the slots.
+      MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+      chunk->RegisterObjectWithInvalidatedSlots(object, size);
     }
   }
 #ifdef VERIFY_HEAP

@@ -56,7 +56,10 @@ bool InvalidatedSlotsFilter::IsValid(Address slot) {
             static_cast<int>(invalidated_end_ - invalidated_start_));
 
   if (offset >= invalidated_object_size_) {
-    return slots_in_free_space_are_valid_;
+    // A new object could have been allocated during evacuation in the free
+    // space outside the object. Since objects are not invalidated in GC pause
+    // we can return true here.
+    return true;
   }
   return invalidated_object_->IsValidSlot(invalidated_object_->map(), offset);
 }
