@@ -108,6 +108,7 @@ class Declarations {
                           GenericDeclaration* generic);
 
   TypeVector GetCurrentSpecializationTypeNamesVector();
+  base::Optional<Generic*> GetCurrentGeneric();
 
   ScopeChain::Snapshot GetScopeChainSnapshot() { return chain_.TaskSnapshot(); }
 

@@ -386,4 +386,18 @@ module test {
     }
     check(sum == 7);
   }
+
+  macro ExampleGenericOverload<A: type>(o : Object) : A {
+    return o;
+  }
+  macro ExampleGenericOverload<A: type>(o : Smi) : A {
+    return o + 1;
+  }
+
+  macro TestGenericOverload() {
+    const x_smi : Smi = 5;
+    const x_object : Object = x_smi;
+    check(ExampleGenericOverload<Smi>(x_smi) == 6);
+    check(unsafe_cast<Smi>(ExampleGenericOverload<Object>(x_object)) == 5);
+  }
 }

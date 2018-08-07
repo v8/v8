@@ -168,7 +168,8 @@ class ImplementationVisitor : public FileVisitor {
     ImplementationVisitor* visitor_;
   };
 
-  Callable* LookupCall(const std::string& name, const Arguments& arguments);
+  Callable* LookupCall(const std::string& name, const Arguments& arguments,
+                       const TypeVector& specialization_types);
 
   bool GenerateChangedVarFromControlSplit(const Variable* v, bool first = true);
 
@@ -203,7 +204,9 @@ class ImplementationVisitor : public FileVisitor {
   void GenerateParameterList(const NameVector& list, size_t first = 0);
 
   VisitResult GenerateCall(const std::string& callable_name,
-                           Arguments parameters, bool tail_call = false);
+                           Arguments parameters,
+                           const TypeVector& specialization_types = {},
+                           bool tail_call = false);
   VisitResult GeneratePointerCall(Expression* callee,
                                   const Arguments& parameters, bool tail_call);
 
