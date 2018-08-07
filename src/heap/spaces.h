@@ -626,6 +626,10 @@ class MemoryChunk {
 
   bool InFromSpace() { return IsFlagSet(IN_FROM_SPACE); }
 
+  bool InOldSpace() const;
+
+  bool InLargeObjectSpace() const;
+
   Space* owner() const { return owner_; }
 
   void set_owner(Space* space) { owner_ = space; }

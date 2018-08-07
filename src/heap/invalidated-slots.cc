@@ -9,8 +9,12 @@ namespace v8 {
 namespace internal {
 
 InvalidatedSlotsFilter::InvalidatedSlotsFilter(MemoryChunk* chunk) {
-  DCHECK_IMPLIES(chunk->invalidated_slots() != nullptr,
-                 chunk->owner()->identity() == OLD_SPACE);
+  // Adjust slots_in_free_space_are_valid_ if more spaces are added.
+  DCHECK_IMPLIES(chunk->invalidated_slots() != nullptr, chunk->InOldSpace());
+  // The sweeper removes invalid slots and makes free space available for
+  // allocation. Slots for new objects can be recorded in new space.
+  slots_in_free_space_are_valid_ = chunk->SweepingDone();
+
   InvalidatedSlots* invalidated_slots =
       chunk->invalidated_slots() ? chunk->invalidated_slots() : &empty_;
   iterator_ = invalidated_slots->begin();

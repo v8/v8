@@ -768,6 +768,14 @@ bool MemoryChunk::IsPagedSpace() const {
   return owner()->identity() != LO_SPACE;
 }
 
+bool MemoryChunk::InOldSpace() const {
+  return owner()->identity() == OLD_SPACE;
+}
+
+bool MemoryChunk::InLargeObjectSpace() const {
+  return owner()->identity() == LO_SPACE;
+}
+
 MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
                                             size_t commit_area_size,
                                             Executability executable,

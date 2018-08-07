@@ -2195,6 +2195,8 @@ static inline SlotCallbackResult UpdateSlot(
     }
     DCHECK(!Heap::InFromSpace(target));
     DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
+  } else {
+    DCHECK(heap_obj->map()->IsMap());
   }
   // OLD_TO_OLD slots are always removed after updating.
   return REMOVE_SLOT;
