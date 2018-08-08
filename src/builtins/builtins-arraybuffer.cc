@@ -63,20 +63,20 @@ BUILTIN(ArrayBufferConstructor) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
                               handle(target->shared()->Name(), isolate)));
-  } else {  // [[Construct]]
-    Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
-    Handle<Object> length = args.atOrUndefined(isolate, 1);
+  }
+  // [[Construct]]
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+  Handle<Object> length = args.atOrUndefined(isolate, 1);
 
-    Handle<Object> number_length;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_length,
-                                       Object::ToInteger(isolate, length));
-    if (number_length->Number() < 0.0) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
+  Handle<Object> number_length;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_length,
+                                     Object::ToInteger(isolate, length));
+  if (number_length->Number() < 0.0) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
     }
 
     return ConstructBuffer(isolate, target, new_target, number_length, true);
-  }
 }
 
 // This is a helper to construct an ArrayBuffer with uinitialized memory.
