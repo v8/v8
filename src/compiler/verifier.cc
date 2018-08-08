@@ -1738,6 +1738,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord64AtomicXor:
     case IrOpcode::kWord64AtomicExchange:
     case IrOpcode::kWord64AtomicCompareExchange:
+    case IrOpcode::kWord32AtomicPairLoad:
+    case IrOpcode::kWord32AtomicPairStore:
     case IrOpcode::kWord32AtomicPairAdd:
     case IrOpcode::kWord32AtomicPairSub:
     case IrOpcode::kWord32AtomicPairAnd:

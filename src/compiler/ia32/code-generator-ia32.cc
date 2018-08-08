@@ -3632,6 +3632,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cmp(esp, Operand::StaticVariable(stack_limit));
       break;
     }
+    case kIA32Word32AtomicPairLoad: {
+      XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
+      __ movq(tmp, i.MemoryOperand());
+      __ Pextrd(i.OutputRegister(0), tmp, 0);
+      __ Pextrd(i.OutputRegister(1), tmp, 1);
+      break;
+    }
+    case kIA32Word32AtomicPairStore: {
+      __ mov(i.TempRegister(0), i.MemoryOperand(2));
+      __ mov(i.TempRegister(1), i.NextMemoryOperand(2));
+      __ lock();
+      __ cmpxchg8b(i.MemoryOperand(2));
+      break;
+    }
     case kWord32AtomicExchangeInt8: {
       __ xchg_b(i.InputRegister(0), i.MemoryOperand(1));
       __ movsx_b(i.InputRegister(0), i.InputRegister(0));

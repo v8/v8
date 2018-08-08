@@ -2501,6 +2501,9 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               case 0x5F:
                 mnem = "maxss";
                 break;
+              case 0x7E:
+                mnem = "movq";
+                break;
             }
             data += 3;
             int mod, regop, rm;

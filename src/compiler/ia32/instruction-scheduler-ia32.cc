@@ -368,6 +368,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kLFence:
       return kHasSideEffect;
 
+    case kIA32Word32AtomicPairLoad:
+      return kIsLoadOperation;
+
+    case kIA32Word32AtomicPairStore:
     case kIA32Word32AtomicPairAdd:
     case kIA32Word32AtomicPairSub:
     case kIA32Word32AtomicPairAnd:

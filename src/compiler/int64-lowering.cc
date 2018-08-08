@@ -882,6 +882,32 @@ void Int64Lowering::LowerNode(Node* node) {
       node->NullAllInputs();
       break;
     }
+    case IrOpcode::kWord64AtomicLoad: {
+      DCHECK_EQ(4, node->InputCount());
+      MachineType type = AtomicOpType(node->op());
+      if (type == MachineType::Uint64()) {
+        NodeProperties::ChangeOp(node, machine()->Word32AtomicPairLoad());
+        ReplaceNodeWithProjections(node);
+      } else {
+        NodeProperties::ChangeOp(node, machine()->Word32AtomicLoad(type));
+        ReplaceNode(node, node, graph()->NewNode(common()->Int32Constant(0)));
+      }
+      break;
+    }
+    case IrOpcode::kWord64AtomicStore: {
+      DCHECK_EQ(5, node->InputCount());
+      MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
+      if (rep == MachineRepresentation::kWord64) {
+        Node* value = node->InputAt(2);
+        node->ReplaceInput(2, GetReplacementLow(value));
+        node->InsertInput(zone(), 3, GetReplacementHigh(value));
+        NodeProperties::ChangeOp(node, machine()->Word32AtomicPairStore());
+      } else {
+        DefaultLowering(node, true);
+        NodeProperties::ChangeOp(node, machine()->Word32AtomicStore(rep));
+      }
+      break;
+    }
 #define ATOMIC_CASE(name)                                                   \
   case IrOpcode::kWord64Atomic##name: {                                     \
     MachineType type = AtomicOpType(node->op());                            \

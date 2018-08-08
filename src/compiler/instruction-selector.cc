@@ -1705,6 +1705,13 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitWord32AtomicStore(node);
     case IrOpcode::kWord64AtomicStore:
       return VisitWord64AtomicStore(node);
+    case IrOpcode::kWord32AtomicPairStore:
+      return VisitWord32AtomicPairStore(node);
+    case IrOpcode::kWord32AtomicPairLoad: {
+      MarkAsWord32(node);
+      MarkPairProjectionsAsWord32(node);
+      return VisitWord32AtomicPairLoad(node);
+    }
 #define ATOMIC_CASE(name, rep)                         \
   case IrOpcode::k##rep##Atomic##name: {               \
     MachineType type = AtomicOpType(node->op());       \
@@ -2383,6 +2390,14 @@ void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
 #endif  // V8_TARGET_ARCH_64_BIT
 
 #if !V8_TARGET_ARCH_IA32
+void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitWord32AtomicPairAdd(Node* node) {
   UNIMPLEMENTED();
 }

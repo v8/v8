@@ -690,6 +690,14 @@ void Assembler::movzx_w(Register dst, Operand src) {
   emit_operand(dst, src);
 }
 
+void Assembler::movq(XMMRegister dst, Operand src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0x7E);
+  emit_operand(dst, src);
+}
+
 void Assembler::cmov(Condition cc, Register dst, Operand src) {
   EnsureSpace ensure_space(this);
   // Opcode: 0f 40 + cc /r.
@@ -3254,11 +3262,20 @@ void Assembler::emit_arith(int sel, Operand dst, const Immediate& x) {
 }
 
 void Assembler::emit_operand(Register reg, Operand adr) {
+  emit_operand(reg.code(), adr);
+}
+
+void Assembler::emit_operand(XMMRegister reg, Operand adr) {
+  Register ireg = Register::from_code(reg.code());
+  emit_operand(ireg, adr);
+}
+
+void Assembler::emit_operand(int code, Operand adr) {
   const unsigned length = adr.len_;
   DCHECK_GT(length, 0);
 
   // Emit updated ModRM byte containing the given register.
-  pc_[0] = (adr.buf_[0] & ~0x38) | (reg.code() << 3);
+  pc_[0] = (adr.buf_[0] & ~0x38) | (code << 3);
 
   // Emit the rest of the encoded operand.
   for (unsigned i = 1; i < length; i++) pc_[i] = adr.buf_[i];

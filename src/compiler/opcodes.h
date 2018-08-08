@@ -666,6 +666,8 @@
   V(Word32AtomicAnd)                 \
   V(Word32AtomicOr)                  \
   V(Word32AtomicXor)                 \
+  V(Word32AtomicPairLoad)            \
+  V(Word32AtomicPairStore)           \
   V(Word32AtomicPairAdd)             \
   V(Word32AtomicPairSub)             \
   V(Word32AtomicPairAnd)             \
