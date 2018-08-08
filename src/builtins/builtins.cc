@@ -329,7 +329,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     // than 128KB, and this triggers generation of MIPS specific trampolines.
     // Trampoline code is not PIC and therefore the builtin is not isolate
     // independent.
-    case kArraySpliceTorque:
     case kKeyedLoadIC_Megamorphic:
     case kKeyedStoreIC_Megamorphic:
     case kObjectAssign:
