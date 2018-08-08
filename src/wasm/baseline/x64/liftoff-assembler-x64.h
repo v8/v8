@@ -49,7 +49,7 @@ inline Operand GetStackSlot(uint32_t index) {
 inline Operand GetInstanceOperand() { return Operand(rbp, -16); }
 
 inline Operand GetMemOp(LiftoffAssembler* assm, Register addr, Register offset,
-                        uint32_t offset_imm, LiftoffRegList pinned) {
+                        uint32_t offset_imm) {
   if (is_uint31(offset_imm)) {
     if (offset == no_reg) return Operand(addr, offset_imm);
     return Operand(addr, offset, times_1, offset_imm);
@@ -208,8 +208,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
   if (emit_debug_code() && offset_reg != no_reg) {
     AssertZeroExtended(offset_reg);
   }
-  Operand src_op =
-      liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm, pinned);
+  Operand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
   if (protected_load_pc) *protected_load_pc = pc_offset();
   switch (type.value()) {
     case LoadType::kI32Load8U:
@@ -260,8 +259,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   if (emit_debug_code() && offset_reg != no_reg) {
     AssertZeroExtended(offset_reg);
   }
-  Operand dst_op =
-      liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, pinned);
+  Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
   if (protected_store_pc) *protected_store_pc = pc_offset();
   switch (type.value()) {
     case StoreType::kI32Store8:
