@@ -914,10 +914,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* PointerToSeqStringData(Node* seq_string);
   // Load value field of a JSValue object.
   Node* LoadJSValueValue(Node* object);
-  // Load value field of a WeakCell object.
-  TNode<Object> LoadWeakCellValueUnchecked(SloppyTNode<HeapObject> weak_cell);
-  TNode<Object> LoadWeakCellValue(SloppyTNode<WeakCell> weak_cell,
-                                  Label* if_cleared = nullptr);
 
   // Figures out whether the value of maybe_object is:
   // - a SMI (jump to "if_smi", "extracted" will be the SMI value)

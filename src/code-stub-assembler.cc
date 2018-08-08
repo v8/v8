@@ -1807,23 +1807,6 @@ Node* CodeStubAssembler::LoadJSValueValue(Node* object) {
   return LoadObjectField(object, JSValue::kValueOffset);
 }
 
-TNode<Object> CodeStubAssembler::LoadWeakCellValueUnchecked(
-    SloppyTNode<HeapObject> weak_cell) {
-  CSA_ASSERT(this, IsStrongHeapObject(weak_cell));
-  // TODO(ishell): fix callers.
-  return LoadObjectField(weak_cell, WeakCell::kValueOffset);
-}
-
-TNode<Object> CodeStubAssembler::LoadWeakCellValue(
-    SloppyTNode<WeakCell> weak_cell, Label* if_cleared) {
-  CSA_ASSERT(this, IsWeakCell(weak_cell));
-  TNode<Object> value = LoadWeakCellValueUnchecked(weak_cell);
-  if (if_cleared != nullptr) {
-    GotoIf(WordEqual(value, IntPtrConstant(0)), if_cleared);
-  }
-  return value;
-}
-
 void CodeStubAssembler::DispatchMaybeObject(TNode<MaybeObject> maybe_object,
                                             Label* if_smi, Label* if_cleared,
                                             Label* if_weak, Label* if_strong,
