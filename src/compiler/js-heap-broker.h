@@ -120,6 +120,8 @@ class ObjectRef {
   bool BooleanValue();
   double OddballToNumber() const;
 
+  Isolate* isolate() const;
+
  protected:
   JSHeapBroker* broker() const;
   ObjectData* data() const;
@@ -160,14 +162,6 @@ class JSObjectRef : public HeapObjectRef {
   ElementsKind GetElementsKind() const;
 };
 
-struct SlackTrackingResult {
-  SlackTrackingResult(int instance_sizex, int inobject_property_countx)
-      : instance_size(instance_sizex),
-        inobject_property_count(inobject_property_countx) {}
-  int instance_size;
-  int inobject_property_count;
-};
-
 class JSFunctionRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
@@ -179,7 +173,7 @@ class JSFunctionRef : public JSObjectRef {
   MapRef initial_map() const;
 
   JSGlobalProxyRef global_proxy() const;
-  SlackTrackingResult FinishSlackTracking() const;
+  int InitialMapInstanceSizeWithMinSlack() const;
   SharedFunctionInfoRef shared() const;
   void EnsureHasInitialMap() const;
 };
@@ -288,6 +282,7 @@ class MapRef : public HeapObjectRef {
   int instance_size() const;
   InstanceType instance_type() const;
   int GetInObjectProperties() const;
+  int GetInObjectPropertiesStartInWords() const;
   int NumberOfOwnDescriptors() const;
   PropertyDetails GetPropertyDetails(int i) const;
   NameRef GetPropertyKey(int i) const;

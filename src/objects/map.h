@@ -330,6 +330,11 @@ class Map : public HeapObject {
   // Does the tracking step.
   inline void InobjectSlackTrackingStep(Isolate* isolate);
 
+  // Computes inobject slack for the transition tree starting at this initial
+  // map.
+  int ComputeMinObjectSlack(Isolate* isolate);
+  inline int InstanceSizeFromSlack(int slack) const;
+
   // Completes inobject slack tracking for the transition tree starting at this
   // initial map.
   void CompleteInobjectSlackTracking(Isolate* isolate);

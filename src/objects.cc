@@ -12559,6 +12559,9 @@ static void GetMinInobjectSlack(Map* map, void* data) {
   }
 }
 
+int Map::InstanceSizeFromSlack(int slack) const {
+  return instance_size() - slack * kPointerSize;
+}
 
 static void ShrinkInstanceSize(Map* map, void* data) {
   int slack = *reinterpret_cast<int*>(data);
@@ -12567,7 +12570,7 @@ static void ShrinkInstanceSize(Map* map, void* data) {
   int old_visitor_id = Map::GetVisitorId(map);
   int new_unused = map->UnusedPropertyFields() - slack;
 #endif
-  map->set_instance_size(map->instance_size() - slack * kPointerSize);
+  map->set_instance_size(map->InstanceSizeFromSlack(slack));
   map->set_construction_counter(Map::kNoSlackTracking);
   DCHECK_EQ(old_visitor_id, Map::GetVisitorId(map));
   DCHECK_EQ(new_unused, map->UnusedPropertyFields());
@@ -12577,7 +12580,7 @@ static void StopSlackTracking(Map* map, void* data) {
   map->set_construction_counter(Map::kNoSlackTracking);
 }
 
-void Map::CompleteInobjectSlackTracking(Isolate* isolate) {
+int Map::ComputeMinObjectSlack(Isolate* isolate) {
   DisallowHeapAllocation no_gc;
   // Has to be an initial map.
   DCHECK(GetBackPointer()->IsUndefined(isolate));
@@ -12585,6 +12588,16 @@ void Map::CompleteInobjectSlackTracking(Isolate* isolate) {
   int slack = UnusedPropertyFields();
   TransitionsAccessor transitions(isolate, this, &no_gc);
   transitions.TraverseTransitionTree(&GetMinInobjectSlack, &slack);
+  return slack;
+}
+
+void Map::CompleteInobjectSlackTracking(Isolate* isolate) {
+  DisallowHeapAllocation no_gc;
+  // Has to be an initial map.
+  DCHECK(GetBackPointer()->IsUndefined(isolate));
+
+  int slack = ComputeMinObjectSlack(isolate);
+  TransitionsAccessor transitions(isolate, this, &no_gc);
   if (slack != 0) {
     // Resize the initial map and all maps in its transition tree.
     transitions.TraverseTransitionTree(&ShrinkInstanceSize, &slack);
@@ -13353,6 +13366,14 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   return map;
 }
 
+int JSFunction::ComputeInstanceSizeWithMinSlack(Isolate* isolate) {
+  if (has_prototype_slot() && has_initial_map() &&
+      initial_map()->IsInobjectSlackTrackingInProgress()) {
+    int slack = initial_map()->ComputeMinObjectSlack(isolate);
+    return initial_map()->InstanceSizeFromSlack(slack);
+  }
+  return initial_map()->instance_size();
+}
 
 void JSFunction::PrintName(FILE* out) {
   std::unique_ptr<char[]> name = shared()->DebugName()->ToCString();

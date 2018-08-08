@@ -26,7 +26,7 @@ class JSGraph;
 class JSOperatorBuilder;
 class MachineOperatorBuilder;
 class SimplifiedOperatorBuilder;
-
+class SlackTrackingPrediction;
 
 // Lowers JSCreate-level operators to fast (inline) allocations.
 class V8_EXPORT_PRIVATE JSCreateLowering final
@@ -68,12 +68,17 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Reduction ReduceJSCreateCatchContext(Node* node);
   Reduction ReduceJSCreateBlockContext(Node* node);
   Reduction ReduceJSCreateGeneratorObject(Node* node);
-  Reduction ReduceNewArray(Node* node, Node* length, MapRef initial_map,
-                           PretenureFlag pretenure);
-  Reduction ReduceNewArray(Node* node, Node* length, int capacity,
-                           MapRef initial_map, PretenureFlag pretenure);
-  Reduction ReduceNewArray(Node* node, std::vector<Node*> values,
-                           MapRef initial_map, PretenureFlag pretenure);
+  Reduction ReduceNewArray(
+      Node* node, Node* length, MapRef initial_map, PretenureFlag pretenure,
+      const SlackTrackingPrediction& slack_tracking_prediction);
+  Reduction ReduceNewArray(
+      Node* node, Node* length, int capacity, MapRef initial_map,
+      PretenureFlag pretenure,
+      const SlackTrackingPrediction& slack_tracking_prediction);
+  Reduction ReduceNewArray(
+      Node* node, std::vector<Node*> values, MapRef initial_map,
+      PretenureFlag pretenure,
+      const SlackTrackingPrediction& slack_tracking_prediction);
   Reduction ReduceJSCreateObject(Node* node);
 
   Node* AllocateArguments(Node* effect, Node* control, Node* frame_state);

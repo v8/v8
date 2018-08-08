@@ -17,7 +17,7 @@ CompilationDependencies::CompilationDependencies(Isolate* isolate, Zone* zone)
 class CompilationDependencies::Dependency : public ZoneObject {
  public:
   virtual bool IsValid() const = 0;
-  virtual void Install(Isolate* isolate, MaybeObjectHandle code) = 0;
+  virtual void Install(MaybeObjectHandle code) = 0;
 };
 
 class InitialMapDependency final : public CompilationDependencies::Dependency {
@@ -36,9 +36,10 @@ class InitialMapDependency final : public CompilationDependencies::Dependency {
            function->initial_map() == *initial_map_.object<Map>();
   }
 
-  void Install(Isolate* isolate, MaybeObjectHandle code) override {
+  void Install(MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(isolate, code, initial_map_.object<Map>(),
+    DependentCode::InstallDependency(function_.isolate(), code,
+                                     initial_map_.object<Map>(),
                                      DependentCode::kInitialMapChangedGroup);
   }
 
@@ -55,9 +56,9 @@ class StableMapDependency final : public CompilationDependencies::Dependency {
 
   bool IsValid() const override { return map_.object<Map>()->is_stable(); }
 
-  void Install(Isolate* isolate, MaybeObjectHandle code) override {
+  void Install(MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(isolate, code, map_.object<Map>(),
+    DependentCode::InstallDependency(map_.isolate(), code, map_.object<Map>(),
                                      DependentCode::kPrototypeCheckGroup);
   }
 
@@ -73,9 +74,9 @@ class TransitionDependency final : public CompilationDependencies::Dependency {
 
   bool IsValid() const override { return !map_.object<Map>()->is_deprecated(); }
 
-  void Install(Isolate* isolate, MaybeObjectHandle code) override {
+  void Install(MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(isolate, code, map_.object<Map>(),
+    DependentCode::InstallDependency(map_.isolate(), code, map_.object<Map>(),
                                      DependentCode::kTransitionGroup);
   }
 
@@ -97,10 +98,10 @@ class PretenureModeDependency final
     return mode_ == site_.object<AllocationSite>()->GetPretenureMode();
   }
 
-  void Install(Isolate* isolate, MaybeObjectHandle code) override {
+  void Install(MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(
-        isolate, code, site_.object<AllocationSite>(),
+        site_.isolate(), code, site_.object<AllocationSite>(),
         DependentCode::kAllocationSiteTenuringChangedGroup);
   }
 
@@ -127,9 +128,10 @@ class FieldTypeDependency final : public CompilationDependencies::Dependency {
     return *type == owner->instance_descriptors()->GetFieldType(descriptor_);
   }
 
-  void Install(Isolate* isolate, MaybeObjectHandle code) override {
+  void Install(MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(isolate, code, owner_.object<Map>(),
+    DependentCode::InstallDependency(owner_.isolate(), code,
+                                     owner_.object<Map>(),
                                      DependentCode::kFieldOwnerGroup);
   }
 
@@ -157,9 +159,9 @@ class GlobalPropertyDependency final
            read_only_ == cell->property_details().IsReadOnly();
   }
 
-  void Install(Isolate* isolate, MaybeObjectHandle code) override {
+  void Install(MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(isolate, code,
+    DependentCode::InstallDependency(cell_.isolate(), code,
                                      cell_.object<PropertyCell>(),
                                      DependentCode::kPropertyCellChangedGroup);
   }
@@ -181,9 +183,9 @@ class ProtectorDependency final : public CompilationDependencies::Dependency {
     return cell->value() == Smi::FromInt(Isolate::kProtectorValid);
   }
 
-  void Install(Isolate* isolate, MaybeObjectHandle code) override {
+  void Install(MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
-    DependentCode::InstallDependency(isolate, code,
+    DependentCode::InstallDependency(cell_.isolate(), code,
                                      cell_.object<PropertyCell>(),
                                      DependentCode::kPropertyCellChangedGroup);
   }
@@ -213,16 +215,43 @@ class ElementsKindDependency final
     return kind_ == kind;
   }
 
-  void Install(Isolate* isolate, MaybeObjectHandle code) override {
+  void Install(MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(
-        isolate, code, site_.object<AllocationSite>(),
+        site_.isolate(), code, site_.object<AllocationSite>(),
         DependentCode::kAllocationSiteTransitionChangedGroup);
   }
 
  private:
   AllocationSiteRef site_;
   ElementsKind kind_;
+};
+
+class InitialMapInstanceSizePredictionDependency final
+    : public CompilationDependencies::Dependency {
+ public:
+  InitialMapInstanceSizePredictionDependency(const JSFunctionRef& function,
+                                             int instance_size)
+      : function_(function), instance_size_(instance_size) {}
+
+  bool IsValid() const override {
+    // The dependency is valid if the prediction is the same as the current
+    // slack tracking result.
+    int instance_size =
+        function_.object<JSFunction>()->ComputeInstanceSizeWithMinSlack(
+            function_.isolate());
+    return instance_size == instance_size_;
+  }
+
+  void Install(MaybeObjectHandle code) override {
+    DCHECK(IsValid());
+    // Finish the slack tracking.
+    function_.object<JSFunction>()->CompleteInobjectSlackTrackingIfActive();
+  }
+
+ private:
+  JSFunctionRef function_;
+  int instance_size_;
 };
 
 MapRef CompilationDependencies::DependOnInitialMap(
@@ -295,8 +324,6 @@ bool CompilationDependencies::AreValid() const {
 }
 
 bool CompilationDependencies::Commit(Handle<Code> code) {
-  Isolate* isolate = code->GetIsolate();
-
   // Check validity of all dependencies first, such that we can avoid installing
   // anything when there's already an invalid dependency.
   if (!AreValid()) {
@@ -311,7 +338,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
       dependencies_.clear();
       return false;
     }
-    dep->Install(isolate, MaybeObjectHandle::Weak(code));
+    dep->Install(MaybeObjectHandle::Weak(code));
   }
   dependencies_.clear();
   return true;
@@ -361,6 +388,28 @@ void CompilationDependencies::DependOnElementsKinds(
     current = current.nested_site().AsAllocationSite();
   }
   CHECK_EQ(current.nested_site().AsSmi(), 0);
+}
+
+SlackTrackingPrediction::SlackTrackingPrediction(MapRef initial_map,
+                                                 int instance_size)
+    : instance_size_(instance_size),
+      inobject_property_count_(
+          (instance_size >> kPointerSizeLog2) -
+          initial_map.GetInObjectPropertiesStartInWords()) {}
+
+SlackTrackingPrediction
+CompilationDependencies::DependOnInitialMapInstanceSizePrediction(
+    const JSFunctionRef& function) {
+  MapRef initial_map = DependOnInitialMap(function);
+  int instance_size = function.InitialMapInstanceSizeWithMinSlack();
+  // Currently, we always install the prediction dependency. If this turns out
+  // to be too expensive, we can only install the dependency if slack
+  // tracking is active.
+  dependencies_.push_front(
+      new (zone_)
+          InitialMapInstanceSizePredictionDependency(function, instance_size));
+  DCHECK_LE(instance_size, function.initial_map().instance_size());
+  return SlackTrackingPrediction(initial_map, instance_size);
 }
 
 }  // namespace compiler

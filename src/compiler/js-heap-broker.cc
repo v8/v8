@@ -4,7 +4,6 @@
 
 #include "src/compiler/js-heap-broker.h"
 
-#include "src/compiler/compilation-dependencies.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
@@ -203,6 +202,8 @@ StringRef ObjectRef::TypeOf() const {
   return StringRef(broker(),
                    Object::TypeOf(broker()->isolate(), object<Object>()));
 }
+
+Isolate* ObjectRef::isolate() const { return broker()->isolate(); }
 
 base::Optional<ContextRef> ContextRef::previous() const {
   AllowHandleAllocation handle_allocation;
@@ -406,14 +407,12 @@ MapRef MapRef::AsElementsKind(ElementsKind kind) const {
                 Map::AsElementsKind(broker()->isolate(), object<Map>(), kind));
 }
 
-SlackTrackingResult JSFunctionRef::FinishSlackTracking() const {
+int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {
   AllowHandleDereference allow_handle_dereference;
   AllowHandleAllocation handle_allocation;
-  object<JSFunction>()->CompleteInobjectSlackTrackingIfActive();
-  int instance_size = object<JSFunction>()->initial_map()->instance_size();
-  int inobject_property_count =
-      object<JSFunction>()->initial_map()->GetInObjectProperties();
-  return SlackTrackingResult(instance_size, inobject_property_count);
+
+  return object<JSFunction>()->ComputeInstanceSizeWithMinSlack(
+      broker()->isolate());
 }
 
 base::Optional<ScriptContextTableRef::LookupResult>
@@ -753,6 +752,7 @@ HANDLE_ACCESSOR_C(Map, bool, is_stable)
 HANDLE_ACCESSOR_C(Map, ElementsKind, elements_kind)
 HANDLE_ACCESSOR_C(Map, InstanceType, instance_type)
 HANDLE_ACCESSOR_C(Map, int, GetInObjectProperties)
+HANDLE_ACCESSOR_C(Map, int, GetInObjectPropertiesStartInWords)
 HANDLE_ACCESSOR_C(Map, int, instance_size)
 HANDLE_ACCESSOR_C(Map, int, NumberOfOwnDescriptors)
 HANDLE_ACCESSOR(Map, Object, constructor_or_backpointer)

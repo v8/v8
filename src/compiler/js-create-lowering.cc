@@ -138,25 +138,22 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
     return NoChange();
   }
 
-  // Add a dependency on the {initial_map} to make sure that this code is
-  // deoptimized whenever the {initial_map} changes.
-  MapRef initial_map = dependencies()->DependOnInitialMap(original_constructor);
-
-  // Force completion of inobject slack tracking before
-  // generating code to finalize the instance size.
-  SlackTrackingResult slack_tracking_result =
-      original_constructor.FinishSlackTracking();
+  SlackTrackingPrediction slack_tracking_prediction =
+      dependencies()->DependOnInitialMapInstanceSizePrediction(
+          original_constructor);
+  MapRef initial_map = original_constructor.initial_map();
 
   // Emit code to allocate the JSObject instance for the
   // {original_constructor}.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(slack_tracking_result.instance_size);
+  a.Allocate(slack_tracking_prediction.instance_size());
   a.Store(AccessBuilder::ForMap(), initial_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSObjectElements(),
           jsgraph()->EmptyFixedArrayConstant());
-  for (int i = 0; i < slack_tracking_result.inobject_property_count; ++i) {
+  for (int i = 0; i < slack_tracking_prediction.inobject_property_count();
+       ++i) {
     a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
             jsgraph()->UndefinedConstant());
   }
@@ -417,14 +414,10 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
         closure_type.AsHeapConstant()->Ref().AsJSFunction();
     js_function.EnsureHasInitialMap();
 
-    // Force completion of inobject slack tracking before
-    // generating code to finalize the instance size.
-    SlackTrackingResult slack_tracking_result =
-        js_function.FinishSlackTracking();
+    SlackTrackingPrediction slack_tracking_prediction =
+        dependencies()->DependOnInitialMapInstanceSizePrediction(js_function);
 
-    // Add a dependency on the {initial_map} to make sure that this code is
-    // deoptimized whenever the {initial_map} changes.
-    MapRef initial_map = dependencies()->DependOnInitialMap(js_function);
+    MapRef initial_map = js_function.initial_map();
     DCHECK(initial_map.instance_type() == JS_GENERATOR_OBJECT_TYPE ||
            initial_map.instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
 
@@ -444,7 +437,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
 
     // Emit code to allocate the JS[Async]GeneratorObject instance.
     AllocationBuilder a(jsgraph(), effect, control);
-    a.Allocate(slack_tracking_result.instance_size);
+    a.Allocate(slack_tracking_prediction.instance_size());
     Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
     Node* undefined = jsgraph()->UndefinedConstant();
     a.Store(AccessBuilder::ForMap(), initial_map);
@@ -468,7 +461,8 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     }
 
     // Handle in-object properties, too.
-    for (int i = 0; i < slack_tracking_result.inobject_property_count; ++i) {
+    for (int i = 0; i < slack_tracking_prediction.inobject_property_count();
+         ++i) {
       a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
               undefined);
     }
@@ -480,9 +474,9 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
 
 // Constructs an array with a variable {length} when no upper bound
 // is known for the capacity.
-Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
-                                           MapRef initial_map,
-                                           PretenureFlag pretenure) {
+Reduction JSCreateLowering::ReduceNewArray(
+    Node* node, Node* length, MapRef initial_map, PretenureFlag pretenure,
+    const SlackTrackingPrediction& slack_tracking_prediction) {
   DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -510,12 +504,13 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
 
   // Perform the allocation of the actual JSArray object.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(initial_map.instance_size(), pretenure);
+  a.Allocate(slack_tracking_prediction.instance_size(), pretenure);
   a.Store(AccessBuilder::ForMap(), initial_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
   a.Store(AccessBuilder::ForJSArrayLength(initial_map.elements_kind()), length);
-  for (int i = 0; i < initial_map.GetInObjectProperties(); ++i) {
+  for (int i = 0; i < slack_tracking_prediction.inobject_property_count();
+       ++i) {
     a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
             jsgraph()->UndefinedConstant());
   }
@@ -526,9 +521,10 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
 
 // Constructs an array with a variable {length} when an actual
 // upper bound is known for the {capacity}.
-Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
-                                           int capacity, MapRef initial_map,
-                                           PretenureFlag pretenure) {
+Reduction JSCreateLowering::ReduceNewArray(
+    Node* node, Node* length, int capacity, MapRef initial_map,
+    PretenureFlag pretenure,
+    const SlackTrackingPrediction& slack_tracking_prediction) {
   DCHECK(node->opcode() == IrOpcode::kJSCreateArray ||
          node->opcode() == IrOpcode::kJSCreateEmptyLiteralArray);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -554,12 +550,13 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
 
   // Perform the allocation of the actual JSArray object.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(initial_map.instance_size(), pretenure);
+  a.Allocate(slack_tracking_prediction.instance_size(), pretenure);
   a.Store(AccessBuilder::ForMap(), initial_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
   a.Store(AccessBuilder::ForJSArrayLength(elements_kind), length);
-  for (int i = 0; i < initial_map.GetInObjectProperties(); ++i) {
+  for (int i = 0; i < slack_tracking_prediction.inobject_property_count();
+       ++i) {
     a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
             jsgraph()->UndefinedConstant());
   }
@@ -568,10 +565,10 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   return Changed(node);
 }
 
-Reduction JSCreateLowering::ReduceNewArray(Node* node,
-                                           std::vector<Node*> values,
-                                           MapRef initial_map,
-                                           PretenureFlag pretenure) {
+Reduction JSCreateLowering::ReduceNewArray(
+    Node* node, std::vector<Node*> values, MapRef initial_map,
+    PretenureFlag pretenure,
+    const SlackTrackingPrediction& slack_tracking_prediction) {
   DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -610,12 +607,13 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node,
 
   // Perform the allocation of the actual JSArray object.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(initial_map.instance_size(), pretenure);
+  a.Allocate(slack_tracking_prediction.instance_size(), pretenure);
   a.Store(AccessBuilder::ForMap(), initial_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
   a.Store(AccessBuilder::ForJSObjectElements(), elements);
   a.Store(AccessBuilder::ForJSArrayLength(elements_kind), length);
-  for (int i = 0; i < initial_map.GetInObjectProperties(); ++i) {
+  for (int i = 0; i < slack_tracking_prediction.inobject_property_count();
+       ++i) {
     a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
             jsgraph()->UndefinedConstant());
   }
@@ -715,14 +713,10 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
 
     // Check if we can inline the allocation.
     if (IsAllocationInlineable(constructor, original_constructor)) {
-      // Force completion of inobject slack tracking before
-      // generating code to finalize the instance size.
-      original_constructor.FinishSlackTracking();
-
-      // Add a dependency on the {initial_map} to make sure that this code is
-      // deoptimized whenever the {initial_map} changes.
-      MapRef initial_map =
-          dependencies()->DependOnInitialMap(original_constructor);
+      SlackTrackingPrediction slack_tracking_prediction =
+          dependencies()->DependOnInitialMapInstanceSizePrediction(
+              original_constructor);
+      MapRef initial_map = original_constructor.initial_map();
 
       // Tells whether we are protected by either the {site} or a
       // protector cell to do certain speculative optimizations.
@@ -742,7 +736,8 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       if (arity == 0) {
         Node* length = jsgraph()->ZeroConstant();
         int capacity = JSArray::kPreallocatedArrayElements;
-        return ReduceNewArray(node, length, capacity, initial_map, pretenure);
+        return ReduceNewArray(node, length, capacity, initial_map, pretenure,
+                              slack_tracking_prediction);
       } else if (arity == 1) {
         Node* length = NodeProperties::GetValueInput(node, 2);
         Type length_type = NodeProperties::GetType(length);
@@ -756,16 +751,18 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
                                  : PACKED_ELEMENTS);
           initial_map = initial_map.AsElementsKind(elements_kind);
           return ReduceNewArray(node, std::vector<Node*>{length}, initial_map,
-                                pretenure);
+                                pretenure, slack_tracking_prediction);
         }
         if (length_type.Is(Type::SignedSmall()) && length_type.Min() >= 0 &&
             length_type.Max() <= kElementLoopUnrollLimit &&
             length_type.Min() == length_type.Max()) {
           int capacity = static_cast<int>(length_type.Max());
-          return ReduceNewArray(node, length, capacity, initial_map, pretenure);
+          return ReduceNewArray(node, length, capacity, initial_map, pretenure,
+                                slack_tracking_prediction);
         }
         if (length_type.Maybe(Type::UnsignedSmall()) && can_inline_call) {
-          return ReduceNewArray(node, length, initial_map, pretenure);
+          return ReduceNewArray(node, length, initial_map, pretenure,
+                                slack_tracking_prediction);
         }
       } else if (arity <= JSArray::kInitialMaxFastElementArray) {
         // Gather the values to store into the newly created array.
@@ -812,7 +809,8 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
         }
         initial_map = initial_map.AsElementsKind(elements_kind);
 
-        return ReduceNewArray(node, values, initial_map, pretenure);
+        return ReduceNewArray(node, values, initial_map, pretenure,
+                              slack_tracking_prediction);
       }
     }
   }
@@ -1158,7 +1156,11 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
     PretenureFlag const pretenure = dependencies()->DependOnPretenureMode(site);
     dependencies()->DependOnElementsKind(site);
     Node* length = jsgraph()->ZeroConstant();
-    return ReduceNewArray(node, length, 0, initial_map, pretenure);
+    DCHECK(!initial_map.IsInobjectSlackTrackingInProgress());
+    SlackTrackingPrediction slack_tracking_prediction(
+        initial_map, initial_map.instance_size());
+    return ReduceNewArray(node, length, 0, initial_map, pretenure,
+                          slack_tracking_prediction);
   }
   return NoChange();
 }

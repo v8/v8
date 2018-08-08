@@ -3250,6 +3250,11 @@ class JSFunction: public JSObject {
   // Clears the optimization marker in the function's feedback vector.
   inline void ClearOptimizationMarker();
 
+  // If slack tracking is active, it computes instance size of the initial map
+  // with minimum permissible object slack.  If it is not active, it simply
+  // returns the initial map's instance size.
+  int ComputeInstanceSizeWithMinSlack(Isolate* isolate);
+
   // Completes inobject slack tracking on initial map if it is active.
   inline void CompleteInobjectSlackTrackingIfActive();
 
