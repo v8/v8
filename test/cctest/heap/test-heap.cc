@@ -3628,15 +3628,15 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
     int dependency_group_count = 0;
     DependentCode* dependency = site->dependent_code();
-    while (dependency != ReadOnlyRoots(heap).empty_fixed_array()) {
+    while (dependency != ReadOnlyRoots(heap).empty_weak_fixed_array()) {
       CHECK(dependency->group() ==
                 DependentCode::kAllocationSiteTransitionChangedGroup ||
             dependency->group() ==
                 DependentCode::kAllocationSiteTenuringChangedGroup);
       CHECK_EQ(1, dependency->count());
-      CHECK(dependency->object_at(0)->IsWeakCell());
+      CHECK(dependency->object_at(0)->IsWeakHeapObject());
       Code* function_bar =
-          Code::cast(WeakCell::cast(dependency->object_at(0))->value());
+          Code::cast(dependency->object_at(0)->ToWeakHeapObject());
       CHECK_EQ(bar_handle->code(), function_bar);
       dependency = dependency->next_link();
       dependency_group_count++;
@@ -3653,8 +3653,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
   // The site still exists because of our global handle, but the code is no
   // longer referred to by dependent_code().
-  CHECK(site->dependent_code()->object_at(0)->IsWeakCell() &&
-        WeakCell::cast(site->dependent_code()->object_at(0))->cleared());
+  CHECK(site->dependent_code()->object_at(0)->IsClearedWeakHeapObject());
 }
 
 void CheckNumberOfAllocations(Heap* heap, const char* source,

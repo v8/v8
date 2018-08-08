@@ -577,10 +577,10 @@ class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
   static const int kMaxLoopNestingMarker = 6;
 };
 
-// Dependent code is a singly linked list of fixed arrays. Each array contains
-// code objects in weak cells for one dependent group. The suffix of the array
-// can be filled with the undefined value if the number of codes is less than
-// the length of the array.
+// Dependent code is a singly linked list of weak fixed arrays. Each array
+// contains weak pointers to code objects for one dependent group. The suffix of
+// the array can be filled with the undefined value if the number of codes is
+// less than the length of the array.
 //
 // +------+-----------------+--------+--------+-----+--------+-----------+-----+
 // | next | count & group 1 | code 1 | code 2 | ... | code n | undefined | ... |
@@ -592,11 +592,11 @@ class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
 // +------+-----------------+--------+--------+-----+--------+-----------+-----+
 //    |
 //    V
-// empty_fixed_array()
+// empty_weak_fixed_array()
 //
-// The list of fixed arrays is ordered by dependency groups.
+// The list of weak fixed arrays is ordered by dependency groups.
 
-class DependentCode : public FixedArray {
+class DependentCode : public WeakFixedArray {
  public:
   DECL_CAST(DependentCode)
 
@@ -627,11 +627,11 @@ class DependentCode : public FixedArray {
   };
 
   // Register a code dependency of {cell} on {object}.
-  static void InstallDependency(Isolate* isolate, Handle<WeakCell> cell,
+  static void InstallDependency(Isolate* isolate, MaybeObjectHandle code,
                                 Handle<HeapObject> object,
                                 DependencyGroup group);
 
-  bool Contains(DependencyGroup group, WeakCell* code_cell);
+  bool Contains(DependencyGroup group, MaybeObject* code);
   bool IsEmpty(DependencyGroup group);
 
   void DeoptimizeDependentCodeGroup(Isolate* isolate, DependencyGroup group);
@@ -640,7 +640,7 @@ class DependentCode : public FixedArray {
 
   // The following low-level accessors are exposed only for tests.
   inline DependencyGroup group();
-  inline Object* object_at(int i);
+  inline MaybeObject* object_at(int i);
   inline int count();
   inline DependentCode* next_link();
 
@@ -648,18 +648,19 @@ class DependentCode : public FixedArray {
   static const char* DependencyGroupName(DependencyGroup group);
 
   // Get/Set {object}'s {DependentCode}.
-  static DependentCode* Get(Handle<HeapObject> object);
-  static void Set(Handle<HeapObject> object, Handle<DependentCode> dep);
+  static DependentCode* GetDependentCode(Handle<HeapObject> object);
+  static void SetDependentCode(Handle<HeapObject> object,
+                               Handle<DependentCode> dep);
 
   static Handle<DependentCode> New(Isolate* isolate, DependencyGroup group,
-                                   Handle<Object> object,
+                                   MaybeObjectHandle object,
                                    Handle<DependentCode> next);
   static Handle<DependentCode> EnsureSpace(Isolate* isolate,
                                            Handle<DependentCode> entries);
   static Handle<DependentCode> InsertWeakCode(Isolate* isolate,
                                               Handle<DependentCode> entries,
                                               DependencyGroup group,
-                                              Handle<WeakCell> code_cell);
+                                              MaybeObjectHandle code);
 
   // Compact by removing cleared weak cells and return true if there was
   // any cleared weak cell.
@@ -677,7 +678,7 @@ class DependentCode : public FixedArray {
 
   inline void set_next_link(DependentCode* next);
   inline void set_count(int value);
-  inline void set_object_at(int i, Object* object);
+  inline void set_object_at(int i, MaybeObject* object);
   inline void clear_at(int i);
   inline void copy(int from, int to);
 

@@ -15167,7 +15167,7 @@ void JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
   array->GetElementsAccessor()->SetLength(array, new_length);
 }
 
-DependentCode* DependentCode::Get(Handle<HeapObject> object) {
+DependentCode* DependentCode::GetDependentCode(Handle<HeapObject> object) {
   if (object->IsMap()) {
     return Handle<Map>::cast(object)->dependent_code();
   } else if (object->IsPropertyCell()) {
@@ -15178,7 +15178,8 @@ DependentCode* DependentCode::Get(Handle<HeapObject> object) {
   UNREACHABLE();
 }
 
-void DependentCode::Set(Handle<HeapObject> object, Handle<DependentCode> dep) {
+void DependentCode::SetDependentCode(Handle<HeapObject> object,
+                                     Handle<DependentCode> dep) {
   if (object->IsMap()) {
     Handle<Map>::cast(object)->set_dependent_code(*dep);
   } else if (object->IsPropertyCell()) {
@@ -15190,28 +15191,30 @@ void DependentCode::Set(Handle<HeapObject> object, Handle<DependentCode> dep) {
   }
 }
 
-void DependentCode::InstallDependency(Isolate* isolate, Handle<WeakCell> cell,
+void DependentCode::InstallDependency(Isolate* isolate, MaybeObjectHandle code,
                                       Handle<HeapObject> object,
                                       DependencyGroup group) {
-  Handle<DependentCode> old_deps(DependentCode::Get(object), isolate);
+  Handle<DependentCode> old_deps(DependentCode::GetDependentCode(object),
+                                 isolate);
   Handle<DependentCode> new_deps =
-      InsertWeakCode(isolate, old_deps, group, cell);
+      InsertWeakCode(isolate, old_deps, group, code);
   // Update the list head if necessary.
-  if (!new_deps.is_identical_to(old_deps)) DependentCode::Set(object, new_deps);
+  if (!new_deps.is_identical_to(old_deps))
+    DependentCode::SetDependentCode(object, new_deps);
 }
 
 Handle<DependentCode> DependentCode::InsertWeakCode(
     Isolate* isolate, Handle<DependentCode> entries, DependencyGroup group,
-    Handle<WeakCell> code_cell) {
+    MaybeObjectHandle code) {
   if (entries->length() == 0 || entries->group() > group) {
     // There is no such group.
-    return DependentCode::New(isolate, group, code_cell, entries);
+    return DependentCode::New(isolate, group, code, entries);
   }
   if (entries->group() < group) {
     // The group comes later in the list.
     Handle<DependentCode> old_next(entries->next_link(), isolate);
     Handle<DependentCode> new_next =
-        InsertWeakCode(isolate, old_next, group, code_cell);
+        InsertWeakCode(isolate, old_next, group, code);
     if (!old_next.is_identical_to(new_next)) {
       entries->set_next_link(*new_next);
     }
@@ -15221,24 +15224,24 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
   int count = entries->count();
   // Check for existing entry to avoid duplicates.
   for (int i = 0; i < count; i++) {
-    if (entries->object_at(i) == *code_cell) return entries;
+    if (entries->object_at(i) == *code) return entries;
   }
   if (entries->length() < kCodesStartIndex + count + 1) {
     entries = EnsureSpace(isolate, entries);
     // Count could have changed, reload it.
     count = entries->count();
   }
-  entries->set_object_at(count, *code_cell);
+  entries->set_object_at(count, *code);
   entries->set_count(count + 1);
   return entries;
 }
 
 Handle<DependentCode> DependentCode::New(Isolate* isolate,
                                          DependencyGroup group,
-                                         Handle<Object> object,
+                                         MaybeObjectHandle object,
                                          Handle<DependentCode> next) {
   Handle<DependentCode> result = Handle<DependentCode>::cast(
-      isolate->factory()->NewFixedArray(kCodesStartIndex + 1, TENURED));
+      isolate->factory()->NewWeakFixedArray(kCodesStartIndex + 1, TENURED));
   result->set_next_link(*next);
   result->set_flags(GroupField::encode(group) | CountField::encode(1));
   result->set_object_at(0, *object);
@@ -15251,7 +15254,7 @@ Handle<DependentCode> DependentCode::EnsureSpace(
   int capacity = kCodesStartIndex + DependentCode::Grow(entries->count());
   int grow_by = capacity - entries->length();
   return Handle<DependentCode>::cast(
-      isolate->factory()->CopyFixedArrayAndGrow(entries, grow_by, TENURED));
+      isolate->factory()->CopyWeakFixedArrayAndGrow(entries, grow_by, TENURED));
 }
 
 
@@ -15259,8 +15262,8 @@ bool DependentCode::Compact() {
   int old_count = count();
   int new_count = 0;
   for (int i = 0; i < old_count; i++) {
-    Object* obj = object_at(i);
-    if (!obj->IsWeakCell() || !WeakCell::cast(obj)->cleared()) {
+    MaybeObject* obj = object_at(i);
+    if (!obj->IsClearedWeakHeapObject()) {
       if (i != new_count) {
         copy(i, new_count);
       }
@@ -15274,20 +15277,19 @@ bool DependentCode::Compact() {
   return new_count < old_count;
 }
 
-
-bool DependentCode::Contains(DependencyGroup group, WeakCell* code_cell) {
+bool DependentCode::Contains(DependencyGroup group, MaybeObject* code) {
   if (this->length() == 0 || this->group() > group) {
     // There is no such group.
     return false;
   }
   if (this->group() < group) {
     // The group comes later in the list.
-    return next_link()->Contains(group, code_cell);
+    return next_link()->Contains(group, code);
   }
   DCHECK_EQ(group, this->group());
   int count = this->count();
   for (int i = 0; i < count; i++) {
-    if (object_at(i) == code_cell) return true;
+    if (object_at(i) == code) return true;
   }
   return false;
 }
@@ -15324,10 +15326,9 @@ bool DependentCode::MarkCodeForDeoptimization(
   bool marked = false;
   int count = this->count();
   for (int i = 0; i < count; i++) {
-    Object* obj = object_at(i);
-    WeakCell* cell = WeakCell::cast(obj);
-    if (cell->cleared()) continue;
-    Code* code = Code::cast(cell->value());
+    MaybeObject* obj = object_at(i);
+    if (obj->IsClearedWeakHeapObject()) continue;
+    Code* code = Code::cast(obj->ToWeakHeapObject());
     if (!code->marked_for_deoptimization()) {
       code->SetMarkedForDeoptimization(DependencyGroupName(group));
       marked = true;

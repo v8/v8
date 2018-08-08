@@ -17,7 +17,7 @@ CompilationDependencies::CompilationDependencies(Isolate* isolate, Zone* zone)
 class CompilationDependencies::Dependency : public ZoneObject {
  public:
   virtual bool IsValid() const = 0;
-  virtual void Install(Isolate* isolate, Handle<WeakCell> code) = 0;
+  virtual void Install(Isolate* isolate, MaybeObjectHandle code) = 0;
 };
 
 class InitialMapDependency final : public CompilationDependencies::Dependency {
@@ -36,7 +36,7 @@ class InitialMapDependency final : public CompilationDependencies::Dependency {
            function->initial_map() == *initial_map_.object<Map>();
   }
 
-  void Install(Isolate* isolate, Handle<WeakCell> code) override {
+  void Install(Isolate* isolate, MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(isolate, code, initial_map_.object<Map>(),
                                      DependentCode::kInitialMapChangedGroup);
@@ -55,7 +55,7 @@ class StableMapDependency final : public CompilationDependencies::Dependency {
 
   bool IsValid() const override { return map_.object<Map>()->is_stable(); }
 
-  void Install(Isolate* isolate, Handle<WeakCell> code) override {
+  void Install(Isolate* isolate, MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(isolate, code, map_.object<Map>(),
                                      DependentCode::kPrototypeCheckGroup);
@@ -73,7 +73,7 @@ class TransitionDependency final : public CompilationDependencies::Dependency {
 
   bool IsValid() const override { return !map_.object<Map>()->is_deprecated(); }
 
-  void Install(Isolate* isolate, Handle<WeakCell> code) override {
+  void Install(Isolate* isolate, MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(isolate, code, map_.object<Map>(),
                                      DependentCode::kTransitionGroup);
@@ -97,7 +97,7 @@ class PretenureModeDependency final
     return mode_ == site_.object<AllocationSite>()->GetPretenureMode();
   }
 
-  void Install(Isolate* isolate, Handle<WeakCell> code) override {
+  void Install(Isolate* isolate, MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(
         isolate, code, site_.object<AllocationSite>(),
@@ -127,7 +127,7 @@ class FieldTypeDependency final : public CompilationDependencies::Dependency {
     return *type == owner->instance_descriptors()->GetFieldType(descriptor_);
   }
 
-  void Install(Isolate* isolate, Handle<WeakCell> code) override {
+  void Install(Isolate* isolate, MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(isolate, code, owner_.object<Map>(),
                                      DependentCode::kFieldOwnerGroup);
@@ -157,7 +157,7 @@ class GlobalPropertyDependency final
            read_only_ == cell->property_details().IsReadOnly();
   }
 
-  void Install(Isolate* isolate, Handle<WeakCell> code) override {
+  void Install(Isolate* isolate, MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(isolate, code,
                                      cell_.object<PropertyCell>(),
@@ -181,7 +181,7 @@ class ProtectorDependency final : public CompilationDependencies::Dependency {
     return cell->value() == Smi::FromInt(Isolate::kProtectorValid);
   }
 
-  void Install(Isolate* isolate, Handle<WeakCell> code) override {
+  void Install(Isolate* isolate, MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(isolate, code,
                                      cell_.object<PropertyCell>(),
@@ -213,7 +213,7 @@ class ElementsKindDependency final
     return kind_ == kind;
   }
 
-  void Install(Isolate* isolate, Handle<WeakCell> code) override {
+  void Install(Isolate* isolate, MaybeObjectHandle code) override {
     SLOW_DCHECK(IsValid());
     DependentCode::InstallDependency(
         isolate, code, site_.object<AllocationSite>(),
@@ -304,7 +304,6 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
     return false;
   }
 
-  Handle<WeakCell> cell = Code::WeakCellFor(code);
   for (auto dep : dependencies_) {
     // Check each dependency's validity again right before installing it,
     // because a GC can trigger invalidation for some dependency kinds.
@@ -312,7 +311,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
       dependencies_.clear();
       return false;
     }
-    dep->Install(isolate, cell);
+    dep->Install(isolate, MaybeObjectHandle::Weak(code));
   }
   dependencies_.clear();
   return true;

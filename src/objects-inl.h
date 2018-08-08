@@ -347,9 +347,9 @@ bool HeapObject::IsTemplateList() const {
 }
 
 bool HeapObject::IsDependentCode() const {
-  if (!IsFixedArrayExact()) return false;
-  // There's actually no way to see the difference between a fixed array and
-  // a dependent codes array.
+  if (!IsWeakFixedArray()) return false;
+  // There's actually no way to see the difference between a weak fixed array
+  // and a dependent codes array.
   return true;
 }
 
@@ -1014,7 +1014,7 @@ void AllocationSite::Initialize() {
   set_pretenure_data(0);
   set_pretenure_create_count(0);
   set_dependent_code(
-      DependentCode::cast(GetReadOnlyRoots().empty_fixed_array()),
+      DependentCode::cast(GetReadOnlyRoots().empty_weak_fixed_array()),
       SKIP_WRITE_BARRIER);
 }
 

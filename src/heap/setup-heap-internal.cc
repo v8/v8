@@ -145,7 +145,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
 
 void Heap::FinalizePartialMap(Map* map) {
   ReadOnlyRoots roots(this);
-  map->set_dependent_code(DependentCode::cast(roots.empty_fixed_array()));
+  map->set_dependent_code(DependentCode::cast(roots.empty_weak_fixed_array()));
   map->set_raw_transitions(MaybeObject::FromSmi(Smi::kZero));
   map->set_instance_descriptors(roots.empty_descriptor_array());
   if (FLAG_unbox_double_fields) {
