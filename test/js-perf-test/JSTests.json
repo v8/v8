@@ -756,7 +756,11 @@
         {"name": "Array.slice(500,999)-dict"},
         {"name": "Array.slice(200,700)-dict"},
         {"name": "Array.slice(200,-300)-dict"},
-        {"name": "Array.slice(4,1)-dict"}
+        {"name": "Array.slice(4,1)-dict"},
+        {"name": "SmiCopyWithin"},
+        {"name": "StringCopyWithin"},
+        {"name": "SparseSmiCopyWithin"},
+        {"name": "SparseStringCopyWithin"}
       ]
     },
     {

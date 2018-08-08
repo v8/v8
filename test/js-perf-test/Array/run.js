@@ -77,6 +77,7 @@ load('of.js');
 load('join.js');
 load('to-string.js');
 load('slice.js');
+load('copy-within.js');
 
 var success = true;
 
