@@ -1135,7 +1135,6 @@ class LiftoffCompiler {
                                          uint32_t* offset) {
     LiftoffRegister addr = pinned.set(__ GetUnusedRegister(kGpReg));
     if (global->mutability && global->imported) {
-      DCHECK(FLAG_experimental_wasm_mut_global);
       LOAD_INSTANCE_FIELD(addr, ImportedMutableGlobals, kPointerLoadType);
       __ Load(addr, addr.gp(), no_reg, global->index * sizeof(Address),
               kPointerLoadType, pinned);
@@ -1851,9 +1850,11 @@ bool LiftoffCompilationUnit::ExecuteCompilation() {
       compiler::GetWasmCallDescriptor(&zone, wasm_unit_->func_body_.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, wasm_unit_->counters_->liftoff_compile_time());
+  WasmFeatures unused_detected_features;
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
-      &zone, module, wasm_unit_->func_body_, call_descriptor, wasm_unit_->env_,
-      &zone);
+      &zone, module, wasm_unit_->native_module_->enabled_features(),
+      &unused_detected_features, wasm_unit_->func_body_, call_descriptor,
+      wasm_unit_->env_, &zone);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();

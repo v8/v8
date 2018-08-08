@@ -2889,7 +2889,6 @@ void WasmGraphBuilder::GetGlobalBaseAndOffset(MachineType mem_type,
                                               Node** offset_node) {
   DCHECK_NOT_NULL(instance_node_);
   if (global.mutability && global.imported) {
-    DCHECK(FLAG_experimental_wasm_mut_global);
     if (imported_mutable_globals_ == nullptr) {
       // Load imported_mutable_globals_ from the instance object at runtime.
       imported_mutable_globals_ = graph()->NewNode(
@@ -5035,9 +5034,14 @@ SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
       new (mcgraph->zone()) SourcePositionTable(mcgraph->graph());
   WasmGraphBuilder builder(wasm_unit_->env_, mcgraph->zone(), mcgraph,
                            wasm_unit_->func_body_.sig, source_position_table);
-  graph_construction_result_ =
-      wasm::BuildTFGraph(wasm_unit_->wasm_engine_->allocator(), &builder,
-                         wasm_unit_->func_body_, node_origins);
+  // TODO(titzer): gather detected features into a per-module location
+  // in order to increment an embedder feature use count.
+  wasm::WasmFeatures unused_detected_features;
+  graph_construction_result_ = wasm::BuildTFGraph(
+      wasm_unit_->wasm_engine_->allocator(),
+      wasm_unit_->native_module_->enabled_features(), wasm_unit_->env_->module,
+      &builder, &unused_detected_features, wasm_unit_->func_body_,
+      node_origins);
   if (graph_construction_result_.failed()) {
     if (FLAG_trace_wasm_compiler) {
       StdoutStream{} << "Compilation failed: "

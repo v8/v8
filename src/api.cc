@@ -7738,9 +7738,11 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
     return MaybeLocal<WasmCompiledModule>();
   }
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
   i::MaybeHandle<i::JSObject> maybe_compiled =
       i_isolate->wasm_engine()->SyncCompile(
-          i_isolate, &thrower, i::wasm::ModuleWireBytes(start, start + length));
+          i_isolate, enabled_features, &thrower,
+          i::wasm::ModuleWireBytes(start, start + length));
   if (maybe_compiled.is_null()) return MaybeLocal<WasmCompiledModule>();
   return Local<WasmCompiledModule>::Cast(
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));
@@ -7787,8 +7789,9 @@ WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
   promise_.Reset(isolate, resolver->GetPromise());
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
   streaming_decoder_ = i_isolate->wasm_engine()->StartStreamingCompilation(
-      i_isolate, handle(i_isolate->context(), i_isolate),
+      i_isolate, enabled_features, handle(i_isolate->context(), i_isolate),
       base::make_unique<AsyncCompilationResolver>(isolate, GetPromise()));
 }
 

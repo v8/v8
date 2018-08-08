@@ -545,9 +545,11 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   if (!IsSupportedVersion(isolate, data)) {
     return {};
   }
+  // TODO(titzer): module features should be part of the serialization format.
+  WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
   ModuleResult decode_result = DecodeWasmModule(
-      wire_bytes.start(), wire_bytes.end(), false, i::wasm::kWasmOrigin,
-      isolate->counters(), isolate->allocator());
+      enabled_features, wire_bytes.start(), wire_bytes.end(), false,
+      i::wasm::kWasmOrigin, isolate->counters(), isolate->allocator());
   if (!decode_result.ok()) return {};
   CHECK_NOT_NULL(decode_result.val);
   WasmModule* module = decode_result.val.get();
@@ -563,8 +565,8 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   OwnedVector<uint8_t> wire_bytes_copy = OwnedVector<uint8_t>::Of(wire_bytes);
 
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, std::move(decode_result.val), env, std::move(wire_bytes_copy),
-      script, Handle<ByteArray>::null());
+      isolate, enabled_features, std::move(decode_result.val), env,
+      std::move(wire_bytes_copy), script, Handle<ByteArray>::null());
   NativeModule* native_module = module_object->native_module();
 
   if (FLAG_wasm_lazy_compilation) {

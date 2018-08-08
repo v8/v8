@@ -298,12 +298,13 @@ WasmCode::~WasmCode() {
   }
 }
 
-NativeModule::NativeModule(Isolate* isolate, bool can_request_more,
-                           VirtualMemory* code_space,
+NativeModule::NativeModule(Isolate* isolate, const WasmFeatures& enabled,
+                           bool can_request_more, VirtualMemory* code_space,
                            WasmCodeManager* code_manager,
                            std::shared_ptr<const WasmModule> module,
                            const ModuleEnv& env)
-    : module_(std::move(module)),
+    : enabled_features_(enabled),
+      module_(std::move(module)),
       compilation_state_(NewCompilationState(isolate, env)),
       free_code_space_({code_space->address(), code_space->end()}),
       wasm_code_manager_(code_manager),
@@ -853,8 +854,9 @@ bool WasmCodeManager::ShouldForceCriticalMemoryPressureNotification() {
 }
 
 std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
-    Isolate* isolate, size_t memory_estimate, bool can_request_more,
-    std::shared_ptr<const WasmModule> module, const ModuleEnv& env) {
+    Isolate* isolate, const WasmFeatures& enabled, size_t memory_estimate,
+    bool can_request_more, std::shared_ptr<const WasmModule> module,
+    const ModuleEnv& env) {
   if (ShouldForceCriticalMemoryPressureNotification()) {
     (reinterpret_cast<v8::Isolate*>(isolate))
         ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
@@ -868,8 +870,9 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     Address start = mem.address();
     size_t size = mem.size();
     Address end = mem.end();
-    std::unique_ptr<NativeModule> ret(new NativeModule(
-        isolate, can_request_more, &mem, this, std::move(module), env));
+    std::unique_ptr<NativeModule> ret(
+        new NativeModule(isolate, enabled, can_request_more, &mem, this,
+                         std::move(module), env));
     TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
                size);
     base::LockGuard<base::Mutex> lock(&native_modules_mutex_);

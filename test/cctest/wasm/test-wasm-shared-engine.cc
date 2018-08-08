@@ -187,8 +187,9 @@ void PumpMessageLoop(SharedEngineIsolate& isolate) {
 Handle<WasmInstanceObject> CompileAndInstantiateAsync(
     SharedEngineIsolate& isolate, ZoneBuffer* buffer) {
   Handle<Object> maybe_instance = handle(Smi::kZero, isolate.isolate());
+  auto enabled_features = WasmFeaturesFromIsolate(isolate.isolate());
   isolate.isolate()->wasm_engine()->AsyncCompile(
-      isolate.isolate(),
+      isolate.isolate(), enabled_features,
       base::make_unique<MockCompilationResolver>(isolate, &maybe_instance),
       ModuleWireBytes(buffer->begin(), buffer->end()), true);
   while (!maybe_instance->IsWasmInstanceObject()) PumpMessageLoop(isolate);

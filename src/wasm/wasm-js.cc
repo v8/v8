@@ -400,8 +400,9 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   // Asynchronous compilation handles copying wire bytes if necessary.
-  i_isolate->wasm_engine()->AsyncCompile(i_isolate, std::move(resolver), bytes,
-                                         is_shared);
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  i_isolate->wasm_engine()->AsyncCompile(i_isolate, enabled_features,
+                                         std::move(resolver), bytes, is_shared);
 }
 
 // WebAssembly.validate(bytes) -> bool
@@ -422,6 +423,7 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
   bool validated = false;
   if (is_shared) {
     // Make a copy of the wire bytes to avoid concurrent modification.
@@ -429,10 +431,12 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     memcpy(copy.get(), bytes.start(), bytes.length());
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
-    validated = i_isolate->wasm_engine()->SyncValidate(i_isolate, bytes_copy);
+    validated = i_isolate->wasm_engine()->SyncValidate(
+        i_isolate, enabled_features, bytes_copy);
   } else {
     // The wire bytes are not shared, OK to use them directly.
-    validated = i_isolate->wasm_engine()->SyncValidate(i_isolate, bytes);
+    validated = i_isolate->wasm_engine()->SyncValidate(i_isolate,
+                                                       enabled_features, bytes);
   }
 
   return_value.Set(Boolean::New(isolate, validated));
@@ -462,6 +466,7 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (thrower.error()) {
     return;
   }
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
   i::MaybeHandle<i::Object> module_obj;
   if (is_shared) {
     // Make a copy of the wire bytes to avoid concurrent modification.
@@ -469,12 +474,12 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
     memcpy(copy.get(), bytes.start(), bytes.length());
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
-    module_obj =
-        i_isolate->wasm_engine()->SyncCompile(i_isolate, &thrower, bytes_copy);
+    module_obj = i_isolate->wasm_engine()->SyncCompile(
+        i_isolate, enabled_features, &thrower, bytes_copy);
   } else {
     // The wire bytes are not shared, OK to use them directly.
-    module_obj =
-        i_isolate->wasm_engine()->SyncCompile(i_isolate, &thrower, bytes);
+    module_obj = i_isolate->wasm_engine()->SyncCompile(
+        i_isolate, enabled_features, &thrower, bytes);
   }
 
   if (module_obj.is_null()) return;
@@ -732,8 +737,10 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   // Asynchronous compilation handles copying wire bytes if necessary.
-  i_isolate->wasm_engine()->AsyncCompile(
-      i_isolate, std::move(compilation_resolver), bytes, is_shared);
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  i_isolate->wasm_engine()->AsyncCompile(i_isolate, enabled_features,
+                                         std::move(compilation_resolver), bytes,
+                                         is_shared);
 }
 
 bool GetIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
@@ -855,7 +862,8 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   bool is_shared_memory = false;
-  if (i::FLAG_experimental_wasm_threads) {
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+  if (enabled_features.threads) {
     // Shared property of descriptor
     Local<String> shared_key = v8_str(isolate, "shared");
     Maybe<bool> has_shared = descriptor->Has(context, shared_key);
@@ -1468,7 +1476,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
                         v8_str(isolate, "WebAssembly.Memory"), ro_attributes);
 
   // Setup Global
-  if (i::FLAG_experimental_wasm_mut_global) {
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(isolate);
+  if (enabled_features.mut_global) {
     Handle<JSFunction> global_constructor =
         InstallFunc(isolate, webassembly, "Global", WebAssemblyGlobal, 1);
     context->set_wasm_global_constructor(*global_constructor);

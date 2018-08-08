@@ -83,8 +83,7 @@ const char* SectionName(SectionCode code) {
     case kNameSectionCode:
       return kNameString;
     case kExceptionSectionCode:
-      if (FLAG_experimental_wasm_eh) return kExceptionString;
-      return kUnknownString;
+      return kExceptionString;
     default:
       return kUnknownString;
   }
@@ -247,13 +246,15 @@ class WasmSectionIterator {
 // The main logic for decoding the bytes of a module.
 class ModuleDecoderImpl : public Decoder {
  public:
-  explicit ModuleDecoderImpl(ModuleOrigin origin)
+  explicit ModuleDecoderImpl(const WasmFeatures& enabled, ModuleOrigin origin)
       : Decoder(nullptr, nullptr),
+        enabled_features_(enabled),
         origin_(FLAG_assume_asmjs_origin ? kAsmJsOrigin : origin) {}
 
-  ModuleDecoderImpl(const byte* module_start, const byte* module_end,
-                    ModuleOrigin origin)
+  ModuleDecoderImpl(const WasmFeatures& enabled, const byte* module_start,
+                    const byte* module_end, ModuleOrigin origin)
       : Decoder(module_start, module_end),
+        enabled_features_(enabled),
         origin_(FLAG_assume_asmjs_origin ? kAsmJsOrigin : origin) {
     if (end_ < start_) {
       error(start_, "end is less than start");
@@ -401,7 +402,7 @@ class ModuleDecoderImpl : public Decoder {
         DecodeNameSection();
         break;
       case kExceptionSectionCode:
-        if (FLAG_experimental_wasm_eh) {
+        if (enabled_features_.eh) {
           DecodeExceptionSection();
         } else {
           errorf(pc(), "unexpected section: %s", SectionName(section_code));
@@ -479,7 +480,7 @@ class ModuleDecoderImpl : public Decoder {
           WasmTable* table = &module_->tables.back();
           table->imported = true;
           ValueType type = consume_reference_type();
-          if (!FLAG_experimental_wasm_anyref) {
+          if (!enabled_features_.anyref) {
             if (type != kWasmAnyFunc) {
               error(pc_ - 1, "invalid table type");
               break;
@@ -512,7 +513,7 @@ class ModuleDecoderImpl : public Decoder {
           global->type = consume_value_type();
           global->mutability = consume_mutability();
           if (global->mutability) {
-            if (FLAG_experimental_wasm_mut_global) {
+            if (enabled_features_.mut_global) {
               module_->num_imported_mutable_globals++;
             } else {
               error("mutable globals cannot be imported");
@@ -556,7 +557,7 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeTableSection() {
     // TODO(ahaas): Set the correct limit to {kV8MaxWasmTables} once the
     // implementation of AnyRef landed.
-    uint32_t max_count = FLAG_experimental_wasm_anyref ? 10 : kV8MaxWasmTables;
+    uint32_t max_count = enabled_features_.anyref ? 10 : kV8MaxWasmTables;
     uint32_t table_count = consume_count("table count", max_count);
 
     for (uint32_t i = 0; ok() && i < table_count; i++) {
@@ -647,7 +648,7 @@ class ModuleDecoderImpl : public Decoder {
           WasmGlobal* global = nullptr;
           exp->index = consume_global_index(module_.get(), &global);
           if (global) {
-            if (!FLAG_experimental_wasm_mut_global && global->mutability) {
+            if (!enabled_features_.mut_global && global->mutability) {
               error("mutable globals cannot be exported");
             }
             global->exported = true;
@@ -710,7 +711,7 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; ok() && i < element_count; ++i) {
       const byte* pos = pc();
       uint32_t table_index = consume_u32v("table index");
-      if (!FLAG_experimental_wasm_anyref && table_index != 0) {
+      if (!enabled_features_.anyref && table_index != 0) {
         errorf(pos, "illegal table index %u != 0", table_index);
       }
       if (table_index >= module_->tables.size()) {
@@ -930,6 +931,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
  private:
+  const WasmFeatures enabled_features_;
   std::shared_ptr<WasmModule> module_;
   Counters* counters_ = nullptr;
   // The type section is the first section in a module.
@@ -948,7 +950,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   bool AddTable(WasmModule* module) {
-    if (FLAG_experimental_wasm_anyref) return true;
+    if (enabled_features_.anyref) return true;
     if (module->tables.size() > 0) {
       error("At most one table is supported");
       return false;
@@ -1021,7 +1023,7 @@ class ModuleDecoderImpl : public Decoder {
     for (WasmGlobal& global : module->globals) {
       byte size = ValueTypes::MemSize(ValueTypes::MachineTypeFor(global.type));
       if (global.mutability && global.imported) {
-        DCHECK(FLAG_experimental_wasm_mut_global);
+        DCHECK(enabled_features_.mut_global);
         global.index = num_imported_mutable_globals++;
       } else {
         offset = (offset + size - 1) & ~(size - 1);  // align
@@ -1053,7 +1055,9 @@ class ModuleDecoderImpl : public Decoder {
                                               wasm_decode, function_time);
 
       TimedHistogramScope wasm_decode_function_time_scope(time_counter);
-      result = VerifyWasmCode(allocator, module, body);
+      WasmFeatures unused_detected_features;
+      result = VerifyWasmCode(allocator, enabled_features_, module,
+                              &unused_detected_features, body);
     }
 
     if (result.failed()) {
@@ -1131,7 +1135,7 @@ class ModuleDecoderImpl : public Decoder {
     uint8_t flags = consume_u8("resizable limits flags");
     const byte* pos = pc();
     *has_shared_memory = false;
-    if (FLAG_experimental_wasm_threads) {
+    if (enabled_features_.threads) {
       if (flags & 0xFC) {
         errorf(pos - 1, "invalid memory limits flags");
       } else if (flags == 3) {
@@ -1249,7 +1253,7 @@ class ModuleDecoderImpl : public Decoder {
         break;
       }
       case kExprRefNull: {
-        if (FLAG_experimental_wasm_anyref) {
+        if (enabled_features_.anyref) {
           expr.kind = WasmInitExpr::kAnyRefConst;
           len = 0;
           break;
@@ -1298,13 +1302,13 @@ class ModuleDecoderImpl : public Decoder {
         if (origin_ == kWasmOrigin) {
           switch (t) {
             case kLocalS128:
-              if (FLAG_experimental_wasm_simd) return kWasmS128;
+              if (enabled_features_.simd) return kWasmS128;
               break;
             case kLocalAnyFunc:
-              if (FLAG_experimental_wasm_anyref) return kWasmAnyFunc;
+              if (enabled_features_.anyref) return kWasmAnyFunc;
               break;
             case kLocalAnyRef:
-              if (FLAG_experimental_wasm_anyref) return kWasmAnyRef;
+              if (enabled_features_.anyref) return kWasmAnyRef;
               break;
             default:
               break;
@@ -1323,7 +1327,7 @@ class ModuleDecoderImpl : public Decoder {
       case kLocalAnyFunc:
         return kWasmAnyFunc;
       case kLocalAnyRef:
-        if (!FLAG_experimental_wasm_anyref) {
+        if (!enabled_features_.anyref) {
           error(pc_ - 1,
                 "Invalid type. Set --experimental-wasm-anyref to use 'AnyRef'");
         }
@@ -1362,7 +1366,7 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t return_count = 0;
     if (has_return_values) {
       // parse return types
-      const size_t max_return_count = FLAG_experimental_wasm_mv
+      const size_t max_return_count = enabled_features_.mv
                                           ? kV8MaxWasmFunctionMultiReturns
                                           : kV8MaxWasmFunctionReturns;
       return_count = consume_count("return count", max_return_count);
@@ -1385,7 +1389,8 @@ class ModuleDecoderImpl : public Decoder {
   }
 };
 
-ModuleResult DecodeWasmModule(const byte* module_start, const byte* module_end,
+ModuleResult DecodeWasmModule(const WasmFeatures& enabled,
+                              const byte* module_start, const byte* module_end,
                               bool verify_functions, ModuleOrigin origin,
                               Counters* counters,
                               AccountingAllocator* allocator) {
@@ -1402,7 +1407,7 @@ ModuleResult DecodeWasmModule(const byte* module_start, const byte* module_end,
   size_counter->AddSample(static_cast<int>(size));
   // Signatures are stored in zone memory, which have the same lifetime
   // as the {module}.
-  ModuleDecoderImpl decoder(module_start, module_end, origin);
+  ModuleDecoderImpl decoder(enabled, module_start, module_end, origin);
   ModuleResult result =
       decoder.DecodeModule(counters, allocator, verify_functions);
   // TODO(bradnelson): Improve histogram handling of size_t.
@@ -1418,7 +1423,9 @@ ModuleResult DecodeWasmModule(const byte* module_start, const byte* module_end,
   return result;
 }
 
-ModuleDecoder::ModuleDecoder() = default;
+ModuleDecoder::ModuleDecoder(const WasmFeatures& enabled)
+    : enabled_features_(enabled) {}
+
 ModuleDecoder::~ModuleDecoder() = default;
 
 const std::shared_ptr<WasmModule>& ModuleDecoder::shared_module() const {
@@ -1429,7 +1436,7 @@ void ModuleDecoder::StartDecoding(Counters* counters,
                                   AccountingAllocator* allocator,
                                   ModuleOrigin origin) {
   DCHECK_NULL(impl_);
-  impl_.reset(new ModuleDecoderImpl(origin));
+  impl_.reset(new ModuleDecoderImpl(enabled_features_, origin));
   impl_->StartDecoding(counters, allocator);
 }
 
@@ -1481,21 +1488,24 @@ SectionCode ModuleDecoder::IdentifyUnknownSection(Decoder& decoder,
 
 bool ModuleDecoder::ok() { return impl_->ok(); }
 
-FunctionSig* DecodeWasmSignatureForTesting(Zone* zone, const byte* start,
+FunctionSig* DecodeWasmSignatureForTesting(const WasmFeatures& enabled,
+                                           Zone* zone, const byte* start,
                                            const byte* end) {
-  ModuleDecoderImpl decoder(start, end, kWasmOrigin);
+  ModuleDecoderImpl decoder(enabled, start, end, kWasmOrigin);
   return decoder.DecodeFunctionSignature(zone, start);
 }
 
-WasmInitExpr DecodeWasmInitExprForTesting(const byte* start, const byte* end) {
+WasmInitExpr DecodeWasmInitExprForTesting(const WasmFeatures& enabled,
+                                          const byte* start, const byte* end) {
   AccountingAllocator allocator;
-  ModuleDecoderImpl decoder(start, end, kWasmOrigin);
+  ModuleDecoderImpl decoder(enabled, start, end, kWasmOrigin);
   return decoder.DecodeInitExpr(start);
 }
 
 FunctionResult DecodeWasmFunctionForTesting(
-    Zone* zone, const ModuleWireBytes& wire_bytes, const WasmModule* module,
-    const byte* function_start, const byte* function_end, Counters* counters) {
+    const WasmFeatures& enabled, Zone* zone, const ModuleWireBytes& wire_bytes,
+    const WasmModule* module, const byte* function_start,
+    const byte* function_end, Counters* counters) {
   size_t size = function_end - function_start;
   if (function_start > function_end)
     return FunctionResult::Error("start > end");
@@ -1505,7 +1515,7 @@ FunctionResult DecodeWasmFunctionForTesting(
   size_histogram->AddSample(static_cast<int>(size));
   if (size > kV8MaxWasmFunctionSize)
     return FunctionResult::Error("size > maximum function size: %zu", size);
-  ModuleDecoderImpl decoder(function_start, function_end, kWasmOrigin);
+  ModuleDecoderImpl decoder(enabled, function_start, function_end, kWasmOrigin);
   decoder.SetCounters(counters);
   return decoder.DecodeSingleFunction(zone, wire_bytes, module,
                                       base::make_unique<WasmFunction>());

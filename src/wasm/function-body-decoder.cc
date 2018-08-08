@@ -809,10 +809,10 @@ class WasmGraphBuildingInterface {
 
 }  // namespace
 
-bool DecodeLocalDecls(BodyLocalDecls* decls, const byte* start,
-                      const byte* end) {
+bool DecodeLocalDecls(const WasmFeatures& enabled, BodyLocalDecls* decls,
+                      const byte* start, const byte* end) {
   Decoder decoder(start, end);
-  if (WasmDecoder<Decoder::kValidate>::DecodeLocals(&decoder, nullptr,
+  if (WasmDecoder<Decoder::kValidate>::DecodeLocals(enabled, &decoder, nullptr,
                                                     &decls->type_list)) {
     DCHECK(decoder.ok());
     decls->encoded_size = decoder.pc_offset();
@@ -825,7 +825,7 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
                                    BodyLocalDecls* decls)
     : Decoder(start, end) {
   if (decls != nullptr) {
-    if (DecodeLocalDecls(decls, start, end)) {
+    if (DecodeLocalDecls(kAllWasmFeatures, decls, start, end)) {
       pc_ += decls->encoded_size;
       if (pc_ > end_) pc_ = end_;
     }
@@ -833,20 +833,24 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
 }
 
 DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
-                            const WasmModule* module, FunctionBody& body) {
+                            const WasmFeatures& enabled,
+                            const WasmModule* module, WasmFeatures* detected,
+                            FunctionBody& body) {
   Zone zone(allocator, ZONE_NAME);
-  WasmFullDecoder<Decoder::kValidate, EmptyInterface> decoder(&zone, module,
-                                                              body);
+  WasmFullDecoder<Decoder::kValidate, EmptyInterface> decoder(
+      &zone, module, enabled, detected, body);
   decoder.Decode();
   return decoder.toResult(nullptr);
 }
 
-DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
-                          FunctionBody& body,
+DecodeResult BuildTFGraph(AccountingAllocator* allocator,
+                          const WasmFeatures& enabled,
+                          const wasm::WasmModule* module, TFBuilder* builder,
+                          WasmFeatures* detected, FunctionBody& body,
                           compiler::NodeOriginTable* node_origins) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::kValidate, WasmGraphBuildingInterface> decoder(
-      &zone, builder->module(), body, builder);
+      &zone, module, enabled, detected, body, builder);
   if (node_origins) {
     builder->AddBytecodePositionDecorator(node_origins, &decoder);
   }
@@ -865,7 +869,9 @@ unsigned OpcodeLength(const byte* pc, const byte* end) {
 std::pair<uint32_t, uint32_t> StackEffect(const WasmModule* module,
                                           FunctionSig* sig, const byte* pc,
                                           const byte* end) {
-  WasmDecoder<Decoder::kNoValidate> decoder(module, sig, pc, end);
+  WasmFeatures unused_detected_features;
+  WasmDecoder<Decoder::kNoValidate> decoder(
+      module, kAllWasmFeatures, &unused_detected_features, sig, pc, end);
   return decoder.StackEffect(pc);
 }
 
@@ -900,8 +906,10 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
                       const WasmModule* module, PrintLocals print_locals,
                       std::ostream& os, std::vector<int>* line_numbers) {
   Zone zone(allocator, ZONE_NAME);
-  WasmDecoder<Decoder::kNoValidate> decoder(module, body.sig, body.start,
-                                            body.end);
+  WasmFeatures unused_detected_features;
+  WasmDecoder<Decoder::kNoValidate> decoder(module, kAllWasmFeatures,
+                                            &unused_detected_features, body.sig,
+                                            body.start, body.end);
   int line_nr = 0;
   constexpr int kNoByteCode = -1;
 
@@ -999,7 +1007,8 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprIf:
       case kExprBlock:
       case kExprTry: {
-        BlockTypeImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+                                                     i.pc());
         os << "   // @" << i.pc_offset();
         if (decoder.Complete(imm)) {
           for (unsigned i = 0; i < imm.out_arity(); i++) {

@@ -147,9 +147,10 @@ class WasmSerializationTest {
       HandleScope scope(serialization_isolate);
       testing::SetupIsolateForWasmModule(serialization_isolate);
 
+      auto enabled_features = WasmFeaturesFromIsolate(serialization_isolate);
       MaybeHandle<WasmModuleObject> maybe_module_object =
           serialization_isolate->wasm_engine()->SyncCompile(
-              serialization_isolate, &thrower,
+              serialization_isolate, enabled_features, &thrower,
               ModuleWireBytes(buffer.begin(), buffer.end()));
       Handle<WasmModuleObject> module_object =
           maybe_module_object.ToHandleChecked();
@@ -291,9 +292,10 @@ void TestTransferrableWasmModules(bool should_share) {
     Isolate* from_i_isolate = reinterpret_cast<Isolate*>(from_isolate);
     testing::SetupIsolateForWasmModule(from_i_isolate);
     ErrorThrower thrower(from_i_isolate, "TestTransferrableWasmModules");
+    auto enabled_features = WasmFeaturesFromIsolate(from_i_isolate);
     MaybeHandle<WasmModuleObject> maybe_module_object =
         from_i_isolate->wasm_engine()->SyncCompile(
-            from_i_isolate, &thrower,
+            from_i_isolate, enabled_features, &thrower,
             ModuleWireBytes(buffer.begin(), buffer.end()));
     Handle<WasmModuleObject> module_object =
         maybe_module_object.ToHandleChecked();

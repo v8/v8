@@ -153,8 +153,9 @@ std::ostream& operator<<(std::ostream& os, const PrintName& name) {
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
   constexpr bool kVerifyFunctions = false;
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(isolate);
   ModuleResult module_res = DecodeWasmModule(
-      wire_bytes.start(), wire_bytes.end(), kVerifyFunctions,
+      enabled_features, wire_bytes.start(), wire_bytes.end(), kVerifyFunctions,
       ModuleOrigin::kWasmOrigin, isolate->counters(), isolate->allocator());
   CHECK(module_res.ok());
   WasmModule* module = module_res.val.get();
@@ -181,7 +182,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       os << ", undefined";
     }
     os << ", " << (module->mem_export ? "true" : "false");
-    if (FLAG_experimental_wasm_threads && module->has_shared_memory) {
+    if (module->has_shared_memory) {
       os << ", shared";
     }
     os << ");\n";
@@ -208,7 +209,8 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
     // Add locals.
     BodyLocalDecls decls(&tmp_zone);
-    DecodeLocalDecls(&decls, func_code.start(), func_code.end());
+    DecodeLocalDecls(enabled_features, &decls, func_code.start(),
+                     func_code.end());
     if (!decls.type_list.empty()) {
       os << "    ";
       for (size_t pos = 0, count = 1, locals = decls.type_list.size();
@@ -284,6 +286,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
   // Compile with Turbofan here. Liftoff will be tested later.
+  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
   MaybeHandle<WasmModuleObject> compiled_module;
   {
     // Explicitly enable Liftoff, disable tiering and set the tier_mask. This
@@ -292,7 +295,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
     FlagScope<bool> no_tier_up(&FLAG_wasm_tier_up, false);
     FlagScope<int> tier_mask_scope(&FLAG_wasm_tier_mask_for_testing, tier_mask);
     compiled_module = i_isolate->wasm_engine()->SyncCompile(
-        i_isolate, &interpreter_thrower, wire_bytes);
+        i_isolate, enabled_features, &interpreter_thrower, wire_bytes);
   }
   bool compiles = !compiled_module.is_null();
 
@@ -300,8 +303,8 @@ int WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
     GenerateTestCase(i_isolate, wire_bytes, compiles);
   }
 
-  bool validates =
-      i_isolate->wasm_engine()->SyncValidate(i_isolate, wire_bytes);
+  bool validates = i_isolate->wasm_engine()->SyncValidate(
+      i_isolate, enabled_features, wire_bytes);
 
   CHECK_EQ(compiles, validates);
   CHECK_IMPLIES(require_valid, validates);

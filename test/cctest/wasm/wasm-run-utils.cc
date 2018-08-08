@@ -20,6 +20,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     : test_module_(std::make_shared<WasmModule>()),
       test_module_ptr_(test_module_.get()),
       isolate_(CcTest::InitIsolateOnce()),
+      enabled_features_(WasmFeaturesFromIsolate(isolate_)),
       execution_mode_(mode),
       runtime_exception_support_(exception_support),
       lower_simd_(lower_simd) {
@@ -213,8 +214,9 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
       isolate_->factory()->NewScript(isolate_->factory()->empty_string());
   script->set_type(Script::TYPE_WASM);
   ModuleEnv env = CreateModuleEnv();
-  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate_, test_module_, env, {}, script, Handle<ByteArray>::null());
+  Handle<WasmModuleObject> module_object =
+      WasmModuleObject::New(isolate_, enabled_features_, test_module_, env, {},
+                            script, Handle<ByteArray>::null());
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
   // interpreter when we get a memory. We do have globals, though.
@@ -229,14 +231,18 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
 void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
                                   Zone* zone, FunctionSig* sig,
                                   const byte* start, const byte* end) {
+  WasmFeatures unused_detected_features;
+  FunctionBody body(sig, 0, start, end);
   DecodeResult result =
-      BuildTFGraph(zone->allocator(), builder, sig, start, end);
+      BuildTFGraph(zone->allocator(), kAllWasmFeatures, nullptr, builder,
+                   &unused_detected_features, body, nullptr);
   if (result.failed()) {
 #ifdef DEBUG
     if (!FLAG_trace_wasm_decoder) {
       // Retry the compilation with the tracing flag on, to help in debugging.
       FLAG_trace_wasm_decoder = true;
-      result = BuildTFGraph(zone->allocator(), builder, sig, start, end);
+      result = BuildTFGraph(zone->allocator(), kAllWasmFeatures, nullptr,
+                            builder, &unused_detected_features, body, nullptr);
     }
 #endif
 

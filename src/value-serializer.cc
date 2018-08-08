@@ -522,11 +522,13 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
         return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
       }
       break;
-    case WASM_MEMORY_TYPE:
-      if (FLAG_experimental_wasm_threads) {
+    case WASM_MEMORY_TYPE: {
+      auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
+      if (enabled_features.threads) {
         return WriteWasmMemory(Handle<WasmMemoryObject>::cast(receiver));
       }
       break;
+    }
     default:
       break;
   }
@@ -1805,8 +1807,11 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
       wasm::DeserializeNativeModule(isolate_, compiled_bytes, wire_bytes);
   if (result.is_null()) {
     wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
+    // TODO(titzer): are the current features appropriate for deserializing?
+    auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
     result = isolate_->wasm_engine()->SyncCompile(
-        isolate_, &thrower, wasm::ModuleWireBytes(wire_bytes));
+        isolate_, enabled_features, &thrower,
+        wasm::ModuleWireBytes(wire_bytes));
   }
   uint32_t id = next_id_++;
   if (!result.is_null()) {
@@ -1818,7 +1823,8 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
 MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   uint32_t id = next_id_++;
 
-  if (!FLAG_experimental_wasm_threads) {
+  auto enabled_features = wasm::WasmFeaturesFromIsolate(isolate_);
+  if (!enabled_features.threads) {
     return MaybeHandle<WasmMemoryObject>();
   }
 

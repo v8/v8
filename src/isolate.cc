@@ -1124,6 +1124,8 @@ void ReportBootstrappingException(Handle<Object> exception,
 }
 
 bool Isolate::is_catchable_by_wasm(Object* exception) {
+  // TODO(titzer): thread WASM features here, or just remove this check?
+  if (!FLAG_experimental_wasm_eh) return false;
   if (!is_catchable_by_javascript(exception) || !exception->IsJSError())
     return false;
   HandleScope scope(this);
@@ -1307,7 +1309,7 @@ Object* Isolate::UnwindAndFindHandler() {
           trap_handler::ClearThreadInWasm();
         }
 
-        if (!FLAG_experimental_wasm_eh || !is_catchable_by_wasm(exception)) {
+        if (!is_catchable_by_wasm(exception)) {
           break;
         }
         int stack_slots = 0;  // Will contain stack slot count of frame.

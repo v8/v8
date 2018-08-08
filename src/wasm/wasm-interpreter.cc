@@ -786,7 +786,8 @@ class SideTable : public ZoneObject {
         case kExprBlock:
         case kExprLoop: {
           bool is_loop = opcode == kExprLoop;
-          BlockTypeImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+          BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+                                                       i.pc());
           if (imm.type == kWasmVar) {
             imm.sig = module->signatures[imm.sig_index];
           }
@@ -801,7 +802,8 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprIf: {
-          BlockTypeImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+          BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+                                                       i.pc());
           if (imm.type == kWasmVar) {
             imm.sig = module->signatures[imm.sig_index];
           }
@@ -1664,7 +1666,6 @@ class ThreadImpl {
 
   byte* GetGlobalPtr(const WasmGlobal* global) {
     if (global->mutability && global->imported) {
-      DCHECK(FLAG_experimental_wasm_mut_global);
       return reinterpret_cast<byte*>(
           instance_object_->imported_mutable_globals()[global->index]);
     } else {
@@ -2133,17 +2134,20 @@ class ThreadImpl {
         case kExprNop:
           break;
         case kExprBlock: {
-          BlockTypeImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures,
+                                                       &decoder, code->at(pc));
           len = 1 + imm.length;
           break;
         }
         case kExprLoop: {
-          BlockTypeImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures,
+                                                       &decoder, code->at(pc));
           len = 1 + imm.length;
           break;
         }
         case kExprIf: {
-          BlockTypeImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures,
+                                                       &decoder, code->at(pc));
           WasmValue cond = Pop();
           bool is_true = cond.to<uint32_t>() != 0;
           if (is_true) {

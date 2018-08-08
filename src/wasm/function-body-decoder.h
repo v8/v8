@@ -25,8 +25,10 @@ class WasmGraphBuilder;
 
 namespace wasm {
 
-typedef compiler::WasmGraphBuilder TFBuilder;
 struct WasmModule;  // forward declaration of module interface.
+struct WasmFeatures;
+
+typedef compiler::WasmGraphBuilder TFBuilder;
 
 // A wrapper around the signature and bytes of a function.
 struct FunctionBody {
@@ -41,10 +43,14 @@ struct FunctionBody {
 };
 
 V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
+                                              const WasmFeatures& enabled,
                                               const WasmModule* module,
+                                              WasmFeatures* detected,
                                               FunctionBody& body);
 
-DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
+DecodeResult BuildTFGraph(AccountingAllocator* allocator,
+                          const WasmFeatures& enabled, const WasmModule* module,
+                          TFBuilder* builder, WasmFeatures* detected,
                           FunctionBody& body,
                           compiler::NodeOriginTable* node_origins);
 enum PrintLocals { kPrintLocals, kOmitLocals };
@@ -61,20 +67,6 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 // A simplified form of AST printing, e.g. from a debugger.
 void PrintRawWasmCode(const byte* start, const byte* end);
 
-inline DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
-                                   const WasmModule* module, FunctionSig* sig,
-                                   const byte* start, const byte* end) {
-  FunctionBody body(sig, 0, start, end);
-  return VerifyWasmCode(allocator, module, body);
-}
-
-inline DecodeResult BuildTFGraph(AccountingAllocator* allocator,
-                                 TFBuilder* builder, FunctionSig* sig,
-                                 const byte* start, const byte* end) {
-  FunctionBody body(sig, 0, start, end);
-  return BuildTFGraph(allocator, builder, body, nullptr);
-}
-
 struct BodyLocalDecls {
   // The size of the encoded declarations.
   uint32_t encoded_size = 0;  // size of encoded declarations
@@ -84,7 +76,8 @@ struct BodyLocalDecls {
   explicit BodyLocalDecls(Zone* zone) : type_list(zone) {}
 };
 
-V8_EXPORT_PRIVATE bool DecodeLocalDecls(BodyLocalDecls* decls,
+V8_EXPORT_PRIVATE bool DecodeLocalDecls(const WasmFeatures& enabled,
+                                        BodyLocalDecls* decls,
                                         const byte* start, const byte* end);
 
 V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone,

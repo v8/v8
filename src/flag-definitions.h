@@ -596,22 +596,18 @@ DEFINE_DEBUG_BOOL(dump_wasm_module, false, "dump wasm module bytes")
 DEFINE_STRING(dump_wasm_module_path, nullptr,
               "directory to dump wasm modules to")
 
-DEFINE_BOOL(experimental_wasm_simd, false,
-            "enable prototype simd opcodes for wasm")
-DEFINE_BOOL(experimental_wasm_eh, false,
-            "enable prototype exception handling opcodes for wasm")
-DEFINE_BOOL(experimental_wasm_mv, false,
-            "enable prototype multi-value support for wasm")
-DEFINE_BOOL(experimental_wasm_threads, false,
-            "enable prototype threads for wasm")
-DEFINE_BOOL(experimental_wasm_sat_f2i_conversions, false,
-            "enable non-trapping float-to-int conversions for wasm")
-DEFINE_BOOL(experimental_wasm_se, true,
-            "enable prototype sign extension opcodes for wasm")
-DEFINE_BOOL(experimental_wasm_anyref, false,
-            "enable prototype anyref support for wasm")
-DEFINE_BOOL(experimental_wasm_mut_global, true,
-            "enable prototype import/export mutable global support for wasm")
+// Declare command-line flags for WASM features. Warning: avoid using these
+// flags directly in the implementation. Instead accept wasm::WasmFeatures
+// for configurability.
+#include "src/wasm/wasm-feature-flags.h"
+
+#define SPACE
+#define DECL_WASM_FLAG(feat, desc, val)      \
+  DEFINE_BOOL(experimental_wasm_##feat, val, \
+              "enable prototype " desc " for wasm")
+FOREACH_WASM_FEATURE_FLAG(DECL_WASM_FLAG, SPACE)
+#undef DECL_WASM_FLAG
+#undef SPACE
 
 DEFINE_BOOL(wasm_opt, false, "enable wasm optimization")
 DEFINE_BOOL(wasm_no_bounds_checks, false,

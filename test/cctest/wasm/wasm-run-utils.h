@@ -225,6 +225,7 @@ class TestingModuleBuilder {
   std::shared_ptr<WasmModule> test_module_;
   WasmModule* test_module_ptr_;
   Isolate* isolate_;
+  WasmFeatures enabled_features_;
   uint32_t global_offset = 0;
   byte* mem_start_ = nullptr;
   uint32_t mem_size_ = 0;

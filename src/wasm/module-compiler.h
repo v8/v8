@@ -11,6 +11,7 @@
 
 #include "src/cancelable-task.h"
 #include "src/globals.h"
+#include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {
@@ -48,7 +49,7 @@ std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
 ModuleEnv* GetModuleEnv(CompilationState* compilation_state);
 
 MaybeHandle<WasmModuleObject> CompileToModuleObject(
-    Isolate* isolate, ErrorThrower* thrower,
+    Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
     Handle<Script> asm_js_script, Vector<const byte> asm_js_offset_table_bytes);
 
@@ -77,9 +78,10 @@ Address CompileLazy(Isolate*, NativeModule*, uint32_t func_index);
 // TODO(wasm): factor out common parts of this with the synchronous pipeline.
 class AsyncCompileJob {
  public:
-  explicit AsyncCompileJob(Isolate* isolate, std::unique_ptr<byte[]> bytes_copy,
-                           size_t length, Handle<Context> context,
-                           std::unique_ptr<CompilationResultResolver> resolver);
+  AsyncCompileJob(Isolate* isolate, const WasmFeatures& enabled_features,
+                  std::unique_ptr<byte[]> bytes_copy, size_t length,
+                  Handle<Context> context,
+                  std::unique_ptr<CompilationResultResolver> resolver);
   ~AsyncCompileJob();
 
   void Start();
@@ -138,6 +140,7 @@ class AsyncCompileJob {
   friend class AsyncStreamingProcessor;
 
   Isolate* isolate_;
+  const WasmFeatures enabled_features_;
   const std::shared_ptr<Counters> async_counters_;
   // Copy of the module wire bytes, moved into the {native_module_} on it's
   // creation.

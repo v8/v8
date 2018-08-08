@@ -30,6 +30,7 @@ class SignatureMap;
 class WireBytesRef;
 class WasmInterpreter;
 using FunctionSig = Signature<ValueType>;
+struct WasmFeatures;
 }  // namespace wasm
 
 class BreakPoint;
@@ -133,9 +134,10 @@ class WasmModuleObject : public JSObject {
 
   // Creates a new {WasmModuleObject} with a new {NativeModule} underneath.
   static Handle<WasmModuleObject> New(
-      Isolate* isolate, std::shared_ptr<const wasm::WasmModule> module,
-      wasm::ModuleEnv& env, OwnedVector<const uint8_t> wire_bytes,
-      Handle<Script> script, Handle<ByteArray> asm_js_offset_table);
+      Isolate* isolate, const wasm::WasmFeatures& enabled,
+      std::shared_ptr<const wasm::WasmModule> module, wasm::ModuleEnv& env,
+      OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
+      Handle<ByteArray> asm_js_offset_table);
 
   // Creates a new {WasmModuleObject} for an existing {NativeModule} that is
   // reference counted and might be shared between multiple Isolates.

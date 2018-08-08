@@ -223,6 +223,7 @@ class InstanceBuilder {
   };
 
   Isolate* isolate_;
+  const WasmFeatures enabled_;
   const WasmModule* const module_;
   ErrorThrower* thrower_;
   Handle<WasmModuleObject> module_object_;
@@ -688,7 +689,10 @@ void ValidateSequentially(Isolate* isolate, NativeModule* native_module,
                               wasm_decode, function_time);
 
       TimedHistogramScope wasm_decode_function_time_scope(time_counter);
-      result = VerifyWasmCode(isolate->allocator(), module, body);
+      WasmFeatures detected;
+      result = VerifyWasmCode(isolate->allocator(),
+                              native_module->enabled_features(), module,
+                              &detected, body);
     }
     if (result.failed()) {
       TruncatedUserString<> name(wire_bytes.GetName(&func, module));
@@ -840,7 +844,7 @@ class BackgroundCompileTask : public CancelableTask {
 }  // namespace
 
 MaybeHandle<WasmModuleObject> CompileToModuleObject(
-    Isolate* isolate, ErrorThrower* thrower,
+    Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
     Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
@@ -874,7 +878,6 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   // TODO(clemensh): For the same module (same bytes / same hash), we should
   // only have one WasmModuleObject. Otherwise, we might only set
   // breakpoints on a (potentially empty) subset of the instances.
-
   ModuleEnv env = CreateDefaultModuleEnv(wasm_module);
 
   // Create the compiled module object and populate with compiled functions
@@ -882,8 +885,8 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, std::move(module), env, std::move(wire_bytes_copy), script,
-      asm_js_offset_table);
+      isolate, enabled, std::move(module), env, std::move(wire_bytes_copy),
+      script, asm_js_offset_table);
   CompileNativeModule(isolate, thrower, module_object, wasm_module, &env);
   if (thrower->error()) return {};
 
@@ -910,6 +913,7 @@ InstanceBuilder::InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
                                  MaybeHandle<JSReceiver> ffi,
                                  MaybeHandle<JSArrayBuffer> memory)
     : isolate_(isolate),
+      enabled_(module_object->native_module()->enabled_features()),
       module_(module_object->module()),
       thrower_(thrower),
       module_object_(module_object),
@@ -965,7 +969,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
                        memory->backing_store() == nullptr ||
                        // TODO(836800) Remove once is_wasm_memory transfers over
                        // post-message.
-                       (FLAG_experimental_wasm_threads && memory->is_shared()));
+                       (enabled_.threads && memory->is_shared()));
   } else if (initial_pages > 0 || use_trap_handler()) {
     // We need to unconditionally create a guard region if using trap handlers,
     // even when the size is zero to prevent null-dereference issues
@@ -1047,7 +1051,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Set up the array of references to imported globals' array buffers.
   //--------------------------------------------------------------------------
   if (module_->num_imported_mutable_globals > 0) {
-    DCHECK(FLAG_experimental_wasm_mut_global);
     // TODO(binji): This allocates one slot for each mutable global, which is
     // more than required if multiple globals are imported from the same
     // module.
@@ -1632,8 +1635,8 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
 
         // The mutable-global proposal allows importing i64 values, but only if
         // they are passed as a WebAssembly.Global object.
-        if (global.type == kWasmI64 && !(FLAG_experimental_wasm_mut_global &&
-                                         value->IsWasmGlobalObject())) {
+        if (global.type == kWasmI64 &&
+            !(enabled_.mut_global && value->IsWasmGlobalObject())) {
           ReportLinkError("global import cannot have type i64", index,
                           module_name, import_name);
           return -1;
@@ -1654,7 +1657,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
             }
           }
         }
-        if (FLAG_experimental_wasm_mut_global) {
+        if (enabled_.mut_global) {
           if (value->IsWasmGlobalObject()) {
             auto global_object = Handle<WasmGlobalObject>::cast(value);
             if (global_object->type() != global.type) {
@@ -1729,7 +1732,6 @@ T* InstanceBuilder::GetRawGlobalPtr(const WasmGlobal& global) {
 void InstanceBuilder::InitGlobals() {
   for (auto global : module_->globals) {
     if (global.mutability && global.imported) {
-      DCHECK(FLAG_experimental_wasm_mut_global);
       continue;
     }
 
@@ -1775,8 +1777,7 @@ Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t num_pages) {
     thrower_->RangeError("Out of memory: wasm memory too large");
     return Handle<JSArrayBuffer>::null();
   }
-  const bool is_shared_memory =
-      module_->has_shared_memory && i::FLAG_experimental_wasm_threads;
+  const bool is_shared_memory = module_->has_shared_memory && enabled_.threads;
   i::SharedFlag shared_flag =
       is_shared_memory ? i::SharedFlag::kShared : i::SharedFlag::kNotShared;
   Handle<JSArrayBuffer> mem_buffer;
@@ -1918,7 +1919,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       }
       case kExternalGlobal: {
         const WasmGlobal& global = module_->globals[exp.index];
-        if (FLAG_experimental_wasm_mut_global) {
+        if (enabled_.mut_global) {
           Handle<JSArrayBuffer> buffer;
           uint32_t offset;
 
@@ -2093,10 +2094,11 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
 }
 
 AsyncCompileJob::AsyncCompileJob(
-    Isolate* isolate, std::unique_ptr<byte[]> bytes_copy, size_t length,
-    Handle<Context> context,
+    Isolate* isolate, const WasmFeatures& enabled,
+    std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
     std::unique_ptr<CompilationResultResolver> resolver)
     : isolate_(isolate),
+      enabled_features_(enabled),
       async_counters_(isolate->async_counters()),
       bytes_copy_(std::move(bytes_copy)),
       wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length),
@@ -2311,8 +2313,9 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       // Decode the module bytes.
       TRACE_COMPILE("(1) Decoding module...\n");
       result =
-          DecodeWasmModule(job_->wire_bytes_.start(), job_->wire_bytes_.end(),
-                           false, kWasmOrigin, job_->async_counters().get(),
+          DecodeWasmModule(job_->enabled_features_, job_->wire_bytes_.start(),
+                           job_->wire_bytes_.end(), false, kWasmOrigin,
+                           job_->async_counters().get(),
                            job_->isolate()->wasm_engine()->allocator());
     }
     if (result.failed()) {
@@ -2379,7 +2382,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // breakpoints on a (potentially empty) subset of the instances.
     // Create the module object.
     job_->module_object_ = WasmModuleObject::New(
-        job_->isolate_, job_->module_, env,
+        job_->isolate_, job_->enabled_features_, job_->module_, env,
         {std::move(job_->bytes_copy_), job_->wire_bytes_.length()}, script,
         asm_js_offset_table);
     job_->native_module_ = job_->module_object_->native_module();
@@ -2530,7 +2533,9 @@ class AsyncCompileJob::FinishModule : public CompileStep {
 };
 
 AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
-    : job_(job), compilation_unit_builder_(nullptr) {}
+    : decoder_(job->enabled_features_),
+      job_(job),
+      compilation_unit_builder_(nullptr) {}
 
 void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
   // Make sure all background tasks stopped executing before we change the state

@@ -886,9 +886,11 @@ TEST(AtomicOpDisassembly) {
     testing::SetupIsolateForWasmModule(isolate);
 
     ErrorThrower thrower(isolate, "Test");
+    auto enabled_features = WasmFeaturesFromIsolate(isolate);
     MaybeHandle<WasmModuleObject> module_object =
         isolate->wasm_engine()->SyncCompile(
-            isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+            isolate, enabled_features, &thrower,
+            ModuleWireBytes(buffer.begin(), buffer.end()));
 
     module_object.ToHandleChecked()->DisassembleFunction(0);
   }

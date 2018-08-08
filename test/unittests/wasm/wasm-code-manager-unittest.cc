@@ -168,8 +168,8 @@ class WasmCodeManagerTest : public TestWithContext,
     bool can_request_more = style == Growable;
     ModuleEnv env(module.get(), UseTrapHandler::kNoTrapHandler,
                   RuntimeExceptionSupport::kNoRuntimeExceptionSupport);
-    return manager->NewNativeModule(i_isolate(), size, can_request_more,
-                                    std::move(module), env);
+    return manager->NewNativeModule(i_isolate(), kAllWasmFeatures, size,
+                                    can_request_more, std::move(module), env);
   }
 
   WasmCode* AddCode(NativeModule* native_module, uint32_t index, size_t size) {

@@ -16,6 +16,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/vector.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/wasm-features.h"
 
 namespace v8 {
 namespace internal {
@@ -345,13 +346,16 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   ~NativeModule();
 
+  const WasmFeatures& enabled_features() const { return enabled_features_; }
+
  private:
   friend class WasmCode;
   friend class WasmCodeManager;
   friend class NativeModuleModificationScope;
 
-  NativeModule(Isolate* isolate, bool can_request_more,
-               VirtualMemory* code_space, WasmCodeManager* code_manager,
+  NativeModule(Isolate* isolate, const WasmFeatures& enabled_features,
+               bool can_request_more, VirtualMemory* code_space,
+               WasmCodeManager* code_manager,
                std::shared_ptr<const WasmModule> module, const ModuleEnv& env);
 
   WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind);
@@ -384,6 +388,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
     DCHECK_EQ(code->index(), index);
     code_table_[index - module_->num_imported_functions] = code;
   }
+
+  // Features enabled for this module. We keep a copy of the features that
+  // were enabled at the time of the creation of this native module,
+  // to be consistent across asynchronous compilations later.
+  const WasmFeatures enabled_features_;
 
   // TODO(clemensh): Make this a unique_ptr (requires refactoring
   // AsyncCompileJob).
@@ -435,7 +444,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // code. The native module may later request more memory.
   // TODO(titzer): isolate is only required here for CompilationState.
   std::unique_ptr<NativeModule> NewNativeModule(
-      Isolate* isolate, size_t memory_estimate, bool can_request_more,
+      Isolate* isolate, const WasmFeatures& enabled_features,
+      size_t memory_estimate, bool can_request_more,
       std::shared_ptr<const WasmModule> module, const ModuleEnv& env);
 
   NativeModule* LookupNativeModule(Address pc) const;

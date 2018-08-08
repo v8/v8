@@ -130,7 +130,8 @@ std::unique_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
   return isolate->wasm_engine()->code_manager()->NewNativeModule(
-      isolate, code_size, false, std::move(module), env);
+      isolate, wasm::kAllWasmFeatures, code_size, false, std::move(module),
+      env);
 }
 
 void TestReturnMultipleValues(MachineType type) {

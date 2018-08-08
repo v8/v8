@@ -25,11 +25,12 @@ WasmEngine::~WasmEngine() {
   DCHECK(jobs_.empty());
 }
 
-bool WasmEngine::SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes) {
+bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
+                              const ModuleWireBytes& bytes) {
   // TODO(titzer): remove dependency on the isolate.
   if (bytes.start() == nullptr || bytes.length() == 0) return false;
   ModuleResult result =
-      DecodeWasmModule(bytes.start(), bytes.end(), true, kWasmOrigin,
+      DecodeWasmModule(enabled, bytes.start(), bytes.end(), true, kWasmOrigin,
                        isolate->counters(), allocator());
   return result.ok();
 }
@@ -39,20 +40,22 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompileTranslatedAsmJs(
     Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
   ModuleResult result =
-      DecodeWasmModule(bytes.start(), bytes.end(), false, kAsmJsOrigin,
-                       isolate->counters(), allocator());
+      DecodeWasmModule(kAsmjsWasmFeatures, bytes.start(), bytes.end(), false,
+                       kAsmJsOrigin, isolate->counters(), allocator());
   CHECK(!result.failed());
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToModuleObject}.
-  return CompileToModuleObject(isolate, thrower, std::move(result.val), bytes,
-                               asm_js_script, asm_js_offset_table_bytes);
+  return CompileToModuleObject(isolate, kAsmjsWasmFeatures, thrower,
+                               std::move(result.val), bytes, asm_js_script,
+                               asm_js_offset_table_bytes);
 }
 
 MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes) {
+    Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
+    const ModuleWireBytes& bytes) {
   ModuleResult result =
-      DecodeWasmModule(bytes.start(), bytes.end(), false, kWasmOrigin,
+      DecodeWasmModule(enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
                        isolate->counters(), allocator());
   if (result.failed()) {
     thrower->CompileFailed("Wasm decoding failed", result);
@@ -61,8 +64,8 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToModuleObject}.
-  return CompileToModuleObject(isolate, thrower, std::move(result.val), bytes,
-                               Handle<Script>(), Vector<const byte>());
+  return CompileToModuleObject(isolate, enabled, thrower, std::move(result.val),
+                               bytes, Handle<Script>(), Vector<const byte>());
 }
 
 MaybeHandle<WasmInstanceObject> WasmEngine::SyncInstantiate(
@@ -109,7 +112,8 @@ void WasmEngine::AsyncInstantiate(
 }
 
 void WasmEngine::AsyncCompile(
-    Isolate* isolate, std::unique_ptr<CompilationResultResolver> resolver,
+    Isolate* isolate, const WasmFeatures& enabled,
+    std::unique_ptr<CompilationResultResolver> resolver,
     const ModuleWireBytes& bytes, bool is_shared) {
   if (!FLAG_wasm_async_compilation) {
     // Asynchronous compilation disabled; fall back on synchronous compilation.
@@ -120,10 +124,10 @@ void WasmEngine::AsyncCompile(
       std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
       memcpy(copy.get(), bytes.start(), bytes.length());
       ModuleWireBytes bytes_copy(copy.get(), copy.get() + bytes.length());
-      module_object = SyncCompile(isolate, &thrower, bytes_copy);
+      module_object = SyncCompile(isolate, enabled, &thrower, bytes_copy);
     } else {
       // The wire bytes are not shared, OK to use them directly.
-      module_object = SyncCompile(isolate, &thrower, bytes);
+      module_object = SyncCompile(isolate, enabled, &thrower, bytes);
     }
     if (thrower.error()) {
       resolver->OnCompilationFailed(thrower.Reify());
@@ -136,8 +140,9 @@ void WasmEngine::AsyncCompile(
 
   if (FLAG_wasm_test_streaming) {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
-        isolate->wasm_engine()->StartStreamingCompilation(
-            isolate, handle(isolate->context(), isolate), std::move(resolver));
+        StartStreamingCompilation(isolate, enabled,
+                                  handle(isolate->context(), isolate),
+                                  std::move(resolver));
     streaming_decoder->OnBytesReceived(bytes.module_bytes());
     streaming_decoder->Finish();
     return;
@@ -148,17 +153,17 @@ void WasmEngine::AsyncCompile(
   memcpy(copy.get(), bytes.start(), bytes.length());
 
   AsyncCompileJob* job = CreateAsyncCompileJob(
-      isolate, std::move(copy), bytes.length(),
+      isolate, enabled, std::move(copy), bytes.length(),
       handle(isolate->context(), isolate), std::move(resolver));
   job->Start();
 }
 
 std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
-    Isolate* isolate, Handle<Context> context,
+    Isolate* isolate, const WasmFeatures& enabled, Handle<Context> context,
     std::unique_ptr<CompilationResultResolver> resolver) {
   AsyncCompileJob* job =
-      CreateAsyncCompileJob(isolate, std::unique_ptr<byte[]>(nullptr), 0,
-                            context, std::move(resolver));
+      CreateAsyncCompileJob(isolate, enabled, std::unique_ptr<byte[]>(nullptr),
+                            0, context, std::move(resolver));
   return job->CreateStreamingDecoder();
 }
 
@@ -207,11 +212,12 @@ CodeTracer* WasmEngine::GetCodeTracer() {
 }
 
 AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
-    Isolate* isolate, std::unique_ptr<byte[]> bytes_copy, size_t length,
-    Handle<Context> context,
+    Isolate* isolate, const WasmFeatures& enabled,
+    std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
     std::unique_ptr<CompilationResultResolver> resolver) {
-  AsyncCompileJob* job = new AsyncCompileJob(
-      isolate, std::move(bytes_copy), length, context, std::move(resolver));
+  AsyncCompileJob* job =
+      new AsyncCompileJob(isolate, enabled, std::move(bytes_copy), length,
+                          context, std::move(resolver));
   // Pass ownership to the unique_ptr in {jobs_}.
   base::LockGuard<base::Mutex> guard(&mutex_);
   jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);
