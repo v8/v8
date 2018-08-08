@@ -39,7 +39,6 @@ constexpr Register kWasmInstanceRegister = a0;
 
 // Forward declarations
 enum class AbortReason;
-class JumpTarget;
 
 // Reserved Register Usage Summary.
 //
@@ -58,14 +57,6 @@ class JumpTarget;
 enum LeaveExitFrameMode {
   EMIT_RETURN = true,
   NO_EMIT_RETURN = false
-};
-
-// Flags used for AllocateHeapNumber
-enum TaggingMode {
-  // Tag the result.
-  TAG_RESULT,
-  // Don't tag
-  DONT_TAG_RESULT
 };
 
 // Allow programmer to use Branch Delay Slot of Branches, Jumps, Calls.

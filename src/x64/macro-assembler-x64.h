@@ -63,9 +63,6 @@ bool AreAliased(Register reg1,
                 Register reg8 = no_reg);
 #endif
 
-// Forward declaration.
-class JumpTarget;
-
 struct SmiIndex {
   SmiIndex(Register index_register, ScaleFactor scale)
       : reg(index_register),
