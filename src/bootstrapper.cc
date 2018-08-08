@@ -24,6 +24,7 @@
 #include "src/objects/hash-table-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-collator.h"
 #include "src/objects/js-list-format.h"
 #include "src/objects/js-locale.h"
 #endif  // V8_INTL_SUPPORT
@@ -2935,9 +2936,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     {
       Handle<JSFunction> collator_constructor = InstallFunction(
-          isolate_, intl, "Collator", JS_OBJECT_TYPE, Collator::kSize, 0,
-          factory->the_hole_value(), Builtins::kIllegal);
-      native_context()->set_intl_collator_function(*collator_constructor);
+          isolate_, intl, "Collator", JS_INTL_COLLATOR_TYPE, JSCollator::kSize,
+          0, factory->the_hole_value(), Builtins::kCollatorConstructor);
+      collator_constructor->shared()->DontAdaptArguments();
+      InstallWithIntrinsicDefaultProto(isolate_, collator_constructor,
+                                       Context::INTL_COLLATOR_FUNCTION_INDEX);
 
       Handle<JSObject> prototype(
           JSObject::cast(collator_constructor->prototype()), isolate_);

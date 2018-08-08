@@ -1324,6 +1324,8 @@ namespace internal {
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)                 \
   BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM)             \
                                                                        \
+  /* ecma402 #sec-intl.collator */                                     \
+  CPP(CollatorConstructor)                                             \
   TFS(StringToLowerCaseIntl, kString)                                  \
   /* ES #sec-string.prototype.tolowercase */                           \
   TFJ(StringPrototypeToLowerCaseIntl, 0, kReceiver)                    \

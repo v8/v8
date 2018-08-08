@@ -75,9 +75,10 @@
 //           - JSDate
 //         - JSMessageObject
 //         - JSModuleNamespace
-//         - JSListFormat  // If V8_INTL_SUPPORT enabled.
-//         - JSLocale  // If V8_INTL_SUPPORT enabled.
-//         - JSPluralRules  // If V8_INTL_SUPPORT enabled.
+//         - JSCollator            // If V8_INTL_SUPPORT enabled.
+//         - JSListFormat          // If V8_INTL_SUPPORT enabled.
+//         - JSLocale              // If V8_INTL_SUPPORT enabled.
+//         - JSPluralRules         // If V8_INTL_SUPPORT enabled.
 //         - JSRelativeTimeFormat  // If V8_INTL_SUPPORT enabled.
 //         - WasmGlobalObject
 //         - WasmInstanceObject
@@ -583,6 +584,7 @@ enum InstanceType : uint16_t {
   JS_DATA_VIEW_TYPE,
 
 #ifdef V8_INTL_SUPPORT
+  JS_INTL_COLLATOR_TYPE,
   JS_INTL_LIST_FORMAT_TYPE,
   JS_INTL_LOCALE_TYPE,
   JS_INTL_PLURAL_RULES_TYPE,
@@ -700,6 +702,7 @@ class JSAsyncGeneratorObject;
 class JSGlobalObject;
 class JSGlobalProxy;
 #ifdef V8_INTL_SUPPORT
+class JSCollator;
 class JSListFormat;
 class JSLocale;
 class JSPluralRules;
@@ -911,6 +914,7 @@ class ZoneForwardList;
 #ifdef V8_INTL_SUPPORT
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
   HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)  \
+  V(JSCollator)                           \
   V(JSListFormat)                         \
   V(JSLocale)                             \
   V(JSPluralRules)                        \
@@ -1031,6 +1035,7 @@ class ZoneForwardList;
 
 #define INSTANCE_TYPE_CHECKERS_SINGLE(V)      \
   INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)       \
+  V(JSCollator, JS_INTL_COLLATOR_TYPE)        \
   V(JSListFormat, JS_INTL_LIST_FORMAT_TYPE)   \
   V(JSLocale, JS_INTL_LOCALE_TYPE)            \
   V(JSPluralRules, JS_INTL_PLURAL_RULES_TYPE) \

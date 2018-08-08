@@ -15,6 +15,9 @@
 #include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/js-collator-inl.h"
+#endif  // V8_INTL_SUPPORT
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/hash-table-inl.h"
@@ -353,6 +356,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       CodeDataContainer::cast(this)->CodeDataContainerVerify(isolate);
       break;
 #ifdef V8_INTL_SUPPORT
+    case JS_INTL_COLLATOR_TYPE:
+      JSCollator::cast(this)->JSCollatorVerify(isolate);
+      break;
     case JS_INTL_LIST_FORMAT_TYPE:
       JSListFormat::cast(this)->JSListFormatVerify(isolate);
       break;
@@ -1868,6 +1874,13 @@ void InterpreterData::InterpreterDataVerify(Isolate* isolate) {
 }
 
 #ifdef V8_INTL_SUPPORT
+void JSCollator::JSCollatorVerify(Isolate* isolate) {
+  CHECK(IsJSCollator());
+  JSObjectVerify(isolate);
+  VerifyObjectField(isolate, kICUCollatorOffset);
+  VerifyObjectField(isolate, kFlagsOffset);
+}
+
 void JSListFormat::JSListFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);

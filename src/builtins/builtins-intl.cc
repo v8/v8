@@ -15,6 +15,7 @@
 #include "src/intl.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-collator-inl.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
 #include "src/objects/js-plural-rules-inl.h"
@@ -1129,6 +1130,36 @@ BUILTIN(PluralRulesConstructor) {
   RETURN_RESULT_OR_FAILURE(
       isolate, JSPluralRules::InitializePluralRules(isolate, plural_rules,
                                                     locales, options));
+}
+
+BUILTIN(CollatorConstructor) {
+  HandleScope scope(isolate);
+  Handle<JSReceiver> new_target;
+  // 1. If NewTarget is undefined, let newTarget be the active
+  // function object, else let newTarget be NewTarget.
+  if (args.new_target()->IsUndefined(isolate)) {
+    new_target = args.target();
+  } else {
+    new_target = Handle<JSReceiver>::cast(args.new_target());
+  }
+
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  // 5. Let collator be ? OrdinaryCreateFromConstructor(newTarget,
+  // "%CollatorPrototype%", internalSlotsList).
+  Handle<JSObject> collator_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, collator_obj,
+                                     JSObject::New(target, new_target));
+  Handle<JSCollator> collator = Handle<JSCollator>::cast(collator_obj);
+  collator->set_flags(0);
+
+  // 6. Return ? InitializeCollator(collator, locales, options).
+  RETURN_RESULT_OR_FAILURE(isolate, JSCollator::InitializeCollator(
+                                        isolate, collator, locales, options));
 }
 
 }  // namespace internal

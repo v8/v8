@@ -117,26 +117,6 @@ class NumberFormat {
   NumberFormat();
 };
 
-class Collator {
- public:
-  // Create a collator for the specificied locale and options. Stores the
-  // collator in the provided collator_holder.
-  static icu::Collator* InitializeCollator(Isolate* isolate,
-                                           Handle<String> locale,
-                                           Handle<JSObject> options,
-                                           Handle<JSObject> resolved);
-
-  // Unpacks collator object from corresponding JavaScript object.
-  static icu::Collator* UnpackCollator(Handle<JSObject> obj);
-
-  // Layout description.
-  static const int kCollator = JSObject::kHeaderSize;
-  static const int kSize = kCollator + kPointerSize;
-
- private:
-  Collator();
-};
-
 class V8BreakIterator {
  public:
   // Create a BreakIterator for the specificied locale and options. Returns the
@@ -313,7 +293,7 @@ class Intl {
       Handle<Object> locales, Handle<Object> options);
 
   V8_WARN_UNUSED_RESULT static Handle<Object> InternalCompare(
-      Isolate* isolate, Handle<JSObject> collator, Handle<String> s1,
+      Isolate* isolate, Handle<JSCollator> collator, Handle<String> s1,
       Handle<String> s2);
 
   // ecma402/#sup-properties-of-the-number-prototype-object

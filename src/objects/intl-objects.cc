@@ -19,6 +19,7 @@
 #include "src/intl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-collator-inl.h"
 #include "src/objects/managed.h"
 #include "src/objects/string.h"
 #include "src/property-descriptor.h"
@@ -494,193 +495,6 @@ void SetResolvedNumberSettings(Isolate* isolate, const icu::Locale& icu_locale,
   SetResolvedNumericSettings(isolate, icu_locale, number_format, resolved);
 }
 
-icu::Collator* CreateICUCollator(Isolate* isolate,
-                                 const icu::Locale& icu_locale,
-                                 Handle<JSObject> options) {
-  // Make collator from options.
-  icu::Collator* collator = nullptr;
-  UErrorCode status = U_ZERO_ERROR;
-  collator = icu::Collator::createInstance(icu_locale, status);
-
-  if (U_FAILURE(status)) {
-    delete collator;
-    return nullptr;
-  }
-
-  // Set flags first, and then override them with sensitivity if necessary.
-  bool numeric;
-  if (ExtractBooleanSetting(isolate, options, "numeric", &numeric)) {
-    collator->setAttribute(UCOL_NUMERIC_COLLATION, numeric ? UCOL_ON : UCOL_OFF,
-                           status);
-  }
-
-  // Normalization is always on, by the spec. We are free to optimize
-  // if the strings are already normalized (but we don't have a way to tell
-  // that right now).
-  collator->setAttribute(UCOL_NORMALIZATION_MODE, UCOL_ON, status);
-
-  icu::UnicodeString case_first;
-  if (ExtractStringSetting(isolate, options, "caseFirst", &case_first)) {
-    if (case_first == UNICODE_STRING_SIMPLE("upper")) {
-      collator->setAttribute(UCOL_CASE_FIRST, UCOL_UPPER_FIRST, status);
-    } else if (case_first == UNICODE_STRING_SIMPLE("lower")) {
-      collator->setAttribute(UCOL_CASE_FIRST, UCOL_LOWER_FIRST, status);
-    } else {
-      // Default (false/off).
-      collator->setAttribute(UCOL_CASE_FIRST, UCOL_OFF, status);
-    }
-  }
-
-  icu::UnicodeString sensitivity;
-  if (ExtractStringSetting(isolate, options, "sensitivity", &sensitivity)) {
-    if (sensitivity == UNICODE_STRING_SIMPLE("base")) {
-      collator->setStrength(icu::Collator::PRIMARY);
-    } else if (sensitivity == UNICODE_STRING_SIMPLE("accent")) {
-      collator->setStrength(icu::Collator::SECONDARY);
-    } else if (sensitivity == UNICODE_STRING_SIMPLE("case")) {
-      collator->setStrength(icu::Collator::PRIMARY);
-      collator->setAttribute(UCOL_CASE_LEVEL, UCOL_ON, status);
-    } else {
-      // variant (default)
-      collator->setStrength(icu::Collator::TERTIARY);
-    }
-  }
-
-  bool ignore;
-  if (ExtractBooleanSetting(isolate, options, "ignorePunctuation", &ignore)) {
-    if (ignore) {
-      collator->setAttribute(UCOL_ALTERNATE_HANDLING, UCOL_SHIFTED, status);
-    }
-  }
-
-  return collator;
-}
-
-void SetResolvedCollatorSettings(Isolate* isolate,
-                                 const icu::Locale& icu_locale,
-                                 icu::Collator* collator,
-                                 Handle<JSObject> resolved) {
-  Factory* factory = isolate->factory();
-  UErrorCode status = U_ZERO_ERROR;
-
-  JSObject::SetProperty(
-      isolate, resolved, factory->NewStringFromStaticChars("numeric"),
-      factory->ToBoolean(
-          collator->getAttribute(UCOL_NUMERIC_COLLATION, status) == UCOL_ON),
-      LanguageMode::kSloppy)
-      .Assert();
-
-  switch (collator->getAttribute(UCOL_CASE_FIRST, status)) {
-    case UCOL_LOWER_FIRST:
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("caseFirst"),
-          factory->NewStringFromStaticChars("lower"), LanguageMode::kSloppy)
-          .Assert();
-      break;
-    case UCOL_UPPER_FIRST:
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("caseFirst"),
-          factory->NewStringFromStaticChars("upper"), LanguageMode::kSloppy)
-          .Assert();
-      break;
-    default:
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("caseFirst"),
-          factory->NewStringFromStaticChars("false"), LanguageMode::kSloppy)
-          .Assert();
-  }
-
-  switch (collator->getAttribute(UCOL_STRENGTH, status)) {
-    case UCOL_PRIMARY: {
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("strength"),
-          factory->NewStringFromStaticChars("primary"), LanguageMode::kSloppy)
-          .Assert();
-
-      // case level: true + s1 -> case, s1 -> base.
-      if (UCOL_ON == collator->getAttribute(UCOL_CASE_LEVEL, status)) {
-        JSObject::SetProperty(
-            isolate, resolved, factory->NewStringFromStaticChars("sensitivity"),
-            factory->NewStringFromStaticChars("case"), LanguageMode::kSloppy)
-            .Assert();
-      } else {
-        JSObject::SetProperty(
-            isolate, resolved, factory->NewStringFromStaticChars("sensitivity"),
-            factory->NewStringFromStaticChars("base"), LanguageMode::kSloppy)
-            .Assert();
-      }
-      break;
-    }
-    case UCOL_SECONDARY:
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("strength"),
-          factory->NewStringFromStaticChars("secondary"), LanguageMode::kSloppy)
-          .Assert();
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("sensitivity"),
-          factory->NewStringFromStaticChars("accent"), LanguageMode::kSloppy)
-          .Assert();
-      break;
-    case UCOL_TERTIARY:
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("strength"),
-          factory->NewStringFromStaticChars("tertiary"), LanguageMode::kSloppy)
-          .Assert();
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("sensitivity"),
-          factory->NewStringFromStaticChars("variant"), LanguageMode::kSloppy)
-          .Assert();
-      break;
-    case UCOL_QUATERNARY:
-      // We shouldn't get quaternary and identical from ICU, but if we do
-      // put them into variant.
-      JSObject::SetProperty(isolate, resolved,
-                            factory->NewStringFromStaticChars("strength"),
-                            factory->NewStringFromStaticChars("quaternary"),
-                            LanguageMode::kSloppy)
-          .Assert();
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("sensitivity"),
-          factory->NewStringFromStaticChars("variant"), LanguageMode::kSloppy)
-          .Assert();
-      break;
-    default:
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("strength"),
-          factory->NewStringFromStaticChars("identical"), LanguageMode::kSloppy)
-          .Assert();
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("sensitivity"),
-          factory->NewStringFromStaticChars("variant"), LanguageMode::kSloppy)
-          .Assert();
-  }
-
-  JSObject::SetProperty(
-      isolate, resolved, factory->NewStringFromStaticChars("ignorePunctuation"),
-      factory->ToBoolean(collator->getAttribute(UCOL_ALTERNATE_HANDLING,
-                                                status) == UCOL_SHIFTED),
-      LanguageMode::kSloppy)
-      .Assert();
-
-  // Set the locale
-  char result[ULOC_FULLNAME_CAPACITY];
-  status = U_ZERO_ERROR;
-  uloc_toLanguageTag(icu_locale.getName(), result, ULOC_FULLNAME_CAPACITY,
-                     FALSE, &status);
-  if (U_SUCCESS(status)) {
-    JSObject::SetProperty(
-        isolate, resolved, factory->NewStringFromStaticChars("locale"),
-        factory->NewStringFromAsciiChecked(result), LanguageMode::kSloppy)
-        .Assert();
-  } else {
-    // This would never happen, since we got the locale from ICU.
-    JSObject::SetProperty(
-        isolate, resolved, factory->NewStringFromStaticChars("locale"),
-        factory->NewStringFromStaticChars("und"), LanguageMode::kSloppy)
-        .Assert();
-  }
-}
-
 icu::BreakIterator* CreateICUBreakIterator(Isolate* isolate,
                                            const icu::Locale& icu_locale,
                                            Handle<JSObject> options) {
@@ -843,38 +657,6 @@ icu::DecimalFormat* NumberFormat::UnpackNumberFormat(Handle<JSObject> obj) {
 void NumberFormat::DeleteNumberFormat(const v8::WeakCallbackInfo<void>& data) {
   delete reinterpret_cast<icu::DecimalFormat*>(data.GetInternalField(0));
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
-}
-
-icu::Collator* Collator::InitializeCollator(Isolate* isolate,
-                                            Handle<String> locale,
-                                            Handle<JSObject> options,
-                                            Handle<JSObject> resolved) {
-  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
-  DCHECK(!icu_locale.isBogus());
-
-  icu::Collator* collator = CreateICUCollator(isolate, icu_locale, options);
-  if (!collator) {
-    // Remove extensions and try again.
-    icu::Locale no_extension_locale(icu_locale.getBaseName());
-    collator = CreateICUCollator(isolate, no_extension_locale, options);
-
-    if (!collator) {
-      FATAL("Failed to create ICU collator, are ICU data files missing?");
-    }
-
-    // Set resolved settings (pattern, numbering system).
-    SetResolvedCollatorSettings(isolate, no_extension_locale, collator,
-                                resolved);
-  } else {
-    SetResolvedCollatorSettings(isolate, icu_locale, collator, resolved);
-  }
-
-  CHECK_NOT_NULL(collator);
-  return collator;
-}
-
-icu::Collator* Collator::UnpackCollator(Handle<JSObject> obj) {
-  return Managed<icu::Collator>::cast(obj->GetEmbedderField(0))->raw();
 }
 
 icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
@@ -1158,6 +940,9 @@ MaybeHandle<JSObject> Intl::UnwrapReceiver(Isolate* isolate,
                                            Intl::Type type,
                                            Handle<String> method_name,
                                            bool check_legacy_constructor) {
+  DCHECK(type == Intl::Type::kCollator || type == Intl::Type::kNumberFormat ||
+         type == Intl::Type::kDateTimeFormat ||
+         type == Intl::Type::kBreakIterator);
   Handle<Object> new_receiver = receiver;
   if (check_legacy_constructor) {
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -1165,6 +950,20 @@ MaybeHandle<JSObject> Intl::UnwrapReceiver(Isolate* isolate,
         LegacyUnwrapReceiver(isolate, receiver, constructor, type), JSObject);
   }
 
+  // Collator has been ported to use regular instance types. We
+  // shouldn't be using Intl::IsObjectOfType anymore.
+  if (type == Intl::Type::kCollator) {
+    if (!receiver->IsJSCollator()) {
+      // 3. a. Throw a TypeError exception.
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                                   method_name, receiver),
+                      JSObject);
+    }
+    return Handle<JSCollator>::cast(receiver);
+  }
+
+  DCHECK_NE(type, Intl::Type::kCollator);
   // 3. If Type(new_receiver) is not Object or nf does not have an
   //    [[Initialized...]]  internal slot, then
   if (!Intl::IsObjectOfType(isolate, new_receiver, type)) {
@@ -1886,23 +1685,24 @@ MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
                                               Handle<Object> locales,
                                               Handle<Object> options) {
   Factory* factory = isolate->factory();
-  Handle<JSObject> collator_holder;
+  Handle<JSObject> collator;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, collator_holder,
+      isolate, collator,
       CachedOrNewService(isolate, factory->NewStringFromStaticChars("collator"),
                          locales, options),
       Object);
-  DCHECK(Intl::IsObjectOfType(isolate, collator_holder, Intl::kCollator));
-  return Intl::InternalCompare(isolate, collator_holder, string1, string2);
+  CHECK(collator->IsJSCollator());
+  return Intl::InternalCompare(isolate, Handle<JSCollator>::cast(collator),
+                               string1, string2);
 }
 
 Handle<Object> Intl::InternalCompare(Isolate* isolate,
-                                     Handle<JSObject> collator_holder,
+                                     Handle<JSCollator> collator,
                                      Handle<String> string1,
                                      Handle<String> string2) {
   Factory* factory = isolate->factory();
-  icu::Collator* collator = Collator::UnpackCollator(collator_holder);
-  CHECK_NOT_NULL(collator);
+  icu::Collator* icu_collator = collator->icu_collator()->raw();
+  CHECK_NOT_NULL(icu_collator);
 
   string1 = String::Flatten(isolate, string1);
   string2 = String::Flatten(isolate, string2);
@@ -1921,7 +1721,7 @@ Handle<Object> Intl::InternalCompare(Isolate* isolate,
         FALSE, GetUCharBufferFromFlat(flat1, &sap1, length1), length1);
     icu::UnicodeString string_val2(
         FALSE, GetUCharBufferFromFlat(flat2, &sap2, length2), length2);
-    result = collator->compare(string_val1, string_val2, status);
+    result = icu_collator->compare(string_val1, string_val2, status);
   }
   DCHECK(U_SUCCESS(status));
 

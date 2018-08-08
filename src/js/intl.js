@@ -426,7 +426,12 @@ function attemptSingleLookup(availableLocales, requestedLocale) {
     var extensionMatch = %regexp_internal_match(
         GetUnicodeExtensionRE(), requestedLocale);
     var extension = IS_NULL(extensionMatch) ? '' : extensionMatch[0];
-    return {__proto__: null, locale: availableLocale, extension: extension};
+    return {
+      __proto__: null,
+      locale: availableLocale,
+      extension: extension,
+      localeWithExtension: availableLocale + extension,
+    };
   }
   return UNDEFINED;
 }
@@ -463,7 +468,8 @@ function lookupMatcher(service, requestedLocales) {
   return {
     __proto__: null,
     locale: 'und',
-    extension: ''
+    extension: '',
+    localeWithExtension: 'und',
   };
 }
 
@@ -781,140 +787,12 @@ DEFINE_METHOD(
 );
 
 /**
- * Initializes the given object so it's a valid Collator instance.
- * Useful for subclassing.
- */
-function CreateCollator(locales, options) {
-  if (IS_UNDEFINED(options)) {
-    options = {__proto__: null};
-  }
-
-  var getOption = getGetOption(options, 'collator');
-
-  var internalOptions = {__proto__: null};
-
-  %DefineWEProperty(internalOptions, 'usage', getOption(
-    'usage', 'string', ['sort', 'search'], 'sort'));
-
-  var sensitivity = getOption('sensitivity', 'string',
-                              ['base', 'accent', 'case', 'variant']);
-  if (IS_UNDEFINED(sensitivity) && internalOptions.usage === 'sort') {
-    sensitivity = 'variant';
-  }
-  %DefineWEProperty(internalOptions, 'sensitivity', sensitivity);
-
-  %DefineWEProperty(internalOptions, 'ignorePunctuation', getOption(
-    'ignorePunctuation', 'boolean', UNDEFINED, false));
-
-  var locale = resolveLocale('collator', locales, options);
-
-  // TODO(jshin): ICU now can take kb, kc, etc. Switch over to using ICU
-  // directly. See Collator::InitializeCollator and
-  // Collator::CreateICUCollator in src/objects/intl-objects.cc
-  // ICU can't take kb, kc... parameters through localeID, so we need to pass
-  // them as options.
-  // One exception is -co- which has to be part of the extension, but only for
-  // usage: sort, and its value can't be 'standard' or 'search'.
-  var extensionMap = parseExtension(locale.extension);
-
-  /**
-   * Map of Unicode extensions to option properties, and their values and types,
-   * for a collator.
-   */
-  var COLLATOR_KEY_MAP = {
-    __proto__: null,
-    'kn': { __proto__: null, 'property': 'numeric', 'type': 'boolean'},
-    'kf': { __proto__: null, 'property': 'caseFirst', 'type': 'string',
-           'values': ['false', 'lower', 'upper']}
-  };
-
-  setOptions(
-      options, extensionMap, COLLATOR_KEY_MAP, getOption, internalOptions);
-
-  var collation = 'default';
-  var extension = '';
-  if (HAS_OWN_PROPERTY(extensionMap, 'co') && internalOptions.usage === 'sort') {
-
-    /**
-     * Allowed -u-co- values. List taken from:
-     * http://unicode.org/repos/cldr/trunk/common/bcp47/collation.xml
-     */
-    var ALLOWED_CO_VALUES = [
-      'big5han', 'dict', 'direct', 'ducet', 'gb2312', 'phonebk', 'phonetic',
-      'pinyin', 'reformed', 'searchjl', 'stroke', 'trad', 'unihan', 'zhuyin'
-    ];
-
-    if (%ArrayIndexOf(ALLOWED_CO_VALUES, extensionMap.co, 0) !== -1) {
-      extension = '-u-co-' + extensionMap.co;
-      // ICU can't tell us what the collation is, so save user's input.
-      collation = extensionMap.co;
-    }
-  } else if (internalOptions.usage === 'search') {
-    extension = '-u-co-search';
-  }
-  %DefineWEProperty(internalOptions, 'collation', collation);
-
-  var requestedLocale = locale.locale + extension;
-
-  // We define all properties C++ code may produce, to prevent security
-  // problems. If malicious user decides to redefine Object.prototype.locale
-  // we can't just use plain x.locale = 'us' or in C++ Set("locale", "us").
-  // %object_define_properties will either succeed defining or throw an error.
-  var resolved = %object_define_properties({__proto__: null}, {
-    caseFirst: {writable: true},
-    collation: {value: internalOptions.collation, writable: true},
-    ignorePunctuation: {writable: true},
-    locale: {writable: true},
-    numeric: {writable: true},
-    requestedLocale: {value: requestedLocale, writable: true},
-    sensitivity: {writable: true},
-    strength: {writable: true},
-    usage: {value: internalOptions.usage, writable: true}
-  });
-
-  var collator = %CreateCollator(requestedLocale, internalOptions, resolved);
-
-  %MarkAsInitializedIntlObjectOfType(collator, COLLATOR_TYPE);
-  collator[resolvedSymbol] = resolved;
-
-  return collator;
-}
-
-
-/**
- * Constructs Intl.Collator object given optional locales and options
- * parameters.
- *
- * @constructor
- */
-function CollatorConstructor() {
-  return IntlConstruct(this, GlobalIntlCollator, CreateCollator, new.target,
-                       arguments);
-}
-%SetCode(GlobalIntlCollator, CollatorConstructor);
-
-
-/**
  * Collator resolvedOptions method.
  */
 DEFINE_METHOD(
   GlobalIntlCollator.prototype,
   resolvedOptions() {
-    var methodName = 'resolvedOptions';
-    if(!IS_RECEIVER(this)) {
-      throw %make_type_error(kIncompatibleMethodReceiver, methodName, this);
-    }
-    var coll = %IntlUnwrapReceiver(this, COLLATOR_TYPE, GlobalIntlCollator,
-                                   methodName, false);
-    return {
-      locale: coll[resolvedSymbol].locale,
-      usage: coll[resolvedSymbol].usage,
-      sensitivity: coll[resolvedSymbol].sensitivity,
-      ignorePunctuation: coll[resolvedSymbol].ignorePunctuation,
-      numeric: coll[resolvedSymbol].numeric,
-      caseFirst: coll[resolvedSymbol].caseFirst,
-      collation: coll[resolvedSymbol].collation
-    };
+    return %CollatorResolvedOptions(this);
   }
 );
 

@@ -20,6 +20,7 @@
 #include "src/messages.h"
 #include "src/objects/intl-objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-collator-inl.h"
 #include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/managed.h"
 #include "src/runtime/runtime-utils.h"
@@ -250,42 +251,37 @@ RUNTIME_FUNCTION(Runtime_CurrencyDigits) {
   return *Intl::CurrencyDigits(isolate, currency);
 }
 
-RUNTIME_FUNCTION(Runtime_CreateCollator) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(3, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
-
-  Handle<JSFunction> constructor(
-      isolate->native_context()->intl_collator_function(), isolate);
-
-  Handle<JSObject> collator_holder;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, collator_holder,
-                                     JSObject::New(constructor, constructor));
-
-  icu::Collator* collator =
-      Collator::InitializeCollator(isolate, locale, options, resolved);
-  CHECK_NOT_NULL(collator);
-
-  Handle<Managed<icu::Collator>> managed =
-      Managed<icu::Collator>::FromRawPtr(isolate, 0, collator);
-  collator_holder->SetEmbedderField(0, *managed);
-
-  return *collator_holder;
-}
-
 RUNTIME_FUNCTION(Runtime_InternalCompare) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(3, args.length());
 
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, collator_holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSCollator, collator, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, string1, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, string2, 2);
-  return *Intl::InternalCompare(isolate, collator_holder, string1, string2);
+
+  return *Intl::InternalCompare(isolate, collator, string1, string2);
+}
+
+RUNTIME_FUNCTION(Runtime_CollatorResolvedOptions) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, collator_obj, 0);
+
+  // 3. If pr does not have an [[InitializedCollator]] internal
+  // slot, throw a TypeError exception.
+  if (!collator_obj->IsJSCollator()) {
+    Handle<String> method_str = isolate->factory()->NewStringFromStaticChars(
+        "Intl.Collator.prototype.resolvedOptions");
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              method_str, collator_obj));
+  }
+
+  Handle<JSCollator> collator = Handle<JSCollator>::cast(collator_obj);
+
+  return *JSCollator::ResolvedOptions(isolate, collator);
 }
 
 RUNTIME_FUNCTION(Runtime_PluralRulesResolvedOptions) {

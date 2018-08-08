@@ -37,9 +37,11 @@
   V(call_string, "call")                                           \
   V(callee_string, "callee")                                       \
   V(caller_string, "caller")                                       \
+  V(caseFirst_string, "caseFirst")                                 \
   V(cell_value_string, "%cell_value")                              \
   V(char_at_string, "CharAt")                                      \
   V(closure_string, "(closure)")                                   \
+  V(collation_string, "collation")                                 \
   V(column_string, "column")                                       \
   V(CompileError_string, "CompileError")                           \
   V(configurable_string, "configurable")                           \
@@ -98,6 +100,7 @@
   V(has_string, "has")                                             \
   V(hour_string, "hour")                                           \
   V(ignoreCase_string, "ignoreCase")                               \
+  V(ignorePunctuation_string, "ignorePunctuation")                 \
   V(illegal_access_string, "illegal access")                       \
   V(illegal_argument_string, "illegal argument")                   \
   V(index_string, "index")                                         \
@@ -182,8 +185,9 @@
   V(script_string, "script")                                       \
   V(short_string, "short")                                         \
   V(second_string, "second")                                       \
-  V(set_space_string, "set ")                                      \
   V(Set_string, "Set")                                             \
+  V(sensitivity_string, "sensitivity")                             \
+  V(set_space_string, "set ")                                      \
   V(set_string, "set")                                             \
   V(SetIterator_string, "Set Iterator")                            \
   V(setPrototypeOf_string, "setPrototypeOf")                       \
@@ -222,6 +226,7 @@
   V(unicode_string, "unicode")                                     \
   V(unit_string, "unit")                                           \
   V(URIError_string, "URIError")                                   \
+  V(usage_string, "usage")                                         \
   V(use_asm_string, "use asm")                                     \
   V(use_strict_string, "use strict")                               \
   V(value_string, "value")                                         \

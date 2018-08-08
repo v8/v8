@@ -419,10 +419,6 @@
   'intl402/NumberFormat/prototype/format/format-fraction-digits': [FAIL],
   'intl402/NumberFormat/prototype/format/format-significant-digits': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7480
-  'intl402/Collator/unicode-ext-seq-in-private-tag': [FAIL],
-  'intl402/Collator/unicode-ext-seq-with-attribute': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7481
   'intl402/NumberFormat/ignore-invalid-unicode-ext-values': [FAIL],
   'intl402/DateTimeFormat/ignore-invalid-unicode-ext-values': [FAIL],

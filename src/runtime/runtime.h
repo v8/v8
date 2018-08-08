@@ -209,8 +209,8 @@ namespace internal {
   F(BreakIteratorFirst, 1, 1)                \
   F(BreakIteratorNext, 1, 1)                 \
   F(CanonicalizeLanguageTag, 1, 1)           \
+  F(CollatorResolvedOptions, 1, 1)           \
   F(CreateBreakIterator, 3, 1)               \
-  F(CreateCollator, 3, 1)                    \
   F(CreateDateTimeFormat, 3, 1)              \
   F(CreateNumberFormat, 3, 1)                \
   F(DefineWEProperty, 3, 1)                  \
@@ -231,7 +231,7 @@ namespace internal {
   F(StringToUpperCaseIntl, 1, 1)
 #else
 #define FOR_EACH_INTRINSIC_INTL(F)
-#endif
+#endif  // V8_INTL_SUPPORT
 
 #define FOR_EACH_INTRINSIC_INTERNAL(F)                               \
   F(AllocateInNewSpace, 1, 1)                                        \
