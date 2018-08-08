@@ -407,6 +407,7 @@ constexpr Register NoReg = Register::no_reg();
 constexpr VRegister NoVReg = VRegister::no_reg();
 constexpr CPURegister NoCPUReg = CPURegister::no_reg();
 constexpr Register no_reg = NoReg;
+constexpr VRegister no_dreg = NoVReg;
 
 #define DEFINE_REGISTER(register_class, name, ...) \
   constexpr register_class name = register_class::Create<__VA_ARGS__>()

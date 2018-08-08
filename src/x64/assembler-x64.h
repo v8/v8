@@ -220,6 +220,7 @@ typedef XMMRegister Simd128Register;
 DOUBLE_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr DoubleRegister no_double_reg = DoubleRegister::no_reg();
+constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 enum Condition {
   // any value < 0 is considered no_condition

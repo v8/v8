@@ -141,6 +141,7 @@ typedef XMMRegister Simd128Register;
 DOUBLE_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
 constexpr DoubleRegister no_double_reg = DoubleRegister::no_reg();
+constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 // Note that the bit values must match those used in actual instruction encoding
 constexpr int kNumRegs = 8;

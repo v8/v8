@@ -58,20 +58,6 @@ Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2 = no_reg,
                                    Register reg5 = no_reg,
                                    Register reg6 = no_reg);
 
-
-#ifdef DEBUG
-bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
-                Register reg4 = no_reg, Register reg5 = no_reg,
-                Register reg6 = no_reg, Register reg7 = no_reg,
-                Register reg8 = no_reg, Register reg9 = no_reg,
-                Register reg10 = no_reg);
-bool AreAliased(DoubleRegister reg1, DoubleRegister reg2,
-                DoubleRegister reg3 = no_dreg, DoubleRegister reg4 = no_dreg,
-                DoubleRegister reg5 = no_dreg, DoubleRegister reg6 = no_dreg,
-                DoubleRegister reg7 = no_dreg, DoubleRegister reg8 = no_dreg,
-                DoubleRegister reg9 = no_dreg, DoubleRegister reg10 = no_dreg);
-#endif
-
 // These exist to provide portability between 32 and 64bit
 #if V8_TARGET_ARCH_PPC64
 #define LoadPX ldx
