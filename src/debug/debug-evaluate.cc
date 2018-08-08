@@ -277,7 +277,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(IsTypedArray)                        \
   /* Loads */                            \
   V(LoadLookupSlotForCall)               \
-  V(GetProperty)                         \
   /* Arrays */                           \
   V(ArraySpeciesConstructor)             \
   V(EstimateNumberOfElements)            \

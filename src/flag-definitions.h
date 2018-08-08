@@ -315,11 +315,6 @@ DEFINE_BOOL(optimize_for_size, false,
             "Enables optimizations which favor memory size over execution "
             "speed")
 
-// Flag for one shot optimiztions.
-DEFINE_BOOL(enable_one_shot_optimization, true,
-            "Enable size optimizations for the code that will "
-            "only be executed once")
-
 DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, 1)
 
 // Flags for data representation optimizations
