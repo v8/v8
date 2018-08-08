@@ -218,6 +218,8 @@ namespace internal {
   F(CurrencyDigits, 1, 1)                    \
   F(DateCacheVersion, 0, 1)                  \
   F(DefaultNumberOption, 5, 1)               \
+  F(FormatList, 2, 1)                        \
+  F(FormatListToParts, 2, 1)                 \
   F(GetDefaultICULocale, 0, 1)               \
   F(GetNumberOption, 5, 1)                   \
   F(InternalCompare, 3, 1)                   \

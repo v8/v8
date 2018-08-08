@@ -1340,6 +1340,12 @@ namespace internal {
   CPP(ListFormatConstructor)                                           \
   /* ecma402 #sec-intl.listformat.prototype.resolvedoptions */         \
   CPP(ListFormatPrototypeResolvedOptions)                              \
+  /* ecma402 #sec-intl-list-format.prototype.format */                 \
+  TFJ(ListFormatPrototypeFormat,                                       \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                 \
+  /* ecma402 #sec-intl-list-format.prototype.formattoparts */          \
+  TFJ(ListFormatPrototypeFormatToParts,                                \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                 \
   /* ecma402 #sec-intl-locale-constructor */                           \
   CPP(LocaleConstructor)                                               \
   CPP(LocalePrototypeLanguage)                                         \

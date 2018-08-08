@@ -4541,6 +4541,10 @@ void Genesis::InitializeGlobal_harmony_intl_list_format() {
   SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
                         Builtins::kListFormatPrototypeResolvedOptions, 0,
                         false);
+  SimpleInstallFunction(isolate(), prototype, "format",
+                        Builtins::kListFormatPrototypeFormat, 1, false);
+  SimpleInstallFunction(isolate(), prototype, "formatToParts",
+                        Builtins::kListFormatPrototypeFormatToParts, 1, false);
 }
 
 void Genesis::InitializeGlobal_harmony_locale() {

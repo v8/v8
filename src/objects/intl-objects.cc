@@ -700,6 +700,59 @@ void V8BreakIterator::DeleteBreakIterator(
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
 }
 
+MaybeHandle<String> Intl::ToString(Isolate* isolate,
+                                   const icu::UnicodeString& string) {
+  return isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+      reinterpret_cast<const uint16_t*>(string.getBuffer()), string.length()));
+}
+
+MaybeHandle<String> Intl::ToString(Isolate* isolate,
+                                   const icu::UnicodeString& string,
+                                   int32_t begin, int32_t end) {
+  return Intl::ToString(isolate, string.tempSubStringBetween(begin, end));
+}
+
+namespace {
+
+Handle<JSObject> InnerAddElement(Isolate* isolate, Handle<JSArray> array,
+                                 int index, Handle<String> field_type_string,
+                                 Handle<String> value) {
+  // let element = $array[$index] = {
+  //   type: $field_type_string,
+  //   value: $value
+  // }
+  // return element;
+  Factory* factory = isolate->factory();
+  Handle<JSObject> element = factory->NewJSObject(isolate->object_function());
+  JSObject::AddProperty(isolate, element, factory->type_string(),
+                        field_type_string, NONE);
+
+  JSObject::AddProperty(isolate, element, factory->value_string(), value, NONE);
+  JSObject::AddDataElement(array, index, element, NONE);
+  return element;
+}
+
+}  // namespace
+
+void Intl::AddElement(Isolate* isolate, Handle<JSArray> array, int index,
+                      Handle<String> field_type_string, Handle<String> value) {
+  // Same as $array[$index] = {type: $field_type_string, value: $value};
+  InnerAddElement(isolate, array, index, field_type_string, value);
+}
+
+void Intl::AddElement(Isolate* isolate, Handle<JSArray> array, int index,
+                      Handle<String> field_type_string, Handle<String> value,
+                      Handle<String> additional_property_name,
+                      Handle<String> additional_property_value) {
+  // Same as $array[$index] = {
+  //   type: $field_type_string, value: $value,
+  //   $additional_property_name: $additional_property_value
+  // }
+  Handle<JSObject> element =
+      InnerAddElement(isolate, array, index, field_type_string, value);
+  JSObject::AddProperty(isolate, element, additional_property_name,
+                        additional_property_value, NONE);
+}
 // Build the shortened locale; eg, convert xx_Yyyy_ZZ  to xx_ZZ.
 bool Intl::RemoveLocaleScriptTag(const std::string& icu_locale,
                                  std::string* locale_less_script) {

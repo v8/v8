@@ -7,14 +7,18 @@
 #endif  // V8_INTL_SUPPORT
 
 #include <cmath>
+#include <list>
+#include <memory>
 
 #include "src/builtins/builtins-intl.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/date.h"
+#include "src/elements.h"
 #include "src/intl.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
@@ -25,6 +29,7 @@
 #include "unicode/decimfmt.h"
 #include "unicode/fieldpos.h"
 #include "unicode/fpositer.h"
+#include "unicode/listformatter.h"
 #include "unicode/normalizer2.h"
 #include "unicode/numfmt.h"
 #include "unicode/reldatefmt.h"
@@ -220,56 +225,6 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
   }
 }
 
-MaybeHandle<JSObject> InnerAddElement(Isolate* isolate, Handle<JSArray> array,
-                                      int index,
-                                      Handle<String> field_type_string,
-                                      const icu::UnicodeString& formatted,
-                                      int32_t begin, int32_t end) {
-  Factory* factory = isolate->factory();
-  Handle<JSObject> element = factory->NewJSObject(isolate->object_function());
-  Handle<String> value;
-  JSObject::AddProperty(isolate, element, factory->type_string(),
-                        field_type_string, NONE);
-
-  icu::UnicodeString field(formatted.tempSubStringBetween(begin, end));
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, value,
-      factory->NewStringFromTwoByte(Vector<const uint16_t>(
-          reinterpret_cast<const uint16_t*>(field.getBuffer()),
-          field.length())),
-      JSObject);
-
-  JSObject::AddProperty(isolate, element, factory->value_string(), value, NONE);
-  JSObject::AddDataElement(array, index, element, NONE);
-  return element;
-}
-
-Maybe<bool> AddElement(Isolate* isolate, Handle<JSArray> array, int index,
-                       Handle<String> field_type_string,
-                       const icu::UnicodeString& formatted, int32_t begin,
-                       int32_t end) {
-  RETURN_ON_EXCEPTION_VALUE(
-      isolate,
-      InnerAddElement(isolate, array, index, field_type_string, formatted,
-                      begin, end),
-      Nothing<bool>());
-  return Just(true);
-}
-
-Maybe<bool> AddElement(Isolate* isolate, Handle<JSArray> array, int index,
-                       Handle<String> field_type_string,
-                       const icu::UnicodeString& formatted, int32_t begin,
-                       int32_t end, Handle<String> name, Handle<String> value) {
-  Handle<JSObject> element;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, element,
-      InnerAddElement(isolate, array, index, field_type_string, formatted,
-                      begin, end),
-      Nothing<bool>());
-  JSObject::AddProperty(isolate, element, name, value, NONE);
-  return Just(true);
-}
-
 bool cmp_NumberFormatSpan(const NumberFormatSpan& a,
                           const NumberFormatSpan& b) {
   // Regions that start earlier should be encountered earlier.
@@ -325,10 +280,12 @@ MaybeHandle<Object> FormatNumberToParts(Isolate* isolate,
         part.field_id == -1
             ? isolate->factory()->literal_string()
             : IcuNumberFieldIdToNumberType(part.field_id, number, isolate);
-    Maybe<bool> maybe_added_element =
-        AddElement(isolate, result, index, field_type_string, formatted,
-                   part.begin_pos, part.end_pos);
-    MAYBE_RETURN(maybe_added_element, MaybeHandle<Object>());
+    Handle<String> substring;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, substring,
+        Intl::ToString(isolate, formatted, part.begin_pos, part.end_pos),
+        Object);
+    Intl::AddElement(isolate, result, index, field_type_string, substring);
     ++index;
   }
   JSObject::ValidateElements(*result);
@@ -355,30 +312,35 @@ MaybeHandle<Object> FormatDateToParts(Isolate* isolate, icu::DateFormat* format,
 
   int index = 0;
   int32_t previous_end_pos = 0;
+  Handle<String> substring;
   while (fp_iter.next(fp)) {
     int32_t begin_pos = fp.getBeginIndex();
     int32_t end_pos = fp.getEndIndex();
 
     if (previous_end_pos < begin_pos) {
-      Maybe<bool> maybe_added_element = AddElement(
-          isolate, result, index, IcuDateFieldIdToDateType(-1, isolate),
-          formatted, previous_end_pos, begin_pos);
-      MAYBE_RETURN(maybe_added_element, MaybeHandle<Object>());
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, substring,
+          Intl::ToString(isolate, formatted, previous_end_pos, begin_pos),
+          Object);
+      Intl::AddElement(isolate, result, index,
+                       IcuDateFieldIdToDateType(-1, isolate), substring);
       ++index;
     }
-    Maybe<bool> maybe_added_element =
-        AddElement(isolate, result, index,
-                   IcuDateFieldIdToDateType(fp.getField(), isolate), formatted,
-                   begin_pos, end_pos);
-    MAYBE_RETURN(maybe_added_element, MaybeHandle<Object>());
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, substring,
+        Intl::ToString(isolate, formatted, begin_pos, end_pos), Object);
+    Intl::AddElement(isolate, result, index,
+                     IcuDateFieldIdToDateType(fp.getField(), isolate),
+                     substring);
     previous_end_pos = end_pos;
     ++index;
   }
   if (previous_end_pos < length) {
-    Maybe<bool> maybe_added_element = AddElement(
-        isolate, result, index, IcuDateFieldIdToDateType(-1, isolate),
-        formatted, previous_end_pos, length);
-    MAYBE_RETURN(maybe_added_element, MaybeHandle<Object>());
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, substring,
+        Intl::ToString(isolate, formatted, previous_end_pos, length), Object);
+    Intl::AddElement(isolate, result, index,
+                     IcuDateFieldIdToDateType(-1, isolate), substring);
   }
   JSObject::ValidateElements(*result);
   return result;
@@ -761,18 +723,16 @@ MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
   Handle<JSArray> array = factory->NewJSArray(0);
   int32_t found = formatted.indexOf(integer_part);
 
+  Handle<String> substring;
   if (found < 0) {
     // Cannot find the integer_part in the formatted.
     // Return [{'type': 'literal', 'value': formatted}]
-    Maybe<bool> maybe_added_element =
-        AddElement(isolate, array,
-                   0,                          // index
-                   factory->literal_string(),  // field_type_string
-                   formatted,
-                   0,                    // begin
-                   formatted.length());  // end
-    MAYBE_RETURN(maybe_added_element, MaybeHandle<JSArray>());
-
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, substring,
+                               Intl::ToString(isolate, formatted), JSArray);
+    Intl::AddElement(isolate, array,
+                     0,                          // index
+                     factory->literal_string(),  // field_type_string
+                     substring);
   } else {
     // Found the formatted integer in the result.
     int index = 0;
@@ -781,40 +741,39 @@ MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
     //     'type': 'literal',
     //     'value': formatted.substring(0, found)})
     if (found > 0) {
-      Maybe<bool> maybe_added_element =
-          AddElement(isolate, array, index++,
-                     factory->literal_string(),  // field_type_string
-                     formatted,
-                     0,       // begin
-                     found);  // end
-      MAYBE_RETURN(maybe_added_element, MaybeHandle<JSArray>());
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, substring,
+                                 Intl::ToString(isolate, formatted, 0, found),
+                                 JSArray);
+      Intl::AddElement(isolate, array, index++,
+                       factory->literal_string(),  // field_type_string
+                       substring);
     }
 
     // array.push({
     //     'type': 'integer',
     //     'value': formatted.substring(found, found + integer_part.length),
     //     'unit': unit})
-    Maybe<bool> maybe_added_element =
-        AddElement(isolate, array, index++,
-                   factory->integer_string(),  // field_type_string
-                   formatted,
-                   found,                          // begin
-                   found + integer_part.length(),  // end
-                   factory->unit_string(), unit);
-    MAYBE_RETURN(maybe_added_element, MaybeHandle<JSArray>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, substring,
+                               Intl::ToString(isolate, formatted, found,
+                                              found + integer_part.length()),
+                               JSArray);
+    Intl::AddElement(isolate, array, index++,
+                     factory->integer_string(),  // field_type_string
+                     substring, factory->unit_string(), unit);
 
     // array.push({
     //     'type': 'literal',
     //     'value': formatted.substring(
     //         found + integer_part.length, formatted.length)})
     if (found + integer_part.length() < formatted.length()) {
-      Maybe<bool> maybe_added_element =
-          AddElement(isolate, array, index,
-                     factory->literal_string(),  // field_type_string
-                     formatted,
-                     found + integer_part.length(),  // begin
-                     formatted.length());            // end
-      MAYBE_RETURN(maybe_added_element, MaybeHandle<JSArray>());
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, substring,
+          Intl::ToString(isolate, formatted, found + integer_part.length(),
+                         formatted.length()),
+          JSArray);
+      Intl::AddElement(isolate, array, index,
+                       factory->literal_string(),  // field_type_string
+                       substring);
     }
   }
   return array;

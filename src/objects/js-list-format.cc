@@ -11,10 +11,12 @@
 #include <memory>
 #include <vector>
 
+#include "src/elements.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/managed.h"
 #include "unicode/listformatter.h"
@@ -244,6 +246,155 @@ Handle<String> JSListFormat::TypeAsString() const {
     case Type::COUNT:
       UNREACHABLE();
   }
+}
+
+namespace {
+
+// TODO(ftang) remove the following hack after icu::ListFormat support
+// FieldPosition.
+// This is a temporary workaround until icu::ListFormat support FieldPosition
+// It is inefficient and won't work correctly on the edge case that the input
+// contains fraction of the list pattern.
+// For example the following under English will mark the "an" incorrectly
+// since the formatted is "a, b, and an".
+// listFormat.formatToParts(["a", "b", "an"])
+// https://ssl.icu-project.org/trac/ticket/13754
+MaybeHandle<JSArray> GenerateListFormatParts(
+    Isolate* isolate, const icu::UnicodeString& formatted,
+    const icu::UnicodeString items[], int length) {
+  Factory* factory = isolate->factory();
+  int estimate_size = length * 2 + 1;
+  Handle<JSArray> array = factory->NewJSArray(estimate_size);
+  int index = 0;
+  int last_pos = 0;
+  for (int i = 0; i < length; i++) {
+    int found = formatted.indexOf(items[i], last_pos);
+    DCHECK_GE(found, 0);
+    if (found > last_pos) {
+      Handle<String> substring;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, substring,
+          Intl::ToString(isolate, formatted, last_pos, found), JSArray);
+      Intl::AddElement(isolate, array, index++, factory->literal_string(),
+                       substring);
+    }
+    last_pos = found + items[i].length();
+    Handle<String> substring;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, substring, Intl::ToString(isolate, formatted, found, last_pos),
+        JSArray);
+    Intl::AddElement(isolate, array, index++, factory->element_string(),
+                     substring);
+  }
+  if (last_pos < formatted.length()) {
+    Handle<String> substring;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, substring,
+        Intl::ToString(isolate, formatted, last_pos, formatted.length()),
+        JSArray);
+    Intl::AddElement(isolate, array, index++, factory->literal_string(),
+                     substring);
+  }
+  return array;
+}
+
+// Extract String from JSArray into array of UnicodeString
+Maybe<bool> ToUnicodeStringArray(Isolate* isolate, Handle<JSArray> array,
+                                 icu::UnicodeString items[], uint32_t length) {
+  Factory* factory = isolate->factory();
+  // In general, ElementsAccessor::Get actually isn't guaranteed to give us the
+  // elements in order. But given that it was created by a builtin we control,
+  // it shouldn't be possible for it to be problematic. Add DCHECK to ensure
+  // that.
+  DCHECK(array->HasFastPackedElements());
+  auto* accessor = array->GetElementsAccessor();
+  DCHECK(length == accessor->NumberOfElements(*array));
+  // ecma402 #sec-createpartsfromlist
+  // 2. If list contains any element value such that Type(value) is not String,
+  // throw a TypeError exception.
+  //
+  // Per spec it looks like we're supposed to throw a TypeError exception if the
+  // item isn't already a string, rather than coercing to a string. Moreover,
+  // the way the spec's written it looks like we're supposed to run through the
+  // whole list to check that they're all strings before going further.
+  for (uint32_t i = 0; i < length; i++) {
+    Handle<Object> item = accessor->Get(array, i);
+    DCHECK(!item.is_null());
+    if (!item->IsString()) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewTypeError(MessageTemplate::kArrayItemNotType,
+                       factory->NewStringFromStaticChars("list"),
+                       factory->NewNumber(i),
+                       factory->NewStringFromStaticChars("String")),
+          Nothing<bool>());
+    }
+  }
+  for (uint32_t i = 0; i < length; i++) {
+    Handle<String> string = Handle<String>::cast(accessor->Get(array, i));
+    DisallowHeapAllocation no_gc;
+    string = String::Flatten(isolate, string);
+    std::unique_ptr<uc16[]> sap;
+    items[i] =
+        icu::UnicodeString(GetUCharBufferFromFlat(string->GetFlatContent(),
+                                                  &sap, string->length()),
+                           string->length());
+  }
+  return Just(true);
+}
+
+}  // namespace
+
+Maybe<bool> FormatListCommon(Isolate* isolate,
+                             Handle<JSListFormat> format_holder,
+                             Handle<JSArray> list,
+                             icu::UnicodeString& formatted, uint32_t* length,
+                             std::unique_ptr<icu::UnicodeString[]>& array) {
+  DCHECK(!list->IsUndefined());
+
+  icu::ListFormatter* formatter =
+      JSListFormat::UnpackFormatter(isolate, format_holder);
+  CHECK_NOT_NULL(formatter);
+
+  *length = list->GetElementsAccessor()->NumberOfElements(*list);
+  array.reset(new icu::UnicodeString[*length]);
+
+  // ecma402 #sec-createpartsfromlist
+  // 2. If list contains any element value such that Type(value) is not String,
+  // throw a TypeError exception.
+  MAYBE_RETURN(ToUnicodeStringArray(isolate, list, array.get(), *length),
+               Nothing<bool>());
+
+  UErrorCode status = U_ZERO_ERROR;
+  formatter->format(array.get(), *length, formatted, status);
+  DCHECK(U_SUCCESS(status));
+  return Just(true);
+}
+
+// ecma402 #sec-formatlist
+MaybeHandle<String> JSListFormat::FormatList(Isolate* isolate,
+                                             Handle<JSListFormat> format_holder,
+                                             Handle<JSArray> list) {
+  icu::UnicodeString formatted;
+  uint32_t length;
+  std::unique_ptr<icu::UnicodeString[]> array;
+  MAYBE_RETURN(
+      FormatListCommon(isolate, format_holder, list, formatted, &length, array),
+      Handle<String>());
+  return Intl::ToString(isolate, formatted);
+}
+
+// ecma42 #sec-formatlisttoparts
+MaybeHandle<JSArray> JSListFormat::FormatListToParts(
+    Isolate* isolate, Handle<JSListFormat> format_holder,
+    Handle<JSArray> list) {
+  icu::UnicodeString formatted;
+  uint32_t length;
+  std::unique_ptr<icu::UnicodeString[]> array;
+  MAYBE_RETURN(
+      FormatListCommon(isolate, format_holder, list, formatted, &length, array),
+      Handle<JSArray>());
+  return GenerateListFormatParts(isolate, formatted, array.get(), length);
 }
 
 }  // namespace internal

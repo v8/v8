@@ -274,6 +274,7 @@ class ErrorUtils : public AllStatic {
     "Derived ArrayBuffer constructor created a buffer which was too small")    \
   T(ArrayBufferSpeciesThis,                                                    \
     "ArrayBuffer subclass returned this from species constructor")             \
+  T(ArrayItemNotType, "array %[%] is not type %")                              \
   T(AwaitNotInAsyncFunction, "await is only valid in async function")          \
   T(AtomicsWaitNotAllowed, "Atomics.wait cannot be called in this context")    \
   T(BadSortComparisonFunction,                                                 \
@@ -346,6 +347,7 @@ class ErrorUtils : public AllStatic {
   T(LocaleNotEmpty,                                                            \
     "First argument to Intl.Locale constructor can't be empty or missing")     \
   T(LocaleBadParameters, "Incorrect locale information provided")              \
+  T(ListFormatBadParameters, "Incorrect ListFormat information provided")      \
   T(MapperFunctionNonCallable, "flatMap mapper function is not callable")      \
   T(MethodCalledOnWrongObject,                                                 \
     "Method % called on a non-object or on a wrong type of object.")           \

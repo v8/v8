@@ -73,6 +73,7 @@
   V(enqueue_string, "enqueue")                                     \
   V(entries_string, "entries")                                     \
   V(enumerable_string, "enumerable")                               \
+  V(element_string, "element")                                     \
   V(era_string, "era")                                             \
   V(Error_string, "Error")                                         \
   V(error_to_string, "[object Error]")                             \
