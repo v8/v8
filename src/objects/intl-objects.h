@@ -9,6 +9,7 @@
 #ifndef V8_OBJECTS_INTL_OBJECTS_H_
 #define V8_OBJECTS_INTL_OBJECTS_H_
 
+#include <map>
 #include <set>
 #include <string>
 
@@ -275,6 +276,10 @@ class Intl {
   // ecma-402/#sec-currencydigits
   // The currency is expected to an all upper case string value.
   static Handle<Smi> CurrencyDigits(Isolate* isolate, Handle<String> currency);
+
+  // TODO(ftang): Remove this and use ICU to the conversion in the future
+  static void ParseExtension(Isolate* isolate, const std::string& extension,
+                             std::map<std::string, std::string>& out);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> CreateNumberFormat(
       Isolate* isolate, Handle<String> locale, Handle<JSObject> options,

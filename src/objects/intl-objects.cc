@@ -1640,6 +1640,50 @@ MaybeHandle<JSObject> Intl::CreateNumberFormat(Isolate* isolate,
   return local_object;
 }
 
+/**
+ * Parses Unicode extension into key - value map.
+ * Returns empty object if the extension string is invalid.
+ * We are not concerned with the validity of the values at this point.
+ * 'attribute' in RFC 6047 is not supported. Keys without explicit
+ * values are assigned UNDEFINED.
+ * TODO(jshin): Fix the handling of 'attribute' (in RFC 6047, but none
+ * has been defined so that it's not used) and boolean keys without
+ * an explicit value.
+ */
+void Intl::ParseExtension(Isolate* isolate, const std::string& extension,
+                          std::map<std::string, std::string>& out) {
+  if (extension.compare(0, 3, "-u-") != 0) return;
+
+  // Key is {2}alphanum, value is {3,8}alphanum.
+  // Some keys may not have explicit values (booleans).
+  std::string key;
+  std::string value;
+  // Skip the "-u-".
+  size_t start = 3;
+  size_t end;
+  do {
+    end = extension.find("-", start);
+    size_t length =
+        (end == std::string::npos) ? extension.length() - start : end - start;
+    std::string element = extension.substr(start, length);
+    // Key is {2}alphanum
+    if (length == 2) {
+      if (!key.empty()) {
+        out.insert(std::pair<std::string, std::string>(key, value));
+        value.clear();
+      }
+      key = element;
+      // value is {3,8}alphanum.
+    } else if (length >= 3 && length <= 8 && !key.empty()) {
+      value = value.empty() ? element : (value + "-" + element);
+    } else {
+      return;
+    }
+    start = end + 1;
+  } while (end != std::string::npos);
+  if (!key.empty()) out.insert(std::pair<std::string, std::string>(key, value));
+}
+
 namespace {
 
 bool IsAToZ(char ch) {

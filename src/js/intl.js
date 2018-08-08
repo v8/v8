@@ -483,61 +483,6 @@ function bestFitMatcher(service, requestedLocales) {
   return lookupMatcher(service, requestedLocales);
 }
 
-
-/**
- * Parses Unicode extension into key - value map.
- * Returns empty object if the extension string is invalid.
- * We are not concerned with the validity of the values at this point.
- * 'attribute' in RFC 6047 is not supported. Keys without explicit
- * values are assigned UNDEFINED.
- * TODO(jshin): Fix the handling of 'attribute' (in RFC 6047, but none
- * has been defined so that it's not used) and boolean keys without
- * an explicit value.
- */
-function parseExtension(extension) {
-  var extensionSplit = %StringSplit(extension, '-', kMaxUint32);
-
-  // Assume ['', 'u', ...] input, but don't throw.
-  if (extensionSplit.length <= 2 ||
-      (extensionSplit[0] !== '' && extensionSplit[1] !== 'u')) {
-    return {__proto__: null};
-  }
-
-  // Key is {2}alphanum, value is {3,8}alphanum.
-  // Some keys may not have explicit values (booleans).
-  var extensionMap = {__proto__: null};
-  var key = UNDEFINED;
-  var value = UNDEFINED;
-  for (var i = 2; i < extensionSplit.length; ++i) {
-    var length = extensionSplit[i].length;
-    var element = extensionSplit[i];
-    if (length === 2) {
-      if (!IS_UNDEFINED(key)) {
-        if (!(key in extensionMap)) {
-          extensionMap[key] = value;
-        }
-        value = UNDEFINED;
-      }
-      key = element;
-    } else if (length >= 3 && length <= 8 && !IS_UNDEFINED(key)) {
-      if (IS_UNDEFINED(value)) {
-        value = element;
-      } else {
-        value = value + "-" + element;
-      }
-    } else {
-      // There is a value that's too long, or that doesn't have a key.
-      return {__proto__: null};
-    }
-  }
-  if (!IS_UNDEFINED(key) && !(key in extensionMap)) {
-    extensionMap[key] = value;
-  }
-
-  return extensionMap;
-}
-
-
 /**
  * Populates internalOptions object with boolean key-value pairs
  * from extensionMap and options.
@@ -928,7 +873,7 @@ function CreateNumberFormat(locales, options) {
 
   // ICU prefers options to be passed using -u- extension key/values for
   // number format, so we need to build that.
-  var extensionMap = parseExtension(locale.extension);
+  var extensionMap = %ParseExtension(locale.extension);
 
   /**
    * Map of Unicode extensions to option properties, and their values and types,
@@ -1277,7 +1222,7 @@ function CreateDateTimeFormat(locales, options) {
   // ICU prefers options to be passed using -u- extension key/values, so
   // we need to build that.
   var internalOptions = {__proto__: null};
-  var extensionMap = parseExtension(locale.extension);
+  var extensionMap = %ParseExtension(locale.extension);
 
   /**
    * Map of Unicode extensions to option properties, and their values and types,

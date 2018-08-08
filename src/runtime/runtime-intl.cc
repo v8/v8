@@ -329,6 +329,25 @@ RUNTIME_FUNCTION(Runtime_PluralRulesResolvedOptions) {
   return *JSPluralRules::ResolvedOptions(isolate, plural_rules);
 }
 
+RUNTIME_FUNCTION(Runtime_ParseExtension) {
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, extension, 0);
+  std::map<std::string, std::string> map;
+  Intl::ParseExtension(isolate, std::string(extension->ToCString().get()), map);
+  Handle<JSObject> extension_map =
+      isolate->factory()->NewJSObjectWithNullProto();
+  for (std::map<std::string, std::string>::iterator it = map.begin();
+       it != map.end(); it++) {
+    JSObject::AddProperty(
+        isolate, extension_map,
+        factory->NewStringFromAsciiChecked(it->first.c_str()),
+        factory->NewStringFromAsciiChecked(it->second.c_str()), NONE);
+  }
+  return *extension_map;
+}
+
 RUNTIME_FUNCTION(Runtime_PluralRulesSelect) {
   HandleScope scope(isolate);
 
