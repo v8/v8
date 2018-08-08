@@ -1691,10 +1691,20 @@ void TurboAssembler::Abort(AbortReason reason) {
 #endif
 
   // Avoid emitting call to builtin if requested.
-  if (trap_on_abort() || should_abort_hard()) {
-    // TODO(s390): Call {ExternalReference::abort_with_reason} if
-    // {should_abort_hard} is set.
+  if (trap_on_abort()) {
     stop(msg);
+    return;
+  }
+
+  if (should_abort_hard()) {
+    // We don't care if we constructed a frame. Just pretend we did.
+    FrameScope assume_frame(this, StackFrame::NONE);
+    lgfi(r2, Operand(static_cast<int>(reason)));
+    PrepareCallCFunction(1, 0, r3);
+    Move(r3, ExternalReference::abort_with_reason());
+    // Use Call directly to avoid any unneeded overhead. The function won't
+    // return anyway.
+    Call(r3);
     return;
   }
 
@@ -1860,7 +1870,7 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
   } else {
     stack_space += stack_passed_arguments;
   }
-  lay(sp, MemOperand(sp, -(stack_space)*kPointerSize));
+  lay(sp, MemOperand(sp, (-stack_space) * kPointerSize));
 }
 
 void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
