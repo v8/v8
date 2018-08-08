@@ -1357,8 +1357,6 @@ Handle<Context> Factory::NewNativeContext() {
   context->set_native_context(*context);
   context->set_errors_thrown(Smi::kZero);
   context->set_math_random_index(Smi::kZero);
-  Handle<WeakCell> weak_cell = NewWeakCell(context);
-  context->set_self_weak_cell(*weak_cell);
   context->set_serialized_objects(*empty_fixed_array());
   DCHECK(context->IsNativeContext());
   return context;

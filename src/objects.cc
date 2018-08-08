@@ -17576,12 +17576,17 @@ int SearchLiteralsMapEntry(CompilationCacheTable* cache, int cache_entry,
   DCHECK(native_context->IsNativeContext());
   Object* obj = cache->get(cache_entry);
 
-  if (obj->IsFixedArray()) {
-    FixedArray* literals_map = FixedArray::cast(obj);
+  // Check that there's no confusion between FixedArray and WeakFixedArray (the
+  // object used to be a FixedArray here).
+  DCHECK(!obj->IsFixedArray());
+  if (obj->IsWeakFixedArray()) {
+    WeakFixedArray* literals_map = WeakFixedArray::cast(obj);
     int length = literals_map->length();
     for (int i = 0; i < length; i += kLiteralEntryLength) {
-      if (WeakCell::cast(literals_map->get(i + kLiteralContextOffset))
-              ->value() == native_context) {
+      DCHECK(literals_map->Get(i + kLiteralContextOffset)
+                 ->IsWeakOrClearedHeapObject());
+      if (literals_map->Get(i + kLiteralContextOffset) ==
+          HeapObjectReference::Weak(native_context)) {
         return i;
       }
     }
@@ -17595,23 +17600,25 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
   Isolate* isolate = native_context->GetIsolate();
   DCHECK(native_context->IsNativeContext());
   STATIC_ASSERT(kLiteralEntryLength == 2);
-  Handle<FixedArray> new_literals_map;
+  Handle<WeakFixedArray> new_literals_map;
   int entry;
 
   Object* obj = cache->get(cache_entry);
 
-  if (!obj->IsFixedArray() || FixedArray::cast(obj)->length() == 0) {
+  // Check that there's no confusion between FixedArray and WeakFixedArray (the
+  // object used to be a FixedArray here).
+  DCHECK(!obj->IsFixedArray());
+  if (!obj->IsWeakFixedArray() || WeakFixedArray::cast(obj)->length() == 0) {
     new_literals_map =
-        isolate->factory()->NewFixedArray(kLiteralInitialLength, TENURED);
+        isolate->factory()->NewWeakFixedArray(kLiteralInitialLength, TENURED);
     entry = 0;
   } else {
-    Handle<FixedArray> old_literals_map(FixedArray::cast(obj), isolate);
+    Handle<WeakFixedArray> old_literals_map(WeakFixedArray::cast(obj), isolate);
     entry = SearchLiteralsMapEntry(*cache, cache_entry, *native_context);
     if (entry >= 0) {
       // Just set the code of the entry.
-      Handle<WeakCell> literals_cell =
-          isolate->factory()->NewWeakCell(feedback_cell);
-      old_literals_map->set(entry + kLiteralLiteralsOffset, *literals_cell);
+      old_literals_map->Set(entry + kLiteralLiteralsOffset,
+                            HeapObjectReference::Weak(*feedback_cell));
       return;
     }
 
@@ -17619,8 +17626,8 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
     DCHECK_LT(entry, 0);
     int length = old_literals_map->length();
     for (int i = 0; i < length; i += kLiteralEntryLength) {
-      if (WeakCell::cast(old_literals_map->get(i + kLiteralContextOffset))
-              ->cleared()) {
+      if (old_literals_map->Get(i + kLiteralContextOffset)
+              ->IsClearedWeakHeapObject()) {
         new_literals_map = old_literals_map;
         entry = i;
         break;
@@ -17629,26 +17636,25 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
 
     if (entry < 0) {
       // Copy old optimized code map and append one new entry.
-      new_literals_map = isolate->factory()->CopyFixedArrayAndGrow(
+      new_literals_map = isolate->factory()->CopyWeakFixedArrayAndGrow(
           old_literals_map, kLiteralEntryLength, TENURED);
       entry = old_literals_map->length();
     }
   }
 
-  Handle<WeakCell> literals_cell =
-      isolate->factory()->NewWeakCell(feedback_cell);
-  WeakCell* context_cell = native_context->self_weak_cell();
-
-  new_literals_map->set(entry + kLiteralContextOffset, context_cell);
-  new_literals_map->set(entry + kLiteralLiteralsOffset, *literals_cell);
+  new_literals_map->Set(entry + kLiteralContextOffset,
+                        HeapObjectReference::Weak(*native_context));
+  new_literals_map->Set(entry + kLiteralLiteralsOffset,
+                        HeapObjectReference::Weak(*feedback_cell));
 
 #ifdef DEBUG
   for (int i = 0; i < new_literals_map->length(); i += kLiteralEntryLength) {
-    WeakCell* cell =
-        WeakCell::cast(new_literals_map->get(i + kLiteralContextOffset));
-    DCHECK(cell->cleared() || cell->value()->IsNativeContext());
-    cell = WeakCell::cast(new_literals_map->get(i + kLiteralLiteralsOffset));
-    DCHECK(cell->cleared() || (cell->value()->IsFeedbackCell()));
+    MaybeObject* object = new_literals_map->Get(i + kLiteralContextOffset);
+    DCHECK(object->IsClearedWeakHeapObject() ||
+           object->ToWeakHeapObject()->IsNativeContext());
+    object = new_literals_map->Get(i + kLiteralLiteralsOffset);
+    DCHECK(object->IsClearedWeakHeapObject() ||
+           object->ToWeakHeapObject()->IsFeedbackCell());
   }
 #endif
 
@@ -17663,12 +17669,14 @@ FeedbackCell* SearchLiteralsMap(CompilationCacheTable* cache, int cache_entry,
   FeedbackCell* result = nullptr;
   int entry = SearchLiteralsMapEntry(cache, cache_entry, native_context);
   if (entry >= 0) {
-    FixedArray* literals_map = FixedArray::cast(cache->get(cache_entry));
+    WeakFixedArray* literals_map =
+        WeakFixedArray::cast(cache->get(cache_entry));
     DCHECK_LE(entry + kLiteralEntryLength, literals_map->length());
-    WeakCell* cell =
-        WeakCell::cast(literals_map->get(entry + kLiteralLiteralsOffset));
+    MaybeObject* object = literals_map->Get(entry + kLiteralLiteralsOffset);
 
-    result = cell->cleared() ? nullptr : FeedbackCell::cast(cell->value());
+    result = object->IsClearedWeakHeapObject()
+                 ? nullptr
+                 : FeedbackCell::cast(object->ToWeakHeapObject());
   }
   DCHECK(result == nullptr || result->IsFeedbackCell());
   return result;

@@ -275,7 +275,6 @@ enum ContextLookupFlags {
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
   V(SECURITY_TOKEN_INDEX, Object, security_token)                              \
-  V(SELF_WEAK_CELL_INDEX, WeakCell, self_weak_cell)                            \
   V(SERIALIZED_OBJECTS, FixedArray, serialized_objects)                        \
   V(SET_VALUE_ITERATOR_MAP_INDEX, Map, set_value_iterator_map)                 \
   V(SET_KEY_VALUE_ITERATOR_MAP_INDEX, Map, set_key_value_iterator_map)         \
