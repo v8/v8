@@ -862,62 +862,6 @@ DEFINE_METHOD_LEN(
 );
 
 
-// ES#sec-array.prototype.copywithin
-// (Array.prototype.copyWithin ( target, start [ , end ] )
-DEFINE_METHOD_LEN(
-  GlobalArray.prototype,
-  copyWithin(target, start, end) {
-    var array = TO_OBJECT(this);
-    var length = TO_LENGTH(array.length);
-
-    target = TO_INTEGER(target);
-    var to;
-    if (target < 0) {
-      to = MathMax(length + target, 0);
-    } else {
-      to = MathMin(target, length);
-    }
-
-    start = TO_INTEGER(start);
-    var from;
-    if (start < 0) {
-      from = MathMax(length + start, 0);
-    } else {
-      from = MathMin(start, length);
-    }
-
-    end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
-    var final;
-    if (end < 0) {
-      final = MathMax(length + end, 0);
-    } else {
-      final = MathMin(end, length);
-    }
-
-    var count = MathMin(final - from, length - to);
-    var direction = 1;
-    if (from < to && to < (from + count)) {
-      direction = -1;
-      from = from + count - 1;
-      to = to + count - 1;
-    }
-
-    while (count > 0) {
-      if (from in array) {
-        array[to] = array[from];
-      } else {
-        delete array[to];
-      }
-      from = from + direction;
-      to = to + direction;
-      count--;
-    }
-
-    return array;
-  },
-  2  /* Set function length */
-);
-
 
 // Set up unscopable properties on the Array.prototype object.
 var unscopables = {
