@@ -311,10 +311,6 @@ class Scanner {
 
     int length() const { return is_one_byte_ ? position_ : (position_ >> 1); }
 
-    void ReduceLength(int delta) {
-      position_ -= delta * (is_one_byte_ ? kOneByteSize : kUC16Size);
-    }
-
     void Reset() {
       position_ = 0;
       is_one_byte_ = true;
@@ -459,11 +455,6 @@ class Scanner {
   V8_INLINE void AddRawLiteralChar(uc32 c) {
     DCHECK_NOT_NULL(next_.raw_literal_chars);
     next_.raw_literal_chars->AddChar(c);
-  }
-
-  V8_INLINE void ReduceRawLiteralLength(int delta) {
-    DCHECK_NOT_NULL(next_.raw_literal_chars);
-    next_.raw_literal_chars->ReduceLength(delta);
   }
 
   // Stops scanning of a literal and drop the collected characters,

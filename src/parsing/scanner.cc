@@ -1059,30 +1059,27 @@ Token::Value Scanner::ScanTemplateSpan() {
   const bool in_template_literal = true;
   while (true) {
     uc32 c = c0_;
-    Advance<capture_raw>();
+    Advance();
     if (c == '`') {
       result = Token::TEMPLATE_TAIL;
-      ReduceRawLiteralLength(1);
       break;
     } else if (c == '$' && c0_ == '{') {
-      Advance<capture_raw>();  // Consume '{'
-      ReduceRawLiteralLength(2);
+      Advance();  // Consume '{'
       break;
     } else if (c == '\\') {
       DCHECK(!unibrow::IsLineTerminator(kEndOfInput));
+      if (capture_raw) AddRawLiteralChar('\\');
       if (unibrow::IsLineTerminator(c0_)) {
         // The TV of LineContinuation :: \ LineTerminatorSequence is the empty
         // code unit sequence.
         uc32 lastChar = c0_;
-        Advance<capture_raw>();
+        Advance();
         if (lastChar == '\r') {
-          ReduceRawLiteralLength(1);  // Remove \r
-          if (c0_ == '\n') {
-            Advance<capture_raw>();  // Adds \n
-          } else {
-            AddRawLiteralChar('\n');
-          }
+          // Also skip \n.
+          if (c0_ == '\n') Advance();
+          lastChar = '\n';
         }
+        if (capture_raw) AddRawLiteralChar(lastChar);
       } else {
         bool success = ScanEscape<capture_raw, in_template_literal>();
         USE(success);
@@ -1101,14 +1098,10 @@ Token::Value Scanner::ScanTemplateSpan() {
       // The TRV of LineTerminatorSequence :: <CR><LF> is the sequence
       // consisting of the CV 0x000A.
       if (c == '\r') {
-        ReduceRawLiteralLength(1);  // Remove \r
-        if (c0_ == '\n') {
-          Advance<capture_raw>();  // Adds \n
-        } else {
-          AddRawLiteralChar('\n');
-        }
+        if (c0_ == '\n') Advance();  // Skip \n
         c = '\n';
       }
+      if (capture_raw) AddRawLiteralChar(c);
       AddLiteralChar(c);
     }
   }
