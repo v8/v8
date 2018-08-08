@@ -36,14 +36,6 @@ void IncrementalMarking::RecordMaybeWeakWrite(HeapObject* obj,
   }
 }
 
-void IncrementalMarking::RecordWrites(HeapObject* obj) {
-  if (IsMarking()) {
-    if (FLAG_concurrent_marking || marking_state()->IsBlack(obj)) {
-      RevisitObject(obj);
-    }
-  }
-}
-
 void IncrementalMarking::RecordWriteIntoCode(Code* host, RelocInfo* rinfo,
                                              Object* value) {
   if (IsMarking() && value->IsHeapObject()) {

@@ -5833,11 +5833,27 @@ void Heap::GenerationalBarrierSlow(HeapObject* object, Address slot,
   heap->store_buffer()->InsertEntry(slot);
 }
 
+void Heap::GenerationalBarrierForElementsSlow(Heap* heap, FixedArray* array,
+                                              int offset, int length) {
+  for (int i = 0; i < length; i++) {
+    if (!InNewSpace(array->get(offset + i))) continue;
+    heap->store_buffer()->InsertEntry(
+        reinterpret_cast<Address>(array->RawFieldOfElementAt(offset + i)));
+  }
+}
+
 void Heap::MarkingBarrierSlow(HeapObject* object, Address slot,
                               HeapObject* value) {
   Heap* heap = Heap::FromWritableHeapObject(object);
   heap->incremental_marking()->RecordWriteSlow(
       object, reinterpret_cast<HeapObjectReference**>(slot), value);
+}
+
+void Heap::MarkingBarrierForElementsSlow(Heap* heap, HeapObject* object) {
+  if (FLAG_concurrent_marking ||
+      heap->incremental_marking()->marking_state()->IsBlack(object)) {
+    heap->incremental_marking()->RevisitObject(object);
+  }
 }
 
 bool Heap::PageFlagsAreConsistent(HeapObject* object) {

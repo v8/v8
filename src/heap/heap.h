@@ -166,12 +166,6 @@ using v8::MemoryPressureLevel;
   V(empty_string)                           \
   PRIVATE_SYMBOL_LIST(V)
 
-#define FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(heap, array, start, length) \
-  do {                                                                 \
-    heap->RecordFixedArrayElements(array, start, length);              \
-    heap->incremental_marking()->RecordWrites(array);                  \
-  } while (false)
-
 class AllocationObserver;
 class ArrayBufferCollector;
 class ArrayBufferTracker;
@@ -495,9 +489,13 @@ class Heap {
   V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject* object,
                                                         Address slot,
                                                         HeapObject* value);
+  V8_EXPORT_PRIVATE static void GenerationalBarrierForElementsSlow(
+      Heap* heap, FixedArray* array, int offset, int length);
   V8_EXPORT_PRIVATE static void MarkingBarrierSlow(HeapObject* object,
                                                    Address slot,
                                                    HeapObject* value);
+  V8_EXPORT_PRIVATE static void MarkingBarrierForElementsSlow(
+      Heap* heap, HeapObject* object);
   V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(HeapObject* object);
 
   // Notifies the heap that is ok to start marking or other activities that
@@ -991,8 +989,6 @@ class Heap {
   inline void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* target);
   void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* target);
   void RecordWritesIntoCode(Code* code);
-  inline void RecordFixedArrayElements(FixedArray* array, int offset,
-                                       int length);
 
   // Used for query incremental marking status in generated code.
   Address* IsMarkingFlagAddress() {

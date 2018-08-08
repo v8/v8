@@ -435,15 +435,6 @@ void Heap::RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value) {
   }
 }
 
-void Heap::RecordFixedArrayElements(FixedArray* array, int offset, int length) {
-  if (InNewSpace(array)) return;
-  for (int i = 0; i < length; i++) {
-    if (!InNewSpace(array->get(offset + i))) continue;
-    store_buffer()->InsertEntry(
-        reinterpret_cast<Address>(array->RawFieldOfElementAt(offset + i)));
-  }
-}
-
 Address* Heap::store_buffer_top_address() {
   return store_buffer()->top_address();
 }

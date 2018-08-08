@@ -89,6 +89,15 @@ inline void GenerationalBarrier(HeapObject* object, MaybeObject** slot,
       object, reinterpret_cast<Address>(slot), value_heap_object);
 }
 
+inline void GenerationalBarrierForElements(Heap* heap, FixedArray* array,
+                                           int offset, int length) {
+  heap_internals::MemoryChunk* array_chunk =
+      heap_internals::MemoryChunk::FromHeapObject(array);
+  if (array_chunk->InNewSpace()) return;
+
+  Heap::GenerationalBarrierForElementsSlow(heap, array, offset, length);
+}
+
 inline void MarkingBarrier(HeapObject* object, Object** slot, Object* value) {
   DCHECK_IMPLIES(slot != nullptr, !HasWeakHeapObjectTag(*slot));
   DCHECK(!HasWeakHeapObjectTag(value));
@@ -103,6 +112,14 @@ inline void MarkingBarrier(HeapObject* object, MaybeObject** slot,
   if (!value->ToStrongOrWeakHeapObject(&value_heap_object)) return;
   heap_internals::MarkingBarrierInternal(
       object, reinterpret_cast<Address>(slot), value_heap_object);
+}
+
+inline void MarkingBarrierForElements(Heap* heap, HeapObject* object) {
+  heap_internals::MemoryChunk* object_chunk =
+      heap_internals::MemoryChunk::FromHeapObject(object);
+  if (!object_chunk->IsMarking()) return;
+
+  Heap::MarkingBarrierForElementsSlow(heap, object);
 }
 
 }  // namespace internal
