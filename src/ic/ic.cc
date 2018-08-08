@@ -2587,7 +2587,7 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Slow) {
 RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   Handle<JSObject> receiver = args.at<JSObject>(0);
   Handle<JSObject> holder = args.at<JSObject>(1);
-  Handle<HeapObject> callback_or_cell = args.at<HeapObject>(2);
+  Handle<HeapObject> callback = args.at<HeapObject>(2);
   Handle<Name> name = args.at<Name>(3);
   Handle<Object> value = args.at(4);
   CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 5);
@@ -2599,12 +2599,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
                                             language_mode));
   }
 
-  Handle<AccessorInfo> info(
-      callback_or_cell->IsWeakCell()
-          ? AccessorInfo::cast(WeakCell::cast(*callback_or_cell)->value())
-          : AccessorInfo::cast(*callback_or_cell),
-      isolate);
-
+  Handle<AccessorInfo> info(AccessorInfo::cast(*callback), isolate);
   DCHECK(info->IsCompatibleReceiver(*receiver));
 
   ShouldThrow should_throw =
