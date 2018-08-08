@@ -964,8 +964,16 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
       Instr instr_b = BEQ;
       instr_b = SetBranchOffset(pos, target_pos, instr_b);
 
-      instr_at_put(pos, instr_b);
-      instr_at_put(pos + 1 * kInstrSize, 0);
+      Instr instr_j = instr_at(pos + 5 * kInstrSize);
+      Instr instr_branch_delay;
+
+      if (IsJump(instr_j)) {
+        instr_branch_delay = instr_at(pos + 6 * kInstrSize);
+      } else {
+        instr_branch_delay = instr_at(pos + 7 * kInstrSize);
+      }
+      instr_at_put(pos + 0 * kInstrSize, instr_b);
+      instr_at_put(pos + 1 * kInstrSize, instr_branch_delay);
     } else {
       int32_t imm = target_pos - (pos + Assembler::kLongBranchPCOffset);
       DCHECK_EQ(imm & 3, 0);
@@ -3915,11 +3923,15 @@ void Assembler::CheckTrampolinePool() {
             bind(&find_pc);
             ori(t9, t9, 0);
             addu(t9, ra, t9);
+            // Instruction jr will take or_ from the next trampoline.
+            // in its branch delay slot. This is the expected behavior
+            // in order to decrease size of trampoline pool.
+            or_(ra, t8, zero_reg);
             jr(t9);
-            or_(ra, t8, zero_reg);  // Branch delay slot.
           }
         }
       }
+      nop();
       bind(&after_pool);
       trampoline_ = Trampoline(pool_start, unbound_labels_count_);
 
