@@ -175,8 +175,14 @@ MaybeHandle<JSLocale> JSLocale::InitializeLocale(Isolate* isolate,
   char icu_result[ULOC_FULLNAME_CAPACITY];
   char icu_canonical[ULOC_FULLNAME_CAPACITY];
 
+  if (locale->length() == 0) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kLocaleNotEmpty),
+                    JSLocale);
+  }
+
   v8::String::Utf8Value bcp47_locale(v8_isolate, v8::Utils::ToLocal(locale));
-  if (bcp47_locale.length() == 0) return MaybeHandle<JSLocale>();
+  CHECK_LT(0, bcp47_locale.length());
+  CHECK_NOT_NULL(*bcp47_locale);
 
   int icu_length = uloc_forLanguageTag(
       *bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY, nullptr, &status);

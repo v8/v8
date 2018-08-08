@@ -679,7 +679,7 @@ MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
                              JSObject::New(constructor, new_target), JSLocale);
 
   // First parameter is a locale, as a string/object. Can't be empty.
-  if (!tag->IsName() && !tag->IsJSReceiver()) {
+  if (!tag->IsString() && !tag->IsJSReceiver()) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kLocaleNotEmpty),
                     JSLocale);
   }
