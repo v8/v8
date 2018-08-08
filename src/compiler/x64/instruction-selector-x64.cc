@@ -197,6 +197,17 @@ class X64OperandGenerator final : public OperandGenerator {
     }
   }
 
+  InstructionOperand GetEffectiveIndexOperand(Node* index,
+                                              AddressingMode* mode) {
+    if (CanBeImmediate(index)) {
+      *mode = kMode_MRI;
+      return UseImmediate(index);
+    } else {
+      *mode = kMode_MR1;
+      return UseUniqueRegister(index);
+    }
+  }
+
   bool CanBeBetterLeftOperand(Node* node) const {
     return !selector()->IsLive(node);
   }
@@ -329,17 +340,10 @@ void InstructionSelector::VisitStore(Node* node) {
   if (write_barrier_kind != kNoWriteBarrier) {
     DCHECK(CanBeTaggedPointer(store_rep.representation()));
     AddressingMode addressing_mode;
-    InstructionOperand inputs[3];
-    size_t input_count = 0;
-    inputs[input_count++] = g.UseUniqueRegister(base);
-    if (g.CanBeImmediate(index)) {
-      inputs[input_count++] = g.UseImmediate(index);
-      addressing_mode = kMode_MRI;
-    } else {
-      inputs[input_count++] = g.UseUniqueRegister(index);
-      addressing_mode = kMode_MR1;
-    }
-    inputs[input_count++] = g.UseUniqueRegister(value);
+    InstructionOperand inputs[] = {
+        g.UseUniqueRegister(base),
+        g.GetEffectiveIndexOperand(index, &addressing_mode),
+        g.UseUniqueRegister(value)};
     RecordWriteMode record_write_mode = RecordWriteMode::kValueIsAny;
     switch (write_barrier_kind) {
       case kNoWriteBarrier:
@@ -356,11 +360,10 @@ void InstructionSelector::VisitStore(Node* node) {
         break;
     }
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-    size_t const temp_count = arraysize(temps);
     InstructionCode code = kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
     code |= MiscField::encode(static_cast<int>(record_write_mode));
-    Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
+    Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
   } else {
     ArchOpcode opcode = GetStoreOpcode(store_rep);
     InstructionOperand inputs[4];
@@ -1827,16 +1830,9 @@ void VisitAtomicBinop(InstructionSelector* selector, Node* node,
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
   AddressingMode addressing_mode;
-  InstructionOperand index_operand;
-  if (g.CanBeImmediate(index)) {
-    index_operand = g.UseImmediate(index);
-    addressing_mode = kMode_MRI;
-  } else {
-    index_operand = g.UseUniqueRegister(index);
-    addressing_mode = kMode_MR1;
-  }
-  InstructionOperand inputs[] = {g.UseUniqueRegister(value),
-                                 g.UseUniqueRegister(base), index_operand};
+  InstructionOperand inputs[] = {
+      g.UseUniqueRegister(value), g.UseUniqueRegister(base),
+      g.GetEffectiveIndexOperand(index, &addressing_mode)};
   InstructionOperand outputs[] = {g.DefineAsFixed(node, rax)};
   InstructionOperand temps[] = {g.TempRegister()};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
@@ -1853,17 +1849,10 @@ void VisitAtomicCompareExchange(InstructionSelector* selector, Node* node,
   Node* old_value = node->InputAt(2);
   Node* new_value = node->InputAt(3);
   AddressingMode addressing_mode;
-  InstructionOperand index_operand;
-  if (g.CanBeImmediate(index)) {
-    index_operand = g.UseImmediate(index);
-    addressing_mode = kMode_MRI;
-  } else {
-    index_operand = g.UseUniqueRegister(index);
-    addressing_mode = kMode_MR1;
-  }
-  InstructionOperand inputs[] = {g.UseFixed(old_value, rax),
-                                 g.UseUniqueRegister(new_value),
-                                 g.UseUniqueRegister(base), index_operand};
+  InstructionOperand inputs[] = {
+      g.UseFixed(old_value, rax), g.UseUniqueRegister(new_value),
+      g.UseUniqueRegister(base),
+      g.GetEffectiveIndexOperand(index, &addressing_mode)};
   InstructionOperand outputs[] = {g.DefineAsFixed(node, rax)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
@@ -1877,16 +1866,9 @@ void VisitAtomicExchange(InstructionSelector* selector, Node* node,
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
   AddressingMode addressing_mode;
-  InstructionOperand index_operand;
-  if (g.CanBeImmediate(index)) {
-    index_operand = g.UseImmediate(index);
-    addressing_mode = kMode_MRI;
-  } else {
-    index_operand = g.UseUniqueRegister(index);
-    addressing_mode = kMode_MR1;
-  }
-  InstructionOperand inputs[] = {g.UseUniqueRegister(value),
-                                 g.UseUniqueRegister(base), index_operand};
+  InstructionOperand inputs[] = {
+      g.UseUniqueRegister(value), g.UseUniqueRegister(base),
+      g.GetEffectiveIndexOperand(index, &addressing_mode)};
   InstructionOperand outputs[] = {g.DefineSameAsFirst(node)};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs);
