@@ -615,12 +615,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // branches
   static constexpr int kLongBranchPCOffset = 3 * kInstrSize;
 
+  // Adjust ra register in branch delay slot of bal instruction so to skip
+  // instructions not needed after optimization of PIC in
+  // TurboAssembler::BranchAndLink method.
+
+  static constexpr int kOptimizedBranchAndLinkLongReturnOffset = 4 * kInstrSize;
+
   // Here we are patching the address in the LUI/ORI instruction pair.
   // These values are used in the serialization process and must be zero for
   // MIPS platform, as Code, Embedded Object or External-reference pointers
   // are split across two consecutive instructions and don't exist separately
   // in the code, so the serializer should not step forwards in memory after
   // a target is resolved and written.
+
   static constexpr int kSpecialTargetSize = 0;
 
   // Number of consecutive instructions used to store 32bit constant. This

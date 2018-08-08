@@ -994,13 +994,27 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
       DCHECK(IsOri(instr_ori));
       int32_t imm = target_pos - (pos + Assembler::kLongBranchPCOffset);
       DCHECK_EQ(imm & 3, 0);
+      if (is_int16(imm + Assembler::kLongBranchPCOffset -
+                   Assembler::kBranchPCOffset)) {
+        // Optimize by converting to regular branch and link with 16-bit
+        // offset.
+        Instr instr_b = REGIMM | BGEZAL;  // Branch and link.
+        instr_b = SetBranchOffset(pos, target_pos, instr_b);
+        // Correct ra register to point to one instruction after jalr from
+        // TurboAssembler::BranchAndLinkLong.
+        Instr instr_a = ADDIU | ra.code() << kRsShift | ra.code() << kRtShift |
+                        kOptimizedBranchAndLinkLongReturnOffset;
 
-      instr_lui &= ~kImm16Mask;
-      instr_ori &= ~kImm16Mask;
+        instr_at_put(pos, instr_b);
+        instr_at_put(pos + 1 * kInstrSize, instr_a);
+      } else {
+        instr_lui &= ~kImm16Mask;
+        instr_ori &= ~kImm16Mask;
 
-      instr_at_put(pos + 0 * kInstrSize,
-                   instr_lui | ((imm >> 16) & kImm16Mask));
-      instr_at_put(pos + 2 * kInstrSize, instr_ori | (imm & kImm16Mask));
+        instr_at_put(pos + 0 * kInstrSize,
+                     instr_lui | ((imm >> kLuiShift) & kImm16Mask));
+        instr_at_put(pos + 2 * kInstrSize, instr_ori | (imm & kImm16Mask));
+      }
     } else {
       Instr instr1 = instr_at(pos + 0 * kInstrSize);
       Instr instr2 = instr_at(pos + 1 * kInstrSize);

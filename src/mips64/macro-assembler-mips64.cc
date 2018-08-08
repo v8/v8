@@ -4291,7 +4291,7 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
       (!L->is_bound() || is_near_r6(L))) {
     BranchShortHelperR6(0, L);
   } else {
-    // Generate position independent jong branch.
+    // Generate position independent long branch.
     BlockTrampolinePoolScope block_trampoline_pool(this);
     Label find_pc;
     int64_t imm64;
@@ -4317,6 +4317,7 @@ void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
       (!L->is_bound() || is_near_r6(L))) {
     BranchAndLinkShortHelperR6(0, L);
   } else {
+    // Generate position independent long branch and link.
     BlockTrampolinePoolScope block_trampoline_pool(this);
     Label find_pc;
     int64_t imm64;
