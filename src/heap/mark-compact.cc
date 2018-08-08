@@ -1784,6 +1784,18 @@ void MarkCompactCollector::MarkLiveObjects() {
 
     DCHECK(marking_worklist()->IsEmpty());
 
+    // Mark objects reachable through the embedder heap. This phase is
+    // opportunistic as it may not discover graphs that are only reachable
+    // through ephemerons.
+    {
+      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPERS);
+      while (!heap_->local_embedder_heap_tracer()->IsRemoteTracingDone()) {
+        PerformWrapperTracing();
+        ProcessMarkingWorklist();
+      }
+      DCHECK(marking_worklist()->IsEmpty());
+    }
+
     // The objects reachable from the roots are marked, yet unreachable objects
     // are unmarked. Mark objects reachable due to embedder heap tracing or
     // harmony weak maps.
