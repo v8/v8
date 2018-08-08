@@ -406,7 +406,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
       metadata[i].instructions_length = length;
 
       // Align the start of each instruction stream.
-      raw_data_size += RoundUp<kCodeAlignment>(length);
+      raw_data_size += PadAndAlign(length);
     } else {
       metadata[i].instructions_offset = raw_data_size;
     }
@@ -418,8 +418,12 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
       "If in doubt, ask jgruber@");
 
   const uint32_t blob_size = RawDataOffset() + raw_data_size;
-  uint8_t* blob = new uint8_t[blob_size];
-  std::memset(blob, 0, blob_size);
+  uint8_t* const blob = new uint8_t[blob_size];
+  uint8_t* const raw_data_start = blob + RawDataOffset();
+
+  // Initially zap the entire blob, effectively padding the alignment area
+  // between two builtins with int3's (on x64/ia32).
+  ZapCode(reinterpret_cast<Address>(blob), blob_size);
 
   // Write the metadata tables.
   DCHECK_EQ(MetadataSize(), sizeof(metadata[0]) * metadata.size());
@@ -430,7 +434,7 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     if (!Builtins::IsIsolateIndependent(i)) continue;
     Code* code = builtins->builtin(i);
     uint32_t offset = metadata[i].instructions_offset;
-    uint8_t* dst = blob + RawDataOffset() + offset;
+    uint8_t* dst = raw_data_start + offset;
     DCHECK_LE(RawDataOffset() + offset + code->raw_instruction_size(),
               blob_size);
     std::memcpy(dst, reinterpret_cast<uint8_t*>(code->raw_instruction_start()),

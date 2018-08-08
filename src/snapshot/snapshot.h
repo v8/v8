@@ -96,7 +96,7 @@ class EmbeddedData final {
 
   // Padded with kCodeAlignment.
   uint32_t PaddedInstructionSizeOfBuiltin(int i) const {
-    return RoundUp<kCodeAlignment>(InstructionSizeOfBuiltin(i));
+    return PadAndAlign(InstructionSizeOfBuiltin(i));
   }
 
   size_t CreateHash() const;
@@ -130,7 +130,7 @@ class EmbeddedData final {
     return sizeof(struct Metadata) * kTableSize;
   }
   static constexpr uint32_t RawDataOffset() {
-    return RoundUp<kCodeAlignment>(MetadataOffset() + MetadataSize());
+    return PadAndAlign(MetadataOffset() + MetadataSize());
   }
 
  private:
@@ -140,6 +140,12 @@ class EmbeddedData final {
     return reinterpret_cast<const struct Metadata*>(data_ + MetadataOffset());
   }
   const uint8_t* RawData() const { return data_ + RawDataOffset(); }
+
+  static constexpr int PadAndAlign(int size) {
+    // Ensure we have at least one byte trailing the actual builtin
+    // instructions which we can later fill with int3.
+    return RoundUp<kCodeAlignment>(size + 1);
+  }
 
   void PrintStatistics() const;
 

@@ -444,9 +444,7 @@ Assembler::Assembler(const AssemblerOptions& options, void* buffer,
 // caller in which case we can't be sure it's okay to overwrite
 // existing code in it.
 #ifdef DEBUG
-  if (own_buffer_) {
-    memset(buffer_, 0xCC, buffer_size_);  // int3
-  }
+  if (own_buffer_) ZapCode(reinterpret_cast<Address>(buffer_), buffer_size_);
 #endif
 
   ReserveCodeTargetSpace(100);
@@ -630,7 +628,7 @@ void Assembler::GrowBuffer() {
   // Clear the buffer in debug mode. Use 'int3' instructions to make
   // sure to get into problems if we ever run uninitialized code.
 #ifdef DEBUG
-  memset(desc.buffer, 0xCC, desc.buffer_size);
+  ZapCode(reinterpret_cast<Address>(desc.buffer), desc.buffer_size);
 #endif
 
   // Copy the data.

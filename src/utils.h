@@ -1716,6 +1716,15 @@ class ThreadedList final {
 V8_EXPORT_PRIVATE bool PassesFilter(Vector<const char> name,
                                     Vector<const char> filter);
 
+// Zap the specified area with a specific byte pattern. This currently defaults
+// to int3 on x64 and ia32. On other architectures this will produce unspecified
+// instruction sequences.
+// TODO(jgruber): Better support for other architectures.
+V8_INLINE void ZapCode(Address addr, size_t size_in_bytes) {
+  static constexpr int kZapByte = 0xCC;
+  std::memset(reinterpret_cast<void*>(addr), kZapByte, size_in_bytes);
+}
+
 }  // namespace internal
 }  // namespace v8
 
