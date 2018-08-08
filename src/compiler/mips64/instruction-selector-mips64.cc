@@ -2837,8 +2837,8 @@ void InstructionSelector::VisitS8x16Shuffle(Node* node) {
   uint8_t offset;
   Mips64OperandGenerator g(this);
   if (TryMatchConcat(shuffle, &offset)) {
-    Emit(kMips64S8x16Concat, g.DefineSameAsFirst(node), g.UseRegister(input0),
-         g.UseRegister(input1), g.UseImmediate(offset));
+    Emit(kMips64S8x16Concat, g.DefineSameAsFirst(node), g.UseRegister(input1),
+         g.UseRegister(input0), g.UseImmediate(offset));
     return;
   }
   if (TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
