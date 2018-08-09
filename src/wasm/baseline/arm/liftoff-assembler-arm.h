@@ -59,17 +59,6 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   BAILOUT("Store");
 }
 
-void LiftoffAssembler::ChangeEndiannessLoad(LiftoffRegister dst, LoadType type,
-                                            LiftoffRegList pinned) {
-  BAILOUT("ChangeEndiannessLoad");
-}
-
-void LiftoffAssembler::ChangeEndiannessStore(LiftoffRegister src,
-                                             StoreType type,
-                                             LiftoffRegList pinned) {
-  BAILOUT("ChangeEndiannessStore");
-}
-
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
