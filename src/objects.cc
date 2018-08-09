@@ -10629,14 +10629,16 @@ Handle<FrameArray> FrameArray::AppendJSFrame(Handle<FrameArray> in,
 Handle<FrameArray> FrameArray::AppendWasmFrame(
     Handle<FrameArray> in, Handle<WasmInstanceObject> wasm_instance,
     int wasm_function_index, wasm::WasmCode* code, int offset, int flags) {
+  Isolate* isolate = wasm_instance->GetIsolate();
   const int frame_count = in->FrameCount();
   const int new_length = LengthFor(frame_count + 1);
-  Handle<FrameArray> array =
-      EnsureSpace(wasm_instance->GetIsolate(), in, new_length);
+  Handle<FrameArray> array = EnsureSpace(isolate, in, new_length);
+  // The {code} will be {nullptr} for interpreted wasm frames.
+  Handle<Foreign> code_foreign =
+      isolate->factory()->NewForeign(reinterpret_cast<Address>(code));
   array->SetWasmInstance(frame_count, *wasm_instance);
   array->SetWasmFunctionIndex(frame_count, Smi::FromInt(wasm_function_index));
-  // The {code} will be {nullptr} for interpreted wasm frames.
-  array->SetIsWasmInterpreterFrame(frame_count, Smi::FromInt(code == nullptr));
+  array->SetWasmCodeObject(frame_count, *code_foreign);
   array->SetOffset(frame_count, Smi::FromInt(offset));
   array->SetFlags(frame_count, Smi::FromInt(flags));
   array->set(kFrameCountIndex, Smi::FromInt(frame_count + 1));
