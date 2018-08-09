@@ -580,7 +580,7 @@ TF_BUILTIN(ForInFilter, CodeStubAssembler) {
   CSA_ASSERT(this, IsString(key));
 
   Label if_true(this), if_false(this);
-  TNode<Oddball> result = HasProperty(object, key, context, kForInHasProperty);
+  TNode<Oddball> result = HasProperty(context, object, key, kForInHasProperty);
   Branch(IsTrue(result), &if_true, &if_false);
 
   BIND(&if_true);

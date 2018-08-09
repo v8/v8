@@ -629,7 +629,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
         // b. Let kPresent be HasProperty(O, Pk).
         // c. ReturnIfAbrupt(kPresent).
         TNode<Oddball> k_present =
-            HasProperty(o(), k(), context(), kHasProperty);
+            HasProperty(context(), o(), k(), kHasProperty);
 
         // d. If kPresent is true, then
         GotoIf(IsFalse(k_present), &done_element);
@@ -1311,7 +1311,7 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
                       Variable& n) {
     // b. Let kPresent be HasProperty(O, Pk).
     // c. ReturnIfAbrupt(kPresent).
-    TNode<Oddball> k_present = HasProperty(o, p_k, context, kHasProperty);
+    TNode<Oddball> k_present = HasProperty(context, o, p_k, kHasProperty);
 
     // d. If kPresent is true, then
     Label done_element(this);
@@ -3840,7 +3840,7 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
       CSA_ASSERT(this,
                  SmiGreaterThanOrEqual(CAST(source_index), SmiConstant(0)));
       Node* const exists =
-          HasProperty(source, source_index, context, kHasProperty);
+          HasProperty(context, source, source_index, kHasProperty);
 
       // c. If exists is true, then
       Label next(this);

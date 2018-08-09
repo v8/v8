@@ -11238,9 +11238,9 @@ void CodeStubAssembler::BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true,
   }
 }
 
-TNode<Oddball> CodeStubAssembler::HasProperty(SloppyTNode<HeapObject> object,
+TNode<Oddball> CodeStubAssembler::HasProperty(SloppyTNode<Context> context,
+                                              SloppyTNode<Object> object,
                                               SloppyTNode<Object> key,
-                                              SloppyTNode<Context> context,
                                               HasPropertyLookupMode mode) {
   Label call_runtime(this, Label::kDeferred), return_true(this),
       return_false(this), end(this), if_proxy(this, Label::kDeferred);

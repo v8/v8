@@ -181,12 +181,7 @@ extern macro ToLength_Inline(Context, Object): Number;
 extern macro ToNumber_Inline(Context, Object): Number;
 extern macro ToString_Inline(Context, Object): String;
 extern macro GetProperty(Context, Object, Object): Object;
-
 extern builtin HasProperty(Context, JSReceiver, Object): Boolean;
-macro TorqueHasProperty(
-    context: Context, receiver: JSReceiver, key: Object): Boolean {
-  return HasProperty(context, receiver, key);
-}
 
 extern macro ThrowRangeError(Context, constexpr MessageTemplate): never;
 extern macro ThrowTypeError(Context, constexpr MessageTemplate): never;

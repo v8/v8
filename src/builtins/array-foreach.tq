@@ -13,7 +13,7 @@ module array {
       let pK: String = ToString_Inline(context, k);
 
       // 6b. Let kPresent be ? HasProperty(O, Pk).
-      let kPresent: Oddball = TorqueHasProperty(context, o, pK);
+      let kPresent: Oddball = HasProperty(context, o, pK);
 
       // 6c. If kPresent is true, then
       if (kPresent == True) {

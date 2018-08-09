@@ -2628,9 +2628,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   enum HasPropertyLookupMode { kHasProperty, kForInHasProperty };
 
-  TNode<Oddball> HasProperty(SloppyTNode<HeapObject> object,
+  TNode<Oddball> HasProperty(SloppyTNode<Context> context,
+                             SloppyTNode<Object> object,
                              SloppyTNode<Object> key,
-                             SloppyTNode<Context> context,
                              HasPropertyLookupMode mode);
 
   Node* Typeof(Node* value);

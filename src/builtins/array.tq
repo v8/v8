@@ -178,7 +178,7 @@ module array {
       let from: String = ToString_Inline(context, actualStart + k);
 
       // b. Let fromPresent be ? HasProperty(O, from).
-      let fromPresent: Oddball = TorqueHasProperty(context, o, from);
+      let fromPresent: Oddball = HasProperty(context, o, from);
 
       // c. If fromPresent is true, then
       if (fromPresent == True) {
@@ -216,7 +216,7 @@ module array {
         let to: String = ToString_Inline(context, k + itemCount);
 
         // iii. Let fromPresent be ? HasProperty(O, from).
-        let fromPresent: Oddball = TorqueHasProperty(context, o, from);
+        let fromPresent: Oddball = HasProperty(context, o, from);
 
         // iv. If fromPresent is true, then
         if (fromPresent == True) {
@@ -259,7 +259,7 @@ module array {
         let to: String = ToString_Inline(context, k + itemCount - 1);
 
         // iii. Let fromPresent be ? HasProperty(O, from).
-        let fromPresent: Oddball = TorqueHasProperty(context, o, from);
+        let fromPresent: Oddball = HasProperty(context, o, from);
 
         // iv. If fromPresent is true, then
         if (fromPresent == True) {
