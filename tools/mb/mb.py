@@ -832,10 +832,18 @@ class MetaBuildWrapper(object):
       subdir, exe = 'linux64', 'gn'
     elif self.platform == 'darwin':
       subdir, exe = 'mac', 'gn'
+    elif self.platform == 'aix6':
+      subdir, exe = 'aix', 'gn'
     else:
       subdir, exe = 'win', 'gn.exe'
 
-    gn_path = self.PathJoin(self.chromium_src_dir, 'buildtools', subdir, exe)
+    arch = platform.machine()
+    if (self.platform == 'linux2' and
+       (arch.startswith('s390') or arch.startswith('ppc'))):
+      # use gn in PATH
+      gn_path = 'gn'
+    else:
+      gn_path = self.PathJoin(self.chromium_src_dir, 'buildtools', subdir, exe)
     return [gn_path, subcommand, path] + list(args)
 
 
