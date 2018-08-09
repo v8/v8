@@ -106,10 +106,6 @@ type FixedUint8ClampedArray extends FixedTypedArray;
 type FixedBigUint64Array extends FixedTypedArray;
 type FixedBigInt64Array extends FixedTypedArray;
 
-const kFixedArrays: constexpr ExtractFixedArrayFlags generates
-'ExtractFixedArrayFlag::kFixedArrays';
-const kFixedDoubleArrays: constexpr ExtractFixedArrayFlags generates
-'ExtractFixedArrayFlag::kFixedDoubleArrays';
 const kAllFixedArrays: constexpr ExtractFixedArrayFlags generates
 'ExtractFixedArrayFlag::kAllFixedArrays';
 
@@ -168,7 +164,6 @@ extern macro Is64(): constexpr bool;
 
 extern macro Print(constexpr string);
 extern macro Print(constexpr string, Object);
-extern macro Comment(constexpr string);
 extern macro Print(Object);
 extern macro DebugBreak();
 extern macro ToInteger_Inline(Context, Object): Number;
@@ -193,8 +188,7 @@ extern macro ThrowTypeError(Context, constexpr MessageTemplate): never;
 extern macro ThrowTypeError(Context, constexpr MessageTemplate, Object): never;
 extern macro ThrowTypeError(
     Context, constexpr MessageTemplate, Object, Object, Object): never;
-extern macro ArraySpeciesCreate(Context, Object, Number): JSReceiver;
-extern macro InternalArrayCreate(Context, Number): JSArray;
+extern macro ArraySpeciesCreate(Context, Object, Number): Object;
 extern macro EnsureArrayPushable(Map): ElementsKind labels Bailout;
 
 extern builtin ToObject(Context, Object): JSReceiver;
@@ -203,9 +197,7 @@ extern macro IsTheHole(Object): bool;
 extern macro IsString(HeapObject): bool;
 extern builtin ToString(Context, Object): String;
 
-extern runtime NormalizeElements(Context, JSObject);
-extern runtime TransitionElementsKindWithKind(Context, JSObject, Smi);
-extern runtime CreateDataProperty(Context, JSReceiver, Object, Object);
+extern runtime CreateDataProperty(Context, Object, Object, Object);
 extern runtime SetProperty(Context, Object, Object, Object, LanguageMode);
 extern runtime DeleteProperty(Context, Object, Object, LanguageMode);
 
@@ -234,10 +226,6 @@ extern operator '>=' macro SmiGreaterThanOrEqual(Smi, Smi): bool;
 extern operator '==' macro ElementsKindEqual(
     constexpr ElementsKind, constexpr ElementsKind): constexpr bool;
 extern operator '==' macro ElementsKindEqual(ElementsKind, ElementsKind): bool;
-operator '!=' macro ElementsKindNotEqual(
-    k1: ElementsKind, k2: ElementsKind): bool {
-  return !ElementsKindEqual(k1, k2);
-}
 extern macro IsFastElementsKind(constexpr ElementsKind): constexpr bool;
 extern macro IsDoubleElementsKind(constexpr ElementsKind): constexpr bool;
 
@@ -257,13 +245,10 @@ extern operator '==' macro Float64Equal(float64, float64): bool;
 extern operator '!=' macro Float64NotEqual(float64, float64): bool;
 
 extern operator
-'==' macro BranchIfNumberEqual(Number, Number): never labels Taken, NotTaken;
-extern operator
 '<' macro BranchIfNumberLessThan(Number, Number): never labels Taken, NotTaken;
 extern operator
 '<=' macro BranchIfNumberLessThanOrEqual(Number, Number): never labels Taken,
     NotTaken;
-
 extern operator
 '>' macro BranchIfNumberGreaterThan(Number, Number): never labels Taken,
     NotTaken;
@@ -330,8 +315,8 @@ extern operator '.length' macro GetArgumentsLength(constexpr Arguments): intptr;
 extern operator
 '[]' macro GetArgumentValue(constexpr Arguments, intptr): Object;
 
-extern macro TaggedIsSmi(Object): bool;
-extern macro TaggedIsNotSmi(Object): bool;
+extern operator 'is<Smi>' macro TaggedIsSmi(Object): bool;
+extern operator 'isnt<Smi>' macro TaggedIsNotSmi(Object): bool;
 extern macro TaggedIsPositiveSmi(Object): bool;
 
 extern macro HeapObjectToJSDataView(HeapObject): JSDataView labels CastError;
@@ -477,13 +462,6 @@ from_constexpr<Object>(s: constexpr string): Object {
 macro convert<A : type>(i: constexpr int31): A {
   return i;
 }
-extern macro ConvertElementsKindToInt(ElementsKind): int32;
-
-macro convert<A : type>(elements_kind: ElementsKind): A;
-convert<int32>(elements_kind: ElementsKind): int32 {
-  return ConvertElementsKindToInt(elements_kind);
-}
-
 macro convert<A : type>(i: int32): A;
 convert<Number>(i: int32): Number {
   return ChangeInt32ToTagged(i);
@@ -570,9 +548,6 @@ unsafe_cast<HeapNumber>(n: Number): HeapNumber {
   return UnsafeCastNumberToHeapNumber(n);
 }
 macro unsafe_cast<A : type>(o: Object): A;
-unsafe_cast<Object>(o: Object): Object {
-  return o;
-}
 unsafe_cast<FixedArray>(o: Object): FixedArray {
   return UnsafeCastObjectToFixedArray(o);
 }
@@ -659,10 +634,6 @@ extern operator
     FixedArray, constexpr int31, Object): void;
 extern operator
 '[]=' macro StoreFixedArrayElementSmi(FixedArray, Smi, Object): void;
-operator '[]=' macro StoreFixedDoubleArrayNumber(
-    a: FixedDoubleArray, index: Smi, value: Number): void {
-  a[index] = convert<float64>(value);
-}
 
 extern operator '.instance_type' macro LoadMapInstanceType(Map): int32;
 
@@ -688,28 +659,6 @@ extern macro IsFastSmiOrTaggedElementsKind(ElementsKind): bool;
 extern macro IsFastSmiElementsKind(ElementsKind): bool;
 extern macro IsHoleyFastElementsKind(ElementsKind): bool;
 
-macro AllowDoubleElements(kind: ElementsKind): ElementsKind {
-  if (kind == PACKED_SMI_ELEMENTS) {
-    return PACKED_DOUBLE_ELEMENTS;
-  } else if (kind == HOLEY_SMI_ELEMENTS) {
-    return HOLEY_DOUBLE_ELEMENTS;
-  }
-  return kind;
-}
-
-macro AllowNonNumberElements(kind: ElementsKind): ElementsKind {
-  if (kind == PACKED_SMI_ELEMENTS) {
-    return PACKED_ELEMENTS;
-  } else if (kind == HOLEY_SMI_ELEMENTS) {
-    return HOLEY_ELEMENTS;
-  } else if (kind == PACKED_DOUBLE_ELEMENTS) {
-    return PACKED_ELEMENTS;
-  } else if (kind == HOLEY_DOUBLE_ELEMENTS) {
-    return HOLEY_ELEMENTS;
-  }
-  return kind;
-}
-
 extern macro AllocateFixedArray(constexpr ElementsKind, intptr): FixedArray;
 
 extern macro CopyFixedArrayElements(
@@ -724,13 +673,8 @@ extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
 extern macro IsElementsKindGreaterThan(
     ElementsKind, constexpr ElementsKind): bool;
 
-extern operator
-'[]=' macro StoreFixedDoubleArrayElementSmi(
-    FixedDoubleArray, Smi, float64): void;
-
 extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64
 labels IfHole;
-extern macro StoreFixedDoubleArrayHoleSmi(FixedDoubleArray, Smi): void;
 
 extern macro Call(Context, Callable, Object): Object;
 extern macro Call(Context, Callable, Object, Object): Object;
@@ -741,9 +685,8 @@ extern macro Call(
 extern macro Call(
     Context, Callable, Object, Object, Object, Object, Object, Object): Object;
 
-extern macro ExtractFixedArray(FixedArray, Smi, Smi, Smi): FixedArray;
 extern macro ExtractFixedArray(
-    FixedDoubleArray, Smi, Smi, Smi): FixedDoubleArray;
+    FixedArray, Smi, Smi, Smi, constexpr ExtractFixedArrayFlags): FixedArray;
 
 extern builtin ExtractFastJSArray(Context, JSArray, Smi, Smi): JSArray;
 
@@ -778,17 +721,11 @@ labels IfHole {
   }
 }
 
-extern macro TransitionElementsKind(
-    JSObject, Map, ElementsKind, ElementsKind): void labels Bailout;
-
 extern macro IsCallable(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
-extern macro IsJSReceiver(HeapObject): bool;
-extern macro IsFixedArray(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
 extern macro IsDetachedBuffer(JSArrayBuffer): bool;
 extern macro IsHeapNumber(HeapObject): bool;
-extern macro IsNumber(Object): bool;
 extern macro IsExtensibleMap(Map): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
 extern macro Typeof(Object): Object;
