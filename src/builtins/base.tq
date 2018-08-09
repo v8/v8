@@ -182,13 +182,10 @@ extern macro ToNumber_Inline(Context, Object): Number;
 extern macro ToString_Inline(Context, Object): String;
 extern macro GetProperty(Context, Object, Object): Object;
 
-// TODO(mvstanton): the HasProperty builtin takes the key as the first argument,
-// and the object as the second, reversing the usual order. Reverse this in the
-// builtin definition at some point.
-extern builtin HasProperty(Context, Object, JSReceiver): Boolean;
+extern builtin HasProperty(Context, JSReceiver, Object): Boolean;
 macro TorqueHasProperty(
     context: Context, receiver: JSReceiver, key: Object): Boolean {
-  return HasProperty(context, key, receiver);
+  return HasProperty(context, receiver, key);
 }
 
 extern macro ThrowRangeError(Context, constexpr MessageTemplate): never;

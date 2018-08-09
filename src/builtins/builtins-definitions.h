@@ -220,7 +220,7 @@ namespace internal {
   TFC(RunMicrotasks, RunMicrotasks, 1)                                         \
                                                                                \
   /* Object property helpers */                                                \
-  TFS(HasProperty, kKey, kObject)                                              \
+  TFS(HasProperty, kObject, kKey)                                              \
   TFS(DeleteProperty, kObject, kKey, kLanguageMode)                            \
                                                                                \
   /* Abort */                                                                  \

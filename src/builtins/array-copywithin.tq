@@ -63,7 +63,7 @@ module array {
       // a. Let fromKey be ! ToString(from).
       // b. Let toKey be ! ToString(to).
       // c. Let fromPresent be ? HasProperty(O, fromKey).
-      const from_present: Boolean = HasProperty(context, from, object);
+      const from_present: Boolean = HasProperty(context, object, from);
 
       // d. If fromPresent is true, then.
       if (from_present == True) {

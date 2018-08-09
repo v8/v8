@@ -210,14 +210,14 @@ TEST(IntrinsicAsStubCall) {
 
   InvokeIntrinsicHelper has_property_helper(isolate, handles.main_zone(),
                                             Runtime::kInlineHasProperty);
-  CHECK_EQ(*factory->true_value(),
-           *has_property_helper.Invoke(
-               has_property_helper.NewObject("'x'"),
-               has_property_helper.NewObject("({ x: 20 })")));
-  CHECK_EQ(*factory->false_value(),
-           *has_property_helper.Invoke(
-               has_property_helper.NewObject("'y'"),
-               has_property_helper.NewObject("({ x: 20 })")));
+  CHECK_EQ(
+      *factory->true_value(),
+      *has_property_helper.Invoke(has_property_helper.NewObject("({ x: 20 })"),
+                                  has_property_helper.NewObject("'x'")));
+  CHECK_EQ(
+      *factory->false_value(),
+      *has_property_helper.Invoke(has_property_helper.NewObject("({ x: 20 })"),
+                                  has_property_helper.NewObject("'y'")));
 }
 
 }  // namespace interpreter

@@ -938,7 +938,7 @@ Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   Node* vtrue;
   {
     vtrue = etrue = if_true =
-        graph()->NewNode(javascript()->HasProperty(), key, target, context,
+        graph()->NewNode(javascript()->HasProperty(), target, key, context,
                          frame_state, etrue, if_true);
   }
 
