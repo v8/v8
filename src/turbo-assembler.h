@@ -6,6 +6,7 @@
 #define V8_TURBO_ASSEMBLER_H_
 
 #include "src/assembler-arch.h"
+#include "src/base/template-utils.h"
 #include "src/heap/heap.h"
 
 namespace v8 {
@@ -116,16 +117,16 @@ class HardAbortScope BASE_EMBEDDED {
 enum class StubCallMode { kCallOnHeapBuiltin, kCallWasmRuntimeStub };
 
 #ifdef DEBUG
-bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
-                Register reg4 = no_reg, Register reg5 = no_reg,
-                Register reg6 = no_reg, Register reg7 = no_reg,
-                Register reg8 = no_reg, Register reg9 = no_reg,
-                Register reg10 = no_reg);
-bool AreAliased(DoubleRegister reg1, DoubleRegister reg2,
-                DoubleRegister reg3 = no_dreg, DoubleRegister reg4 = no_dreg,
-                DoubleRegister reg5 = no_dreg, DoubleRegister reg6 = no_dreg,
-                DoubleRegister reg7 = no_dreg, DoubleRegister reg8 = no_dreg,
-                DoubleRegister reg9 = no_dreg, DoubleRegister reg10 = no_dreg);
+template <typename RegType, typename... RegTypes,
+          // All arguments must be either Register or DoubleRegister.
+          typename = typename std::enable_if<
+              base::is_same<Register, RegType, RegTypes...>::value ||
+              base::is_same<DoubleRegister, RegType, RegTypes...>::value>::type>
+inline bool AreAliased(RegType first_reg, RegTypes... regs) {
+  int num_different_regs = NumRegs(RegType::ListOf(first_reg, regs...));
+  int num_given_regs = sizeof...(regs) + 1;
+  return num_different_regs < num_given_regs;
+}
 #endif
 
 }  // namespace internal
