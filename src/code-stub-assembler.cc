@@ -8451,14 +8451,15 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
   BIND(&if_isdouble);
   {
-    TNode<FixedDoubleArray> elements = CAST(LoadElements(object));
+    TNode<FixedArrayBase> elements = LoadElements(object);
     TNode<IntPtrT> length = LoadAndUntagFixedArrayBaseLength(elements);
 
     GotoIfNot(UintPtrLessThan(intptr_index, length), &if_oob);
 
     // Check if the element is a double hole, but don't load it.
-    LoadFixedDoubleArrayElement(elements, intptr_index, MachineType::None(), 0,
-                                INTPTR_PARAMETERS, if_not_found);
+    LoadFixedDoubleArrayElement(CAST(elements), intptr_index,
+                                MachineType::None(), 0, INTPTR_PARAMETERS,
+                                if_not_found);
     Goto(if_found);
   }
   BIND(&if_isdictionary);
