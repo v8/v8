@@ -3539,68 +3539,90 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   return share;
 }
 
-static inline int NumberCacheHash(Handle<FixedArray> cache,
-                                  Handle<Object> number) {
+namespace {
+inline int NumberToStringCacheHash(Handle<FixedArray> cache, Smi* number) {
   int mask = (cache->length() >> 1) - 1;
-  if (number->IsSmi()) {
-    return Handle<Smi>::cast(number)->value() & mask;
-  } else {
-    int64_t bits = bit_cast<int64_t>(number->Number());
-    return (static_cast<int>(bits) ^ static_cast<int>(bits >> 32)) & mask;
+  return number->value() & mask;
+}
+inline int NumberToStringCacheHash(Handle<FixedArray> cache, double number) {
+  int mask = (cache->length() >> 1) - 1;
+  int64_t bits = bit_cast<int64_t>(number);
+  return (static_cast<int>(bits) ^ static_cast<int>(bits >> 32)) & mask;
+}
+}  // namespace
+
+Handle<String> Factory::NumberToStringCacheSet(Handle<Object> number, int hash,
+                                               const char* string,
+                                               bool check_cache) {
+  // We tenure the allocated string since it is referenced from the
+  // number-string cache which lives in the old space.
+  Handle<String> js_string =
+      NewStringFromAsciiChecked(string, check_cache ? TENURED : NOT_TENURED);
+  if (!check_cache) return js_string;
+
+  if (!number_string_cache()->get(hash * 2)->IsUndefined(isolate())) {
+    int full_size = isolate()->heap()->MaxNumberToStringCacheSize();
+    if (number_string_cache()->length() != full_size) {
+      Handle<FixedArray> new_cache = NewFixedArray(full_size, TENURED);
+      isolate()->heap()->set_number_string_cache(*new_cache);
+      return js_string;
+    }
   }
+  number_string_cache()->set(hash * 2, *number);
+  number_string_cache()->set(hash * 2 + 1, *js_string);
+  return js_string;
 }
 
-Handle<Object> Factory::GetNumberStringCache(Handle<Object> number) {
+Handle<Object> Factory::NumberToStringCacheGet(Object* number, int hash) {
   DisallowHeapAllocation no_gc;
-  int hash = NumberCacheHash(number_string_cache(), number);
   Object* key = number_string_cache()->get(hash * 2);
-  if (key == *number || (key->IsHeapNumber() && number->IsHeapNumber() &&
-                         key->Number() == number->Number())) {
+  if (key == number || (key->IsHeapNumber() && number->IsHeapNumber() &&
+                        key->Number() == number->Number())) {
     return Handle<String>(
         String::cast(number_string_cache()->get(hash * 2 + 1)), isolate());
   }
   return undefined_value();
 }
 
-void Factory::SetNumberStringCache(Handle<Object> number,
-                                   Handle<String> string) {
-  int hash = NumberCacheHash(number_string_cache(), number);
-  if (number_string_cache()->get(hash * 2) != *undefined_value()) {
-    int full_size = isolate()->heap()->FullSizeNumberStringCacheLength();
-    if (number_string_cache()->length() != full_size) {
-      Handle<FixedArray> new_cache = NewFixedArray(full_size, TENURED);
-      isolate()->heap()->set_number_string_cache(*new_cache);
-      return;
-    }
-  }
-  number_string_cache()->set(hash * 2, *number);
-  number_string_cache()->set(hash * 2 + 1, *string);
-}
-
 Handle<String> Factory::NumberToString(Handle<Object> number,
-                                       bool check_number_string_cache) {
-  isolate()->counters()->number_to_string_runtime()->Increment();
-  if (check_number_string_cache) {
-    Handle<Object> cached = GetNumberStringCache(number);
+                                       bool check_cache) {
+  if (number->IsSmi()) return NumberToString(Smi::cast(*number), check_cache);
+
+  double double_value = Handle<HeapNumber>::cast(number)->value();
+  // Try to canonicalize doubles.
+  int smi_value;
+  if (DoubleToSmiInteger(double_value, &smi_value)) {
+    return NumberToString(Smi::FromInt(smi_value), check_cache);
+  }
+
+  int hash = 0;
+  if (check_cache) {
+    int hash = NumberToStringCacheHash(number_string_cache(), double_value);
+    Handle<Object> cached = NumberToStringCacheGet(*number, hash);
     if (!cached->IsUndefined(isolate())) return Handle<String>::cast(cached);
   }
 
   char arr[100];
   Vector<char> buffer(arr, arraysize(arr));
-  const char* str;
-  if (number->IsSmi()) {
-    int num = Handle<Smi>::cast(number)->value();
-    str = IntToCString(num, buffer);
-  } else {
-    double num = Handle<HeapNumber>::cast(number)->value();
-    str = DoubleToCString(num, buffer);
+  const char* string = DoubleToCString(double_value, buffer);
+
+  return NumberToStringCacheSet(number, hash, string, check_cache);
+}
+
+Handle<String> Factory::NumberToString(Smi* number, bool check_cache) {
+  int hash = 0;
+  if (check_cache) {
+    hash = NumberToStringCacheHash(number_string_cache(), number);
+    Handle<Object> cached = NumberToStringCacheGet(number, hash);
+    if (!cached->IsUndefined(isolate())) return Handle<String>::cast(cached);
   }
 
-  // We tenure the allocated string since it is referenced from the
-  // number-string cache which lives in the old space.
-  Handle<String> js_string = NewStringFromAsciiChecked(str, TENURED);
-  SetNumberStringCache(number, js_string);
-  return js_string;
+  char arr[100];
+  Vector<char> buffer(arr, arraysize(arr));
+  const char* string = IntToCString(number->value(), buffer);
+
+  return NumberToStringCacheSet(handle(number, isolate()), hash, string,
+                                check_cache);
 }
 
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
