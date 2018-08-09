@@ -21986,12 +21986,11 @@ THREADED_TEST(ReadOnlyIndexedProperties) {
 
 
 static int CountLiveMapsInMapCache(i::Context* context) {
-  i::FixedArray* map_cache = i::FixedArray::cast(context->map_cache());
+  i::WeakFixedArray* map_cache = i::WeakFixedArray::cast(context->map_cache());
   int length = map_cache->length();
   int count = 0;
   for (int i = 0; i < length; i++) {
-    i::Object* value = map_cache->get(i);
-    if (value->IsWeakCell() && !i::WeakCell::cast(value)->cleared()) count++;
+    if (map_cache->Get(i)->IsWeakHeapObject()) count++;
   }
   return count;
 }
