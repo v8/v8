@@ -8,6 +8,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/accessor-assembler.h"
+#include "src/ic/keyed-store-generic.h"
 #include "src/macro-assembler.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/shared-function-info.h"
@@ -1265,10 +1266,8 @@ TF_BUILTIN(SetProperty, CodeStubAssembler) {
   TNode<Object> key = CAST(Parameter(Descriptor::kKey));
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
 
-  // TODO(szuend): Add implementation similar to KeyedStoreGeneric().
-
-  TailCallRuntime(Runtime::kSetProperty, context, receiver, key, value,
-                  SmiConstant(LanguageMode::kStrict));
+  KeyedStoreGenericGenerator::SetProperty(state(), context, receiver, key,
+                                          value, LanguageMode::kStrict);
 }
 
 }  // namespace internal
