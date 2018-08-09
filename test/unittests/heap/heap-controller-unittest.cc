@@ -32,104 +32,82 @@ void CheckEqualRounded(double expected, double actual) {
   EXPECT_DOUBLE_EQ(expected, actual);
 }
 
-TEST(HeapController, HeapGrowingFactor) {
-  double min_factor = HeapController::kMinHeapGrowingFactor;
-  double max_factor = HeapController::kMaxHeapGrowingFactor;
-  double target_mu = HeapController::kTargetMutatorUtilization;
+TEST_F(HeapControllerTest, HeapGrowingFactor) {
+  HeapController heap_controller(i_isolate()->heap());
+  double min_factor = heap_controller.kMinGrowingFactor;
+  double max_factor = heap_controller.kMaxGrowingFactor;
 
-  CheckEqualRounded(max_factor,
-                    MemoryController::GrowingFactor(min_factor, max_factor,
-                                                    target_mu, 34, 1, 4.0));
-  CheckEqualRounded(3.553, MemoryController::GrowingFactor(
-                               min_factor, max_factor, target_mu, 45, 1, 4.0));
-  CheckEqualRounded(2.830, MemoryController::GrowingFactor(
-                               min_factor, max_factor, target_mu, 50, 1, 4.0));
-  CheckEqualRounded(1.478, MemoryController::GrowingFactor(
-                               min_factor, max_factor, target_mu, 100, 1, 4.0));
-  CheckEqualRounded(1.193, MemoryController::GrowingFactor(
-                               min_factor, max_factor, target_mu, 200, 1, 4.0));
-  CheckEqualRounded(1.121, MemoryController::GrowingFactor(
-                               min_factor, max_factor, target_mu, 300, 1, 4.0));
-  CheckEqualRounded(MemoryController::GrowingFactor(min_factor, max_factor,
-                                                    target_mu, 300, 1, 4.0),
-                    MemoryController::GrowingFactor(min_factor, max_factor,
-                                                    target_mu, 600, 2, 4.0));
-  CheckEqualRounded(min_factor,
-                    MemoryController::GrowingFactor(min_factor, max_factor,
-                                                    target_mu, 400, 1, 4.0));
+  CheckEqualRounded(max_factor, heap_controller.GrowingFactor(34, 1, 4.0));
+  CheckEqualRounded(3.553, heap_controller.GrowingFactor(45, 1, 4.0));
+  CheckEqualRounded(2.830, heap_controller.GrowingFactor(50, 1, 4.0));
+  CheckEqualRounded(1.478, heap_controller.GrowingFactor(100, 1, 4.0));
+  CheckEqualRounded(1.193, heap_controller.GrowingFactor(200, 1, 4.0));
+  CheckEqualRounded(1.121, heap_controller.GrowingFactor(300, 1, 4.0));
+  CheckEqualRounded(heap_controller.GrowingFactor(300, 1, 4.0),
+                    heap_controller.GrowingFactor(600, 2, 4.0));
+  CheckEqualRounded(min_factor, heap_controller.GrowingFactor(400, 1, 4.0));
 }
 
-TEST(HeapController, MaxHeapGrowingFactor) {
-  CheckEqualRounded(1.3, MemoryController::MaxGrowingFactor(
-                             HeapController::kMinOldGenerationSize * MB,
-                             HeapController::kMinOldGenerationSize,
-                             HeapController::kMaxOldGenerationSize));
-  CheckEqualRounded(1.600, MemoryController::MaxGrowingFactor(
-                               HeapController::kMaxOldGenerationSize / 2 * MB,
-                               HeapController::kMinOldGenerationSize,
-                               HeapController::kMaxOldGenerationSize));
-  CheckEqualRounded(1.999, MemoryController::MaxGrowingFactor(
-                               (HeapController::kMaxOldGenerationSize -
-                                Heap::kPointerMultiplier) *
-                                   MB,
-                               HeapController::kMinOldGenerationSize,
-                               HeapController::kMaxOldGenerationSize));
+TEST_F(HeapControllerTest, MaxHeapGrowingFactor) {
+  HeapController heap_controller(i_isolate()->heap());
   CheckEqualRounded(
-      4.0, MemoryController::MaxGrowingFactor(
-               static_cast<size_t>(HeapController::kMaxOldGenerationSize) * MB,
-               HeapController::kMinOldGenerationSize,
-               HeapController::kMaxOldGenerationSize));
+      1.3, heap_controller.MaxGrowingFactor(heap_controller.kMinSize * MB));
+  CheckEqualRounded(1.600, heap_controller.MaxGrowingFactor(
+                               heap_controller.kMaxSize / 2 * MB));
+  CheckEqualRounded(
+      1.999, heap_controller.MaxGrowingFactor(
+                 (heap_controller.kMaxSize - Heap::kPointerMultiplier) * MB));
+  CheckEqualRounded(4.0,
+                    heap_controller.MaxGrowingFactor(
+                        static_cast<size_t>(heap_controller.kMaxSize) * MB));
 }
 
 TEST_F(HeapControllerTest, OldGenerationAllocationLimit) {
   Heap* heap = i_isolate()->heap();
+  HeapController heap_controller(heap);
   size_t old_gen_size = 128 * MB;
   size_t max_old_generation_size = 512 * MB;
   double gc_speed = 100;
   double mutator_speed = 1;
   size_t new_space_capacity = 16 * MB;
 
-  double max_factor = MemoryController::MaxGrowingFactor(
-      max_old_generation_size, HeapController::kMinOldGenerationSize,
-      HeapController::kMaxOldGenerationSize);
+  double max_factor = heap_controller.MaxGrowingFactor(max_old_generation_size);
   double factor =
-      MemoryController::GrowingFactor(HeapController::kMinHeapGrowingFactor,
-                                      HeapController::kMaxHeapGrowingFactor,
-                                      HeapController::kTargetMutatorUtilization,
-                                      gc_speed, mutator_speed, max_factor);
+      heap_controller.GrowingFactor(gc_speed, mutator_speed, max_factor);
 
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
-            heap->heap_controller()->CalculateOldGenerationAllocationLimit(
+            heap->heap_controller()->CalculateAllocationLimit(
                 old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
                 new_space_capacity, Heap::HeapGrowingMode::kDefault));
 
-  factor = Min(factor, HeapController::kConservativeHeapGrowingFactor);
+  factor = Min(factor, heap_controller.kConservativeGrowingFactor);
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
-            heap->heap_controller()->CalculateOldGenerationAllocationLimit(
+            heap->heap_controller()->CalculateAllocationLimit(
                 old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
                 new_space_capacity, Heap::HeapGrowingMode::kSlow));
 
-  factor = Min(factor, HeapController::kConservativeHeapGrowingFactor);
+  factor = Min(factor, heap_controller.kConservativeGrowingFactor);
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
-            heap->heap_controller()->CalculateOldGenerationAllocationLimit(
+            heap->heap_controller()->CalculateAllocationLimit(
                 old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
                 new_space_capacity, Heap::HeapGrowingMode::kConservative));
 
-  factor = HeapController::kMinHeapGrowingFactor;
+  factor = heap_controller.kMinGrowingFactor;
   EXPECT_EQ(static_cast<size_t>(old_gen_size * factor + new_space_capacity),
-            heap->heap_controller()->CalculateOldGenerationAllocationLimit(
+            heap->heap_controller()->CalculateAllocationLimit(
                 old_gen_size, max_old_generation_size, gc_speed, mutator_speed,
                 new_space_capacity, Heap::HeapGrowingMode::kMinimal));
 }
 
-TEST(HeapController, MaxOldGenerationSize) {
+TEST_F(HeapControllerTest, MaxOldGenerationSize) {
+  HeapController heap_controller(i_isolate()->heap());
   uint64_t configurations[][2] = {
-      {0, HeapController::kMinOldGenerationSize},
-      {512, HeapController::kMinOldGenerationSize},
+      {0, heap_controller.kMinSize},
+      {512, heap_controller.kMinSize},
       {1 * GB, 256 * Heap::kPointerMultiplier},
       {2 * static_cast<uint64_t>(GB), 512 * Heap::kPointerMultiplier},
-      {4 * static_cast<uint64_t>(GB), HeapController::kMaxOldGenerationSize},
-      {8 * static_cast<uint64_t>(GB), HeapController::kMaxOldGenerationSize}};
+      {4 * static_cast<uint64_t>(GB), heap_controller.kMaxSize},
+      {8 * static_cast<uint64_t>(GB), heap_controller.kMaxSize}};
 
   for (auto configuration : configurations) {
     ASSERT_EQ(configuration[1],
