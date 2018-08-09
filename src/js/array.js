@@ -799,19 +799,6 @@ function InnerArraySort(array, length, comparefn) {
   return array;
 }
 
-DEFINE_METHOD(
-  GlobalArray.prototype,
-  sort(comparefn) {
-    if (!IS_UNDEFINED(comparefn) && !IS_CALLABLE(comparefn)) {
-      throw %make_type_error(kBadSortComparisonFunction, comparefn);
-    }
-
-    var array = TO_OBJECT(this);
-    var length = TO_LENGTH(array.length);
-    return InnerArraySort(array, length, comparefn);
-  }
-);
-
 
 DEFINE_METHOD_LEN(
   GlobalArray.prototype,

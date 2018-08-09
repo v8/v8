@@ -64,6 +64,7 @@
 /third_party/colorama/src
 !/third_party/googletest
 /third_party/googletest/src
+!/third_party/v8
 /tools/clang
 /tools/gcmole/gcmole-tools
 /tools/gcmole/gcmole-tools.tar.gz
