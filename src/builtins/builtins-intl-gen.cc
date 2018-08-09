@@ -17,6 +17,9 @@
 namespace v8 {
 namespace internal {
 
+template <class T>
+using TNode = compiler::TNode<T>;
+
 class IntlBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit IntlBuiltinsAssembler(compiler::CodeAssemblerState* state)
@@ -26,7 +29,7 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
                         Runtime::FunctionId format_func_id,
                         const char* method_name);
 
-  Node* AllocateEmptyJSArray(TNode<Context> context);
+  TNode<JSArray> AllocateEmptyJSArray(TNode<Context> context);
 };
 
 TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
@@ -184,14 +187,12 @@ void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,
   }
 }
 
-Node* IntlBuiltinsAssembler::AllocateEmptyJSArray(TNode<Context> context) {
-  Node* array = CodeStubAssembler::AllocateJSArray(
+TNode<JSArray> IntlBuiltinsAssembler::AllocateEmptyJSArray(
+    TNode<Context> context) {
+  return CAST(CodeStubAssembler::AllocateJSArray(
       PACKED_ELEMENTS,
       LoadJSArrayElementsMap(PACKED_ELEMENTS, LoadNativeContext(context)),
-      SmiConstant(0), SmiConstant(0));
-  StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset,
-                                 EmptyFixedArrayConstant());
-  return array;
+      SmiConstant(0), SmiConstant(0)));
 }
 
 TF_BUILTIN(ListFormatPrototypeFormat, IntlBuiltinsAssembler) {
