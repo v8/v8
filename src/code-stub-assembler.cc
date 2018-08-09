@@ -160,6 +160,14 @@ void CodeStubAssembler::Check(const NodeGenerator& condition_body,
         extra_node4_name, extra_node5, extra_node5_name);
 }
 
+void CodeStubAssembler::FastCheck(TNode<BoolT> condition) {
+  Label ok(this);
+  GotoIf(condition, &ok);
+  DebugBreak();
+  Goto(&ok);
+  BIND(&ok);
+}
+
 Node* CodeStubAssembler::SelectImpl(TNode<BoolT> condition,
                                     const NodeGenerator& true_body,
                                     const NodeGenerator& false_body,
@@ -1946,11 +1954,41 @@ TNode<MaybeObject> CodeStubAssembler::LoadArrayElement(
       Load(MachineType::AnyTagged(), array, offset, needs_poisoning));
 }
 
+void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArray> array,
+                                              Node* index,
+                                              int additional_offset,
+                                              ParameterMode parameter_mode) {
+  DCHECK_EQ(0, additional_offset % kPointerSize);
+  if (parameter_mode == ParameterMode::SMI_PARAMETERS) {
+    TNode<Smi> effective_index;
+    Smi* constant_index;
+    bool index_is_constant = ToSmiConstant(index, constant_index);
+    if (index_is_constant) {
+      effective_index = SmiConstant(Smi::ToInt(constant_index) +
+                                    additional_offset / kPointerSize);
+    } else if (additional_offset != 0) {
+      effective_index =
+          SmiAdd(CAST(index), SmiConstant(additional_offset / kPointerSize));
+    } else {
+      effective_index = CAST(index);
+    }
+    CSA_CHECK(this, SmiBelow(effective_index, LoadFixedArrayBaseLength(array)));
+  } else {
+    // IntPtrAdd does constant-folding automatically.
+    TNode<IntPtrT> effective_index =
+        IntPtrAdd(UncheckedCast<IntPtrT>(index),
+                  IntPtrConstant(additional_offset / kPointerSize));
+    CSA_CHECK(this, UintPtrLessThan(effective_index,
+                                    LoadAndUntagFixedArrayBaseLength(array)));
+  }
+}
+
 TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
     TNode<FixedArray> object, Node* index_node, int additional_offset,
     ParameterMode parameter_mode, LoadSensitivity needs_poisoning) {
   CSA_ASSERT(this, IsFixedArraySubclass(object));
   CSA_ASSERT(this, IsNotWeakFixedArraySubclass(object));
+  FixedArrayBoundsCheck(object, index_node, additional_offset, parameter_mode);
   TNode<MaybeObject> element =
       LoadArrayElement(object, FixedArray::kHeaderSize, index_node,
                        additional_offset, parameter_mode, needs_poisoning);

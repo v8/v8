@@ -104,12 +104,16 @@ struct IteratorRecord {
   compiler::TNode<Object> next;
 };
 
+#ifdef DEBUG
 #define CSA_CHECK(csa, x)                                        \
   (csa)->Check(                                                  \
       [&]() -> compiler::Node* {                                 \
         return implicit_cast<compiler::SloppyTNode<Word32T>>(x); \
       },                                                         \
       #x, __FILE__, __LINE__)
+#else
+#define CSA_CHECK(csa, x) (csa)->FastCheck(x)
+#endif
 
 #ifdef DEBUG
 // Add stringified versions to the given values, except the first. That is,
@@ -645,6 +649,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
              Node* extra_node3 = nullptr, const char* extra_node3_name = "",
              Node* extra_node4 = nullptr, const char* extra_node4_name = "",
              Node* extra_node5 = nullptr, const char* extra_node5_name = "");
+  void FastCheck(TNode<BoolT> condition);
 
   // The following Call wrappers call an object according to the semantics that
   // one finds in the EcmaScript spec, operating on an Callable (e.g. a
@@ -960,6 +965,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   TNode<MaybeObject> MakeWeak(TNode<HeapObject> value);
 
+  void FixedArrayBoundsCheck(TNode<FixedArray> array, Node* index,
+                             int additional_offset = 0,
+                             ParameterMode parameter_mode = INTPTR_PARAMETERS);
+
   // Load an array element from a FixedArray / WeakFixedArray / PropertyArray.
   TNode<MaybeObject> LoadArrayElement(
       SloppyTNode<HeapObject> object, int array_header_size, Node* index,
@@ -1161,6 +1170,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS) {
+    FixedArrayBoundsCheck(array, index, additional_offset, parameter_mode);
     StoreFixedArrayOrPropertyArrayElement(array, index, value, barrier_mode,
                                           additional_offset, parameter_mode);
   }
