@@ -758,8 +758,10 @@ void AstPrinter::PrintLabelsIndented(ZonePtrList<const AstRawString>* labels) {
 
 
 void AstPrinter::PrintIndentedVisit(const char* s, AstNode* node) {
-  IndentedScope indent(this, s, node->position());
-  Visit(node);
+  if (node != nullptr) {
+    IndentedScope indent(this, s, node->position());
+    Visit(node);
+  }
 }
 
 
@@ -826,6 +828,7 @@ void AstPrinter::VisitBlock(Block* node) {
   const char* block_txt =
       node->ignore_completion_value() ? "BLOCK NOCOMPLETIONS" : "BLOCK";
   IndentedScope indent(this, block_txt, node->position());
+  PrintLabelsIndented(node->labels());
   PrintStatements(node->statements());
 }
 
