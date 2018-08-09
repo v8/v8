@@ -448,11 +448,6 @@ class Map : public HeapObject {
   // Return the map of the root of object's prototype chain.
   Map* GetPrototypeChainRootMap(Isolate* isolate) const;
 
-  // Returns a WeakCell object containing given prototype. The cell is cached
-  // in PrototypeInfo which is created lazily.
-  static Handle<WeakCell> GetOrCreatePrototypeWeakCell(
-      Handle<JSReceiver> prototype, Isolate* isolate);
-
   Map* FindRootMap(Isolate* isolate) const;
   Map* FindFieldOwner(Isolate* isolate, int descriptor) const;
 

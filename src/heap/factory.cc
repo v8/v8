@@ -209,6 +209,7 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   result->set_prototype_users(*empty_weak_array_list());
   result->set_registry_slot(PrototypeInfo::UNREGISTERED);
   result->set_bit_field(0);
+  result->set_module_namespace(*undefined_value());
   return result;
 }
 

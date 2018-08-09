@@ -428,10 +428,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
             DCHECK(map->is_prototype_map());
             Handle<PrototypeInfo> proto_info =
                 Map::GetOrCreatePrototypeInfo(map, isolate());
-            DCHECK(proto_info->weak_cell()->IsWeakCell());
             Handle<JSModuleNamespace> module_namespace(
-                JSModuleNamespace::cast(
-                    WeakCell::cast(proto_info->weak_cell())->value()),
+                JSModuleNamespace::cast(proto_info->module_namespace()),
                 isolate());
             Handle<Cell> cell(
                 Cell::cast(module_namespace->module()->exports()->Lookup(

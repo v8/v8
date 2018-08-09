@@ -900,7 +900,10 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   // - We can store a pointer from the map back to the namespace object.
   //   Turbofan can use this for inlining the access.
   JSObject::OptimizeAsPrototype(ns);
-  Map::GetOrCreatePrototypeWeakCell(ns, isolate);
+
+  Handle<PrototypeInfo> proto_info =
+      Map::GetOrCreatePrototypeInfo(Handle<JSObject>::cast(ns), isolate);
+  proto_info->set_module_namespace(*ns);
   return ns;
 }
 

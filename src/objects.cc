@@ -12913,30 +12913,6 @@ bool Map::IsPrototypeChainInvalidated(Map* map) {
 }
 
 // static
-Handle<WeakCell> Map::GetOrCreatePrototypeWeakCell(Handle<JSReceiver> prototype,
-                                                   Isolate* isolate) {
-  DCHECK(!prototype.is_null());
-  if (prototype->IsJSProxy()) {
-    Handle<WeakCell> cell = isolate->factory()->NewWeakCell(prototype);
-    return cell;
-  }
-
-  Handle<PrototypeInfo> proto_info =
-      GetOrCreatePrototypeInfo(Handle<JSObject>::cast(prototype), isolate);
-  Object* maybe_cell = proto_info->weak_cell();
-  // Return existing cell if it's already created.
-  if (maybe_cell->IsWeakCell()) {
-    Handle<WeakCell> cell(WeakCell::cast(maybe_cell), isolate);
-    DCHECK(!cell->cleared());
-    return cell;
-  }
-  // Otherwise create a new cell.
-  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(prototype);
-  proto_info->set_weak_cell(*cell);
-  return cell;
-}
-
-// static
 void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
                        Handle<Object> prototype,
                        bool enable_prototype_setup_mode) {
