@@ -965,7 +965,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   TNode<MaybeObject> MakeWeak(TNode<HeapObject> value);
 
-  void FixedArrayBoundsCheck(TNode<FixedArray> array, Node* index,
+  void FixedArrayBoundsCheck(TNode<FixedArrayBase> array, Node* index,
                              int additional_offset = 0,
                              ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
@@ -1191,8 +1191,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                            SMI_PARAMETERS);
   }
 
-  Node* StoreFixedDoubleArrayElement(
-      Node* object, Node* index, Node* value,
+  void StoreFixedDoubleArrayElement(
+      TNode<FixedDoubleArray> object, Node* index, TNode<Float64T> value,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   Node* StoreFeedbackVectorSlot(

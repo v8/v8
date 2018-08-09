@@ -1954,7 +1954,7 @@ TNode<MaybeObject> CodeStubAssembler::LoadArrayElement(
       Load(MachineType::AnyTagged(), array, offset, needs_poisoning));
 }
 
-void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArray> array,
+void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
                                               Node* index,
                                               int additional_offset,
                                               ParameterMode parameter_mode) {
@@ -2668,18 +2668,17 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
   }
 }
 
-Node* CodeStubAssembler::StoreFixedDoubleArrayElement(
-    Node* object, Node* index_node, Node* value, ParameterMode parameter_mode) {
+void CodeStubAssembler::StoreFixedDoubleArrayElement(
+    TNode<FixedDoubleArray> object, Node* index_node, TNode<Float64T> value,
+    ParameterMode parameter_mode) {
   CSA_ASSERT(this, IsFixedDoubleArray(object));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
+  FixedArrayBoundsCheck(object, index_node, 0, parameter_mode);
   Node* offset =
       ElementOffsetFromIndex(index_node, PACKED_DOUBLE_ELEMENTS, parameter_mode,
                              FixedArray::kHeaderSize - kHeapObjectTag);
-  CSA_ASSERT(this, IsOffsetInBounds(
-                       offset, LoadAndUntagFixedArrayBaseLength(object),
-                       FixedDoubleArray::kHeaderSize, PACKED_DOUBLE_ELEMENTS));
   MachineRepresentation rep = MachineRepresentation::kFloat64;
-  return StoreNoWriteBarrier(rep, object, offset, value);
+  StoreNoWriteBarrier(rep, object, offset, value);
 }
 
 Node* CodeStubAssembler::StoreFeedbackVectorSlot(Node* object,
@@ -9155,8 +9154,8 @@ void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
     return;
   } else if (IsDoubleElementsKind(kind)) {
     // Make sure we do not store signalling NaNs into double arrays.
-    value = Float64SilenceNaN(value);
-    StoreFixedDoubleArrayElement(elements, index, value, mode);
+    TNode<Float64T> value_silenced = Float64SilenceNaN(value);
+    StoreFixedDoubleArrayElement(CAST(elements), index, value_silenced, mode);
   } else {
     WriteBarrierMode barrier_mode =
         IsSmiElementsKind(kind) ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
