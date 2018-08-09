@@ -904,17 +904,16 @@ void Scanner::SeekForward(int pos) {
   Scan();
 }
 
-
-template <bool capture_raw, bool in_template_literal>
+template <bool capture_raw>
 bool Scanner::ScanEscape() {
   uc32 c = c0_;
   Advance<capture_raw>();
 
   // Skip escaped newlines.
   DCHECK(!unibrow::IsLineTerminator(kEndOfInput));
-  if (!in_template_literal && unibrow::IsLineTerminator(c)) {
+  if (!capture_raw && unibrow::IsLineTerminator(c)) {
     // Allow escaped CR+LF newlines in multiline string literals.
-    if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance<capture_raw>();
+    if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance();
     return true;
   }
 
@@ -948,7 +947,7 @@ bool Scanner::ScanEscape() {
     case '5':  // fall through
     case '6':  // fall through
     case '7':
-      c = ScanOctalEscape<capture_raw>(c, 2, in_template_literal);
+      c = ScanOctalEscape<capture_raw>(c, 2);
       break;
   }
 
@@ -958,7 +957,7 @@ bool Scanner::ScanEscape() {
 }
 
 template <bool capture_raw>
-uc32 Scanner::ScanOctalEscape(uc32 c, int length, bool in_template_literal) {
+uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
   uc32 x = c - '0';
   int i = 0;
   for (; i < length; i++) {
@@ -976,9 +975,8 @@ uc32 Scanner::ScanOctalEscape(uc32 c, int length, bool in_template_literal) {
   // occur before the "use strict" directive.
   if (c != '0' || i > 0 || c0_ == '8' || c0_ == '9') {
     octal_pos_ = Location(source_pos() - i - 1, source_pos() - 1);
-    octal_message_ = in_template_literal
-                         ? MessageTemplate::kTemplateOctalLiteral
-                         : MessageTemplate::kStrictOctalEscape;
+    octal_message_ = capture_raw ? MessageTemplate::kTemplateOctalLiteral
+                                 : MessageTemplate::kStrictOctalEscape;
   }
   return x;
 }
@@ -1001,7 +999,7 @@ Token::Value Scanner::ScanString() {
     if (c0_ == '\\') {
       Advance();
       // TODO(verwaest): Check whether we can remove the additional check.
-      if (c0_ == kEndOfInput || !ScanEscape<false, false>()) {
+      if (c0_ == kEndOfInput || !ScanEscape<false>()) {
         return Token::ILLEGAL;
       }
       continue;
@@ -1056,7 +1054,6 @@ Token::Value Scanner::ScanTemplateSpan() {
   LiteralScope literal(this);
   StartRawLiteral();
   const bool capture_raw = true;
-  const bool in_template_literal = true;
   while (true) {
     uc32 c = c0_;
     Advance();
@@ -1081,7 +1078,7 @@ Token::Value Scanner::ScanTemplateSpan() {
         }
         if (capture_raw) AddRawLiteralChar(lastChar);
       } else {
-        bool success = ScanEscape<capture_raw, in_template_literal>();
+        bool success = ScanEscape<capture_raw>();
         USE(success);
         DCHECK_EQ(!success, has_error());
         // For templates, invalid escape sequence checking is handled in the
