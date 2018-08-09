@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/assembler-inl.h"
+#include "src/macro-assembler-inl.h"
 #include "src/simulator.h"
+#include "src/utils.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
@@ -21,7 +23,8 @@ namespace wasm {
 #define __ masm.
 
 // TODO(v8:7424,v8:8018): Extend this test to all architectures.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || \
+    V8_TARGET_ARCH_ARM64
 
 namespace {
 
@@ -29,8 +32,18 @@ static volatile int global_stop_bit = 0;
 
 Address GenerateJumpTableThunk(Address jump_target) {
   size_t allocated;
+#if V8_TARGET_ARCH_ARM64
+  // TODO(wasm): Currently {kMaxWasmCodeMemory} limits code sufficiently, so
+  // that the jump table only supports {near_call} distances.
+  Address random_addr = reinterpret_cast<Address>(GetRandomMmapAddr());
+  const uintptr_t kThunkAddrMask = (1 << WhichPowerOf2(kMaxWasmCodeMemory)) - 1;
+  void* address = reinterpret_cast<void*>((jump_target & ~kThunkAddrMask) |
+                                          (random_addr & kThunkAddrMask));
+#else
+  void* address = GetRandomMmapAddr();
+#endif
   byte* buffer = AllocateAssemblerBuffer(
-      &allocated, AssemblerBase::kMinimalBufferSize, GetRandomMmapAddr());
+      &allocated, AssemblerBase::kMinimalBufferSize, address);
   MacroAssembler masm(nullptr, AssemblerOptions{}, buffer,
                       static_cast<int>(allocated), CodeObjectRequired::kNo);
 
@@ -53,6 +66,12 @@ Address GenerateJumpTableThunk(Address jump_target) {
   __ tst(scratch, Operand(1));
   __ b(ne, &exit);
   __ Jump(jump_target, RelocInfo::NONE);
+#elif V8_TARGET_ARCH_ARM64
+  __ Mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ Ldr(scratch, MemOperand(scratch, 0));
+  __ Tbnz(scratch, 0, &exit);
+  __ Mov(scratch, Immediate(jump_target, RelocInfo::NONE));
+  __ Br(scratch);
 #else
 #error Unsupported architecture
 #endif
@@ -162,7 +181,8 @@ TEST(JumpTablePatchingStress) {
   }
 }
 
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM ||
+        // V8_TARGET_ARCH_ARM64
 
 #undef __
 #undef TRACE

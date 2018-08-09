@@ -104,6 +104,9 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
 }
 
 void JumpTableAssembler::EmitJumpSlot(Address target) {
+  // TODO(wasm): Currently this is guaranteed to be a {near_call} and hence is
+  // patchable concurrently. Once {kMaxWasmCodeMemory} is raised on ARM64, make
+  // sure concurrent patching is still supported.
   Jump(target, RelocInfo::NONE);
 }
 
