@@ -14599,29 +14599,6 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
   return is_process_independent;
 }
 
-Handle<WeakCell> Code::WeakCellFor(Handle<Code> code) {
-  DCHECK(code->kind() == OPTIMIZED_FUNCTION);
-  WeakCell* raw_cell = code->CachedWeakCell();
-  if (raw_cell != nullptr) {
-    return Handle<WeakCell>(raw_cell, code->GetIsolate());
-  }
-  Handle<WeakCell> cell = code->GetIsolate()->factory()->NewWeakCell(code);
-  DeoptimizationData::cast(code->deoptimization_data())
-      ->SetWeakCellCache(*cell);
-  return cell;
-}
-
-WeakCell* Code::CachedWeakCell() {
-  DCHECK(kind() == OPTIMIZED_FUNCTION);
-  Object* weak_cell_cache =
-      DeoptimizationData::cast(deoptimization_data())->WeakCellCache();
-  if (weak_cell_cache->IsWeakCell()) {
-    DCHECK(this == WeakCell::cast(weak_cell_cache)->value());
-    return WeakCell::cast(weak_cell_cache);
-  }
-  return nullptr;
-}
-
 bool Code::Inlines(SharedFunctionInfo* sfi) {
   // We can only check for inlining for optimized code.
   DCHECK(is_optimized_code());
