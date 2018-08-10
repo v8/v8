@@ -181,6 +181,8 @@ extern macro ToLength_Inline(Context, Object): Number;
 extern macro ToNumber_Inline(Context, Object): Number;
 extern macro ToString_Inline(Context, Object): String;
 extern macro GetProperty(Context, Object, Object): Object;
+extern builtin SetProperty(Context, Object, Object, Object);
+extern builtin DeleteProperty(Context, Object, Object, LanguageMode);
 extern builtin HasProperty(Context, JSReceiver, Object): Boolean;
 
 extern macro ThrowRangeError(Context, constexpr MessageTemplate): never;
@@ -198,8 +200,6 @@ extern macro IsString(HeapObject): bool;
 extern builtin ToString(Context, Object): String;
 
 extern runtime CreateDataProperty(Context, Object, Object, Object);
-extern runtime SetProperty(Context, Object, Object, Object, LanguageMode);
-extern runtime DeleteProperty(Context, Object, Object, LanguageMode);
 
 extern macro LoadRoot(constexpr RootListIndex): Object;
 extern macro StoreRoot(constexpr RootListIndex, Object): Object;

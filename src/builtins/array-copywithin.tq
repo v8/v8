@@ -71,7 +71,7 @@ module array {
         const from_val: Object = GetProperty(context, object, from);
 
         // ii. Perform ? Set(O, toKey, fromVal, true).
-        SetProperty(context, object, to, from_val, kStrict);
+        SetProperty(context, object, to, from_val);
       } else {
         // i. Perform ? DeletePropertyOrThrow(O, toKey).
         DeleteProperty(context, object, to, kStrict);
