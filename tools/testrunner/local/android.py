@@ -141,7 +141,7 @@ class _Driver(object):
         skip_if_missing=True,
     )
 
-  def run(self, target_dir, binary, args, rel_path, timeout):
+  def run(self, target_dir, binary, args, env, rel_path, timeout):
     """Execute a command on the device's shell.
 
     Args:
@@ -149,6 +149,7 @@ class _Driver(object):
           devices' base dir for testing).
       binary: Name of the binary.
       args: List of arguments to pass to the binary.
+      env: The environment variables with which the command should be run.
       rel_path: Relative path on device to use as CWD.
       timeout: Timeout in seconds.
     """
@@ -159,6 +160,7 @@ class _Driver(object):
           cmd,
           cwd=os.path.join(DEVICE_DIR, rel_path),
           check_return=True,
+          env=env,
           timeout=timeout,
           retries=0,
       )

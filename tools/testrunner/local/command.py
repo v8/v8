@@ -249,7 +249,7 @@ class AndroidCommand(BaseCommand):
     timed_out = False
     try:
       stdout = android_driver().run(
-          'bin', self.shell_name, self.args, '.', self.timeout)
+          'bin', self.shell_name, self.args, self.env, '.', self.timeout)
     except CommandFailedException as e:
       return_code = e.status
       stdout = e.output
