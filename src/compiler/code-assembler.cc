@@ -1709,11 +1709,6 @@ void CodeAssemblerLabel::UpdateVariablesAfterBind() {
 }  // namespace compiler
 
 Smi* CheckObjectType(Object* value, Smi* type, String* location) {
-  // Allow the empty FixedArray to be treated as a FixedDoubleArray.
-  if (static_cast<ObjectType>(type->value()) == ObjectType::kFixedDoubleArray &&
-      value->IsFixedArray() && FixedArray::cast(value)->length() == 0) {
-    return Smi::FromInt(0);
-  }
 #ifdef DEBUG
   const char* expected;
   switch (static_cast<ObjectType>(type->value())) {
