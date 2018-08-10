@@ -440,7 +440,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
     // 1. Let O be ToObject(this value).
     // 2. ReturnIfAbrupt(O)
-    o_ = ToObject(context(), receiver());
+    o_ = ToObject_Inline(context(), receiver());
 
     // 3. Let len be ToLength(Get(O, "length")).
     // 4. ReturnIfAbrupt(len).
@@ -1395,7 +1395,7 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
   BIND(&generic_length);
   // 1. Let O be ToObject(this value).
   // 2. ReturnIfAbrupt(O).
-  o = ToObject(context, receiver);
+  o = ToObject_Inline(context, receiver);
 
   // 3. Let len be ToLength(Get(O, "length")).
   // 4. ReturnIfAbrupt(len).
@@ -2047,7 +2047,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
   TNode<Object> items = args.GetOptionalArgumentValue(0);
   // The spec doesn't require ToObject to be called directly on the iterable
   // branch, but it's part of GetMethod that is in the spec.
-  TNode<JSReceiver> array_like = ToObject(context, items);
+  TNode<JSReceiver> array_like = ToObject_Inline(context, items);
 
   TVARIABLE(Object, array);
   TVARIABLE(Number, length);
@@ -3490,7 +3490,7 @@ TF_BUILTIN(ArrayIndexOfHoleyDoubles, ArrayIncludesIndexofAssembler) {
 TF_BUILTIN(ArrayPrototypeValues, CodeStubAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  Return(CreateArrayIterator(context, ToObject(context, receiver),
+  Return(CreateArrayIterator(context, ToObject_Inline(context, receiver),
                              IterationKind::kValues));
 }
 
@@ -3498,7 +3498,7 @@ TF_BUILTIN(ArrayPrototypeValues, CodeStubAssembler) {
 TF_BUILTIN(ArrayPrototypeEntries, CodeStubAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  Return(CreateArrayIterator(context, ToObject(context, receiver),
+  Return(CreateArrayIterator(context, ToObject_Inline(context, receiver),
                              IterationKind::kEntries));
 }
 
@@ -3506,7 +3506,7 @@ TF_BUILTIN(ArrayPrototypeEntries, CodeStubAssembler) {
 TF_BUILTIN(ArrayPrototypeKeys, CodeStubAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  Return(CreateArrayIterator(context, ToObject(context, receiver),
+  Return(CreateArrayIterator(context, ToObject_Inline(context, receiver),
                              IterationKind::kKeys));
 }
 
@@ -3976,7 +3976,7 @@ TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
   Node* const depth = args.GetOptionalArgumentValue(0);
 
   // 1. Let O be ? ToObject(this value).
-  Node* const o = ToObject(context, receiver);
+  Node* const o = ToObject_Inline(CAST(context), CAST(receiver));
 
   // 2. Let sourceLen be ? ToLength(? Get(O, "length")).
   Node* const source_length =
@@ -4019,7 +4019,7 @@ TF_BUILTIN(ArrayPrototypeFlatMap, CodeStubAssembler) {
   Node* const mapper_function = args.GetOptionalArgumentValue(0);
 
   // 1. Let O be ? ToObject(this value).
-  Node* const o = ToObject(context, receiver);
+  Node* const o = ToObject_Inline(CAST(context), CAST(receiver));
 
   // 2. Let sourceLen be ? ToLength(? Get(O, "length")).
   Node* const source_length =

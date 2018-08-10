@@ -200,7 +200,7 @@ TNode<Uint32T> ObjectEntriesValuesBuiltinsAssembler::HasHiddenPrototype(
 void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
     TNode<Context> context, TNode<Object> maybe_object,
     CollectType collect_type) {
-  TNode<JSReceiver> receiver = ToObject(context, maybe_object);
+  TNode<JSReceiver> receiver = ToObject_Inline(context, maybe_object);
 
   Label if_call_runtime_with_fast_path(this, Label::kDeferred),
       if_call_runtime(this, Label::kDeferred),
@@ -493,7 +493,7 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
   TNode<Object> target = args.GetOptionalArgumentValue(0);
 
   // 1. Let to be ? ToObject(target).
-  TNode<JSReceiver> to = ToObject(context, target);
+  TNode<JSReceiver> to = ToObject_Inline(context, target);
 
   Label done(this);
   // 2. If only one argument was passed, return to.
@@ -1222,10 +1222,10 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
 
 // ES6 #sec-object.prototype.valueof
 TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  Return(ToObject(context, receiver));
+  Return(ToObject_Inline(context, receiver));
 }
 
 // ES #sec-object.create
@@ -1519,7 +1519,7 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   Node* key = args.GetOptionalArgumentValue(1);
 
   // 1. Let obj be ? ToObject(O).
-  object = ToObject(context, object);
+  object = ToObject_Inline(CAST(context), CAST(object));
 
   // 2. Let key be ? ToPropertyKey(P).
   key = ToName(context, key);

@@ -11,7 +11,7 @@ module array {
   javascript builtin ArrayPrototypeCopyWithin(
       context: Context, receiver: Object, ...arguments): Object {
     // 1. Let O be ? ToObject(this value).
-    const object: JSReceiver = ToObject(context, receiver);
+    const object: JSReceiver = ToObject_Inline(context, receiver);
 
     // 2. Let len be ? ToLength(? Get(O, "length")).
     const length: Number = GetLengthProperty(context, object);

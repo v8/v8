@@ -1921,6 +1921,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<JSReceiver> ToObject(SloppyTNode<Context> context,
                              SloppyTNode<Object> input);
 
+  // Same as ToObject but avoids the Builtin call if |input| is already a
+  // JSReceiver.
+  TNode<JSReceiver> ToObject_Inline(TNode<Context> context,
+                                    TNode<Object> input);
+
   enum ToIntegerTruncationMode {
     kNoTruncation,
     kTruncateMinusZero,

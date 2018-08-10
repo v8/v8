@@ -7028,6 +7028,30 @@ TNode<JSReceiver> CodeStubAssembler::ToObject(SloppyTNode<Context> context,
   return CAST(CallBuiltin(Builtins::kToObject, context, input));
 }
 
+TNode<JSReceiver> CodeStubAssembler::ToObject_Inline(TNode<Context> context,
+                                                     TNode<Object> input) {
+  TVARIABLE(JSReceiver, result);
+  Label if_isreceiver(this), if_isnotreceiver(this, Label::kDeferred);
+  Label done(this);
+
+  BranchIfJSReceiver(input, &if_isreceiver, &if_isnotreceiver);
+
+  BIND(&if_isreceiver);
+  {
+    result = CAST(input);
+    Goto(&done);
+  }
+
+  BIND(&if_isnotreceiver);
+  {
+    result = ToObject(context, input);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return result.value();
+}
+
 TNode<Smi> CodeStubAssembler::ToSmiIndex(TNode<Object> input,
                                          TNode<Context> context,
                                          Label* range_error) {

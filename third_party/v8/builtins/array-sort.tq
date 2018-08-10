@@ -1751,7 +1751,7 @@ module array {
     }
 
     // 2. Let obj be ? ToObject(this value).
-    const obj: JSReceiver = ToObject(context, receiver);
+    const obj: JSReceiver = ToObject_Inline(context, receiver);
     let map: Map = obj.map;
 
     const sort_state: FixedArray =
