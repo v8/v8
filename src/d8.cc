@@ -3278,15 +3278,14 @@ std::unique_ptr<SerializationData> Shell::SerializeValue(
   bool ok;
   Local<Context> context = isolate->GetCurrentContext();
   Serializer serializer(isolate);
+  std::unique_ptr<SerializationData> data;
   if (serializer.WriteValue(context, value, transfer).To(&ok)) {
-    std::unique_ptr<SerializationData> data = serializer.Release();
-    base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
-    serializer.AppendExternalizedContentsTo(&externalized_contents_);
-    return data;
+    data = serializer.Release();
   }
   // Append externalized contents even when WriteValue fails.
+  base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
   serializer.AppendExternalizedContentsTo(&externalized_contents_);
-  return nullptr;
+  return data;
 }
 
 MaybeLocal<Value> Shell::DeserializeValue(

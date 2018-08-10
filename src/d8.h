@@ -543,7 +543,7 @@ class Shell : public i::AllStatic {
   static base::LazyMutex context_mutex_;
   static const base::TimeTicks kInitialTicks;
 
-  static base::LazyMutex workers_mutex_;
+  static base::LazyMutex workers_mutex_;  // Guards the following members.
   static bool allow_new_workers_;
   static std::vector<Worker*> workers_;
   static std::vector<ExternalizedContents> externalized_contents_;
