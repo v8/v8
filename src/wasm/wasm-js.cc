@@ -1496,7 +1496,10 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
                         v8_str(isolate, "WebAssembly.Memory"), ro_attributes);
 
   // Setup Global
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(isolate);
+
+  // The context is not set up completely yet. That's why we cannot use
+  // {WasmFeaturesFromIsolate} and have to use {WasmFeaturesFromFlags} instead.
+  auto enabled_features = i::wasm::WasmFeaturesFromFlags();
   if (enabled_features.mut_global) {
     Handle<JSFunction> global_constructor =
         InstallFunc(isolate, webassembly, "Global", WebAssemblyGlobal, 1);

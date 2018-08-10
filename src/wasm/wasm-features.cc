@@ -4,6 +4,7 @@
 
 #include "src/wasm/wasm-features.h"
 #include "src/flags.h"
+#include "src/handles-inl.h"
 #include "src/isolate.h"
 
 namespace v8 {
@@ -19,14 +20,15 @@ void UnionFeaturesInto(WasmFeatures* dst, WasmFeatures* src) {
   FOREACH_WASM_FEATURE(DO_UNION, SPACE)
 }
 
-namespace {
-inline WasmFeatures WasmFeaturesFromFlags() {
+WasmFeatures WasmFeaturesFromFlags() {
   return WasmFeatures{FOREACH_WASM_FEATURE(FLAG_REF, COMMA)};
 }
-};  // namespace
 
 WasmFeatures WasmFeaturesFromIsolate(Isolate* isolate) {
-  return WasmFeaturesFromFlags();
+  WasmFeatures features = WasmFeaturesFromFlags();
+  features.threads =
+      isolate->AreWasmThreadsEnabled(handle(isolate->context(), isolate));
+  return features;
 }
 
 #undef DO_UNION

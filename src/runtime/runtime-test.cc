@@ -847,6 +847,23 @@ RUNTIME_FUNCTION(Runtime_GetWasmRecoveredTrapCount) {
   return *isolate->factory()->NewNumberFromSize(trap_count);
 }
 
+namespace {
+bool EnableWasmThreads(v8::Local<v8::Context> context) { return true; }
+
+bool DisableWasmThreads(v8::Local<v8::Context> context) { return false; }
+}  // namespace
+
+// This runtime function enables WebAssembly threads through an embedder
+// callback and thereby bypasses the value in FLAG_experimental_wasm_threads.
+RUNTIME_FUNCTION(Runtime_SetWasmThreadsEnabled) {
+  DCHECK_EQ(1, args.length());
+  CONVERT_BOOLEAN_ARG_CHECKED(flag, 0);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8_isolate->SetWasmThreadsEnabledCallback(flag ? EnableWasmThreads
+                                                 : DisableWasmThreads);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)       \
   RUNTIME_FUNCTION(Runtime_Has##Name) {                  \
     CONVERT_ARG_CHECKED(JSObject, obj, 0);               \

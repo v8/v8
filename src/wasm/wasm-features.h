@@ -51,7 +51,12 @@ static constexpr WasmFeatures kNoWasmFeatures{
 
 static constexpr WasmFeatures kAsmjsWasmFeatures = kNoWasmFeatures;
 
+V8_EXPORT_PRIVATE WasmFeatures WasmFeaturesFromFlags();
+
+// Enables features based on both commandline flags and the isolate.
+// Precondition: A valid context must be set in {isolate->context()}.
 V8_EXPORT_PRIVATE WasmFeatures WasmFeaturesFromIsolate(Isolate* isolate);
+
 V8_EXPORT_PRIVATE void UnionFeaturesInto(WasmFeatures* dst, WasmFeatures* src);
 
 }  // namespace wasm
