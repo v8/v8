@@ -642,31 +642,6 @@
 }],  # 'system == windows'
 
 ##############################################################################
-['system == android', {
-  # Tests consistently failing on Android.
-  # Precision:
-  'es6/math-log2-log10': [FAIL],
-  # Timezone issues:
-  'icu-date-lord-howe': [FAIL],
-  'icu-date-to-string': [FAIL],
-  'regress/regress-6288': [FAIL],
-  'tzoffset-seoul': [FAIL],
-  'tzoffset-seoul-noi18n': [FAIL],
-  'tzoffset-transition-apia': [FAIL],
-  'tzoffset-transition-lord-howe': [FAIL],
-  'tzoffset-transition-moscow': [FAIL],
-  'tzoffset-transition-new-york': [FAIL],
-  'tzoffset-transition-new-york-noi18n': [FAIL],
-  # OOM:
-  'regress/regress-599414-array-concat-fast-path': [FAIL],
-  'regress/regress-748069': [FAIL],
-  'regress/regress-752764': [FAIL],
-  'regress/regress-779407': [FAIL],
-  # Issue with module import:
-  'regress/regress-797581': [FAIL],
-}],  # 'system == android'
-
-##############################################################################
 ['system == macos', {
   # BUG(v8:5333)
   'big-object-literal': [SKIP],

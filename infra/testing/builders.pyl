@@ -31,18 +31,6 @@
   ##############################################################################
   ### luci.v8.try
   ##############################################################################
-  # Android
-  'v8_android_arm64_n5x_rel_ng_triggered': {
-    'swarming_dimensions' : {
-      'device_os': 'MMB29Q',
-      'device_type': 'bullhead',
-      'os': 'Android',
-    },
-    'tests': [
-      {'name': 'mjsunit', 'variant': 'default', 'shards': 2},
-    ],
-  },
-  ##############################################################################
   # Linux32
   'v8_linux_dbg_ng_triggered': {
     'swarming_dimensions' : {
