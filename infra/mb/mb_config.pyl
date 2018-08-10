@@ -205,6 +205,7 @@
     'tryserver.v8': {
       'v8_android_arm_compile_rel': 'release_android_arm',
       'v8_android_arm64_compile_dbg': 'debug_android_arm64',
+      'v8_android_arm64_n5x_rel_ng': 'release_android_arm64',
       'v8_fuchsia_rel_ng': 'release_x64_fuchsia_trybot',
       'v8_linux_rel_ng': 'release_x86_gcmole_trybot',
       'v8_linux_verify_csa_rel_ng': 'release_x86_verify_csa',
