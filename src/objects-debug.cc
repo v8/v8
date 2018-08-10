@@ -223,9 +223,11 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case WASM_GLOBAL_TYPE:
     case WASM_MEMORY_TYPE:
-    case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:
       JSObject::cast(this)->JSObjectVerify(isolate);
+      break;
+    case WASM_MODULE_TYPE:
+      WasmModuleObject::cast(this)->WasmModuleObjectVerify(isolate);
       break;
     case WASM_INSTANCE_TYPE:
       WasmInstanceObject::cast(this)->WasmInstanceObjectVerify(isolate);
@@ -1678,7 +1680,9 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
 void WasmModuleObject::WasmModuleObjectVerify(Isolate* isolate) {
   CHECK(IsWasmModuleObject());
   VerifyObjectField(isolate, kNativeModuleOffset);
+  CHECK(managed_native_module()->IsForeign());
   VerifyObjectField(isolate, kExportWrappersOffset);
+  CHECK(export_wrappers()->IsFixedArray());
   VerifyObjectField(isolate, kScriptOffset);
   VerifyObjectField(isolate, kAsmJsOffsetTableOffset);
   VerifyObjectField(isolate, kBreakPointInfosOffset);

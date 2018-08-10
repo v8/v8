@@ -1296,11 +1296,18 @@ void WebAssemblyGlobalSetValue(
 
 // TODO(titzer): we use the API to create the function template because the
 // internal guts are too ugly to replicate here.
-static i::Handle<i::FunctionTemplateInfo> NewTemplate(i::Isolate* i_isolate,
-                                                      FunctionCallback func) {
+static i::Handle<i::FunctionTemplateInfo> NewFunctionTemplate(
+    i::Isolate* i_isolate, FunctionCallback func) {
   Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
   Local<FunctionTemplate> templ = FunctionTemplate::New(isolate, func);
   templ->ReadOnlyPrototype();
+  return v8::Utils::OpenHandle(*templ);
+}
+
+static i::Handle<i::ObjectTemplateInfo> NewObjectTemplate(
+    i::Isolate* i_isolate) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
   return v8::Utils::OpenHandle(*templ);
 }
 
@@ -1308,7 +1315,7 @@ namespace internal {
 
 Handle<JSFunction> CreateFunc(Isolate* isolate, Handle<String> name,
                               FunctionCallback func) {
-  Handle<FunctionTemplateInfo> temp = NewTemplate(isolate, func);
+  Handle<FunctionTemplateInfo> temp = NewFunctionTemplate(isolate, func);
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp, name).ToHandleChecked();
   DCHECK(function->shared()->HasSharedName());
@@ -1367,6 +1374,15 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
       Utils::ToLocal(setter_func), attributes);
 }
 
+// Assigns a dummy instance template to the given constructor function. Used to
+// make sure the implicit receivers for the constructors in this file have an
+// instance type different from the internal one, they allocate the resulting
+// object explicitly and ignore implicit receiver.
+void SetDummyInstanceTemplate(Isolate* isolate, Handle<JSFunction> fun) {
+  Handle<ObjectTemplateInfo> instance_template = NewObjectTemplate(isolate);
+  fun->shared()->get_api_func_data()->set_instance_template(*instance_template);
+}
+
 void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSGlobalObject> global = isolate->global_object();
   Handle<Context> context(global->native_context(), isolate);
@@ -1412,6 +1428,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSFunction> module_constructor =
       InstallFunc(isolate, webassembly, "Module", WebAssemblyModule, 1);
   context->set_wasm_module_constructor(*module_constructor);
+  SetDummyInstanceTemplate(isolate, module_constructor);
   JSFunction::EnsureHasInitialMap(module_constructor);
   Handle<JSObject> module_proto(
       JSObject::cast(module_constructor->instance_prototype()), isolate);
@@ -1431,6 +1448,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSFunction> instance_constructor =
       InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstance, 1);
   context->set_wasm_instance_constructor(*instance_constructor);
+  SetDummyInstanceTemplate(isolate, instance_constructor);
   JSFunction::EnsureHasInitialMap(instance_constructor);
   Handle<JSObject> instance_proto(
       JSObject::cast(instance_constructor->instance_prototype()), isolate);
@@ -1447,6 +1465,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSFunction> table_constructor =
       InstallFunc(isolate, webassembly, "Table", WebAssemblyTable, 1);
   context->set_wasm_table_constructor(*table_constructor);
+  SetDummyInstanceTemplate(isolate, table_constructor);
   JSFunction::EnsureHasInitialMap(table_constructor);
   Handle<JSObject> table_proto(
       JSObject::cast(table_constructor->instance_prototype()), isolate);
@@ -1464,6 +1483,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSFunction> memory_constructor =
       InstallFunc(isolate, webassembly, "Memory", WebAssemblyMemory, 1);
   context->set_wasm_memory_constructor(*memory_constructor);
+  SetDummyInstanceTemplate(isolate, memory_constructor);
   JSFunction::EnsureHasInitialMap(memory_constructor);
   Handle<JSObject> memory_proto(
       JSObject::cast(memory_constructor->instance_prototype()), isolate);
@@ -1481,6 +1501,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     Handle<JSFunction> global_constructor =
         InstallFunc(isolate, webassembly, "Global", WebAssemblyGlobal, 1);
     context->set_wasm_global_constructor(*global_constructor);
+    SetDummyInstanceTemplate(isolate, global_constructor);
     JSFunction::EnsureHasInitialMap(global_constructor);
     Handle<JSObject> global_proto(
         JSObject::cast(global_constructor->instance_prototype()), isolate);
