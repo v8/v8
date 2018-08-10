@@ -2105,6 +2105,27 @@ void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
       expr->flags());
 }
 
+void BytecodeGenerator::BuildCreateObjectLiteral(Register literal,
+                                                 uint8_t flags, size_t entry) {
+  if (ShouldOptimizeAsOneShot()) {
+    RegisterList args = register_allocator()->NewRegisterList(2);
+    builder()
+        ->LoadConstantPoolEntry(entry)
+        .StoreAccumulatorInRegister(args[0])
+        .LoadLiteral(Smi::FromInt(flags))
+        .StoreAccumulatorInRegister(args[1])
+        .CallRuntime(Runtime::kCreateObjectLiteralWithoutAllocationSite, args)
+        .StoreAccumulatorInRegister(literal);
+
+  } else {
+    // TODO(cbruni): Directly generate runtime call for literals we cannot
+    // optimize once the CreateShallowObjectLiteral stub is in sync with the TF
+    // optimizations.
+    int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
+    builder()->CreateObjectLiteral(entry, literal_index, flags, literal);
+  }
+}
+
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   expr->InitDepthAndFlags();
 
@@ -2155,11 +2176,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       entry = builder()->AllocateDeferredConstantPoolEntry();
       object_literals_.push_back(std::make_pair(expr, entry));
     }
-    // TODO(cbruni): Directly generate runtime call for literals we cannot
-    // optimize once the CreateShallowObjectLiteral stub is in sync with the TF
-    // optimizations.
-    int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
-    builder()->CreateObjectLiteral(entry, literal_index, flags, literal);
+    BuildCreateObjectLiteral(literal, flags, entry);
   }
 
   // Store computed values into the literal.

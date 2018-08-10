@@ -255,112 +255,113 @@ namespace {
 
 bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 // Use macro to include both inlined and non-inlined version of an intrinsic.
-#define INTRINSIC_WHITELIST(V)           \
-  /* Conversions */                      \
-  V(NumberToStringSkipCache)             \
-  V(ToBigInt)                            \
-  V(ToInteger)                           \
-  V(ToLength)                            \
-  V(ToNumber)                            \
-  V(ToObject)                            \
-  V(ToString)                            \
-  /* Type checks */                      \
-  V(IsArray)                             \
-  V(IsDate)                              \
-  V(IsFunction)                          \
-  V(IsJSProxy)                           \
-  V(IsJSReceiver)                        \
-  V(IsJSWeakMap)                         \
-  V(IsJSWeakSet)                         \
-  V(IsRegExp)                            \
-  V(IsSmi)                               \
-  V(IsTypedArray)                        \
-  /* Loads */                            \
-  V(LoadLookupSlotForCall)               \
-  V(GetProperty)                         \
-  /* Arrays */                           \
-  V(ArraySpeciesConstructor)             \
-  V(EstimateNumberOfElements)            \
-  V(GetArrayKeys)                        \
-  V(HasComplexElements)                  \
-  V(HasFastPackedElements)               \
-  V(NewArray)                            \
-  V(NormalizeElements)                   \
-  V(PrepareElementsForSort)              \
-  V(TrySliceSimpleNonFastElements)       \
-  V(TypedArrayGetBuffer)                 \
-  /* Errors */                           \
-  V(NewTypeError)                        \
-  V(ReThrow)                             \
-  V(ThrowCalledNonCallable)              \
-  V(ThrowInvalidStringLength)            \
-  V(ThrowIteratorResultNotAnObject)      \
-  V(ThrowReferenceError)                 \
-  V(ThrowSymbolIteratorInvalid)          \
-  /* Strings */                          \
-  V(RegExpInternalReplace)               \
-  V(StringIncludes)                      \
-  V(StringIndexOf)                       \
-  V(StringReplaceOneCharWithString)      \
-  V(StringSubstring)                     \
-  V(StringToNumber)                      \
-  V(StringTrim)                          \
-  /* BigInts */                          \
-  V(BigIntEqualToBigInt)                 \
-  V(BigIntToBoolean)                     \
-  V(BigIntToNumber)                      \
-  /* Literals */                         \
-  V(CreateArrayLiteral)                  \
-  V(CreateObjectLiteral)                 \
-  V(CreateRegExpLiteral)                 \
-  /* Called from builtins */             \
-  V(AllocateInNewSpace)                  \
-  V(AllocateInTargetSpace)               \
-  V(AllocateSeqOneByteString)            \
-  V(AllocateSeqTwoByteString)            \
-  V(ArrayIncludes_Slow)                  \
-  V(ArrayIndexOf)                        \
-  V(ArrayIsArray)                        \
-  V(ClassOf)                             \
-  V(GenerateRandomNumbers)               \
-  V(GetFunctionName)                     \
-  V(GetOwnPropertyDescriptor)            \
-  V(GlobalPrint)                         \
-  V(HasProperty)                         \
-  V(ObjectCreate)                        \
-  V(ObjectEntries)                       \
-  V(ObjectEntriesSkipFastPath)           \
-  V(ObjectHasOwnProperty)                \
-  V(ObjectValues)                        \
-  V(ObjectValuesSkipFastPath)            \
-  V(ObjectGetOwnPropertyNames)           \
-  V(ObjectGetOwnPropertyNamesTryFast)    \
-  V(RegExpInitializeAndCompile)          \
-  V(StackGuard)                          \
-  V(StringAdd)                           \
-  V(StringCharCodeAt)                    \
-  V(StringEqual)                         \
-  V(StringIndexOfUnchecked)              \
-  V(StringParseFloat)                    \
-  V(StringParseInt)                      \
-  V(SymbolDescriptiveString)             \
-  V(ThrowRangeError)                     \
-  V(ThrowTypeError)                      \
-  V(ToName)                              \
-  V(TransitionElementsKind)              \
-  /* Misc. */                            \
-  V(Call)                                \
-  V(CompleteInobjectSlackTrackingForMap) \
-  V(HasInPrototypeChain)                 \
-  V(MaxSmi)                              \
-  V(NewObject)                           \
-  V(SmiLexicographicCompare)             \
-  V(StringMaxLength)                     \
-  V(StringToArray)                       \
-  /* Test */                             \
-  V(GetOptimizationStatus)               \
-  V(OptimizeFunctionOnNextCall)          \
-  V(OptimizeOsr)                         \
+#define INTRINSIC_WHITELIST(V)                \
+  /* Conversions */                           \
+  V(NumberToStringSkipCache)                  \
+  V(ToBigInt)                                 \
+  V(ToInteger)                                \
+  V(ToLength)                                 \
+  V(ToNumber)                                 \
+  V(ToObject)                                 \
+  V(ToString)                                 \
+  /* Type checks */                           \
+  V(IsArray)                                  \
+  V(IsDate)                                   \
+  V(IsFunction)                               \
+  V(IsJSProxy)                                \
+  V(IsJSReceiver)                             \
+  V(IsJSWeakMap)                              \
+  V(IsJSWeakSet)                              \
+  V(IsRegExp)                                 \
+  V(IsSmi)                                    \
+  V(IsTypedArray)                             \
+  /* Loads */                                 \
+  V(LoadLookupSlotForCall)                    \
+  V(GetProperty)                              \
+  /* Arrays */                                \
+  V(ArraySpeciesConstructor)                  \
+  V(EstimateNumberOfElements)                 \
+  V(GetArrayKeys)                             \
+  V(HasComplexElements)                       \
+  V(HasFastPackedElements)                    \
+  V(NewArray)                                 \
+  V(NormalizeElements)                        \
+  V(PrepareElementsForSort)                   \
+  V(TrySliceSimpleNonFastElements)            \
+  V(TypedArrayGetBuffer)                      \
+  /* Errors */                                \
+  V(NewTypeError)                             \
+  V(ReThrow)                                  \
+  V(ThrowCalledNonCallable)                   \
+  V(ThrowInvalidStringLength)                 \
+  V(ThrowIteratorResultNotAnObject)           \
+  V(ThrowReferenceError)                      \
+  V(ThrowSymbolIteratorInvalid)               \
+  /* Strings */                               \
+  V(RegExpInternalReplace)                    \
+  V(StringIncludes)                           \
+  V(StringIndexOf)                            \
+  V(StringReplaceOneCharWithString)           \
+  V(StringSubstring)                          \
+  V(StringToNumber)                           \
+  V(StringTrim)                               \
+  /* BigInts */                               \
+  V(BigIntEqualToBigInt)                      \
+  V(BigIntToBoolean)                          \
+  V(BigIntToNumber)                           \
+  /* Literals */                              \
+  V(CreateArrayLiteral)                       \
+  V(CreateObjectLiteral)                      \
+  V(CreateObjectLiteralWithoutAllocationSite) \
+  V(CreateRegExpLiteral)                      \
+  /* Called from builtins */                  \
+  V(AllocateInNewSpace)                       \
+  V(AllocateInTargetSpace)                    \
+  V(AllocateSeqOneByteString)                 \
+  V(AllocateSeqTwoByteString)                 \
+  V(ArrayIncludes_Slow)                       \
+  V(ArrayIndexOf)                             \
+  V(ArrayIsArray)                             \
+  V(ClassOf)                                  \
+  V(GenerateRandomNumbers)                    \
+  V(GetFunctionName)                          \
+  V(GetOwnPropertyDescriptor)                 \
+  V(GlobalPrint)                              \
+  V(HasProperty)                              \
+  V(ObjectCreate)                             \
+  V(ObjectEntries)                            \
+  V(ObjectEntriesSkipFastPath)                \
+  V(ObjectHasOwnProperty)                     \
+  V(ObjectValues)                             \
+  V(ObjectValuesSkipFastPath)                 \
+  V(ObjectGetOwnPropertyNames)                \
+  V(ObjectGetOwnPropertyNamesTryFast)         \
+  V(RegExpInitializeAndCompile)               \
+  V(StackGuard)                               \
+  V(StringAdd)                                \
+  V(StringCharCodeAt)                         \
+  V(StringEqual)                              \
+  V(StringIndexOfUnchecked)                   \
+  V(StringParseFloat)                         \
+  V(StringParseInt)                           \
+  V(SymbolDescriptiveString)                  \
+  V(ThrowRangeError)                          \
+  V(ThrowTypeError)                           \
+  V(ToName)                                   \
+  V(TransitionElementsKind)                   \
+  /* Misc. */                                 \
+  V(Call)                                     \
+  V(CompleteInobjectSlackTrackingForMap)      \
+  V(HasInPrototypeChain)                      \
+  V(MaxSmi)                                   \
+  V(NewObject)                                \
+  V(SmiLexicographicCompare)                  \
+  V(StringMaxLength)                          \
+  V(StringToArray)                            \
+  /* Test */                                  \
+  V(GetOptimizationStatus)                    \
+  V(OptimizeFunctionOnNextCall)               \
+  V(OptimizeOsr)                              \
   V(UnblockConcurrentRecompilation)
 
 #define CASE(Name)       \

@@ -508,9 +508,9 @@ snippet: "
   import * as foo from \"bar\"
   foo.f(foo, foo.x);
 "
-frame size: 10
+frame size: 8
 parameter count: 2
-bytecode array length: 103
+bytecode array length: 89
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(LdaConstant), U8(1),
@@ -537,17 +537,11 @@ bytecodes: [
   /*    0 E> */ B(Throw),
                 B(Ldar), R(4),
   /*   46 S> */ B(Return),
-  /*   27 S> */ B(LdaConstant), U8(4),
-                B(Star), R(7),
-                B(Mov), R(1), R(6),
-  /*   31 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(6), U8(2),
+  /*   31 S> */ B(LdaNamedProperty), R(1), U8(4), U8(0),
                 B(Star), R(4),
-                B(LdaConstant), U8(5),
-                B(Star), R(9),
-                B(Mov), R(1), R(8),
-  /*   42 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(8), U8(2),
+  /*   42 E> */ B(LdaNamedProperty), R(1), U8(5), U8(2),
                 B(Star), R(7),
-  /*   31 E> */ B(CallProperty2), R(4), R(1), R(1), R(7), U8(0),
+  /*   31 E> */ B(CallProperty2), R(4), R(1), R(1), R(7), U8(4),
                 B(Star), R(2),
   /*   46 S> */ B(Return),
 ]

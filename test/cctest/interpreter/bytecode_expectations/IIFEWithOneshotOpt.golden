@@ -6,6 +6,7 @@
 wrap: no
 top level: yes
 print callee: yes
+oneshot opt: yes
 
 ---
 snippet: "
@@ -270,15 +271,18 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 115
+bytecode array length: 121
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
   /*   16 E> */ B(StackCheck),
-  /*   29 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(1),
-                B(Ldar), R(1),
-  /*   31 E> */ B(StaGlobal), U8(1), U8(1),
-  /*   95 S> */ B(LdaGlobal), U8(1), U8(3),
+  /*   29 S> */ B(LdaConstant), U8(0),
+                B(Star), R(2),
+                B(LdaSmi), I8(41),
+                B(Star), R(3),
+                B(CallRuntime), U16(Runtime::kCreateObjectLiteralWithoutAllocationSite), R(2), U8(2),
+  /*   31 E> */ B(StaGlobal), U8(1), U8(0),
+  /*   95 S> */ B(LdaGlobal), U8(1), U8(2),
                 B(Star), R(1),
                 B(LdaConstant), U8(2),
                 B(Star), R(3),
@@ -286,9 +290,9 @@ bytecodes: [
   /*  101 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(3),
-  /*  104 E> */ B(TestLessThan), R(1), U8(5),
+  /*  104 E> */ B(TestLessThan), R(1), U8(4),
                 B(JumpIfFalse), U8(28),
-  /*  121 S> */ B(LdaGlobal), U8(1), U8(3),
+  /*  121 S> */ B(LdaGlobal), U8(1), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(3),
                 B(Star), R(4),
@@ -299,9 +303,9 @@ bytecodes: [
                 B(Mov), R(1), R(2),
   /*  126 E> */ B(CallRuntime), U16(Runtime::kSetProperty), R(2), U8(4),
                 B(Jump), U8(40),
-  /*  158 S> */ B(LdaGlobal), U8(1), U8(3),
+  /*  158 S> */ B(LdaGlobal), U8(1), U8(2),
                 B(Star), R(1),
-  /*  165 E> */ B(LdaGlobal), U8(1), U8(3),
+  /*  165 E> */ B(LdaGlobal), U8(1), U8(2),
                 B(Star), R(2),
                 B(LdaConstant), U8(3),
                 B(Star), R(4),

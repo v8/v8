@@ -33,7 +33,7 @@ class BytecodeExpectationsPrinter final {
         wrap_(true),
         top_level_(false),
         print_callee_(false),
-        oneshot_opt_(true),
+        oneshot_opt_(false),
         test_function_name_(kDefaultTopFunctionName) {}
 
   void PrintExpectation(std::ostream& stream,  // NOLINT

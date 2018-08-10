@@ -6,7 +6,6 @@
 wrap: no
 top level: yes
 print callee: yes
-oneshot opt: no
 
 ---
 snippet: "
@@ -55,8 +54,8 @@ snippet: "
   
         (function() {
           l = {
-            'a': 3.3,
-            'b': 4.4
+            'a': 4.3,
+            'b': 3.4
           };
           if (l.a < 3) {
             l.a = 3;

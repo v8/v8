@@ -3678,6 +3678,7 @@ TEST(AllocationSiteCreation) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
+  i::FLAG_enable_one_shot_optimization = true;
 
   // Array literals.
   CheckNumberOfAllocations(heap, "(function f1() { return []; })()", 1, 0);
@@ -3727,6 +3728,52 @@ TEST(AllocationSiteCreation) {
 
   // No new AllocationSites created on the second invocation.
   CheckNumberOfAllocations(heap, "f9(); ", 0, 0);
+
+  // No allocation sites for literals in an iife/top level code even if it has
+  // array subliterals
+  CheckNumberOfAllocations(heap,
+                           R"(
+                            (function f10() {
+                              return {a: [1], b: [2]};
+                            })();
+                            )",
+                           0, 0);
+
+  CheckNumberOfAllocations(heap,
+                           R"(
+                            l = {
+                              a: 1,
+                              b: {
+                                c: [5],
+                              }
+                            };
+                            )",
+                           0, 0);
+
+  // Eagerly create allocation sites for literals within a loop of iife or
+  // top-level code
+  CheckNumberOfAllocations(heap,
+                           R"(
+                            (function f11() {
+                              while(true) {
+                                return {a: [1], b: [2]};
+                              }
+                            })();
+                            )",
+                           1, 2);
+
+  CheckNumberOfAllocations(heap,
+                           R"(
+                            for (i = 0; i < 1; ++i) {
+                              l = {
+                                a: 1,
+                                b: {
+                                  c: [5],
+                                }
+                              };
+                            }
+                            )",
+                           1, 1);
 }
 
 TEST(CellsInOptimizedCodeAreWeak) {

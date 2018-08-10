@@ -43,7 +43,7 @@ class ProgramOptions final {
         module_(false),
         top_level_(false),
         print_callee_(false),
-        oneshot_opt_(true),
+        oneshot_opt_(false),
         do_expressions_(false),
         async_iteration_(false),
         public_fields_(false),
@@ -332,7 +332,7 @@ void ProgramOptions::PrintHeader(std::ostream& stream) const {  // NOLINT
   if (module_) stream << "\nmodule: yes";
   if (top_level_) stream << "\ntop level: yes";
   if (print_callee_) stream << "\nprint callee: yes";
-  if (!oneshot_opt_) stream << "\noneshot opt: no";
+  if (oneshot_opt_) stream << "\noneshot opt: yes";
   if (do_expressions_) stream << "\ndo expressions: yes";
   if (async_iteration_) stream << "\nasync iteration: yes";
   if (public_fields_) stream << "\npublic fields: yes";

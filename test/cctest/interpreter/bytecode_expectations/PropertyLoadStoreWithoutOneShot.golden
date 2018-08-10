@@ -5,20 +5,19 @@
 ---
 wrap: no
 top level: yes
-oneshot opt: no
 
 ---
 snippet: "
   
         l = {
-          'a': 1.1,
-          'b': 2.2
+          'aa': 1.1,
+          'bb': 2.2
         };
   
-        v = l['a'] + l['b'];
-        l['b'] = 7;
-        l['a'] = l['b'];
-  
+        v = l['aa'] + l['bb'];
+        l['bb'] = 7;
+        l['aa'] = l['bb'];
+       
 "
 frame size: 3
 parameter count: 1
@@ -28,35 +27,35 @@ bytecodes: [
   /*    7 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(1),
                 B(Ldar), R(1),
   /*    9 E> */ B(StaGlobal), U8(1), U8(1),
-  /*   64 S> */ B(LdaGlobal), U8(1), U8(4),
+  /*   66 S> */ B(LdaGlobal), U8(1), U8(4),
                 B(Star), R(1),
-  /*   69 E> */ B(LdaNamedProperty), R(1), U8(2), U8(6),
+  /*   71 E> */ B(LdaNamedProperty), R(1), U8(2), U8(6),
                 B(Star), R(1),
-  /*   77 E> */ B(LdaGlobal), U8(1), U8(4),
+  /*   80 E> */ B(LdaGlobal), U8(1), U8(4),
                 B(Star), R(2),
-  /*   78 E> */ B(LdaNamedProperty), R(2), U8(3), U8(8),
-  /*   75 E> */ B(Add), R(1), U8(3),
-  /*   66 E> */ B(StaGlobal), U8(4), U8(10),
-  /*   91 S> */ B(LdaGlobal), U8(1), U8(4),
+  /*   81 E> */ B(LdaNamedProperty), R(2), U8(3), U8(8),
+  /*   78 E> */ B(Add), R(1), U8(3),
+  /*   68 E> */ B(StaGlobal), U8(4), U8(10),
+  /*   95 S> */ B(LdaGlobal), U8(1), U8(4),
                 B(Star), R(1),
                 B(LdaSmi), I8(7),
-  /*   98 E> */ B(StaNamedProperty), R(1), U8(3), U8(12),
-  /*  109 S> */ B(LdaGlobal), U8(1), U8(4),
+  /*  103 E> */ B(StaNamedProperty), R(1), U8(3), U8(12),
+  /*  114 S> */ B(LdaGlobal), U8(1), U8(4),
                 B(Star), R(1),
-  /*  118 E> */ B(LdaGlobal), U8(1), U8(4),
+  /*  124 E> */ B(LdaGlobal), U8(1), U8(4),
                 B(Star), R(2),
-  /*  119 E> */ B(LdaNamedProperty), R(2), U8(3), U8(8),
+  /*  125 E> */ B(LdaNamedProperty), R(2), U8(3), U8(8),
                 B(Star), R(2),
-  /*  116 E> */ B(StaNamedProperty), R(1), U8(2), U8(14),
+  /*  122 E> */ B(StaNamedProperty), R(1), U8(2), U8(14),
                 B(Mov), R(2), R(0),
                 B(Ldar), R(0),
-  /*  127 S> */ B(Return),
+  /*  139 S> */ B(Return),
 ]
 constant pool: [
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["l"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["b"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["aa"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["bb"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["v"],
 ]
 handlers: [
@@ -66,15 +65,15 @@ handlers: [
 snippet: "
   
         l = {
-          'cc': 1.1,
-          'dd': 2.2
+          'cc': 3.1,
+          'dd': 4.2
         };
         if (l['cc'] < 3) {
           l['cc'] = 3;
         } else {
           l['dd'] = 3;
         }
-        
+       
 "
 frame size: 3
 parameter count: 1
@@ -107,7 +106,7 @@ bytecodes: [
                 B(Mov), R(2), R(0),
                 B(Ldar), R(2),
                 B(Ldar), R(0),
-  /*  156 S> */ B(Return),
+  /*  155 S> */ B(Return),
 ]
 constant pool: [
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,

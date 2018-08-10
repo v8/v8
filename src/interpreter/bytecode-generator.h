@@ -187,6 +187,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                           ZonePtrList<Expression>* elements,
                                           bool skip_constants);
 
+  void BuildCreateObjectLiteral(Register literal, uint8_t flags, size_t entry);
   void AllocateTopLevelRegisters();
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);

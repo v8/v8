@@ -138,8 +138,9 @@ static inline void ltrim(std::string& str) {
 
 // inplace right trim
 static inline void rtrim(std::string& str) {
-  str.erase(std::find_if(str.begin(), str.end(),
-                         [](unsigned char ch) { return !std::isspace(ch); }),
+  str.erase(std::find_if(str.rbegin(), str.rend(),
+                         [](unsigned char ch) { return !std::isspace(ch); })
+                .base(),
             str.end());
 }
 
@@ -436,6 +437,8 @@ TEST(PropertyLoadStoreOneShot) {
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
   printer.set_top_level(true);
+  printer.set_oneshot_opt(true);
+
   const char* snippets[] = {
       R"(
       l = {
@@ -502,7 +505,6 @@ TEST(PropertyLoadStoreWithoutOneShot) {
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
   printer.set_top_level(true);
-  printer.set_oneshot_opt(false);
 
   const char* snippets[] = {
       R"(
@@ -539,6 +541,7 @@ TEST(IIFEWithOneshotOpt) {
   printer.set_wrap(false);
   printer.set_top_level(true);
   printer.set_print_callee(true);
+  printer.set_oneshot_opt(true);
 
   const char* snippets[] = {
       // No feedback vectors for top-level loads/store named property in an IIFE
@@ -614,7 +617,6 @@ TEST(IIFEWithoutOneshotOpt) {
   printer.set_wrap(false);
   printer.set_top_level(true);
   printer.set_print_callee(true);
-  printer.set_oneshot_opt(false);
 
   const char* snippets[] = {
       R"(
