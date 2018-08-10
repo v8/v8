@@ -653,6 +653,9 @@ class DesktopPlatform(Platform):
     super(DesktopPlatform, self).__init__(options)
     self.command_prefix = []
 
+    # Setup command class to OS specific version.
+    command.setup(utils.GuessOS())
+
     if options.prioritize or options.affinitize != None:
       self.command_prefix = ["schedtool"]
       if options.prioritize:
