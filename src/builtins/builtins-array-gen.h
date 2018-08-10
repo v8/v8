@@ -145,6 +145,9 @@ class ArrayBuiltinsAssembler : public BaseBuiltinsFromDSLAssembler {
   void GenerateInternalArrayNoArgumentConstructor(ElementsKind kind);
   void GenerateInternalArraySingleArgumentConstructor(ElementsKind kind);
 
+  TNode<Object> GenerateFastArrayShift(TNode<Context> context,
+                                       TNode<Object> receiver, Label* slow);
+
  private:
   static ElementsKind ElementsKindForInstanceType(InstanceType type);
 
