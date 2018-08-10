@@ -2066,11 +2066,11 @@ WASM_EXEC_TEST(Int32Global) {
         WASM_SET_GLOBAL(0, WASM_I32_ADD(WASM_GET_GLOBAL(0), WASM_GET_LOCAL(0))),
         WASM_ZERO);
 
-  *global = 116;
+  WriteLittleEndianValue<int32_t>(global, 116);
   for (int i = 9; i < 444444; i += 111111) {
-    int32_t expected = *global + i;
+    int32_t expected = ReadLittleEndianValue<int32_t>(global) + i;
     r.Call(i);
-    CHECK_EQ(expected, *global);
+    CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(global));
   }
 }
 
@@ -2088,16 +2088,17 @@ WASM_EXEC_TEST(Int32Globals_DontAlias) {
           WASM_GET_GLOBAL(g));
 
     // Check that reading/writing global number {g} doesn't alter the others.
-    *globals[g] = 116 * g;
+    WriteLittleEndianValue<int32_t>(globals[g], 116 * g);
     int32_t before[kNumGlobals];
     for (int i = 9; i < 444444; i += 111113) {
-      int32_t sum = *globals[g] + i;
-      for (int j = 0; j < kNumGlobals; ++j) before[j] = *globals[j];
+      int32_t sum = ReadLittleEndianValue<int32_t>(globals[g]) + i;
+      for (int j = 0; j < kNumGlobals; ++j)
+        before[j] = ReadLittleEndianValue<int32_t>(globals[j]);
       int32_t result = r.Call(i);
       CHECK_EQ(sum, result);
       for (int j = 0; j < kNumGlobals; ++j) {
         int32_t expected = j == g ? sum : before[j];
-        CHECK_EQ(expected, *globals[j]);
+        CHECK_EQ(expected, ReadLittleEndianValue<int32_t>(globals[j]));
       }
     }
   }
@@ -2112,11 +2113,11 @@ WASM_EXEC_TEST(Float32Global) {
                                WASM_F32_SCONVERT_I32(WASM_GET_LOCAL(0)))),
         WASM_ZERO);
 
-  *global = 1.25;
+  WriteLittleEndianValue<float>(global, 1.25);
   for (int i = 9; i < 4444; i += 1111) {
-    volatile float expected = *global + i;
+    volatile float expected = ReadLittleEndianValue<float>(global) + i;
     r.Call(i);
-    CHECK_EQ(expected, *global);
+    CHECK_EQ(expected, ReadLittleEndianValue<float>(global));
   }
 }
 
@@ -2129,11 +2130,11 @@ WASM_EXEC_TEST(Float64Global) {
                                WASM_F64_SCONVERT_I32(WASM_GET_LOCAL(0)))),
         WASM_ZERO);
 
-  *global = 1.25;
+  WriteLittleEndianValue<double>(global, 1.25);
   for (int i = 9; i < 4444; i += 1111) {
-    volatile double expected = *global + i;
+    volatile double expected = ReadLittleEndianValue<double>(global) + i;
     r.Call(i);
-    CHECK_EQ(expected, *global);
+    CHECK_EQ(expected, ReadLittleEndianValue<double>(global));
   }
 }
 
@@ -2164,10 +2165,13 @@ WASM_EXEC_TEST(MixedGlobals) {
   memory[7] = 0x99;
   r.Call(1);
 
-  CHECK(static_cast<int32_t>(0xEE55CCAA) == *var_int32);
-  CHECK(static_cast<uint32_t>(0xEE55CCAA) == *var_uint32);
-  CHECK(bit_cast<float>(0xEE55CCAA) == *var_float);
-  CHECK(bit_cast<double>(0x99112233EE55CCAAULL) == *var_double);
+  CHECK(static_cast<int32_t>(0xEE55CCAA) ==
+        ReadLittleEndianValue<int32_t>(var_int32));
+  CHECK(static_cast<uint32_t>(0xEE55CCAA) ==
+        ReadLittleEndianValue<uint32_t>(var_uint32));
+  CHECK(bit_cast<float>(0xEE55CCAA) == ReadLittleEndianValue<float>(var_float));
+  CHECK(bit_cast<double>(0x99112233EE55CCAAULL) ==
+        ReadLittleEndianValue<double>(var_double));
 
   USE(unused);
 }
@@ -3226,8 +3230,7 @@ void BinOpOnDifferentRegisters(
               ctype value =
                   i == lhs ? lhs_value
                            : i == rhs ? rhs_value : static_cast<ctype>(i + 47);
-              WriteLittleEndianValue<ctype>(
-                  reinterpret_cast<Address>(&memory[i]), value);
+              WriteLittleEndianValue<ctype>(&memory[i], value);
             }
             bool trap = false;
             int64_t expect = expect_fn(lhs_value, rhs_value, &trap);
@@ -3236,14 +3239,12 @@ void BinOpOnDifferentRegisters(
               continue;
             }
             CHECK_EQ(0, r.Call());
-            CHECK_EQ(expect, ReadLittleEndianValue<ctype>(
-                                 reinterpret_cast<Address>(&memory[0])));
+            CHECK_EQ(expect, ReadLittleEndianValue<ctype>(&memory[0]));
             for (int i = 0; i < num_locals; ++i) {
               ctype value =
                   i == lhs ? lhs_value
                            : i == rhs ? rhs_value : static_cast<ctype>(i + 47);
-              CHECK_EQ(value, ReadLittleEndianValue<ctype>(
-                                  reinterpret_cast<Address>(&memory[i + 1])));
+              CHECK_EQ(value, ReadLittleEndianValue<ctype>(&memory[i + 1]));
             }
           }
         }

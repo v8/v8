@@ -1321,17 +1321,20 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global, double num) {
         num, ValueTypes::TypeName(global.type));
   switch (global.type) {
     case kWasmI32:
-      *GetRawGlobalPtr<int32_t>(global) = static_cast<int32_t>(num);
+      WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global),
+                                      static_cast<int32_t>(num));
       break;
     case kWasmI64:
       // TODO(titzer): initialization of imported i64 globals.
       UNREACHABLE();
       break;
     case kWasmF32:
-      *GetRawGlobalPtr<float>(global) = static_cast<float>(num);
+      WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global),
+                                    static_cast<float>(num));
       break;
     case kWasmF64:
-      *GetRawGlobalPtr<double>(global) = static_cast<double>(num);
+      WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global),
+                                     static_cast<double>(num));
       break;
     default:
       UNREACHABLE();
@@ -1345,25 +1348,25 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
   switch (global.type) {
     case kWasmI32: {
       int32_t num = value->GetI32();
-      *GetRawGlobalPtr<int32_t>(global) = num;
+      WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global), num);
       TRACE("%d", num);
       break;
     }
     case kWasmI64: {
       int64_t num = value->GetI64();
-      *GetRawGlobalPtr<int64_t>(global) = num;
+      WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global), num);
       TRACE("%" PRId64, num);
       break;
     }
     case kWasmF32: {
       float num = value->GetF32();
-      *GetRawGlobalPtr<float>(global) = num;
+      WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global), num);
       TRACE("%f", num);
       break;
     }
     case kWasmF64: {
       double num = value->GetF64();
-      *GetRawGlobalPtr<double>(global) = num;
+      WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global), num);
       TRACE("%lf", num);
       break;
     }
@@ -1737,16 +1740,20 @@ void InstanceBuilder::InitGlobals() {
 
     switch (global.init.kind) {
       case WasmInitExpr::kI32Const:
-        *GetRawGlobalPtr<int32_t>(global) = global.init.val.i32_const;
+        WriteLittleEndianValue<int32_t>(GetRawGlobalPtr<int32_t>(global),
+                                        global.init.val.i32_const);
         break;
       case WasmInitExpr::kI64Const:
-        *GetRawGlobalPtr<int64_t>(global) = global.init.val.i64_const;
+        WriteLittleEndianValue<int64_t>(GetRawGlobalPtr<int64_t>(global),
+                                        global.init.val.i64_const);
         break;
       case WasmInitExpr::kF32Const:
-        *GetRawGlobalPtr<float>(global) = global.init.val.f32_const;
+        WriteLittleEndianValue<float>(GetRawGlobalPtr<float>(global),
+                                      global.init.val.f32_const);
         break;
       case WasmInitExpr::kF64Const:
-        *GetRawGlobalPtr<double>(global) = global.init.val.f64_const;
+        WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global),
+                                       global.init.val.f64_const);
         break;
       case WasmInitExpr::kGlobalIndex: {
         // Initialize with another global.
@@ -1956,13 +1963,16 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
           double num = 0;
           switch (global.type) {
             case kWasmI32:
-              num = *GetRawGlobalPtr<int32_t>(global);
+              num = ReadLittleEndianValue<int32_t>(
+                  GetRawGlobalPtr<int32_t>(global));
               break;
             case kWasmF32:
-              num = *GetRawGlobalPtr<float>(global);
+              num =
+                  ReadLittleEndianValue<float>(GetRawGlobalPtr<float>(global));
               break;
             case kWasmF64:
-              num = *GetRawGlobalPtr<double>(global);
+              num = ReadLittleEndianValue<double>(
+                  GetRawGlobalPtr<double>(global));
               break;
             case kWasmI64:
               thrower_->LinkError(

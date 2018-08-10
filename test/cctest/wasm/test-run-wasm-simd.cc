@@ -1692,8 +1692,8 @@ void RunBinaryLaneOpTest(
   T* src1 = r.builder().AddGlobal<T>(kWasmS128);
   static const int kElems = kSimd128Size / sizeof(T);
   for (int i = 0; i < kElems; i++) {
-    src0[i] = i;
-    src1[i] = kElems + i;
+    WriteLittleEndianValue<T>(&src0[i], i);
+    WriteLittleEndianValue<T>(&src1[i], kElems + i);
   }
   if (simd_op == kExprS8x16Shuffle) {
     BUILD(r,
@@ -1710,7 +1710,7 @@ void RunBinaryLaneOpTest(
 
   CHECK_EQ(1, r.Call());
   for (size_t i = 0; i < expected.size(); i++) {
-    CHECK_EQ(src0[i], expected[i]);
+    CHECK_EQ(ReadLittleEndianValue<T>(&src0[i]), expected[i]);
   }
 }
 
@@ -1979,13 +1979,13 @@ void RunWasmCode(WasmExecutionMode execution_mode, LowerSimd lower_simd,
   int8_t* src0 = r.builder().AddGlobal<int8_t>(kWasmS128);
   int8_t* src1 = r.builder().AddGlobal<int8_t>(kWasmS128);
   for (int i = 0; i < kSimd128Size; ++i) {
-    src0[i] = i;
-    src1[i] = kSimd128Size + i;
+    WriteLittleEndianValue<int8_t>(&src0[i], i);
+    WriteLittleEndianValue<int8_t>(&src1[i], kSimd128Size + i);
   }
   r.Build(code.data(), code.data() + code.size());
   CHECK_EQ(1, r.Call());
   for (size_t i = 0; i < kSimd128Size; i++) {
-    (*result)[i] = src0[i];
+    (*result)[i] = ReadLittleEndianValue<int8_t>(&src0[i]);
   }
 }
 
@@ -2233,26 +2233,17 @@ WASM_SIMD_TEST(SimdF32x4For) {
 template <typename T, int numLanes = 4>
 void SetVectorByLanes(T* v, const std::array<T, numLanes>& arr) {
   for (int lane = 0; lane < numLanes; lane++) {
-    const T& value = arr[lane];
-#if defined(V8_TARGET_BIG_ENDIAN)
-    v[numLanes - 1 - lane] = value;
-#else
-    v[lane] = value;
-#endif
+    WriteLittleEndianValue<T>(&v[lane], arr[lane]);
   }
 }
 
 template <typename T>
-const T& GetScalar(T* v, int lane) {
+const T GetScalar(T* v, int lane) {
   constexpr int kElems = kSimd128Size / sizeof(T);
-#if defined(V8_TARGET_BIG_ENDIAN)
-  const int index = kElems - 1 - lane;
-#else
   const int index = lane;
-#endif
   USE(kElems);
   DCHECK(index >= 0 && index < kElems);
-  return v[index];
+  return ReadLittleEndianValue<T>(&v[index]);
 }
 
 WASM_SIMD_TEST(SimdI32x4GetGlobal) {

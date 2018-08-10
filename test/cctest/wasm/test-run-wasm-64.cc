@@ -1359,9 +1359,9 @@ WASM_EXEC_TEST(I64Global) {
 
   r.builder().WriteMemory<int64_t>(global, 0xFFFFFFFFFFFFFFFFLL);
   for (int i = 9; i < 444444; i += 111111) {
-    int64_t expected = *global & i;
+    int64_t expected = ReadLittleEndianValue<int64_t>(global) & i;
     r.Call(i);
-    CHECK_EQ(expected, *global);
+    CHECK_EQ(expected, ReadLittleEndianValue<int64_t>(global));
   }
 }
 

@@ -3008,8 +3008,13 @@ Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
   Node* offset = nullptr;
   GetGlobalBaseAndOffset(mem_type, env_->module->globals[index], &base,
                          &offset);
-  return SetEffect(graph()->NewNode(mcgraph()->machine()->Load(mem_type), base,
-                                    offset, Effect(), Control()));
+  Node* load = SetEffect(graph()->NewNode(mcgraph()->machine()->Load(mem_type),
+                                          base, offset, Effect(), Control()));
+#if defined(V8_TARGET_BIG_ENDIAN)
+  load = BuildChangeEndiannessLoad(load, mem_type,
+                                   env_->module->globals[index].type);
+#endif
+  return load;
 }
 
 Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
@@ -3021,6 +3026,10 @@ Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
                          &offset);
   const Operator* op = mcgraph()->machine()->Store(
       StoreRepresentation(mem_type.representation(), kNoWriteBarrier));
+#if defined(V8_TARGET_BIG_ENDIAN)
+  val = BuildChangeEndiannessStore(val, mem_type.representation(),
+                                   env_->module->globals[index].type);
+#endif
   return SetEffect(
       graph()->NewNode(op, base, offset, val, Effect(), Control()));
 }

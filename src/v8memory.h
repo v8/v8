@@ -159,6 +159,16 @@ static inline void WriteLittleEndianValue(Address p, V value) {
 #endif  // V8_TARGET_LITTLE_ENDIAN
 }
 
+template <typename V>
+static inline V ReadLittleEndianValue(V* p) {
+  return ReadLittleEndianValue<V>(reinterpret_cast<Address>(p));
+}
+
+template <typename V>
+static inline void WriteLittleEndianValue(V* p, V value) {
+  WriteLittleEndianValue<V>(reinterpret_cast<Address>(p), value);
+}
+
 }  // namespace internal
 }  // namespace v8
 
