@@ -2390,7 +2390,7 @@ void TurboAssembler::Trunc_uw_s(Register rd, FPURegister fs,
 void TurboAssembler::Trunc_ul_d(Register rd, FPURegister fs,
                                 FPURegister scratch, Register result) {
   DCHECK(fs != scratch);
-  DCHECK(!AreAliased(rd, result, at));
+  DCHECK(result.is_valid() ? !AreAliased(rd, result, at) : !AreAliased(rd, at));
 
   Label simple_convert, done, fail;
   if (result.is_valid()) {
@@ -2445,7 +2445,7 @@ void TurboAssembler::Trunc_ul_d(Register rd, FPURegister fs,
 void TurboAssembler::Trunc_ul_s(Register rd, FPURegister fs,
                                 FPURegister scratch, Register result) {
   DCHECK(fs != scratch);
-  DCHECK(!AreAliased(rd, result, at));
+  DCHECK(result.is_valid() ? !AreAliased(rd, result, at) : !AreAliased(rd, at));
 
   Label simple_convert, done, fail;
   if (result.is_valid()) {
