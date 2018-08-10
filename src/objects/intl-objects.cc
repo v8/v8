@@ -896,7 +896,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> Intl::AvailableLocalesOf(
   Factory* factory = isolate->factory();
   std::set<std::string> results =
       Intl::GetAvailableLocales(StringToIcuService(service));
-  Handle<JSObject> locales = factory->NewJSObject(isolate->object_function());
+  Handle<JSObject> locales = factory->NewJSObjectWithNullProto();
 
   int32_t i = 0;
   for (auto iter = results.begin(); iter != results.end(); ++iter) {
