@@ -1958,6 +1958,7 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
                                               Node* index,
                                               int additional_offset,
                                               ParameterMode parameter_mode) {
+  if (!FLAG_fixed_array_bounds_checks) return;
   DCHECK_EQ(0, additional_offset % kPointerSize);
   if (parameter_mode == ParameterMode::SMI_PARAMETERS) {
     TNode<Smi> effective_index;
