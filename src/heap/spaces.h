@@ -515,6 +515,9 @@ class MemoryChunk {
   InvalidatedSlots* AllocateInvalidatedSlots();
   void ReleaseInvalidatedSlots();
   void RegisterObjectWithInvalidatedSlots(HeapObject* object, int size);
+  // Updates invalidated_slots after array left-trimming.
+  void MoveObjectWithInvalidatedSlots(HeapObject* old_start,
+                                      HeapObject* new_start);
   InvalidatedSlots* invalidated_slots() { return invalidated_slots_; }
 
   void ReleaseLocalTracker();
@@ -610,6 +613,10 @@ class MemoryChunk {
   bool InToSpace() { return IsFlagSet(IN_TO_SPACE); }
 
   bool InFromSpace() { return IsFlagSet(IN_FROM_SPACE); }
+
+  bool InOldSpace() const;
+
+  bool InLargeObjectSpace() const;
 
   Space* owner() const { return owner_; }
 
