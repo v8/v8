@@ -5660,7 +5660,7 @@ TEST(Regress618958) {
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   bool isolate_is_locked = true;
-  heap->update_external_memory(100 * MB);
+  CcTest::isolate()->AdjustAmountOfExternalAllocatedMemory(100 * MB);
   int mark_sweep_count_before = heap->ms_count();
   heap->MemoryPressureNotification(MemoryPressureLevel::kCritical,
                                    isolate_is_locked);
