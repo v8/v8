@@ -3324,7 +3324,7 @@ bool JSObject::IsUnmodifiedApiObject(Object** o) {
   HeapObject* heap_object = HeapObject::cast(object);
   if (!object->IsJSObject()) return false;
   JSObject* js_object = JSObject::cast(object);
-  if (!js_object->WasConstructedFromApiFunction()) return false;
+  if (!js_object->IsApiWrapper()) return false;
   Object* maybe_constructor = js_object->map()->GetConstructor();
   if (!maybe_constructor->IsJSFunction()) return false;
   JSFunction* constructor = JSFunction::cast(maybe_constructor);
@@ -16078,34 +16078,10 @@ bool FixedArrayBase::IsCowArray() const {
   return map() == GetReadOnlyRoots().fixed_cow_array_map();
 }
 
-bool JSObject::WasConstructedFromApiFunction() {
+bool JSObject::IsApiWrapper() {
   auto instance_type = map()->instance_type();
-  bool is_api_object = instance_type == JS_API_OBJECT_TYPE ||
-                       instance_type == JS_SPECIAL_API_OBJECT_TYPE;
-  bool is_wasm_object =
-      instance_type == WASM_GLOBAL_TYPE || instance_type == WASM_MEMORY_TYPE ||
-      instance_type == WASM_MODULE_TYPE ||
-      instance_type == WASM_INSTANCE_TYPE || instance_type == WASM_TABLE_TYPE;
-#ifdef ENABLE_SLOW_DCHECKS
-  if (FLAG_enable_slow_asserts) {
-    Object* maybe_constructor = map()->GetConstructor();
-    if (maybe_constructor->IsJSFunction()) {
-      JSFunction* constructor = JSFunction::cast(maybe_constructor);
-      DCHECK_EQ(constructor->shared()->IsApiFunction(),
-                is_api_object || is_wasm_object);
-    } else if (maybe_constructor->IsFunctionTemplateInfo()) {
-      DCHECK(is_api_object || is_wasm_object);
-    } else {
-      return false;
-    }
-  }
-#endif
-  // TODO(titzer): Clean this up somehow. WebAssembly objects should not be
-  // considered "constructed from API functions" even though they have
-  // function template info, since that would make the V8 GC identify them to
-  // the embedder, e.g. the Oilpan GC.
-  USE(is_wasm_object);
-  return is_api_object;
+  return instance_type == JS_API_OBJECT_TYPE ||
+         instance_type == JS_SPECIAL_API_OBJECT_TYPE;
 }
 
 const char* Symbol::PrivateSymbolToName() const {

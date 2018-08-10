@@ -4836,7 +4836,7 @@ void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
 }
 
 void Heap::TracePossibleWrapper(JSObject* js_object) {
-  DCHECK(js_object->WasConstructedFromApiFunction());
+  DCHECK(js_object->IsApiWrapper());
   if (js_object->GetEmbedderFieldCount() >= 2 &&
       js_object->GetEmbedderField(0) &&
       js_object->GetEmbedderField(0) != ReadOnlyRoots(this).undefined_value() &&
