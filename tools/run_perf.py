@@ -611,6 +611,7 @@ class Platform(object):
     self.shell_dir = options.shell_dir
     self.shell_dir_secondary = options.shell_dir_secondary
     self.extra_flags = options.extra_flags.split()
+    self.options = options
 
   @staticmethod
   def ReadBuildConfig(options):
@@ -758,6 +759,14 @@ class AndroidPlatform(Platform):  # pragma: no cover
     else:
       bench_rel = "."
 
+    logcat_file = None
+    if self.options.dump_logcats_to:
+      runnable_name = '-'.join(runnable.graphs)
+      logcat_file = os.path.join(
+          self.options.dump_logcats_to, 'logcat-%s-#%d%s.log' % (
+            runnable_name, count + 1, '-secondary' if secondary else ''))
+      logging.debug('Dumping logcat into %s', logcat_file)
+
     try:
       stdout = self.driver.run(
           target_dir=target_dir,
@@ -765,6 +774,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
           args=runnable.GetCommandFlags(self.extra_flags),
           rel_path=bench_rel,
           timeout=runnable.timeout,
+          logcat_file=logcat_file,
       )
       logging.info(title % "Stdout" + "\n%s", stdout)
     except android.CommandFailedException as e:
@@ -944,6 +954,9 @@ def Main(args):
   parser.add_option("--run-count-multiplier", default=1, type="int",
                     help="Multipled used to increase number of times each test "
                     "is retried.")
+  parser.add_option("--dump-logcats-to",
+                    help="Writes logcat output from each test into specified "
+                    "directory. Only supported for android targets.")
 
   (options, args) = parser.parse_args(args)
 

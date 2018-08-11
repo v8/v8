@@ -141,7 +141,8 @@ class _Driver(object):
         skip_if_missing=True,
     )
 
-  def run(self, target_dir, binary, args, rel_path, timeout, env=None):
+  def run(self, target_dir, binary, args, rel_path, timeout, env=None,
+          logcat_file=False):
     """Execute a command on the device's shell.
 
     Args:
@@ -152,23 +153,34 @@ class _Driver(object):
       rel_path: Relative path on device to use as CWD.
       timeout: Timeout in seconds.
       env: The environment variables with which the command should be run.
+      logcat_file: File into which to stream adb logcat log.
     """
     binary_on_device = os.path.join(DEVICE_DIR, target_dir, binary)
     cmd = [binary_on_device] + args
-    try:
-      output = self.device.RunShellCommand(
-          cmd,
-          cwd=os.path.join(DEVICE_DIR, rel_path),
-          check_return=True,
-          env=env,
-          timeout=timeout,
-          retries=0,
-      )
-      return '\n'.join(output)
-    except device_errors.AdbCommandFailedError as e:
-      raise CommandFailedException(e.status, e.output)
-    except device_errors.CommandTimeoutError:
-      raise TimeoutException(timeout)
+    def run_inner():
+      try:
+        output = self.device.RunShellCommand(
+            cmd,
+            cwd=os.path.join(DEVICE_DIR, rel_path),
+            check_return=True,
+            env=env,
+            timeout=timeout,
+            retries=0,
+        )
+        return '\n'.join(output)
+      except device_errors.AdbCommandFailedError as e:
+        raise CommandFailedException(e.status, e.output)
+      except device_errors.CommandTimeoutError:
+        raise TimeoutException(timeout)
+
+
+    if logcat_file:
+      with self.device.GetLogcatMonitor(output_file=logcat_file) as logmon:
+        result = run_inner()
+      logmon.Close()
+      return result
+    else:
+      return run_inner()
 
   def drop_ram_caches(self):
     """Drop ran caches on device."""
