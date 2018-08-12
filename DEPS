@@ -13,7 +13,7 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5c13474ef0ef140750035dbacb5c2512248a5dd9',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '68bf4b893087c4f85bff4c0a12effe306bfe2e08',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/depot_tools':
@@ -43,7 +43,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/fuchsia-sdk': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '1da4e38049bc39d1ee1615dc57514af3d293532f',
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-sdk.git' + '@' + '74c827aa187e06deb8e7c5179ce43157bd5254a3',
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
