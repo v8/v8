@@ -1905,7 +1905,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
         Register scratch = temps.AcquireX();
         EmbeddedData d = EmbeddedData::FromBlob();
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
-        Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+        Mov(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
         Jump(scratch, cond);
         return;
       }
@@ -1963,7 +1963,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
         Register scratch = temps.AcquireX();
         EmbeddedData d = EmbeddedData::FromBlob();
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
-        Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+        Mov(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
         Call(scratch);
         return;
       }

@@ -480,7 +480,6 @@ class Operand BASE_EMBEDDED {
   Register rs() const { return rs_; }
   ShiftOp shift_op() const { return shift_op_; }
 
-  bool IsOffHeapTarget() const { return RelocInfo::IsOffHeapTarget(rmode_); }
 
  private:
   Register rm_ = no_reg;
