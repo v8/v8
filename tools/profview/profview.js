@@ -292,27 +292,15 @@ function codeTypeToText(type) {
   console.error("Unknown type: " + type);
 }
 
-function createTypeDiv(type) {
+function createTypeNode(type) {
   if (type === "CAT") {
     return document.createTextNode("");
   }
-  let div = document.createElement("div");
-  div.classList.add("code-type-chip");
-
   let span = document.createElement("span");
   span.classList.add("code-type-chip");
   span.textContent = codeTypeToText(type);
-  div.appendChild(span);
 
-  span = document.createElement("span");
-  span.classList.add("code-type-chip-space");
-  div.appendChild(span);
-
-  return div;
-}
-
-function isBytecodeHandler(kind) {
-  return kind === "BytecodeHandler";
+  return span;
 }
 
 function filterFromFilterId(id) {
@@ -323,30 +311,41 @@ function filterFromFilterId(id) {
       return (type, kind) => type !== 'CODE';
     case "js-exclude-bc":
       return (type, kind) =>
-          type !== 'CODE' || !isBytecodeHandler(kind);
+          type !== 'CODE' || kind !== "BytecodeHandler";
   }
 }
 
-function createTableExpander(indent) {
+function createIndentNode(indent) {
   let div = document.createElement("div");
-  div.style.width = (indent + 0.5) + "em";
   div.style.display = "inline-block";
-  div.style.textAlign = "right";
+  div.style.width = (indent + 0.5) + "em";
   return div;
 }
 
+function createArrowNode() {
+  let span = document.createElement("span");
+  span.classList.add("tree-row-arrow");
+  return span;
+}
+
 function createFunctionNode(name, codeId) {
-  if (codeId === -1) {
-    return document.createTextNode(name);
-  }
   let nameElement = document.createElement("span");
-  nameElement.classList.add("codeid-link");
-  nameElement.onclick = function() {
-    main.setCurrentCode(codeId);
-  };
   nameElement.appendChild(document.createTextNode(name));
+  nameElement.classList.add("tree-row-name");
+  if (codeId !== -1) {
+    nameElement.classList.add("codeid-link");
+    nameElement.onclick = (event) => {
+      main.setCurrentCode(codeId);
+      // Prevent the click from bubbling to the row and causing it to
+      // collapse/expand.
+      event.stopPropagation();
+    };
+  }
   return nameElement;
 }
+
+const COLLAPSED_ARROW = "\u25B6";
+const EXPANDED_ARROW = "\u25BC";
 
 class CallTreeView {
   constructor() {
@@ -401,22 +400,19 @@ class CallTreeView {
   }
 
   expandTree(tree, indent) {
-    let that = this;
     let index = 0;
     let id = "R/";
     let row = tree.row;
-    let expander = tree.expander;
 
     if (row) {
       index = row.rowIndex;
       id = row.id;
 
-      // Make sure we collapse the children when the row is clicked
-      // again.
-      expander.textContent = "\u25BE";
-      let expandHandler = expander.onclick;
-      expander.onclick = () => {
-        that.collapseRow(tree, expander, expandHandler);
+      tree.arrow.textContent = EXPANDED_ARROW;
+      // Collapse the children when the row is clicked again.
+      let expandHandler = row.onclick;
+      row.onclick = () => {
+        this.collapseRow(tree, expandHandler);
       }
     }
 
@@ -463,9 +459,10 @@ class CallTreeView {
 
       // Create the name cell.
       let nameCell = row.insertCell();
-      let expander = createTableExpander(indent + 1);
-      nameCell.appendChild(expander);
-      nameCell.appendChild(createTypeDiv(node.type));
+      nameCell.appendChild(createIndentNode(indent + 1));
+      let arrow = createArrowNode();
+      nameCell.appendChild(arrow);
+      nameCell.appendChild(createTypeNode(node.type));
       nameCell.appendChild(createFunctionNode(node.name, node.codeId));
 
       // Inclusive ticks cell.
@@ -479,18 +476,18 @@ class CallTreeView {
         c.style.textAlign = "right";
       }
       if (node.children.length > 0) {
-        expander.textContent = "\u25B8";
-        expander.onclick = () => { that.expandTree(node, indent + 1); };
+        arrow.textContent = COLLAPSED_ARROW;
+        row.onclick = () => { this.expandTree(node, indent + 1); };
       }
 
       node.row = row;
-      node.expander = expander;
+      node.arrow = arrow;
 
       index++;
     }
   }
 
-  collapseRow(tree, expander, expandHandler) {
+  collapseRow(tree, expandHandler) {
     let row = tree.row;
     let id = row.id;
     let index = row.rowIndex;
@@ -499,8 +496,8 @@ class CallTreeView {
       this.rows.deleteRow(index);
     }
 
-    expander.textContent = "\u25B8";
-    expander.onclick = expandHandler;
+    tree.arrow.textContent = COLLAPSED_ARROW;
+    row.onclick = expandHandler;
   }
 
   fillSelects(mode, calltree) {
@@ -1117,22 +1114,22 @@ class SummaryView {
       return row;
     }
 
-    function makeCollapsible(row, expander) {
-      expander.textContent = "\u25BE";
-      let expandHandler = expander.onclick;
-      expander.onclick = () => {
+    function makeCollapsible(row, arrow) {
+      arrow.textContent = EXPANDED_ARROW;
+      let expandHandler = row.onclick;
+      row.onclick = () => {
         let id = row.id;
         let index = row.rowIndex + 1;
         while (index < rows.rows.length &&
           rows.rows[index].id.startsWith(id)) {
           rows.deleteRow(index);
         }
-        expander.textContent = "\u25B8";
-        expander.onclick = expandHandler;
+        arrow.textContent = COLLAPSED_ARROW;
+        row.onclick = expandHandler;
       }
     }
 
-    function expandDeoptInstances(row, expander, instances, indent, kind) {
+    function expandDeoptInstances(row, arrow, instances, indent, kind) {
       let index = row.rowIndex;
       for (let i = 0; i < instances.length; i++) {
         let childRow = rows.insertRow(index + 1);
@@ -1148,18 +1145,19 @@ class SummaryView {
             document.createTextNode("Reason: " + deopt.reason));
         reasonCell.style.textIndent = indent + "em";
       }
-      makeCollapsible(row, expander);
+      makeCollapsible(row, arrow);
     }
 
-    function expandDeoptFunctionList(row, expander, list, indent, kind) {
+    function expandDeoptFunctionList(row, arrow, list, indent, kind) {
       let index = row.rowIndex;
       for (let i = 0; i < list.length; i++) {
         let childRow = rows.insertRow(index + 1);
         childRow.id = row.id + i + "/";
 
         let textCell = childRow.insertCell(-1);
-        let expander = createTableExpander(indent);
-        textCell.appendChild(expander);
+        textCell.appendChild(createIndentNode(indent));
+        let childArrow = createArrowNode();
+        textCell.appendChild(childArrow);
         textCell.appendChild(
             createFunctionNode(list[i].f.name, list[i].f.codes[0]));
 
@@ -1167,16 +1165,16 @@ class SummaryView {
         numberCell.textContent = list[i].instances.length;
         numberCell.style.textIndent = indent + "em";
 
-        expander.textContent = "\u25B8";
-        expander.onclick = () => {
+        childArrow.textContent = COLLAPSED_ARROW;
+        childRow.onclick = () => {
           expandDeoptInstances(
-              childRow, expander, list[i].instances, indent + 1);
+              childRow, childArrow, list[i].instances, indent + 1);
         };
       }
-      makeCollapsible(row, expander);
+      makeCollapsible(row, arrow);
     }
 
-    function expandOptimizedFunctionList(row, expander, list, indent, kind) {
+    function expandOptimizedFunctionList(row, arrow, list, indent, kind) {
       let index = row.rowIndex;
       for (let i = 0; i < list.length; i++) {
         let childRow = rows.insertRow(index + 1);
@@ -1191,7 +1189,7 @@ class SummaryView {
         numberCell.textContent = list[i].instances.length;
         numberCell.style.textIndent = indent + "em";
       }
-      makeCollapsible(row, expander);
+      makeCollapsible(row, arrow);
     }
 
     function addExpandableRow(text, list, indent, kind) {
@@ -1201,8 +1199,9 @@ class SummaryView {
       row.style.backgroundColor = CATEGORY_COLOR;
 
       let textCell = row.insertCell(-1);
-      let expander = createTableExpander(indent);
-      textCell.appendChild(expander);
+      textCell.appendChild(createIndentNode(indent));
+      let arrow = createArrowNode();
+      textCell.appendChild(arrow);
       textCell.appendChild(document.createTextNode(text));
 
       let numberCell = row.insertCell(-1);
@@ -1212,16 +1211,16 @@ class SummaryView {
       }
 
       if (list.count > 0) {
-        expander.textContent = "\u25B8";
+        arrow.textContent = COLLAPSED_ARROW;
         if (kind === "opt") {
-          expander.onclick = () => {
+          row.onclick = () => {
             expandOptimizedFunctionList(
-                row, expander, list.functions, indent + 1, kind);
+                row, arrow, list.functions, indent + 1, kind);
           };
         } else {
-          expander.onclick = () => {
+          row.onclick = () => {
             expandDeoptFunctionList(
-                row, expander, list.functions, indent + 1, kind);
+                row, arrow, list.functions, indent + 1, kind);
           };
         }
       }
