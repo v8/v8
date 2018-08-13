@@ -602,7 +602,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   }
 
   static void TryTransitionResultArrayToPacked(Handle<JSArray> array) {
-    if (!IsHoleyOrDictionaryElementsKind(kind())) return;
+    if (!IsHoleyElementsKind(kind())) return;
     Handle<FixedArrayBase> backing_store(array->elements(),
                                          array->GetIsolate());
     int length = Smi::ToInt(array->length());
@@ -937,7 +937,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     Handle<FixedArrayBase> elements =
         ConvertElementsWithCapacity(object, old_elements, from_kind, capacity);
 
-    if (IsHoleyOrDictionaryElementsKind(from_kind)) {
+    if (IsHoleyElementsKind(from_kind)) {
       to_kind = GetHoleyElementsKind(to_kind);
     }
     Handle<Map> new_map = JSObject::GetElementsTransitionMap(object, to_kind);
