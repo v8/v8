@@ -280,12 +280,14 @@ class Scanner {
     }
 
     V8_INLINE void AddChar(uc32 code_unit) {
-      if (is_one_byte_ &&
-          code_unit <= static_cast<uc32>(unibrow::Latin1::kMaxChar)) {
-        AddOneByteChar(static_cast<byte>(code_unit));
-      } else {
-        AddCharSlow(code_unit);
+      if (is_one_byte_) {
+        if (code_unit <= static_cast<uc32>(unibrow::Latin1::kMaxChar)) {
+          AddOneByteChar(static_cast<byte>(code_unit));
+          return;
+        }
+        ConvertToTwoByte();
       }
+      AddTwoByteChar(code_unit);
     }
 
     bool is_one_byte() const { return is_one_byte_; }
@@ -339,7 +341,7 @@ class Scanner {
       position_ += kOneByteSize;
     }
 
-    void AddCharSlow(uc32 code_unit);
+    void AddTwoByteChar(uc32 code_unit);
     int NewCapacity(int min_capacity);
     void ExpandBuffer();
     void ConvertToTwoByte();
