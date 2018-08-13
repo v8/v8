@@ -129,7 +129,33 @@ class NativeContextData : public ContextData {
   }
 };
 
-class NameData : public HeapObjectData {};
+class NameData : public HeapObjectData {
+ public:
+  NameData(JSHeapBroker* broker, Handle<Name> object, HeapObjectType type)
+      : HeapObjectData(broker, object, type) {}
+};
+
+class StringData : public NameData {
+ public:
+  StringData(JSHeapBroker* broker, Handle<String> object, HeapObjectType type)
+      : NameData(broker, object, type),
+        length(object->length()),
+        first_char(length > 0 ? object->Get(0) : 0) {
+    int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
+    to_number = StringToDouble(
+        broker->isolate(), broker->isolate()->unicode_cache(), object, flags);
+  }
+
+  int length;
+  uint16_t first_char;
+  double to_number;
+};
+
+class InternalizedStringData : public StringData {
+ public:
+  using StringData::StringData;
+};
+
 class ScriptContextTableData : public HeapObjectData {};
 class FeedbackVectorData : public HeapObjectData {};
 class AllocationSiteData : public HeapObjectData {};
@@ -140,12 +166,10 @@ class FixedDoubleArrayData : public FixedArrayBaseData {};
 class JSArrayData : public JSObjectData {};
 class ScopeInfoData : public HeapObjectData {};
 class SharedFunctionInfoData : public HeapObjectData {};
-class StringData : public NameData {};
 class ModuleData : public HeapObjectData {};
 class CellData : public HeapObjectData {};
 class JSGlobalProxyData : public JSObjectData {};
 class CodeData : public HeapObjectData {};
-class InternalizedStringData : public StringData {};
 
 #define DEFINE_IS_AND_AS(Name)                                          \
   bool ObjectData::Is##Name() const {                                   \
@@ -186,6 +210,15 @@ HeapObjectData* HeapObjectData::Serialize(JSHeapBroker* broker,
   } else if (object->IsNativeContext()) {
     result = new (broker->zone())
         NativeContextData(broker, Handle<Context>::cast(object), type);
+  } else if (object->IsInternalizedString()) {
+    result = new (broker->zone())
+        InternalizedStringData(broker, Handle<String>::cast(object), type);
+  } else if (object->IsString()) {
+    result = new (broker->zone())
+        StringData(broker, Handle<String>::cast(object), type);
+  } else if (object->IsName()) {
+    result =
+        new (broker->zone()) NameData(broker, Handle<Name>::cast(object), type);
   } else {
     result = new (broker->zone()) HeapObjectData(broker, object, type);
   }
@@ -626,19 +659,36 @@ ObjectRef MapRef::GetFieldType(int descriptor) const {
   return ObjectRef(broker(), field_type);
 }
 
+int StringRef::length() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    return object<String>()->length();
+  } else {
+    return data()->AsString()->length;
+  }
+}
+
 uint16_t StringRef::GetFirstChar() {
-  AllowHandleDereference allow_handle_dereference;
-  return object<String>()->Get(0);
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    return object<String>()->Get(0);
+  } else {
+    return data()->AsString()->first_char;
+  }
 }
 
 double StringRef::ToNumber() {
-  AllowHandleDereference allow_handle_dereference;
-  AllowHandleAllocation allow_handle_allocation;
-  AllowHeapAllocation allow_heap_allocation;
-  int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
-  return StringToDouble(broker()->isolate(),
-                        broker()->isolate()->unicode_cache(), object<String>(),
-                        flags);
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    AllowHandleAllocation allow_handle_allocation;
+    AllowHeapAllocation allow_heap_allocation;
+    int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
+    return StringToDouble(broker()->isolate(),
+                          broker()->isolate()->unicode_cache(),
+                          object<String>(), flags);
+  } else {
+    return data()->AsString()->to_number;
+  }
 }
 
 bool FixedArrayRef::is_the_hole(int i) const {
@@ -791,8 +841,6 @@ HANDLE_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
 HANDLE_ACCESSOR_C(SharedFunctionInfo, int, function_map_index)
 HANDLE_ACCESSOR_C(SharedFunctionInfo, int, internal_formal_parameter_count)
 HANDLE_ACCESSOR_C(SharedFunctionInfo, LanguageMode, language_mode)
-
-HANDLE_ACCESSOR_C(String, int, length)
 
 // TODO(neis): Provide StringShape() on StringRef.
 

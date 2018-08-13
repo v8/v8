@@ -64,7 +64,6 @@ class Typer::Visitor : public Reducer {
   const char* reducer_name() const override { return "Typer"; }
 
   Reduction Reduce(Node* node) override {
-    DisallowHeapAccess no_heap_access;
     if (node->op()->ValueOutputCount() == 0) return NoChange();
     switch (node->opcode()) {
 #define DECLARE_CASE(x) \
