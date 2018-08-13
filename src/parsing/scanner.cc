@@ -1592,13 +1592,15 @@ Token::Value Scanner::ScanIdentifierOrKeywordInner(LiteralScope* literal) {
   bool escaped = false;
   if (IsInRange(c0_, 'a', 'z') || c0_ == '_') {
     do {
-      AddLiteralCharAdvance();
+      AddLiteralChar(static_cast<char>(c0_));
+      Advance();
     } while (IsInRange(c0_, 'a', 'z') || c0_ == '_');
 
     if (IsDecimalDigit(c0_) || IsInRange(c0_, 'A', 'Z') || c0_ == '$') {
       // Identifier starting with lowercase or _.
       do {
-        AddLiteralCharAdvance();
+        AddLiteralChar(static_cast<char>(c0_));
+        Advance();
       } while (IsAsciiIdentifier(c0_));
 
       if (c0_ <= kMaxAscii && c0_ != '\\') {
@@ -1618,7 +1620,8 @@ Token::Value Scanner::ScanIdentifierOrKeywordInner(LiteralScope* literal) {
     }
   } else if (IsInRange(c0_, 'A', 'Z') || c0_ == '$') {
     do {
-      AddLiteralCharAdvance();
+      AddLiteralChar(static_cast<char>(c0_));
+      Advance();
     } while (IsAsciiIdentifier(c0_));
 
     if (c0_ <= kMaxAscii && c0_ != '\\') {
