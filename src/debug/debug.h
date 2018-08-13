@@ -563,7 +563,7 @@ class DebugScope BASE_EMBEDDED {
   Debug* debug_;
   DebugScope* prev_;               // Previous scope if entered recursively.
   StackFrame::Id break_frame_id_;  // Previous break frame id.
-  PostponeInterruptsScope no_termination_exceptons_;
+  PostponeInterruptsScope no_interrupts_;
 };
 
 // This scope is used to handle return values in nested debug break points.

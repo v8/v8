@@ -2046,7 +2046,8 @@ class PostponeInterruptsScope : public InterruptsScope {
 // PostponeInterruptsScopes.
 class SafeForInterruptsScope : public InterruptsScope {
  public:
-  SafeForInterruptsScope(Isolate* isolate, int intercept_mask)
+  SafeForInterruptsScope(Isolate* isolate,
+                         int intercept_mask = StackGuard::ALL_INTERRUPTS)
       : InterruptsScope(isolate, intercept_mask,
                         InterruptsScope::kRunInterrupts) {}
   virtual ~SafeForInterruptsScope() = default;
