@@ -39,10 +39,11 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   // Allocate a RegExpResult with the given length (the number of captures,
   // including the match itself), index (the index where the match starts),
-  // and input string. |length| and |index| are expected to be tagged, and
-  // |input| must be a string.
-  Node* AllocateRegExpResult(Node* context, Node* length, Node* index,
-                             Node* input);
+  // and input string.
+  TNode<JSRegExpResult> AllocateRegExpResult(TNode<Context> context,
+                                             TNode<Smi> length,
+                                             TNode<Smi> index,
+                                             TNode<String> input);
 
   TNode<Object> FastLoadLastIndex(TNode<JSRegExp> regexp);
   TNode<Object> SlowLoadLastIndex(TNode<Context> context, TNode<Object> regexp);
@@ -68,15 +69,17 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                        TNode<Number> last_index,
                                        TNode<RegExpMatchInfo> match_info);
 
-  Node* ConstructNewResultFromMatchInfo(Node* const context, Node* const regexp,
-                                        Node* const match_info,
-                                        TNode<String> const string);
+  TNode<JSRegExpResult> ConstructNewResultFromMatchInfo(
+      TNode<Context> context, TNode<JSReceiver> maybe_regexp,
+      TNode<RegExpMatchInfo> match_info, TNode<String> string);
 
-  TNode<HeapObject> RegExpPrototypeExecBodyWithoutResult(
+  TNode<RegExpMatchInfo> RegExpPrototypeExecBodyWithoutResult(
       TNode<Context> context, TNode<JSReceiver> maybe_regexp,
       TNode<String> string, Label* if_didnotmatch, const bool is_fastpath);
-  Node* RegExpPrototypeExecBody(Node* const context, Node* const regexp,
-                                TNode<String> string, const bool is_fastpath);
+  TNode<HeapObject> RegExpPrototypeExecBody(TNode<Context> context,
+                                            TNode<JSReceiver> maybe_regexp,
+                                            TNode<String> string,
+                                            const bool is_fastpath);
 
   Node* ThrowIfNotJSReceiver(Node* context, Node* maybe_receiver,
                              MessageTemplate::Template msg_template,
