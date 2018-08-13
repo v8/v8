@@ -958,10 +958,6 @@ class Isolate : private HiddenFactory {
   inline Handle<Context> native_context();
   inline Context* raw_native_context();
 
-  // Returns the native context of the calling JavaScript code.  That
-  // is, the native context of the top-most JavaScript frame.
-  Handle<Context> GetCallingNativeContext();
-
   Handle<Context> GetIncumbentContext();
 
   void RegisterTryCatchHandler(v8::TryCatch* that);
@@ -1877,9 +1873,6 @@ class Isolate : private HiddenFactory {
   friend class v8::Locker;
   friend class v8::SnapshotCreator;
   friend class v8::Unlocker;
-  friend v8::StartupData v8::V8::CreateSnapshotDataBlob(const char*);
-  friend v8::StartupData v8::V8::WarmUpSnapshotDataBlob(v8::StartupData,
-                                                        const char*);
 
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
