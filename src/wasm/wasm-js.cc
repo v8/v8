@@ -29,11 +29,39 @@ namespace v8 {
 
 class WasmStreaming::WasmStreamingImpl {
  public:
-  void OnBytesReceived(const uint8_t* bytes, size_t size) {}
+  WasmStreamingImpl(
+      Isolate* isolate,
+      std::shared_ptr<internal::wasm::CompilationResultResolver> resolver)
+      : isolate_(isolate), resolver_(std::move(resolver)) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
+    auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+    streaming_decoder_ = i_isolate->wasm_engine()->StartStreamingCompilation(
+        i_isolate, enabled_features, handle(i_isolate->context(), i_isolate),
+        resolver_);
+  }
 
-  void Finish() {}
+  void OnBytesReceived(const uint8_t* bytes, size_t size) {
+    streaming_decoder_->OnBytesReceived(i::Vector<const uint8_t>(bytes, size));
+  }
+  void Finish() { streaming_decoder_->Finish(); }
 
-  void Abort(MaybeLocal<Value> exception) {}
+  void Abort(MaybeLocal<Value> exception) {
+    i::HandleScope scope(reinterpret_cast<i::Isolate*>(isolate_));
+    streaming_decoder_->Abort();
+
+    // If no exception value is provided, we do not reject the promise. This can
+    // happen when streaming compilation gets aborted when no script execution
+    // is allowed anymore, e.g. when a browser tab gets refreshed.
+    if (exception.IsEmpty()) return;
+
+    resolver_->OnCompilationFailed(
+        Utils::OpenHandle(*exception.ToLocalChecked()));
+  }
+
+ private:
+  Isolate* isolate_ = nullptr;
+  std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
+  std::shared_ptr<internal::wasm::CompilationResultResolver> resolver_;
 };
 
 WasmStreaming::WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl)
@@ -176,30 +204,6 @@ i::MaybeHandle<i::JSReceiver> GetValueAsImports(Local<Value> arg,
   return i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
 }
 
-void WebAssemblyCompileStreaming(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-
-  if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
-    // Manually create a promise and reject it.
-    Local<Context> context = isolate->GetCurrentContext();
-    ASSIGN(Promise::Resolver, resolver, Promise::Resolver::New(context));
-    v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-    return_value.Set(resolver->GetPromise());
-    ScheduledErrorThrower thrower(i_isolate, "WebAssembly.compileStreaming()");
-    thrower.CompileError("Wasm code generation disallowed by embedder");
-    auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
-    CHECK_IMPLIES(!maybe.FromMaybe(false),
-                  i_isolate->has_scheduled_exception());
-    return;
-  }
-
-  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
-  DCHECK_NOT_NULL(i_isolate->wasm_compile_streaming_callback());
-  i_isolate->wasm_compile_streaming_callback()(args);
-}
-
 namespace {
 // This class resolves the result of WebAssembly.compile. It just places the
 // compilation result in the supplied {promise}.
@@ -213,6 +217,8 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
   }
 
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
+    if (finished_) return;
+    finished_ = true;
     i::MaybeHandle<i::Object> promise_result =
         i::JSPromise::Resolve(promise_, result);
     CHECK_EQ(promise_result.is_null(),
@@ -220,6 +226,8 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
   }
 
   void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+    if (finished_) return;
+    finished_ = true;
     i::MaybeHandle<i::Object> promise_result =
         i::JSPromise::Reject(promise_, error_reason);
     CHECK_EQ(promise_result.is_null(),
@@ -227,6 +235,7 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
   }
 
  private:
+  bool finished_ = false;
   i::Handle<i::JSPromise> promise_;
 };
 
@@ -350,6 +359,8 @@ class AsyncInstantiateCompileResultResolver
   }
 
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
+    if (finished_) return;
+    finished_ = true;
     isolate_->wasm_engine()->AsyncInstantiate(
         isolate_,
         base::make_unique<InstantiateBytesResultResolver>(isolate_, promise_,
@@ -358,12 +369,15 @@ class AsyncInstantiateCompileResultResolver
   }
 
   void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+    if (finished_) return;
+    finished_ = true;
     i::MaybeHandle<i::Object> promise_result =
         i::JSPromise::Reject(promise_, error_reason);
     CHECK_EQ(promise_result.is_null(), isolate_->has_pending_exception());
   }
 
  private:
+  bool finished_ = false;
   i::Isolate* isolate_;
   i::Handle<i::JSPromise> promise_;
   i::MaybeHandle<i::JSReceiver> maybe_imports_;
@@ -390,7 +404,7 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(promise);
 
-  std::unique_ptr<i::wasm::CompilationResultResolver> resolver(
+  std::shared_ptr<i::wasm::CompilationResultResolver> resolver(
       new AsyncCompilationResolver(i_isolate, Utils::OpenHandle(*promise)));
 
   bool is_shared = false;
@@ -403,6 +417,61 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
   i_isolate->wasm_engine()->AsyncCompile(i_isolate, enabled_features,
                                          std::move(resolver), bytes, is_shared);
+}
+
+// WebAssembly.compileStreaming(Promise<Response>) -> Promise
+void WebAssemblyCompileStreaming(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
+  HandleScope scope(isolate);
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.compile()");
+  Local<Context> context = isolate->GetCurrentContext();
+
+  // Create and assign the return value of this function.
+  ASSIGN(Promise::Resolver, result_resolver, Promise::Resolver::New(context));
+  Local<Promise> promise = result_resolver->GetPromise();
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(promise);
+
+  // Prepare the CompilationResultResolver for the compilation.
+  auto resolver = std::make_shared<AsyncCompilationResolver>(
+      i_isolate, Utils::OpenHandle(*promise));
+
+  if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
+    thrower.CompileError("Wasm code generation disallowed by embedder");
+    resolver->OnCompilationFailed(thrower.Reify());
+    return;
+  }
+
+  // Allocate the streaming decoder in a Managed so we can pass it to the
+  // embedder.
+  i::Handle<i::Managed<WasmStreaming>> data =
+      i::Managed<WasmStreaming>::Allocate(
+          i_isolate, 0,
+          base::make_unique<WasmStreaming::WasmStreamingImpl>(isolate,
+                                                              resolver));
+
+  DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
+  ASSIGN(
+      v8::Function, compile_callback,
+      v8::Function::New(context, i_isolate->wasm_streaming_callback(),
+                        Utils::ToLocal(i::Handle<i::Object>::cast(data)), 1));
+
+  // The parameter may be of type {Response} or of type {Promise<Response>}.
+  // Treat either case of parameter as Promise.resolve(parameter)
+  // as per https://www.w3.org/2001/tag/doc/promises-guide#resolve-arguments
+
+  // Ending with:
+  //    return Promise.resolve(parameter).then(compile_callback);
+  ASSIGN(Promise::Resolver, input_resolver, Promise::Resolver::New(context));
+  if (!input_resolver->Resolve(context, args[0]).IsJust()) return;
+
+  // We do not have any use of the result here. The {compile_callback} will
+  // start streaming compilation, which will eventually resolve the promise we
+  // set as result value.
+  USE(input_resolver->GetPromise()->Then(context, compile_callback));
 }
 
 // WebAssembly.validate(bytes) -> bool
@@ -568,40 +637,6 @@ MaybeLocal<Value> WebAssemblyInstantiateImpl(Isolate* isolate,
   return Utils::ToLocal(instance_object.ToHandleChecked());
 }
 
-void WebAssemblyInstantiateCallback(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  DCHECK_GE(args.Length(), 1);
-  Isolate* isolate = args.GetIsolate();
-  MicrotasksScope does_not_run_microtasks(isolate,
-                                          MicrotasksScope::kDoNotRunMicrotasks);
-
-  HandleScope scope(args.GetIsolate());
-
-  Local<Context> context = isolate->GetCurrentContext();
-  Local<Value> module = args[0];
-
-  const uint8_t* instance_str = reinterpret_cast<const uint8_t*>("instance");
-  const uint8_t* module_str = reinterpret_cast<const uint8_t*>("module");
-  Local<Value> instance;
-  if (!WebAssemblyInstantiateImpl(isolate, module, args.Data())
-           .ToLocal(&instance)) {
-    return;
-  }
-
-  Local<Object> ret = Object::New(isolate);
-  Local<String> instance_name =
-      String::NewFromOneByte(isolate, instance_str,
-                             NewStringType::kInternalized)
-          .ToLocalChecked();
-  Local<String> module_name =
-      String::NewFromOneByte(isolate, module_str, NewStringType::kInternalized)
-          .ToLocalChecked();
-
-  CHECK(ret->CreateDataProperty(context, instance_name, instance).IsJust());
-  CHECK(ret->CreateDataProperty(context, module_name, module).IsJust());
-  args.GetReturnValue().Set(ret);
-}
-
 // new WebAssembly.Instance(module, imports) -> WebAssembly.Instance
 void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -639,27 +674,76 @@ void WebAssemblyInstantiateStreaming(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
-  // we use i_isolate in DCHECKS in the ASSIGN statements.
-  USE(i_isolate);
+
   MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
   HandleScope scope(isolate);
-
   Local<Context> context = isolate->GetCurrentContext();
-  ASSIGN(Promise::Resolver, resolver, Promise::Resolver::New(context));
-  Local<Value> first_arg_value = args[0];
+  ScheduledErrorThrower thrower(i_isolate,
+                                "WebAssembly.instantiateStreaming()");
 
-  ASSIGN(Function, compileStreaming,
-         Function::New(context, WebAssemblyCompileStreaming));
-  ASSIGN(Value, compile_retval,
-         compileStreaming->Call(context, args.Holder(), 1, &first_arg_value));
-  Local<Promise> module_promise = Local<Promise>::Cast(compile_retval);
+  // Create and assign the return value of this function.
+  ASSIGN(Promise::Resolver, result_resolver, Promise::Resolver::New(context));
+  Local<Promise> promise = result_resolver->GetPromise();
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(promise);
 
-  DCHECK(!module_promise.IsEmpty());
-  Local<Value> data = args[1];
-  ASSIGN(Function, instantiate_impl,
-         Function::New(context, WebAssemblyInstantiateCallback, data));
-  ASSIGN(Promise, result, module_promise->Then(context, instantiate_impl));
-  args.GetReturnValue().Set(result);
+  // Create an InstantiateResultResolver in case there is an issue with the
+  // passed parameters.
+  std::unique_ptr<i::wasm::InstantiationResultResolver> resolver(
+      new InstantiateModuleResultResolver(i_isolate,
+                                          Utils::OpenHandle(*promise)));
+
+  if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
+    thrower.CompileError("Wasm code generation disallowed by embedder");
+    resolver->OnInstantiationFailed(thrower.Reify());
+    return;
+  }
+
+  // If args.Length < 2, this will be undefined - see FunctionCallbackInfo.
+  Local<Value> ffi = args[1];
+  i::MaybeHandle<i::JSReceiver> maybe_imports =
+      GetValueAsImports(ffi, &thrower);
+
+  if (thrower.error()) {
+    resolver->OnInstantiationFailed(thrower.Reify());
+    return;
+  }
+
+  // We start compilation now, we have no use for the
+  // {InstantiationResultResolver}.
+  resolver.reset();
+
+  std::shared_ptr<i::wasm::CompilationResultResolver> compilation_resolver(
+      new AsyncInstantiateCompileResultResolver(
+          i_isolate, Utils::OpenHandle(*promise), maybe_imports));
+
+  // Allocate the streaming decoder in a Managed so we can pass it to the
+  // embedder.
+  i::Handle<i::Managed<WasmStreaming>> data =
+      i::Managed<WasmStreaming>::Allocate(
+          i_isolate, 0,
+          base::make_unique<WasmStreaming::WasmStreamingImpl>(
+              isolate, compilation_resolver));
+
+  DCHECK_NOT_NULL(i_isolate->wasm_streaming_callback());
+  ASSIGN(
+      v8::Function, compile_callback,
+      v8::Function::New(context, i_isolate->wasm_streaming_callback(),
+                        Utils::ToLocal(i::Handle<i::Object>::cast(data)), 1));
+
+  // The parameter may be of type {Response} or of type {Promise<Response>}.
+  // Treat either case of parameter as Promise.resolve(parameter)
+  // as per https://www.w3.org/2001/tag/doc/promises-guide#resolve-arguments
+
+  // Ending with:
+  //    return Promise.resolve(parameter).then(compile_callback);
+  ASSIGN(Promise::Resolver, input_resolver, Promise::Resolver::New(context));
+  if (!input_resolver->Resolve(context, args[0]).IsJust()) return;
+
+  // We do not have any use of the result here. The {compile_callback} will
+  // start streaming compilation, which will eventually resolve the promise we
+  // set as result value.
+  USE(input_resolver->GetPromise()->Then(context, compile_callback));
 }
 
 // WebAssembly.instantiate(module, imports) -> WebAssembly.Instance
@@ -725,7 +809,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // {InstantiationResultResolver}.
   resolver.reset();
 
-  std::unique_ptr<i::wasm::CompilationResultResolver> compilation_resolver(
+  std::shared_ptr<i::wasm::CompilationResultResolver> compilation_resolver(
       new AsyncInstantiateCompileResultResolver(
           i_isolate, Utils::OpenHandle(*promise), maybe_imports));
 
@@ -1412,7 +1496,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
   InstallFunc(isolate, webassembly, "instantiate", WebAssemblyInstantiate, 1);
 
-  if (isolate->wasm_compile_streaming_callback() != nullptr) {
+  if (isolate->wasm_streaming_callback() != nullptr) {
     InstallFunc(isolate, webassembly, "compileStreaming",
                 WebAssemblyCompileStreaming, 1);
     InstallFunc(isolate, webassembly, "instantiateStreaming",

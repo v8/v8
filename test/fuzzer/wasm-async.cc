@@ -71,7 +71,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
   i_isolate->wasm_engine()->AsyncCompile(
       i_isolate, enabled_features,
-      base::make_unique<AsyncFuzzerResolver>(i_isolate, &done),
+      std::make_shared<AsyncFuzzerResolver>(i_isolate, &done),
       ModuleWireBytes(data, data + size), false);
 
   // Wait for the promise to resolve.

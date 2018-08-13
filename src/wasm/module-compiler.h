@@ -81,7 +81,7 @@ class AsyncCompileJob {
   AsyncCompileJob(Isolate* isolate, const WasmFeatures& enabled_features,
                   std::unique_ptr<byte[]> bytes_copy, size_t length,
                   Handle<Context> context,
-                  std::unique_ptr<CompilationResultResolver> resolver);
+                  std::shared_ptr<CompilationResultResolver> resolver);
   ~AsyncCompileJob();
 
   void Start();
@@ -142,14 +142,14 @@ class AsyncCompileJob {
   Isolate* isolate_;
   const WasmFeatures enabled_features_;
   const std::shared_ptr<Counters> async_counters_;
-  // Copy of the module wire bytes, moved into the {native_module_} on it's
+  // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.
   std::unique_ptr<byte[]> bytes_copy_;
   // Reference to the wire bytes (hold in {bytes_copy_} or as part of
   // {native_module_}).
   ModuleWireBytes wire_bytes_;
   Handle<Context> native_context_;
-  std::unique_ptr<CompilationResultResolver> resolver_;
+  std::shared_ptr<CompilationResultResolver> resolver_;
   std::shared_ptr<const WasmModule> module_;
 
   std::vector<DeferredHandles*> deferred_handles_;
