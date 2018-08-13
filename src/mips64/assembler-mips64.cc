@@ -533,11 +533,11 @@ bool Assembler::IsBc(Instr instr) {
   return opcode == BC || opcode == BALC;
 }
 
-bool Assembler::IsBal(Instr instr) {
+bool Assembler::IsNal(Instr instr) {
   uint32_t opcode = GetOpcodeField(instr);
   uint32_t rt_field = GetRtField(instr);
   uint32_t rs_field = GetRsField(instr);
-  return opcode == REGIMM && rt_field == BGEZAL && rs_field == 0;
+  return opcode == REGIMM && rt_field == BLTZAL && rs_field == 0;
 }
 
 bool Assembler::IsBzc(Instr instr) {
@@ -807,7 +807,7 @@ int Assembler::target_at(int pos, bool is_internal) {
     }
     return pos + Assembler::kLongBranchPCOffset + imm32;
   } else if (IsLui(instr)) {
-    if (IsBal(instr_at(pos + kInstrSize))) {
+    if (IsNal(instr_at(pos + kInstrSize))) {
       int32_t imm32;
       Instr instr_lui = instr_at(pos + 0 * kInstrSize);
       Instr instr_ori = instr_at(pos + 2 * kInstrSize);
@@ -894,7 +894,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
     instr = SetBranchOffset(pos, target_pos, instr);
     instr_at_put(pos, instr);
   } else if (IsLui(instr)) {
-    if (IsBal(instr_at(pos + kInstrSize))) {
+    if (IsNal(instr_at(pos + kInstrSize))) {
       Instr instr_lui = instr_at(pos + 0 * kInstrSize);
       Instr instr_ori = instr_at(pos + 2 * kInstrSize);
       DCHECK(IsLui(instr_lui));
@@ -4277,11 +4277,9 @@ void Assembler::CheckTrampolinePool() {
             bc(&after_pool);
             nop();
           } else {
-            Label find_pc;
             or_(t8, ra, zero_reg);
-            bal(&find_pc);
-            lui(t9, 0);
-            bind(&find_pc);
+            nal();       // Read PC into ra register.
+            lui(t9, 0);  // Branch delay slot.
             ori(t9, t9, 0);
             daddu(t9, ra, t9);
             or_(ra, t8, zero_reg);

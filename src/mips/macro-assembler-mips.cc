@@ -3916,13 +3916,11 @@ void TurboAssembler::BranchLong(Label* L, BranchDelaySlot bdslot) {
   } else {
     // Generate position independent long branch.
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    Label find_pc;
     int32_t imm32;
     imm32 = branch_long_offset(L);
     or_(t8, ra, zero_reg);
-    bal(&find_pc);
-    lui(t9, (imm32 & kHiMask) >> kLuiShift);
-    bind(&find_pc);
+    nal();                                    // Read PC into ra register.
+    lui(t9, (imm32 & kHiMask) >> kLuiShift);  // Branch delay slot.
     ori(t9, t9, (imm32 & kImm16Mask));
     addu(t9, ra, t9);
     if (bdslot == USE_DELAY_SLOT) {
@@ -3941,13 +3939,11 @@ void TurboAssembler::BranchAndLinkLong(Label* L, BranchDelaySlot bdslot) {
   } else {
     // Generate position independent long branch and link.
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    Label find_pc;
     int32_t imm32;
     imm32 = branch_long_offset(L);
     lui(t8, (imm32 & kHiMask) >> kLuiShift);
-    bal(&find_pc);
-    ori(t8, t8, (imm32 & kImm16Mask));
-    bind(&find_pc);
+    nal();                              // Read PC into ra register.
+    ori(t8, t8, (imm32 & kImm16Mask));  // Branch delay slot.
     addu(t8, ra, t8);
     jalr(t8);
     // Emit a nop in the branch delay slot if required.
@@ -5414,13 +5410,15 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   // register ra, which is needed while computing the code start address.
   push(ra);
 
-  // The bal instruction puts the address of the current instruction into
+  // The nal instruction puts the address of the current instruction into
   // the return address (ra) register, which we can use later on.
-  Label current;
-  bal(&current);
-  nop();
+  if (IsMipsArchVariant(kMips32r6)) {
+    addiupc(ra, 1);
+  } else {
+    nal();
+    nop();
+  }
   int pc = pc_offset();
-  bind(&current);
   li(dst, pc);
   subu(dst, ra, dst);
 

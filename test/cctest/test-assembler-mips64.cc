@@ -3295,11 +3295,9 @@ TEST(jump_tables1) {
     __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
     PredictableCodeSizeScope predictable(&assm,
                                          (kNumCases * 2 + 6) * kInstrSize);
-    Label here;
 
-    __ bal(&here);
+    __ nal();
     __ dsll(at, a0, 3);  // In delay slot.
-    __ bind(&here);
     __ daddu(at, at, ra);
     __ Ld(at, MemOperand(at, 4 * kInstrSize));
     __ jr(at);
@@ -3375,11 +3373,9 @@ TEST(jump_tables2) {
     __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
     PredictableCodeSizeScope predictable(&assm,
                                          (kNumCases * 2 + 6) * kInstrSize);
-    Label here;
 
-    __ bal(&here);
+    __ nal();
     __ dsll(at, a0, 3);  // In delay slot.
-    __ bind(&here);
     __ daddu(at, at, ra);
     __ Ld(at, MemOperand(at, 4 * kInstrSize));
     __ jr(at);
@@ -3455,11 +3451,9 @@ TEST(jump_tables3) {
     __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
     PredictableCodeSizeScope predictable(&assm,
                                          (kNumCases * 2 + 6) * kInstrSize);
-    Label here;
 
-    __ bal(&here);
+    __ nal();
     __ dsll(at, a0, 3);  // In delay slot.
-    __ bind(&here);
     __ daddu(at, at, ra);
     __ Ld(at, MemOperand(at, 4 * kInstrSize));
     __ jr(at);
@@ -5437,8 +5431,8 @@ uint64_t run_jic(int16_t offset) {
   __ beq(v0, t1, &stop_execution);
   __ nop();
 
-  __ bal(&get_program_counter);  // t0 <- program counter
-  __ nop();
+  __ nal();  // t0 <- program counter
+  __ mov(t0, ra);
   __ jic(t0, offset);
 
   __ addiu(v0, v0, 0x100);
@@ -5446,11 +5440,6 @@ uint64_t run_jic(int16_t offset) {
   __ addiu(v0, v0, 0x1000);
   __ addiu(v0, v0, 0x2000);   // <--- offset = 16
   __ pop(ra);
-  __ jr(ra);
-  __ nop();
-
-  __ bind(&get_program_counter);
-  __ mov(t0, ra);
   __ jr(ra);
   __ nop();
 
@@ -5784,8 +5773,8 @@ uint64_t run_jialc(int16_t offset) {
 
   // Block 3 (Main)
   __ bind(&main_block);
-  __ bal(&get_program_counter);  // t0 <- program counter
-  __ nop();
+  __ nal();  // t0 <- program counter
+  __ mov(t0, ra);
   __ jialc(t0, offset);
   __ addiu(v0, v0, 0x4);
   __ pop(ra);
@@ -5801,11 +5790,6 @@ uint64_t run_jialc(int16_t offset) {
   // Block 5
   __ addiu(v0, v0, 0x1000);     // <--- offset = 36
   __ addiu(v0, v0, 0x2000);
-  __ jr(ra);
-  __ nop();
-
-  __ bind(&get_program_counter);
-  __ mov(t0, ra);
   __ jr(ra);
   __ nop();
 

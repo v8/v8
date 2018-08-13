@@ -6541,10 +6541,10 @@ void Simulator::DecodeTypeImmediate() {
       [this, &next_pc, &execute_branch_delay_instruction](bool do_branch) {
         execute_branch_delay_instruction = true;
         int64_t current_pc = get_pc();
+        set_register(31, current_pc + 2 * kInstrSize);
         if (do_branch) {
           int16_t imm16 = instr_.Imm16Value();
           next_pc = current_pc + (imm16 << 2) + kInstrSize;
-          set_register(31, current_pc + 2 * kInstrSize);
         } else {
           next_pc = current_pc + 2 * kInstrSize;
         }

@@ -3165,11 +3165,9 @@ TEST(jump_tables1) {
   {
     __ BlockTrampolinePoolFor(kNumCases + 7);
     PredictableCodeSizeScope predictable(&assm, (kNumCases + 7) * kInstrSize);
-    Label here;
 
-    __ bal(&here);
+    __ nal();
     __ nop();
-    __ bind(&here);
     __ sll(at, a0, 2);
     __ addu(at, at, ra);
     __ lw(at, MemOperand(at, 5 * kInstrSize));
@@ -3243,11 +3241,9 @@ TEST(jump_tables2) {
   {
     __ BlockTrampolinePoolFor(kNumCases + 7);
     PredictableCodeSizeScope predictable(&assm, (kNumCases + 7) * kInstrSize);
-    Label here;
 
-    __ bal(&here);
+    __ nal();
     __ nop();
-    __ bind(&here);
     __ sll(at, a0, 2);
     __ addu(at, at, ra);
     __ lw(at, MemOperand(at, 5 * kInstrSize));
@@ -3318,11 +3314,9 @@ TEST(jump_tables3) {
   {
     __ BlockTrampolinePoolFor(kNumCases + 7);
     PredictableCodeSizeScope predictable(&assm, (kNumCases + 7) * kInstrSize);
-    Label here;
 
-    __ bal(&here);
+    __ nal();
     __ nop();
-    __ bind(&here);
     __ sll(at, a0, 2);
     __ addu(at, at, ra);
     __ lw(at, MemOperand(at, 5 * kInstrSize));
@@ -4808,8 +4802,8 @@ uint32_t run_jic(int16_t offset) {
   __ beq(v0, t1, &stop_execution);
   __ nop();
 
-  __ bal(&get_program_counter);  // t0 <- program counter
-  __ nop();
+  __ nal();  // t0 <- program counter
+  __ mov(t0, ra);
   __ jic(t0, offset);
 
   __ addiu(v0, v0, 0x100);
@@ -4817,11 +4811,6 @@ uint32_t run_jic(int16_t offset) {
   __ addiu(v0, v0, 0x1000);
   __ addiu(v0, v0, 0x2000);   // <--- offset = 16
   __ pop(ra);
-  __ jr(ra);
-  __ nop();
-
-  __ bind(&get_program_counter);
-  __ mov(t0, ra);
   __ jr(ra);
   __ nop();
 
@@ -5155,8 +5144,8 @@ uint32_t run_jialc(int16_t offset) {
 
   // Block 3 (Main)
   __ bind(&main_block);
-  __ bal(&get_program_counter);  // t0 <- program counter
-  __ nop();
+  __ nal();  // t0 <- program counter
+  __ mov(t0, ra);
   __ jialc(t0, offset);
   __ addiu(v0, v0, 0x4);
   __ pop(ra);
@@ -5172,11 +5161,6 @@ uint32_t run_jialc(int16_t offset) {
   // Block 5
   __ addiu(v0, v0, 0x1000);     // <--- offset = 36
   __ addiu(v0, v0, 0x2000);
-  __ jr(ra);
-  __ nop();
-
-  __ bind(&get_program_counter);
-  __ mov(t0, ra);
   __ jr(ra);
   __ nop();
 

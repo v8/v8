@@ -757,6 +757,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     bltc(rs, rt, shifted_branch_offset(L));
   }
   void bltzal(Register rs, int16_t offset);
+  void nal() { bltzal(zero_reg, 0); }
   void blezalc(Register rt, int16_t offset);
   inline void blezalc(Register rt, Label* L) {
     blezalc(rt, shifted_branch_offset(L));
@@ -1764,7 +1765,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static bool IsBranch(Instr instr);
   static bool IsMsaBranch(Instr instr);
   static bool IsBc(Instr instr);
-  static bool IsBal(Instr instr);
+  static bool IsNal(Instr instr);
   static bool IsBzc(Instr instr);
   static bool IsBeq(Instr instr);
   static bool IsBne(Instr instr);

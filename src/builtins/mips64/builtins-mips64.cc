@@ -2384,9 +2384,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     if (kArchVariant >= kMips64r6) {
       __ addiupc(ra, kNumInstructionsToJump + 1);
     } else {
-      // This branch-and-link sequence is needed to find the current PC on mips
-      // before r6, saved to the ra register.
-      __ bal(&find_ra);  // bal exposes branch delay slot.
+      // This no-op-and-link sequence saves PC + 8 in ra register on pre-r6 MIPS
+      __ nal();  // nal has branch delay slot.
       __ Daddu(ra, ra, kNumInstructionsToJump * kInstrSize);
     }
     __ bind(&find_ra);
