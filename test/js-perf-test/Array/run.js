@@ -55,16 +55,16 @@ function HoleyDoubleSetup() {
 
 function FastSetup() {
   array = Array.from({ length: array_size }, (_, i) => `value ${i}`);
-  assert(%HasObjectElements(array);
+  assert(%HasObjectElements(array));
 }
 
 function HoleyFastSetup() {
   FastSetup();
   MakeHoley(array);
-  assert(%HasObjectElements(array);
+  assert(%HasObjectElements(array));
 }
 
-function DictionarySetUp() {
+function DictionarySetup() {
   array = [];
   // Add a large index to force dictionary elements.
   array[2**30] = 10;
