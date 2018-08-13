@@ -242,21 +242,6 @@ bool WasmEngine::HasRunningCompileJob(Isolate* isolate) {
   return false;
 }
 
-void WasmEngine::AbortCompileJobsOnIsolate(Isolate* isolate) {
-  // Iterate over a copy of {jobs_}, because {job->Abort} modifies {jobs_}.
-  std::vector<AsyncCompileJob*> isolate_jobs;
-
-  {
-    base::LockGuard<base::Mutex> guard(&mutex_);
-    for (auto& entry : jobs_) {
-      if (entry.first->isolate() != isolate) continue;
-      isolate_jobs.push_back(entry.first);
-    }
-  }
-
-  for (auto* job : isolate_jobs) job->Abort();
-}
-
 void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   for (auto it = jobs_.begin(); it != jobs_.end();) {

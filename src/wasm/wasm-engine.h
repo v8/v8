@@ -123,14 +123,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Isolate is currently running.
   bool HasRunningCompileJob(Isolate* isolate);
 
-  // Cancel all AsyncCompileJobs that belong to the given Isolate. Their
-  // deletion is delayed until all tasks accessing the AsyncCompileJob finish
-  // their execution. This is used to clean-up the isolate to be reused.
-  void AbortCompileJobsOnIsolate(Isolate* isolate);
-
-  // Deletes all AsyncCompileJobs that belong to the given Isolate. Similar to
-  // the above {AbortCompileJobsOnIsolate} but does not delay deletion because
-  // this is only used during tear-down of the Isolate.
+  // Deletes all AsyncCompileJobs that belong to the given Isolate. All
+  // compilation is aborted, no more callbacks will be triggered. This is used
+  // for tearing down an isolate, or to clean it up to be reused.
   void DeleteCompileJobsOnIsolate(Isolate* isolate);
 
   // Call on process start and exit.
