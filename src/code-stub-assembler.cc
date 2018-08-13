@@ -1523,7 +1523,7 @@ TNode<BoolT> CodeStubAssembler::TaggedDoesntHaveInstanceType(
 
 TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
     SloppyTNode<JSObject> object) {
-  CSA_SLOW_ASSERT(this, Word32Not(IsDictionaryMap(LoadMap(object))));
+  CSA_SLOW_ASSERT(this, Word32BinaryNot(IsDictionaryMap(LoadMap(object))));
   TNode<Object> properties =
       LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
   return Select<HeapObject>(TaggedIsSmi(properties),
@@ -2492,7 +2492,7 @@ TNode<Word32T> CodeStubAssembler::PrototypeRequiresRuntimeLookup(
   TNode<Map> map = LoadMap(function);
 
   return Word32Or(
-      Word32Not(HasPrototypeProperty(function)),
+      Word32BinaryNot(HasPrototypeProperty(function)),
       IsSetWord32<Map::HasNonInstancePrototypeBit>(LoadMapBitField(map)));
 }
 

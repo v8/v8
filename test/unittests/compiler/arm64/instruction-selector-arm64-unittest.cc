@@ -3746,8 +3746,8 @@ TEST_P(InstructionSelectorLogicalWithNotRHSTest, Parameter) {
   {
     StreamBuilder m(this, type, type, type);
     if (type == MachineType::Int32()) {
-      m.Return(
-          (m.*inst.constructor)(m.Parameter(0), m.Word32Not(m.Parameter(1))));
+      m.Return((m.*inst.constructor)(m.Parameter(0),
+                                     m.Word32BitwiseNot(m.Parameter(1))));
     } else {
       ASSERT_EQ(MachineType::Int64(), type);
       m.Return(
@@ -3762,8 +3762,8 @@ TEST_P(InstructionSelectorLogicalWithNotRHSTest, Parameter) {
   {
     StreamBuilder m(this, type, type, type);
     if (type == MachineType::Int32()) {
-      m.Return(
-          (m.*inst.constructor)(m.Word32Not(m.Parameter(0)), m.Parameter(1)));
+      m.Return((m.*inst.constructor)(m.Word32BitwiseNot(m.Parameter(0)),
+                                     m.Parameter(1)));
     } else {
       ASSERT_EQ(MachineType::Int64(), type);
       m.Return(
@@ -3782,10 +3782,9 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         InstructionSelectorLogicalWithNotRHSTest,
                         ::testing::ValuesIn(kLogicalWithNotRHSs));
 
-
-TEST_F(InstructionSelectorTest, Word32NotWithParameter) {
+TEST_F(InstructionSelectorTest, Word32BitwiseNotWithParameter) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-  m.Return(m.Word32Not(m.Parameter(0)));
+  m.Return(m.Word32BitwiseNot(m.Parameter(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArm64Not32, s[0]->arch_opcode());

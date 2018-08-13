@@ -1070,7 +1070,7 @@ IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
   // Number case.
   BIND(&if_number);
   TNode<Number> result =
-      ChangeInt32ToTagged(Signed(Word32Not(var_word32.value())));
+      ChangeInt32ToTagged(Signed(Word32BitwiseNot(var_word32.value())));
   TNode<Smi> result_type = SelectSmiConstant(
       TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
       BinaryOperationFeedback::kNumber);

@@ -1126,7 +1126,8 @@ void TypedArrayBuiltinsAssembler::
                                                    TNode<JSTypedArray> dest,
                                                    TNode<IntPtrT> source_length,
                                                    TNode<IntPtrT> offset) {
-  CSA_ASSERT(this, Word32Not(IsBigInt64ElementsKind(LoadElementsKind(dest))));
+  CSA_ASSERT(this,
+             Word32BinaryNot(IsBigInt64ElementsKind(LoadElementsKind(dest))));
   TNode<ExternalReference> f = ExternalConstant(
       ExternalReference::copy_fast_number_jsarray_elements_to_typed_array());
   CallCFunction5(MachineType::AnyTagged(), MachineType::AnyTagged(),
