@@ -2697,6 +2697,7 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
       // is no code section.
       job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(true);
     } else {
+      HandleScope scope(job_->isolate_);
       job_->FinishCompile();
     }
   }
