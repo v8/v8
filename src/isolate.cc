@@ -2637,6 +2637,7 @@ void Isolate::Deinit() {
   if (sampler && sampler->IsActive()) sampler->Stop();
 
   FreeThreadResources();
+  logger_->StopProfilerThread();
 
   // We start with the heap tear down so that releasing managed objects does
   // not cause a GC.

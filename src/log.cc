@@ -2016,17 +2016,20 @@ sampler::Sampler* Logger::sampler() {
   return ticker_;
 }
 
-
-FILE* Logger::TearDown() {
-  if (!is_initialized_) return nullptr;
-  is_initialized_ = false;
-
-  // Stop the profiler before closing the file.
+void Logger::StopProfilerThread() {
   if (profiler_ != nullptr) {
     profiler_->Disengage();
     delete profiler_;
     profiler_ = nullptr;
   }
+}
+
+FILE* Logger::TearDown() {
+  if (!is_initialized_) return nullptr;
+  is_initialized_ = false;
+
+  // Stop the profiler thread before closing the file.
+  StopProfilerThread();
 
   delete ticker_;
   ticker_ = nullptr;
