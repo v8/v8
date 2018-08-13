@@ -78,6 +78,7 @@ class StatsCounter;
   V(address_of_float_neg_constant, "float_negate_constant")                   \
   V(address_of_min_int, "LDoubleConstant::min_int")                           \
   V(address_of_one_half, "LDoubleConstant::one_half")                         \
+  V(address_of_runtime_stats_flag, "FLAG_runtime_stats")                      \
   V(address_of_the_hole_nan, "the_hole_nan")                                  \
   V(address_of_uint32_bias, "uint32_bias")                                    \
   V(bytecode_size_table_address, "Bytecodes::bytecode_size_table_address")    \

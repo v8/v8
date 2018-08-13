@@ -2686,6 +2686,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Debug helpers
   Node* IsDebugActive();
 
+  TNode<BoolT> IsRuntimeCallStatsEnabled();
+
   // TypedArray/ArrayBuffer helpers
   Node* IsDetachedBuffer(Node* buffer);
   TNode<JSArrayBuffer> LoadArrayBufferViewBuffer(

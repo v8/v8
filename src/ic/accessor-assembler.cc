@@ -207,6 +207,78 @@ void AccessorAssembler::HandleLoadICHandlerCase(
   }
 }
 
+void AccessorAssembler::HandleLoadCallbackProperty(const LoadICParameters* p,
+                                                   TNode<JSObject> holder,
+                                                   TNode<WordT> handler_word,
+                                                   ExitPoint* exit_point) {
+  Comment("native_data_property_load");
+  Node* descriptor = DecodeWord<LoadHandler::DescriptorBits>(handler_word);
+
+  Label runtime(this, Label::kDeferred);
+  Callable callable = CodeFactory::ApiGetter(isolate());
+  TNode<AccessorInfo> accessor_info =
+      CAST(LoadDescriptorValue(LoadMap(holder), descriptor));
+
+  GotoIf(IsRuntimeCallStatsEnabled(), &runtime);
+  exit_point->ReturnCallStub(callable, p->context, p->receiver, holder,
+                             accessor_info);
+
+  BIND(&runtime);
+  exit_point->ReturnCallRuntime(Runtime::kLoadCallbackProperty, p->context,
+                                p->receiver, holder, accessor_info, p->name);
+}
+
+void AccessorAssembler::HandleLoadAccessor(
+    const LoadICParameters* p, TNode<CallHandlerInfo> call_handler_info,
+    TNode<WordT> handler_word, TNode<DataHandler> handler,
+    TNode<IntPtrT> handler_kind, ExitPoint* exit_point) {
+  Comment("api_getter");
+  Label runtime(this, Label::kDeferred);
+  // Context is stored either in data2 or data3 field depending on whether
+  // the access check is enabled for this handler or not.
+  TNode<MaybeObject> maybe_context = Select<MaybeObject>(
+      IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
+      [=] { return LoadHandlerDataField(handler, 3); },
+      [=] { return LoadHandlerDataField(handler, 2); });
+
+  CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_context));
+  CSA_CHECK(this, IsNotClearedWeakHeapObject(maybe_context));
+  TNode<Object> context = ToWeakHeapObject(maybe_context);
+
+  GotoIf(IsRuntimeCallStatsEnabled(), &runtime);
+  {
+    TNode<Foreign> foreign = CAST(
+        LoadObjectField(call_handler_info, CallHandlerInfo::kJsCallbackOffset));
+    TNode<WordT> callback = TNode<WordT>::UncheckedCast(LoadObjectField(
+        foreign, Foreign::kForeignAddressOffset, MachineType::Pointer()));
+    TNode<Object> data =
+        LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
+
+    VARIABLE(api_holder, MachineRepresentation::kTagged, p->receiver);
+    Label load(this);
+    GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kApiGetter)),
+           &load);
+
+    CSA_ASSERT(
+        this,
+        WordEqual(handler_kind,
+                  IntPtrConstant(LoadHandler::kApiGetterHolderIsPrototype)));
+
+    api_holder.Bind(LoadMapPrototype(LoadMap(p->receiver)));
+    Goto(&load);
+
+    BIND(&load);
+    Callable callable = CodeFactory::CallApiCallback(isolate(), 0);
+    exit_point->Return(CallStub(callable, nullptr, context, data,
+                                api_holder.value(), callback, p->receiver));
+  }
+
+  BIND(&runtime);
+  exit_point->ReturnCallRuntime(Runtime::kLoadAccessorProperty, context,
+                                p->receiver, SmiTag(handler_kind),
+                                call_handler_info);
+}
+
 void AccessorAssembler::HandleLoadField(Node* holder, Node* handler_word,
                                         Variable* var_double_value,
                                         Label* rebox_double,
@@ -250,17 +322,17 @@ void AccessorAssembler::HandleLoadField(Node* holder, Node* handler_word,
   }
 }
 
-TNode<Object> AccessorAssembler::LoadDescriptorValue(Node* map,
+TNode<Object> AccessorAssembler::LoadDescriptorValue(TNode<Map> map,
                                                      Node* descriptor) {
   return CAST(LoadDescriptorValueOrFieldType(map, descriptor));
 }
 
 TNode<MaybeObject> AccessorAssembler::LoadDescriptorValueOrFieldType(
-    Node* map, Node* descriptor) {
+    TNode<Map> map, SloppyTNode<IntPtrT> descriptor) {
   TNode<DescriptorArray> descriptors = LoadMapDescriptors(map);
-  Node* scaled_descriptor =
+  TNode<IntPtrT> scaled_descriptor =
       IntPtrMul(descriptor, IntPtrConstant(DescriptorArray::kEntrySize));
-  Node* value_index = IntPtrAdd(
+  TNode<IntPtrT> value_index = IntPtrAdd(
       scaled_descriptor, IntPtrConstant(DescriptorArray::kFirstIndex +
                                         DescriptorArray::kEntryValueIndex));
   CSA_ASSERT(this, UintPtrLessThan(descriptor, LoadAndUntagWeakFixedArrayLength(
@@ -269,14 +341,15 @@ TNode<MaybeObject> AccessorAssembler::LoadDescriptorValueOrFieldType(
 }
 
 void AccessorAssembler::HandleLoadICSmiHandlerCase(
-    const LoadICParameters* p, Node* holder, Node* smi_handler, Node* handler,
-    Label* miss, ExitPoint* exit_point, OnNonExistent on_nonexistent,
-    ElementSupport support_elements) {
+    const LoadICParameters* p, Node* holder, SloppyTNode<Smi> smi_handler,
+    SloppyTNode<Object> handler, Label* miss, ExitPoint* exit_point,
+    OnNonExistent on_nonexistent, ElementSupport support_elements) {
   VARIABLE(var_double_value, MachineRepresentation::kFloat64);
   Label rebox_double(this, &var_double_value);
 
-  Node* handler_word = SmiUntag(smi_handler);
-  Node* handler_kind = DecodeWord<LoadHandler::KindBits>(handler_word);
+  TNode<WordT> handler_word = SmiUntag(smi_handler);
+  TNode<IntPtrT> handler_kind =
+      Signed(DecodeWord<LoadHandler::KindBits>(handler_word));
   if (support_elements == kSupportElements) {
     Label if_element(this), if_indexed_string(this), if_property(this);
     GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kElement)),
@@ -461,58 +534,11 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   }
 
   BIND(&native_data_property);
-  {
-    Comment("native_data_property_load");
-    Node* descriptor = DecodeWord<LoadHandler::DescriptorBits>(handler_word);
-    Node* accessor_info = LoadDescriptorValue(LoadMap(holder), descriptor);
-
-    Callable callable = CodeFactory::ApiGetter(isolate());
-    exit_point->ReturnCallStub(callable, p->context, p->receiver, holder,
-                               accessor_info);
-  }
+  HandleLoadCallbackProperty(p, CAST(holder), handler_word, exit_point);
 
   BIND(&api_getter);
-  {
-    Comment("api_getter");
-    CSA_ASSERT(this, TaggedIsNotSmi(handler));
-    Node* call_handler_info = holder;
-
-    // Context is stored either in data2 or data3 field depending on whether
-    // the access check is enabled for this handler or not.
-    TNode<MaybeObject> maybe_context = Select<MaybeObject>(
-        IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
-        [=] { return LoadHandlerDataField(handler, 3); },
-        [=] { return LoadHandlerDataField(handler, 2); });
-
-    CSA_ASSERT(this, IsWeakOrClearedHeapObject(maybe_context));
-    TNode<Object> context = Select<Object>(
-        IsClearedWeakHeapObject(maybe_context), [=] { return SmiConstant(0); },
-        [=] { return ToWeakHeapObject(maybe_context); });
-    Node* foreign =
-        LoadObjectField(call_handler_info, CallHandlerInfo::kJsCallbackOffset);
-    Node* callback = LoadObjectField(foreign, Foreign::kForeignAddressOffset,
-                                     MachineType::Pointer());
-    Node* data =
-        LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
-
-    VARIABLE(api_holder, MachineRepresentation::kTagged, p->receiver);
-    Label load(this);
-    GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kApiGetter)),
-           &load);
-
-    CSA_ASSERT(
-        this,
-        WordEqual(handler_kind,
-                  IntPtrConstant(LoadHandler::kApiGetterHolderIsPrototype)));
-
-    api_holder.Bind(LoadMapPrototype(LoadMap(p->receiver)));
-    Goto(&load);
-
-    BIND(&load);
-    Callable callable = CodeFactory::CallApiCallback(isolate(), 0);
-    exit_point->Return(CallStub(callable, nullptr, context, data,
-                                api_holder.value(), callback, p->receiver));
-  }
+  HandleLoadAccessor(p, CAST(holder), handler_word, CAST(handler), handler_kind,
+                     exit_point);
 
   BIND(&proxy);
   {
@@ -791,6 +817,7 @@ void AccessorAssembler::JumpIfDataProperty(Node* details, Label* writable,
 
 void AccessorAssembler::HandleStoreICNativeDataProperty(
     const StoreICParameters* p, Node* holder, Node* handler_word) {
+  Comment("native_data_property_store");
   Node* descriptor = DecodeWord<StoreHandler::DescriptorBits>(handler_word);
   Node* accessor_info = LoadDescriptorValue(LoadMap(holder), descriptor);
   CSA_CHECK(this, IsAccessorInfo(accessor_info));

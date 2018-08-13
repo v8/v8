@@ -60,6 +60,7 @@ class TestWithContext : public virtual v8::TestWithIsolate {
   const Local<Context>& context() const { return v8_context(); }
   const Local<Context>& v8_context() const { return context_; }
 
+  v8::Local<v8::String> NewString(const char* string);
   void SetGlobalProperty(const char* name, v8::Local<v8::Value> value);
 
  private:

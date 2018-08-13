@@ -67,17 +67,19 @@ Local<Value> TestWithIsolate::RunJS(const char* source) {
 TestWithContext::TestWithContext()
     : context_(Context::New(isolate())), context_scope_(context_) {}
 
-
 TestWithContext::~TestWithContext() {}
+
+v8::Local<v8::String> TestWithContext::NewString(const char* string) {
+  return v8::String::NewFromUtf8(v8_isolate(), string,
+                                 v8::NewStringType::kNormal)
+      .ToLocalChecked();
+}
 
 void TestWithContext::SetGlobalProperty(const char* name,
                                         v8::Local<v8::Value> value) {
-  v8::Local<v8::String> property_name =
-      v8::String::NewFromUtf8(v8_isolate(), name, v8::NewStringType::kNormal)
-          .ToLocalChecked();
   CHECK(v8_context()
             ->Global()
-            ->Set(v8_context(), property_name, value)
+            ->Set(v8_context(), NewString(name), value)
             .FromJust());
 }
 

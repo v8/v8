@@ -467,6 +467,10 @@ ExternalReference ExternalReference::address_of_min_int() {
   return ExternalReference(reinterpret_cast<Address>(&double_min_int_constant));
 }
 
+ExternalReference ExternalReference::address_of_runtime_stats_flag() {
+  return ExternalReference(&FLAG_runtime_stats);
+}
+
 ExternalReference ExternalReference::address_of_one_half() {
   return ExternalReference(
       reinterpret_cast<Address>(&double_one_half_constant));
