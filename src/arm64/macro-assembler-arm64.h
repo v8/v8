@@ -812,15 +812,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CheckPageFlagClear(const Register& object, const Register& scratch,
                           int mask, Label* if_all_clear);
 
-  // Perform necessary maintenance operations before a push or after a pop.
-  //
-  // Note that size is specified in bytes.
-  void PushPreamble(Operand total_size);
-  void PopPostamble(Operand total_size);
-
-  void PushPreamble(int count, int size);
-  void PopPostamble(int count, int size);
-
   // Test the bits of register defined by bit_pattern, and branch if ANY of
   // those bits are set. May corrupt the status flags.
   inline void TestAndBranchIfAnySet(const Register& reg,
@@ -1579,7 +1570,7 @@ class MacroAssembler : public TurboAssembler {
   // register sizes and types.
   class PushPopQueue {
    public:
-    explicit PushPopQueue(MacroAssembler* masm) : masm_(masm), size_(0) { }
+    explicit PushPopQueue(MacroAssembler* masm) : masm_(masm), size_(0) {}
 
     ~PushPopQueue() {
       DCHECK(queued_.empty());
@@ -1590,11 +1581,7 @@ class MacroAssembler : public TurboAssembler {
       queued_.push_back(rt);
     }
 
-    enum PreambleDirective {
-      WITH_PREAMBLE,
-      SKIP_PREAMBLE
-    };
-    void PushQueued(PreambleDirective preamble_directive = WITH_PREAMBLE);
+    void PushQueued();
     void PopQueued();
 
    private:

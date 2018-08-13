@@ -1051,8 +1051,8 @@ void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,
 
   int count = 1 + src1.IsValid() + src2.IsValid() + src3.IsValid();
   int size = src0.SizeInBytes();
+  DCHECK_EQ(0, (size * count) % 16);
 
-  PushPreamble(count, size);
   PushHelper(count, size, src0, src1, src2, src3);
 }
 
@@ -1064,8 +1064,8 @@ void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,
 
   int count = 5 + src5.IsValid() + src6.IsValid() + src6.IsValid();
   int size = src0.SizeInBytes();
+  DCHECK_EQ(0, (size * count) % 16);
 
-  PushPreamble(count, size);
   PushHelper(4, size, src0, src1, src2, src3);
   PushHelper(count - 4, size, src4, src5, src6, src7);
 }
@@ -1080,9 +1080,9 @@ void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
 
   int count = 1 + dst1.IsValid() + dst2.IsValid() + dst3.IsValid();
   int size = dst0.SizeInBytes();
+  DCHECK_EQ(0, (size * count) % 16);
 
   PopHelper(count, size, dst0, dst1, dst2, dst3);
-  PopPostamble(count, size);
 }
 
 void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
@@ -1097,30 +1097,25 @@ void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
 
   int count = 5 + dst5.IsValid() + dst6.IsValid() + dst7.IsValid();
   int size = dst0.SizeInBytes();
+  DCHECK_EQ(0, (size * count) % 16);
 
   PopHelper(4, size, dst0, dst1, dst2, dst3);
   PopHelper(count - 4, size, dst4, dst5, dst6, dst7);
-  PopPostamble(count, size);
 }
 
 void TurboAssembler::Push(const Register& src0, const VRegister& src1) {
   int size = src0.SizeInBytes() + src1.SizeInBytes();
+  DCHECK_EQ(0, size % 16);
 
-  PushPreamble(size);
   // Reserve room for src0 and push src1.
   str(src1, MemOperand(sp, -size, PreIndex));
   // Fill the gap with src0.
   str(src0, MemOperand(sp, src1.SizeInBytes()));
 }
 
-
-void MacroAssembler::PushPopQueue::PushQueued(
-    PreambleDirective preamble_directive) {
+void MacroAssembler::PushPopQueue::PushQueued() {
+  DCHECK_EQ(0, size_ % 16);
   if (queued_.empty()) return;
-
-  if (preamble_directive == WITH_PREAMBLE) {
-    masm_->PushPreamble(size_);
-  }
 
   size_t count = queued_.size();
   size_t index = 0;
@@ -1143,6 +1138,7 @@ void MacroAssembler::PushPopQueue::PushQueued(
 
 
 void MacroAssembler::PushPopQueue::PopQueued() {
+  DCHECK_EQ(0, size_ % 16);
   if (queued_.empty()) return;
 
   size_t count = queued_.size();
@@ -1161,14 +1157,13 @@ void MacroAssembler::PushPopQueue::PopQueued() {
                      batch[0], batch[1], batch[2], batch[3]);
   }
 
-  masm_->PopPostamble(size_);
   queued_.clear();
 }
 
 void TurboAssembler::PushCPURegList(CPURegList registers) {
   int size = registers.RegisterSizeInBytes();
+  DCHECK_EQ(0, (size * registers.Count()) % 16);
 
-  PushPreamble(registers.Count(), size);
   // Push up to four registers at a time.
   while (!registers.IsEmpty()) {
     int count_before = registers.Count();
@@ -1183,6 +1178,7 @@ void TurboAssembler::PushCPURegList(CPURegList registers) {
 
 void TurboAssembler::PopCPURegList(CPURegList registers) {
   int size = registers.RegisterSizeInBytes();
+  DCHECK_EQ(0, (size * registers.Count()) % 16);
 
   // Pop up to four registers at a time.
   while (!registers.IsEmpty()) {
@@ -1194,12 +1190,9 @@ void TurboAssembler::PopCPURegList(CPURegList registers) {
     int count = count_before - registers.Count();
     PopHelper(count, size, dst0, dst1, dst2, dst3);
   }
-  PopPostamble(registers.Count(), size);
 }
 
 void MacroAssembler::PushMultipleTimes(CPURegister src, Register count) {
-  PushPreamble(Operand(count, UXTW, WhichPowerOf2(src.SizeInBytes())));
-
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireSameSizeAs(count);
 
@@ -1316,39 +1309,6 @@ void TurboAssembler::PopHelper(int count, int size, const CPURegister& dst0,
     default:
       UNREACHABLE();
   }
-}
-
-void TurboAssembler::PushPreamble(Operand total_size) {
-  if (total_size.IsZero()) return;
-
-  // The stack pointer must be aligned to 16 bytes on entry, and the total
-  // size of the specified registers must also be a multiple of 16 bytes.
-  if (total_size.IsImmediate()) {
-    DCHECK_EQ(total_size.ImmediateValue() % 16, 0);
-  }
-
-  // Don't check access size for non-immediate sizes. It's difficult to do
-  // well, and it will be caught by hardware (or the simulator) anyway.
-}
-
-void TurboAssembler::PopPostamble(Operand total_size) {
-  if (total_size.IsZero()) return;
-
-  // The stack pointer must be aligned to 16 bytes on entry, and the total
-  // size of the specified registers must also be a multiple of 16 bytes.
-  if (total_size.IsImmediate()) {
-    DCHECK_EQ(total_size.ImmediateValue() % 16, 0);
-  }
-
-  // Don't check access size for non-immediate sizes. It's difficult to do
-  // well, and it will be caught by hardware (or the simulator) anyway.
-}
-
-void TurboAssembler::PushPreamble(int count, int size) {
-  PushPreamble(count * size);
-}
-void TurboAssembler::PopPostamble(int count, int size) {
-  PopPostamble(count * size);
 }
 
 void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
