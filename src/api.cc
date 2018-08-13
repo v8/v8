@@ -10050,7 +10050,6 @@ void debug::GlobalLexicalScopeNames(
 void debug::SetReturnValue(v8::Isolate* v8_isolate,
                            v8::Local<v8::Value> value) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  if (!isolate->debug()->break_id()) return;
   isolate->debug()->set_return_value(*Utils::OpenHandle(*value));
 }
 

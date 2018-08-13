@@ -317,7 +317,7 @@ class Debug {
   void Iterate(RootVisitor* v);
   void InitThread(const ExecutionAccess& lock) { ThreadInit(); }
 
-  bool CheckExecutionState() { return is_active() && break_id() != 0; }
+  bool CheckExecutionState() { return is_active(); }
 
   void StartSideEffectCheckMode();
   void StopSideEffectCheckMode();
@@ -332,11 +332,6 @@ class Debug {
   bool PerformSideEffectCheckForObject(Handle<Object> object);
 
   // Flags and states.
-  DebugScope* debugger_entry() {
-    return reinterpret_cast<DebugScope*>(
-        base::Relaxed_Load(&thread_local_.current_debug_scope_));
-  }
-
   inline bool is_active() const { return is_active_; }
   inline bool in_debug_scope() const {
     return !!base::Relaxed_Load(&thread_local_.current_debug_scope_);
@@ -349,7 +344,6 @@ class Debug {
   bool break_points_active() const { return break_points_active_; }
 
   StackFrame::Id break_frame_id() { return thread_local_.break_frame_id_; }
-  int break_id() { return thread_local_.break_id_; }
 
   Handle<Object> return_value_handle();
   Object* return_value() { return thread_local_.return_value_; }
@@ -393,9 +387,6 @@ class Debug {
   void UpdateState();
   void UpdateHookOnFunctionCall();
   void Unload();
-  void SetNextBreakId() {
-    thread_local_.break_id_ = ++thread_local_.break_count_;
-  }
 
   // Return the number of virtual frames below debugger entry.
   int CurrentFrameCount();
@@ -503,12 +494,6 @@ class Debug {
     // Top debugger entry.
     base::AtomicWord current_debug_scope_;
 
-    // Counter for generating next break id.
-    int break_count_;
-
-    // Current break id.
-    int break_id_;
-
     // Frame id for the frame of the current break.
     StackFrame::Id break_frame_id_;
 
@@ -578,7 +563,6 @@ class DebugScope BASE_EMBEDDED {
   Debug* debug_;
   DebugScope* prev_;               // Previous scope if entered recursively.
   StackFrame::Id break_frame_id_;  // Previous break frame id.
-  int break_id_;                   // Previous break id.
   PostponeInterruptsScope no_termination_exceptons_;
 };
 
