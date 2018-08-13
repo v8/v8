@@ -483,6 +483,9 @@ TEST(Type3) {
 
     COMPARE(rbit(r1, r2), "e6ff1f32       rbit r1, r2");
     COMPARE(rbit(r10, ip), "e6ffaf3c       rbit r10, ip");
+
+    COMPARE(rev(r1, r2), "e6bf1f32       rev r1, r2");
+    COMPARE(rev(r10, ip), "e6bfaf3c       rev r10, ip");
   }
 
   COMPARE(usat(r0, 1, Operand(r1)),

@@ -2061,6 +2061,13 @@ void Assembler::rbit(Register dst, Register src, Condition cond) {
   emit(cond | 0x6FF * B16 | dst.code() * B12 | 0xF3 * B4 | src.code());
 }
 
+void Assembler::rev(Register dst, Register src, Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.144.
+  // cond(31-28) | 011010111111(27-16) | Rd(15-12) | 11110011(11-4) | Rm(3-0)
+  DCHECK(dst != pc);
+  DCHECK(src != pc);
+  emit(cond | 0x6BF * B16 | dst.code() * B12 | 0xF3 * B4 | src.code());
+}
 
 // Status register access instructions.
 void Assembler::mrs(Register dst, SRegister s, Condition cond) {

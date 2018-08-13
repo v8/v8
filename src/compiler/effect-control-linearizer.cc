@@ -3752,6 +3752,59 @@ Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
   return done.PhiAt(0);
 }
 
+Node* EffectControlLinearizer::BuildReverseBytes(ExternalArrayType type,
+                                                 Node* value) {
+  switch (type) {
+    case kExternalInt8Array:
+    case kExternalUint8Array:
+    case kExternalUint8ClampedArray:
+      return value;
+
+    case kExternalInt16Array: {
+      Node* result = __ Word32ReverseBytes(value);
+      result = __ Word32Sar(result, __ Int32Constant(16));
+      return result;
+    }
+
+    case kExternalUint16Array: {
+      Node* result = __ Word32ReverseBytes(value);
+      result = __ Word32Shr(result, __ Int32Constant(16));
+      return result;
+    }
+
+    case kExternalInt32Array:  // Fall through.
+    case kExternalUint32Array:
+      return __ Word32ReverseBytes(value);
+
+    case kExternalFloat32Array: {
+      Node* result = __ BitcastFloat32ToInt32(value);
+      result = __ Word32ReverseBytes(result);
+      result = __ BitcastInt32ToFloat32(result);
+      return result;
+    }
+
+    case kExternalFloat64Array: {
+      if (machine()->Is64()) {
+        Node* result = __ BitcastFloat64ToInt64(value);
+        result = __ Word64ReverseBytes(result);
+        result = __ BitcastInt64ToFloat64(result);
+        return result;
+      } else {
+        Node* lo = __ Word32ReverseBytes(__ Float64ExtractLowWord32(value));
+        Node* hi = __ Word32ReverseBytes(__ Float64ExtractHighWord32(value));
+        Node* result = __ Float64Constant(0.0);
+        result = __ Float64InsertLowWord32(result, hi);
+        result = __ Float64InsertHighWord32(result, lo);
+        return result;
+      }
+    }
+
+    case kExternalBigInt64Array:
+    case kExternalBigUint64Array:
+      UNREACHABLE();
+  }
+}
+
 Node* EffectControlLinearizer::LowerLoadDataViewElement(Node* node) {
   ExternalArrayType element_type = ExternalArrayTypeOf(node->op());
   Node* buffer = node->InputAt(0);
@@ -3763,166 +3816,34 @@ Node* EffectControlLinearizer::LowerLoadDataViewElement(Node* node) {
   // ArrayBuffer (if there's any) as long as we are still operating on it.
   __ Retain(buffer);
 
-  ElementAccess access_int8 = AccessBuilder::ForTypedArrayElement(
-      kExternalInt8Array, true, LoadSensitivity::kCritical);
-  ElementAccess access_uint8 = AccessBuilder::ForTypedArrayElement(
-      kExternalUint8Array, true, LoadSensitivity::kCritical);
+  MachineType const machine_type =
+      AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
 
-  switch (element_type) {
-    case kExternalUint8Array:
-      return __ LoadElement(access_uint8, storage, index);
+  Node* value = __ LoadUnaligned(machine_type, storage, index);
+  auto big_endian = __ MakeLabel();
+  auto done = __ MakeLabel(machine_type.representation());
 
-    case kExternalInt8Array:
-      return __ LoadElement(access_int8, storage, index);
-
-    case kExternalUint16Array:  // Fall through.
-    case kExternalInt16Array: {
-      auto big_endian = __ MakeLabel();
-      auto done = __ MakeLabel(MachineRepresentation::kWord32);
-
-      // If we're doing an Int16 load, sign-extend the most significant byte
-      // by loading it as an Int8 instead of Uint8.
-      ElementAccess access_msb =
-          element_type == kExternalInt16Array ? access_int8 : access_uint8;
-
-      __ GotoIfNot(is_little_endian, &big_endian);
-      {
-        // Little-endian load.
-        Node* b0 = __ LoadElement(access_uint8, storage, index);
-        Node* b1 = __ LoadElement(access_msb, storage,
-                                  __ Int32Add(index, __ Int32Constant(1)));
-
-        // result = (b1 << 8) + b0
-        Node* result = __ Int32Add(__ Word32Shl(b1, __ Int32Constant(8)), b0);
-        __ Goto(&done, result);
-      }
-
-      __ Bind(&big_endian);
-      {
-        // Big-endian load.
-        Node* b0 = __ LoadElement(access_msb, storage, index);
-        Node* b1 = __ LoadElement(access_uint8, storage,
-                                  __ Int32Add(index, __ Int32Constant(1)));
-
-        // result = (b0 << 8) + b1;
-        Node* result = __ Int32Add(__ Word32Shl(b0, __ Int32Constant(8)), b1);
-        __ Goto(&done, result);
-      }
-
-      // We're done, return {result}.
-      __ Bind(&done);
-      return done.PhiAt(0);
-    }
-
-    case kExternalUint32Array:  // Fall through.
-    case kExternalInt32Array:   // Fall through.
-    case kExternalFloat32Array: {
-      Node* b0 = __ LoadElement(access_uint8, storage, index);
-      Node* b1 = __ LoadElement(access_uint8, storage,
-                                __ Int32Add(index, __ Int32Constant(1)));
-      Node* b2 = __ LoadElement(access_uint8, storage,
-                                __ Int32Add(index, __ Int32Constant(2)));
-      Node* b3 = __ LoadElement(access_uint8, storage,
-                                __ Int32Add(index, __ Int32Constant(3)));
-
-      auto big_endian = __ MakeLabel();
-      auto done = __ MakeLabel(MachineRepresentation::kWord32);
-
-      __ GotoIfNot(is_little_endian, &big_endian);
-      {
-        // Little-endian load.
-        // result = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
-        Node* result =
-            __ Word32Or(__ Word32Or(__ Word32Shl(b3, __ Int32Constant(24)),
-                                    __ Word32Shl(b2, __ Int32Constant(16))),
-                        __ Word32Or(__ Word32Shl(b1, __ Int32Constant(8)), b0));
-        __ Goto(&done, result);
-      }
-
-      __ Bind(&big_endian);
-      {
-        // Big-endian load.
-        // result = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
-        Node* result =
-            __ Word32Or(__ Word32Or(__ Word32Shl(b0, __ Int32Constant(24)),
-                                    __ Word32Shl(b1, __ Int32Constant(16))),
-                        __ Word32Or(__ Word32Shl(b2, __ Int32Constant(8)), b3));
-        __ Goto(&done, result);
-      }
-
-      // We're done, return {result}.
-      __ Bind(&done);
-      if (element_type == kExternalFloat32Array) {
-        return __ BitcastInt32ToFloat32(done.PhiAt(0));
-      } else {
-        return done.PhiAt(0);
-      }
-    }
-
-    case kExternalFloat64Array: {
-      Node* b0 = __ LoadElement(access_uint8, storage, index);
-      Node* b1 = __ LoadElement(access_uint8, storage,
-                                __ Int32Add(index, __ Int32Constant(1)));
-      Node* b2 = __ LoadElement(access_uint8, storage,
-                                __ Int32Add(index, __ Int32Constant(2)));
-      Node* b3 = __ LoadElement(access_uint8, storage,
-                                __ Int32Add(index, __ Int32Constant(3)));
-      Node* b4 = __ LoadElement(access_uint8, storage,
-                                __ Int32Add(index, __ Int32Constant(4)));
-      Node* b5 = __ LoadElement(access_uint8, storage,
-                                __ Int32Add(index, __ Int32Constant(5)));
-      Node* b6 = __ LoadElement(access_uint8, storage,
-                                __ Int32Add(index, __ Int32Constant(6)));
-      Node* b7 = __ LoadElement(access_uint8, storage,
-                                __ Int32Add(index, __ Int32Constant(7)));
-
-      auto big_endian = __ MakeLabel();
-      auto done = __ MakeLabel(MachineRepresentation::kWord32,
-                               MachineRepresentation::kWord32);
-
-      __ GotoIfNot(is_little_endian, &big_endian);
-      {
-        // Little-endian load.
-        // low_word = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
-        // high_word = (b7 << 24) | (b6 << 16) | (b5 << 8) | b4;
-        Node* low_word =
-            __ Word32Or(__ Word32Or(__ Word32Shl(b3, __ Int32Constant(24)),
-                                    __ Word32Shl(b2, __ Int32Constant(16))),
-                        __ Word32Or(__ Word32Shl(b1, __ Int32Constant(8)), b0));
-        Node* high_word =
-            __ Word32Or(__ Word32Or(__ Word32Shl(b7, __ Int32Constant(24)),
-                                    __ Word32Shl(b6, __ Int32Constant(16))),
-                        __ Word32Or(__ Word32Shl(b5, __ Int32Constant(8)), b4));
-        __ Goto(&done, low_word, high_word);
-      }
-
-      __ Bind(&big_endian);
-      {
-        // Big-endian load.
-        // high_word = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
-        // low_word = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
-        Node* high_word =
-            __ Word32Or(__ Word32Or(__ Word32Shl(b0, __ Int32Constant(24)),
-                                    __ Word32Shl(b1, __ Int32Constant(16))),
-                        __ Word32Or(__ Word32Shl(b2, __ Int32Constant(8)), b3));
-        Node* low_word =
-            __ Word32Or(__ Word32Or(__ Word32Shl(b4, __ Int32Constant(24)),
-                                    __ Word32Shl(b5, __ Int32Constant(16))),
-                        __ Word32Or(__ Word32Shl(b6, __ Int32Constant(8)), b7));
-        __ Goto(&done, low_word, high_word);
-      }
-
-      // We're done, store the low and high words into a float64.
-      __ Bind(&done);
-      Node* result = __ Float64Constant(0.0);
-      result = __ Float64InsertLowWord32(result, done.PhiAt(0));
-      result = __ Float64InsertHighWord32(result, done.PhiAt(1));
-      return result;
-    }
-
-    default:
-      UNREACHABLE();
+  __ GotoIfNot(is_little_endian, &big_endian);
+  {  // Little-endian load.
+#if V8_TARGET_LITTLE_ENDIAN
+    __ Goto(&done, value);
+#else
+    __ Goto(&done, BuildReverseBytes(element_type, value));
+#endif  // V8_TARGET_LITTLE_ENDIAN
   }
+
+  __ Bind(&big_endian);
+  {  // Big-endian load.
+#if V8_TARGET_LITTLE_ENDIAN
+    __ Goto(&done, BuildReverseBytes(element_type, value));
+#else
+    __ Goto(&done, value);
+#endif  // V8_TARGET_LITTLE_ENDIAN
+  }
+
+  // We're done, return {result}.
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 void EffectControlLinearizer::LowerStoreDataViewElement(Node* node) {
@@ -3937,165 +3858,35 @@ void EffectControlLinearizer::LowerStoreDataViewElement(Node* node) {
   // ArrayBuffer (if there's any) as long as we are still operating on it.
   __ Retain(buffer);
 
-  ElementAccess access =
-      AccessBuilder::ForTypedArrayElement(kExternalUint8Array, true);
+  MachineType const machine_type =
+      AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
 
-  switch (element_type) {
-    case kExternalUint8Array:  // Fall through.
-    case kExternalInt8Array: {
-      Node* b0 = __ Word32And(value, __ Int32Constant(0xFF));
-      __ StoreElement(access, storage, index, b0);
-      break;
-    }
-    case kExternalUint16Array:  // Fall through.
-    case kExternalInt16Array: {
-      Node* b0 = __ Word32And(value, __ Int32Constant(0xFF));
-      Node* b1 = __ Word32And(__ Word32Shr(value, __ Int32Constant(8)),
-                              __ Int32Constant(0xFF));
+  auto big_endian = __ MakeLabel();
+  auto done = __ MakeLabel(machine_type.representation());
 
-      auto big_endian = __ MakeLabel();
-      auto done = __ MakeLabel();
-
-      __ GotoIfNot(is_little_endian, &big_endian);
-      {
-        // Little-endian store.
-        __ StoreElement(access, storage, index, b0);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(1)), b1);
-        __ Goto(&done);
-      }
-
-      __ Bind(&big_endian);
-      {
-        // Big-endian store.
-        __ StoreElement(access, storage, index, b1);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(1)), b0);
-        __ Goto(&done);
-      }
-
-      __ Bind(&done);
-      break;
-    }
-
-    case kExternalUint32Array:  // Fall through.
-    case kExternalInt32Array:   // Fall through.
-    case kExternalFloat32Array: {
-      if (element_type == kExternalFloat32Array) {
-        value = __ BitcastFloat32ToInt32(value);
-      }
-
-      Node* b0 = __ Word32And(value, __ Int32Constant(0xFF));
-      Node* b1 = __ Word32And(__ Word32Shr(value, __ Int32Constant(8)),
-                              __ Int32Constant(0xFF));
-      Node* b2 = __ Word32And(__ Word32Shr(value, __ Int32Constant(16)),
-                              __ Int32Constant(0xFF));
-      Node* b3 = __ Word32Shr(value, __ Int32Constant(24));
-
-      auto big_endian = __ MakeLabel();
-      auto done = __ MakeLabel();
-
-      __ GotoIfNot(is_little_endian, &big_endian);
-      {
-        // Little-endian store.
-        __ StoreElement(access, storage, index, b0);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(1)), b1);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(2)), b2);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(3)), b3);
-        __ Goto(&done);
-      }
-
-      __ Bind(&big_endian);
-      {
-        // Big-endian store.
-        __ StoreElement(access, storage, index, b3);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(1)), b2);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(2)), b1);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(3)), b0);
-        __ Goto(&done);
-      }
-
-      __ Bind(&done);
-      break;
-    }
-
-    case kExternalFloat64Array: {
-      Node* low_word = __ Float64ExtractLowWord32(value);
-      Node* high_word = __ Float64ExtractHighWord32(value);
-
-      Node* b0 = __ Word32And(low_word, __ Int32Constant(0xFF));
-      Node* b1 = __ Word32And(__ Word32Shr(low_word, __ Int32Constant(8)),
-                              __ Int32Constant(0xFF));
-      Node* b2 = __ Word32And(__ Word32Shr(low_word, __ Int32Constant(16)),
-                              __ Int32Constant(0xFF));
-      Node* b3 = __ Word32Shr(low_word, __ Int32Constant(24));
-
-      Node* b4 = __ Word32And(high_word, __ Int32Constant(0xFF));
-      Node* b5 = __ Word32And(__ Word32Shr(high_word, __ Int32Constant(8)),
-                              __ Int32Constant(0xFF));
-      Node* b6 = __ Word32And(__ Word32Shr(high_word, __ Int32Constant(16)),
-                              __ Int32Constant(0xFF));
-      Node* b7 = __ Word32Shr(high_word, __ Int32Constant(24));
-
-      auto big_endian = __ MakeLabel();
-      auto done = __ MakeLabel();
-
-      __ GotoIfNot(is_little_endian, &big_endian);
-      {
-        // Little-endian store.
-        __ StoreElement(access, storage, index, b0);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(1)), b1);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(2)), b2);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(3)), b3);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(4)), b4);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(5)), b5);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(6)), b6);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(7)), b7);
-        __ Goto(&done);
-      }
-
-      __ Bind(&big_endian);
-      {
-        // Big-endian store.
-        __ StoreElement(access, storage, index, b7);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(1)), b6);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(2)), b5);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(3)), b4);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(4)), b3);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(5)), b2);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(6)), b1);
-        __ StoreElement(access, storage,
-                        __ Int32Add(index, __ Int32Constant(7)), b0);
-        __ Goto(&done);
-      }
-
-      __ Bind(&done);
-      break;
-    }
-
-    default:
-      UNREACHABLE();
+  __ GotoIfNot(is_little_endian, &big_endian);
+  {  // Little-endian store.
+#if V8_TARGET_LITTLE_ENDIAN
+    __ Goto(&done, value);
+#else
+    __ Goto(&done, BuildReverseBytes(element_type, value));
+#endif  // V8_TARGET_LITTLE_ENDIAN
   }
+
+  __ Bind(&big_endian);
+  {  // Big-endian store.
+#if V8_TARGET_LITTLE_ENDIAN
+    __ Goto(&done, BuildReverseBytes(element_type, value));
+#else
+    __ Goto(&done, value);
+#endif  // V8_TARGET_LITTLE_ENDIAN
+  }
+
+  __ Bind(&done);
+  __ StoreUnaligned(machine_type.representation(), storage, index,
+                    done.PhiAt(0));
 }
+
 Node* EffectControlLinearizer::LowerLoadTypedElement(Node* node) {
   ExternalArrayType array_type = ExternalArrayTypeOf(node->op());
   Node* buffer = node->InputAt(0);

@@ -43,6 +43,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Lzcnt:
     case kIA32Tzcnt:
     case kIA32Popcnt:
+    case kIA32Bswap:
     case kIA32Lea:
     case kSSEFloat32Cmp:
     case kSSEFloat32Add:

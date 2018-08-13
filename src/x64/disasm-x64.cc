@@ -2172,6 +2172,10 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     current += PrintRightXMMOperand(current);
     AppendToBuffer(", %d", (*current) & 3);
     current += 1;
+  } else if (opcode >= 0xC8 && opcode <= 0xCF) {
+    // bswap
+    int reg = (opcode - 0xC8) | (rex_r() ? 8 : 0);
+    AppendToBuffer("bswap%c %s", operand_size_code(), NameOfCPURegister(reg));
   } else if (opcode == 0x50) {
     // movmskps reg, xmm
     int mod, regop, rm;
@@ -2237,6 +2241,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
 // The argument is the second byte of the two-byte opcode.
 // Returns nullptr if the instruction is not handled here.
 const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
+  if (opcode >= 0xC8 && opcode <= 0xCF) return "bswap";
   switch (opcode) {
     case 0x1F:
       return "nop";

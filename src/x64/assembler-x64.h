@@ -879,6 +879,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void testw(Operand op, Register reg);
 
   // Bit operations.
+  void bswapl(Register dst);
+  void bswapq(Register dst);
   void bt(Operand dst, Register src);
   void bts(Operand dst, Register src);
   void bsrq(Register dst, Register src);
