@@ -2128,9 +2128,8 @@ void AsyncCompileJob::Start() {
 }
 
 void AsyncCompileJob::Abort() {
-  background_task_manager_.CancelAndWait();
-  if (native_module_) native_module_->compilation_state()->Abort();
-  CancelPendingForegroundTask();
+  // Removing this job will trigger the destructor, which will cancel all
+  // compilation.
   isolate_->wasm_engine()->RemoveCompileJob(this);
 }
 
@@ -2179,6 +2178,8 @@ std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
 
 AsyncCompileJob::~AsyncCompileJob() {
   background_task_manager_.CancelAndWait();
+  if (native_module_) native_module_->compilation_state()->Abort();
+  CancelPendingForegroundTask();
   for (auto d : deferred_handles_) delete d;
 }
 
