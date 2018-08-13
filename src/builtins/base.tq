@@ -62,7 +62,6 @@ type ExtractFixedArrayFlags generates
 'TNode<Smi>' constexpr 'ExtractFixedArrayFlags';
 type ParameterMode generates 'TNode<Int32T>' constexpr 'ParameterMode';
 type RootListIndex generates 'TNode<Int32T>' constexpr 'Heap::RootListIndex';
-type AllocationFlags generates 'TNode<Int32T>' constexpr 'AllocationFlags';
 type WriteBarrierMode generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
 type MessageTemplate constexpr 'MessageTemplate::Template';
@@ -164,8 +163,6 @@ const kSloppy: constexpr LanguageMode generates 'LanguageMode::kSloppy';
 const SMI_PARAMETERS: constexpr ParameterMode generates 'SMI_PARAMETERS';
 const INTPTR_PARAMETERS: constexpr ParameterMode generates 'INTPTR_PARAMETERS';
 
-const kAllowLargeObjectAllocation: constexpr AllocationFlags
-    generates 'kAllowLargeObjectAllocation';
 
 const SKIP_WRITE_BARRIER: constexpr WriteBarrierMode
     generates 'SKIP_WRITE_BARRIER';
@@ -673,9 +670,8 @@ extern macro IsFastSmiOrTaggedElementsKind(ElementsKind): bool;
 extern macro IsFastSmiElementsKind(ElementsKind): bool;
 extern macro IsHoleyFastElementsKind(ElementsKind): bool;
 
-extern macro AllocateFixedArray(constexpr ElementsKind, intptr): FixedArray;
-extern macro AllocateFixedArray(constexpr ElementsKind, intptr,
-    constexpr ParameterMode, constexpr AllocationFlags): FixedArray;
+extern macro AllocateZeroedFixedArray(intptr): FixedArray;
+extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;
 
 extern macro CopyFixedArrayElements(
     constexpr ElementsKind, FixedArray, constexpr ElementsKind, FixedArray,

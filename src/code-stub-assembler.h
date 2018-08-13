@@ -1387,16 +1387,33 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                            Node* capacity = nullptr,
                            Node* allocation_site = nullptr);
 
-  TNode<FixedArray> AllocateFixedArray(
+  TNode<FixedArrayBase> AllocateFixedArray(
       ElementsKind kind, Node* capacity, ParameterMode mode = INTPTR_PARAMETERS,
       AllocationFlags flags = kNone,
       SloppyTNode<Map> fixed_array_map = nullptr);
 
-  TNode<FixedArray> AllocateFixedArray(
+  TNode<FixedArrayBase> AllocateFixedArray(
       ElementsKind kind, TNode<IntPtrT> capacity, AllocationFlags flags,
       SloppyTNode<Map> fixed_array_map = nullptr) {
     return AllocateFixedArray(kind, capacity, INTPTR_PARAMETERS, flags,
                               fixed_array_map);
+  }
+
+  TNode<FixedArray> AllocateZeroedFixedArray(TNode<IntPtrT> capacity) {
+    TNode<FixedArray> result = UncheckedCast<FixedArray>(
+        AllocateFixedArray(PACKED_ELEMENTS, capacity,
+                           AllocationFlag::kAllowLargeObjectAllocation));
+    FillFixedArrayWithSmiZero(result, capacity);
+    return result;
+  }
+
+  TNode<FixedDoubleArray> AllocateZeroedFixedDoubleArray(
+      TNode<IntPtrT> capacity) {
+    TNode<FixedDoubleArray> result = UncheckedCast<FixedDoubleArray>(
+        AllocateFixedArray(FLOAT64_ELEMENTS, capacity,
+                           AllocationFlag::kAllowLargeObjectAllocation));
+    FillFixedDoubleArrayWithZero(result, capacity);
+    return result;
   }
 
   Node* AllocatePropertyArray(Node* capacity,
@@ -1418,6 +1435,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                Node* to_index,
                                Heap::RootListIndex value_root_index,
                                ParameterMode mode = INTPTR_PARAMETERS);
+
+  // Uses memset to effectively initialize the given FixedArray with zeroes.
+  void FillFixedArrayWithSmiZero(TNode<FixedArray> array,
+                                 TNode<IntPtrT> length);
+  void FillFixedDoubleArrayWithZero(TNode<FixedDoubleArray> array,
+                                    TNode<IntPtrT> length);
 
   void FillPropertyArrayWithUndefined(Node* array, Node* from_index,
                                       Node* to_index,
@@ -1515,15 +1538,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // passed as the |source| parameter.
   // * |parameter_mode| determines the parameter mode of |first|, |count| and
   // |capacity|.
-  TNode<FixedArray> ExtractFixedArray(
+  TNode<FixedArrayBase> ExtractFixedArray(
       Node* source, Node* first, Node* count = nullptr,
       Node* capacity = nullptr,
       ExtractFixedArrayFlags extract_flags =
           ExtractFixedArrayFlag::kAllFixedArrays,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
-  TNode<FixedArray> ExtractFixedArray(
-      TNode<FixedArray> source, TNode<Smi> first, TNode<Smi> count,
+  TNode<FixedArrayBase> ExtractFixedArray(
+      TNode<FixedArrayBase> source, TNode<Smi> first, TNode<Smi> count,
       TNode<Smi> capacity,
       ExtractFixedArrayFlags extract_flags =
           ExtractFixedArrayFlag::kAllFixedArrays) {
@@ -1631,7 +1654,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                    Variable* var_numeric,
                                    Variable* var_feedback);
 
-  SloppyTNode<WordT> TimesPointerSize(Node* value);
+  TNode<WordT> TimesPointerSize(SloppyTNode<WordT> value);
+  TNode<IntPtrT> TimesPointerSize(TNode<IntPtrT> value) {
+    return Signed(TimesPointerSize(implicit_cast<TNode<WordT>>(value)));
+  }
+  TNode<UintPtrT> TimesPointerSize(TNode<UintPtrT> value) {
+    return Unsigned(TimesPointerSize(implicit_cast<TNode<WordT>>(value)));
+  }
+  TNode<WordT> TimesDoubleSize(SloppyTNode<WordT> value);
+  TNode<UintPtrT> TimesDoubleSize(TNode<UintPtrT> value) {
+    return Unsigned(TimesDoubleSize(implicit_cast<TNode<WordT>>(value)));
+  }
+  TNode<IntPtrT> TimesDoubleSize(TNode<IntPtrT> value) {
+    return Signed(TimesDoubleSize(implicit_cast<TNode<WordT>>(value)));
+  }
 
   // Type conversions.
   // Throws a TypeError for {method_name} if {value} is not coercible to Object,

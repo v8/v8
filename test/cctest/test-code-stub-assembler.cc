@@ -2379,7 +2379,8 @@ TEST(CreatePromiseResolvingFunctions) {
   std::tie(resolve, reject) = m.CreatePromiseResolvingFunctions(
       promise, m.BooleanConstant(false), native_context);
   Node* const kSize = m.IntPtrConstant(2);
-  TNode<FixedArray> const arr = m.AllocateFixedArray(PACKED_ELEMENTS, kSize);
+  TNode<FixedArray> const arr =
+      m.Cast(m.AllocateFixedArray(PACKED_ELEMENTS, kSize));
   m.StoreFixedArrayElement(arr, 0, resolve);
   m.StoreFixedArrayElement(arr, 1, reject);
   m.Return(arr);

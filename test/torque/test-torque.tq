@@ -428,8 +428,7 @@ module test {
 
   macro TestTypeswitch() {
     check(TypeswitchExample(from_constexpr<Smi>(5)) == 26);
-    const a : FixedArray = AllocateFixedArray(PACKED_ELEMENTS, 3);
-    a[0] = a[1] = a[2] = from_constexpr<Smi>(0);
+    const a : FixedArray = AllocateZeroedFixedArray(3);
     check(TypeswitchExample(a) == 13);
     check(TypeswitchExample(from_constexpr<Number>(0.5)) == 27);
   }

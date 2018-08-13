@@ -244,8 +244,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
   CSA_ASSERT(this, WordNotEqual(intptr_length, IntPtrConstant(0)));
 
   // Allocate a new FixedArray of Objects.
-  TNode<FixedArray> new_elements = AllocateFixedArray(
-      new_kind, intptr_length, CodeStubAssembler::kAllowLargeObjectAllocation);
+  TNode<FixedArray> new_elements = CAST(AllocateFixedArray(
+      new_kind, intptr_length, CodeStubAssembler::kAllowLargeObjectAllocation));
   Branch(Word32Equal(kind, Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
          [=] {
            // Fill the FixedArray with pointers to HeapObjects.

@@ -2062,8 +2062,8 @@ TNode<Object> WeakCollectionsBuiltinsAssembler::AllocateTable(
 
   // See HashTable::NewInternal().
   TNode<IntPtrT> length = KeyIndexFromEntry(capacity);
-  TNode<FixedArray> table =
-      AllocateFixedArray(HOLEY_ELEMENTS, length, kAllowLargeObjectAllocation);
+  TNode<FixedArray> table = CAST(
+      AllocateFixedArray(HOLEY_ELEMENTS, length, kAllowLargeObjectAllocation));
 
   Heap::RootListIndex map_root_index = static_cast<Heap::RootListIndex>(
       EphemeronHashTableShape::GetMapRootIndex());

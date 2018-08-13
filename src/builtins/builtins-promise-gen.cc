@@ -2119,8 +2119,8 @@ TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
       CSA_ASSERT(this, IntPtrLessThan(index, new_elements_length));
       CSA_ASSERT(this, IntPtrLessThan(elements_length, new_elements_length));
       TNode<FixedArray> new_elements =
-          AllocateFixedArray(PACKED_ELEMENTS, new_elements_length,
-                             AllocationFlag::kAllowLargeObjectAllocation);
+          CAST(AllocateFixedArray(PACKED_ELEMENTS, new_elements_length,
+                                  AllocationFlag::kAllowLargeObjectAllocation));
       CopyFixedArrayElements(PACKED_ELEMENTS, elements, PACKED_ELEMENTS,
                              new_elements, elements_length,
                              new_elements_length);

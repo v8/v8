@@ -293,8 +293,8 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
   BIND(&if_has_enum_cache);
   {
     GotoIf(WordEqual(object_enum_length, IntPtrConstant(0)), if_no_properties);
-    TNode<FixedArray> values_or_entries = AllocateFixedArray(
-        PACKED_ELEMENTS, object_enum_length, kAllowLargeObjectAllocation);
+    TNode<FixedArray> values_or_entries = CAST(AllocateFixedArray(
+        PACKED_ELEMENTS, object_enum_length, kAllowLargeObjectAllocation));
 
     // If in case we have enum_cache,
     // we can't detect accessor of object until loop through descriptors.

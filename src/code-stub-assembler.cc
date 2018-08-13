@@ -3325,8 +3325,8 @@ Node* CodeStubAssembler::AllocateOrderedHashTable() {
   TNode<Map> fixed_array_map = CAST(LoadRoot(
       static_cast<Heap::RootListIndex>(CollectionType::GetMapRootIndex())));
   TNode<FixedArray> table =
-      AllocateFixedArray(elements_kind, length_intptr,
-                         kAllowLargeObjectAllocation, fixed_array_map);
+      CAST(AllocateFixedArray(elements_kind, length_intptr,
+                              kAllowLargeObjectAllocation, fixed_array_map));
 
   // Initialize the OrderedHashTable fields.
   const WriteBarrierMode barrier_mode = SKIP_WRITE_BARRIER;
@@ -3860,7 +3860,7 @@ Node* CodeStubAssembler::CloneFastJSArray(Node* context, Node* array,
   return result;
 }
 
-TNode<FixedArray> CodeStubAssembler::AllocateFixedArray(
+TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
     ElementsKind kind, Node* capacity, ParameterMode mode,
     AllocationFlags flags, SloppyTNode<Map> fixed_array_map) {
   Comment("AllocateFixedArray");
@@ -3896,7 +3896,7 @@ TNode<FixedArray> CodeStubAssembler::AllocateFixedArray(
   return UncheckedCast<FixedArray>(array);
 }
 
-TNode<FixedArray> CodeStubAssembler::ExtractFixedArray(
+TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
     Node* fixed_array, Node* first, Node* count, Node* capacity,
     ExtractFixedArrayFlags extract_flags, ParameterMode parameter_mode) {
   VARIABLE(var_result, MachineRepresentation::kTagged);
@@ -4120,6 +4120,48 @@ void CodeStubAssembler::FillFixedArrayWithValue(
         }
       },
       mode);
+}
+
+void CodeStubAssembler::FillFixedArrayWithSmiZero(TNode<FixedArray> array,
+                                                  TNode<IntPtrT> length) {
+  CSA_ASSERT(this, WordEqual(length, LoadAndUntagFixedArrayBaseLength(array)));
+
+  TNode<IntPtrT> byte_length = TimesPointerSize(length);
+  CSA_ASSERT(this, UintPtrLessThan(length, byte_length));
+
+  static const int32_t fa_base_data_offset =
+      FixedArray::kHeaderSize - kHeapObjectTag;
+  TNode<IntPtrT> backing_store = IntPtrAdd(BitcastTaggedToWord(array),
+                                           IntPtrConstant(fa_base_data_offset));
+
+  // Call out to memset to perform initialization.
+  TNode<ExternalReference> memset =
+      ExternalConstant(ExternalReference::libc_memset_function());
+  STATIC_ASSERT(kSizetSize == kIntptrSize);
+  CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
+                 MachineType::IntPtr(), MachineType::UintPtr(), memset,
+                 backing_store, IntPtrConstant(0), byte_length);
+}
+
+void CodeStubAssembler::FillFixedDoubleArrayWithZero(
+    TNode<FixedDoubleArray> array, TNode<IntPtrT> length) {
+  CSA_ASSERT(this, WordEqual(length, LoadAndUntagFixedArrayBaseLength(array)));
+
+  TNode<IntPtrT> byte_length = TimesDoubleSize(length);
+  CSA_ASSERT(this, UintPtrLessThan(length, byte_length));
+
+  static const int32_t fa_base_data_offset =
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag;
+  TNode<IntPtrT> backing_store = IntPtrAdd(BitcastTaggedToWord(array),
+                                           IntPtrConstant(fa_base_data_offset));
+
+  // Call out to memset to perform initialization.
+  TNode<ExternalReference> memset =
+      ExternalConstant(ExternalReference::libc_memset_function());
+  STATIC_ASSERT(kSizetSize == kIntptrSize);
+  CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
+                 MachineType::IntPtr(), MachineType::UintPtr(), memset,
+                 backing_store, IntPtrConstant(0), byte_length);
 }
 
 void CodeStubAssembler::CopyFixedArrayElements(
@@ -4887,8 +4929,12 @@ TNode<UintPtrT> CodeStubAssembler::ChangeNonnegativeNumberToUintPtr(
   return result.value();
 }
 
-SloppyTNode<WordT> CodeStubAssembler::TimesPointerSize(Node* value) {
-  return WordShl(value, IntPtrConstant(kPointerSizeLog2));
+TNode<WordT> CodeStubAssembler::TimesPointerSize(SloppyTNode<WordT> value) {
+  return WordShl(value, kPointerSizeLog2);
+}
+
+TNode<WordT> CodeStubAssembler::TimesDoubleSize(SloppyTNode<WordT> value) {
+  return WordShl(value, kDoubleSizeLog2);
 }
 
 Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
