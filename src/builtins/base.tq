@@ -63,6 +63,7 @@ type ExtractFixedArrayFlags generates
 type ParameterMode generates 'TNode<Int32T>' constexpr 'ParameterMode';
 type RootListIndex generates 'TNode<Int32T>' constexpr 'Heap::RootListIndex';
 type AllocationFlags generates 'TNode<Int32T>' constexpr 'AllocationFlags';
+type WriteBarrierMode generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
 type MessageTemplate constexpr 'MessageTemplate::Template';
 
@@ -165,6 +166,9 @@ const INTPTR_PARAMETERS: constexpr ParameterMode generates 'INTPTR_PARAMETERS';
 
 const kAllowLargeObjectAllocation: constexpr AllocationFlags
     generates 'kAllowLargeObjectAllocation';
+
+const SKIP_WRITE_BARRIER: constexpr WriteBarrierMode
+    generates 'SKIP_WRITE_BARRIER';
 
 extern macro Is64(): constexpr bool;
 
@@ -641,6 +645,9 @@ extern operator
     FixedArray, constexpr int31, Object): void;
 extern operator
 '[]=' macro StoreFixedArrayElementSmi(FixedArray, Smi, Object): void;
+
+extern macro StoreFixedArrayElementSmi(FixedArray, Smi, Object,
+  constexpr WriteBarrierMode): void;
 
 extern operator '.instance_type' macro LoadMapInstanceType(Map): int32;
 
