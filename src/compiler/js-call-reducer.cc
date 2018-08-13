@@ -1508,6 +1508,11 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
     if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
+  if (IsHoleyElementsKind(kind)) {
+    dependencies()->DependOnProtector(
+        PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
+  }
+
   dependencies()->DependOnProtector(
       PropertyCellRef(js_heap_broker(), factory()->array_species_protector()));
 
@@ -1716,6 +1721,11 @@ Reduction JSCallReducer::ReduceArrayFilter(Node* node,
     // We can handle different maps, as long as their elements kind are the
     // same.
     if (receiver_map->elements_kind() != kind) return NoChange();
+  }
+
+  if (IsHoleyElementsKind(kind)) {
+    dependencies()->DependOnProtector(
+        PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
   }
 
   dependencies()->DependOnProtector(
@@ -2313,6 +2323,11 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
     if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
+  if (IsHoleyElementsKind(kind)) {
+    dependencies()->DependOnProtector(
+        PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
+  }
+
   dependencies()->DependOnProtector(
       PropertyCellRef(js_heap_broker(), factory()->array_species_protector()));
 
@@ -2559,7 +2574,15 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
     return NoChange();
 
   if (receiver_map->instance_type() != JS_ARRAY_TYPE) return NoChange();
-  if (!IsFastElementsKind(receiver_map->elements_kind())) return NoChange();
+
+  const ElementsKind kind = receiver_map->elements_kind();
+  if (!IsFastElementsKind(kind)) return NoChange();
+
+  if (IsHoleyElementsKind(kind)) {
+    if (!isolate()->IsNoElementsProtectorIntact()) return NoChange();
+    dependencies()->DependOnProtector(
+        PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
+  }
 
   Callable const callable =
       search_variant == SearchVariant::kIndexOf
@@ -2652,6 +2675,11 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
     // We can handle different maps, as long as their elements kind are the
     // same.
     if (receiver_map->elements_kind() != kind) return NoChange();
+  }
+
+  if (IsHoleyElementsKind(kind)) {
+    dependencies()->DependOnProtector(
+        PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
   }
 
   dependencies()->DependOnProtector(
