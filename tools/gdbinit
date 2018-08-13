@@ -122,3 +122,22 @@ end
 
 set disassembly-flavor intel
 set disable-randomization off
+
+# Install a handler whenever the debugger stops due to a signal. It walks up the
+# stack looking for V8_Dcheck and moves the frame to the one above it so it's
+# immediately at the line of code that triggered the DCHECK.
+python
+def dcheck_stop_handler(event):
+  orig_frame = gdb.selected_frame()
+  frame = orig_frame
+  while frame is not None:
+    if frame.name() == 'V8_Dcheck':
+      select_frame = frame.older()
+      if select_frame is not None:
+        select_frame.select()
+        gdb.execute('frame')
+        break
+    frame = frame.older()
+
+gdb.events.stop.connect(dcheck_stop_handler)
+end
