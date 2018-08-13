@@ -188,50 +188,51 @@ let main = {
   }
 };
 
-let bucketDescriptors =
+const CATEGORY_COLOR = "#f5f5f5";
+const bucketDescriptors =
     [ { kinds : [ "JSOPT" ],
-        color : "#00ff00",
-        backgroundColor : "#c0ffc0",
+        color : "#64dd17",
+        backgroundColor : "#80e27e",
         text : "JS Optimized" },
       { kinds : [ "JSUNOPT", "BC" ],
-        color : "#ffb000",
-        backgroundColor : "#ffe0c0",
+        color : "#dd2c00",
+        backgroundColor : "#ff9e80",
         text : "JS Unoptimized" },
       { kinds : [ "IC" ],
-        color : "#ffff00",
-        backgroundColor : "#ffffc0",
+        color : "#ff6d00",
+        backgroundColor : "#ffab40",
         text : "IC" },
       { kinds : [ "STUB", "BUILTIN", "REGEXP" ],
-        color : "#ffb0b0",
-        backgroundColor : "#fff0f0",
+        color : "#ffd600",
+        backgroundColor : "#ffea00",
         text : "Other generated" },
       { kinds : [ "CPP", "LIB" ],
-        color : "#0000ff",
-        backgroundColor : "#c0c0ff",
+        color : "#304ffe",
+        backgroundColor : "#6ab7ff",
         text : "C++" },
       { kinds : [ "CPPEXT" ],
-        color : "#8080ff",
-        backgroundColor : "#e0e0ff",
+        color : "#003c8f",
+        backgroundColor : "#c0cfff",
         text : "C++/external" },
       { kinds : [ "CPPPARSE" ],
-        color : "#b890f7",
-        backgroundColor : "#ebdeff",
+        color : "#aa00ff",
+        backgroundColor : "#ffb2ff",
         text : "C++/Parser" },
       { kinds : [ "CPPCOMPBC" ],
-        color : "#52b0ce",
-        backgroundColor : "#a5c8d4",
+        color : "#43a047",
+        backgroundColor : "#88c399",
         text : "C++/Bytecode compiler" },
       { kinds : [ "CPPCOMP" ],
-        color : "#00ffff",
-        backgroundColor : "#c0ffff",
+        color : "#00e5ff",
+        backgroundColor : "#6effff",
         text : "C++/Compiler" },
       { kinds : [ "CPPGC" ],
-        color : "#ff00ff",
-        backgroundColor : "#ffc0ff",
+        color : "#6200ea",
+        backgroundColor : "#e1bee7",
         text : "C++/GC" },
       { kinds : [ "UNKNOWN" ],
-        color : "#f0f0f0",
-        backgroundColor : "#e0e0e0",
+        color : "#bdbdbd",
+        backgroundColor : "#efefef",
         text : "Unknown" }
     ];
 
@@ -260,13 +261,13 @@ function codeTypeToText(type) {
     case "UNKNOWN":
       return "Unknown";
     case "CPPPARSE":
-      return "C++ (parser)";
+      return "C++ Parser";
     case "CPPCOMPBC":
-      return "C++ (bytecode compiler)";
+      return "C++ Bytecode Compiler)";
     case "CPPCOMP":
-      return "C++ (compiler)";
+      return "C++ Compiler";
     case "CPPGC":
-      return "C++";
+      return "C++ GC";
     case "CPPEXT":
       return "C++ External";
     case "CPP":
@@ -439,7 +440,9 @@ class CallTreeView {
       let row = this.rows.insertRow(index);
       row.id = id + i + "/";
 
-      if (node.type !== "CAT") {
+      if (node.type === "CAT") {
+        row.style.backgroundColor = CATEGORY_COLOR;
+      } else {
         row.style.backgroundColor = bucketFromKind(node.type).backgroundColor;
       }
 
@@ -1195,6 +1198,7 @@ class SummaryView {
       let row = rows.insertRow(-1);
 
       row.id = "opt-table/" + kind + "/";
+      row.style.backgroundColor = CATEGORY_COLOR;
 
       let textCell = row.insertCell(-1);
       let expander = createTableExpander(indent);
