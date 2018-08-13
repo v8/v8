@@ -788,12 +788,14 @@ class PreParserFactory {
   }
 
   PreParserStatement NewDoWhileStatement(
-      ZonePtrList<const AstRawString>* labels, int pos) {
+      ZonePtrList<const AstRawString>* labels,
+      ZonePtrList<const AstRawString>* own_labels, int pos) {
     return PreParserStatement::Default();
   }
 
-  PreParserStatement NewWhileStatement(ZonePtrList<const AstRawString>* labels,
-                                       int pos) {
+  PreParserStatement NewWhileStatement(
+      ZonePtrList<const AstRawString>* labels,
+      ZonePtrList<const AstRawString>* own_labels, int pos) {
     return PreParserStatement::Default();
   }
 
@@ -808,19 +810,22 @@ class PreParserFactory {
     return PreParserStatement::Default();
   }
 
-  PreParserStatement NewForStatement(ZonePtrList<const AstRawString>* labels,
-                                     int pos) {
+  PreParserStatement NewForStatement(
+      ZonePtrList<const AstRawString>* labels,
+      ZonePtrList<const AstRawString>* own_labels, int pos) {
     return PreParserStatement::Default();
   }
 
   PreParserStatement NewForEachStatement(
       ForEachStatement::VisitMode visit_mode,
-      ZonePtrList<const AstRawString>* labels, int pos) {
+      ZonePtrList<const AstRawString>* labels,
+      ZonePtrList<const AstRawString>* own_labels, int pos) {
     return PreParserStatement::Default();
   }
 
-  PreParserStatement NewForOfStatement(ZonePtrList<const AstRawString>* labels,
-                                       int pos) {
+  PreParserStatement NewForOfStatement(
+      ZonePtrList<const AstRawString>* labels,
+      ZonePtrList<const AstRawString>* own_labels, int pos) {
     return PreParserStatement::Default();
   }
 
@@ -1071,12 +1076,11 @@ class PreParser : public ParserBase<PreParser> {
       const DeclarationParsingResult::Declaration* declaration,
       ZonePtrList<const AstRawString>* names, bool* ok);
 
-  V8_INLINE ZonePtrList<const AstRawString>* DeclareLabel(
-      ZonePtrList<const AstRawString>* labels, const PreParserExpression& expr,
-      bool* ok) {
+  V8_INLINE void DeclareLabel(ZonePtrList<const AstRawString>** labels,
+                              ZonePtrList<const AstRawString>** own_labels,
+                              const PreParserExpression& expr, bool* ok) {
     DCHECK(!parsing_module_ || !expr.AsIdentifier().IsAwait());
     DCHECK(IsIdentifier(expr));
-    return labels;
   }
 
   // TODO(nikolaos): The preparser currently does not keep track of labels.

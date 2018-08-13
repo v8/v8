@@ -284,8 +284,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Block* BuildInitializationBlock(DeclarationParsingResult* parsing_result,
                                   ZonePtrList<const AstRawString>* names,
                                   bool* ok);
-  ZonePtrList<const AstRawString>* DeclareLabel(
-      ZonePtrList<const AstRawString>* labels, VariableProxy* expr, bool* ok);
+  void DeclareLabel(ZonePtrList<const AstRawString>** labels,
+                    ZonePtrList<const AstRawString>** own_labels,
+                    VariableProxy* expr, bool* ok);
   bool ContainsLabel(ZonePtrList<const AstRawString>* labels,
                      const AstRawString* label);
   Expression* RewriteReturn(Expression* return_value, int pos);

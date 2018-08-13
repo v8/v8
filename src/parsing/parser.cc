@@ -1470,29 +1470,40 @@ Statement* Parser::DeclareNative(const AstRawString* name, int pos, bool* ok) {
       pos);
 }
 
-ZonePtrList<const AstRawString>* Parser::DeclareLabel(
-    ZonePtrList<const AstRawString>* labels, VariableProxy* var, bool* ok) {
+void Parser::DeclareLabel(ZonePtrList<const AstRawString>** labels,
+                          ZonePtrList<const AstRawString>** own_labels,
+                          VariableProxy* var, bool* ok) {
   DCHECK(IsIdentifier(var));
   const AstRawString* label = var->raw_name();
+
   // TODO(1240780): We don't check for redeclaration of labels
   // during preparsing since keeping track of the set of active
   // labels requires nontrivial changes to the way scopes are
   // structured.  However, these are probably changes we want to
   // make later anyway so we should go back and fix this then.
-  if (ContainsLabel(labels, label) || TargetStackContainsLabel(label)) {
+  if (ContainsLabel(*labels, label) || TargetStackContainsLabel(label)) {
     ReportMessage(MessageTemplate::kLabelRedeclaration, label);
     *ok = false;
-    return nullptr;
+    return;
   }
-  if (labels == nullptr) {
-    labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
+
+  // Add {label} to both {labels} and {own_labels}.
+  if (*labels == nullptr) {
+    DCHECK_NULL(*own_labels);
+    *labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
+    *own_labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
+  } else {
+    if (*own_labels == nullptr) {
+      *own_labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
+    }
   }
-  labels->Add(label, zone());
+  (*labels)->Add(label, zone());
+  (*own_labels)->Add(label, zone());
+
   // Remove the "ghost" variable that turned out to be a label
   // from the top scope. This way, we don't try to resolve it
   // during the scope processing.
   scope()->RemoveUnresolved(var);
-  return labels;
 }
 
 bool Parser::ContainsLabel(ZonePtrList<const AstRawString>* labels,
@@ -2191,7 +2202,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   // need to know about it. This should be safe because we don't run any code
   // in this function that looks up break targets.
   ForStatement* outer_loop =
-      factory()->NewForStatement(nullptr, kNoSourcePosition);
+      factory()->NewForStatement(nullptr, nullptr, kNoSourcePosition);
   outer_block->statements()->Add(outer_loop, zone());
   outer_block->set_scope(scope());
 
@@ -3393,9 +3404,10 @@ IterationStatement* Parser::LookupContinueTarget(const AstRawString* label,
     if (stat == nullptr) continue;
 
     DCHECK(stat->is_target_for_anonymous());
-    if (anonymous || ContainsLabel(stat->labels(), label)) {
+    if (anonymous || ContainsLabel(stat->own_labels(), label)) {
       return stat;
     }
+    if (ContainsLabel(stat->labels(), label)) break;
   }
   return nullptr;
 }

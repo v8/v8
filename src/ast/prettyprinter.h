@@ -110,7 +110,8 @@ class AstPrinter final : public AstVisitor<AstPrinter> {
                             bool quote);
   void PrintLiteralWithModeIndented(const char* info, Variable* var,
                                     const AstRawString* value);
-  void PrintLabelsIndented(ZonePtrList<const AstRawString>* labels);
+  void PrintLabelsIndented(ZonePtrList<const AstRawString>* labels,
+                           const char* prefix = "");
   void PrintObjectProperties(ZonePtrList<ObjectLiteral::Property>* properties);
   void PrintClassProperties(ZonePtrList<ClassLiteral::Property>* properties);
 
