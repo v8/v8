@@ -186,7 +186,7 @@
       "path": ["Closures"],
       "main": "run.js",
       "resources": ["closures.js"],
-      "flags": ["--mark_shared_functions_for_tier_up"],
+      "flags": [],
       "results_regexp": "^%s\\-Closures\\(Score\\): (.+)$",
       "tests": [
         {"name": "Closures"}
