@@ -2454,7 +2454,7 @@ TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
       LoadContextElement(native_context, Context::ArrayMapIndex(kind)));
 }
 
-TNode<Word32T> CodeStubAssembler::IsGeneratorFunction(
+TNode<BoolT> CodeStubAssembler::IsGeneratorFunction(
     TNode<JSFunction> function) {
   TNode<SharedFunctionInfo> const shared_function_info =
       CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
@@ -2464,7 +2464,7 @@ TNode<Word32T> CodeStubAssembler::IsGeneratorFunction(
           shared_function_info, SharedFunctionInfo::kFlagsOffset,
           MachineType::Uint32()));
 
-  return Word32Or(
+  return TNode<BoolT>::UncheckedCast(Word32Or(
       Word32Or(
           Word32Or(
               Word32Equal(function_kind,
@@ -2475,25 +2475,26 @@ TNode<Word32T> CodeStubAssembler::IsGeneratorFunction(
           Word32Equal(function_kind,
                       Int32Constant(FunctionKind::kGeneratorFunction))),
       Word32Equal(function_kind,
-                  Int32Constant(FunctionKind::kConciseGeneratorMethod)));
+                  Int32Constant(FunctionKind::kConciseGeneratorMethod))));
 }
 
-TNode<Word32T> CodeStubAssembler::HasPrototypeProperty(
-    TNode<JSFunction> function) {
-  TNode<Int32T> mask = Int32Constant(Map::HasPrototypeSlotBit::kMask |
-                                     Map::IsConstructorBit::kMask);
-  return Word32Or(
-      Word32Equal(Word32And(LoadMapBitField(LoadMap(function)), mask), mask),
-      IsGeneratorFunction(function));
+TNode<BoolT> CodeStubAssembler::HasPrototypeProperty(TNode<JSFunction> function,
+                                                     TNode<Map> map) {
+  // (has_prototype_slot() && IsConstructor()) ||
+  // IsGeneratorFunction(shared()->kind())
+  uint32_t mask =
+      Map::HasPrototypeSlotBit::kMask | Map::IsConstructorBit::kMask;
+  return TNode<BoolT>::UncheckedCast(
+      Word32Or(IsAllSetWord32(LoadMapBitField(map), mask),
+               IsGeneratorFunction(function)));
 }
 
-TNode<Word32T> CodeStubAssembler::PrototypeRequiresRuntimeLookup(
-    TNode<JSFunction> function) {
-  TNode<Map> map = LoadMap(function);
-
-  return Word32Or(
-      Word32BinaryNot(HasPrototypeProperty(function)),
-      IsSetWord32<Map::HasNonInstancePrototypeBit>(LoadMapBitField(map)));
+void CodeStubAssembler::GotoIfPrototypeRequiresRuntimeLookup(
+    TNode<JSFunction> function, TNode<Map> map, Label* runtime) {
+  // !has_prototype_property() || has_non_instance_prototype()
+  GotoIfNot(HasPrototypeProperty(function, map), runtime);
+  GotoIf(IsSetWord32<Map::HasNonInstancePrototypeBit>(LoadMapBitField(map)),
+         runtime);
 }
 
 Node* CodeStubAssembler::LoadJSFunctionPrototype(Node* function,
@@ -8385,7 +8386,8 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
                     LoadObjectField(accessor_info, AccessorInfo::kNameOffset)),
                 if_bailout);
 
-      GotoIf(PrototypeRequiresRuntimeLookup(CAST(receiver)), if_bailout);
+      GotoIfPrototypeRequiresRuntimeLookup(CAST(receiver), CAST(receiver_map),
+                                           if_bailout);
       var_value.Bind(LoadJSFunctionPrototype(receiver, if_bailout));
       Goto(&done);
     }
@@ -8839,7 +8841,8 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   GotoIfNot(InstanceTypeEqual(callable_instance_type, JS_FUNCTION_TYPE),
             &return_runtime);
 
-  GotoIf(PrototypeRequiresRuntimeLookup(CAST(callable)), &return_runtime);
+  GotoIfPrototypeRequiresRuntimeLookup(CAST(callable), CAST(callable_map),
+                                       &return_runtime);
 
   // Get the "prototype" (or initial map) of the {callable}.
   Node* callable_prototype =

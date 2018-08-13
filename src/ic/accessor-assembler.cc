@@ -2494,8 +2494,8 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
               &not_function_prototype);
     GotoIfNot(IsPrototypeString(p->name), &not_function_prototype);
 
-    GotoIf(PrototypeRequiresRuntimeLookup(CAST(receiver)),
-           &not_function_prototype);
+    GotoIfPrototypeRequiresRuntimeLookup(CAST(receiver), CAST(receiver_map),
+                                         &not_function_prototype);
     Return(LoadJSFunctionPrototype(receiver, &miss));
     BIND(&not_function_prototype);
   }
