@@ -179,8 +179,8 @@ assertUnoptimized(readFloat64);
     try { return dataview.getInt8(offset); } catch (e) { return e; }
   }
   warmup(readInt8Handled);
-  %ArrayBufferNeuter(buffer);
   assertOptimized(readInt8Handled);
+  %ArrayBufferNeuter(buffer);
   assertInstanceof(readInt8Handled(0), TypeError);
   assertUnoptimized(readInt8Handled);
 })();

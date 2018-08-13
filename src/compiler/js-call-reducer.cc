@@ -6695,16 +6695,22 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
         receiver, effect, control);
 
-    Node* check_neutered = effect = graph()->NewNode(
-        simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
-    check_neutered =
-        graph()->NewNode(simplified()->BooleanNot(), check_neutered);
-
-    // If the buffer was neutered, deopt and let the unoptimized code throw.
-    effect = graph()->NewNode(
-        simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered,
-                              p.feedback()),
-        check_neutered, effect, control);
+    if (isolate()->IsArrayBufferNeuteringIntact()) {
+      // Add a code dependency so we are deoptimized in case an ArrayBuffer
+      // gets neutered.
+      dependencies()->DependOnProtector(PropertyCellRef(
+          js_heap_broker(), factory()->array_buffer_neutering_protector()));
+    } else {
+      // If the buffer was neutered, deopt and let the unoptimized code throw.
+      Node* check_neutered = effect = graph()->NewNode(
+          simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
+      check_neutered =
+          graph()->NewNode(simplified()->BooleanNot(), check_neutered);
+      effect = graph()->NewNode(
+          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered,
+                                p.feedback()),
+          check_neutered, effect, control);
+    }
 
     // Get the byte offset and byte length of the {receiver},
     // and deopt if they aren't Smis.
@@ -6823,16 +6829,22 @@ Reduction JSCallReducer::ReduceDataViewPrototypeSet(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
         receiver, effect, control);
 
-    Node* check_neutered = effect = graph()->NewNode(
-        simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
-    check_neutered =
-        graph()->NewNode(simplified()->BooleanNot(), check_neutered);
-
-    // If the buffer was neutered, deopt and let the unoptimized code throw.
-    effect = graph()->NewNode(
-        simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered,
-                              p.feedback()),
-        check_neutered, effect, control);
+    if (isolate()->IsArrayBufferNeuteringIntact()) {
+      // Add a code dependency so we are deoptimized in case an ArrayBuffer
+      // gets neutered.
+      dependencies()->DependOnProtector(PropertyCellRef(
+          js_heap_broker(), factory()->array_buffer_neutering_protector()));
+    } else {
+      // If the buffer was neutered, deopt and let the unoptimized code throw.
+      Node* check_neutered = effect = graph()->NewNode(
+          simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
+      check_neutered =
+          graph()->NewNode(simplified()->BooleanNot(), check_neutered);
+      effect = graph()->NewNode(
+          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered,
+                                p.feedback()),
+          check_neutered, effect, control);
+    }
 
     // Get the byte offset and byte length of the {receiver},
     // and deopt if they aren't Smis.
