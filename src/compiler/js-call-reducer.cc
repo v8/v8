@@ -977,7 +977,6 @@ bool CanInlineArrayIteratingBuiltin(Isolate* isolate,
                                      isolate);
   return receiver_map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(receiver_map->elements_kind()) &&
-         (!receiver_map->is_prototype_map() || receiver_map->is_stable()) &&
          isolate->IsNoElementsProtectorIntact() &&
          isolate->IsAnyInitialArrayPrototype(receiver_prototype);
 }
