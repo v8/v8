@@ -3759,12 +3759,6 @@ Node* EffectControlLinearizer::LowerLoadDataViewElement(Node* node) {
   Node* index = node->InputAt(2);
   Node* is_little_endian = node->InputAt(3);
 
-  // On 64-bit platforms, we need to feed a Word64 index to the Load and
-  // Store operators.
-  if (machine()->Is64()) {
-    index = __ ChangeUint32ToUint64(index);
-  }
-
   // We need to keep the {buffer} alive so that the GC will not release the
   // ArrayBuffer (if there's any) as long as we are still operating on it.
   __ Retain(buffer);
@@ -3938,12 +3932,6 @@ void EffectControlLinearizer::LowerStoreDataViewElement(Node* node) {
   Node* index = node->InputAt(2);
   Node* value = node->InputAt(3);
   Node* is_little_endian = node->InputAt(4);
-
-  // On 64-bit platforms, we need to feed a Word64 index to the Load and
-  // Store operators.
-  if (machine()->Is64()) {
-    index = __ ChangeUint32ToUint64(index);
-  }
 
   // We need to keep the {buffer} alive so that the GC will not release the
   // ArrayBuffer (if there's any) as long as we are still operating on it.
