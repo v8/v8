@@ -188,6 +188,11 @@ InspectedContext* V8InspectorImpl::getContext(int contextId) const {
   return getContext(contextGroupId(contextId), contextId);
 }
 
+v8::MaybeLocal<v8::Context> V8InspectorImpl::contextById(int contextId) {
+  InspectedContext* context = getContext(contextId);
+  return context ? context->context() : v8::MaybeLocal<v8::Context>();
+}
+
 void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
   int contextId = ++m_lastContextId;
   InspectedContext* context = new InspectedContext(this, info, contextId);
