@@ -49,14 +49,23 @@ class JSCollator : public JSObject {
   static const char* UsageToString(Usage usage);
 
 // Layout description.
-#define JS_COLLATOR_FIELDS(V)         \
-  V(kICUCollatorOffset, kPointerSize) \
-  V(kFlagsOffset, kPointerSize)       \
-  /* Total size. */                   \
+#define JS_COLLATOR_FIELDS(V)          \
+  V(kICUCollatorOffset, kPointerSize)  \
+  V(kFlagsOffset, kPointerSize)        \
+  V(kBoundCompareOffset, kPointerSize) \
+  /* Total size. */                    \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_COLLATOR_FIELDS)
 #undef JS_COLLATOR_FIELDS
+
+  // ContextSlot defines the context structure for the bound
+  // Collator.prototype.compare function.
+  enum ContextSlot {
+    // The collator instance that the function holding this context is bound to.
+    kCollator = Context::MIN_CONTEXT_SLOTS,
+    kLength
+  };
 
 // Bit positions in |flags|.
 #define FLAGS_BIT_FIELDS(V, _) V(UsageBits, Usage, 1, _)
@@ -68,6 +77,7 @@ class JSCollator : public JSObject {
   STATIC_ASSERT(Usage::SEARCH <= UsageBits::kMax);
 
   DECL_ACCESSORS(icu_collator, Managed<icu::Collator>)
+  DECL_ACCESSORS(bound_compare, Object);
   DECL_INT_ACCESSORS(flags)
 
  private:

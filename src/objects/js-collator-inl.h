@@ -19,6 +19,7 @@ namespace v8 {
 namespace internal {
 
 ACCESSORS(JSCollator, icu_collator, Managed<icu::Collator>, kICUCollatorOffset)
+ACCESSORS(JSCollator, bound_compare, Object, kBoundCompareOffset);
 SMI_ACCESSORS(JSCollator, flags, kFlagsOffset)
 
 inline void JSCollator::set_usage(Usage usage) {

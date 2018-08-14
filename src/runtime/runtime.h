@@ -221,7 +221,6 @@ namespace internal {
   F(FormatListToParts, 2, 1)                 \
   F(GetDefaultICULocale, 0, 1)               \
   F(GetNumberOption, 5, 1)                   \
-  F(InternalCompare, 3, 1)                   \
   F(InternalDateFormat, 2, 1)                \
   F(IntlUnwrapReceiver, 5, 1)                \
   F(IsInitializedIntlObjectOfType, 2, 1)     \

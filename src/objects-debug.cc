@@ -1876,6 +1876,7 @@ void JSCollator::JSCollatorVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kICUCollatorOffset);
   VerifyObjectField(isolate, kFlagsOffset);
+  VerifyObjectField(isolate, kBoundCompareOffset);
 }
 
 void JSListFormat::JSListFormatVerify(Isolate* isolate) {

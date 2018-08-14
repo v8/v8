@@ -1381,7 +1381,11 @@ namespace internal {
   /* ecma402 #sup-string.prototype.tolocalelowercase */                \
   CPP(StringPrototypeToLocaleLowerCase)                                \
   /* ecma402 #sup-string.prototype.tolocaleuppercase */                \
-  CPP(StringPrototypeToLocaleUpperCase)
+  CPP(StringPrototypeToLocaleUpperCase)                                \
+  /* ecma402 #sec-intl.collator.prototype.compare */                   \
+  CPP(CollatorPrototypeCompare)                                        \
+  /* ecma 402 #sec-collator-compare-functions*/                        \
+  CPP(CollatorInternalCompare)
 #else
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)    \
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)     \

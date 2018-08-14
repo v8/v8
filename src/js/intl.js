@@ -756,23 +756,6 @@ DEFINE_METHOD(
 );
 
 
-/**
- * When the compare method is called with two arguments x and y, it returns a
- * Number other than NaN that represents the result of a locale-sensitive
- * String comparison of x with y.
- * The result is intended to order String values in the sort order specified
- * by the effective locale and collation options computed during construction
- * of this Collator object, and will be negative, zero, or positive, depending
- * on whether x comes before y in the sort order, the Strings are equal under
- * the sort order, or x comes after y in the sort order, respectively.
- */
-function compare(collator, x, y) {
-  return %InternalCompare(collator, TO_STRING(x), TO_STRING(y));
-};
-
-
-AddBoundMethod(GlobalIntlCollator, 'compare', compare, 2, COLLATOR_TYPE, false);
-
 DEFINE_METHOD(
   GlobalIntlPluralRules.prototype,
   resolvedOptions() {

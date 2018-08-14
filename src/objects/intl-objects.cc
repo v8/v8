@@ -1789,14 +1789,15 @@ MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
                          locales, options),
       Object);
   CHECK(collator->IsJSCollator());
-  return Intl::InternalCompare(isolate, Handle<JSCollator>::cast(collator),
-                               string1, string2);
+  return Intl::CompareStrings(isolate, Handle<JSCollator>::cast(collator),
+                              string1, string2);
 }
 
-Handle<Object> Intl::InternalCompare(Isolate* isolate,
-                                     Handle<JSCollator> collator,
-                                     Handle<String> string1,
-                                     Handle<String> string2) {
+// ecma402/#sec-collator-comparestrings
+Handle<Object> Intl::CompareStrings(Isolate* isolate,
+                                    Handle<JSCollator> collator,
+                                    Handle<String> string1,
+                                    Handle<String> string2) {
   Factory* factory = isolate->factory();
   icu::Collator* icu_collator = collator->icu_collator()->raw();
   CHECK_NOT_NULL(icu_collator);

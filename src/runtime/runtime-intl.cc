@@ -274,18 +274,6 @@ RUNTIME_FUNCTION(Runtime_CurrencyDigits) {
   return *Intl::CurrencyDigits(isolate, currency);
 }
 
-RUNTIME_FUNCTION(Runtime_InternalCompare) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(3, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSCollator, collator, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, string1, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, string2, 2);
-
-  return *Intl::InternalCompare(isolate, collator, string1, string2);
-}
-
 RUNTIME_FUNCTION(Runtime_CollatorResolvedOptions) {
   HandleScope scope(isolate);
 

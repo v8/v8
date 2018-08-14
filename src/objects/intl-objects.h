@@ -298,7 +298,7 @@ class Intl {
       Isolate* isolate, Handle<String> s1, Handle<String> s2,
       Handle<Object> locales, Handle<Object> options);
 
-  V8_WARN_UNUSED_RESULT static Handle<Object> InternalCompare(
+  V8_WARN_UNUSED_RESULT static Handle<Object> CompareStrings(
       Isolate* isolate, Handle<JSCollator> collator, Handle<String> s1,
       Handle<String> s2);
 

@@ -2952,6 +2952,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           isolate_, prototype, factory->to_string_tag_symbol(),
           factory->Object_string(),
           static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+      SimpleInstallGetter(isolate_, prototype,
+                          factory->InternalizeUtf8String("compare"),
+                          Builtins::kCollatorPrototypeCompare, false);
+
+      {
+        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
+            isolate_, Builtins::kCollatorInternalCompare,
+            factory->empty_string(), 2);
+        native_context()->set_collator_internal_compare_shared_fun(*info);
+      }
     }
 
     {

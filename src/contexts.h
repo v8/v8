@@ -209,6 +209,8 @@ enum ContextLookupFlags {
     number_format_internal_format_number_shared_fun)                           \
   V(INTL_LOCALE_FUNCTION_INDEX, JSFunction, intl_locale_function)              \
   V(INTL_COLLATOR_FUNCTION_INDEX, JSFunction, intl_collator_function)          \
+  V(INTL_COLLATOR_INTERNAL_COMPARE_SHARED_FUN, SharedFunctionInfo,             \
+    collator_internal_compare_shared_fun)                                      \
   V(INTL_PLURAL_RULES_FUNCTION_INDEX, JSFunction, intl_plural_rules_function)  \
   V(INTL_V8_BREAK_ITERATOR_FUNCTION_INDEX, JSFunction,                         \
     intl_v8_break_iterator_function)                                           \

@@ -1121,5 +1121,75 @@ BUILTIN(CollatorConstructor) {
                                         isolate, collator, locales, options));
 }
 
+BUILTIN(CollatorPrototypeCompare) {
+  const char* const method = "get Intl.Collator.prototype.compare";
+  HandleScope scope(isolate);
+
+  // 1. Let collator be this value.
+  // 2. If Type(collator) is not Object, throw a TypeError exception.
+  // 3. If collator does not have an [[InitializedCollator]] internal slot,
+  // throw a TypeError exception.
+  CHECK_RECEIVER(JSCollator, collator, method);
+
+  // 4. If collator.[[BoundCompare]] is undefined, then
+  Handle<Object> bound_compare(collator->bound_compare(), isolate);
+  if (!bound_compare->IsUndefined(isolate)) {
+    DCHECK(bound_compare->IsJSFunction());
+    // 5. Return collator.[[BoundCompare]].
+    return *bound_compare;
+  }
+
+  Handle<Context> native_context =
+      Handle<Context>(isolate->context()->native_context(), isolate);
+  Handle<Context> context = isolate->factory()->NewBuiltinContext(
+      native_context, JSCollator::ContextSlot::kLength);
+
+  // 4.b. Set F.[[Collator]] to collator.
+  context->set(JSCollator::ContextSlot::kCollator, *collator);
+
+  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
+      native_context->collator_internal_compare_shared_fun(), isolate);
+  Handle<Map> map = isolate->strict_function_without_prototype_map();
+
+  // 4.a. Let F be a new built-in function object as defined in 10.3.3.1.
+  Handle<JSFunction> new_bound_compare_function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
+
+  // 4.c. Set collator.[[BoundCompare]] to F.
+  collator->set_bound_compare(*new_bound_compare_function);
+
+  // 5. Return collator.[[BoundCompare]].
+  return *new_bound_compare_function;
+}
+
+BUILTIN(CollatorInternalCompare) {
+  HandleScope scope(isolate);
+  Handle<Context> context = Handle<Context>(isolate->context(), isolate);
+
+  // 1. Let collator be F.[[Collator]].
+  // 2. Assert: Type(collator) is Object and collator has an
+  // [[InitializedCollator]] internal slot.
+  Handle<JSCollator> collator_holder = Handle<JSCollator>(
+      JSCollator::cast(context->get(JSCollator::ContextSlot::kCollator)),
+      isolate);
+
+  // 3. If x is not provided, let x be undefined.
+  Handle<Object> x = args.atOrUndefined(isolate, 1);
+  // 4. If y is not provided, let y be undefined.
+  Handle<Object> y = args.atOrUndefined(isolate, 2);
+
+  // 5. Let X be ? ToString(x).
+  Handle<String> string_x;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string_x,
+                                     Object::ToString(isolate, x));
+  // 6. Let Y be ? ToString(y).
+  Handle<String> string_y;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, string_y,
+                                     Object::ToString(isolate, y));
+
+  // 7. Return CompareStrings(collator, X, Y).
+  return *Intl::CompareStrings(isolate, collator_holder, string_x, string_y);
+}
+
 }  // namespace internal
 }  // namespace v8
