@@ -809,7 +809,6 @@ class TimelineView {
       return;
     }
 
-    this.currentState = newState;
     if (oldState) {
       if (newState.timeLine.width === oldState.timeLine.width &&
           newState.timeLine.height === oldState.timeLine.height &&
@@ -821,20 +820,26 @@ class TimelineView {
         return;
       }
     }
+    this.currentState = newState;
 
     this.element.style.display = "inherit";
 
-    // Make sure the canvas has the right dimensions.
+    let file = this.currentState.file;
     let width = this.currentState.timeLine.width;
     let height = this.currentState.timeLine.height;
+
+    const minPixelsPerBucket = 10;
+    const minTicksPerBucket = 8;
+    let maxBuckets = Math.round(file.ticks.length / minTicksPerBucket);
+    let bucketCount = Math.min(
+        Math.round(width / minPixelsPerBucket), maxBuckets);
+
+    // Make sure the canvas has the right dimensions.
     this.canvas.width = width;
     this.canvas.height  = height;
 
     // Make space for the selection text.
     height -= this.imageOffset;
-
-    let file = this.currentState.file;
-    if (!file) return;
 
     let currentCodeId = this.currentState.currentCodeId;
 
@@ -845,13 +850,6 @@ class TimelineView {
 
     this.selectionStart = (start - firstTime) / (lastTime - firstTime) * width;
     this.selectionEnd = (end - firstTime) / (lastTime - firstTime) * width;
-
-    let tickCount = file.ticks.length;
-
-    let minBucketPixels = 10;
-    let minBucketSamples = 30;
-    let bucketCount = Math.min(width / minBucketPixels,
-                               tickCount / minBucketSamples);
 
     let stackProcessor = new CategorySampler(file, bucketCount);
     generateTree(file, 0, Infinity, stackProcessor);
@@ -873,28 +871,36 @@ class TimelineView {
       let sum = 0;
       let bucketData = [];
       let total = buckets[i].total;
-      for (let j = 0; j < bucketDescriptors.length; j++) {
-        let desc = bucketDescriptors[j];
-        for (let k = 0; k < desc.kinds.length; k++) {
-          sum += buckets[i][desc.kinds[k]];
+      if (total > 0) {
+        for (let j = 0; j < bucketDescriptors.length; j++) {
+          let desc = bucketDescriptors[j];
+          for (let k = 0; k < desc.kinds.length; k++) {
+            sum += buckets[i][desc.kinds[k]];
+          }
+          bucketData.push(Math.round(graphHeight * sum / total));
         }
-        bucketData.push(Math.round(graphHeight * sum / total));
+      } else {
+        // No ticks fell into this bucket. Fill with "Unknown."
+        for (let j = 0; j < bucketDescriptors.length; j++) {
+          let desc = bucketDescriptors[j];
+          bucketData.push(desc.text === "Unknown" ? graphHeight : 0);
+        }
       }
       bucketsGraph.push(bucketData);
     }
 
     // Draw the category graph into the buffer.
-    let bucketWidth = width / bucketsGraph.length;
+    let bucketWidth = width / (bucketsGraph.length - 1);
     let ctx = buffer.getContext('2d');
     for (let i = 0; i < bucketsGraph.length - 1; i++) {
       let bucketData = bucketsGraph[i];
       let nextBucketData = bucketsGraph[i + 1];
+      let x1 = Math.round(i * bucketWidth);
+      let x2 = Math.round((i + 1) * bucketWidth);
       for (let j = 0; j < bucketData.length; j++) {
-        let x1 = Math.round(i * bucketWidth);
-        let x2 = Math.round((i + 1) * bucketWidth);
         ctx.beginPath();
-        ctx.moveTo(x1, j && bucketData[j - 1]);
-        ctx.lineTo(x2, j && nextBucketData[j - 1]);
+        ctx.moveTo(x1, j > 0 ? bucketData[j - 1] : 0);
+        ctx.lineTo(x2, j > 0 ? nextBucketData[j - 1] : 0);
         ctx.lineTo(x2, nextBucketData[j]);
         ctx.lineTo(x1, bucketData[j]);
         ctx.closePath();
