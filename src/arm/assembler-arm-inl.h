@@ -120,8 +120,7 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
-    heap->incremental_marking()->RecordWriteIntoCode(host(), this, target);
-    heap->RecordWriteIntoCode(host(), this, target);
+    WriteBarrierForCode(host(), this, target);
   }
 }
 

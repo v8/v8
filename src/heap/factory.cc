@@ -2725,7 +2725,7 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
   // allocation is on.
   heap->incremental_marking()->ProcessBlackAllocatedObject(*new_code);
   // Record all references to embedded objects in the new code object.
-  heap->RecordWritesIntoCode(*new_code);
+  WriteBarrierForCode(*new_code);
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) new_code->ObjectVerify(isolate());

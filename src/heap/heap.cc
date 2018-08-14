@@ -5269,34 +5269,6 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
   }
 }
 
-void Heap::RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo,
-                                   Object* value) {
-  DCHECK(InNewSpace(value));
-  Page* source_page = Page::FromAddress(reinterpret_cast<Address>(host));
-  RelocInfo::Mode rmode = rinfo->rmode();
-  Address addr = rinfo->pc();
-  SlotType slot_type = SlotTypeForRelocInfoMode(rmode);
-  if (rinfo->IsInConstantPool()) {
-    addr = rinfo->constant_pool_entry_address();
-    if (RelocInfo::IsCodeTargetMode(rmode)) {
-      slot_type = CODE_ENTRY_SLOT;
-    } else {
-      DCHECK(RelocInfo::IsEmbeddedObject(rmode));
-      slot_type = OBJECT_SLOT;
-    }
-  }
-  RememberedSet<OLD_TO_NEW>::InsertTyped(
-      source_page, reinterpret_cast<Address>(host), slot_type, addr);
-}
-
-void Heap::RecordWritesIntoCode(Code* code) {
-  for (RelocIterator it(code, RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));
-       !it.done(); it.next()) {
-    RecordWriteIntoCode(code, it.rinfo(), it.rinfo()->target_object());
-  }
-}
-
-
 PagedSpace* PagedSpaces::next() {
   switch (counter_++) {
     case RO_SPACE:
@@ -5870,6 +5842,14 @@ Code* Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   }
 }
 
+void Heap::WriteBarrierForCodeSlow(Code* code) {
+  for (RelocIterator it(code, RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));
+       !it.done(); it.next()) {
+    GenerationalBarrierForCode(code, it.rinfo(), it.rinfo()->target_object());
+    MarkingBarrierForCode(code, it.rinfo(), it.rinfo()->target_object());
+  }
+}
+
 void Heap::GenerationalBarrierSlow(HeapObject* object, Address slot,
                                    HeapObject* value) {
   Heap* heap = Heap::FromWritableHeapObject(object);
@@ -5885,6 +5865,26 @@ void Heap::GenerationalBarrierForElementsSlow(Heap* heap, FixedArray* array,
   }
 }
 
+void Heap::GenerationalBarrierForCodeSlow(Code* host, RelocInfo* rinfo,
+                                          HeapObject* object) {
+  DCHECK(InNewSpace(object));
+  Page* source_page = Page::FromAddress(reinterpret_cast<Address>(host));
+  RelocInfo::Mode rmode = rinfo->rmode();
+  Address addr = rinfo->pc();
+  SlotType slot_type = SlotTypeForRelocInfoMode(rmode);
+  if (rinfo->IsInConstantPool()) {
+    addr = rinfo->constant_pool_entry_address();
+    if (RelocInfo::IsCodeTargetMode(rmode)) {
+      slot_type = CODE_ENTRY_SLOT;
+    } else {
+      DCHECK(RelocInfo::IsEmbeddedObject(rmode));
+      slot_type = OBJECT_SLOT;
+    }
+  }
+  RememberedSet<OLD_TO_NEW>::InsertTyped(
+      source_page, reinterpret_cast<Address>(host), slot_type, addr);
+}
+
 void Heap::MarkingBarrierSlow(HeapObject* object, Address slot,
                               HeapObject* value) {
   Heap* heap = Heap::FromWritableHeapObject(object);
@@ -5897,6 +5897,13 @@ void Heap::MarkingBarrierForElementsSlow(Heap* heap, HeapObject* object) {
       heap->incremental_marking()->marking_state()->IsBlack(object)) {
     heap->incremental_marking()->RevisitObject(object);
   }
+}
+
+void Heap::MarkingBarrierForCodeSlow(Code* host, RelocInfo* rinfo,
+                                     HeapObject* object) {
+  Heap* heap = Heap::FromWritableHeapObject(host);
+  DCHECK(heap->incremental_marking()->IsMarking());
+  heap->incremental_marking()->RecordWriteIntoCode(host, rinfo, object);
 }
 
 bool Heap::PageFlagsAreConsistent(HeapObject* object) {

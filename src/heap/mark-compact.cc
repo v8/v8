@@ -1099,7 +1099,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
     DCHECK_EQ(host, rinfo->host());
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     HeapObject* object = HeapObject::cast(rinfo->target_object());
-    collector_->heap()->RecordWriteIntoCode(host, rinfo, object);
+    GenerationalBarrierForCode(host, rinfo, object);
     collector_->RecordRelocSlot(host, rinfo, object);
   }
 

@@ -508,8 +508,7 @@ void RelocInfo::set_target_address(Address target,
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
       IsCodeTargetMode(rmode_)) {
     Code* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
-                                                                  target_code);
+    MarkingBarrierForCode(host(), this, target_code);
   }
 }
 

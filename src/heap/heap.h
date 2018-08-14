@@ -484,16 +484,22 @@ class Heap {
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);
 
+  V8_EXPORT_PRIVATE static void WriteBarrierForCodeSlow(Code* host);
   V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject* object,
                                                         Address slot,
                                                         HeapObject* value);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForElementsSlow(
       Heap* heap, FixedArray* array, int offset, int length);
+  V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(
+      Code* host, RelocInfo* rinfo, HeapObject* value);
   V8_EXPORT_PRIVATE static void MarkingBarrierSlow(HeapObject* object,
                                                    Address slot,
                                                    HeapObject* value);
   V8_EXPORT_PRIVATE static void MarkingBarrierForElementsSlow(
       Heap* heap, HeapObject* object);
+  V8_EXPORT_PRIVATE static void MarkingBarrierForCodeSlow(Code* host,
+                                                          RelocInfo* rinfo,
+                                                          HeapObject* value);
   V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(HeapObject* object);
 
   // Notifies the heap that is ok to start marking or other activities that
@@ -981,12 +987,6 @@ class Heap {
   // ===========================================================================
   // Store buffer API. =========================================================
   // ===========================================================================
-
-  // Write barrier support for object[offset] = o;
-  // See heap/heap-write-barrier-inl.h for stand-alone methods.
-  inline void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* target);
-  void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* target);
-  void RecordWritesIntoCode(Code* code);
 
   // Used for query incremental marking status in generated code.
   Address* IsMarkingFlagAddress() {

@@ -171,11 +171,8 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
   Assembler::set_target_address_at(pc_, constant_pool_,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
-      target->IsHeapObject()) {
-    heap->incremental_marking()->RecordWriteIntoCode(host(), this,
-                                                     HeapObject::cast(target));
-    heap->RecordWriteIntoCode(host(), this, target);
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
+    WriteBarrierForCode(host(), this, target);
   }
 }
 
