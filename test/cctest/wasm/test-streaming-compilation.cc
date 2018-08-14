@@ -109,6 +109,7 @@ class StreamTester {
   StreamTester() : zone_(&allocator_, "StreamTester") {
     v8::Isolate* isolate = CcTest::isolate();
     i::Isolate* i_isolate = CcTest::i_isolate();
+    i::HandleScope internal_scope(i_isolate);
 
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
@@ -151,8 +152,6 @@ class StreamTester {
   TEST(name) {                                          \
     MockPlatform platform;                              \
     CcTest::InitializeVM();                             \
-    v8::HandleScope handle_scope(CcTest::isolate());    \
-    i::HandleScope internal_scope(CcTest::i_isolate()); \
     RunStream_##name();                                 \
   }                                                     \
   void RunStream_##name()
