@@ -1749,10 +1749,6 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                             NameOfXMMRegister(regop),
                             static_cast<int>(imm8));
             data += 2;
-          } else if (f0byte >= 0xC8 && f0byte <= 0xCF) {
-            // bswap
-            int reg = f0byte - 0xC8;
-            AppendToBuffer("bswap %s", NameOfCPURegister(reg));
           } else if ((f0byte & 0xF0) == 0x80) {
             data += JumpConditional(data, branch_hint);
           } else if (f0byte == 0xBE || f0byte == 0xBF || f0byte == 0xB6 ||

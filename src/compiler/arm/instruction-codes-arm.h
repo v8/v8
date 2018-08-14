@@ -46,7 +46,6 @@ namespace compiler {
   V(ArmUxth)                       \
   V(ArmUxtab)                      \
   V(ArmRbit)                       \
-  V(ArmRev)                        \
   V(ArmUxtah)                      \
   V(ArmAddPair)                    \
   V(ArmSubPair)                    \

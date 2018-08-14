@@ -942,7 +942,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Fmin(const VRegister& fd, const VRegister& fn,
                    const VRegister& fm);
   inline void Rbit(const Register& rd, const Register& rn);
-  inline void Rev(const Register& rd, const Register& rn);
 
   enum AdrHint {
     // The target must be within the immediate range of adr.

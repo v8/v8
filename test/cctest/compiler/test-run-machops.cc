@@ -85,7 +85,11 @@ TEST(RunWord32ReverseBits) {
 
 TEST(RunWord32ReverseBytes) {
   BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
-  m.Return(m.AddNode(m.machine()->Word32ReverseBytes(), m.Parameter(0)));
+  if (!m.machine()->Word32ReverseBytes().IsSupported()) {
+    // We can only test the operator if it exists on the testing platform.
+    return;
+  }
+  m.Return(m.AddNode(m.machine()->Word32ReverseBytes().op(), m.Parameter(0)));
 
   CHECK_EQ(uint32_t(0x00000000), m.Call(uint32_t(0x00000000)));
   CHECK_EQ(uint32_t(0x12345678), m.Call(uint32_t(0x78563412)));
@@ -220,7 +224,11 @@ TEST(RunWord64ReverseBits) {
 
 TEST(RunWord64ReverseBytes) {
   BufferedRawMachineAssemblerTester<uint64_t> m(MachineType::Uint64());
-  m.Return(m.AddNode(m.machine()->Word64ReverseBytes(), m.Parameter(0)));
+  if (!m.machine()->Word64ReverseBytes().IsSupported()) {
+    return;
+  }
+
+  m.Return(m.AddNode(m.machine()->Word64ReverseBytes().op(), m.Parameter(0)));
 
   CHECK_EQ(uint64_t(0x0000000000000000), m.Call(uint64_t(0x0000000000000000)));
   CHECK_EQ(uint64_t(0x1234567890ABCDEF), m.Call(uint64_t(0xEFCDAB9078563412)));

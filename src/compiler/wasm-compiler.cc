@@ -1070,9 +1070,9 @@ static bool ReverseBytesSupported(MachineOperatorBuilder* m,
   switch (size_in_bytes) {
     case 4:
     case 16:
-      return true;
+      return m->Word32ReverseBytes().IsSupported();
     case 8:
-      return m->Is64();
+      return m->Word64ReverseBytes().IsSupported();
     default:
       break;
   }
@@ -1137,16 +1137,16 @@ Node* WasmGraphBuilder::BuildChangeEndiannessStore(
   if (ReverseBytesSupported(m, valueSizeInBytes)) {
     switch (valueSizeInBytes) {
       case 4:
-        result = graph()->NewNode(m->Word32ReverseBytes(), value);
+        result = graph()->NewNode(m->Word32ReverseBytes().op(), value);
         break;
       case 8:
-        result = graph()->NewNode(m->Word64ReverseBytes(), value);
+        result = graph()->NewNode(m->Word64ReverseBytes().op(), value);
         break;
       case 16: {
         Node* byte_reversed_lanes[4];
         for (int lane = 0; lane < 4; lane++) {
           byte_reversed_lanes[lane] = graph()->NewNode(
-              m->Word32ReverseBytes(),
+              m->Word32ReverseBytes().op(),
               graph()->NewNode(mcgraph()->machine()->I32x4ExtractLane(lane),
                                value));
         }
@@ -1272,21 +1272,21 @@ Node* WasmGraphBuilder::BuildChangeEndiannessLoad(Node* node,
     switch (valueSizeInBytes) {
       case 2:
         result =
-            graph()->NewNode(m->Word32ReverseBytes(),
+            graph()->NewNode(m->Word32ReverseBytes().op(),
                              graph()->NewNode(m->Word32Shl(), value,
                                               mcgraph()->Int32Constant(16)));
         break;
       case 4:
-        result = graph()->NewNode(m->Word32ReverseBytes(), value);
+        result = graph()->NewNode(m->Word32ReverseBytes().op(), value);
         break;
       case 8:
-        result = graph()->NewNode(m->Word64ReverseBytes(), value);
+        result = graph()->NewNode(m->Word64ReverseBytes().op(), value);
         break;
       case 16: {
         Node* byte_reversed_lanes[4];
         for (int lane = 0; lane < 4; lane++) {
           byte_reversed_lanes[lane] = graph()->NewNode(
-              m->Word32ReverseBytes(),
+              m->Word32ReverseBytes().op(),
               graph()->NewNode(mcgraph()->machine()->I32x4ExtractLane(lane),
                                value));
         }

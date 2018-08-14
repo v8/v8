@@ -56,8 +56,6 @@ namespace compiler {
   V(X64Tzcnt32)                           \
   V(X64Popcnt)                            \
   V(X64Popcnt32)                          \
-  V(X64Bswap)                             \
-  V(X64Bswap32)                           \
   V(LFence)                               \
   V(SSEFloat32Cmp)                        \
   V(SSEFloat32Add)                        \

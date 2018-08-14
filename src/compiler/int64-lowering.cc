@@ -842,10 +842,9 @@ void Int64Lowering::LowerNode(Node* node) {
     }
     case IrOpcode::kWord64ReverseBytes: {
       Node* input = node->InputAt(0);
-      ReplaceNode(node,
-                  graph()->NewNode(machine()->Word32ReverseBytes(),
-                                   GetReplacementHigh(input)),
-                  graph()->NewNode(machine()->Word32ReverseBytes(),
+      ReplaceNode(node, graph()->NewNode(machine()->Word32ReverseBytes().op(),
+                                         GetReplacementHigh(input)),
+                  graph()->NewNode(machine()->Word32ReverseBytes().op(),
                                    GetReplacementLow(input)));
       break;
     }

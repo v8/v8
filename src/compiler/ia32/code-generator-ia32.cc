@@ -1187,9 +1187,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32Popcnt:
       __ Popcnt(i.OutputRegister(), i.InputOperand(0));
       break;
-    case kIA32Bswap:
-      __ bswap(i.OutputRegister());
-      break;
     case kArchWordPoisonOnSpeculation:
       DCHECK_EQ(i.OutputRegister(), i.InputRegister(0));
       __ and_(i.InputRegister(0), kSpeculationPoisonRegister);

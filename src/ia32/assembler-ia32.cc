@@ -1409,12 +1409,6 @@ void Assembler::xor_(Operand dst, const Immediate& x) {
   emit_arith(6, dst, x);
 }
 
-void Assembler::bswap(Register dst) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x0F);
-  EMIT(0xC8 + dst.code());
-}
-
 void Assembler::bt(Operand dst, Register src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);

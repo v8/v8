@@ -178,7 +178,6 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                                  const VectorSlotPair& feedback,
                                                  Node* value,
                                                  Node* frame_state);
-  Node* BuildReverseBytes(ExternalArrayType type, Node* value);
   Node* BuildFloat64RoundDown(Node* value);
   Node* BuildFloat64RoundTruncate(Node* input);
   Node* ComputeIntegerHash(Node* value);
