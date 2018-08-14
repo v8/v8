@@ -2834,25 +2834,6 @@ void Assembler::vmov(const DwVfpRegister dst, Double imm,
     int vd, d;
     dst.split_code(&vd, &d);
     emit(al | 0x1D*B23 | d*B22 | 0x3*B20 | vd*B12 | 0x5*B9 | B8 | enc);
-  } else if (CpuFeatures::IsSupported(ARMv7) && FLAG_enable_vldr_imm) {
-    CpuFeatureScope scope(this, ARMv7);
-    // TODO(jfb) Temporarily turned off until we have constant blinding or
-    //           some equivalent mitigation: an attacker can otherwise control
-    //           generated data which also happens to be executable, a Very Bad
-    //           Thing indeed.
-    //           Blinding gets tricky because we don't have xor, we probably
-    //           need to add/subtract without losing precision, which requires a
-    //           cookie value that Lithium is probably better positioned to
-    //           choose.
-    //           We could also add a few peepholes here like detecting 0.0 and
-    //           -0.0 and doing a vmov from the sequestered d14, forcing denorms
-    //           to zero (we set flush-to-zero), and normalizing NaN values.
-    //           We could also detect redundant values.
-    //           The code could also randomize the order of values, though
-    //           that's tricky because vldr has a limited reach. Furthermore
-    //           it breaks load locality.
-    ConstantPoolAddEntry(pc_offset(), imm);
-    vldr(dst, MemOperand(pc, 0));
   } else {
     // Synthesise the double from ARM immediates.
     uint32_t lo, hi;
@@ -5151,30 +5132,6 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
     RecordRelocInfo(rmode);
   }
 }
-
-void Assembler::ConstantPoolAddEntry(int position, Double value) {
-  DCHECK_LT(pending_64_bit_constants_.size(), kMaxNumPending64Constants);
-  if (pending_64_bit_constants_.empty()) {
-    first_const_pool_64_use_ = position;
-  }
-  ConstantPoolEntry entry(position, value);
-
-  // Merge the constant, if possible.
-  for (size_t i = 0; i < pending_64_bit_constants_.size(); i++) {
-    ConstantPoolEntry& current_entry = pending_64_bit_constants_[i];
-    DCHECK(current_entry.sharing_ok());
-    if (entry.value() == current_entry.value()) {
-      entry.set_merged_index(i);
-      break;
-    }
-  }
-  pending_64_bit_constants_.push_back(entry);
-
-  // Make sure the constant pool is not emitted in place of the next
-  // instruction for which we just recorded relocation info.
-  BlockConstPoolFor(1);
-}
-
 
 void Assembler::BlockConstPoolFor(int instructions) {
   int pc_limit = pc_offset() + instructions * kInstrSize;
