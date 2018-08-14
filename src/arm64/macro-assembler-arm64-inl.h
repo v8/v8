@@ -830,6 +830,12 @@ void TurboAssembler::Rbit(const Register& rd, const Register& rn) {
   rbit(rd, rn);
 }
 
+void TurboAssembler::Rev(const Register& rd, const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  rev(rd, rn);
+}
+
 void TurboAssembler::Ret(const Register& xn) {
   DCHECK(allow_macro_instructions());
   DCHECK(!xn.IsZero());

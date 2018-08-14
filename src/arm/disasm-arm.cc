@@ -1194,6 +1194,9 @@ void Decoder::DecodeType3(Instruction* instr) {
                     }
                   }
                 }
+              } else if (instr->Bits(27, 16) == 0x6BF &&
+                         instr->Bits(11, 4) == 0xF3) {
+                Format(instr, "rev'cond 'rd, 'rm");
               } else {
                 UNREACHABLE();
               }

@@ -2771,6 +2771,11 @@ void Simulator::DecodeType3(Instruction* instr) {
                     set_register(rd, rn_val + static_cast<int16_t>(rm_val));
                   }
                 }
+              } else if (instr->Bits(27, 16) == 0x6BF &&
+                         instr->Bits(11, 4) == 0xF3) {
+                // Rev.
+                uint32_t rm_val = get_register(instr->RmValue());
+                set_register(rd, ByteReverse(rm_val));
               } else {
                 UNREACHABLE();
               }

@@ -899,6 +899,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Reverse the bits in a register.
   void rbit(Register dst, Register src, Condition cond = al);
+  void rev(Register dst, Register src, Condition cond = al);
 
   // Status register access instructions
 

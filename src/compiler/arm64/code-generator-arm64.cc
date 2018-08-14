@@ -1267,6 +1267,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Rbit32:
       __ Rbit(i.OutputRegister32(), i.InputRegister32(0));
       break;
+    case kArm64Rev:
+      __ Rev(i.OutputRegister64(), i.InputRegister64(0));
+      break;
+    case kArm64Rev32:
+      __ Rev(i.OutputRegister32(), i.InputRegister32(0));
+      break;
     case kArm64Cmp:
       __ Cmp(i.InputOrZeroRegister64(0), i.InputOperand2_64(1));
       break;

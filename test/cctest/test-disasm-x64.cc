@@ -89,6 +89,8 @@ TEST(DisasmX64) {
   __ addq(rdi, Operand(rbp, rcx, times_4, -3999));
   __ addq(Operand(rbp, rcx, times_4, 12), Immediate(12));
 
+  __ bswapl(rax);
+  __ bswapq(rdi);
   __ bsrl(rax, r15);
   __ bsrl(r9, Operand(rcx, times_8, 91919));
 

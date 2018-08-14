@@ -91,6 +91,8 @@ TEST(DisasmIa320) {
   __ add(edi, Operand(ebp, ecx, times_4, -3999));
   __ add(Operand(ebp, ecx, times_4, 12), Immediate(12));
 
+  __ bswap(eax);
+
   __ nop();
   __ add(ebx, Immediate(12));
   __ nop();

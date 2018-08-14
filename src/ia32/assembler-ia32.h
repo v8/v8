@@ -817,6 +817,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void xor_(Operand dst, const Immediate& x);
 
   // Bit operations.
+  void bswap(Register dst);
   void bt(Operand dst, Register src);
   void bts(Register dst, Register src) { bts(Operand(dst), src); }
   void bts(Operand dst, Register src);

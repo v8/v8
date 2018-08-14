@@ -1213,6 +1213,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Popcntl(i.OutputRegister(), i.InputOperand(0));
       }
       break;
+    case kX64Bswap:
+      __ bswapq(i.OutputRegister());
+      break;
+    case kX64Bswap32:
+      __ bswapl(i.OutputRegister());
+      break;
     case kSSEFloat32Cmp:
       ASSEMBLE_SSE_BINOP(Ucomiss);
       break;
