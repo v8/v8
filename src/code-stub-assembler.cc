@@ -9910,62 +9910,59 @@ void CodeStubAssembler::BranchIfNumberRelationalComparison(
   TVARIABLE(Float64T, var_left_float);
   TVARIABLE(Float64T, var_right_float);
 
-  Label if_left_smi(this), if_left_not_smi(this);
-  Branch(TaggedIsSmi(left), &if_left_smi, &if_left_not_smi);
+  Branch(TaggedIsSmi(left),
+         [&] {
+           TNode<Smi> smi_left = CAST(left);
 
-  BIND(&if_left_smi);
-  {
-    TNode<Smi> smi_left = CAST(left);
+           Branch(TaggedIsSmi(right),
+                  [&] {
+                    TNode<Smi> smi_right = CAST(right);
 
-    Label if_right_not_smi(this);
-    GotoIfNot(TaggedIsSmi(right), &if_right_not_smi);
-    {
-      TNode<Smi> smi_right = CAST(right);
+                    // Both {left} and {right} are Smi, so just perform a fast
+                    // Smi comparison.
+                    switch (op) {
+                      case Operation::kLessThan:
+                        BranchIfSmiLessThan(smi_left, smi_right, if_true,
+                                            if_false);
+                        break;
+                      case Operation::kLessThanOrEqual:
+                        BranchIfSmiLessThanOrEqual(smi_left, smi_right, if_true,
+                                                   if_false);
+                        break;
+                      case Operation::kGreaterThan:
+                        BranchIfSmiLessThan(smi_right, smi_left, if_true,
+                                            if_false);
+                        break;
+                      case Operation::kGreaterThanOrEqual:
+                        BranchIfSmiLessThanOrEqual(smi_right, smi_left, if_true,
+                                                   if_false);
+                        break;
+                      default:
+                        UNREACHABLE();
+                    }
+                  },
+                  [&] {
+                    CSA_ASSERT(this, IsHeapNumber(right));
+                    var_left_float = SmiToFloat64(smi_left);
+                    var_right_float = LoadHeapNumberValue(right);
+                    Goto(&do_float_comparison);
+                  });
+         },
+         [&] {
+           CSA_ASSERT(this, IsHeapNumber(left));
+           var_left_float = LoadHeapNumberValue(left);
 
-      // Both {left} and {right} are Smi, so just perform a fast Smi comparison.
-      switch (op) {
-        case Operation::kLessThan:
-          BranchIfSmiLessThan(smi_left, smi_right, if_true, if_false);
-          break;
-        case Operation::kLessThanOrEqual:
-          BranchIfSmiLessThanOrEqual(smi_left, smi_right, if_true, if_false);
-          break;
-        case Operation::kGreaterThan:
-          BranchIfSmiLessThan(smi_right, smi_left, if_true, if_false);
-          break;
-        case Operation::kGreaterThanOrEqual:
-          BranchIfSmiLessThanOrEqual(smi_right, smi_left, if_true, if_false);
-          break;
-        default:
-          UNREACHABLE();
-      }
-    }
-    BIND(&if_right_not_smi);
-    {
-      CSA_ASSERT(this, IsHeapNumber(right));
-      var_left_float = SmiToFloat64(smi_left);
-      var_right_float = LoadHeapNumberValue(right);
-      Goto(&do_float_comparison);
-    }
-  }
-
-  BIND(&if_left_not_smi);
-  {
-    CSA_ASSERT(this, IsHeapNumber(left));
-    var_left_float = LoadHeapNumberValue(left);
-
-    Label if_right_not_smi(this);
-    GotoIfNot(TaggedIsSmi(right), &if_right_not_smi);
-    var_right_float = SmiToFloat64(right);
-    Goto(&do_float_comparison);
-
-    BIND(&if_right_not_smi);
-    {
-      CSA_ASSERT(this, IsHeapNumber(right));
-      var_right_float = LoadHeapNumberValue(right);
-      Goto(&do_float_comparison);
-    }
-  }
+           Branch(TaggedIsSmi(right),
+                  [&] {
+                    var_right_float = SmiToFloat64(right);
+                    Goto(&do_float_comparison);
+                  },
+                  [&] {
+                    CSA_ASSERT(this, IsHeapNumber(right));
+                    var_right_float = LoadHeapNumberValue(right);
+                    Goto(&do_float_comparison);
+                  });
+         });
 
   BIND(&do_float_comparison);
   {
