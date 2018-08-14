@@ -422,9 +422,6 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
 
   // Enter the debugger.
   DebugScope debug_scope(this);
-
-  // Postpone interrupt during breakpoint processing.
-  PostponeInterruptsScope postpone(isolate_);
   DisableBreak no_recursive_break(this);
 
   // Return if we fail to retrieve debug info.
@@ -1763,8 +1760,8 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit) {
 #endif  // DEBUG
 
   if (!debug_delegate_) return;
+  DCHECK(in_debug_scope());
   HandleScope scope(isolate_);
-  PostponeInterruptsScope no_interrupts(isolate_);
   DisableBreak no_recursive_break(this);
 
   std::vector<int> inspector_break_points_hit;
