@@ -2582,10 +2582,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (IsMaterializableFromRoot(src_object, &index)) {
         __ LoadRoot(dst, index);
       } else {
-        __ Move(dst, src_object);
+        __ Mov(dst, src_object);
       }
-    } else if (src.type() == Constant::kExternalReference) {
-      __ Mov(dst, src.ToExternalReference());
     } else {
       __ Mov(dst, g.ToImmediate(source));
     }

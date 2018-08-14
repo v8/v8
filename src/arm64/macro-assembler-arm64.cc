@@ -306,23 +306,35 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
   Register dst = (rd.IsSP()) ? temps.AcquireSameSizeAs(rd) : rd;
 
   if (operand.NeedsRelocation(this)) {
+    if (FLAG_embedded_builtins) {
+      if (root_array_available_ && options().isolate_independent_code) {
+        if (operand.ImmediateRMode() == RelocInfo::EXTERNAL_REFERENCE) {
+          Address addr = static_cast<Address>(operand.ImmediateValue());
+          ExternalReference reference = bit_cast<ExternalReference>(addr);
+          IndirectLoadExternalReference(rd, reference);
+          return;
+        } else if (operand.ImmediateRMode() == RelocInfo::EMBEDDED_OBJECT) {
+          Handle<HeapObject> x(
+              reinterpret_cast<HeapObject**>(operand.ImmediateValue()));
+          IndirectLoadConstant(rd, x);
+          return;
+        }
+      }
+    }
     Ldr(dst, operand);
   } else if (operand.IsImmediate()) {
     // Call the macro assembler for generic immediates.
     Mov(dst, operand.ImmediateValue());
-
   } else if (operand.IsShiftedRegister() && (operand.shift_amount() != 0)) {
     // Emit a shift instruction if moving a shifted register. This operation
     // could also be achieved using an orr instruction (like orn used by Mvn),
     // but using a shift instruction makes the disassembly clearer.
     EmitShift(dst, operand.reg(), operand.shift(), operand.shift_amount());
-
   } else if (operand.IsExtendedRegister()) {
     // Emit an extend instruction if moving an extended register. This handles
     // extend with post-shift operations, too.
     EmitExtendShift(dst, operand.reg(), operand.extend(),
                     operand.shift_amount());
-
   } else {
     // Otherwise, emit a register move only if the registers are distinct, or
     // if they are not X registers.
@@ -346,17 +358,6 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
     DCHECK(rd.IsSP());
     Assembler::mov(rd, dst);
   }
-}
-
-void TurboAssembler::Mov(const Register& rd, ExternalReference reference) {
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      IndirectLoadExternalReference(rd, reference);
-      return;
-    }
-  }
-  // The Immediate in Operand sets the relocation mode.
-  Mov(rd, Operand(reference));
 }
 
 void TurboAssembler::Movi16bitHelper(const VRegister& vd, uint64_t imm) {
@@ -1525,22 +1526,10 @@ void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
 void MacroAssembler::LoadObject(Register result, Handle<Object> object) {
   AllowDeferredHandleDereference heap_object_check;
   if (object->IsHeapObject()) {
-    Move(result, Handle<HeapObject>::cast(object));
+    Mov(result, Handle<HeapObject>::cast(object));
   } else {
     Mov(result, Operand(Smi::cast(*object)));
   }
-}
-
-void TurboAssembler::Move(Register dst, Register src) { Mov(dst, src); }
-
-void TurboAssembler::Move(Register dst, Handle<HeapObject> value) {
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      IndirectLoadConstant(dst, value);
-      return;
-    }
-  }
-  Mov(dst, value);
 }
 
 void TurboAssembler::Move(Register dst, Smi* src) { Mov(dst, src); }
@@ -1831,9 +1820,9 @@ void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
 void TurboAssembler::LoadRootRegisterOffset(Register destination,
                                             intptr_t offset) {
   if (offset == 0) {
-    Move(destination, kRootRegister);
+    Mov(destination, kRootRegister);
   } else {
-    Add(destination, kRootRegister, Operand(offset));
+    Add(destination, kRootRegister, offset);
   }
 }
 
@@ -2452,7 +2441,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   Mov(fp, sp);
   Mov(scratch, StackFrame::TypeToMarker(frame_type));
   Push(scratch, xzr);
-  Move(scratch, CodeObject());
+  Mov(scratch, CodeObject());
   Push(scratch, padreg);
   //          fp[8]: CallerPC (lr)
   //    fp -> fp[0]: CallerFP (old fp)
@@ -2846,8 +2835,8 @@ void TurboAssembler::CallRecordWriteStub(
   Pop(slot_parameter, object_parameter);
 
   Mov(isolate_parameter, ExternalReference::isolate_address(isolate()));
-  Move(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
-  Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
+  Mov(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
+  Mov(fp_mode_parameter, Smi::FromEnum(fp_mode));
   Call(callable.code(), RelocInfo::CODE_TARGET);
 
   RestoreRegisters(registers);
@@ -2971,7 +2960,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   // Avoid infinite recursion; Push contains some assertions that use Abort.
   HardAbortScope hard_aborts(this);
 
-  Move(x1, Smi::FromInt(static_cast<int>(reason)));
+  Mov(x1, Smi::FromInt(static_cast<int>(reason)));
 
   if (!has_frame_) {
     // We don't actually want to generate a pile of code for this, so just

@@ -276,7 +276,7 @@ Operand::Operand(Register reg, Shift shift, unsigned shift_amount)
       shift_amount_(shift_amount) {
   DCHECK(reg.Is64Bits() || (shift_amount < kWRegSizeInBits));
   DCHECK(reg.Is32Bits() || (shift_amount < kXRegSizeInBits));
-  DCHECK(!reg.IsSP());
+  DCHECK_IMPLIES(reg.IsSP(), shift_amount == 0);
 }
 
 
