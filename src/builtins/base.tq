@@ -145,8 +145,6 @@ extern macro NullConstant(): Oddball;
 extern macro UndefinedConstant(): Oddball;
 extern macro TrueConstant(): Boolean;
 extern macro FalseConstant(): Boolean;
-extern macro Int32TrueConstant(): bool;
-extern macro Int32FalseConstant(): bool;
 
 const Hole: Oddball = TheHoleConstant();
 const Null: Oddball = NullConstant();
@@ -168,8 +166,6 @@ const SKIP_WRITE_BARRIER: constexpr WriteBarrierMode
     generates 'SKIP_WRITE_BARRIER';
 
 extern macro Is64(): constexpr bool;
-
-extern macro SelectBooleanConstant(bool): Boolean;
 
 extern macro Print(constexpr string);
 extern macro Print(constexpr string, Object);
@@ -264,9 +260,7 @@ extern operator '!=' macro WordNotEqual(Object, Object): bool;
 extern operator '+' macro SmiAdd(Smi, Smi): Smi;
 extern operator '-' macro SmiSub(Smi, Smi): Smi;
 extern operator '&' macro SmiAnd(Smi, Smi): Smi;
-extern operator '|' macro SmiOr(Smi, Smi): Smi;
 extern operator '>>>' macro SmiShr(Smi, constexpr int31): Smi;
-extern operator '<<' macro SmiShl(Smi, constexpr int31): Smi;
 
 extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
 extern operator '-' macro IntPtrSub(intptr, intptr): intptr;
@@ -305,12 +299,8 @@ macro max(x: Number, y: Number): Number {
   return NumberMax(x, y);
 }
 
-extern macro SmiMax(Smi, Smi): Smi;
-extern macro SmiMin(Smi, Smi): Smi;
-
 extern operator '!' macro ConstexprBoolNot(constexpr bool): constexpr bool;
 extern operator '!' macro Word32BinaryNot(bool): bool;
-extern operator '!' macro IsFalse(Boolean): bool;
 
 extern operator '.map' macro LoadMap(HeapObject): Map;
 extern operator '.map=' macro StoreMap(HeapObject, Map);
@@ -634,7 +624,7 @@ extern operator '.length' macro LoadFixedArrayBaseLength(FixedArrayBase): Smi;
 extern operator '[]' macro LoadFixedArrayElement(FixedArray, intptr): Object;
 extern operator '[]' macro LoadFixedArrayElement(FixedArray, Smi): Object;
 extern operator
-'[]' macro LoadFixedArrayElement(FixedArray, constexpr int31): Object;
+'[]' macro LoadFixedArrayElementInt(FixedArray, constexpr int31): Object;
 extern operator
 '[]=' macro StoreFixedArrayElement(FixedArray, intptr, Object): void;
 extern operator
@@ -738,7 +728,6 @@ extern macro IsJSArray(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
 extern macro IsDetachedBuffer(JSArrayBuffer): bool;
 extern macro IsHeapNumber(HeapObject): bool;
-extern macro IsFixedArray(HeapObject): bool;
 extern macro IsExtensibleMap(Map): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
 extern macro Typeof(Object): Object;

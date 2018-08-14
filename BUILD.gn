@@ -73,9 +73,8 @@ declare_args() {
 
   # Enable embedded builtins.
   # TODO(jgruber,v8:6666): Support ia32 and maybe MSVC.
-  v8_enable_embedded_builtins =
-      v8_use_snapshot && v8_current_cpu != "x86"
-          && !is_aix && (!is_win || is_clang)
+  v8_enable_embedded_builtins = v8_use_snapshot && v8_current_cpu != "x86" &&
+                                !is_aix && (!is_win || is_clang)
 
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
@@ -877,7 +876,6 @@ torque_files = [
   "src/builtins/typed-array.tq",
   "src/builtins/data-view.tq",
   "test/torque/test-torque.tq",
-  "third_party/v8/builtins/array-sort.tq",
 ]
 
 torque_modules = [
