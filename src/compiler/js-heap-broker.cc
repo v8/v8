@@ -451,7 +451,7 @@ void JSFunctionRef::EnsureHasInitialMap() const {
 }
 
 // TODO(mslekova): Pre-compute these on the main thread.
-MapRef MapRef::AsElementsKind(ElementsKind kind) const {
+base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
   AllowHandleAllocation handle_allocation;
   AllowHeapAllocation heap_allocation;
   AllowHandleDereference allow_handle_dereference;

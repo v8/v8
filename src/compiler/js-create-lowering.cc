@@ -472,6 +472,26 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
   return NoChange();
 }
 
+// TODO(neis): Move this elsewhere.
+#define ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(something_var,          \
+                                                optionally_something)   \
+  auto optionally_something_ = optionally_something;                    \
+  if (!optionally_something_)                                           \
+    return NoChangeBecauseOfMissingData(js_heap_broker(), __FUNCTION__, \
+                                        __LINE__);                      \
+  something_var = *optionally_something_;
+
+namespace {
+Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
+                                       const char* function, int line) {
+  if (FLAG_trace_heap_broker) {
+    PrintF("[%p] Skipping optimization in %s at line %d due to missing data\n",
+           broker, function, line);
+  }
+  return AdvancedReducer::NoChange();
+}
+}  // namespace
+
 // Constructs an array with a variable {length} when no upper bound
 // is known for the capacity.
 Reduction JSCreateLowering::ReduceNewArray(
@@ -483,8 +503,9 @@ Reduction JSCreateLowering::ReduceNewArray(
 
   // Constructing an Array via new Array(N) where N is an unsigned
   // integer, always creates a holey backing store.
-  initial_map = initial_map.AsElementsKind(
-      GetHoleyElementsKind(initial_map.elements_kind()));
+  ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(
+      initial_map, initial_map.AsElementsKind(
+                       GetHoleyElementsKind(initial_map.elements_kind())));
 
   // Check that the {limit} is an unsigned integer in the valid range.
   // This has to be kept in sync with src/runtime/runtime-array.cc,
@@ -534,7 +555,8 @@ Reduction JSCreateLowering::ReduceNewArray(
   ElementsKind elements_kind = initial_map.elements_kind();
   if (NodeProperties::GetType(length).Max() > 0.0) {
     elements_kind = GetHoleyElementsKind(elements_kind);
-    initial_map = initial_map.AsElementsKind(elements_kind);
+    ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(
+        initial_map, initial_map.AsElementsKind(elements_kind));
   }
   DCHECK(IsFastElementsKind(elements_kind));
 
@@ -725,7 +747,8 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       // Check if we have a feedback {site} on the {node}.
       if (site_ref) {
         ElementsKind elements_kind = site_ref->GetElementsKind();
-        initial_map = initial_map.AsElementsKind(elements_kind);
+        ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(
+            initial_map, initial_map.AsElementsKind(elements_kind));
         can_inline_call = site_ref->CanInlineCall();
         pretenure = dependencies()->DependOnPretenureMode(*site_ref);
         dependencies()->DependOnElementsKind(*site_ref);
@@ -749,7 +772,8 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
               elements_kind, IsHoleyElementsKind(elements_kind)
                                  ? HOLEY_ELEMENTS
                                  : PACKED_ELEMENTS);
-          initial_map = initial_map.AsElementsKind(elements_kind);
+          ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(
+              initial_map, initial_map.AsElementsKind(elements_kind));
           return ReduceNewArray(node, std::vector<Node*>{length}, initial_map,
                                 pretenure, slack_tracking_prediction);
         }
@@ -807,8 +831,8 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
           // we cannot inline this invocation of the Array constructor here.
           return NoChange();
         }
-        initial_map = initial_map.AsElementsKind(elements_kind);
-
+        ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(
+            initial_map, initial_map.AsElementsKind(elements_kind));
         return ReduceNewArray(node, values, initial_map, pretenure,
                               slack_tracking_prediction);
       }
@@ -1818,6 +1842,8 @@ SimplifiedOperatorBuilder* JSCreateLowering::simplified() const {
 NativeContextRef JSCreateLowering::native_context_ref() const {
   return NativeContextRef(js_heap_broker(), native_context());
 }
+
+#undef ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING
 
 }  // namespace compiler
 }  // namespace internal
