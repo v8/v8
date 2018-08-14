@@ -110,6 +110,8 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSStoreDataPropertyInLiteral(node);
     case IrOpcode::kJSStoreInArrayLiteral:
       return ReduceJSStoreInArrayLiteral(node);
+    case IrOpcode::kJSToObject:
+      return ReduceJSToObject(node);
     default:
       break;
   }
@@ -2179,6 +2181,25 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreInArrayLiteral(
   return ReduceElementAccess(node, index, value, receiver_maps,
                              AccessMode::kStoreInLiteral, STANDARD_LOAD,
                              store_mode);
+}
+
+Reduction JSNativeContextSpecialization::ReduceJSToObject(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSToObject, node->opcode());
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(isolate(), receiver, effect,
+                                        &receiver_maps);
+  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+
+  for (size_t i = 0; i < receiver_maps.size(); ++i) {
+    if (!receiver_maps[i]->IsJSReceiverMap()) return NoChange();
+  }
+
+  ReplaceWithValue(node, receiver, effect);
+  return Replace(receiver);
 }
 
 namespace {
