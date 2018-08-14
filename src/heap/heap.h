@@ -173,6 +173,7 @@ class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
 class GCTracer;
 class HeapController;
+class GlobalMemoryController;
 class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
 class HeapStats;
@@ -180,6 +181,7 @@ class HistogramTimer;
 class Isolate;
 class LocalEmbedderHeapTracer;
 class MemoryAllocator;
+class MemoryController;
 class MemoryReducer;
 class MinorMarkCompactCollector;
 class ObjectIterator;
@@ -235,7 +237,8 @@ enum class GarbageCollectionReason {
   kSamplingProfiler = 19,
   kSnapshotCreator = 20,
   kTesting = 21,
-  kExternalFinalize = 22
+  kExternalFinalize = 22,
+  kGlobalAllocationLimit = 23
   // If you add new items here, then update the incremental_marking_reason,
   // mark_compact_reason, and scavenge_reason counters in counters.h.
   // Also update src/tools/metrics/histograms/histograms.xml in chromium.
@@ -671,15 +674,10 @@ class Heap {
   int64_t external_memory_hard_limit() { return MaxOldGenerationSize() / 2; }
 
   int64_t external_memory() { return external_memory_; }
-  void update_external_memory(int64_t delta) { external_memory_ += delta; }
+  int64_t backing_story_bytes() const { return backing_store_bytes_; }
 
-  void update_external_memory_concurrently_freed(intptr_t freed) {
-    external_memory_concurrently_freed_ += freed;
-  }
-
-  void account_external_memory_concurrently_freed() {
-    external_memory_ -= external_memory_concurrently_freed_;
-    external_memory_concurrently_freed_ = 0;
+  void update_backing_store_bytes(int64_t amount) {
+    backing_store_bytes_ += amount;
   }
 
   void ProcessMovedExternalString(Page* old_page, Page* new_page,
@@ -1691,7 +1689,9 @@ class Heap {
   // Flush the number to string cache.
   void FlushNumberStringCache();
 
-  void ConfigureInitialOldGenerationSize();
+  size_t ConfigureInitialControllerSize(MemoryController* controller,
+                                        size_t curr_limit);
+  void ConfigureInitialAllocationLimits();
 
   bool HasLowYoungGenerationAllocationRate();
   bool HasLowOldGenerationAllocationRate();
@@ -1806,6 +1806,13 @@ class Heap {
                OldGenerationObjectsAndPromotedExternalMemorySize());
   }
 
+  inline size_t GlobalMemorySpaceAvailable() {
+    size_t global_used = OldGenerationSizeOfObjects() + backing_store_bytes_;
+    return global_used > global_memory_allocation_limit_
+               ? 0
+               : global_memory_allocation_limit_ - global_used;
+  }
+
   // We allow incremental marking to overshoot the allocation limit for
   // performace reasons. If the overshoot is too large then we are more
   // eager to finalize incremental marking.
@@ -1840,6 +1847,7 @@ class Heap {
   // ===========================================================================
 
   HeapController* heap_controller() { return heap_controller_; }
+  GlobalMemoryController* global_controller() { return global_controller_; }
   MemoryReducer* memory_reducer() { return memory_reducer_; }
 
   // For some webpages RAIL mode does not switch from PERFORMANCE_LOAD.
@@ -1849,6 +1857,12 @@ class Heap {
   static const int kMaxLoadTimeMs = 7000;
 
   bool ShouldOptimizeForLoadTime();
+
+  void set_allocation_limits(size_t old_generation_allocation_limit,
+                             size_t global_memory_allocation_limit) {
+    old_generation_allocation_limit_ = old_generation_allocation_limit;
+    global_memory_allocation_limit_ = global_memory_allocation_limit;
+  }
 
   size_t old_generation_allocation_limit() const {
     return old_generation_allocation_limit_;
@@ -1964,8 +1978,8 @@ class Heap {
   // Caches the amount of external memory registered at the last MC.
   int64_t external_memory_at_last_mark_compact_;
 
-  // The amount of memory that has been freed concurrently.
-  std::atomic<intptr_t> external_memory_concurrently_freed_;
+  // Backing store bytes (array buffers and external strings).
+  std::atomic<int64_t> backing_store_bytes_;
 
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.
@@ -1998,6 +2012,7 @@ class Heap {
   size_t max_semi_space_size_;
   size_t initial_semispace_size_;
   size_t max_old_generation_size_;
+  size_t max_global_memory_size_;
   size_t initial_max_old_generation_size_;
   size_t initial_old_generation_size_;
   bool old_generation_size_configured_;
@@ -2098,6 +2113,10 @@ class Heap {
   // generation and on every allocation in large object space.
   size_t old_generation_allocation_limit_;
 
+  // The limit when to trigger memory pressure. This limit accounts for JS
+  // memory and external memory (array buffers and external strings).
+  size_t global_memory_allocation_limit_;
+
   // Indicates that inline bump-pointer allocation has been globally disabled
   // for all spaces. This is used to disable allocations in generated code.
   bool inline_allocation_disabled_;
@@ -2151,6 +2170,7 @@ class Heap {
   StoreBuffer* store_buffer_;
 
   HeapController* heap_controller_;
+  GlobalMemoryController* global_controller_;
 
   IncrementalMarking* incremental_marking_;
   ConcurrentMarking* concurrent_marking_;

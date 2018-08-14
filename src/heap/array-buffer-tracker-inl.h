@@ -30,12 +30,6 @@ void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
     DCHECK_NOT_NULL(tracker);
     tracker->Add(buffer, length);
   }
-
-  // TODO(wez): Remove backing-store from external memory accounting.
-  // We may go over the limit of externally allocated memory here. We call the
-  // api function to trigger a GC in this case.
-  reinterpret_cast<v8::Isolate*>(heap->isolate())
-      ->AdjustAmountOfExternalAllocatedMemory(length);
 }
 
 void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
@@ -49,9 +43,6 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
     DCHECK_NOT_NULL(tracker);
     tracker->Remove(buffer, length);
   }
-
-  // TODO(wez): Remove backing-store from external memory accounting.
-  heap->update_external_memory(-static_cast<intptr_t>(length));
 }
 
 Space* LocalArrayBufferTracker::space() { return page_->owner(); }
@@ -76,10 +67,6 @@ void LocalArrayBufferTracker::Free(Callback should_free) {
   if (freed_memory > 0) {
     page_->DecrementExternalBackingStoreBytes(
         ExternalBackingStoreType::kArrayBuffer, freed_memory);
-
-    // TODO(wez): Remove backing-store from external memory accounting.
-    page_->heap()->update_external_memory_concurrently_freed(
-        static_cast<intptr_t>(freed_memory));
   }
 }
 
@@ -99,7 +86,6 @@ void ArrayBufferTracker::FreeDead(Page* page, MarkingState* marking_state) {
 void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer, size_t length) {
   page_->IncrementExternalBackingStoreBytes(
       ExternalBackingStoreType::kArrayBuffer, length);
-
   auto ret = array_buffers_.insert(
       {buffer,
        {buffer->backing_store(), length, buffer->backing_store(),
@@ -113,7 +99,6 @@ void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer, size_t length) {
 void LocalArrayBufferTracker::Remove(JSArrayBuffer* buffer, size_t length) {
   page_->DecrementExternalBackingStoreBytes(
       ExternalBackingStoreType::kArrayBuffer, length);
-
   TrackingData::iterator it = array_buffers_.find(buffer);
   // Check that we indeed find a key to remove.
   DCHECK(it != array_buffers_.end());
