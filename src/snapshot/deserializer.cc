@@ -323,8 +323,7 @@ HeapObject* Deserializer<AllocatorT>::GetBackReferencedObject(int space) {
   return obj;
 }
 
-// This routine writes the new object into the pointer provided and then
-// returns true if the new object was in young space and false otherwise.
+// This routine writes the new object into the pointer provided.
 // The reason for this strange interface is that otherwise the object is
 // written very late, which means the FreeSpace map is not set up by the
 // time we need to use it to mark the space at the end of a page free.
