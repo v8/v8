@@ -386,6 +386,8 @@ TEST(DisasmX64) {
     __ cvttss2si(rdx, xmm1);
     __ cvtsd2ss(xmm0, xmm1);
     __ cvtsd2ss(xmm0, Operand(rbx, rcx, times_4, 10000));
+    __ cvttps2dq(xmm0, xmm1);
+    __ cvttps2dq(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ movaps(xmm0, xmm1);
     __ movdqa(xmm0, Operand(rsp, 12));
     __ movdqa(Operand(rsp, 12), xmm0);
@@ -526,6 +528,8 @@ TEST(DisasmX64) {
   {
     if (CpuFeatures::IsSupported(SSSE3)) {
       CpuFeatureScope scope(&assm, SSSE3);
+      __ palignr(xmm5, xmm1, 5);
+      __ palignr(xmm5, Operand(rdx, 4), 5);
       SSSE3_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
     }
   }
@@ -541,6 +545,8 @@ TEST(DisasmX64) {
       __ pextrd(r12, xmm0, 1);
       __ pinsrd(xmm9, r9, 0);
       __ pinsrd(xmm5, Operand(rax, 4), 1);
+      __ pblendw(xmm5, xmm1, 1);
+      __ pblendw(xmm9, Operand(rax, 4), 1);
 
       __ cmpps(xmm5, xmm1, 1);
       __ cmpps(xmm5, Operand(rbx, rcx, times_4, 10000), 1);

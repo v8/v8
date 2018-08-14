@@ -931,6 +931,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void pshufw(XMMRegister dst, XMMRegister src, uint8_t shuffle);
   void pshufw(XMMRegister dst, Operand src, uint8_t shuffle);
+  void pblendw(XMMRegister dst, Operand src, uint8_t mask);
+  void pblendw(XMMRegister dst, XMMRegister src, uint8_t mask);
+  void palignr(XMMRegister dst, Operand src, uint8_t mask);
+  void palignr(XMMRegister dst, XMMRegister src, uint8_t mask);
 
   // Label operations & relative jumps (PPUM Appendix D)
   //
@@ -1242,6 +1246,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void cvttss2siq(Register dst, Operand src);
   void cvttsd2siq(Register dst, XMMRegister src);
   void cvttsd2siq(Register dst, Operand src);
+  void cvttps2dq(XMMRegister dst, Operand src);
+  void cvttps2dq(XMMRegister dst, XMMRegister src);
 
   void cvtlsi2sd(XMMRegister dst, Operand src);
   void cvtlsi2sd(XMMRegister dst, Register src);
@@ -1292,10 +1298,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void cmpltsd(XMMRegister dst, XMMRegister src);
 
   void movmskpd(Register dst, XMMRegister src);
-
-  void punpckldq(XMMRegister dst, XMMRegister src);
-  void punpckldq(XMMRegister dst, Operand src);
-  void punpckhdq(XMMRegister dst, XMMRegister src);
 
   // SSE 4.1 instruction
   void insertps(XMMRegister dst, XMMRegister src, byte imm8);
@@ -2044,6 +2046,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline void emit_rex_64(XMMRegister reg, Register rm_reg);
   inline void emit_rex_64(Register reg, XMMRegister rm_reg);
   inline void emit_rex_64(Register reg, Register rm_reg);
+  inline void emit_rex_64(XMMRegister reg, XMMRegister rm_reg);
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of the destination, index, and base register codes.

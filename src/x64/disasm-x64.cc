@@ -1682,6 +1682,18 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", (*current) & 3);
         current += 1;
+      } else if (third_byte == 0x0E) {
+        get_modrm(*current, &mod, &regop, &rm);
+        AppendToBuffer("pblendw %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(data);
+        AppendToBuffer(",0x%x", (*current) & 3);
+        current += 1;
+      } else if (third_byte == 0x0F) {
+        get_modrm(*data, &mod, &regop, &rm);
+        AppendToBuffer("palignr %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(data);
+        AppendToBuffer(",0x%x", (*current) & 3);
+        current += 1;
       } else if (third_byte == 0x14) {
         get_modrm(*current, &mod, &regop, &rm);
         AppendToBuffer("pextrb ");  // reg/m32, xmm, imm8
@@ -1813,32 +1825,44 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "xorpd";
         } else if (opcode == 0x5B) {
           mnemonic = "cvtps2dq";
-        } else if (opcode == 0x2E) {
-          mnemonic = "ucomisd";
-        } else if (opcode == 0x2F) {
-          mnemonic = "comisd";
+        } else if (opcode == 0x60) {
+          mnemonic = "punpcklbw";
+        } else if (opcode == 0x61) {
+          mnemonic = "punpcklwd";
+        } else if (opcode == 0x62) {
+          mnemonic = "punpckldq";
+        } else if (opcode == 0x63) {
+          mnemonic = "packsswb";
         } else if (opcode == 0x64) {
           mnemonic = "pcmpgtb";
         } else if (opcode == 0x65) {
           mnemonic = "pcmpgtw";
         } else if (opcode == 0x66) {
           mnemonic = "pcmpgtd";
+        } else if (opcode == 0x67) {
+          mnemonic = "packuswb";
+        } else if (opcode == 0x68) {
+          mnemonic = "punpckhbw";
+        } else if (opcode == 0x69) {
+          mnemonic = "punpckhwd";
+        } else if (opcode == 0x6A) {
+          mnemonic = "punpckhdq";
+        } else if (opcode == 0x6B) {
+          mnemonic = "packssdw";
+        } else if (opcode == 0x6C) {
+          mnemonic = "punpcklqdq";
+        } else if (opcode == 0x6D) {
+          mnemonic = "punpckhqdq";
+        } else if (opcode == 0x2E) {
+          mnemonic = "ucomisd";
+        } else if (opcode == 0x2F) {
+          mnemonic = "comisd";
         } else if (opcode == 0x74) {
           mnemonic = "pcmpeqb";
         } else if (opcode == 0x75) {
           mnemonic = "pcmpeqw";
         } else if (opcode == 0x76) {
           mnemonic = "pcmpeqd";
-        } else if (opcode == 0x62) {
-          mnemonic = "punpckldq";
-        } else if (opcode == 0x63) {
-          mnemonic = "packsswb";
-        } else if (opcode == 0x67) {
-          mnemonic = "packuswb";
-        } else if (opcode == 0x6A) {
-          mnemonic = "punpckhdq";
-        } else if (opcode == 0x6B) {
-          mnemonic = "packssdw";
         } else if (opcode == 0xD1) {
           mnemonic = "psrlw";
         } else if (opcode == 0xD2) {
@@ -1949,6 +1973,14 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("cvtsd2si%c %s,",
           operand_size_code(), NameOfCPURegister(regop));
+      current += PrintRightXMMOperand(current);
+    } else if (opcode == 0x5B) {
+      // CVTTPS2DQ: Convert packed single-precision FP values to packed signed
+      // doubleword integer values
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("cvttps2dq%c %s,", operand_size_code(),
+                     NameOfCPURegister(regop));
       current += PrintRightXMMOperand(current);
     } else if ((opcode & 0xF8) == 0x58 || opcode == 0x51) {
       // XMM arithmetic. Mnemonic was retrieved at the start of this function.
