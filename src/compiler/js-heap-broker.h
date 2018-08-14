@@ -25,6 +25,7 @@ enum class OddballType : uint8_t {
   kOther  // Oddball, but none of the above.
 };
 
+// TODO(neis): Get rid of the HeapObjectType class.
 class HeapObjectType {
  public:
   enum Flag : uint8_t { kUndetectable = 1 << 0, kCallable = 1 << 1 };

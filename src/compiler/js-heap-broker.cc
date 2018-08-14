@@ -159,7 +159,22 @@ class InternalizedStringData : public StringData {
 class ScriptContextTableData : public HeapObjectData {};
 class FeedbackVectorData : public HeapObjectData {};
 class AllocationSiteData : public HeapObjectData {};
-class MapData : public HeapObjectData {};
+
+class MapData : public HeapObjectData {
+ public:
+  int const instance_size;
+  byte const bit_field;
+  byte const bit_field2;
+  uint32_t const bit_field3;
+
+  MapData(JSHeapBroker* broker_, Handle<Map> object_, HeapObjectType type_)
+      : HeapObjectData(broker_, object_, type_),
+        instance_size(object_->instance_size()),
+        bit_field(object_->bit_field()),
+        bit_field2(object_->bit_field2()),
+        bit_field3(object_->bit_field3()) {}
+};
+
 class FixedArrayBaseData : public HeapObjectData {};
 class FixedArrayData : public FixedArrayBaseData {};
 class FixedDoubleArrayData : public FixedArrayBaseData {};
@@ -204,12 +219,16 @@ HeapObjectData* HeapObjectData::Serialize(JSHeapBroker* broker,
   HeapObjectType type = broker->HeapObjectTypeFromMap(map);
 
   HeapObjectData* result;
+  // TODO(neis): Do a switch on instance type here.
   if (object->IsJSFunction()) {
     result = new (broker->zone())
         JSFunctionData(broker, Handle<JSFunction>::cast(object), type);
   } else if (object->IsNativeContext()) {
     result = new (broker->zone())
         NativeContextData(broker, Handle<Context>::cast(object), type);
+  } else if (object->IsMap()) {
+    result =
+        new (broker->zone()) MapData(broker, Handle<Map>::cast(object), type);
   } else if (object->IsInternalizedString()) {
     result = new (broker->zone())
         InternalizedStringData(broker, Handle<String>::cast(object), type);
@@ -722,40 +741,64 @@ int SharedFunctionInfoRef::GetBytecodeArrayRegisterCount() const {
 // either looks into the handle or into the serialized data. The first one is
 // used for the rare case of a XYZRef class that does not have a corresponding
 // XYZ class in objects.h. The second one is used otherwise.
-#define BIMODAL_ACCESSOR_(holder, v8class, result, method)                     \
-  result##Ref holder##Ref::method() const {                                    \
-    if (broker()->mode() == JSHeapBroker::kDisabled) {                         \
-      AllowHandleAllocation handle_allocation;                                 \
-      AllowHandleDereference allow_handle_dereference;                         \
-      return result##Ref(                                                      \
-          broker(), handle(object<v8class>()->method(), broker()->isolate())); \
-    } else {                                                                   \
-      return result##Ref(data()->As##holder()->method);                        \
-    }                                                                          \
+#define BIMODAL_ACCESSOR_(holder, v8class, result, name)                     \
+  result##Ref holder##Ref::name() const {                                    \
+    if (broker()->mode() == JSHeapBroker::kDisabled) {                       \
+      AllowHandleAllocation handle_allocation;                               \
+      AllowHandleDereference allow_handle_dereference;                       \
+      return result##Ref(                                                    \
+          broker(), handle(object<v8class>()->name(), broker()->isolate())); \
+    } else {                                                                 \
+      return result##Ref(data()->As##holder()->name);                        \
+    }                                                                        \
   }
-#define BIMODAL_ACCESSOR(holder, result, method) \
-  BIMODAL_ACCESSOR_(holder, holder, result, method)
+#define BIMODAL_ACCESSOR(holder, result, name) \
+  BIMODAL_ACCESSOR_(holder, holder, result, name)
+
+// Like HANDLE_ACCESSOR except that the result type is not an XYZRef.
+#define BIMODAL_ACCESSOR_C(holder, result, name)       \
+  result holder##Ref::name() const {                   \
+    if (broker()->mode() == JSHeapBroker::kDisabled) { \
+      AllowHandleAllocation handle_allocation;         \
+      AllowHandleDereference allow_handle_dereference; \
+      return object<holder>()->name();                 \
+    } else {                                           \
+      return data()->As##holder()->name;               \
+    }                                                  \
+  }
+
+// Like HANDLE_ACCESSOR_C but for BitFields.
+#define BIMODAL_ACCESSOR_B(holder, field, name, BitField)   \
+  typename BitField::FieldType holder##Ref::name() const {  \
+    if (broker()->mode() == JSHeapBroker::kDisabled) {      \
+      AllowHandleAllocation handle_allocation;              \
+      AllowHandleDereference allow_handle_dereference;      \
+      return object<holder>()->name();                      \
+    } else {                                                \
+      return BitField::decode(data()->As##holder()->field); \
+    }                                                       \
+  }
 
 // Macros for definining a const getter that always looks into the handle.
 // (These will go away once we serialize everything.) The first one is used for
 // the rare case of a XYZRef class that does not have a corresponding XYZ class
 // in objects.h. The second one is used otherwise.
-#define HANDLE_ACCESSOR_(holder, v8class, result, method)                    \
-  result##Ref holder##Ref::method() const {                                  \
-    AllowHandleAllocation handle_allocation;                                 \
-    AllowHandleDereference allow_handle_dereference;                         \
-    return result##Ref(                                                      \
-        broker(), handle(object<v8class>()->method(), broker()->isolate())); \
+#define HANDLE_ACCESSOR_(holder, v8class, result, name)                    \
+  result##Ref holder##Ref::name() const {                                  \
+    AllowHandleAllocation handle_allocation;                               \
+    AllowHandleDereference allow_handle_dereference;                       \
+    return result##Ref(                                                    \
+        broker(), handle(object<v8class>()->name(), broker()->isolate())); \
   }
-#define HANDLE_ACCESSOR(holder, result, method) \
-  HANDLE_ACCESSOR_(holder, holder, result, method)
+#define HANDLE_ACCESSOR(holder, result, name) \
+  HANDLE_ACCESSOR_(holder, holder, result, name)
 
 // Like HANDLE_ACCESSOR except that the result type is not an XYZRef.
-#define HANDLE_ACCESSOR_C(holder, result, method)    \
-  result holder##Ref::method() const {               \
+#define HANDLE_ACCESSOR_C(holder, result, name)      \
+  result holder##Ref::name() const {                 \
     AllowHandleAllocation handle_allocation;         \
     AllowHandleDereference allow_handle_dereference; \
-    return object<holder>()->method();               \
+    return object<holder>()->name();                 \
   }
 
 HANDLE_ACCESSOR(AllocationSite, JSObject, boilerplate)
@@ -791,19 +834,19 @@ HANDLE_ACCESSOR(JSRegExp, Object, last_index)
 HANDLE_ACCESSOR(JSRegExp, Object, raw_properties_or_hash)
 HANDLE_ACCESSOR(JSRegExp, Object, source)
 
+BIMODAL_ACCESSOR_B(Map, bit_field2, elements_kind, Map::ElementsKindBits)
+BIMODAL_ACCESSOR_B(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
+BIMODAL_ACCESSOR_B(Map, bit_field3, is_dictionary_map, Map::IsDictionaryMapBit)
+BIMODAL_ACCESSOR_B(Map, bit_field, has_prototype_slot, Map::HasPrototypeSlotBit)
+BIMODAL_ACCESSOR_C(Map, int, instance_size)
 HANDLE_ACCESSOR_C(Map, bool, CanBeDeprecated)
 HANDLE_ACCESSOR_C(Map, bool, CanTransition)
-HANDLE_ACCESSOR_C(Map, bool, has_prototype_slot)
-HANDLE_ACCESSOR_C(Map, bool, is_deprecated)
-HANDLE_ACCESSOR_C(Map, bool, is_dictionary_map)
 HANDLE_ACCESSOR_C(Map, bool, IsInobjectSlackTrackingInProgress)
 HANDLE_ACCESSOR_C(Map, bool, IsJSArrayMap)
 HANDLE_ACCESSOR_C(Map, bool, is_stable)
-HANDLE_ACCESSOR_C(Map, ElementsKind, elements_kind)
 HANDLE_ACCESSOR_C(Map, InstanceType, instance_type)
 HANDLE_ACCESSOR_C(Map, int, GetInObjectProperties)
 HANDLE_ACCESSOR_C(Map, int, GetInObjectPropertiesStartInWords)
-HANDLE_ACCESSOR_C(Map, int, instance_size)
 HANDLE_ACCESSOR_C(Map, int, NumberOfOwnDescriptors)
 HANDLE_ACCESSOR(Map, Object, constructor_or_backpointer)
 
@@ -951,6 +994,8 @@ ObjectData* ObjectRef::data() const { return data_; }
 
 #undef BIMODAL_ACCESSOR
 #undef BIMODAL_ACCESSOR_
+#undef BIMODAL_ACCESSOR_B
+#undef BIMODAL_ACCESSOR_C
 #undef GET_OR_CREATE
 #undef HANDLE_ACCESSOR
 #undef HANDLE_ACCESSOR_
