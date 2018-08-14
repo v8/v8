@@ -937,9 +937,17 @@ void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitWord64ReverseBits(Node* node) { UNREACHABLE(); }
 #endif
 
-void InstructionSelector::VisitWord64ReverseBytes(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord64ReverseBytes(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_ByteRev64, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.TempRegister());
+}
 
-void InstructionSelector::VisitWord32ReverseBytes(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
+  PPCOperandGenerator g(this);
+  Emit(kPPC_ByteRev32, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
 
 void InstructionSelector::VisitSpeculationFence(Node* node) { UNREACHABLE(); }
 

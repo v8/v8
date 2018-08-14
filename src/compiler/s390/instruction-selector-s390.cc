@@ -2609,8 +2609,6 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesAway |
          MachineOperatorBuilder::kWord32Popcnt |
-         MachineOperatorBuilder::kWord32ReverseBytes |
-         MachineOperatorBuilder::kWord64ReverseBytes |
          MachineOperatorBuilder::kInt32AbsWithOverflow |
          MachineOperatorBuilder::kInt64AbsWithOverflow |
          MachineOperatorBuilder::kWord64Popcnt;
