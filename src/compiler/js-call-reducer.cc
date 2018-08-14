@@ -3447,6 +3447,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceArrayPrototypePop(node);
     case Builtins::kArrayPrototypeShift:
       return ReduceArrayPrototypeShift(node);
+    case Builtins::kArrayPrototypeSlice:
+      return ReduceArrayPrototypeSlice(node);
     case Builtins::kArrayPrototypeEntries:
       return ReduceArrayIterator(node, IterationKind::kEntries);
     case Builtins::kArrayPrototypeKeys:
@@ -4767,6 +4769,85 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
 
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
+}
+
+// ES6 section 22.1.3.23 Array.prototype.slice ( )
+Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
+  if (!FLAG_turbo_inline_array_builtins) return NoChange();
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  int arity = static_cast<int>(p.arity() - 2);
+  // Here we only optimize for cloning, that is when slice is called
+  // without arguments, or with a single argument that is the constant 0.
+  if (arity >= 2) return NoChange();
+  if (arity == 1) {
+    NumberMatcher m(NodeProperties::GetValueInput(node, 2));
+    if (!m.HasValue()) return NoChange();
+    if (m.Value() != 0) return NoChange();
+  }
+
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Try to determine the {receiver} map.
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(isolate(), receiver, effect,
+                                        &receiver_maps);
+  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+
+  // Ensure that any changes to the Array species constructor cause deopt.
+  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
+  dependencies()->DependOnProtector(
+      PropertyCellRef(js_heap_broker(), factory()->array_species_protector()));
+
+  bool can_be_holey = false;
+  // Check that the maps are of JSArray (and more)
+  for (Handle<Map> receiver_map : receiver_maps) {
+    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
+      return NoChange();
+
+    if (IsHoleyElementsKind(receiver_map->elements_kind())) can_be_holey = true;
+  }
+
+  // Install code dependency on the array protector for holey arrays.
+  if (can_be_holey) {
+    dependencies()->DependOnProtector(
+        PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
+  }
+
+  // If we have unreliable maps, we need a map check.
+  // This is actually redundant due to how JSNativeContextSpecialization
+  // reduces the load of slice, but we do it here nevertheless for consistency
+  // and robustness.
+  if (result == NodeProperties::kUnreliableReceiverMaps) {
+    effect =
+        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                                 receiver_maps, p.feedback()),
+                         receiver, effect, control);
+  }
+
+  Node* context = NodeProperties::GetContextInput(node);
+
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kCloneFastJSArray);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags,
+      Operator::kNoThrow | Operator::kNoDeopt);
+
+  // Calls to Builtins::kCloneFastJSArray produce COW arrays
+  // if the original array is COW
+  Node* clone = effect = graph()->NewNode(
+      common()->Call(call_descriptor), jsgraph()->HeapConstant(callable.code()),
+      receiver, context, effect, control);
+
+  ReplaceWithValue(node, clone, effect, control);
+  return Replace(clone);
 }
 
 // ES6 section 22.1.2.2 Array.isArray ( arg )
