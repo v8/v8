@@ -762,8 +762,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<Cell::BodyDescriptor>(p1, p2, p3, p4);
     case PROPERTY_CELL_TYPE:
       return Op::template apply<PropertyCell::BodyDescriptor>(p1, p2, p3, p4);
-    case WEAK_CELL_TYPE:
-      return Op::template apply<WeakCell::BodyDescriptor>(p1, p2, p3, p4);
     case SYMBOL_TYPE:
       return Op::template apply<Symbol::BodyDescriptor>(p1, p2, p3, p4);
     case BYTECODE_ARRAY_TYPE:

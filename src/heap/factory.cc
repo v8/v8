@@ -1775,19 +1775,6 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
   return cell;
 }
 
-Handle<WeakCell> Factory::NewWeakCell(Handle<HeapObject> value,
-                                      PretenureFlag pretenure) {
-  // It is safe to dereference the value because we are embedding it
-  // in cell and not inspecting its fields.
-  AllowDeferredHandleDereference convert_to_cell;
-  STATIC_ASSERT(WeakCell::kSize <= kMaxRegularHeapObjectSize);
-  HeapObject* result =
-      AllocateRawWithImmortalMap(WeakCell::kSize, pretenure, *weak_cell_map());
-  Handle<WeakCell> cell(WeakCell::cast(result), isolate());
-  cell->initialize(*value);
-  return cell;
-}
-
 Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
                                                     int slack) {
   int capacity = TransitionArray::LengthFor(number_of_transitions + slack);

@@ -41,7 +41,6 @@ namespace internal {
   V(Map, code_map, CodeMap)                                                    \
   V(Map, function_context_map, FunctionContextMap)                             \
   V(Map, cell_map, CellMap)                                                    \
-  V(Map, weak_cell_map, WeakCellMap)                                           \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
   V(Map, foreign_map, ForeignMap)                                              \
   V(Map, heap_number_map, HeapNumberMap)                                       \
@@ -187,7 +186,6 @@ namespace internal {
   V(FixedArray, empty_ordered_hash_set, EmptyOrderedHashSet)                   \
   V(FeedbackMetadata, empty_feedback_metadata, EmptyFeedbackMetadata)          \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
-  V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   V(WeakArrayList, empty_weak_array_list, EmptyWeakArrayList)                  \

@@ -88,7 +88,6 @@ using v8::MemoryPressureLevel;
   V(EmptyScript)                            \
   V(EmptySloppyArgumentsElements)           \
   V(EmptySlowElementDictionary)             \
-  V(EmptyWeakCell)                          \
   V(EvalContextMap)                         \
   V(Exception)                              \
   V(FalseValue)                             \
@@ -159,7 +158,6 @@ using v8::MemoryPressureLevel;
   V(UninitializedValue)                     \
   V(UncompiledDataWithoutPreParsedScopeMap) \
   V(UncompiledDataWithPreParsedScopeMap)    \
-  V(WeakCellMap)                            \
   V(WeakFixedArrayMap)                      \
   V(WeakArrayListMap)                       \
   V(WithContextMap)                         \

@@ -5487,11 +5487,6 @@ TNode<BoolT> CodeStubAssembler::IsFixedArrayWithKind(
   }
 }
 
-TNode<BoolT> CodeStubAssembler::IsWeakCell(SloppyTNode<HeapObject> object) {
-  CSA_ASSERT(this, IsStrongHeapObject(object));
-  return IsWeakCellMap(LoadMap(object));
-}
-
 TNode<BoolT> CodeStubAssembler::IsBoolean(SloppyTNode<HeapObject> object) {
   return IsBooleanMap(LoadMap(object));
 }

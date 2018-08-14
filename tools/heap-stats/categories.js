@@ -134,7 +134,6 @@ const CATEGORIES = new Map([
       'STRING_SPLIT_CACHE_TYPE',
       'STRING_TABLE_TYPE',
       'TRANSITION_ARRAY_TYPE',
-      'WEAK_CELL_TYPE',
       'WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE',
     ])
   ],

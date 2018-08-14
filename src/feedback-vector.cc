@@ -377,7 +377,6 @@ void FeedbackVector::AssertNoLegacyTypes(MaybeObject* object) {
     // Instead of FixedArray, the Feedback and the Extra should contain
     // WeakFixedArrays. The only allowed FixedArray subtype is HashTable.
     DCHECK_IMPLIES(heap_object->IsFixedArray(), heap_object->IsHashTable());
-    DCHECK(!heap_object->IsWeakCell());
   }
 #endif
 }

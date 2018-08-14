@@ -880,8 +880,6 @@ void V8HeapExplorer::ExtractReferences(int entry, HeapObject* obj) {
     ExtractCellReferences(entry, Cell::cast(obj));
   } else if (obj->IsFeedbackCell()) {
     ExtractFeedbackCellReferences(entry, FeedbackCell::cast(obj));
-  } else if (obj->IsWeakCell()) {
-    ExtractWeakCellReferences(entry, WeakCell::cast(obj));
   } else if (obj->IsPropertyCell()) {
     ExtractPropertyCellReferences(entry, PropertyCell::cast(obj));
   } else if (obj->IsAllocationSite()) {
@@ -1123,8 +1121,6 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
                      Map::kTransitionsOrPrototypeInfoOffset);
   } else if (maybe_raw_transitions_or_prototype_info->ToStrongHeapObject(
                  &raw_transitions_or_prototype_info)) {
-    DCHECK(!raw_transitions_or_prototype_info->IsWeakCell());
-
     if (raw_transitions_or_prototype_info->IsTransitionArray()) {
       TransitionArray* transitions =
           TransitionArray::cast(raw_transitions_or_prototype_info);
@@ -1289,12 +1285,6 @@ void V8HeapExplorer::ExtractFeedbackCellReferences(
   TagObject(feedback_cell, "(feedback cell)");
   SetInternalReference(feedback_cell, entry, "value", feedback_cell->value(),
                        FeedbackCell::kValueOffset);
-}
-
-void V8HeapExplorer::ExtractWeakCellReferences(int entry, WeakCell* weak_cell) {
-  TagObject(weak_cell, "(weak cell)");
-  SetWeakReference(weak_cell, entry, "value", weak_cell->value(),
-                   WeakCell::kValueOffset);
 }
 
 void V8HeapExplorer::ExtractPropertyCellReferences(int entry,

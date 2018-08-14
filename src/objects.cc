@@ -3101,9 +3101,6 @@ VisitorId Map::GetVisitorId(Map* map) {
     case PROPERTY_CELL_TYPE:
       return kVisitPropertyCell;
 
-    case WEAK_CELL_TYPE:
-      return kVisitWeakCell;
-
     case TRANSITION_ARRAY_TYPE:
       return kVisitTransitionArray;
 
@@ -3609,15 +3606,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
       cell->value()->ShortPrint(&accumulator);
-      os << accumulator.ToCString().get();
-      os << '>';
-      break;
-    }
-    case WEAK_CELL_TYPE: {
-      os << "<WeakCell value= ";
-      HeapStringAllocator allocator;
-      StringStream accumulator(&allocator);
-      WeakCell::cast(this)->value()->ShortPrint(&accumulator);
       os << accumulator.ToCString().get();
       os << '>';
       break;
@@ -13152,7 +13140,6 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case PROPERTY_CELL_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
     case SYMBOL_TYPE:
-    case WEAK_CELL_TYPE:
     case ALLOCATION_SITE_TYPE:
 
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \

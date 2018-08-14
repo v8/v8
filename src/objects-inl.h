@@ -527,7 +527,6 @@ CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(TemplateObjectDescription)
 CAST_ACCESSOR(Tuple2)
 CAST_ACCESSOR(Tuple3)
-CAST_ACCESSOR(WeakCell)
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
@@ -1316,34 +1315,6 @@ PropertyDetails PropertyCell::property_details() const {
 void PropertyCell::set_property_details(PropertyDetails details) {
   set_property_details_raw(details.AsSmi());
 }
-
-
-Object* WeakCell::value() const { return READ_FIELD(this, kValueOffset); }
-
-
-void WeakCell::clear() {
-  // Either the garbage collector is clearing the cell or we are simply
-  // initializing the root empty weak cell.
-  DCHECK(Heap::FromWritableHeapObject(this)->gc_state() == Heap::MARK_COMPACT ||
-         this == GetReadOnlyRoots().empty_weak_cell());
-  WRITE_FIELD(this, kValueOffset, Smi::kZero);
-}
-
-
-void WeakCell::initialize(HeapObject* val) {
-  WRITE_FIELD(this, kValueOffset, val);
-  // We just have to execute the generational barrier here because we never
-  // mark through a weak cell and collect evacuation candidates when we process
-  // all weak cells.
-  Heap* heap = Heap::FromWritableHeapObject(this);
-  WriteBarrierMode mode =
-      heap->incremental_marking()->marking_state()->IsBlack(this)
-          ? UPDATE_WRITE_BARRIER
-          : UPDATE_WEAK_WRITE_BARRIER;
-  CONDITIONAL_WRITE_BARRIER(this, kValueOffset, val, mode);
-}
-
-bool WeakCell::cleared() const { return value() == Smi::kZero; }
 
 int JSObject::GetHeaderSize() const { return GetHeaderSize(map()); }
 

@@ -1886,13 +1886,11 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // cleared.
     ClearFullMapTransitions();
   }
-  ClearWeakCells();
   ClearWeakReferences();
   MarkDependentCodeForDeoptimization();
 
   ClearWeakCollections();
 
-  DCHECK(weak_objects_.weak_cells.IsEmpty());
   DCHECK(weak_objects_.transition_arrays.IsEmpty());
   DCHECK(weak_objects_.weak_references.IsEmpty());
   DCHECK(weak_objects_.weak_objects_in_code.IsEmpty());
@@ -1951,7 +1949,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
       // The array might contain "undefined" elements because it's not yet
       // filled. Allow it.
       if (array->GetTargetIfExists(0, isolate(), &map)) {
-        DCHECK_NOT_NULL(map);  // WeakCells aren't cleared yet.
+        DCHECK_NOT_NULL(map);  // Weak pointers aren't cleared yet.
         Map* parent = Map::cast(map->constructor_or_backpointer());
         bool parent_is_alive =
             non_atomic_marking_state()->IsBlackOrGrey(parent);
@@ -2089,46 +2087,6 @@ void MarkCompactCollector::ClearWeakCollections() {
   }
 }
 
-void MarkCompactCollector::ClearWeakCells() {
-  Heap* heap = this->heap();
-  TRACE_GC(heap->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_CELLS);
-  WeakCell* weak_cell;
-  while (weak_objects_.weak_cells.Pop(kMainThread, &weak_cell)) {
-    // We do not insert cleared weak cells into the list, so the value
-    // cannot be a Smi here.
-    HeapObject* value = HeapObject::cast(weak_cell->value());
-    if (!non_atomic_marking_state()->IsBlackOrGrey(value)) {
-      // Cells for new-space objects embedded in optimized code are wrapped in
-      // WeakCell and put into Heap::weak_object_to_code_table.
-      // Such cells do not have any strong references but we want to keep them
-      // alive as long as the cell value is alive.
-      // TODO(ulan): remove this once we remove Heap::weak_object_to_code_table.
-      if (value->IsCell()) {
-        Object* cell_value = Cell::cast(value)->value();
-        if (cell_value->IsHeapObject() &&
-            non_atomic_marking_state()->IsBlackOrGrey(
-                HeapObject::cast(cell_value))) {
-          // Resurrect the cell.
-          non_atomic_marking_state()->WhiteToBlack(value);
-          Object** slot = HeapObject::RawField(value, Cell::kValueOffset);
-          RecordSlot(value, slot, HeapObject::cast(*slot));
-          slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
-          RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
-        } else {
-          weak_cell->clear();
-        }
-      } else {
-        // All other objects.
-        weak_cell->clear();
-      }
-    } else {
-      // The value of the weak cell is alive.
-      Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
-      RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
-    }
-  }
-}
-
 void MarkCompactCollector::ClearWeakReferences() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES);
   std::pair<HeapObject*, HeapObjectReference**> slot;
@@ -2152,7 +2110,6 @@ void MarkCompactCollector::ClearWeakReferences() {
 }
 
 void MarkCompactCollector::AbortWeakObjects() {
-  weak_objects_.weak_cells.Clear();
   weak_objects_.transition_arrays.Clear();
   weak_objects_.ephemeron_hash_tables.Clear();
   weak_objects_.current_ephemerons.Clear();

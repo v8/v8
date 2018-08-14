@@ -64,8 +64,7 @@ class UncompiledDataWithPreParsedScope;
   V(TransitionArray)                     \
   V(UncompiledDataWithoutPreParsedScope) \
   V(UncompiledDataWithPreParsedScope)    \
-  V(WasmInstanceObject)                  \
-  V(WeakCell)
+  V(WasmInstanceObject)
 
 // The base class for visitors that need to dispatch on object type. The default
 // behavior of all visit functions is to iterate body of the given object using

@@ -292,9 +292,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case PROPERTY_CELL_TYPE:
       PropertyCell::cast(this)->PropertyCellPrint(os);
       break;
-    case WEAK_CELL_TYPE:
-      WeakCell::cast(this)->WeakCellPrint(os);
-      break;
     case JS_ARRAY_BUFFER_TYPE:
       JSArrayBuffer::cast(this)->JSArrayBufferPrint(os);
       break;
@@ -1522,18 +1519,6 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n";
 }
-
-
-void WeakCell::WeakCellPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "WeakCell");
-  if (cleared()) {
-    os << "\n - cleared";
-  } else {
-    os << "\n - value: " << Brief(value());
-  }
-  os << "\n";
-}
-
 
 void Code::CodePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Code");

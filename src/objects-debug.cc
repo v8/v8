@@ -265,9 +265,6 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case PROPERTY_CELL_TYPE:
       PropertyCell::cast(this)->PropertyCellVerify(isolate);
       break;
-    case WEAK_CELL_TYPE:
-      WeakCell::cast(this)->WeakCellVerify(isolate);
-      break;
     case JS_ARRAY_TYPE:
       JSArray::cast(this)->JSArrayVerify(isolate);
       break;
@@ -1095,11 +1092,6 @@ void Cell::CellVerify(Isolate* isolate) {
 
 void PropertyCell::PropertyCellVerify(Isolate* isolate) {
   CHECK(IsPropertyCell());
-  VerifyObjectField(isolate, kValueOffset);
-}
-
-void WeakCell::WeakCellVerify(Isolate* isolate) {
-  CHECK(IsWeakCell());
   VerifyObjectField(isolate, kValueOffset);
 }
 
@@ -2115,17 +2107,13 @@ bool TransitionsAccessor::IsConsistentWithBackPointers() {
 // Estimates if there is a path from the object to a context.
 // This function is not precise, and can return false even if
 // there is a path to a context.
-bool CanLeak(Object* obj, Heap* heap, bool skip_weak_cell) {
+bool CanLeak(Object* obj, Heap* heap) {
   if (!obj->IsHeapObject()) return false;
-  if (obj->IsWeakCell()) {
-    if (skip_weak_cell) return false;
-    return CanLeak(WeakCell::cast(obj)->value(), heap, skip_weak_cell);
-  }
   if (obj->IsCell()) {
-    return CanLeak(Cell::cast(obj)->value(), heap, skip_weak_cell);
+    return CanLeak(Cell::cast(obj)->value(), heap);
   }
   if (obj->IsPropertyCell()) {
-    return CanLeak(PropertyCell::cast(obj)->value(), heap, skip_weak_cell);
+    return CanLeak(PropertyCell::cast(obj)->value(), heap);
   }
   if (obj->IsContext()) return true;
   if (obj->IsMap()) {
@@ -2136,17 +2124,16 @@ bool CanLeak(Object* obj, Heap* heap, bool skip_weak_cell) {
     }
     return true;
   }
-  return CanLeak(HeapObject::cast(obj)->map(), heap, skip_weak_cell);
+  return CanLeak(HeapObject::cast(obj)->map(), heap);
 }
 
 void Code::VerifyEmbeddedObjects(Isolate* isolate, VerifyMode mode) {
   if (kind() == OPTIMIZED_FUNCTION) return;
   Heap* heap = isolate->heap();
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  bool skip_weak_cell = (mode == kNoContextSpecificPointers) ? false : true;
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     Object* target = it.rinfo()->target_object();
-    DCHECK(!CanLeak(target, heap, skip_weak_cell));
+    DCHECK(!CanLeak(target, heap));
   }
 }
 

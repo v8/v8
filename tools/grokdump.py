@@ -1231,9 +1231,6 @@ class Map(HeapObject):
   def DependentCodeOffset(self):
     return self.CodeCacheOffset() + self.heap.PointerSize()
 
-  def WeakCellCacheOffset(self):
-    return self.DependentCodeOffset() + self.heap.PointerSize()
-
   def ReadByte(self, offset):
     return self.heap.reader.ReadU8(self.address + offset)
 

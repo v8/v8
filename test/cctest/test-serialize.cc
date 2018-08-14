@@ -373,7 +373,6 @@ UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {
     // - NullValue
     // - Internalized one byte string
     // - Map for Internalized one byte string
-    // - WeakCell
     // - TheHoleValue
     // - HeapNumber
     // HeapNumber objects require kDoubleUnaligned on 32-bit

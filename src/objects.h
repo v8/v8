@@ -172,7 +172,6 @@
 //         - PromiseResolveThenableJobTask
 //       - Module
 //       - ModuleInfoEntry
-//     - WeakCell
 //     - FeedbackCell
 //     - FeedbackVector
 //     - PreParsedScopeData
@@ -534,7 +533,6 @@ enum InstanceType : uint16_t {
   STORE_HANDLER_TYPE,
   UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE,
   UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE,
-  WEAK_CELL_TYPE,
   WEAK_ARRAY_LIST_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
@@ -729,7 +727,6 @@ class FeedbackCell;
 class FeedbackMetadata;
 class FeedbackVector;
 class UncompiledData;
-class WeakCell;
 class TemplateInfo;
 class TransitionArray;
 class TemplateList;
@@ -908,7 +905,6 @@ class ZoneForwardList;
   V(WasmMemoryObject)                          \
   V(WasmModuleObject)                          \
   V(WasmTableObject)                           \
-  V(WeakCell)                                  \
   V(WeakFixedArray)                            \
   V(WeakArrayList)
 
@@ -1030,9 +1026,7 @@ class ZoneForwardList;
   V(WasmMemoryObject, WASM_MEMORY_TYPE)                                \
   V(WasmModuleObject, WASM_MODULE_TYPE)                                \
   V(WasmTableObject, WASM_TABLE_TYPE)                                  \
-  V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)                               \
-  V(WeakCell, WEAK_CELL_TYPE)
-
+  V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)
 #ifdef V8_INTL_SUPPORT
 
 #define INSTANCE_TYPE_CHECKERS_SINGLE(V)      \
@@ -4034,34 +4028,6 @@ class PropertyCell : public HeapObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PropertyCell);
-};
-
-
-class WeakCell : public HeapObject {
- public:
-  inline Object* value() const;
-
-  // This should not be called by anyone except GC.
-  inline void clear();
-
-  // This should not be called by anyone except allocator.
-  inline void initialize(HeapObject* value);
-
-  inline bool cleared() const;
-
-  DECL_CAST(WeakCell)
-
-  DECL_PRINTER(WeakCell)
-  DECL_VERIFIER(WeakCell)
-
-  // Layout description.
-  static const int kValueOffset = HeapObject::kHeaderSize;
-  static const int kSize = kValueOffset + kPointerSize;
-
-  typedef FixedBodyDescriptor<kValueOffset, kSize, kSize> BodyDescriptor;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WeakCell);
 };
 
 // The [Async-from-Sync Iterator] object

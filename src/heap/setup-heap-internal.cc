@@ -225,7 +225,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, undefined);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, null);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, the_hole);
-    ALLOCATE_PARTIAL_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell);
 
 #undef ALLOCATE_PARTIAL_MAP
   }
@@ -318,7 +317,6 @@ bool Heap::CreateInitialMaps() {
 
   // Fix the instance_descriptors for the existing maps.
   FinalizePartialMap(roots.meta_map());
-  FinalizePartialMap(roots.weak_cell_map());
   FinalizePartialMap(roots.fixed_array_map());
   FinalizePartialMap(roots.weak_fixed_array_map());
   FinalizePartialMap(roots.weak_array_list_map());
@@ -751,13 +749,6 @@ void Heap::CreateInitialObjects() {
     empty_sloppy_arguments_elements->set_map_after_allocation(
         roots.sloppy_arguments_elements_map(), SKIP_WRITE_BARRIER);
     set_empty_sloppy_arguments_elements(*empty_sloppy_arguments_elements);
-  }
-
-  {
-    Handle<WeakCell> cell =
-        factory->NewWeakCell(factory->undefined_value(), TENURED_READ_ONLY);
-    set_empty_weak_cell(*cell);
-    cell->clear();
   }
 
   set_detached_contexts(roots.empty_weak_array_list());

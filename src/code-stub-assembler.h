@@ -47,7 +47,6 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(EmptySlowElementDictionary, empty_slow_element_dictionary,               \
     EmptySlowElementDictionary)                                              \
   V(empty_string, empty_string, EmptyString)                                 \
-  V(EmptyWeakCell, empty_weak_cell, EmptyWeakCell)                           \
   V(FalseValue, false_value, False)                                          \
   V(FeedbackVectorMap, feedback_vector_map, FeedbackVectorMap)               \
   V(FixedArrayMap, fixed_array_map, FixedArrayMap)                           \
@@ -86,7 +85,6 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     uncompiled_data_with_pre_parsed_scope_map,                               \
     UncompiledDataWithPreParsedScopeMap)                                     \
   V(UndefinedValue, undefined_value, Undefined)                              \
-  V(WeakCellMap, weak_cell_map, WeakCellMap)                                 \
   V(WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArrayMap)
 
 #define HEAP_IMMOVABLE_OBJECT_LIST(V)   \
@@ -1807,7 +1805,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> IsSymbolInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsSymbol(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsUndetectableMap(SloppyTNode<Map> map);
-  TNode<BoolT> IsWeakCell(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsNotWeakFixedArraySubclass(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsZeroOrContext(SloppyTNode<Object> object);
 

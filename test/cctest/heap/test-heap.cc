@@ -4377,82 +4377,6 @@ TEST(PolymorphicStaysPolymorphicAfterGC) {
   CheckIC(loadIC, 0, POLYMORPHIC);
 }
 
-
-TEST(WeakCell) {
-  ManualGCScope manual_gc_scope;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::internal::Factory* factory = isolate->factory();
-
-  HandleScope outer_scope(isolate);
-  Handle<WeakCell> weak_cell1;
-  {
-    HandleScope inner_scope(isolate);
-    Handle<HeapObject> value = factory->NewFixedArray(1, NOT_TENURED);
-    weak_cell1 = inner_scope.CloseAndEscape(factory->NewWeakCell(value));
-  }
-
-  Handle<FixedArray> survivor = factory->NewFixedArray(1, NOT_TENURED);
-  Handle<WeakCell> weak_cell2;
-  {
-    HandleScope inner_scope(isolate);
-    weak_cell2 = inner_scope.CloseAndEscape(factory->NewWeakCell(survivor));
-  }
-  CHECK(weak_cell1->value()->IsFixedArray());
-  CHECK_EQ(*survivor, weak_cell2->value());
-  CcTest::CollectGarbage(NEW_SPACE);
-  CHECK(weak_cell1->value()->IsFixedArray());
-  CHECK_EQ(*survivor, weak_cell2->value());
-  CcTest::CollectGarbage(NEW_SPACE);
-  CHECK(weak_cell1->value()->IsFixedArray());
-  CHECK_EQ(*survivor, weak_cell2->value());
-  CcTest::CollectAllAvailableGarbage();
-  CHECK(weak_cell1->cleared());
-  CHECK_EQ(*survivor, weak_cell2->value());
-}
-
-
-TEST(WeakCellsWithIncrementalMarking) {
-  if (!FLAG_incremental_marking) return;
-  ManualGCScope manual_gc_scope;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  v8::internal::Heap* heap = CcTest::heap();
-  v8::internal::Factory* factory = isolate->factory();
-
-  const int N = 16;
-  HandleScope outer_scope(isolate);
-  Handle<FixedArray> survivor = factory->NewFixedArray(1, NOT_TENURED);
-  Handle<WeakCell> weak_cells[N];
-
-  for (int i = 0; i < N; i++) {
-    HandleScope inner_scope(isolate);
-    Handle<HeapObject> value =
-        i == 0 ? survivor : factory->NewFixedArray(1, NOT_TENURED);
-    Handle<WeakCell> weak_cell = factory->NewWeakCell(value);
-    CHECK(weak_cell->value()->IsFixedArray());
-    IncrementalMarking* marking = heap->incremental_marking();
-    if (marking->IsStopped()) {
-      heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
-                                    i::GarbageCollectionReason::kTesting);
-    }
-    marking->Step(128, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  StepOrigin::kV8);
-    CcTest::CollectGarbage(NEW_SPACE);
-    CHECK(weak_cell->value()->IsFixedArray());
-    weak_cells[i] = inner_scope.CloseAndEscape(weak_cell);
-  }
-  // Call collect all twice to make sure that we also cleared
-  // weak cells that were allocated on black pages.
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
-  CHECK_EQ(*survivor, weak_cells[0]->value());
-  for (int i = 1; i < N; i++) {
-    CHECK(weak_cells[i]->cleared());
-  }
-}
-
-
 #ifdef DEBUG
 TEST(AddInstructionChangesNewSpacePromotion) {
   FLAG_allow_natives_syntax = true;
@@ -4741,15 +4665,15 @@ TEST(Regress3877) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   CompileRun("function cls() { this.x = 10; }");
-  Handle<WeakCell> weak_prototype;
+  Handle<WeakFixedArray> weak_prototype_holder = factory->NewWeakFixedArray(1);
   {
     HandleScope inner_scope(isolate);
     v8::Local<v8::Value> result = CompileRun("cls.prototype");
     Handle<JSReceiver> proto =
         v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
-    weak_prototype = inner_scope.CloseAndEscape(factory->NewWeakCell(proto));
+    weak_prototype_holder->Set(0, HeapObjectReference::Weak(*proto));
   }
-  CHECK(!weak_prototype->cleared());
+  CHECK(!weak_prototype_holder->Get(0)->IsClearedWeakHeapObject());
   CompileRun(
       "var a = { };"
       "a.x = new cls();"
@@ -4758,13 +4682,13 @@ TEST(Regress3877) {
     CcTest::CollectAllGarbage();
   }
   // The map of a.x keeps prototype alive
-  CHECK(!weak_prototype->cleared());
+  CHECK(!weak_prototype_holder->Get(0)->IsClearedWeakHeapObject());
   // Change the map of a.x and make the previous map garbage collectable.
   CompileRun("a.x.__proto__ = {};");
   for (int i = 0; i < 4; i++) {
     CcTest::CollectAllGarbage();
   }
-  CHECK(weak_prototype->cleared());
+  CHECK(weak_prototype_holder->Get(0)->IsClearedWeakHeapObject());
 }
 
 Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate, Heap* heap) {

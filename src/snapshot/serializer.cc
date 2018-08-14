@@ -261,7 +261,7 @@ void Serializer<AllocatorT>::PutRoot(
 
   // Assert that the first 32 root array items are a conscious choice. They are
   // chosen so that the most common ones can be encoded more efficiently.
-  STATIC_ASSERT(Heap::kEmptyDescriptorArrayRootIndex ==
+  STATIC_ASSERT(Heap::kArgumentsMarkerRootIndex ==
                 kNumberOfRootArrayConstants - 1);
 
   if (how_to_code == kPlain && where_to_point == kStartOfObject &&

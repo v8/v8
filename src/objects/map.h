@@ -62,7 +62,6 @@ namespace internal {
   V(UncompiledDataWithoutPreParsedScope) \
   V(UncompiledDataWithPreParsedScope)    \
   V(WasmInstanceObject)                  \
-  V(WeakCell)                            \
   V(WeakArray)
 
 // For data objects, JS objects and structs along with generic visitor which
