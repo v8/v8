@@ -24,7 +24,7 @@ Smi* MaybeObject::ToSmi() {
   return Smi::cast(reinterpret_cast<Object*>(this));
 }
 
-bool MaybeObject::IsStrongOrWeakHeapObject() {
+bool MaybeObject::IsStrongOrWeakHeapObject() const {
   if (IsSmi() || IsClearedWeakHeapObject()) {
     return false;
   }
@@ -51,7 +51,7 @@ bool MaybeObject::ToStrongOrWeakHeapObject(
   return true;
 }
 
-bool MaybeObject::IsStrongHeapObject() {
+bool MaybeObject::IsStrongHeapObject() const {
   return !HasWeakHeapObjectTag(this) && !IsSmi();
 }
 
@@ -68,11 +68,11 @@ HeapObject* MaybeObject::ToStrongHeapObject() {
   return reinterpret_cast<HeapObject*>(this);
 }
 
-bool MaybeObject::IsWeakHeapObject() {
+bool MaybeObject::IsWeakHeapObject() const {
   return HasWeakHeapObjectTag(this) && !IsClearedWeakHeapObject();
 }
 
-bool MaybeObject::IsWeakOrClearedHeapObject() {
+bool MaybeObject::IsWeakOrClearedHeapObject() const {
   return HasWeakHeapObjectTag(this);
 }
 
@@ -102,7 +102,7 @@ Object* MaybeObject::GetHeapObjectOrSmi() {
   return GetHeapObject();
 }
 
-bool MaybeObject::IsObject() { return IsSmi() || IsStrongHeapObject(); }
+bool MaybeObject::IsObject() const { return IsSmi() || IsStrongHeapObject(); }
 
 Object* MaybeObject::ToObject() {
   DCHECK(!HasWeakHeapObjectTag(this));

@@ -25,19 +25,19 @@ class MaybeObject {
   inline bool ToSmi(Smi** value);
   inline Smi* ToSmi();
 
-  bool IsClearedWeakHeapObject() {
+  bool IsClearedWeakHeapObject() const {
     return ::v8::internal::IsClearedWeakHeapObject(this);
   }
 
-  inline bool IsStrongOrWeakHeapObject();
+  inline bool IsStrongOrWeakHeapObject() const;
   inline bool ToStrongOrWeakHeapObject(HeapObject** result);
   inline bool ToStrongOrWeakHeapObject(HeapObject** result,
                                        HeapObjectReferenceType* reference_type);
-  inline bool IsStrongHeapObject();
+  inline bool IsStrongHeapObject() const;
   inline bool ToStrongHeapObject(HeapObject** result);
   inline HeapObject* ToStrongHeapObject();
-  inline bool IsWeakHeapObject();
-  inline bool IsWeakOrClearedHeapObject();
+  inline bool IsWeakHeapObject() const;
+  inline bool IsWeakOrClearedHeapObject() const;
   inline bool ToWeakHeapObject(HeapObject** result);
   inline HeapObject* ToWeakHeapObject();
 
@@ -45,7 +45,7 @@ class MaybeObject {
   inline HeapObject* GetHeapObject();
   inline Object* GetHeapObjectOrSmi();
 
-  inline bool IsObject();
+  inline bool IsObject() const;
   inline Object* ToObject();
 
   static MaybeObject* FromSmi(Smi* smi) {
