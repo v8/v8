@@ -2216,9 +2216,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat32RoundDown |
          MachineOperatorBuilder::kFloat32RoundUp |
          MachineOperatorBuilder::kFloat32RoundTruncate |
-         MachineOperatorBuilder::kFloat32RoundTiesEven |
-         MachineOperatorBuilder::kWord32ReverseBytes |
-         MachineOperatorBuilder::kWord64ReverseBytes;
+         MachineOperatorBuilder::kFloat32RoundTiesEven;
 }
 
 // static
