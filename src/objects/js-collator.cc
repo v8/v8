@@ -172,9 +172,9 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
 
 namespace {
 
-std::map<const char*, const char*> LookupUnicodeExtensions(
-    icu::Locale& icu_locale, std::set<const char*>& relevant_keys) {
-  std::map<const char*, const char*> extensions;
+std::map<std::string, std::string> LookupUnicodeExtensions(
+    const icu::Locale& icu_locale, const std::set<std::string>& relevant_keys) {
+  std::map<std::string, std::string> extensions;
 
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::StringEnumeration> keywords(
@@ -212,7 +212,7 @@ std::map<const char*, const char*> LookupUnicodeExtensions(
     if (bcp47_key && (relevant_keys.find(bcp47_key) != relevant_keys.end())) {
       const char* bcp47_value = uloc_toUnicodeLocaleType(bcp47_key, value);
       extensions.insert(
-          std::pair<const char*, const char*>(bcp47_key, bcp47_value));
+          std::pair<std::string, std::string>(bcp47_key, bcp47_value));
     }
   }
 
@@ -323,7 +323,7 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
   // https://tc39.github.io/ecma402/#sec-intl-collator-internal-slots
   //
   // 16. Let relevantExtensionKeys be %Collator%.[[RelevantExtensionKeys]].
-  std::set<const char*> relevant_extension_keys{"co", "kn", "kf"};
+  std::set<std::string> relevant_extension_keys{"co", "kn", "kf"};
 
   // We don't pass the relevant_extension_keys to ResolveLocale here
   // as per the spec.
@@ -367,7 +367,7 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
       Intl::CreateICULocale(isolate, locale_with_extension);
   DCHECK(!icu_locale.isBogus());
 
-  std::map<const char*, const char*> extensions =
+  std::map<std::string, std::string> extensions =
       LookupUnicodeExtensions(icu_locale, relevant_extension_keys);
 
   // 19. Let collation be r.[[co]].
@@ -381,9 +381,10 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
   // The values "standard" and "search" must not be used as elements
   // in any [[SortLocaleData]][locale].co and
   // [[SearchLocaleData]][locale].co list.
-  if (extensions.find("co") != extensions.end()) {
-    const char* value = extensions.at("co");
-    if (strcmp(value, "search") == 0 || strcmp(value, "standard") == 0) {
+  auto co_extension_it = extensions.find("co");
+  if (co_extension_it != extensions.end()) {
+    const std::string& value = co_extension_it->second;
+    if ((value == "search") || (value == "standard")) {
       UErrorCode status = U_ZERO_ERROR;
       icu_locale.setKeywordValue("co", NULL, status);
       CHECK(U_SUCCESS(status));
@@ -425,14 +426,17 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
     icu_collator->setAttribute(UCOL_NUMERIC_COLLATION,
                                numeric ? UCOL_ON : UCOL_OFF, status);
     CHECK(U_SUCCESS(status));
-  } else if (extensions.find("kn") != extensions.end()) {
-    const char* value = extensions.at("kn");
+  } else {
+    auto kn_extension_it = extensions.find("kn");
+    if (kn_extension_it != extensions.end()) {
+      const std::string& value = kn_extension_it->second;
 
-    numeric = (strcmp(value, "true") == 0);
+      numeric = (value == "true");
 
-    icu_collator->setAttribute(UCOL_NUMERIC_COLLATION,
-                               numeric ? UCOL_ON : UCOL_OFF, status);
-    CHECK(U_SUCCESS(status));
+      icu_collator->setAttribute(UCOL_NUMERIC_COLLATION,
+                                 numeric ? UCOL_ON : UCOL_OFF, status);
+      CHECK(U_SUCCESS(status));
+    }
   }
 
   // 23. If relevantExtensionKeys contains "kf", then
@@ -444,9 +448,12 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
   if (found_case_first.FromJust()) {
     const char* case_first_cstr = case_first_str.get();
     SetCaseFirstOption(icu_collator.get(), case_first_cstr);
-  } else if (extensions.find("kf") != extensions.end()) {
-    const char* value = extensions.at("kf");
-    SetCaseFirstOption(icu_collator.get(), value);
+  } else {
+    auto kf_extension_it = extensions.find("kf");
+    if (kf_extension_it != extensions.end()) {
+      const std::string& value = kf_extension_it->second;
+      SetCaseFirstOption(icu_collator.get(), value.c_str());
+    }
   }
 
   // Normalization is always on, by the spec. We are free to optimize
