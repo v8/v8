@@ -253,10 +253,8 @@ class Serializer : public SerializerDeserializer {
 
 #ifdef OBJECT_PRINT
   static const int kInstanceTypes = LAST_TYPE + 1;
-  int* instance_type_count_;
-  size_t* instance_type_size_;
-  int* read_only_instance_type_count_;
-  size_t* read_only_instance_type_size_;
+  int* instance_type_count_[LAST_SPACE];
+  size_t* instance_type_size_[LAST_SPACE];
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG

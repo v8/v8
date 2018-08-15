@@ -5,6 +5,7 @@
 #include "src/snapshot/serializer.h"
 
 #include "src/assembler-inl.h"
+#include "src/heap/heap.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/code.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -25,21 +26,19 @@ Serializer<AllocatorT>::Serializer(Isolate* isolate)
       allocator_(this) {
 #ifdef OBJECT_PRINT
   if (FLAG_serialization_statistics) {
-    instance_type_count_ = NewArray<int>(kInstanceTypes);
-    instance_type_size_ = NewArray<size_t>(kInstanceTypes);
-    read_only_instance_type_count_ = NewArray<int>(kInstanceTypes);
-    read_only_instance_type_size_ = NewArray<size_t>(kInstanceTypes);
-    for (int i = 0; i < kInstanceTypes; i++) {
-      instance_type_count_[i] = 0;
-      instance_type_size_[i] = 0;
-      read_only_instance_type_count_[i] = 0;
-      read_only_instance_type_size_[i] = 0;
+    for (int space = 0; space < LAST_SPACE; ++space) {
+      instance_type_count_[space] = NewArray<int>(kInstanceTypes);
+      instance_type_size_[space] = NewArray<size_t>(kInstanceTypes);
+      for (int i = 0; i < kInstanceTypes; i++) {
+        instance_type_count_[space][i] = 0;
+        instance_type_size_[space][i] = 0;
+      }
     }
   } else {
-    instance_type_count_ = nullptr;
-    instance_type_size_ = nullptr;
-    read_only_instance_type_count_ = nullptr;
-    read_only_instance_type_size_ = nullptr;
+    for (int space = 0; space < LAST_SPACE; ++space) {
+      instance_type_count_[space] = nullptr;
+      instance_type_size_[space] = nullptr;
+    }
   }
 #endif  // OBJECT_PRINT
 }
@@ -48,11 +47,11 @@ template <class AllocatorT>
 Serializer<AllocatorT>::~Serializer() {
   if (code_address_map_ != nullptr) delete code_address_map_;
 #ifdef OBJECT_PRINT
-  if (instance_type_count_ != nullptr) {
-    DeleteArray(instance_type_count_);
-    DeleteArray(instance_type_size_);
-    DeleteArray(read_only_instance_type_count_);
-    DeleteArray(read_only_instance_type_size_);
+  for (int space = 0; space < LAST_SPACE; ++space) {
+    if (instance_type_count_[space] != nullptr) {
+      DeleteArray(instance_type_count_[space]);
+      DeleteArray(instance_type_size_[space]);
+    }
   }
 #endif  // OBJECT_PRINT
 }
@@ -62,13 +61,8 @@ template <class AllocatorT>
 void Serializer<AllocatorT>::CountInstanceType(Map* map, int size,
                                                AllocationSpace space) {
   int instance_type = map->instance_type();
-  if (space != RO_SPACE) {
-    instance_type_count_[instance_type]++;
-    instance_type_size_[instance_type] += size;
-  } else {
-    read_only_instance_type_count_[instance_type]++;
-    read_only_instance_type_size_[instance_type] += size;
-  }
+  instance_type_count_[space][instance_type]++;
+  instance_type_size_[space][instance_type] += size;
 }
 #endif  // OBJECT_PRINT
 
@@ -81,28 +75,18 @@ void Serializer<AllocatorT>::OutputStatistics(const char* name) {
 
 #ifdef OBJECT_PRINT
   PrintF("  Instance types (count and bytes):\n");
-#define PRINT_INSTANCE_TYPE(Name)                                 \
-  if (instance_type_count_[Name]) {                               \
-    PrintF("%10d %10" PRIuS "  %s\n", instance_type_count_[Name], \
-           instance_type_size_[Name], #Name);                     \
+#define PRINT_INSTANCE_TYPE(Name)                                              \
+  for (int space = 0; space < LAST_SPACE; ++space) {                           \
+    if (instance_type_count_[space][Name]) {                                   \
+      PrintF("%10d %10" PRIuS "  %-10s %s\n",                                  \
+             instance_type_count_[space][Name],                                \
+             instance_type_size_[space][Name],                                 \
+             AllocationSpaceName(static_cast<AllocationSpace>(space)), #Name); \
+    }                                                                          \
   }
   INSTANCE_TYPE_LIST(PRINT_INSTANCE_TYPE)
 #undef PRINT_INSTANCE_TYPE
-  size_t read_only_total = 0;
-#define UPDATE_TOTAL(Name) \
-  read_only_total += read_only_instance_type_size_[Name];
-  INSTANCE_TYPE_LIST(UPDATE_TOTAL)
-#undef UPDATE_TOTAL
-  if (read_only_total > 0) {
-    PrintF("\n  Read Only Instance types (count and bytes):\n");
-#define PRINT_INSTANCE_TYPE(Name)                                           \
-  if (read_only_instance_type_count_[Name]) {                               \
-    PrintF("%10d %10" PRIuS "  %s\n", read_only_instance_type_count_[Name], \
-           read_only_instance_type_size_[Name], #Name);                     \
-  }
-    INSTANCE_TYPE_LIST(PRINT_INSTANCE_TYPE)
-#undef PRINT_INSTANCE_TYPE
-  }
+
   PrintF("\n");
 #endif  // OBJECT_PRINT
 }
