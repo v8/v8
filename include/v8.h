@@ -1125,10 +1125,6 @@ class V8_EXPORT PrimitiveArray {
   int Length() const;
   void Set(Isolate* isolate, int index, Local<Primitive> item);
   Local<Primitive> Get(Isolate* isolate, int index);
-
-  V8_DEPRECATE_SOON("Use Isolate version",
-                    void Set(int index, Local<Primitive> item));
-  V8_DEPRECATE_SOON("Use Isolate version", Local<Primitive> Get(int index));
 };
 
 /**
@@ -1356,23 +1352,15 @@ class V8_EXPORT Script {
   /**
    * A shorthand for ScriptCompiler::Compile().
    */
-  static V8_DEPRECATED("Use maybe version",
-                       Local<Script> Compile(Local<String> source,
-                                             ScriptOrigin* origin = nullptr));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Script> Compile(
       Local<Context> context, Local<String> source,
       ScriptOrigin* origin = nullptr);
-
-  static Local<Script> V8_DEPRECATED("Use maybe version",
-                                     Compile(Local<String> source,
-                                             Local<String> file_name));
 
   /**
    * Runs the script returning the resulting value. It will be run in the
    * context in which it was created (ScriptCompiler::CompileBound or
    * UnboundScript::BindToCurrentContext()).
    */
-  V8_DEPRECATED("Use maybe version", Local<Value> Run());
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Run(Local<Context> context);
 
   /**
@@ -1688,13 +1676,6 @@ class V8_EXPORT ScriptCompiler {
    * It is possible to specify multiple context extensions (obj in the above
    * example).
    */
-  static V8_DEPRECATED("Use maybe version",
-                       Local<Function> CompileFunctionInContext(
-                           Isolate* isolate, Source* source,
-                           Local<Context> context, size_t arguments_count,
-                           Local<String> arguments[],
-                           size_t context_extension_count,
-                           Local<Object> context_extensions[]));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Function> CompileFunctionInContext(
       Local<Context> context, Source* source, size_t arguments_count,
       Local<String> arguments[], size_t context_extension_count,
@@ -1717,10 +1698,6 @@ class V8_EXPORT ScriptCompiler {
   static CachedData* CreateCodeCache(
       Local<UnboundModuleScript> unbound_module_script);
 
-  V8_DEPRECATED("Source string is no longer required",
-                static CachedData* CreateCodeCache(
-                    Local<UnboundScript> unbound_script, Local<String> source));
-
   /**
    * Creates and returns code cache for the specified function that was
    * previously produced by CompileFunctionInContext.
@@ -1728,10 +1705,6 @@ class V8_EXPORT ScriptCompiler {
    * CachedData returned by this function should be owned by the caller.
    */
   static CachedData* CreateCodeCacheForFunction(Local<Function> function);
-
-  V8_DEPRECATED("Source string is no longer required",
-                static CachedData* CreateCodeCacheForFunction(
-                    Local<Function> function, Local<String> source));
 
  private:
   static V8_WARN_UNUSED_RESULT MaybeLocal<UnboundScript> CompileUnboundInternal(
@@ -1752,7 +1725,6 @@ class V8_EXPORT Message {
    */
   Isolate* GetIsolate() const;
 
-  V8_DEPRECATED("Use maybe version", Local<String> GetSourceLine() const);
   V8_WARN_UNUSED_RESULT MaybeLocal<String> GetSourceLine(
       Local<Context> context) const;
 
@@ -1778,7 +1750,6 @@ class V8_EXPORT Message {
   /**
    * Returns the number, 1-based, of the line where the error occurred.
    */
-  V8_DEPRECATED("Use maybe version", int GetLineNumber() const);
   V8_WARN_UNUSED_RESULT Maybe<int> GetLineNumber(Local<Context> context) const;
 
   /**
@@ -1858,8 +1829,6 @@ class V8_EXPORT StackTrace {
   /**
    * Returns a StackFrame at a particular index.
    */
-  V8_DEPRECATE_SOON("Use Isolate version",
-                    Local<StackFrame> GetFrame(uint32_t index) const);
   Local<StackFrame> GetFrame(Isolate* isolate, uint32_t index) const;
 
   /**
@@ -2568,13 +2537,6 @@ class V8_EXPORT Value : public Data {
   V8_DEPRECATE_SOON("Use maybe version",
                     Local<Int32> ToInt32(Isolate* isolate) const);
 
-  inline V8_DEPRECATE_SOON("Use maybe version",
-                           Local<Boolean> ToBoolean() const);
-  inline V8_DEPRECATE_SOON("Use maybe version", Local<String> ToString() const);
-  inline V8_DEPRECATE_SOON("Use maybe version", Local<Object> ToObject() const);
-  inline V8_DEPRECATE_SOON("Use maybe version",
-                           Local<Integer> ToInteger() const);
-
   /**
    * Attempts to convert a string to an array index.
    * Returns an empty handle if the conversion fails.
@@ -2590,14 +2552,7 @@ class V8_EXPORT Value : public Data {
       Local<Context> context) const;
   V8_WARN_UNUSED_RESULT Maybe<int32_t> Int32Value(Local<Context> context) const;
 
-  V8_DEPRECATE_SOON("Use maybe version", bool BooleanValue() const);
-  V8_DEPRECATE_SOON("Use maybe version", double NumberValue() const);
-  V8_DEPRECATE_SOON("Use maybe version", int64_t IntegerValue() const);
-  V8_DEPRECATE_SOON("Use maybe version", uint32_t Uint32Value() const);
-  V8_DEPRECATE_SOON("Use maybe version", int32_t Int32Value() const);
-
   /** JS == */
-  V8_DEPRECATE_SOON("Use maybe version", bool Equals(Local<Value> that) const);
   V8_WARN_UNUSED_RESULT Maybe<bool> Equals(Local<Context> context,
                                            Local<Value> that) const;
   bool StrictEquals(Local<Value> that) const;
@@ -2704,8 +2659,6 @@ class V8_EXPORT String : public Name {
    * Returns the number of bytes in the UTF-8 encoded
    * representation of this string.
    */
-  V8_DEPRECATE_SOON("Use Isolate version instead", int Utf8Length() const);
-
   int Utf8Length(Isolate* isolate) const;
 
   /**
@@ -2762,23 +2715,12 @@ class V8_EXPORT String : public Name {
   // 16-bit character codes.
   int Write(Isolate* isolate, uint16_t* buffer, int start = 0, int length = -1,
             int options = NO_OPTIONS) const;
-  V8_DEPRECATE_SOON("Use Isolate* version",
-                    int Write(uint16_t* buffer, int start = 0, int length = -1,
-                              int options = NO_OPTIONS) const);
   // One byte characters.
   int WriteOneByte(Isolate* isolate, uint8_t* buffer, int start = 0,
                    int length = -1, int options = NO_OPTIONS) const;
-  V8_DEPRECATE_SOON("Use Isolate* version",
-                    int WriteOneByte(uint8_t* buffer, int start = 0,
-                                     int length = -1, int options = NO_OPTIONS)
-                        const);
   // UTF-8 encoded characters.
   int WriteUtf8(Isolate* isolate, char* buffer, int length = -1,
                 int* nchars_ref = NULL, int options = NO_OPTIONS) const;
-  V8_DEPRECATE_SOON("Use Isolate* version",
-                    int WriteUtf8(char* buffer, int length = -1,
-                                  int* nchars_ref = NULL,
-                                  int options = NO_OPTIONS) const);
 
   /**
    * A zero length string.
@@ -2942,9 +2884,6 @@ class V8_EXPORT String : public Name {
    */
   static Local<String> Concat(Isolate* isolate, Local<String> left,
                               Local<String> right);
-  static V8_DEPRECATE_SOON("Use Isolate* version",
-                           Local<String> Concat(Local<String> left,
-                                                Local<String> right));
 
   /**
    * Creates a new external string using the data defined in the given
@@ -3013,8 +2952,6 @@ class V8_EXPORT String : public Name {
    */
   class V8_EXPORT Utf8Value {
    public:
-    V8_DEPRECATED("Use Isolate version",
-                  explicit Utf8Value(Local<v8::Value> obj));
     Utf8Value(Isolate* isolate, Local<v8::Value> obj);
     ~Utf8Value();
     char* operator*() { return str_; }
@@ -3038,7 +2975,6 @@ class V8_EXPORT String : public Name {
    */
   class V8_EXPORT Value {
    public:
-    V8_DEPRECATED("Use Isolate version", explicit Value(Local<v8::Value> obj));
     Value(Isolate* isolate, Local<v8::Value> obj);
     ~Value();
     uint16_t* operator*() { return str_; }
@@ -4220,8 +4156,6 @@ class V8_EXPORT Promise : public Object {
     /**
      * Create a new resolver, along with an associated promise in pending state.
      */
-    static V8_DEPRECATED("Use maybe version",
-                         Local<Resolver> New(Isolate* isolate));
     static V8_WARN_UNUSED_RESULT MaybeLocal<Resolver> New(
         Local<Context> context);
 
@@ -4234,11 +4168,9 @@ class V8_EXPORT Promise : public Object {
      * Resolve/reject the associated promise with a given value.
      * Ignored if the promise is no longer pending.
      */
-    V8_DEPRECATED("Use maybe version", void Resolve(Local<Value> value));
     V8_WARN_UNUSED_RESULT Maybe<bool> Resolve(Local<Context> context,
                                               Local<Value> value);
 
-    V8_DEPRECATED("Use maybe version", void Reject(Local<Value> value));
     V8_WARN_UNUSED_RESULT Maybe<bool> Reject(Local<Context> context,
                                              Local<Value> value);
 
@@ -5259,8 +5191,6 @@ class V8_EXPORT BooleanObject : public Object {
 class V8_EXPORT StringObject : public Object {
  public:
   static Local<Value> New(Isolate* isolate, Local<String> value);
-  static V8_DEPRECATE_SOON("Use Isolate* version",
-                           Local<Value> New(Local<String> value));
 
   Local<String> ValueOf() const;
 
@@ -5316,8 +5246,6 @@ class V8_EXPORT RegExp : public Object {
    *               static_cast<RegExp::Flags>(kGlobal | kMultiline))
    * is equivalent to evaluating "/foo/gm".
    */
-  static V8_DEPRECATED("Use maybe version",
-                       Local<RegExp> New(Local<String> pattern, Flags flags));
   static V8_WARN_UNUSED_RESULT MaybeLocal<RegExp> New(Local<Context> context,
                                                       Local<String> pattern,
                                                       Flags flags);
@@ -5461,57 +5389,8 @@ class V8_EXPORT Template : public Data {
   friend class FunctionTemplate;
 };
 
-
-/**
- * NamedProperty[Getter|Setter] are used as interceptors on object.
- * See ObjectTemplate::SetNamedPropertyHandler.
- */
-typedef void (*NamedPropertyGetterCallback)(
-    Local<String> property,
-    const PropertyCallbackInfo<Value>& info);
-
-
-/**
- * Returns the value if the setter intercepts the request.
- * Otherwise, returns an empty handle.
- */
-typedef void (*NamedPropertySetterCallback)(
-    Local<String> property,
-    Local<Value> value,
-    const PropertyCallbackInfo<Value>& info);
-
-
-/**
- * Returns a non-empty handle if the interceptor intercepts the request.
- * The result is an integer encoding property attributes (like v8::None,
- * v8::DontEnum, etc.)
- */
-typedef void (*NamedPropertyQueryCallback)(
-    Local<String> property,
-    const PropertyCallbackInfo<Integer>& info);
-
-
-/**
- * Returns a non-empty handle if the deleter intercepts the request.
- * The return value is true if the property could be deleted and false
- * otherwise.
- */
-typedef void (*NamedPropertyDeleterCallback)(
-    Local<String> property,
-    const PropertyCallbackInfo<Boolean>& info);
-
-/**
- * Returns an array containing the names of the properties the named
- * property getter intercepts.
- *
- * Note: The values in the array must be of type v8::Name.
- */
-typedef void (*NamedPropertyEnumeratorCallback)(
-    const PropertyCallbackInfo<Array>& info);
-
-
-// TODO(dcarney): Deprecate and remove previous typedefs, and replace
-// GenericNamedPropertyFooCallback with just NamedPropertyFooCallback.
+// TODO(dcarney): Replace GenericNamedPropertyFooCallback with just
+// NamedPropertyFooCallback.
 
 /**
  * Interceptor for get requests on an object.
@@ -6181,39 +6060,6 @@ class V8_EXPORT ObjectTemplate : public Template {
   /**
    * Sets a named property handler on the object template.
    *
-   * Whenever a property whose name is a string is accessed on objects created
-   * from this object template, the provided callback is invoked instead of
-   * accessing the property directly on the JavaScript object.
-   *
-   * SetNamedPropertyHandler() is different from SetHandler(), in
-   * that the latter can intercept symbol-named properties as well as
-   * string-named properties when called with a
-   * NamedPropertyHandlerConfiguration. New code should use SetHandler().
-   *
-   * \param getter The callback to invoke when getting a property.
-   * \param setter The callback to invoke when setting a property.
-   * \param query The callback to invoke to check if a property is present,
-   *   and if present, get its attributes.
-   * \param deleter The callback to invoke when deleting a property.
-   * \param enumerator The callback to invoke to enumerate all the named
-   *   properties of an object.
-   * \param data A piece of data that will be passed to the callbacks
-   *   whenever they are invoked.
-   */
-  V8_DEPRECATED(
-      "Use SetHandler(const NamedPropertyHandlerConfiguration) "
-      "with the kOnlyInterceptStrings flag set.",
-      void SetNamedPropertyHandler(
-          NamedPropertyGetterCallback getter,
-          NamedPropertySetterCallback setter = 0,
-          NamedPropertyQueryCallback query = 0,
-          NamedPropertyDeleterCallback deleter = 0,
-          NamedPropertyEnumeratorCallback enumerator = 0,
-          Local<Value> data = Local<Value>()));
-
-  /**
-   * Sets a named property handler on the object template.
-   *
    * Whenever a property whose name is a string or a symbol is accessed on
    * objects created from this object template, the provided callback is
    * invoked instead of accessing the property directly on the JavaScript
@@ -6593,7 +6439,6 @@ typedef void (*AddHistogramSampleCallback)(void* histogram, int sample);
 // --- Enter/Leave Script Callback ---
 typedef void (*BeforeCallEnteredCallback)(Isolate*);
 typedef void (*CallCompletedCallback)(Isolate*);
-typedef void (*DeprecatedCallCompletedCallback)();
 
 /**
  * HostImportModuleDynamicallyCallback is called when we require the
@@ -7766,16 +7611,6 @@ class V8_EXPORT Isolate {
    */
   Local<Context> GetCurrentContext();
 
-  /**
-   * Returns the context of the calling JavaScript code.  That is the
-   * context of the top-most JavaScript frame.  If there are no
-   * JavaScript frames an empty handle is returned.
-   */
-  V8_DEPRECATED(
-      "Calling context concept is not compatible with tail calls, and will be "
-      "removed.",
-      Local<Context> GetCallingContext());
-
   /** Returns the last context entered through V8's C++ API. */
   Local<Context> GetEnteredContext();
 
@@ -8027,17 +7862,11 @@ class V8_EXPORT Isolate {
    * further callbacks.
    */
   void AddCallCompletedCallback(CallCompletedCallback callback);
-  V8_DEPRECATED(
-      "Use callback with parameter",
-      void AddCallCompletedCallback(DeprecatedCallCompletedCallback callback));
 
   /**
    * Removes callback that was installed by AddCallCompletedCallback.
    */
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
-  V8_DEPRECATED("Use callback with parameter",
-                void RemoveCallCompletedCallback(
-                    DeprecatedCallCompletedCallback callback));
 
   /**
    * Set the PromiseHook callback for various promise lifecycle
@@ -8071,14 +7900,11 @@ class V8_EXPORT Isolate {
    * Controls how Microtasks are invoked. See MicrotasksPolicy for details.
    */
   void SetMicrotasksPolicy(MicrotasksPolicy policy);
-  V8_DEPRECATED("Use SetMicrotasksPolicy",
-                void SetAutorunMicrotasks(bool autorun));
 
   /**
    * Returns the policy controlling how Microtasks are invoked.
    */
   MicrotasksPolicy GetMicrotasksPolicy() const;
-  V8_DEPRECATED("Use GetMicrotasksPolicy", bool WillAutorunMicrotasks() const);
 
   /**
    * Adds a callback to notify the host application after
@@ -8466,28 +8292,6 @@ class V8_EXPORT V8 {
    */
   static void SetNativesDataBlob(StartupData* startup_blob);
   static void SetSnapshotDataBlob(StartupData* startup_blob);
-
-  /**
-   * Bootstrap an isolate and a context from scratch to create a startup
-   * snapshot. Include the side-effects of running the optional script.
-   * Returns { NULL, 0 } on failure.
-   * The caller acquires ownership of the data array in the return value.
-   */
-  V8_DEPRECATED("Use SnapshotCreator",
-                static StartupData CreateSnapshotDataBlob(
-                    const char* embedded_source = NULL));
-
-  /**
-   * Bootstrap an isolate and a context from the cold startup blob, run the
-   * warm-up script to trigger code compilation. The side effects are then
-   * discarded. The resulting startup snapshot will include compiled code.
-   * Returns { NULL, 0 } on failure.
-   * The caller acquires ownership of the data array in the return value.
-   * The argument startup blob is untouched.
-   */
-  V8_DEPRECATED("Use SnapshotCreator",
-                static StartupData WarmUpSnapshotDataBlob(
-                    StartupData cold_startup_blob, const char* warmup_source));
 
   /** Set the callback to invoke in case of Dcheck failures. */
   static void SetDcheckErrorHandler(DcheckErrorCallback that);
@@ -8956,7 +8760,6 @@ class V8_EXPORT TryCatch {
    * Returns the .stack property of the thrown object.  If no .stack
    * property is present an empty handle is returned.
    */
-  V8_DEPRECATED("Use maybe version.", Local<Value> StackTrace() const);
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> StackTrace(
       Local<Context> context) const;
 
@@ -10318,30 +10121,6 @@ bool Value::QuickIsString() const {
 
 template <class T> Value* Value::Cast(T* value) {
   return static_cast<Value*>(value);
-}
-
-
-Local<Boolean> Value::ToBoolean() const {
-  return ToBoolean(Isolate::GetCurrent()->GetCurrentContext())
-      .FromMaybe(Local<Boolean>());
-}
-
-
-Local<String> Value::ToString() const {
-  return ToString(Isolate::GetCurrent()->GetCurrentContext())
-      .FromMaybe(Local<String>());
-}
-
-
-Local<Object> Value::ToObject() const {
-  return ToObject(Isolate::GetCurrent()->GetCurrentContext())
-      .FromMaybe(Local<Object>());
-}
-
-
-Local<Integer> Value::ToInteger() const {
-  return ToInteger(Isolate::GetCurrent()->GetCurrentContext())
-      .FromMaybe(Local<Integer>());
 }
 
 
