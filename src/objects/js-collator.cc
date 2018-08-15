@@ -223,9 +223,9 @@ void SetCaseFirstOption(icu::Collator* icu_collator, const char* value) {
   CHECK_NOT_NULL(icu_collator);
   CHECK_NOT_NULL(value);
   UErrorCode status = U_ZERO_ERROR;
-  if (strncmp(value, "upper", 5) == 0) {
+  if (strcmp(value, "upper") == 0) {
     icu_collator->setAttribute(UCOL_CASE_FIRST, UCOL_UPPER_FIRST, status);
-  } else if (strncmp(value, "lower", 5) == 0) {
+  } else if (strcmp(value, "lower") == 0) {
     icu_collator->setAttribute(UCOL_CASE_FIRST, UCOL_LOWER_FIRST, status);
   } else {
     icu_collator->setAttribute(UCOL_CASE_FIRST, UCOL_OFF, status);
@@ -271,7 +271,7 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
 
   if (found_usage.FromJust()) {
     DCHECK_NOT_NULL(usage_str.get());
-    if (strncmp(usage_str.get(), "search", 6) == 0) {
+    if (strcmp(usage_str.get(), "search") == 0) {
       usage = JSCollator::Usage::SEARCH;
     }
   }
@@ -383,8 +383,7 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
   // [[SearchLocaleData]][locale].co list.
   if (extensions.find("co") != extensions.end()) {
     const char* value = extensions.at("co");
-    if (strncmp(value, "search", 6) == 0 ||
-        strncmp(value, "standard", 8) == 0) {
+    if (strcmp(value, "search") == 0 || strcmp(value, "standard") == 0) {
       UErrorCode status = U_ZERO_ERROR;
       icu_locale.setKeywordValue("co", NULL, status);
       CHECK(U_SUCCESS(status));
@@ -429,7 +428,7 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
   } else if (extensions.find("kn") != extensions.end()) {
     const char* value = extensions.at("kn");
 
-    numeric = (strncmp(value, "true", 4) == 0);
+    numeric = (strcmp(value, "true") == 0);
 
     icu_collator->setAttribute(UCOL_NUMERIC_COLLATION,
                                numeric ? UCOL_ON : UCOL_OFF, status);
@@ -480,17 +479,17 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
     DCHECK_NOT_NULL(sensitivity_cstr);
 
     // 26. Set collator.[[Sensitivity]] to sensitivity.
-    if (strncmp(sensitivity_cstr, "base", 4) == 0) {
+    if (strcmp(sensitivity_cstr, "base") == 0) {
       icu_collator->setStrength(icu::Collator::PRIMARY);
-    } else if (strncmp(sensitivity_cstr, "accent", 6) == 0) {
+    } else if (strcmp(sensitivity_cstr, "accent") == 0) {
       icu_collator->setStrength(icu::Collator::SECONDARY);
-    } else if (strncmp(sensitivity_cstr, "case", 4) == 0) {
+    } else if (strcmp(sensitivity_cstr, "case") == 0) {
       icu_collator->setStrength(icu::Collator::PRIMARY);
       status = U_ZERO_ERROR;
       icu_collator->setAttribute(UCOL_CASE_LEVEL, UCOL_ON, status);
       CHECK(U_SUCCESS(status));
     } else {
-      DCHECK_EQ(0, strncmp(sensitivity_cstr, "variant", 7));
+      DCHECK_EQ(0, strcmp(sensitivity_cstr, "variant"));
       icu_collator->setStrength(icu::Collator::TERTIARY);
     }
   }

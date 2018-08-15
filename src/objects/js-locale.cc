@@ -140,17 +140,17 @@ bool PopulateLocaleWithUnicodeTags(Isolate* isolate, const char* icu_locale,
       if (bcp47_value) {
           Handle<String> bcp47_handle =
               factory->NewStringFromAsciiChecked(bcp47_value);
-          if (strncmp(bcp47_key, "kn", 2) == 0) {
+          if (strcmp(bcp47_key, "kn") == 0) {
             locale_holder->set_numeric(*bcp47_handle);
-          } else if (strncmp(bcp47_key, "ca", 2) == 0) {
+          } else if (strcmp(bcp47_key, "ca") == 0) {
             locale_holder->set_calendar(*bcp47_handle);
-          } else if (strncmp(bcp47_key, "kf", 2) == 0) {
+          } else if (strcmp(bcp47_key, "kf") == 0) {
             locale_holder->set_case_first(*bcp47_handle);
-          } else if (strncmp(bcp47_key, "co", 2) == 0) {
+          } else if (strcmp(bcp47_key, "co") == 0) {
             locale_holder->set_collation(*bcp47_handle);
-          } else if (strncmp(bcp47_key, "hc", 2) == 0) {
+          } else if (strcmp(bcp47_key, "hc") == 0) {
             locale_holder->set_hour_cycle(*bcp47_handle);
-          } else if (strncmp(bcp47_key, "nu", 2) == 0) {
+          } else if (strcmp(bcp47_key, "nu") == 0) {
             locale_holder->set_numbering_system(*bcp47_handle);
           }
       }
