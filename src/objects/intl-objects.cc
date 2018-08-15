@@ -620,6 +620,42 @@ void DateFormat::DeleteDateFormat(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
 }
 
+MaybeHandle<String> DateFormat::FormatDate(Isolate* isolate,
+                                           Handle<JSObject> date_format_holder,
+                                           Handle<Object> date) {
+  // 3. If date is not provided or is undefined, then
+  double x;
+  if (date->IsUndefined()) {
+    // 3.a Let x be Call(%Date_now%, undefined).
+    x = JSDate::CurrentTimeValue(isolate);
+  } else {
+    // 4. Else,
+    //    a. Let x be ? ToNumber(date).
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, date, Object::ToNumber(isolate, date),
+                               String);
+    CHECK(date->IsNumber());
+    x = date->Number();
+  }
+
+  double date_value = DateCache::TimeClip(x);
+  if (std::isnan(date_value)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
+                    String);
+  }
+
+  CHECK(Intl::IsObjectOfType(isolate, date_format_holder,
+                             Intl::Type::kDateTimeFormat));
+  icu::SimpleDateFormat* date_format =
+      DateFormat::UnpackDateFormat(date_format_holder);
+  CHECK_NOT_NULL(date_format);
+
+  icu::UnicodeString result;
+  date_format->format(date_value, result);
+
+  return isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+      reinterpret_cast<const uint16_t*>(result.getBuffer()), result.length()));
+}
+
 icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {

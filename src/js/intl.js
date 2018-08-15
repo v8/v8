@@ -1345,14 +1345,7 @@ DEFINE_METHOD(
  * DateTimeFormat.
  */
 function formatDate(formatter, dateValue) {
-  var dateMs;
-  if (IS_UNDEFINED(dateValue)) {
-    dateMs = %DateCurrentTime();
-  } else {
-    dateMs = TO_NUMBER(dateValue);
-  }
-
-  return %InternalDateFormat(formatter, dateMs);
+  return %FormatDate(formatter, dateValue);
 }
 
 // Length is 1 as specified in ECMA 402 v2+
@@ -1630,7 +1623,7 @@ function toLocaleDateTime(date, locales, options, required, defaults, service) {
   var dateFormat =
       cachedOrNewService(service, locales, options, internalOptions);
 
-  return formatDate(dateFormat, date);
+  return %FormatDate(dateFormat, date);
 }
 
 

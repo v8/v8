@@ -49,6 +49,11 @@ class DateFormat {
   // holds the pointer gets garbage collected.
   static void DeleteDateFormat(const v8::WeakCallbackInfo<void>& data);
 
+  // ecma402/#sec-datetime-format-functions
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatDate(
+      Isolate* isolate, Handle<JSObject> date_format_holder,
+      Handle<Object> date);
+
   // Layout description.
   static const int kSimpleDateFormat = JSObject::kHeaderSize;
   static const int kSize = kSimpleDateFormat + kPointerSize;

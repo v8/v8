@@ -213,15 +213,15 @@ namespace internal {
   F(CreateBreakIterator, 3, 1)               \
   F(CreateDateTimeFormat, 3, 1)              \
   F(CreateNumberFormat, 3, 1)                \
-  F(DefineWEProperty, 3, 1)                  \
   F(CurrencyDigits, 1, 1)                    \
   F(DateCacheVersion, 0, 1)                  \
   F(DefaultNumberOption, 5, 1)               \
+  F(DefineWEProperty, 3, 1)                  \
   F(FormatList, 2, 1)                        \
   F(FormatListToParts, 2, 1)                 \
+  F(FormatDate, 2, 1)                        \
   F(GetDefaultICULocale, 0, 1)               \
   F(GetNumberOption, 5, 1)                   \
-  F(InternalDateFormat, 2, 1)                \
   F(IntlUnwrapReceiver, 5, 1)                \
   F(IsInitializedIntlObjectOfType, 2, 1)     \
   F(IsWellFormedCurrencyCode, 1, 1)          \

@@ -228,31 +228,16 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
   return *local_object;
 }
 
-RUNTIME_FUNCTION(Runtime_InternalDateFormat) {
+RUNTIME_FUNCTION(Runtime_FormatDate) {
   HandleScope scope(isolate);
 
   DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, date_format_holder, 0);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(date, 1);
-
-  double date_value = DateCache::TimeClip(date->Number());
-  if (std::isnan(date_value)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
-  }
-
-  icu::SimpleDateFormat* date_format =
-      DateFormat::UnpackDateFormat(date_format_holder);
-  CHECK_NOT_NULL(date_format);
-
-  icu::UnicodeString result;
-  date_format->format(date_value, result);
+  CONVERT_ARG_HANDLE_CHECKED(Object, date, 1);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
-                   reinterpret_cast<const uint16_t*>(result.getBuffer()),
-                   result.length())));
+      isolate, DateFormat::FormatDate(isolate, date_format_holder, date));
 }
 
 RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
