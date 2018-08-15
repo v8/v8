@@ -428,6 +428,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   ObjectData* GetOrCreateData(Handle<Object>);
   void AddData(Handle<Object> object, ObjectData* data);
 
+  void Trace(const char* format, ...) const;
+
  private:
   friend class HeapObjectRef;
   friend class ObjectRef;

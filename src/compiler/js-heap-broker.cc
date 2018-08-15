@@ -277,8 +277,16 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* zone)
       zone_(zone),
       refs_(zone),
       mode_(FLAG_concurrent_compiler_frontend ? kSerializing : kDisabled) {
+  Trace("%s", "Constructing heap broker.\n");
+}
+
+void JSHeapBroker::Trace(const char* format, ...) const {
   if (FLAG_trace_heap_broker) {
-    PrintF("[%p] Constructing heap broker.\n", this);
+    PrintF("[%p] ", this);
+    va_list arguments;
+    va_start(arguments, format);
+    base::OS::VPrint(format, arguments);
+    va_end(arguments);
   }
 }
 
@@ -288,9 +296,7 @@ bool JSHeapBroker::SerializingAllowed() const {
 }
 
 void JSHeapBroker::SerializeStandardObjects() {
-  if (FLAG_trace_heap_broker) {
-    PrintF("[%p] Serializing standard objects.\n", this);
-  }
+  Trace("Serializing standard objects.\n");
 
   Builtins* const b = isolate()->builtins();
   Factory* const f = isolate()->factory();
@@ -392,9 +398,8 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
 }
 
 void JSHeapBroker::AddData(Handle<Object> object, ObjectData* data) {
+  Trace("Creating data %p for handle %" V8PRIuPTR " (", data, object.address());
   if (FLAG_trace_heap_broker) {
-    PrintF("[%p] Creating data %p for handle %" V8PRIuPTR " (", this, data,
-           object.address());
     object->ShortPrint();
     PrintF(")\n");
   }
