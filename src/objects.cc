@@ -10463,13 +10463,15 @@ bool WeakArrayList::IsFull() { return length() == capacity(); }
 // static
 Handle<WeakArrayList> WeakArrayList::EnsureSpace(Isolate* isolate,
                                                  Handle<WeakArrayList> array,
-                                                 int length) {
+                                                 int length,
+                                                 PretenureFlag pretenure) {
   int capacity = array->capacity();
   if (capacity < length) {
     int new_capacity = length;
     new_capacity = new_capacity + Max(new_capacity / 2, 2);
     int grow_by = new_capacity - capacity;
-    array = isolate->factory()->CopyWeakArrayListAndGrow(array, grow_by);
+    array =
+        isolate->factory()->CopyWeakArrayListAndGrow(array, grow_by, pretenure);
   }
   return array;
 }
@@ -10550,7 +10552,8 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
 }
 
 WeakArrayList* PrototypeUsers::Compact(Handle<WeakArrayList> array, Heap* heap,
-                                       CompactionCallback callback) {
+                                       CompactionCallback callback,
+                                       PretenureFlag pretenure) {
   if (array->length() == 0) {
     return *array;
   }
@@ -10562,7 +10565,7 @@ WeakArrayList* PrototypeUsers::Compact(Handle<WeakArrayList> array, Heap* heap,
   Handle<WeakArrayList> new_array = WeakArrayList::EnsureSpace(
       heap->isolate(),
       handle(ReadOnlyRoots(heap).empty_weak_array_list(), heap->isolate()),
-      new_length);
+      new_length, pretenure);
   // Allocation might have caused GC and turned some of the elements into
   // cleared weak heap objects. Count the number of live objects again.
   int copy_to = kFirstIndex;

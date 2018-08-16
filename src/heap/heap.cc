@@ -5081,7 +5081,8 @@ void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
 
 namespace {
 Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
-                                           Handle<WeakArrayList> array) {
+                                           Handle<WeakArrayList> array,
+                                           PretenureFlag pretenure) {
   if (array->length() == 0) {
     return array;
   }
@@ -5093,7 +5094,7 @@ Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
   Handle<WeakArrayList> new_array = WeakArrayList::EnsureSpace(
       heap->isolate(),
       handle(ReadOnlyRoots(heap).empty_weak_array_list(), heap->isolate()),
-      new_length);
+      new_length, pretenure);
   // Allocation might have caused GC and turned some of the elements into
   // cleared weak heap objects. Count the number of live references again and
   // fill in the new array.
@@ -5109,7 +5110,7 @@ Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
 
 }  // anonymous namespace
 
-void Heap::CompactWeakArrayLists() {
+void Heap::CompactWeakArrayLists(PretenureFlag pretenure) {
   // Find known PrototypeUsers and compact them.
   std::vector<Handle<PrototypeInfo>> prototype_infos;
   {
@@ -5126,19 +5127,24 @@ void Heap::CompactWeakArrayLists() {
   for (auto& prototype_info : prototype_infos) {
     Handle<WeakArrayList> array(
         WeakArrayList::cast(prototype_info->prototype_users()), isolate());
+    DCHECK_IMPLIES(pretenure == TENURED,
+                   InOldSpace(*array) ||
+                       *array == ReadOnlyRoots(this).empty_weak_array_list());
     WeakArrayList* new_array = PrototypeUsers::Compact(
-        array, this, JSObject::PrototypeRegistryCompactionCallback);
+        array, this, JSObject::PrototypeRegistryCompactionCallback, pretenure);
     prototype_info->set_prototype_users(new_array);
   }
 
   // Find known WeakArrayLists and compact them.
   Handle<WeakArrayList> scripts(script_list(), isolate());
-  scripts = CompactWeakArrayList(this, scripts);
+  DCHECK_IMPLIES(pretenure == TENURED, InOldSpace(*scripts));
+  scripts = CompactWeakArrayList(this, scripts, pretenure);
   set_script_list(*scripts);
 
   Handle<WeakArrayList> no_script_list(noscript_shared_function_infos(),
                                        isolate());
-  no_script_list = CompactWeakArrayList(this, no_script_list);
+  DCHECK_IMPLIES(pretenure == TENURED, InOldSpace(*no_script_list));
+  no_script_list = CompactWeakArrayList(this, no_script_list, pretenure);
   set_noscript_shared_function_infos(*no_script_list);
 }
 

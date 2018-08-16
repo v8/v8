@@ -370,9 +370,9 @@ class WeakArrayList : public HeapObject {
   static const int kMaxCapacity =
       (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
 
-  static Handle<WeakArrayList> EnsureSpace(Isolate* isolate,
-                                           Handle<WeakArrayList> array,
-                                           int length);
+  static Handle<WeakArrayList> EnsureSpace(
+      Isolate* isolate, Handle<WeakArrayList> array, int length,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Returns the number of non-cleaned weak references in the array.
   int CountLiveWeakReferences() const;

@@ -88,7 +88,8 @@ class PrototypeUsers : public WeakArrayList {
   typedef void (*CompactionCallback)(HeapObject* object, int from_index,
                                      int to_index);
   static WeakArrayList* Compact(Handle<WeakArrayList> array, Heap* heap,
-                                CompactionCallback callback);
+                                CompactionCallback callback,
+                                PretenureFlag pretenure = NOT_TENURED);
 
 #ifdef VERIFY_HEAP
   static void Verify(WeakArrayList* array);
