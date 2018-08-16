@@ -411,10 +411,9 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     if (function->IsConstructor() && function->has_prototype_slot() &&
         function->has_instance_prototype() &&
         function->prototype()->IsJSReceiver()) {
-      // Ensure that the {function} has a valid initial map, so we can
-      // depend on that for the prototype constant-folding below.
-      JSFunction::EnsureHasInitialMap(function);
-
+      // We need {function}'s initial map so that we can depend on it for the
+      // prototype constant-folding below.
+      if (!function->has_initial_map()) return NoChange();
       MapRef initial_map = dependencies()->DependOnInitialMap(
           JSFunctionRef(js_heap_broker(), function));
       Node* prototype = jsgraph()->Constant(
@@ -1104,11 +1103,13 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
         p.name().is_identical_to(factory()->prototype_string())) {
       // Optimize "prototype" property of functions.
       Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
+      if (!function->has_prototype_slot() || !function->has_initial_map()) {
+        return NoChange();
+      }
       if (!function->PrototypeRequiresRuntimeLookup()) {
         // We need to add a code dependency on the initial map of the
         // {function} in order to be notified about changes to the
         // "prototype" of {function}.
-        JSFunction::EnsureHasInitialMap(function);
         dependencies()->DependOnInitialMap(
             JSFunctionRef(js_heap_broker(), function));
         Handle<Object> prototype(function->prototype(), isolate());

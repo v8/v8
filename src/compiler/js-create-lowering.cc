@@ -44,8 +44,9 @@ Node* GetArgumentsFrameState(Node* frame_state) {
 // inlined.
 bool IsAllocationInlineable(const JSFunctionRef& target,
                             const JSFunctionRef& new_target) {
+  CHECK_IMPLIES(new_target.has_initial_map(),
+                !new_target.initial_map().is_dictionary_map());
   return new_target.has_initial_map() &&
-         !new_target.initial_map().is_dictionary_map() &&
          new_target.initial_map().constructor_or_backpointer().equals(target);
 }
 
@@ -412,7 +413,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     DCHECK(closure_type.AsHeapConstant()->Ref().IsJSFunction());
     JSFunctionRef js_function =
         closure_type.AsHeapConstant()->Ref().AsJSFunction();
-    js_function.EnsureHasInitialMap();
+    if (!js_function.has_initial_map()) return NoChange();
 
     SlackTrackingPrediction slack_tracking_prediction =
         dependencies()->DependOnInitialMapInstanceSizePrediction(js_function);
