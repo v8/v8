@@ -13,7 +13,7 @@ function Module(stdlib, env, heap) {
   return { f: f };
 }
 function instantiate() {
-  var buffer = new ArrayBuffer(4096);
+  var buffer = new ArrayBuffer(0);
   Module(this, {}, buffer).f();
   try {} finally {}
   gc();

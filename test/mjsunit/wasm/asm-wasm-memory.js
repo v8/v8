@@ -5,7 +5,6 @@
 // Flags: --validate-asm --allow-natives-syntax
 
 var stdlib = this;
-let kMinHeapSize = 4096;
 
 function assertValidAsm(func) {
   assertTrue(%IsAsmWasmCode(func), "must be valid asm code");
@@ -14,7 +13,7 @@ function assertValidAsm(func) {
 function assertWasm(expected, func, ffi) {
   print("Testing " + func.name + "...");
   assertEquals(
-      expected, func(stdlib, ffi, new ArrayBuffer(kMinHeapSize)).caller());
+      expected, func(stdlib, ffi, new ArrayBuffer(1024)).caller());
   assertValidAsm(func);
 }
 
@@ -39,7 +38,7 @@ assertWasm(7, TestInt32HeapAccess);
 
 
 function TestInt32HeapAccessExternal() {
-  var memory = new ArrayBuffer(kMinHeapSize);
+  var memory = new ArrayBuffer(1024);
   var memory_int32 = new Int32Array(memory);
   var module_decl = eval('(' + TestInt32HeapAccess.toString() + ')');
   var module = module_decl(stdlib, null, memory);
@@ -64,7 +63,7 @@ function TestHeapAccessIntTypes() {
     var code = TestInt32HeapAccess.toString();
     code = code.replace('Int32Array', types[i][1]);
     code = code.replace(/>> 2/g, types[i][2]);
-    var memory = new ArrayBuffer(kMinHeapSize);
+    var memory = new ArrayBuffer(1024);
     var memory_view = new types[i][0](memory);
     var module_decl = eval('(' + code + ')');
     var module = module_decl(stdlib, null, memory);
@@ -103,7 +102,7 @@ assertWasm(1, TestFloatHeapAccess);
 
 
 function TestFloatHeapAccessExternal() {
-  var memory = new ArrayBuffer(kMinHeapSize);
+  var memory = new ArrayBuffer(1024);
   var memory_float64 = new Float64Array(memory);
   var module_decl = eval('(' + TestFloatHeapAccess.toString() + ')');
   var module = module_decl(stdlib, null, memory);
@@ -147,7 +146,7 @@ TestFloatHeapAccessExternal();
     return {load: load, iload: iload, store: store, storeb: storeb};
   }
 
-  var memory = new ArrayBuffer(kMinHeapSize);
+  var memory = new ArrayBuffer(1024);
   var module_decl = eval('(' + TestByteHeapAccessCompat.toString() + ')');
   var m = module_decl(stdlib, null, memory);
   assertValidAsm(module_decl);
