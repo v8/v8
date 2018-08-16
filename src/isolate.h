@@ -1895,7 +1895,7 @@ class PromiseOnStack {
 // If the GCC version is 4.1.x or 4.2.x an additional field is added to the
 // class as a work around for a bug in the generated code found with these
 // versions of GCC. See V8 issue 122 for details.
-class SaveContext BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE SaveContext BASE_EMBEDDED {
  public:
   explicit SaveContext(Isolate* isolate);
   ~SaveContext();

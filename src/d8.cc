@@ -3005,6 +3005,10 @@ bool ProcessMessages(Isolate* isolate,
                      std::function<platform::MessageLoopBehavior()> behavior) {
   Platform* platform = GetDefaultPlatform();
   while (true) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::SaveContext saved_context(i_isolate);
+    i_isolate->set_context(nullptr);
+    SealHandleScope shs(isolate);
     while (v8::platform::PumpMessageLoop(platform, isolate, behavior())) {
       isolate->RunMicrotasks();
     }
