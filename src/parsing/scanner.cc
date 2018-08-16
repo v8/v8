@@ -413,41 +413,6 @@ Token::Value Scanner::PeekAhead() {
   return ret;
 }
 
-Token::Value Scanner::TryToSkipHTMLCommentAndWhiteSpaces(int start_position) {
-  while (true) {
-    DCHECK_EQ('-', c0_);
-    Advance();
-
-    // If there is an HTML comment end '-->' at the beginning of a
-    // line, we treat the rest of the line as a comment. This is in line with
-    // the way SpiderMonkey handles it.
-    if (c0_ != '-' || Peek() != '>') {
-      PushBack('-');  // undo Advance()
-      break;
-    }
-    Advance();
-
-    // Treat the rest of the line as a comment.
-    Token::Value token = SkipSingleHTMLComment();
-    if (token == Token::ILLEGAL) {
-      return token;
-    }
-
-    // Skip remaining whitespaces after the HTML comment.
-    SkipWhiteSpaceImpl();
-
-    // Only repeat loop if we find another HTML comment
-    if (c0_ != '-' || !has_line_terminator_before_next_) break;
-  }
-
-  // Return whether or not we skipped any characters.
-  if (source_pos() == start_position) {
-    return Token::ILLEGAL;
-  }
-
-  return Token::WHITESPACE;
-}
-
 Token::Value Scanner::SkipSingleHTMLComment() {
   if (is_module_) {
     ReportScannerError(source_pos(), MessageTemplate::kHtmlCommentInModule);

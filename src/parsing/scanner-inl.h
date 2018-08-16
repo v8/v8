@@ -14,25 +14,6 @@ namespace internal {
 V8_INLINE Token::Value Scanner::SkipWhiteSpace() {
   int start_position = source_pos();
 
-  SkipWhiteSpaceImpl();
-
-  // If there is an HTML comment end '-->' at the beginning of a
-  // line (with only whitespace in front of it), we treat the rest
-  // of the line as a comment. This is in line with the way
-  // SpiderMonkey handles it.
-  if (c0_ != '-' || !has_line_terminator_before_next_) {
-    // Return whether or not we skipped any characters.
-    if (source_pos() == start_position) {
-      return Token::ILLEGAL;
-    }
-
-    return Token::WHITESPACE;
-  }
-
-  return TryToSkipHTMLCommentAndWhiteSpaces(start_position);
-}
-
-V8_INLINE void Scanner::SkipWhiteSpaceImpl() {
   while (true) {
     // We won't skip behind the end of input.
     DCHECK(!unicode_cache_->IsWhiteSpace(kEndOfInput));
@@ -46,7 +27,16 @@ V8_INLINE void Scanner::SkipWhiteSpaceImpl() {
     }
     Advance();
   }
+
+  // Return whether or not we skipped any characters.
+  if (source_pos() == start_position) {
+    DCHECK_NE('0', c0_);
+    return Token::ILLEGAL;
+  }
+
+  return Token::WHITESPACE;
 }
+
 }  // namespace internal
 }  // namespace v8
 

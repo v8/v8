@@ -588,8 +588,6 @@ class Scanner {
   void Scan();
 
   V8_INLINE Token::Value SkipWhiteSpace();
-  V8_INLINE void SkipWhiteSpaceImpl();
-  Token::Value TryToSkipHTMLCommentAndWhiteSpaces(int start_position);
   Token::Value SkipSingleHTMLComment();
   Token::Value SkipSingleLineComment();
   Token::Value SkipSourceURLComment();
