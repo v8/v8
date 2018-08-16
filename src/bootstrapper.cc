@@ -5262,12 +5262,10 @@ bool Bootstrapper::InstallExtensions(Handle<Context> native_context,
 
 bool Genesis::InstallSpecialObjects(Isolate* isolate,
                                     Handle<Context> native_context) {
-  Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
   Handle<JSObject> Error = isolate->error_function();
-  Handle<String> name =
-      factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("stackTraceLimit"));
+  Handle<String> name = isolate->factory()->stackTraceLimit_string();
   Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit), isolate);
   JSObject::AddProperty(isolate, Error, name, stack_trace_limit, NONE);
 
