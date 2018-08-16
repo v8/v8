@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-heap-broker.h"
 
+#include "src/compiler/graph-reducer.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
@@ -142,13 +143,18 @@ class StringData : public NameData {
         length(object->length()),
         first_char(length > 0 ? object->Get(0) : 0) {
     int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
-    to_number = StringToDouble(
-        broker->isolate(), broker->isolate()->unicode_cache(), object, flags);
+    if (length <= kMaxLengthForDoubleConversion) {
+      to_number = StringToDouble(
+          broker->isolate(), broker->isolate()->unicode_cache(), object, flags);
+    }
   }
 
-  int length;
-  uint16_t first_char;
-  double to_number;
+  int const length;
+  uint16_t const first_char;
+  base::Optional<double> to_number;
+
+ private:
+  static constexpr int kMaxLengthForDoubleConversion = 23;
 };
 
 class InternalizedStringData : public StringData {
@@ -701,7 +707,7 @@ uint16_t StringRef::GetFirstChar() {
   }
 }
 
-double StringRef::ToNumber() {
+base::Optional<double> StringRef::ToNumber() {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
     AllowHandleAllocation allow_handle_allocation;
@@ -996,6 +1002,15 @@ Handle<Object> ObjectRef::object() const { return data_->object; }
 JSHeapBroker* ObjectRef::broker() const { return data_->broker; }
 
 ObjectData* ObjectRef::data() const { return data_; }
+
+Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
+                                       const char* function, int line) {
+  if (FLAG_trace_heap_broker) {
+    PrintF("[%p] Skipping optimization in %s at line %d due to missing data\n",
+           broker, function, line);
+  }
+  return AdvancedReducer::NoChange();
+}
 
 #undef BIMODAL_ACCESSOR
 #undef BIMODAL_ACCESSOR_

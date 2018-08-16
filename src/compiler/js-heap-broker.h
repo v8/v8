@@ -371,7 +371,7 @@ class StringRef : public NameRef {
 
   int length() const;
   uint16_t GetFirstChar();
-  double ToNumber();
+  base::Optional<double> ToNumber();
 };
 
 class ModuleRef : public HeapObjectRef {
@@ -442,6 +442,18 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   ZoneUnorderedMap<Address, ObjectData*> refs_;
   BrokerMode mode_;
 };
+
+#define ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(something_var,          \
+                                                optionally_something)   \
+  auto optionally_something_ = optionally_something;                    \
+  if (!optionally_something_)                                           \
+    return NoChangeBecauseOfMissingData(js_heap_broker(), __FUNCTION__, \
+                                        __LINE__);                      \
+  something_var = *optionally_something_;
+
+class Reduction;
+Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
+                                       const char* function, int line);
 
 }  // namespace compiler
 }  // namespace internal

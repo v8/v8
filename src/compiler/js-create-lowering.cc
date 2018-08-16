@@ -473,26 +473,6 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
   return NoChange();
 }
 
-// TODO(neis): Move this elsewhere.
-#define ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(something_var,          \
-                                                optionally_something)   \
-  auto optionally_something_ = optionally_something;                    \
-  if (!optionally_something_)                                           \
-    return NoChangeBecauseOfMissingData(js_heap_broker(), __FUNCTION__, \
-                                        __LINE__);                      \
-  something_var = *optionally_something_;
-
-namespace {
-Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
-                                       const char* function, int line) {
-  if (FLAG_trace_heap_broker) {
-    PrintF("[%p] Skipping optimization in %s at line %d due to missing data\n",
-           broker, function, line);
-  }
-  return AdvancedReducer::NoChange();
-}
-}  // namespace
-
 // Constructs an array with a variable {length} when no upper bound
 // is known for the capacity.
 Reduction JSCreateLowering::ReduceNewArray(
@@ -1843,8 +1823,6 @@ SimplifiedOperatorBuilder* JSCreateLowering::simplified() const {
 NativeContextRef JSCreateLowering::native_context_ref() const {
   return NativeContextRef(js_heap_broker(), native_context());
 }
-
-#undef ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING
 
 }  // namespace compiler
 }  // namespace internal

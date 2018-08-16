@@ -990,7 +990,9 @@ Reduction JSTypedLowering::ReduceJSToNumberOrNumericInput(Node* input) {
     HeapObjectMatcher m(input);
     if (m.HasValue() && m.Ref(js_heap_broker()).IsString()) {
       StringRef input_value = m.Ref(js_heap_broker()).AsString();
-      return Replace(jsgraph()->Constant(input_value.ToNumber()));
+      double number;
+      ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(number, input_value.ToNumber());
+      return Replace(jsgraph()->Constant(number));
     }
   }
   if (input_type.IsHeapConstant()) {
