@@ -14,7 +14,7 @@
 #include "src/globals.h"
 #include "src/heap/factory.h"
 #include "src/objects-inl.h"
-#include "src/objects/js-array-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 
 namespace v8 {
 namespace internal {

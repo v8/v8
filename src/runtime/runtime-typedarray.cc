@@ -8,7 +8,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
-#include "src/objects/js-array-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 

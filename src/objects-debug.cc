@@ -21,6 +21,7 @@
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/literal-objects-inl.h"

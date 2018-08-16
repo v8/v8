@@ -28,6 +28,7 @@
 #include "src/objects/js-list-format.h"
 #include "src/objects/js-locale.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-regexp.h"

@@ -40,6 +40,7 @@
 #include "src/heap/spaces.h"
 #include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/builtin-deserializer.h"

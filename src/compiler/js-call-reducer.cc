@@ -23,6 +23,7 @@
 #include "src/ic/call-optimization.h"
 #include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/vector-slot-pair.h"
 

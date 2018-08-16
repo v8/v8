@@ -11,6 +11,7 @@
 #include "src/debug/interface-types.h"
 #include "src/frames-inl.h"
 #include "src/objects.h"
+#include "src/objects/js-array-inl.h"
 #include "src/property-descriptor.h"
 #include "src/simulator.h"
 #include "src/snapshot/snapshot.h"

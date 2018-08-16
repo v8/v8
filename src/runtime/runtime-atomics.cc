@@ -7,7 +7,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/conversions-inl.h"
 #include "src/heap/factory.h"
-#include "src/objects/js-array-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 // Implement Atomic accesses to SharedArrayBuffers as defined in the

@@ -10,7 +10,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
 #include "src/objects.h"
-#include "src/objects/js-array-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 
 namespace v8 {
 namespace internal {

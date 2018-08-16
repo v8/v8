@@ -41,6 +41,7 @@
 #include "src/messages.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/profiler/tracing-cpu-profiler.h"

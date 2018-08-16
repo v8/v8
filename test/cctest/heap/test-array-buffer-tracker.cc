@@ -8,7 +8,7 @@
 #include "src/heap/spaces.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
-#include "src/objects/js-array-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 

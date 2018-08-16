@@ -14,6 +14,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/utils.h"
 

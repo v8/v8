@@ -20,6 +20,8 @@
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
 #ifdef V8_INTL_SUPPORT
