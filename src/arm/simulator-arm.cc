@@ -930,8 +930,7 @@ void Simulator::TrashCallerSaveRegisters() {
   registers_[12] = 0x50BAD4U;
 }
 
-
-int Simulator::ReadW(int32_t addr, Instruction* instr) {
+int Simulator::ReadW(int32_t addr) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
   // check the alignment here.
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
@@ -940,7 +939,7 @@ int Simulator::ReadW(int32_t addr, Instruction* instr) {
   return *ptr;
 }
 
-int Simulator::ReadExW(int32_t addr, Instruction* instr) {
+int Simulator::ReadExW(int32_t addr) {
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
   local_monitor_.NotifyLoadExcl(addr, TransactionSize::Word);
   global_monitor_.Pointer()->NotifyLoadExcl_Locked(addr,
@@ -949,7 +948,7 @@ int Simulator::ReadExW(int32_t addr, Instruction* instr) {
   return *ptr;
 }
 
-void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
+void Simulator::WriteW(int32_t addr, int value) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
   // check the alignment here.
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
@@ -960,7 +959,7 @@ void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
   *ptr = value;
 }
 
-int Simulator::WriteExW(int32_t addr, int value, Instruction* instr) {
+int Simulator::WriteExW(int32_t addr, int value) {
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
   if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::Word) &&
       global_monitor_.Pointer()->NotifyStoreExcl_Locked(
@@ -973,7 +972,7 @@ int Simulator::WriteExW(int32_t addr, int value, Instruction* instr) {
   }
 }
 
-uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
+uint16_t Simulator::ReadHU(int32_t addr) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
   // check the alignment here.
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
@@ -982,7 +981,7 @@ uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
   return *ptr;
 }
 
-int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
+int16_t Simulator::ReadH(int32_t addr) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
   // check the alignment here.
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
@@ -991,7 +990,7 @@ int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
   return *ptr;
 }
 
-uint16_t Simulator::ReadExHU(int32_t addr, Instruction* instr) {
+uint16_t Simulator::ReadExHU(int32_t addr) {
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
   local_monitor_.NotifyLoadExcl(addr, TransactionSize::HalfWord);
   global_monitor_.Pointer()->NotifyLoadExcl_Locked(addr,
@@ -1000,7 +999,7 @@ uint16_t Simulator::ReadExHU(int32_t addr, Instruction* instr) {
   return *ptr;
 }
 
-void Simulator::WriteH(int32_t addr, uint16_t value, Instruction* instr) {
+void Simulator::WriteH(int32_t addr, uint16_t value) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
   // check the alignment here.
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
@@ -1011,7 +1010,7 @@ void Simulator::WriteH(int32_t addr, uint16_t value, Instruction* instr) {
   *ptr = value;
 }
 
-void Simulator::WriteH(int32_t addr, int16_t value, Instruction* instr) {
+void Simulator::WriteH(int32_t addr, int16_t value) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
   // check the alignment here.
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
@@ -1022,7 +1021,7 @@ void Simulator::WriteH(int32_t addr, int16_t value, Instruction* instr) {
   *ptr = value;
 }
 
-int Simulator::WriteExH(int32_t addr, uint16_t value, Instruction* instr) {
+int Simulator::WriteExH(int32_t addr, uint16_t value) {
   base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
   if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::HalfWord) &&
       global_monitor_.Pointer()->NotifyStoreExcl_Locked(
@@ -1560,25 +1559,23 @@ void Simulator::HandleVList(Instruction* instr) {
   for (int reg = vd; reg < vd + num_regs; reg++) {
     if (precision == kSinglePrecision) {
       if (load) {
-        set_s_register_from_sinteger(
-            reg, ReadW(reinterpret_cast<int32_t>(address), instr));
+        set_s_register_from_sinteger(reg,
+                                     ReadW(reinterpret_cast<int32_t>(address)));
       } else {
         WriteW(reinterpret_cast<int32_t>(address),
-               get_sinteger_from_s_register(reg), instr);
+               get_sinteger_from_s_register(reg));
       }
       address += 1;
     } else {
       if (load) {
-        int32_t data[] = {
-          ReadW(reinterpret_cast<int32_t>(address), instr),
-          ReadW(reinterpret_cast<int32_t>(address + 1), instr)
-        };
+        int32_t data[] = {ReadW(reinterpret_cast<int32_t>(address)),
+                          ReadW(reinterpret_cast<int32_t>(address + 1))};
         set_d_register(reg, reinterpret_cast<uint32_t*>(data));
       } else {
         uint32_t data[2];
         get_d_register(reg, data);
-        WriteW(reinterpret_cast<int32_t>(address), data[0], instr);
-        WriteW(reinterpret_cast<int32_t>(address + 1), data[1], instr);
+        WriteW(reinterpret_cast<int32_t>(address), data[0]);
+        WriteW(reinterpret_cast<int32_t>(address + 1), data[1]);
       }
       address += 2;
     }
@@ -2053,7 +2050,7 @@ void Simulator::DecodeType01(Instruction* instr) {
             switch (instr->Bits(22, 21)) {
               case 0: {
                 // Format(instr, "ldrex'cond 'rt, ['rn]");
-                int value = ReadExW(addr, instr);
+                int value = ReadExW(addr);
                 set_register(rt, value);
                 break;
               }
@@ -2065,7 +2062,7 @@ void Simulator::DecodeType01(Instruction* instr) {
               }
               case 3: {
                 // Format(instr, "ldrexh'cond 'rt, ['rn]");
-                uint16_t value = ReadExHU(addr, instr);
+                uint16_t value = ReadExHU(addr);
                 set_register(rt, value);
                 break;
               }
@@ -2086,7 +2083,7 @@ void Simulator::DecodeType01(Instruction* instr) {
               case 0: {
                 // Format(instr, "strex'cond 'rd, 'rm, ['rn]");
                 int value = get_register(rt);
-                int status = WriteExW(addr, value, instr);
+                int status = WriteExW(addr, value);
                 set_register(rd, status);
                 break;
               }
@@ -2100,7 +2097,7 @@ void Simulator::DecodeType01(Instruction* instr) {
               case 3: {
                 // Format(instr, "strexh'cond 'rd, 'rm, ['rn]");
                 uint16_t value = get_register(rt);
-                int status = WriteExH(addr, value, instr);
+                int status = WriteExH(addr, value);
                 set_register(rd, status);
                 break;
               }
@@ -2222,19 +2219,19 @@ void Simulator::DecodeType01(Instruction* instr) {
       } else if (instr->HasH()) {
         if (instr->HasSign()) {
           if (instr->HasL()) {
-            int16_t val = ReadH(addr, instr);
+            int16_t val = ReadH(addr);
             set_register(rd, val);
           } else {
             int16_t val = get_register(rd);
-            WriteH(addr, val, instr);
+            WriteH(addr, val);
           }
         } else {
           if (instr->HasL()) {
-            uint16_t val = ReadHU(addr, instr);
+            uint16_t val = ReadHU(addr);
             set_register(rd, val);
           } else {
             uint16_t val = get_register(rd);
-            WriteH(addr, val, instr);
+            WriteH(addr, val);
           }
         }
       } else {
@@ -2603,9 +2600,9 @@ void Simulator::DecodeType2(Instruction* instr) {
     }
   } else {
     if (instr->HasL()) {
-      set_register(rd, ReadW(addr, instr));
+      set_register(rd, ReadW(addr));
     } else {
-      WriteW(addr, get_register(rd), instr);
+      WriteW(addr, get_register(rd));
     }
   }
 }
@@ -3025,9 +3022,9 @@ void Simulator::DecodeType3(Instruction* instr) {
     }
   } else {
     if (instr->HasL()) {
-      set_register(rd, ReadW(addr, instr));
+      set_register(rd, ReadW(addr));
     } else {
-      WriteW(addr, get_register(rd), instr);
+      WriteW(addr, get_register(rd));
     }
   }
 }
@@ -3794,10 +3791,10 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
         DCHECK_EQ(address % 4, 0);
         if (instr->HasL()) {
           // Load single from memory: vldr.
-          set_s_register_from_sinteger(vd, ReadW(address, instr));
+          set_s_register_from_sinteger(vd, ReadW(address));
         } else {
           // Store single to memory: vstr.
-          WriteW(address, get_sinteger_from_s_register(vd), instr);
+          WriteW(address, get_sinteger_from_s_register(vd));
         }
         break;
       }
@@ -3850,17 +3847,14 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
         DCHECK_EQ(address % 4, 0);
         if (instr->HasL()) {
           // Load double from memory: vldr.
-          int32_t data[] = {
-            ReadW(address, instr),
-            ReadW(address + 4, instr)
-          };
+          int32_t data[] = {ReadW(address), ReadW(address + 4)};
           set_d_register(vd, reinterpret_cast<uint32_t*>(data));
         } else {
           // Store double to memory: vstr.
           uint32_t data[2];
           get_d_register(vd, data);
-          WriteW(address, data[0], instr);
-          WriteW(address + 4, data[1], instr);
+          WriteW(address, data[0]);
+          WriteW(address + 4, data[1]);
         }
         break;
       }
@@ -5407,8 +5401,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         while (r < regs) {
           uint32_t data[2];
           get_d_register(Vd + r, data);
-          WriteW(address, data[0], instr);
-          WriteW(address + 4, data[1], instr);
+          WriteW(address, data[0]);
+          WriteW(address + 4, data[1]);
           address += 8;
           r++;
         }
@@ -5447,8 +5441,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         int r = 0;
         while (r < regs) {
           uint32_t data[2];
-          data[0] = ReadW(address, instr);
-          data[1] = ReadW(address + 4, instr);
+          data[0] = ReadW(address);
+          data[1] = ReadW(address + 4);
           set_d_register(Vd + r, data);
           address += 8;
           r++;
