@@ -2573,13 +2573,10 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
   if (!NodeProperties::GetMapWitness(isolate(), node).ToHandle(&receiver_map))
     return NoChange();
 
-  if (receiver_map->instance_type() != JS_ARRAY_TYPE) return NoChange();
+  if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
+    return NoChange();
 
-  const ElementsKind kind = receiver_map->elements_kind();
-  if (!IsFastElementsKind(kind)) return NoChange();
-
-  if (IsHoleyElementsKind(kind)) {
-    if (!isolate()->IsNoElementsProtectorIntact()) return NoChange();
+  if (IsHoleyElementsKind(receiver_map->elements_kind())) {
     dependencies()->DependOnProtector(
         PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
   }

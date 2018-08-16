@@ -2,10 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-/* Test behaviors when the prototype has elements */
-
 // indexOf
 
+/* Test behaviors when the prototype has elements */
+
+(function() {
+  const iarr = [,3];
+
+  function indexOf(arr, val) {
+    return arr.indexOf(val);
+  }
+
+  assertEquals(-1, indexOf(iarr, 2));
+  assertEquals(1, indexOf(iarr, 3));
+
+  iarr.__proto__ = [2];
+  assertEquals(0, indexOf(iarr, 2));
+})();
+
+// This pollutes the Array prototype, so we should not run more tests
+// in the same environment after this.
 (function () {
   var array = [,];
 
