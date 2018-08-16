@@ -74,7 +74,7 @@ class JSObjectData : public HeapObjectData {
 class JSFunctionData : public JSObjectData {
  public:
   ObjectData* const global_proxy;
-  ObjectData* const prototype_or_initial_map;
+  ObjectData* const initial_map;  // Can be nullptr.
   ObjectData* const shared;
 
   JSFunctionData(JSHeapBroker* broker_, Handle<JSFunction> object_,
@@ -195,16 +195,13 @@ JSFunctionData::JSFunctionData(JSHeapBroker* broker_,
                                Handle<JSFunction> object_, HeapObjectType type_)
     : JSObjectData(broker_, object_, type_),
       global_proxy(GET_OR_CREATE(global_proxy)),
-      prototype_or_initial_map(object_->map()->has_prototype_slot()
-                                   ? GET_OR_CREATE(prototype_or_initial_map)
-                                   : nullptr),
+      initial_map(object_->has_prototype_slot() && object_->has_initial_map()
+                      ? GET_OR_CREATE(initial_map)
+                      : nullptr),
       shared(GET_OR_CREATE(shared)) {
-  if (prototype_or_initial_map != nullptr &&
-      prototype_or_initial_map->IsMap()) {
-    MapData* initial_map = prototype_or_initial_map->AsMap();
-    if (initial_map->instance_type == JS_ARRAY_TYPE) {
-      initial_map->SerializeElementsKindGeneralizations();
-    }
+  if (initial_map != nullptr &&
+      initial_map->AsMap()->instance_type == JS_ARRAY_TYPE) {
+    initial_map->AsMap()->SerializeElementsKindGeneralizations();
   }
 }
 
@@ -803,6 +800,13 @@ int SharedFunctionInfoRef::GetBytecodeArrayRegisterCount() const {
   return object<SharedFunctionInfo>()->GetBytecodeArray()->register_count();
 }
 
+#define IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name) \
+  if (broker()->mode() == JSHeapBroker::kDisabled) {     \
+    AllowHandleAllocation handle_allocation;             \
+    AllowHandleDereference allow_handle_dereference;     \
+    return object<holder>()->name();                     \
+  }
+
 // Macros for definining a const getter that, depending on the broker mode,
 // either looks into the handle or into the serialized data. The first one is
 // used for the rare case of a XYZRef class that does not have a corresponding
@@ -822,27 +826,17 @@ int SharedFunctionInfoRef::GetBytecodeArrayRegisterCount() const {
   BIMODAL_ACCESSOR_(holder, holder, result, name)
 
 // Like HANDLE_ACCESSOR except that the result type is not an XYZRef.
-#define BIMODAL_ACCESSOR_C(holder, result, name)       \
-  result holder##Ref::name() const {                   \
-    if (broker()->mode() == JSHeapBroker::kDisabled) { \
-      AllowHandleAllocation handle_allocation;         \
-      AllowHandleDereference allow_handle_dereference; \
-      return object<holder>()->name();                 \
-    } else {                                           \
-      return data()->As##holder()->name;               \
-    }                                                  \
+#define BIMODAL_ACCESSOR_C(holder, result, name)      \
+  result holder##Ref::name() const {                  \
+    IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name); \
+    return data()->As##holder()->name;                \
   }
 
 // Like HANDLE_ACCESSOR_C but for BitFields.
-#define BIMODAL_ACCESSOR_B(holder, field, name, BitField)   \
-  typename BitField::FieldType holder##Ref::name() const {  \
-    if (broker()->mode() == JSHeapBroker::kDisabled) {      \
-      AllowHandleAllocation handle_allocation;              \
-      AllowHandleDereference allow_handle_dereference;      \
-      return object<holder>()->name();                      \
-    } else {                                                \
-      return BitField::decode(data()->As##holder()->field); \
-    }                                                       \
+#define BIMODAL_ACCESSOR_B(holder, field, name, BitField)  \
+  typename BitField::FieldType holder##Ref::name() const { \
+    IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name);      \
+    return BitField::decode(data()->As##holder()->field);  \
   }
 
 // Macros for definining a const getter that always looks into the handle.
@@ -885,10 +879,9 @@ HANDLE_ACCESSOR_C(HeapNumber, double, value)
 HANDLE_ACCESSOR_C(JSArray, ElementsKind, GetElementsKind)
 HANDLE_ACCESSOR(JSArray, Object, length)
 
-HANDLE_ACCESSOR_C(JSFunction, bool, has_initial_map)
+BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
 HANDLE_ACCESSOR_C(JSFunction, bool, IsConstructor)
 HANDLE_ACCESSOR(JSFunction, JSGlobalProxy, global_proxy)
-HANDLE_ACCESSOR(JSFunction, Map, initial_map)
 HANDLE_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 
 HANDLE_ACCESSOR_C(JSObject, ElementsKind, GetElementsKind)
@@ -952,6 +945,11 @@ HANDLE_ACCESSOR_C(SharedFunctionInfo, int, internal_formal_parameter_count)
 HANDLE_ACCESSOR_C(SharedFunctionInfo, LanguageMode, language_mode)
 
 // TODO(neis): Provide StringShape() on StringRef.
+
+bool JSFunctionRef::has_initial_map() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(JSFunction, has_initial_map);
+  return data()->AsJSFunction()->initial_map != nullptr;
+}
 
 bool JSFunctionRef::HasBuiltinFunctionId() const {
   AllowHandleDereference allow_handle_dereference;
@@ -1075,6 +1073,7 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
 #undef HANDLE_ACCESSOR
 #undef HANDLE_ACCESSOR_
 #undef HANDLE_ACCESSOR_C
+#undef IF_BROKER_DISABLED_ACCESS_HANDLE_C
 #undef NATIVE_CONTEXT_DATA
 
 }  // namespace compiler
