@@ -448,20 +448,46 @@ class ConstPool {
  public:
   explicit ConstPool(Assembler* assm) : assm_(assm) {}
   // Returns true when partial constant pool is valid for this entry.
-  bool TryRecordEntry(intptr_t data, RelocInfo::Mode mode);
+  bool TryRecordEntry(intptr_t data, int disp_offset, RelocInfo::Mode mode);
   bool IsEmpty() const { return entries_.empty(); }
 
   void PatchEntries();
   // Discard any pending pool entries.
   void Clear();
 
- private:
-  // Adds a shared entry to entries_. Returns true if this is not the first time
-  // we add this entry, false otherwise.
-  bool AddSharedEntry(uint64_t data, int offset);
+  // Distance between the displacement of rip-relative addressing and the head
+  // of the instruction.
+  static constexpr int kMoveRipRelativeDispOffset = 3;  // REX Opcode ModRM Disp
+  static constexpr int kCallRipRelativeDispOffset = 2;  // Opcode ModRM Disp
+  static constexpr int kJumpRipRelativeDispOffset = 2;  // Opcode ModRM Disp
 
-  // Check if the instruction is a rip-relative move.
-  bool IsMoveRipRelative(byte* instr);
+  // We set the dummy displacement of rip-relative addressing to 0 before
+  // patching entries.
+  static constexpr int kDummyDispValue = 0;
+
+ private:
+  // Check if the constant is in a pool.
+  static bool IsInPool(byte* addr) {
+    return IsMoveRipRelative(addr - kMoveRipRelativeDispOffset) ||
+           IsCallRipRelative(addr - kCallRipRelativeDispOffset) ||
+           IsJumpRipRelative(addr - kJumpRipRelativeDispOffset);
+  }
+
+  static uint32_t Mask(byte* instr, uint32_t mask) {
+    return *reinterpret_cast<uint32_t*>(instr) & mask;
+  }
+
+  static bool IsMoveRipRelative(byte* instr) {
+    return Mask(instr, kMoveRipRelativeMask) == kMoveRipRelativeInstr;
+  }
+
+  static bool IsCallRipRelative(byte* instr) {
+    return Mask(instr, kCallRipRelativeMask) == kCallRipRelativeInstr;
+  }
+
+  static bool IsJumpRipRelative(byte* instr) {
+    return Mask(instr, kJumpRipRelativeMask) == kJumpRipRelativeInstr;
+  }
 
   Assembler* assm_;
 
@@ -471,17 +497,17 @@ class ConstPool {
 
   // Number of bytes taken up by the displacement of rip-relative addressing.
   static constexpr int kRipRelativeDispSize = 4;  // 32-bit displacement.
-  // Distance between the address of the displacement in the rip-relative move
-  // instruction and the head address of the instruction.
-  static constexpr int kMoveRipRelativeDispOffset =
-      3;  // REX Opcode ModRM Displacement
   // Distance between the address of the imm64 in the 'movq reg, imm64'
   // instruction and the head address of the instruction.
   static constexpr int kMoveImm64Offset = 2;  // REX Opcode imm64
-  // A mask for rip-relative move instruction.
+
+  // Masks and instruction bits for rip-relative addressing instructions.
   static constexpr uint32_t kMoveRipRelativeMask = 0x00C7FFFB;
-  // The bits for a rip-relative move instruction after mask.
   static constexpr uint32_t kMoveRipRelativeInstr = 0x00058B48;
+  static constexpr uint32_t kCallRipRelativeMask = 0x0000FFFF;
+  static constexpr uint32_t kCallRipRelativeInstr = 0x000015FF;
+  static constexpr uint32_t kJumpRipRelativeMask = 0x0000FFFF;
+  static constexpr uint32_t kJumpRipRelativeInstr = 0x000025FF;
 };
 
 class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
@@ -942,6 +968,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Call near absolute indirect, address in register
   void call(Register adr);
 
+  // Call near absolute indirect, address in rip-relative addressing memory
+  void CallPcRelative(Address entry, RelocInfo::Mode rmode, Register scratch);
+
   // Jumps
   // Jump short or near relative.
   // Use a 32-bit signed displacement.
@@ -952,6 +981,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Jump near absolute indirect (r64)
   void jmp(Register adr);
   void jmp(Operand src);
+
+  // Jump near absolute indirect (rip-relative addressing m64)
+  void JmpPcRelative(Address entry, RelocInfo::Mode rmode, Register scratch);
 
   // Conditional jumps
   void j(Condition cc,
@@ -1960,9 +1992,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Patch entries for partial constant pool.
   void PatchConstPool();
-
-  // Check if use partial constant pool for this rmode.
-  static bool UseConstPoolFor(RelocInfo::Mode rmode);
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
