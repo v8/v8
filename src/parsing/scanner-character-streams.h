@@ -53,16 +53,17 @@ class CharacterStream : public ScannerStream {
   // Returns and advances past the next UTF-16 code unit in the input
   // stream. If there are no more code units it returns kEndOfInput.
   inline uc32 Advance() final {
+    uc32 result = Peek();
+    buffer_cursor_++;
+    return result;
+  }
+
+  inline uc32 Peek() {
     if (V8_LIKELY(buffer_cursor_ < buffer_end_)) {
-      return static_cast<uc32>(*(buffer_cursor_++));
+      return static_cast<uc32>(*buffer_cursor_);
     } else if (ReadBlockChecked()) {
-      return static_cast<uc32>(*(buffer_cursor_++));
+      return static_cast<uc32>(*buffer_cursor_);
     } else {
-      // Note: currently the following increment is necessary to avoid a
-      // parser problem! The scanner treats the final kEndOfInput as
-      // a code unit with a position, and does math relative to that
-      // position.
-      buffer_cursor_++;
       return kEndOfInput;
     }
   }
@@ -102,17 +103,6 @@ class CharacterStream : public ScannerStream {
       buffer_cursor_--;
     } else {
       ReadBlockAt(pos() - 1);
-    }
-  }
-
-  // Go back one by two characters in the input stream. (This is the same as
-  // calling Back() twice. But Back() may - in some instances - do substantial
-  // work. Back2() guarantees this work will be done only once.)
-  inline void Back2() {
-    if (V8_LIKELY(buffer_cursor_ - 2 >= buffer_start_)) {
-      buffer_cursor_ -= 2;
-    } else {
-      ReadBlockAt(pos() - 2);
     }
   }
 
@@ -157,7 +147,7 @@ class CharacterStream : public ScannerStream {
   }
 
   void ReadBlockAt(size_t new_pos) {
-    // The callers of this method (Back/Back2/Seek) should handle the easy
+    // The callers of this method (Back/Seek) should handle the easy
     // case (seeking within the current buffer), and we should only get here
     // if we actually require new data.
     // (This is really an efficiency check, not a correctness invariant.)
