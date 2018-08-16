@@ -49,9 +49,15 @@ class DateFormat {
   // holds the pointer gets garbage collected.
   static void DeleteDateFormat(const v8::WeakCallbackInfo<void>& data);
 
+  // ecma402/#sec-formatdatetime
+  // FormatDateTime( dateTimeFormat, x )
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatDateTime(
+      Isolate* isolate, Handle<JSObject> date_time_format_holder, double x);
+
   // ecma402/#sec-datetime-format-functions
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatDate(
-      Isolate* isolate, Handle<JSObject> date_format_holder,
+  // DateTime Format Functions
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> DateTimeFormat(
+      Isolate* isolate, Handle<JSObject> date_time_format_holder,
       Handle<Object> date);
 
   // Layout description.

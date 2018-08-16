@@ -237,7 +237,7 @@ RUNTIME_FUNCTION(Runtime_FormatDate) {
   CONVERT_ARG_HANDLE_CHECKED(Object, date, 1);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, DateFormat::FormatDate(isolate, date_format_holder, date));
+      isolate, DateFormat::DateTimeFormat(isolate, date_format_holder, date));
 }
 
 RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
