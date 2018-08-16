@@ -78,13 +78,7 @@ class JSFunctionData : public JSObjectData {
   ObjectData* const shared;
 
   JSFunctionData(JSHeapBroker* broker_, Handle<JSFunction> object_,
-                 HeapObjectType type_)
-      : JSObjectData(broker_, object_, type_),
-        global_proxy(GET_OR_CREATE(global_proxy)),
-        prototype_or_initial_map(object_->map()->has_prototype_slot()
-                                     ? GET_OR_CREATE(prototype_or_initial_map)
-                                     : nullptr),
-        shared(GET_OR_CREATE(shared)) {}
+                 HeapObjectType type_);
 };
 
 class JSRegExpData : public JSObjectData {};
@@ -99,6 +93,7 @@ class ContextData : public HeapObjectData {
 };
 
 #define NATIVE_CONTEXT_DATA(V)  \
+  V(array_function)             \
   V(fast_aliased_arguments_map) \
   V(initial_array_iterator_map) \
   V(iterator_result_map)        \
@@ -168,18 +163,66 @@ class AllocationSiteData : public HeapObjectData {};
 
 class MapData : public HeapObjectData {
  public:
+  InstanceType const instance_type;
   int const instance_size;
   byte const bit_field;
   byte const bit_field2;
   uint32_t const bit_field3;
 
-  MapData(JSHeapBroker* broker_, Handle<Map> object_, HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_),
-        instance_size(object_->instance_size()),
-        bit_field(object_->bit_field()),
-        bit_field2(object_->bit_field2()),
-        bit_field3(object_->bit_field3()) {}
+  MapData(JSHeapBroker* broker_, Handle<Map> object_, HeapObjectType type_);
+
+  // Extra information.
+  void SerializeElementsKindGeneralizations();
+  const ZoneVector<MapData*>& elements_kind_generalizations() {
+    return elements_kind_generalizations_;
+  }
+
+ private:
+  ZoneVector<MapData*> elements_kind_generalizations_;
 };
+
+MapData::MapData(JSHeapBroker* broker_, Handle<Map> object_,
+                 HeapObjectType type_)
+    : HeapObjectData(broker_, object_, type_),
+      instance_type(object_->instance_type()),
+      instance_size(object_->instance_size()),
+      bit_field(object_->bit_field()),
+      bit_field2(object_->bit_field2()),
+      bit_field3(object_->bit_field3()),
+      elements_kind_generalizations_(broker->zone()) {}
+
+JSFunctionData::JSFunctionData(JSHeapBroker* broker_,
+                               Handle<JSFunction> object_, HeapObjectType type_)
+    : JSObjectData(broker_, object_, type_),
+      global_proxy(GET_OR_CREATE(global_proxy)),
+      prototype_or_initial_map(object_->map()->has_prototype_slot()
+                                   ? GET_OR_CREATE(prototype_or_initial_map)
+                                   : nullptr),
+      shared(GET_OR_CREATE(shared)) {
+  if (prototype_or_initial_map != nullptr &&
+      prototype_or_initial_map->IsMap()) {
+    MapData* initial_map = prototype_or_initial_map->AsMap();
+    if (initial_map->instance_type == JS_ARRAY_TYPE) {
+      initial_map->SerializeElementsKindGeneralizations();
+    }
+  }
+}
+
+void MapData::SerializeElementsKindGeneralizations() {
+  broker->Trace("Computing ElementsKind generalizations of %p.\n", *object);
+  DCHECK_EQ(instance_type, JS_ARRAY_TYPE);
+  MapRef self(this);
+  ElementsKind from_kind = self.elements_kind();
+  for (int i = FIRST_FAST_ELEMENTS_KIND; i <= LAST_FAST_ELEMENTS_KIND; i++) {
+    ElementsKind to_kind = static_cast<ElementsKind>(i);
+    if (IsMoreGeneralElementsKindTransition(from_kind, to_kind)) {
+      Handle<Map> target =
+          Map::AsElementsKind(broker->isolate(), self.object<Map>(), to_kind);
+      elements_kind_generalizations_.push_back(
+          broker->GetOrCreateData(target)->AsMap());
+    }
+  }
+}
 
 class FixedArrayBaseData : public HeapObjectData {};
 class FixedArrayData : public FixedArrayBaseData {};
@@ -353,6 +396,8 @@ void JSHeapBroker::SerializeStandardObjects() {
       GetOrCreateData(b->builtin_handle(id));
     }
   }
+
+  Trace("Finished serializing standard objects.\n");
 }
 
 HeapObjectType JSHeapBroker::HeapObjectTypeFromMap(Map* map) const {
@@ -461,13 +506,23 @@ void JSFunctionRef::EnsureHasInitialMap() const {
   JSFunction::EnsureHasInitialMap(object<JSFunction>());
 }
 
-// TODO(mslekova): Pre-compute these on the main thread.
 base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
-  AllowHandleAllocation handle_allocation;
-  AllowHeapAllocation heap_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(),
-                Map::AsElementsKind(broker()->isolate(), object<Map>(), kind));
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHeapAllocation heap_allocation;
+    AllowHandleDereference allow_handle_dereference;
+    return MapRef(broker(), Map::AsElementsKind(broker()->isolate(),
+                                                object<Map>(), kind));
+  } else {
+    if (kind == elements_kind()) return *this;
+    const ZoneVector<MapData*>& elements_kind_generalizations =
+        data()->AsMap()->elements_kind_generalizations();
+    for (auto data : elements_kind_generalizations) {
+      MapRef map(data);
+      if (map.elements_kind() == kind) return map;
+    }
+    return base::Optional<MapRef>();
+  }
 }
 
 int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {

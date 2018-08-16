@@ -17,7 +17,6 @@ namespace internal {
 namespace compiler {
 
 Reduction JSContextSpecialization::Reduce(Node* node) {
-  DisallowHeapAccess no_heap_access;
   switch (node->opcode()) {
     case IrOpcode::kParameter:
       return ReduceParameter(node);
