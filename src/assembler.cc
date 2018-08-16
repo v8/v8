@@ -62,7 +62,6 @@ AssemblerOptions AssemblerOptions::Default(
   // might be run on real hardware.
   options.enable_simulator_code = !serializer;
 #endif
-  options.isolate_independent_code = isolate->ShouldLoadConstantsFromRootList();
   options.inline_offheap_trampolines = !serializer;
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
   options.code_range_start =

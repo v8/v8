@@ -38,13 +38,22 @@ void PostBuildProfileAndTracing(Isolate* isolate, Code* code,
 AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
                                          int32_t builtin_index) {
   AssemblerOptions options = AssemblerOptions::Default(isolate);
-  if (isolate->ShouldLoadConstantsFromRootList() &&
-      Builtins::IsIsolateIndependent(builtin_index) &&
-      isolate->heap()->memory_allocator()->code_range()->valid() &&
-      isolate->heap()->memory_allocator()->code_range()->size() <=
-          kMaxPCRelativeCodeRangeInMB * MB) {
-    options.use_pc_relative_calls_and_jumps = true;
+  CHECK(!options.isolate_independent_code);
+  CHECK(!options.use_pc_relative_calls_and_jumps);
+
+  if (!isolate->ShouldLoadConstantsFromRootList() ||
+      !Builtins::IsIsolateIndependent(builtin_index)) {
+    return options;
   }
+
+  CodeRange* code_range = isolate->heap()->memory_allocator()->code_range();
+  bool pc_relative_calls_fit_in_code_range =
+      code_range->valid() &&
+      code_range->size() <= kMaxPCRelativeCodeRangeInMB * MB;
+
+  options.isolate_independent_code = true;
+  options.use_pc_relative_calls_and_jumps = pc_relative_calls_fit_in_code_range;
+
   return options;
 }
 
