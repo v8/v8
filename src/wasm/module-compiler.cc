@@ -2183,7 +2183,10 @@ AsyncCompileJob::~AsyncCompileJob() {
   for (auto d : deferred_handles_) delete d;
 }
 
+// This function assumes that it is executed in a HandleScope, and that a
+// context is set on the isolate.
 void AsyncCompileJob::FinishCompile() {
+  DCHECK_NOT_NULL(isolate_->context());
   // Finish the wasm script now and make it public to the debugger.
   Handle<Script> script(module_object_->script(), isolate_);
   isolate_->debug()->OnAfterCompile(script);
@@ -2698,6 +2701,8 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
       job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(true);
     } else {
       HandleScope scope(job_->isolate_);
+      SaveContext saved_context(job_->isolate_);
+      job_->isolate_->set_context(*job_->native_context_);
       job_->FinishCompile();
     }
   }
