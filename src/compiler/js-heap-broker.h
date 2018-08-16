@@ -221,7 +221,7 @@ class NativeContextRef : public ContextRef {
   MapRef fast_aliased_arguments_map() const;
   MapRef sloppy_arguments_map() const;
   MapRef strict_arguments_map() const;
-  MapRef js_array_fast_elements_map() const;
+  MapRef js_array_packed_elements_map() const;
   MapRef initial_array_iterator_map() const;
   MapRef set_value_iterator_map() const;
   MapRef set_key_value_iterator_map() const;

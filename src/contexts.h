@@ -215,15 +215,15 @@ enum ContextLookupFlags {
   V(INTL_V8_BREAK_ITERATOR_FUNCTION_INDEX, JSFunction,                         \
     intl_v8_break_iterator_function)                                           \
   V(JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX, Map,                               \
-    js_array_fast_smi_elements_map)                                            \
+    js_array_packed_smi_elements_map)                                          \
   V(JS_ARRAY_HOLEY_SMI_ELEMENTS_MAP_INDEX, Map,                                \
-    js_array_fast_holey_smi_elements_map)                                      \
-  V(JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX, Map, js_array_fast_elements_map)       \
-  V(JS_ARRAY_HOLEY_ELEMENTS_MAP_INDEX, Map, js_array_fast_holey_elements_map)  \
+    js_array_holey_smi_elements_map)                                           \
+  V(JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX, Map, js_array_packed_elements_map)     \
+  V(JS_ARRAY_HOLEY_ELEMENTS_MAP_INDEX, Map, js_array_holey_elements_map)       \
   V(JS_ARRAY_PACKED_DOUBLE_ELEMENTS_MAP_INDEX, Map,                            \
-    js_array_fast_double_elements_map)                                         \
+    js_array_packed_double_elements_map)                                       \
   V(JS_ARRAY_HOLEY_DOUBLE_ELEMENTS_MAP_INDEX, Map,                             \
-    js_array_fast_holey_double_elements_map)                                   \
+    js_array_holey_double_elements_map)                                        \
   V(JS_MAP_FUN_INDEX, JSFunction, js_map_fun)                                  \
   V(JS_MAP_MAP_INDEX, Map, js_map_map)                                         \
   V(JS_MODULE_NAMESPACE_MAP, Map, js_module_namespace_map)                     \

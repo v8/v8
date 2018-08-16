@@ -92,19 +92,19 @@ class ContextData : public HeapObjectData {
       : HeapObjectData(broker_, object_, type_) {}
 };
 
-#define NATIVE_CONTEXT_DATA(V)  \
-  V(array_function)             \
-  V(fast_aliased_arguments_map) \
-  V(initial_array_iterator_map) \
-  V(iterator_result_map)        \
-  V(js_array_fast_elements_map) \
-  V(map_key_iterator_map)       \
-  V(map_key_value_iterator_map) \
-  V(map_value_iterator_map)     \
-  V(set_key_value_iterator_map) \
-  V(set_value_iterator_map)     \
-  V(sloppy_arguments_map)       \
-  V(strict_arguments_map)       \
+#define NATIVE_CONTEXT_DATA(V)    \
+  V(array_function)               \
+  V(fast_aliased_arguments_map)   \
+  V(initial_array_iterator_map)   \
+  V(iterator_result_map)          \
+  V(js_array_packed_elements_map) \
+  V(map_key_iterator_map)         \
+  V(map_key_value_iterator_map)   \
+  V(map_value_iterator_map)       \
+  V(set_key_value_iterator_map)   \
+  V(set_value_iterator_map)       \
+  V(sloppy_arguments_map)         \
+  V(strict_arguments_map)         \
   V(string_iterator_map)
 
 class NativeContextData : public ContextData {
@@ -951,7 +951,7 @@ HANDLE_ACCESSOR(Map, Object, constructor_or_backpointer)
 HANDLE_ACCESSOR_C(MutableHeapNumber, double, value)
 
 BIMODAL_ACCESSOR_(NativeContext, Context, Map, fast_aliased_arguments_map)
-BIMODAL_ACCESSOR_(NativeContext, Context, Map, js_array_fast_elements_map)
+BIMODAL_ACCESSOR_(NativeContext, Context, Map, js_array_packed_elements_map)
 BIMODAL_ACCESSOR_(NativeContext, Context, Map, sloppy_arguments_map)
 BIMODAL_ACCESSOR_(NativeContext, Context, Map, strict_arguments_map)
 HANDLE_ACCESSOR_(NativeContext, Context, JSFunction, array_function)
