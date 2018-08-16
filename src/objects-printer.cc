@@ -907,7 +907,7 @@ void PrintWeakArrayElements(std::ostream& os, T* array) {
     if (previous_index != i - 1) {
       ss << '-' << (i - 1);
     }
-    os << std::setw(12) << ss.str() << ": " << MaybeObjectBrief(previous_value);
+    os << std::setw(12) << ss.str() << ": " << Brief(previous_value);
     previous_index = i;
     previous_value = value;
   }
@@ -1056,7 +1056,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     if (entry_size > 0) os << " {";
     for (int i = 0; i < entry_size; i++) {
       int index = GetIndex(slot) + i;
-      os << "\n     [" << index << "]: " << MaybeObjectBrief(get(index));
+      os << "\n     [" << index << "]: " << Brief(get(index));
     }
     if (entry_size > 0) os << "\n  }";
   }
@@ -1671,7 +1671,7 @@ void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - module namespace: " << Brief(module_namespace());
   os << "\n - prototype users: " << Brief(prototype_users());
   os << "\n - registry slot: " << registry_slot();
-  os << "\n - object create map: " << MaybeObjectBrief(object_create_map());
+  os << "\n - object create map: " << Brief(object_create_map());
   os << "\n - should_be_fast_map: " << should_be_fast_map();
   os << "\n";
 }
@@ -1782,13 +1782,13 @@ void LoadHandler::LoadHandlerPrint(std::ostream& os) {  // NOLINT
   os << "\n - validity_cell: " << Brief(validity_cell());
   int data_count = data_field_count();
   if (data_count >= 1) {
-    os << "\n - data1: " << MaybeObjectBrief(data1());
+    os << "\n - data1: " << Brief(data1());
   }
   if (data_count >= 2) {
-    os << "\n - data2: " << MaybeObjectBrief(data2());
+    os << "\n - data2: " << Brief(data2());
   }
   if (data_count >= 3) {
-    os << "\n - data3: " << MaybeObjectBrief(data3());
+    os << "\n - data3: " << Brief(data3());
   }
   os << "\n";
 }
@@ -1800,13 +1800,13 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {  // NOLINT
   os << "\n - validity_cell: " << Brief(validity_cell());
   int data_count = data_field_count();
   if (data_count >= 1) {
-    os << "\n - data1: " << MaybeObjectBrief(data1());
+    os << "\n - data1: " << Brief(data1());
   }
   if (data_count >= 2) {
-    os << "\n - data2: " << MaybeObjectBrief(data2());
+    os << "\n - data2: " << Brief(data2());
   }
   if (data_count >= 3) {
-    os << "\n - data3: " << MaybeObjectBrief(data3());
+    os << "\n - data3: " << Brief(data3());
   }
   os << "\n";
 }

@@ -2493,30 +2493,22 @@ void Object::ShortPrint(std::ostream& os) { os << Brief(this); }
 
 void MaybeObject::ShortPrint(FILE* out) {
   OFStream os(out);
-  os << MaybeObjectBrief(this);
+  os << Brief(this);
 }
 
 void MaybeObject::ShortPrint(StringStream* accumulator) {
   std::ostringstream os;
-  os << MaybeObjectBrief(this);
+  os << Brief(this);
   accumulator->Add(os.str().c_str());
 }
 
-void MaybeObject::ShortPrint(std::ostream& os) { os << MaybeObjectBrief(this); }
+void MaybeObject::ShortPrint(std::ostream& os) { os << Brief(this); }
+
+Brief::Brief(const Object* v)
+    : value(MaybeObject::FromObject(const_cast<Object*>(v))) {}
 
 std::ostream& operator<<(std::ostream& os, const Brief& v) {
-  if (v.value->IsSmi()) {
-    Smi::cast(v.value)->SmiPrint(os);
-  } else {
-    // TODO(svenpanne) Const-correct HeapObjectShortPrint!
-    HeapObject* obj = const_cast<HeapObject*>(HeapObject::cast(v.value));
-    obj->HeapObjectShortPrint(os);
-  }
-  return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const MaybeObjectBrief& v) {
-  // TODO(marja): const-correct this the same way as the Object* version.
+  // TODO(marja): const-correct HeapObjectShortPrint.
   MaybeObject* maybe_object = const_cast<MaybeObject*>(v.value);
   Smi* smi;
   HeapObject* heap_object;
