@@ -230,7 +230,9 @@ namespace internal {
   F(PluralRulesResolvedOptions, 1, 1)        \
   F(PluralRulesSelect, 2, 1)                 \
   F(StringToLowerCaseIntl, 1, 1)             \
-  F(StringToUpperCaseIntl, 1, 1)
+  F(StringToUpperCaseIntl, 1, 1)             \
+  F(SupportedLocalesOf, 3, 1)                \
+// End of macro.
 #else
 #define FOR_EACH_INTRINSIC_INTL(F)
 #endif  // V8_INTL_SUPPORT

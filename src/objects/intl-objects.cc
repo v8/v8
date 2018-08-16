@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "src/api-inl.h"
 #include "src/global-handles.h"
@@ -915,8 +916,7 @@ std::set<std::string> Intl::GetAvailableLocales(const IcuService& service) {
   return locales;
 }
 
-namespace {
-IcuService StringToIcuService(Handle<String> service) {
+IcuService Intl::StringToIcuService(Handle<String> service) {
   if (service->IsUtf8EqualTo(CStrVector("collator"))) {
     return IcuService::kCollator;
   } else if (service->IsUtf8EqualTo(CStrVector("numberformat"))) {
@@ -934,7 +934,6 @@ IcuService StringToIcuService(Handle<String> service) {
   }
   UNREACHABLE();
 }
-}  // namespace
 
 V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> Intl::AvailableLocalesOf(
     Isolate* isolate, Handle<String> service) {
@@ -2040,6 +2039,244 @@ Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
   number_format->setSignificantDigitsUsed(significant_digits_used);
   number_format->setRoundingMode(icu::DecimalFormat::kRoundHalfUp);
   return Just(true);
+}
+
+namespace {
+
+// ECMA 402 9.2.2 BestAvailableLocale(availableLocales, locale)
+// https://tc39.github.io/ecma402/#sec-bestavailablelocale
+std::string BestAvailableLocale(std::set<std::string> available_locales,
+                                std::string locale) {
+  const char separator = '-';
+
+  // 1. Let candidate be locale.
+  // 2. Repeat,
+  do {
+    // 2.a. If availableLocales contains an element equal to candidate, return
+    //      candidate.
+    if (available_locales.find(locale) != available_locales.end()) {
+      return locale;
+    }
+    // 2.b. Let pos be the character index of the last occurrence of "-"
+    //      (U+002D) within candidate. If that character does not occur, return
+    //      undefined.
+    size_t pos = locale.rfind(separator);
+    if (pos == std::string::npos) {
+      return "";
+    }
+    // 2.c. If pos ≥ 2 and the character "-" occurs at index pos-2 of candidate,
+    //      decrease pos by 2.
+    if (pos >= 2 && locale[pos - 2] == separator) {
+      pos -= 2;
+    }
+    // 2.d. Let candidate be the substring of candidate from position 0,
+    //      inclusive, to position pos, exclusive.
+    locale = locale.substr(0, pos);
+  } while (true);
+}
+
+#define ANY_EXTENSION_REGEXP "-[a-z0-9]{1}-.*"
+
+std::unique_ptr<icu::RegexMatcher> GetAnyExtensionRegexpMatcher() {
+  UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::RegexMatcher> matcher(new icu::RegexMatcher(
+      icu::UnicodeString(ANY_EXTENSION_REGEXP, -1, US_INV), 0, status));
+  DCHECK(U_SUCCESS(status));
+  return matcher;
+}
+
+#undef ANY_EXTENSION_REGEXP
+
+// ECMA 402 9.2.7 LookupSupportedLocales(availableLocales, requestedLocales)
+// https://tc39.github.io/ecma402/#sec-lookupsupportedlocales
+std::vector<std::string> LookupSupportedLocales(
+    std::set<std::string> available_locales,
+    std::vector<std::string> requested_locales) {
+  std::unique_ptr<icu::RegexMatcher> matcher = GetAnyExtensionRegexpMatcher();
+
+  // 1. Let subset be a new empty List.
+  std::vector<std::string> subset;
+
+  // 2. For each element locale of requestedLocales in List order, do
+  for (auto locale : requested_locales) {
+    // 2.a. Let noExtensionsLocale be the String value that is locale with all
+    //      Unicode locale extension sequences removed.
+    icu::UnicodeString locale_uni(locale.c_str(), -1, US_INV);
+    // TODO(bstell): look at using uloc_forLanguageTag to convert the language
+    // tag to locale id
+    // TODO(bstell): look at using uloc_getBaseName to just get the name without
+    // all the keywords
+    matcher->reset(locale_uni);
+    UErrorCode status = U_ZERO_ERROR;
+    // TODO(bstell): need to determine if this is the correct behavior.
+    // This matches the JS implementation but might not match the spec.
+    // According to
+    // https://tc39.github.io/ecma402/#sec-unicode-locale-extension-sequences:
+    //
+    //     This standard uses the term "Unicode locale extension sequence" for
+    //     any substring of a language tag that is not part of a private use
+    //     subtag sequence, starts with a separator  "-" and the singleton "u",
+    //     and includes the maximum sequence of following non-singleton subtags
+    //     and their preceding "-" separators.
+    //
+    // According to the spec a locale "en-t-aaa-u-bbb-v-ccc-x-u-ddd", should
+    // remove only the "-u-bbb" part, and keep everything else, whereas this
+    // regexp matcher would leave only the "en".
+    icu::UnicodeString no_extensions_locale_uni =
+        matcher->replaceAll("", status);
+    DCHECK(U_SUCCESS(status));
+    std::string no_extensions_locale;
+    no_extensions_locale_uni.toUTF8String(no_extensions_locale);
+    // 2.b. Let availableLocale be BestAvailableLocale(availableLocales,
+    //      noExtensionsLocale).
+    std::string available_locale =
+        BestAvailableLocale(available_locales, no_extensions_locale);
+    // 2.c. If availableLocale is not undefined, append locale to the end of
+    //      subset.
+    if (!available_locale.empty()) {
+      subset.push_back(locale);
+    }
+  }
+
+  // 3. Return subset.
+  return subset;
+}
+
+// ECMA 402 9.2.8 BestFitSupportedLocales(availableLocales, requestedLocales)
+// https://tc39.github.io/ecma402/#sec-bestfitsupportedlocales
+std::vector<std::string> BestFitSupportedLocales(
+    std::set<std::string> available_locales,
+    std::vector<std::string> requested_locales) {
+  return LookupSupportedLocales(available_locales, requested_locales);
+}
+
+enum MatcherOption { kBestFit, kLookup };
+
+// TODO(bstell): should this be moved somewhere where it is reusable?
+// Implement steps 5, 6, 7 for ECMA 402 9.2.9 SupportedLocales
+// https://tc39.github.io/ecma402/#sec-supportedlocales
+MaybeHandle<JSObject> CreateReadOnlyArray(Isolate* isolate,
+                                          std::vector<std::string> elements) {
+  Factory* factory = isolate->factory();
+  if (elements.size() >= kMaxUInt32) {
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayLength), JSObject);
+  }
+
+  PropertyAttributes attr =
+      static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
+
+  // 5. Let subset be CreateArrayFromList(elements).
+  // 6. Let keys be subset.[[OwnPropertyKeys]]().
+  Handle<JSArray> subset = factory->NewJSArray(0);
+
+  // 7. For each element P of keys in List order, do
+  uint32_t length = static_cast<uint32_t>(elements.size());
+  for (uint32_t i = 0; i < length; i++) {
+    const std::string& part = elements[i];
+    Handle<String> value =
+        factory->NewStringFromUtf8(CStrVector(part.c_str())).ToHandleChecked();
+    JSObject::AddDataElement(subset, i, value, attr);
+  }
+
+  // 7.a. Let desc be PropertyDescriptor { [[Configurable]]: false,
+  //          [[Writable]]: false }.
+  PropertyDescriptor desc;
+  desc.set_writable(false);
+  desc.set_configurable(false);
+
+  // 7.b. Perform ! DefinePropertyOrThrow(subset, P, desc).
+  JSArray::ArraySetLength(isolate, subset, &desc, kThrowOnError).ToChecked();
+  return subset;
+}
+
+// ECMA 402 9.2.9 SupportedLocales(availableLocales, requestedLocales, options)
+// https://tc39.github.io/ecma402/#sec-supportedlocales
+MaybeHandle<JSObject> SupportedLocales(
+    Isolate* isolate, std::string service,
+    std::set<std::string> available_locales,
+    std::vector<std::string> requested_locales, Handle<Object> options) {
+  std::vector<std::string> supported_locales;
+
+  // 1. If options is not undefined, then
+  //    a. Let options be ? ToObject(options).
+  //    b. Let matcher be ? GetOption(options, "localeMatcher", "string",
+  //       « "lookup", "best fit" », "best fit").
+  // 2. Else, let matcher be "best fit".
+  MatcherOption matcher = kBestFit;
+  if (!options->IsUndefined(isolate)) {
+    Handle<JSReceiver> options_obj;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
+                               Object::ToObject(isolate, options), JSObject);
+    std::unique_ptr<char[]> matcher_str = nullptr;
+    std::vector<const char*> matcher_values = {"lookup", "best fit"};
+    Maybe<bool> maybe_found_matcher =
+        Intl::GetStringOption(isolate, options_obj, "localeMatcher",
+                              matcher_values, service.c_str(), &matcher_str);
+    MAYBE_RETURN(maybe_found_matcher, MaybeHandle<JSObject>());
+    if (maybe_found_matcher.FromJust()) {
+      DCHECK_NOT_NULL(matcher_str.get());
+      if (strcmp(matcher_str.get(), "lookup") == 0) {
+        matcher = kLookup;
+      }
+    }
+  }
+
+  // 3. If matcher is "best fit", then
+  //    a. Let supportedLocales be BestFitSupportedLocales(availableLocales,
+  //       requestedLocales).
+  if (matcher == kBestFit) {
+    supported_locales =
+        BestFitSupportedLocales(available_locales, requested_locales);
+  } else {
+    // 4. Else,
+    //    a. Let supportedLocales be LookupSupportedLocales(availableLocales,
+    //       requestedLocales).
+    DCHECK_EQ(matcher, kLookup);
+    supported_locales =
+        LookupSupportedLocales(available_locales, requested_locales);
+  }
+
+  // TODO(jkummerow): Possibly revisit why the spec has the individual entries
+  // readonly but the array is not frozen.
+  // https://github.com/tc39/ecma402/issues/258
+
+  // 5. Let subset be CreateArrayFromList(supportedLocales).
+  // 6. Let keys be subset.[[OwnPropertyKeys]]().
+  // 7. For each element P of keys in List order, do
+  //    a. Let desc be PropertyDescriptor { [[Configurable]]: false,
+  //       [[Writable]]: false }.
+  //    b. Perform ! DefinePropertyOrThrow(subset, P, desc).
+  MaybeHandle<JSObject> subset =
+      CreateReadOnlyArray(isolate, supported_locales);
+
+  // 8. Return subset.
+  return subset;
+}
+}  // namespace
+
+// ECMA 402 10.2.2 Intl.Collator.supportedLocalesOf
+// https://tc39.github.io/ecma402/#sec-intl.collator.supportedlocalesof
+// of Intl::SupportedLocalesOf thru JS
+MaybeHandle<JSObject> Intl::SupportedLocalesOf(Isolate* isolate,
+                                               Handle<String> service,
+                                               Handle<Object> locales_in,
+                                               Handle<Object> options_in) {
+  // Let availableLocales be %Collator%.[[AvailableLocales]].
+  IcuService icu_service = Intl::StringToIcuService(service);
+  std::set<std::string> available_locales = GetAvailableLocales(icu_service);
+  std::vector<std::string> requested_locales;
+  // Let requestedLocales be ? CanonicalizeLocaleList(locales).
+  bool got_requested_locales =
+      CanonicalizeLocaleList(isolate, locales_in, false).To(&requested_locales);
+  if (!got_requested_locales) {
+    return MaybeHandle<JSObject>();
+  }
+
+  // Return ? SupportedLocales(availableLocales, requestedLocales, options).
+  std::string service_str(service->ToCString().get());
+  return SupportedLocales(isolate, service_str, available_locales,
+                          requested_locales, options_in);
 }
 
 }  // namespace internal

@@ -179,6 +179,8 @@ class Intl {
   static bool IsObjectOfType(Isolate* isolate, Handle<Object> object,
                              Intl::Type expected_type);
 
+  static IcuService StringToIcuService(Handle<String> service);
+
   // Gets the ICU locales for a given service. If there is a locale with a
   // script tag then the locales also include a locale without the script; eg,
   // pa_Guru_IN (language=Panjabi, script=Gurmukhi, country-India) would include
@@ -187,6 +189,11 @@ class Intl {
 
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> AvailableLocalesOf(
       Isolate* isolate, Handle<String> service);
+
+  static MaybeHandle<JSObject> SupportedLocalesOf(Isolate* isolate,
+                                                  Handle<String> service,
+                                                  Handle<Object> locales_in,
+                                                  Handle<Object> options_in);
 
   static std::string DefaultLocale(Isolate* isolate);
 
