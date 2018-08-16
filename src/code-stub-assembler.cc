@@ -12085,10 +12085,10 @@ Node* CodeStubAssembler::IsDebugActive() {
 }
 
 TNode<BoolT> CodeStubAssembler::IsRuntimeCallStatsEnabled() {
-  TNode<UintPtrT> flag_value = UncheckedCast<UintPtrT>(Load(
-      MachineType::IntPtr(),
+  TNode<Word32T> flag_value = UncheckedCast<Word32T>(Load(
+      MachineType::Int32(),
       ExternalConstant(ExternalReference::address_of_runtime_stats_flag())));
-  return WordNotEqual(flag_value, IntPtrConstant(0));
+  return Word32NotEqual(flag_value, Int32Constant(0));
 }
 
 Node* CodeStubAssembler::IsPromiseHookEnabled() {
