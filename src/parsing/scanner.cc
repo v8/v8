@@ -508,11 +508,8 @@ Token::Value Scanner::SkipMultiLineComment() {
 
     while (V8_UNLIKELY(c0_ == '*')) {
       Advance();
-      // If we have reached the end of the multi-line comment, we
-      // consume the '/' and insert a whitespace. This way all
-      // multi-line comments are treated as whitespace.
       if (c0_ == '/') {
-        c0_ = ' ';
+        Advance();
         return Token::WHITESPACE;
       }
     }
