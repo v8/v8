@@ -230,7 +230,8 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_public_fields, "harmony public fields in class literals")      \
   V(harmony_private_fields, "harmony private fields in class literals")    \
   V(harmony_numeric_separator, "harmony numeric separator between digits") \
-  V(harmony_string_matchall, "harmony String.prototype.matchAll")
+  V(harmony_string_matchall, "harmony String.prototype.matchAll")          \
+  V(harmony_global, "harmony global")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                              \

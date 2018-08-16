@@ -96,6 +96,7 @@
   V(getOwnPropertyDescriptors_string, "getOwnPropertyDescriptors") \
   V(getPrototypeOf_string, "getPrototypeOf")                       \
   V(global_string, "global")                                       \
+  V(globalThis_string, "globalThis")                               \
   V(group_string, "group")                                         \
   V(groups_string, "groups")                                       \
   V(has_string, "has")                                             \
