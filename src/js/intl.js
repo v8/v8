@@ -26,7 +26,6 @@ var GlobalIntlNumberFormat = GlobalIntl.NumberFormat;
 var GlobalIntlCollator = GlobalIntl.Collator;
 var GlobalIntlPluralRules = GlobalIntl.PluralRules;
 var GlobalIntlv8BreakIterator = GlobalIntl.v8BreakIterator;
-var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 var GlobalArray = global.Array;
@@ -39,7 +38,6 @@ var patternSymbol = utils.ImportNow("intl_pattern_symbol");
 var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
 var StringSubstr = GlobalString.prototype.substr;
 var StringSubstring = GlobalString.prototype.substring;
-var ArraySlice = GlobalArray.prototype.slice;
 
 utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
@@ -48,16 +46,8 @@ utils.Import(function(from) {
 
 // Utilities for definitions
 
-macro IS_OBJECT(arg)
-(typeof(arg) === 'object')
-endmacro
-
 macro NUMBER_IS_NAN(arg)
 (%IS_VAR(arg) !== arg)
-endmacro
-
-macro NUMBER_IS_FINITE(arg)
-(%_IsSmi(%IS_VAR(arg)) || ((arg == arg) && (arg != 1/0) && (arg != -1/0)))
 endmacro
 
 // To avoid ES2015 Function name inference.
@@ -521,17 +511,6 @@ function getAvailableLocalesOf(service) {
   AVAILABLE_LOCALES[service] = available;
 
   return available;
-}
-
-
-/**
- * Adds property to an object if the value is not undefined.
- * Sets configurable descriptor to false.
- */
-function addWEPropertyIfDefined(object, property, value) {
-  if (!IS_UNDEFINED(value)) {
-    %DefineWEProperty(object, property, value);
-  }
 }
 
 
