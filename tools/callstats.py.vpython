@@ -33,12 +33,11 @@ wheel: <
   name: "infra/python/wheels/scipy/${vpython_platform}"
   version: "version:0.19.0"
   match_tag: <
-    platform: "manylinux-x64"
+    abi: "cp27mu"
+    platform: "manylinux1_i686"
   >
   match_tag: <
-    platform: "manylinux-x86"
-  >
-  match_tag: <
-    platform: "mac-x64"
+    abi: "cp27mu"
+    platform: "manylinux1_x86_64"
   >
 >
