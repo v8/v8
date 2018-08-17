@@ -1081,12 +1081,21 @@
       "path": ["Parsing"],
       "main": "run.js",
       "flags": ["--no-compilation-cache", "--allow-natives-syntax"],
-      "resources": [ "comments.js"],
+      "resources": [ "comments.js", "strings.js", "arrowfunctions.js"],
       "results_regexp": "^%s\\-Parsing\\(Score\\): (.+)$",
       "tests": [
         {"name": "OneLineComment"},
         {"name": "OneLineComments"},
-        {"name": "MultiLineComment"}
+        {"name": "MultiLineComment"},
+        {"name": "SingleLineString"},
+        {"name": "SingleLineStrings"},
+        {"name": "MultiLineString"},
+        {"name": "ArrowFunctionShort"},
+        {"name": "ArrowFunctionLong"},
+        {"name": "CommaSepExpressionListShort"},
+        {"name": "CommaSepExpressionListLong"},
+        {"name": "CommaSepExpressionListLate"},
+        {"name": "FakeArrowFunction"}
       ]
     },
     {
