@@ -4811,11 +4811,7 @@ void BytecodeGenerator::VisitArgumentsObject(Variable* variable) {
 
   // Allocate and initialize a new arguments object and assign to the
   // {arguments} variable.
-  CreateArgumentsType type =
-      is_strict(language_mode()) || !info()->has_simple_parameters()
-          ? CreateArgumentsType::kUnmappedArguments
-          : CreateArgumentsType::kMappedArguments;
-  builder()->CreateArguments(type);
+  builder()->CreateArguments(closure_scope()->GetArgumentsType());
   BuildVariableAssignment(variable, Token::ASSIGN, HoleCheckMode::kElided);
 }
 

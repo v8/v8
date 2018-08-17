@@ -49,10 +49,6 @@ int UnoptimizedCompilationInfo::num_parameters_including_this() const {
   return scope()->num_parameters() + 1;
 }
 
-bool UnoptimizedCompilationInfo::has_simple_parameters() {
-  return scope()->has_simple_parameters();
-}
-
 SourcePositionTableBuilder::RecordingMode
 UnoptimizedCompilationInfo::SourcePositionRecordingMode() const {
   return is_native() ? SourcePositionTableBuilder::OMIT_SOURCE_POSITIONS
