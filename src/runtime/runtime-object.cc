@@ -405,34 +405,26 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
 RUNTIME_FUNCTION(Runtime_ObjectCreate) {
   HandleScope scope(isolate);
   Handle<Object> prototype = args.at(0);
+  Handle<Object> properties = args.at(1);
+  Handle<JSObject> obj;
+  // 1. If Type(O) is neither Object nor Null, throw a TypeError exception.
   if (!prototype->IsNull(isolate) && !prototype->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, prototype));
   }
+  // 2. Let obj be ObjectCreate(O).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, obj, JSObject::ObjectCreate(isolate, prototype));
 
-  // Generate the map with the specified {prototype} based on the Object
-  // function's initial map from the current native context.
-  // TODO(bmeurer): Use a dedicated cache for Object.create; think about
-  // slack tracking for Object.create.
-  Handle<Map> map =
-      Map::GetObjectCreateMap(isolate, Handle<HeapObject>::cast(prototype));
-
-  // Actually allocate the object.
-  Handle<JSObject> object;
-  if (map->is_dictionary_map()) {
-    object = isolate->factory()->NewSlowJSObjectFromMap(map);
-  } else {
-    object = isolate->factory()->NewJSObjectFromMap(map);
-  }
-
-  // Define the properties if properties was specified and is not undefined.
-  Handle<Object> properties = args.at(1);
+  // 3. If Properties is not undefined, then
   if (!properties->IsUndefined(isolate)) {
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate, JSReceiver::DefineProperties(isolate, object, properties));
+    // a. Return ? ObjectDefineProperties(obj, Properties).
+    // Define the properties if properties was specified and is not undefined.
+    RETURN_RESULT_OR_FAILURE(
+        isolate, JSReceiver::DefineProperties(isolate, obj, properties));
   }
-
-  return *object;
+  // 4. Return obj.
+  return *obj;
 }
 
 MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,

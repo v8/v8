@@ -60,6 +60,16 @@ class DateFormat {
       Isolate* isolate, Handle<JSObject> date_time_format_holder,
       Handle<Object> date);
 
+  // ecma-402/#sec-todatetimeoptions
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ToDateTimeOptions(
+      Isolate* isolate, Handle<Object> input_options, const char* required,
+      const char* defaults);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleDateTime(
+      Isolate* isolate, Handle<Object> date, Handle<Object> locales,
+      Handle<Object> options, const char* required, const char* defaults,
+      const char* service);
+
   // Layout description.
   static const int kSimpleDateFormat = JSObject::kHeaderSize;
   static const int kSize = kSimpleDateFormat + kPointerSize;
