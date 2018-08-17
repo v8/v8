@@ -157,9 +157,127 @@ class InternalizedStringData : public StringData {
   using StringData::StringData;
 };
 
+namespace {
+
+bool IsFastLiteralHelper(Handle<JSObject> boilerplate, int max_depth,
+                         int* max_properties) {
+  DCHECK_GE(max_depth, 0);
+  DCHECK_GE(*max_properties, 0);
+
+  // Make sure the boilerplate map is not deprecated.
+  if (!JSObject::TryMigrateInstance(boilerplate)) return false;
+
+  // Check for too deep nesting.
+  if (max_depth == 0) return false;
+
+  // Check the elements.
+  Isolate* const isolate = boilerplate->GetIsolate();
+  Handle<FixedArrayBase> elements(boilerplate->elements(), isolate);
+  if (elements->length() > 0 &&
+      elements->map() != ReadOnlyRoots(isolate).fixed_cow_array_map()) {
+    if (boilerplate->HasSmiOrObjectElements()) {
+      Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
+      int length = elements->length();
+      for (int i = 0; i < length; i++) {
+        if ((*max_properties)-- == 0) return false;
+        Handle<Object> value(fast_elements->get(i), isolate);
+        if (value->IsJSObject()) {
+          Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+          if (!IsFastLiteralHelper(value_object, max_depth - 1,
+                                   max_properties)) {
+            return false;
+          }
+        }
+      }
+    } else if (boilerplate->HasDoubleElements()) {
+      if (elements->Size() > kMaxRegularHeapObjectSize) return false;
+    } else {
+      return false;
+    }
+  }
+
+  // TODO(turbofan): Do we want to support out-of-object properties?
+  if (!(boilerplate->HasFastProperties() &&
+        boilerplate->property_array()->length() == 0)) {
+    return false;
+  }
+
+  // Check the in-object properties.
+  Handle<DescriptorArray> descriptors(
+      boilerplate->map()->instance_descriptors(), isolate);
+  int limit = boilerplate->map()->NumberOfOwnDescriptors();
+  for (int i = 0; i < limit; i++) {
+    PropertyDetails details = descriptors->GetDetails(i);
+    if (details.location() != kField) continue;
+    DCHECK_EQ(kData, details.kind());
+    if ((*max_properties)-- == 0) return false;
+    FieldIndex field_index = FieldIndex::ForDescriptor(boilerplate->map(), i);
+    if (boilerplate->IsUnboxedDoubleField(field_index)) continue;
+    Handle<Object> value(boilerplate->RawFastPropertyAt(field_index), isolate);
+    if (value->IsJSObject()) {
+      Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+      if (!IsFastLiteralHelper(value_object, max_depth - 1, max_properties)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+// Maximum depth and total number of elements and properties for literal
+// graphs to be considered for fast deep-copying. The limit is chosen to
+// match the maximum number of inobject properties, to ensure that the
+// performance of using object literals is not worse than using constructor
+// functions, see crbug.com/v8/6211 for details.
+const int kMaxFastLiteralDepth = 3;
+const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
+
+// Determines whether the given array or object literal boilerplate satisfies
+// all limits to be considered for fast deep-copying and computes the total
+// size of all objects that are part of the graph.
+bool IsInlinableFastLiteral(Handle<JSObject> boilerplate) {
+  int max_properties = kMaxFastLiteralProperties;
+  return IsFastLiteralHelper(boilerplate, kMaxFastLiteralDepth,
+                             &max_properties);
+}
+
+}  // namespace
+
+class AllocationSiteData : public HeapObjectData {
+ public:
+  AllocationSiteData(JSHeapBroker* broker, Handle<AllocationSite> object_,
+                     HeapObjectType type_)
+      : HeapObjectData(broker, object_, type_),
+        PointsToLiteral(object_->PointsToLiteral()),
+        GetPretenureMode(object_->GetPretenureMode()),
+        nested_site(GET_OR_CREATE(nested_site)) {
+    if (PointsToLiteral) {
+      IsFastLiteral = IsInlinableFastLiteral(
+          handle(object_->boilerplate(), broker->isolate()));
+      if (IsFastLiteral) {
+        boilerplate = GET_OR_CREATE(boilerplate)->AsJSObject();
+      }
+    } else {
+      GetElementsKind = object_->GetElementsKind();
+      CanInlineCall = object_->CanInlineCall();
+    }
+  }
+
+  bool const PointsToLiteral;
+  PretenureFlag const GetPretenureMode;
+  ObjectData* const nested_site;
+
+  // These are only valid if PointsToLiteral is true.
+  bool IsFastLiteral = false;
+  JSObjectData* boilerplate = nullptr;
+
+  // These are only valid if PointsToLiteral is false.
+  ElementsKind GetElementsKind = NO_ELEMENTS;
+  bool CanInlineCall = false;
+};
+
+// Only used in JS native context specialization.
 class ScriptContextTableData : public HeapObjectData {};
-class FeedbackVectorData : public HeapObjectData {};
-class AllocationSiteData : public HeapObjectData {};
 
 class MapData : public HeapObjectData {
  public:
@@ -221,6 +339,7 @@ void MapData::SerializeElementsKindGeneralizations() {
   }
 }
 
+class FeedbackVectorData : public HeapObjectData {};
 class FixedArrayBaseData : public HeapObjectData {};
 class FixedArrayData : public FixedArrayBaseData {};
 class FixedDoubleArrayData : public FixedArrayBaseData {};
@@ -284,6 +403,9 @@ HeapObjectData* HeapObjectData::Serialize(JSHeapBroker* broker,
   } else if (object->IsName()) {
     result =
         new (broker->zone()) NameData(broker, Handle<Name>::cast(object), type);
+  } else if (object->IsAllocationSite()) {
+    result = new (broker->zone())
+        AllocationSiteData(broker, Handle<AllocationSite>::cast(object), type);
   } else {
     result = new (broker->zone()) HeapObjectData(broker, object, type);
   }
@@ -580,99 +702,17 @@ ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
 }
 
 
-namespace {
-
-// Determines whether the given array or object literal boilerplate satisfies
-// all limits to be considered for fast deep-copying and computes the total
-// size of all objects that are part of the graph.
-bool IsFastLiteralHelper(Handle<JSObject> boilerplate, int max_depth,
-                         int* max_properties) {
-  DCHECK_GE(max_depth, 0);
-  DCHECK_GE(*max_properties, 0);
-
-  // Make sure the boilerplate map is not deprecated.
-  if (!JSObject::TryMigrateInstance(boilerplate)) return false;
-
-  // Check for too deep nesting.
-  if (max_depth == 0) return false;
-
-  // Check the elements.
-  Isolate* const isolate = boilerplate->GetIsolate();
-  Handle<FixedArrayBase> elements(boilerplate->elements(), isolate);
-  if (elements->length() > 0 &&
-      elements->map() != ReadOnlyRoots(isolate).fixed_cow_array_map()) {
-    if (boilerplate->HasSmiOrObjectElements()) {
-      Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
-      int length = elements->length();
-      for (int i = 0; i < length; i++) {
-        if ((*max_properties)-- == 0) return false;
-        Handle<Object> value(fast_elements->get(i), isolate);
-        if (value->IsJSObject()) {
-          Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-          if (!IsFastLiteralHelper(value_object, max_depth - 1,
-                                   max_properties)) {
-            return false;
-          }
-        }
-      }
-    } else if (boilerplate->HasDoubleElements()) {
-      if (elements->Size() > kMaxRegularHeapObjectSize) return false;
-    } else {
-      return false;
-    }
-  }
-
-  // TODO(turbofan): Do we want to support out-of-object properties?
-  if (!(boilerplate->HasFastProperties() &&
-        boilerplate->property_array()->length() == 0)) {
-    return false;
-  }
-
-  // Check the in-object properties.
-  Handle<DescriptorArray> descriptors(
-      boilerplate->map()->instance_descriptors(), isolate);
-  int limit = boilerplate->map()->NumberOfOwnDescriptors();
-  for (int i = 0; i < limit; i++) {
-    PropertyDetails details = descriptors->GetDetails(i);
-    if (details.location() != kField) continue;
-    DCHECK_EQ(kData, details.kind());
-    if ((*max_properties)-- == 0) return false;
-    FieldIndex field_index = FieldIndex::ForDescriptor(boilerplate->map(), i);
-    if (boilerplate->IsUnboxedDoubleField(field_index)) continue;
-    Handle<Object> value(boilerplate->RawFastPropertyAt(field_index), isolate);
-    if (value->IsJSObject()) {
-      Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-      if (!IsFastLiteralHelper(value_object, max_depth - 1, max_properties)) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-}  // namespace
-
-// Maximum depth and total number of elements and properties for literal
-// graphs to be considered for fast deep-copying. The limit is chosen to
-// match the maximum number of inobject properties, to ensure that the
-// performance of using object literals is not worse than using constructor
-// functions, see crbug.com/v8/6211 for details.
-const int kMaxFastLiteralDepth = 3;
-const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
-
-// Determines whether the given array or object literal boilerplate satisfies
-// all limits to be considered for fast deep-copying and computes the total
-// size of all objects that are part of the graph.
 bool AllocationSiteRef::IsFastLiteral() const {
-  AllowHeapAllocation
-      allow_heap_allocation;  // This is needed for TryMigrateInstance.
-  AllowHandleAllocation allow_handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  int max_properties = kMaxFastLiteralProperties;
-  Handle<JSObject> boilerplate(object<AllocationSite>()->boilerplate(),
-                               broker()->isolate());
-  return IsFastLiteralHelper(boilerplate, kMaxFastLiteralDepth,
-                             &max_properties);
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHeapAllocation
+        allow_heap_allocation;  // This is needed for TryMigrateInstance.
+    AllowHandleAllocation allow_handle_allocation;
+    AllowHandleDereference allow_handle_dereference;
+    return IsInlinableFastLiteral(
+        handle(object<AllocationSite>()->boilerplate(), broker()->isolate()));
+  } else {
+    return data()->AsAllocationSite()->IsFastLiteral;
+  }
 }
 
 void JSObjectRef::EnsureElementsTenured() {
@@ -861,12 +901,11 @@ int SharedFunctionInfoRef::GetBytecodeArrayRegisterCount() const {
     return object<holder>()->name();                 \
   }
 
-HANDLE_ACCESSOR(AllocationSite, JSObject, boilerplate)
-HANDLE_ACCESSOR(AllocationSite, Object, nested_site)
-HANDLE_ACCESSOR_C(AllocationSite, bool, CanInlineCall)
-HANDLE_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
-HANDLE_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
-HANDLE_ACCESSOR_C(AllocationSite, PretenureFlag, GetPretenureMode)
+BIMODAL_ACCESSOR(AllocationSite, Object, nested_site)
+BIMODAL_ACCESSOR_C(AllocationSite, bool, CanInlineCall)
+BIMODAL_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
+BIMODAL_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
+BIMODAL_ACCESSOR_C(AllocationSite, PretenureFlag, GetPretenureMode)
 
 HANDLE_ACCESSOR_C(FixedArrayBase, int, length)
 
@@ -1048,6 +1087,22 @@ ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object) {
       break;
   }
   CHECK_NOT_NULL(data_);
+}
+
+base::Optional<JSObjectRef> AllocationSiteRef::boilerplate() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference allow_handle_dereference;
+    return JSObjectRef(broker(), handle(object<AllocationSite>()->boilerplate(),
+                                        broker()->isolate()));
+  } else {
+    JSObjectData* boilerplate = data()->AsAllocationSite()->boilerplate;
+    if (boilerplate) {
+      return JSObjectRef(boilerplate);
+    } else {
+      return base::nullopt;
+    }
+  }
 }
 
 Handle<Object> ObjectRef::object() const { return data_->object; }

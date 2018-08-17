@@ -28,6 +28,17 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       ObjectRef(broker(), HeapConstantOf(node->op()));
       break;
     }
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject: {
+      // TODO(neis, jarin) Force serialization of the entire feedback vector
+      // rather than just the one element.
+      CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+      Handle<Object> feedback(
+          p.feedback().vector()->Get(p.feedback().slot())->ToObject(),
+          broker()->isolate());
+      ObjectRef(broker(), feedback);
+      break;
+    }
     case IrOpcode::kJSCreateArray: {
       CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
       Handle<AllocationSite> site;

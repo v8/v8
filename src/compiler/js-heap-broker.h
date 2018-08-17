@@ -267,11 +267,19 @@ class AllocationSiteRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
 
-  JSObjectRef boilerplate() const;
-  PretenureFlag GetPretenureMode() const;
-  bool IsFastLiteral() const;
-  ObjectRef nested_site() const;
   bool PointsToLiteral() const;
+  PretenureFlag GetPretenureMode() const;
+  ObjectRef nested_site() const;
+
+  // {IsFastLiteral} determines whether the given array or object literal
+  // boilerplate satisfies all limits to be considered for fast deep-copying
+  // and computes the total size of all objects that are part of the graph.
+  //
+  // If PointsToLiteral() is false, then IsFastLiteral() is also false.
+  bool IsFastLiteral() const;
+  // We only serialize boilerplate if IsFastLiteral is true.
+  base::Optional<JSObjectRef> boilerplate() const;
+
   ElementsKind GetElementsKind() const;
   bool CanInlineCall() const;
 };
@@ -285,27 +293,27 @@ class MapRef : public HeapObjectRef {
   int GetInObjectProperties() const;
   int GetInObjectPropertiesStartInWords() const;
   int NumberOfOwnDescriptors() const;
-  PropertyDetails GetPropertyDetails(int i) const;
-  NameRef GetPropertyKey(int i) const;
-  FieldIndex GetFieldIndexFor(int i) const;
   int GetInObjectPropertyOffset(int index) const;
-  ObjectRef constructor_or_backpointer() const;
   ElementsKind elements_kind() const;
-
-  base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
-
   bool is_stable() const;
   bool has_prototype_slot() const;
   bool is_deprecated() const;
   bool CanBeDeprecated() const;
   bool CanTransition() const;
   bool IsInobjectSlackTrackingInProgress() const;
-  MapRef FindFieldOwner(int descriptor) const;
   bool is_dictionary_map() const;
   bool IsJSArrayMap() const;
   bool IsFixedCowArrayMap() const;
 
+  ObjectRef constructor_or_backpointer() const;
+
+  base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
+
   // Concerning the underlying instance_descriptors:
+  MapRef FindFieldOwner(int descriptor) const;
+  PropertyDetails GetPropertyDetails(int i) const;
+  NameRef GetPropertyKey(int i) const;
+  FieldIndex GetFieldIndexFor(int i) const;
   ObjectRef GetFieldType(int descriptor) const;
 };
 

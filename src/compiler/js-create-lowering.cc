@@ -1138,7 +1138,7 @@ Reduction JSCreateLowering::ReduceJSCreateLiteralArrayOrObject(Node* node) {
         pretenure = dependencies()->DependOnPretenureMode(site);
       }
       dependencies()->DependOnElementsKinds(site);
-      JSObjectRef boilerplate = site.boilerplate();
+      JSObjectRef boilerplate = site.boilerplate().value();
       Node* value = effect =
           AllocateFastLiteral(effect, control, boilerplate, pretenure);
       ReplaceWithValue(node, value, effect, control);

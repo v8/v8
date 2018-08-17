@@ -203,7 +203,7 @@ class ElementsKindDependency final
       : site_(site), kind_(kind) {
     DCHECK(AllocationSite::ShouldTrack(kind_));
     DCHECK_EQ(kind_, site_.PointsToLiteral()
-                         ? site_.boilerplate().GetElementsKind()
+                         ? site_.boilerplate().value().GetElementsKind()
                          : site_.GetElementsKind());
   }
 
@@ -309,7 +309,7 @@ void CompilationDependencies::DependOnElementsKind(
     const AllocationSiteRef& site) {
   // Do nothing if the object doesn't have any useful element transitions left.
   ElementsKind kind = site.PointsToLiteral()
-                          ? site.boilerplate().GetElementsKind()
+                          ? site.boilerplate().value().GetElementsKind()
                           : site.GetElementsKind();
   if (AllocationSite::ShouldTrack(kind)) {
     dependencies_.push_front(new (zone_) ElementsKindDependency(site, kind));
