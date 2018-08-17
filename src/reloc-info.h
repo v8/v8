@@ -110,61 +110,70 @@ class RelocInfo {
         host_(host),
         constant_pool_(constant_pool) {}
 
-  static inline bool IsRealRelocMode(Mode mode) {
+  static constexpr bool IsRealRelocMode(Mode mode) {
     return mode >= FIRST_REAL_RELOC_MODE && mode <= LAST_REAL_RELOC_MODE;
   }
   // Is the relocation mode affected by GC?
-  static inline bool IsGCRelocMode(Mode mode) { return mode <= LAST_GCED_ENUM; }
-  static inline bool IsShareableRelocMode(Mode mode) {
+  static constexpr bool IsGCRelocMode(Mode mode) {
+    return mode <= LAST_GCED_ENUM;
+  }
+  static constexpr bool IsShareableRelocMode(Mode mode) {
     static_assert(RelocInfo::NONE >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE,
                   "Users of this function rely on NONE being a sharable "
                   "relocation mode.");
     return mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE;
   }
-  static inline bool IsCodeTarget(Mode mode) { return mode == CODE_TARGET; }
-  static inline bool IsCodeTargetMode(Mode mode) {
+  static constexpr bool IsCodeTarget(Mode mode) { return mode == CODE_TARGET; }
+  static constexpr bool IsCodeTargetMode(Mode mode) {
     return mode <= LAST_CODE_TARGET_MODE;
   }
-  static inline bool IsRelativeCodeTarget(Mode mode) {
+  static constexpr bool IsRelativeCodeTarget(Mode mode) {
     return mode == RELATIVE_CODE_TARGET;
   }
-  static inline bool IsEmbeddedObject(Mode mode) {
+  static constexpr bool IsEmbeddedObject(Mode mode) {
     return mode == EMBEDDED_OBJECT;
   }
-  static inline bool IsRuntimeEntry(Mode mode) { return mode == RUNTIME_ENTRY; }
-  static inline bool IsWasmCall(Mode mode) { return mode == WASM_CALL; }
-  static inline bool IsWasmStubCall(Mode mode) {
+  static constexpr bool IsRuntimeEntry(Mode mode) {
+    return mode == RUNTIME_ENTRY;
+  }
+  static constexpr bool IsWasmCall(Mode mode) { return mode == WASM_CALL; }
+  static constexpr bool IsWasmStubCall(Mode mode) {
     return mode == WASM_STUB_CALL;
   }
-  static inline bool IsComment(Mode mode) { return mode == COMMENT; }
-  static inline bool IsConstPool(Mode mode) { return mode == CONST_POOL; }
-  static inline bool IsVeneerPool(Mode mode) { return mode == VENEER_POOL; }
-  static inline bool IsDeoptPosition(Mode mode) {
+  static constexpr bool IsComment(Mode mode) { return mode == COMMENT; }
+  static constexpr bool IsConstPool(Mode mode) { return mode == CONST_POOL; }
+  static constexpr bool IsVeneerPool(Mode mode) { return mode == VENEER_POOL; }
+  static constexpr bool IsDeoptPosition(Mode mode) {
     return mode == DEOPT_SCRIPT_OFFSET || mode == DEOPT_INLINING_ID;
   }
-  static inline bool IsDeoptReason(Mode mode) { return mode == DEOPT_REASON; }
-  static inline bool IsDeoptId(Mode mode) { return mode == DEOPT_ID; }
-  static inline bool IsExternalReference(Mode mode) {
+  static constexpr bool IsDeoptReason(Mode mode) {
+    return mode == DEOPT_REASON;
+  }
+  static constexpr bool IsDeoptId(Mode mode) { return mode == DEOPT_ID; }
+  static constexpr bool IsExternalReference(Mode mode) {
     return mode == EXTERNAL_REFERENCE;
   }
-  static inline bool IsInternalReference(Mode mode) {
+  static constexpr bool IsInternalReference(Mode mode) {
     return mode == INTERNAL_REFERENCE;
   }
-  static inline bool IsInternalReferenceEncoded(Mode mode) {
+  static constexpr bool IsInternalReferenceEncoded(Mode mode) {
     return mode == INTERNAL_REFERENCE_ENCODED;
   }
-  static inline bool IsOffHeapTarget(Mode mode) {
+  static constexpr bool IsOffHeapTarget(Mode mode) {
     return mode == OFF_HEAP_TARGET;
   }
-  static inline bool IsNone(Mode mode) { return mode == NONE; }
-  static inline bool IsWasmReference(Mode mode) {
+  static constexpr bool IsNone(Mode mode) { return mode == NONE; }
+  static constexpr bool IsWasmReference(Mode mode) {
     return IsWasmPtrReference(mode);
   }
-  static inline bool IsWasmPtrReference(Mode mode) {
+  static constexpr bool IsJsToWasmCall(Mode mode) {
+    return mode == JS_TO_WASM_CALL;
+  }
+  static constexpr bool IsWasmPtrReference(Mode mode) {
     return mode == WASM_CALL || mode == JS_TO_WASM_CALL;
   }
 
-  static inline bool IsOnlyForSerializer(Mode mode) {
+  static constexpr bool IsOnlyForSerializer(Mode mode) {
     return mode == EXTERNAL_REFERENCE || mode == OFF_HEAP_TARGET;
   }
 
