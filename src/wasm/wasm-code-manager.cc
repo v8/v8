@@ -408,7 +408,9 @@ WasmCode* NativeModule::AddCodeCopy(Handle<Code> code, WasmCode::Kind kind,
 WasmCode* NativeModule::AddInterpreterEntry(Handle<Code> code, uint32_t index) {
   WasmCode* ret = AddAnonymousCode(code, WasmCode::kInterpreterEntry);
   ret->index_ = Just(index);
+  base::LockGuard<base::Mutex> lock(&allocation_mutex_);
   PatchJumpTable(index, ret->instruction_start(), WasmCode::kFlushICache);
+  set_code(index, ret);
   return ret;
 }
 
@@ -572,9 +574,13 @@ WasmCode* NativeModule::AddDeserializedCode(
 }
 
 void NativeModule::PublishCode(WasmCode* code) {
-  // TODO(clemensh): Remove the need for locking here. Probably requires
-  // word-aligning the jump table slots.
   base::LockGuard<base::Mutex> lock(&allocation_mutex_);
+  // Skip publishing code if there is an active redirection to the interpreter
+  // for the given function index, in order to preserve the redirection.
+  if (has_code(code->index()) &&
+      this->code(code->index())->kind() == WasmCode::kInterpreterEntry) {
+    return;
+  }
   if (!code->protected_instructions_.is_empty()) {
     code->RegisterTrapHandlerData();
   }

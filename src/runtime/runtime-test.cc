@@ -1020,7 +1020,7 @@ RUNTIME_FUNCTION(Runtime_RedirectToWasmInterpreter) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
-  HandleScope hs(isolate);
+  HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Smi, info_addr, 0);
 
@@ -1048,8 +1048,21 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_SMI_ARG_CHECKED(function_index, 1);
+  if (!isolate->wasm_engine()->CompileFunction(
+          isolate, instance->module_object()->native_module(), function_index,
+          wasm::WasmEngine::kOptimizedTier)) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
-  HandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));

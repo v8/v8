@@ -302,8 +302,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return jump_table_->contains(address);
   }
 
-  uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
-
   // Transition this module from code relying on trap handlers (i.e. without
   // explicit memory bounds checks) to code that does not require trap handlers
   // (i.e. code with explicit bounds checks).
@@ -315,6 +313,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Returns the target to call for the given function (returns a jump table
   // slot within {jump_table_}).
   Address GetCallTargetForFunction(uint32_t func_index) const;
+
+  // Reverse lookup from a given call target (i.e. a jump table slot as the
+  // above {GetCallTargetForFunction} returns) to a function index.
+  uint32_t GetFunctionIndexFromJumpTableSlot(Address slot_address) const;
 
   bool SetExecutable(bool executable);
 

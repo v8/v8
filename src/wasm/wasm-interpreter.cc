@@ -2318,6 +2318,7 @@ class ThreadImpl {
           uint32_t entry_index = Pop().to<uint32_t>();
           // Assume only one table for now.
           DCHECK_LE(module()->tables.size(), 1u);
+          CommitPc(pc);  // TODO(wasm): Be more disciplined about committing PC.
           ExternalCallResult result =
               CallIndirectFunction(0, entry_index, imm.sig_index);
           switch (result.type) {

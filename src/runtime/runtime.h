@@ -522,6 +522,7 @@ namespace internal {
   F(InNewSpace, 1, 1)                         \
   F(IsAsmWasmCode, 1, 1)                      \
   F(IsConcurrentRecompilationSupported, 0, 1) \
+  F(WasmTierUpFunction, 2, 1)                 \
   F(IsLiftoffFunction, 1, 1)                  \
   F(IsWasmCode, 1, 1)                         \
   F(IsWasmTrapHandlerEnabled, 0, 1)           \
