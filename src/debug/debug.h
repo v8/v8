@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "src/allocation.h"
-#include "src/assembler.h"
 #include "src/base/atomicops.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"

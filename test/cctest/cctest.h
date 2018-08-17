@@ -32,7 +32,6 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-platform.h"
-#include "src/assembler.h"
 #include "src/debug/debug-interface.h"
 #include "src/flags.h"
 #include "src/heap/factory.h"

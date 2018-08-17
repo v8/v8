@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/arguments-inl.h"
-#include "src/assembler.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"

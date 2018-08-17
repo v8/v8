@@ -5,7 +5,6 @@
 #include "src/v8.h"
 
 #include "src/api.h"
-#include "src/assembler.h"
 #include "src/base/atomicops.h"
 #include "src/base/once.h"
 #include "src/base/platform/platform.h"
@@ -19,6 +18,7 @@
 #include "src/libsampler/sampler.h"
 #include "src/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
+#include "src/reloc-info.h"
 #include "src/runtime-profiler.h"
 #include "src/simulator.h"
 #include "src/snapshot/natives.h"

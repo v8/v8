@@ -6,7 +6,6 @@
 #define V8_OBJECTS_MAP_INL_H_
 
 #include "src/objects/map.h"
-
 #include "src/field-type.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks-inl.h"
