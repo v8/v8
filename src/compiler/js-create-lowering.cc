@@ -1097,7 +1097,7 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreatePromise, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  MapRef promise_map = native_context_ref().promise_function_initial_map();
+  MapRef promise_map = native_context_ref().promise_function().initial_map();
 
   AllocationBuilder a(jsgraph(), effect, graph()->start());
   a.Allocate(promise_map.instance_size());

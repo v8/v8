@@ -92,33 +92,18 @@ class ContextData : public HeapObjectData {
       : HeapObjectData(broker_, object_, type_) {}
 };
 
-#define NATIVE_CONTEXT_DATA(V)    \
-  V(array_function)               \
-  V(fast_aliased_arguments_map)   \
-  V(initial_array_iterator_map)   \
-  V(iterator_result_map)          \
-  V(js_array_packed_elements_map) \
-  V(map_key_iterator_map)         \
-  V(map_key_value_iterator_map)   \
-  V(map_value_iterator_map)       \
-  V(set_key_value_iterator_map)   \
-  V(set_value_iterator_map)       \
-  V(sloppy_arguments_map)         \
-  V(strict_arguments_map)         \
-  V(string_iterator_map)
-
 class NativeContextData : public ContextData {
  public:
-#define DECL_MEMBER(name) ObjectData* const name;
-  NATIVE_CONTEXT_DATA(DECL_MEMBER)
+#define DECL_MEMBER(type, name) ObjectData* const name;
+  BROKER_NATIVE_CONTEXT_FIELDS(DECL_MEMBER)
 #undef DECL_MEMBER
 
   // There's no NativeContext class, so we take object_ as Context.
   NativeContextData(JSHeapBroker* broker_, Handle<Context> object_,
                     HeapObjectType type_)
       : ContextData(broker_, object_, type_)
-#define INIT_MEMBER(name) , name(GET_OR_CREATE(name))
-            NATIVE_CONTEXT_DATA(INIT_MEMBER)
+#define INIT_MEMBER(type, name) , name(GET_OR_CREATE(name))
+            BROKER_NATIVE_CONTEXT_FIELDS(INIT_MEMBER)
 #undef INIT_MEMBER
   {
     CHECK(object_->IsNativeContext());
@@ -950,21 +935,10 @@ HANDLE_ACCESSOR(Map, Object, constructor_or_backpointer)
 
 HANDLE_ACCESSOR_C(MutableHeapNumber, double, value)
 
-BIMODAL_ACCESSOR_(NativeContext, Context, Map, fast_aliased_arguments_map)
-BIMODAL_ACCESSOR_(NativeContext, Context, Map, js_array_packed_elements_map)
-BIMODAL_ACCESSOR_(NativeContext, Context, Map, sloppy_arguments_map)
-BIMODAL_ACCESSOR_(NativeContext, Context, Map, strict_arguments_map)
-HANDLE_ACCESSOR_(NativeContext, Context, JSFunction, array_function)
-HANDLE_ACCESSOR_(NativeContext, Context, Map, initial_array_iterator_map)
-HANDLE_ACCESSOR_(NativeContext, Context, Map, iterator_result_map)
-HANDLE_ACCESSOR_(NativeContext, Context, Map, map_key_iterator_map)
-HANDLE_ACCESSOR_(NativeContext, Context, Map, map_key_value_iterator_map)
-HANDLE_ACCESSOR_(NativeContext, Context, Map, map_value_iterator_map)
-HANDLE_ACCESSOR_(NativeContext, Context, Map, set_key_value_iterator_map)
-HANDLE_ACCESSOR_(NativeContext, Context, Map, set_value_iterator_map)
-HANDLE_ACCESSOR_(NativeContext, Context, Map, string_iterator_map)
-HANDLE_ACCESSOR_(NativeContext, Context, ScriptContextTable,
-                 script_context_table)
+#define DEF_NATIVE_CONTEXT_ACCESSOR(type, name) \
+  BIMODAL_ACCESSOR_(NativeContext, Context, type, name)
+BROKER_NATIVE_CONTEXT_FIELDS(DEF_NATIVE_CONTEXT_ACCESSOR)
+#undef DEF_NATIVE_CONTEXT_ACCESSOR
 
 HANDLE_ACCESSOR(PropertyCell, Object, value)
 HANDLE_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
@@ -1000,14 +974,6 @@ BuiltinFunctionId JSFunctionRef::GetBuiltinFunctionId() const {
   return object<JSFunction>()->shared()->builtin_function_id();
 }
 
-MapRef NativeContextRef::promise_function_initial_map() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return MapRef(broker(),
-                handle(object<Context>()->promise_function()->initial_map(),
-                       broker()->isolate()));
-}
-
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   DCHECK_GE(index, Context::FIRST_FUNCTION_MAP_INDEX);
@@ -1024,11 +990,22 @@ MapRef NativeContextRef::ObjectLiteralMapFromCache() const {
 }
 
 MapRef NativeContextRef::GetInitialJSArrayMap(ElementsKind kind) const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  Handle<Map> map(object<Context>()->GetInitialJSArrayMap(kind),
-                  broker()->isolate());
-  return MapRef(broker(), map);
+  switch (kind) {
+    case PACKED_SMI_ELEMENTS:
+      return js_array_packed_smi_elements_map();
+    case HOLEY_SMI_ELEMENTS:
+      return js_array_holey_smi_elements_map();
+    case PACKED_DOUBLE_ELEMENTS:
+      return js_array_packed_double_elements_map();
+    case HOLEY_DOUBLE_ELEMENTS:
+      return js_array_holey_double_elements_map();
+    case PACKED_ELEMENTS:
+      return js_array_packed_elements_map();
+    case HOLEY_ELEMENTS:
+      return js_array_holey_elements_map();
+    default:
+      UNREACHABLE();
+  }
 }
 
 bool ObjectRef::BooleanValue() {
@@ -1129,7 +1106,6 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
 #undef HANDLE_ACCESSOR_
 #undef HANDLE_ACCESSOR_C
 #undef IF_BROKER_DISABLED_ACCESS_HANDLE_C
-#undef NATIVE_CONTEXT_DATA
 
 }  // namespace compiler
 }  // namespace internal
