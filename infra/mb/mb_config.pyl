@@ -54,6 +54,7 @@
       'x64.debug': 'default_debug_x64',
       'x64.optdebug': 'default_optdebug_x64',
       'x64.release': 'default_release_x64',
+      'x64.release.sample': 'release_x64_sample',
     },
     'client.dynamorio': {
       'linux-v8-dr': 'release_x64',
@@ -353,6 +354,8 @@
       'debug', 'x64', 'v8_enable_slow_dchecks'],
     'default_release_x64': [
       'release', 'x64'],
+    'release_x64_sample': [
+      'release', 'x64', 'sample'],
     'default_debug_x86': [
       'debug', 'x86', 'v8_enable_slow_dchecks', 'v8_full_debug'],
     'default_optdebug_x86': [
@@ -885,5 +888,9 @@
       'gn_args': 'target_cpu="x86"',
     },
 
+    'sample': {
+      'gn_args': 'v8_monolithic=true is_component_build=false '
+                 'v8_use_external_startup_data=false use_custom_libcxx=false',
+    },
   },
 }
