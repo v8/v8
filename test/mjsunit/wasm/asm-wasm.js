@@ -5,6 +5,7 @@
 // Flags: --validate-asm --allow-natives-syntax
 
 var stdlib = this;
+let kMinHeapSize = 4096;
 
 function assertValidAsm(func) {
   assertTrue(%IsAsmWasmCode(func), "must be valid asm code");
@@ -13,7 +14,7 @@ function assertValidAsm(func) {
 function assertWasm(expected, func, ffi) {
   print("Testing " + func.name + "...");
   assertEquals(
-      expected, func(stdlib, ffi, new ArrayBuffer(1024)).caller());
+      expected, func(stdlib, ffi, new ArrayBuffer(kMinHeapSize)).caller());
   assertValidAsm(func);
 }
 

@@ -154,6 +154,9 @@
   'asm/poppler/*': [PASS, SLOW, NO_VARIANTS],
   'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
 
+  # OOM flakes in isolates tests because too many largish heaps are created.
+  'asm/asm-heap': [PASS, NO_VARIANTS, ['isolates', SKIP]],
+
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
