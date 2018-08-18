@@ -1371,6 +1371,10 @@ namespace internal {
   CPP(NumberFormatInternalFormatNumber)                                \
   /* ecma402 #sec-intl.numberformat.prototype.format */                \
   CPP(NumberFormatPrototypeFormatNumber)                               \
+  /* ecma402 #sec-datetime-format-functions */                         \
+  CPP(DateTimeFormatInternalFormat)                                    \
+  /* ecma402 #sec-intl.datetimeformat.prototype.format */              \
+  CPP(DateTimeFormatPrototypeFormat)                                   \
   /* ecma402 #sec-intl.pluralrules */                                  \
   CPP(PluralRulesConstructor)                                          \
   /* ecma402 #sec-intl.RelativeTimeFormat.constructor */               \

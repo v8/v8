@@ -2912,6 +2912,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallFunction(isolate_, prototype, "formatToParts",
                             Builtins::kDateTimeFormatPrototypeFormatToParts, 1,
                             false);
+
+      SimpleInstallGetter(isolate_, prototype,
+                          factory->InternalizeUtf8String("format"),
+                          Builtins::kDateTimeFormatPrototypeFormat, false);
+
+      {
+        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
+            isolate_, Builtins::kDateTimeFormatInternalFormat,
+            factory->empty_string(), 1);
+        native_context()->set_date_format_internal_format_shared_fun(*info);
+      }
     }
 
     {

@@ -1236,20 +1236,6 @@ DEFINE_METHOD(
 
 
 /**
- * Returns a String value representing the result of calling ToNumber(date)
- * according to the effective locale and the formatting options of this
- * DateTimeFormat.
- */
-function formatDate(formatter, dateValue) {
-  return %FormatDate(formatter, dateValue);
-}
-
-// Length is 1 as specified in ECMA 402 v2+
-AddBoundMethod(GlobalIntlDateTimeFormat, 'format', formatDate, 1, DATE_TIME_FORMAT_TYPE,
-               true);
-
-
-/**
  * Returns canonical Area/Location(/Location) name, or throws an exception
  * if the zone name is invalid IANA name.
  */

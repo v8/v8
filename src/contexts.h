@@ -203,6 +203,8 @@ enum ContextLookupFlags {
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
   V(INTL_DATE_TIME_FORMAT_FUNCTION_INDEX, JSFunction,                          \
     intl_date_time_format_function)                                            \
+  V(INTL_DATE_FORMAT_INTERNAL_FORMAT_SHARED_FUN, SharedFunctionInfo,           \
+    date_format_internal_format_shared_fun)                                    \
   V(INTL_NUMBER_FORMAT_FUNCTION_INDEX, JSFunction,                             \
     intl_number_format_function)                                               \
   V(INTL_NUMBER_FORMAT_INTERNAL_FORMAT_NUMBER_SHARED_FUN, SharedFunctionInfo,  \

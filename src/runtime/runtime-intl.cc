@@ -218,7 +218,8 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
       DateFormat::InitializeDateTimeFormat(isolate, locale, options, resolved);
   CHECK_NOT_NULL(date_format);
 
-  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(date_format));
+  local_object->SetEmbedderField(DateFormat::kSimpleDateFormatIndex,
+                                 reinterpret_cast<Smi*>(date_format));
 
   // Make object handle weak so we can delete the data format once GC kicks in.
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);

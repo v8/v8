@@ -631,12 +631,29 @@ icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
 }
 
 icu::SimpleDateFormat* DateFormat::UnpackDateFormat(Handle<JSObject> obj) {
-  return reinterpret_cast<icu::SimpleDateFormat*>(obj->GetEmbedderField(0));
+  return reinterpret_cast<icu::SimpleDateFormat*>(
+      obj->GetEmbedderField(DateFormat::kSimpleDateFormatIndex));
 }
 
 void DateFormat::DeleteDateFormat(const v8::WeakCallbackInfo<void>& data) {
   delete reinterpret_cast<icu::SimpleDateFormat*>(data.GetInternalField(0));
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
+}
+
+MaybeHandle<JSObject> DateFormat::Unwrap(Isolate* isolate,
+                                         Handle<JSReceiver> receiver,
+                                         const char* method_name) {
+  Handle<Context> native_context =
+      Handle<Context>(isolate->context()->native_context(), isolate);
+  Handle<JSFunction> constructor = Handle<JSFunction>(
+      JSFunction::cast(native_context->intl_date_time_format_function()),
+      isolate);
+  Handle<String> method_name_str =
+      isolate->factory()->NewStringFromAsciiChecked(method_name);
+
+  return Intl::UnwrapReceiver(isolate, receiver, constructor,
+                              Intl::Type::kDateTimeFormat, method_name_str,
+                              true);
 }
 
 // ecma402/#sec-formatdatetime
@@ -667,6 +684,11 @@ MaybeHandle<String> DateFormat::FormatDateTime(
 MaybeHandle<String> DateFormat::DateTimeFormat(
     Isolate* isolate, Handle<JSObject> date_time_format_holder,
     Handle<Object> date) {
+  // 2. Assert: Type(dtf) is Object and dtf has an [[InitializedDateTimeFormat]]
+  // internal slot.
+  DCHECK(Intl::IsObjectOfType(isolate, date_time_format_holder,
+                              Intl::Type::kDateTimeFormat));
+
   // 3. If date is not provided or is undefined, then
   double x;
   if (date->IsUndefined()) {

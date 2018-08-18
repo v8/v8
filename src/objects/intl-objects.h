@@ -60,6 +60,14 @@ class DateFormat {
       Isolate* isolate, Handle<JSObject> date_time_format_holder,
       Handle<Object> date);
 
+  // The UnwrapDateTimeFormat abstract operation gets the underlying
+  // DateTimeFormat operation for various methods which implement ECMA-402 v1
+  // semantics for supporting initializing existing Intl objects.
+  //
+  // ecma402/#sec-unwrapdatetimeformat
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> Unwrap(
+      Isolate* isolate, Handle<JSReceiver> receiver, const char* method_name);
+
   // ecma-402/#sec-todatetimeoptions
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ToDateTimeOptions(
       Isolate* isolate, Handle<Object> input_options, const char* required,
@@ -71,8 +79,28 @@ class DateFormat {
       const char* service);
 
   // Layout description.
-  static const int kSimpleDateFormat = JSObject::kHeaderSize;
-  static const int kSize = kSimpleDateFormat + kPointerSize;
+#define DATE_FORMAT_FIELDS(V)        \
+  V(kSimpleDateFormat, kPointerSize) \
+  V(kBoundFormat, kPointerSize)      \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, DATE_FORMAT_FIELDS)
+#undef DATE_FORMAT_FIELDS
+
+  // ContextSlot defines the context structure for the bound
+  // DateTimeFormat.prototype.format function
+  enum ContextSlot {
+    kDateFormat = Context::MIN_CONTEXT_SLOTS,
+
+    kLength
+  };
+
+  // TODO(ryzokuken): Remove this and use regular accessors once DateFormat is a
+  // subclass of JSObject
+  //
+  // This needs to be consistent with the above Layout Description
+  static const int kSimpleDateFormatIndex = 0;
+  static const int kBoundFormatIndex = 1;
 
  private:
   DateFormat();
