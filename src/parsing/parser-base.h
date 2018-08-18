@@ -962,8 +962,7 @@ class ParserBase {
 
   void ReportClassifierError(
       const typename ExpressionClassifier::Error& error) {
-    impl()->ReportMessageAt(error.location, error.message, error.arg,
-                            error.type);
+    impl()->ReportMessageAt(error.location, error.message, error.arg);
   }
 
   void ValidateExpression(bool* ok) {
