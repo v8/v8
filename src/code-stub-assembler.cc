@@ -4913,18 +4913,19 @@ TNode<Float64T> CodeStubAssembler::ChangeNumberToFloat64(
 TNode<UintPtrT> CodeStubAssembler::ChangeNonnegativeNumberToUintPtr(
     TNode<Number> value) {
   TVARIABLE(UintPtrT, result);
-  Label smi(this), done(this, &result);
-  GotoIf(TaggedIsSmi(value), &smi);
-
-  TNode<HeapNumber> value_hn = CAST(value);
-  result = ChangeFloat64ToUintPtr(LoadHeapNumberValue(value_hn));
-  Goto(&done);
-
-  BIND(&smi);
-  TNode<Smi> value_smi = CAST(value);
-  CSA_SLOW_ASSERT(this, SmiLessThan(SmiConstant(-1), value_smi));
-  result = UncheckedCast<UintPtrT>(SmiToIntPtr(value_smi));
-  Goto(&done);
+  Label done(this, &result);
+  Branch(TaggedIsSmi(value),
+         [&] {
+           TNode<Smi> value_smi = CAST(value);
+           CSA_SLOW_ASSERT(this, SmiLessThan(SmiConstant(-1), value_smi));
+           result = UncheckedCast<UintPtrT>(SmiToIntPtr(value_smi));
+           Goto(&done);
+         },
+         [&] {
+           TNode<HeapNumber> value_hn = CAST(value);
+           result = ChangeFloat64ToUintPtr(LoadHeapNumberValue(value_hn));
+           Goto(&done);
+         });
 
   BIND(&done);
   return result.value();
@@ -9806,7 +9807,15 @@ Node* CodeStubAssembler::BuildFastLoop(
   // to force the loop header check at the end of the loop and branch forward to
   // it from the pre-header). The extra branch is slower in the case that the
   // loop actually iterates.
-  Branch(WordEqual(var.value(), end_index), &after_loop, &loop);
+  Node* first_check = WordEqual(var.value(), end_index);
+  int32_t first_check_val;
+  if (ToInt32Constant(first_check, first_check_val)) {
+    if (first_check_val) return var.value();
+    Goto(&loop);
+  } else {
+    Branch(first_check, &after_loop, &loop);
+  }
+
   BIND(&loop);
   {
     if (advance_mode == IndexAdvanceMode::kPre) {
