@@ -3610,14 +3610,6 @@ bool Value::IsBigInt() const { return Utils::OpenHandle(this)->IsBigInt(); }
 
 bool Value::IsProxy() const { return Utils::OpenHandle(this)->IsJSProxy(); }
 
-bool Value::IsWebAssemblyCompiledModule() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (!obj->IsJSObject()) return false;
-  i::Handle<i::JSObject> js_obj = i::Handle<i::JSObject>::cast(obj);
-  return js_obj->GetIsolate()->native_context()->wasm_module_constructor() ==
-         js_obj->map()->GetConstructor();
-}
-
 #define VALUE_IS_SPECIFIC_TYPE(Type, Check)             \
   bool Value::Is##Type() const {                        \
     i::Handle<i::Object> obj = Utils::OpenHandle(this); \
@@ -3635,6 +3627,7 @@ VALUE_IS_SPECIFIC_TYPE(Map, JSMap)
 VALUE_IS_SPECIFIC_TYPE(Set, JSSet)
 VALUE_IS_SPECIFIC_TYPE(WeakMap, JSWeakMap)
 VALUE_IS_SPECIFIC_TYPE(WeakSet, JSWeakSet)
+VALUE_IS_SPECIFIC_TYPE(WebAssemblyCompiledModule, WasmModuleObject)
 
 #undef VALUE_IS_SPECIFIC_TYPE
 
