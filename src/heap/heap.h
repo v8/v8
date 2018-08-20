@@ -1516,6 +1516,7 @@ class Heap {
 
    private:
     void Verify();
+    void VerifyNewSpace();
 
     Heap* const heap_;
 

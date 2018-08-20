@@ -2331,7 +2331,7 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
   return new_string->IsExternalString() ? new_string : nullptr;
 }
 
-void Heap::ExternalStringTable::Verify() {
+void Heap::ExternalStringTable::VerifyNewSpace() {
 #ifdef DEBUG
   std::set<String*> visited_map;
   std::map<MemoryChunk*, size_t> size_map;
@@ -2348,6 +2348,18 @@ void Heap::ExternalStringTable::Verify() {
     visited_map.insert(obj);
     size_map[mc] += ExternalString::cast(obj)->ExternalPayloadSize();
   }
+  for (std::map<MemoryChunk*, size_t>::iterator it = size_map.begin();
+       it != size_map.end(); it++)
+    DCHECK_EQ(it->first->ExternalBackingStoreBytes(type), it->second);
+#endif
+}
+
+void Heap::ExternalStringTable::Verify() {
+#ifdef DEBUG
+  std::set<String*> visited_map;
+  std::map<MemoryChunk*, size_t> size_map;
+  ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
+  VerifyNewSpace();
   for (size_t i = 0; i < old_space_strings_.size(); ++i) {
     String* obj = String::cast(old_space_strings_[i]);
     MemoryChunk* mc = MemoryChunk::FromHeapObject(obj);
@@ -2395,7 +2407,7 @@ void Heap::ExternalStringTable::UpdateNewSpaceReferences(
   new_space_strings_.resize(static_cast<size_t>(last - start));
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    Verify();
+    VerifyNewSpace();
   }
 #endif
 }
