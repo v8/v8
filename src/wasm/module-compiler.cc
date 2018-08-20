@@ -1294,7 +1294,8 @@ uint32_t InstanceBuilder::EvalUint32InitExpr(const WasmInitExpr& expr) {
       return expr.val.i32_const;
     case WasmInitExpr::kGlobalIndex: {
       uint32_t offset = module_->globals[expr.val.global_index].offset;
-      return *reinterpret_cast<uint32_t*>(raw_buffer_ptr(globals_, offset));
+      return ReadLittleEndianValue<uint32_t>(
+          reinterpret_cast<Address>(raw_buffer_ptr(globals_, offset)));
     }
     default:
       UNREACHABLE();

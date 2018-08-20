@@ -108,28 +108,36 @@ Address WasmGlobalObject::address() const {
   return Address(array_buffer()->backing_store()) + offset();
 }
 
-int32_t WasmGlobalObject::GetI32() { return Memory::int32_at(address()); }
+int32_t WasmGlobalObject::GetI32() {
+  return ReadLittleEndianValue<int32_t>(address());
+}
 
-int64_t WasmGlobalObject::GetI64() { return Memory::int64_at(address()); }
+int64_t WasmGlobalObject::GetI64() {
+  return ReadLittleEndianValue<int64_t>(address());
+}
 
-float WasmGlobalObject::GetF32() { return Memory::float_at(address()); }
+float WasmGlobalObject::GetF32() {
+  return ReadLittleEndianValue<float>(address());
+}
 
-double WasmGlobalObject::GetF64() { return Memory::double_at(address()); }
+double WasmGlobalObject::GetF64() {
+  return ReadLittleEndianValue<double>(address());
+}
 
 void WasmGlobalObject::SetI32(int32_t value) {
-  Memory::int32_at(address()) = value;
+  WriteLittleEndianValue<int32_t>(address(), value);
 }
 
 void WasmGlobalObject::SetI64(int64_t value) {
-  Memory::int64_at(address()) = value;
+  WriteLittleEndianValue<int64_t>(address(), value);
 }
 
 void WasmGlobalObject::SetF32(float value) {
-  Memory::float_at(address()) = value;
+  WriteLittleEndianValue<float>(address(), value);
 }
 
 void WasmGlobalObject::SetF64(double value) {
-  Memory::double_at(address()) = value;
+  WriteLittleEndianValue<double>(address(), value);
 }
 
 // WasmInstanceObject
