@@ -1338,6 +1338,12 @@ namespace internal {
   CPP(NumberFormatPrototypeFormatToParts)                              \
   /* ecma402 #sec-intl.datetimeformat.prototype.formattoparts */       \
   CPP(DateTimeFormatPrototypeFormatToParts)                            \
+  /* ecma402 #sup-date.prototype.tolocaledatestring */                 \
+  CPP(DatePrototypeToLocaleDateString)                                 \
+  /* ecma402 #sup-date.prototype.tolocalestring */                     \
+  CPP(DatePrototypeToLocaleString)                                     \
+  /* ecma402 #sup-date.prototype.tolocaletimestring */                 \
+  CPP(DatePrototypeToLocaleTimeString)                                 \
   /* ecma402 #new proposal */                                          \
   /* ecma402 #sec-intl-listformat-constructor */                       \
   CPP(ListFormatConstructor)                                           \
