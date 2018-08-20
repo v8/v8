@@ -577,8 +577,9 @@ class WasmDebugInfo : public Struct, public NeverReadOnlySpaceObject {
   // interpreter for unwinding and frame inspection.
   // Returns true if exited regularly, false if a trap occurred. In the latter
   // case, a pending exception will have been set on the isolate.
-  bool RunInterpreter(Address frame_pointer, int func_index,
-                      Address arg_buffer);
+  static bool RunInterpreter(Isolate* isolate, Handle<WasmDebugInfo>,
+                             Address frame_pointer, int func_index,
+                             Address arg_buffer);
 
   // Get the stack of the wasm interpreter as pairs of <function index, byte
   // offset>. The list is ordered bottom-to-top, i.e. caller before callee.

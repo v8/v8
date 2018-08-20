@@ -263,8 +263,13 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
     frame_pointer = it.frame()->fp();
   }
 
-  bool success = instance->debug_info()->RunInterpreter(frame_pointer,
-                                                        func_index, arg_buffer);
+  // Run the function in the interpreter. Note that neither the {WasmDebugInfo}
+  // nor the {InterpreterHandle} have to exist, because interpretation might
+  // have been triggered by another Isolate sharing the same WasmEngine.
+  Handle<WasmDebugInfo> debug_info =
+      WasmInstanceObject::GetOrCreateDebugInfo(instance);
+  bool success = WasmDebugInfo::RunInterpreter(
+      isolate, debug_info, frame_pointer, func_index, arg_buffer);
 
   if (!success) {
     DCHECK(isolate->has_pending_exception());
