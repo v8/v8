@@ -192,6 +192,10 @@ if (v8_check_microtasks_scopes_consistency == "") {
 
 assert(!v8_enable_embedded_builtins || v8_use_snapshot,
        "Embedded builtins only work with snapshots")
+assert(
+    v8_current_cpu != "x86" || !v8_enable_embedded_builtins ||
+        !v8_untrusted_code_mitigations,
+    "Embedded builtins on ia32 and untrusted code mitigations are incompatible")
 
 assert(!v8_enable_embedded_bytecode_handlers || v8_enable_embedded_builtins,
        "Embedded bytecode handlers only work with embedded builtins")

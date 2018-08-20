@@ -314,6 +314,7 @@ bool Builtins::IsLazy(int index) {
 // static
 bool Builtins::IsIsolateIndependent(int index) {
   DCHECK(IsBuiltinId(index));
+#ifndef V8_TARGET_ARCH_IA32
   switch (index) {
     // TODO(jgruber): There's currently two blockers for moving
     // InterpreterEntryTrampoline into the binary:
@@ -332,6 +333,15 @@ bool Builtins::IsIsolateIndependent(int index) {
     default:
       return true;
   }
+#else   // V8_TARGET_ARCH_IA32
+  // TODO(jgruber, v8:6666): Implement support.
+  // ia32 is a work-in-progress. This will let us make builtins
+  // isolate-independent one-by-one.
+  switch (index) {
+    default:
+      return false;
+  }
+#endif  // V8_TARGET_ARCH_IA32
   UNREACHABLE();
 }
 

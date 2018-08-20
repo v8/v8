@@ -303,6 +303,10 @@ class PipelineData {
     return jump_optimization_info_;
   }
 
+  const AssemblerOptions& assembler_options() const {
+    return assembler_options_;
+  }
+
   CodeTracer* GetCodeTracer() const {
     return wasm_engine_ == nullptr ? isolate_->GetCodeTracer()
                                    : wasm_engine_->GetCodeTracer();
@@ -2402,6 +2406,17 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
              PoisoningMitigationLevel::kDontPoison) {
     AllocateRegisters(RegisterConfiguration::Poisoning(), call_descriptor,
                       run_verifier);
+#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+  } else if (data_->assembler_options().isolate_independent_code) {
+    // TODO(v8:6666): Extend support to all builtins and user code. Ensure that
+    // it is mutually exclusive with the Poisoning configuration above; and that
+    // it cooperates with restricted allocatable registers above.
+    static_assert(kRootRegister == kSpeculationPoisonRegister);
+    CHECK_IMPLIES(FLAG_embedded_builtins, !FLAG_branch_load_poisoning);
+    CHECK_IMPLIES(FLAG_embedded_builtins, !FLAG_untrusted_code_mitigations);
+    AllocateRegisters(RegisterConfiguration::PreserveRootIA32(),
+                      call_descriptor, run_verifier);
+#endif  // V8_TARGET_ARCH_IA32
   } else {
     AllocateRegisters(RegisterConfiguration::Default(), call_descriptor,
                       run_verifier);

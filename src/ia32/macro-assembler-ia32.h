@@ -38,6 +38,9 @@ constexpr Register kRuntimeCallFunctionRegister = ebx;
 constexpr Register kRuntimeCallArgCountRegister = eax;
 constexpr Register kWasmInstanceRegister = esi;
 
+// TODO(v8:6666): Implement full support.
+constexpr Register kRootRegister = ebx;
+
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.
 typedef Operand MemOperand;
