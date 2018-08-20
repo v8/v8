@@ -223,6 +223,7 @@ struct BlockTypeImmediate {
         decoder->error(pc + 1, "invalid block type");
         return;
       }
+      if (!VALIDATE(decoder->ok())) return;
       int32_t index =
           decoder->read_i32v<validate>(pc + 1, &length, "block arity");
       if (!VALIDATE(length > 0 && index >= 0)) {
