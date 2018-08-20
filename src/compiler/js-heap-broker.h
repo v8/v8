@@ -176,7 +176,6 @@ class JSFunctionRef : public JSObjectRef {
   JSGlobalProxyRef global_proxy() const;
   int InitialMapInstanceSizeWithMinSlack() const;
   SharedFunctionInfoRef shared() const;
-  void EnsureHasInitialMap() const;
 };
 
 class JSRegExpRef : public JSObjectRef {

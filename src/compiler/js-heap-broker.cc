@@ -600,16 +600,6 @@ base::Optional<MapRef> HeapObjectRef::TryGetObjectCreateMap() const {
   }
 }
 
-void JSFunctionRef::EnsureHasInitialMap() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  AllowHeapAllocation heap_allocation;
-  // TODO(jarin) Eventually, we will prepare initial maps for resumable
-  // functions (i.e., generators).
-  DCHECK(IsResumableFunction(object<JSFunction>()->shared()->kind()));
-  JSFunction::EnsureHasInitialMap(object<JSFunction>());
-}
-
 base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
