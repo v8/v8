@@ -1319,10 +1319,7 @@ namespace internal {
   CPP(Trace)
 
 #ifdef V8_INTL_SUPPORT
-#define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)                \
-  BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)                 \
-  BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM)             \
-                                                                       \
+#define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                               \
   /* ecma402 #sec-intl.collator */                                     \
   CPP(CollatorConstructor)                                             \
   TFS(StringToLowerCaseIntl, kString)                                  \
@@ -1387,21 +1384,23 @@ namespace internal {
   /* ecma 402 #sec-collator-compare-functions*/                        \
   CPP(CollatorInternalCompare)
 #else
+#define BUILTIN_LIST_INTL(CPP, TFJ, TFS)      \
+  /* no-op fallback version */                \
+  CPP(StringPrototypeNormalize)               \
+  /* same as toLowercase; fallback version */ \
+  CPP(StringPrototypeToLocaleLowerCase)       \
+  /* same as toUppercase; fallback version */ \
+  CPP(StringPrototypeToLocaleUpperCase)       \
+  /* (obsolete) Unibrow version */            \
+  CPP(StringPrototypeToLowerCase)             \
+  /* (obsolete) Unibrow version */            \
+  CPP(StringPrototypeToUpperCase)
+#endif  // V8_INTL_SUPPORT
+
 #define BUILTIN_LIST(CPP, API, TFJ, TFC, TFS, TFH, ASM)    \
   BUILTIN_LIST_BASE(CPP, API, TFJ, TFC, TFS, TFH, ASM)     \
   BUILTIN_LIST_FROM_DSL(CPP, API, TFJ, TFC, TFS, TFH, ASM) \
-                                                           \
-  /* no-op fallback version */                             \
-  CPP(StringPrototypeNormalize)                            \
-  /* same as toLowercase; fallback version */              \
-  CPP(StringPrototypeToLocaleLowerCase)                    \
-  /* same as toUppercase; fallback version */              \
-  CPP(StringPrototypeToLocaleUpperCase)                    \
-  /* (obsolete) Unibrow version */                         \
-  CPP(StringPrototypeToLowerCase)                          \
-  /* (obsolete) Unibrow version */                         \
-  CPP(StringPrototypeToUpperCase)
-#endif  // V8_INTL_SUPPORT
+  BUILTIN_LIST_INTL(CPP, TFJ, TFS)
 
 // The exception thrown in the following builtins are caught
 // internally and result in a promise rejection.
