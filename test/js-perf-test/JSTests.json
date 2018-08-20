@@ -1110,6 +1110,17 @@
         {"name": "UnaryPlus"},
         {"name": "ParseFloat"}
       ]
+    },
+    {
+      "name": "TurboFan",
+      "path": ["TurboFan"],
+      "main": "run.js",
+      "flags": [],
+      "resources": [ "typedLowering.js"],
+      "results_regexp": "^%s\\-TurboFan\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "NumberToString"}
+      ]
     }
   ]
 }
