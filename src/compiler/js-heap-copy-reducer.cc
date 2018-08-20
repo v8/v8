@@ -28,17 +28,6 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       ObjectRef(broker(), HeapConstantOf(node->op()));
       break;
     }
-    case IrOpcode::kJSCreateLiteralArray:
-    case IrOpcode::kJSCreateLiteralObject: {
-      // TODO(neis, jarin) Force serialization of the entire feedback vector
-      // rather than just the one element.
-      CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
-      Handle<Object> feedback(
-          p.feedback().vector()->Get(p.feedback().slot())->ToObject(),
-          broker()->isolate());
-      ObjectRef(broker(), feedback);
-      break;
-    }
     case IrOpcode::kJSCreateArray: {
       CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
       Handle<AllocationSite> site;
@@ -56,10 +45,27 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       HeapObjectRef(broker(), p.code());
       break;
     }
+    case IrOpcode::kJSCreateEmptyLiteralArray: {
+      // TODO(neis, jarin) Force serialization of the entire feedback vector
+      // rather than just the one element.
+      FeedbackParameter const& p = FeedbackParameterOf(node->op());
+      FeedbackVectorRef(broker(), p.feedback().vector());
+      Handle<Object> feedback(
+          p.feedback().vector()->Get(p.feedback().slot())->ToObject(),
+          broker()->isolate());
+      ObjectRef(broker(), feedback);
+      break;
+    }
     case IrOpcode::kJSCreateFunctionContext: {
       CreateFunctionContextParameters const& p =
           CreateFunctionContextParametersOf(node->op());
       ScopeInfoRef(broker(), p.scope_info());
+      break;
+    }
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject: {
+      CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+      ObjectRef(broker(), p.feedback().vector());
       break;
     }
     case IrOpcode::kJSLoadNamed:

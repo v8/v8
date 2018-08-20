@@ -324,7 +324,32 @@ void MapData::SerializeElementsKindGeneralizations() {
   }
 }
 
-class FeedbackVectorData : public HeapObjectData {};
+class FeedbackVectorData : public HeapObjectData {
+ public:
+  const ZoneVector<ObjectData*>& feedback() { return feedback_; }
+
+  FeedbackVectorData(JSHeapBroker* broker_, Handle<FeedbackVector> object_,
+                     HeapObjectType type_);
+
+ private:
+  ZoneVector<ObjectData*> feedback_;
+};
+
+FeedbackVectorData::FeedbackVectorData(JSHeapBroker* broker_,
+                                       Handle<FeedbackVector> object_,
+                                       HeapObjectType type_)
+    : HeapObjectData(broker_, object_, type_), feedback_(broker_->zone()) {
+  feedback_.reserve(object_->length());
+  for (int i = 0; i < object_->length(); ++i) {
+    MaybeObject* value = object_->get(i);
+    feedback_.push_back(value->IsObject()
+                            ? broker->GetOrCreateData(
+                                  handle(value->ToObject(), broker->isolate()))
+                            : nullptr);
+  }
+  DCHECK_EQ(object_->length(), feedback_.size());
+}
+
 class FixedArrayBaseData : public HeapObjectData {};
 class FixedArrayData : public FixedArrayBaseData {};
 class FixedDoubleArrayData : public FixedArrayBaseData {};
@@ -373,6 +398,9 @@ HeapObjectData* HeapObjectData::Serialize(JSHeapBroker* broker,
   if (object->IsJSFunction()) {
     result = new (broker->zone())
         JSFunctionData(broker, Handle<JSFunction>::cast(object), type);
+  } else if (object->IsAllocationSite()) {
+    result = new (broker->zone())
+        AllocationSiteData(broker, Handle<AllocationSite>::cast(object), type);
   } else if (object->IsNativeContext()) {
     result = new (broker->zone())
         NativeContextData(broker, Handle<Context>::cast(object), type);
@@ -388,9 +416,9 @@ HeapObjectData* HeapObjectData::Serialize(JSHeapBroker* broker,
   } else if (object->IsName()) {
     result =
         new (broker->zone()) NameData(broker, Handle<Name>::cast(object), type);
-  } else if (object->IsAllocationSite()) {
+  } else if (object->IsFeedbackVector()) {
     result = new (broker->zone())
-        AllocationSiteData(broker, Handle<AllocationSite>::cast(object), type);
+        FeedbackVectorData(broker, Handle<FeedbackVector>::cast(object), type);
   } else {
     result = new (broker->zone()) HeapObjectData(broker, object, type);
   }
@@ -651,11 +679,15 @@ OddballType ObjectRef::oddball_type() const {
 }
 
 ObjectRef FeedbackVectorRef::get(FeedbackSlot slot) const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference handle_dereference;
-  Handle<Object> value(object<FeedbackVector>()->Get(slot)->ToObject(),
-                       broker()->isolate());
-  return ObjectRef(broker(), value);
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference handle_dereference;
+    Handle<Object> value(object<FeedbackVector>()->Get(slot)->ToObject(),
+                         broker()->isolate());
+    return ObjectRef(broker(), value);
+  }
+  int i = FeedbackVector::GetIndex(slot);
+  return ObjectRef(data()->AsFeedbackVector()->feedback().at(i));
 }
 
 bool JSObjectRef::IsUnboxedDoubleField(FieldIndex index) const {
