@@ -1141,6 +1141,8 @@ class Isolate : private HiddenFactory {
 
   bool NeedsSourcePositionsForProfiling() const;
 
+  bool NeedsDetailedOptimizedCodeLineInfo() const;
+
   bool is_best_effort_code_coverage() const {
     return code_coverage_mode() == debug::Coverage::kBestEffort;
   }
