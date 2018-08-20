@@ -189,9 +189,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     // TODO(titzer): debug printing for more wasm objects
     case WASM_GLOBAL_TYPE:
     case WASM_MEMORY_TYPE:
-    case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:
       JSObject::cast(this)->JSObjectPrint(os);
+      break;
+    case WASM_MODULE_TYPE:
+      WasmModuleObject::cast(this)->WasmModuleObjectPrint(os);
       break;
     case WASM_INSTANCE_TYPE:
       WasmInstanceObject::cast(this)->WasmInstanceObjectPrint(os);
@@ -1766,14 +1768,17 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(
 }
 
 void WasmModuleObject::WasmModuleObjectPrint(std::ostream& os) {  // NOLINT
-  JSObjectPrintHeader(os, this, "WasmModuleObject");
-  JSObjectPrintBody(os, this);
+  HeapObject::PrintHeader(os, "WasmModuleObject");
   os << "\n - module: " << module();
   os << "\n - native module: " << native_module();
   os << "\n - export wrappers: " << Brief(export_wrappers());
   os << "\n - script: " << Brief(script());
-  os << "\n - asm_js_offset_table: " << Brief(asm_js_offset_table());
-  os << "\n - breakpoint_infos: " << Brief(breakpoint_infos());
+  if (has_asm_js_offset_table()) {
+    os << "\n - asm_js_offset_table: " << Brief(asm_js_offset_table());
+  }
+  if (has_breakpoint_infos()) {
+    os << "\n - breakpoint_infos: " << Brief(breakpoint_infos());
+  }
   os << "\n";
 }
 
