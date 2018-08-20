@@ -170,6 +170,7 @@ class Serializer : public SerializerDeserializer {
 
   void VisitRootPointers(Root root, const char* description, Object** start,
                          Object** end) override;
+  void SerializeRootObject(Object* object);
 
   void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
                int skip);

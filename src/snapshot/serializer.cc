@@ -116,11 +116,16 @@ void Serializer<AllocatorT>::VisitRootPointers(Root root,
   if (root == Root::kBuiltins || root == Root::kDispatchTable) return;
 
   for (Object** current = start; current < end; current++) {
-    if ((*current)->IsSmi()) {
-      PutSmi(Smi::cast(*current));
-    } else {
-      SerializeObject(HeapObject::cast(*current), kPlain, kStartOfObject, 0);
-    }
+    SerializeRootObject(*current);
+  }
+}
+
+template <class AllocatorT>
+void Serializer<AllocatorT>::SerializeRootObject(Object* object) {
+  if (object->IsSmi()) {
+    PutSmi(Smi::cast(object));
+  } else {
+    SerializeObject(HeapObject::cast(object), kPlain, kStartOfObject, 0);
   }
 }
 
