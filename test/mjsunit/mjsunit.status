@@ -641,8 +641,6 @@
 ##############################################################################
 ['system == android', {
   # Tests consistently failing on Android.
-  # Precision:
-  'es6/math-log2-log10': [FAIL],
   # Timezone issues:
   'icu-date-to-string': [FAIL],
   'regress/regress-6288': [FAIL],
