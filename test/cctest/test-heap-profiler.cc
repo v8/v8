@@ -49,7 +49,9 @@ using i::AllocationTraceNode;
 using i::AllocationTraceTree;
 using i::AllocationTracker;
 using i::ArrayVector;
+using i::SourceLocation;
 using i::Vector;
+using v8::base::Optional;
 
 namespace {
 
@@ -149,6 +151,23 @@ static const v8::HeapGraphEdge* GetEdgeByChildName(
 static const v8::HeapGraphNode* GetRootChild(const v8::HeapSnapshot* snapshot,
                                              const char* name) {
   return GetChildByName(snapshot->GetRoot(), name);
+}
+
+static Optional<SourceLocation> GetLocation(const v8::HeapSnapshot* s,
+                                            const v8::HeapGraphNode* node) {
+  const i::HeapSnapshot* snapshot = reinterpret_cast<const i::HeapSnapshot*>(s);
+  const std::vector<SourceLocation>& locations = snapshot->locations();
+  const int index =
+      const_cast<i::HeapEntry*>(reinterpret_cast<const i::HeapEntry*>(node))
+          ->index();
+
+  for (const auto& loc : locations) {
+    if (loc.entry_index == index) {
+      return Optional<SourceLocation>(loc);
+    }
+  }
+
+  return Optional<SourceLocation>();
 }
 
 static const v8::HeapGraphNode* GetProperty(v8::Isolate* isolate,
@@ -258,6 +277,27 @@ TEST(HeapSnapshot) {
   CHECK(det.has_C2);
 }
 
+TEST(HeapSnapshotLocations) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun(
+      "function X(a) { return function() { return a; } }\n"
+      "var x = X(1);");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* x =
+      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "x");
+  CHECK(x);
+
+  Optional<SourceLocation> location = GetLocation(snapshot, x);
+  CHECK(location);
+  CHECK_EQ(0, location->line);
+  CHECK_EQ(31, location->col);
+}
 
 TEST(HeapSnapshotObjectSizes) {
   LocalContext env;
@@ -1045,6 +1085,7 @@ TEST(HeapSnapshotJSONSerialization) {
   CHECK(parsed_snapshot->Has(env.local(), v8_str("snapshot")).FromJust());
   CHECK(parsed_snapshot->Has(env.local(), v8_str("nodes")).FromJust());
   CHECK(parsed_snapshot->Has(env.local(), v8_str("edges")).FromJust());
+  CHECK(parsed_snapshot->Has(env.local(), v8_str("locations")).FromJust());
   CHECK(parsed_snapshot->Has(env.local(), v8_str("strings")).FromJust());
 
   // Get node and edge "member" offsets.

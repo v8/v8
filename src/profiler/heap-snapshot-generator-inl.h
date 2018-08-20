@@ -69,8 +69,12 @@ uint32_t HeapSnapshotJSONSerializer::StringHash(const void* string) {
                                             v8::internal::kZeroHashSeed);
 }
 
-int HeapSnapshotJSONSerializer::entry_index(const HeapEntry* e) {
-  return e->index() * kNodeFieldsCount;
+int HeapSnapshotJSONSerializer::to_node_index(const HeapEntry* e) {
+  return to_node_index(e->index());
+}
+
+int HeapSnapshotJSONSerializer::to_node_index(int entry_index) {
+  return entry_index * kNodeFieldsCount;
 }
 
 }  // namespace internal
