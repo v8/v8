@@ -648,9 +648,6 @@
   'regress/regress-6288': [FAIL],
   # OOM:
   'regress/regress-599414-array-concat-fast-path': [FAIL],
-  'regress/regress-748069': [FAIL],
-  'regress/regress-752764': [FAIL],
-  'regress/regress-779407': [FAIL],
 }],  # 'system == android'
 
 ##############################################################################
