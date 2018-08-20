@@ -333,7 +333,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
                         store_buffer_top_addr, new_store_buffer_top);
 
     Node* test = WordAnd(new_store_buffer_top,
-                         IntPtrConstant(StoreBuffer::kStoreBufferMask));
+                         IntPtrConstant(Heap::store_buffer_mask_constant()));
 
     Label overflow(this);
     Branch(WordEqual(test, IntPtrConstant(0)), &overflow, next);

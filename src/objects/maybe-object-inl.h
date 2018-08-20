@@ -5,8 +5,9 @@
 #ifndef V8_OBJECTS_MAYBE_OBJECT_INL_H_
 #define V8_OBJECTS_MAYBE_OBJECT_INL_H_
 
-#include "src/objects-inl.h"
 #include "src/objects/maybe-object.h"
+
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

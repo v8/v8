@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_FACTORY_H_
 #define V8_HEAP_FACTORY_H_
 
+// Clients of this interface shouldn't depend on lots of heap internals.
+// Do not include anything from src/heap here!
 #include "src/builtins/builtins.h"
 #include "src/globals.h"
 #include "src/handles.h"

@@ -180,7 +180,7 @@ ExternalReference::incremental_marking_record_write_function() {
 
 ExternalReference ExternalReference::store_buffer_overflow_function() {
   return ExternalReference(
-      Redirect(FUNCTION_ADDR(StoreBuffer::StoreBufferOverflow)));
+      Redirect(Heap::store_buffer_overflow_function_address()));
 }
 
 ExternalReference ExternalReference::delete_handle_scope_extensions() {

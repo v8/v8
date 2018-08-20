@@ -17,11 +17,9 @@
 #include "src/counters-inl.h"
 #include "src/feedback-vector.h"
 
-// TODO(mstarzinger): There are 3 more includes to remove in order to no longer
+// TODO(mstarzinger): There is one more include to remove in order to no longer
 // leak heap internals to users of this interface!
-#include "src/heap/incremental-marking-inl.h"
 #include "src/heap/spaces-inl.h"
-#include "src/heap/store-buffer-inl.h"
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/msan.h"
@@ -427,10 +425,6 @@ bool Heap::ShouldBePromoted(Address old_address) {
   Address age_mark = new_space_->age_mark();
   return page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
          (!page->ContainsLimit(age_mark) || old_address < age_mark);
-}
-
-Address* Heap::store_buffer_top_address() {
-  return store_buffer()->top_address();
 }
 
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {

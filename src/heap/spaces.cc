@@ -17,6 +17,7 @@
 #include "src/heap/heap-controller.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/sweeper.h"
 #include "src/msan.h"
