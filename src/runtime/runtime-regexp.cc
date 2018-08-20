@@ -1323,15 +1323,19 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
                                  Object::ToLength(isolate, last_index_obj),
                                  String);
       last_index = PositiveNumberToUint32(*last_index_obj);
-
-      if (last_index > static_cast<uint32_t>(string->length())) last_index = 0;
     }
 
-    Handle<Object> match_indices_obj;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, match_indices_obj,
-        RegExpImpl::Exec(isolate, regexp, string, last_index, last_match_info),
-        String);
+    Handle<Object> match_indices_obj(ReadOnlyRoots(isolate).null_value(),
+                                     isolate);
+
+    // A lastIndex exceeding the string length always always returns null
+    // (signalling failure) in RegExpBuiltinExec, thus we can skip the call.
+    if (last_index <= static_cast<uint32_t>(string->length())) {
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, match_indices_obj,
+                                 RegExpImpl::Exec(isolate, regexp, string,
+                                                  last_index, last_match_info),
+                                 String);
+    }
 
     if (match_indices_obj->IsNull(isolate)) {
       if (sticky) regexp->set_last_index(Smi::kZero, SKIP_WRITE_BARRIER);
