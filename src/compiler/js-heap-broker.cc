@@ -881,7 +881,6 @@ HANDLE_ACCESSOR_C(HeapObject, bool, IsSeqString)
 
 HANDLE_ACCESSOR_C(HeapNumber, double, value)
 
-HANDLE_ACCESSOR_C(JSArray, ElementsKind, GetElementsKind)
 HANDLE_ACCESSOR(JSArray, Object, length)
 
 BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
@@ -889,7 +888,6 @@ HANDLE_ACCESSOR_C(JSFunction, bool, IsConstructor)
 HANDLE_ACCESSOR(JSFunction, JSGlobalProxy, global_proxy)
 HANDLE_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 
-HANDLE_ACCESSOR_C(JSObject, ElementsKind, GetElementsKind)
 HANDLE_ACCESSOR(JSObject, FixedArrayBase, elements)
 
 HANDLE_ACCESSOR(JSRegExp, Object, data)
@@ -1054,6 +1052,10 @@ base::Optional<JSObjectRef> AllocationSiteRef::boilerplate() const {
       return base::nullopt;
     }
   }
+}
+
+ElementsKind JSObjectRef::GetElementsKind() const {
+  return map().elements_kind();
 }
 
 Handle<Object> ObjectRef::object() const { return data_->object; }

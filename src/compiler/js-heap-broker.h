@@ -352,7 +352,6 @@ class JSArrayRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
 
-  ElementsKind GetElementsKind() const;
   ObjectRef length() const;
 };
 
