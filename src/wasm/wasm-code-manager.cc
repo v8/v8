@@ -199,7 +199,6 @@ void WasmCode::Validate() const {
       }
       case RelocInfo::JS_TO_WASM_CALL:
       case RelocInfo::EXTERNAL_REFERENCE:
-      case RelocInfo::OFF_HEAP_TARGET:
       case RelocInfo::COMMENT:
       case RelocInfo::CONST_POOL:
       case RelocInfo::VENEER_POOL:
@@ -444,9 +443,13 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
 
 WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
                                          WasmCode::Kind kind) {
-  OwnedVector<byte> reloc_info =
-      OwnedVector<byte>::New(code->relocation_size());
-  memcpy(reloc_info.start(), code->relocation_start(), code->relocation_size());
+  // For off-heap builtins, we create a copy of the off-heap instruction stream
+  // instead of the on-heap code object containing the trampoline. Ensure that
+  // we do not apply the on-heap reloc info to the off-heap instructions.
+  const size_t relocation_size =
+      code->is_off_heap_trampoline() ? 0 : code->relocation_size();
+  OwnedVector<byte> reloc_info = OwnedVector<byte>::New(relocation_size);
+  memcpy(reloc_info.start(), code->relocation_start(), relocation_size);
   Handle<ByteArray> source_pos_table(code->SourcePositionTable(),
                                      code->GetIsolate());
   OwnedVector<byte> source_pos =
