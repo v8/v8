@@ -1097,6 +1097,14 @@ int32_t* Simulator::ReadDW(int32_t addr) {
   return ptr;
 }
 
+int32_t* Simulator::ReadExDW(int32_t addr) {
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  local_monitor_.NotifyLoadExcl(addr, TransactionSize::DoubleWord);
+  global_monitor_.Pointer()->NotifyLoadExcl_Locked(addr,
+                                                   &global_monitor_processor_);
+  int32_t* ptr = reinterpret_cast<int32_t*>(addr);
+  return ptr;
+}
 
 void Simulator::WriteDW(int32_t addr, int32_t value1, int32_t value2) {
   // All supported ARM targets allow unaligned accesses, so we don't need to
@@ -1110,6 +1118,19 @@ void Simulator::WriteDW(int32_t addr, int32_t value1, int32_t value2) {
   *ptr = value2;
 }
 
+int Simulator::WriteExDW(int32_t addr, int32_t value1, int32_t value2) {
+  base::LockGuard<base::Mutex> lock_guard(&global_monitor_.Pointer()->mutex);
+  if (local_monitor_.NotifyStoreExcl(addr, TransactionSize::DoubleWord) &&
+      global_monitor_.Pointer()->NotifyStoreExcl_Locked(
+          addr, &global_monitor_processor_)) {
+    intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
+    *ptr++ = value1;
+    *ptr = value2;
+    return 0;
+  } else {
+    return 1;
+  }
+}
 
 // Returns the limit of the stack area to enable checking for stack overflows.
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
@@ -2054,6 +2075,12 @@ void Simulator::DecodeType01(Instruction* instr) {
                 set_register(rt, value);
                 break;
               }
+              case 1: {
+                // Format(instr, "ldrexd'cond 'rt, ['rn]");
+                int* rn_data = ReadExDW(addr);
+                set_dw_register(rt, rn_data);
+                break;
+              }
               case 2: {
                 // Format(instr, "ldrexb'cond 'rt, ['rn]");
                 uint8_t value = ReadExBU(addr);
@@ -2084,6 +2111,15 @@ void Simulator::DecodeType01(Instruction* instr) {
                 // Format(instr, "strex'cond 'rd, 'rm, ['rn]");
                 int value = get_register(rt);
                 int status = WriteExW(addr, value);
+                set_register(rd, status);
+                break;
+              }
+              case 1: {
+                // Format(instr, "strexd'cond 'rd, 'rm, ['rn]");
+                DCHECK_EQ(rt % 2, 0);
+                int32_t value1 = get_register(rt);
+                int32_t value2 = get_register(rt + 1);
+                int status = WriteExDW(addr, value1, value2);
                 set_register(rd, status);
                 break;
               }

@@ -786,6 +786,9 @@ void Decoder::DecodeType01(Instruction* instr) {
               case 0:
                 Format(instr, "ldrex'cond 'rt, ['rn]");
                 break;
+              case 1:
+                Format(instr, "ldrexd'cond 'rt, ['rn]");
+                break;
               case 2:
                 Format(instr, "ldrexb'cond 'rt, ['rn]");
                 break;
@@ -803,6 +806,9 @@ void Decoder::DecodeType01(Instruction* instr) {
             switch (instr->Bits(22, 21)) {
               case 0:
                 Format(instr, "strex'cond 'rd, 'rm, ['rn]");
+                break;
+              case 1:
+                Format(instr, "strexd'cond 'rd, 'rm, ['rn]");
                 break;
               case 2:
                 Format(instr, "strexb'cond 'rd, 'rm, ['rn]");

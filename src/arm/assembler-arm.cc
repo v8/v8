@@ -2240,6 +2240,32 @@ void Assembler::strexh(Register src1, Register src2, Register dst,
        0xF9 * B4 | src2.code());
 }
 
+void Assembler::ldrexd(Register dst1, Register dst2, const MemOperand& src,
+                       Condition cond) {
+  // cond(31-28) | 00011011(27-20) | Rn(19-16) | Rt(15-12) | 111110011111(11-0)
+  DCHECK(src.rm() == no_reg);
+  DCHECK(dst1 != lr);  // r14.
+  // The pair of destination registers is restricted to being an even-numbered
+  // register and the odd-numbered register that immediately follows it.
+  DCHECK_EQ(0, dst1.code() % 2);
+  DCHECK_EQ(dst1.code() + 1, dst2.code());
+  emit(cond | B24 | B23 | B21 | B20 | src.rn_.code() * B16 | dst1.code() * B12 |
+       0xF9F);
+}
+
+void Assembler::strexd(Register res, Register src1, Register src2,
+                       const MemOperand& dst, Condition cond) {
+  // cond(31-28) | 00011010(27-20) | Rn(19-16) | Rt(15-12) | 111110011111(11-0)
+  DCHECK(dst.rm() == no_reg);
+  DCHECK(src1 != lr);  // r14.
+  // The pair of source registers is restricted to being an even-numbered
+  // register and the odd-numbered register that immediately follows it.
+  DCHECK_EQ(0, src1.code() % 2);
+  DCHECK_EQ(src1.code() + 1, src2.code());
+  emit(cond | B24 | B23 | B21 | dst.rn_.code() * B16 | res.code() * B12 |
+       0xF9 * B4 | src1.code());
+}
+
 // Preload instructions.
 void Assembler::pld(const MemOperand& address) {
   // Instruction details available in ARM DDI 0406C.b, A8.8.128.

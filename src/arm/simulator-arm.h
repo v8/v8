@@ -291,6 +291,8 @@ class Simulator : public SimulatorBase {
 
   int32_t* ReadDW(int32_t addr);
   void WriteDW(int32_t addr, int32_t value1, int32_t value2);
+  int32_t* ReadExDW(int32_t addr);
+  int WriteExDW(int32_t addr, int32_t value1, int32_t value2);
 
   // Executing is handled based on the instruction type.
   // Both type 0 and type 1 rolled into one.
@@ -414,6 +416,7 @@ class Simulator : public SimulatorBase {
     Byte = 1,
     HalfWord = 2,
     Word = 4,
+    DoubleWord = 8,
   };
 
   // The least-significant bits of the address are ignored. The number of bits
