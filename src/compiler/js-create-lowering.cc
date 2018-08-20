@@ -1176,7 +1176,7 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralObject(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   // Retrieve the initial map for the object.
-  MapRef map = native_context_ref().ObjectLiteralMapFromCache();
+  MapRef map = native_context_ref().object_function().initial_map();
   DCHECK(!map.is_dictionary_map());
   DCHECK(!map.IsInobjectSlackTrackingInProgress());
   Node* js_object_map = jsgraph()->Constant(map);

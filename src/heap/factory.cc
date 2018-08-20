@@ -3710,20 +3710,23 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
 Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> native_context,
                                                int number_of_properties) {
   DCHECK(native_context->IsNativeContext());
-  const int kMapCacheSize = 128;
-  // We do not cache maps for too many properties or when running builtin code.
-  if (isolate()->bootstrapper()->IsActive()) {
-    return Map::Create(isolate(), number_of_properties);
-  }
-  // Use initial slow object proto map for too many properties.
-  if (number_of_properties > kMapCacheSize) {
-    return handle(native_context->slow_object_with_object_prototype_map(),
-                  isolate());
-  }
+
   if (number_of_properties == 0) {
     // Reuse the initial map of the Object function if the literal has no
     // predeclared properties.
     return handle(native_context->object_function()->initial_map(), isolate());
+  }
+
+  // We do not cache maps for too many properties or when running builtin code.
+  if (isolate()->bootstrapper()->IsActive()) {
+    return Map::Create(isolate(), number_of_properties);
+  }
+
+  // Use initial slow object proto map for too many properties.
+  const int kMapCacheSize = 128;
+  if (number_of_properties > kMapCacheSize) {
+    return handle(native_context->slow_object_with_object_prototype_map(),
+                  isolate());
   }
 
   int cache_index = number_of_properties - 1;
@@ -3743,6 +3746,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> native_context,
       return handle(map, isolate());
     }
   }
+
   // Create a new map and add it to the cache.
   Handle<WeakFixedArray> cache = Handle<WeakFixedArray>::cast(maybe_cache);
   Handle<Map> map = Map::Create(isolate(), number_of_properties);

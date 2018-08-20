@@ -756,15 +756,6 @@ ObjectRef MapRef::GetFieldType(int descriptor) const {
   return ObjectRef(broker(), field_type);
 }
 
-int StringRef::length() const {
-  if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHandleDereference allow_handle_dereference;
-    return object<String>()->length();
-  } else {
-    return data()->AsString()->length;
-  }
-}
-
 uint16_t StringRef::GetFirstChar() {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
@@ -947,6 +938,8 @@ HANDLE_ACCESSOR_C(SharedFunctionInfo, int, function_map_index)
 HANDLE_ACCESSOR_C(SharedFunctionInfo, int, internal_formal_parameter_count)
 HANDLE_ACCESSOR_C(SharedFunctionInfo, LanguageMode, language_mode)
 
+BIMODAL_ACCESSOR_C(String, int, length)
+
 // TODO(neis): Provide StringShape() on StringRef.
 
 bool JSFunctionRef::has_initial_map() const {
@@ -968,15 +961,6 @@ MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   DCHECK_GE(index, Context::FIRST_FUNCTION_MAP_INDEX);
   return get(index).AsMap();
-}
-
-MapRef NativeContextRef::ObjectLiteralMapFromCache() const {
-  AllowHeapAllocation heap_allocation;
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  Factory* factory = broker()->isolate()->factory();
-  Handle<Map> map = factory->ObjectLiteralMapFromCache(object<Context>(), 0);
-  return MapRef(broker(), map);
 }
 
 MapRef NativeContextRef::GetInitialJSArrayMap(ElementsKind kind) const {

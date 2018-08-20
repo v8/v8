@@ -213,6 +213,7 @@ class ContextRef : public HeapObjectRef {
 
 #define BROKER_NATIVE_CONTEXT_FIELDS(V)       \
   V(JSFunction, array_function)               \
+  V(JSFunction, object_function)              \
   V(JSFunction, promise_function)             \
   V(Map, fast_aliased_arguments_map)          \
   V(Map, initial_array_iterator_map)          \
@@ -242,7 +243,6 @@ class NativeContextRef : public ContextRef {
 #undef DECL_ACCESSOR
 
   MapRef GetFunctionMapFromIndex(int index) const;
-  MapRef ObjectLiteralMapFromCache() const;
   MapRef GetInitialJSArrayMap(ElementsKind kind) const;
 };
 
@@ -442,16 +442,18 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   ObjectData* GetData(Handle<Object>) const;
   // Never returns nullptr.
   ObjectData* GetOrCreateData(Handle<Object>);
-  void AddData(Handle<Object> object, ObjectData* data);
 
   void Trace(const char* format, ...) const;
 
  private:
   friend class HeapObjectRef;
   friend class ObjectRef;
+  friend class ObjectData;
 
   // TODO(neis): Remove eventually.
   HeapObjectType HeapObjectTypeFromMap(Map* map) const;
+
+  void AddData(Handle<Object> object, ObjectData* data);
 
   Isolate* const isolate_;
   Zone* const zone_;
