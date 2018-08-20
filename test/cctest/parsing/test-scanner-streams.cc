@@ -246,7 +246,7 @@ TEST(AdvanceMatchAdvanceUntil) {
             nullptr));
 
     int32_t au_c0 =
-        static_cast<i::CharacterStream<uint16_t>*>(stream_advance_until.get())
+        static_cast<i::CharacterStream<uint8_t>*>(stream_advance_until.get())
             ->AdvanceUntil(
                 [](int32_t c0) { return unibrow::IsLineTerminator(c0); });
 

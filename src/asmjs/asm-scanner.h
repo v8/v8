@@ -16,6 +16,7 @@
 namespace v8 {
 namespace internal {
 
+class ScannerStream;
 template <typename Char>
 class CharacterStream;
 
@@ -32,7 +33,7 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
  public:
   typedef int32_t token_t;
 
-  AsmJsScanner(CharacterStream<uint16_t>* stream, int start);
+  AsmJsScanner(ScannerStream* stream, int start);
 
   // Get current token.
   token_t Token() const { return token_; }
@@ -137,7 +138,7 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
   // clang-format on
 
  private:
-  CharacterStream<uint16_t>* stream_;
+  ScannerStream* const stream_;
   token_t token_;
   token_t preceding_token_;
   token_t next_token_;         // Only set when in {rewind} state.
@@ -155,12 +156,37 @@ class V8_EXPORT_PRIVATE AsmJsScanner {
   uint32_t unsigned_value_;
   bool preceded_by_newline_;
 
+  template <typename Char>
+  void Scan();
+  template <typename Char>
+  inline CharacterStream<Char>* Source() {
+    return static_cast<CharacterStream<Char>*>(stream_);
+  }
+  template <typename Char>
+  inline uc32 Advance() {
+    return Source<Char>()->Advance();
+  }
+  template <typename Char>
+  inline void Back() {
+    return Source<Char>()->Back();
+  }
+  template <typename Char>
+  void DoSeek(size_t pos) {
+    Source<Char>()->Seek(pos);
+  }
+
   // Consume multiple characters.
+  template <typename Char>
   void ConsumeIdentifier(uc32 ch);
+  template <typename Char>
   void ConsumeNumber(uc32 ch);
+  template <typename Char>
   bool ConsumeCComment();
+  template <typename Char>
   void ConsumeCPPComment();
+  template <typename Char>
   void ConsumeString(uc32 quote);
+  template <typename Char>
   void ConsumeCompareOrShift(uc32 ch);
 
   // Classify character categories.

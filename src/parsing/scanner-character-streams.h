@@ -32,19 +32,27 @@ class V8_EXPORT_PRIVATE ScannerStream {
                             RuntimeCallStats* stats);
 
   // For testing:
-  static std::unique_ptr<CharacterStream<uint16_t>> ForTesting(
-      const char* data);
-  static std::unique_ptr<CharacterStream<uint16_t>> ForTesting(const char* data,
-                                                               size_t length);
+  static std::unique_ptr<CharacterStream<uint8_t>> ForTesting(const char* data);
+  static std::unique_ptr<CharacterStream<uint8_t>> ForTesting(const char* data,
+                                                              size_t length);
 
   // Returns true if the stream could access the V8 heap after construction.
   virtual bool can_access_heap() = 0;
-  virtual uc32 Advance() = 0;
-  virtual void Seek(size_t pos) = 0;
-  virtual size_t pos() const = 0;
-  virtual void Back() = 0;
+  uc32 Advance();
+  void Seek(size_t pos);
+  size_t pos();
+  void Back();
+  void Back2();
 
   virtual ~ScannerStream() {}
+
+  bool is_two_byte() const { return is_two_byte_; }
+
+ protected:
+  explicit ScannerStream(bool is_two_byte) : is_two_byte_(is_two_byte) {}
+
+ private:
+  const bool is_two_byte_;
 };
 
 template <typename Char>
@@ -52,7 +60,7 @@ class CharacterStream : public ScannerStream {
  public:
   // Returns and advances past the next UTF-16 code unit in the input
   // stream. If there are no more code units it returns kEndOfInput.
-  inline uc32 Advance() final {
+  inline uc32 Advance() {
     uc32 result = Peek();
     buffer_cursor_++;
     return result;
@@ -95,7 +103,7 @@ class CharacterStream : public ScannerStream {
 
   // Go back one by one character in the input stream.
   // This undoes the most recent Advance().
-  inline void Back() final {
+  inline void Back() {
     // The common case - if the previous character is within
     // buffer_start_ .. buffer_end_ will be handles locally.
     // Otherwise, a new block is requested.
@@ -106,11 +114,11 @@ class CharacterStream : public ScannerStream {
     }
   }
 
-  inline size_t pos() const final {
+  inline size_t pos() const {
     return buffer_pos_ + (buffer_cursor_ - buffer_start_);
   }
 
-  inline void Seek(size_t pos) final {
+  inline void Seek(size_t pos) {
     if (V8_LIKELY(pos >= buffer_pos_ &&
                   pos < (buffer_pos_ + (buffer_end_ - buffer_start_)))) {
       buffer_cursor_ = buffer_start_ + (pos - buffer_pos_);
@@ -119,13 +127,11 @@ class CharacterStream : public ScannerStream {
     }
   }
 
-  // Returns true if the stream could access the V8 heap after construction.
-  virtual bool can_access_heap() = 0;
-
  protected:
-  CharacterStream(const uint16_t* buffer_start, const uint16_t* buffer_cursor,
-                  const uint16_t* buffer_end, size_t buffer_pos)
-      : buffer_start_(buffer_start),
+  CharacterStream(const Char* buffer_start, const Char* buffer_cursor,
+                  const Char* buffer_end, size_t buffer_pos)
+      : ScannerStream(sizeof(Char) == 2),
+        buffer_start_(buffer_start),
         buffer_cursor_(buffer_cursor),
         buffer_end_(buffer_end),
         buffer_pos_(buffer_pos) {}

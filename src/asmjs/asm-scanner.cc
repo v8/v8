@@ -20,7 +20,11 @@ namespace {
 static const int kMaxIdentifierCount = 0xF000000;
 };
 
-AsmJsScanner::AsmJsScanner(CharacterStream<uint16_t>* stream, int start)
+#define SPECIALIZE(Call, ...)                           \
+  (stream_->is_two_byte() ? Call<uint16_t>(__VA_ARGS__) \
+                          : Call<uint8_t>(__VA_ARGS__))
+
+AsmJsScanner::AsmJsScanner(ScannerStream* stream, int start)
     : stream_(stream),
       token_(kUninitialized),
       preceding_token_(kUninitialized),
@@ -34,7 +38,7 @@ AsmJsScanner::AsmJsScanner(CharacterStream<uint16_t>* stream, int start)
       double_value_(0.0),
       unsigned_value_(0),
       preceded_by_newline_(false) {
-  stream->Seek(start);
+  SPECIALIZE(DoSeek, start);
 #define V(name, _junk1, _junk2, _junk3) property_names_[#name] = kToken_##name;
   STDLIB_MATH_FUNCTION_LIST(V)
   STDLIB_ARRAY_TYPE_LIST(V)
@@ -51,7 +55,10 @@ AsmJsScanner::AsmJsScanner(CharacterStream<uint16_t>* stream, int start)
   Next();
 }
 
-void AsmJsScanner::Next() {
+void AsmJsScanner::Next() { SPECIALIZE(Scan); }
+
+template <typename Char>
+void AsmJsScanner::Scan() {
   if (rewind_) {
     preceding_token_ = token_;
     preceding_position_ = position_;
@@ -85,8 +92,8 @@ void AsmJsScanner::Next() {
   preceding_position_ = position_;
 
   for (;;) {
-    position_ = stream_->pos();
-    uc32 ch = stream_->Advance();
+    position_ = Source<Char>()->pos();
+    uc32 ch = Advance<Char>();
     switch (ch) {
       case ' ':
       case '\t':
@@ -106,20 +113,20 @@ void AsmJsScanner::Next() {
 
       case '\'':
       case '"':
-        ConsumeString(ch);
+        ConsumeString<Char>(ch);
         return;
 
       case '/':
-        ch = stream_->Advance();
+        ch = Advance<Char>();
         if (ch == '/') {
-          ConsumeCPPComment();
+          ConsumeCPPComment<Char>();
         } else if (ch == '*') {
-          if (!ConsumeCComment()) {
+          if (!ConsumeCComment<Char>()) {
             token_ = kParseError;
             return;
           }
         } else {
-          stream_->Back();
+          Back<Char>();
           token_ = '/';
           return;
         }
@@ -131,7 +138,7 @@ void AsmJsScanner::Next() {
       case '>':
       case '=':
       case '!':
-        ConsumeCompareOrShift(ch);
+        ConsumeCompareOrShift<Char>(ch);
         return;
 
 #define V(single_char_token) case single_char_token:
@@ -143,9 +150,9 @@ void AsmJsScanner::Next() {
 
       default:
         if (IsIdentifierStart(ch)) {
-          ConsumeIdentifier(ch);
+          ConsumeIdentifier<Char>(ch);
         } else if (IsNumberStart(ch)) {
-          ConsumeNumber(ch);
+          ConsumeNumber<Char>(ch);
         } else {
           // TODO(bradnelson): Support unicode (probably via UnicodeCache).
           token_ = kParseError;
@@ -213,7 +220,7 @@ std::string AsmJsScanner::Name(token_t token) const {
 #endif
 
 void AsmJsScanner::Seek(size_t pos) {
-  stream_->Seek(pos);
+  SPECIALIZE(DoSeek, pos);
   preceding_token_ = kUninitialized;
   token_ = kUninitialized;
   next_token_ = kUninitialized;
@@ -224,15 +231,16 @@ void AsmJsScanner::Seek(size_t pos) {
   Next();
 }
 
+template <typename Char>
 void AsmJsScanner::ConsumeIdentifier(uc32 ch) {
   // Consume characters while still part of the identifier.
   identifier_string_.clear();
   while (IsIdentifierPart(ch)) {
     identifier_string_ += ch;
-    ch = stream_->Advance();
+    ch = Advance<Char>();
   }
   // Go back one for next time.
-  stream_->Back();
+  Back<Char>();
 
   // Decode what the identifier means.
   if (preceding_token_ == '.') {
@@ -272,13 +280,14 @@ void AsmJsScanner::ConsumeIdentifier(uc32 ch) {
   }
 }
 
+template <typename Char>
 void AsmJsScanner::ConsumeNumber(uc32 ch) {
   std::string number;
   number = ch;
   bool has_dot = ch == '.';
   bool has_prefix = false;
   for (;;) {
-    ch = stream_->Advance();
+    ch = Advance<Char>();
     if ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') ||
         (ch >= 'A' && ch <= 'F') || ch == '.' || ch == 'b' || ch == 'o' ||
         ch == 'x' ||
@@ -297,7 +306,7 @@ void AsmJsScanner::ConsumeNumber(uc32 ch) {
       break;
     }
   }
-  stream_->Back();
+  Back<Char>();
   // Special case the most common number.
   if (number.size() == 1 && number[0] == '0') {
     unsigned_value_ = 0;
@@ -324,7 +333,7 @@ void AsmJsScanner::ConsumeNumber(uc32 ch) {
     // problem.
     if (number[0] == '.') {
       for (size_t k = 1; k < number.size(); ++k) {
-        stream_->Back();
+        Back<Char>();
       }
       token_ = '.';
       return;
@@ -346,11 +355,12 @@ void AsmJsScanner::ConsumeNumber(uc32 ch) {
   }
 }
 
+template <typename Char>
 bool AsmJsScanner::ConsumeCComment() {
   for (;;) {
-    uc32 ch = stream_->Advance();
+    uc32 ch = Advance<Char>();
     while (ch == '*') {
-      ch = stream_->Advance();
+      ch = Advance<Char>();
       if (ch == '/') {
         return true;
       }
@@ -361,33 +371,36 @@ bool AsmJsScanner::ConsumeCComment() {
   }
 }
 
+template <typename Char>
 void AsmJsScanner::ConsumeCPPComment() {
   for (;;) {
-    uc32 ch = stream_->Advance();
+    uc32 ch = Advance<Char>();
     if (ch == '\n' || ch == kEndOfInput) {
       return;
     }
   }
 }
 
+template <typename Char>
 void AsmJsScanner::ConsumeString(uc32 quote) {
   // Only string allowed is 'use asm' / "use asm".
   const char* expected = "use asm";
   for (; *expected != '\0'; ++expected) {
-    if (stream_->Advance() != *expected) {
+    if (Advance<Char>() != *expected) {
       token_ = kParseError;
       return;
     }
   }
-  if (stream_->Advance() != quote) {
+  if (Advance<Char>() != quote) {
     token_ = kParseError;
     return;
   }
   token_ = kToken_UseAsm;
 }
 
+template <typename Char>
 void AsmJsScanner::ConsumeCompareOrShift(uc32 ch) {
-  uc32 next_ch = stream_->Advance();
+  uc32 next_ch = Advance<Char>();
   if (next_ch == '=') {
     switch (ch) {
       case '<':
@@ -408,14 +421,14 @@ void AsmJsScanner::ConsumeCompareOrShift(uc32 ch) {
   } else if (ch == '<' && next_ch == '<') {
     token_ = kToken_SHL;
   } else if (ch == '>' && next_ch == '>') {
-    if (stream_->Advance() == '>') {
+    if (Advance<Char>() == '>') {
       token_ = kToken_SHR;
     } else {
       token_ = kToken_SAR;
-      stream_->Back();
+      Back<Char>();
     }
   } else {
-    stream_->Back();
+    Back<Char>();
     token_ = ch;
   }
 }
@@ -429,6 +442,8 @@ bool AsmJsScanner::IsIdentifierPart(uc32 ch) { return IsAsciiIdentifier(ch); }
 bool AsmJsScanner::IsNumberStart(uc32 ch) {
   return ch == '.' || IsDecimalDigit(ch);
 }
+
+#undef SPECIALIZE
 
 }  // namespace internal
 }  // namespace v8

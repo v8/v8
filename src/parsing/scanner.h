@@ -78,9 +78,8 @@ class Scanner {
   static const int kNoOctalLocation = -1;
   static const uc32 kEndOfInput = ScannerStream::kEndOfInput;
 
-  explicit Scanner(UnicodeCache* scanner_contants);
-
-  void Initialize(CharacterStream<uint16_t>* source, bool is_module);
+  Scanner(UnicodeCache* scanner_contants, ScannerStream* source,
+          bool is_module);
 
   // Returns the next token and advances input.
   Token::Value Next();
@@ -210,18 +209,18 @@ class Scanner {
     return has_line_terminator_after_next_;
   }
 
+#define SPECIALIZE(Call) \
+  (source_->is_two_byte() ? Call<uint16_t>() : Call<uint8_t>())
   // Scans the input as a regular expression pattern, next token must be /(=).
   // Returns true if a pattern is scanned.
-  bool ScanRegExpPattern();
+  bool ScanRegExpPattern() { return SPECIALIZE(ScanRegExpPattern); }
   // Scans the input as regular expression flags. Returns the flags on success.
-  Maybe<RegExp::Flags> ScanRegExpFlags();
+  Maybe<RegExp::Flags> ScanRegExpFlags() { return SPECIALIZE(ScanRegExpFlags); }
 
   // Scans the input as a template literal
-  Token::Value ScanTemplateStart();
+  Token::Value ScanTemplateStart() { return SPECIALIZE(ScanTemplateStart); }
   Token::Value ScanTemplateContinuation() {
-    DCHECK_EQ(next_.token, Token::RBRACE);
-    next_.location.beg_pos = source_pos() - 1;  // We already consumed }
-    return ScanTemplateSpan();
+    return SPECIALIZE(ScanTemplateContinuation);
   }
 
   Handle<String> SourceUrl(Isolate* isolate) const;
@@ -242,6 +241,34 @@ class Scanner {
   }
   void set_allow_harmony_numeric_separator(bool allow) {
     allow_harmony_numeric_separator_ = allow;
+  }
+
+  // Call this after setting source_ to the input.
+  void Initialize() {
+    // Initialize current_ to not refer to a literal.
+    current_.token = Token::UNINITIALIZED;
+    current_.contextual_token = Token::UNINITIALIZED;
+    current_.literal_chars = nullptr;
+    current_.raw_literal_chars = nullptr;
+    current_.invalid_template_escape_message = MessageTemplate::kNone;
+    next_.token = Token::UNINITIALIZED;
+    next_.contextual_token = Token::UNINITIALIZED;
+    next_.literal_chars = nullptr;
+    next_.raw_literal_chars = nullptr;
+    next_.invalid_template_escape_message = MessageTemplate::kNone;
+    next_next_.token = Token::UNINITIALIZED;
+    next_next_.contextual_token = Token::UNINITIALIZED;
+    next_next_.literal_chars = nullptr;
+    next_next_.raw_literal_chars = nullptr;
+    next_next_.invalid_template_escape_message = MessageTemplate::kNone;
+    found_html_comment_ = false;
+    scanner_error_ = MessageTemplate::kNone;
+
+    // Set c0_ (one character ahead)
+    STATIC_ASSERT(kCharacterLookaheadBufferSize == 1);
+    SPECIALIZE(Advance);
+    // Scan the first token.
+    SPECIALIZE(Scan);
   }
 
  private:
@@ -378,33 +405,10 @@ class Scanner {
   const int kMaxAscii = 127;
 
   // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
-  template <bool capture_raw>
+  template <typename Char, bool capture_raw>
   uc32 ScanOctalEscape(uc32 c, int length);
 
-  // Call this after setting source_ to the input.
-  void Init() {
-    // Set c0_ (one character ahead)
-    STATIC_ASSERT(kCharacterLookaheadBufferSize == 1);
-    Advance();
-    // Initialize current_ to not refer to a literal.
-    current_.token = Token::UNINITIALIZED;
-    current_.contextual_token = Token::UNINITIALIZED;
-    current_.literal_chars = nullptr;
-    current_.raw_literal_chars = nullptr;
-    current_.invalid_template_escape_message = MessageTemplate::kNone;
-    next_.token = Token::UNINITIALIZED;
-    next_.contextual_token = Token::UNINITIALIZED;
-    next_.literal_chars = nullptr;
-    next_.raw_literal_chars = nullptr;
-    next_.invalid_template_escape_message = MessageTemplate::kNone;
-    next_next_.token = Token::UNINITIALIZED;
-    next_next_.contextual_token = Token::UNINITIALIZED;
-    next_next_.literal_chars = nullptr;
-    next_next_.raw_literal_chars = nullptr;
-    next_next_.invalid_template_escape_message = MessageTemplate::kNone;
-    found_html_comment_ = false;
-    scanner_error_ = MessageTemplate::kNone;
-  }
+#undef SPECIALIZE
 
   void ReportScannerError(const Location& location,
                           MessageTemplate::Template error) {
@@ -466,60 +470,76 @@ class Scanner {
     next_.raw_literal_chars = nullptr;
   }
 
+  template <typename Char>
   inline void AddLiteralCharAdvance() {
     AddLiteralChar(c0_);
-    Advance();
+    Advance<Char>();
+  }
+
+  template <typename Char>
+  CharacterStream<Char>* Source() {
+    return static_cast<CharacterStream<Char>*>(source_);
+  }
+
+  template <typename Char>
+  void Seek(size_t pos) {
+    Source<Char>()->Seek(pos);
   }
 
   // Low-level scanning support.
-  template <bool capture_raw = false>
+  template <typename Char, bool capture_raw = false>
   void Advance() {
-    if (capture_raw) {
-      AddRawLiteralChar(c0_);
-    }
-    c0_ = source_->Advance();
+    if (capture_raw) AddRawLiteralChar(c0_);
+    c0_ = Source<Char>()->Advance();
   }
 
-  template <typename FunctionType>
+  template <typename Char, typename FunctionType>
   V8_INLINE void AdvanceUntil(FunctionType check) {
-    c0_ = source_->AdvanceUntil(check);
+    c0_ = Source<Char>()->AdvanceUntil(check);
   }
 
+  template <typename Char>
   bool CombineSurrogatePair() {
+    if (sizeof(Char) == 1) return false;
     DCHECK(!unibrow::Utf16::IsLeadSurrogate(kEndOfInput));
     if (unibrow::Utf16::IsLeadSurrogate(c0_)) {
-      uc32 c1 = source_->Advance();
+      uc32 c1 = Source<Char>()->Advance();
       DCHECK(!unibrow::Utf16::IsTrailSurrogate(kEndOfInput));
       if (unibrow::Utf16::IsTrailSurrogate(c1)) {
         c0_ = unibrow::Utf16::CombineSurrogatePair(c0_, c1);
         return true;
       }
-      source_->Back();
+      Source<Char>()->Back();
     }
     return false;
   }
 
+  template <typename Char>
   void PushBack(uc32 ch) {
     DCHECK_LE(c0_, static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode));
     source_->Back();
     c0_ = ch;
   }
 
-  uc32 Peek() const { return source_->Peek(); }
+  template <typename Char>
+  uc32 Peek() {
+    return Source<Char>()->Peek();
+  }
 
+  template <typename Char>
   inline Token::Value Select(Token::Value tok) {
-    Advance();
+    Advance<Char>();
     return tok;
   }
 
+  template <typename Char>
   inline Token::Value Select(uc32 next, Token::Value then, Token::Value else_) {
-    Advance();
+    Advance<Char>();
     if (c0_ == next) {
-      Advance();
+      Advance<Char>();
       return then;
-    } else {
-      return else_;
     }
+    return else_;
   }
   // Returns the literal string, if any, for the current token (the
   // token last returned by Next()). The string is 0-terminated.
@@ -576,65 +596,111 @@ class Scanner {
     return current_.raw_literal_chars->is_one_byte();
   }
 
-  template <bool capture_raw, bool unicode = false>
+  template <typename Char, bool capture_raw, bool unicode = false>
   uc32 ScanHexNumber(int expected_length);
   // Scan a number of any length but not bigger than max_value. For example, the
   // number can be 000000001, so it's very long in characters but its value is
   // small.
-  template <bool capture_raw>
+  template <typename Char, bool capture_raw>
   uc32 ScanUnlimitedLengthHexNumber(int max_value, int beg_pos);
 
   // Scans a single JavaScript token.
+  template <typename Char>
   void Scan();
 
+  template <typename Char>
   V8_INLINE Token::Value SkipWhiteSpace();
+  template <typename Char>
   Token::Value SkipSingleHTMLComment();
+  template <typename Char>
   Token::Value SkipSingleLineComment();
+  template <typename Char>
   Token::Value SkipSourceURLComment();
+  template <typename Char>
   void TryToParseSourceURLComment();
+  template <typename Char>
   Token::Value SkipMultiLineComment();
   // Scans a possible HTML comment -- begins with '<!'.
+  template <typename Char>
   Token::Value ScanHtmlComment();
 
+  template <typename Char>
   bool ScanDigitsWithNumericSeparators(bool (*predicate)(uc32 ch),
                                        bool is_check_first_digit);
+  template <typename Char>
   bool ScanDecimalDigits();
   // Optimized function to scan decimal number as Smi.
+  template <typename Char>
   bool ScanDecimalAsSmi(uint64_t* value);
+  template <typename Char>
   bool ScanDecimalAsSmiWithNumericSeparators(uint64_t* value);
+  template <typename Char>
   bool ScanHexDigits();
+  template <typename Char>
   bool ScanBinaryDigits();
+  template <typename Char>
   bool ScanSignedInteger();
+  template <typename Char>
   bool ScanOctalDigits();
+  template <typename Char>
   bool ScanImplicitOctalDigits(int start_pos, NumberKind* kind);
 
+  template <typename Char>
   Token::Value ScanNumber(bool seen_period);
-  Token::Value ScanIdentifierOrKeyword();
+  template <typename Char>
+  inline Token::Value ScanIdentifierOrKeyword() {
+    LiteralScope literal(this);
+    return ScanIdentifierOrKeywordInner<Char>(&literal);
+  }
+  template <typename Char>
   Token::Value ScanIdentifierOrKeywordInner(LiteralScope* literal);
 
+  template <typename Char>
   Token::Value ScanString();
+  template <typename Char>
   Token::Value ScanPrivateName();
 
   // Scans an escape-sequence which is part of a string and adds the
   // decoded character to the current literal. Returns true if a pattern
   // is scanned.
-  template <bool capture_raw>
+  template <typename Char, bool capture_raw>
   bool ScanEscape();
 
   // Decodes a Unicode escape-sequence which is part of an identifier.
   // If the escape sequence cannot be decoded the result is kBadChar.
+  template <typename Char>
   uc32 ScanIdentifierUnicodeEscape();
   // Helper for the above functions.
-  template <bool capture_raw>
+  template <typename Char, bool capture_raw>
   uc32 ScanUnicodeEscape();
+
+  template <typename Char>
+  bool ScanRegExpPattern();
+  // Scans the input as regular expression flags. Returns the flags on success.
+  template <typename Char>
+  Maybe<RegExp::Flags> ScanRegExpFlags();
+
+  // Scans the input as a template literal
+  template <typename Char>
+  Token::Value ScanTemplateStart();
+
+  template <typename Char>
+  Token::Value ScanTemplateContinuation() {
+    DCHECK_EQ(next_.token, Token::RBRACE);
+    next_.location.beg_pos = SourcePos<Char>() - 1;  // We already consumed }
+    return ScanTemplateSpan<Char>();
+  }
 
   bool is_module_;
 
+  template <typename Char>
   Token::Value ScanTemplateSpan();
 
   // Return the current source position.
-  int source_pos() {
-    return static_cast<int>(source_->pos()) - kCharacterLookaheadBufferSize;
+  template <typename Char>
+  int SourcePos() {
+    return static_cast<int>(Source<Char>()->pos()) -
+           kCharacterLookaheadBufferSize;
   }
 
   static bool LiteralContainsEscapes(const TokenDesc& token) {
@@ -672,8 +738,8 @@ class Scanner {
   TokenDesc next_;       // desc for next token (one token look-ahead)
   TokenDesc next_next_;  // desc for the token after next (after PeakAhead())
 
-  // Input stream. Must be initialized to a CharacterStream.
-  CharacterStream<uint16_t>* source_;
+  // Input stream. Must be initialized to a ScannerStream.
+  ScannerStream* const source_;
 
   // Last-seen positions of potentially problematic tokens.
   Location octal_pos_;
