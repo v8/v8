@@ -71,7 +71,7 @@ namespace wasm {
 AsmJsParser::AsmJsParser(Zone* zone, uintptr_t stack_limit,
                          ScannerStream* stream, int start)
     : zone_(zone),
-      scanner_(static_cast<CharacterStream<uint16_t>*>(stream), start),
+      scanner_(stream, start),
       module_builder_(new (zone) WasmModuleBuilder(zone)),
       return_type_(nullptr),
       stack_limit_(stack_limit),

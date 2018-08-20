@@ -17,8 +17,7 @@ class AsmJsScannerTest : public ::testing::Test {
  protected:
   void SetupScanner(const char* source) {
     stream = ScannerStream::ForTesting(source);
-    scanner.reset(new AsmJsScanner(
-        static_cast<CharacterStream<uint16_t>*>(stream.get()), 0));
+    scanner.reset(new AsmJsScanner(stream.get(), 0));
   }
 
   void Skip(AsmJsScanner::token_t t) {
