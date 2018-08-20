@@ -1691,6 +1691,11 @@ Token::Value Scanner::ScanIdentifierOrKeywordInner(LiteralScope* literal) {
     Token::Value token =
         KeywordOrIdentifierToken(chars.start(), chars.length());
     /* TODO(adamk): YIELD should be handled specially. */
+    if (token == Token::FUTURE_STRICT_RESERVED_WORD) {
+      literal->Complete();
+      if (escaped) return Token::ESCAPED_STRICT_RESERVED_WORD;
+      return token;
+    }
     if (token == Token::IDENTIFIER || Token::IsContextualKeyword(token)) {
       literal->Complete();
       return token;
@@ -1699,8 +1704,7 @@ Token::Value Scanner::ScanIdentifierOrKeywordInner(LiteralScope* literal) {
     if (!escaped) return token;
 
     literal->Complete();
-    if (token == Token::FUTURE_STRICT_RESERVED_WORD || token == Token::LET ||
-        token == Token::STATIC) {
+    if (token == Token::LET || token == Token::STATIC) {
       return Token::ESCAPED_STRICT_RESERVED_WORD;
     }
     return Token::ESCAPED_KEYWORD;
