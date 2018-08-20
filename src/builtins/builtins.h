@@ -40,12 +40,8 @@ class Builtins {
 
   enum Name : int32_t {
 #define DEF_ENUM(Name, ...) k##Name,
-#define DEF_ENUM_BYTECODE_HANDLER(Name, ...) \
-  k##Name##Handler, k##Name##WideHandler, k##Name##ExtraWideHandler,
-    BUILTIN_LIST(DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM, DEF_ENUM,
-                 DEF_ENUM_BYTECODE_HANDLER, DEF_ENUM)
+    BUILTIN_LIST_ALL(DEF_ENUM)
 #undef DEF_ENUM
-#undef DEF_ENUM_BYTECODE_HANDLER
         builtin_count
   };
 
@@ -56,7 +52,7 @@ class Builtins {
   }
 
   // The different builtin kinds are documented in builtins-definitions.h.
-  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, BCH, ASM };
+  enum Kind { CPP, API, TFJ, TFC, TFS, TFH, ASM };
 
   static BailoutId GetContinuationBailoutId(Name name);
   static Name GetBuiltinFromBailoutId(BailoutId);
@@ -174,7 +170,7 @@ class Builtins {
   static void Generate_##Name(compiler::CodeAssemblerState* state);
 
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, DECLARE_TF, DECLARE_TF,
-               DECLARE_TF, DECLARE_TF, IGNORE_BUILTIN, DECLARE_ASM)
+               DECLARE_TF, DECLARE_TF, DECLARE_ASM)
 
 #undef DECLARE_ASM
 #undef DECLARE_TF

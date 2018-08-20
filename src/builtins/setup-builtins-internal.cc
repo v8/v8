@@ -10,7 +10,6 @@
 #include "src/compiler/code-assembler.h"
 #include "src/handles-inl.h"
 #include "src/interface-descriptors.h"
-#include "src/interpreter/bytecodes.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -245,12 +244,6 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   }
 }
 
-Code* GenerateBytecodeHandler(Isolate* isolate, interpreter::Bytecode code,
-                              interpreter::OperandScale scale) {
-  // TODO(v8:8068): Actually generate the handler.
-  return nullptr;
-}
-
 // static
 void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
@@ -292,27 +285,13 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
       isolate, index, &Builtins::Generate_##Name,          \
       CallDescriptors::InterfaceDescriptor, #Name, 1);     \
   AddBuiltin(builtins, index++, code);
-
-#define BUILD_BCH_WITH_SCALE(Code, Scale)                                 \
-  code = GenerateBytecodeHandler(isolate, interpreter::Bytecode::k##Code, \
-                                 interpreter::OperandScale::k##Scale);    \
-  if (code) {                                                             \
-    AddBuiltin(builtins, index, code);                                    \
-  }                                                                       \
-  ++index;
-
-#define BUILD_BCH(Code, ...)         \
-  BUILD_BCH_WITH_SCALE(Code, Single) \
-  BUILD_BCH_WITH_SCALE(Code, Double) \
-  BUILD_BCH_WITH_SCALE(Code, Quadruple)
-
 #define BUILD_ASM(Name)                                                     \
   code = BuildWithMacroAssembler(isolate, index, Builtins::Generate_##Name, \
                                  #Name);                                    \
   AddBuiltin(builtins, index++, code);
 
   BUILTIN_LIST(BUILD_CPP, BUILD_API, BUILD_TFJ, BUILD_TFC, BUILD_TFS, BUILD_TFH,
-               BUILD_BCH, BUILD_ASM);
+               BUILD_ASM);
 
 #undef BUILD_CPP
 #undef BUILD_API
@@ -320,8 +299,6 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 #undef BUILD_TFC
 #undef BUILD_TFS
 #undef BUILD_TFH
-#undef BUILD_BCH
-#undef BUILD_BCH_WITH_SCALE
 #undef BUILD_ASM
   CHECK_EQ(Builtins::builtin_count, index);
 
