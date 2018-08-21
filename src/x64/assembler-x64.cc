@@ -354,8 +354,21 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 }
 
 // Partial Constant Pool.
-bool ConstPool::TryRecordEntry(intptr_t data, int disp_offset,
-                               RelocInfo::Mode mode) {
+bool ConstPool::AddSharedEntry(uint64_t data, int offset) {
+  auto existing = entries_.find(data);
+  if (existing == entries_.end()) {
+    entries_.insert(std::make_pair(data, offset + kMoveImm64Offset));
+    return false;
+  }
+
+  // Make sure this is called with strictly ascending offsets.
+  DCHECK_GT(offset + kMoveImm64Offset, existing->second);
+
+  entries_.insert(std::make_pair(data, offset + kMoveRipRelativeDispOffset));
+  return true;
+}
+
+bool ConstPool::TryRecordEntry(intptr_t data, RelocInfo::Mode mode) {
   if (!FLAG_partial_constant_pool) return false;
   if (!RelocInfo::IsShareableRelocMode(mode)) return false;
 
@@ -366,23 +379,15 @@ bool ConstPool::TryRecordEntry(intptr_t data, int disp_offset,
     return false;
 
   uint64_t raw_data = static_cast<uint64_t>(data);
-  int pc_offset = assm_->pc_offset();
-  auto existing = entries_.find(raw_data);
-  if (existing == entries_.end()) {
-    entries_.insert(std::make_pair(raw_data, pc_offset + kMoveImm64Offset));
-    return false;
-  }
+  int offset = assm_->pc_offset();
+  return AddSharedEntry(raw_data, offset);
+}
 
-  // Return if the offset of first shareable constant is already recorded. This
-  // happens since duplicate call for the same pc offset may happen (e.g. in
-  // generic path of call/jmpPcRelative).
-  if (pc_offset + kMoveImm64Offset == existing->second) return false;
-
-  // Make sure this is called with strictly ascending offsets.
-  DCHECK_GT(pc_offset + kMoveImm64Offset, existing->second);
-
-  entries_.insert(std::make_pair(raw_data, pc_offset + disp_offset));
-  return true;
+bool ConstPool::IsMoveRipRelative(byte* instr) {
+  if ((*reinterpret_cast<uint32_t*>(instr) & kMoveRipRelativeMask) ==
+      kMoveRipRelativeInstr)
+    return true;
+  return false;
 }
 
 void ConstPool::Clear() { entries_.clear(); }
@@ -405,9 +410,10 @@ void ConstPool::PatchEntries() {
           constant_entry_offset - (it->second + kRipRelativeDispSize);
       byte* disp_addr = assm_->addr_at(it->second);
 
-      DCHECK(IsInPool(disp_addr));
-      // Check dummy displacement of rip-relative addressing before patching.
-      DCHECK_EQ(*reinterpret_cast<uint32_t*>(disp_addr), kDummyDispValue);
+      // Check if the instruction is actually a rip-relative move.
+      DCHECK(IsMoveRipRelative(disp_addr - kMoveRipRelativeDispOffset));
+      // The displacement of the rip-relative move should be 0 before patching.
+      DCHECK(*reinterpret_cast<uint32_t*>(disp_addr) == 0);
       *reinterpret_cast<int32_t*>(disp_addr) = disp32;
     }
   }
@@ -420,6 +426,12 @@ void Assembler::PatchConstPool() {
     return;
   }
   constpool_.PatchEntries();
+}
+
+bool Assembler::UseConstPoolFor(RelocInfo::Mode rmode) {
+  if (!FLAG_partial_constant_pool) return false;
+  return (rmode == RelocInfo::NONE || rmode == RelocInfo::EXTERNAL_REFERENCE ||
+          rmode == RelocInfo::OFF_HEAP_TARGET);
 }
 
 // -----------------------------------------------------------------------------
@@ -1135,23 +1147,6 @@ void Assembler::call(Operand op) {
   emit_operand(0x2, op);
 }
 
-void Assembler::CallPcRelative(Address entry, RelocInfo::Mode rmode,
-                               Register scratch) {
-  if (constpool_.TryRecordEntry(entry, ConstPool::kCallRipRelativeDispOffset,
-                                rmode)) {
-    // Emit rip-relative call. The displacement is set to 0 here and will be
-    // patched in PatchConstPool().
-    Label label;
-    call(Operand(&label, ConstPool::kDummyDispValue));
-    bind(&label);
-  } else {
-    // Emit generic code.
-    EnsureSpace ensure_space(this);
-    DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);
-    movp(scratch, entry, rmode);
-    call(scratch);
-  }
-}
 
 // Calls directly to the given address using a relative offset.
 // Should only ever be used in Code objects for calls within the
@@ -1647,24 +1642,6 @@ void Assembler::jmp(Operand src) {
   emit_operand(0x4, src);
 }
 
-void Assembler::JmpPcRelative(Address entry, RelocInfo::Mode rmode,
-                              Register scratch) {
-  if (constpool_.TryRecordEntry(entry, ConstPool::kJumpRipRelativeDispOffset,
-                                rmode)) {
-    // Emit rip-relative jump. The displacement is set to 0 here and will be
-    // patched in PatchConstPool().
-    Label label;
-    jmp(Operand(&label, ConstPool::kDummyDispValue));
-    bind(&label);
-  } else {
-    // Emit generic code.
-    EnsureSpace ensure_space(this);
-    DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);
-    movp(scratch, entry, rmode);
-    jmp(scratch);
-  }
-}
-
 void Assembler::emit_lea(Register dst, Operand src, int size) {
   EnsureSpace ensure_space(this);
   emit_rex(dst, src, size);
@@ -1820,12 +1797,10 @@ void Assembler::emit_mov(Operand dst, Immediate value, int size) {
 }
 
 void Assembler::movp(Register dst, Address value, RelocInfo::Mode rmode) {
-  if (constpool_.TryRecordEntry(value, ConstPool::kMoveRipRelativeDispOffset,
-                                rmode)) {
-    // Emit rip-relative move. The displacement is set to 0 here and will be
-    // patched in PatchConstPool().
+  if (constpool_.TryRecordEntry(value, rmode)) {
+    // Emit rip-relative move with offset = 0
     Label label;
-    emit_mov(dst, Operand(&label, ConstPool::kDummyDispValue), kPointerSize);
+    emit_mov(dst, Operand(&label, 0), kPointerSize);
     bind(&label);
   } else {
     EnsureSpace ensure_space(this);
@@ -1844,12 +1819,10 @@ void Assembler::movp_heap_number(Register dst, double value) {
 }
 
 void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
-  if (constpool_.TryRecordEntry(value, ConstPool::kMoveRipRelativeDispOffset,
-                                rmode)) {
-    // Emit rip-relative move. The displacement is set to 0 here and will be
-    // patched in PatchConstPool().
+  if (constpool_.TryRecordEntry(value, rmode)) {
+    // Emit rip-relative move with offset = 0
     Label label;
-    emit_mov(dst, Operand(&label, ConstPool::kDummyDispValue), kPointerSize);
+    emit_mov(dst, Operand(&label, 0), kPointerSize);
     bind(&label);
   } else {
     EnsureSpace ensure_space(this);

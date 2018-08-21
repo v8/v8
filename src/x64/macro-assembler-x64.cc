@@ -1464,7 +1464,8 @@ void TurboAssembler::Jump(Operand op) {
 }
 
 void TurboAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
-  JmpPcRelative(destination, rmode, kScratchRegister);
+  Move(kScratchRegister, destination, rmode);
+  jmp(kScratchRegister);
 }
 
 void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode,
@@ -1497,7 +1498,8 @@ if (FLAG_embedded_builtins) {
       CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
       EmbeddedData d = EmbeddedData::FromBlob();
       Address entry = d.InstructionStartOfBuiltin(builtin_index);
-      Jump(entry, RelocInfo::OFF_HEAP_TARGET);
+      Move(kScratchRegister, entry, RelocInfo::OFF_HEAP_TARGET);
+      jmp(kScratchRegister);
       return;
     }
   }
@@ -1525,7 +1527,8 @@ void TurboAssembler::Call(Operand op) {
 }
 
 void TurboAssembler::Call(Address destination, RelocInfo::Mode rmode) {
-  CallPcRelative(destination, rmode, kScratchRegister);
+  Move(kScratchRegister, destination, rmode);
+  call(kScratchRegister);
 }
 
 void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
@@ -1550,7 +1553,8 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
         CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
         EmbeddedData d = EmbeddedData::FromBlob();
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
-        Call(entry, RelocInfo::OFF_HEAP_TARGET);
+        Move(kScratchRegister, entry, RelocInfo::OFF_HEAP_TARGET);
+        call(kScratchRegister);
         return;
       }
     }
