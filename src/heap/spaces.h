@@ -1069,9 +1069,7 @@ class MemoryChunkValidator {
 class CodeRange {
  public:
   CodeRange(Isolate* isolate, size_t requested_size);
-  ~CodeRange() {
-    if (virtual_memory_.IsReserved()) virtual_memory_.Free();
-  }
+  ~CodeRange();
 
   bool valid() { return virtual_memory_.IsReserved(); }
   Address start() {
@@ -1144,10 +1142,31 @@ class CodeRange {
   // The block at current_allocation_block_index_ is the current block.
   std::vector<FreeBlock> allocation_list_;
   size_t current_allocation_block_index_;
+  size_t requested_code_range_size_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeRange);
 };
 
+// The process-wide singleton that keeps track of code range regions with the
+// intention to reuse free code range regions as a workaround for CFG memory
+// leaks (see crbug.com/870054).
+class CodeRangeAddressHint {
+ public:
+  // Returns the most recently freed code range start address for the given
+  // size. If there is no such entry, then a random address is returned.
+  V8_EXPORT_PRIVATE void* GetAddressHint(size_t code_range_size);
+
+  V8_EXPORT_PRIVATE void NotifyFreedCodeRange(void* code_range_start,
+                                              size_t code_range_size);
+
+ private:
+  base::Mutex mutex_;
+  // A map from code range size to an array of recently freed code range
+  // addresses. There should be O(1) different code range sizes.
+  // The length of each array is limited by the peak number of code ranges,
+  // which should be also O(1).
+  std::map<size_t, std::vector<void*>> recently_freed_;
+};
 
 class SkipList {
  public:

@@ -94,11 +94,15 @@ PauseAllocationObserversScope::~PauseAllocationObserversScope() {
 // -----------------------------------------------------------------------------
 // CodeRange
 
+static base::LazyInstance<CodeRangeAddressHint>::type code_range_address_hint =
+    LAZY_INSTANCE_INITIALIZER;
+
 CodeRange::CodeRange(Isolate* isolate, size_t requested)
     : isolate_(isolate),
       free_list_(0),
       allocation_list_(0),
-      current_allocation_block_index_(0) {
+      current_allocation_block_index_(0),
+      requested_code_range_size_(0) {
   DCHECK(!virtual_memory_.IsReserved());
 
   if (requested == 0) {
@@ -123,10 +127,13 @@ CodeRange::CodeRange(Isolate* isolate, size_t requested)
 
   DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
 
+  requested_code_range_size_ = requested;
+
   VirtualMemory reservation;
+  void* hint = code_range_address_hint.Pointer()->GetAddressHint(requested);
   if (!AlignedAllocVirtualMemory(
-          requested, Max(kCodeRangeAreaAlignment, AllocatePageSize()),
-          GetRandomMmapAddr(), &reservation)) {
+          requested, Max(kCodeRangeAreaAlignment, AllocatePageSize()), hint,
+          &reservation)) {
     V8::FatalProcessOutOfMemory(isolate,
                                 "CodeRange setup: allocate virtual memory");
   }
@@ -153,6 +160,15 @@ CodeRange::CodeRange(Isolate* isolate, size_t requested)
       NewEvent("CodeRange", reinterpret_cast<void*>(reservation.address()),
                requested));
   virtual_memory_.TakeControl(&reservation);
+}
+
+CodeRange::~CodeRange() {
+  if (virtual_memory_.IsReserved()) {
+    Address addr = start();
+    virtual_memory_.Free();
+    code_range_address_hint.Pointer()->NotifyFreedCodeRange(
+        reinterpret_cast<void*>(addr), requested_code_range_size_);
+  }
 }
 
 bool CodeRange::CompareFreeBlockAddress(const FreeBlock& left,
@@ -261,6 +277,22 @@ void CodeRange::ReleaseBlock(const FreeBlock* block) {
   free_list_.push_back(*block);
 }
 
+void* CodeRangeAddressHint::GetAddressHint(size_t code_range_size) {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+  auto it = recently_freed_.find(code_range_size);
+  if (it == recently_freed_.end() || it->second.empty()) {
+    return GetRandomMmapAddr();
+  }
+  void* result = it->second.back();
+  it->second.pop_back();
+  return result;
+}
+
+void CodeRangeAddressHint::NotifyFreedCodeRange(void* code_range_start,
+                                                size_t code_range_size) {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+  recently_freed_[code_range_size].push_back(code_range_start);
+}
 
 // -----------------------------------------------------------------------------
 // MemoryAllocator
