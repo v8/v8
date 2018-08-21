@@ -568,7 +568,10 @@ class MemoryChunk {
 
   void SetFlag(Flag flag) { SetFlags(flag, flag); }
 
-  bool IsFlagSet(Flag flag) { return (flags() & flag) != 0; }
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
+  bool IsFlagSet(Flag flag) {
+    return (flags<access_mode>() & flag) != 0;
+  }
 
   void ClearFlag(Flag flag) { flags_ &= ~flag; }
   // Set or clear multiple flags at a time. The flags in the mask are set to
@@ -583,7 +586,14 @@ class MemoryChunk {
   }
 
   // Return all current flags.
-  uintptr_t flags() { return flags_; }
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
+  uintptr_t flags() {
+    if (access_mode == AccessMode::NON_ATOMIC) {
+      return flags_;
+    } else {
+      return flags_.load(std::memory_order_relaxed);
+    }
+  }
 
   bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
 
