@@ -2884,6 +2884,19 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
     }
   }
 }
+
+void PrintEmbeddedBuiltinCandidates(Isolate* isolate) {
+  CHECK(FLAG_print_embedded_builtin_candidates);
+  bool found_a_candidate = false;
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    if (Builtins::IsIsolateIndependent(i)) continue;
+    Code* builtin = isolate->heap()->builtin(i);
+    if (!builtin->IsIsolateIndependent(isolate)) continue;
+    if (!found_a_candidate) PrintF("Found embedded builtin candidates:\n");
+    found_a_candidate = true;
+    PrintF("  %s\n", Builtins::name(i));
+  }
+}
 }  // namespace
 
 void Isolate::PrepareEmbeddedBlobForSerialization() {
@@ -3045,6 +3058,9 @@ bool Isolate::Init(StartupDeserializer* des) {
   setup_delegate_ = nullptr;
 
   if (FLAG_print_builtin_size) PrintBuiltinSizes(this);
+  if (FLAG_print_embedded_builtin_candidates) {
+    PrintEmbeddedBuiltinCandidates(this);
+  }
 
   // Finish initialization of ThreadLocal after deserialization is done.
   clear_pending_exception();

@@ -1081,6 +1081,9 @@ DEFINE_VALUE_IMPLICATION(runtime_call_stats, runtime_stats, 1)
 #endif
 DEFINE_BOOL_READONLY(embedded_builtins, V8_EMBEDDED_BUILTINS_BOOL,
                      "Embed builtin code into the binary.")
+// TODO(jgruber,v8:6666): Remove once ia32 has full embedded builtin support.
+DEFINE_BOOL(print_embedded_builtin_candidates, false,
+            "Prints builtins that are not yet embedded but could be.")
 DEFINE_BOOL(lazy_deserialization, true,
             "Deserialize code lazily from the snapshot.")
 DEFINE_BOOL(lazy_handler_deserialization, true,
