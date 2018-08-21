@@ -68,6 +68,16 @@ class DateFormat {
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> Unwrap(
       Isolate* isolate, Handle<JSReceiver> receiver, const char* method_name);
 
+  // ecma-402/#sec-todatetimeoptions
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ToDateTimeOptions(
+      Isolate* isolate, Handle<Object> input_options, const char* required,
+      const char* defaults);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleDateTime(
+      Isolate* isolate, Handle<Object> date, Handle<Object> locales,
+      Handle<Object> options, const char* required, const char* defaults,
+      const char* service);
+
   // Layout description.
 #define DATE_FORMAT_FIELDS(V)        \
   V(kSimpleDateFormat, kPointerSize) \

@@ -2235,6 +2235,11 @@ class JSObject: public JSReceiver {
 
   static MaybeHandle<Context> GetFunctionRealm(Handle<JSObject> object);
 
+  // 9.1.12 ObjectCreate ( proto [ , internalSlotsList ] )
+  // Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
+  static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> ObjectCreate(
+      Isolate* isolate, Handle<Object> prototype);
+
   // [elements]: The elements (properties with names that are integers).
   //
   // Elements can be in two general modes: fast and slow. Each mode

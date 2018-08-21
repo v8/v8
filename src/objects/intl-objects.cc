@@ -552,6 +552,23 @@ void SetResolvedBreakIteratorSettings(Isolate* isolate,
         .Assert();
   }
 }
+
+MaybeHandle<JSObject> CachedOrNewService(Isolate* isolate,
+                                         Handle<String> service,
+                                         Handle<Object> locales,
+                                         Handle<Object> options,
+                                         Handle<Object> internal_options) {
+  Handle<Object> result;
+  Handle<Object> undefined_value(ReadOnlyRoots(isolate).undefined_value(),
+                                 isolate);
+  Handle<Object> args[] = {service, locales, options, internal_options};
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, isolate->cached_or_new_service(),
+                      undefined_value, arraysize(args), args),
+      JSArray);
+  return Handle<JSObject>::cast(result);
+}
 }  // namespace
 
 icu::Locale Intl::CreateICULocale(Isolate* isolate,
@@ -686,6 +703,44 @@ MaybeHandle<String> DateFormat::DateTimeFormat(
   }
   // 5. Return FormatDateTime(dtf, x).
   return DateFormat::FormatDateTime(isolate, date_time_format_holder, x);
+}
+
+MaybeHandle<String> DateFormat::ToLocaleDateTime(
+    Isolate* isolate, Handle<Object> date, Handle<Object> locales,
+    Handle<Object> options, const char* required, const char* defaults,
+    const char* service) {
+  Factory* factory = isolate->factory();
+  // 1. Let x be ? thisTimeValue(this value);
+  if (!date->IsJSDate()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
+                                 factory->NewStringFromStaticChars("Date")),
+                    String);
+  }
+
+  double const x = Handle<JSDate>::cast(date)->value()->Number();
+  // 2. If x is NaN, return "Invalid Date"
+  if (std::isnan(x)) {
+    return factory->NewStringFromStaticChars("Invalid Date");
+  }
+
+  // 3. Let options be ? ToDateTimeOptions(options, required, defaults).
+  Handle<JSObject> internal_options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, internal_options,
+      DateFormat::ToDateTimeOptions(isolate, options, required, defaults),
+      String);
+
+  // 4. Let dateFormat be ? Construct(%DateTimeFormat%, « locales, options »).
+  Handle<JSObject> date_format;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date_format,
+      CachedOrNewService(isolate, factory->NewStringFromAsciiChecked(service),
+                         locales, options, internal_options),
+      String);
+
+  // 5. Return FormatDateTime(dateFormat, x).
+  return DateFormat::FormatDateTime(isolate, date_format, x);
 }
 
 icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
@@ -837,6 +892,110 @@ bool Intl::RemoveLocaleScriptTag(const std::string& icu_locale,
   const char* icu_name = short_locale.getName();
   *locale_less_script = std::string(icu_name);
   return true;
+}
+
+namespace {
+
+Maybe<bool> IsPropertyUndefined(Isolate* isolate, Handle<JSObject> options,
+                                const char* property) {
+  Factory* factory = isolate->factory();
+  // i. Let prop be the property name.
+  // ii. Let value be ? Get(options, prop).
+  Handle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value,
+      Object::GetPropertyOrElement(
+          isolate, options, factory->NewStringFromAsciiChecked(property)),
+      Nothing<bool>());
+  return Just(value->IsUndefined(isolate));
+}
+
+}  // namespace
+
+// ecma-402/#sec-todatetimeoptions
+MaybeHandle<JSObject> DateFormat::ToDateTimeOptions(
+    Isolate* isolate, Handle<Object> input_options, const char* required,
+    const char* defaults) {
+  Factory* factory = isolate->factory();
+  // 1. If options is undefined, let options be null; otherwise let options be ?
+  //    ToObject(options).
+  Handle<JSObject> options;
+  if (input_options->IsUndefined(isolate)) {
+    options = factory->NewJSObjectWithNullProto();
+  } else {
+    Handle<JSReceiver> options_obj;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
+                               Object::ToObject(isolate, input_options),
+                               JSObject);
+    // 2. Let options be ObjectCreate(options).
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
+                               JSObject::ObjectCreate(isolate, options_obj),
+                               JSObject);
+  }
+
+  // 3. Let needDefaults be true.
+  bool needs_default = true;
+
+  bool required_is_any = strcmp(required, "any") == 0;
+  // 4. If required is "date" or "any", then
+  if (required_is_any || (strcmp(required, "date") == 0)) {
+    // a. For each of the property names "weekday", "year", "month", "day", do
+    for (auto& prop : {"weekday", "year", "month", "day"}) {
+      //  i. Let prop be the property name.
+      // ii. Let value be ? Get(options, prop)
+      Maybe<bool> maybe_undefined = IsPropertyUndefined(isolate, options, prop);
+      MAYBE_RETURN(maybe_undefined, Handle<JSObject>());
+      // iii. If value is not undefined, let needDefaults be false.
+      if (!maybe_undefined.FromJust()) {
+        needs_default = false;
+      }
+    }
+  }
+
+  // 5. If required is "time" or "any", then
+  if (required_is_any || (strcmp(required, "time") == 0)) {
+    // a. For each of the property names "hour", "minute", "second", do
+    for (auto& prop : {"hour", "minute", "second"}) {
+      //  i. Let prop be the property name.
+      // ii. Let value be ? Get(options, prop)
+      Maybe<bool> maybe_undefined = IsPropertyUndefined(isolate, options, prop);
+      MAYBE_RETURN(maybe_undefined, Handle<JSObject>());
+      // iii. If value is not undefined, let needDefaults be false.
+      if (!maybe_undefined.FromJust()) {
+        needs_default = false;
+      }
+    }
+  }
+
+  // 6. If needDefaults is true and defaults is either "date" or "all", then
+  if (needs_default) {
+    bool default_is_all = strcmp(defaults, "all") == 0;
+    if (default_is_all || (strcmp(defaults, "date") == 0)) {
+      // a. For each of the property names "year", "month", "day", do
+      // i. Perform ? CreateDataPropertyOrThrow(options, prop, "numeric").
+      for (auto& prop : {"year", "month", "day"}) {
+        MAYBE_RETURN(
+            JSReceiver::CreateDataProperty(
+                isolate, options, factory->NewStringFromAsciiChecked(prop),
+                factory->numeric_string(), kThrowOnError),
+            Handle<JSObject>());
+      }
+    }
+    // 7. If needDefaults is true and defaults is either "time" or "all", then
+    if (default_is_all || (strcmp(defaults, "time") == 0)) {
+      // a. For each of the property names "hour", "minute", "second", do
+      // i. Perform ? CreateDataPropertyOrThrow(options, prop, "numeric").
+      for (auto& prop : {"hour", "minute", "second"}) {
+        MAYBE_RETURN(
+            JSReceiver::CreateDataProperty(
+                isolate, options, factory->NewStringFromAsciiChecked(prop),
+                factory->numeric_string(), kThrowOnError),
+            Handle<JSObject>());
+      }
+    }
+  }
+  // 8. Return options.
+  return options;
 }
 
 std::set<std::string> Intl::GetAvailableLocales(const IcuService& service) {
@@ -1756,28 +1915,6 @@ bool IsAToZ(char ch) {
   return IsInRange(AsciiAlphaToLower(ch), 'a', 'z');
 }
 
-// The following are temporary function calling back into js code in
-// src/js/intl.js to call pre-existing functions until they are all moved to C++
-// under src/objects/*.
-// TODO(ftang): remove these temp function after bstell move them from js into
-// C++
-
-MaybeHandle<JSObject> CachedOrNewService(Isolate* isolate,
-                                         Handle<String> service,
-                                         Handle<Object> locales,
-                                         Handle<Object> options) {
-  Handle<Object> result;
-  Handle<Object> undefined_value(ReadOnlyRoots(isolate).undefined_value(),
-                                 isolate);
-  Handle<Object> args[] = {service, locales, options};
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, isolate->cached_or_new_service(),
-                      undefined_value, arraysize(args), args),
-      JSArray);
-  return Handle<JSObject>::cast(result);
-}
-
 }  // namespace
 
 // Verifies that the input is a well-formed ISO 4217 currency code.
@@ -1852,7 +1989,7 @@ MaybeHandle<Object> Intl::StringLocaleCompare(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, collator,
       CachedOrNewService(isolate, factory->NewStringFromStaticChars("collator"),
-                         locales, options),
+                         locales, options, factory->undefined_value()),
       Object);
   CHECK(collator->IsJSCollator());
   return Intl::CompareStrings(isolate, Handle<JSCollator>::cast(collator),
@@ -1904,7 +2041,7 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
       isolate, number_format_holder,
       CachedOrNewService(isolate,
                          factory->NewStringFromStaticChars("numberformat"),
-                         locales, options),
+                         locales, options, factory->undefined_value()),
       String);
   DCHECK(
       Intl::IsObjectOfType(isolate, number_format_holder, Intl::kNumberFormat));

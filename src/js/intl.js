@@ -1102,7 +1102,7 @@ function CreateDateTimeFormat(locales, options) {
 
   var locale = resolveLocale('dateformat', locales, options);
 
-  options = toDateTimeOptions(options, 'any', 'date');
+  options = %ToDateTimeOptions(options, 'any', 'date');
 
   var getOption = getGetOption(options, 'dateformat');
 
@@ -1511,26 +1511,6 @@ function cachedOrNewService(service, locales, options, defaults) {
 ]);
 
 /**
- * Returns actual formatted date or fails if date parameter is invalid.
- */
-function toLocaleDateTime(date, locales, options, required, defaults, service) {
-  if (!(date instanceof GlobalDate)) {
-    throw %make_type_error(kMethodInvokedOnWrongType, "Date");
-  }
-
-  var dateValue = TO_NUMBER(date);
-  if (NUMBER_IS_NAN(dateValue)) return 'Invalid Date';
-
-  var internalOptions = toDateTimeOptions(options, required, defaults);
-
-  var dateFormat =
-      cachedOrNewService(service, locales, options, internalOptions);
-
-  return %FormatDate(dateFormat, date);
-}
-
-
-/**
  * Formats a Date object (this) using locale and options values.
  * If locale or options are omitted, defaults are used - both date and time are
  * present in the output.
@@ -1540,7 +1520,7 @@ DEFINE_METHOD(
   toLocaleString() {
     var locales = arguments[0];
     var options = arguments[1];
-    return toLocaleDateTime(
+    return %ToLocaleDateTime(
         this, locales, options, 'any', 'all', 'dateformatall');
   }
 );
@@ -1556,7 +1536,7 @@ DEFINE_METHOD(
   toLocaleDateString() {
     var locales = arguments[0];
     var options = arguments[1];
-    return toLocaleDateTime(
+    return %ToLocaleDateTime(
         this, locales, options, 'date', 'date', 'dateformatdate');
   }
 );
@@ -1572,7 +1552,7 @@ DEFINE_METHOD(
   toLocaleTimeString() {
     var locales = arguments[0];
     var options = arguments[1];
-    return toLocaleDateTime(
+    return %ToLocaleDateTime(
         this, locales, options, 'time', 'time', 'dateformattime');
   }
 );

@@ -1342,6 +1342,27 @@ MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
   return result;
 }
 
+// 9.1.12 ObjectCreate ( proto [ , internalSlotsList ] )
+// Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
+MaybeHandle<JSObject> JSObject::ObjectCreate(Isolate* isolate,
+                                             Handle<Object> prototype) {
+  // Generate the map with the specified {prototype} based on the Object
+  // function's initial map from the current native context.
+  // TODO(bmeurer): Use a dedicated cache for Object.create; think about
+  // slack tracking for Object.create.
+  Handle<Map> map =
+      Map::GetObjectCreateMap(isolate, Handle<HeapObject>::cast(prototype));
+
+  // Actually allocate the object.
+  Handle<JSObject> object;
+  if (map->is_dictionary_map()) {
+    object = isolate->factory()->NewSlowJSObjectFromMap(map);
+  } else {
+    object = isolate->factory()->NewJSObjectFromMap(map);
+  }
+  return object;
+}
+
 void JSObject::EnsureWritableFastElements(Handle<JSObject> object) {
   DCHECK(object->HasSmiOrObjectElements() ||
          object->HasFastStringWrapperElements());
