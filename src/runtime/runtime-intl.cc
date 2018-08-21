@@ -231,10 +231,12 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
 
 RUNTIME_FUNCTION(Runtime_FormatDate) {
   HandleScope scope(isolate);
+
   DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, date_format_holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, date, 1);
+
   RETURN_RESULT_OR_FAILURE(
       isolate, DateFormat::DateTimeFormat(isolate, date_format_holder, date));
 }
@@ -483,6 +485,24 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
   } else {
     return *isolate->factory()->NewStringFromStaticChars("unknown");
   }
+}
+
+RUNTIME_FUNCTION(Runtime_ToLocaleDateTime) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(6, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, date, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, locales, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, options, 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, required, 3);
+  CONVERT_ARG_HANDLE_CHECKED(String, defaults, 4);
+  CONVERT_ARG_HANDLE_CHECKED(String, service, 5);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, DateFormat::ToLocaleDateTime(
+                   isolate, date, locales, options, required->ToCString().get(),
+                   defaults->ToCString().get(), service->ToCString().get()));
 }
 
 RUNTIME_FUNCTION(Runtime_ToDateTimeOptions) {
