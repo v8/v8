@@ -641,11 +641,10 @@
 ##############################################################################
 ['system == android', {
   # Tests consistently failing on Android.
-  # Timezone issues:
+  # Unable to change locale on Android:
   'icu-date-to-string': [FAIL],
   'regress/regress-6288': [FAIL],
   # OOM:
-  'regress/regress-599414-array-concat-fast-path': [FAIL],
 }],  # 'system == android'
 
 ##############################################################################
