@@ -426,8 +426,8 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     SharedFunctionInfoRef shared = js_function.shared();
     DCHECK(shared.HasBytecodeArray());
     int parameter_count_no_receiver = shared.internal_formal_parameter_count();
-    int size =
-        parameter_count_no_receiver + shared.GetBytecodeArrayRegisterCount();
+    int size = parameter_count_no_receiver +
+               shared.GetBytecodeArray().register_count();
     AllocationBuilder ab(jsgraph(), effect, control);
     ab.AllocateArray(size, factory()->fixed_array_map());
     for (int i = 0; i < size; ++i) {

@@ -350,15 +350,35 @@ FeedbackVectorData::FeedbackVectorData(JSHeapBroker* broker_,
   DCHECK_EQ(object_->length(), feedback_.size());
 }
 
-class FixedArrayBaseData : public HeapObjectData {};
+class FixedArrayBaseData : public HeapObjectData {
+ public:
+  int const length;
+
+  FixedArrayBaseData(JSHeapBroker* broker_, Handle<FixedArrayBase> object_,
+                     HeapObjectType type_)
+      : HeapObjectData(broker_, object_, type_), length(object_->length()) {}
+};
+
 class FixedArrayData : public FixedArrayBaseData {};
 class FixedDoubleArrayData : public FixedArrayBaseData {};
+
+class BytecodeArrayData : public FixedArrayBaseData {
+ public:
+  int const register_count;
+
+  BytecodeArrayData(JSHeapBroker* broker_, Handle<BytecodeArray> object_,
+                    HeapObjectType type_)
+      : FixedArrayBaseData(broker_, object_, type_),
+        register_count(object_->register_count()) {}
+};
+
 class JSArrayData : public JSObjectData {};
 class ScopeInfoData : public HeapObjectData {};
 
 class SharedFunctionInfoData : public HeapObjectData {
  public:
   int const builtin_id;
+  ObjectData* const GetBytecodeArray;  // Can be nullptr.
 #define DECL_MEMBER(type, name) type const name;
   BROKER_SFI_FIELDS(DECL_MEMBER)
 #undef DECL_MEMBER
@@ -368,11 +388,16 @@ class SharedFunctionInfoData : public HeapObjectData {
                          HeapObjectType type_)
       : HeapObjectData(broker_, object_, type_),
         builtin_id(object_->HasBuiltinId() ? object_->builtin_id()
-                                           : Builtins::kNoBuiltinId)
+                                           : Builtins::kNoBuiltinId),
+        GetBytecodeArray(object_->HasBytecodeArray()
+                             ? GET_OR_CREATE(GetBytecodeArray)
+                             : nullptr)
 #define INIT_MEMBER(type, name) , name(object_->name())
             BROKER_SFI_FIELDS(INIT_MEMBER)
 #undef INIT_MEMBER
   {
+    DCHECK_EQ(HasBuiltinId, builtin_id != Builtins::kNoBuiltinId);
+    DCHECK_EQ(HasBytecodeArray, GetBytecodeArray != nullptr);
   }
 };
 
@@ -430,6 +455,9 @@ HeapObjectData* HeapObjectData::Serialize(JSHeapBroker* broker,
   } else if (object->IsInternalizedString()) {
     result = new (broker->zone())
         InternalizedStringData(broker, Handle<String>::cast(object), type);
+  } else if (object->IsBytecodeArray()) {
+    result = new (broker->zone())
+        BytecodeArrayData(broker, Handle<BytecodeArray>::cast(object), type);
   } else if (object->IsString()) {
     result = new (broker->zone())
         StringData(broker, Handle<String>::cast(object), type);
@@ -442,6 +470,9 @@ HeapObjectData* HeapObjectData::Serialize(JSHeapBroker* broker,
   } else if (object->IsFeedbackVector()) {
     result = new (broker->zone())
         FeedbackVectorData(broker, Handle<FeedbackVector>::cast(object), type);
+  } else if (object->IsFixedArrayBase()) {
+    result = new (broker->zone())
+        FixedArrayBaseData(broker, Handle<FixedArrayBase>::cast(object), type);
   } else {
     result = new (broker->zone()) HeapObjectData(broker, object, type);
   }
@@ -856,11 +887,6 @@ double FixedDoubleArrayRef::get_scalar(int i) const {
   return object<FixedDoubleArray>()->get_scalar(i);
 }
 
-int SharedFunctionInfoRef::GetBytecodeArrayRegisterCount() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<SharedFunctionInfo>()->GetBytecodeArray()->register_count();
-}
-
 #define IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name) \
   if (broker()->mode() == JSHeapBroker::kDisabled) {     \
     AllowHandleAllocation handle_allocation;             \
@@ -928,7 +954,9 @@ BIMODAL_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
 BIMODAL_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
 BIMODAL_ACCESSOR_C(AllocationSite, PretenureFlag, GetPretenureMode)
 
-HANDLE_ACCESSOR_C(FixedArrayBase, int, length)
+BIMODAL_ACCESSOR_C(BytecodeArray, int, register_count)
+
+BIMODAL_ACCESSOR_C(FixedArrayBase, int, length)
 
 BIMODAL_ACCESSOR(HeapObject, Map, map)
 HANDLE_ACCESSOR_C(HeapObject, bool, IsExternalString)
@@ -980,6 +1008,7 @@ HANDLE_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
 HANDLE_ACCESSOR_C(ScopeInfo, int, ContextLength)
 
 BIMODAL_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
+BIMODAL_ACCESSOR(SharedFunctionInfo, BytecodeArray, GetBytecodeArray)
 #define DEF_SFI_ACCESSOR(type, name) \
   BIMODAL_ACCESSOR_C(SharedFunctionInfo, type, name)
 BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)

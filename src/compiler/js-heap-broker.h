@@ -56,6 +56,7 @@ class HeapObjectType {
 
 #define HEAP_BROKER_OBJECT_LIST(V) \
   V(AllocationSite)                \
+  V(BytecodeArray)                 \
   V(Cell)                          \
   V(Code)                          \
   V(Context)                       \
@@ -346,6 +347,13 @@ class FixedDoubleArrayRef : public FixedArrayBaseRef {
   bool is_the_hole(int i) const;
 };
 
+class BytecodeArrayRef : public FixedArrayBaseRef {
+ public:
+  using FixedArrayBaseRef::FixedArrayBaseRef;
+
+  int register_count() const;
+};
+
 class JSArrayRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
@@ -379,11 +387,10 @@ class SharedFunctionInfoRef : public HeapObjectRef {
   using HeapObjectRef::HeapObjectRef;
 
   int builtin_id() const;
+  BytecodeArrayRef GetBytecodeArray() const;
 #define DECL_ACCESSOR(type, name) type name() const;
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
 #undef DECL_ACCSESOR
-
-  int GetBytecodeArrayRegisterCount() const;
 };
 
 class StringRef : public NameRef {
