@@ -672,12 +672,12 @@ void Scanner::Scan() {
         // /  // /* /=
         Advance();
         if (c0_ == '/') {
-          Advance();
-          if (c0_ == '#' || c0_ == '@') {
+          uc32 c = Peek();
+          if (c == '#' || c == '@') {
+            Advance();
             Advance();
             token = SkipSourceURLComment();
           } else {
-            PushBack(c0_);
             token = SkipSingleLineComment();
           }
         } else if (c0_ == '*') {
@@ -726,12 +726,10 @@ void Scanner::Scan() {
         } else {
           token = Token::PERIOD;
           if (c0_ == '.') {
-            Advance();
-            if (c0_ == '.') {
+            if (Peek() == '.') {
+              Advance();
               Advance();
               token = Token::ELLIPSIS;
-            } else {
-              PushBack('.');
             }
           }
         }
@@ -963,15 +961,14 @@ Token::Value Scanner::ScanPrivateName() {
 
   LiteralScope literal(this);
   DCHECK_EQ(c0_, '#');
-  AddLiteralCharAdvance();
   DCHECK(!unicode_cache_->IsIdentifierStart(kEndOfInput));
-  if (!unicode_cache_->IsIdentifierStart(c0_)) {
-    PushBack(c0_);
+  if (!unicode_cache_->IsIdentifierStart(Peek())) {
     ReportScannerError(source_pos(),
                        MessageTemplate::kInvalidOrUnexpectedToken);
     return Token::ILLEGAL;
   }
 
+  AddLiteralCharAdvance();
   Token::Value token = ScanIdentifierOrKeywordInner(&literal);
   return token == Token::ILLEGAL ? Token::ILLEGAL : Token::PRIVATE_NAME;
 }
@@ -1002,14 +999,16 @@ Token::Value Scanner::ScanTemplateSpan() {
   const bool capture_raw = true;
   while (true) {
     uc32 c = c0_;
-    Advance();
     if (c == '`') {
+      Advance();  // Consume '`'
       result = Token::TEMPLATE_TAIL;
       break;
-    } else if (c == '$' && c0_ == '{') {
+    } else if (c == '$' && Peek() == '{') {
+      Advance();  // Consume '$'
       Advance();  // Consume '{'
       break;
     } else if (c == '\\') {
+      Advance();  // Consume '\\'
       DCHECK(!unibrow::IsLineTerminator(kEndOfInput));
       if (capture_raw) AddRawLiteralChar('\\');
       if (unibrow::IsLineTerminator(c0_)) {
@@ -1034,14 +1033,14 @@ Token::Value Scanner::ScanTemplateSpan() {
       }
     } else if (c < 0) {
       // Unterminated template literal
-      PushBack(c);
       break;
     } else {
+      Advance();  // Consume c.
       // The TRV of LineTerminatorSequence :: <CR> is the CV 0x000A.
       // The TRV of LineTerminatorSequence :: <CR><LF> is the sequence
       // consisting of the CV 0x000A.
       if (c == '\r') {
-        if (c0_ == '\n') Advance();  // Skip \n
+        if (c0_ == '\n') Advance();  // Consume '\n'
         c = '\n';
       }
       if (capture_raw) AddRawLiteralChar(c);
