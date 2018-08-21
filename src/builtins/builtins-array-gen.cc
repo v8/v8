@@ -3523,13 +3523,9 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   BIND(&if_array);
   {
-    // We can only handle fast elements here.
-    TNode<Int32T> elements_kind = LoadMapElementsKind(array_map);
-    GotoIfNot(IsFastElementsKind(elements_kind), &if_other);
-
     // Check that the {index} is within range for the {array}.
-    TNode<Smi> length = CAST(LoadJSArrayLength(CAST(array)));
-    GotoIfNot(SmiBelow(CAST(index), length), &set_done);
+    TNode<Number> length = LoadJSArrayLength(CAST(array));
+    GotoIfNumberGreaterThanOrEqual(index, length, &set_done);
     StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
                                    SmiInc(CAST(index)));
 
@@ -3541,69 +3537,19 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
                        Int32Constant(static_cast<int>(IterationKind::kKeys))),
            &allocate_iterator_result);
 
-    Node* elements = LoadElements(CAST(array));
-    Label if_packed(this), if_holey(this), if_packed_double(this),
-        if_holey_double(this), if_unknown_kind(this, Label::kDeferred);
-    int32_t kinds[] = {// Handled by if_packed.
-                       PACKED_SMI_ELEMENTS, PACKED_ELEMENTS,
-                       // Handled by if_holey.
-                       HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
-                       // Handled by if_packed_double.
-                       PACKED_DOUBLE_ELEMENTS,
-                       // Handled by if_holey_double.
-                       HOLEY_DOUBLE_ELEMENTS};
-    Label* labels[] = {// PACKED_{SMI,}_ELEMENTS
-                       &if_packed, &if_packed,
-                       // HOLEY_{SMI,}_ELEMENTS
-                       &if_holey, &if_holey,
-                       // PACKED_DOUBLE_ELEMENTS
-                       &if_packed_double,
-                       // HOLEY_DOUBLE_ELEMENTS
-                       &if_holey_double};
-    Switch(elements_kind, &if_unknown_kind, kinds, labels, arraysize(kinds));
+    Label if_hole(this, Label::kDeferred);
+    TNode<Int32T> elements_kind = LoadMapElementsKind(array_map);
+    TNode<FixedArrayBase> elements = LoadElements(CAST(array));
+    var_value.Bind(LoadFixedArrayBaseElementAsTagged(
+        elements, CAST(index), elements_kind, &if_generic, &if_hole));
+    Goto(&allocate_entry_if_needed);
 
-    BIND(&if_packed);
+    BIND(&if_hole);
     {
-      var_value.Bind(
-          LoadFixedArrayElement(CAST(elements), index, 0, SMI_PARAMETERS));
-      Goto(&allocate_entry_if_needed);
-    }
-
-    BIND(&if_holey);
-    {
-      Node* element =
-          LoadFixedArrayElement(CAST(elements), index, 0, SMI_PARAMETERS);
-      var_value.Bind(element);
-      GotoIfNot(WordEqual(element, TheHoleConstant()),
-                &allocate_entry_if_needed);
       GotoIf(IsNoElementsProtectorCellInvalid(), &if_generic);
       var_value.Bind(UndefinedConstant());
       Goto(&allocate_entry_if_needed);
     }
-
-    BIND(&if_packed_double);
-    {
-      Node* value = LoadFixedDoubleArrayElement(
-          elements, index, MachineType::Float64(), 0, SMI_PARAMETERS);
-      var_value.Bind(AllocateHeapNumberWithValue(value));
-      Goto(&allocate_entry_if_needed);
-    }
-
-    BIND(&if_holey_double);
-    {
-      Label if_hole(this, Label::kDeferred);
-      Node* value = LoadFixedDoubleArrayElement(
-          elements, index, MachineType::Float64(), 0, SMI_PARAMETERS, &if_hole);
-      var_value.Bind(AllocateHeapNumberWithValue(value));
-      Goto(&allocate_entry_if_needed);
-      BIND(&if_hole);
-      GotoIf(IsNoElementsProtectorCellInvalid(), &if_generic);
-      var_value.Bind(UndefinedConstant());
-      Goto(&allocate_entry_if_needed);
-    }
-
-    BIND(&if_unknown_kind);
-    Unreachable();
   }
 
   BIND(&if_other);

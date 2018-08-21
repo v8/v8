@@ -1050,6 +1050,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                        SMI_PARAMETERS);
   }
 
+  // Load an array element from a FixedArray, FixedDoubleArray or a
+  // NumberDictionary (depending on the |elements_kind|) and return
+  // it as a tagged value. Assumes that the |index| passed a length
+  // check before. Bails out to |if_accessor| if the element that
+  // was found is an accessor, or to |if_hole| if the element at
+  // the given |index| is not found in |elements|.
+  TNode<Object> LoadFixedArrayBaseElementAsTagged(
+      TNode<FixedArrayBase> elements, TNode<Smi> index,
+      TNode<Int32T> elements_kind, Label* if_accessor, Label* if_hole);
+
   // Load a feedback slot from a FeedbackVector.
   TNode<MaybeObject> LoadFeedbackVectorSlot(
       Node* object, Node* index, int additional_offset = 0,
@@ -1873,6 +1883,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsFastElementsKind(Node* elements_kind);
   bool IsFastElementsKind(ElementsKind kind) {
     return v8::internal::IsFastElementsKind(kind);
+  }
+  TNode<BoolT> IsDictionaryElementsKind(TNode<Int32T> elements_kind) {
+    return ElementsKindEqual(elements_kind, Int32Constant(DICTIONARY_ELEMENTS));
   }
   TNode<BoolT> IsDoubleElementsKind(TNode<Int32T> elements_kind);
   bool IsDoubleElementsKind(ElementsKind kind) {

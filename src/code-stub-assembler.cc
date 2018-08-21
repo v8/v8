@@ -2383,6 +2383,72 @@ TNode<Float64T> CodeStubAssembler::LoadFixedDoubleArrayElement(
   return LoadDoubleWithHoleCheck(object, offset, if_hole, machine_type);
 }
 
+TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
+    TNode<FixedArrayBase> elements, TNode<Smi> index,
+    TNode<Int32T> elements_kind, Label* if_accessor, Label* if_hole) {
+  TVARIABLE(Object, var_result);
+  Label done(this), if_packed(this), if_holey(this), if_packed_double(this),
+      if_holey_double(this), if_dictionary(this, Label::kDeferred);
+
+  int32_t kinds[] = {// Handled by if_packed.
+                     PACKED_SMI_ELEMENTS, PACKED_ELEMENTS,
+                     // Handled by if_holey.
+                     HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS,
+                     // Handled by if_packed_double.
+                     PACKED_DOUBLE_ELEMENTS,
+                     // Handled by if_holey_double.
+                     HOLEY_DOUBLE_ELEMENTS};
+  Label* labels[] = {// PACKED_{SMI,}_ELEMENTS
+                     &if_packed, &if_packed,
+                     // HOLEY_{SMI,}_ELEMENTS
+                     &if_holey, &if_holey,
+                     // PACKED_DOUBLE_ELEMENTS
+                     &if_packed_double,
+                     // HOLEY_DOUBLE_ELEMENTS
+                     &if_holey_double};
+  Switch(elements_kind, &if_dictionary, kinds, labels, arraysize(kinds));
+
+  BIND(&if_packed);
+  {
+    var_result =
+        LoadFixedArrayElement(CAST(elements), index, 0, SMI_PARAMETERS);
+    Goto(&done);
+  }
+
+  BIND(&if_holey);
+  {
+    var_result =
+        LoadFixedArrayElement(CAST(elements), index, 0, SMI_PARAMETERS);
+    Branch(WordEqual(var_result.value(), TheHoleConstant()), if_hole, &done);
+  }
+
+  BIND(&if_packed_double);
+  {
+    var_result = AllocateHeapNumberWithValue(LoadFixedDoubleArrayElement(
+        CAST(elements), index, MachineType::Float64(), 0, SMI_PARAMETERS));
+    Goto(&done);
+  }
+
+  BIND(&if_holey_double);
+  {
+    var_result = AllocateHeapNumberWithValue(LoadFixedDoubleArrayElement(
+        CAST(elements), index, MachineType::Float64(), 0, SMI_PARAMETERS,
+        if_hole));
+    Goto(&done);
+  }
+
+  BIND(&if_dictionary);
+  {
+    CSA_ASSERT(this, IsDictionaryElementsKind(elements_kind));
+    var_result = BasicLoadNumberDictionaryElement(
+        CAST(elements), SmiToIntPtr(index), if_accessor, if_hole);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return var_result.value();
+}
+
 TNode<Float64T> CodeStubAssembler::LoadDoubleWithHoleCheck(
     SloppyTNode<Object> base, SloppyTNode<IntPtrT> offset, Label* if_hole,
     MachineType machine_type) {
