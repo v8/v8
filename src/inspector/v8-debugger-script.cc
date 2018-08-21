@@ -20,7 +20,7 @@ const char kGlobalDebuggerScriptHandleLabel[] = "DevTools debugger";
 // Multiplikation in
 // eingeschränkten Branchingprogrammmodellen" by Woelfe.
 // http://opendatastructures.org/versions/edition-0.1d/ods-java/node33.html#SECTION00832000000000000000
-String16 calculateHash(const String16& str) {
+String16 calculateHash(v8::Isolate* isolate, v8::Local<v8::String> source) {
   static uint64_t prime[] = {0x3FB75161, 0xAB1F4E4F, 0x82675BC5, 0xCD924D35,
                              0x81ABE279};
   static uint64_t random[] = {0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476,
@@ -34,9 +34,14 @@ String16 calculateHash(const String16& str) {
   const size_t hashesSize = arraysize(hashes);
 
   size_t current = 0;
+
+  std::unique_ptr<UChar[]> buffer(new UChar[source->Length()]);
+  int written = source->Write(
+      isolate, reinterpret_cast<uint16_t*>(buffer.get()), 0, source->Length());
+
   const uint32_t* data = nullptr;
-  size_t sizeInBytes = sizeof(UChar) * str.length();
-  data = reinterpret_cast<const uint32_t*>(str.characters16());
+  size_t sizeInBytes = sizeof(UChar) * written;
+  data = reinterpret_cast<const uint32_t*>(buffer.get());
   for (size_t i = 0; i < sizeInBytes / 4; ++i) {
     uint32_t d = v8::internal::ReadUnalignedUInt32(
         reinterpret_cast<v8::internal::Address>(data + i));
@@ -121,12 +126,29 @@ class ActualScript : public V8DebuggerScript {
   bool isLiveEdit() const override { return m_isLiveEdit; }
   bool isModule() const override { return m_isModule; }
 
-  const String16& source() const override { return m_source; }
+  String16 source(size_t pos, size_t len) const override {
+    v8::HandleScope scope(m_isolate);
+    v8::Local<v8::String> v8Source;
+    if (!script()->Source().ToLocal(&v8Source)) return String16();
+    if (pos >= static_cast<size_t>(v8Source->Length())) return String16();
+    size_t substringLength =
+        std::min(len, static_cast<size_t>(v8Source->Length()) - pos);
+    std::unique_ptr<UChar[]> buffer(new UChar[substringLength]);
+    v8Source->Write(m_isolate, reinterpret_cast<uint16_t*>(buffer.get()),
+                    static_cast<int>(pos), static_cast<int>(substringLength));
+    return String16(buffer.get(), substringLength);
+  }
   int startLine() const override { return m_startLine; }
   int startColumn() const override { return m_startColumn; }
   int endLine() const override { return m_endLine; }
   int endColumn() const override { return m_endColumn; }
   bool isSourceLoadedLazily() const override { return false; }
+  int length() const override {
+    v8::HandleScope scope(m_isolate);
+    v8::Local<v8::String> v8Source;
+    if (!script()->Source().ToLocal(&v8Source)) return 0;
+    return v8Source->Length();
+  }
 
   const String16& sourceMappingURL() const override {
     return m_sourceMappingURL;
@@ -213,7 +235,13 @@ class ActualScript : public V8DebuggerScript {
   }
 
   const String16& hash() const override {
-    if (m_hash.isEmpty()) m_hash = calculateHash(source());
+    if (m_hash.isEmpty()) {
+      v8::HandleScope scope(m_isolate);
+      v8::Local<v8::String> v8Source;
+      if (script()->Source().ToLocal(&v8Source)) {
+        m_hash = calculateHash(m_isolate, v8Source);
+      }
+    }
     DCHECK(!m_hash.isEmpty());
     return m_hash;
   }
@@ -264,10 +292,6 @@ class ActualScript : public V8DebuggerScript {
 
     USE(script->ContextId().To(&m_executionContextId));
 
-    if (script->Source().ToLocal(&tmp)) {
-      m_source = toProtocolString(m_isolate, tmp);
-    }
-
     m_isModule = script->IsModule();
 
     m_script.Reset(m_isolate, script);
@@ -277,7 +301,6 @@ class ActualScript : public V8DebuggerScript {
   String16 m_sourceMappingURL;
   bool m_isLiveEdit = false;
   bool m_isModule = false;
-  String16 m_source;
   mutable String16 m_hash;
   int m_startLine = 0;
   int m_startColumn = 0;
@@ -309,8 +332,9 @@ class WasmVirtualScript : public V8DebuggerScript {
     UNREACHABLE();
   }
   bool isSourceLoadedLazily() const override { return true; }
-  const String16& source() const override {
-    return m_wasmTranslation->GetSource(m_id, m_functionIndex);
+  String16 source(size_t pos, size_t len) const override {
+    return m_wasmTranslation->GetSource(m_id, m_functionIndex)
+        .substring(pos, len);
   }
   int startLine() const override {
     return m_wasmTranslation->GetStartLine(m_id, m_functionIndex);
@@ -323,6 +347,9 @@ class WasmVirtualScript : public V8DebuggerScript {
   }
   int endColumn() const override {
     return m_wasmTranslation->GetEndColumn(m_id, m_functionIndex);
+  }
+  int length() const override {
+    return static_cast<int>(source(0, UINT_MAX).length());
   }
 
   bool getPossibleBreakpoints(
