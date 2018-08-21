@@ -124,7 +124,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   ic_info.type += type;
 
   Object* maybe_function =
-      Memory::Object_at(fp_ + JavaScriptFrameConstants::kFunctionOffset);
+      Memory<Object*>(fp_ + JavaScriptFrameConstants::kFunctionOffset);
   DCHECK(maybe_function->IsJSFunction());
   JSFunction* function = JSFunction::cast(maybe_function);
   int code_offset = 0;
@@ -172,7 +172,7 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot)
   }
   Address* pc_address =
       reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
-  Address fp = Memory::Address_at(entry + ExitFrameConstants::kCallerFPOffset);
+  Address fp = Memory<Address>(entry + ExitFrameConstants::kCallerFPOffset);
 #ifdef DEBUG
   StackFrameIterator it(isolate);
   for (int i = 0; i < 1; i++) it.Advance();
@@ -185,9 +185,9 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot)
   // is skip this frame. However, the pc should not be updated. The call to
   // ICs happen from bytecode handlers.
   intptr_t frame_marker =
-      Memory::intptr_at(fp + TypedFrameConstants::kFrameTypeOffset);
+      Memory<intptr_t>(fp + TypedFrameConstants::kFrameTypeOffset);
   if (frame_marker == StackFrame::TypeToMarker(StackFrame::STUB)) {
-    fp = Memory::Address_at(fp + TypedFrameConstants::kCallerFPOffset);
+    fp = Memory<Address>(fp + TypedFrameConstants::kCallerFPOffset);
   }
   fp_ = fp;
   if (FLAG_enable_embedded_constant_pool) {

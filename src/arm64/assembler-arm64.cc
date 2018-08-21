@@ -208,7 +208,7 @@ uint32_t RelocInfo::wasm_call_tag() const {
   Instruction* instr = reinterpret_cast<Instruction*>(pc_);
   if (instr->IsLdrLiteralX()) {
     return static_cast<uint32_t>(
-        Memory::Address_at(Assembler::target_pointer_address_at(pc_)));
+        Memory<Address>(Assembler::target_pointer_address_at(pc_)));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     return static_cast<uint32_t>(instr->ImmPCOffset() / kInstrSize);

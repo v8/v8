@@ -14,72 +14,14 @@ namespace internal {
 // that typically are needed when incompatible pointer types are used.
 // Note that this class currently relies on undefined behaviour. There is a
 // proposal (http://wg21.link/p0593r2) to make it defined behaviour though.
-class Memory {
- public:
-  static uint8_t& uint8_at(Address addr) {
-    return *reinterpret_cast<uint8_t*>(addr);
-  }
-
-  static uint16_t& uint16_at(Address addr)  {
-    return *reinterpret_cast<uint16_t*>(addr);
-  }
-
-  static uint32_t& uint32_at(Address addr)  {
-    return *reinterpret_cast<uint32_t*>(addr);
-  }
-
-  static int32_t& int32_at(Address addr)  {
-    return *reinterpret_cast<int32_t*>(addr);
-  }
-
-  static uint64_t& uint64_at(Address addr)  {
-    return *reinterpret_cast<uint64_t*>(addr);
-  }
-
-  static int64_t& int64_at(Address addr) {
-    return *reinterpret_cast<int64_t*>(addr);
-  }
-
-  static int& int_at(Address addr)  {
-    return *reinterpret_cast<int*>(addr);
-  }
-
-  static unsigned& unsigned_at(Address addr) {
-    return *reinterpret_cast<unsigned*>(addr);
-  }
-
-  static intptr_t& intptr_at(Address addr)  {
-    return *reinterpret_cast<intptr_t*>(addr);
-  }
-
-  static uintptr_t& uintptr_at(Address addr) {
-    return *reinterpret_cast<uintptr_t*>(addr);
-  }
-
-  static float& float_at(Address addr) {
-    return *reinterpret_cast<float*>(addr);
-  }
-
-  static double& double_at(Address addr)  {
-    return *reinterpret_cast<double*>(addr);
-  }
-
-  static Address& Address_at(Address addr)  {
-    return *reinterpret_cast<Address*>(addr);
-  }
-
-  static Object*& Object_at(Address addr)  {
-    return *reinterpret_cast<Object**>(addr);
-  }
-
-  static Handle<Object>& Object_Handle_at(Address addr)  {
-    return *reinterpret_cast<Handle<Object>*>(addr);
-  }
-
-  static bool IsAddressInRange(Address base, Address address, uint32_t size) {
-    return base <= address && address < base + size;
-  }
-};
+template <class T>
+T& Memory(Address addr) {
+  return *reinterpret_cast<T*>(addr);
+}
+template <class T>
+T& Memory(byte* addr) {
+  return Memory<T>(reinterpret_cast<Address>(addr));
+}
 
 template <typename V>
 static inline V ReadUnalignedValue(Address p) {

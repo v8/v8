@@ -103,22 +103,22 @@ class SafepointTable BASE_EMBEDDED {
 
   unsigned GetPcOffset(unsigned index) const {
     DCHECK(index < length_);
-    return Memory::uint32_at(GetPcOffsetLocation(index));
+    return Memory<uint32_t>(GetPcOffsetLocation(index));
   }
 
   int GetTrampolinePcOffset(unsigned index) const {
     DCHECK(index < length_);
-    return Memory::int_at(GetTrampolineLocation(index));
+    return Memory<int>(GetTrampolineLocation(index));
   }
 
   unsigned find_return_pc(unsigned pc_offset);
 
   SafepointEntry GetEntry(unsigned index) const {
     DCHECK(index < length_);
-    unsigned info = Memory::uint32_at(GetInfoLocation(index));
-    uint8_t* bits = &Memory::uint8_at(entries_ + (index * entry_size_));
+    unsigned info = Memory<uint32_t>(GetInfoLocation(index));
+    uint8_t* bits = &Memory<uint8_t>(entries_ + (index * entry_size_));
     int trampoline_pc =
-        has_deopt_ ? Memory::int_at(GetTrampolineLocation(index)) : -1;
+        has_deopt_ ? Memory<int>(GetTrampolineLocation(index)) : -1;
     return SafepointEntry(info, bits, trampoline_pc);
   }
 

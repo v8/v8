@@ -702,14 +702,14 @@ void Deoptimizer::DoComputeOutputFrames() {
     caller_frame_top_ = stack_fp_ + ComputeInputFrameAboveFpFixedSize();
 
     Address fp_address = input_->GetFramePointerAddress();
-    caller_fp_ = Memory::intptr_at(fp_address);
+    caller_fp_ = Memory<intptr_t>(fp_address);
     caller_pc_ =
-        Memory::intptr_at(fp_address + CommonFrameConstants::kCallerPCOffset);
-    input_frame_context_ = Memory::intptr_at(
+        Memory<intptr_t>(fp_address + CommonFrameConstants::kCallerPCOffset);
+    input_frame_context_ = Memory<intptr_t>(
         fp_address + CommonFrameConstants::kContextOrFrameTypeOffset);
 
     if (FLAG_enable_embedded_constant_pool) {
-      caller_constant_pool_ = Memory::intptr_at(
+      caller_constant_pool_ = Memory<intptr_t>(
           fp_address + CommonFrameConstants::kConstantPoolOffset);
     }
   }
@@ -2596,9 +2596,9 @@ int TranslatedValue::GetChildrenCount() const {
 uint32_t TranslatedState::GetUInt32Slot(Address fp, int slot_offset) {
   Address address = fp + slot_offset;
 #if V8_TARGET_BIG_ENDIAN && V8_HOST_ARCH_64_BIT
-  return Memory::uint32_at(address + kIntSize);
+  return Memory<uint32_t>(address + kIntSize);
 #else
-  return Memory::uint32_at(address);
+  return Memory<uint32_t>(address);
 #endif
 }
 
@@ -2606,12 +2606,12 @@ Float32 TranslatedState::GetFloatSlot(Address fp, int slot_offset) {
 #if !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
   return Float32::FromBits(GetUInt32Slot(fp, slot_offset));
 #else
-  return Float32::FromBits(Memory::uint32_at(fp + slot_offset));
+  return Float32::FromBits(Memory<uint32_t>(fp + slot_offset));
 #endif
 }
 
 Float64 TranslatedState::GetDoubleSlot(Address fp, int slot_offset) {
-  return Float64::FromBits(Memory::uint64_at(fp + slot_offset));
+  return Float64::FromBits(Memory<uint64_t>(fp + slot_offset));
 }
 
 void TranslatedValue::Handlify() {
@@ -2851,7 +2851,7 @@ Address TranslatedState::ComputeArgumentsPosition(Address input_frame_pointer,
                                                   int* length) {
   Address parent_frame_pointer = *reinterpret_cast<Address*>(
       input_frame_pointer + StandardFrameConstants::kCallerFPOffset);
-  intptr_t parent_frame_type = Memory::intptr_at(
+  intptr_t parent_frame_type = Memory<intptr_t>(
       parent_frame_pointer + CommonFrameConstants::kContextOrFrameTypeOffset);
 
   Address arguments_frame;

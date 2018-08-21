@@ -563,7 +563,7 @@ Object* Code::GetObjectFromCodeEntry(Address code_entry) {
 }
 
 Object* Code::GetObjectFromEntryAddress(Address location_of_address) {
-  return GetObjectFromCodeEntry(Memory::Address_at(location_of_address));
+  return GetObjectFromCodeEntry(Memory<Address>(location_of_address));
 }
 
 bool Code::CanContainWeakObjects() {

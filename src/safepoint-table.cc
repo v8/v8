@@ -41,8 +41,8 @@ SafepointTable::SafepointTable(Address instruction_start,
       stack_slots_(stack_slots),
       has_deopt_(has_deopt) {
   Address header = instruction_start_ + safepoint_table_offset;
-  length_ = Memory::uint32_at(header + kLengthOffset);
-  entry_size_ = Memory::uint32_at(header + kEntrySizeOffset);
+  length_ = Memory<uint32_t>(header + kLengthOffset);
+  entry_size_ = Memory<uint32_t>(header + kEntrySizeOffset);
   pc_and_deoptimization_indexes_ = header + kHeaderSize;
   entries_ = pc_and_deoptimization_indexes_ + (length_ * kFixedEntrySize);
   DCHECK_GT(entry_size_, 0);

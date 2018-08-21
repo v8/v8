@@ -284,8 +284,7 @@ class UpdateTypedSlotHelper {
         callback(reinterpret_cast<MaybeObject**>(&code));
     DCHECK(!HasWeakHeapObjectTag(code));
     if (code != old_code) {
-      Memory::Address_at(entry_address) =
-          reinterpret_cast<Code*>(code)->entry();
+      Memory<Address>(entry_address) = reinterpret_cast<Code*>(code)->entry();
     }
     return result;
   }

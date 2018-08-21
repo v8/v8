@@ -535,7 +535,7 @@ Address Assembler::target_pointer_address_at(Address pc) {
 Address Assembler::target_address_at(Address pc, Address constant_pool) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
   if (instr->IsLdrLiteralX()) {
-    return Memory::Address_at(target_pointer_address_at(pc));
+    return Memory<Address>(target_pointer_address_at(pc));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     return reinterpret_cast<Address>(instr->ImmPCOffsetTarget());
@@ -601,7 +601,7 @@ void Assembler::deserialization_set_special_target_at(Address location,
     Assembler::FlushICache(location, kInstrSize);
   } else {
     DCHECK_EQ(instr->InstructionBits(), 0);
-    Memory::Address_at(location) = target;
+    Memory<Address>(location) = target;
     // Intuitively, we would think it is necessary to always flush the
     // instruction cache after patching a target address in the code. However,
     // in this case, only the constant pool contents change. The instruction
@@ -612,7 +612,7 @@ void Assembler::deserialization_set_special_target_at(Address location,
 
 void Assembler::deserialization_set_target_internal_reference_at(
     Address pc, Address target, RelocInfo::Mode mode) {
-  Memory::Address_at(pc) = target;
+  Memory<Address>(pc) = target;
 }
 
 void Assembler::set_target_address_at(Address pc, Address constant_pool,
@@ -620,7 +620,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       ICacheFlushMode icache_flush_mode) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
   if (instr->IsLdrLiteralX()) {
-    Memory::Address_at(target_pointer_address_at(pc)) = target;
+    Memory<Address>(target_pointer_address_at(pc)) = target;
     // Intuitively, we would think it is necessary to always flush the
     // instruction cache after patching a target address in the code. However,
     // in this case, only the constant pool contents change. The instruction
@@ -730,7 +730,7 @@ void RelocInfo::set_target_external_reference(
 
 Address RelocInfo::target_internal_reference() {
   DCHECK(rmode_ == INTERNAL_REFERENCE);
-  return Memory::Address_at(pc_);
+  return Memory<Address>(pc_);
 }
 
 
@@ -763,7 +763,7 @@ void RelocInfo::WipeOut() {
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_) || IsOffHeapTarget(rmode_));
   if (IsInternalReference(rmode_)) {
-    Memory::Address_at(pc_) = kNullAddress;
+    Memory<Address>(pc_) = kNullAddress;
   } else {
     Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
   }

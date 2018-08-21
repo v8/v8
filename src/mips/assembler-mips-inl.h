@@ -174,7 +174,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
     set_target_internal_reference_encoded_at(pc, target);
   } else {
     DCHECK(mode == RelocInfo::INTERNAL_REFERENCE);
-    Memory::Address_at(pc) = target;
+    Memory<Address>(pc) = target;
   }
 }
 
@@ -217,7 +217,7 @@ void RelocInfo::set_target_external_reference(
 
 Address RelocInfo::target_internal_reference() {
   if (rmode_ == INTERNAL_REFERENCE) {
-    return Memory::Address_at(pc_);
+    return Memory<Address>(pc_);
   } else {
     // Encoded internal references are lui/ori or lui/jic load of 32-bit
     // absolute address.
@@ -266,7 +266,7 @@ void RelocInfo::WipeOut() {
          IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_) ||
          IsOffHeapTarget(rmode_));
   if (IsInternalReference(rmode_)) {
-    Memory::Address_at(pc_) = kNullAddress;
+    Memory<Address>(pc_) = kNullAddress;
   } else if (IsInternalReferenceEncoded(rmode_)) {
     Assembler::set_target_internal_reference_encoded_at(pc_, kNullAddress);
   } else {

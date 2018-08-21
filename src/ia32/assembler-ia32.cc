@@ -226,7 +226,7 @@ Address RelocInfo::js_to_wasm_address() const {
 
 uint32_t RelocInfo::wasm_call_tag() const {
   DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
-  return Memory::uint32_at(pc_);
+  return Memory<uint32_t>(pc_);
 }
 
 // -----------------------------------------------------------------------------
@@ -313,7 +313,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         break;
     }
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
-    Memory::Object_Handle_at(pc) = object;
+    Memory<Handle<Object>>(pc) = object;
   }
 }
 

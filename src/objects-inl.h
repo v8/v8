@@ -2082,8 +2082,7 @@ FreeSpace* FreeSpace::next() {
          (!Heap::FromWritableHeapObject(this)->deserialization_complete() &&
           map() == nullptr));
   DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
-  return reinterpret_cast<FreeSpace*>(
-      Memory::Address_at(address() + kNextOffset));
+  return reinterpret_cast<FreeSpace*>(Memory<Address>(address() + kNextOffset));
 }
 
 

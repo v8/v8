@@ -789,7 +789,7 @@ TEST(BytecodeArray) {
   CHECK_GE(array->address() + array->BytecodeArraySize(),
            array->GetFirstBytecodeAddress() + array->length());
   for (int i = 0; i < kRawBytesSize; i++) {
-    CHECK_EQ(Memory::uint8_at(array->GetFirstBytecodeAddress() + i),
+    CHECK_EQ(Memory<uint8_t>(array->GetFirstBytecodeAddress() + i),
              kRawBytes[i]);
     CHECK_EQ(array->get(i), kRawBytes[i]);
   }
@@ -807,7 +807,7 @@ TEST(BytecodeArray) {
   CHECK_EQ(array->frame_size(), kFrameSize);
   for (int i = 0; i < kRawBytesSize; i++) {
     CHECK_EQ(array->get(i), kRawBytes[i]);
-    CHECK_EQ(Memory::uint8_at(array->GetFirstBytecodeAddress() + i),
+    CHECK_EQ(Memory<uint8_t>(array->GetFirstBytecodeAddress() + i),
              kRawBytes[i]);
   }
 

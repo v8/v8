@@ -485,7 +485,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         break;
     }
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
-    Memory::Address_at(constant_pool_entry_address(pc, 0 /* unused */)) =
+    Memory<Address>(constant_pool_entry_address(pc, 0 /* unused */)) =
         object.address();
   }
 }

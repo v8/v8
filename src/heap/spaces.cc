@@ -1249,7 +1249,7 @@ void MemoryAllocator::ZapBlock(Address start, size_t size,
   DCHECK_EQ(start % kPointerSize, 0);
   DCHECK_EQ(size % kPointerSize, 0);
   for (size_t s = 0; s + kPointerSize <= size; s += kPointerSize) {
-    Memory::Address_at(start + s) = static_cast<Address>(zap_value);
+    Memory<Address>(start + s) = static_cast<Address>(zap_value);
   }
 }
 

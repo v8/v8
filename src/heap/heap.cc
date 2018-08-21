@@ -2812,7 +2812,7 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
         reinterpret_cast<Map*>(root(kTwoPointerFillerMapRootIndex)),
         SKIP_WRITE_BARRIER);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
-      Memory::Address_at(addr + kPointerSize) =
+      Memory<Address>(addr + kPointerSize) =
           static_cast<Address>(kClearedFreeMemoryValue);
     }
   } else {

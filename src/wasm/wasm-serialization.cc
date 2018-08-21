@@ -146,7 +146,7 @@ void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
 #elif V8_TARGET_ARCH_ARM64
   Instruction* instr = reinterpret_cast<Instruction*>(rinfo->pc());
   if (instr->IsLdrLiteralX()) {
-    Memory::Address_at(rinfo->constant_pool_entry_address()) =
+    Memory<Address>(rinfo->constant_pool_entry_address()) =
         static_cast<Address>(tag);
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
@@ -172,7 +172,7 @@ uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
   Instruction* instr = reinterpret_cast<Instruction*>(rinfo->pc());
   if (instr->IsLdrLiteralX()) {
     return static_cast<uint32_t>(
-        Memory::Address_at(rinfo->constant_pool_entry_address()));
+        Memory<Address>(rinfo->constant_pool_entry_address()));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     return static_cast<uint32_t>(instr->ImmPCOffset() / kInstrSize);

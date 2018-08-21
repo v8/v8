@@ -127,7 +127,7 @@ void CpuFeatures::PrintFeatures() {
 void RelocInfo::set_js_to_wasm_address(Address address,
                                        ICacheFlushMode icache_flush_mode) {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  Memory::Address_at(pc_) = address;
+  Memory<Address>(pc_) = address;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     Assembler::FlushICache(pc_, sizeof(Address));
   }
@@ -135,12 +135,12 @@ void RelocInfo::set_js_to_wasm_address(Address address,
 
 Address RelocInfo::js_to_wasm_address() const {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  return Memory::Address_at(pc_);
+  return Memory<Address>(pc_);
 }
 
 uint32_t RelocInfo::wasm_call_tag() const {
   DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
-  return Memory::uint32_at(pc_);
+  return Memory<uint32_t>(pc_);
 }
 
 // -----------------------------------------------------------------------------
@@ -229,7 +229,7 @@ class OperandBuilder {
       // Need 32 bits of displacement, mode 2 or mode 1 with register rbp/r13.
       data_.buf[0] = (modrm & 0x3F) | (is_baseless ? 0x00 : 0x80);
       data_.len = disp_offset + 4;
-      Memory::int32_at(reinterpret_cast<Address>(&data_.buf[disp_offset])) =
+      Memory<int32_t>(reinterpret_cast<Address>(&data_.buf[disp_offset])) =
           disp_value;
     } else if (disp_value != 0 || (base_reg == 0x05)) {
       // Need 8 bits of displacement.
@@ -341,12 +341,12 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
       case HeapObjectRequest::kHeapNumber: {
         Handle<HeapNumber> object =
             isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
-        Memory::Object_Handle_at(pc) = object;
+        Memory<Handle<Object>>(pc) = object;
         break;
       }
       case HeapObjectRequest::kCodeStub: {
         request.code_stub()->set_isolate(isolate);
-        UpdateCodeTarget(Memory::int32_at(pc), request.code_stub()->GetCode());
+        UpdateCodeTarget(Memory<int32_t>(pc), request.code_stub()->GetCode());
         break;
       }
     }
