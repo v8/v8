@@ -20,7 +20,7 @@ public:
     enum Status {
         kSuccess = 0,
         kError = 1,
-        kFallThrough = 2
+        kFallThrough = 2,
     };
 
     enum ErrorCode {
