@@ -674,6 +674,24 @@ scriptFailedToParse
     startLine : 0
     url : failed.js
 }
+scriptFailedToParse
+{
+    scriptSource : {a:2://# sourceURL=failed.js<nl>//# sourceMappingURL=failed-map
+}
+{
+    endColumn : 31
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : 370d368557b75a8e281e4a84625a9e0263647da6
+    isModule : false
+    length : 60
+    scriptId : <scriptId>
+    sourceMapURL : failed-map
+    startColumn : 0
+    startLine : 0
+    url : failed.js
+}
 scriptParsed
 {
     scriptSource : function foo16(){}<nl>

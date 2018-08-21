@@ -35,6 +35,7 @@ function addScripts() {
     .then(() => addScript("function foo15(){}; eval(\"function foo14(){}//# sourceURL=eval.js\")//# sourceURL=eval-wrapper.js"))
   // sourceURL and sourceMappingURL works even for script with syntax error
     .then(() => addScript("}//# sourceURL=failed.js\n//# sourceMappingURL=failed-map"))
+    .then(() => addScript("{a:2://# sourceURL=failed.js\n//# sourceMappingURL=failed-map"))
   // empty lines at end
     .then(() => addScript("function foo16(){}\n"))
     .then(() => addScript("function foo17(){}\n\n"))

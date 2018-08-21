@@ -1378,12 +1378,6 @@ bool V8DebuggerAgentImpl::isPaused() const {
 void V8DebuggerAgentImpl::didParseSource(
     std::unique_ptr<V8DebuggerScript> script, bool success) {
   v8::HandleScope handles(m_isolate);
-  if (!success) {
-    DCHECK(!script->isSourceLoadedLazily());
-    String16 scriptSource = script->source();
-    script->setSourceURL(findSourceURL(scriptSource, false));
-    script->setSourceMappingURL(findSourceMapURL(scriptSource, false));
-  }
 
   int contextId = script->executionContextId();
   int contextGroupId = m_inspector->contextGroupId(contextId);
