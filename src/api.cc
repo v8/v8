@@ -10789,6 +10789,54 @@ void EmbedderHeapTracer::FinalizeTracing() {
   }
 }
 
+void EmbedderHeapTracer::GarbageCollectionForTesting(
+    EmbedderStackState stack_state) {
+  DCHECK(isolate_);
+  i::Heap* const heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
+  heap->SetEmbedderStackStateForNextFinalizaton(stack_state);
+  heap->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask,
+                          i::GarbageCollectionReason::kTesting,
+                          kGCCallbackFlagForced);
+}
+
+bool EmbedderHeapTracer::AdvanceTracing(double deadline_in_ms) {
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+  return !this->AdvanceTracing(
+      deadline_in_ms,
+      AdvanceTracingActions(isinf(deadline_in_ms) ? FORCE_COMPLETION
+                                                  : DO_NOT_FORCE_COMPLETION));
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+}
+
+void EmbedderHeapTracer::EnterFinalPause(EmbedderStackState stack_state) {
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+  this->EnterFinalPause();
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+}
+
+bool EmbedderHeapTracer::IsTracingDone() {
+// TODO(mlippautz): Implement using "return true" after removing the deprecated
+// call.
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+  return NumberOfWrappersToTrace() == 0;
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+}
+
 namespace internal {
 
 void HandleScopeImplementer::FreeThreadResources() {

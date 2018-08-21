@@ -7126,18 +7126,21 @@ class V8_EXPORT PersistentHandleVisitor {  // NOLINT
 enum class MemoryPressureLevel { kNone, kModerate, kCritical };
 
 /**
- * Interface for tracing through the embedder heap. During a v8 garbage
- * collection, v8 collects hidden fields of all potential wrappers, and at the
+ * Interface for tracing through the embedder heap. During a V8 garbage
+ * collection, V8 collects hidden fields of all potential wrappers, and at the
  * end of its marking phase iterates the collection and asks the embedder to
  * trace through its heap and use reporter to report each JavaScript object
  * reachable from any of the given wrappers.
- *
- * Before the first call to the TraceWrappersFrom function TracePrologue will be
- * called. When the garbage collection cycle is finished, TraceEpilogue will be
- * called.
  */
 class V8_EXPORT EmbedderHeapTracer {
  public:
+  // Indicator for the stack state of the embedder.
+  enum EmbedderStackState {
+    kUnknown,
+    kNonEmpty,
+    kEmpty,
+  };
+
   enum ForceCompletionAction { FORCE_COMPLETION, DO_NOT_FORCE_COMPLETION };
 
   struct AdvanceTracingActions {
@@ -7164,7 +7167,7 @@ class V8_EXPORT EmbedderHeapTracer {
   virtual void TracePrologue() = 0;
 
   /**
-   * Called to to make a tracing step in the embedder.
+   * Called to make a tracing step in the embedder.
    *
    * The embedder is expected to trace its heap starting from wrappers reported
    * by RegisterV8References method, and report back all reachable wrappers.
@@ -7172,26 +7175,36 @@ class V8_EXPORT EmbedderHeapTracer {
    * deadline.
    *
    * Returns true if there is still work to do.
+   *
+   * Note: Only one of the AdvanceTracing methods needs to be overriden by the
+   * embedder.
    */
-  virtual bool AdvanceTracing(double deadline_in_ms,
-                              AdvanceTracingActions actions) = 0;
+  V8_DEPRECATE_SOON("Use void AdvanceTracing(deadline_in_ms)",
+                    virtual bool AdvanceTracing(
+                        double deadline_in_ms, AdvanceTracingActions actions)) {
+    return false;
+  }
+
+  /**
+   * Called to advance tracing in the embedder.
+   *
+   * The embedder is expected to trace its heap starting from wrappers reported
+   * by RegisterV8References method, and report back all reachable wrappers.
+   * Furthermore, the embedder is expected to stop tracing by the given
+   * deadline. A deadline of infinity means that tracing should be finished.
+   *
+   * Returns |true| if tracing is done, and false otherwise.
+   *
+   * Note: Only one of the AdvanceTracing methods needs to be overriden by the
+   * embedder.
+   */
+  virtual bool AdvanceTracing(double deadline_in_ms);
 
   /*
    * Returns true if there no more tracing work to be done (see AdvanceTracing)
    * and false otherwise.
    */
-  virtual bool IsTracingDone() {
-// TODO(delphick): When NumberOfWrappersToTrace is removed, this should be
-// replaced with: return true;
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-#endif
-    return NumberOfWrappersToTrace() == 0;
-#if __clang__
-#pragma clang diagnostic pop
-#endif
-  }
+  virtual bool IsTracingDone();
 
   /**
    * Called at the end of a GC cycle.
@@ -7203,8 +7216,13 @@ class V8_EXPORT EmbedderHeapTracer {
   /**
    * Called upon entering the final marking pause. No more incremental marking
    * steps will follow this call.
+   *
+   * Note: Only one of the EnterFinalPause methods needs to be overriden by the
+   * embedder.
    */
-  virtual void EnterFinalPause() = 0;
+  V8_DEPRECATE_SOON("Use void EnterFinalPause(EmbedderStackState)",
+                    virtual void EnterFinalPause()) {}
+  virtual void EnterFinalPause(EmbedderStackState stack_state);
 
   /**
    * Called when tracing is aborted.
@@ -7215,7 +7233,7 @@ class V8_EXPORT EmbedderHeapTracer {
   virtual void AbortTracing() = 0;
 
   /*
-   * Called by the embedder to request immediaet finalization of the currently
+   * Called by the embedder to request immediate finalization of the currently
    * running tracing phase that has been started with TracePrologue and not
    * yet finished with TraceEpilogue.
    *
@@ -7224,6 +7242,13 @@ class V8_EXPORT EmbedderHeapTracer {
    * This is an experimental feature.
    */
   void FinalizeTracing();
+
+  /*
+   * Called by the embedder to immediately perform a full garbage collection.
+   *
+   * Should only be used in testing code.
+   */
+  void GarbageCollectionForTesting(EmbedderStackState stack_state);
 
   /*
    * Returns the v8::Isolate this tracer is attached too and |nullptr| if it
@@ -7237,7 +7262,7 @@ class V8_EXPORT EmbedderHeapTracer {
   V8_DEPRECATE_SOON("Use IsTracingDone",
                     virtual size_t NumberOfWrappersToTrace()) {
     return 0;
-  };
+  }
 
  protected:
   v8::Isolate* isolate_ = nullptr;

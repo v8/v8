@@ -5968,5 +5968,11 @@ static_assert(MemoryChunk::kFlagsOffset ==
                   heap_internals::MemoryChunk::kFlagsOffset,
               "Flag offset inconsistent");
 
+void Heap::SetEmbedderStackStateForNextFinalizaton(
+    EmbedderHeapTracer::EmbedderStackState stack_state) {
+  local_embedder_heap_tracer()->SetEmbedderStackStateForNextFinalization(
+      stack_state);
+}
+
 }  // namespace internal
 }  // namespace v8

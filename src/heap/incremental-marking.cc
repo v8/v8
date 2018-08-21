@@ -936,10 +936,7 @@ double IncrementalMarking::AdvanceIncrementalMarking(
           heap_->MonotonicallyIncreasingTimeInMs() + kStepSizeInMs;
       if (!heap_->local_embedder_heap_tracer()
                ->ShouldFinalizeIncrementalMarking()) {
-        heap_->local_embedder_heap_tracer()->Trace(
-            wrapper_deadline, EmbedderHeapTracer::AdvanceTracingActions(
-                                  EmbedderHeapTracer::ForceCompletionAction::
-                                      DO_NOT_FORCE_COMPLETION));
+        heap_->local_embedder_heap_tracer()->Trace(wrapper_deadline);
       }
     } else {
       Step(step_size_in_bytes, completion_action, step_origin);

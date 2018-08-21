@@ -1635,8 +1635,7 @@ void MarkCompactCollector::PerformWrapperTracing() {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_TRACING);
     heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
     heap_->local_embedder_heap_tracer()->Trace(
-        0, EmbedderHeapTracer::AdvanceTracingActions(
-               EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
+        std::numeric_limits<double>::infinity());
   }
 }
 
