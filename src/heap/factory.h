@@ -822,11 +822,10 @@ class V8_EXPORT_PRIVATE Factory {
   DECLARE_ERROR(WasmRuntimeError)
 #undef DECLARE_ERROR
 
-  Handle<String> NumberToString(Handle<Object> number, bool check_cache = true);
-  Handle<String> NumberToString(Smi* number, bool check_cache = true);
+  Handle<String> NumberToString(Handle<Object> number,
+                                bool check_number_string_cache = true);
 
-  inline Handle<String> Uint32ToString(uint32_t value,
-                                       bool check_cache = false);
+  inline Handle<String> Uint32ToString(uint32_t value);
 
 #define ROOT_ACCESSOR(type, name, camel_name) inline Handle<type> name();
   ROOT_LIST(ROOT_ACCESSOR)
@@ -1001,11 +1000,10 @@ class V8_EXPORT_PRIVATE Factory {
 
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.
-  Handle<Object> NumberToStringCacheGet(Object* number, int hash);
+  Handle<Object> GetNumberStringCache(Handle<Object> number);
 
   // Update the cache with a new number-string pair.
-  Handle<String> NumberToStringCacheSet(Handle<Object> number, int hash,
-                                        const char* string, bool check_cache);
+  void SetNumberStringCache(Handle<Object> number, Handle<String> string);
 
   // Create a JSArray with no elements and no length.
   Handle<JSArray> NewJSArray(ElementsKind elements_kind,

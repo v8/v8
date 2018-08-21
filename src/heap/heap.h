@@ -1480,9 +1480,6 @@ class Heap {
   static const char* GarbageCollectionReasonToString(
       GarbageCollectionReason gc_reason);
 
-  // Calculates the nof entries for the full sized number to string cache.
-  inline int MaxNumberToStringCacheSize() const;
-
  private:
   class SkipStoreBufferScope;
 
@@ -1691,6 +1688,8 @@ class Heap {
   // Record statistics after garbage collection.
   void ReportStatisticsAfterGC();
 
+  // Creates and installs the full-sized number string cache.
+  int FullSizeNumberStringCacheLength();
   // Flush the number to string cache.
   void FlushNumberStringCache();
 
