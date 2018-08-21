@@ -171,18 +171,6 @@ Node* IntrinsicsGenerator::IsTypedArray(
   return IsInstanceType(input, JS_TYPED_ARRAY_TYPE);
 }
 
-Node* IntrinsicsGenerator::IsJSWeakMap(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* input = __ LoadRegisterFromRegisterList(args, 0);
-  return IsInstanceType(input, JS_WEAK_MAP_TYPE);
-}
-
-Node* IntrinsicsGenerator::IsJSWeakSet(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* input = __ LoadRegisterFromRegisterList(args, 0);
-  return IsInstanceType(input, JS_WEAK_SET_TYPE);
-}
-
 Node* IntrinsicsGenerator::IsSmi(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   Node* input = __ LoadRegisterFromRegisterList(args, 0);

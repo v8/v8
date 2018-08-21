@@ -80,7 +80,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_CLASSES(F)       \
   F(DefineClass, -1 /* >= 3 */, 1)          \
-  F(GetSuperConstructor, 1, 1)              \
   F(HomeObjectSymbol, 0, 1)                 \
   F(LoadFromSuper, 3, 1)                    \
   F(LoadKeyedFromSuper, 3, 1)               \
@@ -98,8 +97,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F) \
   F(GetWeakMapEntries, 2, 1)              \
   F(GetWeakSetValues, 2, 1)               \
-  F(IsJSWeakMap, 1, 1)                    \
-  F(IsJSWeakSet, 1, 1)                    \
   F(MapGrow, 1, 1)                        \
   F(MapIteratorClone, 1, 1)               \
   F(MapShrink, 1, 1)                      \

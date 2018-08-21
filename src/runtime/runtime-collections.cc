@@ -142,19 +142,5 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   return *weak_collection;
 }
 
-RUNTIME_FUNCTION(Runtime_IsJSWeakMap) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsJSWeakMap());
-}
-
-RUNTIME_FUNCTION(Runtime_IsJSWeakSet) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsJSWeakSet());
-}
-
 }  // namespace internal
 }  // namespace v8

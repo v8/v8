@@ -833,19 +833,5 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Sloppy) {
                                  LanguageMode::kSloppy));
 }
 
-
-RUNTIME_FUNCTION(Runtime_GetSuperConstructor) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSFunction, active_function, 0);
-  Object* prototype = active_function->map()->prototype();
-  if (!prototype->IsConstructor()) {
-    HandleScope scope(isolate);
-    return ThrowNotSuperConstructor(isolate, handle(prototype, isolate),
-                                    handle(active_function, isolate));
-  }
-  return prototype;
-}
-
 }  // namespace internal
 }  // namespace v8
