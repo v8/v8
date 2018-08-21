@@ -52,8 +52,7 @@ namespace wasm {
 enum class CompilationEvent : uint8_t {
   kFinishedBaselineCompilation,
   kFinishedTopTierCompilation,
-  kFailedCompilation,
-  kDestroyed
+  kFailedCompilation
 };
 
 enum class CompileMode : uint8_t { kRegular, kTiering };
@@ -2466,9 +2465,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                 job->DoSync<CompileFailed>(error);
                 return;
               }
-              case CompilationEvent::kDestroyed:
-                // Nothing to do.
-                return;
             }
             UNREACHABLE();
           });
@@ -2756,7 +2752,6 @@ CompilationState::CompilationState(internal::Isolate* isolate,
 CompilationState::~CompilationState() {
   background_task_manager_.CancelAndWait();
   foreground_task_manager_.CancelAndWait();
-  NotifyOnEvent(CompilationEvent::kDestroyed, nullptr);
 }
 
 void CompilationState::SetNumberOfFunctionsToCompile(size_t num_functions) {
