@@ -615,9 +615,17 @@ HeapEntry* V8HeapExplorer::AllocateEntry(HeapThing ptr) {
 }
 
 void V8HeapExplorer::ExtractLocation(int entry, HeapObject* object) {
-  if (!object->IsJSFunction()) return;
+  if (object->IsJSFunction()) {
+    JSFunction* func = JSFunction::cast(object);
+    ExtractLocationForJSFunction(entry, func);
 
-  JSFunction* func = JSFunction::cast(object);
+  } else if (object->IsJSGeneratorObject()) {
+    JSGeneratorObject* gen = JSGeneratorObject::cast(object);
+    ExtractLocationForJSFunction(entry, gen->function());
+  }
+}
+
+void V8HeapExplorer::ExtractLocationForJSFunction(int entry, JSFunction* func) {
   if (!func->shared()->script()->IsScript()) return;
   Script* script = Script::cast(func->shared()->script());
   int scriptId = script->id();

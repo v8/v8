@@ -377,6 +377,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   const char* GetSystemEntryName(HeapObject* object);
 
   void ExtractLocation(int entry, HeapObject* object);
+  void ExtractLocationForJSFunction(int entry, JSFunction* func);
   void ExtractReferences(int entry, HeapObject* obj);
   void ExtractJSGlobalProxyReferences(int entry, JSGlobalProxy* proxy);
   void ExtractJSObjectReferences(int entry, JSObject* js_obj);

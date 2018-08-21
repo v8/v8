@@ -284,7 +284,9 @@ TEST(HeapSnapshotLocations) {
 
   CompileRun(
       "function X(a) { return function() { return a; } }\n"
-      "var x = X(1);");
+      "function* getid() { yield 1; }\n"
+      "var x = X(1);\n"
+      "var g = getid();");
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
@@ -293,10 +295,19 @@ TEST(HeapSnapshotLocations) {
       GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "x");
   CHECK(x);
 
-  Optional<SourceLocation> location = GetLocation(snapshot, x);
-  CHECK(location);
-  CHECK_EQ(0, location->line);
-  CHECK_EQ(31, location->col);
+  Optional<SourceLocation> x_loc = GetLocation(snapshot, x);
+  CHECK(x_loc);
+  CHECK_EQ(0, x_loc->line);
+  CHECK_EQ(31, x_loc->col);
+
+  const v8::HeapGraphNode* g =
+      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "g");
+  CHECK(x);
+
+  Optional<SourceLocation> g_loc = GetLocation(snapshot, g);
+  CHECK(g_loc);
+  CHECK_EQ(1, g_loc->line);
+  CHECK_EQ(15, g_loc->col);
 }
 
 TEST(HeapSnapshotObjectSizes) {
