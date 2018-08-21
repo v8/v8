@@ -67,10 +67,14 @@ class CompilationState {
   CompilationState(internal::Isolate*, const ModuleEnv&);
   ~CompilationState();
 
-  // Needs to be set before {AddCompilationUnits} is run, which triggers
-  // background compilation.
+  // Set the number of compilations unit expected to be executed. Needs to be
+  // set before {AddCompilationUnits} is run, which triggers background
+  // compilation.
   void SetNumberOfFunctionsToCompile(size_t num_functions);
-  void AddCallback(
+
+  // Set the callback function to be called on compilation events. Needs to be
+  // set before {AddCompilationUnits} is run.
+  void SetCallback(
       std::function<void(CompilationEvent, ErrorThrower*)> callback);
 
   // Inserts new functions to compile and kicks off compilation.
@@ -148,10 +152,8 @@ class CompilationState {
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  // TODO(mstarzinger): We should make sure this allows at most one callback
-  // to exist for each {CompilationState} because reifying the error object on
-  // the given {ErrorThrower} can be done at most once.
-  std::vector<std::function<void(CompilationEvent, ErrorThrower*)>> callbacks_;
+  // Callback function to be called on compilation events.
+  std::function<void(CompilationEvent, ErrorThrower*)> callback_;
 
   CancelableTaskManager background_task_manager_;
   CancelableTaskManager foreground_task_manager_;
@@ -2426,7 +2428,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // capture the {job} pointer by copy, as it otherwise is dependent
       // on the current step we are in.
       AsyncCompileJob* job = job_;
-      compilation_state->AddCallback(
+      compilation_state->SetCallback(
           [job](CompilationEvent event, ErrorThrower* thrower) {
             // Callback is called from a foreground thread.
             switch (event) {
@@ -2766,9 +2768,10 @@ void CompilationState::SetNumberOfFunctionsToCompile(size_t num_functions) {
   }
 }
 
-void CompilationState::AddCallback(
+void CompilationState::SetCallback(
     std::function<void(CompilationEvent, ErrorThrower*)> callback) {
-  callbacks_.push_back(callback);
+  DCHECK_NULL(callback_);
+  callback_ = callback;
 }
 
 void CompilationState::AddCompilationUnits(
@@ -2942,9 +2945,7 @@ void CompilationState::Abort() {
 
 void CompilationState::NotifyOnEvent(CompilationEvent event,
                                      ErrorThrower* thrower) {
-  for (auto& callback_function : callbacks_) {
-    callback_function(event, thrower);
-  }
+  if (callback_) callback_(event, thrower);
 }
 
 void CompileJsToWasmWrappers(Isolate* isolate,
