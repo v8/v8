@@ -2432,11 +2432,11 @@ void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
 //
 // The following functions are used by our gdb macros.
 //
-extern void _v8_internal_Print_Object(void* object) {
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {
   reinterpret_cast<i::Object*>(object)->Print();
 }
 
-extern void _v8_internal_Print_Code(void* object) {
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   i::Address address = reinterpret_cast<i::Address>(object);
   i::Isolate* isolate = i::Isolate::Current();
 
@@ -2471,7 +2471,8 @@ extern void _v8_internal_Print_Code(void* object) {
 #endif  // ENABLE_DISASSEMBLER
 }
 
-extern void _v8_internal_Print_LayoutDescriptor(void* object) {
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_LayoutDescriptor(
+    void* object) {
   i::Object* o = reinterpret_cast<i::Object*>(object);
   if (!o->IsLayoutDescriptor()) {
     printf("Please provide a layout descriptor\n");
@@ -2480,12 +2481,12 @@ extern void _v8_internal_Print_LayoutDescriptor(void* object) {
   }
 }
 
-extern void _v8_internal_Print_StackTrace() {
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_StackTrace() {
   i::Isolate* isolate = i::Isolate::Current();
   isolate->PrintStack(stdout);
 }
 
-extern void _v8_internal_Print_TransitionTree(void* object) {
+V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
   i::Object* o = reinterpret_cast<i::Object*>(object);
   if (!o->IsMap()) {
     printf("Please provide a valid Map\n");
