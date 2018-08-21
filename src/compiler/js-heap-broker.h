@@ -458,6 +458,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   // TODO(neis): Remove eventually.
   HeapObjectType HeapObjectTypeFromMap(Map* map) const;
 
+  void Prepare(Handle<Object> object);
+
   void AddData(Handle<Object> object, ObjectData* data);
 
   Isolate* const isolate_;

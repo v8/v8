@@ -597,6 +597,8 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
     // TODO(neis): Remove these Allow* once we serialize everything upfront.
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
+    AllowHeapAllocation heap_allocation;
+    Prepare(object);
     data = ObjectData::Serialize(this, object);
   }
   CHECK_NOT_NULL(data);
@@ -1054,6 +1056,17 @@ CellRef ModuleRef::GetCell(int cell_index) {
   AllowHandleDereference allow_handle_dereference;
   return CellRef(broker(), handle(object<Module>()->GetCell(cell_index),
                                   broker()->isolate()));
+}
+
+void JSHeapBroker::Prepare(Handle<Object> object) {
+  if (object->IsJSFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(object);
+    if (function->has_prototype_slot() &&
+        (function->IsConstructor() ||
+         IsResumableFunction(function->shared()->kind()))) {
+      JSFunction::EnsureHasInitialMap(function);
+    }
+  }
 }
 
 ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object) {
