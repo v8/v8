@@ -4975,17 +4975,13 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
         PropertyCellRef(js_heap_broker(), factory()->no_elements_protector()));
   }
 
-  // Load the (current) {iterated_object} from the {iterator}; this might be
-  // either undefined or the JSReceiver that was passed to the JSArrayIterator
-  // creation.
+  // Load the (current) {iterated_object} from the {iterator}.
   Node* iterated_object = effect =
       graph()->NewNode(simplified()->LoadField(
                            AccessBuilder::ForJSArrayIteratorIteratedObject()),
                        iterator, effect, control);
 
-  // Ensure that the {iterated_object} map didn't change. This also rules
-  // out the undefined that we put as a termination marker into the
-  // iterator.[[IteratedObject]] field once we reach the end.
+  // Ensure that the {iterated_object} map didn't change.
   effect = graph()->NewNode(
       simplified()->CheckMaps(CheckMapsFlag::kNone, iterated_object_maps,
                               p.feedback()),
@@ -5143,10 +5139,22 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     // iterator.[[NextIndex]] >= array.length, stop iterating.
     done_false = jsgraph()->TrueConstant();
     value_false = jsgraph()->UndefinedConstant();
-    efalse =
-        graph()->NewNode(simplified()->StoreField(
-                             AccessBuilder::ForJSArrayIteratorIteratedObject()),
-                         iterator, value_false, efalse, if_false);
+
+    if (!IsFixedTypedArrayElementsKind(elements_kind)) {
+      // Mark the {iterator} as exhausted by setting the [[NextIndex]] to a
+      // value that will never pass the length check again (aka the maximum
+      // value possible for the specific iterated object). Note that this is
+      // different from what the specification says, which is changing the
+      // [[IteratedObject]] field to undefined, but that makes it difficult
+      // to eliminate the map checks and "length" accesses in for..of loops.
+      //
+      // This is not necessary for JSTypedArray's, since the length of those
+      // cannot change later and so if we were ever out of bounds for them
+      // we will stay out-of-bounds forever.
+      Node* end_index = jsgraph()->Constant(index_access.type.Max());
+      efalse = graph()->NewNode(simplified()->StoreField(index_access),
+                                iterator, end_index, efalse, if_false);
+    }
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true, if_false);

@@ -3495,38 +3495,34 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   Node* iterator = Parameter(Descriptor::kReceiver);
 
-  VARIABLE(var_value, MachineRepresentation::kTagged);
-  VARIABLE(var_done, MachineRepresentation::kTagged);
+  VARIABLE(var_done, MachineRepresentation::kTagged, TrueConstant());
+  VARIABLE(var_value, MachineRepresentation::kTagged, UndefinedConstant());
 
-  // Required, or else `throw_bad_receiver` fails a DCHECK due to these
-  // variables not being bound along all paths, despite not being used.
-  var_done.Bind(TrueConstant());
-  var_value.Bind(UndefinedConstant());
-
-  Label throw_bad_receiver(this, Label::kDeferred);
-  Label set_done(this);
   Label allocate_entry_if_needed(this);
   Label allocate_iterator_result(this);
+  Label if_detached(this, Label::kDeferred);
+  Label if_typedarray(this), if_other(this, Label::kDeferred), if_array(this),
+      if_generic(this, Label::kDeferred);
+  Label set_done(this, Label::kDeferred);
 
   // If O does not have all of the internal slots of an Array Iterator Instance
   // (22.1.5.3), throw a TypeError exception
-  GotoIf(TaggedIsSmi(iterator), &throw_bad_receiver);
-  GotoIfNot(IsJSArrayIterator(CAST(iterator)), &throw_bad_receiver);
+  ThrowIfNotInstanceType(context, iterator, JS_ARRAY_ITERATOR_TYPE,
+                         method_name);
 
   // Let a be O.[[IteratedObject]].
-  Node* array =
-      LoadObjectField(iterator, JSArrayIterator::kIteratedObjectOffset);
+  TNode<JSReceiver> array =
+      CAST(LoadObjectField(iterator, JSArrayIterator::kIteratedObjectOffset));
 
   // Let index be O.[[ArrayIteratorNextIndex]].
-  Node* index = LoadObjectField(iterator, JSArrayIterator::kNextIndexOffset);
-  Node* array_map = LoadMap(array);
+  TNode<Number> index =
+      CAST(LoadObjectField(iterator, JSArrayIterator::kNextIndexOffset));
+  CSA_ASSERT(this, IsNumberNonNegativeSafeInteger(index));
+  GotoIfNot(TaggedIsSmi(index), &if_other);
 
-  Label if_detached(this, Label::kDeferred);
-
-  Label if_typedarray(this), if_other(this, Label::kDeferred), if_array(this),
-      if_generic(this, Label::kDeferred);
-
-  Node* array_type = LoadInstanceType(array);
+  // Dispatch based on the type of the {array}.
+  TNode<Map> array_map = LoadMap(array);
+  TNode<Int32T> array_type = LoadMapInstanceType(array_map);
   GotoIf(InstanceTypeEqual(array_type, JS_ARRAY_TYPE), &if_array);
   Branch(InstanceTypeEqual(array_type, JS_TYPED_ARRAY_TYPE), &if_typedarray,
          &if_other);
@@ -3534,25 +3530,24 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   BIND(&if_array);
   {
     // We can only handle fast elements here.
-    Node* elements_kind = LoadMapElementsKind(array_map);
+    TNode<Int32T> elements_kind = LoadMapElementsKind(array_map);
     GotoIfNot(IsFastElementsKind(elements_kind), &if_other);
 
-    TNode<Smi> length = CAST(LoadJSArrayLength(array));
-
+    // Check that the {index} is within range for the {array}.
+    TNode<Smi> length = CAST(LoadJSArrayLength(CAST(array)));
     GotoIfNot(SmiBelow(CAST(index), length), &set_done);
-
-    var_value.Bind(index);
-    TNode<Smi> one = SmiConstant(1);
     StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
-                                   SmiAdd(CAST(index), one));
+                                   SmiInc(CAST(index)));
+
     var_done.Bind(FalseConstant());
+    var_value.Bind(index);
 
     GotoIf(Word32Equal(LoadAndUntagToWord32ObjectField(
                            iterator, JSArrayIterator::kKindOffset),
                        Int32Constant(static_cast<int>(IterationKind::kKeys))),
            &allocate_iterator_result);
 
-    Node* elements = LoadElements(array);
+    Node* elements = LoadElements(CAST(array));
     Label if_packed(this), if_holey(this), if_packed_double(this),
         if_holey_double(this), if_unknown_kind(this, Label::kDeferred);
     int32_t kinds[] = {// Handled by if_packed.
@@ -3619,25 +3614,59 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   BIND(&if_other);
   {
-    // If a is undefined, return CreateIterResultObject(undefined, true)
-    GotoIf(IsUndefined(array), &allocate_iterator_result);
+    // If the {array} is actually a JSArray the {index} must be a valid
+    // array index, as the TurboFan fast-path inlining relies on the fact
+    // that the [[ArrayIteratorNextIndex]] field always contains a valid
+    // Unsigned32 value as long as the [[ArrayIteratorIteratedObject]]
+    // field contains a JSArray instance. Also rule out JSTypedArray's
+    // here as they should never reach here (both because the {index}
+    // in that case must always be a Smi, and second because loading
+    // the "length" property would be wrong for JSTypedArray's).
+    CSA_ASSERT(this, Word32BinaryNot(IsJSTypedArray(array)));
+    CSA_ASSERT(this, Word32Or(Word32BinaryNot(IsJSArray(array)),
+                              IsNumberArrayIndex(index)));
 
-    Node* length =
+    // Check that the {index} is within the bounds of the {array}s "length".
+    TNode<Number> length = CAST(
         CallBuiltin(Builtins::kToLength, context,
-                    GetProperty(context, array, factory()->length_string()));
-
+                    GetProperty(context, array, factory()->length_string())));
     GotoIfNumberGreaterThanOrEqual(index, length, &set_done);
-
-    var_value.Bind(index);
     StoreObjectField(iterator, JSArrayIterator::kNextIndexOffset,
                      NumberInc(index));
-    var_done.Bind(FalseConstant());
 
-    GotoIf(Word32Equal(LoadAndUntagToWord32ObjectField(
+    var_done.Bind(FalseConstant());
+    var_value.Bind(index);
+
+    Branch(Word32Equal(LoadAndUntagToWord32ObjectField(
                            iterator, JSArrayIterator::kKindOffset),
                        Int32Constant(static_cast<int>(IterationKind::kKeys))),
-           &allocate_iterator_result);
-    Goto(&if_generic);
+           &allocate_iterator_result, &if_generic);
+  }
+
+  BIND(&set_done);
+  {
+    // Change the [[ArrayIteratorNextIndex]] such that the {iterator} will
+    // never produce values anymore, because it will always fail the bounds
+    // check. Note that this is different from what the specification does,
+    // which is changing the [[IteratedObject]] to undefined, because leaving
+    // [[IteratedObject]] alone helps TurboFan to generate better code with
+    // the inlining in JSCallReducer::ReduceArrayIteratorPrototypeNext().
+    //
+    // The terminal value we chose here depends on the type of the {array},
+    // for JSArray's we use kMaxUInt32 so that TurboFan can always use
+    // Word32 representation for fast-path indices (and this is safe since
+    // the "length" of JSArray's is limited to Unsigned32 range). For other
+    // JSReceiver's we have to use kMaxSafeInteger, since the "length" can
+    // be any arbitrary value in the safe integer range.
+    //
+    // Note specifically that JSTypedArray's will never take this path, so
+    // we don't need to worry about their maximum value.
+    CSA_ASSERT(this, Word32BinaryNot(IsJSTypedArray(array)));
+    TNode<Number> max_length =
+        SelectConstant(IsJSArray(array), NumberConstant(kMaxUInt32),
+                       NumberConstant(kMaxSafeInteger));
+    StoreObjectField(iterator, JSArrayIterator::kNextIndexOffset, max_length);
+    Goto(&allocate_iterator_result);
   }
 
   BIND(&if_generic);
@@ -3648,76 +3677,42 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   BIND(&if_typedarray);
   {
-    Node* buffer = LoadObjectField(array, JSTypedArray::kBufferOffset);
+    // Check that the {array}s buffer wasn't neutered.
+    TNode<JSArrayBuffer> buffer = LoadArrayBufferViewBuffer(CAST(array));
     GotoIf(IsDetachedBuffer(buffer), &if_detached);
 
+    // If we go outside of the {length}, we don't need to update the
+    // [[ArrayIteratorNextIndex]] anymore, since a JSTypedArray's
+    // length cannot change anymore, so this {iterator} will never
+    // produce values again anyways.
     TNode<Smi> length = LoadTypedArrayLength(CAST(array));
-
-    GotoIfNot(SmiBelow(CAST(index), length), &set_done);
-
-    var_value.Bind(index);
-    TNode<Smi> one = SmiConstant(1);
+    GotoIfNot(SmiBelow(CAST(index), length), &allocate_iterator_result);
     StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
-                                   SmiAdd(CAST(index), one));
+                                   SmiInc(CAST(index)));
+
     var_done.Bind(FalseConstant());
+    var_value.Bind(index);
 
     GotoIf(Word32Equal(LoadAndUntagToWord32ObjectField(
                            iterator, JSArrayIterator::kKindOffset),
                        Int32Constant(static_cast<int>(IterationKind::kKeys))),
            &allocate_iterator_result);
 
-    Node* elements_kind = LoadMapElementsKind(array_map);
-    Node* elements = LoadElements(array);
+    TNode<Int32T> elements_kind = LoadMapElementsKind(array_map);
+    Node* elements = LoadElements(CAST(array));
     Node* base_ptr =
         LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
     Node* external_ptr =
         LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
                         MachineType::Pointer());
-    Node* data_ptr = IntPtrAdd(BitcastTaggedToWord(base_ptr), external_ptr);
-
-    Label if_unknown_type(this, Label::kDeferred);
-    int32_t elements_kinds[] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) TYPE##_ELEMENTS,
-        TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-    };
-
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) Label if_##type##array(this);
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-    Label* elements_kind_labels[] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) &if_##type##array,
-        TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-    };
-    STATIC_ASSERT(arraysize(elements_kinds) == arraysize(elements_kind_labels));
-
-    Switch(elements_kind, &if_unknown_type, elements_kinds,
-           elements_kind_labels, arraysize(elements_kinds));
-
-    BIND(&if_unknown_type);
-    Unreachable();
-
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)           \
-  BIND(&if_##type##array);                                  \
-  {                                                         \
-    var_value.Bind(LoadFixedTypedArrayElementAsTagged(      \
-        data_ptr, index, TYPE##_ELEMENTS, SMI_PARAMETERS)); \
-    Goto(&allocate_entry_if_needed);                        \
-  }
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
+    TNode<WordT> data_ptr =
+        IntPtrAdd(BitcastTaggedToWord(base_ptr), external_ptr);
+    var_value.Bind(LoadFixedTypedArrayElementAsTagged(data_ptr, CAST(index),
+                                                      elements_kind));
+    Goto(&allocate_entry_if_needed);
 
     BIND(&if_detached);
     ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
-  }
-
-  BIND(&set_done);
-  {
-    StoreObjectFieldNoWriteBarrier(
-        iterator, JSArrayIterator::kIteratedObjectOffset, UndefinedConstant());
-    Goto(&allocate_iterator_result);
   }
 
   BIND(&allocate_entry_if_needed);
@@ -3727,48 +3722,16 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
                        Int32Constant(static_cast<int>(IterationKind::kValues))),
            &allocate_iterator_result);
 
-    TNode<FixedArray> elements =
-        CAST(AllocateFixedArray(PACKED_ELEMENTS, IntPtrConstant(2)));
-    StoreFixedArrayElement(elements, 0, index, SKIP_WRITE_BARRIER);
-    StoreFixedArrayElement(elements, 1, var_value.value(), SKIP_WRITE_BARRIER);
-
-    Node* entry = Allocate(JSArray::kSize);
-    Node* map = LoadContextElement(LoadNativeContext(context),
-                                   Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
-
-    StoreMapNoWriteBarrier(entry, map);
-    StoreObjectFieldRoot(entry, JSArray::kPropertiesOrHashOffset,
-                         Heap::kEmptyFixedArrayRootIndex);
-    StoreObjectFieldNoWriteBarrier(entry, JSArray::kElementsOffset, elements);
-    StoreObjectFieldNoWriteBarrier(entry, JSArray::kLengthOffset,
-                                   SmiConstant(2));
-
-    var_value.Bind(entry);
-    Goto(&allocate_iterator_result);
+    Node* result =
+        AllocateJSIteratorResultForEntry(context, index, var_value.value());
+    Return(result);
   }
 
   BIND(&allocate_iterator_result);
   {
-    Node* result = Allocate(JSIteratorResult::kSize);
-    Node* map = LoadContextElement(LoadNativeContext(context),
-                                   Context::ITERATOR_RESULT_MAP_INDEX);
-    StoreMapNoWriteBarrier(result, map);
-    StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOrHashOffset,
-                         Heap::kEmptyFixedArrayRootIndex);
-    StoreObjectFieldRoot(result, JSIteratorResult::kElementsOffset,
-                         Heap::kEmptyFixedArrayRootIndex);
-    StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kValueOffset,
-                                   var_value.value());
-    StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kDoneOffset,
-                                   var_done.value());
+    Node* result =
+        AllocateJSIteratorResult(context, var_value.value(), var_done.value());
     Return(result);
-  }
-
-  BIND(&throw_bad_receiver);
-  {
-    // The {receiver} is not a valid JSArrayIterator.
-    ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
-                   StringConstant(method_name), iterator);
   }
 }
 

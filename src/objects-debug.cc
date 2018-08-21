@@ -1201,8 +1201,7 @@ void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
 void JSArrayIterator::JSArrayIteratorVerify(Isolate* isolate) {
   CHECK(IsJSArrayIterator());
   JSObjectVerify(isolate);
-  CHECK(iterated_object()->IsJSReceiver() ||
-        iterated_object()->IsUndefined(isolate));
+  CHECK(iterated_object()->IsJSReceiver());
 
   CHECK_GE(next_index()->Number(), 0);
   CHECK_LE(next_index()->Number(), kMaxSafeInteger);

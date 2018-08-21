@@ -2224,6 +2224,47 @@ Node* CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
   }
 }
 
+TNode<Numeric> CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
+    TNode<WordT> data_pointer, TNode<Smi> index, TNode<Int32T> elements_kind) {
+  TVARIABLE(Numeric, var_result);
+  Label done(this), if_unknown_type(this, Label::kDeferred);
+  int32_t elements_kinds[] = {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) TYPE##_ELEMENTS,
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  };
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) Label if_##type##array(this);
+  TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+  Label* elements_kind_labels[] = {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) &if_##type##array,
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  };
+  STATIC_ASSERT(arraysize(elements_kinds) == arraysize(elements_kind_labels));
+
+  Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
+         arraysize(elements_kinds));
+
+  BIND(&if_unknown_type);
+  Unreachable();
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)               \
+  BIND(&if_##type##array);                                      \
+  {                                                             \
+    var_result = CAST(LoadFixedTypedArrayElementAsTagged(       \
+        data_pointer, index, TYPE##_ELEMENTS, SMI_PARAMETERS)); \
+    Goto(&done);                                                \
+  }
+  TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+  BIND(&done);
+  return var_result.value();
+}
+
 void CodeStubAssembler::StoreFixedTypedArrayElementFromTagged(
     TNode<Context> context, TNode<FixedTypedArrayBase> elements,
     TNode<Object> index_node, TNode<Object> value, ElementsKind elements_kind,
@@ -5787,7 +5828,7 @@ TNode<BoolT> CodeStubAssembler::IsHeapNumberUint32(TNode<HeapNumber> number) {
       IsHeapNumberPositive(number),
       [=] {
         TNode<Float64T> value = LoadHeapNumberValue(number);
-        TNode<Uint32T> int_value = ChangeFloat64ToUint32(value);
+        TNode<Uint32T> int_value = Unsigned(TruncateFloat64ToWord32(value));
         return Float64Equal(value, ChangeUint32ToFloat64(int_value));
       },
       [=] { return Int32FalseConstant(); });
