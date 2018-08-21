@@ -335,5 +335,22 @@ TEST(ZoneChunkList, AdvanceEndTest) {
   CHECK_EQ(iterator_advance, zone_chunk_list.end());
 }
 
+TEST(ZoneChunkList, FindOverChunkBoundary) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<int> zone_chunk_list(&zone);
+
+  // Make sure we get two chunks.
+  int chunk_size = static_cast<int>(ZoneChunkList<int>::StartMode::kSmall);
+  for (int i = 0; i < chunk_size + 1; ++i) {
+    zone_chunk_list.push_back(i);
+  }
+
+  for (int i = 0; i < chunk_size + 1; ++i) {
+    CHECK_EQ(i, *zone_chunk_list.Find(i));
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

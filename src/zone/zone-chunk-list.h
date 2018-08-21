@@ -249,7 +249,9 @@ class ZoneChunkListIterator
   }
 
   ZoneChunkListIterator(Chunk* current, size_t position)
-      : current_(current), position_(position) {}
+      : current_(current), position_(position) {
+    DCHECK(current == nullptr || position < current->capacity_);
+  }
 
   template <bool move_backward>
   void Move() {
@@ -323,6 +325,7 @@ void ZoneChunkList<T>::push_back(const T& item) {
   back_->items()[back_->position_] = item;
   ++back_->position_;
   ++size_;
+  DCHECK_LE(back_->position_, back_->capacity_);
 }
 
 template <typename T>
@@ -356,10 +359,11 @@ typename ZoneChunkList<T>::SeekResult ZoneChunkList<T>::SeekIndex(
     size_t index) const {
   DCHECK_LT(index, size());
   Chunk* current = front_;
-  while (index > current->capacity_) {
+  while (index >= current->capacity_) {
     index -= current->capacity_;
     current = current->next_;
   }
+  DCHECK_LT(index, current->capacity_);
   return {current, static_cast<uint32_t>(index)};
 }
 
