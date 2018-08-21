@@ -130,14 +130,15 @@ python
 def dcheck_stop_handler(event):
   orig_frame = gdb.selected_frame()
   frame = orig_frame
+  select_frame = None
   while frame is not None:
-    if frame.name() == 'V8_Dcheck':
+    if frame.name() in ('V8_Dcheck', 'V8_Fatal'):
       select_frame = frame.older()
-      if select_frame is not None:
-        select_frame.select()
-        gdb.execute('frame')
-        break
     frame = frame.older()
+
+  if select_frame is not None:
+    select_frame.select()
+    gdb.execute('frame')
 
 gdb.events.stop.connect(dcheck_stop_handler)
 end
