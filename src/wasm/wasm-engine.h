@@ -9,6 +9,7 @@
 
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-memory.h"
+#include "src/wasm/wasm-tier.h"
 #include "src/zone/accounting-allocator.h"
 
 namespace v8 {
@@ -94,9 +95,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Compiles the function with the given index at a specific compilation tier
   // and returns true on success, false (and pending exception) otherwise. This
   // is mostly used for testing to force a function into a specific tier.
-  enum CompilationTier { kBaselineTier, kOptimizedTier };
   bool CompileFunction(Isolate* isolate, NativeModule* native_module,
-                       uint32_t function_index, CompilationTier tier);
+                       uint32_t function_index, ExecutionTier tier);
 
   // Exports the sharable parts of the given module object so that they can be
   // transferred to a different Context/Isolate using the same engine.

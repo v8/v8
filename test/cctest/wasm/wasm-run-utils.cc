@@ -14,14 +14,13 @@ namespace internal {
 namespace wasm {
 
 TestingModuleBuilder::TestingModuleBuilder(
-    Zone* zone, ManuallyImportedJSFunction* maybe_import,
-    WasmExecutionMode mode, RuntimeExceptionSupport exception_support,
-    LowerSimd lower_simd)
+    Zone* zone, ManuallyImportedJSFunction* maybe_import, ExecutionTier tier,
+    RuntimeExceptionSupport exception_support, LowerSimd lower_simd)
     : test_module_(std::make_shared<WasmModule>()),
       test_module_ptr_(test_module_.get()),
       isolate_(CcTest::InitIsolateOnce()),
       enabled_features_(WasmFeaturesFromIsolate(isolate_)),
-      execution_mode_(mode),
+      execution_tier_(tier),
       runtime_exception_support_(exception_support),
       lower_simd_(lower_simd) {
   WasmJs::Install(isolate_, true);
@@ -54,7 +53,7 @@ TestingModuleBuilder::TestingModuleBuilder(
         .set_wasm_to_js(*maybe_import->js_function, wasm_to_js_wrapper);
   }
 
-  if (mode == kExecuteInterpreter) {
+  if (tier == ExecutionTier::kInterpreter) {
     interpreter_ = WasmDebugInfo::SetupForTesting(instance_object_);
   }
 }
@@ -403,6 +402,13 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
     interpreter_->SetFunctionCodeForTesting(function_, start, end);
   }
 
+  // TODO(wasm): tests that go through JS depend on having a compiled version
+  // of each function, even if the execution tier is the interpreter. Fix.
+  auto tier = builder_->execution_tier();
+  if (tier == ExecutionTier::kInterpreter) {
+    tier = ExecutionTier::kOptimized;
+  }
+
   Vector<const uint8_t> wire_bytes = builder_->instance_object()
                                          ->module_object()
                                          ->native_module()
@@ -421,15 +427,11 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
 
   FunctionBody func_body{function_->sig, function_->code.offset(),
                          func_wire_bytes.start(), func_wire_bytes.end()};
-  WasmCompilationUnit::CompilationMode comp_mode =
-      builder_->execution_mode() == WasmExecutionMode::kExecuteLiftoff
-          ? WasmCompilationUnit::CompilationMode::kLiftoff
-          : WasmCompilationUnit::CompilationMode::kTurbofan;
   NativeModule* native_module =
       builder_->instance_object()->module_object()->native_module();
   WasmCompilationUnit unit(isolate()->wasm_engine(), &module_env, native_module,
                            func_body, func_name, function_->func_index,
-                           isolate()->counters(), comp_mode);
+                           isolate()->counters(), tier);
   unit.ExecuteCompilation();
   WasmCode* wasm_code = unit.FinishCompilation(&thrower);
   if (WasmCode::ShouldBeLogged(isolate())) {

@@ -1040,10 +1040,10 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   // TODO(titzer): eliminate dependency on WasmModule definition here.
   int func_start =
       frame->wasm_instance()->module()->functions[func_index].code.offset();
-  wasm::ExecutionEngine eng = frame->wasm_code()->is_liftoff()
-                                  ? wasm::ExecutionEngine::kLiftoff
-                                  : wasm::ExecutionEngine::kTurbofan;
-  wasm::TraceMemoryOperation(eng, info, func_index, pos - func_start,
+  wasm::ExecutionTier tier = frame->wasm_code()->is_liftoff()
+                                 ? wasm::ExecutionTier::kBaseline
+                                 : wasm::ExecutionTier::kOptimized;
+  wasm::TraceMemoryOperation(tier, info, func_index, pos - func_start,
                              mem_start);
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1055,7 +1055,7 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   CONVERT_SMI_ARG_CHECKED(function_index, 1);
   if (!isolate->wasm_engine()->CompileFunction(
           isolate, instance->module_object()->native_module(), function_index,
-          wasm::WasmEngine::kOptimizedTier)) {
+          wasm::ExecutionTier::kOptimized)) {
     return ReadOnlyRoots(isolate).exception();
   }
   return ReadOnlyRoots(isolate).undefined_value();

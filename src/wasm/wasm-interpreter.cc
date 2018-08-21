@@ -1428,7 +1428,7 @@ class ThreadImpl {
 
     if (FLAG_wasm_trace_memory) {
       MemoryTracingInfo info(imm.offset + index, false, rep);
-      TraceMemoryOperation(ExecutionEngine::kInterpreter, &info,
+      TraceMemoryOperation(ExecutionTier::kInterpreter, &info,
                            code->function->func_index, static_cast<int>(pc),
                            instance_object_->memory_start());
     }
@@ -1454,7 +1454,7 @@ class ThreadImpl {
 
     if (FLAG_wasm_trace_memory) {
       MemoryTracingInfo info(imm.offset + index, true, rep);
-      TraceMemoryOperation(ExecutionEngine::kInterpreter, &info,
+      TraceMemoryOperation(ExecutionTier::kInterpreter, &info,
                            code->function->func_index, static_cast<int>(pc),
                            instance_object_->memory_start());
     }

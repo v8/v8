@@ -8,6 +8,7 @@
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-tier.h"
 
 namespace v8 {
 namespace internal {
@@ -77,8 +78,7 @@ struct ModuleEnv {
 
 class WasmCompilationUnit final {
  public:
-  enum class CompilationMode : uint8_t { kLiftoff, kTurbofan };
-  static CompilationMode GetDefaultCompilationMode();
+  static ExecutionTier GetDefaultExecutionTier();
 
   // If constructing from a background thread, pass in a Counters*, and ensure
   // that the Counters live at least as long as this compilation unit (which
@@ -87,7 +87,7 @@ class WasmCompilationUnit final {
   // used by callers to pass Counters.
   WasmCompilationUnit(WasmEngine* wasm_engine, ModuleEnv*, NativeModule*,
                       FunctionBody, WasmName, int index, Counters*,
-                      CompilationMode = GetDefaultCompilationMode());
+                      ExecutionTier = GetDefaultExecutionTier());
 
   ~WasmCompilationUnit();
 
@@ -97,10 +97,10 @@ class WasmCompilationUnit final {
   static WasmCode* CompileWasmFunction(
       NativeModule* native_module, ErrorThrower* thrower, Isolate* isolate,
       ModuleEnv* env, const WasmFunction* function,
-      CompilationMode = GetDefaultCompilationMode());
+      ExecutionTier = GetDefaultExecutionTier());
 
   NativeModule* native_module() const { return native_module_; }
-  CompilationMode mode() const { return mode_; }
+  ExecutionTier mode() const { return mode_; }
 
  private:
   friend class LiftoffCompilationUnit;
@@ -113,13 +113,13 @@ class WasmCompilationUnit final {
   Counters* counters_;
   int func_index_;
   NativeModule* native_module_;
-  CompilationMode mode_;
+  ExecutionTier mode_;
   // LiftoffCompilationUnit, set if {mode_ == kLiftoff}.
   std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;
   // TurbofanWasmCompilationUnit, set if {mode_ == kTurbofan}.
   std::unique_ptr<compiler::TurbofanWasmCompilationUnit> turbofan_unit_;
 
-  void SwitchMode(CompilationMode new_mode);
+  void SwitchMode(ExecutionTier new_mode);
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };

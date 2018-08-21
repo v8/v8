@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-void TraceMemoryOperation(ExecutionEngine engine, const MemoryTracingInfo* info,
+void TraceMemoryOperation(ExecutionTier tier, const MemoryTracingInfo* info,
                           int func_index, int position, uint8_t* mem_start) {
   EmbeddedVector<char, 64> value;
   auto mem_rep = static_cast<MachineRepresentation>(info->mem_rep);
@@ -35,14 +35,14 @@ void TraceMemoryOperation(ExecutionEngine engine, const MemoryTracingInfo* info,
       SNPrintF(value, "???");
   }
   const char* eng = "?";
-  switch (engine) {
-    case ExecutionEngine::kTurbofan:
+  switch (tier) {
+    case ExecutionTier::kOptimized:
       eng = "turbofan";
       break;
-    case ExecutionEngine::kLiftoff:
+    case ExecutionTier::kBaseline:
       eng = "liftoff";
       break;
-    case ExecutionEngine::kInterpreter:
+    case ExecutionTier::kInterpreter:
       eng = "interpreter";
       break;
   }

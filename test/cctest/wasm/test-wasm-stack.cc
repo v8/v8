@@ -111,7 +111,7 @@ WASM_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.v_v(), js_function};
   uint32_t js_throwing_index = 0;
-  WasmRunner<void> r(execution_mode, &import);
+  WasmRunner<void> r(execution_tier, &import);
 
   // Add a nop such that we don't always get position 1.
   BUILD(r, WASM_NOP, WASM_CALL_FUNCTION0(js_throwing_index));
@@ -157,7 +157,7 @@ WASM_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     int unreachable_pos = 1 << (8 * pos_shift);
     TestSignatures sigs;
     // Create a WasmRunner with stack checks and traps enabled.
-    WasmRunner<int> r(execution_mode, 0, "main", kRuntimeExceptionSupport);
+    WasmRunner<int> r(execution_tier, 0, "main", kRuntimeExceptionSupport);
 
     std::vector<byte> code(unreachable_pos + 1, kExprNop);
     code[unreachable_pos] = kExprUnreachable;

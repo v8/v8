@@ -169,16 +169,12 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
 }
 
 bool WasmEngine::CompileFunction(Isolate* isolate, NativeModule* native_module,
-                                 uint32_t function_index,
-                                 CompilationTier tier) {
+                                 uint32_t function_index, ExecutionTier tier) {
   ErrorThrower thrower(isolate, "Manually requested tier up");
-  WasmCompilationUnit::CompilationMode mode =
-      (tier == kBaselineTier) ? WasmCompilationUnit::CompilationMode::kLiftoff
-                              : WasmCompilationUnit::CompilationMode::kTurbofan;
   WasmCode* ret = WasmCompilationUnit::CompileWasmFunction(
       native_module, &thrower, isolate,
       GetModuleEnv(native_module->compilation_state()),
-      &native_module->module()->functions[function_index], mode);
+      &native_module->module()->functions[function_index], tier);
   return ret != nullptr;
 }
 

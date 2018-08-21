@@ -355,8 +355,7 @@ TEST(SharedEngineRunThreadedTierUp) {
     WasmCompilationUnit::CompileWasmFunction(
         module.get(), &thrower, isolate.isolate(),
         GetModuleEnv(module->compilation_state()),
-        &module->module()->functions[0],
-        WasmCompilationUnit::CompilationMode::kTurbofan);
+        &module->module()->functions[0], ExecutionTier::kOptimized);
     CHECK_EQ(23, isolate.Run(instance));
   });
   for (auto& thread : threads) thread.Start();

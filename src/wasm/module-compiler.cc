@@ -88,7 +88,7 @@ class CompilationState {
   void OnError(ErrorThrower* thrower);
   void OnFinishedUnit();
   void ScheduleUnitForFinishing(std::unique_ptr<WasmCompilationUnit> unit,
-                                WasmCompilationUnit::CompilationMode mode);
+                                ExecutionTier mode);
 
   void OnBackgroundTaskStopped();
   void RestartBackgroundTasks(size_t max = std::numeric_limits<size_t>::max());
@@ -450,17 +450,15 @@ class CompilationUnitBuilder {
                Vector<const uint8_t> bytes, WasmName name) {
     switch (compilation_state_->compile_mode()) {
       case CompileMode::kTiering:
-        tiering_units_.emplace_back(
-            CreateUnit(function, buffer_offset, bytes, name,
-                       WasmCompilationUnit::CompilationMode::kTurbofan));
-        baseline_units_.emplace_back(
-            CreateUnit(function, buffer_offset, bytes, name,
-                       WasmCompilationUnit::CompilationMode::kLiftoff));
+        tiering_units_.emplace_back(CreateUnit(
+            function, buffer_offset, bytes, name, ExecutionTier::kOptimized));
+        baseline_units_.emplace_back(CreateUnit(
+            function, buffer_offset, bytes, name, ExecutionTier::kBaseline));
         return;
       case CompileMode::kRegular:
         baseline_units_.emplace_back(
             CreateUnit(function, buffer_offset, bytes, name,
-                       WasmCompilationUnit::GetDefaultCompilationMode()));
+                       WasmCompilationUnit::GetDefaultExecutionTier()));
         return;
     }
     UNREACHABLE();
@@ -479,10 +477,11 @@ class CompilationUnitBuilder {
   }
 
  private:
-  std::unique_ptr<WasmCompilationUnit> CreateUnit(
-      const WasmFunction* function, uint32_t buffer_offset,
-      Vector<const uint8_t> bytes, WasmName name,
-      WasmCompilationUnit::CompilationMode mode) {
+  std::unique_ptr<WasmCompilationUnit> CreateUnit(const WasmFunction* function,
+                                                  uint32_t buffer_offset,
+                                                  Vector<const uint8_t> bytes,
+                                                  WasmName name,
+                                                  ExecutionTier mode) {
     return base::make_unique<WasmCompilationUnit>(
         compilation_state_->wasm_engine(), compilation_state_->module_env(),
         native_module_,
@@ -513,7 +512,7 @@ bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state) {
   // to Turbofan if it cannot be compiled using Liftoff. This can be removed
   // later as soon as Liftoff can compile any function. Then, we can directly
   // access {unit->mode()} within {ScheduleUnitForFinishing()}.
-  WasmCompilationUnit::CompilationMode mode = unit->mode();
+  ExecutionTier mode = unit->mode();
   unit->ExecuteCompilation();
   compilation_state->ScheduleUnitForFinishing(std::move(unit), mode);
 
@@ -2778,8 +2777,7 @@ void CompilationState::AddCompilationUnits(
 
     if (compile_mode_ == CompileMode::kTiering) {
       DCHECK_EQ(baseline_units.size(), tiering_units.size());
-      DCHECK_EQ(tiering_units.back()->mode(),
-                WasmCompilationUnit::CompilationMode::kTurbofan);
+      DCHECK_EQ(tiering_units.back()->mode(), ExecutionTier::kOptimized);
       tiering_compilation_units_.insert(
           tiering_compilation_units_.end(),
           std::make_move_iterator(tiering_units.begin()),
@@ -2866,11 +2864,10 @@ void CompilationState::OnFinishedUnit() {
 }
 
 void CompilationState::ScheduleUnitForFinishing(
-    std::unique_ptr<WasmCompilationUnit> unit,
-    WasmCompilationUnit::CompilationMode mode) {
+    std::unique_ptr<WasmCompilationUnit> unit, ExecutionTier mode) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   if (compile_mode_ == CompileMode::kTiering &&
-      mode == WasmCompilationUnit::CompilationMode::kTurbofan) {
+      mode == ExecutionTier::kOptimized) {
     tiering_finish_units_.push_back(std::move(unit));
   } else {
     baseline_finish_units_.push_back(std::move(unit));

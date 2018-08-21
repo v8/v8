@@ -2556,6 +2556,7 @@ v8_source_set("v8_base") {
     "src/wasm/wasm-serialization.h",
     "src/wasm/wasm-text.cc",
     "src/wasm/wasm-text.h",
+    "src/wasm/wasm-tier.h",
     "src/wasm/wasm-value.h",
     "src/zone/accounting-allocator.cc",
     "src/zone/accounting-allocator.h",
