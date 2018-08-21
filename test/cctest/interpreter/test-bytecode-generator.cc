@@ -1437,6 +1437,12 @@ TEST(ArrayLiterals) {
       "return [ [ 1, 2 ], [ 3 ] ];\n",
 
       "var a = 1; return [ [ a, 2 ], [ a + 2 ] ];\n",
+
+      "var a = [ 1, 2 ]; return [ ...a ];\n",
+
+      "var a = [ 1, 2 ]; return [ 0, ...a ];\n",
+
+      "var a = [ 1, 2 ]; return [ ...a, 3 ];\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
