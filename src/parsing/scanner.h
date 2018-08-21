@@ -223,9 +223,10 @@ class Scanner {
   static const int kNoOctalLocation = -1;
   static const uc32 kEndOfInput = Utf16CharacterStream::kEndOfInput;
 
-  explicit Scanner(UnicodeCache* scanner_contants);
+  explicit Scanner(UnicodeCache* scanner_contants, Utf16CharacterStream* source,
+                   bool is_module);
 
-  void Initialize(Utf16CharacterStream* source, bool is_module);
+  void Initialize();
 
   // Returns the next token and advances input.
   Token::Value Next();
@@ -773,8 +774,6 @@ class Scanner {
   template <bool capture_raw>
   uc32 ScanUnicodeEscape();
 
-  bool is_module_;
-
   Token::Value ScanTemplateSpan();
 
   // Return the current source position.
@@ -818,7 +817,7 @@ class Scanner {
   TokenDesc next_next_;  // desc for the token after next (after PeakAhead())
 
   // Input stream. Must be initialized to an Utf16CharacterStream.
-  Utf16CharacterStream* source_;
+  Utf16CharacterStream* const source_;
 
   // Last-seen positions of potentially problematic tokens.
   Location octal_pos_;
@@ -843,6 +842,8 @@ class Scanner {
   bool allow_harmony_bigint_;
   bool allow_harmony_private_fields_;
   bool allow_harmony_numeric_separator_;
+
+  const bool is_module_;
 
   MessageTemplate::Template scanner_error_;
   Location scanner_error_location_;

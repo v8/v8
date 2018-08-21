@@ -38,9 +38,9 @@ ScannerTestHelper make_scanner(const char* src) {
   ScannerTestHelper helper;
   helper.unicode_cache = std::unique_ptr<UnicodeCache>(new UnicodeCache);
   helper.stream = ScannerStream::ForTesting(src);
-  helper.scanner =
-      std::unique_ptr<Scanner>(new Scanner(helper.unicode_cache.get()));
-  helper.scanner->Initialize(helper.stream.get(), false);
+  helper.scanner = std::unique_ptr<Scanner>(
+      new Scanner(helper.unicode_cache.get(), helper.stream.get(), false));
+  helper.scanner->Initialize();
   return helper;
 }
 

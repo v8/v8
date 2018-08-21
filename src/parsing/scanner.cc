@@ -170,8 +170,10 @@ bool Scanner::BookmarkScope::HasBeenApplied() {
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(UnicodeCache* unicode_cache)
+Scanner::Scanner(UnicodeCache* unicode_cache, Utf16CharacterStream* source,
+                 bool is_module)
     : unicode_cache_(unicode_cache),
+      source_(source),
       octal_pos_(Location::invalid()),
       octal_message_(MessageTemplate::kNone),
       has_line_terminator_before_next_(false),
@@ -179,12 +181,12 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
       has_line_terminator_after_next_(false),
       found_html_comment_(false),
       allow_harmony_bigint_(false),
-      allow_harmony_numeric_separator_(false) {}
-
-void Scanner::Initialize(Utf16CharacterStream* source, bool is_module) {
+      allow_harmony_numeric_separator_(false),
+      is_module_(is_module) {
   DCHECK_NOT_NULL(source);
-  source_ = source;
-  is_module_ = is_module;
+}
+
+void Scanner::Initialize() {
   // Need to capture identifiers in order to recognize "get" and "set"
   // in object literals.
   Init();
