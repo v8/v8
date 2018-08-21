@@ -1154,15 +1154,15 @@ class ParserBase {
 
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
   ExpressionT ParseYieldExpression(bool accept_IN, bool* ok);
-  ExpressionT ParseConditionalExpression(bool accept_IN, bool* ok);
+  V8_INLINE ExpressionT ParseConditionalExpression(bool accept_IN, bool* ok);
   ExpressionT ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   ExpressionT ParseUnaryExpression(bool* ok);
-  ExpressionT ParsePostfixExpression(bool* ok);
-  ExpressionT ParseLeftHandSideExpression(bool* ok);
+  V8_INLINE ExpressionT ParsePostfixExpression(bool* ok);
+  V8_INLINE ExpressionT ParseLeftHandSideExpression(bool* ok);
   ExpressionT ParseMemberWithNewPrefixesExpression(bool* is_async, bool* ok);
-  ExpressionT ParseMemberExpression(bool* is_async, bool* ok);
-  ExpressionT ParseMemberExpressionContinuation(ExpressionT expression,
-                                                bool* is_async, bool* ok);
+  V8_INLINE ExpressionT ParseMemberExpression(bool* is_async, bool* ok);
+  V8_INLINE ExpressionT ParseMemberExpressionContinuation(
+      ExpressionT expression, bool* is_async, bool* ok);
 
   // `rewritable_length`: length of the destructuring_assignments_to_rewrite()
   // queue in the parent function state, prior to parsing of formal parameters.
