@@ -3127,24 +3127,20 @@ class RegExpStringIteratorAssembler : public RegExpBuiltinsAssembler {
 // https://tc39.github.io/proposal-string-matchall/
 // %RegExpStringIteratorPrototype%.next ( )
 TF_BUILTIN(RegExpStringIteratorPrototypeNext, RegExpStringIteratorAssembler) {
+  const char* method_name = "%RegExpStringIterator%.prototype.next";
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> maybe_receiver = CAST(Parameter(Descriptor::kReceiver));
 
   Label if_match(this), if_no_match(this, Label::kDeferred),
-      return_empty_done_result(this, Label::kDeferred),
-      throw_bad_receiver(this, Label::kDeferred);
+      return_empty_done_result(this, Label::kDeferred);
 
   // 1. Let O be the this value.
   // 2. If Type(O) is not Object, throw a TypeError exception.
-  GotoIf(TaggedIsSmi(maybe_receiver), &throw_bad_receiver);
-  TNode<HeapObject> receiver = CAST(maybe_receiver);
-  GotoIfNot(IsJSReceiver(receiver), &throw_bad_receiver);
-
   // 3. If O does not have all of the internal slots of a RegExp String Iterator
   // Object Instance (see 5.3), throw a TypeError exception.
-  GotoIfNot(InstanceTypeEqual(LoadInstanceType(receiver),
-                              JS_REGEXP_STRING_ITERATOR_TYPE),
-            &throw_bad_receiver);
+  ThrowIfNotInstanceType(context, maybe_receiver,
+                         JS_REGEXP_STRING_ITERATOR_TYPE, method_name);
+  TNode<HeapObject> receiver = CAST(maybe_receiver);
 
   // 4. If O.[[Done]] is true, then
   //   a. Return ! CreateIterResultObject(undefined, true).
@@ -3294,13 +3290,6 @@ TF_BUILTIN(RegExpStringIteratorPrototypeNext, RegExpStringIteratorAssembler) {
   BIND(&return_empty_done_result);
   Return(
       AllocateJSIteratorResult(context, UndefinedConstant(), TrueConstant()));
-
-  BIND(&throw_bad_receiver);
-  {
-    ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
-                   StringConstant("%RegExpStringIterator%.prototype.next"),
-                   receiver);
-  }
 }
 
 }  // namespace internal

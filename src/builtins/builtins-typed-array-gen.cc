@@ -786,10 +786,7 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
 void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(
     Node* context, Node* receiver, const char* method_name, int object_offset) {
   // Check if the {receiver} is actually a JSTypedArray.
-  Label receiver_is_incompatible(this, Label::kDeferred);
-  GotoIf(TaggedIsSmi(receiver), &receiver_is_incompatible);
-  GotoIfNot(HasInstanceType(receiver, JS_TYPED_ARRAY_TYPE),
-            &receiver_is_incompatible);
+  ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, method_name);
 
   // Check if the {receiver}'s JSArrayBuffer was neutered.
   Node* receiver_buffer =
@@ -802,13 +799,6 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(
   {
     // The {receiver}s buffer was neutered, default to zero.
     Return(SmiConstant(0));
-  }
-
-  BIND(&receiver_is_incompatible);
-  {
-    // The {receiver} is not a valid JSTypedArray.
-    ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
-                   StringConstant(method_name), receiver);
   }
 }
 
