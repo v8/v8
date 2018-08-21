@@ -412,8 +412,7 @@ Parser::Parser(ParseInfo* info)
                          info->runtime_call_stats(), info->logger(),
                          info->script().is_null() ? -1 : info->script()->id(),
                          info->is_module(), true),
-      scanner_(info->unicode_cache(), info->character_stream(),
-               info->is_module()),
+      scanner_(info->unicode_cache()),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
       source_range_map_(info->source_range_map()),
@@ -508,8 +507,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   // Initialize parser state.
   DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info());
 
-  scanner_.Initialize();
-
+  scanner_.Initialize(info->character_stream(), info->is_module());
   FunctionLiteral* result = DoParseProgram(isolate, info);
   MaybeResetCharacterStream(info, result);
 
@@ -703,8 +701,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   // Initialize parser state.
   Handle<String> name(shared_info->Name(), isolate);
   info->set_function_name(ast_value_factory()->GetString(name));
-
-  scanner_.Initialize();
+  scanner_.Initialize(info->character_stream(), info->is_module());
 
   FunctionLiteral* result =
       DoParseFunction(isolate, info, info->function_name());
@@ -3450,8 +3447,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   DCHECK_NULL(info->literal());
   FunctionLiteral* result = nullptr;
 
-  scanner_.Initialize();
-
+  scanner_.Initialize(info->character_stream(), info->is_module());
   DCHECK(info->maybe_outer_scope_info().is_null());
 
   DCHECK(original_scope_);

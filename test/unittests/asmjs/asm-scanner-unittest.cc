@@ -17,7 +17,7 @@ class AsmJsScannerTest : public ::testing::Test {
  protected:
   void SetupScanner(const char* source) {
     stream = ScannerStream::ForTesting(source);
-    scanner.reset(new AsmJsScanner(stream.get(), 0));
+    scanner.reset(new AsmJsScanner(stream.get()));
   }
 
   void Skip(AsmJsScanner::token_t t) {
@@ -41,7 +41,7 @@ class AsmJsScannerTest : public ::testing::Test {
     CHECK_EQ(scanner->Token(), AsmJsScanner::kParseError);
   }
 
-  std::unique_ptr<ScannerStream> stream;
+  std::unique_ptr<Utf16CharacterStream> stream;
   std::unique_ptr<AsmJsScanner> scanner;
 };
 

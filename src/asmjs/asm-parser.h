@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-class ScannerStream;
+class Utf16CharacterStream;
 
 namespace wasm {
 
@@ -49,8 +49,8 @@ class AsmJsParser {
 
   typedef EnumSet<StandardMember, uint64_t> StdlibSet;
 
-  explicit AsmJsParser(Zone* zone, uintptr_t stack_limit, ScannerStream* stream,
-                       int start);
+  explicit AsmJsParser(Zone* zone, uintptr_t stack_limit,
+                       Utf16CharacterStream* stream);
   bool Run();
   const char* failure_message() const { return failure_message_; }
   int failure_location() const { return failure_location_; }

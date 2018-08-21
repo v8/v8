@@ -11,9 +11,8 @@
 namespace v8 {
 namespace internal {
 
-template <typename Char>
 V8_INLINE Token::Value Scanner::SkipWhiteSpace() {
-  int start_position = SourcePos<Char>();
+  int start_position = source_pos();
 
   while (true) {
     // We won't skip behind the end of input.
@@ -26,11 +25,11 @@ V8_INLINE Token::Value Scanner::SkipWhiteSpace() {
     } else if (!unicode_cache_->IsWhiteSpace(c0_)) {
       break;
     }
-    Advance<Char>();
+    Advance();
   }
 
   // Return whether or not we skipped any characters.
-  if (SourcePos<Char>() == start_position) {
+  if (source_pos() == start_position) {
     DCHECK_NE('0', c0_);
     return Token::ILLEGAL;
   }

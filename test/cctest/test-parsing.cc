@@ -92,16 +92,16 @@ TEST(ScanKeywords) {
     CHECK(static_cast<int>(sizeof(buffer)) >= length);
     {
       auto stream = i::ScannerStream::ForTesting(keyword, length);
-      i::Scanner scanner(&unicode_cache, stream.get(), false);
-      scanner.Initialize();
+      i::Scanner scanner(&unicode_cache);
+      scanner.Initialize(stream.get(), false);
       CHECK_EQ(key_token.token, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
     // Removing characters will make keyword matching fail.
     {
       auto stream = i::ScannerStream::ForTesting(keyword, length - 1);
-      i::Scanner scanner(&unicode_cache, stream.get(), false);
-      scanner.Initialize();
+      i::Scanner scanner(&unicode_cache);
+      scanner.Initialize(stream.get(), false);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
@@ -111,8 +111,8 @@ TEST(ScanKeywords) {
       i::MemMove(buffer, keyword, length);
       buffer[length] = chars_to_append[j];
       auto stream = i::ScannerStream::ForTesting(buffer, length + 1);
-      i::Scanner scanner(&unicode_cache, stream.get(), false);
-      scanner.Initialize();
+      i::Scanner scanner(&unicode_cache);
+      scanner.Initialize(stream.get(), false);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
@@ -121,8 +121,8 @@ TEST(ScanKeywords) {
       i::MemMove(buffer, keyword, length);
       buffer[length - 1] = '_';
       auto stream = i::ScannerStream::ForTesting(buffer, length);
-      i::Scanner scanner(&unicode_cache, stream.get(), false);
-      scanner.Initialize();
+      i::Scanner scanner(&unicode_cache);
+      scanner.Initialize(stream.get(), false);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
     }
@@ -188,8 +188,8 @@ TEST(ScanHTMLEndComments) {
   for (int i = 0; tests[i]; i++) {
     const char* source = tests[i];
     auto stream = i::ScannerStream::ForTesting(source);
-    i::Scanner scanner(i_isolate->unicode_cache(), stream.get(), false);
-    scanner.Initialize();
+    i::Scanner scanner(i_isolate->unicode_cache());
+    scanner.Initialize(stream.get(), false);
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(&zone,
                                          i_isolate->ast_string_constants(),
@@ -207,8 +207,8 @@ TEST(ScanHTMLEndComments) {
   for (int i = 0; fail_tests[i]; i++) {
     const char* source = fail_tests[i];
     auto stream = i::ScannerStream::ForTesting(source);
-    i::Scanner scanner(i_isolate->unicode_cache(), stream.get(), false);
-    scanner.Initialize();
+    i::Scanner scanner(i_isolate->unicode_cache());
+    scanner.Initialize(stream.get(), false);
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(&zone,
                                          i_isolate->ast_string_constants(),
@@ -232,8 +232,8 @@ TEST(ScanHtmlComments) {
   // Disallow HTML comments.
   {
     auto stream = i::ScannerStream::ForTesting(src);
-    i::Scanner scanner(&unicode_cache, stream.get(), true);
-    scanner.Initialize();
+    i::Scanner scanner(&unicode_cache);
+    scanner.Initialize(stream.get(), true);
     CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
     CHECK_EQ(i::Token::ILLEGAL, scanner.Next());
   }
@@ -241,8 +241,8 @@ TEST(ScanHtmlComments) {
   // Skip HTML comments:
   {
     auto stream = i::ScannerStream::ForTesting(src);
-    i::Scanner scanner(&unicode_cache, stream.get(), false);
-    scanner.Initialize();
+    i::Scanner scanner(&unicode_cache);
+    scanner.Initialize(stream.get(), false);
     CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
     CHECK_EQ(i::Token::EOS, scanner.Next());
   }
@@ -280,8 +280,8 @@ TEST(StandAlonePreParser) {
   uintptr_t stack_limit = i_isolate->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     auto stream = i::ScannerStream::ForTesting(programs[i]);
-    i::Scanner scanner(i_isolate->unicode_cache(), stream.get(), false);
-    scanner.Initialize();
+    i::Scanner scanner(i_isolate->unicode_cache());
+    scanner.Initialize(stream.get(), false);
 
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(&zone,
@@ -313,8 +313,8 @@ TEST(StandAlonePreParserNoNatives) {
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     auto stream = i::ScannerStream::ForTesting(programs[i]);
-    i::Scanner scanner(isolate->unicode_cache(), stream.get(), false);
-    scanner.Initialize();
+    i::Scanner scanner(isolate->unicode_cache());
+    scanner.Initialize(stream.get(), false);
 
     // Preparser defaults to disallowing natives syntax.
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
@@ -348,8 +348,8 @@ TEST(RegressChromium62639) {
   // failed in debug mode, and sometimes crashed in release mode.
 
   auto stream = i::ScannerStream::ForTesting(program);
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), stream.get(), false);
-  scanner.Initialize();
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  scanner.Initialize(stream.get(), false);
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::AstValueFactory ast_value_factory(
       &zone, CcTest::i_isolate()->ast_string_constants(),
@@ -381,8 +381,8 @@ TEST(PreParseOverflow) {
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
 
   auto stream = i::ScannerStream::ForTesting(program.get(), kProgramSize);
-  i::Scanner scanner(isolate->unicode_cache(), stream.get(), false);
-  scanner.Initialize();
+  i::Scanner scanner(isolate->unicode_cache());
+  scanner.Initialize(stream.get(), false);
 
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::AstValueFactory ast_value_factory(
@@ -396,12 +396,12 @@ TEST(PreParseOverflow) {
   CHECK_EQ(i::PreParser::kPreParseStackOverflow, result);
 }
 
-void TestStreamScanner(i::ScannerStream* stream,
+void TestStreamScanner(i::Utf16CharacterStream* stream,
                        i::Token::Value* expected_tokens,
                        int skip_pos = 0,  // Zero means not skipping.
                        int skip_to = 0) {
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), stream, false);
-  scanner.Initialize();
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  scanner.Initialize(stream, false);
 
   int i = 0;
   do {
@@ -419,7 +419,8 @@ void TestStreamScanner(i::ScannerStream* stream,
 TEST(StreamScanner) {
   v8::V8::Initialize();
   const char* str1 = "{ foo get for : */ <- \n\n /*foo*/ bib";
-  auto stream1(i::ScannerStream::ForTesting(str1));
+  std::unique_ptr<i::Utf16CharacterStream> stream1(
+      i::ScannerStream::ForTesting(str1));
   i::Token::Value expectations1[] = {
       i::Token::LBRACE,
       i::Token::IDENTIFIER,
@@ -437,7 +438,8 @@ TEST(StreamScanner) {
   TestStreamScanner(stream1.get(), expectations1, 0, 0);
 
   const char* str2 = "case default const {THIS\nPART\nSKIPPED} do";
-  auto stream2(i::ScannerStream::ForTesting(str2));
+  std::unique_ptr<i::Utf16CharacterStream> stream2(
+      i::ScannerStream::ForTesting(str2));
   i::Token::Value expectations2[] = {
       i::Token::CASE,
       i::Token::DEFAULT,
@@ -467,7 +469,8 @@ TEST(StreamScanner) {
   for (int i = 0; i <= 4; i++) {
      expectations3[6 - i] = i::Token::ILLEGAL;
      expectations3[5 - i] = i::Token::EOS;
-     auto stream3(i::ScannerStream::ForTesting(str3));
+     std::unique_ptr<i::Utf16CharacterStream> stream3(
+         i::ScannerStream::ForTesting(str3));
      TestStreamScanner(stream3.get(), expectations3, 1, 1 + i);
   }
 }
@@ -475,8 +478,8 @@ TEST(StreamScanner) {
 void TestScanRegExp(const char* re_source, const char* expected) {
   auto stream = i::ScannerStream::ForTesting(re_source);
   i::HandleScope scope(CcTest::i_isolate());
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), stream.get(), false);
-  scanner.Initialize();
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  scanner.Initialize(stream.get(), false);
 
   i::Token::Value start = scanner.peek();
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
@@ -1141,6 +1144,8 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
   parser->set_allow_natives(flags.Contains(kAllowNatives));
   parser->set_allow_harmony_public_fields(
       flags.Contains(kAllowHarmonyPublicFields));
+  parser->set_allow_harmony_private_fields(
+      flags.Contains(kAllowHarmonyPrivateFields));
   parser->set_allow_harmony_static_fields(
       flags.Contains(kAllowHarmonyStaticFields));
   parser->set_allow_harmony_dynamic_import(
@@ -1149,9 +1154,6 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyImportMeta));
   parser->set_allow_harmony_do_expressions(
       flags.Contains(kAllowHarmonyDoExpressions));
-
-  parser->set_allow_harmony_private_fields(
-      flags.Contains(kAllowHarmonyPrivateFields));
   parser->set_allow_harmony_numeric_separator(
       flags.Contains(kAllowHarmonyNumericSeparator));
 }
@@ -1169,9 +1171,9 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   // Preparse the data.
   i::PendingCompilationErrorHandler pending_error_handler;
   if (test_preparser) {
-    std::unique_ptr<i::ScannerStream> stream(
+    i::Scanner scanner(isolate->unicode_cache());
+    std::unique_ptr<i::Utf16CharacterStream> stream(
         i::ScannerStream::For(isolate, source));
-    i::Scanner scanner(isolate->unicode_cache(), stream.get(), is_module);
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(
         &zone, CcTest::i_isolate()->ast_string_constants(),
@@ -1181,8 +1183,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
                            isolate->counters()->runtime_call_stats(),
                            isolate->logger(), -1, is_module);
     SetParserFlags(&preparser, flags);
-    scanner.Initialize();
-    // Make sure we can the first token with the correct flags.
+    scanner.Initialize(stream.get(), is_module);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   }
