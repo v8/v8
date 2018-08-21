@@ -26,7 +26,7 @@ WasmFeatures WasmFeaturesFromFlags() {
 
 WasmFeatures WasmFeaturesFromIsolate(Isolate* isolate) {
   WasmFeatures features = WasmFeaturesFromFlags();
-  features.threads =
+  features.threads |=
       isolate->AreWasmThreadsEnabled(handle(isolate->context(), isolate));
   return features;
 }
