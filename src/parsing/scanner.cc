@@ -529,7 +529,8 @@ Token::Value Scanner::ScanHtmlComment() {
     PushBack('!');  // undo Advance()
     return Token::LT;
   }
-  Advance();
+  source_->Skip('-');
+  DCHECK_EQ('-', c0_);
 
   found_html_comment_ = true;
   return SkipSingleHTMLComment();
@@ -674,7 +675,7 @@ void Scanner::Scan() {
         if (c0_ == '/') {
           uc32 c = Peek();
           if (c == '#' || c == '@') {
-            Advance();
+            source_->Skip(c);
             Advance();
             token = SkipSourceURLComment();
           } else {
@@ -727,7 +728,7 @@ void Scanner::Scan() {
           token = Token::PERIOD;
           if (c0_ == '.') {
             if (Peek() == '.') {
-              Advance();
+              source_->Skip('.');
               Advance();
               token = Token::ELLIPSIS;
             }
@@ -1004,8 +1005,8 @@ Token::Value Scanner::ScanTemplateSpan() {
       result = Token::TEMPLATE_TAIL;
       break;
     } else if (c == '$' && Peek() == '{') {
-      Advance();  // Consume '$'
-      Advance();  // Consume '{'
+      source_->Skip('{');
+      Advance();
       break;
     } else if (c == '\\') {
       Advance();  // Consume '\\'
