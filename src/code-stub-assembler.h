@@ -2722,6 +2722,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // TypedArray/ArrayBuffer helpers
   Node* IsDetachedBuffer(Node* buffer);
+  void ThrowIfArrayBufferIsDetached(SloppyTNode<Context> context,
+                                    TNode<JSArrayBuffer> array_buffer,
+                                    const char* method_name);
+  void ThrowIfArrayBufferViewBufferIsDetached(
+      SloppyTNode<Context> context, TNode<JSArrayBufferView> array_buffer_view,
+      const char* method_name);
   TNode<JSArrayBuffer> LoadArrayBufferViewBuffer(
       TNode<JSArrayBufferView> array_buffer_view);
   TNode<RawPtrT> LoadArrayBufferBackingStore(TNode<JSArrayBuffer> array_buffer);

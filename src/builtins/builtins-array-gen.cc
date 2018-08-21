@@ -501,8 +501,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
     // ValidateTypedArray: tc39.github.io/ecma262/#sec-validatetypedarray
 
-    Label throw_not_typed_array(this, Label::kDeferred),
-        throw_detached(this, Label::kDeferred);
+    Label throw_not_typed_array(this, Label::kDeferred);
 
     GotoIf(TaggedIsSmi(receiver_), &throw_not_typed_array);
     GotoIfNot(HasInstanceType(CAST(receiver_), JS_TYPED_ARRAY_TYPE),
@@ -511,9 +510,8 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     TNode<JSTypedArray> typed_array = CAST(receiver_);
     o_ = typed_array;
 
-    Node* array_buffer =
-        LoadObjectField(typed_array, JSTypedArray::kBufferOffset);
-    GotoIf(IsDetachedBuffer(array_buffer), &throw_detached);
+    TNode<JSArrayBuffer> array_buffer = LoadArrayBufferViewBuffer(typed_array);
+    ThrowIfArrayBufferIsDetached(context_, array_buffer, name_);
 
     len_ = LoadTypedArrayLength(typed_array);
 
@@ -525,9 +523,6 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
     BIND(&throw_not_typed_array);
     ThrowTypeError(context_, MessageTemplate::kNotTypedArray);
-
-    BIND(&throw_detached);
-    ThrowTypeError(context_, MessageTemplate::kDetachedOperation, name_);
 
     BIND(&throw_not_callable);
     ThrowTypeError(context_, MessageTemplate::kCalledNonCallable, callbackfn_);
@@ -3500,7 +3495,6 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   Label allocate_entry_if_needed(this);
   Label allocate_iterator_result(this);
-  Label if_detached(this, Label::kDeferred);
   Label if_typedarray(this), if_other(this, Label::kDeferred), if_array(this),
       if_generic(this, Label::kDeferred);
   Label set_done(this, Label::kDeferred);
@@ -3678,8 +3672,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   BIND(&if_typedarray);
   {
     // Check that the {array}s buffer wasn't neutered.
-    TNode<JSArrayBuffer> buffer = LoadArrayBufferViewBuffer(CAST(array));
-    GotoIf(IsDetachedBuffer(buffer), &if_detached);
+    ThrowIfArrayBufferViewBufferIsDetached(context, CAST(array), method_name);
 
     // If we go outside of the {length}, we don't need to update the
     // [[ArrayIteratorNextIndex]] anymore, since a JSTypedArray's
@@ -3710,9 +3703,6 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     var_value.Bind(LoadFixedTypedArrayElementAsTagged(data_ptr, CAST(index),
                                                       elements_kind));
     Goto(&allocate_entry_if_needed);
-
-    BIND(&if_detached);
-    ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
   }
 
   BIND(&allocate_entry_if_needed);

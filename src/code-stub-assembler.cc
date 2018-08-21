@@ -11979,6 +11979,23 @@ Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
   return IsSetWord32<JSArrayBuffer::WasNeutered>(buffer_bit_field);
 }
 
+void CodeStubAssembler::ThrowIfArrayBufferIsDetached(
+    SloppyTNode<Context> context, TNode<JSArrayBuffer> array_buffer,
+    const char* method_name) {
+  Label if_detached(this, Label::kDeferred), if_not_detached(this);
+  Branch(IsDetachedBuffer(array_buffer), &if_detached, &if_not_detached);
+  BIND(&if_detached);
+  ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
+  BIND(&if_not_detached);
+}
+
+void CodeStubAssembler::ThrowIfArrayBufferViewBufferIsDetached(
+    SloppyTNode<Context> context, TNode<JSArrayBufferView> array_buffer_view,
+    const char* method_name) {
+  TNode<JSArrayBuffer> buffer = LoadArrayBufferViewBuffer(array_buffer_view);
+  ThrowIfArrayBufferIsDetached(context, buffer, method_name);
+}
+
 TNode<JSArrayBuffer> CodeStubAssembler::LoadArrayBufferViewBuffer(
     TNode<JSArrayBufferView> array_buffer_view) {
   return LoadObjectField<JSArrayBuffer>(array_buffer_view,
