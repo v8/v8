@@ -2793,6 +2793,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                strcmp(argv[i], "--no-stress-background-compile") == 0) {
       options.stress_background_compile = false;
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--mock-arraybuffer-allocator") == 0) {
+      options.mock_arraybuffer_allocator = true;
+      argv[i] = nullptr;
     } else if (strcmp(argv[i], "--noalways-opt") == 0 ||
                strcmp(argv[i], "--no-always-opt") == 0) {
       // No support for stressing if we can't use --always-opt.
@@ -2907,7 +2910,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   }
 
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-  options.mock_arraybuffer_allocator = i::FLAG_mock_arraybuffer_allocator;
 
   // Set up isolated source groups.
   options.isolate_sources = new SourceGroup[options.num_isolates];

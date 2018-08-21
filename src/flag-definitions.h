@@ -978,6 +978,7 @@ DEFINE_INT(heap_snapshot_string_limit, 1024,
 DEFINE_BOOL(sampling_heap_profiler_suppress_randomness, false,
             "Use constant sample intervals to eliminate test flakiness")
 
+
 // v8.cc
 DEFINE_BOOL(use_idle_notification, true,
             "Use idle notification to reduce memory footprint.")
@@ -1144,8 +1145,6 @@ DEFINE_BOOL(use_external_strings, false, "Use external strings for source code")
 DEFINE_STRING(map_counters, "", "Map counters to a file")
 DEFINE_ARGS(js_arguments,
             "Pass all remaining arguments to the script. Alias for \"--\".")
-DEFINE_BOOL(mock_arraybuffer_allocator, false,
-            "Use a mock ArrayBuffer allocator for testing.")
 
 //
 // GDB JIT integration flags.
