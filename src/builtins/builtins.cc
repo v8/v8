@@ -338,6 +338,15 @@ bool Builtins::IsIsolateIndependent(int index) {
   // ia32 is a work-in-progress. This will let us make builtins
   // isolate-independent one-by-one.
   switch (index) {
+    case kContinueToCodeStubBuiltin:
+    case kContinueToCodeStubBuiltinWithResult:
+    case kContinueToJavaScriptBuiltin:
+    case kContinueToJavaScriptBuiltinWithResult:
+    case kWasmAllocateHeapNumber:
+    case kWasmCallJavaScript:
+    case kWasmToNumber:
+    case kDoubleToI:
+      return true;
     default:
       return false;
   }

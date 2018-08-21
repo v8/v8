@@ -893,8 +893,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {
-  mov(kOffHeapTrampolineRegister, Immediate(entry, RelocInfo::OFF_HEAP_TARGET));
-  jmp(kOffHeapTrampolineRegister);
+  jmp(entry, RelocInfo::OFF_HEAP_TARGET);
 }
 
 void TurboAssembler::PrepareForTailCall(

@@ -2411,7 +2411,8 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     // TODO(v8:6666): Extend support to all builtins and user code. Ensure that
     // it is mutually exclusive with the Poisoning configuration above; and that
     // it cooperates with restricted allocatable registers above.
-    static_assert(kRootRegister == kSpeculationPoisonRegister);
+    static_assert(kRootRegister == kSpeculationPoisonRegister,
+                  "The following checks assume root equals poison register");
     CHECK_IMPLIES(FLAG_embedded_builtins, !FLAG_branch_load_poisoning);
     CHECK_IMPLIES(FLAG_embedded_builtins, !FLAG_untrusted_code_mitigations);
     AllocateRegisters(RegisterConfiguration::PreserveRootIA32(),

@@ -189,16 +189,17 @@ void Displacement::init(Label* L, Type type) {
 
 const int RelocInfo::kApplyMask =
     RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-    RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL);
+    RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
+    RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
+    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
   // specially coded on IA32 means that it is a relative address, as used by
   // branch instructions.  These are also the ones that need changing when a
   // code object moves.
-  return (1 << rmode_) & kApplyMask;
+  return RelocInfo::ModeMask(rmode_) & kApplyMask;
 }
 
 

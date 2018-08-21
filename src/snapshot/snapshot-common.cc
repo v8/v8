@@ -350,6 +350,7 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
     // On X64, ARM, ARM64 we emit relative builtin-to-builtin jumps for isolate
     // independent builtins in the snapshot. This fixes up the relative jumps
     // to the right offsets in the snapshot.
+    // See also: Code::IsIsolateIndependent.
     while (!on_heap_it.done()) {
       DCHECK(!off_heap_it.done());
 

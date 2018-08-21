@@ -53,8 +53,13 @@ bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(SSE4_1); }
 
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(intptr_t delta) {
+  DCHECK_EQ(kApplyMask, (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+                         RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+                         RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
+                         RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
+                         RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY)));
   if (IsRuntimeEntry(rmode_) || IsCodeTarget(rmode_) ||
-      rmode_ == RelocInfo::JS_TO_WASM_CALL) {
+      IsJsToWasmCall(rmode_) || IsOffHeapTarget(rmode_)) {
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
     *p -= delta;  // Relocate entry.
   } else if (IsInternalReference(rmode_)) {
@@ -152,14 +157,15 @@ void RelocInfo::set_target_runtime_entry(Address target,
 
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
-  return Memory::Address_at(pc_);
+  return Assembler::target_address_at(pc_, constant_pool_);
 }
 
 void RelocInfo::WipeOut() {
   if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
       IsInternalReference(rmode_)) {
     Memory::Address_at(pc_) = kNullAddress;
-  } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
+  } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) ||
+             IsOffHeapTarget(rmode_)) {
     // Effectively write zero into the relocation.
     Assembler::set_target_address_at(pc_, constant_pool_,
                                      pc_ + sizeof(int32_t));
