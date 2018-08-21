@@ -167,8 +167,6 @@ class JSFunctionRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
 
-  bool HasBuiltinFunctionId() const;
-  BuiltinFunctionId GetBuiltinFunctionId() const;
   bool IsConstructor() const;
   bool has_initial_map() const;
   MapRef initial_map() const;
@@ -362,21 +360,29 @@ class ScopeInfoRef : public HeapObjectRef {
   int ContextLength() const;
 };
 
+#define BROKER_SFI_FIELDS(V)                \
+  V(int, internal_formal_parameter_count)   \
+  V(bool, has_duplicate_parameters)         \
+  V(int, function_map_index)                \
+  V(FunctionKind, kind)                     \
+  V(LanguageMode, language_mode)            \
+  V(bool, native)                           \
+  V(bool, HasBreakInfo)                     \
+  V(bool, HasBuiltinFunctionId)             \
+  V(bool, HasBuiltinId)                     \
+  V(BuiltinFunctionId, builtin_function_id) \
+  V(bool, construct_as_builtin)             \
+  V(bool, HasBytecodeArray)
+
 class SharedFunctionInfoRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
 
-  int internal_formal_parameter_count() const;
-  bool has_duplicate_parameters() const;
-  int function_map_index() const;
-  FunctionKind kind() const;
-  LanguageMode language_mode() const;
-  bool native() const;
-  bool HasBreakInfo() const;
-  bool HasBuiltinId() const;
   int builtin_id() const;
-  bool construct_as_builtin() const;
-  bool HasBytecodeArray() const;
+#define DECL_ACCESSOR(type, name) type name() const;
+  BROKER_SFI_FIELDS(DECL_ACCESSOR)
+#undef DECL_ACCSESOR
+
   int GetBytecodeArrayRegisterCount() const;
 };
 

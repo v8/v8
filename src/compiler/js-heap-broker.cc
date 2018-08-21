@@ -355,7 +355,27 @@ class FixedArrayData : public FixedArrayBaseData {};
 class FixedDoubleArrayData : public FixedArrayBaseData {};
 class JSArrayData : public JSObjectData {};
 class ScopeInfoData : public HeapObjectData {};
-class SharedFunctionInfoData : public HeapObjectData {};
+
+class SharedFunctionInfoData : public HeapObjectData {
+ public:
+  int const builtin_id;
+#define DECL_MEMBER(type, name) type const name;
+  BROKER_SFI_FIELDS(DECL_MEMBER)
+#undef DECL_MEMBER
+
+  SharedFunctionInfoData(JSHeapBroker* broker_,
+                         Handle<SharedFunctionInfo> object_,
+                         HeapObjectType type_)
+      : HeapObjectData(broker_, object_, type_),
+        builtin_id(object_->HasBuiltinId() ? object_->builtin_id()
+                                           : Builtins::kNoBuiltinId)
+#define INIT_MEMBER(type, name) , name(object_->name())
+            BROKER_SFI_FIELDS(INIT_MEMBER)
+#undef INIT_MEMBER
+  {
+  }
+};
+
 class ModuleData : public HeapObjectData {};
 class CellData : public HeapObjectData {};
 class JSGlobalProxyData : public JSObjectData {};
@@ -416,6 +436,9 @@ HeapObjectData* HeapObjectData::Serialize(JSHeapBroker* broker,
   } else if (object->IsName()) {
     result =
         new (broker->zone()) NameData(broker, Handle<Name>::cast(object), type);
+  } else if (object->IsSharedFunctionInfo()) {
+    result = new (broker->zone()) SharedFunctionInfoData(
+        broker, Handle<SharedFunctionInfo>::cast(object), type);
   } else if (object->IsFeedbackVector()) {
     result = new (broker->zone())
         FeedbackVectorData(broker, Handle<FeedbackVector>::cast(object), type);
@@ -956,17 +979,11 @@ HANDLE_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
 
 HANDLE_ACCESSOR_C(ScopeInfo, int, ContextLength)
 
-HANDLE_ACCESSOR_C(SharedFunctionInfo, bool, construct_as_builtin)
-HANDLE_ACCESSOR_C(SharedFunctionInfo, bool, HasBreakInfo)
-HANDLE_ACCESSOR_C(SharedFunctionInfo, bool, HasBuiltinId)
-HANDLE_ACCESSOR_C(SharedFunctionInfo, bool, HasBytecodeArray)
-HANDLE_ACCESSOR_C(SharedFunctionInfo, bool, has_duplicate_parameters)
-HANDLE_ACCESSOR_C(SharedFunctionInfo, bool, native)
-HANDLE_ACCESSOR_C(SharedFunctionInfo, FunctionKind, kind)
-HANDLE_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
-HANDLE_ACCESSOR_C(SharedFunctionInfo, int, function_map_index)
-HANDLE_ACCESSOR_C(SharedFunctionInfo, int, internal_formal_parameter_count)
-HANDLE_ACCESSOR_C(SharedFunctionInfo, LanguageMode, language_mode)
+BIMODAL_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
+#define DEF_SFI_ACCESSOR(type, name) \
+  BIMODAL_ACCESSOR_C(SharedFunctionInfo, type, name)
+BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
+#undef DEF_SFI_ACCESSOR
 
 BIMODAL_ACCESSOR_C(String, int, length)
 
@@ -975,16 +992,6 @@ BIMODAL_ACCESSOR_C(String, int, length)
 bool JSFunctionRef::has_initial_map() const {
   IF_BROKER_DISABLED_ACCESS_HANDLE_C(JSFunction, has_initial_map);
   return data()->AsJSFunction()->initial_map != nullptr;
-}
-
-bool JSFunctionRef::HasBuiltinFunctionId() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<JSFunction>()->shared()->HasBuiltinFunctionId();
-}
-
-BuiltinFunctionId JSFunctionRef::GetBuiltinFunctionId() const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<JSFunction>()->shared()->builtin_function_id();
 }
 
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {

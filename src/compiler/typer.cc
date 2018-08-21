@@ -1419,10 +1419,10 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     return Type::NonInternal();
   }
   JSFunctionRef function = fun.AsHeapConstant()->Ref().AsJSFunction();
-  if (!function.HasBuiltinFunctionId()) {
+  if (!function.shared().HasBuiltinFunctionId()) {
     return Type::NonInternal();
   }
-  switch (function.GetBuiltinFunctionId()) {
+  switch (function.shared().builtin_function_id()) {
     case BuiltinFunctionId::kMathRandom:
       return Type::PlainNumber();
     case BuiltinFunctionId::kMathFloor:
