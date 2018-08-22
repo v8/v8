@@ -269,7 +269,7 @@ class LiftoffCompiler {
           // Move to a cache register (spill one if necessary).
           // Note that we cannot create a {LiftoffRegister} for reg_code, since
           // {LiftoffRegister} can only store cache regs.
-          LiftoffRegister in_reg = __ GetUnusedRegister(rc, pinned);
+          in_reg = __ GetUnusedRegister(rc, pinned);
           if (rc == kGpReg) {
             __ Move(in_reg.gp(), Register::from_code(reg_code), type);
           } else {
