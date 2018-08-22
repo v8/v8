@@ -14,7 +14,6 @@
 #include "src/globals.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
-#include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
 #include "src/utils.h"
 #include "src/zone/zone-chunk-list.h"

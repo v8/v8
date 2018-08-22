@@ -12,7 +12,6 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects/shared-function-info.h"
-#include "src/parsing/preparse-data.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
