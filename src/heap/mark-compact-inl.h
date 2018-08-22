@@ -395,8 +395,8 @@ void MarkCompactCollector::RecordSlot(HeapObject* object,
                                       HeapObject* target) {
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));
-  if (target_page->IsEvacuationCandidate() &&
-      !source_page->ShouldSkipEvacuationSlotRecording()) {
+  if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>() &&
+      !source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
     RememberedSet<OLD_TO_OLD>::Insert(source_page,
                                       reinterpret_cast<Address>(slot));
   }
