@@ -598,13 +598,12 @@ class ParserBase {
     typename Types::ClassPropertyList instance_fields;
     FunctionLiteralT constructor;
 
-    // TODO(gsathya): Use a bitfield store all the booleans.
-    bool has_seen_constructor;
-    bool has_name_static_property;
-    bool has_static_computed_names;
-    bool has_static_class_fields;
-    bool has_instance_class_fields;
-    bool is_anonymous;
+    bool has_seen_constructor : 1;
+    bool has_name_static_property : 1;
+    bool has_static_computed_names : 1;
+    bool has_static_class_fields : 1;
+    bool has_instance_class_fields : 1;
+    bool is_anonymous : 1;
     DeclarationScope* static_fields_scope;
     DeclarationScope* instance_fields_scope;
     int computed_field_count;
@@ -1138,8 +1137,7 @@ class ParserBase {
   ClassLiteralPropertyT ParseClassPropertyDefinition(
       ClassLiteralChecker* checker, ClassInfo* class_info,
       IdentifierT* property_name, bool has_extends, bool* is_computed_name,
-      bool* has_seen_constructor, ClassLiteralProperty::Kind* property_kind,
-      bool* is_static, bool* has_name_static_property, bool* ok);
+      ClassLiteralProperty::Kind* property_kind, bool* is_static, bool* ok);
   ExpressionT ParseClassFieldInitializer(ClassInfo* class_info, bool is_static,
                                          bool* ok);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
@@ -2316,11 +2314,9 @@ template <typename Impl>
 typename ParserBase<Impl>::ClassLiteralPropertyT
 ParserBase<Impl>::ParseClassPropertyDefinition(
     ClassLiteralChecker* checker, ClassInfo* class_info, IdentifierT* name,
-    bool has_extends, bool* is_computed_name, bool* has_seen_constructor,
-    ClassLiteralProperty::Kind* property_kind, bool* is_static,
-    bool* has_name_static_property, bool* ok) {
-  DCHECK_NOT_NULL(has_seen_constructor);
-  DCHECK_NOT_NULL(has_name_static_property);
+    bool has_extends, bool* is_computed_name,
+    ClassLiteralProperty::Kind* property_kind, bool* is_static, bool* ok) {
+  DCHECK_NOT_NULL(class_info);
   bool is_get = false;
   bool is_set = false;
   bool is_generator = false;
@@ -2369,8 +2365,9 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
                                         CHECK_OK_CUSTOM(NullLiteralProperty));
   }
 
-  if (!*has_name_static_property && *is_static && impl()->IsName(*name)) {
-    *has_name_static_property = true;
+  if (!class_info->has_name_static_property && *is_static &&
+      impl()->IsName(*name)) {
+    class_info->has_name_static_property = true;
   }
 
   switch (kind) {
@@ -2432,7 +2429,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       FunctionKind kind = MethodKindFor(is_generator, is_async);
 
       if (!*is_static && impl()->IsConstructor(*name)) {
-        *has_seen_constructor = true;
+        class_info->has_seen_constructor = true;
         kind = has_extends ? FunctionKind::kDerivedConstructor
                            : FunctionKind::kBaseConstructor;
       }
@@ -4564,8 +4561,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     bool is_constructor = !class_info.has_seen_constructor;
     ClassLiteralPropertyT property = ParseClassPropertyDefinition(
         &checker, &class_info, &property_name, has_extends, &is_computed_name,
-        &class_info.has_seen_constructor, &property_kind, &is_static,
-        &class_info.has_name_static_property, CHECK_OK);
+        &property_kind, &is_static, CHECK_OK);
     if (!class_info.has_static_computed_names && is_static &&
         is_computed_name) {
       class_info.has_static_computed_names = true;
