@@ -47,6 +47,7 @@
 #include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/managed.h"
 #include "src/regexp/jsregexp.h"
 #include "src/snapshot/snapshot.h"
 #include "src/transitions.h"
@@ -6210,6 +6211,31 @@ UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
 void HeapTester::UncommitFromSpace(Heap* heap) {
   heap->UncommitFromSpace();
   heap->memory_allocator()->unmapper()->EnsureUnmappingCompleted();
+}
+
+class DeleteNative {
+ public:
+  static void Deleter(void* arg) {
+    delete reinterpret_cast<DeleteNative*>(arg);
+  }
+};
+
+TEST(Regress8014) {
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  Heap* heap = isolate->heap();
+  {
+    HandleScope scope(isolate);
+    for (int i = 0; i < 10000; i++) {
+      auto handle = Managed<DeleteNative>::FromRawPtr(isolate, 1000000,
+                                                      new DeleteNative());
+      USE(handle);
+    }
+  }
+  int ms_count = heap->ms_count();
+  heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
+  // Several GCs can be triggred by the above call.
+  // The bad case triggers 10000 GCs.
+  CHECK_LE(heap->ms_count(), ms_count + 10);
 }
 
 }  // namespace heap

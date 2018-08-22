@@ -1425,7 +1425,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
       if (deserialization_complete_) {
         memory_reducer_->NotifyMarkCompact(event);
       }
-      memory_pressure_level_ = MemoryPressureLevel::kNone;
     }
 
     tracer()->Stop(collector);
@@ -3474,9 +3473,14 @@ void Heap::CheckMemoryPressure() {
     // The optimizing compiler may be unnecessarily holding on to memory.
     isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   }
-  if (memory_pressure_level_ == MemoryPressureLevel::kCritical) {
+  MemoryPressureLevel memory_pressure_level = memory_pressure_level_;
+  // Reset the memory pressure level to avoid recursive GCs triggered by
+  // CheckMemoryPressure from AdjustAmountOfExternalMemory called by
+  // the finalizers.
+  memory_pressure_level_ = MemoryPressureLevel::kNone;
+  if (memory_pressure_level == MemoryPressureLevel::kCritical) {
     CollectGarbageOnMemoryPressure();
-  } else if (memory_pressure_level_ == MemoryPressureLevel::kModerate) {
+  } else if (memory_pressure_level == MemoryPressureLevel::kModerate) {
     if (FLAG_incremental_marking && incremental_marking()->IsStopped()) {
       StartIncrementalMarking(kReduceMemoryFootprintMask,
                               GarbageCollectionReason::kMemoryPressure);
