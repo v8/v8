@@ -14888,6 +14888,24 @@ void Code::PrintBuiltinCode(Isolate* isolate, const char* name) {
   }
 }
 
+namespace {
+
+inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code* code,
+                                 Address begin, size_t size,
+                                 Address current_pc) {
+  Address end = begin + size;
+  // TODO(mstarzinger): Refactor CodeReference to avoid the
+  // unhandlified->handlified transition.
+  AllowHandleAllocation allow_handles;
+  DisallowHeapAllocation no_gc;
+  HandleScope handle_scope(isolate);
+  Disassembler::Decode(isolate, &os, reinterpret_cast<byte*>(begin),
+                       reinterpret_cast<byte*>(end),
+                       CodeReference(handle(code, isolate)), current_pc);
+}
+
+}  // namespace
+
 void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   Isolate* isolate = GetIsolate();
   os << "kind = " << Kind2String(kind()) << "\n";
@@ -14906,9 +14924,16 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
     os << "stack_slots = " << stack_slots() << "\n";
   }
   os << "compiler = " << (is_turbofanned() ? "turbofan" : "unknown") << "\n";
-  os << "address = " << static_cast<const void*>(this) << "\n";
+  os << "address = " << static_cast<const void*>(this) << "\n\n";
 
-  os << "Body (size = " << InstructionSize() << ")\n";
+  if (is_off_heap_trampoline()) {
+    int trampoline_size = raw_instruction_size();
+    os << "Trampoline (size = " << trampoline_size << ")\n";
+    DisassembleCodeRange(isolate, os, this, raw_instruction_start(),
+                         trampoline_size, current_pc);
+    os << "\n";
+  }
+
   {
     int size = InstructionSize();
     int safepoint_offset =
@@ -14920,25 +14945,16 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
     int code_size =
         Min(handler_offset, Min(safepoint_offset, constant_pool_offset));
     os << "Instructions (size = " << code_size << ")\n";
-    Address begin = InstructionStart();
-    Address end = begin + code_size;
-    {
-      // TODO(mstarzinger): Refactor CodeReference to avoid the
-      // unhandlified->handlified transition.
-      AllowHandleAllocation allow_handles;
-      DisallowHeapAllocation no_gc;
-      HandleScope handle_scope(isolate);
-      Disassembler::Decode(isolate, &os, reinterpret_cast<byte*>(begin),
-                           reinterpret_cast<byte*>(end),
-                           CodeReference(handle(this, isolate)), current_pc);
-    }
+    DisassembleCodeRange(isolate, os, this, InstructionStart(), code_size,
+                         current_pc);
 
     if (constant_pool_offset < size) {
       int constant_pool_size = safepoint_offset - constant_pool_offset;
       DCHECK_EQ(constant_pool_size & kPointerAlignmentMask, 0);
       os << "\nConstant Pool (size = " << constant_pool_size << ")\n";
       Vector<char> buf = Vector<char>::New(50);
-      intptr_t* ptr = reinterpret_cast<intptr_t*>(begin + constant_pool_offset);
+      intptr_t* ptr = reinterpret_cast<intptr_t*>(InstructionStart() +
+                                                  constant_pool_offset);
       for (int i = 0; i < constant_pool_size; i += kPointerSize, ptr++) {
         SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);
         os << static_cast<const void*>(ptr) << "  " << buf.start() << "\n";
