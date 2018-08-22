@@ -66,9 +66,6 @@ class ZoneChunkList : public ZoneObject {
   T& front() const;
   T& back() const;
 
-  const T& at(size_t index) const;
-  T& at(size_t index);
-
   void push_back(const T& item);
   void pop_back();
 
@@ -292,18 +289,6 @@ T& ZoneChunkList<T>::back() const {
   } else {
     return back_->items()[back_->position_ - 1];
   }
-}
-
-template <typename T>
-const T& ZoneChunkList<T>::at(size_t index) const {
-  DCHECK_LT(index, size());
-  return *Find(index);
-}
-
-template <typename T>
-T& ZoneChunkList<T>::at(size_t index) {
-  DCHECK_LT(index, size());
-  return *Find(index);
 }
 
 template <typename T>

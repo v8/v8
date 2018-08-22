@@ -617,7 +617,7 @@ class ELF BASE_EMBEDDED {
     WriteSections(w);
   }
 
-  ELFSection* SectionAt(uint32_t index) { return sections_.at(index); }
+  ELFSection* SectionAt(uint32_t index) { return *sections_.Find(index); }
 
   size_t AddSection(ELFSection* section) {
     sections_.push_back(section);
@@ -911,9 +911,9 @@ class ELFSymbolTable : public ELFSection {
   void WriteSymbolsList(const ZoneChunkList<ELFSymbol>* src,
                         Writer::Slot<ELFSymbol::SerializedLayout> dst,
                         ELFStringTable* strtab) {
-    size_t len = src->size();
-    for (uint32_t i = 0; i < len; i++) {
-      src->at(i).Write(dst.at(i), strtab);
+    int i = 0;
+    for (const ELFSymbol& symbol : *src) {
+      symbol.Write(dst.at(i++), strtab);
     }
   }
 
