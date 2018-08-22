@@ -1091,7 +1091,7 @@ class ParserBase {
         function_state_->kind(), is_strict_reserved, is_await, ok);
   }
 
-  IdentifierT ParseIdentifierName(bool* ok);
+  V8_INLINE IdentifierT ParseIdentifierName(bool* ok);
 
   ExpressionT ParseIdentifierNameOrPrivateName(bool* ok);
 
@@ -1184,7 +1184,7 @@ class ParserBase {
   ExpressionT ParseImportExpressions(bool* ok);
   ExpressionT ParseNewTargetExpression(bool* ok);
 
-  void ParseFormalParameter(FormalParametersT* parameters, bool* ok);
+  V8_INLINE void ParseFormalParameter(FormalParametersT* parameters, bool* ok);
   void ParseFormalParameterList(FormalParametersT* parameters, bool* ok);
   void CheckArityRestrictions(int param_count, FunctionKind function_type,
                               bool has_rest, int formals_start_pos,
@@ -1229,9 +1229,9 @@ class ParserBase {
     USE(result);
     DCHECK_EQ(result, kLazyParsingComplete);
   }
-  LazyParsingResult ParseStatementList(StatementListT body,
-                                       Token::Value end_token, bool may_abort,
-                                       bool* ok);
+  V8_INLINE LazyParsingResult ParseStatementList(StatementListT body,
+                                                 Token::Value end_token,
+                                                 bool may_abort, bool* ok);
   StatementT ParseStatementListItem(bool* ok);
 
   StatementT ParseStatement(ZonePtrList<const AstRawString>* labels,
@@ -1284,7 +1284,7 @@ class ParserBase {
   StatementT ParseThrowStatement(bool* ok);
   StatementT ParseSwitchStatement(ZonePtrList<const AstRawString>* labels,
                                   bool* ok);
-  StatementT ParseTryStatement(bool* ok);
+  V8_INLINE StatementT ParseTryStatement(bool* ok);
   StatementT ParseForStatement(ZonePtrList<const AstRawString>* labels,
                                ZonePtrList<const AstRawString>* own_labels,
                                bool* ok);
