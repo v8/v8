@@ -891,6 +891,7 @@ torque_files = [
   "src/builtins/typed-array.tq",
   "src/builtins/data-view.tq",
   "test/torque/test-torque.tq",
+  "third_party/v8/builtins/array-sort.tq",
 ]
 
 torque_modules = [
