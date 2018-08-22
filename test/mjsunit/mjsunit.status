@@ -646,6 +646,7 @@
   'regress/regress-6288': [FAIL],
   # OOM:
   'regress/regress-752764': [PASS, FAIL],
+  'regress/regress-852258': [SKIP],
 }],  # 'system == android'
 
 ##############################################################################
