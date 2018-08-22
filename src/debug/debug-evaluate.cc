@@ -257,7 +257,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 // Use macro to include both inlined and non-inlined version of an intrinsic.
 #define INTRINSIC_WHITELIST(V)                \
   /* Conversions */                           \
-  V(NumberToStringSkipCache)                  \
+  V(NumberToString)                           \
   V(ToBigInt)                                 \
   V(ToInteger)                                \
   V(ToLength)                                 \

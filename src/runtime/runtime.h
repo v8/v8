@@ -299,7 +299,7 @@ namespace internal {
   F(IsSmi, 1, 1)                      \
   F(IsValidSmi, 1, 1)                 \
   F(MaxSmi, 0, 1)                     \
-  F(NumberToStringSkipCache, 1, 1)    \
+  F(NumberToString, 1, 1)             \
   F(SmiLexicographicCompare, 2, 1)    \
   F(StringParseFloat, 1, 1)           \
   F(StringParseInt, 2, 1)             \

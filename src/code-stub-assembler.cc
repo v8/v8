@@ -4827,55 +4827,61 @@ Node* CodeStubAssembler::TruncateHeapNumberValueToWord32(Node* object) {
   return TruncateFloat64ToWord32(value);
 }
 
-TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(
-    SloppyTNode<Float64T> value) {
+void CodeStubAssembler::TryHeapNumberToSmi(TNode<HeapNumber> number,
+                                           TVariable<Smi>& var_result_smi,
+                                           Label* if_smi) {
+  TNode<Float64T> value = LoadHeapNumberValue(number);
+  TryFloat64ToSmi(value, var_result_smi, if_smi);
+}
+
+void CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
+                                        TVariable<Smi>& var_result_smi,
+                                        Label* if_smi) {
   TNode<Int32T> value32 = RoundFloat64ToInt32(value);
   TNode<Float64T> value64 = ChangeInt32ToFloat64(value32);
 
-  Label if_valueisint32(this), if_valueisheapnumber(this), if_join(this);
+  Label if_int32(this), if_heap_number(this, Label::kDeferred);
 
-  Label if_valueisequal(this), if_valueisnotequal(this);
-  Branch(Float64Equal(value, value64), &if_valueisequal, &if_valueisnotequal);
-  BIND(&if_valueisequal);
-  {
-    GotoIfNot(Word32Equal(value32, Int32Constant(0)), &if_valueisint32);
-    Branch(Int32LessThan(UncheckedCast<Int32T>(Float64ExtractHighWord32(value)),
-                         Int32Constant(0)),
-           &if_valueisheapnumber, &if_valueisint32);
-  }
-  BIND(&if_valueisnotequal);
-  Goto(&if_valueisheapnumber);
+  GotoIfNot(Float64Equal(value, value64), &if_heap_number);
+  GotoIfNot(Word32Equal(value32, Int32Constant(0)), &if_int32);
+  Branch(Int32LessThan(UncheckedCast<Int32T>(Float64ExtractHighWord32(value)),
+                       Int32Constant(0)),
+         &if_heap_number, &if_int32);
 
   TVARIABLE(Number, var_result);
-  BIND(&if_valueisint32);
+  BIND(&if_int32);
   {
     if (SmiValuesAre32Bits()) {
-      TNode<Smi> result = SmiTag(ChangeInt32ToIntPtr(value32));
-      var_result = result;
-      Goto(&if_join);
+      var_result_smi = SmiTag(ChangeInt32ToIntPtr(value32));
     } else {
       DCHECK(SmiValuesAre31Bits());
       TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(value32, value32);
       TNode<BoolT> overflow = Projection<1>(pair);
-      Label if_overflow(this, Label::kDeferred), if_notoverflow(this);
-      Branch(overflow, &if_overflow, &if_notoverflow);
-      BIND(&if_overflow);
-      Goto(&if_valueisheapnumber);
-      BIND(&if_notoverflow);
-      {
-        TNode<Smi> result =
-            BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
-        var_result = result;
-        Goto(&if_join);
-      }
+      GotoIf(overflow, &if_heap_number);
+      var_result_smi =
+          BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
     }
+    Goto(if_smi);
   }
-  BIND(&if_valueisheapnumber);
+  BIND(&if_heap_number);
+}
+
+TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(
+    SloppyTNode<Float64T> value) {
+  Label if_smi(this), done(this);
+  TVARIABLE(Smi, var_smi_result);
+  TVARIABLE(Number, var_result);
+  TryFloat64ToSmi(value, var_smi_result, &if_smi);
+
+  var_result = AllocateHeapNumberWithValue(value);
+  Goto(&done);
+
+  BIND(&if_smi);
   {
-    var_result = AllocateHeapNumberWithValue(value);
-    Goto(&if_join);
+    var_result = var_smi_result.value();
+    Goto(&done);
   }
-  BIND(&if_join);
+  BIND(&done);
   return var_result.value();
 }
 
@@ -4896,17 +4902,16 @@ TNode<Number> CodeStubAssembler::ChangeInt32ToTagged(
     TNode<Float64T> value64 = ChangeInt32ToFloat64(value);
     TNode<HeapNumber> result = AllocateHeapNumberWithValue(value64);
     var_result = result;
+    Goto(&if_join);
   }
-  Goto(&if_join);
   BIND(&if_notoverflow);
   {
     TNode<IntPtrT> almost_tagged_value =
         ChangeInt32ToIntPtr(Projection<0>(pair));
-    TNode<Smi> result;
-    result = BitcastWordToTaggedSigned(almost_tagged_value);
+    TNode<Smi> result = BitcastWordToTaggedSigned(almost_tagged_value);
     var_result = result;
+    Goto(&if_join);
   }
-  Goto(&if_join);
   BIND(&if_join);
   return var_result.value();
 }
@@ -6616,7 +6621,9 @@ TNode<Number> CodeStubAssembler::StringToNumber(TNode<String> input) {
 
 TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
   TVARIABLE(String, result);
-  Label runtime(this, Label::kDeferred), smi(this), done(this, &result);
+  TVARIABLE(Smi, smi_input);
+  Label runtime(this, Label::kDeferred), if_smi(this), if_heap_number(this),
+      done(this, &result);
 
   // Load the number string cache.
   Node* number_string_cache = LoadRoot(Heap::kNumberStringCacheRootIndex);
@@ -6629,63 +6636,67 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
   TNode<IntPtrT> one = IntPtrConstant(1);
   mask = IntPtrSub(mask, one);
 
-  GotoIf(TaggedIsSmi(input), &smi);
+  GotoIfNot(TaggedIsSmi(input), &if_heap_number);
+  smi_input = CAST(input);
+  Goto(&if_smi);
 
-  TNode<HeapNumber> heap_number_input = CAST(input);
-
-  // Make a hash from the two 32-bit values of the double.
-  TNode<Int32T> low =
-      LoadObjectField<Int32T>(heap_number_input, HeapNumber::kValueOffset);
-  TNode<Int32T> high = LoadObjectField<Int32T>(
-      heap_number_input, HeapNumber::kValueOffset + kIntSize);
-  TNode<Word32T> hash = Word32Xor(low, high);
-  TNode<WordT> word_hash = WordShl(ChangeInt32ToIntPtr(hash), one);
-  TNode<WordT> index =
-      WordAnd(word_hash, WordSar(mask, SmiShiftBitsConstant()));
-
-  // Cache entry's key must be a heap number
-  Node* number_key = LoadFixedArrayElement(CAST(number_string_cache), index);
-  GotoIf(TaggedIsSmi(number_key), &runtime);
-  GotoIfNot(IsHeapNumber(number_key), &runtime);
-
-  // Cache entry's key must match the heap number value we're looking for.
-  Node* low_compare = LoadObjectField(number_key, HeapNumber::kValueOffset,
-                                      MachineType::Int32());
-  Node* high_compare = LoadObjectField(
-      number_key, HeapNumber::kValueOffset + kIntSize, MachineType::Int32());
-  GotoIfNot(Word32Equal(low, low_compare), &runtime);
-  GotoIfNot(Word32Equal(high, high_compare), &runtime);
-
-  // Heap number match, return value from cache entry.
-  IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
-  result = CAST(
-      LoadFixedArrayElement(CAST(number_string_cache), index, kPointerSize));
-  Goto(&done);
-
-  BIND(&runtime);
+  BIND(&if_heap_number);
   {
-    // No cache entry, go to the runtime.
-    result = CAST(CallRuntime(Runtime::kNumberToStringSkipCache,
-                              NoContextConstant(), input));
-  }
-  Goto(&done);
+    TNode<HeapNumber> heap_number_input = CAST(input);
+    // Try normalizing the HeapNumber.
+    TryHeapNumberToSmi(heap_number_input, smi_input, &if_smi);
 
-  BIND(&smi);
+    // Make a hash from the two 32-bit values of the double.
+    TNode<Int32T> low =
+        LoadObjectField<Int32T>(heap_number_input, HeapNumber::kValueOffset);
+    TNode<Int32T> high = LoadObjectField<Int32T>(
+        heap_number_input, HeapNumber::kValueOffset + kIntSize);
+    TNode<Word32T> hash = Word32Xor(low, high);
+    TNode<WordT> word_hash = WordShl(ChangeInt32ToIntPtr(hash), one);
+    TNode<WordT> index =
+        WordAnd(word_hash, WordSar(mask, SmiShiftBitsConstant()));
+
+    // Cache entry's key must be a heap number
+    Node* number_key = LoadFixedArrayElement(CAST(number_string_cache), index);
+    GotoIf(TaggedIsSmi(number_key), &runtime);
+    GotoIfNot(IsHeapNumber(number_key), &runtime);
+
+    // Cache entry's key must match the heap number value we're looking for.
+    Node* low_compare = LoadObjectField(number_key, HeapNumber::kValueOffset,
+                                        MachineType::Int32());
+    Node* high_compare = LoadObjectField(
+        number_key, HeapNumber::kValueOffset + kIntSize, MachineType::Int32());
+    GotoIfNot(Word32Equal(low, low_compare), &runtime);
+    GotoIfNot(Word32Equal(high, high_compare), &runtime);
+
+    // Heap number match, return value from cache entry.
+    result = CAST(
+        LoadFixedArrayElement(CAST(number_string_cache), index, kPointerSize));
+    Goto(&done);
+  }
+
+  BIND(&if_smi);
   {
     // Load the smi key, make sure it matches the smi we're looking for.
     Node* smi_index = BitcastWordToTagged(
-        WordAnd(WordShl(BitcastTaggedToWord(input), one), mask));
+        WordAnd(WordShl(BitcastTaggedToWord(smi_input.value()), one), mask));
     Node* smi_key = LoadFixedArrayElement(CAST(number_string_cache), smi_index,
                                           0, SMI_PARAMETERS);
-    GotoIf(WordNotEqual(smi_key, input), &runtime);
+    GotoIf(WordNotEqual(smi_key, smi_input.value()), &runtime);
 
     // Smi match, return value from cache entry.
-    IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
     result = CAST(LoadFixedArrayElement(CAST(number_string_cache), smi_index,
                                         kPointerSize, SMI_PARAMETERS));
     Goto(&done);
   }
 
+  BIND(&runtime);
+  {
+    // No cache entry, go to the runtime.
+    result =
+        CAST(CallRuntime(Runtime::kNumberToString, NoContextConstant(), input));
+    Goto(&done);
+  }
   BIND(&done);
   return result.value();
 }
