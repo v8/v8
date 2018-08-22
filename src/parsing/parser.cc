@@ -1404,7 +1404,7 @@ Block* Parser::BuildInitializationBlock(
     DeclarationParsingResult* parsing_result,
     ZonePtrList<const AstRawString>* names, bool* ok) {
   Block* result = factory()->NewBlock(1, true);
-  for (auto declaration : parsing_result->declarations) {
+  for (const auto& declaration : parsing_result->declarations) {
     DeclareAndInitializeVariables(result, &(parsing_result->descriptor),
                                   &declaration, names, CHECK_OK);
   }
