@@ -36,6 +36,10 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // stays the initial map.
   MapRef DependOnInitialMap(const JSFunctionRef& function);
 
+  // Return the "prototype" property of the given function and record the
+  // assumption that it doesn't change.
+  ObjectRef DependOnPrototypeProperty(const JSFunctionRef& function);
+
   // Record the assumption that {map} stays stable.
   void DependOnStableMap(const MapRef& map);
 

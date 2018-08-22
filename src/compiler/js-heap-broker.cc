@@ -75,6 +75,9 @@ class JSFunctionData : public JSObjectData {
  public:
   ObjectData* const global_proxy;
   ObjectData* const initial_map;  // Can be nullptr.
+  bool const has_prototype;
+  ObjectData* const prototype;  // Can be nullptr.
+  bool const PrototypeRequiresRuntimeLookup;
   ObjectData* const shared;
 
   JSFunctionData(JSHeapBroker* broker_, Handle<JSFunction> object_,
@@ -301,6 +304,9 @@ JSFunctionData::JSFunctionData(JSHeapBroker* broker_,
       initial_map(object_->has_prototype_slot() && object_->has_initial_map()
                       ? GET_OR_CREATE(initial_map)
                       : nullptr),
+      has_prototype(object_->has_prototype_slot() && object_->has_prototype()),
+      prototype(has_prototype ? GET_OR_CREATE(prototype) : nullptr),
+      PrototypeRequiresRuntimeLookup(object_->PrototypeRequiresRuntimeLookup()),
       shared(GET_OR_CREATE(shared)) {
   if (initial_map != nullptr &&
       initial_map->AsMap()->instance_type == JS_ARRAY_TYPE) {
@@ -966,7 +972,10 @@ HANDLE_ACCESSOR_C(HeapNumber, double, value)
 
 HANDLE_ACCESSOR(JSArray, Object, length)
 
+BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
+BIMODAL_ACCESSOR_C(JSFunction, bool, PrototypeRequiresRuntimeLookup)
 BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
+BIMODAL_ACCESSOR(JSFunction, Object, prototype)
 HANDLE_ACCESSOR_C(JSFunction, bool, IsConstructor)
 HANDLE_ACCESSOR(JSFunction, JSGlobalProxy, global_proxy)
 HANDLE_ACCESSOR(JSFunction, SharedFunctionInfo, shared)

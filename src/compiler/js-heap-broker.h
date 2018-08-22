@@ -171,7 +171,9 @@ class JSFunctionRef : public JSObjectRef {
   bool IsConstructor() const;
   bool has_initial_map() const;
   MapRef initial_map() const;
-
+  bool has_prototype() const;
+  ObjectRef prototype() const;
+  bool PrototypeRequiresRuntimeLookup() const;
   JSGlobalProxyRef global_proxy() const;
   int InitialMapInstanceSizeWithMinSlack() const;
   SharedFunctionInfoRef shared() const;
