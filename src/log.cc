@@ -2231,9 +2231,6 @@ void ExistingCodeLogger::LogExistingFunction(
 #endif
       CALL_CODE_EVENT_HANDLER(CallbackEvent(shared->DebugName(), entry_point))
     }
-  } else {
-    CALL_CODE_EVENT_HANDLER(CodeCreateEvent(
-        tag, *code, *shared, ReadOnlyRoots(isolate_).empty_string()))
   }
 }
 
