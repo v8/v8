@@ -433,7 +433,7 @@ class ParserBase {
       return destructuring_assignments_to_rewrite_;
     }
 
-    ZoneList<typename ExpressionClassifier::Error>* GetReportedErrorList() {
+    ZoneVector<typename ExpressionClassifier::Error>* GetReportedErrorList() {
       return &reported_errors_;
     }
 
@@ -487,7 +487,8 @@ class ParserBase {
 
     ZoneChunkList<RewritableExpressionT> destructuring_assignments_to_rewrite_;
 
-    ZoneList<typename ExpressionClassifier::Error> reported_errors_;
+    // We use a ZoneVector here because we need to do a lot of random access.
+    ZoneVector<typename ExpressionClassifier::Error> reported_errors_;
 
     // A reason, if any, why this function should not be optimized.
     BailoutReason dont_optimize_reason_;
@@ -1593,7 +1594,7 @@ ParserBase<Impl>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_(scope),
       destructuring_assignments_to_rewrite_(scope->zone()),
-      reported_errors_(16, scope->zone()),
+      reported_errors_(scope_->zone()),
       dont_optimize_reason_(BailoutReason::kNoReason),
       suspend_count_(0),
       next_function_is_likely_called_(false),
