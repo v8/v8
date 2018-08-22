@@ -50,12 +50,6 @@ class Utf16CharacterStream {
     }
   }
 
-  inline void Skip(uc32 c) {
-    DCHECK_LT(buffer_cursor_, buffer_end_);
-    DCHECK_EQ(c, static_cast<uc32>(*buffer_cursor_));
-    buffer_cursor_++;
-  }
-
   // Returns and advances past the next UTF-16 code unit in the input
   // stream. If there are no more code units it returns kEndOfInput.
   inline uc32 Advance() {
@@ -640,13 +634,13 @@ class Scanner {
   bool CombineSurrogatePair() {
     DCHECK(!unibrow::Utf16::IsLeadSurrogate(kEndOfInput));
     if (unibrow::Utf16::IsLeadSurrogate(c0_)) {
-      uc32 c1 = source_->Peek();
+      uc32 c1 = source_->Advance();
       DCHECK(!unibrow::Utf16::IsTrailSurrogate(kEndOfInput));
       if (unibrow::Utf16::IsTrailSurrogate(c1)) {
         c0_ = unibrow::Utf16::CombineSurrogatePair(c0_, c1);
-        source_->Skip(c1);
         return true;
       }
+      source_->Back();
     }
     return false;
   }
