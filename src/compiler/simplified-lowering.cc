@@ -2973,7 +2973,8 @@ class RepresentationSelector {
         if (input_type.Is(Type::Number())) {
           VisitNoop(node, truncation);
         } else {
-          CheckFloat64HoleMode mode = CheckFloat64HoleModeOf(node->op());
+          CheckFloat64HoleMode mode =
+              CheckFloat64HoleParametersOf(node->op()).mode();
           switch (mode) {
             case CheckFloat64HoleMode::kAllowReturnHole:
               if (truncation.IsUnused()) return VisitUnused(node);

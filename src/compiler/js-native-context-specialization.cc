@@ -2534,10 +2534,10 @@ JSNativeContextSpecialization::BuildElementAccess(
           } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
             // Return the signaling NaN hole directly if all uses are
             // truncating.
-            vtrue = etrue =
-                graph()->NewNode(simplified()->CheckFloat64Hole(
-                                     CheckFloat64HoleMode::kAllowReturnHole),
-                                 vtrue, etrue, if_true);
+            vtrue = etrue = graph()->NewNode(
+                simplified()->CheckFloat64Hole(
+                    CheckFloat64HoleMode::kAllowReturnHole, VectorSlotPair()),
+                vtrue, etrue, if_true);
           }
         }
 
@@ -2585,7 +2585,8 @@ JSNativeContextSpecialization::BuildElementAccess(
             mode = CheckFloat64HoleMode::kAllowReturnHole;
           }
           value = effect = graph()->NewNode(
-              simplified()->CheckFloat64Hole(mode), value, effect, control);
+              simplified()->CheckFloat64Hole(mode, VectorSlotPair()), value,
+              effect, control);
         }
       }
     } else {
