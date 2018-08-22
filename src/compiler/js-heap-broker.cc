@@ -240,9 +240,8 @@ class AllocationSiteData : public HeapObjectData {
         GetPretenureMode(object_->GetPretenureMode()),
         nested_site(GET_OR_CREATE(nested_site)) {
     if (PointsToLiteral) {
-      IsFastLiteral = IsInlinableFastLiteral(
-          handle(object_->boilerplate(), broker->isolate()));
-      if (IsFastLiteral) {
+      if (IsInlinableFastLiteral(
+              handle(object_->boilerplate(), broker->isolate()))) {
         boilerplate = GET_OR_CREATE(boilerplate)->AsJSObject();
       }
     } else {
@@ -254,9 +253,6 @@ class AllocationSiteData : public HeapObjectData {
   bool const PointsToLiteral;
   PretenureFlag const GetPretenureMode;
   ObjectData* const nested_site;
-
-  // These are only valid if PointsToLiteral is true.
-  bool IsFastLiteral = false;
   JSObjectData* boilerplate = nullptr;
 
   // These are only valid if PointsToLiteral is false.
@@ -778,7 +774,7 @@ bool AllocationSiteRef::IsFastLiteral() const {
     return IsInlinableFastLiteral(
         handle(object<AllocationSite>()->boilerplate(), broker()->isolate()));
   } else {
-    return data()->AsAllocationSite()->IsFastLiteral;
+    return data()->AsAllocationSite()->boilerplate != nullptr;
   }
 }
 
