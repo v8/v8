@@ -205,10 +205,10 @@ class Safepoint BASE_EMBEDDED {
 class SafepointTableBuilder BASE_EMBEDDED {
  public:
   explicit SafepointTableBuilder(Zone* zone)
-      : deoptimization_info_(32, zone),
+      : deoptimization_info_(zone),
         emitted_(false),
         last_lazy_safepoint_(0),
-        zone_(zone) { }
+        zone_(zone) {}
 
   // Get the offset of the emitted safepoint table in the code.
   unsigned GetCodeOffset() const;
@@ -223,7 +223,7 @@ class SafepointTableBuilder BASE_EMBEDDED {
   // outstanding safepoints.
   void RecordLazyDeoptimizationIndex(int index);
   void BumpLastLazySafepointIndex() {
-    last_lazy_safepoint_ = deoptimization_info_.length();
+    last_lazy_safepoint_ = deoptimization_info_.size();
   }
 
   // Emit the safepoint table after the body. The number of bits per
@@ -267,11 +267,11 @@ class SafepointTableBuilder BASE_EMBEDDED {
   // If all entries are identical, replace them by 1 entry with pc = kMaxUInt32.
   void RemoveDuplicates();
 
-  ZoneList<DeoptimizationInfo> deoptimization_info_;
+  ZoneChunkList<DeoptimizationInfo> deoptimization_info_;
 
   unsigned offset_;
   bool emitted_;
-  int last_lazy_safepoint_;
+  size_t last_lazy_safepoint_;
 
   Zone* zone_;
 

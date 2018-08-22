@@ -132,20 +132,19 @@ Safepoint SafepointTableBuilder::DefineSafepoint(
     int arguments,
     Safepoint::DeoptMode deopt_mode) {
   DCHECK_GE(arguments, 0);
-  deoptimization_info_.Add(
-      DeoptimizationInfo(zone_, assembler->pc_offset(), arguments, kind),
-      zone_);
+  deoptimization_info_.push_back(
+      DeoptimizationInfo(zone_, assembler->pc_offset(), arguments, kind));
   if (deopt_mode == Safepoint::kNoLazyDeopt) {
-    last_lazy_safepoint_ = deoptimization_info_.length();
+    last_lazy_safepoint_ = deoptimization_info_.size();
   }
-  DeoptimizationInfo& new_info = deoptimization_info_.last();
+  DeoptimizationInfo& new_info = deoptimization_info_.back();
   return Safepoint(new_info.indexes, new_info.registers);
 }
 
-
 void SafepointTableBuilder::RecordLazyDeoptimizationIndex(int index) {
-  while (last_lazy_safepoint_ < deoptimization_info_.length()) {
-    deoptimization_info_[last_lazy_safepoint_++].deopt_index = index;
+  for (auto it = deoptimization_info_.Find(last_lazy_safepoint_);
+       it != deoptimization_info_.end(); it++, last_lazy_safepoint_++) {
+    it->deopt_index = index;
   }
 }
 
@@ -156,17 +155,15 @@ unsigned SafepointTableBuilder::GetCodeOffset() const {
 
 int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
                                                     int start) {
-  int index = -1;
-  for (int i = start; i < deoptimization_info_.length(); i++) {
-    if (static_cast<int>(deoptimization_info_[i].pc) == pc) {
-      index = i;
-      break;
+  int index = start;
+  for (auto it = deoptimization_info_.Find(start);
+       it != deoptimization_info_.end(); it++, index++) {
+    if (static_cast<int>(it->pc) == pc) {
+      it->trampoline = trampoline;
+      return index;
     }
   }
-  CHECK_GE(index, 0);
-  DCHECK(index < deoptimization_info_.length());
-  deoptimization_info_[index].trampoline = trampoline;
-  return index;
+  UNREACHABLE();
 }
 
 void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
@@ -185,13 +182,12 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
       RoundUp(bits_per_entry, kBitsPerByte) >> kBitsPerByteLog2;
 
   // Emit the table header.
-  int length = deoptimization_info_.length();
+  int length = static_cast<int>(deoptimization_info_.size());
   assembler->dd(length);
   assembler->dd(bytes_per_entry);
 
   // Emit sorted table of pc offsets together with deoptimization indexes.
-  for (int i = 0; i < length; i++) {
-    const DeoptimizationInfo& info = deoptimization_info_[i];
+  for (const DeoptimizationInfo& info : deoptimization_info_) {
     assembler->dd(info.pc);
     assembler->dd(EncodeExceptPC(info));
     assembler->dd(info.trampoline);
@@ -199,9 +195,9 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
 
   // Emit table of bitmaps.
   ZoneVector<uint8_t> bits(bytes_per_entry, 0, zone_);
-  for (int i = 0; i < length; i++) {
-    ZoneChunkList<int>* indexes = deoptimization_info_[i].indexes;
-    ZoneChunkList<int>* registers = deoptimization_info_[i].registers;
+  for (const DeoptimizationInfo& info : deoptimization_info_) {
+    ZoneChunkList<int>* indexes = info.indexes;
+    ZoneChunkList<int>* registers = info.registers;
     std::fill(bits.begin(), bits.end(), 0);
 
     // Run through the registers (if any).
@@ -248,19 +244,19 @@ void SafepointTableBuilder::RemoveDuplicates() {
   // kMaxUInt32. This especially compacts the table for wasm code without tagged
   // pointers and without deoptimization info.
 
-  int length = deoptimization_info_.length();
-  if (length < 2) return;
+  if (deoptimization_info_.size() < 2) return;
 
-  // Check that all entries (1, length] are identical to entry 0.
-  const DeoptimizationInfo& first_info = deoptimization_info_[0];
-  for (int i = 1; i < length; ++i) {
-    if (!IsIdenticalExceptForPc(first_info, deoptimization_info_[i])) return;
+  // Check that all entries (1, size] are identical to entry 0.
+  const DeoptimizationInfo& first_info = deoptimization_info_.front();
+  for (auto it = deoptimization_info_.Find(1); it != deoptimization_info_.end();
+       it++) {
+    if (!IsIdenticalExceptForPc(first_info, *it)) return;
   }
 
   // If we get here, all entries were identical. Rewind the list to just one
   // entry, and set the pc to kMaxUInt32.
   deoptimization_info_.Rewind(1);
-  deoptimization_info_[0].pc = kMaxUInt32;
+  deoptimization_info_.front().pc = kMaxUInt32;
 }
 
 bool SafepointTableBuilder::IsIdenticalExceptForPc(
