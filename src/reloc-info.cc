@@ -376,19 +376,15 @@ void RelocInfo::set_target_address(Address target,
   }
 }
 
-#ifdef DEBUG
-bool RelocInfo::RequiresRelocation(const CodeDesc& desc) {
-  // Ensure there are no code targets or embedded objects present in the
-  // deoptimization entries, they would require relocation after code
-  // generation.
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
-                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::kApplyMask;
-  RelocIterator it(desc, mode_mask);
+bool RelocInfo::RequiresRelocationAfterCodegen(const CodeDesc& desc) {
+  RelocIterator it(desc, RelocInfo::PostCodegenRelocationMask());
   return !it.done();
 }
-#endif
+
+bool RelocInfo::RequiresRelocation(Code* code) {
+  RelocIterator it(code, RelocInfo::kApplyMask);
+  return !it.done();
+}
 
 #ifdef ENABLE_DISASSEMBLER
 const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {

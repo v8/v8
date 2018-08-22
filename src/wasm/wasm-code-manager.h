@@ -12,6 +12,7 @@
 #include <unordered_set>
 
 #include "src/base/macros.h"
+#include "src/builtins/builtins-definitions.h"
 #include "src/handles.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/vector.h"
@@ -29,18 +30,6 @@ namespace wasm {
 class NativeModule;
 class WasmCodeManager;
 struct WasmModule;
-
-// Convenience macro listing all wasm runtime stubs. Note that the first few
-// elements of the list coincide with {compiler::TrapId}, order matters.
-#define WASM_RUNTIME_STUB_LIST(V, VTRAP) \
-  FOREACH_WASM_TRAPREASON(VTRAP)         \
-  V(WasmAllocateHeapNumber)              \
-  V(WasmArgumentsAdaptor)                \
-  V(WasmCallJavaScript)                  \
-  V(WasmGrowMemory)                      \
-  V(WasmStackGuard)                      \
-  V(WasmToNumber)                        \
-  V(DoubleToI)
 
 struct AddressRange {
   Address start;

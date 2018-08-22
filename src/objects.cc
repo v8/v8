@@ -14325,11 +14325,11 @@ void Code::CopyFrom(Heap* heap, const CodeDesc& desc) {
 }
 
 void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
-  // copy code
+  // Copy code.
   CopyBytes(reinterpret_cast<byte*>(raw_instruction_start()), desc.buffer,
             static_cast<size_t>(desc.instr_size));
 
-  // copy unwinding info, if any
+  // Copy unwinding info, if any.
   if (desc.unwinding_info) {
     DCHECK_GT(desc.unwinding_info_size, 0);
     set_unwinding_info_size(desc.unwinding_info_size);
@@ -14338,20 +14338,15 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
               static_cast<size_t>(desc.unwinding_info_size));
   }
 
-  // copy reloc info
+  // Copy reloc info.
   CopyBytes(relocation_start(),
             desc.buffer + desc.buffer_size - desc.reloc_size,
             static_cast<size_t>(desc.reloc_size));
 
-  // unbox handles and relocate
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
-                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
-                  RelocInfo::kApplyMask;
-  // Needed to find target_object and runtime_entry on X64
+  // Unbox handles and relocate.
   Assembler* origin = desc.origin;
   AllowDeferredHandleDereference embedding_raw_address;
+  const int mode_mask = RelocInfo::PostCodegenRelocationMask();
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
@@ -14359,8 +14354,8 @@ void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
       it.rinfo()->set_target_object(heap, *p, UPDATE_WRITE_BARRIER,
                                     SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsCodeTargetMode(mode)) {
-      // rewrite code handles to direct pointers to the first instruction in the
-      // code object
+      // Rewrite code handles to direct pointers to the first instruction in the
+      // code object.
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
       Code* code = Code::cast(*p);
       it.rinfo()->set_target_address(code->raw_instruction_start(),

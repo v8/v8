@@ -89,7 +89,9 @@ CodeGenerator::CodeGenerator(
   Code::Kind code_kind = info_->code_kind();
   if (code_kind == Code::WASM_FUNCTION ||
       code_kind == Code::WASM_TO_JS_FUNCTION ||
-      code_kind == Code::WASM_INTERPRETER_ENTRY) {
+      code_kind == Code::WASM_INTERPRETER_ENTRY ||
+      (Builtins::IsBuiltinId(builtin_index) &&
+       Builtins::IsWasmRuntimeStub(builtin_index))) {
     tasm_.set_abort_hard(true);
   }
   tasm_.set_builtin_index(builtin_index);

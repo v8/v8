@@ -51,7 +51,7 @@ class Builtins {
 
   static const int32_t kNoBuiltinId = -1;
 
-  static bool IsBuiltinId(int maybe_id) {
+  static constexpr bool IsBuiltinId(int maybe_id) {
     return 0 <= maybe_id && maybe_id < builtin_count;
   }
 
@@ -114,6 +114,11 @@ class Builtins {
   // Helper methods used for testing isolate-independent builtins.
   // TODO(jgruber,v8:6666): Remove once all builtins have been migrated.
   static bool IsIsolateIndependent(int index);
+
+  // Wasm runtime stubs are treated specially by wasm. To guarantee reachability
+  // through near jumps, their code is completely copied into a fresh off-heap
+  // area.
+  static bool IsWasmRuntimeStub(int index);
 
   bool is_initialized() const { return initialized_; }
 

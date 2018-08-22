@@ -355,6 +355,22 @@ bool Builtins::IsIsolateIndependent(int index) {
 }
 
 // static
+bool Builtins::IsWasmRuntimeStub(int index) {
+  DCHECK(IsBuiltinId(index));
+  switch (index) {
+#define CASE_TRAP(Name) case kThrowWasm##Name:
+#define CASE(Name) case k##Name:
+    WASM_RUNTIME_STUB_LIST(CASE, CASE_TRAP)
+#undef CASE_TRAP
+#undef CASE
+    return true;
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+// static
 Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
                                                     Address off_heap_entry) {
   DCHECK(isolate->serializer_enabled());

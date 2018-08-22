@@ -293,11 +293,10 @@ class RelocInfo {
   template <typename ObjectVisitor>
   inline void Visit(ObjectVisitor* v);
 
-#ifdef DEBUG
   // Check whether the given code contains relocation information that
   // either is position-relative or movable by the garbage collector.
-  static bool RequiresRelocation(const CodeDesc& desc);
-#endif
+  static bool RequiresRelocationAfterCodegen(const CodeDesc& desc);
+  static bool RequiresRelocation(Code* code);
 
 #ifdef ENABLE_DISASSEMBLER
   // Printing
@@ -309,6 +308,16 @@ class RelocInfo {
 #endif
 
   static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
+
+  // In addition to modes covered by the apply mask (which is applied at GC
+  // time, among others), this covers all modes that are relocated by
+  // Code::CopyFromNoFlush after code generation.
+  static int PostCodegenRelocationMask() {
+    return ModeMask(RelocInfo::CODE_TARGET) |
+           ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+           ModeMask(RelocInfo::RUNTIME_ENTRY) |
+           ModeMask(RelocInfo::RELATIVE_CODE_TARGET) | kApplyMask;
+  }
 
  private:
   // On ARM/ARM64, note that pc_ is the address of the instruction referencing
