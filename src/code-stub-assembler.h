@@ -382,6 +382,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return p_o;
   }
 
+  TNode<Object> UnsafeCastObjectToLoadFn(TNode<Object> p_o) { return p_o; }
+  TNode<Object> UnsafeCastObjectToStoreFn(TNode<Object> p_o) { return p_o; }
+  TNode<Object> UnsafeCastObjectToCanUseSameAccessorFn(TNode<Object> p_o) {
+    return p_o;
+  }
+
   TNode<NumberDictionary> UnsafeCastObjectToNumberDictionary(
       TNode<Object> p_o) {
     return CAST(p_o);

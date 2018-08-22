@@ -380,6 +380,28 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
   void ArrayBuiltinsAssembler::NullPostLoopAction() {}
 
+  void ArrayBuiltinsAssembler::FillFixedArrayWithSmiZero(
+      TNode<FixedArray> array, TNode<Smi> smi_length) {
+    CSA_ASSERT(this, Word32BinaryNot(IsFixedDoubleArray(array)));
+
+    TNode<IntPtrT> length = SmiToIntPtr(smi_length);
+    TNode<WordT> byte_length = TimesPointerSize(length);
+    CSA_ASSERT(this, UintPtrLessThan(length, byte_length));
+
+    static const int32_t fa_base_data_offset =
+        FixedArray::kHeaderSize - kHeapObjectTag;
+    TNode<IntPtrT> backing_store = IntPtrAdd(
+        BitcastTaggedToWord(array), IntPtrConstant(fa_base_data_offset));
+
+    // Call out to memset to perform initialization.
+    TNode<ExternalReference> memset =
+        ExternalConstant(ExternalReference::libc_memset_function());
+    STATIC_ASSERT(kSizetSize == kIntptrSize);
+    CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
+                   MachineType::IntPtr(), MachineType::UintPtr(), memset,
+                   backing_store, IntPtrConstant(0), byte_length);
+  }
+
   void ArrayBuiltinsAssembler::ReturnFromBuiltin(Node* value) {
     if (argc_ == nullptr) {
       Return(value);
