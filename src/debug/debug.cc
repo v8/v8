@@ -32,8 +32,6 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
-#include "src/parsing/scanner-character-streams.h"
-#include "src/parsing/scanner.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -1847,59 +1845,15 @@ bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
   return result->status == debug::LiveEditResult::OK;
 }
 
-void Debug::OnParseJSONError(Handle<Script> script) {
-  ProcessCompileEvent(CompileStatus::JSON_PARSE_ERROR, script);
-}
-
 void Debug::OnCompileError(Handle<Script> script) {
-  ProcessCompileEvent(CompileStatus::COMPILE_ERROR, script);
+  ProcessCompileEvent(true, script);
 }
 
 void Debug::OnAfterCompile(Handle<Script> script) {
-  ProcessCompileEvent(CompileStatus::OK, script);
+  ProcessCompileEvent(false, script);
 }
 
-namespace {
-void EnsureMagicComments(Isolate* isolate, Handle<Script> script) {
-  Handle<Object> source_value(script->source(), isolate);
-  DCHECK(source_value->IsString());
-  Handle<String> comment_start =
-      isolate->factory()->NewStringFromStaticChars("//");
-  Handle<String> source(Handle<String>::cast(source_value));
-  std::unique_ptr<Utf16CharacterStream> scanner_stream(
-      ScannerStream::For(isolate, source));
-  Scanner scanner(isolate->unicode_cache(), scanner_stream.get(), false);
-  scanner.Initialize();
-
-  bool has_source_url = script->source_url()->IsString();
-  bool has_source_mapping_url = script->source_mapping_url()->IsString();
-
-  int prev_start = source->length();
-  while (prev_start > 0 && (!has_source_mapping_url || !has_source_url)) {
-    int start = Smi::ToInt(
-        String::LastIndexOf(isolate, source, comment_start,
-                            handle(Smi::FromInt(prev_start), isolate)));
-    if (start == -1) return;
-
-    scanner.SeekForward(start);
-    scanner.Next();
-
-    Handle<String> source_url = scanner.SourceUrl(isolate);
-    if (!has_source_url && !source_url.is_null()) {
-      script->set_source_url(*source_url);
-      has_source_url = true;
-    }
-    Handle<String> source_mapping_url = scanner.SourceMappingUrl(isolate);
-    if (!has_source_mapping_url && !source_mapping_url.is_null()) {
-      script->set_source_mapping_url(*source_mapping_url);
-      has_source_mapping_url = true;
-    }
-    prev_start = start - 1;
-  }
-}
-}  // namespace
-
-void Debug::ProcessCompileEvent(CompileStatus status, Handle<Script> script) {
+void Debug::ProcessCompileEvent(bool has_compile_error, Handle<Script> script) {
   // TODO(kozyatinskiy): teach devtools to work with liveedit scripts better
   // first and then remove this fast return.
   if (running_live_edit_) return;
@@ -1911,19 +1865,13 @@ void Debug::ProcessCompileEvent(CompileStatus status, Handle<Script> script) {
     return;
   }
   if (!debug_delegate_) return;
-
-  if (status == CompileStatus::COMPILE_ERROR) {
-    EnsureMagicComments(isolate_, script);
-  }
-
   SuppressDebug while_processing(this);
   DebugScope debug_scope(this);
   HandleScope scope(isolate_);
   DisableBreak no_recursive_break(this);
   AllowJavascriptExecution allow_script(isolate_);
   debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script),
-                                  running_live_edit_,
-                                  status != CompileStatus::OK);
+                                  running_live_edit_, has_compile_error);
 }
 
 int Debug::CurrentFrameCount() {

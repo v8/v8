@@ -222,7 +222,6 @@ class Debug {
   void OnThrow(Handle<Object> exception);
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
   void OnCompileError(Handle<Script> script);
-  void OnParseJSONError(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
 
   void HandleDebugBreak(IgnoreBreakMode ignore_break_mode);
@@ -409,8 +408,7 @@ class Debug {
 
   void OnException(Handle<Object> exception, Handle<Object> promise);
 
-  enum CompileStatus { OK, COMPILE_ERROR, JSON_PARSE_ERROR };
-  void ProcessCompileEvent(CompileStatus status, Handle<Script> script);
+  void ProcessCompileEvent(bool has_compile_error, Handle<Script> script);
 
   // Find the closest source position for a break point for a given position.
   int FindBreakablePosition(Handle<DebugInfo> debug_info, int source_position);
