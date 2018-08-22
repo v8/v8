@@ -30,6 +30,7 @@
 #include <unordered_set>
 #include <vector>
 #include "src/api-inl.h"
+#include "src/builtins/builtins.h"
 #include "src/log-utils.h"
 #include "src/log.h"
 #include "src/objects-inl.h"
@@ -164,6 +165,7 @@ class ScopedLoggerInitializer {
     return result;
   }
 
+  void LogCodeObjects() { logger_->LogCodeObjects(); }
   void LogCompiledFunctions() { logger_->LogCompiledFunctions(); }
 
   void StringEvent(const char* name, const char* value) {
@@ -887,5 +889,35 @@ TEST(LogFunctionEvents) {
     CHECK(logger.ContainsLinesInOrder(lines, start));
   }
   i::FLAG_log_function_events = false;
+  isolate->Dispose();
+}
+
+TEST(BuiltinsNotLoggedAsLazyCompile) {
+  SETUP_FLAGS();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+
+    logger.LogCodeObjects();
+    logger.LogCompiledFunctions();
+    logger.StopLogging();
+
+    i::Handle<i::Code> builtin = logger.i_isolate()->builtins()->builtin_handle(
+        i::Builtins::kBooleanConstructor);
+    i::EmbeddedVector<char, 100> buffer;
+
+    // Should only be logged as "Builtin" with a name, never as "LazyCompile".
+    i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
+                builtin->InstructionStart(), builtin->InstructionSize());
+    CHECK(logger.ContainsLine(
+        {"code-creation,Builtin,3,", std::string(buffer.start())}));
+
+    i::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,", builtin->InstructionStart(),
+                builtin->InstructionSize());
+    CHECK(!logger.ContainsLine(
+        {"code-creation,LazyCompile,3,", std::string(buffer.start())}));
+  }
   isolate->Dispose();
 }
