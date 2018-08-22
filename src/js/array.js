@@ -200,6 +200,35 @@ function ConvertToString(use_locale, x, locales, options) {
   return TO_STRING(x);
 }
 
+
+// This function implements the optimized splice implementation that can use
+// special array operations to handle sparse arrays in a sensible fashion.
+function SparseSlice(array, start_i, del_count, len, deleted_elements) {
+  // Move deleted elements to a new array (the return value from splice).
+  var indices = %GetArrayKeys(array, start_i + del_count);
+  if (IS_NUMBER(indices)) {
+    var limit = indices;
+    for (var i = start_i; i < limit; ++i) {
+      var current = array[i];
+      if (!IS_UNDEFINED(current) || i in array) {
+        %CreateDataProperty(deleted_elements, i - start_i, current);
+      }
+    }
+  } else {
+    var length = indices.length;
+    for (var k = 0; k < length; ++k) {
+      var key = indices[k];
+      if (key >= start_i) {
+        var current = array[key];
+        if (!IS_UNDEFINED(current) || key in array) {
+          %CreateDataProperty(deleted_elements, key - start_i, current);
+        }
+      }
+    }
+  }
+}
+
+
 // This function implements the optimized splice implementation that can use
 // special array operations to handle sparse arrays in a sensible fashion.
 function SparseMove(array, start_i, del_count, len, num_additional_args) {
@@ -536,6 +565,83 @@ function ArraySliceFallback(start, end) {
   return null;
 }
 
+function ComputeSpliceStartIndex(start_i, len) {
+  if (start_i < 0) {
+    start_i += len;
+    return start_i < 0 ? 0 : start_i;
+  }
+
+  return start_i > len ? len : start_i;
+}
+
+
+function ComputeSpliceDeleteCount(delete_count, num_arguments, len, start_i) {
+  // SpiderMonkey, TraceMonkey and JSC treat the case where no delete count is
+  // given as a request to delete all the elements from the start.
+  // And it differs from the case of undefined delete count.
+  // This does not follow ECMA-262, but we do the same for
+  // compatibility.
+  var del_count = 0;
+  if (num_arguments == 1)
+    return len - start_i;
+
+  del_count = TO_INTEGER(delete_count);
+  if (del_count < 0)
+    return 0;
+
+  if (del_count > len - start_i)
+    return len - start_i;
+
+  return del_count;
+}
+
+
+function ArraySpliceFallback(start, delete_count) {
+  var num_arguments = arguments.length;
+  var array = TO_OBJECT(this);
+  var len = TO_LENGTH(array.length);
+  var start_i = ComputeSpliceStartIndex(TO_INTEGER(start), len);
+  var del_count = ComputeSpliceDeleteCount(delete_count, num_arguments, len,
+                                           start_i);
+  var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
+
+  const new_len = len - del_count + num_elements_to_add;
+  if (new_len >= 2**53) throw %make_type_error(kInvalidArrayLength);
+
+  var deleted_elements = ArraySpeciesCreate(array, del_count);
+  deleted_elements.length = del_count;
+
+  var changed_elements = del_count;
+  if (num_elements_to_add != del_count) {
+    // If the slice needs to do a actually move elements after the insertion
+    // point, then include those in the estimate of changed elements.
+    changed_elements += len - start_i - del_count;
+  }
+  if (UseSparseVariant(array, len, IS_ARRAY(array), changed_elements)) {
+    %NormalizeElements(array);
+    if (IS_ARRAY(deleted_elements)) %NormalizeElements(deleted_elements);
+    SparseSlice(array, start_i, del_count, len, deleted_elements);
+    SparseMove(array, start_i, del_count, len, num_elements_to_add);
+  } else {
+    SimpleSlice(array, start_i, del_count, len, deleted_elements);
+    SimpleMove(array, start_i, del_count, len, num_elements_to_add);
+  }
+
+  // Insert the arguments into the resulting array in
+  // place of the deleted elements.
+  var i = start_i;
+  var arguments_index = 2;
+  var arguments_length = arguments.length;
+  while (arguments_index < arguments_length) {
+    array[i++] = arguments[arguments_index++];
+  }
+  array.length = new_len;
+
+  // Return the deleted elements.
+  return deleted_elements;
+}
+
+
 function InnerArraySort(array, length, comparefn) {
   // In-place QuickSort algorithm.
   // For short (length <= 10) arrays, insertion sort is used for efficiency.
@@ -836,6 +942,7 @@ utils.Export(function(to) {
   "array_values_iterator", ArrayValues,
   // Fallback implementations of Array builtins.
   "array_shift", ArrayShiftFallback,
+  "array_splice", ArraySpliceFallback,
   "array_unshift", ArrayUnshiftFallback,
 ]);
 

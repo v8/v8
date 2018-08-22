@@ -888,7 +888,6 @@ torque_files = [
   "src/builtins/array-copywithin.tq",
   "src/builtins/array-foreach.tq",
   "src/builtins/array-shift.tq",
-  "src/builtins/array-splice.tq",
   "src/builtins/typed-array.tq",
   "src/builtins/data-view.tq",
   "test/torque/test-torque.tq",

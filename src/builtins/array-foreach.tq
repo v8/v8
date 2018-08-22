@@ -62,10 +62,6 @@ module array {
           cast<Callable>(callback) otherwise Unexpected;
       const k: Smi = cast<Smi>(initialK) otherwise Unexpected;
       const number_length: Number = cast<Number>(length) otherwise Unexpected;
-      // The unsafe cast is safe because all continuation points in forEach are
-      // after the ToObject(O) call that ensures we are dealing with a
-      // JSReceiver.
-      let jsreceiver: JSReceiver = unsafe_cast<JSReceiver>(object);
 
       return ArrayForEachTorqueContinuation(
           context, receiver, number_length, callbackfn, thisArg, k);

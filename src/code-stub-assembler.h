@@ -1201,19 +1201,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       TNode<FixedDoubleArray> object, Node* index, TNode<Float64T> value,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
-  void StoreFixedDoubleArrayElementSmi(TNode<FixedDoubleArray> object,
-                                       TNode<Smi> index,
-                                       TNode<Float64T> value) {
-    StoreFixedDoubleArrayElement(object, index, value, SMI_PARAMETERS);
-  }
-
-  void StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array, Node* index,
-                                 ParameterMode mode = INTPTR_PARAMETERS);
-  void StoreFixedDoubleArrayHoleSmi(TNode<FixedDoubleArray> array,
-                                    TNode<Smi> index) {
-    StoreFixedDoubleArrayHole(array, index, SMI_PARAMETERS);
-  }
-
   Node* StoreFeedbackVectorSlot(
       Node* object, Node* index, Node* value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
@@ -1449,7 +1436,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* ArraySpeciesCreate(TNode<Context> context, TNode<Object> originalArray,
                            TNode<Number> len);
-  Node* InternalArrayCreate(TNode<Context> context, TNode<Number> len);
 
   void FillFixedArrayWithValue(ElementsKind kind, Node* array, Node* from_index,
                                Node* to_index,
@@ -1525,10 +1511,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return UncheckedCast<FixedDoubleArray>(base);
   }
 
-  TNode<Int32T> ConvertElementsKindToInt(TNode<Int32T> elements_kind) {
-    return UncheckedCast<Int32T>(elements_kind);
-  }
-
   enum class ExtractFixedArrayFlag {
     kFixedArrays = 1,
     kFixedDoubleArrays = 2,
@@ -1569,11 +1551,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
           ExtractFixedArrayFlag::kAllFixedArrays,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
-  TNode<FixedArrayBase> ExtractFixedArray(TNode<FixedArrayBase> source,
-                                          TNode<Smi> first, TNode<Smi> count,
-                                          TNode<Smi> capacity) {
-    return ExtractFixedArray(source, first, count, capacity,
-                             ExtractFixedArrayFlag::kAllFixedArrays,
+  TNode<FixedArrayBase> ExtractFixedArray(
+      TNode<FixedArrayBase> source, TNode<Smi> first, TNode<Smi> count,
+      TNode<Smi> capacity,
+      ExtractFixedArrayFlags extract_flags =
+          ExtractFixedArrayFlag::kAllFixedArrays) {
+    return ExtractFixedArray(source, first, count, capacity, extract_flags,
                              SMI_PARAMETERS);
   }
 
@@ -2564,12 +2547,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                               ElementsKind to_kind, bool is_jsarray,
                               Label* bailout);
 
-  void TransitionElementsKind(TNode<JSReceiver> object, TNode<Map> map,
-                              ElementsKind from_kind, ElementsKind to_kind,
-                              Label* bailout) {
-    TransitionElementsKind(object, map, from_kind, to_kind, true, bailout);
-  }
-
   void TrapAllocationMemento(Node* object, Label* memento_found);
 
   TNode<IntPtrT> PageFromAddress(TNode<IntPtrT> address);
@@ -2661,32 +2638,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void BranchIfNumberRelationalComparison(Operation op, Node* left, Node* right,
                                           Label* if_true, Label* if_false);
 
-  void BranchIfNumberEqual(TNode<Number> left, TNode<Number> right,
-                           Label* if_true, Label* if_false) {
-    BranchIfNumberRelationalComparison(Operation::kEqual, left, right, if_true,
-                                       if_false);
-  }
-
-  void BranchIfNumberLessThan(TNode<Number> left, TNode<Number> right,
-                              Label* if_true, Label* if_false) {
+  void BranchIfNumberLessThan(Node* left, Node* right, Label* if_true,
+                              Label* if_false) {
     BranchIfNumberRelationalComparison(Operation::kLessThan, left, right,
                                        if_true, if_false);
   }
 
-  void BranchIfNumberLessThanOrEqual(TNode<Number> left, TNode<Number> right,
-                                     Label* if_true, Label* if_false) {
+  void BranchIfNumberLessThanOrEqual(Node* left, Node* right, Label* if_true,
+                                     Label* if_false) {
     BranchIfNumberRelationalComparison(Operation::kLessThanOrEqual, left, right,
                                        if_true, if_false);
   }
 
-  void BranchIfNumberGreaterThan(TNode<Number> left, TNode<Number> right,
-                                 Label* if_true, Label* if_false) {
+  void BranchIfNumberGreaterThan(Node* left, Node* right, Label* if_true,
+                                 Label* if_false) {
     BranchIfNumberRelationalComparison(Operation::kGreaterThan, left, right,
                                        if_true, if_false);
   }
 
-  void BranchIfNumberGreaterThanOrEqual(TNode<Number> left, TNode<Number> right,
-                                        Label* if_true, Label* if_false) {
+  void BranchIfNumberGreaterThanOrEqual(Node* left, Node* right, Label* if_true,
+                                        Label* if_false) {
     BranchIfNumberRelationalComparison(Operation::kGreaterThanOrEqual, left,
                                        right, if_true, if_false);
   }

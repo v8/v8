@@ -30,16 +30,6 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
   return *object;
 }
 
-RUNTIME_FUNCTION(Runtime_TransitionElementsKindWithKind) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, elements_kind_smi, 1);
-  ElementsKind to_kind = static_cast<ElementsKind>(elements_kind_smi->value());
-  JSObject::TransitionElementsKind(object, to_kind);
-  return *object;
-}
-
 namespace {
 // Find the next free position. undefined and holes are both considered
 // free spots. Returns "Nothing" if an exception occurred.
