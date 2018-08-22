@@ -1065,8 +1065,7 @@ TNode<BoolT> CodeStubAssembler::IsFastJSArray(SloppyTNode<Object> object,
 }
 
 TNode<BoolT> CodeStubAssembler::IsFastJSArrayWithNoCustomIteration(
-    TNode<Object> object, TNode<Context> context,
-    TNode<Context> native_context) {
+    TNode<Object> object, TNode<Context> context) {
   Label if_false(this, Label::kDeferred), if_fast(this), exit(this);
   TVARIABLE(BoolT, var_result);
   GotoIfForceSlowPath(&if_false);

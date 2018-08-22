@@ -201,13 +201,14 @@ TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
 
   TVARIABLE(JSArray, created_list);
 
-  // This is a fast-path for ignoring the iterator.
-  // TODO(petermarshall): Port IterableToListCanBeElided to CSA.
-  Node* elided =
-      CallRuntime(Runtime::kIterableToListCanBeElided, context, iterable);
-  CSA_ASSERT(this, IsBoolean(elided));
-  Branch(IsTrue(elided), &fast_path, &slow_path);
+  // TODO(dhai): IsFastJSArrayWithNoCustomIteration unnecessarily checks that
+  // the prototype has no element even when the array is packed.
+  // Then the fast path will not be taken in the case when the array is packed
+  // and the prototype has some elements.
+  Branch(IsFastJSArrayWithNoCustomIteration(iterable, context), &fast_path,
+         &slow_path);
 
+  // This is a fast-path for ignoring the iterator.
   BIND(&fast_path);
   {
     TNode<JSArray> input_array = CAST(iterable);

@@ -1239,15 +1239,6 @@ RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
   return *value;
 }
 
-// Checks that 22.2.2.1.1 Runtime Semantics: IterableToList produces exactly the
-// same result as doing nothing.
-RUNTIME_FUNCTION(Runtime_IterableToListCanBeElided) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(!obj->IterationHasObservableEffects());
-}
-
 RUNTIME_FUNCTION(Runtime_GetOwnPropertyDescriptor) {
   HandleScope scope(isolate);
 

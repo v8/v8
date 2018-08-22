@@ -1732,9 +1732,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> IsExternalStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsFastJSArray(SloppyTNode<Object> object,
                              SloppyTNode<Context> context);
-  TNode<BoolT> IsFastJSArrayWithNoCustomIteration(
-      TNode<Object> object, TNode<Context> context,
-      TNode<Context> native_context);
+  TNode<BoolT> IsFastJSArrayWithNoCustomIteration(TNode<Object> object,
+                                                  TNode<Context> context);
   TNode<BoolT> IsFeedbackCell(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFeedbackVector(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsContext(SloppyTNode<HeapObject> object);
