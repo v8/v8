@@ -19138,7 +19138,8 @@ TEST(GetHeapSpaceStatistics) {
   // Force allocation in LO_SPACE so that every space has non-zero size.
   v8::internal::Isolate* i_isolate =
       reinterpret_cast<v8::internal::Isolate*>(isolate);
-  (void)i_isolate->factory()->TryNewFixedArray(512 * 1024);
+  auto unused = i_isolate->factory()->TryNewFixedArray(512 * 1024);
+  USE(unused);
 
   isolate->GetHeapStatistics(&heap_statistics);
 
