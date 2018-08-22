@@ -119,6 +119,28 @@ void CEntry1ArgvOnStackDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+namespace {
+
+void InterpreterCEntryDescriptor_InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {kRuntimeCallArgCountRegister,
+                          kRuntimeCallArgvRegister,
+                          kRuntimeCallFunctionRegister};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+}  // namespace
+
+void InterpreterCEntry1Descriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  InterpreterCEntryDescriptor_InitializePlatformSpecific(data);
+}
+
+void InterpreterCEntry2Descriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  InterpreterCEntryDescriptor_InitializePlatformSpecific(data);
+}
+
 void FastNewFunctionContextDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ScopeInfoRegister(), SlotsRegister()};

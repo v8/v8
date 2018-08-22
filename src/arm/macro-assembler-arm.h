@@ -36,6 +36,7 @@ constexpr Register kJavaScriptCallExtraArg1Register = r2;
 constexpr Register kOffHeapTrampolineRegister = ip;
 constexpr Register kRuntimeCallFunctionRegister = r1;
 constexpr Register kRuntimeCallArgCountRegister = r0;
+constexpr Register kRuntimeCallArgvRegister = r2;
 constexpr Register kWasmInstanceRegister = r3;
 
 // ----------------------------------------------------------------------------

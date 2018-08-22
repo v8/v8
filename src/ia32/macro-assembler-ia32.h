@@ -36,6 +36,7 @@ constexpr Register kJavaScriptCallExtraArg1Register = ebx;
 constexpr Register kOffHeapTrampolineRegister = ecx;
 constexpr Register kRuntimeCallFunctionRegister = ebx;
 constexpr Register kRuntimeCallArgCountRegister = eax;
+constexpr Register kRuntimeCallArgvRegister = ecx;
 constexpr Register kWasmInstanceRegister = esi;
 
 // TODO(v8:6666): Implement full support.

@@ -35,6 +35,7 @@ constexpr Register kJavaScriptCallExtraArg1Register = rbx;
 
 constexpr Register kRuntimeCallFunctionRegister = rbx;
 constexpr Register kRuntimeCallArgCountRegister = rax;
+constexpr Register kRuntimeCallArgvRegister = r15;
 constexpr Register kWasmInstanceRegister = rsi;
 
 // Default scratch register used by MacroAssembler (and other code that needs
