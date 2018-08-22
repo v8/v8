@@ -231,8 +231,8 @@ class RestrictedRegisterConfiguration : public RegisterConfiguration {
             allocatable_general_register_codes.get(),
             get_allocatable_double_codes(),
             kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE,
-            allocatable_general_register_names.get(), kFloatRegisterNames,
-            kDoubleRegisterNames, kSimd128RegisterNames),
+            kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames,
+            kSimd128RegisterNames),
         allocatable_general_register_codes_(
             std::move(allocatable_general_register_codes)),
         allocatable_general_register_names_(
