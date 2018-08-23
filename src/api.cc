@@ -7489,18 +7489,46 @@ v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   return contents;
 }
 
+v8::ArrayBuffer::Contents::Contents(void* data, size_t byte_length,
+                                    void* allocation_base,
+                                    size_t allocation_length,
+                                    Allocator::AllocationMode allocation_mode,
+                                    DeleterCallback deleter, void* deleter_data)
+    : data_(data),
+      byte_length_(byte_length),
+      allocation_base_(allocation_base),
+      allocation_length_(allocation_length),
+      allocation_mode_(allocation_mode),
+      deleter_(deleter),
+      deleter_data_(deleter_data) {
+  DCHECK_LE(allocation_base_, data_);
+  DCHECK_LE(byte_length_, allocation_length_);
+}
+
+void WasmMemoryDeleter(void* buffer, size_t lenght,
+                       internal::wasm::WasmEngine* engine) {
+  CHECK(engine->memory_tracker()->FreeMemoryIfIsWasmMemory(nullptr, buffer));
+}
+
+void ArrayBufferDeleter(void* buffer, size_t length,
+                        ArrayBufferAllocator* allocator) {
+  allocator->Free(buffer, length);
+}
 
 v8::ArrayBuffer::Contents v8::ArrayBuffer::GetContents() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
   size_t byte_length = static_cast<size_t>(self->byte_length()->Number());
-  Contents contents;
-  contents.allocation_base_ = self->allocation_base();
-  contents.allocation_length_ = self->allocation_length();
-  contents.allocation_mode_ = self->is_wasm_memory()
-                                  ? Allocator::AllocationMode::kReservation
-                                  : Allocator::AllocationMode::kNormal;
-  contents.data_ = self->backing_store();
-  contents.byte_length_ = byte_length;
+  Contents contents(
+      self->backing_store(), byte_length, self->allocation_base(),
+      self->allocation_length(),
+      self->is_wasm_memory() ? Allocator::AllocationMode::kReservation
+                             : Allocator::AllocationMode::kNormal,
+      self->is_wasm_memory()
+          ? reinterpret_cast<Contents::DeleterCallback>(WasmMemoryDeleter)
+          : reinterpret_cast<Contents::DeleterCallback>(ArrayBufferDeleter),
+      self->is_wasm_memory()
+          ? static_cast<void*>(self->GetIsolate()->wasm_engine())
+          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()));
   return contents;
 }
 
@@ -7698,7 +7726,6 @@ bool v8::SharedArrayBuffer::IsExternal() const {
   return Utils::OpenHandle(this)->is_external();
 }
 
-
 v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
@@ -7723,28 +7750,43 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
   return contents;
 }
 
+v8::SharedArrayBuffer::Contents::Contents(
+    void* data, size_t byte_length, void* allocation_base,
+    size_t allocation_length, Allocator::AllocationMode allocation_mode,
+    DeleterCallback deleter, void* deleter_data)
+    : data_(data),
+      byte_length_(byte_length),
+      allocation_base_(allocation_base),
+      allocation_length_(allocation_length),
+      allocation_mode_(allocation_mode),
+      deleter_(deleter),
+      deleter_data_(deleter_data) {
+  DCHECK_LE(allocation_base_, data_);
+  DCHECK_LE(byte_length_, allocation_length_);
+}
 
 v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
   size_t byte_length = static_cast<size_t>(self->byte_length()->Number());
-  Contents contents;
-  contents.allocation_base_ = self->allocation_base();
-  contents.allocation_length_ = self->allocation_length();
-  contents.allocation_mode_ =
+  Contents contents(
+      self->backing_store(), byte_length, self->allocation_base(),
+      self->allocation_length(),
       self->is_wasm_memory()
-          ? ArrayBufferAllocator::Allocator::AllocationMode::kReservation
-          : ArrayBufferAllocator::Allocator::AllocationMode::kNormal;
-  contents.data_ = self->backing_store();
-  contents.byte_length_ = byte_length;
+          ? ArrayBuffer::Allocator::AllocationMode::kReservation
+          : ArrayBuffer::Allocator::AllocationMode::kNormal,
+      self->is_wasm_memory()
+          ? reinterpret_cast<Contents::DeleterCallback>(WasmMemoryDeleter)
+          : reinterpret_cast<Contents::DeleterCallback>(ArrayBufferDeleter),
+      self->is_wasm_memory()
+          ? static_cast<void*>(self->GetIsolate()->wasm_engine())
+          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()));
   return contents;
 }
-
 
 size_t v8::SharedArrayBuffer::ByteLength() const {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
   return static_cast<size_t>(obj->byte_length()->Number());
 }
-
 
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* isolate,
                                                     size_t byte_length) {

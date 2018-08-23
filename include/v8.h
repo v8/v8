@@ -4597,17 +4597,22 @@ class V8_EXPORT ArrayBuffer : public Object {
    * returns an instance of this class, populated, with a pointer to data
    * and byte length.
    *
-   * The Data pointer of ArrayBuffer::Contents is always allocated with
-   * Allocator::Allocate that is set via Isolate::CreateParams.
+   * The Data pointer of ArrayBuffer::Contents must be freed using the provided
+   * deleter, which will call ArrayBuffer::Allocator::Free if the buffer
+   * was allocated with ArraryBuffer::Allocator::Allocate.
    */
   class V8_EXPORT Contents { // NOLINT
    public:
+    using DeleterCallback = void (*)(void* buffer, size_t length, void* info);
+
     Contents()
         : data_(nullptr),
           byte_length_(0),
           allocation_base_(nullptr),
           allocation_length_(0),
-          allocation_mode_(Allocator::AllocationMode::kNormal) {}
+          allocation_mode_(Allocator::AllocationMode::kNormal),
+          deleter_(nullptr),
+          deleter_data_(nullptr) {}
 
     void* AllocationBase() const { return allocation_base_; }
     size_t AllocationLength() const { return allocation_length_; }
@@ -4617,13 +4622,22 @@ class V8_EXPORT ArrayBuffer : public Object {
 
     void* Data() const { return data_; }
     size_t ByteLength() const { return byte_length_; }
+    DeleterCallback Deleter() const { return deleter_; }
+    void* DeleterData() const { return deleter_data_; }
 
    private:
+    Contents(void* data, size_t byte_length, void* allocation_base,
+             size_t allocation_length,
+             Allocator::AllocationMode allocation_mode, DeleterCallback deleter,
+             void* deleter_data);
+
     void* data_;
     size_t byte_length_;
     void* allocation_base_;
     size_t allocation_length_;
     Allocator::AllocationMode allocation_mode_;
+    DeleterCallback deleter_;
+    void* deleter_data_;
 
     friend class ArrayBuffer;
   };
@@ -4680,8 +4694,9 @@ class V8_EXPORT ArrayBuffer : public Object {
    * had been externalized, it does no longer own the memory block. The caller
    * should take steps to free memory when it is no longer needed.
    *
-   * The memory block is guaranteed to be allocated with |Allocator::Allocate|
-   * that has been set via Isolate::CreateParams.
+   * The Data pointer of ArrayBuffer::Contents must be freed using the provided
+   * deleter, which will call ArrayBuffer::Allocator::Free if the buffer
+   * was allocated with ArraryBuffer::Allocator::Allocate.
    */
   Contents Externalize();
 
@@ -4692,8 +4707,6 @@ class V8_EXPORT ArrayBuffer : public Object {
    *
    * The embedder should make sure to hold a strong reference to the
    * ArrayBuffer while accessing this pointer.
-   *
-   * The memory block is guaranteed to be allocated with |Allocator::Allocate|.
    */
   Contents GetContents();
 
@@ -5000,40 +5013,53 @@ class V8_EXPORT SharedArrayBuffer : public Object {
    * |SharedArrayBuffer| returns an instance of this class, populated, with a
    * pointer to data and byte length.
    *
-   * The Data pointer of SharedArrayBuffer::Contents is always allocated with
-   * |ArrayBuffer::Allocator::Allocate| by the allocator specified in
-   * v8::Isolate::CreateParams::array_buffer_allocator.
+   * The Data pointer of ArrayBuffer::Contents must be freed using the provided
+   * deleter, which will call ArrayBuffer::Allocator::Free if the buffer
+   * was allocated with ArraryBuffer::Allocator::Allocate.
    *
    * This API is experimental and may change significantly.
    */
   class V8_EXPORT Contents {  // NOLINT
    public:
+    using Allocator = v8::ArrayBuffer::Allocator;
+    using DeleterCallback = void (*)(void* buffer, size_t length, void* info);
+
     Contents()
         : data_(nullptr),
           byte_length_(0),
           allocation_base_(nullptr),
           allocation_length_(0),
-          allocation_mode_(ArrayBuffer::Allocator::AllocationMode::kNormal) {}
+          allocation_mode_(Allocator::AllocationMode::kNormal),
+          deleter_(nullptr),
+          deleter_data_(nullptr) {}
 
     void* AllocationBase() const { return allocation_base_; }
     size_t AllocationLength() const { return allocation_length_; }
-    ArrayBuffer::Allocator::AllocationMode AllocationMode() const {
+    Allocator::AllocationMode AllocationMode() const {
       return allocation_mode_;
     }
 
     void* Data() const { return data_; }
     size_t ByteLength() const { return byte_length_; }
+    DeleterCallback Deleter() const { return deleter_; }
+    void* DeleterData() const { return deleter_data_; }
 
    private:
+    Contents(void* data, size_t byte_length, void* allocation_base,
+             size_t allocation_length,
+             Allocator::AllocationMode allocation_mode, DeleterCallback deleter,
+             void* deleter_data);
+
     void* data_;
     size_t byte_length_;
     void* allocation_base_;
     size_t allocation_length_;
-    ArrayBuffer::Allocator::AllocationMode allocation_mode_;
+    Allocator::AllocationMode allocation_mode_;
+    DeleterCallback deleter_;
+    void* deleter_data_;
 
     friend class SharedArrayBuffer;
   };
-
 
   /**
    * Data length in bytes.
