@@ -805,6 +805,12 @@
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
+['(arch == arm or arch == arm64) and simulator_run', {
+  # Slow tests: https://crbug.com/v8/7783
+  'regress/regress-2185': [SKIP],
+}],  # (arch == arm or arch == arm64) and simulator_run
+
+##############################################################################
 ['gcov_coverage', {
   # Tests taking too long.
   'array-functions-prototype-misc': [SKIP],
