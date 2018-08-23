@@ -2383,7 +2383,7 @@ TNode<Float64T> CodeStubAssembler::LoadFixedDoubleArrayElement(
 }
 
 TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
-    TNode<FixedArrayBase> elements, TNode<Smi> index,
+    TNode<FixedArrayBase> elements, TNode<IntPtrT> index,
     TNode<Int32T> elements_kind, Label* if_accessor, Label* if_hole) {
   TVARIABLE(Object, var_result);
   Label done(this), if_packed(this), if_holey(this), if_packed_double(this),
@@ -2409,29 +2409,27 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
 
   BIND(&if_packed);
   {
-    var_result =
-        LoadFixedArrayElement(CAST(elements), index, 0, SMI_PARAMETERS);
+    var_result = LoadFixedArrayElement(CAST(elements), index, 0);
     Goto(&done);
   }
 
   BIND(&if_holey);
   {
-    var_result =
-        LoadFixedArrayElement(CAST(elements), index, 0, SMI_PARAMETERS);
+    var_result = LoadFixedArrayElement(CAST(elements), index);
     Branch(WordEqual(var_result.value(), TheHoleConstant()), if_hole, &done);
   }
 
   BIND(&if_packed_double);
   {
     var_result = AllocateHeapNumberWithValue(LoadFixedDoubleArrayElement(
-        CAST(elements), index, MachineType::Float64(), 0, SMI_PARAMETERS));
+        CAST(elements), index, MachineType::Float64()));
     Goto(&done);
   }
 
   BIND(&if_holey_double);
   {
     var_result = AllocateHeapNumberWithValue(LoadFixedDoubleArrayElement(
-        CAST(elements), index, MachineType::Float64(), 0, SMI_PARAMETERS,
+        CAST(elements), index, MachineType::Float64(), 0, INTPTR_PARAMETERS,
         if_hole));
     Goto(&done);
   }
@@ -2439,8 +2437,8 @@ TNode<Object> CodeStubAssembler::LoadFixedArrayBaseElementAsTagged(
   BIND(&if_dictionary);
   {
     CSA_ASSERT(this, IsDictionaryElementsKind(elements_kind));
-    var_result = BasicLoadNumberDictionaryElement(
-        CAST(elements), SmiToIntPtr(index), if_accessor, if_hole);
+    var_result = BasicLoadNumberDictionaryElement(CAST(elements), index,
+                                                  if_accessor, if_hole);
     Goto(&done);
   }
 
@@ -5000,6 +4998,24 @@ TNode<String> CodeStubAssembler::ToThisString(Node* context, Node* value,
   }
   BIND(&if_valueisstring);
   return CAST(var_value.value());
+}
+
+TNode<Uint32T> CodeStubAssembler::ChangeNumberToUint32(TNode<Number> value) {
+  TVARIABLE(Uint32T, var_result);
+  Label if_smi(this), if_heapnumber(this, Label::kDeferred), done(this);
+  Branch(TaggedIsSmi(value), &if_smi, &if_heapnumber);
+  BIND(&if_smi);
+  {
+    var_result = Unsigned(SmiToInt32(CAST(value)));
+    Goto(&done);
+  }
+  BIND(&if_heapnumber);
+  {
+    var_result = ChangeFloat64ToUint32(LoadHeapNumberValue(CAST(value)));
+    Goto(&done);
+  }
+  BIND(&done);
+  return var_result.value();
 }
 
 TNode<Float64T> CodeStubAssembler::ChangeNumberToFloat64(

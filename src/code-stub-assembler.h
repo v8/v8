@@ -1063,7 +1063,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // was found is an accessor, or to |if_hole| if the element at
   // the given |index| is not found in |elements|.
   TNode<Object> LoadFixedArrayBaseElementAsTagged(
-      TNode<FixedArrayBase> elements, TNode<Smi> index,
+      TNode<FixedArrayBase> elements, TNode<IntPtrT> index,
       TNode<Int32T> elements_kind, Label* if_accessor, Label* if_hole);
 
   // Load a feedback slot from a FeedbackVector.
@@ -1661,6 +1661,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Number> ChangeFloat64ToTagged(SloppyTNode<Float64T> value);
   TNode<Number> ChangeInt32ToTagged(SloppyTNode<Int32T> value);
   TNode<Number> ChangeUint32ToTagged(SloppyTNode<Uint32T> value);
+  TNode<Uint32T> ChangeNumberToUint32(TNode<Number> value);
   TNode<Float64T> ChangeNumberToFloat64(SloppyTNode<Number> value);
   TNode<UintPtrT> ChangeNonnegativeNumberToUintPtr(TNode<Number> value);
 

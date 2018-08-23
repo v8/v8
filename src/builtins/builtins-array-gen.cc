@@ -3534,7 +3534,6 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   TNode<Number> index =
       CAST(LoadObjectField(iterator, JSArrayIterator::kNextIndexOffset));
   CSA_ASSERT(this, IsNumberNonNegativeSafeInteger(index));
-  GotoIfNot(TaggedIsSmi(index), &if_other);
 
   // Dispatch based on the type of the {array}.
   TNode<Map> array_map = LoadMap(array);
@@ -3545,11 +3544,18 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   BIND(&if_array);
   {
-    // Check that the {index} is within range for the {array}.
-    TNode<Number> length = LoadJSArrayLength(CAST(array));
-    GotoIfNumberGreaterThanOrEqual(index, length, &set_done);
-    StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
-                                   SmiInc(CAST(index)));
+    // If {array} is a JSArray, then the {index} must be in Unsigned32 range.
+    CSA_ASSERT(this, IsNumberArrayIndex(index));
+
+    // Check that the {index} is within range for the {array}. We handle all
+    // kinds of JSArray's here, so we do the computation on Uint32.
+    TNode<Uint32T> index32 = ChangeNumberToUint32(index);
+    TNode<Uint32T> length32 =
+        ChangeNumberToUint32(LoadJSArrayLength(CAST(array)));
+    GotoIfNot(Uint32LessThan(index32, length32), &set_done);
+    StoreObjectField(
+        iterator, JSArrayIterator::kNextIndexOffset,
+        ChangeUint32ToTagged(Unsigned(Int32Add(index32, Int32Constant(1)))));
 
     var_done.Bind(FalseConstant());
     var_value.Bind(index);
@@ -3563,7 +3569,8 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     TNode<Int32T> elements_kind = LoadMapElementsKind(array_map);
     TNode<FixedArrayBase> elements = LoadElements(CAST(array));
     var_value.Bind(LoadFixedArrayBaseElementAsTagged(
-        elements, CAST(index), elements_kind, &if_generic, &if_hole));
+        elements, Signed(ChangeUint32ToWord(index32)), elements_kind,
+        &if_generic, &if_hole));
     Goto(&allocate_entry_if_needed);
 
     BIND(&if_hole);
@@ -3576,17 +3583,9 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   BIND(&if_other);
   {
-    // If the {array} is actually a JSArray the {index} must be a valid
-    // array index, as the TurboFan fast-path inlining relies on the fact
-    // that the [[ArrayIteratorNextIndex]] field always contains a valid
-    // Unsigned32 value as long as the [[ArrayIteratorIteratedObject]]
-    // field contains a JSArray instance. Also rule out JSTypedArray's
-    // here as they should never reach here (both because the {index}
-    // in that case must always be a Smi, and second because loading
-    // the "length" property would be wrong for JSTypedArray's).
+    // We cannot enter here with either JSArray's or JSTypedArray's.
+    CSA_ASSERT(this, Word32BinaryNot(IsJSArray(array)));
     CSA_ASSERT(this, Word32BinaryNot(IsJSTypedArray(array)));
-    CSA_ASSERT(this, Word32Or(Word32BinaryNot(IsJSArray(array)),
-                              IsNumberArrayIndex(index)));
 
     // Check that the {index} is within the bounds of the {array}s "length".
     TNode<Number> length = CAST(
@@ -3639,6 +3638,9 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   BIND(&if_typedarray);
   {
+    // If {array} is a JSTypedArray, the {index} must always be a Smi.
+    CSA_ASSERT(this, TaggedIsSmi(index));
+
     // Check that the {array}s buffer wasn't neutered.
     ThrowIfArrayBufferViewBufferIsDetached(context, CAST(array), method_name);
 
