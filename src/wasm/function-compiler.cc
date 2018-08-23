@@ -73,7 +73,7 @@ WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
 // {TurbofanWasmCompilationUnit} can be opaque in the header file.
 WasmCompilationUnit::~WasmCompilationUnit() {}
 
-void WasmCompilationUnit::ExecuteCompilation() {
+void WasmCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
   auto size_histogram = SELECT_WASM_COUNTER(counters_, env_->module->origin,
                                             wasm, function_size_bytes);
   size_histogram->AddSample(
@@ -89,12 +89,12 @@ void WasmCompilationUnit::ExecuteCompilation() {
 
   switch (mode_) {
     case ExecutionTier::kBaseline:
-      if (liftoff_unit_->ExecuteCompilation()) break;
+      if (liftoff_unit_->ExecuteCompilation(detected)) break;
       // Otherwise, fall back to turbofan.
       SwitchMode(ExecutionTier::kOptimized);
       V8_FALLTHROUGH;
     case ExecutionTier::kOptimized:
-      turbofan_unit_->ExecuteCompilation();
+      turbofan_unit_->ExecuteCompilation(detected);
       break;
     case ExecutionTier::kInterpreter:
       UNREACHABLE();  // TODO(titzer): compile interpreter entry stub.
@@ -145,8 +145,9 @@ void WasmCompilationUnit::SwitchMode(ExecutionTier new_mode) {
 
 // static
 WasmCode* WasmCompilationUnit::CompileWasmFunction(
-    NativeModule* native_module, ErrorThrower* thrower, Isolate* isolate,
-    ModuleEnv* env, const WasmFunction* function, ExecutionTier mode) {
+    Isolate* isolate, NativeModule* native_module, WasmFeatures* detected,
+    ErrorThrower* thrower, ModuleEnv* env, const WasmFunction* function,
+    ExecutionTier mode) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   FunctionBody function_body{function->sig, function->code.offset(),
                              wire_bytes.start() + function->code.offset(),
@@ -156,7 +157,7 @@ WasmCode* WasmCompilationUnit::CompileWasmFunction(
                            function_body,
                            wire_bytes.GetNameOrNull(function, env->module),
                            function->func_index, isolate->counters(), mode);
-  unit.ExecuteCompilation();
+  unit.ExecuteCompilation(detected);
   return unit.FinishCompilation(thrower);
 }
 

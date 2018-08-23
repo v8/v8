@@ -11,6 +11,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+struct WasmFeatures;
 class ErrorThrower;
 class WasmCode;
 class WasmCompilationUnit;
@@ -20,7 +21,7 @@ class LiftoffCompilationUnit final {
   explicit LiftoffCompilationUnit(WasmCompilationUnit* wasm_unit)
       : wasm_unit_(wasm_unit) {}
 
-  bool ExecuteCompilation();
+  bool ExecuteCompilation(WasmFeatures* detected);
   WasmCode* FinishCompilation(ErrorThrower*);
 
  private:

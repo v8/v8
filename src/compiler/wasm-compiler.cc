@@ -5031,7 +5031,8 @@ TurbofanWasmCompilationUnit::TurbofanWasmCompilationUnit(
 TurbofanWasmCompilationUnit::~TurbofanWasmCompilationUnit() = default;
 
 SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
-    double* decode_ms, MachineGraph* mcgraph, NodeOriginTable* node_origins) {
+    wasm::WasmFeatures* detected, double* decode_ms, MachineGraph* mcgraph,
+    NodeOriginTable* node_origins) {
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
     decode_timer.Start();
@@ -5042,14 +5043,10 @@ SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
       new (mcgraph->zone()) SourcePositionTable(mcgraph->graph());
   WasmGraphBuilder builder(wasm_unit_->env_, mcgraph->zone(), mcgraph,
                            wasm_unit_->func_body_.sig, source_position_table);
-  // TODO(titzer): gather detected features into a per-module location
-  // in order to increment an embedder feature use count.
-  wasm::WasmFeatures unused_detected_features;
   graph_construction_result_ = wasm::BuildTFGraph(
       wasm_unit_->wasm_engine_->allocator(),
       wasm_unit_->native_module_->enabled_features(), wasm_unit_->env_->module,
-      &builder, &unused_detected_features, wasm_unit_->func_body_,
-      node_origins);
+      &builder, detected, wasm_unit_->func_body_, node_origins);
   if (graph_construction_result_.failed()) {
     if (FLAG_trace_wasm_compiler) {
       StdoutStream{} << "Compilation failed: "
@@ -5102,7 +5099,8 @@ Vector<const char> GetDebugName(Zone* zone, wasm::WasmName name, int index) {
 
 }  // namespace
 
-void TurbofanWasmCompilationUnit::ExecuteCompilation() {
+void TurbofanWasmCompilationUnit::ExecuteCompilation(
+    wasm::WasmFeatures* detected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteTurbofanCompilation");
   double decode_ms = 0;
@@ -5134,7 +5132,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
                                               NodeOriginTable(mcgraph->graph())
                                         : nullptr;
     SourcePositionTable* source_positions =
-        BuildGraphForWasmFunction(&decode_ms, mcgraph, node_origins);
+        BuildGraphForWasmFunction(detected, &decode_ms, mcgraph, node_origins);
 
     if (graph_construction_result_.failed()) {
       ok_ = false;
