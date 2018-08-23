@@ -105,31 +105,6 @@ inline Condition NegateCondition(Condition cond) {
 }
 
 
-// Commute a condition such that {a cond b == b cond' a}.
-inline Condition CommuteCondition(Condition cond) {
-  switch (cond) {
-    case lo:
-      return hi;
-    case hi:
-      return lo;
-    case hs:
-      return ls;
-    case ls:
-      return hs;
-    case lt:
-      return gt;
-    case gt:
-      return lt;
-    case ge:
-      return le;
-    case le:
-      return ge;
-    default:
-      return cond;
-  }
-}
-
-
 // -----------------------------------------------------------------------------
 // Instructions encoding.
 

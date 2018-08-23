@@ -198,31 +198,6 @@ inline Condition NegateCondition(Condition cc) {
 }
 
 
-// Commute a condition such that {a cond b == b cond' a}.
-inline Condition CommuteCondition(Condition cc) {
-  switch (cc) {
-    case below:
-      return above;
-    case above:
-      return below;
-    case above_equal:
-      return below_equal;
-    case below_equal:
-      return above_equal;
-    case less:
-      return greater;
-    case greater:
-      return less;
-    case greater_equal:
-      return less_equal;
-    case less_equal:
-      return greater_equal;
-    default:
-      return cc;
-  }
-}
-
-
 enum RoundingMode {
   kRoundToNearest = 0x0,
   kRoundDown = 0x1,

@@ -329,35 +329,6 @@ inline Condition NegateCondition(Condition cond) {
   return static_cast<Condition>(cond ^ 1);
 }
 
-// Commute a condition such that {a cond b == b cond' a}.
-inline Condition CommuteCondition(Condition cond) {
-  switch (cond) {
-    case lo:
-      return hi;
-    case hi:
-      return lo;
-    case hs:
-      return ls;
-    case ls:
-      return hs;
-    case lt:
-      return gt;
-    case gt:
-      return lt;
-    case ge:
-      return le;
-    case le:
-      return ge;
-    case eq:
-      return eq;
-    default:
-      // In practice this function is only used with a condition coming from
-      // binary operations. Any other condition is invalid as it doesn't
-      // necessary make sense to reverse it (consider 'mi' for instance).
-      UNREACHABLE();
-  }
-}
-
 enum FlagsUpdate {
   SetFlags   = 1,
   LeaveFlags = 0
