@@ -1593,12 +1593,13 @@ ParserBase<Impl>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_(scope),
       destructuring_assignments_to_rewrite_(scope->zone()),
-      reported_errors_(16, scope_->zone()),
+      reported_errors_(scope_->zone()),
       dont_optimize_reason_(BailoutReason::kNoReason),
       next_function_is_likely_called_(false),
       previous_function_was_likely_called_(false),
       contains_function_or_eval_(false) {
   *function_state_stack = this;
+  reported_errors_.reserve(16);
   if (outer_function_state_) {
     outer_function_state_->previous_function_was_likely_called_ =
         outer_function_state_->next_function_is_likely_called_;
