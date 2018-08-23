@@ -481,6 +481,9 @@ class ParserBase {
     // Properties count estimation.
     int expected_property_count_;
 
+    // How many suspends are needed for this function.
+    int suspend_count_;
+
     FunctionState** function_state_stack_;
     FunctionState* outer_function_state_;
     DeclarationScope* scope_;
@@ -492,9 +495,6 @@ class ParserBase {
 
     // A reason, if any, why this function should not be optimized.
     BailoutReason dont_optimize_reason_;
-
-    // How many suspends are needed for this function.
-    int suspend_count_;
 
     // Record whether the next (=== immediately following) function literal is
     // preceded by a parenthesis / exclamation mark. Also record the previous
@@ -1588,13 +1588,13 @@ ParserBase<Impl>::FunctionState::FunctionState(
     DeclarationScope* scope)
     : BlockState(scope_stack, scope),
       expected_property_count_(0),
+      suspend_count_(0),
       function_state_stack_(function_state_stack),
       outer_function_state_(*function_state_stack),
       scope_(scope),
       destructuring_assignments_to_rewrite_(scope->zone()),
       reported_errors_(16, scope_->zone()),
       dont_optimize_reason_(BailoutReason::kNoReason),
-      suspend_count_(0),
       next_function_is_likely_called_(false),
       previous_function_was_likely_called_(false),
       contains_function_or_eval_(false) {
