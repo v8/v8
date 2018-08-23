@@ -775,6 +775,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   void Branch(TNode<BoolT> condition, std::function<void()> true_body,
               std::function<void()> false_body);
+  void Branch(TNode<BoolT> condition, Label* true_label,
+              std::function<void()> false_body);
+  void Branch(TNode<BoolT> condition, std::function<void()> true_body,
+              Label* false_label);
 
   void Switch(Node* index, Label* default_label, const int32_t* case_values,
               Label** case_labels, size_t case_count);

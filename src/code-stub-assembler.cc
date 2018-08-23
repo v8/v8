@@ -4108,11 +4108,11 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
     BIND(&cow);
     {
       if (extract_flags & ExtractFixedArrayFlag::kDontCopyCOW) {
-        GotoIf(WordNotEqual(IntPtrOrSmiConstant(0, parameter_mode), first),
-               &new_space_check);
-
-        var_result.Bind(fixed_array);
-        Goto(&done);
+        Branch(WordNotEqual(IntPtrOrSmiConstant(0, parameter_mode), first),
+               &new_space_check, [&] {
+                 var_result.Bind(fixed_array);
+                 Goto(&done);
+               });
       } else {
         var_fixed_array_map.Bind(LoadRoot(Heap::kFixedArrayMapRootIndex));
         Goto(&new_space_check);
@@ -11352,69 +11352,66 @@ void CodeStubAssembler::BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true,
   {
     // Since {lhs} is a Smi, the comparison can only yield true
     // iff the {rhs} is a HeapNumber with the same float64 value.
-    GotoIf(TaggedIsSmi(rhs), if_false);
-    GotoIfNot(IsHeapNumber(rhs), if_false);
-    var_lhs_value.Bind(SmiToFloat64(lhs));
-    var_rhs_value.Bind(LoadHeapNumberValue(rhs));
-    Goto(&do_fcmp);
+    Branch(TaggedIsSmi(rhs), if_false, [&] {
+      GotoIfNot(IsHeapNumber(rhs), if_false);
+      var_lhs_value.Bind(SmiToFloat64(lhs));
+      var_rhs_value.Bind(LoadHeapNumberValue(rhs));
+      Goto(&do_fcmp);
+    });
   }
 
   BIND(&if_lhsisheapobject);
   {
     // Check if the {rhs} is a Smi.
-    Label if_rhsissmi(this), if_rhsisheapobject(this);
-    Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisheapobject);
+    Branch(TaggedIsSmi(rhs),
+           [&] {
+             // Since {rhs} is a Smi, the comparison can only yield true
+             // iff the {lhs} is a HeapNumber with the same float64 value.
+             GotoIfNot(IsHeapNumber(lhs), if_false);
+             var_lhs_value.Bind(LoadHeapNumberValue(lhs));
+             var_rhs_value.Bind(SmiToFloat64(rhs));
+             Goto(&do_fcmp);
+           },
+           [&] {
+             // Now this can only yield true if either both {lhs} and {rhs} are
+             // HeapNumbers with the same value, or both are Strings with the
+             // same character sequence, or both are BigInts with the same
+             // value.
+             Label if_lhsisheapnumber(this), if_lhsisstring(this),
+                 if_lhsisbigint(this);
+             Node* const lhs_map = LoadMap(lhs);
+             GotoIf(IsHeapNumberMap(lhs_map), &if_lhsisheapnumber);
+             Node* const lhs_instance_type = LoadMapInstanceType(lhs_map);
+             GotoIf(IsStringInstanceType(lhs_instance_type), &if_lhsisstring);
+             Branch(IsBigIntInstanceType(lhs_instance_type), &if_lhsisbigint,
+                    if_false);
 
-    BIND(&if_rhsissmi);
-    {
-      // Since {rhs} is a Smi, the comparison can only yield true
-      // iff the {lhs} is a HeapNumber with the same float64 value.
-      GotoIfNot(IsHeapNumber(lhs), if_false);
-      var_lhs_value.Bind(LoadHeapNumberValue(lhs));
-      var_rhs_value.Bind(SmiToFloat64(rhs));
-      Goto(&do_fcmp);
-    }
+             BIND(&if_lhsisheapnumber);
+             {
+               GotoIfNot(IsHeapNumber(rhs), if_false);
+               var_lhs_value.Bind(LoadHeapNumberValue(lhs));
+               var_rhs_value.Bind(LoadHeapNumberValue(rhs));
+               Goto(&do_fcmp);
+             }
 
-    BIND(&if_rhsisheapobject);
-    {
-      // Now this can only yield true if either both {lhs} and {rhs} are
-      // HeapNumbers with the same value, or both are Strings with the same
-      // character sequence, or both are BigInts with the same value.
-      Label if_lhsisheapnumber(this), if_lhsisstring(this),
-          if_lhsisbigint(this);
-      Node* const lhs_map = LoadMap(lhs);
-      GotoIf(IsHeapNumberMap(lhs_map), &if_lhsisheapnumber);
-      Node* const lhs_instance_type = LoadMapInstanceType(lhs_map);
-      GotoIf(IsStringInstanceType(lhs_instance_type), &if_lhsisstring);
-      Branch(IsBigIntInstanceType(lhs_instance_type), &if_lhsisbigint,
-             if_false);
+             BIND(&if_lhsisstring);
+             {
+               // Now we can only yield true if {rhs} is also a String
+               // with the same sequence of characters.
+               GotoIfNot(IsString(rhs), if_false);
+               Node* const result = CallBuiltin(Builtins::kStringEqual,
+                                                NoContextConstant(), lhs, rhs);
+               Branch(IsTrue(result), if_true, if_false);
+             }
 
-      BIND(&if_lhsisheapnumber);
-      {
-        GotoIfNot(IsHeapNumber(rhs), if_false);
-        var_lhs_value.Bind(LoadHeapNumberValue(lhs));
-        var_rhs_value.Bind(LoadHeapNumberValue(rhs));
-        Goto(&do_fcmp);
-      }
-
-      BIND(&if_lhsisstring);
-      {
-        // Now we can only yield true if {rhs} is also a String
-        // with the same sequence of characters.
-        GotoIfNot(IsString(rhs), if_false);
-        Node* const result =
-            CallBuiltin(Builtins::kStringEqual, NoContextConstant(), lhs, rhs);
-        Branch(IsTrue(result), if_true, if_false);
-      }
-
-      BIND(&if_lhsisbigint);
-      {
-        GotoIfNot(IsBigInt(rhs), if_false);
-        Node* const result = CallRuntime(Runtime::kBigIntEqualToBigInt,
-                                         NoContextConstant(), lhs, rhs);
-        Branch(IsTrue(result), if_true, if_false);
-      }
-    }
+             BIND(&if_lhsisbigint);
+             {
+               GotoIfNot(IsBigInt(rhs), if_false);
+               Node* const result = CallRuntime(Runtime::kBigIntEqualToBigInt,
+                                                NoContextConstant(), lhs, rhs);
+               Branch(IsTrue(result), if_true, if_false);
+             }
+           });
   }
 
   BIND(&do_fcmp);

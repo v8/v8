@@ -1378,6 +1378,13 @@ void CodeAssembler::GotoIfNot(SloppyTNode<IntegralT> condition,
 
 void CodeAssembler::Branch(SloppyTNode<IntegralT> condition, Label* true_label,
                            Label* false_label) {
+  int32_t constant;
+  if (ToInt32Constant(condition, constant)) {
+    if ((true_label->is_used() || true_label->is_bound()) &&
+        (false_label->is_used() || false_label->is_bound())) {
+      return Goto(constant ? true_label : false_label);
+    }
+  }
   true_label->MergeVariables();
   false_label->MergeVariables();
   return raw_assembler()->Branch(condition, true_label->label_,
@@ -1394,14 +1401,39 @@ void CodeAssembler::Branch(TNode<BoolT> condition,
 
   Label vtrue(this), vfalse(this);
   Branch(condition, &vtrue, &vfalse);
+
   Bind(&vtrue);
-  {
-    true_body();
-  }
+  true_body();
+
   Bind(&vfalse);
-  {
-    false_body();
+  false_body();
+}
+
+void CodeAssembler::Branch(TNode<BoolT> condition, Label* true_label,
+                           std::function<void()> false_body) {
+  int32_t constant;
+  if (ToInt32Constant(condition, constant)) {
+    return constant ? Goto(true_label) : false_body();
   }
+
+  Label vfalse(this);
+  Branch(condition, true_label, &vfalse);
+  Bind(&vfalse);
+  false_body();
+}
+
+void CodeAssembler::Branch(TNode<BoolT> condition,
+                           std::function<void()> true_body,
+                           Label* false_label) {
+  int32_t constant;
+  if (ToInt32Constant(condition, constant)) {
+    return constant ? true_body() : Goto(false_label);
+  }
+
+  Label vtrue(this);
+  Branch(condition, &vtrue, false_label);
+  Bind(&vtrue);
+  true_body();
 }
 
 void CodeAssembler::Switch(Node* index, Label* default_label,
