@@ -39,11 +39,11 @@ Node* StringBuiltinsAssembler::DirectStringData(Node* string,
   BIND(&if_external);
   {
     // This is only valid for ExternalStrings where the resource data
-    // pointer is cached (i.e. no short external strings).
-    CSA_ASSERT(
-        this, Word32NotEqual(Word32And(string_instance_type,
-                                       Int32Constant(kShortExternalStringMask)),
-                             Int32Constant(kShortExternalStringTag)));
+    // pointer is cached (i.e. no uncached external strings).
+    CSA_ASSERT(this, Word32NotEqual(
+                         Word32And(string_instance_type,
+                                   Int32Constant(kUncachedExternalStringMask)),
+                         Int32Constant(kUncachedExternalStringTag)));
     var_data.Bind(LoadObjectField(string, ExternalString::kResourceDataOffset,
                                   MachineType::Pointer()));
     Goto(&if_join);
@@ -191,11 +191,11 @@ void StringBuiltinsAssembler::StringEqual_Core(
 
   // Check if both {lhs} and {rhs} are direct strings, and that in case of
   // ExternalStrings the data pointer is cached.
-  STATIC_ASSERT(kShortExternalStringTag != 0);
+  STATIC_ASSERT(kUncachedExternalStringTag != 0);
   STATIC_ASSERT(kIsIndirectStringTag != 0);
   int const kBothDirectStringMask =
-      kIsIndirectStringMask | kShortExternalStringMask |
-      ((kIsIndirectStringMask | kShortExternalStringMask) << 8);
+      kIsIndirectStringMask | kUncachedExternalStringMask |
+      ((kIsIndirectStringMask | kUncachedExternalStringMask) << 8);
   GotoIfNot(Word32Equal(Word32And(both_instance_types,
                                   Int32Constant(kBothDirectStringMask)),
                         Int32Constant(0)),

@@ -89,7 +89,7 @@ Handle<String> Bootstrapper::GetNativeSource(NativeType type, int index) {
       new NativesExternalStringResource(type, index);
   Handle<ExternalOneByteString> source_code =
       isolate_->factory()->NewNativeSourceString(resource);
-  DCHECK(source_code->is_short());
+  DCHECK(source_code->is_uncached());
   return source_code;
 }
 

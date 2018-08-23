@@ -505,7 +505,7 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeExternalString() {
     }
   } else {
     ExternalOneByteString* string = ExternalOneByteString::cast(object_);
-    DCHECK(string->is_short());
+    DCHECK(string->is_uncached());
     const NativesExternalStringResource* resource =
         reinterpret_cast<const NativesExternalStringResource*>(
             string->resource());

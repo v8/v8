@@ -2897,11 +2897,11 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
 
     __ Bind(&if_externalstring);
     {
-      // We need to bailout to the runtime for short external strings.
+      // We need to bailout to the runtime for uncached external strings.
       __ GotoIf(__ Word32Equal(
                     __ Word32And(receiver_instance_type,
-                                 __ Int32Constant(kShortExternalStringMask)),
-                    __ Int32Constant(kShortExternalStringTag)),
+                                 __ Int32Constant(kUncachedExternalStringMask)),
+                    __ Int32Constant(kUncachedExternalStringTag)),
                 &if_runtime);
 
       Node* receiver_data = __ LoadField(

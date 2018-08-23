@@ -38,170 +38,170 @@ namespace internal {
 // NOTE: List had to be split into two, because of conditional item(s) from
 // INTL namespace. They can't just be appended to the end, because of the
 // checks we do in tests (expecting JS_FUNCTION_TYPE to be last).
-#define INSTANCE_TYPE_LIST_BEFORE_INTL(V)                       \
-  V(INTERNALIZED_STRING_TYPE)                                   \
-  V(EXTERNAL_INTERNALIZED_STRING_TYPE)                          \
-  V(ONE_BYTE_INTERNALIZED_STRING_TYPE)                          \
-  V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)                 \
-  V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE)       \
-  V(SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE)                    \
-  V(SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)           \
-  V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE) \
-  V(STRING_TYPE)                                                \
-  V(CONS_STRING_TYPE)                                           \
-  V(EXTERNAL_STRING_TYPE)                                       \
-  V(SLICED_STRING_TYPE)                                         \
-  V(THIN_STRING_TYPE)                                           \
-  V(ONE_BYTE_STRING_TYPE)                                       \
-  V(CONS_ONE_BYTE_STRING_TYPE)                                  \
-  V(EXTERNAL_ONE_BYTE_STRING_TYPE)                              \
-  V(SLICED_ONE_BYTE_STRING_TYPE)                                \
-  V(THIN_ONE_BYTE_STRING_TYPE)                                  \
-  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                    \
-  V(SHORT_EXTERNAL_STRING_TYPE)                                 \
-  V(SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE)                        \
-  V(SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)              \
-                                                                \
-  V(SYMBOL_TYPE)                                                \
-  V(HEAP_NUMBER_TYPE)                                           \
-  V(BIGINT_TYPE)                                                \
-  V(ODDBALL_TYPE)                                               \
-                                                                \
-  V(MAP_TYPE)                                                   \
-  V(CODE_TYPE)                                                  \
-  V(MUTABLE_HEAP_NUMBER_TYPE)                                   \
-  V(FOREIGN_TYPE)                                               \
-  V(BYTE_ARRAY_TYPE)                                            \
-  V(BYTECODE_ARRAY_TYPE)                                        \
-  V(FREE_SPACE_TYPE)                                            \
-                                                                \
-  V(FIXED_INT8_ARRAY_TYPE)                                      \
-  V(FIXED_UINT8_ARRAY_TYPE)                                     \
-  V(FIXED_INT16_ARRAY_TYPE)                                     \
-  V(FIXED_UINT16_ARRAY_TYPE)                                    \
-  V(FIXED_INT32_ARRAY_TYPE)                                     \
-  V(FIXED_UINT32_ARRAY_TYPE)                                    \
-  V(FIXED_FLOAT32_ARRAY_TYPE)                                   \
-  V(FIXED_FLOAT64_ARRAY_TYPE)                                   \
-  V(FIXED_UINT8_CLAMPED_ARRAY_TYPE)                             \
-  V(FIXED_BIGINT64_ARRAY_TYPE)                                  \
-  V(FIXED_BIGUINT64_ARRAY_TYPE)                                 \
-                                                                \
-  V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
-  V(FEEDBACK_METADATA_TYPE)                                     \
-  V(FILLER_TYPE)                                                \
-                                                                \
-  V(ACCESS_CHECK_INFO_TYPE)                                     \
-  V(ACCESSOR_INFO_TYPE)                                         \
-  V(ACCESSOR_PAIR_TYPE)                                         \
-  V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
-  V(ALLOCATION_MEMENTO_TYPE)                                    \
-  V(ASYNC_GENERATOR_REQUEST_TYPE)                               \
-  V(DEBUG_INFO_TYPE)                                            \
-  V(FUNCTION_TEMPLATE_INFO_TYPE)                                \
-  V(INTERCEPTOR_INFO_TYPE)                                      \
-  V(INTERPRETER_DATA_TYPE)                                      \
-  V(MODULE_INFO_ENTRY_TYPE)                                     \
-  V(MODULE_TYPE)                                                \
-  V(OBJECT_TEMPLATE_INFO_TYPE)                                  \
-  V(PROMISE_CAPABILITY_TYPE)                                    \
-  V(PROMISE_REACTION_TYPE)                                      \
-  V(PROTOTYPE_INFO_TYPE)                                        \
-  V(SCRIPT_TYPE)                                                \
-  V(STACK_FRAME_INFO_TYPE)                                      \
-  V(TUPLE2_TYPE)                                                \
-  V(TUPLE3_TYPE)                                                \
-  V(ARRAY_BOILERPLATE_DESCRIPTION_TYPE)                         \
-  V(WASM_DEBUG_INFO_TYPE)                                       \
-  V(WASM_EXPORTED_FUNCTION_DATA_TYPE)                           \
-                                                                \
-  V(CALLABLE_TASK_TYPE)                                         \
-  V(CALLBACK_TASK_TYPE)                                         \
-  V(PROMISE_FULFILL_REACTION_JOB_TASK_TYPE)                     \
-  V(PROMISE_REJECT_REACTION_JOB_TASK_TYPE)                      \
-  V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)                     \
-                                                                \
-  V(ALLOCATION_SITE_TYPE)                                       \
-                                                                \
-  V(FIXED_ARRAY_TYPE)                                           \
-  V(OBJECT_BOILERPLATE_DESCRIPTION_TYPE)                        \
-  V(HASH_TABLE_TYPE)                                            \
-  V(ORDERED_HASH_MAP_TYPE)                                      \
-  V(ORDERED_HASH_SET_TYPE)                                      \
-  V(NAME_DICTIONARY_TYPE)                                       \
-  V(GLOBAL_DICTIONARY_TYPE)                                     \
-  V(NUMBER_DICTIONARY_TYPE)                                     \
-  V(SIMPLE_NUMBER_DICTIONARY_TYPE)                              \
-  V(STRING_TABLE_TYPE)                                          \
-  V(EPHEMERON_HASH_TABLE_TYPE)                                  \
-  V(SCOPE_INFO_TYPE)                                            \
-  V(SCRIPT_CONTEXT_TABLE_TYPE)                                  \
-                                                                \
-  V(BLOCK_CONTEXT_TYPE)                                         \
-  V(CATCH_CONTEXT_TYPE)                                         \
-  V(DEBUG_EVALUATE_CONTEXT_TYPE)                                \
-  V(EVAL_CONTEXT_TYPE)                                          \
-  V(FUNCTION_CONTEXT_TYPE)                                      \
-  V(MODULE_CONTEXT_TYPE)                                        \
-  V(NATIVE_CONTEXT_TYPE)                                        \
-  V(SCRIPT_CONTEXT_TYPE)                                        \
-  V(WITH_CONTEXT_TYPE)                                          \
-                                                                \
-  V(WEAK_FIXED_ARRAY_TYPE)                                      \
-  V(DESCRIPTOR_ARRAY_TYPE)                                      \
-  V(TRANSITION_ARRAY_TYPE)                                      \
-                                                                \
-  V(CALL_HANDLER_INFO_TYPE)                                     \
-  V(CELL_TYPE)                                                  \
-  V(CODE_DATA_CONTAINER_TYPE)                                   \
-  V(FEEDBACK_CELL_TYPE)                                         \
-  V(FEEDBACK_VECTOR_TYPE)                                       \
-  V(LOAD_HANDLER_TYPE)                                          \
-  V(PRE_PARSED_SCOPE_DATA_TYPE)                                 \
-  V(PROPERTY_ARRAY_TYPE)                                        \
-  V(PROPERTY_CELL_TYPE)                                         \
-  V(SHARED_FUNCTION_INFO_TYPE)                                  \
-  V(SMALL_ORDERED_HASH_MAP_TYPE)                                \
-  V(SMALL_ORDERED_HASH_SET_TYPE)                                \
-  V(STORE_HANDLER_TYPE)                                         \
-  V(UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE)              \
-  V(UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE)                 \
-  V(WEAK_ARRAY_LIST_TYPE)                                       \
-                                                                \
-  V(JS_PROXY_TYPE)                                              \
-  V(JS_GLOBAL_OBJECT_TYPE)                                      \
-  V(JS_GLOBAL_PROXY_TYPE)                                       \
-  V(JS_MODULE_NAMESPACE_TYPE)                                   \
-  V(JS_SPECIAL_API_OBJECT_TYPE)                                 \
-  V(JS_VALUE_TYPE)                                              \
-  V(JS_API_OBJECT_TYPE)                                         \
-  V(JS_OBJECT_TYPE)                                             \
-                                                                \
-  V(JS_ARGUMENTS_TYPE)                                          \
-  V(JS_ARRAY_BUFFER_TYPE)                                       \
-  V(JS_ARRAY_ITERATOR_TYPE)                                     \
-  V(JS_ARRAY_TYPE)                                              \
-  V(JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)                           \
-  V(JS_ASYNC_GENERATOR_OBJECT_TYPE)                             \
-  V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                           \
-  V(JS_DATE_TYPE)                                               \
-  V(JS_ERROR_TYPE)                                              \
-  V(JS_GENERATOR_OBJECT_TYPE)                                   \
-  V(JS_MAP_TYPE)                                                \
-  V(JS_MAP_KEY_ITERATOR_TYPE)                                   \
-  V(JS_MAP_KEY_VALUE_ITERATOR_TYPE)                             \
-  V(JS_MAP_VALUE_ITERATOR_TYPE)                                 \
-  V(JS_MESSAGE_OBJECT_TYPE)                                     \
-  V(JS_PROMISE_TYPE)                                            \
-  V(JS_REGEXP_TYPE)                                             \
-  V(JS_REGEXP_STRING_ITERATOR_TYPE)                             \
-  V(JS_SET_TYPE)                                                \
-  V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                             \
-  V(JS_SET_VALUE_ITERATOR_TYPE)                                 \
-  V(JS_STRING_ITERATOR_TYPE)                                    \
-  V(JS_WEAK_MAP_TYPE)                                           \
-  V(JS_WEAK_SET_TYPE)                                           \
-  V(JS_TYPED_ARRAY_TYPE)                                        \
+#define INSTANCE_TYPE_LIST_BEFORE_INTL(V)                          \
+  V(INTERNALIZED_STRING_TYPE)                                      \
+  V(EXTERNAL_INTERNALIZED_STRING_TYPE)                             \
+  V(ONE_BYTE_INTERNALIZED_STRING_TYPE)                             \
+  V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)                    \
+  V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE)          \
+  V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE)                    \
+  V(UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)           \
+  V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE) \
+  V(STRING_TYPE)                                                   \
+  V(CONS_STRING_TYPE)                                              \
+  V(EXTERNAL_STRING_TYPE)                                          \
+  V(SLICED_STRING_TYPE)                                            \
+  V(THIN_STRING_TYPE)                                              \
+  V(ONE_BYTE_STRING_TYPE)                                          \
+  V(CONS_ONE_BYTE_STRING_TYPE)                                     \
+  V(EXTERNAL_ONE_BYTE_STRING_TYPE)                                 \
+  V(SLICED_ONE_BYTE_STRING_TYPE)                                   \
+  V(THIN_ONE_BYTE_STRING_TYPE)                                     \
+  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                       \
+  V(UNCACHED_EXTERNAL_STRING_TYPE)                                 \
+  V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)                        \
+  V(UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)              \
+                                                                   \
+  V(SYMBOL_TYPE)                                                   \
+  V(HEAP_NUMBER_TYPE)                                              \
+  V(BIGINT_TYPE)                                                   \
+  V(ODDBALL_TYPE)                                                  \
+                                                                   \
+  V(MAP_TYPE)                                                      \
+  V(CODE_TYPE)                                                     \
+  V(MUTABLE_HEAP_NUMBER_TYPE)                                      \
+  V(FOREIGN_TYPE)                                                  \
+  V(BYTE_ARRAY_TYPE)                                               \
+  V(BYTECODE_ARRAY_TYPE)                                           \
+  V(FREE_SPACE_TYPE)                                               \
+                                                                   \
+  V(FIXED_INT8_ARRAY_TYPE)                                         \
+  V(FIXED_UINT8_ARRAY_TYPE)                                        \
+  V(FIXED_INT16_ARRAY_TYPE)                                        \
+  V(FIXED_UINT16_ARRAY_TYPE)                                       \
+  V(FIXED_INT32_ARRAY_TYPE)                                        \
+  V(FIXED_UINT32_ARRAY_TYPE)                                       \
+  V(FIXED_FLOAT32_ARRAY_TYPE)                                      \
+  V(FIXED_FLOAT64_ARRAY_TYPE)                                      \
+  V(FIXED_UINT8_CLAMPED_ARRAY_TYPE)                                \
+  V(FIXED_BIGINT64_ARRAY_TYPE)                                     \
+  V(FIXED_BIGUINT64_ARRAY_TYPE)                                    \
+                                                                   \
+  V(FIXED_DOUBLE_ARRAY_TYPE)                                       \
+  V(FEEDBACK_METADATA_TYPE)                                        \
+  V(FILLER_TYPE)                                                   \
+                                                                   \
+  V(ACCESS_CHECK_INFO_TYPE)                                        \
+  V(ACCESSOR_INFO_TYPE)                                            \
+  V(ACCESSOR_PAIR_TYPE)                                            \
+  V(ALIASED_ARGUMENTS_ENTRY_TYPE)                                  \
+  V(ALLOCATION_MEMENTO_TYPE)                                       \
+  V(ASYNC_GENERATOR_REQUEST_TYPE)                                  \
+  V(DEBUG_INFO_TYPE)                                               \
+  V(FUNCTION_TEMPLATE_INFO_TYPE)                                   \
+  V(INTERCEPTOR_INFO_TYPE)                                         \
+  V(INTERPRETER_DATA_TYPE)                                         \
+  V(MODULE_INFO_ENTRY_TYPE)                                        \
+  V(MODULE_TYPE)                                                   \
+  V(OBJECT_TEMPLATE_INFO_TYPE)                                     \
+  V(PROMISE_CAPABILITY_TYPE)                                       \
+  V(PROMISE_REACTION_TYPE)                                         \
+  V(PROTOTYPE_INFO_TYPE)                                           \
+  V(SCRIPT_TYPE)                                                   \
+  V(STACK_FRAME_INFO_TYPE)                                         \
+  V(TUPLE2_TYPE)                                                   \
+  V(TUPLE3_TYPE)                                                   \
+  V(ARRAY_BOILERPLATE_DESCRIPTION_TYPE)                            \
+  V(WASM_DEBUG_INFO_TYPE)                                          \
+  V(WASM_EXPORTED_FUNCTION_DATA_TYPE)                              \
+                                                                   \
+  V(CALLABLE_TASK_TYPE)                                            \
+  V(CALLBACK_TASK_TYPE)                                            \
+  V(PROMISE_FULFILL_REACTION_JOB_TASK_TYPE)                        \
+  V(PROMISE_REJECT_REACTION_JOB_TASK_TYPE)                         \
+  V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)                        \
+                                                                   \
+  V(ALLOCATION_SITE_TYPE)                                          \
+                                                                   \
+  V(FIXED_ARRAY_TYPE)                                              \
+  V(OBJECT_BOILERPLATE_DESCRIPTION_TYPE)                           \
+  V(HASH_TABLE_TYPE)                                               \
+  V(ORDERED_HASH_MAP_TYPE)                                         \
+  V(ORDERED_HASH_SET_TYPE)                                         \
+  V(NAME_DICTIONARY_TYPE)                                          \
+  V(GLOBAL_DICTIONARY_TYPE)                                        \
+  V(NUMBER_DICTIONARY_TYPE)                                        \
+  V(SIMPLE_NUMBER_DICTIONARY_TYPE)                                 \
+  V(STRING_TABLE_TYPE)                                             \
+  V(EPHEMERON_HASH_TABLE_TYPE)                                     \
+  V(SCOPE_INFO_TYPE)                                               \
+  V(SCRIPT_CONTEXT_TABLE_TYPE)                                     \
+                                                                   \
+  V(BLOCK_CONTEXT_TYPE)                                            \
+  V(CATCH_CONTEXT_TYPE)                                            \
+  V(DEBUG_EVALUATE_CONTEXT_TYPE)                                   \
+  V(EVAL_CONTEXT_TYPE)                                             \
+  V(FUNCTION_CONTEXT_TYPE)                                         \
+  V(MODULE_CONTEXT_TYPE)                                           \
+  V(NATIVE_CONTEXT_TYPE)                                           \
+  V(SCRIPT_CONTEXT_TYPE)                                           \
+  V(WITH_CONTEXT_TYPE)                                             \
+                                                                   \
+  V(WEAK_FIXED_ARRAY_TYPE)                                         \
+  V(DESCRIPTOR_ARRAY_TYPE)                                         \
+  V(TRANSITION_ARRAY_TYPE)                                         \
+                                                                   \
+  V(CALL_HANDLER_INFO_TYPE)                                        \
+  V(CELL_TYPE)                                                     \
+  V(CODE_DATA_CONTAINER_TYPE)                                      \
+  V(FEEDBACK_CELL_TYPE)                                            \
+  V(FEEDBACK_VECTOR_TYPE)                                          \
+  V(LOAD_HANDLER_TYPE)                                             \
+  V(PRE_PARSED_SCOPE_DATA_TYPE)                                    \
+  V(PROPERTY_ARRAY_TYPE)                                           \
+  V(PROPERTY_CELL_TYPE)                                            \
+  V(SHARED_FUNCTION_INFO_TYPE)                                     \
+  V(SMALL_ORDERED_HASH_MAP_TYPE)                                   \
+  V(SMALL_ORDERED_HASH_SET_TYPE)                                   \
+  V(STORE_HANDLER_TYPE)                                            \
+  V(UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE)                 \
+  V(UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE)                    \
+  V(WEAK_ARRAY_LIST_TYPE)                                          \
+                                                                   \
+  V(JS_PROXY_TYPE)                                                 \
+  V(JS_GLOBAL_OBJECT_TYPE)                                         \
+  V(JS_GLOBAL_PROXY_TYPE)                                          \
+  V(JS_MODULE_NAMESPACE_TYPE)                                      \
+  V(JS_SPECIAL_API_OBJECT_TYPE)                                    \
+  V(JS_VALUE_TYPE)                                                 \
+  V(JS_API_OBJECT_TYPE)                                            \
+  V(JS_OBJECT_TYPE)                                                \
+                                                                   \
+  V(JS_ARGUMENTS_TYPE)                                             \
+  V(JS_ARRAY_BUFFER_TYPE)                                          \
+  V(JS_ARRAY_ITERATOR_TYPE)                                        \
+  V(JS_ARRAY_TYPE)                                                 \
+  V(JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)                              \
+  V(JS_ASYNC_GENERATOR_OBJECT_TYPE)                                \
+  V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                              \
+  V(JS_DATE_TYPE)                                                  \
+  V(JS_ERROR_TYPE)                                                 \
+  V(JS_GENERATOR_OBJECT_TYPE)                                      \
+  V(JS_MAP_TYPE)                                                   \
+  V(JS_MAP_KEY_ITERATOR_TYPE)                                      \
+  V(JS_MAP_KEY_VALUE_ITERATOR_TYPE)                                \
+  V(JS_MAP_VALUE_ITERATOR_TYPE)                                    \
+  V(JS_MESSAGE_OBJECT_TYPE)                                        \
+  V(JS_PROMISE_TYPE)                                               \
+  V(JS_REGEXP_TYPE)                                                \
+  V(JS_REGEXP_STRING_ITERATOR_TYPE)                                \
+  V(JS_SET_TYPE)                                                   \
+  V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                                \
+  V(JS_SET_VALUE_ITERATOR_TYPE)                                    \
+  V(JS_STRING_ITERATOR_TYPE)                                       \
+  V(JS_WEAK_MAP_TYPE)                                              \
+  V(JS_WEAK_SET_TYPE)                                              \
+  V(JS_TYPED_ARRAY_TYPE)                                           \
   V(JS_DATA_VIEW_TYPE)
 
 #define INSTANCE_TYPE_LIST_AFTER_INTL(V) \
@@ -230,56 +230,57 @@ namespace internal {
 
 // Since string types are not consecutive, this macro is used to
 // iterate over them.
-#define STRING_TYPE_LIST(V)                                                   \
-  V(STRING_TYPE, kVariableSizeSentinel, string, String)                       \
-  V(ONE_BYTE_STRING_TYPE, kVariableSizeSentinel, one_byte_string,             \
-    OneByteString)                                                            \
-  V(CONS_STRING_TYPE, ConsString::kSize, cons_string, ConsString)             \
-  V(CONS_ONE_BYTE_STRING_TYPE, ConsString::kSize, cons_one_byte_string,       \
-    ConsOneByteString)                                                        \
-  V(SLICED_STRING_TYPE, SlicedString::kSize, sliced_string, SlicedString)     \
-  V(SLICED_ONE_BYTE_STRING_TYPE, SlicedString::kSize, sliced_one_byte_string, \
-    SlicedOneByteString)                                                      \
-  V(EXTERNAL_STRING_TYPE, ExternalTwoByteString::kSize, external_string,      \
-    ExternalString)                                                           \
-  V(EXTERNAL_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kSize,              \
-    external_one_byte_string, ExternalOneByteString)                          \
-  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE, ExternalTwoByteString::kSize,    \
-    external_string_with_one_byte_data, ExternalStringWithOneByteData)        \
-  V(SHORT_EXTERNAL_STRING_TYPE, ExternalTwoByteString::kShortSize,            \
-    short_external_string, ShortExternalString)                               \
-  V(SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kShortSize,   \
-    short_external_one_byte_string, ShortExternalOneByteString)               \
-  V(SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE,                            \
-    ExternalTwoByteString::kShortSize,                                        \
-    short_external_string_with_one_byte_data,                                 \
-    ShortExternalStringWithOneByteData)                                       \
-                                                                              \
-  V(INTERNALIZED_STRING_TYPE, kVariableSizeSentinel, internalized_string,     \
-    InternalizedString)                                                       \
-  V(ONE_BYTE_INTERNALIZED_STRING_TYPE, kVariableSizeSentinel,                 \
-    one_byte_internalized_string, OneByteInternalizedString)                  \
-  V(EXTERNAL_INTERNALIZED_STRING_TYPE, ExternalTwoByteString::kSize,          \
-    external_internalized_string, ExternalInternalizedString)                 \
-  V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE, ExternalOneByteString::kSize, \
-    external_one_byte_internalized_string, ExternalOneByteInternalizedString) \
-  V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE,                     \
-    ExternalTwoByteString::kSize,                                             \
-    external_internalized_string_with_one_byte_data,                          \
-    ExternalInternalizedStringWithOneByteData)                                \
-  V(SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE,                                  \
-    ExternalTwoByteString::kShortSize, short_external_internalized_string,    \
-    ShortExternalInternalizedString)                                          \
-  V(SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE,                         \
-    ExternalOneByteString::kShortSize,                                        \
-    short_external_one_byte_internalized_string,                              \
-    ShortExternalOneByteInternalizedString)                                   \
-  V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE,               \
-    ExternalTwoByteString::kShortSize,                                        \
-    short_external_internalized_string_with_one_byte_data,                    \
-    ShortExternalInternalizedStringWithOneByteData)                           \
-  V(THIN_STRING_TYPE, ThinString::kSize, thin_string, ThinString)             \
-  V(THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize, thin_one_byte_string,       \
+#define STRING_TYPE_LIST(V)                                                    \
+  V(STRING_TYPE, kVariableSizeSentinel, string, String)                        \
+  V(ONE_BYTE_STRING_TYPE, kVariableSizeSentinel, one_byte_string,              \
+    OneByteString)                                                             \
+  V(CONS_STRING_TYPE, ConsString::kSize, cons_string, ConsString)              \
+  V(CONS_ONE_BYTE_STRING_TYPE, ConsString::kSize, cons_one_byte_string,        \
+    ConsOneByteString)                                                         \
+  V(SLICED_STRING_TYPE, SlicedString::kSize, sliced_string, SlicedString)      \
+  V(SLICED_ONE_BYTE_STRING_TYPE, SlicedString::kSize, sliced_one_byte_string,  \
+    SlicedOneByteString)                                                       \
+  V(EXTERNAL_STRING_TYPE, ExternalTwoByteString::kSize, external_string,       \
+    ExternalString)                                                            \
+  V(EXTERNAL_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kSize,               \
+    external_one_byte_string, ExternalOneByteString)                           \
+  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE, ExternalTwoByteString::kSize,     \
+    external_string_with_one_byte_data, ExternalStringWithOneByteData)         \
+  V(UNCACHED_EXTERNAL_STRING_TYPE, ExternalTwoByteString::kUncachedSize,       \
+    uncached_external_string, UncachedExternalString)                          \
+  V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,                                    \
+    ExternalOneByteString::kUncachedSize, uncached_external_one_byte_string,   \
+    UncachedExternalOneByteString)                                             \
+  V(UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE,                          \
+    ExternalTwoByteString::kUncachedSize,                                      \
+    uncached_external_string_with_one_byte_data,                               \
+    UncachedExternalStringWithOneByteData)                                     \
+                                                                               \
+  V(INTERNALIZED_STRING_TYPE, kVariableSizeSentinel, internalized_string,      \
+    InternalizedString)                                                        \
+  V(ONE_BYTE_INTERNALIZED_STRING_TYPE, kVariableSizeSentinel,                  \
+    one_byte_internalized_string, OneByteInternalizedString)                   \
+  V(EXTERNAL_INTERNALIZED_STRING_TYPE, ExternalTwoByteString::kSize,           \
+    external_internalized_string, ExternalInternalizedString)                  \
+  V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE, ExternalOneByteString::kSize,  \
+    external_one_byte_internalized_string, ExternalOneByteInternalizedString)  \
+  V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE,                      \
+    ExternalTwoByteString::kSize,                                              \
+    external_internalized_string_with_one_byte_data,                           \
+    ExternalInternalizedStringWithOneByteData)                                 \
+  V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE,                                \
+    ExternalTwoByteString::kUncachedSize,                                      \
+    uncached_external_internalized_string, UncachedExternalInternalizedString) \
+  V(UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE,                       \
+    ExternalOneByteString::kUncachedSize,                                      \
+    uncached_external_one_byte_internalized_string,                            \
+    UncachedExternalOneByteInternalizedString)                                 \
+  V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE,             \
+    ExternalTwoByteString::kUncachedSize,                                      \
+    uncached_external_internalized_string_with_one_byte_data,                  \
+    UncachedExternalInternalizedStringWithOneByteData)                         \
+  V(THIN_STRING_TYPE, ThinString::kSize, thin_string, ThinString)              \
+  V(THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize, thin_one_byte_string,        \
     ThinOneByteString)
 
 // A struct is a simple object a set of object-valued fields.  Including an

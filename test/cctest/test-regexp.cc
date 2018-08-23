@@ -1978,9 +1978,9 @@ TEST(UncachedExternalString) {
   v8::Local<v8::String> external =
       v8::String::NewExternalOneByte(isolate, new UncachedExternalString())
           .ToLocalChecked();
-  CHECK(
-      v8::Utils::OpenHandle(*external)->map() ==
-      ReadOnlyRoots(CcTest::i_isolate()).short_external_one_byte_string_map());
+  CHECK(v8::Utils::OpenHandle(*external)->map() ==
+        ReadOnlyRoots(CcTest::i_isolate())
+            .uncached_external_one_byte_string_map());
   v8::Local<v8::Object> global = env->Global();
   global->Set(env.local(), v8_str("external"), external).FromJust();
   CompileRun("var re = /y(.)/; re.test('ab');");

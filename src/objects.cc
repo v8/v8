@@ -2612,7 +2612,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 #endif  // DEBUG
   int size = this->Size();  // Byte size of the original string.
   // Abort if size does not allow in-place conversion.
-  if (size < ExternalString::kShortSize) return false;
+  if (size < ExternalString::kUncachedSize) return false;
   Isolate* isolate;
   // Read-only strings cannot be made external, since that would mutate the
   // string.
@@ -2626,23 +2626,25 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   }
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
-  // string occupies is too small for a regular  external string.
-  // Instead, we resort to a short external string instead, omitting
-  // the field caching the address of the backing store.  When we encounter
-  // short external strings in generated code, we need to bailout to runtime.
+  // string occupies is too small for a regular external string.  Instead, we
+  // resort to an uncached external string instead, omitting the field caching
+  // the address of the backing store.  When we encounter uncached external
+  // strings in generated code, we need to bailout to runtime.
   Map* new_map;
   ReadOnlyRoots roots(heap);
   if (size < ExternalString::kSize) {
     if (is_internalized) {
-      new_map =
-          is_one_byte
-              ? roots
-                    .short_external_internalized_string_with_one_byte_data_map()
-              : roots.short_external_internalized_string_map();
+      if (is_one_byte) {
+        new_map =
+            roots
+                .uncached_external_internalized_string_with_one_byte_data_map();
+      } else {
+        new_map = roots.uncached_external_internalized_string_map();
+      }
     } else {
       new_map = is_one_byte
-                    ? roots.short_external_string_with_one_byte_data_map()
-                    : roots.short_external_string_map();
+                    ? roots.uncached_external_string_with_one_byte_data_map()
+                    : roots.uncached_external_string_map();
     }
   } else {
     new_map =
@@ -2697,7 +2699,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 #endif  // DEBUG
   int size = this->Size();  // Byte size of the original string.
   // Abort if size does not allow in-place conversion.
-  if (size < ExternalString::kShortSize) return false;
+  if (size < ExternalString::kUncachedSize) return false;
   Isolate* isolate;
   // Read-only strings cannot be made external, since that would mutate the
   // string.
@@ -2712,16 +2714,16 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 
   // Morph the string to an external string by replacing the map and
   // reinitializing the fields.  This won't work if the space the existing
-  // string occupies is too small for a regular  external string.
-  // Instead, we resort to a short external string instead, omitting
-  // the field caching the address of the backing store.  When we encounter
-  // short external strings in generated code, we need to bailout to runtime.
+  // string occupies is too small for a regular external string.  Instead, we
+  // resort to an uncached external string instead, omitting the field caching
+  // the address of the backing store.  When we encounter uncached external
+  // strings in generated code, we need to bailout to runtime.
   Map* new_map;
   ReadOnlyRoots roots(heap);
   if (size < ExternalString::kSize) {
     new_map = is_internalized
-                  ? roots.short_external_one_byte_internalized_string_map()
-                  : roots.short_external_one_byte_string_map();
+                  ? roots.uncached_external_one_byte_internalized_string_map()
+                  : roots.uncached_external_one_byte_string_map();
   } else {
     new_map = is_internalized
                   ? roots.external_one_byte_internalized_string_map()

@@ -5436,11 +5436,11 @@ TNode<BoolT> CodeStubAssembler::IsExternalStringInstanceType(
       Int32Constant(kExternalStringTag));
 }
 
-TNode<BoolT> CodeStubAssembler::IsShortExternalStringInstanceType(
+TNode<BoolT> CodeStubAssembler::IsUncachedExternalStringInstanceType(
     SloppyTNode<Int32T> instance_type) {
   CSA_ASSERT(this, IsStringInstanceType(instance_type));
-  STATIC_ASSERT(kShortExternalStringTag != 0);
-  return IsSetWord32(instance_type, kShortExternalStringMask);
+  STATIC_ASSERT(kUncachedExternalStringTag != 0);
+  return IsSetWord32(instance_type, kUncachedExternalStringMask);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSReceiverInstanceType(
@@ -6348,7 +6348,7 @@ TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
 
   BIND(&if_isexternal);
   {
-    GotoIf(IsShortExternalStringInstanceType(var_instance_type_.value()),
+    GotoIf(IsUncachedExternalStringInstanceType(var_instance_type_.value()),
            if_bailout);
 
     TNode<String> string = CAST(var_string_.value());

@@ -900,12 +900,12 @@ MaybeHandle<Map> GetInternalizedStringMap(Factory* f, Handle<String> string) {
       return f->external_one_byte_internalized_string_map();
     case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
       return f->external_internalized_string_with_one_byte_data_map();
-    case SHORT_EXTERNAL_STRING_TYPE:
-      return f->short_external_internalized_string_map();
-    case SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE:
-      return f->short_external_one_byte_internalized_string_map();
-    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return f->short_external_internalized_string_with_one_byte_data_map();
+    case UNCACHED_EXTERNAL_STRING_TYPE:
+      return f->uncached_external_internalized_string_map();
+    case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
+      return f->uncached_external_one_byte_internalized_string_map();
+    case UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+      return f->uncached_external_internalized_string_with_one_byte_data_map();
     default:
       return MaybeHandle<Map>();  // No match found.
   }
@@ -1083,7 +1083,7 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
   bool is_one_byte_data_in_two_byte_string = false;
   if (!is_one_byte) {
     // At least one of the strings uses two-byte representation so we
-    // can't use the fast case code for short one-byte strings below, but
+    // can't use the fast case code for uncached one-byte strings below, but
     // we can try to save memory if all chars actually fit in one-byte.
     is_one_byte_data_in_two_byte_string =
         left->HasOnlyOneByteChars() && right->HasOnlyOneByteChars();
@@ -1244,8 +1244,7 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
 
   Handle<Map> map;
   if (resource->IsCompressible()) {
-    // TODO(hajimehoshi): Rename this to 'uncached_external_one_byte_string_map'
-    map = short_external_one_byte_string_map();
+    map = uncached_external_one_byte_string_map();
   } else {
     map = external_one_byte_string_map();
   }
@@ -1275,9 +1274,8 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
       String::IsOneByte(resource->data(), static_cast<int>(length));
   Handle<Map> map;
   if (resource->IsCompressible()) {
-    // TODO(hajimehoshi): Rename these to 'uncached_external_string_...'.
-    map = is_one_byte ? short_external_string_with_one_byte_data_map()
-                      : short_external_string_map();
+    map = is_one_byte ? uncached_external_string_with_one_byte_data_map()
+                      : uncached_external_string_map();
   } else {
     map = is_one_byte ? external_string_with_one_byte_data_map()
                       : external_string_map();

@@ -209,7 +209,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
   } else if (obj->IsExternalString()) {
     if (obj->map() == ReadOnlyRoots(isolate_).native_source_string_map()) {
       ExternalOneByteString* string = ExternalOneByteString::cast(obj);
-      DCHECK(string->is_short());
+      DCHECK(string->is_uncached());
       string->SetResource(
           isolate_, NativesExternalStringResource::DecodeForDeserialization(
                         string->resource()));

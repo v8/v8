@@ -1808,7 +1808,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                               SloppyTNode<Map> map);
   TNode<BoolT> IsSequentialStringInstanceType(
       SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> IsShortExternalStringInstanceType(
+  TNode<BoolT> IsUncachedExternalStringInstanceType(
       SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsSpecialReceiverInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsCustomElementsReceiverInstanceType(

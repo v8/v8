@@ -120,22 +120,23 @@ namespace internal {
   V(Map, external_string_with_one_byte_data_map,                               \
     ExternalStringWithOneByteDataMap)                                          \
   V(Map, external_one_byte_string_map, ExternalOneByteStringMap)               \
-  V(Map, short_external_string_map, ShortExternalStringMap)                    \
-  V(Map, short_external_string_with_one_byte_data_map,                         \
-    ShortExternalStringWithOneByteDataMap)                                     \
+  V(Map, uncached_external_string_map, UncachedExternalStringMap)              \
+  V(Map, uncached_external_string_with_one_byte_data_map,                      \
+    UncachedExternalStringWithOneByteDataMap)                                  \
   V(Map, internalized_string_map, InternalizedStringMap)                       \
   V(Map, external_internalized_string_map, ExternalInternalizedStringMap)      \
   V(Map, external_internalized_string_with_one_byte_data_map,                  \
     ExternalInternalizedStringWithOneByteDataMap)                              \
   V(Map, external_one_byte_internalized_string_map,                            \
     ExternalOneByteInternalizedStringMap)                                      \
-  V(Map, short_external_internalized_string_map,                               \
-    ShortExternalInternalizedStringMap)                                        \
-  V(Map, short_external_internalized_string_with_one_byte_data_map,            \
-    ShortExternalInternalizedStringWithOneByteDataMap)                         \
-  V(Map, short_external_one_byte_internalized_string_map,                      \
-    ShortExternalOneByteInternalizedStringMap)                                 \
-  V(Map, short_external_one_byte_string_map, ShortExternalOneByteStringMap)    \
+  V(Map, uncached_external_internalized_string_map,                            \
+    UncachedExternalInternalizedStringMap)                                     \
+  V(Map, uncached_external_internalized_string_with_one_byte_data_map,         \
+    UncachedExternalInternalizedStringWithOneByteDataMap)                      \
+  V(Map, uncached_external_one_byte_internalized_string_map,                   \
+    UncachedExternalOneByteInternalizedStringMap)                              \
+  V(Map, uncached_external_one_byte_string_map,                                \
+    UncachedExternalOneByteStringMap)                                          \
   /* Array element maps */                                                     \
   V(Map, fixed_uint8_array_map, FixedUint8ArrayMap)                            \
   V(Map, fixed_int8_array_map, FixedInt8ArrayMap)                              \

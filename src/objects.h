@@ -351,8 +351,8 @@ const uint32_t kOneByteDataHintTag = 0x10;
 
 // If bit 7 is clear and string representation indicates an external string,
 // then bit 5 indicates whether the data pointer is cached.
-const uint32_t kShortExternalStringMask = 0x20;
-const uint32_t kShortExternalStringTag = 0x20;
+const uint32_t kUncachedExternalStringMask = 0x20;
+const uint32_t kUncachedExternalStringTag = 0x20;
 
 // A ConsString with an empty string as the right side is a candidate
 // for being shortcut by the garbage collector. We don't allocate any
@@ -383,15 +383,15 @@ enum InstanceType : uint16_t {
   EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE =
       EXTERNAL_INTERNALIZED_STRING_TYPE | kOneByteDataHintTag |
       kInternalizedTag,
-  SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE = EXTERNAL_INTERNALIZED_STRING_TYPE |
-                                            kShortExternalStringTag |
-                                            kInternalizedTag,
-  SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE =
-      EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kShortExternalStringTag |
+  UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE =
+      EXTERNAL_INTERNALIZED_STRING_TYPE | kUncachedExternalStringTag |
       kInternalizedTag,
-  SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE =
+  UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE =
+      EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kUncachedExternalStringTag |
+      kInternalizedTag,
+  UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE =
       EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE |
-      kShortExternalStringTag | kInternalizedTag,
+      kUncachedExternalStringTag | kInternalizedTag,
   STRING_TYPE = INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
   ONE_BYTE_STRING_TYPE =
       ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
@@ -409,12 +409,12 @@ enum InstanceType : uint16_t {
   EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE =
       EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE |
       kNotInternalizedTag,
-  SHORT_EXTERNAL_STRING_TYPE =
-      SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
-  SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE =
-      SHORT_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
-  SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE =
-      SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE |
+  UNCACHED_EXTERNAL_STRING_TYPE =
+      UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+  UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE =
+      UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE | kNotInternalizedTag,
+  UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE =
+      UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE |
       kNotInternalizedTag,
   THIN_STRING_TYPE = kTwoByteStringTag | kThinStringTag | kNotInternalizedTag,
   THIN_ONE_BYTE_STRING_TYPE =
@@ -422,7 +422,7 @@ enum InstanceType : uint16_t {
 
   // Non-string names
   SYMBOL_TYPE =
-      1 + (kIsNotInternalizedMask | kShortExternalStringMask |
+      1 + (kIsNotInternalizedMask | kUncachedExternalStringMask |
            kOneByteDataHintMask | kStringEncodingMask |
            kStringRepresentationMask),  // FIRST_NONSTRING_TYPE, LAST_NAME_TYPE
 
