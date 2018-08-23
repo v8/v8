@@ -13,11 +13,11 @@ namespace wasm {
 
 #define COMMA ,
 #define SPACE
-#define DO_UNION(feat, desc, val) dst->feat |= src.feat;
+#define DO_UNION(feat, desc, val) dst->feat |= src->feat;
 #define FLAG_REF(feat, desc, val) FLAG_experimental_wasm_##feat
 
-void UnionFeaturesInto(WasmFeatures* dst, const WasmFeatures& src) {
-  FOREACH_WASM_FEATURE(DO_UNION, SPACE);
+void UnionFeaturesInto(WasmFeatures* dst, WasmFeatures* src) {
+  FOREACH_WASM_FEATURE(DO_UNION, SPACE)
 }
 
 WasmFeatures WasmFeaturesFromFlags() {

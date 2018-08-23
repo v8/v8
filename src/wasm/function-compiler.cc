@@ -73,7 +73,7 @@ WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
 // {TurbofanWasmCompilationUnit} can be opaque in the header file.
 WasmCompilationUnit::~WasmCompilationUnit() {}
 
-void WasmCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
+void WasmCompilationUnit::ExecuteCompilation() {
   auto size_histogram = SELECT_WASM_COUNTER(counters_, env_->module->origin,
                                             wasm, function_size_bytes);
   size_histogram->AddSample(
@@ -89,12 +89,12 @@ void WasmCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
 
   switch (mode_) {
     case ExecutionTier::kBaseline:
-      if (liftoff_unit_->ExecuteCompilation(detected)) break;
+      if (liftoff_unit_->ExecuteCompilation()) break;
       // Otherwise, fall back to turbofan.
       SwitchMode(ExecutionTier::kOptimized);
       V8_FALLTHROUGH;
     case ExecutionTier::kOptimized:
-      turbofan_unit_->ExecuteCompilation(detected);
+      turbofan_unit_->ExecuteCompilation();
       break;
     case ExecutionTier::kInterpreter:
       UNREACHABLE();  // TODO(titzer): compile interpreter entry stub.
@@ -145,9 +145,8 @@ void WasmCompilationUnit::SwitchMode(ExecutionTier new_mode) {
 
 // static
 WasmCode* WasmCompilationUnit::CompileWasmFunction(
-    Isolate* isolate, NativeModule* native_module, WasmFeatures* detected,
-    ErrorThrower* thrower, ModuleEnv* env, const WasmFunction* function,
-    ExecutionTier mode) {
+    NativeModule* native_module, ErrorThrower* thrower, Isolate* isolate,
+    ModuleEnv* env, const WasmFunction* function, ExecutionTier mode) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   FunctionBody function_body{function->sig, function->code.offset(),
                              wire_bytes.start() + function->code.offset(),
@@ -157,7 +156,7 @@ WasmCode* WasmCompilationUnit::CompileWasmFunction(
                            function_body,
                            wire_bytes.GetNameOrNull(function, env->module),
                            function->func_index, isolate->counters(), mode);
-  unit.ExecuteCompilation(detected);
+  unit.ExecuteCompilation();
   return unit.FinishCompilation(thrower);
 }
 

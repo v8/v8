@@ -91,12 +91,12 @@ class WasmCompilationUnit final {
 
   ~WasmCompilationUnit();
 
-  void ExecuteCompilation(WasmFeatures* detected);
+  void ExecuteCompilation();
   WasmCode* FinishCompilation(ErrorThrower* thrower);
 
   static WasmCode* CompileWasmFunction(
-      Isolate* isolate, NativeModule* native_module, WasmFeatures* detected,
-      ErrorThrower* thrower, ModuleEnv* env, const WasmFunction* function,
+      NativeModule* native_module, ErrorThrower* thrower, Isolate* isolate,
+      ModuleEnv* env, const WasmFunction* function,
       ExecutionTier = GetDefaultExecutionTier());
 
   NativeModule* native_module() const { return native_module_; }

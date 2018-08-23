@@ -432,8 +432,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   WasmCompilationUnit unit(isolate()->wasm_engine(), &module_env, native_module,
                            func_body, func_name, function_->func_index,
                            isolate()->counters(), tier);
-  WasmFeatures unused_detected_features;
-  unit.ExecuteCompilation(&unused_detected_features);
+  unit.ExecuteCompilation();
   WasmCode* wasm_code = unit.FinishCompilation(&thrower);
   if (WasmCode::ShouldBeLogged(isolate())) {
     wasm_code->LogCode(isolate());

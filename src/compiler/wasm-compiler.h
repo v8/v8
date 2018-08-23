@@ -41,7 +41,6 @@ struct DecodeStruct;
 typedef compiler::Node TFNode;
 typedef compiler::MachineGraph TFGraph;
 class WasmCode;
-struct WasmFeatures;
 }  // namespace wasm
 
 namespace compiler {
@@ -82,12 +81,11 @@ class TurbofanWasmCompilationUnit {
   explicit TurbofanWasmCompilationUnit(wasm::WasmCompilationUnit* wasm_unit);
   ~TurbofanWasmCompilationUnit();
 
-  SourcePositionTable* BuildGraphForWasmFunction(wasm::WasmFeatures* detected,
-                                                 double* decode_ms,
+  SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms,
                                                  MachineGraph* mcgraph,
                                                  NodeOriginTable* node_origins);
 
-  void ExecuteCompilation(wasm::WasmFeatures* detected);
+  void ExecuteCompilation();
 
   wasm::WasmCode* FinishCompilation(wasm::ErrorThrower*);
 

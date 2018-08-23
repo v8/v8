@@ -90,7 +90,7 @@ class CompilationState {
   void ScheduleUnitForFinishing(std::unique_ptr<WasmCompilationUnit> unit,
                                 ExecutionTier mode);
 
-  void OnBackgroundTaskStopped(const WasmFeatures& detected);
+  void OnBackgroundTaskStopped();
   void RestartBackgroundTasks(size_t max = std::numeric_limits<size_t>::max());
   // Only one foreground thread (finisher) is allowed to run at a time.
   // {SetFinisherIsRunning} returns whether the flag changed its state.
@@ -113,7 +113,6 @@ class CompilationState {
   WasmEngine* wasm_engine() const { return wasm_engine_; }
   CompileMode compile_mode() const { return compile_mode_; }
   ModuleEnv* module_env() { return &module_env_; }
-  WasmFeatures* detected_features() { return &detected_features_; }
 
  private:
   void NotifyOnEvent(CompilationEvent event, ErrorThrower* thrower);
@@ -149,10 +148,6 @@ class CompilationState {
   std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_finish_units_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_finish_units_;
 
-  // Features detected to be used in this module. Features can be detected
-  // as a module is being compiled.
-  WasmFeatures detected_features_ = kNoWasmFeatures;
-
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
@@ -170,12 +165,6 @@ class CompilationState {
 };
 
 namespace {
-
-void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
-  if (detected.threads) {
-    isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmThreadOpcodes);
-  }
-}
 
 class JSToWasmWrapperCache {
  public:
@@ -370,8 +359,7 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
   ErrorThrower thrower(isolate, "WasmLazyCompile");
   WasmCompilationUnit unit(isolate->wasm_engine(), module_env, native_module,
                            body, func_name, func_index, isolate->counters());
-  unit.ExecuteCompilation(
-      native_module->compilation_state()->detected_features());
+  unit.ExecuteCompilation();
   WasmCode* wasm_code = unit.FinishCompilation(&thrower);
 
   if (WasmCode::ShouldBeLogged(isolate)) wasm_code->LogCode(isolate);
@@ -512,8 +500,7 @@ class CompilationUnitBuilder {
 // foreground and background threads). The no_finisher_callback is called
 // within the result_mutex_ lock when no finishing task is running, i.e. when
 // the finisher_is_running_ flag is not set.
-bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state,
-                                    WasmFeatures* detected) {
+bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state) {
   DisallowHeapAccess no_heap_access;
 
   std::unique_ptr<WasmCompilationUnit> unit =
@@ -526,7 +513,7 @@ bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state,
   // later as soon as Liftoff can compile any function. Then, we can directly
   // access {unit->mode()} within {ScheduleUnitForFinishing()}.
   ExecutionTier mode = unit->mode();
-  unit->ExecuteCompilation(detected);
+  unit->ExecuteCompilation();
   compilation_state->ScheduleUnitForFinishing(std::move(unit), mode);
 
   return true;
@@ -627,10 +614,8 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
   //      result is enqueued in {baseline_finish_units_}.
   //      The foreground task bypasses waiting on memory threshold, because
   //      its results will immediately be converted to code (below).
-  WasmFeatures detected_features;
-  while (
-      FetchAndExecuteCompilationUnit(compilation_state, &detected_features) &&
-      !compilation_state->baseline_compilation_finished()) {
+  while (FetchAndExecuteCompilationUnit(compilation_state) &&
+         !compilation_state->baseline_compilation_finished()) {
     // 2.b) If {baseline_finish_units_} contains a compilation unit, the main
     //      thread dequeues it and finishes the compilation unit. Compilation
     //      units are finished concurrently to the background threads to save
@@ -651,10 +636,6 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
     if (compilation_state->baseline_compilation_finished()) break;
   }
 
-  // Combine the features from the main thread compilation and background.
-  UnionFeaturesInto(compilation_state->detected_features(), detected_features);
-  UpdateFeatureUseCounts(isolate, *compilation_state->detected_features());
-
   // 4) If tiering-compilation is enabled, we need to set the finisher
   //    to false, such that the background threads will spawn a foreground
   //    thread to finish the top-tier compilation units.
@@ -671,14 +652,13 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
 
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const WasmModule* module = module_env->module;
-  WasmFeatures detected = kNoWasmFeatures;
   for (uint32_t i = 0; i < module->functions.size(); ++i) {
     const WasmFunction& func = module->functions[i];
     if (func.imported) continue;  // Imports are compiled at instantiation time.
 
     // Compile the function.
     WasmCode* code = WasmCompilationUnit::CompileWasmFunction(
-        isolate, native_module, &detected, thrower, module_env, &func);
+        native_module, thrower, isolate, module_env, &func);
     if (code == nullptr) {
       TruncatedUserString<> name(wire_bytes.GetName(&func, module));
       thrower->CompileError("Compilation of #%d:%.*s failed.", i, name.length(),
@@ -686,7 +666,6 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
       break;
     }
   }
-  UpdateFeatureUseCounts(isolate, detected);
 }
 
 void ValidateSequentially(Isolate* isolate, NativeModule* native_module,
@@ -852,17 +831,15 @@ class BackgroundCompileTask : public CancelableTask {
     // The number of currently running background tasks is reduced in
     // {OnBackgroundTaskStopped}.
     while (!compilation_state_->failed()) {
-      if (!FetchAndExecuteCompilationUnit(compilation_state_,
-                                          &detected_features_)) {
+      if (!FetchAndExecuteCompilationUnit(compilation_state_)) {
         break;
       }
     }
-    compilation_state_->OnBackgroundTaskStopped(detected_features_);
+    compilation_state_->OnBackgroundTaskStopped();
   }
 
  private:
   CompilationState* compilation_state_;
-  WasmFeatures detected_features_ = kNoWasmFeatures;
 };
 }  // namespace
 
@@ -874,12 +851,6 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   const WasmModule* wasm_module = module.get();
   TimedHistogramScope wasm_compile_module_time_scope(SELECT_WASM_COUNTER(
       isolate->counters(), wasm_module->origin, wasm_compile, module_time));
-
-  // Embedder usage count for declared shared memories.
-  if (wasm_module->has_shared_memory) {
-    isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
-  }
-
   // TODO(6792): No longer needed once WebAssembly code is off heap. Use
   // base::Optional to be able to close the scope before notifying the debugger.
   base::Optional<CodeSpaceMemoryModificationScope> modification_scope(
@@ -2224,10 +2195,6 @@ void AsyncCompileJob::FinishCompile() {
   // Log the code within the generated module for profiling.
   native_module_->LogWasmCodes(isolate_);
 
-  // We can only update the feature counts once the entire compile is done.
-  UpdateFeatureUseCounts(
-      isolate_, *native_module_->compilation_state()->detected_features());
-
   // TODO(wasm): compiling wrappers should be made async as well.
   DoSync<CompileWrappers>();
 }
@@ -2412,12 +2379,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // Make sure all compilation tasks stopped running. Decoding (async step)
     // is done.
     job_->background_task_manager_.CancelAndWait();
-
-    // Embedder usage count for declared shared memories.
-    if (job_->module_->has_shared_memory) {
-      job_->isolate_->CountUsage(
-          v8::Isolate::UseCounterFeature::kWasmSharedMemory);
-    }
 
     // Create heap objects for script and module bytes to be stored in the
     // module object. Asm.js is not compiled asynchronously.
@@ -2919,11 +2880,10 @@ void CompilationState::ScheduleUnitForFinishing(
   }
 }
 
-void CompilationState::OnBackgroundTaskStopped(const WasmFeatures& detected) {
+void CompilationState::OnBackgroundTaskStopped() {
   base::LockGuard<base::Mutex> guard(&mutex_);
   DCHECK_LE(1, num_background_tasks_);
   --num_background_tasks_;
-  UnionFeaturesInto(&detected_features_, detected);
 }
 
 void CompilationState::RestartBackgroundTasks(size_t max) {

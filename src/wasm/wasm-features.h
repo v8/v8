@@ -57,8 +57,7 @@ V8_EXPORT_PRIVATE WasmFeatures WasmFeaturesFromFlags();
 // Precondition: A valid context must be set in {isolate->context()}.
 V8_EXPORT_PRIVATE WasmFeatures WasmFeaturesFromIsolate(Isolate* isolate);
 
-V8_EXPORT_PRIVATE void UnionFeaturesInto(WasmFeatures* dst,
-                                         const WasmFeatures& src);
+V8_EXPORT_PRIVATE void UnionFeaturesInto(WasmFeatures* dst, WasmFeatures* src);
 
 }  // namespace wasm
 }  // namespace internal
