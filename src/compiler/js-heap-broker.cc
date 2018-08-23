@@ -54,13 +54,13 @@ class HeapObjectData : public ObjectData {
                                    Handle<HeapObject> object);
 
   HeapObjectType const type;
-  ObjectData* const map;
+  MapData* const map;
 
   HeapObjectData(JSHeapBroker* broker_, Handle<HeapObject> object_,
                  HeapObjectType type_)
       : ObjectData(broker_, object_, false),
         type(type_),
-        map(GET_OR_CREATE(map)) {
+        map(GET_OR_CREATE(map)->AsMap()) {
     CHECK(broker_->SerializingAllowed());
   }
 };
@@ -81,12 +81,12 @@ class JSObjectData : public HeapObjectData {
 
 class JSFunctionData : public JSObjectData {
  public:
-  ObjectData* const global_proxy;
-  ObjectData* const initial_map;  // Can be nullptr.
+  JSGlobalProxyData* const global_proxy;
+  MapData* const initial_map;  // Can be nullptr.
   bool const has_prototype;
   ObjectData* const prototype;  // Can be nullptr.
   bool const PrototypeRequiresRuntimeLookup;
-  ObjectData* const shared;
+  SharedFunctionInfoData* const shared;
 
   JSFunctionData(JSHeapBroker* broker_, Handle<JSFunction> object_,
                  HeapObjectType type_);
@@ -122,14 +122,14 @@ class ContextData : public HeapObjectData {
 
 class NativeContextData : public ContextData {
  public:
-#define DECL_MEMBER(type, name) ObjectData* const name;
+#define DECL_MEMBER(type, name) type##Data* const name;
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_MEMBER)
 #undef DECL_MEMBER
 
   NativeContextData(JSHeapBroker* broker_, Handle<NativeContext> object_,
                     HeapObjectType type_)
       : ContextData(broker_, object_, type_)
-#define INIT_MEMBER(type, name) , name(GET_OR_CREATE(name))
+#define INIT_MEMBER(type, name) , name(GET_OR_CREATE(name)->As##type())
             BROKER_NATIVE_CONTEXT_FIELDS(INIT_MEMBER)
 #undef INIT_MEMBER
   {
@@ -327,17 +327,16 @@ MapData::MapData(JSHeapBroker* broker_, Handle<Map> object_,
 JSFunctionData::JSFunctionData(JSHeapBroker* broker_,
                                Handle<JSFunction> object_, HeapObjectType type_)
     : JSObjectData(broker_, object_, type_),
-      global_proxy(GET_OR_CREATE(global_proxy)),
+      global_proxy(GET_OR_CREATE(global_proxy)->AsJSGlobalProxy()),
       initial_map(object_->has_prototype_slot() && object_->has_initial_map()
-                      ? GET_OR_CREATE(initial_map)
+                      ? GET_OR_CREATE(initial_map)->AsMap()
                       : nullptr),
       has_prototype(object_->has_prototype_slot() && object_->has_prototype()),
       prototype(has_prototype ? GET_OR_CREATE(prototype) : nullptr),
       PrototypeRequiresRuntimeLookup(object_->PrototypeRequiresRuntimeLookup()),
-      shared(GET_OR_CREATE(shared)) {
-  if (initial_map != nullptr &&
-      initial_map->AsMap()->instance_type == JS_ARRAY_TYPE) {
-    initial_map->AsMap()->SerializeElementsKindGeneralizations();
+      shared(GET_OR_CREATE(shared)->AsSharedFunctionInfo()) {
+  if (initial_map != nullptr && initial_map->instance_type == JS_ARRAY_TYPE) {
+    initial_map->SerializeElementsKindGeneralizations();
   }
 }
 
@@ -433,7 +432,7 @@ class ScopeInfoData : public HeapObjectData {
 class SharedFunctionInfoData : public HeapObjectData {
  public:
   int const builtin_id;
-  ObjectData* const GetBytecodeArray;  // Can be nullptr.
+  BytecodeArrayData* const GetBytecodeArray;  // Can be nullptr.
 #define DECL_MEMBER(type, name) type const name;
   BROKER_SFI_FIELDS(DECL_MEMBER)
 #undef DECL_MEMBER
@@ -444,9 +443,10 @@ class SharedFunctionInfoData : public HeapObjectData {
       : HeapObjectData(broker_, object_, type_),
         builtin_id(object_->HasBuiltinId() ? object_->builtin_id()
                                            : Builtins::kNoBuiltinId),
-        GetBytecodeArray(object_->HasBytecodeArray()
-                             ? GET_OR_CREATE(GetBytecodeArray)
-                             : nullptr)
+        GetBytecodeArray(
+            object_->HasBytecodeArray()
+                ? GET_OR_CREATE(GetBytecodeArray)->AsBytecodeArray()
+                : nullptr)
 #define INIT_MEMBER(type, name) , name(object_->name())
             BROKER_SFI_FIELDS(INIT_MEMBER)
 #undef INIT_MEMBER
