@@ -125,33 +125,29 @@ bool Scavenger::PromoteObject(Map* map, HeapObjectReference** slot,
   return false;
 }
 
-SlotCallbackResult Scavenger::EvacuateObjectDefault(Map* map,
-                                                    HeapObjectReference** slot,
-                                                    HeapObject* object,
-                                                    int object_size) {
+void Scavenger::EvacuateObjectDefault(Map* map, HeapObjectReference** slot,
+                                      HeapObject* object, int object_size) {
   SLOW_DCHECK(object_size <= Page::kAllocatableMemory);
   SLOW_DCHECK(object->SizeFromMap(map) == object_size);
 
   if (!heap()->ShouldBePromoted(object->address())) {
     // A semi-space copy may fail due to fragmentation. In that case, we
     // try to promote the object.
-    if (SemiSpaceCopyObject(map, slot, object, object_size)) return KEEP_SLOT;
+    if (SemiSpaceCopyObject(map, slot, object, object_size)) return;
   }
 
-  if (PromoteObject(map, slot, object, object_size)) return REMOVE_SLOT;
+  if (PromoteObject(map, slot, object, object_size)) return;
 
   // If promotion failed, we try to copy the object to the other semi-space
-  if (SemiSpaceCopyObject(map, slot, object, object_size)) return KEEP_SLOT;
+  if (SemiSpaceCopyObject(map, slot, object, object_size)) return;
 
   heap()->FatalProcessOutOfMemory("Scavenger: semi-space copy");
-  UNREACHABLE();
 }
 
-SlotCallbackResult Scavenger::EvacuateThinString(Map* map, HeapObject** slot,
-                                                 ThinString* object,
-                                                 int object_size) {
+void Scavenger::EvacuateThinString(Map* map, HeapObject** slot,
+                                   ThinString* object, int object_size) {
   if (!is_incremental_marking_) {
-    // Loading actual is fine in a parallel setting since there is no write.
+    // Loading actual is fine in a parallel setting is there is no write.
     String* actual = object->actual();
     object->set_length(0);
     *slot = actual;
@@ -161,17 +157,15 @@ SlotCallbackResult Scavenger::EvacuateThinString(Map* map, HeapObject** slot,
     base::AsAtomicPointer::Relaxed_Store(
         reinterpret_cast<Map**>(object->address()),
         MapWord::FromForwardingAddress(actual).ToMap());
-    return REMOVE_SLOT;
+    return;
   }
 
-  return EvacuateObjectDefault(
-      map, reinterpret_cast<HeapObjectReference**>(slot), object, object_size);
+  EvacuateObjectDefault(map, reinterpret_cast<HeapObjectReference**>(slot),
+                        object, object_size);
 }
 
-SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map* map,
-                                                        HeapObject** slot,
-                                                        ConsString* object,
-                                                        int object_size) {
+void Scavenger::EvacuateShortcutCandidate(Map* map, HeapObject** slot,
+                                          ConsString* object, int object_size) {
   DCHECK(IsShortcutCandidate(map->instance_type()));
   if (!is_incremental_marking_ &&
       object->unchecked_second() == ReadOnlyRoots(heap()).empty_string()) {
@@ -183,10 +177,10 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map* map,
       base::AsAtomicPointer::Relaxed_Store(
           reinterpret_cast<Map**>(object->address()),
           MapWord::FromForwardingAddress(first).ToMap());
-      return REMOVE_SLOT;
+      return;
     }
 
-    MapWord first_word = first->synchronized_map_word();
+    MapWord first_word = first->map_word();
     if (first_word.IsForwardingAddress()) {
       HeapObject* target = first_word.ToForwardingAddress();
 
@@ -194,24 +188,23 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map* map,
       base::AsAtomicPointer::Relaxed_Store(
           reinterpret_cast<Map**>(object->address()),
           MapWord::FromForwardingAddress(target).ToMap());
-      return Heap::InToSpace(target) ? KEEP_SLOT : REMOVE_SLOT;
+      return;
     }
     Map* map = first_word.ToMap();
-    SlotCallbackResult result = EvacuateObjectDefault(
-        map, reinterpret_cast<HeapObjectReference**>(slot), first,
-        first->SizeFromMap(map));
+    EvacuateObjectDefault(map, reinterpret_cast<HeapObjectReference**>(slot),
+                          first, first->SizeFromMap(map));
     base::AsAtomicPointer::Relaxed_Store(
         reinterpret_cast<Map**>(object->address()),
         MapWord::FromForwardingAddress(*slot).ToMap());
-    return result;
+    return;
   }
 
-  return EvacuateObjectDefault(
-      map, reinterpret_cast<HeapObjectReference**>(slot), object, object_size);
+  EvacuateObjectDefault(map, reinterpret_cast<HeapObjectReference**>(slot),
+                        object, object_size);
 }
 
-SlotCallbackResult Scavenger::EvacuateObject(HeapObjectReference** slot,
-                                             Map* map, HeapObject* source) {
+void Scavenger::EvacuateObject(HeapObjectReference** slot, Map* map,
+                               HeapObject* source) {
   SLOW_DCHECK(Heap::InFromSpace(source));
   SLOW_DCHECK(!MapWord::FromMap(map).IsForwardingAddress());
   int size = source->SizeFromMap(map);
@@ -221,21 +214,22 @@ SlotCallbackResult Scavenger::EvacuateObject(HeapObjectReference** slot,
     case kVisitThinString:
       // At the moment we don't allow weak pointers to thin strings.
       DCHECK(!(*slot)->IsWeakHeapObject());
-      return EvacuateThinString(map, reinterpret_cast<HeapObject**>(slot),
-                                reinterpret_cast<ThinString*>(source), size);
+      EvacuateThinString(map, reinterpret_cast<HeapObject**>(slot),
+                         reinterpret_cast<ThinString*>(source), size);
+      break;
     case kVisitShortcutCandidate:
       DCHECK(!(*slot)->IsWeakHeapObject());
       // At the moment we don't allow weak pointers to cons strings.
-      return EvacuateShortcutCandidate(
-          map, reinterpret_cast<HeapObject**>(slot),
-          reinterpret_cast<ConsString*>(source), size);
+      EvacuateShortcutCandidate(map, reinterpret_cast<HeapObject**>(slot),
+                                reinterpret_cast<ConsString*>(source), size);
+      break;
     default:
-      return EvacuateObjectDefault(map, slot, source, size);
+      EvacuateObjectDefault(map, slot, source, size);
+      break;
   }
 }
 
-SlotCallbackResult Scavenger::ScavengeObject(HeapObjectReference** p,
-                                             HeapObject* object) {
+void Scavenger::ScavengeObject(HeapObjectReference** p, HeapObject* object) {
   DCHECK(Heap::InFromSpace(object));
 
   // Synchronized load that consumes the publishing CAS of MigrateObject.
@@ -252,14 +246,14 @@ SlotCallbackResult Scavenger::ScavengeObject(HeapObjectReference** p,
       DCHECK((*p)->IsStrongHeapObject());
       *p = HeapObjectReference::Strong(dest);
     }
-    return Heap::InToSpace(dest) ? KEEP_SLOT : REMOVE_SLOT;
+    return;
   }
 
   Map* map = first_word.ToMap();
   // AllocationMementos are unrooted and shouldn't survive a scavenge
   DCHECK_NE(ReadOnlyRoots(heap()).allocation_memento_map(), map);
   // Call the slow part of scavenge object.
-  return EvacuateObject(p, map, object);
+  EvacuateObject(p, map, object);
 }
 
 SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
@@ -273,8 +267,17 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
     DCHECK(success);
     DCHECK(heap_object->IsHeapObject());
 
-    return ScavengeObject(reinterpret_cast<HeapObjectReference**>(slot),
-                          heap_object);
+    ScavengeObject(reinterpret_cast<HeapObjectReference**>(slot), heap_object);
+
+    object = *slot;
+    // If the object was in from space before and is after executing the
+    // callback in to space, the object is still live.
+    // Unfortunately, we do not know about the slot. It could be in a
+    // just freed free space object.
+    PageMemoryFence(object);
+    if (Heap::InToSpace(object)) {
+      return KEEP_SLOT;
+    }
   } else if (Heap::InToSpace(object)) {
     // Already updated slot. This can happen when processing of the work list
     // is interleaved with processing roots.
