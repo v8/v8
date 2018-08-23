@@ -7433,6 +7433,8 @@ class V8_EXPORT Isolate {
     kDeoptimizerDisableSpeculation = 47,
     kArrayPrototypeSortJSArrayModifiedPrototype = 48,
     kFunctionTokenOffsetTooLongForToString = 49,
+    kWasmSharedMemory = 50,
+    kWasmThreadOpcodes = 51,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, UseCounterCallback.cpp, and enums.xml. V8 changes to
