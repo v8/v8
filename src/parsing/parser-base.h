@@ -598,12 +598,12 @@ class ParserBase {
     typename Types::ClassPropertyList instance_fields;
     FunctionLiteralT constructor;
 
-    bool has_seen_constructor : 1;
-    bool has_name_static_property : 1;
-    bool has_static_computed_names : 1;
-    bool has_static_class_fields : 1;
-    bool has_instance_class_fields : 1;
-    bool is_anonymous : 1;
+    bool has_seen_constructor;
+    bool has_name_static_property;
+    bool has_static_computed_names;
+    bool has_static_class_fields;
+    bool has_instance_class_fields;
+    bool is_anonymous;
     DeclarationScope* static_fields_scope;
     DeclarationScope* instance_fields_scope;
     int computed_field_count;
