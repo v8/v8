@@ -916,7 +916,7 @@ RUNTIME_FUNCTION(Runtime_PromiseSpeciesProtector) {
 // Take a compiled wasm module and serialize it into an array buffer, which is
 // then returned.
 RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
-  HandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
 
@@ -937,31 +937,20 @@ RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
 // Take an array buffer and attempt to reconstruct a compiled wasm module.
 // Return undefined if unsuccessful.
 RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
-  HandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, buffer, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, wire_bytes, 1);
 
-  uint8_t* mem_start = reinterpret_cast<uint8_t*>(buffer->backing_store());
-  size_t mem_size = static_cast<size_t>(buffer->byte_length()->Number());
-
   // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
-  // JSArrayBuffer doesn't get relocated.
-  bool already_external = wire_bytes->is_external();
-  if (!already_external) {
-    wire_bytes->set_is_external(true);
-    isolate->heap()->UnregisterArrayBuffer(*wire_bytes);
-  }
+  // JSArrayBuffer backing store doesn't get relocated.
   MaybeHandle<WasmModuleObject> maybe_module_object =
       wasm::DeserializeNativeModule(
-          isolate, {mem_start, mem_size},
-          Vector<const uint8_t>(
-              reinterpret_cast<uint8_t*>(wire_bytes->backing_store()),
-              static_cast<int>(wire_bytes->byte_length()->Number())));
-  if (!already_external) {
-    wire_bytes->set_is_external(false);
-    isolate->heap()->RegisterNewArrayBuffer(*wire_bytes);
-  }
+          isolate,
+          {reinterpret_cast<uint8_t*>(buffer->backing_store()),
+           static_cast<size_t>(buffer->byte_length()->Number())},
+          {reinterpret_cast<uint8_t*>(wire_bytes->backing_store()),
+           static_cast<size_t>(wire_bytes->byte_length()->Number())});
   Handle<WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
     return ReadOnlyRoots(isolate).undefined_value();
