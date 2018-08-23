@@ -8,28 +8,27 @@ function $(id) {
   return document.getElementById(id);
 }
 
-let components = [];
-
+let components;
 function createViews() {
-  components.push(new CallTreeView());
-  components.push(new TimelineView());
-  components.push(new HelpView());
-  components.push(new SummaryView());
-  components.push(new ModeBarView());
-
-  main.setMode("summary");
+  components = [
+    new CallTreeView(),
+    new TimelineView(),
+    new HelpView(),
+    new SummaryView(),
+    new ModeBarView(),
+  ];
 }
 
 function emptyState() {
   return {
     file : null,
-    mode : "none",
+    mode : null,
     currentCodeId : null,
     start : 0,
     end : Infinity,
-    timeLine : {
-      width : 100,
-      height : 100
+    timelineSize : {
+      width : 0,
+      height : 0
     },
     callTree : {
       attribution : "js-exclude-bc",
@@ -120,22 +119,12 @@ let main = {
     }
   },
 
-  setTimeLineDimensions(width, height) {
-    if (width !== main.currentState.timeLine.width ||
-        height !== main.currentState.timeLine.height) {
-      let timeLine = Object.assign({}, main.currentState.timeLine);
-      timeLine.width = width;
-      timeLine.height = height;
-      main.currentState = Object.assign({}, main.currentState);
-      main.currentState.timeLine = timeLine;
-      main.delayRender();
-    }
-  },
-
   setFile(file) {
     if (file !== main.currentState.file) {
-      main.currentState = Object.assign({}, main.currentState);
+      let lastMode = main.currentState.mode || "summary";
+      main.currentState = emptyState();
       main.currentState.file = file;
+      main.setMode(lastMode);
       main.delayRender();
     }
   },
@@ -149,9 +138,7 @@ let main = {
   },
 
   onResize() {
-    main.setTimeLineDimensions(
-      Math.round(window.innerWidth - 20),
-      Math.round(window.innerHeight / 5));
+    main.delayRender();
   },
 
   onLoad() {
@@ -160,9 +147,7 @@ let main = {
       if (f) {
         let reader = new FileReader();
         reader.onload = function(event) {
-          let profData = JSON.parse(event.target.result);
-          main.setViewInterval(0, Infinity);
-          main.setFile(profData);
+          main.setFile(JSON.parse(event.target.result));
         };
         reader.onerror = function(event) {
           console.error(
@@ -176,7 +161,6 @@ let main = {
     $("fileinput").addEventListener(
         "change", loadHandler, false);
     createViews();
-    main.onResize();
   },
 
   delayRender()  {
@@ -809,9 +793,12 @@ class TimelineView {
       return;
     }
 
+    let width = Math.round(window.innerWidth - 20);
+    let height = Math.round(window.innerHeight / 5);
+
     if (oldState) {
-      if (newState.timeLine.width === oldState.timeLine.width &&
-          newState.timeLine.height === oldState.timeLine.height &&
+      if (width === oldState.timelineSize.width &&
+          height === oldState.timelineSize.height &&
           newState.file === oldState.file &&
           newState.currentCodeId === oldState.currentCodeId &&
           newState.start === oldState.start &&
@@ -821,12 +808,12 @@ class TimelineView {
       }
     }
     this.currentState = newState;
+    this.currentState.timelineSize.width = width;
+    this.currentState.timelineSize.height = height;
 
     this.element.style.display = "inherit";
 
     let file = this.currentState.file;
-    let width = this.currentState.timeLine.width;
-    let height = this.currentState.timeLine.height;
 
     const minPixelsPerBucket = 10;
     const minTicksPerBucket = 8;
