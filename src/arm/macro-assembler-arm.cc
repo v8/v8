@@ -1904,17 +1904,6 @@ void TurboAssembler::Abort(AbortReason reason) {
     Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
   }
   // will not return here
-  if (is_const_pool_blocked()) {
-    // If the calling code cares about the exact number of
-    // instructions generated, we insert padding here to keep the size
-    // of the Abort macro constant.
-    static const int kExpectedAbortInstructions = 7;
-    int abort_instructions = InstructionsGeneratedSince(&abort_start);
-    DCHECK_LE(abort_instructions, kExpectedAbortInstructions);
-    while (abort_instructions++ < kExpectedAbortInstructions) {
-      nop();
-    }
-  }
 }
 
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
