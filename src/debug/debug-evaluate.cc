@@ -817,6 +817,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kArrayIteratorPrototypeNext:
     case Builtins::kArrayPrototypePop:
     case Builtins::kArrayPrototypePush:
+    case Builtins::kArrayPrototypeReverse:
     case Builtins::kArrayPrototypeShift:
     case Builtins::kArraySplice:
     case Builtins::kArrayUnshift:

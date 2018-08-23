@@ -1735,6 +1735,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           0, false);
     SimpleInstallFunction(isolate_, proto, "push",
                           Builtins::kArrayPrototypePush, 1, false);
+    SimpleInstallFunction(isolate_, proto, "reverse",
+                          Builtins::kArrayPrototypeReverse, 0, false);
     SimpleInstallFunction(isolate_, proto, "shift",
                           Builtins::kArrayPrototypeShift, 0, false);
     SimpleInstallFunction(isolate_, proto, "unshift", Builtins::kArrayUnshift,

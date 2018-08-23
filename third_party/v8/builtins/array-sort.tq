@@ -14,9 +14,6 @@
 // https://github.com/python/cpython/blob/master/Objects/listsort.txt
 
 module array {
-  // Naming convention from elements.cc. We have a similar intent but implement
-  // fastpaths using generics instead of using a class hierarchy for elements
-  // kinds specific implementations.
   // All accessors bail to the GenericElementsAccessor if assumptions checked
   // by "CanUseSameAccessor<>" are violated:
   //  Generic <- FastPackedSmi
@@ -27,12 +24,6 @@ module array {
   // The only exception is TempArrayElements, since it does not describe the
   // "elements" of the receiver, but instead is used as an "adaptor" so
   // GallopLeft/GallopRight can be reused with the temporary array.
-  type GenericElementsAccessor;
-  type FastPackedSmiElements;
-  type FastSmiOrObjectElements;
-  type FastDoubleElements;
-  type DictionaryElements;
-
   const kGenericElementsAccessorId: Smi = 0;
   const kFastElementsAccessorId: Smi = 1;
 

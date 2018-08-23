@@ -3,6 +3,17 @@
 // found in the LICENSE file.
 
 module array {
+  // Naming convention from elements.cc. We have a similar intent but implement
+  // fastpaths using generics instead of using a class hierarchy for elements
+  // kinds specific implementations.
+  type GenericElementsAccessor;
+  type FastPackedSmiElements;
+  type FastPackedObjectElements;
+  type FastPackedDoubleElements;
+  type FastSmiOrObjectElements;
+  type FastDoubleElements;
+  type DictionaryElements;
+
   macro GetLengthProperty(context: Context, o: Object): Number {
     if (BranchIfFastJSArray(o, context)) {
       let a: JSArray = unsafe_cast<JSArray>(o);
