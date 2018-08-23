@@ -309,6 +309,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(BigIntToNumber)                           \
   /* Literals */                              \
   V(CreateArrayLiteral)                       \
+  V(CreateArrayLiteralWithoutAllocationSite)  \
   V(CreateObjectLiteral)                      \
   V(CreateObjectLiteralWithoutAllocationSite) \
   V(CreateRegExpLiteral)                      \

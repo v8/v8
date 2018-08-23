@@ -495,6 +495,14 @@ TEST(PropertyLoadStoreOneShot) {
         l['d'] = 3;
       }
       )",
+
+      R"(
+      a = [1.1, [2.2, 4.5]];
+      )",
+
+      R"(
+      b = [];
+      )",
   };
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("PropertyLoadStoreOneShot.golden")));
@@ -602,6 +610,20 @@ TEST(IIFEWithOneshotOpt) {
         } else {
           l.aa = l.bb;
         }
+        return arguments.callee;
+      })();
+    )",
+
+      R"(
+      (function() {
+        a = [0, [1, 1,2,], 3];
+        return arguments.callee;
+      })();
+    )",
+
+      R"(
+      (function() {
+        a = [];
         return arguments.callee;
       })();
     )",

@@ -3682,17 +3682,47 @@ TEST(AllocationSiteCreation) {
   i::FLAG_enable_one_shot_optimization = true;
 
   // Array literals.
-  CheckNumberOfAllocations(heap, "(function f1() { return []; })()", 1, 0);
-  CheckNumberOfAllocations(heap, "(function f2() { return [1, 2]; })()", 1, 0);
-  CheckNumberOfAllocations(heap, "(function f3() { return [[1], [2]]; })()", 1,
-                           2);
+  CheckNumberOfAllocations(heap, "function f1() { return []; }; f1()", 1, 0);
+  CheckNumberOfAllocations(heap, "function f2() { return [1, 2]; }; f2()", 1,
+                           0);
+  CheckNumberOfAllocations(heap, "function f3() { return [[1], [2]]; }; f3()",
+                           1, 2);
 
   CheckNumberOfAllocations(heap,
-                           "(function f4() { "
+                           "function f4() { "
                            "return [0, [1, 1.1, 1.2, "
                            "], 1.5, [2.1, 2.2], 3];"
-                           "})()",
+                           "}; f4();",
                            1, 2);
+
+  // No allocation sites within IIFE/top-level
+  CheckNumberOfAllocations(heap,
+                           R"(
+                            (function f4() {
+                              return [ 0, [ 1, 1.1, 1.2,], 1.5, [2.1, 2.2], 3 ];
+                            })();
+                            )",
+                           0, 0);
+
+  CheckNumberOfAllocations(heap,
+                           R"(
+                            l = [ 1, 2, 3, 4];
+                            )",
+                           0, 0);
+
+  CheckNumberOfAllocations(heap,
+                           R"(
+                            a = [];
+                            )",
+                           0, 0);
+
+  CheckNumberOfAllocations(heap,
+                           R"(
+                            (function f4() {
+                              return [];
+                            })();
+                            )",
+                           0, 0);
 
   // Object literals have lazy AllocationSites
   CheckNumberOfAllocations(heap, "function f5() { return {}; }; f5(); ", 0, 0);

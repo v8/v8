@@ -564,6 +564,16 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteralWithoutAllocationSite) {
                    isolate, description, flags));
 }
 
+RUNTIME_FUNCTION(Runtime_CreateArrayLiteralWithoutAllocationSite) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(ArrayBoilerplateDescription, description, 0);
+  CONVERT_SMI_ARG_CHECKED(flags, 1);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, CreateLiteralWithoutAllocationSite<ArrayLiteralHelper>(
+                   isolate, description, flags));
+}
+
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());

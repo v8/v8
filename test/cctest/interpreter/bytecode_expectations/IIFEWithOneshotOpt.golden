@@ -334,3 +334,75 @@ constant pool: [
 handlers: [
 ]
 
+---
+snippet: "
+  
+        (function() {
+          a = [0, [1, 1,2,], 3];
+          return arguments.callee;
+        })();
+  
+"
+frame size: 4
+parameter count: 1
+bytecode array length: 32
+bytecodes: [
+                B(CreateMappedArguments),
+                B(Star), R(0),
+  /*   16 E> */ B(StackCheck),
+  /*   29 S> */ B(LdaConstant), U8(0),
+                B(Star), R(1),
+                B(LdaSmi), I8(4),
+                B(Star), R(2),
+                B(CallRuntime), U16(Runtime::kCreateArrayLiteralWithoutAllocationSite), R(1), U8(2),
+  /*   31 E> */ B(StaGlobal), U8(1), U8(0),
+  /*   60 S> */ B(LdaConstant), U8(2),
+                B(Star), R(3),
+                B(Mov), R(0), R(2),
+  /*   77 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
+  /*   84 S> */ B(Return),
+]
+constant pool: [
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["callee"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  
+        (function() {
+          a = [];
+          return arguments.callee;
+        })();
+  
+"
+frame size: 4
+parameter count: 1
+bytecode array length: 32
+bytecodes: [
+                B(CreateMappedArguments),
+                B(Star), R(0),
+  /*   16 E> */ B(StackCheck),
+  /*   29 S> */ B(LdaConstant), U8(0),
+                B(Star), R(1),
+                B(LdaSmi), I8(37),
+                B(Star), R(2),
+                B(CallRuntime), U16(Runtime::kCreateArrayLiteralWithoutAllocationSite), R(1), U8(2),
+  /*   31 E> */ B(StaGlobal), U8(1), U8(0),
+  /*   45 S> */ B(LdaConstant), U8(2),
+                B(Star), R(3),
+                B(Mov), R(0), R(2),
+  /*   62 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
+  /*   69 S> */ B(Return),
+]
+constant pool: [
+  ARRAY_BOILERPLATE_DESCRIPTION_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["callee"],
+]
+handlers: [
+]
+

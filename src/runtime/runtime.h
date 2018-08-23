@@ -284,6 +284,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_LITERALS(F)              \
   F(CreateArrayLiteral, 4, 1)                       \
+  F(CreateArrayLiteralWithoutAllocationSite, 2, 1)  \
   F(CreateObjectLiteral, 4, 1)                      \
   F(CreateObjectLiteralWithoutAllocationSite, 2, 1) \
   F(CreateRegExpLiteral, 4, 1)

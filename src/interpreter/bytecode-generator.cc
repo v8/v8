@@ -2432,21 +2432,40 @@ void BytecodeGenerator::BuildArrayLiteralElementsInsertion(
 
 void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   expr->InitDepthAndFlags();
+  uint8_t flags = CreateArrayLiteralFlags::Encode(
+      expr->IsFastCloningSupported(), expr->ComputeFlags());
 
-  // Deep-copy the literal boilerplate.
-  int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
-  if (expr->is_empty()) {
+  bool is_empty = expr->is_empty();
+  bool optimize_as_one_shot = ShouldOptimizeAsOneShot();
+  size_t entry;
+  if (is_empty && optimize_as_one_shot) {
+    entry = builder()->EmptyArrayBoilerplateDescriptionConstantPoolEntry();
+  } else if (!is_empty) {
+    entry = builder()->AllocateDeferredConstantPoolEntry();
+    array_literals_.push_back(std::make_pair(expr, entry));
+  }
+
+  if (optimize_as_one_shot) {
+    // Create array literal without any allocation sites
+    RegisterAllocationScope register_scope(this);
+    RegisterList args = register_allocator()->NewRegisterList(2);
+    builder()
+        ->LoadConstantPoolEntry(entry)
+        .StoreAccumulatorInRegister(args[0])
+        .LoadLiteral(Smi::FromInt(flags))
+        .StoreAccumulatorInRegister(args[1])
+        .CallRuntime(Runtime::kCreateArrayLiteralWithoutAllocationSite, args);
+  } else if (is_empty) {
     // Empty array literal fast-path.
+    int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
     DCHECK(expr->IsFastCloningSupported());
     builder()->CreateEmptyArrayLiteral(literal_index);
     return;
+  } else {
+    // Deep-copy the literal boilerplate
+    int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
+    builder()->CreateArrayLiteral(entry, literal_index, flags);
   }
-
-  uint8_t flags = CreateArrayLiteralFlags::Encode(
-      expr->IsFastCloningSupported(), expr->ComputeFlags());
-  size_t entry = builder()->AllocateDeferredConstantPoolEntry();
-  builder()->CreateArrayLiteral(entry, literal_index, flags);
-  array_literals_.push_back(std::make_pair(expr, entry));
 
   Register literal = register_allocator()->NewRegister();
   builder()->StoreAccumulatorInRegister(literal);

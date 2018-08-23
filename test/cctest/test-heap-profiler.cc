@@ -3517,11 +3517,17 @@ TEST(SamplingHeapProfilerRateAgnosticEstimates) {
   // what we expect in this test.
   v8::internal::FLAG_always_opt = false;
 
+  // Disable compilation cache to force compilation in both cases
+  v8::internal::FLAG_compilation_cache = false;
+
   // Suppress randomness to avoid flakiness in tests.
   v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
 
   // stress_incremental_marking adds randomness to the test.
   v8::internal::FLAG_stress_incremental_marking = false;
+
+  // warmup compilation
+  CompileRun(simple_sampling_heap_profiler_script);
 
   int count_1024 = 0;
   {
