@@ -7,6 +7,7 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
+#include "src/base/template-utils.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"
@@ -16,7 +17,7 @@ namespace v8 {
 namespace internal {
 
 ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
-    : zone_(std::make_shared<Zone>(zone_allocator, ZONE_NAME)),
+    : zone_(base::make_unique<Zone>(zone_allocator, ZONE_NAME)),
       flags_(0),
       extension_(nullptr),
       script_scope_(nullptr),
@@ -130,11 +131,6 @@ void ParseInfo::UpdateBackgroundParseStatisticsOnMainThread(Isolate* isolate) {
   set_runtime_call_stats(main_call_stats);
 }
 
-void ParseInfo::ShareZone(ParseInfo* other) {
-  DCHECK_EQ(0, zone_->allocation_size());
-  zone_ = other->zone_;
-}
-
 Handle<Script> ParseInfo::CreateScript(Isolate* isolate, Handle<String> source,
                                        ScriptOriginOptions origin_options,
                                        NativesFlag natives) {
@@ -173,11 +169,6 @@ AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {
         new AstValueFactory(zone(), ast_string_constants(), hash_seed()));
   }
   return ast_value_factory();
-}
-
-void ParseInfo::ShareAstValueFactory(ParseInfo* other) {
-  DCHECK(!ast_value_factory_.get());
-  ast_value_factory_ = other->ast_value_factory_;
 }
 
 void ParseInfo::AllocateSourceRangeMap() {

@@ -54,12 +54,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   Zone* zone() const { return zone_.get(); }
 
-  // Sets this parse info to share the same zone as |other|
-  void ShareZone(ParseInfo* other);
-
-  // Sets this parse info to share the same ast value factory as |other|
-  void ShareAstValueFactory(ParseInfo* other);
-
 // Convenience accessor methods for flags.
 #define FLAG_ACCESSOR(flag, getter, setter)     \
   bool getter() const { return GetFlag(flag); } \
@@ -253,7 +247,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
-  std::shared_ptr<Zone> zone_;
+  std::unique_ptr<Zone> zone_;
   unsigned flags_;
   v8::Extension* extension_;
   DeclarationScope* script_scope_;
@@ -275,7 +269,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   std::unique_ptr<Utf16CharacterStream> character_stream_;
   ConsumedPreParsedScopeData consumed_preparsed_scope_data_;
-  std::shared_ptr<AstValueFactory> ast_value_factory_;
+  std::unique_ptr<AstValueFactory> ast_value_factory_;
   const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;
   RuntimeCallStats* runtime_call_stats_;
@@ -284,7 +278,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
-  std::shared_ptr<DeferredHandles> deferred_handles_;
   PendingCompilationErrorHandler pending_error_handler_;
 
   void SetFlag(Flag f) { flags_ |= f; }

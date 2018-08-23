@@ -1654,7 +1654,6 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
               natives);
 
     // Compile the function and add it to the isolate cache.
-    Zone compile_zone(isolate->allocator(), ZONE_NAME);
     if (origin_options.IsModule()) parse_info.set_module();
     parse_info.set_extension(extension);
     parse_info.set_eager(compile_options == ScriptCompiler::kEagerCompile);
