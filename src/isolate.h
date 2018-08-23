@@ -955,8 +955,8 @@ class Isolate : private HiddenFactory {
   void IterateThread(ThreadVisitor* v, char* t);
 
   // Returns the current native context.
-  inline Handle<Context> native_context();
-  inline Context* raw_native_context();
+  inline Handle<NativeContext> native_context();
+  inline NativeContext* raw_native_context();
 
   Handle<Context> GetIncumbentContext();
 

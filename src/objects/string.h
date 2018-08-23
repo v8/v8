@@ -487,6 +487,15 @@ class SeqString : public String {
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqString);
 };
 
+class InternalizedString : public String {
+ public:
+  DECL_CAST(InternalizedString)
+  // TODO(neis): Possibly move some stuff from String here.
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(InternalizedString);
+};
+
 // The OneByteString class captures sequential one-byte string objects.
 // Each character in the OneByteString is an one-byte character.
 class SeqOneByteString : public SeqString {

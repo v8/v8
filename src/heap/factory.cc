@@ -1353,21 +1353,19 @@ Handle<Symbol> Factory::NewPrivateFieldSymbol() {
   return symbol;
 }
 
-Handle<Context> Factory::NewNativeContext() {
-  Handle<Context> context = NewFixedArrayWithMap<Context>(
+Handle<NativeContext> Factory::NewNativeContext() {
+  Handle<NativeContext> context = NewFixedArrayWithMap<NativeContext>(
       Heap::kNativeContextMapRootIndex, Context::NATIVE_CONTEXT_SLOTS, TENURED);
   context->set_native_context(*context);
   context->set_errors_thrown(Smi::kZero);
   context->set_math_random_index(Smi::kZero);
   context->set_serialized_objects(*empty_fixed_array());
-  DCHECK(context->IsNativeContext());
   return context;
 }
 
-Handle<Context> Factory::NewScriptContext(Handle<Context> outer,
+Handle<Context> Factory::NewScriptContext(Handle<NativeContext> outer,
                                           Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
-  DCHECK(outer->IsNativeContext());
   Handle<Context> context = NewFixedArrayWithMap<Context>(
       Heap::kScriptContextMapRootIndex, scope_info->ContextLength(), TENURED);
   context->set_scope_info(*scope_info);
@@ -1388,7 +1386,7 @@ Handle<ScriptContextTable> Factory::NewScriptContextTable() {
 }
 
 Handle<Context> Factory::NewModuleContext(Handle<Module> module,
-                                          Handle<Context> outer,
+                                          Handle<NativeContext> outer,
                                           Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
   Handle<Context> context = NewFixedArrayWithMap<Context>(
@@ -1483,7 +1481,7 @@ Handle<Context> Factory::NewBlockContext(Handle<Context> previous,
   return context;
 }
 
-Handle<Context> Factory::NewBuiltinContext(Handle<Context> native_context,
+Handle<Context> Factory::NewBuiltinContext(Handle<NativeContext> native_context,
                                            int length) {
   DCHECK_GE(length, Context::MIN_CONTEXT_SLOTS);
   Handle<Context> context =
@@ -2304,7 +2302,7 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
   DCHECK(!args.name_.is_null());
 
   // Create the SharedFunctionInfo.
-  Handle<Context> context(isolate()->native_context());
+  Handle<NativeContext> context(isolate()->native_context());
   Handle<Map> map = args.GetMap(isolate());
   Handle<SharedFunctionInfo> info =
       NewSharedFunctionInfo(args.name_, args.maybe_exported_function_data_,
@@ -2385,8 +2383,8 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
 Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   // Make sure to use globals from the function's context, since the function
   // can be from a different context.
-  Handle<Context> native_context(function->context()->native_context(),
-                                 isolate());
+  Handle<NativeContext> native_context(function->context()->native_context(),
+                                       isolate());
   Handle<Map> new_map;
   if (V8_UNLIKELY(IsAsyncGeneratorFunction(function->shared()->kind()))) {
     new_map = handle(native_context->async_generator_object_prototype_map(),
@@ -2915,7 +2913,7 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(Handle<Map> map, int capacity,
 
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     PretenureFlag pretenure) {
-  Context* native_context = isolate()->raw_native_context();
+  NativeContext* native_context = isolate()->raw_native_context();
   Map* map = native_context->GetInitialJSArrayMap(elements_kind);
   if (map == nullptr) {
     JSFunction* array_function = native_context->array_function();
@@ -2982,7 +2980,7 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array, int length, int capacity,
 }
 
 Handle<JSWeakMap> Factory::NewJSWeakMap() {
-  Context* native_context = isolate()->raw_native_context();
+  NativeContext* native_context = isolate()->raw_native_context();
   Handle<Map> map(native_context->js_weak_map_fun()->initial_map(), isolate());
   Handle<JSWeakMap> weakmap(JSWeakMap::cast(*NewJSObjectFromMap(map)),
                             isolate());
@@ -3153,7 +3151,7 @@ static void ForFixedTypedArray(ExternalArrayType array_type,
 }
 
 JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
-  Context* native_context = isolate->context()->native_context();
+  NativeContext* native_context = isolate->context()->native_context();
   switch (type) {
 #define TYPED_ARRAY_FUN(Type, type, TYPE, ctype) \
   case kExternal##Type##Array:                   \
@@ -3166,7 +3164,7 @@ JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
 }
 
 JSFunction* GetTypedArrayFun(ElementsKind elements_kind, Isolate* isolate) {
-  Context* native_context = isolate->context()->native_context();
+  NativeContext* native_context = isolate->context()->native_context();
   switch (elements_kind) {
 #define TYPED_ARRAY_FUN(Type, type, TYPE, ctype) \
   case TYPE##_ELEMENTS:                          \
@@ -3729,14 +3727,12 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
   return result;
 }
 
-Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> native_context,
+Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<NativeContext> context,
                                                int number_of_properties) {
-  DCHECK(native_context->IsNativeContext());
-
   if (number_of_properties == 0) {
     // Reuse the initial map of the Object function if the literal has no
     // predeclared properties.
-    return handle(native_context->object_function()->initial_map(), isolate());
+    return handle(context->object_function()->initial_map(), isolate());
   }
 
   // We do not cache maps for too many properties or when running builtin code.
@@ -3747,16 +3743,15 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> native_context,
   // Use initial slow object proto map for too many properties.
   const int kMapCacheSize = 128;
   if (number_of_properties > kMapCacheSize) {
-    return handle(native_context->slow_object_with_object_prototype_map(),
-                  isolate());
+    return handle(context->slow_object_with_object_prototype_map(), isolate());
   }
 
   int cache_index = number_of_properties - 1;
-  Handle<Object> maybe_cache(native_context->map_cache(), isolate());
+  Handle<Object> maybe_cache(context->map_cache(), isolate());
   if (maybe_cache->IsUndefined(isolate())) {
     // Allocate the new map cache for the native context.
     maybe_cache = NewWeakFixedArray(kMapCacheSize, TENURED);
-    native_context->set_map_cache(*maybe_cache);
+    context->set_map_cache(*maybe_cache);
   } else {
     // Check to see whether there is a matching element in the cache.
     Handle<WeakFixedArray> cache = Handle<WeakFixedArray>::cast(maybe_cache);

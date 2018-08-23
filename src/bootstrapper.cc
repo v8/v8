@@ -168,7 +168,7 @@ class Genesis BASE_EMBEDDED {
   Handle<JSGlobalProxy> global_proxy() { return global_proxy_; }
 
  private:
-  Handle<Context> native_context() { return native_context_; }
+  Handle<NativeContext> native_context() { return native_context_; }
 
   // Creates some basic objects. Used for creating a context from scratch.
   void CreateRoots();
@@ -297,7 +297,7 @@ class Genesis BASE_EMBEDDED {
 
   Isolate* isolate_;
   Handle<Context> result_;
-  Handle<Context> native_context_;
+  Handle<NativeContext> native_context_;
   Handle<JSGlobalProxy> global_proxy_;
 
   // Temporary function maps needed only during bootstrapping.
@@ -3962,7 +3962,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
                                      Handle<JSObject> container) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  Handle<Context> native_context = isolate->native_context();
+  Handle<NativeContext> native_context = isolate->native_context();
 #define EXPORT_PRIVATE_SYMBOL(NAME)                                       \
   Handle<String> NAME##_name = factory->NewStringFromAsciiChecked(#NAME); \
   JSObject::AddProperty(isolate, container, NAME##_name, factory->NAME(), NONE);
@@ -5663,12 +5663,15 @@ Genesis::Genesis(
   // We can only de-serialize a context if the isolate was initialized from
   // a snapshot. Otherwise we have to build the context from scratch.
   // Also create a context from scratch to expose natives, if required by flag.
-  if (!isolate->initialized_from_snapshot() ||
-      !Snapshot::NewContextFromSnapshot(isolate, global_proxy,
-                                        context_snapshot_index,
-                                        embedder_fields_deserializer)
-           .ToHandle(&native_context_)) {
-    native_context_ = Handle<Context>();
+  DCHECK(native_context_.is_null());
+  if (isolate->initialized_from_snapshot()) {
+    Handle<Context> context;
+    if (Snapshot::NewContextFromSnapshot(isolate, global_proxy,
+                                         context_snapshot_index,
+                                         embedder_fields_deserializer)
+            .ToHandle(&context)) {
+      native_context_ = Handle<NativeContext>::cast(context);
+    }
   }
 
   if (!native_context().is_null()) {

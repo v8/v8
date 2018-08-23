@@ -54,34 +54,42 @@ class HeapObjectType {
   Flags const flags_;
 };
 
+// This list is sorted such that subtypes appear before their supertypes.
+// DO NOT VIOLATE THIS PROPERTY!
 #define HEAP_BROKER_OBJECT_LIST(V) \
-  V(AllocationSite)                \
-  V(BytecodeArray)                 \
-  V(Cell)                          \
-  V(Code)                          \
-  V(Context)                       \
-  V(FeedbackVector)                \
-  V(FixedArray)                    \
-  V(FixedArrayBase)                \
-  V(FixedDoubleArray)              \
-  V(HeapNumber)                    \
-  V(HeapObject)                    \
-  V(InternalizedString)            \
+  /* Subtypes of JSObject */       \
   V(JSArray)                       \
   V(JSFunction)                    \
   V(JSGlobalProxy)                 \
-  V(JSObject)                      \
   V(JSRegExp)                      \
+  /* Subtypes of Context */        \
+  V(NativeContext)                 \
+  /* Subtypes of FixedArrayBase */ \
+  V(BytecodeArray)                 \
+  V(FixedArray)                    \
+  V(FixedDoubleArray)              \
+  /* Subtypes of Name */           \
+  V(InternalizedString)            \
+  V(String)                        \
+  /* Subtypes of HeapObject */     \
+  V(AllocationSite)                \
+  V(Cell)                          \
+  V(Code)                          \
+  V(FeedbackVector)                \
   V(Map)                           \
   V(Module)                        \
-  V(MutableHeapNumber)             \
-  V(Name)                          \
-  V(NativeContext)                 \
-  V(PropertyCell)                  \
   V(ScopeInfo)                     \
   V(ScriptContextTable)            \
   V(SharedFunctionInfo)            \
-  V(String)
+  V(Context)                       \
+  V(FixedArrayBase)                \
+  V(HeapNumber)                    \
+  V(JSObject)                      \
+  V(MutableHeapNumber)             \
+  V(Name)                          \
+  V(PropertyCell)                  \
+  /* Subtypes of Object */         \
+  V(HeapObject)
 
 class CompilationDependencies;
 class JSHeapBroker;

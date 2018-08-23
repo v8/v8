@@ -10,6 +10,7 @@
 namespace v8 {
 namespace internal {
 
+class NativeContext;
 class RegExpMatchInfo;
 
 enum ContextLookupFlags {
@@ -537,13 +538,11 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
   Context* script_context();
 
   // Compute the native context.
-  inline Context* native_context() const;
-  inline void set_native_context(Context* context);
+  inline NativeContext* native_context() const;
+  inline void set_native_context(NativeContext* context);
 
-  // Predicates for context types.  IsNativeContext is also defined on Object
-  // because we frequently have to know if arbitrary objects are natives
-  // contexts.
-  inline bool IsNativeContext() const;
+  // Predicates for context types.  IsNativeContext is already defined on
+  // Object.
   inline bool IsFunctionContext() const;
   inline bool IsCatchContext() const;
   inline bool IsWithContext() const;
@@ -640,6 +639,15 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
 
   STATIC_ASSERT(kHeaderSize == Internals::kContextHeaderSize);
   STATIC_ASSERT(EMBEDDER_DATA_INDEX == Internals::kContextEmbedderDataIndex);
+};
+
+class NativeContext : public Context {
+ public:
+  static inline NativeContext* cast(Object* context);
+  // TODO(neis): Move some stuff from Context here.
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(NativeContext);
 };
 
 typedef Context::Field ContextField;

@@ -670,8 +670,8 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 0);
-  Handle<Context> native_context(isolate->context(), isolate);
-  DCHECK(native_context->IsNativeContext());
+  Handle<NativeContext> native_context(NativeContext::cast(isolate->context()),
+                                       isolate);
   Handle<JSGlobalObject> global_object(native_context->global_object(),
                                        isolate);
   Handle<ScriptContextTable> script_context_table(
@@ -721,7 +721,7 @@ RUNTIME_FUNCTION(Runtime_PushModuleContext) {
   CONVERT_ARG_HANDLE_CHECKED(Module, module, 0);
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
 
-  Handle<Context> outer(isolate->context(), isolate);
+  Handle<NativeContext> outer(NativeContext::cast(isolate->context()), isolate);
   Handle<Context> context =
       isolate->factory()->NewModuleContext(module, outer, scope_info);
   isolate->set_context(*context);

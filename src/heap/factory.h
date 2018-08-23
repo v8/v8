@@ -50,6 +50,7 @@ class JSSetIterator;
 class JSWeakMap;
 class LoadHandler;
 class ModuleInfo;
+class NativeContext;
 class NewFunctionArgs;
 class PreParsedScopeData;
 class PromiseResolveThenableJobTask;
@@ -361,17 +362,18 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<Symbol> NewPrivateFieldSymbol();
 
   // Create a global (but otherwise uninitialized) context.
-  Handle<Context> NewNativeContext();
+  Handle<NativeContext> NewNativeContext();
 
   // Create a script context.
-  Handle<Context> NewScriptContext(Handle<Context> outer,
+  Handle<Context> NewScriptContext(Handle<NativeContext> outer,
                                    Handle<ScopeInfo> scope_info);
 
   // Create an empty script context table.
   Handle<ScriptContextTable> NewScriptContextTable();
 
   // Create a module context.
-  Handle<Context> NewModuleContext(Handle<Module> module, Handle<Context> outer,
+  Handle<Context> NewModuleContext(Handle<Module> module,
+                                   Handle<NativeContext> outer,
                                    Handle<ScopeInfo> scope_info);
 
   // Create a function or eval context.
@@ -403,7 +405,8 @@ class V8_EXPORT_PRIVATE Factory {
   // These are similar to function context but don't have a previous
   // context or any scope info. These are used to store spec defined
   // context values.
-  Handle<Context> NewBuiltinContext(Handle<Context> native_context, int length);
+  Handle<Context> NewBuiltinContext(Handle<NativeContext> native_context,
+                                    int length);
 
   Handle<Struct> NewStruct(InstanceType type,
                            PretenureFlag pretenure = NOT_TENURED);
@@ -914,7 +917,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   // Return a map for given number of properties using the map cache in the
   // native context.
-  Handle<Map> ObjectLiteralMapFromCache(Handle<Context> native_context,
+  Handle<Map> ObjectLiteralMapFromCache(Handle<NativeContext> native_context,
                                         int number_of_properties);
 
   Handle<LoadHandler> NewLoadHandler(int data_count);

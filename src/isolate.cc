@@ -3772,7 +3772,8 @@ MaybeHandle<JSPromise> NewRejectedPromise(Isolate* isolate,
 
 MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     Handle<Script> referrer, Handle<Object> specifier) {
-  v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
+  v8::Local<v8::Context> api_context =
+      v8::Utils::ToLocal(Handle<Context>(native_context()));
 
   if (host_import_module_dynamically_callback_ == nullptr) {
     Handle<Object> exception =
@@ -3811,7 +3812,8 @@ Handle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
   if (host_meta->IsTheHole(this)) {
     host_meta = factory()->NewJSObjectWithNullProto();
     if (host_initialize_import_meta_object_callback_ != nullptr) {
-      v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
+      v8::Local<v8::Context> api_context =
+          v8::Utils::ToLocal(Handle<Context>(native_context()));
       host_initialize_import_meta_object_callback_(
           api_context, Utils::ToLocal(module),
           v8::Local<v8::Object>::Cast(v8::Utils::ToLocal(host_meta)));

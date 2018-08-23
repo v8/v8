@@ -26,11 +26,13 @@ void Isolate::set_context(Context* context) {
   thread_local_top_.context_ = context;
 }
 
-Handle<Context> Isolate::native_context() {
+Handle<NativeContext> Isolate::native_context() {
   return handle(context()->native_context(), this);
 }
 
-Context* Isolate::raw_native_context() { return context()->native_context(); }
+NativeContext* Isolate::raw_native_context() {
+  return context()->native_context();
+}
 
 Object* Isolate::pending_exception() {
   DCHECK(has_pending_exception());

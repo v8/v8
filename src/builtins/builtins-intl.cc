@@ -532,8 +532,8 @@ BUILTIN(NumberFormatPrototypeFormatNumber) {
     return *bound_format;
   }
 
-  Handle<Context> native_context =
-      Handle<Context>(isolate->context()->native_context(), isolate);
+  Handle<NativeContext> native_context(isolate->context()->native_context(),
+                                       isolate);
 
   Handle<Context> context = isolate->factory()->NewBuiltinContext(
       native_context, NumberFormat::ContextSlot::kLength);
@@ -621,8 +621,8 @@ BUILTIN(DateTimeFormatPrototypeFormat) {
     return *bound_format;
   }
 
-  Handle<Context> native_context =
-      Handle<Context>(isolate->context()->native_context(), isolate);
+  Handle<NativeContext> native_context(isolate->context()->native_context(),
+                                       isolate);
   Handle<Context> context = isolate->factory()->NewBuiltinContext(
       native_context, DateFormat::ContextSlot::kLength);
 
@@ -1211,8 +1211,8 @@ BUILTIN(CollatorPrototypeCompare) {
     return *bound_compare;
   }
 
-  Handle<Context> native_context =
-      Handle<Context>(isolate->context()->native_context(), isolate);
+  Handle<NativeContext> native_context(isolate->context()->native_context(),
+                                       isolate);
   Handle<Context> context = isolate->factory()->NewBuiltinContext(
       native_context, JSCollator::ContextSlot::kLength);
 
