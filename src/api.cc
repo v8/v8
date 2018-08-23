@@ -7472,17 +7472,7 @@ v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
                   "ArrayBuffer already externalized");
   self->set_is_external(true);
 
-  // We need to capture the contents before releasing the allocation from the
-  // Wasm tracker, because otherwise we will not correctly capture the
-  // allocation data.
   const v8::ArrayBuffer::Contents contents = GetContents();
-  if (self->is_wasm_memory()) {
-    // Since this is being externalized, the Wasm Allocation Tracker can no
-    // longer track it.
-    //
-    // TODO(eholk): Find a way to track this across externalization
-    self->StopTrackingWasmMemory(isolate);
-  }
   isolate->heap()->UnregisterArrayBuffer(*self);
 
   // A regular copy is good enough. No move semantics needed.
@@ -7733,17 +7723,7 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
                   "SharedArrayBuffer already externalized");
   self->set_is_external(true);
 
-  // We need to capture the contents before releasing the allocation from the
-  // Wasm tracker, because otherwise we will not correctly capture the
-  // allocation data.
   const v8::SharedArrayBuffer::Contents contents = GetContents();
-  if (self->is_wasm_memory()) {
-    // Since this is being externalized, the Wasm Allocation Tracker can no
-    // longer track it.
-    //
-    // TODO(eholk): Find a way to track this across externalization
-    self->StopTrackingWasmMemory(isolate);
-  }
   isolate->heap()->UnregisterArrayBuffer(*self);
 
   // A regular copy is good enough. No move semantics needed.
@@ -7817,9 +7797,11 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::Handle<i::JSArrayBuffer> obj =
       i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
+  bool is_wasm_memory =
+      i_isolate->wasm_engine()->memory_tracker()->IsWasmMemory(data);
   i::JSArrayBuffer::Setup(obj, i_isolate,
                           mode == ArrayBufferCreationMode::kExternalized, data,
-                          byte_length, i::SharedFlag::kShared);
+                          byte_length, i::SharedFlag::kShared, is_wasm_memory);
   return Utils::ToLocalShared(obj);
 }
 

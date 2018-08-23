@@ -132,38 +132,45 @@ class SourceGroup {
 class ExternalizedContents {
  public:
   explicit ExternalizedContents(const ArrayBuffer::Contents& contents)
-      : base_(contents.AllocationBase()),
-        length_(contents.AllocationLength()),
-        mode_(contents.AllocationMode()) {}
+      : data_(contents.Data()),
+        length_(contents.ByteLength()),
+        deleter_(contents.Deleter()),
+        deleter_data_(contents.DeleterData()) {}
   explicit ExternalizedContents(const SharedArrayBuffer::Contents& contents)
-      : base_(contents.AllocationBase()),
-        length_(contents.AllocationLength()),
-        mode_(contents.AllocationMode()) {}
+      : data_(contents.Data()),
+        length_(contents.ByteLength()),
+        deleter_(contents.Deleter()),
+        deleter_data_(contents.DeleterData()) {}
   ExternalizedContents(ExternalizedContents&& other) V8_NOEXCEPT
-      : base_(other.base_),
+      : data_(other.data_),
         length_(other.length_),
-        mode_(other.mode_) {
-    other.base_ = nullptr;
+        deleter_(other.deleter_),
+        deleter_data_(other.deleter_data_) {
+    other.data_ = nullptr;
     other.length_ = 0;
-    other.mode_ = ArrayBuffer::Allocator::AllocationMode::kNormal;
+    other.deleter_ = nullptr;
+    other.deleter_data_ = nullptr;
   }
   ExternalizedContents& operator=(ExternalizedContents&& other) V8_NOEXCEPT {
     if (this != &other) {
-      base_ = other.base_;
+      data_ = other.data_;
       length_ = other.length_;
-      mode_ = other.mode_;
-      other.base_ = nullptr;
+      deleter_ = other.deleter_;
+      deleter_data_ = other.deleter_data_;
+      other.data_ = nullptr;
       other.length_ = 0;
-      other.mode_ = ArrayBuffer::Allocator::AllocationMode::kNormal;
+      other.deleter_ = nullptr;
+      other.deleter_data_ = nullptr;
     }
     return *this;
   }
   ~ExternalizedContents();
 
  private:
-  void* base_;
+  void* data_;
   size_t length_;
-  ArrayBuffer::Allocator::AllocationMode mode_;
+  ArrayBuffer::Contents::DeleterCallback deleter_;
+  void* deleter_data_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalizedContents);
 };
