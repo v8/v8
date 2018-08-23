@@ -10,7 +10,7 @@ function SortAsc() {
 
 function Random(length) {
   for (let i = 0; i < length; ++i) {
-    array_to_sort.push(Math.floor(Math.random()) * length);
+    array_to_sort.push(Math.floor(Math.random() * length));
   }
   AssertPackedSmiElements();
 }
