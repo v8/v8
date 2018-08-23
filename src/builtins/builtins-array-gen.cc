@@ -18,8 +18,6 @@ namespace v8 {
 namespace internal {
 
 using Node = compiler::Node;
-template <class T>
-using TNode = compiler::TNode<T>;
 
 ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     compiler::CodeAssemblerState* state)
@@ -1500,9 +1498,17 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
   args.PopAndReturn(a);
 }
 
-TNode<Object> ArrayBuiltinsAssembler::GenerateFastArrayShift(
-    TNode<Context> context, TNode<Object> receiver, Label* slow) {
-  Label fast(this), done(this);
+TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  CSA_ASSERT(this, IsUndefined(Parameter(Descriptor::kJSNewTarget)));
+
+  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  TNode<Object> receiver = args.GetReceiver();
+
+  Label runtime(this, Label::kDeferred);
+  Label fast(this);
 
   // Only shift in this stub if
   // 1) the array has fast elements
@@ -1512,11 +1518,10 @@ TNode<Object> ArrayBuiltinsAssembler::GenerateFastArrayShift(
   // 5) we aren't supposed to left-trim the backing store.
 
   // 1) Check that the array has fast elements.
-  BranchIfFastJSArray(receiver, context, &fast, slow);
+  BranchIfFastJSArray(receiver, context, &fast, &runtime);
 
   BIND(&fast);
   {
-    TVARIABLE(Object, result, UndefinedConstant());
     TNode<JSArray> array_receiver = CAST(receiver);
     CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(array_receiver)));
     Node* length =
@@ -1526,13 +1531,13 @@ TNode<Object> ArrayBuiltinsAssembler::GenerateFastArrayShift(
     GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
 
     // 2) Ensure that the length is writable.
-    EnsureArrayLengthWritable(LoadMap(array_receiver), slow);
+    EnsureArrayLengthWritable(LoadMap(array_receiver), &runtime);
 
     // 3) Check that the elements backing store isn't copy-on-write.
     Node* elements = LoadElements(array_receiver);
     GotoIf(WordEqual(LoadMap(elements),
                      LoadRoot(Heap::kFixedCOWArrayMapRootIndex)),
-           slow);
+           &runtime);
 
     Node* new_length = IntPtrSub(length, IntPtrConstant(1));
 
@@ -1543,13 +1548,13 @@ TNode<Object> ArrayBuiltinsAssembler::GenerateFastArrayShift(
                IntPtrAdd(IntPtrAdd(new_length, new_length),
                          IntPtrConstant(JSObject::kMinAddedElementsCapacity)),
                capacity),
-           slow);
+           &runtime);
 
     // 5) Check that we're not supposed to left-trim the backing store, as
     //    implemented in elements.cc:FastElementsAccessor::MoveElements.
     GotoIf(IntPtrGreaterThan(new_length,
                              IntPtrConstant(JSArray::kMaxCopyElements)),
-           slow);
+           &runtime);
 
     StoreObjectFieldNoWriteBarrier(array_receiver, JSArray::kLengthOffset,
                                    SmiTag(new_length));
@@ -1567,10 +1572,12 @@ TNode<Object> ArrayBuiltinsAssembler::GenerateFastArrayShift(
                  Int32LessThanOrEqual(elements_kind,
                                       Int32Constant(HOLEY_DOUBLE_ELEMENTS)));
 
+      VARIABLE(result, MachineRepresentation::kTagged, UndefinedConstant());
+
       Label move_elements(this);
-      result = AllocateHeapNumberWithValue(LoadFixedDoubleArrayElement(
+      result.Bind(AllocateHeapNumberWithValue(LoadFixedDoubleArrayElement(
           elements, IntPtrConstant(0), MachineType::Float64(), 0,
-          INTPTR_PARAMETERS, &move_elements));
+          INTPTR_PARAMETERS, &move_elements)));
       Goto(&move_elements);
       BIND(&move_elements);
 
@@ -1600,14 +1607,13 @@ TNode<Object> ArrayBuiltinsAssembler::GenerateFastArrayShift(
                             IntPtrAdd(offset, IntPtrConstant(kPointerSize)),
                             double_hole);
       }
-
-      Goto(&done);
+      args.PopAndReturn(result.value());
     }
 
     BIND(&fast_elements_tagged);
     {
       TNode<FixedArray> elements_fixed_array = CAST(elements);
-      TNode<Object> value = LoadFixedArrayElement(elements_fixed_array, 0);
+      Node* value = LoadFixedArrayElement(elements_fixed_array, 0);
       BuildFastLoop(
           IntPtrConstant(0), new_length,
           [&](Node* index) {
@@ -1620,15 +1626,13 @@ TNode<Object> ArrayBuiltinsAssembler::GenerateFastArrayShift(
       StoreFixedArrayElement(elements_fixed_array, new_length,
                              TheHoleConstant());
       GotoIf(WordEqual(value, TheHoleConstant()), &return_undefined);
-
-      result = value;
-      Goto(&done);
+      args.PopAndReturn(value);
     }
 
     BIND(&fast_elements_smi);
     {
       TNode<FixedArray> elements_fixed_array = CAST(elements);
-      TNode<Object> value = LoadFixedArrayElement(elements_fixed_array, 0);
+      Node* value = LoadFixedArrayElement(elements_fixed_array, 0);
       BuildFastLoop(
           IntPtrConstant(0), new_length,
           [&](Node* index) {
@@ -1642,19 +1646,21 @@ TNode<Object> ArrayBuiltinsAssembler::GenerateFastArrayShift(
       StoreFixedArrayElement(elements_fixed_array, new_length,
                              TheHoleConstant());
       GotoIf(WordEqual(value, TheHoleConstant()), &return_undefined);
-
-      result = value;
-      Goto(&done);
+      args.PopAndReturn(value);
     }
 
     BIND(&return_undefined);
-    {
-      result = UndefinedConstant();
-      Goto(&done);
-    }
+    { args.PopAndReturn(UndefinedConstant()); }
+  }
 
-    BIND(&done);
-    return result.value();
+  BIND(&runtime);
+  {
+    // We are not using Parameter(Descriptor::kJSTarget) and loading the value
+    // from the current frame here in order to reduce register pressure on the
+    // fast path.
+    TNode<JSFunction> target = LoadTargetFromFrame();
+    TailCallBuiltin(Builtins::kArrayShift, context, target, UndefinedConstant(),
+                    argc);
   }
 }
 
