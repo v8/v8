@@ -585,7 +585,7 @@ class LiftoffCompiler {
     LiftoffRegister src = __ PopToRegister();
     LiftoffRegister dst = src_rc == dst_rc ? __ GetUnusedRegister(dst_rc, {src})
                                            : __ GetUnusedRegister(dst_rc);
-    DCHECK_EQ(can_trap, trap_position > 0);
+    DCHECK_EQ(!!can_trap, trap_position > 0);
     Label* trap = can_trap ? AddOutOfLineTrap(
                                  trap_position,
                                  WasmCode::kThrowWasmTrapFloatUnrepresentable)
