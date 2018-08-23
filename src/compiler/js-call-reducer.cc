@@ -6763,11 +6763,11 @@ uint32_t ExternalArrayElementSize(const ExternalArrayType element_type) {
 
 Reduction JSCallReducer::ReduceDataViewPrototypeGet(
     Node* node, ExternalArrayType element_type) {
+  uint32_t const element_size = ExternalArrayElementSize(element_type);
+  CallParameters const& p = CallParametersOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
-
-  CallParameters const& p = CallParametersOf(node->op());
 
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
@@ -6784,20 +6784,68 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
   // Only do stuff if the {receiver} is really a DataView.
   if (NodeProperties::HasInstanceTypeWitness(isolate(), receiver, effect,
                                              JS_DATA_VIEW_TYPE)) {
-    // Check that the {offset} is a positive Smi.
-    offset = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
-                                       offset, effect, control);
+    // Check that the {offset} is within range for the {receiver}.
+    HeapObjectMatcher m(receiver);
+    if (m.HasValue()) {
+      // We only deal with DataViews here whose [[ByteLength]] is at least
+      // {element_size} and less than 2^31-{element_size}.
+      Handle<JSDataView> dataview = Handle<JSDataView>::cast(m.Value());
+      if (dataview->byte_length()->Number() < element_size ||
+          dataview->byte_length()->Number() - element_size > kMaxInt) {
+        return NoChange();
+      }
 
-    Node* is_positive = graph()->NewNode(simplified()->NumberLessThanOrEqual(),
-                                         jsgraph()->ZeroConstant(), offset);
+      // The {receiver}s [[ByteOffset]] must be within Unsigned31 range.
+      if (dataview->byte_offset()->Number() > kMaxInt) {
+        return NoChange();
+      }
 
-    effect = graph()->NewNode(
-        simplified()->CheckIf(DeoptimizeReason::kOutOfBounds, p.feedback()),
-        is_positive, effect, control);
+      // Check that the {offset} is within range of the {byte_length}.
+      Node* byte_length = jsgraph()->Constant(
+          dataview->byte_length()->Number() - (element_size - 1));
+      offset = effect =
+          graph()->NewNode(simplified()->CheckBounds(p.feedback()), offset,
+                           byte_length, effect, control);
 
-    // Tell the typer that we're a positive Smi, so we'll fit in Int32 math.
-    offset = effect = graph()->NewNode(
-        common()->TypeGuard(Type::UnsignedSmall()), offset, effect, control);
+      // Add the [[ByteOffset]] to compute the effective offset.
+      Node* byte_offset =
+          jsgraph()->Constant(dataview->byte_offset()->Number());
+      offset = graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
+    } else {
+      // We only deal with DataViews here that have Smi [[ByteLength]]s.
+      Node* byte_length = effect =
+          graph()->NewNode(simplified()->LoadField(
+                               AccessBuilder::ForJSArrayBufferViewByteLength()),
+                           receiver, effect, control);
+      byte_length = effect = graph()->NewNode(
+          simplified()->CheckSmi(p.feedback()), byte_length, effect, control);
+
+      // Check that the {offset} is within range of the {byte_length}.
+      offset = effect =
+          graph()->NewNode(simplified()->CheckBounds(p.feedback()), offset,
+                           byte_length, effect, control);
+
+      if (element_size > 0) {
+        // For non-byte accesses we also need to check that the {offset}
+        // plus the {element_size}-1 fits within the given {byte_length}.
+        Node* end_offset =
+            graph()->NewNode(simplified()->NumberAdd(), offset,
+                             jsgraph()->Constant(element_size - 1));
+        effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
+                                  end_offset, byte_length, effect, control);
+      }
+
+      // The {receiver}s [[ByteOffset]] also needs to be a (positive) Smi.
+      Node* byte_offset = effect =
+          graph()->NewNode(simplified()->LoadField(
+                               AccessBuilder::ForJSArrayBufferViewByteOffset()),
+                           receiver, effect, control);
+      byte_offset = effect = graph()->NewNode(
+          simplified()->CheckSmi(p.feedback()), byte_offset, effect, control);
+
+      // Compute the buffer index at which we'll read.
+      offset = graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
+    }
 
     // Coerce {is_little_endian} to boolean.
     is_little_endian =
@@ -6825,57 +6873,15 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
           check_neutered, effect, control);
     }
 
-    // Get the byte offset and byte length of the {receiver},
-    // and deopt if they aren't Smis.
-    Node* byte_offset = effect =
-        graph()->NewNode(simplified()->LoadField(
-                             AccessBuilder::ForJSArrayBufferViewByteOffset()),
-                         receiver, effect, control);
-
-    byte_offset = effect = graph()->NewNode(
-        simplified()->CheckSmi(p.feedback()), byte_offset, effect, control);
-
-    Node* byte_length = effect =
-        graph()->NewNode(simplified()->LoadField(
-                             AccessBuilder::ForJSArrayBufferViewByteLength()),
-                         receiver, effect, control);
-
-    byte_length = effect = graph()->NewNode(
-        simplified()->CheckSmi(p.feedback()), byte_length, effect, control);
-
-    // The end offset is the offset plus the element size
-    // of the type that we want to load.
-    uint32_t element_size = ExternalArrayElementSize(element_type);
-
-    Node* end_offset = graph()->NewNode(simplified()->NumberAdd(), offset,
-                                        jsgraph()->Constant(element_size));
-
-    // Also deopt if this is not a Smi to avoid Float64 math.
-    end_offset = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
-                                           end_offset, effect, control);
-
-    // We need to check that {end_offset} <= {byte_length}.
-    Node* check_bounds = graph()->NewNode(simplified()->NumberLessThanOrEqual(),
-                                          end_offset, byte_length);
-
-    // Also deopt and let the unoptimized code throw in this case.
-    effect = graph()->NewNode(
-        simplified()->CheckIf(DeoptimizeReason::kOutOfBounds, p.feedback()),
-        check_bounds, effect, control);
-
     // Get the buffer's backing store.
     Node* backing_store = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferBackingStore()),
         buffer, effect, control);
 
-    // Compute the buffer index at which we'll read.
-    Node* buffer_index =
-        graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
-
     // Perform the load.
     Node* value = effect = graph()->NewNode(
         simplified()->LoadDataViewElement(element_type), buffer, backing_store,
-        buffer_index, is_little_endian, effect, control);
+        offset, is_little_endian, effect, control);
 
     // Continue on the regular path.
     ReplaceWithValue(node, value, effect, control);
@@ -6887,11 +6893,11 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
 
 Reduction JSCallReducer::ReduceDataViewPrototypeSet(
     Node* node, ExternalArrayType element_type) {
+  uint32_t const element_size = ExternalArrayElementSize(element_type);
+  CallParameters const& p = CallParametersOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
-
-  CallParameters const& p = CallParametersOf(node->op());
 
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
@@ -6912,20 +6918,68 @@ Reduction JSCallReducer::ReduceDataViewPrototypeSet(
   // Only do stuff if the {receiver} is really a DataView.
   if (NodeProperties::HasInstanceTypeWitness(isolate(), receiver, effect,
                                              JS_DATA_VIEW_TYPE)) {
-    // Check that the {offset} is a positive Smi.
-    offset = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
-                                       offset, effect, control);
+    // Check that the {offset} is within range for the {receiver}.
+    HeapObjectMatcher m(receiver);
+    if (m.HasValue()) {
+      // We only deal with DataViews here whose [[ByteLength]] is at least
+      // {element_size} and less than 2^31-{element_size}.
+      Handle<JSDataView> dataview = Handle<JSDataView>::cast(m.Value());
+      if (dataview->byte_length()->Number() < element_size ||
+          dataview->byte_length()->Number() - element_size > kMaxInt) {
+        return NoChange();
+      }
 
-    Node* is_positive = graph()->NewNode(simplified()->NumberLessThanOrEqual(),
-                                         jsgraph()->ZeroConstant(), offset);
+      // The {receiver}s [[ByteOffset]] must be within Unsigned31 range.
+      if (dataview->byte_offset()->Number() > kMaxInt) {
+        return NoChange();
+      }
 
-    effect = graph()->NewNode(
-        simplified()->CheckIf(DeoptimizeReason::kOutOfBounds, p.feedback()),
-        is_positive, effect, control);
+      // Check that the {offset} is within range of the {byte_length}.
+      Node* byte_length = jsgraph()->Constant(
+          dataview->byte_length()->Number() - (element_size - 1));
+      offset = effect =
+          graph()->NewNode(simplified()->CheckBounds(p.feedback()), offset,
+                           byte_length, effect, control);
 
-    // Tell the typer that we're a positive Smi, so we'll fit in Int32 math.
-    offset = effect = graph()->NewNode(
-        common()->TypeGuard(Type::UnsignedSmall()), offset, effect, control);
+      // Add the [[ByteOffset]] to compute the effective offset.
+      Node* byte_offset =
+          jsgraph()->Constant(dataview->byte_offset()->Number());
+      offset = graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
+    } else {
+      // We only deal with DataViews here that have Smi [[ByteLength]]s.
+      Node* byte_length = effect =
+          graph()->NewNode(simplified()->LoadField(
+                               AccessBuilder::ForJSArrayBufferViewByteLength()),
+                           receiver, effect, control);
+      byte_length = effect = graph()->NewNode(
+          simplified()->CheckSmi(p.feedback()), byte_length, effect, control);
+
+      // Check that the {offset} is within range of the {byte_length}.
+      offset = effect =
+          graph()->NewNode(simplified()->CheckBounds(p.feedback()), offset,
+                           byte_length, effect, control);
+
+      if (element_size > 0) {
+        // For non-byte accesses we also need to check that the {offset}
+        // plus the {element_size}-1 fits within the given {byte_length}.
+        Node* end_offset =
+            graph()->NewNode(simplified()->NumberAdd(), offset,
+                             jsgraph()->Constant(element_size - 1));
+        effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
+                                  end_offset, byte_length, effect, control);
+      }
+
+      // The {receiver}s [[ByteOffset]] also needs to be a (positive) Smi.
+      Node* byte_offset = effect =
+          graph()->NewNode(simplified()->LoadField(
+                               AccessBuilder::ForJSArrayBufferViewByteOffset()),
+                           receiver, effect, control);
+      byte_offset = effect = graph()->NewNode(
+          simplified()->CheckSmi(p.feedback()), byte_offset, effect, control);
+
+      // Compute the buffer index at which we'll read.
+      offset = graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
+    }
 
     // Coerce {is_little_endian} to boolean.
     is_little_endian =
@@ -6959,56 +7013,14 @@ Reduction JSCallReducer::ReduceDataViewPrototypeSet(
           check_neutered, effect, control);
     }
 
-    // Get the byte offset and byte length of the {receiver},
-    // and deopt if they aren't Smis.
-    Node* byte_offset = effect =
-        graph()->NewNode(simplified()->LoadField(
-                             AccessBuilder::ForJSArrayBufferViewByteOffset()),
-                         receiver, effect, control);
-
-    byte_offset = effect = graph()->NewNode(
-        simplified()->CheckSmi(p.feedback()), byte_offset, effect, control);
-
-    Node* byte_length = effect =
-        graph()->NewNode(simplified()->LoadField(
-                             AccessBuilder::ForJSArrayBufferViewByteLength()),
-                         receiver, effect, control);
-
-    byte_length = effect = graph()->NewNode(
-        simplified()->CheckSmi(p.feedback()), byte_length, effect, control);
-
-    // The end offset is the offset plus the element size
-    // of the type that we want to store.
-    uint32_t element_size = ExternalArrayElementSize(element_type);
-
-    Node* end_offset = graph()->NewNode(simplified()->NumberAdd(), offset,
-                                        jsgraph()->Constant(element_size));
-
-    // Also deopt if this is not a Smi to avoid Float64 math.
-    end_offset = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
-                                           end_offset, effect, control);
-
-    // We need to check that {end_offset} <= {byte_length}.
-    Node* check_bounds = graph()->NewNode(simplified()->NumberLessThanOrEqual(),
-                                          end_offset, byte_length);
-
-    // Also deopt and let the unoptimized code throw in this case.
-    effect = graph()->NewNode(
-        simplified()->CheckIf(DeoptimizeReason::kOutOfBounds, p.feedback()),
-        check_bounds, effect, control);
-
     // Get the buffer's backing store.
     Node* backing_store = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferBackingStore()),
         buffer, effect, control);
 
-    // Compute the buffer index at which we'll write.
-    Node* buffer_index =
-        graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
-
     // Perform the store.
     effect = graph()->NewNode(simplified()->StoreDataViewElement(element_type),
-                              buffer, backing_store, buffer_index, value,
+                              buffer, backing_store, offset, value,
                               is_little_endian, effect, control);
 
     Node* value = jsgraph()->UndefinedConstant();
