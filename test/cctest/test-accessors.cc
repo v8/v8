@@ -812,7 +812,7 @@ TEST(PrototypeGetterAccessCheck) {
     CHECK(try_catch.HasCaught());
   }
 
-  // Test crankshaft.
+  // Test TurboFan.
   CompileRun("%OptimizeFunctionOnNextCall(f);");
 
   security_check_value = true;

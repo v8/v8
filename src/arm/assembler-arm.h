@@ -167,7 +167,6 @@ static_assert(sizeof(Register) == sizeof(int),
               "Register can efficiently be passed by value");
 
 // r7: context register
-// r9: lithium scratch
 #define DECLARE_REGISTER(R) \
   constexpr Register R = Register::from_code<kRegCode_##R>();
 GENERAL_REGISTERS(DECLARE_REGISTER)

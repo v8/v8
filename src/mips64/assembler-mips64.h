@@ -224,8 +224,8 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
 };
 
 // s7: context register
-// s3: lithium scratch
-// s4: lithium scratch2
+// s3: scratch register
+// s4: scratch register 2
 #define DECLARE_REGISTER(R) \
   constexpr Register R = Register::from_code<kRegCode_##R>();
 GENERAL_REGISTERS(DECLARE_REGISTER)

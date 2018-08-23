@@ -3310,7 +3310,7 @@ Node* EffectControlLinearizer::LowerCheckFloat64Hole(Node* node,
                                                      Node* frame_state) {
   // If we reach this point w/o eliminating the {node} that's marked
   // with allow-return-hole, we cannot do anything, so just deoptimize
-  // in case of the hole NaN (similar to Crankshaft).
+  // in case of the hole NaN.
   CheckFloat64HoleParameters const& params =
       CheckFloat64HoleParametersOf(node->op());
   Node* value = node->InputAt(0);

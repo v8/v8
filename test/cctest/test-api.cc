@@ -10617,7 +10617,7 @@ THREADED_TEST(GlobalObjectInstanceProperties) {
                          v8::FunctionTemplate::New(isolate,
                                                    InstanceFunctionCallback));
 
-  // The script to check how Crankshaft compiles missing global function
+  // The script to check how TurboFan compiles missing global function
   // invocations.  function g is not defined and should throw on call.
   const char* script =
       "function wrapper(call) {"

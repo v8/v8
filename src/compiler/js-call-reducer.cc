@@ -4317,7 +4317,7 @@ Reduction JSCallReducer::ReduceSoftDeoptimize(Node* node,
 
 namespace {
 
-// TODO(turbofan): This was copied from Crankshaft, might be too restrictive.
+// TODO(turbofan): This was copied from old compiler, might be too restrictive.
 bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
   DCHECK(!jsarray_map->is_dictionary_map());
   Handle<Name> length_string = isolate->factory()->length_string();
@@ -4327,7 +4327,7 @@ bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
   return descriptors->GetDetails(number).IsReadOnly();
 }
 
-// TODO(turbofan): This was copied from Crankshaft, might be too restrictive.
+// TODO(turbofan): This was copied from old compiler, might be too restrictive.
 bool CanInlineArrayResizeOperation(Isolate* isolate, Handle<Map> receiver_map) {
   if (!receiver_map->prototype()->IsJSArray()) return false;
   Handle<JSArray> receiver_prototype(JSArray::cast(receiver_map->prototype()),

@@ -587,7 +587,7 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
         }
         return entries;
       } else {
-        // Crankshaft counts duplicate objects for the running id, so we have
+        // Deoptimizer counts duplicate objects for the running id, so we have
         // to push the input again.
         deduplicator->InsertObject(input);
         values->PushDuplicate(id);

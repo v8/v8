@@ -352,9 +352,8 @@ inline Condition CommuteCondition(Condition cond) {
       return eq;
     default:
       // In practice this function is only used with a condition coming from
-      // TokenToCondition in lithium-codegen-arm64.cc. Any other condition is
-      // invalid as it doesn't necessary make sense to reverse it (consider
-      // 'mi' for instance).
+      // binary operations. Any other condition is invalid as it doesn't
+      // necessary make sense to reverse it (consider 'mi' for instance).
       UNREACHABLE();
   }
 }

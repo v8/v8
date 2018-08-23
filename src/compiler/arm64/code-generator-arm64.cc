@@ -1353,12 +1353,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputDoubleRegister(1));
       break;
     case kArm64Float64Mod: {
-      // TODO(dcarney): implement directly. See note in lithium-codegen-arm64.cc
+      // TODO(turbofan): implement directly.
       FrameScope scope(tasm(), StackFrame::MANUAL);
       DCHECK(d0.is(i.InputDoubleRegister(0)));
       DCHECK(d1.is(i.InputDoubleRegister(1)));
       DCHECK(d0.is(i.OutputDoubleRegister()));
-      // TODO(dcarney): make sure this saves all relevant registers.
+      // TODO(turbofan): make sure this saves all relevant registers.
       __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
       break;
     }

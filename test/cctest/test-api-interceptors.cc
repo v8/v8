@@ -4307,8 +4307,7 @@ THREADED_TEST(Regress256330) {
   CHECK_EQ(mask, status & mask);
 }
 
-
-THREADED_TEST(CrankshaftInterceptorSetter) {
+THREADED_TEST(OptimizedInterceptorSetter) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
@@ -4337,8 +4336,7 @@ THREADED_TEST(CrankshaftInterceptorSetter) {
   ExpectInt32("obj.accessor_age", 42);
 }
 
-
-THREADED_TEST(CrankshaftInterceptorGetter) {
+THREADED_TEST(OptimizedInterceptorGetter) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
@@ -4364,8 +4362,7 @@ THREADED_TEST(CrankshaftInterceptorGetter) {
   ExpectInt32("getAge()", 1);
 }
 
-
-THREADED_TEST(CrankshaftInterceptorFieldRead) {
+THREADED_TEST(OptimizedInterceptorFieldRead) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());
@@ -4388,8 +4385,7 @@ THREADED_TEST(CrankshaftInterceptorFieldRead) {
   ExpectInt32("getAge();", 100);
 }
 
-
-THREADED_TEST(CrankshaftInterceptorFieldWrite) {
+THREADED_TEST(OptimizedInterceptorFieldWrite) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   Local<FunctionTemplate> templ = FunctionTemplate::New(CcTest::isolate());

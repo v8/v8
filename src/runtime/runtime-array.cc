@@ -620,7 +620,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
     if ((old_kind != array->GetElementsKind() || !can_use_type_feedback ||
          !can_inline_array_constructor)) {
       // The arguments passed in caused a transition. This kind of complexity
-      // can't be dealt with in the inlined hydrogen array constructor case.
+      // can't be dealt with in the inlined optimized array constructor case.
       // We must mark the allocationsite as un-inlinable.
       site->SetDoNotInlineCall();
     }
