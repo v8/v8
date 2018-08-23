@@ -839,8 +839,8 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
-  Move(eax, Immediate(num_arguments));
-  mov(ebx, Immediate(ExternalReference::Create(f)));
+  Move(kRuntimeCallArgCountRegister, Immediate(num_arguments));
+  Move(kRuntimeCallFunctionRegister, Immediate(ExternalReference::Create(f)));
   Handle<Code> code =
       CodeFactory::CEntry(isolate(), f->result_size, save_doubles);
   Call(code, RelocInfo::CODE_TARGET);
@@ -853,9 +853,10 @@ void TurboAssembler::CallRuntimeWithCEntry(Runtime::FunctionId fid,
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
-  Move(eax, Immediate(f->nargs));
-  mov(ebx, Immediate(ExternalReference::Create(f)));
-  DCHECK(!AreAliased(centry, eax, ebx));
+  Move(kRuntimeCallArgCountRegister, Immediate(f->nargs));
+  Move(kRuntimeCallFunctionRegister, Immediate(ExternalReference::Create(f)));
+  DCHECK(!AreAliased(centry, kRuntimeCallArgCountRegister,
+                     kRuntimeCallFunctionRegister));
   add(centry, Immediate(Code::kHeaderSize - kHeapObjectTag));
   Call(centry);
 }
@@ -878,7 +879,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
     // arguments passed in because it is constant. At some point we
     // should remove this need and make the runtime routine entry code
     // smarter.
-    mov(eax, Immediate(function->nargs));
+    Move(kRuntimeCallArgCountRegister, Immediate(function->nargs));
   }
   JumpToExternalReference(ExternalReference::Create(fid));
 }
@@ -886,7 +887,7 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
 void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
                                              bool builtin_exit_frame) {
   // Set the entry point and jump to the C entry runtime stub.
-  mov(ebx, Immediate(ext));
+  Move(kRuntimeCallFunctionRegister, Immediate(ext));
   Handle<Code> code = CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs,
                                           kArgvOnStack, builtin_exit_frame);
   Jump(code, RelocInfo::CODE_TARGET);

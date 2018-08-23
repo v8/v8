@@ -2440,7 +2440,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
                                SaveFPRegsMode save_doubles, ArgvMode argv_mode,
                                bool builtin_exit_frame) {
   // eax: number of arguments including receiver
-  // ebx: pointer to C function  (C callee-saved)
+  // edx: pointer to C function
   // ebp: frame pointer  (restored after C call)
   // esp: stack pointer  (restored after C call)
   // esi: current context (C callee-saved)
@@ -2448,6 +2448,16 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   //
   // If argv_mode == kArgvInRegister:
   // ecx: pointer to the first argument
+
+  STATIC_ASSERT(eax == kRuntimeCallArgCountRegister);
+  STATIC_ASSERT(ecx == kRuntimeCallArgvRegister);
+  STATIC_ASSERT(edx == kRuntimeCallFunctionRegister);
+  STATIC_ASSERT(esi == kContextRegister);
+  STATIC_ASSERT(edi == kJSFunctionRegister);
+
+  DCHECK(!AreAliased(kRuntimeCallArgCountRegister, kRuntimeCallArgvRegister,
+                     kRuntimeCallFunctionRegister, kContextRegister,
+                     kJSFunctionRegister, kRootRegister));
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
@@ -2472,7 +2482,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
         builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
   }
 
-  // ebx: pointer to C function  (C callee-saved)
+  // edx: pointer to C function
   // ebp: frame pointer  (restored after C call)
   // esp: stack pointer  (restored after C call)
   // edi: number of arguments including receiver  (C callee-saved)
@@ -2489,7 +2499,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
   __ mov(Operand(esp, 2 * kPointerSize),
          Immediate(ExternalReference::isolate_address(masm->isolate())));
-  __ call(ebx);
+  __ call(kRuntimeCallFunctionRegister);
 
   // Result is in eax or edx:eax - do not destroy these registers!
 
