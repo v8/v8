@@ -329,7 +329,7 @@ static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
   // limit" is checked.
   ExternalReference real_stack_limit =
       ExternalReference::address_of_real_stack_limit(masm->isolate());
-  __ mov(scratch1, Operand::StaticVariable(real_stack_limit));
+  __ mov(scratch1, __ StaticVariable(real_stack_limit));
   // Make scratch2 the space we have left. The stack might already be overflowed
   // here which will cause scratch2 to become negative.
   __ mov(scratch2, esp);
@@ -356,7 +356,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Setup the context (we need to use the caller context from the isolate).
     ExternalReference context_address = ExternalReference::Create(
         IsolateAddressId::kContextAddress, masm->isolate());
-    __ mov(esi, Operand::StaticVariable(context_address));
+    __ mov(esi, __ StaticVariable(context_address));
 
     // Load the previous frame pointer (ebx) to access C arguments
     __ mov(ebx, Operand(ebp, 0));
@@ -458,13 +458,13 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   Label stepping_prepared;
   ExternalReference debug_hook =
       ExternalReference::debug_hook_on_function_call_address(masm->isolate());
-  __ cmpb(Operand::StaticVariable(debug_hook), Immediate(0));
+  __ cmpb(__ StaticVariable(debug_hook), Immediate(0));
   __ j(not_equal, &prepare_step_in_if_stepping);
 
   // Flood function if we need to continue stepping in the suspended generator.
   ExternalReference debug_suspended_generator =
       ExternalReference::debug_suspended_generator_address(masm->isolate());
-  __ cmp(edx, Operand::StaticVariable(debug_suspended_generator));
+  __ cmp(edx, __ StaticVariable(debug_suspended_generator));
   __ j(equal, &prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
 
@@ -757,7 +757,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 #define JUMP_IF_EQUAL(NAME)                                             \
   __ cmpb(bytecode,                                                     \
           Immediate(static_cast<int>(interpreter::Bytecode::k##NAME))); \
-  __ j(equal, if_return, Label::kNear);
+  __ j(equal, if_return);
   RETURN_BYTECODE_LIST(JUMP_IF_EQUAL)
 #undef JUMP_IF_EQUAL
 
@@ -845,7 +845,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ sub(ecx, ebx);
     ExternalReference stack_limit =
         ExternalReference::address_of_real_stack_limit(masm->isolate());
-    __ cmp(ecx, Operand::StaticVariable(stack_limit));
+    __ cmp(ecx, __ StaticVariable(stack_limit));
     __ j(above_equal, &ok);
     __ CallRuntime(Runtime::kThrowStackOverflow);
     __ bind(&ok);
@@ -1690,7 +1690,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     Label done;
     ExternalReference real_stack_limit =
         ExternalReference::address_of_real_stack_limit(masm->isolate());
-    __ mov(edx, Operand::StaticVariable(real_stack_limit));
+    __ mov(edx, __ StaticVariable(real_stack_limit));
     // Make edx the space we have left. The stack might already be overflowed
     // here which will cause edx to become negative.
     __ neg(edx);
@@ -2516,7 +2516,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     Label okay;
     ExternalReference pending_exception_address = ExternalReference::Create(
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
-    __ cmp(edx, Operand::StaticVariable(pending_exception_address));
+    __ cmp(edx, __ StaticVariable(pending_exception_address));
     // Cannot use check here as it attempts to generate call into runtime.
     __ j(equal, &okay, Label::kNear);
     __ int3();
@@ -2556,9 +2556,9 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   }
 
   // Retrieve the handler context, SP and FP.
-  __ mov(esi, Operand::StaticVariable(pending_handler_context_address));
-  __ mov(esp, Operand::StaticVariable(pending_handler_sp_address));
-  __ mov(ebp, Operand::StaticVariable(pending_handler_fp_address));
+  __ mov(esi, __ StaticVariable(pending_handler_context_address));
+  __ mov(esp, __ StaticVariable(pending_handler_sp_address));
+  __ mov(ebp, __ StaticVariable(pending_handler_fp_address));
 
   // If the handler is a JS frame, restore the context to the frame. Note that
   // the context will be set to (esi == 0) for non-JS frames.
@@ -2575,7 +2575,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ ResetSpeculationPoisonRegister();
 
   // Compute the handler entry address and jump to it.
-  __ mov(edi, Operand::StaticVariable(pending_handler_entrypoint_address));
+  __ mov(edi, __ StaticVariable(pending_handler_entrypoint_address));
   __ jmp(edi);
 }
 

@@ -3632,7 +3632,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32StackCheck: {
       ExternalReference const stack_limit =
           ExternalReference::address_of_stack_limit(__ isolate());
-      __ cmp(esp, Operand::StaticVariable(stack_limit));
+      __ cmp(esp, tasm()->StaticVariable(stack_limit));
       break;
     }
     case kIA32Word32AtomicPairLoad: {

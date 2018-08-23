@@ -103,17 +103,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CheckStackAlignment();
 
   // Nop, because ia32 does not have a root register.
+  // TODO(jgruber,v8:6666): Implement one.
   void InitializeRootRegister() {}
 
   // Move a constant into a destination using the most efficient encoding.
-  void Move(Register dst, const Immediate& x);
-
-  void Move(Register dst, Smi* source) { Move(dst, Immediate(source)); }
-
-  // Move if the registers are not identical.
-  void Move(Register target, Register source);
-
-  void Move(Operand dst, const Immediate& x);
+  void Move(Register dst, const Immediate& src);
+  void Move(Register dst, Smi* src) { Move(dst, Immediate(src)); }
+  void Move(Register dst, Handle<HeapObject> src);
+  void Move(Register dst, Register src);
+  void Move(Operand dst, const Immediate& src);
 
   // Move an immediate into an XMM register.
   void Move(XMMRegister dst, uint32_t src);
@@ -121,11 +119,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Move(XMMRegister dst, float src) { Move(dst, bit_cast<uint32_t>(src)); }
   void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
 
-  void Move(Register dst, Handle<HeapObject> handle);
-
   void Call(Register reg) { call(reg); }
-  void Call(Handle<Code> target, RelocInfo::Mode rmode) { call(target, rmode); }
   void Call(Label* target) { call(target); }
+  void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
+
+  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   void RetpolineCall(Register reg);
   void RetpolineCall(Address destination, RelocInfo::Mode rmode);
@@ -224,17 +222,19 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void LoadRoot(Register destination, Heap::RootListIndex index) override;
 
-  // TODO(jgruber,v8:6666): Implement embedded builtins.
+  // Indirect root-relative loads.
   void LoadFromConstantsTable(Register destination,
-                              int constant_index) override {
-    UNREACHABLE();
-  }
-  void LoadRootRegisterOffset(Register destination, intptr_t offset) override {
-    UNREACHABLE();
-  }
-  void LoadRootRelative(Register destination, int32_t offset) override {
-    UNREACHABLE();
-  }
+                              int constant_index) override;
+  void LoadRootRegisterOffset(Register destination, intptr_t offset) override;
+  void LoadRootRelative(Register destination, int32_t offset) override;
+
+  void LoadAddress(Register destination, ExternalReference source);
+
+  // Wrapper functions to ensure external reference operands produce
+  // isolate-independent code if needed.
+  Operand StaticVariable(const ExternalReference& ext);
+  Operand StaticArray(Register index, ScaleFactor scale,
+                      const ExternalReference& ext);
 
   // Return and drop arguments from stack, where the number of arguments
   // may be bigger than 2^16 - 1.  Requires a scratch register.
@@ -695,7 +695,6 @@ class MacroAssembler : public TurboAssembler {
   // from the stack, clobbering only the esp register.
   void Drop(int element_count);
 
-  void Jump(Handle<Code> target, RelocInfo::Mode rmode) { jmp(target, rmode); }
   void Pop(Register dst) { pop(dst); }
   void Pop(Operand dst) { pop(dst); }
   void PushReturnAddressFrom(Register src) { push(src); }

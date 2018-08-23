@@ -3278,6 +3278,15 @@ void Assembler::emit_operand(XMMRegister reg, Operand adr) {
 }
 
 void Assembler::emit_operand(int code, Operand adr) {
+  // Isolate-independent code may not embed relocatable addresses.
+  DCHECK(!options().isolate_independent_code ||
+         adr.rmode_ != RelocInfo::CODE_TARGET);
+  DCHECK(!options().isolate_independent_code ||
+         adr.rmode_ != RelocInfo::EMBEDDED_OBJECT);
+  // TODO(jgruber,v8:6666): Enable once kRootRegister exists.
+  //  DCHECK(!options().isolate_independent_code ||
+  //         adr.rmode_ != RelocInfo::EXTERNAL_REFERENCE);
+
   const unsigned length = adr.len_;
   DCHECK_GT(length, 0);
 

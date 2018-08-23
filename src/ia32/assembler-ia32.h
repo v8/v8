@@ -271,6 +271,15 @@ class Immediate BASE_EMBEDDED {
     return value_.immediate;
   }
 
+  bool is_external_reference() const {
+    return rmode() == RelocInfo::EXTERNAL_REFERENCE;
+  }
+
+  ExternalReference external_reference() const {
+    DCHECK(is_external_reference());
+    return bit_cast<ExternalReference>(immediate());
+  }
+
   bool is_zero() const { return RelocInfo::IsNone(rmode_) && immediate() == 0; }
   bool is_int8() const {
     return RelocInfo::IsNone(rmode_) && i::is_int8(immediate());
@@ -362,16 +371,6 @@ class V8_EXPORT_PRIVATE Operand {
                    RelocInfo::INTERNAL_REFERENCE);
   }
 
-  static Operand StaticVariable(const ExternalReference& ext) {
-    return Operand(ext.address(), RelocInfo::EXTERNAL_REFERENCE);
-  }
-
-  static Operand StaticArray(Register index,
-                             ScaleFactor scale,
-                             const ExternalReference& arr) {
-    return Operand(index, scale, arr.address(), RelocInfo::EXTERNAL_REFERENCE);
-  }
-
   static Operand ForRegisterPlusImmediate(Register base, Immediate imm) {
     return Operand(base, imm.value_.immediate, imm.rmode_);
   }
@@ -413,9 +412,9 @@ class V8_EXPORT_PRIVATE Operand {
 
   byte buf_[6];
   // The number of bytes in buf_.
-  uint8_t len_;
+  uint8_t len_ = 0;
   // Only valid if len_ > 4.
-  RelocInfo::Mode rmode_;
+  RelocInfo::Mode rmode_ = RelocInfo::NONE;
 
   // TODO(clemensh): Get rid of this friendship, or make Operand immutable.
   friend class Assembler;

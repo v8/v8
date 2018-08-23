@@ -40,7 +40,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ push(Immediate(StackFrame::TypeToMarker(marker)));  // marker
   ExternalReference context_address =
       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate());
-  __ push(Operand::StaticVariable(context_address));  // context
+  __ push(__ StaticVariable(context_address));  // context
   // Save callee-saved registers (C calling conventions).
   __ push(edi);
   __ push(esi);
@@ -49,14 +49,14 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Save copies of the top frame descriptor on the stack.
   ExternalReference c_entry_fp =
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  __ push(Operand::StaticVariable(c_entry_fp));
+  __ push(__ StaticVariable(c_entry_fp));
 
   // If this is the outermost JS call, set js_entry_sp value.
   ExternalReference js_entry_sp =
       ExternalReference::Create(IsolateAddressId::kJSEntrySPAddress, isolate());
-  __ cmp(Operand::StaticVariable(js_entry_sp), Immediate(0));
+  __ cmp(__ StaticVariable(js_entry_sp), Immediate(0));
   __ j(not_equal, &not_outermost_js, Label::kNear);
-  __ mov(Operand::StaticVariable(js_entry_sp), ebp);
+  __ mov(__ StaticVariable(js_entry_sp), ebp);
   __ push(Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ jmp(&invoke, Label::kNear);
   __ bind(&not_outermost_js);
@@ -71,7 +71,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // field in the JSEnv and return a failure sentinel.
   ExternalReference pending_exception = ExternalReference::Create(
       IsolateAddressId::kPendingExceptionAddress, isolate());
-  __ mov(Operand::StaticVariable(pending_exception), eax);
+  __ mov(__ StaticVariable(pending_exception), eax);
   __ mov(eax, Immediate(isolate()->factory()->exception()));
   __ jmp(&exit);
 
@@ -93,11 +93,11 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ pop(ebx);
   __ cmp(ebx, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
-  __ mov(Operand::StaticVariable(js_entry_sp), Immediate(0));
+  __ mov(__ StaticVariable(js_entry_sp), Immediate(0));
   __ bind(&not_outermost_js_2);
 
   // Restore the top frame descriptor from the stack.
-  __ pop(Operand::StaticVariable(ExternalReference::Create(
+  __ pop(__ StaticVariable(ExternalReference::Create(
       IsolateAddressId::kCEntryFPAddress, isolate())));
 
   // Restore callee-saved registers (C calling conventions).
@@ -197,9 +197,9 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   DCHECK(edx == function_address);
   // Allocate HandleScope in callee-save registers.
-  __ mov(ebx, Operand::StaticVariable(next_address));
-  __ mov(edi, Operand::StaticVariable(limit_address));
-  __ add(Operand::StaticVariable(level_address), Immediate(1));
+  __ mov(ebx, __ StaticVariable(next_address));
+  __ mov(edi, __ StaticVariable(limit_address));
+  __ add(__ StaticVariable(level_address), Immediate(1));
 
   if (FLAG_log_timer_events) {
     FrameScope frame(masm, StackFrame::MANUAL);
@@ -251,10 +251,10 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bind(&prologue);
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
-  __ mov(Operand::StaticVariable(next_address), ebx);
-  __ sub(Operand::StaticVariable(level_address), Immediate(1));
+  __ mov(__ StaticVariable(next_address), ebx);
+  __ sub(__ StaticVariable(level_address), Immediate(1));
   __ Assert(above_equal, AbortReason::kInvalidHandleScopeLevel);
-  __ cmp(edi, Operand::StaticVariable(limit_address));
+  __ cmp(edi, __ StaticVariable(limit_address));
   __ j(not_equal, &delete_allocated_handles);
 
   // Leave the API exit frame.
@@ -267,7 +267,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   // Check if the function scheduled an exception.
   ExternalReference scheduled_exception_address =
       ExternalReference::scheduled_exception_address(isolate);
-  __ cmp(Operand::StaticVariable(scheduled_exception_address),
+  __ cmp(__ StaticVariable(scheduled_exception_address),
          Immediate(isolate->factory()->the_hole_value()));
   __ j(not_equal, &promote_scheduled_exception);
 
@@ -323,7 +323,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   ExternalReference delete_extensions =
       ExternalReference::delete_handle_scope_extensions();
   __ bind(&delete_allocated_handles);
-  __ mov(Operand::StaticVariable(limit_address), edi);
+  __ mov(__ StaticVariable(limit_address), edi);
   __ mov(edi, eax);
   __ mov(Operand(esp, 0),
          Immediate(ExternalReference::isolate_address(isolate)));
