@@ -2567,8 +2567,12 @@ void SourceGroup::JoinThread() {
 }
 
 ExternalizedContents::~ExternalizedContents() {
-  if (data_ != nullptr) {
-    deleter_(data_, length_, deleter_data_);
+  if (base_ != nullptr) {
+    if (mode_ == ArrayBuffer::Allocator::AllocationMode::kReservation) {
+      CHECK(i::FreePages(base_, length_));
+    } else {
+      Shell::array_buffer_allocator->Free(base_, length_);
+    }
   }
 }
 
