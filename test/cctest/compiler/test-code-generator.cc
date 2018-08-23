@@ -996,8 +996,7 @@ class CodeGeneratorTester {
     generator_ = new CodeGenerator(
         environment->main_zone(), &frame_, &linkage_, environment->code(),
         &info_, environment->main_isolate(), base::Optional<OsrHelper>(),
-        kNoSourcePosition, nullptr, nullptr,
-        PoisoningMitigationLevel::kDontPoison,
+        kNoSourcePosition, nullptr, PoisoningMitigationLevel::kDontPoison,
         AssemblerOptions::Default(environment->main_isolate()),
         Builtins::kNoBuiltinId);
 

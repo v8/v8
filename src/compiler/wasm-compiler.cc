@@ -5025,8 +5025,7 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
 
 TurbofanWasmCompilationUnit::TurbofanWasmCompilationUnit(
     wasm::WasmCompilationUnit* wasm_unit)
-    : wasm_unit_(wasm_unit),
-      wasm_compilation_data_(wasm_unit->env_->runtime_exception_support) {}
+    : wasm_unit_(wasm_unit) {}
 
 // Clears unique_ptrs, but (part of) the type is forward declared in the header.
 TurbofanWasmCompilationUnit::~TurbofanWasmCompilationUnit() = default;
@@ -5126,6 +5125,9 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
         GetDebugName(&compilation_zone, wasm_unit_->func_name_,
                      wasm_unit_->func_index_),
         &compilation_zone, Code::WASM_FUNCTION);
+    if (wasm_unit_->env_->runtime_exception_support) {
+      info.SetWasmRuntimeExceptionSupport();
+    }
 
     NodeOriginTable* node_origins = info.trace_turbo_json_enabled()
                                         ? new (&graph_zone)
@@ -5160,8 +5162,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation() {
     std::unique_ptr<OptimizedCompilationJob> job(
         Pipeline::NewWasmCompilationJob(
             &info, wasm_unit_->wasm_engine_, mcgraph, call_descriptor,
-            source_positions, node_origins, &wasm_compilation_data_,
-            wasm_unit_->func_body_,
+            source_positions, node_origins, wasm_unit_->func_body_,
             const_cast<wasm::WasmModule*>(wasm_unit_->env_->module),
             wasm_unit_->native_module_, wasm_unit_->func_index_,
             wasm_unit_->env_->module->origin));

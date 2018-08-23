@@ -42,9 +42,8 @@ CodeGenerator::CodeGenerator(
     Zone* codegen_zone, Frame* frame, Linkage* linkage,
     InstructionSequence* code, OptimizedCompilationInfo* info, Isolate* isolate,
     base::Optional<OsrHelper> osr_helper, int start_source_position,
-    JumpOptimizationInfo* jump_opt, WasmCompilationData* wasm_compilation_data,
-    PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options,
-    int32_t builtin_index)
+    JumpOptimizationInfo* jump_opt, PoisoningMitigationLevel poisoning_level,
+    const AssemblerOptions& options, int32_t builtin_index)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -75,7 +74,7 @@ CodeGenerator::CodeGenerator(
       optimized_out_literal_id_(-1),
       source_position_table_builder_(
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS),
-      wasm_compilation_data_(wasm_compilation_data),
+      protected_instructions_(zone()),
       result_(kSuccess),
       poisoning_level_(poisoning_level),
       block_starts_(zone()),
@@ -86,7 +85,7 @@ CodeGenerator::CodeGenerator(
   CreateFrameAccessState(frame);
   CHECK_EQ(info->is_osr(), osr_helper_.has_value());
   tasm_.set_jump_optimization_info(jump_opt);
-  Code::Kind code_kind = info_->code_kind();
+  Code::Kind code_kind = info->code_kind();
   if (code_kind == Code::WASM_FUNCTION ||
       code_kind == Code::WASM_TO_JS_FUNCTION ||
       code_kind == Code::WASM_INTERPRETER_ENTRY ||
@@ -98,14 +97,13 @@ CodeGenerator::CodeGenerator(
 }
 
 bool CodeGenerator::wasm_runtime_exception_support() const {
-  DCHECK(wasm_compilation_data_);
-  return wasm_compilation_data_->runtime_exception_support();
+  DCHECK_NOT_NULL(info_);
+  return info_->wasm_runtime_exception_support();
 }
 
 void CodeGenerator::AddProtectedInstructionLanding(uint32_t instr_offset,
                                                    uint32_t landing_offset) {
-  DCHECK_NOT_NULL(wasm_compilation_data_);
-  wasm_compilation_data_->AddProtectedInstruction(instr_offset, landing_offset);
+  protected_instructions_.push_back({instr_offset, landing_offset});
 }
 
 void CodeGenerator::CreateFrameAccessState(Frame* frame) {
@@ -372,6 +370,12 @@ void CodeGenerator::AssembleArchBinarySearchSwitchRange(
 
 OwnedVector<byte> CodeGenerator::GetSourcePositionTable() {
   return source_position_table_builder_.ToSourcePositionTableVector();
+}
+
+OwnedVector<trap_handler::ProtectedInstructionData>
+CodeGenerator::GetProtectedInstructions() {
+  return OwnedVector<trap_handler::ProtectedInstructionData>::Of(
+      protected_instructions_);
 }
 
 MaybeHandle<Code> CodeGenerator::FinalizeCode() {

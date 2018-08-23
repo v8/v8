@@ -148,7 +148,6 @@ class PipelineData {
                PipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
                NodeOriginTable* node_origins,
-               WasmCompilationData* wasm_compilation_data,
                int wasm_function_index,
                const AssemblerOptions& assembler_options)
       : isolate_(nullptr),
@@ -173,7 +172,6 @@ class PipelineData {
         codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
-        wasm_compilation_data_(wasm_compilation_data),
         assembler_options_(assembler_options) {}
 
   // For machine graph testing entry point.
@@ -399,8 +397,8 @@ class PipelineData {
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
-        wasm_compilation_data_, info()->GetPoisoningMitigationLevel(),
-        assembler_options_, info_->builtin_index());
+        info()->GetPoisoningMitigationLevel(), assembler_options_,
+        info_->builtin_index());
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -416,10 +414,6 @@ class PipelineData {
   }
 
   const char* debug_name() const { return debug_name_.get(); }
-
-  WasmCompilationData* wasm_compilation_data() const {
-    return wasm_compilation_data_;
-  }
 
   int wasm_function_index() const { return wasm_function_index_; }
 
@@ -483,8 +477,6 @@ class PipelineData {
 
   // Source position output for --trace-turbo.
   std::string source_position_output_;
-
-  WasmCompilationData* wasm_compilation_data_ = nullptr;
 
   JumpOptimizationInfo* jump_optimization_info_ = nullptr;
   AssemblerOptions assembler_options_;
@@ -1005,7 +997,6 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
       OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
       MachineGraph* mcgraph, CallDescriptor* call_descriptor,
       SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-      WasmCompilationData* wasm_compilation_data,
       wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
       wasm::NativeModule* native_module, int function_index, bool asmjs_origin)
       : OptimizedCompilationJob(kNoStackLimit, info, "TurboFan",
@@ -1015,7 +1006,7 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
             wasm_engine, function_body, wasm_module, info, &zone_stats_)),
         data_(&zone_stats_, wasm_engine, info, mcgraph,
               pipeline_statistics_.get(), source_positions, node_origins,
-              wasm_compilation_data, function_index, WasmAssemblerOptions()),
+              function_index, WasmAssemblerOptions()),
         pipeline_(&data_),
         linkage_(call_descriptor),
         native_module_(native_module),
@@ -1091,7 +1082,7 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
       code_generator->frame()->GetTotalFrameSlotCount(),
       code_generator->GetSafepointTableOffset(),
       code_generator->GetHandlerTableOffset(),
-      data_.wasm_compilation_data()->GetProtectedInstructions(),
+      code_generator->GetProtectedInstructions(),
       code_generator->GetSourcePositionTable(), wasm::WasmCode::kTurbofan);
 
   if (data_.info()->trace_turbo_json_enabled()) {
@@ -2282,14 +2273,13 @@ OptimizedCompilationJob* Pipeline::NewWasmCompilationJob(
     OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
     MachineGraph* mcgraph, CallDescriptor* call_descriptor,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-    WasmCompilationData* wasm_compilation_data,
     wasm::FunctionBody function_body, wasm::WasmModule* wasm_module,
     wasm::NativeModule* native_module, int function_index,
     wasm::ModuleOrigin asmjs_origin) {
   return new PipelineWasmCompilationJob(
       info, wasm_engine, mcgraph, call_descriptor, source_positions,
-      node_origins, wasm_compilation_data, function_body, wasm_module,
-      native_module, function_index, asmjs_origin);
+      node_origins, function_body, wasm_module, native_module, function_index,
+      asmjs_origin);
 }
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,

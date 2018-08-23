@@ -10,7 +10,6 @@
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
 #include "src/runtime/runtime.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-module.h"
@@ -45,37 +44,6 @@ class WasmCode;
 
 namespace compiler {
 
-// Information about Wasm compilation that needs to be plumbed through the
-// different layers of the compiler.
-class WasmCompilationData {
- public:
-  explicit WasmCompilationData(
-      wasm::RuntimeExceptionSupport runtime_exception_support)
-      : runtime_exception_support_(runtime_exception_support) {}
-
-  void AddProtectedInstruction(uint32_t instr_offset, uint32_t landing_offset) {
-    protected_instructions_.push_back({instr_offset, landing_offset});
-  }
-
-  OwnedVector<trap_handler::ProtectedInstructionData>
-  GetProtectedInstructions() {
-    return OwnedVector<trap_handler::ProtectedInstructionData>::Of(
-        protected_instructions_);
-  }
-
-  wasm::RuntimeExceptionSupport runtime_exception_support() const {
-    return runtime_exception_support_;
-  }
-
- private:
-  std::vector<trap_handler::ProtectedInstructionData> protected_instructions_;
-
-  // See ModuleEnv::runtime_exception_support_.
-  wasm::RuntimeExceptionSupport runtime_exception_support_;
-
-  DISALLOW_COPY_AND_ASSIGN(WasmCompilationData);
-};
-
 class TurbofanWasmCompilationUnit {
  public:
   explicit TurbofanWasmCompilationUnit(wasm::WasmCompilationUnit* wasm_unit);
@@ -91,7 +59,6 @@ class TurbofanWasmCompilationUnit {
 
  private:
   wasm::WasmCompilationUnit* const wasm_unit_;
-  WasmCompilationData wasm_compilation_data_;
   bool ok_ = true;
   wasm::WasmCode* wasm_code_ = nullptr;
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
