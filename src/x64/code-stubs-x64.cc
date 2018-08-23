@@ -71,8 +71,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     __ movdqu(Operand(rsp, EntryFrameConstants::kXMMRegisterSize * 9), xmm15);
 #endif
 
-    // Set up the roots and smi constant registers.
-    // Needs to be done before any further smi loads.
     __ InitializeRootRegister();
   }
 

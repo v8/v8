@@ -46,6 +46,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ push(esi);
   __ push(ebx);
 
+  __ InitializeRootRegister();
+
   // Save copies of the top frame descriptor on the stack.
   ExternalReference c_entry_fp =
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
@@ -89,6 +91,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ PopStackHandler();
 
   __ bind(&exit);
+
+  __ VerifyRootRegister();
+
   // Check if the current stack frame is marked as the outermost JS frame.
   __ pop(ebx);
   __ cmp(ebx, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
