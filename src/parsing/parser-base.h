@@ -1592,7 +1592,7 @@ ParserBase<Impl>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_(scope),
       destructuring_assignments_to_rewrite_(scope->zone()),
-      reported_errors_(scope_->zone()),
+      reported_errors_(16, scope_->zone()),
       dont_optimize_reason_(BailoutReason::kNoReason),
       suspend_count_(0),
       next_function_is_likely_called_(false),
