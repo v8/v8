@@ -534,7 +534,6 @@ namespace internal {
   F(RunningInSimulator, 0, 1)                 \
   F(SerializeWasmModule, 1, 1)                \
   F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
-  F(SetFlags, 1, 1)                           \
   F(SetForceSlowPath, 1, 1)                   \
   F(SetWasmCompileControls, 2, 1)             \
   F(SetWasmInstantiateControls, 0, 1)         \

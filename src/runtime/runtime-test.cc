@@ -658,17 +658,6 @@ RUNTIME_FUNCTION(Runtime_SystemBreak) {
 }
 
 
-// Sets a v8 flag.
-RUNTIME_FUNCTION(Runtime_SetFlags) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(String, arg, 0);
-  std::unique_ptr<char[]> flags =
-      arg->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  FlagList::SetFlagsFromString(flags.get(), StrLength(flags.get()));
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_SetForceSlowPath) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());

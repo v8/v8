@@ -4464,7 +4464,7 @@ TEST(CEntryStubOOM) {
   CcTest::isolate()->SetFatalErrorHandler(OnFatalErrorExpectOOM);
 
   v8::Local<v8::Value> result = CompileRun(
-      "%SetFlags('--gc-interval=1');"
+      "%SetAllocationTimeout(1, 1);"
       "var a = [];"
       "a.__proto__ = [];"
       "a.unshift(1)");
