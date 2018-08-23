@@ -13,7 +13,14 @@ const Register CallInterfaceDescriptor::ContextRegister() { return esi; }
 
 void CallInterfaceDescriptor::DefaultInitializePlatformSpecific(
     CallInterfaceDescriptorData* data, int register_parameter_count) {
-  const Register default_stub_registers[] = {eax, ebx, ecx, edx, edi};
+#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+  // TODO(jgruber,v8:6666): Keep kRootRegister free unconditionally.
+  constexpr Register default_stub_registers[] = {eax, ecx, edx, edi};
+  DCHECK(!AreAliased(eax, ecx, edx, edi, kRootRegister));
+#else
+  constexpr Register default_stub_registers[] = {eax, ebx, ecx, edx, edi};
+#endif
+  STATIC_ASSERT(arraysize(default_stub_registers) == kMaxBuiltinRegisterParams);
   CHECK_LE(static_cast<size_t>(register_parameter_count),
            arraysize(default_stub_registers));
   data->InitializePlatformSpecific(register_parameter_count,

@@ -2407,8 +2407,8 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     AllocateRegisters(RegisterConfiguration::Poisoning(), call_descriptor,
                       run_verifier);
 #if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
-  } else if (data_->assembler_options().isolate_independent_code) {
-    // TODO(v8:6666): Extend support to all builtins and user code. Ensure that
+  } else if (Builtins::IsBuiltinId(data_->info()->builtin_index())) {
+    // TODO(v8:6666): Extend support to user code. Ensure that
     // it is mutually exclusive with the Poisoning configuration above; and that
     // it cooperates with restricted allocatable registers above.
     static_assert(kRootRegister == kSpeculationPoisonRegister,

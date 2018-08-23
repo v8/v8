@@ -782,7 +782,8 @@ class MachineRepresentationChecker {
           str << std::endl;
         }
         str << " * input " << i << " (" << input->id() << ":" << *input->op()
-            << ") doesn't have a " << expected_input_type << " representation.";
+            << ") has a " << input_type
+            << " representation (expected: " << expected_input_type << ").";
       }
     }
     if (should_log_error) {

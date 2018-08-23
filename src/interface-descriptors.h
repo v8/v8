@@ -289,7 +289,12 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   explicit name() : base(key()) {}               \
   static inline CallDescriptors::Key key();
 
+#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+// TODO(jgruber,v8:6666): Keep kRootRegister free unconditionally.
+constexpr int kMaxBuiltinRegisterParams = 4;
+#else
 constexpr int kMaxBuiltinRegisterParams = 5;
+#endif
 
 #define DECLARE_DEFAULT_DESCRIPTOR(name, base)                                 \
   DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                     \
