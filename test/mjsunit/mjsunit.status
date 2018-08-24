@@ -648,8 +648,9 @@
   'icu-date-to-string': [FAIL],
   'regress/regress-6288': [FAIL],
   # OOM:
-  'regress/regress-752764': [PASS, FAIL],
-  'regress/regress-852258': [SKIP],
+  'regress/regress-748069': [FAIL],
+  'regress/regress-752764': [FAIL],
+  'regress/regress-779407': [FAIL],
 }],  # 'system == android'
 
 ##############################################################################

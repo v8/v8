@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --nostress-incremental-marking
-// Flags: --max-old-space-size=1536
 
 // This test uses a lot of memory and fails with flaky OOM when run
 // with --stress-incremental-marking on TSAN.

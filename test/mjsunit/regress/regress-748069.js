@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --max-old-space-size=1536
-
 try {
   var a = 'a'.repeat(1 << 28);
 } catch (e) {
