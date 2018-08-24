@@ -532,7 +532,7 @@ bool Heap::CreateInitialMaps() {
     ArrayBoilerplateDescription::cast(obj)->set_constant_elements(
         roots.empty_fixed_array());
     ArrayBoilerplateDescription::cast(obj)->set_elements_kind(
-        ElementsKind::PACKED_ELEMENTS);
+        ElementsKind::PACKED_SMI_ELEMENTS);
   }
   set_empty_array_boilerplate_description(
       ArrayBoilerplateDescription::cast(obj));
