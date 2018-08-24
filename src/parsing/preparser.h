@@ -65,7 +65,7 @@ class PreParserIdentifier {
   bool IsPrivateName() const { return type_ == kPrivateNameIdentifier; }
 
  private:
-  enum Type {
+  enum Type : uint8_t {
     kNullIdentifier,
     kUnknownIdentifier,
     kEvalIdentifier,
@@ -77,10 +77,11 @@ class PreParserIdentifier {
     kPrivateNameIdentifier
   };
 
-  explicit PreParserIdentifier(Type type) : type_(type), string_(nullptr) {}
-  Type type_;
+  explicit PreParserIdentifier(Type type) : string_(nullptr), type_(type) {}
   // Only non-nullptr when PreParser.track_unresolved_variables_ is true.
   const AstRawString* string_;
+
+  Type type_;
   friend class PreParserExpression;
   friend class PreParser;
   friend class PreParserFactory;
@@ -402,7 +403,7 @@ class PreParserExpression {
   typedef BitField<ExpressionType, TypeField::kNext, 4> ExpressionTypeField;
   typedef BitField<bool, TypeField::kNext, 1> IsUseStrictField;
   typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseAsmField;
-  typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 10>
+  typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 8>
       IdentifierTypeField;
   typedef BitField<bool, TypeField::kNext, 1> HasCoverInitializedNameField;
 
