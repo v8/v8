@@ -23,6 +23,7 @@ include_rules = [
   "+src/interpreter/bytecode-register.h",
   "+src/interpreter/bytecodes.h",
   "+src/interpreter/interpreter.h",
+  "+src/interpreter/interpreter-generator.h",
   "+src/interpreter/setup-interpreter.h",
   "-src/trap-handler",
   "+src/trap-handler/trap-handler.h",

@@ -3127,14 +3127,16 @@ IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
 }  // namespace
 
 Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
-                                     OperandScale operand_scale) {
+                                     OperandScale operand_scale,
+                                     int builtin_index) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   compiler::CodeAssemblerState state(
       isolate, &zone, InterpreterDispatchDescriptor{}, Code::BYTECODE_HANDLER,
       Bytecodes::ToString(bytecode),
       FLAG_untrusted_code_mitigations
           ? PoisoningMitigationLevel::kPoisonCriticalOnly
-          : PoisoningMitigationLevel::kDontPoison);
+          : PoisoningMitigationLevel::kDontPoison,
+      0, builtin_index);
 
   switch (bytecode) {
 #define CALL_GENERATOR(Name, ...)                     \

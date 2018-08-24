@@ -11,6 +11,7 @@
 #include "src/handles-inl.h"
 #include "src/interface-descriptors.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/interpreter/interpreter-generator.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -248,10 +249,20 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
 #ifdef V8_EMBEDDED_BYTECODE_HANDLERS
 namespace {
 Code* GenerateBytecodeHandler(Isolate* isolate, int builtin_index,
-                              interpreter::Bytecode code,
-                              interpreter::OperandScale scale) {
-  // TODO(v8:8068): Actually generate the handler.
-  return nullptr;
+                              const char* name, interpreter::Bytecode bytecode,
+                              interpreter::OperandScale operand_scale) {
+  if (!interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
+    // TODO(v8:8068): Consider returning something else to avoid placeholders
+    // being serialized with the snapshot.
+    return nullptr;
+  }
+
+  Handle<Code> code = interpreter::GenerateBytecodeHandler(
+      isolate, bytecode, operand_scale, builtin_index);
+
+  PostBuildProfileAndTracing(isolate, *code, name);
+
+  return *code;
 }
 }  // namespace
 #endif
@@ -298,13 +309,13 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
       CallDescriptors::InterfaceDescriptor, #Name, 1);     \
   AddBuiltin(builtins, index++, code);
 
-#define BUILD_BCH_WITH_SCALE(Code, Scale)                                     \
-  code =                                                                      \
-      GenerateBytecodeHandler(isolate, index, interpreter::Bytecode::k##Code, \
-                              interpreter::OperandScale::k##Scale);           \
-  if (code) {                                                                 \
-    AddBuiltin(builtins, index, code);                                        \
-  }                                                                           \
+#define BUILD_BCH_WITH_SCALE(Code, Scale)                               \
+  code = GenerateBytecodeHandler(isolate, index, Builtins::name(index), \
+                                 interpreter::Bytecode::k##Code,        \
+                                 interpreter::OperandScale::k##Scale);  \
+  if (code) {                                                           \
+    AddBuiltin(builtins, index, code);                                  \
+  }                                                                     \
   ++index;
 
 #define BUILD_BCH(Code, ...)         \
