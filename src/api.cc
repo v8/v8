@@ -10471,9 +10471,9 @@ bool EmbedderHeapTracer::AdvanceTracing(double deadline_in_ms) {
 #pragma clang diagnostic ignored "-Wdeprecated"
 #endif
   return !this->AdvanceTracing(
-      deadline_in_ms,
-      AdvanceTracingActions(isinf(deadline_in_ms) ? FORCE_COMPLETION
-                                                  : DO_NOT_FORCE_COMPLETION));
+      deadline_in_ms, AdvanceTracingActions(std::isinf(deadline_in_ms)
+                                                ? FORCE_COMPLETION
+                                                : DO_NOT_FORCE_COMPLETION));
 #if __clang__
 #pragma clang diagnostic pop
 #endif
