@@ -676,6 +676,12 @@ Node* LoadElimination::AbstractState::LookupField(Node* object,
 }
 
 bool LoadElimination::AliasStateInfo::MayAlias(Node* other) const {
+  // If {object} is being initialized right here (indicated by {object} being
+  // an Allocate node instead of a FinishRegion node), we know that {other}
+  // can only alias with {object} if they refer to exactly the same node.
+  if (object_->opcode() == IrOpcode::kAllocate) {
+    return object_ == other;
+  }
   // Decide aliasing based on the node kinds.
   if (!compiler::MayAlias(object_, other)) {
     return false;
