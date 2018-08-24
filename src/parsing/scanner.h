@@ -109,8 +109,16 @@ class Utf16CharacterStream {
     }
   }
 
+  // Returns true if the stream can be cloned with Clone.
+  // TODO(rmcilroy): Remove this once ChunkedStreams can be cloned.
+  virtual bool can_be_cloned() const = 0;
+
+  // Clones the character stream to enable another independent scanner to access
+  // the same underlying stream.
+  virtual std::unique_ptr<Utf16CharacterStream> Clone() const = 0;
+
   // Returns true if the stream could access the V8 heap after construction.
-  virtual bool can_access_heap() = 0;
+  virtual bool can_access_heap() const = 0;
 
  protected:
   Utf16CharacterStream(const uint16_t* buffer_start,
@@ -388,6 +396,8 @@ class Scanner {
   void set_allow_harmony_numeric_separator(bool allow) {
     allow_harmony_numeric_separator_ = allow;
   }
+
+  const Utf16CharacterStream* stream() const { return source_; }
 
  private:
   // Scoped helper for saving & restoring scanner error state.
