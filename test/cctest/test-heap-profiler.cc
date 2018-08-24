@@ -285,8 +285,10 @@ TEST(HeapSnapshotLocations) {
   CompileRun(
       "function X(a) { return function() { return a; } }\n"
       "function* getid() { yield 1; }\n"
+      "class A {}\n"
       "var x = X(1);\n"
-      "var g = getid();");
+      "var g = getid();\n"
+      "var o = new A();");
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
@@ -308,6 +310,15 @@ TEST(HeapSnapshotLocations) {
   CHECK(g_loc);
   CHECK_EQ(1, g_loc->line);
   CHECK_EQ(15, g_loc->col);
+
+  const v8::HeapGraphNode* o =
+      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "o");
+  CHECK(x);
+
+  Optional<SourceLocation> o_loc = GetLocation(snapshot, o);
+  CHECK(o_loc);
+  CHECK_EQ(2, o_loc->line);
+  CHECK_EQ(0, o_loc->col);
 }
 
 TEST(HeapSnapshotObjectSizes) {
@@ -1921,6 +1932,63 @@ static int StringCmp(const char* ref, i::String* act) {
   return result;
 }
 
+TEST(GetConstructor) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  CompileRun(
+      "function Constructor1() {};\n"
+      "var obj1 = new Constructor1();\n"
+      "var Constructor2 = function() {};\n"
+      "var obj2 = new Constructor2();\n"
+      "var obj3 = {};\n"
+      "obj3.__proto__ = { constructor: function Constructor3() {} };\n"
+      "var obj4 = {};\n"
+      "// Slow properties\n"
+      "for (var i=0; i<2000; ++i) obj4[\"p\" + i] = i;\n"
+      "obj4.__proto__ = { constructor: function Constructor4() {} };\n"
+      "var obj5 = {};\n"
+      "var obj6 = {};\n"
+      "obj6.constructor = 6;");
+  v8::Local<v8::Object> js_global =
+      env->Global()->GetPrototype().As<v8::Object>();
+  v8::Local<v8::Object> obj1 = js_global->Get(env.local(), v8_str("obj1"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
+  i::Handle<i::JSObject> js_obj1 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj1));
+  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj1));
+  v8::Local<v8::Object> obj2 = js_global->Get(env.local(), v8_str("obj2"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
+  i::Handle<i::JSObject> js_obj2 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj2));
+  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj2));
+  v8::Local<v8::Object> obj3 = js_global->Get(env.local(), v8_str("obj3"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
+  i::Handle<i::JSObject> js_obj3 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj3));
+  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj3));
+  v8::Local<v8::Object> obj4 = js_global->Get(env.local(), v8_str("obj4"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
+  i::Handle<i::JSObject> js_obj4 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj4));
+  CHECK(i::V8HeapExplorer::GetConstructor(*js_obj4));
+  v8::Local<v8::Object> obj5 = js_global->Get(env.local(), v8_str("obj5"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
+  i::Handle<i::JSObject> js_obj5 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj5));
+  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj5));
+  v8::Local<v8::Object> obj6 = js_global->Get(env.local(), v8_str("obj6"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
+  i::Handle<i::JSObject> js_obj6 =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj6));
+  CHECK(!i::V8HeapExplorer::GetConstructor(*js_obj6));
+}
 
 TEST(GetConstructorName) {
   LocalContext env;

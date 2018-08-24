@@ -364,6 +364,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                       const char* name,
                       size_t size);
 
+  static JSFunction* GetConstructor(JSReceiver* receiver);
   static String* GetConstructorName(JSObject* object);
 
  private:

@@ -622,6 +622,13 @@ void V8HeapExplorer::ExtractLocation(int entry, HeapObject* object) {
   } else if (object->IsJSGeneratorObject()) {
     JSGeneratorObject* gen = JSGeneratorObject::cast(object);
     ExtractLocationForJSFunction(entry, gen->function());
+
+  } else if (object->IsJSObject()) {
+    JSObject* obj = JSObject::cast(object);
+    JSFunction* maybe_constructor = GetConstructor(obj);
+
+    if (maybe_constructor)
+      ExtractLocationForJSFunction(entry, maybe_constructor);
   }
 }
 
@@ -1537,6 +1544,17 @@ void V8HeapExplorer::ExtractInternalReferences(JSObject* js_obj, int entry) {
   }
 }
 
+JSFunction* V8HeapExplorer::GetConstructor(JSReceiver* receiver) {
+  Isolate* isolate = receiver->GetIsolate();
+  DisallowHeapAllocation no_gc;
+  HandleScope scope(isolate);
+  MaybeHandle<JSFunction> maybe_constructor =
+      JSReceiver::GetConstructor(handle(receiver, isolate));
+
+  if (maybe_constructor.is_null()) return nullptr;
+
+  return *maybe_constructor.ToHandleChecked();
+}
 
 String* V8HeapExplorer::GetConstructorName(JSObject* object) {
   Isolate* isolate = object->GetIsolate();
