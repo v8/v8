@@ -32,18 +32,25 @@ static volatile int global_stop_bit = 0;
 
 Address GenerateJumpTableThunk(Address jump_target) {
   size_t allocated;
+  byte* buffer;
 #if V8_TARGET_ARCH_ARM64
   // TODO(wasm): Currently {kMaxWasmCodeMemory} limits code sufficiently, so
   // that the jump table only supports {near_call} distances.
-  Address random_addr = reinterpret_cast<Address>(GetRandomMmapAddr());
   const uintptr_t kThunkAddrMask = (1 << WhichPowerOf2(kMaxWasmCodeMemory)) - 1;
-  void* address = reinterpret_cast<void*>((jump_target & ~kThunkAddrMask) |
-                                          (random_addr & kThunkAddrMask));
+  const int kArbitrarilyChosenRetryCount = 10;  // Retry to avoid flakes.
+  for (int retry = 0; retry < kArbitrarilyChosenRetryCount; ++retry) {
+    Address random_addr = reinterpret_cast<Address>(GetRandomMmapAddr());
+    void* address = reinterpret_cast<void*>((jump_target & ~kThunkAddrMask) |
+                                            (random_addr & kThunkAddrMask));
+    buffer = AllocateAssemblerBuffer(
+        &allocated, AssemblerBase::kMinimalBufferSize, address);
+    Address bufferptr = reinterpret_cast<uintptr_t>(buffer);
+    if ((bufferptr & ~kThunkAddrMask) == (jump_target & ~kThunkAddrMask)) break;
+  }
 #else
-  void* address = GetRandomMmapAddr();
+  buffer = AllocateAssemblerBuffer(
+      &allocated, AssemblerBase::kMinimalBufferSize, GetRandomMmapAddr());
 #endif
-  byte* buffer = AllocateAssemblerBuffer(
-      &allocated, AssemblerBase::kMinimalBufferSize, address);
   MacroAssembler masm(nullptr, AssemblerOptions{}, buffer,
                       static_cast<int>(allocated), CodeObjectRequired::kNo);
 
