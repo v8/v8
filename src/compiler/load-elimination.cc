@@ -445,6 +445,7 @@ LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Extend(
 }
 
 void LoadElimination::AbstractMaps::Print() const {
+  AllowHandleDereference allow_handle_dereference;
   StdoutStream os;
   for (auto pair : info_for_node_) {
     os << "    #" << pair.first->id() << ":" << pair.first->op()->mnemonic()
