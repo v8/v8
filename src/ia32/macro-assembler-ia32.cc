@@ -1736,8 +1736,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
         CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
         EmbeddedData d = EmbeddedData::FromBlob();
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
-        mov(scratch, Immediate(entry, RelocInfo::OFF_HEAP_TARGET));
-        call(scratch);
+        call(entry, RelocInfo::OFF_HEAP_TARGET);
         return;
       }
     }
@@ -1765,8 +1764,7 @@ void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
         CHECK_NE(builtin_index, Builtins::kNoBuiltinId);
         EmbeddedData d = EmbeddedData::FromBlob();
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
-        mov(scratch, Immediate(entry, RelocInfo::OFF_HEAP_TARGET));
-        jmp(scratch);
+        jmp(entry, RelocInfo::OFF_HEAP_TARGET);
         return;
       }
     }
