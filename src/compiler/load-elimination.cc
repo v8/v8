@@ -912,8 +912,9 @@ Reduction LoadElimination::ReduceTransitionAndStoreElement(Node* node) {
 
 Reduction LoadElimination::ReduceLoadField(Node* node) {
   FieldAccess const& access = FieldAccessOf(node->op());
-  Node* const object = NodeProperties::GetValueInput(node, 0);
-  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
   if (access.offset == HeapObject::kMapOffset &&
@@ -931,12 +932,19 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
     if (field_index >= 0) {
       if (Node* replacement = state->LookupField(object, field_index)) {
         // Make sure we don't resurrect dead {replacement} nodes.
-        // Skip lowering if the type of the {replacement} node is not a subtype
-        // of the original {node}'s type.
-        // TODO(tebbi): We should insert a {TypeGuard} for the intersection of
-        // these two types here once we properly handle {Type::None} everywhere.
-        if (!replacement->IsDead() && NodeProperties::GetType(replacement)
-                                          .Is(NodeProperties::GetType(node))) {
+        if (!replacement->IsDead()) {
+          // Introduce a TypeGuard if the type of the {replacement} node is not
+          // a subtype of the original {node}'s type.
+          if (!NodeProperties::GetType(replacement)
+                   .Is(NodeProperties::GetType(node))) {
+            Type replacement_type = Type::Intersect(
+                NodeProperties::GetType(node),
+                NodeProperties::GetType(replacement), graph()->zone());
+            replacement = effect =
+                graph()->NewNode(common()->TypeGuard(replacement_type),
+                                 replacement, effect, control);
+            NodeProperties::SetType(replacement, replacement_type);
+          }
           ReplaceWithValue(node, replacement, effect);
           return Replace(replacement);
         }
