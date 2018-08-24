@@ -201,10 +201,6 @@ TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
 
   TVARIABLE(JSArray, created_list);
 
-  // TODO(dhai): IsFastJSArrayWithNoCustomIteration unnecessarily checks that
-  // the prototype has no element even when the array is packed.
-  // Then the fast path will not be taken in the case when the array is packed
-  // and the prototype has some elements.
   Branch(IsFastJSArrayWithNoCustomIteration(iterable, context), &fast_path,
          &slow_path);
 

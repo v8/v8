@@ -1068,8 +1068,7 @@ TNode<BoolT> CodeStubAssembler::IsFastJSArrayWithNoCustomIteration(
     TNode<Object> object, TNode<Context> context) {
   Label if_false(this, Label::kDeferred), if_fast(this), exit(this);
   TVARIABLE(BoolT, var_result);
-  GotoIfForceSlowPath(&if_false);
-  BranchIfFastJSArray(object, context, &if_fast, &if_false);
+  BranchIfFastJSArray(object, context, &if_fast, &if_false, true);
   BIND(&if_fast);
   {
     // Check that the Array.prototype hasn't been modified in a way that would
@@ -1091,7 +1090,8 @@ TNode<BoolT> CodeStubAssembler::IsFastJSArrayWithNoCustomIteration(
 }
 
 void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
-                                            Label* if_true, Label* if_false) {
+                                            Label* if_true, Label* if_false,
+                                            bool iteration_only) {
   GotoIfForceSlowPath(if_false);
 
   // Bailout if receiver is a Smi.
@@ -1107,6 +1107,11 @@ void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
   // Verify that our prototype is the initial array prototype.
   GotoIfNot(IsPrototypeInitialArrayPrototype(context, map), if_false);
 
+  if (iteration_only) {
+    // If we are only iterating over the array, there is no need to check
+    // the NoElements protector if the array is not holey.
+    GotoIfNot(IsHoleyFastElementsKind(elements_kind), if_true);
+  }
   Branch(IsNoElementsProtectorCellInvalid(), if_false, if_true);
 }
 

@@ -754,7 +754,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void BranchIfJSReceiver(Node* object, Label* if_true, Label* if_false);
 
   void BranchIfFastJSArray(Node* object, Node* context, Label* if_true,
-                           Label* if_false);
+                           Label* if_false, bool iteration_only = false);
   void BranchIfNotFastJSArray(Node* object, Node* context, Label* if_true,
                               Label* if_false) {
     BranchIfFastJSArray(object, context, if_false, if_true);
