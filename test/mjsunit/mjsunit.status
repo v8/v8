@@ -812,6 +812,12 @@
 }],  # (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
+['(arch == arm or arch == arm64)', {
+  # Flaky tests: https://crbug.com/v8/8090
+  'regress/regress-752764': [SKIP],
+}],  # (arch == arm or arch == arm64)
+
+##############################################################################
 ['gcov_coverage', {
   # Tests taking too long.
   'array-functions-prototype-misc': [SKIP],
