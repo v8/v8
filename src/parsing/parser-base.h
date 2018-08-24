@@ -748,8 +748,7 @@ class ParserBase {
       Next();
       return;
     }
-    if (scanner()->HasAnyLineTerminatorBeforeNext() ||
-        tok == Token::RBRACE ||
+    if (scanner()->HasLineTerminatorBeforeNext() || tok == Token::RBRACE ||
         tok == Token::EOS) {
       return;
     }
@@ -1890,7 +1889,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
       return impl()->ExpressionFromLiteral(Next(), beg_pos);
 
     case Token::ASYNC:
-      if (!scanner()->HasAnyLineTerminatorAfterNext() &&
+      if (!scanner()->HasLineTerminatorAfterNext() &&
           PeekAhead() == Token::FUNCTION) {
         BindingPatternUnexpectedToken();
         Consume(Token::ASYNC);
@@ -2194,10 +2193,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
   int pos = peek_position();
 
   if (!*is_generator && token == Token::ASYNC &&
-      !scanner()->HasAnyLineTerminatorAfterNext()) {
+      !scanner()->HasLineTerminatorAfterNext()) {
     Consume(Token::ASYNC);
     token = peek();
-    if (token == Token::MUL && !scanner()->HasAnyLineTerminatorBeforeNext()) {
+    if (token == Token::MUL && !scanner()->HasLineTerminatorBeforeNext()) {
       Consume(Token::MUL);
       token = peek();
       *is_generator = true;
@@ -2893,7 +2892,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
       function_state_->destructuring_assignments_to_rewrite().size());
 
   bool is_async = peek() == Token::ASYNC &&
-                  !scanner()->HasAnyLineTerminatorAfterNext() &&
+                  !scanner()->HasLineTerminatorAfterNext() &&
                   IsValidArrowFormalParametersStart(PeekAhead());
 
   bool parenthesized_formals = peek() == Token::LPAREN;
@@ -3070,7 +3069,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
   // The following initialization is necessary.
   ExpressionT expression = impl()->NullExpression();
   bool delegating = false;  // yield*
-  if (!scanner()->HasAnyLineTerminatorBeforeNext()) {
+  if (!scanner()->HasLineTerminatorBeforeNext()) {
     if (Check(Token::MUL)) delegating = true;
     switch (peek()) {
       case Token::EOS:
@@ -3321,8 +3320,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePostfixExpression(
 
   int lhs_beg_pos = peek_position();
   ExpressionT expression = ParseLeftHandSideExpression(CHECK_OK);
-  if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
-      Token::IsCountOp(peek())) {
+  if (!scanner()->HasLineTerminatorBeforeNext() && Token::IsCountOp(peek())) {
     BindingPatternUnexpectedToken();
     ArrowFormalParametersUnexpectedToken();
 
@@ -4183,7 +4181,7 @@ ParserBase<Impl>::ParseAsyncFunctionDeclaration(
   //       ( FormalParameters[Await] ) { AsyncFunctionBody }
   DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
   int pos = position();
-  if (scanner()->HasAnyLineTerminatorBeforeNext()) {
+  if (scanner()->HasLineTerminatorBeforeNext()) {
     *ok = false;
     impl()->ReportUnexpectedToken(scanner()->current_token());
     return impl()->NullStatement();
@@ -4375,7 +4373,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
-  if (peek() == Token::ARROW && scanner_->HasAnyLineTerminatorBeforeNext()) {
+  if (peek() == Token::ARROW && scanner_->HasLineTerminatorBeforeNext()) {
     // ASI inserts `;` after arrow parameters if a line terminator is found.
     // `=> ...` is never a valid expression, so report as syntax error.
     // If next token is not `=>`, it's a syntax error anyways.
@@ -4985,7 +4983,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatementListItem(
       break;
     case Token::ASYNC:
       if (PeekAhead() == Token::FUNCTION &&
-          !scanner()->HasAnyLineTerminatorAfterNext()) {
+          !scanner()->HasLineTerminatorAfterNext()) {
         Consume(Token::ASYNC);
         return ParseAsyncFunctionDeclaration(nullptr, false, ok);
       }
@@ -5086,7 +5084,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
     case Token::VAR:
       return ParseVariableStatement(kStatement, nullptr, ok);
     case Token::ASYNC:
-      if (!scanner()->HasAnyLineTerminatorAfterNext() &&
+      if (!scanner()->HasLineTerminatorAfterNext() &&
           PeekAhead() == Token::FUNCTION) {
         impl()->ReportMessageAt(
             scanner()->peek_location(),
@@ -5223,7 +5221,7 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
       // However, ASI may insert a line break before an identifier or a brace.
       if (next_next != Token::LBRACK &&
           ((next_next != Token::LBRACE && next_next != Token::IDENTIFIER) ||
-           scanner_->HasAnyLineTerminatorAfterNext())) {
+           scanner_->HasLineTerminatorAfterNext())) {
         break;
       }
       impl()->ReportMessageAt(scanner()->peek_location(),
@@ -5256,7 +5254,7 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
   // A native function declaration starts with "native function" with
   // no line-terminator between the two words.
   if (extension_ != nullptr && peek() == Token::FUNCTION &&
-      !scanner()->HasAnyLineTerminatorBeforeNext() && impl()->IsNative(expr) &&
+      !scanner()->HasLineTerminatorBeforeNext() && impl()->IsNative(expr) &&
       !scanner()->literal_contains_escapes()) {
     return ParseNativeDeclaration(ok);
   }
@@ -5309,7 +5307,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseContinueStatement(
   Expect(Token::CONTINUE, CHECK_OK);
   IdentifierT label = impl()->NullIdentifier();
   Token::Value tok = peek();
-  if (!scanner()->HasAnyLineTerminatorBeforeNext() && tok != Token::SEMICOLON &&
+  if (!scanner()->HasLineTerminatorBeforeNext() && tok != Token::SEMICOLON &&
       tok != Token::RBRACE && tok != Token::EOS) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
     label = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
@@ -5346,7 +5344,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
   Expect(Token::BREAK, CHECK_OK);
   IdentifierT label = impl()->NullIdentifier();
   Token::Value tok = peek();
-  if (!scanner()->HasAnyLineTerminatorBeforeNext() && tok != Token::SEMICOLON &&
+  if (!scanner()->HasLineTerminatorBeforeNext() && tok != Token::SEMICOLON &&
       tok != Token::RBRACE && tok != Token::EOS) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
     label = ParseIdentifier(kAllowRestrictedIdentifiers, CHECK_OK);
@@ -5400,7 +5398,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
 
   Token::Value tok = peek();
   ExpressionT return_value = impl()->NullExpression();
-  if (scanner()->HasAnyLineTerminatorBeforeNext() || tok == Token::SEMICOLON ||
+  if (scanner()->HasLineTerminatorBeforeNext() || tok == Token::SEMICOLON ||
       tok == Token::RBRACE || tok == Token::EOS) {
     if (IsDerivedConstructor(function_state_->kind())) {
       return_value = impl()->ThisExpression(loc.beg_pos);
@@ -5520,7 +5518,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseThrowStatement(
 
   Expect(Token::THROW, CHECK_OK);
   int pos = position();
-  if (scanner()->HasAnyLineTerminatorBeforeNext()) {
+  if (scanner()->HasLineTerminatorBeforeNext()) {
     ReportMessage(MessageTemplate::kNewlineAfterThrow);
     *ok = false;
     return impl()->NullStatement();

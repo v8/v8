@@ -384,7 +384,6 @@ Token::Value Scanner::Next() {
   if (V8_LIKELY(next_next().token == Token::UNINITIALIZED)) {
     next_ = previous;
     next().after_line_terminator = false;
-    next().after_multiline_comment = false;
     Scan();
   } else {
     next_ = next_next_;
@@ -407,7 +406,6 @@ Token::Value Scanner::PeekAhead() {
   TokenDesc* temp = next_;
   next_ = next_next_;
   next().after_line_terminator = false;
-  next().after_multiline_comment = false;
   Scan();
   next_next_ = next_;
   next_ = temp;
@@ -502,10 +500,10 @@ Token::Value Scanner::SkipMultiLineComment() {
 
   while (c0_ != kEndOfInput) {
     DCHECK(!unibrow::IsLineTerminator(kEndOfInput));
-    if (!next().after_multiline_comment && unibrow::IsLineTerminator(c0_)) {
+    if (!HasLineTerminatorBeforeNext() && unibrow::IsLineTerminator(c0_)) {
       // Following ECMA-262, section 7.4, a comment containing
       // a newline will make the comment count as a line-terminator.
-      next().after_multiline_comment = true;
+      next().after_line_terminator = true;
     }
 
     while (V8_UNLIKELY(c0_ == '*')) {
@@ -638,7 +636,7 @@ void Scanner::Scan() {
         Advance();
         if (c0_ == '-') {
           Advance();
-          if (c0_ == '>' && HasAnyLineTerminatorBeforeNext()) {
+          if (c0_ == '>' && HasLineTerminatorBeforeNext()) {
             // For compatibility with SpiderMonkey, we skip lines that
             // start with an HTML comment end '-->'.
             token = SkipSingleHTMLComment();
@@ -845,7 +843,6 @@ void Scanner::SeekForward(int pos) {
     // of the end of a function (at the "}" token). It doesn't matter
     // whether there was a line terminator in the part we skip.
     next().after_line_terminator = false;
-    next().after_multiline_comment = false;
   }
   Scan();
 }
@@ -1806,7 +1803,6 @@ void Scanner::SeekNext(size_t position) {
   // 3, re-scan, by scanning the look-ahead char + 1 token (next_).
   c0_ = source_->Advance();
   next().after_line_terminator = false;
-  next().after_multiline_comment = false;
   Scan();
   DCHECK_EQ(next().location.beg_pos, static_cast<int>(position));
 }

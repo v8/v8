@@ -776,7 +776,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
 
     if (IsArrowFunction(kind)) {
       if (IsAsyncFunction(kind)) {
-        DCHECK(!scanner()->HasAnyLineTerminatorAfterNext());
+        DCHECK(!scanner()->HasLineTerminatorAfterNext());
         if (!Check(Token::ASYNC)) {
           CHECK(stack_overflow());
           return nullptr;
@@ -1179,7 +1179,7 @@ Statement* Parser::ParseExportDefault(bool* ok) {
 
     case Token::ASYNC:
       if (PeekAhead() == Token::FUNCTION &&
-          !scanner()->HasAnyLineTerminatorAfterNext()) {
+          !scanner()->HasLineTerminatorAfterNext()) {
         Consume(Token::ASYNC);
         result = ParseAsyncFunctionDeclaration(&local_names, true, CHECK_OK);
         break;

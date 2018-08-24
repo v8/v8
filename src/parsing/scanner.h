@@ -345,11 +345,11 @@ class Scanner {
 
   // Returns true if there was a line terminator before the peek'ed token,
   // possibly inside a multi-line comment.
-  bool HasAnyLineTerminatorBeforeNext() const {
-    return next().after_line_terminator || next().after_multiline_comment;
+  bool HasLineTerminatorBeforeNext() const {
+    return next().after_line_terminator;
   }
 
-  bool HasAnyLineTerminatorAfterNext() {
+  bool HasLineTerminatorAfterNext() {
     Token::Value ensure_next_next = PeekAhead();
     USE(ensure_next_next);
     return next_next().after_line_terminator;
@@ -526,7 +526,6 @@ class Scanner {
     Token::Value contextual_token = Token::UNINITIALIZED;
     uint32_t smi_value_ = 0;
     bool after_line_terminator = false;
-    bool after_multiline_comment = false;
   };
 
   enum NumberKind {
