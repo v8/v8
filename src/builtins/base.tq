@@ -109,6 +109,8 @@ type FixedBigInt64Array extends FixedTypedArray;
 
 const kAllFixedArrays: constexpr ExtractFixedArrayFlags generates
 'ExtractFixedArrayFlag::kAllFixedArrays';
+const kFixedArrays: constexpr ExtractFixedArrayFlags generates
+'ExtractFixedArrayFlag::kFixedArrays';
 
 const kFixedCOWArrayMapRootIndex: constexpr RootListIndex generates
 'Heap::kFixedCOWArrayMapRootIndex';
