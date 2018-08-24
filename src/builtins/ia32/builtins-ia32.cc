@@ -987,6 +987,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   __ Push(edx);  // Re-push return address.
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
+    __ MoveForRootRegisterRefactoring(ecx, ebx);
     __ Jump(BUILTIN_CODE(masm->isolate(), CallWithSpread),
             RelocInfo::CODE_TARGET);
   } else {
@@ -1103,9 +1104,9 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   __ Pop(edi);
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
-    __ PopReturnAddressTo(ecx);
-    __ Pop(ebx);  // Pass the spread in a register
-    __ PushReturnAddressFrom(ecx);
+    __ PopReturnAddressTo(ebx);
+    __ Pop(ecx);  // Pass the spread in a register
+    __ PushReturnAddressFrom(ebx);
     __ sub(eax, Immediate(1));  // Subtract one for spread
   } else {
     __ AssertUndefinedOrAllocationSite(ebx);
@@ -1115,9 +1116,7 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     // Tail call to the array construct stub (still in the caller
     // context at this point).
     __ AssertFunction(edi);
-    // TODO(v8:6666): When rewriting ia32 ASM builtins to not clobber the
-    // kRootRegister ebx, this useless move can be removed.
-    __ Move(kJavaScriptCallExtraArg1Register, ebx);
+    __ MoveForRootRegisterRefactoring(kJavaScriptCallExtraArg1Register, ebx);
     Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayConstructorImpl);
     __ Jump(code, RelocInfo::CODE_TARGET);
   } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
@@ -1427,6 +1426,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
                 Label::kNear);
 
   // 4a. Apply the receiver to the given argArray.
+  __ MoveForRootRegisterRefactoring(edx, ebx);
   __ Jump(BUILTIN_CODE(masm->isolate(), CallWithArrayLike),
           RelocInfo::CODE_TARGET);
 
@@ -1530,6 +1530,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   // will do.
 
   // 3. Apply the target to the given argumentsList.
+  __ MoveForRootRegisterRefactoring(edx, ebx);
   __ Jump(BUILTIN_CODE(masm->isolate(), CallWithArrayLike),
           RelocInfo::CODE_TARGET);
 }
@@ -2852,9 +2853,7 @@ void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
       RelocInfo::CODE_TARGET);
 
   __ bind(&not_one_case);
-  // TODO(v8:6666): When rewriting ia32 ASM builtins to not clobber the
-  // kRootRegister ebx, this useless move can be removed.
-  __ Move(kJavaScriptCallExtraArg1Register, ebx);
+  __ MoveForRootRegisterRefactoring(kJavaScriptCallExtraArg1Register, ebx);
   Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor);
   __ Jump(code, RelocInfo::CODE_TARGET);
 }

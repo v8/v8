@@ -115,16 +115,16 @@ void CallWithSpreadDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // eax : number of arguments (on the stack, not including receiver)
   // edi : the target to call
-  // ebx : the object to spread
-  Register registers[] = {edi, eax, ebx};
+  // ecx : the object to spread
+  Register registers[] = {edi, eax, ecx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 void CallWithArrayLikeDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // edi : the target to call
-  // ebx : the arguments list
-  Register registers[] = {edi, ebx};
+  // edx : the arguments list
+  Register registers[] = {edi, edx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -154,8 +154,8 @@ void ConstructWithSpreadDescriptor::InitializePlatformSpecific(
   // eax : number of arguments (on the stack, not including receiver)
   // edi : the target to call
   // edx : the new target
-  // ebx : the object to spread
-  Register registers[] = {edi, edx, eax, ebx};
+  // ecx : the object to spread
+  Register registers[] = {edi, edx, eax, ecx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
