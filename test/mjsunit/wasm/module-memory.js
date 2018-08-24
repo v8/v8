@@ -168,7 +168,7 @@ function testOOBThrows() {
     assertTraps(kTrapMemOutOfBounds, read);
     assertTraps(kTrapMemOutOfBounds, write);
     if (%IsWasmTrapHandlerEnabled()) {
-      assertTrue(trap_count + 2 >= %GetWasmRecoveredTrapCount());
+      assertTrue(trap_count + 2 <= %GetWasmRecoveredTrapCount());
     }
   }
 }
