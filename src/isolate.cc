@@ -3227,6 +3227,8 @@ void Isolate::DumpAndResetStats() {
   }
   if (V8_UNLIKELY(FLAG_runtime_stats ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
+    counters()->worker_thread_runtime_call_stats()->AddToMainTable(
+        counters()->runtime_call_stats());
     counters()->runtime_call_stats()->Print();
     counters()->runtime_call_stats()->Reset();
   }

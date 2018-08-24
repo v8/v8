@@ -198,6 +198,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   // TODO(titzer): these should not be part of ParseInfo.
   //--------------------------------------------------------------------------
   Handle<Script> script() const { return script_; }
+  void set_script(Handle<Script> script);
+  void ClearScriptHandle() { script_ = Handle<Script>(); }
   MaybeHandle<ScopeInfo> maybe_outer_scope_info() const {
     return maybe_outer_scope_info_;
   }
@@ -216,12 +218,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
     set_strict_mode(is_strict(language_mode));
   }
 
-  void EmitBackgroundParseStatisticsOnBackgroundThread();
-  void UpdateBackgroundParseStatisticsOnMainThread(Isolate* isolate);
-
  private:
   void SetScriptForToplevelCompile(Isolate* isolate, Handle<Script> script);
-  void set_script(Handle<Script> script);
 
   // Various configuration flags for parsing.
   enum Flag {

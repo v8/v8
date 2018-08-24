@@ -103,34 +103,6 @@ ParseInfo::~ParseInfo() {}
 
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
-void ParseInfo::EmitBackgroundParseStatisticsOnBackgroundThread() {
-  // If runtime call stats was enabled by tracing, emit a trace event at the
-  // end of background parsing on the background thread.
-  if (runtime_call_stats_ &&
-      (FLAG_runtime_stats &
-       v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
-    auto value = v8::tracing::TracedValue::Create();
-    runtime_call_stats_->Dump(value.get());
-    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"),
-                         "V8.RuntimeStats", TRACE_EVENT_SCOPE_THREAD,
-                         "runtime-call-stats", std::move(value));
-  }
-}
-
-void ParseInfo::UpdateBackgroundParseStatisticsOnMainThread(Isolate* isolate) {
-  // Copy over the counters from the background thread to the main counters on
-  // the isolate.
-  RuntimeCallStats* main_call_stats = isolate->counters()->runtime_call_stats();
-  if (FLAG_runtime_stats ==
-      v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE) {
-    DCHECK_NE(main_call_stats, runtime_call_stats());
-    DCHECK_NOT_NULL(main_call_stats);
-    DCHECK_NOT_NULL(runtime_call_stats());
-    main_call_stats->Add(runtime_call_stats());
-  }
-  set_runtime_call_stats(main_call_stats);
-}
-
 Handle<Script> ParseInfo::CreateScript(Isolate* isolate, Handle<String> source,
                                        ScriptOriginOptions origin_options,
                                        NativesFlag natives) {

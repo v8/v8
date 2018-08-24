@@ -1023,7 +1023,7 @@ enum RuntimeCallCounterId {
                           kNumberOfCounters
 };
 
-class RuntimeCallStats final : public ZoneObject {
+class RuntimeCallStats final {
  public:
   V8_EXPORT_PRIVATE RuntimeCallStats();
 
@@ -1073,6 +1073,42 @@ class RuntimeCallStats final : public ZoneObject {
   bool in_use_;
   ThreadId thread_id_;
   RuntimeCallCounter counters_[kNumberOfCounters];
+};
+
+class WorkerThreadRuntimeCallStats final {
+ public:
+  WorkerThreadRuntimeCallStats();
+  ~WorkerThreadRuntimeCallStats();
+
+  // Returns the TLS key associated with this WorkerThreadRuntimeCallStats.
+  base::Thread::LocalStorageKey GetKey() const { return tls_key_; }
+
+  // Returns a new worker thread runtime call stats table managed by this
+  // WorkerThreadRuntimeCallStats.
+  RuntimeCallStats* NewTable();
+
+  // Adds the counters from the worker thread tables to |main_call_stats|.
+  void AddToMainTable(RuntimeCallStats* main_call_stats);
+
+ private:
+  base::Mutex mutex_;
+  std::vector<std::unique_ptr<RuntimeCallStats>> tables_;
+  base::Thread::LocalStorageKey tls_key_;
+};
+
+// Creating a WorkerThreadRuntimeCallStatsScope will provide a thread-local
+// runtime call stats table, and will dump the table to an immediate trace event
+// when it is destroyed.
+class WorkerThreadRuntimeCallStatsScope final {
+ public:
+  WorkerThreadRuntimeCallStatsScope(
+      WorkerThreadRuntimeCallStats* off_thread_stats);
+  ~WorkerThreadRuntimeCallStatsScope();
+
+  RuntimeCallStats* Get() const { return table_; }
+
+ private:
+  RuntimeCallStats* table_;
 };
 
 #define CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats, counter_id) \
@@ -1518,6 +1554,10 @@ class Counters : public std::enable_shared_from_this<Counters> {
 
   RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }
 
+  WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats() {
+    return &worker_thread_runtime_call_stats_;
+  }
+
  private:
   friend class StatsTable;
   friend class StatsCounterBase;
@@ -1597,6 +1637,7 @@ class Counters : public std::enable_shared_from_this<Counters> {
 #undef SC
 
   RuntimeCallStats runtime_call_stats_;
+  WorkerThreadRuntimeCallStats worker_thread_runtime_call_stats_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
 };
