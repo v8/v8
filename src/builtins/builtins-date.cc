@@ -10,9 +10,6 @@
 #include "src/counters.h"
 #include "src/dateparser-inl.h"
 #include "src/objects-inl.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/intl-objects.h"
-#endif
 
 namespace v8 {
 namespace internal {
@@ -837,53 +834,6 @@ BUILTIN(DatePrototypeToTimeString) {
   RETURN_RESULT_OR_FAILURE(
       isolate, isolate->factory()->NewStringFromUtf8(CStrVector(buffer)));
 }
-
-#ifdef V8_INTL_SUPPORT
-// ecma402 #sup-date.prototype.tolocaledatestring
-BUILTIN(DatePrototypeToLocaleDateString) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleDateString");
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      DateFormat::ToLocaleDateTime(isolate,
-                                   date,                            // date
-                                   args.atOrUndefined(isolate, 1),  // locales
-                                   args.atOrUndefined(isolate, 2),  // options
-                                   "date",                          // required
-                                   "date",                          // defaults
-                                   "dateformatdate"));              // service
-}
-
-// ecma402 #sup-date.prototype.tolocalestring
-BUILTIN(DatePrototypeToLocaleString) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleString");
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      DateFormat::ToLocaleDateTime(isolate,
-                                   date,                            // date
-                                   args.atOrUndefined(isolate, 1),  // locales
-                                   args.atOrUndefined(isolate, 2),  // options
-                                   "any",                           // required
-                                   "all",                           // defaults
-                                   "dateformatall"));               // service
-}
-
-// ecma402 #sup-date.prototype.tolocaletimestring
-BUILTIN(DatePrototypeToLocaleTimeString) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleTimeString");
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      DateFormat::ToLocaleDateTime(isolate,
-                                   date,                            // date
-                                   args.atOrUndefined(isolate, 1),  // locales
-                                   args.atOrUndefined(isolate, 2),  // options
-                                   "time",                          // required
-                                   "time",                          // defaults
-                                   "dateformattime"));              // service
-}
-#endif  // V8_INTL_SUPPORT
 
 // ES6 section 20.3.4.43 Date.prototype.toUTCString ( )
 BUILTIN(DatePrototypeToUTCString) {
