@@ -1115,6 +1115,9 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     // Tail call to the array construct stub (still in the caller
     // context at this point).
     __ AssertFunction(edi);
+    // TODO(v8:6666): When rewriting ia32 ASM builtins to not clobber the
+    // kRootRegister ebx, this useless move can be removed.
+    __ Move(kJavaScriptCallExtraArg1Register, ebx);
     Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayConstructorImpl);
     __ Jump(code, RelocInfo::CODE_TARGET);
   } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
@@ -2840,6 +2843,9 @@ void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
       RelocInfo::CODE_TARGET);
 
   __ bind(&not_one_case);
+  // TODO(v8:6666): When rewriting ia32 ASM builtins to not clobber the
+  // kRootRegister ebx, this useless move can be removed.
+  __ Move(kJavaScriptCallExtraArg1Register, ebx);
   Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor);
   __ Jump(code, RelocInfo::CODE_TARGET);
 }

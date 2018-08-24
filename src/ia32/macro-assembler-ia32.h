@@ -31,7 +31,11 @@ constexpr Register kJavaScriptCallArgCountRegister = eax;
 constexpr Register kJavaScriptCallCodeStartRegister = ecx;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = edx;
-constexpr Register kJavaScriptCallExtraArg1Register = ebx;
+
+// The ExtraArg1Register not part of the real JS calling convention and is
+// mostly there to simplify consistent interface descriptor definitions across
+// platforms. Note that on ia32 it aliases kJavaScriptCallCodeStartRegister.
+constexpr Register kJavaScriptCallExtraArg1Register = ecx;
 
 // The off-heap trampoline does not need a register on ia32 (it uses a
 // pc-relative call instead).
