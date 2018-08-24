@@ -5024,6 +5024,16 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   Node* index = effect = graph()->NewNode(simplified()->LoadField(index_access),
                                           iterator, effect, control);
 
+  // Load the elements of the {iterated_object}. While it feels
+  // counter-intuitive to place the elements pointer load before
+  // the condition below, as it might not be needed (if the {index}
+  // is out of bounds for the {iterated_object}), it's better this
+  // way as it allows the LoadElimination to eliminate redundant
+  // reloads of the elements pointer.
+  Node* elements = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+      iterated_object, effect, control);
+
   // Load the length of the {iterated_object}. Due to the map checks we
   // already know something about the length here, which we can leverage
   // to generate Word32 operations below without additional checking.
@@ -5057,10 +5067,6 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     } else {
       DCHECK(iteration_kind == IterationKind::kEntries ||
              iteration_kind == IterationKind::kValues);
-
-      Node* elements = etrue = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
-          iterated_object, etrue, if_true);
 
       if (IsFixedTypedArrayElementsKind(elements_kind)) {
         Node* base_ptr = etrue = graph()->NewNode(
