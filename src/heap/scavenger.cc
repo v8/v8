@@ -53,13 +53,15 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     scavenger_->PageMemoryFence(reinterpret_cast<MaybeObject*>(target));
 
     if (Heap::InFromSpace(target)) {
-      SlotCallbackResult result = scavenger_->ScavengeObject(slot, target);
+      scavenger_->ScavengeObject(slot, target);
       bool success = (*slot)->ToStrongOrWeakHeapObject(&target);
       USE(success);
       DCHECK(success);
+      scavenger_->PageMemoryFence(reinterpret_cast<MaybeObject*>(target));
 
-      if (result == KEEP_SLOT) {
+      if (Heap::InNewSpace(target)) {
         SLOW_DCHECK(target->IsHeapObject());
+        SLOW_DCHECK(Heap::InToSpace(target));
         RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot_address),
                                           slot_address);
       }
