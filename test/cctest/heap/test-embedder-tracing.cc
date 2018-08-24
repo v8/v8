@@ -253,6 +253,7 @@ TEST(FinalizeTracingWhenMarking) {
 
 TEST(GarbageCollectionForTesting) {
   ManualGCScope manual_gc;
+  i::FLAG_expose_gc = true;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   Isolate* i_isolate = CcTest::i_isolate();

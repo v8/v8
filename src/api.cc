@@ -10456,7 +10456,8 @@ void EmbedderHeapTracer::FinalizeTracing() {
 
 void EmbedderHeapTracer::GarbageCollectionForTesting(
     EmbedderStackState stack_state) {
-  DCHECK(isolate_);
+  CHECK(isolate_);
+  CHECK(i::FLAG_expose_gc);
   i::Heap* const heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
   heap->SetEmbedderStackStateForNextFinalizaton(stack_state);
   heap->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask,
