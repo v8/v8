@@ -39,7 +39,7 @@ constexpr Register kRuntimeCallArgvRegister = a2;
 constexpr Register kWasmInstanceRegister = a0;
 
 // Forward declarations
-enum class AbortReason;
+enum class AbortReason : uint8_t;
 
 // Reserved Register Usage Summary.
 //

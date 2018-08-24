@@ -24,7 +24,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-enum class AbortReason;
+enum class AbortReason : uint8_t;
 class Zone;
 
 namespace compiler {
