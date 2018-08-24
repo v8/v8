@@ -233,14 +233,14 @@ class Scanner {
   // Returns the token following peek()
   Token::Value PeekAhead();
   // Returns the current token again.
-  Token::Value current_token() { return current_.token; }
+  Token::Value current_token() { return current().token; }
 
-  Token::Value current_contextual_token() { return current_.contextual_token; }
-  Token::Value next_contextual_token() { return next_.contextual_token; }
+  Token::Value current_contextual_token() { return current().contextual_token; }
+  Token::Value next_contextual_token() { return next().contextual_token; }
 
   // Returns the location information for the current token
   // (the token last returned by Next()).
-  Location location() const { return current_.location; }
+  Location location() const { return current().location; }
 
   // This error is specifically an invalid hex or unicode escape sequence.
   bool has_error() const { return scanner_error_ != MessageTemplate::kNone; }
@@ -248,26 +248,26 @@ class Scanner {
   Location error_location() const { return scanner_error_location_; }
 
   bool has_invalid_template_escape() const {
-    return current_.invalid_template_escape_message != MessageTemplate::kNone;
+    return current().invalid_template_escape_message != MessageTemplate::kNone;
   }
   MessageTemplate::Template invalid_template_escape_message() const {
     DCHECK(has_invalid_template_escape());
-    return current_.invalid_template_escape_message;
+    return current().invalid_template_escape_message;
   }
   Location invalid_template_escape_location() const {
     DCHECK(has_invalid_template_escape());
-    return current_.invalid_template_escape_location;
+    return current().invalid_template_escape_location;
   }
 
   // Similar functions for the upcoming token.
 
   // One token look-ahead (past the token returned by Next()).
-  Token::Value peek() const { return next_.token; }
+  Token::Value peek() const { return next().token; }
 
-  Location peek_location() const { return next_.location; }
+  Location peek_location() const { return next().location; }
 
   bool literal_contains_escapes() const {
-    return LiteralContainsEscapes(current_);
+    return LiteralContainsEscapes(current());
   }
 
   const AstRawString* CurrentSymbol(AstValueFactory* ast_value_factory) const;
@@ -281,12 +281,12 @@ class Scanner {
 
   inline bool CurrentMatches(Token::Value token) const {
     DCHECK(Token::IsKeyword(token));
-    return current_.token == token;
+    return current().token == token;
   }
 
   inline bool CurrentMatchesContextual(Token::Value token) const {
     DCHECK(Token::IsContextualKeyword(token));
-    return current_.contextual_token == token;
+    return current().contextual_token == token;
   }
 
   // Match the token against the contextual keyword or literal buffer.
@@ -295,17 +295,17 @@ class Scanner {
     // Escaped keywords are not matched as tokens. So if we require escape
     // and/or string processing we need to look at the literal content
     // (which was escape-processed already).
-    // Conveniently, current_.literal_chars == nullptr for all proper keywords,
-    // so this second condition should exit early in common cases.
-    return (current_.contextual_token == token) ||
-           (current_.literal_chars &&
-            current_.literal_chars->Equals(Vector<const char>(
+    // Conveniently, !current().literal_chars.is_used() for all proper
+    // keywords, so this second condition should exit early in common cases.
+    return (current().contextual_token == token) ||
+           (current().literal_chars.is_used() &&
+            current().literal_chars.Equals(Vector<const char>(
                 Token::String(token), Token::StringLength(token))));
   }
 
   bool IsUseStrict() const {
-    return current_.token == Token::STRING &&
-           current_.literal_chars->Equals(
+    return current().token == Token::STRING &&
+           current().literal_chars.Equals(
                Vector<const char>("use strict", strlen("use strict")));
   }
   bool IsGetOrSet(bool* is_get, bool* is_set) const {
@@ -335,7 +335,7 @@ class Scanner {
   MessageTemplate::Template octal_message() const { return octal_message_; }
 
   // Returns the value of the last smi that was scanned.
-  uint32_t smi_value() const { return current_.smi_value_; }
+  uint32_t smi_value() const { return current().smi_value_; }
 
   // Seek forward to the given position.  This operation does not
   // work in general, for instance when there are pushed back
@@ -346,14 +346,13 @@ class Scanner {
   // Returns true if there was a line terminator before the peek'ed token,
   // possibly inside a multi-line comment.
   bool HasAnyLineTerminatorBeforeNext() const {
-    return has_line_terminator_before_next_ ||
-           has_multiline_comment_before_next_;
+    return next().after_line_terminator || next().after_multiline_comment;
   }
 
   bool HasAnyLineTerminatorAfterNext() {
     Token::Value ensure_next_next = PeekAhead();
     USE(ensure_next_next);
-    return has_line_terminator_after_next_;
+    return next_next().after_line_terminator;
   }
 
   // Scans the input as a regular expression pattern, next token must be /(=).
@@ -365,8 +364,8 @@ class Scanner {
   // Scans the input as a template literal
   Token::Value ScanTemplateStart();
   Token::Value ScanTemplateContinuation() {
-    DCHECK_EQ(next_.token, Token::RBRACE);
-    next_.location.beg_pos = source_pos() - 1;  // We already consumed }
+    DCHECK_EQ(next().token, Token::RBRACE);
+    next().location.beg_pos = source_pos() - 1;  // We already consumed }
     return ScanTemplateSpan();
   }
 
@@ -416,16 +415,19 @@ class Scanner {
   // LiteralBuffer -  Collector of chars of literals.
   class LiteralBuffer {
    public:
-    LiteralBuffer() : is_one_byte_(true), position_(0), backing_store_() {}
+    LiteralBuffer()
+        : position_(0), is_one_byte_(true), is_used_(false), backing_store_() {}
 
     ~LiteralBuffer() { backing_store_.Dispose(); }
 
     V8_INLINE void AddChar(char code_unit) {
+      DCHECK(is_used_);
       DCHECK(IsValidAscii(code_unit));
       AddOneByteChar(static_cast<byte>(code_unit));
     }
 
     V8_INLINE void AddChar(uc32 code_unit) {
+      DCHECK(is_used_);
       if (is_one_byte_) {
         if (code_unit <= static_cast<uc32>(unibrow::Latin1::kMaxChar)) {
           AddOneByteChar(static_cast<byte>(code_unit));
@@ -439,12 +441,14 @@ class Scanner {
     bool is_one_byte() const { return is_one_byte_; }
 
     bool Equals(Vector<const char> keyword) const {
+      DCHECK(is_used_);
       return is_one_byte() && keyword.length() == position_ &&
              (memcmp(keyword.start(), backing_store_.start(), position_) == 0);
     }
 
     Vector<const uint16_t> two_byte_literal() const {
       DCHECK(!is_one_byte_);
+      DCHECK(is_used_);
       DCHECK_EQ(position_ & 0x1, 0);
       return Vector<const uint16_t>(
           reinterpret_cast<const uint16_t*>(backing_store_.start()),
@@ -453,13 +457,23 @@ class Scanner {
 
     Vector<const uint8_t> one_byte_literal() const {
       DCHECK(is_one_byte_);
+      DCHECK(is_used_);
       return Vector<const uint8_t>(
           reinterpret_cast<const uint8_t*>(backing_store_.start()), position_);
     }
 
     int length() const { return is_one_byte_ ? position_ : (position_ >> 1); }
 
-    void Reset() {
+    void Start() {
+      DCHECK(!is_used_);
+      DCHECK_EQ(0, position_);
+      is_used_ = true;
+    }
+
+    bool is_used() const { return is_used_; }
+
+    void Drop() {
+      is_used_ = false;
       position_ = 0;
       is_one_byte_ = true;
     }
@@ -492,8 +506,9 @@ class Scanner {
     void ExpandBuffer();
     void ConvertToTwoByte();
 
-    bool is_one_byte_;
     int position_;
+    bool is_one_byte_;
+    bool is_used_;
     Vector<byte> backing_store_;
 
     DISALLOW_COPY_AND_ASSIGN(LiteralBuffer);
@@ -501,14 +516,17 @@ class Scanner {
 
   // The current and look-ahead token.
   struct TokenDesc {
-    Location location;
-    LiteralBuffer* literal_chars;
-    LiteralBuffer* raw_literal_chars;
-    uint32_t smi_value_;
-    Token::Value token;
-    MessageTemplate::Template invalid_template_escape_message;
+    Location location = {0, 0};
+    LiteralBuffer literal_chars;
+    LiteralBuffer raw_literal_chars;
+    Token::Value token = Token::UNINITIALIZED;
+    MessageTemplate::Template invalid_template_escape_message =
+        MessageTemplate::kNone;
     Location invalid_template_escape_location;
-    Token::Value contextual_token;
+    Token::Value contextual_token = Token::UNINITIALIZED;
+    uint32_t smi_value_ = 0;
+    bool after_line_terminator = false;
+    bool after_multiline_comment = false;
   };
 
   enum NumberKind {
@@ -532,22 +550,11 @@ class Scanner {
     // Set c0_ (one character ahead)
     STATIC_ASSERT(kCharacterLookaheadBufferSize == 1);
     Advance();
-    // Initialize current_ to not refer to a literal.
-    current_.token = Token::UNINITIALIZED;
-    current_.contextual_token = Token::UNINITIALIZED;
-    current_.literal_chars = nullptr;
-    current_.raw_literal_chars = nullptr;
-    current_.invalid_template_escape_message = MessageTemplate::kNone;
-    next_.token = Token::UNINITIALIZED;
-    next_.contextual_token = Token::UNINITIALIZED;
-    next_.literal_chars = nullptr;
-    next_.raw_literal_chars = nullptr;
-    next_.invalid_template_escape_message = MessageTemplate::kNone;
-    next_next_.token = Token::UNINITIALIZED;
-    next_next_.contextual_token = Token::UNINITIALIZED;
-    next_next_.literal_chars = nullptr;
-    next_next_.raw_literal_chars = nullptr;
-    next_next_.invalid_template_escape_message = MessageTemplate::kNone;
+
+    current_ = &token_storage_[0];
+    next_ = &token_storage_[1];
+    next_next_ = &token_storage_[2];
+
     found_html_comment_ = false;
     scanner_error_ = MessageTemplate::kNone;
   }
@@ -569,47 +576,23 @@ class Scanner {
   void SeekNext(size_t position);
 
   // Literal buffer support
-  inline void StartLiteral() {
-    LiteralBuffer* free_buffer =
-        (current_.literal_chars == &literal_buffer0_)
-            ? &literal_buffer1_
-            : (current_.literal_chars == &literal_buffer1_) ? &literal_buffer2_
-                                                            : &literal_buffer0_;
-    free_buffer->Reset();
-    next_.literal_chars = free_buffer;
-  }
+  inline void StartLiteral() { next().literal_chars.Start(); }
 
-  inline void StartRawLiteral() {
-    LiteralBuffer* free_buffer =
-        (current_.raw_literal_chars == &raw_literal_buffer0_)
-            ? &raw_literal_buffer1_
-            : (current_.raw_literal_chars == &raw_literal_buffer1_)
-                  ? &raw_literal_buffer2_
-                  : &raw_literal_buffer0_;
-    free_buffer->Reset();
-    next_.raw_literal_chars = free_buffer;
-  }
+  inline void StartRawLiteral() { next().raw_literal_chars.Start(); }
 
-  V8_INLINE void AddLiteralChar(uc32 c) {
-    DCHECK_NOT_NULL(next_.literal_chars);
-    next_.literal_chars->AddChar(c);
-  }
+  V8_INLINE void AddLiteralChar(uc32 c) { next().literal_chars.AddChar(c); }
 
-  V8_INLINE void AddLiteralChar(char c) {
-    DCHECK_NOT_NULL(next_.literal_chars);
-    next_.literal_chars->AddChar(c);
-  }
+  V8_INLINE void AddLiteralChar(char c) { next().literal_chars.AddChar(c); }
 
   V8_INLINE void AddRawLiteralChar(uc32 c) {
-    DCHECK_NOT_NULL(next_.raw_literal_chars);
-    next_.raw_literal_chars->AddChar(c);
+    next().raw_literal_chars.AddChar(c);
   }
 
   // Stops scanning of a literal and drop the collected characters,
   // e.g., due to an encountered error.
   inline void DropLiteral() {
-    next_.literal_chars = nullptr;
-    next_.raw_literal_chars = nullptr;
+    next().literal_chars.Drop();
+    next().raw_literal_chars.Drop();
   }
 
   inline void AddLiteralCharAdvance() {
@@ -681,45 +664,46 @@ class Scanner {
   // token as a one-byte literal. E.g. Token::FUNCTION pretends to have a
   // literal "function".
   Vector<const uint8_t> literal_one_byte_string() const {
-    if (current_.literal_chars)
-      return current_.literal_chars->one_byte_literal();
-    const char* str = Token::String(current_.token);
+    if (current().literal_chars.is_used())
+      return current().literal_chars.one_byte_literal();
+    const char* str = Token::String(current().token);
     const uint8_t* str_as_uint8 = reinterpret_cast<const uint8_t*>(str);
     return Vector<const uint8_t>(str_as_uint8,
-                                 Token::StringLength(current_.token));
+                                 Token::StringLength(current().token));
   }
   Vector<const uint16_t> literal_two_byte_string() const {
-    DCHECK_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->two_byte_literal();
+    DCHECK(current().literal_chars.is_used());
+    return current().literal_chars.two_byte_literal();
   }
   bool is_literal_one_byte() const {
-    return !current_.literal_chars || current_.literal_chars->is_one_byte();
+    return !current().literal_chars.is_used() ||
+           current().literal_chars.is_one_byte();
   }
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
   Vector<const uint8_t> next_literal_one_byte_string() const {
-    DCHECK_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->one_byte_literal();
+    DCHECK(next().literal_chars.is_used());
+    return next().literal_chars.one_byte_literal();
   }
   Vector<const uint16_t> next_literal_two_byte_string() const {
-    DCHECK_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->two_byte_literal();
+    DCHECK(next().literal_chars.is_used());
+    return next().literal_chars.two_byte_literal();
   }
   bool is_next_literal_one_byte() const {
-    DCHECK_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->is_one_byte();
+    DCHECK(next().literal_chars.is_used());
+    return next().literal_chars.is_one_byte();
   }
   Vector<const uint8_t> raw_literal_one_byte_string() const {
-    DCHECK_NOT_NULL(current_.raw_literal_chars);
-    return current_.raw_literal_chars->one_byte_literal();
+    DCHECK(current().raw_literal_chars.is_used());
+    return current().raw_literal_chars.one_byte_literal();
   }
   Vector<const uint16_t> raw_literal_two_byte_string() const {
-    DCHECK_NOT_NULL(current_.raw_literal_chars);
-    return current_.raw_literal_chars->two_byte_literal();
+    DCHECK(current().raw_literal_chars.is_used());
+    return current().raw_literal_chars.two_byte_literal();
   }
   bool is_raw_literal_one_byte() const {
-    DCHECK_NOT_NULL(current_.raw_literal_chars);
-    return current_.raw_literal_chars->is_one_byte();
+    DCHECK(current().raw_literal_chars.is_used());
+    return current().raw_literal_chars.is_one_byte();
   }
 
   template <bool capture_raw, bool unicode = false>
@@ -788,8 +772,8 @@ class Scanner {
       // Subtract delimiters.
       source_length -= 2;
     }
-    return token.literal_chars &&
-           (token.literal_chars->length() != source_length);
+    return token.literal_chars.is_used() &&
+           (token.literal_chars.length() != source_length);
   }
 
 #ifdef DEBUG
@@ -798,23 +782,21 @@ class Scanner {
 
   UnicodeCache* unicode_cache_;
 
-  // Buffers collecting literal strings, numbers, etc.
-  LiteralBuffer literal_buffer0_;
-  LiteralBuffer literal_buffer1_;
-  LiteralBuffer literal_buffer2_;
-
   // Values parsed from magic comments.
   LiteralBuffer source_url_;
   LiteralBuffer source_mapping_url_;
 
-  // Buffer to store raw string values
-  LiteralBuffer raw_literal_buffer0_;
-  LiteralBuffer raw_literal_buffer1_;
-  LiteralBuffer raw_literal_buffer2_;
+  TokenDesc token_storage_[3];
 
-  TokenDesc current_;    // desc for current token (as returned by Next())
-  TokenDesc next_;       // desc for next token (one token look-ahead)
-  TokenDesc next_next_;  // desc for the token after next (after PeakAhead())
+  TokenDesc& next() { return *next_; }
+
+  const TokenDesc& current() const { return *current_; }
+  const TokenDesc& next() const { return *next_; }
+  const TokenDesc& next_next() const { return *next_next_; }
+
+  TokenDesc* current_;    // desc for current token (as returned by Next())
+  TokenDesc* next_;       // desc for next token (one token look-ahead)
+  TokenDesc* next_next_;  // desc for the token after next (after PeakAhead())
 
   // Input stream. Must be initialized to an Utf16CharacterStream.
   Utf16CharacterStream* const source_;
@@ -825,15 +807,6 @@ class Scanner {
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;
-
-  // Whether there is a line terminator whitespace character after
-  // the current token, and  before the next. Does not count newlines
-  // inside multiline comments.
-  bool has_line_terminator_before_next_;
-  // Whether there is a multi-line comment that contains a
-  // line-terminator after the current token, and before the next.
-  bool has_multiline_comment_before_next_;
-  bool has_line_terminator_after_next_;
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
