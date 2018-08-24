@@ -206,12 +206,12 @@ void HandlerTable::HandlerTableRangePrint(std::ostream& os) {
 }
 
 void HandlerTable::HandlerTableReturnPrint(std::ostream& os) {
-  os << "   off      hdlr\n";
+  os << "  offset   handler\n";
   for (int i = 0; i < NumberOfReturnEntries(); ++i) {
     int pc_offset = GetReturnOffset(i);
     int handler_offset = GetReturnHandler(i);
-    os << "  " << std::setw(4) << pc_offset << "  ->  " << std::setw(4)
-       << handler_offset << "\n";
+    os << std::hex << "    " << std::setw(4) << pc_offset << "  ->  "
+       << std::setw(4) << handler_offset << std::dec << "\n";
   }
 }
 

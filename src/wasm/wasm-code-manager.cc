@@ -235,12 +235,23 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
   if (safepoint_table_offset_ && safepoint_table_offset_ < instruction_size) {
     instruction_size = safepoint_table_offset_;
   }
+  if (handler_table_offset_ && handler_table_offset_ < instruction_size) {
+    instruction_size = handler_table_offset_;
+  }
   DCHECK_LT(0, instruction_size);
   os << "Instructions (size = " << instruction_size << ")\n";
   Disassembler::Decode(nullptr, &os, instructions().start(),
                        instructions().start() + instruction_size,
                        CodeReference(this), current_pc);
   os << "\n";
+
+  if (handler_table_offset_ > 0) {
+    HandlerTable table(instruction_start(), handler_table_offset_);
+    os << "Exception Handler Table (size = " << table.NumberOfReturnEntries()
+       << "):\n";
+    table.HandlerTableReturnPrint(os);
+    os << "\n";
+  }
 
   if (!protected_instructions_.is_empty()) {
     os << "Protected instructions:\n pc offset  land pad\n";
