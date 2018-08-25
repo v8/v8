@@ -1615,8 +1615,8 @@ TEST(LoadStoreExclusive) {
   COMPARE(strexh(r0, r1, r2), "e1e20f91       strexh r0, r1, [r2]");
   COMPARE(ldrex(r0, r1), "e1910f9f       ldrex r0, [r1]");
   COMPARE(strex(r0, r1, r2), "e1820f91       strex r0, r1, [r2]");
-  COMPARE(ldrexd(r0, r1, MemOperand(r2)), "e1b20f9f       ldrexd r0, [r2]");
-  COMPARE(strexd(r0, r2, r3, MemOperand(r4)),
+  COMPARE(ldrexd(r0, r1, r2), "e1b20f9f       ldrexd r0, [r2]");
+  COMPARE(strexd(r0, r2, r3, r4),
           "e1a40f92       strexd r0, r2, [r4]");
 
   VERIFY_RUN();

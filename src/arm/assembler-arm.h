@@ -930,9 +930,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void strexb(Register src1, Register src2, Register dst, Condition cond = al);
   void ldrexh(Register dst, Register src, Condition cond = al);
   void strexh(Register src1, Register src2, Register dst, Condition cond = al);
-  void ldrexd(Register dst1, Register dst2, const MemOperand& src,
-              Condition cond = al);
-  void strexd(Register res, Register src1, Register src2, const MemOperand& dst,
+  void ldrexd(Register dst1, Register dst2, Register src, Condition cond = al);
+  void strexd(Register res, Register src1, Register src2, Register dst,
               Condition cond = al);
 
   // Preload instructions

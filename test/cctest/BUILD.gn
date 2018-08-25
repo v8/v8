@@ -243,6 +243,7 @@ v8_source_set("cctest_sources") {
     "wasm/test-run-wasm-64.cc",
     "wasm/test-run-wasm-asmjs.cc",
     "wasm/test-run-wasm-atomics.cc",
+    "wasm/test-run-wasm-atomics64.cc",
     "wasm/test-run-wasm-interpreter.cc",
     "wasm/test-run-wasm-js.cc",
     "wasm/test-run-wasm-module.cc",
@@ -299,7 +300,6 @@ v8_source_set("cctest_sources") {
       "test-sync-primitives-arm64.cc",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
-      "wasm/test-run-wasm-atomics64.cc",
     ]
   } else if (v8_current_cpu == "x86") {
     sources += [  ### gcmole(arch:ia32) ###
@@ -309,7 +309,6 @@ v8_source_set("cctest_sources") {
       "test-code-stubs.h",
       "test-disasm-ia32.cc",
       "test-log-stack-tracer.cc",
-      "wasm/test-run-wasm-atomics64.cc",
     ]
   } else if (v8_current_cpu == "mips") {
     sources += [  ### gcmole(arch:mips) ###
@@ -356,7 +355,6 @@ v8_source_set("cctest_sources") {
       "test-disasm-x64.cc",
       "test-log-stack-tracer.cc",
       "test-macro-assembler-x64.cc",
-      "wasm/test-run-wasm-atomics64.cc",
     ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [  ### gcmole(arch:ppc) ###

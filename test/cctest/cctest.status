@@ -345,6 +345,12 @@
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
 
 ##############################################################################
+['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
+  # TODO(mips-team): Implement I64Atomic operations on MIPS
+  'test-run-wasm-atomics64/*': [SKIP],
+}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
+
+##############################################################################
 ['mips_arch_variant == r6', {
   # For MIPS[64] architecture release 6, fusion multiply-accumulate instructions
   # will cause failures on several tests that expect exact floating-point
