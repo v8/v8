@@ -813,7 +813,8 @@ icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
 }
 
 icu::BreakIterator* V8BreakIterator::UnpackBreakIterator(Handle<JSObject> obj) {
-  return reinterpret_cast<icu::BreakIterator*>(obj->GetEmbedderField(0));
+  return reinterpret_cast<icu::BreakIterator*>(
+      obj->GetEmbedderField(V8BreakIterator::kBreakIteratorIndex));
 }
 
 void V8BreakIterator::DeleteBreakIterator(
@@ -821,6 +822,31 @@ void V8BreakIterator::DeleteBreakIterator(
   delete reinterpret_cast<icu::BreakIterator*>(data.GetInternalField(0));
   delete reinterpret_cast<icu::UnicodeString*>(data.GetInternalField(1));
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
+}
+
+void V8BreakIterator::AdoptText(Isolate* isolate,
+                                Handle<JSObject> break_iterator_holder,
+                                Handle<String> text) {
+  icu::BreakIterator* break_iterator =
+      V8BreakIterator::UnpackBreakIterator(break_iterator_holder);
+  CHECK_NOT_NULL(break_iterator);
+
+  icu::UnicodeString* u_text = reinterpret_cast<icu::UnicodeString*>(
+      break_iterator_holder->GetEmbedderField(
+          V8BreakIterator::kUnicodeStringIndex));
+  delete u_text;
+
+  int length = text->length();
+  text = String::Flatten(isolate, text);
+  DisallowHeapAllocation no_gc;
+  String::FlatContent flat = text->GetFlatContent();
+  std::unique_ptr<uc16[]> sap;
+  const UChar* text_value = GetUCharBufferFromFlat(flat, &sap, length);
+  u_text = new icu::UnicodeString(text_value, length);
+  break_iterator_holder->SetEmbedderField(V8BreakIterator::kUnicodeStringIndex,
+                                          reinterpret_cast<Smi*>(u_text));
+
+  break_iterator->setText(*u_text);
 }
 
 MaybeHandle<String> Intl::ToString(Isolate* isolate,

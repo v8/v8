@@ -200,7 +200,6 @@ namespace internal {
 #ifdef V8_INTL_SUPPORT
 #define FOR_EACH_INTRINSIC_INTL(F)           \
   F(AvailableLocalesOf, 1, 1)                \
-  F(BreakIteratorAdoptText, 2, 1)            \
   F(BreakIteratorBreakType, 1, 1)            \
   F(BreakIteratorCurrent, 1, 1)              \
   F(BreakIteratorFirst, 1, 1)                \

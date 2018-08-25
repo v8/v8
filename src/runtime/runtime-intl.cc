@@ -371,9 +371,11 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
 
   if (!break_iterator) return isolate->ThrowIllegalOperation();
 
-  local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(break_iterator));
+  local_object->SetEmbedderField(V8BreakIterator::kBreakIteratorIndex,
+                                 reinterpret_cast<Smi*>(break_iterator));
   // Make sure that the pointer to adopted text is nullptr.
-  local_object->SetEmbedderField(1, static_cast<Smi*>(nullptr));
+  local_object->SetEmbedderField(V8BreakIterator::kUnicodeStringIndex,
+                                 static_cast<Smi*>(nullptr));
 
   // Make object handle weak so we can delete the break iterator once GC kicks
   // in.
@@ -382,36 +384,6 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
                           V8BreakIterator::DeleteBreakIterator,
                           WeakCallbackType::kInternalFields);
   return *local_object;
-}
-
-RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, text, 1);
-
-  icu::BreakIterator* break_iterator =
-      V8BreakIterator::UnpackBreakIterator(break_iterator_holder);
-  CHECK_NOT_NULL(break_iterator);
-
-  icu::UnicodeString* u_text = reinterpret_cast<icu::UnicodeString*>(
-      break_iterator_holder->GetEmbedderField(1));
-  delete u_text;
-
-  int length = text->length();
-  text = String::Flatten(isolate, text);
-  DisallowHeapAllocation no_gc;
-  String::FlatContent flat = text->GetFlatContent();
-  std::unique_ptr<uc16[]> sap;
-  const UChar* text_value = GetUCharBufferFromFlat(flat, &sap, length);
-  u_text = new icu::UnicodeString(text_value, length);
-  break_iterator_holder->SetEmbedderField(1, reinterpret_cast<Smi*>(u_text));
-
-  break_iterator->setText(*u_text);
-
-  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_BreakIteratorFirst) {

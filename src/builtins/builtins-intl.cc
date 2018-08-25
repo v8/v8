@@ -1263,5 +1263,71 @@ BUILTIN(CollatorInternalCompare) {
   return *Intl::CompareStrings(isolate, collator_holder, string_x, string_y);
 }
 
+BUILTIN(BreakIteratorPrototypeAdoptText) {
+  const char* const method = "get Intl.v8BreakIterator.prototype.adoptText";
+  HandleScope scope(isolate);
+
+  CHECK_RECEIVER(JSObject, break_iterator_holder, method);
+  if (!Intl::IsObjectOfType(isolate, break_iterator_holder,
+                            Intl::Type::kBreakIterator)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                     isolate->factory()->NewStringFromAsciiChecked(method),
+                     break_iterator_holder));
+  }
+
+  Handle<Object> bound_adopt_text =
+      Handle<Object>(break_iterator_holder->GetEmbedderField(
+                         V8BreakIterator::kBoundAdoptTextIndex),
+                     isolate);
+
+  if (!bound_adopt_text->IsUndefined(isolate)) {
+    DCHECK(bound_adopt_text->IsJSFunction());
+    return *bound_adopt_text;
+  }
+
+  Handle<NativeContext> native_context(isolate->context()->native_context(),
+                                       isolate);
+  Handle<Context> context = isolate->factory()->NewBuiltinContext(
+      native_context, static_cast<int>(V8BreakIterator::ContextSlot::kLength));
+
+  context->set(static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator),
+               *break_iterator_holder);
+
+  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
+      native_context->break_iterator_internal_adopt_text_shared_fun(), isolate);
+  Handle<Map> map = isolate->strict_function_without_prototype_map();
+
+  Handle<JSFunction> new_bound_adopt_text_function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
+
+  break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundAdoptTextIndex,
+                                          *new_bound_adopt_text_function);
+
+  return *new_bound_adopt_text_function;
+}
+
+BUILTIN(BreakIteratorInternalAdoptText) {
+  HandleScope scope(isolate);
+  Handle<Context> context = Handle<Context>(isolate->context(), isolate);
+
+  Handle<JSObject> break_iterator_holder = Handle<JSObject>(
+      JSObject::cast(context->get(
+          static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator))),
+      isolate);
+
+  DCHECK(Intl::IsObjectOfType(isolate, break_iterator_holder,
+                              Intl::Type::kBreakIterator));
+
+  Handle<Object> input_text = args.atOrUndefined(isolate, 1);
+  Handle<String> text;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, text,
+                                     Object::ToString(isolate, input_text));
+
+  V8BreakIterator::AdoptText(isolate, break_iterator_holder, text);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

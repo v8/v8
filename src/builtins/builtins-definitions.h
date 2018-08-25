@@ -1391,7 +1391,9 @@ namespace internal {
   /* ecma402 #sec-intl.collator.prototype.compare */                   \
   CPP(CollatorPrototypeCompare)                                        \
   /* ecma 402 #sec-collator-compare-functions*/                        \
-  CPP(CollatorInternalCompare)
+  CPP(CollatorInternalCompare)                                         \
+  CPP(BreakIteratorInternalAdoptText)                                  \
+  CPP(BreakIteratorPrototypeAdoptText)
 #else
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)      \
   /* no-op fallback version */                \

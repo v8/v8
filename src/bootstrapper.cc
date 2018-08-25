@@ -2997,6 +2997,18 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           isolate_, prototype, factory->to_string_tag_symbol(),
           factory->Object_string(),
           static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+      SimpleInstallGetter(isolate_, prototype,
+                          factory->InternalizeUtf8String("adoptText"),
+                          Builtins::kBreakIteratorPrototypeAdoptText, false);
+
+      {
+        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
+            isolate_, Builtins::kBreakIteratorInternalAdoptText,
+            factory->empty_string(), 1);
+        native_context()->set_break_iterator_internal_adopt_text_shared_fun(
+            *info);
+      }
     }
 
     {

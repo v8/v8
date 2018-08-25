@@ -1376,15 +1376,6 @@ DEFINE_METHOD(
 
 
 /**
- * Adopts text to segment using the iterator. Old text, if present,
- * gets discarded.
- */
-function adoptText(iterator, text) {
-  %BreakIteratorAdoptText(iterator, TO_STRING(text));
-}
-
-
-/**
  * Returns index of the first break in the string and moves current pointer.
  */
 function first(iterator) {
@@ -1416,8 +1407,6 @@ function breakType(iterator) {
 }
 
 
-AddBoundMethod(GlobalIntlv8BreakIterator, 'adoptText', adoptText, 1,
-               BREAK_ITERATOR_TYPE, false);
 AddBoundMethod(GlobalIntlv8BreakIterator, 'first', first, 0,
                BREAK_ITERATOR_TYPE, false);
 AddBoundMethod(GlobalIntlv8BreakIterator, 'next', next, 0,
