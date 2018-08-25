@@ -13,7 +13,7 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f4d0db448727d8c2cb600e43aee285b9d76a795e',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '03bbc870bf80775a21c613a19b041e78eb334c65',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/depot_tools':
@@ -35,7 +35,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '1e44d066259f5d35087c43fa910e680dcb4c229e',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'bc2c0a9307285fa36e03e7cdb6bf8623390ff855',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -53,7 +53,7 @@ deps = {
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'v8/third_party/proguard':
-    Var('chromium_url') + '/chromium/src/third_party/proguard.git' + '@' + '67ad7bdf17228598a00ef7f9a9acb80bc8435885',
+    Var('chromium_url') + '/chromium/src/third_party/proguard.git' + '@' + 'a3729bea473bb5ffc5eaf289f5733bc5e2861c07',
   'v8/tools/swarming_client':
     Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '486c9b53c4d54dd4b95bb6ce0e31160e600dfc11',
   'v8/test/benchmarks/data':
@@ -75,7 +75,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'b31d68086c1a6dfa27d57b16df38b2e84dd3d7fc',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'bb4146fb8a9dde405b71914657bb461dc93912ab',
   'v8/tools/luci-go':
     Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '445d7c4b6a4f10e188edb395b132e3996b127691',
   'v8/test/wasm-js':
