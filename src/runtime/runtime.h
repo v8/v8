@@ -215,7 +215,6 @@ namespace internal {
   F(DefineWEProperty, 3, 1)                  \
   F(FormatList, 2, 1)                        \
   F(FormatListToParts, 2, 1)                 \
-  F(FormatDate, 2, 1)                        \
   F(GetDefaultICULocale, 0, 1)               \
   F(GetNumberOption, 5, 1)                   \
   F(IntlUnwrapReceiver, 5, 1)                \
