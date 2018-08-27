@@ -958,7 +958,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void SetFunctionNameFromIdentifierRef(Expression* value,
                                         Expression* identifier);
 
-  V8_INLINE ZoneVector<typename ExpressionClassifier::Error>*
+  V8_INLINE ZoneList<typename ExpressionClassifier::Error>*
   GetReportedErrorList() const {
     return function_state_->GetReportedErrorList();
   }
