@@ -941,8 +941,13 @@ class MacroAssembler : public TurboAssembler {
   }
 
   void SmiToPtrArrayOffset(Register dst, Register src) {
+#if V8_TARGET_ARCH_PPC64
+    STATIC_ASSERT(kSmiTag == 0 && kSmiShift > kPointerSizeLog2);
+    ShiftRightArithImm(dst, src, kSmiShift - kPointerSizeLog2);
+#else
     STATIC_ASSERT(kSmiTag == 0 && kSmiShift < kPointerSizeLog2);
     ShiftLeftImm(dst, src, Operand(kPointerSizeLog2 - kSmiShift));
+#endif
   }
 
   // Untag the source value into destination and jump if source is a smi.
@@ -963,6 +968,12 @@ class MacroAssembler : public TurboAssembler {
 
 
 
+#if V8_TARGET_ARCH_PPC64
+  // Ensure it is permissible to read/write int value directly from
+  // upper half of the smi.
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+#endif
 #if V8_TARGET_ARCH_PPC64 && V8_TARGET_LITTLE_ENDIAN
 #define SmiWordOffset(offset) (offset + kPointerSize / 2)
 #else

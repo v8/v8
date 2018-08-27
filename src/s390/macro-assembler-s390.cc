@@ -3462,8 +3462,13 @@ void TurboAssembler::LoadIntLiteral(Register dst, int value) {
 
 void TurboAssembler::LoadSmiLiteral(Register dst, Smi* smi) {
   intptr_t value = reinterpret_cast<intptr_t>(smi);
-  DCHECK(is_int32(value));
+#if V8_TARGET_ARCH_S390X
+  DCHECK_EQ(value & 0xFFFFFFFF, 0);
+  // The smi value is loaded in upper 32-bits.  Lower 32-bit are zeros.
+  llihf(dst, Operand(value >> 32));
+#else
   llilf(dst, Operand(value));
+#endif
 }
 
 void TurboAssembler::LoadDoubleLiteral(DoubleRegister result, uint64_t value,
@@ -3498,8 +3503,73 @@ void TurboAssembler::LoadFloat32Literal(DoubleRegister result, float value,
 }
 
 void TurboAssembler::CmpSmiLiteral(Register src1, Smi* smi, Register scratch) {
+#if V8_TARGET_ARCH_S390X
+  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+    cih(src1, Operand(reinterpret_cast<intptr_t>(smi) >> 32));
+  } else {
+    LoadSmiLiteral(scratch, smi);
+    cgr(src1, scratch);
+  }
+#else
   // CFI takes 32-bit immediate.
   cfi(src1, Operand(smi));
+#endif
+}
+
+void TurboAssembler::CmpLogicalSmiLiteral(Register src1, Smi* smi,
+                                          Register scratch) {
+#if V8_TARGET_ARCH_S390X
+  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+    clih(src1, Operand(reinterpret_cast<intptr_t>(smi) >> 32));
+  } else {
+    LoadSmiLiteral(scratch, smi);
+    clgr(src1, scratch);
+  }
+#else
+  // CLFI takes 32-bit immediate
+  clfi(src1, Operand(smi));
+#endif
+}
+
+void TurboAssembler::AddSmiLiteral(Register dst, Register src, Smi* smi,
+                                   Register scratch) {
+#if V8_TARGET_ARCH_S390X
+  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+    if (dst != src) LoadRR(dst, src);
+    aih(dst, Operand(reinterpret_cast<intptr_t>(smi) >> 32));
+  } else {
+    LoadSmiLiteral(scratch, smi);
+    AddP(dst, src, scratch);
+  }
+#else
+  AddP(dst, src, Operand(reinterpret_cast<intptr_t>(smi)));
+#endif
+}
+
+void TurboAssembler::SubSmiLiteral(Register dst, Register src, Smi* smi,
+                                   Register scratch) {
+#if V8_TARGET_ARCH_S390X
+  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+    if (dst != src) LoadRR(dst, src);
+    aih(dst, Operand((-reinterpret_cast<intptr_t>(smi)) >> 32));
+  } else {
+    LoadSmiLiteral(scratch, smi);
+    SubP(dst, src, scratch);
+  }
+#else
+  AddP(dst, src, Operand(-(reinterpret_cast<intptr_t>(smi))));
+#endif
+}
+
+void TurboAssembler::AndSmiLiteral(Register dst, Register src, Smi* smi) {
+  if (dst != src) LoadRR(dst, src);
+#if V8_TARGET_ARCH_S390X
+  DCHECK_EQ(reinterpret_cast<intptr_t>(smi) & 0xFFFFFFFF, 0);
+  int value = static_cast<int>(reinterpret_cast<intptr_t>(smi) >> 32);
+  nihf(dst, Operand(value));
+#else
+  nilf(dst, Operand(reinterpret_cast<int>(smi)));
+#endif
 }
 
 // Load a "pointer" sized value from the memory location
