@@ -155,12 +155,16 @@ class ScopedLoggerInitializer {
       start = IndexOfLine({search_term}, start);
       if (start == std::string::npos) break;
       std::vector<std::string> columns = Split(log_.at(start), ',');
-      CHECK_LT(address_column, columns.size());
+      ++start;  // Skip the found line.
+      // TODO(crbug.com/v8/8084): These two continue lines should really be
+      // errors. But on Windows the log is sometimes mysteriously cut off at the
+      // end. If the cut-off point happens to fall in the address field, the
+      // conditions will be triggered.
+      if (address_column >= columns.size()) continue;
       uintptr_t address =
           strtoll(columns.at(address_column).c_str(), nullptr, 16);
-      CHECK_GT(address, 0);
+      if (address == 0) continue;
       result.insert(address);
-      ++start;  // Skip the found line.
     }
     return result;
   }
