@@ -345,10 +345,11 @@
 }],  # '(arch == mipsel or arch == mips64el or arch == mips or arch == mips64) and not simd_mips'
 
 ##############################################################################
-['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {
+['arch == mipsel or arch == mips64el or arch == mips or arch == mips64 or arch == ppc or arch == ppc64 or arch == s390 or arch == s390x', {
   # TODO(mips-team): Implement I64Atomic operations on MIPS
+  # TODO(ppc-team, s390-team): Implement I64Atomic operations on PPC/s390
   'test-run-wasm-atomics64/*': [SKIP],
-}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
+}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64 or arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
 
 ##############################################################################
 ['mips_arch_variant == r6', {
