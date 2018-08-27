@@ -686,7 +686,7 @@ TEST(HeapSnapshotWeakCollection) {
       ++weak_entries;
     }
   }
-  CHECK_EQ(1, weak_entries);  // Key is the only weak.
+  CHECK_EQ(2, weak_entries);  // Key and value are weak.
   const v8::HeapGraphNode* wm_s =
       GetProperty(env->GetIsolate(), wm, v8::HeapGraphEdge::kProperty, "str");
   CHECK(wm_s);

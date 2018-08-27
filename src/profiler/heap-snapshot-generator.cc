@@ -1077,8 +1077,8 @@ void V8HeapExplorer::ExtractEphemeronHashTableReferences(
     Object* value = table->get(value_index);
     SetWeakReference(table, entry, key_index, key,
                      table->OffsetOfElementAt(key_index));
-    SetInternalReference(table, entry, value_index, value,
-                         table->OffsetOfElementAt(value_index));
+    SetWeakReference(table, entry, value_index, value,
+                     table->OffsetOfElementAt(value_index));
     HeapEntry* key_entry = GetEntry(key);
     int key_entry_index = key_entry->index();
     HeapEntry* value_entry = GetEntry(value);
