@@ -2608,13 +2608,13 @@ void Isolate::Deinit() {
 
   debug()->Unload();
 
+  wasm_engine()->DeleteCompileJobsOnIsolate(this);
+
   if (concurrent_recompilation_enabled()) {
     optimizing_compile_dispatcher_->Stop();
     delete optimizing_compile_dispatcher_;
     optimizing_compile_dispatcher_ = nullptr;
   }
-
-  wasm_engine()->DeleteCompileJobsOnIsolate(this);
 
   heap_.mark_compact_collector()->EnsureSweepingCompleted();
   heap_.memory_allocator()->unmapper()->EnsureUnmappingCompleted();
