@@ -2368,8 +2368,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       job_->DoSync<DecodeFail>(std::move(result));
     } else {
       // Decode passed.
-      job_->module_ = std::move(result.val);
-      job_->DoSync<PrepareAndStartCompile>(true);
+      job_->DoSync<PrepareAndStartCompile>(std::move(result.val), true);
     }
   }
 };
@@ -2397,10 +2396,12 @@ class AsyncCompileJob::DecodeFail : public CompileStep {
 //==========================================================================
 class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
  public:
-  explicit PrepareAndStartCompile(bool start_compilation)
-      : start_compilation_(start_compilation) {}
+  PrepareAndStartCompile(std::shared_ptr<const WasmModule> module,
+                         bool start_compilation)
+      : module_(module), start_compilation_(start_compilation) {}
 
  private:
+  std::shared_ptr<const WasmModule> module_;
   bool start_compilation_;
 
   void RunInForeground() override {
@@ -2411,7 +2412,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     job_->background_task_manager_.CancelAndWait();
 
     // Embedder usage count for declared shared memories.
-    if (job_->module_->has_shared_memory) {
+    if (module_->has_shared_memory) {
       job_->isolate_->CountUsage(
           v8::Isolate::UseCounterFeature::kWasmSharedMemory);
     }
@@ -2421,7 +2422,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     Handle<Script> script = CreateWasmScript(job_->isolate_, job_->wire_bytes_);
     Handle<ByteArray> asm_js_offset_table;
 
-    const WasmModule* module = job_->module_.get();
+    const WasmModule* module = module_.get();
     ModuleEnv env = CreateDefaultModuleEnv(module);
     // TODO(wasm): Improve efficiency of storing module wire bytes. Only store
     // relevant sections, not function bodies
@@ -2433,7 +2434,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // breakpoints on a (potentially empty) subset of the instances.
     // Create the module object.
     job_->module_object_ = WasmModuleObject::New(
-        job_->isolate_, job_->enabled_features_, job_->module_, env,
+        job_->isolate_, job_->enabled_features_, module_, env,
         {std::move(job_->bytes_copy_), job_->wire_bytes_.length()}, script,
         asm_js_offset_table);
     job_->native_module_ = job_->module_object_->native_module();
@@ -2559,8 +2560,8 @@ class AsyncCompileJob::FinishModule : public CompileStep {
     TRACE_COMPILE("(6) Finish module...\n");
     job_->AsyncCompileSucceeded(job_->module_object_);
 
-    size_t num_functions =
-        job_->module_->functions.size() - job_->module_->num_imported_functions;
+    size_t num_functions = job_->native_module_->num_functions() -
+                           job_->native_module_->num_imported_functions();
     if (job_->native_module_->compilation_state()->compile_mode() ==
             CompileMode::kRegular ||
         num_functions == 0) {
@@ -2621,7 +2622,6 @@ bool AsyncStreamingProcessor::ProcessModuleHeader(Vector<const uint8_t> bytes,
   TRACE_STREAMING("Process module header...\n");
   decoder_.StartDecoding(job_->async_counters().get(),
                          job_->isolate()->wasm_engine()->allocator());
-  job_->module_ = decoder_.shared_module();
   decoder_.DecodeModuleHeader(bytes, offset);
   if (!decoder_.ok()) {
     FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false));
@@ -2672,7 +2672,8 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
     FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false));
     return false;
   }
-  job_->NextStep<AsyncCompileJob::PrepareAndStartCompile>(false);
+  job_->NextStep<AsyncCompileJob::PrepareAndStartCompile>(
+      decoder_.shared_module(), false);
   // Execute the PrepareAndStartCompile step immediately and not in a separate
   // task.
   job_->ExecuteForegroundTaskImmediately();
@@ -2725,14 +2726,13 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   }
   ModuleResult result = decoder_.FinishDecoding(false);
   DCHECK(result.ok());
-  DCHECK_EQ(job_->module_, result.val);
   if (job_->DecrementAndCheckFinisherCount()) {
     if (job_->native_module_ == nullptr) {
       // We are processing a WebAssembly module without code section. We need to
       // prepare compilation first before we can finish it.
       // {PrepareAndStartCompile} will call {FinishCompile} by itself if there
       // is no code section.
-      job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(true);
+      job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(result.val, true);
     } else {
       HandleScope scope(job_->isolate_);
       SaveContext saved_context(job_->isolate_);

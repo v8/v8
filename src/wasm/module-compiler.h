@@ -98,13 +98,12 @@ class AsyncCompileJob {
   class CompileStep;
 
   // States of the AsyncCompileJob.
-  class DecodeModule;
-  class DecodeFail;
-  class PrepareAndStartCompile;
-  class CompileFailed;
-  class CompileWrappers;
-  class FinishModule;
-  class UpdateToTopTierCompiledCode;
+  class DecodeModule;            // Step 1  (async)
+  class DecodeFail;              // Step 1b (sync)
+  class PrepareAndStartCompile;  // Step 2  (sync)
+  class CompileFailed;           // Step 4b (sync)
+  class CompileWrappers;         // Step 5  (sync)
+  class FinishModule;            // Step 6  (sync)
 
   const std::shared_ptr<Counters>& async_counters() const {
     return async_counters_;
@@ -150,7 +149,6 @@ class AsyncCompileJob {
   ModuleWireBytes wire_bytes_;
   Handle<Context> native_context_;
   std::shared_ptr<CompilationResultResolver> resolver_;
-  std::shared_ptr<const WasmModule> module_;
 
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleObject> module_object_;
