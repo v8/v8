@@ -432,6 +432,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7669
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8051
+  'intl402/Collator/unicode-ext-seq-in-private-tag': [FAIL],
+
   # Tests assume that the sort order of "same elements" (comparator returns 0)
   # is deterministic.
   # https://crbug.com/v8/7808

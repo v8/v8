@@ -36,22 +36,9 @@ class JSCollator : public JSObject {
   DECL_PRINTER(JSCollator)
   DECL_VERIFIER(JSCollator)
 
-  // [[Usage]] is one of the values "sort" or "search", identifying
-  // the collator usage.
-  enum class Usage {
-    SORT,
-    SEARCH,
-
-    COUNT
-  };
-  inline void set_usage(Usage usage);
-  inline Usage usage() const;
-  static const char* UsageToString(Usage usage);
-
 // Layout description.
 #define JS_COLLATOR_FIELDS(V)          \
   V(kICUCollatorOffset, kPointerSize)  \
-  V(kFlagsOffset, kPointerSize)        \
   V(kBoundCompareOffset, kPointerSize) \
   /* Total size. */                    \
   V(kSize, 0)
@@ -67,18 +54,8 @@ class JSCollator : public JSObject {
     kLength
   };
 
-// Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _) V(UsageBits, Usage, 1, _)
-
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
-
-  STATIC_ASSERT(Usage::SORT <= UsageBits::kMax);
-  STATIC_ASSERT(Usage::SEARCH <= UsageBits::kMax);
-
   DECL_ACCESSORS(icu_collator, Managed<icu::Collator>)
   DECL_ACCESSORS(bound_compare, Object);
-  DECL_INT_ACCESSORS(flags)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSCollator);

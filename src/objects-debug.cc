@@ -1875,7 +1875,6 @@ void JSCollator::JSCollatorVerify(Isolate* isolate) {
   CHECK(IsJSCollator());
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kICUCollatorOffset);
-  VerifyObjectField(isolate, kFlagsOffset);
   VerifyObjectField(isolate, kBoundCompareOffset);
 }
 

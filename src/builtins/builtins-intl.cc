@@ -1240,7 +1240,6 @@ BUILTIN(CollatorConstructor) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, collator_obj,
                                      JSObject::New(target, new_target));
   Handle<JSCollator> collator = Handle<JSCollator>::cast(collator_obj);
-  collator->set_flags(0);
 
   // 6. Return ? InitializeCollator(collator, locales, options).
   RETURN_RESULT_OR_FAILURE(isolate, JSCollator::InitializeCollator(
