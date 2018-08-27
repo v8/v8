@@ -172,53 +172,6 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
 
 namespace {
 
-std::map<std::string, std::string> LookupUnicodeExtensions(
-    const icu::Locale& icu_locale, const std::set<std::string>& relevant_keys) {
-  std::map<std::string, std::string> extensions;
-
-  UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::StringEnumeration> keywords(
-      icu_locale.createKeywords(status));
-  if (U_FAILURE(status)) return extensions;
-
-  if (!keywords) return extensions;
-  char value[ULOC_FULLNAME_CAPACITY];
-
-  int32_t length;
-  status = U_ZERO_ERROR;
-  for (const char* keyword = keywords->next(&length, status);
-       keyword != nullptr; keyword = keywords->next(&length, status)) {
-    // Ignore failures in ICU and skip to the next keyword.
-    //
-    // This is fine.™
-    if (U_FAILURE(status)) {
-      status = U_ZERO_ERROR;
-      continue;
-    }
-
-    icu_locale.getKeywordValue(keyword, value, ULOC_FULLNAME_CAPACITY, status);
-
-    // Ignore failures in ICU and skip to the next keyword.
-    //
-    // This is fine.™
-    if (U_FAILURE(status)) {
-      status = U_ZERO_ERROR;
-      continue;
-    }
-
-    const char* bcp47_key = uloc_toUnicodeLocaleKey(keyword);
-
-    // Ignore keywords that we don't recognize - spec allows that.
-    if (bcp47_key && (relevant_keys.find(bcp47_key) != relevant_keys.end())) {
-      const char* bcp47_value = uloc_toUnicodeLocaleType(bcp47_key, value);
-      extensions.insert(
-          std::pair<std::string, std::string>(bcp47_key, bcp47_value));
-    }
-  }
-
-  return extensions;
-}
-
 void SetCaseFirstOption(icu::Collator* icu_collator, const char* value) {
   CHECK_NOT_NULL(icu_collator);
   CHECK_NOT_NULL(value);
@@ -368,7 +321,7 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
   DCHECK(!icu_locale.isBogus());
 
   std::map<std::string, std::string> extensions =
-      LookupUnicodeExtensions(icu_locale, relevant_extension_keys);
+      Intl::LookupUnicodeExtensions(icu_locale, relevant_extension_keys);
 
   // 19. Let collation be r.[[co]].
   //

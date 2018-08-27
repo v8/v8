@@ -434,6 +434,10 @@ class Intl {
                          Handle<String> field_type_string, Handle<String> value,
                          Handle<String> additional_property_name,
                          Handle<String> additional_property_value);
+
+  // A helper function to help handle Unicode Extensions in locale.
+  static std::map<std::string, std::string> LookupUnicodeExtensions(
+    const icu::Locale& icu_locale, const std::set<std::string>& relevant_keys);
 };
 
 }  // namespace internal
