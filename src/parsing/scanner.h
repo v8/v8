@@ -240,12 +240,12 @@ class Scanner {
 
   // Returns the location information for the current token
   // (the token last returned by Next()).
-  Location location() const { return current().location; }
+  const Location& location() const { return current().location; }
 
   // This error is specifically an invalid hex or unicode escape sequence.
   bool has_error() const { return scanner_error_ != MessageTemplate::kNone; }
   MessageTemplate::Template error() const { return scanner_error_; }
-  Location error_location() const { return scanner_error_location_; }
+  const Location& error_location() const { return scanner_error_location_; }
 
   bool has_invalid_template_escape() const {
     return current().invalid_template_escape_message != MessageTemplate::kNone;
@@ -264,7 +264,7 @@ class Scanner {
   // One token look-ahead (past the token returned by Next()).
   Token::Value peek() const { return next().token; }
 
-  Location peek_location() const { return next().location; }
+  const Location& peek_location() const { return next().location; }
 
   bool literal_contains_escapes() const {
     return LiteralContainsEscapes(current());
