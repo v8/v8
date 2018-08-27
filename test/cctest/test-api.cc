@@ -15154,7 +15154,7 @@ THREADED_TEST(TryCatchSourceInfoForEOSError) {
   CHECK(v8::Script::Compile(context.local(), v8_str("!\n")).IsEmpty());
   CHECK(try_catch.HasCaught());
   v8::Local<v8::Message> message = try_catch.Message();
-  CHECK_EQ(1, message->GetLineNumber(context.local()).FromJust());
+  CHECK_EQ(2, message->GetLineNumber(context.local()).FromJust());
   CHECK_EQ(0, message->GetStartColumn(context.local()).FromJust());
 }
 

@@ -233,7 +233,6 @@ uc32 Scanner::ScanUnlimitedLengthHexNumber(int max_value, int beg_pos) {
 }
 
 Token::Value Scanner::Next() {
-  if (next().token == Token::EOS) next().location = current().location;
   // Rotate through tokens.
   TokenDesc* previous = current_;
   current_ = next_;
