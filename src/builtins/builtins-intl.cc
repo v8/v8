@@ -346,7 +346,37 @@ MaybeHandle<Object> FormatDateToParts(Isolate* isolate, icu::DateFormat* format,
   return result;
 }
 
+MaybeHandle<JSObject> SupportedLocalesOfCommon(Isolate* isolate,
+                                               const char* service_in,
+                                               BuiltinArguments args) {
+  Factory* factory = isolate->factory();
+  Handle<String> service = factory->NewStringFromAsciiChecked(service_in);
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  MaybeHandle<JSObject> result =
+      Intl::SupportedLocalesOf(isolate, service, locales, options);
+  Handle<JSObject> elements;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, elements, result, JSObject);
+  return elements;
+}
+
 }  // namespace
+
+BUILTIN(v8BreakIteratorSupportedLocalesOf) {
+  HandleScope scope(isolate);
+  // 1. If NewTarget is defined, throw a TypeError exception.
+  if (!args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kOrdinaryFunctionCalledAsConstructor,
+                     isolate->factory()->NewStringFromStaticChars(
+                         "Intl.v8BreakIterator")));
+  }
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, SupportedLocalesOfCommon(isolate, "breakiterator", args));
+}
 
 // Flattens a list of possibly-overlapping "regions" to a list of
 // non-overlapping "parts". At least one of the input regions must span the
@@ -438,6 +468,12 @@ std::vector<NumberFormatSpan> FlattenRegionsToParts(
   return out_parts;
 }
 
+BUILTIN(NumberFormatSupportedLocalesOf) {
+  HandleScope scope(isolate);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, SupportedLocalesOfCommon(isolate, "numberformat", args));
+}
+
 BUILTIN(NumberFormatPrototypeFormatToParts) {
   const char* const method = "Intl.NumberFormat.prototype.formatToParts";
   HandleScope handle_scope(isolate);
@@ -466,6 +502,12 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
 
   RETURN_RESULT_OR_FAILURE(
       isolate, FormatNumberToParts(isolate, number_format, x->Number()));
+}
+
+BUILTIN(DateTimeFormatSupportedLocalesOf) {
+  HandleScope scope(isolate);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, SupportedLocalesOfCommon(isolate, "dateformat", args));
 }
 
 BUILTIN(DateTimeFormatPrototypeFormatToParts) {
@@ -966,6 +1008,12 @@ MaybeHandle<Object> RelativeTimeFormatPrototypeFormatCommon(
 
 }  // namespace
 
+BUILTIN(RelativeTimeFormatSupportedLocalesOf) {
+  HandleScope scope(isolate);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, SupportedLocalesOfCommon(isolate, "relativetimeformat", args));
+}
+
 BUILTIN(RelativeTimeFormatPrototypeFormat) {
   HandleScope scope(isolate);
   // 1. Let relativeTimeFormat be the this value.
@@ -1163,6 +1211,12 @@ BUILTIN(PluralRulesConstructor) {
                                                     locales, options));
 }
 
+BUILTIN(PluralRulesSupportedLocalesOf) {
+  HandleScope scope(isolate);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, SupportedLocalesOfCommon(isolate, "pluralrules", args));
+}
+
 BUILTIN(CollatorConstructor) {
   HandleScope scope(isolate);
   Handle<JSReceiver> new_target;
@@ -1191,6 +1245,12 @@ BUILTIN(CollatorConstructor) {
   // 6. Return ? InitializeCollator(collator, locales, options).
   RETURN_RESULT_OR_FAILURE(isolate, JSCollator::InitializeCollator(
                                         isolate, collator, locales, options));
+}
+
+BUILTIN(CollatorSupportedLocalesOf) {
+  HandleScope scope(isolate);
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           SupportedLocalesOfCommon(isolate, "collator", args));
 }
 
 BUILTIN(CollatorPrototypeCompare) {

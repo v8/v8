@@ -465,12 +465,6 @@
   'intl402/Locale/prototype/toStringTag/toStringTag': [FAIL],
   'intl402/Locale/prototype/toStringTag/toString': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7869
-  'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/branding': [FAIL],
-  'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/length': [FAIL],
-  'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/name': [FAIL],
-  'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/prop-desc': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7993
   'intl402/RelativeTimeFormat/prototype/toStringTag/toStringTag': [FAIL],
 

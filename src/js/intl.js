@@ -638,31 +638,10 @@ DEFINE_METHOD(
 );
 
 
-/**
- * Returns the subset of the given locale list for which this locale list
- * has a matching (possibly fallback) locale. Locales appear in the same
- * order in the returned list as in the input list.
- * Options are optional parameter.
- */
-DEFINE_METHOD(
-  GlobalIntlCollator,
-  supportedLocalesOf(locales) {
-    return %SupportedLocalesOf('collator', locales, arguments[1]);
-  }
-);
-
-
 DEFINE_METHOD(
   GlobalIntlPluralRules.prototype,
   resolvedOptions() {
     return %PluralRulesResolvedOptions(this);
-  }
-);
-
-DEFINE_METHOD(
-  GlobalIntlPluralRules,
-  supportedLocalesOf(locales) {
-    return %SupportedLocalesOf('pluralrules', locales, arguments[1]);
   }
 );
 
@@ -856,19 +835,6 @@ DEFINE_METHOD(
   }
 );
 
-
-/**
- * Returns the subset of the given locale list for which this locale list
- * has a matching (possibly fallback) locale. Locales appear in the same
- * order in the returned list as in the input list.
- * Options are optional parameter.
- */
-DEFINE_METHOD(
-  GlobalIntlNumberFormat,
-  supportedLocalesOf(locales) {
-    return %SupportedLocalesOf('numberformat', locales, arguments[1]);
-  }
-);
 
 /**
  * Returns a string that matches LDML representation of the options object.
@@ -1222,20 +1188,6 @@ DEFINE_METHOD(
 
 
 /**
- * Returns the subset of the given locale list for which this locale list
- * has a matching (possibly fallback) locale. Locales appear in the same
- * order in the returned list as in the input list.
- * Options are optional parameter.
- */
-DEFINE_METHOD(
-  GlobalIntlDateTimeFormat,
-  supportedLocalesOf(locales) {
-    return %SupportedLocalesOf('dateformat', locales, arguments[1]);
-  }
-);
-
-
-/**
  * Returns canonical Area/Location(/Location) name, or throws an exception
  * if the zone name is invalid IANA name.
  */
@@ -1353,24 +1305,6 @@ DEFINE_METHOD(
       locale: segmenter[resolvedSymbol].locale,
       type: segmenter[resolvedSymbol].type
     };
-  }
-);
-
-
-/**
- * Returns the subset of the given locale list for which this locale list
- * has a matching (possibly fallback) locale. Locales appear in the same
- * order in the returned list as in the input list.
- * Options are optional parameter.
- */
-DEFINE_METHOD(
-  GlobalIntlv8BreakIterator,
-  supportedLocalesOf(locales) {
-    if (!IS_UNDEFINED(new.target)) {
-      throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
-    }
-
-    return %SupportedLocalesOf('breakiterator', locales, arguments[1]);
   }
 );
 

@@ -1327,6 +1327,10 @@ namespace internal {
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                               \
   /* ecma402 #sec-intl.collator */                                     \
   CPP(CollatorConstructor)                                             \
+  /* ecma402 #sec-intl.v8breakiterator.supportedlocalesof */           \
+  CPP(v8BreakIteratorSupportedLocalesOf)                               \
+  /* ecma402 #sec-intl.collator.supportedlocalesof */                  \
+  CPP(CollatorSupportedLocalesOf)                                      \
   TFS(StringToLowerCaseIntl, kString)                                  \
   /* ES #sec-string.prototype.tolowercase */                           \
   TFJ(StringPrototypeToLowerCaseIntl, 0, kReceiver)                    \
@@ -1368,16 +1372,24 @@ namespace internal {
   CPP(LocalePrototypeMinimize)                                         \
   /* ecma402 #sec-number-format-functions */                           \
   CPP(NumberFormatInternalFormatNumber)                                \
+  /* ecma402 #sec-intl.numberformat.supportedlocalesof */              \
+  CPP(NumberFormatSupportedLocalesOf)                                  \
   /* ecma402 #sec-intl.numberformat.prototype.format */                \
   CPP(NumberFormatPrototypeFormatNumber)                               \
   /* ecma402 #sec-datetime-format-functions */                         \
   CPP(DateTimeFormatInternalFormat)                                    \
+  /* ecma402 #sec-intl.datetimeformat.supportedlocalesof */            \
+  CPP(DateTimeFormatSupportedLocalesOf)                                \
   /* ecma402 #sec-intl.datetimeformat.prototype.format */              \
   CPP(DateTimeFormatPrototypeFormat)                                   \
   /* ecma402 #sec-intl.pluralrules */                                  \
   CPP(PluralRulesConstructor)                                          \
+  /* ecma402 #sec-intl.pluralrules.supportedlocalesof */               \
+  CPP(PluralRulesSupportedLocalesOf)                                   \
   /* ecma402 #sec-intl.RelativeTimeFormat.constructor */               \
   CPP(RelativeTimeFormatConstructor)                                   \
+  /* ecma402 #sec-intl.RelativeTimeFormat.supportedlocalesof */        \
+  CPP(RelativeTimeFormatSupportedLocalesOf)                            \
   /* ecma402 #sec-intl.RelativeTimeFormat.prototype.resolvedOptions */ \
   CPP(RelativeTimeFormatPrototypeResolvedOptions)                      \
   /* ecma402 #sec-intl.RelativeTimeFormat.prototype.format */          \

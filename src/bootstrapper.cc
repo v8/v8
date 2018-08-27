@@ -2895,6 +2895,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       native_context()->set_intl_date_time_format_function(
           *date_time_format_constructor);
 
+      SimpleInstallFunction(
+          isolate(), date_time_format_constructor, "supportedLocalesOf",
+          Builtins::kDateTimeFormatSupportedLocalesOf, 1, false);
+
       Handle<JSObject> prototype(
           JSObject::cast(date_time_format_constructor->prototype()), isolate_);
 
@@ -2926,6 +2930,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           0, factory->the_hole_value(), Builtins::kIllegal);
       native_context()->set_intl_number_format_function(
           *number_format_constructor);
+
+      SimpleInstallFunction(
+          isolate(), number_format_constructor, "supportedLocalesOf",
+          Builtins::kNumberFormatSupportedLocalesOf, 1, false);
 
       Handle<JSObject> prototype(
           JSObject::cast(number_format_constructor->prototype()), isolate_);
@@ -2960,6 +2968,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       InstallWithIntrinsicDefaultProto(isolate_, collator_constructor,
                                        Context::INTL_COLLATOR_FUNCTION_INDEX);
 
+      SimpleInstallFunction(isolate(), collator_constructor,
+                            "supportedLocalesOf",
+                            Builtins::kCollatorSupportedLocalesOf, 1, false);
+
       Handle<JSObject> prototype(
           JSObject::cast(collator_constructor->prototype()), isolate_);
 
@@ -2988,6 +3000,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kIllegal);
       native_context()->set_intl_v8_break_iterator_function(
           *v8_break_iterator_constructor);
+
+      SimpleInstallFunction(
+          isolate(), v8_break_iterator_constructor, "supportedLocalesOf",
+          Builtins::kv8BreakIteratorSupportedLocalesOf, 1, false);
 
       Handle<JSObject> prototype(
           JSObject::cast(v8_break_iterator_constructor->prototype()), isolate_);
@@ -3020,6 +3036,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       InstallWithIntrinsicDefaultProto(
           isolate_, plural_rules_constructor,
           Context::INTL_PLURAL_RULES_FUNCTION_INDEX);
+
+      SimpleInstallFunction(isolate(), plural_rules_constructor,
+                            "supportedLocalesOf",
+                            Builtins::kPluralRulesSupportedLocalesOf, 1, false);
 
       Handle<JSObject> prototype(
           JSObject::cast(plural_rules_constructor->prototype()), isolate_);
@@ -4686,6 +4706,10 @@ void Genesis::InitializeGlobal_harmony_intl_relative_time_format() {
       Builtins::kRelativeTimeFormatConstructor);
   relative_time_format_fun->shared()->set_length(0);
   relative_time_format_fun->shared()->DontAdaptArguments();
+
+  SimpleInstallFunction(
+      isolate(), relative_time_format_fun, "supportedLocalesOf",
+      Builtins::kRelativeTimeFormatSupportedLocalesOf, 1, false);
 
   // Setup %RelativeTimeFormatPrototype%.
   Handle<JSObject> prototype(

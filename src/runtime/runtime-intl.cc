@@ -526,18 +526,5 @@ RUNTIME_FUNCTION(Runtime_IntlUnwrapReceiver) {
                                     check_legacy_constructor));
 }
 
-RUNTIME_FUNCTION(Runtime_SupportedLocalesOf) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(args.length(), 3);
-
-  CONVERT_ARG_HANDLE_CHECKED(String, service, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, locales, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, options, 2);
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::SupportedLocalesOf(isolate, service, locales, options));
-}
-
 }  // namespace internal
 }  // namespace v8

@@ -2440,9 +2440,12 @@ MaybeHandle<JSObject> SupportedLocales(
 }
 }  // namespace
 
-// ECMA 402 10.2.2 Intl.Collator.supportedLocalesOf
+// ECMA 402 Intl.*.supportedLocalesOf
 // https://tc39.github.io/ecma402/#sec-intl.collator.supportedlocalesof
-// of Intl::SupportedLocalesOf thru JS
+// https://tc39.github.io/ecma402/#sec-intl.numberformat.supportedlocalesof
+// https://tc39.github.io/ecma402/#sec-intl.datetimeformat.supportedlocalesof
+// https://tc39.github.io/ecma402/#sec-intl.pluralrules.supportedlocalesof
+// http://tc39.github.io/proposal-intl-relative-time/#sec-Intl.RelativeTimeFormat.supportedLocalesOf
 MaybeHandle<JSObject> Intl::SupportedLocalesOf(Isolate* isolate,
                                                Handle<String> service,
                                                Handle<Object> locales_in,

@@ -228,7 +228,6 @@ namespace internal {
   F(ToLocaleDateTime, 6, 1)                  \
   F(StringToLowerCaseIntl, 1, 1)             \
   F(StringToUpperCaseIntl, 1, 1)             \
-  F(SupportedLocalesOf, 3, 1)                \
 // End of macro.
 #else
 #define FOR_EACH_INTRINSIC_INTL(F)
