@@ -23,7 +23,7 @@
 
 #define TRACE_HEAP(...)                                   \
   do {                                                    \
-    if (FLAG_wasm_trace_native_heap) PrintF(__VA_ARGS__); \
+    if (FLAG_trace_wasm_native_heap) PrintF(__VA_ARGS__); \
   } while (false)
 
 namespace v8 {

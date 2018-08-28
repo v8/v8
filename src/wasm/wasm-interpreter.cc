@@ -1426,7 +1426,7 @@ class ThreadImpl {
     Push(result);
     len = 1 + imm.length;
 
-    if (FLAG_wasm_trace_memory) {
+    if (FLAG_trace_wasm_memory) {
       MemoryTracingInfo info(imm.offset + index, false, rep);
       TraceMemoryOperation(ExecutionTier::kInterpreter, &info,
                            code->function->func_index, static_cast<int>(pc),
@@ -1452,7 +1452,7 @@ class ThreadImpl {
     WriteLittleEndianValue<mtype>(addr, converter<mtype, ctype>{}(val));
     len = 1 + imm.length;
 
-    if (FLAG_wasm_trace_memory) {
+    if (FLAG_trace_wasm_memory) {
       MemoryTracingInfo info(imm.offset + index, true, rep);
       TraceMemoryOperation(ExecutionTier::kInterpreter, &info,
                            code->function->func_index, static_cast<int>(pc),

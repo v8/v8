@@ -3203,7 +3203,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
     }
   }
 
-  if (FLAG_wasm_trace_memory) {
+  if (FLAG_trace_wasm_memory) {
     TraceMemoryOperation(false, memtype.representation(), index, offset,
                          position);
   }
@@ -3248,7 +3248,7 @@ Node* WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,
 
   SetEffect(store);
 
-  if (FLAG_wasm_trace_memory) {
+  if (FLAG_trace_wasm_memory) {
     TraceMemoryOperation(true, mem_rep, index, offset, position);
   }
 

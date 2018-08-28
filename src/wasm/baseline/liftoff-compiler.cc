@@ -1494,7 +1494,7 @@ class LiftoffCompiler {
     }
     __ PushRegister(value_type, value);
 
-    if (FLAG_wasm_trace_memory) {
+    if (FLAG_trace_wasm_memory) {
       TraceMemoryOperation(false, type.mem_type().representation(), index.gp(),
                            offset, decoder->position());
     }
@@ -1524,7 +1524,7 @@ class LiftoffCompiler {
                        WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_store_pc);
     }
-    if (FLAG_wasm_trace_memory) {
+    if (FLAG_trace_wasm_memory) {
       TraceMemoryOperation(true, type.mem_rep(), index.gp(), offset,
                            decoder->position());
     }
