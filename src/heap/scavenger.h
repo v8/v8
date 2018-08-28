@@ -16,12 +16,6 @@ namespace internal {
 
 class OneshotBarrier;
 
-enum class CopyAndForwardResult {
-  SUCCESS_YOUNG_GENERATION,
-  SUCCESS_OLD_GENERATION,
-  FAILURE
-};
-
 class Scavenger {
  public:
   static const int kCopiedListSegmentSize = 256;
@@ -67,43 +61,34 @@ class Scavenger {
 
   // Scavenges an object |object| referenced from slot |p|. |object| is required
   // to be in from space.
-  inline SlotCallbackResult ScavengeObject(HeapObjectReference** p,
-                                           HeapObject* object);
+  inline void ScavengeObject(HeapObjectReference** p, HeapObject* object);
 
   // Copies |source| to |target| and sets the forwarding pointer in |source|.
   V8_INLINE bool MigrateObject(Map* map, HeapObject* source, HeapObject* target,
                                int size);
 
-  V8_INLINE SlotCallbackResult
-  RememberedSetEntryNeeded(CopyAndForwardResult result);
+  V8_INLINE bool SemiSpaceCopyObject(Map* map, HeapObjectReference** slot,
+                                     HeapObject* object, int object_size);
 
-  V8_INLINE CopyAndForwardResult SemiSpaceCopyObject(Map* map,
-                                                     HeapObjectReference** slot,
-                                                     HeapObject* object,
-                                                     int object_size);
+  V8_INLINE bool PromoteObject(Map* map, HeapObjectReference** slot,
+                               HeapObject* object, int object_size);
 
-  V8_INLINE CopyAndForwardResult PromoteObject(Map* map,
-                                               HeapObjectReference** slot,
-                                               HeapObject* object,
-                                               int object_size);
-
-  V8_INLINE SlotCallbackResult EvacuateObject(HeapObjectReference** slot,
-                                              Map* map, HeapObject* source);
+  V8_INLINE void EvacuateObject(HeapObjectReference** slot, Map* map,
+                                HeapObject* source);
 
   // Different cases for object evacuation.
-  V8_INLINE SlotCallbackResult EvacuateObjectDefault(Map* map,
-                                                     HeapObjectReference** slot,
-                                                     HeapObject* object,
-                                                     int object_size);
 
-  inline SlotCallbackResult EvacuateThinString(Map* map, HeapObject** slot,
-                                               ThinString* object,
-                                               int object_size);
+  V8_INLINE void EvacuateObjectDefault(Map* map, HeapObjectReference** slot,
+                                       HeapObject* object, int object_size);
 
-  inline SlotCallbackResult EvacuateShortcutCandidate(Map* map,
-                                                      HeapObject** slot,
-                                                      ConsString* object,
-                                                      int object_size);
+  V8_INLINE void EvacuateJSFunction(Map* map, HeapObject** slot,
+                                    JSFunction* object, int object_size);
+
+  inline void EvacuateThinString(Map* map, HeapObject** slot,
+                                 ThinString* object, int object_size);
+
+  inline void EvacuateShortcutCandidate(Map* map, HeapObject** slot,
+                                        ConsString* object, int object_size);
 
   void IterateAndScavengePromotedObject(HeapObject* target, int size);
 
