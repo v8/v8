@@ -237,7 +237,7 @@ class Scanner {
   void Initialize();
 
   // Returns the next token and advances input.
-  Token::Value Next() {
+  V8_INLINE Token::Value Next() {
     // TODO(verwaest): Remove.
     if (next().token == Token::EOS) {
       next_target().location = current().location;
@@ -252,7 +252,7 @@ class Scanner {
   }
 
   // Returns the token following peek()
-  Token::Value PeekAhead() {
+  V8_INLINE Token::Value PeekAhead() {
     DCHECK_NE(Token::DIV, next().token);
     DCHECK_NE(Token::ASSIGN_DIV, next().token);
     DCHECK(HasToken(1));
@@ -301,6 +301,7 @@ class Scanner {
   }
 
   const AstRawString* CurrentSymbol(AstValueFactory* ast_value_factory) const;
+
   const AstRawString* NextSymbol(AstValueFactory* ast_value_factory) const;
   const AstRawString* CurrentRawSymbol(
       AstValueFactory* ast_value_factory) const;
@@ -615,7 +616,7 @@ class Scanner {
     scan_target().raw_literal_chars.AddChar(c);
   }
 
-  inline void AddLiteralCharAdvance() {
+  V8_INLINE void AddLiteralCharAdvance() {
     AddLiteralChar(c0_);
     Advance();
   }
@@ -735,6 +736,7 @@ class Scanner {
   uc32 ScanUnlimitedLengthHexNumber(int max_value, int beg_pos);
 
   // Scans a single JavaScript token.
+  V8_INLINE Token::Value ScanSingleToken();
   void Scan();
 
   V8_INLINE Token::Value SkipWhiteSpace();

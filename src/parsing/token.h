@@ -205,13 +205,13 @@ class Token {
  public:
   // All token values.
 #define T(name, string, precedence) name,
-  enum Value { TOKEN_LIST(T, T, T) NUM_TOKENS };
+  enum Value : uint8_t { TOKEN_LIST(T, T, T) NUM_TOKENS };
 #undef T
 
   // Returns a string corresponding to the C++ token name
   // (e.g. "LT" for the token LT).
   static const char* Name(Value tok) {
-    DCHECK(tok < NUM_TOKENS);  // tok is unsigned
+    DCHECK_GT(NUM_TOKENS, tok);  // tok is unsigned
     return name_[tok];
   }
 
@@ -312,19 +312,19 @@ class Token {
   // (.e., "<" for the token LT) or nullptr if the token doesn't
   // have a (unique) string (e.g. an IDENTIFIER).
   static const char* String(Value tok) {
-    DCHECK(tok < NUM_TOKENS);  // tok is unsigned.
+    DCHECK_GT(NUM_TOKENS, tok);  // tok is unsigned
     return string_[tok];
   }
 
   static uint8_t StringLength(Value tok) {
-    DCHECK(tok < NUM_TOKENS);
+    DCHECK_GT(NUM_TOKENS, tok);  // tok is unsigned
     return string_length_[tok];
   }
 
   // Returns the precedence > 0 for binary and compare
   // operators; returns 0 otherwise.
   static int Precedence(Value tok) {
-    DCHECK(tok < NUM_TOKENS);  // tok is unsigned.
+    DCHECK_GT(NUM_TOKENS, tok);  // tok is unsigned
     return precedence_[tok];
   }
 
