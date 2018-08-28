@@ -44,7 +44,7 @@ from testrunner.outproc import test262
 FEATURE_FLAGS = {
   'BigInt': '--harmony-bigint',
   'class-fields-public': '--harmony-public-fields',
-  'class-fields-private': '--harmony-private-fields',
+  'class-static-fields-public': '--harmony-class-fields',
   'Array.prototype.flat': '--harmony-array-flat',
   'Array.prototype.flatMap': '--harmony-array-flat',
   'String.prototype.matchAll': '--harmony-string-matchall',
@@ -56,7 +56,12 @@ FEATURE_FLAGS = {
   'Symbol.prototype.description': '--harmony-symbol-description',
 }
 
-SKIPPED_FEATURES = set([])
+SKIPPED_FEATURES = set(['Intl.Segmenter',
+                        'Object.fromEntries',
+                        'export-star-as-namespace-from-module',
+                        'class-fields-private',
+                        'class-static-fields-private',
+                        'class-static-methods-private'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
