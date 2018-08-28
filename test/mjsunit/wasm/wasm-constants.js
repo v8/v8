@@ -431,7 +431,8 @@ function assertWasmThrows(runtime_id, values, code) {
     // Success.
     return;
   }
-  throw new MjsUnitAssertionError('Did not throw expected: ' + runtime_id + values);
+  throw new MjsUnitAssertionError('Did not throw expected <' + runtime_id +
+                                  '> with values: ' + values);
 }
 
 function wasmI32Const(val) {

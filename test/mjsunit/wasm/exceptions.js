@@ -375,12 +375,10 @@ assertWasmThrows(0, [16404, 0, 0, 0],
 assertWasmThrows(0, [16739, 4816, 0, 0],
                  function() { test_throw_param_d.exports.throw_param(10000000.5); });
 
-/* TODO(kschimpf) Convert these tests to work for the proposed exceptions.
-
 // The following methods do not attempt to catch the exception they raise.
 var test_throw = (function () {
   var builder = new WasmModuleBuilder();
-
+  builder.addException(kSig_v_i);
   builder.addFunction("throw_expr_with_params", kSig_v_ddi)
     .addBody([
       // p2 * (p0 + min(p0, p1))|0 - 20
@@ -394,7 +392,7 @@ var test_throw = (function () {
       kExprI32Mul,
       kExprI32Const, 20,
       kExprI32Sub,
-      kExprThrow,
+      kExprThrow, 0,
     ])
     .exportFunc()
 
@@ -408,11 +406,12 @@ assertFalse(test_throw === 0);
 assertEquals("object", typeof test_throw.exports);
 assertEquals("function", typeof test_throw.exports.throw_expr_with_params);
 
-assertEquals(1, test_throw.exports.throw_param_if_not_zero(0));
-assertWasmThrows(
-    -8, function() { test_throw.exports.throw_expr_with_params(1.5, 2.5, 4); });
-assertWasmThrows(
-    12, function() { test_throw.exports.throw_expr_with_params(5.7, 2.5, 4); });
+assertWasmThrows(0, [65535, 65536-8],
+    function() { test_throw.exports.throw_expr_with_params(1.5, 2.5, 4); });
+assertWasmThrows(0, [0, 12],
+    function() { test_throw.exports.throw_expr_with_params(5.7, 2.5, 4); });
+
+/* TODO(mstarzinger): Re-enable the following test cases.
 
 // Now that we know throwing works, we test catching the exceptions we raise.
 var test_catch = (function () {
