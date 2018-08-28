@@ -15,9 +15,6 @@ function bytes() {
   return buffer;
 }
 
-// V8 internal constants
-var kV8MaxPages = 32767;
-
 // Header declaration constants
 var kWasmH0 = 0;
 var kWasmH1 = 0x61;
