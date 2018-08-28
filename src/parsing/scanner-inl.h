@@ -21,7 +21,7 @@ V8_INLINE Token::Value Scanner::SkipWhiteSpace() {
     // Advance as long as character is a WhiteSpace or LineTerminator.
     // Remember if the latter is the case.
     if (unibrow::IsLineTerminator(c0_)) {
-      next().after_line_terminator = true;
+      scan_target().after_line_terminator = true;
     } else if (!unicode_cache_->IsWhiteSpace(c0_)) {
       break;
     }

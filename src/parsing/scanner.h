@@ -237,9 +237,31 @@ class Scanner {
   void Initialize();
 
   // Returns the next token and advances input.
-  Token::Value Next();
+  Token::Value Next() {
+    // TODO(verwaest): Remove.
+    if (next().token == Token::EOS) {
+      next_target().location = current().location;
+    }
+    // Advance current token.
+    token_start_ = TokenIndex(1);
+    // Scan the next token if it's not yet ready.
+    if (V8_LIKELY(!HasToken(1))) Scan();
+    // Return current token.
+    DCHECK(HasToken(1));
+    return current().token;
+  }
+
   // Returns the token following peek()
-  Token::Value PeekAhead();
+  Token::Value PeekAhead() {
+    DCHECK_NE(Token::DIV, next().token);
+    DCHECK_NE(Token::ASSIGN_DIV, next().token);
+    DCHECK(HasToken(1));
+
+    if (V8_LIKELY(!HasToken(2))) Scan();
+
+    return next_next().token;
+  }
+
   // Returns the current token again.
   Token::Value current_token() { return current().token; }
 
@@ -370,10 +392,10 @@ class Scanner {
   Maybe<RegExp::Flags> ScanRegExpFlags();
 
   // Scans the input as a template literal
-  Token::Value ScanTemplateStart();
   Token::Value ScanTemplateContinuation() {
     DCHECK_EQ(next().token, Token::RBRACE);
-    next().location.beg_pos = source_pos() - 1;  // We already consumed }
+    DCHECK(!HasToken(2));
+    DCHECK_EQ(source_pos() - 1, scan_target().location.beg_pos);
     return ScanTemplateSpan();
   }
 
@@ -404,23 +426,6 @@ class Scanner {
   // This is used for tagged template literals, in which normally forbidden
   // escape sequences are allowed.
   class ErrorState;
-
-  // Scoped helper for literal recording. Automatically drops the literal
-  // if aborting the scanning before it's complete.
-  class LiteralScope {
-   public:
-    explicit LiteralScope(Scanner* self) : scanner_(self), complete_(false) {
-      scanner_->StartLiteral();
-    }
-    ~LiteralScope() {
-      if (!complete_) scanner_->DropLiteral();
-    }
-    void Complete() { complete_ = true; }
-
-   private:
-    Scanner* scanner_;
-    bool complete_;
-  };
 
   // LiteralBuffer -  Collector of chars of literals.
   class LiteralBuffer {
@@ -524,6 +529,24 @@ class Scanner {
     DISALLOW_COPY_AND_ASSIGN(LiteralBuffer);
   };
 
+  // Scoped helper for literal recording. Automatically drops the literal
+  // if aborting the scanning before it's complete.
+  class LiteralScope {
+   public:
+    explicit LiteralScope(Scanner* scanner)
+        : buffer_(&scanner->scan_target().literal_chars), complete_(false) {
+      buffer_->Start();
+    }
+    ~LiteralScope() {
+      if (!complete_) buffer_->Drop();
+    }
+    void Complete() { complete_ = true; }
+
+   private:
+    LiteralBuffer* buffer_;
+    bool complete_;
+  };
+
   // The current and look-ahead token.
   struct TokenDesc {
     Location location = {0, 0};
@@ -560,10 +583,6 @@ class Scanner {
     STATIC_ASSERT(kCharacterLookaheadBufferSize == 1);
     Advance();
 
-    current_ = &token_storage_[0];
-    next_ = &token_storage_[1];
-    next_next_ = &token_storage_[2];
-
     found_html_comment_ = false;
     scanner_error_ = MessageTemplate::kNone;
   }
@@ -585,23 +604,15 @@ class Scanner {
   void SeekNext(size_t position);
 
   // Literal buffer support
-  inline void StartLiteral() { next().literal_chars.Start(); }
-
-  inline void StartRawLiteral() { next().raw_literal_chars.Start(); }
-
-  V8_INLINE void AddLiteralChar(uc32 c) { next().literal_chars.AddChar(c); }
-
-  V8_INLINE void AddLiteralChar(char c) { next().literal_chars.AddChar(c); }
-
-  V8_INLINE void AddRawLiteralChar(uc32 c) {
-    next().raw_literal_chars.AddChar(c);
+  V8_INLINE void AddLiteralChar(uc32 c) {
+    scan_target().literal_chars.AddChar(c);
+  }
+  V8_INLINE void AddLiteralChar(char c) {
+    scan_target().literal_chars.AddChar(c);
   }
 
-  // Stops scanning of a literal and drop the collected characters,
-  // e.g., due to an encountered error.
-  inline void DropLiteral() {
-    next().literal_chars.Drop();
-    next().raw_literal_chars.Drop();
+  V8_INLINE void AddRawLiteralChar(uc32 c) {
+    scan_target().raw_literal_chars.AddChar(c);
   }
 
   inline void AddLiteralCharAdvance() {
@@ -795,17 +806,36 @@ class Scanner {
   LiteralBuffer source_url_;
   LiteralBuffer source_mapping_url_;
 
-  TokenDesc token_storage_[3];
+  static const int kNumberOfTokens = 1 << 2;
+  static const int kTokenStorageMask = kNumberOfTokens - 1;
 
-  TokenDesc& next() { return *next_; }
+  TokenDesc token_storage_[kNumberOfTokens];
+  // Index of current token in token_storage_.
+  int token_start_ = 0;
+  // Index of last scanned token in token_storage. We typically scan the next
+  // token aftewards. Initially this points to the initial current token since
+  // we always scan the next token and move the previous next to current.
+  int token_end_ = 0;
 
-  const TokenDesc& current() const { return *current_; }
-  const TokenDesc& next() const { return *next_; }
-  const TokenDesc& next_next() const { return *next_next_; }
+  void ResetTokenStorage() { token_start_ = token_end_ = 0; }
 
-  TokenDesc* current_;    // desc for current token (as returned by Next())
-  TokenDesc* next_;       // desc for next token (one token look-ahead)
-  TokenDesc* next_next_;  // desc for the token after next (after PeakAhead())
+  int TokenIndex(int i) const { return (token_start_ + i) & kTokenStorageMask; }
+
+  bool HasToken(int i) const {
+    return i <= ((token_end_ - token_start_) & kTokenStorageMask);
+  }
+
+  const TokenDesc& GetToken(int i) const {
+    DCHECK(HasToken(i));
+    return token_storage_[TokenIndex(i)];
+  }
+
+  const TokenDesc& current() const { return GetToken(0); }
+  const TokenDesc& next() const { return GetToken(1); }
+  const TokenDesc& next_next() const { return GetToken(2); }
+
+  TokenDesc& scan_target() { return token_storage_[token_end_]; }
+  TokenDesc& next_target() { return token_storage_[TokenIndex(1)]; }
 
   // Input stream. Must be initialized to an Utf16CharacterStream.
   Utf16CharacterStream* const source_;
