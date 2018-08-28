@@ -2670,19 +2670,16 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
     if (V8_UNLIKELY(FLAG_runtime_stats)) {
       if (should_preparse) {
-        RuntimeCallCounterId counter_id =
-            parsing_on_main_thread_
-                ? RuntimeCallCounterId::kPreParseWithVariableResolution
-                : RuntimeCallCounterId::
-                      kPreParseBackgroundWithVariableResolution;
-        if (is_top_level) {
-          counter_id = parsing_on_main_thread_
-                           ? RuntimeCallCounterId::kPreParseNoVariableResolution
-                           : RuntimeCallCounterId::
-                                 kPreParseBackgroundNoVariableResolution;
-        }
+        const RuntimeCallCounterId counters[2][2] = {
+            {RuntimeCallCounterId::kPreParseBackgroundNoVariableResolution,
+             RuntimeCallCounterId::kPreParseNoVariableResolution},
+            {RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
+             RuntimeCallCounterId::kPreParseWithVariableResolution}};
         if (runtime_call_stats_) {
-          runtime_call_stats_->CorrectCurrentCounterId(counter_id);
+          bool tracked_variables = PreParser::ShouldTrackUnresolvedVariables(
+              is_lazy_top_level_function);
+          runtime_call_stats_->CorrectCurrentCounterId(
+              counters[tracked_variables][parsing_on_main_thread_]);
         }
       }
     }
