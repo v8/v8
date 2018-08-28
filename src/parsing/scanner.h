@@ -237,31 +237,9 @@ class Scanner {
   void Initialize();
 
   // Returns the next token and advances input.
-  V8_INLINE Token::Value Next() {
-    // TODO(verwaest): Remove.
-    if (next().token == Token::EOS) {
-      next_target().location = current().location;
-    }
-    // Advance current token.
-    token_start_ = TokenIndex(1);
-    // Scan the next token if it's not yet ready.
-    if (V8_LIKELY(!HasToken(1))) Scan();
-    // Return current token.
-    DCHECK(HasToken(1));
-    return current().token;
-  }
-
+  Token::Value Next();
   // Returns the token following peek()
-  V8_INLINE Token::Value PeekAhead() {
-    DCHECK_NE(Token::DIV, next().token);
-    DCHECK_NE(Token::ASSIGN_DIV, next().token);
-    DCHECK(HasToken(1));
-
-    if (V8_LIKELY(!HasToken(2))) Scan();
-
-    return next_next().token;
-  }
-
+  Token::Value PeekAhead();
   // Returns the current token again.
   Token::Value current_token() { return current().token; }
 
@@ -395,8 +373,7 @@ class Scanner {
   // Scans the input as a template literal
   Token::Value ScanTemplateContinuation() {
     DCHECK_EQ(next().token, Token::RBRACE);
-    DCHECK(!HasToken(2));
-    DCHECK_EQ(source_pos() - 1, scan_target().location.beg_pos);
+    DCHECK_EQ(source_pos() - 1, next().location.beg_pos);
     return ScanTemplateSpan();
   }
 
@@ -535,7 +512,7 @@ class Scanner {
   class LiteralScope {
    public:
     explicit LiteralScope(Scanner* scanner)
-        : buffer_(&scanner->scan_target().literal_chars), complete_(false) {
+        : buffer_(&scanner->next().literal_chars), complete_(false) {
       buffer_->Start();
     }
     ~LiteralScope() {
@@ -584,6 +561,10 @@ class Scanner {
     STATIC_ASSERT(kCharacterLookaheadBufferSize == 1);
     Advance();
 
+    current_ = &token_storage_[0];
+    next_ = &token_storage_[1];
+    next_next_ = &token_storage_[2];
+
     found_html_comment_ = false;
     scanner_error_ = MessageTemplate::kNone;
   }
@@ -604,16 +585,12 @@ class Scanner {
   // Seek to the next_ token at the given position.
   void SeekNext(size_t position);
 
-  // Literal buffer support
-  V8_INLINE void AddLiteralChar(uc32 c) {
-    scan_target().literal_chars.AddChar(c);
-  }
-  V8_INLINE void AddLiteralChar(char c) {
-    scan_target().literal_chars.AddChar(c);
-  }
+  V8_INLINE void AddLiteralChar(uc32 c) { next().literal_chars.AddChar(c); }
+
+  V8_INLINE void AddLiteralChar(char c) { next().literal_chars.AddChar(c); }
 
   V8_INLINE void AddRawLiteralChar(uc32 c) {
-    scan_target().raw_literal_chars.AddChar(c);
+    next().raw_literal_chars.AddChar(c);
   }
 
   V8_INLINE void AddLiteralCharAdvance() {
@@ -737,7 +714,7 @@ class Scanner {
 
   // Scans a single JavaScript token.
   V8_INLINE Token::Value ScanSingleToken();
-  void Scan();
+  V8_INLINE void Scan();
 
   V8_INLINE Token::Value SkipWhiteSpace();
   Token::Value SkipSingleHTMLComment();
@@ -808,36 +785,17 @@ class Scanner {
   LiteralBuffer source_url_;
   LiteralBuffer source_mapping_url_;
 
-  static const int kNumberOfTokens = 1 << 2;
-  static const int kTokenStorageMask = kNumberOfTokens - 1;
+  TokenDesc token_storage_[3];
 
-  TokenDesc token_storage_[kNumberOfTokens];
-  // Index of current token in token_storage_.
-  int token_start_ = 0;
-  // Index of last scanned token in token_storage. We typically scan the next
-  // token aftewards. Initially this points to the initial current token since
-  // we always scan the next token and move the previous next to current.
-  int token_end_ = 0;
+  TokenDesc& next() { return *next_; }
 
-  void ResetTokenStorage() { token_start_ = token_end_ = 0; }
+  const TokenDesc& current() const { return *current_; }
+  const TokenDesc& next() const { return *next_; }
+  const TokenDesc& next_next() const { return *next_next_; }
 
-  int TokenIndex(int i) const { return (token_start_ + i) & kTokenStorageMask; }
-
-  bool HasToken(int i) const {
-    return i <= ((token_end_ - token_start_) & kTokenStorageMask);
-  }
-
-  const TokenDesc& GetToken(int i) const {
-    DCHECK(HasToken(i));
-    return token_storage_[TokenIndex(i)];
-  }
-
-  const TokenDesc& current() const { return GetToken(0); }
-  const TokenDesc& next() const { return GetToken(1); }
-  const TokenDesc& next_next() const { return GetToken(2); }
-
-  TokenDesc& scan_target() { return token_storage_[token_end_]; }
-  TokenDesc& next_target() { return token_storage_[TokenIndex(1)]; }
+  TokenDesc* current_;    // desc for current token (as returned by Next())
+  TokenDesc* next_;       // desc for next token (one token look-ahead)
+  TokenDesc* next_next_;  // desc for the token after next (after PeakAhead())
 
   // Input stream. Must be initialized to an Utf16CharacterStream.
   Utf16CharacterStream* const source_;

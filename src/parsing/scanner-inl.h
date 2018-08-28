@@ -159,7 +159,7 @@ V8_INLINE Token::Value Scanner::SkipWhiteSpace() {
     // Advance as long as character is a WhiteSpace or LineTerminator.
     // Remember if the latter is the case.
     if (unibrow::IsLineTerminator(c0_)) {
-      scan_target().after_line_terminator = true;
+      next().after_line_terminator = true;
     } else if (!unicode_cache_->IsWhiteSpace(c0_)) {
       break;
     }
@@ -178,7 +178,7 @@ V8_INLINE Token::Value Scanner::SkipWhiteSpace() {
 V8_INLINE Token::Value Scanner::ScanSingleToken() {
   Token::Value token;
   do {
-    scan_target().location.beg_pos = source_pos();
+    next().location.beg_pos = source_pos();
 
     if (static_cast<unsigned>(c0_) <= 0x7F) {
       Token::Value token = one_char_tokens[c0_];
@@ -242,7 +242,7 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
         Advance();
         if (c0_ == '-') {
           Advance();
-          if (c0_ == '>' && scan_target().after_line_terminator) {
+          if (c0_ == '>' && next().after_line_terminator) {
             // For compatibility with SpiderMonkey, we skip lines that
             // start with an HTML comment end '-->'.
             token = SkipSingleHTMLComment();
@@ -330,7 +330,7 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
           Token::Value token = ScanIdentifierOrKeyword();
           if (!Token::IsContextualKeyword(token)) return token;
 
-          scan_target().contextual_token = token;
+          next().contextual_token = token;
           return Token::IDENTIFIER;
         }
         if (IsDecimalDigit(c0_)) return ScanNumber(false);
@@ -342,6 +342,22 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
   } while (token == Token::WHITESPACE);
 
   return token;
+}
+
+void Scanner::Scan() {
+  next().literal_chars.Drop();
+  next().raw_literal_chars.Drop();
+  next().contextual_token = Token::UNINITIALIZED;
+  next().invalid_template_escape_message = MessageTemplate::kNone;
+
+  next().token = ScanSingleToken();
+  next().location.end_pos = source_pos();
+
+#ifdef DEBUG
+  SanityCheckTokenDesc(current());
+  SanityCheckTokenDesc(next());
+  SanityCheckTokenDesc(next_next());
+#endif
 }
 
 }  // namespace internal
