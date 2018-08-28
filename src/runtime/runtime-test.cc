@@ -10,6 +10,7 @@
 #include "src/api-inl.h"
 #include "src/arguments-inl.h"
 #include "src/assembler-inl.h"
+#include "src/base/platform/mutex.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler.h"
 #include "src/deoptimizer.h"
@@ -25,6 +26,9 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-serialization.h"
 
+namespace v8 {
+namespace internal {
+
 namespace {
 struct WasmCompileControls {
   uint32_t MaxWasmBufferSize = std::numeric_limits<uint32_t>::max();
@@ -32,14 +36,16 @@ struct WasmCompileControls {
 };
 
 // We need per-isolate controls, because we sometimes run tests in multiple
-// isolates
-// concurrently.
+// isolates concurrently. Methods need to hold the accompanying mutex on access.
 // To avoid upsetting the static initializer count, we lazy initialize this.
-v8::base::LazyInstance<std::map<v8::Isolate*, WasmCompileControls>>::type
+base::LazyInstance<std::map<v8::Isolate*, WasmCompileControls>>::type
     g_PerIsolateWasmControls = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<base::Mutex>::type g_PerIsolateWasmControlsMutex =
+    LAZY_INSTANCE_INITIALIZER;
 
 bool IsWasmCompileAllowed(v8::Isolate* isolate, v8::Local<v8::Value> value,
                           bool is_async) {
+  base::LockGuard<base::Mutex> guard(g_PerIsolateWasmControlsMutex.Pointer());
   DCHECK_GT(g_PerIsolateWasmControls.Get().count(isolate), 0);
   const WasmCompileControls& ctrls = g_PerIsolateWasmControls.Get().at(isolate);
   return (is_async && ctrls.AllowAnySizeForAsync) ||
@@ -52,6 +58,7 @@ bool IsWasmCompileAllowed(v8::Isolate* isolate, v8::Local<v8::Value> value,
 bool IsWasmInstantiateAllowed(v8::Isolate* isolate,
                               v8::Local<v8::Value> module_or_bytes,
                               bool is_async) {
+  base::LockGuard<base::Mutex> guard(g_PerIsolateWasmControlsMutex.Pointer());
   DCHECK_GT(g_PerIsolateWasmControls.Get().count(isolate), 0);
   const WasmCompileControls& ctrls = g_PerIsolateWasmControls.Get().at(isolate);
   if (is_async && ctrls.AllowAnySizeForAsync) return true;
@@ -90,9 +97,6 @@ bool WasmInstanceOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 }  // namespace
-
-namespace v8 {
-namespace internal {
 
 RUNTIME_FUNCTION(Runtime_ConstructDouble) {
   HandleScope scope(isolate);
@@ -477,6 +481,7 @@ RUNTIME_FUNCTION(Runtime_SetWasmCompileControls) {
   CHECK_EQ(args.length(), 2);
   CONVERT_ARG_HANDLE_CHECKED(Smi, block_size, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(allow_async, 1);
+  base::LockGuard<base::Mutex> guard(g_PerIsolateWasmControlsMutex.Pointer());
   WasmCompileControls& ctrl = (*g_PerIsolateWasmControls.Pointer())[v8_isolate];
   ctrl.AllowAnySizeForAsync = allow_async;
   ctrl.MaxWasmBufferSize = static_cast<uint32_t>(block_size->value());
