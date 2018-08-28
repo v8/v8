@@ -125,7 +125,7 @@ load('../base.js');
 var success = true;
 
 function PrintResult(name, result) {
-  print(name + '-ArrayLiteralInitialSpreadLarge(Score): ' + result);
+  print(name + '-ArrayLiteralInitialSpreadLargePacked(Score): ' + result);
 }
 
 function PrintError(name, error) {
