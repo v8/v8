@@ -1,0 +1,151 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module array {
+  macro LoadWithHoleCheck<Elements : type>(
+      elements: FixedArrayBase, index: Smi): Object
+  labels IfHole;
+
+  LoadWithHoleCheck<FixedArray>(elements: FixedArrayBase, index: Smi): Object
+  labels IfHole {
+    const elements: FixedArray = unsafe_cast<FixedArray>(elements);
+    const element: Object = elements[index];
+    if (element == Hole) goto IfHole;
+    return element;
+  }
+
+  LoadWithHoleCheck<FixedDoubleArray>(
+      elements: FixedArrayBase, index: Smi): Object
+  labels IfHole {
+    const elements: FixedDoubleArray = unsafe_cast<FixedDoubleArray>(elements);
+    const element: float64 = LoadDoubleWithHoleCheck(elements, index)
+    otherwise IfHole;
+    return AllocateHeapNumberWithValue(element);
+  }
+
+  macro FastArrayLastIndexOf<Elements : type>(
+      context: Context, array: JSArray, length: Smi, from: Smi,
+      searchElement: Object): Smi {
+    const elements: FixedArrayBase = array.elements;
+    let k: Smi = from;
+    while (k >= 0) {
+      try {
+        const element: Object = LoadWithHoleCheck<Elements>(elements, k)
+        otherwise Hole;
+
+        const same: Boolean = StrictEqual(searchElement, element);
+        if (same == True) {
+          assert(IsFastJSArray(array, context));
+          return k;
+        }
+      }
+      label Hole {}  // Do nothing for holes.
+
+      --k;
+    }
+
+    assert(IsFastJSArray(array, context));
+    return -1;
+  }
+
+  macro GetFromIndex(
+      context: Context, length: Number,
+      arguments: constexpr Arguments): Number {
+    // 4. If fromIndex is present, let n be ? ToInteger(fromIndex);
+    //    else let n be len - 1.
+    const n: Number = arguments.length < 2 ?
+        length - 1 :
+        ToInteger_Inline(context, arguments[1], kTruncateMinusZero);
+
+    // 5. If n >= 0, then.
+    let k: Number = SmiConstant(0);
+    if (n >= 0) {
+      // a. If n is -0, let k be +0; else let k be min(n, len - 1).
+      // If n was -0 it got truncated to 0.0, so taking the minimum is fine.
+      k = min(n, length - 1);
+    } else {
+      // a. Let k be len + n.
+      k = length + n;
+    }
+    return k;
+  }
+
+  macro TryFastArrayLastIndexOf(
+      context: Context, receiver: Object,
+      arguments: constexpr Arguments): Object
+  labels Slow {
+    EnsureFastJSArray(context, receiver) otherwise Slow;
+    const array: JSArray = unsafe_cast<JSArray>(receiver);
+
+    const length: Smi = array.length_fast;
+    if (length == 0) return SmiConstant(-1);
+
+    const from: Smi = cast<Smi>(GetFromIndex(context, length, arguments))
+    otherwise Slow;
+
+    const kind: ElementsKind = array.map.elements_kind;
+    if (IsFastSmiOrTaggedElementsKind(kind)) {
+      return FastArrayLastIndexOf<FixedArray>(
+          context, array, length, from, arguments[0]);
+    }
+    assert(IsDoubleElementsKind(kind));
+    return FastArrayLastIndexOf<FixedDoubleArray>(
+        context, array, length, from, arguments[0]);
+  }
+
+  macro GenericArrayLastIndexOf(
+      context: Context, receiver: Object,
+      arguments: constexpr Arguments): Object {
+    // 1. Let O be ? ToObject(this value).
+    const object: JSReceiver = ToObject_Inline(context, receiver);
+
+    // 2. Let len be ? ToLength(? Get(O, "length")).
+    const length: Number = GetLengthProperty(context, object);
+
+    // 3. If len is 0, return -1.
+    if (length == SmiConstant(0)) return SmiConstant(-1);
+
+    const search_element: Object = arguments[0];
+
+    // Step 4 - 6.
+    let k: Number = GetFromIndex(context, length, arguments);
+
+    // 7. Repeat, while k >= 0.
+    while (k >= 0) {
+      // a. Let kPresent be ? HasProperty(O, ! ToString(k)).
+      const k_present: Boolean = HasProperty(context, object, k);
+
+      // b. If kPresent is true, then.
+      if (k_present == True) {
+        // i. Let elementK be ? Get(O, ! ToString(k)).
+        const element: Object = GetProperty(context, object, k);
+
+        // ii. Let same be the result of performing Strict Equality Comparison
+        //     searchElement === elementK.
+        const same: Boolean = StrictEqual(search_element, element);
+
+        // iii. If same is true, return k.
+        if (same == True) return k;
+      }
+
+      // c. Decrease k by 1.
+      --k;
+    }
+
+    // 8. Return -1.
+    return SmiConstant(-1);
+  }
+
+  // https://tc39.github.io/ecma262/#sec-array.prototype.lastIndexOf
+  javascript builtin ArrayPrototypeLastIndexOf(
+      context: Context, receiver: Object, ...arguments): Object {
+    try {
+      return TryFastArrayLastIndexOf(context, receiver, arguments)
+      otherwise Baseline;
+    }
+    label Baseline {
+      return GenericArrayLastIndexOf(context, receiver, arguments);
+    }
+  }
+}

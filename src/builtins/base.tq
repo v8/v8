@@ -609,6 +609,10 @@ extern macro BranchIfFastJSArray(Object, Context): never labels Taken, NotTaken;
 extern macro BranchIfNotFastJSArray(Object, Context): never labels Taken,
     NotTaken;
 
+macro EnsureFastJSArray(context: Context, object: Object) labels Bailout {
+  if (BranchIfNotFastJSArray(object, context)) goto Bailout;
+}
+
 extern macro IsPrototypeInitialArrayPrototype(Context, Map): bool;
 extern macro IsNoElementsProtectorCellInvalid(): bool;
 extern macro IsArraySpeciesProtectorCellInvalid(): bool;
@@ -743,6 +747,7 @@ extern macro IsHeapNumber(HeapObject): bool;
 extern macro IsFixedArray(HeapObject): bool;
 extern macro IsExtensibleMap(Map): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;
+extern macro IsFastJSArray(Object, Context): bool;
 extern macro Typeof(Object): Object;
 
 // Return true iff number is NaN.

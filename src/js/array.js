@@ -700,56 +700,6 @@ function InnerArraySort(array, length, comparefn) {
 }
 
 
-DEFINE_METHOD_LEN(
-  GlobalArray.prototype,
-  lastIndexOf(element, index) {
-    var array = TO_OBJECT(this);
-    var length = TO_LENGTH(this.length);
-
-    if (length == 0) return -1;
-    if (arguments.length < 2) {
-      index = length - 1;
-    } else {
-      index = INVERT_NEG_ZERO(TO_INTEGER(index));
-      // If index is negative, index from end of the array.
-      if (index < 0) index += length;
-      // If index is still negative, do not search the array.
-      if (index < 0) return -1;
-      else if (index >= length) index = length - 1;
-    }
-    var min = 0;
-    var max = index;
-    if (UseSparseVariant(array, length, IS_ARRAY(array), index)) {
-      %NormalizeElements(array);
-      var indices = %GetArrayKeys(array, index + 1);
-      if (IS_NUMBER(indices)) {
-        // It's an interval.
-        max = indices;  // Capped by index already.
-        // Fall through to loop below.
-      } else {
-        if (indices.length == 0) return -1;
-        // Get all the keys in sorted order.
-        var sortedKeys = GetSortedArrayKeys(array, indices);
-        var i = sortedKeys.length - 1;
-        while (i >= 0) {
-          var key = sortedKeys[i];
-          if (array[key] === element) return key;
-          i--;
-        }
-        return -1;
-      }
-    }
-    // Lookup through the array.
-    for (var i = max; i >= min; i--) {
-      if (i in array && array[i] === element) return i;
-    }
-    return -1;
-  },
-  1  /* Set function length */
-);
-
-
-
 // Set up unscopable properties on the Array.prototype object.
 var unscopables = {
   __proto__: null,

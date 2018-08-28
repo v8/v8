@@ -561,6 +561,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kArrayPrototypeFlat:
     case Builtins::kArrayPrototypeFlatMap:
     case Builtins::kArrayPrototypeKeys:
+    case Builtins::kArrayPrototypeLastIndexOf:
     case Builtins::kArrayPrototypeSlice:
     case Builtins::kArrayPrototypeSort:
     case Builtins::kArrayForEach:
