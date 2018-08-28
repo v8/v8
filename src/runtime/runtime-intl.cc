@@ -374,20 +374,6 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   return *local_object;
 }
 
-RUNTIME_FUNCTION(Runtime_BreakIteratorNext) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(1, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
-
-  icu::BreakIterator* break_iterator =
-      V8BreakIterator::UnpackBreakIterator(break_iterator_holder);
-  CHECK_NOT_NULL(break_iterator);
-
-  return *isolate->factory()->NewNumberFromInt(break_iterator->next());
-}
-
 RUNTIME_FUNCTION(Runtime_BreakIteratorCurrent) {
   HandleScope scope(isolate);
 

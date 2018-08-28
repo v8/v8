@@ -1310,14 +1310,6 @@ DEFINE_METHOD(
 
 
 /**
- * Returns the index of the next break and moves the pointer.
- */
-function next(iterator) {
-  return %BreakIteratorNext(iterator);
-}
-
-
-/**
  * Returns index of the current break.
  */
 function current(iterator) {
@@ -1333,8 +1325,6 @@ function breakType(iterator) {
 }
 
 
-AddBoundMethod(GlobalIntlv8BreakIterator, 'next', next, 0,
-               BREAK_ITERATOR_TYPE, false);
 AddBoundMethod(GlobalIntlv8BreakIterator, 'current', current, 0,
                BREAK_ITERATOR_TYPE, false);
 AddBoundMethod(GlobalIntlv8BreakIterator, 'breakType', breakType, 0,

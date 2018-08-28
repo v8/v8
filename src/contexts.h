@@ -221,6 +221,8 @@ enum ContextLookupFlags {
     break_iterator_internal_adopt_text_shared_fun)                             \
   V(INTL_V8_BREAK_ITERATOR_INTERNAL_FIRST_SHARED_FUN, SharedFunctionInfo,      \
     break_iterator_internal_first_shared_fun)                                  \
+  V(INTL_V8_BREAK_ITERATOR_INTERNAL_NEXT_SHARED_FUN, SharedFunctionInfo,       \
+    break_iterator_internal_next_shared_fun)                                   \
   V(JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX, Map,                               \
     js_array_packed_smi_elements_map)                                          \
   V(JS_ARRAY_HOLEY_SMI_ELEMENTS_MAP_INDEX, Map,                                \
