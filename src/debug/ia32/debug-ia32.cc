@@ -28,19 +28,19 @@ void DebugCodegen::GenerateHandleDebuggerStatement(MacroAssembler* masm) {
 
 void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   // Frame is being dropped:
-  // - Drop to the target frame specified by ebx.
+  // - Drop to the target frame specified by eax.
   // - Look up current function on the frame.
   // - Leave the frame.
   // - Restart the frame by calling the function.
-  __ mov(ebp, ebx);
+  __ mov(ebp, eax);
   __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   __ leave();
 
-  __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ movzx_w(
-      ebx, FieldOperand(ebx, SharedFunctionInfo::kFormalParameterCountOffset));
+      eax, FieldOperand(eax, SharedFunctionInfo::kFormalParameterCountOffset));
 
-  ParameterCount dummy(ebx);
+  ParameterCount dummy(eax);
   __ InvokeFunction(edi, dummy, dummy, JUMP_FUNCTION);
 }
 

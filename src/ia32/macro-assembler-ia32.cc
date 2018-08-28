@@ -410,8 +410,8 @@ void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =
       ExternalReference::debug_restart_fp_address(isolate());
-  mov(ebx, StaticVariable(restart_fp));
-  test(ebx, ebx);
+  mov(eax, StaticVariable(restart_fp));
+  test(eax, eax);
   j(not_zero, BUILTIN_CODE(isolate(), FrameDropperTrampoline),
     RelocInfo::CODE_TARGET);
 }

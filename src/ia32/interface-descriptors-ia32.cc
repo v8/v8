@@ -266,7 +266,7 @@ void ResumeGeneratorDescriptor::InitializePlatformSpecific(
 void FrameDropperTrampolineDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      ebx,  // loaded new FP
+      eax,  // loaded new FP
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
