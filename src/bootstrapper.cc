@@ -3049,6 +3049,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
             factory->empty_string(), 0);
         native_context()->set_break_iterator_internal_next_shared_fun(*info);
       }
+
+      SimpleInstallGetter(isolate_, prototype,
+                          factory->InternalizeUtf8String("current"),
+                          Builtins::kBreakIteratorPrototypeCurrent, false);
+
+      {
+        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
+            isolate_, Builtins::kBreakIteratorInternalCurrent,
+            factory->empty_string(), 0);
+        native_context()->set_break_iterator_internal_current_shared_fun(*info);
+      }
     }
 
     {

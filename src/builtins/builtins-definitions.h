@@ -1409,7 +1409,9 @@ namespace internal {
   CPP(BreakIteratorInternalFirst)                                      \
   CPP(BreakIteratorPrototypeFirst)                                     \
   CPP(BreakIteratorInternalNext)                                       \
-  CPP(BreakIteratorPrototypeNext)
+  CPP(BreakIteratorPrototypeNext)                                      \
+  CPP(BreakIteratorInternalCurrent)                                    \
+  CPP(BreakIteratorPrototypeCurrent)
 #else
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)      \
   /* no-op fallback version */                \
