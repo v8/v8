@@ -32,24 +32,12 @@ void RunU64BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
   }
 }
 
-WASM_EXEC_TEST(I64AtomicAdd) {
-  RunU64BinOp(execution_tier, kExprI64AtomicAdd, Add);
-}
-WASM_EXEC_TEST(I64AtomicSub) {
-  RunU64BinOp(execution_tier, kExprI64AtomicSub, Sub);
-}
-WASM_EXEC_TEST(I64AtomicAnd) {
-  RunU64BinOp(execution_tier, kExprI64AtomicAnd, And);
-}
-WASM_EXEC_TEST(I64AtomicOr) {
-  RunU64BinOp(execution_tier, kExprI64AtomicOr, Or);
-}
-WASM_EXEC_TEST(I64AtomicXor) {
-  RunU64BinOp(execution_tier, kExprI64AtomicXor, Xor);
-}
-WASM_EXEC_TEST(I64AtomicExchange) {
-  RunU64BinOp(execution_tier, kExprI64AtomicExchange, Exchange);
-}
+#define TEST_OPERATION(Name)                                 \
+  WASM_EXEC_TEST(I64Atomic##Name) {                          \
+    RunU64BinOp(execution_tier, kExprI64Atomic##Name, Name); \
+  }
+OPERATION_LIST(TEST_OPERATION)
+#undef TEST_OPERATION
 
 void RunU32BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
                  Uint32BinOp expected_op) {
@@ -73,24 +61,12 @@ void RunU32BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
   }
 }
 
-WASM_EXEC_TEST(I64AtomicAdd32U) {
-  RunU32BinOp(execution_tier, kExprI64AtomicAdd32U, Add);
-}
-WASM_EXEC_TEST(I64AtomicSub32U) {
-  RunU32BinOp(execution_tier, kExprI64AtomicSub32U, Sub);
-}
-WASM_EXEC_TEST(I64AtomicAnd32U) {
-  RunU32BinOp(execution_tier, kExprI64AtomicAnd32U, And);
-}
-WASM_EXEC_TEST(I64AtomicOr32U) {
-  RunU32BinOp(execution_tier, kExprI64AtomicOr32U, Or);
-}
-WASM_EXEC_TEST(I64AtomicXor32U) {
-  RunU32BinOp(execution_tier, kExprI64AtomicXor32U, Xor);
-}
-WASM_EXEC_TEST(I64AtomicExchange32U) {
-  RunU32BinOp(execution_tier, kExprI64AtomicExchange32U, Exchange);
-}
+#define TEST_OPERATION(Name)                                      \
+  WASM_EXEC_TEST(I64Atomic##Name##32U) {                          \
+    RunU32BinOp(execution_tier, kExprI64Atomic##Name##32U, Name); \
+  }
+OPERATION_LIST(TEST_OPERATION)
+#undef TEST_OPERATION
 
 void RunU16BinOp(ExecutionTier tier, WasmOpcode wasm_op,
                  Uint16BinOp expected_op) {
@@ -114,24 +90,12 @@ void RunU16BinOp(ExecutionTier tier, WasmOpcode wasm_op,
   }
 }
 
-WASM_EXEC_TEST(I64AtomicAdd16U) {
-  RunU16BinOp(execution_tier, kExprI64AtomicAdd16U, Add);
-}
-WASM_EXEC_TEST(I64AtomicSub16U) {
-  RunU16BinOp(execution_tier, kExprI64AtomicSub16U, Sub);
-}
-WASM_EXEC_TEST(I64AtomicAnd16U) {
-  RunU16BinOp(execution_tier, kExprI64AtomicAnd16U, And);
-}
-WASM_EXEC_TEST(I64AtomicOr16U) {
-  RunU16BinOp(execution_tier, kExprI64AtomicOr16U, Or);
-}
-WASM_EXEC_TEST(I64AtomicXor16U) {
-  RunU16BinOp(execution_tier, kExprI64AtomicXor16U, Xor);
-}
-WASM_EXEC_TEST(I64AtomicExchange16U) {
-  RunU16BinOp(execution_tier, kExprI64AtomicExchange16U, Exchange);
-}
+#define TEST_OPERATION(Name)                                      \
+  WASM_EXEC_TEST(I64Atomic##Name##16U) {                          \
+    RunU16BinOp(execution_tier, kExprI64Atomic##Name##16U, Name); \
+  }
+OPERATION_LIST(TEST_OPERATION)
+#undef TEST_OPERATION
 
 void RunU8BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
                 Uint8BinOp expected_op) {
@@ -154,24 +118,12 @@ void RunU8BinOp(ExecutionTier execution_tier, WasmOpcode wasm_op,
   }
 }
 
-WASM_EXEC_TEST(I64AtomicAdd8U) {
-  RunU8BinOp(execution_tier, kExprI64AtomicAdd8U, Add);
-}
-WASM_EXEC_TEST(I64AtomicSub8U) {
-  RunU8BinOp(execution_tier, kExprI64AtomicSub8U, Sub);
-}
-WASM_EXEC_TEST(I64AtomicAnd8U) {
-  RunU8BinOp(execution_tier, kExprI64AtomicAnd8U, And);
-}
-WASM_EXEC_TEST(I64AtomicOr8U) {
-  RunU8BinOp(execution_tier, kExprI64AtomicOr8U, Or);
-}
-WASM_EXEC_TEST(I64AtomicXor8U) {
-  RunU8BinOp(execution_tier, kExprI64AtomicXor8U, Xor);
-}
-WASM_EXEC_TEST(I64AtomicExchange8U) {
-  RunU8BinOp(execution_tier, kExprI64AtomicExchange8U, Exchange);
-}
+#define TEST_OPERATION(Name)                                    \
+  WASM_EXEC_TEST(I64Atomic##Name##8U) {                         \
+    RunU8BinOp(execution_tier, kExprI64Atomic##Name##8U, Name); \
+  }
+OPERATION_LIST(TEST_OPERATION)
+#undef TEST_OPERATION
 
 WASM_EXEC_TEST(I64AtomicCompareExchange) {
   EXPERIMENTAL_FLAG_SCOPE(threads);

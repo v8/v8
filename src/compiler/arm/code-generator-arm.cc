@@ -453,11 +453,6 @@ void ComputePoisonedAddressForLoad(CodeGenerator* codegen,
     __ dmb(ISH);                                                            \
   } while (0)
 
-#define ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(op)       \
-  if (arch_opcode == kArmWord64AtomicNarrow##op) { \
-    __ mov(i.OutputRegister(1), Operand(0));       \
-  }
-
 #define ASSEMBLE_IEEE754_BINOP(name)                                           \
   do {                                                                         \
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
@@ -2684,23 +2679,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ sxtb(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kWord32AtomicExchangeUint8:
-    case kArmWord64AtomicNarrowExchangeUint8:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexb, strexb);
-      ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(ExchangeUint8);
       break;
     case kWord32AtomicExchangeInt16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexh, strexh);
       __ sxth(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kWord32AtomicExchangeUint16:
-    case kArmWord64AtomicNarrowExchangeUint16:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexh, strexh);
-      ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(ExchangeUint16);
       break;
     case kWord32AtomicExchangeWord32:
-    case kArmWord64AtomicNarrowExchangeUint32:
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrex, strex);
-      ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(ExchangeUint32);
       break;
     case kWord32AtomicCompareExchangeInt8:
       __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
@@ -2710,12 +2699,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ sxtb(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kWord32AtomicCompareExchangeUint8:
-    case kArmWord64AtomicNarrowCompareExchangeUint8:
       __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
       __ uxtb(i.TempRegister(2), i.InputRegister(2));
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexb, strexb,
                                                i.TempRegister(2));
-      ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(CompareExchangeUint8);
       break;
     case kWord32AtomicCompareExchangeInt16:
       __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
@@ -2725,19 +2712,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ sxth(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kWord32AtomicCompareExchangeUint16:
-    case kArmWord64AtomicNarrowCompareExchangeUint16:
       __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
       __ uxth(i.TempRegister(2), i.InputRegister(2));
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexh, strexh,
                                                i.TempRegister(2));
-      ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(CompareExchangeUint16);
       break;
     case kWord32AtomicCompareExchangeWord32:
-    case kArmWord64AtomicNarrowCompareExchangeUint32:
       __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrex, strex,
                                                i.InputRegister(2));
-      ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(CompareExchangeUint32);
       break;
 #define ATOMIC_BINOP_CASE(op, inst)                    \
   case kWord32Atomic##op##Int8:                        \
@@ -2745,23 +2728,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     __ sxtb(i.OutputRegister(0), i.OutputRegister(0)); \
     break;                                             \
   case kWord32Atomic##op##Uint8:                       \
-  case kArmWord64AtomicNarrow##op##Uint8:              \
     ASSEMBLE_ATOMIC_BINOP(ldrexb, strexb, inst);       \
-    ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(op##Uint8);       \
     break;                                             \
   case kWord32Atomic##op##Int16:                       \
     ASSEMBLE_ATOMIC_BINOP(ldrexh, strexh, inst);       \
     __ sxth(i.OutputRegister(0), i.OutputRegister(0)); \
     break;                                             \
   case kWord32Atomic##op##Uint16:                      \
-  case kArmWord64AtomicNarrow##op##Uint16:             \
     ASSEMBLE_ATOMIC_BINOP(ldrexh, strexh, inst);       \
-    ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(op##Uint16);      \
     break;                                             \
   case kWord32Atomic##op##Word32:                      \
-  case kArmWord64AtomicNarrow##op##Uint32:             \
     ASSEMBLE_ATOMIC_BINOP(ldrex, strex, inst);         \
-    ATOMIC_NARROW_OP_CLEAR_HIGH_WORD(op##Uint32);      \
     break;
       ATOMIC_BINOP_CASE(Add, add)
       ATOMIC_BINOP_CASE(Sub, sub)
@@ -2836,7 +2813,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #undef ATOMIC_LOGIC_BINOP_CASE
-#undef ATOMIC_NARROW_OP_CLEAR_HIGH_WORD
 #undef ASSEMBLE_ATOMIC_LOAD_INTEGER
 #undef ASSEMBLE_ATOMIC_STORE_INTEGER
 #undef ASSEMBLE_ATOMIC_EXCHANGE_INTEGER

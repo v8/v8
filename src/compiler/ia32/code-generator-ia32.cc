@@ -3674,27 +3674,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xchg(i.InputRegister(0), i.MemoryOperand(1));
       break;
     }
-    // For the narrow Word64 operations below, i.OutputRegister(1) contains
-    // the high-order 32 bits for the 64bit operation. As the data exchange
-    // fits in one register, the i.OutputRegister(1) needs to be cleared for
-    // the correct return value to be propagated back.
-    case kIA32Word64AtomicNarrowExchangeUint8: {
-      __ xchg_b(i.OutputRegister(0), i.MemoryOperand(1));
-      __ movzx_b(i.OutputRegister(0), i.OutputRegister(0));
-      __ xor_(i.OutputRegister(1), i.OutputRegister(1));
-      break;
-    }
-    case kIA32Word64AtomicNarrowExchangeUint16: {
-      __ xchg_w(i.OutputRegister(0), i.MemoryOperand(1));
-      __ movzx_w(i.OutputRegister(0), i.OutputRegister(0));
-      __ xor_(i.OutputRegister(1), i.OutputRegister(1));
-      break;
-    }
-    case kIA32Word64AtomicNarrowExchangeUint32: {
-      __ xchg(i.OutputRegister(0), i.MemoryOperand(1));
-      __ xor_(i.OutputRegister(1), i.OutputRegister(1));
-      break;
-    }
     case kIA32Word32AtomicPairExchange: {
       __ mov(i.OutputRegister(0), i.MemoryOperand(2));
       __ mov(i.OutputRegister(1), i.NextMemoryOperand(2));
@@ -3731,26 +3710,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ cmpxchg(i.MemoryOperand(2), i.InputRegister(1));
       break;
     }
-    case kIA32Word64AtomicNarrowCompareExchangeUint8: {
-      __ lock();
-      __ cmpxchg_b(i.MemoryOperand(2), i.InputRegister(1));
-      __ movzx_b(i.OutputRegister(0), i.OutputRegister(0));
-      __ xor_(i.OutputRegister(1), i.OutputRegister(1));
-      break;
-    }
-    case kIA32Word64AtomicNarrowCompareExchangeUint16: {
-      __ lock();
-      __ cmpxchg_w(i.MemoryOperand(2), i.InputRegister(1));
-      __ movzx_w(i.OutputRegister(0), i.OutputRegister(0));
-      __ xor_(i.OutputRegister(1), i.OutputRegister(1));
-      break;
-    }
-    case kIA32Word64AtomicNarrowCompareExchangeUint32: {
-      __ lock();
-      __ cmpxchg(i.MemoryOperand(2), i.InputRegister(1));
-      __ xor_(i.OutputRegister(1), i.OutputRegister(1));
-      break;
-    }
     case kIA32Word32AtomicPairCompareExchange: {
       __ lock();
       __ cmpxchg8b(i.MemoryOperand(4));
@@ -3760,12 +3719,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   case kWord32Atomic##op##Int8: {                         \
     ASSEMBLE_ATOMIC_BINOP(inst, mov_b, cmpxchg_b);        \
     __ movsx_b(eax, eax);                                 \
-    break;                                                \
-  }                                                       \
-  case kIA32Word64AtomicNarrow##op##Uint8: {              \
-    ASSEMBLE_ATOMIC_BINOP(inst, mov_b, cmpxchg_b);        \
-    __ movzx_b(i.OutputRegister(0), i.OutputRegister(0)); \
-    __ xor_(i.OutputRegister(1), i.OutputRegister(1));    \
     break;                                                \
   }                                                       \
   case kWord32Atomic##op##Uint8: {                        \
@@ -3778,20 +3731,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     __ movsx_w(eax, eax);                                 \
     break;                                                \
   }                                                       \
-  case kIA32Word64AtomicNarrow##op##Uint16: {             \
-    ASSEMBLE_ATOMIC_BINOP(inst, mov_w, cmpxchg_w);        \
-    __ movzx_w(i.OutputRegister(0), i.OutputRegister(0)); \
-    __ xor_(i.OutputRegister(1), i.OutputRegister(1));    \
-    break;                                                \
-  }                                                       \
   case kWord32Atomic##op##Uint16: {                       \
     ASSEMBLE_ATOMIC_BINOP(inst, mov_w, cmpxchg_w);        \
     __ movzx_w(eax, eax);                                 \
-    break;                                                \
-  }                                                       \
-  case kIA32Word64AtomicNarrow##op##Uint32: {             \
-    ASSEMBLE_ATOMIC_BINOP(inst, mov, cmpxchg);            \
-    __ xor_(i.OutputRegister(1), i.OutputRegister(1));    \
     break;                                                \
   }                                                       \
   case kWord32Atomic##op##Word32: {                       \

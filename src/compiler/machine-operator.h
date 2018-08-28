@@ -648,20 +648,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Word64AtomicOr(MachineType type);
   // atomic-xor [base + index], value
   const Operator* Word64AtomicXor(MachineType rep);
-  // atomic-narrow-add [base + index], value
-  const Operator* Word64AtomicNarrowAdd(MachineType type);
-  // atomic-narow-sub [base + index], value
-  const Operator* Word64AtomicNarrowSub(MachineType type);
-  // atomic-narrow-and [base + index], value
-  const Operator* Word64AtomicNarrowAnd(MachineType type);
-  // atomic-narrow-or [base + index], value
-  const Operator* Word64AtomicNarrowOr(MachineType type);
-  // atomic-narrow-xor [base + index], value
-  const Operator* Word64AtomicNarrowXor(MachineType type);
-  // atomic-narrow-exchange [base + index], value
-  const Operator* Word64AtomicNarrowExchange(MachineType type);
-  // atomic-narrow-compare-exchange [base + index], old_value, new_value
-  const Operator* Word64AtomicNarrowCompareExchange(MachineType type);
   // atomic-pair-load [base + index]
   const Operator* Word32AtomicPairLoad();
   // atomic-pair-sub [base + index], value_high, value-low
