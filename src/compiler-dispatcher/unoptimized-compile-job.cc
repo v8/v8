@@ -73,8 +73,6 @@ UnoptimizedCompileJob::UnoptimizedCompileJob(Isolate* isolate,
       allocator_(isolate->allocator()),
       context_(isolate->global_handles()->Create(isolate->context())),
       shared_(isolate->global_handles()->Create(*shared)),
-      worker_thread_runtime_stats_(
-          isolate->counters()->worker_thread_runtime_call_stats()),
       max_stack_size_(max_stack_size),
       trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
   DCHECK(!shared_->is_toplevel());
@@ -124,6 +122,10 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
   unicode_cache_.reset(new UnicodeCache());
   parse_info_->set_unicode_cache(unicode_cache_.get());
   parse_info_->set_function_literal_id(shared_->FunctionLiteralId(isolate));
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
+    parse_info_->set_runtime_call_stats(new (parse_info_->zone())
+                                            RuntimeCallStats());
+  }
 
   Handle<Script> script = parse_info->script();
   HandleScope scope(isolate);
@@ -193,17 +195,16 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
         ScannerStream::For(isolate, wrapper_, shared_->StartPosition() - offset,
                            shared_->EndPosition() - offset));
     parse_info_->set_character_stream(std::move(stream));
-    // Set script to null in parse_info so that it's not dereferenced on the
-    // background thread.
   }
+
+  parser_.reset(new Parser(parse_info_.get()));
+  parser_->DeserializeScopeChain(isolate, parse_info_.get(),
+                                 parse_info_->maybe_outer_scope_info());
 
   // Initailize the name after setting up the ast_value_factory.
   Handle<String> name(shared_->Name(), isolate);
   parse_info_->set_function_name(
-      parse_info_->GetOrCreateAstValueFactory()->GetString(name));
-  // Clear the parse info's script handle to ensure it's not dereferenced
-  // on the background thread.
-  parse_info->ClearScriptHandle();
+      parse_info_->ast_value_factory()->GetString(name));
 
   set_status(Status::kPrepared);
 }
@@ -222,19 +223,9 @@ void UnoptimizedCompileJob::Compile(bool on_background_thread) {
   DisallowHandleDereference no_deref;
 
   parse_info_->set_on_background_thread(on_background_thread);
-
-  base::Optional<WorkerThreadRuntimeCallStatsScope> runtime_call_stats_scope;
-  if (V8_UNLIKELY(FLAG_runtime_stats && on_background_thread)) {
-    runtime_call_stats_scope.emplace(worker_thread_runtime_stats_);
-    parse_info_->set_runtime_call_stats(runtime_call_stats_scope->Get());
-  }
-
   uintptr_t stack_limit = GetCurrentStackPosition() - max_stack_size_ * KB;
-  parse_info_->set_stack_limit(stack_limit);
-
-  parser_.reset(new Parser(parse_info_.get()));
   parser_->set_stack_limit(stack_limit);
-  parser_->InitializeEmptyScopeChain(parse_info_.get());
+  parse_info_->set_stack_limit(stack_limit);
   parser_->ParseOnBackground(parse_info_.get());
 
   if (parse_info_->literal() == nullptr) {
@@ -280,9 +271,10 @@ void UnoptimizedCompileJob::FinalizeOnMainThread(Isolate* isolate) {
   }
 
   Handle<Script> script(Script::cast(shared_->script()), isolate);
-  parse_info_->set_script(script);
+  DCHECK_EQ(*parse_info_->script(), shared_->script());
 
   parser_->UpdateStatistics(isolate, script);
+  parse_info_->UpdateBackgroundParseStatisticsOnMainThread(isolate);
   parser_->HandleSourceURLComments(isolate, script);
 
   {
