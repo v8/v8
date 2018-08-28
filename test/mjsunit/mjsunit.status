@@ -466,6 +466,9 @@
   # BUG(v8:7042). Uses a lot of memory.
   'regress/regress-678917': [SKIP],
 
+  # BUG(v8:8103). Uses a lot of memory.
+  'regress/regress-852258': [SKIP],
+
   # BUG(v8:6924). The test uses a lot of memory.
   'regress/wasm/regress-694433': [SKIP],
   'es6/typedarray': [PASS, NO_VARIANTS],
