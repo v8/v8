@@ -202,7 +202,6 @@ namespace internal {
   F(AvailableLocalesOf, 1, 1)                \
   F(BreakIteratorBreakType, 1, 1)            \
   F(BreakIteratorCurrent, 1, 1)              \
-  F(BreakIteratorFirst, 1, 1)                \
   F(BreakIteratorNext, 1, 1)                 \
   F(CanonicalizeLanguageTag, 1, 1)           \
   F(CollatorResolvedOptions, 1, 1)           \

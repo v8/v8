@@ -194,6 +194,7 @@ class V8BreakIterator {
   V(kBreakIterator, kPointerSize)  \
   V(kUnicodeString, kPointerSize)  \
   V(kBoundAdoptText, kPointerSize) \
+  V(kBoundFirst, kPointerSize)     \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, BREAK_ITERATOR_FIELDS)
@@ -214,6 +215,7 @@ class V8BreakIterator {
   static const int kBreakIteratorIndex = 0;
   static const int kUnicodeStringIndex = 1;
   static const int kBoundAdoptTextIndex = 2;
+  static const int kBoundFirstIndex = 3;
 
  private:
   V8BreakIterator();
