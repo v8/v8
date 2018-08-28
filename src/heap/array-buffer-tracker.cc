@@ -54,7 +54,6 @@ void LocalArrayBufferTracker::Process(Callback callback) {
         tracker->Add(new_buffer, length);
       }
       moved_memory += it->second.length;
-
     } else if (result == kRemoveEntry) {
       const size_t length = it->second.length;
       freed_memory += length;
@@ -67,11 +66,6 @@ void LocalArrayBufferTracker::Process(Callback callback) {
     } else {
       UNREACHABLE();
     }
-  }
-  if (moved_memory || freed_memory) {
-    // TODO(wez): Remove backing-store from external memory accounting.
-    page_->heap()->update_external_memory_concurrently_freed(
-        static_cast<intptr_t>(freed_memory));
   }
 
   array_buffers_.swap(kept_array_buffers);

@@ -294,7 +294,10 @@ local WHITELIST = {
    "StateTag",
 
    -- Ignore printing of elements transition.
-   "PrintElementsTransition"
+   "PrintElementsTransition",
+
+   -- Ignore GC reason method that returns a string (not GC trigger).
+   "GarbageCollectionReasonToString"
 };
 
 local function AddCause(name, cause)

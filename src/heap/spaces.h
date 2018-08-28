@@ -1018,11 +1018,13 @@ class Space : public Malloced {
   void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                           size_t amount) {
     external_backing_store_bytes_[type] += amount;
+    heap()->update_backing_store_bytes(static_cast<int64_t>(amount));
   }
   void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                           size_t amount) {
     DCHECK_GE(external_backing_store_bytes_[type], amount);
     external_backing_store_bytes_[type] -= amount;
+    heap()->update_backing_store_bytes(-static_cast<int64_t>(amount));
   }
 
   V8_EXPORT_PRIVATE void* GetRandomMmapAddr();

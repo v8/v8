@@ -135,6 +135,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
 // ArrayBuffer allocator that never allocates over 10MB.
 class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
+ protected:
   void* Allocate(size_t length) override {
     return ArrayBufferAllocatorBase::Allocate(Adjust(length));
   }
@@ -152,6 +153,37 @@ class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
     const size_t kAllocationLimit = 10 * kMB;
     return length > kAllocationLimit ? i::AllocatePageSize() : length;
   }
+};
+
+class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
+ public:
+  explicit MockArrayBufferAllocatiorWithLimit(size_t allocation_limit)
+      : space_left_(allocation_limit) {}
+
+ protected:
+  void* Allocate(size_t length) override {
+    if (length > space_left_) {
+      return nullptr;
+    }
+    space_left_ -= length;
+    return MockArrayBufferAllocator::Allocate(length);
+  }
+
+  void* AllocateUninitialized(size_t length) override {
+    if (length > space_left_) {
+      return nullptr;
+    }
+    space_left_ -= length;
+    return MockArrayBufferAllocator::AllocateUninitialized(length);
+  }
+
+  void Free(void* data, size_t length) override {
+    space_left_ += length;
+    return MockArrayBufferAllocator::Free(data, length);
+  }
+
+ private:
+  std::atomic<size_t> space_left_;
 };
 
 // Predictable v8::Platform implementation. Worker threads are disabled, idle
@@ -2789,6 +2821,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                strcmp(argv[i], "--no-stress-background-compile") == 0) {
       options.stress_background_compile = false;
       argv[i] = nullptr;
+    } else if (strncmp(argv[i], "--mock-arraybuffer-allocator-limit=", 35) ==
+               0) {
+      options.mock_arraybuffer_allocator = true;
+      options.mock_arraybuffer_allocator_limit = atoi(argv[i] + 35);
+      argv[i] = nullptr;
     } else if (strcmp(argv[i], "--noalways-opt") == 0 ||
                strcmp(argv[i], "--no-always-opt") == 0) {
       // No support for stressing if we can't use --always-opt.
@@ -3362,7 +3399,11 @@ int Shell::Main(int argc, char* argv[]) {
   Isolate::CreateParams create_params;
   ShellArrayBufferAllocator shell_array_buffer_allocator;
   MockArrayBufferAllocator mock_arraybuffer_allocator;
-  if (options.mock_arraybuffer_allocator) {
+  MockArrayBufferAllocatiorWithLimit mock_arraybuffer_allocator_limit(
+      options.mock_arraybuffer_allocator_limit);
+  if (options.mock_arraybuffer_allocator_limit > 0) {
+    Shell::array_buffer_allocator = &mock_arraybuffer_allocator_limit;
+  } else if (options.mock_arraybuffer_allocator) {
     Shell::array_buffer_allocator = &mock_arraybuffer_allocator;
   } else {
     Shell::array_buffer_allocator = &shell_array_buffer_allocator;

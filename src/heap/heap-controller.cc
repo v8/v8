@@ -66,35 +66,10 @@ double MemoryController::GrowingFactor(double gc_speed, double mutator_speed,
   return factor;
 }
 
-double MemoryController::MaxGrowingFactor(size_t curr_max_size) {
-  const double min_small_factor = 1.3;
-  const double max_small_factor = 2.0;
-  const double high_factor = 4.0;
-
-  size_t max_size_in_mb = curr_max_size / MB;
-  max_size_in_mb = Max(max_size_in_mb, kMinSize);
-
-  // If we are on a device with lots of memory, we allow a high heap
-  // growing factor.
-  if (max_size_in_mb >= kMaxSize) {
-    return high_factor;
-  }
-
-  DCHECK_GE(max_size_in_mb, kMinSize);
-  DCHECK_LT(max_size_in_mb, kMaxSize);
-
-  // On smaller devices we linearly scale the factor: (X-A)/(B-A)*(D-C)+C
-  double factor = (max_size_in_mb - kMinSize) *
-                      (max_small_factor - min_small_factor) /
-                      (kMaxSize - kMinSize) +
-                  min_small_factor;
-  return factor;
-}
-
 size_t MemoryController::CalculateAllocationLimit(
-    size_t curr_size, size_t max_size, double gc_speed, double mutator_speed,
-    size_t new_space_capacity, Heap::HeapGrowingMode growing_mode) {
-  double max_factor = MaxGrowingFactor(max_size);
+    size_t curr_size, size_t max_size, double max_factor, double gc_speed,
+    double mutator_speed, size_t new_space_capacity,
+    Heap::HeapGrowingMode growing_mode) {
   double factor = GrowingFactor(gc_speed, mutator_speed, max_factor);
 
   if (FLAG_trace_gc_verbose) {
@@ -125,7 +100,7 @@ size_t MemoryController::CalculateAllocationLimit(
                          MinimumAllocationLimitGrowingStep(growing_mode));
   limit += new_space_capacity;
   uint64_t halfway_to_the_max =
-      (static_cast<uint64_t>(curr_size) + max_size) / 2;
+      (static_cast<uint64_t>(curr_size) + static_cast<uint64_t>(max_size)) / 2;
   size_t result = static_cast<size_t>(Min(limit, halfway_to_the_max));
 
   if (FLAG_trace_gc_verbose) {
@@ -145,6 +120,31 @@ size_t MemoryController::MinimumAllocationLimitGrowingStep(
   return limit * (growing_mode == Heap::HeapGrowingMode::kConservative
                       ? kLowMemoryAllocationLimitGrowingStep
                       : kRegularAllocationLimitGrowingStep);
+}
+
+double HeapController::MaxGrowingFactor(size_t curr_max_size) {
+  const double min_small_factor = 1.3;
+  const double max_small_factor = 2.0;
+  const double high_factor = 4.0;
+
+  size_t max_size_in_mb = curr_max_size / MB;
+  max_size_in_mb = Max(max_size_in_mb, kMinSize);
+
+  // If we are on a device with lots of memory, we allow a high heap
+  // growing factor.
+  if (max_size_in_mb >= kMaxSize) {
+    return high_factor;
+  }
+
+  DCHECK_GE(max_size_in_mb, kMinSize);
+  DCHECK_LT(max_size_in_mb, kMaxSize);
+
+  // On smaller devices we linearly scale the factor: (X-A)/(B-A)*(D-C)+C
+  double factor = (max_size_in_mb - kMinSize) *
+                      (max_small_factor - min_small_factor) /
+                      (kMaxSize - kMinSize) +
+                  min_small_factor;
+  return factor;
 }
 
 }  // namespace internal

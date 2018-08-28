@@ -803,7 +803,6 @@ void MarkCompactCollector::Prepare() {
        space = spaces.next()) {
     space->PrepareForMarkCompact();
   }
-  heap()->account_external_memory_concurrently_freed();
 
 #ifdef VERIFY_HEAP
   if (!was_marked_incrementally_ && FLAG_verify_heap) {
@@ -3848,8 +3847,6 @@ void MinorMarkCompactCollector::CollectGarbage() {
           RememberedSet<OLD_TO_NEW>::PreFreeEmptyBuckets(chunk);
         }
       });
-
-  heap()->account_external_memory_concurrently_freed();
 }
 
 void MinorMarkCompactCollector::MakeIterable(

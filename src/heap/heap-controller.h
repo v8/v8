@@ -13,35 +13,51 @@
 namespace v8 {
 namespace internal {
 
+enum AvailableAllocationSpace {
+  kAboveAllocationLimit,
+  kCloseToAllocationLimit,
+  kBelowAllocationLimit,
+};
+
 class V8_EXPORT_PRIVATE MemoryController {
  public:
   MemoryController(Heap* heap, double min_growing_factor,
                    double max_growing_factor,
                    double conservative_growing_factor,
-                   double target_mutator_utilization, size_t min_size,
-                   size_t max_size)
+                   double target_mutator_utilization,
+                   double close_to_allocation_limit_factor)
       : heap_(heap),
         kMinGrowingFactor(min_growing_factor),
         kMaxGrowingFactor(max_growing_factor),
         kConservativeGrowingFactor(conservative_growing_factor),
         kTargetMutatorUtilization(target_mutator_utilization),
-        kMinSize(min_size),
-        kMaxSize(max_size) {}
+        kCloseToAllocationLimitFactor(close_to_allocation_limit_factor) {}
   virtual ~MemoryController() {}
 
   // Computes the allocation limit to trigger the next garbage collection.
   size_t CalculateAllocationLimit(size_t curr_size, size_t max_size,
-                                  double gc_speed, double mutator_speed,
+                                  double max_factor, double gc_speed,
+                                  double mutator_speed,
                                   size_t new_space_capacity,
                                   Heap::HeapGrowingMode growing_mode);
 
   // Computes the growing step when the limit increases.
   size_t MinimumAllocationLimitGrowingStep(Heap::HeapGrowingMode growing_mode);
 
+  AvailableAllocationSpace CheckAllocationLimit(size_t used_memory,
+                                                size_t allocation_limit) {
+    if (used_memory > allocation_limit) {
+      return AvailableAllocationSpace::kAboveAllocationLimit;
+    } else if (used_memory >
+               (kCloseToAllocationLimitFactor * allocation_limit)) {
+      return AvailableAllocationSpace::kCloseToAllocationLimit;
+    }
+    return AvailableAllocationSpace::kBelowAllocationLimit;
+  }
+
  protected:
   double GrowingFactor(double gc_speed, double mutator_speed,
                        double max_factor);
-  double MaxGrowingFactor(size_t curr_max_size);
   virtual const char* ControllerName() = 0;
 
   Heap* const heap_;
@@ -50,9 +66,7 @@ class V8_EXPORT_PRIVATE MemoryController {
   const double kMaxGrowingFactor;
   const double kConservativeGrowingFactor;
   const double kTargetMutatorUtilization;
-  // Sizes are in MB.
-  const size_t kMinSize;
-  const size_t kMaxSize;
+  const double kCloseToAllocationLimitFactor;
 
   FRIEND_TEST(HeapControllerTest, HeapGrowingFactor);
   FRIEND_TEST(HeapControllerTest, MaxHeapGrowingFactor);
@@ -60,18 +74,27 @@ class V8_EXPORT_PRIVATE MemoryController {
   FRIEND_TEST(HeapControllerTest, OldGenerationAllocationLimit);
 };
 
-class HeapController : public MemoryController {
+class V8_EXPORT_PRIVATE HeapController : public MemoryController {
  public:
-  explicit HeapController(Heap* heap)
-      : MemoryController(heap, 1.1, 4.0, 1.3, 0.97, kMinHeapSize,
-                         kMaxHeapSize) {}
-
   // Sizes are in MB.
-  static const size_t kMinHeapSize = 128 * Heap::kPointerMultiplier;
-  static const size_t kMaxHeapSize = 1024 * Heap::kPointerMultiplier;
+  static const size_t kMinSize = 128 * Heap::kPointerMultiplier;
+  static const size_t kMaxSize = 1024 * Heap::kPointerMultiplier;
+
+  explicit HeapController(Heap* heap)
+      : MemoryController(heap, 1.1, 4.0, 1.3, 0.97, 0.75) {}
+  double MaxGrowingFactor(size_t curr_max_size);
 
  protected:
   const char* ControllerName() { return "HeapController"; }
+};
+
+class GlobalMemoryController : public MemoryController {
+ public:
+  explicit GlobalMemoryController(Heap* heap)
+      : MemoryController(heap, 1.1, 4.0, 1.3, 0.97, 0.75) {}
+
+ protected:
+  const char* ControllerName() { return "GlobalMemoryController"; }
 };
 
 }  // namespace internal
