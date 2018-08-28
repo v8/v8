@@ -908,7 +908,7 @@ BytecodeGenerator::BytecodeGenerator(
       execution_context_(nullptr),
       execution_result_(nullptr),
       incoming_new_target_or_generator_(),
-      dummy_feedback_slot_(),
+      dummy_feedback_slot_(feedback_spec(), FeedbackSlotKind::kCompareOp),
       generator_jump_table_(nullptr),
       suspend_count_(0),
       loop_depth_(0),
@@ -2378,20 +2378,20 @@ void BytecodeGenerator::BuildArrayLiteralElementsInsertion(
                               : elements->end();
 
   // Evaluate subexpressions and store them into the array.
-  FeedbackSlot keyed_store_slot;
+  SharedFeedbackSlot keyed_store_slot(
+      feedback_spec(),
+      feedback_spec()->GetKeyedStoreICSlotKind(language_mode()));
+
   for (; iter != first_spread_or_end; ++iter, array_index++) {
     Expression* subexpr = *iter;
     DCHECK(!subexpr->IsSpread());
     if (skip_constants && subexpr->IsCompileTimeValue()) continue;
-    if (keyed_store_slot.IsInvalid()) {
-      keyed_store_slot = feedback_spec()->AddKeyedStoreICSlot(language_mode());
-    }
     builder()
         ->LoadLiteral(Smi::FromInt(array_index))
         .StoreAccumulatorInRegister(index);
     VisitForAccumulatorValue(subexpr);
     builder()->StoreKeyedProperty(
-        array, index, feedback_index(keyed_store_slot), language_mode());
+        array, index, feedback_index(keyed_store_slot.Get()), language_mode());
   }
   if (iter != elements->end()) {
     builder()->LoadLiteral(array_index).StoreAccumulatorInRegister(index);
@@ -5175,11 +5175,7 @@ FeedbackSlot BytecodeGenerator::GetCachedCreateClosureSlot(
 }
 
 FeedbackSlot BytecodeGenerator::GetDummyCompareICSlot() {
-  if (!dummy_feedback_slot_.IsInvalid()) {
-    return dummy_feedback_slot_;
-  }
-  dummy_feedback_slot_ = feedback_spec()->AddCompareICSlot();
-  return dummy_feedback_slot_;
+  return dummy_feedback_slot_.Get();
 }
 
 Runtime::FunctionId BytecodeGenerator::StoreToSuperRuntimeId() {
