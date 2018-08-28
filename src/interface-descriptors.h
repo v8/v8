@@ -690,12 +690,12 @@ class CallTrampolineDescriptor : public CallInterfaceDescriptor {
 
 class CallVarargsDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kTarget, kActualArgumentsCount, kArgumentsList,
-                    kArgumentsLength)
+  DEFINE_PARAMETERS(kTarget, kActualArgumentsCount, kArgumentsLength,
+                    kArgumentsList)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTarget
                          MachineType::Int32(),      // kActualArgumentsCount
-                         MachineType::AnyTagged(),  // kArgumentsList
-                         MachineType::Int32())      // kArgumentsLength
+                         MachineType::Int32(),      // kArgumentsLength
+                         MachineType::AnyTagged())  // kArgumentsList
   DECLARE_DESCRIPTOR(CallVarargsDescriptor, CallInterfaceDescriptor)
 };
 
@@ -727,9 +727,10 @@ class CallWithArrayLikeDescriptor : public CallInterfaceDescriptor {
 
 class ConstructVarargsDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_JS_PARAMETERS(kArgumentsList, kArgumentsLength)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged(),  // kArgumentsList
-                            MachineType::Int32())      // kArgumentsLength
+  DEFINE_JS_PARAMETERS(kArgumentsLength, kArgumentsList)
+  DEFINE_JS_PARAMETER_TYPES(MachineType::Int32(),      // kArgumentsLength
+                            MachineType::AnyTagged())  // kArgumentsList
+
   DECLARE_DESCRIPTOR(ConstructVarargsDescriptor, CallInterfaceDescriptor)
 };
 

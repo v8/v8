@@ -1657,9 +1657,9 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   // ----------- S t a t e -------------
   //  -- edi    : target
   //  -- eax    : number of parameters on the stack (not including the receiver)
-  //  -- ebx    : arguments list (a FixedArray)
   //  -- ecx    : len (number of elements to from args)
-  //  -- edx    : new.target (checked to be constructor or undefined)
+  //  -- ecx    : new.target (checked to be constructor or undefined)
+  //  -- esp[4] : arguments list (a FixedArray)
   //  -- esp[0] : return address.
   // -----------------------------------
 
@@ -1668,16 +1668,25 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ movd(xmm1, edi);
   __ movd(xmm2, eax);
 
+  // TODO(v8:6666): Remove this usage of ebx to enable kRootRegister support.
+  const Register kArgumentsList = ebx;
+  const Register kArgumentsLength = ecx;
+
+  __ PopReturnAddressTo(edx);
+  __ pop(kArgumentsList);
+  __ PushReturnAddressFrom(edx);
+
   if (masm->emit_debug_code()) {
-    // Allow ebx to be a FixedArray, or a FixedDoubleArray if ecx == 0.
+    // Allow kArgumentsList to be a FixedArray, or a FixedDoubleArray if
+    // kArgumentsLength == 0.
     Label ok, fail;
-    __ AssertNotSmi(ebx);
-    __ mov(edx, FieldOperand(ebx, HeapObject::kMapOffset));
+    __ AssertNotSmi(kArgumentsList);
+    __ mov(edx, FieldOperand(kArgumentsList, HeapObject::kMapOffset));
     __ CmpInstanceType(edx, FIXED_ARRAY_TYPE);
     __ j(equal, &ok);
     __ CmpInstanceType(edx, FIXED_DOUBLE_ARRAY_TYPE);
     __ j(not_equal, &fail);
-    __ cmp(ecx, 0);
+    __ cmp(kArgumentsLength, 0);
     __ j(equal, &ok);
     // Fall through.
     __ bind(&fail);
@@ -1700,7 +1709,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ add(edx, esp);
     __ sar(edx, kPointerSizeLog2);
     // Check if the arguments will overflow the stack.
-    __ cmp(edx, ecx);
+    __ cmp(edx, kArgumentsLength);
     __ j(greater, &done, Label::kNear);  // Signed comparison.
     __ TailCallRuntime(Runtime::kThrowStackOverflow);
     __ bind(&done);
@@ -1712,11 +1721,11 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ Move(eax, Immediate(0));
     Label done, push, loop;
     __ bind(&loop);
-    __ cmp(eax, ecx);
+    __ cmp(eax, kArgumentsLength);
     __ j(equal, &done, Label::kNear);
     // Turn the hole into undefined as we go.
-    __ mov(edi,
-           FieldOperand(ebx, eax, times_pointer_size, FixedArray::kHeaderSize));
+    __ mov(edi, FieldOperand(kArgumentsList, eax, times_pointer_size,
+                             FixedArray::kHeaderSize));
     __ CompareRoot(edi, Heap::kTheHoleValueRootIndex);
     __ j(not_equal, &push, Label::kNear);
     __ LoadRoot(edi, Heap::kUndefinedValueRootIndex);
@@ -1734,7 +1743,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ movd(edx, xmm0);
 
   // Compute the actual parameter count.
-  __ add(eax, ecx);
+  __ add(eax, kArgumentsLength);
 
   // Tail-call to the actual Call or Construct builtin.
   __ Jump(code, RelocInfo::CODE_TARGET);

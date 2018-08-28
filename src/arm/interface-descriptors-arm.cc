@@ -88,9 +88,9 @@ void CallVarargsDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // r0 : number of arguments (on the stack, not including receiver)
   // r1 : the target to call
-  // r2 : arguments list (FixedArray)
   // r4 : arguments list length (untagged)
-  Register registers[] = {r1, r0, r2, r4};
+  // r2 : arguments list (FixedArray)
+  Register registers[] = {r1, r0, r4, r2};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -125,9 +125,9 @@ void ConstructVarargsDescriptor::InitializePlatformSpecific(
   // r0 : number of arguments (on the stack, not including receiver)
   // r1 : the target to call
   // r3 : the new target
-  // r2 : arguments list (FixedArray)
   // r4 : arguments list length (untagged)
-  Register registers[] = {r1, r3, r0, r2, r4};
+  // r2 : arguments list (FixedArray)
+  Register registers[] = {r1, r3, r0, r4, r2};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

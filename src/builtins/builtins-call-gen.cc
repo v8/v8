@@ -211,11 +211,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     {
       if (new_target == nullptr) {
         Callable callable = CodeFactory::CallVarargs(isolate());
-        TailCallStub(callable, context, target, args_count, elements, length);
+        TailCallStub(callable, context, target, args_count, length, elements);
       } else {
         Callable callable = CodeFactory::ConstructVarargs(isolate());
-        TailCallStub(callable, context, target, new_target, args_count,
-                     elements, length);
+        TailCallStub(callable, context, target, new_target, args_count, length,
+                     elements);
       }
     }
 
@@ -266,11 +266,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
   {
     if (new_target == nullptr) {
       Callable callable = CodeFactory::CallVarargs(isolate());
-      TailCallStub(callable, context, target, args_count, new_elements, length);
+      TailCallStub(callable, context, target, args_count, length, new_elements);
     } else {
       Callable callable = CodeFactory::ConstructVarargs(isolate());
-      TailCallStub(callable, context, target, new_target, args_count,
-                   new_elements, length);
+      TailCallStub(callable, context, target, new_target, args_count, length,
+                   new_elements);
     }
   }
 }
@@ -346,11 +346,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
     if (new_target == nullptr) {
       Callable callable = CodeFactory::CallVarargs(isolate());
-      TailCallStub(callable, context, target, args_count, elements, length);
+      TailCallStub(callable, context, target, args_count, length, elements);
     } else {
       Callable callable = CodeFactory::ConstructVarargs(isolate());
-      TailCallStub(callable, context, target, new_target, args_count, elements,
-                   length);
+      TailCallStub(callable, context, target, new_target, args_count, length,
+                   elements);
     }
   }
 
