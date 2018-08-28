@@ -1124,19 +1124,6 @@ void ReportBootstrappingException(Handle<Object> exception,
 #endif
 }
 
-bool Isolate::is_catchable_by_wasm(Object* exception) {
-  // TODO(titzer): thread WASM features here, or just remove this check?
-  if (!FLAG_experimental_wasm_eh) return false;
-  if (!is_catchable_by_javascript(exception) || !exception->IsJSError())
-    return false;
-  HandleScope scope(this);
-  Handle<Object> exception_handle(exception, this);
-  return JSReceiver::HasProperty(Handle<JSReceiver>::cast(exception_handle),
-                                 factory()->InternalizeUtf8String(
-                                     wasm::WasmException::kRuntimeIdStr))
-      .IsJust();
-}
-
 Object* Isolate::Throw(Object* raw_exception, MessageLocation* location) {
   DCHECK(!has_pending_exception());
 
@@ -1310,11 +1297,10 @@ Object* Isolate::UnwindAndFindHandler() {
           trap_handler::ClearThreadInWasm();
         }
 
-        if (!is_catchable_by_wasm(exception)) {
-          break;
-        }
-        int stack_slots = 0;  // Will contain stack slot count of frame.
+        // For WebAssembly frames we perform a lookup in the handler table.
+        if (!catchable_by_js) break;
         WasmCompiledFrame* wasm_frame = static_cast<WasmCompiledFrame*>(frame);
+        int stack_slots = 0;  // Will contain stack slot count of frame.
         int offset = wasm_frame->LookupExceptionHandlerInTable(&stack_slots);
         if (offset < 0) break;
         // Compute the stack pointer from the frame pointer. This ensures that
@@ -1324,7 +1310,7 @@ Object* Isolate::UnwindAndFindHandler() {
                             stack_slots * kPointerSize;
 
         // This is going to be handled by Wasm, so we need to set the TLS flag
-        // again.
+        // again. It was cleared above assuming the frame would be unwound.
         trap_handler::SetThreadInWasm();
 
         set_wasm_caught_exception(exception);
