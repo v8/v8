@@ -2042,8 +2042,9 @@ Node* WasmGraphBuilder::Throw(uint32_t tag,
   Node* create_parameters[] = {
       BuildChangeUint31ToSmi(ConvertExceptionTagToRuntimeId(tag)),
       BuildChangeUint31ToSmi(Uint32Constant(encoded_size))};
-  BuildCallToRuntime(Runtime::kWasmThrowCreate, create_parameters,
-                     arraysize(create_parameters));
+  Node* except_obj =
+      BuildCallToRuntime(Runtime::kWasmThrowCreate, create_parameters,
+                         arraysize(create_parameters));
   uint32_t index = 0;
   const wasm::WasmExceptionSig* sig = exception->sig;
   MachineOperatorBuilder* m = mcgraph()->machine();
@@ -2054,7 +2055,7 @@ Node* WasmGraphBuilder::Throw(uint32_t tag,
         value = graph()->NewNode(m->BitcastFloat32ToInt32(), value);
         V8_FALLTHROUGH;
       case wasm::kWasmI32:
-        BuildEncodeException32BitValue(&index, value);
+        BuildEncodeException32BitValue(except_obj, &index, value);
         break;
       case wasm::kWasmF64:
         value = graph()->NewNode(m->BitcastFloat64ToInt64(), value);
@@ -2063,9 +2064,9 @@ Node* WasmGraphBuilder::Throw(uint32_t tag,
         Node* upper32 = graph()->NewNode(
             m->TruncateInt64ToInt32(),
             Binop(wasm::kExprI64ShrU, value, Int64Constant(32)));
-        BuildEncodeException32BitValue(&index, upper32);
+        BuildEncodeException32BitValue(except_obj, &index, upper32);
         Node* lower32 = graph()->NewNode(m->TruncateInt64ToInt32(), value);
-        BuildEncodeException32BitValue(&index, lower32);
+        BuildEncodeException32BitValue(except_obj, &index, lower32);
         break;
       }
       default:
@@ -2073,14 +2074,15 @@ Node* WasmGraphBuilder::Throw(uint32_t tag,
     }
   }
   DCHECK_EQ(encoded_size, index);
-  return BuildCallToRuntime(Runtime::kWasmThrow, nullptr, 0);
+  return BuildCallToRuntime(Runtime::kWasmThrow, &except_obj, 1);
 }
 
-void WasmGraphBuilder::BuildEncodeException32BitValue(uint32_t* index,
+void WasmGraphBuilder::BuildEncodeException32BitValue(Node* except_obj,
+                                                      uint32_t* index,
                                                       Node* value) {
   MachineOperatorBuilder* machine = mcgraph()->machine();
   Node* upper_parameters[] = {
-      BuildChangeUint31ToSmi(Int32Constant(*index)),
+      except_obj, BuildChangeUint31ToSmi(Int32Constant(*index)),
       BuildChangeUint31ToSmi(
           graph()->NewNode(machine->Word32Shr(), value, Int32Constant(16))),
   };
@@ -2088,7 +2090,7 @@ void WasmGraphBuilder::BuildEncodeException32BitValue(uint32_t* index,
                      arraysize(upper_parameters));
   ++(*index);
   Node* lower_parameters[] = {
-      BuildChangeUint31ToSmi(Int32Constant(*index)),
+      except_obj, BuildChangeUint31ToSmi(Int32Constant(*index)),
       BuildChangeUint31ToSmi(graph()->NewNode(machine->Word32And(), value,
                                               Int32Constant(0xFFFFu))),
   };
@@ -2109,9 +2111,9 @@ Node* WasmGraphBuilder::BuildDecodeException32BitValue(Node* const* values,
   return value;
 }
 
-Node* WasmGraphBuilder::Rethrow() {
+Node* WasmGraphBuilder::Rethrow(Node* except_obj) {
   SetNeedsStackCheck();
-  Node* result = BuildCallToRuntime(Runtime::kWasmThrow, nullptr, 0);
+  Node* result = BuildCallToRuntime(Runtime::kWasmThrow, &except_obj, 1);
   return result;
 }
 
@@ -2121,14 +2123,14 @@ Node* WasmGraphBuilder::ConvertExceptionTagToRuntimeId(uint32_t tag) {
   return Uint32Constant(tag);
 }
 
-Node* WasmGraphBuilder::GetExceptionRuntimeId() {
+Node* WasmGraphBuilder::GetExceptionRuntimeId(Node* except_obj) {
   SetNeedsStackCheck();
   return BuildChangeSmiToInt32(
-      BuildCallToRuntime(Runtime::kWasmGetExceptionRuntimeId, nullptr, 0));
+      BuildCallToRuntime(Runtime::kWasmGetExceptionRuntimeId, &except_obj, 1));
 }
 
 Node** WasmGraphBuilder::GetExceptionValues(
-    const wasm::WasmException* except_decl) {
+    Node* except_obj, const wasm::WasmException* except_decl) {
   // TODO(kschimpf): We need to move this code to the function-body-decoder.cc
   // in order to build landing-pad (exception) edges in case the runtime
   // call causes an exception.
@@ -2137,7 +2139,8 @@ Node** WasmGraphBuilder::GetExceptionValues(
   uint32_t encoded_size = GetExceptionEncodedSize(except_decl);
   Node** values = Buffer(encoded_size);
   for (uint32_t i = 0; i < encoded_size; ++i) {
-    Node* parameters[] = {BuildChangeUint31ToSmi(Uint32Constant(i))};
+    Node* parameters[] = {except_obj,
+                          BuildChangeUint31ToSmi(Uint32Constant(i))};
     values[i] = BuildCallToRuntime(Runtime::kWasmExceptionGetElement,
                                    parameters, arraysize(parameters));
   }

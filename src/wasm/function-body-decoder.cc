@@ -427,12 +427,13 @@ class WasmGraphBuildingInterface {
                       const ExceptionIndexImmediate<validate>& imm,
                       Control* block, Vector<Value> values) {
     DCHECK(block->is_try_catch());
+    TFNode* exception = block->try_info->exception;
     current_catch_ = block->previous_catch;
     SsaEnv* catch_env = block->try_info->catch_env;
     SetEnv(catch_env);
 
     TFNode* compare_i32 = nullptr;
-    if (block->try_info->exception == nullptr) {
+    if (exception == nullptr) {
       // Catch not applicable, no possible throws in the try
       // block. Create dummy code so that body of catch still
       // compiles. Note: This only happens because the current
@@ -443,7 +444,7 @@ class WasmGraphBuildingInterface {
       compare_i32 = BUILD(Int32Constant, 0);
     } else {
       // Get the exception and see if wanted exception.
-      TFNode* caught_tag = BUILD(GetExceptionRuntimeId);
+      TFNode* caught_tag = BUILD(GetExceptionRuntimeId, exception);
       TFNode* exception_tag = BUILD(ConvertExceptionTagToRuntimeId, imm.index);
       compare_i32 = BUILD(Binop, kExprI32Eq, caught_tag, exception_tag);
     }
@@ -460,13 +461,13 @@ class WasmGraphBuildingInterface {
     // TODO(kschimpf): Generalize to allow more catches. Will force
     // moving no_catch code to END opcode.
     SetEnv(if_no_catch_env);
-    BUILD(Rethrow);
+    BUILD(Rethrow, exception);
     Unreachable(decoder);
     EndControl(decoder, block);
 
     SetEnv(if_catch_env);
 
-    if (block->try_info->exception == nullptr) {
+    if (exception == nullptr) {
       // No caught value, make up filler nodes so that catch block still
       // compiles.
       for (Value& value : values) {
@@ -475,7 +476,8 @@ class WasmGraphBuildingInterface {
     } else {
       // TODO(kschimpf): Can't use BUILD() here, GetExceptionValues() returns
       // TFNode** rather than TFNode*. Fix to add landing pads.
-      TFNode** caught_values = builder_->GetExceptionValues(imm.exception);
+      TFNode** caught_values =
+          builder_->GetExceptionValues(exception, imm.exception);
       for (size_t i = 0, e = values.size(); i < e; ++i) {
         values[i].node = caught_values[i];
       }

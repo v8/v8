@@ -161,7 +161,6 @@ void ThreadLocalTop::Initialize(Isolate* isolate) {
 }
 
 void ThreadLocalTop::Free() {
-  wasm_caught_exception_ = nullptr;
   // Match unmatched PopPromise calls.
   while (promise_on_stack_) isolate_->PopPromise();
 }
@@ -252,7 +251,6 @@ void Isolate::IterateThread(ThreadVisitor* v, char* t) {
 void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   // Visit the roots from the top for a given thread.
   v->VisitRootPointer(Root::kTop, nullptr, &thread->pending_exception_);
-  v->VisitRootPointer(Root::kTop, nullptr, &thread->wasm_caught_exception_);
   v->VisitRootPointer(Root::kTop, nullptr, &thread->pending_message_obj_);
   v->VisitRootPointer(Root::kTop, nullptr,
                       bit_cast<Object**>(&(thread->context_)));
@@ -1313,7 +1311,7 @@ Object* Isolate::UnwindAndFindHandler() {
         // again. It was cleared above assuming the frame would be unwound.
         trap_handler::SetThreadInWasm();
 
-        set_wasm_caught_exception(exception);
+        // Gather information from the frame.
         wasm::WasmCode* wasm_code =
             wasm_engine()->code_manager()->LookupCode(frame->pc());
         return FoundHandler(nullptr, wasm_code->instruction_start(), offset,
