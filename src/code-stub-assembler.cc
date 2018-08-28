@@ -3286,11 +3286,10 @@ TNode<String> CodeStubAssembler::AllocateTwoByteConsString(
                             second, flags);
 }
 
-TNode<String> CodeStubAssembler::NewConsString(Node* context, TNode<Smi> length,
+TNode<String> CodeStubAssembler::NewConsString(TNode<Smi> length,
                                                TNode<String> left,
                                                TNode<String> right,
                                                AllocationFlags flags) {
-  CSA_ASSERT(this, IsContext(context));
   // Added string can be a cons string.
   Comment("Allocating ConsString");
   Node* left_instance_type = LoadInstanceType(left);
@@ -6486,8 +6485,8 @@ TNode<String> CodeStubAssembler::StringAdd(Node* context, TNode<String> left,
     GotoIf(SmiLessThan(new_length, SmiConstant(ConsString::kMinLength)),
            &non_cons);
 
-    result = NewConsString(context, new_length, var_left.value(),
-                           var_right.value(), flags);
+    result =
+        NewConsString(new_length, var_left.value(), var_right.value(), flags);
     Goto(&done_native);
 
     BIND(&non_cons);

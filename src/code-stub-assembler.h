@@ -1310,8 +1310,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Allocate an appropriate one- or two-byte ConsString with the first and
   // second parts specified by |left| and |right|.
-  TNode<String> NewConsString(Node* context, TNode<Smi> length,
-                              TNode<String> left, TNode<String> right,
+  TNode<String> NewConsString(TNode<Smi> length, TNode<String> left,
+                              TNode<String> right,
                               AllocationFlags flags = kNone);
 
   TNode<NameDictionary> AllocateNameDictionary(int at_least_space_for);
