@@ -458,22 +458,27 @@ Parser::Parser(ParseInfo* info)
   }
 }
 
-void Parser::DeserializeScopeChain(
-    Isolate* isolate, ParseInfo* info,
-    MaybeHandle<ScopeInfo> maybe_outer_scope_info) {
+void Parser::InitializeEmptyScopeChain(ParseInfo* info) {
+  DCHECK_NULL(original_scope_);
+  DCHECK_NULL(info->script_scope());
   // TODO(wingo): Add an outer SCRIPT_SCOPE corresponding to the native
   // context, which will have the "this" binding for script scopes.
   DeclarationScope* script_scope = NewScriptScope();
   info->set_script_scope(script_scope);
-  Scope* scope = script_scope;
+  original_scope_ = script_scope;
+}
+
+void Parser::DeserializeScopeChain(
+    Isolate* isolate, ParseInfo* info,
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info) {
+  InitializeEmptyScopeChain(info);
   Handle<ScopeInfo> outer_scope_info;
   if (maybe_outer_scope_info.ToHandle(&outer_scope_info)) {
     DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
-    scope = Scope::DeserializeScopeChain(
-        isolate, zone(), *outer_scope_info, script_scope, ast_value_factory(),
-        Scope::DeserializationMode::kScopesOnly);
+    original_scope_ = Scope::DeserializeScopeChain(
+        isolate, zone(), *outer_scope_info, info->script_scope(),
+        ast_value_factory(), Scope::DeserializationMode::kScopesOnly);
   }
-  original_scope_ = scope;
 }
 
 namespace {

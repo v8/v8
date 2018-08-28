@@ -942,6 +942,7 @@ class BackgroundCompileTask : public ScriptCompiler::ScriptStreamingTask {
  private:
   ScriptStreamingData* source_;  // Not owned.
   int stack_size_;
+  WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   AccountingAllocator* allocator_;
   TimedHistogram* timer_;
 
@@ -952,6 +953,8 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* source,
                                              Isolate* isolate)
     : source_(source),
       stack_size_(i::FLAG_stack_size),
+      worker_thread_runtime_call_stats_(
+          isolate->counters()->worker_thread_runtime_call_stats()),
       timer_(isolate->counters()->compile_script_on_background()) {
   VMState<PARSER> state(isolate);
 
@@ -960,16 +963,7 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* source,
   ParseInfo* info = new ParseInfo(isolate);
   LOG(isolate, ScriptEvent(Logger::ScriptEventType::kStreamingCompile,
                            info->script_id()));
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    info->set_runtime_call_stats(new (info->zone()) RuntimeCallStats());
-  } else {
-    info->set_runtime_call_stats(nullptr);
-  }
   info->set_toplevel();
-  std::unique_ptr<Utf16CharacterStream> stream(
-      ScannerStream::For(source->source_stream.get(), source->encoding,
-                         info->runtime_call_stats()));
-  info->set_character_stream(std::move(stream));
   info->set_unicode_cache(&source_->unicode_cache);
   info->set_allow_lazy_parsing();
   if (V8_UNLIKELY(info->block_coverage_enabled())) {
@@ -981,12 +975,6 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* source,
 
   source->info.reset(info);
   allocator_ = isolate->allocator();
-
-  // Parser needs to stay alive for finalizing the parsing on the main
-  // thread.
-  source_->parser.reset(new Parser(source_->info.get()));
-  source_->parser->DeserializeScopeChain(isolate, source_->info.get(),
-                                         MaybeHandle<ScopeInfo>());
 }
 
 void BackgroundCompileTask::Run() {
@@ -995,12 +983,29 @@ void BackgroundCompileTask::Run() {
 
   source_->info->set_on_background_thread(true);
 
+  // Get a runtime call stats table associated with the current worker thread.
+  WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(
+      worker_thread_runtime_call_stats_);
+  RuntimeCallStats* old_runtime_call_stats =
+      source_->info->runtime_call_stats();
+  source_->info->set_runtime_call_stats(runtime_call_stats_scope.Get());
+
   // Reset the stack limit of the parser to reflect correctly that we're on a
   // background thread.
   uintptr_t old_stack_limit = source_->info->stack_limit();
   uintptr_t stack_limit = GetCurrentStackPosition() - stack_size_ * KB;
   source_->info->set_stack_limit(stack_limit);
+
+  std::unique_ptr<Utf16CharacterStream> stream(
+      ScannerStream::For(source_->source_stream.get(), source_->encoding,
+                         source_->info->runtime_call_stats()));
+  source_->info->set_character_stream(std::move(stream));
+
+  // Parser needs to stay alive for finalizing the parsing on the main
+  // thread.
+  source_->parser.reset(new Parser(source_->info.get()));
   source_->parser->set_stack_limit(stack_limit);
+  source_->parser->InitializeEmptyScopeChain(source_->info.get());
 
   source_->parser->ParseOnBackground(source_->info.get());
   if (source_->info->literal() != nullptr) {
@@ -1009,10 +1014,9 @@ void BackgroundCompileTask::Run() {
         source_->info.get(), allocator_, &source_->inner_function_jobs);
   }
 
-  source_->info->EmitBackgroundParseStatisticsOnBackgroundThread();
-
-  source_->info->set_on_background_thread(false);
   source_->info->set_stack_limit(old_stack_limit);
+  source_->info->set_runtime_call_stats(old_runtime_call_stats);
+  source_->info->set_on_background_thread(false);
 }
 
 }  // namespace
@@ -1773,8 +1777,6 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   isolate->counters()->total_compile_size()->Increment(source_length);
 
   ParseInfo* parse_info = streaming_data->info.get();
-  parse_info->UpdateBackgroundParseStatisticsOnMainThread(isolate);
-
   // Check if compile cache already holds the SFI, if so no need to finalize
   // the code compiled on the background thread.
   CompilationCache* compilation_cache = isolate->compilation_cache();
