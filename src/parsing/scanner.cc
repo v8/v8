@@ -540,22 +540,19 @@ void Scanner::Scan() {
   next().invalid_template_escape_message = MessageTemplate::kNone;
 
   Token::Value token;
-  do {
-    if (static_cast<unsigned>(c0_) <= 0x7F) {
-      Token::Value token = static_cast<Token::Value>(one_char_tokens[c0_]);
-      if (token != Token::ILLEGAL) {
-        int pos = source_pos();
-        next().token = token;
-        next().contextual_token = Token::UNINITIALIZED;
-        next().location.beg_pos = pos;
-        next().location.end_pos = pos + 1;
-        Advance();
-        return;
-      }
-    }
+  Token::Value contextual_token = Token::UNINITIALIZED;
 
+  do {
     // Remember the position of the next token
     next().location.beg_pos = source_pos();
+
+    if (static_cast<unsigned>(c0_) <= 0x7F) {
+      token = static_cast<Token::Value>(one_char_tokens[c0_]);
+      if (token != Token::ILLEGAL) {
+        Advance();
+        break;
+      }
+    }
 
     switch (c0_) {
       case '"':
@@ -747,13 +744,16 @@ void Scanner::Scan() {
             (CombineSurrogatePair() &&
              unicode_cache_->IsIdentifierStart(c0_))) {
           token = ScanIdentifierOrKeyword();
+          if (Token::IsContextualKeyword(token)) {
+            contextual_token = token;
+            token = Token::IDENTIFIER;
+          }
         } else if (IsDecimalDigit(c0_)) {
           token = ScanNumber(false);
         } else if (c0_ == kEndOfInput) {
           token = Token::EOS;
         } else {
           token = SkipWhiteSpace();
-          if (token == Token::ILLEGAL) Advance();
         }
         break;
     }
@@ -763,13 +763,8 @@ void Scanner::Scan() {
   } while (token == Token::WHITESPACE);
 
   next().location.end_pos = source_pos();
-  if (Token::IsContextualKeyword(token)) {
-    next().token = Token::IDENTIFIER;
-    next().contextual_token = token;
-  } else {
-    next().token = token;
-    next().contextual_token = Token::UNINITIALIZED;
-  }
+  next().token = token;
+  next().contextual_token = contextual_token;
 
 #ifdef DEBUG
   SanityCheckTokenDesc(current());
