@@ -1304,7 +1304,6 @@ class ParserBase {
                                     bool* ok);
 
   bool IsNextLetKeyword();
-  bool IsTrivialExpression();
 
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
@@ -2890,14 +2889,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     ArrowFormalParametersUnexpectedToken();
   }
 
-  // Parse a simple, faster sub-grammar (primary expression) if it's evident
-  // that we have only a trivial expression to parse.
-  ExpressionT expression;
-  if (IsTrivialExpression()) {
-    expression = ParsePrimaryExpression(&is_async, CHECK_OK);
-  } else {
-    expression = ParseConditionalExpression(accept_IN, CHECK_OK);
-  }
+  ExpressionT expression = ParseConditionalExpression(accept_IN, CHECK_OK);
 
   if (is_async && impl()->IsIdentifier(expression) && peek_any_identifier() &&
       PeekAhead() == Token::ARROW) {
@@ -4326,25 +4318,6 @@ bool ParserBase<Impl>::IsNextLetKeyword() {
     default:
       return false;
   }
-}
-
-template <typename Impl>
-bool ParserBase<Impl>::IsTrivialExpression() {
-  Token::Value peek_token = peek();
-  if (peek_token == Token::SMI || peek_token == Token::NUMBER ||
-      peek_token == Token::BIGINT || peek_token == Token::NULL_LITERAL ||
-      peek_token == Token::TRUE_LITERAL || peek_token == Token::FALSE_LITERAL ||
-      peek_token == Token::STRING || peek_token == Token::IDENTIFIER ||
-      peek_token == Token::THIS) {
-    // PeekAhead() is expensive & may not always be called, so we only call it
-    // after checking peek().
-    Token::Value peek_ahead = PeekAhead();
-    if (peek_ahead == Token::COMMA || peek_ahead == Token::RPAREN ||
-        peek_ahead == Token::SEMICOLON || peek_ahead == Token::RBRACK) {
-      return true;
-    }
-  }
-  return false;
 }
 
 template <typename Impl>
