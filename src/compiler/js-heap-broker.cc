@@ -103,14 +103,24 @@ class HeapNumberData : public HeapObjectData {
  public:
   HeapNumberData(JSHeapBroker* broker_, Handle<HeapNumber> object_,
                  HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_) {}
+      : HeapObjectData(broker_, object_, type_), value_(object_->value()) {}
+
+  double value() const { return value_; }
+
+ private:
+  double const value_;
 };
 
 class MutableHeapNumberData : public HeapObjectData {
  public:
   MutableHeapNumberData(JSHeapBroker* broker_,
                         Handle<MutableHeapNumber> object_, HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_) {}
+      : HeapObjectData(broker_, object_, type_), value_(object_->value()) {}
+
+  double value() const { return value_; }
+
+ private:
+  double const value_;
 };
 
 class ContextData : public HeapObjectData {
@@ -1003,8 +1013,6 @@ BIMODAL_ACCESSOR(HeapObject, Map, map)
 HANDLE_ACCESSOR_C(HeapObject, bool, IsExternalString)
 HANDLE_ACCESSOR_C(HeapObject, bool, IsSeqString)
 
-HANDLE_ACCESSOR_C(HeapNumber, double, value)
-
 HANDLE_ACCESSOR(JSArray, Object, length)
 
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
@@ -1038,8 +1046,6 @@ HANDLE_ACCESSOR_C(Map, int, GetInObjectProperties)
 HANDLE_ACCESSOR_C(Map, int, GetInObjectPropertiesStartInWords)
 HANDLE_ACCESSOR_C(Map, int, NumberOfOwnDescriptors)
 HANDLE_ACCESSOR(Map, Object, constructor_or_backpointer)
-
-HANDLE_ACCESSOR_C(MutableHeapNumber, double, value)
 
 #define DEF_NATIVE_CONTEXT_ACCESSOR(type, name) \
   BIMODAL_ACCESSOR(NativeContext, type, name)
@@ -1120,6 +1126,16 @@ double ObjectRef::OddballToNumber() const {
       break;
     }
   }
+}
+
+double HeapNumberRef::value() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(HeapNumber, value);
+  return data()->AsHeapNumber()->value();
+}
+
+double MutableHeapNumberRef::value() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(MutableHeapNumber, value);
+  return data()->AsMutableHeapNumber()->value();
 }
 
 CellRef ModuleRef::GetCell(int cell_index) {
