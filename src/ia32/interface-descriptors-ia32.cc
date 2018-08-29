@@ -66,15 +66,14 @@ const Register ApiGetterDescriptor::HolderRegister() { return ecx; }
 const Register ApiGetterDescriptor::CallbackRegister() { return eax; }
 
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return eax; }
-const Register GrowArrayElementsDescriptor::KeyRegister() { return ebx; }
-
+const Register GrowArrayElementsDescriptor::KeyRegister() { return ecx; }
 
 // static
 const Register TypeConversionDescriptor::ArgumentRegister() { return eax; }
 
 void TypeofDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {ebx};
+  Register registers[] = {ecx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -163,8 +162,8 @@ void ConstructWithArrayLikeDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // edi : the target to call
   // edx : the new target
-  // ebx : the arguments list
-  Register registers[] = {edi, edx, ebx};
+  // ecx : the arguments list
+  Register registers[] = {edi, edx, ecx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
