@@ -141,6 +141,23 @@ class JSRegExpData : public JSObjectData {
   JSRegExpData(JSHeapBroker* broker_, Handle<JSRegExp> object_,
                HeapObjectType type_)
       : JSObjectData(broker_, object_, type_) {}
+
+  void SerializeAsRegExpBoilerplate();
+
+  ObjectData* raw_properties_or_hash() const { return raw_properties_or_hash_; }
+  ObjectData* data() const { return data_; }
+  ObjectData* source() const { return source_; }
+  ObjectData* flags() const { return flags_; }
+  ObjectData* last_index() const { return last_index_; }
+
+ private:
+  bool is_serialized_as_reg_exp_boilerplate_ = false;
+
+  ObjectData* raw_properties_or_hash_ = nullptr;
+  ObjectData* data_ = nullptr;
+  ObjectData* source_ = nullptr;
+  ObjectData* flags_ = nullptr;
+  ObjectData* last_index_ = nullptr;
 };
 
 class HeapNumberData : public HeapObjectData {
@@ -464,7 +481,7 @@ void FeedbackVectorData::SerializeSlots() {
     if (slot_value->IsAllocationSite()) {
       slot_value->AsAllocationSite()->SerializeBoilerplate();
     } else if (slot_value->IsJSRegExp()) {
-      slot_value->AsJSRegExp()->SerializeElements();
+      slot_value->AsJSRegExp()->SerializeAsRegExpBoilerplate();
     }
   }
   DCHECK_EQ(feedback_object->length(), feedback_.size());
@@ -771,6 +788,25 @@ void JSObjectData::SerializeRecursive(int depth) {
       inobject_fields_.push_back(JSObjectField{value_data});
     }
   }
+}
+
+void JSRegExpData::SerializeAsRegExpBoilerplate() {
+  if (is_serialized_as_reg_exp_boilerplate_) return;
+  is_serialized_as_reg_exp_boilerplate_ = true;
+
+  SerializeElements();
+
+  Handle<JSRegExp> boilerplate = Handle<JSRegExp>::cast(this->object);
+  raw_properties_or_hash_ = broker->GetOrCreateData(
+      handle(boilerplate->raw_properties_or_hash(), broker->isolate()));
+  data_ =
+      broker->GetOrCreateData(handle(boilerplate->data(), broker->isolate()));
+  source_ =
+      broker->GetOrCreateData(handle(boilerplate->source(), broker->isolate()));
+  flags_ =
+      broker->GetOrCreateData(handle(boilerplate->flags(), broker->isolate()));
+  last_index_ = broker->GetOrCreateData(
+      handle(boilerplate->last_index(), broker->isolate()));
 }
 
 ObjectData* ObjectData::Serialize(JSHeapBroker* broker, Handle<Object> object) {
@@ -1236,34 +1272,36 @@ double FixedDoubleArrayRef::get_scalar(int i) const {
     return object<holder>()->name();                     \
   }
 
+#define IF_BROKER_DISABLED_ACCESS_HANDLE(holder, result, name)                 \
+  if (broker()->mode() == JSHeapBroker::kDisabled) {                           \
+    AllowHandleAllocation handle_allocation;                                   \
+    AllowHandleDereference allow_handle_dereference;                           \
+    return result##Ref(broker(),                                               \
+                       handle(object<holder>()->name(), broker()->isolate())); \
+  }
+
 // Macros for definining a const getter that, depending on the broker mode,
 // either looks into the handle or into the serialized data. The first one is
 // used for the rare case of a XYZRef class that does not have a corresponding
 // XYZ class in objects.h. The second one is used otherwise.
-#define BIMODAL_ACCESSOR(holder, result, name)                              \
-  result##Ref holder##Ref::name() const {                                   \
-    if (broker()->mode() == JSHeapBroker::kDisabled) {                      \
-      AllowHandleAllocation handle_allocation;                              \
-      AllowHandleDereference allow_handle_dereference;                      \
-      return result##Ref(                                                   \
-          broker(), handle(object<holder>()->name(), broker()->isolate())); \
-    } else {                                                                \
-      return result##Ref(data()->As##holder()->name);                       \
-    }                                                                       \
+#define BIMODAL_ACCESSOR(holder, result, name)                 \
+  result##Ref holder##Ref::name() const {                      \
+    IF_BROKER_DISABLED_ACCESS_HANDLE(holder, result, name);    \
+    return result##Ref(ObjectRef::data()->As##holder()->name); \
   }
 
 // Like HANDLE_ACCESSOR except that the result type is not an XYZRef.
 #define BIMODAL_ACCESSOR_C(holder, result, name)      \
   result holder##Ref::name() const {                  \
     IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name); \
-    return data()->As##holder()->name;                \
+    return ObjectRef::data()->As##holder()->name;     \
   }
 
 // Like HANDLE_ACCESSOR_C but for BitFields.
-#define BIMODAL_ACCESSOR_B(holder, field, name, BitField)  \
-  typename BitField::FieldType holder##Ref::name() const { \
-    IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name);      \
-    return BitField::decode(data()->As##holder()->field);  \
+#define BIMODAL_ACCESSOR_B(holder, field, name, BitField)            \
+  typename BitField::FieldType holder##Ref::name() const {           \
+    IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name);                \
+    return BitField::decode(ObjectRef::data()->As##holder()->field); \
   }
 
 // Macros for definining a const getter that always looks into the handle.
@@ -1307,12 +1345,6 @@ BIMODAL_ACCESSOR(JSFunction, Object, prototype)
 HANDLE_ACCESSOR_C(JSFunction, bool, IsConstructor)
 HANDLE_ACCESSOR(JSFunction, JSGlobalProxy, global_proxy)
 HANDLE_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
-
-HANDLE_ACCESSOR(JSRegExp, Object, data)
-HANDLE_ACCESSOR(JSRegExp, Object, flags)
-HANDLE_ACCESSOR(JSRegExp, Object, last_index)
-HANDLE_ACCESSOR(JSRegExp, Object, raw_properties_or_hash)
-HANDLE_ACCESSOR(JSRegExp, Object, source)
 
 BIMODAL_ACCESSOR_B(Map, bit_field2, elements_kind, Map::ElementsKindBits)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
@@ -1500,6 +1532,31 @@ void FeedbackVectorRef::SerializeSlots() {
   data()->AsFeedbackVector()->SerializeSlots();
 }
 
+ObjectRef JSRegExpRef::data() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE(JSRegExp, Object, data);
+  return ObjectRef(ObjectRef::data()->AsJSRegExp()->data());
+}
+
+ObjectRef JSRegExpRef::flags() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE(JSRegExp, Object, flags);
+  return ObjectRef(ObjectRef::data()->AsJSRegExp()->flags());
+}
+
+ObjectRef JSRegExpRef::last_index() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE(JSRegExp, Object, last_index);
+  return ObjectRef(ObjectRef::data()->AsJSRegExp()->last_index());
+}
+
+ObjectRef JSRegExpRef::raw_properties_or_hash() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE(JSRegExp, Object, raw_properties_or_hash);
+  return ObjectRef(ObjectRef::data()->AsJSRegExp()->raw_properties_or_hash());
+}
+
+ObjectRef JSRegExpRef::source() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE(JSRegExp, Object, source);
+  return ObjectRef(ObjectRef::data()->AsJSRegExp()->source());
+}
+
 Handle<Object> ObjectRef::object() const { return data_->object; }
 
 JSHeapBroker* ObjectRef::broker() const { return data_->broker; }
@@ -1521,6 +1578,7 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
 #undef GET_OR_CREATE
 #undef HANDLE_ACCESSOR
 #undef HANDLE_ACCESSOR_C
+#undef IF_BROKER_DISABLED_ACCESS_HANDLE
 #undef IF_BROKER_DISABLED_ACCESS_HANDLE_C
 
 }  // namespace compiler
