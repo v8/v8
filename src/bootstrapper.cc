@@ -4653,6 +4653,9 @@ void Genesis::InitializeGlobal_harmony_intl_list_format() {
   list_format_fun->shared()->set_length(0);
   list_format_fun->shared()->DontAdaptArguments();
 
+  SimpleInstallFunction(isolate(), list_format_fun, "supportedLocalesOf",
+                        Builtins::kListFormatSupportedLocalesOf, 1, false);
+
   // Setup %ListFormatPrototype%.
   Handle<JSObject> prototype(
       JSObject::cast(list_format_fun->instance_prototype()), isolate());

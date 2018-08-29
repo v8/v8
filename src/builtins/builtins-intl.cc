@@ -744,6 +744,12 @@ BUILTIN(ListFormatPrototypeResolvedOptions) {
   return *JSListFormat::ResolvedOptions(isolate, format_holder);
 }
 
+BUILTIN(ListFormatSupportedLocalesOf) {
+  HandleScope scope(isolate);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, SupportedLocalesOfCommon(isolate, "listformat", args));
+}
+
 namespace {
 
 MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,

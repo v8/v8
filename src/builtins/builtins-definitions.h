@@ -1353,6 +1353,8 @@ namespace internal {
   /* ecma402 #sec-intl-list-format.prototype.formattoparts */          \
   TFJ(ListFormatPrototypeFormatToParts,                                \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                 \
+  /* ecma402 #sec-intl.ListFormat.supportedlocalesof */                \
+  CPP(ListFormatSupportedLocalesOf)                                    \
   /* ecma402 #sec-intl-locale-constructor */                           \
   CPP(LocaleConstructor)                                               \
   CPP(LocalePrototypeLanguage)                                         \
