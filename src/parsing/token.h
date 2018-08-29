@@ -131,7 +131,6 @@ namespace internal {
   K(NEW, "new", 0)                                                 \
   K(RETURN, "return", 0)                                           \
   K(SWITCH, "switch", 0)                                           \
-  K(THIS, "this", 0)                                               \
   K(THROW, "throw", 0)                                             \
   K(TRY, "try", 0)                                                 \
   /* TYPEOF */                                                     \
@@ -139,6 +138,7 @@ namespace internal {
   /* VOID */                                                       \
   K(WHILE, "while", 0)                                             \
   K(WITH, "with", 0)                                               \
+  K(THIS, "this", 0)                                               \
                                                                    \
   /* Literals (ECMA-262, section 7.8, page 16). */                 \
   K(NULL_LITERAL, "null", 0)                                       \
@@ -277,6 +277,10 @@ class Token {
   static bool IsCountOp(Value op) { return IsInRange(op, INC, DEC); }
 
   static bool IsShiftOp(Value op) { return IsInRange(op, SHL, SHR); }
+
+  static bool IsTrivialExpressionToken(Value op) {
+    return IsInRange(op, THIS, IDENTIFIER);
+  }
 
   // Returns a string corresponding to the JS token string
   // (.e., "<" for the token LT) or nullptr if the token doesn't

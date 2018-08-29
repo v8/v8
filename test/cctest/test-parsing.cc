@@ -277,6 +277,31 @@ TEST(IsShiftOp) {
   }
 }
 
+bool TokenIsTrivialExpressionToken(Token::Value tok) {
+  switch (tok) {
+    case Token::SMI:
+    case Token::NUMBER:
+    case Token::BIGINT:
+    case Token::NULL_LITERAL:
+    case Token::TRUE_LITERAL:
+    case Token::FALSE_LITERAL:
+    case Token::STRING:
+    case Token::IDENTIFIER:
+    case Token::THIS:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsTrivialExpressionToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value tok = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsTrivialExpressionToken(tok),
+             Token::IsTrivialExpressionToken(tok));
+  }
+}
+
 TEST(ScanKeywords) {
   struct KeywordToken {
     const char* keyword;
