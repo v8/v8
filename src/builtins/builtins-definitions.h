@@ -1208,7 +1208,7 @@ namespace internal {
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \
   TFC(WasmAllocateHeapNumber, AllocateHeapNumber, 1)                           \
-  TFC(WasmArgumentsAdaptor, ArgumentAdaptor, 1)                                \
+  TFC(WasmArgumentsAdaptor, ArgumentsAdaptor, 1)                               \
   TFC(WasmCallJavaScript, CallTrampoline, 1)                                   \
   TFC(WasmGrowMemory, WasmGrowMemory, 1)                                       \
   TFC(WasmStackGuard, NoContext, 1)                                            \

@@ -60,7 +60,7 @@ namespace internal {
   V(StringAt)                         \
   V(StringSubstring)                  \
   V(GetProperty)                      \
-  V(ArgumentAdaptor)                  \
+  V(ArgumentsAdaptor)                 \
   V(ApiCallback)                      \
   V(ApiGetter)                        \
   V(GrowArrayElements)                \
@@ -775,6 +775,7 @@ class ConstructWithArrayLikeDescriptor : public CallInterfaceDescriptor {
 // TODO(ishell): consider merging this with ArrayConstructorDescriptor
 class ConstructStubDescriptor : public CallInterfaceDescriptor {
  public:
+  // TODO(jgruber): Remove the unused allocation site parameter.
   DEFINE_JS_PARAMETERS(kAllocationSite)
   DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged());
 
@@ -895,11 +896,11 @@ class StringSubstringDescriptor final : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(StringSubstringDescriptor, CallInterfaceDescriptor)
 };
 
-class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {
+class ArgumentsAdaptorDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_JS_PARAMETERS(kExpectedArgumentsCount)
   DEFINE_JS_PARAMETER_TYPES(MachineType::Int32())
-  DECLARE_DESCRIPTOR(ArgumentAdaptorDescriptor, CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR(ArgumentsAdaptorDescriptor, CallInterfaceDescriptor)
 };
 
 class CppBuiltinAdaptorDescriptor : public CallInterfaceDescriptor {

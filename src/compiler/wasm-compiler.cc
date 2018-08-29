@@ -4533,7 +4533,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           }
 
           call_descriptor = Linkage::GetStubCallDescriptor(
-              mcgraph()->zone(), ArgumentAdaptorDescriptor{}, 1 + wasm_count,
+              mcgraph()->zone(), ArgumentsAdaptorDescriptor{}, 1 + wasm_count,
               CallDescriptor::kNoFlags, Operator::kNoProperties,
               StubCallMode::kCallWasmRuntimeStub);
 

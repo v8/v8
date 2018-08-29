@@ -172,8 +172,9 @@ void ConstructStubDescriptor::InitializePlatformSpecific(
   // eax : number of arguments
   // edx : the new target
   // edi : the target to call
-  // ebx : allocation site or undefined
-  Register registers[] = {edi, edx, eax, ebx};
+  // ecx : allocation site or undefined
+  // TODO(jgruber): Remove the unused allocation site parameter.
+  Register registers[] = {edi, edx, eax, ecx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -201,13 +202,13 @@ void BinaryOpDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
+void ArgumentsAdaptorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       edi,  // JSFunction
       edx,  // the new target
       eax,  // actual number of arguments
-      ebx,  // expected number of arguments
+      ecx,  // expected number of arguments
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

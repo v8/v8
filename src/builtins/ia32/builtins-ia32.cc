@@ -2116,10 +2116,6 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   __ AssertConstructor(edi);
   __ AssertFunction(edi);
 
-  // Calling convention for function specific ConstructStubs require
-  // ebx to contain either an AllocationSite or undefined.
-  __ LoadRoot(ebx, Heap::kUndefinedValueRootIndex);
-
   Label call_generic_stub;
 
   // Jump to JSBuiltinsConstructStub or JSConstructStubGeneric.
@@ -2128,10 +2124,16 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
           Immediate(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
   __ j(zero, &call_generic_stub, Label::kNear);
 
+  // Calling convention for function specific ConstructStubs require
+  // ecx to contain either an AllocationSite or undefined.
+  __ LoadRoot(ecx, Heap::kUndefinedValueRootIndex);
   __ Jump(BUILTIN_CODE(masm->isolate(), JSBuiltinsConstructStub),
           RelocInfo::CODE_TARGET);
 
   __ bind(&call_generic_stub);
+  // Calling convention for function specific ConstructStubs require
+  // ecx to contain either an AllocationSite or undefined.
+  __ LoadRoot(ecx, Heap::kUndefinedValueRootIndex);
   __ Jump(BUILTIN_CODE(masm->isolate(), JSConstructStubGeneric),
           RelocInfo::CODE_TARGET);
 }
@@ -2220,28 +2222,32 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : actual number of arguments
-  //  -- ebx : expected number of arguments
+  //  -- ecx : expected number of arguments
   //  -- edx : new target (passed through to callee)
   //  -- edi : function (passed through to callee)
   // -----------------------------------
+
+  const Register kExpectedNumberOfArgumentsRegister = ecx;
 
   Label invoke, dont_adapt_arguments, stack_overflow;
   __ IncrementCounter(masm->isolate()->counters()->arguments_adaptors(), 1);
 
   Label enough, too_few;
-  __ cmp(ebx, SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+  __ cmp(kExpectedNumberOfArgumentsRegister,
+         SharedFunctionInfo::kDontAdaptArgumentsSentinel);
   __ j(equal, &dont_adapt_arguments);
-  __ cmp(eax, ebx);
+  __ cmp(eax, kExpectedNumberOfArgumentsRegister);
   __ j(less, &too_few);
 
   {  // Enough parameters: Actual >= expected.
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
-    // edi is used as a scratch register. It should be restored from the frame
-    // when needed.
-    Generate_StackOverflowCheck(masm, ebx, ecx, &stack_overflow);
+    Generate_StackOverflowCheck(masm, kExpectedNumberOfArgumentsRegister, ebx,
+                                &stack_overflow);
 
     // Copy receiver and all expected arguments.
+    // edi is used as a scratch register. It should be restored from the frame
+    // when needed.
     const int offset = StandardFrameConstants::kCallerSPOffset;
     __ lea(edi, Operand(ebp, eax, times_4, offset));
     __ mov(eax, -1);  // account for receiver
@@ -2251,7 +2257,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ inc(eax);
     __ push(Operand(edi, 0));
     __ sub(edi, Immediate(kPointerSize));
-    __ cmp(eax, ebx);
+    __ cmp(eax, kExpectedNumberOfArgumentsRegister);
     __ j(less, &copy);
     // eax now contains the expected number of arguments.
     __ jmp(&invoke);
@@ -2262,16 +2268,17 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     EnterArgumentsAdaptorFrame(masm);
     // edi is used as a scratch register. It should be restored from the frame
     // when needed.
-    Generate_StackOverflowCheck(masm, ebx, ecx, &stack_overflow);
+    Generate_StackOverflowCheck(masm, kExpectedNumberOfArgumentsRegister, ebx,
+                                &stack_overflow);
 
-    // Remember expected arguments in ecx.
-    __ mov(ecx, ebx);
+    // Remember expected arguments in ebx.
+    __ mov(ebx, kExpectedNumberOfArgumentsRegister);
 
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
     __ lea(edi, Operand(ebp, eax, times_4, offset));
-    // ebx = expected - actual.
-    __ sub(ebx, eax);
+    // ecx = expected - actual.
+    __ sub(kExpectedNumberOfArgumentsRegister, eax);
     // eax = -actual - 1
     __ neg(eax);
     __ sub(eax, Immediate(1));
@@ -2289,11 +2296,11 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&fill);
     __ inc(eax);
     __ push(Immediate(masm->isolate()->factory()->undefined_value()));
-    __ cmp(eax, ebx);
+    __ cmp(eax, kExpectedNumberOfArgumentsRegister);
     __ j(less, &fill);
 
     // Restore expected arguments.
-    __ mov(eax, ecx);
+    __ mov(eax, ebx);
   }
 
   // Call the entry point.

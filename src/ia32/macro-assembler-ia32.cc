@@ -1079,6 +1079,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   }
 
   if (!definitely_matches) {
+    // TODO(v8:6666): All call-sites should be updated to pass in ecx as the
+    // expected register to avoid this useless move.
+    MoveForRootRegisterRefactoring(ecx, ebx);
     Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
     if (flag == CALL_FUNCTION) {
       Call(adaptor, RelocInfo::CODE_TARGET);

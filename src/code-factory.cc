@@ -218,7 +218,7 @@ Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
 // static
 Callable CodeFactory::ArgumentAdaptor(Isolate* isolate) {
   return Callable(BUILTIN_CODE(isolate, ArgumentsAdaptorTrampoline),
-                  ArgumentAdaptorDescriptor{});
+                  ArgumentsAdaptorDescriptor{});
 }
 
 // static
