@@ -45,6 +45,9 @@ class DateFormat {
   // Unpacks date format object from corresponding JavaScript object.
   static icu::SimpleDateFormat* UnpackDateFormat(Handle<JSObject> obj);
 
+  // Determine the TimeZone is valid.
+  static bool IsValidTimeZone(icu::SimpleDateFormat* date_format);
+
   // Release memory we allocated for the DateFormat once the JS object that
   // holds the pointer gets garbage collected.
   static void DeleteDateFormat(const v8::WeakCallbackInfo<void>& data);

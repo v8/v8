@@ -15,16 +15,18 @@
 #include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
-#ifdef V8_INTL_SUPPORT
-#include "src/objects/js-collator-inl.h"
-#endif  // V8_INTL_SUPPORT
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/js-collator-inl.h"
+#endif  // V8_INTL_SUPPORT
 #include "src/objects/js-collection-inl.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/js-date-time-format-inl.h"
+#endif  // V8_INTL_SUPPORT
 #include "src/objects/js-generator-inl.h"
-#include "src/objects/literal-objects-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
@@ -35,6 +37,7 @@
 #include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/js-relative-time-format-inl.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/literal-objects-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module-inl.h"
@@ -358,6 +361,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
 #ifdef V8_INTL_SUPPORT
     case JS_INTL_COLLATOR_TYPE:
       JSCollator::cast(this)->JSCollatorVerify(isolate);
+      break;
+    case JS_INTL_DATE_TIME_FORMAT_TYPE:
+      JSDateTimeFormat::cast(this)->JSDateTimeFormatVerify(isolate);
       break;
     case JS_INTL_LIST_FORMAT_TYPE:
       JSListFormat::cast(this)->JSListFormatVerify(isolate);
@@ -1876,6 +1882,10 @@ void JSCollator::JSCollatorVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kICUCollatorOffset);
   VerifyObjectField(isolate, kBoundCompareOffset);
+}
+
+void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
+  JSObjectVerify(isolate);
 }
 
 void JSListFormat::JSListFormatVerify(Isolate* isolate) {

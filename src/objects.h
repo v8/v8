@@ -76,6 +76,7 @@
 //         - JSMessageObject
 //         - JSModuleNamespace
 //         - JSCollator            // If V8_INTL_SUPPORT enabled.
+//         - JSDateTimeFormat      // If V8_INTL_SUPPORT enabled.
 //         - JSListFormat          // If V8_INTL_SUPPORT enabled.
 //         - JSLocale              // If V8_INTL_SUPPORT enabled.
 //         - JSPluralRules         // If V8_INTL_SUPPORT enabled.
@@ -583,6 +584,7 @@ enum InstanceType : uint16_t {
 
 #ifdef V8_INTL_SUPPORT
   JS_INTL_COLLATOR_TYPE,
+  JS_INTL_DATE_TIME_FORMAT_TYPE,
   JS_INTL_LIST_FORMAT_TYPE,
   JS_INTL_LOCALE_TYPE,
   JS_INTL_PLURAL_RULES_TYPE,
@@ -701,6 +703,7 @@ class JSGlobalObject;
 class JSGlobalProxy;
 #ifdef V8_INTL_SUPPORT
 class JSCollator;
+class JSDateTimeFormat;
 class JSListFormat;
 class JSLocale;
 class JSPluralRules;
@@ -912,6 +915,7 @@ class ZoneForwardList;
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
   HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)  \
   V(JSCollator)                           \
+  V(JSDateTimeFormat)                     \
   V(JSListFormat)                         \
   V(JSLocale)                             \
   V(JSPluralRules)                        \
@@ -1029,12 +1033,13 @@ class ZoneForwardList;
   V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)
 #ifdef V8_INTL_SUPPORT
 
-#define INSTANCE_TYPE_CHECKERS_SINGLE(V)      \
-  INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)       \
-  V(JSCollator, JS_INTL_COLLATOR_TYPE)        \
-  V(JSListFormat, JS_INTL_LIST_FORMAT_TYPE)   \
-  V(JSLocale, JS_INTL_LOCALE_TYPE)            \
-  V(JSPluralRules, JS_INTL_PLURAL_RULES_TYPE) \
+#define INSTANCE_TYPE_CHECKERS_SINGLE(V)             \
+  INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)              \
+  V(JSCollator, JS_INTL_COLLATOR_TYPE)               \
+  V(JSDateTimeFormat, JS_INTL_DATE_TIME_FORMAT_TYPE) \
+  V(JSListFormat, JS_INTL_LIST_FORMAT_TYPE)          \
+  V(JSLocale, JS_INTL_LOCALE_TYPE)                   \
+  V(JSPluralRules, JS_INTL_PLURAL_RULES_TYPE)        \
   V(JSRelativeTimeFormat, JS_INTL_RELATIVE_TIME_FORMAT_TYPE)
 
 #else

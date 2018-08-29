@@ -34,7 +34,6 @@ var InternalArray = utils.InternalArray;
 var MathMax = global.Math.max;
 var ObjectHasOwnProperty = global.Object.prototype.hasOwnProperty;
 var ObjectKeys = global.Object.keys;
-var patternSymbol = utils.ImportNow("intl_pattern_symbol");
 var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
 var StringSubstr = GlobalString.prototype.substr;
 var StringSubstring = GlobalString.prototype.substring;
@@ -153,18 +152,6 @@ function GetAnyExtensionRE() {
     ANY_EXTENSION_RE = new GlobalRegExp('-[a-z0-9]{1}-.*', 'g');
   }
   return ANY_EXTENSION_RE;
-}
-
-/**
- * Replace quoted text (single quote, anything but the quote and quote again).
- */
-var QUOTED_STRING_RE = UNDEFINED;
-
-function GetQuotedStringRE() {
-  if (IS_UNDEFINED(QUOTED_STRING_RE)) {
-    QUOTED_STRING_RE = new GlobalRegExp("'[^']+'", 'g');
-  }
-  return QUOTED_STRING_RE;
 }
 
 /**
@@ -513,7 +500,6 @@ function getAvailableLocalesOf(service) {
   return available;
 }
 
-
 /**
  * Defines a property and sets writable, enumerable and configurable to true.
  */
@@ -523,18 +509,6 @@ function defineWECProperty(object, property, value) {
                                              enumerable: true,
                                              configurable: true});
 }
-
-
-/**
- * Adds property to an object if the value is not undefined.
- * Sets all descriptors to true.
- */
-function addWECPropertyIfDefined(object, property, value) {
-  if (!IS_UNDEFINED(value)) {
-    defineWECProperty(object, property, value);
-  }
-}
-
 
 /**
  * Returns titlecased word, aMeRricA -> America.
@@ -898,85 +872,6 @@ function appendToLDMLString(option, pairs) {
   }
 }
 
-
-/**
- * Returns object that matches LDML representation of the date.
- */
-function fromLDMLString(ldmlString) {
-  // First remove '' quoted text, so we lose 'Uhr' strings.
-  ldmlString = %RegExpInternalReplace(GetQuotedStringRE(), ldmlString, '');
-
-  var options = {__proto__: null};
-  var match = %regexp_internal_match(/E{3,5}/, ldmlString);
-  options = appendToDateTimeObject(
-      options, 'weekday', match, {EEEEE: 'narrow', EEE: 'short', EEEE: 'long'});
-
-  match = %regexp_internal_match(/G{3,5}/, ldmlString);
-  options = appendToDateTimeObject(
-      options, 'era', match, {GGGGG: 'narrow', GGG: 'short', GGGG: 'long'});
-
-  match = %regexp_internal_match(/y{1,2}/, ldmlString);
-  options = appendToDateTimeObject(
-      options, 'year', match, {y: 'numeric', yy: '2-digit'});
-
-  match = %regexp_internal_match(/M{1,5}/, ldmlString);
-  options = appendToDateTimeObject(options, 'month', match, {MM: '2-digit',
-      M: 'numeric', MMMMM: 'narrow', MMM: 'short', MMMM: 'long'});
-
-  // Sometimes we get L instead of M for month - standalone name.
-  match = %regexp_internal_match(/L{1,5}/, ldmlString);
-  options = appendToDateTimeObject(options, 'month', match, {LL: '2-digit',
-      L: 'numeric', LLLLL: 'narrow', LLL: 'short', LLLL: 'long'});
-
-  match = %regexp_internal_match(/d{1,2}/, ldmlString);
-  options = appendToDateTimeObject(
-      options, 'day', match, {d: 'numeric', dd: '2-digit'});
-
-  match = %regexp_internal_match(/h{1,2}/, ldmlString);
-  if (match !== null) {
-    options['hour12'] = true;
-  }
-  options = appendToDateTimeObject(
-      options, 'hour', match, {h: 'numeric', hh: '2-digit'});
-
-  match = %regexp_internal_match(/H{1,2}/, ldmlString);
-  if (match !== null) {
-    options['hour12'] = false;
-  }
-  options = appendToDateTimeObject(
-      options, 'hour', match, {H: 'numeric', HH: '2-digit'});
-
-  match = %regexp_internal_match(/m{1,2}/, ldmlString);
-  options = appendToDateTimeObject(
-      options, 'minute', match, {m: 'numeric', mm: '2-digit'});
-
-  match = %regexp_internal_match(/s{1,2}/, ldmlString);
-  options = appendToDateTimeObject(
-      options, 'second', match, {s: 'numeric', ss: '2-digit'});
-
-  match = %regexp_internal_match(/z|zzzz/, ldmlString);
-  options = appendToDateTimeObject(
-      options, 'timeZoneName', match, {z: 'short', zzzz: 'long'});
-
-  return options;
-}
-
-
-function appendToDateTimeObject(options, option, match, pairs) {
-  if (IS_NULL(match)) {
-    if (!HAS_OWN_PROPERTY(options, option)) {
-      %DefineWEProperty(options, option, UNDEFINED);
-    }
-    return options;
-  }
-
-  var property = match[0];
-  %DefineWEProperty(options, option, pairs[property]);
-
-  return options;
-}
-
-
 /**
  * Returns options with at least default values in it.
  */
@@ -1083,35 +978,18 @@ function CreateDateTimeFormat(locales, options) {
                              getOption, internalOptions);
 
   var requestedLocale = locale.locale + extension;
-  var resolved = %object_define_properties({__proto__: null}, {
-    calendar: {writable: true},
-    day: {writable: true},
-    era: {writable: true},
-    hour12: {writable: true},
-    hour: {writable: true},
-    locale: {writable: true},
-    minute: {writable: true},
-    month: {writable: true},
-    numberingSystem: {writable: true},
-    [patternSymbol]: {writable: true},
-    requestedLocale: {value: requestedLocale, writable: true},
-    second: {writable: true},
-    timeZone: {writable: true},
-    timeZoneName: {writable: true},
-    tz: {value: tz, writable: true},
-    weekday: {writable: true},
-    year: {writable: true}
-  });
+  // Still need to store locale and numberingSystem till we move the storage
+  // to JSDateTimeFormat
+  var resolved = {__proto__: null};
 
   var dateFormat = %CreateDateTimeFormat(
     requestedLocale,
     {__proto__: null, skeleton: ldmlString, timeZone: tz}, resolved);
 
-  if (resolved.timeZone === "Etc/Unknown") {
-    throw %make_range_error(kInvalidTimeZone, tz);
-  }
-
   %MarkAsInitializedIntlObjectOfType(dateFormat, DATE_TIME_FORMAT_TYPE);
+
+  // Still need to store locale and numberingSystem till we move the storage
+  // to JSDateTimeFormat
   dateFormat[resolvedSymbol] = resolved;
 
   return dateFormat;
@@ -1130,59 +1008,13 @@ function DateTimeFormatConstructor() {
 }
 %SetCode(GlobalIntlDateTimeFormat, DateTimeFormatConstructor);
 
-
 /**
  * DateTimeFormat resolvedOptions method.
  */
 DEFINE_METHOD(
   GlobalIntlDateTimeFormat.prototype,
   resolvedOptions() {
-    var methodName = 'resolvedOptions';
-    if(!IS_RECEIVER(this)) {
-      throw %make_type_error(kIncompatibleMethodReceiver, methodName, this);
-    }
-    var format = %IntlUnwrapReceiver(this, DATE_TIME_FORMAT_TYPE,
-                                     GlobalIntlDateTimeFormat,
-                                     methodName, true);
-
-    /**
-     * Maps ICU calendar names to LDML/BCP47 types for key 'ca'.
-     * See typeMap section in third_party/icu/source/data/misc/keyTypeData.txt
-     * and
-     * http://www.unicode.org/repos/cldr/tags/latest/common/bcp47/calendar.xml
-     */
-    var ICU_CALENDAR_MAP = {
-      __proto__: null,
-      'gregorian': 'gregory',
-      'ethiopic-amete-alem': 'ethioaa'
-    };
-
-    var fromPattern = fromLDMLString(format[resolvedSymbol][patternSymbol]);
-    var userCalendar = ICU_CALENDAR_MAP[format[resolvedSymbol].calendar];
-    if (IS_UNDEFINED(userCalendar)) {
-      // No match means that ICU's legacy name is identical to LDML/BCP type.
-      userCalendar = format[resolvedSymbol].calendar;
-    }
-
-    var result = {
-      locale: format[resolvedSymbol].locale,
-      numberingSystem: format[resolvedSymbol].numberingSystem,
-      calendar: userCalendar,
-      timeZone: format[resolvedSymbol].timeZone
-    };
-
-    addWECPropertyIfDefined(result, 'timeZoneName', fromPattern.timeZoneName);
-    addWECPropertyIfDefined(result, 'era', fromPattern.era);
-    addWECPropertyIfDefined(result, 'year', fromPattern.year);
-    addWECPropertyIfDefined(result, 'month', fromPattern.month);
-    addWECPropertyIfDefined(result, 'day', fromPattern.day);
-    addWECPropertyIfDefined(result, 'weekday', fromPattern.weekday);
-    addWECPropertyIfDefined(result, 'hour12', fromPattern.hour12);
-    addWECPropertyIfDefined(result, 'hour', fromPattern.hour);
-    addWECPropertyIfDefined(result, 'minute', fromPattern.minute);
-    addWECPropertyIfDefined(result, 'second', fromPattern.second);
-
-    return result;
+    return %DateTimeFormatResolvedOptions(this);
   }
 );
 

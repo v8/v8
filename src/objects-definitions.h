@@ -217,6 +217,7 @@ namespace internal {
 #define INSTANCE_TYPE_LIST(V)          \
   INSTANCE_TYPE_LIST_BEFORE_INTL(V)    \
   V(JS_INTL_COLLATOR_TYPE)             \
+  V(JS_INTL_DATE_TIME_FORMAT_TYPE)     \
   V(JS_INTL_LIST_FORMAT_TYPE)          \
   V(JS_INTL_LOCALE_TYPE)               \
   V(JS_INTL_PLURAL_RULES_TYPE)         \

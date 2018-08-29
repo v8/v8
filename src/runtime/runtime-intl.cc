@@ -22,6 +22,7 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collator-inl.h"
+#include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-list-format.h"
 #include "src/objects/js-plural-rules-inl.h"
@@ -217,6 +218,13 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
   icu::SimpleDateFormat* date_format =
       DateFormat::InitializeDateTimeFormat(isolate, locale, options, resolved);
   CHECK_NOT_NULL(date_format);
+  if (!DateFormat::IsValidTimeZone(date_format)) {
+    delete date_format;
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidTimeZone,
+                      isolate->factory()->NewStringFromStaticChars("Etc/GMT")));
+  }
 
   local_object->SetEmbedderField(DateFormat::kSimpleDateFormatIndex,
                                  reinterpret_cast<Smi*>(date_format));
@@ -227,6 +235,25 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
                           DateFormat::DeleteDateFormat,
                           WeakCallbackType::kInternalFields);
   return *local_object;
+}
+
+// ecma402/#sec-intl.datetimeformat.prototype.resolvedoptions
+RUNTIME_FUNCTION(Runtime_DateTimeFormatResolvedOptions) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  // 1. Let dtf be this value.
+  CONVERT_ARG_HANDLE_CHECKED(Object, dtf, 0);
+  // 2. If Type(dtf) is not Object, throw a TypeError exception.
+  if (!dtf->IsJSReceiver()) {
+    Handle<String> method_str = isolate->factory()->NewStringFromStaticChars(
+        "Intl.DateTimeFormat.prototype.resolvedOptions");
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              method_str, dtf));
+  }
+  Handle<JSReceiver> date_format_holder = Handle<JSReceiver>::cast(dtf);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSDateTimeFormat::ResolvedOptions(isolate, date_format_holder));
 }
 
 RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {

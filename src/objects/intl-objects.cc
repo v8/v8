@@ -169,66 +169,9 @@ void SetResolvedDateSettings(Isolate* isolate, const icu::Locale& icu_locale,
                              Handle<JSObject> resolved) {
   Factory* factory = isolate->factory();
   UErrorCode status = U_ZERO_ERROR;
-  icu::UnicodeString pattern;
-  date_format->toPattern(pattern);
-  JSObject::SetProperty(
-      isolate, resolved, factory->intl_pattern_symbol(),
-      factory
-          ->NewStringFromTwoByte(Vector<const uint16_t>(
-              reinterpret_cast<const uint16_t*>(pattern.getBuffer()),
-              pattern.length()))
-          .ToHandleChecked(),
-      LanguageMode::kSloppy)
-      .Assert();
-
-  // Set time zone and calendar.
-  const icu::Calendar* calendar = date_format->getCalendar();
-  // getType() returns legacy calendar type name instead of LDML/BCP47 calendar
-  // key values. intl.js maps them to BCP47 values for key "ca".
-  // TODO(jshin): Consider doing it here, instead.
-  const char* calendar_name = calendar->getType();
-  JSObject::SetProperty(
-      isolate, resolved, factory->NewStringFromStaticChars("calendar"),
-      factory->NewStringFromAsciiChecked(calendar_name), LanguageMode::kSloppy)
-      .Assert();
-
-  const icu::TimeZone& tz = calendar->getTimeZone();
-  icu::UnicodeString time_zone;
-  tz.getID(time_zone);
-
-  icu::UnicodeString canonical_time_zone;
-  icu::TimeZone::getCanonicalID(time_zone, canonical_time_zone, status);
-  if (U_SUCCESS(status)) {
-    // In CLDR (http://unicode.org/cldr/trac/ticket/9943), Etc/UTC is made
-    // a separate timezone ID from Etc/GMT even though they're still the same
-    // timezone. We have Etc/UTC because 'UTC', 'Etc/Universal',
-    // 'Etc/Zulu' and others are turned to 'Etc/UTC' by ICU. Etc/GMT comes
-    // from Etc/GMT0, Etc/GMT+0, Etc/GMT-0, Etc/Greenwich.
-    // ecma402##sec-canonicalizetimezonename step 3
-    if (canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/UTC") ||
-        canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/GMT")) {
-      JSObject::SetProperty(
-          isolate, resolved, factory->NewStringFromStaticChars("timeZone"),
-          factory->NewStringFromStaticChars("UTC"), LanguageMode::kSloppy)
-          .Assert();
-    } else {
-      JSObject::SetProperty(isolate, resolved,
-                            factory->NewStringFromStaticChars("timeZone"),
-                            factory
-                                ->NewStringFromTwoByte(Vector<const uint16_t>(
-                                    reinterpret_cast<const uint16_t*>(
-                                        canonical_time_zone.getBuffer()),
-                                    canonical_time_zone.length()))
-                                .ToHandleChecked(),
-                            LanguageMode::kSloppy)
-          .Assert();
-    }
-  }
-
   // Ugly hack. ICU doesn't expose numbering system in any way, so we have
   // to assume that for given locale NumberingSystem constructor produces the
   // same digits as NumberFormat/Calendar would.
-  status = U_ZERO_ERROR;
   icu::NumberingSystem* numbering_system =
       icu::NumberingSystem::createInstance(icu_locale, status);
   if (U_SUCCESS(status)) {
@@ -598,6 +541,21 @@ icu::Locale Intl::CreateICULocale(Isolate* isolate,
   }
 
   return icu_locale;
+}
+
+bool DateFormat::IsValidTimeZone(icu::SimpleDateFormat* date_format) {
+  UErrorCode status = U_ZERO_ERROR;
+  // Set time zone and calendar.
+  const icu::Calendar* calendar = date_format->getCalendar();
+  const icu::TimeZone& tz = calendar->getTimeZone();
+  icu::UnicodeString time_zone;
+  tz.getID(time_zone);
+  icu::UnicodeString canonical_time_zone;
+  icu::TimeZone::getCanonicalID(time_zone, canonical_time_zone, status);
+  std::string timezone_str;
+  canonical_time_zone.toUTF8String(timezone_str);
+  if (U_SUCCESS(status)) return timezone_str != "Etc/Unknown";
+  return true;
 }
 
 // static

@@ -208,6 +208,7 @@ namespace internal {
   F(CreateNumberFormat, 3, 1)                \
   F(CurrencyDigits, 1, 1)                    \
   F(DateCacheVersion, 0, 1)                  \
+  F(DateTimeFormatResolvedOptions, 1, 1)     \
   F(DefaultNumberOption, 5, 1)               \
   F(DefineWEProperty, 3, 1)                  \
   F(FormatList, 2, 1)                        \
