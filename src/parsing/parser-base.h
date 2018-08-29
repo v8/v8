@@ -769,14 +769,7 @@ class ParserBase {
     return result;
   }
 
-  bool is_any_identifier(Token::Value token) {
-    return token == Token::IDENTIFIER || token == Token::ENUM ||
-           token == Token::AWAIT || token == Token::ASYNC ||
-           token == Token::ESCAPED_STRICT_RESERVED_WORD ||
-           token == Token::FUTURE_STRICT_RESERVED_WORD || token == Token::LET ||
-           token == Token::STATIC || token == Token::YIELD;
-  }
-  bool peek_any_identifier() { return is_any_identifier(peek()); }
+  bool peek_any_identifier() { return Token::IsAnyIdentifier(peek()); }
 
   bool CheckContextualKeyword(Token::Value token) {
     if (PeekContextualKeyword(token)) {
@@ -997,7 +990,7 @@ class ParserBase {
   }
 
   bool IsValidArrowFormalParametersStart(Token::Value token) {
-    return is_any_identifier(token) || token == Token::LPAREN;
+    return Token::IsAnyIdentifier(token) || token == Token::LPAREN;
   }
 
   void ValidateArrowFormalParameters(ExpressionT expr,

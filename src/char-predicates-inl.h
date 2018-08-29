@@ -29,12 +29,6 @@ inline bool IsLineFeed(uc32 c) {
 }
 
 
-inline bool IsInRange(int value, int lower_limit, int higher_limit) {
-  DCHECK(lower_limit <= higher_limit);
-  return static_cast<unsigned int>(value - lower_limit) <=
-      static_cast<unsigned int>(higher_limit - lower_limit);
-}
-
 inline bool IsAsciiIdentifier(uc32 c) {
   return IsAlphaNumeric(c) || c == '$' || c == '_';
 }

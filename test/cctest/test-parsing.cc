@@ -71,6 +71,212 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 
 }  // namespace
 
+bool TokenIsAnyIdentifier(Token::Value tok) {
+  switch (tok) {
+    case Token::IDENTIFIER:
+    case Token::ASYNC:
+    case Token::AWAIT:
+    case Token::ENUM:
+    case Token::LET:
+    case Token::STATIC:
+    case Token::YIELD:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(AnyIdentifierToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value tok = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsAnyIdentifier(tok), Token::IsAnyIdentifier(tok));
+  }
+}
+
+bool TokenIsAssignmentOp(Token::Value tok) {
+  switch (tok) {
+    case Token::INIT:
+    case Token::ASSIGN:
+#define T(name, string, precedence) case Token::name:
+      BINARY_OP_TOKEN_LIST(T, EXPAND_BINOP_ASSIGN_TOKEN)
+#undef T
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(AssignmentOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value tok = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsAssignmentOp(tok), Token::IsAssignmentOp(tok));
+  }
+}
+
+bool TokenIsBinaryOp(Token::Value tok) {
+  switch (tok) {
+    case Token::COMMA:
+    case Token::OR:
+    case Token::AND:
+#define T(name, string, precedence) case Token::name:
+      BINARY_OP_TOKEN_LIST(T, EXPAND_BINOP_TOKEN)
+#undef T
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(BinaryOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value tok = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsBinaryOp(tok), Token::IsBinaryOp(tok));
+  }
+}
+
+bool TokenIsCompareOp(Token::Value tok) {
+  switch (tok) {
+    case Token::EQ:
+    case Token::EQ_STRICT:
+    case Token::NE:
+    case Token::NE_STRICT:
+    case Token::LT:
+    case Token::GT:
+    case Token::LTE:
+    case Token::GTE:
+    case Token::INSTANCEOF:
+    case Token::IN:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(CompareOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value tok = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsCompareOp(tok), Token::IsCompareOp(tok));
+  }
+}
+
+bool TokenIsOrderedRelationalCompareOp(Token::Value tok) {
+  switch (tok) {
+    case Token::LT:
+    case Token::GT:
+    case Token::LTE:
+    case Token::GTE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsOrderedRelationalCompareOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value tok = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsOrderedRelationalCompareOp(tok),
+             Token::IsOrderedRelationalCompareOp(tok));
+  }
+}
+
+bool TokenIsEqualityOp(Token::Value tok) {
+  switch (tok) {
+    case Token::EQ:
+    case Token::EQ_STRICT:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsEqualityOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value tok = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsEqualityOp(tok), Token::IsEqualityOp(tok));
+  }
+}
+
+bool TokenIsBitOp(Token::Value tok) {
+  switch (tok) {
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+    case Token::BIT_NOT:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsBitOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value tok = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsBitOp(tok), Token::IsBitOp(tok));
+  }
+}
+
+bool TokenIsUnaryOp(Token::Value tok) {
+  switch (tok) {
+    case Token::NOT:
+    case Token::BIT_NOT:
+    case Token::DELETE:
+    case Token::TYPEOF:
+    case Token::VOID:
+    case Token::ADD:
+    case Token::SUB:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsUnaryOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value tok = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsUnaryOp(tok), Token::IsUnaryOp(tok));
+  }
+}
+
+bool TokenIsCountOp(Token::Value tok) {
+  switch (tok) {
+    case Token::INC:
+    case Token::DEC:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsCountOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value tok = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsCountOp(tok), Token::IsCountOp(tok));
+  }
+}
+
+bool TokenIsShiftOp(Token::Value tok) {
+  switch (tok) {
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+      return true;
+    default:
+      return false;
+  }
+}
+
+TEST(IsShiftOp) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value tok = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsShiftOp(tok), Token::IsShiftOp(tok));
+  }
+}
+
 TEST(ScanKeywords) {
   struct KeywordToken {
     const char* keyword;

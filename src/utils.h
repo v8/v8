@@ -56,6 +56,14 @@ inline bool CStringEquals(const char* s1, const char* s2) {
   return (s1 == s2) || (s1 != nullptr && s2 != nullptr && strcmp(s1, s2) == 0);
 }
 
+// Checks if value is in range [lower_limit, higher_limit] using a single
+// branch.
+inline bool IsInRange(int value, int lower_limit, int higher_limit) {
+  DCHECK_LE(lower_limit, higher_limit);
+  return static_cast<unsigned int>(value - lower_limit) <=
+         static_cast<unsigned int>(higher_limit - lower_limit);
+}
+
 // X must be a power of 2.  Returns the number of trailing zeros.
 template <typename T,
           typename = typename std::enable_if<std::is_integral<T>::value>::type>
