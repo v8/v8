@@ -284,7 +284,7 @@ Token::Value Scanner::SkipSingleLineComment() {
   // separately by the lexical grammar and becomes part of the
   // stream of input elements for the syntactic grammar (see
   // ECMA-262, section 7.4).
-  AdvanceUntil([](uc32 c0_) { return unibrow::IsLineTerminator(c0_); });
+  AdvanceUntil([](uc32 c0) { return unibrow::IsLineTerminator(c0); });
 
   return Token::WHITESPACE;
 }
