@@ -155,9 +155,11 @@ class MutableBigInt : public FreshlyAllocatedBigInt,
 
   static MaybeHandle<String> ToStringBasePowerOfTwo(Isolate* isolate,
                                                     Handle<BigIntBase> x,
-                                                    int radix);
+                                                    int radix,
+                                                    ShouldThrow should_throw);
   static MaybeHandle<String> ToStringGeneric(Isolate* isolate,
-                                             Handle<BigIntBase> x, int radix);
+                                             Handle<BigIntBase> x, int radix,
+                                             ShouldThrow should_throw);
 
   static double ToDouble(Handle<BigIntBase> x);
   enum Rounding { kRoundDown, kTie, kRoundUp };
@@ -924,14 +926,15 @@ ComparisonResult BigInt::CompareToDouble(Handle<BigInt> x, double y) {
 }
 
 MaybeHandle<String> BigInt::ToString(Isolate* isolate, Handle<BigInt> bigint,
-                                     int radix) {
+                                     int radix, ShouldThrow should_throw) {
   if (bigint->is_zero()) {
     return isolate->factory()->NewStringFromStaticChars("0");
   }
   if (base::bits::IsPowerOfTwo(radix)) {
-    return MutableBigInt::ToStringBasePowerOfTwo(isolate, bigint, radix);
+    return MutableBigInt::ToStringBasePowerOfTwo(isolate, bigint, radix,
+                                                 should_throw);
   }
-  return MutableBigInt::ToStringGeneric(isolate, bigint, radix);
+  return MutableBigInt::ToStringGeneric(isolate, bigint, radix, should_throw);
 }
 
 MaybeHandle<BigInt> BigInt::FromNumber(Isolate* isolate,
@@ -1924,9 +1927,9 @@ MaybeHandle<BigInt> BigInt::FromSerializedDigits(
 
 static const char kConversionChars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
-MaybeHandle<String> MutableBigInt::ToStringBasePowerOfTwo(Isolate* isolate,
-                                                          Handle<BigIntBase> x,
-                                                          int radix) {
+MaybeHandle<String> MutableBigInt::ToStringBasePowerOfTwo(
+    Isolate* isolate, Handle<BigIntBase> x, int radix,
+    ShouldThrow should_throw) {
   STATIC_ASSERT(base::bits::IsPowerOfTwo(kDigitBits));
   DCHECK(base::bits::IsPowerOfTwo(radix));
   DCHECK(radix >= 2 && radix <= 32);
@@ -1945,7 +1948,11 @@ MaybeHandle<String> MutableBigInt::ToStringBasePowerOfTwo(Isolate* isolate,
       (bit_length + bits_per_char - 1) / bits_per_char + sign;
 
   if (chars_required > String::kMaxLength) {
-    THROW_NEW_ERROR(isolate, NewInvalidStringLengthError(), String);
+    if (should_throw == kThrowOnError) {
+      THROW_NEW_ERROR(isolate, NewInvalidStringLengthError(), String);
+    } else {
+      return MaybeHandle<String>();
+    }
   }
 
   Handle<SeqOneByteString> result =
@@ -1988,7 +1995,8 @@ MaybeHandle<String> MutableBigInt::ToStringBasePowerOfTwo(Isolate* isolate,
 
 MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
                                                    Handle<BigIntBase> x,
-                                                   int radix) {
+                                                   int radix,
+                                                   ShouldThrow should_throw) {
   DCHECK(radix >= 2 && radix <= 36);
   DCHECK(!x->is_zero());
   Heap* heap = isolate->heap();
@@ -2014,7 +2022,11 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
   chars_required += sign;
 
   if (chars_required > String::kMaxLength) {
-    THROW_NEW_ERROR(isolate, NewInvalidStringLengthError(), String);
+    if (should_throw == kThrowOnError) {
+      THROW_NEW_ERROR(isolate, NewInvalidStringLengthError(), String);
+    } else {
+      return MaybeHandle<String>();
+    }
   }
   Handle<SeqOneByteString> result =
       isolate->factory()

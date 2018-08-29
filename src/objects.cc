@@ -367,8 +367,17 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
                                              Handle<Object> input) {
   DisallowJavascriptExecution no_js(isolate);
 
-  if (input->IsString() || input->IsNumeric() || input->IsOddball()) {
+  if (input->IsString() || input->IsNumber() || input->IsOddball()) {
     return Object::ToString(isolate, input).ToHandleChecked();
+  } else if (input->IsBigInt()) {
+    MaybeHandle<String> maybe_string =
+        BigInt::ToString(isolate, Handle<BigInt>::cast(input), 10, kDontThrow);
+    Handle<String> result;
+    if (maybe_string.ToHandle(&result)) return result;
+    // BigInt-to-String conversion can fail on 32-bit platforms where
+    // String::kMaxLength is too small to fit this BigInt.
+    return isolate->factory()->NewStringFromStaticChars(
+        "<a very large BigInt>");
   } else if (input->IsFunction()) {
     // -- F u n c t i o n
     Handle<String> fun_str;
