@@ -152,16 +152,13 @@ static const Token::Value one_char_tokens[] = {
 V8_INLINE Token::Value Scanner::SkipWhiteSpace() {
   int start_position = source_pos();
 
-  while (true) {
-    // We won't skip behind the end of input.
-    DCHECK(!unicode_cache_->IsWhiteSpace(kEndOfInput));
+  // We won't skip behind the end of input.
+  DCHECK(!unicode_cache_->IsWhiteSpaceOrLineTerminator(kEndOfInput));
 
-    // Advance as long as character is a WhiteSpace or LineTerminator.
-    // Remember if the latter is the case.
-    if (unibrow::IsLineTerminator(c0_)) {
+  // Advance as long as character is a WhiteSpace or LineTerminator.
+  while (unicode_cache_->IsWhiteSpaceOrLineTerminator(c0_)) {
+    if (!next().after_line_terminator && unibrow::IsLineTerminator(c0_)) {
       next().after_line_terminator = true;
-    } else if (!unicode_cache_->IsWhiteSpace(c0_)) {
-      break;
     }
     Advance();
   }
