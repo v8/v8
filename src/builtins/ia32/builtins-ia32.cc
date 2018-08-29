@@ -565,10 +565,11 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   }
 }
 
-static void ReplaceClosureCodeWithOptimizedCode(
-    MacroAssembler* masm, Register optimized_code, Register closure,
-    Register scratch1, Register scratch2, Register scratch3) {
-
+static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
+                                                Register optimized_code,
+                                                Register closure,
+                                                Register scratch1,
+                                                Register scratch2) {
   // Store the optimized code in the closure.
   __ mov(FieldOperand(closure, JSFunction::kCodeOffset), optimized_code);
   __ mov(scratch1, optimized_code);  // Write barrier clobbers scratch1 below.
@@ -609,21 +610,25 @@ static void TailCallRuntimeIfMarkerEquals(MacroAssembler* masm,
 }
 
 static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
-                                           Register feedback_vector,
                                            Register scratch) {
   // ----------- S t a t e -------------
   //  -- eax : argument count (preserved for callee if needed, and caller)
   //  -- edx : new target (preserved for callee if needed, and caller)
   //  -- edi : target function (preserved for callee if needed, and caller)
-  //  -- feedback vector (preserved for caller if needed)
   // -----------------------------------
-  DCHECK(!AreAliased(feedback_vector, eax, edx, edi, scratch));
+  DCHECK(!AreAliased(eax, edx, edi, scratch));
 
   Label optimized_code_slot_is_weak_ref, fallthrough;
 
   Register closure = edi;
-  Register optimized_code_entry = scratch;
+  // Load the feedback vector from the closure.
+  Register feedback_vector = scratch;
+  __ mov(feedback_vector,
+         FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+  __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
 
+  // Load the optimized code from the feedback vector and re-use the register.
+  Register optimized_code_entry = scratch;
   __ mov(optimized_code_entry,
          FieldOperand(feedback_vector, FeedbackVector::kOptimizedCodeOffset));
 
@@ -684,10 +689,8 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
 
     // Optimized code is good, get it into the closure and link the closure into
     // the optimized functions list, then tail call the optimized code.
-    // The feedback vector is no longer used, so re-use it as a scratch
-    // register.
     ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure,
-                                        edx, eax, feedback_vector);
+                                        edx, eax);
     static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
     __ Move(ecx, optimized_code_entry);
     __ add(ecx, Immediate(Code::kHeaderSize - kHeapObjectTag));
@@ -714,14 +717,18 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
 static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
                                           Register bytecode_array,
                                           Register bytecode_offset,
-                                          Register bytecode, Register scratch1,
+                                          Register scratch1, Register scratch2,
                                           Label* if_return) {
   Register bytecode_size_table = scratch1;
+  Register bytecode = scratch2;
   DCHECK(!AreAliased(bytecode_array, bytecode_offset, bytecode_size_table,
                      bytecode));
-
   __ Move(bytecode_size_table,
           Immediate(ExternalReference::bytecode_size_table_address()));
+
+  // Load the current bytecode.
+  __ movzx_b(bytecode, Operand(kInterpreterBytecodeArrayRegister,
+                               kInterpreterBytecodeOffsetRegister, times_1, 0));
 
   // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
   Label process_bytecode, extra_wide;
@@ -730,7 +737,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   STATIC_ASSERT(2 == static_cast<int>(interpreter::Bytecode::kDebugBreakWide));
   STATIC_ASSERT(3 ==
                 static_cast<int>(interpreter::Bytecode::kDebugBreakExtraWide));
-  __ cmpb(bytecode, Immediate(0x3));
+  __ cmp(bytecode, Immediate(0x3));
   __ j(above, &process_bytecode, Label::kNear);
   __ test(bytecode, Immediate(0x1));
   __ j(not_equal, &extra_wide, Label::kNear);
@@ -752,9 +759,9 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ bind(&process_bytecode);
 
 // Bailout to the return label if this is a return bytecode.
-#define JUMP_IF_EQUAL(NAME)                                             \
-  __ cmpb(bytecode,                                                     \
-          Immediate(static_cast<int>(interpreter::Bytecode::k##NAME))); \
+#define JUMP_IF_EQUAL(NAME)                                            \
+  __ cmp(bytecode,                                                     \
+         Immediate(static_cast<int>(interpreter::Bytecode::k##NAME))); \
   __ j(equal, if_return);
   RETURN_BYTECODE_LIST(JUMP_IF_EQUAL)
 #undef JUMP_IF_EQUAL
@@ -780,16 +787,20 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
-  Register closure = edi;
-  Register feedback_vector = ebx;
+  __ VerifyRootRegister();
 
-  // Load the feedback vector from the closure.
+  Register closure = edi;
+
+  // Read off the optimized code slot in the closure's feedback vector, and if
+  // there is optimized code or an optimization marker, call that instead.
+  MaybeTailCallOptimizedCodeSlot(masm, ecx);
+
+  // Load the feedback vector and increment the invocation count.
+  Register feedback_vector = ecx;
   __ mov(feedback_vector,
          FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ mov(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
-  // Read off the optimized code slot in the feedback vector, and if there
-  // is optimized code or an optimization marker, call that instead.
-  MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, ecx);
+  __ inc(FieldOperand(feedback_vector, FeedbackVector::kInvocationCountOffset));
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set
@@ -808,8 +819,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Push(eax);
   GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, eax);
   __ Pop(eax);
-
-  __ inc(FieldOperand(feedback_vector, FeedbackVector::kInvocationCountOffset));
 
   // Check function data field is actually a BytecodeArray object.
   if (FLAG_debug_code) {
@@ -834,16 +843,17 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Allocate the local and temporary register file on the stack.
   {
     // Load frame size from the BytecodeArray object.
-    __ mov(ebx, FieldOperand(kInterpreterBytecodeArrayRegister,
-                             BytecodeArray::kFrameSizeOffset));
+    Register frame_size = ecx;
+    __ mov(frame_size, FieldOperand(kInterpreterBytecodeArrayRegister,
+                                    BytecodeArray::kFrameSizeOffset));
 
     // Do a stack check to ensure we don't go over the limit.
     Label ok;
-    __ mov(ecx, esp);
-    __ sub(ecx, ebx);
+    __ mov(eax, esp);
+    __ sub(eax, frame_size);
     ExternalReference stack_limit =
         ExternalReference::address_of_real_stack_limit(masm->isolate());
-    __ cmp(ecx, __ StaticVariable(stack_limit));
+    __ cmp(eax, __ StaticVariable(stack_limit));
     __ j(above_equal, &ok);
     __ CallRuntime(Runtime::kThrowStackOverflow);
     __ bind(&ok);
@@ -858,7 +868,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ push(eax);
     // Continue loop if not done.
     __ bind(&loop_check);
-    __ sub(ebx, Immediate(kPointerSize));
+    __ sub(frame_size, Immediate(kPointerSize));
     __ j(greater_equal, &loop_header);
   }
 
@@ -885,11 +895,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(kInterpreterDispatchTableRegister,
          Immediate(ExternalReference::interpreter_dispatch_table_address(
              masm->isolate())));
-  __ movzx_b(ebx, Operand(kInterpreterBytecodeArrayRegister,
+  __ movzx_b(ecx, Operand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister, times_1, 0));
   __ mov(
       kJavaScriptCallCodeStartRegister,
-      Operand(kInterpreterDispatchTableRegister, ebx, times_pointer_size, 0));
+      Operand(kInterpreterDispatchTableRegister, ecx, times_pointer_size, 0));
+  __ VerifyRootRegister();
   __ call(kJavaScriptCallCodeStartRegister);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
@@ -905,16 +916,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Either return, or advance to the next bytecode and dispatch.
   Label do_return;
-  __ movzx_b(ebx, Operand(kInterpreterBytecodeArrayRegister,
-                          kInterpreterBytecodeOffsetRegister, times_1, 0));
   AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
-                                kInterpreterBytecodeOffsetRegister, ebx, ecx,
-                                &do_return);
+                                kInterpreterBytecodeOffsetRegister, ecx,
+                                kInterpreterDispatchTableRegister, &do_return);
   __ jmp(&do_dispatch);
 
   __ bind(&do_return);
   // The return value is in eax.
-  LeaveInterpreterFrame(masm, ebx, ecx);
+  LeaveInterpreterFrame(masm, edx, ecx);
+  __ VerifyRootRegister();
   __ ret(0);
 }
 
@@ -1208,20 +1218,16 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
          Operand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
-  // Load the current bytecode
-  __ movzx_b(ebx, Operand(kInterpreterBytecodeArrayRegister,
-                          kInterpreterBytecodeOffsetRegister, times_1, 0));
-
   // Advance to the next bytecode.
   Label if_return;
   AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
-                                kInterpreterBytecodeOffsetRegister, ebx, ecx,
+                                kInterpreterBytecodeOffsetRegister, ecx, esi,
                                 &if_return);
 
   // Convert new bytecode offset to a Smi and save in the stackframe.
-  __ mov(ebx, kInterpreterBytecodeOffsetRegister);
-  __ SmiTag(ebx);
-  __ mov(Operand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp), ebx);
+  __ mov(ecx, kInterpreterBytecodeOffsetRegister);
+  __ SmiTag(ecx);
+  __ mov(Operand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp), ecx);
 
   Generate_InterpreterEnterBytecode(masm);
 

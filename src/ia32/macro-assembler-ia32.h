@@ -255,6 +255,17 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void LoadAddress(Register destination, ExternalReference source);
 
+  void PushRootRegister() {
+    // Check that a NoRootArrayScope exists.
+    CHECK(!root_array_available());
+    push(kRootRegister);
+  }
+  void PopRootRegister() {
+    // Check that a NoRootArrayScope exists.
+    CHECK(!root_array_available());
+    pop(kRootRegister);
+  }
+
   // Wrapper functions to ensure external reference operands produce
   // isolate-independent code if needed.
   Operand StaticVariable(const ExternalReference& ext);

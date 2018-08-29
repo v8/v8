@@ -667,7 +667,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void and_(Operand dst, Register src);
   void and_(Operand dst, const Immediate& x);
 
-  void cmpb(Register reg, Immediate imm8) { cmpb(Operand(reg), imm8); }
+  void cmpb(Register reg, Immediate imm8) {
+    DCHECK(reg.is_byte_register());
+    cmpb(Operand(reg), imm8);
+  }
   void cmpb(Operand op, Immediate imm8);
   void cmpb(Register reg, Operand op);
   void cmpb(Operand op, Register reg);
