@@ -1430,7 +1430,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Symbol());
       break;
-
+    case IrOpcode::kCheckStringAdd:
+      CheckValueInputIs(node, 0, Type::String());
+      CheckValueInputIs(node, 1, Type::String());
+      CheckTypeIs(node, Type::String());
+      break;
     case IrOpcode::kConvertReceiver:
       // (Any, Any) -> Receiver
       CheckValueInputIs(node, 0, Type::Any());

@@ -372,6 +372,7 @@
   V(CheckNotTaggedHole)                 \
   V(CheckEqualsInternalizedString)      \
   V(CheckEqualsSymbol)                  \
+  V(CheckStringAdd)                     \
   V(CompareMaps)                        \
   V(ConvertReceiver)                    \
   V(ConvertTaggedHoleToUndefined)       \

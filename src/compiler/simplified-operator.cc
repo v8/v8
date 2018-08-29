@@ -790,7 +790,8 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedInt32Mod, 2, 1)               \
   V(CheckedInt32Sub, 2, 1)               \
   V(CheckedUint32Div, 2, 1)              \
-  V(CheckedUint32Mod, 2, 1)
+  V(CheckedUint32Mod, 2, 1)              \
+  V(CheckStringAdd, 2, 1)
 
 #define CHECKED_WITH_FEEDBACK_OP_LIST(V) \
   V(CheckBounds, 2, 1)                   \

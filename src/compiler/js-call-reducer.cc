@@ -5454,7 +5454,6 @@ Reduction JSCallReducer::ReduceStringPrototypeConcat(
   }
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
   Node* receiver = effect =
       graph()->NewNode(simplified()->CheckString(p.feedback()),
                        NodeProperties::GetValueInput(node, 1), effect, control);
@@ -5463,26 +5462,17 @@ Reduction JSCallReducer::ReduceStringPrototypeConcat(
     ReplaceWithValue(node, receiver, effect, control);
     return Replace(receiver);
   }
+
+  if (!isolate()->IsStringLengthOverflowIntact()) {
+    return NoChange();
+  }
+
   Node* argument = effect =
       graph()->NewNode(simplified()->CheckString(p.feedback()),
                        NodeProperties::GetValueInput(node, 2), effect, control);
 
-  Callable const callable =
-      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-  auto call_descriptor =
-      Linkage::GetStubCallDescriptor(graph()->zone(), callable.descriptor(), 0,
-                                     CallDescriptor::kNeedsFrameState,
-                                     Operator::kNoDeopt | Operator::kNoWrite);
-
-  // TODO(turbofan): Massage the FrameState of the {node} here once we
-  // have an artificial builtin frame type, so that it looks like the
-  // exception from StringAdd overflow came from String.prototype.concat
-  // builtin instead of the calling function.
-  Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
-
-  Node* value = effect = control = graph()->NewNode(
-      common()->Call(call_descriptor), jsgraph()->HeapConstant(callable.code()),
-      receiver, argument, context, outer_frame_state, effect, control);
+  Node* value = effect = graph()->NewNode(simplified()->CheckStringAdd(),
+                                          receiver, argument, effect, control);
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);

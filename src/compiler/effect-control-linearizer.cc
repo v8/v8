@@ -694,6 +694,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckIf:
       LowerCheckIf(node, frame_state);
       break;
+    case IrOpcode::kCheckStringAdd:
+      result = LowerCheckStringAdd(node, frame_state);
+      break;
     case IrOpcode::kCheckedInt32Add:
       result = LowerCheckedInt32Add(node, frame_state);
       break;
@@ -1542,6 +1545,32 @@ void EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state) {
   Node* value = node->InputAt(0);
   const CheckIfParameters& p = CheckIfParametersOf(node->op());
   __ DeoptimizeIfNot(p.reason(), p.feedback(), value, frame_state);
+}
+
+Node* EffectControlLinearizer::LowerCheckStringAdd(Node* node,
+                                                   Node* frame_state) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Node* lhs_length = __ LoadField(AccessBuilder::ForStringLength(), lhs);
+  Node* rhs_length = __ LoadField(AccessBuilder::ForStringLength(), rhs);
+  Node* check = __ IntLessThan(__ IntAdd(lhs_length, rhs_length),
+                               __ SmiConstant(String::kMaxLength));
+
+  __ DeoptimizeIfNot(DeoptimizeReason::kOverflow, VectorSlotPair(), check,
+                     frame_state);
+
+  Callable const callable =
+      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags,
+      Operator::kNoDeopt | Operator::kNoWrite | Operator::kNoThrow);
+
+  Node* value =
+      __ Call(call_descriptor, jsgraph()->HeapConstant(callable.code()), lhs,
+              rhs, __ NoContextConstant());
+
+  return value;
 }
 
 Node* EffectControlLinearizer::LowerCheckedInt32Add(Node* node,

@@ -530,41 +530,15 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
         NodeProperties::ReplaceValueInput(node, reduction.replacement(), 0);
       }
     }
-    // We might be able to constant-fold the String concatenation now.
-    if (r.BothInputsAre(Type::String())) {
-      HeapObjectBinopMatcher m(node);
-      if (m.IsFoldable()) {
-        StringRef left = m.left().Ref(js_heap_broker()).AsString();
-        StringRef right = m.right().Ref(js_heap_broker()).AsString();
-        if (left.length() + right.length() > String::kMaxLength) {
-          // No point in trying to optimize this, as it will just throw.
-          return NoChange();
-        }
-        // TODO(mslekova): get rid of these allows by doing either one of:
-        // 1. remove the optimization and check if it ruins the performance
-        // 2. leave a placeholder and do the actual allocations once back on the
-        // MT
-        AllowHandleDereference allow_handle_dereference;
-        AllowHandleAllocation allow_handle_allocation;
-        AllowHeapAllocation allow_heap_allocation;
-        ObjectRef cons(
-            js_heap_broker(),
-            factory()
-                ->NewConsString(left.object<String>(), right.object<String>())
-                .ToHandleChecked());
-        Node* value = jsgraph()->Constant(cons);
-        ReplaceWithValue(node, value);
-        return Replace(value);
-      }
-    }
     // We might know for sure that we're creating a ConsString here.
     if (r.ShouldCreateConsString()) {
       return ReduceCreateConsString(node);
     }
-    // Eliminate useless concatenation of empty string.
     if (r.BothInputsAre(Type::String())) {
       Node* effect = NodeProperties::GetEffectInput(node);
       Node* control = NodeProperties::GetControlInput(node);
+
+      // Eliminate useless concatenation of empty string.
       if (r.LeftInputIs(empty_string_type_)) {
         Node* value = effect =
             graph()->NewNode(simplified()->CheckString(VectorSlotPair()),
@@ -578,7 +552,18 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
         ReplaceWithValue(node, value, effect, control);
         return Replace(value);
       }
+
+      // TODO(mslekova): Make sure this is executed for cons string
+      // as well.
+      if (isolate()->IsStringLengthOverflowIntact()) {
+        Node* value = graph()->NewNode(simplified()->CheckStringAdd(), r.left(),
+                                       r.right(), effect, control);
+
+        ReplaceWithValue(node, value, value);
+        return Replace(value);
+      }
     }
+
     StringAddFlags flags = STRING_ADD_CHECK_NONE;
     if (!r.LeftInputIs(Type::String())) {
       flags = STRING_ADD_CONVERT_LEFT;
@@ -592,6 +577,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
       // effects; it can still throw obviously.
       properties = Operator::kNoWrite | Operator::kNoDeopt;
     }
+
     // JSAdd(x:string, y) => CallStub[StringAdd](x, y)
     // JSAdd(x, y:string) => CallStub[StringAdd](x, y)
     Callable const callable =
