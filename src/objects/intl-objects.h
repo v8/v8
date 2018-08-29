@@ -90,14 +90,6 @@ class DateFormat {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, DATE_FORMAT_FIELDS)
 #undef DATE_FORMAT_FIELDS
 
-  // ContextSlot defines the context structure for the bound
-  // DateTimeFormat.prototype.format function
-  enum ContextSlot {
-    kDateFormat = Context::MIN_CONTEXT_SLOTS,
-
-    kLength
-  };
-
   // TODO(ryzokuken): Remove this and use regular accessors once DateFormat is a
   // subclass of JSObject
   //
@@ -150,16 +142,6 @@ class NumberFormat {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, NUMBER_FORMAT_FIELDS)
 #undef NUMBER_FORMAT_FIELDS
 
-  // ContextSlot defines the context structure for the bound
-  // NumberFormat.prototype.format function.
-  enum ContextSlot {
-    // The number format instance that the function holding this
-    // context is bound to.
-    kNumberFormat = Context::MIN_CONTEXT_SLOTS,
-
-    kLength
-  };
-
   // TODO(gsathya): Remove this and use regular accessors once
   // NumberFormat is a sub class of JSObject.
   //
@@ -206,14 +188,6 @@ class V8BreakIterator {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, BREAK_ITERATOR_FIELDS)
 #undef BREAK_ITERATOR_FIELDS
 
-  // ContextSlot defines the context structure for the bound
-  // v8BreakIterator.prototype.adoptText function
-  enum class ContextSlot {
-    kV8BreakIterator = Context::MIN_CONTEXT_SLOTS,
-
-    kLength
-  };
-
   // TODO(ryzokuken): Remove this and use regular accessors once v8BreakIterator
   // is a subclass of JSObject
   //
@@ -241,6 +215,11 @@ class Intl {
     kLocale,
 
     kTypeCount
+  };
+
+  enum class BoundFunctionContextSlot {
+    kBoundFunction = Context::MIN_CONTEXT_SLOTS,
+    kLength
   };
 
   inline static Intl::Type TypeFromInt(int type);

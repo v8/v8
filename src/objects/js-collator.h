@@ -46,14 +46,6 @@ class JSCollator : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_COLLATOR_FIELDS)
 #undef JS_COLLATOR_FIELDS
 
-  // ContextSlot defines the context structure for the bound
-  // Collator.prototype.compare function.
-  enum ContextSlot {
-    // The collator instance that the function holding this context is bound to.
-    kCollator = Context::MIN_CONTEXT_SLOTS,
-    kLength
-  };
-
   DECL_ACCESSORS(icu_collator, Managed<icu::Collator>)
   DECL_ACCESSORS(bound_compare, Object);
 

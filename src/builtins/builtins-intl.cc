@@ -544,6 +544,34 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
                            FormatDateToParts(isolate, date_format, date_value));
 }
 
+namespace {
+Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
+                                       Handle<JSObject> object,
+                                       int shared_function_info_context_slot) {
+  // Check if 'shared_info_context_slot' is a valid slot.
+  DCHECK_GT(shared_function_info_context_slot, Context::NATIVE_CONTEXT_INDEX);
+  DCHECK_LT(shared_function_info_context_slot, Context::NATIVE_CONTEXT_SLOTS);
+
+  Handle<NativeContext> native_context(isolate->context()->native_context(),
+                                       isolate);
+  Handle<Context> context = isolate->factory()->NewBuiltinContext(
+      native_context,
+      static_cast<int>(Intl::BoundFunctionContextSlot::kLength));
+
+  context->set(static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction),
+               *object);
+
+  Handle<SharedFunctionInfo> info(SharedFunctionInfo::cast(native_context->get(
+                                      shared_function_info_context_slot)),
+                                  isolate);
+  Handle<Map> map = isolate->strict_function_without_prototype_map();
+
+  Handle<JSFunction> new_bound_function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
+  return new_bound_function;
+}
+}  // namespace
+
 BUILTIN(NumberFormatPrototypeFormatNumber) {
   const char* const method = "get Intl.NumberFormat.prototype.format";
   HandleScope scope(isolate);
@@ -572,25 +600,9 @@ BUILTIN(NumberFormatPrototypeFormatNumber) {
     return *bound_format;
   }
 
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
-                                       isolate);
-
-  Handle<Context> context = isolate->factory()->NewBuiltinContext(
-      native_context, NumberFormat::ContextSlot::kLength);
-
-  // 4. b. Set F.[[NumberFormat]] to nf.
-  context->set(NumberFormat::ContextSlot::kNumberFormat, *number_format_holder);
-
-  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
-      native_context->number_format_internal_format_number_shared_fun(),
-      isolate);
-
-  Handle<Map> map = isolate->strict_function_without_prototype_map();
-
-  // 4. a. Let F be a new built-in function object as defined in
-  // Number Format Functions (11.1.4).
-  Handle<JSFunction> new_bound_format_function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
+  Handle<JSFunction> new_bound_format_function = CreateBoundFunction(
+      isolate, number_format_holder,
+      Context::INTL_NUMBER_FORMAT_INTERNAL_FORMAT_NUMBER_SHARED_FUN);
 
   // 4. c. Set nf.[[BoundFormat]] to F.
   number_format_holder->SetEmbedderField(NumberFormat::kBoundFormatIndex,
@@ -607,7 +619,8 @@ BUILTIN(NumberFormatInternalFormatNumber) {
 
   // 1. Let nf be F.[[NumberFormat]].
   Handle<JSObject> number_format_holder = Handle<JSObject>(
-      JSObject::cast(context->get(NumberFormat::ContextSlot::kNumberFormat)),
+      JSObject::cast(context->get(
+          static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
   // 2. Assert: Type(nf) is Object and nf has an
@@ -661,22 +674,9 @@ BUILTIN(DateTimeFormatPrototypeFormat) {
     return *bound_format;
   }
 
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
-                                       isolate);
-  Handle<Context> context = isolate->factory()->NewBuiltinContext(
-      native_context, DateFormat::ContextSlot::kLength);
-
-  // 4.b. Set F.[[DateTimeFormat]] to dtf.
-  context->set(DateFormat::ContextSlot::kDateFormat, *date_format_holder);
-
-  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
-      native_context->date_format_internal_format_shared_fun(), isolate);
-  Handle<Map> map = isolate->strict_function_without_prototype_map();
-
-  // 4.a. Let F be a new built-in function object as defined in DateTime Format
-  // Functions (12.1.5).
   Handle<JSFunction> new_bound_format_function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
+      CreateBoundFunction(isolate, date_format_holder,
+                          Context::INTL_DATE_FORMAT_INTERNAL_FORMAT_SHARED_FUN);
 
   // 4.c. Set dtf.[[BoundFormat]] to F.
   date_format_holder->SetEmbedderField(DateFormat::kBoundFormatIndex,
@@ -692,7 +692,8 @@ BUILTIN(DateTimeFormatInternalFormat) {
 
   // 1. Let dtf be F.[[DateTimeFormat]].
   Handle<JSObject> date_format_holder = Handle<JSObject>(
-      JSObject::cast(context->get(DateFormat::ContextSlot::kDateFormat)),
+      JSObject::cast(context->get(
+          static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
   // 2. Assert: Type(dtf) is Object and dtf has an [[InitializedDateTimeFormat]]
@@ -1099,21 +1100,8 @@ BUILTIN(CollatorPrototypeCompare) {
     return *bound_compare;
   }
 
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
-                                       isolate);
-  Handle<Context> context = isolate->factory()->NewBuiltinContext(
-      native_context, JSCollator::ContextSlot::kLength);
-
-  // 4.b. Set F.[[Collator]] to collator.
-  context->set(JSCollator::ContextSlot::kCollator, *collator);
-
-  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
-      native_context->collator_internal_compare_shared_fun(), isolate);
-  Handle<Map> map = isolate->strict_function_without_prototype_map();
-
-  // 4.a. Let F be a new built-in function object as defined in 10.3.3.1.
-  Handle<JSFunction> new_bound_compare_function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
+  Handle<JSFunction> new_bound_compare_function = CreateBoundFunction(
+      isolate, collator, Context::INTL_COLLATOR_INTERNAL_COMPARE_SHARED_FUN);
 
   // 4.c. Set collator.[[BoundCompare]] to F.
   collator->set_bound_compare(*new_bound_compare_function);
@@ -1130,7 +1118,8 @@ BUILTIN(CollatorInternalCompare) {
   // 2. Assert: Type(collator) is Object and collator has an
   // [[InitializedCollator]] internal slot.
   Handle<JSCollator> collator_holder = Handle<JSCollator>(
-      JSCollator::cast(context->get(JSCollator::ContextSlot::kCollator)),
+      JSCollator::cast(context->get(
+          static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
   // 3. If x is not provided, let x be undefined.
@@ -1175,20 +1164,9 @@ BUILTIN(BreakIteratorPrototypeAdoptText) {
     return *bound_adopt_text;
   }
 
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
-                                       isolate);
-  Handle<Context> context = isolate->factory()->NewBuiltinContext(
-      native_context, static_cast<int>(V8BreakIterator::ContextSlot::kLength));
-
-  context->set(static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator),
-               *break_iterator_holder);
-
-  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
-      native_context->break_iterator_internal_adopt_text_shared_fun(), isolate);
-  Handle<Map> map = isolate->strict_function_without_prototype_map();
-
-  Handle<JSFunction> new_bound_adopt_text_function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
+  Handle<JSFunction> new_bound_adopt_text_function = CreateBoundFunction(
+      isolate, break_iterator_holder,
+      Context::INTL_V8_BREAK_ITERATOR_INTERNAL_ADOPT_TEXT_SHARED_FUN);
 
   break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundAdoptTextIndex,
                                           *new_bound_adopt_text_function);
@@ -1202,7 +1180,7 @@ BUILTIN(BreakIteratorInternalAdoptText) {
 
   Handle<JSObject> break_iterator_holder = Handle<JSObject>(
       JSObject::cast(context->get(
-          static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator))),
+          static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
   DCHECK(Intl::IsObjectOfType(isolate, break_iterator_holder,
@@ -1241,20 +1219,10 @@ BUILTIN(BreakIteratorPrototypeFirst) {
     return *bound_first;
   }
 
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
-                                       isolate);
-  Handle<Context> context = isolate->factory()->NewBuiltinContext(
-      native_context, static_cast<int>(V8BreakIterator::ContextSlot::kLength));
+  Handle<JSFunction> new_bound_first_function = CreateBoundFunction(
+      isolate, break_iterator_holder,
+      Context::INTL_V8_BREAK_ITERATOR_INTERNAL_FIRST_SHARED_FUN);
 
-  context->set(static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator),
-               *break_iterator_holder);
-
-  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
-      native_context->break_iterator_internal_first_shared_fun(), isolate);
-  Handle<Map> map = isolate->strict_function_without_prototype_map();
-
-  Handle<JSFunction> new_bound_first_function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
   break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundFirstIndex,
                                           *new_bound_first_function);
 
@@ -1267,7 +1235,7 @@ BUILTIN(BreakIteratorInternalFirst) {
 
   Handle<JSObject> break_iterator_holder = Handle<JSObject>(
       JSObject::cast(context->get(
-          static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator))),
+          static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
   DCHECK(Intl::IsObjectOfType(isolate, break_iterator_holder,
@@ -1303,20 +1271,10 @@ BUILTIN(BreakIteratorPrototypeNext) {
     return *bound_next;
   }
 
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
-                                       isolate);
-  Handle<Context> context = isolate->factory()->NewBuiltinContext(
-      native_context, static_cast<int>(V8BreakIterator::ContextSlot::kLength));
+  Handle<JSFunction> new_bound_next_function = CreateBoundFunction(
+      isolate, break_iterator_holder,
+      Context::INTL_V8_BREAK_ITERATOR_INTERNAL_NEXT_SHARED_FUN);
 
-  context->set(static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator),
-               *break_iterator_holder);
-
-  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
-      native_context->break_iterator_internal_next_shared_fun(), isolate);
-  Handle<Map> map = isolate->strict_function_without_prototype_map();
-
-  Handle<JSFunction> new_bound_next_function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
   break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundNextIndex,
                                           *new_bound_next_function);
 
@@ -1329,7 +1287,7 @@ BUILTIN(BreakIteratorInternalNext) {
 
   Handle<JSObject> break_iterator_holder = Handle<JSObject>(
       JSObject::cast(context->get(
-          static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator))),
+          static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
   DCHECK(Intl::IsObjectOfType(isolate, break_iterator_holder,
@@ -1366,20 +1324,10 @@ BUILTIN(BreakIteratorPrototypeCurrent) {
     return *bound_current;
   }
 
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
-                                       isolate);
-  Handle<Context> context = isolate->factory()->NewBuiltinContext(
-      native_context, static_cast<int>(V8BreakIterator::ContextSlot::kLength));
+  Handle<JSFunction> new_bound_current_function = CreateBoundFunction(
+      isolate, break_iterator_holder,
+      Context::INTL_V8_BREAK_ITERATOR_INTERNAL_CURRENT_SHARED_FUN);
 
-  context->set(static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator),
-               *break_iterator_holder);
-
-  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
-      native_context->break_iterator_internal_current_shared_fun(), isolate);
-  Handle<Map> map = isolate->strict_function_without_prototype_map();
-
-  Handle<JSFunction> new_bound_current_function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
   break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundCurrentIndex,
                                           *new_bound_current_function);
 
@@ -1392,7 +1340,7 @@ BUILTIN(BreakIteratorInternalCurrent) {
 
   Handle<JSObject> break_iterator_holder = Handle<JSObject>(
       JSObject::cast(context->get(
-          static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator))),
+          static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
   DCHECK(Intl::IsObjectOfType(isolate, break_iterator_holder,
@@ -1429,20 +1377,10 @@ BUILTIN(BreakIteratorPrototypeBreakType) {
     return *bound_break_type;
   }
 
-  Handle<NativeContext> native_context(isolate->context()->native_context(),
-                                       isolate);
-  Handle<Context> context = isolate->factory()->NewBuiltinContext(
-      native_context, static_cast<int>(V8BreakIterator::ContextSlot::kLength));
+  Handle<JSFunction> new_bound_break_type_function = CreateBoundFunction(
+      isolate, break_iterator_holder,
+      Context::INTL_V8_BREAK_ITERATOR_INTERNAL_BREAK_TYPE_SHARED_FUN);
 
-  context->set(static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator),
-               *break_iterator_holder);
-
-  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
-      native_context->break_iterator_internal_break_type_shared_fun(), isolate);
-  Handle<Map> map = isolate->strict_function_without_prototype_map();
-
-  Handle<JSFunction> new_bound_break_type_function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
   break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundBreakTypeIndex,
                                           *new_bound_break_type_function);
 
@@ -1455,7 +1393,7 @@ BUILTIN(BreakIteratorInternalBreakType) {
 
   Handle<JSObject> break_iterator_holder = Handle<JSObject>(
       JSObject::cast(context->get(
-          static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator))),
+          static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
   DCHECK(Intl::IsObjectOfType(isolate, break_iterator_holder,
