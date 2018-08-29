@@ -8360,7 +8360,7 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
       isolate->allocator()->GetCurrentMemoryUsage() +
       isolate->wasm_engine()->allocator()->GetCurrentMemoryUsage();
   heap_statistics->external_memory_ = isolate->heap()->external_memory() +
-                                      isolate->heap()->backing_story_bytes();
+                                      isolate->heap()->backing_store_bytes();
   heap_statistics->peak_malloced_memory_ =
       isolate->allocator()->GetMaxMemoryUsage() +
       isolate->wasm_engine()->allocator()->GetMaxMemoryUsage();

@@ -680,7 +680,7 @@ class Heap {
   int64_t external_memory_hard_limit() { return MaxOldGenerationSize() / 2; }
 
   int64_t external_memory() { return external_memory_; }
-  int64_t backing_story_bytes() const { return backing_store_bytes_; }
+  int64_t backing_store_bytes() const { return backing_store_bytes_; }
 
   void update_backing_store_bytes(int64_t amount);
 
