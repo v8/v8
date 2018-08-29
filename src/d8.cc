@@ -3400,7 +3400,7 @@ int Shell::Main(int argc, char* argv[]) {
   ShellArrayBufferAllocator shell_array_buffer_allocator;
   MockArrayBufferAllocator mock_arraybuffer_allocator;
   MockArrayBufferAllocatiorWithLimit mock_arraybuffer_allocator_limit(
-      options.mock_arraybuffer_allocator_limit);
+      options.mock_arraybuffer_allocator_limit * options.num_isolates);
   if (options.mock_arraybuffer_allocator_limit > 0) {
     Shell::array_buffer_allocator = &mock_arraybuffer_allocator_limit;
   } else if (options.mock_arraybuffer_allocator) {
