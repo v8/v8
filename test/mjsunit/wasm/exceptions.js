@@ -306,7 +306,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   // Helper function that throws a string. Wasm should not catch it.
   function throw_string() {
-    throw "use wasm;";
+    throw "use wasm";
   }
   sig_index = builder.addType(kSig_v_v);
   let kJSThrowString = builder.addImport("", "throw_string", sig_index);
@@ -352,13 +352,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprUnreachable,
         kExprEnd,
         kExprI32Const, 63,
-      kExprCatch, 1,
-        kExprGetLocal, 1,
+      kExprCatch, except,
       kExprEnd
     ])
-    .addLocals({i32_count: 1})
-    .exportFunc()
-    .index;
+    .exportFunc();
 
   builder.addFunction("same_scope_ignore", kSig_i_i)
     .addBody([
@@ -366,11 +363,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprGetLocal, 0,
           kExprThrow, except,
           kExprUnreachable,
-        kExprCatch, 1,
-          kExprGetLocal, 0,
+        kExprCatch, except,
         kExprEnd,
     ])
-    .addLocals({i32_count: 1})
     .exportFunc();
 
   builder.addFunction("same_scope_multiple", kSig_i_i)
@@ -419,19 +414,18 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
                 kExprUnreachable,
               kExprEnd,
               kExprI32Const, 2,
-            kExprCatch, 1,
-              kExprGetLocal, 1,
+            kExprCatch, except,
               kExprI32Const, 4,
               kExprI32Ior,
               kExprThrow, except,
               kExprUnreachable,
             kExprEnd,
-            kExprTeeLocal, 2,
+            kExprTeeLocal, 1,
             kExprGetLocal, 0,
             kExprI32Const, 2,
             kExprI32Eq,
             kExprIf, kWasmStmt,
-              kExprGetLocal, 2,
+              kExprGetLocal, 1,
               kExprI32Const, 8,
               kExprI32Ior,
               kExprThrow, except,
@@ -439,19 +433,18 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
             kExprEnd,
             kExprI32Const, 16,
             kExprI32Ior,
-          kExprCatch, 1,
-            kExprGetLocal, 1,
+          kExprCatch, except,
             kExprI32Const, 32,
             kExprI32Ior,
             kExprThrow, except,
             kExprUnreachable,
           kExprEnd,
-          kExprTeeLocal, 2,
+          kExprTeeLocal, 1,
           kExprGetLocal, 0,
           kExprI32Const, 3,
           kExprI32Eq,
           kExprIf, kWasmStmt,
-            kExprGetLocal, 2,
+            kExprGetLocal, 1,
             kExprI32Const, /*64=*/ 192, 0,
             kExprI32Ior,
             kExprThrow, except,
@@ -459,13 +452,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprEnd,
           kExprI32Const, /*128=*/ 128, 1,
           kExprI32Ior,
-        kExprCatch, 1,
-          kExprGetLocal, 1,
+        kExprCatch, except,
           kExprI32Const, /*256=*/ 128, 2,
           kExprI32Ior,
         kExprEnd,
     ])
-    .addLocals({i32_count: 2})
+    .addLocals({i32_count: 1})
     .exportFunc();
 
   // Scenario 2: Catches an exception raised from the direct callee.
@@ -477,14 +469,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprCallFunction, kWasmThrowFunction,
           kExprUnreachable,
         kExprCatch, except,
-          kExprGetLocal, 1,
-        kExprEnd
+        kExprEnd,
       ])
-      .addLocals({i32_count: 1})
       .exportFunc()
       .index;
 
   // Scenario 3: Catches an exception raised from an indirect callee.
+  // TODO(mstarzinger): Test case for indirect calls using direct calls not
+  // fooling anyone, switch to actually use indirect calls.
   let kFromIndirectCalleeHelper = kFromDirectCallee + 1;
   builder.addFunction("from_indirect_callee_helper", kSig_v_ii)
     .addBody([
@@ -512,10 +504,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
         kExprCallFunction, kFromIndirectCalleeHelper,
         kExprUnreachable,
       kExprCatch, except,
-        kExprGetLocal, 1,
       kExprEnd
     ])
-    .addLocals({i32_count: 1})
     .exportFunc();
 
   // Scenario 4: Catches an exception raised in JS.
@@ -526,10 +516,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
         kExprCallFunction, kJSThrowI,
         kExprUnreachable,
       kExprCatch, except,
-        kExprGetLocal, 1,
       kExprEnd,
     ])
-    .addLocals({i32_count: 1})
     .exportFunc();
 
   // Scenario 5: Does not catch an exception raised in JS if it is not a
@@ -558,8 +546,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     ])
     .exportFunc();
 
-  // TODO(mstarzinger): Re-enable the following test cases.
-  /*let instance = builder.instantiate({"": {
+  let instance = builder.instantiate({"": {
       throw_i: throw_value,
       throw_string: throw_string,
       throw_fp: throw_fp,
@@ -567,28 +554,30 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       throw_undefined: throw_undefined
   }});
 
-  assertEquals(63, test_catch.exports.same_scope(0));
-  assertEquals(1024, test_catch.exports.same_scope(1024));
-  assertEquals(-3, test_catch.exports.same_scope(-3));
-  assertEquals(-1, test_catch.exports.same_scope_ignore(-1));
-  assertEquals(1, test_catch.exports.same_scope_ignore(1));
-  assertEquals(0x7FFFFFFF, test_catch.exports.same_scope_ignore(0x7FFFFFFF));
-  assertEquals(1024, test_catch.exports.same_scope_ignore(1024));
-  assertEquals(-1, test_catch.exports.same_scope_ignore(-1));
-  assertEquals(293, test_catch.exports.same_scope_multiple(1));
-  assertEquals(298, test_catch.exports.same_scope_multiple(2));
-  assertEquals(338, test_catch.exports.same_scope_multiple(3));
-  assertEquals(146, test_catch.exports.same_scope_multiple(0));
-  assertEquals(-10024, test_catch.exports.from_direct_callee(-10024));
-  assertEquals(3334333, test_catch.exports.from_direct_callee(3334333));
-  assertEquals(-1, test_catch.exports.from_direct_callee(0xFFFFFFFF));
-  assertEquals(0x7FFFFFFF, test_catch.exports.from_direct_callee(0x7FFFFFFF));
-  assertEquals(-10, test_catch.exports.from_indirect_callee(10));
-  assertEquals(-77, test_catch.exports.from_indirect_callee(77));
-  assertEquals(10, test_catch.exports.from_js(10));
-  assertEquals(-10, test_catch.exports.from_js(-10));
+  assertEquals(63, instance.exports.same_scope(0));
+  assertEquals(1024, instance.exports.same_scope(1024));
+  assertEquals(-3, instance.exports.same_scope(-3));
+  assertEquals(-1, instance.exports.same_scope_ignore(-1));
+  assertEquals(1, instance.exports.same_scope_ignore(1));
+  assertEquals(0x7FFFFFFF, instance.exports.same_scope_ignore(0x7FFFFFFF));
+  assertEquals(1024, instance.exports.same_scope_ignore(1024));
+  assertEquals(-1, instance.exports.same_scope_ignore(-1));
+  assertEquals(293, instance.exports.same_scope_multiple(1));
+  assertEquals(298, instance.exports.same_scope_multiple(2));
+  assertEquals(338, instance.exports.same_scope_multiple(3));
+  assertEquals(146, instance.exports.same_scope_multiple(0));
+  assertEquals(-10024, instance.exports.from_direct_callee(-10024));
+  assertEquals(3334333, instance.exports.from_direct_callee(3334333));
+  assertEquals(-1, instance.exports.from_direct_callee(0xFFFFFFFF));
+  assertEquals(0x7FFFFFFF, instance.exports.from_direct_callee(0x7FFFFFFF));
+  assertEquals(-10, instance.exports.from_indirect_callee(10));
+  assertEquals(-77, instance.exports.from_indirect_callee(77));
+  // TODO(mstarzinger): Re-enable the following test cases.
+  /*assertEquals(10, instance.exports.from_js(10));
+  assertEquals(-10, instance.exports.from_js(-10));*/
 
-  assertThrowsEquals(test_catch.exports.string_from_js, "use wasm;");
-  assertThrowsEquals(test_catch.exports.large_from_js, 1e+28);
-  assertThrowsEquals(test_catch.exports.undefined_from_js, undefined);*/
+  assertThrowsEquals(instance.exports.string_from_js, "use wasm");
+  assertThrowsEquals(instance.exports.fp_from_js, 10.5);
+  assertThrowsEquals(instance.exports.large_from_js, 1e+28);
+  assertThrowsEquals(instance.exports.undefined_from_js, undefined);
 })();

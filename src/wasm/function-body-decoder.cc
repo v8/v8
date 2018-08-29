@@ -791,11 +791,9 @@ class WasmGraphBuildingInterface {
       arg_nodes[i + 1] = args[i].node;
     }
     if (index_node) {
-      builder_->CallIndirect(index, arg_nodes, &return_nodes,
-                             decoder->position());
+      BUILD(CallIndirect, index, arg_nodes, &return_nodes, decoder->position());
     } else {
-      builder_->CallDirect(index, arg_nodes, &return_nodes,
-                           decoder->position());
+      BUILD(CallDirect, index, arg_nodes, &return_nodes, decoder->position());
     }
     int return_count = static_cast<int>(sig->return_count());
     for (int i = 0; i < return_count; ++i) {
