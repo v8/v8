@@ -9,7 +9,7 @@
 
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/wasm/decoder.h"
+#include "src/vector.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -22,7 +22,30 @@ class WasmModuleObject;
 
 namespace wasm {
 
+using WasmName = Vector<const char>;
+
 class ErrorThrower;
+
+// Reference to a string in the wire bytes.
+class WireBytesRef {
+ public:
+  WireBytesRef() : WireBytesRef(0, 0) {}
+  WireBytesRef(uint32_t offset, uint32_t length)
+      : offset_(offset), length_(length) {
+    DCHECK_IMPLIES(offset_ == 0, length_ == 0);
+    DCHECK_LE(offset_, offset_ + length_);  // no uint32_t overflow.
+  }
+
+  uint32_t offset() const { return offset_; }
+  uint32_t length() const { return length_; }
+  uint32_t end_offset() const { return offset_ + length_; }
+  bool is_empty() const { return length_ == 0; }
+  bool is_set() const { return offset_ != 0; }
+
+ private:
+  uint32_t offset_;
+  uint32_t length_;
+};
 
 // Static representation of a wasm function.
 struct WasmFunction {

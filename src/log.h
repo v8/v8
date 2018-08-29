@@ -80,10 +80,6 @@ enum class Bytecode : uint8_t;
 enum class OperandScale : uint8_t;
 }  // namespace interpreter
 
-namespace wasm {
-class WasmCode;
-}
-
 #undef LOG
 #define LOG(isolate, Call)                              \
   do {                                                  \
