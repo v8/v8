@@ -252,19 +252,22 @@ for (var use_real_arrays = 0; use_real_arrays <= 1; use_real_arrays++) {
     assertEquals("bar", a[2]);
 
     // Shift.
-    var baz = shift_function(a);
-    assertEquals("baz", baz);
-    assertEquals("boo", a[0]);
-    assertEquals(pos + 3, a.length);
-    assertEquals("foo", a[pos + 2]);
+    // Skip VERYLARGE arrays, as we removed sparse support for shift.
+    // Slice is also skipped, since it relies on the "shift" test to be run.
+    if (pos < VERYLARGE) {
+      var baz = shift_function(a);
+      assertEquals("baz", baz);
+      assertEquals("boo", a[0]);
+      assertEquals(pos + 3, a.length);
+      assertEquals("foo", a[pos + 2]);
 
-    // Slice.
-    var bar = slice_function(a, 1, 0);  // don't throw an exception please.
-    bar = slice_function(a, 1, 2);
-    assertEquals("bar", bar[0]);
-    assertEquals(1, bar.length);
-    assertEquals("bar", a[1]);
-
+      // Slice.
+      var bar = slice_function(a, 1, 0);  // don't throw an exception please.
+      bar = slice_function(a, 1, 2);
+      assertEquals("bar", bar[0]);
+      assertEquals(1, bar.length);
+      assertEquals("bar", a[1]);
+    }
   }
 }
 

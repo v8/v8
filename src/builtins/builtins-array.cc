@@ -189,6 +189,24 @@ V8_WARN_UNUSED_RESULT Maybe<double> GetLengthProperty(
   return Just(raw_length_number->Number());
 }
 
+// Set "length" property, has "fast-path" for JSArrays.
+// Returns Nothing if something went wrong.
+V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetLengthProperty(
+    Isolate* isolate, Handle<JSReceiver> receiver, double length) {
+  if (receiver->IsJSArray()) {
+    Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+    if (!JSArray::HasReadOnlyLength(array)) {
+      DCHECK_LE(length, kMaxUInt32);
+      JSArray::SetLength(array, static_cast<uint32_t>(length));
+      return receiver;
+    }
+  }
+
+  return Object::SetProperty(
+      isolate, receiver, isolate->factory()->length_string(),
+      isolate->factory()->NewNumber(length), LanguageMode::kStrict);
+}
+
 V8_WARN_UNUSED_RESULT Object* GenericArrayFill(Isolate* isolate,
                                                Handle<JSReceiver> receiver,
                                                Handle<Object> value,
@@ -485,26 +503,115 @@ BUILTIN(ArrayPop) {
   return *result;
 }
 
-BUILTIN(ArrayShift) {
-  HandleScope scope(isolate);
-  Heap* heap = isolate->heap();
-  Handle<Object> receiver = args.receiver();
+namespace {
+
+// Returns true, iff we can use ElementsAccessor for shifting.
+V8_WARN_UNUSED_RESULT bool CanUseFastArrayShift(Isolate* isolate,
+                                                Handle<JSReceiver> receiver) {
   if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, nullptr, 0,
                                              0) ||
       !IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {
-    return CallJsIntrinsic(isolate, isolate->array_shift(), args);
+    return false;
   }
+
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  return !JSArray::HasReadOnlyLength(array);
+}
 
-  int len = Smi::ToInt(array->length());
-  if (len == 0) return ReadOnlyRoots(heap).undefined_value();
+V8_WARN_UNUSED_RESULT Object* GenericArrayShift(Isolate* isolate,
+                                                Handle<JSReceiver> receiver,
+                                                double length) {
+  // 4. Let first be ? Get(O, "0").
+  Handle<Object> first;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, first,
+                                     Object::GetElement(isolate, receiver, 0));
 
-  if (JSArray::HasReadOnlyLength(array)) {
-    return CallJsIntrinsic(isolate, isolate->array_shift(), args);
+  // 5. Let k be 1.
+  double k = 1;
+
+  // 6. Repeat, while k < len.
+  while (k < length) {
+    // a. Let from be ! ToString(k).
+    Handle<String> from =
+        isolate->factory()->NumberToString(isolate->factory()->NewNumber(k));
+
+    // b. Let to be ! ToString(k-1).
+    Handle<String> to = isolate->factory()->NumberToString(
+        isolate->factory()->NewNumber(k - 1));
+
+    // c. Let fromPresent be ? HasProperty(O, from).
+    bool from_present;
+    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, from_present, JSReceiver::HasProperty(receiver, from));
+
+    // d. If fromPresent is true, then.
+    if (from_present) {
+      // i. Let fromVal be ? Get(O, from).
+      Handle<Object> from_val;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, from_val,
+          Object::GetPropertyOrElement(isolate, receiver, from));
+
+      // ii. Perform ? Set(O, to, fromVal, true).
+      RETURN_FAILURE_ON_EXCEPTION(
+          isolate, Object::SetPropertyOrElement(isolate, receiver, to, from_val,
+                                                LanguageMode::kStrict));
+    } else {  // e. Else fromPresent is false,
+      // i. Perform ? DeletePropertyOrThrow(O, to).
+      MAYBE_RETURN(JSReceiver::DeletePropertyOrElement(receiver, to,
+                                                       LanguageMode::kStrict),
+                   ReadOnlyRoots(isolate).exception());
+    }
+
+    // f. Increase k by 1.
+    ++k;
   }
 
-  Handle<Object> first = array->GetElementsAccessor()->Shift(array);
+  // 7. Perform ? DeletePropertyOrThrow(O, ! ToString(len-1)).
+  Handle<String> new_length = isolate->factory()->NumberToString(
+      isolate->factory()->NewNumber(length - 1));
+  MAYBE_RETURN(JSReceiver::DeletePropertyOrElement(receiver, new_length,
+                                                   LanguageMode::kStrict),
+               ReadOnlyRoots(isolate).exception());
+
+  // 8. Perform ? Set(O, "length", len-1, true).
+  RETURN_FAILURE_ON_EXCEPTION(isolate,
+                              SetLengthProperty(isolate, receiver, length - 1));
+
+  // 9. Return first.
   return *first;
+}
+}  // namespace
+
+BUILTIN(ArrayShift) {
+  HandleScope scope(isolate);
+
+  // 1. Let O be ? ToObject(this value).
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, receiver, Object::ToObject(isolate, args.receiver()));
+
+  // 2. Let len be ? ToLength(? Get(O, "length")).
+  double length;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, length, GetLengthProperty(isolate, receiver));
+
+  // 3. If len is zero, then.
+  if (length == 0) {
+    // a. Perform ? Set(O, "length", 0, true).
+    RETURN_FAILURE_ON_EXCEPTION(isolate,
+                                SetLengthProperty(isolate, receiver, length));
+
+    // b. Return undefined.
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  if (CanUseFastArrayShift(isolate, receiver)) {
+    Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+    return *array->GetElementsAccessor()->Shift(array);
+  }
+
+  return GenericArrayShift(isolate, receiver, length);
 }
 
 BUILTIN(ArrayUnshift) {

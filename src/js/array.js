@@ -408,29 +408,6 @@ DEFINE_METHOD(
 );
 
 
-function ArrayShiftFallback() {
-  var array = TO_OBJECT(this);
-  var len = TO_LENGTH(array.length);
-
-  if (len === 0) {
-    array.length = 0;
-    return;
-  }
-
-  var first = array[0];
-
-  if (UseSparseVariant(array, len, IS_ARRAY(array), len)) {
-    SparseMove(array, 0, 1, len, 0);
-  } else {
-    SimpleMove(array, 0, 1, len, 0);
-  }
-
-  array.length = len - 1;
-
-  return first;
-}
-
-
 function ArrayUnshiftFallback(arg1) {  // length == 1
   var array = TO_OBJECT(this);
   var len = TO_LENGTH(array.length);
@@ -778,7 +755,6 @@ utils.Export(function(to) {
   "array_keys_iterator", ArrayKeys,
   "array_values_iterator", ArrayValues,
   // Fallback implementations of Array builtins.
-  "array_shift", ArrayShiftFallback,
   "array_splice", ArraySpliceFallback,
   "array_unshift", ArrayUnshiftFallback,
 ]);
