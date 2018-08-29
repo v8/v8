@@ -90,9 +90,7 @@
         {"name": "Slice"},
         {"name": "Slice0"},
         {"name": "ConcatReceive"},
-        {"name": "ConcatArg"},
-        {"name": "ForOfPush"},
-        {"name": "MapId"}
+        {"name": "ConcatArg"}
       ]
     },
     {
@@ -126,9 +124,7 @@
         {"name": "Slice"},
         {"name": "Slice0"},
         {"name": "ConcatReceive"},
-        {"name": "ConcatArg"},
-        {"name": "ForOfPush"},
-        {"name": "MapId"}
+        {"name": "ConcatArg"}
       ]
     },
     {

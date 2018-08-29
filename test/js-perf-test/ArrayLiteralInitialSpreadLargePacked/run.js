@@ -5,7 +5,7 @@
 // Comparing different copy schemes against spread initial literals.
 // Benchmarks for large packed arrays.
 
-const largeHoleyArray = new Array(100000);
+const largeHoleyArray = new Array(1e5);
 const largeArray = Array.from(largeHoleyArray.keys());
 
 // ----------------------------------------------------------------------------
@@ -133,9 +133,9 @@ function PrintError(name, error) {
   success = false;
 }
 
-// Run the benchmark (20 x 100) iterations instead of 1 second.
+// Run the benchmark (5 x 100) iterations instead of 1 second.
 function CreateBenchmark(name, f) {
-  new BenchmarkSuite(name, [1000], [ new Benchmark(name, false, false, 20, f) ]);
+  new BenchmarkSuite(name, [1000], [ new Benchmark(name, false, false, 5, f) ]);
 }
 
 CreateBenchmark('Spread', SpreadLarge);
@@ -145,8 +145,9 @@ CreateBenchmark('Slice', SliceLarge);
 CreateBenchmark('Slice0', Slice0Large);
 CreateBenchmark('ConcatReceive', ConcatReceiveLarge);
 CreateBenchmark('ConcatArg', ConcatArgLarge);
-CreateBenchmark('ForOfPush', ForOfPushLarge);
-CreateBenchmark('MapId', MapIdLarge);
+// The following benchmarks are so slow that they will time out.
+// CreateBenchmark('ForOfPush', ForOfPushLarge);
+// CreateBenchmark('MapId', MapIdLarge);
 
 BenchmarkSuite.config.doWarmup = true;
 BenchmarkSuite.config.doDeterministic = true;
