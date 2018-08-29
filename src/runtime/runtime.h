@@ -264,6 +264,7 @@ namespace internal {
   F(ThrowConstructorReturnedNonObject, 0, 1)                         \
   F(ThrowInvalidStringLength, 0, 1)                                  \
   F(ThrowInvalidTypedArrayAlignment, 2, 1)                           \
+  F(ThrowIteratorError, 1, 1)                                        \
   F(ThrowIteratorResultNotAnObject, 1, 1)                            \
   F(ThrowNotConstructor, 1, 1)                                       \
   F(ThrowRangeError, -1 /* >= 1 */, 1)                               \

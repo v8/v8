@@ -352,11 +352,14 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
     return AddSlot(FeedbackSlotKind::kLoadKeyed);
   }
 
-  FeedbackSlot AddStoreICSlot(LanguageMode language_mode) {
+  FeedbackSlotKind GetStoreICSlot(LanguageMode language_mode) {
     STATIC_ASSERT(LanguageModeSize == 2);
-    return AddSlot(is_strict(language_mode)
-                       ? FeedbackSlotKind::kStoreNamedStrict
-                       : FeedbackSlotKind::kStoreNamedSloppy);
+    return is_strict(language_mode) ? FeedbackSlotKind::kStoreNamedStrict
+                                    : FeedbackSlotKind::kStoreNamedSloppy;
+  }
+
+  FeedbackSlot AddStoreICSlot(LanguageMode language_mode) {
+    return AddSlot(GetStoreICSlot(language_mode));
   }
 
   FeedbackSlot AddStoreOwnICSlot() {

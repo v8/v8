@@ -292,6 +292,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ReThrow)                                  \
   V(ThrowCalledNonCallable)                   \
   V(ThrowInvalidStringLength)                 \
+  V(ThrowIteratorError)                       \
   V(ThrowIteratorResultNotAnObject)           \
   V(ThrowReferenceError)                      \
   V(ThrowSymbolIteratorInvalid)               \
@@ -477,6 +478,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     // Literals.
     case Bytecode::kCreateArrayLiteral:
     case Bytecode::kCreateEmptyArrayLiteral:
+    case Bytecode::kCreateArrayFromIterable:
     case Bytecode::kCreateObjectLiteral:
     case Bytecode::kCreateEmptyObjectLiteral:
     case Bytecode::kCreateRegExpLiteral:

@@ -38,8 +38,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
 
   BIND(&if_not_callable);
   {
-    Node* ret = CallRuntime(Runtime::kThrowTypeError, context,
-                            SmiConstant(MessageTemplate::kNotIterable), object);
+    Node* ret = CallRuntime(Runtime::kThrowIteratorError, context, object);
     GotoIfException(ret, if_exception, exception);
     Unreachable();
   }

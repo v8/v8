@@ -973,6 +973,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayFromIterable() {
+  OutputCreateArrayFromIterable();
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
     size_t constant_properties_entry, int literal_index, int flags,
     Register output) {
