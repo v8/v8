@@ -719,7 +719,7 @@ class ParserBase {
     Token::Value next = Next();
     USE(next);
     USE(token);
-    DCHECK(next == token);
+    DCHECK_EQ(next, token);
   }
 
   bool Check(Token::Value token) {
@@ -2080,7 +2080,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
   int pos = peek_position();
   ExpressionListT values = impl()->NewExpressionList(4);
   int first_spread_index = -1;
-  Expect(Token::LBRACK, CHECK_OK);
+  Consume(Token::LBRACK);
   while (peek() != Token::RBRACK) {
     ExpressionT elem;
     if (peek() == Token::COMMA) {
@@ -2543,7 +2543,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
     case PropertyKind::kSpreadProperty:
       DCHECK(!is_get && !is_set && !is_generator && !is_async &&
              !*is_computed_name);
-      DCHECK(name_token == Token::ELLIPSIS);
+      DCHECK_EQ(Token::ELLIPSIS, name_token);
 
       *is_computed_name = true;
       *is_rest_property = true;
@@ -2726,7 +2726,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
   bool has_rest_property = false;
   ObjectLiteralChecker checker(this);
 
-  Expect(Token::LBRACE, CHECK_OK);
+  Consume(Token::LBRACE);
 
   while (peek() != Token::RBRACE) {
     FuncNameInferrer::State fni_state(fni_);
@@ -4298,7 +4298,7 @@ void ParserBase<Impl>::CheckArityRestrictions(int param_count,
 
 template <typename Impl>
 bool ParserBase<Impl>::IsNextLetKeyword() {
-  DCHECK(peek() == Token::LET);
+  DCHECK_EQ(Token::LET, peek());
   Token::Value next_next = PeekAhead();
   switch (next_next) {
     case Token::LBRACE:
@@ -5839,7 +5839,7 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
   Scope* for_scope = nullptr;
   if (inner_block_scope != nullptr) {
     for_scope = inner_block_scope->outer_scope();
-    DCHECK(for_scope == scope());
+    DCHECK_EQ(for_scope, scope());
     inner_block_scope->set_start_position(scanner()->location().beg_pos);
   }
 
