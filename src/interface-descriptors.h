@@ -601,6 +601,15 @@ class LoadWithVectorDescriptor : public LoadDescriptor {
   DECLARE_DESCRIPTOR(LoadWithVectorDescriptor, LoadDescriptor)
 
   static const Register VectorRegister();
+
+#if V8_TARGET_ARCH_IA32
+  static const bool kPassLastArgsOnStack = true;
+#else
+  static const bool kPassLastArgsOnStack = false;
+#endif
+
+  // Pass vector through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 1 : 0;
 };
 
 class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
@@ -611,9 +620,15 @@ class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
                          MachineType::AnyTagged())     // kVector
   DECLARE_DESCRIPTOR(LoadGlobalWithVectorDescriptor, LoadGlobalDescriptor)
 
+#if V8_TARGET_ARCH_IA32
+  // On ia32, LoadWithVectorDescriptor passes vector on the stack and thus we
+  // need to choose a new register here.
+  static const Register VectorRegister() { return edx; }
+#else
   static const Register VectorRegister() {
     return LoadWithVectorDescriptor::VectorRegister();
   }
+#endif
 };
 
 class FastNewFunctionContextDescriptor : public CallInterfaceDescriptor {

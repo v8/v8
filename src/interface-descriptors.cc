@@ -260,13 +260,21 @@ void LoadWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ReceiverRegister(), NameRegister(), SlotRegister(),
                           VectorRegister()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
+  // TODO(jgruber): This DCHECK could be enabled if RegisterBase::ListOf were
+  // to allow no_reg entries.
+  // DCHECK(!AreAliased(ReceiverRegister(), NameRegister(), SlotRegister(),
+  //                    VectorRegister(), kRootRegister));
+  int len = arraysize(registers) - kStackArgumentsCount;
+  data->InitializePlatformSpecific(len, registers);
 }
 
 void StoreWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ReceiverRegister(), NameRegister(), ValueRegister(),
                           SlotRegister(), VectorRegister()};
+  // TODO(jgruber): This DCHECK could be enabled if RegisterBase::ListOf were
+  // to allow no_reg entries.
+  // DCHECK(!AreAliased(ReceiverRegister(), NameRegister(), kRootRegister));
   int len = arraysize(registers) - kStackArgumentsCount;
   data->InitializePlatformSpecific(len, registers);
 }

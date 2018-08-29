@@ -49,17 +49,17 @@ const Register LoadDescriptor::ReceiverRegister() { return edx; }
 const Register LoadDescriptor::NameRegister() { return ecx; }
 const Register LoadDescriptor::SlotRegister() { return eax; }
 
-const Register LoadWithVectorDescriptor::VectorRegister() { return ebx; }
+const Register LoadWithVectorDescriptor::VectorRegister() { return no_reg; }
 
 const Register StoreDescriptor::ReceiverRegister() { return edx; }
 const Register StoreDescriptor::NameRegister() { return ecx; }
-const Register StoreDescriptor::ValueRegister() { return eax; }
-const Register StoreDescriptor::SlotRegister() { return edi; }
+const Register StoreDescriptor::ValueRegister() { return no_reg; }
+const Register StoreDescriptor::SlotRegister() { return no_reg; }
 
-const Register StoreWithVectorDescriptor::VectorRegister() { return ebx; }
+const Register StoreWithVectorDescriptor::VectorRegister() { return no_reg; }
 
 const Register StoreTransitionDescriptor::SlotRegister() { return no_reg; }
-const Register StoreTransitionDescriptor::VectorRegister() { return ebx; }
+const Register StoreTransitionDescriptor::VectorRegister() { return no_reg; }
 const Register StoreTransitionDescriptor::MapRegister() { return edi; }
 
 const Register ApiGetterDescriptor::HolderRegister() { return ecx; }
