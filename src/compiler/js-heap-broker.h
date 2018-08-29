@@ -163,7 +163,6 @@ class JSObjectRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
 
-  bool IsUnboxedDoubleField(FieldIndex index) const;
   double RawFastDoublePropertyAt(FieldIndex index) const;
   ObjectRef RawFastPropertyAt(FieldIndex index) const;
 
@@ -278,6 +277,8 @@ class FeedbackVectorRef : public HeapObjectRef {
   using HeapObjectRef::HeapObjectRef;
 
   ObjectRef get(FeedbackSlot slot) const;
+
+  void SerializeSlots();
 };
 
 class AllocationSiteRef : public HeapObjectRef {
@@ -332,6 +333,7 @@ class MapRef : public HeapObjectRef {
   NameRef GetPropertyKey(int i) const;
   FieldIndex GetFieldIndexFor(int i) const;
   ObjectRef GetFieldType(int descriptor) const;
+  bool IsUnboxedDoubleField(FieldIndex index) const;
 };
 
 class FixedArrayBaseRef : public HeapObjectRef {
@@ -346,7 +348,6 @@ class FixedArrayRef : public FixedArrayBaseRef {
   using FixedArrayBaseRef::FixedArrayBaseRef;
 
   ObjectRef get(int i) const;
-  bool is_the_hole(int i) const;
 };
 
 class FixedDoubleArrayRef : public FixedArrayBaseRef {

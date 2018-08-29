@@ -46,14 +46,8 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kJSCreateEmptyLiteralArray: {
-      // TODO(neis, jarin) Force serialization of the entire feedback vector
-      // rather than just the one element.
       FeedbackParameter const& p = FeedbackParameterOf(node->op());
-      FeedbackVectorRef(broker(), p.feedback().vector());
-      Handle<Object> feedback(
-          p.feedback().vector()->Get(p.feedback().slot())->ToObject(),
-          broker()->isolate());
-      ObjectRef(broker(), feedback);
+      FeedbackVectorRef(broker(), p.feedback().vector()).SerializeSlots();
       break;
     }
     case IrOpcode::kJSCreateFunctionContext: {
@@ -65,7 +59,12 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject: {
       CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
-      ObjectRef(broker(), p.feedback().vector());
+      FeedbackVectorRef(broker(), p.feedback().vector()).SerializeSlots();
+      break;
+    }
+    case IrOpcode::kJSCreateLiteralRegExp: {
+      CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+      FeedbackVectorRef(broker(), p.feedback().vector()).SerializeSlots();
       break;
     }
     case IrOpcode::kJSLoadNamed:
