@@ -3060,6 +3060,18 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
             factory->empty_string(), 0);
         native_context()->set_break_iterator_internal_current_shared_fun(*info);
       }
+
+      SimpleInstallGetter(isolate_, prototype,
+                          factory->InternalizeUtf8String("breakType"),
+                          Builtins::kBreakIteratorPrototypeBreakType, false);
+
+      {
+        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
+            isolate_, Builtins::kBreakIteratorInternalBreakType,
+            factory->empty_string(), 0);
+        native_context()->set_break_iterator_internal_break_type_shared_fun(
+            *info);
+      }
     }
 
     {

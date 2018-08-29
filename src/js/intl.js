@@ -55,48 +55,6 @@ macro ANONYMOUS_FUNCTION(fn)
 (0, (fn))
 endmacro
 
-/**
- * Adds bound method to the prototype of the given object.
- */
-function AddBoundMethod(obj, methodName, implementation, length, type,
-                        compat) {
-  %CheckIsBootstrapping();
-  var internalName = %CreatePrivateSymbol(methodName);
-
-  DEFINE_METHOD(
-    obj.prototype,
-    get [methodName]() {
-      if(!IS_RECEIVER(this)) {
-        throw %make_type_error(kIncompatibleMethodReceiver, methodName, this);
-      }
-      var receiver = %IntlUnwrapReceiver(this, type, obj, methodName, compat);
-      if (IS_UNDEFINED(receiver[internalName])) {
-        var boundMethod;
-        if (IS_UNDEFINED(length) || length === 2) {
-          boundMethod =
-            ANONYMOUS_FUNCTION((fst, snd) => implementation(receiver, fst, snd));
-        } else if (length === 1) {
-          boundMethod = ANONYMOUS_FUNCTION(fst => implementation(receiver, fst));
-        } else {
-          boundMethod = ANONYMOUS_FUNCTION((...args) => {
-            // DateTimeFormat.format needs to be 0 arg method, but can still
-            // receive an optional dateValue param. If one was provided, pass it
-            // along.
-            if (args.length > 0) {
-              return implementation(receiver, args[0]);
-            } else {
-              return implementation(receiver);
-            }
-          });
-        }
-        %SetNativeFlag(boundMethod);
-        receiver[internalName] = boundMethod;
-      }
-      return receiver[internalName];
-    }
-  );
-}
-
 function IntlConstruct(receiver, constructor, create, newTarget, args,
                        compat) {
   var locales = args[0];
@@ -1140,17 +1098,6 @@ DEFINE_METHOD(
   }
 );
 
-
-/**
- * Returns type of the current break.
- */
-function breakType(iterator) {
-  return %BreakIteratorBreakType(iterator);
-}
-
-
-AddBoundMethod(GlobalIntlv8BreakIterator, 'breakType', breakType, 0,
-               BREAK_ITERATOR_TYPE, false);
 
 // Save references to Intl objects and methods we use, for added security.
 var savedObjects = {

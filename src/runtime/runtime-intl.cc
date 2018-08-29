@@ -43,7 +43,6 @@
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
 #include "unicode/plurrule.h"
-#include "unicode/rbbi.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/timezone.h"
 #include "unicode/uchar.h"
@@ -399,37 +398,6 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
                           V8BreakIterator::DeleteBreakIterator,
                           WeakCallbackType::kInternalFields);
   return *local_object;
-}
-
-RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(1, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
-
-  icu::BreakIterator* break_iterator =
-      V8BreakIterator::UnpackBreakIterator(break_iterator_holder);
-  CHECK_NOT_NULL(break_iterator);
-
-  // TODO(cira): Remove cast once ICU fixes base BreakIterator class.
-  icu::RuleBasedBreakIterator* rule_based_iterator =
-      static_cast<icu::RuleBasedBreakIterator*>(break_iterator);
-  int32_t status = rule_based_iterator->getRuleStatus();
-  // Keep return values in sync with JavaScript BreakType enum.
-  if (status >= UBRK_WORD_NONE && status < UBRK_WORD_NONE_LIMIT) {
-    return *isolate->factory()->NewStringFromStaticChars("none");
-  } else if (status >= UBRK_WORD_NUMBER && status < UBRK_WORD_NUMBER_LIMIT) {
-    return ReadOnlyRoots(isolate).number_string();
-  } else if (status >= UBRK_WORD_LETTER && status < UBRK_WORD_LETTER_LIMIT) {
-    return *isolate->factory()->NewStringFromStaticChars("letter");
-  } else if (status >= UBRK_WORD_KANA && status < UBRK_WORD_KANA_LIMIT) {
-    return *isolate->factory()->NewStringFromStaticChars("kana");
-  } else if (status >= UBRK_WORD_IDEO && status < UBRK_WORD_IDEO_LIMIT) {
-    return *isolate->factory()->NewStringFromStaticChars("ideo");
-  } else {
-    return *isolate->factory()->NewStringFromStaticChars("unknown");
-  }
 }
 
 RUNTIME_FUNCTION(Runtime_ToLocaleDateTime) {

@@ -1576,5 +1576,82 @@ BUILTIN(BreakIteratorInternalCurrent) {
   return *isolate->factory()->NewNumberFromInt(break_iterator->current());
 }
 
+BUILTIN(BreakIteratorPrototypeBreakType) {
+  const char* const method = "get Intl.v8BreakIterator.prototype.breakType";
+  HandleScope scope(isolate);
+
+  CHECK_RECEIVER(JSObject, break_iterator_holder, method);
+  if (!Intl::IsObjectOfType(isolate, break_iterator_holder,
+                            Intl::Type::kBreakIterator)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                     isolate->factory()->NewStringFromAsciiChecked(method),
+                     break_iterator_holder));
+  }
+
+  Handle<Object> bound_break_type =
+      Handle<Object>(break_iterator_holder->GetEmbedderField(
+                         V8BreakIterator::kBoundBreakTypeIndex),
+                     isolate);
+
+  if (!bound_break_type->IsUndefined(isolate)) {
+    DCHECK(bound_break_type->IsJSFunction());
+    return *bound_break_type;
+  }
+
+  Handle<NativeContext> native_context(isolate->context()->native_context(),
+                                       isolate);
+  Handle<Context> context = isolate->factory()->NewBuiltinContext(
+      native_context, static_cast<int>(V8BreakIterator::ContextSlot::kLength));
+
+  context->set(static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator),
+               *break_iterator_holder);
+
+  Handle<SharedFunctionInfo> info = Handle<SharedFunctionInfo>(
+      native_context->break_iterator_internal_break_type_shared_fun(), isolate);
+  Handle<Map> map = isolate->strict_function_without_prototype_map();
+
+  Handle<JSFunction> new_bound_break_type_function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
+  break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundBreakTypeIndex,
+                                          *new_bound_break_type_function);
+
+  return *new_bound_break_type_function;
+}
+
+BUILTIN(BreakIteratorInternalBreakType) {
+  HandleScope scope(isolate);
+  Handle<Context> context = Handle<Context>(isolate->context(), isolate);
+
+  Handle<JSObject> break_iterator_holder = Handle<JSObject>(
+      JSObject::cast(context->get(
+          static_cast<int>(V8BreakIterator::ContextSlot::kV8BreakIterator))),
+      isolate);
+
+  DCHECK(Intl::IsObjectOfType(isolate, break_iterator_holder,
+                              Intl::Type::kBreakIterator));
+
+  icu::BreakIterator* break_iterator =
+      V8BreakIterator::UnpackBreakIterator(break_iterator_holder);
+  CHECK_NOT_NULL(break_iterator);
+
+  int32_t status = break_iterator->getRuleStatus();
+  // Keep return values in sync with JavaScript BreakType enum.
+  if (status >= UBRK_WORD_NONE && status < UBRK_WORD_NONE_LIMIT) {
+    return *isolate->factory()->NewStringFromStaticChars("none");
+  } else if (status >= UBRK_WORD_NUMBER && status < UBRK_WORD_NUMBER_LIMIT) {
+    return ReadOnlyRoots(isolate).number_string();
+  } else if (status >= UBRK_WORD_LETTER && status < UBRK_WORD_LETTER_LIMIT) {
+    return *isolate->factory()->NewStringFromStaticChars("letter");
+  } else if (status >= UBRK_WORD_KANA && status < UBRK_WORD_KANA_LIMIT) {
+    return *isolate->factory()->NewStringFromStaticChars("kana");
+  } else if (status >= UBRK_WORD_IDEO && status < UBRK_WORD_IDEO_LIMIT) {
+    return *isolate->factory()->NewStringFromStaticChars("ideo");
+  } else {
+    return *isolate->factory()->NewStringFromStaticChars("unknown");
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
