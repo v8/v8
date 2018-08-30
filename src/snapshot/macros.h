@@ -39,7 +39,7 @@
 #if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
 #define V8_ASM_DECLARE(NAME) ".global " V8_ASM_MANGLE_LABEL NAME "\n"
 #else
-#define V8_ASM_DECLARE(NAME) ".global " V8_ASM_MANGLE_LABEL NAME "\n"
+#define V8_ASM_DECLARE(NAME) ".local " V8_ASM_MANGLE_LABEL NAME "\n"
 #endif
 #endif
 
