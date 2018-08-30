@@ -33,7 +33,11 @@ class JSCreateLoweringTest : public TypedGraphTest {
       : TypedGraphTest(3),
         javascript_(zone()),
         deps_(isolate(), zone()),
-        handle_scope_(isolate()) {}
+        handle_scope_(isolate()) {
+    if (FLAG_concurrent_compiler_frontend) {
+      js_heap_broker()->SerializeStandardObjects();
+    }
+  }
   ~JSCreateLoweringTest() override {}
 
  protected:

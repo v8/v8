@@ -25,7 +25,8 @@ JSHeapBroker* JSHeapCopyReducer::broker() { return broker_; }
 Reduction JSHeapCopyReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant: {
-      ObjectRef(broker(), HeapConstantOf(node->op()));
+      ObjectRef object(broker(), HeapConstantOf(node->op()));
+      if (object.IsJSFunction()) object.AsJSFunction().Serialize();
       break;
     }
     case IrOpcode::kJSCreateArray: {

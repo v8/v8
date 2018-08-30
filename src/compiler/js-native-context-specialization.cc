@@ -408,6 +408,9 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
   // Optimize if we currently know the "prototype" property.
   if (m.Value()->IsJSFunction()) {
     JSFunctionRef function = m.Ref(js_heap_broker()).AsJSFunction();
+    // TODO(neis): This is a temporary hack needed because the copy reducer
+    // runs only after this pass.
+    function.Serialize();
     // TODO(neis): Remove the has_prototype_slot condition once the broker is
     // always enabled.
     if (!function.map().has_prototype_slot() || !function.has_prototype() ||
@@ -1100,6 +1103,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
         p.name().is_identical_to(factory()->prototype_string())) {
       // Optimize "prototype" property of functions.
       JSFunctionRef function = m.Ref(js_heap_broker()).AsJSFunction();
+      // TODO(neis): This is a temporary hack needed because the copy reducer
+      // runs only after this pass.
+      function.Serialize();
       // TODO(neis): Remove the has_prototype_slot condition once the broker is
       // always enabled.
       if (!function.map().has_prototype_slot() || !function.has_prototype() ||

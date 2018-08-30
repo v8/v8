@@ -46,8 +46,8 @@ class ObjectData : public ZoneObject {
 // TODO(neis): Perhaps add a boolean that indicates whether serialization of an
 // object has completed. That could be used to add safety checks.
 
-#define GET_OR_CREATE(name) \
-  broker->GetOrCreateData(handle(object_->name(), broker->isolate()))
+#define GET_OR_CREATE(raw) \
+  broker->GetOrCreateData(handle(raw, broker->isolate()))
 
 class HeapObjectData : public ObjectData {
  public:
@@ -61,7 +61,7 @@ class HeapObjectData : public ObjectData {
                  HeapObjectType type_)
       : ObjectData(broker_, object_, false),
         type(type_),
-        map(GET_OR_CREATE(map)->AsMap()) {
+        map(GET_OR_CREATE(object_->map())->AsMap()) {
     CHECK(broker_->SerializingAllowed());
   }
 };
@@ -125,15 +125,32 @@ class JSObjectData : public HeapObjectData {
 
 class JSFunctionData : public JSObjectData {
  public:
-  JSGlobalProxyData* const global_proxy;
-  MapData* const initial_map;  // Can be nullptr.
-  bool const has_prototype;
-  ObjectData* const prototype;  // Can be nullptr.
-  bool const PrototypeRequiresRuntimeLookup;
-  SharedFunctionInfoData* const shared;
+  bool has_initial_map() const { return has_initial_map_; }
+  bool has_prototype() const { return has_prototype_; }
+  bool PrototypeRequiresRuntimeLookup() const {
+    return PrototypeRequiresRuntimeLookup_;
+  }
+
+  JSGlobalProxyData* global_proxy() const { return global_proxy_; }
+  MapData* initial_map() const { return initial_map_; }
+  ObjectData* prototype() const { return prototype_; }
+  SharedFunctionInfoData* shared() const { return shared_; }
 
   JSFunctionData(JSHeapBroker* broker_, Handle<JSFunction> object_,
                  HeapObjectType type_);
+  void Serialize();
+
+ private:
+  bool has_initial_map_;
+  bool has_prototype_;
+  bool PrototypeRequiresRuntimeLookup_;
+
+  bool serialized_ = false;
+
+  JSGlobalProxyData* global_proxy_ = nullptr;
+  MapData* initial_map_ = nullptr;
+  ObjectData* prototype_ = nullptr;
+  SharedFunctionInfoData* shared_ = nullptr;
 };
 
 class JSRegExpData : public JSObjectData {
@@ -193,18 +210,20 @@ class ContextData : public HeapObjectData {
 
 class NativeContextData : public ContextData {
  public:
-#define DECL_MEMBER(type, name) type##Data* const name;
-  BROKER_NATIVE_CONTEXT_FIELDS(DECL_MEMBER)
-#undef DECL_MEMBER
+#define DECL_ACCESSOR(type, name) \
+  type##Data* name() const { return name##_; }
+  BROKER_NATIVE_CONTEXT_FIELDS(DECL_ACCESSOR)
+#undef DECL_ACCESSOR
 
   NativeContextData(JSHeapBroker* broker_, Handle<NativeContext> object_,
-                    HeapObjectType type_)
-      : ContextData(broker_, object_, type_)
-#define INIT_MEMBER(type, name) , name(GET_OR_CREATE(name)->As##type())
-            BROKER_NATIVE_CONTEXT_FIELDS(INIT_MEMBER)
-#undef INIT_MEMBER
-  {
-  }
+                    HeapObjectType type_);
+  void Serialize();
+
+ private:
+  bool serialized_ = false;
+#define DECL_MEMBER(type, name) type##Data* name##_ = nullptr;
+  BROKER_NATIVE_CONTEXT_FIELDS(DECL_MEMBER)
+#undef DECL_MEMBER
 };
 
 class NameData : public HeapObjectData {
@@ -397,6 +416,7 @@ class MapData : public HeapObjectData {
   }
 
  private:
+  bool serialized_elements_kind_generalizations_ = false;
   ZoneVector<MapData*> elements_kind_generalizations_;
 };
 
@@ -413,24 +433,44 @@ MapData::MapData(JSHeapBroker* broker_, Handle<Map> object_,
 JSFunctionData::JSFunctionData(JSHeapBroker* broker_,
                                Handle<JSFunction> object_, HeapObjectType type_)
     : JSObjectData(broker_, object_, type_),
-      global_proxy(GET_OR_CREATE(global_proxy)->AsJSGlobalProxy()),
-      initial_map(object_->has_prototype_slot() && object_->has_initial_map()
-                      ? GET_OR_CREATE(initial_map)->AsMap()
-                      : nullptr),
-      has_prototype(object_->has_prototype_slot() && object_->has_prototype()),
-      prototype(has_prototype ? GET_OR_CREATE(prototype) : nullptr),
-      PrototypeRequiresRuntimeLookup(object_->PrototypeRequiresRuntimeLookup()),
-      shared(GET_OR_CREATE(shared)->AsSharedFunctionInfo()) {
-  if (initial_map != nullptr && initial_map->instance_type == JS_ARRAY_TYPE) {
-    initial_map->SerializeElementsKindGeneralizations();
+      has_initial_map_(object_->has_prototype_slot() &&
+                       object_->has_initial_map()),
+      has_prototype_(object_->has_prototype_slot() && object_->has_prototype()),
+      PrototypeRequiresRuntimeLookup_(
+          object_->PrototypeRequiresRuntimeLookup()) {}
+
+void JSFunctionData::Serialize() {
+  if (serialized_) return;
+  serialized_ = true;
+
+  Handle<JSFunction> function = Handle<JSFunction>::cast(object);
+
+  CHECK_NULL(global_proxy_);
+  CHECK_NULL(initial_map_);
+  CHECK_NULL(prototype_);
+  CHECK_NULL(shared_);
+
+  global_proxy_ = GET_OR_CREATE(function->global_proxy())->AsJSGlobalProxy();
+  shared_ = GET_OR_CREATE(function->shared())->AsSharedFunctionInfo();
+  initial_map_ = has_initial_map()
+                     ? GET_OR_CREATE(function->initial_map())->AsMap()
+                     : nullptr;
+  prototype_ = has_prototype() ? GET_OR_CREATE(function->prototype()) : nullptr;
+
+  if (initial_map_ != nullptr && initial_map_->instance_type == JS_ARRAY_TYPE) {
+    initial_map_->SerializeElementsKindGeneralizations();
   }
 }
 
 void MapData::SerializeElementsKindGeneralizations() {
+  if (serialized_elements_kind_generalizations_) return;
+  serialized_elements_kind_generalizations_ = true;
+
   broker->Trace("Computing ElementsKind generalizations of %p.\n", *object);
   DCHECK_EQ(instance_type, JS_ARRAY_TYPE);
   MapRef self(this);
   ElementsKind from_kind = self.elements_kind();
+  DCHECK(elements_kind_generalizations_.empty());
   for (int i = FIRST_FAST_ELEMENTS_KIND; i <= LAST_FAST_ELEMENTS_KIND; i++) {
     ElementsKind to_kind = static_cast<ElementsKind>(i);
     if (IsMoreGeneralElementsKindTransition(from_kind, to_kind)) {
@@ -614,7 +654,7 @@ class SharedFunctionInfoData : public HeapObjectData {
                                            : Builtins::kNoBuiltinId),
         GetBytecodeArray(
             object_->HasBytecodeArray()
-                ? GET_OR_CREATE(GetBytecodeArray)->AsBytecodeArray()
+                ? GET_OR_CREATE(object_->GetBytecodeArray())->AsBytecodeArray()
                 : nullptr)
 #define INIT_MEMBER(type, name) , name(object_->name())
             BROKER_SFI_FIELDS(INIT_MEMBER)
@@ -893,6 +933,7 @@ void JSHeapBroker::SerializeStandardObjects() {
   GetOrCreateData(f->empty_fixed_array());
 
   // Stuff used by JSCreateLowering:
+  GetOrCreateData(isolate()->native_context())->AsNativeContext()->Serialize();
   GetOrCreateData(f->block_context_map());
   GetOrCreateData(f->catch_context_map());
   GetOrCreateData(f->eval_context_map());
@@ -1304,6 +1345,19 @@ double FixedDoubleArrayRef::get_scalar(int i) const {
     return BitField::decode(ObjectRef::data()->As##holder()->field); \
   }
 
+// Variants of the above for the case of methods rather than variables.
+// TODO(neis): Remove the other ones once the classes all provide getters.
+#define BIMODAL_ACCESSOR_C_(holder, result, name)     \
+  result holder##Ref::name() const {                  \
+    IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name); \
+    return ObjectRef::data()->As##holder()->name();   \
+  }
+#define BIMODAL_ACCESSOR_(holder, result, name)                  \
+  result##Ref holder##Ref::name() const {                        \
+    IF_BROKER_DISABLED_ACCESS_HANDLE(holder, result, name);      \
+    return result##Ref(ObjectRef::data()->As##holder()->name()); \
+  }
+
 // Macros for definining a const getter that always looks into the handle.
 // (These will go away once we serialize everything.) The first one is used for
 // the rare case of a XYZRef class that does not have a corresponding XYZ class
@@ -1338,13 +1392,14 @@ HANDLE_ACCESSOR_C(HeapObject, bool, IsSeqString)
 
 HANDLE_ACCESSOR(JSArray, Object, length)
 
-BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
-BIMODAL_ACCESSOR_C(JSFunction, bool, PrototypeRequiresRuntimeLookup)
-BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
-BIMODAL_ACCESSOR(JSFunction, Object, prototype)
+BIMODAL_ACCESSOR_C_(JSFunction, bool, has_prototype)
+BIMODAL_ACCESSOR_C_(JSFunction, bool, has_initial_map)
+BIMODAL_ACCESSOR_C_(JSFunction, bool, PrototypeRequiresRuntimeLookup)
+BIMODAL_ACCESSOR_(JSFunction, JSGlobalProxy, global_proxy)
+BIMODAL_ACCESSOR_(JSFunction, Map, initial_map)
+BIMODAL_ACCESSOR_(JSFunction, Object, prototype)
+BIMODAL_ACCESSOR_(JSFunction, SharedFunctionInfo, shared)
 HANDLE_ACCESSOR_C(JSFunction, bool, IsConstructor)
-HANDLE_ACCESSOR(JSFunction, JSGlobalProxy, global_proxy)
-HANDLE_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 
 BIMODAL_ACCESSOR_B(Map, bit_field2, elements_kind, Map::ElementsKindBits)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
@@ -1363,7 +1418,7 @@ HANDLE_ACCESSOR_C(Map, int, NumberOfOwnDescriptors)
 HANDLE_ACCESSOR(Map, Object, constructor_or_backpointer)
 
 #define DEF_NATIVE_CONTEXT_ACCESSOR(type, name) \
-  BIMODAL_ACCESSOR(NativeContext, type, name)
+  BIMODAL_ACCESSOR_(NativeContext, type, name)
 BROKER_NATIVE_CONTEXT_FIELDS(DEF_NATIVE_CONTEXT_ACCESSOR)
 #undef DEF_NATIVE_CONTEXT_ACCESSOR
 
@@ -1382,11 +1437,6 @@ BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
 BIMODAL_ACCESSOR_C(String, int, length)
 
 // TODO(neis): Provide StringShape() on StringRef.
-
-bool JSFunctionRef::has_initial_map() const {
-  IF_BROKER_DISABLED_ACCESS_HANDLE_C(JSFunction, has_initial_map);
-  return data()->AsJSFunction()->initial_map != nullptr;
-}
 
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
@@ -1572,9 +1622,35 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
   return AdvancedReducer::NoChange();
 }
 
+NativeContextData::NativeContextData(JSHeapBroker* broker_,
+                                     Handle<NativeContext> object_,
+                                     HeapObjectType type_)
+    : ContextData(broker_, object_, type_) {}
+
+void NativeContextData::Serialize() {
+  if (serialized_) return;
+  serialized_ = true;
+
+  Handle<NativeContext> context = Handle<NativeContext>::cast(object);
+#define SERIALIZE_MEMBER(type, name)                    \
+  CHECK_NULL(name##_);                                  \
+  name##_ = GET_OR_CREATE(context->name())->As##type(); \
+  if (name##_->IsJSFunction()) name##_->AsJSFunction()->Serialize();
+  BROKER_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
+#undef SERIALIZE_MEMBER
+}
+
+void JSFunctionRef::Serialize() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsJSFunction()->Serialize();
+}
+
 #undef BIMODAL_ACCESSOR
+#undef BIMODAL_ACCESSOR_
 #undef BIMODAL_ACCESSOR_B
 #undef BIMODAL_ACCESSOR_C
+#undef BIMODAL_ACCESSOR_C_
 #undef GET_OR_CREATE
 #undef HANDLE_ACCESSOR
 #undef HANDLE_ACCESSOR_C

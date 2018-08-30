@@ -175,14 +175,18 @@ class JSFunctionRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
 
-  bool IsConstructor() const;
   bool has_initial_map() const;
-  MapRef initial_map() const;
   bool has_prototype() const;
-  ObjectRef prototype() const;
+  bool IsConstructor() const;
   bool PrototypeRequiresRuntimeLookup() const;
-  JSGlobalProxyRef global_proxy() const;
   int InitialMapInstanceSizeWithMinSlack() const;
+
+  void Serialize();
+
+  // The following are available only after calling Serialize().
+  ObjectRef prototype() const;
+  MapRef initial_map() const;
+  JSGlobalProxyRef global_proxy() const;
   SharedFunctionInfoRef shared() const;
 };
 
@@ -401,7 +405,7 @@ class SharedFunctionInfoRef : public HeapObjectRef {
   BytecodeArrayRef GetBytecodeArray() const;
 #define DECL_ACCESSOR(type, name) type name() const;
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
-#undef DECL_ACCSESOR
+#undef DECL_ACCESSOR
 };
 
 class StringRef : public NameRef {

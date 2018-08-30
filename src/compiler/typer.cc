@@ -1419,6 +1419,7 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     return Type::NonInternal();
   }
   JSFunctionRef function = fun.AsHeapConstant()->Ref().AsJSFunction();
+  function.Serialize();
   if (!function.shared().HasBuiltinFunctionId()) {
     return Type::NonInternal();
   }
