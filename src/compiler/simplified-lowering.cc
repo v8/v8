@@ -1062,12 +1062,6 @@ class RepresentationSelector {
     if (type.IsNone()) {
       return MachineType::None();
     }
-    // TODO(turbofan): Special treatment for ExternalPointer here,
-    // to avoid incompatible truncations. We really need a story
-    // for the JSFunction::entry field.
-    if (type.Is(Type::ExternalPointer())) {
-      return MachineType::Pointer();
-    }
     // Do not distinguish between various Tagged variations.
     if (IsAnyTagged(rep)) {
       return MachineType::AnyTagged();
