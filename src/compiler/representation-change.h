@@ -338,7 +338,7 @@ class RepresentationChanger final {
   Node* InsertChangeTaggedToFloat64(Node* node);
   Node* InsertChangeUint32ToFloat64(Node* node);
   Node* InsertConversion(Node* node, const Operator* op, Node* use_node);
-  void InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason);
+  Node* InsertUnconditionalDeopt(Node* node, DeoptimizeReason reason);
 
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const { return isolate_; }

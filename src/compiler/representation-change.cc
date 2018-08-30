@@ -607,14 +607,17 @@ Node* RepresentationChanger::MakeTruncatedInt32Constant(double value) {
   return jsgraph()->Int32Constant(DoubleToInt32(value));
 }
 
-void RepresentationChanger::InsertUnconditionalDeopt(Node* node,
-                                                     DeoptimizeReason reason) {
+Node* RepresentationChanger::InsertUnconditionalDeopt(Node* node,
+                                                      DeoptimizeReason reason) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  Node* deopt =
+  effect =
       jsgraph()->graph()->NewNode(simplified()->CheckIf(reason),
                                   jsgraph()->Int32Constant(0), effect, control);
-  NodeProperties::ReplaceEffectInput(node, deopt);
+  Node* unreachable = effect = jsgraph()->graph()->NewNode(
+      jsgraph()->common()->Unreachable(), effect, control);
+  NodeProperties::ReplaceEffectInput(node, effect);
+  return unreachable;
 }
 
 Node* RepresentationChanger::GetWord32RepresentationFor(
@@ -655,9 +658,11 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       CHECK(Truncation::Any(kIdentifyZeros)
                 .IsLessGeneralThan(use_info.truncation()));
       CHECK_NE(use_info.type_check(), TypeCheckKind::kNone);
-      InsertUnconditionalDeopt(use_node, DeoptimizeReason::kNotASmi);
+      Node* unreachable =
+          InsertUnconditionalDeopt(use_node, DeoptimizeReason::kNotASmi);
       return jsgraph()->graph()->NewNode(
-          jsgraph()->common()->DeadValue(MachineRepresentation::kWord32), node);
+          jsgraph()->common()->DeadValue(MachineRepresentation::kWord32),
+          unreachable);
     }
   } else if (output_rep == MachineRepresentation::kFloat64) {
     if (output_type.Is(Type::Signed32())) {
