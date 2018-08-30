@@ -85,7 +85,7 @@
 
   'WATCHLISTS': {
     'api': [
-      'adamk@chromium.org',
+      'adamk+watch@chromium.org',
     ],
     'snapshot': [
       'yangguo@chromium.org',
@@ -120,7 +120,7 @@
       'jbroman+watch@chromium.org',
     ],
     'parser': [
-      'adamk@chromium.org',
+      'adamk+watch@chromium.org',
       'marja+watch@chromium.org',
     ],
     'tracing': [
