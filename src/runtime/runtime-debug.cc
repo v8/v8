@@ -810,5 +810,19 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
+
+RUNTIME_FUNCTION(Runtime_PerformSideEffectCheckForObject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+
+  DCHECK_EQ(isolate->debug_execution_mode(), DebugInfo::kSideEffects);
+  if (!isolate->debug()->PerformSideEffectCheckForObject(object)) {
+    DCHECK(isolate->has_pending_exception());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

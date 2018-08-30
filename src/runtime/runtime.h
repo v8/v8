@@ -340,6 +340,7 @@ namespace internal {
   F(ObjectValues, 1, 1)                                         \
   F(ObjectValuesSkipFastPath, 1, 1)                             \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1)            \
+  F(PerformSideEffectCheckForObject, 1, 1)                      \
   F(SameValue, 2, 1)                                            \
   F(SameValueZero, 2, 1)                                        \
   F(SetDataProperties, 2, 1)                                    \

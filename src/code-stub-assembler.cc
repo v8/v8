@@ -1132,6 +1132,19 @@ void CodeStubAssembler::GotoIfForceSlowPath(Label* if_true) {
 #endif
 }
 
+void CodeStubAssembler::GotoIfDebugExecutionModeChecksSideEffects(
+    Label* if_true) {
+  STATIC_ASSERT(sizeof(DebugInfo::ExecutionMode) >= sizeof(int32_t));
+
+  TNode<ExternalReference> execution_mode_address = ExternalConstant(
+      ExternalReference::debug_execution_mode_address(isolate()));
+  TNode<Int32T> execution_mode =
+      UncheckedCast<Int32T>(Load(MachineType::Int32(), execution_mode_address));
+
+  GotoIf(Word32Equal(execution_mode, Int32Constant(DebugInfo::kSideEffects)),
+         if_true);
+}
+
 Node* CodeStubAssembler::AllocateRaw(Node* size_in_bytes, AllocationFlags flags,
                                      Node* top_address, Node* limit_address) {
   // TODO(jgruber, chromium:848672): TNodeify AllocateRaw.

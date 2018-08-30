@@ -1322,6 +1322,10 @@ class Isolate : private HiddenFactory {
   bool force_slow_path() const { return force_slow_path_; }
   bool* force_slow_path_address() { return &force_slow_path_; }
 
+  DebugInfo::ExecutionMode* debug_execution_mode_address() {
+    return &debug_execution_mode_;
+  }
+
   V8_EXPORT_PRIVATE base::RandomNumberGenerator* random_number_generator();
 
   V8_EXPORT_PRIVATE base::RandomNumberGenerator* fuzzer_rng();
