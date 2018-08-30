@@ -389,6 +389,11 @@ constexpr inline T RoundUp(T x) {
   return RoundDown<m, T>(static_cast<T>(x + m - 1));
 }
 
+template <typename T, typename U>
+inline bool IsAligned(T value, U alignment) {
+  return (value & (alignment - 1)) == 0;
+}
+
 inline void* AlignedAddress(void* address, size_t alignment) {
   // The alignment must be a power of two.
   DCHECK_EQ(alignment & (alignment - 1), 0u);
