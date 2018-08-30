@@ -374,7 +374,7 @@ class JSBinopReduction final {
   Node* ConvertPlainPrimitiveToNumber(Node* node) {
     DCHECK(NodeProperties::GetType(node).Is(Type::PlainPrimitive()));
     // Avoid inserting too many eager ToNumber() operations.
-    Reduction const reduction = lowering_->ReduceJSToNumberOrNumericInput(node);
+    Reduction const reduction = lowering_->ReduceJSToNumberInput(node);
     if (reduction.Changed()) return reduction.replacement();
     if (NodeProperties::GetType(node).Is(Type::Number())) {
       return node;
@@ -967,9 +967,8 @@ Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSToNumberOrNumericInput(Node* input) {
-  // Try constant-folding of JSToNumber/JSToNumeric with constant inputs. Here
-  // we only cover cases where ToNumber and ToNumeric coincide.
+Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
+  // Try constant-folding of JSToNumber with constant inputs.
   Type input_type = NodeProperties::GetType(input);
 
   if (input_type.Is(Type::String())) {
@@ -1002,10 +1001,10 @@ Reduction JSTypedLowering::ReduceJSToNumberOrNumericInput(Node* input) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSToNumberOrNumeric(Node* node) {
+Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
   // Try to reduce the input first.
   Node* const input = node->InputAt(0);
-  Reduction reduction = ReduceJSToNumberOrNumericInput(input);
+  Reduction reduction = ReduceJSToNumberInput(input);
   if (reduction.Changed()) {
     ReplaceWithValue(node, reduction.replacement());
     return reduction;
@@ -1021,7 +1020,18 @@ Reduction JSTypedLowering::ReduceJSToNumberOrNumeric(Node* node) {
     NodeProperties::ChangeOp(node, simplified()->PlainPrimitiveToNumber());
     return Changed(node);
   }
-  // TODO(neis): Reduce ToNumeric to ToNumber if input can't be BigInt?
+  return NoChange();
+}
+
+Reduction JSTypedLowering::ReduceJSToNumeric(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type const input_type = NodeProperties::GetType(input);
+  if (input_type.Is(Type::Number())) {
+    // ToNumeric(x:number) => ToNumber(x)
+    NodeProperties::ChangeOp(node, javascript()->ToNumber());
+    Reduction const reduction = ReduceJSToNumber(node);
+    return reduction.Changed() ? reduction : Changed(node);
+  }
   return NoChange();
 }
 
@@ -2308,8 +2318,9 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSToName(node);
     case IrOpcode::kJSToNumber:
     case IrOpcode::kJSToNumberConvertBigInt:
+      return ReduceJSToNumber(node);
     case IrOpcode::kJSToNumeric:
-      return ReduceJSToNumberOrNumeric(node);
+      return ReduceJSToNumeric(node);
     case IrOpcode::kJSToString:
       return ReduceJSToString(node);
     case IrOpcode::kJSToObject:
