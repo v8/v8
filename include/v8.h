@@ -7050,9 +7050,9 @@ class V8_EXPORT EmbedderHeapTracer {
    * Note: Only one of the AdvanceTracing methods needs to be overriden by the
    * embedder.
    */
-  V8_DEPRECATE_SOON("Use void AdvanceTracing(deadline_in_ms)",
-                    virtual bool AdvanceTracing(
-                        double deadline_in_ms, AdvanceTracingActions actions)) {
+  V8_DEPRECATED("Use void AdvanceTracing(deadline_in_ms)",
+                virtual bool AdvanceTracing(double deadline_in_ms,
+                                            AdvanceTracingActions actions)) {
     return false;
   }
 
@@ -7091,8 +7091,8 @@ class V8_EXPORT EmbedderHeapTracer {
    * Note: Only one of the EnterFinalPause methods needs to be overriden by the
    * embedder.
    */
-  V8_DEPRECATE_SOON("Use void EnterFinalPause(EmbedderStackState)",
-                    virtual void EnterFinalPause()) {}
+  V8_DEPRECATED("Use void EnterFinalPause(EmbedderStackState)",
+                virtual void EnterFinalPause()) {}
   virtual void EnterFinalPause(EmbedderStackState stack_state);
 
   /**
@@ -7130,8 +7130,7 @@ class V8_EXPORT EmbedderHeapTracer {
   /**
    * Returns the number of wrappers that are still to be traced by the embedder.
    */
-  V8_DEPRECATE_SOON("Use IsTracingDone",
-                    virtual size_t NumberOfWrappersToTrace()) {
+  V8_DEPRECATED("Use IsTracingDone", virtual size_t NumberOfWrappersToTrace()) {
     return 0;
   }
 
