@@ -28761,3 +28761,29 @@ TEST(TestSetWasmThreadsEnabledCallback) {
   i::FLAG_experimental_wasm_threads = false;
   CHECK(i_isolate->AreWasmThreadsEnabled(i_context));
 }
+
+TEST(TestGetBuiltinsCodeRange) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  v8::MemoryRange builtins_range = isolate->GetBuiltinsCodeRange();
+
+  // Check that each off-heap builtin is within the builtins code range.
+  if (i::FLAG_embedded_builtins) {
+    for (int id = 0; id < i::Builtins::builtin_count; id++) {
+      if (!i::Builtins::IsIsolateIndependent(id)) continue;
+      i::Code* builtin = i_isolate->builtins()->builtin(id);
+      i::Address start = builtin->InstructionStart();
+      i::Address end = start + builtin->InstructionSize();
+
+      i::Address builtins_start =
+          reinterpret_cast<i::Address>(builtins_range.start);
+      CHECK(start >= builtins_start &&
+            end < builtins_start + builtins_range.length_in_bytes);
+    }
+  } else {
+    CHECK_EQ(nullptr, builtins_range.start);
+    CHECK_EQ(0, builtins_range.length_in_bytes);
+  }
+}

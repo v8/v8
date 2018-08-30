@@ -8709,6 +8709,11 @@ void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
   }
 }
 
+MemoryRange Isolate::GetBuiltinsCodeRange() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return {reinterpret_cast<const void*>(isolate->embedded_blob()),
+          isolate->embedded_blob_size()};
+}
 
 #define CALLBACK_SETTER(ExternalName, Type, InternalName)      \
   void Isolate::Set##ExternalName(Type callback) {             \
