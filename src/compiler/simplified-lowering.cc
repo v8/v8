@@ -739,11 +739,6 @@ class RepresentationSelector {
            GetUpperBound(node->InputAt(1)).Is(type);
   }
 
-  bool IsNodeRepresentationTagged(Node* node) {
-    MachineRepresentation representation = GetInfo(node)->representation();
-    return IsAnyTagged(representation);
-  }
-
   bool OneInputCannotBe(Node* node, Type type) {
     DCHECK_EQ(2, node->op()->ValueInputCount());
     return !GetUpperBound(node->InputAt(0)).Maybe(type) ||
@@ -1186,6 +1181,10 @@ class RepresentationSelector {
     return changer_->Float64OperatorFor(node->opcode());
   }
 
+  const Operator* TaggedSignedOp(Node* node) {
+    return changer_->TaggedSignedOperatorFor(node->opcode());
+  }
+
   WriteBarrierKind WriteBarrierKindFor(
       BaseTaggedness base_taggedness,
       MachineRepresentation field_representation, Type field_type,
@@ -1471,6 +1470,110 @@ class RepresentationSelector {
     return;
   }
 
+  bool ShouldUseSmiComparison(Node* node) {
+    Node* const lhs = node->InputAt(0);
+    Node* const rhs = node->InputAt(1);
+    NodeInfo* const lhs_info = GetInfo(lhs);
+    NodeInfo* const rhs_info = GetInfo(rhs);
+    if (IsAnyTagged(lhs_info->representation()) &&
+        IsAnyTagged(rhs_info->representation())) {
+      // TODO(turbofan): Add a proper heuristic here to decide whether to
+      // use Smi representation for Number comparisons; for example, it's
+      // not generally beneficial when comparing to constants with 64-bit
+      // word size, as these constants need a register to materialize. But
+      // there are more cases, like when comparing two LoadField's, etc.
+      return lhs->opcode() != IrOpcode::kNumberConstant &&
+             rhs->opcode() != IrOpcode::kNumberConstant;
+    }
+    return false;
+  }
+
+  void VisitNumberComparison(Node* node, SimplifiedLowering* lowering) {
+    if (BothInputsAreSigned32(node) || BothInputsAreUnsigned32(node)) {
+      if (lower()) {
+        if (BothInputsAre(node, Type::SignedSmall()) &&
+            ShouldUseSmiComparison(node)) {
+          // => TaggedSignedCmp
+          VisitBinop(node, UseInfo::TaggedSigned(),
+                     MachineRepresentation::kBit);
+          ChangeToPureOp(node, TaggedSignedOp(node));
+
+        } else if (BothInputsAreUnsigned32(node)) {
+          // => unsigned Int32Cmp
+          VisitBinop(node, UseInfo::TruncatingWord32(),
+                     MachineRepresentation::kBit);
+          ChangeToPureOp(node, Uint32Op(node));
+        } else {
+          // => signed Int32Cmp
+          DCHECK(BothInputsAreSigned32(node));
+          VisitBinop(node, UseInfo::TruncatingWord32(),
+                     MachineRepresentation::kBit);
+          ChangeToPureOp(node, Int32Op(node));
+        }
+      } else {
+        VisitBinop(node, UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kBit);
+      }
+    } else {
+      // => Float64Cmp
+      VisitBinop(node, UseInfo::TruncatingFloat64(),
+                 MachineRepresentation::kBit);
+      if (lower()) ChangeToPureOp(node, Float64Op(node));
+    }
+  }
+
+  void VisitSpeculativeNumberComparison(Node* node,
+                                        SimplifiedLowering* lowering) {
+    if (BothInputsAreSigned32(node) || BothInputsAreUnsigned32(node)) {
+      // When both inputs are Signed32 / Unsigned32, use the generic
+      // logic for Number comparisons in the helper function above.
+      return VisitNumberComparison(node, lowering);
+    } else {
+      // Try to use type feedback.
+      NumberOperationHint hint = NumberOperationHintOf(node->op());
+      switch (hint) {
+        case NumberOperationHint::kSigned32:
+        case NumberOperationHint::kSignedSmall:
+          if (lower()) {
+            if (ShouldUseSmiComparison(node)) {
+              // => TaggedSignedCmp
+              VisitBinop(
+                  node,
+                  UseInfo::CheckedSignedSmallAsTaggedSigned(VectorSlotPair()),
+                  MachineRepresentation::kBit);
+              ChangeToPureOp(node, TaggedSignedOp(node));
+
+            } else {
+              // => signed Int32Cmp
+              VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                         MachineRepresentation::kBit);
+              ChangeToPureOp(node, Int32Op(node));
+            }
+          } else {
+            VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                       MachineRepresentation::kBit);
+          }
+          return;
+        case NumberOperationHint::kSignedSmallInputs:
+          // This doesn't make sense for compare operations.
+          UNREACHABLE();
+        case NumberOperationHint::kNumberOrOddball:
+          // Abstract and strict equality don't perform ToNumber conversions
+          // on Oddballs, so make sure we don't accidentially sneak in a
+          // hint with Oddball feedback here.
+          DCHECK_NE(IrOpcode::kSpeculativeNumberEqual, node->opcode());
+          V8_FALLTHROUGH;
+        case NumberOperationHint::kNumber:
+          VisitBinop(node,
+                     CheckedUseInfoAsFloat64FromHint(hint, VectorSlotPair()),
+                     MachineRepresentation::kBit);
+          if (lower()) ChangeToPureOp(node, Float64Op(node));
+          return;
+      }
+      UNREACHABLE();
+    }
+  }
+
   // Dispatching routine for visiting the node {node} with the usage {use}.
   // Depending on the operator, propagate new usage info to the inputs.
   void VisitNode(Node* node, Truncation truncation,
@@ -1638,28 +1741,8 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberLessThan:
-      case IrOpcode::kNumberLessThanOrEqual: {
-        // Number comparisons reduce to integer comparisons for integer inputs.
-        if (TypeOf(node->InputAt(0)).Is(Type::Unsigned32()) &&
-            TypeOf(node->InputAt(1)).Is(Type::Unsigned32())) {
-          // => unsigned Int32Cmp
-          VisitBinop(node, UseInfo::TruncatingWord32(),
-                     MachineRepresentation::kBit);
-          if (lower()) NodeProperties::ChangeOp(node, Uint32Op(node));
-        } else if (TypeOf(node->InputAt(0)).Is(Type::Signed32()) &&
-                   TypeOf(node->InputAt(1)).Is(Type::Signed32())) {
-          // => signed Int32Cmp
-          VisitBinop(node, UseInfo::TruncatingWord32(),
-                     MachineRepresentation::kBit);
-          if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
-        } else {
-          // => Float64Cmp
-          VisitBinop(node, UseInfo::TruncatingFloat64(),
-                     MachineRepresentation::kBit);
-          if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
-        }
-        return;
-      }
+      case IrOpcode::kNumberLessThanOrEqual:
+        return VisitNumberComparison(node, lowering);
 
       case IrOpcode::kSpeculativeSafeIntegerAdd:
       case IrOpcode::kSpeculativeSafeIntegerSubtract:
@@ -1671,72 +1754,8 @@ class RepresentationSelector {
 
       case IrOpcode::kSpeculativeNumberLessThan:
       case IrOpcode::kSpeculativeNumberLessThanOrEqual:
-      case IrOpcode::kSpeculativeNumberEqual: {
-        // Number comparisons reduce to integer comparisons for integer inputs.
-        if (TypeOf(node->InputAt(0)).Is(Type::Unsigned32()) &&
-            TypeOf(node->InputAt(1)).Is(Type::Unsigned32())) {
-          // => unsigned Int32Cmp
-          VisitBinop(node, UseInfo::TruncatingWord32(),
-                     MachineRepresentation::kBit);
-          if (lower()) ChangeToPureOp(node, Uint32Op(node));
-          return;
-        } else if (TypeOf(node->InputAt(0)).Is(Type::Signed32()) &&
-                   TypeOf(node->InputAt(1)).Is(Type::Signed32())) {
-          // => signed Int32Cmp
-          VisitBinop(node, UseInfo::TruncatingWord32(),
-                     MachineRepresentation::kBit);
-          if (lower()) ChangeToPureOp(node, Int32Op(node));
-          return;
-        }
-        // Try to use type feedback.
-        NumberOperationHint hint = NumberOperationHintOf(node->op());
-        switch (hint) {
-          case NumberOperationHint::kSigned32:
-          case NumberOperationHint::kSignedSmall:
-            if (propagate()) {
-              VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                         MachineRepresentation::kBit);
-            } else if (retype()) {
-              SetOutput(node, MachineRepresentation::kBit, Type::Any());
-            } else {
-              DCHECK(lower());
-              Node* lhs = node->InputAt(0);
-              Node* rhs = node->InputAt(1);
-              if (IsNodeRepresentationTagged(lhs) &&
-                  IsNodeRepresentationTagged(rhs)) {
-                VisitBinop(
-                    node,
-                    UseInfo::CheckedSignedSmallAsTaggedSigned(VectorSlotPair()),
-                    MachineRepresentation::kBit);
-                ChangeToPureOp(
-                    node, changer_->TaggedSignedOperatorFor(node->opcode()));
-
-              } else {
-                VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                           MachineRepresentation::kBit);
-                ChangeToPureOp(node, Int32Op(node));
-              }
-            }
-            return;
-          case NumberOperationHint::kSignedSmallInputs:
-            // This doesn't make sense for compare operations.
-            UNREACHABLE();
-          case NumberOperationHint::kNumberOrOddball:
-            // Abstract and strict equality don't perform ToNumber conversions
-            // on Oddballs, so make sure we don't accidentially sneak in a
-            // hint with Oddball feedback here.
-            DCHECK_NE(IrOpcode::kSpeculativeNumberEqual, node->opcode());
-            V8_FALLTHROUGH;
-          case NumberOperationHint::kNumber:
-            VisitBinop(node,
-                       CheckedUseInfoAsFloat64FromHint(hint, VectorSlotPair()),
-                       MachineRepresentation::kBit);
-            if (lower()) ChangeToPureOp(node, Float64Op(node));
-            return;
-        }
-        UNREACHABLE();
-        return;
-      }
+      case IrOpcode::kSpeculativeNumberEqual:
+        return VisitSpeculativeNumberComparison(node, lowering);
 
       case IrOpcode::kNumberAdd:
       case IrOpcode::kNumberSubtract: {
