@@ -99,6 +99,12 @@ class WasmGraphBuildingInterface {
     // instance parameter.
     TFNode* start = builder_->Start(
         static_cast<int>(decoder->sig_->parameter_count() + 1 + 1));
+    ssa_env->effect = start;
+    ssa_env->control = start;
+    // Initialize effect and control before initializing the locals default
+    // values (which might require instance loads) or loading the context.
+    builder_->set_effect_ptr(&ssa_env->effect);
+    builder_->set_control_ptr(&ssa_env->control);
     // Initialize the instance parameter (index 0).
     builder_->set_instance_node(builder_->Param(kWasmInstanceParameterIndex));
     // Initialize local variables. Parameters are shifted by 1 because of the
@@ -115,11 +121,6 @@ class WasmGraphBuildingInterface {
         ssa_env->locals[index++] = node;
       }
     }
-    ssa_env->effect = start;
-    ssa_env->control = start;
-    // Initialize effect and control before loading the context.
-    builder_->set_effect_ptr(&ssa_env->effect);
-    builder_->set_control_ptr(&ssa_env->control);
     LoadContextIntoSsa(ssa_env);
     SetEnv(ssa_env);
   }
@@ -596,6 +597,8 @@ class WasmGraphBuildingInterface {
         return builder_->Float64Constant(0);
       case kWasmS128:
         return builder_->S128Zero();
+      case kWasmExceptRef:
+        return builder_->RefNull();
       default:
         UNREACHABLE();
     }

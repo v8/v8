@@ -3127,6 +3127,20 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   pos = ExpectRun(map, pos, kWasmI64, 212);
 }
 
+TEST_F(LocalDeclDecoderTest, ExceptRef) {
+  WASM_FEATURE_SCOPE(eh);
+  ValueType type = kWasmExceptRef;
+  const byte data[] = {1, 1,
+                       static_cast<byte>(ValueTypes::ValueTypeCodeFor(type))};
+  BodyLocalDecls decls(zone());
+  bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
+  EXPECT_TRUE(result);
+  EXPECT_EQ(1u, decls.type_list.size());
+
+  TypesOfLocals map = decls.type_list;
+  EXPECT_EQ(type, map[0]);
+}
+
 class BytecodeIteratorTest : public TestWithZone {};
 
 TEST_F(BytecodeIteratorTest, SimpleForeach) {

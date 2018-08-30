@@ -569,6 +569,9 @@ class WasmModuleBuilder {
             if (l.s128_count > 0) {
               local_decls.push({count: l.s128_count, type: kWasmS128});
             }
+            if (l.except_count > 0) {
+              local_decls.push({count: l.except_count, type: kWasmExceptRef});
+            }
           }
 
           let header = new Binary;

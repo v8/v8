@@ -91,6 +91,7 @@ let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
 let kWasmS128  = 0x7b;
 let kWasmAnyRef = 0x6f;
+let kWasmExceptRef = 0x68;
 
 let kExternalFunction = 0;
 let kExternalTable = 1;
