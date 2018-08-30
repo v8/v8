@@ -954,51 +954,52 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   DCHECK(mode != InterpreterPushArgsMode::kArrayFunction);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
-  //  -- ebx : the address of the first argument to be pushed. Subsequent
+  //  -- ecx : the address of the first argument to be pushed. Subsequent
   //           arguments should be consecutive above this, in the same order as
   //           they are to be pushed onto the stack.
   //  -- edi : the target to call (can be any Object).
   // -----------------------------------
+
+  const Register scratch = ebx;
+  const Register argv = ecx;
+
   Label stack_overflow;
   // Compute the expected number of arguments.
-  __ mov(ecx, eax);
-  __ add(ecx, Immediate(1));  // Add one for receiver.
+  __ mov(scratch, eax);
+  __ add(scratch, Immediate(1));  // Add one for receiver.
 
   // Add a stack check before pushing the arguments. We need an extra register
   // to perform a stack check. So push it onto the stack temporarily. This
   // might cause stack overflow, but it will be detected by the check.
   __ Push(edi);
-  Generate_StackOverflowCheck(masm, ecx, edx, &stack_overflow);
+  Generate_StackOverflowCheck(masm, scratch, edx, &stack_overflow);
   __ Pop(edi);
 
   // Pop return address to allow tail-call after pushing arguments.
-  __ Pop(edx);
+  __ PopReturnAddressTo(edx);
 
   // Push "undefined" as the receiver arg if we need to.
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     __ PushRoot(Heap::kUndefinedValueRootIndex);
-    __ sub(ecx, Immediate(1));  // Subtract one for receiver.
+    __ sub(scratch, Immediate(1));  // Subtract one for receiver.
   }
 
   // Find the address of the last argument.
-  __ shl(ecx, kPointerSizeLog2);
-  __ neg(ecx);
-  __ add(ecx, ebx);
-  Generate_InterpreterPushArgs(masm, ecx, ebx);
-
-  if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
-    __ Pop(ebx);                // Pass the spread in a register
-    __ sub(eax, Immediate(1));  // Subtract one for spread
-  }
+  __ shl(scratch, kPointerSizeLog2);
+  __ neg(scratch);
+  __ add(scratch, argv);
+  Generate_InterpreterPushArgs(masm, scratch, argv);
 
   // Call the target.
-  __ Push(edx);  // Re-push return address.
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
-    __ MoveForRootRegisterRefactoring(ecx, ebx);
+    __ Pop(ecx);                // Pass the spread in a register
+    __ sub(eax, Immediate(1));  // Subtract one for spread
+    __ PushReturnAddressFrom(edx);
     __ Jump(BUILTIN_CODE(masm->isolate(), CallWithSpread),
             RelocInfo::CODE_TARGET);
   } else {
+    __ PushReturnAddressFrom(edx);
     __ Jump(masm->isolate()->builtins()->Call(ConvertReceiverMode::kAny),
             RelocInfo::CODE_TARGET);
   }

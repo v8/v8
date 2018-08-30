@@ -340,7 +340,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
 void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- ebx                 : call_data
+  //  -- eax                 : call_data
   //  -- ecx                 : holder
   //  -- edx                 : api_function_address
   //  -- esi                 : context
@@ -352,10 +352,10 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  Register call_data = ebx;
+  Register call_data = eax;
   Register holder = ecx;
   Register api_function_address = edx;
-  Register return_address = eax;
+  Register return_address = ebx;
 
   typedef FunctionCallbackArguments FCA;
 

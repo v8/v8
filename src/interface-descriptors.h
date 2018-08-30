@@ -654,6 +654,9 @@ class FastNewObjectDescriptor : public CallInterfaceDescriptor {
 
 class RecordWriteDescriptor final : public CallInterfaceDescriptor {
  public:
+  // TODO(v8:6666): Remove the isolate argument once kRootRegister is
+  // fully supported on ia32. Then the isolate can be determined through a
+  // simple register addition instead.
   DEFINE_PARAMETERS(kObject, kSlot, kIsolate, kRememberedSet, kFPMode)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
                          MachineType::Pointer(),        // kSlot
@@ -930,6 +933,9 @@ class CEntry1ArgvOnStackDescriptor : public CallInterfaceDescriptor {
 
 class ApiCallbackDescriptor : public CallInterfaceDescriptor {
  public:
+  // TODO(jgruber): This could be simplified to pass call data on the stack
+  // since this is what the CallApiCallbackStub anyways. This would free a
+  // register.
   DEFINE_PARAMETERS_NO_CONTEXT(kTargetContext, kCallData, kHolder,
                                kApiFunctionAddress)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTargetContext

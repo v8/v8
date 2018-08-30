@@ -217,7 +217,7 @@ void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       JavaScriptFrame::context_register(),  // callee context
-      ebx,                                  // call_data
+      eax,                                  // call_data
       ecx,                                  // holder
       edx,                                  // api_function_address
   };
@@ -236,7 +236,7 @@ void InterpreterPushArgsThenCallDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       eax,  // argument count (not including receiver)
-      ebx,  // address of first argument
+      ecx,  // address of first argument
       edi   // the target callable to be call
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
