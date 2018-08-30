@@ -1881,7 +1881,8 @@ void EnsureMagicComments(Isolate* isolate, Handle<Script> script) {
                             handle(Smi::FromInt(prev_start), isolate)));
     if (start == -1) return;
 
-    scanner.SeekForward(start);
+    scanner_stream->Seek(start);
+    scanner_stream->Advance();
     scanner.Next();
 
     Handle<String> source_url = scanner.SourceUrl(isolate);
