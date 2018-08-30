@@ -375,7 +375,6 @@
   'math-floor-of-div': [PASS, SLOW],
   'messages': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
-  'regress/regress-2185': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
   'regress/regress-331444': [PASS, SLOW],
   'regress/regress-490': [PASS, SLOW],
@@ -802,17 +801,10 @@
   # Slow tests: https://crbug.com/v8/7783
   'lexicographic-compare': [SKIP],
   'md5': [SKIP],
-  'regress/regress-2185': [SKIP],
   'wasm/asm-wasm-f32': [SKIP],
   'wasm/asm-wasm-f64': [SKIP],
   'wasm/grow-memory': [SKIP],
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
-
-##############################################################################
-['(arch == arm or arch == arm64) and simulator_run', {
-  # Slow tests: https://crbug.com/v8/7783
-  'regress/regress-2185': [SKIP],
-}],  # (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
 ['(arch == arm or arch == arm64)', {
