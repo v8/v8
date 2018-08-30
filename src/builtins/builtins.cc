@@ -316,18 +316,6 @@ bool Builtins::IsIsolateIndependent(int index) {
   DCHECK(IsBuiltinId(index));
 #ifndef V8_TARGET_ARCH_IA32
   switch (index) {
-// The following bytecode handlers do not yet support being embedded as they
-// use internal references.
-#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
-    case kInvokeIntrinsicHandler:
-    case kInvokeIntrinsicWideHandler:
-    case kInvokeIntrinsicExtraWideHandler:
-    case kTestInHandler:
-    case kTestInWideHandler:
-    case kTestInExtraWideHandler:
-    case kTestTypeOfHandler:
-#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
-
     // TODO(jgruber): There's currently two blockers for moving
     // InterpreterEntryTrampoline into the binary:
     // 1. InterpreterEnterBytecode calculates a pointer into the middle of
