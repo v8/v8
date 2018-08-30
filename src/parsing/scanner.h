@@ -738,8 +738,10 @@ class Scanner {
   bool ScanImplicitOctalDigits(int start_pos, NumberKind* kind);
 
   Token::Value ScanNumber(bool seen_period);
-  Token::Value ScanIdentifierOrKeyword();
-  Token::Value ScanIdentifierOrKeywordInner(LiteralScope* literal);
+  V8_INLINE Token::Value ScanIdentifierOrKeyword();
+  V8_INLINE Token::Value ScanIdentifierOrKeywordInner(LiteralScope* literal);
+  Token::Value ScanIdentifierOrKeywordInnerSlow(LiteralScope* literal,
+                                                bool escaped);
 
   Token::Value ScanString();
   Token::Value ScanPrivateName();
