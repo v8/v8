@@ -13,10 +13,10 @@ namespace compiler {
 
 namespace {
 
-#define REP_BIT(rep) (1 << static_cast<int>(rep))
-
-const int kFloat32Bit = REP_BIT(MachineRepresentation::kFloat32);
-const int kFloat64Bit = REP_BIT(MachineRepresentation::kFloat64);
+static constexpr int kFloat32Bit =
+    RepresentationBit(MachineRepresentation::kFloat32);
+static constexpr int kFloat64Bit =
+    RepresentationBit(MachineRepresentation::kFloat64);
 
 // Splits a FP move between two location operands into the equivalent series of
 // moves between smaller sub-operands, e.g. a double move to two single moves.
@@ -91,8 +91,8 @@ void GapResolver::Resolve(ParallelMove* moves) {
     }
     i++;
     if (!kSimpleFPAliasing && move->destination().IsFPRegister()) {
-      reps |=
-          REP_BIT(LocationOperand::cast(move->destination()).representation());
+      reps |= RepresentationBit(
+          LocationOperand::cast(move->destination()).representation());
     }
   }
 

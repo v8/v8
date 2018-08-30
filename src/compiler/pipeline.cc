@@ -2620,7 +2620,10 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   }
 
   Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
-  Run<AllocateFPRegistersPhase<LinearScanAllocator>>();
+
+  if (data->sequence()->HasFPVirtualRegisters()) {
+    Run<AllocateFPRegistersPhase<LinearScanAllocator>>();
+  }
 
   if (FLAG_turbo_preprocess_ranges) {
     Run<MergeSplintersPhase>();

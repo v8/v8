@@ -942,7 +942,7 @@ void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
   DCHECK_IMPLIES(representations_[virtual_register] != rep,
                  representations_[virtual_register] == DefaultRepresentation());
   representations_[virtual_register] = rep;
-  representation_mask_ |= 1 << static_cast<int>(rep);
+  representation_mask_ |= RepresentationBit(rep);
 }
 
 int InstructionSequence::AddDeoptimizationEntry(
