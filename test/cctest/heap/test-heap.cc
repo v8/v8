@@ -1588,7 +1588,6 @@ HEAP_TEST(TestSizeOfObjects) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = CcTest::heap();
   MarkCompactCollector* collector = heap->mark_compact_collector();
-  ManualGCScope manual_gc_scope;
 
   // Get initial heap size after several full GCs, which will stabilize
   // the heap size and return with sweeping finished completely.
