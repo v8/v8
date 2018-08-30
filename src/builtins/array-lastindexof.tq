@@ -72,8 +72,8 @@ module array {
   }
 
   macro TryFastArrayLastIndexOf(
-      context: Context, receiver: Object,
-      arguments: constexpr Arguments): Object
+      context: Context, receiver: JSReceiver, searchElement: Object,
+      from: Number): Object
   labels Slow {
     EnsureFastJSArray(context, receiver) otherwise Slow;
     const array: JSArray = unsafe_cast<JSArray>(receiver);
@@ -81,35 +81,21 @@ module array {
     const length: Smi = array.length_fast;
     if (length == 0) return SmiConstant(-1);
 
-    const from: Smi = cast<Smi>(GetFromIndex(context, length, arguments))
-    otherwise Slow;
-
+    const fromSmi: Smi = cast<Smi>(from) otherwise Slow;
     const kind: ElementsKind = array.map.elements_kind;
     if (IsFastSmiOrTaggedElementsKind(kind)) {
       return FastArrayLastIndexOf<FixedArray>(
-          context, array, length, from, arguments[0]);
+          context, array, length, fromSmi, searchElement);
     }
     assert(IsDoubleElementsKind(kind));
     return FastArrayLastIndexOf<FixedDoubleArray>(
-        context, array, length, from, arguments[0]);
+        context, array, length, fromSmi, searchElement);
   }
 
   macro GenericArrayLastIndexOf(
-      context: Context, receiver: Object,
-      arguments: constexpr Arguments): Object {
-    // 1. Let O be ? ToObject(this value).
-    const object: JSReceiver = ToObject_Inline(context, receiver);
-
-    // 2. Let len be ? ToLength(? Get(O, "length")).
-    const length: Number = GetLengthProperty(context, object);
-
-    // 3. If len is 0, return -1.
-    if (length == SmiConstant(0)) return SmiConstant(-1);
-
-    const search_element: Object = arguments[0];
-
-    // Step 4 - 6.
-    let k: Number = GetFromIndex(context, length, arguments);
+      context: Context, object: JSReceiver, searchElement: Object,
+      from: Number): Object {
+    let k: Number = from;
 
     // 7. Repeat, while k >= 0.
     while (k >= 0) {
@@ -123,7 +109,7 @@ module array {
 
         // ii. Let same be the result of performing Strict Equality Comparison
         //     searchElement === elementK.
-        const same: Boolean = StrictEqual(search_element, element);
+        const same: Boolean = StrictEqual(searchElement, element);
 
         // iii. If same is true, return k.
         if (same == True) return k;
@@ -140,12 +126,26 @@ module array {
   // https://tc39.github.io/ecma262/#sec-array.prototype.lastIndexOf
   javascript builtin ArrayPrototypeLastIndexOf(
       context: Context, receiver: Object, ...arguments): Object {
+    // 1. Let O be ? ToObject(this value).
+    const object: JSReceiver = ToObject_Inline(context, receiver);
+
+    // 2. Let len be ? ToLength(? Get(O, "length")).
+    const length: Number = GetLengthProperty(context, object);
+
+    // 3. If len is 0, return -1.
+    if (length == SmiConstant(0)) return SmiConstant(-1);
+
+    // Step 4 - 6.
+    const from: Number = GetFromIndex(context, length, arguments);
+
+    const searchElement: Object = arguments[0];
+
     try {
-      return TryFastArrayLastIndexOf(context, receiver, arguments)
+      return TryFastArrayLastIndexOf(context, object, searchElement, from)
       otherwise Baseline;
     }
     label Baseline {
-      return GenericArrayLastIndexOf(context, receiver, arguments);
+      return GenericArrayLastIndexOf(context, object, searchElement, from);
     }
   }
 }
