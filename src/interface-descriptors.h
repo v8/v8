@@ -1004,13 +1004,13 @@ class InterpreterPushArgsThenCallDescriptor : public CallInterfaceDescriptor {
 class InterpreterPushArgsThenConstructDescriptor
     : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kNumberOfArguments, kNewTarget, kConstructor,
-                    kFeedbackElement, kFirstArgument)
+  DEFINE_PARAMETERS(kNumberOfArguments, kFirstArgument, kConstructor,
+                    kNewTarget, kFeedbackElement)
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kNumberOfArguments
-                         MachineType::AnyTagged(),  // kNewTarget
+                         MachineType::Pointer(),    // kFirstArgument
                          MachineType::AnyTagged(),  // kConstructor
-                         MachineType::AnyTagged(),  // kFeedbackElement
-                         MachineType::Pointer())    // kFirstArgument
+                         MachineType::AnyTagged(),  // kNewTarget
+                         MachineType::AnyTagged())  // kFeedbackElement
   DECLARE_DESCRIPTOR(InterpreterPushArgsThenConstructDescriptor,
                      CallInterfaceDescriptor)
 };

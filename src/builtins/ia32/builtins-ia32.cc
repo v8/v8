@@ -1110,29 +1110,26 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   __ Pop(edx);
   __ Pop(edi);
 
-  if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
-    __ PopReturnAddressTo(ebx);
-    __ Pop(ecx);  // Pass the spread in a register
-    __ PushReturnAddressFrom(ebx);
-    __ sub(eax, Immediate(1));  // Subtract one for spread
-  } else {
-    __ AssertUndefinedOrAllocationSite(ebx);
-  }
+  // Call the appropriate constructor. Arguments are already in registers.
 
   if (mode == InterpreterPushArgsMode::kArrayFunction) {
-    // Tail call to the array construct stub (still in the caller
-    // context at this point).
+    // Tail call to the array construct stub (still in the caller context at
+    // this point).
+    __ AssertUndefinedOrAllocationSite(ebx);
     __ AssertFunction(edi);
     __ MoveForRootRegisterRefactoring(kJavaScriptCallExtraArg1Register, ebx);
     Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayConstructorImpl);
     __ Jump(code, RelocInfo::CODE_TARGET);
   } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
-    // Call the constructor with unmodified eax, edi, edx values.
+    __ PopReturnAddressTo(ebx);
+    __ Pop(ecx);  // Pass the spread in a register
+    __ PushReturnAddressFrom(ebx);
+    __ sub(eax, Immediate(1));  // Subtract one for spread
     __ Jump(BUILTIN_CODE(masm->isolate(), ConstructWithSpread),
             RelocInfo::CODE_TARGET);
   } else {
     DCHECK_EQ(InterpreterPushArgsMode::kOther, mode);
-    // Call the constructor with unmodified eax, edi, edx values.
+    __ AssertUndefinedOrAllocationSite(ebx);
     __ Jump(BUILTIN_CODE(masm->isolate(), Construct), RelocInfo::CODE_TARGET);
   }
 
