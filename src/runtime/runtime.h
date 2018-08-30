@@ -222,7 +222,6 @@ namespace internal {
   F(PluralRulesResolvedOptions, 1, 1)        \
   F(PluralRulesSelect, 2, 1)                 \
   F(ToDateTimeOptions, 3, 1)                 \
-  F(ToLocaleDateTime, 6, 1)                  \
   F(StringToLowerCaseIntl, 1, 1)             \
   F(StringToUpperCaseIntl, 1, 1)             \
 // End of macro.

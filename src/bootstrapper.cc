@@ -2321,6 +2321,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate_, prototype, "toJSON",
                           Builtins::kDatePrototypeToJson, 1, false);
 
+#ifdef V8_INTL_SUPPORT
+    SimpleInstallFunction(isolate_, prototype, "toLocaleString",
+                          Builtins::kDatePrototypeToLocaleString, 0, false);
+    SimpleInstallFunction(isolate_, prototype, "toLocaleDateString",
+                          Builtins::kDatePrototypeToLocaleDateString, 0, false);
+    SimpleInstallFunction(isolate_, prototype, "toLocaleTimeString",
+                          Builtins::kDatePrototypeToLocaleTimeString, 0, false);
+#else
     // Install Intl fallback functions.
     SimpleInstallFunction(isolate_, prototype, "toLocaleString",
                           Builtins::kDatePrototypeToString, 0, false);
@@ -2328,6 +2336,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kDatePrototypeToDateString, 0, false);
     SimpleInstallFunction(isolate_, prototype, "toLocaleTimeString",
                           Builtins::kDatePrototypeToTimeString, 0, false);
+#endif  // V8_INTL_SUPPORT
 
     // Install the @@toPrimitive function.
     Handle<JSFunction> to_primitive = InstallFunction(

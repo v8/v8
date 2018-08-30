@@ -512,6 +512,7 @@ MaybeHandle<JSObject> CachedOrNewService(Isolate* isolate,
       JSArray);
   return Handle<JSObject>::cast(result);
 }
+
 }  // namespace
 
 icu::Locale Intl::CreateICULocale(Isolate* isolate,
