@@ -6715,6 +6715,11 @@ Object* SetHashAndUpdateProperties(Isolate* isolate, HeapObject* properties,
     return properties;
   }
 
+  if (properties->IsGlobalDictionary()) {
+    GlobalDictionary::cast(properties)->SetHash(hash);
+    return properties;
+  }
+
   DCHECK(properties->IsNameDictionary());
   NameDictionary::cast(properties)->SetHash(hash);
   return properties;
