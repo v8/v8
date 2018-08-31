@@ -230,7 +230,8 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_public_fields, "harmony public fields in class literals")      \
   V(harmony_private_fields, "harmony private fields in class literals")    \
   V(harmony_numeric_separator, "harmony numeric separator between digits") \
-  V(harmony_string_matchall, "harmony String.prototype.matchAll")
+  V(harmony_string_matchall, "harmony String.prototype.matchAll")          \
+  V(harmony_global, "harmony global")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                              \
@@ -242,8 +243,7 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_dynamic_import, "harmony dynamic import")                    \
   V(harmony_array_prototype_values, "harmony Array.prototype.values")    \
   V(harmony_array_flat, "harmony Array.prototype.{flat,flatMap}")        \
-  V(harmony_symbol_description, "harmony Symbol.prototype.description")  \
-  V(harmony_global, "harmony globalThis")
+  V(harmony_symbol_description, "harmony Symbol.prototype.description")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
