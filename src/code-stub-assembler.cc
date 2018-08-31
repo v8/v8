@@ -5652,6 +5652,16 @@ TNode<BoolT> CodeStubAssembler::IsHeapNumber(SloppyTNode<HeapObject> object) {
   return IsHeapNumberMap(LoadMap(object));
 }
 
+TNode<BoolT> CodeStubAssembler::IsHeapNumberInstanceType(
+    SloppyTNode<Int32T> instance_type) {
+  return InstanceTypeEqual(instance_type, HEAP_NUMBER_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsOddballInstanceType(
+    SloppyTNode<Int32T> instance_type) {
+  return InstanceTypeEqual(instance_type, ODDBALL_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsMutableHeapNumber(
     SloppyTNode<HeapObject> object) {
   return IsMutableHeapNumberMap(LoadMap(object));
@@ -5667,8 +5677,12 @@ TNode<BoolT> CodeStubAssembler::IsFeedbackVector(
 }
 
 TNode<BoolT> CodeStubAssembler::IsName(SloppyTNode<HeapObject> object) {
-  return Int32LessThanOrEqual(LoadInstanceType(object),
-                              Int32Constant(LAST_NAME_TYPE));
+  return IsNameInstanceType(LoadInstanceType(object));
+}
+
+TNode<BoolT> CodeStubAssembler::IsNameInstanceType(
+    SloppyTNode<Int32T> instance_type) {
+  return Int32LessThanOrEqual(instance_type, Int32Constant(LAST_NAME_TYPE));
 }
 
 TNode<BoolT> CodeStubAssembler::IsString(SloppyTNode<HeapObject> object) {
@@ -6719,52 +6733,6 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
   }
   BIND(&done);
   return result.value();
-}
-
-TNode<Name> CodeStubAssembler::ToName(SloppyTNode<Context> context,
-                                      SloppyTNode<Object> value) {
-  Label end(this);
-  TVARIABLE(Name, var_result);
-
-  Label is_number(this);
-  GotoIf(TaggedIsSmi(value), &is_number);
-
-  Label not_name(this);
-  TNode<Int32T> value_instance_type = LoadInstanceType(CAST(value));
-  STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
-  GotoIf(Int32GreaterThan(value_instance_type, Int32Constant(LAST_NAME_TYPE)),
-         &not_name);
-
-  var_result = CAST(value);
-  Goto(&end);
-
-  BIND(&is_number);
-  {
-    var_result = CAST(CallBuiltin(Builtins::kNumberToString, context, value));
-    Goto(&end);
-  }
-
-  BIND(&not_name);
-  {
-    GotoIf(InstanceTypeEqual(value_instance_type, HEAP_NUMBER_TYPE),
-           &is_number);
-
-    Label not_oddball(this);
-    GotoIfNot(InstanceTypeEqual(value_instance_type, ODDBALL_TYPE),
-              &not_oddball);
-
-    var_result = LoadObjectField<String>(CAST(value), Oddball::kToStringOffset);
-    Goto(&end);
-
-    BIND(&not_oddball);
-    {
-      var_result = CAST(CallRuntime(Runtime::kToName, context, value));
-      Goto(&end);
-    }
-  }
-
-  BIND(&end);
-  return var_result.value();
 }
 
 Node* CodeStubAssembler::NonNumberToNumberOrNumeric(
@@ -11480,7 +11448,7 @@ TNode<Oddball> CodeStubAssembler::HasProperty(SloppyTNode<Context> context,
 
   BIND(&if_proxy);
   {
-    TNode<Name> name = ToName(context, key);
+    TNode<Name> name = CAST(CallBuiltin(Builtins::kToName, context, key));
     switch (mode) {
       case kHasProperty:
         GotoIf(IsPrivateSymbol(name), &return_false);
