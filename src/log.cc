@@ -1323,7 +1323,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   //        <script-offset> is the position within the script
   //        <inlining-id> is the offset in the <inlining> table
   //   <inlining> table is a sequence of strings of the form
-  //      F<function-id>O<script-offset>[I<inlining-id>
+  //      F<function-id>O<script-offset>[I<inlining-id>]
   //      where
   //         <function-id> is an index into the <fns> function table
   //   <fns> is the function table encoded as a sequence of strings
@@ -1335,12 +1335,8 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
       << shared->EndPosition() << kNext;
 
   SourcePositionTableIterator iterator(code->source_position_table());
-  bool is_first = true;
   bool hasInlined = false;
   for (; !iterator.done(); iterator.Advance()) {
-    if (is_first) {
-      is_first = false;
-    }
     SourcePosition pos = iterator.source_position();
     msg << "C" << iterator.code_offset() << "O" << pos.ScriptOffset();
     if (pos.isInlined()) {
@@ -1604,7 +1600,7 @@ bool Logger::EnsureLogScriptSource(Script* script) {
   // Make sure the script is written to the log file.
   int script_id = script->id();
   if (logged_source_code_.find(script_id) != logged_source_code_.end()) {
-    return false;
+    return true;
   }
   // This script has not been logged yet.
   logged_source_code_.insert(script_id);
