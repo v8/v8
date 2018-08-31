@@ -1377,8 +1377,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
       next_gc_likely_to_collect_more =
           PerformGarbageCollection(collector, gc_callback_flags);
-      if (collector == MARK_COMPACTOR) {
-        tracer()->RecordMarkCompactHistograms(gc_type_timer);
+      if (collector == MARK_COMPACTOR || collector == SCAVENGER) {
+        tracer()->RecordGCPhasesHistograms(gc_type_timer);
       }
     }
 
