@@ -2926,13 +2926,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("format"),
                           Builtins::kDateTimeFormatPrototypeFormat, false);
-
-      {
-        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
-            isolate_, Builtins::kDateTimeFormatInternalFormat,
-            factory->empty_string(), 1);
-        native_context()->set_date_format_internal_format_shared_fun(*info);
-      }
     }
 
     {
@@ -2961,14 +2954,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("format"),
                           Builtins::kNumberFormatPrototypeFormatNumber, false);
-
-      {
-        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
-            isolate_, Builtins::kNumberFormatInternalFormatNumber,
-            factory->empty_string(), 1);
-        native_context()->set_number_format_internal_format_number_shared_fun(
-            *info);
-      }
     }
 
     {
@@ -2995,13 +2980,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("compare"),
                           Builtins::kCollatorPrototypeCompare, false);
-
-      {
-        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
-            isolate_, Builtins::kCollatorInternalCompare,
-            factory->empty_string(), 2);
-        native_context()->set_collator_internal_compare_shared_fun(*info);
-      }
     }
 
     {
@@ -3029,58 +3007,21 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           factory->InternalizeUtf8String("adoptText"),
                           Builtins::kBreakIteratorPrototypeAdoptText, false);
 
-      {
-        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
-            isolate_, Builtins::kBreakIteratorInternalAdoptText,
-            factory->empty_string(), 1);
-        native_context()->set_break_iterator_internal_adopt_text_shared_fun(
-            *info);
-      }
-
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("first"),
                           Builtins::kBreakIteratorPrototypeFirst, false);
-
-      {
-        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
-            isolate_, Builtins::kBreakIteratorInternalFirst,
-            factory->empty_string(), 0);
-        native_context()->set_break_iterator_internal_first_shared_fun(*info);
-      }
 
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("next"),
                           Builtins::kBreakIteratorPrototypeNext, false);
 
-      {
-        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
-            isolate_, Builtins::kBreakIteratorInternalNext,
-            factory->empty_string(), 0);
-        native_context()->set_break_iterator_internal_next_shared_fun(*info);
-      }
-
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("current"),
                           Builtins::kBreakIteratorPrototypeCurrent, false);
 
-      {
-        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
-            isolate_, Builtins::kBreakIteratorInternalCurrent,
-            factory->empty_string(), 0);
-        native_context()->set_break_iterator_internal_current_shared_fun(*info);
-      }
-
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("breakType"),
                           Builtins::kBreakIteratorPrototypeBreakType, false);
-
-      {
-        Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
-            isolate_, Builtins::kBreakIteratorInternalBreakType,
-            factory->empty_string(), 0);
-        native_context()->set_break_iterator_internal_break_type_shared_fun(
-            *info);
-      }
     }
 
     {

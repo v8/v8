@@ -547,11 +547,7 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
 namespace {
 Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
                                        Handle<JSObject> object,
-                                       int shared_function_info_context_slot) {
-  // Check if 'shared_info_context_slot' is a valid slot.
-  DCHECK_GT(shared_function_info_context_slot, Context::NATIVE_CONTEXT_INDEX);
-  DCHECK_LT(shared_function_info_context_slot, Context::NATIVE_CONTEXT_SLOTS);
-
+                                       Builtins::Name builtin_id, int len) {
   Handle<NativeContext> native_context(isolate->context()->native_context(),
                                        isolate);
   Handle<Context> context = isolate->factory()->NewBuiltinContext(
@@ -561,9 +557,12 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
   context->set(static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction),
                *object);
 
-  Handle<SharedFunctionInfo> info(SharedFunctionInfo::cast(native_context->get(
-                                      shared_function_info_context_slot)),
-                                  isolate);
+  Handle<SharedFunctionInfo> info =
+      isolate->factory()->NewSharedFunctionInfoForBuiltin(
+          isolate->factory()->empty_string(), builtin_id, kNormalFunction);
+  info->set_internal_formal_parameter_count(len);
+  info->set_length(len);
+
   Handle<Map> map = isolate->strict_function_without_prototype_map();
 
   Handle<JSFunction> new_bound_function =
@@ -600,9 +599,9 @@ BUILTIN(NumberFormatPrototypeFormatNumber) {
     return *bound_format;
   }
 
-  Handle<JSFunction> new_bound_format_function = CreateBoundFunction(
-      isolate, number_format_holder,
-      Context::INTL_NUMBER_FORMAT_INTERNAL_FORMAT_NUMBER_SHARED_FUN);
+  Handle<JSFunction> new_bound_format_function =
+      CreateBoundFunction(isolate, number_format_holder,
+                          Builtins::kNumberFormatInternalFormatNumber, 1);
 
   // 4. c. Set nf.[[BoundFormat]] to F.
   number_format_holder->SetEmbedderField(NumberFormat::kBoundFormatIndex,
@@ -674,9 +673,8 @@ BUILTIN(DateTimeFormatPrototypeFormat) {
     return *bound_format;
   }
 
-  Handle<JSFunction> new_bound_format_function =
-      CreateBoundFunction(isolate, date_format_holder,
-                          Context::INTL_DATE_FORMAT_INTERNAL_FORMAT_SHARED_FUN);
+  Handle<JSFunction> new_bound_format_function = CreateBoundFunction(
+      isolate, date_format_holder, Builtins::kDateTimeFormatInternalFormat, 1);
 
   // 4.c. Set dtf.[[BoundFormat]] to F.
   date_format_holder->SetEmbedderField(DateFormat::kBoundFormatIndex,
@@ -1101,7 +1099,7 @@ BUILTIN(CollatorPrototypeCompare) {
   }
 
   Handle<JSFunction> new_bound_compare_function = CreateBoundFunction(
-      isolate, collator, Context::INTL_COLLATOR_INTERNAL_COMPARE_SHARED_FUN);
+      isolate, collator, Builtins::kCollatorInternalCompare, 2);
 
   // 4.c. Set collator.[[BoundCompare]] to F.
   collator->set_bound_compare(*new_bound_compare_function);
@@ -1164,9 +1162,9 @@ BUILTIN(BreakIteratorPrototypeAdoptText) {
     return *bound_adopt_text;
   }
 
-  Handle<JSFunction> new_bound_adopt_text_function = CreateBoundFunction(
-      isolate, break_iterator_holder,
-      Context::INTL_V8_BREAK_ITERATOR_INTERNAL_ADOPT_TEXT_SHARED_FUN);
+  Handle<JSFunction> new_bound_adopt_text_function =
+      CreateBoundFunction(isolate, break_iterator_holder,
+                          Builtins::kBreakIteratorInternalAdoptText, 1);
 
   break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundAdoptTextIndex,
                                           *new_bound_adopt_text_function);
@@ -1220,8 +1218,7 @@ BUILTIN(BreakIteratorPrototypeFirst) {
   }
 
   Handle<JSFunction> new_bound_first_function = CreateBoundFunction(
-      isolate, break_iterator_holder,
-      Context::INTL_V8_BREAK_ITERATOR_INTERNAL_FIRST_SHARED_FUN);
+      isolate, break_iterator_holder, Builtins::kBreakIteratorInternalFirst, 0);
 
   break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundFirstIndex,
                                           *new_bound_first_function);
@@ -1272,8 +1269,7 @@ BUILTIN(BreakIteratorPrototypeNext) {
   }
 
   Handle<JSFunction> new_bound_next_function = CreateBoundFunction(
-      isolate, break_iterator_holder,
-      Context::INTL_V8_BREAK_ITERATOR_INTERNAL_NEXT_SHARED_FUN);
+      isolate, break_iterator_holder, Builtins::kBreakIteratorInternalNext, 0);
 
   break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundNextIndex,
                                           *new_bound_next_function);
@@ -1324,9 +1320,9 @@ BUILTIN(BreakIteratorPrototypeCurrent) {
     return *bound_current;
   }
 
-  Handle<JSFunction> new_bound_current_function = CreateBoundFunction(
-      isolate, break_iterator_holder,
-      Context::INTL_V8_BREAK_ITERATOR_INTERNAL_CURRENT_SHARED_FUN);
+  Handle<JSFunction> new_bound_current_function =
+      CreateBoundFunction(isolate, break_iterator_holder,
+                          Builtins::kBreakIteratorInternalCurrent, 0);
 
   break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundCurrentIndex,
                                           *new_bound_current_function);
@@ -1377,9 +1373,9 @@ BUILTIN(BreakIteratorPrototypeBreakType) {
     return *bound_break_type;
   }
 
-  Handle<JSFunction> new_bound_break_type_function = CreateBoundFunction(
-      isolate, break_iterator_holder,
-      Context::INTL_V8_BREAK_ITERATOR_INTERNAL_BREAK_TYPE_SHARED_FUN);
+  Handle<JSFunction> new_bound_break_type_function =
+      CreateBoundFunction(isolate, break_iterator_holder,
+                          Builtins::kBreakIteratorInternalBreakType, 0);
 
   break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundBreakTypeIndex,
                                           *new_bound_break_type_function);
