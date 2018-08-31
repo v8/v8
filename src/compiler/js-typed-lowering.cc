@@ -1026,8 +1026,8 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
 Reduction JSTypedLowering::ReduceJSToNumeric(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type const input_type = NodeProperties::GetType(input);
-  if (input_type.Is(Type::Number())) {
-    // ToNumeric(x:number) => ToNumber(x)
+  if (input_type.Is(Type::NonBigIntPrimitive())) {
+    // ToNumeric(x:primitive\bigint) => ToNumber(x)
     NodeProperties::ChangeOp(node, javascript()->ToNumber());
     Reduction const reduction = ReduceJSToNumber(node);
     return reduction.Changed() ? reduction : Changed(node);
