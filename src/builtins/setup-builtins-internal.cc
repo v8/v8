@@ -12,6 +12,7 @@
 #include "src/interface-descriptors.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-generator.h"
+#include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -310,6 +311,7 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
       CallDescriptors::InterfaceDescriptor, #Name, 1);     \
   AddBuiltin(builtins, index++, code);
 
+#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
 #define BUILD_BCH_WITH_SCALE(Code, Scale)                               \
   code = GenerateBytecodeHandler(isolate, index, Builtins::name(index), \
                                  interpreter::Bytecode::k##Code,        \
@@ -323,6 +325,9 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   BUILD_BCH_WITH_SCALE(Code, Single) \
   BUILD_BCH_WITH_SCALE(Code, Double) \
   BUILD_BCH_WITH_SCALE(Code, Quadruple)
+#else
+#define BUILD_BCH(Code, ...) UNREACHABLE();
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
 #define BUILD_ASM(Name)                                                     \
   code = BuildWithMacroAssembler(isolate, index, Builtins::Generate_##Name, \

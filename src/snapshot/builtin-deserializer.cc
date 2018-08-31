@@ -87,10 +87,10 @@ void BuiltinDeserializer::DeserializeEagerBuiltinsAndHandlers() {
   }
 #endif
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
   // Deserialize bytecode handlers.
-
   Interpreter* interpreter = isolate()->interpreter();
-  DCHECK(!isolate()->interpreter()->IsDispatchTableInitialized());
+  DCHECK(!interpreter->IsDispatchTableInitialized());
 
   BSU::ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
     // Bytecodes without a dedicated handler are patched up in a second pass.
@@ -118,6 +118,7 @@ void BuiltinDeserializer::DeserializeEagerBuiltinsAndHandlers() {
   });
 
   DCHECK(isolate()->interpreter()->IsDispatchTableInitialized());
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 }
 
 Code* BuiltinDeserializer::DeserializeBuiltin(int builtin_id) {
@@ -135,12 +136,14 @@ Code* BuiltinDeserializer::DeserializeBuiltin(int builtin_id) {
   return code;
 }
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
 Code* BuiltinDeserializer::DeserializeHandler(Bytecode bytecode,
                                               OperandScale operand_scale) {
   allocator()->ReserveForHandler(bytecode, operand_scale);
   DisallowHeapAllocation no_gc;
   return DeserializeHandlerRaw(bytecode, operand_scale);
 }
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
 Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
   DCHECK(!AllowHeapAllocation::IsAllowed());
@@ -172,6 +175,7 @@ Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
   return code;
 }
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
 Code* BuiltinDeserializer::DeserializeHandlerRaw(Bytecode bytecode,
                                                  OperandScale operand_scale) {
   DCHECK(!AllowHeapAllocation::IsAllowed());
@@ -205,6 +209,7 @@ Code* BuiltinDeserializer::DeserializeHandlerRaw(Bytecode bytecode,
 
   return code;
 }
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
 uint32_t BuiltinDeserializer::ExtractCodeObjectSize(int code_object_id) {
   DCHECK_LT(code_object_id, BSU::kNumberOfCodeObjects);

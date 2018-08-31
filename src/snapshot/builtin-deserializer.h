@@ -38,18 +38,22 @@ class BuiltinDeserializer final
   // lazily deserialized at runtime.
   Code* DeserializeBuiltin(int builtin_id);
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
   // Deserializes the single given handler. This is used whenever a handler is
   // lazily deserialized at runtime.
   Code* DeserializeHandler(Bytecode bytecode, OperandScale operand_scale);
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
  private:
   // Deserializes the single given builtin. Assumes that reservations have
   // already been allocated.
   Code* DeserializeBuiltinRaw(int builtin_id);
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
   // Deserializes the single given bytecode handler. Assumes that reservations
   // have already been allocated.
   Code* DeserializeHandlerRaw(Bytecode bytecode, OperandScale operand_scale);
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
   // Extracts the size builtin Code objects (baked into the snapshot).
   uint32_t ExtractCodeObjectSize(int builtin_id);

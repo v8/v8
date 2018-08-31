@@ -33,6 +33,9 @@ void BuiltinSerializer::SerializeBuiltinsAndHandlers() {
     SerializeBuiltin(isolate()->builtins()->builtin(i));
   }
 
+#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
+  STATIC_ASSERT(BSU::kNumberOfBuiltins == BSU::kNumberOfCodeObjects);
+#else
   // Serialize bytecode handlers.
 
   STATIC_ASSERT(BSU::kNumberOfBuiltins == BSU::kFirstHandlerIndex);
@@ -54,6 +57,7 @@ void BuiltinSerializer::SerializeBuiltinsAndHandlers() {
   DCHECK(isolate()->heap()->deserialize_lazy_handler()->IsCode());
   DCHECK(isolate()->heap()->deserialize_lazy_handler_wide()->IsCode());
   DCHECK(isolate()->heap()->deserialize_lazy_handler_extra_wide()->IsCode());
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
   // Pad with kNop since GetInt() might read too far.
   Pad();
@@ -132,6 +136,7 @@ void BuiltinSerializer::SetBuiltinOffset(int builtin_id, uint32_t offset) {
   code_offsets_[builtin_id] = offset;
 }
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
 void BuiltinSerializer::SetHandlerOffset(Bytecode bytecode,
                                          OperandScale operand_scale,
                                          uint32_t offset) {
@@ -139,6 +144,7 @@ void BuiltinSerializer::SetHandlerOffset(Bytecode bytecode,
   DCHECK(BSU::IsHandlerIndex(index));
   code_offsets_[index] = offset;
 }
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
 }  // namespace internal
 }  // namespace v8

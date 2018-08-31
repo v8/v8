@@ -168,6 +168,7 @@ Code* Snapshot::EnsureBuiltinIsDeserialized(Isolate* isolate,
   return code;
 }
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
 // static
 Code* Snapshot::DeserializeHandler(Isolate* isolate,
                                    interpreter::Bytecode bytecode,
@@ -203,6 +204,7 @@ Code* Snapshot::DeserializeHandler(Isolate* isolate,
 
   return code;
 }
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
 void ProfileDeserialization(
     const SnapshotData* startup_snapshot, const SnapshotData* builtin_snapshot,

@@ -23,11 +23,12 @@ void SetupIsolateDelegate::SetupBuiltins(Isolate* isolate) {
 
 void SetupIsolateDelegate::SetupInterpreter(
     interpreter::Interpreter* interpreter) {
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
   if (create_heap_objects_) {
     interpreter::SetupInterpreter::InstallBytecodeHandlers(interpreter);
-  } else {
-    CHECK(interpreter->IsDispatchTableInitialized());
   }
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
+  CHECK(interpreter->IsDispatchTableInitialized());
 }
 
 bool SetupIsolateDelegate::SetupHeap(Heap* heap) {

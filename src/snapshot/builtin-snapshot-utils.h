@@ -25,6 +25,9 @@ class BuiltinSnapshotUtils : public AllStatic {
   static const int kFirstBuiltinIndex = 0;
   static const int kNumberOfBuiltins = Builtins::builtin_count;
 
+#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
+  static const int kNumberOfCodeObjects = kNumberOfBuiltins;
+#else
   static const int kFirstHandlerIndex = kFirstBuiltinIndex + kNumberOfBuiltins;
   static const int kNumberOfHandlers =
       Bytecodes::kBytecodeCount * BytecodeOperands::kOperandScaleCount;
@@ -34,10 +37,12 @@ class BuiltinSnapshotUtils : public AllStatic {
   // {bytecode, operand_scale} combination has an associated handler
   // (see Bytecodes::BytecodeHasHandler).
   static const int kNumberOfCodeObjects = kNumberOfBuiltins + kNumberOfHandlers;
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
   // Indexes into the offsets vector contained in snapshot.
   // See e.g. BuiltinSerializer::code_offsets_.
   static bool IsBuiltinIndex(int maybe_index);
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
   static bool IsHandlerIndex(int maybe_index);
   static int BytecodeToIndex(Bytecode bytecode, OperandScale operand_scale);
 
@@ -48,6 +53,7 @@ class BuiltinSnapshotUtils : public AllStatic {
   // Iteration over all {bytecode,operand_scale} pairs. Implemented here since
   // (de)serialization depends on the iteration order.
   static void ForEachBytecode(std::function<void(Bytecode, OperandScale)> f);
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 };
 
 }  // namespace internal

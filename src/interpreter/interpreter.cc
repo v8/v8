@@ -66,6 +66,9 @@ Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
   // Already deserialized? Then just return the handler.
   if (!isolate_->heap()->IsDeserializeLazyHandler(code)) return code;
 
+#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
+  UNREACHABLE();
+#else
   DCHECK(FLAG_lazy_handler_deserialization);
   DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
   code = Snapshot::DeserializeHandler(isolate_, bytecode, operand_scale);
@@ -77,15 +80,22 @@ Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
   SetBytecodeHandler(bytecode, operand_scale, code);
 
   return code;
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 }
 
 Code* Interpreter::GetBytecodeHandler(Bytecode bytecode,
                                       OperandScale operand_scale) {
+#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
+  // The dispatch table has pointers to the offheap instruction stream, so it's
+  // not possible to use that to get hold of the Code object.
+  return isolate_->builtins()->GetBytecodeHandler(bytecode, operand_scale);
+#else
   DCHECK(IsDispatchTableInitialized());
   DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
   Address code_entry = dispatch_table_[index];
   return Code::GetCodeFromTargetAddress(code_entry);
+#endif
 }
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
@@ -93,7 +103,7 @@ void Interpreter::SetBytecodeHandler(Bytecode bytecode,
                                      Code* handler) {
   DCHECK(handler->kind() == Code::BYTECODE_HANDLER);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
-  dispatch_table_[index] = handler->entry();
+  dispatch_table_[index] = handler->InstructionStart();
 }
 
 // static
@@ -101,17 +111,11 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
                                           OperandScale operand_scale) {
   static const size_t kEntriesPerOperandScale = 1u << kBitsPerByte;
   size_t index = static_cast<size_t>(bytecode);
-  switch (operand_scale) {
-    case OperandScale::kSingle:
-      return index;
-    case OperandScale::kDouble:
-      return index + kEntriesPerOperandScale;
-    case OperandScale::kQuadruple:
-      return index + 2 * kEntriesPerOperandScale;
-  }
-  UNREACHABLE();
+  return index + BytecodeOperands::OperandScaleAsIndex(operand_scale) *
+                     kEntriesPerOperandScale;
 }
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
 void Interpreter::IterateDispatchTable(RootVisitor* v) {
   for (int i = 0; i < kDispatchTableSize; i++) {
     Address code_entry = dispatch_table_[i];
@@ -125,6 +129,7 @@ void Interpreter::IterateDispatchTable(RootVisitor* v) {
     }
   }
 }
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
 int Interpreter::InterruptBudget() {
   return FLAG_interrupt_budget;
@@ -227,6 +232,34 @@ UnoptimizedCompilationJob* Interpreter::NewCompilationJob(
     ZoneVector<FunctionLiteral*>* eager_inner_literals) {
   return new InterpreterCompilationJob(parse_info, literal, allocator,
                                        eager_inner_literals);
+}
+
+void Interpreter::ForEachBytecode(
+    const std::function<void(Bytecode, OperandScale)>& f) {
+  constexpr OperandScale kOperandScales[] = {
+#define VALUE(Name, _) OperandScale::k##Name,
+      OPERAND_SCALE_LIST(VALUE)
+#undef VALUE
+  };
+
+  for (OperandScale operand_scale : kOperandScales) {
+    for (int i = 0; i < Bytecodes::kBytecodeCount; i++) {
+      f(Bytecodes::FromByte(i), operand_scale);
+    }
+  }
+}
+
+void Interpreter::InitializeDispatchTable() {
+#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
+  Builtins* builtins = isolate_->builtins();
+  Code* illegal = builtins->builtin(Builtins::kIllegalHandler);
+  ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
+    Code* handler = Bytecodes::BytecodeHasHandler(bytecode, operand_scale)
+                        ? builtins->GetBytecodeHandler(bytecode, operand_scale)
+                        : illegal;
+    SetBytecodeHandler(bytecode, operand_scale, handler);
+  });
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 }
 
 bool Interpreter::IsDispatchTableInitialized() const {

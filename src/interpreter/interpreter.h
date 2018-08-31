@@ -61,13 +61,19 @@ class Interpreter {
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
                           Code* handler);
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
   // GC support.
   void IterateDispatchTable(RootVisitor* v);
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
   // Disassembler support (only useful with ENABLE_DISASSEMBLER defined).
   const char* LookupNameOfBytecodeHandler(const Code* code);
 
   V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
+
+  void ForEachBytecode(const std::function<void(Bytecode, OperandScale)>& f);
+
+  void InitializeDispatchTable();
 
   bool IsDispatchTableInitialized() const;
 

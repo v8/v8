@@ -4181,8 +4181,10 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   if (!isMinorGC) {
     IterateBuiltins(v);
     v->Synchronize(VisitorSynchronization::kBuiltins);
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
     isolate_->interpreter()->IterateDispatchTable(v);
     v->Synchronize(VisitorSynchronization::kDispatchTable);
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
   }
 
   // Iterate over global handles.

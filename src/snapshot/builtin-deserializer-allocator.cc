@@ -23,11 +23,13 @@ BuiltinDeserializerAllocator::~BuiltinDeserializerAllocator() {
   delete handler_allocations_;
 }
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
 namespace {
 int HandlerAllocationIndex(int code_object_id) {
   return code_object_id - BuiltinSnapshotUtils::kFirstHandlerIndex;
 }
 }  // namespace
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
 Address BuiltinDeserializerAllocator::Allocate(AllocationSpace space,
                                                int size) {
@@ -43,6 +45,9 @@ Address BuiltinDeserializerAllocator::Allocate(AllocationSpace space,
     Object* obj = isolate()->builtins()->builtin(code_object_id);
     DCHECK(Internals::HasHeapObjectTag(obj));
     return HeapObject::cast(obj)->address();
+#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
+  }
+#else
   } else if (BSU::IsHandlerIndex(code_object_id)) {
     if (handler_allocation_ != kNullAddress) {
       // Lazy deserialization.
@@ -57,6 +62,7 @@ Address BuiltinDeserializerAllocator::Allocate(AllocationSpace space,
       return handler_allocations_->at(index);
     }
   }
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
   UNREACHABLE();
 }
@@ -91,6 +97,7 @@ BuiltinDeserializerAllocator::CreateReservationsForEagerBuiltinsAndHandlers() {
     result.push_back({builtin_size, kNullAddress, kNullAddress});
   }
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
   // Reservations for bytecode handlers.
 
   BSU::ForEachBytecode(
@@ -112,6 +119,7 @@ BuiltinDeserializerAllocator::CreateReservationsForEagerBuiltinsAndHandlers() {
         DCHECK_LE(handler_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
         result.push_back({handler_size, kNullAddress, kNullAddress});
       });
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
   return result;
 }
@@ -130,6 +138,7 @@ void BuiltinDeserializerAllocator::InitializeBuiltinFromReservation(
 #endif
 }
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
 void BuiltinDeserializerAllocator::InitializeHandlerFromReservation(
     const Heap::Chunk& chunk, interpreter::Bytecode bytecode,
     interpreter::OperandScale operand_scale) {
@@ -149,6 +158,7 @@ void BuiltinDeserializerAllocator::InitializeHandlerFromReservation(
   RegisterCodeObjectReservation(BSU::BytecodeToIndex(bytecode, operand_scale));
 #endif
 }
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
 void BuiltinDeserializerAllocator::InitializeFromReservations(
     const Heap::Reservation& reservation) {
@@ -181,6 +191,7 @@ void BuiltinDeserializerAllocator::InitializeFromReservations(
     }
   }
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
   // Initialize interpreter bytecode handler reservations.
 
   DCHECK_NULL(handler_allocations_);
@@ -202,6 +213,7 @@ void BuiltinDeserializerAllocator::InitializeFromReservations(
                                          bytecode, operand_scale);
         reservation_index++;
       });
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
   DCHECK_EQ(reservation.size(), reservation_index);
 }
@@ -236,6 +248,7 @@ void BuiltinDeserializerAllocator::ReserveAndInitializeBuiltinsTableForBuiltin(
 #endif
 }
 
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
 void BuiltinDeserializerAllocator::ReserveForHandler(
     Bytecode bytecode, OperandScale operand_scale) {
   DCHECK(AllowHeapAllocation::IsAllowed());
@@ -257,6 +270,7 @@ void BuiltinDeserializerAllocator::ReserveForHandler(
   RegisterCodeObjectReservation(code_object_id);
 #endif
 }
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
 #ifdef DEBUG
 void BuiltinDeserializerAllocator::RegisterCodeObjectReservation(
