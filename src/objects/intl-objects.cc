@@ -1155,24 +1155,11 @@ bool Intl::IsObjectOfType(Isolate* isolate, Handle<Object> input,
   return type == expected_type;
 }
 
-namespace {
-
-// In ECMA 402 v1, Intl constructors supported a mode of operation
-// where calling them with an existing object as a receiver would
-// transform the receiver into the relevant Intl instance with all
-// internal slots. In ECMA 402 v2, this capability was removed, to
-// avoid adding internal slots on existing objects. In ECMA 402 v3,
-// the capability was re-added as "normative optional" in a mode
-// which chains the underlying Intl instance on any object, when the
-// constructor is called
-//
 // See ecma402/#legacy-constructor.
-MaybeHandle<Object> LegacyUnwrapReceiver(Isolate* isolate,
-                                         Handle<JSReceiver> receiver,
-                                         Handle<JSFunction> constructor,
-                                         Intl::Type type) {
-  bool has_initialized_slot = Intl::IsObjectOfType(isolate, receiver, type);
-
+MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
+                                               Handle<JSReceiver> receiver,
+                                               Handle<JSFunction> constructor,
+                                               bool has_initialized_slot) {
   Handle<Object> obj_is_instance_of;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, obj_is_instance_of,
                              Object::InstanceOf(isolate, receiver, constructor),
@@ -1195,8 +1182,6 @@ MaybeHandle<Object> LegacyUnwrapReceiver(Isolate* isolate,
   return receiver;
 }
 
-}  // namespace
-
 MaybeHandle<JSObject> Intl::UnwrapReceiver(Isolate* isolate,
                                            Handle<JSReceiver> receiver,
                                            Handle<JSFunction> constructor,
@@ -1208,9 +1193,13 @@ MaybeHandle<JSObject> Intl::UnwrapReceiver(Isolate* isolate,
          type == Intl::Type::kBreakIterator);
   Handle<Object> new_receiver = receiver;
   if (check_legacy_constructor) {
+    bool has_initialized_slot = Intl::IsObjectOfType(isolate, receiver, type);
+
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, new_receiver,
-        LegacyUnwrapReceiver(isolate, receiver, constructor, type), JSObject);
+        LegacyUnwrapReceiver(isolate, receiver, constructor,
+                             has_initialized_slot),
+        JSObject);
   }
 
   // Collator has been ported to use regular instance types. We

@@ -428,6 +428,20 @@ class Intl {
   // A helper function to help handle Unicode Extensions in locale.
   static std::map<std::string, std::string> LookupUnicodeExtensions(
     const icu::Locale& icu_locale, const std::set<std::string>& relevant_keys);
+
+  // In ECMA 402 v1, Intl constructors supported a mode of operation
+  // where calling them with an existing object as a receiver would
+  // transform the receiver into the relevant Intl instance with all
+  // internal slots. In ECMA 402 v2, this capability was removed, to
+  // avoid adding internal slots on existing objects. In ECMA 402 v3,
+  // the capability was re-added as "normative optional" in a mode
+  // which chains the underlying Intl instance on any object, when the
+  // constructor is called
+  //
+  // See ecma402/#legacy-constructor.
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> LegacyUnwrapReceiver(
+      Isolate* isolate, Handle<JSReceiver> receiver,
+      Handle<JSFunction> constructor, bool has_initialized_slot);
 };
 
 }  // namespace internal
