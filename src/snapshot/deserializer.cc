@@ -179,18 +179,11 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
   }
 
   if (obj->IsAllocationSite()) {
-    // Allocation sites are present in the snapshot, and must be linked into
-    // a list at deserialization time.
-    AllocationSite* site = AllocationSite::cast(obj);
-    // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
-    // as a (weak) root. If this root is relocated correctly, this becomes
-    // unnecessary.
-    if (isolate_->heap()->allocation_sites_list() == Smi::kZero) {
-      site->set_weak_next(ReadOnlyRoots(isolate_).undefined_value());
-    } else {
-      site->set_weak_next(isolate_->heap()->allocation_sites_list());
-    }
-    isolate_->heap()->set_allocation_sites_list(site);
+    // We should link new allocation sites, but we can't do this immediately
+    // because |AllocationSite::HasWeakNext()| internally accesses
+    // |Heap::roots_| that may not have been initialized yet. So defer this to
+    // |ObjectDeserializer::CommitPostProcessedObjects()|.
+    new_allocation_sites_.push_back(AllocationSite::cast(obj));
   } else if (obj->IsCode()) {
     // We flush all code pages after deserializing the startup snapshot. In that
     // case, we only need to remember code objects in the large object space.

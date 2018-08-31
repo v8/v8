@@ -581,7 +581,8 @@ class UnlinkWeakNextScope {
  public:
   explicit UnlinkWeakNextScope(Heap* heap, HeapObject* object)
       : object_(nullptr) {
-    if (object->IsAllocationSite()) {
+    if (object->IsAllocationSite() &&
+        AllocationSite::cast(object)->HasWeakNext()) {
       object_ = object;
       next_ = AllocationSite::cast(object)->weak_next();
       AllocationSite::cast(object)->set_weak_next(
