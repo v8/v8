@@ -831,65 +831,6 @@ function appendToLDMLString(option, pairs) {
 }
 
 /**
- * Returns options with at least default values in it.
- */
-function toDateTimeOptions(options, required, defaults) {
-  if (IS_UNDEFINED(options)) {
-    options = {__proto__: null};
-  } else {
-    options = TO_OBJECT(options);
-  }
-
-  options = %object_create(options);
-
-  var needsDefault = true;
-  if ((required === 'date' || required === 'any') &&
-      (!IS_UNDEFINED(options.weekday) || !IS_UNDEFINED(options.year) ||
-       !IS_UNDEFINED(options.month) || !IS_UNDEFINED(options.day))) {
-    needsDefault = false;
-  }
-
-  if ((required === 'time' || required === 'any') &&
-      (!IS_UNDEFINED(options.hour) || !IS_UNDEFINED(options.minute) ||
-       !IS_UNDEFINED(options.second))) {
-    needsDefault = false;
-  }
-
-  if (needsDefault && (defaults === 'date' || defaults === 'all')) {
-    %object_define_property(options, 'year', {value: 'numeric',
-                                              writable: true,
-                                              enumerable: true,
-                                              configurable: true});
-    %object_define_property(options, 'month', {value: 'numeric',
-                                               writable: true,
-                                               enumerable: true,
-                                               configurable: true});
-    %object_define_property(options, 'day', {value: 'numeric',
-                                             writable: true,
-                                             enumerable: true,
-                                             configurable: true});
-  }
-
-  if (needsDefault && (defaults === 'time' || defaults === 'all')) {
-    %object_define_property(options, 'hour', {value: 'numeric',
-                                              writable: true,
-                                              enumerable: true,
-                                              configurable: true});
-    %object_define_property(options, 'minute', {value: 'numeric',
-                                                writable: true,
-                                                enumerable: true,
-                                                configurable: true});
-    %object_define_property(options, 'second', {value: 'numeric',
-                                                writable: true,
-                                                enumerable: true,
-                                                configurable: true});
-  }
-
-  return options;
-}
-
-
-/**
  * Initializes the given object so it's a valid DateTimeFormat instance.
  * Useful for subclassing.
  */
