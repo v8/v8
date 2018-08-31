@@ -476,6 +476,12 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
 
 RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);
+
+  // Append any worker thread runtime call stats to the main table before
+  // printing.
+  isolate->counters()->worker_thread_runtime_call_stats()->AddToMainTable(
+      isolate->counters()->runtime_call_stats());
+
   if (args.length() == 0) {
     // Without arguments, the result is returned as a string.
     DCHECK_EQ(0, args.length());
