@@ -140,25 +140,13 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
       Object);
 
   Handle<Object> result;
-  bool sucess = false;
+  bool success = false;
   if (throw_on_side_effect) isolate->debug()->StartSideEffectCheckMode();
-  sucess = Execution::Call(isolate, eval_fun, receiver, 0, nullptr)
-               .ToHandle(&result);
+  success = Execution::Call(isolate, eval_fun, receiver, 0, nullptr)
+                .ToHandle(&result);
   if (throw_on_side_effect) isolate->debug()->StopSideEffectCheckMode();
-  if (!sucess) {
-    DCHECK(isolate->has_pending_exception());
-    return MaybeHandle<Object>();
-  }
-
-  // Skip the global proxy as it has no properties and always delegates to the
-  // real global object.
-  if (result->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate, Handle<JSGlobalProxy>::cast(result));
-    // TODO(verwaest): This will crash when the global proxy is detached.
-    result = PrototypeIterator::GetCurrent<JSObject>(iter);
-  }
-
-  return result;
+  if (!success) DCHECK(isolate->has_pending_exception());
+  return success ? result : MaybeHandle<Object>();
 }
 
 Handle<SharedFunctionInfo> DebugEvaluate::ContextBuilder::outer_info() const {
