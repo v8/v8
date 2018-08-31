@@ -1494,13 +1494,13 @@ void ImplementationVisitor::GenerateAssignToLocation(
     VisitResult assignment_value) {
   if (reference.value != nullptr) {
     Value* value = reference.value;
-    Variable* var = Variable::cast(value);
-    if (var->IsConst()) {
+    if (value->IsConst()) {
       std::stringstream s;
-      s << "\"" << var->name()
+      s << "\"" << value->name()
         << "\" is declared const (maybe implicitly) and cannot be assigned to";
       ReportError(s.str());
     }
+    Variable* var = Variable::cast(value);
     GenerateAssignToVariable(var, assignment_value);
   } else if (auto access = FieldAccessExpression::DynamicCast(location)) {
     GenerateCall(std::string(".") + access->field + "=",
