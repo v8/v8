@@ -2810,7 +2810,7 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
     Comment("KeyedLoadGeneric_slow");
     IncrementCounter(isolate()->counters()->ic_keyed_load_generic_slow(), 1);
     // TODO(jkummerow): Should we use the GetProperty TF stub instead?
-    TailCallRuntime(Runtime::kKeyedGetProperty, p->context, p->receiver,
+    TailCallRuntime(Runtime::kGetProperty, p->context, p->receiver,
                     var_unique.value());
   }
 }

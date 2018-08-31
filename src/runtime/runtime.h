@@ -329,7 +329,6 @@ namespace internal {
   F(HasProperty, 2, 1)                                          \
   F(InternalSetPrototype, 2, 1)                                 \
   F(IsJSReceiver, 1, 1)                                         \
-  F(KeyedGetProperty, 2, 1)                                     \
   F(NewObject, 2, 1)                                            \
   F(ObjectCreate, 2, 1)                                         \
   F(ObjectEntries, 1, 1)                                        \
