@@ -215,9 +215,6 @@
   # Allocates a huge string and then flattens it, very slow in debug mode.
   'regress/regress-752764': [PASS, ['mode == debug', SLOW]],
 
-  # https://crbug.com/v8/7682
-  'regress/regress-v8-7682': [FAIL],
-
   # https://crbug.com/v8/7697
   'array-literal-feedback': [PASS, FAIL],
 

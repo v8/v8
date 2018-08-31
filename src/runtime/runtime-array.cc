@@ -303,7 +303,7 @@ Maybe<bool> ConditionalCopy(Isolate* isolate, Handle<JSReceiver> source,
 
   Handle<Object> source_element;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, source_element, JSReceiver::GetElement(isolate, source, index),
+      isolate, source_element, JSReceiver::GetElement(isolate, target, index),
       Nothing<bool>());
 
   Handle<Object> set_result;
