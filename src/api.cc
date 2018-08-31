@@ -7832,6 +7832,7 @@ Local<Symbol> v8::Symbol::ForApi(Isolate* isolate, Local<String> name) {
 }
 
 #define WELL_KNOWN_SYMBOLS(V)                 \
+  V(AsyncIterator, async_iterator)            \
   V(HasInstance, has_instance)                \
   V(IsConcatSpreadable, is_concat_spreadable) \
   V(Iterator, iterator)                       \

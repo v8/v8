@@ -3041,6 +3041,7 @@ class V8_EXPORT Symbol : public Name {
   static Local<Symbol> ForApi(Isolate *isolate, Local<String> name);
 
   // Well-known symbols
+  static Local<Symbol> GetAsyncIterator(Isolate* isolate);
   static Local<Symbol> GetHasInstance(Isolate* isolate);
   static Local<Symbol> GetIsConcatSpreadable(Isolate* isolate);
   static Local<Symbol> GetIterator(Isolate* isolate);
