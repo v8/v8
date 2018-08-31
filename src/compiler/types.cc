@@ -1010,14 +1010,16 @@ void Type::PrintTo(std::ostream& os) const {
     os << "(";
     for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
       Type type_i = this->AsUnion()->Get(i);
-      if (i > 0) os << " | " << type_i;
+      if (i > 0) os << " | ";
+      os << type_i;
     }
     os << ")";
   } else if (this->IsTuple()) {
     os << "<";
     for (int i = 0, n = this->AsTuple()->Arity(); i < n; ++i) {
       Type type_i = this->AsTuple()->Element(i);
-      if (i > 0) os << ", " << type_i;
+      if (i > 0) os << ", ";
+      os << type_i;
     }
     os << ">";
   } else {
