@@ -343,7 +343,7 @@ snippet: "
         })();
   
 "
-frame size: 5
+frame size: 4
 parameter count: 1
 bytecode array length: 32
 bytecodes: [
@@ -351,10 +351,10 @@ bytecodes: [
                 B(Star), R(0),
   /*   16 E> */ B(StackCheck),
   /*   29 S> */ B(LdaConstant), U8(0),
-                B(Star), R(3),
+                B(Star), R(1),
                 B(LdaSmi), I8(4),
-                B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kCreateArrayLiteralWithoutAllocationSite), R(3), U8(2),
+                B(Star), R(2),
+                B(CallRuntime), U16(Runtime::kCreateArrayLiteralWithoutAllocationSite), R(1), U8(2),
   /*   31 E> */ B(StaGlobal), U8(1), U8(0),
   /*   60 S> */ B(LdaConstant), U8(2),
                 B(Star), R(3),
@@ -379,7 +379,7 @@ snippet: "
         })();
   
 "
-frame size: 5
+frame size: 4
 parameter count: 1
 bytecode array length: 32
 bytecodes: [
@@ -387,10 +387,10 @@ bytecodes: [
                 B(Star), R(0),
   /*   16 E> */ B(StackCheck),
   /*   29 S> */ B(LdaConstant), U8(0),
-                B(Star), R(3),
+                B(Star), R(1),
                 B(LdaSmi), I8(37),
-                B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kCreateArrayLiteralWithoutAllocationSite), R(3), U8(2),
+                B(Star), R(2),
+                B(CallRuntime), U16(Runtime::kCreateArrayLiteralWithoutAllocationSite), R(1), U8(2),
   /*   31 E> */ B(StaGlobal), U8(1), U8(0),
   /*   45 S> */ B(LdaConstant), U8(2),
                 B(Star), R(3),

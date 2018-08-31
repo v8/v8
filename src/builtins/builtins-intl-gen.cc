@@ -177,8 +177,10 @@ void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,
   BIND(&has_list);
   {
     // 5. Let x be ? IterableToList(list).
-    TNode<Object> x =
-        CallBuiltin(Builtins::kIterableToListWithSymbolLookup, context, list);
+    IteratorBuiltinsAssembler iterator_assembler(state());
+    // TODO(adamk): Consider exposing IterableToList as a buitin and calling
+    // it from here instead of inlining the operation.
+    TNode<JSArray> x = iterator_assembler.IterableToList(context, list);
 
     // 6. Return ? FormatList(lf, x).
     args.PopAndReturn(CallRuntime(format_func_id, context, list_format, x));

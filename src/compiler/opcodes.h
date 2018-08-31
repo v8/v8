@@ -151,7 +151,6 @@
   V(JSCreateTypedArray)         \
   V(JSCreateLiteralArray)       \
   V(JSCreateEmptyLiteralArray)  \
-  V(JSCreateArrayFromIterable)  \
   V(JSCreateLiteralObject)      \
   V(JSCreateEmptyLiteralObject) \
   V(JSCloneObject)              \

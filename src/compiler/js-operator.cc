@@ -1190,14 +1190,6 @@ const Operator* JSOperatorBuilder::CreateEmptyLiteralArray(
       parameters);                                   // parameter
 }
 
-const Operator* JSOperatorBuilder::CreateArrayFromIterable() {
-  return new (zone()) Operator(              // --
-      IrOpcode::kJSCreateArrayFromIterable,  // opcode
-      Operator::kNoProperties,               // properties
-      "JSCreateArrayFromIterable",           // name
-      1, 1, 1, 1, 1, 2);                     // counts
-}
-
 const Operator* JSOperatorBuilder::CreateLiteralObject(
     Handle<ObjectBoilerplateDescription> constant_properties,
     VectorSlotPair const& feedback, int literal_flags,

@@ -1130,7 +1130,6 @@ namespace internal {
                                                                                \
   /* TypedArray */                                                             \
   TFS(IterableToList, kIterable, kIteratorFn)                                  \
-  TFS(IterableToListWithSymbolLookup, kIterable)                               \
   TFS(TypedArrayInitialize, kHolder, kLength, kElementSize, kInitialize,       \
       kBufferConstructor)                                                      \
   TFS(TypedArrayInitializeWithBuffer, kHolder, kLength, kBuffer, kElementSize, \

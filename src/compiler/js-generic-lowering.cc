@@ -513,13 +513,6 @@ void JSGenericLowering::LowerJSCreateEmptyLiteralArray(Node* node) {
   ReplaceWithStubCall(node, callable, flags);
 }
 
-void JSGenericLowering::LowerJSCreateArrayFromIterable(Node* node) {
-  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  Callable callable = Builtins::CallableFor(
-      isolate(), Builtins::kIterableToListWithSymbolLookup);
-  ReplaceWithStubCall(node, callable, flags);
-}
-
 void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);

@@ -715,10 +715,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // Type is Array.
       CheckTypeIs(node, Type::Array());
       break;
-    case IrOpcode::kJSCreateArrayFromIterable:
-      // Type is Array.
-      CheckTypeIs(node, Type::Array());
-      break;
     case IrOpcode::kJSCreateLiteralObject:
     case IrOpcode::kJSCreateEmptyLiteralObject:
     case IrOpcode::kJSCloneObject:

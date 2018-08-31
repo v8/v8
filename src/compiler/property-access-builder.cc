@@ -89,7 +89,6 @@ bool NeedsCheckHeapObject(Node* receiver) {
     case IrOpcode::kJSCreateIterResultObject:
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateEmptyLiteralArray:
-    case IrOpcode::kJSCreateArrayFromIterable:
     case IrOpcode::kJSCreateLiteralObject:
     case IrOpcode::kJSCreateEmptyLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:

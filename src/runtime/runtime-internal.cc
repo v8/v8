@@ -19,7 +19,6 @@
 #include "src/parsing/parsing.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/snapshot/snapshot.h"
-#include "src/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -344,31 +343,6 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
   return false;
 }
 
-Handle<String> BuildDefaultCallSite(Isolate* isolate, Handle<Object> object) {
-  IncrementalStringBuilder builder(isolate);
-
-  builder.AppendString(Object::TypeOf(isolate, object));
-  if (object->IsString()) {
-    builder.AppendCString(" \"");
-    builder.AppendString(Handle<String>::cast(object));
-    builder.AppendCString("\"");
-  } else if (object->IsNull(isolate)) {
-    builder.AppendCString(" ");
-    builder.AppendString(isolate->factory()->null_string());
-  } else if (object->IsTrue(isolate)) {
-    builder.AppendCString(" ");
-    builder.AppendString(isolate->factory()->true_string());
-  } else if (object->IsFalse(isolate)) {
-    builder.AppendCString(" ");
-    builder.AppendString(isolate->factory()->false_string());
-  } else if (object->IsNumber()) {
-    builder.AppendCString(" ");
-    builder.AppendString(isolate->factory()->NumberToString(object));
-  }
-
-  return builder.Finish().ToHandleChecked();
-}
-
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
                               CallPrinter::ErrorHint* hint) {
   MessageLocation location;
@@ -384,7 +358,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
       isolate->clear_pending_exception();
     }
   }
-  return BuildDefaultCallSite(isolate, object);
+  return Object::TypeOf(isolate, object);
 }
 
 MessageTemplate::Template UpdateErrorTemplate(
@@ -414,24 +388,16 @@ MaybeHandle<Object> Runtime::ThrowIteratorError(Isolate* isolate,
                                                 Handle<Object> object) {
   CallPrinter::ErrorHint hint = CallPrinter::kNone;
   Handle<String> callsite = RenderCallSite(isolate, object, &hint);
-  MessageTemplate::Template id = MessageTemplate::kNotIterableNoSymbolLoad;
+  MessageTemplate::Template id = MessageTemplate::kNonObjectPropertyLoad;
 
   if (hint == CallPrinter::kNone) {
     Handle<Symbol> iterator_symbol = isolate->factory()->iterator_symbol();
-    THROW_NEW_ERROR(isolate, NewTypeError(id, callsite, iterator_symbol),
+    THROW_NEW_ERROR(isolate, NewTypeError(id, iterator_symbol, callsite),
                     Object);
   }
 
   id = UpdateErrorTemplate(hint, id);
   THROW_NEW_ERROR(isolate, NewTypeError(id, callsite), Object);
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowIteratorError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           Runtime::ThrowIteratorError(isolate, object));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {

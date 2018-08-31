@@ -1215,10 +1215,6 @@ Type Typer::Visitor::TypeJSCreateEmptyLiteralArray(Node* node) {
   return Type::Array();
 }
 
-Type Typer::Visitor::TypeJSCreateArrayFromIterable(Node* node) {
-  return Type::Array();
-}
-
 Type Typer::Visitor::TypeJSCreateLiteralObject(Node* node) {
   return Type::OtherObject();
 }

@@ -183,11 +183,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildArrayLiteralSpread(Spread* spread, Register array, Register index,
                                FeedbackSlot index_slot,
                                FeedbackSlot element_slot);
-  // Create Array literals. |expr| can be nullptr, but if provided,
-  // a boilerplate will be used to create an initial array for elements
-  // before the first spread.
-  void BuildCreateArrayLiteral(ZonePtrList<Expression>* elements,
-                               ArrayLiteral* expr);
+  void BuildArrayLiteralElementsInsertion(Register array,
+                                          int first_spread_index,
+                                          ZonePtrList<Expression>* elements,
+                                          bool skip_constants);
+
   void BuildCreateObjectLiteral(Register literal, uint8_t flags, size_t entry);
   void AllocateTopLevelRegisters();
   void VisitArgumentsObject(Variable* variable);

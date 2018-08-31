@@ -2364,6 +2364,116 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   builder()->LoadAccumulatorWithRegister(literal);
 }
 
+void BytecodeGenerator::BuildArrayLiteralElementsInsertion(
+    Register array, int first_spread_index, ZonePtrList<Expression>* elements,
+    bool skip_constants) {
+  DCHECK_LT(first_spread_index, elements->length());
+
+  Register index = register_allocator()->NewRegister();
+  int array_index = 0;
+
+  ZonePtrList<Expression>::iterator iter = elements->begin();
+  ZonePtrList<Expression>::iterator first_spread_or_end =
+      first_spread_index >= 0 ? elements->begin() + first_spread_index
+                              : elements->end();
+
+  // Evaluate subexpressions and store them into the array.
+  SharedFeedbackSlot keyed_store_slot(
+      feedback_spec(),
+      feedback_spec()->GetKeyedStoreICSlotKind(language_mode()));
+
+  for (; iter != first_spread_or_end; ++iter, array_index++) {
+    Expression* subexpr = *iter;
+    DCHECK(!subexpr->IsSpread());
+    if (skip_constants && subexpr->IsCompileTimeValue()) continue;
+    builder()
+        ->LoadLiteral(Smi::FromInt(array_index))
+        .StoreAccumulatorInRegister(index);
+    VisitForAccumulatorValue(subexpr);
+    builder()->StoreKeyedProperty(
+        array, index, feedback_index(keyed_store_slot.Get()), language_mode());
+  }
+  if (iter != elements->end()) {
+    builder()->LoadLiteral(array_index).StoreAccumulatorInRegister(index);
+
+    // Handle the first spread element and everything that follows.
+    FeedbackSlot element_slot = feedback_spec()->AddStoreInArrayLiteralICSlot();
+    FeedbackSlot index_slot = feedback_spec()->AddBinaryOpICSlot();
+    // TODO(neis): Only create length_slot when there are holes.
+    FeedbackSlot length_slot =
+        feedback_spec()->AddStoreICSlot(LanguageMode::kStrict);
+    for (; iter != elements->end(); ++iter) {
+      Expression* subexpr = *iter;
+      if (subexpr->IsSpread()) {
+        BuildArrayLiteralSpread(subexpr->AsSpread(), array, index, index_slot,
+                                element_slot);
+      } else if (!subexpr->IsTheHoleLiteral()) {
+        // literal[index++] = subexpr
+        VisitForAccumulatorValue(subexpr);
+        builder()
+            ->StoreInArrayLiteral(array, index, feedback_index(element_slot))
+            .LoadAccumulatorWithRegister(index)
+            .UnaryOperation(Token::INC, feedback_index(index_slot))
+            .StoreAccumulatorInRegister(index);
+      } else {
+        // literal.length = ++index
+        auto length = ast_string_constants()->length_string();
+        builder()
+            ->LoadAccumulatorWithRegister(index)
+            .UnaryOperation(Token::INC, feedback_index(index_slot))
+            .StoreAccumulatorInRegister(index)
+            .StoreNamedProperty(array, length, feedback_index(length_slot),
+                                LanguageMode::kStrict);
+      }
+    }
+  }
+  builder()->LoadAccumulatorWithRegister(array);
+}
+
+void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
+  expr->InitDepthAndFlags();
+  uint8_t flags = CreateArrayLiteralFlags::Encode(
+      expr->IsFastCloningSupported(), expr->ComputeFlags());
+
+  bool is_empty = expr->is_empty();
+  bool optimize_as_one_shot = ShouldOptimizeAsOneShot();
+  size_t entry;
+  if (is_empty && optimize_as_one_shot) {
+    entry = builder()->EmptyArrayBoilerplateDescriptionConstantPoolEntry();
+  } else if (!is_empty) {
+    entry = builder()->AllocateDeferredConstantPoolEntry();
+    array_literals_.push_back(std::make_pair(expr, entry));
+  }
+
+  if (optimize_as_one_shot) {
+    // Create array literal without any allocation sites
+    RegisterAllocationScope register_scope(this);
+    RegisterList args = register_allocator()->NewRegisterList(2);
+    builder()
+        ->LoadConstantPoolEntry(entry)
+        .StoreAccumulatorInRegister(args[0])
+        .LoadLiteral(Smi::FromInt(flags))
+        .StoreAccumulatorInRegister(args[1])
+        .CallRuntime(Runtime::kCreateArrayLiteralWithoutAllocationSite, args);
+  } else if (is_empty) {
+    // Empty array literal fast-path.
+    int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
+    DCHECK(expr->IsFastCloningSupported());
+    builder()->CreateEmptyArrayLiteral(literal_index);
+    return;
+  } else {
+    // Deep-copy the literal boilerplate
+    int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
+    builder()->CreateArrayLiteral(entry, literal_index, flags);
+  }
+
+  Register literal = register_allocator()->NewRegister();
+  builder()->StoreAccumulatorInRegister(literal);
+  // Insert all elements except the constant ones, since they are already there.
+  BuildArrayLiteralElementsInsertion(literal, expr->first_spread_index(),
+                                     expr->values(), true);
+}
+
 void BytecodeGenerator::BuildArrayLiteralSpread(Spread* spread, Register array,
                                                 Register index,
                                                 FeedbackSlot index_slot,
@@ -2401,154 +2511,6 @@ void BytecodeGenerator::BuildArrayLiteralSpread(Spread* spread, Register array,
       .StoreAccumulatorInRegister(index);
   loop_builder.BindContinueTarget();
   loop_builder.JumpToHeader(loop_depth_);
-}
-
-void BytecodeGenerator::BuildCreateArrayLiteral(
-    ZonePtrList<Expression>* elements, ArrayLiteral* expr) {
-  RegisterAllocationScope register_scope(this);
-  Register index = register_allocator()->NewRegister();
-  Register array = register_allocator()->NewRegister();
-  SharedFeedbackSlot element_slot(feedback_spec(),
-                                  FeedbackSlotKind::kStoreInArrayLiteral);
-  ZonePtrList<Expression>::iterator current = elements->begin();
-  ZonePtrList<Expression>::iterator end = elements->end();
-  bool is_empty = elements->is_empty();
-
-  if (!is_empty && (*current)->IsSpread()) {
-    // If we have a leading spread, use CreateArrayFromIterable to create
-    // an array from it and then add the remaining components to that array.
-    VisitForAccumulatorValue(*current);
-    builder()->CreateArrayFromIterable().StoreAccumulatorInRegister(array);
-
-    if (++current != end) {
-      // If there are remaning elements, prepare the index register that is
-      // used for adding those elements. The next index is the length of the
-      // newly created array.
-      auto length = ast_string_constants()->length_string();
-      int length_load_slot = feedback_index(feedback_spec()->AddLoadICSlot());
-      builder()
-          ->LoadNamedProperty(array, length, length_load_slot)
-          .StoreAccumulatorInRegister(index);
-    }
-  } else if (expr != nullptr) {
-    // There are some elements before the first (if any) spread, and we can
-    // use a boilerplate when creating the initial array from those elements.
-
-    // First, allocate a constant pool entry for the boilerplate that will
-    // be created during finalization, and will contain all the constant
-    // elements before the first spread. This also handle the empty array case
-    // and one-shot optimization.
-    uint8_t flags = CreateArrayLiteralFlags::Encode(
-        expr->IsFastCloningSupported(), expr->ComputeFlags());
-    bool optimize_as_one_shot = ShouldOptimizeAsOneShot();
-    size_t entry;
-    if (is_empty && optimize_as_one_shot) {
-      entry = builder()->EmptyArrayBoilerplateDescriptionConstantPoolEntry();
-    } else if (!is_empty) {
-      entry = builder()->AllocateDeferredConstantPoolEntry();
-      array_literals_.push_back(std::make_pair(expr, entry));
-    }
-
-    if (optimize_as_one_shot) {
-      RegisterList args = register_allocator()->NewRegisterList(2);
-      builder()
-          ->LoadConstantPoolEntry(entry)
-          .StoreAccumulatorInRegister(args[0])
-          .LoadLiteral(Smi::FromInt(flags))
-          .StoreAccumulatorInRegister(args[1])
-          .CallRuntime(Runtime::kCreateArrayLiteralWithoutAllocationSite, args);
-    } else if (is_empty) {
-      // Empty array literal fast-path.
-      int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
-      DCHECK(expr->IsFastCloningSupported());
-      builder()->CreateEmptyArrayLiteral(literal_index);
-    } else {
-      // Create array literal from boilerplate.
-      int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
-      builder()->CreateArrayLiteral(entry, literal_index, flags);
-    }
-    builder()->StoreAccumulatorInRegister(array);
-
-    // Insert the missing non-constant elements, up until the first spread
-    // index, into the initial array (the remaining elements will be inserted
-    // below).
-    DCHECK_EQ(current, elements->begin());
-    ZonePtrList<Expression>::iterator first_spread_or_end =
-        expr->first_spread_index() >= 0 ? current + expr->first_spread_index()
-                                        : end;
-    int array_index = 0;
-    for (; current != first_spread_or_end; ++current, array_index++) {
-      Expression* subexpr = *current;
-      DCHECK(!subexpr->IsSpread());
-      // Skip the constants.
-      if (subexpr->IsCompileTimeValue()) continue;
-
-      builder()
-          ->LoadLiteral(Smi::FromInt(array_index))
-          .StoreAccumulatorInRegister(index);
-      VisitForAccumulatorValue(subexpr);
-      builder()->StoreInArrayLiteral(array, index,
-                                     feedback_index(element_slot.Get()));
-    }
-
-    if (current != end) {
-      // If there are remaining elements, prepare the index register
-      // to store the next element, which comes from the first spread.
-      builder()->LoadLiteral(array_index).StoreAccumulatorInRegister(index);
-    }
-  } else {
-    // In other cases, we prepare an empty array to be filled in below.
-    DCHECK(!elements->is_empty());
-    int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
-    builder()
-        ->CreateEmptyArrayLiteral(literal_index)
-        .StoreAccumulatorInRegister(array);
-    // Prepare the index for the first element.
-    builder()->LoadLiteral(Smi::FromInt(0)).StoreAccumulatorInRegister(index);
-  }
-
-  // Now build insertions for the remaining elements from current to end.
-  SharedFeedbackSlot index_slot(feedback_spec(), FeedbackSlotKind::kBinaryOp);
-  SharedFeedbackSlot length_slot(
-      feedback_spec(), feedback_spec()->GetStoreICSlot(LanguageMode::kStrict));
-  for (; current != end; ++current) {
-    Expression* subexpr = *current;
-    if (subexpr->IsSpread()) {
-      FeedbackSlot real_index_slot = index_slot.Get();
-      BuildArrayLiteralSpread(subexpr->AsSpread(), array, index,
-                              real_index_slot, element_slot.Get());
-    } else if (!subexpr->IsTheHoleLiteral()) {
-      // literal[index++] = subexpr
-      VisitForAccumulatorValue(subexpr);
-      builder()
-          ->StoreInArrayLiteral(array, index,
-                                feedback_index(element_slot.Get()))
-          .LoadAccumulatorWithRegister(index);
-      // Only increase the index if we are not the last element.
-      if (current + 1 != end) {
-        builder()
-            ->UnaryOperation(Token::INC, feedback_index(index_slot.Get()))
-            .StoreAccumulatorInRegister(index);
-      }
-    } else {
-      // literal.length = ++index
-      // length_slot is only used when there are holes.
-      auto length = ast_string_constants()->length_string();
-      builder()
-          ->LoadAccumulatorWithRegister(index)
-          .UnaryOperation(Token::INC, feedback_index(index_slot.Get()))
-          .StoreAccumulatorInRegister(index)
-          .StoreNamedProperty(array, length, feedback_index(length_slot.Get()),
-                              LanguageMode::kStrict);
-    }
-  }
-
-  builder()->LoadAccumulatorWithRegister(array);
-}
-
-void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
-  expr->InitDepthAndFlags();
-  BuildCreateArrayLiteral(expr->values(), expr);
 }
 
 void BytecodeGenerator::VisitStoreInArrayLiteral(StoreInArrayLiteral* expr) {
@@ -3760,12 +3722,17 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     // mechanism for spreads in array literals.
 
     // First generate the array containing all arguments.
-    BuildCreateArrayLiteral(args, nullptr);
+    Register array = register_allocator()->NewRegister();
+    int literal_index = feedback_index(feedback_spec()->AddLiteralSlot());
+    builder()
+        ->CreateEmptyArrayLiteral(literal_index)
+        .StoreAccumulatorInRegister(array);
+    BuildArrayLiteralElementsInsertion(array, first_spread_index, args, false);
 
     // Now pass that array to %reflect_construct.
     RegisterList construct_args = register_allocator()->NewRegisterList(3);
-    builder()->StoreAccumulatorInRegister(construct_args[1]);
     builder()->MoveRegister(constructor, construct_args[0]);
+    builder()->MoveRegister(array, construct_args[1]);
     VisitForRegisterValue(super->new_target_var(), construct_args[2]);
     builder()->CallJSRuntime(Context::REFLECT_CONSTRUCT_INDEX, construct_args);
   } else {

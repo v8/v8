@@ -1617,17 +1617,6 @@ TF_BUILTIN(IterableToList, TypedArrayBuiltinsAssembler) {
   Return(iterator_assembler.IterableToList(context, iterable, iterator_fn));
 }
 
-TF_BUILTIN(IterableToListWithSymbolLookup, TypedArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
-
-  IteratorBuiltinsAssembler iterator_assembler(state());
-  TNode<Object> iterator_fn =
-      iterator_assembler.GetIteratorMethod(context, iterable);
-
-  TailCallBuiltin(Builtins::kIterableToList, context, iterable, iterator_fn);
-}
-
 // ES6 #sec-%typedarray%.from
 TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));

@@ -1477,6 +1477,8 @@ class ArrayLiteral final : public AggregateLiteral {
 
   int first_spread_index() const { return first_spread_index_; }
 
+  bool is_empty() const;
+
   // Populate the depth field and flags, returns the depth.
   int InitDepthAndFlags();
 

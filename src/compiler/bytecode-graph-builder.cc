@@ -1601,12 +1601,6 @@ void BytecodeGraphBuilder::VisitCreateEmptyArrayLiteral() {
   environment()->BindAccumulator(literal);
 }
 
-void BytecodeGraphBuilder::VisitCreateArrayFromIterable() {
-  Node* iterable = NewNode(javascript()->CreateArrayFromIterable(),
-                           environment()->LookupAccumulator());
-  environment()->BindAccumulator(iterable, Environment::kAttachFrameState);
-}
-
 void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
   Handle<ObjectBoilerplateDescription> constant_properties(
       ObjectBoilerplateDescription::cast(
