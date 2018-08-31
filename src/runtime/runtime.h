@@ -325,7 +325,6 @@ namespace internal {
   F(GetOwnPropertyDescriptor, 2, 1)                             \
   F(GetOwnPropertyKeys, 2, 1)                                   \
   F(GetProperty, 2, 1)                                          \
-  F(GetPrototype, 1, 1)                                         \
   F(HasFastPackedElements, 1, 1)                                \
   F(HasInPrototypeChain, 2, 1)                                  \
   F(HasProperty, 2, 1)                                          \
