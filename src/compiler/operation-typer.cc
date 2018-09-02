@@ -999,7 +999,6 @@ Type OperationTyper::NumberMax(Type lhs, Type rhs) {
   if (lhs.Is(Type::NaN()) || rhs.Is(Type::NaN())) return Type::NaN();
 
   Type type = Type::None();
-  // TODO(turbofan): Improve minus zero handling here.
   if (lhs.Maybe(Type::NaN()) || rhs.Maybe(Type::NaN())) {
     type = Type::Union(type, Type::NaN(), zone());
   }
@@ -1007,10 +1006,17 @@ Type OperationTyper::NumberMax(Type lhs, Type rhs) {
   DCHECK(!lhs.IsNone());
   rhs = Type::Intersect(rhs, Type::OrderedNumber(), zone());
   DCHECK(!rhs.IsNone());
-  if (lhs.Is(cache_.kInteger) && rhs.Is(cache_.kInteger)) {
+  if (lhs.Is(cache_.kIntegerOrMinusZero) &&
+      rhs.Is(cache_.kIntegerOrMinusZero)) {
+    // TODO(turbofan): This could still be improved in ruling out -0 when
+    // one of the inputs' min is 0.
     double max = std::max(lhs.Max(), rhs.Max());
     double min = std::max(lhs.Min(), rhs.Min());
     type = Type::Union(type, Type::Range(min, max, zone()), zone());
+    if (min <= 0.0 && 0.0 <= max &&
+        (lhs.Maybe(Type::MinusZero()) || rhs.Maybe(Type::MinusZero()))) {
+      type = Type::Union(type, Type::MinusZero(), zone());
+    }
   } else {
     type = Type::Union(type, Type::Union(lhs, rhs, zone()), zone());
   }
@@ -1025,7 +1031,6 @@ Type OperationTyper::NumberMin(Type lhs, Type rhs) {
   if (lhs.Is(Type::NaN()) || rhs.Is(Type::NaN())) return Type::NaN();
 
   Type type = Type::None();
-  // TODO(turbofan): Improve minus zero handling here.
   if (lhs.Maybe(Type::NaN()) || rhs.Maybe(Type::NaN())) {
     type = Type::Union(type, Type::NaN(), zone());
   }
@@ -1033,10 +1038,15 @@ Type OperationTyper::NumberMin(Type lhs, Type rhs) {
   DCHECK(!lhs.IsNone());
   rhs = Type::Intersect(rhs, Type::OrderedNumber(), zone());
   DCHECK(!rhs.IsNone());
-  if (lhs.Is(cache_.kInteger) && rhs.Is(cache_.kInteger)) {
+  if (lhs.Is(cache_.kIntegerOrMinusZero) &&
+      rhs.Is(cache_.kIntegerOrMinusZero)) {
     double max = std::min(lhs.Max(), rhs.Max());
     double min = std::min(lhs.Min(), rhs.Min());
     type = Type::Union(type, Type::Range(min, max, zone()), zone());
+    if (min <= 0.0 && 0.0 <= max &&
+        (lhs.Maybe(Type::MinusZero()) || rhs.Maybe(Type::MinusZero()))) {
+      type = Type::Union(type, Type::MinusZero(), zone());
+    }
   } else {
     type = Type::Union(type, Type::Union(lhs, rhs, zone()), zone());
   }
