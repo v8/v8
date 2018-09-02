@@ -77,9 +77,6 @@ class V8_EXPORT_PRIVATE OperationTyper {
  private:
   typedef base::Flags<ComparisonOutcomeFlags> ComparisonOutcome;
 
-  Type ToNumberOrNumeric(Object::Conversion mode, Type type);
-  base::Optional<Type> ToNumberCommon(Type type);
-
   ComparisonOutcome Invert(ComparisonOutcome);
   Type Invert(Type);
   Type FalsifyUndefined(ComparisonOutcome);

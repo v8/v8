@@ -194,7 +194,8 @@ namespace compiler {
                                   kUndefined | kReceiver) \
   V(Internal,                     kHole | kExternalPointer | kOtherInternal) \
   V(NonInternal,                  kPrimitive | kReceiver) \
-  V(NonNumber,                    kUnique | kString | kInternal) \
+  V(NonBigInt,                    kNonBigIntPrimitive | kReceiver) \
+  V(NonNumber,                    kBigInt | kUnique | kString | kInternal) \
   V(Any,                          0xfffffffeu)
 
 // clang-format on

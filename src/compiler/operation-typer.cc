@@ -265,59 +265,61 @@ Type OperationTyper::ConvertReceiver(Type type) {
   return type;
 }
 
-// Returns the result type of converting {type} to number, if the
-// result does not depend on conversion options.
-base::Optional<Type> OperationTyper::ToNumberCommon(Type type) {
-  if (type.Is(Type::Number())) return type;
-  if (type.Is(Type::NullOrUndefined())) {
-    if (type.Is(Type::Null())) return cache_.kSingletonZero;
-    if (type.Is(Type::Undefined())) return Type::NaN();
-    return Type::Union(Type::NaN(), cache_.kSingletonZero, zone());
-  }
-  if (type.Is(Type::Boolean())) {
-    if (type.Is(singleton_false_)) return cache_.kSingletonZero;
-    if (type.Is(singleton_true_)) return cache_.kSingletonOne;
-    return cache_.kZeroOrOne;
-  }
-  if (type.Is(Type::NumberOrOddball())) {
-    if (type.Is(Type::NumberOrUndefined())) {
-      type = Type::Union(type, Type::NaN(), zone());
-    } else if (type.Is(Type::NullOrNumber())) {
-      type = Type::Union(type, cache_.kSingletonZero, zone());
-    } else if (type.Is(Type::BooleanOrNullOrNumber())) {
-      type = Type::Union(type, cache_.kZeroOrOne, zone());
-    } else {
-      type = Type::Union(type, cache_.kZeroOrOneOrNaN, zone());
-    }
-    return Type::Intersect(type, Type::Number(), zone());
-  }
-  return base::Optional<Type>();
-}
-
-Type OperationTyper::ToNumberOrNumeric(Object::Conversion mode, Type type) {
-  if (base::Optional<Type> maybe_result_type = ToNumberCommon(type)) {
-    return *maybe_result_type;
-  }
-  if (type.Is(Type::BigInt())) {
-    return mode == Object::Conversion::kToNumber ? Type::None() : type;
-  }
-  return mode == Object::Conversion::kToNumber ? Type::Number()
-                                               : Type::Numeric();
-}
-
 Type OperationTyper::ToNumber(Type type) {
-  return ToNumberOrNumeric(Object::Conversion::kToNumber, type);
+  if (type.Is(Type::Number())) return type;
+
+  // If {type} includes any receivers, we cannot tell what kind of
+  // Number their callbacks might produce. Similarly in the case
+  // where {type} includes String, it's not possible at this point
+  // to tell which exact numbers are going to be produced.
+  if (type.Maybe(Type::StringOrReceiver())) return Type::Number();
+
+  // Both Symbol and BigInt primitives will cause exceptions
+  // to be thrown from ToNumber conversions, so they don't
+  // contribute to the resulting type anyways.
+  type = Type::Intersect(type, Type::PlainPrimitive(), zone());
+
+  // This leaves us with Number\/Oddball, so deal with the individual
+  // Oddball primitives below.
+  DCHECK(type.Is(Type::NumberOrOddball()));
+  if (type.Maybe(Type::Null())) {
+    // ToNumber(null) => +0
+    type = Type::Union(type, cache_.kSingletonZero, zone());
+  }
+  if (type.Maybe(Type::Undefined())) {
+    // ToNumber(undefined) => NaN
+    type = Type::Union(type, Type::NaN(), zone());
+  }
+  if (type.Maybe(singleton_false_)) {
+    // ToNumber(false) => +0
+    type = Type::Union(type, cache_.kSingletonZero, zone());
+  }
+  if (type.Maybe(singleton_true_)) {
+    // ToNumber(true) => +1
+    type = Type::Union(type, cache_.kSingletonOne, zone());
+  }
+  return Type::Intersect(type, Type::Number(), zone());
 }
 
 Type OperationTyper::ToNumberConvertBigInt(Type type) {
-  if (base::Optional<Type> maybe_result_type = ToNumberCommon(type)) {
-    return *maybe_result_type;
-  }
-  return Type::Number();
+  // If the {type} includes any receivers, then the callbacks
+  // might actually produce BigInt primitive values here.
+  bool maybe_bigint =
+      type.Maybe(Type::BigInt()) || type.Maybe(Type::Receiver());
+  type = ToNumber(Type::Intersect(type, Type::NonBigInt(), zone()));
+
+  // Any BigInt is rounded to an integer Number in the range [-inf, inf].
+  return maybe_bigint ? Type::Union(type, cache_.kInteger, zone()) : type;
 }
 
 Type OperationTyper::ToNumeric(Type type) {
-  return ToNumberOrNumeric(Object::Conversion::kToNumeric, type);
+  // If the {type} includes any receivers, then the callbacks
+  // might actually produce BigInt primitive values here.
+  if (type.Maybe(Type::Receiver())) {
+    type = Type::Union(type, Type::BigInt(), zone());
+  }
+  return Type::Union(ToNumber(Type::Intersect(type, Type::NonBigInt(), zone())),
+                     Type::Intersect(type, Type::BigInt(), zone()), zone());
 }
 
 Type OperationTyper::NumberAbs(Type type) {
