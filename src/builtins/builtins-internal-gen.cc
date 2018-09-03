@@ -350,17 +350,11 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
 };
 
 TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
-  Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
-  Node* slot = Parameter(Descriptor::kSlot);
-  Node* remembered_set = Parameter(Descriptor::kRememberedSet);
-  Node* fp_mode = Parameter(Descriptor::kFPMode);
-
-  Node* value = Load(MachineType::Pointer(), slot);
-
   Label generational_wb(this);
   Label incremental_wb(this);
   Label exit(this);
 
+  Node* remembered_set = Parameter(Descriptor::kRememberedSet);
   Branch(ShouldEmitRememberSet(remembered_set), &generational_wb,
          &incremental_wb);
 
@@ -368,22 +362,27 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   {
     Label test_old_to_new_flags(this);
     Label store_buffer_exit(this), store_buffer_incremental_wb(this);
+
     // When incremental marking is not on, we skip cross generation pointer
     // checking here, because there are checks for
     // `kPointersFromHereAreInterestingMask` and
     // `kPointersToHereAreInterestingMask` in
     // `src/compiler/<arch>/code-generator-<arch>.cc` before calling this stub,
     // which serves as the cross generation checking.
+    Node* slot = Parameter(Descriptor::kSlot);
     Branch(IsMarking(), &test_old_to_new_flags, &store_buffer_exit);
 
     BIND(&test_old_to_new_flags);
     {
+      Node* value = Load(MachineType::Pointer(), slot);
+
       // TODO(albertnetymk): Try to cache the page flag for value and object,
       // instead of calling IsPageFlagSet each time.
       Node* value_in_new_space =
           IsPageFlagSet(value, MemoryChunk::kIsInNewSpaceMask);
       GotoIfNot(value_in_new_space, &incremental_wb);
 
+      Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
       Node* object_in_new_space =
           IsPageFlagSet(object, MemoryChunk::kIsInNewSpaceMask);
       Branch(object_in_new_space, &incremental_wb,
@@ -394,6 +393,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     {
       Node* isolate_constant =
           ExternalConstant(ExternalReference::isolate_address(isolate()));
+      Node* fp_mode = Parameter(Descriptor::kFPMode);
       InsertToStoreBufferAndGoto(isolate_constant, slot, fp_mode, &exit);
     }
 
@@ -401,6 +401,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     {
       Node* isolate_constant =
           ExternalConstant(ExternalReference::isolate_address(isolate()));
+      Node* fp_mode = Parameter(Descriptor::kFPMode);
       InsertToStoreBufferAndGoto(isolate_constant, slot, fp_mode,
                                  &incremental_wb);
     }
@@ -410,6 +411,9 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   {
     Label call_incremental_wb(this);
 
+    Node* slot = Parameter(Descriptor::kSlot);
+    Node* value = Load(MachineType::Pointer(), slot);
+
     // There are two cases we need to call incremental write barrier.
     // 1) value_is_white
     GotoIf(IsWhite(value), &call_incremental_wb);
@@ -418,6 +422,8 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     // is_compacting = true when is_marking = true
     GotoIfNot(IsPageFlagSet(value, MemoryChunk::kEvacuationCandidateMask),
               &exit);
+
+    Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
     Branch(
         IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
         &exit, &call_incremental_wb);
@@ -428,6 +434,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
           ExternalReference::incremental_marking_record_write_function());
       Node* isolate_constant =
           ExternalConstant(ExternalReference::isolate_address(isolate()));
+      Node* fp_mode = Parameter(Descriptor::kFPMode);
       CallCFunction3WithCallerSavedRegistersMode(
           MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
           MachineType::Pointer(), function, object, slot, isolate_constant,
