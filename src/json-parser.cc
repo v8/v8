@@ -201,7 +201,7 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
     }
     // We should sent compile error event because we compile JSON object in
     // separated source file.
-    isolate()->debug()->OnParseJSONError(script);
+    isolate()->debug()->OnCompileError(script);
     MessageLocation location(script, position_, position_ + 1);
     Handle<Object> error = factory->NewSyntaxError(message, arg1, arg2);
     return isolate()->template Throw<Object>(error, &location);

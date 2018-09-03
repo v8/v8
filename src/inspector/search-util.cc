@@ -13,6 +13,57 @@ namespace v8_inspector {
 
 namespace {
 
+String16 findMagicComment(const String16& content, const String16& name,
+                          bool multiline) {
+  DCHECK_EQ(String16::kNotFound, name.find("="));
+  size_t length = content.length();
+  size_t nameLength = name.length();
+
+  size_t pos = length;
+  size_t equalSignPos = 0;
+  size_t closingCommentPos = 0;
+  while (true) {
+    pos = content.reverseFind(name, pos);
+    if (pos == String16::kNotFound) return String16();
+
+    // Check for a /\/[\/*][@#][ \t]/ regexp (length of 4) before found name.
+    if (pos < 4) return String16();
+    pos -= 4;
+    if (content[pos] != '/') continue;
+    if ((content[pos + 1] != '/' || multiline) &&
+        (content[pos + 1] != '*' || !multiline))
+      continue;
+    if (content[pos + 2] != '#' && content[pos + 2] != '@') continue;
+    if (content[pos + 3] != ' ' && content[pos + 3] != '\t') continue;
+    equalSignPos = pos + 4 + nameLength;
+    if (equalSignPos < length && content[equalSignPos] != '=') continue;
+    if (multiline) {
+      closingCommentPos = content.find("*/", equalSignPos + 1);
+      if (closingCommentPos == String16::kNotFound) return String16();
+    }
+
+    break;
+  }
+
+  DCHECK(equalSignPos);
+  DCHECK(!multiline || closingCommentPos);
+  size_t urlPos = equalSignPos + 1;
+  String16 match = multiline
+                       ? content.substring(urlPos, closingCommentPos - urlPos)
+                       : content.substring(urlPos);
+
+  size_t newLine = match.find("\n");
+  if (newLine != String16::kNotFound) match = match.substring(0, newLine);
+  match = match.stripWhiteSpace();
+
+  for (size_t i = 0; i < match.length(); ++i) {
+    UChar c = match[i];
+    if (c == '"' || c == '\'' || c == ' ' || c == '\t') return "";
+  }
+
+  return match;
+}
+
 String16 createSearchRegexSource(const String16& text) {
   String16Builder result;
 
@@ -102,4 +153,13 @@ searchInTextByLinesImpl(V8InspectorSession* session, const String16& text,
     result.push_back(buildObjectForSearchMatch(match.first, match.second));
   return result;
 }
+
+String16 findSourceURL(const String16& content, bool multiline) {
+  return findMagicComment(content, "sourceURL", multiline);
+}
+
+String16 findSourceMapURL(const String16& content, bool multiline) {
+  return findMagicComment(content, "sourceMappingURL", multiline);
+}
+
 }  // namespace v8_inspector
