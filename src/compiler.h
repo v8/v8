@@ -101,9 +101,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
       Handle<Context> context, LanguageMode language_mode,
       ParseRestriction restriction, int parameters_end_pos,
-      int eval_scope_position, int eval_position, int line_offset = 0,
-      int column_offset = 0, Handle<Object> script_name = Handle<Object>(),
-      ScriptOriginOptions options = ScriptOriginOptions());
+      int eval_scope_position, int eval_position);
 
   struct ScriptDetails {
     ScriptDetails() : line_offset(0), column_offset(0) {}
