@@ -815,6 +815,9 @@ void Heap::CreateInitialObjects() {
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());
   script->set_type(Script::TYPE_NATIVE);
+  // This is used for exceptions thrown with no stack frames. Such exceptions
+  // can be shared everywhere.
+  script->set_origin_options(ScriptOriginOptions(true, false));
   set_empty_script(*script);
 
   Handle<Cell> array_constructor_cell = factory->NewCell(
