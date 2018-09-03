@@ -1013,6 +1013,15 @@ class InterpreterPushArgsThenConstructDescriptor
                          MachineType::AnyTagged())  // kFeedbackElement
   DECLARE_DESCRIPTOR(InterpreterPushArgsThenConstructDescriptor,
                      CallInterfaceDescriptor)
+
+#if V8_TARGET_ARCH_IA32
+  static const bool kPassLastArgsOnStack = true;
+#else
+  static const bool kPassLastArgsOnStack = false;
+#endif
+
+  // Pass constructor, new target and feedback element through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 3 : 0;
 };
 
 class InterpreterCEntry1Descriptor : public CallInterfaceDescriptor {
