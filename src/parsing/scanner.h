@@ -409,7 +409,7 @@ class Scanner {
   class LiteralBuffer {
    public:
     LiteralBuffer()
-        : position_(0), is_one_byte_(true), is_used_(false), backing_store_() {}
+        : backing_store_(), position_(0), is_one_byte_(true), is_used_(false) {}
 
     ~LiteralBuffer() { backing_store_.Dispose(); }
 
@@ -499,10 +499,10 @@ class Scanner {
     void ExpandBuffer();
     void ConvertToTwoByte();
 
+    Vector<byte> backing_store_;
     int position_;
     bool is_one_byte_;
     bool is_used_;
-    Vector<byte> backing_store_;
 
     DISALLOW_COPY_AND_ASSIGN(LiteralBuffer);
   };
@@ -549,7 +549,7 @@ class Scanner {
   };
 
   static const int kCharacterLookaheadBufferSize = 1;
-  const int kMaxAscii = 127;
+  static const int kMaxAscii = 127;
 
   // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
   template <bool capture_raw>
@@ -781,13 +781,7 @@ class Scanner {
   void SanityCheckTokenDesc(const TokenDesc&) const;
 #endif
 
-  UnicodeCache* unicode_cache_;
-
-  // Values parsed from magic comments.
-  LiteralBuffer source_url_;
-  LiteralBuffer source_mapping_url_;
-
-  TokenDesc token_storage_[3];
+  UnicodeCache* const unicode_cache_;
 
   TokenDesc& next() { return *next_; }
 
@@ -802,12 +796,10 @@ class Scanner {
   // Input stream. Must be initialized to an Utf16CharacterStream.
   Utf16CharacterStream* const source_;
 
-  // Last-seen positions of potentially problematic tokens.
-  Location octal_pos_;
-  MessageTemplate::Template octal_message_;
-
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;
+
+  TokenDesc token_storage_[3];
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
@@ -818,6 +810,14 @@ class Scanner {
   bool allow_harmony_numeric_separator_;
 
   const bool is_module_;
+
+  // Values parsed from magic comments.
+  LiteralBuffer source_url_;
+  LiteralBuffer source_mapping_url_;
+
+  // Last-seen positions of potentially problematic tokens.
+  Location octal_pos_;
+  MessageTemplate::Template octal_message_;
 
   MessageTemplate::Template scanner_error_;
   Location scanner_error_location_;

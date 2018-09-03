@@ -173,12 +173,12 @@ Scanner::Scanner(UnicodeCache* unicode_cache, Utf16CharacterStream* source,
                  bool is_module)
     : unicode_cache_(unicode_cache),
       source_(source),
-      octal_pos_(Location::invalid()),
-      octal_message_(MessageTemplate::kNone),
       found_html_comment_(false),
       allow_harmony_bigint_(false),
       allow_harmony_numeric_separator_(false),
-      is_module_(is_module) {
+      is_module_(is_module),
+      octal_pos_(Location::invalid()),
+      octal_message_(MessageTemplate::kNone) {
   DCHECK_NOT_NULL(source);
 }
 
