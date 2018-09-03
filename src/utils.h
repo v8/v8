@@ -1622,18 +1622,30 @@ static inline V ByteReverse(V value) {
   }
 }
 
-// Represents a linked list that threads through the nodes in the linked list.
-// Entries in the list are pointers to nodes. The nodes need to have a T**
-// next() method that returns the location where the next value is stored.
 template <typename T>
-class ThreadedList final {
+struct ThreadedListTraits {
+  static T** next(T* t) { return t->next(); }
+};
+
+// Represents a linked list that threads through the nodes in the linked list.
+// Entries in the list are pointers to nodes. By default nodes need to have a
+// T** next() method that returns the location where the next value is stored.
+// The default can be overwritten by providing a ThreadedTraits class.
+template <typename T, typename BaseClass,
+          typename TLTraits = ThreadedListTraits<T>>
+class ThreadedListBase final : public BaseClass {
  public:
-  ThreadedList() : head_(nullptr), tail_(&head_) {}
+  ThreadedListBase() : head_(nullptr), tail_(&head_) {}
   void Add(T* v) {
     DCHECK_NULL(*tail_);
-    DCHECK_NULL(*v->next());
+    DCHECK_NULL(*TLTraits::next(v));
     *tail_ = v;
-    tail_ = v->next();
+    tail_ = TLTraits::next(v);
+  }
+
+  void Append(ThreadedListBase* list) {
+    *tail_ = list->head_;
+    tail_ = list->tail_;
   }
 
   void Clear() {
@@ -1644,15 +1656,15 @@ class ThreadedList final {
   class Iterator final {
    public:
     Iterator& operator++() {
-      entry_ = (*entry_)->next();
+      entry_ = TLTraits::next(*entry_);
       return *this;
     }
     bool operator!=(const Iterator& other) { return entry_ != other.entry_; }
     T* operator*() { return *entry_; }
     T* operator->() { return *entry_; }
     Iterator& operator=(T* entry) {
-      T* next = *(*entry_)->next();
-      *entry->next() = next;
+      T* next = *TLTraits::next(*entry_);
+      *TLTraits::next(entry) = next;
       *entry_ = entry;
       return *this;
     }
@@ -1662,13 +1674,13 @@ class ThreadedList final {
 
     T** entry_;
 
-    friend class ThreadedList;
+    friend class ThreadedListBase;
   };
 
   class ConstIterator final {
    public:
     ConstIterator& operator++() {
-      entry_ = (*entry_)->next();
+      entry_ = TLTraits::next(*entry_);
       return *this;
     }
     bool operator!=(const ConstIterator& other) {
@@ -1681,7 +1693,7 @@ class ThreadedList final {
 
     T* const* entry_;
 
-    friend class ThreadedList;
+    friend class ThreadedListBase;
   };
 
   Iterator begin() { return Iterator(&head_); }
@@ -1695,7 +1707,7 @@ class ThreadedList final {
     *tail_ = nullptr;
   }
 
-  void MoveTail(ThreadedList<T>* parent, Iterator location) {
+  void MoveTail(ThreadedListBase<T, BaseClass>* parent, Iterator location) {
     if (parent->end() != location) {
       DCHECK_NULL(*tail_);
       *tail_ = *location;
@@ -1705,6 +1717,8 @@ class ThreadedList final {
   }
 
   bool is_empty() const { return head_ == nullptr; }
+
+  T* first() { return head_; }
 
   // Slow. For testing purposes.
   int LengthForTest() {
@@ -1721,8 +1735,13 @@ class ThreadedList final {
  private:
   T* head_;
   T** tail_;
-  DISALLOW_COPY_AND_ASSIGN(ThreadedList);
+  DISALLOW_COPY_AND_ASSIGN(ThreadedListBase);
 };
+
+struct EmptyBase {};
+
+template <typename T, typename TLTraits = ThreadedListTraits<T>>
+using ThreadedList = ThreadedListBase<T, EmptyBase, TLTraits>;
 
 V8_EXPORT_PRIVATE bool PassesFilter(Vector<const char> name,
                                     Vector<const char> filter);

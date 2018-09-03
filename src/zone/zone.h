@@ -11,6 +11,7 @@
 #include "src/base/logging.h"
 #include "src/globals.h"
 #include "src/splay-tree.h"
+#include "src/utils.h"
 #include "src/zone/accounting-allocator.h"
 
 #ifndef ZONE_NAME
@@ -294,6 +295,11 @@ class ZoneList final {
 // zone as the list object.
 template <typename T>
 using ZonePtrList = ZoneList<T*>;
+
+// ZoneThreadedList is a special variant of the ThreadedList that can be put
+// into a Zone.
+template <typename T, typename TLTraits = ThreadedListTraits<T>>
+using ZoneThreadedList = ThreadedListBase<T, ZoneObject, TLTraits>;
 
 // A zone splay tree.  The config type parameter encapsulates the
 // different configurations of a concrete splay tree (see splay-tree.h).
