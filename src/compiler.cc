@@ -124,6 +124,14 @@ void LogFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                              shared->DebugName()));
 }
 
+ScriptOriginOptions OriginOptionsForEval(Object* script) {
+  if (!script->IsScript()) return ScriptOriginOptions();
+
+  const auto outer_origin_options = Script::cast(script)->origin_options();
+  return ScriptOriginOptions(outer_origin_options.IsSharedCrossOrigin(),
+                             outer_origin_options.IsOpaque());
+}
+
 }  // namespace
 
 // ----------------------------------------------------------------------------
@@ -1235,7 +1243,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     allow_eval_cache = true;
   } else {
     ParseInfo parse_info(isolate);
-    script = parse_info.CreateScript(isolate, source, ScriptOriginOptions());
+    script = parse_info.CreateScript(
+        isolate, source, OriginOptionsForEval(outer_info->script()));
     script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
     script->set_eval_from_shared(*outer_info);
     if (eval_position == kNoSourcePosition) {
@@ -1247,6 +1256,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
         FrameSummary summary = FrameSummary::GetTop(it.javascript_frame());
         script->set_eval_from_shared(
             summary.AsJavaScript().function()->shared());
+        script->set_origin_options(OriginOptionsForEval(*summary.script()));
         eval_position = -summary.code_offset();
       } else {
         eval_position = 0;
