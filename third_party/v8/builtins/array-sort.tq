@@ -554,7 +554,7 @@ module array {
     if (IsJSArray(receiver)) return unsafe_cast<JSArray>(receiver).length_fast;
 
     const len: Number =
-        ToLength_Inline(context, GetProperty(context, receiver, 'length'));
+        ToLength_Inline(context, GetProperty(context, receiver, kLengthString));
     return unsafe_cast<Smi>(len);
   }
 
@@ -1782,8 +1782,7 @@ module array {
     }
     label slow {
       // 3. Let len be ? ToLength(? Get(obj, "length")).
-      const len: Number =
-          ToLength_Inline(context, GetProperty(context, obj, 'length'));
+      const len: Number = GetLengthProperty(context, obj);
 
       if (len < 2) return receiver;
       const nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);

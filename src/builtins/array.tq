@@ -20,7 +20,7 @@ module array {
       return a.length_fast;
     } else
       deferred {
-        return ToLength_Inline(context, GetProperty(context, o, 'length'));
+        return ToLength_Inline(context, GetProperty(context, o, kLengthString));
       }
   }
 

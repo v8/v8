@@ -149,12 +149,14 @@ extern macro TrueConstant(): Boolean;
 extern macro FalseConstant(): Boolean;
 extern macro Int32TrueConstant(): bool;
 extern macro Int32FalseConstant(): bool;
+extern macro LengthStringConstant(): String;
 
 const Hole: Oddball = TheHoleConstant();
 const Null: Oddball = NullConstant();
 const Undefined: Oddball = UndefinedConstant();
 const True: Boolean = TrueConstant();
 const False: Boolean = FalseConstant();
+const kLengthString: String = LengthStringConstant();
 
 const true: constexpr bool generates 'true';
 const false: constexpr bool generates 'false';
