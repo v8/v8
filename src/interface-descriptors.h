@@ -654,13 +654,9 @@ class FastNewObjectDescriptor : public CallInterfaceDescriptor {
 
 class RecordWriteDescriptor final : public CallInterfaceDescriptor {
  public:
-  // TODO(v8:6666): Remove the isolate argument once kRootRegister is
-  // fully supported on ia32. Then the isolate can be determined through a
-  // simple register addition instead.
-  DEFINE_PARAMETERS(kObject, kSlot, kIsolate, kRememberedSet, kFPMode)
+  DEFINE_PARAMETERS(kObject, kSlot, kRememberedSet, kFPMode)
   DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
                          MachineType::Pointer(),        // kSlot
-                         MachineType::Pointer(),        // kIsolate
                          MachineType::TaggedSigned(),   // kRememberedSet
                          MachineType::TaggedSigned())   // kFPMode
 

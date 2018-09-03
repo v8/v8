@@ -29,7 +29,7 @@ void CallInterfaceDescriptor::DefaultInitializePlatformSpecific(
 
 void RecordWriteDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  static const Register default_stub_registers[] = {ebx, ecx, edx, edi,
+  static const Register default_stub_registers[] = {ecx, edx, edi,
                                                     kReturnRegister0};
 
   data->RestrictAllocatableRegisters(default_stub_registers,

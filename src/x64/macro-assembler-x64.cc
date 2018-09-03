@@ -285,8 +285,6 @@ void TurboAssembler::CallRecordWriteStub(
       RecordWriteDescriptor::kObject));
   Register slot_parameter(
       callable.descriptor().GetRegisterParameter(RecordWriteDescriptor::kSlot));
-  Register isolate_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kIsolate));
   Register remembered_set_parameter(callable.descriptor().GetRegisterParameter(
       RecordWriteDescriptor::kRememberedSet));
   Register fp_mode_parameter(callable.descriptor().GetRegisterParameter(
@@ -310,8 +308,6 @@ void TurboAssembler::CallRecordWriteStub(
     // object_parameter /\ object
     xchgq(slot_parameter, object_parameter);
   }
-
-  LoadAddress(isolate_parameter, ExternalReference::isolate_address(isolate()));
 
   Smi* smi_rsa = Smi::FromEnum(remembered_set_action);
   Smi* smi_fm = Smi::FromEnum(fp_mode);

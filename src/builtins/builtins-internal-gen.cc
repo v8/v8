@@ -352,7 +352,6 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
 TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
   Node* slot = Parameter(Descriptor::kSlot);
-  Node* isolate = Parameter(Descriptor::kIsolate);
   Node* remembered_set = Parameter(Descriptor::kRememberedSet);
   Node* fp_mode = Parameter(Descriptor::kFPMode);
 
@@ -387,16 +386,24 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
 
       Node* object_in_new_space =
           IsPageFlagSet(object, MemoryChunk::kIsInNewSpaceMask);
-      GotoIf(object_in_new_space, &incremental_wb);
-
-      Goto(&store_buffer_incremental_wb);
+      Branch(object_in_new_space, &incremental_wb,
+             &store_buffer_incremental_wb);
     }
 
     BIND(&store_buffer_exit);
-    { InsertToStoreBufferAndGoto(isolate, slot, fp_mode, &exit); }
+    {
+      Node* isolate_constant =
+          ExternalConstant(ExternalReference::isolate_address(isolate()));
+      InsertToStoreBufferAndGoto(isolate_constant, slot, fp_mode, &exit);
+    }
 
     BIND(&store_buffer_incremental_wb);
-    { InsertToStoreBufferAndGoto(isolate, slot, fp_mode, &incremental_wb); }
+    {
+      Node* isolate_constant =
+          ExternalConstant(ExternalReference::isolate_address(isolate()));
+      InsertToStoreBufferAndGoto(isolate_constant, slot, fp_mode,
+                                 &incremental_wb);
+    }
   }
 
   BIND(&incremental_wb);
@@ -411,20 +418,20 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     // is_compacting = true when is_marking = true
     GotoIfNot(IsPageFlagSet(value, MemoryChunk::kEvacuationCandidateMask),
               &exit);
-    GotoIf(
+    Branch(
         IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
-        &exit);
-
-    Goto(&call_incremental_wb);
+        &exit, &call_incremental_wb);
 
     BIND(&call_incremental_wb);
     {
       Node* function = ExternalConstant(
           ExternalReference::incremental_marking_record_write_function());
+      Node* isolate_constant =
+          ExternalConstant(ExternalReference::isolate_address(isolate()));
       CallCFunction3WithCallerSavedRegistersMode(
           MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
-          MachineType::Pointer(), function, object, slot, isolate, fp_mode,
-          &exit);
+          MachineType::Pointer(), function, object, slot, isolate_constant,
+          fp_mode, &exit);
     }
   }
 

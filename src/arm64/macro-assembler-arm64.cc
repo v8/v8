@@ -2823,8 +2823,6 @@ void TurboAssembler::CallRecordWriteStub(
       RecordWriteDescriptor::kObject));
   Register slot_parameter(
       callable.descriptor().GetRegisterParameter(RecordWriteDescriptor::kSlot));
-  Register isolate_parameter(callable.descriptor().GetRegisterParameter(
-      RecordWriteDescriptor::kIsolate));
   Register remembered_set_parameter(callable.descriptor().GetRegisterParameter(
       RecordWriteDescriptor::kRememberedSet));
   Register fp_mode_parameter(callable.descriptor().GetRegisterParameter(
@@ -2834,7 +2832,6 @@ void TurboAssembler::CallRecordWriteStub(
 
   Pop(slot_parameter, object_parameter);
 
-  Mov(isolate_parameter, ExternalReference::isolate_address(isolate()));
   Mov(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
   Mov(fp_mode_parameter, Smi::FromEnum(fp_mode));
   Call(callable.code(), RelocInfo::CODE_TARGET);
