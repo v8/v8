@@ -16,6 +16,9 @@ void CallInterfaceDescriptorData::InitializePlatformSpecific(
   // InterfaceDescriptor owns a copy of the registers array.
   register_params_ = NewArray<Register>(register_parameter_count, no_reg);
   for (int i = 0; i < register_parameter_count; i++) {
+    // The value of the root register must be reserved, thus any uses
+    // within the calling convention are disallowed.
+    DCHECK_NE(registers[i], kRootRegister);
     register_params_[i] = registers[i];
   }
 }
