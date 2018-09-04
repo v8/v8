@@ -1968,7 +1968,7 @@ class UncachedExternalString
  public:
   const char* data() const override { return "abcdefghijklmnopqrstuvwxyz"; }
   size_t length() const override { return 26; }
-  bool IsCompressible() const override { return true; }
+  bool IsCacheable() const override { return false; }
 };
 
 TEST(UncachedExternalString) {

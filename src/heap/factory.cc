@@ -1243,7 +1243,7 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
   if (length == 0) return empty_string();
 
   Handle<Map> map;
-  if (resource->IsCompressible()) {
+  if (!resource->IsCacheable()) {
     map = uncached_external_one_byte_string_map();
   } else {
     map = external_one_byte_string_map();
@@ -1273,7 +1273,7 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
       length <= kOneByteCheckLengthLimit &&
       String::IsOneByte(resource->data(), static_cast<int>(length));
   Handle<Map> map;
-  if (resource->IsCompressible()) {
+  if (!resource->IsCacheable()) {
     map = is_one_byte ? uncached_external_string_with_one_byte_data_map()
                       : uncached_external_string_map();
   } else {
