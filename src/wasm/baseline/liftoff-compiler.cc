@@ -1535,15 +1535,9 @@ class LiftoffCompiler {
   }
 
   void CurrentMemoryPages(FullDecoder* decoder, Value* result) {
-    LiftoffRegList pinned;
-    LiftoffRegister mem_size = pinned.set(__ GetUnusedRegister(kGpReg));
-    LiftoffRegister tmp_const =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LOAD_INSTANCE_FIELD(mem_size, MemorySize, LoadType::kI32Load);
-    // TODO(clemensh): Shift by immediate directly.
-    __ LoadConstant(tmp_const,
-                    WasmValue(int32_t{WhichPowerOf2(kWasmPageSize)}));
-    __ emit_i32_shr(mem_size.gp(), mem_size.gp(), tmp_const.gp(), pinned);
+    LiftoffRegister mem_size = __ GetUnusedRegister(kGpReg);
+    LOAD_INSTANCE_FIELD(mem_size, MemorySize, kPointerLoadType);
+    __ emit_ptrsize_shr(mem_size.gp(), mem_size.gp(), kWasmPageSizeLog2);
     __ PushRegister(kWasmI32, mem_size);
   }
 

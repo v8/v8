@@ -619,6 +619,12 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register src, Register amount,
                                         &Assembler::shrl_cl, pinned);
 }
 
+void LiftoffAssembler::emit_i32_shr(Register dst, Register src, int amount) {
+  if (dst != src) movl(dst, src);
+  DCHECK(is_uint5(amount));
+  shrl(dst, Immediate(amount));
+}
+
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   Label nonzero_input;
   Label continuation;
@@ -754,6 +760,13 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount, LiftoffRegList pinned) {
   liftoff::EmitShiftOperation<kWasmI64>(this, dst.gp(), src.gp(), amount,
                                         &Assembler::shrq_cl, pinned);
+}
+
+void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
+                                    int amount) {
+  if (dst.gp() != src.gp()) movl(dst.gp(), src.gp());
+  DCHECK(is_uint6(amount));
+  shrq(dst.gp(), Immediate(amount));
 }
 
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {

@@ -664,6 +664,12 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register src, Register amount,
                               pinned);
 }
 
+void LiftoffAssembler::emit_i32_shr(Register dst, Register src, int amount) {
+  if (dst != src) mov(dst, src);
+  DCHECK(is_uint5(amount));
+  shr(dst, amount);
+}
+
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   Label nonzero_input;
   Label continuation;
@@ -877,6 +883,13 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount, LiftoffRegList pinned) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
                                    &TurboAssembler::ShrPair_cl, pinned);
+}
+
+void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
+                                    int amount) {
+  if (dst != src) Move(dst, src, kWasmI64);
+  DCHECK(is_uint6(amount));
+  ShrPair(dst.high_gp(), dst.low_gp(), amount);
 }
 
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {

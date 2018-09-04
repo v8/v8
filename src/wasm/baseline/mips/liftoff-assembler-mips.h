@@ -624,12 +624,20 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
       Register dst, Register src, Register amount, LiftoffRegList pinned) { \
     instruction(dst, src, amount);                                          \
   }
+#define I32_SHIFTOP_I(name, instruction)                             \
+  I32_SHIFTOP(name, instruction##v)                                  \
+  void LiftoffAssembler::emit_i32_##name(Register dst, Register src, \
+                                         int amount) {               \
+    DCHECK(is_uint5(amount));                                        \
+    instruction(dst, src, amount);                                   \
+  }
 
 I32_SHIFTOP(shl, sllv)
 I32_SHIFTOP(sar, srav)
-I32_SHIFTOP(shr, srlv)
+I32_SHIFTOP_I(shr, srl)
 
 #undef I32_SHIFTOP
+#undef I32_SHIFTOP_I
 
 void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
@@ -743,6 +751,13 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount, LiftoffRegList pinned) {
   liftoff::Emit64BitShiftOperation(this, dst, src, amount,
                                    &TurboAssembler::ShrPair, pinned);
+}
+
+void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
+                                    int amount) {
+  DCHECK(is_uint6(amount));
+  ShrPair(dst.high_gp(), dst.low_gp(), src.high_gp(), src.low_gp(), amount,
+          kScratchReg);
 }
 
 void LiftoffAssembler::emit_i32_to_intptr(Register dst, Register src) {
