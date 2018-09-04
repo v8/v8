@@ -29,6 +29,7 @@
 #include "src/isolate-inl.h"
 #include "src/log.h"
 #include "src/messages.h"
+#include "src/objects/api-callbacks-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-promise-inl.h"
@@ -2180,16 +2181,55 @@ Handle<Object> Debug::return_value_handle() {
   return handle(thread_local_.return_value_, isolate_);
 }
 
-bool Debug::PerformSideEffectCheckForCallback(Handle<Object> callback_info) {
+bool Debug::PerformSideEffectCheckForCallback(
+    Handle<Object> callback_info, Handle<Object> receiver,
+    Debug::AccessorKind accessor_kind) {
+  DCHECK_EQ(!receiver.is_null(), callback_info->IsAccessorInfo());
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
   if (!callback_info.is_null() && callback_info->IsCallHandlerInfo() &&
       i::CallHandlerInfo::cast(*callback_info)->NextCallHasNoSideEffect()) {
     return true;
   }
   // TODO(7515): always pass a valid callback info object.
-  if (!callback_info.is_null() &&
-      DebugEvaluate::CallbackHasNoSideEffect(*callback_info)) {
-    return true;
+  if (!callback_info.is_null()) {
+    if (callback_info->IsAccessorInfo()) {
+      // List of whitelisted internal accessors can be found in accessors.h.
+      AccessorInfo* info = AccessorInfo::cast(*callback_info);
+      DCHECK_NE(kNotAccessor, accessor_kind);
+      switch (accessor_kind == kSetter ? info->setter_side_effect_type()
+                                       : info->getter_side_effect_type()) {
+        case SideEffectType::kHasNoSideEffect:
+          // We do not support setter accessors with no side effects, since
+          // calling set accessors go through a store bytecode. Store bytecodes
+          // are considered to cause side effects (to non-temporary objects).
+          DCHECK_NE(kSetter, accessor_kind);
+          return true;
+        case SideEffectType::kHasSideEffectToReceiver:
+          DCHECK(!receiver.is_null());
+          if (PerformSideEffectCheckForObject(receiver)) return true;
+          isolate_->OptionalRescheduleException(false);
+          return false;
+        case SideEffectType::kHasSideEffect:
+          break;
+      }
+      if (FLAG_trace_side_effect_free_debug_evaluate) {
+        PrintF("[debug-evaluate] API Callback '");
+        info->name()->ShortPrint();
+        PrintF("' may cause side effect.\n");
+      }
+    } else if (callback_info->IsInterceptorInfo()) {
+      InterceptorInfo* info = InterceptorInfo::cast(*callback_info);
+      if (info->has_no_side_effect()) return true;
+      if (FLAG_trace_side_effect_free_debug_evaluate) {
+        PrintF("[debug-evaluate] API Interceptor may cause side effect.\n");
+      }
+    } else if (callback_info->IsCallHandlerInfo()) {
+      CallHandlerInfo* info = CallHandlerInfo::cast(*callback_info);
+      if (info->IsSideEffectFreeCallHandlerInfo()) return true;
+      if (FLAG_trace_side_effect_free_debug_evaluate) {
+        PrintF("[debug-evaluate] API CallHandlerInfo may cause side effect.\n");
+      }
+    }
   }
   side_effect_check_failed_ = true;
   // Throw an uncatchable termination exception.
@@ -2226,11 +2266,14 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
 bool Debug::PerformSideEffectCheckForObject(Handle<Object> object) {
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
 
-  if (object->IsHeapObject()) {
-    if (temporary_objects_->HasObject(Handle<HeapObject>::cast(object))) {
-      return true;
-    }
+  // We expect no side-effects for primitives.
+  if (object->IsNumber()) return true;
+  if (object->IsName()) return true;
+
+  if (temporary_objects_->HasObject(Handle<HeapObject>::cast(object))) {
+    return true;
   }
+
   if (FLAG_trace_side_effect_free_debug_evaluate) {
     PrintF("[debug-evaluate] failed runtime side effect check.\n");
   }

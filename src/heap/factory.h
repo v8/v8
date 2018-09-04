@@ -861,7 +861,7 @@ class V8_EXPORT_PRIVATE Factory {
   WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
-#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName) \
+#define ACCESSOR_INFO_ACCESSOR(accessor_name, ...) \
   inline Handle<AccessorInfo> accessor_name##_accessor();
   ACCESSOR_INFO_LIST(ACCESSOR_INFO_ACCESSOR)
 #undef ACCESSOR_INFO_ACCESSOR

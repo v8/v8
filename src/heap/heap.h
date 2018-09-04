@@ -325,7 +325,8 @@ class Heap {
     WELL_KNOWN_SYMBOL_LIST(DECL)
 #undef DECL
 
-#define DECL(accessor_name, AccessorName) k##AccessorName##AccessorRootIndex,
+#define DECL(accessor_name, AccessorName, ...) \
+    k##AccessorName##AccessorRootIndex,
     ACCESSOR_INFO_LIST(DECL)
 #undef DECL
 
@@ -821,7 +822,7 @@ class Heap {
   DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
 #undef DATA_HANDLER_MAP_ACCESSOR
 
-#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName) \
+#define ACCESSOR_INFO_ACCESSOR(accessor_name, ...) \
   inline AccessorInfo* accessor_name##_accessor();
   ACCESSOR_INFO_LIST(ACCESSOR_INFO_ACCESSOR)
 #undef ACCESSOR_INFO_ACCESSOR

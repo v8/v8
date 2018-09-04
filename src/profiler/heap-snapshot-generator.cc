@@ -1935,8 +1935,7 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
     PUBLIC_SYMBOL_LIST(SYMBOL_NAME)
     WELL_KNOWN_SYMBOL_LIST(SYMBOL_NAME)
 #undef SYMBOL_NAME
-#define ACCESSOR_NAME(accessor_name, AccessorName) \
-  NAME_ENTRY(accessor_name##_accessor)
+#define ACCESSOR_NAME(accessor_name, ...) NAME_ENTRY(accessor_name##_accessor)
     ACCESSOR_INFO_LIST(ACCESSOR_NAME)
 #undef ACCESSOR_NAME
 #undef NAME_ENTRY

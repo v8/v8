@@ -3279,10 +3279,17 @@ enum PropertyFilter {
  * Options for marking whether callbacks may trigger JS-observable side effects.
  * Side-effect-free callbacks are whitelisted during debug evaluation with
  * throwOnSideEffect. It applies when calling a Function, FunctionTemplate,
- * or an Accessor's getter callback. For Interceptors, please see
+ * or an Accessor callback. For Interceptors, please see
  * PropertyHandlerFlags's kHasNoSideEffect.
+ * Callbacks that only cause side effects to the receiver are whitelisted if
+ * invoked on receiver objects that are created within the same debug-evaluate
+ * call, as these objects are temporary and the side effect does not escape.
  */
-enum class SideEffectType { kHasSideEffect, kHasNoSideEffect };
+enum class SideEffectType {
+  kHasSideEffect,
+  kHasNoSideEffect,
+  kHasSideEffectToReceiver
+};
 
 /**
  * Keys/Properties filter enums:
@@ -3423,7 +3430,8 @@ class V8_EXPORT Object : public Value {
       AccessorNameGetterCallback getter, AccessorNameSetterCallback setter = 0,
       MaybeLocal<Value> data = MaybeLocal<Value>(),
       AccessControl settings = DEFAULT, PropertyAttribute attribute = None,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect);
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 
   void SetAccessorProperty(Local<Name> name, Local<Function> getter,
                            Local<Function> setter = Local<Function>(),
@@ -3439,7 +3447,8 @@ class V8_EXPORT Object : public Value {
       AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter = nullptr,
       Local<Value> data = Local<Value>(), PropertyAttribute attributes = None,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect);
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 
   /**
    * Attempts to create a property with the given name which behaves like a data
@@ -3453,7 +3462,8 @@ class V8_EXPORT Object : public Value {
       Local<Context> context, Local<Name> name,
       AccessorNameGetterCallback getter, Local<Value> data = Local<Value>(),
       PropertyAttribute attributes = None,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect);
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 
   /**
    * Functionality for private properties.
@@ -5388,7 +5398,8 @@ class V8_EXPORT Template : public Data {
       Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
       Local<AccessorSignature> signature = Local<AccessorSignature>(),
       AccessControl settings = DEFAULT,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect);
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
   void SetNativeDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter = 0,
@@ -5396,7 +5407,8 @@ class V8_EXPORT Template : public Data {
       Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
       Local<AccessorSignature> signature = Local<AccessorSignature>(),
       AccessControl settings = DEFAULT,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect);
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 
   /**
    * Like SetNativeDataProperty, but V8 will replace the native data property
@@ -5405,7 +5417,8 @@ class V8_EXPORT Template : public Data {
   void SetLazyDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
       Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect);
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 
   /**
    * During template instantiation, sets the value with the intrinsic property
@@ -6120,13 +6133,15 @@ class V8_EXPORT ObjectTemplate : public Template {
       AccessorSetterCallback setter = 0, Local<Value> data = Local<Value>(),
       AccessControl settings = DEFAULT, PropertyAttribute attribute = None,
       Local<AccessorSignature> signature = Local<AccessorSignature>(),
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect);
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
   void SetAccessor(
       Local<Name> name, AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter = 0, Local<Value> data = Local<Value>(),
       AccessControl settings = DEFAULT, PropertyAttribute attribute = None,
       Local<AccessorSignature> signature = Local<AccessorSignature>(),
-      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect);
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 
   /**
    * Sets a named property handler on the object template.

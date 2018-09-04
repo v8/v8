@@ -326,7 +326,11 @@ class Debug {
 
   bool PerformSideEffectCheck(Handle<JSFunction> function,
                               Handle<Object> receiver);
-  bool PerformSideEffectCheckForCallback(Handle<Object> callback_info);
+
+  enum AccessorKind { kNotAccessor, kGetter, kSetter };
+  bool PerformSideEffectCheckForCallback(Handle<Object> callback_info,
+                                         Handle<Object> receiver,
+                                         AccessorKind accessor_kind);
   bool PerformSideEffectCheckAtBytecode(InterpretedFrame* frame);
   bool PerformSideEffectCheckForObject(Handle<Object> object);
 

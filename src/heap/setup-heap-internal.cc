@@ -901,16 +901,19 @@ void Heap::CreateInternalAccessorInfoObjects() {
   HandleScope scope(isolate);
   Handle<AccessorInfo> acessor_info;
 
-#define INIT_ACCESSOR_INFO(accessor_name, AccessorName)        \
+#define INIT_ACCESSOR_INFO(accessor_name, AccessorName, ...)   \
   acessor_info = Accessors::Make##AccessorName##Info(isolate); \
   roots_[k##AccessorName##AccessorRootIndex] = *acessor_info;
   ACCESSOR_INFO_LIST(INIT_ACCESSOR_INFO)
 #undef INIT_ACCESSOR_INFO
 
-#define INIT_SIDE_EFFECT_FLAG(AccessorName)                      \
-  AccessorInfo::cast(roots_[k##AccessorName##AccessorRootIndex]) \
-      ->set_has_no_side_effect(true);
-  SIDE_EFFECT_FREE_ACCESSOR_INFO_LIST(INIT_SIDE_EFFECT_FLAG)
+#define INIT_SIDE_EFFECT_FLAG(accessor_name, AccessorName, GetterType, \
+                              SetterType)                              \
+  AccessorInfo::cast(roots_[k##AccessorName##AccessorRootIndex])       \
+      ->set_getter_side_effect_type(SideEffectType::GetterType);       \
+  AccessorInfo::cast(roots_[k##AccessorName##AccessorRootIndex])       \
+      ->set_setter_side_effect_type(SideEffectType::SetterType);
+  ACCESSOR_INFO_LIST(INIT_SIDE_EFFECT_FLAG)
 #undef INIT_SIDE_EFFECT_FLAG
 }
 

@@ -73,7 +73,7 @@ PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
 WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
-#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName)        \
+#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName, ...)   \
   Handle<AccessorInfo> Factory::accessor_name##_accessor() {       \
     return Handle<AccessorInfo>(bit_cast<AccessorInfo**>(          \
         &isolate()                                                 \

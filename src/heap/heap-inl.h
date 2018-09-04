@@ -64,7 +64,7 @@ MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
 #undef DATA_HANDLER_MAP_ACCESSOR
 
-#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName)                \
+#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName, ...)           \
   AccessorInfo* Heap::accessor_name##_accessor() {                         \
     return AccessorInfo::cast(roots_[k##AccessorName##AccessorRootIndex]); \
   }

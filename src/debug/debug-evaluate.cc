@@ -16,7 +16,6 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
-#include "src/objects/api-callbacks.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
@@ -796,7 +795,10 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kMakeURIError:
     // RegExp builtins.
     case Builtins::kRegExpConstructor:
+    // Internal.
+    case Builtins::kStrictPoisonPillThrower:
       return DebugInfo::kHasNoSideEffect;
+
     // Set builtins.
     case Builtins::kSetIteratorPrototypeNext:
     case Builtins::kSetPrototypeAdd:
@@ -948,34 +950,6 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
   }
 
   return DebugInfo::kHasSideEffects;
-}
-
-// static
-bool DebugEvaluate::CallbackHasNoSideEffect(Object* callback_info) {
-  DisallowHeapAllocation no_gc;
-  if (callback_info->IsAccessorInfo()) {
-    // List of whitelisted internal accessors can be found in accessors.h.
-    AccessorInfo* info = AccessorInfo::cast(callback_info);
-    if (info->has_no_side_effect()) return true;
-    if (FLAG_trace_side_effect_free_debug_evaluate) {
-      PrintF("[debug-evaluate] API Callback '");
-      info->name()->ShortPrint();
-      PrintF("' may cause side effect.\n");
-    }
-  } else if (callback_info->IsInterceptorInfo()) {
-    InterceptorInfo* info = InterceptorInfo::cast(callback_info);
-    if (info->has_no_side_effect()) return true;
-    if (FLAG_trace_side_effect_free_debug_evaluate) {
-      PrintF("[debug-evaluate] API Interceptor may cause side effect.\n");
-    }
-  } else if (callback_info->IsCallHandlerInfo()) {
-    CallHandlerInfo* info = CallHandlerInfo::cast(callback_info);
-    if (info->IsSideEffectFreeCallHandlerInfo()) return true;
-    if (FLAG_trace_side_effect_free_debug_evaluate) {
-      PrintF("[debug-evaluate] API CallHandlerInfo may cause side effect.\n");
-    }
-  }
-  return false;
 }
 
 // static

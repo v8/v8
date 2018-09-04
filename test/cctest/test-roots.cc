@@ -124,7 +124,7 @@ TEST(TestAccessorInfosNotReadOnly) {
   Factory* factory = CcTest::i_isolate()->factory();
   Heap* heap = CcTest::i_isolate()->heap();
 
-#define TEST_ROOT(name, AccessorName) CHECK_NOT_IN_RO_SPACE(name##_accessor)
+#define TEST_ROOT(name, ...) CHECK_NOT_IN_RO_SPACE(name##_accessor)
   ACCESSOR_INFO_LIST(TEST_ROOT)
 #undef TEST_ROOT
 }
