@@ -513,11 +513,11 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     /* Min: The algorithm is: -((-L) + (-R)), which in case of L and R */ \
     /* being different registers is most efficiently expressed */         \
     /* as -((-L) - R). */                                                 \
-    __ fneg(left_reg, left_reg);                                          \
-    if (left_reg == right_reg) {                                          \
-      __ fadd(result_reg, left_reg, right_reg);                           \
+    __ fneg(kScratchDoubleReg, left_reg);                                 \
+    if (kScratchDoubleReg == right_reg) {                                 \
+      __ fadd(result_reg, kScratchDoubleReg, right_reg);                  \
     } else {                                                              \
-      __ fsub(result_reg, left_reg, right_reg);                           \
+      __ fsub(result_reg, kScratchDoubleReg, right_reg);                  \
     }                                                                     \
     __ fneg(result_reg, result_reg);                                      \
     __ b(&done);                                                          \
