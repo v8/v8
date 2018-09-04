@@ -509,47 +509,26 @@ function assertWasmThrows(runtime_id, values, code) {
     .exportFunc();
 
   // Scenario 2: Catches an exception raised from the direct callee.
-  let kFromDirectCallee =
-    builder.addFunction("from_direct_callee", kSig_i_i)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprGetLocal, 0,
-          kExprCallFunction, kWasmThrowFunction,
-          kExprUnreachable,
-        kExprCatch, except,
-        kExprEnd,
-      ])
-      .exportFunc()
-      .index;
-
-  // Scenario 3: Catches an exception raised from an indirect callee.
-  // TODO(mstarzinger): Test case for indirect calls using direct calls not
-  // fooling anyone, switch to actually use indirect calls.
-  let kFromIndirectCalleeHelper = kFromDirectCallee + 1;
-  builder.addFunction("from_indirect_callee_helper", kSig_v_ii)
-    .addBody([
-      kExprGetLocal, 0,
-      kExprI32Const, 0,
-      kExprI32GtS,
-      kExprIf, kWasmStmt,
-        kExprGetLocal, 0,
-        kExprI32Const, 1,
-        kExprI32Sub,
-        kExprGetLocal, 1,
-        kExprI32Const, 1,
-        kExprI32Sub,
-        kExprCallFunction, kFromIndirectCalleeHelper,
-      kExprEnd,
-      kExprGetLocal, 1,
-      kExprCallFunction, kWasmThrowFunction,
-    ]);
-
-  builder.addFunction("from_indirect_callee", kSig_i_i)
+  builder.addFunction("from_direct_callee", kSig_i_i)
     .addBody([
       kExprTry, kWasmI32,
         kExprGetLocal, 0,
-        kExprI32Const, 0,
-        kExprCallFunction, kFromIndirectCalleeHelper,
+        kExprCallFunction, kWasmThrowFunction,
+        kExprUnreachable,
+      kExprCatch, except,
+      kExprEnd,
+    ])
+    .exportFunc();
+
+  // Scenario 3: Catches an exception raised from an indirect callee.
+  let sig_v_i = builder.addType(kSig_v_i);
+  builder.appendToTable([kWasmThrowFunction, kWasmThrowFunction]);
+  builder.addFunction("from_indirect_callee", kSig_i_ii)
+    .addBody([
+      kExprTry, kWasmI32,
+        kExprGetLocal, 0,
+        kExprGetLocal, 1,
+        kExprCallIndirect, sig_v_i, kTableZero,
         kExprUnreachable,
       kExprCatch, except,
       kExprEnd
@@ -618,8 +597,8 @@ function assertWasmThrows(runtime_id, values, code) {
   assertEquals(3334333, instance.exports.from_direct_callee(3334333));
   assertEquals(-1, instance.exports.from_direct_callee(0xFFFFFFFF));
   assertEquals(0x7FFFFFFF, instance.exports.from_direct_callee(0x7FFFFFFF));
-  assertEquals(-10, instance.exports.from_indirect_callee(10));
-  assertEquals(-77, instance.exports.from_indirect_callee(77));
+  assertEquals(10, instance.exports.from_indirect_callee(10, 0));
+  assertEquals(77, instance.exports.from_indirect_callee(77, 1));
   // TODO(mstarzinger): Re-enable the following test cases.
   /*assertEquals(10, instance.exports.from_js(10));
   assertEquals(-10, instance.exports.from_js(-10));*/

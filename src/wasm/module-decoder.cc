@@ -351,7 +351,7 @@ class ModuleDecoderImpl : public Decoder {
         if (++number_of_exception_sections > 1) {
           errorf(pc(), "Multiple exception sections not allowed");
           return;
-        } else if (next_section_ >= kCodeSectionCode) {
+        } else if (next_section_ > kCodeSectionCode) {
           errorf(pc(), "Exception section must appear before the code section");
           return;
         }

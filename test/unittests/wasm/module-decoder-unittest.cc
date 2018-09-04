@@ -525,6 +525,26 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_type) {
   EXPECT_FALSE(result.ok());
 }
 
+TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeCode) {
+  static const byte data[] = {SIGNATURES_SECTION_VOID_VOID, ONE_EMPTY_FUNCTION,
+                              SECTION_EXCEPTIONS(1), 0, ONE_EMPTY_BODY};
+  FAIL_IF_NO_EXPERIMENTAL_EH(data);
+
+  WASM_FEATURE_SCOPE(eh);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+}
+
+TEST_F(WasmModuleVerifyTest, ExceptionSectionAfterCode) {
+  static const byte data[] = {SIGNATURES_SECTION_VOID_VOID, ONE_EMPTY_FUNCTION,
+                              ONE_EMPTY_BODY, SECTION_EXCEPTIONS(1), 0};
+  FAIL_IF_NO_EXPERIMENTAL_EH(data);
+
+  WASM_FEATURE_SCOPE(eh);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_FALSE(result.ok());
+}
+
 TEST_F(WasmModuleVerifyTest, OneSignature) {
   {
     static const byte data[] = {SIGNATURES_SECTION_VOID_VOID};
