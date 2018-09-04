@@ -1015,6 +1015,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     if (!memory_tracker->HasFullGuardRegions(
             memory_.ToHandleChecked()->backing_store())) {
       if (!FLAG_wasm_trap_handler_fallback) {
+        thrower_->LinkError(
+            "Provided memory is lacking guard regions but fallback was "
+            "disabled.");
         return {};
       }
 
