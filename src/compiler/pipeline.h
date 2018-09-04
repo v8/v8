@@ -83,8 +83,7 @@ class Pipeline : public AllStatic {
   V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
       OptimizedCompilationInfo* info, Isolate* isolate,
       CallDescriptor* call_descriptor, Graph* graph,
-      const AssemblerOptions& options, Schedule* schedule = nullptr,
-      SourcePositionTable* source_positions = nullptr);
+      const AssemblerOptions& options, Schedule* schedule = nullptr);
 
   // Run just the register allocator phases.
   V8_EXPORT_PRIVATE static bool AllocateRegistersForTesting(

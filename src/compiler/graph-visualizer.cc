@@ -302,9 +302,11 @@ class JSONGraphNodeWriter {
     if (opcode == IrOpcode::kBranch) {
       os_ << ",\"rankInputs\":[0]";
     }
-    SourcePosition position = positions_->GetSourcePosition(node);
-    if (position.IsKnown()) {
-      os_ << ", \"sourcePosition\" : " << AsJSON(position);
+    if (positions_ != nullptr) {
+      SourcePosition position = positions_->GetSourcePosition(node);
+      if (position.IsKnown()) {
+        os_ << ", \"sourcePosition\" : " << AsJSON(position);
+      }
     }
     if (origins_) {
       NodeOrigin origin = origins_->GetNodeOrigin(node);

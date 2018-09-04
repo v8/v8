@@ -363,7 +363,7 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
                                   Code::C_WASM_ENTRY);
     code_ = compiler::Pipeline::GenerateCodeForTesting(
         &info, isolate, call_descriptor, graph(),
-        AssemblerOptions::Default(isolate), nullptr);
+        AssemblerOptions::Default(isolate));
     code = code_.ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code) {

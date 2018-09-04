@@ -2157,10 +2157,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
 
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
-  SourcePositionTable source_positions(graph);
   NodeOriginTable node_origins(graph);
-  PipelineData data(&zone_stats, &info, isolate, graph, schedule,
-                    &source_positions, &node_origins, jump_opt, options);
+  PipelineData data(&zone_stats, &info, isolate, graph, schedule, nullptr,
+                    &node_origins, jump_opt, options);
   data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
@@ -2202,10 +2201,6 @@ MaybeHandle<Code> Pipeline::GenerateCodeForWasmStub(
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
-  // TODO(wasm): Refactor code generation to check for non-existing source
-  // table, then remove this conditional allocation.
-  if (!source_positions)
-    source_positions = new (graph->zone()) SourcePositionTable(graph);
   NodeOriginTable* node_positions = new (graph->zone()) NodeOriginTable(graph);
   PipelineData data(&zone_stats, &info, isolate, graph, nullptr,
                     source_positions, node_positions, nullptr, options);
@@ -2269,17 +2264,12 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     OptimizedCompilationInfo* info, Isolate* isolate,
     CallDescriptor* call_descriptor, Graph* graph,
-    const AssemblerOptions& options, Schedule* schedule,
-    SourcePositionTable* source_positions) {
+    const AssemblerOptions& options, Schedule* schedule) {
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
-  // TODO(wasm): Refactor code generation to check for non-existing source
-  // table, then remove this conditional allocation.
-  if (!source_positions)
-    source_positions = new (info->zone()) SourcePositionTable(graph);
   NodeOriginTable* node_positions = new (info->zone()) NodeOriginTable(graph);
-  PipelineData data(&zone_stats, info, isolate, graph, schedule,
-                    source_positions, node_positions, nullptr, options);
+  PipelineData data(&zone_stats, info, isolate, graph, schedule, nullptr,
+                    node_positions, nullptr, options);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(
@@ -2423,7 +2413,11 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   if (info()->trace_turbo_json_enabled()) {
     std::ostringstream source_position_output;
     // Output source position information before the graph is deleted.
-    data_->source_positions()->PrintJson(source_position_output);
+    if (data_->source_positions() != nullptr) {
+      data_->source_positions()->PrintJson(source_position_output);
+    } else {
+      source_position_output << "{}";
+    }
     source_position_output << ",\n\"NodeOrigins\" : ";
     data_->node_origins()->PrintJson(source_position_output);
     data_->set_source_position_output(source_position_output.str());

@@ -1081,6 +1081,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     std::reverse(instructions_.begin() + instruction_start,
                  instructions_.end());
     if (!node) return true;
+    if (!source_positions_) return true;
     SourcePosition source_position = source_positions_->GetSourcePosition(node);
     if (source_position.IsKnown() && IsSourcePositionUsed(node)) {
       sequence()->SetSourcePosition(instructions_[instruction_start],
