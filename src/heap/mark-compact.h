@@ -500,8 +500,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     }
 
     HeapObject* PopBailout() {
-      HeapObject* result;
 #ifdef V8_CONCURRENT_MARKING
+      HeapObject* result;
       if (bailout_.Pop(kMainThread, &result)) return result;
 #endif
       return nullptr;
