@@ -121,6 +121,8 @@ namespace internal {
   V(PROMISE_REJECT_REACTION_JOB_TASK_TYPE)                         \
   V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)                        \
                                                                    \
+  V(MICROTASK_QUEUE_TYPE)                                          \
+                                                                   \
   V(ALLOCATION_SITE_TYPE)                                          \
                                                                    \
   V(FIXED_ARRAY_TYPE)                                              \
@@ -327,7 +329,8 @@ namespace internal {
   V(PROMISE_REJECT_REACTION_JOB_TASK, PromiseRejectReactionJobTask,          \
     promise_reject_reaction_job_task)                                        \
   V(PROMISE_RESOLVE_THENABLE_JOB_TASK, PromiseResolveThenableJobTask,        \
-    promise_resolve_thenable_job_task)
+    promise_resolve_thenable_job_task)                                       \
+  V(MICROTASK_QUEUE, MicrotaskQueue, microtask_queue)
 
 #define ALLOCATION_SITE_LIST(V)                                     \
   V(ALLOCATION_SITE, AllocationSite, WithWeakNext, allocation_site) \

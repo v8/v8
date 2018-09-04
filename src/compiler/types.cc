@@ -301,6 +301,7 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case PROPERTY_CELL_TYPE:
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
+    case MICROTASK_QUEUE_TYPE:
     case CELL_TYPE:
     case PRE_PARSED_SCOPE_DATA_TYPE:
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:

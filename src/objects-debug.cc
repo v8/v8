@@ -1279,6 +1279,8 @@ void PromiseReactionJobTask::PromiseReactionJobTaskVerify(Isolate* isolate) {
         promise_or_capability()->IsPromiseCapability());
 }
 
+void MicrotaskQueue::MicrotaskQueueVerify(Isolate* isolate) { UNIMPLEMENTED(); }
+
 void PromiseFulfillReactionJobTask::PromiseFulfillReactionJobTaskVerify(
     Isolate* isolate) {
   CHECK(IsPromiseFulfillReactionJobTask());

@@ -36,6 +36,7 @@
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/maybe-object-inl.h"
+#include "src/objects/microtask-queue-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/template-objects.h"
