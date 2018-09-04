@@ -61,6 +61,21 @@ function assertWasmThrows(runtime_id, values, code) {
   assertWasmThrows(except, [], () => instance.exports.throw_if_param_not_zero(-1));
 })();
 
+// Test that empty try/catch blocks work.
+(function TestCatchEmptyBlocks() {
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_v);
+  builder.addFunction("catch_empty_try", kSig_v_v)
+      .addBody([
+        kExprTry, kWasmStmt,
+        kExprCatch, except,
+        kExprEnd,
+      ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertDoesNotThrow(instance.exports.catch_empty_try);
+})();
+
 // Now that we know throwing works, we test catching the exceptions we raise.
 (function TestCatchSimple() {
   let builder = new WasmModuleBuilder();

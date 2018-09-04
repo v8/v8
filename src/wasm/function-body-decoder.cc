@@ -433,48 +433,37 @@ class WasmGraphBuildingInterface {
     SsaEnv* catch_env = block->try_info->catch_env;
     SetEnv(catch_env);
 
-    TFNode* compare_i32 = nullptr;
-    if (exception == nullptr) {
-      // Catch not applicable, no possible throws in the try
-      // block. Create dummy code so that body of catch still
-      // compiles. Note: This only happens because the current
-      // implementation only builds a landing pad if some node in the
-      // try block can (possibly) throw.
-      //
-      // TODO(kschimpf): Always generate a landing pad for a try block.
-      compare_i32 = BUILD(Int32Constant, 0);
-    } else {
-      // Get the exception and see if wanted exception.
-      TFNode* caught_tag = BUILD(GetExceptionRuntimeId, exception);
-      TFNode* exception_tag = BUILD(ConvertExceptionTagToRuntimeId, imm.index);
-      compare_i32 = BUILD(Binop, kExprI32Eq, caught_tag, exception_tag);
-    }
+    // The catch block is unreachable if no possible throws in the try block
+    // exist. We only build a landing pad if some node in the try block can
+    // (possibly) throw. Otherwise the below catch environments remain empty.
+    DCHECK_EQ(exception != nullptr, ssa_env_->go());
 
     TFNode* if_catch = nullptr;
     TFNode* if_no_catch = nullptr;
-    BUILD(BranchNoHint, compare_i32, &if_catch, &if_no_catch);
+    if (exception != nullptr) {
+      // Get the exception and see if wanted exception.
+      TFNode* caught_tag = BUILD(GetExceptionRuntimeId, exception);
+      TFNode* exception_tag = BUILD(ConvertExceptionTagToRuntimeId, imm.index);
+      TFNode* compare_i32 = BUILD(Binop, kExprI32Eq, caught_tag, exception_tag);
+      BUILD(BranchNoHint, compare_i32, &if_catch, &if_no_catch);
+    }
 
     SsaEnv* if_no_catch_env = Split(decoder, ssa_env_);
     if_no_catch_env->control = if_no_catch;
     SsaEnv* if_catch_env = Steal(decoder->zone(), ssa_env_);
     if_catch_env->control = if_catch;
 
-    // TODO(kschimpf): Generalize to allow more catches. Will force
-    // moving no_catch code to END opcode.
     SetEnv(if_no_catch_env);
-    BUILD(Rethrow, exception);
-    Unreachable(decoder);
-    EndControl(decoder, block);
+    if (exception != nullptr) {
+      // TODO(kschimpf): Generalize to allow more catches. Will force
+      // moving no_catch code to END opcode.
+      BUILD(Rethrow, exception);
+      Unreachable(decoder);
+      EndControl(decoder, block);
+    }
 
     SetEnv(if_catch_env);
-
-    if (exception == nullptr) {
-      // No caught value, make up filler nodes so that catch block still
-      // compiles.
-      for (Value& value : values) {
-        value.node = DefaultValue(value.type);
-      }
-    } else {
+    if (exception != nullptr) {
       // TODO(kschimpf): Can't use BUILD() here, GetExceptionValues() returns
       // TFNode** rather than TFNode*. Fix to add landing pads.
       TFNode** caught_values =
