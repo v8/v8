@@ -173,16 +173,11 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
                                      JSObject::New(constructor, constructor));
 
   // Set date time formatter as embedder field of the resulting JS object.
-  icu::SimpleDateFormat* date_format =
+  Maybe<icu::SimpleDateFormat*> maybe_date_format =
       DateFormat::InitializeDateTimeFormat(isolate, locale, options, resolved);
+  MAYBE_RETURN(maybe_date_format, ReadOnlyRoots(isolate).exception());
+  icu::SimpleDateFormat* date_format = maybe_date_format.FromJust();
   CHECK_NOT_NULL(date_format);
-  if (!DateFormat::IsValidTimeZone(date_format)) {
-    delete date_format;
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidTimeZone,
-                      isolate->factory()->NewStringFromStaticChars("Etc/GMT")));
-  }
 
   local_object->SetEmbedderField(DateFormat::kSimpleDateFormatIndex,
                                  reinterpret_cast<Smi*>(date_format));

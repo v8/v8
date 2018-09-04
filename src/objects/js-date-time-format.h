@@ -26,6 +26,15 @@ class JSDateTimeFormat : public JSObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSReceiver> date_time_holder);
 
+  // Convert the options to ICU DateTimePatternGenerator skeleton.
+  static Maybe<std::string> OptionsToSkeleton(Isolate* isolate,
+                                              Handle<JSReceiver> options);
+
+  // Return the time zone id which match ICU's expectation of title casing
+  // return empty string when error.
+  static std::string CanonicalizeTimeZoneID(Isolate* isolate,
+                                            const std::string& input);
+
   DECL_CAST(JSDateTimeFormat)
 
 // Layout description.

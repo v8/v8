@@ -18,6 +18,10 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
+namespace U_ICU_NAMESPACE {
+class NumberFormat;
+}  //  namespace U_ICU_NAMESPACE
+
 namespace v8 {
 namespace internal {
 

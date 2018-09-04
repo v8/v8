@@ -21,6 +21,7 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-collator-inl.h"
+#include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-number-format-inl.h"
 #include "src/objects/managed.h"
 #include "src/objects/string.h"
@@ -89,69 +90,90 @@ bool ExtractStringSetting(Isolate* isolate, Handle<JSObject> options,
   return false;
 }
 
-icu::SimpleDateFormat* CreateICUDateFormat(Isolate* isolate,
-                                           const icu::Locale& icu_locale,
-                                           Handle<JSObject> options) {
+// ecma-402/#sec-isvalidtimezonename
+bool IsValidTimeZoneName(const icu::TimeZone& tz) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString id;
+  tz.getID(id);
+  icu::UnicodeString canonical;
+  icu::TimeZone::getCanonicalID(id, canonical, status);
+  return U_SUCCESS(status) &&
+         canonical != icu::UnicodeString("Etc/Unknown", -1, US_INV);
+}
+
+std::unique_ptr<icu::TimeZone> CreateTimeZone(Isolate* isolate,
+                                              const char* timezone) {
   // Create time zone as specified by the user. We have to re-create time zone
   // since calendar takes ownership.
-  icu::TimeZone* tz = nullptr;
-  icu::UnicodeString timezone;
-  if (ExtractStringSetting(isolate, options, "timeZone", &timezone)) {
-    tz = icu::TimeZone::createTimeZone(timezone);
-  } else {
-    tz = icu::TimeZone::createDefault();
+  if (timezone == nullptr) {
+    return std::unique_ptr<icu::TimeZone>(icu::TimeZone::createDefault());
   }
+  std::string canonicalized =
+      JSDateTimeFormat::CanonicalizeTimeZoneID(isolate, timezone);
+  if (canonicalized.empty()) return std::unique_ptr<icu::TimeZone>();
+  std::unique_ptr<icu::TimeZone> tz(
+      icu::TimeZone::createTimeZone(canonicalized.c_str()));
+  if (!IsValidTimeZoneName(*tz)) return std::unique_ptr<icu::TimeZone>();
+  return tz;
+}
+
+std::unique_ptr<icu::Calendar> CreateCalendar(Isolate* isolate,
+                                              const icu::Locale& icu_locale,
+                                              const char* timezone) {
+  std::unique_ptr<icu::TimeZone> tz = CreateTimeZone(isolate, timezone);
+  if (tz.get() == nullptr) return std::unique_ptr<icu::Calendar>();
 
   // Create a calendar using locale, and apply time zone to it.
   UErrorCode status = U_ZERO_ERROR;
-  icu::Calendar* calendar =
-      icu::Calendar::createInstance(tz, icu_locale, status);
+  std::unique_ptr<icu::Calendar> calendar(
+      icu::Calendar::createInstance(tz.release(), icu_locale, status));
+  CHECK(U_SUCCESS(status));
+  CHECK_NOT_NULL(calendar.get());
 
   if (calendar->getDynamicClassID() ==
       icu::GregorianCalendar::getStaticClassID()) {
-    icu::GregorianCalendar* gc = (icu::GregorianCalendar*)calendar;
+    icu::GregorianCalendar* gc =
+        static_cast<icu::GregorianCalendar*>(calendar.get());
     UErrorCode status = U_ZERO_ERROR;
     // The beginning of ECMAScript time, namely -(2**53)
     const double start_of_time = -9007199254740992;
     gc->setGregorianChange(start_of_time, status);
     DCHECK(U_SUCCESS(status));
   }
+  return calendar;
+}
+
+std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
+    Isolate* isolate, const icu::Locale& icu_locale,
+    const std::string skeleton) {
+  // See https://github.com/tc39/ecma402/issues/225 . The best pattern
+  // generation needs to be done in the base locale according to the
+  // current spec however odd it may be. See also crbug.com/826549 .
+  // This is a temporary work-around to get v8's external behavior to match
+  // the current spec, but does not follow the spec provisions mentioned
+  // in the above Ecma 402 issue.
+  // TODO(jshin): The spec may need to be revised because using the base
+  // locale for the pattern match is not quite right. Moreover, what to
+  // do with 'related year' part when 'chinese/dangi' calendar is specified
+  // has to be discussed. Revisit once the spec is clarified/revised.
+  icu::Locale no_extension_locale(icu_locale.getBaseName());
+  UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::DateTimePatternGenerator> generator(
+      icu::DateTimePatternGenerator::createInstance(no_extension_locale,
+                                                    status));
+  icu::UnicodeString pattern;
+  if (U_SUCCESS(status)) {
+    pattern =
+        generator->getBestPattern(icu::UnicodeString(skeleton.c_str()), status);
+  }
 
   // Make formatter from skeleton. Calendar and numbering system are added
   // to the locale as Unicode extension (if they were specified at all).
-  icu::SimpleDateFormat* date_format = nullptr;
-  icu::UnicodeString skeleton;
-  if (ExtractStringSetting(isolate, options, "skeleton", &skeleton)) {
-    // See https://github.com/tc39/ecma402/issues/225 . The best pattern
-    // generation needs to be done in the base locale according to the
-    // current spec however odd it may be. See also crbug.com/826549 .
-    // This is a temporary work-around to get v8's external behavior to match
-    // the current spec, but does not follow the spec provisions mentioned
-    // in the above Ecma 402 issue.
-    // TODO(jshin): The spec may need to be revised because using the base
-    // locale for the pattern match is not quite right. Moreover, what to
-    // do with 'related year' part when 'chinese/dangi' calendar is specified
-    // has to be discussed. Revisit once the spec is clarified/revised.
-    icu::Locale no_extension_locale(icu_locale.getBaseName());
-    std::unique_ptr<icu::DateTimePatternGenerator> generator(
-        icu::DateTimePatternGenerator::createInstance(no_extension_locale,
-                                                      status));
-    icu::UnicodeString pattern;
-    if (U_SUCCESS(status))
-      pattern = generator->getBestPattern(skeleton, status);
+  std::unique_ptr<icu::SimpleDateFormat> date_format(
+      new icu::SimpleDateFormat(pattern, icu_locale, status));
+  if (U_FAILURE(status)) return std::unique_ptr<icu::SimpleDateFormat>();
 
-    date_format = new icu::SimpleDateFormat(pattern, icu_locale, status);
-    if (U_SUCCESS(status)) {
-      date_format->adoptCalendar(calendar);
-    }
-  }
-
-  if (U_FAILURE(status)) {
-    delete calendar;
-    delete date_format;
-    date_format = nullptr;
-  }
-
+  CHECK_NOT_NULL(date_format.get());
   return date_format;
 }
 
@@ -303,48 +325,49 @@ icu::Locale Intl::CreateICULocale(Isolate* isolate,
   return icu_locale;
 }
 
-bool DateFormat::IsValidTimeZone(icu::SimpleDateFormat* date_format) {
-  UErrorCode status = U_ZERO_ERROR;
-  // Set time zone and calendar.
-  const icu::Calendar* calendar = date_format->getCalendar();
-  const icu::TimeZone& tz = calendar->getTimeZone();
-  icu::UnicodeString time_zone;
-  tz.getID(time_zone);
-  icu::UnicodeString canonical_time_zone;
-  icu::TimeZone::getCanonicalID(time_zone, canonical_time_zone, status);
-  std::string timezone_str;
-  canonical_time_zone.toUTF8String(timezone_str);
-  if (U_SUCCESS(status)) return timezone_str != "Etc/Unknown";
-  return true;
-}
-
 // static
-icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
+Maybe<icu::SimpleDateFormat*> DateFormat::InitializeDateTimeFormat(
     Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
     Handle<JSObject> resolved) {
   icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
   DCHECK(!icu_locale.isBogus());
 
-  icu::SimpleDateFormat* date_format =
-      CreateICUDateFormat(isolate, icu_locale, options);
-  if (!date_format) {
-    // Remove extensions and try again.
-    icu::Locale no_extension_locale(icu_locale.getBaseName());
-    date_format = CreateICUDateFormat(isolate, no_extension_locale, options);
+  static std::vector<const char*> empty_values = {};
+  std::unique_ptr<char[]> timezone = nullptr;
+  Maybe<bool> maybe_timezone =
+      Intl::GetStringOption(isolate, options, "timeZone", empty_values,
+                            "Intl.DateTimeFormat", &timezone);
+  MAYBE_RETURN(maybe_timezone, Nothing<icu::SimpleDateFormat*>());
 
-    if (!date_format) {
+  Maybe<std::string> maybe_skeleton =
+      JSDateTimeFormat::OptionsToSkeleton(isolate, options);
+  MAYBE_RETURN(maybe_skeleton, Nothing<icu::SimpleDateFormat*>());
+  CHECK(!maybe_skeleton.FromJust().empty());
+  std::string skeleton = maybe_skeleton.FromJust();
+
+  std::unique_ptr<icu::Calendar> calendar(
+      CreateCalendar(isolate, icu_locale, timezone.get()));
+  if (calendar.get() == nullptr) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(
+            MessageTemplate::kInvalidTimeZone,
+            isolate->factory()->NewStringFromAsciiChecked(timezone.get())),
+        Nothing<icu::SimpleDateFormat*>());
+  }
+  std::unique_ptr<icu::SimpleDateFormat> date_format(
+      CreateICUDateFormat(isolate, icu_locale, skeleton));
+  if (date_format.get() == nullptr) {
+    // Remove extensions and try again.
+    icu_locale = icu::Locale(icu_locale.getBaseName());
+    date_format = CreateICUDateFormat(isolate, icu_locale, skeleton);
+    if (date_format.get() == nullptr) {
       FATAL("Failed to create ICU date format, are ICU data files missing?");
     }
-
-    // Set resolved settings (pattern, numbering system, calendar).
-    SetResolvedDateSettings(isolate, no_extension_locale, date_format,
-                            resolved);
-  } else {
-    SetResolvedDateSettings(isolate, icu_locale, date_format, resolved);
   }
-
-  CHECK_NOT_NULL(date_format);
-  return date_format;
+  date_format->adoptCalendar(calendar.release());
+  SetResolvedDateSettings(isolate, icu_locale, date_format.get(), resolved);
+  return Just(date_format.release());
 }
 
 icu::SimpleDateFormat* DateFormat::UnpackDateFormat(Handle<JSObject> obj) {

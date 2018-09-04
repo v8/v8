@@ -21,10 +21,7 @@
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
-class Collator;
 class DecimalFormat;
-class NumberFormat;
-class PluralRules;
 class SimpleDateFormat;
 class UnicodeString;
 }
@@ -39,15 +36,12 @@ class DateFormat {
  public:
   // Create a formatter for the specificied locale and options. Returns the
   // resolved settings for the locale / options.
-  static icu::SimpleDateFormat* InitializeDateTimeFormat(
+  static Maybe<icu::SimpleDateFormat*> InitializeDateTimeFormat(
       Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
       Handle<JSObject> resolved);
 
   // Unpacks date format object from corresponding JavaScript object.
   static icu::SimpleDateFormat* UnpackDateFormat(Handle<JSObject> obj);
-
-  // Determine the TimeZone is valid.
-  static bool IsValidTimeZone(icu::SimpleDateFormat* date_format);
 
   // Release memory we allocated for the DateFormat once the JS object that
   // holds the pointer gets garbage collected.

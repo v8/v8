@@ -126,42 +126,6 @@ function GetServiceRE() {
 }
 
 /**
- * Matches valid IANA time zone names.
- */
-var TIMEZONE_NAME_CHECK_RE = UNDEFINED;
-var GMT_OFFSET_TIMEZONE_NAME_CHECK_RE = UNDEFINED;
-
-function GetTimezoneNameCheckRE() {
-  if (IS_UNDEFINED(TIMEZONE_NAME_CHECK_RE)) {
-    TIMEZONE_NAME_CHECK_RE = new GlobalRegExp(
-        '^([A-Za-z]+)/([A-Za-z_-]+)((?:\/[A-Za-z_-]+)+)*$');
-  }
-  return TIMEZONE_NAME_CHECK_RE;
-}
-
-function GetGMTOffsetTimezoneNameCheckRE() {
-  if (IS_UNDEFINED(GMT_OFFSET_TIMEZONE_NAME_CHECK_RE)) {
-     GMT_OFFSET_TIMEZONE_NAME_CHECK_RE = new GlobalRegExp(
-         '^(?:ETC/GMT)(?<offset>0|[+-](?:[0-9]|1[0-4]))$');
-  }
-  return GMT_OFFSET_TIMEZONE_NAME_CHECK_RE;
-}
-
-/**
- * Matches valid location parts of IANA time zone names.
- */
-var TIMEZONE_NAME_LOCATION_PART_RE = UNDEFINED;
-
-function GetTimezoneNameLocationPartRE() {
-  if (IS_UNDEFINED(TIMEZONE_NAME_LOCATION_PART_RE)) {
-    TIMEZONE_NAME_LOCATION_PART_RE =
-        new GlobalRegExp('^([A-Za-z]+)((?:[_-][A-Za-z]+)+)*$');
-  }
-  return TIMEZONE_NAME_LOCATION_PART_RE;
-}
-
-
-/**
  * Returns a getOption function that extracts property value for given
  * options object. If property is missing it returns defaultValue. If value
  * is out of range for that property it throws RangeError.
@@ -469,43 +433,6 @@ function defineWECProperty(object, property, value) {
 }
 
 /**
- * Returns titlecased word, aMeRricA -> America.
- */
-function toTitleCaseWord(word) {
-  return %StringToUpperCaseIntl(%_Call(StringSubstr, word, 0, 1)) +
-         %StringToLowerCaseIntl(%_Call(StringSubstr, word, 1));
-}
-
-/**
- * Returns titlecased location, bueNos_airES -> Buenos_Aires
- * or ho_cHi_minH -> Ho_Chi_Minh. It is locale-agnostic and only
- * deals with ASCII only characters.
- * 'of', 'au' and 'es' are special-cased and lowercased.
- */
-function toTitleCaseTimezoneLocation(location) {
-  var match = %regexp_internal_match(GetTimezoneNameLocationPartRE(), location)
-  if (IS_NULL(match)) throw %make_range_error(kExpectedLocation, location);
-
-  var result = toTitleCaseWord(match[1]);
-  if (!IS_UNDEFINED(match[2]) && 2 < match.length) {
-    // The first character is a separator, '_' or '-'.
-    // None of IANA zone names has both '_' and '-'.
-    var separator = %_Call(StringSubstring, match[2], 0, 1);
-    var parts = %StringSplit(match[2], separator, kMaxUint32);
-    for (var i = 1; i < parts.length; i++) {
-      var part = parts[i]
-      var lowercasedPart = %StringToLowerCaseIntl(part);
-      result = result + separator +
-          ((lowercasedPart !== 'es' &&
-            lowercasedPart !== 'of' && lowercasedPart !== 'au') ?
-          toTitleCaseWord(part) : lowercasedPart);
-    }
-  }
-  return result;
-}
-
-
-/**
  * Returns an InternalArray where all locales are canonicalized and duplicates
  * removed.
  * Throws on locales that are not well formed BCP47 tags.
@@ -594,69 +521,6 @@ DEFINE_METHOD(
   }
 );
 
-
-/**
- * Returns a string that matches LDML representation of the options object.
- */
-function toLDMLString(options) {
-  var getOption = getGetOption(options, 'dateformat');
-
-  var ldmlString = '';
-
-  var option = getOption('weekday', 'string', ['narrow', 'short', 'long']);
-  ldmlString += appendToLDMLString(
-      option, {narrow: 'EEEEE', short: 'EEE', long: 'EEEE'});
-
-  option = getOption('era', 'string', ['narrow', 'short', 'long']);
-  ldmlString += appendToLDMLString(
-      option, {narrow: 'GGGGG', short: 'GGG', long: 'GGGG'});
-
-  option = getOption('year', 'string', ['2-digit', 'numeric']);
-  ldmlString += appendToLDMLString(option, {'2-digit': 'yy', 'numeric': 'y'});
-
-  option = getOption('month', 'string',
-                     ['2-digit', 'numeric', 'narrow', 'short', 'long']);
-  ldmlString += appendToLDMLString(option, {'2-digit': 'MM', 'numeric': 'M',
-          'narrow': 'MMMMM', 'short': 'MMM', 'long': 'MMMM'});
-
-  option = getOption('day', 'string', ['2-digit', 'numeric']);
-  ldmlString += appendToLDMLString(
-      option, {'2-digit': 'dd', 'numeric': 'd'});
-
-  var hr12 = getOption('hour12', 'boolean');
-  option = getOption('hour', 'string', ['2-digit', 'numeric']);
-  if (IS_UNDEFINED(hr12)) {
-    ldmlString += appendToLDMLString(option, {'2-digit': 'jj', 'numeric': 'j'});
-  } else if (hr12 === true) {
-    ldmlString += appendToLDMLString(option, {'2-digit': 'hh', 'numeric': 'h'});
-  } else {
-    ldmlString += appendToLDMLString(option, {'2-digit': 'HH', 'numeric': 'H'});
-  }
-
-  option = getOption('minute', 'string', ['2-digit', 'numeric']);
-  ldmlString += appendToLDMLString(option, {'2-digit': 'mm', 'numeric': 'm'});
-
-  option = getOption('second', 'string', ['2-digit', 'numeric']);
-  ldmlString += appendToLDMLString(option, {'2-digit': 'ss', 'numeric': 's'});
-
-  option = getOption('timeZoneName', 'string', ['short', 'long']);
-  ldmlString += appendToLDMLString(option, {short: 'z', long: 'zzzz'});
-
-  return ldmlString;
-}
-
-
-/**
- * Returns either LDML equivalent of the current option or empty string.
- */
-function appendToLDMLString(option, pairs) {
-  if (!IS_UNDEFINED(option)) {
-    return pairs[option];
-  } else {
-    return '';
-  }
-}
-
 /**
  * Initializes the given object so it's a valid DateTimeFormat instance.
  * Useful for subclassing.
@@ -676,14 +540,6 @@ function CreateDateTimeFormat(locales, options) {
   // if the formatMatcher values are in range.
   var matcher = getOption('formatMatcher', 'string',
                           ['basic', 'best fit'], 'best fit');
-
-  // Build LDML string for the skeleton that we pass to the formatter.
-  var ldmlString = toLDMLString(options);
-
-  // Filter out supported extension keys so we know what to put in resolved
-  // section later on.
-  // We need to pass calendar and number system to the method.
-  var tz = canonicalizeTimeZoneID(options.timeZone);
 
   // ICU prefers options to be passed using -u- extension key/values, so
   // we need to build that.
@@ -708,9 +564,7 @@ function CreateDateTimeFormat(locales, options) {
   // to JSDateTimeFormat
   var resolved = {__proto__: null};
 
-  var dateFormat = %CreateDateTimeFormat(
-    requestedLocale,
-    {__proto__: null, skeleton: ldmlString, timeZone: tz}, resolved);
+  var dateFormat = %CreateDateTimeFormat(requestedLocale, options, resolved);
 
   %MarkAsInitializedIntlObjectOfType(dateFormat, DATE_TIME_FORMAT_TYPE);
 
@@ -743,58 +597,6 @@ DEFINE_METHOD(
     return %DateTimeFormatResolvedOptions(this);
   }
 );
-
-
-/**
- * Returns canonical Area/Location(/Location) name, or throws an exception
- * if the zone name is invalid IANA name.
- */
-function canonicalizeTimeZoneID(tzID) {
-  // Skip undefined zones.
-  if (IS_UNDEFINED(tzID)) {
-    return tzID;
-  }
-
-  // Convert zone name to string.
-  tzID = TO_STRING(tzID);
-
-  // Special case handling (UTC, GMT).
-  var upperID = %StringToUpperCaseIntl(tzID);
-  if (upperID === 'UTC' || upperID === 'GMT' ||
-      upperID === 'ETC/UTC' || upperID === 'ETC/GMT') {
-    return 'UTC';
-  }
-
-  // We expect only _, '-' and / beside ASCII letters.
-  // All inputs should conform to Area/Location(/Location)*, or Etc/GMT* .
-  // TODO(jshin): 1. Support 'GB-Eire", 'EST5EDT", "ROK', 'US/*', 'NZ' and many
-  // other aliases/linked names when moving timezone validation code to C++.
-  // See crbug.com/364374 and crbug.com/v8/8007 .
-  // 2. Resolve the difference betwee CLDR/ICU and IANA time zone db.
-  // See http://unicode.org/cldr/trac/ticket/9892 and crbug.com/645807 .
-  let match = %regexp_internal_match(GetTimezoneNameCheckRE(), tzID);
-  if (IS_NULL(match)) {
-    let match =
-      %regexp_internal_match(GetGMTOffsetTimezoneNameCheckRE(), upperID);
-     if (!IS_NULL(match) && match.length == 2)
-       return "Etc/GMT" + match.groups.offset;
-     else
-       throw %make_range_error(kInvalidTimeZone, tzID);
-  }
-
-  let result = toTitleCaseTimezoneLocation(match[1]) + '/' +
-               toTitleCaseTimezoneLocation(match[2]);
-
-  if (!IS_UNDEFINED(match[3]) && 3 < match.length) {
-    let locations = %StringSplit(match[3], '/', kMaxUint32);
-    // The 1st element is empty. Starts with i=1.
-    for (var i = 1; i < locations.length; i++) {
-      result = result + '/' + toTitleCaseTimezoneLocation(locations[i]);
-    }
-  }
-
-  return result;
-}
 
 /**
  * Initializes the given object so it's a valid BreakIterator instance.
