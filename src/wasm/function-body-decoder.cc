@@ -37,7 +37,7 @@ struct SsaEnv {
   compiler::WasmInstanceCacheNodes instance_cache;
   TFNode** locals;
 
-  bool go() { return state >= kReached; }
+  bool reached() const { return state >= kReached; }
   void Kill(State new_state = kControlEnd) {
     state = new_state;
     locals = nullptr;
@@ -52,7 +52,7 @@ struct SsaEnv {
 
 #define BUILD(func, ...)                                            \
   ([&] {                                                            \
-    DCHECK(ssa_env_->go());                                         \
+    DCHECK(ssa_env_->reached());                                    \
     DCHECK(decoder->ok());                                          \
     return CheckForException(decoder, builder_->func(__VA_ARGS__)); \
   })()
@@ -127,7 +127,7 @@ class WasmGraphBuildingInterface {
 
   // Reload the instance cache entries into the Ssa Environment.
   void LoadContextIntoSsa(SsaEnv* ssa_env) {
-    if (!ssa_env || !ssa_env->go()) return;
+    if (!ssa_env || !ssa_env->reached()) return;
     builder_->InitInstanceCache(&ssa_env->instance_cache);
   }
 
@@ -181,7 +181,9 @@ class WasmGraphBuildingInterface {
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
     TFNode* if_true = nullptr;
     TFNode* if_false = nullptr;
-    if (ssa_env_->go()) BUILD(BranchNoHint, cond.node, &if_true, &if_false);
+    if (ssa_env_->reached()) {
+      BUILD(BranchNoHint, cond.node, &if_true, &if_false);
+    }
     SsaEnv* end_env = ssa_env_;
     SsaEnv* false_env = Split(decoder, ssa_env_);
     false_env->control = if_false;
@@ -436,7 +438,7 @@ class WasmGraphBuildingInterface {
     // The catch block is unreachable if no possible throws in the try block
     // exist. We only build a landing pad if some node in the try block can
     // (possibly) throw. Otherwise the below catch environments remain empty.
-    DCHECK_EQ(exception != nullptr, ssa_env_->go());
+    DCHECK_EQ(exception != nullptr, ssa_env_->reached());
 
     TFNode* if_catch = nullptr;
     TFNode* if_no_catch = nullptr;
@@ -596,7 +598,7 @@ class WasmGraphBuildingInterface {
 
   void MergeValuesInto(FullDecoder* decoder, Control* c, Merge<Value>* merge) {
     DCHECK(merge == &c->start_merge || merge == &c->end_merge);
-    if (!ssa_env_->go()) return;
+    if (!ssa_env_->reached()) return;
 
     SsaEnv* target = c->end_env;
     const bool first = target->state == SsaEnv::kUnreachable;
@@ -619,7 +621,7 @@ class WasmGraphBuildingInterface {
 
   void Goto(FullDecoder* decoder, SsaEnv* from, SsaEnv* to) {
     DCHECK_NOT_NULL(to);
-    if (!from->go()) return;
+    if (!from->reached()) return;
     switch (to->state) {
       case SsaEnv::kUnreachable: {  // Overwrite destination.
         to->state = SsaEnv::kReached;
@@ -680,7 +682,7 @@ class WasmGraphBuildingInterface {
   }
 
   SsaEnv* PrepareForLoop(FullDecoder* decoder, SsaEnv* env) {
-    if (!env->go()) return Split(decoder, env);
+    if (!env->reached()) return Split(decoder, env);
     env->state = SsaEnv::kMerged;
 
     env->control = builder_->Loop(env->control);
@@ -734,7 +736,7 @@ class WasmGraphBuildingInterface {
     result->control = from->control;
     result->effect = from->effect;
 
-    if (from->go()) {
+    if (from->reached()) {
       result->state = SsaEnv::kReached;
       result->locals =
           size > 0 ? reinterpret_cast<TFNode**>(decoder->zone()->New(size))
@@ -754,7 +756,7 @@ class WasmGraphBuildingInterface {
   // unreachable.
   SsaEnv* Steal(Zone* zone, SsaEnv* from) {
     DCHECK_NOT_NULL(from);
-    if (!from->go()) return UnreachableEnv(zone);
+    if (!from->reached()) return UnreachableEnv(zone);
     SsaEnv* result = reinterpret_cast<SsaEnv*>(zone->New(sizeof(SsaEnv)));
     result->state = SsaEnv::kReached;
     result->locals = from->locals;
