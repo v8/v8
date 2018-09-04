@@ -54,6 +54,13 @@ class Pipeline : public AllStatic {
       wasm::NativeModule* native_module, int function_index,
       wasm::ModuleOrigin wasm_origin);
 
+  // Run the pipeline on a machine graph and generate code.
+  static MaybeHandle<Code> GenerateCodeForWasmStub(
+      Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
+      Code::Kind kind, const char* debug_name,
+      const AssemblerOptions& assembler_options,
+      SourcePositionTable* source_positions = nullptr);
+
   // Run the pipeline on a machine graph and generate code. The {schedule} must
   // be valid, hence the given {graph} does not need to be schedulable.
   static MaybeHandle<Code> GenerateCodeForCodeStub(

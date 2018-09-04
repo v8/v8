@@ -2195,6 +2195,53 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
 }
 
 // static
+MaybeHandle<Code> Pipeline::GenerateCodeForWasmStub(
+    Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
+    Code::Kind kind, const char* debug_name, const AssemblerOptions& options,
+    SourcePositionTable* source_positions) {
+  OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
+  // Construct a pipeline for scheduling and code generation.
+  ZoneStats zone_stats(isolate->allocator());
+  // TODO(wasm): Refactor code generation to check for non-existing source
+  // table, then remove this conditional allocation.
+  if (!source_positions)
+    source_positions = new (graph->zone()) SourcePositionTable(graph);
+  NodeOriginTable* node_positions = new (graph->zone()) NodeOriginTable(graph);
+  PipelineData data(&zone_stats, &info, isolate, graph, nullptr,
+                    source_positions, node_positions, nullptr, options);
+  std::unique_ptr<PipelineStatistics> pipeline_statistics;
+  if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
+    pipeline_statistics.reset(new PipelineStatistics(
+        &info, isolate->GetTurboStatistics(), &zone_stats));
+    pipeline_statistics->BeginPhaseKind("wasm stub codegen");
+  }
+
+  PipelineImpl pipeline(&data);
+
+  if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
+    StdoutStream{} << "-- wasm stub " << Code::Kind2String(kind) << " graph -- "
+                   << std::endl
+                   << AsRPO(*graph);
+  }
+
+  if (info.trace_turbo_json_enabled()) {
+    TurboJsonFile json_of(&info, std::ios_base::trunc);
+    json_of << "{\"function\":\"" << info.GetDebugName().get()
+            << "\", \"source\":\"\",\n\"phases\":[";
+  }
+  // TODO(rossberg): Should this really be untyped?
+  pipeline.RunPrintAndVerify("machine", true);
+  pipeline.ComputeScheduledGraph();
+
+  Handle<Code> code;
+  if (pipeline.GenerateCode(call_descriptor).ToHandle(&code) &&
+      pipeline.CommitDependencies(code)) {
+    return code;
+  }
+  return MaybeHandle<Code>();
+}
+
+// static
 MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     OptimizedCompilationInfo* info, Isolate* isolate) {
   ZoneStats zone_stats(isolate->allocator());

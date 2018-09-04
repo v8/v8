@@ -4783,20 +4783,14 @@ MaybeHandle<Code> CompileJSToWasmWrapper(
   Vector<const char> func_name = CStrVector("js-to-wasm");
 #endif
 
-  OptimizedCompilationInfo info(func_name, &zone, Code::JS_TO_WASM_FUNCTION);
-
-  if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
-    StdoutStream{} << "-- Graph after change lowering -- " << std::endl
-                   << AsRPO(graph);
-  }
-
   // Schedule and compile to machine code.
   int params = static_cast<int>(sig->parameter_count());
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
       &zone, false, params + 1, CallDescriptor::kNoFlags);
 
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForTesting(
-      &info, isolate, incoming, &graph, WasmAssemblerOptions());
+  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
+      isolate, incoming, &graph, Code::JS_TO_WASM_FUNCTION, func_name.start(),
+      WasmAssemblerOptions());
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     return maybe_code;
@@ -4860,21 +4854,14 @@ MaybeHandle<Code> CompileWasmToJSWrapper(
   Vector<const char> func_name = CStrVector("wasm-to-js");
 #endif
 
-  OptimizedCompilationInfo info(func_name, &zone, Code::WASM_TO_JS_FUNCTION);
-
-  if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
-    StdoutStream{} << "-- Graph after change lowering -- " << std::endl
-                   << AsRPO(graph);
-  }
-
   // Schedule and compile to machine code.
   CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
   if (machine.Is32()) {
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForTesting(
-      &info, isolate, incoming, &graph, AssemblerOptions::Default(isolate),
-      nullptr, source_position_table);
+  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
+      isolate, incoming, &graph, Code::WASM_TO_JS_FUNCTION, func_name.start(),
+      AssemblerOptions::Default(isolate), source_position_table);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     return maybe_code;
@@ -4932,16 +4919,9 @@ MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate* isolate,
   Vector<const char> func_name = CStrVector("wasm-interpreter-entry");
 #endif
 
-  OptimizedCompilationInfo info(func_name, &zone, Code::WASM_INTERPRETER_ENTRY);
-
-  if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
-    StdoutStream{} << "-- Wasm interpreter entry graph -- " << std::endl
-                   << AsRPO(graph);
-  }
-
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForTesting(
-      &info, isolate, incoming, &graph, AssemblerOptions::Default(isolate),
-      nullptr);
+  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
+      isolate, incoming, &graph, Code::WASM_INTERPRETER_ENTRY,
+      func_name.start(), AssemblerOptions::Default(isolate));
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     return maybe_code;
@@ -5001,16 +4981,10 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
     append_name_char(wasm::ValueTypes::ShortNameOf(t));
   }
   debug_name[name_len] = '\0';
-  Vector<const char> debug_name_vec(debug_name, name_len);
 
-  OptimizedCompilationInfo info(debug_name_vec, &zone, Code::C_WASM_ENTRY);
-
-  if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
-    StdoutStream{} << "-- C Wasm entry graph -- " << std::endl << AsRPO(graph);
-  }
-
-  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForTesting(
-      &info, isolate, incoming, &graph, AssemblerOptions::Default(isolate));
+  MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
+      isolate, incoming, &graph, Code::C_WASM_ENTRY, debug_name,
+      AssemblerOptions::Default(isolate));
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     return maybe_code;
