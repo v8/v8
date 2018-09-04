@@ -1336,6 +1336,8 @@ namespace internal {
   CPP(StringPrototypeToUpperCaseIntl)                                  \
   /* ES #sec-string.prototype.normalize */                             \
   CPP(StringPrototypeNormalizeIntl)                                    \
+  /* ecma402 #sec-intl.numberformat */                                 \
+  CPP(NumberFormatConstructor)                                         \
   /* ecma402 #sec-intl.numberformat.prototype.formattoparts */         \
   CPP(NumberFormatPrototypeFormatToParts)                              \
   /* ecma402 #sec-intl.datetimeformat.prototype.formattoparts */       \

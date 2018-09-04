@@ -25,6 +25,7 @@
 #include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-list-format.h"
+#include "src/objects/js-number-format-inl.h"
 #include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/managed.h"
 #include "src/runtime/runtime-utils.h"
@@ -77,40 +78,6 @@ RUNTIME_FUNCTION(Runtime_FormatListToParts) {
       isolate, JSListFormat::FormatListToParts(isolate, list_format, list));
 }
 
-RUNTIME_FUNCTION(Runtime_GetNumberOption) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(5, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, options, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, property, 1);
-  CONVERT_SMI_ARG_CHECKED(min, 2);
-  CONVERT_SMI_ARG_CHECKED(max, 3);
-  CONVERT_SMI_ARG_CHECKED(fallback, 4);
-
-  Maybe<int> num =
-      Intl::GetNumberOption(isolate, options, property, min, max, fallback);
-  if (num.IsNothing()) {
-    return ReadOnlyRoots(isolate).exception();
-  }
-  return Smi::FromInt(num.FromJust());
-}
-
-RUNTIME_FUNCTION(Runtime_DefaultNumberOption) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(5, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  CONVERT_SMI_ARG_CHECKED(min, 1);
-  CONVERT_SMI_ARG_CHECKED(max, 2);
-  CONVERT_SMI_ARG_CHECKED(fallback, 3);
-  CONVERT_ARG_HANDLE_CHECKED(String, property, 4);
-
-  Maybe<int> num =
-      Intl::DefaultNumberOption(isolate, value, min, max, fallback, property);
-  if (num.IsNothing()) {
-    return ReadOnlyRoots(isolate).exception();
-  }
-  return Smi::FromInt(num.FromJust());
-}
-
 // ECMA 402 6.2.3
 RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
   HandleScope scope(isolate);
@@ -141,14 +108,6 @@ RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
   DCHECK_EQ(0, args.length());
   return *isolate->factory()->NewStringFromAsciiChecked(
       Intl::DefaultLocale(isolate).c_str());
-}
-
-RUNTIME_FUNCTION(Runtime_IsWellFormedCurrencyCode) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, currency, 0);
-  return *(isolate->factory()->ToBoolean(
-      Intl::IsWellFormedCurrencyCode(isolate, currency)));
 }
 
 RUNTIME_FUNCTION(Runtime_DefineWEProperty) {
@@ -255,23 +214,31 @@ RUNTIME_FUNCTION(Runtime_DateTimeFormatResolvedOptions) {
       isolate, JSDateTimeFormat::ResolvedOptions(isolate, date_format_holder));
 }
 
-RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
+RUNTIME_FUNCTION(Runtime_NumberFormatResolvedOptions) {
   HandleScope scope(isolate);
 
-  DCHECK_EQ(3, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::CreateNumberFormat(isolate, locale, options, resolved));
-}
-
-RUNTIME_FUNCTION(Runtime_CurrencyDigits) {
-  HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, currency, 0);
-  return *Intl::CurrencyDigits(isolate, currency);
+  CONVERT_ARG_HANDLE_CHECKED(Object, number_format_obj, 0);
+
+  // 2. If Type(nf) is not Object, throw a TypeError exception
+  if (!number_format_obj->IsJSReceiver()) {
+    Handle<String> method_str = isolate->factory()->NewStringFromStaticChars(
+        "Intl.NumberFormat.prototype.resolvedOptions");
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              method_str, number_format_obj));
+  }
+
+  // 3. Let nf be ? UnwrapNumberFormat(nf).
+  Handle<JSReceiver> format_holder =
+      Handle<JSReceiver>::cast(number_format_obj);
+
+  Handle<JSNumberFormat> number_format;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, number_format,
+      JSNumberFormat::UnwrapNumberFormat(isolate, format_holder));
+
+  return *JSNumberFormat::ResolvedOptions(isolate, number_format);
 }
 
 RUNTIME_FUNCTION(Runtime_CollatorResolvedOptions) {

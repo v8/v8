@@ -205,21 +205,17 @@ namespace internal {
   F(CollatorResolvedOptions, 1, 1)           \
   F(CreateBreakIterator, 3, 1)               \
   F(CreateDateTimeFormat, 3, 1)              \
-  F(CreateNumberFormat, 3, 1)                \
-  F(CurrencyDigits, 1, 1)                    \
   F(DateCacheVersion, 0, 1)                  \
   F(DateTimeFormatResolvedOptions, 1, 1)     \
-  F(DefaultNumberOption, 5, 1)               \
   F(DefineWEProperty, 3, 1)                  \
   F(FormatList, 2, 1)                        \
   F(FormatListToParts, 2, 1)                 \
   F(GetDefaultICULocale, 0, 1)               \
-  F(GetNumberOption, 5, 1)                   \
   F(IntlUnwrapReceiver, 5, 1)                \
   F(IsInitializedIntlObjectOfType, 2, 1)     \
-  F(IsWellFormedCurrencyCode, 1, 1)          \
   F(MarkAsInitializedIntlObjectOfType, 2, 1) \
   F(ParseExtension, 1, 1)                    \
+  F(NumberFormatResolvedOptions, 1, 1)       \
   F(PluralRulesResolvedOptions, 1, 1)        \
   F(PluralRulesSelect, 2, 1)                 \
   F(ToDateTimeOptions, 3, 1)                 \

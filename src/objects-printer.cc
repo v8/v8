@@ -30,11 +30,12 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
+#include "src/objects/js-number-format-inl.h"
+#include "src/objects/js-plural-rules-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator-inl.h"
 #ifdef V8_INTL_SUPPORT
-#include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/js-relative-time-format-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/literal-objects-inl.h"
@@ -323,6 +324,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case JS_INTL_LOCALE_TYPE:
       JSLocale::cast(this)->JSLocalePrint(os);
+      break;
+    case JS_INTL_NUMBER_FORMAT_TYPE:
+      JSNumberFormat::cast(this)->JSNumberFormatPrint(os);
       break;
     case JS_INTL_PLURAL_RULES_TYPE:
       JSPluralRules::cast(this)->JSPluralRulesPrint(os);
@@ -1992,6 +1996,16 @@ void JSLocale::JSLocalePrint(std::ostream& os) {  // NOLINT
   os << "\n - hourCycle: " << Brief(hour_cycle());
   os << "\n - numeric: " << Brief(numeric());
   os << "\n - numberingSystem: " << Brief(numbering_system());
+  os << "\n";
+}
+
+void JSNumberFormat::JSNumberFormatPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSNumberFormat");
+  os << "\n - locale: " << Brief(locale());
+  os << "\n - icu_number_format: " << Brief(icu_number_format());
+  os << "\n - bound_format: " << Brief(bound_format());
+  os << "\n - style: " << StyleAsString();
+  os << "\n - currency_display: " << CurrencyDisplayAsString();
   os << "\n";
 }
 

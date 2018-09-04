@@ -24,16 +24,19 @@
 #include "src/objects/hash-table-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
-#include "src/objects/js-collator.h"
-#include "src/objects/js-list-format.h"
-#include "src/objects/js-locale.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/js-collator.h"
+#include "src/objects/js-list-format.h"
+#include "src/objects/js-locale.h"
+#include "src/objects/js-number-format.h"
+#include "src/objects/js-plural-rules.h"
+#endif  // V8_INTL_SUPPORT
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-regexp.h"
 #ifdef V8_INTL_SUPPORT
-#include "src/objects/js-plural-rules.h"
 #include "src/objects/js-relative-time-format.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/templates.h"
@@ -2925,10 +2928,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     {
       Handle<JSFunction> number_format_constructor = InstallFunction(
-          isolate_, intl, "NumberFormat", JS_OBJECT_TYPE, NumberFormat::kSize,
-          0, factory->the_hole_value(), Builtins::kIllegal);
-      native_context()->set_intl_number_format_function(
-          *number_format_constructor);
+          isolate_, intl, "NumberFormat", JS_INTL_NUMBER_FORMAT_TYPE,
+          JSNumberFormat::kSize, 0, factory->the_hole_value(),
+          Builtins::kNumberFormatConstructor);
+      number_format_constructor->shared()->set_length(0);
+      number_format_constructor->shared()->DontAdaptArguments();
+      InstallWithIntrinsicDefaultProto(
+          isolate_, number_format_constructor,
+          Context::INTL_NUMBER_FORMAT_FUNCTION_INDEX);
 
       SimpleInstallFunction(
           isolate(), number_format_constructor, "supportedLocalesOf",

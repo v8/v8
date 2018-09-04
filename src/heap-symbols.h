@@ -41,6 +41,7 @@
   V(cell_value_string, "%cell_value")                              \
   V(char_at_string, "CharAt")                                      \
   V(closure_string, "(closure)")                                   \
+  V(code_string, "code")                                           \
   V(collation_string, "collation")                                 \
   V(column_string, "column")                                       \
   V(CompileError_string, "CompileError")                           \
@@ -50,6 +51,7 @@
   V(conjunction_string, "conjunction")                             \
   V(create_string, "create")                                       \
   V(currency_string, "currency")                                   \
+  V(currencyDisplay_string, "currencyDisplay")                     \
   V(Date_string, "Date")                                           \
   V(date_to_string, "[object Date]")                               \
   V(day_string, "day")                                             \
@@ -128,9 +130,14 @@
   V(long_string, "long")                                           \
   V(Map_string, "Map")                                             \
   V(MapIterator_string, "Map Iterator")                            \
+  V(maximumFractionDigits_string, "maximumFractionDigits")         \
+  V(maximumSignificantDigits_string, "maximumSignificantDigits")   \
   V(message_string, "message")                                     \
   V(minus_Infinity_string, "-Infinity")                            \
   V(minus_zero_string, "-0")                                       \
+  V(minimumFractionDigits_string, "minimumFractionDigits")         \
+  V(minimumIntegerDigits_string, "minimumIntegerDigits")           \
+  V(minimumSignificantDigits_string, "minimumSignificantDigits")   \
   V(minusSign_string, "minusSign")                                 \
   V(minute_string, "minute")                                       \
   V(Module_string, "Module")                                       \
@@ -153,6 +160,7 @@
   V(Number_string, "Number")                                       \
   V(number_string, "number")                                       \
   V(number_to_string, "[object Number]")                           \
+  V(numberingSystem_string, "numberingSystem")                     \
   V(numeric_string, "numeric")                                     \
   V(Object_string, "Object")                                       \
   V(object_string, "object")                                       \
@@ -160,6 +168,7 @@
   V(ok, "ok")                                                      \
   V(one_string, "1")                                               \
   V(ownKeys_string, "ownKeys")                                     \
+  V(percent_string, "percent")                                     \
   V(percentSign_string, "percentSign")                             \
   V(plusSign_string, "plusSign")                                   \
   V(position_string, "position")                                   \
@@ -231,6 +240,7 @@
   V(usage_string, "usage")                                         \
   V(use_asm_string, "use asm")                                     \
   V(use_strict_string, "use strict")                               \
+  V(useGrouping_string, "useGrouping")                             \
   V(value_string, "value")                                         \
   V(valueOf_string, "valueOf")                                     \
   V(values_string, "values")                                       \

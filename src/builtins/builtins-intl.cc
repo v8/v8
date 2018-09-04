@@ -22,8 +22,10 @@
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
+#include "src/objects/js-number-format-inl.h"
 #include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/js-relative-time-format-inl.h"
+#include "src/property-descriptor.h"
 
 #include "unicode/datefmt.h"
 #include "unicode/decimfmt.h"
@@ -475,16 +477,7 @@ BUILTIN(NumberFormatSupportedLocalesOf) {
 BUILTIN(NumberFormatPrototypeFormatToParts) {
   const char* const method = "Intl.NumberFormat.prototype.formatToParts";
   HandleScope handle_scope(isolate);
-  CHECK_RECEIVER(JSObject, number_format_holder, method);
-
-  if (!Intl::IsObjectOfType(isolate, number_format_holder,
-                            Intl::Type::kNumberFormat)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                     isolate->factory()->NewStringFromAsciiChecked(method),
-                     number_format_holder));
-  }
+  CHECK_RECEIVER(JSNumberFormat, number_format, method);
 
   Handle<Object> x;
   if (args.length() >= 2) {
@@ -494,12 +487,12 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
     x = isolate->factory()->nan_value();
   }
 
-  icu::DecimalFormat* number_format =
-      NumberFormat::UnpackNumberFormat(number_format_holder);
-  CHECK_NOT_NULL(number_format);
+  icu::NumberFormat* icu_number_format =
+      number_format->icu_number_format()->raw();
+  CHECK_NOT_NULL(icu_number_format);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, FormatNumberToParts(isolate, number_format, x->Number()));
+      isolate, FormatNumberToParts(isolate, icu_number_format, x->Number()));
 }
 
 BUILTIN(DateTimeFormatSupportedLocalesOf) {
@@ -570,6 +563,91 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
   return new_bound_function;
 }
 }  // namespace
+BUILTIN(NumberFormatConstructor) {
+  HandleScope scope(isolate);
+  Handle<JSReceiver> new_target;
+  // 1. If NewTarget is undefined, let newTarget be the active
+  // function object, else let newTarget be NewTarget.
+  if (args.new_target()->IsUndefined(isolate)) {
+    new_target = args.target();
+  } else {
+    new_target = Handle<JSReceiver>::cast(args.new_target());
+  }
+
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  // 2. Let numberFormat be ? OrdinaryCreateFromConstructor(newTarget,
+  // "%NumberFormatPrototype%", « [[InitializedNumberFormat]], [[Locale]],
+  // [[NumberingSystem]], [[Style]], [[Currency]], [[CurrencyDisplay]],
+  // [[MinimumIntegerDigits]], [[MinimumFractionDigits]],
+  // [[MaximumFractionDigits]], [[MinimumSignificantDigits]],
+  // [[MaximumSignificantDigits]], [[UseGrouping]], [[PositivePattern]],
+  // [[NegativePattern]], [[BoundFormat]] »).
+
+  Handle<JSObject> number_format_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_format_obj,
+                                     JSObject::New(target, new_target));
+  Handle<JSNumberFormat> number_format =
+      Handle<JSNumberFormat>::cast(number_format_obj);
+  number_format->set_flags(0);
+
+  // 3. Perform ? InitializeNumberFormat(numberFormat, locales, options).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, number_format,
+      JSNumberFormat::InitializeNumberFormat(isolate, number_format, locales,
+                                             options));
+  // 4. Let this be the this value.
+  Handle<Object> receiver = args.receiver();
+
+  // 5. If NewTarget is undefined and ? InstanceofOperator(this, %NumberFormat%)
+  // is true, then
+  //
+  // Look up the intrinsic value that has been stored on the context.
+  Handle<Object> number_format_constructor =
+      isolate->intl_number_format_function();
+
+  // Call the instanceof function
+  Handle<Object> is_instance_of_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, is_instance_of_obj,
+      Object::InstanceOf(isolate, receiver, number_format_constructor));
+
+  // Get the boolean value of the result
+  bool is_instance_of = is_instance_of_obj->BooleanValue(isolate);
+
+  if (args.new_target()->IsUndefined(isolate) && is_instance_of) {
+    if (!receiver->IsJSReceiver()) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                                isolate->factory()->NewStringFromStaticChars(
+                                    "Intl.NumberFormat"),
+                                receiver));
+    }
+    Handle<JSReceiver> rec = Handle<JSReceiver>::cast(receiver);
+    // a. Perform ? DefinePropertyOrThrow(this,
+    // %Intl%.[[FallbackSymbol]], PropertyDescriptor{ [[Value]]: numberFormat,
+    // [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
+    PropertyDescriptor desc;
+    desc.set_value(number_format);
+    desc.set_writable(false);
+    desc.set_enumerable(false);
+    desc.set_configurable(false);
+    Maybe<bool> success = JSReceiver::DefineOwnProperty(
+        isolate, rec, isolate->factory()->intl_fallback_symbol(), &desc,
+        kThrowOnError);
+    MAYBE_RETURN(success, ReadOnlyRoots(isolate).exception());
+    CHECK(success.FromJust());
+    // b. b. Return this.
+    return *receiver;
+  }
+
+  // 6. Return numberFormat.
+  return *number_format;
+}
 
 BUILTIN(NumberFormatPrototypeFormatNumber) {
   const char* const method = "get Intl.NumberFormat.prototype.format";
@@ -577,20 +655,14 @@ BUILTIN(NumberFormatPrototypeFormatNumber) {
 
   // 1. Let nf be the this value.
   // 2. If Type(nf) is not Object, throw a TypeError exception.
-  CHECK_RECEIVER(JSReceiver, receiver, method);
+  CHECK_RECEIVER(JSObject, format_holder, method);
 
   // 3. Let nf be ? UnwrapNumberFormat(nf).
-  Handle<JSObject> number_format_holder;
+  Handle<JSNumberFormat> nf;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, number_format_holder,
-      NumberFormat::Unwrap(isolate, receiver, method));
+      isolate, nf, JSNumberFormat::UnwrapNumberFormat(isolate, format_holder));
 
-  DCHECK(Intl::IsObjectOfType(isolate, number_format_holder,
-                              Intl::Type::kNumberFormat));
-
-  Handle<Object> bound_format = Handle<Object>(
-      number_format_holder->GetEmbedderField(NumberFormat::kBoundFormatIndex),
-      isolate);
+  Handle<Object> bound_format = Handle<Object>(nf->bound_format(), isolate);
 
   // 4. If nf.[[BoundFormat]] is undefined, then
   if (!bound_format->IsUndefined(isolate)) {
@@ -599,13 +671,11 @@ BUILTIN(NumberFormatPrototypeFormatNumber) {
     return *bound_format;
   }
 
-  Handle<JSFunction> new_bound_format_function =
-      CreateBoundFunction(isolate, number_format_holder,
-                          Builtins::kNumberFormatInternalFormatNumber, 1);
+  Handle<JSFunction> new_bound_format_function = CreateBoundFunction(
+      isolate, format_holder, Builtins::kNumberFormatInternalFormatNumber, 1);
 
   // 4. c. Set nf.[[BoundFormat]] to F.
-  number_format_holder->SetEmbedderField(NumberFormat::kBoundFormatIndex,
-                                         *new_bound_format_function);
+  nf->set_bound_format(*new_bound_format_function);
 
   // 5. Return nf.[[BoundFormat]].
   return *new_bound_format_function;
@@ -617,15 +687,12 @@ BUILTIN(NumberFormatInternalFormatNumber) {
   Handle<Context> context = Handle<Context>(isolate->context(), isolate);
 
   // 1. Let nf be F.[[NumberFormat]].
-  Handle<JSObject> number_format_holder = Handle<JSObject>(
-      JSObject::cast(context->get(
-          static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
-      isolate);
-
   // 2. Assert: Type(nf) is Object and nf has an
   //    [[InitializedNumberFormat]] internal slot.
-  DCHECK(Intl::IsObjectOfType(isolate, number_format_holder,
-                              Intl::Type::kNumberFormat));
+  Handle<JSNumberFormat> number_format = Handle<JSNumberFormat>(
+      JSNumberFormat::cast(
+          context->get(JSNumberFormat::ContextSlot::kNumberFormat)),
+      isolate);
 
   // 3. If value is not provided, let value be undefined.
   Handle<Object> value = args.atOrUndefined(isolate, 1);
@@ -642,8 +709,8 @@ BUILTIN(NumberFormatInternalFormatNumber) {
 
   double number = number_obj->Number();
   // Return FormatNumber(nf, x).
-  RETURN_RESULT_OR_FAILURE(isolate, NumberFormat::FormatNumber(
-                                        isolate, number_format_holder, number));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSNumberFormat::FormatNumber(isolate, number_format, number));
 }
 
 BUILTIN(DateTimeFormatPrototypeFormat) {
