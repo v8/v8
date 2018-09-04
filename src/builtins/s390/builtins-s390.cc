@@ -2408,6 +2408,9 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ LoadRR(r3, r2);
     __ la(r2, MemOperand(sp, (kStackFrameExtraParamSlot + 1) * kPointerSize));
     isolate_reg = r5;
+    // Clang doesn't preserve r2 (result buffer)
+    // write to r8 (preserved) before entry
+    __ LoadRR(r8, r2);
   }
   // Call C built-in.
   __ Move(isolate_reg, ExternalReference::isolate_address(masm->isolate()));
@@ -2433,6 +2436,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // If return value is on the stack, pop it to registers.
   if (needs_return_buffer) {
+    __ LoadRR(r2, r8);
     __ LoadP(r3, MemOperand(r2, kPointerSize));
     __ LoadP(r2, MemOperand(r2));
   }
