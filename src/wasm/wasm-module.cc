@@ -30,12 +30,6 @@ namespace wasm {
 // static
 const WasmExceptionSig WasmException::empty_sig_(0, 0, nullptr);
 
-// static
-constexpr const char* WasmException::kRuntimeIdStr;
-
-// static
-constexpr const char* WasmException::kRuntimeValuesStr;
-
 WireBytesRef WasmModule::LookupFunctionName(const ModuleWireBytes& wire_bytes,
                                             uint32_t function_index) const {
   if (!function_names) {

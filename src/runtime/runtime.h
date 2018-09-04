@@ -486,6 +486,8 @@ namespace internal {
   F(GetDeoptCount, 1, 1)                      \
   F(GetOptimizationStatus, -1, 1)             \
   F(GetUndetectable, 0, 1)                    \
+  F(GetWasmExceptionId, 1, 1)                 \
+  F(GetWasmExceptionValues, 1, 1)             \
   F(GetWasmRecoveredTrapCount, 0, 1)          \
   F(GlobalPrint, 1, 1)                        \
   F(HasDictionaryElements, 1, 1)              \

@@ -835,10 +835,30 @@ RUNTIME_FUNCTION(Runtime_IsWasmTrapHandlerEnabled) {
 }
 
 RUNTIME_FUNCTION(Runtime_GetWasmRecoveredTrapCount) {
-  HandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   size_t trap_count = trap_handler::GetRecoveredTrapCount();
   return *isolate->factory()->NewNumberFromSize(trap_count);
+}
+
+RUNTIME_FUNCTION(Runtime_GetWasmExceptionId) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, exception, 0);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSReceiver::GetProperty(
+                   isolate, exception,
+                   isolate->factory()->wasm_exception_runtime_id_symbol()));
+}
+
+RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, exception, 0);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSReceiver::GetProperty(
+                   isolate, exception,
+                   isolate->factory()->wasm_exception_values_symbol()));
 }
 
 namespace {

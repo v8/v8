@@ -409,30 +409,6 @@ function assertTraps(trap, code) {
   throw new MjsUnitAssertionError('Did not trap, expected: ' + kTrapMsgs[trap]);
 }
 
-function assertWasmThrows(runtime_id, values, code) {
-  try {
-    if (typeof code === 'function') {
-      code();
-    } else {
-      eval(code);
-    }
-  } catch (e) {
-    assertTrue(e instanceof WebAssembly.RuntimeError);
-    var e_runtime_id = e['WasmExceptionRuntimeId'];
-    assertEquals(e_runtime_id, runtime_id);
-    assertTrue(Number.isInteger(e_runtime_id));
-    var e_values = e['WasmExceptionValues'];
-    assertEquals(values.length, e_values.length);
-    for (i = 0; i < values.length; ++i) {
-      assertEquals(values[i], e_values[i]);
-    }
-    // Success.
-    return;
-  }
-  throw new MjsUnitAssertionError('Did not throw expected <' + runtime_id +
-                                  '> with values: ' + values);
-}
-
 function wasmI32Const(val) {
   let bytes = [kExprI32Const];
   for (let i = 0; i < 4; ++i) {

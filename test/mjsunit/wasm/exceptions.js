@@ -2,10 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-eh
+// Flags: --expose-wasm --experimental-wasm-eh --allow-natives-syntax
 
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
+
+function assertWasmThrows(runtime_id, values, code) {
+  try {
+    if (typeof code === 'function') {
+      code();
+    } else {
+      eval(code);
+    }
+  } catch (e) {
+    assertInstanceof(e, WebAssembly.RuntimeError);
+    var e_runtime_id = %GetWasmExceptionId(e);
+    assertTrue(Number.isInteger(e_runtime_id));
+    assertEquals(e_runtime_id, runtime_id);
+    var e_values = %GetWasmExceptionValues(e);
+    assertArrayEquals(values, e_values);
+    return;  // Success.
+  }
+  throw new MjsUnitAssertionError('Did not throw expected <' + runtime_id +
+                                  '> with values: ' + values);
+}
 
 // First we just test that "except_ref" local variables are allowed.
 (function TestLocalExceptRef() {

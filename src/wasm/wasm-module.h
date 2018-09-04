@@ -81,10 +81,6 @@ struct WasmException {
 
   const WasmExceptionSig* sig;  // type signature of the exception.
 
-  // Used to hold data on runtime exceptions.
-  static constexpr const char* kRuntimeIdStr = "WasmExceptionRuntimeId";
-  static constexpr const char* kRuntimeValuesStr = "WasmExceptionValues";
-
  private:
   static const WasmExceptionSig empty_sig_;
 };
