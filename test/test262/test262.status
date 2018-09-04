@@ -598,9 +598,6 @@
   'intl402/Locale/prototype/toStringTag/toStringTag': [FAIL],
   'intl402/Locale/prototype/toStringTag/toString': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7814
-  'built-ins/Array/prototype/splice/property-traps-order-with-species': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6705
   'built-ins/Object/assign/strings-and-symbol-order': [FAIL],
 
@@ -683,8 +680,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6538
   'built-ins/Array/prototype/unshift/throws-if-integer-limit-exceeded': [SKIP],
-  'built-ins/Array/prototype/splice/create-species-length-exceeding-integer-limit': [FAIL],
-  'built-ins/Array/prototype/splice/throws-if-integer-limit-exceeded': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6541
   'language/export/escaped-as-export-specifier': [FAIL],

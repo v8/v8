@@ -32,10 +32,3 @@ assertEquals(0xffffffff, a.length);
 assertEquals(10, a[0xffffffff]);
 assertEquals(0xffffffff, a.length);
 assertEquals(undefined, a[0xfffffffe]);
-
-a = [1,2,3];
-a[0xfffffffe] = 10;
-assertThrows("a.splice(1,1,7,7,7,7,7);", RangeError);
-assertEquals([1,7,7,7,7,7,3], a.slice(0, 7));
-assertEquals(0xffffffff, a.length);
-assertEquals(10, a[0xfffffffe + 5 - 1]);

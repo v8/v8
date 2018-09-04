@@ -23,34 +23,6 @@ namespace internal {
 
 namespace {
 
-inline bool ClampedToInteger(Isolate* isolate, Object* object, int* out) {
-  // This is an extended version of ECMA-262 7.1.11 handling signed values
-  // Try to convert object to a number and clamp values to [kMinInt, kMaxInt]
-  if (object->IsSmi()) {
-    *out = Smi::ToInt(object);
-    return true;
-  } else if (object->IsHeapNumber()) {
-    double value = HeapNumber::cast(object)->value();
-    if (std::isnan(value)) {
-      *out = 0;
-    } else if (value > kMaxInt) {
-      *out = kMaxInt;
-    } else if (value < kMinInt) {
-      *out = kMinInt;
-    } else {
-      *out = static_cast<int>(value);
-    }
-    return true;
-  } else if (object->IsNullOrUndefined(isolate)) {
-    *out = 0;
-    return true;
-  } else if (object->IsBoolean()) {
-    *out = object->IsTrue(isolate);
-    return true;
-  }
-  return false;
-}
-
 inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
                                               JSArray* receiver) {
   return JSObject::PrototypeHasNoElements(isolate, receiver);
@@ -635,67 +607,6 @@ BUILTIN(ArrayUnshift) {
   ElementsAccessor* accessor = array->GetElementsAccessor();
   int new_length = accessor->Unshift(array, &args, to_add);
   return Smi::FromInt(new_length);
-}
-
-BUILTIN(ArraySplice) {
-  HandleScope scope(isolate);
-  Handle<Object> receiver = args.receiver();
-  if (V8_UNLIKELY(
-          !EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 3,
-                                                 args.length() - 3) ||
-          // If this is a subclass of Array, then call out to JS.
-          !Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) ||
-          // If anything with @@species has been messed with, call out to JS.
-          !isolate->IsArraySpeciesLookupChainIntact())) {
-    return CallJsIntrinsic(isolate, isolate->array_splice(), args);
-  }
-  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-
-  int argument_count = args.length() - 1;
-  int relative_start = 0;
-  if (argument_count > 0) {
-    DisallowHeapAllocation no_gc;
-    if (!ClampedToInteger(isolate, args[1], &relative_start)) {
-      AllowHeapAllocation allow_allocation;
-      return CallJsIntrinsic(isolate, isolate->array_splice(), args);
-    }
-  }
-  int len = Smi::ToInt(array->length());
-  // clip relative start to [0, len]
-  int actual_start = (relative_start < 0) ? Max(len + relative_start, 0)
-                                          : Min(relative_start, len);
-
-  int actual_delete_count;
-  if (argument_count == 1) {
-    // SpiderMonkey, TraceMonkey and JSC treat the case where no delete count is
-    // given as a request to delete all the elements from the start.
-    // And it differs from the case of undefined delete count.
-    // This does not follow ECMA-262, but we do the same for compatibility.
-    DCHECK_GE(len - actual_start, 0);
-    actual_delete_count = len - actual_start;
-  } else {
-    int delete_count = 0;
-    DisallowHeapAllocation no_gc;
-    if (argument_count > 1) {
-      if (!ClampedToInteger(isolate, args[2], &delete_count)) {
-        AllowHeapAllocation allow_allocation;
-        return CallJsIntrinsic(isolate, isolate->array_splice(), args);
-      }
-    }
-    actual_delete_count = Min(Max(delete_count, 0), len - actual_start);
-  }
-
-  int add_count = (argument_count > 1) ? (argument_count - 2) : 0;
-  int new_length = len - actual_delete_count + add_count;
-
-  if (new_length != len && JSArray::HasReadOnlyLength(array)) {
-    AllowHeapAllocation allow_allocation;
-    return CallJsIntrinsic(isolate, isolate->array_splice(), args);
-  }
-  ElementsAccessor* accessor = array->GetElementsAccessor();
-  Handle<JSArray> result_array = accessor->Splice(
-      array, actual_start, actual_delete_count, &args, add_count);
-  return *result_array;
 }
 
 // Array Concat -------------------------------------------------------------

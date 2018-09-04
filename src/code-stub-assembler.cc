@@ -4246,6 +4246,33 @@ void CodeStubAssembler::FillFixedArrayWithValue(
       mode);
 }
 
+void CodeStubAssembler::StoreFixedDoubleArrayHole(
+    TNode<FixedDoubleArray> array, Node* index, ParameterMode parameter_mode) {
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(index, parameter_mode));
+  Node* offset =
+      ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS, parameter_mode,
+                             FixedArray::kHeaderSize - kHeapObjectTag);
+  CSA_ASSERT(this, IsOffsetInBounds(
+                       offset, LoadAndUntagFixedArrayBaseLength(array),
+                       FixedDoubleArray::kHeaderSize, PACKED_DOUBLE_ELEMENTS));
+  Node* double_hole =
+      Is64() ? ReinterpretCast<UintPtrT>(Int64Constant(kHoleNanInt64))
+             : ReinterpretCast<UintPtrT>(Int32Constant(kHoleNanLower32));
+  // TODO(danno): When we have a Float32/Float64 wrapper class that
+  // preserves double bits during manipulation, remove this code/change
+  // this to an indexed Float64 store.
+  if (Is64()) {
+    StoreNoWriteBarrier(MachineRepresentation::kWord64, array, offset,
+                        double_hole);
+  } else {
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, array, offset,
+                        double_hole);
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, array,
+                        IntPtrAdd(offset, IntPtrConstant(kPointerSize)),
+                        double_hole);
+  }
+}
+
 void CodeStubAssembler::FillFixedArrayWithSmiZero(TNode<FixedArray> array,
                                                   TNode<IntPtrT> length) {
   CSA_ASSERT(this, WordEqual(length, LoadAndUntagFixedArrayBaseLength(array)));
@@ -10050,6 +10077,10 @@ void CodeStubAssembler::BranchIfNumberRelationalComparison(
                     // Both {left} and {right} are Smi, so just perform a fast
                     // Smi comparison.
                     switch (op) {
+                      case Operation::kEqual:
+                        BranchIfSmiEqual(smi_left, smi_right, if_true,
+                                         if_false);
+                        break;
                       case Operation::kLessThan:
                         BranchIfSmiLessThan(smi_left, smi_right, if_true,
                                             if_false);
@@ -10096,6 +10127,10 @@ void CodeStubAssembler::BranchIfNumberRelationalComparison(
   BIND(&do_float_comparison);
   {
     switch (op) {
+      case Operation::kEqual:
+        Branch(Float64Equal(var_left_float.value(), var_right_float.value()),
+               if_true, if_false);
+        break;
       case Operation::kLessThan:
         Branch(Float64LessThan(var_left_float.value(), var_right_float.value()),
                if_true, if_false);
@@ -11997,6 +12032,15 @@ Node* CodeStubAssembler::ArraySpeciesCreate(TNode<Context> context,
                                             TNode<Number> len) {
   Node* constructor =
       CallRuntime(Runtime::kArraySpeciesConstructor, context, o);
+  return ConstructJS(CodeFactory::Construct(isolate()), context, constructor,
+                     len);
+}
+
+Node* CodeStubAssembler::InternalArrayCreate(TNode<Context> context,
+                                             TNode<Number> len) {
+  Node* native_context = LoadNativeContext(context);
+  Node* const constructor = LoadContextElement(
+      native_context, Context::INTERNAL_ARRAY_FUNCTION_INDEX);
   return ConstructJS(CodeFactory::Construct(isolate()), context, constructor,
                      len);
 }

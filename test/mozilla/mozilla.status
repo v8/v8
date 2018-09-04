@@ -184,6 +184,11 @@
   # characters. This takes a long time to run (~32 seconds).
   'js1_5/GC/regress-348532': [SKIP],
 
+  # Takes a really long time to run, creating an Array of length
+  # 2^32 - 1. Related to removal of "sparse" array support for
+  # splice and friends:
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8131.
+  'ecma_3/Array/regress-322135-03': [SKIP],
 
   # Runs for too long: huge array with getters and setters. As it says
   # in the test: "This test will probably run out of memory".

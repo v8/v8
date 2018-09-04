@@ -152,8 +152,8 @@ module array {
     assert(IsFastSmiOrTaggedElementsKind(array.map.elements_kind));
 
     const length: Smi = array.length_fast;
-    array.elements = ExtractFixedArray(
-        unsafe_cast<FixedArray>(elements), 0, length, length, kFixedArrays);
+    array.elements =
+        ExtractFixedArray(unsafe_cast<FixedArray>(elements), 0, length, length);
   }
 
   macro TryFastPackedArrayReverse(receiver: Object) labels Slow {

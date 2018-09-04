@@ -724,18 +724,6 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     UNREACHABLE();
   }
 
-  Handle<JSArray> Splice(Handle<JSArray> receiver, uint32_t start,
-                         uint32_t delete_count, Arguments* args,
-                         uint32_t add_count) final {
-    return Subclass::SpliceImpl(receiver, start, delete_count, args, add_count);
-  }
-
-  static Handle<JSArray> SpliceImpl(Handle<JSArray> receiver,
-                                    uint32_t start, uint32_t delete_count,
-                                    Arguments* args, uint32_t add_count) {
-    UNREACHABLE();
-  }
-
   Handle<Object> Pop(Handle<JSArray> receiver) final {
     return Subclass::PopImpl(receiver);
   }
@@ -2227,58 +2215,6 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return result_array;
   }
 
-  static Handle<JSArray> SpliceImpl(Handle<JSArray> receiver,
-                                    uint32_t start, uint32_t delete_count,
-                                    Arguments* args, uint32_t add_count) {
-    Isolate* isolate = receiver->GetIsolate();
-    Heap* heap = isolate->heap();
-    uint32_t length = Smi::ToInt(receiver->length());
-    uint32_t new_length = length - delete_count + add_count;
-
-    ElementsKind kind = KindTraits::Kind;
-    if (new_length <= static_cast<uint32_t>(receiver->elements()->length()) &&
-        IsSmiOrObjectElementsKind(kind)) {
-      HandleScope scope(isolate);
-      JSObject::EnsureWritableFastElements(receiver);
-    }
-
-    Handle<FixedArrayBase> backing_store(receiver->elements(), isolate);
-
-    if (new_length == 0) {
-      receiver->set_elements(ReadOnlyRoots(heap).empty_fixed_array());
-      receiver->set_length(Smi::kZero);
-      return isolate->factory()->NewJSArrayWithElements(
-          backing_store, KindTraits::Kind, delete_count);
-    }
-
-    // Construct the result array which holds the deleted elements.
-    Handle<JSArray> deleted_elements = isolate->factory()->NewJSArray(
-        KindTraits::Kind, delete_count, delete_count);
-    if (delete_count > 0) {
-      DisallowHeapAllocation no_gc;
-      Subclass::CopyElementsImpl(isolate, *backing_store, start,
-                                 deleted_elements->elements(), KindTraits::Kind,
-                                 0, kPackedSizeNotKnown, delete_count);
-    }
-
-    // Delete and move elements to make space for add_count new elements.
-    if (add_count < delete_count) {
-      Subclass::SpliceShrinkStep(isolate, receiver, backing_store, start,
-                                 delete_count, add_count, length, new_length);
-    } else if (add_count > delete_count) {
-      backing_store =
-          Subclass::SpliceGrowStep(isolate, receiver, backing_store, start,
-                                   delete_count, add_count, length, new_length);
-    }
-
-    // Copy over the arguments.
-    Subclass::CopyArguments(args, backing_store, add_count, 3, start);
-
-    receiver->set_length(Smi::FromInt(new_length));
-    Subclass::TryTransitionResultArrayToPacked(deleted_elements);
-    return deleted_elements;
-  }
-
   static void MoveElements(Isolate* isolate, Handle<JSArray> receiver,
                            Handle<FixedArrayBase> backing_store, int dst_index,
                            int src_index, int len, int hole_start,
@@ -2501,50 +2437,6 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
       result->set(i, *value);
     }
     return result;
-  }
-
- private:
-  // SpliceShrinkStep might modify the backing_store.
-  static void SpliceShrinkStep(Isolate* isolate, Handle<JSArray> receiver,
-                               Handle<FixedArrayBase> backing_store,
-                               uint32_t start, uint32_t delete_count,
-                               uint32_t add_count, uint32_t len,
-                               uint32_t new_length) {
-    const int move_left_count = len - delete_count - start;
-    const int move_left_dst_index = start + add_count;
-    Subclass::MoveElements(isolate, receiver, backing_store,
-                           move_left_dst_index, start + delete_count,
-                           move_left_count, new_length, len);
-  }
-
-  // SpliceGrowStep might modify the backing_store.
-  static Handle<FixedArrayBase> SpliceGrowStep(
-      Isolate* isolate, Handle<JSArray> receiver,
-      Handle<FixedArrayBase> backing_store, uint32_t start,
-      uint32_t delete_count, uint32_t add_count, uint32_t length,
-      uint32_t new_length) {
-    // Check we do not overflow the new_length.
-    DCHECK((add_count - delete_count) <= (Smi::kMaxValue - length));
-    // Check if backing_store is big enough.
-    if (new_length <= static_cast<uint32_t>(backing_store->length())) {
-      Subclass::MoveElements(isolate, receiver, backing_store,
-                             start + add_count, start + delete_count,
-                             (length - delete_count - start), 0, 0);
-      // MoveElements updates the backing_store in-place.
-      return backing_store;
-    }
-    // New backing storage is needed.
-    int capacity = JSObject::NewElementsCapacity(new_length);
-    // Partially copy all elements up to start.
-    Handle<FixedArrayBase> new_elms = Subclass::ConvertElementsWithCapacity(
-        receiver, backing_store, KindTraits::Kind, capacity, start);
-    // Copy the trailing elements after start + delete_count
-    Subclass::CopyElementsImpl(isolate, *backing_store, start + delete_count,
-                               *new_elms, KindTraits::Kind, start + add_count,
-                               kPackedSizeNotKnown,
-                               ElementsAccessor::kCopyToEndAndInitializeToHole);
-    receiver->set_elements(*new_elms);
-    return new_elms;
   }
 
   static Handle<Object> RemoveElement(Handle<JSArray> receiver,

@@ -135,10 +135,6 @@ class ElementsAccessor {
   virtual Handle<JSObject> Slice(Handle<JSObject> receiver, uint32_t start,
                                  uint32_t end) = 0;
 
-  virtual Handle<JSArray> Splice(Handle<JSArray> receiver,
-                                 uint32_t start, uint32_t delete_count,
-                                 Arguments* args, uint32_t add_count) = 0;
-
   virtual Handle<Object> Pop(Handle<JSArray> receiver) = 0;
 
   virtual Handle<Object> Shift(Handle<JSArray> receiver) = 0;

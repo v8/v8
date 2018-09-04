@@ -31,13 +31,8 @@
  * should work on other objects too, so we test that too.
  */
 
-var LARGE = 400000;
-var VERYLARGE = 4000000000;
-
-// Nicer for firefox 1.5.  Unless you uncomment the following two lines,
-// smjs will appear to hang on this file.
-//var LARGE = 40000;
-//var VERYLARGE = 40000;
+var LARGE = 40000;
+var VERYLARGE = 40000;
 
 var fourhundredth = LARGE/400;
 
