@@ -20,6 +20,7 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collator-inl.h"
+#include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-locale-inl.h"
 #include "src/objects/js-number-format-inl.h"
@@ -725,7 +726,7 @@ BUILTIN(DateTimeFormatPrototypeFormat) {
   Handle<JSObject> date_format_holder;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, date_format_holder,
-      DateFormat::Unwrap(isolate, receiver, method));
+      JSDateTimeFormat::Unwrap(isolate, receiver, method));
   DCHECK(Intl::IsObjectOfType(isolate, date_format_holder,
                               Intl::Type::kDateTimeFormat));
 
@@ -768,8 +769,8 @@ BUILTIN(DateTimeFormatInternalFormat) {
 
   Handle<Object> date = args.atOrUndefined(isolate, 1);
 
-  RETURN_RESULT_OR_FAILURE(
-      isolate, DateFormat::DateTimeFormat(isolate, date_format_holder, date));
+  RETURN_RESULT_OR_FAILURE(isolate, JSDateTimeFormat::DateTimeFormat(
+                                        isolate, date_format_holder, date));
 }
 
 BUILTIN(ListFormatConstructor) {

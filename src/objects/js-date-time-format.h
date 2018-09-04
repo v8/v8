@@ -26,6 +26,14 @@ class JSDateTimeFormat : public JSObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSReceiver> date_time_holder);
 
+  // The UnwrapDateTimeFormat abstract operation gets the underlying
+  // DateTimeFormat operation for various methods which implement ECMA-402 v1
+  // semantics for supporting initializing existing Intl objects.
+  //
+  // ecma402/#sec-unwrapdatetimeformat
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> Unwrap(
+      Isolate* isolate, Handle<JSReceiver> receiver, const char* method_name);
+
   // Convert the options to ICU DateTimePatternGenerator skeleton.
   static Maybe<std::string> OptionsToSkeleton(Isolate* isolate,
                                               Handle<JSReceiver> options);
@@ -34,6 +42,22 @@ class JSDateTimeFormat : public JSObject {
   // return empty string when error.
   static std::string CanonicalizeTimeZoneID(Isolate* isolate,
                                             const std::string& input);
+
+  // ecma402/#sec-datetime-format-functions
+  // DateTime Format Functions
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> DateTimeFormat(
+      Isolate* isolate, Handle<JSObject> date_time_format_holder,
+      Handle<Object> date);
+
+  // ecma-402/#sec-todatetimeoptions
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ToDateTimeOptions(
+      Isolate* isolate, Handle<Object> input_options, const char* required,
+      const char* defaults);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleDateTime(
+      Isolate* isolate, Handle<Object> date, Handle<Object> locales,
+      Handle<Object> options, const char* required, const char* defaults,
+      const char* service);
 
   DECL_CAST(JSDateTimeFormat)
 

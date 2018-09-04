@@ -448,5 +448,225 @@ Maybe<std::string> JSDateTimeFormat::OptionsToSkeleton(
   return Just(result);
 }
 
+namespace {
+
+// ecma402/#sec-formatdatetime
+// FormatDateTime( dateTimeFormat, x )
+MaybeHandle<String> FormatDateTime(Isolate* isolate,
+                                   Handle<JSObject> date_time_format_holder,
+                                   double x) {
+  double date_value = DateCache::TimeClip(x);
+  if (std::isnan(date_value)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
+                    String);
+  }
+
+  CHECK(Intl::IsObjectOfType(isolate, date_time_format_holder,
+                             Intl::Type::kDateTimeFormat));
+  icu::SimpleDateFormat* date_format =
+      DateFormat::UnpackDateFormat(date_time_format_holder);
+  CHECK_NOT_NULL(date_format);
+
+  icu::UnicodeString result;
+  date_format->format(date_value, result);
+
+  return isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
+      reinterpret_cast<const uint16_t*>(result.getBuffer()), result.length()));
+}
+
+}  // namespace
+
+// ecma402/#sec-datetime-format-functions
+// DateTime Format Functions
+MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
+    Isolate* isolate, Handle<JSObject> date_time_format_holder,
+    Handle<Object> date) {
+  // 2. Assert: Type(dtf) is Object and dtf has an [[InitializedDateTimeFormat]]
+  // internal slot.
+  DCHECK(Intl::IsObjectOfType(isolate, date_time_format_holder,
+                              Intl::Type::kDateTimeFormat));
+
+  // 3. If date is not provided or is undefined, then
+  double x;
+  if (date->IsUndefined()) {
+    // 3.a Let x be Call(%Date_now%, undefined).
+    x = JSDate::CurrentTimeValue(isolate);
+  } else {
+    // 4. Else,
+    //    a. Let x be ? ToNumber(date).
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, date, Object::ToNumber(isolate, date),
+                               String);
+    CHECK(date->IsNumber());
+    x = date->Number();
+  }
+  // 5. Return FormatDateTime(dtf, x).
+  return FormatDateTime(isolate, date_time_format_holder, x);
+}
+
+MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
+    Isolate* isolate, Handle<Object> date, Handle<Object> locales,
+    Handle<Object> options, const char* required, const char* defaults,
+    const char* service) {
+  Factory* factory = isolate->factory();
+  // 1. Let x be ? thisTimeValue(this value);
+  if (!date->IsJSDate()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
+                                 factory->NewStringFromStaticChars("Date")),
+                    String);
+  }
+
+  double const x = Handle<JSDate>::cast(date)->value()->Number();
+  // 2. If x is NaN, return "Invalid Date"
+  if (std::isnan(x)) {
+    return factory->NewStringFromStaticChars("Invalid Date");
+  }
+
+  // 3. Let options be ? ToDateTimeOptions(options, required, defaults).
+  Handle<JSObject> internal_options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, internal_options,
+      ToDateTimeOptions(isolate, options, required, defaults), String);
+
+  // 4. Let dateFormat be ? Construct(%DateTimeFormat%, « locales, options »).
+  Handle<JSObject> date_format;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date_format,
+      Intl::CachedOrNewService(isolate,
+                               factory->NewStringFromAsciiChecked(service),
+                               locales, options, internal_options),
+      String);
+
+  // 5. Return FormatDateTime(dateFormat, x).
+  return FormatDateTime(isolate, date_format, x);
+}
+
+namespace {
+
+Maybe<bool> IsPropertyUndefined(Isolate* isolate, Handle<JSObject> options,
+                                const char* property) {
+  Factory* factory = isolate->factory();
+  // i. Let prop be the property name.
+  // ii. Let value be ? Get(options, prop).
+  Handle<Object> value;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value,
+      Object::GetPropertyOrElement(
+          isolate, options, factory->NewStringFromAsciiChecked(property)),
+      Nothing<bool>());
+  return Just(value->IsUndefined(isolate));
+}
+
+Maybe<bool> NeedsDefault(Isolate* isolate, Handle<JSObject> options,
+                         const std::vector<std::string>& props) {
+  bool needs_default = true;
+  for (const auto& prop : props) {
+    //  i. Let prop be the property name.
+    // ii. Let value be ? Get(options, prop)
+    Maybe<bool> maybe_undefined =
+        IsPropertyUndefined(isolate, options, prop.c_str());
+    MAYBE_RETURN(maybe_undefined, Nothing<bool>());
+    // iii. If value is not undefined, let needDefaults be false.
+    if (!maybe_undefined.FromJust()) {
+      needs_default = false;
+    }
+  }
+  return Just(needs_default);
+}
+
+Maybe<bool> CreateDefault(Isolate* isolate, Handle<JSObject> options,
+                          const std::vector<std::string>& props) {
+  Factory* factory = isolate->factory();
+  // i. Perform ? CreateDataPropertyOrThrow(options, prop, "numeric").
+  for (const auto& prop : props) {
+    MAYBE_RETURN(
+        JSReceiver::CreateDataProperty(
+            isolate, options, factory->NewStringFromAsciiChecked(prop.c_str()),
+            factory->numeric_string(), kThrowOnError),
+        Nothing<bool>());
+  }
+  return Just(true);
+}
+
+}  // namespace
+
+// ecma-402/#sec-todatetimeoptions
+MaybeHandle<JSObject> JSDateTimeFormat::ToDateTimeOptions(
+    Isolate* isolate, Handle<Object> input_options, const char* required,
+    const char* defaults) {
+  Factory* factory = isolate->factory();
+  // 1. If options is undefined, let options be null; otherwise let options be ?
+  //    ToObject(options).
+  Handle<JSObject> options;
+  if (input_options->IsUndefined(isolate)) {
+    options = factory->NewJSObjectWithNullProto();
+  } else {
+    Handle<JSReceiver> options_obj;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
+                               Object::ToObject(isolate, input_options),
+                               JSObject);
+    // 2. Let options be ObjectCreate(options).
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
+                               JSObject::ObjectCreate(isolate, options_obj),
+                               JSObject);
+  }
+
+  // 3. Let needDefaults be true.
+  bool needs_default = true;
+
+  bool required_is_any = strcmp(required, "any") == 0;
+  // 4. If required is "date" or "any", then
+  if (required_is_any || (strcmp(required, "date") == 0)) {
+    // a. For each of the property names "weekday", "year", "month", "day", do
+    const std::vector<std::string> list({"weekday", "year", "month", "day"});
+    Maybe<bool> maybe_needs_default = NeedsDefault(isolate, options, list);
+    MAYBE_RETURN(maybe_needs_default, Handle<JSObject>());
+    needs_default = maybe_needs_default.FromJust();
+  }
+
+  // 5. If required is "time" or "any", then
+  if (required_is_any || (strcmp(required, "time") == 0)) {
+    // a. For each of the property names "hour", "minute", "second", do
+    const std::vector<std::string> list({"hour", "minute", "second"});
+    Maybe<bool> maybe_needs_default = NeedsDefault(isolate, options, list);
+    MAYBE_RETURN(maybe_needs_default, Handle<JSObject>());
+    needs_default &= maybe_needs_default.FromJust();
+  }
+
+  // 6. If needDefaults is true and defaults is either "date" or "all", then
+  if (needs_default) {
+    bool default_is_all = strcmp(defaults, "all") == 0;
+    if (default_is_all || (strcmp(defaults, "date") == 0)) {
+      // a. For each of the property names "year", "month", "day", do)
+      const std::vector<std::string> list({"year", "month", "day"});
+      MAYBE_RETURN(CreateDefault(isolate, options, list), Handle<JSObject>());
+    }
+    // 7. If needDefaults is true and defaults is either "time" or "all", then
+    if (default_is_all || (strcmp(defaults, "time") == 0)) {
+      // a. For each of the property names "hour", "minute", "second", do
+      const std::vector<std::string> list({"hour", "minute", "second"});
+      MAYBE_RETURN(CreateDefault(isolate, options, list), Handle<JSObject>());
+    }
+  }
+  // 8. Return options.
+  return options;
+}
+
+MaybeHandle<JSObject> JSDateTimeFormat::Unwrap(Isolate* isolate,
+                                               Handle<JSReceiver> receiver,
+                                               const char* method_name) {
+  Handle<Context> native_context =
+      Handle<Context>(isolate->context()->native_context(), isolate);
+  Handle<JSFunction> constructor = Handle<JSFunction>(
+      JSFunction::cast(native_context->intl_date_time_format_function()),
+      isolate);
+  Handle<String> method_name_str =
+      isolate->factory()->NewStringFromAsciiChecked(method_name);
+
+  return Intl::UnwrapReceiver(isolate, receiver, constructor,
+                              Intl::Type::kDateTimeFormat, method_name_str,
+                              true);
+}
+
 }  // namespace internal
 }  // namespace v8

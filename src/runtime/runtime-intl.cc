@@ -368,10 +368,10 @@ RUNTIME_FUNCTION(Runtime_ToDateTimeOptions) {
   CONVERT_ARG_HANDLE_CHECKED(Object, options, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, required, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, defaults, 2);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, DateFormat::ToDateTimeOptions(isolate, options,
-                                             required->ToCString().get(),
-                                             defaults->ToCString().get()));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSDateTimeFormat::ToDateTimeOptions(
+                               isolate, options, required->ToCString().get(),
+                               defaults->ToCString().get()));
 }
 
 RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {

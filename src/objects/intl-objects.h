@@ -47,36 +47,7 @@ class DateFormat {
   // holds the pointer gets garbage collected.
   static void DeleteDateFormat(const v8::WeakCallbackInfo<void>& data);
 
-  // ecma402/#sec-formatdatetime
-  // FormatDateTime( dateTimeFormat, x )
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatDateTime(
-      Isolate* isolate, Handle<JSObject> date_time_format_holder, double x);
-
-  // ecma402/#sec-datetime-format-functions
-  // DateTime Format Functions
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> DateTimeFormat(
-      Isolate* isolate, Handle<JSObject> date_time_format_holder,
-      Handle<Object> date);
-
-  // The UnwrapDateTimeFormat abstract operation gets the underlying
-  // DateTimeFormat operation for various methods which implement ECMA-402 v1
-  // semantics for supporting initializing existing Intl objects.
-  //
-  // ecma402/#sec-unwrapdatetimeformat
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> Unwrap(
-      Isolate* isolate, Handle<JSReceiver> receiver, const char* method_name);
-
-  // ecma-402/#sec-todatetimeoptions
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ToDateTimeOptions(
-      Isolate* isolate, Handle<Object> input_options, const char* required,
-      const char* defaults);
-
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleDateTime(
-      Isolate* isolate, Handle<Object> date, Handle<Object> locales,
-      Handle<Object> options, const char* required, const char* defaults,
-      const char* service);
-
-  // Layout description.
+// Layout description.
 #define DATE_FORMAT_FIELDS(V)        \
   V(kSimpleDateFormat, kPointerSize) \
   V(kBoundFormat, kPointerSize)      \
@@ -383,6 +354,11 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> LegacyUnwrapReceiver(
       Isolate* isolate, Handle<JSReceiver> receiver,
       Handle<JSFunction> constructor, bool has_initialized_slot);
+
+  // A factory method to got cached objects.
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> CachedOrNewService(
+      Isolate* isolate, Handle<String> service, Handle<Object> locales,
+      Handle<Object> options, Handle<Object> internal_options);
 };
 
 }  // namespace internal
