@@ -16,6 +16,7 @@
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/memory-tracing.h"
+#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
@@ -39,7 +40,7 @@ namespace {
   } while (false)
 
 #define WASM_INSTANCE_OBJECT_OFFSET(name) \
-  (WasmInstanceObject::k##name##Offset - kHeapObjectTag)
+  ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset)
 
 #define LOAD_INSTANCE_FIELD(dst, name, type)                       \
   __ LoadFromInstance(dst.gp(), WASM_INSTANCE_OBJECT_OFFSET(name), \
@@ -1605,8 +1606,8 @@ class LiftoffCompiler {
                           kPointerLoadType);
       LiftoffRegister target_instance = tmp;
       __ Load(target_instance, imported_instances.gp(), no_reg,
-              compiler::FixedArrayOffsetMinusTag(imm.index), kPointerLoadType,
-              pinned);
+              ObjectAccess::ElementOffsetInTaggedFixedArray(imm.index),
+              kPointerLoadType, pinned);
 
       LiftoffRegister* explicit_instance = &target_instance;
       Register target_reg = target.gp();
@@ -1740,7 +1741,7 @@ class LiftoffCompiler {
     LOAD_INSTANCE_FIELD(table, IndirectFunctionTableInstances,
                         kPointerLoadType);
     __ Load(tmp_const, table.gp(), index.gp(),
-            (FixedArray::kHeaderSize - kHeapObjectTag), kPointerLoadType,
+            ObjectAccess::ElementOffsetInTaggedFixedArray(0), kPointerLoadType,
             pinned);
     LiftoffRegister* explicit_instance = &tmp_const;
 

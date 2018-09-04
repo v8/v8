@@ -15,7 +15,6 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/compiler.h"
-#include "src/compiler/access-builder.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -43,6 +42,7 @@
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/memory-tracing.h"
+#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-linkage.h"
@@ -54,6 +54,8 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+namespace {
 
 // TODO(titzer): pull WASM_64 up to a common header.
 #if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
@@ -67,7 +69,7 @@ namespace compiler {
         wasm::WasmOpcodes::OpcodeName(opcode));
 
 #define WASM_INSTANCE_OBJECT_OFFSET(name) \
-  (WasmInstanceObject::k##name##Offset - kHeapObjectTag)
+  wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset)
 
 #define LOAD_INSTANCE_FIELD(name, type)                                      \
   SetEffect(graph()->NewNode(                                                \
@@ -78,15 +80,9 @@ namespace compiler {
 #define LOAD_FIXED_ARRAY_SLOT(array_node, index)                            \
   SetEffect(graph()->NewNode(                                               \
       mcgraph()->machine()->Load(MachineType::TaggedPointer()), array_node, \
-      mcgraph()->Int32Constant(FixedArrayOffsetMinusTag(index)), Effect(),  \
-      Control()))
-
-int FixedArrayOffsetMinusTag(uint32_t index) {
-  auto access = AccessBuilder::ForFixedArraySlot(index);
-  return access.offset - access.tag();
-}
-
-namespace {
+      mcgraph()->Int32Constant(                                             \
+          wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index)),      \
+      Effect(), Control()))
 
 constexpr uint32_t kBytesPerExceptionValuesArrayElement = 2;
 
@@ -2589,9 +2585,10 @@ Node* WasmGraphBuilder::BuildImportWasmCall(wasm::FunctionSig* sig, Node** args,
   Node* imported_instances = LOAD_INSTANCE_FIELD(ImportedFunctionInstances,
                                                  MachineType::TaggedPointer());
   // Access fixed array at {header_size - tag + func_index * kPointerSize}.
-  Node* imported_instances_data =
-      graph()->NewNode(mcgraph()->machine()->IntAdd(), imported_instances,
-                       mcgraph()->IntPtrConstant(FixedArrayOffsetMinusTag(0)));
+  Node* imported_instances_data = graph()->NewNode(
+      mcgraph()->machine()->IntAdd(), imported_instances,
+      mcgraph()->IntPtrConstant(
+          wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0)));
   Node* func_index_times_pointersize = graph()->NewNode(
       mcgraph()->machine()->IntMul(), Uint32ToUintptr(func_index),
       mcgraph()->Int32Constant(kPointerSize));
@@ -2690,11 +2687,11 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
       SetEffect(graph()->NewNode(machine->Load(MachineType::Pointer()),
                                  ift_targets, scaled_key, Effect(), Control()));
 
-  auto access = AccessBuilder::ForFixedArrayElement();
   Node* target_instance = SetEffect(graph()->NewNode(
       machine->Load(MachineType::TaggedPointer()),
       graph()->NewNode(machine->IntAdd(), ift_instances, scaled_key),
-      Int32Constant(access.header_size - access.tag()), Effect(), Control()));
+      Int32Constant(wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0)),
+      Effect(), Control()));
 
   args[0] = target;
 
@@ -4480,11 +4477,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
     if (target->IsJSFunction()) {
       Handle<JSFunction> function = Handle<JSFunction>::cast(target);
-      FieldAccess field_access = AccessBuilder::ForJSFunctionContext();
       Node* function_context = SetEffect(graph()->NewNode(
           mcgraph()->machine()->Load(MachineType::TaggedPointer()),
           callable_node,
-          mcgraph()->Int32Constant(field_access.offset - field_access.tag()),
+          mcgraph()->Int32Constant(
+              wasm::ObjectAccess::ContextOffsetInTaggedJSFunction()),
           Effect(), Control()));
 
       if (!IsClassConstructor(function->shared()->kind())) {

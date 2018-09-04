@@ -87,10 +87,6 @@ V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(
 MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate*, uint32_t func_index,
                                               wasm::FunctionSig*);
 
-// Helper function to get the offset into a fixed array for a given {index}.
-// TODO(titzer): access-builder.h is not accessible outside compiler. Move?
-int FixedArrayOffsetMinusTag(uint32_t index);
-
 enum CWasmEntryParameters {
   kCodeObject,
   kWasmInstance,
