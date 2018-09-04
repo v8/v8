@@ -107,16 +107,6 @@ class JSNumberFormat : public JSObject {
   DECL_ACCESSORS(bound_format, Object)
   DECL_INT_ACCESSORS(flags)
 
-  // ContextSlot defines the context structure for the bound
-  // NumberFormat.prototype.format function.
-  enum ContextSlot {
-    // The number format instance that the function holding this
-    // context is bound to.
-    kNumberFormat = Context::MIN_CONTEXT_SLOTS,
-
-    kLength
-  };
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSNumberFormat);
 };

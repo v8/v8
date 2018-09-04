@@ -690,8 +690,8 @@ BUILTIN(NumberFormatInternalFormatNumber) {
   // 2. Assert: Type(nf) is Object and nf has an
   //    [[InitializedNumberFormat]] internal slot.
   Handle<JSNumberFormat> number_format = Handle<JSNumberFormat>(
-      JSNumberFormat::cast(
-          context->get(JSNumberFormat::ContextSlot::kNumberFormat)),
+      JSNumberFormat::cast(context->get(
+          static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
   // 3. If value is not provided, let value be undefined.
