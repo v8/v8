@@ -417,7 +417,7 @@ Type OperationTyper::NumberExp(Type type) {
 
 Type OperationTyper::NumberExpm1(Type type) {
   DCHECK(type.Is(Type::Number()));
-  return Type::Union(Type::PlainNumber(), Type::NaN(), zone());
+  return Type::Number();
 }
 
 Type OperationTyper::NumberFloor(Type type) {
