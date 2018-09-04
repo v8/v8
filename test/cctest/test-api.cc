@@ -5656,11 +5656,42 @@ THREADED_TEST(isNumberType) {
   obj = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
   CHECK(obj->IsInt32());
   CHECK(obj->IsUint32());
-  // Positive zero
+  // Negative zero
   CompileRun("var obj = -0.0;");
   obj = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
   CHECK(!obj->IsInt32());
   CHECK(!obj->IsUint32());
+}
+
+THREADED_TEST(IntegerType) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  Local<Value> result;
+
+  // Small positive integer
+  result = CompileRun("42;");
+  CHECK(result->IsNumber());
+  CHECK_EQ(42, result.As<v8::Integer>()->Value());
+  // Small negative integer
+  result = CompileRun("-42;");
+  CHECK(result->IsNumber());
+  CHECK_EQ(-42, result.As<v8::Integer>()->Value());
+  // Positive non-int32 integer
+  result = CompileRun("1099511627776;");
+  CHECK(result->IsNumber());
+  CHECK_EQ(1099511627776, result.As<v8::Integer>()->Value());
+  // Negative non-int32 integer
+  result = CompileRun("-1099511627776;");
+  CHECK(result->IsNumber());
+  CHECK_EQ(-1099511627776, result.As<v8::Integer>()->Value());
+  // Positive non-integer
+  result = CompileRun("3.14;");
+  CHECK(result->IsNumber());
+  CHECK_EQ(3, result.As<v8::Integer>()->Value());
+  // Negative non-integer
+  result = CompileRun("-3.14;");
+  CHECK(result->IsNumber());
+  CHECK_EQ(-3, result.As<v8::Integer>()->Value());
 }
 
 static void CheckUncle(v8::Isolate* isolate, v8::TryCatch* try_catch) {
