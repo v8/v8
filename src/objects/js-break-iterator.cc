@@ -101,7 +101,7 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::InitializeV8BreakIterator(
 
   // Setting fields
   break_iterator_holder->set_locale(*locale);
-  break_iterator_holder->set_type(static_cast<int>(type_enum));
+  break_iterator_holder->set_type(type_enum);
   break_iterator_holder->set_break_iterator(*managed_break_iterator);
   break_iterator_holder->set_unicode_string(*managed_unicode_string);
 
@@ -153,7 +153,7 @@ void JSV8BreakIterator::AdoptText(
 }
 
 Handle<String> JSV8BreakIterator::TypeAsString() const {
-  switch (static_cast<Type>(type())) {
+  switch (type()) {
     case Type::CHARACTER:
       return GetReadOnlyRoots().character_string_handle();
     case Type::WORD:

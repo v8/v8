@@ -36,6 +36,8 @@ class JSV8BreakIterator : public JSObject {
                         Handle<String> text);
 
   enum class Type { CHARACTER, WORD, SENTENCE, LINE, COUNT };
+  inline void set_type(Type type);
+  inline Type type() const;
 
   Handle<String> TypeAsString() const;
 
@@ -44,8 +46,6 @@ class JSV8BreakIterator : public JSObject {
   DECL_VERIFIER(JSV8BreakIterator)
 
   DECL_ACCESSORS(locale, String)
-  // TODO(ryzokuken): Change this to accept and return a Type instead of int.
-  DECL_INT_ACCESSORS(type)
   DECL_ACCESSORS(break_iterator, Managed<icu::BreakIterator>)
   DECL_ACCESSORS(unicode_string, Managed<icu::UnicodeString>)
   DECL_ACCESSORS(bound_adopt_text, Object)
