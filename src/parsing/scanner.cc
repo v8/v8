@@ -158,11 +158,11 @@ void Scanner::BookmarkScope::Apply() {
   bookmark_ = kBookmarkWasApplied;
 }
 
-bool Scanner::BookmarkScope::HasBeenSet() {
+bool Scanner::BookmarkScope::HasBeenSet() const {
   return bookmark_ != kNoBookmark && bookmark_ != kBookmarkWasApplied;
 }
 
-bool Scanner::BookmarkScope::HasBeenApplied() {
+bool Scanner::BookmarkScope::HasBeenApplied() const {
   return bookmark_ == kBookmarkWasApplied;
 }
 
@@ -530,7 +530,7 @@ uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
   // can be reported later (in strict mode).
   // We don't report the error immediately, because the octal escape can
   // occur before the "use strict" directive.
-  if (c != '0' || i > 0 || c0_ == '8' || c0_ == '9') {
+  if (c != '0' || i > 0 || IsNonOctalDecimalDigit(c0_)) {
     octal_pos_ = Location(source_pos() - i - 1, source_pos() - 1);
     octal_message_ = capture_raw ? MessageTemplate::kTemplateOctalLiteral
                                  : MessageTemplate::kStrictOctalEscape;
@@ -806,11 +806,11 @@ bool Scanner::ScanImplicitOctalDigits(int start_pos,
 
   while (true) {
     // (possible) octal number
-    if (c0_ == '8' || c0_ == '9') {
+    if (IsNonOctalDecimalDigit(c0_)) {
       *kind = DECIMAL_WITH_LEADING_ZERO;
       return true;
     }
-    if (c0_ < '0' || '7' < c0_) {
+    if (!IsOctalDigit(c0_)) {
       // Octal literal finished.
       octal_pos_ = Location(start_pos, source_pos());
       octal_message_ = MessageTemplate::kStrictOctalLiteral;
@@ -878,7 +878,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         AddLiteralCharAdvance();
         kind = BINARY;
         if (!ScanBinaryDigits()) return Token::ILLEGAL;
-      } else if ('0' <= c0_ && c0_ <= '7') {
+      } else if (IsOctalDigit(c0_)) {
         kind = IMPLICIT_OCTAL;
         if (!ScanImplicitOctalDigits(start_pos, &kind)) {
           return Token::ILLEGAL;
@@ -886,7 +886,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         if (kind == DECIMAL_WITH_LEADING_ZERO) {
           at_start = false;
         }
-      } else if (c0_ == '8' || c0_ == '9') {
+      } else if (IsNonOctalDecimalDigit(c0_)) {
         kind = DECIMAL_WITH_LEADING_ZERO;
       } else if (allow_harmony_numeric_separator() && c0_ == '_') {
         ReportScannerError(Location(source_pos(), source_pos() + 1),

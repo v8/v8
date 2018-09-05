@@ -198,8 +198,8 @@ class Scanner {
 
     void Set();
     void Apply();
-    bool HasBeenSet();
-    bool HasBeenApplied();
+    bool HasBeenSet() const;
+    bool HasBeenApplied() const;
 
    private:
     static const size_t kNoBookmark;
@@ -241,10 +241,12 @@ class Scanner {
   // Returns the token following peek()
   Token::Value PeekAhead();
   // Returns the current token again.
-  Token::Value current_token() { return current().token; }
+  Token::Value current_token() const { return current().token; }
 
-  Token::Value current_contextual_token() { return current().contextual_token; }
-  Token::Value next_contextual_token() { return next().contextual_token; }
+  Token::Value current_contextual_token() const {
+    return current().contextual_token;
+  }
+  Token::Value next_contextual_token() const { return next().contextual_token; }
 
   // Returns the location information for the current token
   // (the token last returned by Next()).
@@ -317,11 +319,13 @@ class Scanner {
            current().literal_chars.Equals(
                Vector<const char>("use strict", strlen("use strict")));
   }
+
   bool IsGetOrSet(bool* is_get, bool* is_set) const {
     *is_get = CurrentMatchesContextual(Token::GET);
     *is_set = CurrentMatchesContextual(Token::SET);
     return *is_get || *is_set;
   }
+
   bool IsLet() const {
     return CurrentMatches(Token::LET) ||
            CurrentMatchesContextualEscaped(Token::LET);
@@ -333,7 +337,7 @@ class Scanner {
   bool IsDuplicateSymbol(DuplicateFinder* duplicate_finder,
                          AstValueFactory* ast_value_factory) const;
 
-  UnicodeCache* unicode_cache() { return unicode_cache_; }
+  UnicodeCache* unicode_cache() const { return unicode_cache_; }
 
   // Returns the location of the last seen octal literal.
   Location octal_position() const { return octal_pos_; }
