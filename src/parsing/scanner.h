@@ -297,7 +297,7 @@ class Scanner {
 
   inline bool CurrentMatchesContextual(Token::Value token) const {
     DCHECK(Token::IsContextualKeyword(token));
-    return current().contextual_token == token;
+    return current_contextual_token() == token;
   }
 
   // Match the token against the contextual keyword or literal buffer.
@@ -308,7 +308,7 @@ class Scanner {
     // (which was escape-processed already).
     // Conveniently, !current().literal_chars.is_used() for all proper
     // keywords, so this second condition should exit early in common cases.
-    return (current().contextual_token == token) ||
+    return (current_contextual_token() == token) ||
            (current().literal_chars.is_used() &&
             current().literal_chars.Equals(Vector<const char>(
                 Token::String(token), Token::StringLength(token))));
@@ -320,11 +320,9 @@ class Scanner {
                Vector<const char>("use strict", strlen("use strict")));
   }
 
-  bool IsGetOrSet(bool* is_get, bool* is_set) const {
-    *is_get = CurrentMatchesContextual(Token::GET);
-    *is_set = CurrentMatchesContextual(Token::SET);
-    return *is_get || *is_set;
-  }
+  bool IsGet() { return CurrentMatchesContextual(Token::GET); }
+
+  bool IsSet() { return CurrentMatchesContextual(Token::SET); }
 
   bool IsLet() const {
     return CurrentMatches(Token::LET) ||

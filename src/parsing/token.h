@@ -244,6 +244,7 @@ class Token {
   static bool IsAssignmentOp(Value tok) {
     return IsInRange(tok, INIT, ASSIGN_EXP);
   }
+  static bool IsGetOrSet(Value op) { return IsInRange(op, GET, SET); }
 
   static bool IsBinaryOp(Value op) { return IsInRange(op, COMMA, EXP); }
 
