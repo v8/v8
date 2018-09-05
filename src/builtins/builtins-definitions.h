@@ -1330,105 +1330,103 @@ namespace internal {
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                               \
   /* ecma402 #sec-intl.collator */                                     \
   CPP(CollatorConstructor)                                             \
-  /* ecma402 #sec-intl.v8breakiterator.supportedlocalesof */           \
-  CPP(V8BreakIteratorSupportedLocalesOf)                               \
+  /* ecma 402 #sec-collator-compare-functions*/                        \
+  CPP(CollatorInternalCompare)                                         \
+  /* ecma402 #sec-intl.collator.prototype.compare */                   \
+  CPP(CollatorPrototypeCompare)                                        \
   /* ecma402 #sec-intl.collator.supportedlocalesof */                  \
   CPP(CollatorSupportedLocalesOf)                                      \
-  TFS(StringToLowerCaseIntl, kString)                                  \
-  /* ES #sec-string.prototype.tolowercase */                           \
-  TFJ(StringPrototypeToLowerCaseIntl, 0, kReceiver)                    \
-  /* ES #sec-string.prototype.touppercase */                           \
-  CPP(StringPrototypeToUpperCaseIntl)                                  \
-  /* ES #sec-string.prototype.normalize */                             \
-  CPP(StringPrototypeNormalizeIntl)                                    \
-  /* ecma402 #sec-intl.numberformat */                                 \
-  CPP(NumberFormatConstructor)                                         \
-  /* ecma402 #sec-intl.numberformat.prototype.formattoparts */         \
-  CPP(NumberFormatPrototypeFormatToParts)                              \
-  /* ecma402 #sec-intl.datetimeformat.prototype.formattoparts */       \
-  CPP(DateTimeFormatPrototypeFormatToParts)                            \
   /* ecma402 #sup-date.prototype.tolocaledatestring */                 \
   CPP(DatePrototypeToLocaleDateString)                                 \
   /* ecma402 #sup-date.prototype.tolocalestring */                     \
   CPP(DatePrototypeToLocaleString)                                     \
   /* ecma402 #sup-date.prototype.tolocaletimestring */                 \
   CPP(DatePrototypeToLocaleTimeString)                                 \
-  /* ecma402 #new proposal */                                          \
+  /* ecma402 #sec-datetime-format-functions */                         \
+  CPP(DateTimeFormatInternalFormat)                                    \
+  /* ecma402 #sec-intl.datetimeformat.prototype.format */              \
+  CPP(DateTimeFormatPrototypeFormat)                                   \
+  /* ecma402 #sec-intl.datetimeformat.prototype.formattoparts */       \
+  CPP(DateTimeFormatPrototypeFormatToParts)                            \
+  /* ecma402 #sec-intl.datetimeformat.supportedlocalesof */            \
+  CPP(DateTimeFormatSupportedLocalesOf)                                \
   /* ecma402 #sec-intl-listformat-constructor */                       \
   CPP(ListFormatConstructor)                                           \
-  /* ecma402 #sec-intl.listformat.prototype.resolvedoptions */         \
-  CPP(ListFormatPrototypeResolvedOptions)                              \
   /* ecma402 #sec-intl-list-format.prototype.format */                 \
   TFJ(ListFormatPrototypeFormat,                                       \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                 \
   /* ecma402 #sec-intl-list-format.prototype.formattoparts */          \
   TFJ(ListFormatPrototypeFormatToParts,                                \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                 \
+  /* ecma402 #sec-intl.listformat.prototype.resolvedoptions */         \
+  CPP(ListFormatPrototypeResolvedOptions)                              \
   /* ecma402 #sec-intl.ListFormat.supportedlocalesof */                \
   CPP(ListFormatSupportedLocalesOf)                                    \
   /* ecma402 #sec-intl-locale-constructor */                           \
   CPP(LocaleConstructor)                                               \
-  CPP(LocalePrototypeLanguage)                                         \
-  CPP(LocalePrototypeScript)                                           \
-  CPP(LocalePrototypeRegion)                                           \
   CPP(LocalePrototypeBaseName)                                         \
   CPP(LocalePrototypeCalendar)                                         \
   CPP(LocalePrototypeCaseFirst)                                        \
   CPP(LocalePrototypeCollation)                                        \
   CPP(LocalePrototypeHourCycle)                                        \
-  CPP(LocalePrototypeNumeric)                                          \
-  CPP(LocalePrototypeNumberingSystem)                                  \
-  CPP(LocalePrototypeToString)                                         \
+  CPP(LocalePrototypeLanguage)                                         \
   /* ecma402 #sec-Intl.Locale.prototype.maximize */                    \
   CPP(LocalePrototypeMaximize)                                         \
   /* ecma402 #sec-Intl.Locale.prototype.minimize */                    \
   CPP(LocalePrototypeMinimize)                                         \
+  CPP(LocalePrototypeNumeric)                                          \
+  CPP(LocalePrototypeNumberingSystem)                                  \
+  CPP(LocalePrototypeRegion)                                           \
+  CPP(LocalePrototypeScript)                                           \
+  CPP(LocalePrototypeToString)                                         \
+  /* ecma402 #sec-intl.numberformat */                                 \
+  CPP(NumberFormatConstructor)                                         \
   /* ecma402 #sec-number-format-functions */                           \
   CPP(NumberFormatInternalFormatNumber)                                \
-  /* ecma402 #sec-intl.numberformat.supportedlocalesof */              \
-  CPP(NumberFormatSupportedLocalesOf)                                  \
   /* ecma402 #sec-intl.numberformat.prototype.format */                \
   CPP(NumberFormatPrototypeFormatNumber)                               \
-  /* ecma402 #sec-datetime-format-functions */                         \
-  CPP(DateTimeFormatInternalFormat)                                    \
-  /* ecma402 #sec-intl.datetimeformat.supportedlocalesof */            \
-  CPP(DateTimeFormatSupportedLocalesOf)                                \
-  /* ecma402 #sec-intl.datetimeformat.prototype.format */              \
-  CPP(DateTimeFormatPrototypeFormat)                                   \
+  /* ecma402 #sec-intl.numberformat.prototype.formattoparts */         \
+  CPP(NumberFormatPrototypeFormatToParts)                              \
+  /* ecma402 #sec-intl.numberformat.supportedlocalesof */              \
+  CPP(NumberFormatSupportedLocalesOf)                                  \
   /* ecma402 #sec-intl.pluralrules */                                  \
   CPP(PluralRulesConstructor)                                          \
   /* ecma402 #sec-intl.pluralrules.supportedlocalesof */               \
   CPP(PluralRulesSupportedLocalesOf)                                   \
   /* ecma402 #sec-intl.RelativeTimeFormat.constructor */               \
   CPP(RelativeTimeFormatConstructor)                                   \
-  /* ecma402 #sec-intl.RelativeTimeFormat.supportedlocalesof */        \
-  CPP(RelativeTimeFormatSupportedLocalesOf)                            \
-  /* ecma402 #sec-intl.RelativeTimeFormat.prototype.resolvedOptions */ \
-  CPP(RelativeTimeFormatPrototypeResolvedOptions)                      \
   /* ecma402 #sec-intl.RelativeTimeFormat.prototype.format */          \
   CPP(RelativeTimeFormatPrototypeFormat)                               \
   /* ecma402 #sec-intl.RelativeTimeFormat.prototype.formatToParts */   \
   CPP(RelativeTimeFormatPrototypeFormatToParts)                        \
+  /* ecma402 #sec-intl.RelativeTimeFormat.prototype.resolvedOptions */ \
+  CPP(RelativeTimeFormatPrototypeResolvedOptions)                      \
+  /* ecma402 #sec-intl.RelativeTimeFormat.supportedlocalesof */        \
+  CPP(RelativeTimeFormatSupportedLocalesOf)                            \
+  /* ES #sec-string.prototype.normalize */                             \
+  CPP(StringPrototypeNormalizeIntl)                                    \
   /* ecma402 #sup-string.prototype.tolocalelowercase */                \
   CPP(StringPrototypeToLocaleLowerCase)                                \
   /* ecma402 #sup-string.prototype.tolocaleuppercase */                \
   CPP(StringPrototypeToLocaleUpperCase)                                \
-  /* ecma402 #sec-intl.collator.prototype.compare */                   \
-  CPP(CollatorPrototypeCompare)                                        \
-  /* ecma 402 #sec-collator-compare-functions*/                        \
-  CPP(CollatorInternalCompare)                                         \
-  CPP(V8BreakIteratorInternalAdoptText)                                \
-  CPP(V8BreakIteratorPrototypeAdoptText)                               \
-  CPP(V8BreakIteratorInternalFirst)                                    \
-  CPP(V8BreakIteratorPrototypeFirst)                                   \
-  CPP(V8BreakIteratorInternalNext)                                     \
-  CPP(V8BreakIteratorPrototypeNext)                                    \
-  CPP(V8BreakIteratorInternalCurrent)                                  \
-  CPP(V8BreakIteratorPrototypeCurrent)                                 \
-  CPP(V8BreakIteratorInternalBreakType)                                \
-  CPP(V8BreakIteratorPrototypeBreakType)                               \
+  /* ES #sec-string.prototype.tolowercase */                           \
+  TFJ(StringPrototypeToLowerCaseIntl, 0, kReceiver)                    \
+  /* ES #sec-string.prototype.touppercase */                           \
+  CPP(StringPrototypeToUpperCaseIntl)                                  \
+  TFS(StringToLowerCaseIntl, kString)                                  \
   CPP(V8BreakIteratorConstructor)                                      \
-  CPP(V8BreakIteratorPrototypeResolvedOptions)
+  CPP(V8BreakIteratorInternalAdoptText)                                \
+  CPP(V8BreakIteratorInternalBreakType)                                \
+  CPP(V8BreakIteratorInternalCurrent)                                  \
+  CPP(V8BreakIteratorInternalFirst)                                    \
+  CPP(V8BreakIteratorInternalNext)                                     \
+  CPP(V8BreakIteratorPrototypeAdoptText)                               \
+  CPP(V8BreakIteratorPrototypeBreakType)                               \
+  CPP(V8BreakIteratorPrototypeCurrent)                                 \
+  CPP(V8BreakIteratorPrototypeFirst)                                   \
+  CPP(V8BreakIteratorPrototypeNext)                                    \
+  CPP(V8BreakIteratorPrototypeResolvedOptions)                         \
+  CPP(V8BreakIteratorSupportedLocalesOf)
 #else
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)      \
   /* no-op fallback version */                \
