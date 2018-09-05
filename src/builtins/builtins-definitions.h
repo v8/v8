@@ -1331,7 +1331,7 @@ namespace internal {
   /* ecma402 #sec-intl.collator */                                     \
   CPP(CollatorConstructor)                                             \
   /* ecma402 #sec-intl.v8breakiterator.supportedlocalesof */           \
-  CPP(v8BreakIteratorSupportedLocalesOf)                               \
+  CPP(V8BreakIteratorSupportedLocalesOf)                               \
   /* ecma402 #sec-intl.collator.supportedlocalesof */                  \
   CPP(CollatorSupportedLocalesOf)                                      \
   TFS(StringToLowerCaseIntl, kString)                                  \
@@ -1417,18 +1417,18 @@ namespace internal {
   CPP(CollatorPrototypeCompare)                                        \
   /* ecma 402 #sec-collator-compare-functions*/                        \
   CPP(CollatorInternalCompare)                                         \
-  CPP(BreakIteratorInternalAdoptText)                                  \
-  CPP(BreakIteratorPrototypeAdoptText)                                 \
-  CPP(BreakIteratorInternalFirst)                                      \
-  CPP(BreakIteratorPrototypeFirst)                                     \
-  CPP(BreakIteratorInternalNext)                                       \
-  CPP(BreakIteratorPrototypeNext)                                      \
-  CPP(BreakIteratorInternalCurrent)                                    \
-  CPP(BreakIteratorPrototypeCurrent)                                   \
-  CPP(BreakIteratorInternalBreakType)                                  \
-  CPP(BreakIteratorPrototypeBreakType)                                 \
-  CPP(BreakIteratorConstructor)                                        \
-  CPP(BreakIteratorPrototypeResolvedOptions)
+  CPP(V8BreakIteratorInternalAdoptText)                                \
+  CPP(V8BreakIteratorPrototypeAdoptText)                               \
+  CPP(V8BreakIteratorInternalFirst)                                    \
+  CPP(V8BreakIteratorPrototypeFirst)                                   \
+  CPP(V8BreakIteratorInternalNext)                                     \
+  CPP(V8BreakIteratorPrototypeNext)                                    \
+  CPP(V8BreakIteratorInternalCurrent)                                  \
+  CPP(V8BreakIteratorPrototypeCurrent)                                 \
+  CPP(V8BreakIteratorInternalBreakType)                                \
+  CPP(V8BreakIteratorPrototypeBreakType)                               \
+  CPP(V8BreakIteratorConstructor)                                      \
+  CPP(V8BreakIteratorPrototypeResolvedOptions)
 #else
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)      \
   /* no-op fallback version */                \

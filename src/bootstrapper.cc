@@ -2989,7 +2989,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       Handle<JSFunction> v8_break_iterator_constructor = InstallFunction(
           isolate_, intl, "v8BreakIterator", JS_INTL_V8_BREAK_ITERATOR_TYPE,
           JSV8BreakIterator::kSize, 0, factory->the_hole_value(),
-          Builtins::kBreakIteratorConstructor);
+          Builtins::kV8BreakIteratorConstructor);
       v8_break_iterator_constructor->shared()->DontAdaptArguments();
       InstallWithIntrinsicDefaultProto(
           isolate_, v8_break_iterator_constructor,
@@ -2997,7 +2997,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       SimpleInstallFunction(
           isolate_, v8_break_iterator_constructor, "supportedLocalesOf",
-          Builtins::kv8BreakIteratorSupportedLocalesOf, 1, false);
+          Builtins::kV8BreakIteratorSupportedLocalesOf, 1, false);
 
       Handle<JSObject> prototype(
           JSObject::cast(v8_break_iterator_constructor->prototype()), isolate_);
@@ -3009,28 +3009,28 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
       SimpleInstallFunction(isolate_, prototype, "resolvedOptions",
-                            Builtins::kBreakIteratorPrototypeResolvedOptions, 0,
-                            false);
+                            Builtins::kV8BreakIteratorPrototypeResolvedOptions,
+                            0, false);
 
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("adoptText"),
-                          Builtins::kBreakIteratorPrototypeAdoptText, false);
+                          Builtins::kV8BreakIteratorPrototypeAdoptText, false);
 
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("first"),
-                          Builtins::kBreakIteratorPrototypeFirst, false);
+                          Builtins::kV8BreakIteratorPrototypeFirst, false);
 
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("next"),
-                          Builtins::kBreakIteratorPrototypeNext, false);
+                          Builtins::kV8BreakIteratorPrototypeNext, false);
 
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("current"),
-                          Builtins::kBreakIteratorPrototypeCurrent, false);
+                          Builtins::kV8BreakIteratorPrototypeCurrent, false);
 
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("breakType"),
-                          Builtins::kBreakIteratorPrototypeBreakType, false);
+                          Builtins::kV8BreakIteratorPrototypeBreakType, false);
     }
 
     {

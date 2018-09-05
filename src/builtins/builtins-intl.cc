@@ -365,7 +365,7 @@ MaybeHandle<JSObject> SupportedLocalesOfCommon(Isolate* isolate,
 
 }  // namespace
 
-BUILTIN(v8BreakIteratorSupportedLocalesOf) {
+BUILTIN(V8BreakIteratorSupportedLocalesOf) {
   HandleScope scope(isolate);
   // 1. If NewTarget is defined, throw a TypeError exception.
   if (!args.new_target()->IsUndefined(isolate)) {  // [[Call]]
@@ -1207,7 +1207,7 @@ BUILTIN(CollatorInternalCompare) {
   return *Intl::CompareStrings(isolate, collator_holder, string_x, string_y);
 }
 
-BUILTIN(BreakIteratorConstructor) {
+BUILTIN(V8BreakIteratorConstructor) {
   HandleScope scope(isolate);
   Handle<JSReceiver> new_target;
 
@@ -1234,14 +1234,14 @@ BUILTIN(BreakIteratorConstructor) {
                                isolate, break_iterator, locales, options));
 }
 
-BUILTIN(BreakIteratorPrototypeResolvedOptions) {
+BUILTIN(V8BreakIteratorPrototypeResolvedOptions) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSV8BreakIterator, break_iterator,
                  "Intl.v8BreakIterator.prototype.resolvedOptions");
   return *JSV8BreakIterator::ResolvedOptions(isolate, break_iterator);
 }
 
-BUILTIN(BreakIteratorPrototypeAdoptText) {
+BUILTIN(V8BreakIteratorPrototypeAdoptText) {
   const char* const method = "get Intl.v8BreakIterator.prototype.adoptText";
   HandleScope scope(isolate);
 
@@ -1254,12 +1254,12 @@ BUILTIN(BreakIteratorPrototypeAdoptText) {
   }
 
   Handle<JSFunction> new_bound_adopt_text_function = CreateBoundFunction(
-      isolate, break_iterator, Builtins::kBreakIteratorInternalAdoptText, 1);
+      isolate, break_iterator, Builtins::kV8BreakIteratorInternalAdoptText, 1);
   break_iterator->set_bound_adopt_text(*new_bound_adopt_text_function);
   return *new_bound_adopt_text_function;
 }
 
-BUILTIN(BreakIteratorInternalAdoptText) {
+BUILTIN(V8BreakIteratorInternalAdoptText) {
   HandleScope scope(isolate);
   Handle<Context> context = Handle<Context>(isolate->context(), isolate);
 
@@ -1277,7 +1277,7 @@ BUILTIN(BreakIteratorInternalAdoptText) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-BUILTIN(BreakIteratorPrototypeFirst) {
+BUILTIN(V8BreakIteratorPrototypeFirst) {
   const char* const method = "get Intl.v8BreakIterator.prototype.first";
   HandleScope scope(isolate);
 
@@ -1289,13 +1289,14 @@ BUILTIN(BreakIteratorPrototypeFirst) {
     return *bound_first;
   }
 
-  Handle<JSFunction> new_bound_first_function = CreateBoundFunction(
-      isolate, break_iterator_holder, Builtins::kBreakIteratorInternalFirst, 0);
+  Handle<JSFunction> new_bound_first_function =
+      CreateBoundFunction(isolate, break_iterator_holder,
+                          Builtins::kV8BreakIteratorInternalFirst, 0);
   break_iterator_holder->set_bound_first(*new_bound_first_function);
   return *new_bound_first_function;
 }
 
-BUILTIN(BreakIteratorInternalFirst) {
+BUILTIN(V8BreakIteratorInternalFirst) {
   HandleScope scope(isolate);
   Handle<Context> context = Handle<Context>(isolate->context(), isolate);
 
@@ -1311,7 +1312,7 @@ BUILTIN(BreakIteratorInternalFirst) {
   return *isolate->factory()->NewNumberFromInt(break_iterator->first());
 }
 
-BUILTIN(BreakIteratorPrototypeNext) {
+BUILTIN(V8BreakIteratorPrototypeNext) {
   const char* const method = "get Intl.v8BreakIterator.prototype.next";
   HandleScope scope(isolate);
 
@@ -1323,13 +1324,14 @@ BUILTIN(BreakIteratorPrototypeNext) {
     return *bound_next;
   }
 
-  Handle<JSFunction> new_bound_next_function = CreateBoundFunction(
-      isolate, break_iterator_holder, Builtins::kBreakIteratorInternalNext, 0);
+  Handle<JSFunction> new_bound_next_function =
+      CreateBoundFunction(isolate, break_iterator_holder,
+                          Builtins::kV8BreakIteratorInternalNext, 0);
   break_iterator_holder->set_bound_next(*new_bound_next_function);
   return *new_bound_next_function;
 }
 
-BUILTIN(BreakIteratorInternalNext) {
+BUILTIN(V8BreakIteratorInternalNext) {
   HandleScope scope(isolate);
   Handle<Context> context = Handle<Context>(isolate->context(), isolate);
 
@@ -1345,7 +1347,7 @@ BUILTIN(BreakIteratorInternalNext) {
   return *isolate->factory()->NewNumberFromInt(break_iterator->next());
 }
 
-BUILTIN(BreakIteratorPrototypeCurrent) {
+BUILTIN(V8BreakIteratorPrototypeCurrent) {
   const char* const method = "get Intl.v8BreakIterator.prototype.current";
   HandleScope scope(isolate);
 
@@ -1359,12 +1361,12 @@ BUILTIN(BreakIteratorPrototypeCurrent) {
 
   Handle<JSFunction> new_bound_current_function =
       CreateBoundFunction(isolate, break_iterator_holder,
-                          Builtins::kBreakIteratorInternalCurrent, 0);
+                          Builtins::kV8BreakIteratorInternalCurrent, 0);
   break_iterator_holder->set_bound_current(*new_bound_current_function);
   return *new_bound_current_function;
 }
 
-BUILTIN(BreakIteratorInternalCurrent) {
+BUILTIN(V8BreakIteratorInternalCurrent) {
   HandleScope scope(isolate);
   Handle<Context> context = Handle<Context>(isolate->context(), isolate);
 
@@ -1380,7 +1382,7 @@ BUILTIN(BreakIteratorInternalCurrent) {
   return *isolate->factory()->NewNumberFromInt(break_iterator->current());
 }
 
-BUILTIN(BreakIteratorPrototypeBreakType) {
+BUILTIN(V8BreakIteratorPrototypeBreakType) {
   const char* const method = "get Intl.v8BreakIterator.prototype.breakType";
   HandleScope scope(isolate);
 
@@ -1395,12 +1397,12 @@ BUILTIN(BreakIteratorPrototypeBreakType) {
 
   Handle<JSFunction> new_bound_break_type_function =
       CreateBoundFunction(isolate, break_iterator_holder,
-                          Builtins::kBreakIteratorInternalBreakType, 0);
+                          Builtins::kV8BreakIteratorInternalBreakType, 0);
   break_iterator_holder->set_bound_break_type(*new_bound_break_type_function);
   return *new_bound_break_type_function;
 }
 
-BUILTIN(BreakIteratorInternalBreakType) {
+BUILTIN(V8BreakIteratorInternalBreakType) {
   HandleScope scope(isolate);
   Handle<Context> context = Handle<Context>(isolate->context(), isolate);
 
