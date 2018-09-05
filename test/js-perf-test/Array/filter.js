@@ -62,6 +62,10 @@ DefineHigherOrderTests([
   ['SmiFilter', newClosure('filter'), SmiSetup, v => v % 2 === 0],
   ['FastFilter', newClosure('filter'), FastSetup, (_, i) => i % 2 === 0],
   [
+    'DictionaryFilter', newClosure('filter'), DictionarySetup,
+     v => true
+  ],
+  [
     'GenericFilter', newClosure('filter', true), ObjectSetup,
     (_, i) => i % 2 === 0
   ],

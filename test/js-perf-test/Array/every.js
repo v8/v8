@@ -30,6 +30,7 @@ DefineHigherOrderTests([
   ['DoubleEvery', newClosure('every'), DoubleSetup, v => v > 0.0],
   ['SmiEvery', newClosure('every'), SmiSetup, v => v != 34343],
   ['FastEvery', newClosure('every'), FastSetup, v => v !== 'hi'],
+  ['DictionaryEvery', newClosure('every'), DictionarySetup, v => v != 34343],
   ['OptFastEvery', OptFastEvery, FastSetup, v => true],
   ['OptUnreliableEvery', OptUnreliableEvery, FastSetup, v => true]
 ]);

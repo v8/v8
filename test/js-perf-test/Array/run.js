@@ -67,10 +67,12 @@ function HoleyFastSetup() {
 function DictionarySetup() {
   array = [];
   // Add a large index to force dictionary elements.
-  array[2**30] = 10;
-  // Spread out {array_size} elements.
-  for (var i = 0; i < array_size-1; i++) {
-    array[i*101] = i;
+  array[1000000] = 0;
+  var len = array.length;
+  for (var i = 0; i < len; i++) {
+    if (i % 100 === 0) {
+      array[i] = i;
+    }
   }
   assert(%HasDictionaryElements(array));
 }

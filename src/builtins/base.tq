@@ -191,6 +191,7 @@ extern macro GetProperty(Context, Object, Object): Object;
 extern builtin SetProperty(Context, Object, Object, Object);
 extern builtin DeleteProperty(Context, Object, Object, LanguageMode);
 extern builtin HasProperty(Context, JSReceiver, Object): Boolean;
+extern macro HasProperty_Inline(Context, JSReceiver, Object): Boolean;
 
 extern macro ThrowRangeError(Context, constexpr MessageTemplate): never;
 extern macro ThrowTypeError(Context, constexpr MessageTemplate): never;
