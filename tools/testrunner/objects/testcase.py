@@ -332,6 +332,8 @@ class D8TestCase(TestCase):
 
   def _get_resources(self):
     """Returns the list of files needed by a test case."""
+    if not self._get_source_path():
+      return []
     result = set()
     to_check = [self._get_source_path()]
     # Recurse over all files until reaching a fixpoint.

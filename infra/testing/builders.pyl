@@ -39,7 +39,7 @@
       'os': 'Android',
     },
     'tests': [
-      {'name': 'mjsunit', 'variant': 'default', 'shards': 2},
+      {'name': 'd8testing', 'variant': 'default', 'shards': 2},
     ],
   },
   ##############################################################################
