@@ -324,44 +324,6 @@ RUNTIME_FUNCTION(Runtime_PluralRulesSelect) {
       isolate, JSPluralRules::ResolvePlural(isolate, plural_rules, number));
 }
 
-RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(3, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
-
-  Handle<JSFunction> constructor(
-      isolate->native_context()->intl_v8_break_iterator_function(), isolate);
-
-  Handle<JSObject> local_object;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
-                                     JSObject::New(constructor, constructor));
-
-  // Set break iterator as embedder field of the resulting JS object.
-  icu::BreakIterator* break_iterator = V8BreakIterator::InitializeBreakIterator(
-      isolate, locale, options, resolved);
-  CHECK_NOT_NULL(break_iterator);
-
-  if (!break_iterator) return isolate->ThrowIllegalOperation();
-
-  local_object->SetEmbedderField(V8BreakIterator::kBreakIteratorIndex,
-                                 reinterpret_cast<Smi*>(break_iterator));
-  // Make sure that the pointer to adopted text is nullptr.
-  local_object->SetEmbedderField(V8BreakIterator::kUnicodeStringIndex,
-                                 static_cast<Smi*>(nullptr));
-
-  // Make object handle weak so we can delete the break iterator once GC kicks
-  // in.
-  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
-                          V8BreakIterator::DeleteBreakIterator,
-                          WeakCallbackType::kInternalFields);
-  return *local_object;
-}
-
 RUNTIME_FUNCTION(Runtime_ToDateTimeOptions) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 3);

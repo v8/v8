@@ -28,6 +28,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #ifdef V8_INTL_SUPPORT
+#include "src/objects/js-break-iterator.h"
 #include "src/objects/js-collator.h"
 #include "src/objects/js-list-format.h"
 #include "src/objects/js-locale.h"
@@ -2985,15 +2986,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     }
 
     {
-      Handle<JSFunction> v8_break_iterator_constructor =
-          InstallFunction(isolate_, intl, "v8BreakIterator", JS_OBJECT_TYPE,
-                          V8BreakIterator::kSize, 0, factory->the_hole_value(),
-                          Builtins::kIllegal);
-      native_context()->set_intl_v8_break_iterator_function(
-          *v8_break_iterator_constructor);
+      Handle<JSFunction> v8_break_iterator_constructor = InstallFunction(
+          isolate_, intl, "v8BreakIterator", JS_INTL_V8_BREAK_ITERATOR_TYPE,
+          JSV8BreakIterator::kSize, 0, factory->the_hole_value(),
+          Builtins::kBreakIteratorConstructor);
+      v8_break_iterator_constructor->shared()->DontAdaptArguments();
+      InstallWithIntrinsicDefaultProto(
+          isolate_, v8_break_iterator_constructor,
+          Context::INTL_V8_BREAK_ITERATOR_FUNCTION_INDEX);
 
       SimpleInstallFunction(
-          isolate(), v8_break_iterator_constructor, "supportedLocalesOf",
+          isolate_, v8_break_iterator_constructor, "supportedLocalesOf",
           Builtins::kv8BreakIteratorSupportedLocalesOf, 1, false);
 
       Handle<JSObject> prototype(
@@ -3004,6 +3007,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           isolate_, prototype, factory->to_string_tag_symbol(),
           factory->Object_string(),
           static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+      SimpleInstallFunction(isolate_, prototype, "resolvedOptions",
+                            Builtins::kBreakIteratorPrototypeResolvedOptions, 0,
+                            false);
 
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("adoptText"),

@@ -20,6 +20,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #ifdef V8_INTL_SUPPORT
+#include "src/objects/js-break-iterator-inl.h"
 #include "src/objects/js-collator-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-collection-inl.h"
@@ -360,6 +361,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       CodeDataContainer::cast(this)->CodeDataContainerVerify(isolate);
       break;
 #ifdef V8_INTL_SUPPORT
+    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
+      JSV8BreakIterator::cast(this)->JSV8BreakIteratorVerify(isolate);
+      break;
     case JS_INTL_COLLATOR_TYPE:
       JSCollator::cast(this)->JSCollatorVerify(isolate);
       break;
@@ -1883,6 +1887,19 @@ void InterpreterData::InterpreterDataVerify(Isolate* isolate) {
 }
 
 #ifdef V8_INTL_SUPPORT
+void JSV8BreakIterator::JSV8BreakIteratorVerify(Isolate* isolate) {
+  JSObjectVerify(isolate);
+  VerifyObjectField(isolate, kLocaleOffset);
+  VerifyObjectField(isolate, kTypeOffset);
+  VerifyObjectField(isolate, kBreakIteratorOffset);
+  VerifyObjectField(isolate, kUnicodeStringOffset);
+  VerifyObjectField(isolate, kBoundAdoptTextOffset);
+  VerifyObjectField(isolate, kBoundFirstOffset);
+  VerifyObjectField(isolate, kBoundNextOffset);
+  VerifyObjectField(isolate, kBoundCurrentOffset);
+  VerifyObjectField(isolate, kBoundBreakTypeOffset);
+}
+
 void JSCollator::JSCollatorVerify(Isolate* isolate) {
   CHECK(IsJSCollator());
   JSObjectVerify(isolate);

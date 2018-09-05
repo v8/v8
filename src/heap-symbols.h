@@ -40,6 +40,7 @@
   V(caseFirst_string, "caseFirst")                                 \
   V(cell_value_string, "%cell_value")                              \
   V(char_at_string, "CharAt")                                      \
+  V(character_string, "character")                                 \
   V(closure_string, "(closure)")                                   \
   V(code_string, "code")                                           \
   V(collation_string, "collation")                                 \
@@ -198,6 +199,7 @@
   V(second_string, "second")                                       \
   V(Set_string, "Set")                                             \
   V(sensitivity_string, "sensitivity")                             \
+  V(sentence_string, "sentence")                                   \
   V(set_space_string, "set ")                                      \
   V(set_string, "set")                                             \
   V(SetIterator_string, "Set Iterator")                            \
@@ -248,6 +250,7 @@
   V(WeakSet_string, "WeakSet")                                     \
   V(weekday_string, "weekday")                                     \
   V(will_handle_string, "willHandle")                              \
+  V(word_string, "word")                                           \
   V(writable_string, "writable")                                   \
   V(year_string, "year")                                           \
   V(zero_string, "0")

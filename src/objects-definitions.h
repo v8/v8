@@ -218,6 +218,7 @@ namespace internal {
 #ifdef V8_INTL_SUPPORT
 #define INSTANCE_TYPE_LIST(V)          \
   INSTANCE_TYPE_LIST_BEFORE_INTL(V)    \
+  V(JS_INTL_V8_BREAK_ITERATOR_TYPE)    \
   V(JS_INTL_COLLATOR_TYPE)             \
   V(JS_INTL_DATE_TIME_FORMAT_TYPE)     \
   V(JS_INTL_LIST_FORMAT_TYPE)          \

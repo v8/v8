@@ -20,6 +20,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #ifdef V8_INTL_SUPPORT
+#include "src/objects/js-break-iterator-inl.h"
 #include "src/objects/js-collator-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-collection-inl.h"
@@ -313,6 +314,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       JSDataView::cast(this)->JSDataViewPrint(os);
       break;
 #ifdef V8_INTL_SUPPORT
+    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
+      JSV8BreakIterator::cast(this)->JSV8BreakIteratorPrint(os);
+      break;
     case JS_INTL_COLLATOR_TYPE:
       JSCollator::cast(this)->JSCollatorPrint(os);
       break;
@@ -1963,6 +1967,20 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
 }
 
 #ifdef V8_INTL_SUPPORT
+void JSV8BreakIterator::JSV8BreakIteratorPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSV8BreakIterator");
+  os << "\n - locale: " << Brief(locale());
+  os << "\n - type: " << TypeAsString();
+  os << "\n - break iterator: " << Brief(break_iterator());
+  os << "\n - unicode string: " << Brief(unicode_string());
+  os << "\n - bound adopt text: " << Brief(bound_adopt_text());
+  os << "\n - bound first: " << Brief(bound_first());
+  os << "\n - bound next: " << Brief(bound_next());
+  os << "\n - bound current: " << Brief(bound_current());
+  os << "\n - bound break type: " << Brief(bound_break_type());
+  os << "\n";
+}
+
 void JSCollator::JSCollatorPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSCollator");
   os << "\n - icu collator: " << Brief(icu_collator());

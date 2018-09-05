@@ -61,6 +61,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #ifdef V8_INTL_SUPPORT
+#include "src/objects/js-break-iterator.h"
 #include "src/objects/js-collator.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/js-collection-inl.h"
@@ -1457,6 +1458,8 @@ int JSObject::GetHeaderSize(InstanceType type,
     case JS_MODULE_NAMESPACE_TYPE:
       return JSModuleNamespace::kHeaderSize;
 #ifdef V8_INTL_SUPPORT
+    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
+      return JSV8BreakIterator::kSize;
     case JS_INTL_COLLATOR_TYPE:
       return JSCollator::kSize;
     case JS_INTL_DATE_TIME_FORMAT_TYPE:
@@ -3206,6 +3209,7 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_REGEXP_TYPE:
     case JS_REGEXP_STRING_ITERATOR_TYPE:
 #ifdef V8_INTL_SUPPORT
+    case JS_INTL_V8_BREAK_ITERATOR_TYPE:
     case JS_INTL_COLLATOR_TYPE:
     case JS_INTL_DATE_TIME_FORMAT_TYPE:
     case JS_INTL_LIST_FORMAT_TYPE:

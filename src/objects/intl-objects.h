@@ -67,57 +67,6 @@ class DateFormat {
   DateFormat();
 };
 
-class V8BreakIterator {
- public:
-  // Create a BreakIterator for the specificied locale and options. Returns the
-  // resolved settings for the locale / options.
-  static icu::BreakIterator* InitializeBreakIterator(Isolate* isolate,
-                                                     Handle<String> locale,
-                                                     Handle<JSObject> options,
-                                                     Handle<JSObject> resolved);
-
-  // Unpacks break iterator object from corresponding JavaScript object.
-  static icu::BreakIterator* UnpackBreakIterator(Handle<JSObject> obj);
-
-  // Release memory we allocated for the BreakIterator once the JS object that
-  // holds the pointer gets garbage collected.
-  static void DeleteBreakIterator(const v8::WeakCallbackInfo<void>& data);
-
-  static void AdoptText(Isolate* isolate,
-                        Handle<JSObject> break_iterator_holder,
-                        Handle<String> text);
-
-  // Layout description.
-#define BREAK_ITERATOR_FIELDS(V)   \
-  /* Pointer fields. */            \
-  V(kBreakIterator, kPointerSize)  \
-  V(kUnicodeString, kPointerSize)  \
-  V(kBoundAdoptText, kPointerSize) \
-  V(kBoundFirst, kPointerSize)     \
-  V(kBoundNext, kPointerSize)      \
-  V(kBoundCurrent, kPointerSize)   \
-  V(kBoundBreakType, kPointerSize) \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, BREAK_ITERATOR_FIELDS)
-#undef BREAK_ITERATOR_FIELDS
-
-  // TODO(ryzokuken): Remove this and use regular accessors once v8BreakIterator
-  // is a subclass of JSObject
-  //
-  // This needs to be consistent with the above Layour Description
-  static const int kBreakIteratorIndex = 0;
-  static const int kUnicodeStringIndex = 1;
-  static const int kBoundAdoptTextIndex = 2;
-  static const int kBoundFirstIndex = 3;
-  static const int kBoundNextIndex = 4;
-  static const int kBoundCurrentIndex = 5;
-  static const int kBoundBreakTypeIndex = 6;
-
- private:
-  V8BreakIterator();
-};
-
 class Intl {
  public:
   enum Type {

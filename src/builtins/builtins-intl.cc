@@ -19,6 +19,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-break-iterator-inl.h"
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-list-format-inl.h"
@@ -1206,37 +1207,55 @@ BUILTIN(CollatorInternalCompare) {
   return *Intl::CompareStrings(isolate, collator_holder, string_x, string_y);
 }
 
+BUILTIN(BreakIteratorConstructor) {
+  HandleScope scope(isolate);
+  Handle<JSReceiver> new_target;
+
+  if (args.new_target()->IsUndefined(isolate)) {
+    new_target = args.target();
+  } else {
+    new_target = Handle<JSReceiver>::cast(args.new_target());
+  }
+
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  Handle<JSObject> break_iterator_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, break_iterator_obj,
+                                     JSObject::New(target, new_target));
+  Handle<JSV8BreakIterator> break_iterator =
+      Handle<JSV8BreakIterator>::cast(break_iterator_obj);
+
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSV8BreakIterator::InitializeV8BreakIterator(
+                               isolate, break_iterator, locales, options));
+}
+
+BUILTIN(BreakIteratorPrototypeResolvedOptions) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSV8BreakIterator, break_iterator,
+                 "Intl.v8BreakIterator.prototype.resolvedOptions");
+  return *JSV8BreakIterator::ResolvedOptions(isolate, break_iterator);
+}
+
 BUILTIN(BreakIteratorPrototypeAdoptText) {
   const char* const method = "get Intl.v8BreakIterator.prototype.adoptText";
   HandleScope scope(isolate);
 
-  CHECK_RECEIVER(JSObject, break_iterator_holder, method);
-  if (!Intl::IsObjectOfType(isolate, break_iterator_holder,
-                            Intl::Type::kBreakIterator)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                     isolate->factory()->NewStringFromAsciiChecked(method),
-                     break_iterator_holder));
-  }
+  CHECK_RECEIVER(JSV8BreakIterator, break_iterator, method);
 
-  Handle<Object> bound_adopt_text =
-      Handle<Object>(break_iterator_holder->GetEmbedderField(
-                         V8BreakIterator::kBoundAdoptTextIndex),
-                     isolate);
-
+  Handle<Object> bound_adopt_text(break_iterator->bound_adopt_text(), isolate);
   if (!bound_adopt_text->IsUndefined(isolate)) {
     DCHECK(bound_adopt_text->IsJSFunction());
     return *bound_adopt_text;
   }
 
-  Handle<JSFunction> new_bound_adopt_text_function =
-      CreateBoundFunction(isolate, break_iterator_holder,
-                          Builtins::kBreakIteratorInternalAdoptText, 1);
-
-  break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundAdoptTextIndex,
-                                          *new_bound_adopt_text_function);
-
+  Handle<JSFunction> new_bound_adopt_text_function = CreateBoundFunction(
+      isolate, break_iterator, Builtins::kBreakIteratorInternalAdoptText, 1);
+  break_iterator->set_bound_adopt_text(*new_bound_adopt_text_function);
   return *new_bound_adopt_text_function;
 }
 
@@ -1244,20 +1263,17 @@ BUILTIN(BreakIteratorInternalAdoptText) {
   HandleScope scope(isolate);
   Handle<Context> context = Handle<Context>(isolate->context(), isolate);
 
-  Handle<JSObject> break_iterator_holder = Handle<JSObject>(
-      JSObject::cast(context->get(
+  Handle<JSV8BreakIterator> break_iterator_holder = Handle<JSV8BreakIterator>(
+      JSV8BreakIterator::cast(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
-
-  DCHECK(Intl::IsObjectOfType(isolate, break_iterator_holder,
-                              Intl::Type::kBreakIterator));
 
   Handle<Object> input_text = args.atOrUndefined(isolate, 1);
   Handle<String> text;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, text,
                                      Object::ToString(isolate, input_text));
 
-  V8BreakIterator::AdoptText(isolate, break_iterator_holder, text);
+  JSV8BreakIterator::AdoptText(isolate, break_iterator_holder, text);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -1265,21 +1281,9 @@ BUILTIN(BreakIteratorPrototypeFirst) {
   const char* const method = "get Intl.v8BreakIterator.prototype.first";
   HandleScope scope(isolate);
 
-  CHECK_RECEIVER(JSObject, break_iterator_holder, method);
-  if (!Intl::IsObjectOfType(isolate, break_iterator_holder,
-                            Intl::Type::kBreakIterator)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                     isolate->factory()->NewStringFromAsciiChecked(method),
-                     break_iterator_holder));
-  }
+  CHECK_RECEIVER(JSV8BreakIterator, break_iterator_holder, method);
 
-  Handle<Object> bound_first =
-      Handle<Object>(break_iterator_holder->GetEmbedderField(
-                         V8BreakIterator::kBoundFirstIndex),
-                     isolate);
-
+  Handle<Object> bound_first(break_iterator_holder->bound_first(), isolate);
   if (!bound_first->IsUndefined(isolate)) {
     DCHECK(bound_first->IsJSFunction());
     return *bound_first;
@@ -1287,10 +1291,7 @@ BUILTIN(BreakIteratorPrototypeFirst) {
 
   Handle<JSFunction> new_bound_first_function = CreateBoundFunction(
       isolate, break_iterator_holder, Builtins::kBreakIteratorInternalFirst, 0);
-
-  break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundFirstIndex,
-                                          *new_bound_first_function);
-
+  break_iterator_holder->set_bound_first(*new_bound_first_function);
   return *new_bound_first_function;
 }
 
@@ -1298,16 +1299,13 @@ BUILTIN(BreakIteratorInternalFirst) {
   HandleScope scope(isolate);
   Handle<Context> context = Handle<Context>(isolate->context(), isolate);
 
-  Handle<JSObject> break_iterator_holder = Handle<JSObject>(
-      JSObject::cast(context->get(
+  Handle<JSV8BreakIterator> break_iterator_holder = Handle<JSV8BreakIterator>(
+      JSV8BreakIterator::cast(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
-  DCHECK(Intl::IsObjectOfType(isolate, break_iterator_holder,
-                              Intl::Type::kBreakIterator));
-
   icu::BreakIterator* break_iterator =
-      V8BreakIterator::UnpackBreakIterator(break_iterator_holder);
+      JSV8BreakIterator::UnpackBreakIterator(break_iterator_holder);
   CHECK_NOT_NULL(break_iterator);
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->first());
@@ -1317,20 +1315,9 @@ BUILTIN(BreakIteratorPrototypeNext) {
   const char* const method = "get Intl.v8BreakIterator.prototype.next";
   HandleScope scope(isolate);
 
-  CHECK_RECEIVER(JSObject, break_iterator_holder, method);
-  if (!Intl::IsObjectOfType(isolate, break_iterator_holder,
-                            Intl::Type::kBreakIterator)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                     isolate->factory()->NewStringFromAsciiChecked(method),
-                     break_iterator_holder));
-  }
+  CHECK_RECEIVER(JSV8BreakIterator, break_iterator_holder, method);
 
-  Handle<Object> bound_next = Handle<Object>(
-      break_iterator_holder->GetEmbedderField(V8BreakIterator::kBoundNextIndex),
-      isolate);
-
+  Handle<Object> bound_next(break_iterator_holder->bound_next(), isolate);
   if (!bound_next->IsUndefined(isolate)) {
     DCHECK(bound_next->IsJSFunction());
     return *bound_next;
@@ -1338,10 +1325,7 @@ BUILTIN(BreakIteratorPrototypeNext) {
 
   Handle<JSFunction> new_bound_next_function = CreateBoundFunction(
       isolate, break_iterator_holder, Builtins::kBreakIteratorInternalNext, 0);
-
-  break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundNextIndex,
-                                          *new_bound_next_function);
-
+  break_iterator_holder->set_bound_next(*new_bound_next_function);
   return *new_bound_next_function;
 }
 
@@ -1349,16 +1333,13 @@ BUILTIN(BreakIteratorInternalNext) {
   HandleScope scope(isolate);
   Handle<Context> context = Handle<Context>(isolate->context(), isolate);
 
-  Handle<JSObject> break_iterator_holder = Handle<JSObject>(
-      JSObject::cast(context->get(
+  Handle<JSV8BreakIterator> break_iterator_holder = Handle<JSV8BreakIterator>(
+      JSV8BreakIterator::cast(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
-  DCHECK(Intl::IsObjectOfType(isolate, break_iterator_holder,
-                              Intl::Type::kBreakIterator));
-
   icu::BreakIterator* break_iterator =
-      V8BreakIterator::UnpackBreakIterator(break_iterator_holder);
+      JSV8BreakIterator::UnpackBreakIterator(break_iterator_holder);
   CHECK_NOT_NULL(break_iterator);
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->next());
@@ -1368,21 +1349,9 @@ BUILTIN(BreakIteratorPrototypeCurrent) {
   const char* const method = "get Intl.v8BreakIterator.prototype.current";
   HandleScope scope(isolate);
 
-  CHECK_RECEIVER(JSObject, break_iterator_holder, method);
-  if (!Intl::IsObjectOfType(isolate, break_iterator_holder,
-                            Intl::Type::kBreakIterator)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                     isolate->factory()->NewStringFromAsciiChecked(method),
-                     break_iterator_holder));
-  }
+  CHECK_RECEIVER(JSV8BreakIterator, break_iterator_holder, method);
 
-  Handle<Object> bound_current =
-      Handle<Object>(break_iterator_holder->GetEmbedderField(
-                         V8BreakIterator::kBoundCurrentIndex),
-                     isolate);
-
+  Handle<Object> bound_current(break_iterator_holder->bound_current(), isolate);
   if (!bound_current->IsUndefined(isolate)) {
     DCHECK(bound_current->IsJSFunction());
     return *bound_current;
@@ -1391,10 +1360,7 @@ BUILTIN(BreakIteratorPrototypeCurrent) {
   Handle<JSFunction> new_bound_current_function =
       CreateBoundFunction(isolate, break_iterator_holder,
                           Builtins::kBreakIteratorInternalCurrent, 0);
-
-  break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundCurrentIndex,
-                                          *new_bound_current_function);
-
+  break_iterator_holder->set_bound_current(*new_bound_current_function);
   return *new_bound_current_function;
 }
 
@@ -1402,16 +1368,13 @@ BUILTIN(BreakIteratorInternalCurrent) {
   HandleScope scope(isolate);
   Handle<Context> context = Handle<Context>(isolate->context(), isolate);
 
-  Handle<JSObject> break_iterator_holder = Handle<JSObject>(
-      JSObject::cast(context->get(
+  Handle<JSV8BreakIterator> break_iterator_holder = Handle<JSV8BreakIterator>(
+      JSV8BreakIterator::cast(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
-  DCHECK(Intl::IsObjectOfType(isolate, break_iterator_holder,
-                              Intl::Type::kBreakIterator));
-
   icu::BreakIterator* break_iterator =
-      V8BreakIterator::UnpackBreakIterator(break_iterator_holder);
+      JSV8BreakIterator::UnpackBreakIterator(break_iterator_holder);
   CHECK_NOT_NULL(break_iterator);
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->current());
@@ -1421,21 +1384,10 @@ BUILTIN(BreakIteratorPrototypeBreakType) {
   const char* const method = "get Intl.v8BreakIterator.prototype.breakType";
   HandleScope scope(isolate);
 
-  CHECK_RECEIVER(JSObject, break_iterator_holder, method);
-  if (!Intl::IsObjectOfType(isolate, break_iterator_holder,
-                            Intl::Type::kBreakIterator)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                     isolate->factory()->NewStringFromAsciiChecked(method),
-                     break_iterator_holder));
-  }
+  CHECK_RECEIVER(JSV8BreakIterator, break_iterator_holder, method);
 
-  Handle<Object> bound_break_type =
-      Handle<Object>(break_iterator_holder->GetEmbedderField(
-                         V8BreakIterator::kBoundBreakTypeIndex),
-                     isolate);
-
+  Handle<Object> bound_break_type(break_iterator_holder->bound_break_type(),
+                                  isolate);
   if (!bound_break_type->IsUndefined(isolate)) {
     DCHECK(bound_break_type->IsJSFunction());
     return *bound_break_type;
@@ -1444,10 +1396,7 @@ BUILTIN(BreakIteratorPrototypeBreakType) {
   Handle<JSFunction> new_bound_break_type_function =
       CreateBoundFunction(isolate, break_iterator_holder,
                           Builtins::kBreakIteratorInternalBreakType, 0);
-
-  break_iterator_holder->SetEmbedderField(V8BreakIterator::kBoundBreakTypeIndex,
-                                          *new_bound_break_type_function);
-
+  break_iterator_holder->set_bound_break_type(*new_bound_break_type_function);
   return *new_bound_break_type_function;
 }
 
@@ -1455,16 +1404,13 @@ BUILTIN(BreakIteratorInternalBreakType) {
   HandleScope scope(isolate);
   Handle<Context> context = Handle<Context>(isolate->context(), isolate);
 
-  Handle<JSObject> break_iterator_holder = Handle<JSObject>(
-      JSObject::cast(context->get(
+  Handle<JSV8BreakIterator> break_iterator_holder = Handle<JSV8BreakIterator>(
+      JSV8BreakIterator::cast(context->get(
           static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
       isolate);
 
-  DCHECK(Intl::IsObjectOfType(isolate, break_iterator_holder,
-                              Intl::Type::kBreakIterator));
-
   icu::BreakIterator* break_iterator =
-      V8BreakIterator::UnpackBreakIterator(break_iterator_holder);
+      JSV8BreakIterator::UnpackBreakIterator(break_iterator_holder);
   CHECK_NOT_NULL(break_iterator);
 
   int32_t status = break_iterator->getRuleStatus();

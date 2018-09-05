@@ -75,21 +75,6 @@ std::string Intl::GetNumberingSystem(const icu::Locale& icu_locale) {
 }
 
 namespace {
-bool ExtractStringSetting(Isolate* isolate, Handle<JSObject> options,
-                          const char* key, icu::UnicodeString* setting) {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
-  Handle<Object> object =
-      JSReceiver::GetProperty(isolate, options, str).ToHandleChecked();
-  if (object->IsString()) {
-    v8::String::Utf8Value utf8_string(
-        v8_isolate, v8::Utils::ToLocal(Handle<String>::cast(object)));
-    *setting = icu::UnicodeString::fromUTF8(*utf8_string);
-    return true;
-  }
-  return false;
-}
-
 // ecma-402/#sec-isvalidtimezonename
 bool IsValidTimeZoneName(const icu::TimeZone& tz) {
   UErrorCode status = U_ZERO_ERROR;
@@ -219,64 +204,6 @@ void SetResolvedDateSettings(Isolate* isolate, const icu::Locale& icu_locale,
         .Assert();
   }
 }
-
-icu::BreakIterator* CreateICUBreakIterator(Isolate* isolate,
-                                           const icu::Locale& icu_locale,
-                                           Handle<JSObject> options) {
-  UErrorCode status = U_ZERO_ERROR;
-  icu::BreakIterator* break_iterator = nullptr;
-  icu::UnicodeString type;
-  if (!ExtractStringSetting(isolate, options, "type", &type)) return nullptr;
-
-  if (type == UNICODE_STRING_SIMPLE("character")) {
-    break_iterator =
-        icu::BreakIterator::createCharacterInstance(icu_locale, status);
-  } else if (type == UNICODE_STRING_SIMPLE("sentence")) {
-    break_iterator =
-        icu::BreakIterator::createSentenceInstance(icu_locale, status);
-  } else if (type == UNICODE_STRING_SIMPLE("line")) {
-    break_iterator = icu::BreakIterator::createLineInstance(icu_locale, status);
-  } else {
-    // Defualt is word iterator.
-    break_iterator = icu::BreakIterator::createWordInstance(icu_locale, status);
-  }
-
-  if (U_FAILURE(status)) {
-    delete break_iterator;
-    return nullptr;
-  }
-
-  isolate->CountUsage(v8::Isolate::UseCounterFeature::kBreakIterator);
-
-  return break_iterator;
-}
-
-void SetResolvedBreakIteratorSettings(Isolate* isolate,
-                                      const icu::Locale& icu_locale,
-                                      icu::BreakIterator* break_iterator,
-                                      Handle<JSObject> resolved) {
-  Factory* factory = isolate->factory();
-  UErrorCode status = U_ZERO_ERROR;
-
-  // Set the locale
-  char result[ULOC_FULLNAME_CAPACITY];
-  status = U_ZERO_ERROR;
-  uloc_toLanguageTag(icu_locale.getName(), result, ULOC_FULLNAME_CAPACITY,
-                     FALSE, &status);
-  if (U_SUCCESS(status)) {
-    JSObject::SetProperty(
-        isolate, resolved, factory->NewStringFromStaticChars("locale"),
-        factory->NewStringFromAsciiChecked(result), LanguageMode::kSloppy)
-        .Assert();
-  } else {
-    // This would never happen, since we got the locale from ICU.
-    JSObject::SetProperty(
-        isolate, resolved, factory->NewStringFromStaticChars("locale"),
-        factory->NewStringFromStaticChars("und"), LanguageMode::kSloppy)
-        .Assert();
-  }
-}
-
 }  // namespace
 
 MaybeHandle<JSObject> Intl::CachedOrNewService(
@@ -376,73 +303,6 @@ icu::SimpleDateFormat* DateFormat::UnpackDateFormat(Handle<JSObject> obj) {
 void DateFormat::DeleteDateFormat(const v8::WeakCallbackInfo<void>& data) {
   delete reinterpret_cast<icu::SimpleDateFormat*>(data.GetInternalField(0));
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
-}
-
-icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
-    Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
-    Handle<JSObject> resolved) {
-  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
-  DCHECK(!icu_locale.isBogus());
-
-  icu::BreakIterator* break_iterator =
-      CreateICUBreakIterator(isolate, icu_locale, options);
-  if (!break_iterator) {
-    // Remove extensions and try again.
-    icu::Locale no_extension_locale(icu_locale.getBaseName());
-    break_iterator =
-        CreateICUBreakIterator(isolate, no_extension_locale, options);
-
-    if (!break_iterator) {
-      FATAL("Failed to create ICU break iterator, are ICU data files missing?");
-    }
-
-    // Set resolved settings (locale).
-    SetResolvedBreakIteratorSettings(isolate, no_extension_locale,
-                                     break_iterator, resolved);
-  } else {
-    SetResolvedBreakIteratorSettings(isolate, icu_locale, break_iterator,
-                                     resolved);
-  }
-
-  CHECK_NOT_NULL(break_iterator);
-  return break_iterator;
-}
-
-icu::BreakIterator* V8BreakIterator::UnpackBreakIterator(Handle<JSObject> obj) {
-  return reinterpret_cast<icu::BreakIterator*>(
-      obj->GetEmbedderField(V8BreakIterator::kBreakIteratorIndex));
-}
-
-void V8BreakIterator::DeleteBreakIterator(
-    const v8::WeakCallbackInfo<void>& data) {
-  delete reinterpret_cast<icu::BreakIterator*>(data.GetInternalField(0));
-  delete reinterpret_cast<icu::UnicodeString*>(data.GetInternalField(1));
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
-}
-
-void V8BreakIterator::AdoptText(Isolate* isolate,
-                                Handle<JSObject> break_iterator_holder,
-                                Handle<String> text) {
-  icu::BreakIterator* break_iterator =
-      V8BreakIterator::UnpackBreakIterator(break_iterator_holder);
-  CHECK_NOT_NULL(break_iterator);
-
-  icu::UnicodeString* u_text = reinterpret_cast<icu::UnicodeString*>(
-      break_iterator_holder->GetEmbedderField(
-          V8BreakIterator::kUnicodeStringIndex));
-  delete u_text;
-
-  int length = text->length();
-  text = String::Flatten(isolate, text);
-  DisallowHeapAllocation no_gc;
-  String::FlatContent flat = text->GetFlatContent();
-  std::unique_ptr<uc16[]> sap;
-  const UChar* text_value = GetUCharBufferFromFlat(flat, &sap, length);
-  u_text = new icu::UnicodeString(text_value, length);
-  break_iterator_holder->SetEmbedderField(V8BreakIterator::kUnicodeStringIndex,
-                                          reinterpret_cast<Smi*>(u_text));
-
-  break_iterator->setText(*u_text);
 }
 
 MaybeHandle<String> Intl::ToString(Isolate* isolate,
