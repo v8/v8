@@ -646,6 +646,7 @@ namespace internal {
                                                                                \
   /* IterableToList */                                                         \
   /* ES #sec-iterabletolist */                                                 \
+  TFS(IterableToList, kIterable, kIteratorFn)                                  \
   TFS(IterableToListWithSymbolLookup, kIterable)                               \
   TFS(IterableToListMayPreserveHoles, kIterable, kIteratorFn)                  \
                                                                                \

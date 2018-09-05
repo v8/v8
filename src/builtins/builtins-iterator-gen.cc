@@ -7,6 +7,7 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
+#include "src/code-stub-assembler.h"
 #include "src/heap/factory-inl.h"
 
 namespace v8 {
@@ -226,6 +227,14 @@ TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
   return values.ToJSArray(context);
 }
 
+TF_BUILTIN(IterableToList, IteratorBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
+  TNode<Object> iterator_fn = CAST(Parameter(Descriptor::kIteratorFn));
+
+  Return(IterableToList(context, iterable, iterator_fn));
+}
+
 // This builtin always returns a new JSArray and is thus safe to use even in the
 // presence of code that may call back into user-JS. This builtin will take the
 // fast path if the iterable is a fast array and the Array prototype and the
@@ -234,7 +243,7 @@ TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
 // will be copied to the new array, which is inconsistent with the behavior of
 // an actual iteration, where holes should be replaced with undefined (if the
 // prototype has no elements). To maintain the correct behavior for holey
-// arrays, use the builtin IterableToListWithSymbolLookup.
+// arrays, use the builtins IterableToList or IterableToListWithSymbolLookup.
 TF_BUILTIN(IterableToListMayPreserveHoles, IteratorBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
@@ -245,10 +254,10 @@ TF_BUILTIN(IterableToListMayPreserveHoles, IteratorBuiltinsAssembler) {
   GotoIfNot(IsFastJSArrayWithNoCustomIteration(iterable, context), &slow_path);
 
   // The fast path will copy holes to the new array.
-  Return(CallBuiltin(Builtins::kCloneFastJSArray, context, iterable));
+  TailCallBuiltin(Builtins::kCloneFastJSArray, context, iterable);
 
   BIND(&slow_path);
-  Return(IterableToList(context, iterable, iterator_fn));
+  TailCallBuiltin(Builtins::kIterableToList, context, iterable, iterator_fn);
 }
 
 // This builtin uses the default Symbol.iterator for the iterator, and takes
@@ -262,21 +271,18 @@ TF_BUILTIN(IterableToListWithSymbolLookup, IteratorBuiltinsAssembler) {
   GotoIfNot(IsFastJSArrayWithNoCustomIteration(iterable, context), &slow_path);
   // Here we are guaranteed that iterable is a fast JSArray with an original
   // iterator.
-  Node* map = LoadMap(CAST(iterable));
-  Node* elements_kind = LoadMapElementsKind(map);
+  Node* elements_kind = LoadMapElementsKind(LoadMap(CAST(iterable)));
   // Take the slow path if the array is holey.
   GotoIf(IsHoleyFastElementsKind(elements_kind), &slow_path);
 
   // This is a fast-path for ignoring the iterator. Here we are guaranteed that
   // {iterable} is a fast _packed_ JSArray.
-  Return(CallBuiltin(Builtins::kCloneFastJSArray, context, iterable));
+  TailCallBuiltin(Builtins::kCloneFastJSArray, context, iterable);
 
   BIND(&slow_path);
   {
     TNode<Object> iterator_fn = GetIteratorMethod(context, iterable);
-    // TODO(dhai): this is duplicating (generated) code with
-    // IterableToListMayPreserveHoles. Make IterableToList a builtin.
-    Return(IterableToList(context, iterable, iterator_fn));
+    TailCallBuiltin(Builtins::kIterableToList, context, iterable, iterator_fn);
   }
 }
 
