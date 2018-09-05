@@ -1152,9 +1152,6 @@ DEFINE_ARGS(js_arguments,
             "Pass all remaining arguments to the script. Alias for \"--\".")
 DEFINE_BOOL(mock_arraybuffer_allocator, false,
             "Use a mock ArrayBuffer allocator for testing.")
-DEFINE_SIZE_T(mock_arraybuffer_allocator_limit, 0,
-              "Memory limit for mock ArrayBuffer allocator used to simulate "
-              "OOM for testing.")
 
 //
 // GDB JIT integration flags.

@@ -135,7 +135,6 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
 // ArrayBuffer allocator that never allocates over 10MB.
 class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
- protected:
   void* Allocate(size_t length) override {
     return ArrayBufferAllocatorBase::Allocate(Adjust(length));
   }
@@ -153,39 +152,6 @@ class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
     const size_t kAllocationLimit = 10 * kMB;
     return length > kAllocationLimit ? i::AllocatePageSize() : length;
   }
-};
-
-// ArrayBuffer allocator that can be equipped with a limit to simulate system
-// OOM.
-class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
- public:
-  explicit MockArrayBufferAllocatiorWithLimit(size_t allocation_limit)
-      : space_left_(allocation_limit) {}
-
- protected:
-  void* Allocate(size_t length) override {
-    if (length > space_left_) {
-      return nullptr;
-    }
-    space_left_ -= length;
-    return MockArrayBufferAllocator::Allocate(length);
-  }
-
-  void* AllocateUninitialized(size_t length) override {
-    if (length > space_left_) {
-      return nullptr;
-    }
-    space_left_ -= length;
-    return MockArrayBufferAllocator::AllocateUninitialized(length);
-  }
-
-  void Free(void* data, size_t length) override {
-    space_left_ += length;
-    return MockArrayBufferAllocator::Free(data, length);
-  }
-
- private:
-  std::atomic<size_t> space_left_;
 };
 
 // Predictable v8::Platform implementation. Worker threads are disabled, idle
@@ -2938,8 +2904,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   options.mock_arraybuffer_allocator = i::FLAG_mock_arraybuffer_allocator;
-  options.mock_arraybuffer_allocator_limit =
-      i::FLAG_mock_arraybuffer_allocator_limit;
 
   // Set up isolated source groups.
   options.isolate_sources = new SourceGroup[options.num_isolates];
@@ -3398,18 +3362,8 @@ int Shell::Main(int argc, char* argv[]) {
   Isolate::CreateParams create_params;
   ShellArrayBufferAllocator shell_array_buffer_allocator;
   MockArrayBufferAllocator mock_arraybuffer_allocator;
-  const size_t memory_limit =
-      options.mock_arraybuffer_allocator_limit * options.num_isolates;
-  MockArrayBufferAllocatiorWithLimit mock_arraybuffer_allocator_with_limit(
-      memory_limit >= options.mock_arraybuffer_allocator_limit
-          ? memory_limit
-          : std::numeric_limits<size_t>::max());
   if (options.mock_arraybuffer_allocator) {
-    if (memory_limit) {
-      Shell::array_buffer_allocator = &mock_arraybuffer_allocator_with_limit;
-    } else {
-      Shell::array_buffer_allocator = &mock_arraybuffer_allocator;
-    }
+    Shell::array_buffer_allocator = &mock_arraybuffer_allocator;
   } else {
     Shell::array_buffer_allocator = &shell_array_buffer_allocator;
   }
