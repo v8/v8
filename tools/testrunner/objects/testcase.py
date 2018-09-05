@@ -323,13 +323,11 @@ class D8TestCase(TestCase):
       # Files in load statements are relative to base dir.
       add_path(match.group(1))
     for match in MODULE_RESOURCES_PATTERN_1.finditer(source):
-      # Imported files are side by side with the test case.
-      add_path(os.path.join(
-          self.suite.root, os.path.dirname(self.path), match.group(1)))
+      # Imported files are relative to the file importing them.
+      add_path(os.path.join(os.path.dirname(file), match.group(1)))
     for match in MODULE_RESOURCES_PATTERN_2.finditer(source):
-      # Imported files are side by side with the test case.
-      add_path(os.path.join(
-          self.suite.root, os.path.dirname(self.path), match.group(1)))
+      # Imported files are relative to the file importing them.
+      add_path(os.path.join(os.path.dirname(file), match.group(1)))
     return result
 
   def _get_resources(self):
