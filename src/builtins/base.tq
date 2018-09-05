@@ -220,7 +220,7 @@ extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(Context, String, String): Boolean;
 
 extern macro StrictEqual(Object, Object): Boolean;
-extern runtime SmiLexicographicCompare(Context, Object, Object): Number;
+extern macro SmiLexicographicCompare(Smi, Smi): Smi;
 
 extern operator '<' macro Int32LessThan(int32, int32): bool;
 extern operator '>' macro Int32GreaterThan(int32, int32): bool;

@@ -140,6 +140,7 @@ class StatsCounter;
   V(search_string_raw_two_one, "search_string_raw_two_one")                   \
   V(search_string_raw_two_two, "search_string_raw_two_two")                   \
   V(try_internalize_string_function, "try_internalize_string_function")       \
+  V(smi_lexicographic_compare_function, "smi_lexicographic_compare_function") \
   V(wasm_call_trap_callback_for_testing,                                      \
     "wasm::call_trap_callback_for_testing")                                   \
   V(wasm_f32_ceil, "wasm::f32_ceil_wrapper")                                  \

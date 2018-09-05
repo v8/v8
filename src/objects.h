@@ -1588,6 +1588,13 @@ class Smi: public Object {
     return result;
   }
 
+  // Compare two Smis x, y as if they were converted to strings and then
+  // compared lexicographically. Returns:
+  // -1 if x < y.
+  //  0 if x == y.
+  //  1 if x > y.
+  static Smi* LexicographicCompare(Isolate* isolate, Smi* x, Smi* y);
+
   DECL_CAST(Smi)
 
   // Dispatched behavior.

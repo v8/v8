@@ -596,6 +596,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // if the division needs to be performed as a floating point operation.
   TNode<Smi> TrySmiDiv(TNode<Smi> dividend, TNode<Smi> divisor, Label* bailout);
 
+  // Compares two Smis a and b as if they were converted to strings and then
+  // compared lexicographically. Returns:
+  // -1 iff x < y.
+  //  0 iff x == y.
+  //  1 iff x > y.
+  TNode<Smi> SmiLexicographicCompare(TNode<Smi> x, TNode<Smi> y);
+
   // Smi | HeapNumber operations.
   TNode<Number> NumberInc(SloppyTNode<Number> value);
   TNode<Number> NumberDec(SloppyTNode<Number> value);

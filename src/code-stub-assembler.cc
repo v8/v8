@@ -940,6 +940,17 @@ TNode<Smi> CodeStubAssembler::TrySmiDiv(TNode<Smi> dividend, TNode<Smi> divisor,
   return SmiFromInt32(untagged_result);
 }
 
+TNode<Smi> CodeStubAssembler::SmiLexicographicCompare(TNode<Smi> x,
+                                                      TNode<Smi> y) {
+  TNode<ExternalReference> smi_lexicographic_compare =
+      ExternalConstant(ExternalReference::smi_lexicographic_compare_function());
+  TNode<ExternalReference> isolate_ptr =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
+  return CAST(CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
+                             MachineType::AnyTagged(), MachineType::AnyTagged(),
+                             smi_lexicographic_compare, isolate_ptr, x, y));
+}
+
 TNode<Int32T> CodeStubAssembler::TruncateIntPtrToInt32(
     SloppyTNode<IntPtrT> value) {
   if (Is64()) {

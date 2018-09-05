@@ -786,6 +786,10 @@ ExternalReference ExternalReference::try_internalize_string_function() {
       Redirect(FUNCTION_ADDR(StringTable::LookupStringIfExists_NoAllocate)));
 }
 
+ExternalReference ExternalReference::smi_lexicographic_compare_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(Smi::LexicographicCompare)));
+}
+
 ExternalReference ExternalReference::check_object_type() {
   return ExternalReference(Redirect(FUNCTION_ADDR(CheckObjectType)));
 }

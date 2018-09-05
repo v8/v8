@@ -773,6 +773,8 @@ enum class OptimizationStatus {
   kTopmostFrameIsTurboFanned = 1 << 11,
 };
 
+Smi* SmiLexicographicCompare(Smi* x_value, Smi* y_value);
+
 }  // namespace internal
 }  // namespace v8
 

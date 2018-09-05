@@ -215,6 +215,7 @@ v8_source_set("cctest_sources") {
     "test-roots.cc",
     "test-sampler-api.cc",
     "test-serialize.cc",
+    "test-smi-lexicographic-compare.cc",
     "test-strings.cc",
     "test-strtod.cc",
     "test-symbols.cc",

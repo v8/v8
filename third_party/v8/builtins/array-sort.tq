@@ -284,8 +284,7 @@ module array {
     assert(comparefn == Undefined);
 
     if (TaggedIsSmi(x) && TaggedIsSmi(y)) {
-      // TODO(szuend): Replace with a fast CallCFunction call.
-      return SmiLexicographicCompare(context, x, y);
+      return SmiLexicographicCompare(unsafe_cast<Smi>(x), unsafe_cast<Smi>(y));
     }
 
     // 5. Let xString be ? ToString(x).
