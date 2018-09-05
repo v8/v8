@@ -68,12 +68,23 @@ namespace {
   FATAL("Unsupported opcode 0x%x:%s", (opcode), \
         wasm::WasmOpcodes::OpcodeName(opcode));
 
+MachineType assert_size(int expected_size, MachineType type) {
+  DCHECK_EQ(expected_size, ElementSizeInBytes(type.representation()));
+  return type;
+}
+
+#define WASM_INSTANCE_OBJECT_SIZE(name)     \
+  (WasmInstanceObject::k##name##OffsetEnd - \
+   WasmInstanceObject::k##name##Offset + 1)  // NOLINT(whitespace/indent)
+
 #define WASM_INSTANCE_OBJECT_OFFSET(name) \
   wasm::ObjectAccess::ToTagged(WasmInstanceObject::k##name##Offset)
 
 #define LOAD_INSTANCE_FIELD(name, type)                                      \
   SetEffect(graph()->NewNode(                                                \
-      mcgraph()->machine()->Load(type), instance_node_.get(),                \
+      mcgraph()->machine()->Load(                                            \
+          assert_size(WASM_INSTANCE_OBJECT_SIZE(name), type)),               \
+      instance_node_.get(),                                                  \
       mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(name)), Effect(), \
       Control()))
 
@@ -2792,11 +2803,8 @@ void WasmGraphBuilder::InitInstanceCache(
 
   if (untrusted_code_mitigations_) {
     // Load the memory mask.
-    instance_cache->mem_mask = SetEffect(graph()->NewNode(
-        mcgraph()->machine()->Load(MachineType::UintPtr()),
-        instance_node_.get(),
-        mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(MemoryMask)),
-        Effect(), Control()));
+    instance_cache->mem_mask =
+        LOAD_INSTANCE_FIELD(MemoryMask, MachineType::UintPtr());
   } else {
     // Explicitly set to nullptr to ensure a SEGV when we try to use it.
     instance_cache->mem_mask = nullptr;
@@ -5368,6 +5376,7 @@ AssemblerOptions WasmAssemblerOptions() {
 
 #undef WASM_64
 #undef FATAL_UNSUPPORTED_OPCODE
+#undef WASM_INSTANCE_OBJECT_SIZE
 #undef WASM_INSTANCE_OBJECT_OFFSET
 #undef LOAD_INSTANCE_FIELD
 #undef LOAD_FIXED_ARRAY_SLOT
