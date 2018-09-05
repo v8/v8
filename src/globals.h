@@ -1570,6 +1570,7 @@ enum class LoadSensitivity {
 #define FOREACH_WASM_TRAPREASON(V) \
   V(TrapUnreachable)               \
   V(TrapMemOutOfBounds)            \
+  V(TrapUnalignedAccess)           \
   V(TrapDivByZero)                 \
   V(TrapDivUnrepresentable)        \
   V(TrapRemByZero)                 \

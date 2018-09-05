@@ -1218,6 +1218,7 @@ namespace internal {
   TFC(WasmToNumber, TypeConversion, 1)                                         \
   TFS(ThrowWasmTrapUnreachable)                                                \
   TFS(ThrowWasmTrapMemOutOfBounds)                                             \
+  TFS(ThrowWasmTrapUnalignedAccess)                                            \
   TFS(ThrowWasmTrapDivByZero)                                                  \
   TFS(ThrowWasmTrapDivUnrepresentable)                                         \
   TFS(ThrowWasmTrapRemByZero)                                                  \
