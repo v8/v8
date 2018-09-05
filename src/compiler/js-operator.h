@@ -733,6 +733,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       VectorSlotPair const& feedback, int literal_flags,
       int number_of_elements);
   const Operator* CreateEmptyLiteralArray(VectorSlotPair const& feedback);
+  const Operator* CreateArrayFromIterable();
   const Operator* CreateEmptyLiteralObject();
 
   const Operator* CreateLiteralObject(

@@ -325,8 +325,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     TNode<Object> iterator_fn =
         GetProperty(context, spread, IteratorSymbolConstant());
     GotoIfNot(TaggedIsCallable(iterator_fn), &if_iterator_fn_not_callable);
-    TNode<JSArray> list = CAST(
-        CallBuiltin(Builtins::kIterableToList, context, spread, iterator_fn));
+    TNode<JSArray> list =
+        CAST(CallBuiltin(Builtins::kIterableToListMayPreserveHoles, context,
+                         spread, iterator_fn));
     var_length = LoadAndUntagToWord32ObjectField(list, JSArray::kLengthOffset);
 
     var_elements = LoadElements(list);

@@ -644,6 +644,11 @@ namespace internal {
   TFH(LoadGlobalICInsideTypeofTrampoline, LoadGlobal)                          \
   TFH(CloneObjectIC, CloneObjectWithVector)                                    \
                                                                                \
+  /* IterableToList */                                                         \
+  /* ES #sec-iterabletolist */                                                 \
+  TFS(IterableToListWithSymbolLookup, kIterable)                               \
+  TFS(IterableToListMayPreserveHoles, kIterable, kIteratorFn)                  \
+                                                                               \
   /* Map */                                                                    \
   TFS(FindOrderedHashMapEntry, kTable, kKey)                                   \
   TFJ(MapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
@@ -1127,7 +1132,6 @@ namespace internal {
   TFJ(SymbolPrototypeValueOf, 0, kReceiver)                                    \
                                                                                \
   /* TypedArray */                                                             \
-  TFS(IterableToList, kIterable, kIteratorFn)                                  \
   TFS(TypedArrayInitialize, kHolder, kLength, kElementSize, kInitialize,       \
       kBufferConstructor)                                                      \
   TFS(TypedArrayInitializeWithBuffer, kHolder, kLength, kBuffer, kElementSize, \

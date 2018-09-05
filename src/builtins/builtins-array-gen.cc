@@ -1679,10 +1679,12 @@ TF_BUILTIN(ExtractFastJSArray, ArrayBuiltinsAssembler) {
 
 TF_BUILTIN(CloneFastJSArray, ArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  Node* array = Parameter(Descriptor::kSource);
+  TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
 
-  CSA_ASSERT(this, IsJSArray(array));
-  CSA_ASSERT(this, Word32BinaryNot(IsNoElementsProtectorCellInvalid()));
+  CSA_ASSERT(this,
+             Word32Or(Word32BinaryNot(IsHoleyFastElementsKind(
+                          LoadMapElementsKind(LoadMap(array)))),
+                      Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
 
   ParameterMode mode = OptimalParameterMode();
   Return(CloneFastJSArray(context, array, mode));

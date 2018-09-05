@@ -3965,6 +3965,10 @@ Node* CodeStubAssembler::ExtractFastJSArray(Node* context, Node* array,
 Node* CodeStubAssembler::CloneFastJSArray(Node* context, Node* array,
                                           ParameterMode mode,
                                           Node* allocation_site) {
+  // TODO(dhai): we should be able to assert IsFastJSArray(array) here, but this
+  // function is also used to copy boilerplates even when the no-elements
+  // protector is invalid. This function should be renamed to reflect its uses.
+  CSA_ASSERT(this, IsJSArray(array));
   Node* original_array_map = LoadMap(array);
   Node* elements_kind = LoadMapElementsKind(original_array_map);
 

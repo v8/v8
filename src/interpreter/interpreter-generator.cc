@@ -9,6 +9,7 @@
 
 #include "src/builtins/builtins-arguments-gen.h"
 #include "src/builtins/builtins-constructor-gen.h"
+#include "src/builtins/builtins-iterator-gen.h"
 #include "src/code-events.h"
 #include "src/code-factory.h"
 #include "src/debug/debug.h"
@@ -2377,6 +2378,18 @@ IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
   ConstructorBuiltinsAssembler constructor_assembler(state());
   Node* result = constructor_assembler.EmitCreateEmptyArrayLiteral(
       feedback_vector, slot_id, context);
+  SetAccumulator(result);
+  Dispatch();
+}
+
+// CreateArrayFromIterable
+//
+// Spread the given iterable from the accumulator into a new JSArray.
+IGNITION_HANDLER(CreateArrayFromIterable, InterpreterAssembler) {
+  Node* iterable = GetAccumulator();
+  Node* context = GetContext();
+  Node* result =
+      CallBuiltin(Builtins::kIterableToListWithSymbolLookup, context, iterable);
   SetAccumulator(result);
   Dispatch();
 }

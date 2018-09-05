@@ -5,7 +5,6 @@
 #include "src/builtins/builtins-typed-array-gen.h"
 
 #include "src/builtins/builtins-constructor-gen.h"
-#include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
@@ -640,8 +639,9 @@ void TypedArrayBuiltinsAssembler::ConstructByIterable(
   Label fast_path(this), slow_path(this), done(this);
   CSA_ASSERT(this, IsCallable(iterator_fn));
 
-  TNode<JSArray> array_like = CAST(
-      CallBuiltin(Builtins::kIterableToList, context, iterable, iterator_fn));
+  TNode<JSArray> array_like =
+      CAST(CallBuiltin(Builtins::kIterableToListMayPreserveHoles, context,
+                       iterable, iterator_fn));
   TNode<Object> initial_length = LoadJSArrayLength(array_like);
 
   TNode<JSFunction> default_constructor = CAST(LoadContextElement(
@@ -1606,17 +1606,6 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
                  "%TypedArray%.of");
 }
 
-// This builtin always returns a new JSArray and is thus safe to use even in the
-// presence of code that may call back into user-JS.
-TF_BUILTIN(IterableToList, TypedArrayBuiltinsAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
-  TNode<Object> iterator_fn = CAST(Parameter(Descriptor::kIteratorFn));
-
-  IteratorBuiltinsAssembler iterator_assembler(state());
-  Return(iterator_assembler.IterableToList(context, iterable, iterator_fn));
-}
-
 // ES6 #sec-%typedarray%.from
 TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
@@ -1681,8 +1670,9 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
     // 7. If usingIterator is not undefined, then
     //  a. Let values be ? IterableToList(source, usingIterator).
     //  b. Let len be the number of elements in values.
-    TNode<JSArray> values = CAST(
-        CallBuiltin(Builtins::kIterableToList, context, source, iterator_fn));
+    TNode<JSArray> values =
+        CAST(CallBuiltin(Builtins::kIterableToListMayPreserveHoles, context,
+                         source, iterator_fn));
 
     // This is not a spec'd limit, so it doesn't particularly matter when we
     // throw the range error for typed array length > MaxSmi.
