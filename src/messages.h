@@ -735,6 +735,7 @@ class ErrorUtils : public AllStatic {
   /* Wasm errors (currently Error) */                                          \
   T(WasmTrapUnreachable, "unreachable")                                        \
   T(WasmTrapMemOutOfBounds, "memory access out of bounds")                     \
+  T(WasmTrapUnalignedAccess, "operation does not support unaligned accesses")  \
   T(WasmTrapDivByZero, "divide by zero")                                       \
   T(WasmTrapDivUnrepresentable, "divide result unrepresentable")               \
   T(WasmTrapRemByZero, "remainder by zero")                                    \
