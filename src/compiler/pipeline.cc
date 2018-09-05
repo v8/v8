@@ -2441,7 +2441,16 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     AllocateRegisters(RegisterConfiguration::Poisoning(), call_descriptor,
                       run_verifier);
 #if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
-  } else if (data_->assembler_options().isolate_independent_code) {
+    // TODO(v8:6666): For explicitly listed builtins, register allocation fails
+    // due to register pressure when kRootRegister is not allocatable. Either
+    // refactor these builtins or fix register allocation in these cases.
+  } else if (Builtins::IsBuiltinId(data->info()->builtin_index()) &&
+             data->info()->builtin_index() != Builtins::kWasmArgumentsAdaptor &&
+             data->info()->builtin_index() != Builtins::kCopyFromTempArray &&
+             data->info()->builtin_index() != Builtins::kCopyWithinSortArray &&
+             data->info()->builtin_index() != Builtins::kBinaryInsertionSort &&
+             data->info()->builtin_index() != Builtins::kMergeAt &&
+             data->info()->builtin_index() != Builtins::kArrayTimSort) {
     // TODO(v8:6666): Extend support to user code. Ensure that
     // it is mutually exclusive with the Poisoning configuration above; and that
     // it cooperates with restricted allocatable registers above.
@@ -2451,7 +2460,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     CHECK_IMPLIES(FLAG_embedded_builtins, !FLAG_untrusted_code_mitigations);
     AllocateRegisters(RegisterConfiguration::PreserveRootIA32(),
                       call_descriptor, run_verifier);
-#endif  // V8_TARGET_ARCH_IA32
+#endif  // defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
   } else {
     AllocateRegisters(RegisterConfiguration::Default(), call_descriptor,
                       run_verifier);
