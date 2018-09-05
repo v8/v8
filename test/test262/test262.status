@@ -631,35 +631,8 @@
   'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-short': [FAIL],
   'intl402/RelativeTimeFormat/prototype/formatToParts/unit-plural': [FAIL],
 
-  # https://github.com/tc39/test262/issues/1697
-  'language/expressions/class/fields-computed-name-toprimitive': [FAIL],
-  'language/expressions/class/fields-computed-name-toprimitive-symbol': [FAIL],
-  'language/expressions/class/fields-ctor-called-after-fields-init': [FAIL],
-  'language/expressions/class/fields-evaluation-error-computed-name-referenceerror': [FAIL],
-  'language/expressions/class/fields-evaluation-error-computed-name-toprimitive-err': [FAIL],
-  'language/expressions/class/fields-evaluation-error-computed-name-toprimitive-returns-noncallable': [FAIL],
-  'language/expressions/class/fields-evaluation-error-computed-name-toprimitive-returns-nonobject': [FAIL],
-  'language/expressions/class/fields-evaluation-error-computed-name-tostring-err': [FAIL],
-  'language/expressions/class/fields-evaluation-error-computed-name-valueof-err': [FAIL],
-  'language/expressions/class/fields-init-err-evaluation': [FAIL],
-  'language/expressions/class/fields-init-value-defined-after-class': [FAIL],
-  'language/expressions/class/fields-init-value-incremental': [FAIL],
-  'language/expressions/class/fields-redeclaration': [FAIL],
-  'language/expressions/class/fields-redeclaration-symbol': [FAIL],
-  'language/statements/class/fields-computed-name-toprimitive': [FAIL],
-  'language/statements/class/fields-computed-name-toprimitive-symbol': [FAIL],
-  'language/statements/class/fields-ctor-called-after-fields-init': [FAIL],
-  'language/statements/class/fields-evaluation-error-computed-name-referenceerror': [FAIL],
-  'language/statements/class/fields-evaluation-error-computed-name-toprimitive-err': [FAIL],
-  'language/statements/class/fields-evaluation-error-computed-name-toprimitive-returns-noncallable': [FAIL],
-  'language/statements/class/fields-evaluation-error-computed-name-toprimitive-returns-nonobject': [FAIL],
-  'language/statements/class/fields-evaluation-error-computed-name-tostring-err': [FAIL],
-  'language/statements/class/fields-evaluation-error-computed-name-valueof-err': [FAIL],
-  'language/statements/class/fields-init-err-evaluation': [FAIL],
-  'language/statements/class/fields-init-value-defined-after-class': [FAIL],
-  'language/statements/class/fields-init-value-incremental': [FAIL],
-  'language/statements/class/fields-redeclaration': [FAIL],
-  'language/statements/class/fields-redeclaration-symbol': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7871
+  'intl402/ListFormat/prototype/formatToParts/en-us-disjunction': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 

@@ -62,6 +62,7 @@ SKIPPED_FEATURES = set(['Intl.Segmenter',
                         'export-star-as-namespace-from-module',
                         'class-fields-private',
                         'class-static-fields-private',
+                        'class-methods-private',
                         'class-static-methods-private'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
