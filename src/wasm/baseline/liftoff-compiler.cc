@@ -1477,12 +1477,9 @@ class LiftoffCompiler {
     }
     LiftoffRegister tmp = __ GetUnusedRegister(kGpReg, pinned);
     __ LoadConstant(tmp, WasmValue(*offset));
-    __ emit_i32_add(index.gp(), index.gp(), tmp.gp());
-    // TODO(clemensh): Use LOAD_INSTANCE_FIELD once the type is fixed.
-    // LOAD_INSTANCE_FIELD(tmp, MemoryMask, kUInt32Size);
-    __ LoadFromInstance(tmp.gp(), WASM_INSTANCE_OBJECT_OFFSET(MemoryMask),
-                        kUInt32Size);
-    __ emit_i32_and(index.gp(), index.gp(), tmp.gp());
+    __ emit_ptrsize_add(index.gp(), index.gp(), tmp.gp());
+    LOAD_INSTANCE_FIELD(tmp, MemoryMask, kPointerSize);
+    __ emit_ptrsize_and(index.gp(), index.gp(), tmp.gp());
     *offset = 0;
     return index;
   }

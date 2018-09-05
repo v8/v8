@@ -2818,9 +2818,9 @@ void WasmGraphBuilder::PrepareInstanceCacheForLoop(
                                            instance_cache->field, control);
 
   INTRODUCE_PHI(mem_start, MachineType::PointerRepresentation());
-  INTRODUCE_PHI(mem_size, MachineRepresentation::kWord32);
+  INTRODUCE_PHI(mem_size, MachineType::PointerRepresentation());
   if (untrusted_code_mitigations_) {
-    INTRODUCE_PHI(mem_mask, MachineRepresentation::kWord32);
+    INTRODUCE_PHI(mem_mask, MachineType::PointerRepresentation());
   }
 
 #undef INTRODUCE_PHI

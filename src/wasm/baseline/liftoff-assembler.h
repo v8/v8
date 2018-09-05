@@ -455,6 +455,14 @@ class LiftoffAssembler : public TurboAssembler {
       emit_i32_sub(dst, lhs, rhs);
     }
   }
+  inline void emit_ptrsize_and(Register dst, Register lhs, Register rhs) {
+    if (kPointerSize == 8) {
+      emit_i64_and(LiftoffRegister(dst), LiftoffRegister(lhs),
+                   LiftoffRegister(rhs));
+    } else {
+      emit_i32_and(dst, lhs, rhs);
+    }
+  }
   inline void emit_ptrsize_shr(Register dst, Register src, int amount) {
     if (kPointerSize == 8) {
       emit_i64_shr(LiftoffRegister(dst), LiftoffRegister(src), amount);
