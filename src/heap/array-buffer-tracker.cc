@@ -76,9 +76,9 @@ void LocalArrayBufferTracker::Process(Callback callback) {
 
   array_buffers_.swap(kept_array_buffers);
 
-  // Pass the backing stores that need to be freed to the main thread for later
-  // distribution.
-  page_->heap()->array_buffer_collector()->AddGarbageAllocations(
+  // Pass the backing stores that need to be freed to the main thread for
+  // potential later distribution.
+  page_->heap()->array_buffer_collector()->QueueOrFreeGarbageAllocations(
       std::move(backing_stores_to_free));
 }
 

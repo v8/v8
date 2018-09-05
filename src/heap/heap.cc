@@ -2212,7 +2212,7 @@ void Heap::Scavenge() {
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_PROCESS_ARRAY_BUFFERS);
     ArrayBufferTracker::PrepareToFreeDeadInNewSpace(this);
   }
-  array_buffer_collector()->FreeAllocationsOnBackgroundThread();
+  array_buffer_collector()->FreeAllocations();
 
   RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(this, [](MemoryChunk* chunk) {
     if (chunk->SweepingDone()) {
