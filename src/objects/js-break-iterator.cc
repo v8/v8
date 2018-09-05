@@ -26,20 +26,25 @@ JSV8BreakIterator::Type JSV8BreakIterator::getType(const char* str) {
 
 MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::InitializeV8BreakIterator(
     Isolate* isolate, Handle<JSV8BreakIterator> break_iterator_holder,
-    Handle<Object> input_locales, Handle<Object> input_options) {
+    Handle<Object> locales, Handle<Object> options_obj) {
   Factory* factory = isolate->factory();
 
-  // If no options were provided, fallback to { __proto__: null }
-  if (input_options->IsUndefined(isolate)) {
-    input_options = factory->NewJSObjectWithNullProto();
+  Handle<JSReceiver> options;
+  if (options_obj->IsUndefined(isolate)) {
+    options = factory->NewJSObjectWithNullProto();
+  } else {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, options,
+        Object::ToObject(isolate, options_obj, "Intl.JSV8BreakIterator"),
+        JSV8BreakIterator);
   }
 
   // Extract locale string
   Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, r,
-                             Intl::ResolveLocale(isolate, "breakiterator",
-                                                 input_locales, input_options),
-                             JSV8BreakIterator);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, r,
+      Intl::ResolveLocale(isolate, "breakiterator", locales, options),
+      JSV8BreakIterator);
   Handle<Object> locale_obj =
       JSObject::GetDataProperty(r, factory->locale_string());
   CHECK(locale_obj->IsString());
@@ -50,8 +55,7 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::InitializeV8BreakIterator(
   std::vector<const char*> type_values = {"character", "word", "sentence",
                                           "line"};
   Maybe<bool> maybe_found_type = Intl::GetStringOption(
-      isolate, Handle<JSReceiver>::cast(input_options), "type", type_values,
-      "Intl.v8BreakIterator", &type_str);
+      isolate, options, "type", type_values, "Intl.v8BreakIterator", &type_str);
   Type type_enum = Type::WORD;
   MAYBE_RETURN(maybe_found_type, MaybeHandle<JSV8BreakIterator>());
   if (maybe_found_type.FromJust()) {
