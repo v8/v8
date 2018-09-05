@@ -2217,7 +2217,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ Sub(x10, sp, x10);
       // Check if the arguments will overflow the stack.
       __ Cmp(x10, Operand(bound_argc, LSL, kPointerSizeLog2));
-      __ B(gt, &done);  // Signed comparison.
+      __ B(hs, &done);
       __ TailCallRuntime(Runtime::kThrowStackOverflow);
       __ Bind(&done);
     }

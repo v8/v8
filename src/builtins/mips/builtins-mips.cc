@@ -1864,7 +1864,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
     __ LoadRoot(kScratchReg, Heap::kRealStackLimitRootIndex);
-    __ Branch(&done, gt, sp, Operand(kScratchReg));  // Signed comparison.
+    __ Branch(&done, hs, sp, Operand(kScratchReg));
     // Restore the stack pointer.
     __ Addu(sp, sp, Operand(t1));
     {
@@ -2022,7 +2022,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
     __ LoadRoot(kScratchReg, Heap::kRealStackLimitRootIndex);
-    __ Branch(&done, gt, sp, Operand(kScratchReg));  // Signed comparison.
+    __ Branch(&done, hs, sp, Operand(kScratchReg));
     // Restore the stack pointer.
     __ Addu(sp, sp, Operand(t1));
     {

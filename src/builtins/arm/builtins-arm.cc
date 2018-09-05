@@ -1860,7 +1860,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       // (i.e. debug break and preemption) here, so check the "real stack
       // limit".
       __ CompareRoot(sp, Heap::kRealStackLimitRootIndex);
-      __ b(gt, &done);  // Signed comparison.
+      __ b(hs, &done);
       // Restore the stack pointer.
       __ add(sp, sp, Operand(r4, LSL, kPointerSizeLog2));
       {
