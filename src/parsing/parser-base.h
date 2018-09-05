@@ -1126,8 +1126,8 @@ class ParserBase {
       ClassLiteralChecker* checker, ClassInfo* class_info,
       IdentifierT* property_name, bool has_extends, bool* is_computed_name,
       ClassLiteralProperty::Kind* property_kind, bool* is_static, bool* ok);
-  ExpressionT ParseClassFieldInitializer(ClassInfo* class_info, bool is_static,
-                                         bool* ok);
+  ExpressionT ParseClassFieldInitializer(ClassInfo* class_info, int beg_pos,
+                                         bool is_static, bool* ok);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
       ObjectLiteralChecker* checker, bool* is_computed_name,
       bool* is_rest_property, bool* ok);
@@ -2319,7 +2319,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
   DCHECK_IMPLIES(name_token == Token::PRIVATE_NAME,
                  allow_harmony_private_fields());
 
-  int name_token_position = scanner()->peek_location().beg_pos;
+  int property_beg_pos = scanner()->peek_location().beg_pos;
+  int name_token_position = property_beg_pos;
   *name = impl()->NullIdentifier();
   ExpressionT name_expression;
   if (name_token == Token::STATIC) {
@@ -2384,8 +2385,9 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
           checker->CheckClassFieldName(*is_static,
                                        CHECK_OK_CUSTOM(NullLiteralProperty));
         }
-        ExpressionT initializer = ParseClassFieldInitializer(
-            class_info, *is_static, CHECK_OK_CUSTOM(NullLiteralProperty));
+        ExpressionT initializer =
+            ParseClassFieldInitializer(class_info, property_beg_pos, *is_static,
+                                       CHECK_OK_CUSTOM(NullLiteralProperty));
         ExpectSemicolon(CHECK_OK_CUSTOM(NullLiteralProperty));
         ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
             name_expression, initializer, *property_kind, *is_static,
@@ -2486,7 +2488,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseClassFieldInitializer(ClassInfo* class_info,
+ParserBase<Impl>::ParseClassFieldInitializer(ClassInfo* class_info, int beg_pos,
                                              bool is_static, bool* ok) {
   DeclarationScope* initializer_scope = is_static
                                             ? class_info->static_fields_scope
@@ -2496,7 +2498,7 @@ ParserBase<Impl>::ParseClassFieldInitializer(ClassInfo* class_info,
     initializer_scope =
         NewFunctionScope(FunctionKind::kClassFieldsInitializerFunction);
     // TODO(gsathya): Make scopes be non contiguous.
-    initializer_scope->set_start_position(scanner()->location().end_pos);
+    initializer_scope->set_start_position(beg_pos);
     initializer_scope->SetLanguageMode(LanguageMode::kStrict);
   }
 
