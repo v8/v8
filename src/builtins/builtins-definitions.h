@@ -1391,6 +1391,7 @@ namespace internal {
   CPP(NumberFormatSupportedLocalesOf)                                  \
   /* ecma402 #sec-intl.pluralrules */                                  \
   CPP(PluralRulesConstructor)                                          \
+  CPP(PluralRulesPrototypeResolvedOptions)                             \
   /* ecma402 #sec-intl.pluralrules.supportedlocalesof */               \
   CPP(PluralRulesSupportedLocalesOf)                                   \
   /* ecma402 #sec-intl.RelativeTimeFormat.constructor */               \

@@ -496,14 +496,6 @@ DEFINE_METHOD(
   }
 );
 
-
-DEFINE_METHOD(
-  GlobalIntlPluralRules.prototype,
-  resolvedOptions() {
-    return %PluralRulesResolvedOptions(this);
-  }
-);
-
 DEFINE_METHOD(
   GlobalIntlPluralRules.prototype,
   select(value) {

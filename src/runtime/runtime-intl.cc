@@ -257,28 +257,6 @@ RUNTIME_FUNCTION(Runtime_CollatorResolvedOptions) {
   return *JSCollator::ResolvedOptions(isolate, collator);
 }
 
-RUNTIME_FUNCTION(Runtime_PluralRulesResolvedOptions) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, plural_rules_obj, 0);
-
-  // 3. If pr does not have an [[InitializedPluralRules]] internal
-  // slot, throw a TypeError exception.
-  if (!plural_rules_obj->IsJSPluralRules()) {
-    Handle<String> method_str = isolate->factory()->NewStringFromStaticChars(
-        "Intl.PluralRules.prototype.resolvedOptions");
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                              method_str, plural_rules_obj));
-  }
-
-  Handle<JSPluralRules> plural_rules =
-      Handle<JSPluralRules>::cast(plural_rules_obj);
-
-  return *JSPluralRules::ResolvedOptions(isolate, plural_rules);
-}
-
 RUNTIME_FUNCTION(Runtime_ParseExtension) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);

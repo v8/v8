@@ -1108,6 +1108,13 @@ BUILTIN(PluralRulesConstructor) {
                                                     locales, options));
 }
 
+BUILTIN(PluralRulesPrototypeResolvedOptions) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSPluralRules, plural_rules_holder,
+                 "Intl.PluralRules.prototype.resolvedOptions");
+  return *JSPluralRules::ResolvedOptions(isolate, plural_rules_holder);
+}
+
 BUILTIN(PluralRulesSupportedLocalesOf) {
   HandleScope scope(isolate);
   RETURN_RESULT_OR_FAILURE(

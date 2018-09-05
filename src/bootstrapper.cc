@@ -3055,6 +3055,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           isolate_, prototype, factory->to_string_tag_symbol(),
           factory->Object_string(),
           static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+      SimpleInstallFunction(isolate_, prototype, "resolvedOptions",
+                            Builtins::kPluralRulesPrototypeResolvedOptions, 0,
+                            false);
     }
   }
 #endif  // V8_INTL_SUPPORT

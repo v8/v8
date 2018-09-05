@@ -215,7 +215,6 @@ namespace internal {
   F(MarkAsInitializedIntlObjectOfType, 2, 1) \
   F(ParseExtension, 1, 1)                    \
   F(NumberFormatResolvedOptions, 1, 1)       \
-  F(PluralRulesResolvedOptions, 1, 1)        \
   F(PluralRulesSelect, 2, 1)                 \
   F(ToDateTimeOptions, 3, 1)                 \
   F(StringToLowerCaseIntl, 1, 1)             \
