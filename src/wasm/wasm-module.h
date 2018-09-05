@@ -74,15 +74,12 @@ struct WasmGlobal {
 // function signature.
 typedef FunctionSig WasmExceptionSig;
 
+// Static representation of a wasm exception type.
 struct WasmException {
-  explicit WasmException(const WasmExceptionSig* sig = &empty_sig_)
-      : sig(sig) {}
+  explicit WasmException(const WasmExceptionSig* sig) : sig(sig) {}
   FunctionSig* ToFunctionSig() const { return const_cast<FunctionSig*>(sig); }
 
   const WasmExceptionSig* sig;  // type signature of the exception.
-
- private:
-  static const WasmExceptionSig empty_sig_;
 };
 
 // Static representation of a wasm data segment.
