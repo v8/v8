@@ -13,11 +13,6 @@ namespace compiler {
 
 namespace {
 
-static constexpr int kFloat32Bit =
-    RepresentationBit(MachineRepresentation::kFloat32);
-static constexpr int kFloat64Bit =
-    RepresentationBit(MachineRepresentation::kFloat64);
-
 // Splits a FP move between two location operands into the equivalent series of
 // moves between smaller sub-operands, e.g. a double move to two single moves.
 // This helps reduce the number of cycles that would normally occur under FP
@@ -100,7 +95,7 @@ void GapResolver::Resolve(ParallelMove* moves) {
     if (reps && !base::bits::IsPowerOfTwo(reps)) {
       // Start with the smallest FP moves, so we never encounter smaller moves
       // in the middle of a cycle of larger moves.
-      if ((reps & kFloat32Bit) != 0) {
+      if ((reps & RepresentationBit(MachineRepresentation::kFloat32)) != 0) {
         split_rep_ = MachineRepresentation::kFloat32;
         for (size_t i = 0; i < moves->size(); ++i) {
           auto move = (*moves)[i];
@@ -108,7 +103,7 @@ void GapResolver::Resolve(ParallelMove* moves) {
             PerformMove(moves, move);
         }
       }
-      if ((reps & kFloat64Bit) != 0) {
+      if ((reps & RepresentationBit(MachineRepresentation::kFloat64)) != 0) {
         split_rep_ = MachineRepresentation::kFloat64;
         for (size_t i = 0; i < moves->size(); ++i) {
           auto move = (*moves)[i];
