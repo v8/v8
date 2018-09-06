@@ -3504,6 +3504,7 @@ int Shell::Main(int argc, char* argv[]) {
           Shell::HostInitializeImportMetaObject);
       {
         D8Console console(isolate2);
+        Initialize(isolate2);
         debug::SetConsoleDelegate(isolate2, &console);
         PerIsolateData data(isolate2);
         Isolate::Scope isolate_scope(isolate2);
