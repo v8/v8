@@ -936,7 +936,7 @@ bool IsStructurallyValidLanguageTag(Isolate* isolate,
   // is not valid and would fail LANGUAGE_TAG_RE test.
   size_t pos = 0;
   std::vector<std::string> parts;
-  while ((pos = locale.find("-")) != std::string::npos) {
+  while ((pos = locale.find('-')) != std::string::npos) {
     std::string token = locale.substr(0, pos);
     parts.push_back(token);
     locale = locale.substr(pos + 1);
@@ -1195,7 +1195,7 @@ void Intl::ParseExtension(Isolate* isolate, const std::string& extension,
   size_t start = 3;
   size_t end;
   do {
-    end = extension.find("-", start);
+    end = extension.find('-', start);
     size_t length =
         (end == std::string::npos) ? extension.length() - start : end - start;
     std::string element = extension.substr(start, length);
@@ -1230,7 +1230,7 @@ MaybeHandle<String> Intl::StringLocaleConvertCase(Isolate* isolate,
   std::string requested_locale = requested_locales.size() == 0
                                      ? Intl::DefaultLocale(isolate)
                                      : requested_locales[0];
-  size_t dash = requested_locale.find("-");
+  size_t dash = requested_locale.find('-');
   if (dash != std::string::npos) {
     requested_locale = requested_locale.substr(0, dash);
   }
