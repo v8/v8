@@ -9480,6 +9480,10 @@ class Internals {
 
   static const uint32_t kNumIsolateDataSlots = 4;
 
+  // Soft limit for AdjustAmountofExternalAllocatedMemory. Trigger an
+  // incremental GC once the external memory reaches this limit.
+  static constexpr int kExternalAllocationSoftLimit = 64 * 1024 * 1024;
+
   V8_EXPORT static void CheckInitializedImpl(v8::Isolate* isolate);
   V8_INLINE static void CheckInitialized(v8::Isolate* isolate) {
 #ifdef V8_ENABLE_CHECKS
@@ -10734,10 +10738,10 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
   }
 
   if (change_in_bytes < 0) {
-    *external_memory_limit += change_in_bytes;
-  }
-
-  if (change_in_bytes > 0 && amount > *external_memory_limit) {
+    const int64_t lower_limit = *external_memory_limit + change_in_bytes;
+    if (lower_limit > I::kExternalAllocationSoftLimit)
+      *external_memory_limit = lower_limit;
+  } else if (change_in_bytes > 0 && amount > *external_memory_limit) {
     ReportExternalAllocationLimitReached();
   }
   return *external_memory;

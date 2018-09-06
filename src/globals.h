@@ -213,8 +213,8 @@ constexpr size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 constexpr size_t kReservedCodeRangePages = 0;
 #endif
 
-// Trigger an incremental GCs once the external memory reaches this limit.
-constexpr int kExternalAllocationSoftLimit = 64 * MB;
+constexpr int kExternalAllocationSoftLimit =
+    internal::Internals::kExternalAllocationSoftLimit;
 
 // Maximum object size that gets allocated into regular pages. Objects larger
 // than that size are allocated in large object space and are never moved in
