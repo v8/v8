@@ -18,9 +18,7 @@ module array {
       elements: FixedArrayBase, first: Smi, count: Smi,
       capacity: Smi): FixedDoubleArray {
     if (elements == kEmptyFixedArray) {
-      let newArray: FixedDoubleArray =
-          AllocateZeroedFixedDoubleArray(convert<intptr>(capacity));
-      return newArray;
+      return AllocateZeroedFixedDoubleArray(convert<intptr>(capacity));
     }
     return unsafe_cast<FixedDoubleArray>(
         ExtractFixedArray(elements, first, count, capacity));
@@ -30,8 +28,8 @@ module array {
       args: constexpr Arguments, a: JSArray, length: Smi, newLength: Smi,
       lengthDelta: Smi, actualStart: Smi, insertCount: Smi,
       actualDeleteCount: Smi): void labels Bailout {
-    let elements: FixedArrayBase = a.elements;
-    let elementsMap: Map = elements.map;
+    const elements: FixedArrayBase = a.elements;
+    const elementsMap: Map = elements.map;
 
     // If the spliced array is larger then the
     // source array, then allocate a new FixedArrayType to hold the result.
@@ -48,7 +46,7 @@ module array {
     // Copy over inserted elements.
     let k: Smi = actualStart;
     if (insertCount > 0) {
-      let typedNewElements: FixedArrayType =
+      const typedNewElements: FixedArrayType =
           unsafe_cast<FixedArrayType>(newElements);
       for (let e: Object of args [2: ]) {
         // The argument elements were already validated to be an appropriate
@@ -60,8 +58,9 @@ module array {
     // Copy over elements after deleted elements.
     let count: Smi = length - actualStart - actualDeleteCount;
     while (count > 0) {
-      let typedElements: FixedArrayType = unsafe_cast<FixedArrayType>(elements);
-      let typedNewElements: FixedArrayType =
+      const typedElements: FixedArrayType =
+          unsafe_cast<FixedArrayType>(elements);
+      const typedNewElements: FixedArrayType =
           unsafe_cast<FixedArrayType>(newElements);
       CopyArrayElement(typedElements, typedNewElements, k - lengthDelta, k);
       k++;
@@ -72,9 +71,9 @@ module array {
     // destination FixedArray is the original array's, since otherwise the array
     // is pre-filled with holes.
     if (elements == newElements) {
-      let typedNewElements: FixedArrayType =
+      const typedNewElements: FixedArrayType =
           unsafe_cast<FixedArrayType>(newElements);
-      let limit: Smi = elements.length;
+      const limit: Smi = elements.length;
       while (k < limit) {
         StoreArrayHole(typedNewElements, k);
         k++;
@@ -90,16 +89,17 @@ module array {
       originalLengthNumber: Number, actualStartNumber: Number, insertCount: Smi,
       actualDeleteCountNumber: Number): Object
   labels Bailout {
-    let originalLength: Smi = cast<Smi>(originalLengthNumber) otherwise Bailout;
-    let actualStart: Smi = cast<Smi>(actualStartNumber) otherwise Bailout;
-    let actualDeleteCount: Smi =
+    const originalLength: Smi =
+        cast<Smi>(originalLengthNumber) otherwise Bailout;
+    const actualStart: Smi = cast<Smi>(actualStartNumber) otherwise Bailout;
+    const actualDeleteCount: Smi =
         cast<Smi>(actualDeleteCountNumber) otherwise Bailout;
-    let lengthDelta: Smi = insertCount - actualDeleteCount;
-    let newLength: Smi = originalLength + lengthDelta;
+    const lengthDelta: Smi = insertCount - actualDeleteCount;
+    const newLength: Smi = originalLength + lengthDelta;
 
-    let a: JSArray = cast<JSArray>(o) otherwise Bailout;
+    const a: JSArray = cast<JSArray>(o) otherwise Bailout;
 
-    let map: Map = a.map;
+    const map: Map = a.map;
     if (!IsPrototypeInitialArrayPrototype(context, map)) goto Bailout;
     if (IsNoElementsProtectorCellInvalid()) goto Bailout;
     if (IsArraySpeciesProtectorCellInvalid()) goto Bailout;
@@ -108,11 +108,11 @@ module array {
     let elementsKind: ElementsKind = EnsureArrayPushable(map) otherwise Bailout;
     if (!IsFastElementsKind(elementsKind)) goto Bailout;
 
-    let oldElementsKind: ElementsKind = elementsKind;
+    const oldElementsKind: ElementsKind = elementsKind;
     for (let e: Object of args [2: ]) {
       if (IsFastSmiElementsKind(elementsKind)) {
         if (TaggedIsNotSmi(e)) {
-          let heapObject: HeapObject = unsafe_cast<HeapObject>(e);
+          const heapObject: HeapObject = unsafe_cast<HeapObject>(e);
           elementsKind = IsHeapNumber(heapObject) ?
               AllowDoubleElements(elementsKind) :
               AllowNonNumberElements(elementsKind);
@@ -125,15 +125,15 @@ module array {
     }
 
     if (elementsKind != oldElementsKind) {
-      let smi_elements_kind: Smi = convert<Smi>(convert<int32>(elementsKind));
+      const smi_elements_kind: Smi = convert<Smi>(convert<int32>(elementsKind));
       TransitionElementsKindWithKind(context, a, smi_elements_kind);
     }
 
     // Make sure that the length hasn't been changed by side-effect.
-    let length: Smi = cast<Smi>(a.length) otherwise Bailout;
+    const length: Smi = cast<Smi>(a.length) otherwise Bailout;
     if (originalLength != length) goto Bailout;
 
-    let deletedResult: JSArray =
+    const deletedResult: JSArray =
         ExtractFastJSArray(context, a, actualStart, actualDeleteCount);
 
     if (newLength == 0) {
@@ -164,15 +164,15 @@ module array {
     // 11. Repeat, while k < actualDeleteCount
     while (k < actualDeleteCount) {
       // a. Let from be ! ToString(actualStart + k).
-      let from: Number = actualStart + k;
+      const from: Number = actualStart + k;
 
       // b. Let fromPresent be ? HasProperty(O, from).
-      let fromPresent: Boolean = HasProperty(context, o, from);
+      const fromPresent: Boolean = HasProperty(context, o, from);
 
       // c. If fromPresent is true, then
       if (fromPresent == True) {
         // i. Let fromValue be ? Get(O, from).
-        let fromValue: Object = GetProperty(context, o, from);
+        const fromValue: Object = GetProperty(context, o, from);
 
         // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(k), fromValue).
         CreateDataProperty(context, a, k, fromValue);
@@ -182,7 +182,7 @@ module array {
       k++;
     }
     // 12. Perform ? Set(A, "length", actualDeleteCount, true).
-    SetProperty(context, a, 'length', actualDeleteCount);
+    SetProperty(context, a, kLengthString, actualDeleteCount);
     return a;
   }
 
@@ -198,17 +198,17 @@ module array {
     // b. Repeat, while k < (len - actualDeleteCount)
     while (k < (len - actualDeleteCount)) {
       // i. Let from be ! ToString(k + actualDeleteCount).
-      let from: Number = k + actualDeleteCount;
+      const from: Number = k + actualDeleteCount;
       // ii. Let to be ! ToString(k + itemCount).
-      let to: Number = k + itemCount;
+      const to: Number = k + itemCount;
 
       // iii. Let fromPresent be ? HasProperty(O, from).
-      let fromPresent: Boolean = HasProperty(context, o, from);
+      const fromPresent: Boolean = HasProperty(context, o, from);
 
       // iv. If fromPresent is true, then
       if (fromPresent == True) {
         // 1. Let fromValue be ? Get(O, from).
-        let fromValue: Object = GetProperty(context, o, from);
+        const fromValue: Object = GetProperty(context, o, from);
 
         // 2. Perform ? Set(O, to, fromValue, true).
         SetProperty(context, o, to, fromValue);
@@ -246,18 +246,18 @@ module array {
     // b. Repeat, while k > actualStart
     while (k > actualStart) {
       // i. Let from be ! ToString(k + actualDeleteCount - 1).
-      let from: Number = k + actualDeleteCount - 1;
+      const from: Number = k + actualDeleteCount - 1;
 
       // ii. Let to be ! ToString(k + itemCount - 1).
-      let to: Number = k + itemCount - 1;
+      const to: Number = k + itemCount - 1;
 
       // iii. Let fromPresent be ? HasProperty(O, from).
-      let fromPresent: Boolean = HasProperty(context, o, from);
+      const fromPresent: Boolean = HasProperty(context, o, from);
 
       // iv. If fromPresent is true, then
       if (fromPresent == True) {
         // 1. Let fromValue be ? Get(O, from).
-        let fromValue: Object = GetProperty(context, o, from);
+        const fromValue: Object = GetProperty(context, o, from);
 
         // 2. Perform ? Set(O, to, fromValue, true).
         SetProperty(context, o, to, fromValue);
@@ -277,11 +277,11 @@ module array {
       context: Context, arguments: constexpr Arguments, o: JSReceiver,
       len: Number, actualStart: Number, insertCount: Smi,
       actualDeleteCount: Number): Object {
-    let affected: Number = len - actualStart - actualDeleteCount;
+    const affected: Number = len - actualStart - actualDeleteCount;
 
     // 9. Let A be ? ArraySpeciesCreate(O, actualDeleteCount).
-    let a: JSReceiver = ArraySpeciesCreate(context, o, actualDeleteCount);
-    let itemCount: Number = insertCount;
+    const a: JSReceiver = ArraySpeciesCreate(context, o, actualDeleteCount);
+    const itemCount: Number = insertCount;
 
     // Steps 9 through 12: creating the array of deleted elements.
     FillDeletedElementsArray(context, o, actualStart, actualDeleteCount, a);
@@ -321,7 +321,7 @@ module array {
 
     // 19. Perform ? Set(O, "length", len - actualDeleteCount + itemCount,
     // true).
-    SetProperty(context, o, 'length', len - actualDeleteCount + itemCount);
+    SetProperty(context, o, kLengthString, len - actualDeleteCount + itemCount);
 
     return a;
   }
@@ -330,19 +330,19 @@ module array {
   javascript builtin ArraySplice(
       context: Context, receiver: Object, ...arguments): Object {
     // 1. Let O be ? ToObject(this value).
-    let o: JSReceiver = ToObject(context, receiver);
+    const o: JSReceiver = ToObject(context, receiver);
 
     // 2. Let len be ? ToLength(? Get(O, "length")).
-    let len: Number = GetLengthProperty(context, o);
+    const len: Number = GetLengthProperty(context, o);
 
     // 3. Let relativeStart be ? ToInteger(start).
-    let start: Object = arguments[0];
-    let relativeStart: Number = ToInteger_Inline(context, start);
+    const start: Object = arguments[0];
+    const relativeStart: Number = ToInteger_Inline(context, start);
 
     // 4. If relativeStart < 0, let actualStart be max((len + relativeStart),
     // 0);
     //    else let actualStart be min(relativeStart, len).
-    let actualStart: Number = relativeStart < 0 ?
+    const actualStart: Number = relativeStart < 0 ?
         max((len + relativeStart), 0) :
         min(relativeStart, len);
 
@@ -365,15 +365,15 @@ module array {
       // a. Let insertCount be the Number of actual arguments minus 2.
       insertCount = convert<Smi>(arguments.length) - 2;
       // b. Let dc be ? ToInteger(deleteCount).
-      let deleteCount: Object = arguments[1];
-      let dc: Number = ToInteger_Inline(context, deleteCount);
+      const deleteCount: Object = arguments[1];
+      const dc: Number = ToInteger_Inline(context, deleteCount);
       // c. Let actualDeleteCount be min(max(dc, 0), len - actualStart).
       actualDeleteCount = min(max(dc, 0), len - actualStart);
     }
 
     // 8. If len + insertCount - actualDeleteCount > 2^53-1, throw a
     //    Bailout exception.
-    let new_length: Number = len + insertCount - actualDeleteCount;
+    const new_length: Number = len + insertCount - actualDeleteCount;
     if (new_length > kMaxSafeInteger) {
       ThrowTypeError(context, kInvalidArrayLength, start);
     }

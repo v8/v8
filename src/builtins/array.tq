@@ -16,7 +16,7 @@ module array {
 
   macro GetLengthProperty(context: Context, o: Object): Number {
     if (BranchIfFastJSArray(o, context)) {
-      let a: JSArray = unsafe_cast<JSArray>(o);
+      const a: JSArray = unsafe_cast<JSArray>(o);
       return a.length_fast;
     } else
       deferred {
@@ -42,7 +42,7 @@ module array {
 
   macro IsJSArray(o: Object): bool {
     try {
-      let array: JSArray = cast<JSArray>(o) otherwise NotArray;
+      const array: JSArray = cast<JSArray>(o) otherwise NotArray;
       return true;
     }
     label NotArray {
@@ -60,7 +60,7 @@ module array {
 
   macro CopyArrayElement(
       elements: FixedArray, newElements: FixedArray, from: Smi, to: Smi): void {
-    let e: Object = elements[from];
+    const e: Object = elements[from];
     newElements[to] = e;
   }
 
@@ -68,7 +68,7 @@ module array {
       elements: FixedDoubleArray, newElements: FixedDoubleArray, from: Smi,
       to: Smi): void {
     try {
-      let floatValue: float64 = LoadDoubleWithHoleCheck(elements, from)
+      const floatValue: float64 = LoadDoubleWithHoleCheck(elements, from)
       otherwise FoundHole;
       newElements[to] = floatValue;
     }
