@@ -476,11 +476,9 @@ TEST_F(WasmModuleVerifyTest, ZeroExceptions) {
 }
 
 TEST_F(WasmModuleVerifyTest, OneI32Exception) {
-  static const byte data[] = {
-      SECTION_EXCEPTIONS(3), 1,
-      // except[0] (i32)
-      1, kLocalI32,
-  };
+  static const byte data[] = {SECTION_EXCEPTIONS(3), 1,
+                              // except[0] (i32)
+                              1, kLocalI32};
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
@@ -525,9 +523,9 @@ TEST_F(WasmModuleVerifyTest, Exception_invalid_type) {
   EXPECT_FALSE(result.ok());
 }
 
-TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeCode) {
-  static const byte data[] = {SIGNATURES_SECTION_VOID_VOID, ONE_EMPTY_FUNCTION,
-                              SECTION_EXCEPTIONS(1), 0, ONE_EMPTY_BODY};
+TEST_F(WasmModuleVerifyTest, ExceptionSectionCorrectPlacement) {
+  static const byte data[] = {SECTION(Import, 1), 0, SECTION_EXCEPTIONS(1), 0,
+                              SECTION(Export, 1), 0};
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
@@ -535,14 +533,39 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeCode) {
   EXPECT_OK(result);
 }
 
-TEST_F(WasmModuleVerifyTest, ExceptionSectionAfterCode) {
-  static const byte data[] = {SIGNATURES_SECTION_VOID_VOID, ONE_EMPTY_FUNCTION,
-                              ONE_EMPTY_BODY, SECTION_EXCEPTIONS(1), 0};
+TEST_F(WasmModuleVerifyTest, ExceptionSectionAfterExport) {
+  static const byte data[] = {SECTION(Export, 1), 0, SECTION_EXCEPTIONS(1), 0};
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
 
   WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_FALSE(result.ok());
+}
+
+TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeImport) {
+  static const byte data[] = {SECTION_EXCEPTIONS(1), 0, SECTION(Import, 1), 0};
+  FAIL_IF_NO_EXPERIMENTAL_EH(data);
+
+  WASM_FEATURE_SCOPE(eh);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_FALSE(result.ok());
+}
+
+TEST_F(WasmModuleVerifyTest, ExceptionExport) {
+  static const byte data[] = {SECTION_EXCEPTIONS(3), 1,
+                              // except[0] (i32)
+                              1, kLocalI32, SECTION(Export, 4),
+                              1,                   // exports
+                              NO_NAME,             // --
+                              kExternalException,  // --
+                              EXCEPTION_INDEX(0)};
+  FAIL_IF_NO_EXPERIMENTAL_EH(data);
+
+  WASM_FEATURE_SCOPE(eh);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+  EXPECT_EQ(1u, result.val->exceptions.size());
+  EXPECT_EQ(1u, result.val->export_table.size());
 }
 
 TEST_F(WasmModuleVerifyTest, OneSignature) {

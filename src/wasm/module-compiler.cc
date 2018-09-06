@@ -2014,6 +2014,13 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         }
         break;
       }
+      case kExternalException: {
+        const WasmException& exception = module_->exceptions[exp.index];
+        // TODO(mstarzinger): Only temporary placeholder, use wrapper object.
+        desc.set_value(handle(Smi::FromInt(exp.index), isolate_));
+        USE(exception);
+        break;
+      }
       default:
         UNREACHABLE();
         break;

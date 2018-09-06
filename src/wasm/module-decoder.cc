@@ -48,6 +48,8 @@ const char* ExternalKindName(ImportExportKindCode kind) {
       return "memory";
     case kExternalGlobal:
       return "global";
+    case kExternalException:
+      return "exception";
   }
   return "unknown";
 }
@@ -337,7 +339,7 @@ class ModuleDecoderImpl : public Decoder {
           static_cast<const void*>(bytes.end()));
 
     // Check if the section is out-of-order.
-    if (section_code < next_section_) {
+    if (section_code < next_ordered_section_) {
       errorf(pc(), "unexpected section: %s", SectionName(section_code));
       return;
     }
@@ -346,19 +348,21 @@ class ModuleDecoderImpl : public Decoder {
       case kUnknownSectionCode:
         break;
       case kExceptionSectionCode:
-        // Note: kExceptionSectionCode > kCodeSectionCode, but must appear
-        // before the code section. Hence, treat it as a special case.
+        // Note: kExceptionSectionCode > kExportSectionCode, but must appear
+        // before the export (and code) section, as well as after the import
+        // section. Hence, treat it as a special case.
         if (++number_of_exception_sections > 1) {
           errorf(pc(), "Multiple exception sections not allowed");
           return;
-        } else if (next_section_ > kCodeSectionCode) {
-          errorf(pc(), "Exception section must appear before the code section");
+        } else if (next_ordered_section_ > kExportSectionCode) {
+          errorf(pc(), "Exception section must appear before export section");
           return;
+        } else if (next_ordered_section_ < kImportSectionCode) {
+          next_ordered_section_ = kImportSectionCode + 1;
         }
         break;
       default:
-        next_section_ = section_code;
-        ++next_section_;
+        next_ordered_section_ = section_code + 1;
         break;
     }
 
@@ -655,6 +659,15 @@ class ModuleDecoderImpl : public Decoder {
           }
           break;
         }
+        case kExternalException: {
+          if (!enabled_features_.eh) {
+            errorf(pos, "invalid export kind 0x%02x", exp->kind);
+            break;
+          }
+          WasmException* exception = nullptr;
+          exp->index = consume_exception_index(module_.get(), &exception);
+          break;
+        }
         default:
           errorf(pos, "invalid export kind 0x%02x", exp->kind);
           break;
@@ -935,12 +948,13 @@ class ModuleDecoderImpl : public Decoder {
   std::shared_ptr<WasmModule> module_;
   Counters* counters_ = nullptr;
   // The type section is the first section in a module.
-  uint8_t next_section_ = kFirstSectionInModule;
+  uint8_t next_ordered_section_ = kFirstSectionInModule;
   uint32_t number_of_exception_sections = 0;
-  // We store next_section_ as uint8_t instead of SectionCode so that we can
-  // increment it. This static_assert should make sure that SectionCode does not
-  // get bigger than uint8_t accidentially.
-  static_assert(sizeof(ModuleDecoderImpl::next_section_) == sizeof(SectionCode),
+  // We store next_ordered_section_ as uint8_t instead of SectionCode so that we
+  // can increment it. This static_assert should make sure that SectionCode does
+  // not get bigger than uint8_t accidentially.
+  static_assert(sizeof(ModuleDecoderImpl::next_ordered_section_) ==
+                    sizeof(SectionCode),
                 "type mismatch");
   Result<bool> intermediate_result_;
   ModuleOrigin origin_;
@@ -1106,6 +1120,10 @@ class ModuleDecoderImpl : public Decoder {
 
   uint32_t consume_table_index(WasmModule* module, WasmTable** table) {
     return consume_index("table index", module->tables, table);
+  }
+
+  uint32_t consume_exception_index(WasmModule* module, WasmException** except) {
+    return consume_index("exception index", module->exceptions, except);
   }
 
   template <typename T>

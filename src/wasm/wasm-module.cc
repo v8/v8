@@ -187,6 +187,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
   Handle<String> table_string = factory->InternalizeUtf8String("table");
   Handle<String> memory_string = factory->InternalizeUtf8String("memory");
   Handle<String> global_string = factory->InternalizeUtf8String("global");
+  Handle<String> exception_string = factory->InternalizeUtf8String("exception");
 
   // Create the result array.
   const WasmModule* module = module_object->module();
@@ -216,6 +217,9 @@ Handle<JSArray> GetExports(Isolate* isolate,
         break;
       case kExternalGlobal:
         export_kind = global_string;
+        break;
+      case kExternalException:
+        export_kind = exception_string;
         break;
       default:
         UNREACHABLE();

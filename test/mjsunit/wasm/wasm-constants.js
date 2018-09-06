@@ -97,6 +97,7 @@ let kExternalFunction = 0;
 let kExternalTable = 1;
 let kExternalMemory = 2;
 let kExternalGlobal = 3;
+let kExternalException = 4;
 
 let kTableZero = 0;
 let kMemoryZero = 0;

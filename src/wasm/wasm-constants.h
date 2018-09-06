@@ -36,7 +36,8 @@ enum ImportExportKindCode : uint8_t {
   kExternalFunction = 0,
   kExternalTable = 1,
   kExternalMemory = 2,
-  kExternalGlobal = 3
+  kExternalGlobal = 3,
+  kExternalException = 4
 };
 
 // Binary encoding of maximum and shared flags for memories.
