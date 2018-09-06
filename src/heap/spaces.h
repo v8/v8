@@ -363,7 +363,7 @@ class MemoryChunk {
       + kUIntptrSize      // uintptr_t flags_
       + kPointerSize      // Address area_start_
       + kPointerSize      // Address area_end_
-      + 2 * kPointerSize  // VirtualMemory reservation_
+      + 3 * kPointerSize  // VirtualMemory reservation_
       + kPointerSize      // Address owner_
       + kPointerSize      // Heap* heap_
       + kIntptrSize       // intptr_t progress_bar_
@@ -894,6 +894,9 @@ class ReadOnlyPage : public Page {
   // Clears any pointers in the header that point out of the page that would
   // otherwise make the header non-relocatable.
   void MakeHeaderRelocatable();
+
+ private:
+  friend class ReadOnlySpace;
 };
 
 class LargePage : public MemoryChunk {
@@ -1456,7 +1459,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // start is not kNullAddress, the size is greater than zero, and the
   // block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
-  bool UncommitBlock(Address start, size_t size);
+  bool UncommitBlock(VirtualMemory* reservation, Address start, size_t size);
 
   // Zaps a contiguous block of memory [start..(start+size)[ with
   // a given zap value.
@@ -1466,6 +1469,14 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
                                                     Address start,
                                                     size_t commit_size,
                                                     size_t reserved_size);
+
+  // Page allocator instance for allocating non-executable pages.
+  // Guaranteed to be a valid pointer.
+  v8::PageAllocator* data_page_allocator() { return data_page_allocator_; }
+
+  // Page allocator instance for allocating executable pages.
+  // Guaranteed to be a valid pointer.
+  v8::PageAllocator* code_page_allocator() { return code_page_allocator_; }
 
   CodeRange* code_range() { return code_range_; }
   Unmapper* unmapper() { return &unmapper_; }
@@ -1518,6 +1529,10 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   }
 
   Isolate* isolate_;
+
+  v8::PageAllocator* data_page_allocator_;
+  v8::PageAllocator* code_page_allocator_;
+
   CodeRange* code_range_;
 
   // Maximum space size in bytes.

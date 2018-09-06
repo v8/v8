@@ -904,8 +904,8 @@ MaybeHandle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
       DCHECK_NOT_NULL(old_buffer->backing_store());
       // If adjusting permissions fails, propagate error back to return
       // failure to grow.
-      if (!i::SetPermissions(old_mem_start, new_size,
-                             PageAllocator::kReadWrite)) {
+      if (!i::SetPermissions(GetPlatformPageAllocator(), old_mem_start,
+                             new_size, PageAllocator::kReadWrite)) {
         return {};
       }
       reinterpret_cast<v8::Isolate*>(isolate)

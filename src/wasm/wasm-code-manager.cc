@@ -640,6 +640,7 @@ void NativeModule::PatchJumpTable(uint32_t func_index, Address target,
 }
 
 Address NativeModule::AllocateForCode(size_t size) {
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   // This happens under a lock assumed by the caller.
   size = RoundUp(size, kCodeAlignment);
   AddressRange mem = free_code_space_.Allocate(size);
@@ -660,8 +661,8 @@ Address NativeModule::AllocateForCode(size_t size) {
     mem = free_code_space_.Allocate(size);
     if (mem.is_empty()) return kNullAddress;
   }
-  Address commit_start = RoundUp(mem.start, AllocatePageSize());
-  Address commit_end = RoundUp(mem.end, AllocatePageSize());
+  Address commit_start = RoundUp(mem.start, page_allocator->AllocatePageSize());
+  Address commit_end = RoundUp(mem.end, page_allocator->AllocatePageSize());
   // {commit_start} will be either mem.start or the start of the next page.
   // {commit_end} will be the start of the page after the one in which
   // the allocation ends.
@@ -683,7 +684,7 @@ Address NativeModule::AllocateForCode(size_t size) {
       if (commit_end > it->end() || it->address() >= commit_end) continue;
       Address start = std::max(commit_start, it->address());
       size_t commit_size = static_cast<size_t>(commit_end - start);
-      DCHECK(IsAligned(commit_size, AllocatePageSize()));
+      DCHECK(IsAligned(commit_size, page_allocator->AllocatePageSize()));
       if (!wasm_code_manager_->Commit(start, commit_size)) {
         return kNullAddress;
       }
@@ -692,7 +693,7 @@ Address NativeModule::AllocateForCode(size_t size) {
     }
 #else
     size_t commit_size = static_cast<size_t>(commit_end - commit_start);
-    DCHECK(IsAligned(commit_size, AllocatePageSize()));
+    DCHECK(IsAligned(commit_size, page_allocator->AllocatePageSize()));
     if (!wasm_code_manager_->Commit(commit_start, commit_size)) {
       return kNullAddress;
     }
@@ -783,7 +784,8 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
                                              ? PageAllocator::kReadWrite
                                              : PageAllocator::kReadWriteExecute;
 
-  bool ret = SetPermissions(start, size, permission);
+  bool ret =
+      SetPermissions(GetPlatformPageAllocator(), start, size, permission);
   TRACE_HEAP("Setting rw permissions for %p:%p\n",
              reinterpret_cast<void*>(start),
              reinterpret_cast<void*>(start + size));
@@ -909,6 +911,8 @@ bool NativeModule::SetExecutable(bool executable) {
   if (is_executable_ == executable) return true;
   TRACE_HEAP("Setting module %p as executable: %d.\n", this, executable);
 
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
+
   if (FLAG_wasm_write_protect_code_memory) {
     PageAllocator::Permission permission =
         executable ? PageAllocator::kReadExecute : PageAllocator::kReadWrite;
@@ -923,7 +927,8 @@ bool NativeModule::SetExecutable(bool executable) {
     // committed or not.
     if (can_request_more_memory_) {
       for (auto& vmem : owned_code_space_) {
-        if (!SetPermissions(vmem.address(), vmem.size(), permission)) {
+        if (!SetPermissions(page_allocator, vmem.address(), vmem.size(),
+                            permission)) {
           return false;
         }
         TRACE_HEAP("Set %p:%p to executable:%d\n", vmem.address(), vmem.end(),
@@ -936,8 +941,10 @@ bool NativeModule::SetExecutable(bool executable) {
     for (auto& range : allocated_code_space_.ranges()) {
       // allocated_code_space_ is fine-grained, so we need to
       // page-align it.
-      size_t range_size = RoundUp(range.size(), AllocatePageSize());
-      if (!SetPermissions(range.start, range_size, permission)) {
+      size_t range_size =
+          RoundUp(range.size(), page_allocator->AllocatePageSize());
+      if (!SetPermissions(page_allocator, range.start, range_size,
+                          permission)) {
         return false;
       }
       TRACE_HEAP("Set %p:%p to executable:%d\n",

@@ -118,18 +118,20 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
     // store their lengths as a SMI internally.
     if (length >= kTwoGB) return nullptr;
 
-    size_t page_size = i::AllocatePageSize();
+    v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
+    size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     // Rounding up could go over the limit.
     if (allocated >= kTwoGB) return nullptr;
-    return i::AllocatePages(nullptr, allocated, page_size,
+    return i::AllocatePages(page_allocator, nullptr, allocated, page_size,
                             PageAllocator::kReadWrite);
   }
 
   void FreeVM(void* data, size_t length) {
-    size_t page_size = i::AllocatePageSize();
+    v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
+    size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
-    CHECK(i::FreePages(data, allocated));
+    CHECK(i::FreePages(page_allocator, data, allocated));
   }
 };
 

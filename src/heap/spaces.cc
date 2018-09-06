@@ -304,6 +304,8 @@ void CodeRangeAddressHint::NotifyFreedCodeRange(void* code_range_start,
 MemoryAllocator::MemoryAllocator(Isolate* isolate, size_t capacity,
                                  size_t code_range_size)
     : isolate_(isolate),
+      data_page_allocator_(GetPlatformPageAllocator()),
+      code_page_allocator_(GetPlatformPageAllocator()),
       code_range_(nullptr),
       capacity_(RoundUp(capacity, Page::kPageSize)),
       size_(0),
@@ -490,7 +492,9 @@ size_t MemoryAllocator::Unmapper::CommittedBufferedMemory() {
 }
 
 bool MemoryAllocator::CommitMemory(Address base, size_t size) {
-  if (!SetPermissions(base, size, PageAllocator::kReadWrite)) {
+  // TODO(ishell): use proper page allocator
+  if (!SetPermissions(GetPlatformPageAllocator(), base, size,
+                      PageAllocator::kReadWrite)) {
     return false;
   }
   UpdateAllocatedSpaceLimits(base, base + size);
@@ -499,7 +503,7 @@ bool MemoryAllocator::CommitMemory(Address base, size_t size) {
 
 void MemoryAllocator::FreeMemory(VirtualMemory* reservation,
                                  Executability executable) {
-  // TODO(gc) make code_range part of memory allocator?
+  // TODO(ishell): make code_range part of memory allocator?
   // Code which is part of the code-range does not have its own VirtualMemory.
   DCHECK(code_range() == nullptr ||
          !code_range()->contains(reservation->address()));
@@ -512,13 +516,13 @@ void MemoryAllocator::FreeMemory(VirtualMemory* reservation,
 
 void MemoryAllocator::FreeMemory(Address base, size_t size,
                                  Executability executable) {
-  // TODO(gc) make code_range part of memory allocator?
+  // TODO(ishell): make code_range part of memory allocator?
   if (code_range() != nullptr && code_range()->contains(base)) {
     DCHECK(executable == EXECUTABLE);
     code_range()->FreeRawMemory(base, size);
   } else {
     DCHECK(executable == NOT_EXECUTABLE || !code_range()->valid());
-    CHECK(FreePages(reinterpret_cast<void*>(base), size));
+    CHECK(FreePages(data_page_allocator_, reinterpret_cast<void*>(base), size));
   }
 }
 
@@ -608,8 +612,10 @@ void MemoryChunk::SetReadAndExecutable() {
     size_t page_size = MemoryAllocator::GetCommitPageSize();
     DCHECK(IsAddressAligned(protect_start, page_size));
     size_t protect_size = RoundUp(area_size(), page_size);
-    CHECK(SetPermissions(protect_start, protect_size,
-                         PageAllocator::kReadExecute));
+    // TODO(ishell): use reservation_.SetPermissions() once it's always
+    // initialized.
+    CHECK(SetPermissions(reservation_.page_allocator(), protect_start,
+                         protect_size, PageAllocator::kReadExecute));
   }
 }
 
@@ -627,8 +633,10 @@ void MemoryChunk::SetReadAndWritable() {
     size_t page_size = MemoryAllocator::GetCommitPageSize();
     DCHECK(IsAddressAligned(unprotect_start, page_size));
     size_t unprotect_size = RoundUp(area_size(), page_size);
-    CHECK(SetPermissions(unprotect_start, unprotect_size,
-                         PageAllocator::kReadWrite));
+    // TODO(ishell): use reservation_.SetPermissions() once it's always
+    // initialized.
+    CHECK(SetPermissions(reservation_.page_allocator(), unprotect_start,
+                         unprotect_size, PageAllocator::kReadWrite));
   }
 }
 
@@ -696,7 +704,9 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
       size_t page_size = MemoryAllocator::GetCommitPageSize();
       DCHECK(IsAddressAligned(area_start, page_size));
       size_t area_size = RoundUp(area_end - area_start, page_size);
-      CHECK(SetPermissions(area_start, area_size,
+      // TODO(ishell): use reservation->SetPermissions() once it's always
+      // initialized.
+      CHECK(SetPermissions(reservation->page_allocator(), area_start, area_size,
                            PageAllocator::kReadWriteExecute));
     }
   }
@@ -928,7 +938,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
   if ((base + chunk_size) == 0u) {
     CHECK(!last_chunk_.IsReserved());
     last_chunk_.TakeControl(&reservation);
-    UncommitBlock(last_chunk_.address(), last_chunk_.size());
+    UncommitBlock(&last_chunk_, last_chunk_.address(), last_chunk_.size());
     size_ -= chunk_size;
     if (executable == EXECUTABLE) {
       size_executable_ -= chunk_size;
@@ -1128,7 +1138,8 @@ void MemoryAllocator::PerformFreeMemory(MemoryChunk* chunk) {
 
   VirtualMemory* reservation = chunk->reserved_memory();
   if (chunk->IsFlagSet(MemoryChunk::POOLED)) {
-    UncommitBlock(reinterpret_cast<Address>(chunk), MemoryChunk::kPageSize);
+    UncommitBlock(reservation, reinterpret_cast<Address>(chunk),
+                  MemoryChunk::kPageSize);
   } else {
     if (reservation->IsReserved()) {
       FreeMemory(reservation, chunk->executable());
@@ -1237,9 +1248,13 @@ bool MemoryAllocator::CommitBlock(Address start, size_t size) {
   return true;
 }
 
-
-bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
-  if (!SetPermissions(start, size, PageAllocator::kNoAccess)) return false;
+bool MemoryAllocator::UncommitBlock(VirtualMemory* reservation, Address start,
+                                    size_t size) {
+  // TODO(ishell): use reservation->SetPermissions() once it's always
+  // initialized.
+  if (!SetPermissions(reservation->page_allocator(), start, size,
+                      PageAllocator::kNoAccess))
+    return false;
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
   return true;
 }
@@ -3342,7 +3357,10 @@ void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
     if (access == PageAllocator::kRead) {
       page->MakeHeaderRelocatable();
     }
-    CHECK(SetPermissions(page->address() + area_start_offset,
+    // TODO(ishell): use p->reserved_memory()->SetPermissions() once it's always
+    // initialized.
+    CHECK(SetPermissions(page->reserved_memory()->page_allocator(),
+                         page->address() + area_start_offset,
                          page->size() - area_start_offset, access));
   }
 }

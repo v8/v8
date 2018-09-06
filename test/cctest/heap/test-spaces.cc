@@ -90,6 +90,11 @@ static void VerifyMemoryChunk(Isolate* isolate, Heap* heap,
     TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
     TestCodeRangeScope test_code_range_scope(isolate, code_range);
 
+    v8::PageAllocator* data_page_allocator =
+        memory_allocator->data_page_allocator();
+    v8::PageAllocator* code_page_allocator =
+        memory_allocator->code_page_allocator();
+
     size_t header_size = (executable == EXECUTABLE)
                              ? MemoryAllocator::CodePageGuardStartOffset()
                              : MemoryChunk::kObjectStartOffset;
@@ -100,12 +105,13 @@ static void VerifyMemoryChunk(Isolate* isolate, Heap* heap,
         reserve_area_size, commit_area_size, executable, space);
     size_t alignment = code_range != nullptr && code_range->valid()
                            ? MemoryChunk::kAlignment
-                           : CommitPageSize();
+                           : code_page_allocator->CommitPageSize();
     size_t reserved_size =
         ((executable == EXECUTABLE))
             ? RoundUp(header_size + guard_size + reserve_area_size + guard_size,
                       alignment)
-            : RoundUp(header_size + reserve_area_size, CommitPageSize());
+            : RoundUp(header_size + reserve_area_size,
+                      data_page_allocator->CommitPageSize());
     CHECK(memory_chunk->size() == reserved_size);
     CHECK(memory_chunk->area_start() <
           memory_chunk->address() + memory_chunk->size());

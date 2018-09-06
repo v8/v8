@@ -77,8 +77,9 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
   }
 
   // The Reserve makes the whole region inaccessible by default.
-  *allocation_base = AllocatePages(nullptr, *allocation_length, kWasmPageSize,
-                                   PageAllocator::kNoAccess);
+  *allocation_base =
+      AllocatePages(GetPlatformPageAllocator(), nullptr, *allocation_length,
+                    kWasmPageSize, PageAllocator::kNoAccess);
   if (*allocation_base == nullptr) {
     memory_tracker->ReleaseReservation(*allocation_length);
     AddAllocationStatusSample(heap->isolate(), AllocationStatus::kOtherFailure);
@@ -91,8 +92,9 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
 
   // Make the part we care about accessible.
   if (size > 0) {
-    bool result = SetPermissions(memory, RoundUp(size, kWasmPageSize),
-                                 PageAllocator::kReadWrite);
+    bool result =
+        SetPermissions(GetPlatformPageAllocator(), memory,
+                       RoundUp(size, kWasmPageSize), PageAllocator::kReadWrite);
     // SetPermissions commits the extra memory, which may put us over the
     // process memory limit. If so, report this as an OOM.
     if (!result) {
@@ -225,7 +227,8 @@ bool WasmMemoryTracker::FreeMemoryIfIsWasmMemory(Isolate* isolate,
                                                  const void* buffer_start) {
   if (IsWasmMemory(buffer_start)) {
     const AllocationData allocation = ReleaseAllocation(isolate, buffer_start);
-    CHECK(FreePages(allocation.allocation_base, allocation.allocation_length));
+    CHECK(FreePages(GetPlatformPageAllocator(), allocation.allocation_base,
+                    allocation.allocation_length));
     return true;
   }
   return false;
