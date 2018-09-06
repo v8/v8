@@ -13,18 +13,11 @@
 
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
-var MathMax = global.Math.max;
-var MathMin = global.Math.min;
-var ObjectHasOwnProperty = global.Object.prototype.hasOwnProperty;
 var ObjectToString = global.Object.prototype.toString;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 // -------------------------------------------------------------------
-
-macro IS_PROXY(arg)
-(%_IsJSProxy(arg))
-endmacro
 
 macro INVERT_NEG_ZERO(arg)
 ((arg) + 0)
@@ -198,111 +191,6 @@ function ConvertToString(use_locale, x, locales, options) {
   }
 
   return TO_STRING(x);
-}
-
-// This function implements the optimized splice implementation that can use
-// special array operations to handle sparse arrays in a sensible fashion.
-function SparseMove(array, start_i, del_count, len, num_additional_args) {
-  // Bail out if no moving is necessary.
-  if (num_additional_args === del_count) return;
-  // Move data to new array.
-  var new_array = new InternalArray(
-      // Clamp array length to 2^32-1 to avoid early RangeError.
-      MathMin(len - del_count + num_additional_args, 0xffffffff));
-  var big_indices;
-  var indices = %GetArrayKeys(array, len);
-  if (IS_NUMBER(indices)) {
-    var limit = indices;
-    for (var i = 0; i < start_i && i < limit; ++i) {
-      var current = array[i];
-      if (!IS_UNDEFINED(current) || i in array) {
-        new_array[i] = current;
-      }
-    }
-    for (var i = start_i + del_count; i < limit; ++i) {
-      var current = array[i];
-      if (!IS_UNDEFINED(current) || i in array) {
-        new_array[i - del_count + num_additional_args] = current;
-      }
-    }
-  } else {
-    var length = indices.length;
-    for (var k = 0; k < length; ++k) {
-      var key = indices[k];
-      if (key < start_i) {
-        var current = array[key];
-        if (!IS_UNDEFINED(current) || key in array) {
-          new_array[key] = current;
-        }
-      } else if (key >= start_i + del_count) {
-        var current = array[key];
-        if (!IS_UNDEFINED(current) || key in array) {
-          var new_key = key - del_count + num_additional_args;
-          new_array[new_key] = current;
-          if (new_key > 0xfffffffe) {
-            big_indices = big_indices || new InternalArray();
-            big_indices.push(new_key);
-          }
-        }
-      }
-    }
-  }
-  // Move contents of new_array into this array
-  %MoveArrayContents(new_array, array);
-  // Add any moved values that aren't elements anymore.
-  if (!IS_UNDEFINED(big_indices)) {
-    var length = big_indices.length;
-    for (var i = 0; i < length; ++i) {
-      var key = big_indices[i];
-      array[key] = new_array[key];
-    }
-  }
-}
-
-
-// This is part of the old simple-minded splice.  We are using it either
-// because the receiver is not an array (so we have no choice) or because we
-// know we are not deleting or moving a lot of elements.
-function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
-  for (var i = 0; i < del_count; i++) {
-    var index = start_i + i;
-    if (index in array) {
-      var current = array[index];
-      %CreateDataProperty(deleted_elements, i, current);
-    }
-  }
-}
-
-
-function SimpleMove(array, start_i, del_count, len, num_additional_args) {
-  if (num_additional_args !== del_count) {
-    // Move the existing elements after the elements to be deleted
-    // to the right position in the resulting array.
-    if (num_additional_args > del_count) {
-      for (var i = len - del_count; i > start_i; i--) {
-        var from_index = i + del_count - 1;
-        var to_index = i + num_additional_args - 1;
-        if (from_index in array) {
-          array[to_index] = array[from_index];
-        } else {
-          delete array[to_index];
-        }
-      }
-    } else {
-      for (var i = start_i; i < len - del_count; i++) {
-        var from_index = i + del_count;
-        var to_index = i + num_additional_args;
-        if (from_index in array) {
-          array[to_index] = array[from_index];
-        } else {
-          delete array[to_index];
-        }
-      }
-      for (var i = len; i > len - del_count + num_additional_args; i--) {
-        delete array[i - 1];
-      }
-    }
-  }
 }
 
 
@@ -622,7 +510,6 @@ utils.Export(function(to) {
   "array_for_each_iterator", ArrayForEach,
   "array_keys_iterator", ArrayKeys,
   "array_values_iterator", ArrayValues,
-  // Fallback implementations of Array builtins.
 ]);
 
 });
