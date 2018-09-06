@@ -29,7 +29,7 @@ namespace interpreter {
 // Scoped class tracking context objects created by the visitor. Represents
 // mutations of the context chain within the function body, allowing pushing and
 // popping of the current {context_register} during visitation.
-class BytecodeGenerator::ContextScope BASE_EMBEDDED {
+class BytecodeGenerator::ContextScope {
  public:
   ContextScope(BytecodeGenerator* generator, Scope* scope)
       : generator_(generator),
@@ -94,7 +94,7 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
 
 // Scoped class for tracking control statements entered by the
 // visitor. The pattern derives AstGraphBuilder::ControlScope.
-class BytecodeGenerator::ControlScope BASE_EMBEDDED {
+class BytecodeGenerator::ControlScope {
  public:
   explicit ControlScope(BytecodeGenerator* generator)
       : generator_(generator), outer_(generator->execution_control()),

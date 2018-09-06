@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-class JsonStringifier BASE_EMBEDDED {
+class JsonStringifier {
  public:
   explicit JsonStringifier(Isolate* isolate);
 

@@ -370,7 +370,7 @@ class ParserBase {
   // The parser's current scope is in scope_. BlockState and FunctionState
   // constructors push on the scope stack and the destructors pop. They are also
   // used to hold the parser's per-funcion state.
-  class BlockState BASE_EMBEDDED {
+  class BlockState {
    public:
     BlockState(Scope** scope_stack, Scope* scope)
         : scope_stack_(scope_stack), outer_scope_(*scope_stack) {

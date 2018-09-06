@@ -66,7 +66,7 @@ enum StackArgumentsAccessorReceiverMode {
   ARGUMENTS_DONT_CONTAIN_RECEIVER
 };
 
-class StackArgumentsAccessor BASE_EMBEDDED {
+class StackArgumentsAccessor {
  public:
   StackArgumentsAccessor(Register base_reg, int argument_count_immediate,
                          StackArgumentsAccessorReceiverMode receiver_mode =

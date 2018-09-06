@@ -58,7 +58,7 @@ class Log {
 
   // Utility class for formatting log messages. It escapes the given messages
   // and then appends them to the static buffer in Log.
-  class MessageBuilder BASE_EMBEDDED {
+  class MessageBuilder {
    public:
     // Create a message builder starting from position 0.
     // This acquires the mutex in the log as well.

@@ -461,8 +461,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
   return result;
 }
 
-
-class HandleArguments BASE_EMBEDDED {
+class HandleArguments {
  public:
   explicit HandleArguments(Handle<Object>* array) : array_(array) {}
   Object* operator[](int index) { return *array_[index]; }
@@ -471,8 +470,7 @@ class HandleArguments BASE_EMBEDDED {
   Handle<Object>* array_;
 };
 
-
-class ParameterArguments BASE_EMBEDDED {
+class ParameterArguments {
  public:
   explicit ParameterArguments(Object** parameters) : parameters_(parameters) {}
   Object*& operator[](int index) { return *(parameters_ - index - 1); }

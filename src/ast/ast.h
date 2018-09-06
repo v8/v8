@@ -2746,7 +2746,7 @@ class TemplateLiteral final : public Expression {
 //   class SpecificVisitor : public AstVisitor<SpecificVisitor> { ... }
 
 template <class Subclass>
-class AstVisitor BASE_EMBEDDED {
+class AstVisitor {
  public:
   void Visit(AstNode* node) { impl()->Visit(node); }
 
@@ -2833,7 +2833,7 @@ class AstVisitor BASE_EMBEDDED {
 // ----------------------------------------------------------------------------
 // AstNode factory
 
-class AstNodeFactory final BASE_EMBEDDED {
+class AstNodeFactory final {
  public:
   AstNodeFactory(AstValueFactory* ast_value_factory, Zone* zone)
       : zone_(zone), ast_value_factory_(ast_value_factory) {}

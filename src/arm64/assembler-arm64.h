@@ -3624,8 +3624,7 @@ class PatchingAssembler : public Assembler {
   void PatchSubSp(uint32_t immediate);
 };
 
-
-class EnsureSpace BASE_EMBEDDED {
+class EnsureSpace {
  public:
   explicit EnsureSpace(Assembler* assembler) {
     assembler->CheckBufferSpace();

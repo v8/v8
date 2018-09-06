@@ -32,7 +32,7 @@ enum AddKeyConversion { DO_NOT_CONVERT, CONVERT_TO_ARRAY_INDEX };
 // Only unique keys are kept by the KeyAccumulator, strings are stored in a
 // HashSet for inexpensive lookups. Integer keys are kept in sorted lists which
 // are more compact and allow for reasonably fast includes check.
-class KeyAccumulator final BASE_EMBEDDED {
+class KeyAccumulator final {
  public:
   KeyAccumulator(Isolate* isolate, KeyCollectionMode mode,
                  PropertyFilter filter)

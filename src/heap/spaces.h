@@ -1654,7 +1654,7 @@ class LinearAllocationArea {
 // functions increase or decrease one of the non-capacity stats in conjunction
 // with capacity, or else they always balance increases and decreases to the
 // non-capacity stats.
-class AllocationStats BASE_EMBEDDED {
+class AllocationStats {
  public:
   AllocationStats() { Clear(); }
 
@@ -3061,7 +3061,7 @@ class LargeObjectIterator : public ObjectIterator {
 
 // Iterates over the chunks (pages and large object pages) that can contain
 // pointers to new space or to evacuation candidates.
-class MemoryChunkIterator BASE_EMBEDDED {
+class MemoryChunkIterator {
  public:
   inline explicit MemoryChunkIterator(Heap* heap);
 

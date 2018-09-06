@@ -401,7 +401,7 @@ class HistogramTimer : public TimedHistogram {
 // Parser is currently reentrant (when it throws an error, we call back
 // into JavaScript and all bets are off), but ElapsedTimer is not
 // reentry-safe. Fix this properly and remove |allow_nesting|.
-class HistogramTimerScope BASE_EMBEDDED {
+class HistogramTimerScope {
  public:
   explicit HistogramTimerScope(HistogramTimer* timer,
                                bool allow_nesting = false)
@@ -439,7 +439,7 @@ enum class OptionalHistogramTimerScopeMode { TAKE_TIME, DONT_TAKE_TIME };
 
 // Helper class for scoping a HistogramTimer.
 // It will not take time if take_time is set to false.
-class OptionalHistogramTimerScope BASE_EMBEDDED {
+class OptionalHistogramTimerScope {
  public:
   OptionalHistogramTimerScope(HistogramTimer* timer,
                               OptionalHistogramTimerScopeMode mode)

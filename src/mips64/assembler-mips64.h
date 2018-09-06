@@ -392,7 +392,7 @@ constexpr MSAControlRegister MSACSR = {kMSACSRRegister};
 constexpr int kSmiShift = kSmiTagSize + kSmiShiftSize;
 constexpr uint64_t kSmiShiftMask = (1UL << kSmiShift) - 1;
 // Class Operand represents a shifter operand in data processing instructions.
-class Operand BASE_EMBEDDED {
+class Operand {
  public:
   // Immediate.
   V8_INLINE explicit Operand(int64_t immediate,
@@ -2279,8 +2279,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   friend class EnsureSpace;
 };
 
-
-class EnsureSpace BASE_EMBEDDED {
+class EnsureSpace {
  public:
   explicit inline EnsureSpace(Assembler* assembler);
 };

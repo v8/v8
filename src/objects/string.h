@@ -31,7 +31,7 @@ enum RobustnessFlag { ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL };
 // shortcutting.  Keeping these restrictions in mind has proven to be error-
 // prone and so we no longer put StringShapes in variables unless there is a
 // concrete performance benefit at that particular point in the code.
-class StringShape BASE_EMBEDDED {
+class StringShape {
  public:
   inline explicit StringShape(const String* s);
   inline explicit StringShape(Map* s);

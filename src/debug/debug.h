@@ -555,7 +555,7 @@ class Debug {
 
 // This scope is used to load and enter the debug context and create a new
 // break state.  Leaving the scope will restore the previous state.
-class DebugScope BASE_EMBEDDED {
+class DebugScope {
  public:
   explicit DebugScope(Debug* debug);
   ~DebugScope();
@@ -584,7 +584,7 @@ class ReturnValueScope {
 };
 
 // Stack allocated class for disabling break.
-class DisableBreak BASE_EMBEDDED {
+class DisableBreak {
  public:
   explicit DisableBreak(Debug* debug, bool disable = true)
       : debug_(debug), previous_break_disabled_(debug->break_disabled_) {
@@ -600,8 +600,7 @@ class DisableBreak BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(DisableBreak);
 };
 
-
-class SuppressDebug BASE_EMBEDDED {
+class SuppressDebug {
  public:
   explicit SuppressDebug(Debug* debug)
       : debug_(debug), old_state_(debug->is_suppressed_) {

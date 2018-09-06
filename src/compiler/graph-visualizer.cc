@@ -434,7 +434,7 @@ class GraphC1Visualizer {
   void PrintLiveRange(const LiveRange* range, const char* type, int vreg);
   void PrintLiveRangeChain(const TopLevelLiveRange* range, const char* type);
 
-  class Tag final BASE_EMBEDDED {
+  class Tag final {
    public:
     Tag(GraphC1Visualizer* visualizer, const char* name) {
       name_ = name;

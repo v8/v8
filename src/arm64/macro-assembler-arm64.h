@@ -2025,7 +2025,7 @@ class MacroAssembler : public TurboAssembler {
 // instructions. This scope prevents the MacroAssembler from being called and
 // literal pools from being emitted. It also asserts the number of instructions
 // emitted is what you specified when creating the scope.
-class InstructionAccurateScope BASE_EMBEDDED {
+class InstructionAccurateScope {
  public:
   explicit InstructionAccurateScope(TurboAssembler* tasm, size_t count = 0)
       : tasm_(tasm)

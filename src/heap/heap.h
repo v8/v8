@@ -2421,7 +2421,7 @@ class VerifySmisVisitor : public RootVisitor {
 // Space iterator for iterating over all the paged spaces of the heap: Map
 // space, old space, code space and optionally read only space. Returns each
 // space in turn, and null when it is done.
-class V8_EXPORT_PRIVATE PagedSpaces BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE PagedSpaces {
  public:
   enum class SpacesSpecifier { kSweepablePagedSpaces, kAllPagedSpaces };
 
@@ -2464,7 +2464,7 @@ class SpaceIterator : public Malloced {
 // nodes filtering uses GC marks, it can't be used during MS/MC GC
 // phases. Also, it is forbidden to interrupt iteration in this mode,
 // as this will leave heap objects marked (and thus, unusable).
-class HeapIterator BASE_EMBEDDED {
+class HeapIterator {
  public:
   enum HeapObjectsFiltering { kNoFiltering, kFilterUnreachable };
 

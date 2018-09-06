@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class V8_EXPORT_PRIVATE ControlFlowBuilder BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE ControlFlowBuilder {
  public:
   explicit ControlFlowBuilder(BytecodeArrayBuilder* builder)
       : builder_(builder) {}

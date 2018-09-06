@@ -31,7 +31,7 @@ class ParserTargetScope;
 class PendingCompilationErrorHandler;
 class PreParsedScopeData;
 
-class FunctionEntry BASE_EMBEDDED {
+class FunctionEntry {
  public:
   enum {
     kStartPositionIndex,
@@ -189,7 +189,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool parse_lazily() const { return mode_ == PARSE_LAZILY; }
   enum Mode { PARSE_LAZILY, PARSE_EAGERLY };
 
-  class ParsingModeScope BASE_EMBEDDED {
+  class ParsingModeScope {
    public:
     ParsingModeScope(Parser* parser, Mode mode)
         : parser_(parser), old_mode_(parser->mode_) {
@@ -1134,7 +1134,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 // 'continue' statement targets). Upon construction, a new target is
 // added; it is removed upon destruction.
 
-class ParserTarget BASE_EMBEDDED {
+class ParserTarget {
  public:
   ParserTarget(ParserBase<Parser>* parser, BreakableStatement* statement)
       : variable_(&parser->impl()->target_stack_),
@@ -1154,7 +1154,7 @@ class ParserTarget BASE_EMBEDDED {
   ParserTarget* previous_;
 };
 
-class ParserTargetScope BASE_EMBEDDED {
+class ParserTargetScope {
  public:
   explicit ParserTargetScope(ParserBase<Parser>* parser)
       : variable_(&parser->impl()->target_stack_),

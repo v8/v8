@@ -150,8 +150,7 @@ void Bootstrapper::TearDown() {
   extensions_cache_.Initialize(isolate_, false);  // Yes, symmetrical
 }
 
-
-class Genesis BASE_EMBEDDED {
+class Genesis {
  public:
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template,

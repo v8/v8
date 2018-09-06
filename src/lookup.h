@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE LookupIterator final {
  public:
   enum Configuration {
     // Configuration bits.

@@ -95,10 +95,6 @@ class AllStatic {
 #endif
 };
 
-// DEPRECATED
-// TODO(leszeks): Delete this during a quiet period
-#define BASE_EMBEDDED
-
 typedef uint8_t byte;
 typedef uintptr_t Address;
 static const Address kNullAddress = 0;

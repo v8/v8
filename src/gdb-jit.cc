@@ -41,7 +41,7 @@ typedef ELF DebugObject;
 typedef ELFSection DebugSection;
 #endif
 
-class Writer BASE_EMBEDDED {
+class Writer {
  public:
   explicit Writer(DebugObject* debug_object)
       : debug_object_(debug_object),
@@ -472,7 +472,7 @@ void ELFSection::PopulateHeader(Writer::Slot<ELFSection::Header> header,
 
 
 #if defined(__MACH_O)
-class MachO BASE_EMBEDDED {
+class MachO {
  public:
   explicit MachO(Zone* zone) : sections_(zone) {}
 
@@ -604,7 +604,7 @@ class MachO BASE_EMBEDDED {
 
 
 #if defined(__ELF)
-class ELF BASE_EMBEDDED {
+class ELF {
  public:
   explicit ELF(Zone* zone) : sections_(zone) {
     sections_.push_back(new (zone) ELFSection("", ELFSection::TYPE_NULL, 0));
@@ -746,8 +746,7 @@ class ELF BASE_EMBEDDED {
   ZoneChunkList<ELFSection*> sections_;
 };
 
-
-class ELFSymbol BASE_EMBEDDED {
+class ELFSymbol {
  public:
   enum Type {
     TYPE_NOTYPE = 0,
@@ -946,8 +945,7 @@ class LineInfo : public Malloced {
   std::vector<PCInfo> pc_info_;
 };
 
-
-class CodeDescription BASE_EMBEDDED {
+class CodeDescription {
  public:
 #if V8_TARGET_ARCH_X64
   enum StackState {

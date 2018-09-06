@@ -201,7 +201,7 @@ class StatsCounter;
 // in an ExternalReference instance. This is done in order to track the
 // origin of all external references in the code so that they can be bound
 // to the correct addresses when deserializing a heap.
-class ExternalReference BASE_EMBEDDED {
+class ExternalReference {
  public:
   // Used in the simulator to support different native api calls.
   enum Type {

@@ -1619,7 +1619,7 @@ class Smi: public Object {
 // during GC other data (e.g. mark bits, forwarding addresses) is sometimes
 // encoded in the first word.  The class MapWord is an abstraction of the
 // value in a heap object's first word.
-class MapWord BASE_EMBEDDED {
+class MapWord {
  public:
   // Normal state: the map word contains a map pointer.
 
@@ -3854,7 +3854,7 @@ class AllocationMemento: public Struct {
 // Utility superclass for stack-allocated objects that must be updated
 // on gc.  It provides two ways for the gc to update instances, either
 // iterating or updating after gc.
-class Relocatable BASE_EMBEDDED {
+class Relocatable {
  public:
   explicit inline Relocatable(Isolate* isolate);
   inline virtual ~Relocatable();

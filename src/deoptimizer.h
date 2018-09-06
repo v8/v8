@@ -386,8 +386,7 @@ class TranslatedState {
   FeedbackSlot feedback_slot_;
 };
 
-
-class OptimizedFunctionVisitor BASE_EMBEDDED {
+class OptimizedFunctionVisitor {
  public:
   virtual ~OptimizedFunctionVisitor() {}
   virtual void VisitFunction(JSFunction* function) = 0;
@@ -501,7 +500,7 @@ class Deoptimizer : public Malloced {
   static const int kNotDeoptimizationEntry = -1;
 
   // Generators for the deoptimization entry code.
-  class TableEntryGenerator BASE_EMBEDDED {
+  class TableEntryGenerator {
    public:
     TableEntryGenerator(MacroAssembler* masm, DeoptimizeKind kind, int count)
         : masm_(masm), deopt_kind_(kind), count_(count) {}
@@ -864,8 +863,7 @@ class DeoptimizerData {
   DISALLOW_COPY_AND_ASSIGN(DeoptimizerData);
 };
 
-
-class TranslationBuffer BASE_EMBEDDED {
+class TranslationBuffer {
  public:
   explicit TranslationBuffer(Zone* zone) : contents_(zone) {}
 
@@ -878,8 +876,7 @@ class TranslationBuffer BASE_EMBEDDED {
   ZoneChunkList<uint8_t> contents_;
 };
 
-
-class TranslationIterator BASE_EMBEDDED {
+class TranslationIterator {
  public:
   TranslationIterator(ByteArray* buffer, int index);
 
@@ -923,7 +920,7 @@ class TranslationIterator BASE_EMBEDDED {
   V(LITERAL)                                           \
   V(UPDATE_FEEDBACK)
 
-class Translation BASE_EMBEDDED {
+class Translation {
  public:
 #define DECLARE_TRANSLATION_OPCODE_ENUM(item) item,
   enum Opcode {

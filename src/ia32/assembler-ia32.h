@@ -208,7 +208,7 @@ enum RoundingMode {
 // -----------------------------------------------------------------------------
 // Machine instruction Immediates
 
-class Immediate BASE_EMBEDDED {
+class Immediate {
  public:
   // Calls where x is an Address (uintptr_t) resolve to this overload.
   inline explicit Immediate(int x, RelocInfo::Mode rmode = RelocInfo::NONE) {
@@ -417,7 +417,7 @@ static_assert(sizeof(Operand) <= 2 * kPointerSize,
 // |31.....2|1......0|
 // [  next  |  type  |
 
-class Displacement BASE_EMBEDDED {
+class Displacement {
  public:
   enum Type { UNCONDITIONAL_JUMP, CODE_RELATIVE, OTHER, CODE_ABSOLUTE };
 
@@ -1871,7 +1871,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 // instructions and relocation information.  The constructor makes
 // sure that there is enough space and (in debug mode) the destructor
 // checks that we did not generate too much.
-class EnsureSpace BASE_EMBEDDED {
+class EnsureSpace {
  public:
   explicit EnsureSpace(Assembler* assembler) : assembler_(assembler) {
     if (assembler_->buffer_overflow()) assembler_->GrowBuffer();

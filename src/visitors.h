@@ -54,7 +54,7 @@ enum class Root {
 
 // Abstract base class for visiting, and optionally modifying, the
 // pointers contained in roots. Used in GC and serialization/deserialization.
-class RootVisitor BASE_EMBEDDED {
+class RootVisitor {
  public:
   virtual ~RootVisitor() {}
 
@@ -82,7 +82,7 @@ class RelocIterator;
 
 // Abstract base class for visiting, and optionally modifying, the
 // pointers contained in Objects. Used in GC and serialization/deserialization.
-class ObjectVisitor BASE_EMBEDDED {
+class ObjectVisitor {
  public:
   virtual ~ObjectVisitor() {}
 

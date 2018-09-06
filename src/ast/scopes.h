@@ -113,7 +113,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   ModuleScope* AsModuleScope();
   const ModuleScope* AsModuleScope() const;
 
-  class Snapshot final BASE_EMBEDDED {
+  class Snapshot final {
    public:
     explicit Snapshot(Scope* scope);
     ~Snapshot();

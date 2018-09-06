@@ -2433,7 +2433,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 // instructions and relocation information.  The constructor makes
 // sure that there is enough space and (in debug mode) the destructor
 // checks that we did not generate too much.
-class EnsureSpace BASE_EMBEDDED {
+class EnsureSpace {
  public:
   explicit EnsureSpace(Assembler* assembler) : assembler_(assembler) {
     if (assembler_->buffer_overflow()) assembler_->GrowBuffer();

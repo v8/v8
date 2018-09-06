@@ -151,8 +151,7 @@ class RegExpBuilder : public ZoneObject {
 #endif
 };
 
-
-class RegExpParser BASE_EMBEDDED {
+class RegExpParser {
  public:
   RegExpParser(FlatStringReader* in, Handle<String>* error,
                JSRegExp::Flags flags, Isolate* isolate, Zone* zone);

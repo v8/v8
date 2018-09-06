@@ -301,7 +301,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 };
 
 // Avoids emitting debug code during the lifetime of this scope object.
-class DontEmitDebugCodeScope BASE_EMBEDDED {
+class DontEmitDebugCodeScope {
  public:
   explicit DontEmitDebugCodeScope(AssemblerBase* assembler)
       : assembler_(assembler), old_value_(assembler->emit_debug_code()) {
@@ -332,7 +332,7 @@ class PredictableCodeSizeScope {
 
 
 // Enable a specified feature within a scope.
-class CpuFeatureScope BASE_EMBEDDED {
+class CpuFeatureScope {
  public:
   enum CheckPolicy {
     kCheckSupported,
@@ -493,7 +493,7 @@ class ConstantPoolEntry {
 // -----------------------------------------------------------------------------
 // Embedded constant pool support
 
-class ConstantPoolBuilder BASE_EMBEDDED {
+class ConstantPoolBuilder {
  public:
   ConstantPoolBuilder(int ptr_reach_bits, int double_reach_bits);
 

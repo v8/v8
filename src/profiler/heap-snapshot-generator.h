@@ -43,7 +43,7 @@ struct SourceLocation {
   const int col;
 };
 
-class HeapGraphEdge BASE_EMBEDDED {
+class HeapGraphEdge {
  public:
   enum Type {
     kContextVariable = v8::HeapGraphEdge::kContextVariable,
@@ -96,7 +96,7 @@ class HeapGraphEdge BASE_EMBEDDED {
 
 // HeapEntry instances represent an entity from the heap (or a special
 // virtual node, e.g. root).
-class HeapEntry BASE_EMBEDDED {
+class HeapEntry {
  public:
   enum Type {
     kHidden = v8::HeapGraphNode::kHidden,
