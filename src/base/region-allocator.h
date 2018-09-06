@@ -14,8 +14,8 @@ namespace v8 {
 namespace base {
 
 // Helper class for managing used/free regions within [address, address+size)
-// region. Minimum allocation unit is |min_region_size|.
-// Requested allocation size is rounded up to |min_region_size|.
+// region. Minimum allocation unit is |page_size|. Requested allocation size
+// is rounded up to |page_size|.
 // The region allocation algorithm implements best-fit with coalescing strategy:
 // it tries to find a smallest suitable free region upon allocation and tries
 // to merge region with its neighbors upon freeing.
@@ -28,32 +28,45 @@ class V8_BASE_EXPORT RegionAllocator final {
 
   static constexpr Address kAllocationFailure = static_cast<Address>(-1);
 
-  RegionAllocator(Address address, size_t size, size_t min_region_size);
+  RegionAllocator(Address address, size_t size, size_t page_size);
   ~RegionAllocator();
 
-  // Allocates region of |size| (must be |min_region_size|-aligned). Returns
+  // Allocates region of |size| (must be |page_size|-aligned). Returns
   // the address of the region on success or kAllocationFailure.
   Address AllocateRegion(size_t size);
   // Same as above but tries to randomize the region displacement.
   Address AllocateRegion(RandomNumberGenerator* rng, size_t size);
 
   // Allocates region of |size| at |requested_address| if it's free. Both the
-  // address and the size must be |min_region_size|-aligned. On success returns
+  // address and the size must be |page_size|-aligned. On success returns
   // true.
   // This kind of allocation is supposed to be used during setup phase to mark
   // certain regions as used or for randomizing regions displacement.
   bool AllocateRegionAt(Address requested_address, size_t size);
 
   // Frees region at given |address|, returns the size of the region.
-  // The region must be previously allocated. Return 0 on failure.
+  // There must be a used region starting at given address otherwise nothing
+  // will be freed and 0 will be returned.
   size_t FreeRegion(Address address);
+
+  // If there is a used region starting at given address returns its size
+  // otherwise 0.
+  size_t CheckRegion(Address address);
 
   Address begin() const { return whole_region_.begin(); }
   Address end() const { return whole_region_.end(); }
   size_t size() const { return whole_region_.size(); }
 
+  bool contains(Address address) const {
+    return whole_region_.contains(address);
+  }
+
   // Total size of not yet aquired regions.
   size_t free_size() const { return free_size_; }
+
+  // The alignment of the allocated region's addresses and granularity of
+  // the allocated region's sizes.
+  size_t page_size() const { return page_size_; }
 
   void Print(std::ostream& os) const;
 
@@ -88,8 +101,8 @@ class V8_BASE_EXPORT RegionAllocator final {
   // The whole region.
   const Region whole_region_;
 
-  // Number of |min_region_size_| in the whole region.
-  const size_t region_size_in_min_regions_;
+  // Number of |page_size_| in the whole region.
+  const size_t region_size_in_pages_;
 
   // If the free size is less than this value - stop trying to randomize the
   // allocation addresses.
@@ -99,7 +112,7 @@ class V8_BASE_EXPORT RegionAllocator final {
   size_t free_size_;
 
   // Minimum region size. Must be a pow of 2.
-  const size_t min_region_size_;
+  const size_t page_size_;
 
   struct AddressEndOrder {
     bool operator()(const Region* a, const Region* b) const {
