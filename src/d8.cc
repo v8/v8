@@ -2052,8 +2052,9 @@ void WriteLcovDataForRange(std::vector<uint32_t>& lines, int start_line,
 }
 
 void WriteLcovDataForNamedRange(std::ostream& sink,
-                                std::vector<uint32_t>& lines, std::string name,
-                                int start_line, int end_line, uint32_t count) {
+                                std::vector<uint32_t>& lines,
+                                const std::string& name, int start_line,
+                                int end_line, uint32_t count) {
   WriteLcovDataForRange(lines, start_line, end_line, count);
   sink << "FN:" << start_line + 1 << "," << name << std::endl;
   sink << "FNDA:" << count << "," << name << std::endl;
@@ -3039,8 +3040,9 @@ void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
 }
 
 namespace {
-bool ProcessMessages(Isolate* isolate,
-                     std::function<platform::MessageLoopBehavior()> behavior) {
+bool ProcessMessages(
+    Isolate* isolate,
+    const std::function<platform::MessageLoopBehavior()>& behavior) {
   Platform* platform = GetDefaultPlatform();
   while (true) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
