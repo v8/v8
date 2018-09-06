@@ -987,7 +987,7 @@ struct TorqueGrammar : Grammar {
            MakeParameterListFromNameAndTypeList<true>)};
 
   // Result: std::string
-  Symbol* OneOf(std::vector<std::string> alternatives) {
+  Symbol* OneOf(const std::vector<std::string>& alternatives) {
     Symbol* result = NewSymbol();
     for (const std::string& s : alternatives) {
       result->AddRule(Rule({Token(s)}, YieldMatchedInput));

@@ -1399,7 +1399,8 @@ LocationReference ImplementationVisitor::GetLocationReference(
   return LocationReference(nullptr, result, {});
 }
 
-std::string ImplementationVisitor::RValueFlattenStructs(VisitResult result) {
+std::string ImplementationVisitor::RValueFlattenStructs(
+    const VisitResult& result) {
   if (result.declarable()) {
     const Value* value = *result.declarable();
     const Type* type = value->type();
@@ -1422,7 +1423,7 @@ std::string ImplementationVisitor::RValueFlattenStructs(VisitResult result) {
 }
 
 VisitResult ImplementationVisitor::GenerateFetchFromLocation(
-    LocationExpression* location, LocationReference reference) {
+    LocationExpression* location, const LocationReference& reference) {
   switch (location->kind) {
     case AstNode::Kind::kIdentifierExpression:
       return GenerateFetchFromLocation(
@@ -1439,7 +1440,7 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
 }
 
 VisitResult ImplementationVisitor::GenerateFetchFromLocation(
-    FieldAccessExpression* expr, LocationReference reference) {
+    FieldAccessExpression* expr, const LocationReference& reference) {
   if (reference.value != nullptr) {
     return GenerateFetchFromLocation(reference);
   }
@@ -1455,7 +1456,7 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
 }
 
 void ImplementationVisitor::GenerateAssignToVariable(Variable* var,
-                                                     VisitResult value) {
+                                                     const VisitResult& value) {
   if (var->type()->IsStructType()) {
     if (value.type() != var->type()) {
       std::stringstream s;
@@ -1491,7 +1492,7 @@ void ImplementationVisitor::GenerateAssignToVariable(Variable* var,
 
 void ImplementationVisitor::GenerateAssignToLocation(
     LocationExpression* location, const LocationReference& reference,
-    VisitResult assignment_value) {
+    const VisitResult& assignment_value) {
   if (reference.value != nullptr) {
     Value* value = reference.value;
     if (value->IsConst()) {
@@ -1998,6 +1999,7 @@ void ImplementationVisitor::GenerateLabelGoto(Label* label) {
 std::vector<Label*> ImplementationVisitor::LabelsFromIdentifiers(
     const std::vector<std::string>& names) {
   std::vector<Label*> result;
+  result.reserve(names.size());
   for (const auto& name : names) {
     result.push_back(declarations()->LookupLabel(name));
   }
