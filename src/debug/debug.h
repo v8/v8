@@ -451,7 +451,7 @@ class Debug {
 
   // Wraps logic for clearing and maybe freeing all debug infos.
   typedef std::function<void(Handle<DebugInfo>)> DebugInfoClearFunction;
-  void ClearAllDebugInfos(DebugInfoClearFunction clear_function);
+  void ClearAllDebugInfos(const DebugInfoClearFunction& clear_function);
 
   void FindDebugInfo(Handle<DebugInfo> debug_info, DebugInfoListNode** prev,
                      DebugInfoListNode** curr);

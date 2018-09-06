@@ -1543,7 +1543,7 @@ void Debug::FindDebugInfo(Handle<DebugInfo> debug_info,
   UNREACHABLE();
 }
 
-void Debug::ClearAllDebugInfos(DebugInfoClearFunction clear_function) {
+void Debug::ClearAllDebugInfos(const DebugInfoClearFunction& clear_function) {
   DebugInfoListNode* prev = nullptr;
   DebugInfoListNode* current = debug_info_list_;
   while (current != nullptr) {
