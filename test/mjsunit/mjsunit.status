@@ -787,6 +787,9 @@
 
   # Slow on arm64 simulator: https://crbug.com/v8/7783
   'string-replace-gc': [PASS, ['arch == arm64 and simulator_run', SKIP]],
+
+  # Too memory hungry on Odroid devices.
+  'regress/regress-678917': [PASS, ['arch == arm and not simulator_run', SKIP]],
 }],  # variant == stress
 
 ##############################################################################
