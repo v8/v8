@@ -3578,7 +3578,7 @@ CodeStubAssembler::AllocateSmallOrderedHashTable<SmallOrderedHashSet>(
 template <typename CollectionType>
 void CodeStubAssembler::FindOrderedHashTableEntry(
     Node* table, Node* hash,
-    std::function<void(Node*, Label*, Label*)> key_compare,
+    const std::function<void(Node*, Label*, Label*)>& key_compare,
     Variable* entry_start_position, Label* entry_found, Label* not_found) {
   // Get the index of the bucket.
   Node* const number_of_buckets = SmiUntag(CAST(LoadFixedArrayElement(
@@ -3645,11 +3645,11 @@ void CodeStubAssembler::FindOrderedHashTableEntry(
 
 template void CodeStubAssembler::FindOrderedHashTableEntry<OrderedHashMap>(
     Node* table, Node* hash,
-    std::function<void(Node*, Label*, Label*)> key_compare,
+    const std::function<void(Node*, Label*, Label*)>& key_compare,
     Variable* entry_start_position, Label* entry_found, Label* not_found);
 template void CodeStubAssembler::FindOrderedHashTableEntry<OrderedHashSet>(
     Node* table, Node* hash,
-    std::function<void(Node*, Label*, Label*)> key_compare,
+    const std::function<void(Node*, Label*, Label*)>& key_compare,
     Variable* entry_start_position, Label* entry_found, Label* not_found);
 
 Node* CodeStubAssembler::AllocateStruct(Node* map, AllocationFlags flags) {

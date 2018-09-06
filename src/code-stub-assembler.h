@@ -1360,7 +1360,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   template <typename CollectionType>
   void FindOrderedHashTableEntry(
       Node* table, Node* hash,
-      std::function<void(Node*, Label*, Label*)> key_compare,
+      const std::function<void(Node*, Label*, Label*)>& key_compare,
       Variable* entry_start_position, Label* entry_found, Label* not_found);
 
   template <typename CollectionType>
