@@ -1150,13 +1150,6 @@ BUILTIN(CollatorConstructor) {
                                         isolate, collator, locales, options));
 }
 
-BUILTIN(CollatorPrototypeResolvedOptions) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSCollator, collator_holder,
-                 "Intl.Collator.prototype.resolvedOptions");
-  return *JSCollator::ResolvedOptions(isolate, collator_holder);
-}
-
 BUILTIN(CollatorSupportedLocalesOf) {
   HandleScope scope(isolate);
   RETURN_RESULT_OR_FAILURE(isolate,

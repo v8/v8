@@ -2980,10 +2980,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           factory->Object_string(),
           static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
-      SimpleInstallFunction(isolate_, prototype, "resolvedOptions",
-                            Builtins::kCollatorPrototypeResolvedOptions, 0,
-                            false);
-
       SimpleInstallGetter(isolate_, prototype,
                           factory->InternalizeUtf8String("compare"),
                           Builtins::kCollatorPrototypeCompare, false);

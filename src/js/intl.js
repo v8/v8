@@ -486,6 +486,16 @@ DEFINE_METHOD(
   }
 );
 
+/**
+ * Collator resolvedOptions method.
+ */
+DEFINE_METHOD(
+  GlobalIntlCollator.prototype,
+  resolvedOptions() {
+    return %CollatorResolvedOptions(this);
+  }
+);
+
 DEFINE_METHOD(
   GlobalIntlPluralRules.prototype,
   select(value) {
