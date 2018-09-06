@@ -137,7 +137,7 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
 
   // Runs this job. Reporting metrics in a thread-safe manner to
   // |async_counters|.
-  void Run(std::shared_ptr<Counters> async_counters);
+  void Run(const std::shared_ptr<Counters>& async_counters);
 
  private:
   std::vector<Item*> items_;

@@ -567,8 +567,8 @@ class Heap {
 
   // Traverse all the allocaions_sites [nested_site and weak_next] in the list
   // and foreach call the visitor
-  void ForeachAllocationSite(Object* list,
-                             std::function<void(AllocationSite*)> visitor);
+  void ForeachAllocationSite(
+      Object* list, const std::function<void(AllocationSite*)>& visitor);
 
   // Number of mark-sweeps.
   int ms_count() const { return ms_count_; }

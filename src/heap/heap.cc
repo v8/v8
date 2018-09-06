@@ -2488,8 +2488,8 @@ void Heap::ProcessWeakListRoots(WeakObjectRetainer* retainer) {
   set_allocation_sites_list(retainer->RetainAs(allocation_sites_list()));
 }
 
-void Heap::ForeachAllocationSite(Object* list,
-                                 std::function<void(AllocationSite*)> visitor) {
+void Heap::ForeachAllocationSite(
+    Object* list, const std::function<void(AllocationSite*)>& visitor) {
   DisallowHeapAllocation disallow_heap_allocation;
   Object* current = list;
   while (current->IsAllocationSite()) {

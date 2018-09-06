@@ -3426,8 +3426,9 @@ void MarkCompactCollector::MarkingWorklist::PrintWorklist(
     count[obj->map()->instance_type()]++;
   });
   std::vector<std::pair<int, InstanceType>> rank;
-  for (auto i : count) {
-    rank.push_back(std::make_pair(i.second, i.first));
+  rank.reserve(count.size());
+  for (const auto& i : count) {
+    rank.emplace_back(i.second, i.first);
   }
   std::map<InstanceType, std::string> instance_type_name;
 #define INSTANCE_TYPE_NAME(name) instance_type_name[name] = #name;
