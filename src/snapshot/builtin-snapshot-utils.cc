@@ -50,7 +50,7 @@ BuiltinSnapshotUtils::BytecodeFromIndex(int index) {
 
 // static
 void BuiltinSnapshotUtils::ForEachBytecode(
-    std::function<void(Bytecode, OperandScale)> f) {
+    const std::function<void(Bytecode, OperandScale)>& f) {
   static const OperandScale kOperandScales[] = {
 #define VALUE(Name, _) OperandScale::k##Name,
       OPERAND_SCALE_LIST(VALUE)

@@ -121,7 +121,7 @@ HeapObject* DefaultDeserializerAllocator::GetObject(AllocationSpace space,
 }
 
 void DefaultDeserializerAllocator::DecodeReservation(
-    std::vector<SerializedData::Reservation> res) {
+    const std::vector<SerializedData::Reservation>& res) {
   DCHECK_EQ(0, reservations_[FIRST_SPACE].size());
   int current_space = FIRST_SPACE;
   for (auto& r : res) {

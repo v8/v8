@@ -52,7 +52,8 @@ class BuiltinSnapshotUtils : public AllStatic {
 
   // Iteration over all {bytecode,operand_scale} pairs. Implemented here since
   // (de)serialization depends on the iteration order.
-  static void ForEachBytecode(std::function<void(Bytecode, OperandScale)> f);
+  static void ForEachBytecode(
+      const std::function<void(Bytecode, OperandScale)>& f);
 #endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 };
 
