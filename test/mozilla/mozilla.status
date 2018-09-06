@@ -158,6 +158,11 @@
   'js1_5/Regress/regress-462292': [SKIP],
   'js1_5/decompilation/regress-443071-01': [SKIP],
 
+  # This test checks that 'unshift' doesn't cause a OOM. Since the range error
+  # will get thrown at the end of the operation, this test runs for a long time.
+  # https://crbug.com/v8/8120
+  'ecma_3/Array/regress-322135-04': [SKIP],
+
   ##################### SLOW TESTS #####################
 
   # Compiles a long chain of && or || operations, can time out under slower

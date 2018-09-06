@@ -51,6 +51,44 @@ inline bool HasOnlySimpleElements(Isolate* isolate, JSReceiver* receiver) {
   return true;
 }
 
+// This method may transition the elements kind of the JSArray once, to make
+// sure that all elements provided as arguments in the specified range can be
+// added without further elements kinds transitions.
+void MatchArrayElementsKindToArguments(Isolate* isolate, Handle<JSArray> array,
+                                       BuiltinArguments* args,
+                                       int first_arg_index, int num_arguments) {
+  int args_length = args->length();
+  if (first_arg_index >= args_length) return;
+
+  ElementsKind origin_kind = array->GetElementsKind();
+
+  // We do not need to transition for PACKED/HOLEY_ELEMENTS.
+  if (IsObjectElementsKind(origin_kind)) return;
+
+  ElementsKind target_kind = origin_kind;
+  {
+    DisallowHeapAllocation no_gc;
+    int last_arg_index = std::min(first_arg_index + num_arguments, args_length);
+    for (int i = first_arg_index; i < last_arg_index; i++) {
+      Object* arg = (*args)[i];
+      if (arg->IsHeapObject()) {
+        if (arg->IsHeapNumber()) {
+          target_kind = PACKED_DOUBLE_ELEMENTS;
+        } else {
+          target_kind = PACKED_ELEMENTS;
+          break;
+        }
+      }
+    }
+  }
+  if (target_kind != origin_kind) {
+    // Use a short-lived HandleScope to avoid creating several copies of the
+    // elements handle which would cause issues when left-trimming later-on.
+    HandleScope scope(isolate);
+    JSObject::TransitionElementsKind(array, target_kind);
+  }
+}
+
 // Returns |false| if not applicable.
 // TODO(szuend): Refactor this function because it is getting hard to
 //               understand what each call-site actually checks.
@@ -77,46 +115,9 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
 
   // Need to ensure that the arguments passed in args can be contained in
   // the array.
-  int args_length = args->length();
-  if (first_arg_index >= args_length) return true;
-
-  if (IsObjectElementsKind(origin_kind)) return true;
-  ElementsKind target_kind = origin_kind;
-  {
-    DisallowHeapAllocation no_gc;
-    int last_arg_index = std::min(first_arg_index + num_arguments, args_length);
-    for (int i = first_arg_index; i < last_arg_index; i++) {
-      Object* arg = (*args)[i];
-      if (arg->IsHeapObject()) {
-        if (arg->IsHeapNumber()) {
-          target_kind = PACKED_DOUBLE_ELEMENTS;
-        } else {
-          target_kind = PACKED_ELEMENTS;
-          break;
-        }
-      }
-    }
-  }
-  if (target_kind != origin_kind) {
-    // Use a short-lived HandleScope to avoid creating several copies of the
-    // elements handle which would cause issues when left-trimming later-on.
-    HandleScope scope(isolate);
-    JSObject::TransitionElementsKind(array, target_kind);
-  }
+  MatchArrayElementsKindToArguments(isolate, array, args, first_arg_index,
+                                    num_arguments);
   return true;
-}
-
-V8_WARN_UNUSED_RESULT static Object* CallJsIntrinsic(
-    Isolate* isolate, Handle<JSFunction> function, BuiltinArguments args) {
-  HandleScope handleScope(isolate);
-  int argc = args.length() - 1;
-  ScopedVector<Handle<Object>> argv(argc);
-  for (int i = 0; i < argc; ++i) {
-    argv[i] = args.at(i + 1);
-  }
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      Execution::Call(isolate, function, args.receiver(), argc, argv.start()));
 }
 
 // If |index| is Undefined, returns init_if_undefined.
@@ -588,21 +589,24 @@ BUILTIN(ArrayShift) {
 
 BUILTIN(ArrayUnshift) {
   HandleScope scope(isolate);
-  Handle<Object> receiver = args.receiver();
-  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 1,
-                                             args.length() - 1)) {
-    return CallJsIntrinsic(isolate, isolate->array_unshift(), args);
-  }
-  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  DCHECK(args.receiver()->IsJSArray());
+  Handle<JSArray> array = Handle<JSArray>::cast(args.receiver());
+
+  // These are checked in the Torque builtin.
+  DCHECK(array->map()->is_extensible());
+  DCHECK(!IsDictionaryElementsKind(array->GetElementsKind()));
+  DCHECK(IsJSArrayFastElementMovingAllowed(isolate, *array));
+  DCHECK(!isolate->IsAnyInitialArrayPrototype(array));
+
+  MatchArrayElementsKindToArguments(isolate, array, &args, 1,
+                                    args.length() - 1);
+
   int to_add = args.length() - 1;
   if (to_add == 0) return array->length();
 
   // Currently fixed arrays cannot grow too big, so we should never hit this.
   DCHECK_LE(to_add, Smi::kMaxValue - Smi::ToInt(array->length()));
-
-  if (JSArray::HasReadOnlyLength(array)) {
-    return CallJsIntrinsic(isolate, isolate->array_unshift(), args);
-  }
+  DCHECK(!JSArray::HasReadOnlyLength(array));
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
   int new_length = accessor->Unshift(array, &args, to_add);

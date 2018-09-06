@@ -1585,11 +1585,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
           ExtractFixedArrayFlag::kAllFixedArrays,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
-  TNode<FixedArrayBase> ExtractFixedArray(TNode<FixedArrayBase> source,
-                                          TNode<Smi> first, TNode<Smi> count,
-                                          TNode<Smi> capacity) {
-    return ExtractFixedArray(source, first, count, capacity,
-                             ExtractFixedArrayFlag::kAllFixedArrays,
+  TNode<FixedArrayBase> ExtractFixedArray(
+      TNode<FixedArrayBase> source, TNode<Smi> first, TNode<Smi> count,
+      TNode<Smi> capacity,
+      ExtractFixedArrayFlags extract_flags =
+          ExtractFixedArrayFlag::kAllFixedArrays) {
+    return ExtractFixedArray(source, first, count, capacity, extract_flags,
                              SMI_PARAMETERS);
   }
 

@@ -812,6 +812,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kArrayPrototypePush:
     case Builtins::kArrayPrototypeReverse:
     case Builtins::kArrayPrototypeShift:
+    case Builtins::kArrayPrototypeUnshift:
     case Builtins::kArraySplice:
     case Builtins::kArrayUnshift:
     // Map builtins.

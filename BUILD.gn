@@ -886,6 +886,7 @@ torque_files = [
   "src/builtins/array-lastindexof.tq",
   "src/builtins/array-reverse.tq",
   "src/builtins/array-splice.tq",
+  "src/builtins/array-unshift.tq",
   "src/builtins/typed-array.tq",
   "src/builtins/data-view.tq",
   "test/torque/test-torque.tq",

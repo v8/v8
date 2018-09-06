@@ -379,32 +379,6 @@ DEFINE_METHOD(
 );
 
 
-function ArrayUnshiftFallback(arg1) {  // length == 1
-  var array = TO_OBJECT(this);
-  var len = TO_LENGTH(array.length);
-  var num_arguments = arguments.length;
-
-  const new_len = len + num_arguments;
-  if (num_arguments > 0) {
-    if (new_len >= 2**53) throw %make_type_error(kInvalidArrayLength);
-
-    if (len > 0 && UseSparseVariant(array, len, IS_ARRAY(array), len) &&
-        !%object_is_sealed(array)) {
-      SparseMove(array, 0, 0, len, num_arguments);
-    } else {
-      SimpleMove(array, 0, 0, len, num_arguments);
-    }
-
-    for (var i = 0; i < num_arguments; i++) {
-      array[i] = arguments[i];
-    }
-  }
-
-  array.length = new_len;
-  return new_len;
-}
-
-
 // Oh the humanity... don't remove the following function because js2c for some
 // reason gets symbol minifiation wrong if it's not there. Instead of spending
 // the time fixing js2c (which will go away when all of the internal .js runtime
@@ -649,7 +623,6 @@ utils.Export(function(to) {
   "array_keys_iterator", ArrayKeys,
   "array_values_iterator", ArrayValues,
   // Fallback implementations of Array builtins.
-  "array_unshift", ArrayUnshiftFallback,
 ]);
 
 });

@@ -652,7 +652,6 @@
   'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6538
-  'built-ins/Array/prototype/unshift/throws-if-integer-limit-exceeded': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6541
   'language/export/escaped-as-export-specifier': [FAIL],
