@@ -2822,7 +2822,7 @@ void CompilationState::SetNumberOfFunctionsToCompile(size_t num_functions) {
 void CompilationState::SetCallback(
     std::function<void(CompilationEvent, ErrorThrower*)> callback) {
   DCHECK_NULL(callback_);
-  callback_ = callback;
+  callback_ = std::move(callback);
 }
 
 void CompilationState::AddCompilationUnits(

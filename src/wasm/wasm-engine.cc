@@ -186,7 +186,7 @@ std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
 }
 
 Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
-    Isolate* isolate, std::shared_ptr<NativeModule> shared_module) {
+    Isolate* isolate, const std::shared_ptr<NativeModule>& shared_module) {
   CHECK_EQ(code_manager(), shared_module->code_manager());
   Vector<const byte> wire_bytes = shared_module->wire_bytes();
   Handle<Script> script = CreateWasmScript(isolate, wire_bytes);
