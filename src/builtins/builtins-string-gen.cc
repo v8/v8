@@ -354,12 +354,10 @@ TF_BUILTIN(SubString, StringBuiltinsAssembler) {
   Return(SubString(string, SmiUntag(from), SmiUntag(to)));
 }
 
-void StringBuiltinsAssembler::GenerateStringAt(char const* method_name,
-                                               TNode<Context> context,
-                                               Node* receiver,
-                                               TNode<Object> maybe_position,
-                                               TNode<Object> default_return,
-                                               StringAtAccessor accessor) {
+void StringBuiltinsAssembler::GenerateStringAt(
+    char const* method_name, TNode<Context> context, Node* receiver,
+    TNode<Object> maybe_position, TNode<Object> default_return,
+    const StringAtAccessor& accessor) {
   // Check that {receiver} is coercible to Object and convert it to a String.
   TNode<String> string = ToThisString(context, receiver, method_name);
 
@@ -817,7 +815,7 @@ TF_BUILTIN(StringPrototypeConcat, CodeStubAssembler) {
 
 void StringBuiltinsAssembler::StringIndexOf(
     Node* const subject_string, Node* const search_string, Node* const position,
-    std::function<void(Node*)> f_return) {
+    const std::function<void(Node*)>& f_return) {
   CSA_ASSERT(this, IsString(subject_string));
   CSA_ASSERT(this, IsString(search_string));
   CSA_ASSERT(this, TaggedIsSmi(position));
@@ -2303,10 +2301,10 @@ void StringTrimAssembler::ScanForNonWhiteSpaceOrLineTerminator(
   BIND(&out);
 }
 
-void StringTrimAssembler::BuildLoop(Variable* const var_index, Node* const end,
-                                    int increment, Label* const if_none_found,
-                                    Label* const out,
-                                    std::function<Node*(Node*)> get_character) {
+void StringTrimAssembler::BuildLoop(
+    Variable* const var_index, Node* const end, int increment,
+    Label* const if_none_found, Label* const out,
+    const std::function<Node*(Node*)>& get_character) {
   Label loop(this, var_index);
   Goto(&loop);
   BIND(&loop);
