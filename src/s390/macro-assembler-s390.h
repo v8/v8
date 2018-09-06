@@ -769,7 +769,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                      Register scratch = r0);
   void StoreByte(Register src, const MemOperand& mem, Register scratch = r0);
 
+  void AddSmiLiteral(Register dst, Register src, Smi* smi,
+                     Register scratch = r0);
+  void SubSmiLiteral(Register dst, Register src, Smi* smi,
+                     Register scratch = r0);
   void CmpSmiLiteral(Register src1, Smi* smi, Register scratch);
+  void CmpLogicalSmiLiteral(Register src1, Smi* smi, Register scratch);
+  void AndSmiLiteral(Register dst, Register src, Smi* smi);
 
   // Set new rounding mode RN to FPSCR
   void SetRoundingMode(FPRoundingMode RN);
@@ -1192,8 +1198,13 @@ class MacroAssembler : public TurboAssembler {
   }
 
   void SmiToPtrArrayOffset(Register dst, Register src) {
+#if V8_TARGET_ARCH_S390X
+    STATIC_ASSERT(kSmiTag == 0 && kSmiShift > kPointerSizeLog2);
+    ShiftRightArithP(dst, src, Operand(kSmiShift - kPointerSizeLog2));
+#else
     STATIC_ASSERT(kSmiTag == 0 && kSmiShift < kPointerSizeLog2);
     ShiftLeftP(dst, src, Operand(kPointerSizeLog2 - kSmiShift));
+#endif
   }
 
   // Untag the source value into destination and jump if source is a smi.
@@ -1203,7 +1214,7 @@ class MacroAssembler : public TurboAssembler {
   // Jump if either of the registers contain a non-smi.
   inline void JumpIfNotSmi(Register value, Label* not_smi_label) {
     TestIfSmi(value);
-    bne(not_smi_label);
+    bne(not_smi_label /*, cr0*/);
   }
   // Jump if either of the registers contain a smi.
   void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
@@ -1212,6 +1223,12 @@ class MacroAssembler : public TurboAssembler {
   void AssertNotSmi(Register object);
   void AssertSmi(Register object);
 
+#if V8_TARGET_ARCH_S390X
+  // Ensure it is permissible to read/write int value directly from
+  // upper half of the smi.
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 32);
+#endif
 #if V8_TARGET_LITTLE_ENDIAN
 #define SmiWordOffset(offset) (offset + kPointerSize / 2)
 #else
