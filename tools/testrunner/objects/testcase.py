@@ -281,6 +281,10 @@ class TestCase(object):
     """
     return []
 
+  def skip_predictable(self):
+    """Returns True if the test case is not suitable for predictable testing."""
+    return True
+
   @property
   def output_proc(self):
     if self.expected_outcomes is outproc.OUTCOMES_PASS:
@@ -346,3 +350,8 @@ class D8TestCase(TestCase):
         if resource not in result and os.path.exists(resource):
           to_check.append(resource)
     return sorted(list(result))
+
+  def skip_predictable(self):
+    """Returns True if the test case is not suitable for predictable testing."""
+    return (statusfile.FAIL in self.expected_outcomes or
+            self.output_proc.negative)
