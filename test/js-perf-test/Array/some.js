@@ -30,7 +30,6 @@ DefineHigherOrderTests([
   ['DoubleSome', newClosure('some'), DoubleSetup, v => v < 0.0],
   ['SmiSome', newClosure('some'), SmiSetup, v => v === 34343],
   ['FastSome', newClosure('some'), FastSetup, v => v === 'hi'],
-  ['DictionarySome', newClosure('some'), DictionarySetup, v => v > 0],
   ['OptFastSome', OptFastSome, FastSetup, undefined],
   ['OptUnreliableSome', OptUnreliableSome, FastSetup, v => v === 'hi']
 ]);

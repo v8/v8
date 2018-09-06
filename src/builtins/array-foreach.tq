@@ -10,16 +10,15 @@ module array {
     // 6. Repeat, while k < len
     for (let k: Smi = initial_k; k < len; k = k + 1) {
       // 6a. Let Pk be ! ToString(k).
-      // k is guaranteed to be a positive integer, hence ToString is
-      // side-effect free and HasProperty/GetProperty do the conversion inline.
+      const pK: String = ToString_Inline(context, k);
 
       // 6b. Let kPresent be ? HasProperty(O, Pk).
-      const kPresent: Boolean = HasProperty_Inline(context, o, k);
+      const kPresent: Boolean = HasProperty(context, o, pK);
 
       // 6c. If kPresent is true, then
       if (kPresent == True) {
         // 6c. i. Let kValue be ? Get(O, Pk).
-        const kValue: Object = GetProperty(context, o, k);
+        const kValue: Object = GetProperty(context, o, pK);
 
         // 6c. ii. Perform ? Call(callbackfn, T, <kValue, k, O>).
         Call(context, callbackfn, thisArg, kValue, k, o);

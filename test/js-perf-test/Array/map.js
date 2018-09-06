@@ -55,7 +55,6 @@ DefineHigherOrderTests([
   ['FastMap', newClosure('map'), FastSetup, v => v],
   ['SmallSmiToDoubleMap', newClosure('map'), SmiSetup, v => v + 0.5],
   ['SmallSmiToFastMap', newClosure('map'), SmiSetup, v => 'hi' + v],
-  ['DictionaryMap', newClosure('map'), DictionarySetup, v => v],
   ['GenericMap', newClosure('map', true), ObjectSetup, v => v],
   ['OptFastMap', OptFastMap, FastSetup, undefined],
   ['OptUnreliableMap', OptUnreliableMap, FastSetup, v => v]

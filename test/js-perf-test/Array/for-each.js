@@ -61,10 +61,6 @@ DefineHigherOrderTests([
     v => v === `value ${max_index}`
   ],
   [
-    'DictionaryForEach', newClosure('forEach'), DictionarySetup,
-     v => v === max_index
-  ],
-  [
     'GenericForEach', newClosure('forEach', true), ObjectSetup,
     v => v === max_index
   ],
