@@ -475,7 +475,7 @@ void DeclarationVisitor::Visit(TryLabelStatement* stmt) {
         }
 
         size_t i = 0;
-        for (auto p : block->parameters.names) {
+        for (const auto& p : block->parameters.names) {
           const Type* type =
               declarations()->GetType(block->parameters.types[i]);
           if (type->IsConstexpr()) {
@@ -531,7 +531,7 @@ void DeclarationVisitor::GenerateHeader(std::string& file_name) {
     }
     if (declareParameters) {
       int index = 0;
-      for (auto parameter : builtin->parameter_names()) {
+      for (const auto& parameter : builtin->parameter_names()) {
         if (index >= firstParameterIndex) {
           new_contents_stream << ", k" << CamelifyString(parameter);
         }
@@ -619,7 +619,7 @@ bool DeclarationVisitor::MarkVariableModified(const Variable* variable) {
 
 void DeclarationVisitor::DeclareSignature(const Signature& signature) {
   auto type_iterator = signature.parameter_types.types.begin();
-  for (auto name : signature.parameter_names) {
+  for (const auto& name : signature.parameter_names) {
     const Type* t(*type_iterator++);
     if (name.size() != 0) {
       DeclareParameter(name, t);

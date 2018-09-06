@@ -1595,7 +1595,7 @@ void ImplementationVisitor::GenerateParameter(
 
 void ImplementationVisitor::GenerateParameterList(const NameVector& list,
                                                   size_t first) {
-  for (auto p : list) {
+  for (const auto& p : list) {
     if (first == 0) {
       GenerateParameter(p);
     } else {
@@ -1998,7 +1998,7 @@ void ImplementationVisitor::GenerateLabelGoto(Label* label) {
 std::vector<Label*> ImplementationVisitor::LabelsFromIdentifiers(
     const std::vector<std::string>& names) {
   std::vector<Label*> result;
-  for (auto name : names) {
+  for (const auto& name : names) {
     result.push_back(declarations()->LookupLabel(name));
   }
   return result;
