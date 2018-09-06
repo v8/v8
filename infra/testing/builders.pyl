@@ -125,6 +125,61 @@
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
+  'v8_linux_optional_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+    },
+    'tests': [
+      # Code serializer.
+      {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
+      {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 1},
+      {'name': 'mozilla', 'variant': 'code_serializer', 'shards': 1},
+      {'name': 'test262_variants', 'variant': 'code_serializer', 'shards': 1},
+      # No SSE3.
+      {
+        'name': 'mozilla',
+        'suffix': 'nosse3',
+        'test_args': [
+          '--extra-flags',
+          '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx',
+        ],
+      },
+      {
+        'name': 'test262',
+        'suffix': 'nosse3',
+        'test_args': [
+          '--extra-flags',
+          '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx',
+        ],
+      },
+      {
+        'name': 'v8testing',
+        'suffix': 'nosse3',
+        'test_args': [
+          '--extra-flags',
+          '--noenable-sse3 --noenable-ssse3 --noenable-sse4-1 --noenable-avx',
+        ],
+        'shards': 3,
+      },
+      # No SSE4.
+      {
+        'name': 'mozilla',
+        'suffix': 'nosse4',
+        'test_args': ['--extra-flags', '--noenable-sse4-1 --noenable-avx'],
+      },
+      {
+        'name': 'test262',
+        'suffix': 'nosse4',
+        'test_args': ['--extra-flags', '--noenable-sse4-1 --noenable-avx'],
+      },
+      {
+        'name': 'v8testing',
+        'suffix': 'nosse4',
+        'test_args': ['--extra-flags', '--noenable-sse4-1 --noenable-avx'],
+        'shards': 3,
+      },
+    ],
+  },
   'v8_linux_verify_csa_rel_ng_triggered': {
     'tests': [
       {'name': 'v8testing'},
