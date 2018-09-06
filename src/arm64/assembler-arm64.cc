@@ -4754,6 +4754,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
                                 ConstantPoolMode constant_pool_mode) {
   // Non-relocatable constants should not end up in the literal pool.
   DCHECK(!RelocInfo::IsNone(rmode));
+  if (options().disable_reloc_info_for_patching) return;
 
   // We do not try to reuse pool constants.
   RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
@@ -4780,7 +4781,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
   // For modes that cannot use the constant pool, a different sequence of
   // instructions will be emitted by this function's caller.
 
-  if (!RelocInfo::IsNone(rmode) && write_reloc_info) {
+  if (write_reloc_info) {
     // Don't record external references unless the heap will be serialized.
     if (RelocInfo::IsOnlyForSerializer(rmode) &&
         !options().record_reloc_info_for_serialization && !emit_debug_code()) {

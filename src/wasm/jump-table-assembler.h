@@ -14,16 +14,9 @@ namespace wasm {
 
 class JumpTableAssembler : public TurboAssembler {
  public:
-  // {JumpTableAssembler} is never used during snapshot generation, and its code
-  // must be independent of the code range of any isolate anyway. So just use
-  // this default {Options} for each {JumpTableAssembler}.
-  JumpTableAssembler()
-      : TurboAssembler(nullptr, AssemblerOptions{}, nullptr, 0,
-                       CodeObjectRequired::kNo) {}
-
   // Instantiate a {JumpTableAssembler} for patching.
   explicit JumpTableAssembler(Address slot_addr, int size = 256)
-      : TurboAssembler(nullptr, AssemblerOptions{},
+      : TurboAssembler(nullptr, JumpTableAssemblerOptions(),
                        reinterpret_cast<void*>(slot_addr), size,
                        CodeObjectRequired::kNo) {}
 
@@ -50,6 +43,16 @@ class JumpTableAssembler : public TurboAssembler {
 #else
   static constexpr int kJumpTableSlotSize = 1;
 #endif
+
+  // {JumpTableAssembler} is never used during snapshot generation, and its code
+  // must be independent of the code range of any isolate anyway. Just ensure
+  // that no relocation information is recorded, there is no buffer to store it
+  // since it is instantiated in patching mode in existing code directly.
+  static AssemblerOptions JumpTableAssemblerOptions() {
+    AssemblerOptions options;
+    options.disable_reloc_info_for_patching = true;
+    return options;
+  }
 
   void EmitLazyCompileJumpSlot(uint32_t func_index,
                                Address lazy_compile_target);

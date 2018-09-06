@@ -4843,6 +4843,7 @@ void Assembler::dq(Label* label) {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   DCHECK(!RelocInfo::IsNone(rmode));
+  if (options().disable_reloc_info_for_patching) return;
   if (RelocInfo::IsOnlyForSerializer(rmode) &&
       !options().record_reloc_info_for_serialization && !emit_debug_code()) {
     return;

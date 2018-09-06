@@ -138,11 +138,15 @@ class HeapObjectRequest {
 enum class CodeObjectRequired { kNo, kYes };
 
 struct V8_EXPORT_PRIVATE AssemblerOptions {
-  // Recording reloc info and for external references and off-heap targets is
+  // Recording reloc info for external references and off-heap targets is
   // needed whenever code is serialized, e.g. into the snapshot or as a WASM
   // module. This flag allows this reloc info to be disabled for code that
   // will not survive process destruction.
   bool record_reloc_info_for_serialization = true;
+  // Recording reloc info can be disabled wholesale. This is needed when the
+  // assembler is used on existing code directly (e.g. JumpTableAssembler)
+  // without any buffer to hold reloc information.
+  bool disable_reloc_info_for_patching = false;
   // Enables access to exrefs by computing a delta from the root array.
   // Only valid if code will not survive the process.
   bool enable_root_array_delta_access = false;

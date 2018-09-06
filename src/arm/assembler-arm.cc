@@ -5125,6 +5125,7 @@ void Assembler::dq(uint64_t value) {
 }
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
+  if (options().disable_reloc_info_for_patching) return;
   if (RelocInfo::IsNone(rmode) ||
       // Don't record external references unless the heap will be serialized.
       (RelocInfo::IsOnlyForSerializer(rmode) &&

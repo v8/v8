@@ -4134,6 +4134,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
   RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
   if (!RelocInfo::IsNone(rinfo.rmode())) {
+    if (options().disable_reloc_info_for_patching) return;
     // Don't record external references unless the heap will be serialized.
     if (RelocInfo::IsOnlyForSerializer(rmode) &&
         !options().record_reloc_info_for_serialization && !emit_debug_code()) {
