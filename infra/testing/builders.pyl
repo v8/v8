@@ -39,7 +39,10 @@
       'os': 'Android',
     },
     'tests': [
+      {'name': 'benchmarks'},
       {'name': 'd8testing', 'variant': 'default', 'shards': 2},
+      {'name': 'mozilla'},
+      {'name': 'test262', 'shards': 6},
     ],
   },
   ##############################################################################
