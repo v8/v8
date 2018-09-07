@@ -134,17 +134,14 @@ bool WasmMemoryTracker::ReserveAddressSpace(size_t num_bytes) {
   constexpr size_t kAddressSpaceLimit = 0x80000000;  // 2 GiB
 #endif
 
-  int retries = 5;  // cmpxchng can fail, retry some number of times.
-  do {
-    size_t old_count = reserved_address_space_;
-    if ((kAddressSpaceLimit - old_count) < num_bytes) return false;
+  while (true) {
+    size_t old_count = reserved_address_space_.load();
+    if (kAddressSpaceLimit - old_count < num_bytes) return false;
     if (reserved_address_space_.compare_exchange_weak(old_count,
                                                       old_count + num_bytes)) {
       return true;
     }
-  } while (retries-- > 0);
-
-  return false;
+  }
 }
 
 void WasmMemoryTracker::ReleaseReservation(size_t num_bytes) {
