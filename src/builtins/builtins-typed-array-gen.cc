@@ -1670,9 +1670,8 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
     // 7. If usingIterator is not undefined, then
     //  a. Let values be ? IterableToList(source, usingIterator).
     //  b. Let len be the number of elements in values.
-    TNode<JSArray> values =
-        CAST(CallBuiltin(Builtins::kIterableToListMayPreserveHoles, context,
-                         source, iterator_fn));
+    TNode<JSArray> values = CAST(
+        CallBuiltin(Builtins::kIterableToList, context, source, iterator_fn));
 
     // This is not a spec'd limit, so it doesn't particularly matter when we
     // throw the range error for typed array length > MaxSmi.
