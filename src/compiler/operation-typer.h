@@ -58,6 +58,7 @@ class V8_EXPORT_PRIVATE OperationTyper {
   Type StrictEqual(Type lhs, Type rhs);
 
   // Check operators.
+  Type CheckBounds(Type index, Type length);
   Type CheckFloat64Hole(Type type);
   Type CheckNumber(Type type);
   Type ConvertTaggedHoleToUndefined(Type type);

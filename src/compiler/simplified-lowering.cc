@@ -478,6 +478,13 @@ class RepresentationSelector {
         new_type = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
         break;
 
+      case IrOpcode::kCheckBounds:
+        new_type = Type::Intersect(
+            op_typer_.CheckBounds(FeedbackTypeOf(node->InputAt(0)),
+                                  FeedbackTypeOf(node->InputAt(1))),
+            info->restriction_type(), graph_zone());
+        break;
+
       case IrOpcode::kCheckFloat64Hole:
         new_type = Type::Intersect(
             op_typer_.CheckFloat64Hole(FeedbackTypeOf(node->InputAt(0))),
