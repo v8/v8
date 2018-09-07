@@ -81,10 +81,7 @@
 ##############################################################################
 ['predictable == True', {
   # https://crbug.com/v8/8147
-  'debug/debug-liveedit-double-call': [SKIP],
-  'debug/debug-liveedit-exceptions': [SKIP],
-  'debug/debug-liveedit-replace-code': [SKIP],
-  'debug/debug-liveedit-stepin': [SKIP],
+  'debug/debug-liveedit-*': [SKIP],
   'debug/debug-set-variable-value': [SKIP],
 }],  # 'predictable == True'
 
