@@ -386,6 +386,13 @@ Handle<Object> JSStackFrame::GetMethodName() {
   }
 
   Handle<String> name(function_->shared()->Name(), isolate_);
+
+  // The static initializer function is not a method, so don't add a
+  // class name, just return the function name.
+  if (name->IsUtf8EqualTo(CStrVector("<static_fields_initializer>"), true)) {
+    return name;
+  }
+
   // ES2015 gives getters and setters name prefixes which must
   // be stripped to find the property name.
   if (name->IsUtf8EqualTo(CStrVector("get "), true) ||

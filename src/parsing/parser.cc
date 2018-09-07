@@ -3239,7 +3239,8 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
 }
 
 FunctionLiteral* Parser::CreateInitializerFunction(
-    DeclarationScope* scope, ZonePtrList<ClassLiteral::Property>* fields) {
+    const char* name, DeclarationScope* scope,
+    ZonePtrList<ClassLiteral::Property>* fields) {
   DCHECK_EQ(scope->function_kind(),
             FunctionKind::kClassFieldsInitializerFunction);
   // function() { .. class fields initializer .. }
@@ -3248,7 +3249,7 @@ FunctionLiteral* Parser::CreateInitializerFunction(
       factory()->NewInitializeClassFieldsStatement(fields, kNoSourcePosition);
   statements->Add(static_fields, zone());
   return factory()->NewFunctionLiteral(
-      ast_value_factory()->empty_string(), scope, statements, 0, 0, 0,
+      ast_value_factory()->GetOneByteString(name), scope, statements, 0, 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression,
       FunctionLiteral::kShouldEagerCompile, scope->start_position(), true,
@@ -3286,13 +3287,15 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
   FunctionLiteral* static_fields_initializer = nullptr;
   if (class_info->has_static_class_fields) {
     static_fields_initializer = CreateInitializerFunction(
-        class_info->static_fields_scope, class_info->static_fields);
+        "<static_fields_initializer>", class_info->static_fields_scope,
+        class_info->static_fields);
   }
 
   FunctionLiteral* instance_fields_initializer_function = nullptr;
   if (class_info->has_instance_class_fields) {
     instance_fields_initializer_function = CreateInitializerFunction(
-        class_info->instance_fields_scope, class_info->instance_fields);
+        "<instance_fields_initializer>", class_info->instance_fields_scope,
+        class_info->instance_fields);
     class_info->constructor->set_requires_instance_fields_initializer(true);
   }
 

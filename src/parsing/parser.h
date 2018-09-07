@@ -317,7 +317,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Variable* CreateSyntheticContextVariable(const AstRawString* synthetic_name,
                                            bool* ok);
   FunctionLiteral* CreateInitializerFunction(
-      DeclarationScope* scope, ZonePtrList<ClassLiteral::Property>* fields);
+      const char* name, DeclarationScope* scope,
+      ZonePtrList<ClassLiteral::Property>* fields);
   V8_INLINE Statement* DeclareClass(const AstRawString* variable_name,
                                     Expression* value,
                                     ZonePtrList<const AstRawString>* names,
