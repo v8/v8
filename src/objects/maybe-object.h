@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_MAYBE_OBJECT_H_
 #define V8_OBJECTS_MAYBE_OBJECT_H_
 
+#include "include/v8-internal.h"
 #include "include/v8.h"
 #include "src/globals.h"
 #include "src/objects.h"

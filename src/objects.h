@@ -8,6 +8,7 @@
 #include <iosfwd>
 #include <memory>
 
+#include "include/v8-internal.h"
 #include "include/v8.h"
 #include "include/v8config.h"
 #include "src/assert-scope.h"

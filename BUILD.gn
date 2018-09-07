@@ -1482,6 +1482,7 @@ v8_header_set("v8_headers") {
   configs = [ ":internal_config" ]
 
   sources = [
+    "include/v8-internal.h",
     "include/v8.h",
     "include/v8config.h",
   ]
@@ -1503,6 +1504,7 @@ v8_source_set("v8_base") {
     ### gcmole(all) ###
     "include/v8-inspector-protocol.h",
     "include/v8-inspector.h",
+    "include/v8-internal.h",
     "include/v8-platform.h",
     "include/v8-profiler.h",
     "include/v8-testing.h",

@@ -11,7 +11,7 @@
 #include <limits>
 #include <ostream>
 
-#include "include/v8.h"
+#include "include/v8-internal.h"
 #include "src/base/build_config.h"
 #include "src/base/flags.h"
 #include "src/base/logging.h"

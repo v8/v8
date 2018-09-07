@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "include/v8-inspector.h"
+#include "include/v8-internal.h"
 #include "include/v8.h"
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
