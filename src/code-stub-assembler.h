@@ -2739,6 +2739,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                              SloppyTNode<Object> key,
                              HasPropertyLookupMode mode);
 
+  // Due to naming conflict with the builtin function namespace.
+  TNode<Oddball> HasProperty_Inline(TNode<Context> context,
+                                    TNode<JSReceiver> object,
+                                    TNode<Object> key) {
+    return HasProperty(context, object, key,
+                       HasPropertyLookupMode::kHasProperty);
+  }
+
   Node* Typeof(Node* value);
 
   TNode<Object> GetSuperConstructor(SloppyTNode<Context> context,

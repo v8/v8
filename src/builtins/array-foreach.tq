@@ -5,20 +5,21 @@
 module array {
   macro ArrayForEachTorqueContinuation(
       context: Context, o: JSReceiver, len: Number, callbackfn: Callable,
-      thisArg: Object, initial_k: Smi): Object {
+      thisArg: Object, initial_k: Number): Object {
     // 5. Let k be 0.
     // 6. Repeat, while k < len
-    for (let k: Smi = initial_k; k < len; k = k + 1) {
+    for (let k: Number = initial_k; k < len; k = k + 1) {
       // 6a. Let Pk be ! ToString(k).
-      const pK: String = ToString_Inline(context, k);
+      // k is guaranteed to be a positive integer, hence ToString is
+      // side-effect free and HasProperty/GetProperty do the conversion inline.
 
       // 6b. Let kPresent be ? HasProperty(O, Pk).
-      const kPresent: Boolean = HasProperty(context, o, pK);
+      const kPresent: Boolean = HasProperty_Inline(context, o, k);
 
       // 6c. If kPresent is true, then
       if (kPresent == True) {
         // 6c. i. Let kValue be ? Get(O, Pk).
-        const kValue: Object = GetProperty(context, o, pK);
+        const kValue: Object = GetProperty(context, o, k);
 
         // 6c. ii. Perform ? Call(callbackfn, T, <kValue, k, O>).
         Call(context, callbackfn, thisArg, kValue, k, o);
@@ -60,7 +61,7 @@ module array {
     try {
       const callbackfn: Callable =
           cast<Callable>(callback) otherwise Unexpected;
-      const k: Smi = cast<Smi>(initialK) otherwise Unexpected;
+      const k: Number = cast<Number>(initialK) otherwise Unexpected;
       const number_length: Number = cast<Number>(length) otherwise Unexpected;
 
       return ArrayForEachTorqueContinuation(
@@ -159,7 +160,7 @@ module array {
       const thisArg: Object = arguments.length > 1 ? arguments[1] : Undefined;
 
       // Special cases.
-      let k: Smi = 0;
+      let k: Number = 0;
       try {
         return FastArrayForEach(context, o, len, callbackfn, thisArg)
         otherwise Bailout;
