@@ -5,23 +5,21 @@
 #ifndef V8_PARSING_PREPARSED_SCOPE_DATA_H_
 #define V8_PARSING_PREPARSED_SCOPE_DATA_H_
 
-#include <set>
-#include <unordered_map>
-#include <vector>
-
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/objects/shared-function-info.h"
+#include "src/maybe-handles.h"
 #include "src/zone/zone-chunk-list.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
 template <typename T>
-class Handle;
+class PodArray;
 
 class PreParser;
 class PreParsedScopeData;
+class ZonePreParsedScopeData;
 
 /*
 
@@ -66,36 +64,19 @@ class PreParsedScopeData;
 
 class ProducedPreParsedScopeData : public ZoneObject {
  public:
-  class ByteData : public ZoneObject {
-   public:
-    explicit ByteData(Zone* zone)
-        : backing_store_(zone), free_quarters_in_last_byte_(0) {}
-
-    void WriteUint32(uint32_t data);
-    void WriteUint8(uint8_t data);
-    void WriteQuarter(uint8_t data);
-
-#ifdef DEBUG
-    // For overwriting previously written data at position 0.
-    void OverwriteFirstUint32(uint32_t data);
-#endif
-
-    Handle<PodArray<uint8_t>> Serialize(Isolate* isolate);
-
-    size_t size() const { return backing_store_.size(); }
-
-   private:
-    ZoneChunkList<uint8_t> backing_store_;
-    uint8_t free_quarters_in_last_byte_;
-  };
+  class ByteData;
 
   // Create a ProducedPreParsedScopeData object which will collect data as we
   // parse.
   ProducedPreParsedScopeData(Zone* zone, ProducedPreParsedScopeData* parent);
 
   // Create a ProducedPreParsedScopeData which is just a proxy for a previous
-  // produced PreParsedScopeData.
+  // produced PreParsedScopeData on the heap.
   ProducedPreParsedScopeData(Handle<PreParsedScopeData> data, Zone* zone);
+
+  // Create a ProducedPreParsedScopeData which is just a proxy for a previous
+  // produced PreParsedScopeData in zone.
+  ProducedPreParsedScopeData(ZonePreParsedScopeData* data, Zone* zone);
 
   ProducedPreParsedScopeData* parent() const { return parent_; }
 
@@ -153,6 +134,11 @@ class ProducedPreParsedScopeData : public ZoneObject {
   // MaybeHandle.
   MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate);
 
+  // If there is data (if the Scope contains skippable inner functions), return
+  // an off-heap ZonePreParsedScopeData representing the data; otherwise
+  // return nullptr.
+  ZonePreParsedScopeData* Serialize(Zone* zone);
+
   static bool ScopeNeedsData(Scope* scope);
   static bool ScopeIsSkippableFunctionScope(Scope* scope);
 
@@ -174,80 +160,48 @@ class ProducedPreParsedScopeData : public ZoneObject {
   // Whether we've given up producing the data for this function.
   bool bailed_out_;
 
-  // ProducedPreParsedScopeData can also mask a Handle<PreParsedScopeData>
+  // ProducedPreParsedScopeData can also hold a Handle<PreParsedScopeData>
   // which was produced already earlier. This happens for deeper lazy functions.
-  Handle<PreParsedScopeData> previously_produced_preparsed_scope_data_;
+  // TODO(rmcilroy): Split apart ProducedPreParsedScopeData into different
+  // classes for situations where it has already been produced.
+  Handle<PreParsedScopeData> previously_produced_on_heap_preparsed_scope_data_;
+
+  // ProducedPreParsedScopeData can also hold a ZonePreParsedScopeData*
+  // which was produced already earlier. This happens for deeper lazy functions.
+  // TODO(rmcilroy): Split apart ProducedPreParsedScopeData into different
+  // classes for situations where it has already been produced.
+  ZonePreParsedScopeData* previously_produced_zone_preparsed_scope_data_;
 
   DISALLOW_COPY_AND_ASSIGN(ProducedPreParsedScopeData);
 };
 
 class ConsumedPreParsedScopeData {
  public:
-  class ByteData {
-   public:
-    ByteData()
-        : data_(nullptr), index_(0), stored_quarters_(0), stored_byte_(0) {}
+  // Creates a ConsumedPreParsedScopeData representing the data of an on-heap
+  // PreParsedScopeData |data|.
+  static std::unique_ptr<ConsumedPreParsedScopeData> For(
+      Isolate* isolate, Handle<PreParsedScopeData> data);
 
-    // Reading from the ByteData is only allowed when a ReadingScope is on the
-    // stack. This ensures that we have a DisallowHeapAllocation in place
-    // whenever ByteData holds a raw pointer into the heap.
-    class ReadingScope {
-     public:
-      ReadingScope(ByteData* consumed_data, PodArray<uint8_t>* data)
-          : consumed_data_(consumed_data) {
-        consumed_data->data_ = data;
-      }
-      explicit ReadingScope(ConsumedPreParsedScopeData* parent);
-      ~ReadingScope() { consumed_data_->data_ = nullptr; }
+  // Creates a ConsumedPreParsedScopeData representing the data of an off-heap
+  // ZonePreParsedScopeData |data|.
+  static std::unique_ptr<ConsumedPreParsedScopeData> For(
+      Zone* zone, ZonePreParsedScopeData* data);
 
-     private:
-      ByteData* consumed_data_;
-      DisallowHeapAllocation no_gc;
-    };
+  virtual ~ConsumedPreParsedScopeData() {}
 
-    void SetPosition(int position) { index_ = position; }
-
-    int32_t ReadUint32();
-    uint8_t ReadUint8();
-    uint8_t ReadQuarter();
-
-    size_t RemainingBytes() const;
-
-    // private:
-    PodArray<uint8_t>* data_;
-    int index_;
-    uint8_t stored_quarters_;
-    uint8_t stored_byte_;
-  };
-
-  ConsumedPreParsedScopeData();
-  ~ConsumedPreParsedScopeData();
-
-  void SetData(Isolate* isolate, Handle<PreParsedScopeData> data);
-
-  bool HasData() const { return !data_.is_null(); }
-
-  ProducedPreParsedScopeData* GetDataForSkippableFunction(
+  virtual ProducedPreParsedScopeData* GetDataForSkippableFunction(
       Zone* zone, int start_position, int* end_position, int* num_parameters,
       int* num_inner_functions, bool* uses_super_property,
-      LanguageMode* language_mode);
+      LanguageMode* language_mode) = 0;
 
   // Restores the information needed for allocating the Scope's (and its
   // subscopes') variables.
-  void RestoreScopeAllocationData(DeclarationScope* scope);
+  virtual void RestoreScopeAllocationData(DeclarationScope* scope) = 0;
+
+ protected:
+  ConsumedPreParsedScopeData() {}
 
  private:
-  void RestoreData(Scope* scope);
-  void RestoreDataForVariable(Variable* var);
-  void RestoreDataForInnerScopes(Scope* scope);
-
-  Isolate* isolate_;
-  Handle<PreParsedScopeData> data_;
-  std::unique_ptr<ByteData> scope_data_;
-  // When consuming the data, these indexes point to the data we're going to
-  // consume next.
-  int child_index_;
-
   DISALLOW_COPY_AND_ASSIGN(ConsumedPreParsedScopeData);
 };
 

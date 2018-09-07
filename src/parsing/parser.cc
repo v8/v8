@@ -2731,8 +2731,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
                  scanner()->current_token() == Token::ARROW);
 
   // FIXME(marja): There are 2 ways to skip functions now. Unify them.
-  DCHECK_NOT_NULL(consumed_preparsed_scope_data_);
-  if (consumed_preparsed_scope_data_->HasData()) {
+  if (consumed_preparsed_scope_data_) {
     DCHECK(FLAG_preparser_scope_analysis);
     int end_position;
     LanguageMode language_mode;
