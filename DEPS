@@ -13,13 +13,13 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ebaffbc692c070069008309c2da4df95627b9d7b',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6533d0538d622908853f7b81e5d427aef51bde13',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0f5a0b4409892f575b559ca77bd9369650bd2443',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'dd2c588e3811893e8ad32b59582dc73ca09a6012',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'a191af9d025859e8368b8b469120d78006e9f5f6',
   'v8/third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'd8cf40c4592dcec7fb01fcbdf1f6d4958b3fbf11',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'a90cbf3b4216430a437991fb53ede8e048dea454',
   'v8/buildtools':
     Var('chromium_url') + '/chromium/buildtools.git' + '@' + '2dff9c9c74e9d732e6fe57c84ef7fd044cc45d96',
   'v8/base/trace_event/common':
@@ -71,7 +71,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '3aa61392aaa697308be38be5533061f4938cb42a',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e9dadb972c07f43237da73ecad9c7e3ec3c0822b',
   'v8/tools/luci-go':
     Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '445d7c4b6a4f10e188edb395b132e3996b127691',
   'v8/test/wasm-js':
