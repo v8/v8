@@ -63,7 +63,7 @@ AssemblerOptions AssemblerOptions::Default(
   options.inline_offheap_trampolines = !serializer;
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
   options.code_range_start =
-      isolate->heap()->memory_allocator()->code_range()->start();
+      isolate->heap()->memory_allocator()->code_range_start();
 #endif
   return options;
 }

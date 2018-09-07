@@ -63,8 +63,8 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
                     bool is_turbofanned, int stack_slots,
                     int safepoint_table_offset, int handler_table_offset) {
   DCHECK(IsAligned(code->address(), kCodeAlignment));
-  DCHECK(!heap->memory_allocator()->code_range()->valid() ||
-         heap->memory_allocator()->code_range()->contains(code->address()) ||
+  DCHECK(!heap->memory_allocator()->code_range_valid() ||
+         heap->memory_allocator()->code_range_contains(code->address()) ||
          object_size <= heap->code_space()->AreaSize());
 
   bool has_unwinding_info = desc.unwinding_info != nullptr;
@@ -2663,8 +2663,8 @@ Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {
   heap->ZapCodeObject(result->address(), size);
   result->set_map_after_allocation(*code_map(), SKIP_WRITE_BARRIER);
   DCHECK(IsAligned(result->address(), kCodeAlignment));
-  DCHECK(!heap->memory_allocator()->code_range()->valid() ||
-         heap->memory_allocator()->code_range()->contains(result->address()) ||
+  DCHECK(!heap->memory_allocator()->code_range_valid() ||
+         heap->memory_allocator()->code_range_contains(result->address()) ||
          static_cast<int>(size) <= heap->code_space()->AreaSize());
   return handle(Code::cast(result), isolate());
 }
@@ -2727,10 +2727,9 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
   if (FLAG_verify_heap) new_code->ObjectVerify(isolate());
 #endif
   DCHECK(IsAligned(new_code->address(), kCodeAlignment));
-  DCHECK(
-      !heap->memory_allocator()->code_range()->valid() ||
-      heap->memory_allocator()->code_range()->contains(new_code->address()) ||
-      obj_size <= heap->code_space()->AreaSize());
+  DCHECK(!heap->memory_allocator()->code_range_valid() ||
+         heap->memory_allocator()->code_range_contains(new_code->address()) ||
+         obj_size <= heap->code_space()->AreaSize());
   return new_code;
 }
 

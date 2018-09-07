@@ -49,10 +49,10 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
     return options;
   }
 
-  CodeRange* code_range = isolate->heap()->memory_allocator()->code_range();
   bool pc_relative_calls_fit_in_code_range =
-      code_range->valid() &&
-      code_range->size() <= kMaxPCRelativeCodeRangeInMB * MB;
+      isolate->heap()->memory_allocator()->code_range_valid() &&
+      isolate->heap()->memory_allocator()->code_range_size() <=
+          kMaxPCRelativeCodeRangeInMB * MB;
 
   options.isolate_independent_code = true;
   options.use_pc_relative_calls_and_jumps = pc_relative_calls_fit_in_code_range;

@@ -158,10 +158,11 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
   VirtualMemory() = default;
 
   // Reserves virtual memory containing an area of the given size that is
-  // aligned per alignment. This may not be at the position returned by
-  // address().
+  // aligned per |alignment| rounded up to the |page_allocator|'s allocate page
+  // size.
+  // This may not be at the position returned by address().
   VirtualMemory(v8::PageAllocator* page_allocator, size_t size, void* hint,
-                size_t alignment = AllocatePageSize());
+                size_t alignment = 1);
 
   // Construct a virtual memory by assigning it some already mapped address
   // and size.

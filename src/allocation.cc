@@ -161,7 +161,9 @@ void* AllocatePages(v8::PageAllocator* page_allocator, void* address,
     if (!OnCriticalMemoryPressure(request_size)) break;
   }
 #if defined(LEAK_SANITIZER)
-  if (result != nullptr) {
+  if (result != nullptr && page_allocator == GetPlatformPageAllocator()) {
+    // Notify LSAN only about the plaform memory allocations or we will
+    // "allocate"/"deallocate" certain parts of memory twice.
     __lsan_register_root_region(result, size);
   }
 #endif
@@ -174,7 +176,9 @@ bool FreePages(v8::PageAllocator* page_allocator, void* address,
   DCHECK_EQ(0UL, size & (page_allocator->AllocatePageSize() - 1));
   bool result = page_allocator->FreePages(address, size);
 #if defined(LEAK_SANITIZER)
-  if (result) {
+  if (result && page_allocator == GetPlatformPageAllocator()) {
+    // Notify LSAN only about the plaform memory allocations or we will
+    // "allocate"/"deallocate" certain parts of memory twice.
     __lsan_unregister_root_region(address, size);
   }
 #endif
@@ -187,7 +191,9 @@ bool ReleasePages(v8::PageAllocator* page_allocator, void* address, size_t size,
   DCHECK_LT(new_size, size);
   bool result = page_allocator->ReleasePages(address, size, new_size);
 #if defined(LEAK_SANITIZER)
-  if (result) {
+  if (result && page_allocator == GetPlatformPageAllocator()) {
+    // Notify LSAN only about the plaform memory allocations or we will
+    // "allocate"/"deallocate" certain parts of memory twice.
     __lsan_unregister_root_region(address, size);
     __lsan_register_root_region(address, new_size);
   }
@@ -225,11 +231,12 @@ VirtualMemory::VirtualMemory(v8::PageAllocator* page_allocator, size_t size,
     : page_allocator_(page_allocator), address_(kNullAddress), size_(0) {
   DCHECK_NOT_NULL(page_allocator);
   size_t page_size = page_allocator_->AllocatePageSize();
-  size_t alloc_size = RoundUp(size, page_size);
+  alignment = RoundUp(alignment, page_size);
+  size = RoundUp(size, page_size);
   address_ = reinterpret_cast<Address>(AllocatePages(
-      page_allocator_, hint, alloc_size, alignment, PageAllocator::kNoAccess));
+      page_allocator_, hint, size, alignment, PageAllocator::kNoAccess));
   if (address_ != kNullAddress) {
-    size_ = alloc_size;
+    size_ = size;
   }
 }
 
@@ -260,12 +267,13 @@ size_t VirtualMemory::Release(Address free_start) {
   // Notice: Order is important here. The VirtualMemory object might live
   // inside the allocated region.
   const size_t free_size = size_ - (free_start - address_);
+  size_t old_size = size_;
   CHECK(InVM(free_start, free_size));
   DCHECK_LT(address_, free_start);
   DCHECK_LT(free_start, address_ + size_);
-  CHECK(ReleasePages(page_allocator_, reinterpret_cast<void*>(address_), size_,
-                     size_ - free_size));
   size_ -= free_size;
+  CHECK(ReleasePages(page_allocator_, reinterpret_cast<void*>(address_),
+                     old_size, size_));
   return free_size;
 }
 
