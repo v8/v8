@@ -79,6 +79,12 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
+['gc_fuzzer', {
+  # Slow tests.
+  'regress/regress-2318': [SKIP],
+}],  # 'gc_fuzzer'
+
+##############################################################################
 ['predictable == True', {
   # https://crbug.com/v8/8147
   'debug/debug-liveedit-*': [SKIP],

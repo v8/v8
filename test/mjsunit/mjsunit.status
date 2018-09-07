@@ -712,6 +712,7 @@
   'keyed-load-with-symbol-key': [PASS, FAIL],
   'object-seal': [PASS, FAIL],
   'regress/regress-3709': [PASS, FAIL],
+  'regress/regress-6948': [PASS, FAIL],
   'regress/regress-7510': [PASS, FAIL],
   'regress/regress-trap-allocation-memento': [PASS, FAIL],
   'regress/regress-unlink-closures-on-deopt': [PASS, FAIL],
