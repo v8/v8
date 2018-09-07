@@ -655,6 +655,15 @@
 }],  # 'system == macos'
 
 ##############################################################################
+['isolates', {
+  # Slow tests.
+  'es6/typedarray-of': [PASS, SLOW],
+  'regress/regress-crbug-854299': [PASS, SLOW],
+  'regress/wasm/regress-810973': [PASS, SLOW],
+  'wasm/compare-exchange-stress': [PASS, SLOW],
+}],  # 'isolates'
+
+##############################################################################
 ['deopt_fuzzer == True', {
 
   # Skip tests that are not suitable for deoptimization fuzzing.
