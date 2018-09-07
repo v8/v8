@@ -2439,11 +2439,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     AllocateRegisters(RegisterConfiguration::Poisoning(), call_descriptor,
                       run_verifier);
 #if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
-    // TODO(v8:6666): For explicitly listed builtins, register allocation fails
-    // due to register pressure when kRootRegister is not allocatable. Either
-    // refactor these builtins or fix register allocation in these cases.
-  } else if (Builtins::IsBuiltinId(data->info()->builtin_index()) &&
-             data->info()->builtin_index() != Builtins::kWasmArgumentsAdaptor) {
+  } else if (Builtins::IsBuiltinId(data->info()->builtin_index())) {
     // TODO(v8:6666): Extend support to user code. Ensure that
     // it is mutually exclusive with the Poisoning configuration above; and that
     // it cooperates with restricted allocatable registers above.

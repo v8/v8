@@ -88,12 +88,14 @@ MachineType assert_size(int expected_size, MachineType type) {
       mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(name)), Effect(), \
       Control()))
 
-#define LOAD_FIXED_ARRAY_SLOT(array_node, index)                            \
-  SetEffect(graph()->NewNode(                                               \
-      mcgraph()->machine()->Load(MachineType::TaggedPointer()), array_node, \
-      mcgraph()->Int32Constant(                                             \
-          wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index)),      \
-      Effect(), Control()))
+#define LOAD_TAGGED_POINTER(base_pointer, byte_offset)                        \
+  SetEffect(graph()->NewNode(                                                 \
+      mcgraph()->machine()->Load(MachineType::TaggedPointer()), base_pointer, \
+      mcgraph()->Int32Constant(byte_offset), Effect(), Control()))
+
+#define LOAD_FIXED_ARRAY_SLOT(array_node, index) \
+  LOAD_TAGGED_POINTER(                           \
+      array_node, wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(index))
 
 constexpr uint32_t kBytesPerExceptionValuesArrayElement = 2;
 
@@ -2966,6 +2968,14 @@ Node* WasmGraphBuilder::CurrentMemoryPages() {
   return result;
 }
 
+Node* WasmGraphBuilder::BuildLoadBuiltinFromInstance(int builtin_index) {
+  DCHECK(Builtins::IsBuiltinId(builtin_index));
+  Node* roots =
+      LOAD_INSTANCE_FIELD(RootsArrayAddress, MachineType::TaggedPointer());
+  return LOAD_TAGGED_POINTER(
+      roots, Heap::roots_to_builtins_offset() + builtin_index * kPointerSize);
+}
+
 // Only call this function for code which is not reused across instantiations,
 // as we do not patch the embedded js_context.
 Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(Runtime::FunctionId f,
@@ -4545,8 +4555,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                   pos, args);
         } else if (function->shared()->internal_formal_parameter_count() >= 0) {
           int pos = 0;
-          args[pos++] = mcgraph()->RelocatableIntPtrConstant(
-              wasm::WasmCode::kWasmArgumentsAdaptor, RelocInfo::WASM_STUB_CALL);
+          args[pos++] = BuildLoadBuiltinFromInstance(
+              Builtins::kArgumentsAdaptorTrampoline);
           args[pos++] = callable_node;   // target callable
           args[pos++] = undefined_node;  // new target
           args[pos++] = mcgraph()->Int32Constant(wasm_count);  // argument count
@@ -4564,8 +4574,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
           call_descriptor = Linkage::GetStubCallDescriptor(
               mcgraph()->zone(), ArgumentsAdaptorDescriptor{}, 1 + wasm_count,
-              CallDescriptor::kNoFlags, Operator::kNoProperties,
-              StubCallMode::kCallWasmRuntimeStub);
+              CallDescriptor::kNoFlags, Operator::kNoProperties);
 
           // Convert wasm numbers to JS values.
           pos = AddArgumentNodes(args, pos, wasm_count, sig_);
@@ -5401,6 +5410,7 @@ AssemblerOptions WasmAssemblerOptions() {
 #undef WASM_INSTANCE_OBJECT_SIZE
 #undef WASM_INSTANCE_OBJECT_OFFSET
 #undef LOAD_INSTANCE_FIELD
+#undef LOAD_TAGGED_POINTER
 #undef LOAD_FIXED_ARRAY_SLOT
 
 }  // namespace compiler

@@ -433,8 +433,6 @@ class WasmGraphBuilder {
   Node* BuildSmiShiftBitsConstant();
   Node* BuildChangeSmiToInt32(Node* value);
 
-  Node* BuildLoadInstanceFromExportedFunction(Node* closure);
-
   // Asm.js specific functionality.
   Node* BuildI32AsmjsSConvertF32(Node* input);
   Node* BuildI32AsmjsSConvertF64(Node* input);
@@ -460,6 +458,8 @@ class WasmGraphBuilder {
 
   void SetNeedsStackCheck() { needs_stack_check_ = true; }
 
+  Node* BuildLoadBuiltinFromInstance(int builtin_index);
+
   //-----------------------------------------------------------------------
   // Operations involving the CEntry, a dependency we want to remove
   // to get off the GC heap.
@@ -469,10 +469,6 @@ class WasmGraphBuilder {
 
   Node* BuildCallToRuntimeWithContext(Runtime::FunctionId f, Node* js_context,
                                       Node** parameters, int parameter_count);
-  Node* BuildCallToRuntimeWithContextFromJS(Runtime::FunctionId f,
-                                            Node* js_context,
-                                            Node* const* parameters,
-                                            int parameter_count);
   TrapId GetTrapIdForTrap(wasm::TrapReason reason);
 };
 

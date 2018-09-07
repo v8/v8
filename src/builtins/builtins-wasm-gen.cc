@@ -55,18 +55,6 @@ TF_BUILTIN(WasmAllocateHeapNumber, WasmBuiltinsAssembler) {
   TailCallStub(AllocateHeapNumberDescriptor(), target, NoContextConstant());
 }
 
-TF_BUILTIN(WasmArgumentsAdaptor, WasmBuiltinsAssembler) {
-  TNode<Object> context = UncheckedParameter(Descriptor::kContext);
-  TNode<Object> function = UncheckedParameter(Descriptor::kTarget);
-  TNode<Object> new_target = UncheckedParameter(Descriptor::kNewTarget);
-  TNode<Object> argc1 = UncheckedParameter(Descriptor::kActualArgumentsCount);
-  TNode<Object> argc2 = UncheckedParameter(Descriptor::kExpectedArgumentsCount);
-  TNode<Code> target =
-      LoadBuiltinFromFrame(Builtins::kArgumentsAdaptorTrampoline);
-  TailCallStub(ArgumentsAdaptorDescriptor{}, target, context, function,
-               new_target, argc1, argc2);
-}
-
 TF_BUILTIN(WasmCallJavaScript, WasmBuiltinsAssembler) {
   TNode<Object> context = UncheckedParameter(Descriptor::kContext);
   TNode<Object> function = UncheckedParameter(Descriptor::kFunction);
