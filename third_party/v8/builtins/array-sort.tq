@@ -464,7 +464,6 @@ module array {
 
     const temp_array: FixedArray =
         AllocateZeroedFixedArray(convert<intptr>(min_size));
-    FillFixedArrayWithSmiZero(temp_array, min_size);
 
     sortState[kTempArraySizeIdx] = min_size;
     sortState[kTempArrayIdx] = temp_array;
@@ -1633,7 +1632,6 @@ module array {
     SetPendingRunsSize(sortState, 0);
     let pending_runs: FixedArray =
         AllocateZeroedFixedArray(convert<intptr>(kMaxMergePending));
-    FillFixedArrayWithSmiZero(pending_runs, kMaxMergePending);
     sortState[kPendingRunsIdx] = pending_runs;
   }
 
@@ -1727,7 +1725,6 @@ module array {
   // array and move the undefineds after that. Holes are removed.
   // This happens for Array as well as non-Array objects.
   extern runtime PrepareElementsForSort(Context, Object, Number): Smi;
-  extern macro FillFixedArrayWithSmiZero(FixedArray, Smi);
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.sort
   javascript builtin ArrayPrototypeSort(
@@ -1743,9 +1740,7 @@ module array {
     const obj: JSReceiver = ToObject(context, receiver);
     let map: Map = obj.map;
 
-    const sort_state: FixedArray =
-        AllocateZeroedFixedArray(kSortStateSize);
-    FillFixedArrayWithSmiZero(sort_state, SmiTag(kSortStateSize));
+    const sort_state: FixedArray = AllocateZeroedFixedArray(kSortStateSize);
 
     sort_state[kReceiverIdx] = obj;
     sort_state[kUserCmpFnIdx] = comparefnObj;
