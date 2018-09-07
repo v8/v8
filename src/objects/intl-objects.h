@@ -20,7 +20,6 @@
 #include "unicode/uversion.h"
 
 namespace U_ICU_NAMESPACE {
-class BreakIterator;
 class DecimalFormat;
 class SimpleDateFormat;
 class UnicodeString;
@@ -239,19 +238,6 @@ class Intl {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> NumberToLocaleString(
       Isolate* isolate, Handle<Object> num, Handle<Object> locales,
       Handle<Object> options);
-
-  // ecma402/#sec-defaultnumberoption
-  V8_WARN_UNUSED_RESULT static Maybe<int> DefaultNumberOption(
-      Isolate* isolate, Handle<Object> value, int min, int max, int fallback,
-      Handle<String> property);
-
-  // ecma402/#sec-getnumberoption
-  V8_WARN_UNUSED_RESULT static Maybe<int> GetNumberOption(
-      Isolate* isolate, Handle<JSReceiver> options, Handle<String> property,
-      int min, int max, int fallback);
-  V8_WARN_UNUSED_RESULT static Maybe<int> GetNumberOption(
-      Isolate* isolate, Handle<JSReceiver> options, const char* property,
-      int min, int max, int fallback);
 
   // ecma402/#sec-setnfdigitoptions
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetNumberFormatDigitOptions(

@@ -23,32 +23,21 @@
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-date-time-format-inl.h"
 #include "src/objects/js-number-format-inl.h"
-#include "src/objects/managed.h"
 #include "src/objects/string.h"
 #include "src/property-descriptor.h"
 #include "unicode/brkiter.h"
-#include "unicode/bytestream.h"
 #include "unicode/calendar.h"
 #include "unicode/coll.h"
-#include "unicode/curramt.h"
-#include "unicode/dcfmtsym.h"
 #include "unicode/decimfmt.h"
-#include "unicode/dtfmtsym.h"
 #include "unicode/dtptngen.h"
 #include "unicode/gregocal.h"
 #include "unicode/locid.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
-#include "unicode/plurrule.h"
-#include "unicode/rbbi.h"
 #include "unicode/regex.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/timezone.h"
-#include "unicode/uchar.h"
 #include "unicode/ucol.h"
-#include "unicode/ucurr.h"
-#include "unicode/unum.h"
-#include "unicode/upluralrules.h"
 #include "unicode/ures.h"
 #include "unicode/uvernum.h"
 #include "unicode/uversion.h"
@@ -1338,10 +1327,11 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   return JSNumberFormat::FormatNumber(isolate, number_format, number);
 }
 
+namespace {
+
 // ecma402/#sec-defaultnumberoption
-Maybe<int> Intl::DefaultNumberOption(Isolate* isolate, Handle<Object> value,
-                                     int min, int max, int fallback,
-                                     Handle<String> property) {
+Maybe<int> DefaultNumberOption(Isolate* isolate, Handle<Object> value, int min,
+                               int max, int fallback, Handle<String> property) {
   // 2. Else, return fallback.
   if (value->IsUndefined()) return Just(fallback);
 
@@ -1371,9 +1361,9 @@ Maybe<int> Intl::DefaultNumberOption(Isolate* isolate, Handle<Object> value,
 }
 
 // ecma402/#sec-getnumberoption
-Maybe<int> Intl::GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
-                                 Handle<String> property, int min, int max,
-                                 int fallback) {
+Maybe<int> GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
+                           Handle<String> property, int min, int max,
+                           int fallback) {
   // 1. Let value be ? Get(options, property).
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -1384,13 +1374,15 @@ Maybe<int> Intl::GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
   return DefaultNumberOption(isolate, value, min, max, fallback, property);
 }
 
-Maybe<int> Intl::GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
-                                 const char* property, int min, int max,
-                                 int fallback) {
+Maybe<int> GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
+                           const char* property, int min, int max,
+                           int fallback) {
   Handle<String> property_str =
       isolate->factory()->NewStringFromAsciiChecked(property);
   return GetNumberOption(isolate, options, property_str, min, max, fallback);
 }
+
+}  // namespace
 
 Maybe<bool> Intl::SetNumberFormatDigitOptions(Isolate* isolate,
                                               icu::DecimalFormat* number_format,
