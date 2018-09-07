@@ -309,22 +309,20 @@ WasmCode::~WasmCode() {
 }
 
 NativeModule::NativeModule(Isolate* isolate, const WasmFeatures& enabled,
-                           bool can_request_more, VirtualMemory* code_space,
+                           bool can_request_more, VirtualMemory&& code_space,
                            WasmCodeManager* code_manager,
                            std::shared_ptr<const WasmModule> module,
                            const ModuleEnv& env)
     : enabled_features_(enabled),
       module_(std::move(module)),
       compilation_state_(NewCompilationState(isolate, env)),
-      free_code_space_({code_space->address(), code_space->end()}),
+      free_code_space_({code_space.address(), code_space.end()}),
       wasm_code_manager_(code_manager),
       can_request_more_memory_(can_request_more),
       use_trap_handler_(env.use_trap_handler) {
   DCHECK_EQ(module_.get(), env.module);
   DCHECK_NOT_NULL(module_);
-  VirtualMemory my_mem;
-  owned_code_space_.push_back(my_mem);
-  owned_code_space_.back().TakeControl(code_space);
+  owned_code_space_.emplace_back(std::move(code_space));
   owned_code_.reserve(num_functions());
 
   uint32_t num_wasm_functions = module_->num_declared_functions;
@@ -649,8 +647,8 @@ Address NativeModule::AllocateForCode(size_t size) {
 
     Address hint = owned_code_space_.empty() ? kNullAddress
                                              : owned_code_space_.back().end();
-    VirtualMemory empty_mem;
-    owned_code_space_.push_back(empty_mem);
+
+    owned_code_space_.emplace_back();
     VirtualMemory& new_mem = owned_code_space_.back();
     wasm_code_manager_->TryAllocate(size, &new_mem,
                                     reinterpret_cast<void*>(hint));
@@ -895,8 +893,8 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     size_t size = mem.size();
     Address end = mem.end();
     std::unique_ptr<NativeModule> ret(
-        new NativeModule(isolate, enabled, can_request_more, &mem, this,
-                         std::move(module), env));
+        new NativeModule(isolate, enabled, can_request_more, std::move(mem),
+                         this, std::move(module), env));
     TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
                size);
     base::LockGuard<base::Mutex> lock(&native_modules_mutex_);

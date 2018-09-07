@@ -639,7 +639,7 @@ void MemoryChunk::SetReadAndWritable() {
 MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      Address area_start, Address area_end,
                                      Executability executable, Space* owner,
-                                     VirtualMemory* reservation) {
+                                     VirtualMemory&& reservation) {
   MemoryChunk* chunk = FromAddress(base);
 
   DCHECK(base == chunk->address());
@@ -709,9 +709,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
     }
   }
 
-  if (reservation != nullptr) {
-    chunk->reservation_.TakeControl(reservation);
-  }
+  chunk->reservation_ = std::move(reservation);
 
   return chunk;
 }
@@ -948,7 +946,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
 
   MemoryChunk* chunk =
       MemoryChunk::Initialize(heap, base, chunk_size, area_start, area_end,
-                              executable, owner, &reservation);
+                              executable, owner, std::move(reservation));
 
   if (chunk->executable()) RegisterExecutableMemoryChunk(chunk);
   return chunk;
@@ -1230,7 +1228,7 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
   }
   VirtualMemory reservation(data_page_allocator(), start, size);
   MemoryChunk::Initialize(isolate_->heap(), start, size, area_start, area_end,
-                          NOT_EXECUTABLE, owner, &reservation);
+                          NOT_EXECUTABLE, owner, std::move(reservation));
   size_ += size;
   return chunk;
 }

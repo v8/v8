@@ -155,8 +155,7 @@ V8_EXPORT_PRIVATE bool OnCriticalMemoryPressure(size_t length);
 class V8_EXPORT_PRIVATE VirtualMemory final {
  public:
   // Empty VirtualMemory object, controlling no reserved memory.
-  VirtualMemory()
-      : page_allocator_(nullptr), address_(kNullAddress), size_(0) {}
+  VirtualMemory() = default;
 
   // Reserves virtual memory containing an area of the given size that is
   // aligned per alignment. This may not be at the position returned by
@@ -174,6 +173,15 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
   // Releases the reserved memory, if any, controlled by this VirtualMemory
   // object.
   ~VirtualMemory();
+
+  // Move constructor.
+  VirtualMemory(VirtualMemory&& other) V8_NOEXCEPT { TakeControl(&other); }
+
+  // Move assignment operator.
+  VirtualMemory& operator=(VirtualMemory&& other) V8_NOEXCEPT {
+    TakeControl(&other);
+    return *this;
+  }
 
   // Returns whether the memory has been reserved.
   bool IsReserved() const { return address_ != kNullAddress; }
@@ -224,9 +232,11 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
 
  private:
   // Page allocator that controls the virtual memory.
-  v8::PageAllocator* page_allocator_;
-  Address address_;  // Start address of the virtual memory.
-  size_t size_;    // Size of the virtual memory.
+  v8::PageAllocator* page_allocator_ = nullptr;
+  Address address_ = kNullAddress;  // Start address of the virtual memory.
+  size_t size_ = 0;                 // Size of the virtual memory.
+
+  DISALLOW_COPY_AND_ASSIGN(VirtualMemory);
 };
 
 bool AllocVirtualMemory(v8::PageAllocator* page_allocator, size_t size,
