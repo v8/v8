@@ -1061,20 +1061,6 @@ Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
   if (input_type.Is(Type::NaN())) {
     return Replace(jsgraph()->HeapConstant(factory()->NaN_string()));
   }
-  if (input_type.Is(Type::OrderedNumber()) &&
-      input_type.Min() == input_type.Max()) {
-    // TODO(mslekova): get rid of these allows by doing either one of:
-    // 1. remove the optimization and check if it ruins the performance
-    // 2. allocate all the ToString's from numbers before the compilation
-    // 3. leave a placeholder and do the actual allocations once back on the MT
-    AllowHandleDereference allow_handle_dereference;
-    AllowHandleAllocation allow_handle_allocation;
-    AllowHeapAllocation allow_heap_allocation;
-    // Note that we can use Type::OrderedNumber(), since
-    // both 0 and -0 map to the String "0" in JavaScript.
-    return Replace(jsgraph()->HeapConstant(
-        factory()->NumberToString(factory()->NewNumber(input_type.Min()))));
-  }
   if (input_type.Is(Type::Number())) {
     return Replace(graph()->NewNode(simplified()->NumberToString(), input));
   }

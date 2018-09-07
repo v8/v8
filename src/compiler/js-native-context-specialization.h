@@ -101,6 +101,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                Node* index = nullptr);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
+  Reduction ReduceJSToString(Node* node);
 
   // A triple of nodes that represents a continuation.
   class ValueEffectControl final {
