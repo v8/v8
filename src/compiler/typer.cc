@@ -1495,6 +1495,10 @@ Type Typer::Visitor::JSCallTyper(Type fun, Typer* t) {
     // Symbol functions.
     case BuiltinFunctionId::kSymbolConstructor:
       return Type::Symbol();
+    case BuiltinFunctionId::kSymbolPrototypeToString:
+      return Type::String();
+    case BuiltinFunctionId::kSymbolPrototypeValueOf:
+      return Type::Symbol();
 
     // BigInt functions.
     case BuiltinFunctionId::kBigIntConstructor:

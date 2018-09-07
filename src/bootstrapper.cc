@@ -2192,9 +2192,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     // Install the Symbol.prototype methods.
     SimpleInstallFunction(isolate_, prototype, "toString",
-                          Builtins::kSymbolPrototypeToString, 0, true);
+                          Builtins::kSymbolPrototypeToString, 0, true,
+                          BuiltinFunctionId::kSymbolPrototypeToString);
     SimpleInstallFunction(isolate_, prototype, "valueOf",
-                          Builtins::kSymbolPrototypeValueOf, 0, true);
+                          Builtins::kSymbolPrototypeValueOf, 0, true,
+                          BuiltinFunctionId::kSymbolPrototypeValueOf);
 
     // Install the @@toPrimitive function.
     Handle<JSFunction> to_primitive = InstallFunction(

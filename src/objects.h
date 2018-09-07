@@ -3139,6 +3139,8 @@ enum class BuiltinFunctionId : uint8_t {
   kGlobalIsNaN,
   kNumberConstructor,
   kSymbolConstructor,
+  kSymbolPrototypeToString,
+  kSymbolPrototypeValueOf,
   kTypedArrayByteLength,
   kTypedArrayByteOffset,
   kTypedArrayEntries,
