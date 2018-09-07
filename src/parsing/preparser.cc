@@ -134,13 +134,13 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   // Start collecting data for a new function which might contain skippable
   // functions.
-  std::unique_ptr<ProducedPreParsedScopeData::DataGatheringScope>
-      produced_preparsed_scope_data_scope;
+  std::unique_ptr<PreParsedScopeDataBuilder::DataGatheringScope>
+      preparsed_scope_data_builder_scope;
   if (FLAG_preparser_scope_analysis && !IsArrowFunction(kind)) {
     DCHECK(track_unresolved_variables_);
-    produced_preparsed_scope_data_scope.reset(
-        new ProducedPreParsedScopeData::DataGatheringScope(function_scope,
-                                                           this));
+    preparsed_scope_data_builder_scope.reset(
+        new PreParsedScopeDataBuilder::DataGatheringScope(function_scope,
+                                                          this));
   }
 
   // In the preparser, we use the function literal ids to count how many
@@ -239,7 +239,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
                                allow_duplicate_parameters,
                                CHECK_OK_VALUE(kPreParseSuccess));
 
-      *produced_preparsed_scope_data = produced_preparsed_scope_data_;
+      *produced_preparsed_scope_data = ProducedPreParsedScopeData::For(
+          preparsed_scope_data_builder_, main_zone());
     }
 
     if (is_strict(function_scope->language_mode())) {
@@ -292,15 +293,15 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // Start collecting data for a new function which might contain skippable
   // functions.
-  std::unique_ptr<ProducedPreParsedScopeData::DataGatheringScope>
-      produced_preparsed_scope_data_scope;
+  std::unique_ptr<PreParsedScopeDataBuilder::DataGatheringScope>
+      preparsed_scope_data_builder_scope;
   if (!function_state_->next_function_is_likely_called() &&
-      produced_preparsed_scope_data_ != nullptr) {
+      preparsed_scope_data_builder_ != nullptr) {
     DCHECK(FLAG_preparser_scope_analysis);
     DCHECK(track_unresolved_variables_);
-    produced_preparsed_scope_data_scope.reset(
-        new ProducedPreParsedScopeData::DataGatheringScope(function_scope,
-                                                           this));
+    preparsed_scope_data_builder_scope.reset(
+        new PreParsedScopeDataBuilder::DataGatheringScope(function_scope,
+                                                          this));
   }
 
   FunctionState function_state(&function_state_, &scope_, function_scope);
@@ -348,8 +349,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
   }
 
-  if (produced_preparsed_scope_data_scope) {
-    produced_preparsed_scope_data_scope->MarkFunctionAsSkippable(
+  if (preparsed_scope_data_builder_scope) {
+    preparsed_scope_data_builder_scope->MarkFunctionAsSkippable(
         end_position, GetLastFunctionLiteralId() - func_id);
   }
   if (V8_UNLIKELY(FLAG_log_function_events)) {
@@ -396,19 +397,19 @@ PreParserStatement PreParser::BuildParameterInitializationBlock(
   DCHECK(scope()->is_function_scope());
   if (FLAG_preparser_scope_analysis &&
       scope()->AsDeclarationScope()->calls_sloppy_eval() &&
-      produced_preparsed_scope_data_ != nullptr) {
+      preparsed_scope_data_builder_ != nullptr) {
     // We cannot replicate the Scope structure constructed by the Parser,
     // because we've lost information whether each individual parameter was
     // simple or not. Give up trying to produce data to skip inner functions.
-    if (produced_preparsed_scope_data_->parent() != nullptr) {
+    if (preparsed_scope_data_builder_->parent() != nullptr) {
       // Lazy parsing started before the current function; the function which
       // cannot contain skippable functions is the parent function. (Its inner
       // functions cannot either; they are implicitly bailed out.)
-      produced_preparsed_scope_data_->parent()->Bailout();
+      preparsed_scope_data_builder_->parent()->Bailout();
     } else {
       // Lazy parsing started at the current function; it cannot contain
       // skippable functions.
-      produced_preparsed_scope_data_->Bailout();
+      preparsed_scope_data_builder_->Bailout();
     }
   }
 

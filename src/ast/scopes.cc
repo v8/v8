@@ -319,7 +319,7 @@ void DeclarationScope::SetDefaults() {
   should_eager_compile_ = false;
   was_lazily_parsed_ = false;
   is_skipped_function_ = false;
-  produced_preparsed_scope_data_ = nullptr;
+  preparsed_scope_data_builder_ = nullptr;
 #ifdef DEBUG
   DeclarationScope* outer_declaration_scope =
       outer_scope_ ? outer_scope_->GetDeclarationScope() : nullptr;
@@ -1532,7 +1532,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
 
 void Scope::SavePreParsedScopeData() {
   DCHECK(FLAG_preparser_scope_analysis);
-  if (ProducedPreParsedScopeData::ScopeIsSkippableFunctionScope(this)) {
+  if (PreParsedScopeDataBuilder::ScopeIsSkippableFunctionScope(this)) {
     AsDeclarationScope()->SavePreParsedScopeDataForDeclarationScope();
   }
 
@@ -1542,9 +1542,9 @@ void Scope::SavePreParsedScopeData() {
 }
 
 void DeclarationScope::SavePreParsedScopeDataForDeclarationScope() {
-  if (produced_preparsed_scope_data_ != nullptr) {
+  if (preparsed_scope_data_builder_ != nullptr) {
     DCHECK(FLAG_preparser_scope_analysis);
-    produced_preparsed_scope_data_->SaveScopeAllocationData(this);
+    preparsed_scope_data_builder_->SaveScopeAllocationData(this);
   }
 }
 
@@ -1554,8 +1554,8 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
 
   if (!outer_scope_->is_script_scope() ||
       (FLAG_preparser_scope_analysis &&
-       produced_preparsed_scope_data_ != nullptr &&
-       produced_preparsed_scope_data_->ContainsInnerFunctions())) {
+       preparsed_scope_data_builder_ != nullptr &&
+       preparsed_scope_data_builder_->ContainsInnerFunctions())) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
     // them in the outer Scopes here, because they are incomplete.

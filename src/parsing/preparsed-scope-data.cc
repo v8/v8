@@ -35,7 +35,7 @@ STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
 
 /*
 
-  Internal data format for the backing store of ProducedPreparsedScopeData and
+  Internal data format for the backing store of PreParsedScopeDataBuilder and
   PreParsedScopeData::scope_data (on the heap):
 
   (Skippable function data:)
@@ -78,7 +78,7 @@ STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
 
  */
 
-void ProducedPreParsedScopeData::ByteData::WriteUint32(uint32_t data) {
+void PreParsedScopeDataBuilder::ByteData::WriteUint32(uint32_t data) {
 #ifdef DEBUG
   // Save expected item size in debug mode.
   backing_store_.push_back(kUint32Size);
@@ -91,7 +91,7 @@ void ProducedPreParsedScopeData::ByteData::WriteUint32(uint32_t data) {
 }
 
 #ifdef DEBUG
-void ProducedPreParsedScopeData::ByteData::OverwriteFirstUint32(uint32_t data) {
+void PreParsedScopeDataBuilder::ByteData::OverwriteFirstUint32(uint32_t data) {
   auto it = backing_store_.begin();
   // Check that that position already holds an item of the expected size.
   DCHECK_GE(backing_store_.size(), kUint32Size);
@@ -104,7 +104,7 @@ void ProducedPreParsedScopeData::ByteData::OverwriteFirstUint32(uint32_t data) {
 }
 #endif
 
-void ProducedPreParsedScopeData::ByteData::WriteUint8(uint8_t data) {
+void PreParsedScopeDataBuilder::ByteData::WriteUint8(uint8_t data) {
 #ifdef DEBUG
   // Save expected item size in debug mode.
   backing_store_.push_back(kUint8Size);
@@ -113,7 +113,7 @@ void ProducedPreParsedScopeData::ByteData::WriteUint8(uint8_t data) {
   free_quarters_in_last_byte_ = 0;
 }
 
-void ProducedPreParsedScopeData::ByteData::WriteQuarter(uint8_t data) {
+void PreParsedScopeDataBuilder::ByteData::WriteQuarter(uint8_t data) {
   DCHECK_LE(data, 3);
   if (free_quarters_in_last_byte_ == 0) {
 #ifdef DEBUG
@@ -131,7 +131,7 @@ void ProducedPreParsedScopeData::ByteData::WriteQuarter(uint8_t data) {
   backing_store_.back() |= (data << shift_amount);
 }
 
-Handle<PodArray<uint8_t>> ProducedPreParsedScopeData::ByteData::Serialize(
+Handle<PodArray<uint8_t>> PreParsedScopeDataBuilder::ByteData::Serialize(
     Isolate* isolate) {
   Handle<PodArray<uint8_t>> array = PodArray<uint8_t>::New(
       isolate, static_cast<int>(backing_store_.size()), TENURED);
@@ -146,13 +146,13 @@ Handle<PodArray<uint8_t>> ProducedPreParsedScopeData::ByteData::Serialize(
   return array;
 }
 
-ProducedPreParsedScopeData::ProducedPreParsedScopeData(
-    Zone* zone, ProducedPreParsedScopeData* parent)
+PreParsedScopeDataBuilder::PreParsedScopeDataBuilder(
+    Zone* zone, PreParsedScopeDataBuilder* parent)
     : parent_(parent),
       byte_data_(new (zone) ByteData(zone)),
       data_for_inner_functions_(zone),
-      bailed_out_(false),
-      previously_produced_zone_preparsed_scope_data_(nullptr) {
+      bailed_out_(false) {
+  DCHECK(FLAG_preparser_scope_analysis);
   if (parent != nullptr) {
     parent->data_for_inner_functions_.push_back(this);
   }
@@ -162,71 +162,43 @@ ProducedPreParsedScopeData::ProducedPreParsedScopeData(
 #endif
 }
 
-// Create a ProducedPreParsedScopeData which is just a proxy for a previous
-// produced PreParsedScopeData.
-ProducedPreParsedScopeData::ProducedPreParsedScopeData(
-    Handle<PreParsedScopeData> data, Zone* zone)
-    : parent_(nullptr),
-      byte_data_(nullptr),
-      data_for_inner_functions_(zone),
-      bailed_out_(false),
-      previously_produced_on_heap_preparsed_scope_data_(data),
-      previously_produced_zone_preparsed_scope_data_(nullptr) {}
-
-// Create a ProducedPreParsedScopeData which is just a proxy for a previous
-// produced PreParsedScopeData.
-ProducedPreParsedScopeData::ProducedPreParsedScopeData(
-    ZonePreParsedScopeData* data, Zone* zone)
-    : parent_(nullptr),
-      byte_data_(nullptr),
-      data_for_inner_functions_(zone),
-      bailed_out_(false),
-      previously_produced_zone_preparsed_scope_data_(data) {}
-
-ProducedPreParsedScopeData::DataGatheringScope::DataGatheringScope(
+PreParsedScopeDataBuilder::DataGatheringScope::DataGatheringScope(
     DeclarationScope* function_scope, PreParser* preparser)
     : function_scope_(function_scope),
       preparser_(preparser),
-      produced_preparsed_scope_data_(nullptr) {
+      builder_(nullptr) {
   if (FLAG_preparser_scope_analysis) {
-    ProducedPreParsedScopeData* parent =
-        preparser->produced_preparsed_scope_data();
+    PreParsedScopeDataBuilder* parent =
+        preparser->preparsed_scope_data_builder();
     Zone* main_zone = preparser->main_zone();
-    produced_preparsed_scope_data_ =
-        new (main_zone) ProducedPreParsedScopeData(main_zone, parent);
-    preparser->set_produced_preparsed_scope_data(
-        produced_preparsed_scope_data_);
-    function_scope->set_produced_preparsed_scope_data(
-        produced_preparsed_scope_data_);
+    builder_ = new (main_zone) PreParsedScopeDataBuilder(main_zone, parent);
+    preparser->set_preparsed_scope_data_builder(builder_);
+    function_scope->set_preparsed_scope_data_builder(builder_);
   }
 }
 
-ProducedPreParsedScopeData::DataGatheringScope::~DataGatheringScope() {
-  if (FLAG_preparser_scope_analysis) {
-    preparser_->set_produced_preparsed_scope_data(
-        produced_preparsed_scope_data_->parent_);
+PreParsedScopeDataBuilder::DataGatheringScope::~DataGatheringScope() {
+  if (builder_) {
+    preparser_->set_preparsed_scope_data_builder(builder_->parent_);
   }
 }
 
-void ProducedPreParsedScopeData::DataGatheringScope::MarkFunctionAsSkippable(
+void PreParsedScopeDataBuilder::DataGatheringScope::MarkFunctionAsSkippable(
     int end_position, int num_inner_functions) {
-  DCHECK(FLAG_preparser_scope_analysis);
-  DCHECK_NOT_NULL(produced_preparsed_scope_data_);
-  DCHECK_NOT_NULL(produced_preparsed_scope_data_->parent_);
-  produced_preparsed_scope_data_->parent_->AddSkippableFunction(
+  DCHECK_NOT_NULL(builder_);
+  DCHECK_NOT_NULL(builder_->parent_);
+  builder_->parent_->AddSkippableFunction(
       function_scope_->start_position(), end_position,
       function_scope_->num_parameters(), num_inner_functions,
       function_scope_->language_mode(), function_scope_->NeedsHomeObject());
 }
 
-void ProducedPreParsedScopeData::AddSkippableFunction(
-    int start_position, int end_position, int num_parameters,
-    int num_inner_functions, LanguageMode language_mode,
-    bool uses_super_property) {
-  DCHECK(FLAG_preparser_scope_analysis);
-  DCHECK(previously_produced_on_heap_preparsed_scope_data_.is_null());
-  DCHECK_NULL(previously_produced_zone_preparsed_scope_data_);
-
+void PreParsedScopeDataBuilder::AddSkippableFunction(int start_position,
+                                                     int end_position,
+                                                     int num_parameters,
+                                                     int num_inner_functions,
+                                                     LanguageMode language_mode,
+                                                     bool uses_super_property) {
   if (bailed_out_) {
     return;
   }
@@ -245,11 +217,8 @@ void ProducedPreParsedScopeData::AddSkippableFunction(
   byte_data_->WriteQuarter(language_and_super);
 }
 
-void ProducedPreParsedScopeData::SaveScopeAllocationData(
+void PreParsedScopeDataBuilder::SaveScopeAllocationData(
     DeclarationScope* scope) {
-  DCHECK(FLAG_preparser_scope_analysis);
-  DCHECK(previously_produced_on_heap_preparsed_scope_data_.is_null());
-  DCHECK_NULL(previously_produced_zone_preparsed_scope_data_);
   // The data contains a uint32 (reserved space for scope_data_start) and
   // function data items, kSkippableFunctionDataSize each.
   DCHECK_GE(byte_data_->size(), ByteData::kPlaceholderSize);
@@ -281,24 +250,12 @@ void ProducedPreParsedScopeData::SaveScopeAllocationData(
   SaveDataForScope(scope);
 }
 
-bool ProducedPreParsedScopeData::ContainsInnerFunctions() const {
+bool PreParsedScopeDataBuilder::ContainsInnerFunctions() const {
   return byte_data_->size() > ByteData::kPlaceholderSize;
 }
 
-MaybeHandle<PreParsedScopeData> ProducedPreParsedScopeData::Serialize(
+MaybeHandle<PreParsedScopeData> PreParsedScopeDataBuilder::Serialize(
     Isolate* isolate) {
-  if (!previously_produced_on_heap_preparsed_scope_data_.is_null()) {
-    DCHECK(!bailed_out_);
-    DCHECK_EQ(data_for_inner_functions_.size(), 0);
-    return previously_produced_on_heap_preparsed_scope_data_;
-  } else if (previously_produced_zone_preparsed_scope_data_ != nullptr) {
-    DCHECK(!bailed_out_);
-    DCHECK_EQ(data_for_inner_functions_.size(), 0);
-    previously_produced_on_heap_preparsed_scope_data_ =
-        previously_produced_zone_preparsed_scope_data_->Serialize(isolate);
-    return previously_produced_on_heap_preparsed_scope_data_;
-  }
-
   if (bailed_out_) {
     return MaybeHandle<PreParsedScopeData>();
   }
@@ -331,15 +288,7 @@ MaybeHandle<PreParsedScopeData> ProducedPreParsedScopeData::Serialize(
   return data;
 }
 
-ZonePreParsedScopeData* ProducedPreParsedScopeData::Serialize(Zone* zone) {
-  DCHECK(previously_produced_on_heap_preparsed_scope_data_.is_null());
-
-  if (previously_produced_zone_preparsed_scope_data_ != nullptr) {
-    DCHECK(!bailed_out_);
-    DCHECK_EQ(data_for_inner_functions_.size(), 0);
-    return previously_produced_zone_preparsed_scope_data_;
-  }
-
+ZonePreParsedScopeData* PreParsedScopeDataBuilder::Serialize(Zone* zone) {
   if (bailed_out_) {
     return nullptr;
   }
@@ -365,7 +314,7 @@ ZonePreParsedScopeData* ProducedPreParsedScopeData::Serialize(Zone* zone) {
   return result;
 }
 
-bool ProducedPreParsedScopeData::ScopeNeedsData(Scope* scope) {
+bool PreParsedScopeDataBuilder::ScopeNeedsData(Scope* scope) {
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
     // Default constructors don't need data (they cannot contain inner functions
     // defined by the user). Other functions do.
@@ -387,9 +336,9 @@ bool ProducedPreParsedScopeData::ScopeNeedsData(Scope* scope) {
   return false;
 }
 
-bool ProducedPreParsedScopeData::ScopeIsSkippableFunctionScope(Scope* scope) {
+bool PreParsedScopeDataBuilder::ScopeIsSkippableFunctionScope(Scope* scope) {
   // Lazy non-arrow function scopes are skippable. Lazy functions are exactly
-  // those Scopes which have their own ProducedPreParsedScopeData object. This
+  // those Scopes which have their own PreParsedScopeDataBuilder object. This
   // logic ensures that the scope allocation data is consistent with the
   // skippable function data (both agree on where the lazy function boundaries
   // are).
@@ -398,10 +347,10 @@ bool ProducedPreParsedScopeData::ScopeIsSkippableFunctionScope(Scope* scope) {
   }
   DeclarationScope* declaration_scope = scope->AsDeclarationScope();
   return !declaration_scope->is_arrow_scope() &&
-         declaration_scope->produced_preparsed_scope_data() != nullptr;
+         declaration_scope->preparsed_scope_data_builder() != nullptr;
 }
 
-void ProducedPreParsedScopeData::SaveDataForScope(Scope* scope) {
+void PreParsedScopeDataBuilder::SaveDataForScope(Scope* scope) {
   DCHECK_NE(scope->end_position(), kNoSourcePosition);
 
   if (!ScopeNeedsData(scope)) {
@@ -435,7 +384,7 @@ void ProducedPreParsedScopeData::SaveDataForScope(Scope* scope) {
   SaveDataForInnerScopes(scope);
 }
 
-void ProducedPreParsedScopeData::SaveDataForVariable(Variable* var) {
+void PreParsedScopeDataBuilder::SaveDataForVariable(Variable* var) {
 #ifdef DEBUG
   // Store the variable name in debug mode; this way we can check that we
   // restore data to the correct variable.
@@ -453,7 +402,7 @@ void ProducedPreParsedScopeData::SaveDataForVariable(Variable* var) {
   byte_data_->WriteQuarter(variable_data);
 }
 
-void ProducedPreParsedScopeData::SaveDataForInnerScopes(Scope* scope) {
+void PreParsedScopeDataBuilder::SaveDataForInnerScopes(Scope* scope) {
   // Inner scopes are stored in the reverse order, but we'd like to write the
   // data in the logical order. There might be many inner scopes, so we don't
   // want to recurse here.
@@ -462,9 +411,9 @@ void ProducedPreParsedScopeData::SaveDataForInnerScopes(Scope* scope) {
        inner = inner->sibling()) {
     if (ScopeIsSkippableFunctionScope(inner)) {
       // Don't save data about function scopes, since they'll have their own
-      // ProducedPreParsedScopeData where their data is saved.
+      // PreParsedScopeDataBuilder where their data is saved.
       DCHECK_NOT_NULL(
-          inner->AsDeclarationScope()->produced_preparsed_scope_data());
+          inner->AsDeclarationScope()->preparsed_scope_data_builder());
       continue;
     }
     scopes.push_back(inner);
@@ -472,6 +421,73 @@ void ProducedPreParsedScopeData::SaveDataForInnerScopes(Scope* scope) {
   for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
     SaveDataForScope(*it);
   }
+}
+
+class BuilderProducedPreParsedScopeData final
+    : public ProducedPreParsedScopeData {
+ public:
+  explicit BuilderProducedPreParsedScopeData(PreParsedScopeDataBuilder* builder)
+      : builder_(builder) {}
+
+  MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate) final {
+    return builder_->Serialize(isolate);
+  }
+
+  ZonePreParsedScopeData* Serialize(Zone* zone) final {
+    return builder_->Serialize(zone);
+  };
+
+ private:
+  PreParsedScopeDataBuilder* builder_;
+};
+
+class OnHeapProducedPreParsedScopeData final
+    : public ProducedPreParsedScopeData {
+ public:
+  explicit OnHeapProducedPreParsedScopeData(Handle<PreParsedScopeData> data)
+      : data_(data) {}
+
+  MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate) final {
+    return data_;
+  }
+
+  ZonePreParsedScopeData* Serialize(Zone* zone) final {
+    // Not required.
+    UNREACHABLE();
+  };
+
+ private:
+  Handle<PreParsedScopeData> data_;
+};
+
+class ZoneProducedPreParsedScopeData final : public ProducedPreParsedScopeData {
+ public:
+  explicit ZoneProducedPreParsedScopeData(ZonePreParsedScopeData* data)
+      : data_(data) {}
+
+  MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate) final {
+    return data_->Serialize(isolate);
+  }
+
+  ZonePreParsedScopeData* Serialize(Zone* zone) final { return data_; };
+
+ private:
+  ZonePreParsedScopeData* data_;
+};
+
+ProducedPreParsedScopeData* ProducedPreParsedScopeData::For(
+    PreParsedScopeDataBuilder* builder, Zone* zone) {
+  return new (zone) BuilderProducedPreParsedScopeData(builder);
+}
+
+ProducedPreParsedScopeData* ProducedPreParsedScopeData::For(
+    Handle<PreParsedScopeData> data, Zone* zone) {
+  return new (zone) OnHeapProducedPreParsedScopeData(data);
+}
+
+ProducedPreParsedScopeData* ProducedPreParsedScopeData::For(
+    ZonePreParsedScopeData* data, Zone* zone) {
+  return new (zone) ZoneProducedPreParsedScopeData(data);
 }
 
 template <class Data>
@@ -505,7 +521,6 @@ BaseConsumedPreParsedScopeData<Data>::GetDataForSkippableFunction(
 template <class Data>
 void BaseConsumedPreParsedScopeData<Data>::RestoreScopeAllocationData(
     DeclarationScope* scope) {
-  DCHECK(FLAG_preparser_scope_analysis);
   DCHECK_EQ(scope->scope_type(), ScopeType::FUNCTION_SCOPE);
   typename ByteData::ReadingScope reading_scope(this);
 
@@ -536,7 +551,7 @@ void BaseConsumedPreParsedScopeData<Data>::RestoreData(Scope* scope) {
   // It's possible that scope is not present in the data at all (since PreParser
   // doesn't create the corresponding scope). In this case, the Scope won't
   // contain any variables for which we need the data.
-  if (!ProducedPreParsedScopeData::ScopeNeedsData(scope)) {
+  if (!PreParsedScopeDataBuilder::ScopeNeedsData(scope)) {
     return;
   }
 
@@ -642,7 +657,7 @@ ProducedPreParsedScopeData* OnHeapConsumedPreParsedScopeData::GetChildData(
   }
   Handle<PreParsedScopeData> child_data_handle(
       PreParsedScopeData::cast(child_data), isolate_);
-  return new (zone) ProducedPreParsedScopeData(child_data_handle, zone);
+  return ProducedPreParsedScopeData::For(child_data_handle, zone);
 }
 
 OnHeapConsumedPreParsedScopeData::OnHeapConsumedPreParsedScopeData(
@@ -703,7 +718,7 @@ ProducedPreParsedScopeData* ZoneConsumedPreParsedScopeData::GetChildData(
   if (child_data == nullptr) {
     return nullptr;
   }
-  return new (zone) ProducedPreParsedScopeData(child_data, zone);
+  return ProducedPreParsedScopeData::For(child_data, zone);
 }
 
 std::unique_ptr<ConsumedPreParsedScopeData> ConsumedPreParsedScopeData::For(

@@ -22,7 +22,7 @@ namespace internal {
 // interface as AstNodeFactory, so ParserBase doesn't need to care which one is
 // used.
 
-class ProducedPreParsedScopeData;
+class PreParsedScopeDataBuilder;
 
 class PreParserIdentifier {
  public:
@@ -958,7 +958,7 @@ class PreParser : public ParserBase<PreParser> {
                               parsing_module, parsing_on_main_thread),
         use_counts_(nullptr),
         track_unresolved_variables_(false),
-        produced_preparsed_scope_data_(nullptr) {}
+        preparsed_scope_data_builder_(nullptr) {}
 
   static bool IsPreParser() { return true; }
 
@@ -990,13 +990,13 @@ class PreParser : public ParserBase<PreParser> {
     return FLAG_preparser_scope_analysis || is_inner_function;
   }
 
-  ProducedPreParsedScopeData* produced_preparsed_scope_data() const {
-    return produced_preparsed_scope_data_;
+  PreParsedScopeDataBuilder* preparsed_scope_data_builder() const {
+    return preparsed_scope_data_builder_;
   }
 
-  void set_produced_preparsed_scope_data(
-      ProducedPreParsedScopeData* produced_preparsed_scope_data) {
-    produced_preparsed_scope_data_ = produced_preparsed_scope_data;
+  void set_preparsed_scope_data_builder(
+      PreParsedScopeDataBuilder* preparsed_scope_data_builder) {
+    preparsed_scope_data_builder_ = preparsed_scope_data_builder;
   }
 
  private:
@@ -1769,7 +1769,7 @@ class PreParser : public ParserBase<PreParser> {
   bool track_unresolved_variables_;
   PreParserLogger log_;
 
-  ProducedPreParsedScopeData* produced_preparsed_scope_data_;
+  PreParsedScopeDataBuilder* preparsed_scope_data_builder_;
 };
 
 PreParserExpression PreParser::SpreadCall(const PreParserExpression& function,

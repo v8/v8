@@ -62,23 +62,15 @@ class ZonePreParsedScopeData;
 
  */
 
-class ProducedPreParsedScopeData : public ZoneObject {
+class PreParsedScopeDataBuilder : public ZoneObject {
  public:
   class ByteData;
 
-  // Create a ProducedPreParsedScopeData object which will collect data as we
+  // Create a PreParsedScopeDataBuilder object which will collect data as we
   // parse.
-  ProducedPreParsedScopeData(Zone* zone, ProducedPreParsedScopeData* parent);
+  PreParsedScopeDataBuilder(Zone* zone, PreParsedScopeDataBuilder* parent);
 
-  // Create a ProducedPreParsedScopeData which is just a proxy for a previous
-  // produced PreParsedScopeData on the heap.
-  ProducedPreParsedScopeData(Handle<PreParsedScopeData> data, Zone* zone);
-
-  // Create a ProducedPreParsedScopeData which is just a proxy for a previous
-  // produced PreParsedScopeData in zone.
-  ProducedPreParsedScopeData(ZonePreParsedScopeData* data, Zone* zone);
-
-  ProducedPreParsedScopeData* parent() const { return parent_; }
+  PreParsedScopeDataBuilder* parent() const { return parent_; }
 
   // For gathering the inner function data and splitting it up according to the
   // laziness boundaries. Each lazy function gets its own
@@ -93,7 +85,7 @@ class ProducedPreParsedScopeData : public ZoneObject {
    private:
     DeclarationScope* function_scope_;
     PreParser* preparser_;
-    ProducedPreParsedScopeData* produced_preparsed_scope_data_;
+    PreParsedScopeDataBuilder* builder_;
 
     DISALLOW_COPY_AND_ASSIGN(DataGatheringScope);
   };
@@ -129,20 +121,15 @@ class ProducedPreParsedScopeData : public ZoneObject {
 
   bool ContainsInnerFunctions() const;
 
-  // If there is data (if the Scope contains skippable inner functions), move
-  // the data into the heap and return a Handle to it; otherwise return a null
-  // MaybeHandle.
-  MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate);
-
-  // If there is data (if the Scope contains skippable inner functions), return
-  // an off-heap ZonePreParsedScopeData representing the data; otherwise
-  // return nullptr.
-  ZonePreParsedScopeData* Serialize(Zone* zone);
-
   static bool ScopeNeedsData(Scope* scope);
   static bool ScopeIsSkippableFunctionScope(Scope* scope);
 
  private:
+  friend class BuilderProducedPreParsedScopeData;
+
+  virtual MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate);
+  virtual ZonePreParsedScopeData* Serialize(Zone* zone);
+
   void AddSkippableFunction(int start_position, int end_position,
                             int num_parameters, int num_inner_functions,
                             LanguageMode language_mode,
@@ -152,27 +139,43 @@ class ProducedPreParsedScopeData : public ZoneObject {
   void SaveDataForVariable(Variable* var);
   void SaveDataForInnerScopes(Scope* scope);
 
-  ProducedPreParsedScopeData* parent_;
+  PreParsedScopeDataBuilder* parent_;
 
   ByteData* byte_data_;
-  ZoneChunkList<ProducedPreParsedScopeData*> data_for_inner_functions_;
+  ZoneChunkList<PreParsedScopeDataBuilder*> data_for_inner_functions_;
 
   // Whether we've given up producing the data for this function.
   bool bailed_out_;
 
-  // ProducedPreParsedScopeData can also hold a Handle<PreParsedScopeData>
-  // which was produced already earlier. This happens for deeper lazy functions.
-  // TODO(rmcilroy): Split apart ProducedPreParsedScopeData into different
-  // classes for situations where it has already been produced.
-  Handle<PreParsedScopeData> previously_produced_on_heap_preparsed_scope_data_;
+  DISALLOW_COPY_AND_ASSIGN(PreParsedScopeDataBuilder);
+};
 
-  // ProducedPreParsedScopeData can also hold a ZonePreParsedScopeData*
-  // which was produced already earlier. This happens for deeper lazy functions.
-  // TODO(rmcilroy): Split apart ProducedPreParsedScopeData into different
-  // classes for situations where it has already been produced.
-  ZonePreParsedScopeData* previously_produced_zone_preparsed_scope_data_;
+class ProducedPreParsedScopeData : public ZoneObject {
+ public:
+  // If there is data (if the Scope contains skippable inner functions), move
+  // the data into the heap and return a Handle to it; otherwise return a null
+  // MaybeHandle.
+  virtual MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate) = 0;
 
-  DISALLOW_COPY_AND_ASSIGN(ProducedPreParsedScopeData);
+  // If there is data (if the Scope contains skippable inner functions), return
+  // an off-heap ZonePreParsedScopeData representing the data; otherwise
+  // return nullptr.
+  virtual ZonePreParsedScopeData* Serialize(Zone* zone) = 0;
+
+  // Create a ProducedPreParsedScopeData which is a proxy for a previous
+  // produced PreParsedScopeData in zone.
+  static ProducedPreParsedScopeData* For(PreParsedScopeDataBuilder* builder,
+                                         Zone* zone);
+
+  // Create a ProducedPreParsedScopeData which is a proxy for a previous
+  // produced PreParsedScopeData on the heap.
+  static ProducedPreParsedScopeData* For(Handle<PreParsedScopeData> data,
+                                         Zone* zone);
+
+  // Create a ProducedPreParsedScopeData which is a proxy for a previous
+  // produced PreParsedScopeData in zone.
+  static ProducedPreParsedScopeData* For(ZonePreParsedScopeData* data,
+                                         Zone* zone);
 };
 
 class ConsumedPreParsedScopeData {

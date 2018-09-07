@@ -33,7 +33,7 @@ struct PreParsedScopeByteDataConstants {
       4 * kUint32Size + 1 * kUint8Size;
 };
 
-class ProducedPreParsedScopeData::ByteData
+class PreParsedScopeDataBuilder::ByteData
     : public ZoneObject,
       public PreParsedScopeByteDataConstants {
  public:
