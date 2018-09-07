@@ -50,6 +50,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReducePhi(Node* node);
   Reduction ReduceReferenceEqual(Node* node);
   Reduction ReduceStringComparison(Node* node);
+  Reduction ReduceStringLength(Node* node);
   Reduction ReduceSameValue(Node* node);
   Reduction ReduceSelect(Node* node);
   Reduction ReduceSpeculativeToNumber(Node* node);

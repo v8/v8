@@ -349,6 +349,7 @@
   V(PlainPrimitiveToWord32)             \
   V(PlainPrimitiveToFloat64)            \
   V(BooleanNot)                         \
+  V(StringConcat)                       \
   V(StringToNumber)                     \
   V(StringCharCodeAt)                   \
   V(StringCodePointAt)                  \
@@ -373,7 +374,6 @@
   V(CheckNotTaggedHole)                 \
   V(CheckEqualsInternalizedString)      \
   V(CheckEqualsSymbol)                  \
-  V(CheckStringAdd)                     \
   V(CompareMaps)                        \
   V(ConvertReceiver)                    \
   V(ConvertTaggedHoleToUndefined)       \

@@ -694,9 +694,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckIf:
       LowerCheckIf(node, frame_state);
       break;
-    case IrOpcode::kCheckStringAdd:
-      result = LowerCheckStringAdd(node, frame_state);
-      break;
     case IrOpcode::kCheckedInt32Add:
       result = LowerCheckedInt32Add(node, frame_state);
       break;
@@ -835,6 +832,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kDeadValue:
       result = LowerDeadValue(node);
+      break;
+    case IrOpcode::kStringConcat:
+      result = LowerStringConcat(node);
       break;
     case IrOpcode::kStringFromSingleCharCode:
       result = LowerStringFromSingleCharCode(node);
@@ -1547,18 +1547,9 @@ void EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state) {
   __ DeoptimizeIfNot(p.reason(), p.feedback(), value, frame_state);
 }
 
-Node* EffectControlLinearizer::LowerCheckStringAdd(Node* node,
-                                                   Node* frame_state) {
-  Node* lhs = node->InputAt(0);
-  Node* rhs = node->InputAt(1);
-
-  Node* lhs_length = __ LoadField(AccessBuilder::ForStringLength(), lhs);
-  Node* rhs_length = __ LoadField(AccessBuilder::ForStringLength(), rhs);
-  Node* check = __ IntLessThan(__ IntAdd(lhs_length, rhs_length),
-                               __ SmiConstant(String::kMaxLength));
-
-  __ DeoptimizeIfNot(DeoptimizeReason::kOverflow, VectorSlotPair(), check,
-                     frame_state);
+Node* EffectControlLinearizer::LowerStringConcat(Node* node) {
+  Node* lhs = node->InputAt(1);
+  Node* rhs = node->InputAt(2);
 
   Callable const callable =
       CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);

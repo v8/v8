@@ -82,7 +82,6 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceNumberBinop(Node* node);
   Reduction ReduceInt32Binop(Node* node);
   Reduction ReduceUI32Shift(Node* node, Signedness signedness);
-  Reduction ReduceCreateConsString(Node* node);
   Reduction ReduceSpeculativeNumberAdd(Node* node);
   Reduction ReduceSpeculativeNumberMultiply(Node* node);
   Reduction ReduceSpeculativeNumberBinop(Node* node);
@@ -92,9 +91,6 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
 
   // Helper for ReduceJSLoadModule and ReduceJSStoreModule.
   Node* BuildGetModuleCell(Node* node);
-
-  // Helpers for ReduceJSCreateConsString.
-  Node* BuildGetStringLength(Node* value);
 
   Factory* factory() const;
   Graph* graph() const;

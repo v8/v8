@@ -1094,6 +1094,12 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::PlainPrimitive());
       CheckTypeIs(node, Type::Number());
       break;
+    case IrOpcode::kStringConcat:
+      CheckValueInputIs(node, 0, TypeCache::Get().kStringLengthType);
+      CheckValueInputIs(node, 1, Type::String());
+      CheckValueInputIs(node, 2, Type::String());
+      CheckTypeIs(node, Type::String());
+      break;
     case IrOpcode::kStringEqual:
     case IrOpcode::kStringLessThan:
     case IrOpcode::kStringLessThanOrEqual:
@@ -1433,11 +1439,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckSymbol:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Symbol());
-      break;
-    case IrOpcode::kCheckStringAdd:
-      CheckValueInputIs(node, 0, Type::String());
-      CheckValueInputIs(node, 1, Type::String());
-      CheckTypeIs(node, Type::String());
       break;
     case IrOpcode::kConvertReceiver:
       // (Any, Any) -> Receiver

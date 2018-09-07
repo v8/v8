@@ -401,7 +401,7 @@ TEST_F(JSTypedLoweringTest, JSAddWithString) {
   Reduction r = Reduce(graph()->NewNode(javascript()->Add(hint), lhs, rhs,
                                         context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsCheckStringAdd(lhs, rhs));
+  EXPECT_THAT(r.replacement(), IsStringConcat(_, lhs, rhs));
 }
 
 }  // namespace compiler

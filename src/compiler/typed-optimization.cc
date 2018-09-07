@@ -71,6 +71,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
     case IrOpcode::kStringLessThan:
     case IrOpcode::kStringLessThanOrEqual:
       return ReduceStringComparison(node);
+    case IrOpcode::kStringLength:
+      return ReduceStringLength(node);
     case IrOpcode::kSameValue:
       return ReduceSameValue(node);
     case IrOpcode::kSelect:
@@ -450,6 +452,30 @@ Reduction TypedOptimization::ReduceStringComparison(Node* node) {
   } else if (rhs->opcode() == IrOpcode::kStringFromSingleCharCode) {
     return TryReduceStringComparisonOfStringFromSingleCharCode(node, rhs,
                                                                lhs_type, true);
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceStringLength(Node* node) {
+  DCHECK_EQ(IrOpcode::kStringLength, node->opcode());
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  switch (input->opcode()) {
+    case IrOpcode::kHeapConstant: {
+      // Constant-fold the String::length of the {input}.
+      HeapObjectMatcher m(input);
+      if (m.Ref(js_heap_broker()).IsString()) {
+        uint32_t const length = m.Ref(js_heap_broker()).AsString().length();
+        Node* value = jsgraph()->Constant(length);
+        return Replace(value);
+      }
+      break;
+    }
+    case IrOpcode::kStringConcat: {
+      // The first value input to the {input} is the resulting length.
+      return Replace(input->InputAt(0));
+    }
+    default:
+      break;
   }
   return NoChange();
 }

@@ -67,7 +67,6 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerCheckString(Node* node, Node* frame_state);
   Node* LowerCheckSymbol(Node* node, Node* frame_state);
   void LowerCheckIf(Node* node, Node* frame_state);
-  Node* LowerCheckStringAdd(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Add(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Sub(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Div(Node* node, Node* frame_state);
@@ -124,6 +123,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerArrayBufferWasNeutered(Node* node);
   Node* LowerSameValue(Node* node);
   Node* LowerDeadValue(Node* node);
+  Node* LowerStringConcat(Node* node);
   Node* LowerStringToNumber(Node* node);
   Node* LowerStringCharCodeAt(Node* node);
   Node* LowerStringCodePointAt(Node* node, UnicodeEncoding encoding);

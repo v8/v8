@@ -5452,6 +5452,7 @@ Reduction JSCallReducer::ReduceStringPrototypeConcat(
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
   }
+
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* receiver = effect =
@@ -5463,16 +5464,21 @@ Reduction JSCallReducer::ReduceStringPrototypeConcat(
     return Replace(receiver);
   }
 
-  if (!isolate()->IsStringLengthOverflowIntact()) {
-    return NoChange();
-  }
-
   Node* argument = effect =
       graph()->NewNode(simplified()->CheckString(p.feedback()),
                        NodeProperties::GetValueInput(node, 2), effect, control);
+  Node* receiver_length =
+      graph()->NewNode(simplified()->StringLength(), receiver);
+  Node* argument_length =
+      graph()->NewNode(simplified()->StringLength(), argument);
+  Node* length = graph()->NewNode(simplified()->NumberAdd(), receiver_length,
+                                  argument_length);
+  length = effect = graph()->NewNode(
+      simplified()->CheckBounds(p.feedback()), length,
+      jsgraph()->Constant(String::kMaxLength + 1), effect, control);
 
-  Node* value = effect = graph()->NewNode(simplified()->CheckStringAdd(),
-                                          receiver, argument, effect, control);
+  Node* value = graph()->NewNode(simplified()->StringConcat(), length, receiver,
+                                 argument);
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);

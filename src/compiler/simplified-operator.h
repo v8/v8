@@ -616,6 +616,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* ToBoolean();
 
+  const Operator* StringConcat();
   const Operator* StringEqual();
   const Operator* StringLessThan();
   const Operator* StringLessThanOrEqual();
@@ -677,8 +678,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckSmi(const VectorSlotPair& feedback);
   const Operator* CheckString(const VectorSlotPair& feedback);
   const Operator* CheckSymbol();
-
-  const Operator* CheckStringAdd();
 
   const Operator* CheckedFloat64ToInt32(CheckForMinusZeroMode,
                                         const VectorSlotPair& feedback);
