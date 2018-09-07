@@ -79,6 +79,16 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
+['predictable == True', {
+  # https://crbug.com/v8/8147
+  'debug/debug-liveedit-double-call': [SKIP],
+  'debug/debug-liveedit-exceptions': [SKIP],
+  'debug/debug-liveedit-replace-code': [SKIP],
+  'debug/debug-liveedit-stepin': [SKIP],
+  'debug/debug-set-variable-value': [SKIP],
+}],  # 'predictable == True'
+
+##############################################################################
 ['variant == no_wasm_traps', {
   '*': [SKIP],
 }],  # variant == no_wasm_traps
