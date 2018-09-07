@@ -4729,7 +4729,8 @@ void Heap::SetUp() {
 
   space_[RO_SPACE] = read_only_space_ = new ReadOnlySpace(this);
   space_[NEW_SPACE] = new_space_ =
-      new NewSpace(this, initial_semispace_size_, max_semi_space_size_);
+      new NewSpace(this, memory_allocator_->data_page_allocator(),
+                   initial_semispace_size_, max_semi_space_size_);
   space_[OLD_SPACE] = old_space_ = new OldSpace(this);
   space_[CODE_SPACE] = code_space_ = new CodeSpace(this);
   space_[MAP_SPACE] = map_space_ = new MapSpace(this);

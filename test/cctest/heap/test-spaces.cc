@@ -133,7 +133,8 @@ TEST(Regress3540) {
   TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
   size_t code_range_size =
       kMinimumCodeRangeSize > 0 ? kMinimumCodeRangeSize : 3 * Page::kPageSize;
-  CodeRange* code_range = new CodeRange(isolate, code_range_size);
+  CodeRange* code_range = new CodeRange(
+      isolate, memory_allocator->code_page_allocator(), code_range_size);
 
   Address address;
   size_t size;
@@ -168,16 +169,19 @@ TEST(MemoryChunk) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
 
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
+
   size_t reserve_area_size = 1 * MB;
   size_t initial_commit_area_size;
 
   for (int i = 0; i < 100; i++) {
     initial_commit_area_size =
-        RoundUp(PseudorandomAreaSize(), CommitPageSize());
+        RoundUp(PseudorandomAreaSize(), page_allocator->CommitPageSize());
 
     // With CodeRange.
     const size_t code_range_size = 32 * MB;
-    CodeRange* code_range = new CodeRange(isolate, code_range_size);
+    CodeRange* code_range =
+        new CodeRange(isolate, page_allocator, code_range_size);
 
     VerifyMemoryChunk(isolate, heap, code_range, reserve_area_size,
                       initial_commit_area_size, EXECUTABLE, heap->code_space());
@@ -246,7 +250,8 @@ TEST(NewSpace) {
       new MemoryAllocator(isolate, heap->MaxReserved(), 0);
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
-  NewSpace new_space(heap, CcTest::heap()->InitialSemiSpaceSize(),
+  NewSpace new_space(heap, memory_allocator->data_page_allocator(),
+                     CcTest::heap()->InitialSemiSpaceSize(),
                      CcTest::heap()->InitialSemiSpaceSize());
   CHECK(new_space.MaximumCapacity());
 

@@ -143,7 +143,8 @@ TEST(AllocVirtualMemoryOOM) {
   CHECK(!platform.oom_callback_called);
   v8::internal::VirtualMemory result;
   bool success =
-      v8::internal::AllocVirtualMemory(GetHugeMemoryAmount(), nullptr, &result);
+      v8::internal::AllocVirtualMemory(v8::internal::GetPlatformPageAllocator(),
+                                       GetHugeMemoryAmount(), nullptr, &result);
   // On a few systems, allocation somehow succeeds.
   CHECK_IMPLIES(success, result.IsReserved());
   CHECK_IMPLIES(!success, !result.IsReserved() && platform.oom_callback_called);
@@ -154,8 +155,8 @@ TEST(AlignedAllocVirtualMemoryOOM) {
   CHECK(!platform.oom_callback_called);
   v8::internal::VirtualMemory result;
   bool success = v8::internal::AlignedAllocVirtualMemory(
-      GetHugeMemoryAmount(), v8::internal::AllocatePageSize(), nullptr,
-      &result);
+      v8::internal::GetPlatformPageAllocator(), GetHugeMemoryAmount(),
+      v8::internal::AllocatePageSize(), nullptr, &result);
   // On a few systems, allocation somehow succeeds.
   CHECK_IMPLIES(success, result.IsReserved());
   CHECK_IMPLIES(!success, !result.IsReserved() && platform.oom_callback_called);

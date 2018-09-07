@@ -804,12 +804,14 @@ void WasmCodeManager::AssignRanges(Address start, Address end,
 }
 
 void WasmCodeManager::TryAllocate(size_t size, VirtualMemory* ret, void* hint) {
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   DCHECK_GT(size, 0);
-  size = RoundUp(size, AllocatePageSize());
-  if (hint == nullptr) hint = GetRandomMmapAddr();
+  size = RoundUp(size, page_allocator->AllocatePageSize());
+  if (hint == nullptr) hint = page_allocator->GetRandomMmapAddr();
 
-  if (!AlignedAllocVirtualMemory(size, static_cast<size_t>(AllocatePageSize()),
-                                 hint, ret)) {
+  if (!AlignedAllocVirtualMemory(page_allocator, size,
+                                 page_allocator->AllocatePageSize(), hint,
+                                 ret)) {
     DCHECK(!ret->IsReserved());
   }
   TRACE_HEAP("VMem alloc: %p:%p (%zu)\n",

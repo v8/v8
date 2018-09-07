@@ -1086,7 +1086,8 @@ class MemoryChunkValidator {
 // manages a range of virtual memory.
 class CodeRange {
  public:
-  CodeRange(Isolate* isolate, size_t requested_size);
+  CodeRange(Isolate* isolate, v8::PageAllocator* page_allocator,
+            size_t requested_size);
   ~CodeRange();
 
   bool valid() { return virtual_memory_.IsReserved(); }
@@ -1425,8 +1426,6 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   MemoryChunk* AllocateChunk(size_t reserve_area_size, size_t commit_area_size,
                              Executability executable, Space* space);
 
-  Address ReserveAlignedMemory(size_t requested, size_t alignment, void* hint,
-                               VirtualMemory* controller);
   Address AllocateAlignedMemory(size_t reserve_size, size_t commit_size,
                                 size_t alignment, Executability executable,
                                 void* hint, VirtualMemory* controller);
@@ -1477,6 +1476,13 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // Page allocator instance for allocating executable pages.
   // Guaranteed to be a valid pointer.
   v8::PageAllocator* code_page_allocator() { return code_page_allocator_; }
+
+  // Returns page allocator suitable for allocating pages with requested
+  // executability.
+  v8::PageAllocator* page_allocator(Executability executable) {
+    return executable == EXECUTABLE ? code_page_allocator_
+                                    : data_page_allocator_;
+  }
 
   CodeRange* code_range() { return code_range_; }
   Unmapper* unmapper() { return &unmapper_; }
@@ -2619,8 +2625,8 @@ class NewSpace : public SpaceWithLinearArea {
  public:
   typedef PageIterator iterator;
 
-  NewSpace(Heap* heap, size_t initial_semispace_capacity,
-           size_t max_semispace_capacity);
+  NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
+           size_t initial_semispace_capacity, size_t max_semispace_capacity);
 
   ~NewSpace() override { TearDown(); }
 
