@@ -1001,6 +1001,16 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           this_effect = graph()->NewNode(simplified()->MapGuard(maps), receiver,
                                          this_effect, this_control);
         }
+
+        // If all {receiver_maps} are Strings we also need to rename the
+        // {receiver} here to make sure that TurboFan knows that along this
+        // path the {this_receiver} is a String. This is because we want
+        // strict checking of types, for example for StringLength operators.
+        if (HasOnlyStringMaps(receiver_maps)) {
+          this_receiver = this_effect =
+              graph()->NewNode(common()->TypeGuard(Type::String()), receiver,
+                               this_effect, this_control);
+        }
       }
 
       // Generate the actual property access.
@@ -1837,6 +1847,8 @@ JSNativeContextSpecialization::BuildPropertyLoad(
     value = effect =
         graph()->NewNode(simplified()->LoadField(AccessBuilder::ForCellValue()),
                          cell, effect, control);
+  } else if (access_info.IsStringLength()) {
+    value = graph()->NewNode(simplified()->StringLength(), receiver);
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsDataConstantField());
     value = access_builder.BuildLoadDataField(name, access_info, receiver,
