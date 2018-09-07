@@ -74,10 +74,6 @@ class JSArrayBuffer : public JSObject {
   // Sets whether the buffer is tracked by the WasmMemoryTracker.
   void set_is_wasm_memory(bool is_wasm_memory);
 
-  // Removes the backing store from the WasmMemoryTracker and sets
-  // |is_wasm_memory| to false.
-  void StopTrackingWasmMemory(Isolate* isolate);
-
   void FreeBackingStoreFromMainThread();
   static void FreeBackingStore(Isolate* isolate, Allocation allocation);
 
