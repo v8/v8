@@ -411,25 +411,40 @@ VisitResult ImplementationVisitor::Visit(LogicalOrExpression* expr) {
       GenerateIndent();
       source_out() << "GotoIf(" << RValueFlattenStructs(left_result) << ", "
                    << true_label->generated() << ");\n";
-    } else if (!left_result.type()->IsConstexprBool()) {
+    } else if (left_result.type()->IsNever()) {
       GenerateLabelBind(false_label);
+    } else if (!left_result.type()->IsConstexprBool()) {
+      ReportError(
+          "expected type bool, constexpr bool, or never on left-hand side of "
+          "operator ||");
     }
   }
-  VisitResult right_result = Visit(expr->right);
-  if (right_result.type() != left_result.type()) {
-    std::stringstream stream;
-    stream << "types of left and right expression of logical OR don't match (\""
-           << *left_result.type() << "\" vs. \"" << *right_result.type()
-           << "\")";
-    ReportError(stream.str());
-  }
+
   if (left_result.type()->IsConstexprBool()) {
+    VisitResult right_result = Visit(expr->right);
+    if (!right_result.type()->IsConstexprBool()) {
+      ReportError(
+          "expected type constexpr bool on right-hand side of operator "
+          "||");
+    }
     return VisitResult(left_result.type(),
                        std::string("(") + RValueFlattenStructs(left_result) +
                            " || " + RValueFlattenStructs(right_result) + ")");
-  } else {
-    return right_result;
   }
+
+  VisitResult right_result = Visit(expr->right);
+  if (right_result.type()->IsBool()) {
+    Label* true_label = declarations()->LookupLabel(kTrueLabelName);
+    Label* false_label = declarations()->LookupLabel(kFalseLabelName);
+    source_out() << "Branch(" << RValueFlattenStructs(right_result) << ", "
+                 << true_label->generated() << ", " << false_label->generated()
+                 << ");\n";
+    return VisitResult(TypeOracle::GetNeverType(), "/*never*/");
+  } else if (!right_result.type()->IsNever()) {
+    ReportError(
+        "expected type bool or never on right-hand side of operator ||");
+  }
+  return right_result;
 }
 
 VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
@@ -444,25 +459,40 @@ VisitResult ImplementationVisitor::Visit(LogicalAndExpression* expr) {
       GenerateIndent();
       source_out() << "GotoIfNot(" << RValueFlattenStructs(left_result) << ", "
                    << false_label->generated() << ");\n";
-    } else if (!left_result.type()->IsConstexprBool()) {
+    } else if (left_result.type()->IsNever()) {
       GenerateLabelBind(true_label);
+    } else if (!left_result.type()->IsConstexprBool()) {
+      ReportError(
+          "expected type bool, constexpr bool, or never on left-hand side of "
+          "operator &&");
     }
   }
-  VisitResult right_result = Visit(expr->right);
-  if (right_result.type() != left_result.type()) {
-    std::stringstream stream;
-    stream
-        << "types of left and right expression of logical AND don't match (\""
-        << *left_result.type() << "\" vs. \"" << *right_result.type() << "\")";
-    ReportError(stream.str());
-  }
+
   if (left_result.type()->IsConstexprBool()) {
+    VisitResult right_result = Visit(expr->right);
+    if (!right_result.type()->IsConstexprBool()) {
+      ReportError(
+          "expected type constexpr bool on right-hand side of operator "
+          "&&");
+    }
     return VisitResult(left_result.type(),
                        std::string("(") + RValueFlattenStructs(left_result) +
                            " && " + RValueFlattenStructs(right_result) + ")");
-  } else {
-    return right_result;
   }
+
+  VisitResult right_result = Visit(expr->right);
+  if (right_result.type()->IsBool()) {
+    Label* true_label = declarations()->LookupLabel(kTrueLabelName);
+    Label* false_label = declarations()->LookupLabel(kFalseLabelName);
+    source_out() << "Branch(" << RValueFlattenStructs(right_result) << ", "
+                 << true_label->generated() << ", " << false_label->generated()
+                 << ");\n";
+    return VisitResult(TypeOracle::GetNeverType(), "/*never*/");
+  } else if (!right_result.type()->IsNever()) {
+    ReportError(
+        "expected type bool or never on right-hand side of operator &&");
+  }
+  return right_result;
 }
 
 VisitResult ImplementationVisitor::Visit(IncrementDecrementExpression* expr) {
@@ -1859,16 +1889,16 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
                                          bool is_tailcall) {
   Arguments arguments;
   std::string name = expr->callee.name;
-    TypeVector specialization_types =
-        GetTypeVector(expr->callee.generic_arguments);
-    bool has_template_arguments = !specialization_types.empty();
-    for (Expression* arg : expr->arguments)
-      arguments.parameters.push_back(Visit(arg));
-    arguments.labels = LabelsFromIdentifiers(expr->labels);
-    VisitResult result;
-    if (!has_template_arguments &&
-        declarations()->Lookup(expr->callee.name)->IsValue()) {
-      result = GeneratePointerCall(&expr->callee, arguments, is_tailcall);
+  TypeVector specialization_types =
+      GetTypeVector(expr->callee.generic_arguments);
+  bool has_template_arguments = !specialization_types.empty();
+  for (Expression* arg : expr->arguments)
+    arguments.parameters.push_back(Visit(arg));
+  arguments.labels = LabelsFromIdentifiers(expr->labels);
+  VisitResult result;
+  if (!has_template_arguments &&
+      declarations()->Lookup(expr->callee.name)->IsValue()) {
+    result = GeneratePointerCall(&expr->callee, arguments, is_tailcall);
   } else {
     result = GenerateCall(name, arguments, specialization_types, is_tailcall);
   }
@@ -1935,6 +1965,10 @@ bool ImplementationVisitor::GenerateExpressionBranch(
 
 VisitResult ImplementationVisitor::GenerateImplicitConvert(
     const Type* destination_type, VisitResult source) {
+  if (source.type() == TypeOracle::GetNeverType()) {
+    ReportError("it is not allowed to use a value of type never");
+  }
+
   if (destination_type == source.type()) {
     return source;
   }
