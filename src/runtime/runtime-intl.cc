@@ -236,27 +236,6 @@ RUNTIME_FUNCTION(Runtime_NumberFormatResolvedOptions) {
   return *JSNumberFormat::ResolvedOptions(isolate, number_format);
 }
 
-RUNTIME_FUNCTION(Runtime_CollatorResolvedOptions) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, collator_obj, 0);
-
-  // 3. If pr does not have an [[InitializedCollator]] internal
-  // slot, throw a TypeError exception.
-  if (!collator_obj->IsJSCollator()) {
-    Handle<String> method_str = isolate->factory()->NewStringFromStaticChars(
-        "Intl.Collator.prototype.resolvedOptions");
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                              method_str, collator_obj));
-  }
-
-  Handle<JSCollator> collator = Handle<JSCollator>::cast(collator_obj);
-
-  return *JSCollator::ResolvedOptions(isolate, collator);
-}
-
 RUNTIME_FUNCTION(Runtime_ParseExtension) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);

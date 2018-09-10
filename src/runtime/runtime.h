@@ -202,7 +202,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_INTL(F)           \
   F(AvailableLocalesOf, 1, 1)                \
   F(CanonicalizeLanguageTag, 1, 1)           \
-  F(CollatorResolvedOptions, 1, 1)           \
   F(CreateDateTimeFormat, 3, 1)              \
   F(DateCacheVersion, 0, 1)                  \
   F(DateTimeFormatResolvedOptions, 1, 1)     \
