@@ -349,18 +349,8 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
   compilation_timer.Start();
 
   ModuleEnv* module_env = native_module->compilation_state()->module_env();
-  // TODO(wasm): Refactor this to only get the name if it is really needed for
-  // tracing / debugging.
-  WasmName func_name;
-  {
-    ModuleWireBytes wire_bytes(native_module->wire_bytes());
-    WireBytesRef name_ref =
-        module_env->module->LookupFunctionName(wire_bytes, func_index);
-    func_name = wire_bytes.GetNameOrNull(name_ref);
-  }
 
-  TRACE_LAZY("Compiling function '%.*s' (#%d).\n", func_name.length(),
-             func_name.start(), func_index);
+  TRACE_LAZY("Compiling wasm-function#%d.\n", func_index);
 
   const uint8_t* module_start = native_module->wire_bytes().start();
 
@@ -371,7 +361,7 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
 
   ErrorThrower thrower(isolate, "WasmLazyCompile");
   WasmCompilationUnit unit(isolate->wasm_engine(), module_env, native_module,
-                           body, func_name, func_index, isolate->counters());
+                           body, func_index, isolate->counters());
   unit.ExecuteCompilation(
       native_module->compilation_state()->detected_features());
   WasmCode* wasm_code = unit.FinishCompilation(&thrower);
@@ -461,17 +451,17 @@ class CompilationUnitBuilder {
         compilation_state_(native_module->compilation_state()) {}
 
   void AddUnit(const WasmFunction* function, uint32_t buffer_offset,
-               Vector<const uint8_t> bytes, WasmName name) {
+               Vector<const uint8_t> bytes) {
     switch (compilation_state_->compile_mode()) {
       case CompileMode::kTiering:
-        tiering_units_.emplace_back(CreateUnit(
-            function, buffer_offset, bytes, name, ExecutionTier::kOptimized));
-        baseline_units_.emplace_back(CreateUnit(
-            function, buffer_offset, bytes, name, ExecutionTier::kBaseline));
+        tiering_units_.emplace_back(CreateUnit(function, buffer_offset, bytes,
+                                               ExecutionTier::kOptimized));
+        baseline_units_.emplace_back(CreateUnit(function, buffer_offset, bytes,
+                                                ExecutionTier::kBaseline));
         return;
       case CompileMode::kRegular:
         baseline_units_.emplace_back(
-            CreateUnit(function, buffer_offset, bytes, name,
+            CreateUnit(function, buffer_offset, bytes,
                        WasmCompilationUnit::GetDefaultExecutionTier()));
         return;
     }
@@ -494,13 +484,12 @@ class CompilationUnitBuilder {
   std::unique_ptr<WasmCompilationUnit> CreateUnit(const WasmFunction* function,
                                                   uint32_t buffer_offset,
                                                   Vector<const uint8_t> bytes,
-                                                  WasmName name,
                                                   ExecutionTier mode) {
     return base::make_unique<WasmCompilationUnit>(
         compilation_state_->wasm_engine(), compilation_state_->module_env(),
         native_module_,
         FunctionBody{function->sig, buffer_offset, bytes.begin(), bytes.end()},
-        name, function->func_index,
+        function->func_index,
         compilation_state_->isolate()->async_counters().get(), mode);
   }
 
@@ -546,10 +535,8 @@ void InitializeCompilationUnits(NativeModule* native_module) {
     Vector<const uint8_t> bytes(wire_bytes.start() + func->code.offset(),
                                 func->code.end_offset() - func->code.offset());
 
-    // TODO(herhut): Use a more useful name if none exists.
-    WasmName name = wire_bytes.GetNameOrNull(func, module);
     DCHECK_NOT_NULL(native_module);
-    builder.AddUnit(func, buffer_offset, bytes, name);
+    builder.AddUnit(func, buffer_offset, bytes);
   }
   builder.Commit();
 }
@@ -2741,13 +2728,12 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
                                                   uint32_t offset) {
   TRACE_STREAMING("Process function body %d ...\n", next_function_);
 
-    decoder_.DecodeFunctionBody(
-        next_function_, static_cast<uint32_t>(bytes.length()), offset, false);
+  decoder_.DecodeFunctionBody(
+      next_function_, static_cast<uint32_t>(bytes.length()), offset, false);
 
-    uint32_t index = next_function_ + decoder_.module()->num_imported_functions;
-    const WasmFunction* func = &decoder_.module()->functions[index];
-    WasmName name = {nullptr, 0};
-    compilation_unit_builder_->AddUnit(func, offset, bytes, name);
+  uint32_t index = next_function_ + decoder_.module()->num_imported_functions;
+  const WasmFunction* func = &decoder_.module()->functions[index];
+  compilation_unit_builder_->AddUnit(func, offset, bytes);
   ++next_function_;
   // This method always succeeds. The return value is necessary to comply with
   // the StreamingProcessor interface.

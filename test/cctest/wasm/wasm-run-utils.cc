@@ -419,18 +419,13 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
   memcpy(func_wire_bytes.start(), wire_bytes.start() + function_->code.offset(),
          func_wire_bytes.length());
-  WireBytesRef func_name_ref =
-      module_env.module->LookupFunctionName(wire_bytes, function_->func_index);
-  ScopedVector<char> func_name(func_name_ref.length());
-  memcpy(func_name.start(), wire_bytes.start() + func_name_ref.offset(),
-         func_name_ref.length());
 
   FunctionBody func_body{function_->sig, function_->code.offset(),
                          func_wire_bytes.start(), func_wire_bytes.end()};
   NativeModule* native_module =
       builder_->instance_object()->module_object()->native_module();
   WasmCompilationUnit unit(isolate()->wasm_engine(), &module_env, native_module,
-                           func_body, func_name, function_->func_index,
+                           func_body, function_->func_index,
                            isolate()->counters(), tier);
   WasmFeatures unused_detected_features;
   unit.ExecuteCompilation(&unused_detected_features);

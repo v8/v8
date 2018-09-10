@@ -4776,6 +4776,23 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   StubCallMode stub_mode_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
 };
+
+void AppendSignature(char* buffer, size_t max_name_len,
+                     wasm::FunctionSig* sig) {
+  size_t name_len = strlen(buffer);
+  auto append_name_char = [&](char c) {
+    if (name_len + 1 < max_name_len) buffer[name_len++] = c;
+  };
+  for (wasm::ValueType t : sig->parameters()) {
+    append_name_char(wasm::ValueTypes::ShortNameOf(t));
+  }
+  append_name_char(':');
+  for (wasm::ValueType t : sig->returns()) {
+    append_name_char(wasm::ValueTypes::ShortNameOf(t));
+  }
+  buffer[name_len] = '\0';
+}
+
 }  // namespace
 
 MaybeHandle<Code> CompileJSToWasmWrapper(
@@ -4811,13 +4828,9 @@ MaybeHandle<Code> CompileJSToWasmWrapper(
   //----------------------------------------------------------------------------
   // Run the compilation pipeline.
   //----------------------------------------------------------------------------
-#ifdef DEBUG
-  EmbeddedVector<char, 32> func_name;
-  static unsigned id = 0;
-  func_name.Truncate(SNPrintF(func_name, "js-to-wasm#%d", id++));
-#else
-  Vector<const char> func_name = CStrVector("js-to-wasm");
-#endif
+  static constexpr size_t kMaxNameLen = 128;
+  char debug_name[kMaxNameLen] = "js_to_wasm:";
+  AppendSignature(debug_name, kMaxNameLen, sig);
 
   // Schedule and compile to machine code.
   int params = static_cast<int>(sig->parameter_count());
@@ -4825,7 +4838,7 @@ MaybeHandle<Code> CompileJSToWasmWrapper(
       &zone, false, params + 1, CallDescriptor::kNoFlags);
 
   MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
-      isolate, incoming, &graph, Code::JS_TO_WASM_FUNCTION, func_name.start(),
+      isolate, incoming, &graph, Code::JS_TO_WASM_FUNCTION, debug_name,
       WasmAssemblerOptions());
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
@@ -4835,13 +4848,13 @@ MaybeHandle<Code> CompileJSToWasmWrapper(
   if (FLAG_print_opt_code) {
     CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
     OFStream os(tracing_scope.file());
-    code->Disassemble(func_name.start(), os);
+    code->Disassemble(debug_name, os);
   }
 #endif
 
   if (must_record_function_compilation(isolate)) {
-    RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code,
-                              "%.*s", func_name.length(), func_name.start());
+    RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code, "%s",
+                              debug_name);
   }
 
   return code;
@@ -4882,13 +4895,8 @@ MaybeHandle<Code> CompileWasmToJSWrapper(
   builder.set_effect_ptr(&effect);
   builder.BuildWasmToJSWrapper(target, index);
 
-#ifdef DEBUG
   EmbeddedVector<char, 32> func_name;
-  static unsigned id = 0;
-  func_name.Truncate(SNPrintF(func_name, "wasm-to-js#%d", id++));
-#else
-  Vector<const char> func_name = CStrVector("wasm-to-js");
-#endif
+  func_name.Truncate(SNPrintF(func_name, "wasm-to-js#%d", index));
 
   // Schedule and compile to machine code.
   CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
@@ -4947,13 +4955,10 @@ MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate* isolate,
   if (machine.Is32()) {
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
-#ifdef DEBUG
+
   EmbeddedVector<char, 32> func_name;
   func_name.Truncate(
       SNPrintF(func_name, "wasm-interpreter-entry#%d", func_index));
-#else
-  Vector<const char> func_name = CStrVector("wasm-interpreter-entry");
-#endif
 
   MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
       isolate, incoming, &graph, Code::WASM_INTERPRETER_ENTRY,
@@ -5005,18 +5010,7 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   // Build a name in the form "c-wasm-entry:<params>:<returns>".
   static constexpr size_t kMaxNameLen = 128;
   char debug_name[kMaxNameLen] = "c-wasm-entry:";
-  size_t name_len = strlen(debug_name);
-  auto append_name_char = [&](char c) {
-    if (name_len + 1 < kMaxNameLen) debug_name[name_len++] = c;
-  };
-  for (wasm::ValueType t : sig->parameters()) {
-    append_name_char(wasm::ValueTypes::ShortNameOf(t));
-  }
-  append_name_char(':');
-  for (wasm::ValueType t : sig->returns()) {
-    append_name_char(wasm::ValueTypes::ShortNameOf(t));
-  }
-  debug_name[name_len] = '\0';
+  AppendSignature(debug_name, kMaxNameLen, sig);
 
   MaybeHandle<Code> maybe_code = Pipeline::GenerateCodeForWasmStub(
       isolate, incoming, &graph, Code::C_WASM_ENTRY, debug_name,
@@ -5091,23 +5085,17 @@ SourcePositionTable* TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
 }
 
 namespace {
-Vector<const char> GetDebugName(Zone* zone, wasm::WasmName name, int index) {
-  if (!name.is_empty()) {
-    return name;
-  }
-#ifdef DEBUG
-  constexpr int kBufferLength = 15;
+Vector<const char> GetDebugName(Zone* zone, int index) {
+  // TODO(herhut): Use name from module if available.
+  constexpr int kBufferLength = 24;
 
   EmbeddedVector<char, kBufferLength> name_vector;
-  int name_len = SNPrintF(name_vector, "wasm#%d", index);
+  int name_len = SNPrintF(name_vector, "wasm-function#%d", index);
   DCHECK(name_len > 0 && name_len < name_vector.length());
 
   char* index_name = zone->NewArray<char>(name_len);
   memcpy(index_name, name_vector.start(), name_len);
   return Vector<const char>(index_name, name_len);
-#else
-  return {};
-#endif
 }
 
 }  // namespace
@@ -5133,8 +5121,7 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
     Zone compilation_zone(wasm_unit_->wasm_engine_->allocator(), ZONE_NAME);
 
     OptimizedCompilationInfo info(
-        GetDebugName(&compilation_zone, wasm_unit_->func_name_,
-                     wasm_unit_->func_index_),
+        GetDebugName(&compilation_zone, wasm_unit_->func_index_),
         &compilation_zone, Code::WASM_FUNCTION);
     if (wasm_unit_->env_->runtime_exception_support) {
       info.SetWasmRuntimeExceptionSupport();
@@ -5200,16 +5187,22 @@ wasm::WasmCode* TurbofanWasmCompilationUnit::FinishCompilation(
     wasm::ErrorThrower* thrower) {
   if (!ok_) {
     if (graph_construction_result_.failed()) {
-      // Add the function as another context for the exception.
+      // Add the function as another context for the exception. This is
+      // user-visible, so use official format.
       EmbeddedVector<char, 128> message;
-      if (wasm_unit_->func_name_.start() == nullptr) {
-        SNPrintF(message, "Compiling wasm function #%d failed",
-                 wasm_unit_->func_index_);
+      wasm::ModuleWireBytes wire_bytes(
+          wasm_unit_->native_module()->wire_bytes());
+      wasm::WireBytesRef name_ref =
+          wasm_unit_->native_module()->module()->LookupFunctionName(
+              wire_bytes, wasm_unit_->func_index_);
+      if (name_ref.is_set()) {
+        wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
+        SNPrintF(message, "Compiling wasm function \"%.*s\" failed",
+                 name.length(), name.start());
       } else {
-        wasm::TruncatedUserString<> trunc_name(wasm_unit_->func_name_);
-        SNPrintF(message, "Compiling wasm function #%d:%.*s failed",
-                 wasm_unit_->func_index_, trunc_name.length(),
-                 trunc_name.start());
+        SNPrintF(message,
+                 "Compiling wasm function \"wasm-function[%d]\" failed",
+                 wasm_unit_->func_index_);
       }
       thrower->CompileFailed(message.start(), graph_construction_result_);
     }
