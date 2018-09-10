@@ -5,6 +5,7 @@
 #include "src/compiler/js-heap-broker.h"
 
 #include "src/boxed-float.h"
+#include "src/code-factory.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -682,9 +683,29 @@ class BytecodeArrayData : public FixedArrayBaseData {
 
 class JSArrayData : public JSObjectData {
  public:
-  JSArrayData(JSHeapBroker* broker, Handle<JSArray> object, HeapObjectType type)
-      : JSObjectData(broker, object, type) {}
+  JSArrayData(JSHeapBroker* broker, Handle<JSArray> object,
+              HeapObjectType type);
+  void Serialize();
+
+  ObjectData* length() const { return length_; }
+
+ private:
+  bool serialized_ = false;
+  ObjectData* length_ = nullptr;
 };
+
+JSArrayData::JSArrayData(JSHeapBroker* broker, Handle<JSArray> object,
+                         HeapObjectType type)
+    : JSObjectData(broker, object, type) {}
+
+void JSArrayData::Serialize() {
+  if (serialized_) return;
+  serialized_ = true;
+
+  Handle<JSArray> jsarray = Handle<JSArray>::cast(object());
+  DCHECK_NULL(length_);
+  length_ = broker()->GetOrCreateData(jsarray->length());
+}
 
 class ScopeInfoData : public HeapObjectData {
  public:
@@ -919,6 +940,8 @@ void JSObjectData::SerializeRecursive(int depth) {
   }
 
   map()->SerializeDescriptors();
+
+  if (IsJSArray()) AsJSArray()->Serialize();
 }
 
 void JSRegExpData::SerializeAsRegExpBoilerplate() {
@@ -1018,53 +1041,96 @@ void JSHeapBroker::SerializeStandardObjects() {
   Builtins* const b = isolate()->builtins();
   Factory* const f = isolate()->factory();
 
-  // Stuff used by JSGraph:
-  GetOrCreateData(f->empty_fixed_array());
-
-  // Stuff used by JSCreateLowering:
-  GetOrCreateData(isolate()->native_context())->AsNativeContext()->Serialize();
+  // Maps, strings, oddballs
+  GetOrCreateData(f->bigint_string());
   GetOrCreateData(f->block_context_map());
+  GetOrCreateData(f->boolean_string());
   GetOrCreateData(f->catch_context_map());
+  GetOrCreateData(f->empty_fixed_array());
+  GetOrCreateData(f->empty_string());
   GetOrCreateData(f->eval_context_map());
+  GetOrCreateData(f->false_value());
   GetOrCreateData(f->fixed_array_map());
   GetOrCreateData(f->fixed_double_array_map());
   GetOrCreateData(f->function_context_map());
+  GetOrCreateData(f->function_string());
+  GetOrCreateData(f->heap_number_map());
+  GetOrCreateData(f->length_string());
   GetOrCreateData(f->many_closures_cell_map());
+  GetOrCreateData(f->minus_zero_value());
   GetOrCreateData(f->mutable_heap_number_map());
   GetOrCreateData(f->name_dictionary_map());
+  GetOrCreateData(f->null_value());
+  GetOrCreateData(f->number_string());
+  GetOrCreateData(f->object_string());
   GetOrCreateData(f->one_pointer_filler_map());
+  GetOrCreateData(f->optimized_out());
+  GetOrCreateData(f->property_array_map());
   GetOrCreateData(f->sloppy_arguments_elements_map());
+  GetOrCreateData(f->stale_register());
+  GetOrCreateData(f->string_string());
+  GetOrCreateData(f->symbol_string());
+  GetOrCreateData(f->the_hole_value());
+  GetOrCreateData(f->true_value());
+  GetOrCreateData(f->undefined_string());
+  GetOrCreateData(f->undefined_value());
   GetOrCreateData(f->with_context_map());
 
-  // Stuff used by TypedOptimization:
-  // Strings produced by typeof:
-  GetOrCreateData(f->boolean_string());
-  GetOrCreateData(f->number_string());
-  GetOrCreateData(f->string_string());
-  GetOrCreateData(f->bigint_string());
-  GetOrCreateData(f->symbol_string());
-  GetOrCreateData(f->undefined_string());
-  GetOrCreateData(f->object_string());
-  GetOrCreateData(f->function_string());
-
-  // Stuff used by JSTypedLowering:
-  GetOrCreateData(f->length_string());
-  Builtins::Name builtins[] = {
-      Builtins::kArgumentsAdaptorTrampoline,
-      Builtins::kCallFunctionForwardVarargs,
-      Builtins::kStringAdd_CheckNone_NotTenured,
-      Builtins::kStringAdd_CheckNone_Tenured,
-      Builtins::kStringAdd_ConvertLeft_NotTenured,
-      Builtins::kStringAdd_ConvertRight_NotTenured,
-  };
-  for (auto id : builtins) {
-    GetOrCreateData(b->builtin_handle(id));
+  // Builtins
+  {
+    Builtins::Name builtins[] = {
+        Builtins::kAllocateInNewSpace,
+        Builtins::kAllocateInOldSpace,
+        Builtins::kArgumentsAdaptorTrampoline,
+        Builtins::kArrayConstructorImpl,
+        Builtins::kCallFunctionForwardVarargs,
+        Builtins::kCallFunction_ReceiverIsAny,
+        Builtins::kCallFunction_ReceiverIsNotNullOrUndefined,
+        Builtins::kCallFunction_ReceiverIsNullOrUndefined,
+        Builtins::kConstructFunctionForwardVarargs,
+        Builtins::kForInFilter,
+        Builtins::kJSBuiltinsConstructStub,
+        Builtins::kJSConstructStubGeneric,
+        Builtins::kStringAdd_CheckNone_NotTenured,
+        Builtins::kStringAdd_CheckNone_Tenured,
+        Builtins::kStringAdd_ConvertLeft_NotTenured,
+        Builtins::kStringAdd_ConvertRight_NotTenured,
+        Builtins::kToNumber,
+        Builtins::kToObject,
+    };
+    for (auto id : builtins) {
+      GetOrCreateData(b->builtin_handle(id));
+    }
   }
   for (int32_t id = 0; id < Builtins::builtin_count; ++id) {
     if (Builtins::KindOf(id) == Builtins::TFJ) {
       GetOrCreateData(b->builtin_handle(id));
     }
   }
+
+  // Stubs
+  GetOrCreateData(
+      CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs, kArgvOnStack, true));
+  {
+    ElementsKind kinds[] = {HOLEY_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS,
+                            HOLEY_ELEMENTS};
+    for (auto kind : kinds) {
+      GetOrCreateData(CodeFactory::ArrayNoArgumentConstructor(isolate(), kind,
+                                                              DONT_OVERRIDE)
+                          .code());
+      GetOrCreateData(CodeFactory::ArrayNoArgumentConstructor(
+                          isolate(), kind, DISABLE_ALLOCATION_SITES)
+                          .code());
+      GetOrCreateData(CodeFactory::ArraySingleArgumentConstructor(
+                          isolate(), kind, DONT_OVERRIDE)
+                          .code());
+      GetOrCreateData(CodeFactory::ArraySingleArgumentConstructor(
+                          isolate(), kind, DISABLE_ALLOCATION_SITES)
+                          .code());
+    }
+  }
+
+  GetOrCreateData(isolate()->native_context())->AsNativeContext()->Serialize();
 
   Trace("Finished serializing standard objects.\n");
 }
@@ -1539,8 +1605,8 @@ BIMODAL_ACCESSOR_C(String, int, length)
 // TODO(neis): Provide StringShape() on StringRef.
 
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
-  DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   DCHECK_GE(index, Context::FIRST_FUNCTION_MAP_INDEX);
+  DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   return get(index).AsMap();
 }
 

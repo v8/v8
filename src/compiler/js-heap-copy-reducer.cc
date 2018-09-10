@@ -7,6 +7,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
+#include "src/compiler/node-properties.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/scope-info.h"
@@ -37,6 +38,13 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     }
     case IrOpcode::kJSCreateCatchContext: {
       ScopeInfoRef(broker(), ScopeInfoOf(node->op()));
+      break;
+    }
+    case IrOpcode::kJSCreateArguments: {
+      Node* const frame_state = NodeProperties::GetFrameStateInput(node);
+      FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
+      SharedFunctionInfoRef shared(broker(),
+                                   state_info.shared_info().ToHandleChecked());
       break;
     }
     case IrOpcode::kJSCreateClosure: {

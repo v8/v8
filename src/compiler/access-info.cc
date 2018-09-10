@@ -335,7 +335,7 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
   return true;
 }
 
-// TODO(mslekova): Refactor this function to make it easier to read.
+
 bool AccessInfoFactory::ComputePropertyAccessInfo(
     Handle<Map> map, Handle<Name> name, AccessMode access_mode,
     PropertyAccessInfo* access_info) {
