@@ -422,7 +422,9 @@ class ModuleRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
 
-  CellRef GetCell(int cell_index);
+  void Serialize();
+
+  CellRef GetCell(int cell_index) const;
 };
 
 class CellRef : public HeapObjectRef {

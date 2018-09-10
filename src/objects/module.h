@@ -111,6 +111,9 @@ class Module : public Struct, public NeverReadOnlySpaceObject {
   static void StoreVariable(Handle<Module> module, int cell_index,
                             Handle<Object> value);
 
+  static int ImportIndex(int cell_index);
+  static int ExportIndex(int cell_index);
+
   // Get the namespace object for [module_request] of [module].  If it doesn't
   // exist yet, it is created.
   static Handle<JSModuleNamespace> GetModuleNamespace(Isolate* isolate,

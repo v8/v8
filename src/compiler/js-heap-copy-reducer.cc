@@ -28,6 +28,7 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kHeapConstant: {
       ObjectRef object(broker(), HeapConstantOf(node->op()));
       if (object.IsJSFunction()) object.AsJSFunction().Serialize();
+      if (object.IsModule()) object.AsModule().Serialize();
       break;
     }
     case IrOpcode::kJSCreateArray: {

@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-heap-broker.h"
 
+#include "src/ast/modules.h"
 #include "src/boxed-float.h"
 #include "src/code-factory.h"
 #include "src/compiler/graph-reducer.h"
@@ -751,9 +752,66 @@ class SharedFunctionInfoData : public HeapObjectData {
 
 class ModuleData : public HeapObjectData {
  public:
-  ModuleData(JSHeapBroker* broker, Handle<Module> object, HeapObjectType type)
-      : HeapObjectData(broker, object, type) {}
+  ModuleData(JSHeapBroker* broker, Handle<Module> object, HeapObjectType type);
+  void Serialize();
+
+  CellData* GetCell(int cell_index) const;
+
+ private:
+  bool serialized_ = false;
+  ZoneVector<CellData*> imports_;
+  ZoneVector<CellData*> exports_;
 };
+
+ModuleData::ModuleData(JSHeapBroker* broker, Handle<Module> object,
+                       HeapObjectType type)
+    : HeapObjectData(broker, object, type),
+      imports_(broker->zone()),
+      exports_(broker->zone()) {}
+
+CellData* ModuleData::GetCell(int cell_index) const {
+  CHECK(serialized_);
+  CellData* cell;
+  switch (ModuleDescriptor::GetCellIndexKind(cell_index)) {
+    case ModuleDescriptor::kImport:
+      cell = imports_.at(Module::ImportIndex(cell_index));
+      break;
+    case ModuleDescriptor::kExport:
+      cell = exports_.at(Module::ExportIndex(cell_index));
+      break;
+    case ModuleDescriptor::kInvalid:
+      UNREACHABLE();
+      break;
+  }
+  CHECK_NOT_NULL(cell);
+  return cell;
+}
+void ModuleData::Serialize() {
+  if (serialized_) return;
+  serialized_ = true;
+
+  Handle<Module> module = Handle<Module>::cast(object());
+
+  // TODO(neis): We could be smarter and only serialize the cells we care about.
+
+  // TODO(neis): Define a helper for serializing a FixedArray into a ZoneVector.
+
+  DCHECK(imports_.empty());
+  Handle<FixedArray> imports(module->regular_imports(), broker()->isolate());
+  int const imports_length = imports->length();
+  imports_.reserve(imports_length);
+  for (int i = 0; i < imports_length; ++i) {
+    imports_.push_back(broker()->GetOrCreateData(imports->get(i))->AsCell());
+  }
+
+  DCHECK(exports_.empty());
+  Handle<FixedArray> exports(module->regular_exports(), broker()->isolate());
+  int const exports_length = exports->length();
+  exports_.reserve(exports_length);
+  for (int i = 0; i < exports_length; ++i) {
+    exports_.push_back(broker()->GetOrCreateData(exports->get(i))->AsCell());
+  }
+}
 
 class CellData : public HeapObjectData {
  public:
@@ -1669,11 +1727,14 @@ double MutableHeapNumberRef::value() const {
   return data()->AsMutableHeapNumber()->value();
 }
 
-CellRef ModuleRef::GetCell(int cell_index) {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  return CellRef(broker(), handle(object<Module>()->GetCell(cell_index),
-                                  broker()->isolate()));
+CellRef ModuleRef::GetCell(int cell_index) const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference allow_handle_dereference;
+    return CellRef(broker(), handle(object<Module>()->GetCell(cell_index),
+                                    broker()->isolate()));
+  }
+  return CellRef(data()->AsModule()->GetCell(cell_index));
 }
 
 ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object) {
@@ -1816,6 +1877,12 @@ void MapRef::SerializeDescriptors() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsMap()->SerializeDescriptors();
+}
+
+void ModuleRef::Serialize() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsModule()->Serialize();
 }
 
 #undef BIMODAL_ACCESSOR
