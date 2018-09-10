@@ -298,9 +298,9 @@ class AstValueFactory {
   }
   const AstRawString* GetString(Handle<String> literal);
   V8_EXPORT_PRIVATE AstConsString* NewConsString();
-  AstConsString* NewConsString(const AstRawString* str);
-  AstConsString* NewConsString(const AstRawString* str1,
-                               const AstRawString* str2);
+  V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str);
+  V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str1,
+                                                 const AstRawString* str2);
 
   V8_EXPORT_PRIVATE void Internalize(Isolate* isolate);
 
