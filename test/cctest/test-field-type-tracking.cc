@@ -657,7 +657,9 @@ static void TestGeneralizeField(int detach_property_at_index,
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
   CompilationDependencies dependencies(isolate, &zone);
-  dependencies.DependOnFieldType(MapRef(&broker, map), property_index);
+  MapRef map_ref(&broker, map);
+  map_ref.SerializeDescriptors();
+  dependencies.DependOnFieldType(map_ref, property_index);
 
   Handle<Map> field_owner(map->FindFieldOwner(isolate, property_index),
                           isolate);
@@ -1029,7 +1031,9 @@ static void TestReconfigureDataFieldAttribute_GeneralizeField(
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
   CompilationDependencies dependencies(isolate, &zone);
-  dependencies.DependOnFieldType(MapRef(&broker, map), kSplitProp);
+  MapRef map_ref(&broker, map);
+  map_ref.SerializeDescriptors();
+  dependencies.DependOnFieldType(map_ref, kSplitProp);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1113,7 +1117,9 @@ static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
   CompilationDependencies dependencies(isolate, &zone);
-  dependencies.DependOnFieldType(MapRef(&broker, map), kSplitProp);
+  MapRef map_ref(&broker, map);
+  map_ref.SerializeDescriptors();
+  dependencies.DependOnFieldType(map_ref, kSplitProp);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1794,7 +1800,9 @@ static void TestReconfigureElementsKind_GeneralizeField(
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
   CompilationDependencies dependencies(isolate, &zone);
-  dependencies.DependOnFieldType(MapRef(&broker, map), kDiffProp);
+  MapRef map_ref(&broker, map);
+  map_ref.SerializeDescriptors();
+  dependencies.DependOnFieldType(map_ref, kDiffProp);
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
@@ -1889,7 +1897,9 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
   CompilationDependencies dependencies(isolate, &zone);
-  dependencies.DependOnFieldType(MapRef(&broker, map), kDiffProp);
+  MapRef map_ref(&broker, map);
+  map_ref.SerializeDescriptors();
+  dependencies.DependOnFieldType(map_ref, kDiffProp);
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.

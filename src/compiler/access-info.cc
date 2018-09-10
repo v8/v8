@@ -335,7 +335,7 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
   return true;
 }
 
-
+// TODO(mslekova): Refactor this function to make it easier to read.
 bool AccessInfoFactory::ComputePropertyAccessInfo(
     Handle<Map> map, Handle<Name> name, AccessMode access_mode,
     PropertyAccessInfo* access_info) {
@@ -404,8 +404,9 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               // The field type was cleared by the GC, so we don't know anything
               // about the contents now.
             } else if (descriptors_field_type->IsClass()) {
-              dependencies()->DependOnFieldType(MapRef(js_heap_broker(), map),
-                                                number);
+              MapRef map_ref(js_heap_broker(), map);
+              map_ref.SerializeDescriptors();  // TODO(neis): Remove later.
+              dependencies()->DependOnFieldType(map_ref, number);
               // Remember the field map, and try to infer a useful type.
               Handle<Map> map(descriptors_field_type->AsClass(), isolate());
               field_type = Type::For(js_heap_broker(), map);
@@ -708,8 +709,9 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       // Store is not safe if the field type was cleared.
       return false;
     } else if (descriptors_field_type->IsClass()) {
-      dependencies()->DependOnFieldType(
-          MapRef(js_heap_broker(), transition_map), number);
+      MapRef transition_map_ref(js_heap_broker(), transition_map);
+      transition_map_ref.SerializeDescriptors();  // TODO(neis): Remove later.
+      dependencies()->DependOnFieldType(transition_map_ref, number);
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map(descriptors_field_type->AsClass(), isolate());
       field_type = Type::For(js_heap_broker(), map);

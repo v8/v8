@@ -209,6 +209,7 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
           DCHECK(!it.is_dictionary_holder());
           MapRef map(js_heap_broker(),
                      handle(it.GetHolder<HeapObject>()->map(), isolate()));
+          map.SerializeDescriptors();  // TODO(neis): Remove later.
           dependencies()->DependOnFieldType(map, it.GetFieldDescriptorIndex());
         }
         return value;

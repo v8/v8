@@ -1997,9 +1997,7 @@ bool PipelineImpl::CreateGraph() {
     data->node_origins()->AddDecorator();
   }
 
-  if (FLAG_concurrent_compiler_frontend) {
-    data->js_heap_broker()->SerializeStandardObjects();
-  }
+  data->js_heap_broker()->SerializeStandardObjects();
 
   Run<GraphBuilderPhase>();
   RunPrintAndVerify(GraphBuilderPhase::phase_name(), true);
