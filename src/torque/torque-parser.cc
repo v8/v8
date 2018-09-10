@@ -233,6 +233,13 @@ base::Optional<ParseResult> MakeParameterListFromNameAndTypeList(
   }
   ParameterList result;
   for (NameAndTypeExpression& pair : params) {
+    if (!IsLowerCamelCase(pair.name)) {
+      std::stringstream sstream;
+      sstream << "Parameter \"" << pair.name << "\" doesn't follow "
+              << "\"lowerCamelCase\" naming convention.";
+      LintError(sstream.str());
+    }
+
     result.names.push_back(std::move(pair.name));
     result.types.push_back(pair.type);
   }
@@ -287,6 +294,13 @@ base::Optional<ParseResult> MakeTorqueMacroDeclaration(
     ParseResultIterator* child_results) {
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
   auto name = child_results->NextAs<std::string>();
+  if (!IsUpperCamelCase(name)) {
+    std::stringstream sstream;
+    sstream << "Macro \"" << name << "\" doesn't follow "
+            << "\"UpperCamelCase\" naming convention.";
+    LintError(sstream.str());
+  }
+
   auto generic_parameters = child_results->NextAs<GenericParameters>();
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
@@ -308,6 +322,13 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
     ParseResultIterator* child_results) {
   auto javascript_linkage = child_results->NextAs<bool>();
   auto name = child_results->NextAs<std::string>();
+  if (!IsUpperCamelCase(name)) {
+    std::stringstream sstream;
+    sstream << "Builtin \"" << name << "\" doesn't follow "
+            << "\"UpperCamelCase\" naming convention.";
+    LintError(sstream.str());
+  }
+
   auto generic_parameters = child_results->NextAs<GenericParameters>();
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
@@ -599,6 +620,13 @@ base::Optional<ParseResult> MakeVarDeclarationStatement(
   bool const_qualified = kind == "const";
   if (!const_qualified) DCHECK_EQ("let", kind);
   auto name = child_results->NextAs<std::string>();
+  if (!IsLowerCamelCase(name)) {
+    std::stringstream sstream;
+    sstream << "Variable \"" << name << "\" doesn't follow "
+            << "\"lowerCamelCase\" naming convention.";
+    LintError(sstream.str());
+  }
+
   auto type = child_results->NextAs<TypeExpression*>();
   base::Optional<Expression*> initializer;
   if (child_results->HasNext())

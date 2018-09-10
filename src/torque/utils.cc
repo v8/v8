@@ -81,6 +81,29 @@ std::string CurrentPositionAsString() {
   std::abort();
 }
 
+void LintError(const std::string& error) {
+  std::cerr << CurrentPositionAsString() << ": Lint error: " << error << "\n";
+}
+
+namespace {
+
+bool ContainsUnderscore(const std::string& s) {
+  if (s.empty()) return false;
+  return s.find("_") != std::string::npos;
+}
+
+}  // namespace
+
+bool IsLowerCamelCase(const std::string& s) {
+  if (s.empty()) return false;
+  return islower(s[0]) && !ContainsUnderscore(s);
+}
+
+bool IsUpperCamelCase(const std::string& s) {
+  if (s.empty()) return false;
+  return isupper(s[0]) && !ContainsUnderscore(s);
+}
+
 std::string CamelifyString(const std::string& underscore_string) {
   std::string result;
   bool word_beginning = true;
