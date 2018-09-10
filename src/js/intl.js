@@ -710,6 +710,8 @@ function SetNumberFormatDigitOptions(internalOptions, options,
 function CreateNumberFormat(locales, options) {
   if (IS_UNDEFINED(options)) {
     options = {__proto__: null};
+  } else {
+    options = TO_OBJECT(options);
   }
 
   var getOption = getGetOption(options, 'numberformat');
