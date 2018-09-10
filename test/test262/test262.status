@@ -614,19 +614,7 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=8099
   'intl402/NumberFormat/prototype/format/format-negative-numbers': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7869
-  'intl402/RelativeTimeFormat/prototype/format/en-us-numeric-always': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/format/en-us-numeric-auto': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/format/en-us-style-short': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-long': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-narrow': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-short': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/en-us-numeric-always': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/en-us-numeric-auto': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/en-us-style-short': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-long': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-narrow': [FAIL],
-  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-short': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8151
   'intl402/RelativeTimeFormat/prototype/formatToParts/unit-plural': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7871
