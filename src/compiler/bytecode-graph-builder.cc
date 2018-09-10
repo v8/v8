@@ -571,7 +571,9 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
 }
 
 VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
-  return VectorSlotPair(feedback_vector(), FeedbackVector::ToSlot(slot_id));
+  FeedbackSlot slot = FeedbackVector::ToSlot(slot_id);
+  FeedbackNexus nexus(feedback_vector(), slot);
+  return VectorSlotPair(feedback_vector(), slot, nexus.ic_state());
 }
 
 void BytecodeGraphBuilder::CreateGraph() {

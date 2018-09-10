@@ -1088,29 +1088,6 @@ void FeedbackVector::FeedbackSlotPrint(std::ostream& os,
   nexus.Print(os);
 }
 
-namespace {
-
-const char* ICState2String(InlineCacheState state) {
-  switch (state) {
-    case UNINITIALIZED:
-      return "UNINITIALIZED";
-    case PREMONOMORPHIC:
-      return "PREMONOMORPHIC";
-    case MONOMORPHIC:
-      return "MONOMORPHIC";
-    case RECOMPUTE_HANDLER:
-      return "RECOMPUTE_HANDLER";
-    case POLYMORPHIC:
-      return "POLYMORPHIC";
-    case MEGAMORPHIC:
-      return "MEGAMORPHIC";
-    case GENERIC:
-      return "GENERIC";
-  }
-  UNREACHABLE();
-}
-}  // anonymous namespace
-
 void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
   switch (kind()) {
     case FeedbackSlotKind::kCall:
@@ -1129,7 +1106,7 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
     case FeedbackSlotKind::kStoreKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kCloneObject: {
-      os << ICState2String(StateFromFeedback());
+      os << InlineCacheState2String(StateFromFeedback());
       break;
     }
     case FeedbackSlotKind::kBinaryOp: {

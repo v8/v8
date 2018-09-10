@@ -709,6 +709,27 @@ enum InlineCacheState {
   GENERIC,
 };
 
+// Printing support.
+inline const char* InlineCacheState2String(InlineCacheState state) {
+  switch (state) {
+    case UNINITIALIZED:
+      return "UNINITIALIZED";
+    case PREMONOMORPHIC:
+      return "PREMONOMORPHIC";
+    case MONOMORPHIC:
+      return "MONOMORPHIC";
+    case RECOMPUTE_HANDLER:
+      return "RECOMPUTE_HANDLER";
+    case POLYMORPHIC:
+      return "POLYMORPHIC";
+    case MEGAMORPHIC:
+      return "MEGAMORPHIC";
+    case GENERIC:
+      return "GENERIC";
+  }
+  UNREACHABLE();
+}
+
 enum WhereToStart { kStartAtReceiver, kStartAtPrototype };
 
 enum ResultSentinel { kNotFound = -1, kUnsupported = -2 };

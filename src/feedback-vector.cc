@@ -546,10 +546,11 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
 
   switch (kind()) {
     case FeedbackSlotKind::kCreateClosure:
+      return MONOMORPHIC;
+
     case FeedbackSlotKind::kLiteral:
-      // CreateClosure and literal slots don't have a notion of state.
-      UNREACHABLE();
-      break;
+      if (feedback->IsSmi()) return UNINITIALIZED;
+      return MONOMORPHIC;
 
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:

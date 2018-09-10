@@ -124,7 +124,7 @@ class JSCallReducerTest : public TypedGraphTest {
     // overwriting existing metadata.
     shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
     Handle<FeedbackVector> vector = FeedbackVector::New(isolate(), shared);
-    VectorSlotPair feedback(vector, FeedbackSlot(0));
+    VectorSlotPair feedback(vector, FeedbackSlot(0), UNINITIALIZED);
     return javascript()->Call(arity, CallFrequency(), feedback,
                               ConvertReceiverMode::kAny,
                               SpeculationMode::kAllowSpeculation);

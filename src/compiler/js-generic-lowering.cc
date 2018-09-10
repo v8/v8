@@ -148,12 +148,16 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kKeyedLoadICTrampoline);
+    Callable callable = Builtins::CallableFor(
+        isolate(), p.feedback().ic_state() == MEGAMORPHIC
+                       ? Builtins::kKeyedLoadICTrampoline_Megamorphic
+                       : Builtins::kKeyedLoadICTrampoline);
     ReplaceWithStubCall(node, callable, flags);
   } else {
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kKeyedLoadIC);
+    Callable callable = Builtins::CallableFor(
+        isolate(), p.feedback().ic_state() == MEGAMORPHIC
+                       ? Builtins::kKeyedLoadIC_Megamorphic
+                       : Builtins::kKeyedLoadIC);
     Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
     node->InsertInput(zone(), 3, vector);
     ReplaceWithStubCall(node, callable, flags);
@@ -168,17 +172,21 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kLoadICTrampoline);
+    Callable callable = Builtins::CallableFor(
+        isolate(), p.feedback().ic_state() == MEGAMORPHIC
+                       ? Builtins::kLoadICTrampoline_Megamorphic
+                       : Builtins::kLoadICTrampoline);
     ReplaceWithStubCall(node, callable, flags);
   } else {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kLoadIC);
+    Callable callable =
+        Builtins::CallableFor(isolate(), p.feedback().ic_state() == MEGAMORPHIC
+                                             ? Builtins::kLoadIC_Megamorphic
+                                             : Builtins::kLoadIC);
     Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
     node->InsertInput(zone(), 3, vector);
     ReplaceWithStubCall(node, callable, flags);
   }
 }
-
 
 void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);

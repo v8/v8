@@ -266,7 +266,7 @@ NamedAccess const& NamedAccessOf(const Operator* op) {
 
 
 std::ostream& operator<<(std::ostream& os, PropertyAccess const& p) {
-  return os << p.language_mode();
+  return os << p.language_mode() << ", " << p.feedback();
 }
 
 

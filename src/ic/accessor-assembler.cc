@@ -3197,6 +3197,31 @@ void AccessorAssembler::GenerateLoadIC() {
   LoadIC(&p);
 }
 
+void AccessorAssembler::GenerateLoadIC_Megamorphic() {
+  typedef LoadWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  ExitPoint direct_exit(this);
+  TVARIABLE(MaybeObject, var_handler);
+  Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
+
+  TryProbeStubCache(isolate()->load_stub_cache(), receiver, name, &if_handler,
+                    &var_handler, &miss);
+
+  BIND(&if_handler);
+  LoadICParameters p(context, receiver, name, slot, vector);
+  HandleLoadICHandlerCase(&p, CAST(var_handler.value()), &miss, &direct_exit);
+
+  BIND(&miss);
+  direct_exit.ReturnCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name,
+                                slot, vector);
+}
+
 void AccessorAssembler::GenerateLoadIC_Noninlined() {
   typedef LoadWithVectorDescriptor Descriptor;
 
@@ -3252,6 +3277,19 @@ void AccessorAssembler::GenerateLoadICTrampoline() {
   TailCallBuiltin(Builtins::kLoadIC, context, receiver, name, slot, vector);
 }
 
+void AccessorAssembler::GenerateLoadICTrampoline_Megamorphic() {
+  typedef LoadDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* vector = LoadFeedbackVectorForStub();
+
+  TailCallBuiltin(Builtins::kLoadIC_Megamorphic, context, receiver, name, slot,
+                  vector);
+}
+
 void AccessorAssembler::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
   typedef LoadGlobalWithVectorDescriptor Descriptor;
 
@@ -3294,6 +3332,19 @@ void AccessorAssembler::GenerateKeyedLoadIC() {
   KeyedLoadIC(&p);
 }
 
+void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
+  typedef LoadWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  LoadICParameters p(context, receiver, name, slot, vector);
+  KeyedLoadICGeneric(&p);
+}
+
 void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
   typedef LoadDescriptor Descriptor;
 
@@ -3307,17 +3358,17 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
                   vector);
 }
 
-void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
-  typedef LoadWithVectorDescriptor Descriptor;
+void AccessorAssembler::GenerateKeyedLoadICTrampoline_Megamorphic() {
+  typedef LoadDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
-  Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
+  Node* vector = LoadFeedbackVectorForStub();
 
-  LoadICParameters p(context, receiver, name, slot, vector);
-  KeyedLoadICGeneric(&p);
+  TailCallBuiltin(Builtins::kKeyedLoadIC_Megamorphic, context, receiver, name,
+                  slot, vector);
 }
 
 void AccessorAssembler::GenerateKeyedLoadIC_PolymorphicName() {

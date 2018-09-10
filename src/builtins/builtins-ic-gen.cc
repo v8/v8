@@ -21,13 +21,16 @@ namespace internal {
   }
 
 IC_BUILTIN(LoadIC)
+IC_BUILTIN(LoadIC_Megamorphic)
 IC_BUILTIN(LoadIC_Noninlined)
 IC_BUILTIN(LoadIC_Uninitialized)
-IC_BUILTIN(KeyedLoadIC)
 IC_BUILTIN(LoadICTrampoline)
-IC_BUILTIN(KeyedLoadICTrampoline)
+IC_BUILTIN(LoadICTrampoline_Megamorphic)
+IC_BUILTIN(KeyedLoadIC)
 IC_BUILTIN(KeyedLoadIC_Megamorphic)
 IC_BUILTIN(KeyedLoadIC_PolymorphicName)
+IC_BUILTIN(KeyedLoadICTrampoline)
+IC_BUILTIN(KeyedLoadICTrampoline_Megamorphic)
 IC_BUILTIN(StoreGlobalIC)
 IC_BUILTIN(StoreGlobalICTrampoline)
 IC_BUILTIN(StoreIC)

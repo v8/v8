@@ -28,13 +28,16 @@ class AccessorAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
   void GenerateLoadIC();
+  void GenerateLoadIC_Megamorphic();
   void GenerateLoadIC_Noninlined();
   void GenerateLoadIC_Uninitialized();
   void GenerateLoadICTrampoline();
+  void GenerateLoadICTrampoline_Megamorphic();
   void GenerateKeyedLoadIC();
-  void GenerateKeyedLoadICTrampoline();
   void GenerateKeyedLoadIC_Megamorphic();
   void GenerateKeyedLoadIC_PolymorphicName();
+  void GenerateKeyedLoadICTrampoline();
+  void GenerateKeyedLoadICTrampoline_Megamorphic();
   void GenerateStoreIC();
   void GenerateStoreICTrampoline();
   void GenerateStoreGlobalIC();

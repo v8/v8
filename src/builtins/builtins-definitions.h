@@ -206,7 +206,6 @@ namespace internal {
   TFC(ToBooleanLazyDeoptContinuation, TypeConversionStackParameter, 1)         \
                                                                                \
   /* Handlers */                                                               \
-  TFH(KeyedLoadIC_Megamorphic, LoadWithVector)                                 \
   TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \
   TFH(KeyedLoadIC_Slow, LoadWithVector)                                        \
   TFH(KeyedStoreIC_Megamorphic, StoreWithVector)                               \
@@ -629,10 +628,14 @@ namespace internal {
                                                                                \
   /* ICs */                                                                    \
   TFH(LoadIC, LoadWithVector)                                                  \
+  TFH(LoadIC_Megamorphic, LoadWithVector)                                      \
   TFH(LoadIC_Noninlined, LoadWithVector)                                       \
   TFH(LoadICTrampoline, Load)                                                  \
+  TFH(LoadICTrampoline_Megamorphic, Load)                                      \
   TFH(KeyedLoadIC, LoadWithVector)                                             \
+  TFH(KeyedLoadIC_Megamorphic, LoadWithVector)                                 \
   TFH(KeyedLoadICTrampoline, Load)                                             \
+  TFH(KeyedLoadICTrampoline_Megamorphic, Load)                                 \
   TFH(StoreGlobalIC, StoreGlobalWithVector)                                    \
   TFH(StoreGlobalICTrampoline, StoreGlobal)                                    \
   TFH(StoreIC, StoreWithVector)                                                \
