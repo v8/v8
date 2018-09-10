@@ -8,6 +8,7 @@
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
+#include "src/base/lsan-page-allocator.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
 #include "src/utils.h"
@@ -15,10 +16,6 @@
 
 #if V8_LIBC_BIONIC
 #include <malloc.h>  // NOLINT
-#endif
-
-#if defined(LEAK_SANITIZER)
-#include <sanitizer/lsan_interface.h>
 #endif
 
 namespace v8 {
@@ -51,6 +48,12 @@ struct InitializePageAllocator {
       static v8::base::PageAllocator default_allocator;
       page_allocator = &default_allocator;
     }
+#if defined(LEAK_SANITIZER)
+    {
+      static v8::base::LsanPageAllocator lsan_allocator(page_allocator);
+      page_allocator = &lsan_allocator;
+    }
+#endif
     *page_allocator_ptr = page_allocator;
   }
 };
@@ -160,13 +163,6 @@ void* AllocatePages(v8::PageAllocator* page_allocator, void* address,
     size_t request_size = size + alignment - page_allocator->AllocatePageSize();
     if (!OnCriticalMemoryPressure(request_size)) break;
   }
-#if defined(LEAK_SANITIZER)
-  if (result != nullptr && page_allocator == GetPlatformPageAllocator()) {
-    // Notify LSAN only about the plaform memory allocations or we will
-    // "allocate"/"deallocate" certain parts of memory twice.
-    __lsan_register_root_region(result, size);
-  }
-#endif
   return result;
 }
 
@@ -174,31 +170,14 @@ bool FreePages(v8::PageAllocator* page_allocator, void* address,
                const size_t size) {
   DCHECK_NOT_NULL(page_allocator);
   DCHECK_EQ(0UL, size & (page_allocator->AllocatePageSize() - 1));
-  bool result = page_allocator->FreePages(address, size);
-#if defined(LEAK_SANITIZER)
-  if (result && page_allocator == GetPlatformPageAllocator()) {
-    // Notify LSAN only about the plaform memory allocations or we will
-    // "allocate"/"deallocate" certain parts of memory twice.
-    __lsan_unregister_root_region(address, size);
-  }
-#endif
-  return result;
+  return page_allocator->FreePages(address, size);
 }
 
 bool ReleasePages(v8::PageAllocator* page_allocator, void* address, size_t size,
                   size_t new_size) {
   DCHECK_NOT_NULL(page_allocator);
   DCHECK_LT(new_size, size);
-  bool result = page_allocator->ReleasePages(address, size, new_size);
-#if defined(LEAK_SANITIZER)
-  if (result && page_allocator == GetPlatformPageAllocator()) {
-    // Notify LSAN only about the plaform memory allocations or we will
-    // "allocate"/"deallocate" certain parts of memory twice.
-    __lsan_unregister_root_region(address, size);
-    __lsan_register_root_region(address, new_size);
-  }
-#endif
-  return result;
+  return page_allocator->ReleasePages(address, size, new_size);
 }
 
 bool SetPermissions(v8::PageAllocator* page_allocator, void* address,
