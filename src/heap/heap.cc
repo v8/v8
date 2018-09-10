@@ -259,8 +259,8 @@ size_t Heap::ComputeMaxOldGenerationSize(uint64_t physical_memory) {
   size_t computed_size = static_cast<size_t>(physical_memory / i::MB /
                                              old_space_physical_memory_factor *
                                              kPointerMultiplier);
-  return Max(Min(computed_size, HeapController::kMaxHeapSize),
-             HeapController::kMinHeapSize);
+  return Max(Min(computed_size, HeapController::kMaxSize),
+             HeapController::kMinSize);
 }
 
 size_t Heap::Capacity() {
@@ -1785,18 +1785,22 @@ bool Heap::PerformGarbageCollection(
     external_memory_at_last_mark_compact_ = external_memory_;
     external_memory_limit_ = external_memory_ + kExternalAllocationSoftLimit;
 
+    double max_factor =
+        heap_controller()->MaxGrowingFactor(max_old_generation_size_);
     size_t new_limit = heap_controller()->CalculateAllocationLimit(
-        old_gen_size, max_old_generation_size_, gc_speed, mutator_speed,
-        new_space()->Capacity(), CurrentHeapGrowingMode());
+        old_gen_size, max_old_generation_size_, max_factor, gc_speed,
+        mutator_speed, new_space()->Capacity(), CurrentHeapGrowingMode());
     old_generation_allocation_limit_ = new_limit;
 
     CheckIneffectiveMarkCompact(
         old_gen_size, tracer()->AverageMarkCompactMutatorUtilization());
   } else if (HasLowYoungGenerationAllocationRate() &&
              old_generation_size_configured_) {
+    double max_factor =
+        heap_controller()->MaxGrowingFactor(max_old_generation_size_);
     size_t new_limit = heap_controller()->CalculateAllocationLimit(
-        old_gen_size, max_old_generation_size_, gc_speed, mutator_speed,
-        new_space()->Capacity(), CurrentHeapGrowingMode());
+        old_gen_size, max_old_generation_size_, max_factor, gc_speed,
+        mutator_speed, new_space()->Capacity(), CurrentHeapGrowingMode());
     if (new_limit < old_generation_allocation_limit_) {
       old_generation_allocation_limit_ = new_limit;
     }
