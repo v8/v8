@@ -22,6 +22,7 @@ namespace v8 {
 namespace internal {
 
 CAST_ACCESSOR(WasmDebugInfo)
+CAST_ACCESSOR(WasmExceptionObject)
 CAST_ACCESSOR(WasmExportedFunctionData)
 CAST_ACCESSOR(WasmGlobalObject)
 CAST_ACCESSOR(WasmInstanceObject)

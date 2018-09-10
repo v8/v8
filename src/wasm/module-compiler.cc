@@ -245,6 +245,7 @@ class InstanceBuilder {
   Handle<JSArrayBuffer> globals_;
   std::vector<TableInstance> table_instances_;
   std::vector<Handle<JSFunction>> js_wrappers_;
+  std::vector<Handle<WasmExceptionObject>> exception_wrappers_;
   Handle<WasmExportedFunction> start_function_;
   JSToWasmWrapperCache js_to_wasm_cache_;
   std::vector<SanitizedImport> sanitized_imports_;
@@ -1837,7 +1838,7 @@ bool InstanceBuilder::NeedsWrappers() const {
 }
 
 // Process the exports, creating wrappers for functions, tables, memories,
-// and globals.
+// globals, and exceptions.
 void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
   Handle<FixedArray> export_wrappers(module_object_->export_wrappers(),
                                      isolate_);
@@ -1860,6 +1861,10 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       }
     }
   }
+
+  // TODO(mstarzinger): The {exception_wrappers_} table is only needed until we
+  // have an exception table per instance which can then be used directly.
+  exception_wrappers_.resize(module_->exceptions.size());
 
   Handle<JSObject> exports_object;
   bool is_asm_js = false;
@@ -2017,9 +2022,14 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       }
       case kExternalException: {
         const WasmException& exception = module_->exceptions[exp.index];
-        // TODO(mstarzinger): Only temporary placeholder, use wrapper object.
-        desc.set_value(handle(Smi::FromInt(exp.index), isolate_));
-        USE(exception);
+        Handle<WasmExceptionObject> wrapper = exception_wrappers_[exp.index];
+        if (wrapper.is_null()) {
+          wrapper = WasmExceptionObject::New(isolate_);
+          // TODO(mstarzinger): Store exception signature in wrapper.
+          USE(exception);
+          exception_wrappers_[exp.index] = wrapper;
+        }
+        desc.set_value(wrapper);
         break;
       }
       default:

@@ -84,6 +84,7 @@
 //         - JSNumberFormat        // If V8_INTL_SUPPORT enabled.
 //         - JSPluralRules         // If V8_INTL_SUPPORT enabled.
 //         - JSRelativeTimeFormat  // If V8_INTL_SUPPORT enabled.
+//         - WasmExceptionObject
 //         - WasmGlobalObject
 //         - WasmInstanceObject
 //         - WasmMemoryObject
@@ -599,6 +600,7 @@ enum InstanceType : uint16_t {
   JS_INTL_RELATIVE_TIME_FORMAT_TYPE,
 #endif  // V8_INTL_SUPPORT
 
+  WASM_EXCEPTION_TYPE,
   WASM_GLOBAL_TYPE,
   WASM_INSTANCE_TYPE,
   WASM_MEMORY_TYPE,
@@ -914,6 +916,7 @@ class ZoneForwardList;
   V(UncompiledDataWithoutPreParsedScope)       \
   V(Undetectable)                              \
   V(UniqueName)                                \
+  V(WasmExceptionObject)                       \
   V(WasmGlobalObject)                          \
   V(WasmInstanceObject)                        \
   V(WasmMemoryObject)                          \
@@ -1038,6 +1041,7 @@ class ZoneForwardList;
     UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE)                     \
   V(UncompiledDataWithPreParsedScope,                                  \
     UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE)                        \
+  V(WasmExceptionObject, WASM_EXCEPTION_TYPE)                          \
   V(WasmGlobalObject, WASM_GLOBAL_TYPE)                                \
   V(WasmInstanceObject, WASM_INSTANCE_TYPE)                            \
   V(WasmMemoryObject, WASM_MEMORY_TYPE)                                \

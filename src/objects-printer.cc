@@ -192,6 +192,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
     // TODO(titzer): debug printing for more wasm objects
+    case WASM_EXCEPTION_TYPE:
     case WASM_GLOBAL_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_TABLE_TYPE:

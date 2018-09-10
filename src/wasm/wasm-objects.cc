@@ -1343,6 +1343,17 @@ Address WasmInstanceObject::GetCallTarget(uint32_t func_index) {
   return native_module->GetCallTargetForFunction(func_index);
 }
 
+// static
+Handle<WasmExceptionObject> WasmExceptionObject::New(Isolate* isolate) {
+  Handle<JSFunction> exception_cons(
+      isolate->native_context()->wasm_exception_constructor(), isolate);
+  Handle<JSObject> exception_object =
+      isolate->factory()->NewJSObject(exception_cons, TENURED);
+  Handle<WasmExceptionObject> exception =
+      Handle<WasmExceptionObject>::cast(exception_object);
+  return exception;
+}
+
 bool WasmExportedFunction::IsWasmExportedFunction(Object* object) {
   if (!object->IsJSFunction()) return false;
   JSFunction* js_function = JSFunction::cast(object);

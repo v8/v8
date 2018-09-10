@@ -15,10 +15,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate();
 
   assertTrue(Object.prototype.hasOwnProperty.call(instance.exports, 'ex'));
-  // TODO(mstarzinger): The following two expectations are only temporary until
-  // we actually have proper wrapper objects for exported exception types.
-  assertEquals("number", typeof instance.exports.ex);
-  assertEquals(except, instance.exports.ex);
+  assertEquals("object", typeof instance.exports.ex);
+  assertInstanceof(instance.exports.ex, WebAssembly.Exception);
+  assertSame(instance.exports.ex.constructor, WebAssembly.Exception);
 })();
 
 (function TestExportMultiple() {
@@ -68,4 +67,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   let exports = WebAssembly.Module.exports(module);
   assertArrayEquals([{ name: "ex", kind: "exception" }], exports);
+})();
+
+(function TestConstructorNonCallable() {
+  print(arguments.callee.name);
+  // TODO(wasm): Currently the constructor function of an exported exception is
+  // not callable. This can/will change once the proposal matures, at which
+  // point we should add a full exceptions-api.js test suite for the API and
+  // remove this test case from this file.
+  assertThrows(
+      () => WebAssembly.Exception(), TypeError,
+      /WebAssembly.Exception cannot be called/);
 })();

@@ -238,10 +238,11 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
-    case WASM_MODULE_TYPE:
+    case WASM_EXCEPTION_TYPE:
     case WASM_GLOBAL_TYPE:
     case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
+    case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:
       DCHECK(!type.is_callable());
       DCHECK(!type.is_undetectable());

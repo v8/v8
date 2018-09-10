@@ -472,6 +472,21 @@ class WasmInstanceObject : public JSObject {
   typedef BodyDescriptor BodyDescriptorWeak;
 };
 
+// Representation of WebAssembly.Exception JavaScript-level object.
+class WasmExceptionObject : public JSObject {
+ public:
+  DECL_CAST(WasmExceptionObject)
+
+// Layout description.
+#define WASM_EXCEPTION_OBJECT_FIELDS(V) V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                WASM_EXCEPTION_OBJECT_FIELDS)
+#undef WASM_EXCEPTION_OBJECT_FIELDS
+
+  static Handle<WasmExceptionObject> New(Isolate* isolate);
+};
+
 // A WASM function that is wrapped and exported to JavaScript.
 class WasmExportedFunction : public JSFunction {
  public:

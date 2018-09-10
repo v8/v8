@@ -207,6 +207,7 @@ namespace internal {
   V(JS_DATA_VIEW_TYPE)
 
 #define INSTANCE_TYPE_LIST_AFTER_INTL(V) \
+  V(WASM_EXCEPTION_TYPE)                 \
   V(WASM_GLOBAL_TYPE)                    \
   V(WASM_INSTANCE_TYPE)                  \
   V(WASM_MEMORY_TYPE)                    \

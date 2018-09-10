@@ -245,6 +245,7 @@ class StringWrapper;
 class SymbolWrapper;
 class Undetectable;
 class UniqueName;
+class WasmExceptionObject;
 class WasmExportedFunctionData;
 class WasmGlobalObject;
 class WasmMemoryObject;
