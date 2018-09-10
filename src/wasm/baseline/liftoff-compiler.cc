@@ -1174,7 +1174,7 @@ class LiftoffCompiler {
     LiftoffRegister value =
         pinned.set(__ GetUnusedRegister(reg_class_for(global->type), pinned));
     LoadType type = LoadType::ForValueType(global->type);
-    __ Load(value, addr.gp(), no_reg, offset, type, pinned);
+    __ Load(value, addr.gp(), no_reg, offset, type, pinned, nullptr, true);
     __ PushRegister(global->type, value);
   }
 
@@ -1188,7 +1188,7 @@ class LiftoffCompiler {
     LiftoffRegister addr = GetGlobalBaseAndOffset(global, pinned, &offset);
     LiftoffRegister reg = pinned.set(__ PopToRegister(pinned));
     StoreType type = StoreType::ForValueType(global->type);
-    __ Store(addr.gp(), no_reg, offset, reg, type, pinned);
+    __ Store(addr.gp(), no_reg, offset, reg, type, pinned, nullptr, true);
   }
 
   void Unreachable(FullDecoder* decoder) {
