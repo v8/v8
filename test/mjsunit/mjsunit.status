@@ -316,9 +316,6 @@
   'asm/sqlite3/*': [SKIP],
   # TODO(mips-team): Fix Wasm for big-endian.
   'wasm/*': [SKIP],
-  # TODO(mips-team): Fix SEGV on regress-864509.js on big endian
-  # (https://crbug.com/v8/7953).
-  'regress/wasm/regress-864509': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
