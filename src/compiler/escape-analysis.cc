@@ -282,7 +282,7 @@ EffectGraphReducer::EffectGraphReducer(
       state_(graph, kNumStates),
       revisit_(zone),
       stack_(zone),
-      reduce_(reduce) {}
+      reduce_(std::move(reduce)) {}
 
 void EffectGraphReducer::ReduceFrom(Node* node) {
   // Perform DFS and eagerly trigger revisitation as soon as possible.

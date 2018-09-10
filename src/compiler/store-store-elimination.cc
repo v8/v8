@@ -102,7 +102,7 @@ class UnobservablesSet final {
   UnobservablesSet();  // unvisited
   UnobservablesSet(const UnobservablesSet& other) : set_(other.set_) {}
 
-  UnobservablesSet Intersect(UnobservablesSet other, Zone* zone) const;
+  UnobservablesSet Intersect(const UnobservablesSet& other, Zone* zone) const;
   UnobservablesSet Add(UnobservableStore obs, Zone* zone) const;
   UnobservablesSet RemoveSameOffset(StoreOffset off, Zone* zone) const;
 
@@ -140,7 +140,7 @@ class RedundantStoreFinder final {
  private:
   void VisitEffectfulNode(Node* node);
   UnobservablesSet RecomputeUseIntersection(Node* node);
-  UnobservablesSet RecomputeSet(Node* node, UnobservablesSet uses);
+  UnobservablesSet RecomputeSet(Node* node, const UnobservablesSet& uses);
   static bool CannotObserveStoreField(Node* node);
 
   void MarkForRevisit(Node* node);
@@ -252,8 +252,8 @@ void StoreStoreElimination::Run(JSGraph* js_graph, Zone* temp_zone) {
 // Recompute unobservables-set for a node. Will also mark superfluous nodes
 // as to be removed.
 
-UnobservablesSet RedundantStoreFinder::RecomputeSet(Node* node,
-                                                    UnobservablesSet uses) {
+UnobservablesSet RedundantStoreFinder::RecomputeSet(
+    Node* node, const UnobservablesSet& uses) {
   switch (node->op()->opcode()) {
     case IrOpcode::kStoreField: {
       Node* stored_to = node->InputAt(0);
@@ -472,7 +472,7 @@ UnobservablesSet UnobservablesSet::VisitedEmpty(Zone* zone) {
 // Computes the intersection of two UnobservablesSets. May return
 // UnobservablesSet::Unvisited() instead of an empty UnobservablesSet for
 // speed.
-UnobservablesSet UnobservablesSet::Intersect(UnobservablesSet other,
+UnobservablesSet UnobservablesSet::Intersect(const UnobservablesSet& other,
                                              Zone* zone) const {
   if (IsEmpty() || other.IsEmpty()) {
     return Unvisited();

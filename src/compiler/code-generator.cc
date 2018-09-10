@@ -69,7 +69,7 @@ CodeGenerator::CodeGenerator(
       caller_registers_saved_(false),
       jump_tables_(nullptr),
       ools_(nullptr),
-      osr_helper_(osr_helper),
+      osr_helper_(std::move(osr_helper)),
       osr_pc_offset_(-1),
       optimized_out_literal_id_(-1),
       source_position_table_builder_(

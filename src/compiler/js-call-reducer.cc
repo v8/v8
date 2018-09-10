@@ -5533,6 +5533,7 @@ Node* JSCallReducer::CreateArtificialFrameState(
   const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph()->NewNode(op0);
   std::vector<Node*> params;
+  params.reserve(parameter_count + 1);
   for (int parameter = 0; parameter < parameter_count + 1; ++parameter) {
     params.push_back(node->InputAt(1 + parameter));
   }

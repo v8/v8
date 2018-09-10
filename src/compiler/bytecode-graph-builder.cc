@@ -801,7 +801,7 @@ void BytecodeGraphBuilder::AdvanceToOsrEntryAndPeelLoops(
   int current_parent_offset =
       analysis.GetLoopInfoFor(osr_offset).parent_offset();
   while (current_parent_offset != -1) {
-    LoopInfo current_parent_loop =
+    const LoopInfo& current_parent_loop =
         analysis.GetLoopInfoFor(current_parent_offset);
     // We iterate until the back edge of the parent loop, which we detect by
     // the offset that the JumpLoop targets.
