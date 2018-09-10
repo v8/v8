@@ -1524,14 +1524,19 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
   {
     TNode<JSArray> array_receiver = CAST(receiver);
     CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(array_receiver)));
+
+    // 2) Ensure that the length is writable.
+    //    This check needs to happen before the check for length zero.
+    //    The spec requires a "SetProperty(array, 'length', 0)" call when
+    //    the length is zero. This must throw an exception in the case of a
+    //    read-only length.
+    EnsureArrayLengthWritable(LoadMap(array_receiver), &runtime);
+
     Node* length =
         LoadAndUntagObjectField(array_receiver, JSArray::kLengthOffset);
     Label return_undefined(this), fast_elements_tagged(this),
         fast_elements_smi(this);
     GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
-
-    // 2) Ensure that the length is writable.
-    EnsureArrayLengthWritable(LoadMap(array_receiver), &runtime);
 
     // 3) Check that the elements backing store isn't copy-on-write.
     Node* elements = LoadElements(array_receiver);
