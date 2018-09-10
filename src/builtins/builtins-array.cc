@@ -341,7 +341,7 @@ V8_WARN_UNUSED_RESULT Object* GenericArrayPush(Isolate* isolate,
       // Must succeed since we always pass a valid key.
       DCHECK(success);
       MAYBE_RETURN(Object::SetProperty(&it, element, LanguageMode::kStrict,
-                                       Object::MAY_BE_STORE_FROM_KEYED),
+                                       StoreOrigin::kMaybeKeyed),
                    ReadOnlyRoots(isolate).exception());
     }
 

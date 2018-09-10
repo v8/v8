@@ -2231,7 +2231,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             builder()
                 ->LoadLiteral(Smi::FromEnum(LanguageMode::kSloppy))
                 .StoreAccumulatorInRegister(args[3])
-                .CallRuntime(Runtime::kSetProperty, args);
+                .CallRuntime(Runtime::kSetKeyedProperty, args);
             Register value = args[2];
             VisitSetHomeObject(value, literal, property);
           }
@@ -2894,7 +2894,7 @@ void BytecodeGenerator::BuildStoreNamedProperty(Property* property,
         .StoreAccumulatorInRegister(args[1])
         .LoadLiteral(Smi::FromEnum(language_mode()))
         .StoreAccumulatorInRegister(args[3])
-        .CallRuntime(Runtime::kSetProperty, args);
+        .CallRuntime(Runtime::kSetNamedProperty, args);
   } else {
     FeedbackSlot slot = GetCachedStoreICSlot(property->obj(), name);
     builder()->StoreNamedProperty(object, name, feedback_index(slot),

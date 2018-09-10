@@ -693,13 +693,13 @@ class Map : public HeapObject {
   // Maximal number of fast properties. Used to restrict the number of map
   // transitions to avoid an explosion in the number of maps for objects used as
   // dictionaries.
-  inline bool TooManyFastProperties(StoreFromKeyed store_mode) const;
+  inline bool TooManyFastProperties(StoreOrigin store_origin) const;
   static Handle<Map> TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                                               Handle<Name> name,
                                               Handle<Object> value,
                                               PropertyAttributes attributes,
                                               PropertyConstness constness,
-                                              StoreFromKeyed store_mode);
+                                              StoreOrigin store_origin);
   static Handle<Map> TransitionToAccessorProperty(
       Isolate* isolate, Handle<Map> map, Handle<Name> name, int descriptor,
       Handle<Object> getter, Handle<Object> setter,

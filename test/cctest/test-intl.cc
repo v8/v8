@@ -125,8 +125,7 @@ TEST(GetStringOption) {
   Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("foo");
   v8::internal::LookupIterator it(isolate, options, key);
   CHECK(Object::SetProperty(&it, Handle<Smi>(Smi::FromInt(42), isolate),
-                            LanguageMode::kStrict,
-                            AllocationMemento::MAY_BE_STORE_FROM_KEYED)
+                            LanguageMode::kStrict, StoreOrigin::kMaybeKeyed)
             .FromJust());
 
   {

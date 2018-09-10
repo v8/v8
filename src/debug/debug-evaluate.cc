@@ -377,16 +377,16 @@ bool BuiltinToIntrinsicHasNoSideEffect(Builtins::Name builtin_id,
   if (IntrinsicHasNoSideEffect(intrinsic_id)) return true;
 
 // Whitelist intrinsics called from specific builtins.
-#define BUILTIN_INTRINSIC_WHITELIST(V, W)                                 \
-  /* Arrays */                                                            \
-  V(Builtins::kArrayFilter, W(CreateDataProperty))                        \
-  V(Builtins::kArrayMap, W(CreateDataProperty))                           \
-  V(Builtins::kArrayPrototypeSlice, W(CreateDataProperty) W(SetProperty)) \
-  /* TypedArrays */                                                       \
-  V(Builtins::kTypedArrayConstructor,                                     \
-    W(TypedArrayCopyElements) W(ThrowInvalidTypedArrayAlignment))         \
-  V(Builtins::kTypedArrayPrototypeFilter, W(TypedArrayCopyElements))      \
-  V(Builtins::kTypedArrayPrototypeMap, W(SetProperty))
+#define BUILTIN_INTRINSIC_WHITELIST(V, W)                                      \
+  /* Arrays */                                                                 \
+  V(Builtins::kArrayFilter, W(CreateDataProperty))                             \
+  V(Builtins::kArrayMap, W(CreateDataProperty))                                \
+  V(Builtins::kArrayPrototypeSlice, W(CreateDataProperty) W(SetKeyedProperty)) \
+  /* TypedArrays */                                                            \
+  V(Builtins::kTypedArrayConstructor,                                          \
+    W(TypedArrayCopyElements) W(ThrowInvalidTypedArrayAlignment))              \
+  V(Builtins::kTypedArrayPrototypeFilter, W(TypedArrayCopyElements))           \
+  V(Builtins::kTypedArrayPrototypeMap, W(SetKeyedProperty))
 
 #define CASE(Builtin, ...) \
   case Builtin:            \

@@ -2222,9 +2222,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
 
     if (use_set) {
       LookupIterator it(target, next_key, target);
-      Maybe<bool> result =
-          Object::SetProperty(&it, prop_value, LanguageMode::kStrict,
-                              Object::CERTAINLY_NOT_STORE_FROM_KEYED);
+      Maybe<bool> result = Object::SetProperty(
+          &it, prop_value, LanguageMode::kStrict, StoreOrigin::kNamed);
       if (result.IsNothing()) return result;
       if (stable) stable = from->map() == *map;
     } else {
@@ -2287,7 +2286,8 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, status,
             Runtime::SetObjectProperty(isolate, target, next_key, prop_value,
-                                       LanguageMode::kStrict),
+                                       LanguageMode::kStrict,
+                                       StoreOrigin::kMaybeKeyed),
             Nothing<bool>());
       } else {
         if (excluded_properties != nullptr &&
@@ -5014,18 +5014,16 @@ Maybe<bool> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
 MaybeHandle<Object> Object::SetProperty(Isolate* isolate, Handle<Object> object,
                                         Handle<Name> name, Handle<Object> value,
                                         LanguageMode language_mode,
-                                        StoreFromKeyed store_mode) {
+                                        StoreOrigin store_origin) {
   LookupIterator it(isolate, object, name);
-  MAYBE_RETURN_NULL(SetProperty(&it, value, language_mode, store_mode));
+  MAYBE_RETURN_NULL(SetProperty(&it, value, language_mode, store_origin));
   return value;
 }
-
 
 Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
                                         Handle<Object> value,
                                         LanguageMode language_mode,
-                                        StoreFromKeyed store_mode,
-                                        bool* found) {
+                                        StoreOrigin store_origin, bool* found) {
   it->UpdateProtector();
   DCHECK(it->IsFound());
   ShouldThrow should_throw =
@@ -5130,14 +5128,13 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
   return Nothing<bool>();
 }
 
-
 Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
                                 LanguageMode language_mode,
-                                StoreFromKeyed store_mode) {
+                                StoreOrigin store_origin) {
   if (it->IsFound()) {
     bool found = true;
     Maybe<bool> result =
-        SetPropertyInternal(it, value, language_mode, store_mode, &found);
+        SetPropertyInternal(it, value, language_mode, store_origin, &found);
     if (found) return result;
   }
 
@@ -5152,19 +5149,18 @@ Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
 
   ShouldThrow should_throw =
       is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
-  return AddDataProperty(it, value, NONE, should_throw, store_mode);
+  return AddDataProperty(it, value, NONE, should_throw, store_origin);
 }
-
 
 Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
                                      LanguageMode language_mode,
-                                     StoreFromKeyed store_mode) {
+                                     StoreOrigin store_origin) {
   Isolate* isolate = it->isolate();
 
   if (it->IsFound()) {
     bool found = true;
     Maybe<bool> result =
-        SetPropertyInternal(it, value, language_mode, store_mode, &found);
+        SetPropertyInternal(it, value, language_mode, store_origin, &found);
     if (found) return result;
   }
 
@@ -5243,7 +5239,7 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
     }
   }
 
-  return AddDataProperty(&own_lookup, value, NONE, should_throw, store_mode);
+  return AddDataProperty(&own_lookup, value, NONE, should_throw, store_origin);
 }
 
 Maybe<bool> Object::CannotCreateProperty(Isolate* isolate,
@@ -5340,11 +5336,10 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
   return Just(true);
 }
 
-
 Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
                                     PropertyAttributes attributes,
                                     ShouldThrow should_throw,
-                                    StoreFromKeyed store_mode) {
+                                    StoreOrigin store_origin) {
   if (!it->GetReceiver()->IsJSReceiver()) {
     return CannotCreateProperty(it->isolate(), it->GetReceiver(), it->GetName(),
                                 value, should_throw);
@@ -5406,7 +5401,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
     // Migrate to the most up-to-date map that will be able to store |value|
     // under it->name() with |attributes|.
     it->PrepareTransitionToDataProperty(receiver, value, attributes,
-                                        store_mode);
+                                        store_origin);
     DCHECK_EQ(LookupIterator::TRANSITION, it->state());
     it->ApplyTransitionToDataProperty(receiver);
 
@@ -5885,7 +5880,7 @@ Maybe<bool> JSProxy::SetProperty(Handle<JSProxy> proxy, Handle<Name> name,
     LookupIterator it =
         LookupIterator::PropertyOrElement(isolate, receiver, name, target);
     return Object::SetSuperProperty(&it, value, language_mode,
-                                    Object::MAY_BE_STORE_FROM_KEYED);
+                                    StoreOrigin::kMaybeKeyed);
   }
 
   Handle<Object> trap_result;
@@ -6251,7 +6246,7 @@ void JSObject::AddProperty(Isolate* isolate, Handle<JSObject> object,
   DCHECK(object->map()->is_extensible() || name->IsPrivate());
 #endif
   CHECK(AddDataProperty(&it, value, attributes, kThrowOnError,
-                        CERTAINLY_NOT_STORE_FROM_KEYED)
+                        StoreOrigin::kNamed)
             .IsJust());
 }
 
@@ -6354,7 +6349,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
   }
 
   return AddDataProperty(it, value, attributes, should_throw,
-                         CERTAINLY_NOT_STORE_FROM_KEYED);
+                         StoreOrigin::kNamed);
 }
 
 MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
@@ -9968,7 +9963,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
                                           PropertyConstness constness,
-                                          StoreFromKeyed store_mode) {
+                                          StoreOrigin store_origin) {
   RuntimeCallTimerScope stats_scope(
       isolate, *map,
       map->is_prototype_map()
@@ -9997,7 +9992,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
 
   TransitionFlag flag = INSERT_TRANSITION;
   MaybeHandle<Map> maybe_map;
-  if (!map->TooManyFastProperties(store_mode)) {
+  if (!map->TooManyFastProperties(store_origin)) {
     if (!FLAG_track_constant_fields && value->IsJSFunction()) {
       maybe_map =
           Map::CopyWithConstant(isolate, map, name, value, attributes, flag);
@@ -10173,7 +10168,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
 
     pair = AccessorPair::Copy(isolate, Handle<AccessorPair>::cast(maybe_pair));
   } else if (map->NumberOfOwnDescriptors() >= kMaxNumberOfDescriptors ||
-             map->TooManyFastProperties(CERTAINLY_NOT_STORE_FROM_KEYED)) {
+             map->TooManyFastProperties(StoreOrigin::kNamed)) {
     return Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES,
                           "TooManyAccessors");
   } else {

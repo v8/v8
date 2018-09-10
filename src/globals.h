@@ -335,6 +335,10 @@ inline LanguageMode stricter_language_mode(LanguageMode mode1,
                                    static_cast<int>(mode2));
 }
 
+// A non-keyed store is of the form a.x = foo or a["x"] = foo whereas
+// a keyed store is of the form a[expression] = foo.
+enum class StoreOrigin { kMaybeKeyed, kNamed };
+
 enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 // Enums used by CEntry.

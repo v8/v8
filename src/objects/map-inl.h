@@ -136,10 +136,10 @@ bool Map::IsUnboxedDoubleField(FieldIndex index) const {
   return !layout_descriptor()->IsTagged(index.property_index());
 }
 
-bool Map::TooManyFastProperties(StoreFromKeyed store_mode) const {
+bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
   if (UnusedPropertyFields() != 0) return false;
   if (is_prototype_map()) return false;
-  int minimum = store_mode == CERTAINLY_NOT_STORE_FROM_KEYED ? 128 : 12;
+  int minimum = store_origin == StoreOrigin::kNamed ? 128 : 12;
   int limit = Max(minimum, GetInObjectProperties());
   int external = NumberOfFields() - GetInObjectProperties();
   return external > limit;

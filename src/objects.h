@@ -1144,13 +1144,6 @@ class Object {
   V8_INLINE bool IsNullOrUndefined(ReadOnlyRoots roots) const;
   V8_INLINE bool IsNullOrUndefined() const;
 
-  // A non-keyed store is of the form a.x = foo or a["x"] = foo whereas
-  // a keyed store is of the form a[expression] = foo.
-  enum StoreFromKeyed {
-    MAY_BE_STORE_FROM_KEYED,
-    CERTAINLY_NOT_STORE_FROM_KEYED
-  };
-
   enum class Conversion { kToNumber, kToNumeric };
 
 #define RETURN_FAILURE(isolate, should_throw, call) \
@@ -1357,19 +1350,19 @@ class Object {
   // covered by it (eg., concerning API callbacks).
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetProperty(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-      StoreFromKeyed store_mode);
+      StoreOrigin store_origin);
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> SetProperty(
       Isolate* isolate, Handle<Object> object, Handle<Name> name,
       Handle<Object> value, LanguageMode language_mode,
-      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
+      StoreOrigin store_origin = StoreOrigin::kMaybeKeyed);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> SetPropertyOrElement(
       Isolate* isolate, Handle<Object> object, Handle<Name> name,
       Handle<Object> value, LanguageMode language_mode,
-      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
+      StoreOrigin store_origin = StoreOrigin::kMaybeKeyed);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetSuperProperty(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-      StoreFromKeyed store_mode);
+      StoreOrigin store_origin);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> CannotCreateProperty(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
@@ -1386,7 +1379,7 @@ class Object {
       LookupIterator* it, Handle<Object> value);
   V8_WARN_UNUSED_RESULT static Maybe<bool> AddDataProperty(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-      ShouldThrow should_throw, StoreFromKeyed store_mode);
+      ShouldThrow should_throw, StoreOrigin store_origin);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Isolate* isolate, Handle<Object> object, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
@@ -1508,7 +1501,7 @@ class Object {
   // Return value is only meaningful if [found] is set to true on return.
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyInternal(
       LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-      StoreFromKeyed store_mode, bool* found);
+      StoreOrigin store_origin, bool* found);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Name> ConvertToName(
       Isolate* isolate, Handle<Object> input);

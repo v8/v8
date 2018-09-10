@@ -764,7 +764,7 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
                                        LanguageMode language_mode) {
   LookupIterator it(isolate, object, index);
   MAYBE_RETURN_NULL(
-      SetProperty(&it, value, language_mode, MAY_BE_STORE_FROM_KEYED));
+      SetProperty(&it, value, language_mode, StoreOrigin::kMaybeKeyed));
   return value;
 }
 
@@ -2730,9 +2730,9 @@ MaybeHandle<Object> Object::SetPropertyOrElement(Isolate* isolate,
                                                  Handle<Name> name,
                                                  Handle<Object> value,
                                                  LanguageMode language_mode,
-                                                 StoreFromKeyed store_mode) {
+                                                 StoreOrigin store_origin) {
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name);
-  MAYBE_RETURN_NULL(SetProperty(&it, value, language_mode, store_mode));
+  MAYBE_RETURN_NULL(SetProperty(&it, value, language_mode, store_origin));
   return value;
 }
 

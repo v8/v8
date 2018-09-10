@@ -296,11 +296,10 @@ class StoreIC : public IC {
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
-      JSReceiver::StoreFromKeyed store_mode =
-          JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED);
+      StoreOrigin store_origin = StoreOrigin::kNamed);
 
   bool LookupForWrite(LookupIterator* it, Handle<Object> value,
-                      JSReceiver::StoreFromKeyed store_mode);
+                      StoreOrigin store_origin);
 
  protected:
   // Stub accessors.
@@ -312,7 +311,7 @@ class StoreIC : public IC {
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
-                    JSReceiver::StoreFromKeyed store_mode);
+                    StoreOrigin store_origin);
 
  private:
   MaybeObjectHandle ComputeHandler(LookupIterator* lookup);

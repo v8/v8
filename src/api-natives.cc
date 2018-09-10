@@ -114,9 +114,8 @@ MaybeHandle<Object> DefineDataProperty(Isolate* isolate,
   }
 #endif
 
-  MAYBE_RETURN_NULL(
-      Object::AddDataProperty(&it, value, attributes, kThrowOnError,
-                              Object::CERTAINLY_NOT_STORE_FROM_KEYED));
+  MAYBE_RETURN_NULL(Object::AddDataProperty(
+      &it, value, attributes, kThrowOnError, StoreOrigin::kNamed));
   return value;
 }
 

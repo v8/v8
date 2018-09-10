@@ -342,7 +342,8 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                Handle<Object> object,
                                                Handle<Object> key,
                                                Handle<Object> value,
-                                               LanguageMode language_mode) {
+                                               LanguageMode language_mode,
+                                               StoreOrigin store_origin) {
   if (object->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR(
         isolate,
@@ -364,8 +365,9 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
         Object);
   }
 
-  MAYBE_RETURN_NULL(Object::SetProperty(&it, value, language_mode,
-                                        Object::MAY_BE_STORE_FROM_KEYED));
+  MAYBE_RETURN_NULL(
+      Object::SetProperty(&it, value, language_mode, store_origin));
+
   return value;
 }
 
@@ -604,8 +606,7 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
                                         object, index, value, NONE));
 }
 
-
-RUNTIME_FUNCTION(Runtime_SetProperty) {
+RUNTIME_FUNCTION(Runtime_SetKeyedProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
 
@@ -616,9 +617,23 @@ RUNTIME_FUNCTION(Runtime_SetProperty) {
 
   RETURN_RESULT_OR_FAILURE(
       isolate,
-      Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
+      Runtime::SetObjectProperty(isolate, object, key, value, language_mode,
+                                 StoreOrigin::kMaybeKeyed));
 }
 
+RUNTIME_FUNCTION(Runtime_SetNamedProperty) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 3);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Runtime::SetObjectProperty(isolate, object, key, value,
+                                          language_mode, StoreOrigin::kNamed));
+}
 
 namespace {
 
@@ -1234,7 +1249,7 @@ RUNTIME_FUNCTION(Runtime_AddPrivateField) {
   }
 
   CHECK(Object::AddDataProperty(&it, value, NONE, kDontThrow,
-                                Object::MAY_BE_STORE_FROM_KEYED)
+                                StoreOrigin::kMaybeKeyed)
             .FromJust());
   return ReadOnlyRoots(isolate).undefined_value();
 }
