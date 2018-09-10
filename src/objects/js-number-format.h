@@ -40,6 +40,9 @@ class JSNumberFormat : public JSObject {
   static Handle<JSObject> ResolvedOptions(Isolate* isolate,
                                           Handle<JSNumberFormat> number_format);
 
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
+      Isolate* isolate, Handle<JSNumberFormat> number_format, double number);
+
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatNumber(
       Isolate* isolate, Handle<JSNumberFormat> number_format, double number);
 
@@ -114,6 +117,19 @@ class JSNumberFormat : public JSObject {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSNumberFormat);
 };
+
+struct NumberFormatSpan {
+  int32_t field_id;
+  int32_t begin_pos;
+  int32_t end_pos;
+
+  NumberFormatSpan() {}
+  NumberFormatSpan(int32_t field_id, int32_t begin_pos, int32_t end_pos)
+      : field_id(field_id), begin_pos(begin_pos), end_pos(end_pos) {}
+};
+
+std::vector<NumberFormatSpan> FlattenRegionsToParts(
+    std::vector<NumberFormatSpan>* regions);
 
 }  // namespace internal
 }  // namespace v8

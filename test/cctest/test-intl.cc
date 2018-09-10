@@ -4,10 +4,10 @@
 
 #ifdef V8_INTL_SUPPORT
 
-#include "src/builtins/builtins-intl.h"
 #include "src/lookup.h"
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
+#include "src/objects/js-number-format.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

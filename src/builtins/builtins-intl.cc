@@ -10,7 +10,6 @@
 #include <list>
 #include <memory>
 
-#include "src/builtins/builtins-intl.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/date.h"
@@ -132,50 +131,6 @@ BUILTIN(StringPrototypeNormalizeIntl) {
 
 namespace {
 
-// The list comes from third_party/icu/source/i18n/unicode/unum.h.
-// They're mapped to NumberFormat part types mentioned throughout
-// https://tc39.github.io/ecma402/#sec-partitionnumberpattern .
-Handle<String> IcuNumberFieldIdToNumberType(int32_t field_id, double number,
-                                            Isolate* isolate) {
-  switch (static_cast<UNumberFormatFields>(field_id)) {
-    case UNUM_INTEGER_FIELD:
-      if (std::isfinite(number)) return isolate->factory()->integer_string();
-      if (std::isnan(number)) return isolate->factory()->nan_string();
-      return isolate->factory()->infinity_string();
-    case UNUM_FRACTION_FIELD:
-      return isolate->factory()->fraction_string();
-    case UNUM_DECIMAL_SEPARATOR_FIELD:
-      return isolate->factory()->decimal_string();
-    case UNUM_GROUPING_SEPARATOR_FIELD:
-      return isolate->factory()->group_string();
-    case UNUM_CURRENCY_FIELD:
-      return isolate->factory()->currency_string();
-    case UNUM_PERCENT_FIELD:
-      return isolate->factory()->percentSign_string();
-    case UNUM_SIGN_FIELD:
-      return number < 0 ? isolate->factory()->minusSign_string()
-                        : isolate->factory()->plusSign_string();
-
-    case UNUM_EXPONENT_SYMBOL_FIELD:
-    case UNUM_EXPONENT_SIGN_FIELD:
-    case UNUM_EXPONENT_FIELD:
-      // We should never get these because we're not using any scientific
-      // formatter.
-      UNREACHABLE();
-      return Handle<String>();
-
-    case UNUM_PERMILL_FIELD:
-      // We're not creating any permill formatter, and it's not even clear how
-      // that would be possible with the ICU API.
-      UNREACHABLE();
-      return Handle<String>();
-
-    default:
-      UNREACHABLE();
-      return Handle<String>();
-  }
-}
-
 // The list comes from third_party/icu/source/i18n/unicode/udat.h.
 // They're mapped to DateTimeFormat components listed at
 // https://tc39.github.io/ecma402/#sec-datetimeformat-abstracts .
@@ -225,74 +180,6 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
       // To prevent MSVC from issuing C4715 warning.
       return Handle<String>();
   }
-}
-
-bool cmp_NumberFormatSpan(const NumberFormatSpan& a,
-                          const NumberFormatSpan& b) {
-  // Regions that start earlier should be encountered earlier.
-  if (a.begin_pos < b.begin_pos) return true;
-  if (a.begin_pos > b.begin_pos) return false;
-  // For regions that start in the same place, regions that last longer should
-  // be encountered earlier.
-  if (a.end_pos < b.end_pos) return false;
-  if (a.end_pos > b.end_pos) return true;
-  // For regions that are exactly the same, one of them must be the "literal"
-  // backdrop we added, which has a field_id of -1, so consider higher field_ids
-  // to be later.
-  return a.field_id < b.field_id;
-}
-
-MaybeHandle<Object> FormatNumberToParts(Isolate* isolate,
-                                        icu::NumberFormat* fmt, double number) {
-  Factory* factory = isolate->factory();
-
-  icu::UnicodeString formatted;
-  icu::FieldPositionIterator fp_iter;
-  UErrorCode status = U_ZERO_ERROR;
-  fmt->format(number, formatted, &fp_iter, status);
-  if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), Object);
-  }
-
-  Handle<JSArray> result = factory->NewJSArray(0);
-  int32_t length = formatted.length();
-  if (length == 0) return result;
-
-  std::vector<NumberFormatSpan> regions;
-  // Add a "literal" backdrop for the entire string. This will be used if no
-  // other region covers some part of the formatted string. It's possible
-  // there's another field with exactly the same begin and end as this backdrop,
-  // in which case the backdrop's field_id of -1 will give it lower priority.
-  regions.push_back(NumberFormatSpan(-1, 0, formatted.length()));
-
-  {
-    icu::FieldPosition fp;
-    while (fp_iter.next(fp)) {
-      regions.push_back(NumberFormatSpan(fp.getField(), fp.getBeginIndex(),
-                                         fp.getEndIndex()));
-    }
-  }
-
-  std::vector<NumberFormatSpan> parts = FlattenRegionsToParts(&regions);
-
-  int index = 0;
-  for (auto it = parts.begin(); it < parts.end(); it++) {
-    NumberFormatSpan part = *it;
-    Handle<String> field_type_string =
-        part.field_id == -1
-            ? isolate->factory()->literal_string()
-            : IcuNumberFieldIdToNumberType(part.field_id, number, isolate);
-    Handle<String> substring;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, substring,
-        Intl::ToString(isolate, formatted, part.begin_pos, part.end_pos),
-        Object);
-    Intl::AddElement(isolate, result, index, field_type_string, substring);
-    ++index;
-  }
-  JSObject::ValidateElements(*result);
-
-  return result;
 }
 
 MaybeHandle<Object> FormatDateToParts(Isolate* isolate, icu::DateFormat* format,
@@ -380,96 +267,6 @@ BUILTIN(V8BreakIteratorSupportedLocalesOf) {
       isolate, SupportedLocalesOfCommon(isolate, "breakiterator", args));
 }
 
-// Flattens a list of possibly-overlapping "regions" to a list of
-// non-overlapping "parts". At least one of the input regions must span the
-// entire space of possible indexes. The regions parameter will sorted in-place
-// according to some criteria; this is done for performance to avoid copying the
-// input.
-std::vector<NumberFormatSpan> FlattenRegionsToParts(
-    std::vector<NumberFormatSpan>* regions) {
-  // The intention of this algorithm is that it's used to translate ICU "fields"
-  // to JavaScript "parts" of a formatted string. Each ICU field and JavaScript
-  // part has an integer field_id, which corresponds to something like "grouping
-  // separator", "fraction", or "percent sign", and has a begin and end
-  // position. Here's a diagram of:
-
-  // var nf = new Intl.NumberFormat(['de'], {style:'currency',currency:'EUR'});
-  // nf.formatToParts(123456.78);
-
-  //               :       6
-  //  input regions:    0000000211 7
-  // ('-' means -1):    ------------
-  // formatted string: "123.456,78 €"
-  // output parts:      0006000211-7
-
-  // To illustrate the requirements of this algorithm, here's a contrived and
-  // convoluted example of inputs and expected outputs:
-
-  //              :          4
-  //              :      22 33    3
-  //              :      11111   22
-  // input regions:     0000000  111
-  //              :     ------------
-  // formatted string: "abcdefghijkl"
-  // output parts:      0221340--231
-  // (The characters in the formatted string are irrelevant to this function.)
-
-  // We arrange the overlapping input regions like a mountain range where
-  // smaller regions are "on top" of larger regions, and we output a birds-eye
-  // view of the mountains, so that smaller regions take priority over larger
-  // regions.
-  std::sort(regions->begin(), regions->end(), cmp_NumberFormatSpan);
-  std::vector<size_t> overlapping_region_index_stack;
-  // At least one item in regions must be a region spanning the entire string.
-  // Due to the sorting above, the first item in the vector will be one of them.
-  overlapping_region_index_stack.push_back(0);
-  NumberFormatSpan top_region = regions->at(0);
-  size_t region_iterator = 1;
-  int32_t entire_size = top_region.end_pos;
-
-  std::vector<NumberFormatSpan> out_parts;
-
-  // The "climber" is a cursor that advances from left to right climbing "up"
-  // and "down" the mountains. Whenever the climber moves to the right, that
-  // represents an item of output.
-  int32_t climber = 0;
-  while (climber < entire_size) {
-    int32_t next_region_begin_pos;
-    if (region_iterator < regions->size()) {
-      next_region_begin_pos = regions->at(region_iterator).begin_pos;
-    } else {
-      // finish off the rest of the input by proceeding to the end.
-      next_region_begin_pos = entire_size;
-    }
-
-    if (climber < next_region_begin_pos) {
-      while (top_region.end_pos < next_region_begin_pos) {
-        if (climber < top_region.end_pos) {
-          // step down
-          out_parts.push_back(NumberFormatSpan(top_region.field_id, climber,
-                                               top_region.end_pos));
-          climber = top_region.end_pos;
-        } else {
-          // drop down
-        }
-        overlapping_region_index_stack.pop_back();
-        top_region = regions->at(overlapping_region_index_stack.back());
-      }
-      if (climber < next_region_begin_pos) {
-        // cross a plateau/mesa/valley
-        out_parts.push_back(NumberFormatSpan(top_region.field_id, climber,
-                                             next_region_begin_pos));
-        climber = next_region_begin_pos;
-      }
-    }
-    if (region_iterator < regions->size()) {
-      overlapping_region_index_stack.push_back(region_iterator++);
-      top_region = regions->at(overlapping_region_index_stack.back());
-    }
-  }
-  return out_parts;
-}
-
 BUILTIN(NumberFormatSupportedLocalesOf) {
   HandleScope scope(isolate);
   RETURN_RESULT_OR_FAILURE(
@@ -489,12 +286,8 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
     x = isolate->factory()->nan_value();
   }
 
-  icu::NumberFormat* icu_number_format =
-      number_format->icu_number_format()->raw();
-  CHECK_NOT_NULL(icu_number_format);
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, FormatNumberToParts(isolate, icu_number_format, x->Number()));
+  RETURN_RESULT_OR_FAILURE(isolate, JSNumberFormat::FormatToParts(
+                                        isolate, number_format, x->Number()));
 }
 
 BUILTIN(DateTimeFormatSupportedLocalesOf) {
