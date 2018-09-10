@@ -195,13 +195,6 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
   }
 
   // Get a string stored in the module bytes representing a name.
-  WasmName GetName(WireBytesRef ref) const;
-
-  // Get a string stored in the module bytes representing a function name.
-  WasmName GetName(const WasmFunction* function,
-                   const WasmModule* module) const;
-
-  // Get a string stored in the module bytes representing a name.
   WasmName GetNameOrNull(WireBytesRef ref) const;
 
   // Get a string stored in the module bytes representing a function name.

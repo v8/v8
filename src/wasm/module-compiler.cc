@@ -355,7 +355,7 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
     ModuleWireBytes wire_bytes(native_module->wire_bytes());
     WireBytesRef name_ref =
         module_env->module->LookupFunctionName(wire_bytes, func_index);
-    func_name = wire_bytes.GetName(name_ref);
+    func_name = wire_bytes.GetNameOrNull(name_ref);
   }
 
   TRACE_LAZY("Compiling function '%.*s' (#%d).\n", func_name.length(),
@@ -545,7 +545,8 @@ void InitializeCompilationUnits(NativeModule* native_module) {
     Vector<const uint8_t> bytes(wire_bytes.start() + func->code.offset(),
                                 func->code.end_offset() - func->code.offset());
 
-    WasmName name = wire_bytes.GetName(func, module);
+    // TODO(herhut): Use a more useful name if none exists.
+    WasmName name = wire_bytes.GetNameOrNull(func, module);
     DCHECK_NOT_NULL(native_module);
     builder.AddUnit(func, buffer_offset, bytes, name);
   }
@@ -680,7 +681,7 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
     WasmCode* code = WasmCompilationUnit::CompileWasmFunction(
         isolate, native_module, &detected, thrower, module_env, &func);
     if (code == nullptr) {
-      TruncatedUserString<> name(wire_bytes.GetName(&func, module));
+      TruncatedUserString<> name(wire_bytes.GetNameOrNull(&func, module));
       thrower->CompileError("Compilation of #%d:%.*s failed.", i, name.length(),
                             name.start());
       break;
@@ -716,7 +717,7 @@ void ValidateSequentially(Isolate* isolate, NativeModule* native_module,
                               &detected, body);
     }
     if (result.failed()) {
-      TruncatedUserString<> name(wire_bytes.GetName(&func, module));
+      TruncatedUserString<> name(wire_bytes.GetNameOrNull(&func, module));
       thrower->CompileError("Compiling function #%d:%.*s failed: %s @+%u", i,
                             name.length(), name.start(),
                             result.error_msg().c_str(), result.error_offset());

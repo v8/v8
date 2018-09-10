@@ -48,20 +48,6 @@ void WasmModule::AddFunctionNameForTesting(int function_index,
 }
 
 // Get a string stored in the module bytes representing a name.
-WasmName ModuleWireBytes::GetName(WireBytesRef ref) const {
-  if (ref.is_empty()) return {"<?>", 3};  // no name.
-  CHECK(BoundsCheck(ref.offset(), ref.length()));
-  return WasmName::cast(
-      module_bytes_.SubVector(ref.offset(), ref.end_offset()));
-}
-
-// Get a string stored in the module bytes representing a function name.
-WasmName ModuleWireBytes::GetName(const WasmFunction* function,
-                                  const WasmModule* module) const {
-  return GetName(module->LookupFunctionName(*this, function->func_index));
-}
-
-// Get a string stored in the module bytes representing a name.
 WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
   if (!ref.is_set()) return {nullptr, 0};  // no name.
   CHECK(BoundsCheck(ref.offset(), ref.length()));

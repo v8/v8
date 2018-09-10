@@ -690,7 +690,7 @@ Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
   wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
   wasm::WireBytesRef name_ref =
       module()->LookupFunctionName(wire_bytes, func_index);
-  wasm::WasmName name = wire_bytes.GetName(name_ref);
+  wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
   return Vector<const uint8_t>::cast(name);
 }
 

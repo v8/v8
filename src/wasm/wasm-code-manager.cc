@@ -141,25 +141,34 @@ bool WasmCode::ShouldBeLogged(Isolate* isolate) {
 void WasmCode::LogCode(Isolate* isolate) const {
   DCHECK(ShouldBeLogged(isolate));
   if (IsAnonymous()) return;
+
   ModuleWireBytes wire_bytes(native_module()->wire_bytes());
   // TODO(herhut): Allow to log code without on-heap round-trip of the name.
   ModuleEnv* module_env = GetModuleEnv(native_module()->compilation_state());
   WireBytesRef name_ref =
       module_env->module->LookupFunctionName(wire_bytes, index());
-  WasmName name_vec = wire_bytes.GetName(name_ref);
-  MaybeHandle<String> maybe_name =
-      isolate->factory()->NewStringFromUtf8(Vector<const char>::cast(name_vec));
-  Handle<String> name;
-  if (!maybe_name.ToHandle(&name)) {
-    name = isolate->factory()->NewStringFromAsciiChecked("<name too long>");
+  WasmName name_vec = wire_bytes.GetNameOrNull(name_ref);
+  if (!name_vec.is_empty()) {
+    MaybeHandle<String> maybe_name = isolate->factory()->NewStringFromUtf8(
+        Vector<const char>::cast(name_vec));
+    Handle<String> name;
+    if (!maybe_name.ToHandle(&name)) {
+      name = isolate->factory()->NewStringFromAsciiChecked("<name too long>");
+    }
+    int name_length;
+    auto cname =
+        name->ToCString(AllowNullsFlag::DISALLOW_NULLS,
+                        RobustnessFlag::ROBUST_STRING_TRAVERSAL, &name_length);
+    PROFILE(isolate,
+            CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this,
+                            {cname.get(), static_cast<size_t>(name_length)}));
+  } else {
+    EmbeddedVector<char, 32> generated_name;
+    SNPrintF(generated_name, "wasm-function[%d]", index());
+    PROFILE(isolate, CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this,
+                                     generated_name));
   }
-  int name_length;
-  auto cname =
-      name->ToCString(AllowNullsFlag::DISALLOW_NULLS,
-                      RobustnessFlag::ROBUST_STRING_TRAVERSAL, &name_length);
-  PROFILE(isolate,
-          CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this,
-                          {cname.get(), static_cast<size_t>(name_length)}));
+
   if (!source_positions().is_empty()) {
     LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(instruction_start(),
                                                        source_positions()));
