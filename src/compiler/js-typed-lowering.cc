@@ -650,7 +650,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     Callable const callable =
         CodeFactory::StringAdd(isolate(), flags, NOT_TENURED);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), callable.descriptor(), 0,
+        graph()->zone(), callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(),
         CallDescriptor::kNeedsFrameState, properties);
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
     node->InsertInput(graph()->zone(), 0,
@@ -1079,7 +1080,8 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
     // Convert {receiver} using the ToObjectStub.
     Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), callable.descriptor(), 0,
+        graph()->zone(), callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(),
         CallDescriptor::kNeedsFrameState, node->op()->properties());
     rfalse = efalse = if_false =
         graph()->NewNode(common()->Call(call_descriptor),
@@ -1802,7 +1804,8 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
         Callable const callable =
             Builtins::CallableFor(isolate(), Builtins::kForInFilter);
         auto call_descriptor = Linkage::GetStubCallDescriptor(
-            graph()->zone(), callable.descriptor(), 0,
+            graph()->zone(), callable.descriptor(),
+            callable.descriptor().GetStackParameterCount(),
             CallDescriptor::kNeedsFrameState);
         vfalse = efalse = if_false =
             graph()->NewNode(common()->Call(call_descriptor),

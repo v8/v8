@@ -269,9 +269,10 @@ Operator const* GraphAssembler::ToNumberOperator() {
     Callable callable =
         Builtins::CallableFor(jsgraph()->isolate(), Builtins::kToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-    auto call_descriptor =
-        Linkage::GetStubCallDescriptor(graph()->zone(), callable.descriptor(),
-                                       0, flags, Operator::kEliminatable);
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        graph()->zone(), callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(), flags,
+        Operator::kEliminatable);
     to_number_operator_.set(common()->Call(call_descriptor));
   }
   return to_number_operator_.get();

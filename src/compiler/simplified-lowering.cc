@@ -3972,9 +3972,10 @@ Operator const* SimplifiedLowering::ToNumberOperator() {
   if (!to_number_operator_.is_set()) {
     Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
-    auto call_descriptor =
-        Linkage::GetStubCallDescriptor(graph()->zone(), callable.descriptor(),
-                                       0, flags, Operator::kNoProperties);
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        graph()->zone(), callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(), flags,
+        Operator::kNoProperties);
     to_number_operator_.set(common()->Call(call_descriptor));
   }
   return to_number_operator_.get();
@@ -3985,9 +3986,10 @@ Operator const* SimplifiedLowering::ToNumberConvertBigIntOperator() {
     Callable callable =
         Builtins::CallableFor(isolate(), Builtins::kToNumberConvertBigInt);
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
-    auto call_descriptor =
-        Linkage::GetStubCallDescriptor(graph()->zone(), callable.descriptor(),
-                                       0, flags, Operator::kNoProperties);
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        graph()->zone(), callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(), flags,
+        Operator::kNoProperties);
     to_number_convert_big_int_operator_.set(common()->Call(call_descriptor));
   }
   return to_number_convert_big_int_operator_.get();
@@ -3997,9 +3999,10 @@ Operator const* SimplifiedLowering::ToNumericOperator() {
   if (!to_numeric_operator_.is_set()) {
     Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumeric);
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
-    auto call_descriptor =
-        Linkage::GetStubCallDescriptor(graph()->zone(), callable.descriptor(),
-                                       0, flags, Operator::kNoProperties);
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        graph()->zone(), callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(), flags,
+        Operator::kNoProperties);
     to_numeric_operator_.set(common()->Call(call_descriptor));
   }
   return to_numeric_operator_.get();

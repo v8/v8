@@ -865,7 +865,8 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
     Callable callable =
         Builtins::CallableFor(isolate(), Builtins::kGetProperty);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), callable.descriptor(), 0,
+        graph()->zone(), callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(),
         CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     vtrue = etrue = if_true =
@@ -2585,7 +2586,8 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
           : GetCallableForArrayIncludes(receiver_map->elements_kind(),
                                         isolate());
   CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags,
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
       Operator::kEliminatable);
   // The stub expects the following arguments: the receiver array, its elements,
   // the search_element, the array length, and the index to start searching
@@ -4835,7 +4837,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
   Callable callable =
       Builtins::CallableFor(isolate(), Builtins::kCloneFastJSArray);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags,
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
       Operator::kNoThrow | Operator::kNoDeopt);
 
   // Calls to Builtins::kCloneFastJSArray produce COW arrays
@@ -6493,8 +6496,9 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
     Callable const callable =
         Builtins::CallableFor(isolate(), Builtins::kOrderedHashTableHealIndex);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags,
-        Operator::kEliminatable);
+        graph()->zone(), callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(),
+        CallDescriptor::kNoFlags, Operator::kEliminatable);
     index = effect =
         graph()->NewNode(common()->Call(call_descriptor),
                          jsgraph()->HeapConstant(callable.code()), table, index,

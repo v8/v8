@@ -307,17 +307,31 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   static inline CallDescriptors::Key key();
 
 #if defined(V8_TARGET_ARCH_IA32)
+// To support all possible cases, we must limit the number of register args for
+// TFS builtins on ia32 to 3. Out of the 6 allocatable registers, esi is taken
+// as the context register and ebx is the root register. One register must
+// remain available to store the jump/call target. Thus 3 registers remain for
+// arguments. The reason this applies to TFS builtins specifically is because
+// this becomes relevant for builtins used as targets of Torque function
+// pointers (which must have a register available to store the target).
+// TODO(jgruber): Ideally we should just decrement kMaxBuiltinRegisterParams but
+// that comes with its own set of complications. It's possible, but requires
+// refactoring the calling convention of other existing stubs.
 constexpr int kMaxBuiltinRegisterParams = 4;
+constexpr int kMaxTFSBuiltinRegisterParams = 3;
 #else
 constexpr int kMaxBuiltinRegisterParams = 5;
+constexpr int kMaxTFSBuiltinRegisterParams = kMaxBuiltinRegisterParams;
 #endif
+STATIC_ASSERT(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
 
 #define DECLARE_DEFAULT_DESCRIPTOR(name, base)                                 \
   DECLARE_DESCRIPTOR_WITH_BASE(name, base)                                     \
  protected:                                                                    \
   static const int kRegisterParams =                                           \
-      kParameterCount > kMaxBuiltinRegisterParams ? kMaxBuiltinRegisterParams  \
-                                                  : kParameterCount;           \
+      kParameterCount > kMaxTFSBuiltinRegisterParams                           \
+          ? kMaxTFSBuiltinRegisterParams                                       \
+          : kParameterCount;                                                   \
   static const int kStackParams = kParameterCount - kRegisterParams;           \
   void InitializePlatformSpecific(CallInterfaceDescriptorData* data)           \
       override {                                                               \

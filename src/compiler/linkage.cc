@@ -339,6 +339,11 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
 }
 
 // TODO(turbofan): cache call descriptors for code stub calls.
+// TODO(jgruber): Clean up stack parameter count handling. The descriptor
+// already knows the formal stack parameter count and ideally only additional
+// stack parameters should be passed into this method. All call-sites should
+// be audited for correctness (e.g. many used to assume a stack parameter count
+// of 0).
 CallDescriptor* Linkage::GetStubCallDescriptor(
     Zone* zone, const CallInterfaceDescriptor& descriptor,
     int stack_parameter_count, CallDescriptor::Flags flags,
@@ -349,6 +354,8 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   const int context_count = descriptor.HasContextParameter() ? 1 : 0;
   const size_t parameter_count =
       static_cast<size_t>(js_parameter_count + context_count);
+
+  DCHECK_GE(stack_parameter_count, descriptor.GetStackParameterCount());
 
   size_t return_count = descriptor.GetReturnCount();
   LocationSignature::Builder locations(zone, return_count, parameter_count);

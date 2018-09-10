@@ -2443,12 +2443,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     // due to register pressure when kRootRegister is not allocatable. Either
     // refactor these builtins or fix register allocation in these cases.
   } else if (Builtins::IsBuiltinId(data->info()->builtin_index()) &&
-             data->info()->builtin_index() != Builtins::kWasmArgumentsAdaptor &&
-             data->info()->builtin_index() != Builtins::kCopyFromTempArray &&
-             data->info()->builtin_index() != Builtins::kCopyWithinSortArray &&
-             data->info()->builtin_index() != Builtins::kBinaryInsertionSort &&
-             data->info()->builtin_index() != Builtins::kMergeAt &&
-             data->info()->builtin_index() != Builtins::kArrayTimSort) {
+             data->info()->builtin_index() != Builtins::kWasmArgumentsAdaptor) {
     // TODO(v8:6666): Extend support to user code. Ensure that
     // it is mutually exclusive with the Poisoning configuration above; and that
     // it cooperates with restricted allocatable registers above.
