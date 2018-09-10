@@ -195,8 +195,9 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define V8_IMMEDIATE_CRASH() ((void(*)())0)()
 #endif
 
-
-// TODO(all) Replace all uses of this macro with static_assert, remove macro.
+// A convenience wrapper around static_assert without a string message argument.
+// Once C++17 becomes the default, this macro can be removed in favor of the
+// new static_assert(condition) overload.
 #define STATIC_ASSERT(test) static_assert(test, #test)
 
 namespace v8 {
