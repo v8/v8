@@ -252,11 +252,7 @@ namespace {
 Code* GenerateBytecodeHandler(Isolate* isolate, int builtin_index,
                               const char* name, interpreter::Bytecode bytecode,
                               interpreter::OperandScale operand_scale) {
-  if (!interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
-    // TODO(v8:8068): Consider returning something else to avoid placeholders
-    // being serialized with the snapshot.
-    return nullptr;
-  }
+  DCHECK(interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
 
   Handle<Code> code = interpreter::GenerateBytecodeHandler(
       isolate, bytecode, operand_scale, builtin_index,
@@ -312,19 +308,10 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   AddBuiltin(builtins, index++, code);
 
 #ifdef V8_EMBEDDED_BYTECODE_HANDLERS
-#define BUILD_BCH_WITH_SCALE(Code, Scale)                               \
+#define BUILD_BCH(Code, Bytecode, OperandScale)                         \
   code = GenerateBytecodeHandler(isolate, index, Builtins::name(index), \
-                                 interpreter::Bytecode::k##Code,        \
-                                 interpreter::OperandScale::k##Scale);  \
-  if (code) {                                                           \
-    AddBuiltin(builtins, index, code);                                  \
-  }                                                                     \
-  ++index;
-
-#define BUILD_BCH(Code, ...)         \
-  BUILD_BCH_WITH_SCALE(Code, Single) \
-  BUILD_BCH_WITH_SCALE(Code, Double) \
-  BUILD_BCH_WITH_SCALE(Code, Quadruple)
+                                 Bytecode, OperandScale);               \
+  AddBuiltin(builtins, index++, code);
 #else
 #define BUILD_BCH(Code, ...) UNREACHABLE();
 #endif  // V8_EMBEDDED_BYTECODE_HANDLERS
@@ -344,7 +331,6 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 #undef BUILD_TFS
 #undef BUILD_TFH
 #undef BUILD_BCH
-#undef BUILD_BCH_WITH_SCALE
 #undef BUILD_ASM
   CHECK_EQ(Builtins::builtin_count, index);
 

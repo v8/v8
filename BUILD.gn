@@ -73,7 +73,7 @@ declare_args() {
 
   # Enable embedded builtins.
   # TODO(jgruber,v8:6666): Support ia32 and maybe MSVC.
-  v8_enable_embedded_builtins = v8_use_snapshot && v8_current_cpu != "x86" &&
+  v8_enable_embedded_builtins = v8_use_snapshot && v8_target_cpu != "x86" &&
                                 !is_aix && (!is_win || is_clang)
 
   # Enable code-generation-time checking of types in the CodeStubAssembler.
@@ -966,6 +966,7 @@ v8_source_set("torque_generated_initializers") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
+    ":generate_bytecode_builtins_list",
     ":run_torque",
   ]
 
@@ -984,6 +985,24 @@ v8_source_set("torque_generated_initializers") {
   }
 
   configs = [ ":internal_config" ]
+}
+
+action("generate_bytecode_builtins_list") {
+  script = "tools/run.py"
+  outputs = [
+    "$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
+  ]
+  deps = [
+    ":bytecode_builtins_list_generator($host_toolchain)",
+  ]
+  args = [
+    "./" + rebase_path(
+            get_label_info(":bytecode_builtins_list_generator($host_toolchain)",
+                           "root_out_dir") +
+                "/bytecode_builtins_list_generator",
+            root_build_dir),
+    rebase_path("$target_gen_dir/builtins-generated/bytecodes-builtins-list.h"),
+  ]
 }
 
 # Template to generate different V8 snapshots based on different runtime flags.
@@ -1502,6 +1521,7 @@ v8_source_set("v8_base") {
     "//base/trace_event/common/trace_event_common.h",
 
     ### gcmole(all) ###
+    "$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
     "include/v8-inspector-protocol.h",
     "include/v8-inspector.h",
     "include/v8-internal.h",
@@ -2882,6 +2902,7 @@ v8_source_set("v8_base") {
 
   defines = []
   deps = [
+    ":generate_bytecode_builtins_list",
     ":torque_generated_core",
     ":v8_headers",
     ":v8_libbase",
@@ -3262,6 +3283,31 @@ if (v8_monolithic) {
 ###############################################################################
 # Executables
 #
+
+if (current_toolchain == host_toolchain) {
+  executable("bytecode_builtins_list_generator") {
+    visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+    include_dirs = [ "." ]
+
+    sources = [
+      "src/builtins/generate-bytecodes-builtins-list.cc",
+      "src/interpreter/bytecode-operands.cc",
+      "src/interpreter/bytecode-operands.h",
+      "src/interpreter/bytecodes.cc",
+      "src/interpreter/bytecodes.h",
+    ]
+
+    if (v8_enable_embedded_builtins) {
+      defines = [ "V8_EMBEDDED_BUILTINS" ]
+    }
+
+    deps = [
+      ":v8_libbase",
+      "//build/win:default_exe_manifest",
+    ]
+  }
+}
 
 if (v8_use_snapshot && current_toolchain == v8_snapshot_toolchain) {
   v8_executable("mksnapshot") {
@@ -3662,6 +3708,7 @@ v8_source_set("wasm_module_runner") {
   ]
 
   deps = [
+    ":generate_bytecode_builtins_list",
     ":torque_generated_core",
   ]
 
@@ -3745,6 +3792,7 @@ v8_source_set("lib_wasm_fuzzer_common") {
   ]
 
   deps = [
+    ":generate_bytecode_builtins_list",
     ":torque_generated_core",
   ]
 

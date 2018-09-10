@@ -30,6 +30,7 @@ include_rules = [
   "+testing/gtest/include/gtest/gtest_prod.h",
   "-src/libplatform",
   "-include/libplatform",
+  "+builtins-generated",
   "+torque-generated"
 ]
 

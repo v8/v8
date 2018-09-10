@@ -469,8 +469,10 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
   // Returns string representation of |bytecode|.
   static const char* ToString(Bytecode bytecode);
 
-  // Returns string representation of |bytecode|.
-  static std::string ToString(Bytecode bytecode, OperandScale operand_scale);
+  // Returns string representation of |bytecode| combined with |operand_scale|
+  // using the optionally provided |separator|.
+  static std::string ToString(Bytecode bytecode, OperandScale operand_scale,
+                              const char* separator = ".");
 
   // Returns byte value of bytecode.
   static uint8_t ToByte(Bytecode bytecode) {

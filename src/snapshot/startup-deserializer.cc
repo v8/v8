@@ -64,7 +64,10 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
 
   // Issue code events for newly deserialized code objects.
   LOG_CODE_EVENT(isolate, LogCodeObjects());
+#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
+  // Log bytecode handlers if they haven't already been logged as builtins
   LOG_CODE_EVENT(isolate, LogBytecodeHandlers());
+#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
   LOG_CODE_EVENT(isolate, LogCompiledFunctions());
 
   isolate->builtins()->MarkInitialized();

@@ -61,14 +61,14 @@ Interpreter::Interpreter(Isolate* isolate) : isolate_(isolate) {
 
 Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
     Bytecode bytecode, OperandScale operand_scale) {
+#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
+  return GetBytecodeHandler(bytecode, operand_scale);
+#else
   Code* code = GetBytecodeHandler(bytecode, operand_scale);
 
   // Already deserialized? Then just return the handler.
   if (!isolate_->heap()->IsDeserializeLazyHandler(code)) return code;
 
-#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
-  UNREACHABLE();
-#else
   DCHECK(FLAG_lazy_handler_deserialization);
   DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
   code = Snapshot::DeserializeHandler(isolate_, bytecode, operand_scale);
@@ -86,9 +86,11 @@ Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
 Code* Interpreter::GetBytecodeHandler(Bytecode bytecode,
                                       OperandScale operand_scale) {
 #ifdef V8_EMBEDDED_BYTECODE_HANDLERS
-  // The dispatch table has pointers to the offheap instruction stream, so it's
-  // not possible to use that to get hold of the Code object.
-  return isolate_->builtins()->GetBytecodeHandler(bytecode, operand_scale);
+  size_t index = GetDispatchTableIndex(bytecode, operand_scale);
+  Address pc = dispatch_table_[index];
+  Code* builtin = InstructionStream::TryLookupCode(isolate_, pc);
+  DCHECK(builtin->IsCode());
+  return builtin;
 #else
   DCHECK(IsDispatchTableInitialized());
   DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
@@ -253,12 +255,21 @@ void Interpreter::InitializeDispatchTable() {
 #ifdef V8_EMBEDDED_BYTECODE_HANDLERS
   Builtins* builtins = isolate_->builtins();
   Code* illegal = builtins->builtin(Builtins::kIllegalHandler);
-  ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
-    Code* handler = Bytecodes::BytecodeHasHandler(bytecode, operand_scale)
-                        ? builtins->GetBytecodeHandler(bytecode, operand_scale)
-                        : illegal;
+  int builtin_id = Builtins::kFirstBytecodeHandler;
+  ForEachBytecode([&](Bytecode bytecode, OperandScale operand_scale) {
+    Code* handler = illegal;
+    if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
+#ifdef DEBUG
+      std::string builtin_name(Builtins::name(builtin_id));
+      std::string expected_name =
+          Bytecodes::ToString(bytecode, operand_scale, "") + "Handler";
+      DCHECK_EQ(expected_name, builtin_name);
+#endif
+      handler = builtins->builtin(builtin_id++);
+    }
     SetBytecodeHandler(bytecode, operand_scale, handler);
   });
+  DCHECK(builtin_id == Builtins::builtin_count);
 #endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 }
 
