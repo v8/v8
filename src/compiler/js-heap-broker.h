@@ -469,6 +469,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   ObjectData* GetData(Handle<Object>) const;
   // Never returns nullptr.
   ObjectData* GetOrCreateData(Handle<Object>);
+  // Like the previous but wraps argument in handle first (for convenience).
+  ObjectData* GetOrCreateData(Object*);
 
   void Trace(const char* format, ...) const;
 

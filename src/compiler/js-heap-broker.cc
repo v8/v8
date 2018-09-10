@@ -27,8 +27,8 @@ class ObjectData : public ZoneObject {
  public:
   static ObjectData* Serialize(JSHeapBroker* broker, Handle<Object> object);
 
-  ObjectData(JSHeapBroker* broker_, Handle<Object> object_, bool is_smi_)
-      : broker(broker_), object(object_), is_smi(is_smi_) {
+  ObjectData(JSHeapBroker* broker, Handle<Object> object, bool is_smi)
+      : broker_(broker), object_(object), is_smi_(is_smi) {
     broker->AddData(object, this);
   }
 
@@ -38,39 +38,42 @@ class ObjectData : public ZoneObject {
   HEAP_BROKER_OBJECT_LIST(DECLARE_IS_AND_AS)
 #undef DECLARE_IS_AND_AS
 
-  JSHeapBroker* const broker;
-  Handle<Object> const object;
-  bool const is_smi;
+  JSHeapBroker* broker() const { return broker_; }
+  Handle<Object> object() const { return object_; }
+  bool is_smi() const { return is_smi_; }
+
+ private:
+  JSHeapBroker* const broker_;
+  Handle<Object> const object_;
+  bool const is_smi_;
 };
-
-// TODO(neis): Perhaps add a boolean that indicates whether serialization of an
-// object has completed. That could be used to add safety checks.
-
-#define GET_OR_CREATE(raw) \
-  broker->GetOrCreateData(handle(raw, broker->isolate()))
 
 class HeapObjectData : public ObjectData {
  public:
   static HeapObjectData* Serialize(JSHeapBroker* broker,
                                    Handle<HeapObject> object);
 
-  HeapObjectType const type;
-  MapData* const map;
+  HeapObjectType type() const { return type_; }
+  MapData* map() const { return map_; }
 
-  HeapObjectData(JSHeapBroker* broker_, Handle<HeapObject> object_,
-                 HeapObjectType type_)
-      : ObjectData(broker_, object_, false),
-        type(type_),
-        map(GET_OR_CREATE(object_->map())->AsMap()) {
-    CHECK(broker_->SerializingAllowed());
+  HeapObjectData(JSHeapBroker* broker, Handle<HeapObject> object,
+                 HeapObjectType type)
+      : ObjectData(broker, object, false),
+        type_(type),
+        map_(broker->GetOrCreateData(object->map())->AsMap()) {
+    CHECK(broker->SerializingAllowed());
   }
+
+ private:
+  HeapObjectType const type_;
+  MapData* const map_;
 };
 
 class PropertyCellData : public HeapObjectData {
  public:
-  PropertyCellData(JSHeapBroker* broker_, Handle<PropertyCell> object_,
-                   HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_) {}
+  PropertyCellData(JSHeapBroker* broker, Handle<PropertyCell> object,
+                   HeapObjectType type)
+      : HeapObjectData(broker, object, type) {}
 };
 
 class JSObjectField {
@@ -97,8 +100,8 @@ class JSObjectField {
 
 class JSObjectData : public HeapObjectData {
  public:
-  JSObjectData(JSHeapBroker* broker_, Handle<JSObject> object_,
-               HeapObjectType type_);
+  JSObjectData(JSHeapBroker* broker, Handle<JSObject> object,
+               HeapObjectType type);
 
   // Recursively serializes all reachable JSObjects.
   void SerializeAsBoilerplate();
@@ -116,9 +119,10 @@ class JSObjectData : public HeapObjectData {
 
   FixedArrayBaseData* elements_ = nullptr;
   bool cow_or_empty_elements_tenured_ = false;
-  // The {is_serialized_as_boilerplate} flag is set when all recursively
+  // The {serialized_as_boilerplate} flag is set when all recursively
   // reachable JSObjects are serialized.
-  bool is_serialized_as_boilerplate_ = false;
+  bool serialized_as_boilerplate_ = false;
+  bool serialized_elements_ = false;
 
   ZoneVector<JSObjectField> inobject_fields_;
 };
@@ -136,8 +140,8 @@ class JSFunctionData : public JSObjectData {
   ObjectData* prototype() const { return prototype_; }
   SharedFunctionInfoData* shared() const { return shared_; }
 
-  JSFunctionData(JSHeapBroker* broker_, Handle<JSFunction> object_,
-                 HeapObjectType type_);
+  JSFunctionData(JSHeapBroker* broker, Handle<JSFunction> object,
+                 HeapObjectType type);
   void Serialize();
 
  private:
@@ -155,9 +159,9 @@ class JSFunctionData : public JSObjectData {
 
 class JSRegExpData : public JSObjectData {
  public:
-  JSRegExpData(JSHeapBroker* broker_, Handle<JSRegExp> object_,
-               HeapObjectType type_)
-      : JSObjectData(broker_, object_, type_) {}
+  JSRegExpData(JSHeapBroker* broker, Handle<JSRegExp> object,
+               HeapObjectType type)
+      : JSObjectData(broker, object, type) {}
 
   void SerializeAsRegExpBoilerplate();
 
@@ -168,7 +172,7 @@ class JSRegExpData : public JSObjectData {
   ObjectData* last_index() const { return last_index_; }
 
  private:
-  bool is_serialized_as_reg_exp_boilerplate_ = false;
+  bool serialized_as_reg_exp_boilerplate_ = false;
 
   ObjectData* raw_properties_or_hash_ = nullptr;
   ObjectData* data_ = nullptr;
@@ -179,9 +183,9 @@ class JSRegExpData : public JSObjectData {
 
 class HeapNumberData : public HeapObjectData {
  public:
-  HeapNumberData(JSHeapBroker* broker_, Handle<HeapNumber> object_,
-                 HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_), value_(object_->value()) {}
+  HeapNumberData(JSHeapBroker* broker, Handle<HeapNumber> object,
+                 HeapObjectType type)
+      : HeapObjectData(broker, object, type), value_(object->value()) {}
 
   double value() const { return value_; }
 
@@ -191,9 +195,9 @@ class HeapNumberData : public HeapObjectData {
 
 class MutableHeapNumberData : public HeapObjectData {
  public:
-  MutableHeapNumberData(JSHeapBroker* broker_,
-                        Handle<MutableHeapNumber> object_, HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_), value_(object_->value()) {}
+  MutableHeapNumberData(JSHeapBroker* broker, Handle<MutableHeapNumber> object,
+                        HeapObjectType type)
+      : HeapObjectData(broker, object, type), value_(object->value()) {}
 
   double value() const { return value_; }
 
@@ -203,9 +207,8 @@ class MutableHeapNumberData : public HeapObjectData {
 
 class ContextData : public HeapObjectData {
  public:
-  ContextData(JSHeapBroker* broker_, Handle<Context> object_,
-              HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_) {}
+  ContextData(JSHeapBroker* broker, Handle<Context> object, HeapObjectType type)
+      : HeapObjectData(broker, object, type) {}
 };
 
 class NativeContextData : public ContextData {
@@ -215,8 +218,8 @@ class NativeContextData : public ContextData {
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_ACCESSOR)
 #undef DECL_ACCESSOR
 
-  NativeContextData(JSHeapBroker* broker_, Handle<NativeContext> object_,
-                    HeapObjectType type_);
+  NativeContextData(JSHeapBroker* broker, Handle<NativeContext> object,
+                    HeapObjectType type);
   void Serialize();
 
  private:
@@ -234,22 +237,26 @@ class NameData : public HeapObjectData {
 
 class StringData : public NameData {
  public:
+  int length() const { return length_; }
+  uint16_t first_char() const { return first_char_; }
+  base::Optional<double> to_number() const { return to_number_; }
+
   StringData(JSHeapBroker* broker, Handle<String> object, HeapObjectType type)
       : NameData(broker, object, type),
-        length(object->length()),
-        first_char(length > 0 ? object->Get(0) : 0) {
+        length_(object->length()),
+        first_char_(length_ > 0 ? object->Get(0) : 0) {
     int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
-    if (length <= kMaxLengthForDoubleConversion) {
-      to_number = StringToDouble(
+    if (length_ <= kMaxLengthForDoubleConversion) {
+      to_number_ = StringToDouble(
           broker->isolate(), broker->isolate()->unicode_cache(), object, flags);
     }
   }
 
-  int const length;
-  uint16_t const first_char;
-  base::Optional<double> to_number;
-
  private:
+  int const length_;
+  uint16_t const first_char_;
+  base::Optional<double> to_number_;
+
   static constexpr int kMaxLengthForDoubleConversion = 23;
 };
 
@@ -348,66 +355,75 @@ bool IsInlinableFastLiteral(Handle<JSObject> boilerplate) {
 
 class AllocationSiteData : public HeapObjectData {
  public:
-  AllocationSiteData(JSHeapBroker* broker, Handle<AllocationSite> object_,
-                     HeapObjectType type_)
-      : HeapObjectData(broker, object_, type_),
-        PointsToLiteral(object_->PointsToLiteral()),
-        GetPretenureMode(object_->GetPretenureMode()) {
-    if (PointsToLiteral) {
-      IsFastLiteral = IsInlinableFastLiteral(
-          handle(object_->boilerplate(), broker->isolate()));
+  AllocationSiteData(JSHeapBroker* broker, Handle<AllocationSite> object,
+                     HeapObjectType type)
+      : HeapObjectData(broker, object, type),
+        PointsToLiteral_(object->PointsToLiteral()),
+        GetPretenureMode_(object->GetPretenureMode()) {
+    if (PointsToLiteral_) {
+      IsFastLiteral_ = IsInlinableFastLiteral(
+          handle(object->boilerplate(), broker->isolate()));
     } else {
-      GetElementsKind = object_->GetElementsKind();
-      CanInlineCall = object_->CanInlineCall();
+      GetElementsKind_ = object->GetElementsKind();
+      CanInlineCall_ = object->CanInlineCall();
     }
   }
 
   void SerializeBoilerplate() {
-    if (boilerplate != nullptr || !IsFastLiteral) return;
+    if (boilerplate_ != nullptr || !IsFastLiteral_) return;
 
-    Handle<AllocationSite> site = Handle<AllocationSite>::cast(object);
-    Handle<JSObject> boilerplate_object(site->boilerplate(), broker->isolate());
-    boilerplate = broker->GetOrCreateData(boilerplate_object)->AsJSObject();
-    boilerplate->SerializeAsBoilerplate();
+    Handle<AllocationSite> site = Handle<AllocationSite>::cast(object());
+    Handle<JSObject> boilerplate_object(site->boilerplate(),
+                                        broker()->isolate());
+    boilerplate_ = broker()->GetOrCreateData(boilerplate_object)->AsJSObject();
+    boilerplate_->SerializeAsBoilerplate();
 
-    DCHECK_NULL(nested_site);
+    DCHECK_NULL(nested_site_);
     Handle<Object> nested_site_object =
-        handle(site->nested_site(), broker->isolate());
-    nested_site = broker->GetOrCreateData(nested_site_object);
-    if (nested_site->IsAllocationSite()) {
-      nested_site->AsAllocationSite()->SerializeBoilerplate();
+        handle(site->nested_site(), broker()->isolate());
+    nested_site_ = broker()->GetOrCreateData(nested_site_object);
+    if (nested_site_->IsAllocationSite()) {
+      nested_site_->AsAllocationSite()->SerializeBoilerplate();
     }
   }
 
-  bool const PointsToLiteral;
-  PretenureFlag const GetPretenureMode;
-  ObjectData* nested_site = nullptr;
-  bool IsFastLiteral = false;
-  JSObjectData* boilerplate = nullptr;
+  bool PointsToLiteral() const { return PointsToLiteral_; }
+  PretenureFlag GetPretenureMode() const { return GetPretenureMode_; }
+  ObjectData* nested_site() const { return nested_site_; }
+  bool IsFastLiteral() const { return IsFastLiteral_; }
+  JSObjectData* boilerplate() const { return boilerplate_; }
 
   // These are only valid if PointsToLiteral is false.
-  ElementsKind GetElementsKind = NO_ELEMENTS;
-  bool CanInlineCall = false;
+  ElementsKind GetElementsKind() const { return GetElementsKind_; }
+  bool CanInlineCall() const { return CanInlineCall_; }
+
+ private:
+  bool const PointsToLiteral_;
+  PretenureFlag const GetPretenureMode_;
+  ObjectData* nested_site_ = nullptr;
+  bool IsFastLiteral_ = false;
+  JSObjectData* boilerplate_ = nullptr;
+  ElementsKind GetElementsKind_ = NO_ELEMENTS;
+  bool CanInlineCall_ = false;
 };
 
 // Only used in JSNativeContextSpecialization.
 class ScriptContextTableData : public HeapObjectData {
  public:
-  ScriptContextTableData(JSHeapBroker* broker_,
-                         Handle<ScriptContextTable> object_,
-                         HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_) {}
+  ScriptContextTableData(JSHeapBroker* broker,
+                         Handle<ScriptContextTable> object, HeapObjectType type)
+      : HeapObjectData(broker, object, type) {}
 };
 
 class MapData : public HeapObjectData {
  public:
-  InstanceType const instance_type;
-  int const instance_size;
-  byte const bit_field;
-  byte const bit_field2;
-  uint32_t const bit_field3;
+  InstanceType instance_type() const { return instance_type_; }
+  int instance_size() const { return instance_size_; }
+  byte bit_field() const { return bit_field_; }
+  byte bit_field2() const { return bit_field2_; }
+  uint32_t bit_field3() const { return bit_field3_; }
 
-  MapData(JSHeapBroker* broker_, Handle<Map> object_, HeapObjectType type_);
+  MapData(JSHeapBroker* broker, Handle<Map> object, HeapObjectType type);
 
   // Extra information.
   void SerializeElementsKindGeneralizations();
@@ -416,48 +432,59 @@ class MapData : public HeapObjectData {
   }
 
  private:
+  InstanceType const instance_type_;
+  int const instance_size_;
+  byte const bit_field_;
+  byte const bit_field2_;
+  uint32_t const bit_field3_;
+
   bool serialized_elements_kind_generalizations_ = false;
   ZoneVector<MapData*> elements_kind_generalizations_;
 };
 
-MapData::MapData(JSHeapBroker* broker_, Handle<Map> object_,
-                 HeapObjectType type_)
-    : HeapObjectData(broker_, object_, type_),
-      instance_type(object_->instance_type()),
-      instance_size(object_->instance_size()),
-      bit_field(object_->bit_field()),
-      bit_field2(object_->bit_field2()),
-      bit_field3(object_->bit_field3()),
+MapData::MapData(JSHeapBroker* broker, Handle<Map> object, HeapObjectType type)
+    : HeapObjectData(broker, object, type),
+      instance_type_(object->instance_type()),
+      instance_size_(object->instance_size()),
+      bit_field_(object->bit_field()),
+      bit_field2_(object->bit_field2()),
+      bit_field3_(object->bit_field3()),
       elements_kind_generalizations_(broker->zone()) {}
 
-JSFunctionData::JSFunctionData(JSHeapBroker* broker_,
-                               Handle<JSFunction> object_, HeapObjectType type_)
-    : JSObjectData(broker_, object_, type_),
-      has_initial_map_(object_->has_prototype_slot() &&
-                       object_->has_initial_map()),
-      has_prototype_(object_->has_prototype_slot() && object_->has_prototype()),
+JSFunctionData::JSFunctionData(JSHeapBroker* broker, Handle<JSFunction> object,
+                               HeapObjectType type)
+    : JSObjectData(broker, object, type),
+      has_initial_map_(object->has_prototype_slot() &&
+                       object->has_initial_map()),
+      has_prototype_(object->has_prototype_slot() && object->has_prototype()),
       PrototypeRequiresRuntimeLookup_(
-          object_->PrototypeRequiresRuntimeLookup()) {}
+          object->PrototypeRequiresRuntimeLookup()) {}
 
 void JSFunctionData::Serialize() {
   if (serialized_) return;
   serialized_ = true;
 
-  Handle<JSFunction> function = Handle<JSFunction>::cast(object);
+  Handle<JSFunction> function = Handle<JSFunction>::cast(object());
 
   CHECK_NULL(global_proxy_);
   CHECK_NULL(initial_map_);
   CHECK_NULL(prototype_);
   CHECK_NULL(shared_);
 
-  global_proxy_ = GET_OR_CREATE(function->global_proxy())->AsJSGlobalProxy();
-  shared_ = GET_OR_CREATE(function->shared())->AsSharedFunctionInfo();
-  initial_map_ = has_initial_map()
-                     ? GET_OR_CREATE(function->initial_map())->AsMap()
-                     : nullptr;
-  prototype_ = has_prototype() ? GET_OR_CREATE(function->prototype()) : nullptr;
+  global_proxy_ =
+      broker()->GetOrCreateData(function->global_proxy())->AsJSGlobalProxy();
+  shared_ =
+      broker()->GetOrCreateData(function->shared())->AsSharedFunctionInfo();
+  initial_map_ =
+      has_initial_map()
+          ? broker()->GetOrCreateData(function->initial_map())->AsMap()
+          : nullptr;
+  prototype_ = has_prototype()
+                   ? broker()->GetOrCreateData(function->prototype())
+                   : nullptr;
 
-  if (initial_map_ != nullptr && initial_map_->instance_type == JS_ARRAY_TYPE) {
+  if (initial_map_ != nullptr &&
+      initial_map_->instance_type() == JS_ARRAY_TYPE) {
     initial_map_->SerializeElementsKindGeneralizations();
   }
 }
@@ -466,8 +493,8 @@ void MapData::SerializeElementsKindGeneralizations() {
   if (serialized_elements_kind_generalizations_) return;
   serialized_elements_kind_generalizations_ = true;
 
-  broker->Trace("Computing ElementsKind generalizations of %p.\n", *object);
-  DCHECK_EQ(instance_type, JS_ARRAY_TYPE);
+  broker()->Trace("Computing ElementsKind generalizations of %p.\n", *object());
+  DCHECK_EQ(instance_type(), JS_ARRAY_TYPE);
   MapRef self(this);
   ElementsKind from_kind = self.elements_kind();
   DCHECK(elements_kind_generalizations_.empty());
@@ -475,9 +502,9 @@ void MapData::SerializeElementsKindGeneralizations() {
     ElementsKind to_kind = static_cast<ElementsKind>(i);
     if (IsMoreGeneralElementsKindTransition(from_kind, to_kind)) {
       Handle<Map> target =
-          Map::AsElementsKind(broker->isolate(), self.object<Map>(), to_kind);
+          Map::AsElementsKind(broker()->isolate(), self.object<Map>(), to_kind);
       elements_kind_generalizations_.push_back(
-          broker->GetOrCreateData(target)->AsMap());
+          broker()->GetOrCreateData(target)->AsMap());
     }
   }
 }
@@ -486,34 +513,34 @@ class FeedbackVectorData : public HeapObjectData {
  public:
   const ZoneVector<ObjectData*>& feedback() { return feedback_; }
 
-  FeedbackVectorData(JSHeapBroker* broker_, Handle<FeedbackVector> object_,
-                     HeapObjectType type_);
+  FeedbackVectorData(JSHeapBroker* broker, Handle<FeedbackVector> object,
+                     HeapObjectType type);
 
   void SerializeSlots();
 
  private:
-  bool is_serialized_ = false;
+  bool serialized_ = false;
   ZoneVector<ObjectData*> feedback_;
 };
 
-FeedbackVectorData::FeedbackVectorData(JSHeapBroker* broker_,
-                                       Handle<FeedbackVector> object_,
-                                       HeapObjectType type_)
-    : HeapObjectData(broker_, object_, type_), feedback_(broker_->zone()) {}
+FeedbackVectorData::FeedbackVectorData(JSHeapBroker* broker,
+                                       Handle<FeedbackVector> object,
+                                       HeapObjectType type)
+    : HeapObjectData(broker, object, type), feedback_(broker->zone()) {}
 
 void FeedbackVectorData::SerializeSlots() {
-  if (is_serialized_) return;
-  is_serialized_ = true;
+  if (serialized_) return;
+  serialized_ = true;
 
   DCHECK(feedback_.empty());
 
-  Handle<FeedbackVector> feedback_object = Handle<FeedbackVector>::cast(object);
-  feedback_.reserve(feedback_object->length());
-  for (int i = 0; i < feedback_object->length(); ++i) {
-    MaybeObject* value = feedback_object->get(i);
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>::cast(object());
+  feedback_.reserve(feedback_vector->length());
+  for (int i = 0; i < feedback_vector->length(); ++i) {
+    MaybeObject* value = feedback_vector->get(i);
     ObjectData* slot_value = value->IsObject()
-                                 ? broker->GetOrCreateData(handle(
-                                       value->ToObject(), broker->isolate()))
+                                 ? broker()->GetOrCreateData(value->ToObject())
                                  : nullptr;
     feedback_.push_back(slot_value);
     if (slot_value == nullptr) continue;
@@ -524,14 +551,14 @@ void FeedbackVectorData::SerializeSlots() {
       slot_value->AsJSRegExp()->SerializeAsRegExpBoilerplate();
     }
   }
-  DCHECK_EQ(feedback_object->length(), feedback_.size());
+  DCHECK_EQ(feedback_vector->length(), feedback_.size());
 }
 
 class FixedArrayBaseData : public HeapObjectData {
  public:
-  FixedArrayBaseData(JSHeapBroker* broker_, Handle<FixedArrayBase> object_,
-                     HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_), length_(object_->length()) {}
+  FixedArrayBaseData(JSHeapBroker* broker, Handle<FixedArrayBase> object,
+                     HeapObjectType type)
+      : HeapObjectData(broker, object, type), length_(object->length()) {}
 
   int length() const { return length_; }
 
@@ -539,15 +566,14 @@ class FixedArrayBaseData : public HeapObjectData {
   int const length_;
 };
 
-JSObjectData::JSObjectData(JSHeapBroker* broker_, Handle<JSObject> object_,
-                           HeapObjectType type_)
-    : HeapObjectData(broker_, object_, type_),
-      inobject_fields_(broker_->zone()) {}
+JSObjectData::JSObjectData(JSHeapBroker* broker, Handle<JSObject> object,
+                           HeapObjectType type)
+    : HeapObjectData(broker, object, type), inobject_fields_(broker->zone()) {}
 
 class FixedArrayData : public FixedArrayBaseData {
  public:
-  FixedArrayData(JSHeapBroker* broker_, Handle<FixedArray> object_,
-                 HeapObjectType type_);
+  FixedArrayData(JSHeapBroker* broker, Handle<FixedArray> object,
+                 HeapObjectType type);
 
   // Creates all elements of the fixed array.
   void SerializeContents();
@@ -555,33 +581,33 @@ class FixedArrayData : public FixedArrayBaseData {
   ObjectData* Get(int i) const;
 
  private:
+  bool serialized_contents_ = false;
   ZoneVector<ObjectData*> contents_;
 };
 
 void FixedArrayData::SerializeContents() {
-  Handle<FixedArray> fixed_array = Handle<FixedArray>::cast(this->object);
+  if (serialized_contents_) return;
+  serialized_contents_ = true;
+
+  Handle<FixedArray> fixed_array = Handle<FixedArray>::cast(object());
   CHECK_EQ(fixed_array->length(), length());
-
-  // If we are serialized, there is nothing to do.
-  if (static_cast<size_t>(length()) == contents_.size()) return;
   CHECK(contents_.empty());
-
   contents_.reserve(static_cast<size_t>(length()));
 
   for (int i = 0; i < length(); i++) {
-    Handle<Object> value = handle(fixed_array->get(i), broker->isolate());
-    contents_.push_back(broker->GetOrCreateData(value));
+    Handle<Object> value = handle(fixed_array->get(i), broker()->isolate());
+    contents_.push_back(broker()->GetOrCreateData(value));
   }
 }
 
-FixedArrayData::FixedArrayData(JSHeapBroker* broker_,
-                               Handle<FixedArray> object_, HeapObjectType type_)
-    : FixedArrayBaseData(broker_, object_, type_), contents_(broker->zone()) {}
+FixedArrayData::FixedArrayData(JSHeapBroker* broker, Handle<FixedArray> object,
+                               HeapObjectType type)
+    : FixedArrayBaseData(broker, object, type), contents_(broker->zone()) {}
 
 class FixedDoubleArrayData : public FixedArrayBaseData {
  public:
-  FixedDoubleArrayData(JSHeapBroker* broker_, Handle<FixedDoubleArray> object_,
-                       HeapObjectType type_);
+  FixedDoubleArrayData(JSHeapBroker* broker, Handle<FixedDoubleArray> object,
+                       HeapObjectType type);
 
   // Serializes all elements of the fixed array.
   void SerializeContents();
@@ -589,123 +615,130 @@ class FixedDoubleArrayData : public FixedArrayBaseData {
   Float64 Get(int i) const;
 
  private:
+  bool serialized_contents_ = false;
   ZoneVector<Float64> contents_;
 };
 
-FixedDoubleArrayData::FixedDoubleArrayData(JSHeapBroker* broker_,
-                                           Handle<FixedDoubleArray> object_,
-                                           HeapObjectType type_)
-    : FixedArrayBaseData(broker_, object_, type_), contents_(broker->zone()) {}
+FixedDoubleArrayData::FixedDoubleArrayData(JSHeapBroker* broker,
+                                           Handle<FixedDoubleArray> object,
+                                           HeapObjectType type)
+    : FixedArrayBaseData(broker, object, type), contents_(broker->zone()) {}
 
 void FixedDoubleArrayData::SerializeContents() {
-  Handle<FixedDoubleArray> fixed_double_array =
-      Handle<FixedDoubleArray>::cast(this->object);
-  CHECK_EQ(fixed_double_array->length(), length());
+  if (serialized_contents_) return;
+  serialized_contents_ = true;
 
-  // If we are serialized, there is nothing to do.
-  if (static_cast<size_t>(length()) == contents_.size()) return;
+  Handle<FixedDoubleArray> self = Handle<FixedDoubleArray>::cast(object());
+  CHECK_EQ(self->length(), length());
   CHECK(contents_.empty());
-
   contents_.reserve(static_cast<size_t>(length()));
 
   for (int i = 0; i < length(); i++) {
-    contents_.push_back(
-        Float64::FromBits(fixed_double_array->get_representation(i)));
+    contents_.push_back(Float64::FromBits(self->get_representation(i)));
   }
 }
 
 class BytecodeArrayData : public FixedArrayBaseData {
  public:
-  int const register_count;
+  int register_count() const { return register_count_; }
 
-  BytecodeArrayData(JSHeapBroker* broker_, Handle<BytecodeArray> object_,
-                    HeapObjectType type_)
-      : FixedArrayBaseData(broker_, object_, type_),
-        register_count(object_->register_count()) {}
+  BytecodeArrayData(JSHeapBroker* broker, Handle<BytecodeArray> object,
+                    HeapObjectType type)
+      : FixedArrayBaseData(broker, object, type),
+        register_count_(object->register_count()) {}
+
+ private:
+  int const register_count_;
 };
 
 class JSArrayData : public JSObjectData {
  public:
-  JSArrayData(JSHeapBroker* broker_, Handle<JSArray> object_,
-              HeapObjectType type_)
-      : JSObjectData(broker_, object_, type_) {}
+  JSArrayData(JSHeapBroker* broker, Handle<JSArray> object, HeapObjectType type)
+      : JSObjectData(broker, object, type) {}
 };
 
 class ScopeInfoData : public HeapObjectData {
  public:
-  ScopeInfoData(JSHeapBroker* broker_, Handle<ScopeInfo> object_,
-                HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_) {}
+  ScopeInfoData(JSHeapBroker* broker, Handle<ScopeInfo> object,
+                HeapObjectType type)
+      : HeapObjectData(broker, object, type) {}
 };
 
 class SharedFunctionInfoData : public HeapObjectData {
  public:
-  int const builtin_id;
-  BytecodeArrayData* const GetBytecodeArray;  // Can be nullptr.
-#define DECL_MEMBER(type, name) type const name;
-  BROKER_SFI_FIELDS(DECL_MEMBER)
-#undef DECL_MEMBER
+  int builtin_id() const { return builtin_id_; }
+  BytecodeArrayData* GetBytecodeArray() const { return GetBytecodeArray_; }
+#define DECL_ACCESSOR(type, name) \
+  type name() const { return name##_; }
+  BROKER_SFI_FIELDS(DECL_ACCESSOR)
+#undef DECL_ACCESSOR
 
-  SharedFunctionInfoData(JSHeapBroker* broker_,
-                         Handle<SharedFunctionInfo> object_,
-                         HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_),
-        builtin_id(object_->HasBuiltinId() ? object_->builtin_id()
+  SharedFunctionInfoData(JSHeapBroker* broker,
+                         Handle<SharedFunctionInfo> object, HeapObjectType type)
+      : HeapObjectData(broker, object, type),
+        builtin_id_(object->HasBuiltinId() ? object->builtin_id()
                                            : Builtins::kNoBuiltinId),
-        GetBytecodeArray(
-            object_->HasBytecodeArray()
-                ? GET_OR_CREATE(object_->GetBytecodeArray())->AsBytecodeArray()
+        GetBytecodeArray_(
+            object->HasBytecodeArray()
+                ? broker->GetOrCreateData(object->GetBytecodeArray())
+                      ->AsBytecodeArray()
                 : nullptr)
-#define INIT_MEMBER(type, name) , name(object_->name())
+#define INIT_MEMBER(type, name) , name##_(object->name())
             BROKER_SFI_FIELDS(INIT_MEMBER)
 #undef INIT_MEMBER
   {
-    DCHECK_EQ(HasBuiltinId, builtin_id != Builtins::kNoBuiltinId);
-    DCHECK_EQ(HasBytecodeArray, GetBytecodeArray != nullptr);
+    DCHECK_EQ(HasBuiltinId_, builtin_id_ != Builtins::kNoBuiltinId);
+    DCHECK_EQ(HasBytecodeArray_, GetBytecodeArray_ != nullptr);
   }
+
+ private:
+  int const builtin_id_;
+  BytecodeArrayData* const GetBytecodeArray_;
+#define DECL_MEMBER(type, name) type const name##_;
+  BROKER_SFI_FIELDS(DECL_MEMBER)
+#undef DECL_MEMBER
 };
 
 class ModuleData : public HeapObjectData {
  public:
-  ModuleData(JSHeapBroker* broker_, Handle<Module> object_,
-             HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_) {}
+  ModuleData(JSHeapBroker* broker, Handle<Module> object, HeapObjectType type)
+      : HeapObjectData(broker, object, type) {}
 };
 
 class CellData : public HeapObjectData {
  public:
-  CellData(JSHeapBroker* broker_, Handle<Cell> object_, HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_) {}
+  CellData(JSHeapBroker* broker, Handle<Cell> object, HeapObjectType type)
+      : HeapObjectData(broker, object, type) {}
 };
 
 class JSGlobalProxyData : public JSObjectData {
  public:
-  JSGlobalProxyData(JSHeapBroker* broker_, Handle<JSGlobalProxy> object_,
-                    HeapObjectType type_)
-      : JSObjectData(broker_, object_, type_) {}
+  JSGlobalProxyData(JSHeapBroker* broker, Handle<JSGlobalProxy> object,
+                    HeapObjectType type)
+      : JSObjectData(broker, object, type) {}
 };
 
 class CodeData : public HeapObjectData {
  public:
-  CodeData(JSHeapBroker* broker_, Handle<Code> object_, HeapObjectType type_)
-      : HeapObjectData(broker_, object_, type_) {}
+  CodeData(JSHeapBroker* broker, Handle<Code> object, HeapObjectType type)
+      : HeapObjectData(broker, object, type) {}
 };
 
-#define DEFINE_IS_AND_AS(Name)                                          \
-  bool ObjectData::Is##Name() const {                                   \
-    if (broker->mode() == JSHeapBroker::kDisabled) {                    \
-      AllowHandleDereference allow_handle_dereference;                  \
-      return object->Is##Name();                                        \
-    }                                                                   \
-    if (is_smi) return false;                                           \
-    InstanceType instance_type =                                        \
-        static_cast<const HeapObjectData*>(this)->type.instance_type(); \
-    return InstanceTypeChecker::Is##Name(instance_type);                \
-  }                                                                     \
-  Name##Data* ObjectData::As##Name() {                                  \
-    CHECK_NE(broker->mode(), JSHeapBroker::kDisabled);                  \
-    CHECK(Is##Name());                                                  \
-    return static_cast<Name##Data*>(this);                              \
+#define DEFINE_IS_AND_AS(Name)                                            \
+  bool ObjectData::Is##Name() const {                                     \
+    if (broker()->mode() == JSHeapBroker::kDisabled) {                    \
+      AllowHandleDereference allow_handle_dereference;                    \
+      return object()->Is##Name();                                        \
+    }                                                                     \
+    if (is_smi()) return false;                                           \
+    InstanceType instance_type =                                          \
+        static_cast<const HeapObjectData*>(this)->type().instance_type(); \
+    return InstanceTypeChecker::Is##Name(instance_type);                  \
+  }                                                                       \
+  Name##Data* ObjectData::As##Name() {                                    \
+    CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);                  \
+    CHECK(Is##Name());                                                    \
+    return static_cast<Name##Data*>(this);                                \
   }
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS_AND_AS)
 #undef DEFINE_IS_AND_AS
@@ -726,28 +759,27 @@ void JSObjectData::SerializeAsBoilerplate() {
 }
 
 void JSObjectData::SerializeElements() {
-  if (elements_) return;
+  if (serialized_elements_) return;
+  serialized_elements_ = true;
 
-  Handle<JSObject> boilerplate = Handle<JSObject>::cast(this->object);
+  Handle<JSObject> boilerplate = Handle<JSObject>::cast(object());
   Handle<FixedArrayBase> elements_object(boilerplate->elements(),
-                                         broker->isolate());
-  elements_ = broker->GetOrCreateData(elements_object)->AsFixedArrayBase();
+                                         broker()->isolate());
+  CHECK_NULL(elements_);
+  elements_ = broker()->GetOrCreateData(elements_object)->AsFixedArrayBase();
 }
 
 void JSObjectData::SerializeRecursive(int depth) {
-  Handle<JSObject> boilerplate = Handle<JSObject>::cast(this->object);
+  if (serialized_as_boilerplate_) return;
+  serialized_as_boilerplate_ = true;
+
+  Handle<JSObject> boilerplate = Handle<JSObject>::cast(object());
   Isolate* const isolate = boilerplate->GetIsolate();
 
   // We only serialize boilerplates that pass the IsInlinableFastLiteral
   // check, so we only do a sanity check on the depth here.
   CHECK_GT(depth, 0);
-
   CHECK(!boilerplate->map()->is_deprecated());
-
-  // There is nothing to do if we already started serializing.
-  if (is_serialized_as_boilerplate_) return;
-  // Mark the serialization bit to prevent recursion problems.
-  is_serialized_as_boilerplate_ = true;
 
   // Serialize the elements.
   Handle<FixedArrayBase> elements_object(boilerplate->elements(), isolate);
@@ -764,7 +796,7 @@ void JSObjectData::SerializeRecursive(int depth) {
     // We need to make sure copy-on-write elements are tenured.
     if (Heap::InNewSpace(*elements_object)) {
       elements_object =
-          broker->isolate()->factory()->CopyAndTenureFixedCOWArray(
+          broker()->isolate()->factory()->CopyAndTenureFixedCOWArray(
               Handle<FixedArray>::cast(elements_object));
       boilerplate->set_elements(*elements_object);
     }
@@ -772,7 +804,7 @@ void JSObjectData::SerializeRecursive(int depth) {
   }
 
   CHECK_NULL(elements_);
-  elements_ = broker->GetOrCreateData(elements_object)->AsFixedArrayBase();
+  elements_ = broker()->GetOrCreateData(elements_object)->AsFixedArrayBase();
 
   if (empty_or_cow) {
     // No need to do anything here. Empty or copy-on-write elements
@@ -786,7 +818,7 @@ void JSObjectData::SerializeRecursive(int depth) {
     for (int i = 0; i < length; i++) {
       Handle<Object> value(fast_elements->get(i), isolate);
       if (value->IsJSObject()) {
-        ObjectData* value_data = broker->GetOrCreateData(value);
+        ObjectData* value_data = broker()->GetOrCreateData(value);
         value_data->AsJSObject()->SerializeRecursive(depth - 1);
       }
     }
@@ -821,7 +853,7 @@ void JSObjectData::SerializeRecursive(int depth) {
     } else {
       Handle<Object> value(boilerplate->RawFastPropertyAt(field_index),
                            isolate);
-      ObjectData* value_data = broker->GetOrCreateData(value);
+      ObjectData* value_data = broker()->GetOrCreateData(value);
       if (value->IsJSObject()) {
         value_data->AsJSObject()->SerializeRecursive(depth - 1);
       }
@@ -831,22 +863,18 @@ void JSObjectData::SerializeRecursive(int depth) {
 }
 
 void JSRegExpData::SerializeAsRegExpBoilerplate() {
-  if (is_serialized_as_reg_exp_boilerplate_) return;
-  is_serialized_as_reg_exp_boilerplate_ = true;
+  if (serialized_as_reg_exp_boilerplate_) return;
+  serialized_as_reg_exp_boilerplate_ = true;
 
   SerializeElements();
 
-  Handle<JSRegExp> boilerplate = Handle<JSRegExp>::cast(this->object);
-  raw_properties_or_hash_ = broker->GetOrCreateData(
-      handle(boilerplate->raw_properties_or_hash(), broker->isolate()));
-  data_ =
-      broker->GetOrCreateData(handle(boilerplate->data(), broker->isolate()));
-  source_ =
-      broker->GetOrCreateData(handle(boilerplate->source(), broker->isolate()));
-  flags_ =
-      broker->GetOrCreateData(handle(boilerplate->flags(), broker->isolate()));
-  last_index_ = broker->GetOrCreateData(
-      handle(boilerplate->last_index(), broker->isolate()));
+  Handle<JSRegExp> boilerplate = Handle<JSRegExp>::cast(object());
+  raw_properties_or_hash_ =
+      broker()->GetOrCreateData(boilerplate->raw_properties_or_hash());
+  data_ = broker()->GetOrCreateData(boilerplate->data());
+  source_ = broker()->GetOrCreateData(boilerplate->source());
+  flags_ = broker()->GetOrCreateData(boilerplate->flags());
+  last_index_ = broker()->GetOrCreateData(boilerplate->last_index());
 }
 
 ObjectData* ObjectData::Serialize(JSHeapBroker* broker, Handle<Object> object) {
@@ -1028,6 +1056,10 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
   return data;
 }
 
+ObjectData* JSHeapBroker::GetOrCreateData(Object* object) {
+  return GetOrCreateData(handle(object, isolate()));
+}
+
 void JSHeapBroker::AddData(Handle<Object> object, ObjectData* data) {
   Trace("Creating data %p for handle %" V8PRIuPTR " (", data, object.address());
   if (FLAG_trace_heap_broker) {
@@ -1047,7 +1079,7 @@ void JSHeapBroker::AddData(Handle<Object> object, ObjectData* data) {
 HEAP_BROKER_OBJECT_LIST(DEFINE_IS_AND_AS)
 #undef DEFINE_IS_AND_AS
 
-bool ObjectRef::IsSmi() const { return data()->is_smi; }
+bool ObjectRef::IsSmi() const { return data()->is_smi(); }
 
 int ObjectRef::AsSmi() const {
   DCHECK(IsSmi());
@@ -1060,7 +1092,7 @@ HeapObjectType HeapObjectRef::type() const {
     AllowHandleDereference allow_handle_dereference;
     return broker()->HeapObjectTypeFromMap(object<HeapObject>()->map());
   } else {
-    return data()->AsHeapObject()->type;
+    return data()->AsHeapObject()->type();
   }
 }
 
@@ -1175,7 +1207,7 @@ bool AllocationSiteRef::IsFastLiteral() const {
     return IsInlinableFastLiteral(
         handle(object<AllocationSite>()->boilerplate(), broker()->isolate()));
   } else {
-    return data()->AsAllocationSite()->IsFastLiteral;
+    return data()->AsAllocationSite()->IsFastLiteral();
   }
 }
 
@@ -1258,7 +1290,7 @@ uint16_t StringRef::GetFirstChar() {
     AllowHandleDereference allow_handle_dereference;
     return object<String>()->Get(0);
   } else {
-    return data()->AsString()->first_char;
+    return data()->AsString()->first_char();
   }
 }
 
@@ -1272,7 +1304,7 @@ base::Optional<double> StringRef::ToNumber() {
                           broker()->isolate()->unicode_cache(),
                           object<String>(), flags);
   } else {
-    return data()->AsString()->to_number;
+    return data()->AsString()->to_number();
   }
 }
 
@@ -1325,37 +1357,24 @@ double FixedDoubleArrayRef::get_scalar(int i) const {
 // either looks into the handle or into the serialized data. The first one is
 // used for the rare case of a XYZRef class that does not have a corresponding
 // XYZ class in objects.h. The second one is used otherwise.
-#define BIMODAL_ACCESSOR(holder, result, name)                 \
-  result##Ref holder##Ref::name() const {                      \
-    IF_BROKER_DISABLED_ACCESS_HANDLE(holder, result, name);    \
-    return result##Ref(ObjectRef::data()->As##holder()->name); \
+#define BIMODAL_ACCESSOR(holder, result, name)                   \
+  result##Ref holder##Ref::name() const {                        \
+    IF_BROKER_DISABLED_ACCESS_HANDLE(holder, result, name);      \
+    return result##Ref(ObjectRef::data()->As##holder()->name()); \
   }
 
 // Like HANDLE_ACCESSOR except that the result type is not an XYZRef.
 #define BIMODAL_ACCESSOR_C(holder, result, name)      \
   result holder##Ref::name() const {                  \
     IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name); \
-    return ObjectRef::data()->As##holder()->name;     \
+    return ObjectRef::data()->As##holder()->name();   \
   }
 
 // Like HANDLE_ACCESSOR_C but for BitFields.
-#define BIMODAL_ACCESSOR_B(holder, field, name, BitField)            \
-  typename BitField::FieldType holder##Ref::name() const {           \
-    IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name);                \
-    return BitField::decode(ObjectRef::data()->As##holder()->field); \
-  }
-
-// Variants of the above for the case of methods rather than variables.
-// TODO(neis): Remove the other ones once the classes all provide getters.
-#define BIMODAL_ACCESSOR_C_(holder, result, name)     \
-  result holder##Ref::name() const {                  \
-    IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name); \
-    return ObjectRef::data()->As##holder()->name();   \
-  }
-#define BIMODAL_ACCESSOR_(holder, result, name)                  \
-  result##Ref holder##Ref::name() const {                        \
-    IF_BROKER_DISABLED_ACCESS_HANDLE(holder, result, name);      \
-    return result##Ref(ObjectRef::data()->As##holder()->name()); \
+#define BIMODAL_ACCESSOR_B(holder, field, name, BitField)              \
+  typename BitField::FieldType holder##Ref::name() const {             \
+    IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name);                  \
+    return BitField::decode(ObjectRef::data()->As##holder()->field()); \
   }
 
 // Macros for definining a const getter that always looks into the handle.
@@ -1392,13 +1411,13 @@ HANDLE_ACCESSOR_C(HeapObject, bool, IsSeqString)
 
 HANDLE_ACCESSOR(JSArray, Object, length)
 
-BIMODAL_ACCESSOR_C_(JSFunction, bool, has_prototype)
-BIMODAL_ACCESSOR_C_(JSFunction, bool, has_initial_map)
-BIMODAL_ACCESSOR_C_(JSFunction, bool, PrototypeRequiresRuntimeLookup)
-BIMODAL_ACCESSOR_(JSFunction, JSGlobalProxy, global_proxy)
-BIMODAL_ACCESSOR_(JSFunction, Map, initial_map)
-BIMODAL_ACCESSOR_(JSFunction, Object, prototype)
-BIMODAL_ACCESSOR_(JSFunction, SharedFunctionInfo, shared)
+BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
+BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
+BIMODAL_ACCESSOR_C(JSFunction, bool, PrototypeRequiresRuntimeLookup)
+BIMODAL_ACCESSOR(JSFunction, JSGlobalProxy, global_proxy)
+BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
+BIMODAL_ACCESSOR(JSFunction, Object, prototype)
+BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 HANDLE_ACCESSOR_C(JSFunction, bool, IsConstructor)
 
 BIMODAL_ACCESSOR_B(Map, bit_field2, elements_kind, Map::ElementsKindBits)
@@ -1418,7 +1437,7 @@ HANDLE_ACCESSOR_C(Map, int, NumberOfOwnDescriptors)
 HANDLE_ACCESSOR(Map, Object, constructor_or_backpointer)
 
 #define DEF_NATIVE_CONTEXT_ACCESSOR(type, name) \
-  BIMODAL_ACCESSOR_(NativeContext, type, name)
+  BIMODAL_ACCESSOR(NativeContext, type, name)
 BROKER_NATIVE_CONTEXT_FIELDS(DEF_NATIVE_CONTEXT_ACCESSOR)
 #undef DEF_NATIVE_CONTEXT_ACCESSOR
 
@@ -1538,7 +1557,7 @@ base::Optional<JSObjectRef> AllocationSiteRef::boilerplate() const {
     return JSObjectRef(broker(), handle(object<AllocationSite>()->boilerplate(),
                                         broker()->isolate()));
   } else {
-    JSObjectData* boilerplate = data()->AsAllocationSite()->boilerplate;
+    JSObjectData* boilerplate = data()->AsAllocationSite()->boilerplate();
     if (boilerplate) {
       return JSObjectRef(boilerplate);
     } else {
@@ -1607,9 +1626,9 @@ ObjectRef JSRegExpRef::source() const {
   return ObjectRef(ObjectRef::data()->AsJSRegExp()->source());
 }
 
-Handle<Object> ObjectRef::object() const { return data_->object; }
+Handle<Object> ObjectRef::object() const { return data()->object(); }
 
-JSHeapBroker* ObjectRef::broker() const { return data_->broker; }
+JSHeapBroker* ObjectRef::broker() const { return data()->broker(); }
 
 ObjectData* ObjectRef::data() const { return data_; }
 
@@ -1622,19 +1641,19 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
   return AdvancedReducer::NoChange();
 }
 
-NativeContextData::NativeContextData(JSHeapBroker* broker_,
-                                     Handle<NativeContext> object_,
-                                     HeapObjectType type_)
-    : ContextData(broker_, object_, type_) {}
+NativeContextData::NativeContextData(JSHeapBroker* broker,
+                                     Handle<NativeContext> object,
+                                     HeapObjectType type)
+    : ContextData(broker, object, type) {}
 
 void NativeContextData::Serialize() {
   if (serialized_) return;
   serialized_ = true;
 
-  Handle<NativeContext> context = Handle<NativeContext>::cast(object);
-#define SERIALIZE_MEMBER(type, name)                    \
-  CHECK_NULL(name##_);                                  \
-  name##_ = GET_OR_CREATE(context->name())->As##type(); \
+  Handle<NativeContext> context = Handle<NativeContext>::cast(object());
+#define SERIALIZE_MEMBER(type, name)                                \
+  CHECK_NULL(name##_);                                              \
+  name##_ = broker()->GetOrCreateData(context->name())->As##type(); \
   if (name##_->IsJSFunction()) name##_->AsJSFunction()->Serialize();
   BROKER_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
 #undef SERIALIZE_MEMBER
@@ -1647,11 +1666,8 @@ void JSFunctionRef::Serialize() {
 }
 
 #undef BIMODAL_ACCESSOR
-#undef BIMODAL_ACCESSOR_
 #undef BIMODAL_ACCESSOR_B
 #undef BIMODAL_ACCESSOR_C
-#undef BIMODAL_ACCESSOR_C_
-#undef GET_OR_CREATE
 #undef HANDLE_ACCESSOR
 #undef HANDLE_ACCESSOR_C
 #undef IF_BROKER_DISABLED_ACCESS_HANDLE
