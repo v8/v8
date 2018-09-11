@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "src/base/functional.h"
+#include "src/torque/contextual.h"
 
 namespace v8 {
 namespace internal {
@@ -19,6 +20,17 @@ typedef std::vector<std::string> NameVector;
 
 std::string StringLiteralUnquote(const std::string& s);
 std::string StringLiteralQuote(const std::string& s);
+
+class LintErrorStatus : public ContextualClass<LintErrorStatus> {
+ public:
+  LintErrorStatus() : has_lint_errors_(false) {}
+
+  static bool HasLintErrors() { return Get().has_lint_errors_; }
+  static void SetLintError() { Get().has_lint_errors_ = true; }
+
+ private:
+  bool has_lint_errors_;
+};
 
 [[noreturn]] void ReportError(const std::string& error);
 void LintError(const std::string& error);

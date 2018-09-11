@@ -76,12 +76,15 @@ std::string CurrentPositionAsString() {
   return PositionAsString(CurrentSourcePosition::Get());
 }
 
+DEFINE_CONTEXTUAL_VARIABLE(LintErrorStatus)
+
 [[noreturn]] void ReportError(const std::string& error) {
   std::cerr << CurrentPositionAsString() << ": Torque error: " << error << "\n";
   std::abort();
 }
 
 void LintError(const std::string& error) {
+  LintErrorStatus::SetLintError();
   std::cerr << CurrentPositionAsString() << ": Lint error: " << error << "\n";
 }
 
