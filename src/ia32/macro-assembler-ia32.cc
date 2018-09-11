@@ -1393,7 +1393,7 @@ void TurboAssembler::Psignb(XMMRegister dst, Operand src) {
     psignb(dst, src);
     return;
   }
-  UNREACHABLE();
+  FATAL("no AVX or SSE3 support");
 }
 
 void TurboAssembler::Psignw(XMMRegister dst, Operand src) {
@@ -1407,7 +1407,7 @@ void TurboAssembler::Psignw(XMMRegister dst, Operand src) {
     psignw(dst, src);
     return;
   }
-  UNREACHABLE();
+  FATAL("no AVX or SSE3 support");
 }
 
 void TurboAssembler::Psignd(XMMRegister dst, Operand src) {
@@ -1421,7 +1421,7 @@ void TurboAssembler::Psignd(XMMRegister dst, Operand src) {
     psignd(dst, src);
     return;
   }
-  UNREACHABLE();
+  FATAL("no AVX or SSE3 support");
 }
 
 void TurboAssembler::Pshufb(XMMRegister dst, Operand src) {
@@ -1435,7 +1435,7 @@ void TurboAssembler::Pshufb(XMMRegister dst, Operand src) {
     pshufb(dst, src);
     return;
   }
-  UNREACHABLE();
+  FATAL("no AVX or SSE3 support");
 }
 
 void TurboAssembler::Pblendw(XMMRegister dst, Operand src, uint8_t imm8) {
@@ -1449,7 +1449,7 @@ void TurboAssembler::Pblendw(XMMRegister dst, Operand src, uint8_t imm8) {
     pblendw(dst, src, imm8);
     return;
   }
-  UNREACHABLE();
+  FATAL("no AVX or SSE4.1 support");
 }
 
 void TurboAssembler::Palignr(XMMRegister dst, Operand src, uint8_t imm8) {
@@ -1463,7 +1463,7 @@ void TurboAssembler::Palignr(XMMRegister dst, Operand src, uint8_t imm8) {
     palignr(dst, src, imm8);
     return;
   }
-  UNREACHABLE();
+  FATAL("no AVX or SSE3 support");
 }
 
 void TurboAssembler::Pextrb(Register dst, XMMRegister src, int8_t imm8) {
@@ -1477,7 +1477,7 @@ void TurboAssembler::Pextrb(Register dst, XMMRegister src, int8_t imm8) {
     pextrb(dst, src, imm8);
     return;
   }
-  UNREACHABLE();
+  FATAL("no AVX or SSE4.1 support");
 }
 
 void TurboAssembler::Pextrw(Register dst, XMMRegister src, int8_t imm8) {
@@ -1491,7 +1491,7 @@ void TurboAssembler::Pextrw(Register dst, XMMRegister src, int8_t imm8) {
     pextrw(dst, src, imm8);
     return;
   }
-  UNREACHABLE();
+  FATAL("no AVX or SSE4.1 support");
 }
 
 void TurboAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
@@ -1575,7 +1575,7 @@ void TurboAssembler::Popcnt(Register dst, Operand src) {
     popcnt(dst, src);
     return;
   }
-  UNREACHABLE();
+  FATAL("no POPCNT support");
 }
 
 void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
