@@ -477,14 +477,23 @@ class WasmExceptionObject : public JSObject {
  public:
   DECL_CAST(WasmExceptionObject)
 
+  DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
+
 // Layout description.
-#define WASM_EXCEPTION_OBJECT_FIELDS(V) V(kSize, 0)
+#define WASM_EXCEPTION_OBJECT_FIELDS(V)       \
+  V(kSerializedSignatureOffset, kPointerSize) \
+  V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 WASM_EXCEPTION_OBJECT_FIELDS)
 #undef WASM_EXCEPTION_OBJECT_FIELDS
 
-  static Handle<WasmExceptionObject> New(Isolate* isolate);
+  // Checks whether the given {sig} has the same parameter types as the
+  // serialized signature stored within this exception object.
+  bool IsSignatureEqual(const wasm::FunctionSig* sig);
+
+  static Handle<WasmExceptionObject> New(Isolate* isolate,
+                                         const wasm::FunctionSig* sig);
 };
 
 // A WASM function that is wrapped and exported to JavaScript.

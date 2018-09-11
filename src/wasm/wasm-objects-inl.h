@@ -210,6 +210,10 @@ ImportedFunctionEntry::ImportedFunctionEntry(
   DCHECK_LT(index, instance->module()->num_imported_functions);
 }
 
+// WasmExceptionObject
+ACCESSORS(WasmExceptionObject, serialized_signature, PodArray<wasm::ValueType>,
+          kSerializedSignatureOffset)
+
 // WasmExportedFunctionData
 ACCESSORS(WasmExportedFunctionData, wrapper_code, Code, kWrapperCodeOffset)
 ACCESSORS(WasmExportedFunctionData, instance, WasmInstanceObject,

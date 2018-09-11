@@ -81,10 +81,9 @@ function NewExportedException() {
   let builder = new WasmModuleBuilder();
   let except = builder.addImportedException("m", "ex", kSig_v_i);
 
-  // TODO(mstarzinger): Enable once proper signature check is performed.
-  //assertThrows(
-  //    () => builder.instantiate({ m: { ex: exported }}), WebAssembly.LinkError,
-  //    /imported exception does not match expected type/);
+  assertThrows(
+      () => builder.instantiate({ m: { ex: exported }}), WebAssembly.LinkError,
+      /imported exception does not match the expected type/);
 })();
 
 (function TestImportModuleGetImports() {
