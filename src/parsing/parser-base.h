@@ -1727,9 +1727,7 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(bool* ok) {
     }
     return name;
   } else if (is_sloppy(language_mode()) &&
-             (next == Token::FUTURE_STRICT_RESERVED_WORD ||
-              next == Token::ESCAPED_STRICT_RESERVED_WORD ||
-              next == Token::LET || next == Token::STATIC ||
+             (Token::IsStrictReservedWord(next) ||
               (next == Token::YIELD && !is_generator()))) {
     classifier()->RecordStrictModeFormalParameterError(
         scanner()->location(), MessageTemplate::kUnexpectedStrictReserved);
@@ -1762,9 +1760,7 @@ ParserBase<Impl>::ParseIdentifierOrStrictReservedWord(
       next == Token::ASYNC) {
     *is_strict_reserved = false;
     *is_await = next == Token::AWAIT;
-  } else if (next == Token::ESCAPED_STRICT_RESERVED_WORD ||
-             next == Token::FUTURE_STRICT_RESERVED_WORD || next == Token::LET ||
-             next == Token::STATIC ||
+  } else if (Token::IsStrictReservedWord(next) ||
              (next == Token::YIELD && !IsGeneratorFunction(function_kind))) {
     *is_strict_reserved = true;
   } else {
@@ -1780,12 +1776,8 @@ template <typename Impl>
 typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifierName(
     bool* ok) {
   Token::Value next = Next();
-  if (next != Token::IDENTIFIER && next != Token::ASYNC &&
-      next != Token::ENUM && next != Token::AWAIT && next != Token::LET &&
-      next != Token::STATIC && next != Token::YIELD &&
-      next != Token::FUTURE_STRICT_RESERVED_WORD &&
-      next != Token::ESCAPED_KEYWORD &&
-      next != Token::ESCAPED_STRICT_RESERVED_WORD && !Token::IsKeyword(next)) {
+  if (!Token::IsAnyIdentifier(next) && next != Token::ESCAPED_KEYWORD &&
+      !Token::IsKeyword(next)) {
     ReportUnexpectedToken(next);
     *ok = false;
     return impl()->NullIdentifier();
@@ -1860,7 +1852,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
   //   AsyncFunctionLiteral
 
   int beg_pos = peek_position();
-  switch (peek()) {
+  Token::Value token = peek();
+  switch (token) {
     case Token::THIS: {
       BindingPatternUnexpectedToken();
       Consume(Token::THIS);
@@ -1872,9 +1865,18 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
     case Token::FALSE_LITERAL:
     case Token::SMI:
     case Token::NUMBER:
-    case Token::BIGINT:
+    case Token::BIGINT: {
+      // Ensure continuous enum range.
+      DCHECK(Token::IsLiteral(token));
       BindingPatternUnexpectedToken();
       return impl()->ExpressionFromLiteral(Next(), beg_pos);
+    }
+    case Token::STRING: {
+      DCHECK(Token::IsLiteral(token));
+      BindingPatternUnexpectedToken();
+      Consume(Token::STRING);
+      return impl()->ExpressionFromString(beg_pos);
+    }
 
     case Token::ASYNC:
       if (!scanner()->HasLineTerminatorAfterNext() &&
@@ -1891,17 +1893,14 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
     case Token::STATIC:
     case Token::YIELD:
     case Token::AWAIT:
-    case Token::ESCAPED_STRICT_RESERVED_WORD:
-    case Token::FUTURE_STRICT_RESERVED_WORD: {
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD: {
+      // Ensure continuous enum range.
+      DCHECK(IsInRange(token, Token::IDENTIFIER,
+                       Token::ESCAPED_STRICT_RESERVED_WORD));
       // Using eval or arguments in this context is OK even in strict mode.
       IdentifierT name = ParseAndClassifyIdentifier(CHECK_OK);
       return impl()->ExpressionFromIdentifier(name, beg_pos);
-    }
-
-    case Token::STRING: {
-      BindingPatternUnexpectedToken();
-      Consume(Token::STRING);
-      return impl()->ExpressionFromString(beg_pos);
     }
 
     case Token::ASSIGN_DIV:
@@ -1919,8 +1918,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
     case Token::LPAREN: {
       // Arrow function formal parameters are either a single identifier or a
       // list of BindingPattern productions enclosed in parentheses.
-      // Parentheses are not valid on the LHS of a BindingPattern, so we use the
-      // is_valid_binding_pattern() check to detect multiple levels of
+      // Parentheses are not valid on the LHS of a BindingPattern, so we use
+      // the is_valid_binding_pattern() check to detect multiple levels of
       // parenthesization.
       bool pattern_error = !classifier()->is_valid_binding_pattern();
       classifier()->RecordPatternError(scanner()->peek_location(),

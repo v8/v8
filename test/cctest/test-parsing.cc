@@ -73,23 +73,23 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 
 TEST(IsContextualKeyword) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value tok = static_cast<Token::Value>(i);
-    CHECK_EQ(Token::TypeForTesting(tok) == 'C',
-             Token::IsContextualKeyword(tok));
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(Token::TypeForTesting(token) == 'C',
+             Token::IsContextualKeyword(token));
   }
 }
 
-bool TokenIsAnyIdentifier(Token::Value tok) {
-  switch (tok) {
+bool TokenIsAnyIdentifier(Token::Value token) {
+  switch (token) {
     case Token::IDENTIFIER:
     case Token::ASYNC:
     case Token::AWAIT:
-    case Token::ENUM:
+    case Token::YIELD:
     case Token::LET:
     case Token::STATIC:
-    case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD:
     case Token::ESCAPED_STRICT_RESERVED_WORD:
+    case Token::ENUM:
       return true;
     default:
       return false;
@@ -98,51 +98,94 @@ bool TokenIsAnyIdentifier(Token::Value tok) {
 
 TEST(AnyIdentifierToken) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value tok = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsAnyIdentifier(tok), Token::IsAnyIdentifier(tok));
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsAnyIdentifier(token), Token::IsAnyIdentifier(token));
   }
 }
 
-bool TokenIsIdentifier(Token::Value tok, LanguageMode language_mode,
+bool TokenIsIdentifier(Token::Value token, LanguageMode language_mode,
                        bool is_generator, bool disallow_await) {
-  switch (tok) {
+  switch (token) {
     case Token::IDENTIFIER:
     case Token::ASYNC:
       return true;
-    case Token::ESCAPED_STRICT_RESERVED_WORD:
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-    case Token::LET:
-    case Token::STATIC:
-      return is_sloppy(language_mode);
     case Token::YIELD:
       return !is_generator && is_sloppy(language_mode);
     case Token::AWAIT:
       return !disallow_await;
+    case Token::LET:
+    case Token::STATIC:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+      return is_sloppy(language_mode);
     default:
       return false;
   }
   UNREACHABLE();
 }
 
-TEST(IsIdentifier) {
+TEST(IsIdentifierToken) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value tok = static_cast<Token::Value>(i);
+    Token::Value token = static_cast<Token::Value>(i);
     for (size_t raw_language_mode = 0; raw_language_mode < LanguageModeSize;
          raw_language_mode++) {
       LanguageMode mode = static_cast<LanguageMode>(raw_language_mode);
       for (int is_generator = 0; is_generator < 2; is_generator++) {
         for (int disallow_await = 0; disallow_await < 2; disallow_await++) {
           CHECK_EQ(
-              TokenIsIdentifier(tok, mode, is_generator, disallow_await),
-              Token::IsIdentifier(tok, mode, is_generator, disallow_await));
+              TokenIsIdentifier(token, mode, is_generator, disallow_await),
+              Token::IsIdentifier(token, mode, is_generator, disallow_await));
         }
       }
     }
   }
 }
 
-bool TokenIsAssignmentOp(Token::Value tok) {
-  switch (tok) {
+bool TokenIsStrictReservedWord(Token::Value token) {
+  switch (token) {
+    case Token::LET:
+    case Token::STATIC:
+    case Token::FUTURE_STRICT_RESERVED_WORD:
+    case Token::ESCAPED_STRICT_RESERVED_WORD:
+      return true;
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+TEST(IsStrictReservedWord) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsStrictReservedWord(token),
+             Token::IsStrictReservedWord(token));
+  }
+}
+
+bool TokenIsLiteral(Token::Value token) {
+  switch (token) {
+    case Token::NULL_LITERAL:
+    case Token::TRUE_LITERAL:
+    case Token::FALSE_LITERAL:
+    case Token::NUMBER:
+    case Token::SMI:
+    case Token::BIGINT:
+    case Token::STRING:
+      return true;
+    default:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+TEST(IsLiteralToken) {
+  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsLiteral(token), Token::IsLiteral(token));
+  }
+}
+bool TokenIsAssignmentOp(Token::Value token) {
+  switch (token) {
     case Token::INIT:
     case Token::ASSIGN:
 #define T(name, string, precedence) case Token::name:
@@ -156,13 +199,13 @@ bool TokenIsAssignmentOp(Token::Value tok) {
 
 TEST(AssignmentOp) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value tok = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsAssignmentOp(tok), Token::IsAssignmentOp(tok));
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsAssignmentOp(token), Token::IsAssignmentOp(token));
   }
 }
 
-bool TokenIsBinaryOp(Token::Value tok) {
-  switch (tok) {
+bool TokenIsBinaryOp(Token::Value token) {
+  switch (token) {
     case Token::COMMA:
     case Token::OR:
     case Token::AND:
@@ -177,13 +220,13 @@ bool TokenIsBinaryOp(Token::Value tok) {
 
 TEST(BinaryOp) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value tok = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsBinaryOp(tok), Token::IsBinaryOp(tok));
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsBinaryOp(token), Token::IsBinaryOp(token));
   }
 }
 
-bool TokenIsCompareOp(Token::Value tok) {
-  switch (tok) {
+bool TokenIsCompareOp(Token::Value token) {
+  switch (token) {
     case Token::EQ:
     case Token::EQ_STRICT:
     case Token::NE:
@@ -202,13 +245,13 @@ bool TokenIsCompareOp(Token::Value tok) {
 
 TEST(CompareOp) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value tok = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsCompareOp(tok), Token::IsCompareOp(tok));
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsCompareOp(token), Token::IsCompareOp(token));
   }
 }
 
-bool TokenIsOrderedRelationalCompareOp(Token::Value tok) {
-  switch (tok) {
+bool TokenIsOrderedRelationalCompareOp(Token::Value token) {
+  switch (token) {
     case Token::LT:
     case Token::GT:
     case Token::LTE:
@@ -221,14 +264,14 @@ bool TokenIsOrderedRelationalCompareOp(Token::Value tok) {
 
 TEST(IsOrderedRelationalCompareOp) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value tok = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsOrderedRelationalCompareOp(tok),
-             Token::IsOrderedRelationalCompareOp(tok));
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsOrderedRelationalCompareOp(token),
+             Token::IsOrderedRelationalCompareOp(token));
   }
 }
 
-bool TokenIsEqualityOp(Token::Value tok) {
-  switch (tok) {
+bool TokenIsEqualityOp(Token::Value token) {
+  switch (token) {
     case Token::EQ:
     case Token::EQ_STRICT:
       return true;
@@ -239,13 +282,13 @@ bool TokenIsEqualityOp(Token::Value tok) {
 
 TEST(IsEqualityOp) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value tok = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsEqualityOp(tok), Token::IsEqualityOp(tok));
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsEqualityOp(token), Token::IsEqualityOp(token));
   }
 }
 
-bool TokenIsBitOp(Token::Value tok) {
-  switch (tok) {
+bool TokenIsBitOp(Token::Value token) {
+  switch (token) {
     case Token::BIT_OR:
     case Token::BIT_XOR:
     case Token::BIT_AND:
@@ -261,13 +304,13 @@ bool TokenIsBitOp(Token::Value tok) {
 
 TEST(IsBitOp) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value tok = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsBitOp(tok), Token::IsBitOp(tok));
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsBitOp(token), Token::IsBitOp(token));
   }
 }
 
-bool TokenIsUnaryOp(Token::Value tok) {
-  switch (tok) {
+bool TokenIsUnaryOp(Token::Value token) {
+  switch (token) {
     case Token::NOT:
     case Token::BIT_NOT:
     case Token::DELETE:
@@ -283,13 +326,13 @@ bool TokenIsUnaryOp(Token::Value tok) {
 
 TEST(IsUnaryOp) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value tok = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsUnaryOp(tok), Token::IsUnaryOp(tok));
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsUnaryOp(token), Token::IsUnaryOp(token));
   }
 }
 
-bool TokenIsCountOp(Token::Value tok) {
-  switch (tok) {
+bool TokenIsCountOp(Token::Value token) {
+  switch (token) {
     case Token::INC:
     case Token::DEC:
       return true;
@@ -300,13 +343,13 @@ bool TokenIsCountOp(Token::Value tok) {
 
 TEST(IsCountOp) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value tok = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsCountOp(tok), Token::IsCountOp(tok));
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsCountOp(token), Token::IsCountOp(token));
   }
 }
 
-bool TokenIsShiftOp(Token::Value tok) {
-  switch (tok) {
+bool TokenIsShiftOp(Token::Value token) {
+  switch (token) {
     case Token::SHL:
     case Token::SAR:
     case Token::SHR:
@@ -318,13 +361,13 @@ bool TokenIsShiftOp(Token::Value tok) {
 
 TEST(IsShiftOp) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value tok = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsShiftOp(tok), Token::IsShiftOp(tok));
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsShiftOp(token), Token::IsShiftOp(token));
   }
 }
 
-bool TokenIsTrivialExpressionToken(Token::Value tok) {
-  switch (tok) {
+bool TokenIsTrivialExpressionToken(Token::Value token) {
+  switch (token) {
     case Token::SMI:
     case Token::NUMBER:
     case Token::BIGINT:
@@ -342,9 +385,9 @@ bool TokenIsTrivialExpressionToken(Token::Value tok) {
 
 TEST(IsTrivialExpressionToken) {
   for (int i = 0; i < Token::NUM_TOKENS; i++) {
-    Token::Value tok = static_cast<Token::Value>(i);
-    CHECK_EQ(TokenIsTrivialExpressionToken(tok),
-             Token::IsTrivialExpressionToken(tok));
+    Token::Value token = static_cast<Token::Value>(i);
+    CHECK_EQ(TokenIsTrivialExpressionToken(token),
+             Token::IsTrivialExpressionToken(token));
   }
 }
 
