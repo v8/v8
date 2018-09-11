@@ -14,7 +14,7 @@ import sys
 
 CLANG_TIDY_WARNING = re.compile(r'(\/.*?)\ .*\[(.*)\]$')
 CLANG_TIDY_CMDLINE_OUT = re.compile(r'^clang-tidy.*\ .*|^\./\.\*')
-THIRD_PARTY = re.compile(r'.*\/third_party\/.*')
+FILE_REGEXS = ['src/*', 'test/*']
 
 THREADS = multiprocessing.cpu_count()
 
@@ -29,7 +29,7 @@ class ClangTidyWarning(object):
     self.occurrences = set()
 
   def add_occurrence(self, file_path):
-    self.occurrences.add(file_path)
+    self.occurrences.add(file_path.lstrip())
 
   def __hash__(self):
     return hash(self.warning_type)
@@ -97,7 +97,8 @@ def ClangTidyRunFull(build_folder, skip_output_filter, checks, auto_fix):
 
   with open(os.devnull, 'w') as DEVNULL:
     ct_process = subprocess.Popen(
-      ['run-clang-tidy', '-j' + str(THREADS), '-p', '.'] + extra_args,
+      ['run-clang-tidy', '-j' + str(THREADS), '-p', '.'] + extra_args
+       + FILE_REGEXS,
       cwd=build_folder,
       stdout=subprocess.PIPE,
       stderr=DEVNULL)
@@ -129,13 +130,13 @@ def ClangTidyRunFull(build_folder, skip_output_filter, checks, auto_fix):
         sys.stdout.write(line)
 
 
-def ClangTidyRunAggregate(build_folder, print_files, show_third_party=False):
+def ClangTidyRunAggregate(build_folder, print_files):
   """
   Run clang-tidy on the full codebase and aggregate warnings into categories.
   """
   with open(os.devnull, 'w') as DEVNULL:
     ct_process = subprocess.Popen(
-      ['run-clang-tidy', '-j' + str(THREADS), '-p', '.'],
+      ['run-clang-tidy', '-j' + str(THREADS), '-p', '.'] + FILE_REGEXS,
       cwd=build_folder,
       stdout=subprocess.PIPE,
       stderr=DEVNULL)
@@ -147,11 +148,9 @@ def ClangTidyRunAggregate(build_folder, print_files, show_third_party=False):
 
     res = CLANG_TIDY_WARNING.search(line)
     if res is not None:
-      filter_match = THIRD_PARTY.search(line)
-      if not filter_match or show_third_party:
-        warnings.setdefault(
-            res.group(2),
-            ClangTidyWarning(res.group(2))).add_occurrence(res.group(1))
+      warnings.setdefault(
+          res.group(2),
+          ClangTidyWarning(res.group(2))).add_occurrence(res.group(1))
 
   for warning in sorted(warnings.values(), reverse=True):
     sys.stdout.write(warning.to_string(print_files))
@@ -307,8 +306,6 @@ def GetOptions():
   agg_run_g.add_option('--show-loc', help='Show file locations when running '\
              'in aggregate mode', default=False,
              action='store_true')
-  agg_run_g.add_option('--show-third-party', help='List third party warnings',
-                       default=False, action='store_true')
   result.add_option_group(agg_run_g)
 
   # Diff clang-tidy.
@@ -363,8 +360,7 @@ def main():
       print 'Running clang-tidy - aggregating warnings'
       if options.auto_fix:
         print 'Auto fix not working in aggregate mode, running without.'
-      ClangTidyRunAggregate(options.build_folder, options.show_loc,
-                            options.show_third_party)
+      ClangTidyRunAggregate(options.build_folder, options.show_loc)
     elif options.single:
       print 'Running clang-tidy - single on ' + options.file_name
       if options.file_name is not None:
