@@ -392,16 +392,6 @@ DEFINE_METHOD(
 );
 
 /**
- * NumberFormat resolvedOptions method.
- */
-DEFINE_METHOD(
-  GlobalIntlNumberFormat.prototype,
-  resolvedOptions() {
-    return %NumberFormatResolvedOptions(this);
-  }
-);
-
-/**
  * DateTimeFormat resolvedOptions method.
  */
 DEFINE_METHOD(

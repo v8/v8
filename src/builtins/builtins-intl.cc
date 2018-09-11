@@ -338,6 +338,23 @@ BUILTIN(NumberFormatConstructor) {
       "Intl.NumberFormat");
 }
 
+BUILTIN(NumberFormatPrototypeResolvedOptions) {
+  HandleScope scope(isolate);
+  const char* const method = "Intl.NumberFormat.prototype.resolvedOptions";
+
+  // 1. Let nf be the this value.
+  // 2. If Type(nf) is not Object, throw a TypeError exception.
+  CHECK_RECEIVER(JSReceiver, number_format_holder, method);
+
+  // 3. Let nf be ? UnwrapNumberFormat(nf)
+  Handle<JSNumberFormat> number_format;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, number_format,
+      JSNumberFormat::UnwrapNumberFormat(isolate, number_format_holder));
+
+  return *JSNumberFormat::ResolvedOptions(isolate, number_format);
+}
+
 BUILTIN(NumberFormatPrototypeFormatNumber) {
   const char* const method = "get Intl.NumberFormat.prototype.format";
   HandleScope scope(isolate);

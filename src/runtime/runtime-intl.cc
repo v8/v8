@@ -131,33 +131,6 @@ RUNTIME_FUNCTION(Runtime_DateTimeFormatResolvedOptions) {
       isolate, JSDateTimeFormat::ResolvedOptions(isolate, format_holder));
 }
 
-RUNTIME_FUNCTION(Runtime_NumberFormatResolvedOptions) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, number_format_obj, 0);
-
-  // 2. If Type(nf) is not Object, throw a TypeError exception
-  if (!number_format_obj->IsJSReceiver()) {
-    Handle<String> method_str = isolate->factory()->NewStringFromStaticChars(
-        "Intl.NumberFormat.prototype.resolvedOptions");
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                              method_str, number_format_obj));
-  }
-
-  // 3. Let nf be ? UnwrapNumberFormat(nf).
-  Handle<JSReceiver> format_holder =
-      Handle<JSReceiver>::cast(number_format_obj);
-
-  Handle<JSNumberFormat> number_format;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, number_format,
-      JSNumberFormat::UnwrapNumberFormat(isolate, format_holder));
-
-  return *JSNumberFormat::ResolvedOptions(isolate, number_format);
-}
-
 RUNTIME_FUNCTION(Runtime_PluralRulesSelect) {
   HandleScope scope(isolate);
 

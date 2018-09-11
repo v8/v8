@@ -2960,6 +2960,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
           factory->Object_string(),
           static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
+      SimpleInstallFunction(isolate_, prototype, "resolvedOptions",
+                            Builtins::kNumberFormatPrototypeResolvedOptions, 0,
+                            false);
+
       SimpleInstallFunction(isolate_, prototype, "formatToParts",
                             Builtins::kNumberFormatPrototypeFormatToParts, 1,
                             false);

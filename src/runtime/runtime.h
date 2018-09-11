@@ -207,7 +207,6 @@ namespace internal {
   F(FormatList, 2, 1)                        \
   F(FormatListToParts, 2, 1)                 \
   F(GetDefaultICULocale, 0, 1)               \
-  F(NumberFormatResolvedOptions, 1, 1)       \
   F(PluralRulesSelect, 2, 1)                 \
   F(StringToLowerCaseIntl, 1, 1)             \
   F(StringToUpperCaseIntl, 1, 1)  // End of macro.

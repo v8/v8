@@ -1395,6 +1395,8 @@ namespace internal {
   CPP(NumberFormatPrototypeFormatNumber)                               \
   /* ecma402 #sec-intl.numberformat.prototype.formattoparts */         \
   CPP(NumberFormatPrototypeFormatToParts)                              \
+  /* ecma402 #sec-intl.numberformat.prototype.resolvedoptions */       \
+  CPP(NumberFormatPrototypeResolvedOptions)                            \
   /* ecma402 #sec-intl.numberformat.supportedlocalesof */              \
   CPP(NumberFormatSupportedLocalesOf)                                  \
   /* ecma402 #sec-intl.pluralrules */                                  \
