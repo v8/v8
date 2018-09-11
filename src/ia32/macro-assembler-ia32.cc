@@ -1509,37 +1509,44 @@ void TurboAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
     pextrd(dst, src, imm8);
     return;
   }
-  DCHECK_LT(imm8, 4);
-  pshufd(xmm0, src, imm8);
-  movd(dst, xmm0);
+  // Without AVX or SSE, we can only have 64-bit values in xmm registers.
+  // We don't have an xmm scratch register, so move the data via the stack. This
+  // path is rarely required, so it's acceptable to be slow.
+  DCHECK_LT(imm8, 2);
+  sub(esp, Immediate(kDoubleSize));
+  movsd(Operand(esp, 0), src);
+  mov(dst, Operand(esp, imm8 * kUInt32Size));
+  add(esp, Immediate(kDoubleSize));
 }
 
-void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, int8_t imm8,
-                            bool is_64_bits) {
+void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, int8_t imm8) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpinsrd(dst, dst, src, imm8);
+    return;
+  }
   if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     pinsrd(dst, src, imm8);
     return;
   }
-  if (is_64_bits) {
-    movd(xmm0, src);
-    if (imm8 == 1) {
-      punpckldq(dst, xmm0);
-    } else {
-      DCHECK_EQ(0, imm8);
-      psrlq(dst, 32);
-      punpckldq(xmm0, dst);
-      movaps(dst, xmm0);
-    }
+  // Without AVX or SSE, we can only have 64-bit values in xmm registers.
+  // We don't have an xmm scratch register, so move the data via the stack. This
+  // path is rarely required, so it's acceptable to be slow.
+  DCHECK_LT(imm8, 2);
+  sub(esp, Immediate(kDoubleSize));
+  // Write original content of {dst} to the stack.
+  movsd(Operand(esp, 0), dst);
+  // Overwrite the portion specified in {imm8}.
+  if (src.is_reg_only()) {
+    mov(Operand(esp, imm8 * kUInt32Size), src.reg());
   } else {
-    DCHECK_LT(imm8, 4);
-    push(eax);
-    mov(eax, src);
-    pinsrw(dst, eax, imm8 * 2);
-    shr(eax, 16);
-    pinsrw(dst, eax, imm8 * 2 + 1);
-    pop(eax);
+    movss(dst, src);
+    movss(Operand(esp, imm8 * kUInt32Size), dst);
   }
+  // Load back the full value into {dst}.
+  movsd(dst, Operand(esp, 0));
+  add(esp, Immediate(kDoubleSize));
 }
 
 void TurboAssembler::Lzcnt(Register dst, Operand src) {

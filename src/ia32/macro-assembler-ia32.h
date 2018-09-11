@@ -401,12 +401,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pextrb(Register dst, XMMRegister src, int8_t imm8);
   void Pextrw(Register dst, XMMRegister src, int8_t imm8);
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
-  void Pinsrd(XMMRegister dst, Register src, int8_t imm8,
-              bool is_64_bits = false) {
-    Pinsrd(dst, Operand(src), imm8, is_64_bits);
+  void Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
+    Pinsrd(dst, Operand(src), imm8);
   }
-  void Pinsrd(XMMRegister dst, Operand src, int8_t imm8,
-              bool is_64_bits = false);
+  void Pinsrd(XMMRegister dst, Operand src, int8_t imm8);
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which

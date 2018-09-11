@@ -1463,10 +1463,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kSSEFloat64InsertLowWord32:
-      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 0, true);
+      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 0);
       break;
     case kSSEFloat64InsertHighWord32:
-      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 1, true);
+      __ Pinsrd(i.OutputDoubleRegister(), i.InputOperand(1), 1);
       break;
     case kSSEFloat64LoadLowWord32:
       __ movd(i.OutputDoubleRegister(), i.InputOperand(0));
