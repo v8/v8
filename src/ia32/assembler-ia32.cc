@@ -2358,7 +2358,7 @@ void Assembler::maxps(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
-void Assembler::cmpps(XMMRegister dst, Operand src, int8_t cmp) {
+void Assembler::cmpps(XMMRegister dst, Operand src, uint8_t cmp) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0xC2);
@@ -2617,7 +2617,7 @@ void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
   EMIT(imm8);
 }
 
-void Assembler::psllw(XMMRegister reg, int8_t shift) {
+void Assembler::psllw(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2626,7 +2626,7 @@ void Assembler::psllw(XMMRegister reg, int8_t shift) {
   EMIT(shift);
 }
 
-void Assembler::pslld(XMMRegister reg, int8_t shift) {
+void Assembler::pslld(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2635,7 +2635,7 @@ void Assembler::pslld(XMMRegister reg, int8_t shift) {
   EMIT(shift);
 }
 
-void Assembler::psrlw(XMMRegister reg, int8_t shift) {
+void Assembler::psrlw(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2644,7 +2644,7 @@ void Assembler::psrlw(XMMRegister reg, int8_t shift) {
   EMIT(shift);
 }
 
-void Assembler::psrld(XMMRegister reg, int8_t shift) {
+void Assembler::psrld(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2653,7 +2653,7 @@ void Assembler::psrld(XMMRegister reg, int8_t shift) {
   EMIT(shift);
 }
 
-void Assembler::psraw(XMMRegister reg, int8_t shift) {
+void Assembler::psraw(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2662,7 +2662,7 @@ void Assembler::psraw(XMMRegister reg, int8_t shift) {
   EMIT(shift);
 }
 
-void Assembler::psrad(XMMRegister reg, int8_t shift) {
+void Assembler::psrad(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2671,7 +2671,7 @@ void Assembler::psrad(XMMRegister reg, int8_t shift) {
   EMIT(shift);
 }
 
-void Assembler::psllq(XMMRegister reg, int8_t shift) {
+void Assembler::psllq(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2689,8 +2689,7 @@ void Assembler::psllq(XMMRegister dst, XMMRegister src) {
   emit_sse_operand(dst, src);
 }
 
-
-void Assembler::psrlq(XMMRegister reg, int8_t shift) {
+void Assembler::psrlq(XMMRegister reg, uint8_t shift) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);
@@ -2757,7 +2756,7 @@ void Assembler::palignr(XMMRegister dst, Operand src, uint8_t mask) {
   EMIT(mask);
 }
 
-void Assembler::pextrb(Operand dst, XMMRegister src, int8_t offset) {
+void Assembler::pextrb(Operand dst, XMMRegister src, uint8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2768,7 +2767,7 @@ void Assembler::pextrb(Operand dst, XMMRegister src, int8_t offset) {
   EMIT(offset);
 }
 
-void Assembler::pextrw(Operand dst, XMMRegister src, int8_t offset) {
+void Assembler::pextrw(Operand dst, XMMRegister src, uint8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2779,7 +2778,7 @@ void Assembler::pextrw(Operand dst, XMMRegister src, int8_t offset) {
   EMIT(offset);
 }
 
-void Assembler::pextrd(Operand dst, XMMRegister src, int8_t offset) {
+void Assembler::pextrd(Operand dst, XMMRegister src, uint8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2790,7 +2789,7 @@ void Assembler::pextrd(Operand dst, XMMRegister src, int8_t offset) {
   EMIT(offset);
 }
 
-void Assembler::insertps(XMMRegister dst, Operand src, int8_t offset) {
+void Assembler::insertps(XMMRegister dst, Operand src, uint8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2801,7 +2800,7 @@ void Assembler::insertps(XMMRegister dst, Operand src, int8_t offset) {
   EMIT(offset);
 }
 
-void Assembler::pinsrb(XMMRegister dst, Operand src, int8_t offset) {
+void Assembler::pinsrb(XMMRegister dst, Operand src, uint8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2812,7 +2811,7 @@ void Assembler::pinsrb(XMMRegister dst, Operand src, int8_t offset) {
   EMIT(offset);
 }
 
-void Assembler::pinsrw(XMMRegister dst, Operand src, int8_t offset) {
+void Assembler::pinsrw(XMMRegister dst, Operand src, uint8_t offset) {
   DCHECK(is_uint8(offset));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2822,7 +2821,7 @@ void Assembler::pinsrw(XMMRegister dst, Operand src, int8_t offset) {
   EMIT(offset);
 }
 
-void Assembler::pinsrd(XMMRegister dst, Operand src, int8_t offset) {
+void Assembler::pinsrd(XMMRegister dst, Operand src, uint8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
@@ -2933,7 +2932,7 @@ void Assembler::vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2) {
 }
 
 void Assembler::vcmpps(XMMRegister dst, XMMRegister src1, Operand src2,
-                       int8_t cmp) {
+                       uint8_t cmp) {
   vps(0xC2, dst, src1, src2);
   EMIT(cmp);
 }
@@ -2945,37 +2944,37 @@ void Assembler::vshufps(XMMRegister dst, XMMRegister src1, Operand src2,
   EMIT(imm8);
 }
 
-void Assembler::vpsllw(XMMRegister dst, XMMRegister src, int8_t imm8) {
+void Assembler::vpsllw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(6);
   vinstr(0x71, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
-void Assembler::vpslld(XMMRegister dst, XMMRegister src, int8_t imm8) {
+void Assembler::vpslld(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(6);
   vinstr(0x72, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
-void Assembler::vpsrlw(XMMRegister dst, XMMRegister src, int8_t imm8) {
+void Assembler::vpsrlw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(2);
   vinstr(0x71, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
-void Assembler::vpsrld(XMMRegister dst, XMMRegister src, int8_t imm8) {
+void Assembler::vpsrld(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(2);
   vinstr(0x72, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
-void Assembler::vpsraw(XMMRegister dst, XMMRegister src, int8_t imm8) {
+void Assembler::vpsraw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(4);
   vinstr(0x71, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
 }
 
-void Assembler::vpsrad(XMMRegister dst, XMMRegister src, int8_t imm8) {
+void Assembler::vpsrad(XMMRegister dst, XMMRegister src, uint8_t imm8) {
   XMMRegister iop = XMMRegister::from_code(4);
   vinstr(0x72, iop, dst, Operand(src), k66, k0F, kWIG);
   EMIT(imm8);
@@ -3008,41 +3007,41 @@ void Assembler::vpalignr(XMMRegister dst, XMMRegister src1, Operand src2,
   EMIT(mask);
 }
 
-void Assembler::vpextrb(Operand dst, XMMRegister src, int8_t offset) {
+void Assembler::vpextrb(Operand dst, XMMRegister src, uint8_t offset) {
   vinstr(0x14, src, xmm0, dst, k66, k0F3A, kWIG);
   EMIT(offset);
 }
 
-void Assembler::vpextrw(Operand dst, XMMRegister src, int8_t offset) {
+void Assembler::vpextrw(Operand dst, XMMRegister src, uint8_t offset) {
   vinstr(0x15, src, xmm0, dst, k66, k0F3A, kWIG);
   EMIT(offset);
 }
 
-void Assembler::vpextrd(Operand dst, XMMRegister src, int8_t offset) {
+void Assembler::vpextrd(Operand dst, XMMRegister src, uint8_t offset) {
   vinstr(0x16, src, xmm0, dst, k66, k0F3A, kWIG);
   EMIT(offset);
 }
 
 void Assembler::vinsertps(XMMRegister dst, XMMRegister src1, Operand src2,
-                          int8_t offset) {
+                          uint8_t offset) {
   vinstr(0x21, dst, src1, src2, k66, k0F3A, kWIG);
   EMIT(offset);
 }
 
 void Assembler::vpinsrb(XMMRegister dst, XMMRegister src1, Operand src2,
-                        int8_t offset) {
+                        uint8_t offset) {
   vinstr(0x20, dst, src1, src2, k66, k0F3A, kWIG);
   EMIT(offset);
 }
 
 void Assembler::vpinsrw(XMMRegister dst, XMMRegister src1, Operand src2,
-                        int8_t offset) {
+                        uint8_t offset) {
   vinstr(0xC4, dst, src1, src2, k66, k0F, kWIG);
   EMIT(offset);
 }
 
 void Assembler::vpinsrd(XMMRegister dst, XMMRegister src1, Operand src2,
-                        int8_t offset) {
+                        uint8_t offset) {
   vinstr(0x22, dst, src1, src2, k66, k0F3A, kWIG);
   EMIT(offset);
 }

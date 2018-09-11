@@ -288,8 +288,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     Pshufd(dst, Operand(src), shuffle);
   }
   void Pshufd(XMMRegister dst, Operand src, uint8_t shuffle);
-  void Psraw(XMMRegister dst, int8_t shift);
-  void Psrlw(XMMRegister dst, int8_t shift);
+  void Psraw(XMMRegister dst, uint8_t shift);
+  void Psrlw(XMMRegister dst, uint8_t shift);
 
 // SSE/SSE2 instructions with AVX version.
 #define AVX_OP2_WITH_TYPE(macro_name, name, dst_type, src_type) \
@@ -398,13 +398,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   }
   void Palignr(XMMRegister dst, Operand src, uint8_t imm8);
 
-  void Pextrb(Register dst, XMMRegister src, int8_t imm8);
-  void Pextrw(Register dst, XMMRegister src, int8_t imm8);
-  void Pextrd(Register dst, XMMRegister src, int8_t imm8);
-  void Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
+  void Pextrb(Register dst, XMMRegister src, uint8_t imm8);
+  void Pextrw(Register dst, XMMRegister src, uint8_t imm8);
+  void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
+  void Pinsrd(XMMRegister dst, Register src, uint8_t imm8) {
     Pinsrd(dst, Operand(src), imm8);
   }
-  void Pinsrd(XMMRegister dst, Operand src, int8_t imm8);
+  void Pinsrd(XMMRegister dst, Operand src, uint8_t imm8);
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which

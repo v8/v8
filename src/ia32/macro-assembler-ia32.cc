@@ -1364,7 +1364,7 @@ void TurboAssembler::Pshufd(XMMRegister dst, Operand src, uint8_t shuffle) {
   }
 }
 
-void TurboAssembler::Psraw(XMMRegister dst, int8_t shift) {
+void TurboAssembler::Psraw(XMMRegister dst, uint8_t shift) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vpsraw(dst, dst, shift);
@@ -1373,7 +1373,7 @@ void TurboAssembler::Psraw(XMMRegister dst, int8_t shift) {
   }
 }
 
-void TurboAssembler::Psrlw(XMMRegister dst, int8_t shift) {
+void TurboAssembler::Psrlw(XMMRegister dst, uint8_t shift) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vpsrlw(dst, dst, shift);
@@ -1466,7 +1466,7 @@ void TurboAssembler::Palignr(XMMRegister dst, Operand src, uint8_t imm8) {
   FATAL("no AVX or SSE3 support");
 }
 
-void TurboAssembler::Pextrb(Register dst, XMMRegister src, int8_t imm8) {
+void TurboAssembler::Pextrb(Register dst, XMMRegister src, uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vpextrb(dst, src, imm8);
@@ -1480,7 +1480,7 @@ void TurboAssembler::Pextrb(Register dst, XMMRegister src, int8_t imm8) {
   FATAL("no AVX or SSE4.1 support");
 }
 
-void TurboAssembler::Pextrw(Register dst, XMMRegister src, int8_t imm8) {
+void TurboAssembler::Pextrw(Register dst, XMMRegister src, uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vpextrw(dst, src, imm8);
@@ -1494,7 +1494,7 @@ void TurboAssembler::Pextrw(Register dst, XMMRegister src, int8_t imm8) {
   FATAL("no AVX or SSE4.1 support");
 }
 
-void TurboAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
+void TurboAssembler::Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
   if (imm8 == 0) {
     Movd(dst, src);
     return;
@@ -1519,7 +1519,7 @@ void TurboAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
   add(esp, Immediate(kDoubleSize));
 }
 
-void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, int8_t imm8) {
+void TurboAssembler::Pinsrd(XMMRegister dst, Operand src, uint8_t imm8) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
     vpinsrd(dst, dst, src, imm8);
