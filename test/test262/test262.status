@@ -595,8 +595,6 @@
   'intl402/Locale/invalid-tag-throws': [FAIL],
   'intl402/Locale/likely-subtags': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
-  'intl402/Locale/prototype/toStringTag/toStringTag': [FAIL],
-  'intl402/Locale/prototype/toStringTag/toString': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6705
   'built-ins/Object/assign/strings-and-symbol-order': [FAIL],

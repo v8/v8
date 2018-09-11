@@ -4667,7 +4667,7 @@ void Genesis::InitializeGlobal_harmony_locale() {
 
   // Install the @@toStringTag property on the {prototype}.
   JSObject::AddProperty(isolate(), prototype, factory()->to_string_tag_symbol(),
-                        factory()->NewStringFromAsciiChecked("Locale"),
+                        factory()->NewStringFromStaticChars("Intl.Locale"),
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
   SimpleInstallFunction(isolate(), prototype, "toString",
