@@ -126,7 +126,7 @@ class PreParserExpression {
                                    right.variables_);
       }
       if (right.variables_ != nullptr) {
-        left.variables_->Append(right.variables_);
+        left.variables_->Append(std::move(*right.variables_));
       }
       return PreParserExpression(TypeField::encode(kExpression),
                                  left.variables_);
@@ -457,7 +457,7 @@ inline void PreParserList<PreParserExpression>::Add(
     if (variables_ == nullptr) {
       variables_ = new (zone) VariableZoneThreadedListType();
     }
-    variables_->Append(expression.variables_);
+    variables_->Append(std::move(*expression.variables_));
   }
   ++length_;
 }
