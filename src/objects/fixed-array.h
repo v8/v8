@@ -334,7 +334,7 @@ class WeakArrayList : public HeapObject {
 
   static Handle<WeakArrayList> AddToEnd(Isolate* isolate,
                                         Handle<WeakArrayList> array,
-                                        MaybeObjectHandle value);
+                                        const MaybeObjectHandle& value);
 
   inline MaybeObject* Get(int index) const;
 
@@ -381,7 +381,7 @@ class WeakArrayList : public HeapObject {
   // around in the array - this method can only be used in cases where the user
   // doesn't care about the indices! Users should make sure there are no
   // duplicates.
-  bool RemoveOne(MaybeObjectHandle value);
+  bool RemoveOne(const MaybeObjectHandle& value);
 
   class Iterator {
    public:

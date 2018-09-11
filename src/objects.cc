@@ -4717,7 +4717,7 @@ Map* Map::FindFieldOwner(Isolate* isolate, int descriptor) const {
 void Map::UpdateFieldType(Isolate* isolate, int descriptor, Handle<Name> name,
                           PropertyConstness new_constness,
                           Representation new_representation,
-                          MaybeObjectHandle new_wrapped_type) {
+                          const MaybeObjectHandle& new_wrapped_type) {
   DCHECK(new_wrapped_type->IsSmi() || new_wrapped_type->IsWeakHeapObject());
   // We store raw pointers in the queue, so no allocations are allowed.
   DisallowHeapAllocation no_allocation;
@@ -10525,7 +10525,7 @@ Handle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
 // static
 Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               Handle<WeakArrayList> array,
-                                              MaybeObjectHandle value) {
+                                              const MaybeObjectHandle& value) {
   int length = array->length();
   array = EnsureSpace(isolate, array, length + 1);
   // Reload length; GC might have removed elements from the array.
@@ -10563,7 +10563,7 @@ int WeakArrayList::CountLiveWeakReferences() const {
   return live_weak_references;
 }
 
-bool WeakArrayList::RemoveOne(MaybeObjectHandle value) {
+bool WeakArrayList::RemoveOne(const MaybeObjectHandle& value) {
   if (length() == 0) return false;
   // Optimize for the most recently added element to be removed again.
   int last_index = length() - 1;
@@ -15319,7 +15319,8 @@ void DependentCode::SetDependentCode(Handle<HeapObject> object,
   }
 }
 
-void DependentCode::InstallDependency(Isolate* isolate, MaybeObjectHandle code,
+void DependentCode::InstallDependency(Isolate* isolate,
+                                      const MaybeObjectHandle& code,
                                       Handle<HeapObject> object,
                                       DependencyGroup group) {
   Handle<DependentCode> old_deps(DependentCode::GetDependentCode(object),
@@ -15333,7 +15334,7 @@ void DependentCode::InstallDependency(Isolate* isolate, MaybeObjectHandle code,
 
 Handle<DependentCode> DependentCode::InsertWeakCode(
     Isolate* isolate, Handle<DependentCode> entries, DependencyGroup group,
-    MaybeObjectHandle code) {
+    const MaybeObjectHandle& code) {
   if (entries->length() == 0 || entries->group() > group) {
     // There is no such group.
     return DependentCode::New(isolate, group, code, entries);
@@ -15366,7 +15367,7 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
 
 Handle<DependentCode> DependentCode::New(Isolate* isolate,
                                          DependencyGroup group,
-                                         MaybeObjectHandle object,
+                                         const MaybeObjectHandle& object,
                                          Handle<DependentCode> next) {
   Handle<DependentCode> result = Handle<DependentCode>::cast(
       isolate->factory()->NewWeakFixedArray(kCodesStartIndex + 1, TENURED));

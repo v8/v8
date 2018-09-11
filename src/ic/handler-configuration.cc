@@ -140,7 +140,7 @@ Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
 // static
 Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
                                           Handle<Map> receiver_map,
-                                          MaybeObjectHandle holder,
+                                          const MaybeObjectHandle& holder,
                                           Handle<Smi> smi_handler) {
   Handle<JSReceiver> end;  // null handle, means full prototype chain lookup.
   MaybeObjectHandle data1 = holder;

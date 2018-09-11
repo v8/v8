@@ -945,7 +945,7 @@ class Map : public HeapObject {
   void UpdateFieldType(Isolate* isolate, int descriptor_number,
                        Handle<Name> name, PropertyConstness new_constness,
                        Representation new_representation,
-                       MaybeObjectHandle new_wrapped_type);
+                       const MaybeObjectHandle& new_wrapped_type);
 
   // TODO(ishell): Move to MapUpdater.
   void PrintReconfiguration(Isolate* isolate, FILE* file, int modify_index,
