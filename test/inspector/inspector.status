@@ -3,6 +3,17 @@
 # found in the LICENSE file.
 
 [
+##############################################################################
+[ALWAYS, {
+  # https://crbug.com/v8/7767
+  'debugger/wasm-imports': [SKIP],
+}],  # ALWAYS
+
+##############################################################################
+['system == android', {
+  # https://crbug.com/v8/8160
+  'debugger/stepping-with-exposed-injected-script': [FAIL],
+}],  # 'system == android'
 
 ##############################################################################
 ['variant != default', {
@@ -24,10 +35,4 @@
   # Stack manipulations in LiveEdit is not implemented for this arch.
   'debugger/set-script-source-stack-padding': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
-
-##############################################################################
-[ALWAYS, {
-  # https://crbug.com/v8/7767
-  'debugger/wasm-imports': [SKIP],
-}],  # ALWAYS
 ]
