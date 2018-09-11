@@ -207,8 +207,6 @@ enum class ClearRecordedSlots { kYes, kNo };
 
 enum class ClearFreedMemoryMode { kClearFreedMemory, kDontClearFreedMemory };
 
-enum ExternalBackingStoreType { kArrayBuffer, kExternalString, kNumTypes };
-
 enum class FixedArrayVisitationMode { kRegular, kIncremental };
 
 enum class TraceRetainingPathMode { kEnabled, kDisabled };
@@ -692,7 +690,8 @@ class Heap {
     external_memory_concurrently_freed_ = 0;
   }
 
-  size_t backing_store_bytes() const { return backing_store_bytes_; }
+  void ProcessMovedExternalString(Page* old_page, Page* new_page,
+                                ExternalString* string);
 
   void CompactWeakArrayLists(PretenureFlag pretenure);
 
@@ -1844,12 +1843,6 @@ class Heap {
   void CheckIneffectiveMarkCompact(size_t old_generation_size,
                                    double mutator_utilization);
 
-  inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
-
-  inline void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                                 size_t amount);
-
   // ===========================================================================
   // Growing strategy. =========================================================
   // ===========================================================================
@@ -2017,9 +2010,6 @@ class Heap {
   size_t initial_old_generation_size_;
   bool old_generation_size_configured_;
   size_t maximum_committed_;
-
-  // Backing store bytes (array buffers and external strings).
-  std::atomic<size_t> backing_store_bytes_;
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
@@ -2296,7 +2286,6 @@ class Heap {
   friend class Page;
   friend class PagedSpace;
   friend class Scavenger;
-  friend class Space;
   friend class StoreBuffer;
   friend class Sweeper;
   friend class heap::TestMemoryAllocatorScope;
