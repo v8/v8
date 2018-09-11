@@ -1745,6 +1745,17 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         }
         break;
       }
+      case kExternalException: {
+        if (!value->IsWasmExceptionObject()) {
+          ReportLinkError("exception import requires a WebAssembly.Exception",
+                          index, module_name, import_name);
+          return -1;
+        }
+        // TODO(mstarzinger): Actually add imported exceptions to the instance
+        // exception table, making sure to preserve object identity. Also check
+        // against the expected signature.
+        break;
+      }
       default:
         UNREACHABLE();
         break;

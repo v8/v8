@@ -525,6 +525,17 @@ class ModuleDecoderImpl : public Decoder {
           }
           break;
         }
+        case kExternalException: {
+          // ===== Imported exception ======================================
+          if (!enabled_features_.eh) {
+            errorf(pos, "unknown import kind 0x%02x", import->kind);
+            break;
+          }
+          import->index = static_cast<uint32_t>(module_->exceptions.size());
+          module_->exceptions.emplace_back(
+              consume_exception_sig(module_->signature_zone.get()));
+          break;
+        }
         default:
           errorf(pos, "unknown import kind 0x%02x", import->kind);
           break;

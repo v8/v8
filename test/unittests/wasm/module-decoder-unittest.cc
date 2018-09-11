@@ -551,6 +551,25 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeImport) {
   EXPECT_FALSE(result.ok());
 }
 
+TEST_F(WasmModuleVerifyTest, ExceptionImport) {
+  static const byte data[] = {SECTION(Import, 9),  // section header
+                              1,                   // number of imports
+                              NAME_LENGTH(1),      // --
+                              'm',                 // module name
+                              NAME_LENGTH(2),      // --
+                              'e', 'x',            // exception name
+                              kExternalException,  // import kind
+                              // except[0] (i32)
+                              1, kLocalI32};
+  FAIL_IF_NO_EXPERIMENTAL_EH(data);
+
+  WASM_FEATURE_SCOPE(eh);
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+  EXPECT_EQ(1u, result.val->exceptions.size());
+  EXPECT_EQ(1u, result.val->import_table.size());
+}
+
 TEST_F(WasmModuleVerifyTest, ExceptionExport) {
   static const byte data[] = {SECTION_EXCEPTIONS(3), 1,
                               // except[0] (i32)

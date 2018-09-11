@@ -179,6 +179,7 @@ class WasmModuleBuilder {
     this.explicit = [];
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
+    this.num_imported_exceptions = 0;
     return this;
   }
 
@@ -228,10 +229,12 @@ class WasmModuleBuilder {
   }
 
   addException(type) {
-    if (type.results.length != 0)
-      throw new Error('Invalid exception signature: ' + type);
+    if (type.results.length != 0) {
+      throw new Error('Exception signature must have void result: ' + type);
+    }
+    let except_index = this.exceptions.length + this.num_imported_exceptions;
     this.exceptions.push(type);
-    return this.exceptions.length - 1;
+    return except_index;
   }
 
   addFunction(name, type) {
@@ -267,6 +270,18 @@ class WasmModuleBuilder {
     let o = {module: module, name: name, kind: kExternalTable, initial: initial,
              maximum: maximum};
     this.imports.push(o);
+  }
+
+  addImportedException(module = "", name, type) {
+    if (type.results.length != 0) {
+      throw new Error('Exception signature must have void result: ' + type);
+    }
+    if (this.exceptions.length != 0) {
+      throw new Error('Imported exceptions must be declared before local ones');
+    }
+    let o = {module: module, name: name, kind: kExternalException, type: type};
+    this.imports.push(o);
+    return this.num_imported_exceptions++;
   }
 
   addExport(name, index) {
@@ -378,6 +393,11 @@ class WasmModuleBuilder {
             section.emit_u8(has_max ? 1 : 0); // flags
             section.emit_u32v(imp.initial); // initial
             if (has_max) section.emit_u32v(imp.maximum); // maximum
+          } else if (imp.kind == kExternalException) {
+            section.emit_u32v(imp.type.params.length);
+            for (let param of imp.type.params) {
+              section.emit_u8(param);
+            }
           } else {
             throw new Error("unknown/unsupported import kind " + imp.kind);
           }
