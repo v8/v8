@@ -10,7 +10,7 @@ module array {
   macro Extract<FixedArrayType : type>(
       elements: FixedArrayBase, first: Smi, count: Smi,
       capacity: Smi): FixedArrayType {
-    return unsafe_cast<FixedArrayType>(
+    return UnsafeCast<FixedArrayType>(
         ExtractFixedArray(elements, first, count, capacity));
   }
 
@@ -18,9 +18,9 @@ module array {
       elements: FixedArrayBase, first: Smi, count: Smi,
       capacity: Smi): FixedDoubleArray {
     if (elements == kEmptyFixedArray) {
-      return AllocateZeroedFixedDoubleArray(convert<intptr>(capacity));
+      return AllocateZeroedFixedDoubleArray(Convert<intptr>(capacity));
     }
-    return unsafe_cast<FixedDoubleArray>(
+    return UnsafeCast<FixedDoubleArray>(
         ExtractFixedArray(elements, first, count, capacity));
   }
 
@@ -47,11 +47,11 @@ module array {
     let k: Smi = actualStart;
     if (insertCount > 0) {
       const typedNewElements: FixedArrayType =
-          unsafe_cast<FixedArrayType>(newElements);
+          UnsafeCast<FixedArrayType>(newElements);
       for (let e: Object of args [2: ]) {
         // The argument elements were already validated to be an appropriate
         // {ElementType} to store in {FixedArrayType}.
-        typedNewElements[k++] = unsafe_cast<ElementType>(e);
+        typedNewElements[k++] = UnsafeCast<ElementType>(e);
       }
     }
 
@@ -59,9 +59,9 @@ module array {
     let count: Smi = length - actualStart - actualDeleteCount;
     while (count > 0) {
       const typedElements: FixedArrayType =
-          unsafe_cast<FixedArrayType>(elements);
+          UnsafeCast<FixedArrayType>(elements);
       const typedNewElements: FixedArrayType =
-          unsafe_cast<FixedArrayType>(newElements);
+          UnsafeCast<FixedArrayType>(newElements);
       CopyArrayElement(typedElements, typedNewElements, k - lengthDelta, k);
       k++;
       count--;
@@ -72,7 +72,7 @@ module array {
     // is pre-filled with holes.
     if (elements == newElements) {
       const typedNewElements: FixedArrayType =
-          unsafe_cast<FixedArrayType>(newElements);
+          UnsafeCast<FixedArrayType>(newElements);
       const limit: Smi = elements.length;
       while (k < limit) {
         StoreArrayHole(typedNewElements, k);
@@ -90,14 +90,14 @@ module array {
       actualDeleteCountNumber: Number): Object
   labels Bailout {
     const originalLength: Smi =
-        cast<Smi>(originalLengthNumber) otherwise Bailout;
-    const actualStart: Smi = cast<Smi>(actualStartNumber) otherwise Bailout;
+        Cast<Smi>(originalLengthNumber) otherwise Bailout;
+    const actualStart: Smi = Cast<Smi>(actualStartNumber) otherwise Bailout;
     const actualDeleteCount: Smi =
-        cast<Smi>(actualDeleteCountNumber) otherwise Bailout;
+        Cast<Smi>(actualDeleteCountNumber) otherwise Bailout;
     const lengthDelta: Smi = insertCount - actualDeleteCount;
     const newLength: Smi = originalLength + lengthDelta;
 
-    const a: JSArray = cast<JSArray>(o) otherwise Bailout;
+    const a: JSArray = Cast<JSArray>(o) otherwise Bailout;
 
     const map: Map = a.map;
     if (!IsPrototypeInitialArrayPrototype(context, map)) goto Bailout;
@@ -112,7 +112,7 @@ module array {
     for (let e: Object of args [2: ]) {
       if (IsFastSmiElementsKind(elementsKind)) {
         if (TaggedIsNotSmi(e)) {
-          const heapObject: HeapObject = unsafe_cast<HeapObject>(e);
+          const heapObject: HeapObject = UnsafeCast<HeapObject>(e);
           elementsKind = IsHeapNumber(heapObject) ?
               AllowDoubleElements(elementsKind) :
               AllowNonNumberElements(elementsKind);
@@ -125,12 +125,12 @@ module array {
     }
 
     if (elementsKind != oldElementsKind) {
-      const smi_elements_kind: Smi = convert<Smi>(convert<int32>(elementsKind));
-      TransitionElementsKindWithKind(context, a, smi_elements_kind);
+      const smiElementsKind: Smi = Convert<Smi>(Convert<int32>(elementsKind));
+      TransitionElementsKindWithKind(context, a, smiElementsKind);
     }
 
     // Make sure that the length hasn't been changed by side-effect.
-    const length: Smi = cast<Smi>(a.length) otherwise Bailout;
+    const length: Smi = Cast<Smi>(a.length) otherwise Bailout;
     if (originalLength != length) goto Bailout;
 
     const deletedResult: JSArray =
@@ -343,8 +343,8 @@ module array {
     // 0);
     //    else let actualStart be min(relativeStart, len).
     const actualStart: Number = relativeStart < 0 ?
-        max((len + relativeStart), 0) :
-        min(relativeStart, len);
+        Max((len + relativeStart), 0) :
+        Min(relativeStart, len);
 
     let insertCount: Smi;
     let actualDeleteCount: Number;
@@ -363,18 +363,18 @@ module array {
       // 7. Else,
     } else {
       // a. Let insertCount be the Number of actual arguments minus 2.
-      insertCount = convert<Smi>(arguments.length) - 2;
+      insertCount = Convert<Smi>(arguments.length) - 2;
       // b. Let dc be ? ToInteger(deleteCount).
       const deleteCount: Object = arguments[1];
       const dc: Number = ToInteger_Inline(context, deleteCount);
       // c. Let actualDeleteCount be min(max(dc, 0), len - actualStart).
-      actualDeleteCount = min(max(dc, 0), len - actualStart);
+      actualDeleteCount = Min(Max(dc, 0), len - actualStart);
     }
 
     // 8. If len + insertCount - actualDeleteCount > 2^53-1, throw a
     //    Bailout exception.
-    const new_length: Number = len + insertCount - actualDeleteCount;
-    if (new_length > kMaxSafeInteger) {
+    const newLength: Number = len + insertCount - actualDeleteCount;
+    if (newLength > kMaxSafeInteger) {
       ThrowTypeError(context, kInvalidArrayLength, start);
     }
 

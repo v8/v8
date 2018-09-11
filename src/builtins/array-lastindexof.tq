@@ -9,7 +9,7 @@ module array {
 
   LoadWithHoleCheck<FixedArray>(elements: FixedArrayBase, index: Smi): Object
   labels IfHole {
-    const elements: FixedArray = unsafe_cast<FixedArray>(elements);
+    const elements: FixedArray = UnsafeCast<FixedArray>(elements);
     const element: Object = elements[index];
     if (element == Hole) goto IfHole;
     return element;
@@ -18,7 +18,7 @@ module array {
   LoadWithHoleCheck<FixedDoubleArray>(
       elements: FixedArrayBase, index: Smi): Object
   labels IfHole {
-    const elements: FixedDoubleArray = unsafe_cast<FixedDoubleArray>(elements);
+    const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
     const element: float64 = LoadDoubleWithHoleCheck(elements, index)
     otherwise IfHole;
     return AllocateHeapNumberWithValue(element);
@@ -63,7 +63,7 @@ module array {
     if (n >= 0) {
       // a. If n is -0, let k be +0; else let k be min(n, len - 1).
       // If n was -0 it got truncated to 0.0, so taking the minimum is fine.
-      k = min(n, length - 1);
+      k = Min(n, length - 1);
     } else {
       // a. Let k be len + n.
       k = length + n;
@@ -76,12 +76,12 @@ module array {
       from: Number): Object
   labels Slow {
     EnsureFastJSArray(context, receiver) otherwise Slow;
-    const array: JSArray = unsafe_cast<JSArray>(receiver);
+    const array: JSArray = UnsafeCast<JSArray>(receiver);
 
     const length: Smi = array.length_fast;
     if (length == 0) return SmiConstant(-1);
 
-    const fromSmi: Smi = cast<Smi>(from) otherwise Slow;
+    const fromSmi: Smi = Cast<Smi>(from) otherwise Slow;
     const kind: ElementsKind = array.map.elements_kind;
     if (IsFastSmiOrTaggedElementsKind(kind)) {
       return FastArrayLastIndexOf<FixedArray>(
@@ -100,10 +100,10 @@ module array {
     // 7. Repeat, while k >= 0.
     while (k >= 0) {
       // a. Let kPresent be ? HasProperty(O, ! ToString(k)).
-      const k_present: Boolean = HasProperty(context, object, k);
+      const kPresent: Boolean = HasProperty(context, object, k);
 
       // b. If kPresent is true, then.
-      if (k_present == True) {
+      if (kPresent == True) {
         // i. Let elementK be ? Get(O, ! ToString(k)).
         const element: Object = GetProperty(context, object, k);
 

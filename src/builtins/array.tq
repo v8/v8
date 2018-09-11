@@ -16,7 +16,7 @@ module array {
 
   macro GetLengthProperty(context: Context, o: Object): Number {
     if (BranchIfFastJSArray(o, context)) {
-      const a: JSArray = unsafe_cast<JSArray>(o);
+      const a: JSArray = UnsafeCast<JSArray>(o);
       return a.length_fast;
     } else
       deferred {
@@ -42,7 +42,7 @@ module array {
 
   macro IsJSArray(o: Object): bool {
     try {
-      const array: JSArray = cast<JSArray>(o) otherwise NotArray;
+      const array: JSArray = Cast<JSArray>(o) otherwise NotArray;
       return true;
     }
     label NotArray {

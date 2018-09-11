@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-static constexpr const char* const kFromConstexprMacroName = "from_constexpr";
+static constexpr const char* const kFromConstexprMacroName = "FromConstexpr";
 static constexpr const char* kTrueLabelName = "_True";
 static constexpr const char* kFalseLabelName = "_False";
 

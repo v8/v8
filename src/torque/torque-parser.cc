@@ -557,7 +557,7 @@ base::Optional<ParseResult> MakeTypeswitchStatement(
     BlockStatement* case_block;
     if (i < cases.size() - 1) {
       value = MakeNode<CallExpression>(
-          "cast", false, std::vector<TypeExpression*>{cases[i].type},
+          "Cast", false, std::vector<TypeExpression*>{cases[i].type},
           std::vector<Expression*>{value},
           std::vector<std::string>{"_NextCase"});
       case_block = MakeNode<BlockStatement>();

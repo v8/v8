@@ -9,7 +9,7 @@ module array {
       context: Context, receiver: Object, arguments: constexpr Arguments): never
   labels Slow {
     EnsureFastJSArray(context, receiver) otherwise Slow;
-    const array: JSArray = unsafe_cast<JSArray>(receiver);
+    const array: JSArray = UnsafeCast<JSArray>(receiver);
     EnsureWriteableFastElements(array);
 
     const map: Map = array.map;
@@ -18,7 +18,7 @@ module array {
 
     tail ArrayUnshift(
         context, LoadTargetFromFrame(), Undefined,
-        convert<int32>(arguments.length));
+        Convert<int32>(arguments.length));
   }
 
   macro GenericArrayUnshift(
@@ -31,12 +31,12 @@ module array {
     const length: Number = GetLengthProperty(context, object);
 
     // 3. Let argCount be the number of actual arguments.
-    const arg_count: Smi = convert<Smi>(arguments.length);
+    const argCount: Smi = Convert<Smi>(arguments.length);
 
     // 4. If argCount > 0, then.
-    if (arg_count > 0) {
+    if (argCount > 0) {
       // a. If len + argCount > 2**53 - 1, throw a TypeError exception.
-      if (length + arg_count > kMaxSafeInteger) {
+      if (length + argCount > kMaxSafeInteger) {
         ThrowTypeError(context, kInvalidArrayLength);
       }
 
@@ -49,18 +49,18 @@ module array {
         const from: Number = k - 1;
 
         // ii. Let to be ! ToString(k + argCount - 1).
-        const to: Number = k + arg_count - 1;
+        const to: Number = k + argCount - 1;
 
         // iii. Let fromPresent be ? HasProperty(O, from).
-        const from_present: Boolean = HasProperty(context, object, from);
+        const fromPresent: Boolean = HasProperty(context, object, from);
 
         // iv. If fromPresent is true, then
-        if (from_present == True) {
+        if (fromPresent == True) {
           // 1. Let fromValue be ? Get(O, from).
-          const from_value: Object = GetProperty(context, object, from);
+          const fromValue: Object = GetProperty(context, object, from);
 
           // 2. Perform ? Set(O, to, fromValue, true).
-          SetProperty(context, object, to, from_value);
+          SetProperty(context, object, to, fromValue);
         } else {
           // 1. Perform ? DeletePropertyOrThrow(O, to).
           DeleteProperty(context, object, to, kStrict);
@@ -76,9 +76,9 @@ module array {
       // e. Let items be a List whose elements are, in left to right order,
       //    the arguments that were passed to this function invocation.
       // f. Repeat, while items is not empty
-      while (j < arg_count) {
+      while (j < argCount) {
         // ii .Perform ? Set(O, ! ToString(j), E, true).
-        SetProperty(context, object, j, arguments[convert<intptr>(j)]);
+        SetProperty(context, object, j, arguments[Convert<intptr>(j)]);
 
         // iii. Increase j by 1.
         ++j;
@@ -86,11 +86,11 @@ module array {
     }
 
     // 5. Perform ? Set(O, "length", len + argCount, true).
-    const new_length: Number = length + arg_count;
-    SetProperty(context, object, kLengthString, new_length);
+    const newLength: Number = length + argCount;
+    SetProperty(context, object, kLengthString, newLength);
 
-    // 6. Return length + arg_count.
-    return new_length;
+    // 6. Return length + argCount.
+    return newLength;
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.unshift

@@ -316,10 +316,10 @@ extern operator '+' macro NumberAdd(Number, Number): Number;
 extern operator '-' macro NumberSub(Number, Number): Number;
 extern macro NumberMin(Number, Number): Number;
 extern macro NumberMax(Number, Number): Number;
-macro min(x: Number, y: Number): Number {
+macro Min(x: Number, y: Number): Number {
   return NumberMin(x, y);
 }
-macro max(x: Number, y: Number): Number {
+macro Max(x: Number, y: Number): Number {
   return NumberMax(x, y);
 }
 
@@ -355,41 +355,41 @@ extern macro HeapObjectToFixedDoubleArray(HeapObject):
     FixedDoubleArray labels CastError;
 extern macro TaggedToNumber(Object): Number labels CastError;
 
-macro cast_HeapObject<A : type>(o: HeapObject): A labels CastError;
-cast_HeapObject<HeapObject>(o: HeapObject): HeapObject labels CastError {
+macro CastHeapObject<A : type>(o: HeapObject): A labels CastError;
+CastHeapObject<HeapObject>(o: HeapObject): HeapObject labels CastError {
   return o;
 }
-cast_HeapObject<FixedArray>(o: HeapObject): FixedArray labels CastError {
+CastHeapObject<FixedArray>(o: HeapObject): FixedArray labels CastError {
   return HeapObjectToFixedArray(o) otherwise CastError;
 }
-cast_HeapObject<FixedDoubleArray>(o: HeapObject):
+CastHeapObject<FixedDoubleArray>(o: HeapObject):
     FixedDoubleArray labels CastError {
   return HeapObjectToFixedDoubleArray(o) otherwise CastError;
 }
-cast_HeapObject<JSDataView>(o: HeapObject): JSDataView labels CastError {
+CastHeapObject<JSDataView>(o: HeapObject): JSDataView labels CastError {
   return HeapObjectToJSDataView(o) otherwise CastError;
 }
-cast_HeapObject<Callable>(o: HeapObject): Callable labels CastError {
+CastHeapObject<Callable>(o: HeapObject): Callable labels CastError {
   return HeapObjectToCallable(o) otherwise CastError;
 }
-cast_HeapObject<JSArray>(o: HeapObject): JSArray labels CastError {
+CastHeapObject<JSArray>(o: HeapObject): JSArray labels CastError {
   return HeapObjectToJSArray(o) otherwise CastError;
 }
 
-macro cast<A : type>(o: HeapObject): A labels CastError {
-  return cast_HeapObject<A>(o) otherwise CastError;
+macro Cast<A : type>(o: HeapObject): A labels CastError {
+  return CastHeapObject<A>(o) otherwise CastError;
 }
 
-// cast_HeapObject allows this default-implementation to be non-recursive.
+// CastHeapObject allows this default-implementation to be non-recursive.
 // Otherwise the generated CSA code might run into infinite recursion.
-macro cast<A : type>(o: Object): A labels CastError {
-  return cast_HeapObject<A>(TaggedToHeapObject(o) otherwise CastError)
+macro Cast<A : type>(o: Object): A labels CastError {
+  return CastHeapObject<A>(TaggedToHeapObject(o) otherwise CastError)
   otherwise CastError;
 }
-cast<Smi>(o: Object): Smi labels CastError {
+Cast<Smi>(o: Object): Smi labels CastError {
   return TaggedToSmi(o) otherwise CastError;
 }
-cast<Number>(o: Object): Number labels CastError {
+Cast<Number>(o: Object): Number labels CastError {
   return TaggedToNumber(o) otherwise CastError;
 }
 
@@ -428,137 +428,137 @@ extern macro StringConstant(constexpr string): String;
 extern macro LanguageModeConstant(constexpr LanguageMode): LanguageMode;
 extern macro Int32Constant(constexpr ElementsKind): ElementsKind;
 
-macro from_constexpr<A : type>(o: constexpr int31): A;
-from_constexpr<intptr>(i: constexpr int31): intptr {
+macro FromConstexpr<A : type>(o: constexpr int31): A;
+FromConstexpr<intptr>(i: constexpr int31): intptr {
   return IntPtrConstant(i);
 }
-from_constexpr<int31>(i: constexpr int31): int31 {
+FromConstexpr<int31>(i: constexpr int31): int31 {
   return Int32Constant(i);
 }
-from_constexpr<int32>(i: constexpr int31): int32 {
+FromConstexpr<int32>(i: constexpr int31): int32 {
   return Int32Constant(i);
 }
-from_constexpr<uint32>(i: constexpr int31): uint32 {
+FromConstexpr<uint32>(i: constexpr int31): uint32 {
   return Unsigned(Int32Constant(i));
 }
-from_constexpr<uintptr>(i: constexpr int31): uintptr {
+FromConstexpr<uintptr>(i: constexpr int31): uintptr {
   return ChangeUint32ToWord(i);
 }
-from_constexpr<Smi>(i: constexpr int31): Smi {
+FromConstexpr<Smi>(i: constexpr int31): Smi {
   return SmiConstant(i);
 }
-from_constexpr<Number>(i: constexpr int31): Number {
+FromConstexpr<Number>(i: constexpr int31): Number {
   return SmiConstant(i);
 }
-from_constexpr<float64>(i: constexpr int31): float64 {
+FromConstexpr<float64>(i: constexpr int31): float64 {
   return Float64Constant(i);
 }
-macro from_constexpr<A : type>(o: constexpr int32): A;
-from_constexpr<intptr>(i: constexpr int32): intptr {
+macro FromConstexpr<A : type>(o: constexpr int32): A;
+FromConstexpr<intptr>(i: constexpr int32): intptr {
   return IntPtrConstant(i);
 }
-from_constexpr<int32>(i: constexpr int32): int32 {
+FromConstexpr<int32>(i: constexpr int32): int32 {
   return Int32Constant(i);
 }
-from_constexpr<Number>(i: constexpr int32): Number {
+FromConstexpr<Number>(i: constexpr int32): Number {
   return NumberConstant(i);
 }
-macro from_constexpr<A : type>(o: constexpr float64): A;
-from_constexpr<Number>(f: constexpr float64): Number {
+macro FromConstexpr<A : type>(o: constexpr float64): A;
+FromConstexpr<Number>(f: constexpr float64): Number {
   return NumberConstant(f);
 }
-macro from_constexpr<A : type>(b: constexpr bool): A;
-from_constexpr<bool>(b: constexpr bool): bool {
+macro FromConstexpr<A : type>(b: constexpr bool): A;
+FromConstexpr<bool>(b: constexpr bool): bool {
   return BoolConstant(b);
 }
-macro from_constexpr<A : type>(l: constexpr LanguageMode): A;
-from_constexpr<LanguageMode>(b: constexpr LanguageMode): LanguageMode {
+macro FromConstexpr<A : type>(l: constexpr LanguageMode): A;
+FromConstexpr<LanguageMode>(b: constexpr LanguageMode): LanguageMode {
   return LanguageModeConstant(b);
 }
-macro from_constexpr<A : type>(e: constexpr ElementsKind): A;
-from_constexpr<ElementsKind>(e: constexpr ElementsKind): ElementsKind {
+macro FromConstexpr<A : type>(e: constexpr ElementsKind): A;
+FromConstexpr<ElementsKind>(e: constexpr ElementsKind): ElementsKind {
   return Int32Constant(e);
 }
-macro from_constexpr<A : type>(s: constexpr string): A;
-from_constexpr<String>(s: constexpr string): String {
+macro FromConstexpr<A : type>(s: constexpr string): A;
+FromConstexpr<String>(s: constexpr string): String {
   return StringConstant(s);
 }
-from_constexpr<Object>(s: constexpr string): Object {
+FromConstexpr<Object>(s: constexpr string): Object {
   return StringConstant(s);
 }
 
-macro convert<A : type>(i: constexpr int31): A {
+macro Convert<A : type>(i: constexpr int31): A {
   return i;
 }
 extern macro ConvertElementsKindToInt(ElementsKind): int32;
 
-macro convert<A : type>(elements_kind: ElementsKind): A;
-convert<int32>(elements_kind: ElementsKind): int32 {
-  return ConvertElementsKindToInt(elements_kind);
+macro Convert<A : type>(elementsKind: ElementsKind): A;
+Convert<int32>(elementsKind: ElementsKind): int32 {
+  return ConvertElementsKindToInt(elementsKind);
 }
 
-macro convert<A : type>(i: int32): A;
-convert<Number>(i: int32): Number {
+macro Convert<A : type>(i: int32): A;
+Convert<Number>(i: int32): Number {
   return ChangeInt32ToTagged(i);
 }
-convert<intptr>(i: int32): intptr {
+Convert<intptr>(i: int32): intptr {
   return ChangeInt32ToIntPtr(i);
 }
-convert<Smi>(i: int32): Smi {
+Convert<Smi>(i: int32): Smi {
   return SmiFromInt32(i);
 }
-macro convert<A : type>(ui: uint32): A;
-convert<Number>(ui: uint32): Number {
+macro Convert<A : type>(ui: uint32): A;
+Convert<Number>(ui: uint32): Number {
   return ChangeUint32ToTagged(ui);
 }
-convert<Smi>(ui: uint32): Smi {
+Convert<Smi>(ui: uint32): Smi {
   return SmiFromInt32(Signed(ui));
 }
-convert<uintptr>(ui: uint32): uintptr {
+Convert<uintptr>(ui: uint32): uintptr {
   return ChangeUint32ToWord(ui);
 }
-macro convert<A : type>(i: intptr): A;
-convert<int32>(i: intptr): int32 {
+macro Convert<A : type>(i: intptr): A;
+Convert<int32>(i: intptr): int32 {
   return TruncateIntPtrToInt32(i);
 }
-convert<Smi>(i: intptr): Smi {
+Convert<Smi>(i: intptr): Smi {
   return SmiTag(i);
 }
-macro convert<A : type>(ui: uintptr): A;
-convert<uint32>(ui: uintptr): uint32 {
+macro Convert<A : type>(ui: uintptr): A;
+Convert<uint32>(ui: uintptr): uint32 {
   return Unsigned(TruncateIntPtrToInt32(Signed(ui)));
 }
-macro convert<A : type>(s: Smi): A;
-convert<intptr>(s: Smi): intptr {
+macro Convert<A : type>(s: Smi): A;
+Convert<intptr>(s: Smi): intptr {
   return SmiUntag(s);
 }
-convert<int32>(s: Smi): int32 {
+Convert<int32>(s: Smi): int32 {
   return SmiToInt32(s);
 }
-macro convert<A : type>(h: HeapNumber): A;
-convert<float64>(h: HeapNumber): float64 {
+macro Convert<A : type>(h: HeapNumber): A;
+Convert<float64>(h: HeapNumber): float64 {
   return LoadHeapNumberValue(h);
 }
-macro convert<A : type>(n: Number): A;
-convert<float64>(n: Number): float64 {
+macro Convert<A : type>(n: Number): A;
+Convert<float64>(n: Number): float64 {
   return ChangeNumberToFloat64(n);
 }
-macro convert<A : type>(f: float32): A;
-convert<float64>(f: float32): float64 {
+macro Convert<A : type>(f: float32): A;
+Convert<float64>(f: float32): float64 {
   return ChangeFloat32ToFloat64(f);
 }
-macro convert<A : type>(d: float64): A;
-convert<Number>(d: float64): Number {
+macro Convert<A : type>(d: float64): A;
+Convert<Number>(d: float64): Number {
   return AllocateHeapNumberWithValue(d);
 }
-convert<uintptr>(d: float64): uintptr {
+Convert<uintptr>(d: float64): uintptr {
   return ChangeFloat64ToUintPtr(d);
 }
-macro convert<A : type>(r: RawPtr): A;
-convert<uintptr>(r: RawPtr): uintptr {
+macro Convert<A : type>(r: RawPtr): A;
+Convert<uintptr>(r: RawPtr): uintptr {
   return Unsigned(r);
 }
-convert<intptr>(r: RawPtr): intptr {
+Convert<intptr>(r: RawPtr): intptr {
   return Signed(r);
 }
 
@@ -578,60 +578,60 @@ extern macro UnsafeCastObjectToJSReceiver(Object): JSReceiver;
 extern macro UnsafeCastObjectToJSObject(Object): JSObject;
 extern macro UnsafeCastObjectToMap(Object): Map;
 
-macro unsafe_cast<A : type>(n: Number): A;
-unsafe_cast<HeapNumber>(n: Number): HeapNumber {
+macro UnsafeCast<A : type>(n: Number): A;
+UnsafeCast<HeapNumber>(n: Number): HeapNumber {
   return UnsafeCastNumberToHeapNumber(n);
 }
-macro unsafe_cast<A : type>(o: Object): A;
-unsafe_cast<Object>(o: Object): Object {
+macro UnsafeCast<A : type>(o: Object): A;
+UnsafeCast<Object>(o: Object): Object {
   return o;
 }
-unsafe_cast<FixedArray>(o: Object): FixedArray {
+UnsafeCast<FixedArray>(o: Object): FixedArray {
   return UnsafeCastObjectToFixedArray(o);
 }
-unsafe_cast<FixedDoubleArray>(o: Object): FixedDoubleArray {
+UnsafeCast<FixedDoubleArray>(o: Object): FixedDoubleArray {
   return UnsafeCastObjectToFixedDoubleArray(o);
 }
-unsafe_cast<HeapNumber>(o: Object): HeapNumber {
+UnsafeCast<HeapNumber>(o: Object): HeapNumber {
   return UnsafeCastObjectToHeapNumber(o);
 }
-unsafe_cast<Callable>(o: Object): Callable {
+UnsafeCast<Callable>(o: Object): Callable {
   return UnsafeCastObjectToCallable(o);
 }
-unsafe_cast<Smi>(o: Object): Smi {
+UnsafeCast<Smi>(o: Object): Smi {
   return UnsafeCastObjectToSmi(o);
 }
-unsafe_cast<Number>(o: Object): Number {
+UnsafeCast<Number>(o: Object): Number {
   return UnsafeCastObjectToNumber(o);
 }
-unsafe_cast<HeapObject>(o: Object): HeapObject {
+UnsafeCast<HeapObject>(o: Object): HeapObject {
   return UnsafeCastObjectToHeapObject(o);
 }
-unsafe_cast<JSArray>(o: Object): JSArray {
+UnsafeCast<JSArray>(o: Object): JSArray {
   return UnsafeCastObjectToJSArray(o);
 }
-unsafe_cast<FixedTypedArrayBase>(o: Object): FixedTypedArrayBase {
+UnsafeCast<FixedTypedArrayBase>(o: Object): FixedTypedArrayBase {
   return UnsafeCastObjectToFixedTypedArrayBase(o);
 }
-unsafe_cast<NumberDictionary>(o: Object): NumberDictionary {
+UnsafeCast<NumberDictionary>(o: Object): NumberDictionary {
   return UnsafeCastObjectToNumberDictionary(o);
 }
-unsafe_cast<JSReceiver>(o: Object): JSReceiver {
+UnsafeCast<JSReceiver>(o: Object): JSReceiver {
   return UnsafeCastObjectToJSReceiver(o);
 }
-unsafe_cast<JSObject>(o: Object): JSObject {
+UnsafeCast<JSObject>(o: Object): JSObject {
   return UnsafeCastObjectToJSObject(o);
 }
-unsafe_cast<Map>(o: Object): Map {
+UnsafeCast<Map>(o: Object): Map {
   return UnsafeCastObjectToMap(o);
 }
-unsafe_cast<FixedArrayBase>(o: Object): FixedArrayBase {
+UnsafeCast<FixedArrayBase>(o: Object): FixedArrayBase {
   return UnsafeCastObjectToFixedArrayBase(o);
 }
 
-const kCOWMap: Map = unsafe_cast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
+const kCOWMap: Map = UnsafeCast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
 const kEmptyFixedArray: FixedArrayBase =
-    unsafe_cast<FixedArrayBase>(LoadRoot(kEmptyFixedArrayRootIndex));
+    UnsafeCast<FixedArrayBase>(LoadRoot(kEmptyFixedArrayRootIndex));
 
 extern macro BranchIfFastJSArray(Object, Context): never labels Taken, NotTaken;
 extern macro BranchIfNotFastJSArray(Object, Context): never labels Taken,
@@ -677,7 +677,7 @@ extern operator
 '[]=' macro StoreFixedArrayElementSmi(FixedArray, Smi, Object): void;
 operator '[]=' macro StoreFixedDoubleArrayNumber(
     a: FixedDoubleArray, index: Smi, value: Number): void {
-  a[index] = convert<float64>(value);
+  a[index] = Convert<float64>(value);
 }
 
 extern macro StoreFixedArrayElementSmi(
@@ -775,7 +775,7 @@ LoadElementNoHole<FixedArray>(a: JSArray, index: Smi): Object
 labels IfHole {
   try {
     let elements: FixedArray =
-        cast<FixedArray>(a.elements) otherwise Unexpected;
+        Cast<FixedArray>(a.elements) otherwise Unexpected;
     let e: Object = elements[index];
     if (e == Hole) {
       goto IfHole;
@@ -791,7 +791,7 @@ LoadElementNoHole<FixedDoubleArray>(a: JSArray, index: Smi): Object
 labels IfHole {
   try {
     let elements: FixedDoubleArray =
-        cast<FixedDoubleArray>(a.elements) otherwise Unexpected;
+        Cast<FixedDoubleArray>(a.elements) otherwise Unexpected;
     let e: float64 = LoadDoubleWithHoleCheck(elements, index) otherwise IfHole;
     return AllocateHeapNumberWithValue(e);
   }
@@ -823,7 +823,7 @@ macro NumberIsNaN(number: Number): bool {
     case (Smi) {
       return false;
     } case (hn : HeapNumber) {
-        let value: float64 = convert<float64>(hn);
+        let value: float64 = Convert<float64>(hn);
         return value != value;
       }
   }
