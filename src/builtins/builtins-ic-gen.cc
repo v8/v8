@@ -39,6 +39,7 @@ IC_BUILTIN(KeyedStoreIC)
 IC_BUILTIN(KeyedStoreICTrampoline)
 IC_BUILTIN(StoreInArrayLiteralIC)
 IC_BUILTIN(CloneObjectIC)
+IC_BUILTIN(CloneObjectIC_Slow)
 
 IC_BUILTIN_PARAM(LoadGlobalIC, LoadGlobalIC, NOT_INSIDE_TYPEOF)
 IC_BUILTIN_PARAM(LoadGlobalICInsideTypeof, LoadGlobalIC, INSIDE_TYPEOF)

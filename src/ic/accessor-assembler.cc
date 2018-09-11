@@ -4,11 +4,13 @@
 
 #include "src/ic/accessor-assembler.h"
 
+#include "src/ast/ast.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/ic/handler-configuration.h"
 #include "src/ic/ic.h"
+#include "src/ic/keyed-store-generic.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects-inl.h"
 #include "src/objects/module.h"
@@ -807,9 +809,14 @@ void AccessorAssembler::EmitAccessCheck(Node* expected_native_context,
 
 void AccessorAssembler::JumpIfDataProperty(Node* details, Label* writable,
                                            Label* readonly) {
-  // Accessor properties never have the READ_ONLY attribute set.
-  GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
-         readonly);
+  if (readonly) {
+    // Accessor properties never have the READ_ONLY attribute set.
+    GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
+           readonly);
+  } else {
+    CSA_ASSERT(this, IsNotSetWord32(details,
+                                    PropertyDetails::kAttributesReadOnlyMask));
+  }
   Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
   GotoIf(Word32Equal(kind, Int32Constant(kData)), writable);
   // Fall through if it's an accessor property.
@@ -946,7 +953,8 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     BIND(&store_transition);
     {
       TNode<Map> map = CAST(map_or_property_cell);
-      HandleStoreICTransitionMapHandlerCase(p, map, miss, false);
+      HandleStoreICTransitionMapHandlerCase(p, map, miss,
+                                            kCheckPrototypeValidity);
       Return(p->value);
     }
   }
@@ -954,10 +962,13 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
 void AccessorAssembler::HandleStoreICTransitionMapHandlerCase(
     const StoreICParameters* p, TNode<Map> transition_map, Label* miss,
-    bool validate_transition_handler) {
-  Node* maybe_validity_cell =
-      LoadObjectField(transition_map, Map::kPrototypeValidityCellOffset);
-  CheckPrototypeValidityCell(maybe_validity_cell, miss);
+    StoreTransitionMapFlags flags) {
+  DCHECK_EQ(0, flags & ~kStoreTransitionMapFlagsMask);
+  if (flags & kCheckPrototypeValidity) {
+    Node* maybe_validity_cell =
+        LoadObjectField(transition_map, Map::kPrototypeValidityCellOffset);
+    CheckPrototypeValidityCell(maybe_validity_cell, miss);
+  }
 
   TNode<Uint32T> bitfield3 = LoadMapBitField3(transition_map);
   CSA_ASSERT(this, IsClearWord32<Map::IsDictionaryMapBit>(bitfield3));
@@ -971,7 +982,7 @@ void AccessorAssembler::HandleStoreICTransitionMapHandlerCase(
   Node* factor = IntPtrConstant(DescriptorArray::kEntrySize);
   TNode<IntPtrT> last_key_index = UncheckedCast<IntPtrT>(IntPtrAdd(
       IntPtrConstant(DescriptorArray::ToKeyIndex(-1)), IntPtrMul(nof, factor)));
-  if (validate_transition_handler) {
+  if (flags & kValidateTransitionHandler) {
     Node* key = LoadWeakFixedArrayElement(descriptors, last_key_index);
     GotoIf(WordNotEqual(key, p->name), miss);
   } else {
@@ -981,7 +992,7 @@ void AccessorAssembler::HandleStoreICTransitionMapHandlerCase(
                          p->name));
   }
   Node* details = LoadDetailsByKeyIndex(descriptors, last_key_index);
-  if (validate_transition_handler) {
+  if (flags & kValidateTransitionHandler) {
     // Follow transitions only in the following cases:
     // 1) name is a non-private symbol and attributes equal to NONE,
     // 2) name is a private symbol and attributes equal to DONT_ENUM.
@@ -3479,6 +3490,76 @@ void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
   StoreInArrayLiteralIC(&p);
 }
 
+void AccessorAssembler::GenerateCloneObjectIC_Slow() {
+  typedef CloneObjectWithVectorDescriptor Descriptor;
+  TNode<HeapObject> source = CAST(Parameter(Descriptor::kSource));
+  TNode<Smi> flags = CAST(Parameter(Descriptor::kFlags));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  // The Slow case uses the same call interface as CloneObjectIC, so that it
+  // can be tail called from it. However, the feedback slot and vector are not
+  // used.
+
+  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<JSFunction> object_fn =
+      CAST(LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
+  TNode<Map> initial_map = CAST(
+      LoadObjectField(object_fn, JSFunction::kPrototypeOrInitialMapOffset));
+  CSA_ASSERT(this, IsMap(initial_map));
+
+  TNode<JSObject> result = CAST(AllocateJSObjectFromMap(initial_map));
+
+  {
+    Label did_set_proto_if_needed(this);
+    TNode<BoolT> is_null_proto = SmiNotEqual(
+        SmiAnd(flags, SmiConstant(ObjectLiteral::kHasNullPrototype)),
+        SmiConstant(Smi::kZero));
+    GotoIfNot(is_null_proto, &did_set_proto_if_needed);
+
+    CallRuntime(Runtime::kInternalSetPrototype, context, result,
+                NullConstant());
+
+    Goto(&did_set_proto_if_needed);
+    BIND(&did_set_proto_if_needed);
+  }
+
+  ReturnIf(IsNullOrUndefined(source), result);
+
+  CSA_ASSERT(this, IsJSReceiver(source));
+
+  Label call_runtime(this, Label::kDeferred);
+  Label done(this);
+
+  TNode<Map> map = LoadMap(source);
+  TNode<Int32T> type = LoadMapInstanceType(map);
+  {
+    Label cont(this);
+    GotoIf(IsJSObjectInstanceType(type), &cont);
+    GotoIfNot(IsStringInstanceType(type), &done);
+    Branch(SmiEqual(LoadStringLengthAsSmi(CAST(source)), SmiConstant(0)), &done,
+           &call_runtime);
+    BIND(&cont);
+  }
+
+  GotoIfNot(IsEmptyFixedArray(LoadElements(CAST(source))), &call_runtime);
+
+  ForEachEnumerableOwnProperty(
+      context, map, CAST(source),
+      [=](TNode<Name> key, TNode<Object> value) {
+        KeyedStoreGenericGenerator::SetPropertyInLiteral(state(), context,
+                                                         result, key, value);
+      },
+      &call_runtime);
+  Goto(&done);
+
+  BIND(&call_runtime);
+  CallRuntime(Runtime::kCopyDataProperties, context, result, source);
+
+  Goto(&done);
+  BIND(&done);
+  Return(result);
+}
+
 void AccessorAssembler::GenerateCloneObjectIC() {
   typedef CloneObjectWithVectorDescriptor Descriptor;
   Node* source = Parameter(Descriptor::kSource);
@@ -3587,7 +3668,8 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     GotoIfNot(WordEqual(strong_feedback,
                         LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
               &miss);
-    TailCallRuntime(Runtime::kCloneObjectIC_Slow, context, source, flags);
+    TailCallBuiltin(Builtins::kCloneObjectIC_Slow, context, source, flags, slot,
+                    vector);
   }
 
   BIND(&miss);

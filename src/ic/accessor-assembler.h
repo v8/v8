@@ -43,6 +43,7 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateStoreGlobalIC();
   void GenerateStoreGlobalICTrampoline();
   void GenerateCloneObjectIC();
+  void GenerateCloneObjectIC_Slow();
 
   void GenerateLoadGlobalIC(TypeofMode typeof_mode);
   void GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode);
@@ -109,10 +110,16 @@ class AccessorAssembler : public CodeStubAssembler {
   void HandleStoreICHandlerCase(
       const StoreICParameters* p, TNode<MaybeObject> handler, Label* miss,
       ICMode ic_mode, ElementSupport support_elements = kOnlyProperties);
+  enum StoreTransitionMapFlags {
+    kCheckPrototypeValidity = 1 << 0,
+    kValidateTransitionHandler = 1 << 1,
+    kStoreTransitionMapFlagsMask =
+        kCheckPrototypeValidity | kValidateTransitionHandler,
+  };
   void HandleStoreICTransitionMapHandlerCase(const StoreICParameters* p,
                                              TNode<Map> transition_map,
                                              Label* miss,
-                                             bool validate_transition_handler);
+                                             StoreTransitionMapFlags flags);
 
   void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
 

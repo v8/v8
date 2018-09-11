@@ -1744,6 +1744,19 @@ TNode<Object> CodeStubAssembler::LoadMapBackPointer(SloppyTNode<Map> map) {
                         [=] { return UndefinedConstant(); });
 }
 
+TNode<Uint32T> CodeStubAssembler::EnsureOnlyHasSimpleProperties(
+    TNode<Map> map, TNode<Int32T> instance_type, Label* bailout) {
+  // This check can have false positives, since it applies to any JSValueType.
+  GotoIf(IsCustomElementsReceiverInstanceType(instance_type), bailout);
+
+  TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
+  GotoIf(IsSetWord32(bit_field3, Map::IsDictionaryMapBit::kMask |
+                                     Map::HasHiddenPrototypeBit::kMask),
+         bailout);
+
+  return bit_field3;
+}
+
 TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
     SloppyTNode<Object> receiver, Label* if_no_hash) {
   TVARIABLE(IntPtrT, var_hash);
@@ -5369,6 +5382,13 @@ TNode<BoolT> CodeStubAssembler::IsExtensibleMap(SloppyTNode<Map> map) {
   return IsSetWord32<Map::IsExtensibleBit>(LoadMapBitField2(map));
 }
 
+TNode<BoolT> CodeStubAssembler::IsExtensibleNonPrototypeMap(TNode<Map> map) {
+  int kMask = Map::IsExtensibleBit::kMask | Map::IsPrototypeMapBit::kMask;
+  int kExpected = Map::IsExtensibleBit::kMask;
+  return Word32Equal(Word32And(LoadMapBitField2(map), Int32Constant(kMask)),
+                     Int32Constant(kExpected));
+}
+
 TNode<BoolT> CodeStubAssembler::IsCallableMap(SloppyTNode<Map> map) {
   CSA_ASSERT(this, IsMap(map));
   return IsSetWord32<Map::IsCallableBit>(LoadMapBitField(map));
@@ -8219,6 +8239,125 @@ void CodeStubAssembler::DescriptorArrayForEach(
                 },
                 DescriptorArray::kEntrySize, INTPTR_PARAMETERS,
                 IndexAdvanceMode::kPost);
+}
+
+void CodeStubAssembler::ForEachEnumerableOwnProperty(
+    TNode<Context> context, TNode<Map> map, TNode<JSObject> object,
+    const ForEachKeyValueFunction& body, Label* bailout) {
+  TNode<Int32T> type = LoadMapInstanceType(map);
+  TNode<Uint32T> bit_field3 = EnsureOnlyHasSimpleProperties(map, type, bailout);
+
+  TNode<DescriptorArray> descriptors = LoadMapDescriptors(map);
+  TNode<Uint32T> nof_descriptors =
+      DecodeWord32<Map::NumberOfOwnDescriptorsBits>(bit_field3);
+
+  TVARIABLE(BoolT, var_stable, Int32TrueConstant());
+  VariableList list({&var_stable}, zone());
+
+  DescriptorArrayForEach(
+      list, Unsigned(Int32Constant(0)), nof_descriptors,
+      [=, &var_stable](TNode<UintPtrT> descriptor_key_index) {
+        TNode<Name> next_key =
+            CAST(LoadWeakFixedArrayElement(descriptors, descriptor_key_index));
+
+        TVARIABLE(Object, var_value, SmiConstant(0));
+        Label callback(this), next_iteration(this);
+
+        {
+          TVARIABLE(Map, var_map);
+          TVARIABLE(HeapObject, var_meta_storage);
+          TVARIABLE(IntPtrT, var_entry);
+          TVARIABLE(Uint32T, var_details);
+          Label if_found(this);
+
+          Label if_found_fast(this), if_found_dict(this);
+
+          Label if_stable(this), if_not_stable(this);
+          Branch(var_stable.value(), &if_stable, &if_not_stable);
+          BIND(&if_stable);
+          {
+            // Directly decode from the descriptor array if |object| did not
+            // change shape.
+            var_map = map;
+            var_meta_storage = descriptors;
+            var_entry = Signed(descriptor_key_index);
+            Goto(&if_found_fast);
+          }
+          BIND(&if_not_stable);
+          {
+            // If the map did change, do a slower lookup. We are still
+            // guaranteed that the object has a simple shape, and that the key
+            // is a name.
+            var_map = LoadMap(object);
+            TryLookupPropertyInSimpleObject(
+                object, var_map.value(), next_key, &if_found_fast,
+                &if_found_dict, &var_meta_storage, &var_entry, &next_iteration);
+          }
+
+          BIND(&if_found_fast);
+          {
+            TNode<DescriptorArray> descriptors = CAST(var_meta_storage.value());
+            TNode<IntPtrT> name_index = var_entry.value();
+
+            // Skip non-enumerable properties.
+            var_details = LoadDetailsByKeyIndex(descriptors, name_index);
+            GotoIf(IsSetWord32(var_details.value(),
+                               PropertyDetails::kAttributesDontEnumMask),
+                   &next_iteration);
+
+            LoadPropertyFromFastObject(object, var_map.value(), descriptors,
+                                       name_index, var_details.value(),
+                                       &var_value);
+            Goto(&if_found);
+          }
+          BIND(&if_found_dict);
+          {
+            TNode<NameDictionary> dictionary = CAST(var_meta_storage.value());
+            TNode<IntPtrT> entry = var_entry.value();
+
+            TNode<Uint32T> details =
+                LoadDetailsByKeyIndex<NameDictionary>(dictionary, entry);
+            // Skip non-enumerable properties.
+            GotoIf(
+                IsSetWord32(details, PropertyDetails::kAttributesDontEnumMask),
+                &next_iteration);
+
+            var_details = details;
+            var_value = LoadValueByKeyIndex<NameDictionary>(dictionary, entry);
+            Goto(&if_found);
+          }
+
+          // Here we have details and value which could be an accessor.
+          BIND(&if_found);
+          {
+            Label slow_load(this, Label::kDeferred);
+
+            var_value = CallGetterIfAccessor(var_value.value(),
+                                             var_details.value(), context,
+                                             object, &slow_load, kCallJSGetter);
+            Goto(&callback);
+
+            BIND(&slow_load);
+            var_value =
+                CallRuntime(Runtime::kGetProperty, context, object, next_key);
+            Goto(&callback);
+
+            BIND(&callback);
+            body(next_key, var_value.value());
+
+            // Check if |object| is still stable, i.e. we can proceed using
+            // property details from preloaded |descriptors|.
+            var_stable =
+                Select<BoolT>(var_stable.value(),
+                              [=] { return WordEqual(LoadMap(object), map); },
+                              [=] { return Int32FalseConstant(); });
+
+            Goto(&next_iteration);
+          }
+        }
+
+        BIND(&next_iteration);
+      });
 }
 
 void CodeStubAssembler::DescriptorLookup(

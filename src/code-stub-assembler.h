@@ -934,6 +934,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadMapEnumLength(SloppyTNode<Map> map);
   // Load the back-pointer of a Map.
   TNode<Object> LoadMapBackPointer(SloppyTNode<Map> map);
+  // Checks that |map| has only simple properties, returns bitfield3.
+  TNode<Uint32T> EnsureOnlyHasSimpleProperties(TNode<Map> map,
+                                               TNode<Int32T> instance_type,
+                                               Label* bailout);
   // Load the identity hash of a JSRececiver.
   TNode<IntPtrT> LoadJSReceiverIdentityHash(SloppyTNode<Object> receiver,
                                             Label* if_no_hash = nullptr);
@@ -1799,6 +1803,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> IsNameDictionary(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsGlobalDictionary(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsExtensibleMap(SloppyTNode<Map> map);
+  TNode<BoolT> IsExtensibleNonPrototypeMap(TNode<Map> map);
   TNode<BoolT> IsExternalStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsFastJSArray(SloppyTNode<Object> object,
                              SloppyTNode<Context> context);
@@ -2934,6 +2939,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                               TNode<Uint32T> start_descriptor,
                               TNode<Uint32T> end_descriptor,
                               const ForEachDescriptorBodyFunction& body);
+
+  typedef std::function<void(TNode<Name> key, TNode<Object> value)>
+      ForEachKeyValueFunction;
+
+  // For each JSObject property (in DescriptorArray order), check if the key is
+  // enumerable, and if so, load the value from the receiver and evaluate the
+  // closure.
+  void ForEachEnumerableOwnProperty(TNode<Context> context, TNode<Map> map,
+                                    TNode<JSObject> object,
+                                    const ForEachKeyValueFunction& body,
+                                    Label* bailout);
 
   TNode<Object> CallGetterIfAccessor(Node* value, Node* details, Node* context,
                                      Node* receiver, Label* if_bailout,
