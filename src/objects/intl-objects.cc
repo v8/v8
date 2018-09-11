@@ -26,11 +26,8 @@
 #include "src/objects/string.h"
 #include "src/property-descriptor.h"
 #include "unicode/brkiter.h"
-#include "unicode/calendar.h"
 #include "unicode/coll.h"
 #include "unicode/decimfmt.h"
-#include "unicode/dtptngen.h"
-#include "unicode/gregocal.h"
 #include "unicode/locid.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
@@ -62,138 +59,6 @@ std::string Intl::GetNumberingSystem(const icu::Locale& icu_locale) {
   }
   return value;
 }
-
-namespace {
-// ecma-402/#sec-isvalidtimezonename
-bool IsValidTimeZoneName(const icu::TimeZone& tz) {
-  UErrorCode status = U_ZERO_ERROR;
-  icu::UnicodeString id;
-  tz.getID(id);
-  icu::UnicodeString canonical;
-  icu::TimeZone::getCanonicalID(id, canonical, status);
-  return U_SUCCESS(status) &&
-         canonical != icu::UnicodeString("Etc/Unknown", -1, US_INV);
-}
-
-std::unique_ptr<icu::TimeZone> CreateTimeZone(Isolate* isolate,
-                                              const char* timezone) {
-  // Create time zone as specified by the user. We have to re-create time zone
-  // since calendar takes ownership.
-  if (timezone == nullptr) {
-    return std::unique_ptr<icu::TimeZone>(icu::TimeZone::createDefault());
-  }
-  std::string canonicalized =
-      JSDateTimeFormat::CanonicalizeTimeZoneID(isolate, timezone);
-  if (canonicalized.empty()) return std::unique_ptr<icu::TimeZone>();
-  std::unique_ptr<icu::TimeZone> tz(
-      icu::TimeZone::createTimeZone(canonicalized.c_str()));
-  if (!IsValidTimeZoneName(*tz)) return std::unique_ptr<icu::TimeZone>();
-  return tz;
-}
-
-std::unique_ptr<icu::Calendar> CreateCalendar(Isolate* isolate,
-                                              const icu::Locale& icu_locale,
-                                              const char* timezone) {
-  std::unique_ptr<icu::TimeZone> tz = CreateTimeZone(isolate, timezone);
-  if (tz.get() == nullptr) return std::unique_ptr<icu::Calendar>();
-
-  // Create a calendar using locale, and apply time zone to it.
-  UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::Calendar> calendar(
-      icu::Calendar::createInstance(tz.release(), icu_locale, status));
-  CHECK(U_SUCCESS(status));
-  CHECK_NOT_NULL(calendar.get());
-
-  if (calendar->getDynamicClassID() ==
-      icu::GregorianCalendar::getStaticClassID()) {
-    icu::GregorianCalendar* gc =
-        static_cast<icu::GregorianCalendar*>(calendar.get());
-    UErrorCode status = U_ZERO_ERROR;
-    // The beginning of ECMAScript time, namely -(2**53)
-    const double start_of_time = -9007199254740992;
-    gc->setGregorianChange(start_of_time, status);
-    DCHECK(U_SUCCESS(status));
-  }
-  return calendar;
-}
-
-std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
-    Isolate* isolate, const icu::Locale& icu_locale,
-    const std::string skeleton) {
-  // See https://github.com/tc39/ecma402/issues/225 . The best pattern
-  // generation needs to be done in the base locale according to the
-  // current spec however odd it may be. See also crbug.com/826549 .
-  // This is a temporary work-around to get v8's external behavior to match
-  // the current spec, but does not follow the spec provisions mentioned
-  // in the above Ecma 402 issue.
-  // TODO(jshin): The spec may need to be revised because using the base
-  // locale for the pattern match is not quite right. Moreover, what to
-  // do with 'related year' part when 'chinese/dangi' calendar is specified
-  // has to be discussed. Revisit once the spec is clarified/revised.
-  icu::Locale no_extension_locale(icu_locale.getBaseName());
-  UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::DateTimePatternGenerator> generator(
-      icu::DateTimePatternGenerator::createInstance(no_extension_locale,
-                                                    status));
-  icu::UnicodeString pattern;
-  if (U_SUCCESS(status)) {
-    pattern =
-        generator->getBestPattern(icu::UnicodeString(skeleton.c_str()), status);
-  }
-
-  // Make formatter from skeleton. Calendar and numbering system are added
-  // to the locale as Unicode extension (if they were specified at all).
-  std::unique_ptr<icu::SimpleDateFormat> date_format(
-      new icu::SimpleDateFormat(pattern, icu_locale, status));
-  if (U_FAILURE(status)) return std::unique_ptr<icu::SimpleDateFormat>();
-
-  CHECK_NOT_NULL(date_format.get());
-  return date_format;
-}
-
-void SetResolvedDateSettings(Isolate* isolate, const icu::Locale& icu_locale,
-                             icu::SimpleDateFormat* date_format,
-                             Handle<JSObject> resolved) {
-  Factory* factory = isolate->factory();
-  UErrorCode status = U_ZERO_ERROR;
-  // Ugly hack. ICU doesn't expose numbering system in any way, so we have
-  // to assume that for given locale NumberingSystem constructor produces the
-  // same digits as NumberFormat/Calendar would.
-  icu::NumberingSystem* numbering_system =
-      icu::NumberingSystem::createInstance(icu_locale, status);
-  if (U_SUCCESS(status)) {
-    const char* ns = numbering_system->getName();
-    JSObject::SetProperty(
-        isolate, resolved, factory->NewStringFromStaticChars("numberingSystem"),
-        factory->NewStringFromAsciiChecked(ns), LanguageMode::kSloppy)
-        .Assert();
-  } else {
-    JSObject::SetProperty(isolate, resolved,
-                          factory->NewStringFromStaticChars("numberingSystem"),
-                          factory->undefined_value(), LanguageMode::kSloppy)
-        .Assert();
-  }
-  delete numbering_system;
-
-  // Set the locale
-  char result[ULOC_FULLNAME_CAPACITY];
-  status = U_ZERO_ERROR;
-  uloc_toLanguageTag(icu_locale.getName(), result, ULOC_FULLNAME_CAPACITY,
-                     FALSE, &status);
-  if (U_SUCCESS(status)) {
-    JSObject::SetProperty(
-        isolate, resolved, factory->NewStringFromStaticChars("locale"),
-        factory->NewStringFromAsciiChecked(result), LanguageMode::kSloppy)
-        .Assert();
-  } else {
-    // This would never happen, since we got the locale from ICU.
-    JSObject::SetProperty(
-        isolate, resolved, factory->NewStringFromStaticChars("locale"),
-        factory->NewStringFromStaticChars("und"), LanguageMode::kSloppy)
-        .Assert();
-  }
-}
-}  // namespace
 
 MaybeHandle<JSObject> Intl::CachedOrNewService(
     Isolate* isolate, Handle<String> service, Handle<Object> locales,
@@ -240,59 +105,6 @@ icu::Locale Intl::CreateICULocale(Isolate* isolate,
 }
 
 // static
-Maybe<icu::SimpleDateFormat*> DateFormat::InitializeDateTimeFormat(
-    Isolate* isolate, Handle<String> locale, Handle<JSObject> options,
-    Handle<JSObject> resolved) {
-  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
-  DCHECK(!icu_locale.isBogus());
-
-  static std::vector<const char*> empty_values = {};
-  std::unique_ptr<char[]> timezone = nullptr;
-  Maybe<bool> maybe_timezone =
-      Intl::GetStringOption(isolate, options, "timeZone", empty_values,
-                            "Intl.DateTimeFormat", &timezone);
-  MAYBE_RETURN(maybe_timezone, Nothing<icu::SimpleDateFormat*>());
-
-  Maybe<std::string> maybe_skeleton =
-      JSDateTimeFormat::OptionsToSkeleton(isolate, options);
-  MAYBE_RETURN(maybe_skeleton, Nothing<icu::SimpleDateFormat*>());
-  CHECK(!maybe_skeleton.FromJust().empty());
-  std::string skeleton = maybe_skeleton.FromJust();
-
-  std::unique_ptr<icu::Calendar> calendar(
-      CreateCalendar(isolate, icu_locale, timezone.get()));
-  if (calendar.get() == nullptr) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(
-            MessageTemplate::kInvalidTimeZone,
-            isolate->factory()->NewStringFromAsciiChecked(timezone.get())),
-        Nothing<icu::SimpleDateFormat*>());
-  }
-  std::unique_ptr<icu::SimpleDateFormat> date_format(
-      CreateICUDateFormat(isolate, icu_locale, skeleton));
-  if (date_format.get() == nullptr) {
-    // Remove extensions and try again.
-    icu_locale = icu::Locale(icu_locale.getBaseName());
-    date_format = CreateICUDateFormat(isolate, icu_locale, skeleton);
-    if (date_format.get() == nullptr) {
-      FATAL("Failed to create ICU date format, are ICU data files missing?");
-    }
-  }
-  date_format->adoptCalendar(calendar.release());
-  SetResolvedDateSettings(isolate, icu_locale, date_format.get(), resolved);
-  return Just(date_format.release());
-}
-
-icu::SimpleDateFormat* DateFormat::UnpackDateFormat(Handle<JSObject> obj) {
-  return reinterpret_cast<icu::SimpleDateFormat*>(
-      obj->GetEmbedderField(DateFormat::kSimpleDateFormatIndex));
-}
-
-void DateFormat::DeleteDateFormat(const v8::WeakCallbackInfo<void>& data) {
-  delete reinterpret_cast<icu::SimpleDateFormat*>(data.GetInternalField(0));
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
-}
 
 MaybeHandle<String> Intl::ToString(Isolate* isolate,
                                    const icu::UnicodeString& string) {
@@ -562,77 +374,6 @@ MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
   }
 
   return receiver;
-}
-
-MaybeHandle<JSObject> Intl::UnwrapReceiver(Isolate* isolate,
-                                           Handle<JSReceiver> receiver,
-                                           Handle<JSFunction> constructor,
-                                           Intl::Type type,
-                                           Handle<String> method_name,
-                                           bool check_legacy_constructor) {
-  DCHECK(type == Intl::Type::kCollator || type == Intl::Type::kNumberFormat ||
-         type == Intl::Type::kDateTimeFormat ||
-         type == Intl::Type::kBreakIterator);
-  Handle<Object> new_receiver = receiver;
-  if (check_legacy_constructor) {
-    bool has_initialized_slot = Intl::IsObjectOfType(isolate, receiver, type);
-
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, new_receiver,
-        LegacyUnwrapReceiver(isolate, receiver, constructor,
-                             has_initialized_slot),
-        JSObject);
-  }
-
-  // Collator and NumberFormat has been ported to use regular instance types. We
-  // shouldn't be using Intl::IsObjectOfType anymore.
-  if (type == Intl::Type::kCollator) {
-    if (!receiver->IsJSCollator()) {
-      // 3. a. Throw a TypeError exception.
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                                   method_name, receiver),
-                      JSObject);
-    }
-    return Handle<JSCollator>::cast(receiver);
-  } else if (type == Intl::Type::kNumberFormat) {
-    if (!receiver->IsJSNumberFormat()) {
-      // 3. a. Throw a TypeError exception.
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                                   method_name, receiver),
-                      JSObject);
-    }
-    return Handle<JSNumberFormat>::cast(receiver);
-  }
-
-  DCHECK_NE(type, Intl::Type::kCollator);
-  DCHECK_NE(type, Intl::Type::kNumberFormat);
-  // 3. If Type(new_receiver) is not Object or nf does not have an
-  //    [[Initialized...]]  internal slot, then
-  if (!Intl::IsObjectOfType(isolate, new_receiver, type)) {
-    // 3. a. Throw a TypeError exception.
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                                 method_name, receiver),
-                    JSObject);
-  }
-
-  // The above IsObjectOfType returns true only for JSObjects, which
-  // makes this cast safe.
-  return Handle<JSObject>::cast(new_receiver);
-}
-
-void Intl::DefineWEProperty(Isolate* isolate, Handle<JSReceiver> target,
-                            Handle<Name> key, Handle<Object> value) {
-  PropertyDescriptor desc;
-  desc.set_writable(true);
-  desc.set_enumerable(true);
-  desc.set_value(value);
-  Maybe<bool> success =
-      JSReceiver::DefineOwnProperty(isolate, target, key, &desc, kDontThrow);
-  DCHECK(success.IsJust() && success.FromJust());
-  USE(success);
 }
 
 namespace {
@@ -1160,50 +901,6 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
   }
   // 8. Return seen.
   return Just(seen);
-}
-
-/**
- * Parses Unicode extension into key - value map.
- * Returns empty object if the extension string is invalid.
- * We are not concerned with the validity of the values at this point.
- * 'attribute' in RFC 6047 is not supported. Keys without explicit
- * values are assigned UNDEFINED.
- * TODO(jshin): Fix the handling of 'attribute' (in RFC 6047, but none
- * has been defined so that it's not used) and boolean keys without
- * an explicit value.
- */
-void Intl::ParseExtension(Isolate* isolate, const std::string& extension,
-                          std::map<std::string, std::string>& out) {
-  if (extension.compare(0, 3, "-u-") != 0) return;
-
-  // Key is {2}alphanum, value is {3,8}alphanum.
-  // Some keys may not have explicit values (booleans).
-  std::string key;
-  std::string value;
-  // Skip the "-u-".
-  size_t start = 3;
-  size_t end;
-  do {
-    end = extension.find('-', start);
-    size_t length =
-        (end == std::string::npos) ? extension.length() - start : end - start;
-    std::string element = extension.substr(start, length);
-    // Key is {2}alphanum
-    if (length == 2) {
-      if (!key.empty()) {
-        out.insert(std::pair<std::string, std::string>(key, value));
-        value.clear();
-      }
-      key = element;
-      // value is {3,8}alphanum.
-    } else if (length >= 3 && length <= 8 && !key.empty()) {
-      value = value.empty() ? element : (value + "-" + element);
-    } else {
-      return;
-    }
-    start = end + 1;
-  } while (end != std::string::npos);
-  if (!key.empty()) out.insert(std::pair<std::string, std::string>(key, value));
 }
 
 // ecma402 #sup-string.prototype.tolocalelowercase

@@ -30,6 +30,7 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator.h"
 #include "src/objects/js-collator.h"
+#include "src/objects/js-date-time-format.h"
 #include "src/objects/js-list-format.h"
 #include "src/objects/js-locale.h"
 #include "src/objects/js-number-format.h"
@@ -2901,8 +2902,15 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     {
       Handle<JSFunction> date_time_format_constructor = InstallFunction(
-          isolate_, intl, "DateTimeFormat", JS_OBJECT_TYPE, DateFormat::kSize,
-          0, factory->the_hole_value(), Builtins::kIllegal);
+          isolate_, intl, "DateTimeFormat", JS_INTL_DATE_TIME_FORMAT_TYPE,
+          JSDateTimeFormat::kSize, 0, factory->the_hole_value(),
+          Builtins::kDateTimeFormatConstructor);
+      date_time_format_constructor->shared()->set_length(0);
+      date_time_format_constructor->shared()->DontAdaptArguments();
+      InstallWithIntrinsicDefaultProto(
+          isolate_, date_time_format_constructor,
+          Context::INTL_DATE_TIME_FORMAT_FUNCTION_INDEX);
+
       native_context()->set_intl_date_time_format_function(
           *date_time_format_constructor);
 

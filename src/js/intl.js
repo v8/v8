@@ -43,35 +43,6 @@ utils.Import(function(from) {
   ArrayPush = from.ArrayPush;
 });
 
-// Utilities for definitions
-
-macro NUMBER_IS_NAN(arg)
-(%IS_VAR(arg) !== arg)
-endmacro
-
-// To avoid ES2015 Function name inference.
-
-macro ANONYMOUS_FUNCTION(fn)
-(0, (fn))
-endmacro
-
-function IntlConstruct(receiver, constructor, create, newTarget, args,
-                       compat) {
-  var locales = args[0];
-  var options = args[1];
-
-  var instance = create(locales, options);
-
-  if (compat && IS_UNDEFINED(newTarget) && receiver instanceof constructor) {
-    %object_define_property(receiver, IntlFallbackSymbol, { value: instance });
-    return receiver;
-  }
-
-  return instance;
-}
-
-
-
 // -------------------------------------------------------------------
 
 /**
@@ -300,69 +271,6 @@ function bestFitMatcher(service, requestedLocales) {
 }
 
 /**
- * Populates internalOptions object with boolean key-value pairs
- * from extensionMap and options.
- * Returns filtered extension (number and date format constructors use
- * Unicode extensions for passing parameters to ICU).
- * It's used for extension-option pairs only, e.g. kn-normalization, but not
- * for 'sensitivity' since it doesn't have extension equivalent.
- * Extensions like nu and ca don't have options equivalent, so we place
- * undefined in the map.property to denote that.
- */
-function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
-  var extension = '';
-
-  var updateExtension = function updateExtension(key, value) {
-    return '-' + key + '-' + TO_STRING(value);
-  }
-
-  var updateProperty = function updateProperty(property, type, value) {
-    if (type === 'boolean' && (typeof value === 'string')) {
-      value = (value === 'true') ? true : false;
-    }
-
-    if (!IS_UNDEFINED(property)) {
-      %DefineWEProperty(outOptions, property, value);
-    }
-  }
-
-  for (var key in keyValues) {
-    if (HAS_OWN_PROPERTY(keyValues, key)) {
-      var value = UNDEFINED;
-      var map = keyValues[key];
-      if (!IS_UNDEFINED(map.property)) {
-        // This may return true if user specifies numeric: 'false', since
-        // Boolean('nonempty') === true.
-        value = getOption(map.property, map.type, map.values);
-      }
-      if (!IS_UNDEFINED(value)) {
-        updateProperty(map.property, map.type, value);
-        extension += updateExtension(key, value);
-        continue;
-      }
-      // User options didn't have it, check Unicode extension.
-      // Here we want to convert strings 'true', 'false' into proper Boolean
-      // values (not a user error).
-      if (HAS_OWN_PROPERTY(extensionMap, key)) {
-        value = extensionMap[key];
-        if (!IS_UNDEFINED(value)) {
-          updateProperty(map.property, map.type, value);
-          extension += updateExtension(key, value);
-        } else if (map.type === 'boolean') {
-          // Boolean keys are allowed not to have values in Unicode extension.
-          // Those default to true.
-          updateProperty(map.property, map.type, true);
-          extension += updateExtension(key, true);
-        }
-      }
-    }
-  }
-
-  return extension === ''? '' : '-u' + extension;
-}
-
-
-/**
  * Given an array-like, outputs an Array with the numbered
  * properties copied over and defined
  * configurable: false, writable: false, enumerable: true.
@@ -420,16 +328,6 @@ function getAvailableLocalesOf(service) {
   AVAILABLE_LOCALES[service] = available;
 
   return available;
-}
-
-/**
- * Defines a property and sets writable, enumerable and configurable to true.
- */
-function defineWECProperty(object, property, value) {
-  %object_define_property(object, property, {value: value,
-                                             writable: true,
-                                             enumerable: true,
-                                             configurable: true});
 }
 
 /**
@@ -502,73 +400,6 @@ DEFINE_METHOD(
     return %NumberFormatResolvedOptions(this);
   }
 );
-
-/**
- * Initializes the given object so it's a valid DateTimeFormat instance.
- * Useful for subclassing.
- */
-function CreateDateTimeFormat(locales, options) {
-  if (IS_UNDEFINED(options)) {
-    options = {__proto__: null};
-  }
-
-  var locale = resolveLocale('dateformat', locales, options);
-
-  options = %ToDateTimeOptions(options, 'any', 'date');
-
-  var getOption = getGetOption(options, 'dateformat');
-
-  // We implement only best fit algorithm, but still need to check
-  // if the formatMatcher values are in range.
-  var matcher = getOption('formatMatcher', 'string',
-                          ['basic', 'best fit'], 'best fit');
-
-  // ICU prefers options to be passed using -u- extension key/values, so
-  // we need to build that.
-  var internalOptions = {__proto__: null};
-  var extensionMap = %ParseExtension(locale.extension);
-
-  /**
-   * Map of Unicode extensions to option properties, and their values and types,
-   * for a date/time format.
-   */
-  var DATETIME_FORMAT_KEY_MAP = {
-    __proto__: null,
-    'ca': {__proto__: null, 'property': UNDEFINED, 'type': 'string'},
-    'nu': {__proto__: null, 'property': UNDEFINED, 'type': 'string'}
-  };
-
-  var extension = setOptions(options, extensionMap, DATETIME_FORMAT_KEY_MAP,
-                             getOption, internalOptions);
-
-  var requestedLocale = locale.locale + extension;
-  // Still need to store locale and numberingSystem till we move the storage
-  // to JSDateTimeFormat
-  var resolved = {__proto__: null};
-
-  var dateFormat = %CreateDateTimeFormat(requestedLocale, options, resolved);
-
-  %MarkAsInitializedIntlObjectOfType(dateFormat, DATE_TIME_FORMAT_TYPE);
-
-  // Still need to store locale and numberingSystem till we move the storage
-  // to JSDateTimeFormat
-  dateFormat[resolvedSymbol] = resolved;
-
-  return dateFormat;
-}
-
-
-/**
- * Constructs Intl.DateTimeFormat object given optional locales and options
- * parameters.
- *
- * @constructor
- */
-function DateTimeFormatConstructor() {
-  return IntlConstruct(this, GlobalIntlDateTimeFormat, CreateDateTimeFormat,
-                       new.target, arguments, true);
-}
-%SetCode(GlobalIntlDateTimeFormat, DateTimeFormatConstructor);
 
 /**
  * DateTimeFormat resolvedOptions method.

@@ -844,45 +844,45 @@ BUILTIN(DatePrototypeToTimeString) {
 BUILTIN(DatePrototypeToLocaleDateString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleDateString");
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           JSDateTimeFormat::ToLocaleDateTime(
-                               isolate,
-                               date,                            // date
-                               args.atOrUndefined(isolate, 1),  // locales
-                               args.atOrUndefined(isolate, 2),  // options
-                               "date",                          // required
-                               "date",                          // defaults
-                               "dateformatdate"));              // service
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSDateTimeFormat::ToLocaleDateTime(
+                   isolate,
+                   date,                                     // date
+                   args.atOrUndefined(isolate, 1),           // locales
+                   args.atOrUndefined(isolate, 2),           // options
+                   JSDateTimeFormat::RequiredOption::kDate,  // required
+                   JSDateTimeFormat::DefaultsOption::kDate,  // defaults
+                   "dateformatdate"));                       // service
 }
 
 // ecma402 #sup-date.prototype.tolocalestring
 BUILTIN(DatePrototypeToLocaleString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleString");
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           JSDateTimeFormat::ToLocaleDateTime(
-                               isolate,
-                               date,                            // date
-                               args.atOrUndefined(isolate, 1),  // locales
-                               args.atOrUndefined(isolate, 2),  // options
-                               "any",                           // required
-                               "all",                           // defaults
-                               "dateformatall"));               // service
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSDateTimeFormat::ToLocaleDateTime(
+                   isolate,
+                   date,                                    // date
+                   args.atOrUndefined(isolate, 1),          // locales
+                   args.atOrUndefined(isolate, 2),          // options
+                   JSDateTimeFormat::RequiredOption::kAny,  // required
+                   JSDateTimeFormat::DefaultsOption::kAll,  // defaults
+                   "dateformatall"));                       // service
 }
 
 // ecma402 #sup-date.prototype.tolocaletimestring
 BUILTIN(DatePrototypeToLocaleTimeString) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleTimeString");
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           JSDateTimeFormat::ToLocaleDateTime(
-                               isolate,
-                               date,                            // date
-                               args.atOrUndefined(isolate, 1),  // locales
-                               args.atOrUndefined(isolate, 2),  // options
-                               "time",                          // required
-                               "time",                          // defaults
-                               "dateformattime"));              // service
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSDateTimeFormat::ToLocaleDateTime(
+                   isolate,
+                   date,                                     // date
+                   args.atOrUndefined(isolate, 1),           // locales
+                   args.atOrUndefined(isolate, 2),           // options
+                   JSDateTimeFormat::RequiredOption::kTime,  // required
+                   JSDateTimeFormat::DefaultsOption::kTime,  // defaults
+                   "dateformattime"));                       // service
 }
 #endif  // V8_INTL_SUPPORT
 

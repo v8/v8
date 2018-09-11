@@ -1991,6 +1991,11 @@ void JSCollator::JSCollatorPrint(std::ostream& os) {  // NOLINT
 
 void JSDateTimeFormat::JSDateTimeFormatPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSDateTimeFormat");
+  os << "\n - locale: " << Brief(locale());
+  os << "\n - numbering system: " << Brief(numbering_system());
+  os << "\n - icu simple date format: " << Brief(icu_simple_date_format());
+  os << "\n - bound format: " << Brief(bound_format());
+  os << "\n";
 }
 
 void JSListFormat::JSListFormatPrint(std::ostream& os) {  // NOLINT

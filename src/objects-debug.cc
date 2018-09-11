@@ -1910,6 +1910,10 @@ void JSCollator::JSCollatorVerify(Isolate* isolate) {
 
 void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
+  VerifyObjectField(isolate, kLocaleOffset);
+  VerifyObjectField(isolate, kNumberingSystemOffset);
+  VerifyObjectField(isolate, kICUSimpleDateFormatOffset);
+  VerifyObjectField(isolate, kBoundFormatOffset);
 }
 
 void JSListFormat::JSListFormatVerify(Isolate* isolate) {

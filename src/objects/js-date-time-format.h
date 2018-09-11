@@ -10,6 +10,7 @@
 #define V8_OBJECTS_JS_DATE_TIME_FORMAT_H_
 
 #include "src/isolate.h"
+#include "src/objects/managed.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -23,16 +24,19 @@ namespace internal {
 
 class JSDateTimeFormat : public JSObject {
  public:
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolvedOptions(
-      Isolate* isolate, Handle<JSReceiver> date_time_holder);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSDateTimeFormat> Initialize(
+      Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
+      Handle<Object> locales, Handle<Object> options);
 
-  // The UnwrapDateTimeFormat abstract operation gets the underlying
-  // DateTimeFormat operation for various methods which implement ECMA-402 v1
-  // semantics for supporting initializing existing Intl objects.
-  //
+  static icu::SimpleDateFormat* UnpackDateFormat(
+      Handle<JSDateTimeFormat> date_time_format);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolvedOptions(
+      Isolate* isolate, Handle<JSReceiver> format_holder);
+
   // ecma402/#sec-unwrapdatetimeformat
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> Unwrap(
-      Isolate* isolate, Handle<JSReceiver> receiver, const char* method_name);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSDateTimeFormat>
+  UnwrapDateTimeFormat(Isolate* isolate, Handle<JSReceiver> format_holder);
 
   // Convert the options to ICU DateTimePatternGenerator skeleton.
   static Maybe<std::string> OptionsToSkeleton(Isolate* isolate,
@@ -46,29 +50,46 @@ class JSDateTimeFormat : public JSObject {
   // ecma402/#sec-datetime-format-functions
   // DateTime Format Functions
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> DateTimeFormat(
-      Isolate* isolate, Handle<JSObject> date_time_format_holder,
+      Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
       Handle<Object> date);
 
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> FormatToParts(
+      Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
+      double date_value);
+
   // ecma-402/#sec-todatetimeoptions
+  enum class RequiredOption { kDate, kTime, kAny };
+  enum class DefaultsOption { kDate, kTime, kAll };
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ToDateTimeOptions(
-      Isolate* isolate, Handle<Object> input_options, const char* required,
-      const char* defaults);
+      Isolate* isolate, Handle<Object> input_options, RequiredOption required,
+      DefaultsOption defaults);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleDateTime(
       Isolate* isolate, Handle<Object> date, Handle<Object> locales,
-      Handle<Object> options, const char* required, const char* defaults,
+      Handle<Object> options, RequiredOption required, DefaultsOption defaults,
       const char* service);
 
   DECL_CAST(JSDateTimeFormat)
 
+// TODO(ftang): try to remove numbering_system from JSDateTimeFormat and
+// directly read from icu to save some bytes later.
 // Layout description.
-#define JS_DATE_TIME_FORMAT_FIELDS(V) \
-  /* Total size. */                   \
+#define JS_DATE_TIME_FORMAT_FIELDS(V)         \
+  V(kLocaleOffset, kPointerSize)              \
+  V(kNumberingSystemOffset, kPointerSize)     \
+  V(kICUSimpleDateFormatOffset, kPointerSize) \
+  V(kBoundFormatOffset, kPointerSize)         \
+  /* Total size. */                           \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 JS_DATE_TIME_FORMAT_FIELDS)
 #undef JS_DATE_TIME_FORMAT_FIELDS
+
+  DECL_ACCESSORS(locale, String)
+  DECL_ACCESSORS(numbering_system, String)
+  DECL_ACCESSORS(icu_simple_date_format, Managed<icu::SimpleDateFormat>)
+  DECL_ACCESSORS(bound_format, Object)
 
   DECL_PRINTER(JSDateTimeFormat)
   DECL_VERIFIER(JSDateTimeFormat)

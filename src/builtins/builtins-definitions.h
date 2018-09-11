@@ -1345,6 +1345,8 @@ namespace internal {
   CPP(DatePrototypeToLocaleString)                                     \
   /* ecma402 #sup-date.prototype.tolocaletimestring */                 \
   CPP(DatePrototypeToLocaleTimeString)                                 \
+  /* ecma402 #sec-intl.datetimeformat */                               \
+  CPP(DateTimeFormatConstructor)                                       \
   /* ecma402 #sec-datetime-format-functions */                         \
   CPP(DateTimeFormatInternalFormat)                                    \
   /* ecma402 #sec-intl.datetimeformat.prototype.format */              \

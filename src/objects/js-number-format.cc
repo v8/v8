@@ -182,9 +182,11 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
 }
 
 // static
-MaybeHandle<JSNumberFormat> JSNumberFormat::InitializeNumberFormat(
+MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
     Isolate* isolate, Handle<JSNumberFormat> number_format,
     Handle<Object> locales, Handle<Object> options_obj) {
+  // set the flags to 0 ASAP.
+  number_format->set_flags(0);
   Factory* factory = isolate->factory();
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Handle<JSObject> requested_locales;

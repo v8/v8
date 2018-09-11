@@ -131,110 +131,6 @@ BUILTIN(StringPrototypeNormalizeIntl) {
 
 namespace {
 
-// The list comes from third_party/icu/source/i18n/unicode/udat.h.
-// They're mapped to DateTimeFormat components listed at
-// https://tc39.github.io/ecma402/#sec-datetimeformat-abstracts .
-
-Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
-  switch (field_id) {
-    case -1:
-      return isolate->factory()->literal_string();
-    case UDAT_YEAR_FIELD:
-    case UDAT_EXTENDED_YEAR_FIELD:
-    case UDAT_YEAR_NAME_FIELD:
-      return isolate->factory()->year_string();
-    case UDAT_MONTH_FIELD:
-    case UDAT_STANDALONE_MONTH_FIELD:
-      return isolate->factory()->month_string();
-    case UDAT_DATE_FIELD:
-      return isolate->factory()->day_string();
-    case UDAT_HOUR_OF_DAY1_FIELD:
-    case UDAT_HOUR_OF_DAY0_FIELD:
-    case UDAT_HOUR1_FIELD:
-    case UDAT_HOUR0_FIELD:
-      return isolate->factory()->hour_string();
-    case UDAT_MINUTE_FIELD:
-      return isolate->factory()->minute_string();
-    case UDAT_SECOND_FIELD:
-      return isolate->factory()->second_string();
-    case UDAT_DAY_OF_WEEK_FIELD:
-    case UDAT_DOW_LOCAL_FIELD:
-    case UDAT_STANDALONE_DAY_FIELD:
-      return isolate->factory()->weekday_string();
-    case UDAT_AM_PM_FIELD:
-      return isolate->factory()->dayperiod_string();
-    case UDAT_TIMEZONE_FIELD:
-    case UDAT_TIMEZONE_RFC_FIELD:
-    case UDAT_TIMEZONE_GENERIC_FIELD:
-    case UDAT_TIMEZONE_SPECIAL_FIELD:
-    case UDAT_TIMEZONE_LOCALIZED_GMT_OFFSET_FIELD:
-    case UDAT_TIMEZONE_ISO_FIELD:
-    case UDAT_TIMEZONE_ISO_LOCAL_FIELD:
-      return isolate->factory()->timeZoneName_string();
-    case UDAT_ERA_FIELD:
-      return isolate->factory()->era_string();
-    default:
-      // Other UDAT_*_FIELD's cannot show up because there is no way to specify
-      // them via options of Intl.DateTimeFormat.
-      UNREACHABLE();
-      // To prevent MSVC from issuing C4715 warning.
-      return Handle<String>();
-  }
-}
-
-MaybeHandle<Object> FormatDateToParts(Isolate* isolate, icu::DateFormat* format,
-                                      double date_value) {
-  Factory* factory = isolate->factory();
-
-  icu::UnicodeString formatted;
-  icu::FieldPositionIterator fp_iter;
-  icu::FieldPosition fp;
-  UErrorCode status = U_ZERO_ERROR;
-  format->format(date_value, formatted, &fp_iter, status);
-  if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), Object);
-  }
-
-  Handle<JSArray> result = factory->NewJSArray(0);
-  int32_t length = formatted.length();
-  if (length == 0) return result;
-
-  int index = 0;
-  int32_t previous_end_pos = 0;
-  Handle<String> substring;
-  while (fp_iter.next(fp)) {
-    int32_t begin_pos = fp.getBeginIndex();
-    int32_t end_pos = fp.getEndIndex();
-
-    if (previous_end_pos < begin_pos) {
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, substring,
-          Intl::ToString(isolate, formatted, previous_end_pos, begin_pos),
-          Object);
-      Intl::AddElement(isolate, result, index,
-                       IcuDateFieldIdToDateType(-1, isolate), substring);
-      ++index;
-    }
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, substring,
-        Intl::ToString(isolate, formatted, begin_pos, end_pos), Object);
-    Intl::AddElement(isolate, result, index,
-                     IcuDateFieldIdToDateType(fp.getField(), isolate),
-                     substring);
-    previous_end_pos = end_pos;
-    ++index;
-  }
-  if (previous_end_pos < length) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, substring,
-        Intl::ToString(isolate, formatted, previous_end_pos, length), Object);
-    Intl::AddElement(isolate, result, index,
-                     IcuDateFieldIdToDateType(-1, isolate), substring);
-  }
-  JSObject::ValidateElements(*result);
-  return result;
-}
-
 MaybeHandle<JSObject> SupportedLocalesOfCommon(Isolate* isolate,
                                                const char* service_in,
                                                BuiltinArguments args) {
@@ -302,13 +198,14 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
   CHECK_RECEIVER(JSObject, date_format_holder, method);
   Factory* factory = isolate->factory();
 
-  if (!Intl::IsObjectOfType(isolate, date_format_holder,
-                            Intl::Type::kDateTimeFormat)) {
+  if (!date_format_holder->IsJSDateTimeFormat()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                               factory->NewStringFromAsciiChecked(method),
                               date_format_holder));
   }
+  Handle<JSDateTimeFormat> dtf =
+      Handle<JSDateTimeFormat>::cast(date_format_holder);
 
   Handle<Object> x = args.atOrUndefined(isolate, 1);
   if (x->IsUndefined(isolate)) {
@@ -324,12 +221,8 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
         isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
 
-  icu::SimpleDateFormat* date_format =
-      DateFormat::UnpackDateFormat(date_format_holder);
-  CHECK_NOT_NULL(date_format);
-
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           FormatDateToParts(isolate, date_format, date_value));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSDateTimeFormat::FormatToParts(isolate, dtf, date_value));
 }
 
 namespace {
@@ -357,9 +250,14 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
       isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
   return new_bound_function;
 }
-}  // namespace
-BUILTIN(NumberFormatConstructor) {
-  HandleScope scope(isolate);
+
+/**
+ * Common code shared between DateTimeFormatConstructor and
+ * NumberFormatConstrutor
+ */
+template <class T>
+Object* FormatConstructor(BuiltinArguments args, Isolate* isolate,
+                          Handle<Object> constructor, const char* method) {
   Handle<JSReceiver> new_target;
   // 1. If NewTarget is undefined, let newTarget be the active
   // function object, else let newTarget be NewTarget.
@@ -375,41 +273,29 @@ BUILTIN(NumberFormatConstructor) {
   Handle<Object> locales = args.atOrUndefined(isolate, 1);
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
-  // 2. Let numberFormat be ? OrdinaryCreateFromConstructor(newTarget,
-  // "%NumberFormatPrototype%", « [[InitializedNumberFormat]], [[Locale]],
-  // [[NumberingSystem]], [[Style]], [[Currency]], [[CurrencyDisplay]],
-  // [[MinimumIntegerDigits]], [[MinimumFractionDigits]],
-  // [[MaximumFractionDigits]], [[MinimumSignificantDigits]],
-  // [[MaximumSignificantDigits]], [[UseGrouping]], [[PositivePattern]],
-  // [[NegativePattern]], [[BoundFormat]] »).
+  // 2. Let format be ? OrdinaryCreateFromConstructor(newTarget,
+  // "%<T>Prototype%", ...).
 
-  Handle<JSObject> number_format_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_format_obj,
+  Handle<JSObject> format_obj;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, format_obj,
                                      JSObject::New(target, new_target));
-  Handle<JSNumberFormat> number_format =
-      Handle<JSNumberFormat>::cast(number_format_obj);
-  number_format->set_flags(0);
+  Handle<T> format = Handle<T>::cast(format_obj);
 
-  // 3. Perform ? InitializeNumberFormat(numberFormat, locales, options).
+  // 3. Perform ? Initialize<T>(Format, locales, options).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, number_format,
-      JSNumberFormat::InitializeNumberFormat(isolate, number_format, locales,
-                                             options));
+      isolate, format, T::Initialize(isolate, format, locales, options));
   // 4. Let this be the this value.
   Handle<Object> receiver = args.receiver();
 
-  // 5. If NewTarget is undefined and ? InstanceofOperator(this, %NumberFormat%)
+  // 5. If NewTarget is undefined and ? InstanceofOperator(this, %<T>%)
   // is true, then
   //
   // Look up the intrinsic value that has been stored on the context.
-  Handle<Object> number_format_constructor =
-      isolate->intl_number_format_function();
-
   // Call the instanceof function
   Handle<Object> is_instance_of_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, is_instance_of_obj,
-      Object::InstanceOf(isolate, receiver, number_format_constructor));
+      Object::InstanceOf(isolate, receiver, constructor));
 
   // Get the boolean value of the result
   bool is_instance_of = is_instance_of_obj->BooleanValue(isolate);
@@ -417,17 +303,17 @@ BUILTIN(NumberFormatConstructor) {
   if (args.new_target()->IsUndefined(isolate) && is_instance_of) {
     if (!receiver->IsJSReceiver()) {
       THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                                isolate->factory()->NewStringFromStaticChars(
-                                    "Intl.NumberFormat"),
-                                receiver));
+          isolate,
+          NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                       isolate->factory()->NewStringFromAsciiChecked(method),
+                       receiver));
     }
     Handle<JSReceiver> rec = Handle<JSReceiver>::cast(receiver);
     // a. Perform ? DefinePropertyOrThrow(this,
-    // %Intl%.[[FallbackSymbol]], PropertyDescriptor{ [[Value]]: numberFormat,
+    // %Intl%.[[FallbackSymbol]], PropertyDescriptor{ [[Value]]: format,
     // [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
     PropertyDescriptor desc;
-    desc.set_value(number_format);
+    desc.set_value(format);
     desc.set_writable(false);
     desc.set_enumerable(false);
     desc.set_configurable(false);
@@ -439,9 +325,17 @@ BUILTIN(NumberFormatConstructor) {
     // b. b. Return this.
     return *receiver;
   }
+  // 6. Return format.
+  return *format;
+}
 
-  // 6. Return numberFormat.
-  return *number_format;
+}  // namespace
+
+BUILTIN(NumberFormatConstructor) {
+  HandleScope scope(isolate);
+  return FormatConstructor<JSNumberFormat>(
+      args, isolate, isolate->intl_number_format_function(),
+      "Intl.NumberFormat");
 }
 
 BUILTIN(NumberFormatPrototypeFormatNumber) {
@@ -508,6 +402,13 @@ BUILTIN(NumberFormatInternalFormatNumber) {
       isolate, JSNumberFormat::FormatNumber(isolate, number_format, number));
 }
 
+BUILTIN(DateTimeFormatConstructor) {
+  HandleScope scope(isolate);
+  return FormatConstructor<JSDateTimeFormat>(
+      args, isolate, isolate->intl_date_time_format_function(),
+      "Intl.DateTimeFormat");
+}
+
 BUILTIN(DateTimeFormatPrototypeFormat) {
   const char* const method = "get Intl.DateTimeFormat.prototype.format";
   HandleScope scope(isolate);
@@ -517,16 +418,12 @@ BUILTIN(DateTimeFormatPrototypeFormat) {
   CHECK_RECEIVER(JSReceiver, receiver, method);
 
   // 3. Let dtf be ? UnwrapDateTimeFormat(dtf).
-  Handle<JSObject> date_format_holder;
+  Handle<JSDateTimeFormat> format;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, date_format_holder,
-      JSDateTimeFormat::Unwrap(isolate, receiver, method));
-  DCHECK(Intl::IsObjectOfType(isolate, date_format_holder,
-                              Intl::Type::kDateTimeFormat));
+      isolate, format,
+      JSDateTimeFormat::UnwrapDateTimeFormat(isolate, receiver));
 
-  Handle<Object> bound_format = Handle<Object>(
-      date_format_holder->GetEmbedderField(DateFormat::kBoundFormatIndex),
-      isolate);
+  Handle<Object> bound_format = Handle<Object>(format->bound_format(), isolate);
 
   // 4. If dtf.[[BoundFormat]] is undefined, then
   if (!bound_format->IsUndefined(isolate)) {
@@ -536,11 +433,10 @@ BUILTIN(DateTimeFormatPrototypeFormat) {
   }
 
   Handle<JSFunction> new_bound_format_function = CreateBoundFunction(
-      isolate, date_format_holder, Builtins::kDateTimeFormatInternalFormat, 1);
+      isolate, format, Builtins::kDateTimeFormatInternalFormat, 1);
 
   // 4.c. Set dtf.[[BoundFormat]] to F.
-  date_format_holder->SetEmbedderField(DateFormat::kBoundFormatIndex,
-                                       *new_bound_format_function);
+  format->set_bound_format(*new_bound_format_function);
 
   // 5. Return dtf.[[BoundFormat]].
   return *new_bound_format_function;
@@ -551,15 +447,12 @@ BUILTIN(DateTimeFormatInternalFormat) {
   Handle<Context> context = Handle<Context>(isolate->context(), isolate);
 
   // 1. Let dtf be F.[[DateTimeFormat]].
-  Handle<JSObject> date_format_holder = Handle<JSObject>(
-      JSObject::cast(context->get(
-          static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
-      isolate);
-
   // 2. Assert: Type(dtf) is Object and dtf has an [[InitializedDateTimeFormat]]
   // internal slot.
-  DCHECK(Intl::IsObjectOfType(isolate, date_format_holder,
-                              Intl::Type::kDateTimeFormat));
+  Handle<JSDateTimeFormat> date_format_holder = Handle<JSDateTimeFormat>(
+      JSDateTimeFormat::cast(context->get(
+          static_cast<int>(Intl::BoundFunctionContextSlot::kBoundFunction))),
+      isolate);
 
   Handle<Object> date = args.atOrUndefined(isolate, 1);
 

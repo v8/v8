@@ -110,92 +110,13 @@ RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
       Intl::DefaultLocale(isolate).c_str());
 }
 
-RUNTIME_FUNCTION(Runtime_DefineWEProperty) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  Intl::DefineWEProperty(isolate, target, key, value);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_IsInitializedIntlObjectOfType) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  CONVERT_SMI_ARG_CHECKED(expected_type_int, 1);
-
-  Intl::Type expected_type = Intl::TypeFromInt(expected_type_int);
-
-  return isolate->heap()->ToBoolean(
-      Intl::IsObjectOfType(isolate, input, expected_type));
-}
-
-RUNTIME_FUNCTION(Runtime_MarkAsInitializedIntlObjectOfType) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, input, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, type, 1);
-
-#ifdef DEBUG
-  // TypeFromSmi does correctness checks.
-  Intl::Type type_intl = Intl::TypeFromSmi(*type);
-  USE(type_intl);
-#endif
-
-  Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  JSObject::SetProperty(isolate, input, marker, type, LanguageMode::kStrict)
-      .Assert();
-
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(3, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, resolved, 2);
-
-  Handle<JSFunction> constructor(
-      isolate->native_context()->intl_date_time_format_function(), isolate);
-
-  Handle<JSObject> local_object;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, local_object,
-                                     JSObject::New(constructor, constructor));
-
-  // Set date time formatter as embedder field of the resulting JS object.
-  Maybe<icu::SimpleDateFormat*> maybe_date_format =
-      DateFormat::InitializeDateTimeFormat(isolate, locale, options, resolved);
-  MAYBE_RETURN(maybe_date_format, ReadOnlyRoots(isolate).exception());
-  icu::SimpleDateFormat* date_format = maybe_date_format.FromJust();
-  CHECK_NOT_NULL(date_format);
-
-  local_object->SetEmbedderField(DateFormat::kSimpleDateFormatIndex,
-                                 reinterpret_cast<Smi*>(date_format));
-
-  // Make object handle weak so we can delete the data format once GC kicks in.
-  Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
-  GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
-                          DateFormat::DeleteDateFormat,
-                          WeakCallbackType::kInternalFields);
-  return *local_object;
-}
-
 // ecma402/#sec-intl.datetimeformat.prototype.resolvedoptions
 RUNTIME_FUNCTION(Runtime_DateTimeFormatResolvedOptions) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   // 1. Let dtf be this value.
   CONVERT_ARG_HANDLE_CHECKED(Object, dtf, 0);
+
   // 2. If Type(dtf) is not Object, throw a TypeError exception.
   if (!dtf->IsJSReceiver()) {
     Handle<String> method_str = isolate->factory()->NewStringFromStaticChars(
@@ -204,9 +125,10 @@ RUNTIME_FUNCTION(Runtime_DateTimeFormatResolvedOptions) {
         isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                               method_str, dtf));
   }
-  Handle<JSReceiver> date_format_holder = Handle<JSReceiver>::cast(dtf);
+  Handle<JSReceiver> format_holder = Handle<JSReceiver>::cast(dtf);
+
   RETURN_RESULT_OR_FAILURE(
-      isolate, JSDateTimeFormat::ResolvedOptions(isolate, date_format_holder));
+      isolate, JSDateTimeFormat::ResolvedOptions(isolate, format_holder));
 }
 
 RUNTIME_FUNCTION(Runtime_NumberFormatResolvedOptions) {
@@ -236,25 +158,6 @@ RUNTIME_FUNCTION(Runtime_NumberFormatResolvedOptions) {
   return *JSNumberFormat::ResolvedOptions(isolate, number_format);
 }
 
-RUNTIME_FUNCTION(Runtime_ParseExtension) {
-  Factory* factory = isolate->factory();
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, extension, 0);
-  std::map<std::string, std::string> map;
-  Intl::ParseExtension(isolate, std::string(extension->ToCString().get()), map);
-  Handle<JSObject> extension_map =
-      isolate->factory()->NewJSObjectWithNullProto();
-  for (std::map<std::string, std::string>::iterator it = map.begin();
-       it != map.end(); it++) {
-    JSObject::AddProperty(
-        isolate, extension_map,
-        factory->NewStringFromAsciiChecked(it->first.c_str()),
-        factory->NewStringFromAsciiChecked(it->second.c_str()), NONE);
-  }
-  return *extension_map;
-}
-
 RUNTIME_FUNCTION(Runtime_PluralRulesSelect) {
   HandleScope scope(isolate);
 
@@ -279,18 +182,6 @@ RUNTIME_FUNCTION(Runtime_PluralRulesSelect) {
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSPluralRules::ResolvePlural(isolate, plural_rules, number));
-}
-
-RUNTIME_FUNCTION(Runtime_ToDateTimeOptions) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 3);
-  CONVERT_ARG_HANDLE_CHECKED(Object, options, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, required, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, defaults, 2);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           JSDateTimeFormat::ToDateTimeOptions(
-                               isolate, options, required->ToCString().get(),
-                               defaults->ToCString().get()));
 }
 
 RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
@@ -325,21 +216,6 @@ RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
       Handle<FixedArray>::cast(isolate->eternal_handles()->GetSingleton(
           EternalHandles::DATE_CACHE_VERSION));
   return date_cache_version->get(0);
-}
-
-RUNTIME_FUNCTION(Runtime_IntlUnwrapReceiver) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(5, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_SMI_ARG_CHECKED(type_int, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, method, 3);
-  CONVERT_BOOLEAN_ARG_CHECKED(check_legacy_constructor, 4);
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Intl::UnwrapReceiver(isolate, receiver, constructor,
-                                    Intl::TypeFromInt(type_int), method,
-                                    check_legacy_constructor));
 }
 
 }  // namespace internal
