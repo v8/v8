@@ -14682,7 +14682,7 @@ const char* Code::Kind2String(Kind kind) {
 // Identify kind of code.
 const char* AbstractCode::Kind2String(Kind kind) {
   if (kind < AbstractCode::INTERPRETED_FUNCTION)
-    return Code::Kind2String((Code::Kind)kind);
+    return Code::Kind2String(static_cast<Code::Kind>(kind));
   if (kind == AbstractCode::INTERPRETED_FUNCTION) return "INTERPRETED_FUNCTION";
   UNREACHABLE();
 }

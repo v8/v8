@@ -86,7 +86,7 @@ namespace base {
 namespace {
 
 // 0 is never a valid thread id.
-const pthread_t kNoThread = (pthread_t) 0;
+const pthread_t kNoThread = static_cast<pthread_t>(0);
 
 bool g_hard_abort = false;
 

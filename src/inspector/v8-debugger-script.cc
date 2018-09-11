@@ -81,7 +81,7 @@ String16 calculateHash(v8::Isolate* isolate, v8::Local<v8::String> source) {
 
   String16Builder hash;
   for (size_t i = 0; i < hashesSize; ++i)
-    hash.appendUnsignedAsHex((uint32_t)hashes[i]);
+    hash.appendUnsignedAsHex(static_cast<uint32_t>(hashes[i]));
   return hash.toString();
 }
 

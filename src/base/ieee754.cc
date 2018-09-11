@@ -1210,9 +1210,9 @@ double atan(double x) {
     if (ix > 0x7FF00000 || (ix == 0x7FF00000 && (low != 0)))
       return x + x; /* NaN */
     if (hx > 0)
-      return atanhi[3] + *(volatile double *)&atanlo[3];
+      return atanhi[3] + *const_cast<volatile double*>(&atanlo[3]);
     else
-      return -atanhi[3] - *(volatile double *)&atanlo[3];
+      return -atanhi[3] - *const_cast<volatile double*>(&atanlo[3]);
   }
   if (ix < 0x3FDC0000) {            /* |x| < 0.4375 */
     if (ix < 0x3E400000) {          /* |x| < 2^-27 */
