@@ -1025,6 +1025,20 @@ void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
                                     liftoff::MinOrMax::kMax);
 }
 
+void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  static constexpr int kF32SignBit = 1 << 31;
+  Register scratch = GetUnusedRegister(kGpReg).gp();
+  Register scratch2 =
+      GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(scratch)).gp();
+  Movd(scratch, lhs);                      // move {lhs} into {scratch}.
+  and_(scratch, Immediate(~kF32SignBit));  // clear sign bit in {scratch}.
+  Movd(scratch2, rhs);                     // move {rhs} into {scratch2}.
+  and_(scratch2, Immediate(kF32SignBit));  // isolate sign bit in {scratch2}.
+  or_(scratch, scratch2);                  // combine {scratch2} into {scratch}.
+  Movd(dst, scratch);                      // move result into {dst}.
+}
+
 void LiftoffAssembler::emit_f32_abs(DoubleRegister dst, DoubleRegister src) {
   static constexpr uint32_t kSignBit = uint32_t{1} << 31;
   if (dst == src) {
@@ -1132,6 +1146,24 @@ void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
   liftoff::EmitFloatMinOrMax<double>(this, dst, lhs, rhs,
                                      liftoff::MinOrMax::kMin);
+}
+
+void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  static constexpr int kF32SignBit = 1 << 31;
+  // On ia32, we cannot hold the whole f64 value in a gp register, so we just
+  // operate on the upper half (UH).
+  Register scratch = GetUnusedRegister(kGpReg).gp();
+  Register scratch2 =
+      GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(scratch)).gp();
+
+  Pextrd(scratch, lhs, 1);                 // move UH of {lhs} into {scratch}.
+  and_(scratch, Immediate(~kF32SignBit));  // clear sign bit in {scratch}.
+  Pextrd(scratch2, rhs, 1);                // move UH of {rhs} into {scratch2}.
+  and_(scratch2, Immediate(kF32SignBit));  // isolate sign bit in {scratch2}.
+  or_(scratch, scratch2);                  // combine {scratch2} into {scratch}.
+  movsd(dst, lhs);                         // move {lhs} into {dst}.
+  Pinsrd(dst, scratch, 1, true);           // insert {scratch} into UH of {dst}.
 }
 
 void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
