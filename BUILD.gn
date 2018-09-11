@@ -3285,7 +3285,7 @@ if (v8_monolithic) {
 #
 
 if (current_toolchain == host_toolchain) {
-  executable("bytecode_builtins_list_generator") {
+  v8_executable("bytecode_builtins_list_generator") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     include_dirs = [ "." ]
@@ -3301,6 +3301,8 @@ if (current_toolchain == host_toolchain) {
     if (v8_enable_embedded_builtins) {
       defines = [ "V8_EMBEDDED_BUILTINS" ]
     }
+
+    configs = [ ":internal_config" ]
 
     deps = [
       ":v8_libbase",
