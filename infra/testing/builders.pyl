@@ -85,7 +85,7 @@
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'test262_variants', 'shards': 2},
       {'name': 'test262_variants', 'variant': 'extra', 'shards': 2},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
@@ -123,7 +123,7 @@
       {'name': 'optimize_for_size'},
       {'name': 'test262_variants', 'shards': 4},
       {'name': 'test262_variants', 'variant': 'extra', 'shards': 2},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'suffix': 'isolates', 'test_args': ['--isolates'], 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
@@ -185,7 +185,7 @@
   },
   'v8_linux_verify_csa_rel_ng_triggered': {
     'tests': [
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   ##############################################################################
@@ -272,7 +272,7 @@
       {'name': 'test262_variants', 'shards': 4},
       {'name': 'test262_variants', 'variant': 'extra', 'shards': 2},
       {'name': 'v8initializers'},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
       {'name': 'v8testing', 'variant': 'minor_mc'},
       {'name': 'v8testing', 'variant': 'slow_path'},
@@ -300,7 +300,7 @@
   },
   'v8_linux64_verify_csa_rel_ng_triggered': {
     'tests': [
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   ##############################################################################
@@ -356,7 +356,7 @@
     },
     'tests': [
       {'name': 'test262'},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   ##############################################################################
@@ -389,7 +389,7 @@
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
     ],
   },
   'v8_win64_rel_ng_triggered': {
@@ -399,7 +399,7 @@
     },
     'tests': [
       {'name': 'test262'},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
@@ -443,7 +443,7 @@
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
-      {'name': 'v8testing'},
+      {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
