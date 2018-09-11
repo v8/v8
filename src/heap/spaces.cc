@@ -1308,19 +1308,6 @@ void MemoryChunk::ReleaseYoungGenerationBitmap() {
   young_generation_bitmap_ = nullptr;
 }
 
-void MemoryChunk::IncrementExternalBackingStoreBytes(
-    ExternalBackingStoreType type, size_t amount) {
-  external_backing_store_bytes_[type] += amount;
-  owner()->IncrementExternalBackingStoreBytes(type, amount);
-}
-
-void MemoryChunk::DecrementExternalBackingStoreBytes(
-    ExternalBackingStoreType type, size_t amount) {
-  DCHECK_GE(external_backing_store_bytes_[type], amount);
-  external_backing_store_bytes_[type] -= amount;
-  owner()->DecrementExternalBackingStoreBytes(type, amount);
-}
-
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 

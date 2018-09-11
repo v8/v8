@@ -143,12 +143,6 @@ enum FreeMode { kLinkCategory, kDoNotLinkCategory };
 
 enum class SpaceAccountingMode { kSpaceAccounted, kSpaceUnaccounted };
 
-enum ExternalBackingStoreType {
-  kArrayBuffer,
-  kExternalString,
-  kNumTypes
-};
-
 enum RememberedSetType {
   OLD_TO_NEW,
   OLD_TO_OLD,
@@ -379,7 +373,7 @@ class MemoryChunk {
       kPointerSize  // std::atomic<ConcurrentSweepingState> concurrent_sweeping_
       + kPointerSize  // base::Mutex* page_protection_change_mutex_
       + kPointerSize  // unitptr_t write_unprotect_counter_
-      + kSizetSize * kNumTypes
+      + kSizetSize * ExternalBackingStoreType::kNumTypes
       // std::atomic<size_t> external_backing_store_bytes_
       + kSizetSize        // size_t allocated_bytes_
       + kSizetSize        // size_t wasted_memory_
@@ -444,6 +438,10 @@ class MemoryChunk {
         (new_mark > old_mark) &&
         !chunk->high_water_mark_.compare_exchange_weak(old_mark, new_mark));
   }
+
+  static inline void MoveExternalBackingStoreBytes(
+      ExternalBackingStoreType type, MemoryChunk* from, MemoryChunk* to,
+      size_t amount);
 
   Address address() const {
     return reinterpret_cast<Address>(const_cast<MemoryChunk*>(this));
@@ -551,10 +549,12 @@ class MemoryChunk {
     }
   }
 
-  void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                          size_t amount);
-  void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                          size_t amount);
+  inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
+                                                 size_t amount);
+
+  inline void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
+                                                 size_t amount);
+
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) {
     return external_backing_store_bytes_[type];
   }
@@ -945,6 +945,9 @@ class Space : public Malloced {
         0;
   }
 
+  static inline void MoveExternalBackingStoreBytes(
+      ExternalBackingStoreType type, Space* from, Space* to, size_t amount);
+
   virtual ~Space() {
     delete[] external_backing_store_bytes_;
     external_backing_store_bytes_ = nullptr;
@@ -984,12 +987,6 @@ class Space : public Malloced {
   // (e.g. see LargeObjectSpace).
   virtual size_t SizeOfObjects() { return Size(); }
 
-  // Returns amount of off-heap memory in-use by objects in this Space.
-  virtual size_t ExternalBackingStoreBytes(
-      ExternalBackingStoreType type) const {
-    return external_backing_store_bytes_[type];
-  }
-
   // Approximate amount of physical memory committed for this space.
   virtual size_t CommittedPhysicalMemory() = 0;
 
@@ -1019,14 +1016,16 @@ class Space : public Malloced {
     committed_ -= bytes;
   }
 
-  void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                          size_t amount) {
-    external_backing_store_bytes_[type] += amount;
-  }
-  void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
-                                          size_t amount) {
-    DCHECK_GE(external_backing_store_bytes_[type], amount);
-    external_backing_store_bytes_[type] -= amount;
+  inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
+                                                 size_t amount);
+
+  inline void DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
+                                                 size_t amount);
+
+  // Returns amount of off-heap memory in-use by objects in this Space.
+  virtual size_t ExternalBackingStoreBytes(
+      ExternalBackingStoreType type) const {
+    return external_backing_store_bytes_[type];
   }
 
   V8_EXPORT_PRIVATE void* GetRandomMmapAddr();
