@@ -93,6 +93,33 @@ HeapObject* HeapObjectIterator::FromCurrentPage() {
   return nullptr;
 }
 
+void Space::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
+                                               size_t amount) {
+  DCHECK_GE(external_backing_store_bytes_[type] + amount,
+            external_backing_store_bytes_[type]);
+  external_backing_store_bytes_[type] += amount;
+  heap()->IncrementExternalBackingStoreBytes(type, amount);
+}
+
+void Space::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
+                                               size_t amount) {
+  DCHECK_GE(external_backing_store_bytes_[type], amount);
+  external_backing_store_bytes_[type] -= amount;
+  heap()->DecrementExternalBackingStoreBytes(type, amount);
+}
+
+void Space::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
+                                          Space* from, Space* to,
+                                          size_t amount) {
+  if (from == to) return;
+
+  DCHECK_GE(from->external_backing_store_bytes_[type], amount);
+  from->external_backing_store_bytes_[type] -= amount;
+  DCHECK_GE(to->external_backing_store_bytes_[type] + amount,
+            to->external_backing_store_bytes_[type]);
+  to->external_backing_store_bytes_[type] += amount;
+}
+
 // -----------------------------------------------------------------------------
 // SemiSpace
 
@@ -188,6 +215,34 @@ MemoryChunk* MemoryChunk::FromAnyPointerAddress(Heap* heap, Address addr) {
     chunk = MemoryChunk::FromAddress(addr);
   }
   return chunk;
+}
+
+void MemoryChunk::IncrementExternalBackingStoreBytes(
+    ExternalBackingStoreType type, size_t amount) {
+  DCHECK_GE(external_backing_store_bytes_[type] + amount,
+            external_backing_store_bytes_[type]);
+  external_backing_store_bytes_[type] += amount;
+  owner()->IncrementExternalBackingStoreBytes(type, amount);
+}
+
+void MemoryChunk::DecrementExternalBackingStoreBytes(
+    ExternalBackingStoreType type, size_t amount) {
+  DCHECK_GE(external_backing_store_bytes_[type], amount);
+  external_backing_store_bytes_[type] -= amount;
+  owner()->DecrementExternalBackingStoreBytes(type, amount);
+}
+
+void MemoryChunk::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
+                                                MemoryChunk* from,
+                                                MemoryChunk* to,
+                                                size_t amount) {
+  DCHECK_GE(from->external_backing_store_bytes_[type], amount);
+  from->external_backing_store_bytes_[type] -= amount;
+  DCHECK_GE(to->external_backing_store_bytes_[type] + amount,
+            to->external_backing_store_bytes_[type]);
+  to->external_backing_store_bytes_[type] += amount;
+  Space::MoveExternalBackingStoreBytes(type, from->owner(), to->owner(),
+                                       amount);
 }
 
 void Page::MarkNeverAllocateForTesting() {

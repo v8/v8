@@ -581,6 +581,21 @@ int Heap::MaxNumberToStringCacheSize() const {
   // of entries.
   return static_cast<int>(number_string_cache_size * 2);
 }
+
+void Heap::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
+                                              size_t amount) {
+  DCHECK_GE(backing_store_bytes_ + amount, backing_store_bytes_);
+  backing_store_bytes_ += amount;
+  // TODO(mlippautz): Implement interrupt for global memory allocations that can
+  // trigger garbage collections.
+}
+
+void Heap::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
+                                              size_t amount) {
+  DCHECK_GE(backing_store_bytes_, amount);
+  backing_store_bytes_ -= amount;
+}
+
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
     : heap_(isolate->heap()) {
   heap_->always_allocate_scope_count_++;

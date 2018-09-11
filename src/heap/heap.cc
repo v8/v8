@@ -155,6 +155,7 @@ Heap::Heap()
       // Will be 4 * reserved_semispace_size_ to ensure that young
       // generation can be aligned to its size.
       maximum_committed_(0),
+      backing_store_bytes_(0),
       survived_since_last_expansion_(0),
       survived_last_scavenge_(0),
       always_allocate_scope_count_(0),
@@ -477,6 +478,8 @@ void Heap::PrintShortHeapStatistics() {
                CommittedMemoryOfHeapAndUnmapper() / KB);
   PrintIsolate(isolate_, "External memory reported: %6" PRId64 " KB\n",
                external_memory_ / KB);
+  PrintIsolate(isolate_, "Backing store memory: %6" PRIuS " KB\n",
+               backing_store_bytes_ / KB);
   PrintIsolate(isolate_, "External memory global %zu KB\n",
                external_memory_callback_() / KB);
   PrintIsolate(isolate_, "Total time spent in GC  : %.1f ms\n",
@@ -2289,15 +2292,6 @@ bool Heap::ExternalStringTable::Contains(HeapObject* obj) {
   return false;
 }
 
-void Heap::ProcessMovedExternalString(Page* old_page, Page* new_page,
-                                      ExternalString* string) {
-  size_t size = string->ExternalPayloadSize();
-  new_page->IncrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kExternalString, size);
-  old_page->DecrementExternalBackingStoreBytes(
-      ExternalBackingStoreType::kExternalString, size);
-}
-
 String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
                                                                 Object** p) {
   MapWord first_word = HeapObject::cast(*p)->map_word();
@@ -2325,9 +2319,11 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
     // Filtering Thin strings out of the external string table.
     return nullptr;
   } else if (new_string->IsExternalString()) {
-    heap->ProcessMovedExternalString(
+    MemoryChunk::MoveExternalBackingStoreBytes(
+        ExternalBackingStoreType::kExternalString,
         Page::FromAddress(reinterpret_cast<Address>(*p)),
-        Page::FromHeapObject(new_string), ExternalString::cast(new_string));
+        Page::FromHeapObject(new_string),
+        ExternalString::cast(new_string)->ExternalPayloadSize());
     return new_string;
   }
 
