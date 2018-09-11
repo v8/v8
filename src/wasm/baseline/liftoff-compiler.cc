@@ -888,12 +888,14 @@ class LiftoffCompiler {
       CASE_FLOAT_BINOP(F32Div, F32, f32_div)
       CASE_FLOAT_BINOP(F32Min, F32, f32_min)
       CASE_FLOAT_BINOP(F32Max, F32, f32_max)
+      CASE_FLOAT_BINOP(F32CopySign, F32, f32_copysign)
       CASE_FLOAT_BINOP(F64Add, F64, f64_add)
       CASE_FLOAT_BINOP(F64Sub, F64, f64_sub)
       CASE_FLOAT_BINOP(F64Mul, F64, f64_mul)
       CASE_FLOAT_BINOP(F64Div, F64, f64_div)
       CASE_FLOAT_BINOP(F64Min, F64, f64_min)
       CASE_FLOAT_BINOP(F64Max, F64, f64_max)
+      CASE_FLOAT_BINOP(F64CopySign, F64, f64_copysign)
       case WasmOpcode::kExprI32DivS:
         EmitBinOp<kWasmI32, kWasmI32>([this, decoder](LiftoffRegister dst,
                                                       LiftoffRegister lhs,
