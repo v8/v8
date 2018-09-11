@@ -165,6 +165,8 @@ class Builtins {
   static void Generate_CallFunction(MacroAssembler* masm,
                                     ConvertReceiverMode mode);
 
+  static void Generate_FastCallFunction(MacroAssembler* masm);
+
   static void Generate_CallBoundFunctionImpl(MacroAssembler* masm);
 
   static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode);

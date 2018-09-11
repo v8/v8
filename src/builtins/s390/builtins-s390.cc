@@ -1798,6 +1798,33 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 }
 
 // static
+// The CSA macro "BranchIfCanUseFastCallFunction" should be used to determine
+// whether a JSFunction can be called using this stub.
+void Builtins::Generate_FastCallFunction(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r2 : the number of arguments (not including the receiver)
+  //  -- r3 : the function to call (checked to be a JSFunction)
+  // -----------------------------------
+  __ AssertFunction(r3);
+  __ LoadP(cp, FieldMemOperand(r3, JSFunction::kContextOffset));
+
+  // ----------- S t a t e -------------
+  //  -- r2 : the number of arguments (not including the receiver)
+  //  -- r3 : the function to call (checked to be a JSFunction)
+  //  -- cp : the function context.
+  // -----------------------------------
+
+  // On function call, call into the debugger if necessary.
+  __ CheckDebugHook(r3, no_reg, ParameterCount(r2), ParameterCount(r2));
+  __ LoadRoot(r5, Heap::kUndefinedValueRootIndex);
+
+  Register code = kJavaScriptCallCodeStartRegister;
+  __ LoadP(code, FieldMemOperand(r3, JSFunction::kCodeOffset));
+  __ AddP(code, code, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ JumpToJSEntry(code);
+}
+
+// static
 void Builtins::Generate_CallFunction(MacroAssembler* masm,
                                      ConvertReceiverMode mode) {
   // ----------- S t a t e -------------

@@ -323,6 +323,22 @@ module array {
     return v;
   }
 
+  builtin FastSortCompareUserFn(
+      context: Context, comparefn: Object, x: Object, y: Object): Number {
+    assert(comparefn != Undefined);
+    const cmpfn: Callable = unsafe_cast<Callable>(comparefn);
+
+    // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
+    const v: Number =
+        ToNumber_Inline(context, FastCall(context, cmpfn, x, y));
+
+    // b. If v is NaN, return +0.
+    if (NumberIsNaN(v)) return 0;
+
+    // c. return v.
+    return v;
+  }
+
   builtin CanUseSameAccessor<ElementsAccessor : type>(
       context: Context, receiver: JSReceiver, initialReceiverMap: Object,
       initialReceiverLength: Number): Boolean {
@@ -1650,6 +1666,24 @@ module array {
         CanUseSameAccessor<GenericElementsAccessor>;
   }
 
+  // If no comparison function was provided, the default lexicographic compare
+  // is used. Otherwise we try to use a faster JS call by eliding some checks.
+  macro InitializeSortCompareFn(sortState: FixedArray, comparefnObj: Object) {
+    if (comparefnObj == Undefined) {
+      sortState[kSortComparePtrIdx] = SortCompareDefault;
+      return;
+    }
+
+    assert(TaggedIsNotSmi(comparefnObj));
+    assert(IsCallable(unsafe_cast<HeapObject>(comparefnObj)));
+
+    sortState[kSortComparePtrIdx] =
+        BranchIfCanUseFastCallFunction(
+            unsafe_cast<HeapObject>(comparefnObj), 2) ?
+        FastSortCompareUserFn :
+        SortCompareUserFn;
+  }
+
   macro ArrayTimSortImpl(context: Context, sortState: FixedArray, length: Smi)
   labels Bailout {
     InitializeSortState(sortState);
@@ -1741,11 +1775,10 @@ module array {
     let map: Map = obj.map;
 
     const sort_state: FixedArray = AllocateZeroedFixedArray(kSortStateSize);
+    InitializeSortCompareFn(sort_state, comparefnObj);
 
     sort_state[kReceiverIdx] = obj;
     sort_state[kUserCmpFnIdx] = comparefnObj;
-    sort_state[kSortComparePtrIdx] =
-        comparefnObj != Undefined ? SortCompareUserFn : SortCompareDefault;
     sort_state[kInitialReceiverMapIdx] = map;
     sort_state[kBailoutStatusIdx] = kSuccess;
 

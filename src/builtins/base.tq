@@ -761,6 +761,8 @@ extern macro Call(
 extern macro Call(
     Context, Callable, Object, Object, Object, Object, Object, Object): Object;
 
+extern macro FastCall(Context, Callable, Object, Object): Object;
+
 extern macro ExtractFixedArray(FixedArrayBase, Smi, Smi, Smi): FixedArrayBase;
 extern macro ExtractFixedArray(FixedArrayBase, Smi, Smi, Smi,
     constexpr ExtractFixedArrayFlags): FixedArrayBase;
@@ -828,6 +830,9 @@ macro NumberIsNaN(number: Number): bool {
 }
 
 extern macro BranchIfToBooleanIsTrue(Object): never labels Taken, NotTaken;
+extern macro BranchIfCanUseFastCallFunction(HeapObject, int32):
+    never labels Taken,
+    NotTaken;
 
 macro ToBoolean(obj: Object): bool {
   if (BranchIfToBooleanIsTrue(obj)) {

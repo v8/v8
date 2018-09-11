@@ -51,6 +51,8 @@ namespace internal {
   ASM(Call_ReceiverIsNotNullOrUndefined)                                       \
   ASM(Call_ReceiverIsAny)                                                      \
                                                                                \
+  ASM(FastCallFunction_ReceiverIsNullOrUndefined)                              \
+                                                                               \
   /* ES6 section 9.5.12[[Call]] ( thisArgument, argumentsList ) */             \
   TFC(CallProxy, CallTrampoline, 1)                                            \
   ASM(CallVarargs)                                                             \
