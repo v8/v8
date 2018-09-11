@@ -181,6 +181,7 @@
   V(prototype_string, "prototype")                                 \
   V(proxy_string, "proxy")                                         \
   V(Proxy_string, "Proxy")                                         \
+  V(quarter_string, "quarter")                                     \
   V(query_colon_string, "(?:)")                                    \
   V(RangeError_string, "RangeError")                               \
   V(raw_string, "raw")                                             \
@@ -248,6 +249,7 @@
   V(values_string, "values")                                       \
   V(WeakMap_string, "WeakMap")                                     \
   V(WeakSet_string, "WeakSet")                                     \
+  V(week_string, "week")                                           \
   V(weekday_string, "weekday")                                     \
   V(will_handle_string, "willHandle")                              \
   V(word_string, "word")                                           \

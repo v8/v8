@@ -614,9 +614,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=8099
   'intl402/NumberFormat/prototype/format/format-negative-numbers': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8151
-  'intl402/RelativeTimeFormat/prototype/formatToParts/unit-plural': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7871
   'intl402/ListFormat/prototype/formatToParts/en-us-disjunction': [FAIL],
 

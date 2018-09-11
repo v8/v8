@@ -213,9 +213,33 @@ Handle<String> JSRelativeTimeFormat::NumericAsString() const {
 
 namespace {
 
+Handle<String> UnitAsString(Isolate* isolate, URelativeDateTimeUnit unit_enum) {
+  Factory* factory = isolate->factory();
+  switch (unit_enum) {
+    case UDAT_REL_UNIT_SECOND:
+      return factory->second_string();
+    case UDAT_REL_UNIT_MINUTE:
+      return factory->minute_string();
+    case UDAT_REL_UNIT_HOUR:
+      return factory->hour_string();
+    case UDAT_REL_UNIT_DAY:
+      return factory->day_string();
+    case UDAT_REL_UNIT_WEEK:
+      return factory->week_string();
+    case UDAT_REL_UNIT_MONTH:
+      return factory->month_string();
+    case UDAT_REL_UNIT_QUARTER:
+      return factory->quarter_string();
+    case UDAT_REL_UNIT_YEAR:
+      return factory->year_string();
+    default:
+      UNREACHABLE();
+  }
+}
+
 MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
     Isolate* isolate, icu::UnicodeString formatted,
-    icu::UnicodeString integer_part, Handle<String> unit) {
+    icu::UnicodeString integer_part, URelativeDateTimeUnit unit_enum) {
   Factory* factory = isolate->factory();
   Handle<JSArray> array = factory->NewJSArray(0);
   int32_t found = formatted.indexOf(integer_part);
@@ -254,6 +278,7 @@ MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
                                Intl::ToString(isolate, formatted, found,
                                               found + integer_part.length()),
                                JSArray);
+    Handle<String> unit = UnitAsString(isolate, unit_enum);
     Intl::AddElement(isolate, array, index++,
                      factory->integer_string(),  // field_type_string
                      substring, factory->unit_string(), unit);
@@ -383,7 +408,7 @@ MaybeHandle<Object> JSRelativeTimeFormat::Format(
     Handle<JSArray> elements;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, elements,
-        GenerateRelativeTimeFormatParts(isolate, formatted, integer, unit),
+        GenerateRelativeTimeFormatParts(isolate, formatted, integer, unit_enum),
         Object);
     return elements;
   }
