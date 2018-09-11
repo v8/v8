@@ -73,7 +73,7 @@ declare_args() {
 
   # Enable embedded builtins.
   # TODO(jgruber,v8:6666): Support ia32 and maybe MSVC.
-  v8_enable_embedded_builtins = v8_use_snapshot && v8_target_cpu != "x86" &&
+  v8_enable_embedded_builtins = v8_use_snapshot && v8_current_cpu != "x86" &&
                                 !is_aix && (!is_win || is_clang)
 
   # Enable code-generation-time checking of types in the CodeStubAssembler.
@@ -993,13 +993,13 @@ action("generate_bytecode_builtins_list") {
     "$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
   ]
   deps = [
-    ":bytecode_builtins_list_generator($host_toolchain)",
+    ":bytecode_builtins_list_generator($v8_snapshot_toolchain)",
   ]
   args = [
     "./" + rebase_path(
-            get_label_info(":bytecode_builtins_list_generator($host_toolchain)",
-                           "root_out_dir") +
-                "/bytecode_builtins_list_generator",
+            get_label_info(
+                    ":bytecode_builtins_list_generator($v8_snapshot_toolchain)",
+                    "root_out_dir") + "/bytecode_builtins_list_generator",
             root_build_dir),
     rebase_path("$target_gen_dir/builtins-generated/bytecodes-builtins-list.h"),
   ]
@@ -3284,7 +3284,7 @@ if (v8_monolithic) {
 # Executables
 #
 
-if (current_toolchain == host_toolchain) {
+if (current_toolchain == v8_snapshot_toolchain) {
   v8_executable("bytecode_builtins_list_generator") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
