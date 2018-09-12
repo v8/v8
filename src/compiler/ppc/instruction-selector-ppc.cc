@@ -939,8 +939,9 @@ void InstructionSelector::VisitWord64ReverseBits(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord64ReverseBytes(Node* node) {
   PPCOperandGenerator g(this);
+  InstructionOperand temp[] = {g.TempRegister()};
   Emit(kPPC_ByteRev64, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.TempRegister());
+       g.UseRegister(node->InputAt(0)), 1, temp);
 }
 
 void InstructionSelector::VisitWord32ReverseBytes(Node* node) {

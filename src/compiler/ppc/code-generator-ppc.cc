@@ -2070,7 +2070,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register output = i.OutputRegister();
       Register temp1 = r0;
       Register temp2 = kScratchReg;
-      Register temp3 = i.InputRegister(1);
+      Register temp3 = i.TempRegister(0);
       __ rldicl(temp1, input, 32, 32);
       __ rotlwi(temp2, input, 8);
       __ rlwimi(temp2, input, 24, 0, 7);

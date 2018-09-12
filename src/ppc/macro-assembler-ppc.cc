@@ -2894,8 +2894,10 @@ void TurboAssembler::SwapP(Register src, Register dst, Register scratch) {
 }
 
 void TurboAssembler::SwapP(Register src, MemOperand dst, Register scratch) {
-  if (dst.ra() != r0) DCHECK(!AreAliased(src, dst.ra(), scratch));
-  if (dst.rb() != r0) DCHECK(!AreAliased(src, dst.rb(), scratch));
+  if (dst.ra() != r0 && dst.ra().is_valid())
+    DCHECK(!AreAliased(src, dst.ra(), scratch));
+  if (dst.rb() != r0 && dst.rb().is_valid())
+    DCHECK(!AreAliased(src, dst.rb(), scratch));
   DCHECK(!AreAliased(src, scratch));
   mr(scratch, src);
   LoadP(src, dst, r0);
