@@ -71,7 +71,7 @@ bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, Handle<Map> map,
     default:
       if (map->instance_type() < FIRST_NONSTRING_TYPE) {
         return CheckForName(isolate, name, isolate->factory()->length_string(),
-                            String::kLengthOffset, FieldIndex::kTagged, index);
+                            String::kLengthOffset, FieldIndex::kWord32, index);
       }
 
       return false;
