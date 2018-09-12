@@ -86,8 +86,9 @@ BUILTIN(DataViewConstructor) {
   //     "%DataViewPrototype%", «[[DataView]], [[ViewedArrayBuffer]],
   //     [[ByteLength]], [[ByteOffset]]»).
   Handle<JSObject> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::New(target, new_target));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
   for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
     Handle<JSDataView>::cast(result)->SetEmbedderField(i, Smi::kZero);
   }

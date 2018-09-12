@@ -858,8 +858,9 @@ MaybeHandle<Object> ConstructCallSite(Isolate* isolate,
       handle(isolate->native_context()->callsite_function(), isolate);
 
   Handle<JSObject> obj;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, JSObject::New(target, target),
-                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, obj,
+      JSObject::New(target, target, Handle<AllocationSite>::null()), Object);
 
   Handle<Symbol> key = isolate->factory()->call_site_frame_array_symbol();
   RETURN_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
@@ -1114,8 +1115,10 @@ MaybeHandle<Object> ErrorUtils::Construct(
   // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%ErrorPrototype%",
   //    « [[ErrorData]] »).
   Handle<JSObject> err;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, err,
-                             JSObject::New(target, new_target_recv), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, err,
+      JSObject::New(target, new_target_recv, Handle<AllocationSite>::null()),
+      Object);
 
   // 3. If message is not undefined, then
   //  a. Let msg be ? ToString(message).

@@ -277,8 +277,9 @@ Object* FormatConstructor(BuiltinArguments args, Isolate* isolate,
   // "%<T>Prototype%", ...).
 
   Handle<JSObject> format_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, format_obj,
-                                     JSObject::New(target, new_target));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, format_obj,
+      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
   Handle<T> format = Handle<T>::cast(format_obj);
 
   // 3. Perform ? Initialize<T>(Format, locales, options).
@@ -493,8 +494,9 @@ BUILTIN(ListFormatConstructor) {
   Handle<JSObject> result;
   // 2. Let listFormat be OrdinaryCreateFromConstructor(NewTarget,
   //    "%ListFormatPrototype%").
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::New(target, new_target));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
   Handle<JSListFormat> format = Handle<JSListFormat>::cast(result);
   format->set_flags(0);
 
@@ -526,8 +528,10 @@ MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
                                    Handle<JSReceiver> new_target,
                                    Handle<Object> tag, Handle<Object> options) {
   Handle<JSObject> result;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                             JSObject::New(constructor, new_target), JSLocale);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      JSObject::New(constructor, new_target, Handle<AllocationSite>::null()),
+      JSLocale);
 
   // First parameter is a locale, as a string/object. Can't be empty.
   if (!tag->IsString() && !tag->IsJSReceiver()) {
@@ -737,8 +741,9 @@ BUILTIN(RelativeTimeFormatConstructor) {
   // 2. Let relativeTimeFormat be
   //    ! OrdinaryCreateFromConstructor(NewTarget,
   //                                    "%RelativeTimeFormatPrototype%").
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::New(target, new_target));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
   Handle<JSRelativeTimeFormat> format =
       Handle<JSRelativeTimeFormat>::cast(result);
   format->set_flags(0);
@@ -800,8 +805,9 @@ BUILTIN(PluralRulesConstructor) {
   // [[MinimumFractionDigits]], [[MaximumFractionDigits]],
   // [[MinimumSignificantDigits]], [[MaximumSignificantDigits]] »).
   Handle<JSObject> plural_rules_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, plural_rules_obj,
-                                     JSObject::New(target, new_target));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, plural_rules_obj,
+      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
   Handle<JSPluralRules> plural_rules =
       Handle<JSPluralRules>::cast(plural_rules_obj);
 
@@ -844,8 +850,9 @@ BUILTIN(CollatorConstructor) {
   // 5. Let collator be ? OrdinaryCreateFromConstructor(newTarget,
   // "%CollatorPrototype%", internalSlotsList).
   Handle<JSObject> collator_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, collator_obj,
-                                     JSObject::New(target, new_target));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, collator_obj,
+      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
   Handle<JSCollator> collator = Handle<JSCollator>::cast(collator_obj);
 
   // 6. Return ? InitializeCollator(collator, locales, options).
@@ -941,8 +948,9 @@ BUILTIN(V8BreakIteratorConstructor) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   Handle<JSObject> break_iterator_obj;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, break_iterator_obj,
-                                     JSObject::New(target, new_target));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, break_iterator_obj,
+      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
   Handle<JSV8BreakIterator> break_iterator =
       Handle<JSV8BreakIterator>::cast(break_iterator_obj);
 

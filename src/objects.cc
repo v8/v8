@@ -18482,8 +18482,10 @@ MaybeHandle<JSDate> JSDate::New(Handle<JSFunction> constructor,
                                 Handle<JSReceiver> new_target, double tv) {
   Isolate* const isolate = constructor->GetIsolate();
   Handle<JSObject> result;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                             JSObject::New(constructor, new_target), JSDate);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      JSObject::New(constructor, new_target, Handle<AllocationSite>::null()),
+      JSDate);
   if (-DateCache::kMaxTimeInMs <= tv && tv <= DateCache::kMaxTimeInMs) {
     tv = DoubleToInteger(tv) + 0.0;
   } else {

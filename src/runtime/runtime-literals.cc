@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/allocation-site-scopes.h"
+#include "src/allocation-site-scopes-inl.h"
 #include "src/arguments-inl.h"
 #include "src/ast/ast.h"
 #include "src/isolate-inl.h"

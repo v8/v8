@@ -843,6 +843,8 @@ action("postmortem-metadata") {
   sources = [
     "src/objects.h",
     "src/objects-inl.h",
+    "src/objects/allocation-site-inl.h",
+    "src/objects/allocation-site.h",
     "src/objects/code-inl.h",
     "src/objects/code.h",
     "src/objects/data-handler.h",
@@ -1535,6 +1537,7 @@ v8_source_set("v8_base") {
     "src/accessors.h",
     "src/address-map.cc",
     "src/address-map.h",
+    "src/allocation-site-scopes-inl.h",
     "src/allocation-site-scopes.h",
     "src/allocation.cc",
     "src/allocation.h",

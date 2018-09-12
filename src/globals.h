@@ -951,6 +951,8 @@ enum AllocationSiteMode {
   LAST_ALLOCATION_SITE_MODE = TRACK_ALLOCATION_SITE
 };
 
+enum class AllocationSiteUpdateMode { kUpdate, kCheckOnly };
+
 // The mips architecture prior to revision 5 has inverted encoding for sNaN.
 #if (V8_TARGET_ARCH_MIPS && !defined(_MIPS_ARCH_MIPS32R6) &&           \
      (!defined(USE_SIMULATOR) || !defined(_MIPS_TARGET_SIMULATOR))) || \

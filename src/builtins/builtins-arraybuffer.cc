@@ -31,8 +31,9 @@ Object* ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
                         Handle<JSReceiver> new_target, Handle<Object> length,
                         bool initialize) {
   Handle<JSObject> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::New(target, new_target));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
   size_t byte_length;
   if (!TryNumberToSize(*length, &byte_length)) {
     THROW_NEW_ERROR_RETURN_FAILURE(

@@ -765,7 +765,9 @@ RUNTIME_FUNCTION(Runtime_NewObject) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, 1);
-  RETURN_RESULT_OR_FAILURE(isolate, JSObject::New(target, new_target));
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
 }
 
 RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
