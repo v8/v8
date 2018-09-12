@@ -217,7 +217,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     DCHECK(!already_resolved_);
     DCHECK_EQ(factory->zone(), zone());
     VariableProxy* proxy = factory->NewVariableProxy(name, kind, start_pos);
-    AddUnresolved(proxy);
+    proxy->set_next_unresolved(unresolved_);
+    unresolved_ = proxy;
     return proxy;
   }
 
@@ -478,9 +479,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return false;
   }
 
-  static void* const kDummyPreParserVariable;
-  static void* const kDummyPreParserLexicalVariable;
-
  protected:
   explicit Scope(Zone* zone);
 
@@ -526,7 +524,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   ThreadedList<Variable> locals_;
   // Unresolved variables referred to from this scope. The proxies themselves
   // form a linked list of all unresolved proxies.
-  ThreadedList<VariableProxy> unresolved_list_;
+  VariableProxy* unresolved_;
   // Declarations.
   ThreadedList<Declaration> decls_;
 
@@ -598,10 +596,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Finds free variables of this scope. This mutates the unresolved variables
   // list along the way, so full resolution cannot be done afterwards.
   // If a ParseInfo* is passed, non-free variables will be resolved.
-  template <typename T>
-  void ResolveScopesThenForEachVariable(DeclarationScope* max_outer_scope,
-                                        T variable_proxy_stackvisitor,
-                                        ParseInfo* info = nullptr);
+  VariableProxy* FetchFreeVariables(DeclarationScope* max_outer_scope,
+                                    ParseInfo* info = nullptr,
+                                    VariableProxy* stack = nullptr);
 
   // Predicates.
   bool MustAllocate(Variable* var);
