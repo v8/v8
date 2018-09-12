@@ -252,10 +252,6 @@ TNode<Int32T> CodeAssembler::Int32Constant(int32_t value) {
   return UncheckedCast<Int32T>(raw_assembler()->Int32Constant(value));
 }
 
-TNode<Uint32T> CodeAssembler::Uint32Constant(uint32_t value) {
-  return Unsigned(Int32Constant(bit_cast<int32_t>(value)));
-}
-
 TNode<Int64T> CodeAssembler::Int64Constant(int64_t value) {
   return UncheckedCast<Int64T>(raw_assembler()->Int64Constant(value));
 }

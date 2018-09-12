@@ -67,8 +67,13 @@ class Name : public HeapObject {
   int NameShortPrint(Vector<char> str);
 
   // Layout description.
-  static const int kHashFieldOffset = HeapObject::kHeaderSize;
-  static const int kHeaderSize = kHashFieldOffset + kInt32Size;
+  static const int kHashFieldSlot = HeapObject::kHeaderSize;
+#if V8_TARGET_LITTLE_ENDIAN || !V8_HOST_ARCH_64_BIT
+  static const int kHashFieldOffset = kHashFieldSlot;
+#else
+  static const int kHashFieldOffset = kHashFieldSlot + kInt32Size;
+#endif
+  static const int kSize = kHashFieldSlot + kPointerSize;
 
   // Mask constant for checking if a name has a computed hash code
   // and if it is a string that is an array index.  The least significant bit
@@ -176,22 +181,18 @@ class Symbol : public Name {
   DECL_VERIFIER(Symbol)
 
   // Layout description.
-  static const int kFlagsOffset = Name::kHeaderSize;
-  static const int kNameOffset = kFlagsOffset + kInt32Size;
-  static const int kSize = kNameOffset + kPointerSize;
+  static const int kNameOffset = Name::kSize;
+  static const int kFlagsOffset = kNameOffset + kPointerSize;
+  static const int kSize = kFlagsOffset + kPointerSize;
 
-// Flags layout.
-#define FLAGS_BIT_FIELDS(V, _)          \
-  V(IsPrivateBit, bool, 1, _)           \
-  V(IsWellKnownSymbolBit, bool, 1, _)   \
-  V(IsPublicBit, bool, 1, _)            \
-  V(IsInterestingSymbolBit, bool, 1, _) \
-  V(IsPrivateFieldBit, bool, 1, _)
+  // Flags layout.
+  static const int kPrivateBit = 0;
+  static const int kWellKnownSymbolBit = 1;
+  static const int kPublicBit = 2;
+  static const int kInterestingSymbolBit = 3;
+  static const int kPrivateFieldBit = 4;
 
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
-
-  typedef FixedBodyDescriptor<kNameOffset, kSize, kSize> BodyDescriptor;
+  typedef FixedBodyDescriptor<kNameOffset, kFlagsOffset, kSize> BodyDescriptor;
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
 
