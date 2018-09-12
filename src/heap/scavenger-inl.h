@@ -250,11 +250,11 @@ SlotCallbackResult Scavenger::EvacuateObject(HeapObjectReference** slot,
   switch (map->visitor_id()) {
     case kVisitThinString:
       // At the moment we don't allow weak pointers to thin strings.
-      DCHECK(!(*slot)->IsWeakHeapObject());
+      DCHECK(!(*slot)->IsWeak());
       return EvacuateThinString(map, reinterpret_cast<HeapObject**>(slot),
                                 reinterpret_cast<ThinString*>(source), size);
     case kVisitShortcutCandidate:
-      DCHECK(!(*slot)->IsWeakHeapObject());
+      DCHECK(!(*slot)->IsWeak());
       // At the moment we don't allow weak pointers to cons strings.
       return EvacuateShortcutCandidate(
           map, reinterpret_cast<HeapObject**>(slot),
@@ -276,10 +276,10 @@ SlotCallbackResult Scavenger::ScavengeObject(HeapObjectReference** p,
   if (first_word.IsForwardingAddress()) {
     HeapObject* dest = first_word.ToForwardingAddress();
     DCHECK(Heap::InFromSpace(*p));
-    if ((*p)->IsWeakHeapObject()) {
+    if ((*p)->IsWeak()) {
       *p = HeapObjectReference::Weak(dest);
     } else {
-      DCHECK((*p)->IsStrongHeapObject());
+      DCHECK((*p)->IsStrong());
       *p = HeapObjectReference::Strong(dest);
     }
     DCHECK(Heap::InToSpace(dest) || !Heap::InNewSpace((dest)));
@@ -298,10 +298,7 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
   MaybeObject** slot = reinterpret_cast<MaybeObject**>(slot_address);
   MaybeObject* object = *slot;
   if (Heap::InFromSpace(object)) {
-    HeapObject* heap_object;
-    bool success = object->ToStrongOrWeakHeapObject(&heap_object);
-    USE(success);
-    DCHECK(success);
+    HeapObject* heap_object = object->GetHeapObject();
     DCHECK(heap_object->IsHeapObject());
 
     SlotCallbackResult result = ScavengeObject(
@@ -335,7 +332,7 @@ void ScavengeVisitor::VisitPointers(HeapObject* host, MaybeObject** start,
     if (!Heap::InNewSpace(object)) continue;
     // Treat the weak reference as strong.
     HeapObject* heap_object;
-    if (object->ToStrongOrWeakHeapObject(&heap_object)) {
+    if (object->GetHeapObject(&heap_object)) {
       scavenger_->ScavengeObject(reinterpret_cast<HeapObjectReference**>(p),
                                  heap_object);
     } else {

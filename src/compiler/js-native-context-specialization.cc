@@ -2138,8 +2138,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   if (!Map::TryUpdate(isolate(), receiver_map).ToHandle(&receiver_map))
     return NoChange();
 
-  Handle<Name> cached_name = handle(
-      Name::cast(nexus.GetFeedbackExtra()->ToStrongHeapObject()), isolate());
+  Handle<Name> cached_name =
+      handle(Name::cast(nexus.GetFeedbackExtra()->GetHeapObjectAssumeStrong()),
+             isolate());
 
   PropertyAccessInfo access_info;
   AccessInfoFactory access_info_factory(js_heap_broker(), dependencies(),

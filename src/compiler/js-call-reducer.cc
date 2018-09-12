@@ -3334,7 +3334,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   }
 
   HeapObject* heap_object;
-  if (nexus.GetFeedback()->ToWeakHeapObject(&heap_object)) {
+  if (nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object)) {
     Handle<HeapObject> feedback(heap_object, isolate());
     // Check if we want to use CallIC feedback here.
     if (!ShouldUseCallICFeedback(target)) return NoChange();
@@ -3760,7 +3760,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     }
 
     HeapObject* feedback_object;
-    if (nexus.GetFeedback()->ToStrongHeapObject(&feedback_object) &&
+    if (nexus.GetFeedback()->GetHeapObjectIfStrong(&feedback_object) &&
         feedback_object->IsAllocationSite()) {
       // The feedback is an AllocationSite, which means we have called the
       // Array function and collected transition (and pretenuring) feedback
@@ -3789,7 +3789,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       NodeProperties::ReplaceValueInput(node, array_function, 1);
       NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
       return Changed(node);
-    } else if (nexus.GetFeedback()->ToWeakHeapObject(&feedback_object) &&
+    } else if (nexus.GetFeedback()->GetHeapObjectIfWeak(&feedback_object) &&
                !HeapObjectMatcher(new_target).HasValue()) {
       Handle<HeapObject> object(feedback_object, isolate());
       if (object->IsConstructor()) {

@@ -138,13 +138,13 @@ class ConcurrentMarkingVisitor final
     for (MaybeObject** slot = start; slot < end; slot++) {
       MaybeObject* object = base::AsAtomicPointer::Relaxed_Load(slot);
       HeapObject* heap_object;
-      if (object->ToStrongHeapObject(&heap_object)) {
+      if (object->GetHeapObjectIfStrong(&heap_object)) {
         // If the reference changes concurrently from strong to weak, the write
         // barrier will treat the weak reference as strong, so we won't miss the
         // weak reference.
         ProcessStrongHeapObject(host, reinterpret_cast<Object**>(slot),
                                 heap_object);
-      } else if (object->ToWeakHeapObject(&heap_object)) {
+      } else if (object->GetHeapObjectIfWeak(&heap_object)) {
         ProcessWeakHeapObject(
             host, reinterpret_cast<HeapObjectReference**>(slot), heap_object);
       }

@@ -363,11 +363,7 @@ Object* Deserializer<AllocatorT>::ReadDataSingle() {
   Address current_object = kNullAddress;
 
   CHECK(ReadData(start, end, source_space, current_object));
-  HeapObject* heap_object;
-  bool success = o->ToStrongHeapObject(&heap_object);
-  DCHECK(success);
-  USE(success);
-  return heap_object;
+  return o->GetHeapObjectAssumeStrong();
 }
 
 static void NoExternalReferencesCallback() {

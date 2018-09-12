@@ -915,9 +915,12 @@ TEST(TransitionLookup) {
     }
   }
 
-  CHECK(root_map->raw_transitions()->ToStrongHeapObject()->IsTransitionArray());
+  CHECK(root_map->raw_transitions()
+            ->GetHeapObjectAssumeStrong()
+            ->IsTransitionArray());
   Handle<TransitionArray> transitions(
-      TransitionArray::cast(root_map->raw_transitions()->ToStrongHeapObject()),
+      TransitionArray::cast(
+          root_map->raw_transitions()->GetHeapObjectAssumeStrong()),
       isolate);
   DCHECK(transitions->IsSortedNoDuplicates());
 

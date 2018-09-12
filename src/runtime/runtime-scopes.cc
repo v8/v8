@@ -158,8 +158,8 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
       FeedbackSlot feedback_cells_slot(
           Smi::ToInt(*possibly_feedback_cell_slot));
       Handle<FeedbackCell> feedback_cell(
-          FeedbackCell::cast(
-              feedback_vector->Get(feedback_cells_slot)->ToStrongHeapObject()),
+          FeedbackCell::cast(feedback_vector->Get(feedback_cells_slot)
+                                 ->GetHeapObjectAssumeStrong()),
           isolate);
       Handle<JSFunction> function =
           isolate->factory()->NewFunctionFromSharedFunctionInfo(

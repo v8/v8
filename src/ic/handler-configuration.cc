@@ -168,7 +168,7 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
 KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject* handler) {
   DisallowHeapAllocation no_gc;
   if (handler->IsSmi()) {
-    int const raw_handler = Smi::cast(handler->ToSmi())->value();
+    int const raw_handler = handler->cast<Smi>()->value();
     Kind const kind = KindBits::decode(raw_handler);
     if ((kind == kElement || kind == kIndexedString) &&
         AllowOutOfBoundsBits::decode(raw_handler)) {

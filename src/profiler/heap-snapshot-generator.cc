@@ -855,8 +855,8 @@ class IndexedReferencesExtractor : public ObjectVisitor {
         continue;
       }
       HeapObject* heap_object;
-      if ((*p)->ToWeakHeapObject(&heap_object) ||
-          (*p)->ToStrongHeapObject(&heap_object)) {
+      if ((*p)->GetHeapObjectIfWeak(&heap_object) ||
+          (*p)->GetHeapObjectIfStrong(&heap_object)) {
         generator_->SetHiddenReference(parent_obj_, parent_, next_index,
                                        heap_object, index * kPointerSize);
       }
@@ -1144,13 +1144,13 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
 void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
   MaybeObject* maybe_raw_transitions_or_prototype_info = map->raw_transitions();
   HeapObject* raw_transitions_or_prototype_info;
-  if (maybe_raw_transitions_or_prototype_info->ToWeakHeapObject(
+  if (maybe_raw_transitions_or_prototype_info->GetHeapObjectIfWeak(
           &raw_transitions_or_prototype_info)) {
     DCHECK(raw_transitions_or_prototype_info->IsMap());
     SetWeakReference(map, entry, "transition",
                      raw_transitions_or_prototype_info,
                      Map::kTransitionsOrPrototypeInfoOffset);
-  } else if (maybe_raw_transitions_or_prototype_info->ToStrongHeapObject(
+  } else if (maybe_raw_transitions_or_prototype_info->GetHeapObjectIfStrong(
                  &raw_transitions_or_prototype_info)) {
     if (raw_transitions_or_prototype_info->IsTransitionArray()) {
       TransitionArray* transitions =
@@ -1406,7 +1406,7 @@ void V8HeapExplorer::ExtractFeedbackVectorReferences(
     int entry, FeedbackVector* feedback_vector) {
   MaybeObject* code = feedback_vector->optimized_code_weak_or_smi();
   HeapObject* code_heap_object;
-  if (code->ToWeakHeapObject(&code_heap_object)) {
+  if (code->GetHeapObjectIfWeak(&code_heap_object)) {
     SetWeakReference(feedback_vector, entry, "optimized code", code_heap_object,
                      FeedbackVector::kOptimizedCodeOffset);
   }
@@ -1418,10 +1418,10 @@ void V8HeapExplorer::ExtractWeakArrayReferences(int header_size, int entry,
   for (int i = 0; i < array->length(); ++i) {
     MaybeObject* object = array->Get(i);
     HeapObject* heap_object;
-    if (object->ToWeakHeapObject(&heap_object)) {
+    if (object->GetHeapObjectIfWeak(&heap_object)) {
       SetWeakReference(array, entry, i, heap_object,
                        header_size + i * kPointerSize);
-    } else if (object->ToStrongHeapObject(&heap_object)) {
+    } else if (object->GetHeapObjectIfStrong(&heap_object)) {
       SetInternalReference(array, entry, i, heap_object,
                            header_size + i * kPointerSize);
     }

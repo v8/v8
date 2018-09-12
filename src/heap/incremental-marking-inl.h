@@ -30,7 +30,7 @@ void IncrementalMarking::RecordMaybeWeakWrite(HeapObject* obj,
   // When writing a weak reference, treat it as strong for the purposes of the
   // marking barrier.
   HeapObject* heap_object;
-  if (IsMarking() && value->ToStrongOrWeakHeapObject(&heap_object)) {
+  if (IsMarking() && value->GetHeapObject(&heap_object)) {
     RecordWriteSlow(obj, reinterpret_cast<HeapObjectReference**>(slot),
                     heap_object);
   }

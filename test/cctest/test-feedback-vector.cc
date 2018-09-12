@@ -96,7 +96,7 @@ TEST(VectorStructure) {
              FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCreateClosure));
     FeedbackSlot slot = helper.slot(1);
     FeedbackCell* cell =
-        FeedbackCell::cast(vector->Get(slot)->ToStrongHeapObject());
+        FeedbackCell::cast(vector->Get(slot)->GetHeapObjectAssumeStrong());
     CHECK_EQ(cell->value(), *factory->undefined_value());
   }
 }
@@ -203,7 +203,7 @@ TEST(VectorCallFeedback) {
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   HeapObject* heap_object;
-  CHECK(nexus.GetFeedback()->ToWeakHeapObject(&heap_object));
+  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*foo, heap_object);
 
   CcTest::CollectAllGarbage();
@@ -228,7 +228,7 @@ TEST(VectorCallFeedbackForArray) {
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   HeapObject* heap_object;
-  CHECK(nexus.GetFeedback()->ToWeakHeapObject(&heap_object));
+  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*isolate->array_function(), heap_object);
 
   CcTest::CollectAllGarbage();
@@ -284,7 +284,7 @@ TEST(VectorConstructCounts) {
   FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 
-  CHECK(feedback_vector->Get(slot)->IsWeakHeapObject());
+  CHECK(feedback_vector->Get(slot)->IsWeak());
 
   CompileRun("f(Foo); f(Foo);");
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());

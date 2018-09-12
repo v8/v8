@@ -318,7 +318,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   MaybeObject* object = feedback_vector->Get(slot_for_a);
   {
     HeapObject* heap_object;
-    CHECK(object->ToWeakHeapObject(&heap_object));
+    CHECK(object->GetHeapObjectIfWeak(&heap_object));
     CHECK(heap_object->IsJSFunction());
   }
 
@@ -330,7 +330,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   object = f->feedback_vector()->Get(slot_for_a);
   {
     HeapObject* heap_object;
-    CHECK(object->ToWeakHeapObject(&heap_object));
+    CHECK(object->GetHeapObjectIfWeak(&heap_object));
     CHECK(heap_object->IsJSFunction());
   }
 }
