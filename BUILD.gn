@@ -1584,6 +1584,7 @@ v8_source_set("v8_base") {
     "src/ast/modules.h",
     "src/ast/prettyprinter.cc",
     "src/ast/prettyprinter.h",
+    "src/ast/scopes-inl.h",
     "src/ast/scopes.cc",
     "src/ast/scopes.h",
     "src/ast/variables.cc",
