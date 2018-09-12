@@ -35,8 +35,7 @@ class JSPluralRules : public JSObject {
                                           Handle<JSPluralRules> plural_rules);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ResolvePlural(
-      Isolate* isolate, Handle<JSPluralRules> plural_rules,
-      Handle<Object> number);
+      Isolate* isolate, Handle<JSPluralRules> plural_rules, double number);
 
   DECL_CAST(JSPluralRules)
   DECL_PRINTER(JSPluralRules)

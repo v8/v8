@@ -3076,6 +3076,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallFunction(isolate_, prototype, "resolvedOptions",
                             Builtins::kPluralRulesPrototypeResolvedOptions, 0,
                             false);
+
+      SimpleInstallFunction(isolate_, prototype, "select",
+                            Builtins::kPluralRulesPrototypeSelect, 1, false);
     }
   }
 #endif  // V8_INTL_SUPPORT

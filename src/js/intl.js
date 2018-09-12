@@ -384,13 +384,6 @@ DEFINE_METHOD(
   }
 );
 
-DEFINE_METHOD(
-  GlobalIntlPluralRules.prototype,
-  select(value) {
-    return %PluralRulesSelect(this, TO_NUMBER(value) + 0);
-  }
-);
-
 /**
  * DateTimeFormat resolvedOptions method.
  */

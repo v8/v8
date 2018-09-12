@@ -824,6 +824,27 @@ BUILTIN(PluralRulesPrototypeResolvedOptions) {
   return *JSPluralRules::ResolvedOptions(isolate, plural_rules_holder);
 }
 
+BUILTIN(PluralRulesPrototypeSelect) {
+  HandleScope scope(isolate);
+
+  // 1. Let pr be the this value.
+  // 2. If Type(pr) is not Object, throw a TypeError exception.
+  // 3. If pr does not have an [[InitializedPluralRules]] internal slot, throw a
+  // TypeError exception.
+  CHECK_RECEIVER(JSPluralRules, plural_rules,
+                 "Intl.PluralRules.prototype.select");
+
+  // 4. Let n be ? ToNumber(value).
+  Handle<Object> number = args.atOrUndefined(isolate, 1);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number,
+                                     Object::ToNumber(isolate, number));
+  double number_double = number->Number();
+
+  // 5. Return ? ResolvePlural(pr, n).
+  RETURN_RESULT_OR_FAILURE(isolate, JSPluralRules::ResolvePlural(
+                                        isolate, plural_rules, number_double));
+}
+
 BUILTIN(PluralRulesSupportedLocalesOf) {
   HandleScope scope(isolate);
   RETURN_RESULT_OR_FAILURE(

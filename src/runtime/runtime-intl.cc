@@ -131,32 +131,6 @@ RUNTIME_FUNCTION(Runtime_DateTimeFormatResolvedOptions) {
       isolate, JSDateTimeFormat::ResolvedOptions(isolate, format_holder));
 }
 
-RUNTIME_FUNCTION(Runtime_PluralRulesSelect) {
-  HandleScope scope(isolate);
-
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, plural_rules_obj, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, number, 1);
-
-  // 3. If pr does not have an [[InitializedPluralRules]] internal
-  // slot, throw a TypeError exception.
-  if (!plural_rules_obj->IsJSPluralRules()) {
-    Handle<String> method_str = isolate->factory()->NewStringFromStaticChars(
-        "Intl.PluralRules.prototype.select");
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                              method_str, plural_rules_obj));
-  }
-
-  Handle<JSPluralRules> plural_rules =
-      Handle<JSPluralRules>::cast(plural_rules_obj);
-
-  // 4. Return ? ResolvePlural(pr, n).
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSPluralRules::ResolvePlural(isolate, plural_rules, number));
-}
-
 RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
