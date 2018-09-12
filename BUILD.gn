@@ -161,6 +161,17 @@ declare_args() {
   # setting the "check_v8_header_includes" gclient variable to run a
   # specific hook).
   v8_check_header_includes = false
+
+  # We reuse the snapshot toolchain for building torque and other generators to
+  # avoid building v8_libbase on the host more than once. On mips with big
+  # endian, the snapshot toolchain is the target toolchain and, hence, can't be
+  # used.
+}
+
+v8_generator_toolchain = v8_snapshot_toolchain
+if (host_cpu == "x64" &&
+    (v8_current_cpu == "mips" || v8_current_cpu == "mips64")) {
+  v8_generator_toolchain = "//build/toolchain/linux:clang_x64"
 }
 
 # Derived defaults.
@@ -910,17 +921,8 @@ action("run_torque") {
     "test/cctest/:*",
   ]
 
-  # We reuse the snapshot toolchain for building torque to not build v8_libbase
-  # on the host more than once. On mips with big endian, the snapshot toolchain
-  # is the target toolchain and, hence, can't be used.
-  v8_torque_toolchain = v8_snapshot_toolchain
-  if (host_cpu == "x64" &&
-      (v8_current_cpu == "mips" || v8_current_cpu == "mips64")) {
-    v8_torque_toolchain = "//build/toolchain/linux:clang_x64"
-  }
-
   deps = [
-    ":torque($v8_torque_toolchain)",
+    ":torque($v8_generator_toolchain)",
   ]
 
   script = "tools/run.py"
@@ -938,7 +940,7 @@ action("run_torque") {
   }
 
   args = [
-    "./" + rebase_path(get_label_info(":torque($v8_torque_toolchain)",
+    "./" + rebase_path(get_label_info(":torque($v8_generator_toolchain)",
                                       "root_out_dir") + "/torque",
                        root_build_dir),
     "-o",
@@ -995,12 +997,12 @@ action("generate_bytecode_builtins_list") {
     "$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
   ]
   deps = [
-    ":bytecode_builtins_list_generator($v8_snapshot_toolchain)",
+    ":bytecode_builtins_list_generator($v8_generator_toolchain)",
   ]
   args = [
     "./" + rebase_path(
             get_label_info(
-                    ":bytecode_builtins_list_generator($v8_snapshot_toolchain)",
+                    ":bytecode_builtins_list_generator($v8_generator_toolchain)",
                     "root_out_dir") + "/bytecode_builtins_list_generator",
             root_build_dir),
     rebase_path("$target_gen_dir/builtins-generated/bytecodes-builtins-list.h"),
@@ -3284,7 +3286,7 @@ if (v8_monolithic) {
 # Executables
 #
 
-if (current_toolchain == v8_snapshot_toolchain) {
+if (current_toolchain == v8_generator_toolchain) {
   v8_executable("bytecode_builtins_list_generator") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
