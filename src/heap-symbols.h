@@ -56,7 +56,7 @@
   V(Date_string, "Date")                                           \
   V(date_to_string, "[object Date]")                               \
   V(day_string, "day")                                             \
-  V(dayperiod_string, "dayperiod")                                 \
+  V(dayPeriod_string, "dayPeriod")                                 \
   V(decimal_string, "decimal")                                     \
   V(default_string, "default")                                     \
   V(defineProperty_string, "defineProperty")                       \

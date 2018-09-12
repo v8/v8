@@ -608,9 +608,6 @@
   'language/expressions/async-generator/generator-created-after-decl-inst': [FAIL],
   'language/statements/async-generator/generator-created-after-decl-inst': [FAIL],
 
-  # https://bugs.chromium.org/p/chromium/issues/detail?id=865351
-  'intl402/DateTimeFormat/prototype/formatToParts/main': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=8099
   'intl402/NumberFormat/prototype/format/format-negative-numbers': [FAIL],
 

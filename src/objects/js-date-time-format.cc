@@ -906,7 +906,7 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
     case UDAT_STANDALONE_DAY_FIELD:
       return isolate->factory()->weekday_string();
     case UDAT_AM_PM_FIELD:
-      return isolate->factory()->dayperiod_string();
+      return isolate->factory()->dayPeriod_string();
     case UDAT_TIMEZONE_FIELD:
     case UDAT_TIMEZONE_RFC_FIELD:
     case UDAT_TIMEZONE_GENERIC_FIELD:
