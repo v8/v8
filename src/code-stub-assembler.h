@@ -958,10 +958,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Uint32T> LoadNameHash(SloppyTNode<Name> name,
                               Label* if_hash_not_computed = nullptr);
 
-  // Load length field of a String object as intptr_t value.
-  TNode<IntPtrT> LoadStringLengthAsWord(SloppyTNode<String> object);
   // Load length field of a String object as Smi value.
-  TNode<Smi> LoadStringLengthAsSmi(SloppyTNode<String> object);
+  TNode<Smi> LoadStringLengthAsSmi(SloppyTNode<String> string);
+  // Load length field of a String object as intptr_t value.
+  TNode<IntPtrT> LoadStringLengthAsWord(SloppyTNode<String> string);
+  // Load length field of a String object as uint32_t value.
+  TNode<Uint32T> LoadStringLengthAsWord32(SloppyTNode<String> string);
   // Loads a pointer to the sequential String char array.
   Node* PointerToSeqStringData(Node* seq_string);
   // Load value field of a JSValue object.
@@ -1329,46 +1331,46 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<UintPtrT> LoadBigIntDigit(TNode<BigInt> bigint, int digit_index);
 
   // Allocate a SeqOneByteString with the given length.
-  TNode<String> AllocateSeqOneByteString(int length,
+  TNode<String> AllocateSeqOneByteString(uint32_t length,
                                          AllocationFlags flags = kNone);
-  TNode<String> AllocateSeqOneByteString(Node* context, TNode<Smi> length,
+  TNode<String> AllocateSeqOneByteString(Node* context, TNode<Uint32T> length,
                                          AllocationFlags flags = kNone);
   // Allocate a SeqTwoByteString with the given length.
-  TNode<String> AllocateSeqTwoByteString(int length,
+  TNode<String> AllocateSeqTwoByteString(uint32_t length,
                                          AllocationFlags flags = kNone);
-  TNode<String> AllocateSeqTwoByteString(Node* context, TNode<Smi> length,
+  TNode<String> AllocateSeqTwoByteString(Node* context, TNode<Uint32T> length,
                                          AllocationFlags flags = kNone);
 
   // Allocate a SlicedOneByteString with the given length, parent and offset.
   // |length| and |offset| are expected to be tagged.
 
-  TNode<String> AllocateSlicedOneByteString(TNode<Smi> length,
+  TNode<String> AllocateSlicedOneByteString(TNode<Uint32T> length,
                                             TNode<String> parent,
                                             TNode<Smi> offset);
   // Allocate a SlicedTwoByteString with the given length, parent and offset.
   // |length| and |offset| are expected to be tagged.
-  TNode<String> AllocateSlicedTwoByteString(TNode<Smi> length,
+  TNode<String> AllocateSlicedTwoByteString(TNode<Uint32T> length,
                                             TNode<String> parent,
                                             TNode<Smi> offset);
 
   // Allocate a one-byte ConsString with the given length, first and second
   // parts. |length| is expected to be tagged, and |first| and |second| are
   // expected to be one-byte strings.
-  TNode<String> AllocateOneByteConsString(TNode<Smi> length,
+  TNode<String> AllocateOneByteConsString(TNode<Uint32T> length,
                                           TNode<String> first,
                                           TNode<String> second,
                                           AllocationFlags flags = kNone);
   // Allocate a two-byte ConsString with the given length, first and second
   // parts. |length| is expected to be tagged, and |first| and |second| are
   // expected to be two-byte strings.
-  TNode<String> AllocateTwoByteConsString(TNode<Smi> length,
+  TNode<String> AllocateTwoByteConsString(TNode<Uint32T> length,
                                           TNode<String> first,
                                           TNode<String> second,
                                           AllocationFlags flags = kNone);
 
   // Allocate an appropriate one- or two-byte ConsString with the first and
   // second parts specified by |left| and |right|.
-  TNode<String> NewConsString(TNode<Smi> length, TNode<String> left,
+  TNode<String> NewConsString(TNode<Uint32T> length, TNode<String> left,
                               TNode<String> right,
                               AllocationFlags flags = kNone);
 
@@ -2990,11 +2992,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                  Label* bailout);
 
   TNode<String> AllocateSlicedString(Heap::RootListIndex map_root_index,
-                                     TNode<Smi> length, TNode<String> parent,
-                                     TNode<Smi> offset);
+                                     TNode<Uint32T> length,
+                                     TNode<String> parent, TNode<Smi> offset);
 
   TNode<String> AllocateConsString(Heap::RootListIndex map_root_index,
-                                   TNode<Smi> length, TNode<String> first,
+                                   TNode<Uint32T> length, TNode<String> first,
                                    TNode<String> second, AllocationFlags flags);
 
   // Allocate a MutableHeapNumber without initializing its value.
@@ -3018,7 +3020,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<String> AllocAndCopyStringCharacters(Node* from,
                                              Node* from_instance_type,
                                              TNode<IntPtrT> from_index,
-                                             TNode<Smi> character_count);
+                                             TNode<IntPtrT> character_count);
 
   static const int kElementLoopUnrollThreshold = 8;
 
