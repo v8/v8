@@ -100,6 +100,11 @@ void LocalArrayBufferTracker::Add(JSArrayBuffer* buffer, size_t length) {
   page_->IncrementExternalBackingStoreBytes(
       ExternalBackingStoreType::kArrayBuffer, length);
 
+  AddInternal(buffer, length);
+}
+
+void LocalArrayBufferTracker::AddInternal(JSArrayBuffer* buffer,
+                                          size_t length) {
   auto ret = array_buffers_.insert(
       {buffer,
        {buffer->backing_store(), length, buffer->backing_store(),

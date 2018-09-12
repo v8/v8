@@ -2274,9 +2274,11 @@ static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
     String* new_string = String::cast(map_word.ToForwardingAddress());
 
     if (new_string->IsExternalString()) {
-      heap->ProcessMovedExternalString(
+      MemoryChunk::MoveExternalBackingStoreBytes(
+          ExternalBackingStoreType::kExternalString,
           Page::FromAddress(reinterpret_cast<Address>(*p)),
-          Page::FromHeapObject(new_string), ExternalString::cast(new_string));
+          Page::FromHeapObject(new_string),
+          ExternalString::cast(new_string)->ExternalPayloadSize());
     }
     return new_string;
   }
