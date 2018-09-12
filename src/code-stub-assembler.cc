@@ -5044,28 +5044,13 @@ TNode<Number> CodeStubAssembler::ChangeUint32ToTagged(
       if_join(this);
   TVARIABLE(Number, var_result);
   // If {value} > 2^31 - 1, we need to store it in a HeapNumber.
-  Branch(Uint32LessThan(Int32Constant(Smi::kMaxValue), value), &if_overflow,
+  Branch(Uint32LessThan(Uint32Constant(Smi::kMaxValue), value), &if_overflow,
          &if_not_overflow);
 
   BIND(&if_not_overflow);
   {
-    if (SmiValuesAre32Bits()) {
-      var_result =
-          SmiTag(ReinterpretCast<IntPtrT>(ChangeUint32ToUint64(value)));
-    } else {
-      DCHECK(SmiValuesAre31Bits());
-      // If tagging {value} results in an overflow, we need to use a HeapNumber
-      // to represent it.
-      // TODO(tebbi): This overflow can never happen.
-      TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(
-          UncheckedCast<Int32T>(value), UncheckedCast<Int32T>(value));
-      TNode<BoolT> overflow = Projection<1>(pair);
-      GotoIf(overflow, &if_overflow);
-
-      TNode<IntPtrT> almost_tagged_value =
-          ChangeInt32ToIntPtr(Projection<0>(pair));
-      var_result = BitcastWordToTaggedSigned(almost_tagged_value);
-    }
+    // The {value} is definitely in valid Smi range.
+    var_result = SmiTag(Signed(ChangeUint32ToWord(value)));
   }
   Goto(&if_join);
 
