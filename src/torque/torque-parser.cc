@@ -183,6 +183,17 @@ T* MakeNode(Args... args) {
       new T(CurrentSourcePosition::Get(), std::move(args)...)));
 }
 
+void LintGenericParameters(const GenericParameters& parameters) {
+  for (const std::string& parameter : parameters) {
+    if (!IsUpperCamelCase(parameter)) {
+      std::stringstream sstream;
+      sstream << "Generic parameter \"" << parameter << "\" doesn't follow "
+              << "\"UpperCamelCase\" naming convention.";
+      LintError(sstream.str());
+    }
+  }
+}
+
 base::Optional<ParseResult> MakeCall(ParseResultIterator* child_results) {
   auto callee = child_results->NextAs<std::string>();
   auto generic_args = child_results->NextAs<TypeList>();
@@ -276,6 +287,8 @@ base::Optional<ParseResult> MakeExternalMacro(
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
   auto name = child_results->NextAs<std::string>();
   auto generic_parameters = child_results->NextAs<GenericParameters>();
+  LintGenericParameters(generic_parameters);
+
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
@@ -302,6 +315,8 @@ base::Optional<ParseResult> MakeTorqueMacroDeclaration(
   }
 
   auto generic_parameters = child_results->NextAs<GenericParameters>();
+  LintGenericParameters(generic_parameters);
+
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
@@ -330,6 +345,8 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
   }
 
   auto generic_parameters = child_results->NextAs<GenericParameters>();
+  LintGenericParameters(generic_parameters);
+
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto body = child_results->NextAs<base::Optional<Statement*>>();
@@ -389,6 +406,12 @@ base::Optional<ParseResult> MakeTypeDeclaration(
 base::Optional<ParseResult> MakeExplicitModuleDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
+  if (!IsSnakeCase(name)) {
+    std::stringstream sstream;
+    sstream << "Module \"" << name << "\" doesn't follow "
+            << "\"snake_case\" naming convention.";
+    LintError(sstream.str());
+  }
   auto declarations = child_results->NextAs<std::vector<Declaration*>>();
   Declaration* result = MakeNode<ExplicitModuleDeclaration>(
       std::move(name), std::move(declarations));
@@ -424,6 +447,8 @@ base::Optional<ParseResult> MakeExternalBuiltin(
   auto js_linkage = child_results->NextAs<bool>();
   auto name = child_results->NextAs<std::string>();
   auto generic_parameters = child_results->NextAs<GenericParameters>();
+  LintGenericParameters(generic_parameters);
+
   auto args = child_results->NextAs<ParameterList>();
   auto return_type = child_results->NextAs<TypeExpression*>();
   BuiltinDeclaration* builtin =

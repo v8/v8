@@ -95,6 +95,11 @@ bool ContainsUnderscore(const std::string& s) {
   return s.find("_") != std::string::npos;
 }
 
+bool ContainsUpperCase(const std::string& s) {
+  if (s.empty()) return false;
+  return std::any_of(s.begin(), s.end(), [](char c) { return isupper(c); });
+}
+
 }  // namespace
 
 bool IsLowerCamelCase(const std::string& s) {
@@ -105,6 +110,11 @@ bool IsLowerCamelCase(const std::string& s) {
 bool IsUpperCamelCase(const std::string& s) {
   if (s.empty()) return false;
   return isupper(s[0]) && !ContainsUnderscore(s);
+}
+
+bool IsSnakeCase(const std::string& s) {
+  if (s.empty()) return false;
+  return !ContainsUpperCase(s);
 }
 
 std::string CamelifyString(const std::string& underscore_string) {
