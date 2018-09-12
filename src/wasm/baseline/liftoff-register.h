@@ -83,10 +83,12 @@ class LiftoffRegister {
 
  public:
   explicit LiftoffRegister(Register reg) : LiftoffRegister(reg.code()) {
+    DCHECK_NE(0, kLiftoffAssemblerGpCacheRegs & reg.bit());
     DCHECK_EQ(reg, gp());
   }
   explicit LiftoffRegister(DoubleRegister reg)
       : LiftoffRegister(kAfterMaxLiftoffGpRegCode + reg.code()) {
+    DCHECK_NE(0, kLiftoffAssemblerFpCacheRegs & reg.bit());
     DCHECK_EQ(reg, fp());
   }
 
