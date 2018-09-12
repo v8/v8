@@ -693,11 +693,6 @@ void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
   bind(&done);
 }
 
-void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
-                                         DoubleRegister rhs) {
-  BAILOUT("f32_copysign");
-}
-
 void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
   Label ool, done;
@@ -718,11 +713,6 @@ void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
   bind(&ool);
   TurboAssembler::Float64MaxOutOfLine(dst, lhs, rhs);
   bind(&done);
-}
-
-void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
-                                         DoubleRegister rhs) {
-  BAILOUT("f64_copysign");
 }
 
 #define FP_BINOP(name, instruction)                                          \

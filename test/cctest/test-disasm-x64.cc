@@ -142,11 +142,8 @@ TEST(DisasmX64) {
   __ shll_cl(Operand(rdi, rax, times_4, 100));
   __ shll(rdx, Immediate(1));
   __ shll(rdx, Immediate(6));
-  __ btq(Operand(rdx, 0), rcx);
-  __ btsq(Operand(rdx, 0), rcx);
-  __ btsq(Operand(rbx, rcx, times_4, 0), rcx);
-  __ btsq(rcx, Immediate(13));
-  __ btrq(rcx, Immediate(13));
+  __ bts(Operand(rdx, 0), rcx);
+  __ bts(Operand(rbx, rcx, times_4, 0), rcx);
   __ nop();
   __ pushq(Immediate(12));
   __ pushq(Immediate(23456));
@@ -270,6 +267,7 @@ TEST(DisasmX64) {
 
   __ xorq(rdx, Immediate(12345));
   __ xorq(rdx, Operand(rbx, rcx, times_8, 10000));
+  __ bts(Operand(rbx, rcx, times_8, 10000), rdx);
   __ pshufw(xmm5, xmm1, 3);
   __ hlt();
   __ int3();
