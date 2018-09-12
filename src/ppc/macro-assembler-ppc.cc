@@ -906,11 +906,10 @@ void TurboAssembler::LoadPC(Register dst) {
 }
 
 void TurboAssembler::ComputeCodeStartAddress(Register dst) {
-  Label current_pc;
-  mov_label_addr(dst, &current_pc);
-
-  bind(&current_pc);
-  subi(dst, dst, Operand(pc_offset()));
+  mflr(r0);
+  LoadPC(dst);
+  subi(dst, dst, Operand(pc_offset() - kInstrSize));
+  mtlr(r0);
 }
 
 void TurboAssembler::LoadConstantPoolPointerRegister() {

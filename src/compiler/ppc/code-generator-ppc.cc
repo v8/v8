@@ -882,9 +882,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
 void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   Register scratch = kScratchReg;
 
-  __ mflr(r0);
-  __ LoadPC(scratch);
-  __ subi(scratch, scratch, Operand(__ pc_offset() - kInstrSize));
+  __ ComputeCodeStartAddress(scratch);
 
   // Calculate a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
@@ -893,7 +891,6 @@ void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   __ notx(kSpeculationPoisonRegister, scratch);
   __ isel(eq, kSpeculationPoisonRegister,
           kSpeculationPoisonRegister, scratch);
-  __ mtlr(r0);
 }
 
 void CodeGenerator::AssembleRegisterArgumentPoisoning() {
