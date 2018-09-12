@@ -365,6 +365,13 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
 base::Optional<ParseResult> MakeConstDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
+  if (!IsValidModuleConstName(name)) {
+    std::stringstream sstream;
+    sstream << "Constant \"" << name << "\" doesn't follow "
+            << "\"kUpperCamelCase\" naming convention.";
+    LintError(sstream.str());
+  }
+
   auto type = child_results->NextAs<TypeExpression*>();
   auto expression = child_results->NextAs<Expression*>();
   Declaration* result =

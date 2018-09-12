@@ -100,6 +100,17 @@ bool ContainsUpperCase(const std::string& s) {
   return std::any_of(s.begin(), s.end(), [](char c) { return isupper(c); });
 }
 
+// Torque has some module constants that are used like language level
+// keywords, e.g.: 'True', 'Undefined', etc.
+// These do not need to follow the default naming convention for constants.
+bool IsKeywordLikeName(const std::string& s) {
+  static const std::vector<std::string> keyword_like_constants{
+      "True", "False", "Hole", "Null", "Undefined"};
+
+  return std::find(keyword_like_constants.begin(), keyword_like_constants.end(),
+                   s) != keyword_like_constants.end();
+}
+
 }  // namespace
 
 bool IsLowerCamelCase(const std::string& s) {
@@ -115,6 +126,13 @@ bool IsUpperCamelCase(const std::string& s) {
 bool IsSnakeCase(const std::string& s) {
   if (s.empty()) return false;
   return !ContainsUpperCase(s);
+}
+
+bool IsValidModuleConstName(const std::string& s) {
+  if (s.empty()) return false;
+  if (IsKeywordLikeName(s)) return true;
+
+  return s[0] == 'k' && IsUpperCamelCase(s.substr(1));
 }
 
 std::string CamelifyString(const std::string& underscore_string) {
