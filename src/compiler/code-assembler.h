@@ -696,7 +696,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Constants.
   TNode<Int32T> Int32Constant(int32_t value);
-  TNode<Uint32T> Uint32Constant(uint32_t value);
   TNode<Int64T> Int64Constant(int64_t value);
   TNode<IntPtrT> IntPtrConstant(intptr_t value);
   TNode<Uint32T> Uint32Constant(uint32_t value) {
@@ -908,11 +907,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   TNode<Int32T> Int32Add(TNode<Int32T> left, TNode<Int32T> right) {
     return Signed(
-        Int32Add(static_cast<Node*>(left), static_cast<Node*>(right)));
-  }
-
-  TNode<Uint32T> Uint32Add(TNode<Uint32T> left, TNode<Uint32T> right) {
-    return Unsigned(
         Int32Add(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
 
