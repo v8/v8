@@ -3090,20 +3090,21 @@ class WasmInterpreterInternals : public ZoneObject {
 };
 
 namespace {
-// TODO(wasm): a finalizer is only required to delete the global handle.
-void GlobalHandleDeleter(const v8::WeakCallbackInfo<void>& data) {
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(
-      reinterpret_cast<JSObject**>(data.GetParameter())));
+void NopFinalizer(const v8::WeakCallbackInfo<void>& data) {
+  Object** global_handle_location =
+      reinterpret_cast<Object**>(data.GetParameter());
+  GlobalHandles::Destroy(global_handle_location);
 }
 
 Handle<WasmInstanceObject> MakeWeak(
     Isolate* isolate, Handle<WasmInstanceObject> instance_object) {
-  Handle<Object> handle = isolate->global_handles()->Create(*instance_object);
-  // TODO(wasm): use a phantom handle in the WasmInterpreter.
-  GlobalHandles::MakeWeak(handle.location(), handle.location(),
-                          &GlobalHandleDeleter,
-                          v8::WeakCallbackType::kFinalizer);
-  return Handle<WasmInstanceObject>::cast(handle);
+  Handle<WasmInstanceObject> weak_instance =
+      isolate->global_handles()->Create<WasmInstanceObject>(*instance_object);
+  Object** global_handle_location =
+      Handle<Object>::cast(weak_instance).location();
+  GlobalHandles::MakeWeak(global_handle_location, global_handle_location,
+                          &NopFinalizer, v8::WeakCallbackType::kParameter);
+  return weak_instance;
 }
 }  // namespace
 
