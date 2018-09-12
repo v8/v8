@@ -2338,9 +2338,9 @@ class RepresentationSelector {
                          MachineRepresentation::kTaggedPointer);
       }
       case IrOpcode::kNewConsString: {
-        ProcessInput(node, 0, UseInfo::TaggedSigned());  // length
-        ProcessInput(node, 1, UseInfo::AnyTagged());     // first
-        ProcessInput(node, 2, UseInfo::AnyTagged());     // second
+        ProcessInput(node, 0, UseInfo::TruncatingWord32());  // length
+        ProcessInput(node, 1, UseInfo::AnyTagged());         // first
+        ProcessInput(node, 2, UseInfo::AnyTagged());         // second
         SetOutput(node, MachineRepresentation::kTaggedPointer);
         return;
       }
@@ -2393,8 +2393,7 @@ class RepresentationSelector {
         // TODO(bmeurer): The input representation should be TaggedPointer.
         // Fix this once we have a dedicated StringConcat/JSStringAdd
         // operator, which marks it's output as TaggedPointer properly.
-        VisitUnop(node, UseInfo::AnyTagged(),
-                  MachineRepresentation::kTaggedSigned);
+        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kWord32);
         return;
       }
       case IrOpcode::kStringSubstring: {

@@ -19,8 +19,17 @@
 namespace v8 {
 namespace internal {
 
-SMI_ACCESSORS(String, length, kLengthOffset)
-SYNCHRONIZED_SMI_ACCESSORS(String, length, kLengthOffset)
+INT32_ACCESSORS(String, length, kLengthOffset)
+
+int String::synchronized_length() const {
+  return base::AsAtomic32::Acquire_Load(
+      reinterpret_cast<const int32_t*>(FIELD_ADDR(this, kLengthOffset)));
+}
+
+void String::synchronized_set_length(int value) {
+  base::AsAtomic32::Release_Store(
+      reinterpret_cast<int32_t*>(FIELD_ADDR(this, kLengthOffset)), value);
+}
 
 CAST_ACCESSOR(ConsString)
 CAST_ACCESSOR(ExternalOneByteString)
