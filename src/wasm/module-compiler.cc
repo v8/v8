@@ -1169,11 +1169,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   //--------------------------------------------------------------------------
-  // Install a finalizer on the new instance object.
-  //--------------------------------------------------------------------------
-  WasmInstanceObject::InstallFinalizer(isolate_, instance);
-
-  //--------------------------------------------------------------------------
   // Debugging support.
   //--------------------------------------------------------------------------
   // Set all breakpoints that were set on the shared module.

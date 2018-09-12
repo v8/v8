@@ -461,9 +461,6 @@ class WasmInstanceObject : public JSObject {
 
   static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmModuleObject>);
 
-  static void InstallFinalizer(Isolate* isolate,
-                               Handle<WasmInstanceObject> instance);
-
   Address GetCallTarget(uint32_t func_index);
 
   // Iterates all fields in the object except the untagged fields.

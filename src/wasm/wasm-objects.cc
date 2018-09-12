@@ -72,16 +72,14 @@ class WasmInstanceNativeAllocations {
         reinterpret_cast<Address*>(
             calloc(num_imported_mutable_globals, sizeof(Address))));
   }
-  ~WasmInstanceNativeAllocations() { free(); }
-  // Frees natively-allocated storage.
-  void free() {
+  ~WasmInstanceNativeAllocations() {
     ::free(indirect_function_table_sig_ids_);
-    ::free(indirect_function_table_targets_);
-    ::free(imported_function_targets_);
-    ::free(imported_mutable_globals_);
     indirect_function_table_sig_ids_ = nullptr;
+    ::free(indirect_function_table_targets_);
     indirect_function_table_targets_ = nullptr;
+    ::free(imported_function_targets_);
     imported_function_targets_ = nullptr;
+    ::free(imported_mutable_globals_);
     imported_mutable_globals_ = nullptr;
   }
   // Resizes the indirect function table.
@@ -1295,44 +1293,6 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   module_object->set_weak_instance_list(*weak_instance_list);
 
   return instance;
-}
-
-namespace {
-void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
-  DisallowHeapAllocation no_gc;
-  JSObject** p = reinterpret_cast<JSObject**>(data.GetParameter());
-  WasmInstanceObject* instance = reinterpret_cast<WasmInstanceObject*>(*p);
-  Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
-  // If a link to shared memory instances exists, update the list of memory
-  // instances before the instance is destroyed.
-  TRACE("Finalizing instance of %p {\n",
-        instance->module_object()->native_module());
-
-  // Since the order of finalizers is not guaranteed, it can be the case
-  // that {instance->compiled_module()->module()}, which is a
-  // {Managed<WasmModule>} has been collected earlier in this GC cycle.
-  // Weak references to this instance won't be cleared until
-  // the next GC cycle, so we need to manually break some links (such as
-  // the weak references from {WasmMemoryObject::instances}.
-  if (instance->has_memory_object()) {
-    WasmMemoryObject::RemoveInstance(handle(instance->memory_object(), isolate),
-                                     handle(instance, isolate));
-  }
-
-  // Free raw C++ memory associated with the instance.
-  GetNativeAllocations(instance)->free();
-
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
-  TRACE("}\n");
-}
-
-}  // namespace
-
-void WasmInstanceObject::InstallFinalizer(Isolate* isolate,
-                                          Handle<WasmInstanceObject> instance) {
-  Handle<Object> global_handle = isolate->global_handles()->Create(*instance);
-  GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
-                          InstanceFinalizer, v8::WeakCallbackType::kFinalizer);
 }
 
 Address WasmInstanceObject::GetCallTarget(uint32_t func_index) {
