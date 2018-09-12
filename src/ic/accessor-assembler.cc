@@ -2093,7 +2093,7 @@ void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
     Comment("check if string");
     GotoIfNot(IsStringInstanceType(instance_type), slow);
     Comment("load string character");
-    TNode<IntPtrT> length = LoadStringLengthAsWord(receiver);
+    Node* length = LoadAndUntagObjectField(receiver, String::kLengthOffset);
     GotoIfNot(UintPtrLessThan(index, length), slow);
     IncrementCounter(isolate()->counters()->ic_keyed_load_generic_smi(), 1);
     TailCallBuiltin(Builtins::kStringCharAt, NoContextConstant(), receiver,

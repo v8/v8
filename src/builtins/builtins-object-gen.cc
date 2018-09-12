@@ -536,9 +536,8 @@ void ObjectBuiltinsAssembler::ObjectAssignFast(TNode<Context> context,
     GotoIf(IsJSReceiverInstanceType(from_instance_type), &cont);
     GotoIfNot(IsStringInstanceType(from_instance_type), &done);
     {
-      Branch(
-          Word32Equal(LoadStringLengthAsWord32(CAST(from)), Int32Constant(0)),
-          &done, slow);
+      Branch(SmiEqual(LoadStringLengthAsSmi(CAST(from)), SmiConstant(0)), &done,
+             slow);
     }
     BIND(&cont);
   }

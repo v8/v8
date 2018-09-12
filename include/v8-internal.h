@@ -129,8 +129,7 @@ class Internals {
   // the implementation of v8.
   static const int kHeapObjectMapOffset = 0;
   static const int kMapInstanceTypeOffset = 1 * kApiPointerSize + kApiIntSize;
-  static const int kStringResourceOffset =
-      1 * kApiPointerSize + 2 * kApiIntSize;
+  static const int kStringResourceOffset = 3 * kApiPointerSize;
 
   static const int kOddballKindOffset = 4 * kApiPointerSize + kApiDoubleSize;
   static const int kForeignAddressOffset = kApiPointerSize;
