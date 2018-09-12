@@ -266,14 +266,14 @@ class LiftoffCompiler {
   uint32_t ProcessParameter(ValueType type, uint32_t input_idx) {
     const int num_lowered_params = 1 + needs_reg_pair(type);
     // Initialize to anything, will be set in the loop and used afterwards.
-    LiftoffRegister reg = LiftoffRegister::from_code(kGpReg, 0);
+    LiftoffRegister reg = kGpCacheRegList.GetFirstRegSet();
     RegClass rc = num_lowered_params == 1 ? reg_class_for(type) : kGpReg;
     LiftoffRegList pinned;
     for (int pair_idx = 0; pair_idx < num_lowered_params; ++pair_idx) {
       compiler::LinkageLocation param_loc =
           descriptor_->GetInputLocation(input_idx + pair_idx);
       // Initialize to anything, will be set in both arms of the if.
-      LiftoffRegister in_reg = LiftoffRegister::from_code(kGpReg, 0);
+      LiftoffRegister in_reg = kGpCacheRegList.GetFirstRegSet();
       if (param_loc.IsRegister()) {
         DCHECK(!param_loc.IsAnyRegister());
         int reg_code = param_loc.AsRegister();
@@ -357,7 +357,7 @@ class LiftoffCompiler {
     }
     DCHECK_EQ(input_idx, descriptor_->InputCount());
     // Set to a gp register, to mark this uninitialized.
-    LiftoffRegister zero_double_reg(Register::from_code<0>());
+    LiftoffRegister zero_double_reg = kGpCacheRegList.GetFirstRegSet();
     DCHECK(zero_double_reg.is_gp());
     for (uint32_t param_idx = num_params; param_idx < __ num_locals();
          ++param_idx) {
