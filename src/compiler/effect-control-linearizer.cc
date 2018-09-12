@@ -1552,7 +1552,7 @@ Node* EffectControlLinearizer::LowerStringConcat(Node* node) {
   Node* rhs = node->InputAt(2);
 
   Callable const callable =
-      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE);
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,

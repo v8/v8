@@ -647,8 +647,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
     // JSAdd(x:string, y) => CallStub[StringAdd](x, y)
     // JSAdd(x, y:string) => CallStub[StringAdd](x, y)
-    Callable const callable =
-        CodeFactory::StringAdd(isolate(), flags, NOT_TENURED);
+    Callable const callable = CodeFactory::StringAdd(isolate(), flags);
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         graph()->zone(), callable.descriptor(),
         callable.descriptor().GetStackParameterCount(),

@@ -2903,14 +2903,13 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
       TNode<String> first_part =
           CAST(CallBuiltin(Builtins::kSubString, context, string,
                            var_last_match_end.value(), match_start));
-      var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone_NotTenured,
-                                    context, var_result.value(), first_part));
+      var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                                    var_result.value(), first_part));
 
       GotoIf(SmiEqual(replace_length, SmiZero()), &loop_end);
 
-      var_result =
-          CAST(CallBuiltin(Builtins::kStringAdd_CheckNone_NotTenured, context,
-                           var_result.value(), replace_string));
+      var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                                    var_result.value(), replace_string));
       Goto(&loop_end);
 
       BIND(&loop_end);
@@ -2936,8 +2935,8 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
     TNode<String> last_part =
         CAST(CallBuiltin(Builtins::kSubString, context, string,
                          var_last_match_end.value(), string_length));
-    var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone_NotTenured,
-                                  context, var_result.value(), last_part));
+    var_result = CAST(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                                  var_result.value(), last_part));
     Goto(&out);
   }
 

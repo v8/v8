@@ -108,9 +108,6 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                  Handle<Symbol> symbol,
                                  const NodeFunction0& regexp_call,
                                  const NodeFunction1& generic_call);
-
-  void Generate_StringAdd(StringAddFlags flags, PretenureFlag pretenure_flag,
-                          Node* context, Node* left, Node* right);
 };
 
 class StringIncludesIndexOfAssembler : public StringBuiltinsAssembler {

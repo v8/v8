@@ -91,8 +91,7 @@ void ObjectBuiltinsAssembler::ReturnToStringFormat(Node* context,
   Node* lhs = StringConstant("[object ");
   Node* rhs = StringConstant("]");
 
-  Callable callable =
-      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+  Callable callable = CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE);
 
   Return(CallStub(callable, context, CallStub(callable, context, lhs, string),
                   rhs));

@@ -1149,10 +1149,9 @@ void JSHeapBroker::SerializeStandardObjects() {
         Builtins::kForInFilter,
         Builtins::kJSBuiltinsConstructStub,
         Builtins::kJSConstructStubGeneric,
-        Builtins::kStringAdd_CheckNone_NotTenured,
-        Builtins::kStringAdd_CheckNone_Tenured,
-        Builtins::kStringAdd_ConvertLeft_NotTenured,
-        Builtins::kStringAdd_ConvertRight_NotTenured,
+        Builtins::kStringAdd_CheckNone,
+        Builtins::kStringAdd_ConvertLeft,
+        Builtins::kStringAdd_ConvertRight,
         Builtins::kToNumber,
         Builtins::kToObject,
     };

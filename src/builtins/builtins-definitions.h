@@ -1313,10 +1313,9 @@ namespace internal {
   ASM(CEntry_Return2_SaveFPRegs_ArgvOnStack_BuiltinExit)                       \
                                                                                \
   /* String helpers */                                                         \
-  TFS(StringAdd_CheckNone_NotTenured, kLeft, kRight)                           \
-  TFS(StringAdd_CheckNone_Tenured, kLeft, kRight)                              \
-  TFS(StringAdd_ConvertLeft_NotTenured, kLeft, kRight)                         \
-  TFS(StringAdd_ConvertRight_NotTenured, kLeft, kRight)                        \
+  TFS(StringAdd_CheckNone, kLeft, kRight)                                      \
+  TFS(StringAdd_ConvertLeft, kLeft, kRight)                                    \
+  TFS(StringAdd_ConvertRight, kLeft, kRight)                                   \
   TFS(SubString, kString, kFrom, kTo)                                          \
                                                                                \
   /* Miscellaneous */                                                          \

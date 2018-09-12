@@ -284,67 +284,31 @@ void StringBuiltinsAssembler::StringEqual_Loop(
   }
 }
 
-void StringBuiltinsAssembler::Generate_StringAdd(StringAddFlags flags,
-                                                 PretenureFlag pretenure_flag,
-                                                 Node* context, Node* left,
-                                                 Node* right) {
-  switch (flags) {
-    case STRING_ADD_CONVERT_LEFT: {
-      // TODO(danno): The ToString and JSReceiverToPrimitive below could be
-      // combined to avoid duplicate smi and instance type checks.
-      left = ToString(context, JSReceiverToPrimitive(context, left));
-      Callable callable = CodeFactory::StringAdd(
-          isolate(), STRING_ADD_CHECK_NONE, pretenure_flag);
-      TailCallStub(callable, context, left, right);
-      break;
-    }
-    case STRING_ADD_CONVERT_RIGHT: {
-      // TODO(danno): The ToString and JSReceiverToPrimitive below could be
-      // combined to avoid duplicate smi and instance type checks.
-      right = ToString(context, JSReceiverToPrimitive(context, right));
-      Callable callable = CodeFactory::StringAdd(
-          isolate(), STRING_ADD_CHECK_NONE, pretenure_flag);
-      TailCallStub(callable, context, left, right);
-      break;
-    }
-    case STRING_ADD_CHECK_NONE: {
-      CodeStubAssembler::AllocationFlag allocation_flags =
-          (pretenure_flag == TENURED) ? CodeStubAssembler::kPretenured
-                                      : CodeStubAssembler::kNone;
-      Return(StringAdd(context, CAST(left), CAST(right), allocation_flags));
-      break;
-    }
-  }
+TF_BUILTIN(StringAdd_CheckNone, StringBuiltinsAssembler) {
+  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
+  TNode<String> right = CAST(Parameter(Descriptor::kRight));
+  Node* context = Parameter(Descriptor::kContext);
+  Return(StringAdd(context, left, right));
 }
 
-TF_BUILTIN(StringAdd_CheckNone_NotTenured, StringBuiltinsAssembler) {
-  Node* left = Parameter(Descriptor::kLeft);
-  Node* right = Parameter(Descriptor::kRight);
+TF_BUILTIN(StringAdd_ConvertLeft, StringBuiltinsAssembler) {
+  TNode<Object> left = CAST(Parameter(Descriptor::kLeft));
+  TNode<String> right = CAST(Parameter(Descriptor::kRight));
   Node* context = Parameter(Descriptor::kContext);
-  Generate_StringAdd(STRING_ADD_CHECK_NONE, NOT_TENURED, context, left, right);
+  // TODO(danno): The ToString and JSReceiverToPrimitive below could be
+  // combined to avoid duplicate smi and instance type checks.
+  left = ToString(context, JSReceiverToPrimitive(context, left));
+  TailCallBuiltin(Builtins::kStringAdd_CheckNone, context, left, right);
 }
 
-TF_BUILTIN(StringAdd_CheckNone_Tenured, StringBuiltinsAssembler) {
-  Node* left = Parameter(Descriptor::kLeft);
-  Node* right = Parameter(Descriptor::kRight);
+TF_BUILTIN(StringAdd_ConvertRight, StringBuiltinsAssembler) {
+  TNode<String> left = CAST(Parameter(Descriptor::kLeft));
+  TNode<Object> right = CAST(Parameter(Descriptor::kRight));
   Node* context = Parameter(Descriptor::kContext);
-  Generate_StringAdd(STRING_ADD_CHECK_NONE, TENURED, context, left, right);
-}
-
-TF_BUILTIN(StringAdd_ConvertLeft_NotTenured, StringBuiltinsAssembler) {
-  Node* left = Parameter(Descriptor::kLeft);
-  Node* right = Parameter(Descriptor::kRight);
-  Node* context = Parameter(Descriptor::kContext);
-  Generate_StringAdd(STRING_ADD_CONVERT_LEFT, NOT_TENURED, context, left,
-                     right);
-}
-
-TF_BUILTIN(StringAdd_ConvertRight_NotTenured, StringBuiltinsAssembler) {
-  Node* left = Parameter(Descriptor::kLeft);
-  Node* right = Parameter(Descriptor::kRight);
-  Node* context = Parameter(Descriptor::kContext);
-  Generate_StringAdd(STRING_ADD_CONVERT_RIGHT, NOT_TENURED, context, left,
-                     right);
+  // TODO(danno): The ToString and JSReceiverToPrimitive below could be
+  // combined to avoid duplicate smi and instance type checks.
+  right = ToString(context, JSReceiverToPrimitive(context, right));
+  TailCallBuiltin(Builtins::kStringAdd_CheckNone, context, left, right);
 }
 
 TF_BUILTIN(SubString, StringBuiltinsAssembler) {
@@ -1309,9 +1273,6 @@ TF_BUILTIN(StringRepeat, StringBuiltinsAssembler) {
   VARIABLE(var_temp, MachineRepresentation::kTagged, string);
   TVARIABLE(Smi, var_count, count);
 
-  Callable stringadd_callable =
-      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-
   Label loop(this, {&var_count, &var_result, &var_temp}), return_result(this);
   Goto(&loop);
   BIND(&loop);
@@ -1319,16 +1280,16 @@ TF_BUILTIN(StringRepeat, StringBuiltinsAssembler) {
     {
       Label next(this);
       GotoIfNot(SmiToInt32(SmiAnd(var_count.value(), SmiConstant(1))), &next);
-      var_result.Bind(CallStub(stringadd_callable, context, var_result.value(),
-                               var_temp.value()));
+      var_result.Bind(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                                  var_result.value(), var_temp.value()));
       Goto(&next);
       BIND(&next);
     }
 
     var_count = SmiShr(var_count.value(), 1);
     GotoIf(SmiEqual(var_count.value(), SmiConstant(0)), &return_result);
-    var_temp.Bind(CallStub(stringadd_callable, context, var_temp.value(),
-                           var_temp.value()));
+    var_temp.Bind(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                              var_temp.value(), var_temp.value()));
     Goto(&loop);
   }
 
@@ -1430,9 +1391,6 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
   TNode<Smi> const match_end_index = SmiAdd(match_start_index, search_length);
 
-  Callable stringadd_callable =
-      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-
   VARIABLE(var_result, MachineRepresentation::kTagged, EmptyStringConstant());
 
   // Compute the prefix.
@@ -1463,8 +1421,8 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
         CallJS(call_callable, context, replace, UndefinedConstant(),
                search_string, match_start_index, subject_string);
     Node* const replacement_string = ToString_Inline(context, replacement);
-    var_result.Bind(CallStub(stringadd_callable, context, var_result.value(),
-                             replacement_string));
+    var_result.Bind(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                                var_result.value(), replacement_string));
     Goto(&out);
   }
 
@@ -1474,8 +1432,8 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     Node* const replacement =
         GetSubstitution(context, subject_string, match_start_index,
                         match_end_index, replace_string);
-    var_result.Bind(
-        CallStub(stringadd_callable, context, var_result.value(), replacement));
+    var_result.Bind(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                                var_result.value(), replacement));
     Goto(&out);
   }
 
@@ -1484,8 +1442,8 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     Node* const suffix =
         CallBuiltin(Builtins::kStringSubstring, context, subject_string,
                     SmiUntag(match_end_index), SmiUntag(subject_length));
-    Node* const result =
-        CallStub(stringadd_callable, context, var_result.value(), suffix);
+    Node* const result = CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                                     var_result.value(), suffix);
     Return(result);
   }
 }
@@ -1677,8 +1635,6 @@ class StringPadAssembler : public StringBuiltinsAssembler {
           SmiLessThanOrEqual(smi_max_length, SmiConstant(String::kMaxLength)),
           &invalid_string_length);
 
-      Callable stringadd_callable =
-          CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
       CSA_ASSERT(this, SmiGreaterThan(smi_max_length, string_length));
       TNode<Smi> const pad_length = SmiSub(smi_max_length, string_length);
 
@@ -1715,19 +1671,20 @@ class StringPadAssembler : public StringBuiltinsAssembler {
           Node* const remainder_string = CallBuiltin(
               Builtins::kStringSubstring, context, var_fill_string.value(),
               IntPtrConstant(0), ChangeInt32ToIntPtr(remaining_word32));
-          var_pad.Bind(CallStub(stringadd_callable, context, var_pad.value(),
-                                remainder_string));
+          var_pad.Bind(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                                   var_pad.value(), remainder_string));
           Goto(&return_result);
         }
       }
       BIND(&return_result);
       CSA_ASSERT(this,
                  SmiEqual(pad_length, LoadStringLengthAsSmi(var_pad.value())));
-      arguments.PopAndReturn(variant == kStart
-                                 ? CallStub(stringadd_callable, context,
-                                            var_pad.value(), receiver_string)
-                                 : CallStub(stringadd_callable, context,
-                                            receiver_string, var_pad.value()));
+      arguments.PopAndReturn(
+          variant == kStart
+              ? CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                            var_pad.value(), receiver_string)
+              : CallBuiltin(Builtins::kStringAdd_CheckNone, context,
+                            receiver_string, var_pad.value()));
     }
     BIND(&dont_pad);
     arguments.PopAndReturn(receiver_string);
