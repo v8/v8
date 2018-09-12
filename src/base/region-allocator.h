@@ -61,10 +61,6 @@ class V8_BASE_EXPORT RegionAllocator final {
     return whole_region_.contains(address);
   }
 
-  bool contains(Address address, size_t size) const {
-    return whole_region_.contains(address, size);
-  }
-
   // Total size of not yet aquired regions.
   size_t free_size() const { return free_size_; }
 
@@ -86,12 +82,6 @@ class V8_BASE_EXPORT RegionAllocator final {
     bool contains(Address address) const {
       STATIC_ASSERT(std::is_unsigned<Address>::value);
       return (address - begin()) < size();
-    }
-
-    bool contains(Address address, size_t size) const {
-      STATIC_ASSERT(std::is_unsigned<Address>::value);
-      Address offset = address - begin();
-      return (offset < size_) && (offset <= size_ - size);
     }
 
     bool is_used() const { return is_used_; }
@@ -165,7 +155,6 @@ class V8_BASE_EXPORT RegionAllocator final {
   FRIEND_TEST(RegionAllocatorTest, AllocateRegionRandom);
   FRIEND_TEST(RegionAllocatorTest, Fragmentation);
   FRIEND_TEST(RegionAllocatorTest, FindRegion);
-  FRIEND_TEST(RegionAllocatorTest, Contains);
 
   DISALLOW_COPY_AND_ASSIGN(RegionAllocator);
 };
