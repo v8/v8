@@ -57,7 +57,7 @@ class TestNodeMatcher : public MatcherInterface<Node*> {
 
   bool MatchAndExplain(Node* node,
                        MatchResultListener* listener) const override {
-    if (node == NULL) {
+    if (node == nullptr) {
       *listener << "which is NULL";
       return false;
     }
