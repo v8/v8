@@ -138,11 +138,10 @@ class InterpreterHandle {
   }
 
  public:
-  // TODO(wasm): properly handlify this constructor.
-  InterpreterHandle(Isolate* isolate, WasmDebugInfo* debug_info)
+  InterpreterHandle(Isolate* isolate, Handle<WasmDebugInfo> debug_info)
       : isolate_(isolate),
         module_(debug_info->wasm_instance()->module_object()->module()),
-        interpreter_(isolate, module_, GetBytes(debug_info),
+        interpreter_(isolate, module_, GetBytes(*debug_info),
                      handle(debug_info->wasm_instance(), isolate)) {}
 
   ~InterpreterHandle() { DCHECK_EQ(0, activations_.size()); }
@@ -535,7 +534,7 @@ wasm::InterpreterHandle* GetOrCreateInterpreterHandle(
     // of the stack.
     size_t interpreter_size = FLAG_stack_size * KB * 2;
     handle = Managed<wasm::InterpreterHandle>::Allocate(
-        isolate, interpreter_size, isolate, *debug_info);
+        isolate, interpreter_size, isolate, debug_info);
     debug_info->set_interpreter_handle(*handle);
   }
 
@@ -590,7 +589,7 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
   // account for the growing strategy for the backing store of the stack.
   size_t interpreter_size = FLAG_stack_size * KB * 2;
   auto interp_handle = Managed<wasm::InterpreterHandle>::Allocate(
-      isolate, interpreter_size, isolate, *debug_info);
+      isolate, interpreter_size, isolate, debug_info);
   debug_info->set_interpreter_handle(*interp_handle);
   auto ret = interp_handle->raw()->interpreter();
   ret->SetCallIndirectTestMode();
