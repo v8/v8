@@ -111,6 +111,12 @@ class JSObjectData : public HeapObjectData {
   // This method is only used to assert our invariants.
   bool cow_or_empty_elements_tenured() const;
 
+  void SerializeObjectCreateMap();
+  MapData* object_create_map() const {  // Can be nullptr.
+    CHECK(serialized_object_create_map_);
+    return object_create_map_;
+  }
+
  private:
   void SerializeRecursive(int max_depths);
 
@@ -122,7 +128,30 @@ class JSObjectData : public HeapObjectData {
   bool serialized_elements_ = false;
 
   ZoneVector<JSObjectField> inobject_fields_;
+
+  bool serialized_object_create_map_ = false;
+  MapData* object_create_map_ = nullptr;
 };
+
+void JSObjectData::SerializeObjectCreateMap() {
+  if (serialized_object_create_map_) return;
+  serialized_object_create_map_ = true;
+
+  Handle<JSObject> jsobject = Handle<JSObject>::cast(object());
+
+  if (jsobject->map()->is_prototype_map()) {
+    Handle<Object> maybe_proto_info(jsobject->map()->prototype_info(),
+                                    broker()->isolate());
+    if (maybe_proto_info->IsPrototypeInfo()) {
+      auto proto_info = Handle<PrototypeInfo>::cast(maybe_proto_info);
+      if (proto_info->HasObjectCreateMap()) {
+        DCHECK_NULL(object_create_map_);
+        object_create_map_ =
+            broker()->GetOrCreateData(proto_info->ObjectCreateMap())->AsMap();
+      }
+    }
+  }
+}
 
 class JSFunctionData : public JSObjectData {
  public:
@@ -424,6 +453,12 @@ class MapData : public HeapObjectData {
     return descriptors_;
   }
 
+  void SerializePrototype();
+  ObjectData* prototype() const {
+    CHECK(serialized_prototype_);
+    return prototype_;
+  }
+
  private:
   InstanceType const instance_type_;
   int const instance_size_;
@@ -436,6 +471,9 @@ class MapData : public HeapObjectData {
 
   bool serialized_descriptors_ = false;
   ZoneVector<PropertyDescriptor> descriptors_;
+
+  bool serialized_prototype_ = false;
+  ObjectData* prototype_ = nullptr;
 };
 
 AllocationSiteData::AllocationSiteData(JSHeapBroker* broker,
@@ -521,9 +559,14 @@ void JSFunctionData::Serialize() {
                    ? broker()->GetOrCreateData(function->prototype())
                    : nullptr;
 
-  if (initial_map_ != nullptr &&
-      initial_map_->instance_type() == JS_ARRAY_TYPE) {
-    initial_map_->SerializeElementsKindGeneralizations();
+  if (initial_map_ != nullptr) {
+    if (initial_map_->instance_type() == JS_ARRAY_TYPE) {
+      initial_map_->SerializeElementsKindGeneralizations();
+    }
+    // TODO(neis): This is currently only needed for native_context's
+    // object_function, as used by GetObjectCreateMap. If no further use sites
+    // show up, we should move this into NativeContextData::Serialize.
+    initial_map_->SerializePrototype();
   }
 }
 
@@ -881,6 +924,15 @@ void JSObjectData::SerializeElements() {
                                          broker()->isolate());
   DCHECK_NULL(elements_);
   elements_ = broker()->GetOrCreateData(elements_object)->AsFixedArrayBase();
+}
+
+void MapData::SerializePrototype() {
+  if (serialized_prototype_) return;
+  serialized_prototype_ = true;
+
+  Handle<Map> map = Handle<Map>::cast(object());
+  DCHECK_NULL(prototype_);
+  prototype_ = broker()->GetOrCreateData(map->prototype());
 }
 
 void MapData::SerializeDescriptors() {
@@ -1292,16 +1344,26 @@ HeapObjectType HeapObjectRef::type() const {
   }
 }
 
-base::Optional<MapRef> HeapObjectRef::TryGetObjectCreateMap() const {
+NativeContextRef JSHeapBroker::native_context() {
   AllowHandleAllocation handle_allocation;
-  AllowHandleDereference allow_handle_dereference;
-  Handle<Map> instance_map;
-  if (Map::TryGetObjectCreateMap(broker()->isolate(), object<HeapObject>())
-          .ToHandle(&instance_map)) {
-    return MapRef(broker(), instance_map);
-  } else {
-    return base::Optional<MapRef>();
+  return NativeContextRef(this, isolate()->native_context());
+}
+
+base::Optional<MapRef> JSObjectRef::GetObjectCreateMap() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference allow_handle_dereference;
+    AllowHeapAllocation heap_allocation;
+    Handle<Map> instance_map;
+    if (Map::TryGetObjectCreateMap(broker()->isolate(), object<HeapObject>())
+            .ToHandle(&instance_map)) {
+      return MapRef(broker(), instance_map);
+    } else {
+      return base::Optional<MapRef>();
+    }
   }
+  MapData* map_data = data()->AsJSObject()->object_create_map();
+  return map_data != nullptr ? MapRef(map_data) : base::Optional<MapRef>();
 }
 
 base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
@@ -1639,6 +1701,7 @@ BIMODAL_ACCESSOR_B(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_dictionary_map, Map::IsDictionaryMapBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, has_prototype_slot, Map::HasPrototypeSlotBit)
 BIMODAL_ACCESSOR_C(Map, int, instance_size)
+BIMODAL_ACCESSOR(Map, Object, prototype)
 HANDLE_ACCESSOR_C(Map, bool, CanBeDeprecated)
 HANDLE_ACCESSOR_C(Map, bool, CanTransition)
 HANDLE_ACCESSOR_C(Map, bool, IsInobjectSlackTrackingInProgress)
@@ -1894,6 +1957,12 @@ void JSFunctionRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsJSFunction()->Serialize();
+}
+
+void JSObjectRef::SerializeObjectCreateMap() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsJSObject()->SerializeObjectCreateMap();
 }
 
 void MapRef::SerializeDescriptors() {

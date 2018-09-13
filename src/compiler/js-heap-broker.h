@@ -146,7 +146,6 @@ class HeapObjectRef : public ObjectRef {
 
   HeapObjectType type() const;
   MapRef map() const;
-  base::Optional<MapRef> TryGetObjectCreateMap() const;
   bool IsSeqString() const;
   bool IsExternalString() const;
 };
@@ -169,6 +168,9 @@ class JSObjectRef : public HeapObjectRef {
   FixedArrayBaseRef elements() const;
   void EnsureElementsTenured();
   ElementsKind GetElementsKind() const;
+
+  void SerializeObjectCreateMap();
+  base::Optional<MapRef> GetObjectCreateMap() const;
 };
 
 class JSFunctionRef : public JSObjectRef {
@@ -242,6 +244,7 @@ class ContextRef : public HeapObjectRef {
   V(Map, set_key_value_iterator_map)          \
   V(Map, set_value_iterator_map)              \
   V(Map, sloppy_arguments_map)                \
+  V(Map, slow_object_with_null_prototype_map) \
   V(Map, strict_arguments_map)                \
   V(Map, string_iterator_map)                 \
   V(ScriptContextTable, script_context_table)
@@ -328,6 +331,7 @@ class MapRef : public HeapObjectRef {
   bool IsFixedCowArrayMap() const;
 
   ObjectRef constructor_or_backpointer() const;
+  ObjectRef prototype() const;
 
   base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
 
@@ -459,6 +463,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
 
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
+
+  NativeContextRef native_context();
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized };
   BrokerMode mode() const { return mode_; }

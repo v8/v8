@@ -28,6 +28,7 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kHeapConstant: {
       ObjectRef object(broker(), HeapConstantOf(node->op()));
       if (object.IsJSFunction()) object.AsJSFunction().Serialize();
+      if (object.IsJSObject()) object.AsJSObject().SerializeObjectCreateMap();
       if (object.IsModule()) object.AsModule().Serialize();
       break;
     }
@@ -44,16 +45,18 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
                                    state_info.shared_info().ToHandleChecked());
       break;
     }
-    case IrOpcode::kJSCreateBlockContext:
-    case IrOpcode::kJSCreateCatchContext:
-    case IrOpcode::kJSCreateWithContext: {
+    case IrOpcode::kJSCreateBlockContext: {
       ScopeInfoRef(broker(), ScopeInfoOf(node->op()));
       break;
     }
     case IrOpcode::kJSCreateBoundFunction: {
       CreateBoundFunctionParameters const& p =
           CreateBoundFunctionParametersOf(node->op());
-      MapRef map(broker(), p.map());
+      MapRef(broker(), p.map());
+      break;
+    }
+    case IrOpcode::kJSCreateCatchContext: {
+      ScopeInfoRef(broker(), ScopeInfoOf(node->op()));
       break;
     }
     case IrOpcode::kJSCreateClosure: {
@@ -83,6 +86,10 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kJSCreateLiteralRegExp: {
       CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
       FeedbackVectorRef(broker(), p.feedback().vector()).SerializeSlots();
+      break;
+    }
+    case IrOpcode::kJSCreateWithContext: {
+      ScopeInfoRef(broker(), ScopeInfoOf(node->op()));
       break;
     }
     case IrOpcode::kJSLoadNamed:
