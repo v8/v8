@@ -210,12 +210,12 @@ InitializedHandleScope::InitializedHandleScope()
       initialized_handle_scope_impl_(
           new InitializedHandleScopeImpl(main_isolate_)) {}
 
-InitializedHandleScope::~InitializedHandleScope() {}
+InitializedHandleScope::~InitializedHandleScope() = default;
 
 HandleAndZoneScope::HandleAndZoneScope()
     : main_zone_(new i::Zone(&allocator_, ZONE_NAME)) {}
 
-HandleAndZoneScope::~HandleAndZoneScope() {}
+HandleAndZoneScope::~HandleAndZoneScope() = default;
 
 static void PrintTestList(CcTest* current) {
   if (current == nullptr) return;

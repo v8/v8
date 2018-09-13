@@ -11,7 +11,7 @@ namespace {
 
 class DefaultPlatformEnvironment final : public ::testing::Environment {
  public:
-  DefaultPlatformEnvironment() {}
+  DefaultPlatformEnvironment() = default;
 
   void SetUp() override {
     platform_ = v8::platform::NewDefaultPlatform(

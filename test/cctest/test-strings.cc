@@ -1186,7 +1186,7 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
  public:
   explicit OneByteVectorResource(i::Vector<const char> vector)
       : data_(vector) {}
-  virtual ~OneByteVectorResource() {}
+  virtual ~OneByteVectorResource() = default;
   virtual size_t length() const { return data_.length(); }
   virtual const char* data() const { return data_.start(); }
  private:

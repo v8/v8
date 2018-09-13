@@ -15834,7 +15834,7 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
  public:
   explicit OneByteVectorResource(i::Vector<const char> vector)
       : data_(vector) {}
-  virtual ~OneByteVectorResource() {}
+  virtual ~OneByteVectorResource() = default;
   virtual size_t length() const { return data_.length(); }
   virtual const char* data() const { return data_.start(); }
   virtual void Dispose() {}
@@ -15848,7 +15848,7 @@ class UC16VectorResource : public v8::String::ExternalStringResource {
  public:
   explicit UC16VectorResource(i::Vector<const i::uc16> vector)
       : data_(vector) {}
-  virtual ~UC16VectorResource() {}
+  virtual ~UC16VectorResource() = default;
   virtual size_t length() const { return data_.length(); }
   virtual const i::uc16* data() const { return data_.start(); }
   virtual void Dispose() {}
@@ -19365,7 +19365,7 @@ class VisitorImpl : public v8::ExternalResourceVisitor {
       found_resource_[i] = false;
     }
   }
-  virtual ~VisitorImpl() {}
+  virtual ~VisitorImpl() = default;
   virtual void VisitExternalString(v8::Local<v8::String> string) {
     if (!string->IsExternal()) {
       CHECK(string->IsExternalOneByte());
@@ -23707,7 +23707,7 @@ THREADED_TEST(JSONStringifyObjectWithGap) {
 class ThreadInterruptTest {
  public:
   ThreadInterruptTest() : sem_(0), sem_value_(0) { }
-  ~ThreadInterruptTest() {}
+  ~ThreadInterruptTest() = default;
 
   void RunTest() {
     InterruptThread i_thread(this);
@@ -24055,7 +24055,7 @@ class RequestInterruptTestBase {
         should_continue_(true) {
   }
 
-  virtual ~RequestInterruptTestBase() { }
+  virtual ~RequestInterruptTestBase() = default;
 
   virtual void StartInterruptThread() = 0;
 

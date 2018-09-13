@@ -1025,7 +1025,7 @@ class TestJSONStream : public v8::OutputStream {
   TestJSONStream() : eos_signaled_(0), abort_countdown_(-1) {}
   explicit TestJSONStream(int abort_countdown)
       : eos_signaled_(0), abort_countdown_(abort_countdown) {}
-  virtual ~TestJSONStream() {}
+  virtual ~TestJSONStream() = default;
   virtual void EndOfStream() { ++eos_signaled_; }
   virtual WriteResult WriteAsciiChunk(char* buffer, int chars_written) {
     if (abort_countdown_ > 0) --abort_countdown_;
@@ -1215,14 +1215,9 @@ class TestStatsStream : public v8::OutputStream {
       intervals_count_(0),
       first_interval_index_(-1) { }
   TestStatsStream(const TestStatsStream& stream)
-    : v8::OutputStream(stream),
-      eos_signaled_(stream.eos_signaled_),
-      updates_written_(stream.updates_written_),
-      entries_count_(stream.entries_count_),
-      entries_size_(stream.entries_size_),
-      intervals_count_(stream.intervals_count_),
-      first_interval_index_(stream.first_interval_index_) { }
-  virtual ~TestStatsStream() {}
+
+      = default;
+  virtual ~TestStatsStream() = default;
   virtual void EndOfStream() { ++eos_signaled_; }
   virtual WriteResult WriteAsciiChunk(char* buffer, int chars_written) {
     UNREACHABLE();

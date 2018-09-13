@@ -98,7 +98,7 @@ class MockTracingPlatform : public TestPlatform {
     // Now that it's completely constructed, make this the current platform.
     i::V8::SetPlatformForTesting(this);
   }
-  virtual ~MockTracingPlatform() {}
+  virtual ~MockTracingPlatform() = default;
 
   v8::TracingController* GetTracingController() override {
     return &tracing_controller_;

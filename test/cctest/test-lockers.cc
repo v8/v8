@@ -362,7 +362,7 @@ class JoinableThread {
       thread_(this) {
   }
 
-  virtual ~JoinableThread() {}
+  virtual ~JoinableThread() = default;
 
   void Start() {
     thread_.Start();

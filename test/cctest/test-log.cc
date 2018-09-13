@@ -263,7 +263,7 @@ class SimpleExternalString : public v8::String::ExternalStringResource {
     for (int i = 0; i < utf_source_.length(); ++i)
       utf_source_[i] = source[i];
   }
-  virtual ~SimpleExternalString() {}
+  virtual ~SimpleExternalString() = default;
   virtual size_t length() const { return utf_source_.length(); }
   virtual const uint16_t* data() const { return utf_source_.start(); }
  private:

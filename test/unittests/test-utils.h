@@ -78,7 +78,7 @@ class Factory;
 
 class TestWithIsolate : public virtual ::v8::TestWithIsolate {
  public:
-  TestWithIsolate() {}
+  TestWithIsolate() = default;
   virtual ~TestWithIsolate();
 
   Factory* factory() const;
@@ -125,7 +125,7 @@ class TestWithIsolateAndZone : public virtual TestWithIsolate {
 class TestWithNativeContext : public virtual ::v8::TestWithContext,
                               public virtual TestWithIsolate {
  public:
-  TestWithNativeContext() {}
+  TestWithNativeContext() = default;
   virtual ~TestWithNativeContext();
 
   Handle<Context> native_context() const;

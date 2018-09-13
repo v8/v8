@@ -34,7 +34,7 @@ class MockHistogram : public Histogram {
 class AggregatedMemoryHistogramTest : public ::testing::Test {
  public:
   AggregatedMemoryHistogramTest() : aggregated_(&mock_) {}
-  virtual ~AggregatedMemoryHistogramTest() {}
+  virtual ~AggregatedMemoryHistogramTest() = default;
 
   void AddSample(double current_ms, double current_value) {
     aggregated_.AddSample(current_ms, current_value);

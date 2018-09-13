@@ -24,9 +24,7 @@ Isolate* TestWithIsolate::isolate_ = nullptr;
 TestWithIsolate::TestWithIsolate()
     : isolate_scope_(isolate()), handle_scope_(isolate()) {}
 
-
-TestWithIsolate::~TestWithIsolate() {}
-
+TestWithIsolate::~TestWithIsolate() = default;
 
 // static
 void TestWithIsolate::SetUpTestCase() {
@@ -67,7 +65,7 @@ Local<Value> TestWithIsolate::RunJS(const char* source) {
 TestWithContext::TestWithContext()
     : context_(Context::New(isolate())), context_scope_(context_) {}
 
-TestWithContext::~TestWithContext() {}
+TestWithContext::~TestWithContext() = default;
 
 v8::Local<v8::String> TestWithContext::NewString(const char* string) {
   return v8::String::NewFromUtf8(v8_isolate(), string,
@@ -85,9 +83,9 @@ void TestWithContext::SetGlobalProperty(const char* name,
 
 namespace internal {
 
-TestWithIsolate::~TestWithIsolate() {}
+TestWithIsolate::~TestWithIsolate() = default;
 
-TestWithIsolateAndZone::~TestWithIsolateAndZone() {}
+TestWithIsolateAndZone::~TestWithIsolateAndZone() = default;
 
 Factory* TestWithIsolate::factory() const { return isolate()->factory(); }
 
@@ -99,9 +97,9 @@ base::RandomNumberGenerator* TestWithIsolate::random_number_generator() const {
   return isolate()->random_number_generator();
 }
 
-TestWithZone::~TestWithZone() {}
+TestWithZone::~TestWithZone() = default;
 
-TestWithNativeContext::~TestWithNativeContext() {}
+TestWithNativeContext::~TestWithNativeContext() = default;
 
 Handle<Context> TestWithNativeContext::native_context() const {
   return isolate()->native_context();

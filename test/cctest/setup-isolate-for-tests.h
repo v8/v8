@@ -14,7 +14,7 @@ class SetupIsolateDelegateForTests : public SetupIsolateDelegate {
  public:
   explicit SetupIsolateDelegateForTests(bool create_heap_objects)
       : SetupIsolateDelegate(create_heap_objects) {}
-  virtual ~SetupIsolateDelegateForTests() {}
+  virtual ~SetupIsolateDelegateForTests() = default;
 
   void SetupBuiltins(Isolate* isolate) override;
 

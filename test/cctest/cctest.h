@@ -220,7 +220,7 @@ class ApiTestFuzzer: public v8::base::Thread {
         test_number_(num),
         gate_(0),
         active_(true) {}
-  ~ApiTestFuzzer() {}
+  ~ApiTestFuzzer() = default;
 
   static bool fuzzing_;
   static int tests_being_run_;
@@ -598,7 +598,7 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
  public:
   explicit StaticOneByteResource(const char* data) : data_(data) {}
 
-  ~StaticOneByteResource() {}
+  ~StaticOneByteResource() = default;
 
   const char* data() const { return data_; }
 
