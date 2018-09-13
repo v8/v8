@@ -55,8 +55,6 @@
   # Issue 5495: enable the test when the constant field tracking in enabled.
   'const-field-tracking': [SKIP],
 
-  # Issue 7872: flaky OOM
-  'regress/wasm/regress-827806': [SKIP],
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'regress/regress-create-exception': [PASS, ['mode == debug', SKIP]],
