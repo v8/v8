@@ -261,7 +261,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
     if (value == "native" || value == "traditio" || value == "finance") {
       // 10. Set numberFormat.[[NumberingSystem]] to r.[[nu]].
       UErrorCode status = U_ZERO_ERROR;
-      icu_locale.setKeywordValue("nu", NULL, status);
+      icu_locale.setKeywordValue("nu", nullptr, status);
       CHECK(U_SUCCESS(status));
     }
   }

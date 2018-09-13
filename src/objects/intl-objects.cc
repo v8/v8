@@ -164,7 +164,7 @@ bool Intl::RemoveLocaleScriptTag(const std::string& icu_locale,
                                  std::string* locale_less_script) {
   icu::Locale new_locale = icu::Locale::createCanonical(icu_locale.c_str());
   const char* icu_script = new_locale.getScript();
-  if (icu_script == NULL || strlen(icu_script) == 0) {
+  if (icu_script == nullptr || strlen(icu_script) == 0) {
     *locale_less_script = std::string();
     return false;
   }

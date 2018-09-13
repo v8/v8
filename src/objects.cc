@@ -11018,14 +11018,12 @@ FlatStringReader::FlatStringReader(Isolate* isolate, Handle<String> str)
   PostGarbageCollection();
 }
 
-
 FlatStringReader::FlatStringReader(Isolate* isolate, Vector<const char> input)
     : Relocatable(isolate),
-      str_(0),
+      str_(nullptr),
       is_one_byte_(true),
       length_(input.length()),
       start_(input.start()) {}
-
 
 void FlatStringReader::PostGarbageCollection() {
   if (str_ == nullptr) return;

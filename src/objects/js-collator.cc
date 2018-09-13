@@ -174,7 +174,7 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
       // The spec forbids the search as a collation value in the
       // locale tag, so let's filter it out.
       status = U_ZERO_ERROR;
-      new_icu_locale.setKeywordValue(legacy_collation_key, NULL, status);
+      new_icu_locale.setKeywordValue(legacy_collation_key, nullptr, status);
       CHECK(U_SUCCESS(status));
 
       toLanguageTag(new_icu_locale, bcp47_locale_tag);
@@ -357,7 +357,7 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
     if ((value == "search") || (value == "standard")) {
       UErrorCode status = U_ZERO_ERROR;
       const char* key = uloc_toLegacyKey("co");
-      icu_locale.setKeywordValue(key, NULL, status);
+      icu_locale.setKeywordValue(key, nullptr, status);
       CHECK(U_SUCCESS(status));
     }
   }

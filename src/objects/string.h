@@ -300,11 +300,11 @@ class String : public Name {
   // do any heap allocations.  This is useful when printing stack traces.
   std::unique_ptr<char[]> ToCString(AllowNullsFlag allow_nulls,
                                     RobustnessFlag robustness_flag, int offset,
-                                    int length, int* length_output = 0);
+                                    int length, int* length_output = nullptr);
   std::unique_ptr<char[]> ToCString(
       AllowNullsFlag allow_nulls = DISALLOW_NULLS,
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL,
-      int* length_output = 0);
+      int* length_output = nullptr);
 
   bool ComputeArrayIndex(uint32_t* index);
 
