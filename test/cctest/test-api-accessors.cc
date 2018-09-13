@@ -337,7 +337,6 @@ TEST(SetAccessorSetSideEffectReceiverCheck2) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
-  i::FLAG_enable_one_shot_optimization = false;
 
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(
       isolate, ConstructCallback, v8::Local<v8::Value>(),
