@@ -162,13 +162,7 @@ constexpr intptr_t kIntptrSignBit =
     static_cast<intptr_t>(uintptr_t{0x8000000000000000});
 constexpr uintptr_t kUintptrAllBitsSet = uintptr_t{0xFFFFFFFFFFFFFFFF};
 constexpr bool kRequiresCodeRange = true;
-#if V8_TARGET_ARCH_MIPS64
-// To use pseudo-relative jumps such as j/jal instructions which have 28-bit
-// encoded immediate, the addresses have to be in range of 256MB aligned
-// region. Used only for large object space.
-constexpr size_t kMaximalCodeRangeSize = 256 * MB;
-constexpr size_t kCodeRangeAreaAlignment = 256 * MB;
-#elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
+#if V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
 constexpr size_t kMaximalCodeRangeSize = 512 * MB;
 constexpr size_t kCodeRangeAreaAlignment = 64 * KB;  // OS page on PPC Linux
 #elif V8_TARGET_ARCH_ARM64

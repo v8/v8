@@ -820,16 +820,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Never use the int16_t b(l)cond version with a branch offset
   // instead of using the Label* version.
 
-  // Jump targets must be in the current 256 MB-aligned region. i.e. 28 bits.
-  void j(int64_t target);
-  void jal(int64_t target);
-  void j(Label* target);
-  void jal(Label* target);
   void jalr(Register rs, Register rd = ra);
   void jr(Register target);
   void jic(Register rt, int16_t offset);
   void jialc(Register rt, int16_t offset);
 
+  // Following instructions are deprecated and require 256 MB
+  // code alignment. Use PC-relative instructions instead.
+  void j(int64_t target);
+  void jal(int64_t target);
+  void j(Label* target);
+  void jal(Label* target);
 
   // -------Data-processing-instructions---------
 
