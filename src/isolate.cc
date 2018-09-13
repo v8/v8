@@ -2213,9 +2213,16 @@ Handle<Context> Isolate::GetIncumbentContext() {
 
   // 1st candidate: most-recently-entered author function's context
   // if it's newer than the last Context::BackupIncumbentScope entry.
-  if (!it.done() &&
-      static_cast<const void*>(it.frame()) >
-          static_cast<const void*>(top_backup_incumbent_scope())) {
+  //
+  // NOTE: This code assumes that the stack grows downward.
+  // This code doesn't work with ASAN because ASAN seems allocating stack
+  // separated for native C++ code and compiled JS code, and the following
+  // comparison doesn't make sense in ASAN.
+  // TODO(yukishiino): Make the implementation of BackupIncumbentScope more
+  // robust.
+  if (!it.done() && (!top_backup_incumbent_scope() ||
+                     it.frame()->sp() < reinterpret_cast<Address>(
+                                            top_backup_incumbent_scope()))) {
     Context* context = Context::cast(it.frame()->context());
     return Handle<Context>(context->native_context(), this);
   }
