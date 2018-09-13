@@ -1039,7 +1039,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Set up the globals for the new instance.
   //--------------------------------------------------------------------------
-  MaybeHandle<JSArrayBuffer> old_globals;
   uint32_t globals_buffer_size = module_->globals_buffer_size;
   if (globals_buffer_size > 0) {
     void* backing_store =
