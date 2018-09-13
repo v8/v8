@@ -1588,7 +1588,7 @@ MemoryAllocator::AllocatePage<MemoryAllocator::kPooled, SemiSpace>(
 
 class V8_EXPORT_PRIVATE ObjectIterator : public Malloced {
  public:
-  virtual ~ObjectIterator() {}
+  virtual ~ObjectIterator() = default;
   virtual HeapObject* Next() = 0;
 };
 

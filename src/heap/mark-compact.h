@@ -250,7 +250,7 @@ enum class RememberedSetUpdatingMode { ALL, OLD_TO_NEW_ONLY };
 // Base class for minor and full MC collectors.
 class MarkCompactCollectorBase {
  public:
-  virtual ~MarkCompactCollectorBase() {}
+  virtual ~MarkCompactCollectorBase() = default;
 
   virtual void SetUp() = 0;
   virtual void TearDown() = 0;

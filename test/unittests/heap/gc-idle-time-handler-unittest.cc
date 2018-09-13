@@ -14,8 +14,8 @@ namespace {
 
 class GCIdleTimeHandlerTest : public ::testing::Test {
  public:
-  GCIdleTimeHandlerTest() {}
-  virtual ~GCIdleTimeHandlerTest() {}
+  GCIdleTimeHandlerTest() = default;
+  virtual ~GCIdleTimeHandlerTest() = default;
 
   GCIdleTimeHandler* handler() { return &handler_; }
 

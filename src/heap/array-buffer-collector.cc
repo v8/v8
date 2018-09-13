@@ -47,7 +47,7 @@ class ArrayBufferCollector::FreeingTask final : public CancelableTask {
   explicit FreeingTask(Heap* heap)
       : CancelableTask(heap->isolate()), heap_(heap) {}
 
-  virtual ~FreeingTask() {}
+  virtual ~FreeingTask() = default;
 
  private:
   void RunInternal() final {

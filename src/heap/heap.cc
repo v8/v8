@@ -108,12 +108,7 @@ bool Heap::GCCallbackTuple::operator==(
 }
 
 Heap::GCCallbackTuple& Heap::GCCallbackTuple::operator=(
-    const Heap::GCCallbackTuple& other) {
-  callback = other.callback;
-  gc_type = other.gc_type;
-  data = other.data;
-  return *this;
-}
+    const Heap::GCCallbackTuple& other) = default;
 
 struct Heap::StrongRootsList {
   Object** start;
@@ -2021,7 +2016,7 @@ static bool IsLogging(Isolate* isolate) {
 class PageScavengingItem final : public ItemParallelJob::Item {
  public:
   explicit PageScavengingItem(MemoryChunk* chunk) : chunk_(chunk) {}
-  virtual ~PageScavengingItem() {}
+  virtual ~PageScavengingItem() = default;
 
   void Process(Scavenger* scavenger) { scavenger->ScavengePage(chunk_); }
 
@@ -3532,7 +3527,7 @@ class MemoryPressureInterruptTask : public CancelableTask {
   explicit MemoryPressureInterruptTask(Heap* heap)
       : CancelableTask(heap->isolate()), heap_(heap) {}
 
-  virtual ~MemoryPressureInterruptTask() {}
+  virtual ~MemoryPressureInterruptTask() = default;
 
  private:
   // v8::internal::CancelableTask overrides.
@@ -5313,9 +5308,7 @@ PagedSpace* PagedSpaces::next() {
 SpaceIterator::SpaceIterator(Heap* heap)
     : heap_(heap), current_space_(FIRST_SPACE - 1) {}
 
-SpaceIterator::~SpaceIterator() {
-}
-
+SpaceIterator::~SpaceIterator() = default;
 
 bool SpaceIterator::has_next() {
   // Iterate until no more spaces.
@@ -5330,7 +5323,7 @@ Space* SpaceIterator::next() {
 
 class HeapObjectsFilter {
  public:
-  virtual ~HeapObjectsFilter() {}
+  virtual ~HeapObjectsFilter() = default;
   virtual bool SkipObject(HeapObject* object) = 0;
 };
 

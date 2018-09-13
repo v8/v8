@@ -1053,7 +1053,7 @@ class NewFunctionArgs final {
   Handle<Map> GetMap(Isolate* isolate) const;
 
  private:
-  NewFunctionArgs() {}  // Use the static factory constructors.
+  NewFunctionArgs() = default;  // Use the static factory constructors.
 
   void SetShouldCreateAndSetInitialMap();
   void SetShouldSetPrototype();

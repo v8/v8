@@ -1133,7 +1133,7 @@ class MigrationObserver {
  public:
   explicit MigrationObserver(Heap* heap) : heap_(heap) {}
 
-  virtual ~MigrationObserver() {}
+  virtual ~MigrationObserver() = default;
   virtual void Move(AllocationSpace dest, HeapObject* src, HeapObject* dst,
                     int size) = 0;
 
@@ -1157,7 +1157,7 @@ class ProfilingMigrationObserver final : public MigrationObserver {
 
 class HeapObjectVisitor {
  public:
-  virtual ~HeapObjectVisitor() {}
+  virtual ~HeapObjectVisitor() = default;
   virtual bool Visit(HeapObject* object, int size) = 0;
 };
 
@@ -2366,7 +2366,7 @@ class Evacuator : public Malloced {
         duration_(0.0),
         bytes_compacted_(0) {}
 
-  virtual ~Evacuator() {}
+  virtual ~Evacuator() = default;
 
   void EvacuatePage(Page* page);
 
@@ -2522,7 +2522,7 @@ void FullEvacuator::RawEvacuatePage(Page* page, intptr_t* live_bytes) {
 class PageEvacuationItem : public ItemParallelJob::Item {
  public:
   explicit PageEvacuationItem(Page* page) : page_(page) {}
-  virtual ~PageEvacuationItem() {}
+  virtual ~PageEvacuationItem() = default;
   Page* page() const { return page_; }
 
  private:
@@ -2819,7 +2819,7 @@ void MarkCompactCollector::Evacuate() {
 
 class UpdatingItem : public ItemParallelJob::Item {
  public:
-  virtual ~UpdatingItem() {}
+  virtual ~UpdatingItem() = default;
   virtual void Process() = 0;
 };
 
@@ -2854,7 +2854,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
         start_(start),
         end_(end),
         marking_state_(marking_state) {}
-  virtual ~ToSpaceUpdatingItem() {}
+  virtual ~ToSpaceUpdatingItem() = default;
 
   void Process() override {
     if (chunk_->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) {
@@ -2908,7 +2908,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         marking_state_(marking_state),
         chunk_(chunk),
         updating_mode_(updating_mode) {}
-  virtual ~RememberedSetUpdatingItem() {}
+  virtual ~RememberedSetUpdatingItem() = default;
 
   void Process() override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
@@ -3056,7 +3056,7 @@ class GlobalHandlesUpdatingItem : public UpdatingItem {
         global_handles_(global_handles),
         start_(start),
         end_(end) {}
-  virtual ~GlobalHandlesUpdatingItem() {}
+  virtual ~GlobalHandlesUpdatingItem() = default;
 
   void Process() override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
@@ -3083,7 +3083,7 @@ class ArrayBufferTrackerUpdatingItem : public UpdatingItem {
 
   explicit ArrayBufferTrackerUpdatingItem(Page* page, EvacuationState state)
       : page_(page), state_(state) {}
-  virtual ~ArrayBufferTrackerUpdatingItem() {}
+  virtual ~ArrayBufferTrackerUpdatingItem() = default;
 
   void Process() override {
     TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
@@ -4027,7 +4027,7 @@ class YoungGenerationMarkingTask;
 
 class MarkingItem : public ItemParallelJob::Item {
  public:
-  virtual ~MarkingItem() {}
+  virtual ~MarkingItem() = default;
   virtual void Process(YoungGenerationMarkingTask* task) = 0;
 };
 
@@ -4175,7 +4175,7 @@ class GlobalHandlesMarkingItem : public MarkingItem {
   GlobalHandlesMarkingItem(Heap* heap, GlobalHandles* global_handles,
                            size_t start, size_t end)
       : global_handles_(global_handles), start_(start), end_(end) {}
-  virtual ~GlobalHandlesMarkingItem() {}
+  virtual ~GlobalHandlesMarkingItem() = default;
 
   void Process(YoungGenerationMarkingTask* task) override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),

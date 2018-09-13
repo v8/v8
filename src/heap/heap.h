@@ -2505,7 +2505,7 @@ class HeapIterator {
 // Abstract base class for checking whether a weak object should be retained.
 class WeakObjectRetainer {
  public:
-  virtual ~WeakObjectRetainer() {}
+  virtual ~WeakObjectRetainer() = default;
 
   // Return whether this object should be retained. If nullptr is returned the
   // object has no references. Otherwise the address of the retained object
@@ -2521,7 +2521,7 @@ class AllocationObserver {
       : step_size_(step_size), bytes_to_next_step_(step_size) {
     DCHECK_LE(kPointerSize, step_size);
   }
-  virtual ~AllocationObserver() {}
+  virtual ~AllocationObserver() = default;
 
   // Called each time the observed space does an allocation step. This may be
   // more frequently than the step_size we are monitoring (e.g. when there are

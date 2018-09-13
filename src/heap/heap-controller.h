@@ -24,7 +24,7 @@ class V8_EXPORT_PRIVATE MemoryController {
         max_growing_factor_(max_growing_factor),
         conservative_growing_factor_(conservative_growing_factor),
         target_mutator_utilization_(target_mutator_utilization) {}
-  virtual ~MemoryController() {}
+  virtual ~MemoryController() = default;
 
   // Computes the allocation limit to trigger the next garbage collection.
   size_t CalculateAllocationLimit(size_t curr_size, size_t max_size,

@@ -5427,7 +5427,7 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
  public:
   explicit StaticOneByteResource(const char* data) : data_(data) {}
 
-  ~StaticOneByteResource() {}
+  ~StaticOneByteResource() = default;
 
   const char* data() const { return data_; }
 
