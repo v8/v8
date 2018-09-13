@@ -64,6 +64,10 @@ class HeapObjectType {
   V(JSRegExp)                      \
   /* Subtypes of Context */        \
   V(NativeContext)                 \
+  /* Subtypes of FixedArray */     \
+  V(Context)                       \
+  V(ScopeInfo)                     \
+  V(ScriptContextTable)            \
   /* Subtypes of FixedArrayBase */ \
   V(BytecodeArray)                 \
   V(FixedArray)                    \
@@ -78,10 +82,7 @@ class HeapObjectType {
   V(FeedbackVector)                \
   V(Map)                           \
   V(Module)                        \
-  V(ScopeInfo)                     \
-  V(ScriptContextTable)            \
   V(SharedFunctionInfo)            \
-  V(Context)                       \
   V(FixedArrayBase)                \
   V(HeapNumber)                    \
   V(JSObject)                      \
@@ -219,8 +220,9 @@ class MutableHeapNumberRef : public HeapObjectRef {
 class ContextRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
+  void Serialize();
 
-  base::Optional<ContextRef> previous() const;
+  ContextRef previous() const;
   ObjectRef get(int index) const;
 };
 

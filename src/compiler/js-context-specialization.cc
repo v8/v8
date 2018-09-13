@@ -144,8 +144,9 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
 
   // Now walk up the concrete context chain for the remaining depth.
   ContextRef concrete = maybe_concrete.value();
+  concrete.Serialize();  // TODO(neis): Remove later.
   for (; depth > 0; --depth) {
-    concrete = concrete.previous().value();
+    concrete = concrete.previous();
   }
 
   if (!access.immutable()) {
@@ -205,8 +206,9 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
 
   // Now walk up the concrete context chain for the remaining depth.
   ContextRef concrete = maybe_concrete.value();
+  concrete.Serialize();  // TODO(neis): Remove later.
   for (; depth > 0; --depth) {
-    concrete = concrete.previous().value();
+    concrete = concrete.previous();
   }
 
   return SimplifyJSStoreContext(node, jsgraph()->Constant(concrete), depth);

@@ -233,9 +233,37 @@ class MutableHeapNumberData : public HeapObjectData {
 
 class ContextData : public HeapObjectData {
  public:
-  ContextData(JSHeapBroker* broker, Handle<Context> object, HeapObjectType type)
-      : HeapObjectData(broker, object, type) {}
+  ContextData(JSHeapBroker* broker, Handle<Context> object,
+              HeapObjectType type);
+  void Serialize();
+
+  ContextData* previous() const {
+    CHECK(serialized_);
+    return previous_;
+  }
+
+ private:
+  bool serialized_ = false;
+  ContextData* previous_ = nullptr;
 };
+
+ContextData::ContextData(JSHeapBroker* broker, Handle<Context> object,
+                         HeapObjectType type)
+    : HeapObjectData(broker, object, type) {}
+
+void ContextData::Serialize() {
+  if (serialized_) return;
+  serialized_ = true;
+
+  Handle<Context> context = Handle<Context>::cast(object());
+
+  DCHECK_NULL(previous_);
+  // Context::previous DCHECK-fails when called on the native context.
+  if (!context->IsNativeContext()) {
+    previous_ = broker()->GetOrCreateData(context->previous())->AsContext();
+    previous_->Serialize();
+  }
+}
 
 class NativeContextData : public ContextData {
  public:
@@ -1104,14 +1132,17 @@ bool ObjectRef::equals(const ObjectRef& other) const {
 
 Isolate* ObjectRef::isolate() const { return broker()->isolate(); }
 
-base::Optional<ContextRef> ContextRef::previous() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference handle_dereference;
-  Context* previous = object<Context>()->previous();
-  if (previous == nullptr) return base::Optional<ContextRef>();
-  return ContextRef(broker(), handle(previous, broker()->isolate()));
+ContextRef ContextRef::previous() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference handle_dereference;
+    return ContextRef(
+        broker(), handle(object<Context>()->previous(), broker()->isolate()));
+  }
+  return ContextRef(data()->AsContext()->previous());
 }
 
+// Not needed for TypedLowering.
 ObjectRef ContextRef::get(int index) const {
   AllowHandleAllocation handle_allocation;
   AllowHandleDereference handle_dereference;
@@ -1332,9 +1363,8 @@ HeapObjectType HeapObjectRef::type() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
     return broker()->HeapObjectTypeFromMap(object<HeapObject>()->map());
-  } else {
-    return data()->AsHeapObject()->type();
   }
+  return data()->AsHeapObject()->type();
 }
 
 NativeContextRef JSHeapBroker::native_context() {
@@ -1968,6 +1998,12 @@ void ModuleRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsModule()->Serialize();
+}
+
+void ContextRef::Serialize() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsContext()->Serialize();
 }
 
 #undef BIMODAL_ACCESSOR
