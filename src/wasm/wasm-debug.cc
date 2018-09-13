@@ -555,16 +555,17 @@ wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo* debug_info) {
 
 Handle<FixedArray> GetOrCreateInterpretedFunctions(
     Isolate* isolate, Handle<WasmDebugInfo> debug_info) {
-  Handle<Object> obj(debug_info->interpreted_functions(), isolate);
-  if (!obj->IsUndefined(isolate)) return Handle<FixedArray>::cast(obj);
-
+  Handle<FixedArray> arr(debug_info->interpreted_functions(), isolate);
   int num_functions = debug_info->wasm_instance()
                           ->module_object()
                           ->native_module()
                           ->num_functions();
-  Handle<FixedArray> new_arr = isolate->factory()->NewFixedArray(num_functions);
-  debug_info->set_interpreted_functions(*new_arr);
-  return new_arr;
+  if (arr->length() == 0 && num_functions > 0) {
+    arr = isolate->factory()->NewFixedArray(num_functions);
+    debug_info->set_interpreted_functions(*arr);
+  }
+  DCHECK_EQ(num_functions, arr->length());
+  return arr;
 }
 
 }  // namespace
@@ -575,6 +576,7 @@ Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
   Handle<WasmDebugInfo> debug_info = Handle<WasmDebugInfo>::cast(
       factory->NewStruct(WASM_DEBUG_INFO_TYPE, TENURED));
   debug_info->set_wasm_instance(*instance);
+  debug_info->set_interpreted_functions(*factory->empty_fixed_array());
   instance->set_debug_info(*debug_info);
   return debug_info;
 }

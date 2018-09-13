@@ -544,7 +544,7 @@ class WasmDebugInfo : public Struct, public NeverReadOnlySpaceObject {
  public:
   DECL_ACCESSORS(wasm_instance, WasmInstanceObject)
   DECL_ACCESSORS(interpreter_handle, Object);
-  DECL_ACCESSORS(interpreted_functions, Object);
+  DECL_ACCESSORS(interpreted_functions, FixedArray);
   DECL_OPTIONAL_ACCESSORS(locals_names, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entries, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entry_map, Managed<wasm::SignatureMap>)
