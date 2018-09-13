@@ -691,7 +691,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     Label exit;                                                                \
     __ bind(&loop);                                                            \
     __ load_inst(i.OutputRegister(), operand);                                 \
-    __ cmp_inst(i.OutputRegister(), i.InputRegister(2));                       \
+    __ cmp_inst(i.OutputRegister(), i.InputRegister(2), cr0);                  \
     __ bne(&exit, cr0);                                                        \
     __ store_inst(i.InputRegister(3), operand);                                \
     __ bne(&loop, cr0);                                                        \
