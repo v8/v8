@@ -202,9 +202,9 @@
   'v8_linux_arm_rel_ng_triggered': {
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
-      {'name': 'mozilla'},
-      {'name': 'test262'},
-      {'name': 'v8testing', 'shards': 7},
+      {'name': 'mozilla', 'shards': 2},
+      {'name': 'test262', 'shards': 2},
+      {'name': 'v8testing', 'shards': 8},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
     ],
   },
@@ -322,8 +322,8 @@
   'v8_linux_arm64_rel_ng_triggered': {
     'tests': [
       {'name': 'mjsunit_sp_frame_access'},
-      {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'mozilla', 'shards': 2},
+      {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 9},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
     ],
