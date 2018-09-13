@@ -172,6 +172,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
   mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>>
       function_names;
+  std::string source_map_url;
 
   explicit WasmModule(std::unique_ptr<Zone> owned = nullptr);
 

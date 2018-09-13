@@ -879,7 +879,7 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   Handle<Script> script;
   Handle<ByteArray> asm_js_offset_table;
   if (asm_js_script.is_null()) {
-    script = CreateWasmScript(isolate, wire_bytes);
+    script = CreateWasmScript(isolate, wire_bytes, wasm_module->source_map_url);
   } else {
     script = asm_js_script;
     asm_js_offset_table =
@@ -2230,6 +2230,12 @@ void AsyncCompileJob::FinishCompile() {
   DCHECK_NOT_NULL(isolate_->context());
   // Finish the wasm script now and make it public to the debugger.
   Handle<Script> script(module_object_->script(), isolate_);
+  if (script->type() == Script::TYPE_WASM &&
+      module_object_->module()->source_map_url.size() != 0) {
+    MaybeHandle<String> src_map_str = isolate_->factory()->NewStringFromUtf8(
+        CStrVector(module_object_->module()->source_map_url.c_str()), TENURED);
+    script->set_source_mapping_url(*src_map_str.ToHandleChecked());
+  }
   isolate_->debug()->OnAfterCompile(script);
 
   // Log the code within the generated module for profiling.
@@ -2446,10 +2452,11 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     // Create heap objects for script and module bytes to be stored in the
     // module object. Asm.js is not compiled asynchronously.
-    Handle<Script> script = CreateWasmScript(job_->isolate_, job_->wire_bytes_);
+    const WasmModule* module = module_.get();
+    Handle<Script> script = CreateWasmScript(job_->isolate_, job_->wire_bytes_,
+                                             module->source_map_url);
     Handle<ByteArray> asm_js_offset_table;
 
-    const WasmModule* module = module_.get();
     ModuleEnv env = CreateDefaultModuleEnv(module);
     // TODO(wasm): Improve efficiency of storing module wire bytes. Only store
     // relevant sections, not function bodies
@@ -3034,7 +3041,8 @@ void CompileJsToWasmWrappers(Isolate* isolate,
 }
 
 Handle<Script> CreateWasmScript(Isolate* isolate,
-                                const ModuleWireBytes& wire_bytes) {
+                                const ModuleWireBytes& wire_bytes,
+                                const std::string& source_map_url) {
   Handle<Script> script =
       isolate->factory()->NewScript(isolate->factory()->empty_string());
   script->set_context_data(isolate->native_context()->debug_context_id());
@@ -3060,6 +3068,11 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
       TENURED);
   script->set_name(*name_str.ToHandleChecked());
 
+  if (source_map_url.size() != 0) {
+    MaybeHandle<String> src_map_str = isolate->factory()->NewStringFromUtf8(
+        CStrVector(source_map_url.c_str()), TENURED);
+    script->set_source_mapping_url(*src_map_str.ToHandleChecked());
+  }
   return script;
 }
 

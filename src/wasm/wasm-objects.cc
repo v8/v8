@@ -726,6 +726,14 @@ int WasmModuleObject::GetContainingFunction(uint32_t byte_offset) {
 
 bool WasmModuleObject::GetPositionInfo(uint32_t position,
                                        Script::PositionInfo* info) {
+  if (script()->source_mapping_url()->IsString()) {
+    if (module()->functions.size() == 0) return false;
+    info->line = 0;
+    info->column = position;
+    info->line_start = module()->functions[0].code.offset();
+    info->line_end = module()->functions.back().code.end_offset();
+    return true;
+  }
   int func_index = GetContainingFunction(position);
   if (func_index < 0) return false;
 

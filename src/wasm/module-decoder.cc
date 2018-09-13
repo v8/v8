@@ -30,6 +30,7 @@ namespace wasm {
 namespace {
 
 constexpr char kNameString[] = "name";
+constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kExceptionString[] = "exception";
 constexpr char kUnknownString[] = "<unknown>";
 
@@ -84,6 +85,8 @@ const char* SectionName(SectionCode code) {
       return "Data";
     case kNameSectionCode:
       return kNameString;
+    case kSourceMappingURLSectionCode:
+      return kSourceMappingURLString;
     case kExceptionSectionCode:
       return kExceptionString;
     default:
@@ -221,7 +224,7 @@ class WasmSectionIterator {
     }
 
     if (section_code == kUnknownSectionCode) {
-      // Check for the known "name" section.
+      // Check for the known "name" or "sourceMappingURL" section.
       section_code =
           ModuleDecoder::IdentifyUnknownSection(decoder_, section_end_);
       // As a side effect, the above function will forward the decoder to after
@@ -361,6 +364,11 @@ class ModuleDecoderImpl : public Decoder {
           next_ordered_section_ = kImportSectionCode + 1;
         }
         break;
+      case kSourceMappingURLSectionCode:
+        // sourceMappingURL is a custom section and currently can occur anywhere
+        // in the module. In case of multiple sourceMappingURL sections, all
+        // except the first occurrence are ignored.
+        break;
       default:
         next_ordered_section_ = section_code + 1;
         break;
@@ -404,6 +412,9 @@ class ModuleDecoderImpl : public Decoder {
         break;
       case kNameSectionCode:
         DecodeNameSection();
+        break;
+      case kSourceMappingURLSectionCode:
+        DecodeSourceMappingURLSection();
         break;
       case kExceptionSectionCode:
         if (enabled_features_.eh) {
@@ -851,6 +862,19 @@ class ModuleDecoderImpl : public Decoder {
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
 
+  void DecodeSourceMappingURLSection() {
+    Decoder inner(start_, pc_, end_, buffer_offset_);
+    WireBytesRef url = wasm::consume_string(inner, true, "module name");
+    if (inner.ok() && !source_mapping_url_section_added) {
+      const byte* url_start =
+          inner.start() + inner.GetBufferRelativeOffset(url.offset());
+      module_->source_map_url.assign(reinterpret_cast<const char*>(url_start),
+                                     url.length());
+      source_mapping_url_section_added = true;
+    }
+    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
   void DecodeExceptionSection() {
     uint32_t exception_count =
         consume_count("exception count", kV8MaxWasmExceptions);
@@ -960,6 +984,7 @@ class ModuleDecoderImpl : public Decoder {
   Counters* counters_ = nullptr;
   // The type section is the first section in a module.
   uint8_t next_ordered_section_ = kFirstSectionInModule;
+  bool source_mapping_url_section_added = false;
   uint32_t number_of_exception_sections = 0;
   // We store next_ordered_section_ as uint8_t instead of SectionCode so that we
   // can increment it. This static_assert should make sure that SectionCode does
@@ -1511,6 +1536,11 @@ SectionCode ModuleDecoder::IdentifyUnknownSection(Decoder& decoder,
       strncmp(reinterpret_cast<const char*>(section_name_start), kNameString,
               num_chars(kNameString)) == 0) {
     return kNameSectionCode;
+  } else if (string.length() == num_chars(kSourceMappingURLString) &&
+             strncmp(reinterpret_cast<const char*>(section_name_start),
+                     kSourceMappingURLString,
+                     num_chars(kSourceMappingURLString)) == 0) {
+    return kSourceMappingURLSectionCode;
   }
   return kUnknownSectionCode;
 }

@@ -9107,7 +9107,10 @@ int debug::Script::ColumnOffset() const {
 
 std::vector<int> debug::Script::LineEnds() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-  if (script->type() == i::Script::TYPE_WASM) return std::vector<int>();
+  if (script->type() == i::Script::TYPE_WASM &&
+      this->SourceMappingURL().IsEmpty()) {
+    return std::vector<int>();
+  }
   i::Isolate* isolate = script->GetIsolate();
   i::HandleScope scope(isolate);
   i::Script::InitLineEnds(script);
@@ -9196,7 +9199,8 @@ bool debug::Script::GetPossibleBreakpoints(
     std::vector<debug::BreakLocation>* locations) const {
   CHECK(!start.IsEmpty());
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-  if (script->type() == i::Script::TYPE_WASM) {
+  if (script->type() == i::Script::TYPE_WASM &&
+      this->SourceMappingURL().IsEmpty()) {
     i::WasmModuleObject* module_object =
         i::WasmModuleObject::cast(script->wasm_module_object());
     return module_object->GetPossibleBreakpoints(start, end, locations);
@@ -9247,9 +9251,13 @@ bool debug::Script::GetPossibleBreakpoints(
 int debug::Script::GetSourceOffset(const debug::Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
-    return i::WasmModuleObject::cast(script->wasm_module_object())
-               ->GetFunctionOffset(location.GetLineNumber()) +
-           location.GetColumnNumber();
+    if (this->SourceMappingURL().IsEmpty()) {
+      return i::WasmModuleObject::cast(script->wasm_module_object())
+                 ->GetFunctionOffset(location.GetLineNumber()) +
+             location.GetColumnNumber();
+    }
+    DCHECK_EQ(0, location.GetLineNumber());
+    return location.GetColumnNumber();
   }
 
   int line = std::max(location.GetLineNumber() - script->line_offset(), 0);

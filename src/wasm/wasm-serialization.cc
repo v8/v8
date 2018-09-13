@@ -553,7 +553,8 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   if (!decode_result.ok()) return {};
   CHECK_NOT_NULL(decode_result.val);
   WasmModule* module = decode_result.val.get();
-  Handle<Script> script = CreateWasmScript(isolate, wire_bytes);
+  Handle<Script> script =
+      CreateWasmScript(isolate, wire_bytes, module->source_map_url);
 
   // TODO(eholk): We need to properly preserve the flag whether the trap
   // handler was used or not when serializing.

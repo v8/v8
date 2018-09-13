@@ -335,7 +335,8 @@ InspectorTest.Session = class {
         var eventName = match[2];
         eventName = eventName.charAt(0).toLowerCase() + eventName.slice(1);
         if (match[1])
-          return () => this._waitForEventPromise(`${agentName}.${eventName}`);
+          return numOfEvents => this._waitForEventPromise(
+                     `${agentName}.${eventName}`, numOfEvents || 1);
         return listener => this._eventHandlers.set(`${agentName}.${eventName}`, listener);
       }
     })});
@@ -369,11 +370,16 @@ InspectorTest.Session = class {
     }
   };
 
-  _waitForEventPromise(eventName) {
+  _waitForEventPromise(eventName, numOfEvents) {
+    let events = [];
     return new Promise(fulfill => {
       this._eventHandlers.set(eventName, result => {
-        delete this._eventHandlers.delete(eventName);
-        fulfill(result);
+        --numOfEvents;
+        events.push(result);
+        if (numOfEvents === 0) {
+          delete this._eventHandlers.delete(eventName);
+          fulfill(events.length > 1 ? events : events[0]);
+        }
       });
     });
   }

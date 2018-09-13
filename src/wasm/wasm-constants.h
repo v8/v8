@@ -66,10 +66,11 @@ enum SectionCode : int8_t {
   kDataSectionCode = 11,       // Data segments
   kNameSectionCode = 12,       // Name section (encoded as a string)
   kExceptionSectionCode = 13,  // Exception section
+  kSourceMappingURLSectionCode = 14,  // Source Map URL section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
-  kLastKnownModuleSection = kExceptionSectionCode,
+  kLastKnownModuleSection = kSourceMappingURLSectionCode,
 };
 
 // Binary encoding of name section kinds.

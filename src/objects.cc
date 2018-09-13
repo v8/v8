@@ -13614,7 +13614,8 @@ int Script::GetEvalPosition() {
 void Script::InitLineEnds(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
   if (!script->line_ends()->IsUndefined(isolate)) return;
-  DCHECK_NE(Script::TYPE_WASM, script->type());
+  DCHECK(script->type() != Script::TYPE_WASM ||
+         script->source_mapping_url()->IsString());
 
   Object* src_obj = script->source();
   if (!src_obj->IsString()) {

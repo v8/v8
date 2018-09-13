@@ -576,7 +576,7 @@ void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
                                 bool is_live_edited, bool has_compile_error) {
   int contextId;
   if (!script->ContextId().To(&contextId)) return;
-  if (script->IsWasm()) {
+  if (script->IsWasm() && script->SourceMappingURL().IsEmpty()) {
     WasmTranslation* wasmTranslation = &m_wasmTranslation;
     m_inspector->forEachSession(
         m_inspector->contextGroupId(contextId),

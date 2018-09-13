@@ -2285,6 +2285,56 @@ TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
   CheckSections(data, data + sizeof(data), expected, arraysize(expected));
 }
 
+#define SRC_MAP                                                             \
+  16, 's', 'o', 'u', 'r', 'c', 'e', 'M', 'a', 'p', 'p', 'i', 'n', 'g', 'U', \
+      'R', 'L'
+TEST_F(WasmModuleVerifyTest, SourceMappingURLSection) {
+#define SRC 's', 'r', 'c', '/', 'x', 'y', 'z', '.', 'c'
+  static const byte data[] = {SECTION(Unknown, 27), SRC_MAP, 9, SRC};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(9u, result.val->source_map_url.size());
+  const char src[] = {SRC};
+  EXPECT_EQ(
+      0,
+      strncmp(reinterpret_cast<const char*>(result.val->source_map_url.data()),
+              src, 9));
+#undef SRC
+}
+
+TEST_F(WasmModuleVerifyTest, BadSourceMappingURLSection) {
+#define BAD_SRC 's', 'r', 'c', '/', 'x', 0xff, 'z', '.', 'c'
+  static const byte data[] = {SECTION(Unknown, 27), SRC_MAP, 9, BAD_SRC};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(0u, result.val->source_map_url.size());
+#undef BAD_SRC
+}
+
+TEST_F(WasmModuleVerifyTest, MultipleSourceMappingURLSections) {
+#define SRC 'a', 'b', 'c'
+  static const byte data[] = {SECTION(Unknown, 21),
+                              SRC_MAP,
+                              3,
+                              SRC,
+                              SECTION(Unknown, 21),
+                              SRC_MAP,
+                              3,
+                              'p',
+                              'q',
+                              'r'};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(3u, result.val->source_map_url.size());
+  const char src[] = {SRC};
+  EXPECT_EQ(
+      0,
+      strncmp(reinterpret_cast<const char*>(result.val->source_map_url.data()),
+              src, 3));
+#undef SRC
+}
+#undef SRC_MAP
+
 #undef WASM_FEATURE_SCOPE
 #undef WASM_FEATURE_SCOPE_VAL
 #undef EXPECT_INIT_EXPR
