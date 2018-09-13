@@ -581,7 +581,8 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
     elements->set(i, value, mode);
   }
   if (i < length) {
-    static_assert(Smi::kZero == 0, "Can use memset since Smi::kZero is 0");
+    static_assert(Smi::kZero == nullptr,
+                  "Can use memset since Smi::kZero is 0");
     memset(elements->data_start() + i, 0, kPointerSize * (length - i));
   }
 #ifdef DEBUG

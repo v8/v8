@@ -547,7 +547,7 @@ String16 String16::fromUTF8(const char* stringStart, size_t length) {
   UChar* bufferCurrent = bufferStart;
   const char* stringCurrent = stringStart;
   if (convertUTF8ToUTF16(&stringCurrent, stringStart + length, &bufferCurrent,
-                         bufferCurrent + buffer.size(), 0,
+                         bufferCurrent + buffer.size(), nullptr,
                          true) != conversionOK)
     return String16();
 

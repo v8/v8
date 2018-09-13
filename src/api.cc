@@ -876,7 +876,7 @@ void RegisteredExtension::UnregisterAll() {
 namespace {
 class ExtensionResource : public String::ExternalOneByteStringResource {
  public:
-  ExtensionResource() : data_(0), length_(0) {}
+  ExtensionResource() : data_(nullptr), length_(0) {}
   ExtensionResource(const char* data, size_t length)
       : data_(data), length_(length) {}
   const char* data() const { return data_; }
@@ -1391,7 +1391,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
   }
   obj->set_serial_number(i::Smi::FromInt(next_serial_number));
-  if (callback != 0) {
+  if (callback != nullptr) {
     Utils::ToLocal(obj)->SetCallHandler(callback, data, side_effect_type);
   }
   obj->set_length(length);
@@ -5955,12 +5955,12 @@ HeapStatistics::HeapStatistics()
       number_of_native_contexts_(0),
       number_of_detached_contexts_(0) {}
 
-HeapSpaceStatistics::HeapSpaceStatistics(): space_name_(0),
-                                            space_size_(0),
-                                            space_used_size_(0),
-                                            space_available_size_(0),
-                                            physical_space_size_(0) { }
-
+HeapSpaceStatistics::HeapSpaceStatistics()
+    : space_name_(nullptr),
+      space_size_(0),
+      space_used_size_(0),
+      space_available_size_(0),
+      physical_space_size_(0) {}
 
 HeapObjectStatistics::HeapObjectStatistics()
     : object_type_(nullptr),

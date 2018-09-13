@@ -1838,7 +1838,7 @@ extern "C" {
   // GDB will inspect contents of this descriptor.
   // Static initialization is necessary to prevent GDB from seeing
   // uninitialized descriptor.
-  JITDescriptor __jit_debug_descriptor = { 1, 0, 0, 0 };
+  JITDescriptor __jit_debug_descriptor = {1, 0, nullptr, nullptr};
 
 #ifdef OBJECT_PRINT
   void __gdb_print_v8_object(Object* object) {

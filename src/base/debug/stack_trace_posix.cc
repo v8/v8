@@ -104,7 +104,7 @@ void DemangleSymbols(std::string* text) {
     // Try to demangle the mangled symbol candidate.
     int status = 0;
     std::unique_ptr<char, FreeDeleter> demangled_symbol(
-        abi::__cxa_demangle(mangled_symbol.c_str(), nullptr, 0, &status));
+        abi::__cxa_demangle(mangled_symbol.c_str(), nullptr, nullptr, &status));
     if (status == 0) {  // Demangling is successful.
       // Remove the mangled symbol.
       text->erase(mangled_start, mangled_end - mangled_start);

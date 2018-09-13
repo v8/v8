@@ -350,7 +350,7 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
 }
 
 v8::StartupData CreateSnapshotDataBlob(v8::SnapshotCreator* snapshot_creator,
-                                       const char* script_source = NULL) {
+                                       const char* script_source = nullptr) {
   // Create a new isolate and a new context from scratch, optionally run
   // a script to embed, and serialize to create a snapshot blob.
   v8::StartupData result = {nullptr, 0};
