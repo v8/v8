@@ -222,6 +222,9 @@
 
   # https://crbug.com/v8/7775
   'allocation-site-info': [SKIP],
+
+  # BUG(v8:8169)
+  'external-backing-store-gc': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -621,9 +624,6 @@
   'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
   'math-floor-of-div-nosudiv': [PASS, ['mode == debug', SKIP]],
   'unicodelctest': [PASS, ['mode == debug', SKIP]],
-
-  # BUG(v8:8169)
-  'external-backing-store-gc': [SKIP],
 
   # Setting the timezone and locale with environment variables unavailable
   'icu-date-to-string': [SKIP],
