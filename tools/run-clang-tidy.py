@@ -14,7 +14,8 @@ import sys
 
 CLANG_TIDY_WARNING = re.compile(r'(\/.*?)\ .*\[(.*)\]$')
 CLANG_TIDY_CMDLINE_OUT = re.compile(r'^clang-tidy.*\ .*|^\./\.\*')
-FILE_REGEXS = ['src/*', 'test/*']
+FILE_REGEXS = ['../src/*', '../test/*']
+HEADER_REGEX = ['\.\.\/src\/*|\.\.\/include\/*|\.\.\/test\/*']
 
 THREADS = multiprocessing.cpu_count()
 
@@ -97,7 +98,8 @@ def ClangTidyRunFull(build_folder, skip_output_filter, checks, auto_fix):
 
   with open(os.devnull, 'w') as DEVNULL:
     ct_process = subprocess.Popen(
-      ['run-clang-tidy', '-j' + str(THREADS), '-p', '.'] + extra_args
+      ['run-clang-tidy', '-j' + str(THREADS), '-p', '.']
+       + ['-header-filter'] + HEADER_REGEX + extra_args
        + FILE_REGEXS,
       cwd=build_folder,
       stdout=subprocess.PIPE,
@@ -156,7 +158,7 @@ def ClangTidyRunAggregate(build_folder, print_files):
     sys.stdout.write(warning.to_string(print_files))
 
 
-def ClangTidyRunDiff(diff_branch, auto_fix):
+def ClangTidyRunDiff(build_folder, diff_branch, auto_fix):
   """
   Run clang-tidy on the diff between current and the diff_branch.
   """
@@ -173,7 +175,7 @@ def ClangTidyRunDiff(diff_branch, auto_fix):
 
   with open(os.devnull, 'w') as DEVNULL:
     ct_ps = subprocess.Popen(
-      ['clang-tidy-diff.py', '-p', '.', '-p1'] + extra_args,
+      ['clang-tidy-diff.py', '-path', build_folder, '-p1'] + extra_args,
       stdin=git_ps.stdout,
       stdout=subprocess.PIPE,
       stderr=DEVNULL)
@@ -376,7 +378,9 @@ def main():
         print 'Filename provided, please specify a filename with --file'
     else:
       print 'Running clang-tidy'
-      ClangTidyRunDiff(options.diff_branch, options.auto_fix)
+      ClangTidyRunDiff(options.build_folder,
+                       options.diff_branch,
+                       options.auto_fix)
 
 
 if __name__ == '__main__':
