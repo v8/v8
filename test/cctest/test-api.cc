@@ -8961,6 +8961,49 @@ THREADED_TEST(ToArrayIndex) {
   CHECK(index.IsEmpty());
 }
 
+static v8::MaybeLocal<Value> PrepareStackTrace42(v8::Local<Context> context,
+                                                 v8::Local<Value> error,
+                                                 v8::Local<StackTrace> trace) {
+  return v8::Number::New(context->GetIsolate(), 42);
+}
+
+static v8::MaybeLocal<Value> PrepareStackTraceThrow(
+    v8::Local<Context> context, v8::Local<Value> error,
+    v8::Local<StackTrace> trace) {
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::Local<String> message = v8_str("42");
+  isolate->ThrowException(v8::Exception::Error(message));
+  return v8::MaybeLocal<Value>();
+}
+
+THREADED_TEST(IsolatePrepareStackTrace) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  isolate->SetPrepareStackTraceCallback(PrepareStackTrace42);
+
+  v8::Local<Value> v = CompileRun("new Error().stack");
+
+  CHECK(v->IsNumber());
+  CHECK_EQ(v.As<v8::Number>()->Int32Value(context.local()).FromJust(), 42);
+}
+
+THREADED_TEST(IsolatePrepareStackTraceThrow) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  isolate->SetPrepareStackTraceCallback(PrepareStackTraceThrow);
+
+  v8::Local<Value> v = CompileRun("try { new Error().stack } catch (e) { e }");
+
+  CHECK(v->IsNativeError());
+
+  v8::Local<String> message = v8::Exception::CreateMessage(isolate, v)->Get();
+
+  CHECK(message->StrictEquals(v8_str("Uncaught Error: 42")));
+}
 
 THREADED_TEST(ErrorConstruction) {
   LocalContext context;

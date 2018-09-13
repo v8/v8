@@ -6455,6 +6455,15 @@ typedef void (*HostInitializeImportMetaObjectCallback)(Local<Context> context,
                                                        Local<Object> meta);
 
 /**
+ * PrepareStackTraceCallback is called when the stack property of an error is
+ * first accessed. The return value will be used as the stack value. If this
+ * callback is registed, the |Error.prepareStackTrace| API will be disabled.
+ */
+typedef MaybeLocal<Value> (*PrepareStackTraceCallback)(Local<Context> context,
+                                                       Local<Value> error,
+                                                       Local<StackTrace> trace);
+
+/**
  * PromiseHook with type kInit is called when a new promise is
  * created. When a new promise is created as part of the chain in the
  * case of Promise.then or in the intermediate promises created by
@@ -7431,6 +7440,12 @@ class V8_EXPORT Isolate {
    */
   void SetHostInitializeImportMetaObjectCallback(
       HostInitializeImportMetaObjectCallback callback);
+
+  /**
+   * This specifies the callback called when the stack property of Error
+   * is accessed.
+   */
+  void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
 
   /**
    * Optional notification that the system is running low on memory.

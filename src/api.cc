@@ -8279,6 +8279,11 @@ void Isolate::SetHostInitializeImportMetaObjectCallback(
   isolate->SetHostInitializeImportMetaObjectCallback(callback);
 }
 
+void Isolate::SetPrepareStackTraceCallback(PrepareStackTraceCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetPrepareStackTraceCallback(callback);
+}
+
 Isolate::DisallowJavascriptExecutionScope::DisallowJavascriptExecutionScope(
     Isolate* isolate,
     Isolate::DisallowJavascriptExecutionScope::OnFailure on_failure)

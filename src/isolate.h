@@ -1484,6 +1484,11 @@ class Isolate : private HiddenFactory {
   Handle<JSObject> RunHostInitializeImportMetaObjectCallback(
       Handle<Module> module);
 
+  void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
+  MaybeHandle<Object> RunPrepareStackTraceCallback(Handle<Context>,
+                                                   Handle<JSObject> Error);
+  bool HasPrepareStackTraceCallback() const;
+
   void SetRAILMode(RAILMode rail_mode);
 
   RAILMode rail_mode() { return rail_mode_.Value(); }
@@ -1849,6 +1854,8 @@ class Isolate : private HiddenFactory {
   // The top entry of the v8::Context::BackupIncumbentScope stack.
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope_ =
       nullptr;
+
+  PrepareStackTraceCallback prepare_stack_trace_callback_ = nullptr;
 
   // TODO(kenton@cloudflare.com): This mutex can be removed if
   // thread_data_table_ is always accessed under the isolate lock. I do not

@@ -955,39 +955,55 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   Handle<FrameArray> elems(FrameArray::cast(raw_stack_array->elements()),
                            isolate);
 
-  // If there's a user-specified "prepareStackFrames" function, call it on the
-  // frames and use its result.
-
-  Handle<JSFunction> global_error = isolate->error_function();
-  Handle<Object> prepare_stack_trace;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, prepare_stack_trace,
-      JSFunction::GetProperty(isolate, global_error, "prepareStackTrace"),
-      Object);
-
   const bool in_recursion = isolate->formatting_stack_trace();
-  if (prepare_stack_trace->IsJSFunction() && !in_recursion) {
-    PrepareStackTraceScope scope(isolate);
+  if (!in_recursion) {
+    if (isolate->HasPrepareStackTraceCallback()) {
+      Handle<Context> error_context = error->GetCreationContext();
+      DCHECK(!error_context.is_null() && error_context->IsNativeContext());
+      PrepareStackTraceScope scope(isolate);
 
-    isolate->CountUsage(v8::Isolate::kErrorPrepareStackTrace);
+      Handle<Object> result;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, result,
+          isolate->RunPrepareStackTraceCallback(error_context, error), Object);
+      return result;
+    } else {
+      Handle<JSFunction> global_error = isolate->error_function();
 
-    Handle<JSArray> sites;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, sites, GetStackFrames(isolate, elems),
-                               Object);
+      // If there's a user-specified "prepareStackTrace" function, call it on
+      // the frames and use its result.
 
-    const int argc = 2;
-    ScopedVector<Handle<Object>> argv(argc);
+      Handle<Object> prepare_stack_trace;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, prepare_stack_trace,
+          JSFunction::GetProperty(isolate, global_error, "prepareStackTrace"),
+          Object);
 
-    argv[0] = error;
-    argv[1] = sites;
+      if (prepare_stack_trace->IsJSFunction()) {
+        PrepareStackTraceScope scope(isolate);
 
-    Handle<Object> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result, Execution::Call(isolate, prepare_stack_trace,
-                                         global_error, argc, argv.start()),
-        Object);
+        isolate->CountUsage(v8::Isolate::kErrorPrepareStackTrace);
 
-    return result;
+        Handle<JSArray> sites;
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, sites,
+                                   GetStackFrames(isolate, elems), Object);
+
+        const int argc = 2;
+        ScopedVector<Handle<Object>> argv(argc);
+        argv[0] = error;
+        argv[1] = sites;
+
+        Handle<Object> result;
+
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, result,
+            Execution::Call(isolate, prepare_stack_trace, global_error, argc,
+                            argv.start()),
+            Object);
+
+        return result;
+      }
+    }
   }
 
   // Otherwise, run our internal formatting logic.

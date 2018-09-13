@@ -3815,6 +3815,29 @@ void Isolate::SetHostInitializeImportMetaObjectCallback(
   host_initialize_import_meta_object_callback_ = callback;
 }
 
+MaybeHandle<Object> Isolate::RunPrepareStackTraceCallback(
+    Handle<Context> context, Handle<JSObject> error) {
+  v8::Local<v8::Context> api_context = Utils::ToLocal(context);
+
+  v8::Local<StackTrace> trace =
+      Utils::StackTraceToLocal(GetDetailedStackTrace(error));
+
+  v8::Local<v8::Value> stack;
+  ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
+      this, stack,
+      prepare_stack_trace_callback_(api_context, Utils::ToLocal(error), trace),
+      MaybeHandle<Object>());
+  return Utils::OpenHandle(*stack);
+}
+
+void Isolate::SetPrepareStackTraceCallback(PrepareStackTraceCallback callback) {
+  prepare_stack_trace_callback_ = callback;
+}
+
+bool Isolate::HasPrepareStackTraceCallback() const {
+  return prepare_stack_trace_callback_ != nullptr;
+}
+
 void Isolate::SetAtomicsWaitCallback(v8::Isolate::AtomicsWaitCallback callback,
                                      void* data) {
   atomics_wait_callback_ = callback;
