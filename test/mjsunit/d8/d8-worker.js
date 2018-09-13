@@ -140,6 +140,12 @@ if (this.Worker) {
   w.postMessage(ab2, [ab2]);
   assertEquals(0, ab2.byteLength);  // ArrayBuffer should be neutered.
 
+  // Attempting to transfer the same ArrayBuffer twice should throw.
+  assertThrows(function() {
+    var ab3 = createArrayBuffer(4);
+    w.postMessage(ab3, [ab3, ab3]);
+  });
+
   assertEquals("undefined", typeof foo);
 
   // Read a message from the worker.

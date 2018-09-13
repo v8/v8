@@ -3200,6 +3200,14 @@ class Serializer : public ValueSerializer::Delegate {
           }
 
           Local<ArrayBuffer> array_buffer = Local<ArrayBuffer>::Cast(element);
+
+          if (std::find(array_buffers_.begin(), array_buffers_.end(),
+                        array_buffer) != array_buffers_.end()) {
+            Throw(isolate_,
+                  "ArrayBuffer occurs in the transfer array more than once");
+            return Nothing<bool>();
+          }
+
           serializer_.TransferArrayBuffer(
               static_cast<uint32_t>(array_buffers_.size()), array_buffer);
           array_buffers_.emplace_back(isolate_, array_buffer);
