@@ -24,24 +24,20 @@ namespace internal {
 
 namespace {
 
-WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
+Context* GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
   StackFrameIterator it(isolate, isolate->thread_local_top());
   // On top: C entry stub.
   DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
   it.Advance();
   // Next: the wasm (compiled or interpreted) frame.
-  WasmInstanceObject* result = nullptr;
+  WasmInstanceObject* instance = nullptr;
   if (it.frame()->is_wasm_compiled()) {
-    result = WasmCompiledFrame::cast(it.frame())->wasm_instance();
+    instance = WasmCompiledFrame::cast(it.frame())->wasm_instance();
   } else {
     DCHECK(it.frame()->is_wasm_interpreter_entry());
-    result = WasmInterpreterEntryFrame::cast(it.frame())->wasm_instance();
+    instance = WasmInterpreterEntryFrame::cast(it.frame())->wasm_instance();
   }
-  return result;
-}
-
-Context* GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
-  return GetWasmInstanceOnStackTop(isolate)->native_context();
+  return instance->native_context();
 }
 
 class ClearThreadInWasmScope {
@@ -234,8 +230,6 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   HandleScope scope(isolate);
   CONVERT_NUMBER_CHECKED(int32_t, func_index, Int32, args[0]);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg_buffer_obj, 1);
-  Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate),
-                                      isolate);
 
   // The arg buffer is the raw pointer to the caller's stack. It looks like a
   // Smi (lowest bit not set, as checked by IsSmi), but is no valid Smi. We just
@@ -246,11 +240,8 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 
   ClearThreadInWasmScope wasm_flag(true);
 
-  // Set the current isolate's context.
-  DCHECK_NULL(isolate->context());
-  isolate->set_context(instance->native_context());
-
-  // Find the frame pointer of the interpreter entry.
+  // Find the frame pointer and instance of the interpreter frame on the stack.
+  Handle<WasmInstanceObject> instance;
   Address frame_pointer = 0;
   {
     StackFrameIterator it(isolate, isolate->thread_local_top());
@@ -259,8 +250,14 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
     it.Advance();
     // Next: the wasm interpreter entry.
     DCHECK_EQ(StackFrame::WASM_INTERPRETER_ENTRY, it.frame()->type());
+    instance = handle(
+        WasmInterpreterEntryFrame::cast(it.frame())->wasm_instance(), isolate);
     frame_pointer = it.frame()->fp();
   }
+
+  // Set the current isolate's context.
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(instance->native_context());
 
   // Run the function in the interpreter. Note that neither the {WasmDebugInfo}
   // nor the {InterpreterHandle} have to exist, because interpretation might
