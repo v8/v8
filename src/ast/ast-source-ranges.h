@@ -56,7 +56,7 @@ enum class SourceRangeKind {
 
 class AstNodeSourceRanges : public ZoneObject {
  public:
-  virtual ~AstNodeSourceRanges() {}
+  virtual ~AstNodeSourceRanges() = default;
   virtual SourceRange GetRange(SourceRangeKind kind) = 0;
 };
 

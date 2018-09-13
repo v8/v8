@@ -31,7 +31,7 @@ CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
   InitializeAstVisitor(isolate);
 }
 
-CallPrinter::~CallPrinter() {}
+CallPrinter::~CallPrinter() = default;
 
 CallPrinter::ErrorHint CallPrinter::GetErrorHint() const {
   if (is_call_error_) {
