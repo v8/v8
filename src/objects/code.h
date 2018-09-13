@@ -27,8 +27,6 @@ class Register;
 // Code describes objects with on-the-fly generated machine code.
 class Code : public HeapObject, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
   // Opaque data type for encapsulating code flags like kind, inline
   // cache state, and arguments count.
   typedef uint32_t Flags;
@@ -459,9 +457,6 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
 // field {Code::code_data_container} itself is immutable.
 class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   DECL_ACCESSORS(next_code_link, Object)
   DECL_INT_ACCESSORS(kind_specific_flags)
 
@@ -501,9 +496,6 @@ class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
 
 class AbstractCode : public HeapObject, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   // All code kinds and INTERPRETED_FUNCTION.
   enum Kind {
 #define DEFINE_CODE_KIND_ENUM(name) name,

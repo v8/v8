@@ -27,9 +27,6 @@ class Zone;
 // The runtime representation of an ECMAScript module.
 class Module : public Struct, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   DECL_CAST(Module)
   DECL_VERIFIER(Module)
   DECL_PRINTER(Module)

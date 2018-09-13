@@ -436,11 +436,6 @@ class ScriptContextTable : public FixedArray {
 
 class Context : public FixedArray, public NeverReadOnlySpaceObject {
  public:
-  // Use the mixin methods over the HeapObject methods.
-  // TODO(v8:7786) Remove once the HeapObject methods are gone.
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   // Conversions.
   static inline Context* cast(Object* context);
 

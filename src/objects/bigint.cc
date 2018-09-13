@@ -36,9 +36,6 @@ namespace internal {
 class MutableBigInt : public FreshlyAllocatedBigInt,
                       public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   // Bottleneck for converting MutableBigInts to BigInts.
   static MaybeHandle<BigInt> MakeImmutable(MaybeHandle<MutableBigInt> maybe);
   static Handle<BigInt> MakeImmutable(Handle<MutableBigInt> result);

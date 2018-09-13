@@ -1997,11 +1997,6 @@ class PropertyArray : public HeapObject {
 // JSObject and JSProxy.
 class JSReceiver : public HeapObject, public NeverReadOnlySpaceObject {
  public:
-  // Use the mixin methods over the HeapObject methods.
-  // TODO(v8:7786) Remove once the HeapObject methods are gone.
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   // Returns true if there is no slow (ie, dictionary) backing store.
   inline bool HasFastProperties() const;
 
@@ -4016,9 +4011,6 @@ class AccessorPair: public Struct {
 
 class StackFrameInfo : public Struct, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   DECL_INT_ACCESSORS(line_number)
   DECL_INT_ACCESSORS(column_number)
   DECL_INT_ACCESSORS(script_id)

@@ -69,9 +69,6 @@ class CompilationCacheTable
     : public HashTable<CompilationCacheTable, CompilationCacheShape>,
       public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   // Find cached value for a string key, otherwise return null.
   Handle<Object> Lookup(Handle<String> src, Handle<SharedFunctionInfo> shared,
                         LanguageMode language_mode);

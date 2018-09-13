@@ -29,11 +29,6 @@ class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
     kLastPretenureDecisionValue = kZombie
   };
 
-  // Use the mixin methods over the HeapObject methods.
-  // TODO(v8:7786) Remove once the HeapObject methods are gone.
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   const char* PretenureDecisionName(PretenureDecision decision);
 
   // Contains either a Smi-encoded bitfield or a boilerplate. If it's a Smi the

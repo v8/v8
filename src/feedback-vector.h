@@ -147,11 +147,6 @@ class FeedbackMetadata;
 // metadata.
 class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
  public:
-  // Use the mixin methods over the HeapObject methods.
-  // TODO(v8:7786) Remove once the HeapObject methods are gone.
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   // Casting.
   static inline FeedbackVector* cast(Object* obj);
 

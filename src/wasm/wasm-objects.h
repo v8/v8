@@ -542,9 +542,6 @@ class WasmExportedFunctionData : public Struct {
 
 class WasmDebugInfo : public Struct, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   DECL_ACCESSORS(wasm_instance, WasmInstanceObject)
   DECL_ACCESSORS(interpreter_handle, Object);
   DECL_ACCESSORS(interpreted_functions, Object);

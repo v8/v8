@@ -179,9 +179,6 @@ class InterpreterData : public Struct {
 // shared by multiple instances of the function.
 class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
  public:
-  using NeverReadOnlySpaceObject::GetHeap;
-  using NeverReadOnlySpaceObject::GetIsolate;
-
   static constexpr Object* const kNoSharedNameSentinel = Smi::kZero;
 
   // [name]: Returns shared name if it exists or an empty string otherwise.
