@@ -371,8 +371,8 @@
 
 ##############################################################################
 ['system == android', {
-  # https://crbug.com/v8/8161
-  'test-api/NewStringRangeError': [FAIL],
+  # Uses too much memory.
+  'test-api/NewStringRangeError': [SKIP],
   # https://crbug.com/v8/8157
   'test-assembler-arm64/abs': [FAIL],
   'test-assembler-arm64/adcs_sbcs_w': [FAIL],
