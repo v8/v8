@@ -924,6 +924,17 @@ TNode<UintPtrT> CodeAssembler::ChangeFloat64ToUintPtr(
       raw_assembler()->ChangeFloat64ToUint32(value));
 }
 
+TNode<Float64T> CodeAssembler::ChangeUintPtrToFloat64(TNode<UintPtrT> value) {
+  if (raw_assembler()->machine()->Is64()) {
+    // TODO(turbofan): Maybe we should introduce a ChangeUint64ToFloat64
+    // machine operator to TurboFan here?
+    return ReinterpretCast<Float64T>(
+        raw_assembler()->RoundUint64ToFloat64(value));
+  }
+  return ReinterpretCast<Float64T>(
+      raw_assembler()->ChangeUint32ToFloat64(value));
+}
+
 Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {
   if (raw_assembler()->machine()->Is64()) {
     return raw_assembler()->RoundInt64ToFloat64(value);

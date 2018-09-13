@@ -879,7 +879,7 @@ MaybeHandle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
                                             uint32_t maximum_pages) {
   if (!old_buffer->is_growable()) return {};
   void* old_mem_start = old_buffer->backing_store();
-  size_t old_size = old_buffer->byte_length()->Number();
+  size_t old_size = old_buffer->byte_length();
   CHECK_GE(wasm::kV8MaxWasmMemoryBytes, old_size);
   CHECK_EQ(0, old_size % wasm::kWasmPageSize);
   size_t old_pages = old_size / wasm::kWasmPageSize;
@@ -947,7 +947,7 @@ MaybeHandle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
 void SetInstanceMemory(Handle<WasmInstanceObject> instance,
                        Handle<JSArrayBuffer> buffer) {
   instance->SetRawMemory(reinterpret_cast<byte*>(buffer->backing_store()),
-                         buffer->byte_length()->Number());
+                         buffer->byte_length());
 #if DEBUG
   if (!FLAG_mock_arraybuffer_allocator) {
     // To flush out bugs earlier, in DEBUG mode, check that all pages of the
@@ -990,9 +990,8 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(
 }
 
 uint32_t WasmMemoryObject::current_pages() {
-  uint32_t byte_length;
-  CHECK(array_buffer()->byte_length()->ToUint32(&byte_length));
-  return byte_length / wasm::kWasmPageSize;
+  return static_cast<uint32_t>(array_buffer()->byte_length() /
+                               wasm::kWasmPageSize);
 }
 
 bool WasmMemoryObject::has_full_guard_region(Isolate* isolate) {
@@ -1047,8 +1046,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                uint32_t pages) {
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
   if (!old_buffer->is_growable()) return -1;
-  uint32_t old_size = 0;
-  CHECK(old_buffer->byte_length()->ToUint32(&old_size));
+  size_t old_size = old_buffer->byte_length();
   DCHECK_EQ(0, old_size % wasm::kWasmPageSize);
   Handle<JSArrayBuffer> new_buffer;
 
@@ -1077,7 +1075,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     }
   }
   memory_object->set_array_buffer(*new_buffer);
-  return old_size / wasm::kWasmPageSize;
+  return static_cast<uint32_t>(old_size / wasm::kWasmPageSize);
 }
 
 // static
@@ -1105,9 +1103,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
   }
 
   // Check that the offset is in bounds.
-  uint32_t buffer_size = 0;
-  CHECK(buffer->byte_length()->ToUint32(&buffer_size));
-  CHECK(offset + type_size <= buffer_size);
+  CHECK_LE(offset + type_size, buffer->byte_length());
 
   global_obj->set_array_buffer(*buffer);
   global_obj->set_flags(0);

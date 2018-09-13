@@ -7514,9 +7514,8 @@ void ArrayBufferDeleter(void* buffer, size_t length, void* info) {
 
 v8::ArrayBuffer::Contents v8::ArrayBuffer::GetContents() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
-  size_t byte_length = static_cast<size_t>(self->byte_length()->Number());
   Contents contents(
-      self->backing_store(), byte_length, self->allocation_base(),
+      self->backing_store(), self->byte_length(), self->allocation_base(),
       self->allocation_length(),
       self->is_wasm_memory() ? Allocator::AllocationMode::kReservation
                              : Allocator::AllocationMode::kNormal,
@@ -7544,7 +7543,7 @@ void v8::ArrayBuffer::Neuter() {
 
 size_t v8::ArrayBuffer::ByteLength() const {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
-  return static_cast<size_t>(obj->byte_length()->Number());
+  return obj->byte_length();
 }
 
 
@@ -7752,9 +7751,8 @@ v8::SharedArrayBuffer::Contents::Contents(
 
 v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
   i::Handle<i::JSArrayBuffer> self = Utils::OpenHandle(this);
-  size_t byte_length = static_cast<size_t>(self->byte_length()->Number());
   Contents contents(
-      self->backing_store(), byte_length, self->allocation_base(),
+      self->backing_store(), self->byte_length(), self->allocation_base(),
       self->allocation_length(),
       self->is_wasm_memory()
           ? ArrayBuffer::Allocator::AllocationMode::kReservation
@@ -7770,7 +7768,7 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
 
 size_t v8::SharedArrayBuffer::ByteLength() const {
   i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(this);
-  return static_cast<size_t>(obj->byte_length()->Number());
+  return obj->byte_length();
 }
 
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* isolate,

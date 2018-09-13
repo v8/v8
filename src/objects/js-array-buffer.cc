@@ -41,7 +41,7 @@ void JSArrayBuffer::Neuter() {
   CHECK(!was_neutered());
   CHECK(is_external());
   set_backing_store(nullptr);
-  set_byte_length(Smi::kZero);
+  set_byte_length(0);
   set_was_neutered(true);
   set_is_neuterable(false);
   // Invalidate the neutering protector.
@@ -90,16 +90,12 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
     array_buffer->SetEmbedderField(i, Smi::kZero);
   }
+  array_buffer->set_byte_length(byte_length);
   array_buffer->set_bit_field(0);
   array_buffer->set_is_external(is_external);
   array_buffer->set_is_neuterable(shared == SharedFlag::kNotShared);
   array_buffer->set_is_shared(shared == SharedFlag::kShared);
   array_buffer->set_is_wasm_memory(is_wasm_memory);
-
-  Handle<Object> heap_byte_length =
-      isolate->factory()->NewNumberFromSize(byte_length);
-  CHECK(heap_byte_length->IsSmi() || heap_byte_length->IsHeapNumber());
-  array_buffer->set_byte_length(*heap_byte_length);
   // Initialize backing store at last to avoid handling of |JSArrayBuffers| that
   // are currently being constructed in the |ArrayBufferTracker|. The
   // registration method below handles the case of registering a buffer that has
@@ -169,9 +165,8 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
         "JSTypedArray::MaterializeArrayBuffer");
   }
   buffer->set_is_external(false);
-  DCHECK(buffer->byte_length()->IsSmi() ||
-         buffer->byte_length()->IsHeapNumber());
-  DCHECK(NumberToInt32(buffer->byte_length()) == fixed_typed_array->DataSize());
+  DCHECK_EQ(buffer->byte_length(),
+            static_cast<uintptr_t>(fixed_typed_array->DataSize()));
   // Initialize backing store at last to avoid handling of |JSArrayBuffers| that
   // are currently being constructed in the |ArrayBufferTracker|. The
   // registration method below handles the case of registering a buffer that has

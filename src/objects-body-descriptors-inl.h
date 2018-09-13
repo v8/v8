@@ -207,10 +207,8 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    // Array buffers contain raw pointers that the GC does not know about. These
-    // are stored at kBackStoreOffset and later, so we do not iterate over
-    // those.
-    IteratePointers(obj, kPropertiesOrHashOffset, kBackingStoreOffset, v);
+    // JSArrayBuffer instances contain raw data that the GC does not know about.
+    IteratePointers(obj, kPropertiesOrHashOffset, kByteLengthOffset, v);
     IterateBodyImpl(map, obj, kSize, object_size, v);
   }
 

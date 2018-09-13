@@ -436,9 +436,9 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeJSTypedArray() {
     if (!typed_array->is_on_heap()) {
       // Explicitly serialize the backing store now.
       JSArrayBuffer* buffer = JSArrayBuffer::cast(typed_array->buffer());
-      CHECK(buffer->byte_length()->IsSmi());
+      CHECK_LE(buffer->byte_length(), Smi::kMaxValue);
       CHECK(typed_array->byte_offset()->IsSmi());
-      int32_t byte_length = NumberToInt32(buffer->byte_length());
+      int32_t byte_length = static_cast<int32_t>(buffer->byte_length());
       int32_t byte_offset = NumberToInt32(typed_array->byte_offset());
 
       // We need to calculate the backing store from the external pointer
@@ -469,9 +469,8 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeJSArrayBuffer() {
   JSArrayBuffer* buffer = JSArrayBuffer::cast(object_);
   void* backing_store = buffer->backing_store();
   // We cannot store byte_length larger than Smi range in the snapshot.
-  // Attempt to make sure that NumberToInt32 produces something sensible.
-  CHECK(buffer->byte_length()->IsSmi());
-  int32_t byte_length = NumberToInt32(buffer->byte_length());
+  CHECK_LE(buffer->byte_length(), Smi::kMaxValue);
+  int32_t byte_length = static_cast<int32_t>(buffer->byte_length());
 
   // The embedder-allocated backing store only exists for the off-heap case.
   if (backing_store != nullptr) {

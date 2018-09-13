@@ -1461,9 +1461,6 @@ void JSProxy::JSProxyVerify(Isolate* isolate) {
 void JSArrayBuffer::JSArrayBufferVerify(Isolate* isolate) {
   CHECK(IsJSArrayBuffer());
   JSObjectVerify(isolate);
-  VerifyPointer(isolate, byte_length());
-  CHECK(byte_length()->IsSmi() || byte_length()->IsHeapNumber() ||
-        byte_length()->IsUndefined(isolate));
 }
 
 void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {

@@ -3181,8 +3181,7 @@ void SetupArrayBufferView(i::Isolate* isolate,
                           i::Handle<i::JSArrayBuffer> buffer,
                           size_t byte_offset, size_t byte_length,
                           PretenureFlag pretenure = NOT_TENURED) {
-  DCHECK(byte_offset + byte_length <=
-         static_cast<size_t>(buffer->byte_length()->Number()));
+  DCHECK_LE(byte_offset + byte_length, buffer->byte_length());
 
   DCHECK_EQ(obj->GetEmbedderFieldCount(),
             v8::ArrayBufferView::kEmbedderFieldCount);

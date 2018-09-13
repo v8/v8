@@ -195,7 +195,8 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
                                    MachineRepresentation::kWord32);
 
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
-                                   byte_length);
+                                   SmiToIntPtr(CAST(byte_length)),
+                                   MachineType::PointerRepresentation());
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
                                    SmiConstant(0));
     for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
@@ -398,8 +399,8 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
   BIND(&length_undefined);
   {
     ThrowIfArrayBufferIsDetached(context, buffer, "Construct");
-    Node* buffer_byte_length =
-        LoadObjectField(buffer, JSArrayBuffer::kByteLengthOffset);
+    TNode<Number> buffer_byte_length = ChangeUintPtrToTagged(
+        LoadObjectField<UintPtrT>(buffer, JSArrayBuffer::kByteLengthOffset));
 
     Node* remainder = CallBuiltin(Builtins::kModulus, context,
                                   buffer_byte_length, element_size);
@@ -423,8 +424,8 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
     new_byte_length.Bind(SmiMul(new_length, element_size));
     // Reading the byte length must come after the ToIndex operation, which
     // could cause the buffer to become detached.
-    Node* buffer_byte_length =
-        LoadObjectField(buffer, JSArrayBuffer::kByteLengthOffset);
+    TNode<Number> buffer_byte_length = ChangeUintPtrToTagged(
+        LoadObjectField<UintPtrT>(buffer, JSArrayBuffer::kByteLengthOffset));
 
     Node* end = CallBuiltin(Builtins::kAdd, context, offset.value(),
                             new_byte_length.value());

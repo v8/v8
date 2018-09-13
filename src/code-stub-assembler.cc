@@ -5069,6 +5069,32 @@ TNode<Number> CodeStubAssembler::ChangeUint32ToTagged(
   return var_result.value();
 }
 
+TNode<Number> CodeStubAssembler::ChangeUintPtrToTagged(TNode<UintPtrT> value) {
+  Label if_overflow(this, Label::kDeferred), if_not_overflow(this),
+      if_join(this);
+  TVARIABLE(Number, var_result);
+  // If {value} > 2^31 - 1, we need to store it in a HeapNumber.
+  Branch(UintPtrLessThan(UintPtrConstant(Smi::kMaxValue), value), &if_overflow,
+         &if_not_overflow);
+
+  BIND(&if_not_overflow);
+  {
+    // The {value} is definitely in valid Smi range.
+    var_result = SmiTag(Signed(value));
+  }
+  Goto(&if_join);
+
+  BIND(&if_overflow);
+  {
+    TNode<Float64T> float64_value = ChangeUintPtrToFloat64(value);
+    var_result = AllocateHeapNumberWithValue(float64_value);
+  }
+  Goto(&if_join);
+
+  BIND(&if_join);
+  return var_result.value();
+}
+
 TNode<String> CodeStubAssembler::ToThisString(Node* context, Node* value,
                                               char const* method_name) {
   VARIABLE(var_value, MachineRepresentation::kTagged, value);

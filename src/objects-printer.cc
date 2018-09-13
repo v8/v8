@@ -1270,7 +1270,7 @@ void JSWeakSet::JSWeakSetPrint(std::ostream& os) {  // NOLINT
 void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSArrayBuffer");
   os << "\n - backing_store: " << backing_store();
-  os << "\n - byte_length: " << Brief(byte_length());
+  os << "\n - byte_length: " << byte_length();
   if (is_external()) os << "\n - external";
   if (is_neuterable()) os << "\n - neuterable";
   if (was_neutered()) os << "\n - neutered";

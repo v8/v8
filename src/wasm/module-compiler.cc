@@ -1119,7 +1119,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     if (!memory_.is_null()) {
       // Double-check the {memory} array buffer matches the instance.
       Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
-      CHECK_EQ(instance->memory_size(), memory->byte_length()->Number());
+      CHECK_EQ(instance->memory_size(), memory->byte_length());
       CHECK_EQ(instance->memory_start(), memory->backing_store());
     }
   }
@@ -1606,8 +1606,8 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate_);
         // memory_ should have already been assigned in Build().
         DCHECK_EQ(*memory_.ToHandleChecked(), *buffer);
-        uint32_t imported_cur_pages = static_cast<uint32_t>(
-            buffer->byte_length()->Number() / kWasmPageSize);
+        uint32_t imported_cur_pages =
+            static_cast<uint32_t>(buffer->byte_length() / kWasmPageSize);
         if (imported_cur_pages < module_->initial_pages) {
           thrower_->LinkError(
               "memory import %d is smaller than initial %u, got %u", index,
@@ -1973,9 +1973,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
             Address global_addr =
                 instance->imported_mutable_globals()[global.index];
 
-            uint32_t buffer_size = 0;
-            CHECK(buffer->byte_length()->ToUint32(&buffer_size));
-
+            size_t buffer_size = buffer->byte_length();
             Address backing_store =
                 reinterpret_cast<Address>(buffer->backing_store());
             CHECK(global_addr >= backing_store &&

@@ -701,6 +701,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Uint32T> Uint32Constant(uint32_t value) {
     return Unsigned(Int32Constant(bit_cast<int32_t>(value)));
   }
+  TNode<UintPtrT> UintPtrConstant(uintptr_t value) {
+    return Unsigned(IntPtrConstant(bit_cast<intptr_t>(value)));
+  }
   TNode<Number> NumberConstant(double value);
   TNode<Smi> SmiConstant(Smi* value);
   TNode<Smi> SmiConstant(int value);
@@ -979,6 +982,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Changes a double to an inptr_t for pointer arithmetic outside of Smi range.
   // Assumes that the double can be exactly represented as an int.
   TNode<UintPtrT> ChangeFloat64ToUintPtr(SloppyTNode<Float64T> value);
+  // Same in the opposite direction.
+  TNode<Float64T> ChangeUintPtrToFloat64(TNode<UintPtrT> value);
 
   // Changes an intptr_t to a double, e.g. for storing an element index
   // outside Smi range in a HeapNumber. Lossless on 32-bit,

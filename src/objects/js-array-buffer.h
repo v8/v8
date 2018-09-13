@@ -19,7 +19,8 @@ enum class SharedFlag { kNotShared, kShared };
 class JSArrayBuffer : public JSObject {
  public:
   // [byte_length]: length in bytes
-  DECL_ACCESSORS(byte_length, Object)
+  inline size_t byte_length() const;
+  inline void set_byte_length(size_t value);
 
   // [backing_store]: backing memory for this array
   DECL_ACCESSORS(backing_store, void)
@@ -93,10 +94,10 @@ class JSArrayBuffer : public JSObject {
   DECL_PRINTER(JSArrayBuffer)
   DECL_VERIFIER(JSArrayBuffer)
 
-  static const int kByteLengthOffset = JSObject::kHeaderSize;
-  // The rest of the fields are not JSObjects, so they are not iterated over in
+  // The fields are not pointers into our heap, so they are not iterated over in
   // objects-body-descriptors-inl.h.
-  static const int kBackingStoreOffset = kByteLengthOffset + kPointerSize;
+  static const int kByteLengthOffset = JSObject::kHeaderSize;
+  static const int kBackingStoreOffset = kByteLengthOffset + kUIntptrSize;
   static const int kBitFieldSlot = kBackingStoreOffset + kPointerSize;
 #if V8_TARGET_LITTLE_ENDIAN || !V8_HOST_ARCH_64_BIT
   static const int kBitFieldOffset = kBitFieldSlot;

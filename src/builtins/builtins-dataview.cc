@@ -53,7 +53,7 @@ BUILTIN(DataViewConstructor) {
 
   // 6. Let bufferByteLength be the value of buffer's
   // [[ArrayBufferByteLength]] internal slot.
-  double const buffer_byte_length = array_buffer->byte_length()->Number();
+  double const buffer_byte_length = array_buffer->byte_length();
 
   // 7. If offset > bufferByteLength, throw a RangeError exception.
   if (offset->Number() > buffer_byte_length) {

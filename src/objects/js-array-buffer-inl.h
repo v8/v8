@@ -20,6 +20,14 @@ CAST_ACCESSOR(JSArrayBuffer)
 CAST_ACCESSOR(JSArrayBufferView)
 CAST_ACCESSOR(JSTypedArray)
 
+size_t JSArrayBuffer::byte_length() const {
+  return READ_UINTPTR_FIELD(this, kByteLengthOffset);
+}
+
+void JSArrayBuffer::set_byte_length(size_t value) {
+  WRITE_UINTPTR_FIELD(this, kByteLengthOffset, value);
+}
+
 void* JSArrayBuffer::backing_store() const {
   intptr_t ptr = READ_INTPTR_FIELD(this, kBackingStoreOffset);
   return reinterpret_cast<void*>(ptr);
@@ -29,8 +37,6 @@ void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
   intptr_t ptr = reinterpret_cast<intptr_t>(value);
   WRITE_INTPTR_FIELD(this, kBackingStoreOffset, ptr);
 }
-
-ACCESSORS(JSArrayBuffer, byte_length, Object, kByteLengthOffset)
 
 size_t JSArrayBuffer::allocation_length() const {
   if (backing_store() == nullptr) {
@@ -44,7 +50,7 @@ size_t JSArrayBuffer::allocation_length() const {
     DCHECK_NOT_NULL(data);
     return data->allocation_length;
   }
-  return byte_length()->Number();
+  return byte_length();
 }
 
 void* JSArrayBuffer::allocation_base() const {

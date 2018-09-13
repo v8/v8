@@ -102,10 +102,7 @@ int WasmGlobalObject::type_size() const {
 }
 
 Address WasmGlobalObject::address() const {
-  uint32_t buffer_size = 0;
-  DCHECK(array_buffer()->byte_length()->ToUint32(&buffer_size));
-  DCHECK_LE(offset() + type_size(), buffer_size);
-  USE(buffer_size);
+  DCHECK_LE(offset() + type_size(), array_buffer()->byte_length());
   return Address(array_buffer()->backing_store()) + offset();
 }
 

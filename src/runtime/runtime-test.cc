@@ -962,9 +962,9 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
       wasm::DeserializeNativeModule(
           isolate,
           {reinterpret_cast<uint8_t*>(buffer->backing_store()),
-           static_cast<size_t>(buffer->byte_length()->Number())},
+           buffer->byte_length()},
           {reinterpret_cast<uint8_t*>(wire_bytes->backing_store()),
-           static_cast<size_t>(wire_bytes->byte_length()->Number())});
+           wire_bytes->byte_length()});
   Handle<WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
     return ReadOnlyRoots(isolate).undefined_value();

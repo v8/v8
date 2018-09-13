@@ -18,7 +18,7 @@ namespace internal {
 void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
   if (buffer->backing_store() == nullptr) return;
 
-  const size_t length = NumberToSize(buffer->byte_length());
+  const size_t length = buffer->byte_length();
   Page* page = Page::FromAddress(buffer->address());
   {
     base::LockGuard<base::Mutex> guard(page->mutex());
@@ -42,7 +42,7 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
   if (buffer->backing_store() == nullptr) return;
 
   Page* page = Page::FromAddress(buffer->address());
-  const size_t length = NumberToSize(buffer->byte_length());
+  const size_t length = buffer->byte_length();
   {
     base::LockGuard<base::Mutex> guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
