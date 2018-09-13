@@ -126,7 +126,6 @@ class ObjectRef {
   HEAP_BROKER_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
 
-  StringRef TypeOf() const;
   bool BooleanValue();
   double OddballToNumber() const;
 

@@ -1102,13 +1102,6 @@ bool ObjectRef::equals(const ObjectRef& other) const {
   return data_ == other.data_;
 }
 
-StringRef ObjectRef::TypeOf() const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference handle_dereference;
-  return StringRef(broker(),
-                   Object::TypeOf(broker()->isolate(), object<Object>()));
-}
-
 Isolate* ObjectRef::isolate() const { return broker()->isolate(); }
 
 base::Optional<ContextRef> ContextRef::previous() const {

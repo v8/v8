@@ -604,8 +604,6 @@ Reduction TypedOptimization::ReduceTypeOf(Node* node) {
   } else if (type.Is(Type::Function())) {
     return Replace(
         jsgraph()->Constant(ObjectRef(js_heap_broker(), f->function_string())));
-  } else if (type.IsHeapConstant()) {
-    return Replace(jsgraph()->Constant(type.AsHeapConstant()->Ref().TypeOf()));
   }
   return NoChange();
 }
