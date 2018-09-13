@@ -909,11 +909,10 @@ void TurboAssembler::LoadPC(Register dst) {
 }
 
 void TurboAssembler::ComputeCodeStartAddress(Register dst) {
-  Label current_pc;
-  mov_label_addr(dst, &current_pc);
-
-  bind(&current_pc);
-  subi(dst, dst, Operand(pc_offset()));
+  mflr(r0);
+  LoadPC(dst);
+  subi(dst, dst, Operand(pc_offset() - kInstrSize));
+  mtlr(r0);
 }
 
 void TurboAssembler::LoadConstantPoolPointerRegister() {
@@ -2898,8 +2897,10 @@ void TurboAssembler::SwapP(Register src, Register dst, Register scratch) {
 }
 
 void TurboAssembler::SwapP(Register src, MemOperand dst, Register scratch) {
-  if (dst.ra() != r0) DCHECK(!AreAliased(src, dst.ra(), scratch));
-  if (dst.rb() != r0) DCHECK(!AreAliased(src, dst.rb(), scratch));
+  if (dst.ra() != r0 && dst.ra().is_valid())
+    DCHECK(!AreAliased(src, dst.ra(), scratch));
+  if (dst.rb() != r0 && dst.rb().is_valid())
+    DCHECK(!AreAliased(src, dst.rb(), scratch));
   DCHECK(!AreAliased(src, scratch));
   mr(scratch, src);
   LoadP(src, dst, r0);

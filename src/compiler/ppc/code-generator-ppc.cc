@@ -882,11 +882,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
 void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   Register scratch = kScratchReg;
 
-  Label current_pc;
-  __ mov_label_addr(scratch, &current_pc);
-
-  __ bind(&current_pc);
-  __ subi(scratch, scratch, Operand(__ pc_offset()));
+  __ ComputeCodeStartAddress(scratch);
 
   // Calculate a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
@@ -2074,7 +2070,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register output = i.OutputRegister();
       Register temp1 = r0;
       Register temp2 = kScratchReg;
-      Register temp3 = i.InputRegister(1);
+      Register temp3 = i.TempRegister(0);
       __ rldicl(temp1, input, 32, 32);
       __ rotlwi(temp2, input, 8);
       __ rlwimi(temp2, input, 24, 0, 7);
