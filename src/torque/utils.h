@@ -35,10 +35,16 @@ class LintErrorStatus : public ContextualClass<LintErrorStatus> {
 [[noreturn]] void ReportError(const std::string& error);
 void LintError(const std::string& error);
 
+// Prints a LintError with the format "{type} '{name}' doesn't follow
+// '{convention}' naming convention".
+void NamingConventionError(const std::string& type, const std::string& name,
+                           const std::string& convention);
+
 bool IsLowerCamelCase(const std::string& s);
 bool IsUpperCamelCase(const std::string& s);
 bool IsSnakeCase(const std::string& s);
 bool IsValidModuleConstName(const std::string& s);
+bool IsValidTypeName(const std::string& s);
 
 std::string CamelifyString(const std::string& underscore_string);
 std::string DashifyString(const std::string& underscore_string);

@@ -88,6 +88,14 @@ void LintError(const std::string& error) {
   std::cerr << CurrentPositionAsString() << ": Lint error: " << error << "\n";
 }
 
+void NamingConventionError(const std::string& type, const std::string& name,
+                           const std::string& convention) {
+  std::stringstream sstream;
+  sstream << type << " \"" << name << "\" doesn't follow \"" << convention
+          << "\" naming convention.";
+  LintError(sstream.str());
+}
+
 namespace {
 
 bool ContainsUnderscore(const std::string& s) {
@@ -109,6 +117,17 @@ bool IsKeywordLikeName(const std::string& s) {
 
   return std::find(keyword_like_constants.begin(), keyword_like_constants.end(),
                    s) != keyword_like_constants.end();
+}
+
+// Untagged/MachineTypes like 'int32', 'intptr' etc. follow a 'all-lowercase'
+// naming convention and are those exempt from the normal type convention.
+bool IsMachineType(const std::string& s) {
+  static const std::vector<std::string> machine_types{
+      "void",    "never",   "int32",   "uint32", "int64",  "intptr",
+      "uintptr", "float32", "float64", "bool",   "string", "int31"};
+
+  return std::find(machine_types.begin(), machine_types.end(), s) !=
+         machine_types.end();
 }
 
 }  // namespace
@@ -133,6 +152,13 @@ bool IsValidModuleConstName(const std::string& s) {
   if (IsKeywordLikeName(s)) return true;
 
   return s[0] == 'k' && IsUpperCamelCase(s.substr(1));
+}
+
+bool IsValidTypeName(const std::string& s) {
+  if (s.empty()) return false;
+  if (IsMachineType(s)) return true;
+
+  return IsUpperCamelCase(s);
 }
 
 std::string CamelifyString(const std::string& underscore_string) {

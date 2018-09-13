@@ -186,10 +186,7 @@ T* MakeNode(Args... args) {
 void LintGenericParameters(const GenericParameters& parameters) {
   for (const std::string& parameter : parameters) {
     if (!IsUpperCamelCase(parameter)) {
-      std::stringstream sstream;
-      sstream << "Generic parameter \"" << parameter << "\" doesn't follow "
-              << "\"UpperCamelCase\" naming convention.";
-      LintError(sstream.str());
+      NamingConventionError("Generic parameter", parameter, "UpperCamelCase");
     }
   }
 }
@@ -245,10 +242,7 @@ base::Optional<ParseResult> MakeParameterListFromNameAndTypeList(
   ParameterList result;
   for (NameAndTypeExpression& pair : params) {
     if (!IsLowerCamelCase(pair.name)) {
-      std::stringstream sstream;
-      sstream << "Parameter \"" << pair.name << "\" doesn't follow "
-              << "\"lowerCamelCase\" naming convention.";
-      LintError(sstream.str());
+      NamingConventionError("Parameter", pair.name, "lowerCamelCase");
     }
 
     result.names.push_back(std::move(pair.name));
@@ -308,10 +302,7 @@ base::Optional<ParseResult> MakeTorqueMacroDeclaration(
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
   auto name = child_results->NextAs<std::string>();
   if (!IsUpperCamelCase(name)) {
-    std::stringstream sstream;
-    sstream << "Macro \"" << name << "\" doesn't follow "
-            << "\"UpperCamelCase\" naming convention.";
-    LintError(sstream.str());
+    NamingConventionError("Macro", name, "UpperCamelCase");
   }
 
   auto generic_parameters = child_results->NextAs<GenericParameters>();
@@ -338,10 +329,7 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
   auto javascript_linkage = child_results->NextAs<bool>();
   auto name = child_results->NextAs<std::string>();
   if (!IsUpperCamelCase(name)) {
-    std::stringstream sstream;
-    sstream << "Builtin \"" << name << "\" doesn't follow "
-            << "\"UpperCamelCase\" naming convention.";
-    LintError(sstream.str());
+    NamingConventionError("Builtin", name, "UpperCamelCase");
   }
 
   auto generic_parameters = child_results->NextAs<GenericParameters>();
@@ -366,10 +354,7 @@ base::Optional<ParseResult> MakeConstDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
   if (!IsValidModuleConstName(name)) {
-    std::stringstream sstream;
-    sstream << "Constant \"" << name << "\" doesn't follow "
-            << "\"kUpperCamelCase\" naming convention.";
-    LintError(sstream.str());
+    NamingConventionError("Constant", name, "kUpperCamelCase");
   }
 
   auto type = child_results->NextAs<TypeExpression*>();
@@ -400,6 +385,9 @@ base::Optional<ParseResult> MakeTypeAliasDeclaration(
 base::Optional<ParseResult> MakeTypeDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
+  if (!IsValidTypeName(name)) {
+    NamingConventionError("Type", name, "UpperCamelCase");
+  }
   auto extends = child_results->NextAs<base::Optional<std::string>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
   auto constexpr_generates =
@@ -414,10 +402,7 @@ base::Optional<ParseResult> MakeExplicitModuleDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
   if (!IsSnakeCase(name)) {
-    std::stringstream sstream;
-    sstream << "Module \"" << name << "\" doesn't follow "
-            << "\"snake_case\" naming convention.";
-    LintError(sstream.str());
+    NamingConventionError("Module", name, "snake_case");
   }
   auto declarations = child_results->NextAs<std::vector<Declaration*>>();
   Declaration* result = MakeNode<ExplicitModuleDeclaration>(
@@ -653,10 +638,7 @@ base::Optional<ParseResult> MakeVarDeclarationStatement(
   if (!const_qualified) DCHECK_EQ("let", kind);
   auto name = child_results->NextAs<std::string>();
   if (!IsLowerCamelCase(name)) {
-    std::stringstream sstream;
-    sstream << "Variable \"" << name << "\" doesn't follow "
-            << "\"lowerCamelCase\" naming convention.";
-    LintError(sstream.str());
+    NamingConventionError("Variable", name, "lowerCamelCase");
   }
 
   auto type = child_results->NextAs<TypeExpression*>();
