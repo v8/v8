@@ -168,6 +168,7 @@
   'regress/regress-605470': [PASS, SLOW],
   'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
+  'regress/wasm/regress-810973': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
   'wasm/asm-wasm-f32': [PASS, SLOW],
   'wasm/asm-wasm-f64': [PASS, SLOW],
@@ -660,7 +661,6 @@
   # Slow tests.
   'es6/typedarray-of': [PASS, SLOW],
   'regress/regress-crbug-854299': [PASS, SLOW],
-  'regress/wasm/regress-810973': [PASS, SLOW],
 }],  # 'isolates'
 
 ##############################################################################
