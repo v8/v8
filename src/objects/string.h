@@ -264,7 +264,7 @@ class String : public Name {
     virtual MaybeHandle<String> GetNamedCapture(Handle<String> name,
                                                 CaptureState* state) = 0;
 
-    virtual ~Match() {}
+    virtual ~Match() = default;
   };
 
   // ES#sec-getsubstitution
@@ -846,7 +846,7 @@ class FlatStringReader : public Relocatable {
 // traversal of the entire string
 class ConsStringIterator {
  public:
-  inline ConsStringIterator() {}
+  inline ConsStringIterator() = default;
   inline explicit ConsStringIterator(ConsString* cons_string, int offset = 0) {
     Reset(cons_string, offset);
   }

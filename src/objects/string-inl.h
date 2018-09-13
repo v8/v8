@@ -742,8 +742,7 @@ class String::SubStringRange::iterator final {
   typedef uc16* pointer;
   typedef uc16& reference;
 
-  iterator(const iterator& other)
-      : content_(other.content_), offset_(other.offset_) {}
+  iterator(const iterator& other) = default;
 
   uc16 operator*() { return content_.Get(offset_); }
   bool operator==(const iterator& other) const {

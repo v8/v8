@@ -33,7 +33,7 @@ class PatternMap {
  public:
   PatternMap(std::string pattern, std::string value)
       : pattern(pattern), value(value) {}
-  virtual ~PatternMap() {}
+  virtual ~PatternMap() = default;
   std::string pattern;
   std::string value;
 };
@@ -43,7 +43,7 @@ class PatternItem {
   PatternItem(const std::string property, std::vector<PatternMap> pairs,
               std::vector<const char*>* allowed_values)
       : property(property), pairs(pairs), allowed_values(allowed_values) {}
-  virtual ~PatternItem() {}
+  virtual ~PatternItem() = default;
 
   const std::string property;
   // It is important for the pattern in the pairs from longer one to shorter one
@@ -107,7 +107,7 @@ class PatternData {
       map.insert(std::make_pair(pair.value, pair.pattern));
     }
   }
-  virtual ~PatternData() {}
+  virtual ~PatternData() = default;
 
   const std::string property;
   std::map<const std::string, const std::string> map;

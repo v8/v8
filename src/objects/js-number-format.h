@@ -123,7 +123,7 @@ struct NumberFormatSpan {
   int32_t begin_pos;
   int32_t end_pos;
 
-  NumberFormatSpan() {}
+  NumberFormatSpan() = default;
   NumberFormatSpan(int32_t field_id, int32_t begin_pos, int32_t end_pos)
       : field_id(field_id), begin_pos(begin_pos), end_pos(end_pos) {}
 };
