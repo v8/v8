@@ -24,7 +24,7 @@ class Generic;
 
 class Declarable {
  public:
-  virtual ~Declarable() {}
+  virtual ~Declarable() = default;
   enum Kind {
     kVariable,
     kParameter,

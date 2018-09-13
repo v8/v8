@@ -90,7 +90,7 @@ struct AstNode {
   };
 
   AstNode(Kind kind, SourcePosition pos) : kind(kind), pos(pos) {}
-  virtual ~AstNode() {}
+  virtual ~AstNode() = default;
 
   const Kind kind;
   SourcePosition pos;

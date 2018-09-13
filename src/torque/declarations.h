@@ -219,7 +219,7 @@ class Declarations::ScopedGenericScopeChainSnapshot {
   ScopedGenericScopeChainSnapshot(Declarations* declarations,
                                   const SpecializationKey& key)
       : restorer_(declarations->generic_declaration_scopes_[key.first]) {}
-  ~ScopedGenericScopeChainSnapshot() {}
+  ~ScopedGenericScopeChainSnapshot() = default;
 
  private:
   ScopeChain::ScopedSnapshotRestorer restorer_;
