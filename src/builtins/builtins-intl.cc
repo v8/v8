@@ -362,14 +362,15 @@ BUILTIN(NumberFormatPrototypeFormatNumber) {
 
   // 1. Let nf be the this value.
   // 2. If Type(nf) is not Object, throw a TypeError exception.
-  CHECK_RECEIVER(JSObject, format_holder, method);
+  CHECK_RECEIVER(JSReceiver, receiver, method);
 
   // 3. Let nf be ? UnwrapNumberFormat(nf).
-  Handle<JSNumberFormat> nf;
+  Handle<JSNumberFormat> number_format;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, nf, JSNumberFormat::UnwrapNumberFormat(isolate, format_holder));
+      isolate, number_format,
+      JSNumberFormat::UnwrapNumberFormat(isolate, receiver));
 
-  Handle<Object> bound_format = Handle<Object>(nf->bound_format(), isolate);
+  Handle<Object> bound_format(number_format->bound_format(), isolate);
 
   // 4. If nf.[[BoundFormat]] is undefined, then
   if (!bound_format->IsUndefined(isolate)) {
@@ -379,10 +380,10 @@ BUILTIN(NumberFormatPrototypeFormatNumber) {
   }
 
   Handle<JSFunction> new_bound_format_function = CreateBoundFunction(
-      isolate, format_holder, Builtins::kNumberFormatInternalFormatNumber, 1);
+      isolate, number_format, Builtins::kNumberFormatInternalFormatNumber, 1);
 
   // 4. c. Set nf.[[BoundFormat]] to F.
-  nf->set_bound_format(*new_bound_format_function);
+  number_format->set_bound_format(*new_bound_format_function);
 
   // 5. Return nf.[[BoundFormat]].
   return *new_bound_format_function;
