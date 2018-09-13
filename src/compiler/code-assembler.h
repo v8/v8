@@ -910,6 +910,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         Int32Add(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
 
+  TNode<Uint32T> Uint32Add(TNode<Uint32T> left, TNode<Uint32T> right) {
+    return Unsigned(
+        Int32Add(static_cast<Node*>(left), static_cast<Node*>(right)));
+  }
+
   TNode<WordT> IntPtrAdd(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
   TNode<WordT> IntPtrSub(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
   TNode<WordT> IntPtrMul(SloppyTNode<WordT> left, SloppyTNode<WordT> right);

@@ -611,7 +611,7 @@ FieldAccess AccessBuilder::ForStringLength() {
                         Handle<Name>(),
                         MaybeHandle<Map>(),
                         TypeCache::Get().kStringLengthType,
-                        MachineType::TaggedSigned(),
+                        MachineType::Uint32(),
                         kNoWriteBarrier};
   return access;
 }

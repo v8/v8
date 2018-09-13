@@ -1103,7 +1103,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
   Isolate* isolate = this->isolate();
 
   TNode<IntPtrT> const int_one = IntPtrConstant(1);
-  TVARIABLE(Smi, var_length, SmiZero());
+  TVARIABLE(Uint32T, var_length, Uint32Constant(0));
   TVARIABLE(IntPtrT, var_flags);
 
   // First, count the number of characters we will need and check which flags
@@ -1115,13 +1115,13 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     Node* const flags_smi = LoadObjectField(regexp, JSRegExp::kFlagsOffset);
     var_flags = SmiUntag(flags_smi);
 
-#define CASE_FOR_FLAG(FLAG)                                  \
-  do {                                                       \
-    Label next(this);                                        \
-    GotoIfNot(IsSetWord(var_flags.value(), FLAG), &next);    \
-    var_length = SmiAdd(var_length.value(), SmiConstant(1)); \
-    Goto(&next);                                             \
-    BIND(&next);                                             \
+#define CASE_FOR_FLAG(FLAG)                                        \
+  do {                                                             \
+    Label next(this);                                              \
+    GotoIfNot(IsSetWord(var_flags.value(), FLAG), &next);          \
+    var_length = Uint32Add(var_length.value(), Uint32Constant(1)); \
+    Goto(&next);                                                   \
+    BIND(&next);                                                   \
   } while (false)
 
     CASE_FOR_FLAG(JSRegExp::kGlobal);
@@ -1145,7 +1145,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     Label if_isflagset(this);                                              \
     BranchIfToBooleanIsTrue(flag, &if_isflagset, &next);                   \
     BIND(&if_isflagset);                                                   \
-    var_length = SmiAdd(var_length.value(), SmiConstant(1));               \
+    var_length = Uint32Add(var_length.value(), Uint32Constant(1));         \
     var_flags = Signed(WordOr(var_flags.value(), IntPtrConstant(FLAG)));   \
     Goto(&next);                                                           \
     BIND(&next);                                                           \

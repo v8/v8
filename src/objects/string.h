@@ -341,8 +341,8 @@ class String : public Name {
   inline bool IsFlat();
 
   // Layout description.
-  static const int kLengthOffset = Name::kSize;
-  static const int kSize = kLengthOffset + kPointerSize;
+  static const int kLengthOffset = Name::kHeaderSize;
+  static const int kHeaderSize = kLengthOffset + kInt32Size;
 
   // Max char codes.
   static const int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
@@ -360,7 +360,7 @@ class String : public Name {
 
   // See include/v8.h for the definition.
   static const int kMaxLength = v8::String::kMaxLength;
-  static_assert(kMaxLength <= (Smi::kMaxValue / 2 - kSize),
+  static_assert(kMaxLength <= (Smi::kMaxValue / 2 - kHeaderSize),
                 "Unexpected max String length");
 
   // Max length for computing hash. For strings longer than this limit the
@@ -473,9 +473,6 @@ class String : public Name {
 class SeqString : public String {
  public:
   DECL_CAST(SeqString)
-
-  // Layout description.
-  static const int kHeaderSize = String::kSize;
 
   // Truncate the string in-place if possible and return the result.
   // In case of new_length == 0, the empty string is returned without
@@ -620,7 +617,7 @@ class ConsString : public String {
   DECL_CAST(ConsString)
 
   // Layout description.
-  static const int kFirstOffset = POINTER_SIZE_ALIGN(String::kSize);
+  static const int kFirstOffset = String::kHeaderSize;
   static const int kSecondOffset = kFirstOffset + kPointerSize;
   static const int kSize = kSecondOffset + kPointerSize;
 
@@ -659,7 +656,7 @@ class ThinString : public String {
   DECL_VERIFIER(ThinString)
 
   // Layout description.
-  static const int kActualOffset = String::kSize;
+  static const int kActualOffset = String::kHeaderSize;
   static const int kSize = kActualOffset + kPointerSize;
 
   typedef FixedBodyDescriptor<kActualOffset, kSize, kSize> BodyDescriptor;
@@ -696,7 +693,7 @@ class SlicedString : public String {
   DECL_CAST(SlicedString)
 
   // Layout description.
-  static const int kParentOffset = POINTER_SIZE_ALIGN(String::kSize);
+  static const int kParentOffset = String::kHeaderSize;
   static const int kOffsetOffset = kParentOffset + kPointerSize;
   static const int kSize = kOffsetOffset + kPointerSize;
 
@@ -729,7 +726,7 @@ class ExternalString : public String {
   DECL_CAST(ExternalString)
 
   // Layout description.
-  static const int kResourceOffset = POINTER_SIZE_ALIGN(String::kSize);
+  static const int kResourceOffset = String::kHeaderSize;
   static const int kUncachedSize = kResourceOffset + kPointerSize;
   static const int kResourceDataOffset = kResourceOffset + kPointerSize;
   static const int kSize = kResourceDataOffset + kPointerSize;
