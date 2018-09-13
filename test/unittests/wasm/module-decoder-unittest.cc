@@ -2130,7 +2130,7 @@ TEST_F(WasmModuleVerifyTest, Regression684855) {
 
 class WasmInitExprDecodeTest : public TestWithZone {
  public:
-  WasmInitExprDecodeTest() {}
+  WasmInitExprDecodeTest() = default;
 
   WasmFeatures enabled_features_;
 

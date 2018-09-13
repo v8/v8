@@ -69,7 +69,7 @@ WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
 
 // Declared here such that {LiftoffCompilationUnit} and
 // {TurbofanWasmCompilationUnit} can be opaque in the header file.
-WasmCompilationUnit::~WasmCompilationUnit() {}
+WasmCompilationUnit::~WasmCompilationUnit() = default;
 
 void WasmCompilationUnit::ExecuteCompilation(WasmFeatures* detected) {
   auto size_histogram = SELECT_WASM_COUNTER(counters_, env_->module->origin,

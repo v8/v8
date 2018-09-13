@@ -19,7 +19,7 @@ namespace wasm {
 
 class WasmMemoryTracker {
  public:
-  WasmMemoryTracker() {}
+  WasmMemoryTracker() = default;
   ~WasmMemoryTracker();
 
   // ReserveAddressSpace attempts to increase the reserved address space counter

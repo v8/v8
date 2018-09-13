@@ -453,7 +453,7 @@ WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
   function_ = builder_->GetFunctionAt(index);
 }
 
-WasmFunctionCompiler::~WasmFunctionCompiler() {}
+WasmFunctionCompiler::~WasmFunctionCompiler() = default;
 
 FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
                                        Vector<MachineType> param_types) {

@@ -2262,7 +2262,7 @@ void AsyncCompileJob::AsyncCompileSucceeded(Handle<WasmModuleObject> result) {
 // task) and schedule the next step(s), if any.
 class AsyncCompileJob::CompileStep {
  public:
-  virtual ~CompileStep() {}
+  virtual ~CompileStep() = default;
 
   void Run(bool on_foreground) {
     if (on_foreground) {

@@ -56,7 +56,7 @@ class Decoder {
     DCHECK_EQ(static_cast<uint32_t>(end - start), end - start);
   }
 
-  virtual ~Decoder() {}
+  virtual ~Decoder() = default;
 
   inline bool validate_size(const byte* pc, uint32_t length, const char* msg) {
     DCHECK_LE(start_, pc);
