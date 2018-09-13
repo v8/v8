@@ -826,7 +826,7 @@ class PressureNotificationTask : public CancelableTask {
   PressureNotificationTask(Isolate* isolate, CompilerDispatcher* dispatcher,
                            base::Semaphore* sem)
       : CancelableTask(isolate), dispatcher_(dispatcher), sem_(sem) {}
-  ~PressureNotificationTask() override {}
+  ~PressureNotificationTask() override = default;
 
   void RunInternal() override {
     dispatcher_->MemoryPressureNotification(v8::MemoryPressureLevel::kCritical,

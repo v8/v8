@@ -30,7 +30,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
 
   CompilerDispatcherJob(Type type) : type_(type), status_(Status::kInitial) {}
 
-  virtual ~CompilerDispatcherJob() {}
+  virtual ~CompilerDispatcherJob() = default;
 
   Type type() const { return type_; }
 

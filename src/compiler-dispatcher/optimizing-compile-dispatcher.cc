@@ -50,7 +50,7 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
     ++dispatcher_->ref_count_;
   }
 
-  virtual ~CompileTask() {}
+  virtual ~CompileTask() = default;
 
  private:
   // v8::Task overrides.

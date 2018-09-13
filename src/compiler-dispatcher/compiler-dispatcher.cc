@@ -88,7 +88,7 @@ MemoryPressureTask::MemoryPressureTask(CancelableTaskManager* task_manager,
                                        CompilerDispatcher* dispatcher)
     : CancelableTask(task_manager), dispatcher_(dispatcher) {}
 
-MemoryPressureTask::~MemoryPressureTask() {}
+MemoryPressureTask::~MemoryPressureTask() = default;
 
 void MemoryPressureTask::RunInternal() {
   dispatcher_->AbortAll(BlockingBehavior::kDontBlock);
@@ -115,7 +115,7 @@ CompilerDispatcher::AbortTask::AbortTask(CancelableTaskManager* task_manager,
                                          CompilerDispatcher* dispatcher)
     : CancelableTask(task_manager), dispatcher_(dispatcher) {}
 
-CompilerDispatcher::AbortTask::~AbortTask() {}
+CompilerDispatcher::AbortTask::~AbortTask() = default;
 
 void CompilerDispatcher::AbortTask::RunInternal() {
   dispatcher_->AbortInactiveJobs();
@@ -140,7 +140,7 @@ CompilerDispatcher::WorkerTask::WorkerTask(CancelableTaskManager* task_manager,
                                            CompilerDispatcher* dispatcher)
     : CancelableTask(task_manager), dispatcher_(dispatcher) {}
 
-CompilerDispatcher::WorkerTask::~WorkerTask() {}
+CompilerDispatcher::WorkerTask::~WorkerTask() = default;
 
 void CompilerDispatcher::WorkerTask::RunInternal() {
   dispatcher_->DoBackgroundWork();
@@ -164,7 +164,7 @@ CompilerDispatcher::IdleTask::IdleTask(CancelableTaskManager* task_manager,
                                        CompilerDispatcher* dispatcher)
     : CancelableIdleTask(task_manager), dispatcher_(dispatcher) {}
 
-CompilerDispatcher::IdleTask::~IdleTask() {}
+CompilerDispatcher::IdleTask::~IdleTask() = default;
 
 void CompilerDispatcher::IdleTask::RunInternal(double deadline_in_seconds) {
   dispatcher_->DoIdleWork(deadline_in_seconds);

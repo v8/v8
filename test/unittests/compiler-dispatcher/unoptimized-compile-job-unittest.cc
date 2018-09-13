@@ -27,7 +27,7 @@ namespace internal {
 class UnoptimizedCompileJobTest : public TestWithNativeContext {
  public:
   UnoptimizedCompileJobTest() : tracer_(isolate()) {}
-  ~UnoptimizedCompileJobTest() override {}
+  ~UnoptimizedCompileJobTest() override = default;
 
   CompilerDispatcherTracer* tracer() { return &tracer_; }
 
@@ -199,7 +199,7 @@ class CompileTask : public Task {
  public:
   CompileTask(UnoptimizedCompileJob* job, base::Semaphore* semaphore)
       : job_(job), semaphore_(semaphore) {}
-  ~CompileTask() override {}
+  ~CompileTask() override = default;
 
   void Run() override {
     job_->Compile(true);
