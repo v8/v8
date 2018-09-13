@@ -1006,7 +1006,9 @@ class Heap {
   void ClearRecordedSlot(HeapObject* object, Object** slot);
   void ClearRecordedSlotRange(Address start, Address end);
 
-  bool HasRecordedSlot(HeapObject* object, Object** slot);
+#ifdef DEBUG
+  void VerifyClearedSlot(HeapObject* object, Object** slot);
+#endif
 
   // ===========================================================================
   // Incremental marking API. ==================================================

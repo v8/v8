@@ -4351,8 +4351,10 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
         heap->ClearRecordedSlot(*object,
                                 HeapObject::RawField(*object, index.offset()));
       } else {
-        DCHECK(!heap->HasRecordedSlot(
-            *object, HeapObject::RawField(*object, index.offset())));
+#ifdef DEBUG
+        heap->VerifyClearedSlot(*object,
+                                HeapObject::RawField(*object, index.offset()));
+#endif
       }
     } else {
       object->RawFastPropertyAtPut(index, value);

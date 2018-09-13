@@ -516,6 +516,7 @@ class MemoryChunk {
   // Updates invalidated_slots after array left-trimming.
   void MoveObjectWithInvalidatedSlots(HeapObject* old_start,
                                       HeapObject* new_start);
+  bool RegisteredObjectWithInvalidatedSlots(HeapObject* object);
   InvalidatedSlots* invalidated_slots() { return invalidated_slots_; }
 
   void ReleaseLocalTracker();

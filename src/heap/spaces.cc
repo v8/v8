@@ -1452,6 +1452,17 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject* object,
   }
 }
 
+bool MemoryChunk::RegisteredObjectWithInvalidatedSlots(HeapObject* object) {
+  if (ShouldSkipEvacuationSlotRecording()) {
+    // Invalidated slots do not matter if we are not recording slots.
+    return true;
+  }
+  if (invalidated_slots() == nullptr) {
+    return false;
+  }
+  return invalidated_slots()->find(object) != invalidated_slots()->end();
+}
+
 void MemoryChunk::MoveObjectWithInvalidatedSlots(HeapObject* old_start,
                                                  HeapObject* new_start) {
   DCHECK_LT(old_start, new_start);
