@@ -22,8 +22,8 @@ namespace interpreter {
 
 class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
  public:
-  BytecodeArrayBuilderTest() {}
-  ~BytecodeArrayBuilderTest() override {}
+  BytecodeArrayBuilderTest() = default;
+  ~BytecodeArrayBuilderTest() override = default;
 };
 
 using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;

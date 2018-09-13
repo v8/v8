@@ -36,7 +36,7 @@ class InterpreterAssembler;
 class Interpreter {
  public:
   explicit Interpreter(Isolate* isolate);
-  virtual ~Interpreter() {}
+  virtual ~Interpreter() = default;
 
   // Returns the interrupt budget which should be used for the profiler counter.
   static int InterruptBudget();

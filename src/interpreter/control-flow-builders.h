@@ -20,7 +20,7 @@ class V8_EXPORT_PRIVATE ControlFlowBuilder {
  public:
   explicit ControlFlowBuilder(BytecodeArrayBuilder* builder)
       : builder_(builder) {}
-  virtual ~ControlFlowBuilder() {}
+  virtual ~ControlFlowBuilder() = default;
 
  protected:
   BytecodeArrayBuilder* builder() const { return builder_; }
