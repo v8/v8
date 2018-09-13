@@ -52,17 +52,17 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 static void DumpMaps(i::PagedSpace* space) {
   i::HeapObjectIterator it(space);
   i::ReadOnlyRoots roots(space->heap());
-  for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
+  for (i::Object* o = it.Next(); o != nullptr; o = it.Next()) {
     if (!o->IsMap()) continue;
     i::Map* m = i::Map::cast(o);
-    const char* n = NULL;
+    const char* n = nullptr;
     intptr_t p = reinterpret_cast<intptr_t>(m) & 0x7FFFF;
     int t = m->instance_type();
     STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
     MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
     STRUCT_LIST(STRUCT_LIST_CASE)
     ALLOCATION_SITE_LIST(ALLOCATION_SITE_LIST_CASE)
-    if (n == NULL) continue;
+    if (n == nullptr) continue;
     const char* sname = space->name();
     i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): (%d, \"%s\"),\n", sname, p, t,
               n);
@@ -115,21 +115,21 @@ static int DumpHeapConstants(const char* argv0) {
   }
     i::PagedSpaces spit(heap, i::PagedSpaces::SpacesSpecifier::kAllPagedSpaces);
     i::PrintF("KNOWN_OBJECTS = {\n");
-    for (i::PagedSpace* s = spit.next(); s != NULL; s = spit.next()) {
+    for (i::PagedSpace* s = spit.next(); s != nullptr; s = spit.next()) {
       i::HeapObjectIterator it(s);
       // Code objects are generally platform-dependent.
       if (s->identity() == i::CODE_SPACE || s->identity() == i::MAP_SPACE)
         continue;
       const char* sname = s->name();
-      for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
+      for (i::Object* o = it.Next(); o != nullptr; o = it.Next()) {
         // Skip maps in RO_SPACE since they will be reported elsewhere.
         if (o->IsMap()) continue;
-        const char* n = NULL;
+        const char* n = nullptr;
         i::Heap::RootListIndex i = i::Heap::kStrongRootListLength;
         intptr_t p = reinterpret_cast<intptr_t>(o) & 0x7FFFF;
         STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
         MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
-        if (n == NULL) continue;
+        if (n == nullptr) continue;
         if (!i::Heap::RootIsImmortalImmovable(i)) continue;
         i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): \"%s\",\n", sname, p, n);
       }

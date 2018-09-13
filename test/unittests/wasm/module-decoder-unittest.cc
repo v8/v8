@@ -207,7 +207,7 @@ TEST_F(WasmModuleVerifyTest, WrongVersion) {
 }
 
 TEST_F(WasmModuleVerifyTest, DecodeEmpty) {
-  ModuleResult result = DecodeModule(nullptr, 0);
+  ModuleResult result = DecodeModule(nullptr, nullptr);
   EXPECT_TRUE(result.ok());
 }
 

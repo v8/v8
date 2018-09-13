@@ -898,14 +898,14 @@ static const char* not_so_random_string_table[] = {
   "volatile",
   "while",
   "with",
-  0
+  nullptr
 };
-
 
 static void CheckInternalizedStrings(const char** strings) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  for (const char* string = *strings; *strings != 0; string = *strings++) {
+  for (const char* string = *strings; *strings != nullptr;
+       string = *strings++) {
     HandleScope scope(isolate);
     Handle<String> a =
         isolate->factory()->InternalizeUtf8String(CStrVector(string));

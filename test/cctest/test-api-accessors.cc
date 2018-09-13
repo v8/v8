@@ -285,7 +285,7 @@ TEST(AccessorSetHasNoSideEffect) {
   obj->SetAccessor(context, v8_str("foo"), Getter).ToChecked();
   CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj.foo"), true).IsEmpty());
 
-  obj->SetAccessor(context, v8_str("foo"), Getter, 0,
+  obj->SetAccessor(context, v8_str("foo"), Getter, nullptr,
                    v8::MaybeLocal<v8::Value>(), v8::AccessControl::DEFAULT,
                    v8::PropertyAttribute::None,
                    v8::SideEffectType::kHasNoSideEffect)
@@ -429,10 +429,10 @@ TEST(ObjectTemplateSetAccessorHasNoSideEffect) {
 
   v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   templ->SetAccessor(v8_str("foo"), StringGetter);
-  templ->SetAccessor(v8_str("foo2"), StringGetter, 0, v8::Local<v8::Value>(),
-                     v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
-                     v8::Local<v8::AccessorSignature>(),
-                     v8::SideEffectType::kHasNoSideEffect);
+  templ->SetAccessor(
+      v8_str("foo2"), StringGetter, nullptr, v8::Local<v8::Value>(),
+      v8::AccessControl::DEFAULT, v8::PropertyAttribute::None,
+      v8::Local<v8::AccessorSignature>(), v8::SideEffectType::kHasNoSideEffect);
   v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
 
@@ -458,7 +458,7 @@ TEST(ObjectTemplateSetNativePropertyHasNoSideEffect) {
   v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
   templ->SetNativeDataProperty(v8_str("foo"), Getter);
   templ->SetNativeDataProperty(
-      v8_str("foo2"), Getter, 0, v8::Local<v8::Value>(),
+      v8_str("foo2"), Getter, nullptr, v8::Local<v8::Value>(),
       v8::PropertyAttribute::None, v8::Local<v8::AccessorSignature>(),
       v8::AccessControl::DEFAULT, v8::SideEffectType::kHasNoSideEffect);
   v8::Local<v8::Object> obj = templ->NewInstance(env.local()).ToLocalChecked();

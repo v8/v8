@@ -27,7 +27,7 @@ class InvokeIntrinsicHelper {
   template <class... A>
   Handle<Object> Invoke(A... args) {
     CHECK(IntrinsicsHelper::IsSupported(function_id_));
-    BytecodeArrayBuilder builder(zone_, sizeof...(args), 0, 0);
+    BytecodeArrayBuilder builder(zone_, sizeof...(args), 0, nullptr);
     RegisterList reg_list = InterpreterTester::NewRegisterList(
         builder.Receiver().index(), sizeof...(args));
     builder.CallRuntime(function_id_, reg_list).Return();

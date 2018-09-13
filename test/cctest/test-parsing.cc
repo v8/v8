@@ -2600,7 +2600,7 @@ TEST(OptionalCatchBinding) {
     {"try {", "} catch ({e}) { }"},
     {"try {} catch ({e}) {", "}"},
     {"function f() {", "}"},
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* statement_data[] = {
@@ -2608,7 +2608,7 @@ TEST(OptionalCatchBinding) {
     "try { } catch { } finally { }",
     "try { let e; } catch { let e; }",
     "try { let e; } catch { let e; } finally { let e; }",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -2621,7 +2621,7 @@ TEST(OptionalCatchBindingInDoExpression) {
   // clang-format off
   const char* context_data[][2] = {
     {"((x = (eval(''), do {", "}))=>{})()"},
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* statement_data[] = {
@@ -2629,12 +2629,12 @@ TEST(OptionalCatchBindingInDoExpression) {
     "try { } catch { } finally { }",
     "try { let e; } catch { let e; }",
     "try { let e; } catch { let e; } finally { let e; }",
-    NULL
+    nullptr
   };
   // clang-format on
 
   static const ParserFlag do_and_catch_flags[] = {kAllowHarmonyDoExpressions};
-  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0,
                     do_and_catch_flags, arraysize(do_and_catch_flags));
 }
 

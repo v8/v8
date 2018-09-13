@@ -123,11 +123,9 @@ void DeclarationContext::InitializeIfNeeded() {
   Local<FunctionTemplate> function = FunctionTemplate::New(isolate);
   Local<Value> data = External::New(CcTest::isolate(), this);
   GetHolder(function)->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      &HandleGet, &HandleSet, &HandleQuery, 0, 0, data));
-  Local<Context> context = Context::New(isolate,
-                                        0,
-                                        function->InstanceTemplate(),
-                                        Local<Value>());
+      &HandleGet, &HandleSet, &HandleQuery, nullptr, nullptr, data));
+  Local<Context> context = Context::New(
+      isolate, nullptr, function->InstanceTemplate(), Local<Value>());
   context_.Reset(isolate, context);
   context->Enter();
   is_initialized_ = true;
