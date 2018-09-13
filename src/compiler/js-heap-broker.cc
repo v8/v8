@@ -215,6 +215,11 @@ class NativeContextData : public ContextData {
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_ACCESSOR)
 #undef DECL_ACCESSOR
 
+  const ZoneVector<MapData*>& function_maps() const {
+    CHECK(serialized_);
+    return function_maps_;
+  }
+
   NativeContextData(JSHeapBroker* broker, Handle<NativeContext> object,
                     HeapObjectType type);
   void Serialize();
@@ -224,6 +229,7 @@ class NativeContextData : public ContextData {
 #define DECL_MEMBER(type, name) type##Data* name##_ = nullptr;
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_MEMBER)
 #undef DECL_MEMBER
+  ZoneVector<MapData*> function_maps_;
 };
 
 class NameData : public HeapObjectData {
@@ -626,7 +632,7 @@ void FixedArrayData::SerializeContents() {
   contents_.reserve(static_cast<size_t>(length()));
 
   for (int i = 0; i < length(); i++) {
-    Handle<Object> value = handle(array->get(i), broker()->isolate());
+    Handle<Object> value(array->get(i), broker()->isolate());
     contents_.push_back(broker()->GetOrCreateData(value));
   }
 }
@@ -1100,6 +1106,7 @@ void JSHeapBroker::SerializeStandardObjects() {
   Factory* const f = isolate()->factory();
 
   // Maps, strings, oddballs
+  GetOrCreateData(f->NaN_string());
   GetOrCreateData(f->bigint_string());
   GetOrCreateData(f->block_context_map());
   GetOrCreateData(f->boolean_string());
@@ -1107,6 +1114,7 @@ void JSHeapBroker::SerializeStandardObjects() {
   GetOrCreateData(f->empty_fixed_array());
   GetOrCreateData(f->empty_string());
   GetOrCreateData(f->eval_context_map());
+  GetOrCreateData(f->false_string());
   GetOrCreateData(f->false_value());
   GetOrCreateData(f->fixed_array_map());
   GetOrCreateData(f->fixed_double_array_map());
@@ -1118,6 +1126,7 @@ void JSHeapBroker::SerializeStandardObjects() {
   GetOrCreateData(f->minus_zero_value());
   GetOrCreateData(f->mutable_heap_number_map());
   GetOrCreateData(f->name_dictionary_map());
+  GetOrCreateData(f->null_string());
   GetOrCreateData(f->null_value());
   GetOrCreateData(f->number_string());
   GetOrCreateData(f->object_string());
@@ -1129,6 +1138,7 @@ void JSHeapBroker::SerializeStandardObjects() {
   GetOrCreateData(f->string_string());
   GetOrCreateData(f->symbol_string());
   GetOrCreateData(f->the_hole_value());
+  GetOrCreateData(f->true_string());
   GetOrCreateData(f->true_value());
   GetOrCreateData(f->undefined_string());
   GetOrCreateData(f->undefined_value());
@@ -1234,7 +1244,7 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
     // TODO(neis): Remove these Allow* once we serialize everything upfront.
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
-    // TODO(neis): Inline Serializehere, now that we have subclass-specific
+    // TODO(neis): Inline Serialize here, now that we have subclass-specific
     // Serialize methods.
     data = ObjectData::Serialize(this, object);
   }
@@ -1613,7 +1623,7 @@ BIMODAL_ACCESSOR(HeapObject, Map, map)
 HANDLE_ACCESSOR_C(HeapObject, bool, IsExternalString)
 HANDLE_ACCESSOR_C(HeapObject, bool, IsSeqString)
 
-HANDLE_ACCESSOR(JSArray, Object, length)
+BIMODAL_ACCESSOR(JSArray, Object, length)
 
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
@@ -1664,7 +1674,11 @@ BIMODAL_ACCESSOR_C(String, int, length)
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
   DCHECK_GE(index, Context::FIRST_FUNCTION_MAP_INDEX);
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
-  return get(index).AsMap();
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    return get(index).AsMap();
+  }
+  return MapRef(data()->AsNativeContext()->function_maps().at(
+      index - Context::FIRST_FUNCTION_MAP_INDEX));
 }
 
 MapRef NativeContextRef::GetInitialJSArrayMap(ElementsKind kind) const {
@@ -1851,19 +1865,29 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
 NativeContextData::NativeContextData(JSHeapBroker* broker,
                                      Handle<NativeContext> object,
                                      HeapObjectType type)
-    : ContextData(broker, object, type) {}
+    : ContextData(broker, object, type), function_maps_(broker->zone()) {}
 
 void NativeContextData::Serialize() {
   if (serialized_) return;
   serialized_ = true;
 
   Handle<NativeContext> context = Handle<NativeContext>::cast(object());
+
 #define SERIALIZE_MEMBER(type, name)                                \
   DCHECK_NULL(name##_);                                             \
   name##_ = broker()->GetOrCreateData(context->name())->As##type(); \
   if (name##_->IsJSFunction()) name##_->AsJSFunction()->Serialize();
   BROKER_NATIVE_CONTEXT_FIELDS(SERIALIZE_MEMBER)
 #undef SERIALIZE_MEMBER
+
+  DCHECK(function_maps_.empty());
+  int const first = Context::FIRST_FUNCTION_MAP_INDEX;
+  int const last = Context::LAST_FUNCTION_MAP_INDEX;
+  function_maps_.reserve(last + 1 - first);
+  for (int i = first; i <= last; ++i) {
+    function_maps_.push_back(
+        broker()->GetOrCreateData(context->get(i))->AsMap());
+  }
 }
 
 void JSFunctionRef::Serialize() {

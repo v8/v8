@@ -37,15 +37,23 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
       if (p.site().ToHandle(&site)) AllocationSiteRef(broker(), site);
       break;
     }
-    case IrOpcode::kJSCreateCatchContext: {
-      ScopeInfoRef(broker(), ScopeInfoOf(node->op()));
-      break;
-    }
     case IrOpcode::kJSCreateArguments: {
       Node* const frame_state = NodeProperties::GetFrameStateInput(node);
       FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
       SharedFunctionInfoRef shared(broker(),
                                    state_info.shared_info().ToHandleChecked());
+      break;
+    }
+    case IrOpcode::kJSCreateBlockContext:
+    case IrOpcode::kJSCreateCatchContext:
+    case IrOpcode::kJSCreateWithContext: {
+      ScopeInfoRef(broker(), ScopeInfoOf(node->op()));
+      break;
+    }
+    case IrOpcode::kJSCreateBoundFunction: {
+      CreateBoundFunctionParameters const& p =
+          CreateBoundFunctionParametersOf(node->op());
+      MapRef map(broker(), p.map());
       break;
     }
     case IrOpcode::kJSCreateClosure: {
