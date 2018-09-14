@@ -15,7 +15,7 @@ const MachineRepresentation kSimd128 = MachineRepresentation::kSimd128;
 class RegisterConfigurationUnitTest : public ::testing::Test {
  public:
   RegisterConfigurationUnitTest() = default;
-  virtual ~RegisterConfigurationUnitTest() = default;
+  ~RegisterConfigurationUnitTest() override = default;
 };
 
 TEST_F(RegisterConfigurationUnitTest, BasicProperties) {

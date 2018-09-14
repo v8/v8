@@ -1025,9 +1025,9 @@ class TestJSONStream : public v8::OutputStream {
   TestJSONStream() : eos_signaled_(0), abort_countdown_(-1) {}
   explicit TestJSONStream(int abort_countdown)
       : eos_signaled_(0), abort_countdown_(abort_countdown) {}
-  virtual ~TestJSONStream() = default;
-  virtual void EndOfStream() { ++eos_signaled_; }
-  virtual WriteResult WriteAsciiChunk(char* buffer, int chars_written) {
+  ~TestJSONStream() override = default;
+  void EndOfStream() override { ++eos_signaled_; }
+  WriteResult WriteAsciiChunk(char* buffer, int chars_written) override {
     if (abort_countdown_ > 0) --abort_countdown_;
     if (abort_countdown_ == 0) return kAbort;
     CHECK_GT(chars_written, 0);
@@ -1053,8 +1053,9 @@ class OneByteResource : public v8::String::ExternalOneByteStringResource {
   explicit OneByteResource(i::Vector<char> string) : data_(string.start()) {
     length_ = string.length();
   }
-  virtual const char* data() const { return data_; }
-  virtual size_t length() const { return length_; }
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
+
  private:
   const char* data_;
   size_t length_;
@@ -1217,13 +1218,13 @@ class TestStatsStream : public v8::OutputStream {
   TestStatsStream(const TestStatsStream& stream)
 
       = default;
-  virtual ~TestStatsStream() = default;
-  virtual void EndOfStream() { ++eos_signaled_; }
-  virtual WriteResult WriteAsciiChunk(char* buffer, int chars_written) {
+  ~TestStatsStream() override = default;
+  void EndOfStream() override { ++eos_signaled_; }
+  WriteResult WriteAsciiChunk(char* buffer, int chars_written) override {
     UNREACHABLE();
   }
-  virtual WriteResult WriteHeapStatsChunk(v8::HeapStatsUpdate* buffer,
-                                          int updates_written) {
+  WriteResult WriteHeapStatsChunk(v8::HeapStatsUpdate* buffer,
+                                  int updates_written) override {
     ++intervals_count_;
     CHECK(updates_written);
     updates_written_ += updates_written;
@@ -1528,7 +1529,7 @@ class TestActivityControl : public v8::ActivityControl {
         total_(0),
         abort_count_(abort_count),
         reported_finish_(false) {}
-  ControlOption ReportProgressValue(int done, int total) {
+  ControlOption ReportProgressValue(int done, int total) override {
     done_ = done;
     total_ = total;
     CHECK_LE(done_, total_);
@@ -1605,7 +1606,7 @@ class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
    public:
     explicit Group(const char* name) : Node(name, 0) {}
     // v8::EmbedderGraph::EmbedderNode
-    bool IsRootNode() { return true; }
+    bool IsRootNode() override { return true; }
   };
 
   EmbedderGraphBuilder(v8::Isolate* isolate, v8::EmbedderGraph* graph)
@@ -1779,7 +1780,7 @@ TEST(DeleteHeapSnapshot) {
 
 class NameResolver : public v8::HeapProfiler::ObjectNameResolver {
  public:
-  virtual const char* GetName(v8::Local<v8::Object> object) {
+  const char* GetName(v8::Local<v8::Object> object) override {
     return "Global object name";
   }
 };
@@ -3057,7 +3058,7 @@ class EmbedderRootNode : public EmbedderNode {
  public:
   explicit EmbedderRootNode(const char* name) : EmbedderNode(name, 0) {}
   // Graph::Node override.
-  bool IsRootNode() { return true; }
+  bool IsRootNode() override { return true; }
 };
 
 // Used to pass the global object to the BuildEmbedderGraph callback.

@@ -193,7 +193,7 @@ class ApiTestFuzzer: public v8::base::Thread {
   void CallTest();
 
   // The ApiTestFuzzer is also a Thread, so it has a Run method.
-  virtual void Run();
+  void Run() override;
 
   enum PartOfTest {
     FIRST_PART,
@@ -220,7 +220,7 @@ class ApiTestFuzzer: public v8::base::Thread {
         test_number_(num),
         gate_(0),
         active_(true) {}
-  ~ApiTestFuzzer() = default;
+  ~ApiTestFuzzer() override = default;
 
   static bool fuzzing_;
   static int tests_being_run_;
@@ -600,9 +600,9 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
 
   ~StaticOneByteResource() = default;
 
-  const char* data() const { return data_; }
+  const char* data() const override { return data_; }
 
-  size_t length() const { return strlen(data_); }
+  size_t length() const override { return strlen(data_); }
 
  private:
   const char* data_;
@@ -710,7 +710,7 @@ class TestPlatform : public v8::Platform {
 
  protected:
   TestPlatform() : old_platform_(i::V8::GetCurrentPlatform()) {}
-  ~TestPlatform() { i::V8::SetPlatformForTesting(old_platform_); }
+  ~TestPlatform() override { i::V8::SetPlatformForTesting(old_platform_); }
 
   v8::Platform* old_platform() const { return old_platform_; }
 

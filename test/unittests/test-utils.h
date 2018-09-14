@@ -26,7 +26,7 @@ class ArrayBufferAllocator;
 class TestWithIsolate : public virtual ::testing::Test {
  public:
   TestWithIsolate();
-  virtual ~TestWithIsolate();
+  ~TestWithIsolate() override;
 
   v8::Isolate* isolate() const { return v8_isolate(); }
 
@@ -55,7 +55,7 @@ class TestWithIsolate : public virtual ::testing::Test {
 class TestWithContext : public virtual v8::TestWithIsolate {
  public:
   TestWithContext();
-  virtual ~TestWithContext();
+  ~TestWithContext() override;
 
   const Local<Context>& context() const { return v8_context(); }
   const Local<Context>& v8_context() const { return context_; }
@@ -79,7 +79,7 @@ class Factory;
 class TestWithIsolate : public virtual ::v8::TestWithIsolate {
  public:
   TestWithIsolate() = default;
-  virtual ~TestWithIsolate();
+  ~TestWithIsolate() override;
 
   Factory* factory() const;
   Isolate* isolate() const { return i_isolate(); }
@@ -97,7 +97,7 @@ class TestWithIsolate : public virtual ::v8::TestWithIsolate {
 class TestWithZone : public virtual ::testing::Test {
  public:
   TestWithZone() : zone_(&allocator_, ZONE_NAME) {}
-  virtual ~TestWithZone();
+  ~TestWithZone() override;
 
   Zone* zone() { return &zone_; }
 
@@ -111,7 +111,7 @@ class TestWithZone : public virtual ::testing::Test {
 class TestWithIsolateAndZone : public virtual TestWithIsolate {
  public:
   TestWithIsolateAndZone() : zone_(&allocator_, ZONE_NAME) {}
-  virtual ~TestWithIsolateAndZone();
+  ~TestWithIsolateAndZone() override;
 
   Zone* zone() { return &zone_; }
 
@@ -126,7 +126,7 @@ class TestWithNativeContext : public virtual ::v8::TestWithContext,
                               public virtual TestWithIsolate {
  public:
   TestWithNativeContext() = default;
-  virtual ~TestWithNativeContext();
+  ~TestWithNativeContext() override;
 
   Handle<Context> native_context() const;
 

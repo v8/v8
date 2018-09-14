@@ -573,8 +573,8 @@ class ScriptResource : public v8::String::ExternalOneByteStringResource {
   ScriptResource(const char* data, size_t length)
       : data_(data), length_(length) { }
 
-  const char* data() const { return data_; }
-  size_t length() const { return length_; }
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
 
  private:
   const char* data_;

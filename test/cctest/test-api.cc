@@ -445,18 +445,14 @@ class TestResource: public String::ExternalStringResource {
     while (data[length_]) ++length_;
   }
 
-  ~TestResource() {
+  ~TestResource() override {
     if (owning_data_) i::DeleteArray(data_);
     if (counter_ != nullptr) ++*counter_;
   }
 
-  const uint16_t* data() const {
-    return data_;
-  }
+  const uint16_t* data() const override { return data_; }
 
-  size_t length() const {
-    return length_;
-  }
+  size_t length() const override { return length_; }
 
  private:
   uint16_t* data_;
@@ -475,18 +471,14 @@ class TestOneByteResource : public String::ExternalOneByteStringResource {
         length_(strlen(data) - offset),
         counter_(counter) {}
 
-  ~TestOneByteResource() {
+  ~TestOneByteResource() override {
     i::DeleteArray(orig_data_);
     if (counter_ != nullptr) ++*counter_;
   }
 
-  const char* data() const {
-    return data_;
-  }
+  const char* data() const override { return data_; }
 
-  size_t length() const {
-    return length_;
-  }
+  size_t length() const override { return length_; }
 
  private:
   const char* orig_data_;
@@ -744,8 +736,8 @@ THREADED_TEST(UsingExternalOneByteString) {
 class RandomLengthResource : public v8::String::ExternalStringResource {
  public:
   explicit RandomLengthResource(int length) : length_(length) {}
-  virtual const uint16_t* data() const { return string_; }
-  virtual size_t length() const { return length_; }
+  const uint16_t* data() const override { return string_; }
+  size_t length() const override { return length_; }
 
  private:
   uint16_t string_[10];
@@ -757,8 +749,8 @@ class RandomLengthOneByteResource
     : public v8::String::ExternalOneByteStringResource {
  public:
   explicit RandomLengthOneByteResource(int length) : length_(length) {}
-  virtual const char* data() const { return string_; }
-  virtual size_t length() const { return length_; }
+  const char* data() const override { return string_; }
+  size_t length() const override { return length_; }
 
  private:
   char string_[10];
@@ -847,7 +839,7 @@ class TestOneByteResourceWithDisposeControl : public TestOneByteResource {
   TestOneByteResourceWithDisposeControl(const char* data, bool dispose)
       : TestOneByteResource(data, &dispose_count), dispose_(dispose) {}
 
-  void Dispose() {
+  void Dispose() override {
     ++dispose_calls;
     if (dispose_) delete this;
   }
@@ -7553,8 +7545,8 @@ class NativeFunctionExtension : public Extension {
                           v8::FunctionCallback fun = &Echo)
       : Extension(name, source), function_(fun) {}
 
-  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate, v8::Local<v8::String> name) {
+  v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name) override {
     return v8::FunctionTemplate::New(isolate, function_);
   }
 
@@ -7684,8 +7676,8 @@ static void CallFun(const v8::FunctionCallbackInfo<v8::Value>& args) {
 class FunctionExtension : public Extension {
  public:
   FunctionExtension() : Extension("functiontest", kExtensionTestScript) {}
-  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate, v8::Local<String> name);
+  v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<String> name) override;
 };
 
 
@@ -15834,10 +15826,10 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
  public:
   explicit OneByteVectorResource(i::Vector<const char> vector)
       : data_(vector) {}
-  virtual ~OneByteVectorResource() = default;
-  virtual size_t length() const { return data_.length(); }
-  virtual const char* data() const { return data_.start(); }
-  virtual void Dispose() {}
+  ~OneByteVectorResource() override = default;
+  size_t length() const override { return data_.length(); }
+  const char* data() const override { return data_.start(); }
+  void Dispose() override {}
 
  private:
   i::Vector<const char> data_;
@@ -15848,10 +15840,10 @@ class UC16VectorResource : public v8::String::ExternalStringResource {
  public:
   explicit UC16VectorResource(i::Vector<const i::uc16> vector)
       : data_(vector) {}
-  virtual ~UC16VectorResource() = default;
-  virtual size_t length() const { return data_.length(); }
-  virtual const i::uc16* data() const { return data_.start(); }
-  virtual void Dispose() {}
+  ~UC16VectorResource() override = default;
+  size_t length() const override { return data_.length(); }
+  const i::uc16* data() const override { return data_.start(); }
+  void Dispose() override {}
 
  private:
   i::Vector<const i::uc16> data_;
@@ -16020,7 +16012,7 @@ class RegExpInterruptionThread : public v8::base::Thread {
   explicit RegExpInterruptionThread(v8::Isolate* isolate)
       : Thread(Options("TimeoutThread")), isolate_(isolate) {}
 
-  virtual void Run() {
+  void Run() override {
     for (v8::base::Relaxed_Store(&regexp_interruption_data.loop_count, 0);
          v8::base::Relaxed_Load(&regexp_interruption_data.loop_count) < 7;
          v8::base::Relaxed_AtomicIncrement(&regexp_interruption_data.loop_count,
@@ -19365,8 +19357,8 @@ class VisitorImpl : public v8::ExternalResourceVisitor {
       found_resource_[i] = false;
     }
   }
-  virtual ~VisitorImpl() = default;
-  virtual void VisitExternalString(v8::Local<v8::String> string) {
+  ~VisitorImpl() override = default;
+  void VisitExternalString(v8::Local<v8::String> string) override {
     if (!string->IsExternal()) {
       CHECK(string->IsExternalOneByte());
       return;
@@ -21120,7 +21112,7 @@ class IsolateThread : public v8::base::Thread {
   explicit IsolateThread(int fib_limit)
       : Thread(Options("IsolateThread")), fib_limit_(fib_limit), result_(0) {}
 
-  void Run() {
+  void Run() override {
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
     v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -21200,7 +21192,7 @@ class InitDefaultIsolateThread : public v8::base::Thread {
         testCase_(testCase),
         result_(false) {}
 
-  void Run() {
+  void Run() override {
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
     switch (testCase_) {
@@ -21390,8 +21382,8 @@ class Visitor42 : public v8::PersistentHandleVisitor {
   explicit Visitor42(v8::Persistent<v8::Object>* object)
       : counter_(0), object_(object) { }
 
-  virtual void VisitPersistentHandle(Persistent<Value>* value,
-                                     uint16_t class_id) {
+  void VisitPersistentHandle(Persistent<Value>* value,
+                             uint16_t class_id) override {
     if (class_id != 42) return;
     CHECK_EQ(42, value->WrapperClassId());
     v8::Isolate* isolate = CcTest::isolate();
@@ -23725,7 +23717,7 @@ class ThreadInterruptTest {
     explicit InterruptThread(ThreadInterruptTest* test)
         : Thread(Options("InterruptThread")), test_(test) {}
 
-    virtual void Run() {
+    void Run() override {
       struct sigaction action;
 
       // Ensure that we'll enter waiting condition
@@ -24110,9 +24102,7 @@ class RequestInterruptTestBaseWithSimpleInterrupt
  public:
   RequestInterruptTestBaseWithSimpleInterrupt() : i_thread(this) { }
 
-  virtual void StartInterruptThread() {
-    i_thread.Start();
-  }
+  void StartInterruptThread() override { i_thread.Start(); }
 
  private:
   class InterruptThread : public v8::base::Thread {
@@ -24120,7 +24110,7 @@ class RequestInterruptTestBaseWithSimpleInterrupt
     explicit InterruptThread(RequestInterruptTestBase* test)
         : Thread(Options("RequestInterruptTest")), test_(test) {}
 
-    virtual void Run() {
+    void Run() override {
       test_->sem_.Wait();
       test_->isolate_->RequestInterrupt(&OnInterrupt, test_);
     }
@@ -24141,7 +24131,7 @@ class RequestInterruptTestBaseWithSimpleInterrupt
 class RequestInterruptTestWithFunctionCall
     : public RequestInterruptTestBaseWithSimpleInterrupt {
  public:
-  virtual void TestBody() {
+  void TestBody() override {
     Local<Function> func = Function::New(env_.local(), ShouldContinueCallback,
                                          v8::External::New(isolate_, this))
                                .ToLocalChecked();
@@ -24157,7 +24147,7 @@ class RequestInterruptTestWithFunctionCall
 class RequestInterruptTestWithMethodCall
     : public RequestInterruptTestBaseWithSimpleInterrupt {
  public:
-  virtual void TestBody() {
+  void TestBody() override {
     v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate_);
     v8::Local<v8::Template> proto = t->PrototypeTemplate();
     proto->Set(v8_str("shouldContinue"),
@@ -24176,7 +24166,7 @@ class RequestInterruptTestWithMethodCall
 class RequestInterruptTestWithAccessor
     : public RequestInterruptTestBaseWithSimpleInterrupt {
  public:
-  virtual void TestBody() {
+  void TestBody() override {
     v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate_);
     v8::Local<v8::Template> proto = t->PrototypeTemplate();
     proto->SetAccessorProperty(v8_str("shouldContinue"), FunctionTemplate::New(
@@ -24194,7 +24184,7 @@ class RequestInterruptTestWithAccessor
 class RequestInterruptTestWithNativeAccessor
     : public RequestInterruptTestBaseWithSimpleInterrupt {
  public:
-  virtual void TestBody() {
+  void TestBody() override {
     v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate_);
     t->InstanceTemplate()->SetNativeDataProperty(
         v8_str("shouldContinue"), &ShouldContinueNativeGetter, nullptr,
@@ -24222,7 +24212,7 @@ class RequestInterruptTestWithNativeAccessor
 class RequestInterruptTestWithMethodCallAndInterceptor
     : public RequestInterruptTestBaseWithSimpleInterrupt {
  public:
-  virtual void TestBody() {
+  void TestBody() override {
     v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate_);
     v8::Local<v8::Template> proto = t->PrototypeTemplate();
     proto->Set(v8_str("shouldContinue"),
@@ -24249,7 +24239,7 @@ class RequestInterruptTestWithMethodCallAndInterceptor
 class RequestInterruptTestWithMathAbs
     : public RequestInterruptTestBaseWithSimpleInterrupt {
  public:
-  virtual void TestBody() {
+  void TestBody() override {
     env_->Global()
         ->Set(env_.local(), v8_str("WakeUpInterruptor"),
               Function::New(env_.local(), WakeUpInterruptorCallback,
@@ -24343,11 +24333,9 @@ class RequestMultipleInterrupts : public RequestInterruptTestBase {
  public:
   RequestMultipleInterrupts() : i_thread(this), counter_(0) {}
 
-  virtual void StartInterruptThread() {
-    i_thread.Start();
-  }
+  void StartInterruptThread() override { i_thread.Start(); }
 
-  virtual void TestBody() {
+  void TestBody() override {
     Local<Function> func = Function::New(env_.local(), ShouldContinueCallback,
                                          v8::External::New(isolate_, this))
                                .ToLocalChecked();
@@ -24365,7 +24353,7 @@ class RequestMultipleInterrupts : public RequestInterruptTestBase {
     explicit InterruptThread(RequestMultipleInterrupts* test)
         : Thread(Options("RequestInterruptTest")), test_(test) {}
 
-    virtual void Run() {
+    void Run() override {
       test_->sem_.Wait();
       for (int i = 0; i < NUM_INTERRUPTS; i++) {
         test_->isolate_->RequestInterrupt(&OnInterrupt, test_);
@@ -25715,7 +25703,7 @@ class TestSourceStream : public v8::ScriptCompiler::ExternalSourceStream {
  public:
   explicit TestSourceStream(const char** chunks) : chunks_(chunks), index_(0) {}
 
-  virtual size_t GetMoreData(const uint8_t** src) {
+  size_t GetMoreData(const uint8_t** src) override {
     // Unlike in real use cases, this function will never block.
     if (chunks_[index_] == nullptr) {
       return 0;
@@ -27254,7 +27242,7 @@ class FutexInterruptionThread : public v8::base::Thread {
   explicit FutexInterruptionThread(v8::Isolate* isolate)
       : Thread(Options("FutexInterruptionThread")), isolate_(isolate) {}
 
-  virtual void Run() {
+  void Run() override {
     // Wait a bit before terminating.
     v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
     isolate_->TerminateExecution();
@@ -27694,7 +27682,7 @@ class MemoryPressureThread : public v8::base::Thread {
         isolate_(isolate),
         level_(level) {}
 
-  virtual void Run() { isolate_->MemoryPressureNotification(level_); }
+  void Run() override { isolate_->MemoryPressureNotification(level_); }
 
  private:
   v8::Isolate* isolate_;
@@ -28517,7 +28505,7 @@ class StopAtomicsWaitThread : public v8::base::Thread {
   explicit StopAtomicsWaitThread(AtomicsWaitCallbackInfo* info)
       : Thread(Options("StopAtomicsWaitThread")), info_(info) {}
 
-  virtual void Run() {
+  void Run() override {
     CHECK_NOT_NULL(info_->wake_handle);
     info_->wake_handle->Wake();
   }

@@ -1821,9 +1821,9 @@ class SerializerOneByteResource
  public:
   SerializerOneByteResource(const char* data, size_t length)
       : data_(data), length_(length), dispose_count_(0) {}
-  virtual const char* data() const { return data_; }
-  virtual size_t length() const { return length_; }
-  virtual void Dispose() { dispose_count_++; }
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
+  void Dispose() override { dispose_count_++; }
   int dispose_count() { return dispose_count_; }
 
  private:
@@ -1837,11 +1837,11 @@ class SerializerTwoByteResource : public v8::String::ExternalStringResource {
  public:
   SerializerTwoByteResource(const char* data, size_t length)
       : data_(AsciiToTwoByteString(data)), length_(length), dispose_count_(0) {}
-  ~SerializerTwoByteResource() { DeleteArray<const uint16_t>(data_); }
+  ~SerializerTwoByteResource() override { DeleteArray<const uint16_t>(data_); }
 
-  virtual const uint16_t* data() const { return data_; }
-  virtual size_t length() const { return length_; }
-  virtual void Dispose() { dispose_count_++; }
+  const uint16_t* data() const override { return data_; }
+  size_t length() const override { return length_; }
+  void Dispose() override { dispose_count_++; }
   int dispose_count() { return dispose_count_; }
 
  private:

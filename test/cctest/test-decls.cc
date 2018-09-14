@@ -254,7 +254,7 @@ TEST(Unknown) {
 
 class AbsentPropertyContext: public DeclarationContext {
  protected:
-  virtual v8::Local<Integer> Query(Local<Name> key) {
+  v8::Local<Integer> Query(Local<Name> key) override {
     return v8::Local<Integer>();
   }
 };
@@ -304,7 +304,7 @@ class AppearingPropertyContext: public DeclarationContext {
   AppearingPropertyContext() : state_(DECLARE) { }
 
  protected:
-  virtual v8::Local<Integer> Query(Local<Name> key) {
+  v8::Local<Integer> Query(Local<Name> key) override {
     switch (state_) {
       case DECLARE:
         // Force declaration by returning that the
@@ -359,13 +359,13 @@ class ExistsInPrototypeContext: public DeclarationContext {
  public:
   ExistsInPrototypeContext() { InitializeIfNeeded(); }
  protected:
-  virtual v8::Local<Integer> Query(Local<Name> key) {
+  v8::Local<Integer> Query(Local<Name> key) override {
     // Let it seem that the property exists in the prototype object.
     return Integer::New(isolate(), v8::None);
   }
 
   // Use the prototype as the holder for the interceptors.
-  virtual Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) {
+  Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) override {
     return function->PrototypeTemplate();
   }
 };
@@ -402,13 +402,13 @@ TEST(ExistsInPrototype) {
 
 class AbsentInPrototypeContext: public DeclarationContext {
  protected:
-  virtual v8::Local<Integer> Query(Local<Name> key) {
+  v8::Local<Integer> Query(Local<Name> key) override {
     // Let it seem that the property is absent in the prototype object.
     return Local<Integer>();
   }
 
   // Use the prototype as the holder for the interceptors.
-  virtual Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) {
+  Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) override {
     return function->PrototypeTemplate();
   }
 };
@@ -437,13 +437,13 @@ class ExistsInHiddenPrototypeContext: public DeclarationContext {
   }
 
  protected:
-  virtual v8::Local<Integer> Query(Local<Name> key) {
+  v8::Local<Integer> Query(Local<Name> key) override {
     // Let it seem that the property exists in the hidden prototype object.
     return Integer::New(isolate(), v8::None);
   }
 
   // Install the hidden prototype after the global object has been created.
-  virtual void PostInitializeContext(Local<Context> context) {
+  void PostInitializeContext(Local<Context> context) override {
     Local<Object> global_object = context->Global();
     Local<Object> hidden_proto = hidden_proto_->GetFunction(context)
                                      .ToLocalChecked()
@@ -455,7 +455,7 @@ class ExistsInHiddenPrototypeContext: public DeclarationContext {
   }
 
   // Use the hidden prototype as the holder for the interceptors.
-  virtual Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) {
+  Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) override {
     return hidden_proto_->InstanceTemplate();
   }
 

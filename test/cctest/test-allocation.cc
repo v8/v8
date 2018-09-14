@@ -37,7 +37,7 @@ class AllocationPlatform : public TestPlatform {
     // Now that it's completely constructed, make this the current platform.
     i::V8::SetPlatformForTesting(this);
   }
-  virtual ~AllocationPlatform() = default;
+  ~AllocationPlatform() override = default;
 
   void OnCriticalMemoryPressure() override { oom_callback_called = true; }
 

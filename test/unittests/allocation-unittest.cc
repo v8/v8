@@ -40,7 +40,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
 #endif
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     struct sigaction action;
     action.sa_sigaction = SignalHandler;
     sigemptyset(&action.sa_mask);
@@ -51,7 +51,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
 #endif
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // Be a good citizen and restore the old signal handler.
     sigaction(SIGSEGV, &old_action_, nullptr);
 #if V8_OS_MACOSX

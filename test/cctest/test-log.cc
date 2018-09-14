@@ -263,9 +263,9 @@ class SimpleExternalString : public v8::String::ExternalStringResource {
     for (int i = 0; i < utf_source_.length(); ++i)
       utf_source_[i] = source[i];
   }
-  virtual ~SimpleExternalString() = default;
-  virtual size_t length() const { return utf_source_.length(); }
-  virtual const uint16_t* data() const { return utf_source_.start(); }
+  ~SimpleExternalString() override = default;
+  size_t length() const override { return utf_source_.length(); }
+  const uint16_t* data() const override { return utf_source_.start(); }
  private:
   i::ScopedVector<uint16_t> utf_source_;
 };
