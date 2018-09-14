@@ -198,8 +198,8 @@ TEST(Run_WasmModule_Global) {
     TestSignatures sigs;
 
     WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-    uint32_t global1 = builder->AddGlobal(kWasmI32, 0);
-    uint32_t global2 = builder->AddGlobal(kWasmI32, 0);
+    uint32_t global1 = builder->AddGlobal(kWasmI32, false);
+    uint32_t global2 = builder->AddGlobal(kWasmI32, false);
     WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_v());
     byte code1[] = {
         WASM_I32_ADD(WASM_GET_GLOBAL(global1), WASM_GET_GLOBAL(global2))};

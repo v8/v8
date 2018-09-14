@@ -61,7 +61,7 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding);
 namespace {
 
 volatile sig_atomic_t in_signal_handler = 0;
-bool dump_stack_in_signal_handler = 1;
+bool dump_stack_in_signal_handler = true;
 
 // The prefix used for mangled symbols, per the Itanium C++ ABI:
 // http://www.codesourcery.com/cxx-abi/abi.html#mangling

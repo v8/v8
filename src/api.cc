@@ -5951,7 +5951,7 @@ HeapStatistics::HeapStatistics()
       malloced_memory_(0),
       external_memory_(0),
       peak_malloced_memory_(0),
-      does_zap_garbage_(0),
+      does_zap_garbage_(false),
       number_of_native_contexts_(0),
       number_of_detached_contexts_(0) {}
 

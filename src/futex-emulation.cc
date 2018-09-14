@@ -223,7 +223,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     }
 
     wait_list_.Pointer()->RemoveNode(node);
-  } while (0);
+  } while (false);
 
   isolate->RunAtomicsWaitCallback(callback_result, array_buffer, addr, value,
                                   rel_timeout_ms, nullptr);

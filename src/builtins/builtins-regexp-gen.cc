@@ -862,7 +862,7 @@ TNode<BoolT> RegExpBuiltinsAssembler::IsFastRegExpWithOriginalExec(
   TVARIABLE(BoolT, var_result);
 
 #ifdef V8_ENABLE_FORCE_SLOW_PATH
-  var_result = BoolConstant(0);
+  var_result = BoolConstant(false);
   GotoIfForceSlowPath(&out);
 #endif
 
