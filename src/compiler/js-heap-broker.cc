@@ -69,9 +69,34 @@ class HeapObjectData : public ObjectData {
 class PropertyCellData : public HeapObjectData {
  public:
   PropertyCellData(JSHeapBroker* broker, Handle<PropertyCell> object,
-                   HeapObjectType type)
-      : HeapObjectData(broker, object, type) {}
+                   HeapObjectType type);
+
+  PropertyDetails property_details() const { return property_details_; }
+
+  void Serialize();
+  ObjectData* value() { return value_; }
+
+ private:
+  PropertyDetails const property_details_;
+
+  bool serialized_ = false;
+  ObjectData* value_ = nullptr;
 };
+
+PropertyCellData::PropertyCellData(JSHeapBroker* broker,
+                                   Handle<PropertyCell> object,
+                                   HeapObjectType type)
+    : HeapObjectData(broker, object, type),
+      property_details_(object->property_details()) {}
+
+void PropertyCellData::Serialize() {
+  if (serialized_) return;
+  serialized_ = true;
+
+  auto cell = Handle<PropertyCell>::cast(object());
+  DCHECK_NULL(value_);
+  value_ = broker()->GetOrCreateData(cell->value());
+}
 
 class JSObjectField {
  public:
@@ -1280,6 +1305,19 @@ void JSHeapBroker::SerializeStandardObjects() {
   GetOrCreateData(f->undefined_value());
   GetOrCreateData(f->with_context_map());
 
+  // Property cells
+  GetOrCreateData(f->array_buffer_neutering_protector())
+      ->AsPropertyCell()
+      ->Serialize();
+  GetOrCreateData(f->array_iterator_protector())->AsPropertyCell()->Serialize();
+  GetOrCreateData(f->array_species_protector())->AsPropertyCell()->Serialize();
+  GetOrCreateData(f->no_elements_protector())->AsPropertyCell()->Serialize();
+  GetOrCreateData(f->promise_hook_protector())->AsPropertyCell()->Serialize();
+  GetOrCreateData(f->promise_species_protector())
+      ->AsPropertyCell()
+      ->Serialize();
+  GetOrCreateData(f->promise_then_protector())->AsPropertyCell()->Serialize();
+
   // Builtins
   {
     Builtins::Name builtins[] = {
@@ -1794,8 +1832,8 @@ BIMODAL_ACCESSOR(Map, Object, constructor_or_backpointer)
 BROKER_NATIVE_CONTEXT_FIELDS(DEF_NATIVE_CONTEXT_ACCESSOR)
 #undef DEF_NATIVE_CONTEXT_ACCESSOR
 
-HANDLE_ACCESSOR(PropertyCell, Object, value)
-HANDLE_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
+BIMODAL_ACCESSOR(PropertyCell, Object, value)
+BIMODAL_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
 
 BIMODAL_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
 BIMODAL_ACCESSOR(SharedFunctionInfo, BytecodeArray, GetBytecodeArray)

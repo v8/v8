@@ -154,8 +154,8 @@ class PropertyCellRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
 
-  ObjectRef value() const;
   PropertyDetails property_details() const;
+  ObjectRef value() const;
 };
 
 class JSObjectRef : public HeapObjectRef {

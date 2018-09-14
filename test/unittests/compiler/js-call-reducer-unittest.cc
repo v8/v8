@@ -21,10 +21,11 @@ namespace compiler {
 class JSCallReducerTest : public TypedGraphTest {
  public:
   JSCallReducerTest()
-      : TypedGraphTest(3),
-        javascript_(zone()),
-        deps_(isolate(), zone()),
-        js_heap_broker(isolate(), zone()) {}
+      : TypedGraphTest(3), javascript_(zone()), deps_(isolate(), zone()) {
+    if (FLAG_concurrent_compiler_frontend) {
+      js_heap_broker()->SerializeStandardObjects();
+    }
+  }
   ~JSCallReducerTest() override {}
 
  protected:
@@ -36,7 +37,7 @@ class JSCallReducerTest : public TypedGraphTest {
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
 
-    JSCallReducer reducer(&graph_reducer, &jsgraph, &js_heap_broker,
+    JSCallReducer reducer(&graph_reducer, &jsgraph, js_heap_broker(),
                           JSCallReducer::kNoFlags, native_context(), &deps_);
     return reducer.Reduce(node);
   }
@@ -133,7 +134,6 @@ class JSCallReducerTest : public TypedGraphTest {
  private:
   JSOperatorBuilder javascript_;
   CompilationDependencies deps_;
-  JSHeapBroker js_heap_broker;
 
   static bool old_flag_lazy_;
   static bool old_flag_lazy_handler_;
