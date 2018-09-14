@@ -15,7 +15,7 @@ import sys
 CLANG_TIDY_WARNING = re.compile(r'(\/.*?)\ .*\[(.*)\]$')
 CLANG_TIDY_CMDLINE_OUT = re.compile(r'^clang-tidy.*\ .*|^\./\.\*')
 FILE_REGEXS = ['../src/*', '../test/*']
-HEADER_REGEX = ['\.\.\/src\/*|\.\.\/include\/*|\.\.\/test\/*']
+HEADER_REGEX = ['\.\.\/src\/.*|\.\.\/include\/.*|\.\.\/test\/.*']
 
 THREADS = multiprocessing.cpu_count()
 
@@ -138,7 +138,9 @@ def ClangTidyRunAggregate(build_folder, print_files):
   """
   with open(os.devnull, 'w') as DEVNULL:
     ct_process = subprocess.Popen(
-      ['run-clang-tidy', '-j' + str(THREADS), '-p', '.'] + FILE_REGEXS,
+      ['run-clang-tidy', '-j' + str(THREADS), '-p', '.'] +
+        ['-header-filter'] + HEADER_REGEX +
+        FILE_REGEXS,
       cwd=build_folder,
       stdout=subprocess.PIPE,
       stderr=DEVNULL)
@@ -174,8 +176,19 @@ def ClangTidyRunDiff(build_folder, diff_branch, auto_fix):
     extra_args.append('-fix')
 
   with open(os.devnull, 'w') as DEVNULL:
+    """
+    The script `clang-tidy-diff` does not provide support to add header-
+    filters. To still analyze headers we use the build path option `-path` to
+    inject out header-filter option.  This works because the script just adds
+    the passed path string to the commandline of clang-tidy.
+    """
+    modified_build_folder = build_folder
+    modified_build_folder += ' -header-filter='
+    modified_build_folder += '\'' + ''.join(HEADER_REGEX) + '\''
+
     ct_ps = subprocess.Popen(
-      ['clang-tidy-diff.py', '-path', build_folder, '-p1'] + extra_args,
+      ['clang-tidy-diff.py', '-path', modified_build_folder, '-p1'] +
+        extra_args,
       stdin=git_ps.stdout,
       stdout=subprocess.PIPE,
       stderr=DEVNULL)
