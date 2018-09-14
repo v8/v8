@@ -3192,6 +3192,7 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_DATE_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
     case JS_ARRAY_TYPE:
+    case JS_FUNCTION_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
@@ -3228,9 +3229,6 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
       return kVisitJSApiObject;
-
-    case JS_FUNCTION_TYPE:
-      return kVisitJSFunction;
 
     case FILLER_TYPE:
     case FOREIGN_TYPE:

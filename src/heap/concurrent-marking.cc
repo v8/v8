@@ -191,17 +191,6 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
-  int VisitJSFunction(Map* map, JSFunction* object) {
-    int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
-    int used_size = map->UsedInstanceSize();
-    DCHECK_LE(used_size, size);
-    DCHECK_GE(used_size, JSObject::kHeaderSize);
-    const SlotSnapshot& snapshot = MakeSlotSnapshotWeak(map, object, used_size);
-    if (!ShouldVisit(object)) return 0;
-    VisitPointersInSnapshot(object, snapshot);
-    return size;
-  }
-
   // ===========================================================================
   // Strings with pointers =====================================================
   // ===========================================================================
@@ -466,14 +455,6 @@ class ConcurrentMarkingVisitor final
     return slot_snapshot_;
   }
 
-  template <typename T>
-  const SlotSnapshot& MakeSlotSnapshotWeak(Map* map, T* object, int size) {
-    SlotSnapshottingVisitor visitor(&slot_snapshot_);
-    visitor.VisitPointer(object,
-                         reinterpret_cast<Object**>(object->map_slot()));
-    T::BodyDescriptorWeak::IterateBody(map, object, size, &visitor);
-    return slot_snapshot_;
-  }
   ConcurrentMarking::MarkingWorklist::View shared_;
   ConcurrentMarking::MarkingWorklist::View bailout_;
   WeakObjects* weak_objects_;
