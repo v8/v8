@@ -2556,12 +2556,12 @@ std::ostream& operator<<(std::ostream& os, const Brief& v) {
   HeapObject* heap_object;
   if (maybe_object->ToSmi(&smi)) {
     smi->SmiPrint(os);
-  } else if (maybe_object->IsCleared()) {
+  } else if (maybe_object->IsClearedWeakHeapObject()) {
     os << "[cleared]";
-  } else if (maybe_object->GetHeapObjectIfWeak(&heap_object)) {
+  } else if (maybe_object->ToWeakHeapObject(&heap_object)) {
     os << "[weak] ";
     heap_object->HeapObjectShortPrint(os);
-  } else if (maybe_object->GetHeapObjectIfStrong(&heap_object)) {
+  } else if (maybe_object->ToStrongHeapObject(&heap_object)) {
     heap_object->HeapObjectShortPrint(os);
   } else {
     UNREACHABLE();
@@ -3947,14 +3947,14 @@ MaybeObjectHandle Map::WrapFieldType(Isolate* isolate, Handle<FieldType> type) {
 
 // static
 FieldType* Map::UnwrapFieldType(MaybeObject* wrapped_type) {
-  if (wrapped_type->IsCleared()) {
+  if (wrapped_type->IsClearedWeakHeapObject()) {
     return FieldType::None();
   }
   HeapObject* heap_object;
-  if (wrapped_type->GetHeapObjectIfWeak(&heap_object)) {
+  if (wrapped_type->ToWeakHeapObject(&heap_object)) {
     return FieldType::cast(heap_object);
   }
-  return wrapped_type->cast<FieldType>();
+  return FieldType::cast(wrapped_type->ToObject());
 }
 
 MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, Handle<Map> map,
@@ -4718,7 +4718,7 @@ void Map::UpdateFieldType(Isolate* isolate, int descriptor, Handle<Name> name,
                           PropertyConstness new_constness,
                           Representation new_representation,
                           const MaybeObjectHandle& new_wrapped_type) {
-  DCHECK(new_wrapped_type->IsSmi() || new_wrapped_type->IsWeak());
+  DCHECK(new_wrapped_type->IsSmi() || new_wrapped_type->IsWeakHeapObject());
   // We store raw pointers in the queue, so no allocations are allowed.
   DisallowHeapAllocation no_allocation;
   PropertyDetails details = instance_descriptors()->GetDetails(descriptor);
@@ -6410,7 +6410,7 @@ MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
   DisallowHeapAllocation no_gc;
   MaybeObject* value = WeakFixedArray::Get(GetIndex(fast_map));
   HeapObject* heap_object;
-  if (!value->GetHeapObjectIfWeak(&heap_object)) {
+  if (!value->ToWeakHeapObject(&heap_object)) {
     return MaybeHandle<Map>();
   }
 
@@ -10098,7 +10098,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
         // READ_ONLY is an invalid attribute for JS setters/getters.
         HeapObject* heap_object;
         if (details.kind() != kAccessor ||
-            !(value_or_field_type->GetHeapObjectIfStrong(&heap_object) &&
+            !(value_or_field_type->ToStrongHeapObject(&heap_object) &&
               heap_object->IsAccessorPair())) {
           mask |= READ_ONLY;
         }
@@ -10389,7 +10389,7 @@ Handle<WeakArrayList> WeakArrayList::EnsureSpace(Isolate* isolate,
 int WeakArrayList::CountLiveWeakReferences() const {
   int live_weak_references = 0;
   for (int i = 0; i < length(); i++) {
-    if (Get(i)->IsWeak()) {
+    if (Get(i)->IsWeakHeapObject()) {
       ++live_weak_references;
     }
   }
@@ -10442,7 +10442,7 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
   if (empty_slot != kNoEmptySlotsMarker) {
     DCHECK_GE(empty_slot, kFirstIndex);
     CHECK_LT(empty_slot, array->length());
-    int next_empty_slot = Smi::ToInt(array->Get(empty_slot)->cast<Smi>());
+    int next_empty_slot = Smi::ToInt(array->Get(empty_slot)->ToSmi());
 
     array->Set(empty_slot, HeapObjectReference::Weak(*value));
     if (assigned_index != nullptr) *assigned_index = empty_slot;
@@ -10481,13 +10481,11 @@ WeakArrayList* PrototypeUsers::Compact(Handle<WeakArrayList> array, Heap* heap,
   int copy_to = kFirstIndex;
   for (int i = kFirstIndex; i < array->length(); i++) {
     MaybeObject* element = array->Get(i);
-    HeapObject* value;
-    if (element->GetHeapObjectIfWeak(&value)) {
-      callback(value, i, copy_to);
-      new_array->Set(copy_to++, element);
-    } else {
-      DCHECK(element->IsCleared() || element->IsSmi());
-    }
+    if (element->IsSmi()) continue;
+    if (element->IsClearedWeakHeapObject()) continue;
+    HeapObject* value = element->ToWeakHeapObject();
+    callback(value, i, copy_to);
+    new_array->Set(copy_to++, element);
   }
   new_array->set_length(copy_to);
   set_empty_slot_index(*new_array, kNoEmptySlotsMarker);
@@ -12669,7 +12667,7 @@ void InvalidatePrototypeChainsInternal(Map* map) {
   for (int i = PrototypeUsers::kFirstIndex; i < prototype_users->length();
        ++i) {
     HeapObject* heap_object;
-    if (prototype_users->Get(i)->GetHeapObjectIfWeak(&heap_object) &&
+    if (prototype_users->Get(i)->ToWeakHeapObject(&heap_object) &&
         heap_object->IsMap()) {
       // Walk the prototype chain (backwards, towards leaf objects) if
       // necessary.
@@ -13610,7 +13608,7 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   MaybeObject* shared =
       shared_function_infos()->Get(fun->function_literal_id());
   HeapObject* heap_object;
-  if (!shared->GetHeapObject(&heap_object) ||
+  if (!shared->ToStrongOrWeakHeapObject(&heap_object) ||
       heap_object->IsUndefined(isolate)) {
     return MaybeHandle<SharedFunctionInfo>();
   }
@@ -13690,7 +13688,7 @@ SharedFunctionInfo* SharedFunctionInfo::ScriptIterator::Next() {
   while (index_ < shared_function_infos_->length()) {
     MaybeObject* raw = shared_function_infos_->Get(index_++);
     HeapObject* heap_object;
-    if (!raw->GetHeapObject(&heap_object) ||
+    if (!raw->ToStrongOrWeakHeapObject(&heap_object) ||
         heap_object->IsUndefined(isolate_)) {
       continue;
     }
@@ -13746,7 +13744,7 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
     DCHECK_LT(function_literal_id, list->length());
     MaybeObject* maybe_object = list->Get(function_literal_id);
     HeapObject* heap_object;
-    if (maybe_object->GetHeapObjectIfWeak(&heap_object)) {
+    if (maybe_object->ToWeakHeapObject(&heap_object)) {
       DCHECK_EQ(heap_object, *shared);
     }
 #endif
@@ -13786,7 +13784,7 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
       MaybeObject* raw =
           old_script->shared_function_infos()->Get(function_literal_id);
       HeapObject* heap_object;
-      if (raw->GetHeapObjectIfWeak(&heap_object) && heap_object == *shared) {
+      if (raw->ToWeakHeapObject(&heap_object) && heap_object == *shared) {
         old_script->shared_function_infos()->Set(
             function_literal_id, HeapObjectReference::Strong(
                                      ReadOnlyRoots(isolate).undefined_value()));
@@ -15195,7 +15193,7 @@ bool DependentCode::Compact() {
   int new_count = 0;
   for (int i = 0; i < old_count; i++) {
     MaybeObject* obj = object_at(i);
-    if (!obj->IsCleared()) {
+    if (!obj->IsClearedWeakHeapObject()) {
       if (i != new_count) {
         copy(i, new_count);
       }
@@ -15227,8 +15225,8 @@ bool DependentCode::MarkCodeForDeoptimization(
   int count = this->count();
   for (int i = 0; i < count; i++) {
     MaybeObject* obj = object_at(i);
-    if (obj->IsCleared()) continue;
-    Code* code = Code::cast(obj->GetHeapObjectAssumeWeak());
+    if (obj->IsClearedWeakHeapObject()) continue;
+    Code* code = Code::cast(obj->ToWeakHeapObject());
     if (!code->marked_for_deoptimization()) {
       code->SetMarkedForDeoptimization(DependencyGroupName(group));
       marked = true;
@@ -17311,7 +17309,8 @@ int SearchLiteralsMapEntry(CompilationCacheTable* cache, int cache_entry,
     WeakFixedArray* literals_map = WeakFixedArray::cast(obj);
     int length = literals_map->length();
     for (int i = 0; i < length; i += kLiteralEntryLength) {
-      DCHECK(literals_map->Get(i + kLiteralContextOffset)->IsWeakOrCleared());
+      DCHECK(literals_map->Get(i + kLiteralContextOffset)
+                 ->IsWeakOrClearedHeapObject());
       if (literals_map->Get(i + kLiteralContextOffset) ==
           HeapObjectReference::Weak(native_context)) {
         return i;
@@ -17353,7 +17352,8 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
     DCHECK_LT(entry, 0);
     int length = old_literals_map->length();
     for (int i = 0; i < length; i += kLiteralEntryLength) {
-      if (old_literals_map->Get(i + kLiteralContextOffset)->IsCleared()) {
+      if (old_literals_map->Get(i + kLiteralContextOffset)
+              ->IsClearedWeakHeapObject()) {
         new_literals_map = old_literals_map;
         entry = i;
         break;
@@ -17376,11 +17376,11 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
 #ifdef DEBUG
   for (int i = 0; i < new_literals_map->length(); i += kLiteralEntryLength) {
     MaybeObject* object = new_literals_map->Get(i + kLiteralContextOffset);
-    DCHECK(object->IsCleared() ||
-           object->GetHeapObjectAssumeWeak()->IsNativeContext());
+    DCHECK(object->IsClearedWeakHeapObject() ||
+           object->ToWeakHeapObject()->IsNativeContext());
     object = new_literals_map->Get(i + kLiteralLiteralsOffset);
-    DCHECK(object->IsCleared() ||
-           object->GetHeapObjectAssumeWeak()->IsFeedbackCell());
+    DCHECK(object->IsClearedWeakHeapObject() ||
+           object->ToWeakHeapObject()->IsFeedbackCell());
   }
 #endif
 
@@ -17400,9 +17400,9 @@ FeedbackCell* SearchLiteralsMap(CompilationCacheTable* cache, int cache_entry,
     DCHECK_LE(entry + kLiteralEntryLength, literals_map->length());
     MaybeObject* object = literals_map->Get(entry + kLiteralLiteralsOffset);
 
-    result = object->IsCleared()
+    result = object->IsClearedWeakHeapObject()
                  ? nullptr
-                 : FeedbackCell::cast(object->GetHeapObjectAssumeWeak());
+                 : FeedbackCell::cast(object->ToWeakHeapObject());
   }
   DCHECK(result == nullptr || result->IsFeedbackCell());
   return result;

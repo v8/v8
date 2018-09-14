@@ -95,10 +95,10 @@ void Object::VerifyPointer(Isolate* isolate, Object* p) {
 
 void MaybeObject::VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject* p) {
   HeapObject* heap_object;
-  if (p->GetHeapObject(&heap_object)) {
+  if (p->ToStrongOrWeakHeapObject(&heap_object)) {
     HeapObject::VerifyHeapPointer(isolate, heap_object);
   } else {
-    CHECK(p->IsSmi() || p->IsCleared());
+    CHECK(p->IsSmi() || p->IsClearedWeakHeapObject());
   }
 }
 
@@ -449,7 +449,8 @@ void FeedbackVector::FeedbackVectorVerify(Isolate* isolate) {
   CHECK(IsFeedbackVector());
   MaybeObject* code = optimized_code_weak_or_smi();
   MaybeObject::VerifyMaybeObjectPointer(isolate, code);
-  CHECK(code->IsSmi() || code->IsWeakOrCleared());
+  CHECK(code->IsSmi() || code->IsClearedWeakHeapObject() ||
+        code->IsWeakHeapObject());
 }
 
 template <class Traits>
@@ -717,7 +718,7 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
 
     // Check that properties with private symbols names are non-enumerable.
     for (int descriptor = 0; descriptor < nof_descriptors; descriptor++) {
-      Object* key = get(ToKeyIndex(descriptor))->cast<Object>();
+      Object* key = get(ToKeyIndex(descriptor))->ToObject();
       // number_of_descriptors() may be out of sync with the actual descriptors
       // written during descriptor array construction.
       if (key->IsUndefined(isolate)) continue;
@@ -728,14 +729,13 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
       MaybeObject* value = get(ToValueIndex(descriptor));
       HeapObject* heap_object;
       if (details.location() == kField) {
-        CHECK(
-            value == MaybeObject::FromObject(FieldType::None()) ||
-            value == MaybeObject::FromObject(FieldType::Any()) ||
-            value->IsCleared() ||
-            (value->GetHeapObjectIfWeak(&heap_object) && heap_object->IsMap()));
+        CHECK(value == MaybeObject::FromObject(FieldType::None()) ||
+              value == MaybeObject::FromObject(FieldType::Any()) ||
+              value->IsClearedWeakHeapObject() ||
+              (value->ToWeakHeapObject(&heap_object) && heap_object->IsMap()));
       } else {
-        CHECK(!value->IsWeakOrCleared());
-        CHECK(!value->cast<Object>()->IsMap());
+        CHECK(!value->IsWeakOrClearedHeapObject());
+        CHECK(!value->ToObject()->IsMap());
       }
     }
   }
@@ -1589,7 +1589,7 @@ void PrototypeUsers::Verify(WeakArrayList* array) {
   while (empty_slot != kNoEmptySlotsMarker) {
     CHECK_GT(empty_slot, 0);
     CHECK_LT(empty_slot, array->length());
-    empty_slot = Smi::ToInt(array->Get(empty_slot)->cast<Smi>());
+    empty_slot = Smi::ToInt(array->Get(empty_slot)->ToSmi());
     ++empty_slots_count;
   }
 
@@ -1599,8 +1599,8 @@ void PrototypeUsers::Verify(WeakArrayList* array) {
   for (int i = kFirstIndex; i < array->length(); ++i) {
     HeapObject* heap_object;
     MaybeObject* object = array->Get(i);
-    if ((object->GetHeapObjectIfWeak(&heap_object) && heap_object->IsMap()) ||
-        object->IsCleared()) {
+    if ((object->ToWeakHeapObject(&heap_object) && heap_object->IsMap()) ||
+        object->IsClearedWeakHeapObject()) {
       ++weak_maps_count;
     } else {
       CHECK(object->IsSmi());
@@ -1814,8 +1814,9 @@ void Script::ScriptVerify(Isolate* isolate) {
   for (int i = 0; i < shared_function_infos()->length(); ++i) {
     MaybeObject* maybe_object = shared_function_infos()->Get(i);
     HeapObject* heap_object;
-    CHECK(maybe_object->IsWeak() || maybe_object->IsCleared() ||
-          (maybe_object->GetHeapObjectIfStrong(&heap_object) &&
+    CHECK(maybe_object->IsWeakHeapObject() ||
+          maybe_object->IsClearedWeakHeapObject() ||
+          (maybe_object->ToStrongHeapObject(&heap_object) &&
            heap_object->IsUndefined(isolate)));
   }
 }
@@ -1826,11 +1827,12 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
     for (int i = 0; i < length(); i++) {
       MaybeObject* e = WeakFixedArray::Get(i);
       HeapObject* heap_object;
-      if (e->GetHeapObjectIfWeak(&heap_object)) {
+      if (e->ToWeakHeapObject(&heap_object)) {
         Map::cast(heap_object)->DictionaryMapVerify(isolate);
       } else {
-        CHECK(e->IsCleared() || (e->GetHeapObjectIfStrong(&heap_object) &&
-                                 heap_object->IsUndefined(isolate)));
+        CHECK(e->IsClearedWeakHeapObject() ||
+              (e->ToStrongHeapObject(&heap_object) &&
+               heap_object->IsUndefined(isolate)));
       }
     }
   }

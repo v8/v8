@@ -423,8 +423,7 @@ TEST(InterpreterBinaryOpsBigInt) {
         CHECK(return_value->IsBigInt());
         MaybeObject* feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(BinaryOperationFeedback::kBigInt,
-                 feedback->cast<Smi>()->value());
+        CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback->ToSmi()->value());
       }
     }
   }
@@ -544,7 +543,7 @@ TEST(InterpreterStringAdd) {
 
     MaybeObject* feedback = callable.vector()->Get(slot);
     CHECK(feedback->IsSmi());
-    CHECK_EQ(test_cases[i].expected_feedback, feedback->cast<Smi>()->value());
+    CHECK_EQ(test_cases[i].expected_feedback, feedback->ToSmi()->value());
   }
 }
 
@@ -749,7 +748,7 @@ TEST(InterpreterBinaryOpTypeFeedback) {
     Handle<Object> return_val = callable().ToHandleChecked();
     MaybeObject* feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
-    CHECK_EQ(test_case.feedback, feedback0->cast<Smi>()->value());
+    CHECK_EQ(test_case.feedback, feedback0->ToSmi()->value());
     CHECK(Object::Equals(isolate, test_case.result, return_val).ToChecked());
   }
 }
@@ -855,7 +854,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
     Handle<Object> return_val = callable().ToHandleChecked();
     MaybeObject* feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
-    CHECK_EQ(test_case.feedback, feedback0->cast<Smi>()->value());
+    CHECK_EQ(test_case.feedback, feedback0->ToSmi()->value());
     CHECK(Object::Equals(isolate, test_case.result, return_val).ToChecked());
   }
 }
@@ -927,23 +926,23 @@ TEST(InterpreterUnaryOpFeedback) {
     MaybeObject* feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
     CHECK_EQ(BinaryOperationFeedback::kSignedSmall,
-             feedback0->cast<Smi>()->value());
+             feedback0->ToSmi()->value());
 
     MaybeObject* feedback1 = callable.vector()->Get(slot1);
     CHECK(feedback1->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->ToSmi()->value());
 
     MaybeObject* feedback2 = callable.vector()->Get(slot2);
     CHECK(feedback2->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback2->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback2->ToSmi()->value());
 
     MaybeObject* feedback3 = callable.vector()->Get(slot3);
     CHECK(feedback3->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback3->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback3->ToSmi()->value());
 
     MaybeObject* feedback4 = callable.vector()->Get(slot4);
     CHECK(feedback4->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kAny, feedback4->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kAny, feedback4->ToSmi()->value());
   }
 }
 
@@ -989,15 +988,15 @@ TEST(InterpreterBitwiseTypeFeedback) {
     MaybeObject* feedback0 = callable.vector()->Get(slot0);
     CHECK(feedback0->IsSmi());
     CHECK_EQ(BinaryOperationFeedback::kSignedSmall,
-             feedback0->cast<Smi>()->value());
+             feedback0->ToSmi()->value());
 
     MaybeObject* feedback1 = callable.vector()->Get(slot1);
     CHECK(feedback1->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->ToSmi()->value());
 
     MaybeObject* feedback2 = callable.vector()->Get(slot2);
     CHECK(feedback2->IsSmi());
-    CHECK_EQ(BinaryOperationFeedback::kAny, feedback2->cast<Smi>()->value());
+    CHECK_EQ(BinaryOperationFeedback::kAny, feedback2->ToSmi()->value());
   }
 }
 
@@ -1819,7 +1818,7 @@ TEST(InterpreterSmiComparisons) {
         MaybeObject* feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
         CHECK_EQ(CompareOperationFeedback::kSignedSmall,
-                 feedback->cast<Smi>()->value());
+                 feedback->ToSmi()->value());
       }
     }
   }
@@ -1867,8 +1866,7 @@ TEST(InterpreterHeapNumberComparisons) {
                  CompareC(comparison, inputs[i], inputs[j]));
         MaybeObject* feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kNumber,
-                 feedback->cast<Smi>()->value());
+        CHECK_EQ(CompareOperationFeedback::kNumber, feedback->ToSmi()->value());
       }
     }
   }
@@ -1910,8 +1908,7 @@ TEST(InterpreterBigIntComparisons) {
         CHECK(return_value->IsBoolean());
         MaybeObject* feedback = callable.vector()->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kBigInt,
-                 feedback->cast<Smi>()->value());
+        CHECK_EQ(CompareOperationFeedback::kBigInt, feedback->ToSmi()->value());
       }
     }
   }
@@ -1962,7 +1959,7 @@ TEST(InterpreterStringComparisons) {
             Token::IsOrderedRelationalCompareOp(comparison)
                 ? CompareOperationFeedback::kString
                 : CompareOperationFeedback::kInternalizedString;
-        CHECK_EQ(expected_feedback, feedback->cast<Smi>()->value());
+        CHECK_EQ(expected_feedback, feedback->ToSmi()->value());
       }
     }
   }
@@ -2075,7 +2072,7 @@ TEST(InterpreterMixedComparisons) {
             CHECK(feedback->IsSmi());
             // Comparison with a number and string collects kAny feedback.
             CHECK_EQ(CompareOperationFeedback::kAny,
-                     feedback->cast<Smi>()->value());
+                     feedback->ToSmi()->value());
           }
         }
       }

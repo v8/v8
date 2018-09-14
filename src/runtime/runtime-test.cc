@@ -538,18 +538,17 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   MaybeObject* maybe_object = reinterpret_cast<MaybeObject*>(args[0]);
 
   StdoutStream os;
-  if (maybe_object->IsCleared()) {
+  if (maybe_object->IsClearedWeakHeapObject()) {
     os << "[weak cleared]";
   } else {
     Object* object;
-    HeapObject* heap_object;
     bool weak = false;
-    if (maybe_object->GetHeapObjectIfWeak(&heap_object)) {
+    if (maybe_object->IsWeakHeapObject()) {
       weak = true;
-      object = heap_object;
+      object = maybe_object->ToWeakHeapObject();
     } else {
       // Strong reference or SMI.
-      object = maybe_object->cast<Object>();
+      object = maybe_object->ToObject();
     }
 
 #ifdef DEBUG
@@ -997,7 +996,7 @@ RUNTIME_FUNCTION(Runtime_WasmGetNumberOfInstances) {
   int instance_count = 0;
   WeakArrayList* weak_instance_list = module_obj->weak_instance_list();
   for (int i = 0; i < weak_instance_list->length(); ++i) {
-    if (weak_instance_list->Get(i)->IsWeak()) instance_count++;
+    if (weak_instance_list->Get(i)->IsWeakHeapObject()) instance_count++;
   }
   return Smi::FromInt(instance_count);
 }

@@ -116,9 +116,11 @@ void FeedbackVector::increment_deopt_count() {
 
 Code* FeedbackVector::optimized_code() const {
   MaybeObject* slot = optimized_code_weak_or_smi();
-  DCHECK(slot->IsSmi() || slot->IsWeakOrCleared());
+  DCHECK(slot->IsSmi() || slot->IsClearedWeakHeapObject() ||
+         slot->IsWeakHeapObject());
   HeapObject* heap_object;
-  return slot->GetHeapObject(&heap_object) ? Code::cast(heap_object) : nullptr;
+  return slot->ToStrongOrWeakHeapObject(&heap_object) ? Code::cast(heap_object)
+                                                      : nullptr;
 }
 
 OptimizationMarker FeedbackVector::optimization_marker() const {
@@ -277,8 +279,8 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       case FeedbackSlotKind::kTypeProfile: {
         HeapObject* heap_object;
-        if (obj->IsWeakOrCleared() ||
-            (obj->GetHeapObjectIfStrong(&heap_object) &&
+        if (obj->IsWeakOrClearedHeapObject() ||
+            (obj->ToStrongHeapObject(&heap_object) &&
              (heap_object->IsWeakFixedArray() || heap_object->IsString()))) {
           with++;
         } else if (obj == megamorphic_sentinel) {
@@ -289,7 +291,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         break;
       }
       case FeedbackSlotKind::kBinaryOp: {
-        int const feedback = Smi::ToInt(obj->cast<Smi>());
+        int const feedback = Smi::ToInt(obj->ToSmi());
         BinaryOperationHint hint = BinaryOperationHintFromFeedback(feedback);
         if (hint == BinaryOperationHint::kAny) {
           gen++;
@@ -301,7 +303,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         break;
       }
       case FeedbackSlotKind::kCompareOp: {
-        int const feedback = Smi::ToInt(obj->cast<Smi>());
+        int const feedback = Smi::ToInt(obj->ToSmi());
         CompareOperationHint hint = CompareOperationHintFromFeedback(feedback);
         if (hint == CompareOperationHint::kAny) {
           gen++;
@@ -313,7 +315,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         break;
       }
       case FeedbackSlotKind::kForIn: {
-        int const feedback = Smi::ToInt(obj->cast<Smi>());
+        int const feedback = Smi::ToInt(obj->ToSmi());
         ForInHint hint = ForInHintFromFeedback(feedback);
         if (hint == ForInHint::kAny) {
           gen++;
@@ -325,7 +327,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         break;
       }
       case FeedbackSlotKind::kInstanceOf: {
-        if (obj->IsWeakOrCleared()) {
+        if (obj->IsWeakOrClearedHeapObject()) {
           with++;
         } else if (obj == megamorphic_sentinel) {
           gen++;

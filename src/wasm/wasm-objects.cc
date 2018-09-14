@@ -260,9 +260,9 @@ bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
                                            isolate);
   for (int i = 0; i < weak_instance_list->length(); ++i) {
     MaybeObject* maybe_instance = weak_instance_list->Get(i);
-    if (maybe_instance->IsWeak()) {
+    if (maybe_instance->IsWeakHeapObject()) {
       Handle<WasmInstanceObject> instance(
-          WasmInstanceObject::cast(maybe_instance->GetHeapObjectAssumeWeak()),
+          WasmInstanceObject::cast(maybe_instance->ToWeakHeapObject()),
           isolate);
       Handle<WasmDebugInfo> debug_info =
           WasmInstanceObject::GetOrCreateDebugInfo(instance);
@@ -1073,12 +1073,12 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     for (int i = 0; i < instances->length(); i++) {
       MaybeObject* elem = instances->Get(i);
       HeapObject* heap_object;
-      if (elem->GetHeapObjectIfWeak(&heap_object)) {
+      if (elem->ToWeakHeapObject(&heap_object)) {
         Handle<WasmInstanceObject> instance(
             WasmInstanceObject::cast(heap_object), isolate);
         SetInstanceMemory(instance, new_buffer);
       } else {
-        DCHECK(elem->IsCleared());
+        DCHECK(elem->IsClearedWeakHeapObject());
       }
     }
   }

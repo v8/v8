@@ -729,7 +729,8 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(
     HeapObject* host, MaybeObject** start, MaybeObject** end) {
   MaybeObject** current = start;
   while (current < end) {
-    while (current < end && ((*current)->IsSmi() || (*current)->IsCleared())) {
+    while (current < end &&
+           ((*current)->IsSmi() || (*current)->IsClearedWeakHeapObject())) {
       current++;
     }
     if (current < end) {
@@ -737,8 +738,8 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(
     }
     HeapObject* current_contents;
     HeapObjectReferenceType reference_type;
-    while (current < end &&
-           (*current)->GetHeapObject(&current_contents, &reference_type)) {
+    while (current < end && (*current)->ToStrongOrWeakHeapObject(
+                                &current_contents, &reference_type)) {
       int root_index = serializer_->root_index_map()->Lookup(current_contents);
       // Repeats are not subject to the write barrier so we can only use
       // immortal immovable root members. They are never in new space.
