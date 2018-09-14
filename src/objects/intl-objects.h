@@ -89,6 +89,13 @@ class Intl {
   static bool RemoveLocaleScriptTag(const std::string& icu_locale,
                                     std::string* locale_less_script);
 
+  struct ResolvedLocale {
+    std::string locale;  // The bcp47 locale to use.
+    std::string unicode_extensions;
+    std::map<std::string, std::string> extensions;
+    std::string locale_with_extensions;
+  };
+
   // The ResolveLocale abstract operation compares a BCP 47 language
   // priority list requestedLocales against the locales in
   // availableLocales and determines the best available language to
@@ -98,14 +105,15 @@ class Intl {
   //
   // #ecma402/sec-partitiondatetimepattern
   //
-  // Returns a JSObject with two properties:
+  // Returns an object with two properties:
   //   (1) locale
   //   (2) extension
-  //
-  // To access either, use JSObject::GetDataProperty.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolveLocale(
-      Isolate* isolate, const char* service, Handle<Object> requestedLocales,
-      Handle<Object> options);
+  V8_WARN_UNUSED_RESULT static Maybe<ResolvedLocale*> ResolveLocale(
+      Isolate* isolate, const char* service,
+      const std::set<std::string>& available_locales,
+      const std::vector<std::string>& requested_locales,
+      const std::set<std::string>& relevant_extension_keys,
+      Handle<JSReceiver> options);
 
   // This currently calls out to the JavaScript implementation of
   // CanonicalizeLocaleList.

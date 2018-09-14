@@ -59,7 +59,10 @@ MaybeHandle<JSRelativeTimeFormat>
 JSRelativeTimeFormat::InitializeRelativeTimeFormat(
     Isolate* isolate, Handle<JSRelativeTimeFormat> relative_time_format_holder,
     Handle<Object> input_locales, Handle<Object> input_options) {
-  Factory* factory = isolate->factory();
+  Maybe<std::vector<std::string>> requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, input_locales, false);
+  MAYBE_RETURN(requested_locales, MaybeHandle<JSRelativeTimeFormat>());
+
   relative_time_format_holder->set_flags(0);
   // 4. If options is undefined, then
   Handle<JSReceiver> options;
@@ -78,17 +81,20 @@ JSRelativeTimeFormat::InitializeRelativeTimeFormat(
   //                            requestedLocales, opt,
   //                            %RelativeTimeFormat%.[[RelevantExtensionKeys]],
   //                            localeData).
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, r,
-                             Intl::ResolveLocale(isolate, "relativetimeformat",
-                                                 input_locales, options),
-                             JSRelativeTimeFormat);
-  Handle<Object> locale_obj =
-      JSObject::GetDataProperty(r, factory->locale_string());
-  Handle<String> locale;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, locale,
-                             Object::ToString(isolate, locale_obj),
-                             JSRelativeTimeFormat);
+  std::set<std::string> available_locales =
+      Intl::GetAvailableLocales(IcuService::kRelativeDateTimeFormatter);
+  // 13.3.3 Internal slots
+  // The value of the [[RelevantExtensionKeys]] internal slot is [].
+  const std::set<std::string> relevant_extension_keys;
+  Maybe<Intl::ResolvedLocale*> maybe_resolved_locale = Intl::ResolveLocale(
+      isolate, "relativetimeformat", available_locales,
+      requested_locales.FromJust(), relevant_extension_keys, options);
+  MAYBE_RETURN(maybe_resolved_locale, MaybeHandle<JSRelativeTimeFormat>());
+  std::unique_ptr<Intl::ResolvedLocale> r(maybe_resolved_locale.FromJust());
+  CHECK_NOT_NULL(r.get());
+
+  Handle<String> locale =
+      isolate->factory()->NewStringFromAsciiChecked(r.get()->locale.c_str());
 
   // 11. Let locale be r.[[Locale]].
   // 12. Set relativeTimeFormat.[[Locale]] to locale.

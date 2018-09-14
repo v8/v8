@@ -189,10 +189,9 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   number_format->set_flags(0);
   Factory* factory = isolate->factory();
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
-  Handle<JSObject> requested_locales;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, requested_locales,
-                             Intl::CanonicalizeLocaleListJS(isolate, locales),
-                             JSNumberFormat);
+  Maybe<std::vector<std::string>> requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, locales, false);
+  MAYBE_RETURN(requested_locales, MaybeHandle<JSNumberFormat>());
 
   // 2. If options is undefined, then
   if (options_obj->IsUndefined(isolate)) {
@@ -212,6 +211,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
 
   // 4. Let opt be a new Record.
   //
+  // Steps 5 and 6 are currently done as part of the
+  // Intl::ResolveLocale call below.
   // 5. Let matcher be ? GetOption(options, "localeMatcher", "string", «
   // "lookup", "best fit" », "best fit").
   //
@@ -225,29 +226,26 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   //
   // 9. Set numberFormat.[[Locale]] to r.[[locale]].
 
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, r,
-      Intl::ResolveLocale(isolate, "numberformat", requested_locales, options),
-      JSNumberFormat);
+  std::set<std::string> available_locales =
+      Intl::GetAvailableLocales(IcuService::kNumberFormat);
+  // 13.3.3 Internal slots
+  // https://tc39.github.io/ecma402/#sec-intl.numberformat-internal-slots
+  const std::set<std::string> relevant_extension_keys{"nu"};
+  Maybe<Intl::ResolvedLocale*> maybe_resolved_locale = Intl::ResolveLocale(
+      isolate, "numberformat", available_locales, requested_locales.FromJust(),
+      relevant_extension_keys, options);
+  MAYBE_RETURN(maybe_resolved_locale, MaybeHandle<JSNumberFormat>());
+  std::unique_ptr<Intl::ResolvedLocale> r(maybe_resolved_locale.FromJust());
+  CHECK_NOT_NULL(r.get());
 
-  Handle<String> locale_with_extension_str =
-      isolate->factory()->NewStringFromStaticChars("localeWithExtension");
-  Handle<Object> locale_with_extension_obj =
-      JSObject::GetDataProperty(r, locale_with_extension_str);
+  std::string locale_with_extension = r.get()->locale_with_extensions;
+  Handle<String> locale = isolate->factory()->NewStringFromAsciiChecked(
+      locale_with_extension.c_str());
 
-  // The locale_with_extension has to be a string. Either a user
-  // provided canonicalized string or the default locale.
-  CHECK(locale_with_extension_obj->IsString());
-  Handle<String> locale_with_extension =
-      Handle<String>::cast(locale_with_extension_obj);
-
-  icu::Locale icu_locale =
-      Intl::CreateICULocale(isolate, locale_with_extension);
-  number_format->set_locale(*locale_with_extension);
+  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
+  number_format->set_locale(*locale);
   DCHECK(!icu_locale.isBogus());
 
-  std::set<std::string> relevant_extension_keys{"nu"};
   std::map<std::string, std::string> extensions =
       Intl::LookupUnicodeExtensions(icu_locale, relevant_extension_keys);
 

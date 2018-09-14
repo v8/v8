@@ -221,10 +221,9 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
     Isolate* isolate, Handle<JSCollator> collator, Handle<Object> locales,
     Handle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
-  Handle<JSObject> requested_locales;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, requested_locales,
-                             Intl::CanonicalizeLocaleListJS(isolate, locales),
-                             JSCollator);
+  Maybe<std::vector<std::string>> requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, locales, false);
+  MAYBE_RETURN(requested_locales, MaybeHandle<JSCollator>());
 
   // 2. If options is undefined, then
   if (options_obj->IsUndefined(isolate)) {
@@ -257,10 +256,7 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
     }
   }
 
-  // TODO(gsathya): This is currently done as part of the
-  // Intl::ResolveLocale call below. Fix this once resolveLocale is
-  // changed to not do the lookup.
-  //
+  // Steps 9 and 10 are done as part of the Intl::ResolveLocale call below.
   // 9. Let matcher be ? GetOption(options, "localeMatcher", "string",
   // « "lookup", "best fit" », "best fit").
   // 10. Set opt.[[localeMatcher]] to matcher.
@@ -316,25 +312,20 @@ MaybeHandle<JSCollator> JSCollator::InitializeCollator(
   // requestedLocales, opt, %Collator%.[[RelevantExtensionKeys]],
   // localeData).
   // 18. Set collator.[[Locale]] to r.[[locale]].
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, r,
-      Intl::ResolveLocale(isolate, "collator", requested_locales, options),
-      JSCollator);
+  std::set<std::string> available_locales =
+      Intl::GetAvailableLocales(IcuService::kCollator);
+  Maybe<Intl::ResolvedLocale*> maybe_resolved_locale = Intl::ResolveLocale(
+      isolate, "collator", available_locales, requested_locales.FromJust(),
+      relevant_extension_keys, options);
+  MAYBE_RETURN(maybe_resolved_locale, MaybeHandle<JSCollator>());
+  std::unique_ptr<Intl::ResolvedLocale> r(maybe_resolved_locale.FromJust());
+  CHECK_NOT_NULL(r.get());
 
-  Handle<String> locale_with_extension_str =
-      isolate->factory()->NewStringFromStaticChars("localeWithExtension");
-  Handle<Object> locale_with_extension_obj =
-      JSObject::GetDataProperty(r, locale_with_extension_str);
+  std::string locale_with_extension = r.get()->locale_with_extensions;
+  Handle<String> locale = isolate->factory()->NewStringFromAsciiChecked(
+      locale_with_extension.c_str());
 
-  // The locale_with_extension has to be a string. Either a user
-  // provided canonicalized string or the default locale.
-  CHECK(locale_with_extension_obj->IsString());
-  Handle<String> locale_with_extension =
-      Handle<String>::cast(locale_with_extension_obj);
-
-  icu::Locale icu_locale =
-      Intl::CreateICULocale(isolate, locale_with_extension);
+  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
   DCHECK(!icu_locale.isBogus());
 
   std::map<std::string, std::string> extensions =

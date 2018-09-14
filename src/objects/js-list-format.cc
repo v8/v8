@@ -122,7 +122,10 @@ JSListFormat::Type get_type(const char* str) {
 MaybeHandle<JSListFormat> JSListFormat::InitializeListFormat(
     Isolate* isolate, Handle<JSListFormat> list_format_holder,
     Handle<Object> input_locales, Handle<Object> input_options) {
-  Factory* factory = isolate->factory();
+  Maybe<std::vector<std::string>> requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, input_locales, false);
+  MAYBE_RETURN(requested_locales, MaybeHandle<JSListFormat>());
+
   list_format_holder->set_flags(0);
 
   Handle<JSReceiver> options;
@@ -170,23 +173,23 @@ MaybeHandle<JSListFormat> JSListFormat::InitializeListFormat(
 
   // 10. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
   // requestedLocales, opt, undefined, localeData).
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, r,
-      Intl::ResolveLocale(isolate, "listformat", input_locales, options),
-      JSListFormat);
+  const std::set<std::string> relevant_extension_keys;
+  std::set<std::string> available_locales =
+      Intl::GetAvailableLocales(IcuService::kListFormatter);
+  Maybe<Intl::ResolvedLocale*> maybe_resolved_locale = Intl::ResolveLocale(
+      isolate, "listformatter", available_locales, requested_locales.FromJust(),
+      relevant_extension_keys, options);
+  MAYBE_RETURN(maybe_resolved_locale, MaybeHandle<JSListFormat>());
+  std::unique_ptr<Intl::ResolvedLocale> r(maybe_resolved_locale.FromJust());
+  CHECK_NOT_NULL(r.get());
 
-  Handle<Object> locale_obj =
-      JSObject::GetDataProperty(r, factory->locale_string());
-  Handle<String> locale;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, locale, Object::ToString(isolate, locale_obj), JSListFormat);
+  Handle<String> locale =
+      isolate->factory()->NewStringFromAsciiChecked(r.get()->locale.c_str());
 
   // 18. Set listFormat.[[Locale]] to the value of r.[[Locale]].
   list_format_holder->set_locale(*locale);
 
-  std::unique_ptr<char[]> locale_name = locale->ToCString();
-  icu::Locale icu_locale(locale_name.get());
+  icu::Locale icu_locale(r.get()->locale.c_str());
   UErrorCode status = U_ZERO_ERROR;
   icu::ListFormatter* formatter = icu::ListFormatter::createInstance(
       icu_locale, GetIcuStyleString(style_enum, type_enum), status);

@@ -28,6 +28,9 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::InitializeV8BreakIterator(
     Isolate* isolate, Handle<JSV8BreakIterator> break_iterator_holder,
     Handle<Object> locales, Handle<Object> options_obj) {
   Factory* factory = isolate->factory();
+  Maybe<std::vector<std::string>> requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, locales, false);
+  MAYBE_RETURN(requested_locales, MaybeHandle<JSV8BreakIterator>());
 
   Handle<JSReceiver> options;
   if (options_obj->IsUndefined(isolate)) {
@@ -40,15 +43,18 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::InitializeV8BreakIterator(
   }
 
   // Extract locale string
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, r,
-      Intl::ResolveLocale(isolate, "breakiterator", locales, options),
-      JSV8BreakIterator);
-  Handle<Object> locale_obj =
-      JSObject::GetDataProperty(r, factory->locale_string());
-  CHECK(locale_obj->IsString());
-  Handle<String> locale = Handle<String>::cast(locale_obj);
+  const std::set<std::string> relevant_extension_keys;
+  std::set<std::string> available_locales =
+      Intl::GetAvailableLocales(IcuService::kListFormatter);
+  Maybe<Intl::ResolvedLocale*> maybe_resolved_locale = Intl::ResolveLocale(
+      isolate, "breakiterator", available_locales, requested_locales.FromJust(),
+      relevant_extension_keys, options);
+  MAYBE_RETURN(maybe_resolved_locale, MaybeHandle<JSV8BreakIterator>());
+  std::unique_ptr<Intl::ResolvedLocale> r(maybe_resolved_locale.FromJust());
+  CHECK_NOT_NULL(r.get());
+
+  Handle<String> locale =
+      isolate->factory()->NewStringFromAsciiChecked(r.get()->locale.c_str());
 
   // Extract type from options
   std::unique_ptr<char[]> type_str = nullptr;

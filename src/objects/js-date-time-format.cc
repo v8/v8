@@ -775,7 +775,12 @@ enum FormatMatcherOption { kBestFit, kBasic };
 // ecma402/#sec-initializedatetimeformat
 MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-    Handle<Object> requested_locales, Handle<Object> input_options) {
+    Handle<Object> locales, Handle<Object> input_options) {
+  // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
+  Maybe<std::vector<std::string>> requested_locales =
+      Intl::CanonicalizeLocaleList(isolate, locales, false);
+  MAYBE_RETURN(requested_locales, MaybeHandle<JSDateTimeFormat>());
+
   // 2. Let options be ? ToDateTimeOptions(options, "any", "date").
   Handle<JSObject> options;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -784,29 +789,26 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
           isolate, input_options, RequiredOption::kAny, DefaultsOption::kDate),
       JSDateTimeFormat);
 
+  const std::set<std::string> relevant_extension_keys{"ca", "nu", "hc"};
+
   // 11. Let r be ResolveLocale( %DateTimeFormat%.[[AvailableLocales]],
   //     requestedLocales, opt, %DateTimeFormat%.[[RelevantExtensionKeys]],
   //     localeData).
   const char* kService = "Intl.DateTimeFormat";
-  Handle<JSObject> r;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, r,
-      Intl::ResolveLocale(isolate, "dateformat", requested_locales, options),
-      JSDateTimeFormat);
+  std::set<std::string> available_locales =
+      Intl::GetAvailableLocales(IcuService::kRelativeDateTimeFormatter);
+  Maybe<Intl::ResolvedLocale*> maybe_resolved_locale = Intl::ResolveLocale(
+      isolate, "datetimeformat", available_locales,
+      requested_locales.FromJust(), relevant_extension_keys, options);
+  MAYBE_RETURN(maybe_resolved_locale, MaybeHandle<JSDateTimeFormat>());
+  std::unique_ptr<Intl::ResolvedLocale> r(maybe_resolved_locale.FromJust());
+  CHECK_NOT_NULL(r.get());
 
-  Handle<String> locale_with_extension_str =
-      isolate->factory()->NewStringFromStaticChars("localeWithExtension");
-  Handle<Object> locale_with_extension_obj =
-      JSObject::GetDataProperty(r, locale_with_extension_str);
+  std::string locale_with_extension = r.get()->locale_with_extensions;
+  Handle<String> locale = isolate->factory()->NewStringFromAsciiChecked(
+      locale_with_extension.c_str());
 
-  // The locale_with_extension has to be a string. Either a user
-  // provided canonicalized string or the default locale.
-  CHECK(locale_with_extension_obj->IsString());
-  Handle<String> locale_with_extension =
-      Handle<String>::cast(locale_with_extension_obj);
-
-  icu::Locale icu_locale =
-      Intl::CreateICULocale(isolate, locale_with_extension);
+  icu::Locale icu_locale = Intl::CreateICULocale(isolate, locale);
   DCHECK(!icu_locale.isBogus());
 
   // We implement only best fit algorithm, but still need to check

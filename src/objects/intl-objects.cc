@@ -492,26 +492,6 @@ icu::RegexMatcher* GetLanguageVariantRegexMatcher(Isolate* isolate) {
 
 }  // anonymous namespace
 
-MaybeHandle<JSObject> Intl::ResolveLocale(Isolate* isolate, const char* service,
-                                          Handle<Object> requestedLocales,
-                                          Handle<Object> options) {
-  Handle<String> service_str =
-      isolate->factory()->NewStringFromAsciiChecked(service);
-
-  Handle<JSFunction> resolve_locale_function = isolate->resolve_locale();
-
-  Handle<Object> result;
-  Handle<Object> undefined_value = isolate->factory()->undefined_value();
-  Handle<Object> args[] = {service_str, requestedLocales, options};
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, resolve_locale_function, undefined_value,
-                      arraysize(args), args),
-      JSObject);
-
-  return Handle<JSObject>::cast(result);
-}
-
 MaybeHandle<JSObject> Intl::CanonicalizeLocaleListJS(Isolate* isolate,
                                                      Handle<Object> locales) {
   Handle<JSFunction> canonicalize_locale_list_function =
@@ -1206,6 +1186,18 @@ std::string BestAvailableLocale(std::set<std::string> available_locales,
   } while (true);
 }
 
+#define UNICODE_EXTENSION_REGEXP "-u(-[a-z0-9]{2,8})+"
+
+std::unique_ptr<icu::RegexMatcher> GetUnicodeExtensionRegexpMatcher() {
+  UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::RegexMatcher> matcher(new icu::RegexMatcher(
+      icu::UnicodeString(UNICODE_EXTENSION_REGEXP, -1, US_INV), 0, status));
+  DCHECK(U_SUCCESS(status));
+  return matcher;
+}
+
+#undef UNICODE_EXTENSION_REGEXP
+
 #define ANY_EXTENSION_REGEXP "-[a-z0-9]{1}-.*"
 
 std::unique_ptr<icu::RegexMatcher> GetAnyExtensionRegexpMatcher() {
@@ -1282,6 +1274,104 @@ std::vector<std::string> BestFitSupportedLocales(
 }
 
 enum MatcherOption { kBestFit, kLookup };
+
+// ECMA 9.2.3 LookupMatcher(availableLocales, requestedLocales)
+// https://tc39.github.io/ecma402/#sec-lookupmatcher
+Intl::ResolvedLocale* LookupMatcher(
+    Isolate* isolate, std::set<std::string> available_locales,
+    std::vector<std::string> requested_locales) {
+  std::unique_ptr<icu::RegexMatcher> matcher = GetAnyExtensionRegexpMatcher();
+
+  // 1. Let result be a new Record.
+  Intl::ResolvedLocale* r = new Intl::ResolvedLocale;
+
+  // 2. For each element locale of requestedLocales in List order, do
+  for (auto locale : requested_locales) {
+    // 2.a. Let noExtensionsLocale be the String value that is locale with all
+    //      Unicode locale extension sequences removed.
+    icu::UnicodeString locale_uni(locale.c_str(), -1, US_INV);
+    // TODO(bstell): look at using uloc_forLanguageTag to convert the language
+    // tag to locale id
+    // TODO(bstell): look at using uloc_getBaseName to just get the name without
+    // all the keywords
+    matcher->reset(locale_uni);
+    UErrorCode status = U_ZERO_ERROR;
+    // TODO(bstell): need to determine if this is the correct behavior.
+    // This matches the JS implementation but might not match the spec.
+    // According to
+    // https://tc39.github.io/ecma402/#sec-unicode-locale-extension-sequences:
+    //
+    //     This standard uses the term "Unicode locale extension sequence" for
+    //     any substring of a language tag that is not part of a private use
+    //     subtag sequence, starts with a separator  "-" and the singleton "u",
+    //     and includes the maximum sequence of following non-singleton subtags
+    //     and their preceding "-" separators.
+    //
+    // According to the spec a locale "en-t-aaa-u-bbb-v-ccc-x-u-ddd", should
+    // remove only the "-u-bbb" part, and keep everything else, whereas this
+    // regexp matcher would leave only the "en".
+    icu::UnicodeString no_extensions_locale_uni =
+        matcher->replaceAll("", status);
+    DCHECK(U_SUCCESS(status));
+    std::string no_extensions_locale;
+    no_extensions_locale_uni.toUTF8String(no_extensions_locale);
+
+    // 2.b. Let availableLocale be BestAvailableLocale(availableLocales,
+    //      noExtensionsLocale).
+    std::string available_locale =
+        BestAvailableLocale(available_locales, no_extensions_locale);
+
+    // 2.c If availableLocale is not undefined, then
+    if (!available_locale.empty()) {
+      // 2.c.i. Set result.[[locale]] to availableLocale.
+      r->locale = available_locale;
+      // 2.c.ii. If locale and noExtensionsLocale are not the same String value,
+      //         then
+      if (locale.compare(no_extensions_locale) != 0) {
+        // 2.c.ii.1. Let extension be the String value consisting of the first
+        //           substring of locale that is a Unicode locale extension
+        //           sequence.
+        icu::UnicodeString locale_uni(locale.c_str(), -1, US_INV);
+        std::unique_ptr<icu::RegexMatcher> unicode_extension_matcher =
+            GetUnicodeExtensionRegexpMatcher();
+        unicode_extension_matcher->reset(locale_uni);
+        status = U_ZERO_ERROR;
+        bool found = unicode_extension_matcher->find(status);
+        DCHECK(U_SUCCESS(status));
+        if (found) {
+          icu::UnicodeString us_unicode_extension =
+              unicode_extension_matcher->group(status);
+          DCHECK(U_SUCCESS(status));
+          std::string unicode_extensions;
+          us_unicode_extension.toUTF8String(unicode_extensions);
+
+          // 2.c.ii.2. Set result.[[extension]] to extension.
+          r->unicode_extensions = unicode_extensions;
+        }
+      }
+
+      // 2.c.iii. Return result.
+      return r;
+    }
+  }
+
+  // 3. Let defLocale be DefaultLocale().
+  // 4. Set result.[[locale]] to defLocale.
+  r->locale = Intl::DefaultLocale(isolate);
+
+  // 5. Return result.
+  return r;
+}
+
+// ECMA 9.2.4 BestFitMatcher(availableLocales, requestedLocales)
+// https://tc39.github.io/ecma402/#sec-bestfitmatcher
+// Note: extensions are handled in the caller so only need to return a string.
+Intl::ResolvedLocale* BestFitMatcher(
+    Isolate* isolate, std::set<std::string> available_locales,
+    std::vector<std::string> requested_locales) {
+  // TODO(cira): implement better best fit algorithm.
+  return LookupMatcher(isolate, available_locales, requested_locales);
+}
 
 // TODO(bstell): should this be moved somewhere where it is reusable?
 // Implement steps 5, 6, 7 for ECMA 402 9.2.9 SupportedLocales
@@ -1385,6 +1475,126 @@ MaybeHandle<JSObject> SupportedLocales(
   return subset;
 }
 }  // namespace
+
+// 9.2.6 ResolveLocale
+// https://tc39.github.io/ecma402/#sec-resolvelocale
+// Please see https://bugs.chromium.org/p/v8/issues/detail?id=8065 for more
+// information on the design of this routine.
+Maybe<Intl::ResolvedLocale*> Intl::ResolveLocale(
+    Isolate* isolate, const char* service,
+    const std::set<std::string>& available_locales,
+    const std::vector<std::string>& requested_locales,
+    const std::set<std::string>& relevant_extension_keys,
+    Handle<JSReceiver> options) {
+  // (1) Call out to Intl::GetStringOption to get the matcher option.
+  MatcherOption matcher = kBestFit;
+  Handle<JSReceiver> options_obj;
+  std::unique_ptr<char[]> matcher_str = nullptr;
+  std::vector<const char*> matcher_values = {"lookup", "best fit"};
+
+  Maybe<bool> maybe_found_matcher = Intl::GetStringOption(
+      isolate, options, "localeMatcher", matcher_values, service, &matcher_str);
+  MAYBE_RETURN(maybe_found_matcher, Nothing<Intl::ResolvedLocale*>());
+  if (maybe_found_matcher.FromJust()) {
+    DCHECK_NOT_NULL(matcher_str.get());
+    if (strcmp(matcher_str.get(), "lookup") == 0) {
+      matcher = kLookup;
+    }
+  }
+  // (2) Call Intl::BestFitSupportedLocales or Intl::LookupSupportedLocales
+  // based on the matcher option to get a bcp47 locale.
+  ResolvedLocale* r;
+  if (matcher == kLookup) {
+    r = LookupMatcher(isolate, available_locales, requested_locales);
+  } else {
+    DCHECK_EQ(matcher, kBestFit);
+    r = BestFitMatcher(isolate, available_locales, requested_locales);
+  }
+
+  // (3) Create a icu::Locale using the bcp47 locale.
+  UErrorCode status = U_ZERO_ERROR;
+  char icu_result[ULOC_FULLNAME_CAPACITY];
+  int icu_length = 0;
+  // r->locale should be a canonicalized language tag, which
+  // means this shouldn't fail.
+  std::string locale_with_unicode_extensions =
+      r->locale + r->unicode_extensions;
+  uloc_forLanguageTag(locale_with_unicode_extensions.c_str(), icu_result,
+                      ULOC_FULLNAME_CAPACITY, &icu_length, &status);
+  CHECK(U_SUCCESS(status));
+  CHECK_LT(0, icu_length);
+
+  icu::Locale icu_locale(icu_result);
+  if (icu_locale.isBogus()) {
+    FATAL("Failed to create ICU locale, are ICU data files missing?");
+  }
+
+  // (4) Delete the private use subtag using
+  // icu::Locale::setKeywordValue(..., NULL, ...)  (where the value is NULL)
+  status = U_ZERO_ERROR;
+  const char* private_use_key = uloc_toLegacyKey("x");
+  CHECK_NOT_NULL(private_use_key);
+  const char* value = uloc_toLegacyType(private_use_key, "search");
+  CHECK_NOT_NULL(value);
+  icu_locale.setKeywordValue(private_use_key, NULL, status);
+  CHECK(U_SUCCESS(status));
+
+  // (5) Iterate over the extensions using icu::Locale::createKeywords
+  std::unique_ptr<icu::StringEnumeration> keywords(
+      icu_locale.createKeywords(status));
+  if (U_SUCCESS(status) && keywords) {
+    char value[ULOC_FULLNAME_CAPACITY];
+
+    int32_t length;
+    status = U_ZERO_ERROR;
+    for (const char* keyword = keywords->next(&length, status);
+         keyword != nullptr; keyword = keywords->next(&length, status)) {
+      // Ignore failures in ICU and skip to the next keyword.
+      //
+      // This is fine.™
+      if (U_FAILURE(status)) {
+        status = U_ZERO_ERROR;
+        continue;
+      }
+
+      icu_locale.getKeywordValue(keyword, value, ULOC_FULLNAME_CAPACITY,
+                                 status);
+
+      // Ignore failures in ICU and skip to the next keyword.
+      //
+      // This is fine.™
+      if (U_FAILURE(status)) {
+        status = U_ZERO_ERROR;
+        continue;
+      }
+
+      const char* bcp47_key = uloc_toUnicodeLocaleKey(keyword);
+
+      // (6) Store the value for the extension if the extension is present in
+      // the relevant_extension_keys
+      if (bcp47_key && (relevant_extension_keys.find(bcp47_key) !=
+                        relevant_extension_keys.end())) {
+        std::string bcp47_value = uloc_toUnicodeLocaleType(bcp47_key, value);
+        r->extensions.insert(
+            std::pair<std::string, std::string>(bcp47_key, bcp47_value));
+      }
+    }
+  }
+  // (7) Return the std::map of extension value pairs and the locale.
+  // The concatenated version is also returned since this is what the callers
+  // (currently) expect.
+  if (r->extensions.size()) {
+    r->locale_with_extensions = r->locale + "-u";
+    for (auto extension : r->extensions) {
+      r->locale_with_extensions +=
+          "-" + extension.first + "-" + extension.second;
+    }
+  } else {
+    r->locale_with_extensions = r->locale;
+  }
+
+  return Just(r);
+}
 
 // ECMA 402 Intl.*.supportedLocalesOf
 // https://tc39.github.io/ecma402/#sec-intl.collator.supportedlocalesof
