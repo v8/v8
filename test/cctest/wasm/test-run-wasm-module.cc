@@ -284,7 +284,7 @@ class InterruptThread : public v8::base::Thread {
     WriteLittleEndianValue<int32_t>(ptr, interrupt_value_);
   }
 
-  virtual void Run() {
+  void Run() override {
     // Wait for the main thread to write the signal value.
     int32_t val = 0;
     do {

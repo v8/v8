@@ -2451,7 +2451,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return true;
   }
 
-  virtual void onFirstError() {
+  void onFirstError() override {
     this->end_ = this->pc_;  // Terminate decoding loop.
     TRACE(" !%s\n", this->error_msg_.c_str());
     CALL_INTERFACE(OnFirstError);

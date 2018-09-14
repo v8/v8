@@ -117,7 +117,7 @@ class SharedEngineThread : public v8::base::Thread {
         engine_(engine),
         callback_(callback) {}
 
-  virtual void Run() {
+  void Run() override {
     SharedEngineIsolate isolate(engine_);
     callback_(isolate);
   }
@@ -146,10 +146,10 @@ class MockInstantiationResolver : public InstantiationResultResolver {
  public:
   explicit MockInstantiationResolver(Handle<Object>* out_instance)
       : out_instance_(out_instance) {}
-  virtual void OnInstantiationSucceeded(Handle<WasmInstanceObject> result) {
+  void OnInstantiationSucceeded(Handle<WasmInstanceObject> result) override {
     *out_instance_->location() = *result;
   }
-  virtual void OnInstantiationFailed(Handle<Object> error_reason) {
+  void OnInstantiationFailed(Handle<Object> error_reason) override {
     UNREACHABLE();
   }
 
@@ -162,13 +162,13 @@ class MockCompilationResolver : public CompilationResultResolver {
   MockCompilationResolver(SharedEngineIsolate& isolate,
                           Handle<Object>* out_instance)
       : isolate_(isolate), out_instance_(out_instance) {}
-  virtual void OnCompilationSucceeded(Handle<WasmModuleObject> result) {
+  void OnCompilationSucceeded(Handle<WasmModuleObject> result) override {
     isolate_.isolate()->wasm_engine()->AsyncInstantiate(
         isolate_.isolate(),
         base::make_unique<MockInstantiationResolver>(out_instance_), result,
         {});
   }
-  virtual void OnCompilationFailed(Handle<Object> error_reason) {
+  void OnCompilationFailed(Handle<Object> error_reason) override {
     UNREACHABLE();
   }
 

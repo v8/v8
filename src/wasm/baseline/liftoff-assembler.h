@@ -248,7 +248,7 @@ class LiftoffAssembler : public TurboAssembler {
   };
 
   LiftoffAssembler();
-  ~LiftoffAssembler();
+  ~LiftoffAssembler() override;
 
   LiftoffRegister PopToRegister(LiftoffRegList pinned = {});
 

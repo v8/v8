@@ -2296,7 +2296,7 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
         job_(job),
         on_foreground_(on_foreground) {}
 
-  ~CompileTask() {
+  ~CompileTask() override {
     if (job_ != nullptr && on_foreground_) ResetPendingForegroundTask();
   }
 

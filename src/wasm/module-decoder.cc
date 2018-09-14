@@ -267,7 +267,7 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  virtual void onFirstError() {
+  void onFirstError() override {
     pc_ = end_;  // On error, terminate section decoding loop.
   }
 

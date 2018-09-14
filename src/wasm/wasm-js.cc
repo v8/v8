@@ -212,7 +212,7 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
   AsyncCompilationResolver(i::Isolate* isolate, i::Handle<i::JSPromise> promise)
       : promise_(isolate->global_handles()->Create(*promise)) {}
 
-  ~AsyncCompilationResolver() {
+  ~AsyncCompilationResolver() override {
     i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
   }
 
@@ -248,7 +248,7 @@ class InstantiateModuleResultResolver
                                   i::Handle<i::JSPromise> promise)
       : promise_(isolate->global_handles()->Create(*promise)) {}
 
-  ~InstantiateModuleResultResolver() {
+  ~InstantiateModuleResultResolver() override {
     i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
   }
 
@@ -284,7 +284,7 @@ class InstantiateBytesResultResolver
         promise_(isolate_->global_handles()->Create(*promise)),
         module_(isolate_->global_handles()->Create(*module)) {}
 
-  ~InstantiateBytesResultResolver() {
+  ~InstantiateBytesResultResolver() override {
     i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
     i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(module_).location());
   }
@@ -349,7 +349,7 @@ class AsyncInstantiateCompileResultResolver
                            : isolate_->global_handles()->Create(
                                  *maybe_imports.ToHandleChecked())) {}
 
-  ~AsyncInstantiateCompileResultResolver() {
+  ~AsyncInstantiateCompileResultResolver() override {
     i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
     if (!maybe_imports_.is_null()) {
       i::GlobalHandles::Destroy(
