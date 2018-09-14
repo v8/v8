@@ -233,7 +233,9 @@
   V(ChangeTaggedToTaggedSigned)      \
   V(ChangeInt31ToTaggedSigned)       \
   V(ChangeInt32ToTagged)             \
+  V(ChangeInt64ToTagged)             \
   V(ChangeUint32ToTagged)            \
+  V(ChangeUint64ToTagged)            \
   V(ChangeFloat64ToTagged)           \
   V(ChangeFloat64ToTaggedPointer)    \
   V(ChangeTaggedToBit)               \
@@ -252,8 +254,12 @@
   V(CheckedUint32Mod)                 \
   V(CheckedInt32Mul)                  \
   V(CheckedInt32ToTaggedSigned)       \
+  V(CheckedInt64ToInt32)              \
+  V(CheckedInt64ToTaggedSigned)       \
   V(CheckedUint32ToInt32)             \
   V(CheckedUint32ToTaggedSigned)      \
+  V(CheckedUint64ToInt32)             \
+  V(CheckedUint64ToTaggedSigned)      \
   V(CheckedFloat64ToInt32)            \
   V(CheckedTaggedSignedToInt32)       \
   V(CheckedTaggedToInt32)             \
@@ -620,6 +626,7 @@
   V(TryTruncateFloat64ToUint64)      \
   V(ChangeInt32ToFloat64)            \
   V(ChangeInt32ToInt64)              \
+  V(ChangeInt64ToFloat64)            \
   V(ChangeUint32ToFloat64)           \
   V(ChangeUint32ToUint64)            \
   V(TruncateFloat64ToFloat32)        \

@@ -353,12 +353,35 @@ TEST(Word64) {
   CheckChange(IrOpcode::kChangeUint32ToUint64, MachineRepresentation::kWord32,
               Type::Unsigned32(), MachineRepresentation::kWord64);
 
+  CheckChange(IrOpcode::kTruncateInt64ToInt32, MachineRepresentation::kWord64,
+              Type::Signed32(), MachineRepresentation::kWord32);
+  CheckChange(IrOpcode::kTruncateInt64ToInt32, MachineRepresentation::kWord64,
+              Type::Unsigned32(), MachineRepresentation::kWord32);
+  CheckChange(IrOpcode::kTruncateInt64ToInt32, MachineRepresentation::kWord64,
+              TypeCache::Get().kSafeInteger, MachineRepresentation::kWord32,
+              UseInfo::TruncatingWord32());
+  CheckChange(
+      IrOpcode::kCheckedInt64ToInt32, MachineRepresentation::kWord64,
+      TypeCache::Get().kSafeInteger, MachineRepresentation::kWord32,
+      UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, VectorSlotPair()));
+  CheckChange(
+      IrOpcode::kCheckedUint64ToInt32, MachineRepresentation::kWord64,
+      TypeCache::Get().kPositiveSafeInteger, MachineRepresentation::kWord32,
+      UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, VectorSlotPair()));
+
   CheckChange(IrOpcode::kChangeFloat64ToInt64, MachineRepresentation::kFloat64,
               Type::Signed32(), MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeFloat64ToInt64, MachineRepresentation::kFloat64,
               Type::Unsigned32(), MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeFloat64ToInt64, MachineRepresentation::kFloat64,
               TypeCache::Get().kSafeInteger, MachineRepresentation::kWord64);
+
+  CheckChange(IrOpcode::kChangeInt64ToFloat64, MachineRepresentation::kWord64,
+              Type::Signed32(), MachineRepresentation::kFloat64);
+  CheckChange(IrOpcode::kChangeInt64ToFloat64, MachineRepresentation::kWord64,
+              Type::Unsigned32(), MachineRepresentation::kFloat64);
+  CheckChange(IrOpcode::kChangeInt64ToFloat64, MachineRepresentation::kWord64,
+              TypeCache::Get().kSafeInteger, MachineRepresentation::kFloat64);
 
   CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
                   IrOpcode::kChangeFloat64ToInt64,
@@ -369,6 +392,11 @@ TEST(Word64) {
                   MachineRepresentation::kFloat32, Type::Unsigned32(),
                   MachineRepresentation::kWord64);
 
+  CheckTwoChanges(IrOpcode::kChangeInt64ToFloat64,
+                  IrOpcode::kTruncateFloat64ToFloat32,
+                  MachineRepresentation::kWord64, Type::Signed32(),
+                  MachineRepresentation::kFloat32);
+
   CheckChange(IrOpcode::kChangeTaggedToInt64, MachineRepresentation::kTagged,
               Type::Signed32(), MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeTaggedToInt64, MachineRepresentation::kTagged,
@@ -378,6 +406,49 @@ TEST(Word64) {
   CheckChange(IrOpcode::kChangeTaggedSignedToInt64,
               MachineRepresentation::kTaggedSigned, Type::SignedSmall(),
               MachineRepresentation::kWord64);
+
+  CheckTwoChanges(IrOpcode::kTruncateInt64ToInt32,
+                  IrOpcode::kChangeInt31ToTaggedSigned,
+                  MachineRepresentation::kWord64, Type::Signed31(),
+                  MachineRepresentation::kTagged);
+  CheckTwoChanges(IrOpcode::kTruncateInt64ToInt32,
+                  IrOpcode::kChangeInt32ToTagged,
+                  MachineRepresentation::kWord64, Type::Signed32(),
+                  MachineRepresentation::kTagged);
+  CheckTwoChanges(IrOpcode::kTruncateInt64ToInt32,
+                  IrOpcode::kChangeUint32ToTagged,
+                  MachineRepresentation::kWord64, Type::Unsigned32(),
+                  MachineRepresentation::kTagged);
+  CheckChange(IrOpcode::kChangeInt64ToTagged, MachineRepresentation::kWord64,
+              TypeCache::Get().kSafeInteger, MachineRepresentation::kTagged);
+  CheckChange(IrOpcode::kChangeUint64ToTagged, MachineRepresentation::kWord64,
+              TypeCache::Get().kPositiveSafeInteger,
+              MachineRepresentation::kTagged);
+
+  CheckTwoChanges(IrOpcode::kTruncateInt64ToInt32,
+                  IrOpcode::kChangeInt31ToTaggedSigned,
+                  MachineRepresentation::kWord64, Type::Signed31(),
+                  MachineRepresentation::kTaggedSigned);
+  if (SmiValuesAre32Bits()) {
+    CheckTwoChanges(IrOpcode::kTruncateInt64ToInt32,
+                    IrOpcode::kChangeInt32ToTagged,
+                    MachineRepresentation::kWord64, Type::Signed32(),
+                    MachineRepresentation::kTaggedSigned);
+  }
+  CheckChange(IrOpcode::kCheckedInt64ToTaggedSigned,
+              MachineRepresentation::kWord64, TypeCache::Get().kSafeInteger,
+              MachineRepresentation::kTaggedSigned,
+              UseInfo::CheckedSignedSmallAsTaggedSigned(VectorSlotPair()));
+  CheckChange(IrOpcode::kCheckedUint64ToTaggedSigned,
+              MachineRepresentation::kWord64,
+              TypeCache::Get().kPositiveSafeInteger,
+              MachineRepresentation::kTaggedSigned,
+              UseInfo::CheckedSignedSmallAsTaggedSigned(VectorSlotPair()));
+
+  CheckTwoChanges(IrOpcode::kChangeInt64ToFloat64,
+                  IrOpcode::kChangeFloat64ToTaggedPointer,
+                  MachineRepresentation::kWord64, TypeCache::Get().kSafeInteger,
+                  MachineRepresentation::kTaggedPointer);
 }
 
 TEST(SingleChanges) {

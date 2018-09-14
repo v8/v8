@@ -650,7 +650,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ChangeTaggedToTaggedSigned();
   const Operator* ChangeInt31ToTaggedSigned();
   const Operator* ChangeInt32ToTagged();
+  const Operator* ChangeInt64ToTagged();
   const Operator* ChangeUint32ToTagged();
+  const Operator* ChangeUint64ToTagged();
   const Operator* ChangeFloat64ToTagged(CheckForMinusZeroMode);
   const Operator* ChangeFloat64ToTaggedPointer();
   const Operator* ChangeTaggedToBit();
@@ -689,6 +691,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedInt32Mul(CheckForMinusZeroMode);
   const Operator* CheckedInt32Sub();
   const Operator* CheckedInt32ToTaggedSigned(const VectorSlotPair& feedback);
+  const Operator* CheckedInt64ToInt32(const VectorSlotPair& feedback);
+  const Operator* CheckedInt64ToTaggedSigned(const VectorSlotPair& feedback);
   const Operator* CheckedTaggedSignedToInt32(const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToFloat64(CheckTaggedInputMode,
                                          const VectorSlotPair& feedback);
@@ -702,6 +706,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedUint32Mod();
   const Operator* CheckedUint32ToInt32(const VectorSlotPair& feedback);
   const Operator* CheckedUint32ToTaggedSigned(const VectorSlotPair& feedback);
+  const Operator* CheckedUint64ToInt32(const VectorSlotPair& feedback);
+  const Operator* CheckedUint64ToTaggedSigned(const VectorSlotPair& feedback);
 
   const Operator* ConvertReceiver(ConvertReceiverMode);
 

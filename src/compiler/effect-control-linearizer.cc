@@ -628,8 +628,14 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kChangeInt32ToTagged:
       result = LowerChangeInt32ToTagged(node);
       break;
+    case IrOpcode::kChangeInt64ToTagged:
+      result = LowerChangeInt64ToTagged(node);
+      break;
     case IrOpcode::kChangeUint32ToTagged:
       result = LowerChangeUint32ToTagged(node);
+      break;
+    case IrOpcode::kChangeUint64ToTagged:
+      result = LowerChangeUint64ToTagged(node);
       break;
     case IrOpcode::kChangeFloat64ToTagged:
       result = LowerChangeFloat64ToTagged(node);
@@ -724,11 +730,23 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedInt32ToTaggedSigned:
       result = LowerCheckedInt32ToTaggedSigned(node, frame_state);
       break;
+    case IrOpcode::kCheckedInt64ToInt32:
+      result = LowerCheckedInt64ToInt32(node, frame_state);
+      break;
+    case IrOpcode::kCheckedInt64ToTaggedSigned:
+      result = LowerCheckedInt64ToTaggedSigned(node, frame_state);
+      break;
     case IrOpcode::kCheckedUint32ToInt32:
       result = LowerCheckedUint32ToInt32(node, frame_state);
       break;
     case IrOpcode::kCheckedUint32ToTaggedSigned:
       result = LowerCheckedUint32ToTaggedSigned(node, frame_state);
+      break;
+    case IrOpcode::kCheckedUint64ToInt32:
+      result = LowerCheckedUint64ToInt32(node, frame_state);
+      break;
+    case IrOpcode::kCheckedUint64ToTaggedSigned:
+      result = LowerCheckedUint64ToTaggedSigned(node, frame_state);
       break;
     case IrOpcode::kCheckedFloat64ToInt32:
       result = LowerCheckedFloat64ToInt32(node, frame_state);
@@ -1129,6 +1147,35 @@ Node* EffectControlLinearizer::LowerChangeInt32ToTagged(Node* node) {
   return done.PhiAt(0);
 }
 
+Node* EffectControlLinearizer::LowerChangeInt64ToTagged(Node* node) {
+  Node* value = node->InputAt(0);
+
+  auto if_not_in_smi_range = __ MakeDeferredLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kTagged);
+
+  Node* value32 = __ TruncateInt64ToInt32(value);
+  __ GotoIfNot(__ Word64Equal(__ ChangeInt32ToInt64(value32), value),
+               &if_not_in_smi_range);
+
+  if (SmiValuesAre32Bits()) {
+    Node* value_smi = ChangeInt64ToSmi(value);
+    __ Goto(&done, value_smi);
+  } else {
+    Node* add = __ Int32AddWithOverflow(value32, value32);
+    Node* ovf = __ Projection(1, add);
+    __ GotoIf(ovf, &if_not_in_smi_range);
+    Node* value_smi = ChangeInt32ToIntPtr(__ Projection(0, add));
+    __ Goto(&done, value_smi);
+  }
+
+  __ Bind(&if_not_in_smi_range);
+  Node* number = AllocateHeapNumberWithValue(__ ChangeInt64ToFloat64(value));
+  __ Goto(&done, number);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
 Node* EffectControlLinearizer::LowerChangeUint32ToTagged(Node* node) {
   Node* value = node->InputAt(0);
 
@@ -1141,6 +1188,26 @@ Node* EffectControlLinearizer::LowerChangeUint32ToTagged(Node* node) {
 
   __ Bind(&if_not_in_smi_range);
   Node* number = AllocateHeapNumberWithValue(__ ChangeUint32ToFloat64(value));
+
+  __ Goto(&done, number);
+  __ Bind(&done);
+
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerChangeUint64ToTagged(Node* node) {
+  Node* value = node->InputAt(0);
+
+  auto if_not_in_smi_range = __ MakeDeferredLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kTagged);
+
+  Node* check =
+      __ Uint64LessThanOrEqual(value, __ Int64Constant(Smi::kMaxValue));
+  __ GotoIfNot(check, &if_not_in_smi_range);
+  __ Goto(&done, ChangeInt64ToSmi(value));
+
+  __ Bind(&if_not_in_smi_range);
+  Node* number = AllocateHeapNumberWithValue(__ ChangeInt64ToFloat64(value));
 
   __ Goto(&done, number);
   __ Bind(&done);
@@ -1867,11 +1934,46 @@ Node* EffectControlLinearizer::LowerCheckedInt32ToTaggedSigned(
 
   Node* add = __ Int32AddWithOverflow(value, value);
   Node* check = __ Projection(1, add);
-  __ DeoptimizeIf(DeoptimizeReason::kOverflow, params.feedback(), check,
+  __ DeoptimizeIf(DeoptimizeReason::kLostPrecision, params.feedback(), check,
                   frame_state);
   Node* result = __ Projection(0, add);
   result = ChangeInt32ToIntPtr(result);
   return result;
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt64ToInt32(Node* node,
+                                                        Node* frame_state) {
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* value32 = __ TruncateInt64ToInt32(value);
+  Node* check = __ Word64Equal(__ ChangeInt32ToInt64(value32), value);
+  __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, params.feedback(), check,
+                     frame_state);
+  return value32;
+}
+
+Node* EffectControlLinearizer::LowerCheckedInt64ToTaggedSigned(
+    Node* node, Node* frame_state) {
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* value32 = __ TruncateInt64ToInt32(value);
+  Node* check = __ Word64Equal(__ ChangeInt32ToInt64(value32), value);
+  __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, params.feedback(), check,
+                     frame_state);
+
+  if (SmiValuesAre32Bits()) {
+    return ChangeInt64ToSmi(value);
+  } else {
+    Node* add = __ Int32AddWithOverflow(value32, value32);
+    Node* check = __ Projection(1, add);
+    __ DeoptimizeIf(DeoptimizeReason::kLostPrecision, params.feedback(), check,
+                    frame_state);
+    Node* result = __ Projection(0, add);
+    result = ChangeInt32ToIntPtr(result);
+    return result;
+  }
 }
 
 Node* EffectControlLinearizer::LowerCheckedUint32ToInt32(Node* node,
@@ -1892,6 +1994,29 @@ Node* EffectControlLinearizer::LowerCheckedUint32ToTaggedSigned(
   __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, params.feedback(), check,
                      frame_state);
   return ChangeUint32ToSmi(value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedUint64ToInt32(Node* node,
+                                                         Node* frame_state) {
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* check = __ Uint64LessThanOrEqual(value, __ Int64Constant(kMaxInt));
+  __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, params.feedback(), check,
+                     frame_state);
+  return __ TruncateInt64ToInt32(value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedUint64ToTaggedSigned(
+    Node* node, Node* frame_state) {
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* check =
+      __ Uint64LessThanOrEqual(value, __ Int64Constant(Smi::kMaxValue));
+  __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, params.feedback(), check,
+                     frame_state);
+  return ChangeInt64ToSmi(value);
 }
 
 Node* EffectControlLinearizer::BuildCheckedFloat64ToInt32(
@@ -3523,6 +3648,11 @@ Node* EffectControlLinearizer::ChangeIntPtrToInt32(Node* value) {
 
 Node* EffectControlLinearizer::ChangeInt32ToSmi(Node* value) {
   return ChangeIntPtrToSmi(ChangeInt32ToIntPtr(value));
+}
+
+Node* EffectControlLinearizer::ChangeInt64ToSmi(Node* value) {
+  DCHECK(machine()->Is64());
+  return ChangeIntPtrToSmi(value);
 }
 
 Node* EffectControlLinearizer::ChangeUint32ToUintPtr(Node* value) {

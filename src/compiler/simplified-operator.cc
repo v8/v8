@@ -730,7 +730,9 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(ChangeFloat64ToTaggedPointer, Operator::kNoProperties, 1, 0) \
   V(ChangeInt31ToTaggedSigned, Operator::kNoProperties, 1, 0)    \
   V(ChangeInt32ToTagged, Operator::kNoProperties, 1, 0)          \
+  V(ChangeInt64ToTagged, Operator::kNoProperties, 1, 0)          \
   V(ChangeUint32ToTagged, Operator::kNoProperties, 1, 0)         \
+  V(ChangeUint64ToTagged, Operator::kNoProperties, 1, 0)         \
   V(ChangeTaggedToBit, Operator::kNoProperties, 1, 0)            \
   V(ChangeBitToTagged, Operator::kNoProperties, 1, 0)            \
   V(TruncateTaggedToBit, Operator::kNoProperties, 1, 0)          \
@@ -801,11 +803,15 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckSmi, 1, 1)                      \
   V(CheckString, 1, 1)                   \
   V(CheckedInt32ToTaggedSigned, 1, 1)    \
+  V(CheckedInt64ToInt32, 1, 1)           \
+  V(CheckedInt64ToTaggedSigned, 1, 1)    \
   V(CheckedTaggedSignedToInt32, 1, 1)    \
   V(CheckedTaggedToTaggedPointer, 1, 1)  \
   V(CheckedTaggedToTaggedSigned, 1, 1)   \
   V(CheckedUint32ToInt32, 1, 1)          \
-  V(CheckedUint32ToTaggedSigned, 1, 1)
+  V(CheckedUint32ToTaggedSigned, 1, 1)   \
+  V(CheckedUint64ToInt32, 1, 1)          \
+  V(CheckedUint64ToTaggedSigned, 1, 1)
 
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, value_input_count, control_input_count)     \

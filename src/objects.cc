@@ -14708,14 +14708,22 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
 
         case Translation::INT32_REGISTER: {
           int reg_code = iterator.Next();
-          os << "{input=" << converter.NameOfCPURegister(reg_code) << "}";
+          os << "{input=" << converter.NameOfCPURegister(reg_code)
+             << " (int32)}";
+          break;
+        }
+
+        case Translation::INT64_REGISTER: {
+          int reg_code = iterator.Next();
+          os << "{input=" << converter.NameOfCPURegister(reg_code)
+             << " (int64)}";
           break;
         }
 
         case Translation::UINT32_REGISTER: {
           int reg_code = iterator.Next();
           os << "{input=" << converter.NameOfCPURegister(reg_code)
-             << " (unsigned)}";
+             << " (uint32)}";
           break;
         }
 
@@ -14751,13 +14759,19 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
 
         case Translation::INT32_STACK_SLOT: {
           int input_slot_index = iterator.Next();
-          os << "{input=" << input_slot_index << "}";
+          os << "{input=" << input_slot_index << " (int32)}";
+          break;
+        }
+
+        case Translation::INT64_STACK_SLOT: {
+          int input_slot_index = iterator.Next();
+          os << "{input=" << input_slot_index << " (int64)}";
           break;
         }
 
         case Translation::UINT32_STACK_SLOT: {
           int input_slot_index = iterator.Next();
-          os << "{input=" << input_slot_index << " (unsigned)}";
+          os << "{input=" << input_slot_index << " (uint32)}";
           break;
         }
 

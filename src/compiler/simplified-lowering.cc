@@ -924,6 +924,9 @@ class RepresentationSelector {
     VisitBinop(node, UseInfo::TruncatingFloat64(),
                MachineRepresentation::kFloat64);
   }
+  void VisitInt64Binop(Node* node) {
+    VisitBinop(node, UseInfo::Word64(), MachineRepresentation::kWord64);
+  }
   void VisitWord32TruncatingBinop(Node* node) {
     VisitBinop(node, UseInfo::TruncatingWord32(),
                MachineRepresentation::kWord32);
@@ -1082,6 +1085,11 @@ class RepresentationSelector {
     if (IsAnyTagged(rep)) {
       return MachineType::AnyTagged();
     }
+    // Word64 representation is only valid for safe integer values.
+    if (rep == MachineRepresentation::kWord64) {
+      DCHECK(type.Is(TypeCache::Get().kSafeInteger));
+      return MachineType(rep, MachineSemantic::kInt64);
+    }
     MachineType machine_type(rep, DeoptValueSemanticOf(type));
     DCHECK(machine_type.representation() != MachineRepresentation::kWord32 ||
            machine_type.semantic() == MachineSemantic::kInt32 ||
@@ -1177,6 +1185,10 @@ class RepresentationSelector {
 
   const Operator* Int32OverflowOp(Node* node) {
     return changer_->Int32OverflowOperatorFor(node->opcode());
+  }
+
+  const Operator* Int64Op(Node* node) {
+    return changer_->Int64OperatorFor(node->opcode());
   }
 
   const Operator* Uint32Op(Node* node) {
@@ -1752,6 +1764,12 @@ class RepresentationSelector {
           // => Int32Add/Sub
           VisitWord32TruncatingBinop(node);
           if (lower()) ChangeToPureOp(node, Int32Op(node));
+        } else if (jsgraph_->machine()->Is64() &&
+                   BothInputsAre(node, type_cache_.kSafeInteger) &&
+                   GetUpperBound(node).Is(type_cache_.kSafeInteger)) {
+          // => Int64Add/Sub
+          VisitInt64Binop(node);
+          if (lower()) ChangeToPureOp(node, Int64Op(node));
         } else {
           // => Float64Add/Sub
           VisitFloat64Binop(node);

@@ -1111,6 +1111,8 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     } else if (type == MachineType::Uint8() || type == MachineType::Uint16() ||
                type == MachineType::Uint32()) {
       translation->StoreUint32StackSlot(LocationOperand::cast(op)->index());
+    } else if (type == MachineType::Int64()) {
+      translation->StoreInt64StackSlot(LocationOperand::cast(op)->index());
     } else {
       CHECK_EQ(MachineRepresentation::kTagged, type.representation());
       translation->StoreStackSlot(LocationOperand::cast(op)->index());
@@ -1132,6 +1134,8 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     } else if (type == MachineType::Uint8() || type == MachineType::Uint16() ||
                type == MachineType::Uint32()) {
       translation->StoreUint32Register(converter.ToRegister(op));
+    } else if (type == MachineType::Int64()) {
+      translation->StoreInt64Register(converter.ToRegister(op));
     } else {
       CHECK_EQ(MachineRepresentation::kTagged, type.representation());
       translation->StoreRegister(converter.ToRegister(op));
@@ -1182,11 +1186,14 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         }
         break;
       case Constant::kInt64:
-        // When pointers are 8 bytes, we can use int64 constants to represent
-        // Smis.
-        DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
         DCHECK_EQ(8, kPointerSize);
-        {
+        if (type.representation() == MachineRepresentation::kWord64) {
+          literal =
+              DeoptimizationLiteral(static_cast<double>(constant.ToInt64()));
+        } else {
+          // When pointers are 8 bytes, we can use int64 constants to represent
+          // Smis.
+          DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
           Smi* smi = reinterpret_cast<Smi*>(constant.ToInt64());
           DCHECK(smi->IsSmi());
           literal = DeoptimizationLiteral(smi->value());

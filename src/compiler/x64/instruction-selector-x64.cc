@@ -1282,6 +1282,7 @@ void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
   V(TruncateFloat32ToInt32, kSSEFloat32ToInt32)                          \
   V(TruncateFloat32ToUint32, kSSEFloat32ToUint32)                        \
   V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)                            \
+  V(ChangeInt64ToFloat64, kSSEInt64ToFloat64)                            \
   V(ChangeUint32ToFloat64, kSSEUint32ToFloat64)                          \
   V(RoundFloat64ToInt32, kSSEFloat64ToInt32)                             \
   V(RoundInt32ToFloat32, kSSEInt32ToFloat32)                             \

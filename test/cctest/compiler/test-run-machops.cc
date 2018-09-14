@@ -6351,6 +6351,17 @@ TEST(RunChangeFloat64ToInt64) {
   }
 }
 
+TEST(RunChangeInt64ToFloat64) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Int64());
+  m.Return(m.ChangeInt64ToFloat64(m.Parameter(0)));
+  FOR_INT64_INPUTS(i) {
+    double output = static_cast<double>(*i);
+    if (static_cast<int64_t>(output) == *i) {
+      CHECK_EQ(output, m.Call(*i));
+    }
+  }
+}
+
 TEST(RunBitcastInt64ToFloat64) {
   int64_t input = 1;
   Float64 output;

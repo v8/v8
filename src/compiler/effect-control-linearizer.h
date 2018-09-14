@@ -49,7 +49,9 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerChangeBitToTagged(Node* node);
   Node* LowerChangeInt31ToTaggedSigned(Node* node);
   Node* LowerChangeInt32ToTagged(Node* node);
+  Node* LowerChangeInt64ToTagged(Node* node);
   Node* LowerChangeUint32ToTagged(Node* node);
+  Node* LowerChangeUint64ToTagged(Node* node);
   Node* LowerChangeFloat64ToTagged(Node* node);
   Node* LowerChangeFloat64ToTaggedPointer(Node* node);
   Node* LowerChangeTaggedSignedToInt32(Node* node);
@@ -77,8 +79,12 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerCheckedUint32Mod(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Mul(Node* node, Node* frame_state);
   Node* LowerCheckedInt32ToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64ToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedInt64ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedUint32ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedUint32ToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedUint64ToInt32(Node* node, Node* frame_state);
+  Node* LowerCheckedUint64ToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedFloat64ToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedSignedToInt32(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToInt32(Node* node, Node* frame_state);
@@ -191,6 +197,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
 
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeInt32ToIntPtr(Node* value);
+  Node* ChangeInt64ToSmi(Node* value);
   Node* ChangeIntPtrToInt32(Node* value);
   Node* ChangeIntPtrToSmi(Node* value);
   Node* ChangeUint32ToUintPtr(Node* value);

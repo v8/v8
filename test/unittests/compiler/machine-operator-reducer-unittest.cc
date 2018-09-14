@@ -347,6 +347,16 @@ TEST_F(MachineOperatorReducerTest, ChangeFloat64ToInt32WithConstant) {
 // -----------------------------------------------------------------------------
 // ChangeFloat64ToInt64
 
+TEST_F(MachineOperatorReducerTest,
+       ChangeFloat64ToInt64WithChangeInt64ToFloat64) {
+  Node* value = Parameter(0);
+  Reduction reduction = Reduce(graph()->NewNode(
+      machine()->ChangeFloat64ToInt64(),
+      graph()->NewNode(machine()->ChangeInt64ToFloat64(), value)));
+  ASSERT_TRUE(reduction.Changed());
+  EXPECT_EQ(value, reduction.replacement());
+}
+
 TEST_F(MachineOperatorReducerTest, ChangeFloat64ToInt64WithConstant) {
   TRACED_FOREACH(int32_t, x, kInt32Values) {
     Reduction reduction = Reduce(graph()->NewNode(
@@ -408,6 +418,27 @@ TEST_F(MachineOperatorReducerTest, ChangeInt32ToInt64WithConstant) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// ChangeInt64ToFloat64
+
+TEST_F(MachineOperatorReducerTest,
+       ChangeInt64ToFloat64WithChangeFloat64ToInt64) {
+  Node* value = Parameter(0);
+  Reduction reduction = Reduce(graph()->NewNode(
+      machine()->ChangeInt64ToFloat64(),
+      graph()->NewNode(machine()->ChangeFloat64ToInt64(), value)));
+  ASSERT_TRUE(reduction.Changed());
+  EXPECT_EQ(value, reduction.replacement());
+}
+
+TEST_F(MachineOperatorReducerTest, ChangeInt64ToFloat64WithConstant) {
+  TRACED_FOREACH(int32_t, x, kInt32Values) {
+    Reduction reduction = Reduce(
+        graph()->NewNode(machine()->ChangeInt64ToFloat64(), Int64Constant(x)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(), IsFloat64Constant(BitEq(FastI2D(x))));
+  }
+}
 
 // -----------------------------------------------------------------------------
 // ChangeUint32ToFloat64
