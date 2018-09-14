@@ -118,6 +118,9 @@ inline MemOperand CFunctionArgumentOperand(int index) {
 
 class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
+  TurboAssembler(const AssemblerOptions& options, void* buffer, int buffer_size)
+      : TurboAssemblerBase(options, buffer, buffer_size) {}
+
   TurboAssembler(Isolate* isolate, const AssemblerOptions& options,
                  void* buffer, int buffer_size,
                  CodeObjectRequired create_code_object)
@@ -901,10 +904,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler : public TurboAssembler {
  public:
+  MacroAssembler(const AssemblerOptions& options, void* buffer, int size)
+      : TurboAssembler(options, buffer, size) {}
+
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object)
       : MacroAssembler(isolate, AssemblerOptions::Default(isolate), buffer,
                        size, create_code_object) {}
+
   MacroAssembler(Isolate* isolate, const AssemblerOptions& options,
                  void* buffer, int size, CodeObjectRequired create_code_object);
 

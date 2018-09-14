@@ -139,6 +139,9 @@ class HeapObjectRequest {
 enum class CodeObjectRequired { kNo, kYes };
 
 struct V8_EXPORT_PRIVATE AssemblerOptions {
+  // Prohibits using any V8-specific features of assembler like (isolates,
+  // heap objects, external references, etc.).
+  bool v8_agnostic_code = false;
   // Recording reloc info for external references and off-heap targets is
   // needed whenever code is serialized, e.g. into the snapshot or as a WASM
   // module. This flag allows this reloc info to be disabled for code that
@@ -167,6 +170,9 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // this flag, the code range must be small enough to fit all offsets into
   // the instruction immediates.
   bool use_pc_relative_calls_and_jumps = false;
+
+  // Constructs V8-agnostic set of options from current state.
+  AssemblerOptions EnableV8AgnosticCode() const;
 
   static AssemblerOptions Default(
       Isolate* isolate, bool explicitly_support_serialization = false);
@@ -420,7 +426,7 @@ class CpuFeatures : public AllStatic {
 // Utility functions
 
 // Computes pow(x, y) with the special cases in the spec for Math.pow.
-double power_helper(Isolate* isolate, double x, double y);
+double power_helper(double x, double y);
 double power_double_int(double x, int y);
 double power_double_double(double x, double y);
 

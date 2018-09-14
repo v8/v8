@@ -218,6 +218,7 @@ MemOperand::MemOperand(Register ra, Register rb)
     : ra_(ra), offset_(0), rb_(rb) {}
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
     Handle<HeapObject> object;
     switch (request.kind()) {

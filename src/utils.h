@@ -532,7 +532,7 @@ inline uint32_t ComputeAddressHash(Address address) {
 // Generated memcpy/memmove
 
 // Initializes the codegen support that depends on CPU features.
-void init_memcopy_functions(Isolate* isolate);
+void init_memcopy_functions();
 
 #if defined(V8_TARGET_ARCH_IA32)
 // Limit below which the extra overhead of the MemCopy function is likely

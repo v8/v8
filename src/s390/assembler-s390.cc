@@ -323,6 +323,7 @@ MemOperand::MemOperand(Register rx, Register rb, int32_t offset)
     : baseRegister(rb), indexRegister(rx), offset_(offset) {}
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
     Handle<HeapObject> object;
     Address pc = reinterpret_cast<Address>(buffer_ + request.offset());

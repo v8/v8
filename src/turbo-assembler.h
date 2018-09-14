@@ -16,7 +16,10 @@ namespace internal {
 // platform-independent bits.
 class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
  public:
-  Isolate* isolate() const { return isolate_; }
+  Isolate* isolate() const {
+    DCHECK(!options().v8_agnostic_code);
+    return isolate_;
+  }
 
   Handle<HeapObject> CodeObject() const {
     DCHECK(!code_object_.is_null());
@@ -66,6 +69,11 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
       Isolate* isolate, const ExternalReference& reference);
 
  protected:
+  TurboAssemblerBase(const AssemblerOptions& options, void* buffer,
+                     int buffer_size)
+      : TurboAssemblerBase(nullptr, options.EnableV8AgnosticCode(), buffer,
+                           buffer_size, CodeObjectRequired::kNo) {}
+
   TurboAssemblerBase(Isolate* isolate, const AssemblerOptions& options,
                      void* buffer, int buffer_size,
                      CodeObjectRequired create_code_object);

@@ -472,6 +472,7 @@ void NeonMemOperand::SetAlignment(int align) {
 }
 
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
     Handle<HeapObject> object;
     switch (request.kind()) {

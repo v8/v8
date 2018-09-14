@@ -2536,7 +2536,7 @@ Isolate::Isolate()
 
   tracing_cpu_profiler_.reset(new TracingCpuProfilerImpl(this));
 
-  init_memcopy_functions(this);
+  init_memcopy_functions();
 
   if (FLAG_embedded_builtins) {
 #ifdef V8_MULTI_SNAPSHOTS
