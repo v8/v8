@@ -248,8 +248,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     }
   }
 
-  void AbortBlackAllocation();
-
   MarkCompactCollector::MarkingWorklist* marking_worklist() const {
     return marking_worklist_;
   }

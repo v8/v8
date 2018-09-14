@@ -135,6 +135,11 @@ void CcTest::CollectAllAvailableGarbage() {
   heap()->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
 }
 
+void CcTest::PreciseCollectAllGarbage() {
+  heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
+                                   i::GarbageCollectionReason::kTesting);
+}
+
 v8::base::RandomNumberGenerator* CcTest::random_number_generator() {
   return InitIsolateOnce()->random_number_generator();
 }

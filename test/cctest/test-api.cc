@@ -4635,7 +4635,7 @@ void TestGlobalValueMap() {
   }
   CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
   if (map.IsWeak()) {
-    CcTest::CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+    CcTest::PreciseCollectAllGarbage();
   } else {
     map.Clear();
   }
@@ -8021,7 +8021,7 @@ void v8::internal::heap::HeapTester::ResetWeakHandle(bool global_gc) {
     object_a.handle.Reset(iso, a);
     object_b.handle.Reset(iso, b);
     if (global_gc) {
-      CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+      CcTest::PreciseCollectAllGarbage();
     } else {
       CcTest::CollectGarbage(i::NEW_SPACE);
     }
@@ -8047,7 +8047,7 @@ void v8::internal::heap::HeapTester::ResetWeakHandle(bool global_gc) {
 #endif
   }
   if (global_gc) {
-    CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+    CcTest::PreciseCollectAllGarbage();
   } else {
     CcTest::CollectGarbage(i::NEW_SPACE);
   }
@@ -14213,7 +14213,7 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   // been marked at that point.  Therefore some of the maps are not
   // collected until the second garbage collection.
   CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  CcTest::CollectAllGarbage();
   int count = GetGlobalObjectsCount();
   CHECK_EQ(expected, count);
 }
@@ -14310,9 +14310,7 @@ TEST(WeakCallbackApi) {
     handle->SetWeak<v8::Persistent<v8::Object>>(
         handle, WeakApiCallback, v8::WeakCallbackType::kParameter);
   }
-  reinterpret_cast<i::Isolate*>(isolate)->heap()->CollectAllGarbage(
-      i::Heap::kAbortIncrementalMarkingMask,
-      i::GarbageCollectionReason::kTesting);
+  CcTest::PreciseCollectAllGarbage();
   // Verify disposed.
   CHECK_EQ(initial_handles, globals->global_handles_count());
 }
@@ -19316,7 +19314,7 @@ TEST(NumberOfNativeContexts) {
   }
   for (size_t i = 0; i < kNumTestContexts; i++) {
     context[i].Reset();
-    CcTest::CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+    CcTest::PreciseCollectAllGarbage();
     CcTest::isolate()->GetHeapStatistics(&heap_statistics);
     CHECK_EQ(kNumTestContexts - i - 1u,
              heap_statistics.number_of_native_contexts());
@@ -19342,7 +19340,7 @@ TEST(NumberOfDetachedContexts) {
   }
   for (size_t i = 0; i < kNumTestContexts; i++) {
     context[i].Reset();
-    CcTest::CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+    CcTest::PreciseCollectAllGarbage();
     CcTest::isolate()->GetHeapStatistics(&heap_statistics);
     CHECK_EQ(kNumTestContexts - i - 1u,
              heap_statistics.number_of_detached_contexts());
@@ -20427,7 +20425,7 @@ void PrologueCallbackAlloc(v8::Isolate* isolate,
   Local<Object> obj = Object::New(isolate);
   CHECK(!obj.IsEmpty());
 
-  CcTest::CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+  CcTest::PreciseCollectAllGarbage();
 }
 
 
@@ -20446,7 +20444,7 @@ void EpilogueCallbackAlloc(v8::Isolate* isolate,
   Local<Object> obj = Object::New(isolate);
   CHECK(!obj.IsEmpty());
 
-  CcTest::CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+  CcTest::PreciseCollectAllGarbage();
 }
 
 
@@ -20569,7 +20567,7 @@ TEST(GCCallbacks) {
   CHECK_EQ(0, epilogue_call_count_alloc);
   isolate->AddGCPrologueCallback(PrologueCallbackAlloc);
   isolate->AddGCEpilogueCallback(EpilogueCallbackAlloc);
-  CcTest::CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+  CcTest::PreciseCollectAllGarbage();
   CHECK_EQ(1, prologue_call_count_alloc);
   CHECK_EQ(1, epilogue_call_count_alloc);
   isolate->RemoveGCPrologueCallback(PrologueCallbackAlloc);
@@ -22148,7 +22146,7 @@ THREADED_TEST(Regress1516) {
   CHECK_LE(1, elements);
 
   // We have to abort incremental marking here to abandon black pages.
-  CcTest::CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
+  CcTest::PreciseCollectAllGarbage();
 
   CHECK_GT(elements, CountLiveMapsInMapCache(CcTest::i_isolate()->context()));
 }

@@ -458,13 +458,6 @@ void IncrementalMarking::FinishBlackAllocation() {
   }
 }
 
-void IncrementalMarking::AbortBlackAllocation() {
-  if (FLAG_trace_incremental_marking) {
-    heap()->isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Black allocation aborted\n");
-  }
-}
-
 void IncrementalMarking::MarkRoots() {
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
@@ -494,7 +487,6 @@ void IncrementalMarking::RetainMaps() {
   // - memory pressure (reduce_memory_footprint_),
   // - GC is requested by tests or dev-tools (abort_incremental_marking_).
   bool map_retaining_is_disabled = heap()->ShouldReduceMemory() ||
-                                   heap()->ShouldAbortIncrementalMarking() ||
                                    FLAG_retain_maps_for_n_gc == 0;
   WeakArrayList* retained_maps = heap()->retained_maps();
   int length = retained_maps->length();

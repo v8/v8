@@ -1217,7 +1217,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   // The optimizing compiler may be unnecessarily holding on to memory.
   isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   isolate()->ClearSerializerData();
-  set_current_gc_flags(kMakeHeapIterableMask | kReduceMemoryFootprintMask);
+  set_current_gc_flags(kReduceMemoryFootprintMask);
   isolate_->compilation_cache()->Clear();
   const int kMaxNumberOfAttempts = 7;
   const int kMinNumberOfAttempts = 2;
@@ -1255,6 +1255,15 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
       ReportDuplicates(it->first, it->second);
     }
   }
+}
+
+void Heap::PreciseCollectAllGarbage(int flags,
+                                    GarbageCollectionReason gc_reason,
+                                    const GCCallbackFlags gc_callback_flags) {
+  if (!incremental_marking()->IsStopped()) {
+    FinalizeIncrementalMarkingAtomically(gc_reason);
+  }
+  CollectAllGarbage(flags, gc_reason, gc_callback_flags);
 }
 
 void Heap::ReportExternalMemoryPressure() {
@@ -1414,12 +1423,9 @@ bool Heap::CollectGarbage(AllocationSpace space,
     isolate()->CountUsage(v8::Isolate::kForcedGC);
   }
 
-  // Start incremental marking for the next cycle. The heap snapshot
-  // generator needs incremental marking to stay off after it aborted.
-  // We do this only for scavenger to avoid a loop where mark-compact
-  // causes another mark-compact.
-  if (IsYoungGenerationCollector(collector) &&
-      !ShouldAbortIncrementalMarking()) {
+  // Start incremental marking for the next cycle. We do this only for scavenger
+  // to avoid a loop where mark-compact causes another mark-compact.
+  if (IsYoungGenerationCollector(collector)) {
     StartIncrementalMarkingIfAllocationLimitIsReached(
         GCFlagsForIncrementalMarking(),
         kGCCallbackScheduleIdleGarbageCollection);
@@ -1625,11 +1631,10 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
           CollectGarbage(NEW_SPACE, GarbageCollectionReason::kDeserializer);
         } else {
           if (counter > 1) {
-            CollectAllGarbage(
-                kReduceMemoryFootprintMask | kAbortIncrementalMarkingMask,
-                GarbageCollectionReason::kDeserializer);
+            CollectAllGarbage(kReduceMemoryFootprintMask,
+                              GarbageCollectionReason::kDeserializer);
           } else {
-            CollectAllGarbage(kAbortIncrementalMarkingMask,
+            CollectAllGarbage(kNoGCFlags,
                               GarbageCollectionReason::kDeserializer);
           }
         }
@@ -3570,7 +3575,7 @@ void Heap::CollectGarbageOnMemoryPressure() {
   const double kMaxMemoryPressurePauseMs = 100;
 
   double start = MonotonicallyIncreasingTimeInMs();
-  CollectAllGarbage(kReduceMemoryFootprintMask | kAbortIncrementalMarkingMask,
+  CollectAllGarbage(kReduceMemoryFootprintMask,
                     GarbageCollectionReason::kMemoryPressure,
                     kGCCallbackFlagCollectAllAvailableGarbage);
   EagerlyFreeExternalMemory();
@@ -3587,10 +3592,9 @@ void Heap::CollectGarbageOnMemoryPressure() {
     // If we spent less than half of the time budget, then perform full GC
     // Otherwise, start incremental marking.
     if (end - start < kMaxMemoryPressurePauseMs / 2) {
-      CollectAllGarbage(
-          kReduceMemoryFootprintMask | kAbortIncrementalMarkingMask,
-          GarbageCollectionReason::kMemoryPressure,
-          kGCCallbackFlagCollectAllAvailableGarbage);
+      CollectAllGarbage(kReduceMemoryFootprintMask,
+                        GarbageCollectionReason::kMemoryPressure,
+                        kGCCallbackFlagCollectAllAvailableGarbage);
     } else {
       if (FLAG_incremental_marking && incremental_marking()->IsStopped()) {
         StartIncrementalMarking(kReduceMemoryFootprintMask,

@@ -161,7 +161,7 @@ void CheckDebuggerUnloaded() {
 
   // Collect garbage to ensure weak handles are cleared.
   CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  CcTest::CollectAllGarbage();
 
   // Iterate the heap and check that there are no debugger related objects left.
   HeapIterator iterator(CcTest::heap());

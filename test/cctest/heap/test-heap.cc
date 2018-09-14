@@ -2193,7 +2193,7 @@ HEAP_TEST(GCFlags) {
   CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags_);
 
   // Set the flags to check whether we appropriately resets them after the GC.
-  heap->set_current_gc_flags(Heap::kAbortIncrementalMarkingMask);
+  heap->set_current_gc_flags(Heap::kFinalizeIncrementalMarkingMask);
   CcTest::CollectAllGarbage(Heap::kReduceMemoryFootprintMask);
   CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags_);
 
@@ -2212,7 +2212,7 @@ HEAP_TEST(GCFlags) {
   // NewSpace scavenges should not overwrite the flags.
   CHECK_NE(0, heap->current_gc_flags_ & Heap::kReduceMemoryFootprintMask);
 
-  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask);
   CHECK_EQ(Heap::kNoGCFlags, heap->current_gc_flags_);
 }
 

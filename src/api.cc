@@ -8136,9 +8136,9 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
         kGCCallbackFlagForced);
   } else {
     DCHECK_EQ(kFullGarbageCollection, type);
-    reinterpret_cast<i::Isolate*>(this)->heap()->CollectAllGarbage(
-        i::Heap::kAbortIncrementalMarkingMask,
-        i::GarbageCollectionReason::kTesting, kGCCallbackFlagForced);
+    reinterpret_cast<i::Isolate*>(this)->heap()->PreciseCollectAllGarbage(
+        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting,
+        kGCCallbackFlagForced);
   }
 }
 
@@ -10463,9 +10463,9 @@ void EmbedderHeapTracer::GarbageCollectionForTesting(
   CHECK(i::FLAG_expose_gc);
   i::Heap* const heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
   heap->SetEmbedderStackStateForNextFinalizaton(stack_state);
-  heap->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask,
-                          i::GarbageCollectionReason::kTesting,
-                          kGCCallbackFlagForced);
+  heap->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
+                                 i::GarbageCollectionReason::kTesting,
+                                 kGCCallbackFlagForced);
 }
 
 bool EmbedderHeapTracer::AdvanceTracing(double deadline_in_ms) {

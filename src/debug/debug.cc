@@ -1163,9 +1163,9 @@ void Debug::DeoptimizeFunction(Handle<SharedFunctionInfo> shared) {
   // inlining.
   isolate_->AbortConcurrentOptimization(BlockingBehavior::kBlock);
 
-  // Make sure we abort incremental marking.
-  isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                                      GarbageCollectionReason::kDebugger);
+  // TODO(mlippautz): Try to remove this call.
+  isolate_->heap()->PreciseCollectAllGarbage(
+      Heap::kNoGCFlags, GarbageCollectionReason::kDebugger);
 
   bool found_something = false;
   Code::OptimizedCodeIterator iterator(isolate_);

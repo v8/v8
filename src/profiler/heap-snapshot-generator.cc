@@ -427,8 +427,8 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
     PrintF("Begin HeapObjectsMap::UpdateHeapObjectsMap. map has %d entries.\n",
            entries_map_.occupancy());
   }
-  heap_->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                           GarbageCollectionReason::kHeapProfiler);
+  heap_->PreciseCollectAllGarbage(Heap::kNoGCFlags,
+                                  GarbageCollectionReason::kHeapProfiler);
   HeapIterator iterator(heap_);
   for (HeapObject* obj = iterator.next(); obj != nullptr;
        obj = iterator.next()) {
@@ -2463,10 +2463,10 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   // full GC is reachable from the root when computing dominators.
   // This is not true for weakly reachable objects.
   // As a temporary solution we call GC twice.
-  heap_->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                           GarbageCollectionReason::kHeapProfiler);
-  heap_->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                           GarbageCollectionReason::kHeapProfiler);
+  heap_->PreciseCollectAllGarbage(Heap::kNoGCFlags,
+                                  GarbageCollectionReason::kHeapProfiler);
+  heap_->PreciseCollectAllGarbage(Heap::kNoGCFlags,
+                                  GarbageCollectionReason::kHeapProfiler);
 
   NullContextScope null_context_scope(heap_->isolate());
 

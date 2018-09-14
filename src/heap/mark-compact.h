@@ -626,8 +626,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void UpdateSlots(SlotsBuffer* buffer);
   void UpdateSlotsRecordedIn(SlotsBuffer* buffer);
 
-  void ClearMarkbits();
-
   bool is_compacting() const { return compacting_; }
 
   // Ensures that sweeping is finished.
@@ -834,9 +832,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void ReleaseEvacuationCandidates();
   void PostProcessEvacuationCandidates();
   void ReportAbortedEvacuationCandidate(HeapObject* failed_object, Page* page);
-
-  void ClearMarkbitsInPagedSpace(PagedSpace* space);
-  void ClearMarkbitsInNewSpace(NewSpace* space);
 
   static const int kEphemeronChunkSize = 8 * KB;
 

@@ -514,27 +514,6 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
 
 #endif  // VERIFY_HEAP
 
-void MarkCompactCollector::ClearMarkbitsInPagedSpace(PagedSpace* space) {
-  for (Page* p : *space) {
-    non_atomic_marking_state()->ClearLiveness(p);
-  }
-}
-
-void MarkCompactCollector::ClearMarkbitsInNewSpace(NewSpace* space) {
-  for (Page* p : *space) {
-    non_atomic_marking_state()->ClearLiveness(p);
-  }
-}
-
-
-void MarkCompactCollector::ClearMarkbits() {
-  ClearMarkbitsInPagedSpace(heap_->code_space());
-  ClearMarkbitsInPagedSpace(heap_->map_space());
-  ClearMarkbitsInPagedSpace(heap_->old_space());
-  ClearMarkbitsInNewSpace(heap_->new_space());
-  heap_->lo_space()->ClearMarkingStateOfLiveObjects();
-}
-
 void MarkCompactCollector::EnsureSweepingCompleted() {
   if (!sweeper()->sweeping_in_progress()) return;
 
@@ -772,20 +751,6 @@ void MarkCompactCollector::Prepare() {
   }
 
   heap()->memory_allocator()->unmapper()->PrepareForMarkCompact();
-
-  // Clear marking bits if incremental marking is aborted.
-  if (was_marked_incrementally_ && heap_->ShouldAbortIncrementalMarking()) {
-    heap()->incremental_marking()->Stop();
-    heap()->incremental_marking()->AbortBlackAllocation();
-    FinishConcurrentMarking(ConcurrentMarking::StopRequest::PREEMPT_TASKS);
-    heap()->incremental_marking()->Deactivate();
-    ClearMarkbits();
-    AbortWeakObjects();
-    AbortCompaction();
-    heap_->local_embedder_heap_tracer()->AbortTracing();
-    marking_worklist()->Clear();
-    was_marked_incrementally_ = false;
-  }
 
   if (!was_marked_incrementally_) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_PROLOGUE);

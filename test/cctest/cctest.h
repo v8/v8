@@ -134,6 +134,7 @@ class CcTest {
   static void CollectAllGarbage();
   static void CollectAllGarbage(int flags);
   static void CollectAllAvailableGarbage();
+  static void PreciseCollectAllGarbage();
 
   static v8::base::RandomNumberGenerator* random_number_generator();
 
