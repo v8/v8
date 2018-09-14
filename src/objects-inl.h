@@ -117,6 +117,11 @@ V8_INLINE bool IsJSObject(InstanceType instance_type) {
   return instance_type >= FIRST_JS_OBJECT_TYPE;
 }
 
+V8_INLINE bool IsJSReceiver(InstanceType instance_type) {
+  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  return instance_type >= FIRST_JS_RECEIVER_TYPE;
+}
+
 }  // namespace InstanceTypeChecker
 
 // TODO(v8:7786): For instance types that have a single map instance on the
@@ -286,13 +291,6 @@ bool HeapObject::IsFiller() const {
   InstanceType instance_type = map()->instance_type();
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
-
-bool HeapObject::IsJSReceiver() const {
-  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-  return map()->instance_type() >= FIRST_JS_RECEIVER_TYPE;
-}
-
-bool HeapObject::IsJSProxy() const { return map()->IsJSProxyMap(); }
 
 bool HeapObject::IsJSWeakCollection() const {
   return IsJSWeakMap() || IsJSWeakSet();

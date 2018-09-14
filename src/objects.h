@@ -1003,6 +1003,7 @@ class ZoneForwardList;
   V(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)                           \
   V(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)                       \
   V(JSPromise, JS_PROMISE_TYPE)                                        \
+  V(JSProxy, JS_PROXY_TYPE)                                            \
   V(JSRegExp, JS_REGEXP_TYPE)                                          \
   V(JSRegExpResult, JS_ARRAY_TYPE)                                     \
   V(JSRegExpStringIterator, JS_REGEXP_STRING_ITERATOR_TYPE)            \
@@ -1084,7 +1085,8 @@ class ZoneForwardList;
 #define INSTANCE_TYPE_CHECKERS_CUSTOM(V) \
   V(FixedArrayBase)                      \
   V(InternalizedString)                  \
-  V(JSObject)
+  V(JSObject)                            \
+  V(JSReceiver)
 
 #define INSTANCE_TYPE_CHECKERS(V)  \
   INSTANCE_TYPE_CHECKERS_SINGLE(V) \

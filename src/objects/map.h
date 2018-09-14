@@ -751,27 +751,14 @@ class Map : public HeapObject {
   Map* FindElementsKindTransitionedMap(Isolate* isolate,
                                        MapHandles const& candidates);
 
-  inline static bool IsJSObject(InstanceType type);
-
   inline bool CanTransition() const;
 
+#define DECL_TESTER(Type, ...) inline bool Is##Type##Map() const;
+  INSTANCE_TYPE_CHECKERS(DECL_TESTER)
+#undef DECL_TESTER
   inline bool IsBooleanMap() const;
-  inline bool IsNullMap() const;
-  inline bool IsUndefinedMap() const;
   inline bool IsNullOrUndefinedMap() const;
   inline bool IsPrimitiveMap() const;
-  inline bool IsJSReceiverMap() const;
-  inline bool IsJSObjectMap() const;
-  inline bool IsJSPromiseMap() const;
-  inline bool IsJSArrayMap() const;
-  inline bool IsJSFunctionMap() const;
-  inline bool IsStringMap() const;
-  inline bool IsJSProxyMap() const;
-  inline bool IsModuleMap() const;
-  inline bool IsJSGlobalProxyMap() const;
-  inline bool IsJSGlobalObjectMap() const;
-  inline bool IsJSTypedArrayMap() const;
-  inline bool IsJSDataViewMap() const;
   inline bool IsSpecialReceiverMap() const;
   inline bool IsCustomElementsReceiverMap() const;
 
