@@ -679,34 +679,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                         callable, receiver, args...));
   }
 
-  // Checks whether we can use "FastCall" instead of "Call" when calling
-  // a JSFunction. This can be used for builtins where the user provides a
-  // callback. The callback doesn't change during execution of the builtin, so
-  // a lot of the checks that "Call" does can be done once upfront.
-  //
-  // These checks need to be kept in-sync with the "FastCall" and "Call*" stubs.
-  void BranchIfCanUseFastCallFunction(TNode<HeapObject> callable,
-                                      TNode<Int32T> actualParameterCount,
-                                      Label* if_true, Label* if_false);
-
-  // Uses the above function to simply return {true} or {false}, used in a
-  // CSA_SLOW_ASSERT.
-  TNode<BoolT> CanUseFastCallFunction(TNode<HeapObject> callable,
-                                      TNode<Int32T> actualParameterCount);
-
-  template <class... TArgs>
-  TNode<Object> FastCall(TNode<Context> context, TNode<Object> callable,
-                         TArgs... args) {
-    CSA_SLOW_ASSERT(this, CanUseFastCallFunction(
-                              CAST(callable), Int32Constant(sizeof...(TArgs))));
-
-    Callable call(isolate()->builtins()->builtin_handle(
-                      Builtins::kFastCallFunction_ReceiverIsNullOrUndefined),
-                  CallTrampolineDescriptor{});
-    return UncheckedCast<Object>(
-        CallJS(call, context, callable, UndefinedConstant(), args...));
-  }
-
   template <class A, class F, class G>
   TNode<A> Select(SloppyTNode<BoolT> condition, const F& true_body,
                   const G& false_body) {
@@ -1170,9 +1142,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                     SloppyTNode<Context> native_context);
   TNode<Map> LoadJSArrayElementsMap(SloppyTNode<Int32T> kind,
                                     SloppyTNode<Context> native_context);
-
-  TNode<SharedFunctionInfo> LoadSharedFunctionInfo(TNode<JSFunction> function);
-  TNode<Int32T> LoadFormalParameterCount(TNode<SharedFunctionInfo> sfi);
 
   TNode<BoolT> IsGeneratorFunction(TNode<JSFunction> function);
   TNode<BoolT> HasPrototypeProperty(TNode<JSFunction> function, TNode<Map> map);

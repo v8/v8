@@ -2604,58 +2604,6 @@ TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
       LoadContextElement(native_context, Context::ArrayMapIndex(kind)));
 }
 
-void CodeStubAssembler::BranchIfCanUseFastCallFunction(
-    TNode<HeapObject> callable, TNode<Int32T> actualParameterCount,
-    Label* if_true, Label* if_false) {
-  GotoIfNot(IsJSFunction(callable), if_false);
-
-  TNode<JSFunction> function = CAST(callable);
-  TNode<SharedFunctionInfo> sfi = LoadSharedFunctionInfo(function);
-  TNode<Word32T> flags = UncheckedCast<Word32T>(LoadObjectField(
-      sfi, SharedFunctionInfo::kFlagsOffset, MachineType::Uint32()));
-
-  GotoIf(IsSetWord32<SharedFunctionInfo::IsClassConstructorBit>(flags),
-         if_false);
-
-  // Receiver needs to be converted for non-native sloppy mode functions.
-  GotoIfNot(IsSetWord32(flags, SharedFunctionInfo::IsNativeBit::kMask |
-                                   SharedFunctionInfo::IsStrictBit::kMask),
-            if_false);
-
-  Branch(Word32Equal(actualParameterCount, LoadFormalParameterCount(sfi)),
-         if_true, if_false);
-}
-
-TNode<BoolT> CodeStubAssembler::CanUseFastCallFunction(
-    TNode<HeapObject> callable, TNode<Int32T> actualParameterCount) {
-  Label if_true(this), if_false(this), done(this);
-  TVARIABLE(BoolT, result);
-  BranchIfCanUseFastCallFunction(callable, actualParameterCount, &if_true,
-                                 &if_false);
-  BIND(&if_true);
-  result = Int32TrueConstant();
-  Goto(&done);
-
-  BIND(&if_false);
-  result = Int32FalseConstant();
-  Goto(&done);
-
-  BIND(&done);
-  return result.value();
-}
-
-TNode<SharedFunctionInfo> CodeStubAssembler::LoadSharedFunctionInfo(
-    TNode<JSFunction> function) {
-  return CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
-}
-
-TNode<Int32T> CodeStubAssembler::LoadFormalParameterCount(
-    TNode<SharedFunctionInfo> sfi) {
-  return UncheckedCast<Int32T>(
-      LoadObjectField(sfi, SharedFunctionInfo::kFormalParameterCountOffset,
-                      MachineType::Uint16()));
-}
-
 TNode<BoolT> CodeStubAssembler::IsGeneratorFunction(
     TNode<JSFunction> function) {
   TNode<SharedFunctionInfo> const shared_function_info =

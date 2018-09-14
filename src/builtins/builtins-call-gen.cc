@@ -46,11 +46,6 @@ void Builtins::Generate_Call_ReceiverIsAny(MacroAssembler* masm) {
   Generate_Call(masm, ConvertReceiverMode::kAny);
 }
 
-void Builtins::Generate_FastCallFunction_ReceiverIsNullOrUndefined(
-    MacroAssembler* masm) {
-  Generate_FastCallFunction(masm);
-}
-
 void Builtins::Generate_CallVarargs(MacroAssembler* masm) {
   Generate_CallOrConstructVarargs(masm, masm->isolate()->builtins()->Call());
 }
@@ -235,9 +230,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   }
 }
 
-// Takes a FixedArray of doubles and creates a new FixedArray with those
-// doubles boxed as HeapNumbers, then tail calls CallVarargs/ConstructVarargs
-// depending on whether {new_target} was passed.
+// Takes a FixedArray of doubles and creates a new FixedArray with those doubles
+// boxed as HeapNumbers, then tail calls CallVarargs/ConstructVarargs depending
+// on whether {new_target} was passed.
 void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
     TNode<Object> target, SloppyTNode<Object> new_target,
     TNode<FixedDoubleArray> elements, TNode<Int32T> length,
