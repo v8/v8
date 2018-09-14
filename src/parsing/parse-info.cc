@@ -99,7 +99,7 @@ ParseInfo::ParseInfo(Isolate* isolate, Handle<Script> script)
                            script->IsUserJavaScript());
 }
 
-ParseInfo::~ParseInfo() {}
+ParseInfo::~ParseInfo() = default;
 
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 

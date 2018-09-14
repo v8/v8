@@ -38,7 +38,7 @@ class Utf16CharacterStream {
  public:
   static const uc32 kEndOfInput = -1;
 
-  virtual ~Utf16CharacterStream() {}
+  virtual ~Utf16CharacterStream() = default;
 
   inline uc32 Peek() {
     if (V8_LIKELY(buffer_cursor_ < buffer_end_)) {
@@ -194,7 +194,7 @@ class Scanner {
         : scanner_(scanner), bookmark_(kNoBookmark) {
       DCHECK_NOT_NULL(scanner_);
     }
-    ~BookmarkScope() {}
+    ~BookmarkScope() = default;
 
     void Set();
     void Apply();

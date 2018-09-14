@@ -190,7 +190,7 @@ class ConsumedPreParsedScopeData {
   static std::unique_ptr<ConsumedPreParsedScopeData> For(
       Zone* zone, ZonePreParsedScopeData* data);
 
-  virtual ~ConsumedPreParsedScopeData() {}
+  virtual ~ConsumedPreParsedScopeData() = default;
 
   virtual ProducedPreParsedScopeData* GetDataForSkippableFunction(
       Zone* zone, int start_position, int* end_position, int* num_parameters,
@@ -202,7 +202,7 @@ class ConsumedPreParsedScopeData {
   virtual void RestoreScopeAllocationData(DeclarationScope* scope) = 0;
 
  protected:
-  ConsumedPreParsedScopeData() {}
+  ConsumedPreParsedScopeData() = default;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ConsumedPreParsedScopeData);

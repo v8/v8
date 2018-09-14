@@ -40,7 +40,7 @@ class ChunkSource : public v8::ScriptCompiler::ExternalSourceStream {
     }
     chunks_.push_back({nullptr, 0});
   }
-  ~ChunkSource() {}
+  ~ChunkSource() = default;
   bool SetBookmark() override { return false; }
   void ResetToBookmark() override {}
   size_t GetMoreData(const uint8_t** src) override {
