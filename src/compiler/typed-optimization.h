@@ -29,7 +29,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
  public:
   TypedOptimization(Editor* editor, CompilationDependencies* dependencies,
                     JSGraph* jsgraph, JSHeapBroker* js_heap_broker);
-  ~TypedOptimization();
+  ~TypedOptimization() override;
 
   const char* reducer_name() const override { return "TypedOptimization"; }
 

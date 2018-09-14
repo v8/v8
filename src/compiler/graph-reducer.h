@@ -130,7 +130,7 @@ class V8_EXPORT_PRIVATE GraphReducer
     : public NON_EXPORTED_BASE(AdvancedReducer::Editor) {
  public:
   GraphReducer(Zone* zone, Graph* graph, Node* dead = nullptr);
-  ~GraphReducer();
+  ~GraphReducer() override;
 
   Graph* graph() const { return graph_; }
 

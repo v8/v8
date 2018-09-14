@@ -46,7 +46,7 @@ class CodeRunner : public CallHelper<T> {
  public:
   CodeRunner(Isolate* isolate, Handle<Code> code, MachineSignature* csig)
       : CallHelper<T>(isolate, csig), code_(code) {}
-  virtual ~CodeRunner() {}
+  ~CodeRunner() override {}
 
   Address Generate() override { return code_->entry(); }
 

@@ -1431,7 +1431,8 @@ const Operator* CommonOperatorBuilder::Call(
               Operator::ZeroIfNoThrow(call_descriptor->properties()),
               call_descriptor) {}
 
-    void PrintParameter(std::ostream& os, PrintVerbosity verbose) const {
+    void PrintParameter(std::ostream& os,
+                        PrintVerbosity verbose) const override {
       os << "[" << *parameter() << "]";
     }
   };
@@ -1455,7 +1456,8 @@ const Operator* CommonOperatorBuilder::CallWithCallerSavedRegisters(
               Operator::ZeroIfNoThrow(call_descriptor->properties()),
               call_descriptor) {}
 
-    void PrintParameter(std::ostream& os, PrintVerbosity verbose) const {
+    void PrintParameter(std::ostream& os,
+                        PrintVerbosity verbose) const override {
       os << "[" << *parameter() << "]";
     }
   };
@@ -1474,7 +1476,8 @@ const Operator* CommonOperatorBuilder::TailCall(
                   call_descriptor->FrameStateCount(),
               1, 1, 0, 0, 1, call_descriptor) {}
 
-    void PrintParameter(std::ostream& os, PrintVerbosity verbose) const {
+    void PrintParameter(std::ostream& os,
+                        PrintVerbosity verbose) const override {
       os << "[" << *parameter() << "]";
     }
   };

@@ -238,7 +238,7 @@ class MockPlatform : public v8::Platform {
     TaskWrapper(MockPlatform* platform,
                 std::vector<std::unique_ptr<Task>> tasks, bool signal)
         : platform_(platform), tasks_(std::move(tasks)), signal_(signal) {}
-    ~TaskWrapper() = default;
+    ~TaskWrapper() override = default;
 
     void Run() override {
       for (auto& task : tasks_) {

@@ -39,7 +39,7 @@ bool Contains(const ZoneVector<MoveOperands*>* moves,
 class InstructionTest : public TestWithZone {
  public:
   InstructionTest() {}
-  virtual ~InstructionTest() {}
+  ~InstructionTest() override {}
 
   ParallelMove* CreateParallelMove(
       const std::vector<InstructionOperand>& operand_pairs) {

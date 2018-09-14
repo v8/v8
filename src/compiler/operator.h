@@ -197,7 +197,7 @@ class Operator1 : public Operator {
     os << "[" << parameter() << "]";
   }
 
-  virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const {
+  void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const override {
     os << mnemonic();
     PrintParameter(os, verbose);
   }
