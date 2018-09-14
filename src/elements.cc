@@ -529,11 +529,11 @@ class InternalElementsAccessor : public ElementsAccessor {
   explicit InternalElementsAccessor(const char* name)
       : ElementsAccessor(name) {}
 
-  virtual uint32_t GetEntryForIndex(Isolate* isolate, JSObject* holder,
-                                    FixedArrayBase* backing_store,
-                                    uint32_t index) = 0;
+  uint32_t GetEntryForIndex(Isolate* isolate, JSObject* holder,
+                            FixedArrayBase* backing_store,
+                            uint32_t index) override = 0;
 
-  virtual PropertyDetails GetDetails(JSObject* holder, uint32_t entry) = 0;
+  PropertyDetails GetDetails(JSObject* holder, uint32_t entry) override = 0;
 };
 
 // Base class for element handler implementations. Contains the
@@ -1014,14 +1014,14 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
   void CopyElements(Isolate* isolate, Handle<FixedArrayBase> source,
                     ElementsKind source_kind,
-                    Handle<FixedArrayBase> destination, int size) {
+                    Handle<FixedArrayBase> destination, int size) override {
     Subclass::CopyElementsImpl(isolate, *source, 0, *destination, source_kind,
                                0, kPackedSizeNotKnown, size);
   }
 
   void CopyTypedArrayElementsSlice(JSTypedArray* source,
                                    JSTypedArray* destination, size_t start,
-                                   size_t end) {
+                                   size_t end) override {
     Subclass::CopyTypedArrayElementsSliceImpl(source, destination, start, end);
   }
 
@@ -1056,7 +1056,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   Maybe<bool> CollectValuesOrEntries(Isolate* isolate, Handle<JSObject> object,
                                      Handle<FixedArray> values_or_entries,
                                      bool get_entries, int* nof_items,
-                                     PropertyFilter filter) {
+                                     PropertyFilter filter) override {
     return Subclass::CollectValuesOrEntriesImpl(
         isolate, object, values_or_entries, get_entries, nof_items, filter);
   }
@@ -1286,7 +1286,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   }
 
   Object* Fill(Handle<JSObject> receiver, Handle<Object> obj_value,
-               uint32_t start, uint32_t end) {
+               uint32_t start, uint32_t end) override {
     return Subclass::FillImpl(receiver, obj_value, start, end);
   }
 

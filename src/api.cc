@@ -879,9 +879,9 @@ class ExtensionResource : public String::ExternalOneByteStringResource {
   ExtensionResource() : data_(nullptr), length_(0) {}
   ExtensionResource(const char* data, size_t length)
       : data_(data), length_(length) {}
-  const char* data() const { return data_; }
-  size_t length() const { return length_; }
-  virtual void Dispose() {}
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
+  void Dispose() override {}
 
  private:
   const char* data_;
@@ -7413,7 +7413,7 @@ class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
             reinterpret_cast<i::Isolate*>(isolate)->global_handles()->Create(
                 *Utils::OpenHandle(*promise))) {}
 
-  ~AsyncCompilationResolver() {
+  ~AsyncCompilationResolver() override {
     i::GlobalHandles::Destroy(i::Handle<i::Object>::cast(promise_).location());
   }
 

@@ -105,9 +105,7 @@ class SourceGroup {
    public:
     explicit IsolateThread(SourceGroup* group);
 
-    virtual void Run() {
-      group_->ExecuteInThread();
-    }
+    void Run() override { group_->ExecuteInThread(); }
 
    private:
     SourceGroup* group_;
@@ -257,7 +255,7 @@ class Worker {
         : base::Thread(base::Thread::Options("WorkerThread")),
           worker_(worker) {}
 
-    virtual void Run() { worker_->ExecuteInThread(); }
+    void Run() override { worker_->ExecuteInThread(); }
 
    private:
     Worker* worker_;

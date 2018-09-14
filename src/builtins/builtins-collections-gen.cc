@@ -628,7 +628,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   Node* AllocateJSCollectionIterator(Node* context, int map_index,
                                      Node* collection);
   TNode<Object> AllocateTable(Variant variant, TNode<Context> context,
-                              TNode<IntPtrT> at_least_space_for);
+                              TNode<IntPtrT> at_least_space_for) override;
   Node* GetHash(Node* const key);
   Node* CallGetHashRaw(Node* const key);
   Node* CallGetOrCreateHashRaw(Node* const key);
@@ -1987,7 +1987,7 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                 TNode<IntPtrT> number_of_elements);
 
   TNode<Object> AllocateTable(Variant variant, TNode<Context> context,
-                              TNode<IntPtrT> at_least_space_for);
+                              TNode<IntPtrT> at_least_space_for) override;
 
   // Generates and sets the identity for a JSRececiver.
   TNode<Smi> CreateIdentityHash(TNode<Object> receiver);

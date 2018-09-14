@@ -814,7 +814,7 @@ class FlatStringReader : public Relocatable {
  public:
   FlatStringReader(Isolate* isolate, Handle<String> str);
   FlatStringReader(Isolate* isolate, Vector<const char> input);
-  void PostGarbageCollection();
+  void PostGarbageCollection() override;
   inline uc32 Get(int index);
   template <typename Char>
   inline Char Get(int index);

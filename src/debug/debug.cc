@@ -43,7 +43,7 @@ namespace internal {
 class Debug::TemporaryObjectsTracker : public HeapObjectAllocationTracker {
  public:
   TemporaryObjectsTracker() = default;
-  ~TemporaryObjectsTracker() = default;
+  ~TemporaryObjectsTracker() override = default;
 
   void AllocationEvent(Address addr, int) override { objects_.insert(addr); }
 
@@ -1140,7 +1140,7 @@ class RedirectActiveFunctions : public ThreadVisitor {
     DCHECK(shared->HasBytecodeArray());
   }
 
-  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
     for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       JavaScriptFrame* frame = it.frame();
       JSFunction* function = frame->function();

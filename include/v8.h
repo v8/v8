@@ -2695,7 +2695,7 @@ class V8_EXPORT String : public Name {
      * Override the destructor to manage the life cycle of the underlying
      * buffer.
      */
-    virtual ~ExternalStringResource() {}
+    ~ExternalStringResource() override {}
 
     /**
      * The string data from the underlying buffer.
@@ -2728,7 +2728,7 @@ class V8_EXPORT String : public Name {
      * Override the destructor to manage the life cycle of the underlying
      * buffer.
      */
-    virtual ~ExternalOneByteStringResource() {}
+    ~ExternalOneByteStringResource() override {}
     /** The string data from the underlying buffer.*/
     virtual const char* data() const = 0;
     /** The number of Latin-1 characters in the string.*/
@@ -6214,8 +6214,8 @@ V8_EXPORT ExternalOneByteStringResourceImpl
   ExternalOneByteStringResourceImpl() : data_(nullptr), length_(0) {}
   ExternalOneByteStringResourceImpl(const char* data, size_t length)
       : data_(data), length_(length) {}
-  const char* data() const { return data_; }
-  size_t length() const { return length_; }
+  const char* data() const override { return data_; }
+  size_t length() const override { return length_; }
 
  private:
   const char* data_;

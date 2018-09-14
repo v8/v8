@@ -2033,7 +2033,7 @@ class PostponeInterruptsScope : public InterruptsScope {
                           int intercept_mask = StackGuard::ALL_INTERRUPTS)
       : InterruptsScope(isolate, intercept_mask,
                         InterruptsScope::kPostponeInterrupts) {}
-  virtual ~PostponeInterruptsScope() = default;
+  ~PostponeInterruptsScope() override = default;
 };
 
 // Support for overriding PostponeInterruptsScope. Interrupt is not ignored if
@@ -2045,7 +2045,7 @@ class SafeForInterruptsScope : public InterruptsScope {
                          int intercept_mask = StackGuard::ALL_INTERRUPTS)
       : InterruptsScope(isolate, intercept_mask,
                         InterruptsScope::kRunInterrupts) {}
-  virtual ~SafeForInterruptsScope() = default;
+  ~SafeForInterruptsScope() override = default;
 };
 
 class StackTraceFailureMessage {

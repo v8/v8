@@ -198,41 +198,43 @@ class Logger : public CodeEventListener {
   void RemoveCodeEventListener(CodeEventListener* listener);
 
   // Emits a code event for a callback function.
-  void CallbackEvent(Name* name, Address entry_point);
-  void GetterCallbackEvent(Name* name, Address entry_point);
-  void SetterCallbackEvent(Name* name, Address entry_point);
+  void CallbackEvent(Name* name, Address entry_point) override;
+  void GetterCallbackEvent(Name* name, Address entry_point) override;
+  void SetterCallbackEvent(Name* name, Address entry_point) override;
   // Emits a code create event.
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, const char* source);
+                       AbstractCode* code, const char* source) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, Name* name);
-  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, SharedFunctionInfo* shared,
-                       Name* name);
+                       AbstractCode* code, Name* name) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                        AbstractCode* code, SharedFunctionInfo* shared,
-                       Name* source, int line, int column);
+                       Name* name) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       const wasm::WasmCode* code, wasm::WasmName name);
+                       AbstractCode* code, SharedFunctionInfo* shared,
+                       Name* source, int line, int column) override;
+  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
+                       const wasm::WasmCode* code,
+                       wasm::WasmName name) override;
   // Emits a code deoptimization event.
-  void CodeDisableOptEvent(AbstractCode* code, SharedFunctionInfo* shared);
-  void CodeMovingGCEvent();
+  void CodeDisableOptEvent(AbstractCode* code,
+                           SharedFunctionInfo* shared) override;
+  void CodeMovingGCEvent() override;
   // Emits a code create event for a RegExp.
-  void RegExpCodeCreateEvent(AbstractCode* code, String* source);
+  void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
   // Emits a code move event.
-  void CodeMoveEvent(AbstractCode* from, AbstractCode* to);
+  void CodeMoveEvent(AbstractCode* from, AbstractCode* to) override;
   // Emits a code line info record event.
   void CodeLinePosInfoRecordEvent(Address code_start,
                                   ByteArray* source_position_table);
   void CodeLinePosInfoRecordEvent(Address code_start,
                                   Vector<const byte> source_position_table);
 
-  void SharedFunctionInfoMoveEvent(Address from, Address to);
+  void SharedFunctionInfoMoveEvent(Address from, Address to) override;
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 
   void CodeDeoptEvent(Code* code, DeoptimizeKind kind, Address pc,
-                      int fp_to_sp_delta);
+                      int fp_to_sp_delta) override;
 
   void ICEvent(const char* type, bool keyed, Map* map, Object* key,
                char old_state, char new_state, const char* modifier,
@@ -264,7 +266,7 @@ class Logger : public CodeEventListener {
     return is_logging_;
   }
 
-  bool is_listening_to_code_events() {
+  bool is_listening_to_code_events() override {
     return is_logging() || jit_logger_ != nullptr;
   }
 
@@ -299,7 +301,7 @@ class Logger : public CodeEventListener {
 
  private:
   explicit Logger(Isolate* isolate);
-  ~Logger();
+  ~Logger() override;
 
   // Emits the profiler's first message.
   void ProfilerBeginEvent();

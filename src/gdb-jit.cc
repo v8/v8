@@ -238,7 +238,7 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
     }
   }
 
-  virtual ~MachOSection() { }
+  ~MachOSection() override {}
 
   virtual void PopulateHeader(Writer::Slot<Header> header) {
     header->addr = 0;
@@ -314,11 +314,11 @@ class ELFSection : public DebugSectionBase<ELFSectionHeader> {
   ELFSection(const char* name, Type type, uintptr_t align)
       : name_(name), type_(type), align_(align) { }
 
-  virtual ~ELFSection() { }
+  ~ELFSection() override {}
 
   void PopulateHeader(Writer::Slot<Header> header, ELFStringTable* strtab);
 
-  virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
+  void WriteBody(Writer::Slot<Header> header, Writer* w) override {
     uintptr_t start = w->position();
     if (WriteBodyInternal(w)) {
       uintptr_t end = w->position();
@@ -327,9 +327,7 @@ class ELFSection : public DebugSectionBase<ELFSectionHeader> {
     }
   }
 
-  virtual bool WriteBodyInternal(Writer* w) {
-    return false;
-  }
+  bool WriteBodyInternal(Writer* w) override { return false; }
 
   uint16_t index() const { return index_; }
   void set_index(uint16_t index) { index_ = index; }
@@ -396,7 +394,7 @@ class FullHeaderELFSection : public ELFSection {
         flags_(flags) { }
 
  protected:
-  virtual void PopulateHeader(Writer::Slot<Header> header) {
+  void PopulateHeader(Writer::Slot<Header> header) override {
     ELFSection::PopulateHeader(header);
     header->address = addr_;
     header->offset = offset_;
@@ -438,7 +436,7 @@ class ELFStringTable : public ELFSection {
 
   void DetachWriter() { writer_ = nullptr; }
 
-  virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
+  void WriteBody(Writer::Slot<Header> header, Writer* w) override {
     DCHECK_NULL(writer_);
     header->offset = offset_;
     header->size = size_;
@@ -861,7 +859,7 @@ class ELFSymbolTable : public ELFSection {
         locals_(zone),
         globals_(zone) {}
 
-  virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
+  void WriteBody(Writer::Slot<Header> header, Writer* w) override {
     w->Align(header->alignment);
     size_t total_symbols = locals_.size() + globals_.size() + 1;
     header->offset = w->position();
@@ -898,7 +896,7 @@ class ELFSymbolTable : public ELFSection {
   }
 
  protected:
-  virtual void PopulateHeader(Writer::Slot<Header> header) {
+  void PopulateHeader(Writer::Slot<Header> header) override {
     ELFSection::PopulateHeader(header);
     // We are assuming that string table will follow symbol table.
     header->link = index() + 1;
@@ -1113,7 +1111,7 @@ class DebugInfoSection : public DebugSection {
     DW_ATE_SIGNED = 0x5
   };
 
-  bool WriteBodyInternal(Writer* w) {
+  bool WriteBodyInternal(Writer* w) override {
     uintptr_t cu_start = w->position();
     Writer::Slot<uint32_t> size = w->CreateSlotHere<uint32_t>();
     uintptr_t start = w->position();
@@ -1316,7 +1314,7 @@ class DebugAbbrevSection : public DebugSection {
     w->WriteULEB128(0);
   }
 
-  bool WriteBodyInternal(Writer* w) {
+  bool WriteBodyInternal(Writer* w) override {
     int current_abbreviation = 1;
     bool extra_info = desc_->has_scope_info();
     DCHECK(desc_->IsLineInfoAvailable());
@@ -1433,7 +1431,7 @@ class DebugLineSection : public DebugSection {
     DW_LNE_DEFINE_FILE = 3
   };
 
-  bool WriteBodyInternal(Writer* w) {
+  bool WriteBodyInternal(Writer* w) override {
     // Write prologue.
     Writer::Slot<uint32_t> total_length = w->CreateSlotHere<uint32_t>();
     uintptr_t start = w->position();
@@ -1569,7 +1567,7 @@ class DebugLineSection : public DebugSection {
 class UnwindInfoSection : public DebugSection {
  public:
   explicit UnwindInfoSection(CodeDescription* desc);
-  virtual bool WriteBodyInternal(Writer* w);
+  bool WriteBodyInternal(Writer* w) override;
 
   int WriteCIE(Writer* w);
   void WriteFDE(Writer* w, int);

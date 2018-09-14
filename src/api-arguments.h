@@ -26,12 +26,12 @@ class CustomArguments : public CustomArgumentsBase {
  public:
   static const int kReturnValueOffset = T::kReturnValueIndex;
 
-  ~CustomArguments() {
+  ~CustomArguments() override {
     this->begin()[kReturnValueOffset] =
         reinterpret_cast<Object*>(kHandleZapValue);
   }
 
-  virtual inline void IterateInstance(RootVisitor* v) {
+  inline void IterateInstance(RootVisitor* v) override {
     v->VisitRootPointers(Root::kRelocatable, nullptr, values_,
                          values_ + T::kArgsLength);
   }

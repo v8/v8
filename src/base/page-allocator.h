@@ -16,7 +16,7 @@ class V8_BASE_EXPORT PageAllocator
     : public NON_EXPORTED_BASE(::v8::PageAllocator) {
  public:
   PageAllocator();
-  virtual ~PageAllocator() = default;
+  ~PageAllocator() override = default;
 
   size_t AllocatePageSize() override { return allocate_page_size_; }
 

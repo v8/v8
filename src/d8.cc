@@ -469,7 +469,7 @@ class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
                       source_length_);
   }
 
-  virtual size_t GetMoreData(const uint8_t** src) {
+  size_t GetMoreData(const uint8_t** src) override {
     if (done_) {
       return 0;
     }
@@ -2332,7 +2332,7 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
     isolate_ = context->GetIsolate();
     context_.Reset(isolate_, context);
   }
-  virtual ~InspectorFrontend() = default;
+  ~InspectorFrontend() override = default;
 
  private:
   void sendResponse(

@@ -462,13 +462,13 @@ class NumberParseIntHelper : public StringToIntHelper {
   }
 
  protected:
-  virtual void AllocateResult() {}
-  virtual void ResultMultiplyAdd(uint32_t multiplier, uint32_t part) {
+  void AllocateResult() override {}
+  void ResultMultiplyAdd(uint32_t multiplier, uint32_t part) override {
     result_ = result_ * multiplier + part;
   }
 
  private:
-  virtual void HandleSpecialCases() {
+  void HandleSpecialCases() override {
     bool is_power_of_two = base::bits::IsPowerOfTwo(radix());
     if (!is_power_of_two && radix() != 10) return;
     DisallowHeapAllocation no_gc;
@@ -911,7 +911,7 @@ class StringToBigIntHelper : public StringToIntHelper {
   }
 
  protected:
-  virtual void AllocateResult() {
+  void AllocateResult() override {
     // We have to allocate a BigInt that's big enough to fit the result.
     // Conseratively assume that all remaining digits are significant.
     // Optimization opportunity: Would it makes sense to scan for trailing
@@ -928,7 +928,7 @@ class StringToBigIntHelper : public StringToIntHelper {
     }
   }
 
-  virtual void ResultMultiplyAdd(uint32_t multiplier, uint32_t part) {
+  void ResultMultiplyAdd(uint32_t multiplier, uint32_t part) override {
     BigInt::InplaceMultiplyAdd(result_, static_cast<uintptr_t>(multiplier),
                                static_cast<uintptr_t>(part));
   }

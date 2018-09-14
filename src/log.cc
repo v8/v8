@@ -794,7 +794,7 @@ class Profiler: public base::Thread {
     }
   }
 
-  virtual void Run();
+  void Run() override;
 
   // Pause and Resume TickSample data collection.
   void Pause() { paused_ = true; }
@@ -848,7 +848,7 @@ class Ticker: public sampler::Sampler {
         profiler_(nullptr),
         sampling_thread_(new SamplingThread(this, interval_microseconds)) {}
 
-  ~Ticker() {
+  ~Ticker() override {
     if (IsActive()) Stop();
     delete sampling_thread_;
   }

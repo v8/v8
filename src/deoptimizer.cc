@@ -253,7 +253,7 @@ class ActivationsFinder : public ThreadVisitor {
   // Find the frames with activations of codes marked for deoptimization, search
   // for the trampoline to the deoptimizer call respective to each code, and use
   // it to replace the current pc on the stack.
-  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
     for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       if (it.frame()->type() == StackFrame::OPTIMIZED) {
         Code* code = it.frame()->LookupCode();

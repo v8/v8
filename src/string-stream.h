@@ -31,7 +31,7 @@ class StringAllocator {
 // Normal allocator uses new[] and delete[].
 class HeapStringAllocator final : public StringAllocator {
  public:
-  ~HeapStringAllocator() { DeleteArray(space_); }
+  ~HeapStringAllocator() override { DeleteArray(space_); }
   char* allocate(unsigned bytes) override;
   char* grow(unsigned* bytes) override;
 

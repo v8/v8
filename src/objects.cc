@@ -17134,7 +17134,7 @@ class StringTableNoAllocateKey : public StringTableKey {
     set_hash_field(string->hash_field());
   }
 
-  ~StringTableNoAllocateKey() {
+  ~StringTableNoAllocateKey() override {
     if (one_byte_) {
       if (one_byte_content_ != one_byte_buffer_) delete[] one_byte_content_;
     } else {

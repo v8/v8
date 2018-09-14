@@ -91,7 +91,7 @@ class JSStackFrame : public StackFrameBase {
   JSStackFrame(Isolate* isolate, Handle<Object> receiver,
                Handle<JSFunction> function, Handle<AbstractCode> code,
                int offset);
-  virtual ~JSStackFrame() {}
+  ~JSStackFrame() override {}
 
   Handle<Object> GetReceiver() const override { return receiver_; }
   Handle<Object> GetFunction() const override;
@@ -133,7 +133,7 @@ class JSStackFrame : public StackFrameBase {
 
 class WasmStackFrame : public StackFrameBase {
  public:
-  virtual ~WasmStackFrame() {}
+  ~WasmStackFrame() override {}
 
   Handle<Object> GetReceiver() const override;
   Handle<Object> GetFunction() const override;
@@ -177,7 +177,7 @@ class WasmStackFrame : public StackFrameBase {
 
 class AsmJsWasmStackFrame : public WasmStackFrame {
  public:
-  virtual ~AsmJsWasmStackFrame() {}
+  ~AsmJsWasmStackFrame() override {}
 
   Handle<Object> GetReceiver() const override;
   Handle<Object> GetFunction() const override;
