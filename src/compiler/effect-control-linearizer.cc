@@ -640,6 +640,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kChangeTaggedSignedToInt32:
       result = LowerChangeTaggedSignedToInt32(node);
       break;
+    case IrOpcode::kChangeTaggedSignedToInt64:
+      result = LowerChangeTaggedSignedToInt64(node);
+      break;
     case IrOpcode::kChangeTaggedToBit:
       result = LowerChangeTaggedToBit(node);
       break;
@@ -648,6 +651,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kChangeTaggedToUint32:
       result = LowerChangeTaggedToUint32(node);
+      break;
+    case IrOpcode::kChangeTaggedToInt64:
+      result = LowerChangeTaggedToInt64(node);
       break;
     case IrOpcode::kChangeTaggedToFloat64:
       result = LowerChangeTaggedToFloat64(node);
@@ -1147,6 +1153,11 @@ Node* EffectControlLinearizer::LowerChangeTaggedSignedToInt32(Node* node) {
   return ChangeSmiToInt32(value);
 }
 
+Node* EffectControlLinearizer::LowerChangeTaggedSignedToInt64(Node* node) {
+  Node* value = node->InputAt(0);
+  return ChangeSmiToInt64(value);
+}
+
 Node* EffectControlLinearizer::LowerChangeTaggedToBit(Node* node) {
   Node* value = node->InputAt(0);
   return __ WordEqual(value, __ TrueConstant());
@@ -1277,6 +1288,26 @@ Node* EffectControlLinearizer::LowerChangeTaggedToUint32(Node* node) {
   STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
   Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
   vfalse = __ ChangeFloat64ToUint32(vfalse);
+  __ Goto(&done, vfalse);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerChangeTaggedToInt64(Node* node) {
+  Node* value = node->InputAt(0);
+
+  auto if_not_smi = __ MakeDeferredLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kWord64);
+
+  Node* check = ObjectIsSmi(value);
+  __ GotoIfNot(check, &if_not_smi);
+  __ Goto(&done, ChangeSmiToInt64(value));
+
+  __ Bind(&if_not_smi);
+  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  vfalse = __ ChangeFloat64ToInt64(vfalse);
   __ Goto(&done, vfalse);
 
   __ Bind(&done);
@@ -2855,9 +2886,9 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
   // We need a loop here to properly deal with indirect strings
   // (SlicedString, ConsString and ThinString).
   auto loop = __ MakeLoopLabel(MachineRepresentation::kTagged,
-                               MachineRepresentation::kWord32);
+                               MachineType::PointerRepresentation());
   auto loop_next = __ MakeLabel(MachineRepresentation::kTagged,
-                                MachineRepresentation::kWord32);
+                                MachineType::PointerRepresentation());
   auto loop_done = __ MakeLabel(MachineRepresentation::kWord32);
   __ Goto(&loop, receiver, position);
   __ Bind(&loop);
@@ -2944,16 +2975,14 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
 
       __ Bind(&if_onebyte);
       {
-        Node* result = __ Load(MachineType::Uint8(), receiver_data,
-                               ChangeInt32ToIntPtr(position));
+        Node* result = __ Load(MachineType::Uint8(), receiver_data, position);
         __ Goto(&loop_done, result);
       }
 
       __ Bind(&if_twobyte);
       {
-        Node* result = __ Load(
-            MachineType::Uint16(), receiver_data,
-            __ Word32Shl(ChangeInt32ToIntPtr(position), __ Int32Constant(1)));
+        Node* result = __ Load(MachineType::Uint16(), receiver_data,
+                               __ WordShl(position, __ IntPtrConstant(1)));
         __ Goto(&loop_done, result);
       }
     }
@@ -2965,7 +2994,7 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
       Node* receiver_parent =
           __ LoadField(AccessBuilder::ForSlicedStringParent(), receiver);
       __ Goto(&loop_next, receiver_parent,
-              __ Int32Add(position, ChangeSmiToInt32(receiver_offset)));
+              __ IntAdd(position, ChangeSmiToIntPtr(receiver_offset)));
     }
 
     __ Bind(&if_runtime);
@@ -2975,7 +3004,7 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
       auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
           graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
       Node* result = __ Call(call_descriptor, __ CEntryStubConstant(1),
-                             receiver, ChangeInt32ToSmi(position),
+                             receiver, ChangeIntPtrToSmi(position),
                              __ ExternalConstant(ExternalReference::Create(id)),
                              __ Int32Constant(2), __ NoContextConstant());
       __ Goto(&loop_done, ChangeSmiToInt32(result));
@@ -3474,8 +3503,8 @@ Node* EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value) {
   return result;
 }
 
-Node* EffectControlLinearizer::ChangeInt32ToSmi(Node* value) {
-  return __ WordShl(ChangeInt32ToIntPtr(value), SmiShiftBitsConstant());
+Node* EffectControlLinearizer::ChangeIntPtrToSmi(Node* value) {
+  return __ WordShl(value, SmiShiftBitsConstant());
 }
 
 Node* EffectControlLinearizer::ChangeInt32ToIntPtr(Node* value) {
@@ -3490,6 +3519,10 @@ Node* EffectControlLinearizer::ChangeIntPtrToInt32(Node* value) {
     value = __ TruncateInt64ToInt32(value);
   }
   return value;
+}
+
+Node* EffectControlLinearizer::ChangeInt32ToSmi(Node* value) {
+  return ChangeIntPtrToSmi(ChangeInt32ToIntPtr(value));
 }
 
 Node* EffectControlLinearizer::ChangeUint32ToUintPtr(Node* value) {
@@ -3514,6 +3547,11 @@ Node* EffectControlLinearizer::ChangeSmiToInt32(Node* value) {
     value = __ TruncateInt64ToInt32(value);
   }
   return value;
+}
+
+Node* EffectControlLinearizer::ChangeSmiToInt64(Node* value) {
+  CHECK(machine()->Is64());
+  return ChangeSmiToIntPtr(value);
 }
 
 Node* EffectControlLinearizer::ObjectIsSmi(Node* value) {
@@ -3866,12 +3904,6 @@ Node* EffectControlLinearizer::LowerLoadDataViewElement(Node* node) {
   Node* index = node->InputAt(2);
   Node* is_little_endian = node->InputAt(3);
 
-  // On 64-bit platforms, we need to feed a Word64 index to the Load and
-  // Store operators.
-  if (machine()->Is64()) {
-    index = __ ChangeUint32ToUint64(index);
-  }
-
   // We need to keep the {buffer} alive so that the GC will not release the
   // ArrayBuffer (if there's any) as long as we are still operating on it.
   __ Retain(buffer);
@@ -3913,12 +3945,6 @@ void EffectControlLinearizer::LowerStoreDataViewElement(Node* node) {
   Node* index = node->InputAt(2);
   Node* value = node->InputAt(3);
   Node* is_little_endian = node->InputAt(4);
-
-  // On 64-bit platforms, we need to feed a Word64 index to the Load and
-  // Store operators.
-  if (machine()->Is64()) {
-    index = __ ChangeUint32ToUint64(index);
-  }
 
   // We need to keep the {buffer} alive so that the GC will not release the
   // ArrayBuffer (if there's any) as long as we are still operating on it.

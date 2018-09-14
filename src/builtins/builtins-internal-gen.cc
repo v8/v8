@@ -1113,20 +1113,20 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AllocateInNewSpace, CodeStubAssembler) {
-  TNode<Int32T> requested_size =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kRequestedSize));
+  TNode<IntPtrT> requested_size =
+      UncheckedCast<IntPtrT>(Parameter(Descriptor::kRequestedSize));
 
   TailCallRuntime(Runtime::kAllocateInNewSpace, NoContextConstant(),
-                  SmiFromInt32(requested_size));
+                  SmiFromIntPtr(requested_size));
 }
 
 TF_BUILTIN(AllocateInOldSpace, CodeStubAssembler) {
-  TNode<Int32T> requested_size =
-      UncheckedCast<Int32T>(Parameter(Descriptor::kRequestedSize));
+  TNode<IntPtrT> requested_size =
+      UncheckedCast<IntPtrT>(Parameter(Descriptor::kRequestedSize));
 
   int flags = AllocateTargetSpace::encode(OLD_SPACE);
   TailCallRuntime(Runtime::kAllocateInTargetSpace, NoContextConstant(),
-                  SmiFromInt32(requested_size), SmiConstant(flags));
+                  SmiFromIntPtr(requested_size), SmiConstant(flags));
 }
 
 TF_BUILTIN(Abort, CodeStubAssembler) {

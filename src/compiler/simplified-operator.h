@@ -642,7 +642,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* PlainPrimitiveToFloat64();
 
   const Operator* ChangeTaggedSignedToInt32();
+  const Operator* ChangeTaggedSignedToInt64();
   const Operator* ChangeTaggedToInt32();
+  const Operator* ChangeTaggedToInt64();
   const Operator* ChangeTaggedToUint32();
   const Operator* ChangeTaggedToFloat64();
   const Operator* ChangeTaggedToTaggedSigned();

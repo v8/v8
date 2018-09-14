@@ -10,6 +10,7 @@
 #include "src/code-factory.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/type-cache.h"
 #include "src/heap/factory-inl.h"
 
 namespace v8 {
@@ -123,6 +124,13 @@ bool IsWord(MachineRepresentation rep) {
 }
 
 }  // namespace
+
+RepresentationChanger::RepresentationChanger(JSGraph* jsgraph, Isolate* isolate)
+    : cache_(TypeCache::Get()),
+      jsgraph_(jsgraph),
+      isolate_(isolate),
+      testing_type_errors_(false),
+      type_error_(false) {}
 
 // Changes representation from {output_rep} to {use_rep}. The {truncation}
 // parameter is only used for sanity checking - if the changer cannot figure
@@ -620,6 +628,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
     case IrOpcode::kInt32Constant:
+    case IrOpcode::kInt64Constant:
     case IrOpcode::kFloat32Constant:
     case IrOpcode::kFloat64Constant:
       UNREACHABLE();
@@ -838,16 +847,78 @@ Node* RepresentationChanger::GetBitRepresentationFor(
 
 Node* RepresentationChanger::GetWord64RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type output_type) {
+  // Eagerly fold representation changes for constants.
+  switch (node->opcode()) {
+    case IrOpcode::kInt32Constant:
+    case IrOpcode::kInt64Constant:
+    case IrOpcode::kFloat32Constant:
+    case IrOpcode::kFloat64Constant:
+      UNREACHABLE();
+      break;
+    case IrOpcode::kNumberConstant: {
+      double const fv = OpParameter<double>(node->op());
+      int64_t const iv = static_cast<int64_t>(fv);
+      if (static_cast<double>(iv) == fv) {
+        return jsgraph()->Int64Constant(iv);
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  // Select the correct X -> Word64 operator.
+  const Operator* op;
   if (output_type.Is(Type::None())) {
     // This is an impossible value; it should not be used at runtime.
     return jsgraph()->graph()->NewNode(
-        jsgraph()->common()->DeadValue(MachineRepresentation::kWord32), node);
+        jsgraph()->common()->DeadValue(MachineRepresentation::kWord64), node);
   } else if (output_rep == MachineRepresentation::kBit) {
     return node;  // Sloppy comparison -> word64
+  } else if (output_rep == MachineRepresentation::kWord32) {
+    if (output_type.Is(Type::Unsigned32())) {
+      op = machine()->ChangeUint32ToUint64();
+    } else if (output_type.Is(Type::Signed32())) {
+      op = machine()->ChangeInt32ToInt64();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord64);
+    }
+  } else if (output_rep == MachineRepresentation::kFloat32) {
+    if (output_type.Is(cache_.kSafeInteger)) {
+      // float32 -> float64 -> int64
+      node = InsertChangeFloat32ToFloat64(node);
+      op = machine()->ChangeFloat64ToInt64();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord64);
+    }
+  } else if (output_rep == MachineRepresentation::kFloat64) {
+    if (output_type.Is(cache_.kSafeInteger)) {
+      op = machine()->ChangeFloat64ToInt64();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord64);
+    }
+  } else if (output_rep == MachineRepresentation::kTaggedSigned) {
+    if (output_type.Is(Type::SignedSmall())) {
+      op = simplified()->ChangeTaggedSignedToInt64();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord64);
+    }
+  } else if (CanBeTaggedPointer(output_rep)) {
+    if (output_type.Is(cache_.kSafeInteger)) {
+      op = simplified()->ChangeTaggedToInt64();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord64);
+    }
+  } else {
+    return TypeError(node, output_rep, output_type,
+                     MachineRepresentation::kWord64);
   }
-  // Can't really convert Word64 to anything else. Purported to be internal.
-  return TypeError(node, output_rep, output_type,
-                   MachineRepresentation::kWord64);
+  return jsgraph()->graph()->NewNode(op, node);
 }
 
 const Operator* RepresentationChanger::Int32OperatorFor(

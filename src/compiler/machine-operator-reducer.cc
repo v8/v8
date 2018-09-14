@@ -618,6 +618,11 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
+    case IrOpcode::kChangeFloat64ToInt64: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt64(static_cast<int64_t>(m.Value()));
+      break;
+    }
     case IrOpcode::kChangeFloat64ToUint32: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(FastD2UI(m.Value()));

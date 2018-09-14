@@ -441,7 +441,7 @@ class AllocateDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kRequestedSize)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // result 1
-                                    MachineType::Int32())  // kRequestedSize
+                                    MachineType::IntPtr())  // kRequestedSize
   DECLARE_DESCRIPTOR(AllocateDescriptor, CallInterfaceDescriptor)
 };
 

@@ -12,6 +12,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Foward declarations.
+class TypeCache;
+
 enum IdentifyZeros { kIdentifyZeros, kDistinguishZeros };
 
 class Truncation final {
@@ -255,11 +258,7 @@ class UseInfo {
 // Eagerly folds any representation changes for constants.
 class RepresentationChanger final {
  public:
-  RepresentationChanger(JSGraph* jsgraph, Isolate* isolate)
-      : jsgraph_(jsgraph),
-        isolate_(isolate),
-        testing_type_errors_(false),
-        type_error_(false) {}
+  RepresentationChanger(JSGraph* jsgraph, Isolate* isolate);
 
   // Changes representation from {output_type} to {use_rep}. The {truncation}
   // parameter is only used for sanity checking - if the changer cannot figure
@@ -286,6 +285,7 @@ class RepresentationChanger final {
   }
 
  private:
+  TypeCache const& cache_;
   JSGraph* jsgraph_;
   Isolate* isolate_;
 

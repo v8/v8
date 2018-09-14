@@ -53,9 +53,11 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerChangeFloat64ToTagged(Node* node);
   Node* LowerChangeFloat64ToTaggedPointer(Node* node);
   Node* LowerChangeTaggedSignedToInt32(Node* node);
+  Node* LowerChangeTaggedSignedToInt64(Node* node);
   Node* LowerChangeTaggedToBit(Node* node);
   Node* LowerChangeTaggedToInt32(Node* node);
   Node* LowerChangeTaggedToUint32(Node* node);
+  Node* LowerChangeTaggedToInt64(Node* node);
   Node* LowerChangeTaggedToTaggedSigned(Node* node);
   Node* LowerCheckBounds(Node* node, Node* frame_state);
   Node* LowerPoisonIndex(Node* node);
@@ -190,10 +192,12 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeInt32ToIntPtr(Node* value);
   Node* ChangeIntPtrToInt32(Node* value);
+  Node* ChangeIntPtrToSmi(Node* value);
   Node* ChangeUint32ToUintPtr(Node* value);
   Node* ChangeUint32ToSmi(Node* value);
   Node* ChangeSmiToIntPtr(Node* value);
   Node* ChangeSmiToInt32(Node* value);
+  Node* ChangeSmiToInt64(Node* value);
   Node* ObjectIsSmi(Node* value);
   Node* LoadFromSeqString(Node* receiver, Node* position, Node* is_one_byte);
 

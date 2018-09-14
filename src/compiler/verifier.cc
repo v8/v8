@@ -1285,6 +1285,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, to));
       break;
     }
+    case IrOpcode::kChangeTaggedSignedToInt64:
+      break;
     case IrOpcode::kChangeTaggedToInt32: {
       // Signed32 /\ Tagged -> Signed32 /\ UntaggedInt32
       // TODO(neis): Activate once ChangeRepresentation works in typer.
@@ -1294,6 +1296,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, to));
       break;
     }
+    case IrOpcode::kChangeTaggedToInt64:
+      break;
     case IrOpcode::kChangeTaggedToUint32: {
       // Unsigned32 /\ Tagged -> Unsigned32 /\ UntaggedInt32
       // TODO(neis): Activate once ChangeRepresentation works in typer.
@@ -1701,6 +1705,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kChangeUint32ToFloat64:
     case IrOpcode::kChangeFloat32ToFloat64:
     case IrOpcode::kChangeFloat64ToInt32:
+    case IrOpcode::kChangeFloat64ToInt64:
     case IrOpcode::kChangeFloat64ToUint32:
     case IrOpcode::kChangeFloat64ToUint64:
     case IrOpcode::kFloat64SilenceNaN:

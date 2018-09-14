@@ -158,6 +158,10 @@ UseInfo UseInfoForBasePointer(const ElementAccess& access) {
   return access.tag() != 0 ? UseInfo::AnyTagged() : UseInfo::Word();
 }
 
+UseInfo UseInfoForIndex() {
+  return UseInfo(MachineType::PointerRepresentation(), Truncation::Word32());
+}
+
 void ReplaceEffectControlUses(Node* node, Node* effect, Node* control) {
   for (Edge edge : node->use_edges()) {
     if (NodeProperties::IsControlEdge(edge)) {
@@ -2363,13 +2367,11 @@ class RepresentationSelector {
                           MachineRepresentation::kTaggedPointer);
       }
       case IrOpcode::kStringCharCodeAt: {
-        return VisitBinop(node, UseInfo::AnyTagged(),
-                          UseInfo::TruncatingWord32(),
+        return VisitBinop(node, UseInfo::AnyTagged(), UseInfoForIndex(),
                           MachineRepresentation::kWord32);
       }
       case IrOpcode::kStringCodePointAt: {
-        return VisitBinop(node, UseInfo::AnyTagged(),
-                          UseInfo::TruncatingWord32(),
+        return VisitBinop(node, UseInfo::AnyTagged(), UseInfoForIndex(),
                           MachineRepresentation::kTaggedSigned);
       }
       case IrOpcode::kStringFromSingleCharCode: {
@@ -2503,7 +2505,7 @@ class RepresentationSelector {
       }
 
       case IrOpcode::kAllocate: {
-        ProcessInput(node, 0, UseInfo::TruncatingWord32());
+        ProcessInput(node, 0, UseInfoForIndex());
         ProcessRemainingInputs(node, 1);
         SetOutput(node, MachineRepresentation::kTaggedPointer);
         return;
@@ -2555,8 +2557,7 @@ class RepresentationSelector {
       case IrOpcode::kLoadElement: {
         if (truncation.IsUnused()) return VisitUnused(node);
         ElementAccess access = ElementAccessOf(node->op());
-        VisitBinop(node, UseInfoForBasePointer(access),
-                   UseInfo::TruncatingWord32(),
+        VisitBinop(node, UseInfoForBasePointer(access), UseInfoForIndex(),
                    access.machine_type.representation());
         return;
       }
@@ -2576,7 +2577,7 @@ class RepresentationSelector {
             access.base_is_tagged, element_representation, access.type,
             input_info->representation(), value_node);
         ProcessInput(node, 0, UseInfoForBasePointer(access));  // base
-        ProcessInput(node, 1, UseInfo::TruncatingWord32());    // index
+        ProcessInput(node, 1, UseInfoForIndex());              // index
         ProcessInput(node, 2,
                      TruncatingUseInfoFromRepresentation(
                          element_representation));  // value
@@ -2599,8 +2600,8 @@ class RepresentationSelector {
       case IrOpcode::kTransitionAndStoreElement: {
         Type value_type = TypeOf(node->InputAt(2));
 
-        ProcessInput(node, 0, UseInfo::AnyTagged());         // array
-        ProcessInput(node, 1, UseInfo::TruncatingWord32());  // index
+        ProcessInput(node, 0, UseInfo::AnyTagged());  // array
+        ProcessInput(node, 1, UseInfoForIndex());     // index
 
         if (value_type.Is(Type::SignedSmall())) {
           ProcessInput(node, 2, UseInfo::TruncatingWord32());  // value
@@ -2635,10 +2636,10 @@ class RepresentationSelector {
       case IrOpcode::kLoadTypedElement: {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
-        ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
-        ProcessInput(node, 1, UseInfo::AnyTagged());         // base pointer
-        ProcessInput(node, 2, UseInfo::Word());              // external pointer
-        ProcessInput(node, 3, UseInfo::TruncatingWord32());  // index
+        ProcessInput(node, 0, UseInfo::AnyTagged());  // buffer
+        ProcessInput(node, 1, UseInfo::AnyTagged());  // base pointer
+        ProcessInput(node, 2, UseInfo::Word());       // external pointer
+        ProcessInput(node, 3, UseInfoForIndex());     // index
         ProcessRemainingInputs(node, 4);
         SetOutput(node, rep);
         return;
@@ -2646,10 +2647,10 @@ class RepresentationSelector {
       case IrOpcode::kLoadDataViewElement: {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
-        ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
-        ProcessInput(node, 1, UseInfo::Word());              // external pointer
-        ProcessInput(node, 2, UseInfo::TruncatingWord32());  // index
-        ProcessInput(node, 3, UseInfo::Bool());              // little-endian
+        ProcessInput(node, 0, UseInfo::AnyTagged());  // buffer
+        ProcessInput(node, 1, UseInfo::Word());       // external pointer
+        ProcessInput(node, 2, UseInfoForIndex());     // index
+        ProcessInput(node, 3, UseInfo::Bool());       // little-endian
         ProcessRemainingInputs(node, 4);
         SetOutput(node, rep);
         return;
@@ -2657,10 +2658,10 @@ class RepresentationSelector {
       case IrOpcode::kStoreTypedElement: {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
-        ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
-        ProcessInput(node, 1, UseInfo::AnyTagged());         // base pointer
-        ProcessInput(node, 2, UseInfo::Word());              // external pointer
-        ProcessInput(node, 3, UseInfo::TruncatingWord32());  // index
+        ProcessInput(node, 0, UseInfo::AnyTagged());  // buffer
+        ProcessInput(node, 1, UseInfo::AnyTagged());  // base pointer
+        ProcessInput(node, 2, UseInfo::Word());       // external pointer
+        ProcessInput(node, 3, UseInfoForIndex());     // index
         ProcessInput(node, 4,
                      TruncatingUseInfoFromRepresentation(rep));  // value
         ProcessRemainingInputs(node, 5);
@@ -2672,7 +2673,7 @@ class RepresentationSelector {
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
         ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
         ProcessInput(node, 1, UseInfo::Word());              // external pointer
-        ProcessInput(node, 2, UseInfo::TruncatingWord32());  // index
+        ProcessInput(node, 2, UseInfoForIndex());            // index
         ProcessInput(node, 3,
                      TruncatingUseInfoFromRepresentation(rep));  // value
         ProcessInput(node, 4, UseInfo::Bool());  // little-endian

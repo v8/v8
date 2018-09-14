@@ -319,6 +319,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // the input value is representable in the target value.
   const Operator* ChangeFloat32ToFloat64();
   const Operator* ChangeFloat64ToInt32();   // narrowing
+  const Operator* ChangeFloat64ToInt64();
   const Operator* ChangeFloat64ToUint32();  // narrowing
   const Operator* ChangeFloat64ToUint64();
   const Operator* TruncateFloat64ToUint32();

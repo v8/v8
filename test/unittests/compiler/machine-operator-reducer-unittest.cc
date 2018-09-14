@@ -344,6 +344,17 @@ TEST_F(MachineOperatorReducerTest, ChangeFloat64ToInt32WithConstant) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// ChangeFloat64ToInt64
+
+TEST_F(MachineOperatorReducerTest, ChangeFloat64ToInt64WithConstant) {
+  TRACED_FOREACH(int32_t, x, kInt32Values) {
+    Reduction reduction = Reduce(graph()->NewNode(
+        machine()->ChangeFloat64ToInt64(), Float64Constant(FastI2D(x))));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(), IsInt64Constant(x));
+  }
+}
 
 // -----------------------------------------------------------------------------
 // ChangeFloat64ToUint32

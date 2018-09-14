@@ -26,8 +26,10 @@ Node* GraphAssembler::Int32Constant(int32_t value) {
   return jsgraph()->Int32Constant(value);
 }
 
-Node* GraphAssembler::UniqueInt32Constant(int32_t value) {
-  return graph()->NewNode(common()->Int32Constant(value));
+Node* GraphAssembler::UniqueIntPtrConstant(intptr_t value) {
+  return graph()->NewNode(
+      machine()->Is64() ? common()->Int64Constant(value)
+                        : common()->Int32Constant(static_cast<int32_t>(value)));
 }
 
 Node* GraphAssembler::SmiConstant(int32_t value) {

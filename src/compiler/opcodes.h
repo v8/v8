@@ -225,7 +225,9 @@
 // Opcodes for VirtuaMachine-level operators.
 #define SIMPLIFIED_CHANGE_OP_LIST(V) \
   V(ChangeTaggedSignedToInt32)       \
+  V(ChangeTaggedSignedToInt64)       \
   V(ChangeTaggedToInt32)             \
+  V(ChangeTaggedToInt64)             \
   V(ChangeTaggedToUint32)            \
   V(ChangeTaggedToFloat64)           \
   V(ChangeTaggedToTaggedSigned)      \
@@ -605,6 +607,7 @@
   V(TruncateFloat64ToWord32)         \
   V(ChangeFloat32ToFloat64)          \
   V(ChangeFloat64ToInt32)            \
+  V(ChangeFloat64ToInt64)            \
   V(ChangeFloat64ToUint32)           \
   V(ChangeFloat64ToUint64)           \
   V(Float64SilenceNaN)               \

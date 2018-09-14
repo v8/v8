@@ -1198,6 +1198,7 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
   V(ChangeUint32ToFloat64, kArm64Uint32ToFloat64)             \
   V(TruncateFloat32ToInt32, kArm64Float32ToInt32)             \
   V(ChangeFloat64ToInt32, kArm64Float64ToInt32)               \
+  V(ChangeFloat64ToInt64, kArm64Float64ToInt64)               \
   V(TruncateFloat32ToUint32, kArm64Float32ToUint32)           \
   V(ChangeFloat64ToUint32, kArm64Float64ToUint32)             \
   V(ChangeFloat64ToUint64, kArm64Float64ToUint64)             \
