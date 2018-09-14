@@ -181,7 +181,6 @@ class JSFunctionRef : public JSObjectRef {
   bool has_prototype() const;
   bool IsConstructor() const;
   bool PrototypeRequiresRuntimeLookup() const;
-  int InitialMapInstanceSizeWithMinSlack() const;
 
   void Serialize();
 
@@ -190,6 +189,7 @@ class JSFunctionRef : public JSObjectRef {
   MapRef initial_map() const;
   JSGlobalProxyRef global_proxy() const;
   SharedFunctionInfoRef shared() const;
+  int InitialMapInstanceSizeWithMinSlack() const;
 };
 
 class JSRegExpRef : public JSObjectRef {

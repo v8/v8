@@ -13408,8 +13408,8 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
 }
 
 int JSFunction::ComputeInstanceSizeWithMinSlack(Isolate* isolate) {
-  if (has_prototype_slot() && has_initial_map() &&
-      initial_map()->IsInobjectSlackTrackingInProgress()) {
+  CHECK(has_initial_map());
+  if (initial_map()->IsInobjectSlackTrackingInProgress()) {
     int slack = initial_map()->ComputeMinObjectSlack(isolate);
     return initial_map()->InstanceSizeFromSlack(slack);
   }

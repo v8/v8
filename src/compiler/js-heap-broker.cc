@@ -155,20 +155,25 @@ void JSObjectData::SerializeObjectCreateMap() {
 
 class JSFunctionData : public JSObjectData {
  public:
+  JSFunctionData(JSHeapBroker* broker, Handle<JSFunction> object,
+                 HeapObjectType type);
+
   bool has_initial_map() const { return has_initial_map_; }
   bool has_prototype() const { return has_prototype_; }
   bool PrototypeRequiresRuntimeLookup() const {
     return PrototypeRequiresRuntimeLookup_;
   }
 
+  void Serialize();
+
   JSGlobalProxyData* global_proxy() const { return global_proxy_; }
   MapData* initial_map() const { return initial_map_; }
   ObjectData* prototype() const { return prototype_; }
   SharedFunctionInfoData* shared() const { return shared_; }
-
-  JSFunctionData(JSHeapBroker* broker, Handle<JSFunction> object,
-                 HeapObjectType type);
-  void Serialize();
+  int initial_map_instance_size_with_min_slack() const {
+    CHECK(serialized_);
+    return initial_map_instance_size_with_min_slack_;
+  }
 
  private:
   bool has_initial_map_;
@@ -181,6 +186,7 @@ class JSFunctionData : public JSObjectData {
   MapData* initial_map_ = nullptr;
   ObjectData* prototype_ = nullptr;
   SharedFunctionInfoData* shared_ = nullptr;
+  int initial_map_instance_size_with_min_slack_;
 };
 
 class JSRegExpData : public JSObjectData {
@@ -588,6 +594,8 @@ void JSFunctionData::Serialize() {
                    : nullptr;
 
   if (initial_map_ != nullptr) {
+    initial_map_instance_size_with_min_slack_ =
+        function->ComputeInstanceSizeWithMinSlack(broker()->isolate());
     if (initial_map_->instance_type() == JS_ARRAY_TYPE) {
       initial_map_->SerializeElementsKindGeneralizations();
     }
@@ -1409,11 +1417,13 @@ base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
 }
 
 int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {
-  AllowHandleDereference allow_handle_dereference;
-  AllowHandleAllocation handle_allocation;
-
-  return object<JSFunction>()->ComputeInstanceSizeWithMinSlack(
-      broker()->isolate());
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    AllowHandleAllocation handle_allocation;
+    return object<JSFunction>()->ComputeInstanceSizeWithMinSlack(
+        broker()->isolate());
+  }
+  return data()->AsJSFunction()->initial_map_instance_size_with_min_slack();
 }
 
 base::Optional<ScriptContextTableRef::LookupResult>
