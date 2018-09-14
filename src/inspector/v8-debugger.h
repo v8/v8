@@ -40,7 +40,7 @@ class V8Debugger : public v8::debug::DebugDelegate,
                    public v8::debug::AsyncEventDelegate {
  public:
   V8Debugger(v8::Isolate*, V8InspectorImpl*);
-  ~V8Debugger();
+  ~V8Debugger() override;
 
   bool enabled() const;
   v8::Isolate* isolate() const { return m_isolate; }

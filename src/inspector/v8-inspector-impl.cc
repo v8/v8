@@ -415,7 +415,7 @@ class V8InspectorImpl::EvaluateScope::TerminateTask : public v8::Task {
   TerminateTask(v8::Isolate* isolate, std::shared_ptr<CancelToken> token)
       : m_isolate(isolate), m_token(std::move(token)) {}
 
-  void Run() {
+  void Run() override {
     // CancelToken contains m_canceled bool which may be changed from main
     // thread, so lock mutex first.
     v8::base::LockGuard<v8::base::Mutex> lock(&m_token->m_mutex);
