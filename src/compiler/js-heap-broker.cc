@@ -464,13 +464,23 @@ struct PropertyDescriptor {
 
 class MapData : public HeapObjectData {
  public:
+  MapData(JSHeapBroker* broker, Handle<Map> object, HeapObjectType type);
+
   InstanceType instance_type() const { return instance_type_; }
   int instance_size() const { return instance_size_; }
   byte bit_field() const { return bit_field_; }
   byte bit_field2() const { return bit_field2_; }
   uint32_t bit_field3() const { return bit_field3_; }
-
-  MapData(JSHeapBroker* broker, Handle<Map> object, HeapObjectType type);
+  bool can_be_deprecated() const { return can_be_deprecated_; }
+  bool can_transition() const { return can_transition_; }
+  int in_object_properties_start_in_words() const {
+    CHECK(InstanceTypeChecker::IsJSObject(instance_type()));
+    return in_object_properties_start_in_words_;
+  }
+  int in_object_properties() const {
+    CHECK(InstanceTypeChecker::IsJSObject(instance_type()));
+    return in_object_properties_;
+  }
 
   // Extra information.
 
@@ -487,6 +497,12 @@ class MapData : public HeapObjectData {
     return descriptors_;
   }
 
+  void SerializeConstructorOrBackpointer();
+  ObjectData* constructor_or_backpointer() const {
+    CHECK(serialized_constructor_or_backpointer_);
+    return constructor_or_backpointer_;
+  }
+
   void SerializePrototype();
   ObjectData* prototype() const {
     CHECK(serialized_prototype_);
@@ -499,12 +515,19 @@ class MapData : public HeapObjectData {
   byte const bit_field_;
   byte const bit_field2_;
   uint32_t const bit_field3_;
+  bool const can_be_deprecated_;
+  bool const can_transition_;
+  int const in_object_properties_start_in_words_;
+  int const in_object_properties_;
 
   bool serialized_elements_kind_generalizations_ = false;
   ZoneVector<MapData*> elements_kind_generalizations_;
 
   bool serialized_descriptors_ = false;
   ZoneVector<PropertyDescriptor> descriptors_;
+
+  bool serialized_constructor_or_backpointer_ = false;
+  ObjectData* constructor_or_backpointer_ = nullptr;
 
   bool serialized_prototype_ = false;
   ObjectData* prototype_ = nullptr;
@@ -558,6 +581,15 @@ MapData::MapData(JSHeapBroker* broker, Handle<Map> object, HeapObjectType type)
       bit_field_(object->bit_field()),
       bit_field2_(object->bit_field2()),
       bit_field3_(object->bit_field3()),
+      can_be_deprecated_(object->NumberOfOwnDescriptors() > 0
+                             ? object->CanBeDeprecated()
+                             : false),
+      can_transition_(object->CanTransition()),
+      in_object_properties_start_in_words_(
+          object->IsJSObjectMap() ? object->GetInObjectPropertiesStartInWords()
+                                  : 0),
+      in_object_properties_(
+          object->IsJSObjectMap() ? object->GetInObjectProperties() : 0),
       elements_kind_generalizations_(broker->zone()),
       descriptors_(broker->zone()) {}
 
@@ -599,6 +631,7 @@ void JSFunctionData::Serialize() {
     if (initial_map_->instance_type() == JS_ARRAY_TYPE) {
       initial_map_->SerializeElementsKindGeneralizations();
     }
+    initial_map_->SerializeConstructorOrBackpointer();
     // TODO(neis): This is currently only needed for native_context's
     // object_function, as used by GetObjectCreateMap. If no further use sites
     // show up, we should move this into NativeContextData::Serialize.
@@ -796,9 +829,18 @@ void JSArrayData::Serialize() {
 class ScopeInfoData : public HeapObjectData {
  public:
   ScopeInfoData(JSHeapBroker* broker, Handle<ScopeInfo> object,
-                HeapObjectType type)
-      : HeapObjectData(broker, object, type) {}
+                HeapObjectType type);
+
+  int context_length() const { return context_length_; }
+
+ private:
+  int const context_length_;
 };
+
+ScopeInfoData::ScopeInfoData(JSHeapBroker* broker, Handle<ScopeInfo> object,
+                             HeapObjectType type)
+    : HeapObjectData(broker, object, type),
+      context_length_(object->ContextLength()) {}
 
 class SharedFunctionInfoData : public HeapObjectData {
  public:
@@ -878,7 +920,6 @@ void ModuleData::Serialize() {
   Handle<Module> module = Handle<Module>::cast(object());
 
   // TODO(neis): We could be smarter and only serialize the cells we care about.
-
   // TODO(neis): Define a helper for serializing a FixedArray into a ZoneVector.
 
   DCHECK(imports_.empty());
@@ -960,6 +1001,16 @@ void JSObjectData::SerializeElements() {
                                          broker()->isolate());
   DCHECK_NULL(elements_);
   elements_ = broker()->GetOrCreateData(elements_object)->AsFixedArrayBase();
+}
+
+void MapData::SerializeConstructorOrBackpointer() {
+  if (serialized_constructor_or_backpointer_) return;
+  serialized_constructor_or_backpointer_ = true;
+
+  Handle<Map> map = Handle<Map>::cast(object());
+  DCHECK_NULL(constructor_or_backpointer_);
+  constructor_or_backpointer_ =
+      broker()->GetOrCreateData(map->constructor_or_backpointer());
 }
 
 void MapData::SerializePrototype() {
@@ -1201,6 +1252,7 @@ void JSHeapBroker::SerializeStandardObjects() {
   GetOrCreateData(f->false_string());
   GetOrCreateData(f->false_value());
   GetOrCreateData(f->fixed_array_map());
+  GetOrCreateData(f->fixed_cow_array_map());
   GetOrCreateData(f->fixed_double_array_map());
   GetOrCreateData(f->function_context_map());
   GetOrCreateData(f->function_string());
@@ -1426,6 +1478,7 @@ int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {
   return data()->AsJSFunction()->initial_map_instance_size_with_min_slack();
 }
 
+// Not needed for TypedLowering.
 base::Optional<ScriptContextTableRef::LookupResult>
 ScriptContextTableRef::lookup(const NameRef& name) const {
   AllowHandleAllocation handle_allocation;
@@ -1465,12 +1518,11 @@ double JSObjectRef::RawFastDoublePropertyAt(FieldIndex index) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference handle_dereference;
     return object<JSObject>()->RawFastDoublePropertyAt(index);
-  } else {
-    JSObjectData* object_data = data()->AsJSObject();
-    CHECK(map().IsUnboxedDoubleField(index));
-    CHECK(index.is_inobject());
-    return object_data->GetInobjectField(index.property_index()).AsDouble();
   }
+  JSObjectData* object_data = data()->AsJSObject();
+  CHECK(map().IsUnboxedDoubleField(index));
+  CHECK(index.is_inobject());
+  return object_data->GetInobjectField(index.property_index()).AsDouble();
 }
 
 ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
@@ -1480,26 +1532,23 @@ ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
     return ObjectRef(broker(),
                      handle(object<JSObject>()->RawFastPropertyAt(index),
                             broker()->isolate()));
-  } else {
-    JSObjectData* object_data = data()->AsJSObject();
-    CHECK(!map().IsUnboxedDoubleField(index));
-    CHECK(index.is_inobject());
-    return ObjectRef(
-        object_data->GetInobjectField(index.property_index()).AsObject());
   }
+  JSObjectData* object_data = data()->AsJSObject();
+  CHECK(!map().IsUnboxedDoubleField(index));
+  CHECK(index.is_inobject());
+  return ObjectRef(
+      object_data->GetInobjectField(index.property_index()).AsObject());
 }
 
 bool AllocationSiteRef::IsFastLiteral() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
-    AllowHeapAllocation
-        allow_heap_allocation;  // This is needed for TryMigrateInstance.
+    AllowHeapAllocation allow_heap_allocation;  // For TryMigrateInstance.
     AllowHandleAllocation allow_handle_allocation;
     AllowHandleDereference allow_handle_dereference;
     return IsInlinableFastLiteral(
         handle(object<AllocationSite>()->boilerplate(), broker()->isolate()));
-  } else {
-    return data()->AsAllocationSite()->IsFastLiteral();
   }
+  return data()->AsAllocationSite()->IsFastLiteral();
 }
 
 void JSObjectRef::EnsureElementsTenured() {
@@ -1519,9 +1568,9 @@ void JSObjectRef::EnsureElementsTenured() {
               Handle<FixedArray>::cast(object_elements));
       object<JSObject>()->set_elements(*object_elements);
     }
-  } else {
-    CHECK(data()->AsJSObject()->cow_or_empty_elements_tenured());
+    return;
   }
+  CHECK(data()->AsJSObject()->cow_or_empty_elements_tenured());
 }
 
 FieldIndex MapRef::GetFieldIndexFor(int descriptor_index) const {
@@ -1558,9 +1607,9 @@ NameRef MapRef::GetPropertyKey(int descriptor_index) const {
 }
 
 bool MapRef::IsFixedCowArrayMap() const {
-  AllowHandleDereference allow_handle_dereference;
-  return *object<Map>() ==
-         ReadOnlyRoots(broker()->isolate()).fixed_cow_array_map();
+  Handle<Map> fixed_cow_array_map =
+      ReadOnlyRoots(broker()->isolate()).fixed_cow_array_map_handle();
+  return equals(MapRef(broker(), fixed_cow_array_map));
 }
 
 MapRef MapRef::FindFieldOwner(int descriptor_index) const {
@@ -1727,24 +1776,18 @@ BIMODAL_ACCESSOR(JSFunction, JSGlobalProxy, global_proxy)
 BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
 BIMODAL_ACCESSOR(JSFunction, Object, prototype)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
-HANDLE_ACCESSOR_C(JSFunction, bool, IsConstructor)
 
 BIMODAL_ACCESSOR_B(Map, bit_field2, elements_kind, Map::ElementsKindBits)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
 BIMODAL_ACCESSOR_B(Map, bit_field3, is_dictionary_map, Map::IsDictionaryMapBit)
+BIMODAL_ACCESSOR_B(Map, bit_field3, NumberOfOwnDescriptors,
+                   Map::NumberOfOwnDescriptorsBits)
 BIMODAL_ACCESSOR_B(Map, bit_field, has_prototype_slot, Map::HasPrototypeSlotBit)
+BIMODAL_ACCESSOR_B(Map, bit_field, is_constructor, Map::IsConstructorBit)
 BIMODAL_ACCESSOR_C(Map, int, instance_size)
 BIMODAL_ACCESSOR(Map, Object, prototype)
-HANDLE_ACCESSOR_C(Map, bool, CanBeDeprecated)
-HANDLE_ACCESSOR_C(Map, bool, CanTransition)
-HANDLE_ACCESSOR_C(Map, bool, IsInobjectSlackTrackingInProgress)
-HANDLE_ACCESSOR_C(Map, bool, IsJSArrayMap)
-HANDLE_ACCESSOR_C(Map, bool, is_stable)
-HANDLE_ACCESSOR_C(Map, InstanceType, instance_type)
-HANDLE_ACCESSOR_C(Map, int, GetInObjectProperties)
-HANDLE_ACCESSOR_C(Map, int, GetInObjectPropertiesStartInWords)
-HANDLE_ACCESSOR_C(Map, int, NumberOfOwnDescriptors)
-HANDLE_ACCESSOR(Map, Object, constructor_or_backpointer)
+BIMODAL_ACCESSOR_C(Map, InstanceType, instance_type)
+BIMODAL_ACCESSOR(Map, Object, constructor_or_backpointer)
 
 #define DEF_NATIVE_CONTEXT_ACCESSOR(type, name) \
   BIMODAL_ACCESSOR(NativeContext, type, name)
@@ -1753,8 +1796,6 @@ BROKER_NATIVE_CONTEXT_FIELDS(DEF_NATIVE_CONTEXT_ACCESSOR)
 
 HANDLE_ACCESSOR(PropertyCell, Object, value)
 HANDLE_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
-
-HANDLE_ACCESSOR_C(ScopeInfo, int, ContextLength)
 
 BIMODAL_ACCESSOR_C(SharedFunctionInfo, int, builtin_id)
 BIMODAL_ACCESSOR(SharedFunctionInfo, BytecodeArray, GetBytecodeArray)
@@ -1766,6 +1807,43 @@ BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
 BIMODAL_ACCESSOR_C(String, int, length)
 
 // TODO(neis): Provide StringShape() on StringRef.
+
+bool MapRef::IsInobjectSlackTrackingInProgress() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(Map, IsInobjectSlackTrackingInProgress);
+  return Map::ConstructionCounterBits::decode(data()->AsMap()->bit_field3()) !=
+         Map::kNoSlackTracking;
+}
+
+bool MapRef::is_stable() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(Map, is_stable);
+  return !Map::IsUnstableBit::decode(data()->AsMap()->bit_field3());
+}
+
+bool MapRef::CanBeDeprecated() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(Map, CanBeDeprecated);
+  CHECK_GT(NumberOfOwnDescriptors(), 0);
+  return data()->AsMap()->can_be_deprecated();
+}
+
+bool MapRef::CanTransition() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(Map, CanTransition);
+  return data()->AsMap()->can_transition();
+}
+
+int MapRef::GetInObjectPropertiesStartInWords() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(Map, GetInObjectPropertiesStartInWords);
+  return data()->AsMap()->in_object_properties_start_in_words();
+}
+
+int MapRef::GetInObjectProperties() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(Map, GetInObjectProperties);
+  return data()->AsMap()->in_object_properties();
+}
+
+int ScopeInfoRef::ContextLength() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(ScopeInfo, ContextLength);
+  return data()->AsScopeInfo()->context_length();
+}
 
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
   DCHECK_GE(index, Context::FIRST_FUNCTION_MAP_INDEX);

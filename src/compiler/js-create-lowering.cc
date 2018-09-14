@@ -129,10 +129,10 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
 
   JSFunctionRef constructor =
       target_type.AsHeapConstant()->Ref().AsJSFunction();
-  if (!constructor.IsConstructor()) return NoChange();
+  if (!constructor.map().is_constructor()) return NoChange();
   JSFunctionRef original_constructor =
       new_target_type.AsHeapConstant()->Ref().AsJSFunction();
-  if (!original_constructor.IsConstructor()) return NoChange();
+  if (!original_constructor.map().is_constructor()) return NoChange();
 
   // Check if we can inline the allocation.
   if (!IsAllocationInlineable(constructor, original_constructor)) {
@@ -711,8 +711,8 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       new_target_type.AsHeapConstant()->Ref().IsJSFunction()) {
     JSFunctionRef original_constructor =
         new_target_type.AsHeapConstant()->Ref().AsJSFunction();
-    DCHECK(constructor.IsConstructor());
-    DCHECK(original_constructor.IsConstructor());
+    DCHECK(constructor.map().is_constructor());
+    DCHECK(original_constructor.map().is_constructor());
 
     // Check if we can inline the allocation.
     if (IsAllocationInlineable(constructor, original_constructor)) {
@@ -1721,7 +1721,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
   builder.Store(AccessBuilder::ForMap(), boilerplate_map);
   builder.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
   builder.Store(AccessBuilder::ForJSObjectElements(), elements);
-  if (boilerplate_map.IsJSArrayMap()) {
+  if (boilerplate.IsJSArray()) {
     JSArrayRef boilerplate_array = boilerplate.AsJSArray();
     builder.Store(
         AccessBuilder::ForJSArrayLength(boilerplate_array.GetElementsKind()),

@@ -176,7 +176,7 @@ TEST_F(JSCreateLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
 // JSCreateWithContext
 
 TEST_F(JSCreateLoweringTest, JSCreateWithContext) {
-  Handle<ScopeInfo> scope_info(factory()->NewScopeInfo(1));
+  Handle<ScopeInfo> scope_info = ScopeInfo::CreateForEmptyFunction(isolate());
   Node* const object = Parameter(Type::Receiver());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
@@ -196,7 +196,7 @@ TEST_F(JSCreateLoweringTest, JSCreateWithContext) {
 // JSCreateCatchContext
 
 TEST_F(JSCreateLoweringTest, JSCreateCatchContext) {
-  Handle<ScopeInfo> scope_info(factory()->NewScopeInfo(1));
+  Handle<ScopeInfo> scope_info = ScopeInfo::CreateForEmptyFunction(isolate());
   Node* const exception = Parameter(Type::Receiver());
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();

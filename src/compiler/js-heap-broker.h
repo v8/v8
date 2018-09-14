@@ -179,7 +179,6 @@ class JSFunctionRef : public JSObjectRef {
 
   bool has_initial_map() const;
   bool has_prototype() const;
-  bool IsConstructor() const;
   bool PrototypeRequiresRuntimeLookup() const;
 
   void Serialize();
@@ -322,13 +321,13 @@ class MapRef : public HeapObjectRef {
   int GetInObjectPropertyOffset(int index) const;
   ElementsKind elements_kind() const;
   bool is_stable() const;
+  bool is_constructor() const;
   bool has_prototype_slot() const;
   bool is_deprecated() const;
   bool CanBeDeprecated() const;
   bool CanTransition() const;
   bool IsInobjectSlackTrackingInProgress() const;
   bool is_dictionary_map() const;
-  bool IsJSArrayMap() const;
   bool IsFixedCowArrayMap() const;
 
   ObjectRef constructor_or_backpointer() const;
