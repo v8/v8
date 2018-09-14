@@ -800,6 +800,9 @@
 
   # Too memory hungry on Odroid devices.
   'regress/regress-678917': [PASS, ['arch == arm and not simulator_run', SKIP]],
+
+  # https://crbug.com/v8/8164
+  'wasm/compare-exchange-stress': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
