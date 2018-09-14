@@ -44,7 +44,7 @@ class FunctionalTest : public ::testing::Test {
  public:
   FunctionalTest()
       : rng_(GetRandomSeedFromFlag(::v8::internal::FLAG_random_seed)) {}
-  virtual ~FunctionalTest() {}
+  virtual ~FunctionalTest() = default;
 
   RandomNumberGenerator* rng() { return &rng_; }
 
