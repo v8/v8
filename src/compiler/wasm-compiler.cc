@@ -4704,12 +4704,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     SetEffect(SetControl(Start(CWasmEntryParameters::kNumParameters + 5)));
 
     // Create parameter nodes (offset by 1 for the receiver parameter).
-    Node* foreign_code_obj = Param(CWasmEntryParameters::kCodeObject + 1);
-    MachineOperatorBuilder* machine = mcgraph()->machine();
-    Node* code_obj = graph()->NewNode(
-        machine->Load(MachineType::Pointer()), foreign_code_obj,
-        Int32Constant(Foreign::kForeignAddressOffset - kHeapObjectTag),
-        Effect(), Control());
+    Node* code_entry = Param(CWasmEntryParameters::kCodeEntry + 1);
     Node* instance_node = Param(CWasmEntryParameters::kWasmInstance + 1);
     Node* arg_buffer = Param(CWasmEntryParameters::kArgumentsBuffer + 1);
 
@@ -4718,7 +4713,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node** args = Buffer(arg_count);
 
     int pos = 0;
-    args[pos++] = code_obj;
+    args[pos++] = code_entry;
     args[pos++] = instance_node;
 
     int offset = 0;

@@ -88,7 +88,7 @@ MaybeHandle<Code> CompileWasmInterpreterEntry(Isolate*, uint32_t func_index,
                                               wasm::FunctionSig*);
 
 enum CWasmEntryParameters {
-  kCodeObject,
+  kCodeEntry,
   kWasmInstance,
   kArgumentsBuffer,
   // marker:

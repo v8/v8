@@ -2762,17 +2762,19 @@ class ThreadImpl {
       arg_buffer.resize(return_size);
     }
 
-    // Wrap the arg_buffer data pointer in a handle. As
-    // this is an aligned pointer, to the GC it will look like a Smi.
+    // Wrap the arg_buffer and the code target data pointers in handles. As
+    // these are aligned pointers, to the GC it will look like Smis.
     Handle<Object> arg_buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
                                   isolate);
     DCHECK(!arg_buffer_obj->IsHeapObject());
+    Handle<Object> code_entry_obj(
+        reinterpret_cast<Object*>(code->instruction_start()), isolate);
+    DCHECK(!code_entry_obj->IsHeapObject());
 
     static_assert(compiler::CWasmEntryParameters::kNumParameters == 3,
                   "code below needs adaption");
     Handle<Object> args[compiler::CWasmEntryParameters::kNumParameters];
-    args[compiler::CWasmEntryParameters::kCodeObject] = Handle<Object>::cast(
-        isolate->factory()->NewForeign(code->instruction_start(), TENURED));
+    args[compiler::CWasmEntryParameters::kCodeEntry] = code_entry_obj;
     args[compiler::CWasmEntryParameters::kWasmInstance] = instance;
     args[compiler::CWasmEntryParameters::kArgumentsBuffer] = arg_buffer_obj;
 
