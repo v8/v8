@@ -24,8 +24,6 @@ const char* Truncation::description() const {
       return "truncate-to-bool";
     case TruncationKind::kWord32:
       return "truncate-to-word32";
-    case TruncationKind::kWord64:
-      return "truncate-to-word64";
     case TruncationKind::kFloat64:
       switch (identify_zeros()) {
         case kIdentifyZeros:
@@ -44,23 +42,22 @@ const char* Truncation::description() const {
   UNREACHABLE();
 }
 
-
 // Partial order for truncations:
 //
-//  kWord64       kAny <-------+
-//     ^            ^          |
-//     \            |          |
-//      \         kFloat64     |
-//       \        ^            |
-//        \       /            |
-//         kWord32           kBool
-//               ^            ^
-//               \            /
-//                \          /
-//                 \        /
-//                  \      /
-//                   \    /
-//                   kNone
+//          kAny <-------+
+//            ^          |
+//            |          |
+//          kFloat64     |
+//          ^            |
+//          /            |
+//   kWord32           kBool
+//         ^            ^
+//         \            /
+//          \          /
+//           \        /
+//            \      /
+//             \    /
+//             kNone
 //
 // TODO(jarin) We might consider making kBool < kFloat64.
 
@@ -103,10 +100,7 @@ bool Truncation::LessGeneral(TruncationKind rep1, TruncationKind rep2) {
       return rep2 == TruncationKind::kBool || rep2 == TruncationKind::kAny;
     case TruncationKind::kWord32:
       return rep2 == TruncationKind::kWord32 ||
-             rep2 == TruncationKind::kWord64 ||
              rep2 == TruncationKind::kFloat64 || rep2 == TruncationKind::kAny;
-    case TruncationKind::kWord64:
-      return rep2 == TruncationKind::kWord64;
     case TruncationKind::kFloat64:
       return rep2 == TruncationKind::kFloat64 || rep2 == TruncationKind::kAny;
     case TruncationKind::kAny:

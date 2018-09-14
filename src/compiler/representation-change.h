@@ -26,9 +26,6 @@ class Truncation final {
   static Truncation Word32() {
     return Truncation(TruncationKind::kWord32, kIdentifyZeros);
   }
-  static Truncation Word64() {
-    return Truncation(TruncationKind::kWord64, kIdentifyZeros);
-  }
   static Truncation Float64(IdentifyZeros identify_zeros = kDistinguishZeros) {
     return Truncation(TruncationKind::kFloat64, identify_zeros);
   }
@@ -57,10 +54,6 @@ class Truncation final {
     return LessGeneral(kind_, TruncationKind::kWord32) ||
            LessGeneral(kind_, TruncationKind::kBool);
   }
-  bool IdentifiesUndefinedAndNaN() {
-    return LessGeneral(kind_, TruncationKind::kFloat64) ||
-           LessGeneral(kind_, TruncationKind::kWord64);
-  }
   bool IdentifiesZeroAndMinusZero() const {
     return identify_zeros() == kIdentifyZeros;
   }
@@ -85,7 +78,6 @@ class Truncation final {
     kNone,
     kBool,
     kWord32,
-    kWord64,
     kFloat64,
     kAny
   };
@@ -162,8 +154,11 @@ class UseInfo {
   static UseInfo TruncatingWord32() {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32());
   }
-  static UseInfo TruncatingWord64() {
-    return UseInfo(MachineRepresentation::kWord64, Truncation::Word64());
+  static UseInfo Word64() {
+    return UseInfo(MachineRepresentation::kWord64, Truncation::Any());
+  }
+  static UseInfo Word() {
+    return UseInfo(MachineType::PointerRepresentation(), Truncation::Any());
   }
   static UseInfo Bool() {
     return UseInfo(MachineRepresentation::kBit, Truncation::Bool());
@@ -173,9 +168,6 @@ class UseInfo {
   }
   static UseInfo TruncatingFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64());
-  }
-  static UseInfo PointerInt() {
-    return kPointerSize == 4 ? TruncatingWord32() : TruncatingWord64();
   }
   static UseInfo AnyTagged() {
     return UseInfo(MachineRepresentation::kTagged, Truncation::Any());

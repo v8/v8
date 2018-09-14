@@ -140,7 +140,7 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kWord32:
       return UseInfo::TruncatingWord32();
     case MachineRepresentation::kWord64:
-      return UseInfo::TruncatingWord64();
+      return UseInfo::Word64();
     case MachineRepresentation::kBit:
       return UseInfo::Bool();
     case MachineRepresentation::kSimd128:
@@ -151,11 +151,11 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
 }
 
 UseInfo UseInfoForBasePointer(const FieldAccess& access) {
-  return access.tag() != 0 ? UseInfo::AnyTagged() : UseInfo::PointerInt();
+  return access.tag() != 0 ? UseInfo::AnyTagged() : UseInfo::Word();
 }
 
 UseInfo UseInfoForBasePointer(const ElementAccess& access) {
-  return access.tag() != 0 ? UseInfo::AnyTagged() : UseInfo::PointerInt();
+  return access.tag() != 0 ? UseInfo::AnyTagged() : UseInfo::Word();
 }
 
 void ReplaceEffectControlUses(Node* node, Node* effect, Node* control) {
@@ -2637,7 +2637,7 @@ class RepresentationSelector {
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
         ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
         ProcessInput(node, 1, UseInfo::AnyTagged());         // base pointer
-        ProcessInput(node, 2, UseInfo::PointerInt());        // external pointer
+        ProcessInput(node, 2, UseInfo::Word());              // external pointer
         ProcessInput(node, 3, UseInfo::TruncatingWord32());  // index
         ProcessRemainingInputs(node, 4);
         SetOutput(node, rep);
@@ -2647,7 +2647,7 @@ class RepresentationSelector {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
         ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
-        ProcessInput(node, 1, UseInfo::PointerInt());        // external pointer
+        ProcessInput(node, 1, UseInfo::Word());              // external pointer
         ProcessInput(node, 2, UseInfo::TruncatingWord32());  // index
         ProcessInput(node, 3, UseInfo::Bool());              // little-endian
         ProcessRemainingInputs(node, 4);
@@ -2659,7 +2659,7 @@ class RepresentationSelector {
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
         ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
         ProcessInput(node, 1, UseInfo::AnyTagged());         // base pointer
-        ProcessInput(node, 2, UseInfo::PointerInt());        // external pointer
+        ProcessInput(node, 2, UseInfo::Word());              // external pointer
         ProcessInput(node, 3, UseInfo::TruncatingWord32());  // index
         ProcessInput(node, 4,
                      TruncatingUseInfoFromRepresentation(rep));  // value
@@ -2671,7 +2671,7 @@ class RepresentationSelector {
         MachineRepresentation const rep =
             MachineRepresentationFromArrayType(ExternalArrayTypeOf(node->op()));
         ProcessInput(node, 0, UseInfo::AnyTagged());         // buffer
-        ProcessInput(node, 1, UseInfo::PointerInt());        // external pointer
+        ProcessInput(node, 1, UseInfo::Word());              // external pointer
         ProcessInput(node, 2, UseInfo::TruncatingWord32());  // index
         ProcessInput(node, 3,
                      TruncatingUseInfoFromRepresentation(rep));  // value
@@ -2961,8 +2961,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kArgumentsLength: {
-        VisitUnop(node, UseInfo::PointerInt(),
-                  MachineRepresentation::kTaggedSigned);
+        VisitUnop(node, UseInfo::Word(), MachineRepresentation::kTaggedSigned);
         return;
       }
       case IrOpcode::kNewDoubleElements:
@@ -2972,7 +2971,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNewArgumentsElements: {
-        VisitBinop(node, UseInfo::PointerInt(), UseInfo::TaggedSigned(),
+        VisitBinop(node, UseInfo::Word(), UseInfo::TaggedSigned(),
                    MachineRepresentation::kTaggedPointer);
         return;
       }
