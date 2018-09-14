@@ -52,8 +52,8 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
   // Let the WasmMemoryTracker know we are going to reserve a bunch of
   // address space.
   // Try up to three times; getting rid of dead JSArrayBuffer allocations might
-  // require two GCs.
-  // TODO(ulan): Fix this to only require one GC (crbug.com/v8/7621).
+  // require two GCs because the first GC maybe incremental and may have
+  // floating garbage.
   bool did_retry = false;
   for (int trial = 0;; ++trial) {
     if (memory_tracker->ReserveAddressSpace(*allocation_length)) break;

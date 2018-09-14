@@ -1739,6 +1739,8 @@ class Heap {
 
   void CollectGarbageOnMemoryPressure();
 
+  void EagerlyFreeExternalMemory();
+
   bool InvokeNearHeapLimitCallback();
 
   void ComputeFastPromotionMode();
