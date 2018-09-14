@@ -16,9 +16,6 @@ namespace v8 {
 namespace internal {
 
 CAST_ACCESSOR(MicrotaskQueue)
-ACCESSORS(MicrotaskQueue, queue, FixedArray, kQueueOffset)
-SMI_ACCESSORS(MicrotaskQueue, pending_microtask_count,
-              kPendingMicrotaskCountOffset)
 
 }  // namespace internal
 }  // namespace v8

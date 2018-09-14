@@ -439,8 +439,6 @@ class V8_EXPORT_PRIVATE Factory {
       Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> then,
       Handle<JSReceiver> thenable, Handle<Context> context);
 
-  Handle<MicrotaskQueue> NewMicrotaskQueue();
-
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,
                              PretenureFlag pretenure = NOT_TENURED);
