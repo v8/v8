@@ -1379,21 +1379,32 @@ bool IsFloat64RepresentableAsFloat32(const Float64Matcher& m) {
 
 
 Reduction MachineOperatorReducer::ReduceFloat64Compare(Node* node) {
-  DCHECK((IrOpcode::kFloat64Equal == node->opcode()) ||
-         (IrOpcode::kFloat64LessThan == node->opcode()) ||
-         (IrOpcode::kFloat64LessThanOrEqual == node->opcode()));
-  // As all Float32 values have an exact representation in Float64, comparing
-  // two Float64 values both converted from Float32 is equivalent to comparing
-  // the original Float32s, so we can ignore the conversions. We can also reduce
-  // comparisons of converted Float64 values against constants that can be
-  // represented exactly as Float32.
+  DCHECK(IrOpcode::kFloat64Equal == node->opcode() ||
+         IrOpcode::kFloat64LessThan == node->opcode() ||
+         IrOpcode::kFloat64LessThanOrEqual == node->opcode());
   Float64BinopMatcher m(node);
-  if ((m.left().IsChangeFloat32ToFloat64() &&
-       m.right().IsChangeFloat32ToFloat64()) ||
-      (m.left().IsChangeFloat32ToFloat64() &&
-       IsFloat64RepresentableAsFloat32(m.right())) ||
-      (IsFloat64RepresentableAsFloat32(m.left()) &&
-       m.right().IsChangeFloat32ToFloat64())) {
+  if (m.IsFoldable()) {
+    switch (node->opcode()) {
+      case IrOpcode::kFloat64Equal:
+        return ReplaceBool(m.left().Value() == m.right().Value());
+      case IrOpcode::kFloat64LessThan:
+        return ReplaceBool(m.left().Value() < m.right().Value());
+      case IrOpcode::kFloat64LessThanOrEqual:
+        return ReplaceBool(m.left().Value() <= m.right().Value());
+      default:
+        UNREACHABLE();
+    }
+  } else if ((m.left().IsChangeFloat32ToFloat64() &&
+              m.right().IsChangeFloat32ToFloat64()) ||
+             (m.left().IsChangeFloat32ToFloat64() &&
+              IsFloat64RepresentableAsFloat32(m.right())) ||
+             (IsFloat64RepresentableAsFloat32(m.left()) &&
+              m.right().IsChangeFloat32ToFloat64())) {
+    // As all Float32 values have an exact representation in Float64, comparing
+    // two Float64 values both converted from Float32 is equivalent to comparing
+    // the original Float32s, so we can ignore the conversions. We can also
+    // reduce comparisons of converted Float64 values against constants that
+    // can be represented exactly as Float32.
     switch (node->opcode()) {
       case IrOpcode::kFloat64Equal:
         NodeProperties::ChangeOp(node, machine()->Float32Equal());
@@ -1405,7 +1416,7 @@ Reduction MachineOperatorReducer::ReduceFloat64Compare(Node* node) {
         NodeProperties::ChangeOp(node, machine()->Float32LessThanOrEqual());
         break;
       default:
-        return NoChange();
+        UNREACHABLE();
     }
     node->ReplaceInput(
         0, m.left().HasValue()

@@ -2031,6 +2031,16 @@ TEST_F(MachineOperatorReducerTest, Float64InsertHighWord32WithConstant) {
 // -----------------------------------------------------------------------------
 // Float64Equal
 
+TEST_F(MachineOperatorReducerTest, Float64EqualWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    TRACED_FOREACH(double, y, kFloat64Values) {
+      Reduction const r = Reduce(graph()->NewNode(
+          machine()->Float64Equal(), Float64Constant(x), Float64Constant(y)));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsInt32Constant(x == y));
+    }
+  }
+}
 
 TEST_F(MachineOperatorReducerTest, Float64EqualWithFloat32Conversions) {
   Node* const p0 = Parameter(0);
@@ -2060,6 +2070,17 @@ TEST_F(MachineOperatorReducerTest, Float64EqualWithFloat32Constant) {
 // -----------------------------------------------------------------------------
 // Float64LessThan
 
+TEST_F(MachineOperatorReducerTest, Float64LessThanWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    TRACED_FOREACH(double, y, kFloat64Values) {
+      Reduction const r =
+          Reduce(graph()->NewNode(machine()->Float64LessThan(),
+                                  Float64Constant(x), Float64Constant(y)));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsInt32Constant(x < y));
+    }
+  }
+}
 
 TEST_F(MachineOperatorReducerTest, Float64LessThanWithFloat32Conversions) {
   Node* const p0 = Parameter(0);
@@ -2100,6 +2121,17 @@ TEST_F(MachineOperatorReducerTest, Float64LessThanWithFloat32Constant) {
 // -----------------------------------------------------------------------------
 // Float64LessThanOrEqual
 
+TEST_F(MachineOperatorReducerTest, Float64LessThanOrEqualWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    TRACED_FOREACH(double, y, kFloat64Values) {
+      Reduction const r =
+          Reduce(graph()->NewNode(machine()->Float64LessThanOrEqual(),
+                                  Float64Constant(x), Float64Constant(y)));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsInt32Constant(x <= y));
+    }
+  }
+}
 
 TEST_F(MachineOperatorReducerTest,
        Float64LessThanOrEqualWithFloat32Conversions) {
