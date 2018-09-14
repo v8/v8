@@ -328,28 +328,37 @@ class NameData : public HeapObjectData {
 
 class StringData : public NameData {
  public:
+  StringData(JSHeapBroker* broker, Handle<String> object, HeapObjectType type);
+
   int length() const { return length_; }
   uint16_t first_char() const { return first_char_; }
   base::Optional<double> to_number() const { return to_number_; }
-
-  StringData(JSHeapBroker* broker, Handle<String> object, HeapObjectType type)
-      : NameData(broker, object, type),
-        length_(object->length()),
-        first_char_(length_ > 0 ? object->Get(0) : 0) {
-    int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
-    if (length_ <= kMaxLengthForDoubleConversion) {
-      to_number_ = StringToDouble(
-          broker->isolate(), broker->isolate()->unicode_cache(), object, flags);
-    }
-  }
+  bool is_external_string() const { return is_external_string_; }
+  bool is_seq_string() const { return is_seq_string_; }
 
  private:
   int const length_;
   uint16_t const first_char_;
   base::Optional<double> to_number_;
+  bool const is_external_string_;
+  bool const is_seq_string_;
 
   static constexpr int kMaxLengthForDoubleConversion = 23;
 };
+
+StringData::StringData(JSHeapBroker* broker, Handle<String> object,
+                       HeapObjectType type)
+    : NameData(broker, object, type),
+      length_(object->length()),
+      first_char_(length_ > 0 ? object->Get(0) : 0),
+      is_external_string_(object->IsExternalString()),
+      is_seq_string_(object->IsSeqString()) {
+  int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_BINARY;
+  if (length_ <= kMaxLengthForDoubleConversion) {
+    to_number_ = StringToDouble(
+        broker->isolate(), broker->isolate()->unicode_cache(), object, flags);
+  }
+}
 
 class InternalizedStringData : public StringData {
  public:
@@ -1620,8 +1629,11 @@ FieldIndex MapRef::GetFieldIndexFor(int descriptor_index) const {
 }
 
 int MapRef::GetInObjectPropertyOffset(int i) const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->GetInObjectPropertyOffset(i);
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    return object<Map>()->GetInObjectPropertyOffset(i);
+  }
+  return (GetInObjectPropertiesStartInWords() + i) * kPointerSize;
 }
 
 PropertyDetails MapRef::GetPropertyDetails(int descriptor_index) const {
@@ -1685,9 +1697,8 @@ uint16_t StringRef::GetFirstChar() {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
     return object<String>()->Get(0);
-  } else {
-    return data()->AsString()->first_char();
   }
+  return data()->AsString()->first_char();
 }
 
 base::Optional<double> StringRef::ToNumber() {
@@ -1699,9 +1710,8 @@ base::Optional<double> StringRef::ToNumber() {
     return StringToDouble(broker()->isolate(),
                           broker()->isolate()->unicode_cache(),
                           object<String>(), flags);
-  } else {
-    return data()->AsString()->to_number();
   }
+  return data()->AsString()->to_number();
 }
 
 ObjectRef FixedArrayRef::get(int i) const {
@@ -1710,28 +1720,25 @@ ObjectRef FixedArrayRef::get(int i) const {
     AllowHandleDereference allow_handle_dereference;
     return ObjectRef(broker(),
                      handle(object<FixedArray>()->get(i), broker()->isolate()));
-  } else {
-    return ObjectRef(data()->AsFixedArray()->Get(i));
   }
+  return ObjectRef(data()->AsFixedArray()->Get(i));
 }
 
 bool FixedDoubleArrayRef::is_the_hole(int i) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
     return object<FixedDoubleArray>()->is_the_hole(i);
-  } else {
-    return data()->AsFixedDoubleArray()->Get(i).is_hole_nan();
   }
+  return data()->AsFixedDoubleArray()->Get(i).is_hole_nan();
 }
 
 double FixedDoubleArrayRef::get_scalar(int i) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
     return object<FixedDoubleArray>()->get_scalar(i);
-  } else {
-    CHECK(!data()->AsFixedDoubleArray()->Get(i).is_hole_nan());
-    return data()->AsFixedDoubleArray()->Get(i).get_scalar();
   }
+  CHECK(!data()->AsFixedDoubleArray()->Get(i).is_hole_nan());
+  return data()->AsFixedDoubleArray()->Get(i).get_scalar();
 }
 
 #define IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name) \
@@ -1750,47 +1757,25 @@ double FixedDoubleArrayRef::get_scalar(int i) const {
   }
 
 // Macros for definining a const getter that, depending on the broker mode,
-// either looks into the handle or into the serialized data. The first one is
-// used for the rare case of a XYZRef class that does not have a corresponding
-// XYZ class in objects.h. The second one is used otherwise.
+// either looks into the handle or into the serialized data.
 #define BIMODAL_ACCESSOR(holder, result, name)                   \
   result##Ref holder##Ref::name() const {                        \
     IF_BROKER_DISABLED_ACCESS_HANDLE(holder, result, name);      \
     return result##Ref(ObjectRef::data()->As##holder()->name()); \
   }
 
-// Like HANDLE_ACCESSOR except that the result type is not an XYZRef.
+// Like above except that the result type is not an XYZRef.
 #define BIMODAL_ACCESSOR_C(holder, result, name)      \
   result holder##Ref::name() const {                  \
     IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name); \
     return ObjectRef::data()->As##holder()->name();   \
   }
 
-// Like HANDLE_ACCESSOR_C but for BitFields.
+// Like above but for BitFields.
 #define BIMODAL_ACCESSOR_B(holder, field, name, BitField)              \
   typename BitField::FieldType holder##Ref::name() const {             \
     IF_BROKER_DISABLED_ACCESS_HANDLE_C(holder, name);                  \
     return BitField::decode(ObjectRef::data()->As##holder()->field()); \
-  }
-
-// Macros for definining a const getter that always looks into the handle.
-// (These will go away once we serialize everything.) The first one is used for
-// the rare case of a XYZRef class that does not have a corresponding XYZ class
-// in objects.h. The second one is used otherwise.
-#define HANDLE_ACCESSOR(holder, result, name)                                  \
-  result##Ref holder##Ref::name() const {                                      \
-    AllowHandleAllocation handle_allocation;                                   \
-    AllowHandleDereference allow_handle_dereference;                           \
-    return result##Ref(broker(),                                               \
-                       handle(object<holder>()->name(), broker()->isolate())); \
-  }
-
-// Like HANDLE_ACCESSOR except that the result type is not an XYZRef.
-#define HANDLE_ACCESSOR_C(holder, result, name)      \
-  result holder##Ref::name() const {                 \
-    AllowHandleAllocation handle_allocation;         \
-    AllowHandleDereference allow_handle_dereference; \
-    return object<holder>()->name();                 \
   }
 
 BIMODAL_ACCESSOR(AllocationSite, Object, nested_site)
@@ -1802,8 +1787,6 @@ BIMODAL_ACCESSOR_C(AllocationSite, PretenureFlag, GetPretenureMode)
 BIMODAL_ACCESSOR_C(BytecodeArray, int, register_count)
 
 BIMODAL_ACCESSOR(HeapObject, Map, map)
-HANDLE_ACCESSOR_C(HeapObject, bool, IsExternalString)
-HANDLE_ACCESSOR_C(HeapObject, bool, IsSeqString)
 
 BIMODAL_ACCESSOR(JSArray, Object, length)
 
@@ -1844,8 +1827,6 @@ BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
 
 BIMODAL_ACCESSOR_C(String, int, length)
 
-// TODO(neis): Provide StringShape() on StringRef.
-
 bool MapRef::IsInobjectSlackTrackingInProgress() const {
   IF_BROKER_DISABLED_ACCESS_HANDLE_C(Map, IsInobjectSlackTrackingInProgress);
   return Map::ConstructionCounterBits::decode(data()->AsMap()->bit_field3()) !=
@@ -1881,6 +1862,16 @@ int MapRef::GetInObjectProperties() const {
 int ScopeInfoRef::ContextLength() const {
   IF_BROKER_DISABLED_ACCESS_HANDLE_C(ScopeInfo, ContextLength);
   return data()->AsScopeInfo()->context_length();
+}
+
+bool StringRef::IsExternalString() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(String, IsExternalString);
+  return data()->AsString()->is_external_string();
+}
+
+bool StringRef::IsSeqString() const {
+  IF_BROKER_DISABLED_ACCESS_HANDLE_C(String, IsSeqString);
+  return data()->AsString()->is_seq_string();
 }
 
 MapRef NativeContextRef::GetFunctionMapFromIndex(int index) const {
@@ -1989,13 +1980,12 @@ base::Optional<JSObjectRef> AllocationSiteRef::boilerplate() const {
     AllowHandleDereference allow_handle_dereference;
     return JSObjectRef(broker(), handle(object<AllocationSite>()->boilerplate(),
                                         broker()->isolate()));
+  }
+  JSObjectData* boilerplate = data()->AsAllocationSite()->boilerplate();
+  if (boilerplate) {
+    return JSObjectRef(boilerplate);
   } else {
-    JSObjectData* boilerplate = data()->AsAllocationSite()->boilerplate();
-    if (boilerplate) {
-      return JSObjectRef(boilerplate);
-    } else {
-      return base::nullopt;
-    }
+    return base::nullopt;
   }
 }
 
@@ -2009,9 +1999,8 @@ FixedArrayBaseRef JSObjectRef::elements() const {
     AllowHandleDereference allow_handle_dereference;
     return FixedArrayBaseRef(
         broker(), handle(object<JSObject>()->elements(), broker()->isolate()));
-  } else {
-    return FixedArrayBaseRef(data()->AsJSObject()->elements());
   }
+  return FixedArrayBaseRef(data()->AsJSObject()->elements());
 }
 
 int FixedArrayBaseRef::length() const {
@@ -2135,8 +2124,6 @@ void ContextRef::Serialize() {
 #undef BIMODAL_ACCESSOR
 #undef BIMODAL_ACCESSOR_B
 #undef BIMODAL_ACCESSOR_C
-#undef HANDLE_ACCESSOR
-#undef HANDLE_ACCESSOR_C
 #undef IF_BROKER_DISABLED_ACCESS_HANDLE
 #undef IF_BROKER_DISABLED_ACCESS_HANDLE_C
 

@@ -146,8 +146,6 @@ class HeapObjectRef : public ObjectRef {
 
   HeapObjectType type() const;
   MapRef map() const;
-  bool IsSeqString() const;
-  bool IsExternalString() const;
 };
 
 class PropertyCellRef : public HeapObjectRef {
@@ -420,6 +418,8 @@ class StringRef : public NameRef {
   int length() const;
   uint16_t GetFirstChar();
   base::Optional<double> ToNumber();
+  bool IsSeqString() const;
+  bool IsExternalString() const;
 };
 
 class ModuleRef : public HeapObjectRef {
