@@ -1184,8 +1184,7 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
       case Constant::kInt64:
         // When pointers are 8 bytes, we can use int64 constants to represent
         // Smis.
-        DCHECK(type.representation() == MachineRepresentation::kWord64 ||
-               type.representation() == MachineRepresentation::kTagged);
+        DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
         DCHECK_EQ(8, kPointerSize);
         {
           Smi* smi = reinterpret_cast<Smi*>(constant.ToInt64());
