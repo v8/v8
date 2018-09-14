@@ -1284,7 +1284,12 @@ void PromiseReactionJobTask::PromiseReactionJobTaskVerify(Isolate* isolate) {
         promise_or_capability()->IsPromiseCapability());
 }
 
-void MicrotaskQueue::MicrotaskQueueVerify(Isolate* isolate) { UNIMPLEMENTED(); }
+void MicrotaskQueue::MicrotaskQueueVerify(Isolate* isolate) {
+  CHECK(IsMicrotaskQueue());
+  VerifyHeapPointer(isolate, queue());
+  VerifySmiField(kPendingMicrotaskCountOffset);
+  CHECK_LE(pending_microtask_count(), queue()->length());
+}
 
 void PromiseFulfillReactionJobTask::PromiseFulfillReactionJobTaskVerify(
     Isolate* isolate) {

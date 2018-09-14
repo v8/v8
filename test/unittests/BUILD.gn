@@ -183,6 +183,7 @@ v8_source_set("unittests_sources") {
     "libplatform/worker-thread-unittest.cc",
     "locked-queue-unittest.cc",
     "object-unittest.cc",
+    "objects/microtask-queue-unittest.cc",
     "parser/ast-value-unittest.cc",
     "parser/preparser-unittest.cc",
     "register-configuration-unittest.cc",

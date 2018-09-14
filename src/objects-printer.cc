@@ -2198,7 +2198,10 @@ void UncompiledDataWithPreParsedScope::UncompiledDataWithPreParsedScopePrint(
 }
 
 void MicrotaskQueue::MicrotaskQueuePrint(std::ostream& os) {  // NOLINT
-  UNIMPLEMENTED();
+  HeapObject::PrintHeader(os, "MicrotaskQueue");
+  os << "\n - pending_microtask_count: " << pending_microtask_count();
+  os << "\n - queue: " << Brief(queue());
+  os << "\n";
 }
 
 void InterpreterData::InterpreterDataPrint(std::ostream& os) {  // NOLINT
