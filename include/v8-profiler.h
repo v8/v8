@@ -800,8 +800,8 @@ class V8_EXPORT HeapProfiler {
    * Takes a heap snapshot and returns it.
    */
   const HeapSnapshot* TakeHeapSnapshot(
-      ActivityControl* control = NULL,
-      ObjectNameResolver* global_object_name_resolver = NULL);
+      ActivityControl* control = nullptr,
+      ObjectNameResolver* global_object_name_resolver = nullptr);
 
   /**
    * Starts tracking of heap objects population statistics. After calling
@@ -828,7 +828,7 @@ class V8_EXPORT HeapProfiler {
    * method.
    */
   SnapshotObjectId GetHeapStats(OutputStream* stream,
-                                int64_t* timestamp_us = NULL);
+                                int64_t* timestamp_us = nullptr);
 
   /**
    * Stops tracking of heap objects population statistics, cleans up all
