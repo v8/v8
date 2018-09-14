@@ -1072,6 +1072,29 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
   }
 }
 
+void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
+  BAILOUT("emit_i32_signextend_i8");
+}
+
+void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
+  BAILOUT("emit_i32_signextend_i16");
+}
+
+void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  BAILOUT("emit_i64_signextend_i8");
+}
+
+void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  BAILOUT("emit_i64_signextend_i16");
+}
+
+void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  BAILOUT("emit_i64_signextend_i32");
+}
+
 void LiftoffAssembler::emit_jump(Label* label) {
   TurboAssembler::Branch(label);
 }

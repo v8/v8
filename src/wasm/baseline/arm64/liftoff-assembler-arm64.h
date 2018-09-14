@@ -774,6 +774,29 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
   }
 }
 
+void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
+  sxtb(dst, src);
+}
+
+void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
+  sxth(dst, src);
+}
+
+void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  sxtb(dst.gp(), src.gp());
+}
+
+void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  sxth(dst.gp(), src.gp());
+}
+
+void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  sxtw(dst.gp(), src.gp());
+}
+
 void LiftoffAssembler::emit_jump(Label* label) { B(label); }
 
 void LiftoffAssembler::emit_jump(Register target) { Br(target); }

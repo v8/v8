@@ -121,6 +121,11 @@ inline void SpillRegisters(LiftoffAssembler* assm, Regs... regs) {
   }
 }
 
+inline void SignExtendI32ToI64(Assembler* assm, LiftoffRegister reg) {
+  assm->mov(reg.high_gp(), reg.low_gp());
+  assm->sar(reg.high_gp(), 31);
+}
+
 constexpr DoubleRegister kScratchDoubleReg = xmm7;
 
 constexpr int kSubSpSize = 6;  // 6 bytes for "sub esp, <imm32>"
@@ -247,8 +252,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       break;
     case LoadType::kI64Load8S:
       movsx_b(dst.low_gp(), src_op);
-      mov(dst.high_gp(), dst.low_gp());
-      sar(dst.high_gp(), 31);
+      liftoff::SignExtendI32ToI64(this, dst);
       break;
     case LoadType::kI32Load16U:
       movzx_w(dst.gp(), src_op);
@@ -262,8 +266,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       break;
     case LoadType::kI64Load16S:
       movsx_w(dst.low_gp(), src_op);
-      mov(dst.high_gp(), dst.low_gp());
-      sar(dst.high_gp(), 31);
+      liftoff::SignExtendI32ToI64(this, dst);
       break;
     case LoadType::kI32Load:
       mov(dst.gp(), src_op);
@@ -274,8 +277,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       break;
     case LoadType::kI64Load32S:
       mov(dst.low_gp(), src_op);
-      mov(dst.high_gp(), dst.low_gp());
-      sar(dst.high_gp(), 31);
+      liftoff::SignExtendI32ToI64(this, dst);
       break;
     case LoadType::kI64Load: {
       // Compute the operand for the load of the upper half.
@@ -1311,7 +1313,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     case kExprI64SConvertI32:
       if (dst.low_gp() != src.gp()) mov(dst.low_gp(), src.gp());
-      mov(dst.high_gp(), src.gp());
+      if (dst.high_gp() != src.gp()) mov(dst.high_gp(), src.gp());
       sar(dst.high_gp(), 31);
       return true;
     case kExprI64UConvertI32:
@@ -1361,6 +1363,32 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     default:
       return false;
   }
+}
+
+void LiftoffAssembler::emit_i32_signextend_i8(Register dst, Register src) {
+  movsx_b(dst, src);
+}
+
+void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
+  movsx_w(dst, src);
+}
+
+void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
+                                              LiftoffRegister src) {
+  movsx_b(dst.low_gp(), src.low_gp());
+  liftoff::SignExtendI32ToI64(this, dst);
+}
+
+void LiftoffAssembler::emit_i64_signextend_i16(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  movsx_w(dst.low_gp(), src.low_gp());
+  liftoff::SignExtendI32ToI64(this, dst);
+}
+
+void LiftoffAssembler::emit_i64_signextend_i32(LiftoffRegister dst,
+                                               LiftoffRegister src) {
+  if (dst.low_gp() != src.low_gp()) mov(dst.low_gp(), src.low_gp());
+  liftoff::SignExtendI32ToI64(this, dst);
 }
 
 void LiftoffAssembler::emit_jump(Label* label) { jmp(label); }

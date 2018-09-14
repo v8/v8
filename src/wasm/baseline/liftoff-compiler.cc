@@ -637,6 +637,20 @@ class LiftoffCompiler {
           __ emit_##fn(dst.gp(), src.gp());             \
         });                                             \
     break;
+#define CASE_I32_SIGN_EXTENSION(opcode, fn)             \
+  case WasmOpcode::kExpr##opcode:                       \
+    EmitUnOp<kWasmI32, kWasmI32>(                       \
+        [=](LiftoffRegister dst, LiftoffRegister src) { \
+          __ emit_##fn(dst.gp(), src.gp());             \
+        });                                             \
+    break;
+#define CASE_I64_SIGN_EXTENSION(opcode, fn)             \
+  case WasmOpcode::kExpr##opcode:                       \
+    EmitUnOp<kWasmI64, kWasmI64>(                       \
+        [=](LiftoffRegister dst, LiftoffRegister src) { \
+          __ emit_##fn(dst, src);                       \
+        });                                             \
+    break;
 #define CASE_FLOAT_UNOP(opcode, type, fn)               \
   case WasmOpcode::kExpr##opcode:                       \
     EmitUnOp<kWasm##type, kWasm##type>(                 \
@@ -705,6 +719,11 @@ class LiftoffCompiler {
                            &ExternalReference::wasm_uint64_to_float64, kNoTrap)
       CASE_TYPE_CONVERSION(F64ConvertF32, F64, F32, nullptr, kNoTrap)
       CASE_TYPE_CONVERSION(F64ReinterpretI64, F64, I64, nullptr, kNoTrap)
+      CASE_I32_SIGN_EXTENSION(I32SExtendI8, i32_signextend_i8)
+      CASE_I32_SIGN_EXTENSION(I32SExtendI16, i32_signextend_i16)
+      CASE_I64_SIGN_EXTENSION(I64SExtendI8, i64_signextend_i8)
+      CASE_I64_SIGN_EXTENSION(I64SExtendI16, i64_signextend_i16)
+      CASE_I64_SIGN_EXTENSION(I64SExtendI32, i64_signextend_i32)
       case kExprI32Popcnt:
         EmitI32UnOpWithCFallback(&LiftoffAssembler::emit_i32_popcnt,
                                  &ExternalReference::wasm_word32_popcnt);
@@ -719,6 +738,8 @@ class LiftoffCompiler {
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }
 #undef CASE_I32_UNOP
+#undef CASE_I32_SIGN_EXTENSION
+#undef CASE_I64_SIGN_EXTENSION
 #undef CASE_FLOAT_UNOP
 #undef CASE_FLOAT_UNOP_WITH_CFALLBACK
 #undef CASE_TYPE_CONVERSION

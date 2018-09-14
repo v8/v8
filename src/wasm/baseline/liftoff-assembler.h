@@ -521,9 +521,14 @@ class LiftoffAssembler : public TurboAssembler {
   inline bool emit_f64_nearest_int(DoubleRegister dst, DoubleRegister src);
   inline void emit_f64_sqrt(DoubleRegister dst, DoubleRegister src);
 
-  // type conversions.
   inline bool emit_type_conversion(WasmOpcode opcode, LiftoffRegister dst,
                                    LiftoffRegister src, Label* trap = nullptr);
+
+  inline void emit_i32_signextend_i8(Register dst, Register src);
+  inline void emit_i32_signextend_i16(Register dst, Register src);
+  inline void emit_i64_signextend_i8(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_i64_signextend_i16(LiftoffRegister dst, LiftoffRegister src);
+  inline void emit_i64_signextend_i32(LiftoffRegister dst, LiftoffRegister src);
 
   inline void emit_jump(Label*);
   inline void emit_jump(Register);
