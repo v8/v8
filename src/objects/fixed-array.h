@@ -442,7 +442,6 @@ class ArrayList : public FixedArray {
   // Return a copy of the list of size Length() without the first entry. The
   // number returned by Length() is stored in the first entry.
   static Handle<FixedArray> Elements(Isolate* isolate, Handle<ArrayList> array);
-  bool IsFull();
   DECL_CAST(ArrayList)
 
  private:

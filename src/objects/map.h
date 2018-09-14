@@ -403,9 +403,6 @@ class Map : public HeapObject {
   inline bool has_fixed_typed_array_elements() const;
   inline bool has_dictionary_elements() const;
 
-  static bool IsValidElementsTransition(ElementsKind from_kind,
-                                        ElementsKind to_kind);
-
   // Returns true if the current map doesn't have DICTIONARY_ELEMENTS but if a
   // map with DICTIONARY_ELEMENTS was found in the prototype chain.
   bool DictionaryElementsInPrototypeChainOnly(Isolate* isolate);
@@ -471,8 +468,6 @@ class Map : public HeapObject {
   bool InstancesNeedRewriting(Map* target, int target_number_of_fields,
                               int target_inobject, int target_unused,
                               int* old_number_of_fields) const;
-  // TODO(ishell): moveit!
-  static Handle<Map> GeneralizeAllFields(Isolate* isolate, Handle<Map> map);
   V8_WARN_UNUSED_RESULT static Handle<FieldType> GeneralizeFieldType(
       Representation rep1, Handle<FieldType> type1, Representation rep2,
       Handle<FieldType> type2, Isolate* isolate);

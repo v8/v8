@@ -305,9 +305,6 @@ class Code : public HeapObject, public NeverReadOnlySpaceObject {
   // object has been moved by delta bytes.
   void Relocate(intptr_t delta);
 
-  // Migrate code described by desc.
-  void CopyFrom(Heap* heap, const CodeDesc& desc);
-
   // Migrate code from desc without flushing the instruction cache.
   void CopyFromNoFlush(Heap* heap, const CodeDesc& desc);
 
@@ -619,9 +616,6 @@ class DependentCode : public WeakFixedArray {
   static void InstallDependency(Isolate* isolate, const MaybeObjectHandle& code,
                                 Handle<HeapObject> object,
                                 DependencyGroup group);
-
-  bool Contains(DependencyGroup group, MaybeObject* code);
-  bool IsEmpty(DependencyGroup group);
 
   void DeoptimizeDependentCodeGroup(Isolate* isolate, DependencyGroup group);
 

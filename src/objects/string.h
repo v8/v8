@@ -370,9 +370,6 @@ class String : public Name {
   // Limit for truncation in short printing.
   static const int kMaxShortPrintLength = 1024;
 
-  // Support for regular expressions.
-  const uc16* GetTwoByteData(unsigned start);
-
   // Helper function for flattening strings.
   template <typename sinkchar>
   static void WriteToFlat(String* source, sinkchar* sink, int from, int to);
@@ -555,9 +552,6 @@ class SeqTwoByteString : public SeqString {
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
   void clear_padding();
-
-  // For regexp code.
-  const uint16_t* SeqTwoByteStringGetData(unsigned start);
 
   DECL_CAST(SeqTwoByteString)
 

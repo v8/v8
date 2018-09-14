@@ -4869,25 +4869,6 @@ Handle<Map> Map::ReconfigureElementsKind(Isolate* isolate, Handle<Map> map,
   return mu.ReconfigureElementsKind(new_elements_kind);
 }
 
-// Generalize all fields and update the transition tree.
-Handle<Map> Map::GeneralizeAllFields(Isolate* isolate, Handle<Map> map) {
-  Handle<FieldType> any_type = FieldType::Any(isolate);
-
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
-  for (int i = 0; i < map->NumberOfOwnDescriptors(); ++i) {
-    PropertyDetails details = descriptors->GetDetails(i);
-    if (details.location() == kField) {
-      DCHECK_EQ(kData, details.kind());
-      MapUpdater mu(isolate, map);
-      map = mu.ReconfigureToDataField(i, details.attributes(),
-                                      PropertyConstness::kMutable,
-                                      Representation::Tagged(), any_type);
-    }
-  }
-  return map;
-}
-
-
 // static
 MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
   DisallowHeapAllocation no_allocation;
@@ -8124,144 +8105,6 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
 }
 
 
-bool JSObject::ReferencesObjectFromElements(FixedArray* elements,
-                                            ElementsKind kind,
-                                            Object* object) {
-  Isolate* isolate = GetIsolate();
-  if (IsObjectElementsKind(kind) || kind == FAST_STRING_WRAPPER_ELEMENTS) {
-    int length = IsJSArray() ? Smi::ToInt(JSArray::cast(this)->length())
-                             : elements->length();
-    for (int i = 0; i < length; ++i) {
-      Object* element = elements->get(i);
-      if (!element->IsTheHole(isolate) && element == object) return true;
-    }
-  } else {
-    DCHECK(kind == DICTIONARY_ELEMENTS || kind == SLOW_STRING_WRAPPER_ELEMENTS);
-    Object* key = NumberDictionary::cast(elements)->SlowReverseLookup(object);
-    if (!key->IsUndefined(isolate)) return true;
-  }
-  return false;
-}
-
-
-// Check whether this object references another object.
-bool JSObject::ReferencesObject(Object* obj) {
-  Map* map_of_this = map();
-  Heap* heap = GetHeap();
-  DisallowHeapAllocation no_allocation;
-
-  // Is the object the constructor for this object?
-  if (map_of_this->GetConstructor() == obj) {
-    return true;
-  }
-
-  // Is the object the prototype for this object?
-  if (map_of_this->prototype() == obj) {
-    return true;
-  }
-
-  // Check if the object is among the named properties.
-  Object* key = SlowReverseLookup(obj);
-  if (!key->IsUndefined(heap->isolate())) {
-    return true;
-  }
-
-  // Check if the object is among the indexed properties.
-  ElementsKind kind = GetElementsKind();
-  switch (kind) {
-    // Raw pixels and external arrays do not reference other
-    // objects.
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
-  case TYPE##_ELEMENTS:                           \
-    break;
-
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-    case PACKED_DOUBLE_ELEMENTS:
-    case HOLEY_DOUBLE_ELEMENTS:
-      break;
-    case PACKED_SMI_ELEMENTS:
-    case HOLEY_SMI_ELEMENTS:
-      break;
-    case PACKED_ELEMENTS:
-    case HOLEY_ELEMENTS:
-    case DICTIONARY_ELEMENTS:
-    case FAST_STRING_WRAPPER_ELEMENTS:
-    case SLOW_STRING_WRAPPER_ELEMENTS: {
-      FixedArray* elements = FixedArray::cast(this->elements());
-      if (ReferencesObjectFromElements(elements, kind, obj)) return true;
-      break;
-    }
-    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
-    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
-      SloppyArgumentsElements* elements =
-          SloppyArgumentsElements::cast(this->elements());
-      // Check the mapped parameters.
-      for (uint32_t i = 0; i < elements->parameter_map_length(); ++i) {
-        Object* value = elements->get_mapped_entry(i);
-        if (!value->IsTheHole(heap->isolate()) && value == obj) return true;
-      }
-      // Check the arguments.
-      FixedArray* arguments = elements->arguments();
-      kind = arguments->IsNumberDictionary() ? DICTIONARY_ELEMENTS
-                                             : HOLEY_ELEMENTS;
-      if (ReferencesObjectFromElements(arguments, kind, obj)) return true;
-      break;
-    }
-    case NO_ELEMENTS:
-      break;
-  }
-
-  // For functions check the context.
-  if (IsJSFunction()) {
-    // Get the constructor function for arguments array.
-    Map* arguments_map =
-        heap->isolate()->context()->native_context()->sloppy_arguments_map();
-    JSFunction* arguments_function =
-        JSFunction::cast(arguments_map->GetConstructor());
-
-    // Get the context and don't check if it is the native context.
-    JSFunction* f = JSFunction::cast(this);
-    Context* context = f->context();
-    if (context->IsNativeContext()) {
-      return false;
-    }
-
-    // Check the non-special context slots.
-    for (int i = Context::MIN_CONTEXT_SLOTS; i < context->length(); i++) {
-      // Only check JS objects.
-      if (context->get(i)->IsJSObject()) {
-        JSObject* ctxobj = JSObject::cast(context->get(i));
-        // If it is an arguments array check the content.
-        if (ctxobj->map()->GetConstructor() == arguments_function) {
-          if (ctxobj->ReferencesObject(obj)) {
-            return true;
-          }
-        } else if (ctxobj == obj) {
-          return true;
-        }
-      }
-    }
-
-    // Check the context extension (if any) if it can have references.
-    if (context->has_extension() && !context->IsCatchContext() &&
-        !context->IsModuleContext()) {
-      // With harmony scoping, a JSFunction may have a script context.
-      // TODO(mvstanton): walk into the ScopeInfo.
-      if (context->IsScriptContext()) {
-        return false;
-      }
-
-      return context->extension_object()->ReferencesObject(obj);
-    }
-  }
-
-  // No references to object.
-  return false;
-}
-
-
 Maybe<bool> JSReceiver::SetIntegrityLevel(Handle<JSReceiver> receiver,
                                           IntegrityLevel level,
                                           ShouldThrow should_throw) {
@@ -10484,11 +10327,6 @@ Handle<FixedArray> ArrayList::Elements(Isolate* isolate,
   return result;
 }
 
-bool ArrayList::IsFull() {
-  int capacity = length();
-  return kFirstIndex + Length() == capacity;
-}
-
 namespace {
 
 Handle<FixedArray> EnsureSpaceInFixedArray(Isolate* isolate,
@@ -11122,32 +10960,6 @@ std::unique_ptr<char[]> String::ToCString(AllowNullsFlag allow_nulls,
                                           RobustnessFlag robust_flag,
                                           int* length_return) {
   return ToCString(allow_nulls, robust_flag, 0, -1, length_return);
-}
-
-
-const uc16* String::GetTwoByteData(unsigned start) {
-  DCHECK(!IsOneByteRepresentationUnderneath());
-  switch (StringShape(this).representation_tag()) {
-    case kSeqStringTag:
-      return SeqTwoByteString::cast(this)->SeqTwoByteStringGetData(start);
-    case kExternalStringTag:
-      return ExternalTwoByteString::cast(this)->
-        ExternalTwoByteStringGetData(start);
-    case kSlicedStringTag: {
-      SlicedString* slice = SlicedString::cast(this);
-      return slice->parent()->GetTwoByteData(start + slice->offset());
-    }
-    case kConsStringTag:
-    case kThinStringTag:
-      UNREACHABLE();
-  }
-  UNREACHABLE();
-}
-
-
-const uc16* SeqTwoByteString::SeqTwoByteStringGetData(unsigned start) {
-  return reinterpret_cast<uc16*>(
-      reinterpret_cast<char*>(this) - kHeapObjectTag + kHeaderSize) + start;
 }
 
 
@@ -14468,11 +14280,6 @@ void Code::FlushICache() const {
   Assembler::FlushICache(raw_instruction_start(), raw_instruction_size());
 }
 
-void Code::CopyFrom(Heap* heap, const CodeDesc& desc) {
-  CopyFromNoFlush(heap, desc);
-  FlushICache();
-}
-
 void Code::CopyFromNoFlush(Heap* heap, const CodeDesc& desc) {
   // Copy code.
   CopyBytes(reinterpret_cast<byte*>(raw_instruction_start()), desc.buffer,
@@ -15404,38 +15211,6 @@ bool DependentCode::Compact() {
   return new_count < old_count;
 }
 
-bool DependentCode::Contains(DependencyGroup group, MaybeObject* code) {
-  if (this->length() == 0 || this->group() > group) {
-    // There is no such group.
-    return false;
-  }
-  if (this->group() < group) {
-    // The group comes later in the list.
-    return next_link()->Contains(group, code);
-  }
-  DCHECK_EQ(group, this->group());
-  int count = this->count();
-  for (int i = 0; i < count; i++) {
-    if (object_at(i) == code) return true;
-  }
-  return false;
-}
-
-
-bool DependentCode::IsEmpty(DependencyGroup group) {
-  if (this->length() == 0 || this->group() > group) {
-    // There is no such group.
-    return true;
-  }
-  if (this->group() < group) {
-    // The group comes later in the list.
-    return next_link()->IsEmpty(group);
-  }
-  DCHECK_EQ(group, this->group());
-  return count() == 0;
-}
-
-
 bool DependentCode::MarkCodeForDeoptimization(
     Isolate* isolate,
     DependentCode::DependencyGroup group) {
@@ -16066,19 +15841,6 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
     uint32_t c = static_cast<uint32_t>(object->elements()->length());
     ElementsAccessor::ForKind(to_kind)->GrowCapacityAndConvert(object, c);
   }
-}
-
-
-// static
-bool Map::IsValidElementsTransition(ElementsKind from_kind,
-                                    ElementsKind to_kind) {
-  // Transitions can't go backwards.
-  if (!IsMoreGeneralElementsKindTransition(from_kind, to_kind)) {
-    return false;
-  }
-
-  // Transitions from HOLEY -> PACKED are not allowed.
-  return !IsHoleyElementsKind(from_kind) || IsHoleyElementsKind(to_kind);
 }
 
 
@@ -17531,18 +17293,6 @@ Handle<ObjectHashSet> ObjectHashSet::Add(Isolate* isolate,
   return set;
 }
 
-Handle<Object> CompilationCacheTable::Lookup(Handle<String> src,
-                                             Handle<SharedFunctionInfo> shared,
-                                             LanguageMode language_mode) {
-  Isolate* isolate = GetIsolate();
-  StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
-  int entry = FindEntry(isolate, &key);
-  if (entry == kNotFound) return isolate->factory()->undefined_value();
-  int index = EntryToIndex(entry);
-  if (!get(index)->IsFixedArray()) return isolate->factory()->undefined_value();
-  return Handle<Object>(get(index + 1), isolate);
-}
-
 namespace {
 
 const int kLiteralEntryLength = 2;
@@ -17711,21 +17461,6 @@ Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
   int entry = FindEntry(isolate, &key);
   if (entry == kNotFound) return isolate->factory()->undefined_value();
   return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
-}
-
-Handle<CompilationCacheTable> CompilationCacheTable::Put(
-    Handle<CompilationCacheTable> cache, Handle<String> src,
-    Handle<SharedFunctionInfo> shared, LanguageMode language_mode,
-    Handle<Object> value) {
-  Isolate* isolate = cache->GetIsolate();
-  StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
-  Handle<Object> k = key.AsHandle(isolate);
-  cache = EnsureCapacity(isolate, cache, 1);
-  int entry = cache->FindInsertionEntry(key.Hash());
-  cache->set(EntryToIndex(entry), *k);
-  cache->set(EntryToIndex(entry) + 1, *value);
-  cache->ElementAdded();
-  return cache;
 }
 
 Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
