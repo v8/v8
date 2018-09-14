@@ -989,7 +989,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
       MarkCompactCollector::NonAtomicMarkingState* marking_state)
       : marking_state_(marking_state) {}
 
-  virtual Object* RetainAs(Object* object) {
+  Object* RetainAs(Object* object) override {
     HeapObject* heap_object = HeapObject::cast(object);
     DCHECK(!marking_state_->IsGrey(heap_object));
     if (marking_state_->IsBlack(heap_object)) {
@@ -1352,7 +1352,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
     }
   }
 
-  inline bool Visit(HeapObject* object, int size) {
+  inline bool Visit(HeapObject* object, int size) override {
     if (mode == NEW_TO_NEW) {
       heap_->UpdateAllocationSite(object->map(), object,
                                   local_pretenuring_feedback_);
@@ -1394,7 +1394,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
  public:
   explicit EvacuateRecordOnlyVisitor(Heap* heap) : heap_(heap) {}
 
-  inline bool Visit(HeapObject* object, int size) {
+  inline bool Visit(HeapObject* object, int size) override {
     RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
     object->IterateBodyFast(&visitor);
     return true;
@@ -2486,7 +2486,7 @@ void FullEvacuator::RawEvacuatePage(Page* page, intptr_t* live_bytes) {
 class PageEvacuationItem : public ItemParallelJob::Item {
  public:
   explicit PageEvacuationItem(Page* page) : page_(page) {}
-  virtual ~PageEvacuationItem() = default;
+  ~PageEvacuationItem() override = default;
   Page* page() const { return page_; }
 
  private:
@@ -2608,7 +2608,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
 class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
  public:
-  virtual Object* RetainAs(Object* object) {
+  Object* RetainAs(Object* object) override {
     if (object->IsHeapObject()) {
       HeapObject* heap_object = HeapObject::cast(object);
       MapWord map_word = heap_object->map_word();
@@ -2783,7 +2783,7 @@ void MarkCompactCollector::Evacuate() {
 
 class UpdatingItem : public ItemParallelJob::Item {
  public:
-  virtual ~UpdatingItem() = default;
+  ~UpdatingItem() override = default;
   virtual void Process() = 0;
 };
 
@@ -2818,7 +2818,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
         start_(start),
         end_(end),
         marking_state_(marking_state) {}
-  virtual ~ToSpaceUpdatingItem() = default;
+  ~ToSpaceUpdatingItem() override = default;
 
   void Process() override {
     if (chunk_->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) {
@@ -2872,7 +2872,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         marking_state_(marking_state),
         chunk_(chunk),
         updating_mode_(updating_mode) {}
-  virtual ~RememberedSetUpdatingItem() = default;
+  ~RememberedSetUpdatingItem() override = default;
 
   void Process() override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
@@ -3020,7 +3020,7 @@ class GlobalHandlesUpdatingItem : public UpdatingItem {
         global_handles_(global_handles),
         start_(start),
         end_(end) {}
-  virtual ~GlobalHandlesUpdatingItem() = default;
+  ~GlobalHandlesUpdatingItem() override = default;
 
   void Process() override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
@@ -3047,7 +3047,7 @@ class ArrayBufferTrackerUpdatingItem : public UpdatingItem {
 
   explicit ArrayBufferTrackerUpdatingItem(Page* page, EvacuationState state)
       : page_(page), state_(state) {}
-  virtual ~ArrayBufferTrackerUpdatingItem() = default;
+  ~ArrayBufferTrackerUpdatingItem() override = default;
 
   void Process() override {
     TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
@@ -3916,7 +3916,7 @@ class MinorMarkCompactWeakObjectRetainer : public WeakObjectRetainer {
       MinorMarkCompactCollector* collector)
       : marking_state_(collector->non_atomic_marking_state()) {}
 
-  virtual Object* RetainAs(Object* object) {
+  Object* RetainAs(Object* object) override {
     HeapObject* heap_object = HeapObject::cast(object);
     if (!Heap::InNewSpace(heap_object)) return object;
 
@@ -3991,7 +3991,7 @@ class YoungGenerationMarkingTask;
 
 class MarkingItem : public ItemParallelJob::Item {
  public:
-  virtual ~MarkingItem() = default;
+  ~MarkingItem() override = default;
   virtual void Process(YoungGenerationMarkingTask* task) = 0;
 };
 
@@ -4079,7 +4079,7 @@ class PageMarkingItem : public MarkingItem {
  public:
   explicit PageMarkingItem(MemoryChunk* chunk, std::atomic<int>* global_slots)
       : chunk_(chunk), global_slots_(global_slots), slots_(0) {}
-  virtual ~PageMarkingItem() { *global_slots_ = *global_slots_ + slots_; }
+  ~PageMarkingItem() override { *global_slots_ = *global_slots_ + slots_; }
 
   void Process(YoungGenerationMarkingTask* task) override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
@@ -4139,7 +4139,7 @@ class GlobalHandlesMarkingItem : public MarkingItem {
   GlobalHandlesMarkingItem(Heap* heap, GlobalHandles* global_handles,
                            size_t start, size_t end)
       : global_handles_(global_handles), start_(start), end_(end) {}
-  virtual ~GlobalHandlesMarkingItem() = default;
+  ~GlobalHandlesMarkingItem() override = default;
 
   void Process(YoungGenerationMarkingTask* task) override {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),

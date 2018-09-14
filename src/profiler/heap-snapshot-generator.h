@@ -352,8 +352,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   V8HeapExplorer(HeapSnapshot* snapshot,
                  SnapshottingProgressReportingInterface* progress,
                  v8::HeapProfiler::ObjectNameResolver* resolver);
-  virtual ~V8HeapExplorer();
-  virtual HeapEntry* AllocateEntry(HeapThing ptr);
+  ~V8HeapExplorer() override;
+  HeapEntry* AllocateEntry(HeapThing ptr) override;
   int EstimateObjectsCount();
   bool IterateAndExtractReferences(SnapshotFiller* filler);
   void TagGlobalObjects();
@@ -570,8 +570,8 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
 
  private:
   bool FillReferences();
-  void ProgressStep();
-  bool ProgressReport(bool force = false);
+  void ProgressStep() override;
+  bool ProgressReport(bool force = false) override;
   void InitProgressCounter();
 
   HeapSnapshot* snapshot_;

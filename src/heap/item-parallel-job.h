@@ -71,7 +71,7 @@ class V8_EXPORT_PRIVATE ItemParallelJob {
   class V8_EXPORT_PRIVATE Task : public CancelableTask {
    public:
     explicit Task(Isolate* isolate);
-    virtual ~Task();
+    ~Task() override;
 
     virtual void RunInParallel() = 0;
 

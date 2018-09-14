@@ -1352,7 +1352,7 @@ class JSArrayBufferDataEntryAllocator : public HeapEntriesAllocator {
       : size_(size)
       , explorer_(explorer) {
   }
-  virtual HeapEntry* AllocateEntry(HeapThing ptr) {
+  HeapEntry* AllocateEntry(HeapThing ptr) override {
     return explorer_->AddEntry(reinterpret_cast<Address>(ptr),
                                HeapEntry::kNative, "system / JSArrayBufferData",
                                size_);
@@ -2076,7 +2076,7 @@ class BasicHeapEntriesAllocator : public HeapEntriesAllocator {
       heap_object_map_(snapshot_->profiler()->heap_object_map()),
       entries_type_(entries_type) {
   }
-  virtual HeapEntry* AllocateEntry(HeapThing ptr);
+  HeapEntry* AllocateEntry(HeapThing ptr) override;
  private:
   HeapSnapshot* snapshot_;
   StringsStorage* names_;
@@ -2107,7 +2107,7 @@ class EmbedderGraphEntriesAllocator : public HeapEntriesAllocator {
       : snapshot_(snapshot),
         names_(snapshot_->profiler()->names()),
         heap_object_map_(snapshot_->profiler()->heap_object_map()) {}
-  virtual HeapEntry* AllocateEntry(HeapThing ptr);
+  HeapEntry* AllocateEntry(HeapThing ptr) override;
 
  private:
   HeapSnapshot* snapshot_;
@@ -2162,17 +2162,17 @@ class NativeGroupRetainedObjectInfo : public v8::RetainedObjectInfo {
         hash_(reinterpret_cast<intptr_t>(label)),
         label_(label) {}
 
-  virtual ~NativeGroupRetainedObjectInfo() {}
-  virtual void Dispose() {
+  ~NativeGroupRetainedObjectInfo() override {}
+  void Dispose() override {
     CHECK(!disposed_);
     disposed_ = true;
     delete this;
   }
-  virtual bool IsEquivalent(RetainedObjectInfo* other) {
+  bool IsEquivalent(RetainedObjectInfo* other) override {
     return hash_ == other->GetHash() && !strcmp(label_, other->GetLabel());
   }
-  virtual intptr_t GetHash() { return hash_; }
-  virtual const char* GetLabel() { return label_; }
+  intptr_t GetHash() override { return hash_; }
+  const char* GetLabel() override { return label_; }
 
  private:
   bool disposed_;

@@ -3247,14 +3247,14 @@ class SourceResource : public v8::String::ExternalOneByteStringResource {
   explicit SourceResource(const char* data)
     : data_(data), length_(strlen(data)) { }
 
-  virtual void Dispose() {
+  void Dispose() override {
     i::DeleteArray(data_);
     data_ = nullptr;
   }
 
-  const char* data() const { return data_; }
+  const char* data() const override { return data_; }
 
-  size_t length() const { return length_; }
+  size_t length() const override { return length_; }
 
   bool IsDisposed() { return data_ == nullptr; }
 
@@ -5427,11 +5427,11 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
  public:
   explicit StaticOneByteResource(const char* data) : data_(data) {}
 
-  ~StaticOneByteResource() = default;
+  ~StaticOneByteResource() override = default;
 
-  const char* data() const { return data_; }
+  const char* data() const override { return data_; }
 
-  size_t length() const { return strlen(data_); }
+  size_t length() const override { return strlen(data_); }
 
  private:
   const char* data_;

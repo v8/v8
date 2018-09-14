@@ -64,7 +64,7 @@ class V8_EXPORT_PRIVATE HeapController : public MemoryController {
   double MaxGrowingFactor(size_t curr_max_size);
 
  protected:
-  const char* ControllerName() { return "HeapController"; }
+  const char* ControllerName() override { return "HeapController"; }
 };
 
 }  // namespace internal

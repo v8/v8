@@ -1954,7 +1954,7 @@ static bool IsUnscavengedHeapObject(Heap* heap, Object** p) {
 
 class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
  public:
-  virtual Object* RetainAs(Object* object) {
+  Object* RetainAs(Object* object) override {
     if (!Heap::InFromSpace(object)) {
       return object;
     }
@@ -2021,7 +2021,7 @@ static bool IsLogging(Isolate* isolate) {
 class PageScavengingItem final : public ItemParallelJob::Item {
  public:
   explicit PageScavengingItem(MemoryChunk* chunk) : chunk_(chunk) {}
-  virtual ~PageScavengingItem() = default;
+  ~PageScavengingItem() override = default;
 
   void Process(Scavenger* scavenger) { scavenger->ScavengePage(chunk_); }
 
@@ -2555,8 +2555,8 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
     explicit ExternalStringTableVisitorAdapter(
         Isolate* isolate, v8::ExternalResourceVisitor* visitor)
         : isolate_(isolate), visitor_(visitor) {}
-    virtual void VisitRootPointers(Root root, const char* description,
-                                   Object** start, Object** end) {
+    void VisitRootPointers(Root root, const char* description,
+                                   Object** start, Object** end) override {
       for (Object** p = start; p < end; p++) {
         DCHECK((*p)->IsExternalString());
         visitor_->VisitExternalString(
@@ -2865,8 +2865,8 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
   explicit LeftTrimmerVerifierRootVisitor(FixedArrayBase* to_check)
       : to_check_(to_check) {}
 
-  virtual void VisitRootPointers(Root root, const char* description,
-                                 Object** start, Object** end) {
+  void VisitRootPointers(Root root, const char* description,
+                                 Object** start, Object** end) override {
     for (Object** p = start; p < end; ++p) {
       DCHECK_NE(*p, to_check_);
     }
@@ -3532,7 +3532,7 @@ class MemoryPressureInterruptTask : public CancelableTask {
   explicit MemoryPressureInterruptTask(Heap* heap)
       : CancelableTask(heap->isolate()), heap_(heap) {}
 
-  virtual ~MemoryPressureInterruptTask() = default;
+  ~MemoryPressureInterruptTask() override = default;
 
  private:
   // v8::internal::CancelableTask overrides.
@@ -5351,14 +5351,14 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     MarkReachableObjects();
   }
 
-  ~UnreachableObjectsFilter() {
+  ~UnreachableObjectsFilter() override {
     for (auto it : reachable_) {
       delete it.second;
       it.second = nullptr;
     }
   }
 
-  bool SkipObject(HeapObject* object) {
+  bool SkipObject(HeapObject* object) override {
     if (object->IsFiller()) return true;
     MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
     if (reachable_.count(chunk) == 0) return true;

@@ -701,7 +701,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
  private:
   explicit MarkCompactCollector(Heap* heap);
-  ~MarkCompactCollector();
+  ~MarkCompactCollector() override;
 
   bool WillBeDeoptimized(Code* code);
 
@@ -974,7 +974,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   using NonAtomicMarkingState = MinorNonAtomicMarkingState;
 
   explicit MinorMarkCompactCollector(Heap* heap);
-  ~MinorMarkCompactCollector();
+  ~MinorMarkCompactCollector() override;
 
   MarkingState* marking_state() { return &marking_state_; }
 

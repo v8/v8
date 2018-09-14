@@ -505,7 +505,7 @@ class ConcurrentMarking::Task : public CancelableTask {
         task_state_(task_state),
         task_id_(task_id) {}
 
-  virtual ~Task() = default;
+  ~Task() override = default;
 
  private:
   // v8::internal::CancelableTask overrides.
