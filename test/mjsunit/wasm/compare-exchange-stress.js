@@ -8,7 +8,7 @@ load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 const kSequenceLength = 8192;
-const kNumberOfWorkers = 8;
+const kNumberOfWorkers = 4;
 const kBitMask = kNumberOfWorkers - 1;
 const kSequenceStartAddress = 32;
 
