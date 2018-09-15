@@ -556,45 +556,6 @@ void HeapEntriesMap::Pair(HeapThing thing, int entry) {
   cache_entry->value = reinterpret_cast<void*>(static_cast<intptr_t>(entry));
 }
 
-HeapObjectsSet::HeapObjectsSet() : entries_() {}
-
-void HeapObjectsSet::Clear() {
-  entries_.Clear();
-}
-
-
-bool HeapObjectsSet::Contains(Object* obj) {
-  if (!obj->IsHeapObject()) return false;
-  HeapObject* object = HeapObject::cast(obj);
-  return entries_.Lookup(object, HeapEntriesMap::Hash(object)) != nullptr;
-}
-
-
-void HeapObjectsSet::Insert(Object* obj) {
-  if (!obj->IsHeapObject()) return;
-  HeapObject* object = HeapObject::cast(obj);
-  entries_.LookupOrInsert(object, HeapEntriesMap::Hash(object));
-}
-
-
-const char* HeapObjectsSet::GetTag(Object* obj) {
-  HeapObject* object = HeapObject::cast(obj);
-  base::HashMap::Entry* cache_entry =
-      entries_.Lookup(object, HeapEntriesMap::Hash(object));
-  return cache_entry != nullptr
-             ? reinterpret_cast<const char*>(cache_entry->value)
-             : nullptr;
-}
-
-
-V8_NOINLINE void HeapObjectsSet::SetTag(Object* obj, const char* tag) {
-  if (!obj->IsHeapObject()) return;
-  HeapObject* object = HeapObject::cast(obj);
-  base::HashMap::Entry* cache_entry =
-      entries_.LookupOrInsert(object, HeapEntriesMap::Hash(object));
-  cache_entry->value = const_cast<char*>(tag);
-}
-
 V8HeapExplorer::V8HeapExplorer(HeapSnapshot* snapshot,
                                SnapshottingProgressReportingInterface* progress,
                                v8::HeapProfiler::ObjectNameResolver* resolver)
@@ -659,9 +620,9 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
     const char* name = names_->GetName(
         GetConstructorName(JSObject::cast(object)));
     if (object->IsJSGlobalObject()) {
-      const char* tag = objects_tags_.GetTag(object);
-      if (tag != nullptr) {
-        name = names_->GetFormatted("%s / %s", name, tag);
+      auto it = objects_tags_.find(JSGlobalObject::cast(object));
+      if (it != objects_tags_.end()) {
+        name = names_->GetFormatted("%s / %s", name, it->second);
       }
     }
     return AddEntry(object, HeapEntry::kObject, name);
@@ -1897,18 +1858,17 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   JSGlobalObject* global = Context::cast(child_obj)->global_object();
   if (!global->IsJSGlobalObject()) return;
 
-  if (user_roots_.Contains(global)) return;
+  if (!user_roots_.insert(global).second) return;
 
-  user_roots_.Insert(global);
   SetUserGlobalReference(global);
 }
 
 const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
   ReadOnlyRoots roots(heap_);
-  if (strong_gc_subroot_names_.is_empty()) {
-#define NAME_ENTRY(name) strong_gc_subroot_names_.SetTag(heap_->name(), #name);
+  if (strong_gc_subroot_names_.empty()) {
+#define NAME_ENTRY(name) strong_gc_subroot_names_.emplace(heap_->name(), #name);
 #define RO_NAME_ENTRY(name) \
-  strong_gc_subroot_names_.SetTag(roots.name(), #name);
+  strong_gc_subroot_names_.emplace(roots.name(), #name);
 #define ROOT_NAME(type, name, camel_name) NAME_ENTRY(name)
     STRONG_MUTABLE_ROOT_LIST(ROOT_NAME)
 #undef ROOT_NAME
@@ -1940,9 +1900,10 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
 #undef ACCESSOR_NAME
 #undef NAME_ENTRY
 #undef RO_NAME_ENTRY
-    CHECK(!strong_gc_subroot_names_.is_empty());
+    CHECK(!strong_gc_subroot_names_.empty());
   }
-  return strong_gc_subroot_names_.GetTag(object);
+  auto it = strong_gc_subroot_names_.find(object);
+  return it != strong_gc_subroot_names_.end() ? it->second : nullptr;
 }
 
 void V8HeapExplorer::TagObject(Object* obj, const char* tag) {
@@ -1992,7 +1953,7 @@ void V8HeapExplorer::TagGlobalObjects() {
 
   DisallowHeapAllocation no_allocation;
   for (int i = 0, l = enumerator.count(); i < l; ++i) {
-    objects_tags_.SetTag(*enumerator.at(i), urls[i]);
+    if (urls[i]) objects_tags_.emplace(*enumerator.at(i), urls[i]);
   }
 }
 
@@ -2230,7 +2191,7 @@ void NativeObjectsExplorer::FillRetainedObjects() {
       DCHECK(!object.is_null());
       HeapObject* heap_object = HeapObject::cast(*object);
       info->push_back(heap_object);
-      in_groups_.Insert(heap_object);
+      in_groups_.insert(heap_object);
     }
   }
 
@@ -2268,8 +2229,7 @@ void NativeObjectsExplorer::FillEdges() {
 
 std::vector<HeapObject*>* NativeObjectsExplorer::GetVectorMaybeDisposeInfo(
     v8::RetainedObjectInfo* info) {
-  auto map_entry = objects_by_info_.find(info);
-  if (map_entry != objects_by_info_.end()) {
+  if (objects_by_info_.count(info)) {
     info->Dispose();
   } else {
     objects_by_info_[info] = new std::vector<HeapObject*>();
@@ -2364,8 +2324,7 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
 NativeGroupRetainedObjectInfo* NativeObjectsExplorer::FindOrAddGroupInfo(
     const char* label) {
   const char* label_copy = names_->GetCopy(label);
-  auto map_entry = native_groups_.find(label_copy);
-  if (map_entry == native_groups_.end()) {
+  if (!native_groups_.count(label_copy)) {
     native_groups_[label_copy] = new NativeGroupRetainedObjectInfo(label);
   }
   return native_groups_[label_copy];
@@ -2418,16 +2377,13 @@ void NativeObjectsExplorer::SetRootNativeRootsReference() {
   }
 }
 
-
 void NativeObjectsExplorer::VisitSubtreeWrapper(Object** p, uint16_t class_id) {
-  if (in_groups_.Contains(*p)) return;
-  Isolate* isolate = isolate_;
+  if (in_groups_.count(*p)) return;
   v8::RetainedObjectInfo* info =
-      isolate->heap_profiler()->ExecuteWrapperClassCallback(class_id, p);
+      isolate_->heap_profiler()->ExecuteWrapperClassCallback(class_id, p);
   if (info == nullptr) return;
   GetVectorMaybeDisposeInfo(info)->push_back(HeapObject::cast(*p));
 }
-
 
 HeapSnapshotGenerator::HeapSnapshotGenerator(
     HeapSnapshot* snapshot,

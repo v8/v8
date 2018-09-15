@@ -7,6 +7,7 @@
 
 #include <deque>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "include/v8-profiler.h"
@@ -315,28 +316,8 @@ class HeapEntriesMap {
 
   base::HashMap entries_;
 
-  friend class HeapObjectsSet;
-
   DISALLOW_COPY_AND_ASSIGN(HeapEntriesMap);
 };
-
-
-class HeapObjectsSet {
- public:
-  HeapObjectsSet();
-  void Clear();
-  bool Contains(Object* object);
-  void Insert(Object* obj);
-  const char* GetTag(Object* obj);
-  void SetTag(Object* obj, const char* tag);
-  bool is_empty() const { return entries_.occupancy() == 0; }
-
- private:
-  base::HashMap entries_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapObjectsSet);
-};
-
 
 class SnapshottingProgressReportingInterface {
  public:
@@ -344,7 +325,6 @@ class SnapshottingProgressReportingInterface {
   virtual void ProgressStep() = 0;
   virtual bool ProgressReport(bool force) = 0;
 };
-
 
 // An implementation of V8 heap graph extractor.
 class V8HeapExplorer : public HeapEntriesAllocator {
@@ -481,9 +461,9 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsMap* heap_object_map_;
   SnapshottingProgressReportingInterface* progress_;
   SnapshotFiller* filler_;
-  HeapObjectsSet objects_tags_;
-  HeapObjectsSet strong_gc_subroot_names_;
-  HeapObjectsSet user_roots_;
+  std::unordered_map<JSGlobalObject*, const char*> objects_tags_;
+  std::unordered_map<Object*, const char*> strong_gc_subroot_names_;
+  std::unordered_set<JSGlobalObject*> user_roots_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   std::vector<bool> visited_fields_;
@@ -538,7 +518,7 @@ class NativeObjectsExplorer {
   HeapSnapshot* snapshot_;
   StringsStorage* names_;
   bool embedder_queried_;
-  HeapObjectsSet in_groups_;
+  std::unordered_set<Object*> in_groups_;
   std::unordered_map<v8::RetainedObjectInfo*, std::vector<HeapObject*>*,
                      RetainedInfoHasher, RetainedInfoEquals>
       objects_by_info_;
