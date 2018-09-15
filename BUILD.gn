@@ -3443,6 +3443,24 @@ group("v8_archive") {
   ]
 }
 
+# TODO(dglazkov): Remove the "!build_with_chromium" condition once this clause
+# is removed from Chromium.
+if (is_fuchsia && !build_with_chromium) {
+  import("//build/config/fuchsia/rules.gni")
+
+  fuchsia_package("d8_fuchsia_pkg") {
+    testonly = true
+    binary = ":d8"
+    package_name_override = "d8"
+  }
+
+  fuchsia_package_runner("d8_fuchsia") {
+    testonly = true
+    package = ":d8_fuchsia_pkg"
+    package_name_override = "d8"
+  }
+}
+
 group("v8_fuzzers") {
   testonly = true
   data_deps = [
