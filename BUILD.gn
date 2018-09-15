@@ -3016,6 +3016,8 @@ v8_component("v8_libbase") {
     "src/base/base-export.h",
     "src/base/bits.cc",
     "src/base/bits.h",
+    "src/base/bounded-page-allocator.cc",
+    "src/base/bounded-page-allocator.h",
     "src/base/build_config.h",
     "src/base/compiler-specific.h",
     "src/base/cpu.cc",

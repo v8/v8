@@ -94,193 +94,8 @@ PauseAllocationObserversScope::~PauseAllocationObserversScope() {
   }
 }
 
-// -----------------------------------------------------------------------------
-// CodeRange
-
 static base::LazyInstance<CodeRangeAddressHint>::type code_range_address_hint =
     LAZY_INSTANCE_INITIALIZER;
-
-CodeRange::CodeRange(Isolate* isolate, v8::PageAllocator* page_allocator,
-                     size_t requested)
-    : isolate_(isolate),
-      free_list_(0),
-      allocation_list_(0),
-      current_allocation_block_index_(0),
-      requested_code_range_size_(0) {
-  DCHECK(!virtual_memory_.IsReserved());
-
-  if (requested == 0) {
-    // When a target requires the code range feature, we put all code objects
-    // in a kMaximalCodeRangeSize range of virtual address space, so that
-    // they can call each other with near calls.
-    if (kRequiresCodeRange) {
-      requested = kMaximalCodeRangeSize;
-    } else {
-      return;
-    }
-  }
-
-  if (requested <= kMinimumCodeRangeSize) {
-    requested = kMinimumCodeRangeSize;
-  }
-
-  const size_t reserved_area =
-      kReservedCodeRangePages * MemoryAllocator::GetCommitPageSize();
-  if (requested < (kMaximalCodeRangeSize - reserved_area))
-    requested += reserved_area;
-
-  DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
-
-  requested_code_range_size_ = requested;
-
-  VirtualMemory reservation;
-  void* hint = code_range_address_hint.Pointer()->GetAddressHint(requested);
-  if (!AlignedAllocVirtualMemory(
-          page_allocator, requested,
-          Max(kCodeRangeAreaAlignment, page_allocator->AllocatePageSize()),
-          hint, &reservation)) {
-    V8::FatalProcessOutOfMemory(isolate,
-                                "CodeRange setup: allocate virtual memory");
-  }
-
-  // We are sure that we have mapped a block of requested addresses.
-  DCHECK_GE(reservation.size(), requested);
-  Address base = reservation.address();
-
-  // On some platforms, specifically Win64, we need to reserve some pages at
-  // the beginning of an executable space.
-  if (reserved_area > 0) {
-    if (!reservation.SetPermissions(base, reserved_area,
-                                    PageAllocator::kReadWrite))
-      V8::FatalProcessOutOfMemory(isolate, "CodeRange setup: set permissions");
-
-    base += reserved_area;
-  }
-  Address aligned_base = ::RoundUp(base, MemoryChunk::kAlignment);
-  size_t size = reservation.size() - (aligned_base - base) - reserved_area;
-  allocation_list_.emplace_back(aligned_base, size);
-  current_allocation_block_index_ = 0;
-
-  LOG(isolate_,
-      NewEvent("CodeRange", reinterpret_cast<void*>(reservation.address()),
-               requested));
-  virtual_memory_.TakeControl(&reservation);
-}
-
-CodeRange::~CodeRange() {
-  if (virtual_memory_.IsReserved()) {
-    Address addr = start();
-    virtual_memory_.Free();
-    code_range_address_hint.Pointer()->NotifyFreedCodeRange(
-        reinterpret_cast<void*>(addr), requested_code_range_size_);
-  }
-}
-
-bool CodeRange::CompareFreeBlockAddress(const FreeBlock& left,
-                                        const FreeBlock& right) {
-  return left.start < right.start;
-}
-
-
-bool CodeRange::GetNextAllocationBlock(size_t requested) {
-  for (current_allocation_block_index_++;
-       current_allocation_block_index_ < allocation_list_.size();
-       current_allocation_block_index_++) {
-    if (requested <= allocation_list_[current_allocation_block_index_].size) {
-      return true;  // Found a large enough allocation block.
-    }
-  }
-
-  // Sort and merge the free blocks on the free list and the allocation list.
-  free_list_.insert(free_list_.end(), allocation_list_.begin(),
-                    allocation_list_.end());
-  allocation_list_.clear();
-  std::sort(free_list_.begin(), free_list_.end(), &CompareFreeBlockAddress);
-  for (size_t i = 0; i < free_list_.size();) {
-    FreeBlock merged = free_list_[i];
-    i++;
-    // Add adjacent free blocks to the current merged block.
-    while (i < free_list_.size() &&
-           free_list_[i].start == merged.start + merged.size) {
-      merged.size += free_list_[i].size;
-      i++;
-    }
-    if (merged.size > 0) {
-      allocation_list_.push_back(merged);
-    }
-  }
-  free_list_.clear();
-
-  for (current_allocation_block_index_ = 0;
-       current_allocation_block_index_ < allocation_list_.size();
-       current_allocation_block_index_++) {
-    if (requested <= allocation_list_[current_allocation_block_index_].size) {
-      return true;  // Found a large enough allocation block.
-    }
-  }
-  current_allocation_block_index_ = 0;
-  // Code range is full or too fragmented.
-  return false;
-}
-
-
-Address CodeRange::AllocateRawMemory(const size_t requested_size,
-                                     const size_t commit_size,
-                                     size_t* allocated) {
-  // requested_size includes the header and two guard regions, while commit_size
-  // only includes the header.
-  DCHECK_LE(commit_size,
-            requested_size - 2 * MemoryAllocator::CodePageGuardSize());
-  FreeBlock current;
-  if (!ReserveBlock(requested_size, &current)) {
-    *allocated = 0;
-    return kNullAddress;
-  }
-  *allocated = current.size;
-  DCHECK(IsAddressAligned(current.start, MemoryChunk::kAlignment));
-  if (!isolate_->heap()->memory_allocator()->CommitExecutableMemory(
-          &virtual_memory_, current.start, commit_size, *allocated)) {
-    *allocated = 0;
-    ReleaseBlock(&current);
-    return kNullAddress;
-  }
-  return current.start;
-}
-
-void CodeRange::FreeRawMemory(Address address, size_t length) {
-  DCHECK(IsAddressAligned(address, MemoryChunk::kAlignment));
-  base::LockGuard<base::Mutex> guard(&code_range_mutex_);
-  free_list_.emplace_back(address, length);
-  virtual_memory_.SetPermissions(address, length, PageAllocator::kNoAccess);
-}
-
-bool CodeRange::ReserveBlock(const size_t requested_size, FreeBlock* block) {
-  base::LockGuard<base::Mutex> guard(&code_range_mutex_);
-  DCHECK(allocation_list_.empty() ||
-         current_allocation_block_index_ < allocation_list_.size());
-  if (allocation_list_.empty() ||
-      requested_size > allocation_list_[current_allocation_block_index_].size) {
-    // Find an allocation block large enough.
-    if (!GetNextAllocationBlock(requested_size)) return false;
-  }
-  // Commit the requested memory at the start of the current allocation block.
-  size_t aligned_requested = ::RoundUp(requested_size, MemoryChunk::kAlignment);
-  *block = allocation_list_[current_allocation_block_index_];
-  // Don't leave a small free block, useless for a large object or chunk.
-  if (aligned_requested < (block->size - Page::kPageSize)) {
-    block->size = aligned_requested;
-  }
-  DCHECK(IsAddressAligned(block->start, MemoryChunk::kAlignment));
-  allocation_list_[current_allocation_block_index_].start += block->size;
-  allocation_list_[current_allocation_block_index_].size -= block->size;
-  return true;
-}
-
-
-void CodeRange::ReleaseBlock(const FreeBlock* block) {
-  base::LockGuard<base::Mutex> guard(&code_range_mutex_);
-  free_list_.push_back(*block);
-}
 
 void* CodeRangeAddressHint::GetAddressHint(size_t code_range_size) {
   base::LockGuard<base::Mutex> guard(&mutex_);
@@ -307,17 +122,89 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate, size_t capacity,
                                  size_t code_range_size)
     : isolate_(isolate),
       data_page_allocator_(GetPlatformPageAllocator()),
-      code_page_allocator_(GetPlatformPageAllocator()),
-      code_range_(nullptr),
+      code_page_allocator_(nullptr),
+      code_range_start_(kNullAddress),
+      code_range_size_(0),
       capacity_(RoundUp(capacity, Page::kPageSize)),
       size_(0),
       size_executable_(0),
       lowest_ever_allocated_(static_cast<Address>(-1ll)),
       highest_ever_allocated_(kNullAddress),
       unmapper_(isolate->heap(), this) {
-  code_range_ = new CodeRange(isolate_, code_page_allocator_, code_range_size);
+  InitializeCodePageAllocator(data_page_allocator_, code_range_size);
 }
 
+void MemoryAllocator::InitializeCodePageAllocator(
+    v8::PageAllocator* page_allocator, size_t requested) {
+  DCHECK_NULL(code_page_allocator_instance_.get());
+
+  code_page_allocator_ = page_allocator;
+
+  if (requested == 0) {
+    if (!kRequiresCodeRange) return;
+    // When a target requires the code range feature, we put all code objects
+    // in a kMaximalCodeRangeSize range of virtual address space, so that
+    // they can call each other with near calls.
+    requested = kMaximalCodeRangeSize;
+  } else if (requested <= kMinimumCodeRangeSize) {
+    requested = kMinimumCodeRangeSize;
+  }
+
+  const size_t reserved_area =
+      kReservedCodeRangePages * MemoryAllocator::GetCommitPageSize();
+  if (requested < (kMaximalCodeRangeSize - reserved_area)) {
+    requested += RoundUp(reserved_area, MemoryChunk::kPageSize);
+    // Fullfilling both reserved pages requirement and huge code area
+    // alignments is not supported (requires re-implementation).
+    DCHECK_LE(kCodeRangeAreaAlignment, page_allocator->AllocatePageSize());
+  }
+  DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
+
+  VirtualMemory reservation;
+
+  void* hint = code_range_address_hint.Pointer()->GetAddressHint(requested);
+  if (!AlignedAllocVirtualMemory(
+          page_allocator, requested,
+          Max(kCodeRangeAreaAlignment, page_allocator->AllocatePageSize()),
+          hint, &reservation)) {
+    V8::FatalProcessOutOfMemory(isolate_,
+                                "CodeRange setup: allocate virtual memory");
+  }
+  code_range_start_ = reservation.address();
+  code_range_size_ = reservation.size();
+
+  // We are sure that we have mapped a block of requested addresses.
+  DCHECK_GE(reservation.size(), requested);
+  Address base = reservation.address();
+
+  // On some platforms, specifically Win64, we need to reserve some pages at
+  // the beginning of an executable space. See
+  //   https://cs.chromium.org/chromium/src/components/crash/content/
+  //     app/crashpad_win.cc?rcl=fd680447881449fba2edcf0589320e7253719212&l=204
+  // for details.
+  if (reserved_area > 0) {
+    if (!reservation.SetPermissions(base, reserved_area,
+                                    PageAllocator::kReadWrite))
+      V8::FatalProcessOutOfMemory(isolate_, "CodeRange setup: set permissions");
+
+    base += reserved_area;
+  }
+  Address aligned_base = RoundUp(base, MemoryChunk::kAlignment);
+  size_t size =
+      RoundDown(reservation.size() - (aligned_base - base) - reserved_area,
+                MemoryChunk::kPageSize);
+  DCHECK(IsAligned(aligned_base, kCodeRangeAreaAlignment));
+
+  LOG(isolate_,
+      NewEvent("CodeRange", reinterpret_cast<void*>(reservation.address()),
+               requested));
+
+  heap_reservation_.TakeControl(&reservation);
+  code_page_allocator_instance_ = base::make_unique<base::BoundedPageAllocator>(
+      page_allocator, aligned_base, size,
+      static_cast<size_t>(MemoryChunk::kAlignment));
+  code_page_allocator_ = code_page_allocator_instance_.get();
+}
 
 void MemoryAllocator::TearDown() {
   unmapper()->TearDown();
@@ -331,9 +218,6 @@ void MemoryAllocator::TearDown() {
   if (last_chunk_.IsReserved()) {
     last_chunk_.Free();
   }
-
-  delete code_range_;
-  code_range_ = nullptr;
 }
 
 class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public CancelableTask {
@@ -505,27 +389,17 @@ bool MemoryAllocator::CommitMemory(Address base, size_t size) {
 
 void MemoryAllocator::FreeMemory(VirtualMemory* reservation,
                                  Executability executable) {
-  // TODO(ishell): make code_range part of memory allocator?
-  // Code which is part of the code-range does not have its own VirtualMemory.
-  DCHECK(code_range() == nullptr ||
-         !code_range()->contains(reservation->address()));
-  DCHECK(executable == NOT_EXECUTABLE || !code_range()->valid() ||
-         reservation->size() <= Page::kPageSize);
-
+  // Executability and page allocator must be in sync.
+  CHECK_EQ(reservation->page_allocator(), page_allocator(executable));
   reservation->Free();
 }
 
 
 void MemoryAllocator::FreeMemory(Address base, size_t size,
                                  Executability executable) {
-  // TODO(ishell): make code_range part of memory allocator?
-  if (code_range() != nullptr && code_range()->contains(base)) {
-    DCHECK(executable == EXECUTABLE);
-    code_range()->FreeRawMemory(base, size);
-  } else {
-    DCHECK(executable == NOT_EXECUTABLE || !code_range()->valid());
-    CHECK(FreePages(data_page_allocator_, reinterpret_cast<void*>(base), size));
-  }
+  // TODO(ishell): use proper page allocator
+  CHECK(FreePages(page_allocator(executable), reinterpret_cast<void*>(base),
+                  size));
 }
 
 Address MemoryAllocator::AllocateAlignedMemory(
@@ -604,12 +478,8 @@ void MemoryChunk::SetReadAndExecutable() {
     size_t page_size = MemoryAllocator::GetCommitPageSize();
     DCHECK(IsAddressAligned(protect_start, page_size));
     size_t protect_size = RoundUp(area_size(), page_size);
-    // TODO(ishell): use reservation_.SetPermissions() once it's always
-    // initialized.
-    v8::PageAllocator* page_allocator =
-        heap()->memory_allocator()->code_page_allocator();
-    CHECK(SetPermissions(page_allocator, protect_start, protect_size,
-                         PageAllocator::kReadExecute));
+    CHECK(reservation_.SetPermissions(protect_start, protect_size,
+                                      PageAllocator::kReadExecute));
   }
 }
 
@@ -627,12 +497,8 @@ void MemoryChunk::SetReadAndWritable() {
     size_t page_size = MemoryAllocator::GetCommitPageSize();
     DCHECK(IsAddressAligned(unprotect_start, page_size));
     size_t unprotect_size = RoundUp(area_size(), page_size);
-    // TODO(ishell): use reservation_.SetPermissions() once it's always
-    // initialized.
-    v8::PageAllocator* page_allocator =
-        heap()->memory_allocator()->code_page_allocator();
-    CHECK(SetPermissions(page_allocator, unprotect_start, unprotect_size,
-                         PageAllocator::kReadWrite));
+    CHECK(reservation_.SetPermissions(unprotect_start, unprotect_size,
+                                      PageAllocator::kReadWrite));
   }
 }
 
@@ -700,12 +566,8 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
       size_t page_size = MemoryAllocator::GetCommitPageSize();
       DCHECK(IsAddressAligned(area_start, page_size));
       size_t area_size = RoundUp(area_end - area_start, page_size);
-      // TODO(ishell): use reservation->SetPermissions() once it's always
-      // initialized.
-      v8::PageAllocator* page_allocator =
-          heap->memory_allocator()->page_allocator(executable);
-      CHECK(SetPermissions(page_allocator, area_start, area_size,
-                           PageAllocator::kReadWriteExecute));
+      CHECK(reservation.SetPermissions(area_start, area_size,
+                                       PageAllocator::kReadWriteExecute));
     }
   }
 
@@ -869,29 +731,12 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
     // Size of header (not executable) plus area (executable).
     size_t commit_size = ::RoundUp(
         CodePageGuardStartOffset() + commit_area_size, GetCommitPageSize());
-// Allocate executable memory either from code range or from the OS.
-#ifdef V8_TARGET_ARCH_MIPS64
-    // Use code range only for large object space on mips64 to keep address
-    // range within 256-MB memory region.
-    if (code_range()->valid() && reserve_area_size > CodePageAreaSize()) {
-#else
-    if (code_range()->valid()) {
-#endif
-      base =
-          code_range()->AllocateRawMemory(chunk_size, commit_size, &chunk_size);
-      DCHECK(IsAligned(base, MemoryChunk::kAlignment));
-      if (base == kNullAddress) return nullptr;
-      size_ += chunk_size;
-      // Update executable memory size.
-      size_executable_ += chunk_size;
-    } else {
-      base = AllocateAlignedMemory(chunk_size, commit_size,
-                                   MemoryChunk::kAlignment, executable,
-                                   address_hint, &reservation);
-      if (base == kNullAddress) return nullptr;
-      // Update executable memory size.
-      size_executable_ += reservation.size();
-    }
+    base =
+        AllocateAlignedMemory(chunk_size, commit_size, MemoryChunk::kAlignment,
+                              executable, address_hint, &reservation);
+    if (base == kNullAddress) return nullptr;
+    // Update executable memory size.
+    size_executable_ += reservation.size();
 
     if (Heap::ShouldZapGarbage()) {
       ZapBlock(base, CodePageGuardStartOffset(), kZapValue);
@@ -1246,11 +1091,9 @@ bool MemoryAllocator::CommitBlock(Address start, size_t size) {
 
 bool MemoryAllocator::UncommitBlock(VirtualMemory* reservation, Address start,
                                     size_t size) {
-  // TODO(ishell): use reservation->SetPermissions() once it's always
-  // initialized.
-  if (!SetPermissions(reservation->page_allocator(), start, size,
-                      PageAllocator::kNoAccess))
+  if (!reservation->SetPermissions(start, size, PageAllocator::kNoAccess)) {
     return false;
+  }
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
   return true;
 }
@@ -3346,17 +3189,17 @@ void ReadOnlyPage::MakeHeaderRelocatable() {
 void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
   const size_t page_size = MemoryAllocator::GetCommitPageSize();
   const size_t area_start_offset = RoundUp(Page::kObjectStartOffset, page_size);
+  MemoryAllocator* memory_allocator = heap()->memory_allocator();
   for (Page* p : *this) {
     ReadOnlyPage* page = static_cast<ReadOnlyPage*>(p);
     if (access == PageAllocator::kRead) {
       page->MakeHeaderRelocatable();
     }
-    // TODO(ishell): use page->reserved_memory()->SetPermissions() once it's
-    // always initialized.
+
+    // Read only pages don't have valid reservation object so we get proper
+    // page allocator manually.
     v8::PageAllocator* page_allocator =
-        page->IsFlagSet(Page::IS_EXECUTABLE)
-            ? heap()->memory_allocator()->code_page_allocator()
-            : heap()->memory_allocator()->data_page_allocator();
+        memory_allocator->page_allocator(page->executable());
     CHECK(SetPermissions(page_allocator, page->address() + area_start_offset,
                          page->size() - area_start_offset, access));
   }

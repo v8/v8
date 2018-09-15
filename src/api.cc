@@ -8707,11 +8707,10 @@ void Isolate::SetStackLimit(uintptr_t stack_limit) {
 
 void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  if (isolate->heap()->memory_allocator()->code_range()->valid()) {
-    *start = reinterpret_cast<void*>(
-        isolate->heap()->memory_allocator()->code_range()->start());
-    *length_in_bytes =
-        isolate->heap()->memory_allocator()->code_range()->size();
+  i::MemoryAllocator* memory_allocator = isolate->heap()->memory_allocator();
+  if (memory_allocator->code_range_valid()) {
+    *start = reinterpret_cast<void*>(memory_allocator->code_range_start());
+    *length_in_bytes = memory_allocator->code_range_size();
   } else {
     *start = nullptr;
     *length_in_bytes = 0;

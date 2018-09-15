@@ -205,8 +205,8 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
 
   // Check whether we interrupted setup/teardown of a stack frame in JS code.
   // Avoid this check for C++ code, as that would trigger false positives.
-  if (regs->pc &&
-      isolate->heap()->memory_allocator()->code_range()->contains(
+  if (regs->pc && isolate->heap()->memory_allocator()->code_range_valid() &&
+      isolate->heap()->memory_allocator()->code_range_contains(
           reinterpret_cast<i::Address>(regs->pc)) &&
       IsNoFrameRegion(reinterpret_cast<i::Address>(regs->pc))) {
     // The frame is not setup, so it'd be hard to iterate the stack. Bailout.

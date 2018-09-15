@@ -322,5 +322,56 @@ TEST(RegionAllocatorTest, FindRegion) {
   }
 }
 
+TEST(RegionAllocatorTest, Contains) {
+  using Region = RegionAllocator::Region;
+
+  struct {
+    Address start;
+    size_t size;
+  } test_cases[] = {{153, 771}, {0, 227}, {-447, 447}};
+
+  for (size_t i = 0; i < arraysize(test_cases); i++) {
+    Address start = test_cases[i].start;
+    size_t size = test_cases[i].size;
+    Address end = start + size;  // exclusive
+
+    Region region(start, size, true);
+
+    // Test single-argument contains().
+    CHECK(!region.contains(start - 1041));
+    CHECK(!region.contains(start - 1));
+    CHECK(!region.contains(end));
+    CHECK(!region.contains(end + 1));
+    CHECK(!region.contains(end + 113));
+
+    CHECK(region.contains(start));
+    CHECK(region.contains(start + 1));
+    CHECK(region.contains(start + size / 2));
+    CHECK(region.contains(end - 1));
+
+    // Test two-arguments contains().
+    CHECK(!region.contains(start - 17, 17));
+    CHECK(!region.contains(start - 17, size * 2));
+    CHECK(!region.contains(end, 1));
+    CHECK(!region.contains(end, static_cast<size_t>(0 - end)));
+
+    CHECK(region.contains(start, size));
+    CHECK(region.contains(start, 10));
+    CHECK(region.contains(start + 11, 120));
+    CHECK(region.contains(end - 13, 13));
+    CHECK(!region.contains(end, 0));
+
+    // Zero-size queries.
+    CHECK(!region.contains(start - 10, 0));
+    CHECK(!region.contains(start - 1, 0));
+    CHECK(!region.contains(end, 0));
+    CHECK(!region.contains(end + 10, 0));
+
+    CHECK(region.contains(start, 0));
+    CHECK(region.contains(start + 10, 0));
+    CHECK(region.contains(end - 1, 0));
+  }
+}
+
 }  // namespace base
 }  // namespace v8
