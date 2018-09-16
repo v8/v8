@@ -295,33 +295,13 @@ typedef void* HeapThing;
 // An interface that creates HeapEntries by HeapThings.
 class HeapEntriesAllocator {
  public:
-  virtual ~HeapEntriesAllocator() { }
+  virtual ~HeapEntriesAllocator() = default;
   virtual HeapEntry* AllocateEntry(HeapThing ptr) = 0;
-};
-
-// The HeapEntriesMap instance is used to track a mapping between
-// real heap objects and their representations in heap snapshots.
-class HeapEntriesMap {
- public:
-  HeapEntriesMap();
-
-  int Map(HeapThing thing);
-  void Pair(HeapThing thing, int entry);
-
- private:
-  static uint32_t Hash(HeapThing thing) {
-    return ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(thing)));
-  }
-
-  base::HashMap entries_;
-
-  DISALLOW_COPY_AND_ASSIGN(HeapEntriesMap);
 };
 
 class SnapshottingProgressReportingInterface {
  public:
-  virtual ~SnapshottingProgressReportingInterface() { }
+  virtual ~SnapshottingProgressReportingInterface() = default;
   virtual void ProgressStep() = 0;
   virtual bool ProgressReport(bool force) = 0;
 };
@@ -542,6 +522,10 @@ class NativeObjectsExplorer {
 
 class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
  public:
+  // The HeapEntriesMap instance is used to track a mapping between
+  // real heap objects and their representations in heap snapshots.
+  using HeapEntriesMap = std::unordered_map<HeapThing, int>;
+
   HeapSnapshotGenerator(HeapSnapshot* snapshot,
                         v8::ActivityControl* control,
                         v8::HeapProfiler::ObjectNameResolver* resolver,
@@ -558,8 +542,8 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   v8::ActivityControl* control_;
   V8HeapExplorer v8_heap_explorer_;
   NativeObjectsExplorer dom_explorer_;
-  // Mapping from HeapThing pointers to HeapEntry* pointers.
-  HeapEntriesMap entries_;
+  // Mapping from HeapThing pointers to HeapEntry indices.
+  HeapEntriesMap entries_map_;
   // Used during snapshot generation.
   int progress_counter_;
   int progress_total_;

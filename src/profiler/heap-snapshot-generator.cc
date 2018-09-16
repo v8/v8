@@ -540,22 +540,6 @@ SnapshotObjectId HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
   return id << 1;
 }
 
-HeapEntriesMap::HeapEntriesMap() : entries_() {}
-
-int HeapEntriesMap::Map(HeapThing thing) {
-  base::HashMap::Entry* cache_entry = entries_.Lookup(thing, Hash(thing));
-  if (cache_entry == nullptr) return HeapEntry::kNoEntry;
-  return static_cast<int>(reinterpret_cast<intptr_t>(cache_entry->value));
-}
-
-
-void HeapEntriesMap::Pair(HeapThing thing, int entry) {
-  base::HashMap::Entry* cache_entry =
-      entries_.LookupOrInsert(thing, Hash(thing));
-  DCHECK_NULL(cache_entry->value);
-  cache_entry->value = reinterpret_cast<void*>(static_cast<intptr_t>(entry));
-}
-
 V8HeapExplorer::V8HeapExplorer(HeapSnapshot* snapshot,
                                SnapshottingProgressReportingInterface* progress,
                                v8::HeapProfiler::ObjectNameResolver* resolver)
@@ -567,9 +551,7 @@ V8HeapExplorer::V8HeapExplorer(HeapSnapshot* snapshot,
       filler_(nullptr),
       global_object_name_resolver_(resolver) {}
 
-V8HeapExplorer::~V8HeapExplorer() {
-}
-
+V8HeapExplorer::~V8HeapExplorer() = default;
 
 HeapEntry* V8HeapExplorer::AllocateEntry(HeapThing ptr) {
   return AddEntry(reinterpret_cast<HeapObject*>(ptr));
@@ -699,24 +681,29 @@ HeapEntry* V8HeapExplorer::AddEntry(Address address,
 
 class SnapshotFiller {
  public:
-  explicit SnapshotFiller(HeapSnapshot* snapshot, HeapEntriesMap* entries)
+  SnapshotFiller(HeapSnapshot* snapshot,
+                 HeapSnapshotGenerator::HeapEntriesMap* entries_map)
       : snapshot_(snapshot),
         names_(snapshot->profiler()->names()),
-        entries_(entries) { }
+        entries_map_(entries_map) {}
+
   HeapEntry* AddEntry(HeapThing ptr, HeapEntriesAllocator* allocator) {
     HeapEntry* entry = allocator->AllocateEntry(ptr);
-    entries_->Pair(ptr, entry->index());
+    entries_map_->emplace(ptr, entry->index());
     return entry;
   }
+
   HeapEntry* FindEntry(HeapThing ptr) {
-    int index = entries_->Map(ptr);
-    return index != HeapEntry::kNoEntry ? &snapshot_->entries()[index]
-                                        : nullptr;
+    auto it = entries_map_->find(ptr);
+    return it != entries_map_->end() ? &snapshot_->entries()[it->second]
+                                     : nullptr;
   }
+
   HeapEntry* FindOrAddEntry(HeapThing ptr, HeapEntriesAllocator* allocator) {
     HeapEntry* entry = FindEntry(ptr);
     return entry != nullptr ? entry : AddEntry(ptr, allocator);
   }
+
   void SetIndexedReference(HeapGraphEdge::Type type,
                            int parent,
                            int index,
@@ -724,6 +711,7 @@ class SnapshotFiller {
     HeapEntry* parent_entry = &snapshot_->entries()[parent];
     parent_entry->SetIndexedReference(type, index, child_entry);
   }
+
   void SetIndexedAutoIndexReference(HeapGraphEdge::Type type,
                                     int parent,
                                     HeapEntry* child_entry) {
@@ -731,6 +719,7 @@ class SnapshotFiller {
     int index = parent_entry->children_count() + 1;
     parent_entry->SetIndexedReference(type, index, child_entry);
   }
+
   void SetNamedReference(HeapGraphEdge::Type type,
                          int parent,
                          const char* reference_name,
@@ -738,6 +727,7 @@ class SnapshotFiller {
     HeapEntry* parent_entry = &snapshot_->entries()[parent];
     parent_entry->SetNamedReference(type, reference_name, child_entry);
   }
+
   void SetNamedAutoIndexReference(HeapGraphEdge::Type type, int parent,
                                   const char* description,
                                   HeapEntry* child_entry) {
@@ -752,9 +742,8 @@ class SnapshotFiller {
  private:
   HeapSnapshot* snapshot_;
   StringsStorage* names_;
-  HeapEntriesMap* entries_;
+  HeapSnapshotGenerator::HeapEntriesMap* entries_map_;
 };
-
 
 const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
   switch (object->map()->instance_type()) {
@@ -2095,12 +2084,9 @@ HeapEntry::Type EmbedderGraphNodeType(EmbedderGraphImpl::Node* node) {
 // Otherwise, the result is the embedder node name.
 const char* MergeNames(StringsStorage* names, const char* embedder_name,
                        const char* wrapper_name) {
-  for (const char* suffix = wrapper_name; *suffix; suffix++) {
-    if (*suffix == '/') {
-      return names->GetFormatted("%s %s", embedder_name, suffix);
-    }
-  }
-  return embedder_name;
+  const char* suffix = strchr(wrapper_name, '/');
+  return suffix ? names->GetFormatted("%s %s", embedder_name, suffix)
+                : embedder_name;
 }
 
 }  // anonymous namespace
@@ -2251,8 +2237,7 @@ HeapEntry* NativeObjectsExplorer::EntryForEmbedderGraphNode(
         static_cast<EmbedderGraphImpl::V8NodeImpl*>(node);
     Object* object = v8_node->GetObject();
     if (object->IsSmi()) return nullptr;
-    HeapEntry* entry = filler_->FindEntry(HeapObject::cast(object));
-    return entry;
+    return filler_->FindEntry(HeapObject::cast(object));
   }
 }
 
@@ -2480,7 +2465,7 @@ void HeapSnapshotGenerator::InitProgressCounter() {
 }
 
 bool HeapSnapshotGenerator::FillReferences() {
-  SnapshotFiller filler(snapshot_, &entries_);
+  SnapshotFiller filler(snapshot_, &entries_map_);
   return v8_heap_explorer_.IterateAndExtractReferences(&filler) &&
          dom_explorer_.IterateAndExtractReferences(&filler);
 }
