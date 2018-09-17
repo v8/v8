@@ -56,7 +56,7 @@ Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
                                  PropertyConstness constness,
                                  Representation representation,
                                  const MaybeObjectHandle& wrapped_field_type) {
-  DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeakHeapObject());
+  DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeak());
   PropertyDetails details(kData, attributes, kField, constness, representation,
                           field_index);
   return Descriptor(key, wrapped_field_type, details);

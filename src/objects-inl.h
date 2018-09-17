@@ -1533,7 +1533,7 @@ ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
 ACCESSORS(EnumCache, indices, FixedArray, kIndicesOffset)
 
 int DescriptorArray::number_of_descriptors() const {
-  return Smi::ToInt(get(kDescriptorLengthIndex)->ToSmi());
+  return Smi::ToInt(get(kDescriptorLengthIndex)->cast<Smi>());
 }
 
 int DescriptorArray::number_of_descriptors_storage() const {
@@ -1559,7 +1559,7 @@ void DescriptorArray::CopyEnumCacheFrom(DescriptorArray* array) {
 }
 
 EnumCache* DescriptorArray::GetEnumCache() {
-  return EnumCache::cast(get(kEnumCacheIndex)->ToStrongHeapObject());
+  return EnumCache::cast(get(kEnumCacheIndex)->GetHeapObjectAssumeStrong());
 }
 
 // Perform a binary search in a fixed array.
@@ -1713,7 +1713,8 @@ MaybeObject** DescriptorArray::GetDescriptorEndSlot(int descriptor_number) {
 
 Name* DescriptorArray::GetKey(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
-  return Name::cast(get(ToKeyIndex(descriptor_number))->ToStrongHeapObject());
+  return Name::cast(
+      get(ToKeyIndex(descriptor_number))->GetHeapObjectAssumeStrong());
 }
 
 
@@ -1745,7 +1746,7 @@ int DescriptorArray::GetValueOffset(int descriptor_number) {
 
 Object* DescriptorArray::GetStrongValue(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
-  return get(ToValueIndex(descriptor_number))->ToObject();
+  return get(ToValueIndex(descriptor_number))->cast<Object>();
 }
 
 
@@ -1761,7 +1762,7 @@ MaybeObject* DescriptorArray::GetValue(int descriptor_number) {
 PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
   MaybeObject* details = get(ToDetailsIndex(descriptor_number));
-  return PropertyDetails(details->ToSmi());
+  return PropertyDetails(details->cast<Smi>());
 }
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {

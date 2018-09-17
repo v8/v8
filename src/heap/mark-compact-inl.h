@@ -165,11 +165,11 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
                     MarkingState>::VisitPointer(HeapObject* host,
                                                 MaybeObject** p) {
   HeapObject* target_object;
-  if ((*p)->ToStrongHeapObject(&target_object)) {
+  if ((*p)->GetHeapObjectIfStrong(&target_object)) {
     collector_->RecordSlot(host, reinterpret_cast<HeapObjectReference**>(p),
                            target_object);
     MarkObject(host, target_object);
-  } else if ((*p)->ToWeakHeapObject(&target_object)) {
+  } else if ((*p)->GetHeapObjectIfWeak(&target_object)) {
     if (marking_state()->IsBlackOrGrey(target_object)) {
       // Weak references with live values are directly processed here to reduce
       // the processing time of weak cells during the main GC pause.

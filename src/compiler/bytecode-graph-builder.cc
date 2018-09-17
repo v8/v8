@@ -1663,8 +1663,9 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
         TemplateObjectDescription::CreateTemplateObject(isolate(), description);
     nexus.vector()->Set(slot, *cached_value);
   } else {
-    cached_value = handle(
-        JSArray::cast(nexus.GetFeedback()->ToStrongHeapObject()), isolate());
+    cached_value =
+        handle(JSArray::cast(nexus.GetFeedback()->GetHeapObjectAssumeStrong()),
+               isolate());
   }
 
   Node* template_object = jsgraph()->HeapConstant(cached_value);

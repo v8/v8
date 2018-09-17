@@ -847,7 +847,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
       Smi* smi;
       if (raw_transitions()->ToSmi(&smi)) {
         os << Brief(smi);
-      } else if (raw_transitions()->ToStrongOrWeakHeapObject(&heap_object)) {
+      } else if (raw_transitions()->GetHeapObject(&heap_object)) {
         os << Brief(heap_object);
       }
       transitions.PrintTransitions(os);
@@ -2222,12 +2222,12 @@ void MaybeObject::Print(std::ostream& os) {
   HeapObject* heap_object;
   if (ToSmi(&smi)) {
     smi->SmiPrint(os);
-  } else if (IsClearedWeakHeapObject()) {
+  } else if (IsCleared()) {
     os << "[cleared]";
-  } else if (ToWeakHeapObject(&heap_object)) {
+  } else if (GetHeapObjectIfWeak(&heap_object)) {
     os << "[weak] ";
     heap_object->HeapObjectPrint(os);
-  } else if (ToStrongHeapObject(&heap_object)) {
+  } else if (GetHeapObjectIfStrong(&heap_object)) {
     heap_object->HeapObjectPrint(os);
   } else {
     UNREACHABLE();
@@ -2387,7 +2387,7 @@ void TransitionsAccessor::PrintTransitions(std::ostream& os) {  // NOLINT
     case kUninitialized:
       return;
     case kWeakRef: {
-      Map* target = Map::cast(raw_transitions_->ToWeakHeapObject());
+      Map* target = Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
       Name* key = GetSimpleTransitionKey(target);
       PrintOneTransition(os, key, target);
       break;

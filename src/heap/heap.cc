@@ -529,7 +529,7 @@ bool Heap::IsRetainingPathTarget(HeapObject* object,
   MaybeObject* object_to_check = HeapObjectReference::Weak(object);
   for (int i = 0; i < length; i++) {
     MaybeObject* target = targets->Get(i);
-    DCHECK(target->IsWeakOrClearedHeapObject());
+    DCHECK(target->IsWeakOrCleared());
     if (target == object_to_check) {
       DCHECK(retaining_path_target_option_.count(i));
       *option = retaining_path_target_option_[i];
@@ -3876,7 +3876,7 @@ class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
 
     for (MaybeObject** current = start; current < end; current++) {
       HeapObject* object;
-      if ((*current)->ToStrongOrWeakHeapObject(&object)) {
+      if ((*current)->GetHeapObject(&object)) {
         CHECK(heap_->InReadOnlySpace(object));
       }
     }
@@ -3972,10 +3972,9 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
       : SlotVerifyingVisitor(untyped, typed) {}
 
   bool ShouldHaveBeenRecorded(HeapObject* host, MaybeObject* target) override {
-    DCHECK_IMPLIES(
-        target->IsStrongOrWeakHeapObject() && Heap::InNewSpace(target),
-        Heap::InToSpace(target));
-    return target->IsStrongOrWeakHeapObject() && Heap::InNewSpace(target) &&
+    DCHECK_IMPLIES(target->IsStrongOrWeak() && Heap::InNewSpace(target),
+                   Heap::InToSpace(target));
+    return target->IsStrongOrWeak() && Heap::InNewSpace(target) &&
            !Heap::InNewSpace(host);
   }
 };
@@ -5112,7 +5111,7 @@ Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
   int copy_to = 0;
   for (int i = 0; i < array->length(); i++) {
     MaybeObject* element = array->Get(i);
-    if (element->IsClearedWeakHeapObject()) continue;
+    if (element->IsCleared()) continue;
     new_array->Set(copy_to++, element);
   }
   new_array->set_length(copy_to);
@@ -5186,11 +5185,11 @@ void Heap::CompactRetainedMaps(WeakArrayList* retained_maps) {
   // This loop compacts the array by removing cleared weak cells.
   for (int i = 0; i < length; i += 2) {
     MaybeObject* maybe_object = retained_maps->Get(i);
-    if (maybe_object->IsClearedWeakHeapObject()) {
+    if (maybe_object->IsCleared()) {
       continue;
     }
 
-    DCHECK(maybe_object->IsWeakHeapObject());
+    DCHECK(maybe_object->IsWeak());
 
     MaybeObject* age = retained_maps->Get(i + 1);
     DCHECK(age->IsSmi());
@@ -5408,7 +5407,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       // Treat weak references as strong.
       for (MaybeObject** p = start; p < end; p++) {
         HeapObject* heap_object;
-        if ((*p)->ToStrongOrWeakHeapObject(&heap_object)) {
+        if ((*p)->GetHeapObject(&heap_object)) {
           if (filter_->MarkAsReachable(heap_object)) {
             marking_stack_.push_back(heap_object);
           }
@@ -5735,11 +5734,11 @@ void VerifyPointersVisitor::VerifyPointers(HeapObject* host,
                                            MaybeObject** end) {
   for (MaybeObject** current = start; current < end; current++) {
     HeapObject* object;
-    if ((*current)->ToStrongOrWeakHeapObject(&object)) {
+    if ((*current)->GetHeapObject(&object)) {
       CHECK(heap_->Contains(object));
       CHECK(object->map()->IsMap());
     } else {
-      CHECK((*current)->IsSmi() || (*current)->IsClearedWeakHeapObject());
+      CHECK((*current)->IsSmi() || (*current)->IsCleared());
     }
   }
 }

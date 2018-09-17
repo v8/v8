@@ -3764,7 +3764,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<NativeContext> context,
     Handle<WeakFixedArray> cache = Handle<WeakFixedArray>::cast(maybe_cache);
     MaybeObject* result = cache->Get(cache_index);
     HeapObject* heap_object;
-    if (result->ToWeakHeapObject(&heap_object)) {
+    if (result->GetHeapObjectIfWeak(&heap_object)) {
       Map* map = Map::cast(heap_object);
       DCHECK(!map->is_dictionary_map());
       return handle(map, isolate());

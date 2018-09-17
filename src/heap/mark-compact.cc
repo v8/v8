@@ -193,7 +193,7 @@ class FullMarkingVerifier : public MarkingVerifier {
   void VerifyPointers(MaybeObject** start, MaybeObject** end) override {
     for (MaybeObject** current = start; current < end; current++) {
       HeapObject* object;
-      if ((*current)->ToStrongHeapObject(&object)) {
+      if ((*current)->GetHeapObjectIfStrong(&object)) {
         CHECK(marking_state_->IsBlackOrGrey(object));
       }
     }
@@ -309,7 +309,7 @@ class FullEvacuationVerifier : public EvacuationVerifier {
   void VerifyPointers(MaybeObject** start, MaybeObject** end) override {
     for (MaybeObject** current = start; current < end; current++) {
       HeapObject* object;
-      if ((*current)->ToStrongHeapObject(&object)) {
+      if ((*current)->GetHeapObjectIfStrong(&object)) {
         if (Heap::InNewSpace(object)) {
           CHECK(Heap::InToSpace(object));
         }
@@ -1112,7 +1112,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
  protected:
   inline virtual void RecordMigratedSlot(HeapObject* host, MaybeObject* value,
                                          Address slot) {
-    if (value->IsStrongOrWeakHeapObject()) {
+    if (value->IsStrongOrWeak()) {
       Page* p = Page::FromAddress(reinterpret_cast<Address>(value));
       if (p->InNewSpace()) {
         DCHECK_IMPLIES(p->InToSpace(),
@@ -2092,7 +2092,7 @@ void MarkCompactCollector::ClearWeakReferences() {
   while (weak_objects_.weak_references.Pop(kMainThread, &slot)) {
     HeapObject* value;
     HeapObjectReference** location = slot.second;
-    if ((*location)->ToWeakHeapObject(&value)) {
+    if ((*location)->GetHeapObjectIfWeak(&value)) {
       DCHECK(!value->IsCell());
       if (non_atomic_marking_state()->IsBlackOrGrey(value)) {
         // The value of the weak reference is alive.
@@ -2174,9 +2174,9 @@ template <AccessMode access_mode>
 static inline SlotCallbackResult UpdateSlot(MaybeObject** slot) {
   MaybeObject* obj = base::AsAtomicPointer::Relaxed_Load(slot);
   HeapObject* heap_obj;
-  if (obj->ToWeakHeapObject(&heap_obj)) {
+  if (obj->GetHeapObjectIfWeak(&heap_obj)) {
     UpdateSlot<access_mode>(slot, obj, heap_obj, HeapObjectReferenceType::WEAK);
-  } else if (obj->ToStrongHeapObject(&heap_obj)) {
+  } else if (obj->GetHeapObjectIfStrong(&heap_obj)) {
     return UpdateSlot<access_mode>(slot, obj, heap_obj,
                                    HeapObjectReferenceType::STRONG);
   }
@@ -2185,7 +2185,7 @@ static inline SlotCallbackResult UpdateSlot(MaybeObject** slot) {
 
 template <AccessMode access_mode>
 static inline SlotCallbackResult UpdateStrongSlot(MaybeObject** maybe_slot) {
-  DCHECK((*maybe_slot)->IsSmi() || (*maybe_slot)->IsStrongHeapObject());
+  DCHECK((*maybe_slot)->IsSmi() || (*maybe_slot)->IsStrong());
   Object** slot = reinterpret_cast<Object**>(maybe_slot);
   Object* obj = base::AsAtomicPointer::Relaxed_Load(slot);
   if (obj->IsHeapObject()) {
@@ -2248,8 +2248,7 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
  private:
   static inline SlotCallbackResult UpdateStrongMaybeObjectSlotInternal(
       MaybeObject** slot) {
-    DCHECK(!(*slot)->IsWeakHeapObject());
-    DCHECK(!(*slot)->IsClearedWeakHeapObject());
+    DCHECK(!(*slot)->IsWeakOrCleared());
     return UpdateStrongSlotInternal(reinterpret_cast<Object**>(slot));
   }
 
@@ -2923,7 +2922,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   inline SlotCallbackResult CheckAndUpdateOldToNewSlot(Address slot_address) {
     MaybeObject** slot = reinterpret_cast<MaybeObject**>(slot_address);
     HeapObject* heap_object;
-    if (!(*slot)->ToStrongOrWeakHeapObject(&heap_object)) {
+    if (!(*slot)->GetHeapObject(&heap_object)) {
       return REMOVE_SLOT;
     }
     if (Heap::InFromSpace(heap_object)) {
@@ -2933,7 +2932,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             reinterpret_cast<HeapObjectReference**>(slot),
             map_word.ToForwardingAddress());
       }
-      bool success = (*slot)->ToStrongOrWeakHeapObject(&heap_object);
+      bool success = (*slot)->GetHeapObject(&heap_object);
       USE(success);
       DCHECK(success);
       // If the object was in from space before and is after executing the
@@ -3489,7 +3488,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     for (MaybeObject** current = start; current < end; current++) {
       HeapObject* object;
       // Minor MC treats weak references as strong.
-      if ((*current)->ToStrongOrWeakHeapObject(&object)) {
+      if ((*current)->GetHeapObject(&object)) {
         if (!Heap::InNewSpace(object)) {
           continue;
         }
@@ -3527,7 +3526,7 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
   void VerifyPointers(MaybeObject** start, MaybeObject** end) override {
     for (MaybeObject** current = start; current < end; current++) {
       HeapObject* object;
-      if ((*current)->ToStrongOrWeakHeapObject(&object)) {
+      if ((*current)->GetHeapObject(&object)) {
         CHECK_IMPLIES(Heap::InNewSpace(object), Heap::InToSpace(object));
       }
     }
@@ -3596,7 +3595,7 @@ class YoungGenerationMarkingVisitor final
       HeapObject* target_object;
       // Treat weak references as strong. TODO(marja): Proper weakness handling
       // for minor-mcs.
-      if (target->ToStrongOrWeakHeapObject(&target_object)) {
+      if (target->GetHeapObject(&target_object)) {
         MarkObjectViaMarkingWorklist(target_object);
       }
     }
@@ -3700,7 +3699,7 @@ class YoungGenerationRecordMigratedSlotVisitor final
 
   inline void RecordMigratedSlot(HeapObject* host, MaybeObject* value,
                                  Address slot) final {
-    if (value->IsStrongOrWeakHeapObject()) {
+    if (value->IsStrongOrWeak()) {
       Page* p = Page::FromAddress(reinterpret_cast<Address>(value));
       if (p->InNewSpace()) {
         DCHECK_IMPLIES(p->InToSpace(),
@@ -4155,7 +4154,7 @@ class PageMarkingItem : public MarkingItem {
       // has to be in ToSpace.
       DCHECK(Heap::InToSpace(object));
       HeapObject* heap_object;
-      bool success = object->ToStrongOrWeakHeapObject(&heap_object);
+      bool success = object->GetHeapObject(&heap_object);
       USE(success);
       DCHECK(success);
       task->MarkObject(heap_object);

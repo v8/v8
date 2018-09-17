@@ -654,9 +654,9 @@ void FeedbackVectorData::SerializeSlots() {
   feedback_.reserve(vector->length());
   for (int i = 0; i < vector->length(); ++i) {
     MaybeObject* value = vector->get(i);
-    ObjectData* slot_value = value->IsObject()
-                                 ? broker()->GetOrCreateData(value->ToObject())
-                                 : nullptr;
+    ObjectData* slot_value =
+        value->IsObject() ? broker()->GetOrCreateData(value->cast<Object>())
+                          : nullptr;
     feedback_.push_back(slot_value);
     if (slot_value == nullptr) continue;
 
@@ -1453,7 +1453,7 @@ ObjectRef FeedbackVectorRef::get(FeedbackSlot slot) const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
-    Handle<Object> value(object<FeedbackVector>()->Get(slot)->ToObject(),
+    Handle<Object> value(object<FeedbackVector>()->Get(slot)->cast<Object>(),
                          broker()->isolate());
     return ObjectRef(broker(), value);
   }

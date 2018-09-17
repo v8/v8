@@ -338,8 +338,7 @@ bool Heap::InNewSpace(Object* object) {
 // static
 bool Heap::InNewSpace(MaybeObject* object) {
   HeapObject* heap_object;
-  return object->ToStrongOrWeakHeapObject(&heap_object) &&
-         InNewSpace(heap_object);
+  return object->GetHeapObject(&heap_object) && InNewSpace(heap_object);
 }
 
 // static
@@ -367,8 +366,7 @@ bool Heap::InFromSpace(Object* object) {
 // static
 bool Heap::InFromSpace(MaybeObject* object) {
   HeapObject* heap_object;
-  return object->ToStrongOrWeakHeapObject(&heap_object) &&
-         InFromSpace(heap_object);
+  return object->GetHeapObject(&heap_object) && InFromSpace(heap_object);
 }
 
 // static
@@ -386,8 +384,7 @@ bool Heap::InToSpace(Object* object) {
 // static
 bool Heap::InToSpace(MaybeObject* object) {
   HeapObject* heap_object;
-  return object->ToStrongOrWeakHeapObject(&heap_object) &&
-         InToSpace(heap_object);
+  return object->GetHeapObject(&heap_object) && InToSpace(heap_object);
 }
 
 // static

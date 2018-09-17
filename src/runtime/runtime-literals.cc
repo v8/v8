@@ -497,7 +497,8 @@ MaybeHandle<JSObject> CreateLiteral(Isolate* isolate,
                                     Handle<HeapObject> description, int flags) {
   FeedbackSlot literals_slot(FeedbackVector::ToSlot(literals_index));
   CHECK(literals_slot.ToInt() < vector->length());
-  Handle<Object> literal_site(vector->Get(literals_slot)->ToObject(), isolate);
+  Handle<Object> literal_site(vector->Get(literals_slot)->cast<Object>(),
+                              isolate);
   DeepCopyHints copy_hints = DecodeCopyHints(flags);
 
   Handle<AllocationSite> site;
@@ -597,7 +598,8 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   FeedbackSlot literal_slot(FeedbackVector::ToSlot(index));
 
   // Check if boilerplate exists. If not, create it first.
-  Handle<Object> literal_site(vector->Get(literal_slot)->ToObject(), isolate);
+  Handle<Object> literal_site(vector->Get(literal_slot)->cast<Object>(),
+                              isolate);
   Handle<Object> boilerplate;
   if (!HasBoilerplate(literal_site)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

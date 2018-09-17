@@ -4053,10 +4053,10 @@ void Isolate::CheckDetachedContextsAfterGC() {
   if (length == 0) return;
   int new_length = 0;
   for (int i = 0; i < length; i += 2) {
-    int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->ToSmi());
+    int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->cast<Smi>());
     MaybeObject* context = detached_contexts->Get(i + 1);
-    DCHECK(context->IsWeakHeapObject() || context->IsClearedWeakHeapObject());
-    if (!context->IsClearedWeakHeapObject()) {
+    DCHECK(context->IsWeakOrCleared());
+    if (!context->IsCleared()) {
       detached_contexts->Set(
           new_length, MaybeObject::FromSmi(Smi::FromInt(mark_sweeps + 1)));
       detached_contexts->Set(new_length + 1, context);
@@ -4073,9 +4073,9 @@ void Isolate::CheckDetachedContextsAfterGC() {
     PrintF("%d detached contexts are collected out of %d\n",
            length - new_length, length);
     for (int i = 0; i < new_length; i += 2) {
-      int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->ToSmi());
+      int mark_sweeps = Smi::ToInt(detached_contexts->Get(i)->cast<Smi>());
       MaybeObject* context = detached_contexts->Get(i + 1);
-      DCHECK(context->IsWeakHeapObject() || context->IsClearedWeakHeapObject());
+      DCHECK(context->IsWeakOrCleared());
       if (mark_sweeps > 3) {
         PrintF("detached context %p\n survived %d GCs (leak?)\n",
                static_cast<void*>(context), mark_sweeps);

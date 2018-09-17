@@ -40,7 +40,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     for (MaybeObject** slot = start; slot < end; ++slot) {
       MaybeObject* target = *slot;
       HeapObject* heap_object;
-      if (target->ToStrongOrWeakHeapObject(&heap_object)) {
+      if (target->GetHeapObject(&heap_object)) {
         HandleSlot(host, reinterpret_cast<Address>(slot), heap_object);
       }
     }
@@ -54,7 +54,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
     if (Heap::InFromSpace(target)) {
       SlotCallbackResult result = scavenger_->ScavengeObject(slot, target);
-      bool success = (*slot)->ToStrongOrWeakHeapObject(&target);
+      bool success = (*slot)->GetHeapObject(&target);
       USE(success);
       DCHECK(success);
 

@@ -3582,11 +3582,10 @@ void CheckSFIsAreWeak(WeakFixedArray* sfis, Isolate* isolate) {
   for (int i = 0; i < sfis->length(); ++i) {
     MaybeObject* maybe_object = sfis->Get(i);
     HeapObject* heap_object;
-    CHECK(maybe_object->IsWeakHeapObject() ||
-          maybe_object->IsClearedWeakHeapObject() ||
-          (maybe_object->ToStrongHeapObject(&heap_object) &&
+    CHECK(maybe_object->IsWeakOrCleared() ||
+          (maybe_object->GetHeapObjectIfStrong(&heap_object) &&
            heap_object->IsUndefined(isolate)));
-    if (maybe_object->IsWeakHeapObject()) {
+    if (maybe_object->IsWeak()) {
       ++no_of_weak;
     }
   }
