@@ -1859,6 +1859,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
         DCHECK_NE(property->kind(), ClassLiteral::Property::PRIVATE_FIELD);
         Register key = register_allocator()->GrowRegisterList(&args);
 
+        builder()->SetExpressionAsStatementPosition(property->key());
         BuildLoadPropertyKey(property, key);
         if (property->is_static()) {
           // The static prototype property is read only. We handle the non
@@ -1968,13 +1969,13 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
 }
 
 void BytecodeGenerator::VisitInitializeClassFieldsStatement(
-    InitializeClassFieldsStatement* expr) {
+    InitializeClassFieldsStatement* stmt) {
   RegisterList args = register_allocator()->NewRegisterList(3);
   Register constructor = args[0], key = args[1], value = args[2];
   builder()->MoveRegister(builder()->Receiver(), constructor);
 
-  for (int i = 0; i < expr->fields()->length(); i++) {
-    ClassLiteral::Property* property = expr->fields()->at(i);
+  for (int i = 0; i < stmt->fields()->length(); i++) {
+    ClassLiteral::Property* property = stmt->fields()->at(i);
 
     if (property->is_computed_name()) {
       DCHECK_EQ(property->kind(), ClassLiteral::Property::PUBLIC_FIELD);
@@ -1993,6 +1994,7 @@ void BytecodeGenerator::VisitInitializeClassFieldsStatement(
       BuildLoadPropertyKey(property, key);
     }
 
+    builder()->SetExpressionAsStatementPosition(property->value());
     VisitForRegisterValue(property->value(), value);
     VisitSetHomeObject(value, constructor, property);
 

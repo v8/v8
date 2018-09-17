@@ -3252,7 +3252,7 @@ FunctionLiteral* Parser::CreateInitializerFunction(
       ast_value_factory()->GetOneByteString(name), scope, statements, 0, 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression,
-      FunctionLiteral::kShouldEagerCompile, scope->start_position(), true,
+      FunctionLiteral::kShouldEagerCompile, scope->start_position(), false,
       GetNextFunctionLiteralId());
 }
 
