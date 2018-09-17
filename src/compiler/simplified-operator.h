@@ -750,9 +750,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // new-cons-string length, first, second
   const Operator* NewConsString();
 
-  // array-buffer-was-neutered buffer
-  const Operator* ArrayBufferWasNeutered();
-
   // ensure-writable-fast-elements object, elements
   const Operator* EnsureWritableFastElements();
 

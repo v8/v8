@@ -2192,10 +2192,6 @@ Type Typer::Visitor::TypeNewArgumentsElements(Node* node) {
 
 Type Typer::Visitor::TypeNewConsString(Node* node) { return Type::String(); }
 
-Type Typer::Visitor::TypeArrayBufferWasNeutered(Node* node) {
-  return Type::Boolean();
-}
-
 Type Typer::Visitor::TypeFindOrderedHashMapEntry(Node* node) {
   return Type::Range(-1.0, FixedArray::kMaxLength, zone());
 }

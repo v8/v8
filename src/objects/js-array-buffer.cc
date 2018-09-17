@@ -78,13 +78,9 @@ void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
   }
 }
 
-void JSArrayBuffer::set_is_wasm_memory(bool is_wasm_memory) {
-  set_bit_field(IsWasmMemory::update(bit_field(), is_wasm_memory));
-}
-
 void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
                           bool is_external, void* data, size_t byte_length,
-                          SharedFlag shared, bool is_wasm_memory) {
+                          SharedFlag shared_flag, bool is_wasm_memory) {
   DCHECK_EQ(array_buffer->GetEmbedderFieldCount(),
             v8::ArrayBuffer::kEmbedderFieldCount);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
@@ -93,8 +89,8 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
   array_buffer->set_byte_length(byte_length);
   array_buffer->set_bit_field(0);
   array_buffer->set_is_external(is_external);
-  array_buffer->set_is_neuterable(shared == SharedFlag::kNotShared);
-  array_buffer->set_is_shared(shared == SharedFlag::kShared);
+  array_buffer->set_is_neuterable(shared_flag == SharedFlag::kNotShared);
+  array_buffer->set_is_shared(shared_flag == SharedFlag::kShared);
   array_buffer->set_is_wasm_memory(is_wasm_memory);
   // Initialize backing store at last to avoid handling of |JSArrayBuffers| that
   // are currently being constructed in the |ArrayBufferTracker|. The
@@ -110,14 +106,15 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
 bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
                                         Isolate* isolate,
                                         size_t allocated_length,
-                                        bool initialize, SharedFlag shared) {
+                                        bool initialize,
+                                        SharedFlag shared_flag) {
   void* data;
   CHECK_NOT_NULL(isolate->array_buffer_allocator());
   if (allocated_length != 0) {
     if (allocated_length >= MB)
       isolate->counters()->array_buffer_big_allocations()->AddSample(
           ConvertToMb(allocated_length));
-    if (shared == SharedFlag::kShared)
+    if (shared_flag == SharedFlag::kShared)
       isolate->counters()->shared_array_allocations()->AddSample(
           ConvertToMb(allocated_length));
     if (initialize) {
@@ -137,7 +134,7 @@ bool JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
 
   const bool is_external = false;
   JSArrayBuffer::Setup(array_buffer, isolate, is_external, data,
-                       allocated_length, shared);
+                       allocated_length, shared_flag);
   return true;
 }
 

@@ -430,7 +430,6 @@
   V(NewSmiOrObjectElements)             \
   V(NewArgumentsElements)               \
   V(NewConsString)                      \
-  V(ArrayBufferWasNeutered)             \
   V(EnsureWritableFastElements)         \
   V(MaybeGrowFastElements)              \
   V(TransitionElementsKind)             \

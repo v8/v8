@@ -188,8 +188,8 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
     //  - Set all embedder fields to Smi(0).
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldSlot,
                                    SmiConstant(0));
-    int32_t bitfield_value = (1 << JSArrayBuffer::IsExternal::kShift) |
-                             (1 << JSArrayBuffer::IsNeuterable::kShift);
+    int32_t bitfield_value = (1 << JSArrayBuffer::IsExternalBit::kShift) |
+                             (1 << JSArrayBuffer::IsNeuterableBit::kShift);
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldOffset,
                                    Int32Constant(bitfield_value),
                                    MachineRepresentation::kWord32);
@@ -511,7 +511,7 @@ void TypedArrayBuiltinsAssembler::ConstructByTypedArray(
   BIND(&check_for_sab);
   TNode<Uint32T> bitfield =
       LoadObjectField<Uint32T>(source_buffer, JSArrayBuffer::kBitFieldOffset);
-  Branch(IsSetWord32<JSArrayBuffer::IsShared>(bitfield), &construct,
+  Branch(IsSetWord32<JSArrayBuffer::IsSharedBit>(bitfield), &construct,
          &if_buffernotshared);
 
   BIND(&if_buffernotshared);

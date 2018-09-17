@@ -900,13 +900,6 @@ struct SimplifiedOperatorGlobalCache final {
   StringFromSingleCodePointOperator<UnicodeEncoding::UTF32>
       kStringFromSingleCodePointOperatorUTF32;
 
-  struct ArrayBufferWasNeuteredOperator final : public Operator {
-    ArrayBufferWasNeuteredOperator()
-        : Operator(IrOpcode::kArrayBufferWasNeutered, Operator::kEliminatable,
-                   "ArrayBufferWasNeutered", 1, 1, 1, 1, 1, 0) {}
-  };
-  ArrayBufferWasNeuteredOperator kArrayBufferWasNeutered;
-
   struct FindOrderedHashMapEntryOperator final : public Operator {
     FindOrderedHashMapEntryOperator()
         : Operator(IrOpcode::kFindOrderedHashMapEntry, Operator::kEliminatable,
@@ -1133,7 +1126,6 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
 PURE_OP_LIST(GET_FROM_CACHE)
 EFFECT_DEPENDENT_OP_LIST(GET_FROM_CACHE)
 CHECKED_OP_LIST(GET_FROM_CACHE)
-GET_FROM_CACHE(ArrayBufferWasNeutered)
 GET_FROM_CACHE(ArgumentsFrame)
 GET_FROM_CACHE(FindOrderedHashMapEntry)
 GET_FROM_CACHE(FindOrderedHashMapEntryForInt32Key)

@@ -2342,12 +2342,19 @@ JSNativeContextSpecialization::BuildElementAccess(
       dependencies()->DependOnProtector(PropertyCellRef(
           js_heap_broker(), factory()->array_buffer_neutering_protector()));
     } else {
-      // Default to zero if the {receiver}s buffer was neutered.
-      Node* check = effect = graph()->NewNode(
-          simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
-      length = graph()->NewNode(
-          common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
-          check, jsgraph()->ZeroConstant(), length);
+      // Bail out if the {buffer} was neutered.
+      Node* buffer_bit_field = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
+          buffer, effect, control);
+      Node* check = graph()->NewNode(
+          simplified()->NumberEqual(),
+          graph()->NewNode(
+              simplified()->NumberBitwiseAnd(), buffer_bit_field,
+              jsgraph()->Constant(JSArrayBuffer::WasNeuteredBit::kMask)),
+          jsgraph()->ZeroConstant());
+      effect = graph()->NewNode(
+          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered),
+          check, effect, control);
     }
 
     if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS ||

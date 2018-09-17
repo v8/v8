@@ -53,7 +53,7 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
   Node* array_buffer = LoadObjectField(tagged, JSTypedArray::kBufferOffset);
   Node* bitfield = LoadObjectField(array_buffer, JSArrayBuffer::kBitFieldOffset,
                                    MachineType::Uint32());
-  GotoIfNot(IsSetWord32<JSArrayBuffer::IsShared>(bitfield), &invalid);
+  GotoIfNot(IsSetWord32<JSArrayBuffer::IsSharedBit>(bitfield), &invalid);
 
   // Fail if the array's element type is float32, float64 or clamped.
   Node* elements_instance_type = LoadInstanceType(LoadElements(tagged));

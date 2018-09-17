@@ -12221,7 +12221,7 @@ Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
 
   Node* buffer_bit_field = LoadObjectField(
       buffer, JSArrayBuffer::kBitFieldOffset, MachineType::Uint32());
-  return IsSetWord32<JSArrayBuffer::WasNeutered>(buffer_bit_field);
+  return IsSetWord32<JSArrayBuffer::WasNeuteredBit>(buffer_bit_field);
 }
 
 void CodeStubAssembler::ThrowIfArrayBufferIsDetached(

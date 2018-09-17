@@ -193,9 +193,9 @@ consts_misc = [
         'value': 'ScopeInfo::kVariablePartIndex' },
 
     { 'name': 'jsarray_buffer_was_neutered_mask',
-        'value': 'JSArrayBuffer::WasNeutered::kMask' },
+        'value': 'JSArrayBuffer::WasNeuteredBit::kMask' },
     { 'name': 'jsarray_buffer_was_neutered_shift',
-        'value': 'JSArrayBuffer::WasNeutered::kShift' },
+        'value': 'JSArrayBuffer::WasNeuteredBit::kShift' },
 
     { 'name': 'context_idx_scope_info',
         'value': 'Context::SCOPE_INFO_INDEX' },

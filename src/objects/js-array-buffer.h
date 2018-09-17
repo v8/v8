@@ -14,13 +14,12 @@ namespace v8 {
 namespace internal {
 
 // Whether a JSArrayBuffer is a SharedArrayBuffer or not.
-enum class SharedFlag { kNotShared, kShared };
+enum class SharedFlag : uint32_t { kNotShared, kShared };
 
 class JSArrayBuffer : public JSObject {
  public:
   // [byte_length]: length in bytes
-  inline size_t byte_length() const;
-  inline void set_byte_length(size_t value);
+  DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
   // [backing_store]: backing memory for this array
   DECL_ACCESSORS(backing_store, void)
@@ -30,26 +29,39 @@ class JSArrayBuffer : public JSObject {
   inline size_t allocation_length() const;
   inline void* allocation_base() const;
 
-  inline uint32_t bit_field() const;
-  inline void set_bit_field(uint32_t bits);
+  // [bit_field]: boolean flags
+  DECL_PRIMITIVE_ACCESSORS(bit_field, uint32_t)
+
+// Bit positions for [bit_field].
+#define JS_ARRAY_BUFFER_BIT_FIELD_FIELDS(V, _) \
+  V(IsExternalBit, bool, 1, _)                 \
+  V(IsNeuterableBit, bool, 1, _)               \
+  V(WasNeuteredBit, bool, 1, _)                \
+  V(IsSharedBit, bool, 1, _)                   \
+  V(IsGrowableBit, bool, 1, _)                 \
+  V(IsWasmMemoryBit, bool, 1, _)
+  DEFINE_BIT_FIELDS(JS_ARRAY_BUFFER_BIT_FIELD_FIELDS)
+#undef JS_ARRAY_BUFFER_BIT_FIELD_FIELDS
 
   // [is_external]: true indicates that the embedder is in charge of freeing the
   // backing_store, while is_external == false means that v8 will free the
   // memory block once all ArrayBuffers referencing it are collected by the GC.
-  inline bool is_external();
-  inline void set_is_external(bool value);
+  DECL_BOOLEAN_ACCESSORS(is_external)
 
-  inline bool is_neuterable();
-  inline void set_is_neuterable(bool value);
+  // [is_neuterable]: false indicates that this buffer cannot be detached.
+  DECL_BOOLEAN_ACCESSORS(is_neuterable)
 
-  inline bool was_neutered();
-  inline void set_was_neutered(bool value);
+  // [was_neutered]: true if the buffer was previously detached.
+  DECL_BOOLEAN_ACCESSORS(was_neutered)
 
-  inline bool is_shared();
-  inline void set_is_shared(bool value);
+  // [is_shared]: tells whether this is an ArrayBuffer or a SharedArrayBuffer.
+  DECL_BOOLEAN_ACCESSORS(is_shared)
 
-  inline bool is_growable();
-  inline void set_is_growable(bool value);
+  // [is_growable]: indicates whether it's possible to grow this buffer.
+  DECL_BOOLEAN_ACCESSORS(is_growable)
+
+  // [is_wasm_memory]: whether the buffer is tracked by the WasmMemoryTracker.
+  DECL_BOOLEAN_ACCESSORS(is_wasm_memory)
 
   DECL_CAST(JSArrayBuffer)
 
@@ -69,26 +81,21 @@ class JSArrayBuffer : public JSObject {
     bool is_wasm_memory;
   };
 
-  // Returns whether the buffer is tracked by the WasmMemoryTracker.
-  inline bool is_wasm_memory() const;
-
-  // Sets whether the buffer is tracked by the WasmMemoryTracker.
-  void set_is_wasm_memory(bool is_wasm_memory);
-
   void FreeBackingStoreFromMainThread();
   static void FreeBackingStore(Isolate* isolate, Allocation allocation);
 
   V8_EXPORT_PRIVATE static void Setup(
       Handle<JSArrayBuffer> array_buffer, Isolate* isolate, bool is_external,
       void* data, size_t allocated_length,
-      SharedFlag shared = SharedFlag::kNotShared, bool is_wasm_memory = false);
+      SharedFlag shared_flag = SharedFlag::kNotShared,
+      bool is_wasm_memory = false);
 
   // Returns false if array buffer contents could not be allocated.
   // In this case, |array_buffer| will not be set up.
   static bool SetupAllocatingData(
       Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
       size_t allocated_length, bool initialize = true,
-      SharedFlag shared = SharedFlag::kNotShared) V8_WARN_UNUSED_RESULT;
+      SharedFlag shared_flag = SharedFlag::kNotShared) V8_WARN_UNUSED_RESULT;
 
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)
@@ -112,13 +119,6 @@ class JSArrayBuffer : public JSObject {
   // Iterates all fields in the object including internal ones except
   // kBackingStoreOffset and kBitFieldSlot.
   class BodyDescriptor;
-
-  class IsExternal : public BitField<bool, 1, 1> {};
-  class IsNeuterable : public BitField<bool, 2, 1> {};
-  class WasNeutered : public BitField<bool, 3, 1> {};
-  class IsShared : public BitField<bool, 4, 1> {};
-  class IsGrowable : public BitField<bool, 5, 1> {};
-  class IsWasmMemory : public BitField<bool, 6, 1> {};
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);

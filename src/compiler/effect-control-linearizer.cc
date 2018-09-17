@@ -848,9 +848,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kNewConsString:
       result = LowerNewConsString(node);
       break;
-    case IrOpcode::kArrayBufferWasNeutered:
-      result = LowerArrayBufferWasNeutered(node);
-      break;
     case IrOpcode::kSameValue:
       result = LowerSameValue(node);
       break;
@@ -2951,19 +2948,6 @@ Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
   __ StoreField(AccessBuilder::ForConsStringFirst(), result, first);
   __ StoreField(AccessBuilder::ForConsStringSecond(), result, second);
   return result;
-}
-
-Node* EffectControlLinearizer::LowerArrayBufferWasNeutered(Node* node) {
-  Node* value = node->InputAt(0);
-
-  Node* value_bit_field =
-      __ LoadField(AccessBuilder::ForJSArrayBufferBitField(), value);
-  return __ Word32Equal(
-      __ Word32Equal(
-          __ Word32And(value_bit_field,
-                       __ Int32Constant(JSArrayBuffer::WasNeutered::kMask)),
-          __ Int32Constant(0)),
-      __ Int32Constant(0));
 }
 
 Node* EffectControlLinearizer::LowerSameValue(Node* node) {

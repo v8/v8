@@ -3011,10 +3011,6 @@ class RepresentationSelector {
                    MachineRepresentation::kTaggedPointer);
         return;
       }
-      case IrOpcode::kArrayBufferWasNeutered: {
-        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
-        return;
-      }
       case IrOpcode::kCheckFloat64Hole: {
         Type const input_type = TypeOf(node->InputAt(0));
         if (input_type.Is(Type::Number())) {

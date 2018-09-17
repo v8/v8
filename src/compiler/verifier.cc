@@ -1183,7 +1183,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kObjectIsString:
     case IrOpcode::kObjectIsSymbol:
     case IrOpcode::kObjectIsUndetectable:
-    case IrOpcode::kArrayBufferWasNeutered:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Boolean());
       break;
