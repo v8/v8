@@ -2043,13 +2043,13 @@ uint32_t WasmGraphBuilder::GetExceptionEncodedSize(
   return encoded_size;
 }
 
-Node* WasmGraphBuilder::Throw(uint32_t exception_index,
+Node* WasmGraphBuilder::Throw(uint32_t tag,
                               const wasm::WasmException* exception,
                               const Vector<Node*> values) {
   SetNeedsStackCheck();
   uint32_t encoded_size = GetExceptionEncodedSize(exception);
   Node* create_parameters[] = {
-      LoadExceptionTagFromTable(exception_index),
+      BuildChangeUint31ToSmi(ConvertExceptionTagToRuntimeId(tag)),
       BuildChangeUint31ToSmi(Uint32Constant(encoded_size))};
   Node* except_obj =
       BuildCallToRuntime(Runtime::kWasmThrowCreate, create_parameters,
@@ -2126,22 +2126,16 @@ Node* WasmGraphBuilder::Rethrow(Node* except_obj) {
   return result;
 }
 
-Node* WasmGraphBuilder::ExceptionTagEqual(Node* caught_tag,
-                                          Node* expected_tag) {
-  MachineOperatorBuilder* machine = mcgraph()->machine();
-  return graph()->NewNode(machine->WordEqual(), caught_tag, expected_tag);
+Node* WasmGraphBuilder::ConvertExceptionTagToRuntimeId(uint32_t tag) {
+  // TODO(kschimpf): Handle exceptions from different modules, when they are
+  // linked at runtime.
+  return Uint32Constant(tag);
 }
 
-Node* WasmGraphBuilder::LoadExceptionTagFromTable(uint32_t exception_index) {
-  Node* exceptions_table =
-      LOAD_INSTANCE_FIELD(ExceptionsTable, MachineType::TaggedPointer());
-  Node* tag = LOAD_FIXED_ARRAY_SLOT(exceptions_table, exception_index);
-  return tag;
-}
-
-Node* WasmGraphBuilder::GetExceptionTag(Node* except_obj) {
+Node* WasmGraphBuilder::GetExceptionRuntimeId(Node* except_obj) {
   SetNeedsStackCheck();
-  return BuildCallToRuntime(Runtime::kWasmExceptionGetTag, &except_obj, 1);
+  return BuildChangeSmiToInt32(
+      BuildCallToRuntime(Runtime::kWasmGetExceptionRuntimeId, &except_obj, 1));
 }
 
 Node** WasmGraphBuilder::GetExceptionValues(

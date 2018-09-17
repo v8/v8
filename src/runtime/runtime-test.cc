@@ -844,19 +844,12 @@ RUNTIME_FUNCTION(Runtime_GetWasmRecoveredTrapCount) {
 
 RUNTIME_FUNCTION(Runtime_GetWasmExceptionId) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, exception, 0);
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 1);
-  Handle<Object> tag;
-  if (JSReceiver::GetProperty(isolate, exception,
-                              isolate->factory()->wasm_exception_tag_symbol())
-          .ToHandle(&tag)) {
-    Handle<FixedArray> exceptions_table(instance->exceptions_table(), isolate);
-    for (int index = 0; index < exceptions_table->length(); ++index) {
-      if (exceptions_table->get(index) == *tag) return Smi::FromInt(index);
-    }
-  }
-  return ReadOnlyRoots(isolate).undefined_value();
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSReceiver::GetProperty(
+                   isolate, exception,
+                   isolate->factory()->wasm_exception_runtime_id_symbol()));
 }
 
 RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {

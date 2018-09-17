@@ -79,6 +79,7 @@ enum NameSectionKindCode : uint8_t { kModule = 0, kFunction = 1, kLocal = 2 };
 constexpr size_t kWasmPageSize = 0x10000;
 constexpr uint32_t kWasmPageSizeLog2 = 16;
 static_assert(kWasmPageSize == size_t{1} << kWasmPageSizeLog2, "consistency");
+constexpr int kInvalidExceptionTag = -1;
 
 // TODO(wasm): Wrap WasmCodePosition in a struct.
 using WasmCodePosition = int;
