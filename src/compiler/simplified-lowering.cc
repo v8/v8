@@ -1488,6 +1488,30 @@ class RepresentationSelector {
     return;
   }
 
+  void InsertUnreachableIfNecessary(Node* node) {
+    DCHECK(lower());
+    // If the node is effectful and it produces an impossible value, then we
+    // insert Unreachable node after it.
+    if (node->op()->ValueOutputCount() > 0 &&
+        node->op()->EffectOutputCount() > 0 &&
+        node->opcode() != IrOpcode::kUnreachable && TypeOf(node).IsNone()) {
+      Node* control = node->op()->ControlOutputCount() > 0
+                          ? node
+                          : NodeProperties::GetControlInput(node, 0);
+
+      Node* unreachable =
+          graph()->NewNode(common()->Unreachable(), node, control);
+
+      // Insert unreachable node and replace all the effect uses of the {node}
+      // with the new unreachable node.
+      for (Edge edge : node->use_edges()) {
+        if (NodeProperties::IsEffectEdge(edge) && edge.from() != unreachable) {
+          edge.UpdateTo(unreachable);
+        }
+      }
+    }
+  }
+
   // Dispatching routine for visiting the node {node} with the usage {use}.
   // Depending on the operator, propagate new usage info to the inputs.
   void VisitNode(Node* node, Truncation truncation,
@@ -1502,9 +1526,12 @@ class RepresentationSelector {
     // a sane state still) and we would afterwards replace that use with
     // Dead as well.
     if (node->op()->ValueInputCount() > 0 &&
-        node->op()->HasProperty(Operator::kPure)) {
-      if (truncation.IsUnused()) return VisitUnused(node);
+        node->op()->HasProperty(Operator::kPure) && truncation.IsUnused()) {
+      return VisitUnused(node);
     }
+
+    if (lower()) InsertUnreachableIfNecessary(node);
+
     switch (node->opcode()) {
       //------------------------------------------------------------------
       // Common operators.
