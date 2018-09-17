@@ -2472,7 +2472,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
  public:
   PrepareAndStartCompile(std::shared_ptr<const WasmModule> module,
                          bool start_compilation)
-      : module_(module), start_compilation_(start_compilation) {}
+      : module_(std::move(module)), start_compilation_(start_compilation) {}
 
  private:
   std::shared_ptr<const WasmModule> module_;

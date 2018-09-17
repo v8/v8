@@ -83,7 +83,7 @@ class BuiltinDeserializerAllocator final {
 
   // Builtin deserialization does not bake reservations into the snapshot, hence
   // this is a nop.
-  void DecodeReservation(std::vector<SerializedData::Reservation> res) {}
+  void DecodeReservation(const std::vector<SerializedData::Reservation>& res) {}
 
   // These methods are used to pre-allocate builtin objects prior to
   // deserialization.
