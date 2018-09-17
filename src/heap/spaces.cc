@@ -375,29 +375,30 @@ size_t MemoryAllocator::Unmapper::CommittedBufferedMemory() {
   return sum;
 }
 
-bool MemoryAllocator::CommitMemory(Address base, size_t size) {
-  // TODO(ishell): use proper page allocator
-  if (!SetPermissions(GetPlatformPageAllocator(), base, size,
-                      PageAllocator::kReadWrite)) {
+bool MemoryAllocator::CommitMemory(VirtualMemory* reservation) {
+  Address base = reservation->address();
+  size_t size = reservation->size();
+  if (!reservation->SetPermissions(base, size, PageAllocator::kReadWrite)) {
     return false;
   }
   UpdateAllocatedSpaceLimits(base, base + size);
+  isolate_->counters()->memory_allocated()->Increment(static_cast<int>(size));
   return true;
 }
 
-void MemoryAllocator::FreeMemory(VirtualMemory* reservation,
-                                 Executability executable) {
-  // Executability and page allocator must be in sync.
-  CHECK_EQ(reservation->page_allocator(), page_allocator(executable));
-  reservation->Free();
+bool MemoryAllocator::UncommitMemory(VirtualMemory* reservation) {
+  size_t size = reservation->size();
+  if (!reservation->SetPermissions(reservation->address(), size,
+                                   PageAllocator::kNoAccess)) {
+    return false;
+  }
+  isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
+  return true;
 }
 
-
-void MemoryAllocator::FreeMemory(Address base, size_t size,
-                                 Executability executable) {
-  // TODO(ishell): use proper page allocator
-  CHECK(FreePages(page_allocator(executable), reinterpret_cast<void*>(base),
-                  size));
+void MemoryAllocator::FreeMemory(v8::PageAllocator* page_allocator,
+                                 Address base, size_t size) {
+  CHECK(FreePages(page_allocator, reinterpret_cast<void*>(base), size));
 }
 
 Address MemoryAllocator::AllocateAlignedMemory(
@@ -774,7 +775,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
   if ((base + chunk_size) == 0u) {
     CHECK(!last_chunk_.IsReserved());
     last_chunk_.TakeControl(&reservation);
-    UncommitBlock(&last_chunk_, last_chunk_.address(), last_chunk_.size());
+    UncommitMemory(&last_chunk_);
     size_ -= chunk_size;
     if (executable == EXECUTABLE) {
       size_executable_ -= chunk_size;
@@ -974,13 +975,15 @@ void MemoryAllocator::PerformFreeMemory(MemoryChunk* chunk) {
 
   VirtualMemory* reservation = chunk->reserved_memory();
   if (chunk->IsFlagSet(MemoryChunk::POOLED)) {
-    UncommitBlock(reservation, reinterpret_cast<Address>(chunk),
-                  MemoryChunk::kPageSize);
+    UncommitMemory(reservation);
   } else {
     if (reservation->IsReserved()) {
-      FreeMemory(reservation, chunk->executable());
+      reservation->Free();
     } else {
-      FreeMemory(chunk->address(), chunk->size(), chunk->executable());
+      // Only read-only pages can have non-initialized reservation object.
+      DCHECK_EQ(RO_SPACE, chunk->owner()->identity());
+      FreeMemory(page_allocator(chunk->executable()), chunk->address(),
+                 chunk->size());
     }
   }
 }
@@ -994,8 +997,9 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
       break;
     case kAlreadyPooled:
       // Pooled pages cannot be touched anymore as their memory is uncommitted.
-      FreeMemory(chunk->address(), static_cast<size_t>(MemoryChunk::kPageSize),
-                 Executability::NOT_EXECUTABLE);
+      // Pooled pages are not-executable.
+      FreeMemory(data_page_allocator(), chunk->address(),
+                 static_cast<size_t>(MemoryChunk::kPageSize));
       break;
     case kPooledAndQueue:
       DCHECK_EQ(chunk->size(), static_cast<size_t>(MemoryChunk::kPageSize));
@@ -1063,34 +1067,17 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
   const Address start = reinterpret_cast<Address>(chunk);
   const Address area_start = start + MemoryChunk::kObjectStartOffset;
   const Address area_end = start + size;
-  if (!CommitBlock(start, size)) {
-    return nullptr;
-  }
+  // Pooled pages are always regular data pages.
+  DCHECK_NE(CODE_SPACE, owner->identity());
   VirtualMemory reservation(data_page_allocator(), start, size);
+  if (!CommitMemory(&reservation)) return nullptr;
+  if (Heap::ShouldZapGarbage()) {
+    ZapBlock(start, size, kZapValue);
+  }
   MemoryChunk::Initialize(isolate_->heap(), start, size, area_start, area_end,
                           NOT_EXECUTABLE, owner, std::move(reservation));
   size_ += size;
   return chunk;
-}
-
-bool MemoryAllocator::CommitBlock(Address start, size_t size) {
-  if (!CommitMemory(start, size)) return false;
-
-  if (Heap::ShouldZapGarbage()) {
-    ZapBlock(start, size, kZapValue);
-  }
-
-  isolate_->counters()->memory_allocated()->Increment(static_cast<int>(size));
-  return true;
-}
-
-bool MemoryAllocator::UncommitBlock(VirtualMemory* reservation, Address start,
-                                    size_t size) {
-  if (!reservation->SetPermissions(start, size, PageAllocator::kNoAccess)) {
-    return false;
-  }
-  isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
-  return true;
 }
 
 void MemoryAllocator::ZapBlock(Address start, size_t size,

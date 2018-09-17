@@ -1342,10 +1342,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
                                 size_t alignment, Executability executable,
                                 void* hint, VirtualMemory* controller);
 
-  bool CommitMemory(Address addr, size_t size);
-
-  void FreeMemory(VirtualMemory* reservation, Executability executable);
-  void FreeMemory(Address addr, size_t size, Executability executable);
+  void FreeMemory(v8::PageAllocator* page_allocator, Address addr, size_t size);
 
   // Partially release |bytes_to_free| bytes starting at |start_free|. Note that
   // internally memory is freed from |start_free| to the end of the reservation.
@@ -1354,23 +1351,19 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   void PartialFreeMemory(MemoryChunk* chunk, Address start_free,
                          size_t bytes_to_free, Address new_area_end);
 
-  // Commit a contiguous block of memory from the initial chunk.  Assumes that
-  // the address is not kNullAddress, the size is greater than zero, and that
-  // the block is contained in the initial chunk.  Returns true if it succeeded
-  // and false otherwise.
-  bool CommitBlock(Address start, size_t size);
-
   // Checks if an allocated MemoryChunk was intended to be used for executable
   // memory.
   bool IsMemoryChunkExecutable(MemoryChunk* chunk) {
     return executable_memory_.find(chunk) != executable_memory_.end();
   }
 
-  // Uncommit a contiguous block of memory [start..(start+size)[.
-  // start is not kNullAddress, the size is greater than zero, and the
-  // block is contained in the initial chunk.  Returns true if it succeeded
-  // and false otherwise.
-  bool UncommitBlock(VirtualMemory* reservation, Address start, size_t size);
+  // Commit memory region owned by given reservation object.  Returns true if
+  // it succeeded and false otherwise.
+  bool CommitMemory(VirtualMemory* reservation);
+
+  // Uncommit memory region owned by given reservation object. Returns true if
+  // it succeeded and false otherwise.
+  bool UncommitMemory(VirtualMemory* reservation);
 
   // Zaps a contiguous block of memory [start..(start+size)[ with
   // a given zap value.
