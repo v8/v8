@@ -402,7 +402,7 @@ class BytecodeGenerator::ControlScopeForIteration final
         loop_builder_(loop_builder) {
     generator->loop_depth_++;
   }
-  ~ControlScopeForIteration() { generator()->loop_depth_--; }
+  ~ControlScopeForIteration() override { generator()->loop_depth_--; }
 
  protected:
   bool Execute(Command command, Statement* statement,

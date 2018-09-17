@@ -39,7 +39,7 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
                             BytecodeRegisterAllocator* register_allocator,
                             int fixed_registers_count, int parameter_count,
                             BytecodeWriter* bytecode_writer);
-  virtual ~BytecodeRegisterOptimizer() = default;
+  ~BytecodeRegisterOptimizer() override = default;
 
   // Perform explicit register transfer operations.
   void DoLdar(Register input) {
