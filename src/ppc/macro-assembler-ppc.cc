@@ -1766,10 +1766,10 @@ void TurboAssembler::Abort(AbortReason reason) {
     FrameScope assume_frame(this, StackFrame::NONE);
     mov(r3, Operand(static_cast<int>(reason)));
     PrepareCallCFunction(1, 0, r4);
-    Move(r4, ExternalReference::abort_with_reason());
+    Move(ip, ExternalReference::abort_with_reason());
     // Use Call directly to avoid any unneeded overhead. The function won't
     // return anyway.
-    Call(r4);
+    Call(ip);
     return;
   }
 
