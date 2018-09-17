@@ -1160,6 +1160,9 @@ void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   VisitRR(this, kMips64CvtDW, node);
 }
 
+void InstructionSelector::VisitChangeInt64ToFloat64(Node* node) {
+  VisitRR(this, kMips64CvtDL, node);
+}
 
 void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   VisitRR(this, kMips64CvtDUw, node);
