@@ -361,10 +361,17 @@ class V8_EXPORT_PRIVATE Operand {
   // register.
   Register reg() const;
 
+#ifdef DEBUG
+  bool UsesEbx() const { return uses_ebx_; }
+#endif  // DEBUG
+
  private:
   // Set the ModRM byte without an encoded 'reg' register. The
   // register is encoded later as part of the emit_operand operation.
   inline void set_modrm(int mod, Register rm) {
+#ifdef DEBUG
+    AddUsedRegister(rm);
+#endif
     DCHECK_EQ(mod & -4, 0);
     buf_[0] = mod << 6 | rm.code();
     len_ = 1;
@@ -391,12 +398,23 @@ class V8_EXPORT_PRIVATE Operand {
   // Only valid if len_ > 4.
   RelocInfo::Mode rmode_ = RelocInfo::NONE;
 
+#ifdef DEBUG
+  // TODO(v8:6666): Remove once kRootRegister support is complete.
+  bool uses_ebx_ = false;
+  void AddUsedRegister(Register reg) {
+    if (reg == ebx) uses_ebx_ = true;
+  }
+#endif  // DEBUG
+
   // TODO(clemensh): Get rid of this friendship, or make Operand immutable.
   friend class Assembler;
 };
 ASSERT_TRIVIALLY_COPYABLE(Operand);
+// TODO(v8:6666): Re-enable globally once kRootRegister support is complete.
+#ifndef DEBUG
 static_assert(sizeof(Operand) <= 2 * kPointerSize,
               "Operand must be small enough to pass it by value");
+#endif
 
 // -----------------------------------------------------------------------------
 // A Displacement describes the 32bit immediate field of an instruction which
@@ -1760,6 +1778,30 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     UNREACHABLE();
   }
 
+  // Temporary helper data structures while adding kRootRegister support to ia32
+  // builtins. The SupportsRootRegisterScope is intended to mark each builtin
+  // and helper that fully supports the root register, i.e. that does not
+  // clobber ebx. The AllowExplicitEbxAccessScope marks regions that are allowed
+  // to clobber ebx, e.g. when ebx is spilled and restored.
+  // TODO(v8:6666): Remove once kRootRegister is fully supported.
+  template <bool new_value>
+  class SetRootRegisterSupportScope final {
+   public:
+    explicit SetRootRegisterSupportScope(Assembler* assembler)
+        : assembler_(assembler), old_value_(assembler->is_ebx_addressable_) {
+      assembler_->is_ebx_addressable_ = new_value;
+    }
+    ~SetRootRegisterSupportScope() {
+      assembler_->is_ebx_addressable_ = old_value_;
+    }
+
+   private:
+    Assembler* assembler_;
+    const bool old_value_;
+  };
+  typedef SetRootRegisterSupportScope<false> SupportsRootRegisterScope;
+  typedef SetRootRegisterSupportScope<true> AllowExplicitEbxAccessScope;
+
  protected:
   void emit_sse_operand(XMMRegister reg, Operand adr);
   void emit_sse_operand(XMMRegister dst, XMMRegister src);
@@ -1768,6 +1810,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   byte* addr_at(int pos) { return buffer_ + pos; }
 
+#ifdef DEBUG
+  // TODO(v8:6666): Remove once kRootRegister is fully supported.
+  void AssertIsAddressable(const Register& reg);
+  void AssertIsAddressable(const Operand& operand);
+#else
+  // An empty inline definition to avoid slowing down release builds.
+  void AssertIsAddressable(const Register&) {}
+  void AssertIsAddressable(const Operand&) {}
+#endif  // DEBUG
+  bool is_ebx_addressable_ = true;
 
  private:
   uint32_t long_at(int pos)  {
