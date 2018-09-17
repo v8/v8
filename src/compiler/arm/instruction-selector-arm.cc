@@ -414,14 +414,30 @@ void VisitPairAtomicBinOp(InstructionSelector* selector, Node* node,
   InstructionOperand inputs[] = {g.UseUniqueRegister(value),
                                  g.UseUniqueRegister(value_high),
                                  g.UseRegister(base), g.UseRegister(index)};
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 0), r2),
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), r3)};
-  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(r6),
-                                g.TempRegister(r7), g.TempRegister()};
+  Node* projection0 = NodeProperties::FindProjection(node, 0);
+  Node* projection1 = NodeProperties::FindProjection(node, 1);
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-                 arraysize(temps), temps);
+  if (projection1) {
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r2),
+                                    g.DefineAsFixed(projection1, r3)};
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(r6),
+                                  g.TempRegister(r7), g.TempRegister()};
+    selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                   arraysize(temps), temps);
+  } else if (projection0) {
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r2)};
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(r6),
+                                  g.TempRegister(r7), g.TempRegister(),
+                                  g.TempRegister(r3)};
+    selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+                   arraysize(temps), temps);
+  } else {
+    InstructionOperand temps[] = {g.TempRegister(),   g.TempRegister(r6),
+                                  g.TempRegister(r7), g.TempRegister(),
+                                  g.TempRegister(r2), g.TempRegister(r3)};
+    selector->Emit(code, 0, nullptr, arraysize(inputs), inputs,
+                   arraysize(temps), temps);
+  }
 }
 
 }  // namespace
@@ -2246,16 +2262,28 @@ void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
   ArmOperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
-  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index)};
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 0), r0),
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), r1)};
-  InstructionOperand temps[] = {g.TempRegister()};
   AddressingMode addressing_mode = kMode_Offset_RR;
   InstructionCode code =
       kArmWord32AtomicPairLoad | AddressingModeField::encode(addressing_mode);
-  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-       arraysize(temps), temps);
+  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index)};
+  Node* projection0 = NodeProperties::FindProjection(node, 0);
+  Node* projection1 = NodeProperties::FindProjection(node, 1);
+  if (projection1) {
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r0),
+                                    g.DefineAsFixed(projection1, r1)};
+    InstructionOperand temps[] = {g.TempRegister()};
+    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+         arraysize(temps), temps);
+  } else if (projection0) {
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r0)};
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(r1)};
+    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+         arraysize(temps), temps);
+  } else {
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(r0),
+                                  g.TempRegister(r1)};
+    Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
+  }
 }
 
 void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {
@@ -2305,14 +2333,27 @@ void InstructionSelector::VisitWord32AtomicPairExchange(Node* node) {
   InstructionOperand inputs[] = {g.UseFixed(value, r0),
                                  g.UseFixed(value_high, r1),
                                  g.UseRegister(base), g.UseRegister(index)};
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 0), r6),
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), r7)};
-  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
   InstructionCode code = kArmWord32AtomicPairExchange |
                          AddressingModeField::encode(addressing_mode);
-  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-       arraysize(temps), temps);
+  Node* projection0 = NodeProperties::FindProjection(node, 0);
+  Node* projection1 = NodeProperties::FindProjection(node, 1);
+  if (projection1) {
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r6),
+                                    g.DefineAsFixed(projection1, r7)};
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+         arraysize(temps), temps);
+  } else if (projection0) {
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r6)};
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
+                                  g.TempRegister(r7)};
+    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+         arraysize(temps), temps);
+  } else {
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
+                                  g.TempRegister(r6), g.TempRegister(r7)};
+    Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
+  }
 }
 
 void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
@@ -2322,14 +2363,28 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
       g.UseFixed(node->InputAt(2), r4), g.UseFixed(node->InputAt(3), r5),
       g.UseFixed(node->InputAt(4), r8), g.UseFixed(node->InputAt(5), r9),
       g.UseRegister(node->InputAt(0)),  g.UseRegister(node->InputAt(1))};
-  InstructionOperand outputs[] = {
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 0), r2),
-      g.DefineAsFixed(NodeProperties::FindProjection(node, 1), r3)};
-  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
   InstructionCode code = kArmWord32AtomicPairCompareExchange |
                          AddressingModeField::encode(addressing_mode);
-  Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-       arraysize(temps), temps);
+  Node* projection0 = NodeProperties::FindProjection(node, 0);
+  Node* projection1 = NodeProperties::FindProjection(node, 1);
+  if (projection1) {
+    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r2),
+                                    g.DefineAsFixed(projection1, r3)};
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
+    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+         arraysize(temps), temps);
+  } else if (projection0) {
+    InstructionOperand outputs[] = {
+        g.DefineAsFixed(NodeProperties::FindProjection(node, 0), r2)};
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
+                                  g.TempRegister(r3)};
+    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
+         arraysize(temps), temps);
+  } else {
+    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
+                                  g.TempRegister(r2), g.TempRegister(r3)};
+    Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
+  }
 }
 
 #define SIMD_TYPE_LIST(V) \

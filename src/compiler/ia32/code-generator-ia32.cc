@@ -427,21 +427,21 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ j(not_equal, &binop);                                    \
   } while (false)
 
-#define ASSEMBLE_I64ATOMIC_BINOP(instr1, instr2)         \
-  do {                                                   \
-    Label binop;                                         \
-    __ bind(&binop);                                     \
-    __ mov(i.OutputRegister(0), i.MemoryOperand(2));     \
-    __ mov(i.OutputRegister(1), i.NextMemoryOperand(2)); \
-    __ push(i.InputRegister(0));                         \
-    __ push(i.InputRegister(1));                         \
-    __ instr1(i.InputRegister(0), i.OutputRegister(0));  \
-    __ instr2(i.InputRegister(1), i.OutputRegister(1));  \
-    __ lock();                                           \
-    __ cmpxchg8b(i.MemoryOperand(2));                    \
-    __ pop(i.InputRegister(1));                          \
-    __ pop(i.InputRegister(0));                          \
-    __ j(not_equal, &binop);                             \
+#define ASSEMBLE_I64ATOMIC_BINOP(instr1, instr2) \
+  do {                                           \
+    Label binop;                                 \
+    __ bind(&binop);                             \
+    __ mov(eax, i.MemoryOperand(2));             \
+    __ mov(edx, i.NextMemoryOperand(2));         \
+    __ push(i.InputRegister(0));                 \
+    __ push(i.InputRegister(1));                 \
+    __ instr1(i.InputRegister(0), eax);          \
+    __ instr2(i.InputRegister(1), edx);          \
+    __ lock();                                   \
+    __ cmpxchg8b(i.MemoryOperand(2));            \
+    __ pop(i.InputRegister(1));                  \
+    __ pop(i.InputRegister(0));                  \
+    __ j(not_equal, &binop);                     \
   } while (false);
 
 #define ASSEMBLE_MOVX(mov_instr)                            \
@@ -546,6 +546,18 @@ void AdjustStackPointerForTailCall(TurboAssembler* tasm,
     state->IncreaseSPDelta(stack_slot_delta);
   }
 }
+
+#ifdef DEBUG
+bool VerifyOutputOfAtomicPairInstr(IA32OperandConverter* converter,
+                                   const Instruction* instr) {
+  if (instr->OutputCount() > 0) {
+    if (converter->OutputRegister(0) != eax) return false;
+    if (instr->OutputCount() == 2 && converter->OutputRegister(1) != edx)
+      return false;
+  }
+  return true;
+}
+#endif
 
 }  // namespace
 
@@ -3639,8 +3651,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32Word32AtomicPairLoad: {
       XMMRegister tmp = i.ToDoubleRegister(instr->TempAt(0));
       __ movq(tmp, i.MemoryOperand());
-      __ Pextrd(i.OutputRegister(0), tmp, 0);
-      __ Pextrd(i.OutputRegister(1), tmp, 1);
+      if (instr->OutputCount() == 2) {
+        __ Pextrd(i.OutputRegister(0), tmp, 0);
+        __ Pextrd(i.OutputRegister(1), tmp, 1);
+      } else if (instr->OutputCount() == 1) {
+        __ Pextrd(i.OutputRegister(0), tmp, 0);
+        __ Pextrd(i.TempRegister(1), tmp, 1);
+      }
       break;
     }
     case kIA32Word32AtomicPairStore: {
@@ -3675,8 +3692,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32Word32AtomicPairExchange: {
-      __ mov(i.OutputRegister(0), i.MemoryOperand(2));
-      __ mov(i.OutputRegister(1), i.NextMemoryOperand(2));
+      DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr));
+      __ mov(eax, i.MemoryOperand(2));
+      __ mov(edx, i.NextMemoryOperand(2));
       __ lock();
       __ cmpxchg8b(i.MemoryOperand(2));
       break;
@@ -3746,10 +3764,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, or_)
       ATOMIC_BINOP_CASE(Xor, xor_)
 #undef ATOMIC_BINOP_CASE
-#define ATOMIC_BINOP_CASE(op, instr1, instr2) \
-  case kIA32Word32AtomicPair##op: {           \
-    ASSEMBLE_I64ATOMIC_BINOP(instr1, instr2)  \
-    break;                                    \
+#define ATOMIC_BINOP_CASE(op, instr1, instr2)         \
+  case kIA32Word32AtomicPair##op: {                   \
+    DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr)); \
+    ASSEMBLE_I64ATOMIC_BINOP(instr1, instr2)          \
+    break;                                            \
   }
       ATOMIC_BINOP_CASE(Add, add, adc)
       ATOMIC_BINOP_CASE(And, and_, and_)
@@ -3757,11 +3776,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Xor, xor_, xor_)
 #undef ATOMIC_BINOP_CASE
     case kIA32Word32AtomicPairSub: {
+      DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr));
       Label binop;
       __ bind(&binop);
       // Move memory operand into edx:eax
-      __ mov(i.OutputRegister(0), i.MemoryOperand(2));
-      __ mov(i.OutputRegister(1), i.NextMemoryOperand(2));
+      __ mov(eax, i.MemoryOperand(2));
+      __ mov(edx, i.NextMemoryOperand(2));
       // Save input registers temporarily on the stack.
       __ push(i.InputRegister(0));
       __ push(i.InputRegister(1));
@@ -3770,8 +3790,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ adc(i.InputRegister(1), 0);
       __ neg(i.InputRegister(1));
       // Add memory operand, negated input.
-      __ add(i.InputRegister(0), i.OutputRegister(0));
-      __ adc(i.InputRegister(1), i.OutputRegister(1));
+      __ add(i.InputRegister(0), eax);
+      __ adc(i.InputRegister(1), edx);
       __ lock();
       __ cmpxchg8b(i.MemoryOperand(2));
       // Restore input registers
