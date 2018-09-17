@@ -54,39 +54,45 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
   // Try up to three times; getting rid of dead JSArrayBuffer allocations might
   // require two GCs because the first GC maybe incremental and may have
   // floating garbage.
+  static constexpr int kAllocationRetries = 2;
   bool did_retry = false;
   for (int trial = 0;; ++trial) {
     if (memory_tracker->ReserveAddressSpace(*allocation_length)) break;
 
     did_retry = true;
     // After first and second GC: retry.
-    if (trial < 2) {
-      // Collect garbage and retry.
-      heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
-      continue;
+    if (trial == kAllocationRetries) {
+      // We are over the address space limit. Fail.
+      //
+      // When running under the correctness fuzzer (i.e.
+      // --abort-on-stack-or-string-length-overflow is preset), we crash instead
+      // so it is not incorrectly reported as a correctness violation. See
+      // https://crbug.com/828293#c4
+      if (FLAG_abort_on_stack_or_string_length_overflow) {
+        FATAL("could not allocate wasm memory");
+      }
+      AddAllocationStatusSample(
+          heap->isolate(), AllocationStatus::kAddressSpaceLimitReachedFailure);
+      return nullptr;
     }
-    // We are over the address space limit. Fail.
-    //
-    // When running under the correctness fuzzer (i.e.
-    // --abort-on-stack-or-string-length-overflow is preset), we crash instead
-    // so it is not incorrectly reported as a correctness violation. See
-    // https://crbug.com/828293#c4
-    if (FLAG_abort_on_stack_or_string_length_overflow) {
-      FATAL("could not allocate wasm memory");
-    }
-    AddAllocationStatusSample(
-        heap->isolate(), AllocationStatus::kAddressSpaceLimitReachedFailure);
-    return nullptr;
+    // Collect garbage and retry.
+    heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
   }
 
   // The Reserve makes the whole region inaccessible by default.
-  *allocation_base =
-      AllocatePages(GetPlatformPageAllocator(), nullptr, *allocation_length,
-                    kWasmPageSize, PageAllocator::kNoAccess);
-  if (*allocation_base == nullptr) {
-    memory_tracker->ReleaseReservation(*allocation_length);
-    AddAllocationStatusSample(heap->isolate(), AllocationStatus::kOtherFailure);
-    return nullptr;
+  DCHECK_NULL(*allocation_base);
+  for (int trial = 0;; ++trial) {
+    *allocation_base =
+        AllocatePages(GetPlatformPageAllocator(), nullptr, *allocation_length,
+                      kWasmPageSize, PageAllocator::kNoAccess);
+    if (*allocation_base != nullptr) break;
+    if (trial == kAllocationRetries) {
+      memory_tracker->ReleaseReservation(*allocation_length);
+      AddAllocationStatusSample(heap->isolate(),
+                                AllocationStatus::kOtherFailure);
+      return nullptr;
+    }
+    heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
   }
   byte* memory = reinterpret_cast<byte*>(*allocation_base);
   if (require_full_guard_regions) {
