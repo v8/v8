@@ -49,7 +49,7 @@ TracingController::~TracingController() {
   {
     // Free memory for category group names allocated via strdup.
     base::LockGuard<base::Mutex> lock(mutex_.get());
-    for (size_t i = g_category_index - 1; i > g_num_builtin_categories; --i) {
+    for (size_t i = g_category_index - 1; i >= g_num_builtin_categories; --i) {
       const char* group = g_category_groups[i];
       g_category_groups[i] = nullptr;
       free(const_cast<char*>(group));
