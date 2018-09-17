@@ -277,6 +277,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& CallAnyReceiver(Register callable, RegisterList args,
                                         int feedback_slot);
 
+  // Call a JS function with an any receiver, possibly (but not necessarily)
+  // undefined. The JSFunction or Callable to be called should be in |callable|.
+  // The arguments should be in |args|, with the receiver in |args[0]|.
+  BytecodeArrayBuilder& CallNoFeedback(Register callable, RegisterList args);
+
   // Tail call into a JS function. The JSFunction or Callable to be called
   // should be in |callable|. The arguments should be in |args|, with the
   // receiver in |args[0]|. Type feedback is recorded in the |feedback_slot| in

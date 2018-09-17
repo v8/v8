@@ -627,6 +627,42 @@ TEST(IIFEWithOneshotOpt) {
         return arguments.callee;
       })();
     )",
+      // CallNoFeedback instead of CallProperty
+      R"(
+      this.f0 = function() {};
+      this.f1 = function(a) {};
+      this.f2 = function(a, b) {};
+      this.f3 = function(a, b, c) {};
+      this.f4 = function(a, b, c, d) {};
+      this.f5 = function(a, b, c, d, e) {};
+      (function() {
+        this.f0();
+        this.f1(1);
+        this.f2(1, 2);
+        this.f3(1, 2, 3);
+        this.f4(1, 2, 3, 4);
+        this.f5(1, 2, 3, 4, 5);
+        return arguments.callee;
+      })();
+    )",
+      // CallNoFeedback instead of CallUndefinedReceiver
+      R"(
+      function f0() {}
+      function f1(a) {}
+      function f2(a, b) {}
+      function f3(a, b, c) {}
+      function f4(a, b, c, d) {}
+      function f5(a, b, c, d, e) {}
+      (function() {
+        f0();
+        f1(1);
+        f2(1, 2);
+        f3(1, 2, 3);
+        f4(1, 2, 3, 4);
+        f5(1, 2, 3, 4, 5);
+        return arguments.callee;
+      })();
+    )",
   };
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("IIFEWithOneshotOpt.golden")));
@@ -660,6 +696,40 @@ TEST(IIFEWithoutOneshotOpt) {
         } else {
           l.a = l.b;
         }
+        return arguments.callee;
+      })();
+    )",
+      R"(
+      this.f0 = function() {};
+      this.f1 = function(a) {};
+      this.f2 = function(a, b) {};
+      this.f3 = function(a, b, c) {};
+      this.f4 = function(a, b, c, d) {};
+      this.f5 = function(a, b, c, d, e) {};
+      (function() {
+        this.f0();
+        this.f1(1);
+        this.f2(1, 2);
+        this.f3(1, 2, 3);
+        this.f4(1, 2, 3, 4);
+        this.f5(1, 2, 3, 4, 5);
+        return arguments.callee;
+      })();
+    )",
+      R"(
+      function f0() {}
+      function f1(a) {}
+      function f2(a, b) {}
+      function f3(a, b, c) {}
+      function f4(a, b, c, d) {}
+      function f5(a, b, c, d, e) {}
+      (function() {
+        f0();
+        f1(1);
+        f2(1, 2);
+        f3(1, 2, 3);
+        f4(1, 2, 3, 4);
+        f5(1, 2, 3, 4, 5);
         return arguments.callee;
       })();
     )",

@@ -1502,6 +1502,16 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
     CallJSAndDispatch(function, context, args, receiver_mode);
   }
 
+  // Generates code to perform a JS call without collecting feedback.
+  void JSCallNoFeedback(ConvertReceiverMode receiver_mode) {
+    Node* function = LoadRegisterAtOperandIndex(0);
+    RegListNodePair args = GetRegisterListAtOperandIndex(1);
+    Node* context = GetContext();
+
+    // Call the function and dispatch to the next handler.
+    CallJSAndDispatch(function, context, args, receiver_mode);
+  }
+
   // Generates code to perform a JS call with a known number of arguments that
   // collects type feedback.
   void JSCallN(int arg_count, ConvertReceiverMode receiver_mode) {
@@ -1589,6 +1599,10 @@ IGNITION_HANDLER(CallUndefinedReceiver1, InterpreterJSCallAssembler) {
 
 IGNITION_HANDLER(CallUndefinedReceiver2, InterpreterJSCallAssembler) {
   JSCallN(2, ConvertReceiverMode::kNullOrUndefined);
+}
+
+IGNITION_HANDLER(CallNoFeedback, InterpreterJSCallAssembler) {
+  JSCallNoFeedback(ConvertReceiverMode::kAny);
 }
 
 // CallRuntime <function_id> <first_arg> <arg_count>

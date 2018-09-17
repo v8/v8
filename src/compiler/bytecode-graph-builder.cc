@@ -1790,6 +1790,22 @@ void BytecodeGraphBuilder::VisitCallAnyReceiver() {
   BuildCallVarArgs(ConvertReceiverMode::kAny);
 }
 
+void BytecodeGraphBuilder::VisitCallNoFeedback() {
+  PrepareEagerCheckpoint();
+  // CallNoFeedback is emitted only for one-shot code. Normally the compiler
+  // will not have to optimize one-shot code. But when the --always-opt or
+  // --stress-opt flags are set compiler is forced to optimize one-shot code.
+  // Emiting SoftDeopt to prevent compiler from inlining CallNoFeedback in
+  // one-shot.
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+
+  JSTypeHintLowering::LoweringResult deoptimize =
+      type_hint_lowering().BuildSoftDeopt(effect, control,
+                                          DeoptimizeReason::kDeoptimizeNow);
+  ApplyEarlyReduction(deoptimize);
+}
+
 void BytecodeGraphBuilder::VisitCallProperty() {
   BuildCallVarArgs(ConvertReceiverMode::kNotNullOrUndefined);
 }

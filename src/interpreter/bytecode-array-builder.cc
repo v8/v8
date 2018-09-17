@@ -1380,6 +1380,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallAnyReceiver(Register callable,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CallNoFeedback(Register callable,
+                                                           RegisterList args) {
+  OutputCallNoFeedback(callable, args, args.register_count());
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallWithSpread(Register callable,
                                                            RegisterList args,
                                                            int feedback_slot) {
