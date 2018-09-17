@@ -1667,6 +1667,17 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
+  // The 32-bit comparisons automatically truncate Word64
+  // values to Word32 range, no need to do that explicitly.
+  if (opcode == kX64Cmp32 || opcode == kX64Test32) {
+    while (left->opcode() == IrOpcode::kTruncateInt64ToInt32) {
+      left = left->InputAt(0);
+    }
+    while (right->opcode() == IrOpcode::kTruncateInt64ToInt32) {
+      right = right->InputAt(0);
+    }
+  }
+
   opcode = TryNarrowOpcodeSize(opcode, left, right, cont);
 
   // If one of the two inputs is an immediate, make sure it's on the right, or
