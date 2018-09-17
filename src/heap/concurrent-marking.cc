@@ -264,9 +264,9 @@ class ConcurrentMarkingVisitor final
 
   int VisitBytecodeArray(Map* map, BytecodeArray* object) {
     if (!ShouldVisit(object)) return 0;
-    int size = BytecodeArray::BodyDescriptorWeak::SizeOf(map, object);
+    int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
-    BytecodeArray::BodyDescriptorWeak::IterateBody(map, object, size, this);
+    BytecodeArray::BodyDescriptor::IterateBody(map, object, size, this);
     object->MakeOlder();
     return size;
   }
