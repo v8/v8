@@ -42,19 +42,15 @@ Context* GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
 
 class ClearThreadInWasmScope {
  public:
-  explicit ClearThreadInWasmScope(bool coming_from_wasm)
-      : coming_from_wasm_(coming_from_wasm) {
-    DCHECK_EQ(trap_handler::IsTrapHandlerEnabled() && coming_from_wasm,
+  ClearThreadInWasmScope() {
+    DCHECK_EQ(trap_handler::IsTrapHandlerEnabled(),
               trap_handler::IsThreadInWasm());
-    if (coming_from_wasm) trap_handler::ClearThreadInWasm();
+    trap_handler::ClearThreadInWasm();
   }
   ~ClearThreadInWasmScope() {
     DCHECK(!trap_handler::IsThreadInWasm());
-    if (coming_from_wasm_) trap_handler::SetThreadInWasm();
+    trap_handler::SetThreadInWasm();
   }
-
- private:
-  const bool coming_from_wasm_;
 };
 
 }  // namespace
@@ -68,11 +64,7 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   CONVERT_UINT32_ARG_CHECKED(delta_pages, 1);
 
   // This runtime function is always being called from wasm code.
-  ClearThreadInWasmScope flag_scope(true);
-
-  // Set the current isolate's context.
-  DCHECK_NULL(isolate->context());
-  isolate->set_context(instance->native_context());
+  ClearThreadInWasmScope flag_scope;
 
   int ret = WasmMemoryObject::Grow(
       isolate, handle(instance->memory_object(), isolate), delta_pages);
@@ -84,11 +76,9 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
-  ClearThreadInWasmScope clear_wasm_flag(isolate->context() == nullptr);
+  ClearThreadInWasmScope clear_wasm_flag;
 
   HandleScope scope(isolate);
-  DCHECK_NULL(isolate->context());
-  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(
       static_cast<MessageTemplate::Template>(message_id));
   return isolate->Throw(*error_obj);
@@ -242,7 +232,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   CHECK(arg_buffer_obj->IsSmi());
   Address arg_buffer = reinterpret_cast<Address>(*arg_buffer_obj);
 
-  ClearThreadInWasmScope wasm_flag(true);
+  ClearThreadInWasmScope wasm_flag;
 
   // Find the frame pointer and instance of the interpreter frame on the stack.
   Handle<WasmInstanceObject> instance;
@@ -284,11 +274,7 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   DCHECK(!trap_handler::IsTrapHandlerEnabled() ||
          trap_handler::IsThreadInWasm());
 
-  ClearThreadInWasmScope wasm_flag(true);
-
-  // Set the current isolate's context.
-  DCHECK_NULL(isolate->context());
-  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
+  ClearThreadInWasmScope wasm_flag;
 
   // Check if this is a real stack overflow.
   StackLimitCheck check(isolate);
@@ -303,7 +289,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_SMI_ARG_CHECKED(func_index, 1);
 
-  ClearThreadInWasmScope wasm_flag(true);
+  ClearThreadInWasmScope wasm_flag;
 
 #ifdef DEBUG
   StackFrameIterator it(isolate, isolate->thread_local_top());
