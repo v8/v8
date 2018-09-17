@@ -7021,7 +7021,8 @@ class V8_EXPORT EmbedderHeapTracer {
    * The embedder is expected to throw away all intermediate data and reset to
    * the initial state.
    */
-  virtual void AbortTracing() = 0;
+  V8_DEPRECATE_SOON("Obsolete as V8 will not abort tracing anymore.",
+                    virtual void AbortTracing()) {}
 
   /*
    * Called by the embedder to request immediate finalization of the currently

@@ -36,7 +36,6 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
 
   void TracePrologue();
   void TraceEpilogue();
-  void AbortTracing();
   void EnterFinalPause();
   bool Trace(double deadline);
   bool IsRemoteTracingDone();
