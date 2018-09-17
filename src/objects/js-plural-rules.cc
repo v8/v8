@@ -89,9 +89,12 @@ MaybeHandle<JSPluralRules> JSPluralRules::InitializePluralRules(
     Isolate* isolate, Handle<JSPluralRules> plural_rules,
     Handle<Object> locales, Handle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
-  Maybe<std::vector<std::string>> requested_locales =
-      Intl::CanonicalizeLocaleList(isolate, locales, false);
-  MAYBE_RETURN(requested_locales, MaybeHandle<JSPluralRules>());
+  // TODO(jkummerow): Port ResolveLocale, then use the C++ version of
+  // CanonicalizeLocaleList here.
+  Handle<JSObject> requested_locales;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, requested_locales,
+                             Intl::CanonicalizeLocaleListJS(isolate, locales),
+                             JSPluralRules);
 
   // 2. If options is undefined, then
   if (options_obj->IsUndefined(isolate)) {
@@ -109,8 +112,10 @@ MaybeHandle<JSPluralRules> JSPluralRules::InitializePluralRules(
   // At this point, options_obj can either be a JSObject or a JSProxy only.
   Handle<JSReceiver> options = Handle<JSReceiver>::cast(options_obj);
 
-  // Steps 5 and 6 are currently done as part of the
-  // Intl::ResolveLocale call below.
+  // TODO(gsathya): This is currently done as part of the
+  // Intl::ResolveLocale call below. Fix this once resolveLocale is
+  // changed to not do the lookup.
+  //
   // 5. Let matcher be ? GetOption(options, "localeMatcher", "string",
   // « "lookup", "best fit" », "best fit").
   // 6. Set opt.[[localeMatcher]] to matcher.
@@ -141,21 +146,19 @@ MaybeHandle<JSPluralRules> JSPluralRules::InitializePluralRules(
   // 11. Let r be ResolveLocale(%PluralRules%.[[AvailableLocales]],
   // requestedLocales, opt, %PluralRules%.[[RelevantExtensionKeys]],
   // localeData).
-  std::set<std::string> available_locales =
-      Intl::GetAvailableLocales(IcuService::kPluralRules);
-  // 13.3.3 Internal slots
-  // https://tc39.github.io/ecma402/#sec-intl.pluralrules-internal-slots
-  // The value of the [[RelevantExtensionKeys]] internal slot is [].
-  const std::set<std::string> relevant_extension_keys;
-  Maybe<Intl::ResolvedLocale*> maybe_resolved_locale = Intl::ResolveLocale(
-      isolate, "pluralrules", available_locales, requested_locales.FromJust(),
-      relevant_extension_keys, options);
-  MAYBE_RETURN(maybe_resolved_locale, MaybeHandle<JSPluralRules>());
-  std::unique_ptr<Intl::ResolvedLocale> r(maybe_resolved_locale.FromJust());
-  CHECK_NOT_NULL(r.get());
+  Handle<JSObject> r;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, r,
+      Intl::ResolveLocale(isolate, "pluralrules", requested_locales, options),
+      JSPluralRules);
 
-  Handle<String> locale =
-      isolate->factory()->NewStringFromAsciiChecked(r.get()->locale.c_str());
+  Handle<String> locale_str = isolate->factory()->locale_string();
+  Handle<Object> locale_obj = JSObject::GetDataProperty(r, locale_str);
+
+  // The locale has to be a string. Either a user provided
+  // canonicalized string or the default locale.
+  CHECK(locale_obj->IsString());
+  Handle<String> locale = Handle<String>::cast(locale_obj);
 
   // 12. Set pluralRules.[[Locale]] to the value of r.[[locale]].
   plural_rules->set_locale(*locale);
