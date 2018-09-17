@@ -22,7 +22,7 @@ MachineOperatorReducer::MachineOperatorReducer(MachineGraph* mcgraph,
                                                bool allow_signalling_nan)
     : mcgraph_(mcgraph), allow_signalling_nan_(allow_signalling_nan) {}
 
-MachineOperatorReducer::~MachineOperatorReducer() {}
+MachineOperatorReducer::~MachineOperatorReducer() = default;
 
 
 Node* MachineOperatorReducer::Float32Constant(volatile float value) {

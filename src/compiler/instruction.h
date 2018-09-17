@@ -1321,7 +1321,7 @@ class FrameStateDescriptor : public ZoneObject {
 // frame state descriptor that we have to go back to.
 class DeoptimizationEntry final {
  public:
-  DeoptimizationEntry() {}
+  DeoptimizationEntry() = default;
   DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeKind kind,
                       DeoptimizeReason reason, VectorSlotPair const& feedback)
       : descriptor_(descriptor),

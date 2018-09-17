@@ -14,7 +14,7 @@ namespace compiler {
 RedundancyElimination::RedundancyElimination(Editor* editor, Zone* zone)
     : AdvancedReducer(editor), node_checks_(zone), zone_(zone) {}
 
-RedundancyElimination::~RedundancyElimination() {}
+RedundancyElimination::~RedundancyElimination() = default;
 
 Reduction RedundancyElimination::Reduce(Node* node) {
   if (node_checks_.Get(node)) return NoChange();

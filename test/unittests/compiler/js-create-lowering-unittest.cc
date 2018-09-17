@@ -38,7 +38,7 @@ class JSCreateLoweringTest : public TypedGraphTest {
       js_heap_broker()->SerializeStandardObjects();
     }
   }
-  ~JSCreateLoweringTest() override {}
+  ~JSCreateLoweringTest() override = default;
 
  protected:
   Reduction Reduce(Node* node) {

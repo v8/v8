@@ -33,7 +33,7 @@ CallDescriptor::Flags FrameStateFlagForCall(Node* node) {
 
 JSGenericLowering::JSGenericLowering(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
 
-JSGenericLowering::~JSGenericLowering() {}
+JSGenericLowering::~JSGenericLowering() = default;
 
 
 Reduction JSGenericLowering::Reduce(Node* node) {

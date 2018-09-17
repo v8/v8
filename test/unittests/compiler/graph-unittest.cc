@@ -27,7 +27,7 @@ GraphTest::GraphTest(int num_parameters)
 }
 
 
-GraphTest::~GraphTest() {}
+GraphTest::~GraphTest() = default;
 
 
 Node* GraphTest::Parameter(int32_t index) {
@@ -115,7 +115,7 @@ TypedGraphTest::TypedGraphTest(int num_parameters)
     : GraphTest(num_parameters),
       typer_(isolate(), js_heap_broker(), Typer::kNoFlags, graph()) {}
 
-TypedGraphTest::~TypedGraphTest() {}
+TypedGraphTest::~TypedGraphTest() = default;
 
 Node* TypedGraphTest::Parameter(Type type, int32_t index) {
   Node* node = GraphTest::Parameter(index);

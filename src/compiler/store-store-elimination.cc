@@ -100,7 +100,7 @@ class UnobservablesSet final {
   static UnobservablesSet Unvisited();
   static UnobservablesSet VisitedEmpty(Zone* zone);
   UnobservablesSet();  // unvisited
-  UnobservablesSet(const UnobservablesSet& other) : set_(other.set_) {}
+  UnobservablesSet(const UnobservablesSet& other) = default;
 
   UnobservablesSet Intersect(const UnobservablesSet& other, Zone* zone) const;
   UnobservablesSet Add(UnobservableStore obs, Zone* zone) const;

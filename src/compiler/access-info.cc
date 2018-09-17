@@ -65,7 +65,7 @@ std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
   UNREACHABLE();
 }
 
-ElementAccessInfo::ElementAccessInfo() {}
+ElementAccessInfo::ElementAccessInfo() = default;
 
 ElementAccessInfo::ElementAccessInfo(MapHandles const& receiver_maps,
                                      ElementsKind elements_kind)

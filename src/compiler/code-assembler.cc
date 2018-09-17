@@ -84,13 +84,13 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
       code_generated_(false),
       variables_(zone) {}
 
-CodeAssemblerState::~CodeAssemblerState() {}
+CodeAssemblerState::~CodeAssemblerState() = default;
 
 int CodeAssemblerState::parameter_count() const {
   return static_cast<int>(raw_assembler_->call_descriptor()->ParameterCount());
 }
 
-CodeAssembler::~CodeAssembler() {}
+CodeAssembler::~CodeAssembler() = default;
 
 #if DEBUG
 void CodeAssemblerState::PrintCurrentBlock(std::ostream& os) {

@@ -41,7 +41,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
         js_heap_broker_(js_heap_broker),
         native_context_(native_context),
         zone_(zone) {}
-  ~JSCreateLowering() final {}
+  ~JSCreateLowering() final = default;
 
   const char* reducer_name() const override { return "JSCreateLowering"; }
 

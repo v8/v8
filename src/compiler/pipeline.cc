@@ -692,7 +692,7 @@ class SourcePositionWrapper final : public Reducer {
  public:
   SourcePositionWrapper(Reducer* reducer, SourcePositionTable* table)
       : reducer_(reducer), table_(table) {}
-  ~SourcePositionWrapper() final {}
+  ~SourcePositionWrapper() final = default;
 
   const char* reducer_name() const override { return reducer_->reducer_name(); }
 
@@ -715,7 +715,7 @@ class NodeOriginsWrapper final : public Reducer {
  public:
   NodeOriginsWrapper(Reducer* reducer, NodeOriginTable* table)
       : reducer_(reducer), table_(table) {}
-  ~NodeOriginsWrapper() final {}
+  ~NodeOriginsWrapper() final = default;
 
   const char* reducer_name() const override { return reducer_->reducer_name(); }
 

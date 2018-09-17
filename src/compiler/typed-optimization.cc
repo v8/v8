@@ -32,7 +32,7 @@ TypedOptimization::TypedOptimization(Editor* editor,
                                      graph()->zone())),
       type_cache_(TypeCache::Get()) {}
 
-TypedOptimization::~TypedOptimization() {}
+TypedOptimization::~TypedOptimization() = default;
 
 Reduction TypedOptimization::Reduce(Node* node) {
   DisallowHeapAccess no_heap_access;

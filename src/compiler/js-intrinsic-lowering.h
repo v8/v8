@@ -32,7 +32,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph);
-  ~JSIntrinsicLowering() final {}
+  ~JSIntrinsicLowering() final = default;
 
   const char* reducer_name() const override { return "JSIntrinsicLowering"; }
 

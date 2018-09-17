@@ -38,7 +38,7 @@ Type const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
 class JSTypedLoweringTest : public TypedGraphTest {
  public:
   JSTypedLoweringTest() : TypedGraphTest(3), javascript_(zone()) {}
-  ~JSTypedLoweringTest() override {}
+  ~JSTypedLoweringTest() override = default;
 
  protected:
   Reduction Reduce(Node* node) {

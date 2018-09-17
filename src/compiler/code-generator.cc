@@ -1268,7 +1268,7 @@ OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
   gen->ools_ = this;
 }
 
-OutOfLineCode::~OutOfLineCode() {}
+OutOfLineCode::~OutOfLineCode() = default;
 
 Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
   return object_.is_null() ? isolate->factory()->NewNumber(number_) : object_;

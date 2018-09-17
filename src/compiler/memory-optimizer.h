@@ -36,7 +36,7 @@ class MemoryOptimizer final {
   MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
                   PoisoningMitigationLevel poisoning_level,
                   AllocationFolding allocation_folding);
-  ~MemoryOptimizer() {}
+  ~MemoryOptimizer() = default;
 
   void Optimize();
 
@@ -48,7 +48,7 @@ class MemoryOptimizer final {
     AllocationGroup(Node* node, PretenureFlag pretenure, Zone* zone);
     AllocationGroup(Node* node, PretenureFlag pretenure, Node* size,
                     Zone* zone);
-    ~AllocationGroup() {}
+    ~AllocationGroup() = default;
 
     void Add(Node* object);
     bool Contains(Node* object) const;

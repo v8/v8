@@ -255,7 +255,7 @@ class SparseInputMask final {
   // An iterator over a node's sparse inputs.
   class InputIterator final {
    public:
-    InputIterator() {}
+    InputIterator() = default;
     InputIterator(BitMaskType bit_mask, Node* parent);
 
     Node* parent() const { return parent_; }

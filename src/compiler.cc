@@ -1925,7 +1925,7 @@ ScriptStreamingData::ScriptStreamingData(
     ScriptCompiler::StreamedSource::Encoding encoding)
     : source_stream(source_stream), encoding(encoding) {}
 
-ScriptStreamingData::~ScriptStreamingData() {}
+ScriptStreamingData::~ScriptStreamingData() = default;
 
 void ScriptStreamingData::Release() {
   parser.reset();

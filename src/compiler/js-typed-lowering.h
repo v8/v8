@@ -33,7 +33,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
  public:
   JSTypedLowering(Editor* editor, JSGraph* jsgraph,
                   JSHeapBroker* js_heap_broker, Zone* zone);
-  ~JSTypedLowering() final {}
+  ~JSTypedLowering() final = default;
 
   const char* reducer_name() const override { return "JSTypedLowering"; }
 

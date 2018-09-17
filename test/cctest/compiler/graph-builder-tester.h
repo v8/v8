@@ -62,7 +62,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
     Begin(static_cast<int>(parameter_count()));
     InitParameters();
   }
-  ~GraphBuilderTester() override {}
+  ~GraphBuilderTester() override = default;
 
   void GenerateCode() { Generate(); }
   Node* Parameter(size_t index) {

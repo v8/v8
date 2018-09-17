@@ -47,7 +47,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
               FullUnalignedAccessSupport(),
       PoisoningMitigationLevel poisoning_level =
           PoisoningMitigationLevel::kPoisonCriticalOnly);
-  ~RawMachineAssembler() {}
+  ~RawMachineAssembler() = default;
 
   Isolate* isolate() const { return isolate_; }
   Graph* graph() const { return graph_; }

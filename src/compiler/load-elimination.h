@@ -31,7 +31,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
  public:
   LoadElimination(Editor* editor, JSGraph* jsgraph, Zone* zone)
       : AdvancedReducer(editor), node_states_(zone), jsgraph_(jsgraph) {}
-  ~LoadElimination() final {}
+  ~LoadElimination() final = default;
 
   const char* reducer_name() const override { return "LoadElimination"; }
 
@@ -108,7 +108,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
    private:
     struct Element {
-      Element() {}
+      Element() = default;
       Element(Node* object, Node* index, Node* value,
               MachineRepresentation representation)
           : object(object),
@@ -174,7 +174,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
    private:
     struct Field {
-      Field() {}
+      Field() = default;
       Field(Node* value, MaybeHandle<Name> name) : value(value), name(name) {}
 
       bool operator==(const Field& other) const {

@@ -26,7 +26,7 @@ class JSCallReducerTest : public TypedGraphTest {
       js_heap_broker()->SerializeStandardObjects();
     }
   }
-  ~JSCallReducerTest() override {}
+  ~JSCallReducerTest() override = default;
 
  protected:
   Reduction Reduce(Node* node) {

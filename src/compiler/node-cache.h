@@ -31,7 +31,7 @@ class NodeCache final {
  public:
   explicit NodeCache(unsigned max = 256)
       : entries_(nullptr), size_(0), max_(max) {}
-  ~NodeCache() {}
+  ~NodeCache() = default;
 
   // Search for node associated with {key} and return a pointer to a memory
   // location in this cache that stores an entry for the key. If the location

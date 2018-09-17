@@ -190,7 +190,7 @@ class V8_EXPORT_PRIVATE CompilationJob {
 
   CompilationJob(uintptr_t stack_limit, State initial_state)
       : state_(initial_state), stack_limit_(stack_limit) {}
-  virtual ~CompilationJob() {}
+  virtual ~CompilationJob() = default;
 
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
   uintptr_t stack_limit() const { return stack_limit_; }
