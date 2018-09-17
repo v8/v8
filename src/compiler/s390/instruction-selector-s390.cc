@@ -1492,6 +1492,8 @@ static inline bool TryMatchDoubleConstructFromInsert(
     null)                                                                    \
   V(Word64, RoundInt64ToFloat64, kS390_Int64ToDouble, OperandMode::kNone,    \
     null)                                                                    \
+  V(Word64, ChangeInt64ToFloat64, kS390_Int64ToDouble, OperandMode::kNone,   \
+    null)                                                                    \
   V(Word64, RoundUint64ToFloat32, kS390_Uint64ToFloat32, OperandMode::kNone, \
     null)                                                                    \
   V(Word64, RoundUint64ToFloat64, kS390_Uint64ToDouble, OperandMode::kNone,  \
