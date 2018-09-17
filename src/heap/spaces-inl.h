@@ -546,32 +546,6 @@ bool LocalAllocationBuffer::TryFreeLast(HeapObject* object, int object_size) {
   return false;
 }
 
-// -----------------------------------------------------------------------------
-// MemoryAllocator
-
-bool MemoryAllocator::code_range_valid() const {
-  return code_page_allocator_instance_.get() != nullptr;
-}
-
-Address MemoryAllocator::code_range_start() const {
-  DCHECK(code_range_valid());
-  // TODO(ishell): once a follow-up CL is landed add assert that
-  // |code_range_| >= |optional RW pages| + |code_page_allocator_instance_|
-  return code_range_start_;
-}
-
-size_t MemoryAllocator::code_range_size() const {
-  DCHECK(code_range_valid());
-  // TODO(ishell): once a follow-up CL is landed add assert that
-  // |code_range_| >= |optional RW pages| + |code_page_allocator_instance_|
-  return code_range_size_;
-}
-
-bool MemoryAllocator::code_range_contains(Address address) const {
-  DCHECK(code_range_valid());
-  return (address - code_range_start_) < code_range_size_;
-}
-
 }  // namespace internal
 }  // namespace v8
 

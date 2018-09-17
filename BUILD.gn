@@ -3008,6 +3008,7 @@ v8_source_set("torque_base") {
 v8_component("v8_libbase") {
   sources = [
     "src/base/adapters.h",
+    "src/base/address-region.h",
     "src/base/atomic-utils.h",
     "src/base/atomicops.h",
     "src/base/atomicops_internals_atomicword_compat.h",

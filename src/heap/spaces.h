@@ -1389,10 +1389,16 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
                                     : data_page_allocator_;
   }
 
-  V8_INLINE bool code_range_valid() const;
-  V8_INLINE Address code_range_start() const;
-  V8_INLINE size_t code_range_size() const;
-  V8_INLINE bool code_range_contains(Address address) const;
+  // A region of memory that may contain executable code including reserved
+  // OS page with read-write access in the beginning.
+  const base::AddressRegion& code_range() const {
+    // |code_range_| >= |optional RW pages| + |code_page_allocator_instance_|
+    DCHECK_IMPLIES(!code_range_.is_empty(), code_page_allocator_instance_);
+    DCHECK_IMPLIES(!code_range_.is_empty(),
+                   code_range_.contains(code_page_allocator_instance_->begin(),
+                                        code_page_allocator_instance_->size()));
+    return code_range_;
+  }
 
   Unmapper* unmapper() { return &unmapper_; }
 
@@ -1472,14 +1478,12 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // A part of the |heap_reservation_| that may contain executable code
   // including reserved page with read-write access in the beginning.
   // See details below.
-  // TODO(ishell): introduce base::AddressRange code_range_; instead.
-  Address code_range_start_;
-  size_t code_range_size_;
+  base::AddressRegion code_range_;
 
   // This unique pointer owns the instance of bounded code allocator
   // that controls executable pages allocation. It does not control the
   // optionally existing page in the beginning of the |code_range_|.
-  // So, summarizing all above, the following condition holds:
+  // So, summarizing all above, the following conditions hold:
   // 1) |heap_reservation_| >= |code_range_|
   // 2) |code_range_| >= |optional RW pages| + |code_page_allocator_instance_|.
   // 3) |heap_reservation_| is AllocatePageSize()-aligned

@@ -8707,14 +8707,10 @@ void Isolate::SetStackLimit(uintptr_t stack_limit) {
 
 void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::MemoryAllocator* memory_allocator = isolate->heap()->memory_allocator();
-  if (memory_allocator->code_range_valid()) {
-    *start = reinterpret_cast<void*>(memory_allocator->code_range_start());
-    *length_in_bytes = memory_allocator->code_range_size();
-  } else {
-    *start = nullptr;
-    *length_in_bytes = 0;
-  }
+  const base::AddressRegion& code_range =
+      isolate->heap()->memory_allocator()->code_range();
+  *start = reinterpret_cast<void*>(code_range.begin());
+  *length_in_bytes = code_range.size();
 }
 
 MemoryRange Isolate::GetBuiltinsCodeRange() {

@@ -212,10 +212,10 @@ VirtualMemory::VirtualMemory(v8::PageAllocator* page_allocator, size_t size,
   size_t page_size = page_allocator_->AllocatePageSize();
   alignment = RoundUp(alignment, page_size);
   size = RoundUp(size, page_size);
-  address_ = reinterpret_cast<Address>(AllocatePages(
+  Address address = reinterpret_cast<Address>(AllocatePages(
       page_allocator_, hint, size, alignment, PageAllocator::kNoAccess));
-  if (address_ != kNullAddress) {
-    size_ = size;
+  if (address != kNullAddress) {
+    region_ = base::AddressRegion(address, size);
   }
 }
 
@@ -227,8 +227,7 @@ VirtualMemory::~VirtualMemory() {
 
 void VirtualMemory::Reset() {
   page_allocator_ = nullptr;
-  address_ = kNullAddress;
-  size_ = 0;
+  region_ = base::AddressRegion();
 }
 
 bool VirtualMemory::SetPermissions(Address address, size_t size,
@@ -245,14 +244,13 @@ size_t VirtualMemory::Release(Address free_start) {
   DCHECK(IsAddressAligned(free_start, page_allocator_->CommitPageSize()));
   // Notice: Order is important here. The VirtualMemory object might live
   // inside the allocated region.
-  const size_t free_size = size_ - (free_start - address_);
-  size_t old_size = size_;
+
+  const size_t old_size = region_.size();
+  const size_t free_size = old_size - (free_start - region_.begin());
   CHECK(InVM(free_start, free_size));
-  DCHECK_LT(address_, free_start);
-  DCHECK_LT(free_start, address_ + size_);
-  size_ -= free_size;
-  CHECK(ReleasePages(page_allocator_, reinterpret_cast<void*>(address_),
-                     old_size, size_));
+  region_.set_size(old_size - free_size);
+  CHECK(ReleasePages(page_allocator_, reinterpret_cast<void*>(region_.begin()),
+                     old_size, region_.size()));
   return free_size;
 }
 
@@ -261,21 +259,18 @@ void VirtualMemory::Free() {
   // Notice: Order is important here. The VirtualMemory object might live
   // inside the allocated region.
   v8::PageAllocator* page_allocator = page_allocator_;
-  Address address = address_;
-  size_t size = size_;
-  CHECK(InVM(address, size));
+  base::AddressRegion region = region_;
   Reset();
-  // FreePages expects size to be aligned to allocation granularity. Trimming
-  // may leave size at only commit granularity. Align it here.
-  CHECK(FreePages(page_allocator, reinterpret_cast<void*>(address),
-                  RoundUp(size, page_allocator->AllocatePageSize())));
+  // FreePages expects size to be aligned to allocation granularity however
+  // ReleasePages may leave size at only commit granularity. Align it here.
+  CHECK(FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+                  RoundUp(region.size(), page_allocator->AllocatePageSize())));
 }
 
 void VirtualMemory::TakeControl(VirtualMemory* from) {
   DCHECK(!IsReserved());
   page_allocator_ = from->page_allocator_;
-  address_ = from->address_;
-  size_ = from->size_;
+  region_ = from->region_;
   from->Reset();
 }
 

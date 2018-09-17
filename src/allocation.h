@@ -6,6 +6,7 @@
 #define V8_ALLOCATION_H_
 
 #include "include/v8-platform.h"
+#include "src/base/address-region.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/platform/platform.h"
 #include "src/globals.h"
@@ -167,7 +168,7 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
   // Construct a virtual memory by assigning it some already mapped address
   // and size.
   VirtualMemory(v8::PageAllocator* page_allocator, Address address, size_t size)
-      : page_allocator_(page_allocator), address_(address), size_(size) {
+      : page_allocator_(page_allocator), region_(address, size) {
     DCHECK_NOT_NULL(page_allocator);
   }
 
@@ -185,12 +186,14 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
   }
 
   // Returns whether the memory has been reserved.
-  bool IsReserved() const { return address_ != kNullAddress; }
+  bool IsReserved() const { return region_.begin() != kNullAddress; }
 
   // Initialize or resets an embedded VirtualMemory object.
   void Reset();
 
   v8::PageAllocator* page_allocator() { return page_allocator_; }
+
+  const base::AddressRegion& region() const { return region_; }
 
   // Returns the start address of the reserved memory.
   // If the memory was reserved with an alignment, this address is not
@@ -198,19 +201,19 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
   // the alignment to get the start of the aligned block.
   Address address() const {
     DCHECK(IsReserved());
-    return address_;
+    return region_.begin();
   }
 
   Address end() const {
     DCHECK(IsReserved());
-    return address_ + size_;
+    return region_.end();
   }
 
   // Returns the size of the reserved memory. The returned value is only
   // meaningful when IsReserved() returns true.
   // If the memory was reserved with an alignment, this size may be larger
   // than the requested size.
-  size_t size() const { return size_; }
+  size_t size() const { return region_.size(); }
 
   // Sets permissions according to the access argument. address and size must be
   // multiples of CommitPageSize(). Returns true on success, otherwise false.
@@ -228,14 +231,13 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
   void TakeControl(VirtualMemory* from);
 
   bool InVM(Address address, size_t size) {
-    return (address_ <= address) && ((address_ + size_) >= (address + size));
+    return region_.contains(address, size);
   }
 
  private:
   // Page allocator that controls the virtual memory.
   v8::PageAllocator* page_allocator_ = nullptr;
-  Address address_ = kNullAddress;  // Start address of the virtual memory.
-  size_t size_ = 0;                 // Size of the virtual memory.
+  base::AddressRegion region_;
 
   DISALLOW_COPY_AND_ASSIGN(VirtualMemory);
 };

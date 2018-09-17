@@ -74,9 +74,12 @@ AssemblerOptions AssemblerOptions::Default(
   options.enable_simulator_code = !serializer;
 #endif
   options.inline_offheap_trampolines = !serializer;
+
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
-  options.code_range_start =
-      isolate->heap()->memory_allocator()->code_range_start();
+  const base::AddressRegion& code_range =
+      isolate->heap()->memory_allocator()->code_range();
+  DCHECK_IMPLIES(code_range.begin() != kNullAddress, !code_range.is_empty());
+  options.code_range_start = code_range.begin();
 #endif
   return options;
 }

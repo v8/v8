@@ -7,6 +7,7 @@
 
 #include <set>
 
+#include "src/base/address-region.h"
 #include "src/base/utils/random-number-generator.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
@@ -75,36 +76,17 @@ class V8_BASE_EXPORT RegionAllocator final {
   void Print(std::ostream& os) const;
 
  private:
-  class Region {
+  class Region : public AddressRegion {
    public:
-    Address begin() const { return address_; }
-    Address end() const { return address_ + size_; }
-
-    size_t size() const { return size_; }
-    void set_size(size_t size) { size_ = size; }
-
-    bool contains(Address address) const {
-      STATIC_ASSERT(std::is_unsigned<Address>::value);
-      return (address - begin()) < size();
-    }
-
-    bool contains(Address address, size_t size) const {
-      STATIC_ASSERT(std::is_unsigned<Address>::value);
-      Address offset = address - begin();
-      return (offset < size_) && (offset <= size_ - size);
-    }
+    Region(Address address, size_t size, bool is_used)
+        : AddressRegion(address, size), is_used_(is_used) {}
 
     bool is_used() const { return is_used_; }
     void set_is_used(bool used) { is_used_ = used; }
 
-    Region(Address address, size_t size, bool is_used)
-        : address_(address), size_(size), is_used_(is_used) {}
-
     void Print(std::ostream& os) const;
 
    private:
-    Address address_;
-    size_t size_;
     bool is_used_;
   };
 

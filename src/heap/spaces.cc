@@ -123,8 +123,6 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate, size_t capacity,
     : isolate_(isolate),
       data_page_allocator_(GetPlatformPageAllocator()),
       code_page_allocator_(nullptr),
-      code_range_start_(kNullAddress),
-      code_range_size_(0),
       capacity_(RoundUp(capacity, Page::kPageSize)),
       size_(0),
       size_executable_(0),
@@ -168,8 +166,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
     V8::FatalProcessOutOfMemory(isolate_,
                                 "CodeRange setup: allocate virtual memory");
   }
-  code_range_start_ = reservation.address();
-  code_range_size_ = reservation.size();
+  code_range_ = reservation.region();
 
   // We are sure that we have mapped a block of requested addresses.
   DCHECK_GE(reservation.size(), requested);
