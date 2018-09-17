@@ -2257,6 +2257,20 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kNumberSilenceNaN: {
+        Type const input_type = TypeOf(node->InputAt(0));
+        if (input_type.Is(Type::OrderedNumber())) {
+          // No need to silence anything if the input cannot be NaN.
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kFloat64);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kFloat64);
+          if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
+        }
+        return;
+      }
       case IrOpcode::kNumberSqrt: {
         VisitUnop(node, UseInfo::TruncatingFloat64(),
                   MachineRepresentation::kFloat64);
@@ -3066,11 +3080,6 @@ class RepresentationSelector {
         return;
       }
 
-      case IrOpcode::kNumberSilenceNaN:
-        VisitUnop(node, UseInfo::TruncatingFloat64(),
-                  MachineRepresentation::kFloat64);
-        if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
-        return;
       case IrOpcode::kDateNow:
         VisitInputs(node);
         return SetOutput(node, MachineRepresentation::kTaggedPointer);
