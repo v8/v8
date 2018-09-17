@@ -1757,9 +1757,12 @@ class RepresentationSelector {
 
       case IrOpcode::kNumberAdd:
       case IrOpcode::kNumberSubtract: {
-        if (BothInputsAre(node, type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
-            (GetUpperBound(node).Is(Type::Signed32()) ||
-             GetUpperBound(node).Is(Type::Unsigned32()) ||
+        if (TypeOf(node->InputAt(0))
+                .Is(type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
+            TypeOf(node->InputAt(1))
+                .Is(type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
+            (TypeOf(node).Is(Type::Signed32()) ||
+             TypeOf(node).Is(Type::Unsigned32()) ||
              truncation.IsUsedAsWord32())) {
           // => Int32Add/Sub
           VisitWord32TruncatingBinop(node);
@@ -1832,12 +1835,12 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberMultiply: {
-        if (BothInputsAre(node, Type::Integral32()) &&
-            (NodeProperties::GetType(node).Is(Type::Signed32()) ||
-             NodeProperties::GetType(node).Is(Type::Unsigned32()) ||
+        if (TypeOf(node->InputAt(0)).Is(Type::Integral32()) &&
+            TypeOf(node->InputAt(1)).Is(Type::Integral32()) &&
+            (TypeOf(node).Is(Type::Signed32()) ||
+             TypeOf(node).Is(Type::Unsigned32()) ||
              (truncation.IsUsedAsWord32() &&
-              NodeProperties::GetType(node).Is(
-                  type_cache_.kSafeIntegerOrMinusZero)))) {
+              TypeOf(node).Is(type_cache_.kSafeIntegerOrMinusZero)))) {
           // Multiply reduces to Int32Mul if the inputs are integers, and
           // (a) the output is either known to be Signed32, or
           // (b) the output is known to be Unsigned32, or
