@@ -711,6 +711,9 @@ base::Optional<ParseResult> MakeForLoopStatement(
 
 base::Optional<ParseResult> MakeLabelBlock(ParseResultIterator* child_results) {
   auto label = child_results->NextAs<std::string>();
+  if (!IsUpperCamelCase(label)) {
+    NamingConventionError("Label", label, "UpperCamelCase");
+  }
   auto parameters = child_results->NextAs<ParameterList>();
   auto body = child_results->NextAs<Statement*>();
   LabelBlock* result =
@@ -840,6 +843,9 @@ base::Optional<ParseResult> MakeConditionalExpression(
 base::Optional<ParseResult> MakeLabelAndTypes(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
+  if (!IsUpperCamelCase(name)) {
+    NamingConventionError("Label", name, "UpperCamelCase");
+  }
   auto types = child_results->NextAs<std::vector<TypeExpression*>>();
   return ParseResult{LabelAndTypes{std::move(name), std::move(types)}};
 }

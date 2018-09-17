@@ -1747,9 +1747,9 @@ module array {
     sortState[kBailoutStatusIdx] = kSuccess;
 
     try {
-      const a: JSArray = Cast<JSArray>(obj) otherwise slow;
+      const a: JSArray = Cast<JSArray>(obj) otherwise Slow;
       const elementsKind: ElementsKind = map.elements_kind;
-      if (!IsFastElementsKind(elementsKind)) goto slow;
+      if (!IsFastElementsKind(elementsKind)) goto Slow;
 
       // 3. Let len be ? ToLength(? Get(obj, "length")).
       const len: Smi = a.length_fast;
@@ -1771,7 +1771,7 @@ module array {
       }
       ArrayTimSort(context, sortState, nofNonUndefined);
     }
-    label slow {
+    label Slow {
       // 3. Let len be ? ToLength(? Get(obj, "length")).
       const len: Number = GetLengthProperty(context, obj);
 
