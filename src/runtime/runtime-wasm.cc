@@ -115,16 +115,18 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   DCHECK_EQ(2, args.length());
   DCHECK_NULL(isolate->context());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
+  CONVERT_ARG_CHECKED(HeapObject, tag_raw, 0);
+  CONVERT_SMI_ARG_CHECKED(size, 1);
+  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  Handle<Object> tag(tag_raw, isolate);
   Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
       static_cast<MessageTemplate::Template>(
           MessageTemplate::kWasmExceptionError));
-  CONVERT_ARG_HANDLE_CHECKED(Smi, id, 0);
-  CHECK(!JSReceiver::SetProperty(
-             isolate, exception,
-             isolate->factory()->wasm_exception_runtime_id_symbol(), id,
-             LanguageMode::kStrict)
-             .is_null());
-  CONVERT_SMI_ARG_CHECKED(size, 1);
+  CHECK(
+      !JSReceiver::SetProperty(isolate, exception,
+                               isolate->factory()->wasm_exception_tag_symbol(),
+                               tag, LanguageMode::kStrict)
+           .is_null());
   Handle<JSTypedArray> values =
       isolate->factory()->NewJSTypedArray(ElementsKind::UINT16_ELEMENTS, size);
   CHECK(!JSReceiver::SetProperty(
@@ -137,35 +139,33 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
 
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
-  HandleScope scope(isolate);
+  SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   DCHECK_NULL(isolate->context());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  CONVERT_ARG_HANDLE_CHECKED(Object, except_obj, 0);
-  CHECK(!except_obj.is_null());
-  return isolate->Throw(*except_obj);
+  CONVERT_ARG_CHECKED(Object, except_obj, 0);
+  return isolate->Throw(except_obj);
 }
 
-RUNTIME_FUNCTION(Runtime_WasmGetExceptionRuntimeId) {
+RUNTIME_FUNCTION(Runtime_WasmExceptionGetTag) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DCHECK_NULL(isolate->context());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  CONVERT_ARG_HANDLE_CHECKED(Object, except_obj, 0);
+  CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
+  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  Handle<Object> except_obj(except_obj_raw, isolate);
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
     Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
     Handle<Object> tag;
-    if (JSReceiver::GetProperty(
-            isolate, exception,
-            isolate->factory()->wasm_exception_runtime_id_symbol())
+    if (JSReceiver::GetProperty(isolate, exception,
+                                isolate->factory()->wasm_exception_tag_symbol())
             .ToHandle(&tag)) {
-      if (tag->IsSmi()) {
-        return *tag;
-      }
+      return *tag;
     }
   }
-  return Smi::FromInt(wasm::kInvalidExceptionTag);
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
@@ -174,7 +174,9 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
   DCHECK_EQ(2, args.length());
   DCHECK_NULL(isolate->context());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  CONVERT_ARG_HANDLE_CHECKED(Object, except_obj, 0);
+  CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
+  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  Handle<Object> except_obj(except_obj_raw, isolate);
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
     Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
     Handle<Object> values_obj;
@@ -202,7 +204,9 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionSetElement) {
   DCHECK_EQ(3, args.length());
   DCHECK_NULL(isolate->context());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  CONVERT_ARG_HANDLE_CHECKED(Object, except_obj, 0);
+  CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
+  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  Handle<Object> except_obj(except_obj_raw, isolate);
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
     Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
     Handle<Object> values_obj;

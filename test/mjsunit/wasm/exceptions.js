@@ -7,7 +7,7 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-function assertWasmThrows(runtime_id, values, code) {
+function assertWasmThrows(instance, runtime_id, values, code) {
   try {
     if (typeof code === 'function') {
       code();
@@ -16,7 +16,7 @@ function assertWasmThrows(runtime_id, values, code) {
     }
   } catch (e) {
     assertInstanceof(e, WebAssembly.RuntimeError);
-    var e_runtime_id = %GetWasmExceptionId(e);
+    var e_runtime_id = %GetWasmExceptionId(e, instance);
     assertTrue(Number.isInteger(e_runtime_id));
     assertEquals(e_runtime_id, runtime_id);
     var e_values = %GetWasmExceptionValues(e);
@@ -57,8 +57,8 @@ function assertWasmThrows(runtime_id, values, code) {
   let instance = builder.instantiate();
 
   assertEquals(1, instance.exports.throw_if_param_not_zero(0));
-  assertWasmThrows(except, [], () => instance.exports.throw_if_param_not_zero(10));
-  assertWasmThrows(except, [], () => instance.exports.throw_if_param_not_zero(-1));
+  assertWasmThrows(instance, except, [], () => instance.exports.throw_if_param_not_zero(10));
+  assertWasmThrows(instance, except, [], () => instance.exports.throw_if_param_not_zero(-1));
 })();
 
 // Test that empty try/catch blocks work.
@@ -135,7 +135,7 @@ function assertWasmThrows(runtime_id, values, code) {
 
   assertEquals(3, instance.exports.catch_different_exceptions(0));
   assertEquals(4, instance.exports.catch_different_exceptions(1));
-  assertWasmThrows(except3, [], () => instance.exports.catch_different_exceptions(2));
+  assertWasmThrows(instance, except3, [], () => instance.exports.catch_different_exceptions(2));
 })();
 
 // Test throwing an exception with multiple values.
@@ -150,7 +150,7 @@ function assertWasmThrows(runtime_id, values, code) {
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertWasmThrows(except, [0, 1, 0, 2], () => instance.exports.throw_1_2());
+  assertWasmThrows(instance, except, [0, 1, 0, 2], () => instance.exports.throw_1_2());
 })();
 
 // Test throwing/catching the i32 parameter value.
@@ -185,8 +185,8 @@ function assertWasmThrows(runtime_id, values, code) {
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertWasmThrows(except, [0, 5], () => instance.exports.throw_param(5));
-  assertWasmThrows(except, [6, 31026], () => instance.exports.throw_param(424242));
+  assertWasmThrows(instance, except, [0, 5], () => instance.exports.throw_param(5));
+  assertWasmThrows(instance, except, [6, 31026], () => instance.exports.throw_param(424242));
 })();
 
 // Test throwing/catching the f32 parameter value.
@@ -220,8 +220,8 @@ function assertWasmThrows(runtime_id, values, code) {
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertWasmThrows(except, [16544, 0], () => instance.exports.throw_param(5.0));
-  assertWasmThrows(except, [16680, 0], () => instance.exports.throw_param(10.5));
+  assertWasmThrows(instance, except, [16544, 0], () => instance.exports.throw_param(5.0));
+  assertWasmThrows(instance, except, [16680, 0], () => instance.exports.throw_param(10.5));
 })();
 
 // Test throwing/catching an I64 value
@@ -273,8 +273,8 @@ function assertWasmThrows(runtime_id, values, code) {
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertWasmThrows(except, [0, 10, 0, 5], () => instance.exports.throw_param(10, 5));
-  assertWasmThrows(except, [65535, 65535, 0, 13], () => instance.exports.throw_param(-1, 13));
+  assertWasmThrows(instance, except, [0, 10, 0, 5], () => instance.exports.throw_param(10, 5));
+  assertWasmThrows(instance, except, [65535, 65535, 0, 13], () => instance.exports.throw_param(-1, 13));
 })();
 
 // Test throwing/catching the F64 parameter value
@@ -309,8 +309,8 @@ function assertWasmThrows(runtime_id, values, code) {
       ]).exportFunc();
   let instance = builder.instantiate();
 
-  assertWasmThrows(except, [16404, 0, 0, 0], () => instance.exports.throw_param(5.0));
-  assertWasmThrows(except, [16739, 4816, 0, 0], () => instance.exports.throw_param(10000000.5));
+  assertWasmThrows(instance, except, [16404, 0, 0, 0], () => instance.exports.throw_param(5.0));
+  assertWasmThrows(instance, except, [16739, 4816, 0, 0], () => instance.exports.throw_param(10000000.5));
 })();
 
 // Test the encoding of a computed parameter value.
@@ -334,8 +334,8 @@ function assertWasmThrows(runtime_id, values, code) {
       ]).exportFunc()
   let instance = builder.instantiate();
 
-  assertWasmThrows(except, [65535, 65536-8], () => instance.exports.throw_expr_with_params(1.5, 2.5, 4));
-  assertWasmThrows(except, [0, 12], () => instance.exports.throw_expr_with_params(5.7, 2.5, 4));
+  assertWasmThrows(instance, except, [65535, 65536-8], () => instance.exports.throw_expr_with_params(1.5, 2.5, 4));
+  assertWasmThrows(instance, except, [0, 12], () => instance.exports.throw_expr_with_params(5.7, 2.5, 4));
 })();
 
 // Now that we know catching works locally, we test catching exceptions that

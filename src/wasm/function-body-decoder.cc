@@ -443,11 +443,11 @@ class WasmGraphBuildingInterface {
     TFNode* if_catch = nullptr;
     TFNode* if_no_catch = nullptr;
     if (exception != nullptr) {
-      // Get the exception and see if wanted exception.
-      TFNode* caught_tag = BUILD(GetExceptionRuntimeId, exception);
-      TFNode* exception_tag = BUILD(ConvertExceptionTagToRuntimeId, imm.index);
-      TFNode* compare_i32 = BUILD(Binop, kExprI32Eq, caught_tag, exception_tag);
-      BUILD(BranchNoHint, compare_i32, &if_catch, &if_no_catch);
+      // Get the exception tag and see if it matches the expected one.
+      TFNode* caught_tag = BUILD(GetExceptionTag, exception);
+      TFNode* exception_tag = BUILD(LoadExceptionTagFromTable, imm.index);
+      TFNode* compare = BUILD(ExceptionTagEqual, caught_tag, exception_tag);
+      BUILD(BranchNoHint, compare, &if_catch, &if_no_catch);
     }
 
     SsaEnv* if_no_catch_env = Split(decoder, ssa_env_);

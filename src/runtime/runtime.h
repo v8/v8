@@ -473,7 +473,7 @@ namespace internal {
   F(GetDeoptCount, 1, 1)                      \
   F(GetOptimizationStatus, -1, 1)             \
   F(GetUndetectable, 0, 1)                    \
-  F(GetWasmExceptionId, 1, 1)                 \
+  F(GetWasmExceptionId, 2, 1)                 \
   F(GetWasmExceptionValues, 1, 1)             \
   F(GetWasmRecoveredTrapCount, 0, 1)          \
   F(GlobalPrint, 1, 1)                        \
@@ -541,18 +541,18 @@ namespace internal {
   F(TypedArraySet, 2, 1)                 \
   F(TypedArraySortFast, 1, 1)
 
-#define FOR_EACH_INTRINSIC_WASM(F)   \
-  F(ThrowWasmError, 1, 1)            \
-  F(ThrowWasmStackOverflow, 0, 1)    \
-  F(WasmExceptionGetElement, 2, 1)   \
-  F(WasmExceptionSetElement, 3, 1)   \
-  F(WasmGetExceptionRuntimeId, 1, 1) \
-  F(WasmGrowMemory, 2, 1)            \
-  F(WasmRunInterpreter, 2, 1)        \
-  F(WasmStackGuard, 0, 1)            \
-  F(WasmThrow, 1, 1)                 \
-  F(WasmThrowCreate, 2, 1)           \
-  F(WasmThrowTypeError, 0, 1)        \
+#define FOR_EACH_INTRINSIC_WASM(F) \
+  F(ThrowWasmError, 1, 1)          \
+  F(ThrowWasmStackOverflow, 0, 1)  \
+  F(WasmExceptionGetElement, 2, 1) \
+  F(WasmExceptionSetElement, 3, 1) \
+  F(WasmExceptionGetTag, 1, 1)     \
+  F(WasmGrowMemory, 2, 1)          \
+  F(WasmRunInterpreter, 2, 1)      \
+  F(WasmStackGuard, 0, 1)          \
+  F(WasmThrow, 1, 1)               \
+  F(WasmThrowCreate, 2, 1)         \
+  F(WasmThrowTypeError, 0, 1)      \
   F(WasmCompileLazy, 2, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
