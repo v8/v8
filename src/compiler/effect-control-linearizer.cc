@@ -4994,14 +4994,14 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
                                   kHeapObjectTag))));
 
   auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
-  auto done = __ MakeLabel(MachineRepresentation::kWord32);
+  auto done = __ MakeLabel(MachineType::PointerRepresentation());
   __ Goto(&loop, first_entry);
   __ Bind(&loop);
   {
     Node* entry = loop.PhiAt(0);
     Node* check =
         __ WordEqual(entry, __ IntPtrConstant(OrderedHashMap::kNotFound));
-    __ GotoIf(check, &done, __ Int32Constant(-1));
+    __ GotoIf(check, &done, entry);
     entry = __ IntAdd(
         __ IntMul(entry, __ IntPtrConstant(OrderedHashMap::kEntrySize)),
         number_of_buckets);
@@ -5030,10 +5030,7 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
               &if_match, &if_notmatch);
 
     __ Bind(&if_match);
-    {
-      Node* index = ChangeIntPtrToInt32(entry);
-      __ Goto(&done, index);
-    }
+    __ Goto(&done, entry);
 
     __ Bind(&if_notmatch);
     {

@@ -3146,7 +3146,7 @@ class RepresentationSelector {
         Type const key_type = TypeOf(node->InputAt(1));
         if (key_type.Is(Type::Signed32OrMinusZero())) {
           VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
-                     MachineRepresentation::kWord32);
+                     MachineType::PointerRepresentation());
           if (lower()) {
             NodeProperties::ChangeOp(
                 node,
