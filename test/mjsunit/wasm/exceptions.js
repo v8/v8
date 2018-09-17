@@ -535,41 +535,57 @@ function assertWasmThrows(runtime_id, values, code) {
     ])
     .exportFunc();
 
-  // Scenario 4: Catches an exception raised in JS.
-  builder.addFunction("from_js", kSig_i_i)
+  // Scenario 4: Does not catch an exception raised in JS, even if primitive
+  // values are being used as exceptions.
+  builder.addFunction("i_from_js", kSig_i_i)
     .addBody([
       kExprTry, kWasmI32,
         kExprGetLocal, 0,
         kExprCallFunction, kJSThrowI,
         kExprUnreachable,
       kExprCatch, except,
+        kExprUnreachable,
       kExprEnd,
     ])
     .exportFunc();
 
-  // Scenario 5: Does not catch an exception raised in JS if it is not a
-  // number.
   builder.addFunction("string_from_js", kSig_v_v)
     .addBody([
-        kExprCallFunction, kJSThrowString
+      kExprTry, kWasmStmt,
+        kExprCallFunction, kJSThrowString,
+      kExprCatch, except,
+        kExprUnreachable,
+      kExprEnd,
     ])
     .exportFunc();
 
   builder.addFunction("fp_from_js", kSig_v_v)
     .addBody([
-        kExprCallFunction, kJSThrowFP
+      kExprTry, kWasmStmt,
+        kExprCallFunction, kJSThrowFP,
+      kExprCatch, except,
+        kExprUnreachable,
+      kExprEnd,
     ])
     .exportFunc();
 
   builder.addFunction("large_from_js", kSig_v_v)
     .addBody([
-        kExprCallFunction, kJSThrowLarge
+      kExprTry, kWasmStmt,
+        kExprCallFunction, kJSThrowLarge,
+      kExprCatch, except,
+        kExprUnreachable,
+      kExprEnd,
     ])
     .exportFunc();
 
   builder.addFunction("undefined_from_js", kSig_v_v)
     .addBody([
-        kExprCallFunction, kJSThrowUndefined
+      kExprTry, kWasmStmt,
+        kExprCallFunction, kJSThrowUndefined,
+      kExprCatch, except,
+        kExprUnreachable,
+      kExprEnd,
     ])
     .exportFunc();
 
@@ -599,10 +615,9 @@ function assertWasmThrows(runtime_id, values, code) {
   assertEquals(0x7FFFFFFF, instance.exports.from_direct_callee(0x7FFFFFFF));
   assertEquals(10, instance.exports.from_indirect_callee(10, 0));
   assertEquals(77, instance.exports.from_indirect_callee(77, 1));
-  // TODO(mstarzinger): Re-enable the following test cases.
-  /*assertEquals(10, instance.exports.from_js(10));
-  assertEquals(-10, instance.exports.from_js(-10));*/
 
+  assertThrowsEquals(() => instance.exports.i_from_js(10), 10);
+  assertThrowsEquals(() => instance.exports.i_from_js(-10), -10);
   assertThrowsEquals(instance.exports.string_from_js, "use wasm");
   assertThrowsEquals(instance.exports.fp_from_js, 10.5);
   assertThrowsEquals(instance.exports.large_from_js, 1e+28);
