@@ -20,7 +20,7 @@ namespace torque {
 
 struct LocationReference {
   LocationReference(Value* value, VisitResult base, VisitResult index)
-      : value(value), base(base), index(index) {}
+      : value(value), base(std::move(base)), index(std::move(index)) {}
   Value* value;
   VisitResult base;
   VisitResult index;
