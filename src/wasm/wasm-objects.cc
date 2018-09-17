@@ -1309,7 +1309,8 @@ Address WasmInstanceObject::GetCallTarget(uint32_t func_index) {
 
 // static
 Handle<WasmExceptionObject> WasmExceptionObject::New(
-    Isolate* isolate, const wasm::FunctionSig* sig) {
+    Isolate* isolate, const wasm::FunctionSig* sig,
+    Handle<HeapObject> exception_tag) {
   Handle<JSFunction> exception_cons(
       isolate->native_context()->wasm_exception_constructor(), isolate);
   Handle<JSObject> exception_object =
@@ -1328,6 +1329,7 @@ Handle<WasmExceptionObject> WasmExceptionObject::New(
     serialized_sig->set(index++, param);
   }
   exception->set_serialized_signature(*serialized_sig);
+  exception->set_exception_tag(*exception_tag);
 
   return exception;
 }

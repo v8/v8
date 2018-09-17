@@ -118,12 +118,12 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
       static_cast<MessageTemplate::Template>(
           MessageTemplate::kWasmExceptionError));
-  CONVERT_ARG_HANDLE_CHECKED(Smi, id, 0);
-  CHECK(!JSReceiver::SetProperty(
-             isolate, exception,
-             isolate->factory()->wasm_exception_runtime_id_symbol(), id,
-             LanguageMode::kStrict)
-             .is_null());
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, tag, 0);
+  CHECK(
+      !JSReceiver::SetProperty(isolate, exception,
+                               isolate->factory()->wasm_exception_tag_symbol(),
+                               tag, LanguageMode::kStrict)
+           .is_null());
   CONVERT_SMI_ARG_CHECKED(size, 1);
   Handle<JSTypedArray> values =
       isolate->factory()->NewJSTypedArray(ElementsKind::UINT16_ELEMENTS, size);
@@ -146,7 +146,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
   return isolate->Throw(*except_obj);
 }
 
-RUNTIME_FUNCTION(Runtime_WasmGetExceptionRuntimeId) {
+RUNTIME_FUNCTION(Runtime_WasmExceptionGetTag) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -156,16 +156,13 @@ RUNTIME_FUNCTION(Runtime_WasmGetExceptionRuntimeId) {
   if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
     Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
     Handle<Object> tag;
-    if (JSReceiver::GetProperty(
-            isolate, exception,
-            isolate->factory()->wasm_exception_runtime_id_symbol())
+    if (JSReceiver::GetProperty(isolate, exception,
+                                isolate->factory()->wasm_exception_tag_symbol())
             .ToHandle(&tag)) {
-      if (tag->IsSmi()) {
-        return *tag;
-      }
+      return *tag;
     }
   }
-  return Smi::FromInt(wasm::kInvalidExceptionTag);
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {

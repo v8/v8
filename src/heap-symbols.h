@@ -288,7 +288,7 @@
   V(sealed_symbol)                     \
   V(stack_trace_symbol)                \
   V(strict_function_transition_symbol) \
-  V(wasm_exception_runtime_id_symbol)  \
+  V(wasm_exception_tag_symbol)         \
   V(wasm_exception_values_symbol)      \
   V(uninitialized_symbol)
 

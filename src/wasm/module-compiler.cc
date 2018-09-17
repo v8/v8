@@ -325,6 +325,10 @@ class InstanceBuilder {
   void InitializeTables(Handle<WasmInstanceObject> instance);
 
   void LoadTableSegments(Handle<WasmInstanceObject> instance);
+
+  // Creates new exception tags for all exceptions. Note that some tags might
+  // already exist if they were imported, those tags will be re-used.
+  void InitializeExceptions(Handle<WasmInstanceObject> instance);
 };
 
 }  // namespace
@@ -1076,6 +1080,17 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   //--------------------------------------------------------------------------
+  // Set up the exception table used for exception tag checks.
+  //--------------------------------------------------------------------------
+  int exceptions_count = static_cast<int>(module_->exceptions.size());
+  if (exceptions_count > 0) {
+    Handle<FixedArray> exception_table =
+        isolate_->factory()->NewFixedArray(exceptions_count, TENURED);
+    instance->set_exceptions_table(*exception_table);
+    exception_wrappers_.resize(exceptions_count);
+  }
+
+  //--------------------------------------------------------------------------
   // Reserve the metadata for indirect function tables.
   //--------------------------------------------------------------------------
   int table_count = static_cast<int>(module_->tables.size());
@@ -1097,6 +1112,13 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   if (table_count > 0) {
     InitializeTables(instance);
+  }
+
+  //--------------------------------------------------------------------------
+  // Initialize the exceptions table.
+  //--------------------------------------------------------------------------
+  if (exceptions_count > 0) {
+    InitializeExceptions(instance);
   }
 
   //--------------------------------------------------------------------------
@@ -1740,8 +1762,10 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
                           index, module_name, import_name);
           return -1;
         }
-        // TODO(mstarzinger): Actually add imported exceptions to the instance
-        // exception table, making sure to preserve object identity.
+        Object* exception_tag = imported_exception->exception_tag();
+        DCHECK(instance->exceptions_table()->get(import.index)->IsUndefined());
+        instance->exceptions_table()->set(import.index, exception_tag);
+        exception_wrappers_[import.index] = imported_exception;
         break;
       }
       default:
@@ -1860,10 +1884,6 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       }
     }
   }
-
-  // TODO(mstarzinger): The {exception_wrappers_} table is only needed until we
-  // have an exception table per instance which can then be used directly.
-  exception_wrappers_.resize(module_->exceptions.size());
 
   Handle<JSObject> exports_object;
   bool is_asm_js = false;
@@ -2021,7 +2041,11 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         const WasmException& exception = module_->exceptions[exp.index];
         Handle<WasmExceptionObject> wrapper = exception_wrappers_[exp.index];
         if (wrapper.is_null()) {
-          wrapper = WasmExceptionObject::New(isolate_, exception.sig);
+          Handle<HeapObject> exception_tag(
+              HeapObject::cast(instance->exceptions_table()->get(exp.index)),
+              isolate_);
+          wrapper =
+              WasmExceptionObject::New(isolate_, exception.sig, exception_tag);
           exception_wrappers_[exp.index] = wrapper;
         }
         desc.set_value(wrapper);
@@ -2140,6 +2164,20 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
       WasmTableObject::AddDispatchTable(isolate_, table_instance.table_object,
                                         instance, index);
     }
+  }
+}
+
+void InstanceBuilder::InitializeExceptions(
+    Handle<WasmInstanceObject> instance) {
+  Handle<FixedArray> exceptions_table(instance->exceptions_table(), isolate_);
+  for (int index = 0; index < exceptions_table->length(); ++index) {
+    if (!exceptions_table->get(index)->IsUndefined(isolate_)) continue;
+    // TODO(mstarzinger): Tags provide an object identity for each exception,
+    // using {JSObject} here is gigantic hack and we should use a dedicated
+    // object with a much lighter footprint for this purpose here.
+    Handle<HeapObject> exception_tag =
+        isolate_->factory()->NewJSObjectWithNullProto();
+    exceptions_table->set(index, *exception_tag);
   }
 }
 
