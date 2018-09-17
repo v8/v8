@@ -141,25 +141,20 @@ TEST(AlignedAllocOOM) {
 TEST(AllocVirtualMemoryOOM) {
   AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
-  v8::internal::VirtualMemory result;
-  bool success =
-      v8::internal::AllocVirtualMemory(v8::internal::GetPlatformPageAllocator(),
-                                       GetHugeMemoryAmount(), nullptr, &result);
+  v8::internal::VirtualMemory result(v8::internal::GetPlatformPageAllocator(),
+                                     GetHugeMemoryAmount(), nullptr);
   // On a few systems, allocation somehow succeeds.
-  CHECK_IMPLIES(success, result.IsReserved());
-  CHECK_IMPLIES(!success, !result.IsReserved() && platform.oom_callback_called);
+  CHECK_IMPLIES(!result.IsReserved(), platform.oom_callback_called);
 }
 
 TEST(AlignedAllocVirtualMemoryOOM) {
   AllocationPlatform platform;
   CHECK(!platform.oom_callback_called);
-  v8::internal::VirtualMemory result;
-  bool success = v8::internal::AlignedAllocVirtualMemory(
-      v8::internal::GetPlatformPageAllocator(), GetHugeMemoryAmount(),
-      v8::internal::AllocatePageSize(), nullptr, &result);
+  v8::internal::VirtualMemory result(v8::internal::GetPlatformPageAllocator(),
+                                     GetHugeMemoryAmount(), nullptr,
+                                     v8::internal::AllocatePageSize());
   // On a few systems, allocation somehow succeeds.
-  CHECK_IMPLIES(success, result.IsReserved());
-  CHECK_IMPLIES(!success, !result.IsReserved() && platform.oom_callback_called);
+  CHECK_IMPLIES(!result.IsReserved(), platform.oom_callback_called);
 }
 
 #endif  // !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) &&

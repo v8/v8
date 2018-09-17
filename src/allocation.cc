@@ -228,7 +228,7 @@ bool OnCriticalMemoryPressure(size_t length) {
 
 VirtualMemory::VirtualMemory(v8::PageAllocator* page_allocator, size_t size,
                              void* hint, size_t alignment)
-    : page_allocator_(page_allocator), address_(kNullAddress), size_(0) {
+    : page_allocator_(page_allocator) {
   DCHECK_NOT_NULL(page_allocator);
   size_t page_size = page_allocator_->AllocatePageSize();
   alignment = RoundUp(alignment, page_size);
@@ -298,27 +298,6 @@ void VirtualMemory::TakeControl(VirtualMemory* from) {
   address_ = from->address_;
   size_ = from->size_;
   from->Reset();
-}
-
-bool AllocVirtualMemory(v8::PageAllocator* page_allocator, size_t size,
-                        void* hint, VirtualMemory* result) {
-  VirtualMemory vm(page_allocator, size, hint);
-  if (vm.IsReserved()) {
-    result->TakeControl(&vm);
-    return true;
-  }
-  return false;
-}
-
-bool AlignedAllocVirtualMemory(v8::PageAllocator* page_allocator, size_t size,
-                               size_t alignment, void* hint,
-                               VirtualMemory* result) {
-  VirtualMemory vm(page_allocator, size, hint, alignment);
-  if (vm.IsReserved()) {
-    result->TakeControl(&vm);
-    return true;
-  }
-  return false;
 }
 
 }  // namespace internal

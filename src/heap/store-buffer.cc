@@ -38,9 +38,8 @@ void StoreBuffer::SetUp() {
   const size_t alignment =
       std::max<size_t>(kStoreBufferSize, page_allocator->AllocatePageSize());
   void* hint = AlignedAddress(heap_->GetRandomMmapAddr(), alignment);
-  VirtualMemory reservation;
-  if (!AlignedAllocVirtualMemory(page_allocator, requested_size, alignment,
-                                 hint, &reservation)) {
+  VirtualMemory reservation(page_allocator, requested_size, hint, alignment);
+  if (!reservation.IsReserved()) {
     heap_->FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
 

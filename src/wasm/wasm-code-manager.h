@@ -457,7 +457,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
  private:
   friend class NativeModule;
 
-  void TryAllocate(size_t size, VirtualMemory*, void* hint = nullptr);
+  V8_WARN_UNUSED_RESULT VirtualMemory TryAllocate(size_t size,
+                                                  void* hint = nullptr);
   bool Commit(Address, size_t);
   // Currently, we uncommit a whole module, so all we need is account
   // for the freed memory size. We do that in FreeNativeModule.

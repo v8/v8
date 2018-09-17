@@ -657,10 +657,9 @@ Address NativeModule::AllocateForCode(size_t size) {
     Address hint = owned_code_space_.empty() ? kNullAddress
                                              : owned_code_space_.back().end();
 
-    owned_code_space_.emplace_back();
+    owned_code_space_.emplace_back(
+        wasm_code_manager_->TryAllocate(size, reinterpret_cast<void*>(hint)));
     VirtualMemory& new_mem = owned_code_space_.back();
-    wasm_code_manager_->TryAllocate(size, &new_mem,
-                                    reinterpret_cast<void*>(hint));
     if (!new_mem.IsReserved()) return kNullAddress;
     wasm_code_manager_->AssignRanges(new_mem.address(), new_mem.end(), this);
 
@@ -810,20 +809,20 @@ void WasmCodeManager::AssignRanges(Address start, Address end,
   lookup_map_.insert(std::make_pair(start, std::make_pair(end, native_module)));
 }
 
-void WasmCodeManager::TryAllocate(size_t size, VirtualMemory* ret, void* hint) {
+VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   DCHECK_GT(size, 0);
   size = RoundUp(size, page_allocator->AllocatePageSize());
   if (hint == nullptr) hint = page_allocator->GetRandomMmapAddr();
 
-  if (!AlignedAllocVirtualMemory(page_allocator, size,
-                                 page_allocator->AllocatePageSize(), hint,
-                                 ret)) {
-    DCHECK(!ret->IsReserved());
+  VirtualMemory mem(page_allocator, size, hint,
+                    page_allocator->AllocatePageSize());
+  if (mem.IsReserved()) {
+    TRACE_HEAP("VMem alloc: %p:%p (%zu)\n",
+               reinterpret_cast<void*>(mem.address()),
+               reinterpret_cast<void*>(mem.end()), mem.size());
   }
-  TRACE_HEAP("VMem alloc: %p:%p (%zu)\n",
-             reinterpret_cast<void*>(ret->address()),
-             reinterpret_cast<void*>(ret->end()), ret->size());
+  return mem;
 }
 
 void WasmCodeManager::SampleModuleSizes(Isolate* isolate) const {
@@ -901,7 +900,7 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   static constexpr int kAllocationRetries = 2;
   VirtualMemory mem;
   for (int retries = 0;; ++retries) {
-    TryAllocate(vmem_size, &mem);
+    mem = TryAllocate(vmem_size);
     if (mem.IsReserved()) break;
     if (retries == kAllocationRetries) {
       V8::FatalProcessOutOfMemory(isolate, "WasmCodeManager::NewNativeModule");

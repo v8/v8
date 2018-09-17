@@ -160,13 +160,11 @@ void MemoryAllocator::InitializeCodePageAllocator(
   }
   DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
 
-  VirtualMemory reservation;
-
   void* hint = code_range_address_hint.Pointer()->GetAddressHint(requested);
-  if (!AlignedAllocVirtualMemory(
-          page_allocator, requested,
-          Max(kCodeRangeAreaAlignment, page_allocator->AllocatePageSize()),
-          hint, &reservation)) {
+  VirtualMemory reservation(
+      page_allocator, requested, hint,
+      Max(kCodeRangeAreaAlignment, page_allocator->AllocatePageSize()));
+  if (!reservation.IsReserved()) {
     V8::FatalProcessOutOfMemory(isolate_,
                                 "CodeRange setup: allocate virtual memory");
   }
@@ -407,11 +405,8 @@ Address MemoryAllocator::AllocateAlignedMemory(
     Executability executable, void* hint, VirtualMemory* controller) {
   v8::PageAllocator* page_allocator = this->page_allocator(executable);
   DCHECK(commit_size <= reserve_size);
-  VirtualMemory reservation;
-  if (!AlignedAllocVirtualMemory(page_allocator, reserve_size, alignment, hint,
-                                 &reservation)) {
-    return kNullAddress;
-  }
+  VirtualMemory reservation(page_allocator, reserve_size, hint, alignment);
+  if (!reservation.IsReserved()) return kNullAddress;
   Address base = reservation.address();
   size_ += reservation.size();
 

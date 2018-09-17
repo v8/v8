@@ -240,12 +240,6 @@ class V8_EXPORT_PRIVATE VirtualMemory final {
   DISALLOW_COPY_AND_ASSIGN(VirtualMemory);
 };
 
-bool AllocVirtualMemory(v8::PageAllocator* page_allocator, size_t size,
-                        void* hint, VirtualMemory* result);
-bool AlignedAllocVirtualMemory(v8::PageAllocator* page_allocator, size_t size,
-                               size_t alignment, void* hint,
-                               VirtualMemory* result);
-
 }  // namespace internal
 }  // namespace v8
 

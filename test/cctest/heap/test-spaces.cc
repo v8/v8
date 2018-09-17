@@ -147,10 +147,9 @@ TEST(MemoryChunk) {
 
     // With CodeRange.
     const size_t code_range_size = 32 * MB;
-    VirtualMemory code_range_reservation;
-    CHECK(AlignedAllocVirtualMemory(page_allocator, code_range_size,
-                                    MemoryChunk::kAlignment, nullptr,
-                                    &code_range_reservation));
+    VirtualMemory code_range_reservation(page_allocator, code_range_size,
+                                         nullptr, MemoryChunk::kAlignment);
+    CHECK(code_range_reservation.IsReserved());
 
     base::BoundedPageAllocator code_page_allocator(
         page_allocator, code_range_reservation.address(),
