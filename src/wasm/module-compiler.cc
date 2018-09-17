@@ -191,10 +191,9 @@ class JSToWasmWrapperCache {
     Handle<Code>& cached = cache_[key];
     if (!cached.is_null()) return cached;
 
-    Handle<Code> code =
-        compiler::CompileJSToWasmWrapper(isolate, native_module, func->sig,
-                                         is_import, use_trap_handler)
-            .ToHandleChecked();
+    Handle<Code> code = compiler::CompileJSToWasmWrapper(isolate, native_module,
+                                                         func->sig, is_import)
+                            .ToHandleChecked();
     cached = code;
     return code;
   }

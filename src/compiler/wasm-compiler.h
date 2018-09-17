@@ -76,11 +76,8 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate*, Handle<JSReceiver> target,
 
 // Creates a code object calling a wasm function with the given signature,
 // callable from JS.
-// TODO(clemensh): Remove the {UseTrapHandler} parameter to make js-to-wasm
-// wrappers sharable across instances.
 V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(
-    Isolate*, const wasm::NativeModule*, wasm::FunctionSig*, bool is_import,
-    wasm::UseTrapHandler);
+    Isolate*, const wasm::NativeModule*, wasm::FunctionSig*, bool is_import);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.

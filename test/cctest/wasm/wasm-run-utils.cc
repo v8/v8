@@ -123,9 +123,8 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   // Wrap the code so it can be called as a JS function.
   Link();
   FunctionSig* sig = test_module_->functions[index].sig;
-  MaybeHandle<Code> maybe_ret_code = compiler::CompileJSToWasmWrapper(
-      isolate_, native_module_, sig, false,
-      trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler);
+  MaybeHandle<Code> maybe_ret_code =
+      compiler::CompileJSToWasmWrapper(isolate_, native_module_, sig, false);
   Handle<Code> ret_code = maybe_ret_code.ToHandleChecked();
   Handle<JSFunction> ret = WasmExportedFunction::New(
       isolate_, instance_object(), MaybeHandle<String>(),

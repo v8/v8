@@ -4796,8 +4796,7 @@ void AppendSignature(char* buffer, size_t max_name_len,
 
 MaybeHandle<Code> CompileJSToWasmWrapper(
     Isolate* isolate, const wasm::NativeModule* native_module,
-    wasm::FunctionSig* sig, bool is_import,
-    wasm::UseTrapHandler use_trap_handler) {
+    wasm::FunctionSig* sig, bool is_import) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "CompileJSToWasmWrapper");
   const wasm::WasmModule* module = native_module->module();
@@ -4817,7 +4816,8 @@ MaybeHandle<Code> CompileJSToWasmWrapper(
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  wasm::ModuleEnv env(module, use_trap_handler, wasm::kRuntimeExceptionSupport);
+  wasm::ModuleEnv env(module, wasm::kNoTrapHandler,
+                      wasm::kRuntimeExceptionSupport);
   WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, sig, nullptr,
                                   StubCallMode::kCallOnHeapBuiltin);
   builder.set_control_ptr(&control);
