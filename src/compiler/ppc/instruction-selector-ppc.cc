@@ -1188,6 +1188,10 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
 void InstructionSelector::VisitChangeFloat64ToUint64(Node* node) {
   VisitRR(this, kPPC_DoubleToUint64, node);
 }
+
+void InstructionSelector::VisitChangeFloat64ToInt64(Node* node) {
+  VisitRR(this, kPPC_DoubleToInt64, node);
+}
 #endif
 
 

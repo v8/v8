@@ -1409,8 +1409,11 @@ static inline bool TryMatchDoubleConstructFromInsert(
   FLOAT_UNARY_OP_LIST_32(V)                                                   \
   V(Float64, ChangeFloat64ToUint64, kS390_DoubleToUint64, OperandMode::kNone, \
     null)                                                                     \
+  V(Float64, ChangeFloat64ToInt64, kS390_DoubleToInt64, OperandMode::kNone,   \
+    null)                                                                     \
   V(Float64, BitcastFloat64ToInt64, kS390_BitcastDoubleToInt64,               \
     OperandMode::kNone, null)
+
 #define WORD32_UNARY_OP_LIST(V)                                             \
   WORD32_UNARY_OP_LIST_32(V)                                                \
   V(Word32, ChangeInt32ToInt64, kS390_SignExtendWord32ToInt64,              \
