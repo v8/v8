@@ -188,8 +188,6 @@ class FixedArray : public FixedArrayBase {
 #endif
 
   typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  protected:
   // Set operation on FixedArray without using write barriers. Can
@@ -256,8 +254,6 @@ class FixedDoubleArray : public FixedArrayBase {
   DECL_VERIFIER(FixedDoubleArray)
 
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
@@ -298,7 +294,6 @@ class WeakFixedArray : public HeapObject {
   DECL_VERIFIER(WeakFixedArray)
 
   typedef WeakArrayBodyDescriptor BodyDescriptor;
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   static const int kLengthOffset = HeapObject::kHeaderSize;
   static const int kHeaderSize = kLengthOffset + kPointerSize;
@@ -361,7 +356,6 @@ class WeakArrayList : public HeapObject {
   inline void synchronized_set_capacity(int value);
 
   typedef WeakArrayBodyDescriptor BodyDescriptor;
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   static const int kCapacityOffset = HeapObject::kHeaderSize;
   static const int kLengthOffset = kCapacityOffset + kPointerSize;
@@ -520,8 +514,6 @@ class ByteArray : public FixedArrayBase {
                 "ByteArray maxLength not a Smi");
 
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ByteArray);
@@ -586,8 +578,6 @@ class FixedTypedArrayBase : public FixedArrayBase {
   static const size_t kMaxLength = Smi::kMaxValue;
 
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   inline int size() const;
 

@@ -112,8 +112,6 @@ class JSArrayBuffer : public JSObject {
   // Iterates all fields in the object including internal ones except
   // kBackingStoreOffset and kBitFieldSlot.
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   class IsExternal : public BitField<bool, 1, 1> {};
   class IsNeuterable : public BitField<bool, 2, 1> {};

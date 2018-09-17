@@ -326,9 +326,6 @@ class SmallOrderedHashTable : public HeapObject {
   // Iterates only fields in the DataTable.
   class BodyDescriptor;
 
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
-
   // Returns total size in bytes required for a table of given
   // capacity.
   static int SizeFor(int capacity) {

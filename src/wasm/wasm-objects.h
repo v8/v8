@@ -467,8 +467,6 @@ class WasmInstanceObject : public JSObject {
 
   // Iterates all fields in the object except the untagged fields.
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 };
 
 // Representation of WebAssembly.Exception JavaScript-level object.

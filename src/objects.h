@@ -1980,8 +1980,6 @@ class PropertyArray : public HeapObject {
 
   // Garbage collection support.
   typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   static const int kLengthFieldSize = 10;
   class LengthField : public BitField<int, 0, kLengthFieldSize> {};
@@ -2732,12 +2730,8 @@ class JSObject: public JSReceiver {
   STATIC_ASSERT(kMaxEmbedderFields <= kMaxInObjectProperties);
 
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   class FastBodyDescriptor;
-  // No weak fields.
-  typedef FastBodyDescriptor FastBodyDescriptorWeak;
 
   // Gets the number of currently used elements.
   int GetFastElementsUsage();
@@ -3653,8 +3647,6 @@ class JSMessageObject: public JSObject {
   typedef FixedBodyDescriptor<HeapObject::kMapOffset,
                               kStackFramesOffset + kPointerSize,
                               kSize> BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 };
 
 // Utility superclass for stack-allocated objects that must be updated
@@ -3739,8 +3731,6 @@ class Oddball: public HeapObject {
 
   typedef FixedBodyDescriptor<kToStringOffset, kTypeOfOffset + kPointerSize,
                               kSize> BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   STATIC_ASSERT(kToNumberRawOffset == HeapNumber::kValueOffset);
   STATIC_ASSERT(kKindOffset == Internals::kOddballKindOffset);
@@ -3779,8 +3769,6 @@ class Cell: public HeapObject {
   typedef FixedBodyDescriptor<kValueOffset,
                               kValueOffset + kPointerSize,
                               kSize> BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Cell);
@@ -3807,8 +3795,6 @@ class FeedbackCell : public Struct {
 
   typedef FixedBodyDescriptor<kValueOffset, kValueOffset + kPointerSize, kSize>
       BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FeedbackCell);
@@ -3865,8 +3851,6 @@ class PropertyCell : public HeapObject {
   static const int kSize = kDependentCodeOffset + kPointerSize;
 
   typedef FixedBodyDescriptor<kNameOffset, kSize, kSize> BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PropertyCell);
@@ -3948,8 +3932,6 @@ class Foreign: public HeapObject {
   STATIC_ASSERT(kForeignAddressOffset == Internals::kForeignAddressOffset);
 
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   friend class Factory;

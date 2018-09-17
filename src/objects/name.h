@@ -192,8 +192,6 @@ class Symbol : public Name {
 #undef FLAGS_BIT_FIELDS
 
   typedef FixedBodyDescriptor<kNameOffset, kSize, kSize> BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   void SymbolShortPrint(std::ostream& os);
 

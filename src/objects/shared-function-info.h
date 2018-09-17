@@ -53,8 +53,6 @@ class PreParsedScopeData : public HeapObject {
       POINTER_SIZE_ALIGN(kUnalignedChildDataStartOffset);
 
   class BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
   static constexpr int SizeFor(int length) {
     return kChildDataStartOffset + length * kPointerSize;
@@ -114,8 +112,6 @@ class UncompiledDataWithoutPreParsedScope : public UncompiledData {
 
   // No extra fields compared to UncompiledData.
   typedef UncompiledData::BodyDescriptor BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledDataWithoutPreParsedScope);
@@ -150,8 +146,6 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
       FixedBodyDescriptor<kStartOfPointerFieldsOffset,
                           kEndOfPointerFieldsOffset, kSize>>
       BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(UncompiledDataWithPreParsedScope);
@@ -622,8 +616,6 @@ class SharedFunctionInfo : public HeapObject, public NeverReadOnlySpaceObject {
   typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
                               kEndOfPointerFieldsOffset, kAlignedSize>
       BodyDescriptor;
-  // No weak fields.
-  typedef BodyDescriptor BodyDescriptorWeak;
 
 // Bit positions in |flags|.
 #define FLAGS_BIT_FIELDS(V, _)                           \
