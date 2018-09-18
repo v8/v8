@@ -3003,7 +3003,7 @@ int event_listener_hit_count = 0;
 class EmptyExternalStringResource : public v8::String::ExternalStringResource {
  public:
   EmptyExternalStringResource() { empty_[0] = 0; }
-  ~EmptyExternalStringResource() override {}
+  ~EmptyExternalStringResource() override = default;
   size_t length() const override { return empty_.length(); }
   const uint16_t* data() const override { return empty_.start(); }
 
