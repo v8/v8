@@ -25,35 +25,6 @@ enum class OddballType : uint8_t {
   kOther  // Oddball, but none of the above.
 };
 
-// TODO(neis): Get rid of the HeapObjectType class.
-class HeapObjectType {
- public:
-  enum Flag : uint8_t { kUndetectable = 1 << 0, kCallable = 1 << 1 };
-
-  typedef base::Flags<Flag> Flags;
-
-  HeapObjectType(InstanceType instance_type, Flags flags,
-                 OddballType oddball_type)
-      : instance_type_(instance_type),
-        oddball_type_(oddball_type),
-        flags_(flags) {
-    DCHECK_EQ(instance_type == ODDBALL_TYPE,
-              oddball_type != OddballType::kNone);
-  }
-
-  OddballType oddball_type() const { return oddball_type_; }
-  InstanceType instance_type() const { return instance_type_; }
-  Flags flags() const { return flags_; }
-
-  bool is_callable() const { return flags_ & kCallable; }
-  bool is_undetectable() const { return flags_ & kUndetectable; }
-
- private:
-  InstanceType const instance_type_;
-  OddballType const oddball_type_;
-  Flags const flags_;
-};
-
 // This list is sorted such that subtypes appear before their supertypes.
 // DO NOT VIOLATE THIS PROPERTY!
 #define HEAP_BROKER_OBJECT_LIST(V) \
@@ -114,8 +85,6 @@ class ObjectRef {
     return Handle<T>::cast(object());
   }
 
-  OddballType oddball_type() const;
-
   bool IsSmi() const;
   int AsSmi() const;
 
@@ -140,12 +109,49 @@ class ObjectRef {
   ObjectData* data_;
 };
 
+// Temporary class that carries information from a Map. We'd like to remove
+// this class and use MapRef instead, but we can't as long as we support the
+// kDisabled broker mode. That's because obtaining the MapRef via
+// HeapObjectRef::map() requires a HandleScope when the broker is disabled.
+// During OptimizeGraph we generally don't have a HandleScope, however. There
+// are two places where we therefore use GetHeapObjectType() instead. Both that
+// function and this class should eventually be removed.
+class HeapObjectType {
+ public:
+  enum Flag : uint8_t { kUndetectable = 1 << 0, kCallable = 1 << 1 };
+
+  typedef base::Flags<Flag> Flags;
+
+  HeapObjectType(InstanceType instance_type, Flags flags,
+                 OddballType oddball_type)
+      : instance_type_(instance_type),
+        oddball_type_(oddball_type),
+        flags_(flags) {
+    DCHECK_EQ(instance_type == ODDBALL_TYPE,
+              oddball_type != OddballType::kNone);
+  }
+
+  OddballType oddball_type() const { return oddball_type_; }
+  InstanceType instance_type() const { return instance_type_; }
+  Flags flags() const { return flags_; }
+
+  bool is_callable() const { return flags_ & kCallable; }
+  bool is_undetectable() const { return flags_ & kUndetectable; }
+
+ private:
+  InstanceType const instance_type_;
+  OddballType const oddball_type_;
+  Flags const flags_;
+};
+
 class HeapObjectRef : public ObjectRef {
  public:
   using ObjectRef::ObjectRef;
 
-  HeapObjectType type() const;
   MapRef map() const;
+
+  // See the comment on the HeapObjectType class.
+  HeapObjectType GetHeapObjectType() const;
 };
 
 class PropertyCellRef : public HeapObjectRef {
@@ -327,9 +333,13 @@ class MapRef : public HeapObjectRef {
   bool IsInobjectSlackTrackingInProgress() const;
   bool is_dictionary_map() const;
   bool IsFixedCowArrayMap() const;
+  bool is_undetectable() const;
+  bool is_callable() const;
 
   ObjectRef constructor_or_backpointer() const;
   ObjectRef prototype() const;
+
+  OddballType oddball_type() const;
 
   base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
 
@@ -456,11 +466,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   JSHeapBroker(Isolate* isolate, Zone* zone);
   void SerializeStandardObjects();
 
-  HeapObjectType HeapObjectTypeFromMap(Handle<Map> map) const {
-    AllowHandleDereference handle_dereference;
-    return HeapObjectTypeFromMap(*map);
-  }
-
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
@@ -487,9 +492,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   friend class HeapObjectRef;
   friend class ObjectRef;
   friend class ObjectData;
-
-  // TODO(neis): Remove eventually.
-  HeapObjectType HeapObjectTypeFromMap(Map* map) const;
 
   void AddData(Handle<Object> object, ObjectData* data);
 

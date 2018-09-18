@@ -1352,7 +1352,7 @@ base::Optional<MapRef> GetObjectCreateMap(JSHeapBroker* broker,
   if (prototype.equals(standard_map.prototype())) {
     return standard_map;
   }
-  if (prototype.oddball_type() == OddballType::kNull) {
+  if (prototype.map().oddball_type() == OddballType::kNull) {
     return broker->native_context().slow_object_with_null_prototype_map();
   }
   if (prototype.IsJSObject()) {
@@ -1378,7 +1378,7 @@ Reduction JSCreateLowering::ReduceJSCreateObject(Node* node) {
 
   Node* properties = jsgraph()->EmptyFixedArrayConstant();
   if (instance_map.is_dictionary_map()) {
-    DCHECK_EQ(prototype_const.type().oddball_type(), OddballType::kNull);
+    DCHECK_EQ(prototype_const.map().oddball_type(), OddballType::kNull);
     // Allocate an empty NameDictionary as backing store for the properties.
     Handle<Map> map = isolate()->factory()->name_dictionary_map();
     int capacity =
@@ -1689,7 +1689,11 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
         value = effect = builder.Finish();
       } else if (property_details.representation().IsSmi()) {
         // Ensure that value is stored as smi.
-        value = boilerplate_value.oddball_type() == OddballType::kUninitialized
+        bool is_uninitialized =
+            boilerplate_value.IsHeapObject() &&
+            boilerplate_value.AsHeapObject().map().oddball_type() ==
+                OddballType::kUninitialized;
+        value = is_uninitialized
                     ? jsgraph()->ZeroConstant()
                     : jsgraph()->Constant(boilerplate_value.AsSmi());
       } else {
@@ -1717,7 +1721,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
   // Actually allocate and initialize the object.
   AllocationBuilder builder(jsgraph(), effect, control);
   builder.Allocate(boilerplate_map.instance_size(), pretenure,
-                   Type::For(js_heap_broker(), boilerplate_map.object<Map>()));
+                   Type::For(boilerplate_map));
   builder.Store(AccessBuilder::ForMap(), boilerplate_map);
   builder.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
   builder.Store(AccessBuilder::ForJSObjectElements(), elements);
@@ -1805,8 +1809,7 @@ Node* JSCreateLowering::AllocateLiteralRegExp(Node* effect, Node* control,
       JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
 
   AllocationBuilder builder(jsgraph(), effect, control);
-  builder.Allocate(size, pretenure,
-                   Type::For(js_heap_broker(), boilerplate_map.object<Map>()));
+  builder.Allocate(size, pretenure, Type::For(boilerplate_map));
   builder.Store(AccessBuilder::ForMap(), boilerplate_map);
   builder.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
                 boilerplate.raw_properties_or_hash());

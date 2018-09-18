@@ -132,8 +132,11 @@ Type::bitset Type::BitsetLub() const {
   UNREACHABLE();
 }
 
-Type::bitset BitsetType::Lub(HeapObjectType const& type) {
-  switch (type.instance_type()) {
+// TODO(neis): Once the broker mode kDisabled is gone, change the input type to
+// MapRef and get rid of the HeapObjectType class.
+template <typename MapRefLike>
+Type::bitset BitsetType::Lub(const MapRefLike& map) {
+  switch (map.instance_type()) {
     case CONS_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
     case THIN_STRING_TYPE:
@@ -163,7 +166,7 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case BIGINT_TYPE:
       return kBigInt;
     case ODDBALL_TYPE:
-      switch (type.oddball_type()) {
+      switch (map.oddball_type()) {
         case OddballType::kNone:
           break;
         case OddballType::kHole:
@@ -189,15 +192,15 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case JS_GLOBAL_PROXY_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
-      if (type.is_undetectable()) {
+      if (map.is_undetectable()) {
         // Currently we assume that every undetectable receiver is also
         // callable, which is what we need to support document.all.  We
         // could add another Type bit to support other use cases in the
         // future if necessary.
-        DCHECK(type.is_callable());
+        DCHECK(map.is_callable());
         return kOtherUndetectable;
       }
-      if (type.is_callable()) {
+      if (map.is_callable()) {
         return kOtherCallable;
       }
       return kOtherObject;
@@ -244,18 +247,18 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:
-      DCHECK(!type.is_callable());
-      DCHECK(!type.is_undetectable());
+      DCHECK(!map.is_callable());
+      DCHECK(!map.is_undetectable());
       return kOtherObject;
     case JS_BOUND_FUNCTION_TYPE:
-      DCHECK(!type.is_undetectable());
+      DCHECK(!map.is_undetectable());
       return kBoundFunction;
     case JS_FUNCTION_TYPE:
-      DCHECK(!type.is_undetectable());
+      DCHECK(!map.is_undetectable());
       return kFunction;
     case JS_PROXY_TYPE:
-      DCHECK(!type.is_undetectable());
-      if (type.is_callable()) return kCallableProxy;
+      DCHECK(!map.is_undetectable());
+      if (map.is_callable()) return kCallableProxy;
       return kOtherProxy;
     case MAP_TYPE:
     case ALLOCATION_SITE_TYPE:
@@ -351,6 +354,9 @@ Type::bitset BitsetType::Lub(HeapObjectType const& type) {
   }
   UNREACHABLE();
 }
+
+// Explicit instantiation.
+template Type::bitset BitsetType::Lub<MapRef>(const MapRef& map);
 
 Type::bitset BitsetType::Lub(double value) {
   DisallowHeapAllocation no_allocation;

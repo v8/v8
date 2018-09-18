@@ -664,20 +664,19 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
             property_cell_value_type = Type::Number();
             representation = MachineRepresentation::kTaggedPointer;
           } else {
-            Handle<Map> property_cell_value_map(
-                Handle<HeapObject>::cast(property_cell_value)->map(),
-                isolate());
-            property_cell_value_type =
-                Type::For(js_heap_broker(), property_cell_value_map);
+            MapRef property_cell_value_map(
+                js_heap_broker(),
+                handle(HeapObject::cast(*property_cell_value)->map(),
+                       isolate()));
+            property_cell_value_type = Type::For(property_cell_value_map);
             representation = MachineRepresentation::kTaggedPointer;
 
             // We can only use the property cell value map for map check
             // elimination if it's stable, i.e. the HeapObject wasn't
             // mutated without the cell state being updated.
-            if (property_cell_value_map->is_stable()) {
-              dependencies()->DependOnStableMap(
-                  MapRef(js_heap_broker(), property_cell_value_map));
-              map = property_cell_value_map;
+            if (property_cell_value_map.is_stable()) {
+              dependencies()->DependOnStableMap(property_cell_value_map);
+              map = property_cell_value_map.object<Map>();
             }
           }
         }
@@ -780,8 +779,8 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
       native_context().script_context_table().lookup(name);
   if (result) {
     ObjectRef contents = result->context.get(result->index);
-    OddballType oddball_type = contents.oddball_type();
-    if (oddball_type == OddballType::kHole) {
+    if (contents.IsHeapObject() &&
+        contents.AsHeapObject().map().oddball_type() == OddballType::kHole) {
       return NoChange();
     }
     Node* context = jsgraph()->Constant(result->context);
@@ -809,8 +808,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
       native_context().script_context_table().lookup(name);
   if (result) {
     ObjectRef contents = result->context.get(result->index);
-    OddballType oddball_type = contents.oddball_type();
-    if (oddball_type == OddballType::kHole || result->immutable) {
+    if ((contents.IsHeapObject() &&
+         contents.AsHeapObject().map().oddball_type() == OddballType::kHole) ||
+        result->immutable) {
       return NoChange();
     }
     Node* context = jsgraph()->Constant(result->context);

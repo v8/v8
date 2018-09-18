@@ -952,8 +952,8 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
     }
   }
   if (input_type.IsHeapConstant()) {
-    ObjectRef input_value = input_type.AsHeapConstant()->Ref();
-    if (input_value.oddball_type() != OddballType::kNone) {
+    HeapObjectRef input_value = input_type.AsHeapConstant()->Ref();
+    if (input_value.map().oddball_type() != OddballType::kNone) {
       return Replace(jsgraph()->Constant(input_value.OddballToNumber()));
     }
   }

@@ -165,7 +165,7 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
     // We must be conservative and check if the value in the slot is currently
     // the hole or undefined. Only if it is neither of these, can we be sure
     // that it won't change anymore.
-    OddballType oddball_type = maybe_value->oddball_type();
+    OddballType oddball_type = maybe_value->AsHeapObject().map().oddball_type();
     if (oddball_type == OddballType::kUndefined ||
         oddball_type == OddballType::kHole) {
       maybe_value.reset();
