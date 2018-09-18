@@ -74,7 +74,7 @@ class WasmTranslation::TranslatorImpl {
                                                             int index) = 0;
   virtual const String16 GetHash(v8::Isolate*, int index) = 0;
 
-  virtual ~TranslatorImpl() {}
+  virtual ~TranslatorImpl() = default;
 
   class RawTranslator;
   class DisassemblingTranslator;

@@ -109,7 +109,7 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
     SendMessageTask(FrontendChannelImpl* channel,
                     const std::vector<uint16_t>& message)
         : channel_(channel), message_(message) {}
-    ~SendMessageTask() override {}
+    ~SendMessageTask() override = default;
     bool is_priority_task() final { return false; }
 
    private:
@@ -216,7 +216,7 @@ class ExecuteStringTask : public TaskRunner::Task {
   ExecuteStringTask(const std::string& expression, int context_group_id)
       : expression_utf8_(expression), context_group_id_(context_group_id) {}
 
-  ~ExecuteStringTask() override {}
+  ~ExecuteStringTask() override = default;
   bool is_priority_task() override { return false; }
   void Run(IsolateData* data) override {
     v8::MicrotasksScope microtasks_scope(data->isolate(),
@@ -594,7 +594,7 @@ class SetTimeoutTask : public TaskRunner::Task {
   SetTimeoutTask(int context_group_id, v8::Isolate* isolate,
                  v8::Local<v8::Function> function)
       : function_(isolate, function), context_group_id_(context_group_id) {}
-  ~SetTimeoutTask() override {}
+  ~SetTimeoutTask() override = default;
   bool is_priority_task() final { return false; }
 
  private:

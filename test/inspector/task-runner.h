@@ -20,7 +20,7 @@ class TaskRunner : public v8::base::Thread {
  public:
   class Task {
    public:
-    virtual ~Task() {}
+    virtual ~Task() = default;
     virtual bool is_priority_task() = 0;
     virtual void Run(IsolateData* data) = 0;
   };

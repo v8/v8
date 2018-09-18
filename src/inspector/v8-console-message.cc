@@ -203,7 +203,7 @@ V8ConsoleMessage::V8ConsoleMessage(V8MessageOrigin origin, double timestamp,
       m_exceptionId(0),
       m_revokedExceptionId(0) {}
 
-V8ConsoleMessage::~V8ConsoleMessage() {}
+V8ConsoleMessage::~V8ConsoleMessage() = default;
 
 void V8ConsoleMessage::setLocation(const String16& url, unsigned lineNumber,
                                    unsigned columnNumber,

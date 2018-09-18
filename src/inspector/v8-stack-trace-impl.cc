@@ -226,7 +226,7 @@ V8StackTraceImpl::V8StackTraceImpl(
       m_asyncParent(std::move(asyncParent)),
       m_externalParent(externalParent) {}
 
-V8StackTraceImpl::~V8StackTraceImpl() {}
+V8StackTraceImpl::~V8StackTraceImpl() = default;
 
 std::unique_ptr<V8StackTrace> V8StackTraceImpl::clone() {
   return std::unique_ptr<V8StackTrace>(new V8StackTraceImpl(

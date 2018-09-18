@@ -316,7 +316,7 @@ V8DebuggerAgentImpl::V8DebuggerAgentImpl(
       m_frontend(frontendChannel),
       m_isolate(m_inspector->isolate()) {}
 
-V8DebuggerAgentImpl::~V8DebuggerAgentImpl() {}
+V8DebuggerAgentImpl::~V8DebuggerAgentImpl() = default;
 
 void V8DebuggerAgentImpl::enableImpl() {
   m_enabled = true;

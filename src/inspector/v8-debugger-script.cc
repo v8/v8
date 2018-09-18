@@ -454,7 +454,7 @@ V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate, String16 id,
                                    String16 url)
     : m_id(std::move(id)), m_url(std::move(url)), m_isolate(isolate) {}
 
-V8DebuggerScript::~V8DebuggerScript() {}
+V8DebuggerScript::~V8DebuggerScript() = default;
 
 void V8DebuggerScript::setSourceURL(const String16& sourceURL) {
   if (sourceURL.length() > 0) {

@@ -60,7 +60,7 @@ class EvaluateCallback {
       protocol::Maybe<protocol::Runtime::ExceptionDetails>
           exceptionDetails) = 0;
   virtual void sendFailure(const protocol::DispatchResponse& response) = 0;
-  virtual ~EvaluateCallback() {}
+  virtual ~EvaluateCallback() = default;
 };
 
 class InjectedScript final {
