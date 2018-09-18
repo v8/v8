@@ -348,6 +348,14 @@ static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
 }
 
 TEST(Word64) {
+  CheckChange(IrOpcode::kChangeInt32ToInt64, MachineRepresentation::kWord8,
+              TypeCache::Get().kInt8, MachineRepresentation::kWord64);
+  CheckChange(IrOpcode::kChangeUint32ToUint64, MachineRepresentation::kWord8,
+              TypeCache::Get().kUint8, MachineRepresentation::kWord64);
+  CheckChange(IrOpcode::kChangeInt32ToInt64, MachineRepresentation::kWord16,
+              TypeCache::Get().kInt16, MachineRepresentation::kWord64);
+  CheckChange(IrOpcode::kChangeUint32ToUint64, MachineRepresentation::kWord16,
+              TypeCache::Get().kUint16, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeInt32ToInt64, MachineRepresentation::kWord32,
               Type::Signed32(), MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeUint32ToUint64, MachineRepresentation::kWord32,

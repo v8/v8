@@ -962,7 +962,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
         jsgraph()->common()->DeadValue(MachineRepresentation::kWord64), node);
   } else if (output_rep == MachineRepresentation::kBit) {
     return node;  // Sloppy comparison -> word64
-  } else if (output_rep == MachineRepresentation::kWord32) {
+  } else if (IsWord(output_rep)) {
     if (output_type.Is(Type::Unsigned32())) {
       op = machine()->ChangeUint32ToUint64();
     } else if (output_type.Is(Type::Signed32())) {
