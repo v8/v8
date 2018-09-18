@@ -13,6 +13,8 @@
 ['system == android', {
   # https://crbug.com/v8/8160
   'debugger/stepping-with-exposed-injected-script': [FAIL],
+  # TODO(machenbach): Investigating time out on Android.
+  'debugger/get-possible-breakpoints-class-fields': [SKIP],
 }],  # 'system == android'
 
 ##############################################################################
