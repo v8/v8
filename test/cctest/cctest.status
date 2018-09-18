@@ -373,29 +373,6 @@
 ['system == android', {
   # Uses too much memory.
   'test-api/NewStringRangeError': [SKIP],
-  # https://crbug.com/v8/8157
-  'test-assembler-arm64/abs': [FAIL],
-  'test-assembler-arm64/adcs_sbcs_w': [FAIL],
-  'test-assembler-arm64/adcs_sbcs_x': [FAIL],
-  'test-assembler-arm64/default_nan_double': [FAIL],
-  'test-assembler-arm64/default_nan_float': [FAIL],
-  'test-assembler-arm64/fcvt_sd': [FAIL],
-  'test-assembler-arm64/fmadd_fmsub_double': [FAIL],
-  'test-assembler-arm64/fmadd_fmsub_double_nans': [FAIL],
-  'test-assembler-arm64/fmadd_fmsub_float': [FAIL],
-  'test-assembler-arm64/fmadd_fmsub_float_nans': [FAIL],
-  'test-assembler-arm64/fmax_fmin_d': [FAIL],
-  'test-assembler-arm64/fmax_fmin_s': [FAIL],
-  'test-assembler-arm64/ldr_pcrel_large_offset': [FAIL],
-  'test-assembler-arm64/process_nans_double': [FAIL],
-  'test-assembler-arm64/process_nans_float': [FAIL],
-  'test-assembler-arm64/push_pop_fp_simple_32': [FAIL],
-  'test-assembler-arm64/push_pop_fp_simple_64': [FAIL],
-  'test-assembler-arm64/push_pop_simple_64': [FAIL],
-  'test-assembler-arm64/scvtf_ucvtf_double': [FAIL],
-  'test-assembler-arm64/scvtf_ucvtf_float': [FAIL],
-  'test-assembler-arm64/smull': [FAIL],
-  'test-code-stubs-arm64/ConvertDToI': [FAIL],
 }],  # 'system == android'
 
 ##############################################################################
