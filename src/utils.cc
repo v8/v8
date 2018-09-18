@@ -400,11 +400,9 @@ void init_memcopy_functions() {
 #endif
 }
 
-
+// Returns false iff d is NaN, +0, or -0.
 bool DoubleToBoolean(double d) {
-  // NaN, +0, and -0 should return the false object
   IeeeDoubleArchType u;
-
   u.d = d;
   if (u.bits.exp == 2047) {
     // Detect NaN for IEEE double precision floating point.

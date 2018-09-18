@@ -80,15 +80,15 @@ class HeapObjectType {
   V(Cell)                          \
   V(Code)                          \
   V(FeedbackVector)                \
-  V(Map)                           \
-  V(Module)                        \
-  V(SharedFunctionInfo)            \
   V(FixedArrayBase)                \
   V(HeapNumber)                    \
   V(JSObject)                      \
+  V(Map)                           \
+  V(Module)                        \
   V(MutableHeapNumber)             \
   V(Name)                          \
   V(PropertyCell)                  \
+  V(SharedFunctionInfo)            \
   /* Subtypes of Object */         \
   V(HeapObject)
 
@@ -127,7 +127,7 @@ class ObjectRef {
   HEAP_BROKER_OBJECT_LIST(HEAP_AS_METHOD_DECL)
 #undef HEAP_AS_METHOD_DECL
 
-  bool BooleanValue();
+  bool BooleanValue() const;
   double OddballToNumber() const;
 
   Isolate* isolate() const;

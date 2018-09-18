@@ -52,17 +52,20 @@ class ObjectData : public ZoneObject {
 
 class HeapObjectData : public ObjectData {
  public:
+  HeapObjectData(JSHeapBroker* broker, Handle<HeapObject> object,
+                 HeapObjectType type);
+
   static HeapObjectData* Serialize(JSHeapBroker* broker,
                                    Handle<HeapObject> object);
 
   HeapObjectType type() const { return type_; }
+  bool boolean_value() const { return boolean_value_; }
   MapData* map() const { return map_; }
 
-  HeapObjectData(JSHeapBroker* broker, Handle<HeapObject> object,
-                 HeapObjectType type);
 
  private:
   HeapObjectType const type_;
+  bool const boolean_value_;
   MapData* const map_;
 };
 
@@ -605,6 +608,7 @@ HeapObjectData::HeapObjectData(JSHeapBroker* broker, Handle<HeapObject> object,
                                HeapObjectType type)
     : ObjectData(broker, object, false),
       type_(type),
+      boolean_value_(object->BooleanValue(broker->isolate())),
       map_(broker->GetOrCreateData(object->map())->AsMap()) {
   CHECK(broker->SerializingAllowed());
 }
@@ -1912,9 +1916,12 @@ MapRef NativeContextRef::GetInitialJSArrayMap(ElementsKind kind) const {
   }
 }
 
-bool ObjectRef::BooleanValue() {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Object>()->BooleanValue(broker()->isolate());
+bool ObjectRef::BooleanValue() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    return object<Object>()->BooleanValue(broker()->isolate());
+  }
+  return IsSmi() ? (AsSmi() != 0) : data()->AsHeapObject()->boolean_value();
 }
 
 double ObjectRef::OddballToNumber() const {
