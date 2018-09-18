@@ -27,8 +27,6 @@ HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 
 class ObjectData : public ZoneObject {
  public:
-  static ObjectData* Serialize(JSHeapBroker* broker, Handle<Object> object);
-
   ObjectData(JSHeapBroker* broker, Handle<Object> object, bool is_smi)
       : broker_(broker), object_(object), is_smi_(is_smi) {
     broker->AddData(object, this);
@@ -1173,28 +1171,6 @@ void JSRegExpData::SerializeAsRegExpBoilerplate() {
   last_index_ = broker()->GetOrCreateData(boilerplate->last_index());
 }
 
-ObjectData* ObjectData::Serialize(JSHeapBroker* broker, Handle<Object> object) {
-  CHECK(broker->SerializingAllowed());
-  return object->IsSmi() ? new (broker->zone()) ObjectData(broker, object, true)
-                         : HeapObjectData::Serialize(
-                               broker, Handle<HeapObject>::cast(object));
-}
-
-HeapObjectData* HeapObjectData::Serialize(JSHeapBroker* broker,
-                                          Handle<HeapObject> object) {
-  CHECK(broker->SerializingAllowed());
-  Handle<Map> map(object->map(), broker->isolate());
-
-#define RETURN_CREATE_DATA_IF_MATCH(name)               \
-  if (object->Is##name()) {                             \
-    return new (broker->zone())                         \
-        name##Data(broker, Handle<name>::cast(object)); \
-  }
-  HEAP_BROKER_OBJECT_LIST(RETURN_CREATE_DATA_IF_MATCH)
-#undef RETURN_CREATE_DATA_IF_MATCH
-  UNREACHABLE();
-}
-
 bool ObjectRef::equals(const ObjectRef& other) const {
   return data_ == other.data_;
 }
@@ -1366,6 +1342,7 @@ ObjectData* JSHeapBroker::GetData(Handle<Object> object) const {
   return it != refs_.end() ? it->second : nullptr;
 }
 
+// clang-format off
 ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
   CHECK(SerializingAllowed());
   ObjectData* data = GetData(object);
@@ -1373,13 +1350,21 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
     // TODO(neis): Remove these Allow* once we serialize everything upfront.
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
-    // TODO(neis): Inline Serialize here, now that we have subclass-specific
-    // Serialize methods.
-    data = ObjectData::Serialize(this, object);
+    if (object->IsSmi()) {
+      data = new (zone()) ObjectData(this, object, true);
+#define CREATE_DATA_IF_MATCH(name)                                      \
+    } else if (object->Is##name()) {                                    \
+      data = new (zone()) name##Data(this, Handle<name>::cast(object));
+    HEAP_BROKER_OBJECT_LIST(CREATE_DATA_IF_MATCH)
+#undef CREATE_DATA_IF_MATCH
+    } else {
+      UNREACHABLE();
+    }
   }
   CHECK_NOT_NULL(data);
   return data;
 }
+// clang-format on
 
 ObjectData* JSHeapBroker::GetOrCreateData(Object* object) {
   return GetOrCreateData(handle(object, isolate()));
