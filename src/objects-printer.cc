@@ -1284,8 +1284,8 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {  // NOLINT
 void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSTypedArray");
   os << "\n - buffer: " << Brief(buffer());
-  os << "\n - byte_offset: " << Brief(byte_offset());
-  os << "\n - byte_length: " << Brief(byte_length());
+  os << "\n - byte_offset: " << byte_offset();
+  os << "\n - byte_length: " << byte_length();
   os << "\n - length: " << Brief(length());
   if (WasNeutered()) os << "\n - neutered";
   JSObjectPrintBody(os, this, !WasNeutered());
@@ -1302,8 +1302,8 @@ void JSArrayIterator::JSArrayIteratorPrint(std::ostream& os) {  // NOLING
 void JSDataView::JSDataViewPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSDataView");
   os << "\n - buffer =" << Brief(buffer());
-  os << "\n - byte_offset: " << Brief(byte_offset());
-  os << "\n - byte_length: " << Brief(byte_length());
+  os << "\n - byte_offset: " << byte_offset();
+  os << "\n - byte_length: " << byte_length();
   if (WasNeutered()) os << "\n - neutered";
   JSObjectPrintBody(os, this, !WasNeutered());
 }

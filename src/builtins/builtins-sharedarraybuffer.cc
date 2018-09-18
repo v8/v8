@@ -113,7 +113,7 @@ BUILTIN(AtomicsWake) {
   }
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t addr = (i << 2) + NumberToSize(sta->byte_offset());
+  size_t addr = (i << 2) + sta->byte_offset();
 
   return FutexEmulation::Wake(array_buffer, addr, c);
 }
@@ -158,7 +158,7 @@ BUILTIN(AtomicsWait) {
   }
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t addr = (i << 2) + NumberToSize(sta->byte_offset());
+  size_t addr = (i << 2) + sta->byte_offset();
 
   return FutexEmulation::Wait(isolate, array_buffer, addr, value_int32,
                               timeout_number);

@@ -256,10 +256,12 @@ extern operator '<' macro IntPtrLessThan(intptr, intptr): bool;
 extern operator '>' macro IntPtrGreaterThan(intptr, intptr): bool;
 extern operator '<=' macro IntPtrLessThanOrEqual(intptr, intptr): bool;
 extern operator '>=' macro IntPtrGreaterThanOrEqual(intptr, intptr): bool;
+extern operator '>' macro UintPtrGreaterThan(uintptr, uintptr): bool;
 extern operator '>=' macro UintPtrGreaterThanOrEqual(uintptr, uintptr): bool;
 
 extern operator '==' macro Float64Equal(float64, float64): bool;
 extern operator '!=' macro Float64NotEqual(float64, float64): bool;
+extern operator '>' macro Float64GreaterThan(float64, float64): bool;
 
 extern operator
 '==' macro BranchIfNumberEqual(Number, Number): never labels Taken, NotTaken;
@@ -287,6 +289,7 @@ extern operator '>>>' macro SmiShr(Smi, constexpr int31): Smi;
 extern operator '<<' macro SmiShl(Smi, constexpr int31): Smi;
 
 extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
+extern operator '+' macro UintPtrAdd(uintptr, uintptr): uintptr;
 extern operator '-' macro IntPtrSub(intptr, intptr): intptr;
 extern operator '>>>' macro WordShr(uintptr, uintptr): uintptr;
 extern operator '<<' macro WordShl(intptr, intptr): intptr;
@@ -311,6 +314,8 @@ extern operator '<<' macro Word32Shl(int32, int32): int32;
 extern operator '<<' macro Word32Shl(uint32, uint32): uint32;
 extern operator '|' macro Word32Or(int32, int32): int32;
 extern operator '|' macro Word32Or(uint32, uint32): uint32;
+
+extern operator '+' macro Float64Add(float64, float64): float64;
 
 extern operator '+' macro NumberAdd(Number, Number): Number;
 extern operator '-' macro NumberSub(Number, Number): Number;
@@ -396,6 +401,8 @@ Cast<Number>(o: Object): Number labels CastError {
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
 extern macro ChangeInt32ToTagged(int32): Number;
 extern macro ChangeUint32ToTagged(uint32): Number;
+extern macro ChangeUintPtrToFloat64(uintptr): float64;
+extern macro ChangeUintPtrToTagged(uintptr): Number;
 extern macro Unsigned(int32): uint32;
 extern macro Unsigned(intptr): uintptr;
 extern macro Unsigned(RawPtr): uintptr;
@@ -551,6 +558,12 @@ macro Convert<A : type>(d: float64): A;
 Convert<Number>(d: float64): Number {
   return AllocateHeapNumberWithValue(d);
 }
+Convert<float64>(ui: uintptr): float64 {
+  return ChangeUintPtrToFloat64(ui);
+}
+Convert<Number>(ui: uintptr): Number {
+  return ChangeUintPtrToTagged(ui);
+}
 Convert<uintptr>(d: float64): uintptr {
   return ChangeFloat64ToUintPtr(d);
 }
@@ -659,7 +672,7 @@ extern operator
 extern operator '.elements' macro LoadElements(JSObject): FixedArrayBase;
 extern operator '.elements=' macro StoreElements(JSObject, FixedArrayBase);
 
-extern operator '.length' macro LoadTypedArrayLength(JSTypedArray): Smi;
+extern operator '.length' macro LoadJSTypedArrayLength(JSTypedArray): Smi;
 extern operator '.length' macro LoadJSArrayLength(JSArray): Number;
 extern operator '.length_fast' macro LoadFastJSArrayLength(JSArray): Smi;
 extern operator '.length=' macro StoreJSArrayLength(JSArray, Smi);

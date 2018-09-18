@@ -100,19 +100,6 @@ Node* JSGraph::Constant(double value) {
   return NumberConstant(value);
 }
 
-
-Node* JSGraph::Constant(int32_t value) {
-  if (value == 0) return ZeroConstant();
-  if (value == 1) return OneConstant();
-  return NumberConstant(value);
-}
-
-Node* JSGraph::Constant(uint32_t value) {
-  if (value == 0) return ZeroConstant();
-  if (value == 1) return OneConstant();
-  return NumberConstant(value);
-}
-
 Node* JSGraph::NumberConstant(double value) {
   Node** loc = cache_.FindNumberConstant(value);
   if (*loc == nullptr) {

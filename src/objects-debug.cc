@@ -1475,14 +1475,8 @@ void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {
   VerifyPointer(isolate, buffer());
   CHECK(buffer()->IsJSArrayBuffer() || buffer()->IsUndefined(isolate) ||
         buffer() == Smi::kZero);
-
-  VerifyPointer(isolate, raw_byte_offset());
-  CHECK(raw_byte_offset()->IsSmi() || raw_byte_offset()->IsHeapNumber() ||
-        raw_byte_offset()->IsUndefined(isolate));
-
-  VerifyPointer(isolate, raw_byte_length());
-  CHECK(raw_byte_length()->IsSmi() || raw_byte_length()->IsHeapNumber() ||
-        raw_byte_length()->IsUndefined(isolate));
+  CHECK_LE(byte_length(), JSArrayBuffer::kMaxByteLength);
+  CHECK_LE(byte_offset(), JSArrayBuffer::kMaxByteLength);
 }
 
 void JSTypedArray::JSTypedArrayVerify(Isolate* isolate) {

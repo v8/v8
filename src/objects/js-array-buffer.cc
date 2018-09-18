@@ -83,6 +83,7 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
                           SharedFlag shared_flag, bool is_wasm_memory) {
   DCHECK_EQ(array_buffer->GetEmbedderFieldCount(),
             v8::ArrayBuffer::kEmbedderFieldCount);
+  DCHECK_LE(byte_length, JSArrayBuffer::kMaxByteLength);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
     array_buffer->SetEmbedderField(i, Smi::kZero);
   }

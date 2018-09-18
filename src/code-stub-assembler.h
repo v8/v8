@@ -873,8 +873,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Smi> LoadWeakFixedArrayLength(TNode<WeakFixedArray> array);
   TNode<IntPtrT> LoadAndUntagWeakFixedArrayLength(
       SloppyTNode<WeakFixedArray> array);
-  // Load the length of a JSTypedArray instance.
-  TNode<Smi> LoadTypedArrayLength(TNode<JSTypedArray> typed_array);
   // Load the bit field of a Map.
   TNode<Int32T> LoadMapBitField(SloppyTNode<Map> map);
   // Load bit field 2 of a map.
@@ -2771,17 +2769,28 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   TNode<BoolT> IsRuntimeCallStatsEnabled();
 
-  // TypedArray/ArrayBuffer helpers
+  // JSArrayBuffer helpers
+  TNode<Uint32T> LoadJSArrayBufferBitField(TNode<JSArrayBuffer> array_buffer);
+  TNode<RawPtrT> LoadJSArrayBufferBackingStore(
+      TNode<JSArrayBuffer> array_buffer);
   Node* IsDetachedBuffer(Node* buffer);
   void ThrowIfArrayBufferIsDetached(SloppyTNode<Context> context,
                                     TNode<JSArrayBuffer> array_buffer,
                                     const char* method_name);
+
+  // JSArrayBufferView helpers
+  TNode<JSArrayBuffer> LoadJSArrayBufferViewBuffer(
+      TNode<JSArrayBufferView> array_buffer_view);
+  TNode<UintPtrT> LoadJSArrayBufferViewByteLength(
+      TNode<JSArrayBufferView> array_buffer_view);
+  TNode<UintPtrT> LoadJSArrayBufferViewByteOffset(
+      TNode<JSArrayBufferView> array_buffer_view);
   void ThrowIfArrayBufferViewBufferIsDetached(
       SloppyTNode<Context> context, TNode<JSArrayBufferView> array_buffer_view,
       const char* method_name);
-  TNode<JSArrayBuffer> LoadArrayBufferViewBuffer(
-      TNode<JSArrayBufferView> array_buffer_view);
-  TNode<RawPtrT> LoadArrayBufferBackingStore(TNode<JSArrayBuffer> array_buffer);
+
+  // JSTypedArray helpers
+  TNode<Smi> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
 
   TNode<IntPtrT> ElementOffsetFromIndex(Node* index, ElementsKind kind,
                                         ParameterMode mode, int base_size = 0);

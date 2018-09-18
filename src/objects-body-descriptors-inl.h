@@ -217,6 +217,31 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class JSArrayBufferView::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  STATIC_ASSERT(kBufferOffset + kPointerSize == kByteOffsetOffset);
+  STATIC_ASSERT(kByteOffsetOffset + kUIntptrSize == kByteLengthOffset);
+  STATIC_ASSERT(kByteLengthOffset + kUIntptrSize == kHeaderSize);
+
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    if (offset < kByteOffsetOffset) return true;
+    if (offset < kHeaderSize) return false;
+    return IsValidSlotImpl(map, obj, offset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    // JSArrayBufferView contains raw data that the GC does not know about.
+    IteratePointers(obj, kPropertiesOrHashOffset, kByteOffsetOffset, v);
+    IterateBodyImpl(map, obj, kHeaderSize, object_size, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    return map->instance_size();
+  }
+};
+
 template <typename Derived>
 class SmallOrderedHashTable<Derived>::BodyDescriptor final
     : public BodyDescriptorBase {
@@ -705,8 +730,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_ARRAY_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
-    case JS_TYPED_ARRAY_TYPE:
-    case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
@@ -748,6 +771,10 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
                                                                   p4);
     case JS_ARRAY_BUFFER_TYPE:
       return Op::template apply<JSArrayBuffer::BodyDescriptor>(p1, p2, p3, p4);
+    case JS_DATA_VIEW_TYPE:
+      return Op::template apply<JSDataView::BodyDescriptor>(p1, p2, p3, p4);
+    case JS_TYPED_ARRAY_TYPE:
+      return Op::template apply<JSTypedArray::BodyDescriptor>(p1, p2, p3, p4);
     case JS_FUNCTION_TYPE:
       return Op::template apply<JSFunction::BodyDescriptor>(p1, p2, p3, p4);
     case ODDBALL_TYPE:

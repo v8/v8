@@ -5,13 +5,13 @@
 module data_view {
 
   extern operator '.buffer'
-      macro LoadArrayBufferViewBuffer(JSArrayBufferView): JSArrayBuffer;
+      macro LoadJSArrayBufferViewBuffer(JSArrayBufferView): JSArrayBuffer;
   extern operator '.byte_length'
-      macro LoadDataViewByteLength(JSDataView): Number;
+      macro LoadJSArrayBufferViewByteLength(JSArrayBufferView): uintptr;
   extern operator '.byte_offset'
-      macro LoadDataViewByteOffset(JSDataView): Number;
+      macro LoadJSArrayBufferViewByteOffset(JSArrayBufferView): uintptr;
   extern operator '.backing_store'
-      macro LoadArrayBufferBackingStore(JSArrayBuffer): RawPtr;
+      macro LoadJSArrayBufferBackingStore(JSArrayBuffer): RawPtr;
 
   macro MakeDataViewGetterNameString(kind: constexpr ElementsKind): String {
     if constexpr (kind == UINT8_ELEMENTS) {
@@ -97,7 +97,7 @@ module data_view {
       // here if the JSArrayBuffer of the {dataView} was neutered.
       return 0;
     }
-    return dataView.byte_length;
+    return Convert<Number>(dataView.byte_length);
   }
 
   // ES6 section 24.2.4.3 get DataView.prototype.byteOffset
@@ -110,7 +110,7 @@ module data_view {
       // here if the JSArrayBuffer of the {dataView} was neutered.
       return 0;
     }
-    return dataView.byte_offset;
+    return Convert<Number>(dataView.byte_offset);
   }
 
   extern macro BitcastInt32ToFloat32(uint32): float32;
@@ -120,10 +120,10 @@ module data_view {
   extern macro Float64InsertLowWord32(float64, uint32): float64;
   extern macro Float64InsertHighWord32(float64, uint32): float64;
 
-  extern macro LoadUint8(RawPtr, intptr): uint32;
-  extern macro LoadInt8(RawPtr, intptr): int32;
+  extern macro LoadUint8(RawPtr, uintptr): uint32;
+  extern macro LoadInt8(RawPtr, uintptr): int32;
 
-  macro LoadDataView8(buffer: JSArrayBuffer, offset: intptr,
+  macro LoadDataView8(buffer: JSArrayBuffer, offset: uintptr,
                           signed: constexpr bool): Smi {
     if constexpr (signed) {
       return Convert<Smi>(LoadInt8(buffer.backing_store, offset));
@@ -132,7 +132,7 @@ module data_view {
     }
   }
 
-  macro LoadDataView16(buffer: JSArrayBuffer, offset: intptr,
+  macro LoadDataView16(buffer: JSArrayBuffer, offset: uintptr,
                        requestedLittleEndian: bool,
                        signed: constexpr bool): Number {
     let dataPointer: RawPtr = buffer.backing_store;
@@ -159,7 +159,7 @@ module data_view {
     }
   }
 
-  macro LoadDataView32(buffer: JSArrayBuffer, offset: intptr,
+  macro LoadDataView32(buffer: JSArrayBuffer, offset: uintptr,
                        requestedLittleEndian: bool,
                        kind: constexpr ElementsKind): Number {
     let dataPointer: RawPtr = buffer.backing_store;
@@ -188,7 +188,7 @@ module data_view {
     }
   }
 
-  macro LoadDataViewFloat64(buffer: JSArrayBuffer, offset: intptr,
+  macro LoadDataViewFloat64(buffer: JSArrayBuffer, offset: uintptr,
                             requestedLittleEndian: bool): Number {
     let dataPointer: RawPtr = buffer.backing_store;
 
@@ -359,7 +359,7 @@ module data_view {
     }
   }
 
-  macro LoadDataViewBigInt(buffer: JSArrayBuffer, offset: intptr,
+  macro LoadDataViewBigInt(buffer: JSArrayBuffer, offset: uintptr,
                            requestedLittleEndian: bool,
                            signed: constexpr bool): BigInt {
     let dataPointer: RawPtr = buffer.backing_store;
@@ -414,20 +414,18 @@ module data_view {
                      MakeDataViewGetterNameString(kind));
     }
 
-    let viewOffset: Number = dataView.byte_offset;
-    let viewSize: Number = dataView.byte_length;
-    let elementSize: Number = DataViewElementSize(kind);
+    let getIndexFloat: float64 = Convert<float64>(getIndex);
+    let getIndexWord: uintptr = Convert<uintptr>(getIndexFloat);
 
-    if (getIndex + elementSize > viewSize) {
+    let viewOffsetWord: uintptr = dataView.byte_offset;
+    let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
+    let elementSizeFloat: float64 = Convert<float64>(DataViewElementSize(kind));
+
+    if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
       ThrowRangeError(context, kInvalidDataViewAccessorOffset);
     }
 
-    let getIndexFloat: float64 = Convert<float64>(getIndex);
-    let getIndexIntptr: intptr = Signed(Convert<uintptr>(getIndexFloat));
-    let viewOffsetFloat: float64 = Convert<float64>(viewOffset);
-    let viewOffsetIntptr: intptr = Signed(Convert<uintptr>(viewOffsetFloat));
-
-    let bufferIndex: intptr = getIndexIntptr + viewOffsetIntptr;
+    let bufferIndex: uintptr = getIndexWord + viewOffsetWord;
 
     if constexpr (kind == UINT8_ELEMENTS) {
       return LoadDataView8(buffer, bufferIndex, false);
@@ -571,14 +569,14 @@ module data_view {
   extern macro TruncateFloat64ToFloat32(float64): float32;
   extern macro TruncateFloat64ToWord32(float64): uint32;
 
-  extern macro StoreWord8(RawPtr, intptr, uint32): void;
+  extern macro StoreWord8(RawPtr, uintptr, uint32): void;
 
-  macro StoreDataView8(buffer: JSArrayBuffer, offset: intptr,
+  macro StoreDataView8(buffer: JSArrayBuffer, offset: uintptr,
                        value: uint32) {
     StoreWord8(buffer.backing_store, offset, value & 0xFF);
   }
 
-  macro StoreDataView16(buffer: JSArrayBuffer, offset: intptr, value: uint32,
+  macro StoreDataView16(buffer: JSArrayBuffer, offset: uintptr, value: uint32,
                         requestedLittleEndian: bool) {
     let dataPointer: RawPtr = buffer.backing_store;
 
@@ -594,7 +592,7 @@ module data_view {
     }
   }
 
-  macro StoreDataView32(buffer: JSArrayBuffer, offset: intptr, value: uint32,
+  macro StoreDataView32(buffer: JSArrayBuffer, offset: uintptr, value: uint32,
                         requestedLittleEndian: bool) {
     let dataPointer: RawPtr = buffer.backing_store;
 
@@ -616,7 +614,7 @@ module data_view {
     }
   }
 
-  macro StoreDataView64(buffer: JSArrayBuffer, offset: intptr,
+  macro StoreDataView64(buffer: JSArrayBuffer, offset: uintptr,
                         lowWord: uint32, highWord: uint32,
                         requestedLittleEndian: bool) {
     let dataPointer: RawPtr = buffer.backing_store;
@@ -660,7 +658,7 @@ module data_view {
   // We might get here a BigInt that is bigger than 64 bits, but we're only
   // interested in the 64 lowest ones. This means the lowest BigInt digit
   // on 64-bit platforms, and the 2 lowest BigInt digits on 32-bit ones.
-  macro StoreDataViewBigInt(buffer: JSArrayBuffer, offset: intptr,
+  macro StoreDataViewBigInt(buffer: JSArrayBuffer, offset: uintptr,
                             bigIntValue: BigInt,
                             requestedLittleEndian: bool) {
 
@@ -736,20 +734,18 @@ module data_view {
                      MakeDataViewSetterNameString(kind));
     }
 
-    let viewOffset: Number = dataView.byte_offset;
-    let viewSize: Number = dataView.byte_length;
-    let elementSize: Number = DataViewElementSize(kind);
+    let getIndexFloat: float64 = Convert<float64>(getIndex);
+    let getIndexWord: uintptr = Convert<uintptr>(getIndexFloat);
 
-    if (getIndex + elementSize > viewSize) {
+    let viewOffsetWord: uintptr = dataView.byte_offset;
+    let viewSizeFloat: float64 = Convert<float64>(dataView.byte_length);
+    let elementSizeFloat: float64 = Convert<float64>(DataViewElementSize(kind));
+
+    if (getIndexFloat + elementSizeFloat > viewSizeFloat) {
       ThrowRangeError(context, kInvalidDataViewAccessorOffset);
     }
 
-    let getIndexFloat: float64 = Convert<float64>(getIndex);
-    let getIndexIntptr: intptr = Signed(Convert<uintptr>(getIndexFloat));
-    let viewOffsetFloat: float64 = Convert<float64>(viewOffset);
-    let viewOffsetIntptr: intptr = Signed(Convert<uintptr>(viewOffsetFloat));
-
-    let bufferIndex: intptr = getIndexIntptr + viewOffsetIntptr;
+    let bufferIndex: uintptr = getIndexWord + viewOffsetWord;
 
     if constexpr (kind == BIGUINT64_ELEMENTS || kind == BIGINT64_ELEMENTS) {
       StoreDataViewBigInt(buffer, bufferIndex, bigIntValue,

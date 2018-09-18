@@ -3189,25 +3189,16 @@ JSFunction* GetTypedArrayFun(ElementsKind elements_kind, Isolate* isolate) {
 void SetupArrayBufferView(i::Isolate* isolate,
                           i::Handle<i::JSArrayBufferView> obj,
                           i::Handle<i::JSArrayBuffer> buffer,
-                          size_t byte_offset, size_t byte_length,
-                          PretenureFlag pretenure = NOT_TENURED) {
+                          size_t byte_offset, size_t byte_length) {
   DCHECK_LE(byte_offset + byte_length, buffer->byte_length());
-
   DCHECK_EQ(obj->GetEmbedderFieldCount(),
             v8::ArrayBufferView::kEmbedderFieldCount);
   for (int i = 0; i < v8::ArrayBufferView::kEmbedderFieldCount; i++) {
     obj->SetEmbedderField(i, Smi::kZero);
   }
-
   obj->set_buffer(*buffer);
-
-  i::Handle<i::Object> byte_offset_object =
-      isolate->factory()->NewNumberFromSize(byte_offset, pretenure);
-  obj->set_byte_offset(*byte_offset_object);
-
-  i::Handle<i::Object> byte_length_object =
-      isolate->factory()->NewNumberFromSize(byte_length, pretenure);
-  obj->set_byte_length(*byte_length_object);
+  obj->set_byte_offset(byte_offset);
+  obj->set_byte_length(byte_length);
 }
 
 }  // namespace
@@ -3244,8 +3235,7 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
   // TODO(7881): Smi length check
   CHECK(length <= static_cast<size_t>(Smi::kMaxValue));
   size_t byte_length = length * element_size;
-  SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length,
-                       pretenure);
+  SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length);
 
   Handle<Object> length_object = NewNumberFromSize(length, pretenure);
   obj->set_length(*length_object);
@@ -3278,13 +3268,9 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
   CHECK(number_of_elements <= static_cast<size_t>(Smi::kMaxValue));
   size_t byte_length = number_of_elements * element_size;
 
-  obj->set_byte_offset(Smi::kZero);
-  i::Handle<i::Object> byte_length_object =
-      NewNumberFromSize(byte_length, pretenure);
-  obj->set_byte_length(*byte_length_object);
-  Handle<Object> length_object =
-      NewNumberFromSize(number_of_elements, pretenure);
-  obj->set_length(*length_object);
+  obj->set_byte_offset(0);
+  obj->set_byte_length(byte_length);
+  obj->set_length(Smi::FromIntptr(static_cast<intptr_t>(number_of_elements)));
 
   Handle<JSArrayBuffer> buffer =
       NewJSArrayBuffer(SharedFlag::kNotShared, pretenure);

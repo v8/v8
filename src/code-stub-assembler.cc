@@ -1615,11 +1615,6 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagWeakFixedArrayLength(
   return LoadAndUntagObjectField(array, WeakFixedArray::kLengthOffset);
 }
 
-TNode<Smi> CodeStubAssembler::LoadTypedArrayLength(
-    TNode<JSTypedArray> typed_array) {
-  return CAST(LoadObjectField(typed_array, JSTypedArray::kLengthOffset));
-}
-
 TNode<Int32T> CodeStubAssembler::LoadMapBitField(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   return UncheckedCast<Int32T>(
@@ -8919,7 +8914,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
     Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
     GotoIf(IsDetachedBuffer(buffer), if_absent);
 
-    Node* length = SmiUntag(LoadTypedArrayLength(CAST(object)));
+    Node* length = SmiUntag(LoadJSTypedArrayLength(CAST(object)));
     Branch(UintPtrLessThan(intptr_index, length), if_found, if_absent);
   }
   BIND(&if_oob);
@@ -9759,7 +9754,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
 
     // Bounds check.
     Node* length =
-        TaggedToParameter(LoadTypedArrayLength(CAST(object)), parameter_mode);
+        TaggedToParameter(LoadJSTypedArrayLength(CAST(object)), parameter_mode);
 
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
       // Skip the store if we write beyond the length or
@@ -12218,9 +12213,7 @@ Node* CodeStubAssembler::InternalArrayCreate(TNode<Context> context,
 
 Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
   CSA_ASSERT(this, HasInstanceType(buffer, JS_ARRAY_BUFFER_TYPE));
-
-  Node* buffer_bit_field = LoadObjectField(
-      buffer, JSArrayBuffer::kBitFieldOffset, MachineType::Uint32());
+  TNode<Uint32T> buffer_bit_field = LoadJSArrayBufferBitField(CAST(buffer));
   return IsSetWord32<JSArrayBuffer::WasNeuteredBit>(buffer_bit_field);
 }
 
@@ -12237,20 +12230,42 @@ void CodeStubAssembler::ThrowIfArrayBufferIsDetached(
 void CodeStubAssembler::ThrowIfArrayBufferViewBufferIsDetached(
     SloppyTNode<Context> context, TNode<JSArrayBufferView> array_buffer_view,
     const char* method_name) {
-  TNode<JSArrayBuffer> buffer = LoadArrayBufferViewBuffer(array_buffer_view);
+  TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array_buffer_view);
   ThrowIfArrayBufferIsDetached(context, buffer, method_name);
 }
 
-TNode<JSArrayBuffer> CodeStubAssembler::LoadArrayBufferViewBuffer(
+TNode<Uint32T> CodeStubAssembler::LoadJSArrayBufferBitField(
+    TNode<JSArrayBuffer> array_buffer) {
+  return LoadObjectField<Uint32T>(array_buffer, JSArrayBuffer::kBitFieldOffset);
+}
+
+TNode<RawPtrT> CodeStubAssembler::LoadJSArrayBufferBackingStore(
+    TNode<JSArrayBuffer> array_buffer) {
+  return LoadObjectField<RawPtrT>(array_buffer,
+                                  JSArrayBuffer::kBackingStoreOffset);
+}
+
+TNode<JSArrayBuffer> CodeStubAssembler::LoadJSArrayBufferViewBuffer(
     TNode<JSArrayBufferView> array_buffer_view) {
   return LoadObjectField<JSArrayBuffer>(array_buffer_view,
                                         JSArrayBufferView::kBufferOffset);
 }
 
-TNode<RawPtrT> CodeStubAssembler::LoadArrayBufferBackingStore(
-    TNode<JSArrayBuffer> array_buffer) {
-  return LoadObjectField<RawPtrT>(array_buffer,
-                                  JSArrayBuffer::kBackingStoreOffset);
+TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferViewByteLength(
+    TNode<JSArrayBufferView> array_buffer_view) {
+  return LoadObjectField<UintPtrT>(array_buffer_view,
+                                   JSArrayBufferView::kByteLengthOffset);
+}
+
+TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferViewByteOffset(
+    TNode<JSArrayBufferView> array_buffer_view) {
+  return LoadObjectField<UintPtrT>(array_buffer_view,
+                                   JSArrayBufferView::kByteOffsetOffset);
+}
+
+TNode<Smi> CodeStubAssembler::LoadJSTypedArrayLength(
+    TNode<JSTypedArray> typed_array) {
+  return LoadObjectField<Smi>(typed_array, JSTypedArray::kLengthOffset);
 }
 
 CodeStubArguments::CodeStubArguments(

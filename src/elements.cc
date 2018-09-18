@@ -3269,8 +3269,8 @@ class TypedElementsAccessor
 
     uint8_t* source_data = static_cast<uint8_t*>(source_elements->DataPtr());
     uint8_t* dest_data = static_cast<uint8_t*>(destination_elements->DataPtr());
-    size_t source_byte_length = NumberToSize(source->byte_length());
-    size_t dest_byte_length = NumberToSize(destination->byte_length());
+    size_t source_byte_length = source->byte_length();
+    size_t dest_byte_length = destination->byte_length();
 
     // We can simply copy the backing store if the types are the same, or if
     // we are converting e.g. Uint8 <-> Int8, as the binary representation

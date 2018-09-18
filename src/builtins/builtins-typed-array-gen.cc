@@ -64,11 +64,15 @@ TNode<UintPtrT> TypedArrayBuiltinsAssembler::CalculateExternalPointer(
 //  - Set EmbedderFields to 0.
 void TypedArrayBuiltinsAssembler::SetupTypedArray(TNode<JSTypedArray> holder,
                                                   TNode<Smi> length,
-                                                  TNode<Number> byte_offset,
-                                                  TNode<Number> byte_length) {
+                                                  TNode<UintPtrT> byte_offset,
+                                                  TNode<UintPtrT> byte_length) {
   StoreObjectField(holder, JSTypedArray::kLengthOffset, length);
-  StoreObjectField(holder, JSArrayBufferView::kByteOffsetOffset, byte_offset);
-  StoreObjectField(holder, JSArrayBufferView::kByteLengthOffset, byte_length);
+  StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kByteOffsetOffset,
+                                 byte_offset,
+                                 MachineType::PointerRepresentation());
+  StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kByteLengthOffset,
+                                 byte_length,
+                                 MachineType::PointerRepresentation());
   for (int offset = JSTypedArray::kSize;
        offset < JSTypedArray::kSizeWithEmbedderFields; offset += kPointerSize) {
     StoreObjectField(holder, offset, SmiConstant(0));
@@ -113,7 +117,8 @@ TF_BUILTIN(TypedArrayInitializeWithBuffer, TypedArrayBuiltinsAssembler) {
   // SmiMul returns a heap number in case of Smi overflow.
   TNode<Number> byte_length = SmiMul(length, element_size);
 
-  SetupTypedArray(holder, length, byte_offset, byte_length);
+  SetupTypedArray(holder, length, ChangeNonnegativeNumberToUintPtr(byte_offset),
+                  ChangeNonnegativeNumberToUintPtr(byte_length));
   AttachBuffer(holder, buffer, fixed_typed_map, length, byte_offset);
   Return(UndefinedConstant());
 }
@@ -145,7 +150,8 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   // SmiMul returns a heap number in case of Smi overflow.
   TNode<Number> byte_length = SmiMul(length, element_size);
 
-  SetupTypedArray(holder, length, byte_offset, byte_length);
+  SetupTypedArray(holder, length, ChangeNonnegativeNumberToUintPtr(byte_offset),
+                  ChangeNonnegativeNumberToUintPtr(byte_length));
 
   TNode<Map> fixed_typed_map = LoadMapForType(holder);
 
@@ -502,7 +508,7 @@ void TypedArrayBuiltinsAssembler::ConstructByTypedArray(
   Goto(&check_for_sab);
 
   BIND(&if_notdetached);
-  source_length = LoadTypedArrayLength(typed_array);
+  source_length = LoadJSTypedArrayLength(typed_array);
   Goto(&check_for_sab);
 
   // The spec requires that constructing a typed array using a SAB-backed typed
@@ -776,50 +782,58 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   }
 }
 
-void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(
-    Node* context, Node* receiver, const char* method_name, int object_offset) {
-  // Check if the {receiver} is actually a JSTypedArray.
-  ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, method_name);
-
-  // Check if the {receiver}'s JSArrayBuffer was neutered.
-  Node* receiver_buffer =
-      LoadObjectField(receiver, JSTypedArray::kBufferOffset);
-  Label if_receiverisneutered(this, Label::kDeferred);
-  GotoIf(IsDetachedBuffer(receiver_buffer), &if_receiverisneutered);
-  Return(LoadObjectField(receiver, object_offset));
-
-  BIND(&if_receiverisneutered);
-  {
-    // The {receiver}s buffer was neutered, default to zero.
-    Return(SmiConstant(0));
-  }
-}
-
 // ES6 #sec-get-%typedarray%.prototype.bytelength
 TF_BUILTIN(TypedArrayPrototypeByteLength, TypedArrayBuiltinsAssembler) {
+  const char* const kMethodName = "get TypedArray.prototype.byteLength";
   Node* context = Parameter(Descriptor::kContext);
   Node* receiver = Parameter(Descriptor::kReceiver);
-  GenerateTypedArrayPrototypeGetter(context, receiver,
-                                    "get TypedArray.prototype.byteLength",
-                                    JSTypedArray::kByteLengthOffset);
+
+  // Check if the {receiver} is actually a JSTypedArray.
+  ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
+
+  // Default to zero if the {receiver}s buffer was neutered.
+  TNode<JSArrayBuffer> receiver_buffer =
+      LoadJSArrayBufferViewBuffer(CAST(receiver));
+  TNode<UintPtrT> byte_length = Select<UintPtrT>(
+      IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
+      [=] { return LoadJSArrayBufferViewByteLength(CAST(receiver)); });
+  Return(ChangeUintPtrToTagged(byte_length));
 }
 
 // ES6 #sec-get-%typedarray%.prototype.byteoffset
 TF_BUILTIN(TypedArrayPrototypeByteOffset, TypedArrayBuiltinsAssembler) {
+  const char* const kMethodName = "get TypedArray.prototype.byteOffset";
   Node* context = Parameter(Descriptor::kContext);
   Node* receiver = Parameter(Descriptor::kReceiver);
-  GenerateTypedArrayPrototypeGetter(context, receiver,
-                                    "get TypedArray.prototype.byteOffset",
-                                    JSTypedArray::kByteOffsetOffset);
+
+  // Check if the {receiver} is actually a JSTypedArray.
+  ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
+
+  // Default to zero if the {receiver}s buffer was neutered.
+  TNode<JSArrayBuffer> receiver_buffer =
+      LoadJSArrayBufferViewBuffer(CAST(receiver));
+  TNode<UintPtrT> byte_offset = Select<UintPtrT>(
+      IsDetachedBuffer(receiver_buffer), [=] { return UintPtrConstant(0); },
+      [=] { return LoadJSArrayBufferViewByteOffset(CAST(receiver)); });
+  Return(ChangeUintPtrToTagged(byte_offset));
 }
 
 // ES6 #sec-get-%typedarray%.prototype.length
 TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
+  const char* const kMethodName = "get TypedArray.prototype.length";
   Node* context = Parameter(Descriptor::kContext);
   Node* receiver = Parameter(Descriptor::kReceiver);
-  GenerateTypedArrayPrototypeGetter(context, receiver,
-                                    "get TypedArray.prototype.length",
-                                    JSTypedArray::kLengthOffset);
+
+  // Check if the {receiver} is actually a JSTypedArray.
+  ThrowIfNotInstanceType(context, receiver, JS_TYPED_ARRAY_TYPE, kMethodName);
+
+  // Default to zero if the {receiver}s buffer was neutered.
+  TNode<JSArrayBuffer> receiver_buffer =
+      LoadJSArrayBufferViewBuffer(CAST(receiver));
+  TNode<Smi> length = Select<Smi>(
+      IsDetachedBuffer(receiver_buffer), [=] { return SmiConstant(0); },
+      [=] { return LoadJSTypedArrayLength(CAST(receiver)); });
+  Return(length);
 }
 
 TNode<Word32T> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
@@ -924,7 +938,7 @@ TNode<JSTypedArray> TypedArrayBuiltinsAssembler::CreateByLength(
   // If newTypedArray.[[ArrayLength]] < argumentList[0], throw a TypeError
   // exception.
   Label if_length_is_not_short(this);
-  TNode<Smi> new_length = LoadTypedArrayLength(new_typed_array);
+  TNode<Smi> new_length = LoadJSTypedArrayLength(new_typed_array);
   GotoIfNot(SmiLessThan(new_length, len), &if_length_is_not_short);
   ThrowTypeError(context, MessageTemplate::kTypedArrayTooShort);
 
@@ -980,8 +994,8 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
 
   // Check for possible range errors.
 
-  TNode<IntPtrT> source_length = SmiUntag(LoadTypedArrayLength(source));
-  TNode<IntPtrT> target_length = SmiUntag(LoadTypedArrayLength(target));
+  TNode<IntPtrT> source_length = SmiUntag(LoadJSTypedArrayLength(source));
+  TNode<IntPtrT> target_length = SmiUntag(LoadJSTypedArrayLength(target));
   TNode<IntPtrT> required_target_length = IntPtrAdd(source_length, offset);
 
   GotoIf(IntPtrGreaterThan(required_target_length, target_length),
@@ -1031,7 +1045,7 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
                           IsBigInt64ElementsKind(target_el_kind)),
            &exception);
 
-    TNode<IntPtrT> source_length = SmiUntag(LoadTypedArrayLength(source));
+    TNode<IntPtrT> source_length = SmiUntag(LoadJSTypedArrayLength(source));
     CallCCopyTypedArrayElementsToTypedArray(source, target, source_length,
                                             offset);
     Goto(&out);
@@ -1052,7 +1066,7 @@ void TypedArrayBuiltinsAssembler::SetJSArraySource(
              IntPtrLessThanOrEqual(offset, IntPtrConstant(Smi::kMaxValue)));
 
   TNode<IntPtrT> source_length = SmiUntag(LoadFastJSArrayLength(source));
-  TNode<IntPtrT> target_length = SmiUntag(LoadTypedArrayLength(target));
+  TNode<IntPtrT> target_length = SmiUntag(LoadJSTypedArrayLength(target));
 
   // Maybe out of bounds?
   GotoIf(IntPtrGreaterThan(IntPtrAdd(source_length, offset), target_length),
@@ -1267,7 +1281,7 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
   TNode<JSTypedArray> source =
       ValidateTypedArray(context, receiver, method_name);
 
-  TNode<Smi> source_length = LoadTypedArrayLength(source);
+  TNode<Smi> source_length = LoadJSTypedArrayLength(source);
 
   // Convert start offset argument to integer, and calculate relative offset.
   TNode<Object> start = args.GetOptionalArgumentValue(0, SmiConstant(0));
@@ -1300,7 +1314,7 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
   CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(LoadObjectField(
                        result_array, JSTypedArray::kBufferOffset))));
   TNode<JSArrayBuffer> receiver_buffer =
-      LoadArrayBufferViewBuffer(CAST(receiver));
+      LoadJSArrayBufferViewBuffer(CAST(receiver));
   ThrowIfArrayBufferIsDetached(context, receiver_buffer, method_name);
 
   // result_array could be a different type from source or share the same
@@ -1333,24 +1347,16 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
     TNode<IntPtrT> count_bytes = IntPtrMul(SmiToIntPtr(count), source_el_size);
 
 #ifdef DEBUG
-    Label done(this), to_intptr_failed(this, Label::kDeferred);
-    TNode<IntPtrT> target_byte_length = TryToIntptr(
-        LoadObjectField<Number>(result_array, JSTypedArray::kByteLengthOffset),
-        &to_intptr_failed);
-    CSA_ASSERT(this, IntPtrLessThanOrEqual(count_bytes, target_byte_length));
-
-    TNode<IntPtrT> source_byte_length = TryToIntptr(
-        LoadObjectField<Number>(source, JSTypedArray::kByteLengthOffset),
-        &to_intptr_failed);
-    TNode<IntPtrT> source_size_in_bytes =
-        IntPtrSub(source_byte_length, source_start_bytes);
-    CSA_ASSERT(this, IntPtrLessThanOrEqual(count_bytes, source_size_in_bytes));
-    Goto(&done);
-
-    BIND(&to_intptr_failed);
-    Unreachable();
-
-    BIND(&done);
+    TNode<UintPtrT> target_byte_length =
+        LoadJSArrayBufferViewByteLength(result_array);
+    CSA_ASSERT(this, UintPtrLessThanOrEqual(Unsigned(count_bytes),
+                                            target_byte_length));
+    TNode<UintPtrT> source_byte_length =
+        LoadJSArrayBufferViewByteLength(source);
+    TNode<UintPtrT> source_size_in_bytes =
+        UintPtrSub(source_byte_length, Unsigned(source_start_bytes));
+    CSA_ASSERT(this, UintPtrLessThanOrEqual(Unsigned(count_bytes),
+                                            source_size_in_bytes));
 #endif  // DEBUG
 
     CallCMemmove(target_data_ptr, source_start, count_bytes);
@@ -1396,7 +1402,7 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
   // 5. Let buffer be O.[[ViewedArrayBuffer]].
   TNode<JSArrayBuffer> buffer = GetBuffer(context, source);
   // 6. Let srcLength be O.[[ArrayLength]].
-  TNode<Smi> source_length = LoadTypedArrayLength(source);
+  TNode<Smi> source_length = LoadJSTypedArrayLength(source);
 
   // 7. Let relativeBegin be ? ToInteger(begin).
   // 8. If relativeBegin < 0, let beginIndex be max((srcLength + relativeBegin),
@@ -1431,7 +1437,7 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
 
   // 14. Let srcByteOffset be O.[[ByteOffset]].
   TNode<Number> source_byte_offset =
-      LoadObjectField<Number>(source, JSTypedArray::kByteOffsetOffset);
+      ChangeUintPtrToTagged(LoadJSArrayBufferViewByteOffset(source));
 
   // 15. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
   TNode<Number> offset = SmiMul(var_begin.value(), SmiFromIntPtr(element_size));
@@ -1808,7 +1814,7 @@ TF_BUILTIN(TypedArrayPrototypeFilter, TypedArrayBuiltinsAssembler) {
       ValidateTypedArray(context, receiver, method_name);
 
   // 3. Let len be O.[[ArrayLength]].
-  TNode<Smi> length = LoadTypedArrayLength(source);
+  TNode<Smi> length = LoadJSTypedArrayLength(source);
 
   // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
   TNode<Object> callbackfn = args.GetOptionalArgumentValue(0);

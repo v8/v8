@@ -437,9 +437,9 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeJSTypedArray() {
       // Explicitly serialize the backing store now.
       JSArrayBuffer* buffer = JSArrayBuffer::cast(typed_array->buffer());
       CHECK_LE(buffer->byte_length(), Smi::kMaxValue);
-      CHECK(typed_array->byte_offset()->IsSmi());
+      CHECK_LE(typed_array->byte_offset(), Smi::kMaxValue);
       int32_t byte_length = static_cast<int32_t>(buffer->byte_length());
-      int32_t byte_offset = NumberToInt32(typed_array->byte_offset());
+      int32_t byte_offset = static_cast<int32_t>(typed_array->byte_offset());
 
       // We need to calculate the backing store from the external pointer
       // because the ArrayBuffer may already have been serialized.

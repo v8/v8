@@ -18,6 +18,16 @@ enum class SharedFlag : uint32_t { kNotShared, kShared };
 
 class JSArrayBuffer : public JSObject {
  public:
+// The maximum length for JSArrayBuffer's supported by V8.
+// On 32-bit architectures we limit this to 2GiB, so that
+// we can continue to use CheckBounds with the Unsigned31
+// restriction for the length.
+#if V8_HOST_ARCH_32_BIT
+  static constexpr size_t kMaxByteLength = kMaxInt;
+#else
+  static constexpr size_t kMaxByteLength = kMaxSafeInteger;
+#endif
+
   // [byte_length]: length in bytes
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
@@ -130,10 +140,10 @@ class JSArrayBufferView : public JSObject {
   DECL_ACCESSORS(buffer, Object)
 
   // [byte_offset]: offset of typed array in bytes.
-  DECL_ACCESSORS(byte_offset, Object)
+  DECL_PRIMITIVE_ACCESSORS(byte_offset, size_t)
 
   // [byte_length]: length of typed array in bytes.
-  DECL_ACCESSORS(byte_length, Object)
+  DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
   DECL_CAST(JSArrayBufferView)
 
@@ -143,15 +153,14 @@ class JSArrayBufferView : public JSObject {
 
   static const int kBufferOffset = JSObject::kHeaderSize;
   static const int kByteOffsetOffset = kBufferOffset + kPointerSize;
-  static const int kByteLengthOffset = kByteOffsetOffset + kPointerSize;
-  static const int kViewSize = kByteLengthOffset + kPointerSize;
+  static const int kByteLengthOffset = kByteOffsetOffset + kUIntptrSize;
+  static const int kHeaderSize = kByteLengthOffset + kUIntptrSize;
+
+  // Iterates all fields in the object including internal ones except
+  // kByteOffset and kByteLengthOffset.
+  class BodyDescriptor;
 
  private:
-#ifdef VERIFY_HEAP
-  DECL_ACCESSORS(raw_byte_offset, Object)
-  DECL_ACCESSORS(raw_byte_length, Object)
-#endif
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBufferView);
 };
 
@@ -184,9 +193,8 @@ class JSTypedArray : public JSArrayBufferView {
   DECL_PRINTER(JSTypedArray)
   DECL_VERIFIER(JSTypedArray)
 
-  static const int kLengthOffset = kViewSize;
+  static const int kLengthOffset = JSArrayBufferView::kHeaderSize;
   static const int kSize = kLengthOffset + kPointerSize;
-
   static const int kSizeWithEmbedderFields =
       kSize + v8::ArrayBufferView::kEmbedderFieldCount * kPointerSize;
 
@@ -208,8 +216,7 @@ class JSDataView : public JSArrayBufferView {
   DECL_PRINTER(JSDataView)
   DECL_VERIFIER(JSDataView)
 
-  static const int kSize = kViewSize;
-
+  static const int kSize = JSArrayBufferView::kHeaderSize;
   static const int kSizeWithEmbedderFields =
       kSize + v8::ArrayBufferView::kEmbedderFieldCount * kPointerSize;
 

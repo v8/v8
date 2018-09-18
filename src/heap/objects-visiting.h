@@ -21,6 +21,7 @@ class BigInt;
 class BytecodeArray;
 class DataHandler;
 class JSArrayBuffer;
+class JSArrayBufferView;
 class JSRegExp;
 class JSWeakCollection;
 class UncompiledDataWithoutPreParsedScope;
@@ -44,6 +45,7 @@ class UncompiledDataWithPreParsedScope;
   V(FixedFloat64Array)                   \
   V(FixedTypedArrayBase)                 \
   V(JSArrayBuffer)                       \
+  V(JSArrayBufferView)                   \
   V(JSObject)                            \
   V(JSWeakCollection)                    \
   V(Map)                                 \

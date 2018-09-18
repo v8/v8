@@ -6786,7 +6786,7 @@ uint32_t ExternalArrayElementSize(const ExternalArrayType element_type) {
 
 Reduction JSCallReducer::ReduceDataViewPrototypeGet(
     Node* node, ExternalArrayType element_type) {
-  uint32_t const element_size = ExternalArrayElementSize(element_type);
+  size_t const element_size = ExternalArrayElementSize(element_type);
   CallParameters const& p = CallParametersOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -6813,26 +6813,25 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
       // We only deal with DataViews here whose [[ByteLength]] is at least
       // {element_size} and less than 2^31-{element_size}.
       Handle<JSDataView> dataview = Handle<JSDataView>::cast(m.Value());
-      if (dataview->byte_length()->Number() < element_size ||
-          dataview->byte_length()->Number() - element_size > kMaxInt) {
+      if (dataview->byte_length() < element_size ||
+          dataview->byte_length() - element_size > kMaxInt) {
         return NoChange();
       }
 
       // The {receiver}s [[ByteOffset]] must be within Unsigned31 range.
-      if (dataview->byte_offset()->Number() > kMaxInt) {
+      if (dataview->byte_offset() > kMaxInt) {
         return NoChange();
       }
 
       // Check that the {offset} is within range of the {byte_length}.
-      Node* byte_length = jsgraph()->Constant(
-          dataview->byte_length()->Number() - (element_size - 1));
+      Node* byte_length =
+          jsgraph()->Constant(dataview->byte_length() - (element_size - 1));
       offset = effect =
           graph()->NewNode(simplified()->CheckBounds(p.feedback()), offset,
                            byte_length, effect, control);
 
       // Add the [[ByteOffset]] to compute the effective offset.
-      Node* byte_offset =
-          jsgraph()->Constant(dataview->byte_offset()->Number());
+      Node* byte_offset = jsgraph()->Constant(dataview->byte_offset());
       offset = graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
     } else {
       // We only deal with DataViews here that have Smi [[ByteLength]]s.
@@ -6921,7 +6920,7 @@ Reduction JSCallReducer::ReduceDataViewPrototypeGet(
 
 Reduction JSCallReducer::ReduceDataViewPrototypeSet(
     Node* node, ExternalArrayType element_type) {
-  uint32_t const element_size = ExternalArrayElementSize(element_type);
+  size_t const element_size = ExternalArrayElementSize(element_type);
   CallParameters const& p = CallParametersOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -6952,26 +6951,25 @@ Reduction JSCallReducer::ReduceDataViewPrototypeSet(
       // We only deal with DataViews here whose [[ByteLength]] is at least
       // {element_size} and less than 2^31-{element_size}.
       Handle<JSDataView> dataview = Handle<JSDataView>::cast(m.Value());
-      if (dataview->byte_length()->Number() < element_size ||
-          dataview->byte_length()->Number() - element_size > kMaxInt) {
+      if (dataview->byte_length() < element_size ||
+          dataview->byte_length() - element_size > kMaxInt) {
         return NoChange();
       }
 
       // The {receiver}s [[ByteOffset]] must be within Unsigned31 range.
-      if (dataview->byte_offset()->Number() > kMaxInt) {
+      if (dataview->byte_offset() > kMaxInt) {
         return NoChange();
       }
 
       // Check that the {offset} is within range of the {byte_length}.
-      Node* byte_length = jsgraph()->Constant(
-          dataview->byte_length()->Number() - (element_size - 1));
+      Node* byte_length =
+          jsgraph()->Constant(dataview->byte_length() - (element_size - 1));
       offset = effect =
           graph()->NewNode(simplified()->CheckBounds(p.feedback()), offset,
                            byte_length, effect, control);
 
       // Add the [[ByteOffset]] to compute the effective offset.
-      Node* byte_offset =
-          jsgraph()->Constant(dataview->byte_offset()->Number());
+      Node* byte_offset = jsgraph()->Constant(dataview->byte_offset());
       offset = graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
     } else {
       // We only deal with DataViews here that have Smi [[ByteLength]]s.

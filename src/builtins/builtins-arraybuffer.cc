@@ -35,7 +35,8 @@ Object* ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
       isolate, result,
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
   size_t byte_length;
-  if (!TryNumberToSize(*length, &byte_length)) {
+  if (!TryNumberToSize(*length, &byte_length) ||
+      byte_length > JSArrayBuffer::kMaxByteLength) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }

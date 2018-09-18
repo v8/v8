@@ -933,6 +933,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return Signed(
         IntPtrMul(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
+  TNode<UintPtrT> UintPtrAdd(TNode<UintPtrT> left, TNode<UintPtrT> right) {
+    return Unsigned(
+        IntPtrAdd(static_cast<Node*>(left), static_cast<Node*>(right)));
+  }
+  TNode<UintPtrT> UintPtrSub(TNode<UintPtrT> left, TNode<UintPtrT> right) {
+    return Unsigned(
+        IntPtrSub(static_cast<Node*>(left), static_cast<Node*>(right)));
+  }
 
   TNode<WordT> WordShl(SloppyTNode<WordT> value, int shift);
   TNode<WordT> WordShr(SloppyTNode<WordT> value, int shift);

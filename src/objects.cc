@@ -3160,6 +3160,10 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_ARRAY_BUFFER_TYPE:
       return kVisitJSArrayBuffer;
 
+    case JS_DATA_VIEW_TYPE:
+    case JS_TYPED_ARRAY_TYPE:
+      return kVisitJSArrayBufferView;
+
     case SMALL_ORDERED_HASH_MAP_TYPE:
       return kVisitSmallOrderedHashMap;
 
@@ -3197,8 +3201,6 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
-    case JS_TYPED_ARRAY_TYPE:
-    case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
@@ -8628,7 +8630,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   // typed array elements. Freeze works only if there are no actual elements.
   if (object->HasFixedTypedArrayElements()) {
     if (attrs == FROZEN &&
-        JSArrayBufferView::cast(*object)->byte_length()->Number() > 0) {
+        JSArrayBufferView::cast(*object)->byte_length() > 0) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kCannotFreezeArrayBufferView));
       return Nothing<bool>();

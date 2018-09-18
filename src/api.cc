@@ -7567,6 +7567,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, void* data,
                                         ArrayBufferCreationMode mode) {
   // Embedders must guarantee that the external backing store is valid.
   CHECK(byte_length == 0 || data != nullptr);
+  CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, ArrayBuffer, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -7598,9 +7599,8 @@ Local<ArrayBuffer> v8::ArrayBufferView::Buffer() {
 
 size_t v8::ArrayBufferView::CopyContents(void* dest, size_t byte_length) {
   i::Handle<i::JSArrayBufferView> self = Utils::OpenHandle(this);
-  size_t byte_offset = i::NumberToSize(self->byte_offset());
-  size_t bytes_to_copy =
-      i::Min(byte_length, i::NumberToSize(self->byte_length()));
+  size_t byte_offset = self->byte_offset();
+  size_t bytes_to_copy = i::Min(byte_length, self->byte_length());
   if (bytes_to_copy) {
     i::DisallowHeapAllocation no_gc;
     i::Isolate* isolate = self->GetIsolate();
@@ -7631,13 +7631,13 @@ bool v8::ArrayBufferView::HasBuffer() const {
 
 size_t v8::ArrayBufferView::ByteOffset() {
   i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
-  return static_cast<size_t>(obj->byte_offset()->Number());
+  return obj->WasNeutered() ? 0 : obj->byte_offset();
 }
 
 
 size_t v8::ArrayBufferView::ByteLength() {
   i::Handle<i::JSArrayBufferView> obj = Utils::OpenHandle(this);
-  return static_cast<size_t>(obj->byte_length()->Number());
+  return obj->WasNeutered() ? 0 : obj->byte_length();
 }
 
 

@@ -8,6 +8,7 @@
 #include "src/compiler/types.h"
 #include "src/date.h"
 #include "src/objects/code.h"
+#include "src/objects/js-array-buffer.h"
 #include "src/objects/string.h"
 
 namespace v8 {
@@ -95,6 +96,20 @@ class TypeCache final {
   // The JSArray::length property always contains a tagged number in the range
   // [0, kMaxUInt32].
   Type const kJSArrayLengthType = Type::Unsigned32();
+
+  // The JSArrayBuffer::byte_length property is limited to safe integer range
+  // per specification, but on 32-bit architectures is implemented as uint32_t
+  // field, so it's in the [0, kMaxUInt32] range in that case.
+  Type const kJSArrayBufferByteLengthType =
+      CreateRange(0.0, JSArrayBuffer::kMaxByteLength);
+
+  // The type for the JSArrayBufferView::byte_length property is the same as
+  // JSArrayBuffer::byte_length above.
+  Type const kJSArrayBufferViewByteLengthType = kJSArrayBufferByteLengthType;
+
+  // The type for the JSArrayBufferView::byte_offset property is the same as
+  // JSArrayBuffer::byte_length above.
+  Type const kJSArrayBufferViewByteOffsetType = kJSArrayBufferByteLengthType;
 
   // The JSTypedArray::length property always contains a tagged number in the
   // range [0, kMaxSmiValue].

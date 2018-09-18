@@ -865,8 +865,8 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
     tag = ArrayBufferViewTag::kDataView;
   }
   WriteVarint(static_cast<uint8_t>(tag));
-  WriteVarint(NumberToUint32(view->byte_offset()));
-  WriteVarint(NumberToUint32(view->byte_length()));
+  WriteVarint(static_cast<uint32_t>(view->byte_offset()));
+  WriteVarint(static_cast<uint32_t>(view->byte_length()));
   return ThrowIfOutOfMemory();
 }
 

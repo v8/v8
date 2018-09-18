@@ -218,8 +218,8 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     isolate_->heap()->RegisterExternalString(String::cast(obj));
   } else if (obj->IsJSTypedArray()) {
     JSTypedArray* typed_array = JSTypedArray::cast(obj);
-    CHECK(typed_array->byte_offset()->IsSmi());
-    int32_t byte_offset = NumberToInt32(typed_array->byte_offset());
+    CHECK_LE(typed_array->byte_offset(), Smi::kMaxValue);
+    int32_t byte_offset = static_cast<int32_t>(typed_array->byte_offset());
     if (byte_offset > 0) {
       FixedTypedArrayBase* elements =
           FixedTypedArrayBase::cast(typed_array->elements());

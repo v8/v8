@@ -107,31 +107,23 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_growable,
                     JSArrayBuffer::IsGrowableBit)
 
-Object* JSArrayBufferView::byte_offset() const {
-  if (WasNeutered()) return Smi::kZero;
-  return Object::cast(READ_FIELD(this, kByteOffsetOffset));
+size_t JSArrayBufferView::byte_offset() const {
+  return READ_UINTPTR_FIELD(this, kByteOffsetOffset);
 }
 
-void JSArrayBufferView::set_byte_offset(Object* value, WriteBarrierMode mode) {
-  WRITE_FIELD(this, kByteOffsetOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kByteOffsetOffset, value, mode);
+void JSArrayBufferView::set_byte_offset(size_t value) {
+  WRITE_UINTPTR_FIELD(this, kByteOffsetOffset, value);
 }
 
-Object* JSArrayBufferView::byte_length() const {
-  if (WasNeutered()) return Smi::kZero;
-  return Object::cast(READ_FIELD(this, kByteLengthOffset));
+size_t JSArrayBufferView::byte_length() const {
+  return READ_UINTPTR_FIELD(this, kByteLengthOffset);
 }
 
-void JSArrayBufferView::set_byte_length(Object* value, WriteBarrierMode mode) {
-  WRITE_FIELD(this, kByteLengthOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kByteLengthOffset, value, mode);
+void JSArrayBufferView::set_byte_length(size_t value) {
+  WRITE_UINTPTR_FIELD(this, kByteLengthOffset, value);
 }
 
 ACCESSORS(JSArrayBufferView, buffer, Object, kBufferOffset)
-#ifdef VERIFY_HEAP
-ACCESSORS(JSArrayBufferView, raw_byte_offset, Object, kByteOffsetOffset)
-ACCESSORS(JSArrayBufferView, raw_byte_length, Object, kByteLengthOffset)
-#endif
 
 bool JSArrayBufferView::WasNeutered() const {
   return JSArrayBuffer::cast(buffer())->was_neutered();
