@@ -166,7 +166,7 @@ class SamplingAllocationObserver : public AllocationObserver {
         heap_(heap),
         random_(random),
         rate_(rate) {}
-  ~SamplingAllocationObserver() override {}
+  ~SamplingAllocationObserver() override = default;
 
  protected:
   void Step(int bytes_allocated, Address soon_object, size_t size) override {

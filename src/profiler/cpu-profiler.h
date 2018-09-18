@@ -106,7 +106,7 @@ class TickSampleEventRecord {
  public:
   // The parameterless constructor is used when we dequeue data from
   // the ticks buffer.
-  TickSampleEventRecord() { }
+  TickSampleEventRecord() = default;
   explicit TickSampleEventRecord(unsigned order) : order(order) { }
 
   unsigned order;
