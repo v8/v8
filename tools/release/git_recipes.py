@@ -207,7 +207,7 @@ class GitRecipesMixin(object):
 
   def GitUpload(self, reviewer="", author="", force=False, cq=False,
                 cq_dry_run=False, bypass_hooks=False, cc="", tbr_reviewer="",
-                **kwargs):
+                no_autocc=False, **kwargs):
     args = ["cl upload --send-mail"]
     if author:
       args += ["--email", Quoted(author)]
@@ -223,6 +223,8 @@ class GitRecipesMixin(object):
       args.append("--cq-dry-run")
     if bypass_hooks:
       args.append("--bypass-hooks")
+    if no_autocc:
+      args.append("--no-autocc")
     if cc:
       args += ["--cc", Quoted(cc)]
     args += ["--gerrit"]
