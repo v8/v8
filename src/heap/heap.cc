@@ -2850,8 +2850,23 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
 }  // namespace
 #endif  // ENABLE_SLOW_DCHECKS
 
+namespace {
+bool MayContainRecordedSlots(HeapObject* object) {
+  // New space object do not have recorded slots.
+  if (MemoryChunk::FromHeapObject(object)->InNewSpace()) return false;
+  // Whitelist objects that definitely do not have pointers.
+  if (object->IsByteArray() || object->IsFixedDoubleArray()) return false;
+  // Conservatively return true for other objects.
+  return true;
+}
+}  // namespace
+
 FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
                                          int elements_to_trim) {
+  if (elements_to_trim == 0) {
+    // This simplifies reasoning in the rest of the function.
+    return object;
+  }
   CHECK_NOT_NULL(object);
   DCHECK(CanMoveObjectStart(object));
   // Add custom visitor to concurrent marker if new left-trimmable type
@@ -2886,7 +2901,8 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  CreateFillerObjectAt(old_start, bytes_to_trim, ClearRecordedSlots::kYes);
+  HeapObject* filler =
+      CreateFillerObjectAt(old_start, bytes_to_trim, ClearRecordedSlots::kYes);
 
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
@@ -2903,6 +2919,23 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   ClearRecordedSlot(new_object, HeapObject::RawField(
                                     new_object, FixedArrayBase::kLengthOffset));
 
+  // Handle invalidated old-to-old slots.
+  if (incremental_marking()->IsCompacting() &&
+      MayContainRecordedSlots(new_object)) {
+    // If the array was right-trimmed before, then it is registered in
+    // the invalidated_slots.
+    MemoryChunk::FromHeapObject(new_object)
+        ->MoveObjectWithInvalidatedSlots(filler, new_object);
+    // We have to clear slots in the free space to avoid stale old-to-old slots.
+    // Note we cannot use ClearFreedMemoryMode of CreateFillerObjectAt because
+    // we need pointer granularity writes to avoid race with the concurrent
+    // marking.
+    if (filler->Size() > FreeSpace::kSize) {
+      MemsetPointer(HeapObject::RawField(filler, FreeSpace::kSize),
+                    ReadOnlyRoots(this).undefined_value(),
+                    (filler->Size() - FreeSpace::kSize) / kPointerSize);
+    }
+  }
   // Notify the heap profiler of change in object layout.
   OnMoveEvent(new_object, object, new_object->Size());
 
@@ -2967,8 +3000,22 @@ void Heap::CreateFillerForArray(T* object, int elements_to_trim,
   }
 
   // Calculate location of new array end.
-  Address old_end = object->address() + object->Size();
+  int old_size = object->Size();
+  Address old_end = object->address() + old_size;
   Address new_end = old_end - bytes_to_trim;
+
+  // Register the array as an object with invalidated old-to-old slots. We
+  // cannot use NotifyObjectLayoutChange as it would mark the array black,
+  // which is not safe for left-trimming because left-trimming re-pushes
+  // only grey arrays onto the marking worklist.
+  if (incremental_marking()->IsCompacting() &&
+      MayContainRecordedSlots(object)) {
+    // Ensure that the object survives because the InvalidatedSlotsFilter will
+    // compute its size from its map during pointers updating phase.
+    incremental_marking()->WhiteToGreyAndPush(object);
+    MemoryChunk::FromHeapObject(object)->RegisterObjectWithInvalidatedSlots(
+        object, old_size);
+  }
 
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
@@ -3258,17 +3305,15 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
 
 void Heap::NotifyObjectLayoutChange(HeapObject* object, int size,
                                     const DisallowHeapAllocation&) {
-  DCHECK(InOldSpace(object) || InNewSpace(object) ||
-         (lo_space()->Contains(object) && object->IsString()));
-  if (FLAG_incremental_marking && incremental_marking()->IsMarking()) {
+  if (incremental_marking()->IsMarking()) {
     incremental_marking()->MarkBlackAndPush(object);
-    if (InOldSpace(object) && incremental_marking()->IsCompacting()) {
-      // The concurrent marker might have recorded slots for the object.
-      // Register this object as invalidated to filter out the slots.
-      MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-      chunk->RegisterObjectWithInvalidatedSlots(object, size);
+    if (incremental_marking()->IsCompacting() &&
+        MayContainRecordedSlots(object)) {
+      MemoryChunk::FromHeapObject(object)->RegisterObjectWithInvalidatedSlots(
+          object, size);
     }
   }
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     DCHECK_NULL(pending_layout_change_object_);

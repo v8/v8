@@ -799,6 +799,14 @@ bool MemoryChunk::IsPagedSpace() const {
   return owner()->identity() != LO_SPACE;
 }
 
+bool MemoryChunk::InOldSpace() const {
+  return owner()->identity() == OLD_SPACE;
+}
+
+bool MemoryChunk::InLargeObjectSpace() const {
+  return owner()->identity() == LO_SPACE;
+}
+
 MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
                                             size_t commit_area_size,
                                             Executability executable,
@@ -1423,6 +1431,22 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject* object,
     }
     int old_size = (*invalidated_slots())[object];
     (*invalidated_slots())[object] = std::max(old_size, size);
+  }
+}
+
+void MemoryChunk::MoveObjectWithInvalidatedSlots(HeapObject* old_start,
+                                                 HeapObject* new_start) {
+  DCHECK_LT(old_start, new_start);
+  DCHECK_EQ(MemoryChunk::FromHeapObject(old_start),
+            MemoryChunk::FromHeapObject(new_start));
+  if (!ShouldSkipEvacuationSlotRecording() && invalidated_slots()) {
+    auto it = invalidated_slots()->find(old_start);
+    if (it != invalidated_slots()->end()) {
+      int old_size = it->second;
+      int delta = static_cast<int>(new_start->address() - old_start->address());
+      invalidated_slots()->erase(it);
+      (*invalidated_slots())[new_start] = old_size - delta;
+    }
   }
 }
 
