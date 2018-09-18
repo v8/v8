@@ -138,9 +138,9 @@ bool WasmMemoryTracker::ReserveAddressSpace(size_t num_bytes) {
 #elif V8_TARGET_ARCH_64_BIT
   // We set the limit to 1 TiB + 4 GiB so that there is room for mini-guards
   // once we fill everything up with full-sized guard regions.
-  constexpr size_t kAddressSpaceLimit = 0x10100000000L;  // 1 TiB + 4GiB
+  constexpr size_t kAddressSpaceLimit = 0x10100000000L;  // 1 TiB + 4 GiB
 #else
-  constexpr size_t kAddressSpaceLimit = 0x80000000;  // 2 GiB
+  constexpr size_t kAddressSpaceLimit = 0x90000000;  // 2 GiB + 256 MiB
 #endif
 
   while (true) {

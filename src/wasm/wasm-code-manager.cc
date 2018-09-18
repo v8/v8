@@ -769,9 +769,11 @@ NativeModule::~NativeModule() {
   wasm_code_manager_->FreeNativeModule(this);
 }
 
-WasmCodeManager::WasmCodeManager(size_t max_committed) {
+WasmCodeManager::WasmCodeManager(WasmMemoryTracker* memory_tracker,
+                                 size_t max_committed)
+    : memory_tracker_(memory_tracker),
+      remaining_uncommitted_code_space_(max_committed) {
   DCHECK_LE(max_committed, kMaxWasmCodeMemory);
-  remaining_uncommitted_code_space_.store(max_committed);
 }
 
 bool WasmCodeManager::Commit(Address start, size_t size) {
@@ -815,15 +817,18 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   DCHECK_GT(size, 0);
   size = RoundUp(size, page_allocator->AllocatePageSize());
+  if (!memory_tracker_->ReserveAddressSpace(size)) return {};
   if (hint == nullptr) hint = page_allocator->GetRandomMmapAddr();
 
   VirtualMemory mem(page_allocator, size, hint,
                     page_allocator->AllocatePageSize());
-  if (mem.IsReserved()) {
-    TRACE_HEAP("VMem alloc: %p:%p (%zu)\n",
-               reinterpret_cast<void*>(mem.address()),
-               reinterpret_cast<void*>(mem.end()), mem.size());
+  if (!mem.IsReserved()) {
+    memory_tracker_->ReleaseReservation(size);
+    return {};
   }
+  TRACE_HEAP("VMem alloc: %p:%p (%zu)\n",
+             reinterpret_cast<void*>(mem.address()),
+             reinterpret_cast<void*>(mem.end()), mem.size());
   return mem;
 }
 
@@ -906,7 +911,7 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     if (mem.IsReserved()) break;
     if (retries == kAllocationRetries) {
       V8::FatalProcessOutOfMemory(isolate, "WasmCodeManager::NewNativeModule");
-      return nullptr;
+      UNREACHABLE();
     }
     // Run one GC, then try the allocation again.
     isolate->heap()->MemoryPressureNotification(MemoryPressureLevel::kCritical,
@@ -1032,6 +1037,7 @@ void WasmCodeManager::Free(VirtualMemory* mem) {
   void* end = reinterpret_cast<void*>(mem->end());
   size_t size = mem->size();
   mem->Free();
+  memory_tracker_->ReleaseReservation(size);
   TRACE_HEAP("VMem Release: %p:%p (%zu)\n", start, end, size);
 }
 

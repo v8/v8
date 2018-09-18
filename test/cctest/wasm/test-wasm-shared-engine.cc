@@ -26,8 +26,7 @@ namespace test_wasm_shared_engine {
 class SharedEngine {
  public:
   explicit SharedEngine(size_t max_committed = kMaxWasmCodeMemory)
-      : wasm_engine_(base::make_unique<WasmEngine>(
-            base::make_unique<WasmCodeManager>(max_committed))) {}
+      : wasm_engine_(base::make_unique<WasmEngine>()) {}
   ~SharedEngine() {
     // Ensure no remaining uses exist.
     CHECK(wasm_engine_.unique());
