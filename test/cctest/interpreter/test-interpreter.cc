@@ -5049,6 +5049,35 @@ TEST(InterpreterWithNativeStack) {
            interpreter_entry_trampoline->InstructionStart());
 }
 
+TEST(InterpreterGetAndMaybeDeserializeBytecodeHandler) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Interpreter* interpreter = isolate->interpreter();
+
+  // Test that single-width bytecode handlers deserializer correctly.
+  Code* wide_handler = interpreter->GetAndMaybeDeserializeBytecodeHandler(
+      Bytecode::kWide, OperandScale::kSingle);
+
+  CHECK_EQ(wide_handler->builtin_index(), Builtins::kWideHandler);
+
+  Code* add_handler = interpreter->GetAndMaybeDeserializeBytecodeHandler(
+      Bytecode::kAdd, OperandScale::kSingle);
+
+  CHECK_EQ(add_handler->builtin_index(), Builtins::kAddHandler);
+
+  // Test that double-width bytecode handlers deserializer correctly, including
+  // an illegal bytecode handler since there is no Wide.Wide handler.
+  Code* wide_wide_handler = interpreter->GetAndMaybeDeserializeBytecodeHandler(
+      Bytecode::kWide, OperandScale::kDouble);
+
+  CHECK_EQ(wide_wide_handler->builtin_index(), Builtins::kIllegalHandler);
+
+  Code* add_wide_handler = interpreter->GetAndMaybeDeserializeBytecodeHandler(
+      Bytecode::kAdd, OperandScale::kDouble);
+
+  CHECK_EQ(add_wide_handler->builtin_index(), Builtins::kAddWideHandler);
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

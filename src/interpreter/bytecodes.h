@@ -690,12 +690,6 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
            bytecode == Bytecode::kDebugBreakWide;
   }
 
-  // Returns true if the bytecode can be lazily deserialized.
-  static constexpr bool IsLazy(Bytecode bytecode) {
-    // Currently, all handlers are deserialized lazily.
-    return true;
-  }
-
   // Returns true if the bytecode returns.
   static constexpr bool Returns(Bytecode bytecode) {
 #define OR_BYTECODE(NAME) || bytecode == Bytecode::k##NAME

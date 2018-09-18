@@ -349,7 +349,6 @@ void ExternalCodeEventListener::LogExistingCode() {
   HandleScope scope(isolate_);
   ExistingCodeLogger logger(isolate_, this);
   logger.LogCodeObjects();
-  logger.LogBytecodeHandlers();
   logger.LogCompiledFunctions();
 }
 
@@ -1834,16 +1833,6 @@ void Logger::LogCodeObject(Object* object) {
 
 void Logger::LogCodeObjects() { existing_code_logger_.LogCodeObjects(); }
 
-void Logger::LogBytecodeHandler(interpreter::Bytecode bytecode,
-                                interpreter::OperandScale operand_scale,
-                                Code* code) {
-  existing_code_logger_.LogBytecodeHandler(bytecode, operand_scale, code);
-}
-
-void Logger::LogBytecodeHandlers() {
-  existing_code_logger_.LogBytecodeHandlers();
-}
-
 void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
                                  Handle<AbstractCode> code) {
   existing_code_logger_.LogExistingFunction(shared, code);
@@ -2155,37 +2144,6 @@ void ExistingCodeLogger::LogCompiledFunctions() {
   EnumerateWasmModuleObjects(heap, module_objects.get());
   for (int i = 0; i < wasm_module_objects_count; ++i) {
     module_objects[i]->native_module()->LogWasmCodes(isolate_);
-  }
-}
-
-void ExistingCodeLogger::LogBytecodeHandler(
-    interpreter::Bytecode bytecode, interpreter::OperandScale operand_scale,
-    Code* code) {
-  std::string bytecode_name =
-      interpreter::Bytecodes::ToString(bytecode, operand_scale);
-  CALL_CODE_EVENT_HANDLER(
-      CodeCreateEvent(CodeEventListener::BYTECODE_HANDLER_TAG,
-                      AbstractCode::cast(code), bytecode_name.c_str()))
-}
-
-void ExistingCodeLogger::LogBytecodeHandlers() {
-  const interpreter::OperandScale kOperandScales[] = {
-#define VALUE(Name, _) interpreter::OperandScale::k##Name,
-      OPERAND_SCALE_LIST(VALUE)
-#undef VALUE
-  };
-
-  const int last_index = static_cast<int>(interpreter::Bytecode::kLast);
-  interpreter::Interpreter* interpreter = isolate_->interpreter();
-  for (auto operand_scale : kOperandScales) {
-    for (int index = 0; index <= last_index; ++index) {
-      interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(index);
-      if (interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
-        Code* code = interpreter->GetBytecodeHandler(bytecode, operand_scale);
-        if (isolate_->heap()->IsDeserializeLazyHandler(code)) continue;
-        LogBytecodeHandler(bytecode, operand_scale, code);
-      }
-    }
   }
 }
 

@@ -75,11 +75,6 @@ class Profiler;
 class RuntimeCallTimer;
 class Ticker;
 
-namespace interpreter {
-enum class Bytecode : uint8_t;
-enum class OperandScale : uint8_t;
-}  // namespace interpreter
-
 #undef LOG
 #define LOG(isolate, Call)                              \
   do {                                                  \
@@ -100,7 +95,6 @@ class ExistingCodeLogger {
       : isolate_(isolate), listener_(listener) {}
 
   void LogCodeObjects();
-  void LogBytecodeHandlers();
 
   void LogCompiledFunctions();
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
@@ -108,8 +102,6 @@ class ExistingCodeLogger {
                            CodeEventListener::LogEventsAndTags tag =
                                CodeEventListener::LAZY_COMPILE_TAG);
   void LogCodeObject(Object* object);
-  void LogBytecodeHandler(interpreter::Bytecode bytecode,
-                          interpreter::OperandScale operand_scale, Code* code);
 
  private:
   Isolate* isolate_;
@@ -282,10 +274,6 @@ class Logger : public CodeEventListener {
   void LogAccessorCallbacks();
   // Used for logging stubs found in the snapshot.
   void LogCodeObjects();
-  // Used for logging bytecode handlers found in the snapshot.
-  void LogBytecodeHandlers();
-  void LogBytecodeHandler(interpreter::Bytecode bytecode,
-                          interpreter::OperandScale operand_scale, Code* code);
   // Logs all Mpas foind in the heap.
   void LogMaps();
 

@@ -38,8 +38,6 @@ class SetupIsolateDelegate {
 
   virtual void SetupBuiltins(Isolate* isolate);
 
-  virtual void SetupInterpreter(interpreter::Interpreter* interpreter);
-
   virtual bool SetupHeap(Heap* heap);
 
  protected:

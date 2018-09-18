@@ -18,8 +18,6 @@ class SetupIsolateDelegateForTests : public SetupIsolateDelegate {
 
   void SetupBuiltins(Isolate* isolate) override;
 
-  void SetupInterpreter(interpreter::Interpreter* interpreter) override;
-
   bool SetupHeap(Heap* heap) override;
 };
 

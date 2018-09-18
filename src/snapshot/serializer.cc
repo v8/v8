@@ -111,8 +111,7 @@ template <class AllocatorT>
 void Serializer<AllocatorT>::VisitRootPointers(Root root,
                                                const char* description,
                                                Object** start, Object** end) {
-  // Builtins and bytecode handlers are serialized in a separate pass by the
-  // BuiltinSerializer.
+  // Builtins are serialized in a separate pass by the BuiltinSerializer.
   if (root == Root::kBuiltins || root == Root::kDispatchTable) return;
 
   for (Object** current = start; current < end; current++) {
@@ -233,9 +232,7 @@ bool Serializer<AllocatorT>::SerializeBuiltinReference(
 template <class AllocatorT>
 bool Serializer<AllocatorT>::ObjectIsBytecodeHandler(HeapObject* obj) const {
   if (!obj->IsCode()) return false;
-  Code* code = Code::cast(obj);
-  if (isolate()->heap()->IsDeserializeLazyHandler(code)) return false;
-  return (code->kind() == Code::BYTECODE_HANDLER);
+  return (Code::cast(obj)->kind() == Code::BYTECODE_HANDLER);
 }
 
 template <class AllocatorT>

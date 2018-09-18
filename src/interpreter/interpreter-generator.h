@@ -20,8 +20,9 @@ extern Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
                                             int builtin_index,
                                             const AssemblerOptions& options);
 
-extern Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
-                                                   OperandScale operand_scale);
+extern Handle<Code> GenerateDeserializeLazyHandler(
+    Isolate* isolate, OperandScale operand_scale, int builtin_index,
+    const AssemblerOptions& options);
 
 }  // namespace interpreter
 }  // namespace internal

@@ -250,11 +250,6 @@ namespace internal {
   V(FixedArray, serialized_objects, SerializedObjects)                       \
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)   \
   V(TemplateList, message_listeners, MessageListeners)                       \
-  /* DeserializeLazy handlers for lazy bytecode deserialization */           \
-  V(Object, deserialize_lazy_handler, DeserializeLazyHandler)                \
-  V(Object, deserialize_lazy_handler_wide, DeserializeLazyHandlerWide)       \
-  V(Object, deserialize_lazy_handler_extra_wide,                             \
-    DeserializeLazyHandlerExtraWide)                                         \
   /* Hash seed */                                                            \
   V(ByteArray, hash_seed, HashSeed)                                          \
   /* JS Entries */                                                           \

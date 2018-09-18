@@ -3222,7 +3222,9 @@ class DeserializeLazyAssembler : public InterpreterAssembler {
 }  // namespace
 
 Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
-                                            OperandScale operand_scale) {
+                                            OperandScale operand_scale,
+                                            int builtin_index,
+                                            const AssemblerOptions& options) {
   Zone zone(isolate->allocator(), ZONE_NAME);
 
   std::string debug_name = std::string("DeserializeLazy");
@@ -3237,11 +3239,11 @@ Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
       debug_name.c_str(),
       FLAG_untrusted_code_mitigations
           ? PoisoningMitigationLevel::kPoisonCriticalOnly
-          : PoisoningMitigationLevel::kDontPoison);
+          : PoisoningMitigationLevel::kDontPoison,
+      0, builtin_index);
 
   DeserializeLazyAssembler::Generate(&state, operand_scale);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
-      &state, AssemblerOptions::Default(isolate));
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state, options);
   PROFILE(isolate,
           CodeCreateEvent(CodeEventListener::BYTECODE_HANDLER_TAG,
                           AbstractCode::cast(*code), debug_name.c_str()));

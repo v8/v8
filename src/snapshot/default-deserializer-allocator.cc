@@ -167,8 +167,7 @@ bool DefaultDeserializerAllocator::ReserveSpace(
   }
 
   Heap::Reservation builtin_reservations =
-      builtin_deserializer->allocator()
-          ->CreateReservationsForEagerBuiltinsAndHandlers();
+      builtin_deserializer->allocator()->CreateReservationsForEagerBuiltins();
   DCHECK(!builtin_reservations.empty());
 
   for (const auto& c : builtin_reservations) {

@@ -1402,8 +1402,6 @@ v8_source_set("v8_initializers") {
     "src/interpreter/interpreter-generator.h",
     "src/interpreter/interpreter-intrinsics-generator.cc",
     "src/interpreter/interpreter-intrinsics-generator.h",
-    "src/interpreter/setup-interpreter-internal.cc",
-    "src/interpreter/setup-interpreter.h",
   ]
 
   if (use_jumbo_build == true) {
@@ -2434,8 +2432,6 @@ v8_source_set("v8_base") {
     "src/snapshot/builtin-serializer-allocator.h",
     "src/snapshot/builtin-serializer.cc",
     "src/snapshot/builtin-serializer.h",
-    "src/snapshot/builtin-snapshot-utils.cc",
-    "src/snapshot/builtin-snapshot-utils.h",
     "src/snapshot/code-serializer.cc",
     "src/snapshot/code-serializer.h",
     "src/snapshot/default-deserializer-allocator.cc",
@@ -3308,10 +3304,6 @@ if (current_toolchain == v8_generator_toolchain) {
       "src/interpreter/bytecodes.cc",
       "src/interpreter/bytecodes.h",
     ]
-
-    if (v8_enable_embedded_builtins) {
-      defines = [ "V8_EMBEDDED_BUILTINS" ]
-    }
 
     configs = [ ":internal_config" ]
 

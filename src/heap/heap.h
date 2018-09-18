@@ -905,11 +905,6 @@ class Heap {
   void RegisterStrongRoots(Object** start, Object** end);
   void UnregisterStrongRoots(Object** start);
 
-  bool IsDeserializeLazyHandler(Code* code);
-  void SetDeserializeLazyHandler(Code* code);
-  void SetDeserializeLazyHandlerWide(Code* code);
-  void SetDeserializeLazyHandlerExtraWide(Code* code);
-
   void SetBuiltinsConstantsTable(FixedArray* cache);
 
   // ===========================================================================

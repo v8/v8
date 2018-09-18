@@ -876,11 +876,6 @@ void Heap::CreateInitialObjects() {
 
   set_noscript_shared_function_infos(roots.empty_weak_array_list());
 
-  STATIC_ASSERT(interpreter::BytecodeOperands::kOperandScaleCount == 3);
-  set_deserialize_lazy_handler(Smi::kZero);
-  set_deserialize_lazy_handler_wide(Smi::kZero);
-  set_deserialize_lazy_handler_extra_wide(Smi::kZero);
-
   // Evaluate the hash values which will then be cached in the strings.
   isolate()->factory()->zero_string()->Hash();
   isolate()->factory()->one_string()->Hash();

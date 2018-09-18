@@ -69,8 +69,7 @@ template <class AllocatorT>
 void Deserializer<AllocatorT>::VisitRootPointers(Root root,
                                                  const char* description,
                                                  Object** start, Object** end) {
-  // Builtins and bytecode handlers are deserialized in a separate pass by the
-  // BuiltinDeserializer.
+  // Builtins are deserialized in a separate pass by the BuiltinDeserializer.
   if (root == Root::kBuiltins || root == Root::kDispatchTable) return;
 
   // The space must be new space.  Any other space would cause ReadChunk to try

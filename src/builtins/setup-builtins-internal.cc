@@ -27,6 +27,7 @@ BUILTIN_LIST_C(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
 namespace {
+
 void PostBuildProfileAndTracing(Isolate* isolate, Code* code,
                                 const char* name) {
   PROFILE(isolate, CodeCreateEvent(CodeEventListener::BUILTIN_TAG,
@@ -182,6 +183,7 @@ Code* BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
   PostBuildProfileAndTracing(isolate, *code, name);
   return *code;
 }
+
 }  // anonymous namespace
 
 // static
@@ -248,11 +250,12 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   }
 }
 
-#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
 namespace {
+
 Code* GenerateBytecodeHandler(Isolate* isolate, int builtin_index,
-                              const char* name, interpreter::Bytecode bytecode,
-                              interpreter::OperandScale operand_scale) {
+                              const char* name,
+                              interpreter::OperandScale operand_scale,
+                              interpreter::Bytecode bytecode) {
   DCHECK(interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
 
   Handle<Code> code = interpreter::GenerateBytecodeHandler(
@@ -263,8 +266,20 @@ Code* GenerateBytecodeHandler(Isolate* isolate, int builtin_index,
 
   return *code;
 }
+
+Code* GenerateLazyBytecodeHandler(Isolate* isolate, int builtin_index,
+                                  const char* name,
+                                  interpreter::OperandScale operand_scale) {
+  Handle<Code> code = interpreter::GenerateDeserializeLazyHandler(
+      isolate, operand_scale, builtin_index,
+      BuiltinAssemblerOptions(isolate, builtin_index));
+
+  PostBuildProfileAndTracing(isolate, *code, name);
+
+  return *code;
+}
+
 }  // namespace
-#endif
 
 // static
 void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
@@ -308,14 +323,15 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
       CallDescriptors::InterfaceDescriptor, #Name, 1);     \
   AddBuiltin(builtins, index++, code);
 
-#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
-#define BUILD_BCH(Code, Bytecode, OperandScale)                         \
+#define BUILD_BCH(Name, OperandScale, Bytecode)                         \
   code = GenerateBytecodeHandler(isolate, index, Builtins::name(index), \
-                                 Bytecode, OperandScale);               \
+                                 OperandScale, Bytecode);               \
   AddBuiltin(builtins, index++, code);
-#else
-#define BUILD_BCH(Code, ...) UNREACHABLE();
-#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
+
+#define BUILD_DLH(Name, OperandScale)                                       \
+  code = GenerateLazyBytecodeHandler(isolate, index, Builtins::name(index), \
+                                     OperandScale);                         \
+  AddBuiltin(builtins, index++, code);
 
 #define BUILD_ASM(Name)                                                     \
   code = BuildWithMacroAssembler(isolate, index, Builtins::Generate_##Name, \
@@ -323,7 +339,7 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   AddBuiltin(builtins, index++, code);
 
   BUILTIN_LIST(BUILD_CPP, BUILD_API, BUILD_TFJ, BUILD_TFC, BUILD_TFS, BUILD_TFH,
-               BUILD_BCH, BUILD_ASM);
+               BUILD_BCH, BUILD_DLH, BUILD_ASM);
 
 #undef BUILD_CPP
 #undef BUILD_API
@@ -332,6 +348,7 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 #undef BUILD_TFS
 #undef BUILD_TFH
 #undef BUILD_BCH
+#undef BUILD_DLH
 #undef BUILD_ASM
   CHECK_EQ(Builtins::builtin_count, index);
 
