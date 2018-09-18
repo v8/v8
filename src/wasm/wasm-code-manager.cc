@@ -661,6 +661,8 @@ Address NativeModule::AllocateForCode(size_t size) {
         wasm_code_manager_->TryAllocate(size, reinterpret_cast<void*>(hint)));
     VirtualMemory& new_mem = owned_code_space_.back();
     if (!new_mem.IsReserved()) return kNullAddress;
+    base::LockGuard<base::Mutex> lock(
+        &wasm_code_manager_->native_modules_mutex_);
     wasm_code_manager_->AssignRanges(new_mem.address(), new_mem.end(), this);
 
     free_code_space_.Merge({new_mem.address(), new_mem.end()});
