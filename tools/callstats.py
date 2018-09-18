@@ -218,7 +218,7 @@ def run_site(site, domain, args, timeout=None):
           # Abort after too many retries, no point in ever increasing the
           # timeout.
           print("TOO MANY EMPTY RESULTS ABORTING RUN")
-          break
+          return
         timeout += 2 ** retries_since_good_run
         retries_since_good_run += 1
         print("EMPTY RESULT, REPEATING RUN ({})".format(
