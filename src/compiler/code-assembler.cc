@@ -1403,8 +1403,8 @@ void CodeAssembler::Branch(SloppyTNode<IntegralT> condition, Label* true_label,
 }
 
 void CodeAssembler::Branch(TNode<BoolT> condition,
-                           std::function<void()> true_body,
-                           std::function<void()> false_body) {
+                           const std::function<void()>& true_body,
+                           const std::function<void()>& false_body) {
   int32_t constant;
   if (ToInt32Constant(condition, constant)) {
     return constant ? true_body() : false_body();
@@ -1421,7 +1421,7 @@ void CodeAssembler::Branch(TNode<BoolT> condition,
 }
 
 void CodeAssembler::Branch(TNode<BoolT> condition, Label* true_label,
-                           std::function<void()> false_body) {
+                           const std::function<void()>& false_body) {
   int32_t constant;
   if (ToInt32Constant(condition, constant)) {
     return constant ? Goto(true_label) : false_body();
@@ -1434,7 +1434,7 @@ void CodeAssembler::Branch(TNode<BoolT> condition, Label* true_label,
 }
 
 void CodeAssembler::Branch(TNode<BoolT> condition,
-                           std::function<void()> true_body,
+                           const std::function<void()>& true_body,
                            Label* false_label) {
   int32_t constant;
   if (ToInt32Constant(condition, constant)) {

@@ -780,11 +780,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Branch(SloppyTNode<IntegralT> condition, Label* true_label,
               Label* false_label);
 
-  void Branch(TNode<BoolT> condition, std::function<void()> true_body,
-              std::function<void()> false_body);
+  void Branch(TNode<BoolT> condition, const std::function<void()>& true_body,
+              const std::function<void()>& false_body);
   void Branch(TNode<BoolT> condition, Label* true_label,
-              std::function<void()> false_body);
-  void Branch(TNode<BoolT> condition, std::function<void()> true_body,
+              const std::function<void()>& false_body);
+  void Branch(TNode<BoolT> condition, const std::function<void()>& true_body,
               Label* false_label);
 
   void Switch(Node* index, Label* default_label, const int32_t* case_values,
