@@ -24,10 +24,16 @@ using TNode = compiler::TNode<T>;
 // Interrupt and stack checks.
 
 void Builtins::Generate_InterruptCheck(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   masm->TailCallRuntime(Runtime::kInterrupt);
 }
 
 void Builtins::Generate_StackCheck(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   masm->TailCallRuntime(Runtime::kStackGuard);
 }
 

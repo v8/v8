@@ -1876,6 +1876,7 @@ void Assembler::fld_d(Operand adr) {
 }
 
 void Assembler::fstp_s(Operand adr) {
+  AllowExplicitEbxAccessScope register_used_for_regcode(this);
   EnsureSpace ensure_space(this);
   EMIT(0xD9);
   emit_operand(ebx, adr);
@@ -1888,6 +1889,7 @@ void Assembler::fst_s(Operand adr) {
 }
 
 void Assembler::fstp_d(Operand adr) {
+  AllowExplicitEbxAccessScope register_used_for_regcode(this);
   EnsureSpace ensure_space(this);
   EMIT(0xDD);
   emit_operand(ebx, adr);
@@ -1912,6 +1914,7 @@ void Assembler::fild_d(Operand adr) {
 }
 
 void Assembler::fistp_s(Operand adr) {
+  AllowExplicitEbxAccessScope register_used_for_regcode(this);
   EnsureSpace ensure_space(this);
   EMIT(0xDB);
   emit_operand(ebx, adr);
@@ -3180,6 +3183,7 @@ void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1, Operand src2,
 }
 
 void Assembler::emit_sse_operand(XMMRegister reg, Operand adr) {
+  AllowExplicitEbxAccessScope accessing_xmm_register(this);
   Register ireg = Register::from_code(reg.code());
   emit_operand(ireg, adr);
 }

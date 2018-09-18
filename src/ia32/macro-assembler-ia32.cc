@@ -114,6 +114,7 @@ void MacroAssembler::PushRoot(Heap::RootListIndex index) {
 
 void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
+  DCHECK(!is_ebx_addressable_);
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
       Heap::kBuiltinsConstantsTableRootIndex));
   // TODO(jgruber): LoadRoot should be a register-relative load once we have
@@ -126,6 +127,7 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
 
 void TurboAssembler::LoadRootRegisterOffset(Register destination,
                                             intptr_t offset) {
+  DCHECK(!is_ebx_addressable_);
   DCHECK(is_int32(offset));
   // TODO(jgruber): Register-relative load once kRootRegister exists.
   mov(destination, Immediate(ExternalReference::roots_array_start(isolate())));
@@ -135,6 +137,7 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
 }
 
 void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
+  DCHECK(!is_ebx_addressable_);
   // TODO(jgruber): Register-relative load once kRootRegister exists.
   LoadRootRegisterOffset(destination, offset);
   mov(destination, Operand(destination, 0));

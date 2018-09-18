@@ -2621,6 +2621,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 }
 
 void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   Label check_negative, process_64_bits, done;
 
   // Account for return address and saved regs.
@@ -2634,6 +2636,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   MemOperand return_operand = mantissa_operand;
 
   Register scratch1 = ebx;
+  Assembler::AllowExplicitEbxAccessScope root_is_spilled(masm);
 
   // Since we must use ecx for shifts below, use some other register (eax)
   // to calculate the result.
@@ -2714,6 +2717,8 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   const Register exponent = eax;
   const Register scratch = ecx;
   const XMMRegister double_result = xmm3;
