@@ -176,14 +176,7 @@ class RegExpParser {
   bool ParseHexEscape(int length, uc32* value);
   bool ParseUnicodeEscape(uc32* value);
   bool ParseUnlimitedLengthHexNumber(int max_value, uc32* value);
-
-  bool ParsePropertyClassName(std::vector<char>* name_1,
-                              std::vector<char>* name_2);
-  bool AddPropertyClassRange(ZoneList<CharacterRange>* add_to, bool negate,
-                             const std::vector<char>& name_1,
-                             const std::vector<char>& name_2);
-
-  RegExpTree* GetPropertySequence(const std::vector<char>& name_1);
+  bool ParsePropertyClass(ZoneList<CharacterRange>* result, bool negate);
   RegExpTree* ParseCharacterClass(const RegExpBuilder* state);
 
   uc32 ParseOctalLiteral();

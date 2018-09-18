@@ -4767,8 +4767,6 @@ void Genesis::InitializeGlobal_harmony_intl_relative_time_format() {
 
 #endif  // V8_INTL_SUPPORT
 
-void Genesis::InitializeGlobal_harmony_regexp_sequence() {}
-
 Handle<JSFunction> Genesis::CreateArrayBuffer(
     Handle<String> name, ArrayBufferKind array_buffer_kind) {
   // Create the %ArrayBufferPrototype%

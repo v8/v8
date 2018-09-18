@@ -34,5 +34,3 @@ assertThrows("/\\p{In}/u");
 assertThrows("/\\pI/u");
 assertThrows("/\\p{I}/u");
 assertThrows("/\\p{CJK}/u");
-
-assertThrows("/\\p{}/u");
