@@ -351,21 +351,24 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    const Register scratch1 = edx;
+    const Register scratch2 = edi;
+
     // Setup the context (we need to use the caller context from the isolate).
     ExternalReference context_address = ExternalReference::Create(
         IsolateAddressId::kContextAddress, masm->isolate());
     __ mov(esi, __ StaticVariable(context_address));
 
-    // Load the previous frame pointer (ebx) to access C arguments
-    __ mov(ebx, Operand(ebp, 0));
+    // Load the previous frame pointer (edx) to access C arguments
+    __ mov(scratch1, Operand(ebp, 0));
 
     // Push the function and the receiver onto the stack.
-    __ push(Operand(ebx, EntryFrameConstants::kFunctionArgOffset));
-    __ push(Operand(ebx, EntryFrameConstants::kReceiverArgOffset));
+    __ push(Operand(scratch1, EntryFrameConstants::kFunctionArgOffset));
+    __ push(Operand(scratch1, EntryFrameConstants::kReceiverArgOffset));
 
     // Load the number of arguments and setup pointer to the arguments.
-    __ mov(eax, Operand(ebx, EntryFrameConstants::kArgcOffset));
-    __ mov(ebx, Operand(ebx, EntryFrameConstants::kArgvOffset));
+    __ mov(eax, Operand(scratch1, EntryFrameConstants::kArgcOffset));
+    __ mov(scratch1, Operand(scratch1, EntryFrameConstants::kArgvOffset));
 
     // Check if we have enough stack space to push all arguments.
     // Argument count in eax. Clobbers ecx.
@@ -385,19 +388,20 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Move(ecx, Immediate(0));
     __ jmp(&entry, Label::kNear);
     __ bind(&loop);
-    __ mov(edx, Operand(ebx, ecx, times_4, 0));  // push parameter from argv
-    __ push(Operand(edx, 0));                    // dereference handle
+    // Push the parameter from argv.
+    __ mov(scratch2, Operand(scratch1, ecx, times_4, 0));
+    __ push(Operand(scratch2, 0));  // dereference handle
     __ inc(ecx);
     __ bind(&entry);
     __ cmp(ecx, eax);
     __ j(not_equal, &loop);
 
     // Load the previous frame pointer (ebx) to access C arguments
-    __ mov(ebx, Operand(ebp, 0));
+    __ mov(scratch2, Operand(ebp, 0));
 
     // Get the new.target and function from the frame.
-    __ mov(edx, Operand(ebx, EntryFrameConstants::kNewTargetArgOffset));
-    __ mov(edi, Operand(ebx, EntryFrameConstants::kFunctionArgOffset));
+    __ mov(edx, Operand(scratch2, EntryFrameConstants::kNewTargetArgOffset));
+    __ mov(edi, Operand(scratch2, EntryFrameConstants::kFunctionArgOffset));
 
     // Invoke the code.
     Handle<Code> builtin = is_construct
@@ -413,10 +417,12 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 }
 
 void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   Generate_JSEntryTrampolineHelper(masm, false);
 }
 
 void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   Generate_JSEntryTrampolineHelper(masm, true);
 }
 
