@@ -383,6 +383,10 @@ TEST(Word64) {
               Type::Unsigned32(), MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeFloat64ToInt64, MachineRepresentation::kFloat64,
               TypeCache::Get().kSafeInteger, MachineRepresentation::kWord64);
+  CheckChange(IrOpcode::kChangeFloat64ToInt64, MachineRepresentation::kFloat64,
+              TypeCache::Get().kInt64, MachineRepresentation::kWord64);
+  CheckChange(IrOpcode::kChangeFloat64ToUint64, MachineRepresentation::kFloat64,
+              TypeCache::Get().kUint64, MachineRepresentation::kWord64);
 
   CheckChange(IrOpcode::kChangeInt64ToFloat64, MachineRepresentation::kWord64,
               Type::Signed32(), MachineRepresentation::kFloat64);
@@ -399,6 +403,14 @@ TEST(Word64) {
                   IrOpcode::kChangeFloat64ToInt64,
                   MachineRepresentation::kFloat32, Type::Unsigned32(),
                   MachineRepresentation::kWord64);
+  CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
+                  IrOpcode::kChangeFloat64ToInt64,
+                  MachineRepresentation::kFloat32, TypeCache::Get().kInt64,
+                  MachineRepresentation::kWord64);
+  CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
+                  IrOpcode::kChangeFloat64ToUint64,
+                  MachineRepresentation::kFloat32, TypeCache::Get().kUint64,
+                  MachineRepresentation::kWord64);
 
   CheckTwoChanges(IrOpcode::kChangeInt64ToFloat64,
                   IrOpcode::kTruncateFloat64ToFloat32,
@@ -411,6 +423,8 @@ TEST(Word64) {
               Type::Unsigned32(), MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeTaggedToInt64, MachineRepresentation::kTagged,
               TypeCache::Get().kSafeInteger, MachineRepresentation::kWord64);
+  CheckChange(IrOpcode::kChangeTaggedToInt64, MachineRepresentation::kTagged,
+              TypeCache::Get().kInt64, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeTaggedSignedToInt64,
               MachineRepresentation::kTaggedSigned, Type::SignedSmall(),
               MachineRepresentation::kWord64);

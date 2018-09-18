@@ -974,17 +974,23 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                        MachineRepresentation::kWord64);
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
-    if (output_type.Is(cache_.kSafeInteger)) {
+    if (output_type.Is(cache_.kInt64)) {
       // float32 -> float64 -> int64
       node = InsertChangeFloat32ToFloat64(node);
       op = machine()->ChangeFloat64ToInt64();
+    } else if (output_type.Is(cache_.kUint64)) {
+      // float32 -> float64 -> uint64
+      node = InsertChangeFloat32ToFloat64(node);
+      op = machine()->ChangeFloat64ToUint64();
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
     }
   } else if (output_rep == MachineRepresentation::kFloat64) {
-    if (output_type.Is(cache_.kSafeInteger)) {
+    if (output_type.Is(cache_.kInt64)) {
       op = machine()->ChangeFloat64ToInt64();
+    } else if (output_type.Is(cache_.kUint64)) {
+      op = machine()->ChangeFloat64ToUint64();
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
@@ -997,7 +1003,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                        MachineRepresentation::kWord64);
     }
   } else if (CanBeTaggedPointer(output_rep)) {
-    if (output_type.Is(cache_.kSafeInteger)) {
+    if (output_type.Is(cache_.kInt64)) {
       op = simplified()->ChangeTaggedToInt64();
     } else {
       return TypeError(node, output_rep, output_type,
