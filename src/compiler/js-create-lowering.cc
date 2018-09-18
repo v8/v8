@@ -1667,7 +1667,7 @@ Node* JSCreateLowering::AllocateFastLiteral(Node* effect, Node* control,
         MaybeHandle<Map>(), Type::Any(),    MachineType::AnyTagged(),
         kFullWriteBarrier};
     Node* value;
-    if (boilerplate.map().IsUnboxedDoubleField(index)) {
+    if (boilerplate_map.IsUnboxedDoubleField(i)) {
       access.machine_type = MachineType::Float64();
       access.type = Type::Number();
       value = jsgraph()->Constant(boilerplate.RawFastDoublePropertyAt(index));

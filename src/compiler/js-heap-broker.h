@@ -340,7 +340,7 @@ class MapRef : public HeapObjectRef {
   NameRef GetPropertyKey(int descriptor_index) const;
   FieldIndex GetFieldIndexFor(int descriptor_index) const;
   ObjectRef GetFieldType(int descriptor_index) const;
-  bool IsUnboxedDoubleField(FieldIndex index) const;
+  bool IsUnboxedDoubleField(int descriptor_index) const;
 };
 
 class FixedArrayBaseRef : public HeapObjectRef {

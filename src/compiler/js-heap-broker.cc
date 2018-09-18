@@ -494,6 +494,7 @@ struct PropertyDescriptor {
   FieldIndex field_index;
   MapData* field_owner = nullptr;
   ObjectData* field_type = nullptr;
+  bool is_unboxed_double_field = false;
 };
 
 class MapData : public HeapObjectData {
@@ -1078,6 +1079,8 @@ void MapData::SerializeDescriptors() {
       d.field_owner =
           broker()->GetOrCreateData(map->FindFieldOwner(isolate, i))->AsMap();
       d.field_type = broker()->GetOrCreateData(descriptors->GetFieldType(i));
+      d.is_unboxed_double_field = map->IsUnboxedDoubleField(d.field_index);
+      // Recurse.
       d.field_owner->SerializeDescriptors();
     }
     descriptors_.push_back(d);
@@ -1567,7 +1570,6 @@ double JSObjectRef::RawFastDoublePropertyAt(FieldIndex index) const {
     return object<JSObject>()->RawFastDoublePropertyAt(index);
   }
   JSObjectData* object_data = data()->AsJSObject();
-  CHECK(map().IsUnboxedDoubleField(index));
   CHECK(index.is_inobject());
   return object_data->GetInobjectField(index.property_index()).AsDouble();
 }
@@ -1581,7 +1583,6 @@ ObjectRef JSObjectRef::RawFastPropertyAt(FieldIndex index) const {
                             broker()->isolate()));
   }
   JSObjectData* object_data = data()->AsJSObject();
-  CHECK(!map().IsUnboxedDoubleField(index));
   CHECK(index.is_inobject());
   return ObjectRef(
       object_data->GetInobjectField(index.property_index()).AsObject());
@@ -1688,9 +1689,17 @@ ObjectRef MapRef::GetFieldType(int descriptor_index) const {
       data()->AsMap()->descriptors().at(descriptor_index).field_type);
 }
 
-bool MapRef::IsUnboxedDoubleField(FieldIndex index) const {
-  AllowHandleDereference allow_handle_dereference;
-  return object<Map>()->IsUnboxedDoubleField(index);
+bool MapRef::IsUnboxedDoubleField(int descriptor_index) const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    return object<Map>()->IsUnboxedDoubleField(
+        FieldIndex::ForDescriptor(*object<Map>(), descriptor_index));
+  }
+  return data()
+      ->AsMap()
+      ->descriptors()
+      .at(descriptor_index)
+      .is_unboxed_double_field;
 }
 
 uint16_t StringRef::GetFirstChar() {
