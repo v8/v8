@@ -1384,8 +1384,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEFloat64Mod: {
-      // TODO(dcarney): alignment is wrong.
+      Register tmp = i.TempRegister(1);
+      __ mov(tmp, esp);
       __ sub(esp, Immediate(kDoubleSize));
+      __ and_(esp, -8);  // align to 8 byte boundary.
       // Move values to st(0) and st(1).
       __ movsd(Operand(esp, 0), i.InputDoubleRegister(1));
       __ fld_d(Operand(esp, 0));
@@ -1394,10 +1396,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Loop while fprem isn't done.
       Label mod_loop;
       __ bind(&mod_loop);
-      // This instructions traps on all kinds inputs, but we are assuming the
+      // This instruction traps on all kinds of inputs, but we are assuming the
       // floating point control word is set to ignore them all.
       __ fprem();
-      // The following 2 instruction implicitly use eax.
+      // fnstsw_ax clobbers eax.
+      DCHECK_EQ(eax, i.TempRegister(0));
       __ fnstsw_ax();
       __ sahf();
       __ j(parity_even, &mod_loop);
@@ -1405,7 +1408,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fstp(1);
       __ fstp_d(Operand(esp, 0));
       __ movsd(i.OutputDoubleRegister(), Operand(esp, 0));
-      __ add(esp, Immediate(kDoubleSize));
+      __ mov(esp, tmp);
       break;
     }
     case kSSEFloat64Abs: {

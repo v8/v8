@@ -935,10 +935,10 @@ void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
 
 void InstructionSelector::VisitFloat64Mod(Node* node) {
   IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister(eax)};
+  InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister()};
   Emit(kSSEFloat64Mod, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), 1,
-       temps);
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+       arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitFloat32Max(Node* node) {
