@@ -2593,6 +2593,13 @@ void Isolate::ClearSerializerData() {
   external_reference_map_ = nullptr;
 }
 
+bool Isolate::LogObjectRelocation() {
+  return FLAG_verify_predictable || logger()->is_logging() || is_profiling() ||
+         heap()->isolate()->logger()->is_listening_to_code_events() ||
+         (heap_profiler() != nullptr &&
+          heap_profiler()->is_tracking_object_moves()) ||
+         heap()->has_heap_object_allocation_tracker();
+}
 
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);

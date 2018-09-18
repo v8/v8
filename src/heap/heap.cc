@@ -2010,14 +2010,6 @@ void Heap::EvacuateYoungGeneration() {
   SetGCState(NOT_IN_GC);
 }
 
-static bool IsLogging(Isolate* isolate) {
-  return FLAG_verify_predictable || isolate->logger()->is_logging() ||
-         isolate->is_profiling() ||
-         (isolate->heap_profiler() != nullptr &&
-          isolate->heap_profiler()->is_tracking_object_moves()) ||
-         isolate->heap()->has_heap_object_allocation_tracker();
-}
-
 class PageScavengingItem final : public ItemParallelJob::Item {
  public:
   explicit PageScavengingItem(MemoryChunk* chunk) : chunk_(chunk) {}
@@ -2116,7 +2108,7 @@ void Heap::Scavenge() {
                       &parallel_scavenge_semaphore_);
   const int kMainThreadId = 0;
   Scavenger* scavengers[kMaxScavengerTasks];
-  const bool is_logging = IsLogging(isolate());
+  const bool is_logging = isolate()->LogObjectRelocation();
   const int num_scavenge_tasks = NumberOfScavengeTasks();
   OneshotBarrier barrier;
   Scavenger::CopiedList copied_list(num_scavenge_tasks);

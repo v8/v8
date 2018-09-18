@@ -2525,11 +2525,7 @@ void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
     compaction_speed = heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
   }
 
-  const bool profiling =
-      heap()->isolate()->is_profiling() ||
-      heap()->isolate()->logger()->is_listening_to_code_events() ||
-      heap()->isolate()->heap_profiler()->is_tracking_object_moves() ||
-      heap()->has_heap_object_allocation_tracker();
+  const bool profiling = isolate()->LogObjectRelocation();
   ProfilingMigrationObserver profiling_observer(heap());
 
   const int wanted_num_tasks =

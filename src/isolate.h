@@ -667,6 +667,8 @@ class Isolate : private HiddenFactory {
 
   void ClearSerializerData();
 
+  bool LogObjectRelocation();
+
   // Find the PerThread for this particular (isolate, thread) combination
   // If one does not yet exist, return null.
   PerIsolateThreadData* FindPerThreadDataForThisThread();
