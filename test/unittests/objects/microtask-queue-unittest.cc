@@ -35,7 +35,7 @@ TEST_F(MicrotaskQueueTest, EnqueueMicrotask) {
   std::vector<Handle<Microtask>> microtasks;
   microtasks.push_back(microtask);
 
-  // Queue microtasks until the reallocation.
+  // Queue microtasks until the reallocation happens.
   int queue_capacity = microtask_queue->queue()->length();
   for (int i = 0; i < queue_capacity; ++i) {
     microtask = NewMicrotask();

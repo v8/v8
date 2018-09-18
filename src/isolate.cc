@@ -3725,7 +3725,7 @@ void Isolate::FireCallCompletedCallback() {
   if (!handle_scope_implementer()->CallDepthIsZero()) return;
 
   bool run_microtasks =
-      pending_microtask_count() &&
+      heap()->default_microtask_queue()->pending_microtask_count() &&
       !handle_scope_implementer()->HasMicrotasksSuppressions() &&
       handle_scope_implementer()->microtasks_policy() ==
           v8::MicrotasksPolicy::kAuto;
@@ -3968,18 +3968,9 @@ void Isolate::ReportPromiseReject(Handle<JSPromise> promise,
 }
 
 void Isolate::EnqueueMicrotask(Handle<Microtask> microtask) {
-  Handle<FixedArray> queue(heap()->microtask_queue(), this);
-  int num_tasks = pending_microtask_count();
-  DCHECK_LE(num_tasks, queue->length());
-  if (num_tasks == queue->length()) {
-    queue = factory()->CopyFixedArrayAndGrow(queue, std::max(num_tasks, 8));
-    heap()->set_microtask_queue(*queue);
-  }
-  DCHECK_LE(8, queue->length());
-  DCHECK_LT(num_tasks, queue->length());
-  DCHECK(queue->get(num_tasks)->IsUndefined(this));
-  queue->set(num_tasks, *microtask);
-  set_pending_microtask_count(num_tasks + 1);
+  Handle<MicrotaskQueue> microtask_queue(heap()->default_microtask_queue(),
+                                         this);
+  MicrotaskQueue::EnqueueMicrotask(this, microtask_queue, microtask);
 }
 
 
@@ -3987,25 +3978,27 @@ void Isolate::RunMicrotasks() {
   // Increase call depth to prevent recursive callbacks.
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(
       reinterpret_cast<v8::Isolate*>(this));
-  if (pending_microtask_count()) {
+  HandleScope scope(this);
+  Handle<MicrotaskQueue> microtask_queue(heap()->default_microtask_queue(),
+                                         this);
+  if (microtask_queue->pending_microtask_count()) {
     is_running_microtasks_ = true;
     TRACE_EVENT0("v8.execute", "RunMicrotasks");
     TRACE_EVENT_CALL_STATS_SCOPED(this, "v8", "V8.RunMicrotasks");
 
-    HandleScope scope(this);
     MaybeHandle<Object> maybe_exception;
     MaybeHandle<Object> maybe_result = Execution::RunMicrotasks(
         this, Execution::MessageHandling::kReport, &maybe_exception);
     // If execution is terminating, bail out, clean up, and propagate to
     // TryCatch scope.
     if (maybe_result.is_null() && maybe_exception.is_null()) {
-      heap()->set_microtask_queue(ReadOnlyRoots(heap()).empty_fixed_array());
-      set_pending_microtask_count(0);
+      microtask_queue->set_queue(ReadOnlyRoots(heap()).empty_fixed_array());
+      microtask_queue->set_pending_microtask_count(0);
       handle_scope_implementer()->LeaveMicrotaskContext();
       SetTerminationOnExternalTryCatch();
     }
-    CHECK_EQ(0, pending_microtask_count());
-    CHECK_EQ(0, heap()->microtask_queue()->length());
+    CHECK_EQ(0, microtask_queue->pending_microtask_count());
+    CHECK_EQ(0, microtask_queue->queue()->length());
     is_running_microtasks_ = false;
   }
   FireMicrotasksCompletedCallback();

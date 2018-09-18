@@ -623,11 +623,14 @@ class InternalBuiltinsAssembler : public CodeStubAssembler {
   explicit InternalBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  TNode<IntPtrT> GetPendingMicrotaskCount();
-  void SetPendingMicrotaskCount(TNode<IntPtrT> count);
-
-  TNode<FixedArray> GetMicrotaskQueue();
-  void SetMicrotaskQueue(TNode<FixedArray> queue);
+  TNode<MicrotaskQueue> GetDefaultMicrotaskQueue();
+  TNode<IntPtrT> GetPendingMicrotaskCount(
+      TNode<MicrotaskQueue> microtask_queue);
+  void SetPendingMicrotaskCount(TNode<MicrotaskQueue> microtask_queue,
+                                TNode<IntPtrT> new_num_tasks);
+  TNode<FixedArray> GetQueuedMicrotasks(TNode<MicrotaskQueue> microtask_queue);
+  void SetQueuedMicrotasks(TNode<MicrotaskQueue> microtask_queue,
+                           TNode<FixedArray> new_queue);
 
   TNode<Context> GetCurrentContext();
   void SetCurrentContext(TNode<Context> context);
@@ -714,37 +717,34 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, InternalBuiltinsAssembler) {
   GenerateAdaptorWithExitFrameType<Descriptor>(Builtins::BUILTIN_EXIT);
 }
 
-TNode<IntPtrT> InternalBuiltinsAssembler::GetPendingMicrotaskCount() {
-  auto ref = ExternalReference::pending_microtask_count_address(isolate());
-  if (kIntSize == 8) {
-    return TNode<IntPtrT>::UncheckedCast(
-        Load(MachineType::Int64(), ExternalConstant(ref)));
-  } else {
-    Node* const value = Load(MachineType::Int32(), ExternalConstant(ref));
-    return ChangeInt32ToIntPtr(value);
-  }
+TNode<MicrotaskQueue> InternalBuiltinsAssembler::GetDefaultMicrotaskQueue() {
+  return TNode<MicrotaskQueue>::UncheckedCast(
+      LoadRoot(Heap::kDefaultMicrotaskQueueRootIndex));
 }
 
-void InternalBuiltinsAssembler::SetPendingMicrotaskCount(TNode<IntPtrT> count) {
-  auto ref = ExternalReference::pending_microtask_count_address(isolate());
-  auto rep = kIntSize == 8 ? MachineRepresentation::kWord64
-                           : MachineRepresentation::kWord32;
-  if (kIntSize == 4 && kPointerSize == 8) {
-    Node* const truncated_count =
-        TruncateInt64ToInt32(TNode<Int64T>::UncheckedCast(count));
-    StoreNoWriteBarrier(rep, ExternalConstant(ref), truncated_count);
-  } else {
-    StoreNoWriteBarrier(rep, ExternalConstant(ref), count);
-  }
+TNode<IntPtrT> InternalBuiltinsAssembler::GetPendingMicrotaskCount(
+    TNode<MicrotaskQueue> microtask_queue) {
+  TNode<IntPtrT> result = LoadAndUntagObjectField(
+      microtask_queue, MicrotaskQueue::kPendingMicrotaskCountOffset);
+  return result;
 }
 
-TNode<FixedArray> InternalBuiltinsAssembler::GetMicrotaskQueue() {
-  return TNode<FixedArray>::UncheckedCast(
-      LoadRoot(Heap::kMicrotaskQueueRootIndex));
+void InternalBuiltinsAssembler::SetPendingMicrotaskCount(
+    TNode<MicrotaskQueue> microtask_queue, TNode<IntPtrT> new_num_tasks) {
+  StoreObjectField(microtask_queue,
+                   MicrotaskQueue::kPendingMicrotaskCountOffset,
+                   SmiFromIntPtr(new_num_tasks));
 }
 
-void InternalBuiltinsAssembler::SetMicrotaskQueue(TNode<FixedArray> queue) {
-  StoreRoot(Heap::kMicrotaskQueueRootIndex, queue);
+TNode<FixedArray> InternalBuiltinsAssembler::GetQueuedMicrotasks(
+    TNode<MicrotaskQueue> microtask_queue) {
+  return LoadObjectField<FixedArray>(microtask_queue,
+                                     MicrotaskQueue::kQueueOffset);
+}
+
+void InternalBuiltinsAssembler::SetQueuedMicrotasks(
+    TNode<MicrotaskQueue> microtask_queue, TNode<FixedArray> new_queue) {
+  StoreObjectField(microtask_queue, MicrotaskQueue::kQueueOffset, new_queue);
 }
 
 TNode<Context> InternalBuiltinsAssembler::GetCurrentContext() {
@@ -833,9 +833,10 @@ void InternalBuiltinsAssembler::RunPromiseHook(
 TF_BUILTIN(EnqueueMicrotask, InternalBuiltinsAssembler) {
   Node* microtask = Parameter(Descriptor::kMicrotask);
 
-  TNode<IntPtrT> num_tasks = GetPendingMicrotaskCount();
+  TNode<MicrotaskQueue> microtask_queue = GetDefaultMicrotaskQueue();
+  TNode<IntPtrT> num_tasks = GetPendingMicrotaskCount(microtask_queue);
   TNode<IntPtrT> new_num_tasks = IntPtrAdd(num_tasks, IntPtrConstant(1));
-  TNode<FixedArray> queue = GetMicrotaskQueue();
+  TNode<FixedArray> queue = GetQueuedMicrotasks(microtask_queue);
   TNode<IntPtrT> queue_length = LoadAndUntagFixedArrayBaseLength(queue);
 
   Label if_append(this), if_grow(this), done(this);
@@ -866,7 +867,7 @@ TF_BUILTIN(EnqueueMicrotask, InternalBuiltinsAssembler) {
                              SKIP_WRITE_BARRIER);
       FillFixedArrayWithValue(PACKED_ELEMENTS, new_queue, new_num_tasks,
                               new_queue_length, Heap::kUndefinedValueRootIndex);
-      SetMicrotaskQueue(new_queue);
+      SetQueuedMicrotasks(microtask_queue, new_queue);
       Goto(&done);
     }
 
@@ -880,7 +881,7 @@ TF_BUILTIN(EnqueueMicrotask, InternalBuiltinsAssembler) {
       StoreFixedArrayElement(new_queue, num_tasks, microtask);
       FillFixedArrayWithValue(PACKED_ELEMENTS, new_queue, new_num_tasks,
                               new_queue_length, Heap::kUndefinedValueRootIndex);
-      SetMicrotaskQueue(new_queue);
+      SetQueuedMicrotasks(microtask_queue, new_queue);
       Goto(&done);
     }
   }
@@ -892,13 +893,14 @@ TF_BUILTIN(EnqueueMicrotask, InternalBuiltinsAssembler) {
   }
 
   BIND(&done);
-  SetPendingMicrotaskCount(new_num_tasks);
+  SetPendingMicrotaskCount(microtask_queue, new_num_tasks);
   Return(UndefinedConstant());
 }
 
 TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
   // Load the current context from the isolate.
   TNode<Context> current_context = GetCurrentContext();
+  TNode<MicrotaskQueue> microtask_queue = GetDefaultMicrotaskQueue();
 
   Label init_queue_loop(this);
   Goto(&init_queue_loop);
@@ -907,17 +909,17 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
     TVARIABLE(IntPtrT, index, IntPtrConstant(0));
     Label loop(this, &index), loop_next(this);
 
-    TNode<IntPtrT> num_tasks = GetPendingMicrotaskCount();
+    TNode<IntPtrT> num_tasks = GetPendingMicrotaskCount(microtask_queue);
     ReturnIf(IntPtrEqual(num_tasks, IntPtrConstant(0)), UndefinedConstant());
 
-    TNode<FixedArray> queue = GetMicrotaskQueue();
+    TNode<FixedArray> queue = GetQueuedMicrotasks(microtask_queue);
 
     CSA_ASSERT(this, IntPtrGreaterThanOrEqual(
                          LoadAndUntagFixedArrayBaseLength(queue), num_tasks));
     CSA_ASSERT(this, IntPtrGreaterThan(num_tasks, IntPtrConstant(0)));
 
-    SetPendingMicrotaskCount(IntPtrConstant(0));
-    SetMicrotaskQueue(EmptyFixedArrayConstant());
+    SetQueuedMicrotasks(microtask_queue, EmptyFixedArrayConstant());
+    SetPendingMicrotaskCount(microtask_queue, IntPtrConstant(0));
 
     Goto(&loop);
     BIND(&loop);

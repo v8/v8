@@ -27,8 +27,6 @@ class StatsCounter;
   V(builtins_address, "builtins")                                              \
   V(handle_scope_implementer_address,                                          \
     "Isolate::handle_scope_implementer_address")                               \
-  V(pending_microtask_count_address,                                           \
-    "Isolate::pending_microtask_count_address()")                              \
   V(interpreter_dispatch_counters, "Interpreter::dispatch_counters")           \
   V(interpreter_dispatch_table_address, "Interpreter::dispatch_table_address") \
   V(date_cache_stamp, "date_cache_stamp")                                      \

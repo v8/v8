@@ -134,11 +134,6 @@ ExternalReference ExternalReference::handle_scope_implementer_address(
   return ExternalReference(isolate->handle_scope_implementer_address());
 }
 
-ExternalReference ExternalReference::pending_microtask_count_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->pending_microtask_count_address());
-}
-
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
     Isolate* isolate) {
   return ExternalReference(isolate->interpreter()->dispatch_table_address());

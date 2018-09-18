@@ -755,9 +755,7 @@ void Heap::CreateInitialObjects() {
       factory->NewManyClosuresCell(factory->undefined_value());
   set_many_closures_cell(*many_closures_cell);
 
-  // Microtask queue uses the empty fixed array as a sentinel for "empty".
-  // Number of queued microtasks stored in Isolate::pending_microtask_count().
-  set_microtask_queue(roots.empty_fixed_array());
+  set_default_microtask_queue(*factory->NewMicrotaskQueue());
 
   {
     Handle<FixedArray> empty_sloppy_arguments_elements =

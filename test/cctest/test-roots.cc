@@ -82,7 +82,6 @@ bool IsInitiallyMutable(Factory* factory, Address object_address) {
   V(detached_contexts)                    \
   V(feedback_vectors_for_profiling_tools) \
   V(materialized_objects)                 \
-  V(microtask_queue)                      \
   V(noscript_shared_function_infos)       \
   V(retained_maps)                        \
   V(retaining_path_targets)               \

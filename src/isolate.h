@@ -528,7 +528,6 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(const intptr_t*, api_external_references, nullptr)                        \
   V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
   V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
-  V(int, pending_microtask_count, 0)                                          \
   V(CompilationStatistics*, turbo_statistics, nullptr)                        \
   V(CodeTracer*, code_tracer, nullptr)                                        \
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                           \
@@ -1392,10 +1391,6 @@ class Isolate : private HiddenFactory {
 
   Address promise_hook_or_async_event_delegate_address() {
     return reinterpret_cast<Address>(&promise_hook_or_async_event_delegate_);
-  }
-
-  Address pending_microtask_count_address() {
-    return reinterpret_cast<Address>(&pending_microtask_count_);
   }
 
   Address handle_scope_implementer_address() {
