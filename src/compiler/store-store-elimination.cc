@@ -32,7 +32,7 @@ namespace compiler {
     if (V8_UNLIKELY(!(condition))) {                                          \
       FATAL("Check failed: %s. Extra info: " fmt, #condition, ##__VA_ARGS__); \
     }                                                                         \
-  } while (0)
+  } while (false)
 
 #ifdef DEBUG
 #define DCHECK_EXTRA(condition, fmt, ...) \

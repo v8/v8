@@ -31,7 +31,7 @@ namespace {
                "Check failed: (%s) != (%s) ('%s' vs '%s').", #exp, #found, \
                exp_, found_ ? found_ : "<null>");                          \
     }                                                                      \
-  } while (0)
+  } while (false)
 
 struct ExceptionInfo {
   const char* func_name;

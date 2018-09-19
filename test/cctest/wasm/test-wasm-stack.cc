@@ -30,7 +30,7 @@ namespace {
                "Check failed: (%s) != (%s) ('%s' vs '%s').", #exp, #found, \
                exp_, found_ ? found_ : "<null>");                          \
     }                                                                      \
-  } while (0)
+  } while (false)
 
 void PrintStackTrace(v8::Isolate* isolate, v8::Local<v8::StackTrace> stack) {
   printf("Stack Trace (length %d):\n", stack->GetFrameCount());

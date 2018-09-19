@@ -2779,7 +2779,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   buffer.instruction_args.push_back(g.TempImmediate(optional_padding_slot));
 
   int first_unused_stack_slot =
-      (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0) +
+      (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? true : false) +
       stack_param_delta;
   buffer.instruction_args.push_back(g.TempImmediate(first_unused_stack_slot));
 

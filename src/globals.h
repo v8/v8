@@ -55,9 +55,9 @@ namespace internal {
 // Determine whether the architecture uses an embedded constant pool
 // (contiguous constant pool embedded in code object).
 #if V8_TARGET_ARCH_PPC
-#define V8_EMBEDDED_CONSTANT_POOL 1
+#define V8_EMBEDDED_CONSTANT_POOL true
 #else
-#define V8_EMBEDDED_CONSTANT_POOL 0
+#define V8_EMBEDDED_CONSTANT_POOL false
 #endif
 
 #ifdef V8_TARGET_ARCH_ARM
@@ -76,14 +76,14 @@ constexpr int kStackSpaceRequiredForCompilation = 40;
 
 // Determine whether double field unboxing feature is enabled.
 #if V8_TARGET_ARCH_64_BIT
-#define V8_DOUBLE_FIELDS_UNBOXING 1
+#define V8_DOUBLE_FIELDS_UNBOXING true
 #else
-#define V8_DOUBLE_FIELDS_UNBOXING 0
+#define V8_DOUBLE_FIELDS_UNBOXING false
 #endif
 
 // Some types of tracing require the SFI to store a unique ID.
 #if defined(V8_TRACE_MAPS) || defined(V8_TRACE_IGNITION)
-#define V8_SFI_HAS_UNIQUE_ID 1
+#define V8_SFI_HAS_UNIQUE_ID true
 #endif
 
 // Superclass for classes only using static method functions.

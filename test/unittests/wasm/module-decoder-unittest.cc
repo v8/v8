@@ -61,7 +61,7 @@ namespace module_decoder_unittest {
     ModuleResult result = DecodeModule((data), (data) + sizeof((data))); \
     EXPECT_FALSE(result.ok());                                           \
     EXPECT_EQ(0u, result.val->exceptions.size());                        \
-  } while (0)
+  } while (false)
 
 #define X1(...) __VA_ARGS__
 #define X2(...) __VA_ARGS__, __VA_ARGS__

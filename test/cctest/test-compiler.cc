@@ -676,7 +676,7 @@ void TestCompileFunctionInContextToStringImpl() {
       V8_Fatal(__FILE__, __LINE__,                                            \
                "Unexpected exception thrown during %s:\n\t%s\n", op, *error); \
     }                                                                         \
-  } while (0)
+  } while (false)
 
   {  // NOLINT
     CcTest::InitializeVM();
