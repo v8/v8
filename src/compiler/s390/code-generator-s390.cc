@@ -2779,7 +2779,8 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
                                             Instruction* instr) {
   // TODO(John) Handle float comparisons (kUnordered[Not]Equal).
-  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
+  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual ||
+      condition == kOverflow || condition == kNotOverflow) {
     return;
   }
 
