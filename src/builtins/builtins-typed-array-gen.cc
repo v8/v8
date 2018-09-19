@@ -681,6 +681,17 @@ TF_BUILTIN(CreateTypedArray, TypedArrayBuiltinsAssembler) {
   ConstructorBuiltinsAssembler constructor_assembler(this->state());
   TNode<JSTypedArray> result = CAST(
       constructor_assembler.EmitFastNewObject(context, target, new_target));
+  // We need to set the byte_offset / byte_length to some sane values
+  // to keep the heap verifier happy.
+  // TODO(bmeurer): Fix this initialization to not use EmitFastNewObject,
+  // which causes the problem, since it puts Undefined into all slots of
+  // the object even though that doesn't make any sense for these fields.
+  StoreObjectFieldNoWriteBarrier(result, JSTypedArray::kByteOffsetOffset,
+                                 UintPtrConstant(0),
+                                 MachineType::PointerRepresentation());
+  StoreObjectFieldNoWriteBarrier(result, JSTypedArray::kByteLengthOffset,
+                                 UintPtrConstant(0),
+                                 MachineType::PointerRepresentation());
 
   TNode<Smi> element_size =
       SmiTag(GetTypedArrayElementSize(LoadElementsKind(result)));
