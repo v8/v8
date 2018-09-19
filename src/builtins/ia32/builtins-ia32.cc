@@ -443,6 +443,8 @@ static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,
 
 // static
 void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   // ----------- S t a t e -------------
   //  -- eax    : the value to pass to the generator
   //  -- edx    : the JSGeneratorObject to resume
@@ -494,26 +496,34 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- esp[0] : generator receiver
   // -----------------------------------
 
-  // Copy the function arguments from the generator object's register file.
-  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ movzx_w(
-      ecx, FieldOperand(ecx, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ mov(ebx,
-         FieldOperand(edx, JSGeneratorObject::kParametersAndRegistersOffset));
   {
-    Label done_loop, loop;
-    __ Set(edi, 0);
+    Assembler::AllowExplicitEbxAccessScope root_is_spilled(masm);
+    __ movd(xmm0, ebx);
 
-    __ bind(&loop);
-    __ cmp(edi, ecx);
-    __ j(greater_equal, &done_loop);
-    __ Push(
-        FieldOperand(ebx, edi, times_pointer_size, FixedArray::kHeaderSize));
-    __ add(edi, Immediate(1));
-    __ jmp(&loop);
+    // Copy the function arguments from the generator object's register file.
+    __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+    __ movzx_w(ecx, FieldOperand(
+                        ecx, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ mov(ebx,
+           FieldOperand(edx, JSGeneratorObject::kParametersAndRegistersOffset));
+    {
+      Label done_loop, loop;
+      __ Set(edi, 0);
 
-    __ bind(&done_loop);
+      __ bind(&loop);
+      __ cmp(edi, ecx);
+      __ j(greater_equal, &done_loop);
+      __ Push(
+          FieldOperand(ebx, edi, times_pointer_size, FixedArray::kHeaderSize));
+      __ add(edi, Immediate(1));
+      __ jmp(&loop);
+
+      __ bind(&done_loop);
+    }
+
+    // Restore registers.
     __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
+    __ movd(ebx, xmm0);
   }
 
   // Underlying function needs to have bytecode available.
@@ -2420,6 +2430,8 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   // The function index was put in edi by the jump table trampoline.
   // Convert to Smi for the runtime call.
   __ SmiTag(edi);
@@ -2430,6 +2442,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
+    Assembler::AllowExplicitEbxAccessScope root_is_spilled(masm);
     static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs ==
                       arraysize(wasm::kGpParamRegisters),
                   "frame size mismatch");
@@ -2456,7 +2469,12 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ Move(kContextRegister, Smi::kZero);
-    __ CallRuntimeWithCEntry(Runtime::kWasmCompileLazy, ecx);
+    {
+      // At this point, ebx has been spilled to the stack but is not yet
+      // overwritten with another value. We can still use it as kRootRegister.
+      Assembler::SupportsRootRegisterScope root_is_unclobbered(masm);
+      __ CallRuntimeWithCEntry(Runtime::kWasmCompileLazy, ecx);
+    }
     // The entrypoint address is the return value.
     __ mov(edi, kReturnRegister0);
 
