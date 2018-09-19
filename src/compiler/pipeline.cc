@@ -218,8 +218,11 @@ class PipelineData {
         assembler_options_(AssemblerOptions::Default(isolate)) {}
 
   ~PipelineData() {
-    delete code_generator_;  // Must happen before zones are destroyed.
+    // Must happen before zones are destroyed.
+    delete code_generator_;
     code_generator_ = nullptr;
+    DeleteTyper();
+
     DeleteRegisterAllocationZone();
     DeleteInstructionZone();
     DeleteCodegenZone();
@@ -308,6 +311,17 @@ class PipelineData {
   CodeTracer* GetCodeTracer() const {
     return wasm_engine_ == nullptr ? isolate_->GetCodeTracer()
                                    : wasm_engine_->GetCodeTracer();
+  }
+
+  Typer* CreateTyper(Typer::Flags flags) {
+    CHECK_NULL(typer_);
+    typer_ = new Typer(isolate(), js_heap_broker(), flags, graph());
+    return typer_;
+  }
+
+  void DeleteTyper() {
+    delete typer_;
+    typer_ = nullptr;
   }
 
   void DeleteGraphZone() {
@@ -433,6 +447,7 @@ class PipelineData {
   base::Optional<OsrHelper> osr_helper_;
   MaybeHandle<Code> code_;
   CodeGenerator* code_generator_ = nullptr;
+  Typer* typer_ = nullptr;
 
   // All objects in the following group of fields are allocated in graph_zone_.
   // They are all set to nullptr when the graph_zone_ is destroyed.
@@ -2031,8 +2046,8 @@ bool PipelineImpl::CreateGraph() {
     // Type the graph and keep the Typer running on newly created nodes within
     // this scope; the Typer is automatically unlinked from the Graph once we
     // leave this scope below.
-    Typer typer(isolate(), data->js_heap_broker(), flags, data->graph());
-    Run<TyperPhase>(&typer);
+
+    Run<TyperPhase>(data->CreateTyper(flags));
     RunPrintAndVerify(TyperPhase::phase_name());
 
     // Do some hacky things to prepare for the optimization phase.
@@ -2041,11 +2056,11 @@ bool PipelineImpl::CreateGraph() {
 
     if (FLAG_concurrent_compiler_frontend) {
       Run<CopyMetadataForConcurrentCompilePhase>();
+    } else {
+      Run<TypedLoweringPhase>();
+      RunPrintAndVerify(TypedLoweringPhase::phase_name());
+      data->DeleteTyper();
     }
-
-    // Lower JSOperators where we can determine types.
-    Run<TypedLoweringPhase>();
-    RunPrintAndVerify(TypedLoweringPhase::phase_name());
   }
 
   data->EndPhaseKind();
@@ -2057,6 +2072,12 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   PipelineData* data = this->data_;
 
   data->BeginPhaseKind("lowering");
+
+  if (FLAG_concurrent_compiler_frontend) {
+    Run<TypedLoweringPhase>();
+    RunPrintAndVerify(TypedLoweringPhase::phase_name());
+    data->DeleteTyper();
+  }
 
   if (data->info()->is_loop_peeling_enabled()) {
     Run<LoopPeelingPhase>();
