@@ -51,6 +51,7 @@
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/s390/assembler-s390-inl.h"
+#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -316,6 +317,13 @@ Operand Operand::EmbeddedNumber(double value) {
   return result;
 }
 
+Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(str);
+  return result;
+}
+
 MemOperand::MemOperand(Register rn, int32_t offset)
     : baseRegister(rn), indexRegister(r0), offset_(offset) {}
 
@@ -328,20 +336,28 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Handle<HeapObject> object;
     Address pc = reinterpret_cast<Address>(buffer_ + request.offset());
     switch (request.kind()) {
-      case HeapObjectRequest::kHeapNumber:
+      case HeapObjectRequest::kHeapNumber: {
         object =
             isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
-        set_target_address_at(pc, kNullAddress,
-                              reinterpret_cast<Address>(object.location()),
+        set_target_address_at(pc, kNullAddress, object.address(),
                               SKIP_ICACHE_FLUSH);
         break;
-      case HeapObjectRequest::kCodeStub:
+      }
+      case HeapObjectRequest::kCodeStub: {
         request.code_stub()->set_isolate(isolate);
         SixByteInstr instr =
             Instruction::InstructionBits(reinterpret_cast<const byte*>(pc));
         int index = instr & 0xFFFFFFFF;
         UpdateCodeTarget(index, request.code_stub()->GetCode());
         break;
+      }
+      case HeapObjectRequest::kStringConstant: {
+        const StringConstantBase* str = request.string();
+        CHECK_NOT_NULL(str);
+        set_target_address_at(pc, kNullAddress,
+                              str->AllocateStringConstant(isolate).address());
+        break;
+      }
     }
   }
 }
