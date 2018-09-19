@@ -43,15 +43,24 @@ void Builtins::Generate_CallBoundFunction(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_Call_ReceiverIsNullOrUndefined(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_Call(masm, ConvertReceiverMode::kNullOrUndefined);
 }
 
 void Builtins::Generate_Call_ReceiverIsNotNullOrUndefined(
     MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_Call(masm, ConvertReceiverMode::kNotNullOrUndefined);
 }
 
 void Builtins::Generate_Call_ReceiverIsAny(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_Call(masm, ConvertReceiverMode::kAny);
 }
 

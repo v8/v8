@@ -2091,6 +2091,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edi : the target to call (can be any Object).
