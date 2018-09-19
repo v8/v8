@@ -905,14 +905,11 @@ class MarkingVisitor final
 
   V8_INLINE bool ShouldVisitMapPointer() { return false; }
 
-  V8_INLINE int VisitAllocationSite(Map* map, AllocationSite* object);
   V8_INLINE int VisitBytecodeArray(Map* map, BytecodeArray* object);
-  V8_INLINE int VisitCodeDataContainer(Map* map, CodeDataContainer* object);
   V8_INLINE int VisitEphemeronHashTable(Map* map, EphemeronHashTable* object);
   V8_INLINE int VisitFixedArray(Map* map, FixedArray* object);
   V8_INLINE int VisitJSApiObject(Map* map, JSObject* object);
   V8_INLINE int VisitMap(Map* map, Map* object);
-  V8_INLINE int VisitNativeContext(Map* map, Context* object);
   V8_INLINE int VisitTransitionArray(Map* map, TransitionArray* object);
 
   // ObjectVisitor implementation.
@@ -924,6 +921,11 @@ class MarkingVisitor final
                                MaybeObject** end) final;
   V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
   V8_INLINE void VisitCodeTarget(Code* host, RelocInfo* rinfo) final;
+
+  // Weak list pointers should be ignored during marking. The lists are
+  // reconstructed after GC.
+  void VisitCustomWeakPointers(HeapObject* host, Object** start,
+                               Object** end) final {}
 
  private:
   // Granularity in which FixedArrays are scanned if |fixed_array_mode|

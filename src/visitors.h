@@ -93,12 +93,24 @@ class ObjectVisitor {
   virtual void VisitPointers(HeapObject* host, MaybeObject** start,
                              MaybeObject** end) = 0;
 
+  // Custom weak pointers must be ignored by the GC but not other
+  // visitors. They're used for e.g., lists that are recreated after GC. The
+  // default implementation treats them as strong pointers. Visitors who want to
+  // ignore them must override this function with empty.
+  virtual void VisitCustomWeakPointers(HeapObject* host, Object** start,
+                                       Object** end) {
+    VisitPointers(host, start, end);
+  }
+
   // Handy shorthand for visiting a single pointer.
   virtual void VisitPointer(HeapObject* host, Object** p) {
     VisitPointers(host, p, p + 1);
   }
   virtual void VisitPointer(HeapObject* host, MaybeObject** p) {
     VisitPointers(host, p, p + 1);
+  }
+  virtual void VisitCustomWeakPointer(HeapObject* host, Object** p) {
+    VisitCustomWeakPointers(host, p, p + 1);
   }
 
   // To allow lazy clearing of inline caches the visitor has

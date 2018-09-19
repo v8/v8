@@ -150,16 +150,7 @@ class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
 
   static const int kStartOffset = HeapObject::kHeaderSize;
 
-  template <bool includeWeakNext>
-  class BodyDescriptorImpl;
-
-  // BodyDescriptor is used to traverse all the pointer fields including
-  // weak_next
-  typedef BodyDescriptorImpl<true> BodyDescriptor;
-
-  // BodyDescriptorWeak is used to traverse all the pointer fields
-  // except for weak_next
-  typedef BodyDescriptorImpl<false> BodyDescriptorWeak;
+  class BodyDescriptor;
 
  private:
   inline bool PretenuringDecisionMade() const;

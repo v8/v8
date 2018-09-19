@@ -86,6 +86,19 @@ void BodyDescriptorBase::IterateMaybeWeakPointer(HeapObject* obj, int offset,
   v->VisitPointer(obj, HeapObject::RawMaybeWeakField(obj, offset));
 }
 
+template <typename ObjectVisitor>
+DISABLE_CFI_PERF void BodyDescriptorBase::IterateCustomWeakPointers(
+    HeapObject* obj, int start_offset, int end_offset, ObjectVisitor* v) {
+  v->VisitCustomWeakPointers(obj, HeapObject::RawField(obj, start_offset),
+                             HeapObject::RawField(obj, end_offset));
+}
+
+template <typename ObjectVisitor>
+void BodyDescriptorBase::IterateCustomWeakPointer(HeapObject* obj, int offset,
+                                                  ObjectVisitor* v) {
+  v->VisitCustomWeakPointer(obj, HeapObject::RawField(obj, offset));
+}
+
 class JSObject::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static const int kStartOffset = JSReceiver::kPropertiesOrHashOffset;
@@ -149,8 +162,7 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-template <bool includeWeakNext>
-class AllocationSite::BodyDescriptorImpl final : public BodyDescriptorBase {
+class AllocationSite::BodyDescriptor final : public BodyDescriptorBase {
  public:
   STATIC_ASSERT(AllocationSite::kCommonPointerFieldEndOffset ==
                 AllocationSite::kPretenureDataOffset);
@@ -165,8 +177,7 @@ class AllocationSite::BodyDescriptorImpl final : public BodyDescriptorBase {
       return true;
     }
     // check for weak_next offset
-    if (includeWeakNext &&
-        map->instance_size() == AllocationSite::kSizeWithWeakNext &&
+    if (map->instance_size() == AllocationSite::kSizeWithWeakNext &&
         offset == AllocationSite::kWeakNextOffset) {
       return true;
     }
@@ -179,12 +190,12 @@ class AllocationSite::BodyDescriptorImpl final : public BodyDescriptorBase {
     // Iterate over all the common pointer fields
     IteratePointers(obj, AllocationSite::kStartOffset,
                     AllocationSite::kCommonPointerFieldEndOffset, v);
-    // Skip PretenureDataOffset and PretenureCreateCount which are Int32 fields
-    // Visit weak_next only for full body descriptor and if it has weak_next
-    // field
-    if (includeWeakNext && object_size == AllocationSite::kSizeWithWeakNext)
-      IteratePointers(obj, AllocationSite::kWeakNextOffset,
-                      AllocationSite::kSizeWithWeakNext, v);
+    // Skip PretenureDataOffset and PretenureCreateCount which are Int32 fields.
+    // Visit weak_next only if it has weak_next field.
+    if (object_size == AllocationSite::kSizeWithWeakNext) {
+      IterateCustomWeakPointers(obj, AllocationSite::kWeakNextOffset,
+                                AllocationSite::kSizeWithWeakNext, v);
+    }
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
@@ -644,6 +655,49 @@ class DataHandler::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map* map, HeapObject* object) {
     return object->SizeFromMap(map);
+  }
+};
+
+class Context::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    return offset >= Context::kHeaderSize && offset < Context::kSize;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, Context::kHeaderSize,
+                    Context::kHeaderSize + FIRST_WEAK_SLOT * kPointerSize, v);
+    IterateCustomWeakPointers(
+        obj, Context::kHeaderSize + FIRST_WEAK_SLOT * kPointerSize,
+        Context::kSize, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    return Context::kSize;
+  }
+};
+
+class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    return offset >= CodeDataContainer::kHeaderSize &&
+           offset < CodeDataContainer::kSize;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, CodeDataContainer::kHeaderSize,
+                    CodeDataContainer::kPointerFieldsStrongEndOffset, v);
+    IterateCustomWeakPointers(
+        obj, CodeDataContainer::kPointerFieldsStrongEndOffset,
+        CodeDataContainer::kPointerFieldsWeakEndOffset, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    return CodeDataContainer::kSize;
   }
 };
 

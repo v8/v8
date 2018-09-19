@@ -151,6 +151,11 @@ class ConcurrentMarkingVisitor final
     }
   }
 
+  // Weak list pointers should be ignored during marking. The lists are
+  // reconstructed after GC.
+  void VisitCustomWeakPointers(HeapObject* host, Object** start,
+                               Object** end) override {}
+
   void VisitPointersInSnapshot(HeapObject* host, const SlotSnapshot& snapshot) {
     for (int i = 0; i < snapshot.number_of_slots(); i++) {
       Object** slot = snapshot.slot(i);
@@ -263,7 +268,7 @@ class ConcurrentMarkingVisitor final
   }
 
   // ===========================================================================
-  // Objects with weak fields and/or side-effectiful visitation.
+  // Side-effectful visitation.
   // ===========================================================================
 
   int VisitBytecodeArray(Map* map, BytecodeArray* object) {
@@ -272,22 +277,6 @@ class ConcurrentMarkingVisitor final
     VisitMapPointer(object, object->map_slot());
     BytecodeArray::BodyDescriptor::IterateBody(map, object, size, this);
     object->MakeOlder();
-    return size;
-  }
-
-  int VisitAllocationSite(Map* map, AllocationSite* object) {
-    if (!ShouldVisit(object)) return 0;
-    int size = AllocationSite::BodyDescriptorWeak::SizeOf(map, object);
-    VisitMapPointer(object, object->map_slot());
-    AllocationSite::BodyDescriptorWeak::IterateBody(map, object, size, this);
-    return size;
-  }
-
-  int VisitCodeDataContainer(Map* map, CodeDataContainer* object) {
-    if (!ShouldVisit(object)) return 0;
-    int size = CodeDataContainer::BodyDescriptorWeak::SizeOf(map, object);
-    VisitMapPointer(object, object->map_slot());
-    CodeDataContainer::BodyDescriptorWeak::IterateBody(map, object, size, this);
     return size;
   }
 
@@ -306,14 +295,6 @@ class ConcurrentMarkingVisitor final
       bailout_.Push(map);
     }
     return 0;
-  }
-
-  int VisitNativeContext(Map* map, Context* object) {
-    if (!ShouldVisit(object)) return 0;
-    int size = Context::BodyDescriptorWeak::SizeOf(map, object);
-    VisitMapPointer(object, object->map_slot());
-    Context::BodyDescriptorWeak::IterateBody(map, object, size, this);
-    return size;
   }
 
   int VisitTransitionArray(Map* map, TransitionArray* array) {

@@ -477,15 +477,7 @@ class CodeDataContainer : public HeapObject, public NeverReadOnlySpaceObject {
   static const int kPointerFieldsStrongEndOffset = kNextCodeLinkOffset;
   static const int kPointerFieldsWeakEndOffset = kKindSpecificFlagsOffset;
 
-  // Ignores weakness.
-  typedef FixedBodyDescriptor<HeapObject::kHeaderSize,
-                              kPointerFieldsWeakEndOffset, kSize>
-      BodyDescriptor;
-
-  // Respects weakness.
-  typedef FixedBodyDescriptor<HeapObject::kHeaderSize,
-                              kPointerFieldsStrongEndOffset, kSize>
-      BodyDescriptorWeak;
+  class BodyDescriptor;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CodeDataContainer);

@@ -609,12 +609,7 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
   static const int kSize = kHeaderSize + NATIVE_CONTEXT_SLOTS * kPointerSize;
   static const int kNotFound = -1;
 
-  // GC support.
-  typedef FixedBodyDescriptor<kHeaderSize, kSize, kSize> BodyDescriptor;
-
-  typedef FixedBodyDescriptor<
-      kHeaderSize, kHeaderSize + FIRST_WEAK_SLOT * kPointerSize, kSize>
-      BodyDescriptorWeak;
+  class BodyDescriptor;
 
  private:
 #ifdef DEBUG
