@@ -140,6 +140,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
 
 // The construct stub for ES5 constructor functions and ES6 class constructors.
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax: number of arguments (untagged)
   //  -- edi: constructor function
@@ -170,8 +171,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     //  --         sp[4*kPointerSize]: context
     // -----------------------------------
 
-    __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-    __ test(FieldOperand(ebx, SharedFunctionInfo::kFlagsOffset),
+    __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+    __ test(FieldOperand(eax, SharedFunctionInfo::kFlagsOffset),
             Immediate(SharedFunctionInfo::IsDerivedConstructorBit::kMask));
     __ j(not_zero, &not_create_implicit_receiver);
 
@@ -217,13 +218,12 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     //  -- sp[5*kPointerSize]: context
     // -----------------------------------
 
-    // Restore constructor function and argument count.
-    __ mov(edi, Operand(ebp, ConstructFrameConstants::kConstructorOffset));
+    // Restore argument count.
     __ mov(eax, Operand(ebp, ConstructFrameConstants::kLengthOffset));
     __ SmiUntag(eax);
 
     // Set up pointer to last argument.
-    __ lea(ebx, Operand(ebp, StandardFrameConstants::kCallerSPOffset));
+    __ lea(edi, Operand(ebp, StandardFrameConstants::kCallerSPOffset));
 
     // Copy arguments and receiver to the expression stack.
     Label loop, entry;
@@ -231,23 +231,24 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // ----------- S t a t e -------------
     //  --                        eax: number of arguments (untagged)
     //  --                        edx: new target
-    //  --                        ebx: pointer to last argument
+    //  --                        edi: pointer to last argument
     //  --                        ecx: counter (tagged)
     //  --         sp[0*kPointerSize]: implicit receiver
     //  --         sp[1*kPointerSize]: implicit receiver
     //  --         sp[2*kPointerSize]: padding
-    //  -- edi and sp[3*kPointerSize]: constructor function
+    //  --         sp[3*kPointerSize]: constructor function
     //  --         sp[4*kPointerSize]: number of arguments (tagged)
     //  --         sp[5*kPointerSize]: context
     // -----------------------------------
     __ jmp(&entry, Label::kNear);
     __ bind(&loop);
-    __ Push(Operand(ebx, ecx, times_pointer_size, 0));
+    __ Push(Operand(edi, ecx, times_pointer_size, 0));
     __ bind(&entry);
     __ dec(ecx);
     __ j(greater_equal, &loop);
 
-    // Call the function.
+    // Restore and and call the constructor function.
+    __ mov(edi, Operand(ebp, ConstructFrameConstants::kConstructorOffset));
     ParameterCount actual(eax);
     __ InvokeFunction(edi, edx, actual, CALL_FUNCTION);
 
@@ -299,13 +300,13 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     __ bind(&leave_frame);
     // Restore smi-tagged arguments count from the frame.
-    __ mov(ebx, Operand(ebp, ConstructFrameConstants::kLengthOffset));
+    __ mov(edx, Operand(ebp, ConstructFrameConstants::kLengthOffset));
     // Leave construct frame.
   }
   // Remove caller arguments from the stack and return.
   STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ pop(ecx);
-  __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));  // 1 ~ receiver
+  __ lea(esp, Operand(esp, edx, times_2, 1 * kPointerSize));  // 1 ~ receiver
   __ push(ecx);
   __ ret(0);
 }
