@@ -307,8 +307,6 @@ void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   is_strict_ = (flags & FrameArray::kIsStrict) != 0;
 }
 
-JSStackFrame::JSStackFrame() {}
-
 JSStackFrame::JSStackFrame(Isolate* isolate, Handle<Object> receiver,
                            Handle<JSFunction> function,
                            Handle<AbstractCode> code, int offset)
@@ -642,8 +640,6 @@ Handle<Script> JSStackFrame::GetScript() const {
   return handle(Script::cast(function_->shared()->script()), isolate_);
 }
 
-WasmStackFrame::WasmStackFrame() {}
-
 void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
                                     int frame_ix) {
   // This function is called for compiled and interpreted wasm frames, and for
@@ -734,8 +730,6 @@ bool WasmStackFrame::HasScript() const { return true; }
 Handle<Script> WasmStackFrame::GetScript() const {
   return handle(wasm_instance_->module_object()->script(), isolate_);
 }
-
-AsmJsWasmStackFrame::AsmJsWasmStackFrame() {}
 
 void AsmJsWasmStackFrame::FromFrameArray(Isolate* isolate,
                                          Handle<FrameArray> array,

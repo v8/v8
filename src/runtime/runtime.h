@@ -724,7 +724,7 @@ class RuntimeState {
   }
 
  private:
-  RuntimeState() {}
+  RuntimeState() = default;
 #ifndef V8_INTL_SUPPORT
   unibrow::Mapping<unibrow::ToUppercase, 128> to_upper_mapping_;
   unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping_;

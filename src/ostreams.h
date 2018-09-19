@@ -21,7 +21,7 @@ namespace internal {
 class OFStreamBase : public std::streambuf {
  public:
   explicit OFStreamBase(FILE* f);
-  ~OFStreamBase() override;
+  ~OFStreamBase() override = default;
 
  protected:
   FILE* const f_;
@@ -35,7 +35,7 @@ class OFStreamBase : public std::streambuf {
 class V8_EXPORT_PRIVATE OFStream : public std::ostream {
  public:
   explicit OFStream(FILE* f);
-  ~OFStream() override;
+  ~OFStream() override = default;
 
  private:
   OFStreamBase buf_;

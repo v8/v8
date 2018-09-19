@@ -9,7 +9,7 @@
 namespace v8 {
 namespace internal {
 
-VectorSlotPair::VectorSlotPair() {}
+VectorSlotPair::VectorSlotPair() = default;
 
 int VectorSlotPair::index() const {
   return vector_.is_null() ? -1 : FeedbackVector::GetIndex(slot_);

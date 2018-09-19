@@ -11472,7 +11472,7 @@ class StringComparator {
   };
 
  public:
-  inline StringComparator() {}
+  inline StringComparator() = default;
 
   template<typename Chars1, typename Chars2>
   static inline bool Equals(State* state_1, State* state_2, int to_check) {

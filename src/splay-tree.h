@@ -176,7 +176,7 @@ class SplayTree {
 
   class NodeDeleter {
    public:
-    NodeDeleter() { }
+    NodeDeleter() = default;
     void Call(Node* node) { AllocationPolicy::Delete(node); }
 
    private:

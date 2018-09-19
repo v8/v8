@@ -114,7 +114,7 @@ class CodeStub : public ZoneObject {
   static const char* MajorName(Major major_key);
 
   explicit CodeStub(Isolate* isolate) : minor_key_(0), isolate_(isolate) {}
-  virtual ~CodeStub() {}
+  virtual ~CodeStub() = default;
 
   static void GenerateStubsAheadOfTime(Isolate* isolate);
 

@@ -56,7 +56,7 @@ enum class Root {
 // pointers contained in roots. Used in GC and serialization/deserialization.
 class RootVisitor {
  public:
-  virtual ~RootVisitor() {}
+  virtual ~RootVisitor() = default;
 
   // Visits a contiguous arrays of pointers in the half-open range
   // [start, end). Any or all of the values may be modified on return.
@@ -84,7 +84,7 @@ class RelocIterator;
 // pointers contained in Objects. Used in GC and serialization/deserialization.
 class ObjectVisitor {
  public:
-  virtual ~ObjectVisitor() {}
+  virtual ~ObjectVisitor() = default;
 
   // Visits a contiguous arrays of pointers in the half-open range
   // [start, end). Any or all of the values may be modified on return.

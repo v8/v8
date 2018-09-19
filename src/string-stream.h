@@ -17,7 +17,7 @@ class ByteArray;
 
 class StringAllocator {
  public:
-  virtual ~StringAllocator() { }
+  virtual ~StringAllocator() = default;
   // Allocate a number of bytes.
   virtual char* allocate(unsigned bytes) = 0;
   // Allocate a larger number of bytes and copy the old buffer to the new one.
@@ -44,7 +44,8 @@ class FixedStringAllocator final : public StringAllocator {
  public:
   FixedStringAllocator(char* buffer, unsigned length)
       : buffer_(buffer), length_(length) {}
-  ~FixedStringAllocator() override{};
+  ~FixedStringAllocator() override = default;
+
   char* allocate(unsigned bytes) override;
   char* grow(unsigned* bytes) override;
 
