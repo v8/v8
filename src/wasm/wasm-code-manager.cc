@@ -817,10 +817,7 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   DCHECK_GT(size, 0);
   size = RoundUp(size, page_allocator->AllocatePageSize());
-  if (!memory_tracker_->ReserveAddressSpace(size,
-                                            WasmMemoryTracker::kHardLimit)) {
-    return {};
-  }
+  if (!memory_tracker_->ReserveAddressSpace(size)) return {};
   if (hint == nullptr) hint = page_allocator->GetRandomMmapAddr();
 
   VirtualMemory mem(page_allocator, size, hint,
