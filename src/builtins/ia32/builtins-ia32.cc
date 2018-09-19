@@ -22,6 +22,7 @@ namespace internal {
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   __ mov(kJavaScriptCallExtraArg1Register,
          Immediate(ExternalReference::Create(address)));
   if (exit_frame_type == BUILTIN_EXIT) {
@@ -1652,16 +1653,16 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
 
 static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Retrieve the number of arguments from the stack.
-  __ mov(ebx, Operand(ebp, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ mov(edi, Operand(ebp, ArgumentsAdaptorFrameConstants::kLengthOffset));
 
   // Leave the frame.
   __ leave();
 
   // Remove caller arguments from the stack.
   STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ pop(ecx);
-  __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));  // 1 ~ receiver
-  __ push(ecx);
+  __ PopReturnAddressTo(ecx);
+  __ lea(esp, Operand(esp, edi, times_2, 1 * kPointerSize));  // 1 ~ receiver
+  __ PushReturnAddressFrom(ecx);
 }
 
 // static
@@ -2248,6 +2249,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- edi : function (passed through to callee)
   // -----------------------------------
 
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   const Register kExpectedNumberOfArgumentsRegister = ecx;
 
   Label invoke, dont_adapt_arguments, stack_overflow;
@@ -2263,12 +2266,12 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   {  // Enough parameters: Actual >= expected.
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
-    Generate_StackOverflowCheck(masm, kExpectedNumberOfArgumentsRegister, ebx,
+    // edi is used as a scratch register. It should be restored from the frame
+    // when needed.
+    Generate_StackOverflowCheck(masm, kExpectedNumberOfArgumentsRegister, edi,
                                 &stack_overflow);
 
     // Copy receiver and all expected arguments.
-    // edi is used as a scratch register. It should be restored from the frame
-    // when needed.
     const int offset = StandardFrameConstants::kCallerSPOffset;
     __ lea(edi, Operand(ebp, eax, times_4, offset));
     __ mov(eax, -1);  // account for receiver
@@ -2289,11 +2292,11 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     EnterArgumentsAdaptorFrame(masm);
     // edi is used as a scratch register. It should be restored from the frame
     // when needed.
-    Generate_StackOverflowCheck(masm, kExpectedNumberOfArgumentsRegister, ebx,
+    Generate_StackOverflowCheck(masm, kExpectedNumberOfArgumentsRegister, edi,
                                 &stack_overflow);
 
-    // Remember expected arguments in ebx.
-    __ mov(ebx, kExpectedNumberOfArgumentsRegister);
+    // Remember expected arguments in xmm0.
+    __ movd(xmm0, kExpectedNumberOfArgumentsRegister);
 
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
@@ -2321,7 +2324,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ j(less, &fill);
 
     // Restore expected arguments.
-    __ mov(eax, ebx);
+    __ movd(eax, xmm0);
   }
 
   // Call the entry point.
