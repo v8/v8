@@ -663,6 +663,33 @@ TEST(IIFEWithOneshotOpt) {
         return arguments.callee;
       })();
     )",
+      R"(
+      var t = 0;
+      function f2() {};
+      if (t == 0) {
+        (function(){
+          l = {};
+          l.a = 3;
+          l.b = 4;
+          f2();
+          return arguments.callee;
+        })();
+      }
+    )",
+      // No one-shot opt for IIFE`s within a function
+      R"(
+        function f2() {};
+        function f() {
+          return (function(){
+            l = {};
+            l.a = 3;
+            l.b = 4;
+            f2();
+            return arguments.callee;
+          })();
+        }
+        f();
+    )",
   };
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("IIFEWithOneshotOpt.golden")));

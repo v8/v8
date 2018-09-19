@@ -1820,7 +1820,11 @@ bool BytecodeGenerator::ShouldOptimizeAsOneShot() const {
 
   if (loop_depth_ > 0) return false;
 
-  return info()->literal()->is_top_level() || info()->literal()->is_iife();
+  // non-top-level iife is likely to be executed multiple times and so
+  // shouldn`t be optimized as one-shot
+  bool is_top_level_iife = info()->literal()->is_iife() &&
+                           current_scope()->outer_scope()->is_script_scope();
+  return info()->literal()->is_top_level() || is_top_level_iife;
 }
 
 void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
