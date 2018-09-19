@@ -39,6 +39,9 @@ void Builtins::Generate_CallFunction_ReceiverIsAny(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_CallBoundFunction(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallBoundFunctionImpl(masm);
 }
 
