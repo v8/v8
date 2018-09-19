@@ -1037,6 +1037,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     bool* definitely_mismatches,
                                     InvokeFlag flag,
                                     Label::Distance done_near) {
+  DCHECK_IMPLIES(expected.is_reg(), expected.reg() == ecx);
+  DCHECK_IMPLIES(actual.is_reg(), actual.reg() == eax);
+
   bool definitely_matches = false;
   *definitely_mismatches = false;
   Label invoke;
@@ -1055,7 +1058,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
         definitely_matches = true;
       } else {
         *definitely_mismatches = true;
-        mov(ebx, expected.immediate());
+        mov(ecx, expected.immediate());
       }
     }
   } else {
@@ -1066,14 +1069,14 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       mov(eax, actual.immediate());
       cmp(expected.reg(), actual.immediate());
       j(equal, &invoke);
-      DCHECK(expected.reg() == ebx);
+      DCHECK(expected.reg() == ecx);
     } else if (expected.reg() != actual.reg()) {
       // Both expected and actual are in (different) registers. This
       // is the case when we invoke functions using call and apply.
       cmp(expected.reg(), actual.reg());
       j(equal, &invoke);
       DCHECK(actual.reg() == eax);
-      DCHECK(expected.reg() == ebx);
+      DCHECK(expected.reg() == ecx);
     } else {
       definitely_matches = true;
       Move(eax, actual.reg());
@@ -1081,9 +1084,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   }
 
   if (!definitely_matches) {
-    // TODO(v8:6666): All call-sites should be updated to pass in ecx as the
-    // expected register to avoid this useless move.
-    MoveForRootRegisterRefactoring(ecx, ebx);
     Handle<Code> adaptor = BUILTIN_CODE(isolate(), ArgumentsAdaptorTrampoline);
     if (flag == CALL_FUNCTION) {
       Call(adaptor, RelocInfo::CODE_TARGET);
@@ -1155,6 +1155,8 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   DCHECK(flag == JUMP_FUNCTION || has_frame());
   DCHECK(function == edi);
   DCHECK_IMPLIES(new_target.is_valid(), new_target == edx);
+  DCHECK_IMPLIES(expected.is_reg(), expected.reg() == ecx);
+  DCHECK_IMPLIES(actual.is_reg(), actual.reg() == eax);
 
   // On function call, call into the debugger if necessary.
   CheckDebugHook(function, new_target, expected, actual);
@@ -1192,26 +1194,13 @@ void MacroAssembler::InvokeFunction(Register fun, Register new_target,
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
   DCHECK(fun == edi);
-  mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-  movzx_w(ebx,
-          FieldOperand(ebx, SharedFunctionInfo::kFormalParameterCountOffset));
+  movzx_w(ecx,
+          FieldOperand(ecx, SharedFunctionInfo::kFormalParameterCountOffset));
 
-  ParameterCount expected(ebx);
+  ParameterCount expected(ecx);
   InvokeFunctionCode(edi, new_target, expected, actual, flag);
-}
-
-void MacroAssembler::InvokeFunction(Register fun,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual,
-                                    InvokeFlag flag) {
-  // You can't call a function without a valid frame.
-  DCHECK(flag == JUMP_FUNCTION || has_frame());
-
-  DCHECK(fun == edi);
-  mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-
-  InvokeFunctionCode(edi, no_reg, expected, actual, flag);
 }
 
 void MacroAssembler::LoadGlobalProxy(Register dst) {

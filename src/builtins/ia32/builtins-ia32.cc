@@ -1866,6 +1866,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 // static
 void Builtins::Generate_CallFunction(MacroAssembler* masm,
                                      ConvertReceiverMode mode) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edi : the function to call (checked to be a JSFunction)
@@ -1906,8 +1908,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ mov(ecx, Operand(esp, eax, times_pointer_size, kPointerSize));
       __ JumpIfSmi(ecx, &convert_to_object, Label::kNear);
       STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-      __ CmpObjectType(ecx, FIRST_JS_RECEIVER_TYPE, ebx);
+      __ CmpObjectType(ecx, FIRST_JS_RECEIVER_TYPE, ecx);  // Clobbers ecx.
       __ j(above_equal, &done_convert);
+      // Reload the receiver (it was clobbered by CmpObjectType).
+      __ mov(ecx, Operand(esp, eax, times_pointer_size, kPointerSize));
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
         __ JumpIfRoot(ecx, Heap::kUndefinedValueRootIndex,
@@ -1955,9 +1959,9 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // -----------------------------------
 
   __ movzx_w(
-      ebx, FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
+      ecx, FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
   ParameterCount actual(eax);
-  ParameterCount expected(ebx);
+  ParameterCount expected(ecx);
   __ InvokeFunctionCode(edi, no_reg, expected, actual, JUMP_FUNCTION);
   // The function is a "classConstructor", need to raise an exception.
   __ bind(&class_constructor);

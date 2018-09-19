@@ -608,9 +608,6 @@ class MacroAssembler : public TurboAssembler {
   void InvokeFunction(Register function, Register new_target,
                       const ParameterCount& actual, InvokeFlag flag);
 
-  void InvokeFunction(Register function, const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.
   void CmpObjectType(Register heap_object, InstanceType type, Register map);
