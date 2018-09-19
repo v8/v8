@@ -1449,6 +1449,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   // Stack Layout:
   // esp[0]           : Return address
   // esp[8]           : Argument n
@@ -1464,9 +1466,9 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
     Label done;
     __ test(eax, eax);
     __ j(not_zero, &done, Label::kNear);
-    __ PopReturnAddressTo(ebx);
+    __ PopReturnAddressTo(edx);
     __ PushRoot(Heap::kUndefinedValueRootIndex);
-    __ PushReturnAddressFrom(ebx);
+    __ PushReturnAddressFrom(edx);
     __ inc(eax);
     __ bind(&done);
   }
@@ -1481,11 +1483,11 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
     Label loop;
     __ mov(ecx, eax);
     __ bind(&loop);
-    __ mov(ebx, Operand(esp, ecx, times_pointer_size, 0));
-    __ mov(Operand(esp, ecx, times_pointer_size, kPointerSize), ebx);
+    __ mov(edx, Operand(esp, ecx, times_pointer_size, 0));
+    __ mov(Operand(esp, ecx, times_pointer_size, kPointerSize), edx);
     __ dec(ecx);
     __ j(not_sign, &loop);  // While non-negative (to copy return address).
-    __ pop(ebx);            // Discard copy of return address.
+    __ pop(edx);            // Discard copy of return address.
     __ dec(eax);  // One fewer argument (first argument is new receiver).
   }
 
