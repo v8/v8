@@ -155,8 +155,6 @@ namespace internal {
   ASM(ContinueToJavaScriptBuiltin)                                             \
   ASM(ContinueToJavaScriptBuiltinWithResult)                                   \
                                                                                \
-  ASM(OnStackReplacement)                                                      \
-                                                                               \
   /* API callback handling */                                                  \
   API(HandleApiCall)                                                           \
   API(HandleApiCallAsFunction)                                                 \

@@ -2363,15 +2363,12 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   }
 }
 
-static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
-                                              bool has_handler_frame) {
+void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   // Lookup the function in the JavaScript frame.
-  if (has_handler_frame) {
-    __ mov(eax, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-    __ mov(eax, Operand(eax, JavaScriptFrameConstants::kFunctionOffset));
-  } else {
-    __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-  }
+  __ mov(eax, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ mov(eax, Operand(eax, JavaScriptFrameConstants::kFunctionOffset));
 
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -2388,37 +2385,27 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   __ bind(&skip);
 
-  // Drop any potential handler frame that is be sitting on top of the actual
+  // Drop the handler frame that is be sitting on top of the actual
   // JavaScript frame. This is the case then OSR is triggered from bytecode.
-  if (has_handler_frame) {
-    __ leave();
-  }
+  __ leave();
 
   // Load deoptimization data from the code object.
-  __ mov(ebx, Operand(eax, Code::kDeoptimizationDataOffset - kHeapObjectTag));
+  __ mov(ecx, Operand(eax, Code::kDeoptimizationDataOffset - kHeapObjectTag));
 
   // Load the OSR entrypoint offset from the deoptimization data.
-  __ mov(ebx, Operand(ebx, FixedArray::OffsetOfElementAt(
+  __ mov(ecx, Operand(ecx, FixedArray::OffsetOfElementAt(
                                DeoptimizationData::kOsrPcOffsetIndex) -
                                kHeapObjectTag));
-  __ SmiUntag(ebx);
+  __ SmiUntag(ecx);
 
   // Compute the target address = code_obj + header_size + osr_offset
-  __ lea(eax, Operand(eax, ebx, times_1, Code::kHeaderSize - kHeapObjectTag));
+  __ lea(eax, Operand(eax, ecx, times_1, Code::kHeaderSize - kHeapObjectTag));
 
   // Overwrite the return address on the stack.
   __ mov(Operand(esp, 0), eax);
 
   // And "return" to the OSR entry point of the function.
   __ ret(0);
-}
-
-void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  Generate_OnStackReplacementHelper(masm, false);
-}
-
-void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
-  Generate_OnStackReplacementHelper(masm, true);
 }
 
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
