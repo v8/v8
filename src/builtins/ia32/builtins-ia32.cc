@@ -1386,6 +1386,8 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   // ----------- S t a t e -------------
   //  -- eax     : argc
   //  -- esp[0]  : return address
@@ -1399,23 +1401,28 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // present) instead.
   {
     Label no_arg_array, no_this_arg;
+    // Spill receiver to allow the usage of edi as a scratch register.
+    __ movd(xmm0, Operand(esp, eax, times_pointer_size, kPointerSize));
+
     __ LoadRoot(edx, Heap::kUndefinedValueRootIndex);
-    __ mov(ebx, edx);
-    __ mov(edi, Operand(esp, eax, times_pointer_size, kPointerSize));
+    __ mov(edi, edx);
     __ test(eax, eax);
     __ j(zero, &no_this_arg, Label::kNear);
     {
-      __ mov(edx, Operand(esp, eax, times_pointer_size, 0));
+      __ mov(edi, Operand(esp, eax, times_pointer_size, 0));
       __ cmp(eax, Immediate(1));
       __ j(equal, &no_arg_array, Label::kNear);
-      __ mov(ebx, Operand(esp, eax, times_pointer_size, -kPointerSize));
+      __ mov(edx, Operand(esp, eax, times_pointer_size, -kPointerSize));
       __ bind(&no_arg_array);
     }
     __ bind(&no_this_arg);
     __ PopReturnAddressTo(ecx);
     __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
-    __ Push(edx);
+    __ Push(edi);
     __ PushReturnAddressFrom(ecx);
+
+    // Restore receiver to edi.
+    __ movd(edi, xmm0);
   }
 
   // ----------- S t a t e -------------
@@ -1431,12 +1438,11 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 
   // 3. Tail call with no arguments if argArray is null or undefined.
   Label no_arguments;
-  __ JumpIfRoot(ebx, Heap::kNullValueRootIndex, &no_arguments, Label::kNear);
-  __ JumpIfRoot(ebx, Heap::kUndefinedValueRootIndex, &no_arguments,
+  __ JumpIfRoot(edx, Heap::kNullValueRootIndex, &no_arguments, Label::kNear);
+  __ JumpIfRoot(edx, Heap::kUndefinedValueRootIndex, &no_arguments,
                 Label::kNear);
 
   // 4a. Apply the receiver to the given argArray.
-  __ MoveForRootRegisterRefactoring(edx, ebx);
   __ Jump(BUILTIN_CODE(masm->isolate(), CallWithArrayLike),
           RelocInfo::CODE_TARGET);
 
