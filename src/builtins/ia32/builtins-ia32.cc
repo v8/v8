@@ -793,6 +793,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 // The function builds an interpreter frame.  See InterpreterFrameConstants in
 // frames.h for its layout.
 void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   __ VerifyRootRegister();
@@ -940,6 +941,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register array_limit,
                                          Register start_address) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- start_address : Pointer to the last argument in the args array.
   //  -- array_limit : Pointer to one before the first argument in the
@@ -959,6 +961,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 void Builtins::Generate_InterpreterPushArgsThenCallImpl(
     MacroAssembler* masm, ConvertReceiverMode receiver_mode,
     InterpreterPushArgsMode mode) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   DCHECK(mode != InterpreterPushArgsMode::kArrayFunction);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
@@ -968,23 +971,21 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   //  -- edi : the target to call (can be any Object).
   // -----------------------------------
 
-  const Register scratch = ebx;
+  const Register scratch = edx;
   const Register argv = ecx;
 
   Label stack_overflow;
+  // Add a stack check before pushing the arguments.
+  Generate_StackOverflowCheck(masm, eax, scratch, &stack_overflow, true);
+
+  __ movd(xmm0, eax);  // Spill number of arguments.
+
   // Compute the expected number of arguments.
   __ mov(scratch, eax);
   __ add(scratch, Immediate(1));  // Add one for receiver.
 
-  // Add a stack check before pushing the arguments. We need an extra register
-  // to perform a stack check. So push it onto the stack temporarily. This
-  // might cause stack overflow, but it will be detected by the check.
-  __ Push(edi);
-  Generate_StackOverflowCheck(masm, scratch, edx, &stack_overflow);
-  __ Pop(edi);
-
   // Pop return address to allow tail-call after pushing arguments.
-  __ PopReturnAddressTo(edx);
+  __ PopReturnAddressTo(eax);
 
   // Push "undefined" as the receiver arg if we need to.
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
@@ -1002,21 +1003,20 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 
   if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     __ Pop(ecx);                // Pass the spread in a register
+    __ PushReturnAddressFrom(eax);
+    __ movd(eax, xmm0);         // Restore number of arguments.
     __ sub(eax, Immediate(1));  // Subtract one for spread
-    __ PushReturnAddressFrom(edx);
     __ Jump(BUILTIN_CODE(masm->isolate(), CallWithSpread),
             RelocInfo::CODE_TARGET);
   } else {
-    __ PushReturnAddressFrom(edx);
+    __ PushReturnAddressFrom(eax);
+    __ movd(eax, xmm0);  // Restore number of arguments.
     __ Jump(masm->isolate()->builtins()->Call(ConvertReceiverMode::kAny),
             RelocInfo::CODE_TARGET);
   }
 
   __ bind(&stack_overflow);
   {
-    // Pop the temporary registers, so that return address is on top of stack.
-    __ Pop(edi);
-
     __ TailCallRuntime(Runtime::kThrowStackOverflow);
 
     // This should be unreachable.
