@@ -732,6 +732,9 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type) {
   DCHECK_EQ(-3 * kPointerSize, ExitFrameConstants::kCodeOffset);
   push(Immediate(CodeObject()));  // Accessed from ExitFrame::code_slot.
 
+  STATIC_ASSERT(edx == kRuntimeCallFunctionRegister);
+  STATIC_ASSERT(esi == kContextRegister);
+
   // Save the frame pointer and the context in top.
   ExternalReference c_entry_fp_address =
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
@@ -741,7 +744,7 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type) {
       ExternalReference::Create(IsolateAddressId::kCFunctionAddress, isolate());
   mov(StaticVariable(c_entry_fp_address), ebp);
   mov(StaticVariable(context_address), esi);
-  mov(StaticVariable(c_function_address), ebx);
+  mov(StaticVariable(c_function_address), edx);
 }
 
 

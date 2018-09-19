@@ -2490,6 +2490,11 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // If argv_mode == kArgvInRegister:
   // ecx: pointer to the first argument
 
+#ifdef V8_EMBEDDED_BUILTINS
+  // TODO(v8:6666): Remove the ifdef once branch load poisoning is removed.
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
+
   STATIC_ASSERT(eax == kRuntimeCallArgCountRegister);
   STATIC_ASSERT(ecx == kRuntimeCallArgvRegister);
   STATIC_ASSERT(edx == kRuntimeCallFunctionRegister);
@@ -2609,11 +2614,17 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
   __ bind(&skip);
 
+#ifdef V8_EMBEDDED_BUILTINS
+  STATIC_ASSERT(kRootRegister == kSpeculationPoisonRegister);
+  CHECK(!FLAG_untrusted_code_mitigations);
+  CHECK(!FLAG_branch_load_poisoning);
+#else
   // Reset the masking register. This is done independent of the underlying
   // feature flag {FLAG_branch_load_poisoning} to make the snapshot work with
   // both configurations. It is safe to always do this, because the underlying
   // register is caller-saved and can be arbitrarily clobbered.
   __ ResetSpeculationPoisonRegister();
+#endif
 
   // Compute the handler entry address and jump to it.
   __ mov(edi, __ StaticVariable(pending_handler_entrypoint_address));
