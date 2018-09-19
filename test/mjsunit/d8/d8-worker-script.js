@@ -25,16 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-if (this.Worker) {
-  var workerScript =
-    `var w = new Worker('postMessage(42)', {type: 'string'});
-     onmessage = function(parentMsg) {
-       w.postMessage(parentMsg);
-       var childMsg = w.getMessage();
-       postMessage(childMsg);
-     };`;
+// Verify that the Worker constrcutor by default treats its first argument
+// as the filename of a script load and run.
 
-  var w = new Worker(workerScript, {type: 'string'});
-  w.postMessage(9);
-  assertEquals(42, w.getMessage());
+if (this.Worker) {
+  var w = new Worker('test/mjsunit/d8/d8-worker-script.txt');
+  assertEquals("Starting worker", w.getMessage());
+  w.postMessage("");
+  assertEquals("DONE", w.getMessage());
+  w.terminate();
 }

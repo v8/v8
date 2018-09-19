@@ -150,7 +150,8 @@ function spawnWorker(module, memory, address, sequence) {
                 instance.exports.worker(msg.address, msg.sequence, msg.sequenceLength, msg.workerId,
                     msg.bitMask);
                 postMessage({workerId: msg.workerId});
-            }`
+            }`,
+            {type: 'string'}
         );
         workers.push(worker);
         worker.postMessage({
