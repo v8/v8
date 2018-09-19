@@ -1025,6 +1025,7 @@ namespace internal {
   TFJ(AtomicsAnd, 3, kReceiver, kArray, kIndex, kValue)                        \
   TFJ(AtomicsOr, 3, kReceiver, kArray, kIndex, kValue)                         \
   TFJ(AtomicsXor, 3, kReceiver, kArray, kIndex, kValue)                        \
+  CPP(AtomicsNotify)                                                           \
   CPP(AtomicsIsLockFree)                                                       \
   CPP(AtomicsWait)                                                             \
   CPP(AtomicsWake)                                                             \
