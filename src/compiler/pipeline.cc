@@ -1297,10 +1297,16 @@ struct UntyperPhase {
   }
 };
 
-struct CopyMetadataForConcurrentCompilePhase {
-  static const char* phase_name() {
-    return "copy metadata for concurrent compile";
+struct SerializeStandardObjectsPhase {
+  static const char* phase_name() { return "serialize standard objects"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    data->js_heap_broker()->SerializeStandardObjects();
   }
+};
+
+struct CopyMetadataForConcurrentCompilePhase {
+  static const char* phase_name() { return "serialize metadata"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphReducer graph_reducer(temp_zone, data->graph(),
@@ -2016,7 +2022,7 @@ bool PipelineImpl::CreateGraph() {
     data->node_origins()->AddDecorator();
   }
 
-  data->js_heap_broker()->SerializeStandardObjects();
+  Run<SerializeStandardObjectsPhase>();
 
   Run<GraphBuilderPhase>();
   RunPrintAndVerify(GraphBuilderPhase::phase_name(), true);
