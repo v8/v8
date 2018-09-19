@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class RedundancyElimination final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE RedundancyElimination final : public AdvancedReducer {
  public:
   RedundancyElimination(Editor* editor, Zone* zone);
   ~RedundancyElimination() final;

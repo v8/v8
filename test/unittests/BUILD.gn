@@ -131,6 +131,7 @@ v8_source_set("unittests_sources") {
     "compiler/node-unittest.cc",
     "compiler/opcodes-unittest.cc",
     "compiler/persistent-unittest.cc",
+    "compiler/redundancy-elimination-unittest.cc",
     "compiler/regalloc/live-range-unittest.cc",
     "compiler/regalloc/move-optimizer-unittest.cc",
     "compiler/regalloc/register-allocator-unittest.cc",

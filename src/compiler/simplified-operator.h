@@ -228,7 +228,7 @@ enum class CheckTaggedInputMode : uint8_t {
 
 size_t hash_value(CheckTaggedInputMode);
 
-std::ostream& operator<<(std::ostream&, CheckTaggedInputMode);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, CheckTaggedInputMode);
 
 class CheckTaggedInputParameters {
  public:
