@@ -110,11 +110,10 @@ class Space;
 
 // Some assertion macros used in the debugging mode.
 
-#define DCHECK_PAGE_ALIGNED(address) \
-  DCHECK((OffsetFrom(address) & kPageAlignmentMask) == 0)
+#define DCHECK_PAGE_ALIGNED(address) DCHECK_EQ(0, (address)&kPageAlignmentMask)
 
 #define DCHECK_OBJECT_ALIGNED(address) \
-  DCHECK((OffsetFrom(address) & kObjectAlignmentMask) == 0)
+  DCHECK_EQ(0, (address)&kObjectAlignmentMask)
 
 #define DCHECK_OBJECT_SIZE(size) \
   DCHECK((0 < size) && (size <= kMaxRegularHeapObjectSize))
@@ -411,7 +410,7 @@ class MemoryChunk {
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
-    return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
+    return reinterpret_cast<MemoryChunk*>(a & ~kAlignmentMask);
   }
   // Only works if the object is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromHeapObject(const HeapObject* o) {
@@ -777,7 +776,7 @@ class Page : public MemoryChunk {
   // from [page_addr .. page_addr + kPageSize[. This only works if the object
   // is in fact in a page.
   static Page* FromAddress(Address addr) {
-    return reinterpret_cast<Page*>(OffsetFrom(addr) & ~kPageAlignmentMask);
+    return reinterpret_cast<Page*>(addr & ~kPageAlignmentMask);
   }
   static Page* FromHeapObject(const HeapObject* o) {
     return reinterpret_cast<Page*>(reinterpret_cast<Address>(o) &
@@ -799,7 +798,7 @@ class Page : public MemoryChunk {
 
   // Checks whether an address is page aligned.
   static bool IsAlignedToPageSize(Address addr) {
-    return (OffsetFrom(addr) & kPageAlignmentMask) == 0;
+    return (addr & kPageAlignmentMask) == 0;
   }
 
   static bool IsAtObjectStart(Address addr) {
@@ -1127,7 +1126,7 @@ class SkipList {
   }
 
   static inline int RegionNumber(Address addr) {
-    return (OffsetFrom(addr) & kPageAlignmentMask) >> kRegionSizeLog2;
+    return (addr & kPageAlignmentMask) >> kRegionSizeLog2;
   }
 
   static void Update(Address addr, int size) {

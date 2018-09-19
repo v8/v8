@@ -166,13 +166,11 @@ inline bool IsAligned(T value, U alignment) {
   return (value & (alignment - 1)) == 0;
 }
 
-
-// Returns true if (addr + offset) is aligned.
+// Returns true if {addr + offset} is aligned.
 inline bool IsAddressAligned(Address addr,
                              intptr_t alignment,
                              int offset = 0) {
-  intptr_t offs = OffsetFrom(addr + offset);
-  return IsAligned(offs, alignment);
+  return IsAligned(addr + offset, alignment);
 }
 
 

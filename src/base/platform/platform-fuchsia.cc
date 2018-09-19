@@ -67,7 +67,8 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   }
 
   uint8_t* base = reinterpret_cast<uint8_t*>(reservation);
-  uint8_t* aligned_base = RoundUp(base, alignment);
+  uint8_t* aligned_base = reinterpret_cast<uint8_t*>(
+      RoundUp(reinterpret_cast<uintptr_t>(base), alignment));
 
   // Unmap extra memory reserved before and after the desired block.
   if (aligned_base != base) {

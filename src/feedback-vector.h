@@ -289,7 +289,7 @@ class FeedbackVector : public HeapObject, public NeverReadOnlySpaceObject {
 #undef FEEDBACK_VECTOR_FIELDS
 
   static const int kHeaderSize =
-      RoundUp<kPointerAlignment>(kUnalignedHeaderSize);
+      RoundUp<kPointerAlignment>(int{kUnalignedHeaderSize});
   static const int kFeedbackSlotsOffset = kHeaderSize;
 
   class BodyDescriptor;
