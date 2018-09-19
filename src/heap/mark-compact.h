@@ -464,11 +464,14 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 #else
   using MarkingState = MajorNonAtomicMarkingState;
 #endif  // V8_CONCURRENT_MARKING
+
   using NonAtomicMarkingState = MajorNonAtomicMarkingState;
+
   // Wrapper for the shared and bailout worklists.
   class MarkingWorklist {
    public:
     using ConcurrentMarkingWorklist = Worklist<HeapObject*, 64>;
+    using EmbedderTracingWorklist = Worklist<HeapObject*, 16>;
 
     // The heap parameter is not used but needed to match the sequential case.
     explicit MarkingWorklist(Heap* heap) {}
@@ -511,6 +514,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       bailout_.Clear();
       shared_.Clear();
       on_hold_.Clear();
+      embedder_.Clear();
     }
 
     bool IsBailoutEmpty() { return bailout_.IsLocalEmpty(kMainThread); }
@@ -521,6 +525,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
              on_hold_.IsLocalEmpty(kMainThread) &&
              bailout_.IsGlobalPoolEmpty() && shared_.IsGlobalPoolEmpty() &&
              on_hold_.IsGlobalPoolEmpty();
+    }
+
+    bool IsEmbedderEmpty() {
+      return embedder_.IsLocalEmpty(kMainThread) &&
+             embedder_.IsGlobalPoolEmpty();
     }
 
     int Size() {
@@ -538,11 +547,13 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       bailout_.Update(callback);
       shared_.Update(callback);
       on_hold_.Update(callback);
+      embedder_.Update(callback);
     }
 
     ConcurrentMarkingWorklist* shared() { return &shared_; }
     ConcurrentMarkingWorklist* bailout() { return &bailout_; }
     ConcurrentMarkingWorklist* on_hold() { return &on_hold_; }
+    EmbedderTracingWorklist* embedder() { return &embedder_; }
 
     void Print() {
       PrintWorklist("shared", &shared_);
@@ -568,6 +579,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     // for new space. This allow the compiler to remove write barriers
     // for freshly allocatd objects.
     ConcurrentMarkingWorklist on_hold_;
+
+    // Worklist for objects that potentially require embedder tracing, i.e.,
+    // these objects need to be handed over to the embedder to find the full
+    // transitive closure.
+    EmbedderTracingWorklist embedder_;
   };
 
   class RootMarkingVisitor;

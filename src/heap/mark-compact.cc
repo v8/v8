@@ -1598,6 +1598,10 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
 void MarkCompactCollector::PerformWrapperTracing() {
   if (heap_->local_embedder_heap_tracer()->InUse()) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_TRACING);
+    HeapObject* object;
+    while (marking_worklist()->embedder()->Pop(kMainThread, &object)) {
+      heap_->TracePossibleWrapper(JSObject::cast(object));
+    }
     heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
     heap_->local_embedder_heap_tracer()->Trace(
         std::numeric_limits<double>::infinity());
@@ -1753,10 +1757,14 @@ void MarkCompactCollector::MarkLiveObjects() {
     // through ephemerons.
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPERS);
-      while (!heap_->local_embedder_heap_tracer()->IsRemoteTracingDone()) {
+      do {
+        // PerformWrapperTracing() also empties the work items collected by
+        // concurrent markers. As a result this call needs to happen at least
+        // once.
         PerformWrapperTracing();
         ProcessMarkingWorklist();
-      }
+      } while (!heap_->local_embedder_heap_tracer()->IsRemoteTracingDone());
+      DCHECK(marking_worklist()->IsEmbedderEmpty());
       DCHECK(marking_worklist()->IsEmpty());
     }
 
@@ -1803,6 +1811,7 @@ void MarkCompactCollector::MarkLiveObjects() {
         TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_EPILOGUE);
         heap()->local_embedder_heap_tracer()->TraceEpilogue();
       }
+      DCHECK(marking_worklist()->IsEmbedderEmpty());
       DCHECK(marking_worklist()->IsEmpty());
     }
 

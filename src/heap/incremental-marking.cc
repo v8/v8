@@ -793,6 +793,32 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
   return bytes_processed;
 }
 
+void IncrementalMarking::EmbedderStep(double duration_ms) {
+  constexpr int kObjectsToProcessBeforeInterrupt = 100;
+
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
+
+  const double deadline =
+      heap_->MonotonicallyIncreasingTimeInMs() + duration_ms;
+
+  HeapObject* object;
+  int cnt = 0;
+  while (marking_worklist()->embedder()->Pop(0, &object)) {
+    heap_->TracePossibleWrapper(JSObject::cast(object));
+    if (++cnt == kObjectsToProcessBeforeInterrupt) {
+      cnt = 0;
+      if (heap_->MonotonicallyIncreasingTimeInMs() > deadline) {
+        break;
+      }
+    }
+  }
+
+  heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
+  if (!heap_->local_embedder_heap_tracer()
+           ->ShouldFinalizeIncrementalMarking()) {
+    heap_->local_embedder_heap_tracer()->Trace(deadline);
+  }
+}
 
 void IncrementalMarking::Hurry() {
   // A scavenge may have pushed new objects on the marking deque (due to black
@@ -922,14 +948,7 @@ double IncrementalMarking::AdvanceIncrementalMarking(
       heap_->local_embedder_heap_tracer()->InUse();
   do {
     if (incremental_wrapper_tracing && trace_wrappers_toggle_) {
-      TRACE_GC(heap()->tracer(),
-               GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
-      const double wrapper_deadline =
-          heap_->MonotonicallyIncreasingTimeInMs() + kStepSizeInMs;
-      if (!heap_->local_embedder_heap_tracer()
-               ->ShouldFinalizeIncrementalMarking()) {
-        heap_->local_embedder_heap_tracer()->Trace(wrapper_deadline);
-      }
+      EmbedderStep(kStepSizeInMs);
     } else {
       Step(step_size_in_bytes, completion_action, step_origin);
     }

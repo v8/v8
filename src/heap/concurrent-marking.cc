@@ -74,15 +74,19 @@ class ConcurrentMarkingVisitor final
  public:
   using BaseClass = HeapVisitor<int, ConcurrentMarkingVisitor>;
 
-  explicit ConcurrentMarkingVisitor(ConcurrentMarking::MarkingWorklist* shared,
-                                    ConcurrentMarking::MarkingWorklist* bailout,
-                                    LiveBytesMap* live_bytes,
-                                    WeakObjects* weak_objects, int task_id)
+  explicit ConcurrentMarkingVisitor(
+      ConcurrentMarking::MarkingWorklist* shared,
+      ConcurrentMarking::MarkingWorklist* bailout, LiveBytesMap* live_bytes,
+      WeakObjects* weak_objects,
+      ConcurrentMarking::EmbedderTracingWorklist* embedder_objects, int task_id,
+      bool embedder_tracing_enabled)
       : shared_(shared, task_id),
         bailout_(bailout, task_id),
         weak_objects_(weak_objects),
+        embedder_objects_(embedder_objects, task_id),
         marking_state_(live_bytes),
-        task_id_(task_id) {}
+        task_id_(task_id),
+        embedder_tracing_enabled_(embedder_tracing_enabled) {}
 
   template <typename T>
   static V8_INLINE T* Cast(HeapObject* object) {
@@ -197,11 +201,7 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitJSApiObject(Map* map, JSObject* object) {
-    if (marking_state_.IsGrey(object)) {
-      // The main thread will do wrapper tracing in Blink.
-      bailout_.Push(object);
-    }
-    return 0;
+    return VisitEmbedderTracingSubclass(map, object);
   }
 
   // ===========================================================================
@@ -421,6 +421,18 @@ class ConcurrentMarkingVisitor final
   }
 
   template <typename T>
+  int VisitEmbedderTracingSubclass(Map* map, T* object) {
+    DCHECK(object->IsApiWrapper());
+    int size = VisitJSObjectSubclass(map, object);
+    if (size && embedder_tracing_enabled_) {
+      // Success: The object needs to be processed for embedder references on
+      // the main thread.
+      embedder_objects_.Push(object);
+    }
+    return size;
+  }
+
+  template <typename T>
   int VisitLeftTrimmableArray(Map* map, T* object) {
     // The synchronized_length() function checks that the length is a Smi.
     // This is not necessarily the case if the array is being left-trimmed.
@@ -447,9 +459,11 @@ class ConcurrentMarkingVisitor final
   ConcurrentMarking::MarkingWorklist::View shared_;
   ConcurrentMarking::MarkingWorklist::View bailout_;
   WeakObjects* weak_objects_;
+  ConcurrentMarking::EmbedderTracingWorklist::View embedder_objects_;
   ConcurrentMarkingState marking_state_;
   int task_id_;
   SlotSnapshot slot_snapshot_;
+  bool embedder_tracing_enabled_;
 };
 
 // Strings can change maps due to conversion to thin string or external strings.
@@ -511,12 +525,14 @@ class ConcurrentMarking::Task : public CancelableTask {
 ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
                                      MarkingWorklist* bailout,
                                      MarkingWorklist* on_hold,
-                                     WeakObjects* weak_objects)
+                                     WeakObjects* weak_objects,
+                                     EmbedderTracingWorklist* embedder_objects)
     : heap_(heap),
       shared_(shared),
       bailout_(bailout),
       on_hold_(on_hold),
-      weak_objects_(weak_objects) {
+      weak_objects_(weak_objects),
+      embedder_objects_(embedder_objects) {
 // The runtime flag should be set only if the compile time flag was set.
 #ifndef V8_CONCURRENT_MARKING
   CHECK(!FLAG_concurrent_marking);
@@ -528,8 +544,9 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
                       GCTracer::BackgroundScope::MC_BACKGROUND_MARKING);
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
-  ConcurrentMarkingVisitor visitor(shared_, bailout_, &task_state->live_bytes,
-                                   weak_objects_, task_id);
+  ConcurrentMarkingVisitor visitor(
+      shared_, bailout_, &task_state->live_bytes, weak_objects_,
+      embedder_objects_, task_id, heap_->local_embedder_heap_tracer()->InUse());
   double time_ms;
   size_t marked_bytes = 0;
   if (FLAG_trace_concurrent_marking) {
@@ -596,6 +613,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     shared_->FlushToGlobal(task_id);
     bailout_->FlushToGlobal(task_id);
     on_hold_->FlushToGlobal(task_id);
+    embedder_objects_->FlushToGlobal(task_id);
 
     weak_objects_->transition_arrays.FlushToGlobal(task_id);
     weak_objects_->ephemeron_hash_tables.FlushToGlobal(task_id);

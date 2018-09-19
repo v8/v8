@@ -49,7 +49,6 @@ template <FixedArrayVisitationMode fixed_array_mode,
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                    MarkingState>::VisitJSApiObject(Map* map, JSObject* object) {
   if (heap_->local_embedder_heap_tracer()->InUse()) {
-    DCHECK(object->IsJSObject());
     heap_->TracePossibleWrapper(object);
   }
   int size = JSObject::BodyDescriptor::SizeOf(map, object);
