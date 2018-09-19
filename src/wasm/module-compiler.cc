@@ -341,6 +341,7 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
   if (!instance.is_null() && builder.ExecuteStartFunction()) {
     return instance;
   }
+  DCHECK(isolate->has_pending_exception() || thrower->error());
   return {};
 }
 
@@ -993,7 +994,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // (e.g. https://crbug.com/769637).
     // Allocate memory if the initial size is more than 0 pages.
     memory_ = AllocateMemory(initial_pages);
-    if (memory_.is_null()) return {};  // failed to allocate memory
+    if (memory_.is_null()) {
+      // failed to allocate memory
+      DCHECK(isolate_->has_pending_exception() || thrower_->error());
+      return {};
+    }
   }
 
   //--------------------------------------------------------------------------
