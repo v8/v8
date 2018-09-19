@@ -228,24 +228,51 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class JSArrayBufferView::BodyDescriptor final : public BodyDescriptorBase {
+class JSDataView::BodyDescriptor final : public BodyDescriptorBase {
  public:
   STATIC_ASSERT(kBufferOffset + kPointerSize == kByteOffsetOffset);
   STATIC_ASSERT(kByteOffsetOffset + kUIntptrSize == kByteLengthOffset);
-  STATIC_ASSERT(kByteLengthOffset + kUIntptrSize == kHeaderSize);
+  STATIC_ASSERT(kByteLengthOffset + kUIntptrSize == kExternalPointerOffset);
+  STATIC_ASSERT(kExternalPointerOffset + kPointerSize == kSize);
 
   static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
     if (offset < kByteOffsetOffset) return true;
-    if (offset < kHeaderSize) return false;
+    if (offset < kSize) return false;
     return IsValidSlotImpl(map, obj, offset);
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    // JSArrayBufferView contains raw data that the GC does not know about.
+    // JSDataView instances contain raw data that the GC does not know about.
     IteratePointers(obj, kPropertiesOrHashOffset, kByteOffsetOffset, v);
-    IterateBodyImpl(map, obj, kHeaderSize, object_size, v);
+    IterateBodyImpl(map, obj, kSize, object_size, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    return map->instance_size();
+  }
+};
+
+class JSTypedArray::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  STATIC_ASSERT(kBufferOffset + kPointerSize == kByteOffsetOffset);
+  STATIC_ASSERT(kByteOffsetOffset + kUIntptrSize == kByteLengthOffset);
+  STATIC_ASSERT(kByteLengthOffset + kUIntptrSize == kLengthOffset);
+  STATIC_ASSERT(kLengthOffset + kPointerSize == kSize);
+
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    if (offset < kByteOffsetOffset) return true;
+    if (offset < kSize) return false;
+    return IsValidSlotImpl(map, obj, offset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    // JSTypedArray instances contain raw data that the GC does not know about.
+    IteratePointers(obj, kPropertiesOrHashOffset, kByteOffsetOffset, v);
+    IterateBodyImpl(map, obj, kSize, object_size, v);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
