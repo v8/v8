@@ -445,7 +445,7 @@ class V8_EXPORT OutputStream {  // NOLINT
     kContinue = 0,
     kAbort = 1
   };
-  virtual ~OutputStream() {}
+  virtual ~OutputStream() = default;
   /** Notify about the end of stream. */
   virtual void EndOfStream() = 0;
   /** Get preferred output chunk size. Called only once. */
@@ -539,7 +539,7 @@ class V8_EXPORT ActivityControl {  // NOLINT
     kContinue = 0,
     kAbort = 1
   };
-  virtual ~ActivityControl() {}
+  virtual ~ActivityControl() = default;
   /**
    * Notify about current progress. The activity can be stopped by
    * returning kAbort as the callback result.
@@ -625,7 +625,7 @@ class V8_EXPORT AllocationProfile {
    */
   virtual Node* GetRootNode() = 0;
 
-  virtual ~AllocationProfile() {}
+  virtual ~AllocationProfile() = default;
 
   static const int kNoLineNumberInfo = Message::kNoLineNumberInfo;
   static const int kNoColumnNumberInfo = Message::kNoColumnInfo;
@@ -793,7 +793,7 @@ class V8_EXPORT HeapProfiler {
     virtual const char* GetName(Local<Object> object) = 0;
 
    protected:
-    virtual ~ObjectNameResolver() {}
+    virtual ~ObjectNameResolver() = default;
   };
 
   /**
@@ -985,8 +985,8 @@ class V8_EXPORT RetainedObjectInfo {  // NOLINT
   virtual intptr_t GetSizeInBytes() { return -1; }
 
  protected:
-  RetainedObjectInfo() {}
-  virtual ~RetainedObjectInfo() {}
+  RetainedObjectInfo() = default;
+  virtual ~RetainedObjectInfo() = default;
 
  private:
   RetainedObjectInfo(const RetainedObjectInfo&);

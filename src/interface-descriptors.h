@@ -211,7 +211,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   typedef CallInterfaceDescriptorData::Flags Flags;
 
   CallInterfaceDescriptor() : data_(nullptr) {}
-  virtual ~CallInterfaceDescriptor() {}
+  virtual ~CallInterfaceDescriptor() = default;
 
   CallInterfaceDescriptor(CallDescriptors::Key key)
       : data_(CallDescriptors::call_descriptor_data(key)) {}

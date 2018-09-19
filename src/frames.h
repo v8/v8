@@ -300,7 +300,7 @@ class StackFrame {
 
  protected:
   inline explicit StackFrame(StackFrameIteratorBase* iterator);
-  virtual ~StackFrame() { }
+  virtual ~StackFrame() = default;
 
   // Compute the stack pointer for the calling frame.
   virtual Address GetCallerStackPointer() const = 0;

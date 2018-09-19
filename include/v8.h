@@ -855,7 +855,7 @@ class V8_EXPORT HandleScope {
   void operator=(const HandleScope&) = delete;
 
  protected:
-  V8_INLINE HandleScope() {}
+  V8_INLINE HandleScope() = default;
 
   void Initialize(Isolate* isolate);
 
@@ -895,7 +895,7 @@ class V8_EXPORT HandleScope {
 class V8_EXPORT EscapableHandleScope : public HandleScope {
  public:
   explicit EscapableHandleScope(Isolate* isolate);
-  V8_INLINE ~EscapableHandleScope() {}
+  V8_INLINE ~EscapableHandleScope() = default;
 
   /**
    * Pushes the value into the previous scope and returns a handle to it.
@@ -1337,7 +1337,7 @@ class V8_EXPORT ScriptCompiler {
    */
   class V8_EXPORT ExternalSourceStream {
    public:
-    virtual ~ExternalSourceStream() {}
+    virtual ~ExternalSourceStream() = default;
 
     /**
      * V8 calls this to request the next chunk of data from the embedder. This
@@ -1415,7 +1415,7 @@ class V8_EXPORT ScriptCompiler {
    */
   class ScriptStreamingTask {
    public:
-    virtual ~ScriptStreamingTask() {}
+    virtual ~ScriptStreamingTask() = default;
     virtual void Run() = 0;
   };
 
@@ -1868,7 +1868,7 @@ class V8_EXPORT ValueSerializer {
  public:
   class V8_EXPORT Delegate {
    public:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
 
     /**
      * Handles the case where a DataCloneError would be thrown in the structured
@@ -2005,7 +2005,7 @@ class V8_EXPORT ValueDeserializer {
  public:
   class V8_EXPORT Delegate {
    public:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
 
     /**
      * The embedder overrides this method to read some kind of host object, if
@@ -2620,7 +2620,7 @@ class V8_EXPORT String : public Name {
 
   class V8_EXPORT ExternalStringResourceBase {  // NOLINT
    public:
-    virtual ~ExternalStringResourceBase() {}
+    virtual ~ExternalStringResourceBase() = default;
 
     V8_DEPRECATE_SOON("Use IsCacheable().",
                       virtual bool IsCompressible() const) {
@@ -2644,7 +2644,7 @@ class V8_EXPORT String : public Name {
     }
 
    protected:
-    ExternalStringResourceBase() {}
+    ExternalStringResourceBase() = default;
 
     /**
      * Internally V8 will call this Dispose method when the external string
@@ -2695,7 +2695,7 @@ class V8_EXPORT String : public Name {
      * Override the destructor to manage the life cycle of the underlying
      * buffer.
      */
-    ~ExternalStringResource() override {}
+    ~ExternalStringResource() override = default;
 
     /**
      * The string data from the underlying buffer.
@@ -2708,7 +2708,7 @@ class V8_EXPORT String : public Name {
     virtual size_t length() const = 0;
 
    protected:
-    ExternalStringResource() {}
+    ExternalStringResource() = default;
   };
 
   /**
@@ -2728,13 +2728,13 @@ class V8_EXPORT String : public Name {
      * Override the destructor to manage the life cycle of the underlying
      * buffer.
      */
-    ~ExternalOneByteStringResource() override {}
+    ~ExternalOneByteStringResource() override = default;
     /** The string data from the underlying buffer.*/
     virtual const char* data() const = 0;
     /** The number of Latin-1 characters in the string.*/
     virtual size_t length() const = 0;
    protected:
-    ExternalOneByteStringResource() {}
+    ExternalOneByteStringResource() = default;
   };
 
   /**
@@ -4404,7 +4404,7 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
   void Abort(MaybeLocal<Value> exception);
   Local<Promise> GetPromise();
 
-  ~WasmModuleObjectBuilderStreaming();
+  ~WasmModuleObjectBuilderStreaming() = default;
 
  private:
   WasmModuleObjectBuilderStreaming(const WasmModuleObjectBuilderStreaming&) =
@@ -4463,7 +4463,7 @@ class V8_EXPORT ArrayBuffer : public Object {
    */
   class V8_EXPORT Allocator { // NOLINT
    public:
-    virtual ~Allocator() {}
+    virtual ~Allocator() = default;
 
     /**
      * Allocate |length| bytes. Return NULL if allocation is not successful.
@@ -6891,7 +6891,7 @@ typedef void (*JitCodeEventHandler)(const JitCodeEvent* event);
  */
 class V8_EXPORT ExternalResourceVisitor {  // NOLINT
  public:
-  virtual ~ExternalResourceVisitor() {}
+  virtual ~ExternalResourceVisitor() = default;
   virtual void VisitExternalString(Local<String> string) {}
 };
 
@@ -6901,7 +6901,7 @@ class V8_EXPORT ExternalResourceVisitor {  // NOLINT
  */
 class V8_EXPORT PersistentHandleVisitor {  // NOLINT
  public:
-  virtual ~PersistentHandleVisitor() {}
+  virtual ~PersistentHandleVisitor() = default;
   virtual void VisitPersistentHandle(Persistent<Value>* value,
                                      uint16_t class_id) {}
 };

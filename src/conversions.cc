@@ -194,7 +194,7 @@ class StringToIntHelper {
   // buffer of one-byte digits, along with an optional radix prefix.
   StringToIntHelper(Isolate* isolate, const uint8_t* subject, int length)
       : isolate_(isolate), raw_one_byte_subject_(subject), length_(length) {}
-  virtual ~StringToIntHelper() {}
+  virtual ~StringToIntHelper() = default;
 
  protected:
   // Subclasses must implement these:

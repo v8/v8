@@ -177,7 +177,7 @@ class ELFStringTable;
 template<typename THeader>
 class DebugSectionBase : public ZoneObject {
  public:
-  virtual ~DebugSectionBase() { }
+  virtual ~DebugSectionBase() = default;
 
   virtual void WriteBody(Writer::Slot<THeader> header, Writer* writer) {
     uintptr_t start = writer->position();
@@ -238,7 +238,7 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
     }
   }
 
-  ~MachOSection() override {}
+  ~MachOSection() override = default;
 
   virtual void PopulateHeader(Writer::Slot<Header> header) {
     header->addr = 0;
@@ -314,7 +314,7 @@ class ELFSection : public DebugSectionBase<ELFSectionHeader> {
   ELFSection(const char* name, Type type, uintptr_t align)
       : name_(name), type_(type), align_(align) { }
 
-  ~ELFSection() override {}
+  ~ELFSection() override = default;
 
   void PopulateHeader(Writer::Slot<Header> header, ELFStringTable* strtab);
 

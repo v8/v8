@@ -160,7 +160,7 @@ class Genesis {
           GlobalContextType context_type);
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template);
-  ~Genesis() { }
+  ~Genesis() = default;
 
   Isolate* isolate() const { return isolate_; }
   Factory* factory() const { return isolate_->factory(); }

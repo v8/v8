@@ -19,7 +19,7 @@ class JSTypedArray;
 class ElementsAccessor {
  public:
   explicit ElementsAccessor(const char* name) : name_(name) { }
-  virtual ~ElementsAccessor() { }
+  virtual ~ElementsAccessor() = default;
 
   const char* name() const { return name_; }
 

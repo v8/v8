@@ -37,7 +37,7 @@ class KeyAccumulator final {
   KeyAccumulator(Isolate* isolate, KeyCollectionMode mode,
                  PropertyFilter filter)
       : isolate_(isolate), mode_(mode), filter_(filter) {}
-  ~KeyAccumulator();
+  ~KeyAccumulator() = default;
 
   static MaybeHandle<FixedArray> GetKeys(
       Handle<JSReceiver> object, KeyCollectionMode mode, PropertyFilter filter,

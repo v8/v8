@@ -7452,9 +7452,6 @@ void WasmModuleObjectBuilderStreaming::Finish() {
 void WasmModuleObjectBuilderStreaming::Abort(MaybeLocal<Value> exception) {
 }
 
-WasmModuleObjectBuilderStreaming::~WasmModuleObjectBuilderStreaming() {
-}
-
 // static
 v8::ArrayBuffer::Allocator* v8::ArrayBuffer::Allocator::NewDefaultAllocator() {
   return new ArrayBufferAllocator();
@@ -9744,7 +9741,7 @@ debug::PostponeInterruptsScope::PostponeInterruptsScope(v8::Isolate* isolate)
           new i::PostponeInterruptsScope(reinterpret_cast<i::Isolate*>(isolate),
                                          i::StackGuard::API_INTERRUPT)) {}
 
-debug::PostponeInterruptsScope::~PostponeInterruptsScope() {}
+debug::PostponeInterruptsScope::~PostponeInterruptsScope() = default;
 
 Local<String> CpuProfileNode::GetFunctionName() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);

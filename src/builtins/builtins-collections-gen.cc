@@ -24,7 +24,7 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   explicit BaseCollectionsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  virtual ~BaseCollectionsAssembler() {}
+  virtual ~BaseCollectionsAssembler() = default;
 
  protected:
   enum Variant { kMap, kSet, kWeakMap, kWeakSet };

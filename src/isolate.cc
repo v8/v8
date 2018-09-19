@@ -2265,10 +2265,6 @@ char* Isolate::RestoreThread(char* from) {
   return from + sizeof(ThreadLocalTop);
 }
 
-Isolate::ThreadDataTable::ThreadDataTable() : table_() {}
-
-Isolate::ThreadDataTable::~ThreadDataTable() {}
-
 void Isolate::ReleaseSharedPtrs() {
   while (managed_ptr_destructors_head_) {
     ManagedPtrDestructor* l = managed_ptr_destructors_head_;

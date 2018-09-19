@@ -1552,8 +1552,7 @@ class Isolate : private HiddenFactory {
 
   class ThreadDataTable {
    public:
-    ThreadDataTable();
-    ~ThreadDataTable();
+    ThreadDataTable() = default;
 
     PerIsolateThreadData* Lookup(ThreadId thread_id);
     void Insert(PerIsolateThreadData* data);

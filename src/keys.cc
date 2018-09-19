@@ -20,9 +20,6 @@
 namespace v8 {
 namespace internal {
 
-KeyAccumulator::~KeyAccumulator() {
-}
-
 namespace {
 
 static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {

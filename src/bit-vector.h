@@ -31,7 +31,7 @@ class BitVector : public ZoneObject {
           current_(-1) {
       Advance();
     }
-    ~Iterator() {}
+    ~Iterator() = default;
 
     bool Done() const { return current_index_ >= target_->data_length_; }
     void Advance();

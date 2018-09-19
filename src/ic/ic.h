@@ -36,7 +36,7 @@ class IC {
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
   IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot);
-  virtual ~IC() {}
+  virtual ~IC() = default;
 
   State state() const { return state_; }
   inline Address address() const;

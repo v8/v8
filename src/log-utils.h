@@ -63,7 +63,7 @@ class Log {
     // Create a message builder starting from position 0.
     // This acquires the mutex in the log as well.
     explicit MessageBuilder(Log* log);
-    ~MessageBuilder() { }
+    ~MessageBuilder() = default;
 
     void AppendString(String* str,
                       base::Optional<int> length_limit = base::nullopt);
