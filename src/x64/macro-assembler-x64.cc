@@ -21,6 +21,7 @@
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/snapshot/snapshot.h"
+#include "src/string-constants.h"
 #include "src/x64/assembler-x64.h"
 
 #include "src/x64/macro-assembler-x64.h"  // Cannot be the first include.
@@ -1337,6 +1338,12 @@ void TurboAssembler::Move(Operand dst, Handle<HeapObject> object,
                           RelocInfo::Mode rmode) {
   Move(kScratchRegister, object, rmode);
   movp(dst, kScratchRegister);
+}
+
+void TurboAssembler::MoveStringConstant(Register result,
+                                        const StringConstantBase* string,
+                                        RelocInfo::Mode rmode) {
+  movp_string(result, string);
 }
 
 void MacroAssembler::Drop(int stack_elements) {

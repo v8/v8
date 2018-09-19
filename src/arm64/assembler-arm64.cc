@@ -36,6 +36,7 @@
 #include "src/code-stubs.h"
 #include "src/frame-constants.h"
 #include "src/register-configuration.h"
+#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -600,6 +601,13 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         DCHECK_EQ(instr->ImmPCOffset() % kInstrSize, 0);
         UpdateCodeTarget(instr->ImmPCOffset() >> kInstrSizeLog2,
                          request.code_stub()->GetCode());
+        break;
+      }
+      case HeapObjectRequest::kStringConstant: {
+        const StringConstantBase* str = request.string();
+        CHECK_NOT_NULL(str);
+        set_target_address_at(pc, 0 /* unused */,
+                              str->AllocateStringConstant(isolate).address());
         break;
       }
     }
@@ -1714,6 +1722,13 @@ Operand Operand::EmbeddedNumber(double number) {
 Operand Operand::EmbeddedCode(CodeStub* stub) {
   Operand result(0, RelocInfo::CODE_TARGET);
   result.heap_object_request_.emplace(stub);
+  DCHECK(result.IsHeapObjectRequest());
+  return result;
+}
+
+Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.heap_object_request_.emplace(str);
   DCHECK(result.IsHeapObjectRequest());
   return result;
 }

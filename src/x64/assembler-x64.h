@@ -689,6 +689,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // move.
   void movp_heap_number(Register dst, double value);
 
+  void movp_string(Register dst, const StringConstantBase* str);
+
   // Loads a 64-bit immediate into a register.
   void movq(Register dst, int64_t value,
             RelocInfo::Mode rmode = RelocInfo::NONE);

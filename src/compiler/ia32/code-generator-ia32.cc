@@ -80,6 +80,9 @@ class IA32OperandConverter : public InstructionOperandConverter {
         return Immediate(constant.ToExternalReference());
       case Constant::kHeapObject:
         return Immediate(constant.ToHeapObject());
+      case Constant::kDelayedStringConstant:
+        return Immediate::EmbeddedStringConstant(
+            constant.ToDelayedStringConstant());
       case Constant::kInt64:
         break;
       case Constant::kRpoNumber:

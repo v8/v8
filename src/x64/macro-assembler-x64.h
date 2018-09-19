@@ -50,6 +50,8 @@ constexpr Register kOffHeapTrampolineRegister = kScratchRegister;
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;
 
+class StringConstantBase;
+
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 
@@ -352,6 +354,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);
     movp(dst, ptr, rmode);
   }
+
+  void MoveStringConstant(Register result, const StringConstantBase* string,
+                          RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
 
   // Convert smi to word-size sign-extended value.
   void SmiUntag(Register dst, Register src);

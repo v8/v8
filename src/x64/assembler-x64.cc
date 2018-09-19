@@ -21,6 +21,7 @@
 #include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
+#include "src/string-constants.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -348,6 +349,13 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
       case HeapObjectRequest::kCodeStub: {
         request.code_stub()->set_isolate(isolate);
         UpdateCodeTarget(Memory<int32_t>(pc), request.code_stub()->GetCode());
+        break;
+      }
+      case HeapObjectRequest::kStringConstant: {
+        const StringConstantBase* str = request.string();
+        CHECK_NOT_NULL(str);
+        Handle<String> allocated = str->AllocateStringConstant(isolate);
+        Memory<Handle<Object>>(pc) = allocated;
         break;
       }
     }
@@ -1833,6 +1841,14 @@ void Assembler::movp_heap_number(Register dst, double value) {
   emit_rex(dst, kPointerSize);
   emit(0xB8 | dst.low_bits());
   RequestHeapObject(HeapObjectRequest(value));
+  emitp(0, RelocInfo::EMBEDDED_OBJECT);
+}
+
+void Assembler::movp_string(Register dst, const StringConstantBase* str) {
+  EnsureSpace ensure_space(this);
+  emit_rex(dst, kPointerSize);
+  emit(0xB8 | dst.low_bits());
+  RequestHeapObject(HeapObjectRequest(str));
   emitp(0, RelocInfo::EMBEDDED_OBJECT);
 }
 

@@ -44,6 +44,7 @@
 #include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
+#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -369,6 +370,13 @@ HeapObjectRequest::HeapObjectRequest(CodeStub* code_stub, int offset)
     : kind_(kCodeStub), offset_(offset) {
   value_.code_stub = code_stub;
   DCHECK_NOT_NULL(value_.code_stub);
+}
+
+HeapObjectRequest::HeapObjectRequest(const StringConstantBase* string,
+                                     int offset)
+    : kind_(kStringConstant), offset_(offset) {
+  value_.string = string;
+  DCHECK_NOT_NULL(value_.string);
 }
 
 // Platform specific but identical code for all the platforms.

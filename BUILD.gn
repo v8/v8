@@ -2478,6 +2478,8 @@ v8_source_set("v8_base") {
     "src/string-builder.cc",
     "src/string-case.cc",
     "src/string-case.h",
+    "src/string-constants.cc",
+    "src/string-constants.h",
     "src/string-hasher-inl.h",
     "src/string-hasher.h",
     "src/string-search.h",

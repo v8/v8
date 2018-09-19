@@ -67,6 +67,7 @@ class Isolate;
 class SCTableReference;
 class SourcePosition;
 class StatsCounter;
+class StringConstantBase;
 
 // -----------------------------------------------------------------------------
 // Optimization for far-jmp like instructions that can be replaced by shorter.
@@ -97,8 +98,9 @@ class HeapObjectRequest {
  public:
   explicit HeapObjectRequest(double heap_number, int offset = -1);
   explicit HeapObjectRequest(CodeStub* code_stub, int offset = -1);
+  explicit HeapObjectRequest(const StringConstantBase* string, int offset = -1);
 
-  enum Kind { kHeapNumber, kCodeStub };
+  enum Kind { kHeapNumber, kCodeStub, kStringConstant };
   Kind kind() const { return kind_; }
 
   double heap_number() const {
@@ -109,6 +111,11 @@ class HeapObjectRequest {
   CodeStub* code_stub() const {
     DCHECK_EQ(kind(), kCodeStub);
     return value_.code_stub;
+  }
+
+  const StringConstantBase* string() const {
+    DCHECK_EQ(kind(), kStringConstant);
+    return value_.string;
   }
 
   // The code buffer offset at the time of the request.
@@ -128,6 +135,7 @@ class HeapObjectRequest {
   union {
     double heap_number;
     CodeStub* code_stub;
+    const StringConstantBase* string;
   } value_;
 
   int offset_;
@@ -274,11 +282,11 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     }
   }
 
-  // {RequestHeapObject} records the need for a future heap number allocation or
-  // code stub generation. After code assembly, each platform's
-  // {Assembler::AllocateAndInstallRequestedHeapObjects} will allocate these
-  // objects and place them where they are expected (determined by the pc offset
-  // associated with each request).
+  // {RequestHeapObject} records the need for a future heap number allocation,
+  // code stub generation or string allocation. After code assembly, each
+  // platform's {Assembler::AllocateAndInstallRequestedHeapObjects} will
+  // allocate these objects and place them where they are expected (determined
+  // by the pc offset associated with each request).
   void RequestHeapObject(HeapObjectRequest request);
 
  private:

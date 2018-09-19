@@ -16,6 +16,7 @@
 #include "src/lsan.h"
 #include "src/macro-assembler-inl.h"
 #include "src/optimized-compilation-info.h"
+#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -1213,6 +1214,10 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
         literal = DeoptimizationLiteral(constant.ToHeapObject());
         break;
+      case Constant::kDelayedStringConstant:
+        DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
+        literal = DeoptimizationLiteral(constant.ToDelayedStringConstant());
+        break;
       default:
         UNREACHABLE();
     }
@@ -1271,7 +1276,18 @@ OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
 OutOfLineCode::~OutOfLineCode() = default;
 
 Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
-  return object_.is_null() ? isolate->factory()->NewNumber(number_) : object_;
+  switch (kind_) {
+    case DeoptimizationLiteralKind::kObject: {
+      return object_;
+    }
+    case DeoptimizationLiteralKind::kNumber: {
+      return isolate->factory()->NewNumber(number_);
+    }
+    case DeoptimizationLiteralKind::kString: {
+      return string_->AllocateStringConstant(isolate);
+    }
+  }
+  UNREACHABLE();
 }
 
 }  // namespace compiler

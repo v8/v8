@@ -125,6 +125,9 @@ class ArmOperandConverter final : public InstructionOperandConverter {
         return Operand::EmbeddedNumber(constant.ToFloat64().value());
       case Constant::kExternalReference:
         return Operand(constant.ToExternalReference());
+      case Constant::kDelayedStringConstant:
+        return Operand::EmbeddedStringConstant(
+            constant.ToDelayedStringConstant());
       case Constant::kInt64:
       case Constant::kHeapObject:
       // TODO(dcarney): loading RPO constants on arm.

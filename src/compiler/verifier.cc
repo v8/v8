@@ -1252,6 +1252,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 2, Type::String());
       CheckTypeIs(node, Type::String());
       break;
+    case IrOpcode::kDelayedStringConstant:
+      CheckTypeIs(node, Type::String());
+      break;
     case IrOpcode::kAllocate:
       CheckValueInputIs(node, 0, Type::PlainNumber());
       break;

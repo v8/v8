@@ -55,6 +55,7 @@
 #include "src/deoptimizer.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
+#include "src/string-constants.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -73,6 +74,13 @@ Immediate Immediate::EmbeddedCode(CodeStub* stub) {
   Immediate result(0, RelocInfo::CODE_TARGET);
   result.is_heap_object_request_ = true;
   result.value_.heap_object_request = HeapObjectRequest(stub);
+  return result;
+}
+
+Immediate Immediate::EmbeddedStringConstant(const StringConstantBase* str) {
+  Immediate result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(str);
   return result;
 }
 
@@ -312,6 +320,12 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         request.code_stub()->set_isolate(isolate);
         object = request.code_stub()->GetCode();
         break;
+      case HeapObjectRequest::kStringConstant: {
+        const StringConstantBase* str = request.string();
+        CHECK_NOT_NULL(str);
+        object = str->AllocateStringConstant(isolate);
+        break;
+      }
     }
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
     Memory<Handle<Object>>(pc) = object;

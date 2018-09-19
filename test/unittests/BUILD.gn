@@ -114,6 +114,7 @@ v8_source_set("unittests_sources") {
     "compiler/js-call-reducer-unittest.cc",
     "compiler/js-create-lowering-unittest.cc",
     "compiler/js-intrinsic-lowering-unittest.cc",
+    "compiler/js-native-context-specialization-unittest.cc",
     "compiler/js-operator-unittest.cc",
     "compiler/js-typed-lowering-unittest.cc",
     "compiler/linkage-tail-call-unittest.cc",
