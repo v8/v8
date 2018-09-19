@@ -1219,6 +1219,11 @@ bool JSHeapBroker::SerializingAllowed() const {
 }
 
 void JSHeapBroker::SerializeStandardObjects() {
+  if (!native_context_.has_value()) {
+    native_context_ = NativeContextRef(this, isolate()->native_context());
+    native_context_->Serialize();
+  }
+
   if (mode() == kDisabled) return;
 
   Trace("Serializing standard objects.\n");
@@ -1332,8 +1337,6 @@ void JSHeapBroker::SerializeStandardObjects() {
     }
   }
 
-  GetOrCreateData(isolate()->native_context())->AsNativeContext()->Serialize();
-
   Trace("Finished serializing standard objects.\n");
 }
 
@@ -1395,11 +1398,6 @@ int ObjectRef::AsSmi() const {
   DCHECK(IsSmi());
   // Handle-dereference is always allowed for Handle<Smi>.
   return object<Smi>()->value();
-}
-
-NativeContextRef JSHeapBroker::native_context() {
-  AllowHandleAllocation handle_allocation;
-  return NativeContextRef(this, isolate()->native_context());
 }
 
 base::Optional<MapRef> JSObjectRef::GetObjectCreateMap() const {
@@ -2118,6 +2116,12 @@ void ContextRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsContext()->Serialize();
+}
+
+void NativeContextRef::Serialize() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsNativeContext()->Serialize();
 }
 
 #undef BIMODAL_ACCESSOR

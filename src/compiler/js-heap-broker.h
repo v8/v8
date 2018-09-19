@@ -256,6 +256,7 @@ class ContextRef : public HeapObjectRef {
 class NativeContextRef : public ContextRef {
  public:
   using ContextRef::ContextRef;
+  void Serialize();
 
 #define DECL_ACCESSOR(type, name) type##Ref name() const;
   BROKER_NATIVE_CONTEXT_FIELDS(DECL_ACCESSOR)
@@ -468,8 +469,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
 
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
-
-  NativeContextRef native_context();
+  NativeContextRef native_context() const { return native_context_.value(); }
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized };
   BrokerMode mode() const { return mode_; }
@@ -497,6 +497,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
 
   Isolate* const isolate_;
   Zone* const zone_;
+  base::Optional<NativeContextRef> native_context_;
   ZoneUnorderedMap<Address, ObjectData*> refs_;
   BrokerMode mode_;
 };

@@ -198,8 +198,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         // Load the arguments object map.
         Node* const arguments_map = jsgraph()->Constant(
             has_aliased_arguments
-                ? native_context_ref().fast_aliased_arguments_map()
-                : native_context_ref().sloppy_arguments_map());
+                ? native_context().fast_aliased_arguments_map()
+                : native_context().sloppy_arguments_map());
         // Actually allocate and initialize the arguments object.
         AllocationBuilder a(jsgraph(), effect, control);
         Node* properties = jsgraph()->EmptyFixedArrayConstant();
@@ -228,7 +228,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
                              arguments_frame, arguments_length, effect);
         // Load the arguments object map.
         Node* const arguments_map =
-            jsgraph()->Constant(native_context_ref().strict_arguments_map());
+            jsgraph()->Constant(native_context().strict_arguments_map());
         // Actually allocate and initialize the arguments object.
         AllocationBuilder a(jsgraph(), effect, control);
         Node* properties = jsgraph()->EmptyFixedArrayConstant();
@@ -258,7 +258,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
                              arguments_frame, rest_length, effect);
         // Load the JSArray object map.
         Node* const jsarray_map = jsgraph()->Constant(
-            native_context_ref().js_array_packed_elements_map());
+            native_context().js_array_packed_elements_map());
         // Actually allocate and initialize the jsarray.
         AllocationBuilder a(jsgraph(), effect, control);
         Node* properties = jsgraph()->EmptyFixedArrayConstant();
@@ -302,9 +302,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       effect = elements->op()->EffectOutputCount() > 0 ? elements : effect;
       // Load the arguments object map.
       Node* const arguments_map = jsgraph()->Constant(
-          has_aliased_arguments
-              ? native_context_ref().fast_aliased_arguments_map()
-              : native_context_ref().sloppy_arguments_map());
+          has_aliased_arguments ? native_context().fast_aliased_arguments_map()
+                                : native_context().sloppy_arguments_map());
       // Actually allocate and initialize the arguments object.
       AllocationBuilder a(jsgraph(), effect, control);
       Node* properties = jsgraph()->EmptyFixedArrayConstant();
@@ -340,7 +339,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       effect = elements->op()->EffectOutputCount() > 0 ? elements : effect;
       // Load the arguments object map.
       Node* const arguments_map =
-          jsgraph()->Constant(native_context_ref().strict_arguments_map());
+          jsgraph()->Constant(native_context().strict_arguments_map());
       // Actually allocate and initialize the arguments object.
       AllocationBuilder a(jsgraph(), effect, control);
       Node* properties = jsgraph()->EmptyFixedArrayConstant();
@@ -376,8 +375,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
           AllocateRestArguments(effect, control, args_state, start_index);
       effect = elements->op()->EffectOutputCount() > 0 ? elements : effect;
       // Load the JSArray object map.
-      Node* const jsarray_map = jsgraph()->Constant(
-          native_context_ref().js_array_packed_elements_map());
+      Node* const jsarray_map =
+          jsgraph()->Constant(native_context().js_array_packed_elements_map());
       // Actually allocate and initialize the jsarray.
       AllocationBuilder a(jsgraph(), effect, control);
       Node* properties = jsgraph()->EmptyFixedArrayConstant();
@@ -699,7 +698,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
     }
   }
   PretenureFlag pretenure = NOT_TENURED;
-  JSFunctionRef constructor = native_context_ref().array_function();
+  JSFunctionRef constructor = native_context().array_function();
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = NodeProperties::GetValueInput(node, 1);
   Type new_target_type = (target == new_target)
@@ -838,7 +837,7 @@ Reduction JSCreateLowering::ReduceJSCreateArrayIterator(Node* node) {
   AllocationBuilder a(jsgraph(), effect, control);
   a.Allocate(JSArrayIterator::kSize, NOT_TENURED, Type::OtherObject());
   a.Store(AccessBuilder::ForMap(),
-          native_context_ref().initial_array_iterator_map());
+          native_context().initial_array_iterator_map());
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSObjectElements(),
@@ -902,8 +901,8 @@ Reduction JSCreateLowering::ReduceJSCreateCollectionIterator(Node* node) {
   AllocationBuilder a(jsgraph(), effect, control);
   a.Allocate(JSCollectionIterator::kSize, NOT_TENURED, Type::OtherObject());
   a.Store(AccessBuilder::ForMap(),
-          MapForCollectionIterationKind(
-              native_context_ref(), p.collection_kind(), p.iteration_kind()));
+          MapForCollectionIterationKind(native_context(), p.collection_kind(),
+                                        p.iteration_kind()));
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSObjectElements(),
@@ -975,7 +974,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   }
 
   MapRef function_map =
-      native_context_ref().GetFunctionMapFromIndex(shared.function_map_index());
+      native_context().GetFunctionMapFromIndex(shared.function_map_index());
   DCHECK(!function_map.IsInobjectSlackTrackingInProgress());
   DCHECK(!function_map.is_dictionary_map());
 
@@ -1025,7 +1024,7 @@ Reduction JSCreateLowering::ReduceJSCreateIterResultObject(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
 
   Node* iterator_result_map =
-      jsgraph()->Constant(native_context_ref().iterator_result_map());
+      jsgraph()->Constant(native_context().iterator_result_map());
 
   // Emit code to allocate the JSIteratorResult instance.
   AllocationBuilder a(jsgraph(), effect, graph()->start());
@@ -1047,7 +1046,7 @@ Reduction JSCreateLowering::ReduceJSCreateStringIterator(Node* node) {
   Node* string = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  Node* map = jsgraph()->Constant(native_context_ref().string_iterator_map());
+  Node* map = jsgraph()->Constant(native_context().string_iterator_map());
   // Allocate new iterator and attach the iterator to this string.
   AllocationBuilder a(jsgraph(), effect, graph()->start());
   a.Allocate(JSStringIterator::kSize, NOT_TENURED, Type::OtherObject());
@@ -1070,7 +1069,7 @@ Reduction JSCreateLowering::ReduceJSCreateKeyValueArray(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
 
   Node* array_map =
-      jsgraph()->Constant(native_context_ref().js_array_packed_elements_map());
+      jsgraph()->Constant(native_context().js_array_packed_elements_map());
   Node* properties = jsgraph()->EmptyFixedArrayConstant();
   Node* length = jsgraph()->Constant(2);
 
@@ -1097,7 +1096,7 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreatePromise, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  MapRef promise_map = native_context_ref().promise_function().initial_map();
+  MapRef promise_map = native_context().promise_function().initial_map();
 
   AllocationBuilder a(jsgraph(), effect, graph()->start());
   a.Allocate(promise_map.instance_size());
@@ -1157,7 +1156,7 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
     AllocationSiteRef site = feedback.AsAllocationSite();
     DCHECK(!site.PointsToLiteral());
     MapRef initial_map =
-        native_context_ref().GetInitialJSArrayMap(site.GetElementsKind());
+        native_context().GetInitialJSArrayMap(site.GetElementsKind());
     PretenureFlag const pretenure = dependencies()->DependOnPretenureMode(site);
     dependencies()->DependOnElementsKind(site);
     Node* length = jsgraph()->ZeroConstant();
@@ -1176,7 +1175,7 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralObject(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   // Retrieve the initial map for the object.
-  MapRef map = native_context_ref().object_function().initial_map();
+  MapRef map = native_context().object_function().initial_map();
   DCHECK(!map.is_dictionary_map());
   DCHECK(!map.IsInobjectSlackTrackingInProgress());
   Node* js_object_map = jsgraph()->Constant(map);
@@ -1253,7 +1252,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
     a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
-            jsgraph()->HeapConstant(native_context()));
+            jsgraph()->Constant(native_context()));
     for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
       a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->UndefinedConstant());
     }
@@ -1280,7 +1279,7 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
   a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
   a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
-          jsgraph()->HeapConstant(native_context()));
+          jsgraph()->Constant(native_context()));
   RelaxControls(node);
   a.FinishAndChange(node);
   return Changed(node);
@@ -1303,7 +1302,7 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
   a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
   a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
-          jsgraph()->HeapConstant(native_context()));
+          jsgraph()->Constant(native_context()));
   a.Store(AccessBuilder::ForContextSlot(Context::THROWN_OBJECT_INDEX),
           exception);
   RelaxControls(node);
@@ -1332,7 +1331,7 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
     a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
-            jsgraph()->HeapConstant(native_context()));
+            jsgraph()->Constant(native_context()));
     for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
       a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->UndefinedConstant());
     }
@@ -1838,8 +1837,8 @@ SimplifiedOperatorBuilder* JSCreateLowering::simplified() const {
   return jsgraph()->simplified();
 }
 
-NativeContextRef JSCreateLowering::native_context_ref() const {
-  return NativeContextRef(js_heap_broker(), native_context());
+NativeContextRef JSCreateLowering::native_context() const {
+  return js_heap_broker()->native_context();
 }
 
 }  // namespace compiler

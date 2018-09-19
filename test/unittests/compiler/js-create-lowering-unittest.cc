@@ -34,9 +34,7 @@ class JSCreateLoweringTest : public TypedGraphTest {
         javascript_(zone()),
         deps_(isolate(), zone()),
         handle_scope_(isolate()) {
-    if (FLAG_concurrent_compiler_frontend) {
-      js_heap_broker()->SerializeStandardObjects();
-    }
+    js_heap_broker()->SerializeStandardObjects();
   }
   ~JSCreateLoweringTest() override = default;
 
@@ -49,7 +47,7 @@ class JSCreateLoweringTest : public TypedGraphTest {
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
     JSCreateLowering reducer(&graph_reducer, &deps_, &jsgraph, js_heap_broker(),
-                             native_context(), zone());
+                             zone());
     return reducer.Reduce(node);
   }
 

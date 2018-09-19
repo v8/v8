@@ -1307,7 +1307,7 @@ struct TypedLoweringPhase {
                                               data->common(), temp_zone);
     JSCreateLowering create_lowering(&graph_reducer, data->dependencies(),
                                      data->jsgraph(), data->js_heap_broker(),
-                                     data->native_context(), temp_zone);
+                                     temp_zone);
     JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(),
                                    data->js_heap_broker(), temp_zone);
     ConstantFoldingReducer constant_folding_reducer(
