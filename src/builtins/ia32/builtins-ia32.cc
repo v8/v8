@@ -315,6 +315,7 @@ void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   FrameScope scope(masm, StackFrame::INTERNAL);
   __ push(edi);
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
@@ -1969,32 +1970,35 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 namespace {
 
 void Generate_PushBoundArguments(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edx : new.target (only in case of [[Construct]])
   //  -- edi : target (checked to be a JSBoundFunction)
   // -----------------------------------
 
-  // Load [[BoundArguments]] into ecx and length of that into ebx.
+  __ movd(xmm0, edx);  // Spill edx.
+
+  // Load [[BoundArguments]] into ecx and length of that into edx.
   Label no_bound_arguments;
   __ mov(ecx, FieldOperand(edi, JSBoundFunction::kBoundArgumentsOffset));
-  __ mov(ebx, FieldOperand(ecx, FixedArray::kLengthOffset));
-  __ SmiUntag(ebx);
-  __ test(ebx, ebx);
+  __ mov(edx, FieldOperand(ecx, FixedArray::kLengthOffset));
+  __ SmiUntag(edx);
+  __ test(edx, edx);
   __ j(zero, &no_bound_arguments);
   {
     // ----------- S t a t e -------------
-    //  -- eax : the number of arguments (not including the receiver)
-    //  -- edx : new.target (only in case of [[Construct]])
-    //  -- edi : target (checked to be a JSBoundFunction)
-    //  -- ecx : the [[BoundArguments]] (implemented as FixedArray)
-    //  -- ebx : the number of [[BoundArguments]]
+    //  -- eax  : the number of arguments (not including the receiver)
+    //  -- xmm0 : new.target (only in case of [[Construct]])
+    //  -- edi  : target (checked to be a JSBoundFunction)
+    //  -- ecx  : the [[BoundArguments]] (implemented as FixedArray)
+    //  -- edx  : the number of [[BoundArguments]]
     // -----------------------------------
 
     // Reserve stack space for the [[BoundArguments]].
     {
       Label done;
-      __ lea(ecx, Operand(ebx, times_pointer_size, 0));
+      __ lea(ecx, Operand(edx, times_pointer_size, 0));
       __ sub(esp, ecx);
       // Check the stack for overflow. We are not trying to catch interruptions
       // (i.e. debug break and preemption) here, so check the "real stack
@@ -2002,7 +2006,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ CompareRoot(esp, ecx, Heap::kRealStackLimitRootIndex);
       __ j(above_equal, &done, Label::kNear);
       // Restore the stack pointer.
-      __ lea(esp, Operand(esp, ebx, times_pointer_size, 0));
+      __ lea(esp, Operand(esp, edx, times_pointer_size, 0));
       {
         FrameScope scope(masm, StackFrame::MANUAL);
         __ EnterFrame(StackFrame::INTERNAL);
@@ -2018,10 +2022,10 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     {
       Label loop;
       __ Set(ecx, 0);
-      __ lea(ebx, Operand(esp, ebx, times_pointer_size, 0));
+      __ lea(edx, Operand(esp, edx, times_pointer_size, 0));
       __ bind(&loop);
-      __ movd(xmm0, Operand(ebx, ecx, times_pointer_size, 0));
-      __ movd(Operand(esp, ecx, times_pointer_size, 0), xmm0);
+      __ movd(xmm1, Operand(edx, ecx, times_pointer_size, 0));
+      __ movd(Operand(esp, ecx, times_pointer_size, 0), xmm1);
       __ inc(ecx);
       __ cmp(ecx, eax);
       __ j(less, &loop);
@@ -2031,13 +2035,13 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     {
       Label loop;
       __ mov(ecx, FieldOperand(edi, JSBoundFunction::kBoundArgumentsOffset));
-      __ mov(ebx, FieldOperand(ecx, FixedArray::kLengthOffset));
-      __ SmiUntag(ebx);
+      __ mov(edx, FieldOperand(ecx, FixedArray::kLengthOffset));
+      __ SmiUntag(edx);
       __ bind(&loop);
-      __ dec(ebx);
-      __ movd(xmm0, FieldOperand(ecx, ebx, times_pointer_size,
+      __ dec(edx);
+      __ movd(xmm1, FieldOperand(ecx, edx, times_pointer_size,
                                  FixedArray::kHeaderSize));
-      __ movd(Operand(esp, eax, times_pointer_size, 0), xmm0);
+      __ movd(Operand(esp, eax, times_pointer_size, 0), xmm1);
       __ lea(eax, Operand(eax, 1));
       __ j(greater, &loop);
     }
@@ -2047,7 +2051,9 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     // [[BoundArguments]]), so we need to subtract one for the return address.
     __ dec(eax);
   }
+
   __ bind(&no_bound_arguments);
+  __ movd(edx, xmm0);  // Reload edx.
 }
 
 }  // namespace
@@ -2154,6 +2160,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edx : the new target (checked to be a constructor)
