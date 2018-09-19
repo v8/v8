@@ -18063,8 +18063,7 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Isolate* isolate,
     if (capacity > ObjectHashTable::kMaxCapacity) {
       for (size_t i = 0; i < 2; ++i) {
         isolate->heap()->CollectAllGarbage(
-            Heap::kFinalizeIncrementalMarkingMask,
-            GarbageCollectionReason::kFullHashtable);
+            Heap::kNoGCFlags, GarbageCollectionReason::kFullHashtable);
       }
       table->Rehash(isolate);
     }

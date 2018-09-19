@@ -1623,7 +1623,7 @@ void Debug::ScheduleFrameRestart(StackFrame* frame) {
 }
 
 Handle<FixedArray> Debug::GetLoadedScripts() {
-  isolate_->heap()->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+  isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags,
                                       GarbageCollectionReason::kDebugger);
   Factory* factory = isolate_->factory();
   if (!factory->script_list()->IsWeakArrayList()) {

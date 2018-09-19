@@ -504,9 +504,7 @@ UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
 
     // Clear out any pre-existing garbage to make the test consistent
     // across snapshot/no-snapshot builds.
-    i_isolate->heap()->CollectAllGarbage(
-        i::Heap::kFinalizeIncrementalMarkingMask,
-        i::GarbageCollectionReason::kTesting);
+    CcTest::CollectAllGarbage(i_isolate);
 
     NewSpace* new_space = i_isolate->heap()->new_space();
 

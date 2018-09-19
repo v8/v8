@@ -404,7 +404,6 @@ class Heap {
 
   static const int kNoGCFlags = 0;
   static const int kReduceMemoryFootprintMask = 1;
-  static const int kFinalizeIncrementalMarkingMask = 4;
 
   // The roots that have an index less than this are always in old space.
   static const int kOldSpaceRoots = 0x20;
@@ -1629,10 +1628,6 @@ class Heap {
 
   inline bool ShouldReduceMemory() const {
     return (current_gc_flags_ & kReduceMemoryFootprintMask) != 0;
-  }
-
-  inline bool ShouldFinalizeIncrementalMarking() const {
-    return (current_gc_flags_ & kFinalizeIncrementalMarkingMask) != 0;
   }
 
   int NumberOfScavengeTasks();

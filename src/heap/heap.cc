@@ -1274,7 +1274,7 @@ void Heap::ReportExternalMemoryPressure() {
   if (external_memory_ >
       (external_memory_at_last_mark_compact_ + external_memory_hard_limit())) {
     CollectAllGarbage(
-        kReduceMemoryFootprintMask | kFinalizeIncrementalMarkingMask,
+        kReduceMemoryFootprintMask,
         GarbageCollectionReason::kExternalMemoryPressure,
         static_cast<GCCallbackFlags>(kGCCallbackFlagCollectAllAvailableGarbage |
                                      kGCCallbackFlagsForExternalMemory));

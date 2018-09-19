@@ -684,9 +684,9 @@ TEST(MakingExternalUnalignedOneByteString) {
 
   // Trigger GCs and force evacuation.
   CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage(i::Heap::kReduceMemoryFootprintMask);
+  CcTest::heap()->CollectAllGarbage(i::Heap::kReduceMemoryFootprintMask,
+                                    i::GarbageCollectionReason::kTesting);
 }
-
 
 THREADED_TEST(UsingExternalString) {
   i::Factory* factory = CcTest::i_isolate()->factory();
