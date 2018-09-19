@@ -1115,6 +1115,9 @@ class Heap {
   // data and clearing the resource pointer.
   inline void FinalizeExternalString(String* string);
 
+  static String* UpdateNewSpaceReferenceInExternalStringTableEntry(
+      Heap* heap, Object** pointer);
+
   // ===========================================================================
   // Methods checking/returning the space of a given object/address. ===========
   // ===========================================================================
@@ -1590,12 +1593,7 @@ class Heap {
 
   static const int kInitialFeedbackCapacity = 256;
 
-  static const int kMaxScavengerTasks = 8;
-
   Heap();
-
-  static String* UpdateNewSpaceReferenceInExternalStringTableEntry(
-      Heap* heap, Object** pointer);
 
   // Selects the proper allocation space based on the pretenuring decision.
   static AllocationSpace SelectSpace(PretenureFlag pretenure) {
@@ -2176,7 +2174,6 @@ class Heap {
   ObjectStats* dead_object_stats_;
 
   ScavengeJob* scavenge_job_;
-  base::Semaphore parallel_scavenge_semaphore_;
 
   AllocationObserver* idle_scavenge_observer_;
 
@@ -2291,6 +2288,7 @@ class Heap {
   friend class Page;
   friend class PagedSpace;
   friend class Scavenger;
+  friend class ScavengerCollector;
   friend class Space;
   friend class StoreBuffer;
   friend class Sweeper;

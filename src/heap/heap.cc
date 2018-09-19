@@ -33,7 +33,6 @@
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/item-parallel-job.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-reducer.h"
@@ -205,7 +204,6 @@ Heap::Heap()
       live_object_stats_(nullptr),
       dead_object_stats_(nullptr),
       scavenge_job_(nullptr),
-      parallel_scavenge_semaphore_(0),
       idle_scavenge_observer_(nullptr),
       new_space_allocation_counter_(0),
       old_generation_allocation_counter_at_last_gc_(0),
@@ -1947,26 +1945,6 @@ void Heap::CheckNewSpaceExpansionCriteria() {
   }
 }
 
-static bool IsUnscavengedHeapObject(Heap* heap, Object** p) {
-  return Heap::InFromSpace(*p) &&
-         !HeapObject::cast(*p)->map_word().IsForwardingAddress();
-}
-
-class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
- public:
-  Object* RetainAs(Object* object) override {
-    if (!Heap::InFromSpace(object)) {
-      return object;
-    }
-
-    MapWord map_word = HeapObject::cast(object)->map_word();
-    if (map_word.IsForwardingAddress()) {
-      return map_word.ToForwardingAddress();
-    }
-    return nullptr;
-  }
-};
-
 void Heap::EvacuateYoungGeneration() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_FAST_PROMOTE);
   base::LockGuard<base::Mutex> guard(relocation_mutex());
@@ -2010,71 +1988,6 @@ void Heap::EvacuateYoungGeneration() {
   SetGCState(NOT_IN_GC);
 }
 
-class PageScavengingItem final : public ItemParallelJob::Item {
- public:
-  explicit PageScavengingItem(MemoryChunk* chunk) : chunk_(chunk) {}
-  ~PageScavengingItem() override = default;
-
-  void Process(Scavenger* scavenger) { scavenger->ScavengePage(chunk_); }
-
- private:
-  MemoryChunk* const chunk_;
-};
-
-class ScavengingTask final : public ItemParallelJob::Task {
- public:
-  ScavengingTask(Heap* heap, Scavenger* scavenger, OneshotBarrier* barrier)
-      : ItemParallelJob::Task(heap->isolate()),
-        heap_(heap),
-        scavenger_(scavenger),
-        barrier_(barrier) {}
-
-  void RunInParallel() final {
-    TRACE_BACKGROUND_GC(
-        heap_->tracer(),
-        GCTracer::BackgroundScope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL);
-    double scavenging_time = 0.0;
-    {
-      barrier_->Start();
-      TimedScope scope(&scavenging_time);
-      PageScavengingItem* item = nullptr;
-      while ((item = GetItem<PageScavengingItem>()) != nullptr) {
-        item->Process(scavenger_);
-        item->MarkFinished();
-      }
-      do {
-        scavenger_->Process(barrier_);
-      } while (!barrier_->Wait());
-      scavenger_->Process();
-    }
-    if (FLAG_trace_parallel_scavenge) {
-      PrintIsolate(heap_->isolate(),
-                   "scavenge[%p]: time=%.2f copied=%zu promoted=%zu\n",
-                   static_cast<void*>(this), scavenging_time,
-                   scavenger_->bytes_copied(), scavenger_->bytes_promoted());
-    }
-  };
-
- private:
-  Heap* const heap_;
-  Scavenger* const scavenger_;
-  OneshotBarrier* const barrier_;
-};
-
-int Heap::NumberOfScavengeTasks() {
-  if (!FLAG_parallel_scavenge) return 1;
-  const int num_scavenge_tasks =
-      static_cast<int>(new_space()->TotalCapacity()) / MB;
-  static int num_cores = V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1;
-  int tasks =
-      Max(1, Min(Min(num_scavenge_tasks, kMaxScavengerTasks), num_cores));
-  if (!CanExpandOldGeneration(static_cast<size_t>(tasks * Page::kPageSize))) {
-    // Optimize for memory usage near the heap limit.
-    tasks = 1;
-  }
-  return tasks;
-}
-
 void Heap::Scavenge() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
   base::LockGuard<base::Mutex> guard(relocation_mutex());
@@ -2087,7 +2000,6 @@ void Heap::Scavenge() {
   // Bump-pointer allocations done during scavenge are not real allocations.
   // Pause the inline allocation steps.
   PauseAllocationObserversScope pause_observers(this);
-
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
       incremental_marking());
 
@@ -2096,137 +2008,16 @@ void Heap::Scavenge() {
 
   SetGCState(SCAVENGE);
 
+  // Flip the semispaces.  After flipping, to space is empty, from space has
+  // live objects.
+  new_space()->Flip();
+  new_space()->ResetLinearAllocationArea();
+
   // Implements Cheney's copying algorithm
   LOG(isolate_, ResourceEvent("scavenge", "begin"));
 
-  // Flip the semispaces.  After flipping, to space is empty, from space has
-  // live objects.
-  new_space_->Flip();
-  new_space_->ResetLinearAllocationArea();
-
-  ItemParallelJob job(isolate()->cancelable_task_manager(),
-                      &parallel_scavenge_semaphore_);
-  const int kMainThreadId = 0;
-  Scavenger* scavengers[kMaxScavengerTasks];
-  const bool is_logging = isolate()->LogObjectRelocation();
-  const int num_scavenge_tasks = NumberOfScavengeTasks();
-  OneshotBarrier barrier;
-  Scavenger::CopiedList copied_list(num_scavenge_tasks);
-  Scavenger::PromotionList promotion_list(num_scavenge_tasks);
-  for (int i = 0; i < num_scavenge_tasks; i++) {
-    scavengers[i] =
-        new Scavenger(this, is_logging, &copied_list, &promotion_list, i);
-    job.AddTask(new ScavengingTask(this, scavengers[i], &barrier));
-  }
-
-  {
-    Sweeper* sweeper = mark_compact_collector()->sweeper();
-    // Pause the concurrent sweeper.
-    Sweeper::PauseOrCompleteScope pause_scope(sweeper);
-    // Filter out pages from the sweeper that need to be processed for old to
-    // new slots by the Scavenger. After processing, the Scavenger adds back
-    // pages that are still unsweeped. This way the Scavenger has exclusive
-    // access to the slots of a page and can completely avoid any locks on
-    // the page itself.
-    Sweeper::FilterSweepingPagesScope filter_scope(sweeper, pause_scope);
-    filter_scope.FilterOldSpaceSweepingPages(
-        [](Page* page) { return !page->ContainsSlots<OLD_TO_NEW>(); });
-    RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
-        this, [&job](MemoryChunk* chunk) {
-          job.AddItem(new PageScavengingItem(chunk));
-        });
-
-    RootScavengeVisitor root_scavenge_visitor(scavengers[kMainThreadId]);
-
-    {
-      // Identify weak unmodified handles. Requires an unmodified graph.
-      TRACE_GC(
-          tracer(),
-          GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY);
-      isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
-          &JSObject::IsUnmodifiedApiObject);
-    }
-    {
-      // Copy roots.
-      TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS);
-      IterateRoots(&root_scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
-    }
-    {
-      // Parallel phase scavenging all copied and promoted objects.
-      TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL);
-      job.Run(isolate()->async_counters());
-      DCHECK(copied_list.IsEmpty());
-      DCHECK(promotion_list.IsEmpty());
-    }
-    {
-      // Scavenge weak global handles.
-      TRACE_GC(tracer(),
-               GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
-      isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
-          &IsUnscavengedHeapObject);
-      isolate()
-          ->global_handles()
-          ->IterateNewSpaceWeakUnmodifiedRootsForFinalizers(
-              &root_scavenge_visitor);
-      scavengers[kMainThreadId]->Process();
-
-      DCHECK(copied_list.IsEmpty());
-      DCHECK(promotion_list.IsEmpty());
-      isolate()
-          ->global_handles()
-          ->IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
-              &root_scavenge_visitor, &IsUnscavengedHeapObject);
-    }
-
-    for (int i = 0; i < num_scavenge_tasks; i++) {
-      scavengers[i]->Finalize();
-      delete scavengers[i];
-    }
-  }
-
-  {
-    // Update references into new space
-    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_UPDATE_REFS);
-    UpdateNewSpaceReferencesInExternalStringTable(
-        &UpdateNewSpaceReferenceInExternalStringTableEntry);
-
-    incremental_marking()->UpdateMarkingWorklistAfterScavenge();
-  }
-
-  if (FLAG_concurrent_marking) {
-    // Ensure that concurrent marker does not track pages that are
-    // going to be unmapped.
-    for (Page* p : PageRange(new_space()->from_space().first_page(), nullptr)) {
-      concurrent_marking()->ClearLiveness(p);
-    }
-  }
-
-  ScavengeWeakObjectRetainer weak_object_retainer;
-  ProcessYoungWeakReferences(&weak_object_retainer);
-
-  // Set age mark.
-  new_space_->set_age_mark(new_space_->top());
-
-  {
-    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_PROCESS_ARRAY_BUFFERS);
-    ArrayBufferTracker::PrepareToFreeDeadInNewSpace(this);
-  }
-  array_buffer_collector()->FreeAllocations();
-
-  RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(this, [](MemoryChunk* chunk) {
-    if (chunk->SweepingDone()) {
-      RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
-    } else {
-      RememberedSet<OLD_TO_NEW>::PreFreeEmptyBuckets(chunk);
-    }
-  });
-
-  // Update how much has survived scavenge.
-  IncrementYoungSurvivorsCounter(SurvivedNewSpaceObjectSize());
-
-  // Scavenger may find new wrappers by iterating objects promoted onto a black
-  // page.
-  local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
+  ScavengerCollector scavenger_collector(this);
+  scavenger_collector.CollectGarbage();
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 

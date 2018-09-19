@@ -22,6 +22,22 @@ enum class CopyAndForwardResult {
   FAILURE
 };
 
+class ScavengerCollector {
+ public:
+  static const int kMaxScavengerTasks = 8;
+
+  explicit ScavengerCollector(Heap* heap);
+
+  void CollectGarbage();
+
+ private:
+  int NumberOfScavengeTasks();
+
+  Isolate* const isolate_;
+  Heap* const heap_;
+  base::Semaphore parallel_scavenge_semaphore_;
+};
+
 class Scavenger {
  public:
   static const int kCopiedListSegmentSize = 256;
