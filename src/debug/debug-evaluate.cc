@@ -246,7 +246,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   /* Conversions */                           \
   V(NumberToString)                           \
   V(ToBigInt)                                 \
-  V(ToInteger)                                \
   V(ToLength)                                 \
   V(ToNumber)                                 \
   V(ToObject)                                 \

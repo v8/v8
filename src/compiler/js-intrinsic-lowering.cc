@@ -38,8 +38,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceGeneratorClose(node);
     case Runtime::kInlineCreateJSGeneratorObject:
       return ReduceCreateJSGeneratorObject(node);
-    case Runtime::kInlineGeneratorGetInputOrDebugPos:
-      return ReduceGeneratorGetInputOrDebugPos(node);
     case Runtime::kInlineAsyncGeneratorReject:
       return ReduceAsyncGeneratorReject(node);
     case Runtime::kInlineAsyncGeneratorResolve:
@@ -52,8 +50,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsTypedArray:
       return ReduceIsInstanceType(node, JS_TYPED_ARRAY_TYPE);
-    case Runtime::kInlineIsJSProxy:
-      return ReduceIsInstanceType(node, JS_PROXY_TYPE);
     case Runtime::kInlineIsJSReceiver:
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
@@ -62,12 +58,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceRejectPromise(node);
     case Runtime::kInlineResolvePromise:
       return ReduceResolvePromise(node);
-    case Runtime::kInlineToInteger:
-      return ReduceToInteger(node);
     case Runtime::kInlineToLength:
       return ReduceToLength(node);
-    case Runtime::kInlineToNumber:
-      return ReduceToNumber(node);
     case Runtime::kInlineToObject:
       return ReduceToObject(node);
     case Runtime::kInlineToString:
@@ -133,16 +125,6 @@ Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
   ReplaceWithValue(node, undefined, node);
   NodeProperties::RemoveType(node);
   return Change(node, op, generator, closed, effect, control);
-}
-
-Reduction JSIntrinsicLowering::ReduceGeneratorGetInputOrDebugPos(Node* node) {
-  Node* const generator = NodeProperties::GetValueInput(node, 0);
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
-  Operator const* const op = simplified()->LoadField(
-      AccessBuilder::ForJSGeneratorObjectInputOrDebugPos());
-
-  return Change(node, op, generator, effect, control);
 }
 
 Reduction JSIntrinsicLowering::ReduceAsyncGeneratorReject(Node* node) {
@@ -243,17 +225,6 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {
   NodeProperties::RemoveNonValueInputs(node);
   // Finally update the operator to the new one.
   NodeProperties::ChangeOp(node, op);
-  return Changed(node);
-}
-
-Reduction JSIntrinsicLowering::ReduceToInteger(Node* node) {
-  NodeProperties::ChangeOp(node, javascript()->ToInteger());
-  return Changed(node);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceToNumber(Node* node) {
-  NodeProperties::ChangeOp(node, javascript()->ToNumber());
   return Changed(node);
 }
 

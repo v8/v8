@@ -1731,8 +1731,6 @@ Type Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return Type::OtherObject();
     case Runtime::kInlineStringCharFromCode:
       return Type::String();
-    case Runtime::kInlineToInteger:
-      return TypeUnaryOp(node, ToInteger);
     case Runtime::kInlineToLength:
       return TypeUnaryOp(node, ToLength);
     case Runtime::kInlineToNumber:

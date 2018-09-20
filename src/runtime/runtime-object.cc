@@ -1156,13 +1156,6 @@ RUNTIME_FUNCTION(Runtime_ToNumeric) {
   RETURN_RESULT_OR_FAILURE(isolate, Object::ToNumeric(isolate, input));
 }
 
-RUNTIME_FUNCTION(Runtime_ToInteger) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  RETURN_RESULT_OR_FAILURE(isolate, Object::ToInteger(isolate, input));
-}
-
 
 RUNTIME_FUNCTION(Runtime_ToLength) {
   HandleScope scope(isolate);

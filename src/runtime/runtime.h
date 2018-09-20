@@ -194,7 +194,6 @@ namespace internal {
   F(CreateJSGeneratorObject, 2, 1)            \
   F(GeneratorClose, 1, 1)                     \
   F(GeneratorGetFunction, 1, 1)               \
-  F(GeneratorGetInputOrDebugPos, 1, 1)        \
   F(GeneratorGetResumeMode, 1, 1)
 
 #ifdef V8_INTL_SUPPORT
@@ -333,7 +332,6 @@ namespace internal {
   F(StoreDataPropertyInLiteral, 3, 1)                           \
   F(ShrinkPropertyDictionary, 1, 1)                             \
   F(ToFastProperties, 1, 1)                                     \
-  F(ToInteger, 1, 1)                                            \
   F(ToLength, 1, 1)                                             \
   F(ToName, 1, 1)                                               \
   F(ToNumber, 1, 1)                                             \

@@ -40,11 +40,9 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
 
  private:
   Reduction ReduceCreateIterResultObject(Node* node);
-  Reduction ReduceDebugIsActive(Node* node);
   Reduction ReduceDeoptimizeNow(Node* node);
   Reduction ReduceCreateJSGeneratorObject(Node* node);
   Reduction ReduceGeneratorClose(Node* node);
-  Reduction ReduceGeneratorGetInputOrDebugPos(Node* node);
   Reduction ReduceAsyncGeneratorReject(Node* node);
   Reduction ReduceAsyncGeneratorResolve(Node* node);
   Reduction ReduceAsyncGeneratorYield(Node* node);
@@ -55,9 +53,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceIsSmi(Node* node);
   Reduction ReduceRejectPromise(Node* node);
   Reduction ReduceResolvePromise(Node* node);
-  Reduction ReduceToInteger(Node* node);
   Reduction ReduceToLength(Node* node);
-  Reduction ReduceToNumber(Node* node);
   Reduction ReduceToObject(Node* node);
   Reduction ReduceToString(Node* node);
   Reduction ReduceCall(Node* node);
