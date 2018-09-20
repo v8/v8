@@ -28,6 +28,8 @@
 // Verify that the Worker constrcutor by default treats its first argument
 // as the filename of a script load and run.
 
+// Resources: test/mjsunit/d8/d8-worker-script.txt
+
 if (this.Worker) {
   var w = new Worker('test/mjsunit/d8/d8-worker-script.txt');
   assertEquals("Starting worker", w.getMessage());
