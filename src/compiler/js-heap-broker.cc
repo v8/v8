@@ -1198,7 +1198,7 @@ ObjectRef ContextRef::get(int index) const {
 JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* zone)
     : isolate_(isolate),
       zone_(zone),
-      refs_(zone),
+      refs_(zone, kInitialRefsBucketCount),
       mode_(FLAG_concurrent_compiler_frontend ? kSerializing : kDisabled) {
   Trace("%s", "Constructing heap broker.\n");
 }
