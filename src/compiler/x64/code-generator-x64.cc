@@ -2654,7 +2654,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64StackCheck:
-      __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+      __ CompareRoot(rsp, RootIndex::kStackLimit);
       break;
     case kWord32AtomicExchangeInt8: {
       __ xchgb(i.InputRegister(0), i.MemoryOperand(1));
@@ -3270,7 +3270,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         break;
       case Constant::kHeapObject: {
         Handle<HeapObject> src_object = src.ToHeapObject();
-        Heap::RootListIndex index;
+        RootIndex index;
         if (IsMaterializableFromRoot(src_object, &index)) {
           __ LoadRoot(dst, index);
         } else {

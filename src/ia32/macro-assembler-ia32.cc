@@ -51,7 +51,7 @@ MacroAssembler::MacroAssembler(Isolate* isolate,
 #endif  // V8_EMBEDDED_BUILTINS
 }
 
-void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
+void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
   // TODO(jgruber, v8:6666): Support loads through the root register once it
   // exists.
   if (isolate()->heap()->RootCanBeTreatedAsConstant(index)) {
@@ -67,22 +67,20 @@ void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
   }
   ExternalReference roots_array_start =
       ExternalReference::roots_array_start(isolate());
-  mov(destination, Immediate(index));
+  mov(destination, Immediate(static_cast<int>(index)));
   mov(destination,
       StaticArray(destination, times_pointer_size, roots_array_start));
 }
 
-void MacroAssembler::CompareRoot(Register with,
-                                 Register scratch,
-                                 Heap::RootListIndex index) {
+void MacroAssembler::CompareRoot(Register with, Register scratch,
+                                 RootIndex index) {
   ExternalReference roots_array_start =
       ExternalReference::roots_array_start(isolate());
-  mov(scratch, Immediate(index));
+  mov(scratch, Immediate(static_cast<int>(index)));
   cmp(with, StaticArray(scratch, times_pointer_size, roots_array_start));
 }
 
-
-void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
+void MacroAssembler::CompareRoot(Register with, RootIndex index) {
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
   Handle<Object> object = isolate()->heap()->root_handle(index);
   if (object->IsHeapObject()) {
@@ -92,7 +90,7 @@ void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
   }
 }
 
-void MacroAssembler::CompareRoot(Operand with, Heap::RootListIndex index) {
+void MacroAssembler::CompareRoot(Operand with, RootIndex index) {
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
   Handle<Object> object = isolate()->heap()->root_handle(index);
   if (object->IsHeapObject()) {
@@ -102,7 +100,7 @@ void MacroAssembler::CompareRoot(Operand with, Heap::RootListIndex index) {
   }
 }
 
-void MacroAssembler::PushRoot(Heap::RootListIndex index) {
+void MacroAssembler::PushRoot(RootIndex index) {
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(index));
   Handle<Object> object = isolate()->heap()->root_handle(index);
   if (object->IsHeapObject()) {
@@ -116,10 +114,10 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(!is_ebx_addressable_);
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
-      Heap::kBuiltinsConstantsTableRootIndex));
+      RootIndex::kBuiltinsConstantsTable));
   // TODO(jgruber): LoadRoot should be a register-relative load once we have
   // the kRootRegister.
-  LoadRoot(destination, Heap::kBuiltinsConstantsTableRootIndex);
+  LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
   mov(destination,
       FieldOperand(destination,
                    FixedArray::kHeaderSize + constant_index * kPointerSize));

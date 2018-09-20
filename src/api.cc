@@ -7819,8 +7819,8 @@ Local<Symbol> v8::Symbol::New(Isolate* isolate, Local<String> name) {
 Local<Symbol> v8::Symbol::For(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::String> i_name = Utils::OpenHandle(*name);
-  return Utils::ToLocal(i_isolate->SymbolFor(
-      i::Heap::kPublicSymbolTableRootIndex, i_name, false));
+  return Utils::ToLocal(
+      i_isolate->SymbolFor(i::RootIndex::kPublicSymbolTable, i_name, false));
 }
 
 
@@ -7828,7 +7828,7 @@ Local<Symbol> v8::Symbol::ForApi(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::String> i_name = Utils::OpenHandle(*name);
   return Utils::ToLocal(
-      i_isolate->SymbolFor(i::Heap::kApiSymbolTableRootIndex, i_name, false));
+      i_isolate->SymbolFor(i::RootIndex::kApiSymbolTable, i_name, false));
 }
 
 #define WELL_KNOWN_SYMBOLS(V)                 \
@@ -7869,8 +7869,8 @@ Local<Private> v8::Private::New(Isolate* isolate, Local<String> name) {
 Local<Private> v8::Private::ForApi(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::String> i_name = Utils::OpenHandle(*name);
-  Local<Symbol> result = Utils::ToLocal(i_isolate->SymbolFor(
-      i::Heap::kApiPrivateSymbolTableRootIndex, i_name, true));
+  Local<Symbol> result = Utils::ToLocal(
+      i_isolate->SymbolFor(i::RootIndex::kApiPrivateSymbolTable, i_name, true));
   return v8::Local<Private>(reinterpret_cast<Private*>(*result));
 }
 

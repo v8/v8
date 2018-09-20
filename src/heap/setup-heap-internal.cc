@@ -58,31 +58,31 @@ bool Heap::CreateHeapObjects() {
 
 const Heap::StringTypeTable Heap::string_type_table[] = {
 #define STRING_TYPE_ELEMENT(type, size, name, camel_name) \
-  {type, size, k##camel_name##MapRootIndex},
+  {type, size, RootIndex::k##camel_name##Map},
     STRING_TYPE_LIST(STRING_TYPE_ELEMENT)
 #undef STRING_TYPE_ELEMENT
 };
 
 const Heap::ConstantStringTable Heap::constant_string_table[] = {
-    {"", kempty_stringRootIndex},
-#define CONSTANT_STRING_ELEMENT(name, contents) {contents, k##name##RootIndex},
+    {"", RootIndex::kempty_string},
+#define CONSTANT_STRING_ELEMENT(name, contents) {contents, RootIndex::k##name},
     INTERNALIZED_STRING_LIST(CONSTANT_STRING_ELEMENT)
 #undef CONSTANT_STRING_ELEMENT
 };
 
 const Heap::StructTable Heap::struct_table[] = {
 #define STRUCT_TABLE_ELEMENT(NAME, Name, name) \
-  {NAME##_TYPE, Name::kSize, k##Name##MapRootIndex},
+  {NAME##_TYPE, Name::kSize, RootIndex::k##Name##Map},
     STRUCT_LIST(STRUCT_TABLE_ELEMENT)
 #undef STRUCT_TABLE_ELEMENT
 
 #define ALLOCATION_SITE_ELEMENT(NAME, Name, Size, name) \
-  {NAME##_TYPE, Name::kSize##Size, k##Name##Size##MapRootIndex},
+  {NAME##_TYPE, Name::kSize##Size, RootIndex::k##Name##Size##Map},
         ALLOCATION_SITE_LIST(ALLOCATION_SITE_ELEMENT)
 #undef ALLOCATION_SITE_ELEMENT
 
 #define DATA_HANDLER_ELEMENT(NAME, Name, Size, name) \
-  {NAME##_TYPE, Name::kSizeWithData##Size, k##Name##Size##MapRootIndex},
+  {NAME##_TYPE, Name::kSizeWithData##Size, RootIndex::k##Name##Size##Map},
             DATA_HANDLER_LIST(DATA_HANDLER_ELEMENT)
 #undef DATA_HANDLER_ELEMENT
 };
@@ -120,8 +120,8 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   if (!allocation.To(&result)) return allocation;
   // Map::cast cannot be used due to uninitialized map field.
   Map* map = reinterpret_cast<Map*>(result);
-  map->set_map_after_allocation(reinterpret_cast<Map*>(root(kMetaMapRootIndex)),
-                                SKIP_WRITE_BARRIER);
+  map->set_map_after_allocation(
+      reinterpret_cast<Map*>(root(RootIndex::kMetaMap)), SKIP_WRITE_BARRIER);
   map->set_instance_type(instance_type);
   map->set_instance_size(instance_size);
   // Initialize to only containing tagged fields.
@@ -701,7 +701,7 @@ void Heap::CreateInitialObjects() {
   {                                                                 \
     Handle<Symbol> symbol(                                          \
         isolate()->factory()->NewPrivateSymbol(TENURED_READ_ONLY)); \
-    roots_[k##name##RootIndex] = *symbol;                           \
+    roots_[RootIndex::k##name] = *symbol;                           \
   }
     PRIVATE_SYMBOL_LIST(SYMBOL_INIT)
 #undef SYMBOL_INIT
@@ -714,7 +714,7 @@ void Heap::CreateInitialObjects() {
   Handle<String> name##d =                                                \
       factory->NewStringFromStaticChars(#description, TENURED_READ_ONLY); \
   name->set_name(*name##d);                                               \
-  roots_[k##name##RootIndex] = *name;
+  roots_[RootIndex::k##name] = *name;
     PUBLIC_SYMBOL_LIST(SYMBOL_INIT)
 #undef SYMBOL_INIT
 
@@ -724,7 +724,7 @@ void Heap::CreateInitialObjects() {
       factory->NewStringFromStaticChars(#description, TENURED_READ_ONLY); \
   name->set_is_well_known_symbol(true);                                   \
   name->set_name(*name##d);                                               \
-  roots_[k##name##RootIndex] = *name;
+  roots_[RootIndex::k##name] = *name;
     WELL_KNOWN_SYMBOL_LIST(SYMBOL_INIT)
 #undef SYMBOL_INIT
 
@@ -900,15 +900,15 @@ void Heap::CreateInternalAccessorInfoObjects() {
 
 #define INIT_ACCESSOR_INFO(accessor_name, AccessorName, ...)   \
   acessor_info = Accessors::Make##AccessorName##Info(isolate); \
-  roots_[k##AccessorName##AccessorRootIndex] = *acessor_info;
+  roots_[RootIndex::k##AccessorName##Accessor] = *acessor_info;
   ACCESSOR_INFO_LIST(INIT_ACCESSOR_INFO)
 #undef INIT_ACCESSOR_INFO
 
 #define INIT_SIDE_EFFECT_FLAG(accessor_name, AccessorName, GetterType, \
                               SetterType)                              \
-  AccessorInfo::cast(roots_[k##AccessorName##AccessorRootIndex])       \
+  AccessorInfo::cast(roots_[RootIndex::k##AccessorName##Accessor])     \
       ->set_getter_side_effect_type(SideEffectType::GetterType);       \
-  AccessorInfo::cast(roots_[k##AccessorName##AccessorRootIndex])       \
+  AccessorInfo::cast(roots_[RootIndex::k##AccessorName##Accessor])     \
       ->set_setter_side_effect_type(SideEffectType::SetterType);
   ACCESSOR_INFO_LIST(INIT_SIDE_EFFECT_FLAG)
 #undef INIT_SIDE_EFFECT_FLAG

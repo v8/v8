@@ -56,7 +56,7 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
 
   // Run the native code for the InternalArray function called as a normal
   // function.
-  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(a2, RootIndex::kUndefinedValue);
   __ Jump(BUILTIN_CODE(masm->isolate(), InternalArrayConstructorImpl),
           RelocInfo::CODE_TARGET);
 }
@@ -108,7 +108,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ SmiUntag(a0);
 
     // The receiver for the builtin/api call.
-    __ PushRoot(Heap::kTheHoleValueRootIndex);
+    __ PushRoot(RootIndex::kTheHoleValue);
 
     // Set up pointer to last argument.
     __ Daddu(t2, fp, Operand(StandardFrameConstants::kCallerSPOffset));
@@ -176,7 +176,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // Preserve the incoming parameters on the stack.
     __ SmiTag(a0);
     __ Push(cp, a0, a1);
-    __ PushRoot(Heap::kTheHoleValueRootIndex);
+    __ PushRoot(RootIndex::kTheHoleValue);
     __ Push(a3);
 
     // ----------- S t a t e -------------
@@ -201,7 +201,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // Else: use TheHoleValue as receiver for constructor call
     __ bind(&not_create_implicit_receiver);
-    __ LoadRoot(v0, Heap::kTheHoleValueRootIndex);
+    __ LoadRoot(v0, RootIndex::kTheHoleValue);
 
     // ----------- S t a t e -------------
     //  --                          v0: receiver
@@ -291,7 +291,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     Label use_receiver, do_throw, leave_frame;
 
     // If the result is undefined, we jump out to using the implicit receiver.
-    __ JumpIfRoot(v0, Heap::kUndefinedValueRootIndex, &use_receiver);
+    __ JumpIfRoot(v0, RootIndex::kUndefinedValue, &use_receiver);
 
     // Otherwise we do a smi check and fall through to check if the return value
     // is a valid receiver.
@@ -313,7 +313,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // on-stack receiver as the result.
     __ bind(&use_receiver);
     __ Ld(v0, MemOperand(sp, 0 * kPointerSize));
-    __ JumpIfRoot(v0, Heap::kTheHoleValueRootIndex, &do_throw);
+    __ JumpIfRoot(v0, RootIndex::kTheHoleValue, &do_throw);
 
     __ bind(&leave_frame);
     // Restore smi-tagged arguments count from the frame.
@@ -382,7 +382,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  __ LoadRoot(kScratchReg, Heap::kRealStackLimitRootIndex);
+  __ LoadRoot(kScratchReg, RootIndex::kRealStackLimit);
   __ Branch(&stack_overflow, lo, sp, Operand(kScratchReg));
 
   // Push receiver.
@@ -451,7 +451,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(a1, a4);
     // Push hole as receiver since we do not use it for stepping.
-    __ PushRoot(Heap::kTheHoleValueRootIndex);
+    __ PushRoot(RootIndex::kTheHoleValue);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
     __ Pop(a1);
   }
@@ -488,7 +488,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc) {
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   Label okay;
-  __ LoadRoot(a2, Heap::kRealStackLimitRootIndex);
+  __ LoadRoot(a2, RootIndex::kRealStackLimit);
   // Make a2 the space we have left. The stack might already be overflowed
   // here which will cause r2 to become negative.
   __ dsubu(a2, sp, a2);
@@ -555,7 +555,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     // Initialize all JavaScript callee-saved registers, since they will be seen
     // by the garbage collector as part of handlers.
-    __ LoadRoot(a4, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(a4, RootIndex::kUndefinedValue);
     __ mov(s1, a4);
     __ mov(s2, a4);
     __ mov(s3, a4);
@@ -853,7 +853,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // Do a stack check to ensure we don't go over the limit.
     Label ok;
     __ Dsubu(a5, sp, Operand(a4));
-    __ LoadRoot(a2, Heap::kRealStackLimitRootIndex);
+    __ LoadRoot(a2, RootIndex::kRealStackLimit);
     __ Branch(&ok, hs, a5, Operand(a2));
     __ CallRuntime(Runtime::kThrowStackOverflow);
     __ bind(&ok);
@@ -861,7 +861,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // If ok, push undefined as the initial value for all register file entries.
     Label loop_header;
     Label loop_check;
-    __ LoadRoot(a5, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(a5, RootIndex::kUndefinedValue);
     __ Branch(&loop_check);
     __ bind(&loop_header);
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
@@ -885,7 +885,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&no_incoming_new_target_or_generator_register);
 
   // Load accumulator as undefined.
-  __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
 
   // Load the dispatch table into a register and dispatch to the bytecode
   // handler at the current bytecode offset.
@@ -933,7 +933,7 @@ static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-  __ LoadRoot(scratch1, Heap::kRealStackLimitRootIndex);
+  __ LoadRoot(scratch1, RootIndex::kRealStackLimit);
   // Make scratch1 the space we have left. The stack might already be overflowed
   // here which will cause scratch1 to become negative.
   __ dsubu(scratch1, sp, scratch1);
@@ -980,7 +980,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 
   // Push "undefined" as the receiver arg if we need to.
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
+    __ PushRoot(RootIndex::kUndefinedValue);
     __ Dsubu(a3, a3, Operand(1));  // Subtract one for receiver.
   }
 
@@ -1188,7 +1188,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
         __ push(t2);
       }
       for (int i = 0; i < 3 - j; ++i) {
-        __ PushRoot(Heap::kUndefinedValueRootIndex);
+        __ PushRoot(RootIndex::kUndefinedValue);
       }
       if (j < 3) {
         __ jmp(&args_done);
@@ -1341,7 +1341,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   Register undefined_value = a3;
   Register scratch = a4;
 
-  __ LoadRoot(undefined_value, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(undefined_value, RootIndex::kUndefinedValue);
 
   // 1. Load receiver into a1, argArray into a2 (if present), remove all
   // arguments from the stack (including the receiver), and push thisArg (if
@@ -1375,7 +1375,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 
   // 3. Tail call with no arguments if argArray is null or undefined.
   Label no_arguments;
-  __ JumpIfRoot(arg_array, Heap::kNullValueRootIndex, &no_arguments);
+  __ JumpIfRoot(arg_array, RootIndex::kNullValue, &no_arguments);
   __ Branch(&no_arguments, eq, arg_array, Operand(undefined_value));
 
   // 4a. Apply the receiver to the given argArray.
@@ -1399,7 +1399,7 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   {
     Label done;
     __ Branch(&done, ne, a0, Operand(zero_reg));
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
+    __ PushRoot(RootIndex::kUndefinedValue);
     __ Daddu(a0, a0, Operand(1));
     __ bind(&done);
   }
@@ -1450,7 +1450,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   Register undefined_value = a3;
   Register scratch = a4;
 
-  __ LoadRoot(undefined_value, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(undefined_value, RootIndex::kUndefinedValue);
 
   // 1. Load target into a1 (if present), argumentsList into a2 (if present),
   // remove all arguments from the stack (including the receiver), and push
@@ -1506,7 +1506,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   Register undefined_value = a4;
   Register scratch = a5;
 
-  __ LoadRoot(undefined_value, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(undefined_value, RootIndex::kUndefinedValue);
 
   // 1. Load target into a1 (if present), argumentsList into a2 (if present),
   // new.target into a3 (if present, otherwise use target), remove all
@@ -1609,7 +1609,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
     Label done;
-    __ LoadRoot(a5, Heap::kRealStackLimitRootIndex);
+    __ LoadRoot(a5, RootIndex::kRealStackLimit);
     // Make ip the space we have left. The stack might already be overflowed
     // here which will cause ip to become negative.
     __ Dsubu(a5, sp, a5);
@@ -1631,11 +1631,11 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ Daddu(a0, a0, len);  // The 'len' argument for Call() or Construct().
     __ dsll(scratch, len, kPointerSizeLog2);
     __ Dsubu(scratch, sp, Operand(scratch));
-    __ LoadRoot(t1, Heap::kTheHoleValueRootIndex);
+    __ LoadRoot(t1, RootIndex::kTheHoleValue);
     __ bind(&loop);
     __ Ld(a5, MemOperand(src));
     __ Branch(&push, ne, a5, Operand(t1));
-    __ LoadRoot(a5, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(a5, RootIndex::kUndefinedValue);
     __ bind(&push);
     __ daddiu(src, src, kPointerSize);
     __ Push(a5);
@@ -1778,9 +1778,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ Branch(&done_convert, hs, a4, Operand(FIRST_JS_RECEIVER_TYPE));
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
-        __ JumpIfRoot(a3, Heap::kUndefinedValueRootIndex,
-                      &convert_global_proxy);
-        __ JumpIfNotRoot(a3, Heap::kNullValueRootIndex, &convert_to_object);
+        __ JumpIfRoot(a3, RootIndex::kUndefinedValue, &convert_global_proxy);
+        __ JumpIfNotRoot(a3, RootIndex::kNullValue, &convert_to_object);
         __ bind(&convert_global_proxy);
         {
           // Patch receiver to global proxy.
@@ -1868,7 +1867,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
     __ Dsubu(sp, sp, Operand(a5));
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
-    __ LoadRoot(kScratchReg, Heap::kRealStackLimitRootIndex);
+    __ LoadRoot(kScratchReg, RootIndex::kRealStackLimit);
     __ Branch(&done, hs, sp, Operand(kScratchReg));
     // Restore the stack pointer.
     __ Daddu(sp, sp, Operand(a5));
@@ -1975,7 +1974,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 
   // Calling convention for function specific ConstructStubs require
   // a2 to contain either an AllocationSite or undefined.
-  __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(a2, RootIndex::kUndefinedValue);
 
   Label call_generic_stub;
 
@@ -2022,7 +2021,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
     __ Dsubu(sp, sp, Operand(a5));
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
-    __ LoadRoot(kScratchReg, Heap::kRealStackLimitRootIndex);
+    __ LoadRoot(kScratchReg, RootIndex::kRealStackLimit);
     __ Branch(&done, hs, sp, Operand(kScratchReg));
     // Restore the stack pointer.
     __ Daddu(sp, sp, Operand(a5));
@@ -2220,7 +2219,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // a1: function
     // a2: expected number of arguments
     // a3: new target (passed through to callee)
-    __ LoadRoot(a5, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(a5, RootIndex::kUndefinedValue);
     __ dsll(a6, a2, kPointerSizeLog2);
     __ Dsubu(a4, fp, Operand(a6));
     // Adjust for frame.
@@ -2394,7 +2393,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Check result for exception sentinel.
   Label exception_returned;
-  __ LoadRoot(a4, Heap::kExceptionRootIndex);
+  __ LoadRoot(a4, RootIndex::kException);
   __ Branch(&exception_returned, eq, a4, Operand(v0));
 
   // Check that there is no pending exception, otherwise we
@@ -2405,7 +2404,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
     __ li(a2, pending_exception_address);
     __ Ld(a2, MemOperand(a2));
-    __ LoadRoot(a4, Heap::kTheHoleValueRootIndex);
+    __ LoadRoot(a4, RootIndex::kTheHoleValue);
     // Cannot use check here as it attempts to generate call into runtime.
     __ Branch(&okay, eq, a4, Operand(a2));
     __ stop("Unexpected pending exception");

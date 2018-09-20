@@ -731,9 +731,9 @@ Node* CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
   Node* const iterator = AllocateInNewSpace(IteratorType::kSize);
   StoreMapNoWriteBarrier(iterator, iterator_map);
   StoreObjectFieldRoot(iterator, IteratorType::kPropertiesOrHashOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(iterator, IteratorType::kElementsOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldNoWriteBarrier(iterator, IteratorType::kTableOffset, table);
   StoreObjectFieldNoWriteBarrier(iterator, IteratorType::kIndexOffset,
                                  SmiConstant(0));
@@ -1700,7 +1700,7 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   BIND(&return_end);
   {
     StoreObjectFieldRoot(receiver, JSMapIterator::kTableOffset,
-                         Heap::kEmptyOrderedHashMapRootIndex);
+                         RootIndex::kEmptyOrderedHashMap);
     Goto(&return_value);
   }
 }
@@ -1908,7 +1908,7 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   BIND(&return_end);
   {
     StoreObjectFieldRoot(receiver, JSSetIterator::kTableOffset,
-                         Heap::kEmptyOrderedHashSetRootIndex);
+                         RootIndex::kEmptyOrderedHashSet);
     Goto(&return_value);
   }
 }
@@ -2063,8 +2063,8 @@ TNode<Object> WeakCollectionsBuiltinsAssembler::AllocateTable(
   TNode<FixedArray> table = CAST(
       AllocateFixedArray(HOLEY_ELEMENTS, length, kAllowLargeObjectAllocation));
 
-  Heap::RootListIndex map_root_index = static_cast<Heap::RootListIndex>(
-      EphemeronHashTableShape::GetMapRootIndex());
+  RootIndex map_root_index =
+      static_cast<RootIndex>(EphemeronHashTableShape::GetMapRootIndex());
   StoreMapNoWriteBarrier(table, map_root_index);
   StoreFixedArrayElement(table, EphemeronHashTable::kNumberOfElementsIndex,
                          SmiConstant(0), SKIP_WRITE_BARRIER);
@@ -2076,7 +2076,7 @@ TNode<Object> WeakCollectionsBuiltinsAssembler::AllocateTable(
 
   TNode<IntPtrT> start = KeyIndexFromEntry(IntPtrConstant(0));
   FillFixedArrayWithValue(HOLEY_ELEMENTS, table, start, length,
-                          Heap::kUndefinedValueRootIndex);
+                          RootIndex::kUndefinedValue);
   return table;
 }
 

@@ -52,9 +52,9 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
                                       intptr_t offset) = 0;
   virtual void LoadRootRelative(Register destination, int32_t offset) = 0;
 
-  virtual void LoadRoot(Register destination, Heap::RootListIndex index) = 0;
+  virtual void LoadRoot(Register destination, RootIndex index) = 0;
 
-  static int32_t RootRegisterOffset(Heap::RootListIndex root_index);
+  static int32_t RootRegisterOffset(RootIndex root_index);
   static int32_t RootRegisterOffsetForExternalReferenceIndex(
       int reference_index);
 

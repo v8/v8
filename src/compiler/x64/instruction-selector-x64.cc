@@ -1721,7 +1721,7 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
   X64OperandGenerator g(selector);
   if (selector->CanUseRootsRegister()) {
     Heap* const heap = selector->isolate()->heap();
-    Heap::RootListIndex root_index;
+    RootIndex root_index;
     HeapObjectBinopMatcher m(node);
     if (m.right().HasValue() &&
         heap->IsRootHandle(m.right().Value(), &root_index)) {

@@ -3186,7 +3186,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   auto MoveConstantToRegister = [&](Register dst, Constant src) {
     if (src.type() == Constant::kHeapObject) {
       Handle<HeapObject> src_object = src.ToHeapObject();
-      Heap::RootListIndex index;
+      RootIndex index;
       if (IsMaterializableFromRoot(src_object, &index)) {
         __ LoadRoot(dst, index);
       } else {

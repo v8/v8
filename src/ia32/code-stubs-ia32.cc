@@ -370,15 +370,15 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ pop(return_address);
 
   // new target
-  __ PushRoot(Heap::kUndefinedValueRootIndex);
+  __ PushRoot(RootIndex::kUndefinedValue);
 
   // call data
   __ push(call_data);
 
   // return value
-  __ PushRoot(Heap::kUndefinedValueRootIndex);
+  __ PushRoot(RootIndex::kUndefinedValue);
   // return value default
-  __ PushRoot(Heap::kUndefinedValueRootIndex);
+  __ PushRoot(RootIndex::kUndefinedValue);
   // isolate
   __ push(Immediate(ExternalReference::isolate_address(isolate())));
   // holder
@@ -449,9 +449,9 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ pop(scratch);  // Pop return address to extend the frame.
   __ push(receiver);
   __ push(FieldOperand(callback, AccessorInfo::kDataOffset));
-  __ PushRoot(Heap::kUndefinedValueRootIndex);  // ReturnValue
+  __ PushRoot(RootIndex::kUndefinedValue);  // ReturnValue
   // ReturnValue default value
-  __ PushRoot(Heap::kUndefinedValueRootIndex);
+  __ PushRoot(RootIndex::kUndefinedValue);
   __ push(Immediate(ExternalReference::isolate_address(isolate())));
   __ push(holder);
   __ push(Immediate(Smi::kZero));  // should_throw_on_error -> false

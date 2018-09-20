@@ -309,7 +309,7 @@ TNode<Float64T> CodeAssembler::Float64Constant(double value) {
 }
 
 TNode<HeapNumber> CodeAssembler::NaNConstant() {
-  return UncheckedCast<HeapNumber>(LoadRoot(Heap::kNanValueRootIndex));
+  return UncheckedCast<HeapNumber>(LoadRoot(RootIndex::kNanValue));
 }
 
 bool CodeAssembler::ToInt32Constant(Node* node, int32_t& out_value) {
@@ -963,7 +963,7 @@ Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* offset) {
   return raw_assembler()->AtomicLoad(rep, base, offset);
 }
 
-TNode<Object> CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
+TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
   if (isolate()->heap()->RootCanBeTreatedAsConstant(root_index)) {
     Handle<Object> root = isolate()->heap()->root_handle(root_index);
     if (root->IsSmi()) {
@@ -978,8 +978,9 @@ TNode<Object> CodeAssembler::LoadRoot(Heap::RootListIndex root_index) {
   // cases, it would boil down to loading from a fixed kRootRegister offset.
   Node* roots_array_start =
       ExternalConstant(ExternalReference::roots_array_start(isolate()));
+  size_t offset = static_cast<size_t>(root_index) * kPointerSize;
   return UncheckedCast<Object>(Load(MachineType::AnyTagged(), roots_array_start,
-                                    IntPtrConstant(root_index * kPointerSize)));
+                                    IntPtrConstant(offset)));
 }
 
 Node* CodeAssembler::Store(Node* base, Node* value) {
@@ -1033,12 +1034,13 @@ Node* CodeAssembler::AtomicCompareExchange(MachineType type, Node* base,
                                                 new_value);
 }
 
-Node* CodeAssembler::StoreRoot(Heap::RootListIndex root_index, Node* value) {
+Node* CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
   DCHECK(Heap::RootCanBeWrittenAfterInitialization(root_index));
   Node* roots_array_start =
       ExternalConstant(ExternalReference::roots_array_start(isolate()));
+  size_t offset = static_cast<size_t>(root_index) * kPointerSize;
   return StoreNoWriteBarrier(MachineRepresentation::kTagged, roots_array_start,
-                             IntPtrConstant(root_index * kPointerSize), value);
+                             IntPtrConstant(offset), value);
 }
 
 Node* CodeAssembler::Retain(Node* value) {

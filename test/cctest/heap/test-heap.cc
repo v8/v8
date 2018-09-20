@@ -4765,8 +4765,8 @@ TEST(MapRetaining) {
 }
 
 TEST(WritableVsImmortalRoots) {
-  for (int i = 0; i < Heap::kStrongRootListLength; ++i) {
-    Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);
+  for (int i = 0; i < static_cast<int>(RootIndex::kStrongRootListLength); ++i) {
+    RootIndex root_index = static_cast<RootIndex>(i);
     bool writable = Heap::RootCanBeWrittenAfterInitialization(root_index);
     bool immortal = Heap::RootIsImmortalImmovable(root_index);
     // A root value can be writable, immortal, or neither, but not both.

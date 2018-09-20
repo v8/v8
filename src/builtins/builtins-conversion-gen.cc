@@ -434,9 +434,9 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   Node* js_value = Allocate(JSValue::kSize);
   StoreMapNoWriteBarrier(js_value, initial_map);
   StoreObjectFieldRoot(js_value, JSValue::kPropertiesOrHashOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(js_value, JSObject::kElementsOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectField(js_value, JSValue::kValueOffset, object);
   Return(js_value);
 

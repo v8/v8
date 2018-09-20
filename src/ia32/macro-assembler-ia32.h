@@ -241,7 +241,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Ret();
 
-  void LoadRoot(Register destination, Heap::RootListIndex index) override;
+  void LoadRoot(Register destination, RootIndex index) override;
 
   void MoveForRootRegisterRefactoring(Register dst, Register src) {
     // TODO(v8:6666): When rewriting ia32 ASM builtins to not clobber the
@@ -501,34 +501,32 @@ class MacroAssembler : public TurboAssembler {
   void Set(Operand dst, int32_t x) { mov(dst, Immediate(x)); }
 
   // Operations on roots in the root-array.
-  void CompareRoot(Register with, Register scratch, Heap::RootListIndex index);
+  void CompareRoot(Register with, Register scratch, RootIndex index);
   // These methods can only be used with constant roots (i.e. non-writable
   // and not in new space).
-  void CompareRoot(Register with, Heap::RootListIndex index);
-  void CompareRoot(Operand with, Heap::RootListIndex index);
-  void PushRoot(Heap::RootListIndex index);
+  void CompareRoot(Register with, RootIndex index);
+  void CompareRoot(Operand with, RootIndex index);
+  void PushRoot(RootIndex index);
 
   // Compare the object in a register to a value and jump if they are equal.
-  void JumpIfRoot(Register with, Heap::RootListIndex index, Label* if_equal,
+  void JumpIfRoot(Register with, RootIndex index, Label* if_equal,
                   Label::Distance if_equal_distance = Label::kFar) {
     CompareRoot(with, index);
     j(equal, if_equal, if_equal_distance);
   }
-  void JumpIfRoot(Operand with, Heap::RootListIndex index, Label* if_equal,
+  void JumpIfRoot(Operand with, RootIndex index, Label* if_equal,
                   Label::Distance if_equal_distance = Label::kFar) {
     CompareRoot(with, index);
     j(equal, if_equal, if_equal_distance);
   }
 
   // Compare the object in a register to a value and jump if they are not equal.
-  void JumpIfNotRoot(Register with, Heap::RootListIndex index,
-                     Label* if_not_equal,
+  void JumpIfNotRoot(Register with, RootIndex index, Label* if_not_equal,
                      Label::Distance if_not_equal_distance = Label::kFar) {
     CompareRoot(with, index);
     j(not_equal, if_not_equal, if_not_equal_distance);
   }
-  void JumpIfNotRoot(Operand with, Heap::RootListIndex index,
-                     Label* if_not_equal,
+  void JumpIfNotRoot(Operand with, RootIndex index, Label* if_not_equal,
                      Label::Distance if_not_equal_distance = Label::kFar) {
     CompareRoot(with, index);
     j(not_equal, if_not_equal, if_not_equal_distance);

@@ -53,7 +53,7 @@ inline MemOperand FieldMemOperand(Register object, Register index, int offset) {
 }
 
 // Generate a MemOperand for loading a field from Root register
-inline MemOperand RootMemOperand(Heap::RootListIndex index) {
+inline MemOperand RootMemOperand(RootIndex index) {
   return MemOperand(kRootRegister, index << kPointerSizeLog2);
 }
 
@@ -258,11 +258,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                      Register exclusion3 = no_reg);
 
   // Load an object from the root table.
-  void LoadRoot(Register destination, Heap::RootListIndex index) override {
+  void LoadRoot(Register destination, RootIndex index) override {
     LoadRoot(destination, index, al);
   }
-  void LoadRoot(Register destination, Heap::RootListIndex index,
-                Condition cond);
+  void LoadRoot(Register destination, RootIndex index, Condition cond);
   //--------------------------------------------------------------------------
   // S390 Macro Assemblers for Instructions
   //--------------------------------------------------------------------------
@@ -1089,8 +1088,8 @@ class MacroAssembler : public TurboAssembler {
 
   // Compare the object in a register to a value from the root list.
   // Uses the ip register as scratch.
-  void CompareRoot(Register obj, Heap::RootListIndex index);
-  void PushRoot(Heap::RootListIndex index) {
+  void CompareRoot(Register obj, RootIndex index);
+  void PushRoot(RootIndex index) {
     LoadRoot(r0, index);
     Push(r0);
   }
@@ -1103,14 +1102,13 @@ class MacroAssembler : public TurboAssembler {
   void JumpToInstructionStream(Address entry);
 
   // Compare the object in a register to a value and jump if they are equal.
-  void JumpIfRoot(Register with, Heap::RootListIndex index, Label* if_equal) {
+  void JumpIfRoot(Register with, RootIndex index, Label* if_equal) {
     CompareRoot(with, index);
     beq(if_equal);
   }
 
   // Compare the object in a register to a value and jump if they are not equal.
-  void JumpIfNotRoot(Register with, Heap::RootListIndex index,
-                     Label* if_not_equal) {
+  void JumpIfNotRoot(Register with, RootIndex index, Label* if_not_equal) {
     CompareRoot(with, index);
     bne(if_not_equal);
   }

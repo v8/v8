@@ -1800,7 +1800,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     TNode<RawPtrT> string_data = UncheckedCast<RawPtrT>(
         to_direct.PointerToData(&fill_thehole_and_call_runtime));
     TNode<IntPtrT> string_data_offset = to_direct.offset();
-    TNode<Object> cache = LoadRoot(Heap::kSingleCharacterStringCacheRootIndex);
+    TNode<Object> cache = LoadRoot(RootIndex::kSingleCharacterStringCache);
 
     BuildFastLoop(
         IntPtrConstant(0), length,
@@ -1832,7 +1832,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     BIND(&fill_thehole_and_call_runtime);
     {
       FillFixedArrayWithValue(PACKED_ELEMENTS, elements, IntPtrConstant(0),
-                              length, Heap::kTheHoleValueRootIndex);
+                              length, RootIndex::kTheHoleValue);
       Goto(&call_runtime);
     }
   }
@@ -2364,9 +2364,9 @@ TF_BUILTIN(StringPrototypeIterator, CodeStubAssembler) {
   Node* iterator = Allocate(JSStringIterator::kSize);
   StoreMapNoWriteBarrier(iterator, map);
   StoreObjectFieldRoot(iterator, JSValue::kPropertiesOrHashOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldRoot(iterator, JSObject::kElementsOffset,
-                       Heap::kEmptyFixedArrayRootIndex);
+                       RootIndex::kEmptyFixedArray);
   StoreObjectFieldNoWriteBarrier(iterator, JSStringIterator::kStringOffset,
                                  string);
   Node* index = SmiConstant(0);

@@ -178,7 +178,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
     Node* native_context = LoadNativeContext(context);
     Node* map =
         LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX);
-    Node* empty_fixed_array = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
+    Node* empty_fixed_array = LoadRoot(RootIndex::kEmptyFixedArray);
 
     Node* buffer = Allocate(JSArrayBuffer::kSizeWithEmbedderFields);
     StoreMapNoWriteBarrier(buffer, map);

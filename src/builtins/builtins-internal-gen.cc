@@ -474,7 +474,7 @@ class DeletePropertyBaseAssembler : public AccessorAssembler {
            dont_delete);
     // Overwrite the entry itself (see NameDictionary::SetEntry).
     TNode<HeapObject> filler = TheHoleConstant();
-    DCHECK(Heap::RootIsImmortalImmovable(Heap::kTheHoleValueRootIndex));
+    DCHECK(Heap::RootIsImmortalImmovable(RootIndex::kTheHoleValue));
     StoreFixedArrayElement(properties, key_index, filler, SKIP_WRITE_BARRIER);
     StoreValueByKeyIndex<NameDictionary>(properties, key_index, filler,
                                          SKIP_WRITE_BARRIER);
@@ -725,7 +725,7 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, InternalBuiltinsAssembler) {
 
 TNode<MicrotaskQueue> InternalBuiltinsAssembler::GetDefaultMicrotaskQueue() {
   return TNode<MicrotaskQueue>::UncheckedCast(
-      LoadRoot(Heap::kDefaultMicrotaskQueueRootIndex));
+      LoadRoot(RootIndex::kDefaultMicrotaskQueue));
 }
 
 TNode<IntPtrT> InternalBuiltinsAssembler::GetPendingMicrotaskCount(
@@ -872,7 +872,7 @@ TF_BUILTIN(EnqueueMicrotask, InternalBuiltinsAssembler) {
       StoreFixedArrayElement(new_queue, num_tasks, microtask,
                              SKIP_WRITE_BARRIER);
       FillFixedArrayWithValue(PACKED_ELEMENTS, new_queue, new_num_tasks,
-                              new_queue_length, Heap::kUndefinedValueRootIndex);
+                              new_queue_length, RootIndex::kUndefinedValue);
       SetQueuedMicrotasks(microtask_queue, new_queue);
       Goto(&done);
     }
@@ -886,7 +886,7 @@ TF_BUILTIN(EnqueueMicrotask, InternalBuiltinsAssembler) {
       CopyFixedArrayElements(PACKED_ELEMENTS, queue, new_queue, num_tasks);
       StoreFixedArrayElement(new_queue, num_tasks, microtask);
       FillFixedArrayWithValue(PACKED_ELEMENTS, new_queue, new_num_tasks,
-                              new_queue_length, Heap::kUndefinedValueRootIndex);
+                              new_queue_length, RootIndex::kUndefinedValue);
       SetQueuedMicrotasks(microtask_queue, new_queue);
       Goto(&done);
     }

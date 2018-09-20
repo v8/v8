@@ -288,9 +288,9 @@ Handle<PropertyArray> Factory::NewPropertyArray(int length,
   return array;
 }
 
-Handle<FixedArray> Factory::NewFixedArrayWithFiller(
-    Heap::RootListIndex map_root_index, int length, Object* filler,
-    PretenureFlag pretenure) {
+Handle<FixedArray> Factory::NewFixedArrayWithFiller(RootIndex map_root_index,
+                                                    int length, Object* filler,
+                                                    PretenureFlag pretenure) {
   HeapObject* result = AllocateRawFixedArray(length, pretenure);
   DCHECK(Heap::RootIsImmortalImmovable(map_root_index));
   Map* map = Map::cast(isolate()->heap()->root(map_root_index));
@@ -302,8 +302,8 @@ Handle<FixedArray> Factory::NewFixedArrayWithFiller(
 }
 
 template <typename T>
-Handle<T> Factory::NewFixedArrayWithMap(Heap::RootListIndex map_root_index,
-                                        int length, PretenureFlag pretenure) {
+Handle<T> Factory::NewFixedArrayWithMap(RootIndex map_root_index, int length,
+                                        PretenureFlag pretenure) {
   static_assert(std::is_base_of<FixedArray, T>::value,
                 "T must be a descendant of FixedArray");
   // Zero-length case must be handled outside, where the knowledge about
@@ -314,7 +314,7 @@ Handle<T> Factory::NewFixedArrayWithMap(Heap::RootListIndex map_root_index,
 }
 
 template <typename T>
-Handle<T> Factory::NewWeakFixedArrayWithMap(Heap::RootListIndex map_root_index,
+Handle<T> Factory::NewWeakFixedArrayWithMap(RootIndex map_root_index,
                                             int length,
                                             PretenureFlag pretenure) {
   static_assert(std::is_base_of<WeakFixedArray, T>::value,
@@ -337,16 +337,16 @@ Handle<T> Factory::NewWeakFixedArrayWithMap(Heap::RootListIndex map_root_index,
 }
 
 template Handle<FixedArray> Factory::NewFixedArrayWithMap<FixedArray>(
-    Heap::RootListIndex, int, PretenureFlag);
+    RootIndex, int, PretenureFlag);
 
 template Handle<DescriptorArray>
-Factory::NewWeakFixedArrayWithMap<DescriptorArray>(Heap::RootListIndex, int,
+Factory::NewWeakFixedArrayWithMap<DescriptorArray>(RootIndex, int,
                                                    PretenureFlag);
 
 Handle<FixedArray> Factory::NewFixedArray(int length, PretenureFlag pretenure) {
   DCHECK_LE(0, length);
   if (length == 0) return empty_fixed_array();
-  return NewFixedArrayWithFiller(Heap::kFixedArrayMapRootIndex, length,
+  return NewFixedArrayWithFiller(RootIndex::kFixedArrayMap, length,
                                  *undefined_value(), pretenure);
 }
 
@@ -356,7 +356,7 @@ Handle<WeakFixedArray> Factory::NewWeakFixedArray(int length,
   if (length == 0) return empty_weak_fixed_array();
   HeapObject* result =
       AllocateRawArray(WeakFixedArray::SizeFor(length), pretenure);
-  DCHECK(Heap::RootIsImmortalImmovable(Heap::kWeakFixedArrayMapRootIndex));
+  DCHECK(Heap::RootIsImmortalImmovable(RootIndex::kWeakFixedArrayMap));
   result->set_map_after_allocation(*weak_fixed_array_map(), SKIP_WRITE_BARRIER);
   Handle<WeakFixedArray> array(WeakFixedArray::cast(result), isolate());
   array->set_length(length);
@@ -392,7 +392,7 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int length,
                                                    PretenureFlag pretenure) {
   DCHECK_LE(0, length);
   if (length == 0) return empty_fixed_array();
-  return NewFixedArrayWithFiller(Heap::kFixedArrayMapRootIndex, length,
+  return NewFixedArrayWithFiller(RootIndex::kFixedArrayMap, length,
                                  *the_hole_value(), pretenure);
 }
 
@@ -404,7 +404,7 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(
   // TODO(ulan): As an experiment this temporarily returns an initialized fixed
   // array. After getting canary/performance coverage, either remove the
   // function or revert to returning uninitilized array.
-  return NewFixedArrayWithFiller(Heap::kFixedArrayMapRootIndex, length,
+  return NewFixedArrayWithFiller(RootIndex::kFixedArrayMap, length,
                                  *undefined_value(), pretenure);
 }
 
@@ -453,7 +453,7 @@ Handle<ObjectBoilerplateDescription> Factory::NewObjectBoilerplateDescription(
 
   Handle<ObjectBoilerplateDescription> description =
       Handle<ObjectBoilerplateDescription>::cast(NewFixedArrayWithMap(
-          Heap::kObjectBoilerplateDescriptionMapRootIndex, size, TENURED));
+          RootIndex::kObjectBoilerplateDescriptionMap, size, TENURED));
 
   if (has_different_size_backing_store) {
     DCHECK_IMPLIES((boilerplate == (all_properties - index_keys)),
@@ -774,7 +774,7 @@ Handle<SeqOneByteString> Factory::AllocateRawOneByteInternalizedString(
   // The canonical empty_string is the only zero-length string we allow.
   DCHECK_IMPLIES(
       length == 0,
-      isolate()->heap()->roots_[Heap::kempty_stringRootIndex] == nullptr);
+      isolate()->heap()->roots_[RootIndex::kempty_string] == nullptr);
 
   Map* map = *one_byte_internalized_string_map();
   int size = SeqOneByteString::SizeFor(length);
@@ -1354,7 +1354,7 @@ Handle<Symbol> Factory::NewPrivateFieldSymbol() {
 
 Handle<NativeContext> Factory::NewNativeContext() {
   Handle<NativeContext> context = NewFixedArrayWithMap<NativeContext>(
-      Heap::kNativeContextMapRootIndex, Context::NATIVE_CONTEXT_SLOTS, TENURED);
+      RootIndex::kNativeContextMap, Context::NATIVE_CONTEXT_SLOTS, TENURED);
   context->set_native_context(*context);
   context->set_errors_thrown(Smi::kZero);
   context->set_math_random_index(Smi::kZero);
@@ -1366,7 +1366,7 @@ Handle<Context> Factory::NewScriptContext(Handle<NativeContext> outer,
                                           Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
   Handle<Context> context = NewFixedArrayWithMap<Context>(
-      Heap::kScriptContextMapRootIndex, scope_info->ContextLength(), TENURED);
+      RootIndex::kScriptContextMap, scope_info->ContextLength(), TENURED);
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
   context->set_extension(*the_hole_value());
@@ -1378,8 +1378,7 @@ Handle<Context> Factory::NewScriptContext(Handle<NativeContext> outer,
 Handle<ScriptContextTable> Factory::NewScriptContextTable() {
   Handle<ScriptContextTable> context_table =
       NewFixedArrayWithMap<ScriptContextTable>(
-          Heap::kScriptContextTableMapRootIndex,
-          ScriptContextTable::kMinLength);
+          RootIndex::kScriptContextTableMap, ScriptContextTable::kMinLength);
   context_table->set_used(0);
   return context_table;
 }
@@ -1389,7 +1388,7 @@ Handle<Context> Factory::NewModuleContext(Handle<Module> module,
                                           Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
   Handle<Context> context = NewFixedArrayWithMap<Context>(
-      Heap::kModuleContextMapRootIndex, scope_info->ContextLength(), TENURED);
+      RootIndex::kModuleContextMap, scope_info->ContextLength(), TENURED);
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
   context->set_extension(*module);
@@ -1402,13 +1401,13 @@ Handle<Context> Factory::NewFunctionContext(Handle<Context> outer,
                                             Handle<ScopeInfo> scope_info) {
   int length = scope_info->ContextLength();
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, length);
-  Heap::RootListIndex mapRootIndex;
+  RootIndex mapRootIndex;
   switch (scope_info->scope_type()) {
     case EVAL_SCOPE:
-      mapRootIndex = Heap::kEvalContextMapRootIndex;
+      mapRootIndex = RootIndex::kEvalContextMap;
       break;
     case FUNCTION_SCOPE:
-      mapRootIndex = Heap::kFunctionContextMapRootIndex;
+      mapRootIndex = RootIndex::kFunctionContextMap;
       break;
     default:
       UNREACHABLE();
@@ -1426,7 +1425,7 @@ Handle<Context> Factory::NewCatchContext(Handle<Context> previous,
                                          Handle<Object> thrown_object) {
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == Context::THROWN_OBJECT_INDEX);
   Handle<Context> context = NewFixedArrayWithMap<Context>(
-      Heap::kCatchContextMapRootIndex, Context::MIN_CONTEXT_SLOTS + 1);
+      RootIndex::kCatchContextMap, Context::MIN_CONTEXT_SLOTS + 1);
   context->set_scope_info(*scope_info);
   context->set_previous(*previous);
   context->set_extension(*the_hole_value());
@@ -1446,7 +1445,7 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
                                ? Handle<HeapObject>::cast(the_hole_value())
                                : Handle<HeapObject>::cast(extension);
   Handle<Context> c = NewFixedArrayWithMap<Context>(
-      Heap::kDebugEvaluateContextMapRootIndex, Context::MIN_CONTEXT_SLOTS + 2);
+      RootIndex::kDebugEvaluateContextMap, Context::MIN_CONTEXT_SLOTS + 2);
   c->set_scope_info(*scope_info);
   c->set_previous(*previous);
   c->set_native_context(previous->native_context());
@@ -1460,7 +1459,7 @@ Handle<Context> Factory::NewWithContext(Handle<Context> previous,
                                         Handle<ScopeInfo> scope_info,
                                         Handle<JSReceiver> extension) {
   Handle<Context> context = NewFixedArrayWithMap<Context>(
-      Heap::kWithContextMapRootIndex, Context::MIN_CONTEXT_SLOTS);
+      RootIndex::kWithContextMap, Context::MIN_CONTEXT_SLOTS);
   context->set_scope_info(*scope_info);
   context->set_previous(*previous);
   context->set_extension(*extension);
@@ -1472,7 +1471,7 @@ Handle<Context> Factory::NewBlockContext(Handle<Context> previous,
                                          Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), BLOCK_SCOPE);
   Handle<Context> context = NewFixedArrayWithMap<Context>(
-      Heap::kBlockContextMapRootIndex, scope_info->ContextLength());
+      RootIndex::kBlockContextMap, scope_info->ContextLength());
   context->set_scope_info(*scope_info);
   context->set_previous(*previous);
   context->set_extension(*the_hole_value());
@@ -1484,7 +1483,7 @@ Handle<Context> Factory::NewBuiltinContext(Handle<NativeContext> native_context,
                                            int length) {
   DCHECK_GE(length, Context::MIN_CONTEXT_SLOTS);
   Handle<Context> context =
-      NewFixedArrayWithMap<Context>(Heap::kFunctionContextMapRootIndex, length);
+      NewFixedArrayWithMap<Context>(RootIndex::kFunctionContextMap, length);
   context->set_scope_info(ReadOnlyRoots(isolate()).empty_scope_info());
   context->set_extension(*the_hole_value());
   context->set_native_context(*native_context);
@@ -1787,7 +1786,7 @@ Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions,
                                                     int slack) {
   int capacity = TransitionArray::LengthFor(number_of_transitions + slack);
   Handle<TransitionArray> array = NewWeakFixedArrayWithMap<TransitionArray>(
-      Heap::kTransitionArrayMapRootIndex, capacity, TENURED);
+      RootIndex::kTransitionArrayMap, capacity, TENURED);
   // Transition arrays are tenured. When black allocation is on we have to
   // add the transition array to the list of encountered_transition_arrays.
   Heap* heap = isolate()->heap();
@@ -2489,12 +2488,12 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 }
 
 Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
-  return NewFixedArrayWithMap<ScopeInfo>(Heap::kScopeInfoMapRootIndex, length,
+  return NewFixedArrayWithMap<ScopeInfo>(RootIndex::kScopeInfoMap, length,
                                          TENURED);
 }
 
 Handle<ModuleInfo> Factory::NewModuleInfo() {
-  return NewFixedArrayWithMap<ModuleInfo>(Heap::kModuleInfoMapRootIndex,
+  return NewFixedArrayWithMap<ModuleInfo>(RootIndex::kModuleInfoMap,
                                           ModuleInfo::kLength, TENURED);
 }
 

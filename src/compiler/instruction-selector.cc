@@ -471,9 +471,9 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
       }
 
       Handle<HeapObject> constant = HeapConstantOf(input->op());
-      Heap::RootListIndex root_index;
+      RootIndex root_index;
       if (isolate->heap()->IsRootHandle(constant, &root_index) &&
-          root_index == Heap::kOptimizedOutRootIndex) {
+          root_index == RootIndex::kOptimizedOut) {
         // For an optimized-out object we return an invalid instruction
         // operand, so that we take the fast path for optimized-out values.
         return InstructionOperand();

@@ -3637,7 +3637,7 @@ ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
 #undef ISOLATE_FIELD_OFFSET
 #endif
 
-Handle<Symbol> Isolate::SymbolFor(Heap::RootListIndex dictionary_index,
+Handle<Symbol> Isolate::SymbolFor(RootIndex dictionary_index,
                                   Handle<String> name, bool private_symbol) {
   Handle<String> key = factory()->InternalizeString(name);
   Handle<NameDictionary> dictionary =
@@ -3651,14 +3651,14 @@ Handle<Symbol> Isolate::SymbolFor(Heap::RootListIndex dictionary_index,
     dictionary = NameDictionary::Add(this, dictionary, key, symbol,
                                      PropertyDetails::Empty(), &entry);
     switch (dictionary_index) {
-      case Heap::kPublicSymbolTableRootIndex:
+      case RootIndex::kPublicSymbolTable:
         symbol->set_is_public(true);
         heap()->set_public_symbol_table(*dictionary);
         break;
-      case Heap::kApiSymbolTableRootIndex:
+      case RootIndex::kApiSymbolTable:
         heap()->set_api_symbol_table(*dictionary);
         break;
-      case Heap::kApiPrivateSymbolTableRootIndex:
+      case RootIndex::kApiPrivateSymbolTable:
         heap()->set_api_private_symbol_table(*dictionary);
         break;
       default:

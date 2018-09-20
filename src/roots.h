@@ -5,6 +5,7 @@
 #ifndef V8_ROOTS_H_
 #define V8_ROOTS_H_
 
+#include "src/accessors.h"
 #include "src/handles.h"
 #include "src/heap-symbols.h"
 #include "src/objects-definitions.h"
@@ -285,6 +286,100 @@ namespace internal {
 #define ROOT_LIST(V)   \
   MUTABLE_ROOT_LIST(V) \
   STRONG_READ_ONLY_ROOT_LIST(V)
+
+// Declare all the root indices.  This defines the root list order.
+// clang-format off
+enum class RootIndex {
+#define DECL(type, name, camel_name) k##camel_name,
+  STRONG_ROOT_LIST(DECL)
+#undef DECL
+
+#define DECL(name, str) k##name,
+  INTERNALIZED_STRING_LIST(DECL)
+#undef DECL
+
+#define DECL(name) k##name,
+  PRIVATE_SYMBOL_LIST(DECL)
+#undef DECL
+
+#define DECL(name, description) k##name,
+  PUBLIC_SYMBOL_LIST(DECL)
+  WELL_KNOWN_SYMBOL_LIST(DECL)
+#undef DECL
+
+#define DECL(accessor_name, AccessorName, ...) k##AccessorName##Accessor,
+  ACCESSOR_INFO_LIST(DECL)
+#undef DECL
+
+#define DECL(NAME, Name, name) k##Name##Map,
+  STRUCT_LIST(DECL)
+#undef DECL
+
+#define DECL(NAME, Name, Size, name) k##Name##Size##Map,
+  ALLOCATION_SITE_LIST(DECL)
+#undef DECL
+
+#define DECL(NAME, Name, Size, name) k##Name##Size##Map,
+  DATA_HANDLER_LIST(DECL)
+#undef DECL
+
+  kStringTable,
+
+#define DECL(type, name, camel_name) k##camel_name,
+  SMI_ROOT_LIST(DECL)
+#undef DECL
+
+  kRootListLength,
+
+  // Helper aliases.
+  kRootsStart = 0,
+  kStrongRootListLength = kStringTable,
+  kSmiRootsStart = kStringTable + 1
+};
+// clang-format on
+
+// Represents a storage of V8 heap roots.
+class RootsTable {
+ public:
+  static constexpr size_t kEntriesCount =
+      static_cast<size_t>(RootIndex::kRootListLength);
+
+  static constexpr size_t kSmiRootsStart =
+      static_cast<size_t>(RootIndex::kSmiRootsStart);
+
+  RootsTable() : roots_{} {}
+
+  template <typename T>
+  bool IsRootHandle(Handle<T> handle, RootIndex* index) const {
+    Object** const handle_location = bit_cast<Object**>(handle.address());
+    if (handle_location >= &roots_[kEntriesCount]) return false;
+    if (handle_location < &roots_[0]) return false;
+    *index = static_cast<RootIndex>(handle_location - &roots_[0]);
+    return true;
+  }
+
+  Object* const& operator[](RootIndex root_index) const {
+    size_t index = static_cast<size_t>(root_index);
+    DCHECK_LT(index, kEntriesCount);
+    return roots_[index];
+  }
+
+ private:
+  Object** smi_roots_begin() { return &roots_[kSmiRootsStart]; }
+  Object** smi_roots_end() { return &roots_[kEntriesCount]; }
+
+  Object*& operator[](RootIndex root_index) {
+    size_t index = static_cast<size_t>(root_index);
+    DCHECK_LT(index, kEntriesCount);
+    return roots_[index];
+  }
+
+  Object* roots_[kEntriesCount];
+
+  friend class Heap;
+  friend class Factory;
+  friend class ReadOnlyRoots;
+};
 
 class FixedTypedArrayBase;
 class Heap;

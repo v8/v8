@@ -815,7 +815,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* AtomicLoad(MachineType rep, Node* base, Node* offset);
 
   // Load a value from the root array.
-  TNode<Object> LoadRoot(Heap::RootListIndex root_index);
+  TNode<Object> LoadRoot(RootIndex root_index);
 
   // Store value to raw memory location.
   Node* Store(Node* base, Node* value);
@@ -845,7 +845,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* AtomicXor(MachineType type, Node* base, Node* offset, Node* value);
 
   // Store a value to the root array.
-  Node* StoreRoot(Heap::RootListIndex root_index, Node* value);
+  Node* StoreRoot(RootIndex root_index, Node* value);
 
 // Basic arithmetic operations.
 #define DECLARE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type) \
@@ -1139,7 +1139,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                     TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
     Node* arity = Int32Constant(argc);
-    Node* receiver = LoadRoot(Heap::kUndefinedValueRootIndex);
+    Node* receiver = LoadRoot(RootIndex::kUndefinedValue);
 
     // Construct(target, new_target, arity, receiver, arguments...)
     return CallStub(callable, context, new_target, new_target, arity, receiver,

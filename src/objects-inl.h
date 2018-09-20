@@ -1857,7 +1857,7 @@ uint32_t StringTableShape::HashForObject(Isolate* isolate, Object* object) {
 }
 
 int StringTableShape::GetMapRootIndex() {
-  return Heap::kStringTableMapRootIndex;
+  return static_cast<int>(RootIndex::kStringTableMap);
 }
 
 bool NumberDictionary::requires_slow_elements() {
@@ -1930,7 +1930,7 @@ int FreeSpace::Size() { return size(); }
 
 FreeSpace* FreeSpace::next() {
   DCHECK(map() == Heap::FromWritableHeapObject(this)->root(
-                      Heap::kFreeSpaceMapRootIndex) ||
+                      RootIndex::kFreeSpaceMap) ||
          (!Heap::FromWritableHeapObject(this)->deserialization_complete() &&
           map() == nullptr));
   DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
@@ -1940,7 +1940,7 @@ FreeSpace* FreeSpace::next() {
 
 void FreeSpace::set_next(FreeSpace* next) {
   DCHECK(map() == Heap::FromWritableHeapObject(this)->root(
-                      Heap::kFreeSpaceMapRootIndex) ||
+                      RootIndex::kFreeSpaceMap) ||
          (!Heap::FromWritableHeapObject(this)->deserialization_complete() &&
           map() == nullptr));
   DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
@@ -2757,13 +2757,13 @@ Object* GlobalDictionaryShape::Unwrap(Object* object) {
 }
 
 int GlobalDictionaryShape::GetMapRootIndex() {
-  return Heap::kGlobalDictionaryMapRootIndex;
+  return static_cast<int>(RootIndex::kGlobalDictionaryMap);
 }
 
 Name* NameDictionary::NameAt(int entry) { return Name::cast(KeyAt(entry)); }
 
 int NameDictionaryShape::GetMapRootIndex() {
-  return Heap::kNameDictionaryMapRootIndex;
+  return static_cast<int>(RootIndex::kNameDictionaryMap);
 }
 
 PropertyCell* GlobalDictionary::CellAt(int entry) {
@@ -2816,11 +2816,11 @@ Handle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
 }
 
 int NumberDictionaryShape::GetMapRootIndex() {
-  return Heap::kNumberDictionaryMapRootIndex;
+  return static_cast<int>(RootIndex::kNumberDictionaryMap);
 }
 
 int SimpleNumberDictionaryShape::GetMapRootIndex() {
-  return Heap::kSimpleNumberDictionaryMapRootIndex;
+  return static_cast<int>(RootIndex::kSimpleNumberDictionaryMap);
 }
 
 bool NameDictionaryShape::IsMatch(Handle<Name> key, Object* other) {

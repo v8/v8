@@ -1046,9 +1046,8 @@ void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
     Node* value_map = LoadMap(value);
     // While supporting mutable HeapNumbers would be straightforward, such
     // objects should not end up here anyway.
-    CSA_ASSERT(this,
-               WordNotEqual(value_map,
-                            LoadRoot(Heap::kMutableHeapNumberMapRootIndex)));
+    CSA_ASSERT(this, WordNotEqual(value_map,
+                                  LoadRoot(RootIndex::kMutableHeapNumberMap)));
     Branch(IsHeapNumberMap(value_map), &all_fine, bailout);
   }
 
@@ -2491,7 +2490,7 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
 
   {
     // Check megamorphic case.
-    GotoIfNot(WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
+    GotoIfNot(WordEqual(feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
               &try_uninitialized);
 
     TryProbeStubCache(isolate()->load_stub_cache(), p->receiver, p->name,
@@ -2501,9 +2500,8 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
   BIND(&try_uninitialized);
   {
     // Check uninitialized case.
-    GotoIfNot(
-        WordEqual(feedback, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
-        miss);
+    GotoIfNot(WordEqual(feedback, LoadRoot(RootIndex::kuninitialized_symbol)),
+              miss);
     exit_point->ReturnCallStub(
         Builtins::CallableFor(isolate(), Builtins::kLoadIC_Uninitialized),
         p->context, p->receiver, p->name, p->slot, p->vector);
@@ -2519,7 +2517,7 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
 
   // Optimistically write the state transition to the vector.
   StoreFeedbackVectorSlot(p->vector, p->slot,
-                          LoadRoot(Heap::kpremonomorphic_symbolRootIndex),
+                          LoadRoot(RootIndex::kpremonomorphic_symbol),
                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
   StoreWeakReferenceInFeedbackVector(p->vector, p->slot, receiver_map,
                                      kPointerSize, SMI_PARAMETERS);
@@ -2545,7 +2543,7 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
   {
     // Undo the optimistic state transition.
     StoreFeedbackVectorSlot(p->vector, p->slot,
-                            LoadRoot(Heap::kuninitialized_symbolRootIndex),
+                            LoadRoot(RootIndex::kuninitialized_symbol),
                             SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
 
     TailCallRuntime(Runtime::kLoadIC_Miss, p->context, p->receiver, p->name,
@@ -2627,8 +2625,7 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
   TNode<MaybeObject> feedback_element =
       LoadFeedbackVectorSlot(vector, slot, kPointerSize, slot_mode);
   TNode<Object> handler = CAST(feedback_element);
-  GotoIf(WordEqual(handler, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
-         miss);
+  GotoIf(WordEqual(handler, LoadRoot(RootIndex::kuninitialized_symbol)), miss);
 
   OnNonExistent on_nonexistent = typeof_mode == NOT_INSIDE_TYPEOF
                                      ? OnNonExistent::kThrowReferenceError
@@ -2684,9 +2681,9 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
   {
     // Check megamorphic case.
     Comment("KeyedLoadIC_try_megamorphic");
-    GotoIfNot(WordEqual(strong_feedback,
-                        LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
-              &try_polymorphic_name);
+    GotoIfNot(
+        WordEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
+        &try_polymorphic_name);
     // TODO(jkummerow): Inline this? Or some of it?
     TailCallBuiltin(Builtins::kKeyedLoadIC_Megamorphic, p->context, p->receiver,
                     p->name, p->slot, p->vector);
@@ -2905,9 +2902,9 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   BIND(&try_megamorphic);
   {
     // Check megamorphic case.
-    GotoIfNot(WordEqual(strong_feedback,
-                        LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
-              &try_uninitialized);
+    GotoIfNot(
+        WordEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
+        &try_uninitialized);
 
     TryProbeStubCache(isolate()->store_stub_cache(), p->receiver, p->name,
                       &if_handler, &var_handler, &miss);
@@ -2915,9 +2912,9 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   BIND(&try_uninitialized);
   {
     // Check uninitialized case.
-    GotoIfNot(WordEqual(strong_feedback,
-                        LoadRoot(Heap::kuninitialized_symbolRootIndex)),
-              &miss);
+    GotoIfNot(
+        WordEqual(strong_feedback, LoadRoot(RootIndex::kuninitialized_symbol)),
+        &miss);
     TailCallBuiltin(Builtins::kStoreIC_Uninitialized, p->context, p->receiver,
                     p->name, p->value, p->slot, p->vector);
   }
@@ -2951,7 +2948,7 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
       TNode<MaybeObject> handler = LoadFeedbackVectorSlot(
           pp->vector, pp->slot, kPointerSize, SMI_PARAMETERS);
 
-      GotoIf(WordEqual(handler, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
+      GotoIf(WordEqual(handler, LoadRoot(RootIndex::kuninitialized_symbol)),
              &miss);
 
       StoreICParameters p = *pp;
@@ -3088,9 +3085,9 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
     {
       // Check megamorphic case.
       Comment("KeyedStoreIC_try_megamorphic");
-      GotoIfNot(WordEqual(strong_feedback,
-                          LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
-                &try_polymorphic_name);
+      GotoIfNot(
+          WordEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
+          &try_polymorphic_name);
       TailCallBuiltin(Builtins::kKeyedStoreIC_Megamorphic, p->context,
                       p->receiver, p->name, p->value, p->slot, p->vector);
     }
@@ -3170,15 +3167,14 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
     BIND(&try_megamorphic);
     {
       Comment("StoreInArrayLiteralIC_try_megamorphic");
-      CSA_ASSERT(
-          this,
-          Word32Or(WordEqual(strong_feedback,
-                             LoadRoot(Heap::kuninitialized_symbolRootIndex)),
-                   WordEqual(strong_feedback,
-                             LoadRoot(Heap::kmegamorphic_symbolRootIndex))));
-      GotoIfNot(WordEqual(strong_feedback,
-                          LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
-                &miss);
+      CSA_ASSERT(this,
+                 Word32Or(WordEqual(strong_feedback,
+                                    LoadRoot(RootIndex::kuninitialized_symbol)),
+                          WordEqual(strong_feedback,
+                                    LoadRoot(RootIndex::kmegamorphic_symbol))));
+      GotoIfNot(
+          WordEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
+          &miss);
       TailCallRuntime(Runtime::kStoreInArrayLiteralIC_Slow, p->context,
                       p->value, p->receiver, p->name);
     }
@@ -3659,15 +3655,14 @@ void AccessorAssembler::GenerateCloneObjectIC() {
   BIND(&try_megamorphic);
   {
     Comment("CloneObjectIC_try_megamorphic");
-    CSA_ASSERT(
-        this,
-        Word32Or(WordEqual(strong_feedback,
-                           LoadRoot(Heap::kuninitialized_symbolRootIndex)),
-                 WordEqual(strong_feedback,
-                           LoadRoot(Heap::kmegamorphic_symbolRootIndex))));
-    GotoIfNot(WordEqual(strong_feedback,
-                        LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
-              &miss);
+    CSA_ASSERT(this,
+               Word32Or(WordEqual(strong_feedback,
+                                  LoadRoot(RootIndex::kuninitialized_symbol)),
+                        WordEqual(strong_feedback,
+                                  LoadRoot(RootIndex::kmegamorphic_symbol))));
+    GotoIfNot(
+        WordEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
+        &miss);
     TailCallBuiltin(Builtins::kCloneObjectIC_Slow, context, source, flags, slot,
                     vector);
   }

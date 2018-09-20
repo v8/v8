@@ -89,7 +89,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ SmiUntag(eax);
 
     // The receiver for the builtin/api call.
-    __ PushRoot(Heap::kTheHoleValueRootIndex);
+    __ PushRoot(RootIndex::kTheHoleValue);
 
     // Set up pointer to last argument.
     __ lea(ebx, Operand(ebp, StandardFrameConstants::kCallerSPOffset));
@@ -159,7 +159,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ Push(esi);
     __ Push(ecx);
     __ Push(edi);
-    __ PushRoot(Heap::kTheHoleValueRootIndex);
+    __ PushRoot(RootIndex::kTheHoleValue);
     __ Push(edx);
 
     // ----------- S t a t e -------------
@@ -183,7 +183,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // Else: use TheHoleValue as receiver for constructor call
     __ bind(&not_create_implicit_receiver);
-    __ LoadRoot(eax, Heap::kTheHoleValueRootIndex);
+    __ LoadRoot(eax, RootIndex::kTheHoleValue);
 
     // ----------- S t a t e -------------
     //  --                         eax: implicit receiver
@@ -273,8 +273,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     Label use_receiver, do_throw, leave_frame;
 
     // If the result is undefined, we jump out to using the implicit receiver.
-    __ JumpIfRoot(eax, Heap::kUndefinedValueRootIndex, &use_receiver,
-                  Label::kNear);
+    __ JumpIfRoot(eax, RootIndex::kUndefinedValue, &use_receiver, Label::kNear);
 
     // Otherwise we do a smi check and fall through to check if the return value
     // is a valid receiver.
@@ -296,7 +295,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // on-stack receiver as the result.
     __ bind(&use_receiver);
     __ mov(eax, Operand(esp, 0 * kPointerSize));
-    __ JumpIfRoot(eax, Heap::kTheHoleValueRootIndex, &do_throw);
+    __ JumpIfRoot(eax, RootIndex::kTheHoleValue, &do_throw);
 
     __ bind(&leave_frame);
     // Restore smi-tagged arguments count from the frame.
@@ -477,7 +476,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  __ CompareRoot(esp, ecx, Heap::kRealStackLimitRootIndex);
+  __ CompareRoot(esp, ecx, RootIndex::kRealStackLimit);
   __ j(below, &stack_overflow);
 
   // Pop return address.
@@ -548,7 +547,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Push(edx);
     __ Push(edi);
     // Push hole as receiver since we do not use it for stepping.
-    __ PushRoot(Heap::kTheHoleValueRootIndex);
+    __ PushRoot(RootIndex::kTheHoleValue);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
     __ Pop(edx);
     __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
@@ -893,7 +892,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&no_incoming_new_target_or_generator_register);
 
   // Load accumulator and bytecode offset into registers.
-  __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ mov(kInterpreterBytecodeOffsetRegister,
          Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
 
@@ -989,7 +988,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
 
   // Push "undefined" as the receiver arg if we need to.
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
+    __ PushRoot(RootIndex::kUndefinedValue);
     __ sub(scratch, Immediate(1));  // Subtract one for receiver.
   }
 
@@ -1281,7 +1280,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
             ebp, StandardFrameConstants::kCallerSPOffset + i * kPointerSize));
       }
       for (int i = 0; i < 3 - j; ++i) {
-        __ PushRoot(Heap::kUndefinedValueRootIndex);
+        __ PushRoot(RootIndex::kUndefinedValue);
       }
       if (j < 3) {
         __ jmp(&args_done, Label::kNear);
@@ -1404,7 +1403,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     // Spill receiver to allow the usage of edi as a scratch register.
     __ movd(xmm0, Operand(esp, eax, times_pointer_size, kPointerSize));
 
-    __ LoadRoot(edx, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(edx, RootIndex::kUndefinedValue);
     __ mov(edi, edx);
     __ test(eax, eax);
     __ j(zero, &no_this_arg, Label::kNear);
@@ -1438,9 +1437,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 
   // 3. Tail call with no arguments if argArray is null or undefined.
   Label no_arguments;
-  __ JumpIfRoot(edx, Heap::kNullValueRootIndex, &no_arguments, Label::kNear);
-  __ JumpIfRoot(edx, Heap::kUndefinedValueRootIndex, &no_arguments,
-                Label::kNear);
+  __ JumpIfRoot(edx, RootIndex::kNullValue, &no_arguments, Label::kNear);
+  __ JumpIfRoot(edx, RootIndex::kUndefinedValue, &no_arguments, Label::kNear);
 
   // 4a. Apply the receiver to the given argArray.
   __ Jump(BUILTIN_CODE(masm->isolate(), CallWithArrayLike),
@@ -1475,7 +1473,7 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
     __ test(eax, eax);
     __ j(not_zero, &done, Label::kNear);
     __ PopReturnAddressTo(edx);
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
+    __ PushRoot(RootIndex::kUndefinedValue);
     __ PushReturnAddressFrom(edx);
     __ inc(eax);
     __ bind(&done);
@@ -1518,7 +1516,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   // thisArgument (if present) instead.
   {
     Label done;
-    __ LoadRoot(edi, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(edi, RootIndex::kUndefinedValue);
     __ mov(edx, edi);
     __ mov(ebx, edi);
     __ cmp(eax, Immediate(1));
@@ -1569,7 +1567,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   // (if present) instead.
   {
     Label done;
-    __ LoadRoot(edi, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(edi, RootIndex::kUndefinedValue);
     __ mov(edx, edi);
     __ mov(ebx, edi);
     __ cmp(eax, Immediate(1));
@@ -1584,7 +1582,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ bind(&done);
     __ PopReturnAddressTo(ecx);
     __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
+    __ PushRoot(RootIndex::kUndefinedValue);
     __ PushReturnAddressFrom(ecx);
   }
 
@@ -1746,9 +1744,9 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     // Turn the hole into undefined as we go.
     __ mov(edi, FieldOperand(kArgumentsList, eax, times_pointer_size,
                              FixedArray::kHeaderSize));
-    __ CompareRoot(edi, Heap::kTheHoleValueRootIndex);
+    __ CompareRoot(edi, RootIndex::kTheHoleValue);
     __ j(not_equal, &push, Label::kNear);
-    __ LoadRoot(edi, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(edi, RootIndex::kUndefinedValue);
     __ bind(&push);
     __ Push(edi);
     __ inc(eax);
@@ -1833,7 +1831,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       // (i.e. debug break and preemption) here, so check the "real stack
       // limit".
       Label done;
-      __ LoadRoot(ecx, Heap::kRealStackLimitRootIndex);
+      __ LoadRoot(ecx, RootIndex::kRealStackLimit);
       // Make ecx the space we have left. The stack might already be
       // overflowed here which will cause ecx to become negative.
       __ neg(ecx);
@@ -1920,9 +1918,9 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ mov(ecx, Operand(esp, eax, times_pointer_size, kPointerSize));
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
-        __ JumpIfRoot(ecx, Heap::kUndefinedValueRootIndex,
-                      &convert_global_proxy, Label::kNear);
-        __ JumpIfNotRoot(ecx, Heap::kNullValueRootIndex, &convert_to_object,
+        __ JumpIfRoot(ecx, RootIndex::kUndefinedValue, &convert_global_proxy,
+                      Label::kNear);
+        __ JumpIfNotRoot(ecx, RootIndex::kNullValue, &convert_to_object,
                          Label::kNear);
         __ bind(&convert_global_proxy);
         {
@@ -2014,7 +2012,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       // Check the stack for overflow. We are not trying to catch interruptions
       // (i.e. debug break and preemption) here, so check the "real stack
       // limit".
-      __ CompareRoot(esp, ecx, Heap::kRealStackLimitRootIndex);
+      __ CompareRoot(esp, ecx, RootIndex::kRealStackLimit);
       __ j(above_equal, &done, Label::kNear);
       // Restore the stack pointer.
       __ lea(esp, Operand(esp, edx, times_pointer_size, 0));
@@ -2157,14 +2155,14 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 
   // Calling convention for function specific ConstructStubs require
   // ecx to contain either an AllocationSite or undefined.
-  __ LoadRoot(ecx, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(ecx, RootIndex::kUndefinedValue);
   __ Jump(BUILTIN_CODE(masm->isolate(), JSBuiltinsConstructStub),
           RelocInfo::CODE_TARGET);
 
   __ bind(&call_generic_stub);
   // Calling convention for function specific ConstructStubs require
   // ecx to contain either an AllocationSite or undefined.
-  __ LoadRoot(ecx, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(ecx, RootIndex::kUndefinedValue);
   __ Jump(BUILTIN_CODE(masm->isolate(), JSConstructStubGeneric),
           RelocInfo::CODE_TARGET);
 }

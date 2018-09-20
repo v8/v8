@@ -130,7 +130,7 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
-      Heap::kBuiltinsConstantsTableRootIndex));
+      RootIndex::kBuiltinsConstantsTable));
 
   // The ldr call below could end up clobbering ip when the offset does not fit
   // into 12 bits (and thus needs to be loaded from the constant pool). In that
@@ -147,7 +147,7 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
     reg = r7;
   }
 
-  LoadRoot(reg, Heap::kBuiltinsConstantsTableRootIndex);
+  LoadRoot(reg, RootIndex::kBuiltinsConstantsTable);
   ldr(destination, MemOperand(reg, offset));
 
   if (could_clobber_ip) {
@@ -527,7 +527,7 @@ void MacroAssembler::Store(Register src,
   }
 }
 
-void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index,
+void TurboAssembler::LoadRoot(Register destination, RootIndex index,
                               Condition cond) {
   ldr(destination, MemOperand(kRootRegister, RootRegisterOffset(index)), cond);
 }
@@ -1517,7 +1517,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
-    LoadRoot(r3, Heap::kUndefinedValueRootIndex);
+    LoadRoot(r3, RootIndex::kUndefinedValue);
   }
 
   Label done;
@@ -1639,9 +1639,7 @@ void MacroAssembler::CompareInstanceType(Register map,
   cmp(type_reg, Operand(type));
 }
 
-
-void MacroAssembler::CompareRoot(Register obj,
-                                 Heap::RootListIndex index) {
+void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   DCHECK(obj != scratch);
@@ -2050,7 +2048,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
   if (emit_debug_code()) {
     Label done_checking;
     AssertNotSmi(object);
-    CompareRoot(object, Heap::kUndefinedValueRootIndex);
+    CompareRoot(object, RootIndex::kUndefinedValue);
     b(eq, &done_checking);
     ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
     CompareInstanceType(scratch, scratch, ALLOCATION_SITE_TYPE);

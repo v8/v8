@@ -163,7 +163,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   // which is cheaper on some platforms than materializing the actual heap
   // object constant.
   bool IsMaterializableFromRoot(Handle<HeapObject> object,
-                                Heap::RootListIndex* index_return);
+                                RootIndex* index_return);
 
   enum CodeGenResult { kSuccess, kTooManyDeoptimizationBailouts };
 

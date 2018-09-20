@@ -61,7 +61,7 @@ type LanguageMode generates 'TNode<Smi>' constexpr 'LanguageMode';
 type ExtractFixedArrayFlags generates
 'TNode<Smi>' constexpr 'ExtractFixedArrayFlags';
 type ParameterMode generates 'TNode<Int32T>' constexpr 'ParameterMode';
-type RootListIndex generates 'TNode<Int32T>' constexpr 'Heap::RootListIndex';
+type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 type WriteBarrierMode generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
 type MessageTemplate constexpr 'MessageTemplate::Template';
@@ -114,10 +114,10 @@ const kAllFixedArrays: constexpr ExtractFixedArrayFlags generates
 const kFixedArrays: constexpr ExtractFixedArrayFlags generates
 'ExtractFixedArrayFlag::kFixedArrays';
 
-const kFixedCOWArrayMapRootIndex: constexpr RootListIndex generates
-'Heap::kFixedCOWArrayMapRootIndex';
-const kEmptyFixedArrayRootIndex: constexpr RootListIndex generates
-'Heap::kEmptyFixedArrayRootIndex';
+const kFixedCOWArrayMapRootIndex: constexpr RootIndex generates
+'RootIndex::kFixedCOWArrayMap';
+const kEmptyFixedArrayRootIndex: constexpr RootIndex generates
+'RootIndex::kEmptyFixedArray';
 
 const kInvalidArrayLength: constexpr MessageTemplate generates
 'MessageTemplate::kInvalidArrayLength';
@@ -214,9 +214,9 @@ extern runtime NormalizeElements(Context, JSObject);
 extern runtime TransitionElementsKindWithKind(Context, JSObject, Smi);
 extern runtime CreateDataProperty(Context, JSReceiver, Object, Object);
 
-extern macro LoadRoot(constexpr RootListIndex): Object;
-extern macro StoreRoot(constexpr RootListIndex, Object): Object;
-extern macro LoadAndUntagToWord32Root(constexpr RootListIndex): int32;
+extern macro LoadRoot(constexpr RootIndex): Object;
+extern macro StoreRoot(constexpr RootIndex, Object): Object;
+extern macro LoadAndUntagToWord32Root(constexpr RootIndex): int32;
 
 extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(Context, String, String): Boolean;

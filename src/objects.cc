@@ -10571,7 +10571,7 @@ Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
   // Allocate the array of keys.
   Handle<WeakFixedArray> result =
       factory->NewWeakFixedArrayWithMap<DescriptorArray>(
-          Heap::kDescriptorArrayMapRootIndex, LengthFor(size), pretenure);
+          RootIndex::kDescriptorArrayMap, LengthFor(size), pretenure);
   result->Set(kDescriptorLengthIndex,
               MaybeObject::FromObject(Smi::FromInt(number_of_descriptors)));
   result->Set(kEnumCacheIndex, MaybeObject::FromObject(
@@ -16628,8 +16628,7 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
     Isolate* isolate, int capacity, PretenureFlag pretenure) {
   Factory* factory = isolate->factory();
   int length = EntryToIndex(capacity);
-  Heap::RootListIndex map_root_index =
-      static_cast<Heap::RootListIndex>(Shape::GetMapRootIndex());
+  RootIndex map_root_index = static_cast<RootIndex>(Shape::GetMapRootIndex());
   Handle<FixedArray> array =
       factory->NewFixedArrayWithMap(map_root_index, length, pretenure);
   Handle<Derived> table = Handle<Derived>::cast(array);

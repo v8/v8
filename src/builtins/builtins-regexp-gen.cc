@@ -81,13 +81,13 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::AllocateRegExpResult(
   // Initialize the elements.
 
   DCHECK(!IsDoubleElementsKind(elements_kind));
-  const Heap::RootListIndex map_index = Heap::kFixedArrayMapRootIndex;
+  const RootIndex map_index = RootIndex::kFixedArrayMap;
   DCHECK(Heap::RootIsImmortalImmovable(map_index));
   StoreMapNoWriteBarrier(elements, map_index);
   StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
 
   FillFixedArrayWithValue(elements_kind, elements, IntPtrZero(), length_intptr,
-                          Heap::kUndefinedValueRootIndex);
+                          RootIndex::kUndefinedValue);
 
   return CAST(result);
 }
@@ -2109,9 +2109,9 @@ TNode<Object> RegExpBuiltinsAssembler::MatchAllIterator(
     StoreMapNoWriteBarrier(iterator, map);
     StoreObjectFieldRoot(iterator,
                          JSRegExpStringIterator::kPropertiesOrHashOffset,
-                         Heap::kEmptyFixedArrayRootIndex);
+                         RootIndex::kEmptyFixedArray);
     StoreObjectFieldRoot(iterator, JSRegExpStringIterator::kElementsOffset,
-                         Heap::kEmptyFixedArrayRootIndex);
+                         RootIndex::kEmptyFixedArray);
 
     // 5. Set iterator.[[IteratingRegExp]] to R.
     StoreObjectFieldNoWriteBarrier(

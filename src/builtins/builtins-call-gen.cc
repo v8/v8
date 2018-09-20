@@ -308,7 +308,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   // Check that the Array.prototype hasn't been modified in a way that would
   // affect iteration.
   TNode<PropertyCell> protector_cell =
-      CAST(LoadRoot(Heap::kArrayIteratorProtectorRootIndex));
+      CAST(LoadRoot(RootIndex::kArrayIteratorProtector));
   GotoIf(WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
                    SmiConstant(Isolate::kProtectorInvalid)),
          &if_generic);

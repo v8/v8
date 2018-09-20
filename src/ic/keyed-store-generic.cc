@@ -324,7 +324,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
 
   Label check_double_elements(this), check_cow_elements(this);
   Node* elements_map = LoadMap(elements);
-  GotoIf(WordNotEqual(elements_map, LoadRoot(Heap::kFixedArrayMapRootIndex)),
+  GotoIf(WordNotEqual(elements_map, LoadRoot(RootIndex::kFixedArrayMap)),
          &check_double_elements);
 
   // FixedArray backing store -> Smi or object elements.
@@ -385,7 +385,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     {
       Label transition_to_double(this), transition_to_object(this);
       Node* native_context = LoadNativeContext(context);
-      Branch(WordEqual(LoadMap(value), LoadRoot(Heap::kHeapNumberMapRootIndex)),
+      Branch(WordEqual(LoadMap(value), LoadRoot(RootIndex::kHeapNumberMap)),
              &transition_to_double, &transition_to_object);
       BIND(&transition_to_double);
       {
@@ -428,7 +428,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
   }
 
   BIND(&check_double_elements);
-  Node* fixed_double_array_map = LoadRoot(Heap::kFixedDoubleArrayMapRootIndex);
+  Node* fixed_double_array_map = LoadRoot(RootIndex::kFixedDoubleArrayMap);
   GotoIf(WordNotEqual(elements_map, fixed_double_array_map),
          &check_cow_elements);
   // FixedDoubleArray backing store -> double elements.
@@ -1050,7 +1050,7 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
 
   // Optimistically write the state transition to the vector.
   StoreFeedbackVectorSlot(vector, slot,
-                          LoadRoot(Heap::kpremonomorphic_symbolRootIndex),
+                          LoadRoot(RootIndex::kpremonomorphic_symbol),
                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
 
   StoreICParameters p(context, receiver, name, value, slot, vector);
@@ -1060,7 +1060,7 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
   {
     // Undo the optimistic state transition.
     StoreFeedbackVectorSlot(vector, slot,
-                            LoadRoot(Heap::kuninitialized_symbolRootIndex),
+                            LoadRoot(RootIndex::kuninitialized_symbol),
                             SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
     TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot, vector,
                     receiver, name);

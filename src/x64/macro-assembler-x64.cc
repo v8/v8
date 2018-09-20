@@ -136,8 +136,8 @@ void MacroAssembler::Store(ExternalReference destination, Register source) {
 void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
-      Heap::kBuiltinsConstantsTableRootIndex));
-  LoadRoot(destination, Heap::kBuiltinsConstantsTableRootIndex);
+      RootIndex::kBuiltinsConstantsTable));
+  LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
   movp(destination,
        FieldOperand(destination,
                     FixedArray::kHeaderSize + constant_index * kPointerSize));
@@ -193,22 +193,22 @@ void MacroAssembler::PushAddress(ExternalReference source) {
   Push(kScratchRegister);
 }
 
-void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
+void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
   DCHECK(root_array_available_);
   movp(destination, Operand(kRootRegister, RootRegisterOffset(index)));
 }
 
-void MacroAssembler::PushRoot(Heap::RootListIndex index) {
+void MacroAssembler::PushRoot(RootIndex index) {
   DCHECK(root_array_available_);
   Push(Operand(kRootRegister, RootRegisterOffset(index)));
 }
 
-void TurboAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
+void TurboAssembler::CompareRoot(Register with, RootIndex index) {
   DCHECK(root_array_available_);
   cmpp(with, Operand(kRootRegister, RootRegisterOffset(index)));
 }
 
-void TurboAssembler::CompareRoot(Operand with, Heap::RootListIndex index) {
+void TurboAssembler::CompareRoot(Operand with, RootIndex index) {
   DCHECK(root_array_available_);
   DCHECK(!with.AddressUsesRegister(kScratchRegister));
   LoadRoot(kScratchRegister, index);
@@ -2176,7 +2176,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
-    LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+    LoadRoot(rdx, RootIndex::kUndefinedValue);
   }
 
   Label done;

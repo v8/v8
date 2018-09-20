@@ -298,7 +298,7 @@ TNode<JSArray> ObjectEntriesValuesBuiltinsAssembler::FastGetOwnValuesOrEntries(
     // So the array filled by the-hole even if enum_cache exists.
     FillFixedArrayWithValue(PACKED_ELEMENTS, values_or_entries,
                             IntPtrConstant(0), object_enum_length,
-                            Heap::kTheHoleValueRootIndex);
+                            RootIndex::kTheHoleValue);
 
     TVARIABLE(IntPtrT, var_result_index, IntPtrConstant(0));
     TVARIABLE(IntPtrT, var_descriptor_number, IntPtrConstant(0));
@@ -877,13 +877,13 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_arguments);
   {
-    var_default.Bind(LoadRoot(Heap::karguments_to_stringRootIndex));
+    var_default.Bind(LoadRoot(RootIndex::karguments_to_string));
     Goto(&checkstringtag);
   }
 
   BIND(&if_array);
   {
-    var_default.Bind(LoadRoot(Heap::karray_to_stringRootIndex));
+    var_default.Bind(LoadRoot(RootIndex::karray_to_string));
     Goto(&checkstringtag);
   }
 
@@ -896,26 +896,26 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
         boolean_constructor, JSFunction::kPrototypeOrInitialMapOffset);
     Node* boolean_prototype =
         LoadObjectField(boolean_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(Heap::kboolean_to_stringRootIndex));
+    var_default.Bind(LoadRoot(RootIndex::kboolean_to_string));
     var_holder.Bind(boolean_prototype);
     Goto(&checkstringtag);
   }
 
   BIND(&if_date);
   {
-    var_default.Bind(LoadRoot(Heap::kdate_to_stringRootIndex));
+    var_default.Bind(LoadRoot(RootIndex::kdate_to_string));
     Goto(&checkstringtag);
   }
 
   BIND(&if_error);
   {
-    var_default.Bind(LoadRoot(Heap::kerror_to_stringRootIndex));
+    var_default.Bind(LoadRoot(RootIndex::kerror_to_string));
     Goto(&checkstringtag);
   }
 
   BIND(&if_function);
   {
-    var_default.Bind(LoadRoot(Heap::kfunction_to_stringRootIndex));
+    var_default.Bind(LoadRoot(RootIndex::kfunction_to_string));
     Goto(&checkstringtag);
   }
 
@@ -928,7 +928,7 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
         number_constructor, JSFunction::kPrototypeOrInitialMapOffset);
     Node* number_prototype =
         LoadObjectField(number_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(Heap::knumber_to_stringRootIndex));
+    var_default.Bind(LoadRoot(RootIndex::knumber_to_string));
     var_holder.Bind(number_prototype);
     Goto(&checkstringtag);
   }
@@ -936,7 +936,7 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
   BIND(&if_object);
   {
     CSA_ASSERT(this, IsJSReceiver(receiver));
-    var_default.Bind(LoadRoot(Heap::kobject_to_stringRootIndex));
+    var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
     Goto(&checkstringtag);
   }
 
@@ -951,10 +951,10 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
     GotoIf(IsSymbolMap(receiver_map), &if_symbol);
     GotoIf(IsUndefined(receiver), &return_undefined);
     CSA_ASSERT(this, IsNull(receiver));
-    Return(LoadRoot(Heap::knull_to_stringRootIndex));
+    Return(LoadRoot(RootIndex::knull_to_string));
 
     BIND(&return_undefined);
-    Return(LoadRoot(Heap::kundefined_to_stringRootIndex));
+    Return(LoadRoot(RootIndex::kundefined_to_string));
   }
 
   BIND(&if_proxy);
@@ -968,12 +968,12 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
         CallRuntime(Runtime::kArrayIsArray, context, receiver);
     TNode<String> builtin_tag = Select<String>(
         IsTrue(receiver_is_array),
-        [=] { return CAST(LoadRoot(Heap::kArray_stringRootIndex)); },
+        [=] { return CAST(LoadRoot(RootIndex::kArray_string)); },
         [=] {
           return Select<String>(
               IsCallableMap(receiver_map),
-              [=] { return CAST(LoadRoot(Heap::kFunction_stringRootIndex)); },
-              [=] { return CAST(LoadRoot(Heap::kObject_stringRootIndex)); });
+              [=] { return CAST(LoadRoot(RootIndex::kFunction_string)); },
+              [=] { return CAST(LoadRoot(RootIndex::kObject_string)); });
         });
 
     // Lookup the @@toStringTag property on the {receiver}.
@@ -994,7 +994,7 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_regexp);
   {
-    var_default.Bind(LoadRoot(Heap::kregexp_to_stringRootIndex));
+    var_default.Bind(LoadRoot(RootIndex::kregexp_to_string));
     Goto(&checkstringtag);
   }
 
@@ -1007,7 +1007,7 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
         string_constructor, JSFunction::kPrototypeOrInitialMapOffset);
     Node* string_prototype =
         LoadObjectField(string_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(Heap::kstring_to_stringRootIndex));
+    var_default.Bind(LoadRoot(RootIndex::kstring_to_string));
     var_holder.Bind(string_prototype);
     Goto(&checkstringtag);
   }
@@ -1021,7 +1021,7 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
         symbol_constructor, JSFunction::kPrototypeOrInitialMapOffset);
     Node* symbol_prototype =
         LoadObjectField(symbol_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(Heap::kobject_to_stringRootIndex));
+    var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
     var_holder.Bind(symbol_prototype);
     Goto(&checkstringtag);
   }
@@ -1035,7 +1035,7 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
         bigint_constructor, JSFunction::kPrototypeOrInitialMapOffset);
     Node* bigint_prototype =
         LoadObjectField(bigint_initial_map, Map::kPrototypeOffset);
-    var_default.Bind(LoadRoot(Heap::kobject_to_stringRootIndex));
+    var_default.Bind(LoadRoot(RootIndex::kobject_to_string));
     var_holder.Bind(bigint_prototype);
     Goto(&checkstringtag);
   }
@@ -1078,7 +1078,7 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
     BIND(&return_generic);
     {
       Node* tag = GetProperty(context, ToObject(context, receiver),
-                              LoadRoot(Heap::kto_string_tag_symbolRootIndex));
+                              LoadRoot(RootIndex::kto_string_tag_symbol));
       GotoIf(TaggedIsSmi(tag), &return_default);
       GotoIfNot(IsString(tag), &return_default);
       ReturnToStringFormat(context, tag);
@@ -1192,7 +1192,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     GotoIf(IsSpecialReceiverMap(properties_map), &call_runtime);
     // Stay on the fast path only if there are no elements.
     GotoIfNot(WordEqual(LoadElements(properties),
-                        LoadRoot(Heap::kEmptyFixedArrayRootIndex)),
+                        LoadRoot(RootIndex::kEmptyFixedArray)),
               &call_runtime);
     // Handle dictionary objects or fast objects with properties in runtime.
     Node* bit_field3 = LoadMapBitField3(properties_map);
@@ -1345,8 +1345,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
                          formal_parameter_count);
   Node* parameters_and_registers = AllocateFixedArray(HOLEY_ELEMENTS, size);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, parameters_and_registers,
-                          IntPtrConstant(0), size,
-                          Heap::kUndefinedValueRootIndex);
+                          IntPtrConstant(0), size, RootIndex::kUndefinedValue);
   // TODO(cbruni): support start_offset to avoid double initialization.
   Node* result = AllocateJSObjectFromMap(maybe_map, nullptr, nullptr, kNone,
                                          kWithSlackTracking);

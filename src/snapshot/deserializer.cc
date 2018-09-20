@@ -672,7 +672,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
       SIXTEEN_CASES(kRootArrayConstants)
       SIXTEEN_CASES(kRootArrayConstants + 16) {
         int id = data & kRootArrayConstantsMask;
-        Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id);
+        RootIndex root_index = static_cast<RootIndex>(id);
         MaybeObject* object =
             MaybeObject::FromObject(isolate->heap()->root(root_index));
         DCHECK(!Heap::InNewSpace(object));
@@ -806,7 +806,7 @@ MaybeObject** Deserializer<AllocatorT>::ReadDataCase(
       new_object = GetBackReferencedObject(data & kSpaceMask);
     } else if (where == kRootArray) {
       int id = source_.GetInt();
-      Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(id);
+      RootIndex root_index = static_cast<RootIndex>(id);
       new_object = isolate->heap()->root(root_index);
       emit_write_barrier = Heap::InNewSpace(new_object);
       hot_objects_.Add(HeapObject::cast(new_object));

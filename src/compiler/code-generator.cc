@@ -454,8 +454,8 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
   }
 }
 
-bool CodeGenerator::IsMaterializableFromRoot(
-    Handle<HeapObject> object, Heap::RootListIndex* index_return) {
+bool CodeGenerator::IsMaterializableFromRoot(Handle<HeapObject> object,
+                                             RootIndex* index_return) {
   const CallDescriptor* incoming_descriptor =
       linkage()->GetIncomingDescriptor();
   if (incoming_descriptor->flags() & CallDescriptor::kCanUseRoots) {

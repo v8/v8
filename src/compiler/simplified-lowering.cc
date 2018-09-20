@@ -1218,7 +1218,7 @@ class RepresentationSelector {
         return kNoWriteBarrier;
       }
       if (value_type.IsHeapConstant()) {
-        Heap::RootListIndex root_index;
+        RootIndex root_index;
         Heap* heap = jsgraph_->isolate()->heap();
         if (heap->IsRootHandle(value_type.AsHeapConstant()->Value(),
                                &root_index)) {

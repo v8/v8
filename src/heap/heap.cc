@@ -234,7 +234,6 @@ Heap::Heap()
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size_ & (Page::kPageSize - 1));
 
-  memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   set_native_contexts_list(nullptr);
   set_allocation_sites_list(Smi::kZero);
   // Put a dummy entry in the remembered pages so we can find the list the
@@ -701,7 +700,7 @@ const char* Heap::GetSpaceName(int idx) {
 }
 
 void Heap::SetRootCodeStubs(SimpleNumberDictionary* value) {
-  roots_[kCodeStubsRootIndex] = value;
+  roots_[RootIndex::kCodeStubs] = value;
 }
 
 void Heap::RepairFreeListsAfterDeserialization() {
@@ -2475,29 +2474,29 @@ void Heap::CreateFixedStubs() {
   Heap::CreateJSRunMicrotasksEntryStub();
 }
 
-bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
+bool Heap::RootCanBeWrittenAfterInitialization(RootIndex root_index) {
   switch (root_index) {
-    case kNumberStringCacheRootIndex:
-    case kCodeStubsRootIndex:
-    case kScriptListRootIndex:
-    case kMaterializedObjectsRootIndex:
-    case kDetachedContextsRootIndex:
-    case kRetainedMapsRootIndex:
-    case kRetainingPathTargetsRootIndex:
-    case kFeedbackVectorsForProfilingToolsRootIndex:
-    case kNoScriptSharedFunctionInfosRootIndex:
-    case kSerializedObjectsRootIndex:
-    case kSerializedGlobalProxySizesRootIndex:
-    case kPublicSymbolTableRootIndex:
-    case kApiSymbolTableRootIndex:
-    case kApiPrivateSymbolTableRootIndex:
-    case kMessageListenersRootIndex:
+    case RootIndex::kNumberStringCache:
+    case RootIndex::kCodeStubs:
+    case RootIndex::kScriptList:
+    case RootIndex::kMaterializedObjects:
+    case RootIndex::kDetachedContexts:
+    case RootIndex::kRetainedMaps:
+    case RootIndex::kRetainingPathTargets:
+    case RootIndex::kFeedbackVectorsForProfilingTools:
+    case RootIndex::kNoScriptSharedFunctionInfos:
+    case RootIndex::kSerializedObjects:
+    case RootIndex::kSerializedGlobalProxySizes:
+    case RootIndex::kPublicSymbolTable:
+    case RootIndex::kApiSymbolTable:
+    case RootIndex::kApiPrivateSymbolTable:
+    case RootIndex::kMessageListeners:
 // Smi values
-#define SMI_ENTRY(type, name, Name) case k##Name##RootIndex:
+#define SMI_ENTRY(type, name, Name) case RootIndex::k##Name:
       SMI_ROOT_LIST(SMI_ENTRY)
 #undef SMI_ENTRY
     // String table
-    case kStringTableRootIndex:
+    case RootIndex::kStringTable:
       return true;
 
     default:
@@ -2505,7 +2504,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
   }
 }
 
-bool Heap::RootCanBeTreatedAsConstant(RootListIndex root_index) {
+bool Heap::RootCanBeTreatedAsConstant(RootIndex root_index) {
   bool can_be = !RootCanBeWrittenAfterInitialization(root_index) &&
                 !InNewSpace(root(root_index));
   DCHECK_IMPLIES(can_be, IsImmovable(HeapObject::cast(root(root_index))));
@@ -2523,11 +2522,11 @@ void Heap::FlushNumberStringCache() {
 
 namespace {
 
-Heap::RootListIndex RootIndexForFixedTypedArray(ExternalArrayType array_type) {
+RootIndex RootIndexForFixedTypedArray(ExternalArrayType array_type) {
   switch (array_type) {
 #define ARRAY_TYPE_TO_ROOT_INDEX(Type, type, TYPE, ctype) \
   case kExternal##Type##Array:                            \
-    return Heap::kFixed##Type##ArrayMapRootIndex;
+    return RootIndex::kFixed##Type##ArrayMap;
 
     TYPED_ARRAYS(ARRAY_TYPE_TO_ROOT_INDEX)
 #undef ARRAY_TYPE_TO_ROOT_INDEX
@@ -2535,11 +2534,11 @@ Heap::RootListIndex RootIndexForFixedTypedArray(ExternalArrayType array_type) {
   UNREACHABLE();
 }
 
-Heap::RootListIndex RootIndexForFixedTypedArray(ElementsKind elements_kind) {
+RootIndex RootIndexForFixedTypedArray(ElementsKind elements_kind) {
   switch (elements_kind) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
   case TYPE##_ELEMENTS:                           \
-    return Heap::kFixed##Type##ArrayMapRootIndex;
+    return RootIndex::kFixed##Type##ArrayMap;
     TYPED_ARRAYS(TYPED_ARRAY_CASE)
     default:
       UNREACHABLE();
@@ -2547,12 +2546,11 @@ Heap::RootListIndex RootIndexForFixedTypedArray(ElementsKind elements_kind) {
   }
 }
 
-Heap::RootListIndex RootIndexForEmptyFixedTypedArray(
-    ElementsKind elements_kind) {
+RootIndex RootIndexForEmptyFixedTypedArray(ElementsKind elements_kind) {
   switch (elements_kind) {
 #define ELEMENT_KIND_TO_ROOT_INDEX(Type, type, TYPE, ctype) \
   case TYPE##_ELEMENTS:                                     \
-    return Heap::kEmptyFixed##Type##ArrayRootIndex;
+    return RootIndex::kEmptyFixed##Type##Array;
 
     TYPED_ARRAYS(ELEMENT_KIND_TO_ROOT_INDEX)
 #undef ELEMENT_KIND_TO_ROOT_INDEX
@@ -2583,11 +2581,11 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
     filler->set_map_after_allocation(
-        reinterpret_cast<Map*>(root(kOnePointerFillerMapRootIndex)),
+        reinterpret_cast<Map*>(root(RootIndex::kOnePointerFillerMap)),
         SKIP_WRITE_BARRIER);
   } else if (size == 2 * kPointerSize) {
     filler->set_map_after_allocation(
-        reinterpret_cast<Map*>(root(kTwoPointerFillerMapRootIndex)),
+        reinterpret_cast<Map*>(root(RootIndex::kTwoPointerFillerMap)),
         SKIP_WRITE_BARRIER);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
       Memory<Address>(addr + kPointerSize) =
@@ -2596,7 +2594,7 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
   } else {
     DCHECK_GT(size, 2 * kPointerSize);
     filler->set_map_after_allocation(
-        reinterpret_cast<Map*>(root(kFreeSpaceMapRootIndex)),
+        reinterpret_cast<Map*>(root(RootIndex::kFreeSpaceMap)),
         SKIP_WRITE_BARRIER);
     FreeSpace::cast(filler)->relaxed_write_size(size);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
@@ -3624,16 +3622,15 @@ bool Heap::IsValidAllocationSpace(AllocationSpace space) {
   }
 }
 
-
-bool Heap::RootIsImmortalImmovable(int root_index) {
+bool Heap::RootIsImmortalImmovable(RootIndex root_index) {
   switch (root_index) {
-#define IMMORTAL_IMMOVABLE_ROOT(name) case Heap::k##name##RootIndex:
+#define IMMORTAL_IMMOVABLE_ROOT(name) case RootIndex::k##name:
     IMMORTAL_IMMOVABLE_ROOT_LIST(IMMORTAL_IMMOVABLE_ROOT)
 #undef IMMORTAL_IMMOVABLE_ROOT
-#define INTERNALIZED_STRING(name, value) case Heap::k##name##RootIndex:
+#define INTERNALIZED_STRING(name, value) case RootIndex::k##name:
     INTERNALIZED_STRING_LIST(INTERNALIZED_STRING)
 #undef INTERNALIZED_STRING
-#define STRING_TYPE(NAME, size, name, Name) case Heap::k##Name##MapRootIndex:
+#define STRING_TYPE(NAME, size, name, Name) case RootIndex::k##Name##Map:
     STRING_TYPE_LIST(STRING_TYPE)
 #undef STRING_TYPE
     return true;
@@ -3869,7 +3866,7 @@ void Heap::IterateWeakRoots(RootVisitor* v, VisitMode mode) {
                          mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
   v->VisitRootPointer(
       Root::kStringTable, nullptr,
-      reinterpret_cast<Object**>(&roots_[kStringTableRootIndex]));
+      reinterpret_cast<Object**>(&roots_[RootIndex::kStringTable]));
   v->Synchronize(VisitorSynchronization::kStringTable);
   if (!isMinorGC && mode != VISIT_ALL_IN_SWEEP_NEWSPACE &&
       mode != VISIT_FOR_SERIALIZATION) {
@@ -3884,8 +3881,8 @@ void Heap::IterateWeakRoots(RootVisitor* v, VisitMode mode) {
 void Heap::IterateSmiRoots(RootVisitor* v) {
   // Acquire execution access since we are going to read stack limit values.
   ExecutionAccess access(isolate());
-  v->VisitRootPointers(Root::kSmiRootList, nullptr, &roots_[kSmiRootsStart],
-                       &roots_[kRootListLength]);
+  v->VisitRootPointers(Root::kSmiRootList, nullptr, roots_.smi_roots_begin(),
+                       roots_.smi_roots_end());
   v->Synchronize(VisitorSynchronization::kSmiRootList);
 }
 
@@ -3942,8 +3939,9 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   const bool isMinorGC = mode == VISIT_ALL_IN_SCAVENGE ||
                          mode == VISIT_ALL_IN_MINOR_MC_MARK ||
                          mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
-  v->VisitRootPointers(Root::kStrongRootList, nullptr, &roots_[0],
-                       &roots_[kStrongRootListLength]);
+  v->VisitRootPointers(Root::kStrongRootList, nullptr,
+                       &roots_[RootIndex::kRootsStart],
+                       &roots_[RootIndex::kStrongRootListLength]);
   v->Synchronize(VisitorSynchronization::kStrongRootList);
 
   isolate_->bootstrapper()->Iterate(v);
@@ -4603,15 +4601,15 @@ void Heap::SetStackLimits() {
 
   // Set up the special root array entries containing the stack limits.
   // These are actually addresses, but the tag makes the GC ignore it.
-  roots_[kStackLimitRootIndex] = reinterpret_cast<Object*>(
+  roots_[RootIndex::kStackLimit] = reinterpret_cast<Object*>(
       (isolate_->stack_guard()->jslimit() & ~kSmiTagMask) | kSmiTag);
-  roots_[kRealStackLimitRootIndex] = reinterpret_cast<Object*>(
+  roots_[RootIndex::kRealStackLimit] = reinterpret_cast<Object*>(
       (isolate_->stack_guard()->real_jslimit() & ~kSmiTagMask) | kSmiTag);
 }
 
 void Heap::ClearStackLimits() {
-  roots_[kStackLimitRootIndex] = Smi::kZero;
-  roots_[kRealStackLimitRootIndex] = Smi::kZero;
+  roots_[RootIndex::kStackLimit] = Smi::kZero;
+  roots_[RootIndex::kRealStackLimit] = Smi::kZero;
 }
 
 int Heap::NextAllocationTimeout(int current_timeout) {

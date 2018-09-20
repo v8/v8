@@ -106,12 +106,12 @@ static int DumpHeapConstants(const char* argv0) {
 #define RO_ROOT_LIST_CASE(type, name, camel_name) \
   if (n == NULL && o == roots.name()) {           \
     n = #camel_name;                              \
-    i = i::Heap::k##camel_name##RootIndex;        \
+    i = i::RootIndex::k##camel_name;              \
   }
 #define ROOT_LIST_CASE(type, name, camel_name) \
   if (n == NULL && o == heap->name()) {        \
     n = #camel_name;                           \
-    i = i::Heap::k##camel_name##RootIndex;     \
+    i = i::RootIndex::k##camel_name;           \
   }
     i::PagedSpaces spit(heap, i::PagedSpaces::SpacesSpecifier::kAllPagedSpaces);
     i::PrintF("KNOWN_OBJECTS = {\n");
@@ -125,7 +125,7 @@ static int DumpHeapConstants(const char* argv0) {
         // Skip maps in RO_SPACE since they will be reported elsewhere.
         if (o->IsMap()) continue;
         const char* n = nullptr;
-        i::Heap::RootListIndex i = i::Heap::kStrongRootListLength;
+        i::RootIndex i = i::RootIndex::kStrongRootListLength;
         intptr_t p = reinterpret_cast<intptr_t>(o) & 0x7FFFF;
         STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
         MUTABLE_ROOT_LIST(ROOT_LIST_CASE)

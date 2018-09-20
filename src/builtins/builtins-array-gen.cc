@@ -965,8 +965,7 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
 
     // 3) Check that the elements backing store isn't copy-on-write.
     Node* elements = LoadElements(array_receiver);
-    GotoIf(WordEqual(LoadMap(elements),
-                     LoadRoot(Heap::kFixedCOWArrayMapRootIndex)),
+    GotoIf(WordEqual(LoadMap(elements), LoadRoot(RootIndex::kFixedCOWArrayMap)),
            &runtime);
 
     Node* new_length = IntPtrSub(length, IntPtrConstant(1));
@@ -1541,8 +1540,7 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
 
     // 3) Check that the elements backing store isn't copy-on-write.
     Node* elements = LoadElements(array_receiver);
-    GotoIf(WordEqual(LoadMap(elements),
-                     LoadRoot(Heap::kFixedCOWArrayMapRootIndex)),
+    GotoIf(WordEqual(LoadMap(elements), LoadRoot(RootIndex::kFixedCOWArrayMap)),
            &runtime);
 
     Node* new_length = IntPtrSub(length, IntPtrConstant(1));

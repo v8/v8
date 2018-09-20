@@ -56,32 +56,34 @@ HeapObject* AllocationResult::ToObjectChecked() {
 }
 
 #define ROOT_ACCESSOR(type, name, camel_name) \
-  type* Heap::name() { return type::cast(roots_[k##camel_name##RootIndex]); }
+  type* Heap::name() { return type::cast(roots_[RootIndex::k##camel_name]); }
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-#define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name)  \
-  Map* Heap::name##_map() {                                \
-    return Map::cast(roots_[k##Name##Size##MapRootIndex]); \
+#define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name)    \
+  Map* Heap::name##_map() {                                  \
+    return Map::cast(roots_[RootIndex::k##Name##Size##Map]); \
   }
 DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
 #undef DATA_HANDLER_MAP_ACCESSOR
 
-#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName, ...)           \
-  AccessorInfo* Heap::accessor_name##_accessor() {                         \
-    return AccessorInfo::cast(roots_[k##AccessorName##AccessorRootIndex]); \
+#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName, ...)             \
+  AccessorInfo* Heap::accessor_name##_accessor() {                           \
+    return AccessorInfo::cast(roots_[RootIndex::k##AccessorName##Accessor]); \
   }
 ACCESSOR_INFO_LIST(ACCESSOR_INFO_ACCESSOR)
 #undef ACCESSOR_INFO_ACCESSOR
 
-#define ROOT_ACCESSOR(type, name, camel_name)                                 \
-  void Heap::set_##name(type* value) {                                        \
-    /* The deserializer makes use of the fact that these common roots are */  \
-    /* never in new space and never on a page that is being compacted.    */  \
-    DCHECK(!deserialization_complete() ||                                     \
-           RootCanBeWrittenAfterInitialization(k##camel_name##RootIndex));    \
-    DCHECK(k##camel_name##RootIndex >= kOldSpaceRoots || !InNewSpace(value)); \
-    roots_[k##camel_name##RootIndex] = value;                                 \
+#define ROOT_ACCESSOR(type, name, camel_name)                                \
+  void Heap::set_##name(type* value) {                                       \
+    /* The deserializer makes use of the fact that these common roots are */ \
+    /* never in new space and never on a page that is being compacted.    */ \
+    DCHECK(!deserialization_complete() ||                                    \
+           RootCanBeWrittenAfterInitialization(RootIndex::k##camel_name));   \
+    DCHECK_IMPLIES(                                                          \
+        static_cast<int>(RootIndex::k##camel_name) < kOldSpaceRoots,         \
+        !InNewSpace(value));                                                 \
+    roots_[RootIndex::k##camel_name] = value;                                \
   }
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR

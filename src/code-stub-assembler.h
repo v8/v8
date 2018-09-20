@@ -831,7 +831,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load a SMI and untag it.
   TNode<IntPtrT> LoadAndUntagSmi(Node* base, int index);
   // Load a SMI root, untag it, and convert to Word32.
-  TNode<Int32T> LoadAndUntagToWord32Root(Heap::RootListIndex root_index);
+  TNode<Int32T> LoadAndUntagToWord32Root(RootIndex root_index);
 
   TNode<MaybeObject> LoadMaybeWeakObjectField(SloppyTNode<HeapObject> object,
                                               int offset) {
@@ -1169,11 +1169,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       MachineRepresentation rep = MachineRepresentation::kTagged);
   // Store the Map of an HeapObject.
   Node* StoreMap(Node* object, Node* map);
-  Node* StoreMapNoWriteBarrier(Node* object,
-                               Heap::RootListIndex map_root_index);
+  Node* StoreMapNoWriteBarrier(Node* object, RootIndex map_root_index);
   Node* StoreMapNoWriteBarrier(Node* object, Node* map);
-  Node* StoreObjectFieldRoot(Node* object, int offset,
-                             Heap::RootListIndex root);
+  Node* StoreObjectFieldRoot(Node* object, int offset, RootIndex root);
   // Store an array element to a FixedArray.
   void StoreFixedArrayElement(
       TNode<FixedArray> object, int index, SloppyTNode<Object> value,
@@ -1472,8 +1470,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* InternalArrayCreate(TNode<Context> context, TNode<Number> len);
 
   void FillFixedArrayWithValue(ElementsKind kind, Node* array, Node* from_index,
-                               Node* to_index,
-                               Heap::RootListIndex value_root_index,
+                               Node* to_index, RootIndex value_root_index,
                                ParameterMode mode = INTPTR_PARAMETERS);
 
   // Uses memset to effectively initialize the given FixedArray with zeroes.
@@ -1539,9 +1536,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   TNode<FixedDoubleArray> HeapObjectToFixedDoubleArray(TNode<HeapObject> base,
                                                        Label* cast_fail) {
-    GotoIf(WordNotEqual(LoadMap(base),
-                        LoadRoot(Heap::kFixedDoubleArrayMapRootIndex)),
-           cast_fail);
+    GotoIf(
+        WordNotEqual(LoadMap(base), LoadRoot(RootIndex::kFixedDoubleArrayMap)),
+        cast_fail);
     return UncheckedCast<FixedDoubleArray>(base);
   }
 
@@ -2680,7 +2677,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                                ParameterMode mode);
 
   void InitializeFieldsWithRoot(Node* object, Node* start_offset,
-                                Node* end_offset, Heap::RootListIndex root);
+                                Node* end_offset, RootIndex root);
 
   Node* RelationalComparison(Operation op, Node* left, Node* right,
                              Node* context,
@@ -2970,11 +2967,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* EmitKeyedSloppyArguments(Node* receiver, Node* key, Node* value,
                                  Label* bailout);
 
-  TNode<String> AllocateSlicedString(Heap::RootListIndex map_root_index,
+  TNode<String> AllocateSlicedString(RootIndex map_root_index,
                                      TNode<Uint32T> length,
                                      TNode<String> parent, TNode<Smi> offset);
 
-  TNode<String> AllocateConsString(Heap::RootListIndex map_root_index,
+  TNode<String> AllocateConsString(RootIndex map_root_index,
                                    TNode<Uint32T> length, TNode<String> first,
                                    TNode<String> second, AllocationFlags flags);
 
