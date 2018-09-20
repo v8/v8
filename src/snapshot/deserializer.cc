@@ -241,13 +241,6 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
       buffer->set_backing_store(backing_store);
       isolate_->heap()->RegisterNewArrayBuffer(buffer);
     }
-  } else if (obj->IsJSDataView()) {
-    // Fixup the JSDataView::external_pointer field.
-    JSDataView* data_view = JSDataView::cast(obj);
-    JSArrayBuffer* buffer = JSArrayBuffer::cast(data_view->buffer());
-    data_view->set_external_pointer(
-        reinterpret_cast<uint8_t*>(buffer->backing_store()) +
-        data_view->byte_offset());
   } else if (obj->IsFixedTypedArrayBase()) {
     FixedTypedArrayBase* fta = FixedTypedArrayBase::cast(obj);
     // Only fixup for the off-heap case.

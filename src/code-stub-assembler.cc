@@ -12263,12 +12263,6 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferViewByteOffset(
                                    JSArrayBufferView::kByteOffsetOffset);
 }
 
-TNode<RawPtrT> CodeStubAssembler::LoadJSDataViewExternalPointer(
-    TNode<JSDataView> data_view) {
-  return LoadObjectField<RawPtrT>(data_view,
-                                  JSDataView::kExternalPointerOffset);
-}
-
 TNode<Smi> CodeStubAssembler::LoadJSTypedArrayLength(
     TNode<JSTypedArray> typed_array) {
   return LoadObjectField<Smi>(typed_array, JSTypedArray::kLengthOffset);

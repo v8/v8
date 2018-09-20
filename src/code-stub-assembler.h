@@ -2789,9 +2789,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       SloppyTNode<Context> context, TNode<JSArrayBufferView> array_buffer_view,
       const char* method_name);
 
-  // JSDataView helpers
-  TNode<RawPtrT> LoadJSDataViewExternalPointer(TNode<JSDataView> data_view);
-
   // JSTypedArray helpers
   TNode<Smi> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
 

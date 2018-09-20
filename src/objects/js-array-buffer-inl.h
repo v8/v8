@@ -33,7 +33,7 @@ void* JSArrayBuffer::backing_store() const {
   return reinterpret_cast<void*>(ptr);
 }
 
-void JSArrayBuffer::set_backing_store(void* value) {
+void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
   intptr_t ptr = reinterpret_cast<intptr_t>(value);
   WRITE_INTPTR_FIELD(this, kBackingStoreOffset, ptr);
 }
@@ -183,16 +183,6 @@ MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
 #ifdef VERIFY_HEAP
 ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
 #endif
-
-void* JSDataView::external_pointer() const {
-  intptr_t ptr = READ_INTPTR_FIELD(this, kExternalPointerOffset);
-  return reinterpret_cast<void*>(ptr);
-}
-
-void JSDataView::set_external_pointer(void* value) {
-  intptr_t ptr = reinterpret_cast<intptr_t>(value);
-  WRITE_INTPTR_FIELD(this, kExternalPointerOffset, ptr);
-}
 
 }  // namespace internal
 }  // namespace v8

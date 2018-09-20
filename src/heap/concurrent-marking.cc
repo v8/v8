@@ -184,11 +184,7 @@ class ConcurrentMarkingVisitor final
     return VisitJSObjectSubclass(map, object);
   }
 
-  int VisitJSDataView(Map* map, JSDataView* object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-  int VisitJSTypedArray(Map* map, JSTypedArray* object) {
+  int VisitJSArrayBufferView(Map* map, JSArrayBufferView* object) {
     return VisitJSObjectSubclass(map, object);
   }
 

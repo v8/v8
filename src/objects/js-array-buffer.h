@@ -32,7 +32,7 @@ class JSArrayBuffer : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
   // [backing_store]: backing memory for this array
-  DECL_PRIMITIVE_ACCESSORS(backing_store, void*)
+  DECL_ACCESSORS(backing_store, void)
 
   // For non-wasm, allocation_length and allocation_base are byte_length and
   // backing_store, respectively.
@@ -156,6 +156,10 @@ class JSArrayBufferView : public JSObject {
   static const int kByteLengthOffset = kByteOffsetOffset + kUIntptrSize;
   static const int kHeaderSize = kByteLengthOffset + kUIntptrSize;
 
+  // Iterates all fields in the object including internal ones except
+  // kByteOffset and kByteLengthOffset.
+  class BodyDescriptor;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBufferView);
 };
@@ -194,10 +198,6 @@ class JSTypedArray : public JSArrayBufferView {
   static const int kSizeWithEmbedderFields =
       kSize + v8::ArrayBufferView::kEmbedderFieldCount * kPointerSize;
 
-  // Iterates all fields in the object including internal ones except
-  // kByteOffsetOffset, kByteLengthOffset and kLengthOffset.
-  class BodyDescriptor;
-
  private:
   static Handle<JSArrayBuffer> MaterializeArrayBuffer(
       Handle<JSTypedArray> typed_array);
@@ -210,24 +210,15 @@ class JSTypedArray : public JSArrayBufferView {
 
 class JSDataView : public JSArrayBufferView {
  public:
-  // [external_pointer]: Points into the actual backing store at the
-  // byte offset of this data view.
-  DECL_PRIMITIVE_ACCESSORS(external_pointer, void*)
-
   DECL_CAST(JSDataView)
 
   // Dispatched behavior.
   DECL_PRINTER(JSDataView)
   DECL_VERIFIER(JSDataView)
 
-  static const int kExternalPointerOffset = JSArrayBufferView::kHeaderSize;
-  static const int kSize = kExternalPointerOffset + kPointerSize;
+  static const int kSize = JSArrayBufferView::kHeaderSize;
   static const int kSizeWithEmbedderFields =
       kSize + v8::ArrayBufferView::kEmbedderFieldCount * kPointerSize;
-
-  // Iterates all fields in the object including internal ones except
-  // kByteOffsetOffset, kByteLengthOffset and kExternalPointerOffset.
-  class BodyDescriptor;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataView);

@@ -3161,10 +3161,8 @@ VisitorId Map::GetVisitorId(Map* map) {
       return kVisitJSArrayBuffer;
 
     case JS_DATA_VIEW_TYPE:
-      return kVisitJSDataView;
-
     case JS_TYPED_ARRAY_TYPE:
-      return kVisitJSTypedArray;
+      return kVisitJSArrayBufferView;
 
     case SMALL_ORDERED_HASH_MAP_TYPE:
       return kVisitSmallOrderedHashMap;
