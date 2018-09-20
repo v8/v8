@@ -3364,7 +3364,7 @@ bool JSObject::IsUnmodifiedApiObject(Object** o) {
   HeapObject* heap_object = HeapObject::cast(object);
   if (!object->IsJSObject()) return false;
   JSObject* js_object = JSObject::cast(object);
-  if (!js_object->IsApiWrapper()) return false;
+  if (!js_object->IsDroppableApiWrapper()) return false;
   Object* maybe_constructor = js_object->map()->GetConstructor();
   if (!maybe_constructor->IsJSFunction()) return false;
   JSFunction* constructor = JSFunction::cast(maybe_constructor);
@@ -16008,6 +16008,18 @@ bool FixedArrayBase::IsCowArray() const {
 }
 
 bool JSObject::IsApiWrapper() {
+  // These object types can carry information relevant for embedders. The
+  // *_API_* types are generated through templates which can have embedder
+  // fields. The other types have their embedder fields added at compile time.
+  auto instance_type = map()->instance_type();
+  return instance_type == JS_API_OBJECT_TYPE ||
+         instance_type == JS_ARRAY_BUFFER_TYPE ||
+         instance_type == JS_DATA_VIEW_TYPE ||
+         instance_type == JS_SPECIAL_API_OBJECT_TYPE ||
+         instance_type == JS_TYPED_ARRAY_TYPE;
+}
+
+bool JSObject::IsDroppableApiWrapper() {
   auto instance_type = map()->instance_type();
   return instance_type == JS_API_OBJECT_TYPE ||
          instance_type == JS_SPECIAL_API_OBJECT_TYPE;

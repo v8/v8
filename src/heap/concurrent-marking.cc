@@ -184,23 +184,26 @@ class ConcurrentMarkingVisitor final
     return VisitJSObjectSubclass(map, object);
   }
 
-  int VisitJSArrayBuffer(Map* map, JSArrayBuffer* object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-  int VisitJSDataView(Map* map, JSDataView* object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
-  int VisitJSTypedArray(Map* map, JSTypedArray* object) {
-    return VisitJSObjectSubclass(map, object);
-  }
-
   int VisitWasmInstanceObject(Map* map, WasmInstanceObject* object) {
     return VisitJSObjectSubclass(map, object);
   }
 
+  // Some JS objects can carry back links to embedders that contain information
+  // relevant to the garbage collectors.
+
   int VisitJSApiObject(Map* map, JSObject* object) {
+    return VisitEmbedderTracingSubclass(map, object);
+  }
+
+  int VisitJSArrayBuffer(Map* map, JSArrayBuffer* object) {
+    return VisitEmbedderTracingSubclass(map, object);
+  }
+
+  int VisitJSDataView(Map* map, JSDataView* object) {
+    return VisitEmbedderTracingSubclass(map, object);
+  }
+
+  int VisitJSTypedArray(Map* map, JSTypedArray* object) {
     return VisitEmbedderTracingSubclass(map, object);
   }
 

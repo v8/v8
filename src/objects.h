@@ -2543,6 +2543,9 @@ class JSObject: public JSReceiver {
   // Heap::TracePossibleWrapper.
   bool IsApiWrapper();
 
+  // Same as IsApiWrapper() but also allow dropping the wrapper on minor GCs.
+  bool IsDroppableApiWrapper();
+
   // Returns a new map with all transitions dropped from the object's current
   // map and the ElementsKind set.
   static Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,

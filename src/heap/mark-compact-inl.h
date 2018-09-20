@@ -46,14 +46,48 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
 
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
-int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitJSApiObject(Map* map, JSObject* object) {
+template <typename T>
+V8_INLINE int
+MarkingVisitor<fixed_array_mode, retaining_path_mode,
+               MarkingState>::VisitEmbedderTracingSubclass(Map* map,
+                                                           T* object) {
   if (heap_->local_embedder_heap_tracer()->InUse()) {
     heap_->TracePossibleWrapper(object);
   }
-  int size = JSObject::BodyDescriptor::SizeOf(map, object);
-  JSObject::BodyDescriptor::IterateBody(map, object, size, this);
+  int size = T::BodyDescriptor::SizeOf(map, object);
+  T::BodyDescriptor::IterateBody(map, object, size, this);
   return size;
+}
+
+template <FixedArrayVisitationMode fixed_array_mode,
+          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
+int MarkingVisitor<fixed_array_mode, retaining_path_mode,
+                   MarkingState>::VisitJSApiObject(Map* map, JSObject* object) {
+  return VisitEmbedderTracingSubclass(map, object);
+}
+
+template <FixedArrayVisitationMode fixed_array_mode,
+          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
+int MarkingVisitor<fixed_array_mode, retaining_path_mode,
+                   MarkingState>::VisitJSArrayBuffer(Map* map,
+                                                     JSArrayBuffer* object) {
+  return VisitEmbedderTracingSubclass(map, object);
+}
+
+template <FixedArrayVisitationMode fixed_array_mode,
+          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
+int MarkingVisitor<fixed_array_mode, retaining_path_mode,
+                   MarkingState>::VisitJSDataView(Map* map,
+                                                  JSDataView* object) {
+  return VisitEmbedderTracingSubclass(map, object);
+}
+
+template <FixedArrayVisitationMode fixed_array_mode,
+          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
+int MarkingVisitor<fixed_array_mode, retaining_path_mode,
+                   MarkingState>::VisitJSTypedArray(Map* map,
+                                                    JSTypedArray* object) {
+  return VisitEmbedderTracingSubclass(map, object);
 }
 
 template <FixedArrayVisitationMode fixed_array_mode,
