@@ -376,18 +376,6 @@ FieldAccess AccessBuilder::ForJSArrayBufferViewByteOffset() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSDataViewExternalPointer() {
-  FieldAccess access = {kTaggedBase,
-                        JSDataView::kExternalPointerOffset,
-                        MaybeHandle<Name>(),
-                        MaybeHandle<Map>(),
-                        Type::ExternalPointer(),
-                        MachineType::Pointer(),
-                        kNoWriteBarrier};
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForJSTypedArrayLength() {
   FieldAccess access = {kTaggedBase,
                         JSTypedArray::kLengthOffset,

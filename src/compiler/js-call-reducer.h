@@ -182,9 +182,6 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                           InstanceType instance_type,
                                           FieldAccess const& access);
 
-  enum class DataViewAccess { kGet, kSet };
-  Reduction ReduceDataViewAccess(Node* node, DataViewAccess access,
-                                 ExternalArrayType element_type);
   Reduction ReduceDataViewPrototypeGet(Node* node,
                                        ExternalArrayType element_type);
   Reduction ReduceDataViewPrototypeSet(Node* node,

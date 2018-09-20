@@ -708,15 +708,6 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeContent(Map* map,
     object_->IterateBody(map, size, this);
     // Finally skip to the end.
     serializer_->FlushSkip(SkipTo(object_->address() + size));
-  } else if (object_->IsJSDataView()) {
-    // JSDataView::external_pointer() contains a raw pointer. Change it
-    // to nullptr for serialization to keep the snapshot predictable.
-    JSDataView* data_view = JSDataView::cast(object_);
-    void* external_pointer = data_view->external_pointer();
-    data_view->set_external_pointer(nullptr);
-    object_->IterateBody(map, size, this);
-    OutputRawData(object_->address() + size);
-    data_view->set_external_pointer(external_pointer);
   } else {
     // For other objects, iterate references first.
     object_->IterateBody(map, size, this);

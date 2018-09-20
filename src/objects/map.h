@@ -37,10 +37,9 @@ namespace internal {
   V(FreeSpace)                           \
   V(JSApiObject)                         \
   V(JSArrayBuffer)                       \
-  V(JSDataView)                          \
+  V(JSArrayBufferView)                   \
   V(JSObject)                            \
   V(JSObjectFast)                        \
-  V(JSTypedArray)                        \
   V(JSWeakCollection)                    \
   V(Map)                                 \
   V(NativeContext)                       \

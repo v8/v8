@@ -130,9 +130,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSArrayBufferView::byteOffset() field.
   static FieldAccess ForJSArrayBufferViewByteOffset();
 
-  // Provides access to JSDataView::external_pointer() field.
-  static FieldAccess ForJSDataViewExternalPointer();
-
   // Provides access to JSTypedArray::length() field.
   static FieldAccess ForJSTypedArrayLength();
 
