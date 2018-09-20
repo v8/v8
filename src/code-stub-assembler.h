@@ -450,10 +450,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   HEAP_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_TEST)
 #undef HEAP_CONSTANT_TEST
 
-  TNode<Int64T> HashSeed();
-  TNode<Int32T> HashSeedHigh();
-  TNode<Int32T> HashSeedLow();
-
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
   TNode<Smi> LanguageModeConstant(LanguageMode mode) {
     return SmiConstant(static_cast<int>(mode));
