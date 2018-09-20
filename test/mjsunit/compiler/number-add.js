@@ -31,3 +31,32 @@
   %OptimizeFunctionOnNextCall(bar);
   assertEquals(2, bar(3));
 })();
+
+// This tests that SpeculativeNumberAdd can still lower to
+// Int32Add in SimplifiedLowering, which requires some magic
+// to make sure that SpeculativeNumberAdd survives to that
+// point, especially the JSTypedLowering needs to be unable
+// to tell that the inputs to SpeculativeNumberAdd are non
+// String primitives.
+(function() {
+  // We need a function that has a + with feedback Number or
+  // NumberOrOddball, but for whose inputs the JSTypedLowering
+  // cannot reduce it to NumberAdd (with SpeculativeToNumber
+  // conversions). We achieve this utilizing an object literal
+  // indirection here.
+  function baz(x) {
+    return {x}.x + x;
+  }
+  baz(null);
+  baz(undefined);
+
+  // Now we just need to truncate the result.
+  function foo(x) {
+    return baz(1) | 0;
+  }
+
+  assertEquals(2, foo());
+  assertEquals(2, foo());
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(2, foo());
+})();
