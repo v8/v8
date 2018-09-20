@@ -67,6 +67,7 @@ class S390OperandConverter final : public InstructionOperandConverter {
         return Operand(constant.ToInt64());
 #endif
       case Constant::kExternalReference:
+        return Operand(constant.ToExternalReference());
       case Constant::kDelayedStringConstant:
         return Operand::EmbeddedStringConstant(
             constant.ToDelayedStringConstant());
