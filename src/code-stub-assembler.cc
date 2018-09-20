@@ -4016,62 +4016,58 @@ TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
   return UncheckedCast<FixedArray>(array);
 }
 
-TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
-    Node* fixed_array, Node* first, Node* count, Node* capacity,
+TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
+    Node* source, Node* first, Node* count, Node* capacity, Node* source_map,
+    ElementsKind from_kind, AllocationFlags allocation_flags,
     ExtractFixedArrayFlags extract_flags, ParameterMode parameter_mode) {
+  DCHECK_NE(first, nullptr);
+  DCHECK_NE(count, nullptr);
+  DCHECK_NE(capacity, nullptr);
+  DCHECK(extract_flags & ExtractFixedArrayFlag::kFixedArrays);
+  CSA_ASSERT(this,
+             WordNotEqual(IntPtrOrSmiConstant(0, parameter_mode), capacity));
+  CSA_ASSERT(this, WordEqual(source_map, LoadMap(source)));
+
   VARIABLE(var_result, MachineRepresentation::kTagged);
-  VARIABLE(var_fixed_array_map, MachineRepresentation::kTagged);
-  const AllocationFlags flags =
-      (extract_flags & ExtractFixedArrayFlag::kNewSpaceAllocationOnly)
-          ? CodeStubAssembler::kNone
-          : CodeStubAssembler::kAllowLargeObjectAllocation;
-  if (first == nullptr) {
-    first = IntPtrOrSmiConstant(0, parameter_mode);
-  }
-  if (count == nullptr) {
-    count =
-        IntPtrOrSmiSub(TaggedToParameter(LoadFixedArrayBaseLength(fixed_array),
-                                         parameter_mode),
-                       first, parameter_mode);
+  VARIABLE(var_target_map, MachineRepresentation::kTagged, source_map);
 
-    CSA_ASSERT(
-        this, IntPtrOrSmiLessThanOrEqual(IntPtrOrSmiConstant(0, parameter_mode),
-                                         count, parameter_mode));
-  }
-  if (capacity == nullptr) {
-    capacity = count;
+  Label done(this, {&var_result}), is_cow(this),
+      new_space_check(this, {&var_target_map});
+
+  // If source_map is either FixedDoubleArrayMap, or FixedCOWArrayMap but
+  // we can't just use COW, use FixedArrayMap as the target map. Otherwise, use
+  // source_map as the target map.
+  if (IsDoubleElementsKind(from_kind)) {
+    CSA_ASSERT(this, IsFixedDoubleArrayMap(source_map));
+    var_target_map.Bind(LoadRoot(RootIndex::kFixedArrayMap));
+    Goto(&new_space_check);
   } else {
-    CSA_ASSERT(this, Word32BinaryNot(IntPtrOrSmiGreaterThan(
-                         IntPtrOrSmiAdd(first, count, parameter_mode), capacity,
-                         parameter_mode)));
-  }
-
-  Label if_fixed_double_array(this), empty(this), cow(this),
-      done(this, {&var_result, &var_fixed_array_map});
-  var_fixed_array_map.Bind(LoadMap(fixed_array));
-  GotoIf(WordEqual(IntPtrOrSmiConstant(0, parameter_mode), capacity), &empty);
-
-  if (extract_flags & ExtractFixedArrayFlag::kFixedDoubleArrays) {
-    if (extract_flags & ExtractFixedArrayFlag::kFixedArrays) {
-      GotoIf(IsFixedDoubleArrayMap(var_fixed_array_map.value()),
-             &if_fixed_double_array);
-    } else {
-      CSA_ASSERT(this, IsFixedDoubleArrayMap(var_fixed_array_map.value()));
-    }
-  } else {
-    DCHECK(extract_flags & ExtractFixedArrayFlag::kFixedArrays);
-    CSA_ASSERT(this, Word32BinaryNot(
-                         IsFixedDoubleArrayMap(var_fixed_array_map.value())));
-  }
-
-  if (extract_flags & ExtractFixedArrayFlag::kFixedArrays) {
-    Label new_space_check(this, {&var_fixed_array_map});
-    Branch(WordEqual(var_fixed_array_map.value(),
+    CSA_ASSERT(this, Word32BinaryNot(IsFixedDoubleArrayMap(source_map)));
+    Branch(WordEqual(var_target_map.value(),
                      LoadRoot(RootIndex::kFixedCOWArrayMap)),
-           &cow, &new_space_check);
+           &is_cow, &new_space_check);
 
-    BIND(&new_space_check);
+    BIND(&is_cow);
+    {
+      // |source| is a COW array, so we don't actually need to allocate a new
+      // array unless:
+      // 1) |extract_flags| forces us to, or
+      // 2) we're asked to extract only part of the |source| (|first| != 0).
+      if (extract_flags & ExtractFixedArrayFlag::kDontCopyCOW) {
+        Branch(WordNotEqual(IntPtrOrSmiConstant(0, parameter_mode), first),
+               &new_space_check, [&] {
+                 var_result.Bind(source);
+                 Goto(&done);
+               });
+      } else {
+        var_target_map.Bind(LoadRoot(RootIndex::kFixedArrayMap));
+        Goto(&new_space_check);
+      }
+    }
+  }
 
+  BIND(&new_space_check);
+  {
     bool handle_old_space = true;
     if (extract_flags & ExtractFixedArrayFlag::kNewSpaceAllocationOnly) {
       handle_old_space = false;
@@ -4092,59 +4088,102 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
           capacity, &old_space, FixedArray::kHeaderSize, parameter_mode);
     }
 
-    Comment("Copy PACKED_ELEMENTS new space");
-
-    ElementsKind kind = PACKED_ELEMENTS;
+    Comment("Copy FixedArray new space");
+    // We use PACKED_ELEMENTS to tell AllocateFixedArray and
+    // CopyFixedArrayElements that we want a FixedArray.
+    ElementsKind to_kind = PACKED_ELEMENTS;
     Node* to_elements =
-        AllocateFixedArray(kind, capacity, parameter_mode,
-                           AllocationFlag::kNone, var_fixed_array_map.value());
+        AllocateFixedArray(to_kind, capacity, parameter_mode,
+                           AllocationFlag::kNone, var_target_map.value());
     var_result.Bind(to_elements);
-    CopyFixedArrayElements(kind, fixed_array, kind, to_elements, first, count,
-                           capacity, SKIP_WRITE_BARRIER, parameter_mode);
+    CopyFixedArrayElements(from_kind, source, to_kind, to_elements, first,
+                           count, capacity, SKIP_WRITE_BARRIER, parameter_mode);
     Goto(&done);
 
     if (handle_old_space) {
       BIND(&old_space);
       {
-        Comment("Copy PACKED_ELEMENTS old space");
+        Comment("Copy FixedArray old space");
 
-        to_elements = AllocateFixedArray(kind, capacity, parameter_mode, flags,
-                                         var_fixed_array_map.value());
+        to_elements =
+            AllocateFixedArray(to_kind, capacity, parameter_mode,
+                               allocation_flags, var_target_map.value());
         var_result.Bind(to_elements);
-        CopyFixedArrayElements(kind, fixed_array, kind, to_elements, first,
+        CopyFixedArrayElements(from_kind, source, to_kind, to_elements, first,
                                count, capacity, UPDATE_WRITE_BARRIER,
                                parameter_mode);
         Goto(&done);
       }
     }
+  }
 
-    BIND(&cow);
-    {
-      if (extract_flags & ExtractFixedArrayFlag::kDontCopyCOW) {
-        Branch(WordNotEqual(IntPtrOrSmiConstant(0, parameter_mode), first),
-               &new_space_check, [&] {
-                 var_result.Bind(fixed_array);
-                 Goto(&done);
-               });
-      } else {
-        var_fixed_array_map.Bind(LoadRoot(RootIndex::kFixedArrayMap));
-        Goto(&new_space_check);
-      }
-    }
+  BIND(&done);
+  return UncheckedCast<FixedArray>(var_result.value());
+}
+
+TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
+    Node* source, Node* first, Node* count, Node* capacity,
+    ExtractFixedArrayFlags extract_flags, ParameterMode parameter_mode) {
+  DCHECK(extract_flags & ExtractFixedArrayFlag::kFixedArrays ||
+         extract_flags & ExtractFixedArrayFlag::kFixedDoubleArrays);
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  const AllocationFlags allocation_flags =
+      (extract_flags & ExtractFixedArrayFlag::kNewSpaceAllocationOnly)
+          ? CodeStubAssembler::kNone
+          : CodeStubAssembler::kAllowLargeObjectAllocation;
+  if (first == nullptr) {
+    first = IntPtrOrSmiConstant(0, parameter_mode);
+  }
+  if (count == nullptr) {
+    count = IntPtrOrSmiSub(
+        TaggedToParameter(LoadFixedArrayBaseLength(source), parameter_mode),
+        first, parameter_mode);
+
+    CSA_ASSERT(
+        this, IntPtrOrSmiLessThanOrEqual(IntPtrOrSmiConstant(0, parameter_mode),
+                                         count, parameter_mode));
+  }
+  if (capacity == nullptr) {
+    capacity = count;
   } else {
-    Goto(&if_fixed_double_array);
+    CSA_ASSERT(this, Word32BinaryNot(IntPtrOrSmiGreaterThan(
+                         IntPtrOrSmiAdd(first, count, parameter_mode), capacity,
+                         parameter_mode)));
+  }
+
+  Label if_fixed_double_array(this), empty(this), done(this, {&var_result});
+  Node* source_map = LoadMap(source);
+  GotoIf(WordEqual(IntPtrOrSmiConstant(0, parameter_mode), capacity), &empty);
+
+  if (extract_flags & ExtractFixedArrayFlag::kFixedDoubleArrays) {
+    if (extract_flags & ExtractFixedArrayFlag::kFixedArrays) {
+      GotoIf(IsFixedDoubleArrayMap(source_map), &if_fixed_double_array);
+    } else {
+      CSA_ASSERT(this, IsFixedDoubleArrayMap(source_map));
+    }
+  }
+
+  if (extract_flags & ExtractFixedArrayFlag::kFixedArrays) {
+    // Here we can only get source as FixedArray, never FixedDoubleArray.
+    // PACKED_ELEMENTS is used to signify that the source is a FixedArray.
+    Node* to_elements = ExtractToFixedArray(
+        source, first, count, capacity, source_map, PACKED_ELEMENTS,
+        allocation_flags, extract_flags, parameter_mode);
+    var_result.Bind(to_elements);
+    Goto(&done);
   }
 
   if (extract_flags & ExtractFixedArrayFlag::kFixedDoubleArrays) {
     BIND(&if_fixed_double_array);
 
-    Comment("Copy PACKED_DOUBLE_ELEMENTS");
-
+    Comment("Copy FixedDoubleArray");
+    // We use PACKED_DOUBLE_ELEMENTS to signify that the source is
+    // FixedDoubleArray. That it is PACKED or HOLEY does not matter.
     ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
     Node* to_elements = AllocateFixedArray(kind, capacity, parameter_mode,
-                                           flags, var_fixed_array_map.value());
+                                           allocation_flags, source_map);
     var_result.Bind(to_elements);
-    CopyFixedArrayElements(kind, fixed_array, kind, to_elements, first, count,
+    CopyFixedArrayElements(kind, source, kind, to_elements, first, count,
                            capacity, SKIP_WRITE_BARRIER, parameter_mode);
 
     Goto(&done);
