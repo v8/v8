@@ -4665,6 +4665,10 @@ void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   local_embedder_heap_tracer()->SetRemoteTracer(tracer);
 }
 
+EmbedderHeapTracer* Heap::GetEmbedderHeapTracer() const {
+  return local_embedder_heap_tracer()->remote_tracer();
+}
+
 void Heap::TracePossibleWrapper(JSObject* js_object) {
   DCHECK(js_object->IsApiWrapper());
   if (js_object->GetEmbedderFieldCount() >= 2 &&

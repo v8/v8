@@ -1038,10 +1038,13 @@ class Heap {
   // Embedder heap tracer support. =============================================
   // ===========================================================================
 
-  LocalEmbedderHeapTracer* local_embedder_heap_tracer() {
+  LocalEmbedderHeapTracer* local_embedder_heap_tracer() const {
     return local_embedder_heap_tracer_;
   }
+
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
+  EmbedderHeapTracer* GetEmbedderHeapTracer() const;
+
   void TracePossibleWrapper(JSObject* js_object);
   void RegisterExternallyReferencedObject(Object** object);
   void SetEmbedderStackStateForNextFinalizaton(

@@ -7685,6 +7685,11 @@ class V8_EXPORT Isolate {
    */
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
 
+  /*
+   * Gets the currently active heap tracer for the isolate.
+   */
+  EmbedderHeapTracer* GetEmbedderHeapTracer();
+
   /**
    * Use for |AtomicsWaitCallback| to indicate the type of event it receives.
    */

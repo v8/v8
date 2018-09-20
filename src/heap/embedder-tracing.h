@@ -24,6 +24,8 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     if (remote_tracer_) remote_tracer_->isolate_ = nullptr;
   }
 
+  EmbedderHeapTracer* remote_tracer() const { return remote_tracer_; }
+
   void SetRemoteTracer(EmbedderHeapTracer* tracer) {
     if (remote_tracer_) remote_tracer_->isolate_ = nullptr;
 
