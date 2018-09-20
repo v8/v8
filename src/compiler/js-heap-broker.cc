@@ -27,9 +27,18 @@ HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 
 class ObjectData : public ZoneObject {
  public:
-  ObjectData(JSHeapBroker* broker, Handle<Object> object, bool is_smi)
+  ObjectData(JSHeapBroker* broker, ObjectData** storage, Handle<Object> object,
+             bool is_smi)
       : broker_(broker), object_(object), is_smi_(is_smi) {
-    broker->AddData(object, this);
+    *storage = this;
+
+    broker->Trace("Creating data %p for handle %" V8PRIuPTR " (", this,
+                  object.address());
+    if (FLAG_trace_heap_broker) {
+      object->ShortPrint();
+      PrintF(")\n");
+    }
+    CHECK_NOT_NULL(broker->isolate()->handle_scope_data()->canonical_scope);
   }
 
 #define DECLARE_IS_AND_AS(Name) \
@@ -50,7 +59,8 @@ class ObjectData : public ZoneObject {
 
 class HeapObjectData : public ObjectData {
  public:
-  HeapObjectData(JSHeapBroker* broker, Handle<HeapObject> object);
+  HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
+                 Handle<HeapObject> object);
 
   bool boolean_value() const { return boolean_value_; }
   MapData* map() const { return map_; }
@@ -65,7 +75,8 @@ class HeapObjectData : public ObjectData {
 
 class PropertyCellData : public HeapObjectData {
  public:
-  PropertyCellData(JSHeapBroker* broker, Handle<PropertyCell> object);
+  PropertyCellData(JSHeapBroker* broker, ObjectData** storage,
+                   Handle<PropertyCell> object);
 
   PropertyDetails property_details() const { return property_details_; }
 
@@ -79,9 +90,9 @@ class PropertyCellData : public HeapObjectData {
   ObjectData* value_ = nullptr;
 };
 
-PropertyCellData::PropertyCellData(JSHeapBroker* broker,
+PropertyCellData::PropertyCellData(JSHeapBroker* broker, ObjectData** storage,
                                    Handle<PropertyCell> object)
-    : HeapObjectData(broker, object),
+    : HeapObjectData(broker, storage, object),
       property_details_(object->property_details()) {}
 
 void PropertyCellData::Serialize() {
@@ -117,7 +128,8 @@ class JSObjectField {
 
 class JSObjectData : public HeapObjectData {
  public:
-  JSObjectData(JSHeapBroker* broker, Handle<JSObject> object);
+  JSObjectData(JSHeapBroker* broker, ObjectData** storage,
+               Handle<JSObject> object);
 
   // Recursively serializes all reachable JSObjects.
   void SerializeAsBoilerplate();
@@ -174,7 +186,8 @@ void JSObjectData::SerializeObjectCreateMap() {
 
 class JSFunctionData : public JSObjectData {
  public:
-  JSFunctionData(JSHeapBroker* broker, Handle<JSFunction> object);
+  JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
+                 Handle<JSFunction> object);
 
   bool has_initial_map() const { return has_initial_map_; }
   bool has_prototype() const { return has_prototype_; }
@@ -209,8 +222,9 @@ class JSFunctionData : public JSObjectData {
 
 class JSRegExpData : public JSObjectData {
  public:
-  JSRegExpData(JSHeapBroker* broker, Handle<JSRegExp> object)
-      : JSObjectData(broker, object) {}
+  JSRegExpData(JSHeapBroker* broker, ObjectData** storage,
+               Handle<JSRegExp> object)
+      : JSObjectData(broker, storage, object) {}
 
   void SerializeAsRegExpBoilerplate();
 
@@ -232,8 +246,9 @@ class JSRegExpData : public JSObjectData {
 
 class HeapNumberData : public HeapObjectData {
  public:
-  HeapNumberData(JSHeapBroker* broker, Handle<HeapNumber> object)
-      : HeapObjectData(broker, object), value_(object->value()) {}
+  HeapNumberData(JSHeapBroker* broker, ObjectData** storage,
+                 Handle<HeapNumber> object)
+      : HeapObjectData(broker, storage, object), value_(object->value()) {}
 
   double value() const { return value_; }
 
@@ -243,8 +258,9 @@ class HeapNumberData : public HeapObjectData {
 
 class MutableHeapNumberData : public HeapObjectData {
  public:
-  MutableHeapNumberData(JSHeapBroker* broker, Handle<MutableHeapNumber> object)
-      : HeapObjectData(broker, object), value_(object->value()) {}
+  MutableHeapNumberData(JSHeapBroker* broker, ObjectData** storage,
+                        Handle<MutableHeapNumber> object)
+      : HeapObjectData(broker, storage, object), value_(object->value()) {}
 
   double value() const { return value_; }
 
@@ -254,7 +270,8 @@ class MutableHeapNumberData : public HeapObjectData {
 
 class ContextData : public HeapObjectData {
  public:
-  ContextData(JSHeapBroker* broker, Handle<Context> object);
+  ContextData(JSHeapBroker* broker, ObjectData** storage,
+              Handle<Context> object);
   void Serialize();
 
   ContextData* previous() const {
@@ -267,8 +284,9 @@ class ContextData : public HeapObjectData {
   ContextData* previous_ = nullptr;
 };
 
-ContextData::ContextData(JSHeapBroker* broker, Handle<Context> object)
-    : HeapObjectData(broker, object) {}
+ContextData::ContextData(JSHeapBroker* broker, ObjectData** storage,
+                         Handle<Context> object)
+    : HeapObjectData(broker, storage, object) {}
 
 void ContextData::Serialize() {
   if (serialized_) return;
@@ -296,7 +314,8 @@ class NativeContextData : public ContextData {
     return function_maps_;
   }
 
-  NativeContextData(JSHeapBroker* broker, Handle<NativeContext> object);
+  NativeContextData(JSHeapBroker* broker, ObjectData** storage,
+                    Handle<NativeContext> object);
   void Serialize();
 
  private:
@@ -309,13 +328,13 @@ class NativeContextData : public ContextData {
 
 class NameData : public HeapObjectData {
  public:
-  NameData(JSHeapBroker* broker, Handle<Name> object)
-      : HeapObjectData(broker, object) {}
+  NameData(JSHeapBroker* broker, ObjectData** storage, Handle<Name> object)
+      : HeapObjectData(broker, storage, object) {}
 };
 
 class StringData : public NameData {
  public:
-  StringData(JSHeapBroker* broker, Handle<String> object);
+  StringData(JSHeapBroker* broker, ObjectData** storage, Handle<String> object);
 
   int length() const { return length_; }
   uint16_t first_char() const { return first_char_; }
@@ -333,8 +352,9 @@ class StringData : public NameData {
   static constexpr int kMaxLengthForDoubleConversion = 23;
 };
 
-StringData::StringData(JSHeapBroker* broker, Handle<String> object)
-    : NameData(broker, object),
+StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
+                       Handle<String> object)
+    : NameData(broker, storage, object),
       length_(object->length()),
       first_char_(length_ > 0 ? object->Get(0) : 0),
       is_external_string_(object->IsExternalString()),
@@ -348,9 +368,9 @@ StringData::StringData(JSHeapBroker* broker, Handle<String> object)
 
 class InternalizedStringData : public StringData {
  public:
-  InternalizedStringData(JSHeapBroker* broker,
+  InternalizedStringData(JSHeapBroker* broker, ObjectData** storage,
                          Handle<InternalizedString> object)
-      : StringData(broker, object) {}
+      : StringData(broker, storage, object) {}
 };
 
 namespace {
@@ -441,7 +461,8 @@ bool IsInlinableFastLiteral(Handle<JSObject> boilerplate) {
 
 class AllocationSiteData : public HeapObjectData {
  public:
-  AllocationSiteData(JSHeapBroker* broker, Handle<AllocationSite> object);
+  AllocationSiteData(JSHeapBroker* broker, ObjectData** storage,
+                     Handle<AllocationSite> object);
   void SerializeBoilerplate();
 
   bool PointsToLiteral() const { return PointsToLiteral_; }
@@ -468,9 +489,9 @@ class AllocationSiteData : public HeapObjectData {
 // Only used in JSNativeContextSpecialization.
 class ScriptContextTableData : public HeapObjectData {
  public:
-  ScriptContextTableData(JSHeapBroker* broker,
+  ScriptContextTableData(JSHeapBroker* broker, ObjectData** storage,
                          Handle<ScriptContextTable> object)
-      : HeapObjectData(broker, object) {}
+      : HeapObjectData(broker, storage, object) {}
 };
 
 struct PropertyDescriptor {
@@ -484,7 +505,7 @@ struct PropertyDescriptor {
 
 class MapData : public HeapObjectData {
  public:
-  MapData(JSHeapBroker* broker, Handle<Map> object);
+  MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object);
 
   InstanceType instance_type() const { return instance_type_; }
   int instance_size() const { return instance_size_; }
@@ -554,8 +575,9 @@ class MapData : public HeapObjectData {
 };
 
 AllocationSiteData::AllocationSiteData(JSHeapBroker* broker,
+                                       ObjectData** storage,
                                        Handle<AllocationSite> object)
-    : HeapObjectData(broker, object),
+    : HeapObjectData(broker, storage, object),
       PointsToLiteral_(object->PointsToLiteral()),
       GetPretenureMode_(object->GetPretenureMode()) {
   if (PointsToLiteral_) {
@@ -585,8 +607,9 @@ void AllocationSiteData::SerializeBoilerplate() {
   }
 }
 
-HeapObjectData::HeapObjectData(JSHeapBroker* broker, Handle<HeapObject> object)
-    : ObjectData(broker, object, false),
+HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
+                               Handle<HeapObject> object)
+    : ObjectData(broker, storage, object, false),
       boolean_value_(object->BooleanValue(broker->isolate())),
       // We have to use a raw cast below instead of AsMap() because of
       // recursion. AsMap() would call IsMap(), which accesses the
@@ -597,8 +620,8 @@ HeapObjectData::HeapObjectData(JSHeapBroker* broker, Handle<HeapObject> object)
   CHECK(broker->SerializingAllowed());
 }
 
-MapData::MapData(JSHeapBroker* broker, Handle<Map> object)
-    : HeapObjectData(broker, object),
+MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
+    : HeapObjectData(broker, storage, object),
       instance_type_(object->instance_type()),
       instance_size_(object->instance_size()),
       bit_field_(object->bit_field()),
@@ -616,8 +639,9 @@ MapData::MapData(JSHeapBroker* broker, Handle<Map> object)
       elements_kind_generalizations_(broker->zone()),
       descriptors_(broker->zone()) {}
 
-JSFunctionData::JSFunctionData(JSHeapBroker* broker, Handle<JSFunction> object)
-    : JSObjectData(broker, object),
+JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
+                               Handle<JSFunction> object)
+    : JSObjectData(broker, storage, object),
       has_initial_map_(object->has_prototype_slot() &&
                        object->has_initial_map()),
       has_prototype_(object->has_prototype_slot() && object->has_prototype()),
@@ -685,7 +709,8 @@ class FeedbackVectorData : public HeapObjectData {
  public:
   const ZoneVector<ObjectData*>& feedback() { return feedback_; }
 
-  FeedbackVectorData(JSHeapBroker* broker, Handle<FeedbackVector> object);
+  FeedbackVectorData(JSHeapBroker* broker, ObjectData** storage,
+                     Handle<FeedbackVector> object);
 
   void SerializeSlots();
 
@@ -695,8 +720,9 @@ class FeedbackVectorData : public HeapObjectData {
 };
 
 FeedbackVectorData::FeedbackVectorData(JSHeapBroker* broker,
+                                       ObjectData** storage,
                                        Handle<FeedbackVector> object)
-    : HeapObjectData(broker, object), feedback_(broker->zone()) {}
+    : HeapObjectData(broker, storage, object), feedback_(broker->zone()) {}
 
 void FeedbackVectorData::SerializeSlots() {
   if (serialized_) return;
@@ -725,8 +751,9 @@ void FeedbackVectorData::SerializeSlots() {
 
 class FixedArrayBaseData : public HeapObjectData {
  public:
-  FixedArrayBaseData(JSHeapBroker* broker, Handle<FixedArrayBase> object)
-      : HeapObjectData(broker, object), length_(object->length()) {}
+  FixedArrayBaseData(JSHeapBroker* broker, ObjectData** storage,
+                     Handle<FixedArrayBase> object)
+      : HeapObjectData(broker, storage, object), length_(object->length()) {}
 
   int length() const { return length_; }
 
@@ -734,12 +761,15 @@ class FixedArrayBaseData : public HeapObjectData {
   int const length_;
 };
 
-JSObjectData::JSObjectData(JSHeapBroker* broker, Handle<JSObject> object)
-    : HeapObjectData(broker, object), inobject_fields_(broker->zone()) {}
+JSObjectData::JSObjectData(JSHeapBroker* broker, ObjectData** storage,
+                           Handle<JSObject> object)
+    : HeapObjectData(broker, storage, object),
+      inobject_fields_(broker->zone()) {}
 
 class FixedArrayData : public FixedArrayBaseData {
  public:
-  FixedArrayData(JSHeapBroker* broker, Handle<FixedArray> object);
+  FixedArrayData(JSHeapBroker* broker, ObjectData** storage,
+                 Handle<FixedArray> object);
 
   // Creates all elements of the fixed array.
   void SerializeContents();
@@ -766,12 +796,14 @@ void FixedArrayData::SerializeContents() {
   }
 }
 
-FixedArrayData::FixedArrayData(JSHeapBroker* broker, Handle<FixedArray> object)
-    : FixedArrayBaseData(broker, object), contents_(broker->zone()) {}
+FixedArrayData::FixedArrayData(JSHeapBroker* broker, ObjectData** storage,
+                               Handle<FixedArray> object)
+    : FixedArrayBaseData(broker, storage, object), contents_(broker->zone()) {}
 
 class FixedDoubleArrayData : public FixedArrayBaseData {
  public:
-  FixedDoubleArrayData(JSHeapBroker* broker, Handle<FixedDoubleArray> object);
+  FixedDoubleArrayData(JSHeapBroker* broker, ObjectData** storage,
+                       Handle<FixedDoubleArray> object);
 
   // Serializes all elements of the fixed array.
   void SerializeContents();
@@ -784,8 +816,9 @@ class FixedDoubleArrayData : public FixedArrayBaseData {
 };
 
 FixedDoubleArrayData::FixedDoubleArrayData(JSHeapBroker* broker,
+                                           ObjectData** storage,
                                            Handle<FixedDoubleArray> object)
-    : FixedArrayBaseData(broker, object), contents_(broker->zone()) {}
+    : FixedArrayBaseData(broker, storage, object), contents_(broker->zone()) {}
 
 void FixedDoubleArrayData::SerializeContents() {
   if (serialized_contents_) return;
@@ -805,8 +838,9 @@ class BytecodeArrayData : public FixedArrayBaseData {
  public:
   int register_count() const { return register_count_; }
 
-  BytecodeArrayData(JSHeapBroker* broker, Handle<BytecodeArray> object)
-      : FixedArrayBaseData(broker, object),
+  BytecodeArrayData(JSHeapBroker* broker, ObjectData** storage,
+                    Handle<BytecodeArray> object)
+      : FixedArrayBaseData(broker, storage, object),
         register_count_(object->register_count()) {}
 
  private:
@@ -815,7 +849,8 @@ class BytecodeArrayData : public FixedArrayBaseData {
 
 class JSArrayData : public JSObjectData {
  public:
-  JSArrayData(JSHeapBroker* broker, Handle<JSArray> object);
+  JSArrayData(JSHeapBroker* broker, ObjectData** storage,
+              Handle<JSArray> object);
   void Serialize();
 
   ObjectData* length() const { return length_; }
@@ -825,8 +860,9 @@ class JSArrayData : public JSObjectData {
   ObjectData* length_ = nullptr;
 };
 
-JSArrayData::JSArrayData(JSHeapBroker* broker, Handle<JSArray> object)
-    : JSObjectData(broker, object) {}
+JSArrayData::JSArrayData(JSHeapBroker* broker, ObjectData** storage,
+                         Handle<JSArray> object)
+    : JSObjectData(broker, storage, object) {}
 
 void JSArrayData::Serialize() {
   if (serialized_) return;
@@ -839,7 +875,8 @@ void JSArrayData::Serialize() {
 
 class ScopeInfoData : public HeapObjectData {
  public:
-  ScopeInfoData(JSHeapBroker* broker, Handle<ScopeInfo> object);
+  ScopeInfoData(JSHeapBroker* broker, ObjectData** storage,
+                Handle<ScopeInfo> object);
 
   int context_length() const { return context_length_; }
 
@@ -847,8 +884,9 @@ class ScopeInfoData : public HeapObjectData {
   int const context_length_;
 };
 
-ScopeInfoData::ScopeInfoData(JSHeapBroker* broker, Handle<ScopeInfo> object)
-    : HeapObjectData(broker, object),
+ScopeInfoData::ScopeInfoData(JSHeapBroker* broker, ObjectData** storage,
+                             Handle<ScopeInfo> object)
+    : HeapObjectData(broker, storage, object),
       context_length_(object->ContextLength()) {}
 
 class SharedFunctionInfoData : public HeapObjectData {
@@ -860,9 +898,9 @@ class SharedFunctionInfoData : public HeapObjectData {
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
 #undef DECL_ACCESSOR
 
-  SharedFunctionInfoData(JSHeapBroker* broker,
+  SharedFunctionInfoData(JSHeapBroker* broker, ObjectData** storage,
                          Handle<SharedFunctionInfo> object)
-      : HeapObjectData(broker, object),
+      : HeapObjectData(broker, storage, object),
         builtin_id_(object->HasBuiltinId() ? object->builtin_id()
                                            : Builtins::kNoBuiltinId),
         GetBytecodeArray_(
@@ -888,7 +926,7 @@ class SharedFunctionInfoData : public HeapObjectData {
 
 class ModuleData : public HeapObjectData {
  public:
-  ModuleData(JSHeapBroker* broker, Handle<Module> object);
+  ModuleData(JSHeapBroker* broker, ObjectData** storage, Handle<Module> object);
   void Serialize();
 
   CellData* GetCell(int cell_index) const;
@@ -899,8 +937,9 @@ class ModuleData : public HeapObjectData {
   ZoneVector<CellData*> exports_;
 };
 
-ModuleData::ModuleData(JSHeapBroker* broker, Handle<Module> object)
-    : HeapObjectData(broker, object),
+ModuleData::ModuleData(JSHeapBroker* broker, ObjectData** storage,
+                       Handle<Module> object)
+    : HeapObjectData(broker, storage, object),
       imports_(broker->zone()),
       exports_(broker->zone()) {}
 
@@ -949,20 +988,21 @@ void ModuleData::Serialize() {
 
 class CellData : public HeapObjectData {
  public:
-  CellData(JSHeapBroker* broker, Handle<Cell> object)
-      : HeapObjectData(broker, object) {}
+  CellData(JSHeapBroker* broker, ObjectData** storage, Handle<Cell> object)
+      : HeapObjectData(broker, storage, object) {}
 };
 
 class JSGlobalProxyData : public JSObjectData {
  public:
-  JSGlobalProxyData(JSHeapBroker* broker, Handle<JSGlobalProxy> object)
-      : JSObjectData(broker, object) {}
+  JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
+                    Handle<JSGlobalProxy> object)
+      : JSObjectData(broker, storage, object) {}
 };
 
 class CodeData : public HeapObjectData {
  public:
-  CodeData(JSHeapBroker* broker, Handle<Code> object)
-      : HeapObjectData(broker, object) {}
+  CodeData(JSHeapBroker* broker, ObjectData** storage, Handle<Code> object)
+      : HeapObjectData(broker, storage, object) {}
 };
 
 #define DEFINE_IS_AND_AS(Name)                                            \
@@ -1348,39 +1388,30 @@ ObjectData* JSHeapBroker::GetData(Handle<Object> object) const {
 // clang-format off
 ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
   CHECK(SerializingAllowed());
-  ObjectData* data = GetData(object);
-  if (data == nullptr) {
+  auto insertion_result = refs_.insert({object.address(), nullptr});
+  ObjectData** data_storage = &(insertion_result.first->second);
+  if (insertion_result.second) {
     // TODO(neis): Remove these Allow* once we serialize everything upfront.
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
     if (object->IsSmi()) {
-      data = new (zone()) ObjectData(this, object, true);
-#define CREATE_DATA_IF_MATCH(name)                                      \
-    } else if (object->Is##name()) {                                    \
-      data = new (zone()) name##Data(this, Handle<name>::cast(object));
+      new (zone()) ObjectData(this, data_storage, object, true);
+#define CREATE_DATA_IF_MATCH(name)                                             \
+    } else if (object->Is##name()) {                                           \
+      new (zone()) name##Data(this, data_storage, Handle<name>::cast(object));
     HEAP_BROKER_OBJECT_LIST(CREATE_DATA_IF_MATCH)
 #undef CREATE_DATA_IF_MATCH
     } else {
       UNREACHABLE();
     }
   }
-  CHECK_NOT_NULL(data);
-  return data;
+  CHECK_NOT_NULL(*data_storage);
+  return (*data_storage);
 }
 // clang-format on
 
 ObjectData* JSHeapBroker::GetOrCreateData(Object* object) {
   return GetOrCreateData(handle(object, isolate()));
-}
-
-void JSHeapBroker::AddData(Handle<Object> object, ObjectData* data) {
-  Trace("Creating data %p for handle %" V8PRIuPTR " (", data, object.address());
-  if (FLAG_trace_heap_broker) {
-    object->ShortPrint();
-    PrintF(")\n");
-  }
-  CHECK_NOT_NULL(isolate()->handle_scope_data()->canonical_scope);
-  CHECK(refs_.insert({object.address(), data}).second);
 }
 
 #define DEFINE_IS_AND_AS(Name)                                    \
@@ -1918,12 +1949,14 @@ ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object) {
       data_ = broker->GetOrCreateData(object);
       break;
     case JSHeapBroker::kDisabled:
-      data_ = broker->GetData(object);
-      if (data_ == nullptr) {
+      auto insertion_result = broker->refs_.insert({object.address(), nullptr});
+      ObjectData** data_storage = &(insertion_result.first->second);
+      if (insertion_result.second) {
         AllowHandleDereference handle_dereference;
-        data_ =
-            new (broker->zone()) ObjectData(broker, object, object->IsSmi());
+        new (broker->zone())
+            ObjectData(broker, data_storage, object, object->IsSmi());
       }
+      data_ = *data_storage;
       break;
   }
   CHECK_NOT_NULL(data_);
@@ -2061,9 +2094,9 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
   return AdvancedReducer::NoChange();
 }
 
-NativeContextData::NativeContextData(JSHeapBroker* broker,
+NativeContextData::NativeContextData(JSHeapBroker* broker, ObjectData** storage,
                                      Handle<NativeContext> object)
-    : ContextData(broker, object), function_maps_(broker->zone()) {}
+    : ContextData(broker, storage, object), function_maps_(broker->zone()) {}
 
 void NativeContextData::Serialize() {
   if (serialized_) return;

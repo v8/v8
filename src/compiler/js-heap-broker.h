@@ -493,8 +493,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   friend class ObjectRef;
   friend class ObjectData;
 
-  void AddData(Handle<Object> object, ObjectData* data);
-
   Isolate* const isolate_;
   Zone* const zone_;
   base::Optional<NativeContextRef> native_context_;
