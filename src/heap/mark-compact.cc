@@ -3003,13 +3003,14 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     if (chunk_->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() !=
         nullptr) {
       CHECK_NE(chunk_->owner(), heap_->map_space());
+      const auto check_and_update_old_to_new_slot_fn =
+          [this](MaybeObject** slot) {
+            return CheckAndUpdateOldToNewSlot(reinterpret_cast<Address>(slot));
+          };
       RememberedSet<OLD_TO_NEW>::IterateTyped(
-          chunk_, [this](SlotType slot_type, Address host_addr, Address slot) {
+          chunk_, [=](SlotType slot_type, Address host_addr, Address slot) {
             return UpdateTypedSlotHelper::UpdateTypedSlot(
-                heap_, slot_type, slot, [this](MaybeObject** slot) {
-                  return CheckAndUpdateOldToNewSlot(
-                      reinterpret_cast<Address>(slot));
-                });
+                heap_, slot_type, slot, check_and_update_old_to_new_slot_fn);
           });
     }
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
