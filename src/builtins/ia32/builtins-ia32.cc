@@ -1709,8 +1709,10 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
 // static
 void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
                                                Handle<Code> code) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- edi    : target
+  //  -- esi    : context for the Call / Construct builtin
   //  -- eax    : number of parameters on the stack (not including the receiver)
   //  -- ecx    : len (number of elements to from args)
   //  -- ecx    : new.target (checked to be constructor or undefined)
@@ -1718,13 +1720,14 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- esp[0] : return address.
   // -----------------------------------
 
-  // We need to preserve eax, edi and ebx.
+  // We need to preserve eax, edi, esi and ebx.
   __ movd(xmm0, edx);
   __ movd(xmm1, edi);
   __ movd(xmm2, eax);
+  __ movd(xmm3, esi);  // Spill the context.
 
   // TODO(v8:6666): Remove this usage of ebx to enable kRootRegister support.
-  const Register kArgumentsList = ebx;
+  const Register kArgumentsList = esi;
   const Register kArgumentsLength = ecx;
 
   __ PopReturnAddressTo(edx);
@@ -1778,6 +1781,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   }
 
   // Restore eax, edi and edx.
+  __ movd(esi, xmm3);  // Restore the context.
   __ movd(eax, xmm2);
   __ movd(edi, xmm1);
   __ movd(edx, xmm0);
@@ -1789,6 +1793,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   __ Jump(code, RelocInfo::CODE_TARGET);
 
   __ bind(&stack_overflow);
+  __ movd(esi, xmm3);  // Restore the context.
   __ TailCallRuntime(Runtime::kThrowStackOverflow);
 }
 
@@ -1796,19 +1801,25 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                       CallOrConstructMode mode,
                                                       Handle<Code> code) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edi : the target to call (can be any Object)
+  //  -- esi : context for the Call / Construct builtin
   //  -- edx : the new target (for [[Construct]] calls)
   //  -- ecx : start index (to support rest parameters)
   // -----------------------------------
+
+  __ movd(xmm0, esi);  // Spill the context.
+
+  Register scratch = esi;
 
   // Check if new.target has a [[Construct]] internal method.
   if (mode == CallOrConstructMode::kConstruct) {
     Label new_target_constructor, new_target_not_constructor;
     __ JumpIfSmi(edx, &new_target_not_constructor, Label::kNear);
-    __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
-    __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
+    __ mov(scratch, FieldOperand(edx, HeapObject::kMapOffset));
+    __ test_b(FieldOperand(scratch, Map::kBitFieldOffset),
               Immediate(Map::IsConstructorBit::kMask));
     __ j(not_zero, &new_target_constructor, Label::kNear);
     __ bind(&new_target_not_constructor);
@@ -1816,18 +1827,18 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       FrameScope scope(masm, StackFrame::MANUAL);
       __ EnterFrame(StackFrame::INTERNAL);
       __ Push(edx);
+      __ movd(esi, xmm0);  // Restore the context.
       __ CallRuntime(Runtime::kThrowNotConstructor);
     }
     __ bind(&new_target_constructor);
   }
 
-  // Preserve new.target (in case of [[Construct]]).
-  __ movd(xmm0, edx);
+  __ movd(xmm1, edx);  // Preserve new.target (in case of [[Construct]]).
 
   // Check if we have an arguments adaptor frame below the function frame.
   Label arguments_adaptor, arguments_done;
-  __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ cmp(Operand(ebx, CommonFrameConstants::kContextOrFrameTypeOffset),
+  __ mov(scratch, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ cmp(Operand(scratch, CommonFrameConstants::kContextOrFrameTypeOffset),
          Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(equal, &arguments_adaptor, Label::kNear);
   {
@@ -1835,13 +1846,14 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ mov(edx, FieldOperand(edx, JSFunction::kSharedFunctionInfoOffset));
     __ movzx_w(edx, FieldOperand(
                         edx, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ mov(ebx, ebp);
+    __ mov(scratch, ebp);
   }
   __ jmp(&arguments_done, Label::kNear);
   __ bind(&arguments_adaptor);
   {
     // Just load the length from the ArgumentsAdaptorFrame.
-    __ mov(edx, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ mov(edx,
+           Operand(scratch, ArgumentsAdaptorFrameConstants::kLengthOffset));
     __ SmiUntag(edx);
   }
   __ bind(&arguments_done);
@@ -1859,7 +1871,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       __ PopReturnAddressTo(ecx);
       __ bind(&loop);
       {
-        __ Push(Operand(ebx, edx, times_pointer_size, 1 * kPointerSize));
+        __ Push(Operand(scratch, edx, times_pointer_size, 1 * kPointerSize));
         __ dec(edx);
         __ j(not_zero, &loop);
       }
@@ -1868,13 +1880,14 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   }
   __ bind(&stack_done);
 
-  // Restore new.target (in case of [[Construct]]).
-  __ movd(edx, xmm0);
+  __ movd(edx, xmm1);  // Restore new.target (in case of [[Construct]]).
+  __ movd(esi, xmm0);  // Restore the context.
 
   // Tail-call to the {code} handler.
   __ Jump(code, RelocInfo::CODE_TARGET);
 
   __ bind(&stack_overflow);
+  __ movd(esi, xmm0);  // Restore the context.
   __ TailCallRuntime(Runtime::kThrowStackOverflow);
 }
 
@@ -2150,6 +2163,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
 
 // static
 void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edx : the new target (checked to be a constructor)
@@ -2210,6 +2224,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_Construct(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edx : the new target (either the same as the constructor or

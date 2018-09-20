@@ -19,17 +19,26 @@ namespace v8 {
 namespace internal {
 
 void Builtins::Generate_ConstructVarargs(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallOrConstructVarargs(masm,
                                   BUILTIN_CODE(masm->isolate(), Construct));
 }
 
 void Builtins::Generate_ConstructForwardVarargs(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallOrConstructForwardVarargs(
       masm, CallOrConstructMode::kConstruct,
       BUILTIN_CODE(masm->isolate(), Construct));
 }
 
 void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallOrConstructForwardVarargs(
       masm, CallOrConstructMode::kConstruct,
       BUILTIN_CODE(masm->isolate(), ConstructFunction));

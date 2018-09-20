@@ -68,15 +68,24 @@ void Builtins::Generate_Call_ReceiverIsAny(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_CallVarargs(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallOrConstructVarargs(masm, masm->isolate()->builtins()->Call());
 }
 
 void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallOrConstructForwardVarargs(masm, CallOrConstructMode::kCall,
                                          masm->isolate()->builtins()->Call());
 }
 
 void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
+#ifdef V8_TARGET_ARCH_IA32
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+#endif
   Generate_CallOrConstructForwardVarargs(
       masm, CallOrConstructMode::kCall,
       masm->isolate()->builtins()->CallFunction());
