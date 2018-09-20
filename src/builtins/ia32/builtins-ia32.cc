@@ -1750,25 +1750,10 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ bind(&ok);
   }
 
-  // Check for stack overflow.
-  {
-    // Check the stack for overflow. We are not trying to catch interruptions
-    // (i.e. debug break and preemption) here, so check the "real stack limit".
-    Label done;
-    ExternalReference real_stack_limit =
-        ExternalReference::address_of_real_stack_limit(masm->isolate());
-    __ mov(edx, __ StaticVariable(real_stack_limit));
-    // Make edx the space we have left. The stack might already be overflowed
-    // here which will cause edx to become negative.
-    __ neg(edx);
-    __ add(edx, esp);
-    __ sar(edx, kPointerSizeLog2);
-    // Check if the arguments will overflow the stack.
-    __ cmp(edx, kArgumentsLength);
-    __ j(greater, &done, Label::kNear);  // Signed comparison.
-    __ TailCallRuntime(Runtime::kThrowStackOverflow);
-    __ bind(&done);
-  }
+  // Check the stack for overflow. We are not trying to catch interruptions
+  // (i.e. debug break and preemption) here, so check the "real stack limit".
+  Label stack_overflow;
+  Generate_StackOverflowCheck(masm, kArgumentsLength, edx, &stack_overflow);
 
   // Push additional arguments onto the stack.
   {
@@ -1802,6 +1787,9 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 
   // Tail-call to the actual Call or Construct builtin.
   __ Jump(code, RelocInfo::CODE_TARGET);
+
+  __ bind(&stack_overflow);
+  __ TailCallRuntime(Runtime::kThrowStackOverflow);
 }
 
 // static
@@ -1858,28 +1846,11 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   }
   __ bind(&arguments_done);
 
-  Label stack_done;
+  Label stack_done, stack_overflow;
   __ sub(edx, ecx);
   __ j(less_equal, &stack_done);
   {
-    // Check for stack overflow.
-    {
-      // Check the stack for overflow. We are not trying to catch interruptions
-      // (i.e. debug break and preemption) here, so check the "real stack
-      // limit".
-      Label done;
-      __ LoadRoot(ecx, RootIndex::kRealStackLimit);
-      // Make ecx the space we have left. The stack might already be
-      // overflowed here which will cause ecx to become negative.
-      __ neg(ecx);
-      __ add(ecx, esp);
-      __ sar(ecx, kPointerSizeLog2);
-      // Check if the arguments will overflow the stack.
-      __ cmp(ecx, edx);
-      __ j(greater, &done, Label::kNear);  // Signed comparison.
-      __ TailCallRuntime(Runtime::kThrowStackOverflow);
-      __ bind(&done);
-    }
+    Generate_StackOverflowCheck(masm, edx, ecx, &stack_overflow);
 
     // Forward the arguments from the caller frame.
     {
@@ -1902,6 +1873,9 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
 
   // Tail-call to the {code} handler.
   __ Jump(code, RelocInfo::CODE_TARGET);
+
+  __ bind(&stack_overflow);
+  __ TailCallRuntime(Runtime::kThrowStackOverflow);
 }
 
 // static
