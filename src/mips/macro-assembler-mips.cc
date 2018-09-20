@@ -1344,6 +1344,11 @@ void TurboAssembler::li(Register dst, ExternalReference value, LiFlags mode) {
   li(dst, Operand(value), mode);
 }
 
+void TurboAssembler::li(Register dst, const StringConstantBase* string,
+                        LiFlags mode) {
+  li(dst, Operand::EmbeddedStringConstant(string), mode);
+}
+
 void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
   DCHECK(!j.is_reg());
   BlockTrampolinePoolScope block_trampoline_pool(this);

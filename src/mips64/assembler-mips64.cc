@@ -40,6 +40,7 @@
 #include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/mips64/assembler-mips64-inl.h"
+#include "src/string-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -226,6 +227,13 @@ Operand Operand::EmbeddedCode(CodeStub* stub) {
   return result;
 }
 
+Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
+  Operand result(0, RelocInfo::EMBEDDED_OBJECT);
+  result.is_heap_object_request_ = true;
+  result.value_.heap_object_request = HeapObjectRequest(str);
+  return result;
+}
+
 MemOperand::MemOperand(Register rm, int32_t offset) : Operand(rm) {
   offset_ = offset;
 }
@@ -249,6 +257,11 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
       case HeapObjectRequest::kCodeStub:
         request.code_stub()->set_isolate(isolate);
         object = request.code_stub()->GetCode();
+        break;
+      case HeapObjectRequest::kStringConstant:
+        const StringConstantBase* str = request.string();
+        CHECK_NOT_NULL(str);
+        object = str->AllocateStringConstant(isolate);
         break;
     }
     Address pc = reinterpret_cast<Address>(buffer_) + request.offset();

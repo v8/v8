@@ -254,8 +254,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void li(Register rd, int64_t j, LiFlags mode = OPTIMIZE_SIZE) {
     li(rd, Operand(j), mode);
   }
+  // inline void li(Register rd, int32_t j, LiFlags mode = OPTIMIZE_SIZE) {
+  //   li(rd, Operand(static_cast<int64_t>(j)), mode);
+  // }
   void li(Register dst, Handle<HeapObject> value, LiFlags mode = OPTIMIZE_SIZE);
   void li(Register dst, ExternalReference value, LiFlags mode = OPTIMIZE_SIZE);
+  void li(Register dst, const StringConstantBase* string,
+          LiFlags mode = OPTIMIZE_SIZE);
 
   void LoadFromConstantsTable(Register destination,
                               int constant_index) override;
