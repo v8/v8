@@ -10713,15 +10713,16 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* left,
           }
 
           // If {left} is a receiver, call ToPrimitive(left, hint Number).
-          // Otherwise call ToNumeric(left) and then ToNumeric(right).
+          // Otherwise call ToNumeric(right) and then ToNumeric(left), the
+          // order here is important as it's observable by user code.
           STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
           Label if_left_receiver(this, Label::kDeferred);
           GotoIf(IsJSReceiverInstanceType(left_instance_type),
                  &if_left_receiver);
 
+          var_right.Bind(CallBuiltin(Builtins::kToNumeric, context, right));
           var_left.Bind(
               CallBuiltin(Builtins::kNonNumberToNumeric, context, left));
-          var_right.Bind(CallBuiltin(Builtins::kToNumeric, context, right));
           Goto(&loop);
 
           BIND(&if_left_receiver);
