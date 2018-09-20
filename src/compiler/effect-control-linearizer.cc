@@ -1688,63 +1688,87 @@ Node* EffectControlLinearizer::LowerCheckedInt32Div(Node* node,
                                                     Node* frame_state) {
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
-
-  auto if_not_positive = __ MakeDeferredLabel();
-  auto if_is_minint = __ MakeDeferredLabel();
-  auto done = __ MakeLabel(MachineRepresentation::kWord32);
-  auto minint_check_done = __ MakeLabel();
-
   Node* zero = __ Int32Constant(0);
 
-  // Check if {rhs} is positive (and not zero).
-  Node* check0 = __ Int32LessThan(zero, rhs);
-  __ GotoIfNot(check0, &if_not_positive);
+  // Check if the {rhs} is a known power of two.
+  Int32Matcher m(rhs);
+  if (m.IsPowerOf2()) {
+    // Since we know that {rhs} is a power of two, we can perform a fast
+    // check to see if the relevant least significant bits of the {lhs}
+    // are all zero, and if so we know that we can perform a division
+    // safely (and fast by doing an arithmetic - aka sign preserving -
+    // right shift on {lhs}).
+    int32_t divisor = m.Value();
+    Node* mask = __ Int32Constant(divisor - 1);
+    Node* shift = __ Int32Constant(WhichPowerOf2(divisor));
+    Node* check = __ Word32Equal(__ Word32And(lhs, mask), zero);
+    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, VectorSlotPair(),
+                       check, frame_state);
+    return __ Word32Sar(lhs, shift);
+  } else {
+    auto if_rhs_positive = __ MakeLabel();
+    auto if_rhs_negative = __ MakeDeferredLabel();
+    auto done = __ MakeLabel(MachineRepresentation::kWord32);
 
-  // Fast case, no additional checking required.
-  __ Goto(&done, __ Int32Div(lhs, rhs));
+    // Check if {rhs} is positive (and not zero).
+    Node* check_rhs_positive = __ Int32LessThan(zero, rhs);
+    __ Branch(check_rhs_positive, &if_rhs_positive, &if_rhs_negative);
 
-  {
-    __ Bind(&if_not_positive);
+    __ Bind(&if_rhs_positive);
+    {
+      // Fast case, no additional checking required.
+      __ Goto(&done, __ Int32Div(lhs, rhs));
+    }
 
-    // Check if {rhs} is zero.
-    Node* check = __ Word32Equal(rhs, zero);
-    __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, VectorSlotPair(), check,
-                    frame_state);
+    __ Bind(&if_rhs_negative);
+    {
+      auto if_lhs_minint = __ MakeDeferredLabel();
+      auto if_lhs_notminint = __ MakeLabel();
 
-    // Check if {lhs} is zero, as that would produce minus zero.
-    check = __ Word32Equal(lhs, zero);
-    __ DeoptimizeIf(DeoptimizeReason::kMinusZero, VectorSlotPair(), check,
-                    frame_state);
+      // Check if {rhs} is zero.
+      Node* check_rhs_zero = __ Word32Equal(rhs, zero);
+      __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, VectorSlotPair(),
+                      check_rhs_zero, frame_state);
 
-    // Check if {lhs} is kMinInt and {rhs} is -1, in which case we'd have
-    // to return -kMinInt, which is not representable.
-    Node* minint = __ Int32Constant(std::numeric_limits<int32_t>::min());
-    Node* check1 = graph()->NewNode(machine()->Word32Equal(), lhs, minint);
-    __ GotoIf(check1, &if_is_minint);
-    __ Goto(&minint_check_done);
+      // Check if {lhs} is zero, as that would produce minus zero.
+      Node* check_lhs_zero = __ Word32Equal(lhs, zero);
+      __ DeoptimizeIf(DeoptimizeReason::kMinusZero, VectorSlotPair(),
+                      check_lhs_zero, frame_state);
 
-    __ Bind(&if_is_minint);
-    // Check if {rhs} is -1.
-    Node* minusone = __ Int32Constant(-1);
-    Node* is_minus_one = __ Word32Equal(rhs, minusone);
-    __ DeoptimizeIf(DeoptimizeReason::kOverflow, VectorSlotPair(), is_minus_one,
-                    frame_state);
-    __ Goto(&minint_check_done);
+      // Check if {lhs} is kMinInt and {rhs} is -1, in which case we'd have
+      // to return -kMinInt, which is not representable as Word32.
+      Node* check_lhs_minint = graph()->NewNode(machine()->Word32Equal(), lhs,
+                                                __ Int32Constant(kMinInt));
+      __ Branch(check_lhs_minint, &if_lhs_minint, &if_lhs_notminint);
 
-    __ Bind(&minint_check_done);
-    // Perform the actual integer division.
-    __ Goto(&done, __ Int32Div(lhs, rhs));
+      __ Bind(&if_lhs_minint);
+      {
+        // Check that {rhs} is not -1, otherwise result would be -kMinInt.
+        Node* check_rhs_minusone = __ Word32Equal(rhs, __ Int32Constant(-1));
+        __ DeoptimizeIf(DeoptimizeReason::kOverflow, VectorSlotPair(),
+                        check_rhs_minusone, frame_state);
+
+        // Perform the actual integer division.
+        __ Goto(&done, __ Int32Div(lhs, rhs));
+      }
+
+      __ Bind(&if_lhs_notminint);
+      {
+        // Perform the actual integer division.
+        __ Goto(&done, __ Int32Div(lhs, rhs));
+      }
+    }
+
+    __ Bind(&done);
+    Node* value = done.PhiAt(0);
+
+    // Check if the remainder is non-zero.
+    Node* check = __ Word32Equal(lhs, __ Int32Mul(value, rhs));
+    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, VectorSlotPair(),
+                       check, frame_state);
+
+    return value;
   }
-
-  __ Bind(&done);
-  Node* value = done.PhiAt(0);
-
-  // Check if the remainder is non-zero.
-  Node* check = __ Word32Equal(lhs, __ Int32Mul(rhs, value));
-  __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, VectorSlotPair(), check,
-                     frame_state);
-
-  return value;
 }
 
 Node* EffectControlLinearizer::BuildUint32Mod(Node* lhs, Node* rhs) {
@@ -1855,22 +1879,38 @@ Node* EffectControlLinearizer::LowerCheckedUint32Div(Node* node,
                                                      Node* frame_state) {
   Node* lhs = node->InputAt(0);
   Node* rhs = node->InputAt(1);
-
   Node* zero = __ Int32Constant(0);
 
-  // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
-  Node* check = __ Word32Equal(rhs, zero);
-  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, VectorSlotPair(), check,
-                  frame_state);
+  // Check if the {rhs} is a known power of two.
+  Uint32Matcher m(rhs);
+  if (m.IsPowerOf2()) {
+    // Since we know that {rhs} is a power of two, we can perform a fast
+    // check to see if the relevant least significant bits of the {lhs}
+    // are all zero, and if so we know that we can perform a division
+    // safely (and fast by doing a logical - aka zero extending - right
+    // shift on {lhs}).
+    uint32_t divisor = m.Value();
+    Node* mask = __ Uint32Constant(divisor - 1);
+    Node* shift = __ Uint32Constant(WhichPowerOf2(divisor));
+    Node* check = __ Word32Equal(__ Word32And(lhs, mask), zero);
+    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, VectorSlotPair(),
+                       check, frame_state);
+    return __ Word32Shr(lhs, shift);
+  } else {
+    // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
+    Node* check = __ Word32Equal(rhs, zero);
+    __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, VectorSlotPair(), check,
+                    frame_state);
 
-  // Perform the actual unsigned integer division.
-  Node* value = __ Uint32Div(lhs, rhs);
+    // Perform the actual unsigned integer division.
+    Node* value = __ Uint32Div(lhs, rhs);
 
-  // Check if the remainder is non-zero.
-  check = __ Word32Equal(lhs, __ Int32Mul(rhs, value));
-  __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, VectorSlotPair(), check,
-                     frame_state);
-  return value;
+    // Check if the remainder is non-zero.
+    check = __ Word32Equal(lhs, __ Int32Mul(rhs, value));
+    __ DeoptimizeIfNot(DeoptimizeReason::kLostPrecision, VectorSlotPair(),
+                       check, frame_state);
+    return value;
+  }
 }
 
 Node* EffectControlLinearizer::LowerCheckedUint32Mod(Node* node,
