@@ -1645,6 +1645,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   // ----------- S t a t e -------------
   //  -- eax : argc
   //  -- esp[0] : return address
@@ -1654,19 +1656,18 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
 
   if (FLAG_debug_code) {
     // Initial map for the builtin InternalArray function should be a map.
-    __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
+    __ mov(ecx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a nullptr and a Smi.
-    __ test(ebx, Immediate(kSmiTagMask));
+    __ test(ecx, Immediate(kSmiTagMask));
     __ Assert(not_zero,
               AbortReason::kUnexpectedInitialMapForInternalArrayFunction);
-    __ CmpObjectType(ebx, MAP_TYPE, ecx);
+    __ CmpObjectType(ecx, MAP_TYPE, ecx);
     __ Assert(equal,
               AbortReason::kUnexpectedInitialMapForInternalArrayFunction);
   }
 
   // Run the native code for the InternalArray function called as a normal
   // function.
-  __ mov(ebx, masm->isolate()->factory()->undefined_value());
   __ Jump(BUILTIN_CODE(masm->isolate(), InternalArrayConstructorImpl),
           RelocInfo::CODE_TARGET);
 }
@@ -2938,7 +2939,10 @@ void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
       RelocInfo::CODE_TARGET);
 
   __ bind(&not_one_case);
-  __ MoveForRootRegisterRefactoring(kJavaScriptCallExtraArg1Register, ebx);
+  // Load undefined into the allocation site parameter as required by
+  // ArrayNArgumentsConstructor.
+  __ mov(kJavaScriptCallExtraArg1Register,
+         masm->isolate()->factory()->undefined_value());
   Handle<Code> code = BUILTIN_CODE(masm->isolate(), ArrayNArgumentsConstructor);
   __ Jump(code, RelocInfo::CODE_TARGET);
 }
@@ -2946,6 +2950,8 @@ void GenerateInternalArrayConstructorCase(MacroAssembler* masm,
 }  // namespace
 
 void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   // ----------- S t a t e -------------
   //  -- eax : argc
   //  -- edi : constructor
