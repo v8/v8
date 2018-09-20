@@ -32,8 +32,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   switch (f->function_id) {
     case Runtime::kInlineCreateIterResultObject:
       return ReduceCreateIterResultObject(node);
-    case Runtime::kInlineDebugIsActive:
-      return ReduceDebugIsActive(node);
     case Runtime::kInlineDeoptimizeNow:
       return ReduceDeoptimizeNow(node);
     case Runtime::kInlineGeneratorClose:
@@ -90,16 +88,6 @@ Reduction JSIntrinsicLowering::ReduceCreateIterResultObject(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   return Change(node, javascript()->CreateIterResultObject(), value, done,
                 context, effect);
-}
-
-Reduction JSIntrinsicLowering::ReduceDebugIsActive(Node* node) {
-  Node* const value = jsgraph()->ExternalConstant(
-      ExternalReference::debug_is_active_address(isolate()));
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
-  Operator const* const op =
-      simplified()->LoadField(AccessBuilder::ForExternalUint8Value());
-  return Change(node, op, value, effect, control);
 }
 
 Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {

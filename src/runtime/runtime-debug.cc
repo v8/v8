@@ -641,11 +641,6 @@ RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugIsActive) {
-  SealHandleScope shs(isolate);
-  return Smi::FromInt(isolate->debug()->is_active());
-}
-
 namespace {
 Handle<JSObject> MakeRangeObject(Isolate* isolate, const CoverageBlock& range) {
   Factory* factory = isolate->factory();
