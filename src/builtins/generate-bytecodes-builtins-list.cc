@@ -62,7 +62,6 @@ void WriteHeader(const char* header_filename) {
   CHECK_EQ(wide_count, extra_wide_count);
   out << "\n\nconst int kNumberOfBytecodeHandlers = " << single_count << ";\n"
       << "const int kNumberOfWideBytecodeHandlers = " << wide_count << ";\n\n"
-      << "#ifndef V8_EMBEDDED_BYTECODE_HANDLERS\n"
       << "// Mapping from (Bytecode + OperandScaleAsIndex * |Bytecodes|) to\n"
       << "// a dense form with all the illegal Bytecode/OperandScale\n"
       << "// combinations removed. Used to index into the builtins table.\n"
@@ -76,8 +75,7 @@ void WriteHeader(const char* header_filename) {
     out << offset_table[i] << ", ";
   }
 
-  out << "};\n"
-      << "#endif  //V8_EMBEDDED_BYTECODE_HANDLERS\n\n"
+  out << "};\n\n"
       << "}  // namespace internal\n"
       << "}  // namespace v8\n"
       << "#endif  // V8_BUILTINS_GENERATED_BYTECODES_BUILTINS_LIST\n";

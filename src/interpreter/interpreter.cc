@@ -60,7 +60,6 @@ Interpreter::Interpreter(Isolate* isolate) : isolate_(isolate) {
   }
 }
 
-#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
 namespace {
 
 int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
@@ -73,17 +72,9 @@ int BuiltinIndexFromBytecode(Bytecode bytecode, OperandScale operand_scale) {
 }
 
 }  // namespace
-#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
 Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
     Bytecode bytecode, OperandScale operand_scale) {
-#ifdef V8_EMBEDDED_BYTECODE_HANDLERS
-  size_t index = GetDispatchTableIndex(bytecode, operand_scale);
-  Address pc = dispatch_table_[index];
-  Code* builtin = InstructionStream::TryLookupCode(isolate_, pc);
-  DCHECK(builtin->IsCode());
-  return builtin;
-#else
   int builtin_index = BuiltinIndexFromBytecode(bytecode, operand_scale);
   Builtins* builtins = isolate_->builtins();
   Code* code = builtins->builtin(builtin_index);
@@ -102,7 +93,6 @@ Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
   SetBytecodeHandler(bytecode, operand_scale, code);
 
   return code;
-#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 }
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
