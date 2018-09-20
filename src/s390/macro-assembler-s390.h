@@ -52,11 +52,6 @@ inline MemOperand FieldMemOperand(Register object, Register index, int offset) {
   return MemOperand(object, index, offset - kHeapObjectTag);
 }
 
-// Generate a MemOperand for loading a field from Root register
-inline MemOperand RootMemOperand(RootIndex index) {
-  return MemOperand(kRootRegister, index << kPointerSizeLog2);
-}
-
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 enum LinkRegisterStatus { kLRHasNotBeenSaved, kLRHasBeenSaved };
