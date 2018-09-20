@@ -59,13 +59,12 @@ class V8_EXPORT_PRIVATE RedundancyElimination final : public AdvancedReducer {
 
   Reduction ReduceCheckNode(Node* node);
   Reduction ReduceEffectPhi(Node* node);
+  Reduction ReduceSpeculativeNumberOperation(Node* node);
   Reduction ReduceStart(Node* node);
   Reduction ReduceOtherNode(Node* node);
 
   Reduction TakeChecksFromFirstEffect(Node* node);
   Reduction UpdateChecks(Node* node, EffectPathChecks const* checks);
-
-  Reduction TryReuseBoundsCheckForFirstInput(Node* node);
 
   Zone* zone() const { return zone_; }
 

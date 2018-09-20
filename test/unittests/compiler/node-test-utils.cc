@@ -1947,7 +1947,7 @@ Matcher<Node*> IsTailCall(
         IrOpcode::k##opcode, hint_matcher, lhs_matcher, rhs_matcher,          \
         effect_matcher, control_matcher));                                    \
   }
-SPECULATIVE_BINOPS(DEFINE_SPECULATIVE_BINOP_MATCHER);
+SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DEFINE_SPECULATIVE_BINOP_MATCHER);
 #undef DEFINE_SPECULATIVE_BINOP_MATCHER
 
 Matcher<Node*> IsStringConcat(const Matcher<Node*>& length_matcher,

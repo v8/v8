@@ -40,9 +40,8 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kSpeculativeNumberSubtract:
     case IrOpcode::kSpeculativeSafeIntegerAdd:
     case IrOpcode::kSpeculativeSafeIntegerSubtract:
-      // For increments and decrements by a constant, try to learn from the last
-      // bounds check.
-      return TryReuseBoundsCheckForFirstInput(node);
+    case IrOpcode::kSpeculativeToNumber:
+      return ReduceSpeculativeNumberOperation(node);
     case IrOpcode::kEffectPhi:
       return ReduceEffectPhi(node);
     case IrOpcode::kDead:
@@ -242,38 +241,6 @@ Reduction RedundancyElimination::ReduceCheckNode(Node* node) {
   return UpdateChecks(node, checks->AddCheck(zone(), node));
 }
 
-Reduction RedundancyElimination::TryReuseBoundsCheckForFirstInput(Node* node) {
-  DCHECK(node->opcode() == IrOpcode::kSpeculativeNumberAdd ||
-         node->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
-         node->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd ||
-         node->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract);
-
-  DCHECK_EQ(1, node->op()->EffectInputCount());
-  DCHECK_EQ(1, node->op()->EffectOutputCount());
-
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  EffectPathChecks const* checks = node_checks_.Get(effect);
-
-  // If we do not know anything about the predecessor, do not propagate just yet
-  // because we will have to recompute anyway once we compute the predecessor.
-  if (checks == nullptr) return NoChange();
-
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  // Only use bounds checks for increments/decrements by a constant.
-  if (right->opcode() == IrOpcode::kNumberConstant) {
-    if (Node* bounds_check = checks->LookupBoundsCheckFor(left)) {
-      // Only use the bounds checked type if it is better.
-      if (NodeProperties::GetType(bounds_check)
-              .Is(NodeProperties::GetType(left))) {
-        node->ReplaceInput(0, bounds_check);
-      }
-    }
-  }
-
-  return UpdateChecks(node, checks);
-}
-
 Reduction RedundancyElimination::ReduceEffectPhi(Node* node) {
   Node* const control = NodeProperties::GetControlInput(node);
   if (control->opcode() == IrOpcode::kLoop) {
@@ -299,6 +266,39 @@ Reduction RedundancyElimination::ReduceEffectPhi(Node* node) {
     Node* const input = NodeProperties::GetEffectInput(node, i);
     checks->Merge(node_checks_.Get(input));
   }
+  return UpdateChecks(node, checks);
+}
+
+Reduction RedundancyElimination::ReduceSpeculativeNumberOperation(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kSpeculativeNumberAdd ||
+         node->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
+         node->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd ||
+         node->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract ||
+         node->opcode() == IrOpcode::kSpeculativeToNumber);
+  DCHECK_EQ(1, node->op()->EffectInputCount());
+  DCHECK_EQ(1, node->op()->EffectOutputCount());
+
+  Node* const first = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  EffectPathChecks const* checks = node_checks_.Get(effect);
+  // If we do not know anything about the predecessor, do not propagate just yet
+  // because we will have to recompute anyway once we compute the predecessor.
+  if (checks == nullptr) return NoChange();
+
+  // Check if there's a CheckBounds operation on {first}
+  // in the graph already, which we might be able to
+  // reuse here to improve the representation selection
+  // for the {node} later on.
+  if (Node* check = checks->LookupBoundsCheckFor(first)) {
+    // Only use the bounds {check} if its type is better
+    // than the type of the {first} node, otherwise we
+    // would end up replacing NumberConstant inputs with
+    // CheckBounds operations, which is kind of pointless.
+    if (!NodeProperties::GetType(first).Is(NodeProperties::GetType(check))) {
+      NodeProperties::ReplaceValueInput(node, check, 0);
+    }
+  }
+
   return UpdateChecks(node, checks);
 }
 

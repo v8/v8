@@ -34,6 +34,11 @@ Node* GraphTest::Parameter(int32_t index) {
   return graph()->NewNode(common()->Parameter(index), graph()->start());
 }
 
+Node* GraphTest::Parameter(Type type, int32_t index) {
+  Node* node = GraphTest::Parameter(index);
+  NodeProperties::SetType(node, type);
+  return node;
+}
 
 Node* GraphTest::Float32Constant(volatile float value) {
   return graph()->NewNode(common()->Float32Constant(value));
@@ -116,12 +121,6 @@ TypedGraphTest::TypedGraphTest(int num_parameters)
       typer_(isolate(), js_heap_broker(), Typer::kNoFlags, graph()) {}
 
 TypedGraphTest::~TypedGraphTest() = default;
-
-Node* TypedGraphTest::Parameter(Type type, int32_t index) {
-  Node* node = GraphTest::Parameter(index);
-  NodeProperties::SetType(node, type);
-  return node;
-}
 
 namespace graph_unittest {
 
