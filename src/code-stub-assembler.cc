@@ -7766,14 +7766,28 @@ template void CodeStubAssembler::NameDictionaryLookup<GlobalDictionary>(
     TNode<GlobalDictionary>, TNode<Name>, Label*, TVariable<IntPtrT>*, Label*,
     int, LookupMode);
 
-Node* CodeStubAssembler::ComputeIntegerHash(Node* key) {
-  return ComputeIntegerHash(key, IntPtrConstant(kZeroHashSeed));
+Node* CodeStubAssembler::ComputeUnseededHash(Node* key) {
+  // See v8::internal::ComputeUnseededHash()
+  Node* hash = TruncateIntPtrToInt32(key);
+  hash = Int32Add(Word32Xor(hash, Int32Constant(0xFFFFFFFF)),
+                  Word32Shl(hash, Int32Constant(15)));
+  hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(12)));
+  hash = Int32Add(hash, Word32Shl(hash, Int32Constant(2)));
+  hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(4)));
+  hash = Int32Mul(hash, Int32Constant(2057));
+  hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(16)));
+  return Word32And(hash, Int32Constant(0x3FFFFFFF));
 }
 
-Node* CodeStubAssembler::ComputeIntegerHash(Node* key, Node* seed) {
+Node* CodeStubAssembler::ComputeSeededHash(Node* key) {
   // See v8::internal::ComputeIntegerHash()
-  Node* hash = TruncateIntPtrToInt32(key);
-  hash = Word32Xor(hash, seed);
+  Node* hash_seed;
+  if (Is64()) {
+    hash_seed = TruncateInt64ToInt32(HashSeed());
+  } else {
+    hash_seed = HashSeedLow();
+  }
+  Node* hash = Word32Xor(TruncateIntPtrToInt32(key), hash_seed);
   hash = Int32Add(Word32Xor(hash, Int32Constant(0xFFFFFFFF)),
                   Word32Shl(hash, Int32Constant(15)));
   hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(12)));
@@ -7794,16 +7808,7 @@ void CodeStubAssembler::NumberDictionaryLookup(
   TNode<IntPtrT> capacity = SmiUntag(GetCapacity<NumberDictionary>(dictionary));
   TNode<WordT> mask = IntPtrSub(capacity, IntPtrConstant(1));
 
-  TNode<Int32T> int32_seed;
-
-  if (Is64()) {
-    int32_seed = TruncateInt64ToInt32(HashSeed());
-  } else {
-    int32_seed = HashSeedLow();
-  }
-
-  TNode<WordT> hash =
-      ChangeUint32ToWord(ComputeIntegerHash(intptr_index, int32_seed));
+  TNode<WordT> hash = ChangeUint32ToWord(ComputeSeededHash(intptr_index));
   Node* key_as_float64 = RoundIntPtrToFloat64(intptr_index);
 
   // See Dictionary::FirstProbe().

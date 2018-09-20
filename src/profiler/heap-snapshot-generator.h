@@ -480,7 +480,7 @@ class NativeObjectsExplorer {
 
   struct RetainedInfoHasher {
     std::size_t operator()(v8::RetainedObjectInfo* info) const {
-      return ComputeIntegerHash(static_cast<uint32_t>(info->GetHash()));
+      return ComputeUnseededHash(static_cast<uint32_t>(info->GetHash()));
     }
   };
   struct RetainedInfoEquals {
