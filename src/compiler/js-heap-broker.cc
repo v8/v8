@@ -90,6 +90,30 @@ class PropertyCellData : public HeapObjectData {
   ObjectData* value_ = nullptr;
 };
 
+void JSHeapBroker::IncrementTracingIndentation() { ++tracing_indentation_; }
+
+void JSHeapBroker::DecrementTracingIndentation() { --tracing_indentation_; }
+
+class TraceScope {
+ public:
+  TraceScope(JSHeapBroker* broker, const char* label)
+      : TraceScope(broker, static_cast<void*>(broker), label) {}
+
+  TraceScope(ObjectData* data, const char* label)
+      : TraceScope(data->broker(), data, label) {}
+
+  ~TraceScope() { broker_->DecrementTracingIndentation(); }
+
+ private:
+  JSHeapBroker* const broker_;
+
+  TraceScope(JSHeapBroker* broker, void* self, const char* label)
+      : broker_(broker) {
+    broker_->Trace("Running %s on %p.\n", label, self);
+    broker_->IncrementTracingIndentation();
+  }
+};
+
 PropertyCellData::PropertyCellData(JSHeapBroker* broker, ObjectData** storage,
                                    Handle<PropertyCell> object)
     : HeapObjectData(broker, storage, object),
@@ -99,6 +123,7 @@ void PropertyCellData::Serialize() {
   if (serialized_) return;
   serialized_ = true;
 
+  TraceScope tracer(this, "PropertyCellData::Serialize");
   auto cell = Handle<PropertyCell>::cast(object());
   DCHECK_NULL(value_);
   value_ = broker()->GetOrCreateData(cell->value());
@@ -168,6 +193,7 @@ void JSObjectData::SerializeObjectCreateMap() {
   if (serialized_object_create_map_) return;
   serialized_object_create_map_ = true;
 
+  TraceScope tracer(this, "JSObjectData::SerializeObjectCreateMap");
   Handle<JSObject> jsobject = Handle<JSObject>::cast(object());
 
   if (jsobject->map()->is_prototype_map()) {
@@ -292,6 +318,7 @@ void ContextData::Serialize() {
   if (serialized_) return;
   serialized_ = true;
 
+  TraceScope tracer(this, "ContextData::Serialize");
   Handle<Context> context = Handle<Context>::cast(object());
 
   DCHECK_NULL(previous_);
@@ -593,6 +620,7 @@ void AllocationSiteData::SerializeBoilerplate() {
   if (serialized_boilerplate_) return;
   serialized_boilerplate_ = true;
 
+  TraceScope tracer(this, "AllocationSiteData::SerializeBoilerplate");
   Handle<AllocationSite> site = Handle<AllocationSite>::cast(object());
 
   CHECK(IsFastLiteral_);
@@ -652,6 +680,7 @@ void JSFunctionData::Serialize() {
   if (serialized_) return;
   serialized_ = true;
 
+  TraceScope tracer(this, "JSFunctionData::Serialize");
   Handle<JSFunction> function = Handle<JSFunction>::cast(object());
 
   DCHECK_NULL(global_proxy_);
@@ -689,7 +718,7 @@ void MapData::SerializeElementsKindGeneralizations() {
   if (serialized_elements_kind_generalizations_) return;
   serialized_elements_kind_generalizations_ = true;
 
-  broker()->Trace("Computing ElementsKind generalizations of %p.\n", *object());
+  TraceScope tracer(this, "MapData::SerializeElementsKindGeneralizations");
   DCHECK_EQ(instance_type(), JS_ARRAY_TYPE);
   MapRef self(this);
   ElementsKind from_kind = self.elements_kind();
@@ -728,6 +757,7 @@ void FeedbackVectorData::SerializeSlots() {
   if (serialized_) return;
   serialized_ = true;
 
+  TraceScope tracer(this, "FeedbackVectorData::SerializeSlots");
   Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(object());
   DCHECK(feedback_.empty());
   feedback_.reserve(vector->length());
@@ -747,6 +777,7 @@ void FeedbackVectorData::SerializeSlots() {
     }
   }
   DCHECK_EQ(vector->length(), feedback_.size());
+  broker()->Trace("Copied %zu slots.\n", feedback_.size());
 }
 
 class FixedArrayBaseData : public HeapObjectData {
@@ -785,6 +816,7 @@ void FixedArrayData::SerializeContents() {
   if (serialized_contents_) return;
   serialized_contents_ = true;
 
+  TraceScope tracer(this, "FixedArrayData::SerializeContents");
   Handle<FixedArray> array = Handle<FixedArray>::cast(object());
   CHECK_EQ(array->length(), length());
   CHECK(contents_.empty());
@@ -794,6 +826,7 @@ void FixedArrayData::SerializeContents() {
     Handle<Object> value(array->get(i), broker()->isolate());
     contents_.push_back(broker()->GetOrCreateData(value));
   }
+  broker()->Trace("Copied %zu elements.\n", contents_.size());
 }
 
 FixedArrayData::FixedArrayData(JSHeapBroker* broker, ObjectData** storage,
@@ -824,6 +857,7 @@ void FixedDoubleArrayData::SerializeContents() {
   if (serialized_contents_) return;
   serialized_contents_ = true;
 
+  TraceScope tracer(this, "FixedDoubleArrayData::SerializeContents");
   Handle<FixedDoubleArray> self = Handle<FixedDoubleArray>::cast(object());
   CHECK_EQ(self->length(), length());
   CHECK(contents_.empty());
@@ -832,6 +866,7 @@ void FixedDoubleArrayData::SerializeContents() {
   for (int i = 0; i < length(); i++) {
     contents_.push_back(Float64::FromBits(self->get_representation(i)));
   }
+  broker()->Trace("Copied %zu elements.\n", contents_.size());
 }
 
 class BytecodeArrayData : public FixedArrayBaseData {
@@ -868,6 +903,7 @@ void JSArrayData::Serialize() {
   if (serialized_) return;
   serialized_ = true;
 
+  TraceScope tracer(this, "JSArrayData::Serialize");
   Handle<JSArray> jsarray = Handle<JSArray>::cast(object());
   DCHECK_NULL(length_);
   length_ = broker()->GetOrCreateData(jsarray->length());
@@ -960,10 +996,12 @@ CellData* ModuleData::GetCell(int cell_index) const {
   CHECK_NOT_NULL(cell);
   return cell;
 }
+
 void ModuleData::Serialize() {
   if (serialized_) return;
   serialized_ = true;
 
+  TraceScope tracer(this, "ModuleData::Serialize");
   Handle<Module> module = Handle<Module>::cast(object());
 
   // TODO(neis): We could be smarter and only serialize the cells we care about.
@@ -976,6 +1014,7 @@ void ModuleData::Serialize() {
   for (int i = 0; i < imports_length; ++i) {
     imports_.push_back(broker()->GetOrCreateData(imports->get(i))->AsCell());
   }
+  broker()->Trace("Copied %zu imports.\n", imports_.size());
 
   DCHECK(exports_.empty());
   Handle<FixedArray> exports(module->regular_exports(), broker()->isolate());
@@ -984,6 +1023,7 @@ void ModuleData::Serialize() {
   for (int i = 0; i < exports_length; ++i) {
     exports_.push_back(broker()->GetOrCreateData(exports->get(i))->AsCell());
   }
+  broker()->Trace("Copied %zu exports.\n", exports_.size());
 }
 
 class CellData : public HeapObjectData {
@@ -1043,6 +1083,7 @@ void JSObjectData::SerializeElements() {
   if (serialized_elements_) return;
   serialized_elements_ = true;
 
+  TraceScope tracer(this, "JSObjectData::SerializeElements");
   Handle<JSObject> boilerplate = Handle<JSObject>::cast(object());
   Handle<FixedArrayBase> elements_object(boilerplate->elements(),
                                          broker()->isolate());
@@ -1054,6 +1095,7 @@ void MapData::SerializeConstructorOrBackpointer() {
   if (serialized_constructor_or_backpointer_) return;
   serialized_constructor_or_backpointer_ = true;
 
+  TraceScope tracer(this, "MapData::SerializeConstructorOrBackpointer");
   Handle<Map> map = Handle<Map>::cast(object());
   DCHECK_NULL(constructor_or_backpointer_);
   constructor_or_backpointer_ =
@@ -1064,6 +1106,7 @@ void MapData::SerializePrototype() {
   if (serialized_prototype_) return;
   serialized_prototype_ = true;
 
+  TraceScope tracer(this, "MapData::SerializePrototype");
   Handle<Map> map = Handle<Map>::cast(object());
   DCHECK_NULL(prototype_);
   prototype_ = broker()->GetOrCreateData(map->prototype());
@@ -1073,6 +1116,7 @@ void MapData::SerializeDescriptors() {
   if (serialized_descriptors_) return;
   serialized_descriptors_ = true;
 
+  TraceScope tracer(this, "MapData::SerializeDescriptors");
   Handle<Map> map = Handle<Map>::cast(object());
   Isolate* const isolate = broker()->isolate();
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
@@ -1097,12 +1141,14 @@ void MapData::SerializeDescriptors() {
     }
     descriptors_.push_back(d);
   }
+  broker()->Trace("Copied %zu descriptors.\n", descriptors_.size());
 }
 
 void JSObjectData::SerializeRecursive(int depth) {
   if (serialized_as_boilerplate_) return;
   serialized_as_boilerplate_ = true;
 
+  TraceScope tracer(this, "JSObjectData::SerializeRecursive");
   Handle<JSObject> boilerplate = Handle<JSObject>::cast(object());
 
   // We only serialize boilerplates that pass the IsInlinableFastLiteral
@@ -1190,6 +1236,7 @@ void JSObjectData::SerializeRecursive(int depth) {
       inobject_fields_.push_back(JSObjectField{value_data});
     }
   }
+  broker()->Trace("Copied %zu fields.\n", inobject_fields_.size());
 
   map()->SerializeDescriptors();
 
@@ -1200,9 +1247,11 @@ void JSRegExpData::SerializeAsRegExpBoilerplate() {
   if (serialized_as_reg_exp_boilerplate_) return;
   serialized_as_reg_exp_boilerplate_ = true;
 
+  TraceScope tracer(this, "JSRegExpData::SerializeAsRegExpBoilerplate");
+  Handle<JSRegExp> boilerplate = Handle<JSRegExp>::cast(object());
+
   SerializeElements();
 
-  Handle<JSRegExp> boilerplate = Handle<JSRegExp>::cast(object());
   raw_properties_or_hash_ =
       broker()->GetOrCreateData(boilerplate->raw_properties_or_hash());
   data_ = broker()->GetOrCreateData(boilerplate->data());
@@ -1240,12 +1289,13 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* zone)
       zone_(zone),
       refs_(zone, kInitialRefsBucketCount),
       mode_(FLAG_concurrent_compiler_frontend ? kSerializing : kDisabled) {
-  Trace("%s", "Constructing heap broker.\n");
+  Trace("Constructing heap broker.\n");
 }
 
 void JSHeapBroker::Trace(const char* format, ...) const {
   if (FLAG_trace_heap_broker) {
     PrintF("[%p] ", this);
+    for (unsigned i = 0; i < tracing_indentation_; ++i) PrintF("  ");
     va_list arguments;
     va_start(arguments, format);
     base::OS::VPrint(format, arguments);
@@ -1266,7 +1316,7 @@ void JSHeapBroker::SerializeStandardObjects() {
 
   if (mode() == kDisabled) return;
 
-  Trace("Serializing standard objects.\n");
+  TraceScope tracer(this, "JSHeapBroker::SerializeStandardObjects");
 
   Builtins* const b = isolate()->builtins();
   Factory* const f = isolate()->factory();
@@ -2102,6 +2152,7 @@ void NativeContextData::Serialize() {
   if (serialized_) return;
   serialized_ = true;
 
+  TraceScope tracer(this, "NativeContextData::Serialize");
   Handle<NativeContext> context = Handle<NativeContext>::cast(object());
 
 #define SERIALIZE_MEMBER(type, name)                                \

@@ -487,6 +487,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   ObjectData* GetOrCreateData(Object*);
 
   void Trace(const char* format, ...) const;
+  void IncrementTracingIndentation();
+  void DecrementTracingIndentation();
 
  private:
   friend class HeapObjectRef;
@@ -498,6 +500,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   base::Optional<NativeContextRef> native_context_;
   ZoneUnorderedMap<Address, ObjectData*> refs_;
   BrokerMode mode_;
+  unsigned tracing_indentation_ = 0;
+
   static const size_t kInitialRefsBucketCount = 1000;
 };
 
