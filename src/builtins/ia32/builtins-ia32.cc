@@ -1042,6 +1042,7 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
     MacroAssembler* masm, Register num_args, Register start_addr,
     Register scratch1, Register scratch2, int num_slots_to_move,
     Label* stack_overflow) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // We have to move return address and the temporary registers above it
   // before we can copy arguments onto the stack. To achieve this:
   // Step 1: Increment the stack pointer by num_args + 1 (for receiver).
@@ -1101,6 +1102,7 @@ void Generate_InterpreterPushZeroAndArgsAndReturnAddress(
 // static
 void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     MacroAssembler* masm, InterpreterPushArgsMode mode) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax     : the number of arguments (not including the receiver)
   //  -- ecx     : the address of the first argument to be pushed. Subsequent
@@ -1129,24 +1131,28 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     // Tail call to the array construct stub (still in the caller context at
     // this point).
 
-    __ PopReturnAddressTo(ebx);
+    __ movd(xmm0, eax);  // Spill number of arguments.
+    __ PopReturnAddressTo(eax);
     __ Pop(kJavaScriptCallExtraArg1Register);
     __ Pop(kJavaScriptCallNewTargetRegister);
     __ Pop(kJavaScriptCallTargetRegister);
-    __ PushReturnAddressFrom(ebx);
+    __ PushReturnAddressFrom(eax);
+    __ movd(eax, xmm0);  // Reload number of arguments.
 
     __ AssertFunction(kJavaScriptCallTargetRegister);
     __ AssertUndefinedOrAllocationSite(kJavaScriptCallExtraArg1Register);
     __ Jump(BUILTIN_CODE(masm->isolate(), ArrayConstructorImpl),
             RelocInfo::CODE_TARGET);
   } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
-    __ PopReturnAddressTo(ebx);
+    __ movd(xmm0, eax);  // Spill number of arguments.
+    __ PopReturnAddressTo(eax);
     __ Drop(1);  // The allocation site is unused.
     __ Pop(kJavaScriptCallNewTargetRegister);
     __ Pop(kJavaScriptCallTargetRegister);
     __ Pop(ecx);  // Pop the spread (i.e. the first argument), overwriting ecx.
+    __ PushReturnAddressFrom(eax);
+    __ movd(eax, xmm0);         // Reload number of arguments.
     __ sub(eax, Immediate(1));  // The actual argc thus decrements by one.
-    __ PushReturnAddressFrom(ebx);
 
     __ Jump(BUILTIN_CODE(masm->isolate(), ConstructWithSpread),
             RelocInfo::CODE_TARGET);
