@@ -1838,9 +1838,9 @@ class V8_EXPORT JSON {
    * \param json_string The string to parse.
    * \return The corresponding value if successfully parsed.
    */
-  static V8_DEPRECATE_SOON("Use the maybe version taking context",
-                           MaybeLocal<Value> Parse(Isolate* isolate,
-                                                   Local<String> json_string));
+  static V8_DEPRECATED("Use the maybe version taking context",
+                       MaybeLocal<Value> Parse(Isolate* isolate,
+                                               Local<String> json_string));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Value> Parse(
       Local<Context> context, Local<String> json_string);
 
@@ -1940,7 +1940,7 @@ class V8_EXPORT ValueSerializer {
    * Returns the stored data. This serializer should not be used once the buffer
    * is released. The contents are undefined if a previous write has failed.
    */
-  V8_DEPRECATE_SOON("Use Release()", std::vector<uint8_t> ReleaseBuffer());
+  V8_DEPRECATED("Use Release()", std::vector<uint8_t> ReleaseBuffer());
 
   /**
    * Returns the stored data (allocated using the delegate's
@@ -1961,10 +1961,10 @@ class V8_EXPORT ValueSerializer {
   /**
    * Similar to TransferArrayBuffer, but for SharedArrayBuffer.
    */
-  V8_DEPRECATE_SOON("Use Delegate::GetSharedArrayBufferId",
-                    void TransferSharedArrayBuffer(
-                        uint32_t transfer_id,
-                        Local<SharedArrayBuffer> shared_array_buffer));
+  V8_DEPRECATED("Use Delegate::GetSharedArrayBufferId",
+                void TransferSharedArrayBuffer(
+                    uint32_t transfer_id,
+                    Local<SharedArrayBuffer> shared_array_buffer));
 
   /**
    * Indicate whether to treat ArrayBufferView objects as host objects,
@@ -5040,8 +5040,8 @@ class V8_EXPORT SharedArrayBuffer : public Object {
  */
 class V8_EXPORT Date : public Object {
  public:
-  static V8_DEPRECATE_SOON("Use maybe version.",
-                           Local<Value> New(Isolate* isolate, double time));
+  static V8_DEPRECATED("Use maybe version.",
+                       Local<Value> New(Isolate* isolate, double time));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Value> New(Local<Context> context,
                                                      double time);
 
@@ -6302,14 +6302,14 @@ class V8_EXPORT ResourceConstraints {
                          uint64_t virtual_memory_limit);
 
   // Returns the max semi-space size in MB.
-  V8_DEPRECATE_SOON("Use max_semi_space_size_in_kb()",
-                    size_t max_semi_space_size()) {
+  V8_DEPRECATED("Use max_semi_space_size_in_kb()",
+                size_t max_semi_space_size()) {
     return max_semi_space_size_in_kb_ / 1024;
   }
 
   // Sets the max semi-space size in MB.
-  V8_DEPRECATE_SOON("Use set_max_semi_space_size_in_kb(size_t limit_in_kb)",
-                    void set_max_semi_space_size(size_t limit_in_mb)) {
+  V8_DEPRECATED("Use set_max_semi_space_size_in_kb(size_t limit_in_kb)",
+                void set_max_semi_space_size(size_t limit_in_mb)) {
     max_semi_space_size_in_kb_ = limit_in_mb * 1024;
   }
 
@@ -6327,12 +6327,12 @@ class V8_EXPORT ResourceConstraints {
   void set_max_old_space_size(size_t limit_in_mb) {
     max_old_space_size_ = limit_in_mb;
   }
-  V8_DEPRECATE_SOON("max_executable_size_ is subsumed by max_old_space_size_",
-                    size_t max_executable_size() const) {
+  V8_DEPRECATED("max_executable_size_ is subsumed by max_old_space_size_",
+                size_t max_executable_size() const) {
     return max_executable_size_;
   }
-  V8_DEPRECATE_SOON("max_executable_size_ is subsumed by max_old_space_size_",
-                    void set_max_executable_size(size_t limit_in_mb)) {
+  V8_DEPRECATED("max_executable_size_ is subsumed by max_old_space_size_",
+                void set_max_executable_size(size_t limit_in_mb)) {
     max_executable_size_ = limit_in_mb;
   }
   uint32_t* stack_limit() const { return stack_limit_; }
