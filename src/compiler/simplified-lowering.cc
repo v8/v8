@@ -1982,47 +1982,25 @@ class RepresentationSelector {
       case IrOpcode::kSpeculativeNumberModulus:
         return VisitSpeculativeNumberModulus(node, truncation, lowering);
       case IrOpcode::kNumberModulus: {
-        if (BothInputsAre(node, Type::Unsigned32OrMinusZeroOrNaN()) &&
+        if ((TypeOf(node->InputAt(0)).Is(Type::Unsigned32OrMinusZeroOrNaN()) &&
+             TypeOf(node->InputAt(1)).Is(Type::Unsigned32OrMinusZeroOrNaN())) &&
             (truncation.IsUsedAsWord32() ||
-             NodeProperties::GetType(node).Is(Type::Unsigned32()))) {
+             TypeOf(node).Is(Type::Unsigned32()))) {
           // => unsigned Uint32Mod
           VisitWord32TruncatingBinop(node);
           if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
           return;
         }
-        if (BothInputsAre(node, Type::Signed32OrMinusZeroOrNaN()) &&
+        if ((TypeOf(node->InputAt(0)).Is(Type::Signed32OrMinusZeroOrNaN()) &&
+             TypeOf(node->InputAt(1)).Is(Type::Signed32OrMinusZeroOrNaN())) &&
             (truncation.IsUsedAsWord32() ||
-             NodeProperties::GetType(node).Is(Type::Signed32()))) {
+             TypeOf(node).Is(Type::Signed32()))) {
           // => signed Int32Mod
           VisitWord32TruncatingBinop(node);
           if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
           return;
         }
-        if (TypeOf(node->InputAt(0)).Is(Type::Unsigned32()) &&
-            TypeOf(node->InputAt(1)).Is(Type::Unsigned32()) &&
-            (truncation.IsUsedAsWord32() ||
-             NodeProperties::GetType(node).Is(Type::Unsigned32()))) {
-          // We can only promise Float64 truncation here, as the decision is
-          // based on the feedback types of the inputs.
-          VisitBinop(node, UseInfo(MachineRepresentation::kWord32,
-                                   Truncation::Float64()),
-                     MachineRepresentation::kWord32);
-          if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
-          return;
-        }
-        if (TypeOf(node->InputAt(0)).Is(Type::Signed32()) &&
-            TypeOf(node->InputAt(1)).Is(Type::Signed32()) &&
-            (truncation.IsUsedAsWord32() ||
-             NodeProperties::GetType(node).Is(Type::Signed32()))) {
-          // We can only promise Float64 truncation here, as the decision is
-          // based on the feedback types of the inputs.
-          VisitBinop(node, UseInfo(MachineRepresentation::kWord32,
-                                   Truncation::Float64()),
-                     MachineRepresentation::kWord32);
-          if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
-          return;
-        }
-        // default case => Float64Mod
+        // => Float64Mod
         VisitFloat64Binop(node);
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
