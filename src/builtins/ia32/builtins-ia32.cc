@@ -1174,26 +1174,30 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
   DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
 
+  static constexpr Register scratch = ecx;
+
   // If the SFI function_data is an InterpreterData, get the trampoline stored
   // in it, otherwise get the trampoline from the builtins list.
-  __ mov(ebx, Operand(ebp, StandardFrameConstants::kFunctionOffset));
-  __ mov(ebx, FieldOperand(ebx, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kFunctionDataOffset));
+  __ mov(scratch, Operand(ebp, StandardFrameConstants::kFunctionOffset));
+  __ mov(scratch, FieldOperand(scratch, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(scratch,
+         FieldOperand(scratch, SharedFunctionInfo::kFunctionDataOffset));
   __ Push(eax);
-  __ CmpObjectType(ebx, INTERPRETER_DATA_TYPE, eax);
+  __ CmpObjectType(scratch, INTERPRETER_DATA_TYPE, eax);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
 
-  __ mov(ebx, FieldOperand(ebx, InterpreterData::kInterpreterTrampolineOffset));
+  __ mov(scratch,
+         FieldOperand(scratch, InterpreterData::kInterpreterTrampolineOffset));
   __ jmp(&trampoline_loaded, Label::kNear);
 
   __ bind(&builtin_trampoline);
-  __ Move(ebx, BUILTIN_CODE(masm->isolate(), InterpreterEntryTrampoline));
+  __ Move(scratch, BUILTIN_CODE(masm->isolate(), InterpreterEntryTrampoline));
 
   __ bind(&trampoline_loaded);
   __ Pop(eax);
-  __ add(ebx, Immediate(interpreter_entry_return_pc_offset->value() +
-                        Code::kHeaderSize - kHeapObjectTag));
-  __ push(ebx);
+  __ add(scratch, Immediate(interpreter_entry_return_pc_offset->value() +
+                            Code::kHeaderSize - kHeapObjectTag));
+  __ push(scratch);
 
   // Initialize the dispatch table register.
   __ mov(kInterpreterDispatchTableRegister,
@@ -1208,7 +1212,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
     // Check function data field is actually a BytecodeArray object.
     __ AssertNotSmi(kInterpreterBytecodeArrayRegister);
     __ CmpObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
-                     ebx);
+                     scratch);
     __ Assert(
         equal,
         AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
@@ -1220,15 +1224,17 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   // Dispatch to the target bytecode.
-  __ movzx_b(ebx, Operand(kInterpreterBytecodeArrayRegister,
-                          kInterpreterBytecodeOffsetRegister, times_1, 0));
-  __ mov(
-      kJavaScriptCallCodeStartRegister,
-      Operand(kInterpreterDispatchTableRegister, ebx, times_pointer_size, 0));
+  __ movzx_b(scratch, Operand(kInterpreterBytecodeArrayRegister,
+                              kInterpreterBytecodeOffsetRegister, times_1, 0));
+  __ mov(kJavaScriptCallCodeStartRegister,
+         Operand(kInterpreterDispatchTableRegister, scratch, times_pointer_size,
+                 0));
   __ jmp(kJavaScriptCallCodeStartRegister);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   // Get bytecode array and bytecode offset from the stack frame.
   __ mov(kInterpreterBytecodeArrayRegister,
          Operand(ebp, InterpreterFrameConstants::kBytecodeArrayFromFp));
@@ -1255,6 +1261,7 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   Generate_InterpreterEnterBytecode(masm);
 }
 
