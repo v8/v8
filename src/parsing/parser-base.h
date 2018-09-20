@@ -5,12 +5,14 @@
 #ifndef V8_PARSING_PARSER_BASE_H_
 #define V8_PARSING_PARSER_BASE_H_
 
+#include <stdint.h>
 #include <vector>
 
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/bailout-reason.h"
+#include "src/base/flags.h"
 #include "src/base/hashmap.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/counters.h"
@@ -37,31 +39,13 @@ enum AllowLabelledFunctionStatement {
   kDisallowLabelledFunctionStatement,
 };
 
-enum class ParseFunctionFlags {
+enum class ParseFunctionFlag : uint8_t {
   kIsNormal = 0,
-  kIsGenerator = 1,
-  kIsAsync = 2,
-  kIsDefault = 4
+  kIsGenerator = 1 << 0,
+  kIsAsync = 1 << 1
 };
 
-static inline ParseFunctionFlags operator|(ParseFunctionFlags lhs,
-                                           ParseFunctionFlags rhs) {
-  typedef unsigned char T;
-  return static_cast<ParseFunctionFlags>(static_cast<T>(lhs) |
-                                         static_cast<T>(rhs));
-}
-
-static inline ParseFunctionFlags& operator|=(ParseFunctionFlags& lhs,
-                                             const ParseFunctionFlags& rhs) {
-  lhs = lhs | rhs;
-  return lhs;
-}
-
-static inline bool operator&(ParseFunctionFlags bitfield,
-                             ParseFunctionFlags mask) {
-  typedef unsigned char T;
-  return static_cast<T>(bitfield) & static_cast<T>(mask);
-}
+typedef base::Flags<ParseFunctionFlag> ParseFunctionFlags;
 
 struct FormalParametersBase {
   explicit FormalParametersBase(DeclarationScope* scope) : scope(scope) {}
@@ -228,7 +212,7 @@ class SourceRangeScope final {
 template <typename Impl>
 struct ParserTypes;
 
-enum class ParsePropertyKind {
+enum class ParsePropertyKind : uint8_t {
   kAccessorGetter,
   kAccessorSetter,
   kValue,
@@ -1118,7 +1102,7 @@ class ParserBase {
   }
 
   ExpressionT ParsePropertyName(IdentifierT* name, ParsePropertyKind* kind,
-                                bool* is_generator, bool* is_async,
+                                ParseFunctionFlags* flags,
                                 bool* is_computed_name, bool* ok);
   ExpressionT ParseObjectLiteral(bool* ok);
   ClassLiteralPropertyT ParseClassPropertyDefinition(
@@ -1351,8 +1335,7 @@ class ParserBase {
       Scope* scope, Variable* var,
       typename DeclarationDescriptor::Kind declaration_kind);
 
-  FunctionKind FunctionKindForImpl(bool is_method, bool is_generator,
-                                   bool is_async) {
+  FunctionKind FunctionKindForImpl(bool is_method, ParseFunctionFlags flags) {
     static const FunctionKind kFunctionKinds[][2][2] = {
         {
             // is_method=false
@@ -1370,17 +1353,19 @@ class ParserBase {
              FunctionKind::kConciseGeneratorMethod,
              FunctionKind::kAsyncConciseGeneratorMethod},
         }};
-    return kFunctionKinds[is_method][is_generator][is_async];
+    return kFunctionKinds[is_method]
+                         [(flags & ParseFunctionFlag::kIsGenerator) != 0]
+                         [(flags & ParseFunctionFlag::kIsAsync) != 0];
   }
 
-  inline FunctionKind FunctionKindFor(bool is_generator, bool is_async) {
+  inline FunctionKind FunctionKindFor(ParseFunctionFlags flags) {
     const bool kIsMethod = false;
-    return FunctionKindForImpl(kIsMethod, is_generator, is_async);
+    return FunctionKindForImpl(kIsMethod, flags);
   }
 
-  inline FunctionKind MethodKindFor(bool is_generator, bool is_async) {
+  inline FunctionKind MethodKindFor(ParseFunctionFlags flags) {
     const bool kIsMethod = true;
-    return FunctionKindForImpl(kIsMethod, is_generator, is_async);
+    return FunctionKindForImpl(kIsMethod, flags);
   }
 
   // Keep track of eval() calls since they disable all local variable
@@ -1455,7 +1440,7 @@ class ParserBase {
         : parser_(parser), has_seen_constructor_(false) {}
 
     void CheckClassMethodName(Token::Value property, ParsePropertyKind type,
-                              bool is_generator, bool is_async, bool is_static,
+                              ParseFunctionFlags flags, bool is_static,
                               bool* ok);
     void CheckClassFieldName(bool is_static, bool* ok);
 
@@ -2175,11 +2160,10 @@ inline bool ParseAsAccessor(Token::Value token, Token::Value contextual_token,
 
 template <class Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
-    IdentifierT* name, ParsePropertyKind* kind, bool* is_generator,
-    bool* is_async, bool* is_computed_name, bool* ok) {
+    IdentifierT* name, ParsePropertyKind* kind, ParseFunctionFlags* flags,
+    bool* is_computed_name, bool* ok) {
   DCHECK_EQ(ParsePropertyKind::kNotSet, *kind);
-  DCHECK(!*is_generator);
-  DCHECK(!*is_async);
+  DCHECK_EQ(*flags, ParseFunctionFlag::kIsNormal);
   DCHECK(!*is_computed_name);
 
   if (Check(Token::ASYNC)) {
@@ -2190,12 +2174,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
       impl()->PushLiteralName(*name);
       return factory()->NewStringLiteral(*name, position());
     }
-    *is_async = true;
+    *flags = ParseFunctionFlag::kIsAsync;
     *kind = ParsePropertyKind::kMethod;
   }
 
   if (Check(Token::MUL)) {
-    *is_generator = true;
+    *flags |= ParseFunctionFlag::kIsGenerator;
     *kind = ParsePropertyKind::kMethod;
   }
 
@@ -2303,8 +2287,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
     bool has_extends, bool* is_computed_name,
     ClassLiteralProperty::Kind* property_kind, bool* is_static, bool* ok) {
   DCHECK_NOT_NULL(class_info);
-  bool is_generator = false;
-  bool is_async = false;
+  ParseFunctionFlags function_flags = ParseFunctionFlag::kIsNormal;
   *is_static = false;
   *property_kind = ClassLiteralProperty::METHOD;
   ParsePropertyKind kind = ParsePropertyKind::kNotSet;
@@ -2336,18 +2319,18 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       return impl()->NullLiteralProperty();
     } else {
       *is_static = true;
-      name_expression = ParsePropertyName(name, &kind, &is_generator, &is_async,
-                                          is_computed_name,
-                                          CHECK_OK_CUSTOM(NullLiteralProperty));
+      name_expression =
+          ParsePropertyName(name, &kind, &function_flags, is_computed_name,
+                            CHECK_OK_CUSTOM(NullLiteralProperty));
     }
   } else if (name_token == Token::PRIVATE_NAME) {
     Consume(Token::PRIVATE_NAME);
     *name = impl()->GetSymbol();
     name_expression = factory()->NewStringLiteral(*name, position());
   } else {
-    name_expression = ParsePropertyName(name, &kind, &is_generator, &is_async,
-                                        is_computed_name,
-                                        CHECK_OK_CUSTOM(NullLiteralProperty));
+    name_expression =
+        ParsePropertyName(name, &kind, &function_flags, is_computed_name,
+                          CHECK_OK_CUSTOM(NullLiteralProperty));
   }
 
   if (!class_info->has_name_static_property && *is_static &&
@@ -2407,11 +2390,11 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
       if (!*is_computed_name) {
         checker->CheckClassMethodName(name_token, ParsePropertyKind::kMethod,
-                                      is_generator, is_async, *is_static,
+                                      function_flags, *is_static,
                                       CHECK_OK_CUSTOM(NullLiteralProperty));
       }
 
-      FunctionKind kind = MethodKindFor(is_generator, is_async);
+      FunctionKind kind = MethodKindFor(function_flags);
 
       if (!*is_static && impl()->IsConstructor(*name)) {
         class_info->has_seen_constructor = true;
@@ -2436,12 +2419,12 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
     case ParsePropertyKind::kAccessorGetter:
     case ParsePropertyKind::kAccessorSetter: {
-      DCHECK(!is_generator && !is_async);
+      DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
       bool is_get = kind == ParsePropertyKind::kAccessorGetter;
 
       if (!*is_computed_name) {
-        checker->CheckClassMethodName(name_token, kind, false, false,
-                                      *is_static,
+        checker->CheckClassMethodName(name_token, kind,
+                                      ParseFunctionFlag::kIsNormal, *is_static,
                                       CHECK_OK_CUSTOM(NullLiteralProperty));
         // Make sure the name expression is a string since we need a Name for
         // Runtime_DefineAccessorPropertyUnchecked and since we can determine
@@ -2528,8 +2511,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
                                                 bool* is_computed_name,
                                                 bool* is_rest_property,
                                                 bool* ok) {
-  bool is_generator = false;
-  bool is_async = false;
+  ParseFunctionFlags function_flags = ParseFunctionFlag::kIsNormal;
   ParsePropertyKind kind = ParsePropertyKind::kNotSet;
 
   IdentifierT name = impl()->NullIdentifier();
@@ -2538,12 +2520,13 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
   int next_end_pos = scanner()->peek_location().end_pos;
 
   ExpressionT name_expression =
-      ParsePropertyName(&name, &kind, &is_generator, &is_async,
-                        is_computed_name, CHECK_OK_CUSTOM(NullLiteralProperty));
+      ParsePropertyName(&name, &kind, &function_flags, is_computed_name,
+                        CHECK_OK_CUSTOM(NullLiteralProperty));
 
   switch (kind) {
     case ParsePropertyKind::kSpread:
-      DCHECK(!is_generator && !is_async && !*is_computed_name);
+      DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
+      DCHECK(!*is_computed_name);
       DCHECK_EQ(Token::ELLIPSIS, name_token);
 
       *is_computed_name = true;
@@ -2554,7 +2537,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
           ObjectLiteralProperty::SPREAD, true);
 
     case ParsePropertyKind::kValue: {
-      DCHECK(!is_generator && !is_async);
+      DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
 
       if (!*is_computed_name) {
         checker->CheckDuplicateProto(name_token);
@@ -2578,7 +2561,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
       //
       // CoverInitializedName
       //    IdentifierReference Initializer?
-      DCHECK(!is_generator && !is_async);
+      DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
 
       if (!Token::IsIdentifier(name_token, language_mode(),
                                this->is_generator(),
@@ -2649,7 +2632,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
           Scanner::Location(next_beg_pos, scanner()->location().end_pos),
           MessageTemplate::kInvalidDestructuringTarget);
 
-      FunctionKind kind = MethodKindFor(is_generator, is_async);
+      FunctionKind kind = MethodKindFor(function_flags);
 
       ExpressionT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
@@ -2666,7 +2649,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
 
     case ParsePropertyKind::kAccessorGetter:
     case ParsePropertyKind::kAccessorSetter: {
-      DCHECK(!is_generator && !is_async);
+      DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
       bool is_get = kind == ParsePropertyKind::kAccessorGetter;
 
       classifier()->RecordPatternError(
@@ -3992,7 +3975,7 @@ typename ParserBase<Impl>::StatementT
 ParserBase<Impl>::ParseFunctionDeclaration(bool* ok) {
   Consume(Token::FUNCTION);
   int pos = position();
-  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
+  ParseFunctionFlags flags = ParseFunctionFlag::kIsNormal;
   if (Check(Token::MUL)) {
     impl()->ReportMessageAt(
         scanner()->location(),
@@ -4009,9 +3992,9 @@ ParserBase<Impl>::ParseHoistableDeclaration(
     ZonePtrList<const AstRawString>* names, bool default_export, bool* ok) {
   Expect(Token::FUNCTION, CHECK_OK_CUSTOM(NullStatement));
   int pos = position();
-  ParseFunctionFlags flags = ParseFunctionFlags::kIsNormal;
+  ParseFunctionFlags flags = ParseFunctionFlag::kIsNormal;
   if (Check(Token::MUL)) {
-    flags |= ParseFunctionFlags::kIsGenerator;
+    flags |= ParseFunctionFlag::kIsGenerator;
   }
   return ParseHoistableDeclaration(pos, flags, names, default_export, ok);
 }
@@ -4032,13 +4015,12 @@ ParserBase<Impl>::ParseHoistableDeclaration(
   //
   // 'function' and '*' (if present) have been consumed by the caller.
 
-  bool is_generator = flags & ParseFunctionFlags::kIsGenerator;
-  const bool is_async = flags & ParseFunctionFlags::kIsAsync;
-  DCHECK(!is_generator || !is_async);
+  DCHECK_IMPLIES((flags & ParseFunctionFlag::kIsAsync) != 0,
+                 (flags & ParseFunctionFlag::kIsGenerator) == 0);
 
-  if (is_async && Check(Token::MUL)) {
+  if ((flags & ParseFunctionFlag::kIsAsync) != 0 && Check(Token::MUL)) {
     // Async generator
-    is_generator = true;
+    flags |= ParseFunctionFlag::kIsGenerator;
   }
 
   IdentifierT name;
@@ -4060,7 +4042,7 @@ ParserBase<Impl>::ParseHoistableDeclaration(
   FuncNameInferrer::State fni_state(fni_);
   impl()->PushEnclosingName(name);
 
-  FunctionKind kind = FunctionKindFor(is_generator, is_async);
+  FunctionKind kind = FunctionKindFor(flags);
 
   FunctionLiteralT function = impl()->ParseFunctionLiteral(
       name, scanner()->location(), name_validity, kind, pos,
@@ -4080,7 +4062,7 @@ ParserBase<Impl>::ParseHoistableDeclaration(
   // a flag and UseCounting violations to assess web compatibility.
   bool is_sloppy_block_function = is_sloppy(language_mode()) &&
                                   !scope()->is_declaration_scope() &&
-                                  !is_async && !is_generator;
+                                  flags == ParseFunctionFlag::kIsNormal;
 
   return impl()->DeclareFunction(variable_name, function, mode, pos,
                                  is_sloppy_block_function, names, ok);
@@ -4170,7 +4152,7 @@ ParserBase<Impl>::ParseAsyncFunctionDeclaration(
     return impl()->NullStatement();
   }
   Expect(Token::FUNCTION, CHECK_OK_CUSTOM(NullStatement));
-  ParseFunctionFlags flags = ParseFunctionFlags::kIsAsync;
+  ParseFunctionFlags flags = ParseFunctionFlag::kIsAsync;
   return ParseHoistableDeclaration(pos, flags, names, default_export, ok);
 }
 
@@ -4611,9 +4593,9 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral(bool* ok) {
   IdentifierT name = impl()->NullIdentifier();
   FunctionLiteral::FunctionType type = FunctionLiteral::kAnonymousExpression;
 
-  bool is_generator = Check(Token::MUL);
-  const bool kIsAsync = true;
-  const FunctionKind kind = FunctionKindFor(is_generator, kIsAsync);
+  ParseFunctionFlags flags = ParseFunctionFlag::kIsAsync;
+  if (Check(Token::MUL)) flags |= ParseFunctionFlag::kIsGenerator;
+  const FunctionKind kind = FunctionKindFor(flags);
 
   if (impl()->ParsingDynamicFunctionDeclaration()) {
     // We don't want dynamic functions to actually declare their name
@@ -6187,8 +6169,8 @@ void ParserBase<Impl>::ObjectLiteralChecker::CheckDuplicateProto(
 
 template <typename Impl>
 void ParserBase<Impl>::ClassLiteralChecker::CheckClassMethodName(
-    Token::Value property, ParsePropertyKind type, bool is_generator,
-    bool is_async, bool is_static, bool* ok) {
+    Token::Value property, ParsePropertyKind type, ParseFunctionFlags flags,
+    bool is_static, bool* ok) {
   DCHECK(type == ParsePropertyKind::kMethod || IsAccessor(type));
 
   if (property == Token::SMI || property == Token::NUMBER) return;
@@ -6200,11 +6182,13 @@ void ParserBase<Impl>::ClassLiteralChecker::CheckClassMethodName(
       return;
     }
   } else if (IsConstructor()) {
-    if (is_generator || is_async || IsAccessor(type)) {
+    if (flags != ParseFunctionFlag::kIsNormal || IsAccessor(type)) {
       MessageTemplate::Template msg =
-          is_generator ? MessageTemplate::kConstructorIsGenerator
-                       : is_async ? MessageTemplate::kConstructorIsAsync
-                                  : MessageTemplate::kConstructorIsAccessor;
+          (flags & ParseFunctionFlag::kIsGenerator) != 0
+              ? MessageTemplate::kConstructorIsGenerator
+              : (flags & ParseFunctionFlag::kIsAsync) != 0
+                    ? MessageTemplate::kConstructorIsAsync
+                    : MessageTemplate::kConstructorIsAccessor;
       this->parser()->ReportMessage(msg);
       *ok = false;
       return;
