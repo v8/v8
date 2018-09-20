@@ -177,7 +177,7 @@ TEST_F(UnoptimizedCompileJobTest, CompileAndRun) {
   ASSERT_TRUE(value == Smi::FromInt(160));
 }
 
-TEST_F(UnoptimizedCompileJobTest, CompileFailureToAnalyse) {
+TEST_F(UnoptimizedCompileJobTest, CompileFailure) {
   std::string raw_script("() { var a = ");
   for (int i = 0; i < 10000; i++) {
     // TODO(leszeks): Figure out a more "unit-test-y" way of forcing an analysis
@@ -193,34 +193,6 @@ TEST_F(UnoptimizedCompileJobTest, CompileFailureToAnalyse) {
       test::CreateSharedFunctionInfo(isolate(), script);
   std::unique_ptr<UnoptimizedCompileJob> job(
       NewUnoptimizedCompileJob(isolate(), shared, 100));
-
-  job->Compile(false);
-  ASSERT_FALSE(job->IsFailed());
-  ASSERT_JOB_STATUS(CompilerDispatcherJob::Status::kReadyToFinalize, job);
-
-  job->FinalizeOnMainThread(isolate(), shared);
-  ASSERT_TRUE(job->IsFailed());
-  ASSERT_JOB_STATUS(CompilerDispatcherJob::Status::kFailed, job);
-  ASSERT_TRUE(isolate()->has_pending_exception());
-
-  isolate()->clear_pending_exception();
-  job->ResetOnMainThread(isolate());
-  ASSERT_JOB_STATUS(CompilerDispatcherJob::Status::kInitial, job);
-}
-
-TEST_F(UnoptimizedCompileJobTest, CompileFailureToFinalize) {
-  std::string raw_script("() { var a = ");
-  for (int i = 0; i < 5000; i++) {
-    // Alternate + and - to avoid n-ary operation nodes.
-    raw_script += "'x' + 'x' - ";
-  }
-  raw_script += " 'x'; }";
-  test::ScriptResource* script =
-      new test::ScriptResource(raw_script.c_str(), strlen(raw_script.c_str()));
-  Handle<SharedFunctionInfo> shared =
-      test::CreateSharedFunctionInfo(isolate(), script);
-  std::unique_ptr<UnoptimizedCompileJob> job(
-      NewUnoptimizedCompileJob(isolate(), shared, 50));
 
   job->Compile(false);
   ASSERT_FALSE(job->IsFailed());
