@@ -62,6 +62,16 @@ Local<Value> TestWithIsolate::RunJS(const char* source) {
   return script->Run(isolate()->GetCurrentContext()).ToLocalChecked();
 }
 
+Local<Value> TestWithIsolate::RunJS(
+    String::ExternalOneByteStringResource* source) {
+  Local<Script> script =
+      v8::Script::Compile(
+          isolate()->GetCurrentContext(),
+          v8::String::NewExternalOneByte(isolate(), source).ToLocalChecked())
+          .ToLocalChecked();
+  return script->Run(isolate()->GetCurrentContext()).ToLocalChecked();
+}
+
 TestWithContext::TestWithContext()
     : context_(Context::New(isolate())), context_scope_(context_) {}
 
@@ -90,6 +100,11 @@ TestWithIsolateAndZone::~TestWithIsolateAndZone() = default;
 Factory* TestWithIsolate::factory() const { return isolate()->factory(); }
 
 Handle<Object> TestWithIsolate::RunJSInternal(const char* source) {
+  return Utils::OpenHandle(*::v8::TestWithIsolate::RunJS(source));
+}
+
+Handle<Object> TestWithIsolate::RunJSInternal(
+    ::v8::String::ExternalOneByteStringResource* source) {
   return Utils::OpenHandle(*::v8::TestWithIsolate::RunJS(source));
 }
 

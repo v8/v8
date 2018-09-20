@@ -38,10 +38,17 @@ class Zone;
 // A container for the inputs, configuration options, and outputs of parsing.
 class V8_EXPORT_PRIVATE ParseInfo {
  public:
-  ParseInfo(Isolate*);
+  explicit ParseInfo(AccountingAllocator* zone_allocator);
+  explicit ParseInfo(Isolate*);
   ParseInfo(Isolate*, AccountingAllocator* zone_allocator);
   ParseInfo(Isolate* isolate, Handle<Script> script);
   ParseInfo(Isolate* isolate, Handle<SharedFunctionInfo> shared);
+
+  // Creates a new parse info based on parent top-level |outer_parse_info| for
+  // function |literal|.
+  static std::unique_ptr<ParseInfo> FromParent(
+      const ParseInfo* outer_parse_info, AccountingAllocator* zone_allocator,
+      const FunctionLiteral* literal, const AstRawString* function_name);
 
   ~ParseInfo();
 
@@ -203,7 +210,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   //--------------------------------------------------------------------------
   Handle<Script> script() const { return script_; }
   void set_script(Handle<Script> script);
-  void ClearScriptHandle() { script_ = Handle<Script>(); }
+
   MaybeHandle<ScopeInfo> maybe_outer_scope_info() const {
     return maybe_outer_scope_info_;
   }
@@ -224,6 +231,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
  private:
   void SetScriptForToplevelCompile(Isolate* isolate, Handle<Script> script);
+
+  // Set function info flags based on those in either FunctionLiteral or
+  // SharedFunctionInfo |function|
+  template <typename T>
+  void SetFunctionInfo(T function);
 
   // Various configuration flags for parsing.
   enum Flag {

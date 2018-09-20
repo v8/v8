@@ -297,6 +297,11 @@ class AstValueFactory {
     return GetTwoByteStringInternal(literal);
   }
   const AstRawString* GetString(Handle<String> literal);
+
+  // Clones an AstRawString from another ast value factory, adding it to this
+  // factory and returning the clone.
+  const AstRawString* CloneFromOtherFactory(const AstRawString* raw_string);
+
   V8_EXPORT_PRIVATE AstConsString* NewConsString();
   V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str);
   V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str1,

@@ -723,11 +723,13 @@ ProducedPreParsedScopeData* ZoneConsumedPreParsedScopeData::GetChildData(
 
 std::unique_ptr<ConsumedPreParsedScopeData> ConsumedPreParsedScopeData::For(
     Isolate* isolate, Handle<PreParsedScopeData> data) {
+  DCHECK(!data.is_null());
   return base::make_unique<OnHeapConsumedPreParsedScopeData>(isolate, data);
 }
 
 std::unique_ptr<ConsumedPreParsedScopeData> ConsumedPreParsedScopeData::For(
     Zone* zone, ZonePreParsedScopeData* data) {
+  if (data == nullptr) return {};
   return base::make_unique<ZoneConsumedPreParsedScopeData>(zone, data);
 }
 

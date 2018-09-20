@@ -37,6 +37,7 @@ class TestWithIsolate : public virtual ::testing::Test {
   }
 
   Local<Value> RunJS(const char* source);
+  Local<Value> RunJS(String::ExternalOneByteStringResource* source);
 
   static void SetUpTestCase();
   static void TearDownTestCase();
@@ -88,6 +89,13 @@ class TestWithIsolate : public virtual ::v8::TestWithIsolate {
     return Handle<T>::cast(RunJSInternal(source));
   }
   Handle<Object> RunJSInternal(const char* source);
+  template <typename T = Object>
+  Handle<T> RunJS(::v8::String::ExternalOneByteStringResource* source) {
+    return Handle<T>::cast(RunJSInternal(source));
+  }
+  Handle<Object> RunJSInternal(
+      ::v8::String::ExternalOneByteStringResource* source);
+
   base::RandomNumberGenerator* random_number_generator() const;
 
  private:

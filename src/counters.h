@@ -872,9 +872,13 @@ class RuntimeCallTimer final {
   V(CompileBackgroundScript)                   \
   V(CompileBackgroundRewriteReturnResult)      \
   V(CompileBackgroundScopeAnalysis)            \
+  V(CompileBackgroundUnoptimizedCompileJob)    \
   V(CompileDeserialize)                        \
   V(CompileEval)                               \
   V(CompileAnalyse)                            \
+  V(CompileEnqueueOnDispatcher)                \
+  V(CompileFinalizeUnoptimizedCompileJob)      \
+  V(CompileFinishNowOnDispatcher)              \
   V(CompileFunction)                           \
   V(CompileGetFromOptimizedCodeMap)            \
   V(CompileIgnition)                           \
@@ -883,6 +887,7 @@ class RuntimeCallTimer final {
   V(CompileScopeAnalysis)                      \
   V(CompileScript)                             \
   V(CompileSerialize)                          \
+  V(CompileUnoptimizedCompileJob)              \
   V(CompileWaitForDispatcher)                  \
   V(DeoptimizeCode)                            \
   V(FunctionCallback)                          \

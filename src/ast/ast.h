@@ -2261,7 +2261,7 @@ class FunctionLiteral final : public Expression {
 
   void mark_as_iife() { bit_field_ = IIFEBit::update(bit_field_, true); }
   bool is_iife() const { return IIFEBit::decode(bit_field_); }
-  bool is_top_level() const {
+  bool is_toplevel() const {
     return function_literal_id() == FunctionLiteral::kIdTypeTopLevel;
   }
   bool is_wrapped() const { return function_type() == kWrapped; }
