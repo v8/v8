@@ -1954,25 +1954,23 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberDivide: {
-        if (BothInputsAreUnsigned32(node) && truncation.IsUsedAsWord32()) {
+        if (TypeOf(node->InputAt(0)).Is(Type::Unsigned32()) &&
+            TypeOf(node->InputAt(1)).Is(Type::Unsigned32()) &&
+            (truncation.IsUsedAsWord32() ||
+             TypeOf(node).Is(Type::Unsigned32()))) {
           // => unsigned Uint32Div
           VisitWord32TruncatingBinop(node);
           if (lower()) DeferReplacement(node, lowering->Uint32Div(node));
           return;
         }
-        if (BothInputsAreSigned32(node)) {
-          if (NodeProperties::GetType(node).Is(Type::Signed32())) {
-            // => signed Int32Div
-            VisitWord32TruncatingBinop(node);
-            if (lower()) DeferReplacement(node, lowering->Int32Div(node));
-            return;
-          }
-          if (truncation.IsUsedAsWord32()) {
-            // => signed Int32Div
-            VisitWord32TruncatingBinop(node);
-            if (lower()) DeferReplacement(node, lowering->Int32Div(node));
-            return;
-          }
+        if (TypeOf(node->InputAt(0)).Is(Type::Signed32()) &&
+            TypeOf(node->InputAt(1)).Is(Type::Signed32()) &&
+            (truncation.IsUsedAsWord32() ||
+             TypeOf(node).Is(Type::Signed32()))) {
+          // => signed Int32Div
+          VisitWord32TruncatingBinop(node);
+          if (lower()) DeferReplacement(node, lowering->Int32Div(node));
+          return;
         }
         // Number x Number => Float64Div
         VisitFloat64Binop(node);
