@@ -137,9 +137,7 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
 constexpr size_t kAddressSpaceSoftLimit = 0x2100000000L;  // 132 GiB
 constexpr size_t kAddressSpaceHardLimit = 0x4000000000L;  // 256 GiB
 #elif V8_TARGET_ARCH_64_BIT
-// We set the limit to 1 TiB + 4 GiB so that there is room for mini-guards
-// once we fill everything up with full-sized guard regions.
-constexpr size_t kAddressSpaceSoftLimit = 0x8000000000L;   // 512 GiB
+constexpr size_t kAddressSpaceSoftLimit = 0x6000000000L;   // 384 GiB
 constexpr size_t kAddressSpaceHardLimit = 0x10100000000L;  // 1 TiB + 4 GiB
 #else
 constexpr size_t kAddressSpaceSoftLimit = 0x90000000;  // 2 GiB + 256 MiB
