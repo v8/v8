@@ -3470,53 +3470,53 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
           node, JS_DATA_VIEW_TYPE,
           AccessBuilder::ForJSArrayBufferViewByteOffset());
     case Builtins::kDataViewPrototypeGetUint8:
-      return ReduceDataViewPrototypeGet(node,
-                                        ExternalArrayType::kExternalUint8Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kGet,
+                                  ExternalArrayType::kExternalUint8Array);
     case Builtins::kDataViewPrototypeGetInt8:
-      return ReduceDataViewPrototypeGet(node,
-                                        ExternalArrayType::kExternalInt8Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kGet,
+                                  ExternalArrayType::kExternalInt8Array);
     case Builtins::kDataViewPrototypeGetUint16:
-      return ReduceDataViewPrototypeGet(
-          node, ExternalArrayType::kExternalUint16Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kGet,
+                                  ExternalArrayType::kExternalUint16Array);
     case Builtins::kDataViewPrototypeGetInt16:
-      return ReduceDataViewPrototypeGet(node,
-                                        ExternalArrayType::kExternalInt16Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kGet,
+                                  ExternalArrayType::kExternalInt16Array);
     case Builtins::kDataViewPrototypeGetUint32:
-      return ReduceDataViewPrototypeGet(
-          node, ExternalArrayType::kExternalUint32Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kGet,
+                                  ExternalArrayType::kExternalUint32Array);
     case Builtins::kDataViewPrototypeGetInt32:
-      return ReduceDataViewPrototypeGet(node,
-                                        ExternalArrayType::kExternalInt32Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kGet,
+                                  ExternalArrayType::kExternalInt32Array);
     case Builtins::kDataViewPrototypeGetFloat32:
-      return ReduceDataViewPrototypeGet(
-          node, ExternalArrayType::kExternalFloat32Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kGet,
+                                  ExternalArrayType::kExternalFloat32Array);
     case Builtins::kDataViewPrototypeGetFloat64:
-      return ReduceDataViewPrototypeGet(
-          node, ExternalArrayType::kExternalFloat64Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kGet,
+                                  ExternalArrayType::kExternalFloat64Array);
     case Builtins::kDataViewPrototypeSetUint8:
-      return ReduceDataViewPrototypeSet(node,
-                                        ExternalArrayType::kExternalUint8Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kSet,
+                                  ExternalArrayType::kExternalUint8Array);
     case Builtins::kDataViewPrototypeSetInt8:
-      return ReduceDataViewPrototypeSet(node,
-                                        ExternalArrayType::kExternalInt8Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kSet,
+                                  ExternalArrayType::kExternalInt8Array);
     case Builtins::kDataViewPrototypeSetUint16:
-      return ReduceDataViewPrototypeSet(
-          node, ExternalArrayType::kExternalUint16Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kSet,
+                                  ExternalArrayType::kExternalUint16Array);
     case Builtins::kDataViewPrototypeSetInt16:
-      return ReduceDataViewPrototypeSet(node,
-                                        ExternalArrayType::kExternalInt16Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kSet,
+                                  ExternalArrayType::kExternalInt16Array);
     case Builtins::kDataViewPrototypeSetUint32:
-      return ReduceDataViewPrototypeSet(
-          node, ExternalArrayType::kExternalUint32Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kSet,
+                                  ExternalArrayType::kExternalUint32Array);
     case Builtins::kDataViewPrototypeSetInt32:
-      return ReduceDataViewPrototypeSet(node,
-                                        ExternalArrayType::kExternalInt32Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kSet,
+                                  ExternalArrayType::kExternalInt32Array);
     case Builtins::kDataViewPrototypeSetFloat32:
-      return ReduceDataViewPrototypeSet(
-          node, ExternalArrayType::kExternalFloat32Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kSet,
+                                  ExternalArrayType::kExternalFloat32Array);
     case Builtins::kDataViewPrototypeSetFloat64:
-      return ReduceDataViewPrototypeSet(
-          node, ExternalArrayType::kExternalFloat64Array);
+      return ReduceDataViewAccess(node, DataViewAccess::kSet,
+                                  ExternalArrayType::kExternalFloat64Array);
     case Builtins::kTypedArrayPrototypeByteLength:
       return ReduceArrayBufferViewAccessor(
           node, JS_TYPED_ARRAY_TYPE,
@@ -6784,163 +6784,32 @@ uint32_t ExternalArrayElementSize(const ExternalArrayType element_type) {
 }
 }  // namespace
 
-Reduction JSCallReducer::ReduceDataViewPrototypeGet(
-    Node* node, ExternalArrayType element_type) {
+Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
+                                              ExternalArrayType element_type) {
   size_t const element_size = ExternalArrayElementSize(element_type);
   CallParameters const& p = CallParametersOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* offset = node->op()->ValueInputCount() > 2
+                     ? NodeProperties::GetValueInput(node, 2)
+                     : jsgraph()->ZeroConstant();
+  Node* value = (access == DataViewAccess::kGet)
+                    ? nullptr
+                    : (node->op()->ValueInputCount() > 3
+                           ? NodeProperties::GetValueInput(node, 3)
+                           : jsgraph()->ZeroConstant());
+  Node* is_little_endian = (access == DataViewAccess::kGet)
+                               ? (node->op()->ValueInputCount() > 3
+                                      ? NodeProperties::GetValueInput(node, 3)
+                                      : jsgraph()->FalseConstant())
+                               : (node->op()->ValueInputCount() > 4
+                                      ? NodeProperties::GetValueInput(node, 4)
+                                      : jsgraph()->FalseConstant());
 
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
   }
-
-  Node* offset = node->op()->ValueInputCount() > 2
-                     ? NodeProperties::GetValueInput(node, 2)
-                     : jsgraph()->ZeroConstant();
-
-  Node* is_little_endian = node->op()->ValueInputCount() > 3
-                               ? NodeProperties::GetValueInput(node, 3)
-                               : jsgraph()->FalseConstant();
-
-  // Only do stuff if the {receiver} is really a DataView.
-  if (NodeProperties::HasInstanceTypeWitness(isolate(), receiver, effect,
-                                             JS_DATA_VIEW_TYPE)) {
-    // Check that the {offset} is within range for the {receiver}.
-    HeapObjectMatcher m(receiver);
-    if (m.HasValue()) {
-      // We only deal with DataViews here whose [[ByteLength]] is at least
-      // {element_size} and less than 2^31-{element_size}.
-      Handle<JSDataView> dataview = Handle<JSDataView>::cast(m.Value());
-      if (dataview->byte_length() < element_size ||
-          dataview->byte_length() - element_size > kMaxInt) {
-        return NoChange();
-      }
-
-      // The {receiver}s [[ByteOffset]] must be within Unsigned31 range.
-      if (dataview->byte_offset() > kMaxInt) {
-        return NoChange();
-      }
-
-      // Check that the {offset} is within range of the {byte_length}.
-      Node* byte_length =
-          jsgraph()->Constant(dataview->byte_length() - (element_size - 1));
-      offset = effect =
-          graph()->NewNode(simplified()->CheckBounds(p.feedback()), offset,
-                           byte_length, effect, control);
-
-      // Add the [[ByteOffset]] to compute the effective offset.
-      Node* byte_offset = jsgraph()->Constant(dataview->byte_offset());
-      offset = graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
-    } else {
-      // We only deal with DataViews here that have Smi [[ByteLength]]s.
-      Node* byte_length = effect =
-          graph()->NewNode(simplified()->LoadField(
-                               AccessBuilder::ForJSArrayBufferViewByteLength()),
-                           receiver, effect, control);
-      byte_length = effect = graph()->NewNode(
-          simplified()->CheckSmi(p.feedback()), byte_length, effect, control);
-
-      // Check that the {offset} is within range of the {byte_length}.
-      offset = effect =
-          graph()->NewNode(simplified()->CheckBounds(p.feedback()), offset,
-                           byte_length, effect, control);
-
-      if (element_size > 0) {
-        // For non-byte accesses we also need to check that the {offset}
-        // plus the {element_size}-1 fits within the given {byte_length}.
-        Node* end_offset =
-            graph()->NewNode(simplified()->NumberAdd(), offset,
-                             jsgraph()->Constant(element_size - 1));
-        effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
-                                  end_offset, byte_length, effect, control);
-      }
-
-      // The {receiver}s [[ByteOffset]] also needs to be a (positive) Smi.
-      Node* byte_offset = effect =
-          graph()->NewNode(simplified()->LoadField(
-                               AccessBuilder::ForJSArrayBufferViewByteOffset()),
-                           receiver, effect, control);
-      byte_offset = effect = graph()->NewNode(
-          simplified()->CheckSmi(p.feedback()), byte_offset, effect, control);
-
-      // Compute the buffer index at which we'll read.
-      offset = graph()->NewNode(simplified()->NumberAdd(), offset, byte_offset);
-    }
-
-    // Coerce {is_little_endian} to boolean.
-    is_little_endian =
-        graph()->NewNode(simplified()->ToBoolean(), is_little_endian);
-
-    // Get the underlying buffer and check that it has not been neutered.
-    Node* buffer = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
-        receiver, effect, control);
-
-    if (isolate()->IsArrayBufferNeuteringIntact()) {
-      // Add a code dependency so we are deoptimized in case an ArrayBuffer
-      // gets neutered.
-      dependencies()->DependOnProtector(PropertyCellRef(
-          js_heap_broker(), factory()->array_buffer_neutering_protector()));
-    } else {
-      // Bail out if the {buffer} was neutered.
-      Node* buffer_bit_field = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
-          buffer, effect, control);
-      Node* check = graph()->NewNode(
-          simplified()->NumberEqual(),
-          graph()->NewNode(
-              simplified()->NumberBitwiseAnd(), buffer_bit_field,
-              jsgraph()->Constant(JSArrayBuffer::WasNeuteredBit::kMask)),
-          jsgraph()->ZeroConstant());
-      effect = graph()->NewNode(
-          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered,
-                                p.feedback()),
-          check, effect, control);
-    }
-
-    // Get the buffer's backing store.
-    Node* backing_store = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayBufferBackingStore()),
-        buffer, effect, control);
-
-    // Perform the load.
-    Node* value = effect = graph()->NewNode(
-        simplified()->LoadDataViewElement(element_type), buffer, backing_store,
-        offset, is_little_endian, effect, control);
-
-    // Continue on the regular path.
-    ReplaceWithValue(node, value, effect, control);
-    return Changed(value);
-  }
-
-  return NoChange();
-}
-
-Reduction JSCallReducer::ReduceDataViewPrototypeSet(
-    Node* node, ExternalArrayType element_type) {
-  size_t const element_size = ExternalArrayElementSize(element_type);
-  CallParameters const& p = CallParametersOf(node->op());
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return NoChange();
-  }
-
-  Node* offset = node->op()->ValueInputCount() > 2
-                     ? NodeProperties::GetValueInput(node, 2)
-                     : jsgraph()->ZeroConstant();
-
-  Node* value = node->op()->ValueInputCount() > 3
-                    ? NodeProperties::GetValueInput(node, 3)
-                    : jsgraph()->ZeroConstant();
-
-  Node* is_little_endian = node->op()->ValueInputCount() > 4
-                               ? NodeProperties::GetValueInput(node, 4)
-                               : jsgraph()->FalseConstant();
 
   // Only do stuff if the {receiver} is really a DataView.
   if (NodeProperties::HasInstanceTypeWitness(isolate(), receiver, effect,
@@ -7012,10 +6881,12 @@ Reduction JSCallReducer::ReduceDataViewPrototypeSet(
         graph()->NewNode(simplified()->ToBoolean(), is_little_endian);
 
     // Coerce {value} to Number.
-    value = effect = graph()->NewNode(
-        simplified()->SpeculativeToNumber(NumberOperationHint::kNumberOrOddball,
-                                          p.feedback()),
-        value, effect, control);
+    if (access == DataViewAccess::kSet) {
+      value = effect = graph()->NewNode(
+          simplified()->SpeculativeToNumber(
+              NumberOperationHint::kNumberOrOddball, p.feedback()),
+          value, effect, control);
+    }
 
     // Get the underlying buffer and check that it has not been neutered.
     Node* buffer = effect = graph()->NewNode(
@@ -7049,12 +6920,21 @@ Reduction JSCallReducer::ReduceDataViewPrototypeSet(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferBackingStore()),
         buffer, effect, control);
 
-    // Perform the store.
-    effect = graph()->NewNode(simplified()->StoreDataViewElement(element_type),
-                              buffer, backing_store, offset, value,
-                              is_little_endian, effect, control);
-
-    Node* value = jsgraph()->UndefinedConstant();
+    switch (access) {
+      case DataViewAccess::kGet:
+        // Perform the load.
+        value = effect = graph()->NewNode(
+            simplified()->LoadDataViewElement(element_type), buffer,
+            backing_store, offset, is_little_endian, effect, control);
+        break;
+      case DataViewAccess::kSet:
+        // Perform the store.
+        effect = graph()->NewNode(
+            simplified()->StoreDataViewElement(element_type), buffer,
+            backing_store, offset, value, is_little_endian, effect, control);
+        value = jsgraph()->UndefinedConstant();
+        break;
+    }
 
     // Continue on the regular path.
     ReplaceWithValue(node, value, effect, control);
