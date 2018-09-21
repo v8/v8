@@ -204,6 +204,8 @@
   'test-cpu-profiler/TickEvents': [SKIP],
   # BUG(v8:6924). The test allocates a lot of memory.
   'test-api/NewStringRangeError': [PASS, NO_VARIANTS],
+  # BUG(v8:8209). Flaky
+  'test-cpu-profiler/Issue1398': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
