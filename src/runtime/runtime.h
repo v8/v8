@@ -411,7 +411,6 @@ namespace internal {
   F(StringBuilderConcat, 3, 1)            \
   F(StringBuilderJoin, 3, 1)              \
   F(StringCharCodeAt, 2, 1)               \
-  F(StringCharFromCode, 1, 1)             \
   F(StringEqual, 2, 1)                    \
   F(StringGreaterThan, 2, 1)              \
   F(StringGreaterThanOrEqual, 2, 1)       \

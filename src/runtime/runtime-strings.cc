@@ -701,17 +701,6 @@ RUNTIME_FUNCTION(Runtime_FlattenString) {
   return *String::Flatten(isolate, str);
 }
 
-RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
-  HandleScope handlescope(isolate);
-  DCHECK_EQ(1, args.length());
-  if (args[0]->IsNumber()) {
-    CONVERT_NUMBER_CHECKED(uint32_t, code, Uint32, args[0]);
-    code &= 0xFFFF;
-    return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
-  }
-  return ReadOnlyRoots(isolate).empty_string();
-}
-
 RUNTIME_FUNCTION(Runtime_StringMaxLength) {
   SealHandleScope shs(isolate);
   return Smi::FromInt(String::kMaxLength);
