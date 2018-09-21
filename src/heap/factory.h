@@ -668,13 +668,6 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<JSMap> NewJSMap();
   Handle<JSSet> NewJSSet();
 
-  Handle<JSMapIterator> NewJSMapIterator(Handle<Map> map,
-                                         Handle<OrderedHashMap> table,
-                                         int index);
-  Handle<JSSetIterator> NewJSSetIterator(Handle<Map> map,
-                                         Handle<OrderedHashSet> table,
-                                         int index);
-
   // Allocates a bound function.
   MaybeHandle<JSBoundFunction> NewJSBoundFunction(
       Handle<JSReceiver> target_function, Handle<Object> bound_this,

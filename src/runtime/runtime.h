@@ -95,13 +95,9 @@ namespace internal {
   F(ThrowUnsupportedSuperError, 0, 1)
 
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F) \
-  F(GetWeakMapEntries, 2, 1)              \
-  F(GetWeakSetValues, 2, 1)               \
   F(MapGrow, 1, 1)                        \
-  F(MapIteratorClone, 1, 1)               \
   F(MapShrink, 1, 1)                      \
   F(SetGrow, 1, 1)                        \
-  F(SetIteratorClone, 1, 1)               \
   F(SetShrink, 1, 1)                      \
   F(TheHole, 0, 1)                        \
   F(WeakCollectionDelete, 3, 1)           \
@@ -173,15 +169,12 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
   F(Call, -1 /* >= 2 */, 1)                \
-  F(FunctionGetName, 1, 1)                 \
   F(FunctionGetScriptSource, 1, 1)         \
   F(FunctionGetScriptId, 1, 1)             \
   F(FunctionGetScriptSourcePosition, 1, 1) \
   F(FunctionGetSourceCode, 1, 1)           \
   F(FunctionIsAPIFunction, 1, 1)           \
-  F(IsConstructor, 1, 1)                   \
   F(IsFunction, 1, 1)                      \
-  F(SetCode, 2, 1)                         \
   F(SetNativeFlag, 1, 1)
 
 #define FOR_EACH_INTRINSIC_GENERATOR(F)       \
@@ -429,7 +422,6 @@ namespace internal {
   F(StringLessThan, 2, 1)                 \
   F(StringLessThanOrEqual, 2, 1)          \
   F(StringMaxLength, 0, 1)                \
-  F(StringNotEqual, 2, 1)                 \
   F(StringReplaceOneCharWithString, 3, 1) \
   F(StringSubstring, 3, 1)                \
   F(StringToArray, 2, 1)                  \

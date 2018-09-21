@@ -3102,26 +3102,6 @@ Handle<JSSet> Factory::NewJSSet() {
   return js_set;
 }
 
-Handle<JSMapIterator> Factory::NewJSMapIterator(Handle<Map> map,
-                                                Handle<OrderedHashMap> table,
-                                                int index) {
-  Handle<JSMapIterator> result =
-      Handle<JSMapIterator>::cast(NewJSObjectFromMap(map));
-  result->set_table(*table);
-  result->set_index(Smi::FromInt(index));
-  return result;
-}
-
-Handle<JSSetIterator> Factory::NewJSSetIterator(Handle<Map> map,
-                                                Handle<OrderedHashSet> table,
-                                                int index) {
-  Handle<JSSetIterator> result =
-      Handle<JSSetIterator>::cast(NewJSObjectFromMap(map));
-  result->set_table(*table);
-  result->set_index(Smi::FromInt(index));
-  return result;
-}
-
 void Factory::TypeAndSizeForElementsKind(ElementsKind kind,
                                          ExternalArrayType* array_type,
                                          size_t* element_size) {

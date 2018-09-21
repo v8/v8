@@ -694,14 +694,6 @@ RUNTIME_FUNCTION(Runtime_StringEqual) {
   return isolate->heap()->ToBoolean(String::Equals(isolate, x, y));
 }
 
-RUNTIME_FUNCTION(Runtime_StringNotEqual) {
-  HandleScope handle_scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  return isolate->heap()->ToBoolean(!String::Equals(isolate, x, y));
-}
-
 RUNTIME_FUNCTION(Runtime_FlattenString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

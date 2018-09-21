@@ -167,7 +167,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kPushCatchContext:
     case Runtime::kReThrow:
     case Runtime::kStringEqual:
-    case Runtime::kStringNotEqual:
     case Runtime::kStringLessThan:
     case Runtime::kStringLessThanOrEqual:
     case Runtime::kStringGreaterThan:
