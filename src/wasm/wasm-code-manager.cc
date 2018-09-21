@@ -412,13 +412,12 @@ WasmCode* NativeModule::AddOwnedCode(
   return code;
 }
 
-WasmCode* NativeModule::AddCodeCopy(Handle<Code> code, WasmCode::Kind kind,
-                                    uint32_t index) {
+WasmCode* NativeModule::AddImportWrapper(Handle<Code> code, uint32_t index) {
   // TODO(wasm): Adding instance-specific wasm-to-js wrappers as owned code to
   // this NativeModule is a memory leak until the whole NativeModule dies.
-  WasmCode* ret = AddAnonymousCode(code, kind);
+  WasmCode* ret = AddAnonymousCode(code, WasmCode::kWasmToJsWrapper);
+  DCHECK_LT(index, module_->num_imported_functions);
   ret->index_ = Just(index);
-  if (index >= module_->num_imported_functions) set_code(index, ret);
   return ret;
 }
 
@@ -428,6 +427,11 @@ WasmCode* NativeModule::AddInterpreterEntry(Handle<Code> code, uint32_t index) {
   base::LockGuard<base::Mutex> lock(&allocation_mutex_);
   PatchJumpTable(index, ret->instruction_start(), WasmCode::kFlushICache);
   set_code(index, ret);
+  return ret;
+}
+
+WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
+  WasmCode* ret = AddAnonymousCode(code, WasmCode::kFunction);
   return ret;
 }
 

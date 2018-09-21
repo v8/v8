@@ -216,8 +216,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   static constexpr bool kCanAllocateMoreMemory = true;
 #endif
 
-  // {AddCode} is thread safe w.r.t. other calls to {AddCode} or {AddCodeCopy},
-  // i.e. it can be called concurrently from background threads.
+  // {AddCode} is thread safe w.r.t. other calls to {AddCode} or methods adding
+  // code below, i.e. it can be called concurrently from background threads.
   WasmCode* AddCode(uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
                     size_t safepoint_table_offset, size_t handler_table_offset,
                     OwnedVector<trap_handler::ProtectedInstructionData>
@@ -234,15 +234,18 @@ class V8_EXPORT_PRIVATE NativeModule final {
       OwnedVector<const byte> reloc_info,
       OwnedVector<const byte> source_position_table, WasmCode::Tier tier);
 
-  // A way to copy over JS-allocated code. This is because we compile
-  // certain wrappers using a different pipeline.
-  WasmCode* AddCodeCopy(Handle<Code> code, WasmCode::Kind kind, uint32_t index);
+  // Add an import wrapper for wasm-to-JS transitions. This method copies over
+  // JS-allocated code, because we compile wrappers using a different pipeline.
+  WasmCode* AddImportWrapper(Handle<Code> code, uint32_t index);
 
-  // Add an interpreter entry. For the same reason as AddCodeCopy, we
+  // Add an interpreter entry. For the same reason as AddImportWrapper, we
   // currently compile these using a different pipeline and we can't get a
   // CodeDesc here. When adding interpreter wrappers, we do not insert them in
   // the code_table, however, we let them self-identify as the {index} function.
   WasmCode* AddInterpreterEntry(Handle<Code> code, uint32_t index);
+
+  // Adds anonymous code for testing purposes.
+  WasmCode* AddCodeForTesting(Handle<Code> code);
 
   // When starting lazy compilation, provide the WasmLazyCompile builtin by
   // calling SetLazyBuiltin. It will be copied into this NativeModule and the
@@ -390,12 +393,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // AsyncCompileJob).
   std::shared_ptr<const WasmModule> module_;
 
-  // Holds all allocated code objects, is maintained to be in ascending order
-  // according to the codes instruction start address to allow lookups.
-  std::vector<std::unique_ptr<WasmCode>> owned_code_;
-
-  std::unique_ptr<WasmCode* []> code_table_;
-
   OwnedVector<const byte> wire_bytes_;
 
   WasmCode* runtime_stub_table_[WasmCode::kRuntimeStubCount] = {nullptr};
@@ -408,12 +405,24 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // hence needs to be destructed first when this native module dies.
   std::unique_ptr<CompilationState, CompilationStateDeleter> compilation_state_;
 
-  // This mutex protects concurrent calls to {AddCode} and {AddCodeCopy}.
+  // This mutex protects concurrent calls to {AddCode} and friends.
   mutable base::Mutex allocation_mutex_;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Protected by {allocation_mutex_}:
+
+  // Holds all allocated code objects, is maintained to be in ascending order
+  // according to the codes instruction start address to allow lookups.
+  std::vector<std::unique_ptr<WasmCode>> owned_code_;
+
+  std::unique_ptr<WasmCode* []> code_table_;
 
   DisjointAllocationPool free_code_space_;
   DisjointAllocationPool allocated_code_space_;
   std::list<VirtualMemory> owned_code_space_;
+
+  // End of fields protected by {allocation_mutex_}.
+  //////////////////////////////////////////////////////////////////////////////
 
   WasmCodeManager* wasm_code_manager_;
   std::atomic<size_t> committed_code_space_{0};

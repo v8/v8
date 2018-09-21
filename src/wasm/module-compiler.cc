@@ -1532,8 +1532,8 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
                   .ToHandleChecked();
           RecordStats(*wrapper_code, isolate_->counters());
 
-          WasmCode* wasm_code = native_module->AddCodeCopy(
-              wrapper_code, WasmCode::kWasmToJsWrapper, func_index);
+          WasmCode* wasm_code =
+              native_module->AddImportWrapper(wrapper_code, func_index);
           ImportedFunctionEntry entry(instance, func_index);
           entry.set_wasm_to_js(*js_receiver, wasm_code);
         }

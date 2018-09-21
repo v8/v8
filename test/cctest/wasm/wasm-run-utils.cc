@@ -46,8 +46,8 @@ TestingModuleBuilder::TestingModuleBuilder(
         maybe_import_index, test_module_->origin,
         trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                              : kNoTrapHandler);
-    auto wasm_to_js_wrapper = native_module_->AddCodeCopy(
-        code.ToHandleChecked(), WasmCode::kWasmToJsWrapper, maybe_import_index);
+    auto wasm_to_js_wrapper = native_module_->AddImportWrapper(
+        code.ToHandleChecked(), maybe_import_index);
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
         .set_wasm_to_js(*maybe_import->js_function, wasm_to_js_wrapper);
