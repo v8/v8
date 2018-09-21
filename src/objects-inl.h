@@ -503,7 +503,6 @@ CAST_ACCESSOR(SimpleNumberDictionary)
 CAST_ACCESSOR(SmallOrderedHashMap)
 CAST_ACCESSOR(SmallOrderedHashSet)
 CAST_ACCESSOR(Smi)
-CAST_ACCESSOR(SourcePositionTableWithFrameCache)
 CAST_ACCESSOR(StackFrameInfo)
 CAST_ACCESSOR(StringSet)
 CAST_ACCESSOR(StringTable)
@@ -1662,11 +1661,6 @@ BOOL_ACCESSORS(StackFrameInfo, flag, is_eval, kIsEvalBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_constructor, kIsConstructorBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_wasm, kIsWasmBit)
 SMI_ACCESSORS(StackFrameInfo, id, kIdIndex)
-
-ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
-          kSourcePositionTableIndex)
-ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
-          SimpleNumberDictionary, kStackFrameCacheIndex)
 
 // static
 bool Foreign::IsNormalized(Object* value) {

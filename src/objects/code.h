@@ -879,6 +879,22 @@ class DeoptimizationData : public FixedArray {
   static int LengthFor(int entry_count) { return IndexForEntry(entry_count); }
 };
 
+class SourcePositionTableWithFrameCache : public Tuple2 {
+ public:
+  DECL_ACCESSORS(source_position_table, ByteArray)
+  DECL_ACCESSORS(stack_frame_cache, SimpleNumberDictionary)
+
+  DECL_CAST(SourcePositionTableWithFrameCache)
+
+  static const int kSourcePositionTableIndex = Struct::kHeaderSize;
+  static const int kStackFrameCacheIndex =
+      kSourcePositionTableIndex + kPointerSize;
+  static const int kSize = kStackFrameCacheIndex + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SourcePositionTableWithFrameCache);
+};
+
 }  // namespace internal
 }  // namespace v8
 

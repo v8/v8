@@ -2618,22 +2618,6 @@ class StackFrameInfo : public Struct, public NeverReadOnlySpaceObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackFrameInfo);
 };
 
-class SourcePositionTableWithFrameCache : public Tuple2 {
- public:
-  DECL_ACCESSORS(source_position_table, ByteArray)
-  DECL_ACCESSORS(stack_frame_cache, SimpleNumberDictionary)
-
-  DECL_CAST(SourcePositionTableWithFrameCache)
-
-  static const int kSourcePositionTableIndex = Struct::kHeaderSize;
-  static const int kStackFrameCacheIndex =
-      kSourcePositionTableIndex + kPointerSize;
-  static const int kSize = kStackFrameCacheIndex + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SourcePositionTableWithFrameCache);
-};
-
 // BooleanBit is a helper class for setting and getting a bit in an integer.
 class BooleanBit : public AllStatic {
  public:
