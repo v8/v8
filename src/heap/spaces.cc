@@ -15,7 +15,7 @@
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
-#include "src/heap/incremental-marking.h"
+#include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"

@@ -7,6 +7,7 @@
 
 #include "src/heap/scavenger.h"
 
+#include "src/heap/incremental-marking-inl.h"
 #include "src/heap/local-allocator-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/map.h"

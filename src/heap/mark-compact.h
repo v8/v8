@@ -63,21 +63,9 @@ class MarkingStateBase {
     return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom(obj));
   }
 
-  V8_INLINE bool WhiteToGrey(HeapObject* obj) {
-    return Marking::WhiteToGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool WhiteToBlack(HeapObject* obj) {
-    return WhiteToGrey(obj) && GreyToBlack(obj);
-  }
-
-  V8_INLINE bool GreyToBlack(HeapObject* obj) {
-    MemoryChunk* p = MemoryChunk::FromAddress(obj->address());
-    MarkBit markbit = MarkBitFrom(p, obj->address());
-    if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
-    static_cast<ConcreteState*>(this)->IncrementLiveBytes(p, obj->Size());
-    return true;
-  }
+  V8_INLINE bool WhiteToGrey(HeapObject* obj);
+  V8_INLINE bool WhiteToBlack(HeapObject* obj);
+  V8_INLINE bool GreyToBlack(HeapObject* obj);
 
   void ClearLiveness(MemoryChunk* chunk) {
     static_cast<ConcreteState*>(this)->bitmap(chunk)->Clear();
