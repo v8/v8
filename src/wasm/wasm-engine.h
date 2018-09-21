@@ -44,7 +44,7 @@ class V8_EXPORT_PRIVATE InstantiationResultResolver {
 // loading, instantiating, and executing WASM code.
 class V8_EXPORT_PRIVATE WasmEngine {
  public:
-  explicit WasmEngine(std::unique_ptr<WasmCodeManager> code_manager);
+  WasmEngine();
   ~WasmEngine();
 
   // Synchronously validates the given bytes that represent an encoded WASM
@@ -108,7 +108,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   Handle<WasmModuleObject> ImportNativeModule(
       Isolate* isolate, std::shared_ptr<NativeModule> shared_module);
 
-  WasmCodeManager* code_manager() const { return code_manager_.get(); }
+  WasmCodeManager* code_manager() { return &code_manager_; }
 
   WasmMemoryTracker* memory_tracker() { return &memory_tracker_; }
 
@@ -150,8 +150,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Handle<Context> context,
       std::shared_ptr<CompilationResultResolver> resolver);
 
-  std::unique_ptr<WasmCodeManager> code_manager_;
   WasmMemoryTracker memory_tracker_;
+  WasmCodeManager code_manager_;
   AccountingAllocator allocator_;
 
   // This mutex protects all information which is mutated concurrently or

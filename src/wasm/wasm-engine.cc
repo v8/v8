@@ -18,8 +18,8 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-WasmEngine::WasmEngine(std::unique_ptr<WasmCodeManager> code_manager)
-    : code_manager_(std::move(code_manager)) {}
+WasmEngine::WasmEngine()
+    : code_manager_(&memory_tracker_, kMaxWasmCodeMemory) {}
 
 WasmEngine::~WasmEngine() {
   // All AsyncCompileJobs have been canceled.
@@ -268,11 +268,6 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
 
 namespace {
 
-WasmEngine* AllocateNewWasmEngine() {
-  return new WasmEngine(std::unique_ptr<WasmCodeManager>(
-      new WasmCodeManager(kMaxWasmCodeMemory)));
-}
-
 struct WasmEnginePointerConstructTrait final {
   static void Construct(void* raw_ptr) {
     auto engine_ptr = reinterpret_cast<std::shared_ptr<WasmEngine>*>(raw_ptr);
@@ -291,7 +286,7 @@ base::LazyStaticInstance<std::shared_ptr<WasmEngine>,
 
 void WasmEngine::InitializeOncePerProcess() {
   if (!FLAG_wasm_shared_engine) return;
-  global_wasm_engine.Pointer()->reset(AllocateNewWasmEngine());
+  global_wasm_engine.Pointer()->reset(new WasmEngine());
 }
 
 void WasmEngine::GlobalTearDown() {
@@ -301,7 +296,7 @@ void WasmEngine::GlobalTearDown() {
 
 std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
   if (FLAG_wasm_shared_engine) return global_wasm_engine.Get();
-  return std::shared_ptr<WasmEngine>(AllocateNewWasmEngine());
+  return std::shared_ptr<WasmEngine>(new WasmEngine());
 }
 
 }  // namespace wasm
