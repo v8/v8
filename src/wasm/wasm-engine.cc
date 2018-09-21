@@ -17,8 +17,8 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-WasmEngine::WasmEngine(std::unique_ptr<WasmCodeManager> code_manager)
-    : code_manager_(std::move(code_manager)) {}
+WasmEngine::WasmEngine()
+    : code_manager_(&memory_tracker_, kMaxWasmCodeMemory) {}
 
 WasmEngine::~WasmEngine() = default;
 

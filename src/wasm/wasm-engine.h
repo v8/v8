@@ -42,7 +42,7 @@ class V8_EXPORT_PRIVATE InstantiationResultResolver {
 // loading, instantiating, and executing WASM code.
 class V8_EXPORT_PRIVATE WasmEngine {
  public:
-  explicit WasmEngine(std::unique_ptr<WasmCodeManager> code_manager);
+  WasmEngine();
   ~WasmEngine();
 
   // Synchronously validates the given bytes that represent an encoded WASM
@@ -88,7 +88,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
       Isolate* isolate, Handle<Context> context,
       std::unique_ptr<CompilationResultResolver> resolver);
 
-  WasmCodeManager* code_manager() const { return code_manager_.get(); }
+  WasmCodeManager* code_manager() { return &code_manager_; }
 
   WasmMemoryTracker* memory_tracker() { return &memory_tracker_; }
 
@@ -130,8 +130,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // We use an AsyncCompileJob as the key for itself so that we can delete the
   // job from the map when it is finished.
   std::unordered_map<AsyncCompileJob*, std::unique_ptr<AsyncCompileJob>> jobs_;
-  std::unique_ptr<WasmCodeManager> code_manager_;
   WasmMemoryTracker memory_tracker_;
+  WasmCodeManager code_manager_;
   AccountingAllocator allocator_;
 
   // Contains all CancelableTaskManagers that run tasks that are dependent

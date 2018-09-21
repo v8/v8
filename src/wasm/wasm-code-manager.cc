@@ -729,9 +729,11 @@ NativeModule::~NativeModule() {
   wasm_code_manager_->FreeNativeModule(this);
 }
 
-WasmCodeManager::WasmCodeManager(size_t max_committed) {
+WasmCodeManager::WasmCodeManager(WasmMemoryTracker* memory_tracker,
+                                 size_t max_committed)
+    : memory_tracker_(memory_tracker),
+      remaining_uncommitted_code_space_(max_committed) {
   DCHECK_LE(max_committed, kMaxWasmCodeMemory);
-  remaining_uncommitted_code_space_.store(max_committed);
 }
 
 bool WasmCodeManager::Commit(Address start, size_t size) {
@@ -773,11 +775,14 @@ void WasmCodeManager::AssignRanges(Address start, Address end,
 void WasmCodeManager::TryAllocate(size_t size, VirtualMemory* ret, void* hint) {
   DCHECK_GT(size, 0);
   size = RoundUp(size, AllocatePageSize());
+  DCHECK(!ret->IsReserved());
+  if (!memory_tracker_->ReserveAddressSpace(size)) return;
   if (hint == nullptr) hint = GetRandomMmapAddr();
 
   if (!AlignedAllocVirtualMemory(size, static_cast<size_t>(AllocatePageSize()),
                                  hint, ret)) {
     DCHECK(!ret->IsReserved());
+    memory_tracker_->ReleaseReservation(size);
   }
   TRACE_HEAP("VMem alloc: %p:%p (%zu)\n",
              reinterpret_cast<void*>(ret->address()),
@@ -824,25 +829,35 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
         ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
   }
 
-  VirtualMemory mem;
   // If the code must be contiguous, reserve enough address space up front.
   size_t vmem_size = kRequiresCodeRange ? kMaxWasmCodeMemory : memory_estimate;
-  TryAllocate(vmem_size, &mem);
-  if (mem.IsReserved()) {
-    Address start = mem.address();
-    size_t size = mem.size();
-    Address end = mem.end();
-    std::unique_ptr<NativeModule> ret(new NativeModule(
-        isolate, can_request_more, &mem, this, std::move(module), env));
-    TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
-               size);
-    AssignRanges(start, end, ret.get());
-    ++active_;
-    return ret;
+  // Try up to three times; getting rid of dead JSArrayBuffer allocations might
+  // require two GCs because the first GC maybe incremental and may have
+  // floating garbage.
+  static constexpr int kAllocationRetries = 2;
+  VirtualMemory mem;
+  for (int retries = 0;; ++retries) {
+    TryAllocate(vmem_size, &mem);
+    if (mem.IsReserved()) break;
+    if (retries == kAllocationRetries) {
+      V8::FatalProcessOutOfMemory(isolate, "WasmCodeManager::NewNativeModule");
+      UNREACHABLE();
+    }
+    // Run one GC, then try the allocation again.
+    isolate->heap()->MemoryPressureNotification(MemoryPressureLevel::kCritical,
+                                                true);
   }
 
-  V8::FatalProcessOutOfMemory(isolate, "WasmCodeManager::NewNativeModule");
-  return nullptr;
+  Address start = mem.address();
+  size_t size = mem.size();
+  Address end = mem.end();
+  std::unique_ptr<NativeModule> ret(new NativeModule(
+      isolate, can_request_more, &mem, this, std::move(module), env));
+  TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
+             size);
+  AssignRanges(start, end, ret.get());
+  ++active_;
+  return ret;
 }
 
 bool NativeModule::SetExecutable(bool executable) {
@@ -948,6 +963,7 @@ void WasmCodeManager::Free(VirtualMemory* mem) {
   void* end = reinterpret_cast<void*>(mem->end());
   size_t size = mem->size();
   mem->Free();
+  memory_tracker_->ReleaseReservation(size);
   TRACE_HEAP("VMem Release: %p:%p (%zu)\n", start, end, size);
 }
 
