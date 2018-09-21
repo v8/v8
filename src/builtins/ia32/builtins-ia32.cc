@@ -1592,6 +1592,8 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   // ----------- S t a t e -------------
   //  -- eax     : argc
   //  -- esp[0]  : return address
@@ -1601,7 +1603,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   //  -- esp[16] : receiver
   // -----------------------------------
 
-  // 1. Load target into edi (if present), argumentsList into ebx (if present),
+  // 1. Load target into edi (if present), argumentsList into ecx (if present),
   // new.target into edx (if present, otherwise use target), remove all
   // arguments from the stack (including the receiver), and push thisArgument
   // (if present) instead.
@@ -1609,25 +1611,32 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     Label done;
     __ LoadRoot(edi, RootIndex::kUndefinedValue);
     __ mov(edx, edi);
-    __ mov(ebx, edi);
+    __ mov(ecx, edi);
     __ cmp(eax, Immediate(1));
     __ j(below, &done, Label::kNear);
     __ mov(edi, Operand(esp, eax, times_pointer_size, -0 * kPointerSize));
     __ mov(edx, edi);
     __ j(equal, &done, Label::kNear);
-    __ mov(ebx, Operand(esp, eax, times_pointer_size, -1 * kPointerSize));
+    __ mov(ecx, Operand(esp, eax, times_pointer_size, -1 * kPointerSize));
     __ cmp(eax, Immediate(3));
     __ j(below, &done, Label::kNear);
     __ mov(edx, Operand(esp, eax, times_pointer_size, -2 * kPointerSize));
     __ bind(&done);
+
+    // Spill argumentsList to use ecx as a scratch register.
+    __ movd(xmm0, ecx);
+
     __ PopReturnAddressTo(ecx);
     __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
     __ PushRoot(RootIndex::kUndefinedValue);
     __ PushReturnAddressFrom(ecx);
+
+    // Restore argumentsList.
+    __ movd(ecx, xmm0);
   }
 
   // ----------- S t a t e -------------
-  //  -- ebx    : argumentsList
+  //  -- ecx    : argumentsList
   //  -- edx    : new.target
   //  -- edi    : target
   //  -- esp[0] : return address
@@ -1643,7 +1652,6 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   // builtins will do.
 
   // 4. Construct the target with the given new.target and argumentsList.
-  __ MoveForRootRegisterRefactoring(ecx, ebx);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructWithArrayLike),
           RelocInfo::CODE_TARGET);
 }
