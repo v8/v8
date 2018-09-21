@@ -329,6 +329,24 @@
     ],
   },
   ##############################################################################
+  # Odroids with native arm
+  'v8_odroid_arm_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'cores': '8',
+      'cpu': 'armv7l-32-ODROID-XU4',
+      'os': 'Ubuntu-16.04',
+    },
+    'swarming_task_attrs': {
+      # Use same prio as CI due to limited resources.
+      'priority': 25,
+    },
+    'tests': [
+      {'name': 'benchmarks'},
+      {'name': 'optimize_for_size'},
+      {'name': 'v8testing', 'shards': 2},
+    ],
+  },
+  ##############################################################################
   # Win32
   'v8_win_dbg': {
     'swarming_dimensions' : {

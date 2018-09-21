@@ -237,6 +237,7 @@
       'v8_linux64_tsan_isolates_rel_ng':
           'release_x64_tsan_minimal_symbols',
       'v8_linux64_ubsan_rel_ng': 'release_x64_ubsan_vptr_minimal_symbols',
+      'v8_odroid_arm_rel_ng': 'release_arm',
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'v8_win_dbg': 'debug_x86_trybot',
       'v8_win_compile_dbg': 'debug_x86_trybot',
