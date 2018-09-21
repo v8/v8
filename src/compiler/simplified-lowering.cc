@@ -3088,12 +3088,25 @@ class RepresentationSelector {
         return VisitBinop(node, UseInfo::AnyTagged(),
                           MachineRepresentation::kTaggedPointer);
       case IrOpcode::kMaybeGrowFastElements: {
+        Type const index_type = TypeOf(node->InputAt(2));
+        Type const length_type = TypeOf(node->InputAt(3));
         ProcessInput(node, 0, UseInfo::AnyTagged());         // object
         ProcessInput(node, 1, UseInfo::AnyTagged());         // elements
         ProcessInput(node, 2, UseInfo::TruncatingWord32());  // index
         ProcessInput(node, 3, UseInfo::TruncatingWord32());  // length
         ProcessRemainingInputs(node, 4);
         SetOutput(node, MachineRepresentation::kTaggedPointer);
+        if (lower()) {
+          // If the index is known to be less than the length (or if
+          // we're in dead code), we know that we don't need to grow
+          // the elements, so we can just remove this operation all
+          // together and replace it with the elements that we have
+          // on the inputs.
+          if (index_type.IsNone() || length_type.IsNone() ||
+              index_type.Max() < length_type.Min()) {
+            DeferReplacement(node, node->InputAt(1));
+          }
+        }
         return;
       }
 
