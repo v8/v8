@@ -112,10 +112,13 @@ size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
                      kEntriesPerOperandScale;
 }
 
-#ifndef V8_EMBEDDED_BYTECODE_HANDLERS
 void Interpreter::IterateDispatchTable(RootVisitor* v) {
   for (int i = 0; i < kDispatchTableSize; i++) {
     Address code_entry = dispatch_table_[i];
+
+    // If the handler is embedded, it is immovable.
+    if (InstructionStream::PcIsOffHeap(isolate_, code_entry)) continue;
+
     Object* code = code_entry == kNullAddress
                        ? nullptr
                        : Code::GetCodeFromTargetAddress(code_entry);
@@ -126,7 +129,6 @@ void Interpreter::IterateDispatchTable(RootVisitor* v) {
     }
   }
 }
-#endif  // V8_EMBEDDED_BYTECODE_HANDLERS
 
 int Interpreter::InterruptBudget() {
   return FLAG_interrupt_budget;
