@@ -71,6 +71,7 @@ enum SectionCode : int8_t {
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,
   kLastKnownModuleSection = kSourceMappingURLSectionCode,
+  kFirstUnorderedSection = kNameSectionCode,
 };
 
 // Binary encoding of name section kinds.

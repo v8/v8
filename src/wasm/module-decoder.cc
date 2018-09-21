@@ -342,7 +342,8 @@ class ModuleDecoderImpl : public Decoder {
           static_cast<const void*>(bytes.end()));
 
     // Check if the section is out-of-order.
-    if (section_code < next_ordered_section_) {
+    if (section_code < next_ordered_section_ &&
+        section_code < kFirstUnorderedSection) {
       errorf(pc(), "unexpected section: %s", SectionName(section_code));
       return;
     }
@@ -354,7 +355,7 @@ class ModuleDecoderImpl : public Decoder {
         // Note: kExceptionSectionCode > kExportSectionCode, but must appear
         // before the export (and code) section, as well as after the import
         // section. Hence, treat it as a special case.
-        if (++number_of_exception_sections > 1) {
+        if (seen_unordered_sections_ & (1 << kExceptionSectionCode)) {
           errorf(pc(), "Multiple exception sections not allowed");
           return;
         } else if (next_ordered_section_ > kExportSectionCode) {
@@ -363,11 +364,16 @@ class ModuleDecoderImpl : public Decoder {
         } else if (next_ordered_section_ < kImportSectionCode) {
           next_ordered_section_ = kImportSectionCode + 1;
         }
+        seen_unordered_sections_ |= 1 << kExceptionSectionCode;
         break;
       case kSourceMappingURLSectionCode:
         // sourceMappingURL is a custom section and currently can occur anywhere
         // in the module. In case of multiple sourceMappingURL sections, all
         // except the first occurrence are ignored.
+      case kNameSectionCode:
+        // TODO(titzer): report out of place name section as a warning.
+        // Be lenient with placement of name section. All except first
+        // occurrence are ignored.
         break;
       default:
         next_ordered_section_ = section_code + 1;
@@ -838,24 +844,28 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeNameSection() {
     // TODO(titzer): find a way to report name errors as warnings.
-    // Use an inner decoder so that errors don't fail the outer decoder.
-    Decoder inner(start_, pc_, end_, buffer_offset_);
-    // Decode all name subsections.
-    // Be lenient with their order.
-    while (inner.ok() && inner.more()) {
-      uint8_t name_type = inner.consume_u8("name type");
-      if (name_type & 0x80) inner.error("name type if not varuint7");
+    // ignore all but the first occurrence of name section.
+    if (!(seen_unordered_sections_ & (1 << kNameSectionCode))) {
+      seen_unordered_sections_ |= 1 << kNameSectionCode;
+      // Use an inner decoder so that errors don't fail the outer decoder.
+      Decoder inner(start_, pc_, end_, buffer_offset_);
+      // Decode all name subsections.
+      // Be lenient with their order.
+      while (inner.ok() && inner.more()) {
+        uint8_t name_type = inner.consume_u8("name type");
+        if (name_type & 0x80) inner.error("name type if not varuint7");
 
-      uint32_t name_payload_len = inner.consume_u32v("name payload length");
-      if (!inner.checkAvailable(name_payload_len)) break;
+        uint32_t name_payload_len = inner.consume_u32v("name payload length");
+        if (!inner.checkAvailable(name_payload_len)) break;
 
-      // Decode module name, ignore the rest.
-      // Function and local names will be decoded when needed.
-      if (name_type == NameSectionKindCode::kModule) {
-        WireBytesRef name = consume_string(inner, false, "module name");
-        if (inner.ok() && validate_utf8(&inner, name)) module_->name = name;
-      } else {
-        inner.consume_bytes(name_payload_len, "name subsection payload");
+        // Decode module name, ignore the rest.
+        // Function and local names will be decoded when needed.
+        if (name_type == NameSectionKindCode::kModule) {
+          WireBytesRef name = consume_string(inner, false, "module name");
+          if (inner.ok() && validate_utf8(&inner, name)) module_->name = name;
+        } else {
+          inner.consume_bytes(name_payload_len, "name subsection payload");
+        }
       }
     }
     // Skip the whole names section in the outer decoder.
@@ -865,12 +875,13 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeSourceMappingURLSection() {
     Decoder inner(start_, pc_, end_, buffer_offset_);
     WireBytesRef url = wasm::consume_string(inner, true, "module name");
-    if (inner.ok() && !source_mapping_url_section_added) {
+    if (inner.ok() &&
+        !(seen_unordered_sections_ & (1 << kSourceMappingURLSectionCode))) {
       const byte* url_start =
           inner.start() + inner.GetBufferRelativeOffset(url.offset());
       module_->source_map_url.assign(reinterpret_cast<const char*>(url_start),
                                      url.length());
-      source_mapping_url_section_added = true;
+      seen_unordered_sections_ |= 1 << kSourceMappingURLSectionCode;
     }
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
@@ -984,14 +995,17 @@ class ModuleDecoderImpl : public Decoder {
   Counters* counters_ = nullptr;
   // The type section is the first section in a module.
   uint8_t next_ordered_section_ = kFirstSectionInModule;
-  bool source_mapping_url_section_added = false;
-  uint32_t number_of_exception_sections = 0;
   // We store next_ordered_section_ as uint8_t instead of SectionCode so that we
   // can increment it. This static_assert should make sure that SectionCode does
   // not get bigger than uint8_t accidentially.
   static_assert(sizeof(ModuleDecoderImpl::next_ordered_section_) ==
                     sizeof(SectionCode),
                 "type mismatch");
+  uint32_t seen_unordered_sections_ = 0;
+  static_assert(kBitsPerByte *
+                        sizeof(ModuleDecoderImpl::seen_unordered_sections_) >
+                    kLastKnownModuleSection,
+                "not enough bits");
   Result<bool> intermediate_result_;
   ModuleOrigin origin_;
 
@@ -1668,7 +1682,7 @@ std::vector<CustomSectionOffset> DecodeCustomSections(const byte* start,
 
 namespace {
 
-bool FindSection(Decoder& decoder, SectionCode section_code) {
+bool FindNameSection(Decoder& decoder) {
   static constexpr int kModuleHeaderSize = 8;
   decoder.consume_bytes(kModuleHeaderSize, "module header");
 
@@ -1693,7 +1707,7 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
   DCHECK(names->empty());
 
   Decoder decoder(module_start, module_end);
-  if (!FindSection(decoder, kNameSectionCode)) return;
+  if (!FindNameSection(decoder)) return;
 
   while (decoder.ok() && decoder.more()) {
     uint8_t name_type = decoder.consume_u8("name type");
@@ -1728,7 +1742,7 @@ void DecodeLocalNames(const byte* module_start, const byte* module_end,
   DCHECK(result->names.empty());
 
   Decoder decoder(module_start, module_end);
-  if (!FindSection(decoder, kNameSectionCode)) return;
+  if (!FindNameSection(decoder)) return;
 
   while (decoder.ok() && decoder.more()) {
     uint8_t name_type = decoder.consume_u8("name type");

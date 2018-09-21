@@ -2335,6 +2335,31 @@ TEST_F(WasmModuleVerifyTest, MultipleSourceMappingURLSections) {
 }
 #undef SRC_MAP
 
+TEST_F(WasmModuleVerifyTest, MultipleNameSections) {
+#define NAME_SECTION 4, 'n', 'a', 'm', 'e'
+  static const byte data[] = {SECTION(Unknown, 11),
+                              NAME_SECTION,
+                              0,
+                              4,
+                              3,
+                              'a',
+                              'b',
+                              'c',
+                              SECTION(Unknown, 12),
+                              NAME_SECTION,
+                              0,
+                              5,
+                              4,
+                              'p',
+                              'q',
+                              'r',
+                              's'};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(3u, result.val->name.length());
+#undef NAME_SECTION
+}
+
 #undef WASM_FEATURE_SCOPE
 #undef WASM_FEATURE_SCOPE_VAL
 #undef EXPECT_INIT_EXPR
