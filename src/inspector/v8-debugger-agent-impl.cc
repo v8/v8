@@ -858,10 +858,6 @@ Response V8DebuggerAgentImpl::setScriptSource(
   if (it == m_scripts.end()) {
     return Response::Error("No script with given id found");
   }
-  if (it->second->isModule()) {
-    // TODO(kozyatinskiy): LiveEdit should support ES6 module
-    return Response::Error("Editing module's script is not supported.");
-  }
   int contextId = it->second->executionContextId();
   InspectedContext* inspected = m_inspector->getContext(contextId);
   if (!inspected) {

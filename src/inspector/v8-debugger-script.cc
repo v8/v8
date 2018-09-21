@@ -160,7 +160,6 @@ class ActualScript : public V8DebuggerScript {
 
   void setSource(const String16& newSource, bool preview,
                  v8::debug::LiveEditResult* result) override {
-    DCHECK(!isModule());
     v8::EscapableHandleScope scope(m_isolate);
     v8::Local<v8::String> v8Source = toV8String(m_isolate, newSource);
     if (!m_script.Get(m_isolate)->SetScriptSource(v8Source, preview, result)) {
