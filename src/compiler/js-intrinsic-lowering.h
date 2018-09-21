@@ -57,7 +57,6 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceToObject(Node* node);
   Reduction ReduceToString(Node* node);
   Reduction ReduceCall(Node* node);
-  Reduction ReduceGetSuperConstructor(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);

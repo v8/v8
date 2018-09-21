@@ -259,11 +259,6 @@ Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
   return Changed(node);
 }
 
-Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
-  NodeProperties::ChangeOp(node, javascript()->GetSuperConstructor());
-  return Changed(node);
-}
-
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b) {
   RelaxControls(node);
