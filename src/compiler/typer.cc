@@ -1114,10 +1114,6 @@ Type Typer::Visitor::TypeToBoolean(Node* node) {
   return TypeUnaryOp(node, ToBoolean);
 }
 
-Type Typer::Visitor::TypeJSToInteger(Node* node) {
-  return TypeUnaryOp(node, ToInteger);
-}
-
 Type Typer::Visitor::TypeJSToLength(Node* node) {
   return TypeUnaryOp(node, ToLength);
 }

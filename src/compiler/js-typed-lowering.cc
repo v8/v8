@@ -892,17 +892,6 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSToInteger(Node* node) {
-  Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type const input_type = NodeProperties::GetType(input);
-  if (input_type.Is(type_cache_.kIntegerOrMinusZero)) {
-    // JSToInteger(x:integer) => x
-    ReplaceWithValue(node, input);
-    return Replace(input);
-  }
-  return NoChange();
-}
-
 Reduction JSTypedLowering::ReduceJSToName(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type const input_type = NodeProperties::GetType(input);
@@ -2269,8 +2258,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSHasInPrototypeChain(node);
     case IrOpcode::kJSOrdinaryHasInstance:
       return ReduceJSOrdinaryHasInstance(node);
-    case IrOpcode::kJSToInteger:
-      return ReduceJSToInteger(node);
     case IrOpcode::kJSToLength:
       return ReduceJSToLength(node);
     case IrOpcode::kJSToName:

@@ -57,7 +57,6 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSStoreModule(Node* node);
   Reduction ReduceJSEqual(Node* node);
   Reduction ReduceJSStrictEqual(Node* node);
-  Reduction ReduceJSToInteger(Node* node);
   Reduction ReduceJSToLength(Node* node);
   Reduction ReduceJSToName(Node* node);
   Reduction ReduceJSToNumberInput(Node* input);

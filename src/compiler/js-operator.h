@@ -703,7 +703,6 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Increment();
   const Operator* Negate();
 
-  const Operator* ToInteger();
   const Operator* ToLength();
   const Operator* ToName();
   const Operator* ToNumber();

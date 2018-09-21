@@ -91,7 +91,6 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSDeleteProperty:
 
     // Conversions
-    case IrOpcode::kJSToInteger:
     case IrOpcode::kJSToLength:
     case IrOpcode::kJSToName:
     case IrOpcode::kJSToNumber:

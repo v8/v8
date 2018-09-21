@@ -3189,7 +3189,6 @@ class RepresentationSelector {
       case IrOpcode::kJSDecrement:
       case IrOpcode::kJSIncrement:
       case IrOpcode::kJSNegate:
-      case IrOpcode::kJSToInteger:
       case IrOpcode::kJSToLength:
       case IrOpcode::kJSToName:
       case IrOpcode::kJSToObject:

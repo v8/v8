@@ -117,7 +117,6 @@
   V(JSOrdinaryHasInstance)
 
 #define JS_CONVERSION_UNOP_LIST(V) \
-  V(JSToInteger)                   \
   V(JSToLength)                    \
   V(JSToName)                      \
   V(JSToNumber)                    \
