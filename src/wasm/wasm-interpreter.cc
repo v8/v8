@@ -641,6 +641,8 @@ const char* OpcodeName(uint32_t val) {
   return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(val));
 }
 
+}  // namespace
+
 class SideTable;
 
 // Code and metadata needed to execute a function.
@@ -902,32 +904,6 @@ class SideTable : public ZoneObject {
   }
 };
 
-struct ExternalCallResult {
-  enum Type {
-    // The function should be executed inside this interpreter.
-    INTERNAL,
-    // For indirect calls: Table or function does not exist.
-    INVALID_FUNC,
-    // For indirect calls: Signature does not match expected signature.
-    SIGNATURE_MISMATCH,
-    // The function was executed and returned normally.
-    EXTERNAL_RETURNED,
-    // The function was executed, threw an exception, and the stack was unwound.
-    EXTERNAL_UNWOUND
-  };
-  Type type;
-  // If type is INTERNAL, this field holds the function to call internally.
-  InterpreterCode* interpreter_code;
-
-  ExternalCallResult(Type type) : type(type) {  // NOLINT
-    DCHECK_NE(INTERNAL, type);
-  }
-  ExternalCallResult(Type type, InterpreterCode* code)
-      : type(type), interpreter_code(code) {
-    DCHECK_EQ(INTERNAL, type);
-  }
-};
-
 // The main storage for interpreter code. It maps {WasmFunction} to the
 // metadata needed to execute each function.
 class CodeMap {
@@ -1037,6 +1013,34 @@ class CodeMap {
   }
 };
 
+namespace {
+
+struct ExternalCallResult {
+  enum Type {
+    // The function should be executed inside this interpreter.
+    INTERNAL,
+    // For indirect calls: Table or function does not exist.
+    INVALID_FUNC,
+    // For indirect calls: Signature does not match expected signature.
+    SIGNATURE_MISMATCH,
+    // The function was executed and returned normally.
+    EXTERNAL_RETURNED,
+    // The function was executed, threw an exception, and the stack was unwound.
+    EXTERNAL_UNWOUND
+  };
+  Type type;
+  // If type is INTERNAL, this field holds the function to call internally.
+  InterpreterCode* interpreter_code;
+
+  ExternalCallResult(Type type) : type(type) {  // NOLINT
+    DCHECK_NE(INTERNAL, type);
+  }
+  ExternalCallResult(Type type, InterpreterCode* code)
+      : type(type), interpreter_code(code) {
+    DCHECK_EQ(INTERNAL, type);
+  }
+};
+
 // Like a static_cast from src to dst, but specialized for boxed floats.
 template <typename dst, typename src>
 struct converter {
@@ -1072,6 +1076,8 @@ template <>
 V8_INLINE bool has_nondeterminism<double>(double val) {
   return std::isnan(val);
 }
+
+}  // namespace
 
 // Responsible for executing code directly.
 class ThreadImpl {
@@ -2984,6 +2990,8 @@ class InterpretedFrameImpl {
     return &thread_->frames_[index_];
   }
 };
+
+namespace {
 
 // Converters between WasmInterpreter::Thread and WasmInterpreter::ThreadImpl.
 // Thread* is the public interface, without knowledge of the object layout.

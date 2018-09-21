@@ -42,9 +42,7 @@ class InnerPointerToCodeCache {
     Flush();
   }
 
-  void Flush() {
-    memset(&cache_[0], 0, sizeof(cache_));
-  }
+  void Flush() { memset(static_cast<void*>(&cache_[0]), 0, sizeof(cache_)); }
 
   InnerPointerToCodeCacheEntry* GetCacheEntry(Address inner_pointer);
 

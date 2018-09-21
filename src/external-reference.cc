@@ -824,8 +824,8 @@ ExternalReference ExternalReference::page_flags(Page* page) {
                            MemoryChunk::kFlagsOffset);
 }
 
-ExternalReference ExternalReference::ForDeoptEntry(Address entry) {
-  return ExternalReference(entry);
+ExternalReference ExternalReference::FromRawAddress(Address address) {
+  return ExternalReference(address);
 }
 
 ExternalReference ExternalReference::cpu_features() {

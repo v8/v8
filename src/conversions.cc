@@ -30,8 +30,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-
 inline double JunkStringValue() {
   return bit_cast<double, uint64_t>(kQuietNaNMask);
 }
@@ -811,8 +809,6 @@ parsing_done:
   double converted = Strtod(Vector<const char>(buffer, buffer_pos), exponent);
   return (sign == NEGATIVE) ? -converted : converted;
 }
-
-}  // namespace
 
 double StringToDouble(UnicodeCache* unicode_cache,
                       const char* str, int flags, double empty_string_val) {

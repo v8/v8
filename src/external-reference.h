@@ -268,7 +268,7 @@ class ExternalReference {
 
   static ExternalReference page_flags(Page* page);
 
-  static ExternalReference ForDeoptEntry(Address entry);
+  static ExternalReference FromRawAddress(Address address);
 
 #define DECL_EXTERNAL_REFERENCE(name, desc) static ExternalReference name();
   EXTERNAL_REFERENCE_LIST(DECL_EXTERNAL_REFERENCE)

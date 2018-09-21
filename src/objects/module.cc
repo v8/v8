@@ -18,8 +18,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-
 struct ModuleHandleHash {
   V8_INLINE size_t operator()(Handle<Module> module) const {
     return module->hash();
@@ -81,8 +79,6 @@ class UnorderedStringMap
             ZoneAllocator<std::pair<const Handle<String>, Handle<Object>>>(
                 zone)) {}
 };
-
-}  // anonymous namespace
 
 class Module::ResolveSet
     : public std::unordered_map<

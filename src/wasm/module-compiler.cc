@@ -409,42 +409,6 @@ Address CompileLazy(Isolate* isolate, NativeModule* native_module,
   return result->instruction_start();
 }
 
-namespace {
-bool compile_lazy(const WasmModule* module) {
-  return FLAG_wasm_lazy_compilation ||
-         (FLAG_asm_wasm_lazy_compilation && module->origin == kAsmJsOrigin);
-}
-
-byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
-  return static_cast<byte*>(buffer.ToHandleChecked()->backing_store()) + offset;
-}
-
-void RecordStats(const Code* code, Counters* counters) {
-  counters->wasm_generated_code_size()->Increment(code->body_size());
-  counters->wasm_reloc_size()->Increment(code->relocation_info()->length());
-}
-
-bool in_bounds(uint32_t offset, size_t size, size_t upper) {
-  return offset + size <= upper && offset + size >= offset;
-}
-
-using WasmInstanceMap =
-    IdentityMap<Handle<WasmInstanceObject>, FreeStoreAllocationPolicy>;
-
-double MonotonicallyIncreasingTimeInMs() {
-  return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
-         base::Time::kMillisecondsPerSecond;
-}
-
-ModuleEnv CreateDefaultModuleEnv(const WasmModule* module,
-                                 bool allow_trap_handler = true) {
-  UseTrapHandler use_trap_handler =
-      trap_handler::IsTrapHandlerEnabled() && allow_trap_handler
-          ? kUseTrapHandler
-          : kNoTrapHandler;
-  return ModuleEnv(module, use_trap_handler, kRuntimeExceptionSupport);
-}
-
 // The CompilationUnitBuilder builds compilation units and stores them in an
 // internal buffer. The buffer is moved into the working queue of the
 // CompilationState when {Commit} is called.
@@ -502,6 +466,42 @@ class CompilationUnitBuilder {
   std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_units_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_units_;
 };
+
+namespace {
+bool compile_lazy(const WasmModule* module) {
+  return FLAG_wasm_lazy_compilation ||
+         (FLAG_asm_wasm_lazy_compilation && module->origin == kAsmJsOrigin);
+}
+
+byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
+  return static_cast<byte*>(buffer.ToHandleChecked()->backing_store()) + offset;
+}
+
+void RecordStats(const Code* code, Counters* counters) {
+  counters->wasm_generated_code_size()->Increment(code->body_size());
+  counters->wasm_reloc_size()->Increment(code->relocation_info()->length());
+}
+
+bool in_bounds(uint32_t offset, size_t size, size_t upper) {
+  return offset + size <= upper && offset + size >= offset;
+}
+
+using WasmInstanceMap =
+    IdentityMap<Handle<WasmInstanceObject>, FreeStoreAllocationPolicy>;
+
+double MonotonicallyIncreasingTimeInMs() {
+  return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
+         base::Time::kMillisecondsPerSecond;
+}
+
+ModuleEnv CreateDefaultModuleEnv(const WasmModule* module,
+                                 bool allow_trap_handler = true) {
+  UseTrapHandler use_trap_handler =
+      trap_handler::IsTrapHandlerEnabled() && allow_trap_handler
+          ? kUseTrapHandler
+          : kNoTrapHandler;
+  return ModuleEnv(module, use_trap_handler, kRuntimeExceptionSupport);
+}
 
 // Run by each compilation task and by the main thread (i.e. in both
 // foreground and background threads). The no_finisher_callback is called

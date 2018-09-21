@@ -186,32 +186,6 @@ void ChangeToPureOp(Node* node, const Operator* new_op) {
   NodeProperties::ChangeOp(node, new_op);
 }
 
-#ifdef DEBUG
-// Helpers for monotonicity checking.
-class InputUseInfos {
- public:
-  explicit InputUseInfos(Zone* zone) : input_use_infos_(zone) {}
-
-  void SetAndCheckInput(Node* node, int index, UseInfo use_info) {
-    if (input_use_infos_.empty()) {
-      input_use_infos_.resize(node->InputCount(), UseInfo::None());
-    }
-    // Check that the new use informatin is a super-type of the old
-    // one.
-    DCHECK(IsUseLessGeneral(input_use_infos_[index], use_info));
-    input_use_infos_[index] = use_info;
-  }
-
- private:
-  ZoneVector<UseInfo> input_use_infos_;
-
-  static bool IsUseLessGeneral(UseInfo use1, UseInfo use2) {
-    return use1.truncation().IsLessGeneralThan(use2.truncation());
-  }
-};
-
-#endif  // DEBUG
-
 bool CanOverflowSigned32(const Operator* op, Type left, Type right,
                          Zone* type_zone) {
   // We assume the inputs are checked Signed32 (or known statically
@@ -240,6 +214,32 @@ bool IsSomePositiveOrderedNumber(Type type) {
 }
 
 }  // namespace
+
+#ifdef DEBUG
+// Helpers for monotonicity checking.
+class InputUseInfos {
+ public:
+  explicit InputUseInfos(Zone* zone) : input_use_infos_(zone) {}
+
+  void SetAndCheckInput(Node* node, int index, UseInfo use_info) {
+    if (input_use_infos_.empty()) {
+      input_use_infos_.resize(node->InputCount(), UseInfo::None());
+    }
+    // Check that the new use informatin is a super-type of the old
+    // one.
+    DCHECK(IsUseLessGeneral(input_use_infos_[index], use_info));
+    input_use_infos_[index] = use_info;
+  }
+
+ private:
+  ZoneVector<UseInfo> input_use_infos_;
+
+  static bool IsUseLessGeneral(UseInfo use1, UseInfo use2) {
+    return use1.truncation().IsLessGeneralThan(use2.truncation());
+  }
+};
+
+#endif  // DEBUG
 
 class RepresentationSelector {
  public:

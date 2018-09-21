@@ -1048,7 +1048,7 @@ class V8_EXPORT_PRIVATE Constant final {
   explicit Constant(float v) : type_(kFloat32), value_(bit_cast<int32_t>(v)) {}
   explicit Constant(double v) : type_(kFloat64), value_(bit_cast<int64_t>(v)) {}
   explicit Constant(ExternalReference ref)
-      : type_(kExternalReference), value_(bit_cast<intptr_t>(ref)) {}
+      : type_(kExternalReference), value_(bit_cast<intptr_t>(ref.address())) {}
   explicit Constant(Handle<HeapObject> obj)
       : type_(kHeapObject), value_(bit_cast<intptr_t>(obj)) {}
   explicit Constant(RpoNumber rpo) : type_(kRpoNumber), value_(rpo.ToInt()) {}
@@ -1093,7 +1093,7 @@ class V8_EXPORT_PRIVATE Constant final {
 
   ExternalReference ToExternalReference() const {
     DCHECK_EQ(kExternalReference, type());
-    return bit_cast<ExternalReference>(static_cast<intptr_t>(value_));
+    return ExternalReference::FromRawAddress(static_cast<Address>(value_));
   }
 
   RpoNumber ToRpoNumber() const {
