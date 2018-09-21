@@ -71,6 +71,7 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
 namespace {
 
 void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax: number of arguments
   //  -- edi: constructor function
@@ -91,8 +92,8 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // The receiver for the builtin/api call.
     __ PushRoot(RootIndex::kTheHoleValue);
 
-    // Set up pointer to last argument.
-    __ lea(ebx, Operand(ebp, StandardFrameConstants::kCallerSPOffset));
+    // Set up pointer to last argument. We are using esi as scratch register.
+    __ lea(esi, Operand(ebp, StandardFrameConstants::kCallerSPOffset));
 
     // Copy arguments and receiver to the expression stack.
     Label loop, entry;
@@ -101,7 +102,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     //  --                eax: number of arguments (untagged)
     //  --                edi: constructor function
     //  --                edx: new target
-    //  --                ebx: pointer to last argument
+    //  --                esi: pointer to last argument
     //  --                ecx: counter
     //  -- sp[0*kPointerSize]: the hole (receiver)
     //  -- sp[1*kPointerSize]: number of arguments (tagged)
@@ -109,7 +110,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // -----------------------------------
     __ jmp(&entry);
     __ bind(&loop);
-    __ push(Operand(ebx, ecx, times_4, 0));
+    __ push(Operand(esi, ecx, times_4, 0));
     __ bind(&entry);
     __ dec(ecx);
     __ j(greater_equal, &loop);
@@ -119,20 +120,22 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // edi: constructor function
     // edx: new target
     ParameterCount actual(eax);
+    // Reload context from the frame.
+    __ mov(esi, Operand(ebp, ConstructFrameConstants::kContextOffset));
     __ InvokeFunction(edi, edx, actual, CALL_FUNCTION);
 
     // Restore context from the frame.
     __ mov(esi, Operand(ebp, ConstructFrameConstants::kContextOffset));
     // Restore smi-tagged arguments count from the frame.
-    __ mov(ebx, Operand(ebp, ConstructFrameConstants::kLengthOffset));
+    __ mov(edx, Operand(ebp, ConstructFrameConstants::kLengthOffset));
     // Leave construct frame.
   }
 
   // Remove caller arguments from the stack and return.
   STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ pop(ecx);
-  __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));  // 1 ~ receiver
-  __ push(ecx);
+  __ PopReturnAddressTo(ecx);
+  __ lea(esp, Operand(esp, edx, times_2, 1 * kPointerSize));  // 1 ~ receiver
+  __ PushReturnAddressFrom(ecx);
   __ ret(0);
 }
 
@@ -312,6 +315,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   Generate_JSBuiltinsConstructStubHelper(masm);
 }
 
@@ -2224,7 +2228,6 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_Construct(MacroAssembler* masm) {
-  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edx : the new target (either the same as the constructor or
