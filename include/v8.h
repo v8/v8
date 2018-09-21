@@ -1380,12 +1380,11 @@ class V8_EXPORT ScriptCompiler {
     virtual void ResetToBookmark();
   };
 
-
   /**
    * Source code which can be streamed into V8 in pieces. It will be parsed
-   * while streaming. It can be compiled after the streaming is complete.
-   * StreamedSource must be kept alive while the streaming task is ran (see
-   * ScriptStreamingTask below).
+   * while streaming and compiled after parsing has completed. StreamedSource
+   * must be kept alive while the streaming task is run (see ScriptStreamingTask
+   * below).
    */
   class V8_EXPORT StreamedSource {
    public:
@@ -1394,29 +1393,35 @@ class V8_EXPORT ScriptCompiler {
     StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
     ~StreamedSource();
 
-    // Ownership of the CachedData or its buffers is *not* transferred to the
-    // caller. The CachedData object is alive as long as the StreamedSource
-    // object is alive.
-    const CachedData* GetCachedData() const;
+    V8_DEPRECATED("No longer used", const CachedData* GetCachedData() const) {
+      return nullptr;
+    }
 
-    internal::ScriptStreamingData* impl() const { return impl_; }
+    internal::ScriptStreamingData* impl() const { return impl_.get(); }
 
     // Prevent copying.
     StreamedSource(const StreamedSource&) = delete;
     StreamedSource& operator=(const StreamedSource&) = delete;
 
    private:
-    internal::ScriptStreamingData* impl_;
+    std::unique_ptr<internal::ScriptStreamingData> impl_;
   };
 
   /**
    * A streaming task which the embedder must run on a background thread to
    * stream scripts into V8. Returned by ScriptCompiler::StartStreamingScript.
    */
-  class ScriptStreamingTask {
+  class V8_EXPORT ScriptStreamingTask final {
    public:
-    virtual ~ScriptStreamingTask() = default;
-    virtual void Run() = 0;
+    void Run();
+
+   private:
+    friend class ScriptCompiler;
+
+    explicit ScriptStreamingTask(internal::ScriptStreamingData* data)
+        : data_(data) {}
+
+    internal::ScriptStreamingData* data_;
   };
 
   enum CompileOptions {

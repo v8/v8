@@ -59,6 +59,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/templates.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/pending-compilation-error-handler.h"
@@ -2009,9 +2010,7 @@ ScriptCompiler::CachedData::~CachedData() {
   }
 }
 
-
 bool ScriptCompiler::ExternalSourceStream::SetBookmark() { return false; }
-
 
 void ScriptCompiler::ExternalSourceStream::ResetToBookmark() { UNREACHABLE(); }
 
@@ -2019,14 +2018,7 @@ ScriptCompiler::StreamedSource::StreamedSource(ExternalSourceStream* stream,
                                                Encoding encoding)
     : impl_(new i::ScriptStreamingData(stream, encoding)) {}
 
-ScriptCompiler::StreamedSource::~StreamedSource() { delete impl_; }
-
-
-const ScriptCompiler::CachedData*
-ScriptCompiler::StreamedSource::GetCachedData() const {
-  return impl_->cached_data.get();
-}
-
+ScriptCompiler::StreamedSource::~StreamedSource() = default;
 
 Local<Script> UnboundScript::BindToCurrentContext() {
   auto function_info =
@@ -2037,7 +2029,6 @@ Local<Script> UnboundScript::BindToCurrentContext() {
           function_info, isolate->native_context());
   return ToApiHandle<Script>(function);
 }
-
 
 int UnboundScript::GetId() {
   auto function_info =
@@ -2534,6 +2525,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
   RETURN_ESCAPED(Utils::CallableToLocal(result));
 }
 
+void ScriptCompiler::ScriptStreamingTask::Run() { data_->task->Run(); }
 
 ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingScript(
     Isolate* v8_isolate, StreamedSource* source, CompileOptions options) {
@@ -2544,9 +2536,12 @@ ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingScript(
   // TODO(rmcilroy): remove CompileOptions from the API.
   CHECK(options == ScriptCompiler::kNoCompileOptions);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  return i::Compiler::NewBackgroundCompileTask(source->impl(), isolate);
+  i::ScriptStreamingData* data = source->impl();
+  std::unique_ptr<i::BackgroundCompileTask> task =
+      base::make_unique<i::BackgroundCompileTask>(data, isolate);
+  data->task = std::move(task);
+  return new ScriptCompiler::ScriptStreamingTask(data);
 }
-
 
 MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
                                            StreamedSource* v8_source,
@@ -2562,11 +2557,11 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
       isolate, origin.ResourceName(), origin.ResourceLineOffset(),
       origin.ResourceColumnOffset(), origin.SourceMapUrl(),
       origin.HostDefinedOptions());
-  i::ScriptStreamingData* streaming_data = v8_source->impl();
+  i::ScriptStreamingData* data = v8_source->impl();
 
   i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
       i::Compiler::GetSharedFunctionInfoForStreamedScript(
-          isolate, str, script_details, origin.Options(), streaming_data);
+          isolate, str, script_details, origin.Options(), data);
 
   i::Handle<i::SharedFunctionInfo> result;
   has_pending_exception = !maybe_function_info.ToHandle(&result);
