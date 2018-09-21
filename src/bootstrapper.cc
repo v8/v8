@@ -4327,6 +4327,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_dynamic_import)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_meta)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_numeric_separator)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_json_stringify)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_sequence)
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
 
@@ -4774,8 +4775,6 @@ void Genesis::InitializeGlobal_harmony_intl_relative_time_format() {
 }
 
 #endif  // V8_INTL_SUPPORT
-
-void Genesis::InitializeGlobal_harmony_regexp_sequence() {}
 
 Handle<JSFunction> Genesis::CreateArrayBuffer(
     Handle<String> name, ArrayBufferKind array_buffer_kind) {
