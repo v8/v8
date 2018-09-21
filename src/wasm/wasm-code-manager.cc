@@ -661,8 +661,6 @@ Address NativeModule::AllocateForCode(size_t size) {
         wasm_code_manager_->TryAllocate(size, reinterpret_cast<void*>(hint)));
     VirtualMemory& new_mem = owned_code_space_.back();
     if (!new_mem.IsReserved()) return kNullAddress;
-    base::LockGuard<base::Mutex> lock(
-        &wasm_code_manager_->native_modules_mutex_);
     wasm_code_manager_->AssignRanges(new_mem.address(), new_mem.end(), this);
 
     free_code_space_.Merge({new_mem.address(), new_mem.end()});
@@ -810,7 +808,15 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
 
 void WasmCodeManager::AssignRanges(Address start, Address end,
                                    NativeModule* native_module) {
+  base::LockGuard<base::Mutex> lock(&native_modules_mutex_);
   lookup_map_.insert(std::make_pair(start, std::make_pair(end, native_module)));
+}
+
+void WasmCodeManager::AssignRangesAndAddModule(Address start, Address end,
+                                               NativeModule* native_module) {
+  base::LockGuard<base::Mutex> lock(&native_modules_mutex_);
+  lookup_map_.insert(std::make_pair(start, std::make_pair(end, native_module)));
+  native_modules_.emplace(native_module);
 }
 
 VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
@@ -929,9 +935,7 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
                        std::move(module), env));
   TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", this, start,
              size);
-  base::LockGuard<base::Mutex> lock(&native_modules_mutex_);
-  AssignRanges(start, end, ret.get());
-  native_modules_.emplace(ret.get());
+  AssignRangesAndAddModule(start, end, ret.get());
   return ret;
 }
 

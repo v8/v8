@@ -469,13 +469,21 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   void FreeNativeModule(NativeModule*);
   void Free(VirtualMemory* mem);
   void AssignRanges(Address start, Address end, NativeModule*);
+  void AssignRangesAndAddModule(Address start, Address end, NativeModule*);
   bool ShouldForceCriticalMemoryPressureNotification();
 
   WasmMemoryTracker* const memory_tracker_;
+  std::atomic<size_t> remaining_uncommitted_code_space_;
   mutable base::Mutex native_modules_mutex_;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Protected by {native_modules_mutex_}:
+
   std::map<Address, std::pair<Address, NativeModule*>> lookup_map_;
   std::unordered_set<NativeModule*> native_modules_;
-  std::atomic<size_t> remaining_uncommitted_code_space_;
+
+  // End of fields protected by {native_modules_mutex_}.
+  //////////////////////////////////////////////////////////////////////////////
 
   DISALLOW_COPY_AND_ASSIGN(WasmCodeManager);
 };
