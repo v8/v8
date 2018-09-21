@@ -8,7 +8,6 @@
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-memory.h"
 
 namespace v8 {
 namespace internal {
@@ -184,11 +183,6 @@ class WasmCodeManagerTest : public TestWithContext,
   }
 
   size_t page() const { return AllocatePageSize(); }
-
-  WasmMemoryTracker* memory_tracker() { return &memory_tracker_; }
-
- private:
-  WasmMemoryTracker memory_tracker_;
 };
 
 INSTANTIATE_TEST_CASE_P(Parameterized, WasmCodeManagerTest,
@@ -196,7 +190,7 @@ INSTANTIATE_TEST_CASE_P(Parameterized, WasmCodeManagerTest,
                         PrintWasmCodeManageTestParam);
 
 TEST_P(WasmCodeManagerTest, EmptyCase) {
-  WasmCodeManager manager(memory_tracker(), 0 * page());
+  WasmCodeManager manager(0 * page());
   CHECK_EQ(0, manager.remaining_uncommitted_code_space());
 
   ASSERT_DEATH_IF_SUPPORTED(AllocModule(&manager, 1 * page(), GetParam()),
@@ -204,7 +198,7 @@ TEST_P(WasmCodeManagerTest, EmptyCase) {
 }
 
 TEST_P(WasmCodeManagerTest, AllocateAndGoOverLimit) {
-  WasmCodeManager manager(memory_tracker(), 1 * page());
+  WasmCodeManager manager(1 * page());
   CHECK_EQ(1 * page(), manager.remaining_uncommitted_code_space());
   NativeModulePtr native_module = AllocModule(&manager, 1 * page(), GetParam());
   CHECK(native_module);
@@ -229,7 +223,7 @@ TEST_P(WasmCodeManagerTest, AllocateAndGoOverLimit) {
 }
 
 TEST_P(WasmCodeManagerTest, TotalLimitIrrespectiveOfModuleCount) {
-  WasmCodeManager manager(memory_tracker(), 3 * page());
+  WasmCodeManager manager(3 * page());
   NativeModulePtr nm1 = AllocModule(&manager, 2 * page(), GetParam());
   NativeModulePtr nm2 = AllocModule(&manager, 2 * page(), GetParam());
   CHECK(nm1);
@@ -241,8 +235,8 @@ TEST_P(WasmCodeManagerTest, TotalLimitIrrespectiveOfModuleCount) {
 }
 
 TEST_P(WasmCodeManagerTest, DifferentHeapsApplyLimitsIndependently) {
-  WasmCodeManager manager1(memory_tracker(), 1 * page());
-  WasmCodeManager manager2(memory_tracker(), 2 * page());
+  WasmCodeManager manager1(1 * page());
+  WasmCodeManager manager2(2 * page());
   NativeModulePtr nm1 = AllocModule(&manager1, 1 * page(), GetParam());
   NativeModulePtr nm2 = AllocModule(&manager2, 1 * page(), GetParam());
   CHECK(nm1);
@@ -255,7 +249,7 @@ TEST_P(WasmCodeManagerTest, DifferentHeapsApplyLimitsIndependently) {
 }
 
 TEST_P(WasmCodeManagerTest, GrowingVsFixedModule) {
-  WasmCodeManager manager(memory_tracker(), 3 * page());
+  WasmCodeManager manager(3 * page());
   NativeModulePtr nm = AllocModule(&manager, 1 * page(), GetParam());
   size_t module_size = GetParam() == Fixed ? kMaxWasmCodeMemory : 1 * page();
   size_t remaining_space_in_module = module_size - kJumpTableSize;
@@ -274,7 +268,7 @@ TEST_P(WasmCodeManagerTest, GrowingVsFixedModule) {
 }
 
 TEST_P(WasmCodeManagerTest, CommitIncrements) {
-  WasmCodeManager manager(memory_tracker(), 10 * page());
+  WasmCodeManager manager(10 * page());
   NativeModulePtr nm = AllocModule(&manager, 3 * page(), GetParam());
   WasmCode* code = AddCode(nm.get(), 0, kCodeAlignment);
   CHECK_NOT_NULL(code);
@@ -288,7 +282,7 @@ TEST_P(WasmCodeManagerTest, CommitIncrements) {
 }
 
 TEST_P(WasmCodeManagerTest, Lookup) {
-  WasmCodeManager manager(memory_tracker(), 2 * page());
+  WasmCodeManager manager(2 * page());
 
   NativeModulePtr nm1 = AllocModule(&manager, 1 * page(), GetParam());
   NativeModulePtr nm2 = AllocModule(&manager, 1 * page(), GetParam());
@@ -327,8 +321,8 @@ TEST_P(WasmCodeManagerTest, Lookup) {
 }
 
 TEST_P(WasmCodeManagerTest, MultiManagerLookup) {
-  WasmCodeManager manager1(memory_tracker(), 2 * page());
-  WasmCodeManager manager2(memory_tracker(), 2 * page());
+  WasmCodeManager manager1(2 * page());
+  WasmCodeManager manager2(2 * page());
 
   NativeModulePtr nm1 = AllocModule(&manager1, 1 * page(), GetParam());
   NativeModulePtr nm2 = AllocModule(&manager2, 1 * page(), GetParam());
@@ -350,7 +344,7 @@ TEST_P(WasmCodeManagerTest, MultiManagerLookup) {
 }
 
 TEST_P(WasmCodeManagerTest, LookupWorksAfterRewrite) {
-  WasmCodeManager manager(memory_tracker(), 2 * page());
+  WasmCodeManager manager(2 * page());
 
   NativeModulePtr nm1 = AllocModule(&manager, 1 * page(), GetParam());
 
