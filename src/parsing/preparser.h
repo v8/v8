@@ -887,6 +887,25 @@ class PreParserTargetScope {
   explicit PreParserTargetScope(ParserBase<PreParser>* preparser) {}
 };
 
+class PreParserFuncNameInferrer {
+ public:
+  PreParserFuncNameInferrer(AstValueFactory* avf, Zone* zone) {}
+  void RemoveAsyncKeywordFromEnd() {}
+  void Infer() {}
+  void RemoveLastFunction() {}
+
+  class State {
+   public:
+    explicit State(PreParserFuncNameInferrer* fni) {}
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(State);
+  };
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(PreParserFuncNameInferrer);
+};
+
 template <>
 struct ParserTypes<PreParser> {
   typedef ParserBase<PreParser> Base;
@@ -916,6 +935,7 @@ struct ParserTypes<PreParser> {
 
   typedef PreParserTarget Target;
   typedef PreParserTargetScope TargetScope;
+  typedef PreParserFuncNameInferrer FuncNameInferrer;
 };
 
 

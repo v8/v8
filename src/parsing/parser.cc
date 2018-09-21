@@ -36,9 +36,7 @@ namespace internal {
 class DiscardableZoneScope {
  public:
   DiscardableZoneScope(Parser* parser, Zone* temp_zone, bool use_temp_zone)
-      : fni_(parser->ast_value_factory_, temp_zone),
-        parser_(parser),
-        prev_fni_(parser->fni_),
+      : parser_(parser),
         prev_zone_(parser->zone_),
         prev_allow_lazy_(parser->allow_lazy_),
         prev_temp_zoned_(parser->temp_zoned_) {
@@ -46,7 +44,7 @@ class DiscardableZoneScope {
       DCHECK(!parser_->temp_zoned_);
       parser_->allow_lazy_ = false;
       parser_->temp_zoned_ = true;
-      parser_->fni_ = &fni_;
+      parser_->fni_.set_zone(temp_zone);
       parser_->zone_ = temp_zone;
       parser_->factory()->set_zone(temp_zone);
       if (parser_->reusable_preparser_ != nullptr) {
@@ -56,7 +54,7 @@ class DiscardableZoneScope {
     }
   }
   void Reset() {
-    parser_->fni_ = prev_fni_;
+    parser_->fni_.set_zone(prev_zone_);
     parser_->zone_ = prev_zone_;
     parser_->factory()->set_zone(prev_zone_);
     parser_->allow_lazy_ = prev_allow_lazy_;
@@ -69,9 +67,7 @@ class DiscardableZoneScope {
   ~DiscardableZoneScope() { Reset(); }
 
  private:
-  FuncNameInferrer fni_;
   Parser* parser_;
-  FuncNameInferrer* prev_fni_;
   Zone* prev_zone_;
   bool prev_allow_lazy_;
   bool prev_temp_zoned_;
@@ -508,7 +504,6 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseProgram");
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
-  fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
 
   // Initialize parser state.
   DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info());
@@ -754,8 +749,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK_NULL(target_stack_);
 
   DCHECK(ast_value_factory());
-  fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
-  fni_->PushEnclosingName(raw_name);
+  fni_.PushEnclosingName(raw_name);
 
   ResetFunctionLiteralId();
   DCHECK_LT(0, info->function_literal_id());
@@ -2710,8 +2704,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   function_literal->set_suspend_count(suspend_count);
 
   if (should_infer_name) {
-    DCHECK_NOT_NULL(fni_);
-    fni_->AddFunction(function_literal);
+    fni_.AddFunction(function_literal);
   }
   return function_literal;
 }
@@ -3464,7 +3457,6 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   // position set at the end of the script (the top scope and possible eval
   // scopes) and set their end position after we know the script length.
   if (info->is_toplevel()) {
-    fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
     result = DoParseProgram(/* isolate = */ nullptr, info);
   } else {
     result =

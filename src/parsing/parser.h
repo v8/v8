@@ -135,6 +135,7 @@ struct ParserTypes<Parser> {
   typedef v8::internal::BreakableStatement* BreakableStatement;
   typedef v8::internal::ForStatement* ForStatement;
   typedef v8::internal::IterationStatement* IterationStatement;
+  typedef v8::internal::FuncNameInferrer FuncNameInferrer;
 
   // For constructing objects returned by the traversing functions.
   typedef AstNodeFactory Factory;
@@ -665,38 +666,30 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Functions for encapsulating the differences between parsing and preparsing;
   // operations interleaved with the recursive descent.
   V8_INLINE void PushLiteralName(const AstRawString* id) {
-    DCHECK_NOT_NULL(fni_);
-    fni_->PushLiteralName(id);
+    fni_.PushLiteralName(id);
   }
 
   V8_INLINE void PushVariableName(const AstRawString* id) {
-    DCHECK_NOT_NULL(fni_);
-    fni_->PushVariableName(id);
+    fni_.PushVariableName(id);
   }
 
   V8_INLINE void PushPropertyName(Expression* expression) {
-    DCHECK_NOT_NULL(fni_);
     if (expression->IsPropertyName()) {
-      fni_->PushLiteralName(expression->AsLiteral()->AsRawPropertyName());
+      fni_.PushLiteralName(expression->AsLiteral()->AsRawPropertyName());
     } else {
-      fni_->PushLiteralName(ast_value_factory()->anonymous_function_string());
+      fni_.PushLiteralName(ast_value_factory()->anonymous_function_string());
     }
   }
 
   V8_INLINE void PushEnclosingName(const AstRawString* name) {
-    DCHECK_NOT_NULL(fni_);
-    fni_->PushEnclosingName(name);
+    fni_.PushEnclosingName(name);
   }
 
   V8_INLINE void AddFunctionForNameInference(FunctionLiteral* func_to_infer) {
-    DCHECK_NOT_NULL(fni_);
-    fni_->AddFunction(func_to_infer);
+    fni_.AddFunction(func_to_infer);
   }
 
-  V8_INLINE void InferFunctionName() {
-    DCHECK_NOT_NULL(fni_);
-    fni_->Infer();
-  }
+  V8_INLINE void InferFunctionName() { fni_.Infer(); }
 
   // If we assign a function literal to a property we pretenure the
   // literal so it can be added as a constant function property.
@@ -859,14 +852,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       const AstRawString* name, int start_position,
       InferName infer = InferName::kYes) {
     if (infer == InferName::kYes) {
-      fni_->PushVariableName(name);
+      fni_.PushVariableName(name);
     }
     return NewUnresolved(name, start_position);
   }
 
   V8_INLINE Expression* ExpressionFromString(int pos) {
     const AstRawString* symbol = GetSymbol();
-    fni_->PushLiteralName(symbol);
+    fni_.PushLiteralName(symbol);
     return factory()->NewStringLiteral(symbol, pos);
   }
 

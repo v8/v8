@@ -243,6 +243,8 @@ class ParserBase {
   typedef typename Types::ForStatement ForStatementT;
   typedef typename v8::internal::ExpressionClassifier<Types>
       ExpressionClassifier;
+  typedef typename Types::FuncNameInferrer FuncNameInferrer;
+  typedef typename Types::FuncNameInferrer::State FuncNameInferrerState;
 
   // All implementation-specific methods must be called through this.
   Impl* impl() { return static_cast<Impl*>(this); }
@@ -257,7 +259,7 @@ class ParserBase {
         original_scope_(nullptr),
         function_state_(nullptr),
         extension_(extension),
-        fni_(nullptr),
+        fni_(ast_value_factory, zone),
         ast_value_factory_(ast_value_factory),
         ast_node_factory_(ast_value_factory, zone),
         runtime_call_stats_(runtime_call_stats),
@@ -1519,7 +1521,7 @@ class ParserBase {
   Scope* original_scope_;  // The top scope for the current parsing item.
   FunctionState* function_state_;  // Function state stack.
   v8::Extension* extension_;
-  FuncNameInferrer* fni_;
+  FuncNameInferrer fni_;
   AstValueFactory* ast_value_factory_;  // Not owned.
   typename Types::Factory ast_node_factory_;
   RuntimeCallStats* runtime_call_stats_;
@@ -2712,7 +2714,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
   Consume(Token::LBRACE);
 
   while (peek() != Token::RBRACE) {
-    FuncNameInferrer::State fni_state(fni_);
+    FuncNameInferrerState fni_state(&fni_);
 
     bool is_computed_name = false;
     bool is_rest_property = false;
@@ -2740,7 +2742,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
       Expect(Token::COMMA, CHECK_OK);
     }
 
-    if (fni_ != nullptr) fni_->Infer();
+    fni_.Infer();
   }
   Expect(Token::RBRACE, CHECK_OK);
 
@@ -2849,7 +2851,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     return ParseYieldExpression(accept_IN, ok);
   }
 
-  FuncNameInferrer::State fni_state(fni_);
+  FuncNameInferrerState fni_state(&fni_);
   ExpressionClassifier arrow_formals_classifier(
       this, classifier()->duplicate_finder());
 
@@ -2881,10 +2883,8 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     IdentifierT name = ParseAndClassifyIdentifier(CHECK_OK);
     expression =
         impl()->ExpressionFromIdentifier(name, position(), InferName::kNo);
-    if (fni_) {
-      // Remove `async` keyword from inferred name stack.
-      fni_->RemoveAsyncKeywordFromEnd();
-    }
+    // Remove `async` keyword from inferred name stack.
+    fni_.RemoveAsyncKeywordFromEnd();
   }
 
   if (peek() == Token::ARROW) {
@@ -2928,7 +2928,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
                                      MessageTemplate::kUnexpectedToken,
                                      Token::String(Token::ARROW));
 
-    if (fni_ != nullptr) fni_->Infer();
+    fni_.Infer();
 
     return expression;
   }
@@ -2993,15 +2993,13 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
   impl()->CheckAssigningFunctionLiteralToProperty(expression, right);
 
-  if (fni_ != nullptr) {
-    // Check if the right hand side is a call to avoid inferring a
-    // name if we're dealing with "a = function(){...}();"-like
-    // expression.
-    if (op == Token::ASSIGN && !right->IsCall() && !right->IsCallNew()) {
-      fni_->Infer();
-    } else {
-      fni_->RemoveLastFunction();
-    }
+  // Check if the right hand side is a call to avoid inferring a
+  // name if we're dealing with "a = function(){...}();"-like
+  // expression.
+  if (op == Token::ASSIGN && !right->IsCall() && !right->IsCallNew()) {
+    fni_.Infer();
+  } else {
+    fni_.RemoveLastFunction();
   }
 
   if (op == Token::ASSIGN) {
@@ -3364,9 +3362,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
           args = ParseArguments(&spread_pos, true, &is_simple_parameter_list,
                                 CHECK_OK);
           if (peek() == Token::ARROW) {
-            if (fni_) {
-              fni_->RemoveAsyncKeywordFromEnd();
-            }
+            fni_.RemoveAsyncKeywordFromEnd();
             ValidateBindingPattern(CHECK_OK);
             ValidateFormalParameterInitializer(CHECK_OK);
             if (!classifier()->is_valid_async_arrow_formal_parameters()) {
@@ -3409,7 +3405,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
           result = factory()->NewCall(result, args, pos, is_possibly_eval);
         }
 
-        if (fni_ != nullptr) fni_->RemoveLastFunction();
+        fni_.RemoveLastFunction();
         break;
       }
 
@@ -3746,7 +3742,7 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters,
   //   BindingElement[?Yield, ?GeneratorParameter]
   bool is_rest = parameters->has_rest;
 
-  FuncNameInferrer::State fni_state(fni_);
+  FuncNameInferrerState fni_state(&fni_);
   ExpressionT pattern = ParsePrimaryExpression(CHECK_OK_CUSTOM(Void));
   ValidateBindingPattern(CHECK_OK_CUSTOM(Void));
 
@@ -3874,7 +3870,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
   int bindings_start = peek_position();
   do {
     // Parse binding pattern.
-    FuncNameInferrer::State fni_state(fni_);
+    FuncNameInferrerState fni_state(&fni_);
 
     ExpressionT pattern = impl()->NullExpression();
     int decl_pos = peek_position();
@@ -3912,11 +3908,11 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
       }
 
       // Don't infer if it is "a = function(){...}();"-like expression.
-      if (single_name && fni_ != nullptr) {
+      if (single_name) {
         if (!value->IsCall() && !value->IsCallNew()) {
-          fni_->Infer();
+          fni_.Infer();
         } else {
-          fni_->RemoveLastFunction();
+          fni_.RemoveLastFunction();
         }
       }
 
@@ -4039,7 +4035,7 @@ ParserBase<Impl>::ParseHoistableDeclaration(
     variable_name = name;
   }
 
-  FuncNameInferrer::State fni_state(fni_);
+  FuncNameInferrerState fni_state(&fni_);
   impl()->PushEnclosingName(name);
 
   FunctionKind kind = FunctionKindFor(flags);
@@ -4494,7 +4490,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
   scope()->set_start_position(scanner()->location().end_pos);
   if (Check(Token::EXTENDS)) {
-    FuncNameInferrer::State fni_state(fni_);
+    FuncNameInferrerState fni_state(&fni_);
     ExpressionClassifier extends_classifier(this);
     class_info.extends = ParseLeftHandSideExpression(CHECK_OK);
     ValidateExpression(CHECK_OK);
@@ -4508,7 +4504,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   const bool has_extends = !impl()->IsNull(class_info.extends);
   while (peek() != Token::RBRACE) {
     if (Check(Token::SEMICOLON)) continue;
-    FuncNameInferrer::State fni_state(fni_);
+    FuncNameInferrerState fni_state(&fni_);
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
     bool is_static;

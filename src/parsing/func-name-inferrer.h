@@ -36,12 +36,8 @@ class FuncNameInferrer : public ZoneObject {
   // on the stack.
   class State {
    public:
-    explicit State(FuncNameInferrer* fni) : fni_(fni) {
-      if (fni_ != nullptr) fni_->Enter();
-    }
-    ~State() {
-      if (fni_ != nullptr) fni_->Leave();
-    }
+    explicit State(FuncNameInferrer* fni) : fni_(fni) { fni_->Enter(); }
+    ~State() { fni_->Leave(); }
 
    private:
     FuncNameInferrer* fni_;
@@ -82,6 +78,8 @@ class FuncNameInferrer : public ZoneObject {
       InferFunctionsNames();
     }
   }
+
+  void set_zone(Zone* new_zone) { zone_ = new_zone; }
 
  private:
   enum NameType {
