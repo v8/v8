@@ -118,9 +118,7 @@ namespace internal {
   F(NotifyDeoptimized, 0, 1)              \
   F(ResolvePossiblyDirectEval, 6, 1)
 
-#define FOR_EACH_INTRINSIC_DATE(F) \
-  F(DateCurrentTime, 0, 1)         \
-  F(IsDate, 1, 1)
+#define FOR_EACH_INTRINSIC_DATE(F) F(DateCurrentTime, 0, 1)
 
 #define FOR_EACH_INTRINSIC_DEBUG(F)             \
   F(ClearStepping, 0, 1)                        \
@@ -324,8 +322,6 @@ namespace internal {
   F(ObjectValuesSkipFastPath, 1, 1)                             \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1)            \
   F(PerformSideEffectCheckForObject, 1, 1)                      \
-  F(SameValue, 2, 1)                                            \
-  F(SameValueZero, 2, 1)                                        \
   F(SetDataProperties, 2, 1)                                    \
   F(SetKeyedProperty, 4, 1)                                     \
   F(SetNamedProperty, 4, 1)                                     \
@@ -337,11 +333,8 @@ namespace internal {
   F(ToNumber, 1, 1)                                             \
   F(ToNumeric, 1, 1)                                            \
   F(ToObject, 1, 1)                                             \
-  F(ToPrimitive, 1, 1)                                          \
-  F(ToPrimitive_Number, 1, 1)                                   \
   F(ToString, 1, 1)                                             \
-  F(TryMigrateInstance, 1, 1)                                   \
-  F(ValueOf, 1, 1)
+  F(TryMigrateInstance, 1, 1)
 
 #define FOR_EACH_INTRINSIC_OPERATORS(F) \
   F(Add, 2, 1)                          \

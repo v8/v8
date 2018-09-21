@@ -917,15 +917,6 @@ RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ValueOf) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  if (!obj->IsJSValue()) return obj;
-  return JSValue::cast(obj)->value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_IsJSReceiver) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
@@ -1126,22 +1117,6 @@ RUNTIME_FUNCTION(Runtime_ToObject) {
   UNREACHABLE();
 }
 
-RUNTIME_FUNCTION(Runtime_ToPrimitive) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  RETURN_RESULT_OR_FAILURE(isolate, Object::ToPrimitive(input));
-}
-
-
-RUNTIME_FUNCTION(Runtime_ToPrimitive_Number) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Object::ToPrimitive(input, ToPrimitiveHint::kNumber));
-}
-
 RUNTIME_FUNCTION(Runtime_ToNumber) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -1178,24 +1153,6 @@ RUNTIME_FUNCTION(Runtime_ToName) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
   RETURN_RESULT_OR_FAILURE(isolate, Object::ToName(isolate, input));
-}
-
-
-RUNTIME_FUNCTION(Runtime_SameValue) {
-  SealHandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(Object, x, 0);
-  CONVERT_ARG_CHECKED(Object, y, 1);
-  return isolate->heap()->ToBoolean(x->SameValue(y));
-}
-
-
-RUNTIME_FUNCTION(Runtime_SameValueZero) {
-  SealHandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(Object, x, 0);
-  CONVERT_ARG_CHECKED(Object, y, 1);
-  return isolate->heap()->ToBoolean(x->SameValueZero(y));
 }
 
 RUNTIME_FUNCTION(Runtime_HasInPrototypeChain) {

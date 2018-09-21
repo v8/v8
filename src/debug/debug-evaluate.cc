@@ -252,7 +252,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ToString)                                 \
   /* Type checks */                           \
   V(IsArray)                                  \
-  V(IsDate)                                   \
   V(IsFunction)                               \
   V(IsJSProxy)                                \
   V(IsJSReceiver)                             \
