@@ -27,8 +27,11 @@ void BuiltinSerializer::SerializeBuiltinsAndHandlers() {
   // Serialize builtins.
 
   for (int i = 0; i < Builtins::builtin_count; i++) {
+    Code* code = isolate()->builtins()->builtin(i);
+    DCHECK_IMPLIES(Builtins::IsLazyDeserializer(code),
+                   Builtins::IsLazyDeserializer(i));
     SetBuiltinOffset(i, sink_.Position());
-    SerializeBuiltin(isolate()->builtins()->builtin(i));
+    SerializeBuiltin(code);
   }
 
   // Pad with kNop since GetInt() might read too far.

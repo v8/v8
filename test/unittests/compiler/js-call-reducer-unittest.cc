@@ -46,16 +46,13 @@ class JSCallReducerTest : public TypedGraphTest {
 
   static void SetUpTestCase() {
     old_flag_lazy_ = i::FLAG_lazy_deserialization;
-    old_flag_lazy_handler_ = i::FLAG_lazy_handler_deserialization;
     i::FLAG_lazy_deserialization = false;
-    i::FLAG_lazy_handler_deserialization = false;
     TypedGraphTest::SetUpTestCase();
   }
 
   static void TearDownTestCase() {
     TypedGraphTest::TearDownTestCase();
     i::FLAG_lazy_deserialization = old_flag_lazy_;
-    i::FLAG_lazy_handler_deserialization = old_flag_lazy_handler_;
   }
 
   Node* GlobalFunction(const char* name) {

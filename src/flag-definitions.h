@@ -1099,10 +1099,6 @@ DEFINE_BOOL(print_embedded_builtin_candidates, false,
             "Prints builtins that are not yet embedded but could be.")
 DEFINE_BOOL(lazy_deserialization, true,
             "Deserialize code lazily from the snapshot.")
-DEFINE_BOOL(lazy_handler_deserialization, true,
-            "Deserialize bytecode handlers lazily from the snapshot.")
-DEFINE_IMPLICATION(lazy_handler_deserialization, lazy_deserialization)
-DEFINE_IMPLICATION(future, lazy_handler_deserialization)
 DEFINE_BOOL(trace_lazy_deserialization, false, "Trace lazy deserialization.")
 DEFINE_BOOL(profile_deserialization, false,
             "Print the time it takes to deserialize the snapshot.")

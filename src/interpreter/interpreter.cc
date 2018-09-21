@@ -82,7 +82,7 @@ Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
   // Already deserialized? Then just return the handler.
   if (!Builtins::IsLazyDeserializer(code)) return code;
 
-  DCHECK(FLAG_lazy_handler_deserialization);
+  DCHECK(FLAG_lazy_deserialization);
   DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
   code = Snapshot::DeserializeBuiltin(isolate_, builtin_index);
 
