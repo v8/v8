@@ -119,6 +119,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void VerifyRootRegister() {
     if (FLAG_ia32_verify_root_register && FLAG_embedded_builtins) {
+      Assembler::AllowExplicitEbxAccessScope read_only_access(this);
       Label root_register_ok;
       cmp(kRootRegister, kRootRegisterSentinel);
       j(equal, &root_register_ok);
