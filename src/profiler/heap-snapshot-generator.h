@@ -31,6 +31,10 @@ class HeapProfiler;
 class HeapSnapshot;
 class JSArrayBuffer;
 class JSCollection;
+class JSGeneratorObject;
+class JSGlobalObject;
+class JSGlobalProxy;
+class JSPromise;
 class JSWeakCollection;
 class SnapshotFiller;
 

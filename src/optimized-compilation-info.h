@@ -27,6 +27,7 @@ class DeferredHandles;
 class FunctionLiteral;
 class Isolate;
 class JavaScriptFrame;
+class JSGlobalObject;
 class ParseInfo;
 class SourceRangeMap;
 class Zone;

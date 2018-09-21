@@ -30,6 +30,7 @@ namespace internal {
 
 template <typename T>
 class Handle;
+class JSCollator;
 
 class Intl {
  public:

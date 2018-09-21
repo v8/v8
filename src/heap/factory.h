@@ -44,6 +44,7 @@ class JSGeneratorObject;
 class JSMap;
 class JSMapIterator;
 class JSModuleNamespace;
+class JSPromise;
 class JSProxy;
 class JSSet;
 class JSSetIterator;

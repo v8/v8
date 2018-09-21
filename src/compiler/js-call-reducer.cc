@@ -25,6 +25,7 @@
 #include "src/objects/arguments-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-objects.h"
 #include "src/vector-slot-pair.h"
 
 namespace v8 {

@@ -7,6 +7,7 @@
 
 #include "src/globals.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/js-objects.h"
 
 namespace v8 {
 namespace internal {

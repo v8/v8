@@ -15,6 +15,7 @@ namespace internal {
 
 // Forward declarations.
 class Factory;
+class JSGlobalProxy;
 class VectorSlotPair;
 
 namespace compiler {

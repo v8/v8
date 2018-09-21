@@ -10,6 +10,8 @@
 namespace v8 {
 namespace internal {
 
+class JSGlobalObject;
+class JSGlobalProxy;
 class NativeContext;
 class RegExpMatchInfo;
 

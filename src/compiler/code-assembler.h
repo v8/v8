@@ -27,11 +27,22 @@
 namespace v8 {
 namespace internal {
 
-class Callable;
 class CallInterfaceDescriptor;
+class Callable;
+class Factory;
+class InterpreterData;
 class Isolate;
+class JSAsyncGeneratorObject;
+class JSCollator;
 class JSCollection;
+class JSDateTimeFormat;
+class JSListFormat;
+class JSLocale;
+class JSNumberFormat;
+class JSPluralRules;
 class JSRegExpStringIterator;
+class JSRelativeTimeFormat;
+class JSV8BreakIterator;
 class JSWeakCollection;
 class JSWeakMap;
 class JSWeakSet;
@@ -41,8 +52,6 @@ class PromiseFulfillReactionJobTask;
 class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
-class InterpreterData;
-class Factory;
 class Zone;
 
 template <typename T>
