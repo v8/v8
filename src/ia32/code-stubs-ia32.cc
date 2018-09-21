@@ -47,6 +47,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ push(ebx);
 
   __ InitializeRootRegister();
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
 
   // Save copies of the top frame descriptor on the stack.
   ExternalReference c_entry_fp =
@@ -95,6 +96,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ VerifyRootRegister();
 
   // Check if the current stack frame is marked as the outermost JS frame.
+  Assembler::AllowExplicitEbxAccessScope exiting_js(masm);
   __ pop(ebx);
   __ cmp(ebx, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
@@ -132,6 +134,8 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
 
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   // Save volatile registers.
   const int kNumSavedRegisters = 3;
   __ push(eax);
@@ -180,9 +184,8 @@ static void PrepareCallApiFunction(MacroAssembler* masm, int argc) {
   }
 }
 
-
 // Calls an API function.  Allocates HandleScope, extracts returned value
-// from handle and propagates exceptions.  Clobbers ebx, edi and
+// from handle and propagates exceptions.  Clobbers esi, edi and
 // caller-save registers.  Restores context.  On return removes
 // stack_space * kPointerSize (GCed).
 static void CallApiFunctionAndReturn(MacroAssembler* masm,
@@ -191,6 +194,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
                                      Operand thunk_last_arg, int stack_space,
                                      Operand* stack_space_operand,
                                      Operand return_value_operand) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
   Isolate* isolate = masm->isolate();
 
   ExternalReference next_address =
@@ -202,7 +206,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   DCHECK(edx == function_address);
   // Allocate HandleScope in callee-save registers.
-  __ mov(ebx, __ StaticVariable(next_address));
+  __ mov(esi, __ StaticVariable(next_address));
   __ mov(edi, __ StaticVariable(limit_address));
   __ add(__ StaticVariable(level_address), Immediate(1));
 
@@ -256,7 +260,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bind(&prologue);
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
-  __ mov(__ StaticVariable(next_address), ebx);
+  __ mov(__ StaticVariable(next_address), esi);
   __ sub(__ StaticVariable(level_address), Immediate(1));
   __ Assert(above_equal, AbortReason::kInvalidHandleScopeLevel);
   __ cmp(edi, __ StaticVariable(limit_address));
@@ -265,7 +269,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   // Leave the API exit frame.
   __ bind(&leave_exit_frame);
   if (stack_space_operand != nullptr) {
-    __ mov(ebx, *stack_space_operand);
+    __ mov(edx, *stack_space_operand);
   }
   __ LeaveApiExitFrame();
 
@@ -314,7 +318,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   if (stack_space_operand != nullptr) {
     DCHECK_EQ(0, stack_space);
     __ pop(ecx);
-    __ add(esp, ebx);
+    __ add(esp, edx);
     __ jmp(ecx);
   } else {
     __ ret(stack_space * kPointerSize);
@@ -339,6 +343,8 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 }
 
 void CallApiCallbackStub::Generate(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   // ----------- S t a t e -------------
   //  -- eax                 : call_data
   //  -- ecx                 : holder
@@ -355,7 +361,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   Register call_data = eax;
   Register holder = ecx;
   Register api_function_address = edx;
-  Register return_address = ebx;
+  Register return_address = edi;
 
   typedef FunctionCallbackArguments FCA;
 
@@ -429,6 +435,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
 
 void CallApiGetterStub::Generate(MacroAssembler* masm) {
+  Assembler::SupportsRootRegisterScope supports_root_register(masm);
+
   // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
   // name below the exit frame to make GC aware of them.
   STATIC_ASSERT(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
@@ -443,7 +451,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   Register receiver = ApiGetterDescriptor::ReceiverRegister();
   Register holder = ApiGetterDescriptor::HolderRegister();
   Register callback = ApiGetterDescriptor::CallbackRegister();
-  Register scratch = ebx;
+  Register scratch = edi;
   DCHECK(!AreAliased(receiver, holder, callback, scratch));
 
   __ pop(scratch);  // Pop return address to extend the frame.
