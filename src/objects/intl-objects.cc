@@ -1221,15 +1221,15 @@ std::unique_ptr<icu::RegexMatcher> GetAnyExtensionRegexpMatcher() {
 // ECMA 402 9.2.7 LookupSupportedLocales(availableLocales, requestedLocales)
 // https://tc39.github.io/ecma402/#sec-lookupsupportedlocales
 std::vector<std::string> LookupSupportedLocales(
-    std::set<std::string> available_locales,
-    std::vector<std::string> requested_locales) {
+    const std::set<std::string>& available_locales,
+    const std::vector<std::string>& requested_locales) {
   std::unique_ptr<icu::RegexMatcher> matcher = GetAnyExtensionRegexpMatcher();
 
   // 1. Let subset be a new empty List.
   std::vector<std::string> subset;
 
   // 2. For each element locale of requestedLocales in List order, do
-  for (auto locale : requested_locales) {
+  for (const auto& locale : requested_locales) {
     // 2.a. Let noExtensionsLocale be the String value that is locale with all
     //      Unicode locale extension sequences removed.
     icu::UnicodeString locale_uni(locale.c_str(), -1, US_INV);
@@ -1276,8 +1276,8 @@ std::vector<std::string> LookupSupportedLocales(
 // ECMA 402 9.2.8 BestFitSupportedLocales(availableLocales, requestedLocales)
 // https://tc39.github.io/ecma402/#sec-bestfitsupportedlocales
 std::vector<std::string> BestFitSupportedLocales(
-    std::set<std::string> available_locales,
-    std::vector<std::string> requested_locales) {
+    const std::set<std::string>& available_locales,
+    const std::vector<std::string>& requested_locales) {
   return LookupSupportedLocales(available_locales, requested_locales);
 }
 
@@ -1324,9 +1324,9 @@ MaybeHandle<JSObject> CreateReadOnlyArray(Isolate* isolate,
 // ECMA 402 9.2.9 SupportedLocales(availableLocales, requestedLocales, options)
 // https://tc39.github.io/ecma402/#sec-supportedlocales
 MaybeHandle<JSObject> SupportedLocales(
-    Isolate* isolate, std::string service,
-    std::set<std::string> available_locales,
-    std::vector<std::string> requested_locales, Handle<Object> options) {
+    Isolate* isolate, const std::string& service,
+    const std::set<std::string>& available_locales,
+    const std::vector<std::string>& requested_locales, Handle<Object> options) {
   std::vector<std::string> supported_locales;
 
   // 1. If options is not undefined, then

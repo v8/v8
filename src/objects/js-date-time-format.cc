@@ -32,7 +32,7 @@ namespace {
 class PatternMap {
  public:
   PatternMap(std::string pattern, std::string value)
-      : pattern(pattern), value(value) {}
+      : pattern(std::move(pattern)), value(std::move(value)) {}
   virtual ~PatternMap() = default;
   std::string pattern;
   std::string value;
@@ -42,7 +42,9 @@ class PatternItem {
  public:
   PatternItem(const std::string property, std::vector<PatternMap> pairs,
               std::vector<const char*>* allowed_values)
-      : property(property), pairs(pairs), allowed_values(allowed_values) {}
+      : property(std::move(property)),
+        pairs(std::move(pairs)),
+        allowed_values(allowed_values) {}
   virtual ~PatternItem() = default;
 
   const std::string property;
@@ -102,7 +104,7 @@ class PatternData {
  public:
   PatternData(const std::string property, std::vector<PatternMap> pairs,
               std::vector<const char*>* allowed_values)
-      : property(property), allowed_values(allowed_values) {
+      : property(std::move(property)), allowed_values(allowed_values) {
     for (const auto& pair : pairs) {
       map.insert(std::make_pair(pair.value, pair.pattern));
     }
@@ -180,12 +182,12 @@ void SetPropertyFromPattern(Isolate* isolate, const std::string& pattern,
   //  ii. If hc is "h11" or "h12", let v be true.
   //  iii. Else if, hc is "h23" or "h24", let v be false.
   //  iv. Else, let v be undefined.
-  if (pattern.find("h") != std::string::npos) {
+  if (pattern.find('h') != std::string::npos) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->NewStringFromStaticChars("hour12"),
               factory->true_value(), kDontThrow)
               .FromJust());
-  } else if (pattern.find("H") != std::string::npos) {
+  } else if (pattern.find('H') != std::string::npos) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->NewStringFromStaticChars("hour12"),
               factory->false_value(), kDontThrow)
@@ -702,7 +704,7 @@ std::unique_ptr<icu::Calendar> CreateCalendar(Isolate* isolate,
 
 std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
     Isolate* isolate, const icu::Locale& icu_locale,
-    const std::string skeleton) {
+    const std::string& skeleton) {
   // See https://github.com/tc39/ecma402/issues/225 . The best pattern
   // generation needs to be done in the base locale according to the
   // current spec however odd it may be. See also crbug.com/826549 .

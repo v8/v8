@@ -238,8 +238,8 @@ Handle<String> UnitAsString(Isolate* isolate, URelativeDateTimeUnit unit_enum) {
 }
 
 MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
-    Isolate* isolate, icu::UnicodeString formatted,
-    icu::UnicodeString integer_part, URelativeDateTimeUnit unit_enum) {
+    Isolate* isolate, const icu::UnicodeString& formatted,
+    const icu::UnicodeString& integer_part, URelativeDateTimeUnit unit_enum) {
   Factory* factory = isolate->factory();
   Handle<JSArray> array = factory->NewJSArray(0);
   int32_t found = formatted.indexOf(integer_part);
