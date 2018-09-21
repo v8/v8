@@ -372,7 +372,9 @@ void DeclarationVisitor::Visit(LogicalAndExpression* expr) {
   Visit(expr->right);
 }
 
-void DeclarationVisitor::DeclareExpressionForBranch(Expression* node) {
+void DeclarationVisitor::DeclareExpressionForBranch(
+    Expression* node, base::Optional<Statement*> true_statement,
+    base::Optional<Statement*> false_statement) {
   Declarations::NodeScopeActivator scope(declarations(), node);
   // Conditional expressions can either explicitly return a bit
   // type, or they can be backed by macros that don't return but
@@ -380,8 +382,8 @@ void DeclarationVisitor::DeclareExpressionForBranch(Expression* node) {
   // visiting the conditional expression, those label-based
   // macro conditionals will be able to find them through normal
   // label lookups.
-  declarations()->DeclareLabel(kTrueLabelName);
-  declarations()->DeclareLabel(kFalseLabelName);
+  declarations()->DeclareLabel(kTrueLabelName, true_statement);
+  declarations()->DeclareLabel(kFalseLabelName, false_statement);
   Visit(node);
 }
 
@@ -400,7 +402,7 @@ void DeclarationVisitor::Visit(IfStatement* stmt) {
   if (!stmt->is_constexpr) {
     PushControlSplit();
   }
-  DeclareExpressionForBranch(stmt->condition);
+  DeclareExpressionForBranch(stmt->condition, stmt->if_true, stmt->if_false);
   Visit(stmt->if_true);
   if (stmt->if_false) Visit(*stmt->if_false);
   if (!stmt->is_constexpr) {
@@ -465,7 +467,8 @@ void DeclarationVisitor::Visit(TryLabelStatement* stmt) {
     // Declare labels
     for (LabelBlock* block : stmt->label_blocks) {
       CurrentSourcePosition::Scope scope(block->pos);
-      Label* shared_label = declarations()->DeclareLabel(block->label);
+      Label* shared_label =
+          declarations()->DeclareLabel(block->label, block->body);
       {
         Declarations::NodeScopeActivator scope(declarations(), block->body);
         if (block->parameters.has_varargs) {

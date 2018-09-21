@@ -2012,6 +2012,11 @@ void ImplementationVisitor::GenerateLabelDefinition(Label* label,
     source_out() << ", ";
     GenerateChangedVarsFromControlSplit(node);
   }
+  if (label->IsDeferred()) {
+    source_out() << ", compiler::CodeAssemblerLabel::kDeferred";
+  } else {
+    source_out() << ", compiler::CodeAssemblerLabel::kNonDeferred";
+  }
   source_out() << ");\n";
   GenerateIndent();
   source_out() << "Label* " + label_string + " = &" << label_string_impl

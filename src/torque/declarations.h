@@ -79,7 +79,8 @@ class Declarations {
   void DeclareStruct(Module* module, const std::string& name,
                      const std::vector<NameAndType>& fields);
 
-  Label* DeclareLabel(const std::string& name);
+  Label* DeclareLabel(const std::string& name,
+                      base::Optional<Statement*> statement = {});
 
   Macro* DeclareMacro(const std::string& name, const Signature& signature,
                       base::Optional<std::string> op = {});

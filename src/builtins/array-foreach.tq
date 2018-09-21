@@ -67,7 +67,7 @@ module array {
       return ArrayForEachTorqueContinuation(
           context, receiver, numberLength, callbackfn, thisArg, k);
     }
-    label Unexpected {
+    label Unexpected deferred {
       unreachable;
     }
   }
@@ -101,7 +101,7 @@ module array {
         }
       }
     }
-    label Slow {
+    label Slow deferred {
       goto Bailout(k);
     }
   }
@@ -129,7 +129,7 @@ module array {
         otherwise Bailout;
       }
     }
-    label Slow {
+    label Slow deferred {
       goto Bailout(k);
     }
     return Undefined;
@@ -165,17 +165,17 @@ module array {
         return FastArrayForEach(context, o, len, callbackfn, thisArg)
         otherwise Bailout;
       }
-      label Bailout(kValue: Smi) {
+      label Bailout(kValue: Smi) deferred {
         k = kValue;
       }
 
       return ArrayForEachTorqueContinuation(
           context, o, len, callbackfn, thisArg, k);
     }
-    label TypeError {
+    label TypeError deferred {
       ThrowTypeError(context, kCalledNonCallable, arguments[0]);
     }
-    label NullOrUndefinedError {
+    label NullOrUndefinedError deferred {
       ThrowTypeError(
           context, kCalledOnNullOrUndefined, 'Array.prototype.forEach');
     }

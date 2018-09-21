@@ -191,6 +191,16 @@ void LintGenericParameters(const GenericParameters& parameters) {
   }
 }
 
+void CheckNotDeferredStatement(Statement* statement) {
+  if (BlockStatement* block = BlockStatement::DynamicCast(statement)) {
+    if (block->deferred) {
+      LintError(
+          "cannot use deferred with a statement block here, it will have no "
+          "effect");
+    }
+  }
+}
+
 base::Optional<ParseResult> MakeCall(ParseResultIterator* child_results) {
   auto callee = child_results->NextAs<std::string>();
   auto generic_args = child_results->NextAs<TypeList>();
@@ -419,6 +429,7 @@ base::Optional<ParseResult> MakeSpecializationDeclaration(
   auto return_type = child_results->NextAs<TypeExpression*>();
   auto labels = child_results->NextAs<LabelAndTypesVector>();
   auto body = child_results->NextAs<Statement*>();
+  CheckNotDeferredStatement(body);
   Declaration* result = MakeNode<SpecializationDeclaration>(
       std::move(name), std::move(generic_parameters), std::move(parameters),
       return_type, std::move(labels), body);
@@ -605,6 +616,7 @@ base::Optional<ParseResult> MakeTypeswitchCase(
   auto name = child_results->NextAs<base::Optional<std::string>>();
   auto type = child_results->NextAs<TypeExpression*>();
   auto block = child_results->NextAs<Statement*>();
+  CheckNotDeferredStatement(block);
   return ParseResult{TypeswitchCase{child_results->matched_input().pos,
                                     std::move(name), type, block}};
 }
@@ -614,6 +626,7 @@ base::Optional<ParseResult> MakeWhileStatement(
   auto condition = child_results->NextAs<Expression*>();
   auto body = child_results->NextAs<Statement*>();
   Statement* result = MakeNode<WhileStatement>(condition, body);
+  CheckNotDeferredStatement(result);
   return ParseResult{result};
 }
 
@@ -682,6 +695,7 @@ base::Optional<ParseResult> MakeBlockStatement(
 base::Optional<ParseResult> MakeTryLabelStatement(
     ParseResultIterator* child_results) {
   auto try_block = child_results->NextAs<Statement*>();
+  CheckNotDeferredStatement(try_block);
   auto label_blocks = child_results->NextAs<std::vector<LabelBlock*>>();
   Statement* result =
       MakeNode<TryLabelStatement>(try_block, std::move(label_blocks));
@@ -691,9 +705,11 @@ base::Optional<ParseResult> MakeTryLabelStatement(
 base::Optional<ParseResult> MakeForOfLoopStatement(
     ParseResultIterator* child_results) {
   auto var_decl = child_results->NextAs<Statement*>();
+  CheckNotDeferredStatement(var_decl);
   auto iterable = child_results->NextAs<Expression*>();
   auto range = child_results->NextAs<base::Optional<RangeExpression>>();
   auto body = child_results->NextAs<Statement*>();
+  CheckNotDeferredStatement(body);
   Statement* result =
       MakeNode<ForOfLoopStatement>(var_decl, iterable, range, body);
   return ParseResult{result};
@@ -705,6 +721,7 @@ base::Optional<ParseResult> MakeForLoopStatement(
   auto test = child_results->NextAs<base::Optional<Expression*>>();
   auto action = child_results->NextAs<base::Optional<Expression*>>();
   auto body = child_results->NextAs<Statement*>();
+  CheckNotDeferredStatement(body);
   Statement* result = MakeNode<ForLoopStatement>(var_decl, test, action, body);
   return ParseResult{result};
 }
