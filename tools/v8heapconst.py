@@ -314,8 +314,8 @@ KNOWN_MAPS = {
   ("RO_SPACE", 0x093d1): (178, "PromiseFulfillReactionJobTaskMap"),
   ("RO_SPACE", 0x09421): (179, "PromiseRejectReactionJobTaskMap"),
   ("RO_SPACE", 0x09471): (180, "PromiseResolveThenableJobTaskMap"),
-  ("RO_SPACE", 0x094c1): (182, "AllocationSiteMap"),
-  ("RO_SPACE", 0x09511): (182, "AllocationSiteMap"),
+  ("RO_SPACE", 0x094c1): (182, "AllocationSiteWithWeakNextMap"),
+  ("RO_SPACE", 0x09511): (182, "AllocationSiteWithoutWeakNextMap"),
   ("MAP_SPACE", 0x02201): (1057, "ExternalMap"),
   ("MAP_SPACE", 0x02251): (1072, "JSMessageObjectMap"),
 }

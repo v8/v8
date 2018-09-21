@@ -290,7 +290,7 @@ namespace internal {
 // Declare all the root indices.  This defines the root list order.
 // clang-format off
 enum class RootIndex {
-#define DECL(type, name, camel_name) k##camel_name,
+#define DECL(type, name, CamelName) k##CamelName,
   STRONG_ROOT_LIST(DECL)
 #undef DECL
 
@@ -315,17 +315,14 @@ enum class RootIndex {
   STRUCT_LIST(DECL)
 #undef DECL
 
-#define DECL(NAME, Name, Size, name) k##Name##Size##Map,
-  ALLOCATION_SITE_LIST(DECL)
-#undef DECL
-
-#define DECL(NAME, Name, Size, name) k##Name##Size##Map,
-  DATA_HANDLER_LIST(DECL)
+#define DECL(type, name, CamelName) k##CamelName,
+  ALLOCATION_SITE_MAPS_LIST(DECL)
+  DATA_HANDLER_MAPS_LIST(DECL)
 #undef DECL
 
   kStringTable,
 
-#define DECL(type, name, camel_name) k##camel_name,
+#define DECL(type, name, CamelName) k##CamelName,
   SMI_ROOT_LIST(DECL)
 #undef DECL
 
@@ -393,11 +390,10 @@ class ReadOnlyRoots {
   explicit ReadOnlyRoots(Heap* heap) : heap_(heap) {}
   inline explicit ReadOnlyRoots(Isolate* isolate);
 
-#define ROOT_ACCESSOR(type, name, camel_name) \
-  inline class type* name();                  \
+#define ROOT_ACCESSOR(type, name, CamelName) \
+  inline class type* name();                 \
   inline Handle<type> name##_handle();
   STRONG_READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
-#undef ROOT_ACCESSOR
 
 #define STRING_ACCESSOR(name, str) \
   inline String* name();           \
@@ -425,11 +421,8 @@ class ReadOnlyRoots {
   STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
-#define ALLOCATION_SITE_MAP_ACCESSOR(NAME, Name, Size, name) \
-  inline Map* name##_map();                                  \
-  inline class Handle<Map> name##_map_handle();
-  ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_ACCESSOR)
-#undef ALLOCATION_SITE_MAP_ACCESSOR
+  ALLOCATION_SITE_MAPS_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
 
   inline FixedTypedArrayBase* EmptyFixedTypedArrayForMap(const Map* map);
 

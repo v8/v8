@@ -121,7 +121,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
   CHECK(map()->IsMap());
 
   switch (map()->instance_type()) {
-#define STRING_TYPE_CASE(TYPE, size, name, camel_name) case TYPE:
+#define STRING_TYPE_CASE(TYPE, size, name, CamelName) case TYPE:
     STRING_TYPE_LIST(STRING_TYPE_CASE)
 #undef STRING_TYPE_CASE
     String::cast(this)->StringVerify(isolate);

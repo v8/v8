@@ -1856,21 +1856,20 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
 #define NAME_ENTRY(name) strong_gc_subroot_names_.emplace(heap_->name(), #name);
 #define RO_NAME_ENTRY(name) \
   strong_gc_subroot_names_.emplace(roots.name(), #name);
-#define ROOT_NAME(type, name, camel_name) NAME_ENTRY(name)
+#define ROOT_NAME(type, name, CamelName) NAME_ENTRY(name)
     STRONG_MUTABLE_ROOT_LIST(ROOT_NAME)
 #undef ROOT_NAME
-#define ROOT_NAME(type, name, camel_name) RO_NAME_ENTRY(name)
+#define ROOT_NAME(type, name, CamelName) RO_NAME_ENTRY(name)
     STRONG_READ_ONLY_ROOT_LIST(ROOT_NAME)
 #undef ROOT_NAME
 #define STRUCT_MAP_NAME(NAME, Name, name) RO_NAME_ENTRY(name##_map)
     STRUCT_LIST(STRUCT_MAP_NAME)
 #undef STRUCT_MAP_NAME
-#define ALLOCATION_SITE_MAP_NAME(NAME, Name, Size, name) \
-  RO_NAME_ENTRY(name##_map)
-    ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_NAME)
+#define ALLOCATION_SITE_MAP_NAME(type, name, CamelName) RO_NAME_ENTRY(name)
+    ALLOCATION_SITE_MAPS_LIST(ALLOCATION_SITE_MAP_NAME)
 #undef ALLOCATION_SITE_MAP_NAME
-#define DATA_HANDLER_MAP_NAME(NAME, Name, Size, name) NAME_ENTRY(name##_map)
-    DATA_HANDLER_LIST(DATA_HANDLER_MAP_NAME)
+#define DATA_HANDLER_MAP_NAME(type, name, CamelName) NAME_ENTRY(name)
+    DATA_HANDLER_MAPS_LIST(DATA_HANDLER_MAP_NAME)
 #undef DATA_HANDLER_MAP_NAME
 #define STRING_NAME(name, str) RO_NAME_ENTRY(name)
     INTERNALIZED_STRING_LIST(STRING_NAME)

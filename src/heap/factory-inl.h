@@ -16,13 +16,12 @@
 namespace v8 {
 namespace internal {
 
-#define ROOT_ACCESSOR(type, name, camel_name)                   \
-  Handle<type> Factory::name() {                                \
-    return Handle<type>(bit_cast<type**>(                       \
-        &isolate()->heap()->roots_[RootIndex::k##camel_name])); \
+#define ROOT_ACCESSOR(type, name, CamelName)                   \
+  Handle<type> Factory::name() {                               \
+    return Handle<type>(bit_cast<type**>(                      \
+        &isolate()->heap()->roots_[RootIndex::k##CamelName])); \
   }
 ROOT_LIST(ROOT_ACCESSOR)
-#undef ROOT_ACCESSOR
 
 #define STRUCT_MAP_ACCESSOR(NAME, Name, name)                                  \
   Handle<Map> Factory::name##_map() {                                          \
@@ -32,21 +31,9 @@ ROOT_LIST(ROOT_ACCESSOR)
 STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
-#define ALLOCATION_SITE_MAP_ACCESSOR(NAME, Name, Size, name)         \
-  Handle<Map> Factory::name##_map() {                                \
-    return Handle<Map>(bit_cast<Map**>(                              \
-        &isolate()->heap()->roots_[RootIndex::k##Name##Size##Map])); \
-  }
-ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_ACCESSOR)
-#undef ALLOCATION_SITE_MAP_ACCESSOR
-
-#define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name)            \
-  Handle<Map> Factory::name##_map() {                                \
-    return Handle<Map>(bit_cast<Map**>(                              \
-        &isolate()->heap()->roots_[RootIndex::k##Name##Size##Map])); \
-  }
-DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
-#undef DATA_HANDLER_MAP_ACCESSOR
+ALLOCATION_SITE_MAPS_LIST(ROOT_ACCESSOR)
+DATA_HANDLER_MAPS_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
 
 #define STRING_ACCESSOR(name, str)                                           \
   Handle<String> Factory::name() {                                           \

@@ -57,8 +57,8 @@ bool Heap::CreateHeapObjects() {
 }
 
 const Heap::StringTypeTable Heap::string_type_table[] = {
-#define STRING_TYPE_ELEMENT(type, size, name, camel_name) \
-  {type, size, RootIndex::k##camel_name##Map},
+#define STRING_TYPE_ELEMENT(type, size, name, CamelName) \
+  {type, size, RootIndex::k##CamelName##Map},
     STRING_TYPE_LIST(STRING_TYPE_ELEMENT)
 #undef STRING_TYPE_ELEMENT
 };
@@ -76,14 +76,14 @@ const Heap::StructTable Heap::struct_table[] = {
     STRUCT_LIST(STRUCT_TABLE_ELEMENT)
 #undef STRUCT_TABLE_ELEMENT
 
-#define ALLOCATION_SITE_ELEMENT(NAME, Name, Size, name) \
+#define ALLOCATION_SITE_ELEMENT(_, NAME, Name, Size, name) \
   {NAME##_TYPE, Name::kSize##Size, RootIndex::k##Name##Size##Map},
-        ALLOCATION_SITE_LIST(ALLOCATION_SITE_ELEMENT)
+        ALLOCATION_SITE_LIST(ALLOCATION_SITE_ELEMENT, /* not used */)
 #undef ALLOCATION_SITE_ELEMENT
 
-#define DATA_HANDLER_ELEMENT(NAME, Name, Size, name) \
+#define DATA_HANDLER_ELEMENT(_, NAME, Name, Size, name) \
   {NAME##_TYPE, Name::kSizeWithData##Size, RootIndex::k##Name##Size##Map},
-            DATA_HANDLER_LIST(DATA_HANDLER_ELEMENT)
+            DATA_HANDLER_LIST(DATA_HANDLER_ELEMENT, /* not used */)
 #undef DATA_HANDLER_ELEMENT
 };
 

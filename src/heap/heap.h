@@ -767,14 +767,11 @@ class Heap {
 
  public:
 // Heap root getters.
-#define ROOT_ACCESSOR(type, name, camel_name) inline type* name();
+#define ROOT_ACCESSOR(type, name, CamelName) inline type* name();
   MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
-#undef ROOT_ACCESSOR
 
-#define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name) \
-  inline Map* name##_map();
-  DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
-#undef DATA_HANDLER_MAP_ACCESSOR
+  DATA_HANDLER_MAPS_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
 
 #define ACCESSOR_INFO_ACCESSOR(accessor_name, ...) \
   inline AccessorInfo* accessor_name##_accessor();
@@ -1564,7 +1561,7 @@ class Heap {
     return 0;
   }
 
-#define ROOT_ACCESSOR(type, name, camel_name) \
+#define ROOT_ACCESSOR(type, name, CamelName) \
   inline void set_##name(type* value);
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR

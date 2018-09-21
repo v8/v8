@@ -334,19 +334,43 @@ namespace internal {
     promise_resolve_thenable_job_task)                                       \
   V(MICROTASK_QUEUE, MicrotaskQueue, microtask_queue)
 
-#define ALLOCATION_SITE_LIST(V)                                     \
-  V(ALLOCATION_SITE, AllocationSite, WithWeakNext, allocation_site) \
-  V(ALLOCATION_SITE, AllocationSite, WithoutWeakNext,               \
+//
+// The following macros define list of allocation size objects and list of
+// their maps.
+//
+#define ALLOCATION_SITE_LIST(V, _)                                     \
+  V(_, ALLOCATION_SITE, AllocationSite, WithWeakNext, allocation_site) \
+  V(_, ALLOCATION_SITE, AllocationSite, WithoutWeakNext,               \
     allocation_site_without_weaknext)
 
-#define DATA_HANDLER_LIST(V)                        \
-  V(LOAD_HANDLER, LoadHandler, 1, load_handler1)    \
-  V(LOAD_HANDLER, LoadHandler, 2, load_handler2)    \
-  V(LOAD_HANDLER, LoadHandler, 3, load_handler3)    \
-  V(STORE_HANDLER, StoreHandler, 0, store_handler0) \
-  V(STORE_HANDLER, StoreHandler, 1, store_handler1) \
-  V(STORE_HANDLER, StoreHandler, 2, store_handler2) \
-  V(STORE_HANDLER, StoreHandler, 3, store_handler3)
+// Adapts one ALLOCATION_SITE_LIST entry to the ALLOCATION_SITE_MAPS_LIST entry
+#define ALLOCATION_SITE_MAPS_LIST_ADAPTER(_, NAME, Name, Size, name_size) \
+  _(Map, name_size##_map, Name##Size##Map)
+
+// Produces (Map, allocation_site_name_map, AllocationSiteNameMap) entries
+#define ALLOCATION_SITE_MAPS_LIST(V) \
+  ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAPS_LIST_ADAPTER, V)
+
+//
+// The following macros define list of data handler objects and list of their
+// maps.
+//
+#define DATA_HANDLER_LIST(V, _)                        \
+  V(_, LOAD_HANDLER, LoadHandler, 1, load_handler1)    \
+  V(_, LOAD_HANDLER, LoadHandler, 2, load_handler2)    \
+  V(_, LOAD_HANDLER, LoadHandler, 3, load_handler3)    \
+  V(_, STORE_HANDLER, StoreHandler, 0, store_handler0) \
+  V(_, STORE_HANDLER, StoreHandler, 1, store_handler1) \
+  V(_, STORE_HANDLER, StoreHandler, 2, store_handler2) \
+  V(_, STORE_HANDLER, StoreHandler, 3, store_handler3)
+
+// Adapts one DATA_HANDLER_LIST entry to the DATA_HANDLER_MAPS_LIST entry.
+#define DATA_HANDLER_MAPS_LIST_ADAPTER(_, NAME, Name, Size, name_size) \
+  _(Map, name_size##_map, Name##Size##Map)
+
+// Produces (Map, handler_name_map, HandlerNameMap) entries
+#define DATA_HANDLER_MAPS_LIST(V) \
+  DATA_HANDLER_LIST(DATA_HANDLER_MAPS_LIST_ADAPTER, V)
 
 }  // namespace internal
 }  // namespace v8

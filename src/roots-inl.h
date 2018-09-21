@@ -16,16 +16,15 @@ namespace internal {
 
 ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate) : heap_(isolate->heap()) {}
 
-#define ROOT_ACCESSOR(type, name, camel_name)                        \
-  type* ReadOnlyRoots::name() {                                      \
-    return type::cast(heap_->roots_[RootIndex::k##camel_name]);      \
-  }                                                                  \
-  Handle<type> ReadOnlyRoots::name##_handle() {                      \
-    return Handle<type>(                                             \
-        bit_cast<type**>(&heap_->roots_[RootIndex::k##camel_name])); \
+#define ROOT_ACCESSOR(type, name, CamelName)                        \
+  type* ReadOnlyRoots::name() {                                     \
+    return type::cast(heap_->roots_[RootIndex::k##CamelName]);      \
+  }                                                                 \
+  Handle<type> ReadOnlyRoots::name##_handle() {                     \
+    return Handle<type>(                                            \
+        bit_cast<type**>(&heap_->roots_[RootIndex::k##CamelName])); \
   }
 STRONG_READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
-#undef ROOT_ACCESSOR
 
 #define STRING_ACCESSOR(name, str)                               \
   String* ReadOnlyRoots::name() {                                \
@@ -72,16 +71,8 @@ WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
-#define ALLOCATION_SITE_MAP_ACCESSOR(NAME, Name, Size, name)             \
-  Map* ReadOnlyRoots::name##_map() {                                     \
-    return Map::cast(heap_->roots_[RootIndex::k##Name##Size##Map]);      \
-  }                                                                      \
-  Handle<Map> ReadOnlyRoots::name##_map_handle() {                       \
-    return Handle<Map>(                                                  \
-        bit_cast<Map**>(&heap_->roots_[RootIndex::k##Name##Size##Map])); \
-  }
-ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_ACCESSOR)
-#undef ALLOCATION_SITE_MAP_ACCESSOR
+ALLOCATION_SITE_MAPS_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
 
 FixedTypedArrayBase* ReadOnlyRoots::EmptyFixedTypedArrayForMap(const Map* map) {
   // TODO(delphick): All of these empty fixed type arrays are in RO_SPACE so

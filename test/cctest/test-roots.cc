@@ -27,7 +27,7 @@ AllocationSpace GetSpaceFromObject(Object* object) {
 TEST(TestStrongReadOnlyRoots) {
   ReadOnlyRoots roots(CcTest::i_isolate());
 
-#define TEST_ROOT(type, name, camel_name) CHECK_IN_RO_SPACE(name)
+#define TEST_ROOT(type, name, CamelName) CHECK_IN_RO_SPACE(name)
   STRONG_READ_ONLY_ROOT_LIST(TEST_ROOT)
 #undef TEST_ROOT
 }
@@ -66,8 +66,8 @@ TEST(TestStructMaps) {
 TEST(TestAllocationSiteMaps) {
   ReadOnlyRoots roots(CcTest::i_isolate());
 
-#define TEST_ROOT(NAME, Name, Size, name) CHECK_IN_RO_SPACE(name##_map)
-  ALLOCATION_SITE_LIST(TEST_ROOT)
+#define TEST_ROOT(type, name, CamelName) CHECK_IN_RO_SPACE(name)
+  ALLOCATION_SITE_MAPS_LIST(TEST_ROOT)
 #undef TEST_ROOT
 }
 
@@ -114,7 +114,7 @@ TEST(TestHeapRootsNotReadOnly) {
   Factory* factory = CcTest::i_isolate()->factory();
   Heap* heap = CcTest::i_isolate()->heap();
 
-#define TEST_ROOT(type, name, camel_name) CHECK_NOT_IN_RO_SPACE(name)
+#define TEST_ROOT(type, name, CamelName) CHECK_NOT_IN_RO_SPACE(name)
   MUTABLE_ROOT_LIST(TEST_ROOT)
 #undef TEST_ROOT
 }

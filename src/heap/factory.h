@@ -825,23 +825,16 @@ class V8_EXPORT_PRIVATE Factory {
 
   inline Handle<String> Uint32ToString(uint32_t value, bool check_cache = true);
 
-#define ROOT_ACCESSOR(type, name, camel_name) inline Handle<type> name();
+#define ROOT_ACCESSOR(type, name, CamelName) inline Handle<type> name();
   ROOT_LIST(ROOT_ACCESSOR)
-#undef ROOT_ACCESSOR
 
 #define STRUCT_MAP_ACCESSOR(NAME, Name, name) inline Handle<Map> name##_map();
   STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
-#define ALLOCATION_SITE_MAP_ACCESSOR(NAME, Name, Size, name) \
-  inline Handle<Map> name##_map();
-  ALLOCATION_SITE_LIST(ALLOCATION_SITE_MAP_ACCESSOR)
-#undef ALLOCATION_SITE_MAP_ACCESSOR
-
-#define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name) \
-  inline Handle<Map> name##_map();
-  DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
-#undef DATA_HANDLER_MAP_ACCESSOR
+  ALLOCATION_SITE_MAPS_LIST(ROOT_ACCESSOR)
+  DATA_HANDLER_MAPS_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
 
 #define STRING_ACCESSOR(name, str) inline Handle<String> name();
   INTERNALIZED_STRING_LIST(STRING_ACCESSOR)

@@ -41,14 +41,12 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   void Free(void* p, size_t) override {}
 };
 
-#define RO_ROOT_LIST_CASE(type, name, camel_name) \
-  if (n == NULL && o == roots.name()) n = #camel_name;
-#define ROOT_LIST_CASE(type, name, camel_name) \
-  if (n == NULL && o == space->heap()->name()) n = #camel_name;
-#define STRUCT_LIST_CASE(upper_name, camel_name, name) \
-  if (n == NULL && o == roots.name##_map()) n = #camel_name "Map";
-#define ALLOCATION_SITE_LIST_CASE(upper_name, camel_name, size, name) \
-  if (n == NULL && o == roots.name##_map()) n = #camel_name "Map";
+#define RO_ROOT_LIST_CASE(type, name, CamelName) \
+  if (n == NULL && o == roots.name()) n = #CamelName;
+#define ROOT_LIST_CASE(type, name, CamelName) \
+  if (n == NULL && o == space->heap()->name()) n = #CamelName;
+#define STRUCT_LIST_CASE(upper_name, CamelName, name) \
+  if (n == NULL && o == roots.name##_map()) n = #CamelName "Map";
 static void DumpMaps(i::PagedSpace* space) {
   i::HeapObjectIterator it(space);
   i::ReadOnlyRoots roots(space->heap());
@@ -61,14 +59,13 @@ static void DumpMaps(i::PagedSpace* space) {
     STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
     MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
     STRUCT_LIST(STRUCT_LIST_CASE)
-    ALLOCATION_SITE_LIST(ALLOCATION_SITE_LIST_CASE)
+    ALLOCATION_SITE_MAPS_LIST(RO_ROOT_LIST_CASE)
     if (n == nullptr) continue;
     const char* sname = space->name();
     i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): (%d, \"%s\"),\n", sname, p, t,
               n);
   }
 }
-#undef ALLOCATION_SITE_LIST_CASE
 #undef STRUCT_LIST_CASE
 #undef ROOT_LIST_CASE
 #undef RO_ROOT_LIST_CASE
@@ -103,15 +100,15 @@ static int DumpHeapConstants(const char* argv0) {
 
     // Dump the KNOWN_OBJECTS table to the console.
     i::PrintF("\n# List of known V8 objects.\n");
-#define RO_ROOT_LIST_CASE(type, name, camel_name) \
-  if (n == NULL && o == roots.name()) {           \
-    n = #camel_name;                              \
-    i = i::RootIndex::k##camel_name;              \
+#define RO_ROOT_LIST_CASE(type, name, CamelName) \
+  if (n == NULL && o == roots.name()) {          \
+    n = #CamelName;                              \
+    i = i::RootIndex::k##CamelName;              \
   }
-#define ROOT_LIST_CASE(type, name, camel_name) \
-  if (n == NULL && o == heap->name()) {        \
-    n = #camel_name;                           \
-    i = i::RootIndex::k##camel_name;           \
+#define ROOT_LIST_CASE(type, name, CamelName) \
+  if (n == NULL && o == heap->name()) {       \
+    n = #CamelName;                           \
+    i = i::RootIndex::k##CamelName;           \
   }
     i::PagedSpaces spit(heap, i::PagedSpaces::SpacesSpecifier::kAllPagedSpaces);
     i::PrintF("KNOWN_OBJECTS = {\n");
