@@ -3343,7 +3343,6 @@ class AstNodeFactory final {
   }
 
   Zone* zone() const { return zone_; }
-  void set_zone(Zone* zone) { zone_ = zone; }
 
  private:
   // This zone may be deallocated upon returning from parsing a function body

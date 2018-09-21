@@ -684,6 +684,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   }
   bool is_being_lazily_parsed() const { return is_being_lazily_parsed_; }
 #endif
+  void set_zone(Zone* zone) { zone_ = zone; }
 
   bool ShouldEagerCompile() const;
   void set_should_eager_compile();

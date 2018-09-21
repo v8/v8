@@ -1090,9 +1090,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   }
 
   // Parser's private field members.
-  friend class DiscardableZoneScope;  // Uses reusable_preparser_.
-  // FIXME(marja): Make reusable_preparser_ always use its own temp Zone (call
-  // DeleteAll after each function), so this won't be needed.
+  friend class PreParserZoneScope;  // Uses reusable_preparser().
 
   Scanner scanner_;
   PreParser* reusable_preparser_;

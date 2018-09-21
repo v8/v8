@@ -33,46 +33,21 @@ namespace internal {
 
 // Helper for putting parts of the parse results into a temporary zone when
 // parsing inner function bodies.
-class DiscardableZoneScope {
+class PreParserZoneScope {
  public:
-  DiscardableZoneScope(Parser* parser, Zone* temp_zone, bool use_temp_zone)
-      : parser_(parser),
-        prev_zone_(parser->zone_),
-        prev_allow_lazy_(parser->allow_lazy_),
-        prev_temp_zoned_(parser->temp_zoned_) {
-    if (use_temp_zone) {
-      DCHECK(!parser_->temp_zoned_);
-      parser_->allow_lazy_ = false;
-      parser_->temp_zoned_ = true;
-      parser_->fni_.set_zone(temp_zone);
-      parser_->zone_ = temp_zone;
-      parser_->factory()->set_zone(temp_zone);
-      if (parser_->reusable_preparser_ != nullptr) {
-        parser_->reusable_preparser_->zone_ = temp_zone;
-        parser_->reusable_preparser_->factory()->set_zone(temp_zone);
-      }
+  PreParserZoneScope(Parser* parser, bool should_preparse)
+      : parser_(parser), should_preparse_(should_preparse) {}
+  ~PreParserZoneScope() {
+    if (should_preparse_) {
+      parser_->reusable_preparser()->zone()->DeleteAll();
     }
   }
-  void Reset() {
-    parser_->fni_.set_zone(prev_zone_);
-    parser_->zone_ = prev_zone_;
-    parser_->factory()->set_zone(prev_zone_);
-    parser_->allow_lazy_ = prev_allow_lazy_;
-    parser_->temp_zoned_ = prev_temp_zoned_;
-    if (parser_->reusable_preparser_ != nullptr) {
-      parser_->reusable_preparser_->zone_ = prev_zone_;
-      parser_->reusable_preparser_->factory()->set_zone(prev_zone_);
-    }
-  }
-  ~DiscardableZoneScope() { Reset(); }
 
  private:
   Parser* parser_;
-  Zone* prev_zone_;
-  bool prev_allow_lazy_;
-  bool prev_temp_zoned_;
+  bool should_preparse_;
 
-  DISALLOW_COPY_AND_ASSIGN(DiscardableZoneScope);
+  DISALLOW_COPY_AND_ASSIGN(PreParserZoneScope);
 };
 
 FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
@@ -415,7 +390,6 @@ Parser::Parser(ParseInfo* info)
       source_range_map_(info->source_range_map()),
       target_stack_(nullptr),
       total_preparse_skipped_(0),
-      temp_zoned_(false),
       consumed_preparsed_scope_data_(info->consumed_preparsed_scope_data()),
       parameters_end_pos_(info->parameters_end_pos()) {
   // Even though we were passed ParseInfo, we should not store it in
@@ -2583,25 +2557,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int function_literal_id = GetNextFunctionLiteralId();
   ProducedPreParsedScopeData* produced_preparsed_scope_data = nullptr;
 
-  Zone* outer_zone = zone();
   DeclarationScope* scope;
 
   {
-    // Temporary zones can nest. When we migrate free variables (see below), we
-    // need to recreate them in the previous Zone.
-    AstNodeFactory previous_zone_ast_node_factory(ast_value_factory(), zone());
-
-    // Open a new zone scope, which sets our AstNodeFactory to allocate in the
-    // new temporary zone if the preconditions are satisfied, and ensures that
-    // the previous zone is always restored after parsing the body. To be able
-    // to do scope analysis correctly after full parsing, we migrate needed
-    // information when the function is parsed.
-    Zone temp_zone(zone()->allocator(), ZONE_NAME);
-    DiscardableZoneScope zone_scope(this, &temp_zone, should_preparse);
+    PreParserZoneScope zone_scope(this, should_preparse);
 
     // This Scope lives in the main zone. We'll migrate data into that zone
     // later.
-    scope = NewFunctionScope(kind, outer_zone);
+    scope = NewFunctionScope(kind);
     SetLanguageMode(scope, language_mode);
 #ifdef DEBUG
     scope->SetScopeName(function_name);
@@ -2634,14 +2597,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         // should also eager-compile this function.
         eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
         scope->ResetAfterPreparsing(ast_value_factory(), true);
-        zone_scope.Reset();
         // Trigger eager (re-)parsing, just below this block.
         should_preparse = false;
       }
     }
 
     if (should_preparse) {
-      scope->AnalyzePartially(&previous_zone_ast_node_factory);
+      scope->AnalyzePartially(factory());
     } else {
       body = ParseFunction(
           function_name, pos, kind, function_type, scope, &num_parameters,
@@ -2649,7 +2611,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           &suspend_count, arguments_for_wrapped_function, CHECK_OK);
     }
 
-    DCHECK_EQ(should_preparse, temp_zoned_);
     if (V8_UNLIKELY(FLAG_log_function_events)) {
       double ms = timer.Elapsed().InMillisecondsF();
       const char* event_name = should_preparse
@@ -2689,7 +2650,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                               CHECK_OK);
     }
     CheckConflictingVarDeclarations(scope, CHECK_OK);
-  }  // DiscardableZoneScope goes out of scope.
+  }  // PreParserZoneScope goes out of scope.
 
   FunctionLiteral::ParameterFlag duplicate_parameters =
       has_duplicate_parameters ? FunctionLiteral::kHasDuplicateParameters

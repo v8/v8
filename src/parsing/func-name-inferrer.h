@@ -79,8 +79,6 @@ class FuncNameInferrer : public ZoneObject {
     }
   }
 
-  void set_zone(Zone* new_zone) { zone_ = new_zone; }
-
  private:
   enum NameType {
     kEnclosingConstructorName,
