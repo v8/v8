@@ -341,11 +341,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       JSRelativeTimeFormat::cast(this)->JSRelativeTimeFormatPrint(os);
       break;
 #endif  // V8_INTL_SUPPORT
-#define MAKE_STRUCT_CASE(NAME, Name, name) \
-  case NAME##_TYPE:                        \
+#define MAKE_STRUCT_CASE(TYPE, Name, name) \
+  case TYPE:                               \
     Name::cast(this)->Name##Print(os);     \
     break;
-  STRUCT_LIST(MAKE_STRUCT_CASE)
+      STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
 
     case ALLOCATION_SITE_TYPE:

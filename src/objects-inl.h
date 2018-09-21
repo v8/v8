@@ -83,8 +83,8 @@ INSTANCE_TYPE_CHECKERS_SINGLE(INSTANCE_TYPE_CHECKER);
 TYPED_ARRAYS(TYPED_ARRAY_INSTANCE_TYPE_CHECKER)
 #undef TYPED_ARRAY_INSTANCE_TYPE_CHECKER
 
-#define STRUCT_INSTANCE_TYPE_CHECKER(NAME, Name, name) \
-  INSTANCE_TYPE_CHECKER(Name, NAME##_TYPE)
+#define STRUCT_INSTANCE_TYPE_CHECKER(TYPE, Name, name) \
+  INSTANCE_TYPE_CHECKER(Name, TYPE)
 STRUCT_LIST(STRUCT_INSTANCE_TYPE_CHECKER)
 #undef STRUCT_INSTANCE_TYPE_CHECKER
 
@@ -432,8 +432,8 @@ bool HeapObject::IsAccessCheckNeeded() const {
 
 bool HeapObject::IsStruct() const {
   switch (map()->instance_type()) {
-#define MAKE_STRUCT_CASE(NAME, Name, name) \
-  case NAME##_TYPE:                        \
+#define MAKE_STRUCT_CASE(TYPE, Name, name) \
+  case TYPE:                               \
     return true;
     STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE

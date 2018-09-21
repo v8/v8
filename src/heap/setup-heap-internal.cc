@@ -71,18 +71,18 @@ const Heap::ConstantStringTable Heap::constant_string_table[] = {
 };
 
 const Heap::StructTable Heap::struct_table[] = {
-#define STRUCT_TABLE_ELEMENT(NAME, Name, name) \
-  {NAME##_TYPE, Name::kSize, RootIndex::k##Name##Map},
+#define STRUCT_TABLE_ELEMENT(TYPE, Name, name) \
+  {TYPE, Name::kSize, RootIndex::k##Name##Map},
     STRUCT_LIST(STRUCT_TABLE_ELEMENT)
 #undef STRUCT_TABLE_ELEMENT
 
-#define ALLOCATION_SITE_ELEMENT(_, NAME, Name, Size, name) \
-  {NAME##_TYPE, Name::kSize##Size, RootIndex::k##Name##Size##Map},
+#define ALLOCATION_SITE_ELEMENT(_, TYPE, Name, Size, name) \
+  {TYPE, Name::kSize##Size, RootIndex::k##Name##Size##Map},
         ALLOCATION_SITE_LIST(ALLOCATION_SITE_ELEMENT, /* not used */)
 #undef ALLOCATION_SITE_ELEMENT
 
-#define DATA_HANDLER_ELEMENT(_, NAME, Name, Size, name) \
-  {NAME##_TYPE, Name::kSizeWithData##Size, RootIndex::k##Name##Size##Map},
+#define DATA_HANDLER_ELEMENT(_, TYPE, Name, Size, name) \
+  {TYPE, Name::kSizeWithData##Size, RootIndex::k##Name##Size##Map},
             DATA_HANDLER_LIST(DATA_HANDLER_ELEMENT, /* not used */)
 #undef DATA_HANDLER_ELEMENT
 };

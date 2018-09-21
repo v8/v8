@@ -22,15 +22,7 @@ namespace internal {
         &isolate()->heap()->roots_[RootIndex::k##CamelName])); \
   }
 ROOT_LIST(ROOT_ACCESSOR)
-
-#define STRUCT_MAP_ACCESSOR(NAME, Name, name)                                  \
-  Handle<Map> Factory::name##_map() {                                          \
-    return Handle<Map>(                                                        \
-        bit_cast<Map**>(&isolate()->heap()->roots_[RootIndex::k##Name##Map])); \
-  }
-STRUCT_LIST(STRUCT_MAP_ACCESSOR)
-#undef STRUCT_MAP_ACCESSOR
-
+STRUCT_MAPS_LIST(ROOT_ACCESSOR)
 ALLOCATION_SITE_MAPS_LIST(ROOT_ACCESSOR)
 DATA_HANDLER_MAPS_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR

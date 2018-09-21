@@ -389,8 +389,8 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
 #endif  // V8_INTL_SUPPORT
 
-#define MAKE_STRUCT_CASE(NAME, Name, name)   \
-  case NAME##_TYPE:                          \
+#define MAKE_STRUCT_CASE(TYPE, Name, name)   \
+  case TYPE:                                 \
     Name::cast(this)->Name##Verify(isolate); \
     break;
       STRUCT_LIST(MAKE_STRUCT_CASE)

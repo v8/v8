@@ -45,8 +45,6 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   if (n == NULL && o == roots.name()) n = #CamelName;
 #define ROOT_LIST_CASE(type, name, CamelName) \
   if (n == NULL && o == space->heap()->name()) n = #CamelName;
-#define STRUCT_LIST_CASE(upper_name, CamelName, name) \
-  if (n == NULL && o == roots.name##_map()) n = #CamelName "Map";
 static void DumpMaps(i::PagedSpace* space) {
   i::HeapObjectIterator it(space);
   i::ReadOnlyRoots roots(space->heap());
@@ -58,7 +56,7 @@ static void DumpMaps(i::PagedSpace* space) {
     int t = m->instance_type();
     STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
     MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
-    STRUCT_LIST(STRUCT_LIST_CASE)
+    STRUCT_MAPS_LIST(RO_ROOT_LIST_CASE)
     ALLOCATION_SITE_MAPS_LIST(RO_ROOT_LIST_CASE)
     if (n == nullptr) continue;
     const char* sname = space->name();
@@ -66,7 +64,6 @@ static void DumpMaps(i::PagedSpace* space) {
               n);
   }
 }
-#undef STRUCT_LIST_CASE
 #undef ROOT_LIST_CASE
 #undef RO_ROOT_LIST_CASE
 

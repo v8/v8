@@ -3263,7 +3263,7 @@ VisitorId Map::GetVisitorId(Map* map) {
     case ALLOCATION_SITE_TYPE:
       return kVisitAllocationSite;
 
-#define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE:
+#define MAKE_STRUCT_CASE(TYPE, Name, name) case TYPE:
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
       if (instance_type == PROTOTYPE_INFO_TYPE) {
@@ -3553,8 +3553,8 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case JS_MESSAGE_OBJECT_TYPE:
       os << "<JSMessageObject>";
       break;
-#define MAKE_STRUCT_CASE(NAME, Name, name)   \
-  case NAME##_TYPE:                          \
+#define MAKE_STRUCT_CASE(TYPE, Name, name)   \
+  case TYPE:                                 \
     os << "<" #Name;                         \
     Name::cast(this)->BriefPrintDetails(os); \
     os << ">";                               \
@@ -13037,7 +13037,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
   case FIXED_##TYPE##_ARRAY_TYPE:
 #undef TYPED_ARRAY_CASE
 
-#define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE:
+#define MAKE_STRUCT_CASE(TYPE, Name, name) case TYPE:
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
       // We must not end up here for these instance types at all.

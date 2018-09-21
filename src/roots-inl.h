@@ -60,17 +60,7 @@ PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
 WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
-#define STRUCT_MAP_ACCESSOR(NAME, Name, name)                      \
-  Map* ReadOnlyRoots::name##_map() {                               \
-    return Map::cast(heap_->roots_[RootIndex::k##Name##Map]);      \
-  }                                                                \
-  Handle<Map> ReadOnlyRoots::name##_map_handle() {                 \
-    return Handle<Map>(                                            \
-        bit_cast<Map**>(&heap_->roots_[RootIndex::k##Name##Map])); \
-  }
-STRUCT_LIST(STRUCT_MAP_ACCESSOR)
-#undef STRUCT_MAP_ACCESSOR
-
+STRUCT_MAPS_LIST(ROOT_ACCESSOR)
 ALLOCATION_SITE_MAPS_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 

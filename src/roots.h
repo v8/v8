@@ -311,11 +311,8 @@ enum class RootIndex {
   ACCESSOR_INFO_LIST(DECL)
 #undef DECL
 
-#define DECL(NAME, Name, name) k##Name##Map,
-  STRUCT_LIST(DECL)
-#undef DECL
-
 #define DECL(type, name, CamelName) k##CamelName,
+  STRUCT_MAPS_LIST(DECL)
   ALLOCATION_SITE_MAPS_LIST(DECL)
   DATA_HANDLER_MAPS_LIST(DECL)
 #undef DECL
@@ -414,13 +411,7 @@ class ReadOnlyRoots {
   WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
-// Utility type maps.
-#define STRUCT_MAP_ACCESSOR(NAME, Name, name) \
-  inline Map* name##_map();                   \
-  inline class Handle<Map> name##_map_handle();
-  STRUCT_LIST(STRUCT_MAP_ACCESSOR)
-#undef STRUCT_MAP_ACCESSOR
-
+  STRUCT_MAPS_LIST(ROOT_ACCESSOR)
   ALLOCATION_SITE_MAPS_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 

@@ -891,7 +891,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case ALLOCATION_SITE_TYPE:
       return Op::template apply<AllocationSite::BodyDescriptor>(p1, p2, p3, p4);
 
-#define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE:
+#define MAKE_STRUCT_CASE(TYPE, Name, name) case TYPE:
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
       if (type == PROTOTYPE_INFO_TYPE) {

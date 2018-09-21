@@ -1493,8 +1493,8 @@ Handle<Context> Factory::NewBuiltinContext(Handle<NativeContext> native_context,
 Handle<Struct> Factory::NewStruct(InstanceType type, PretenureFlag pretenure) {
   Map* map;
   switch (type) {
-#define MAKE_CASE(NAME, Name, name) \
-  case NAME##_TYPE:                 \
+#define MAKE_CASE(TYPE, Name, name) \
+  case TYPE:                        \
     map = *name##_map();            \
     break;
     STRUCT_LIST(MAKE_CASE)

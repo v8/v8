@@ -759,9 +759,10 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
     case ODDBALL_TYPE: return "system / Oddball";
     case ALLOCATION_SITE_TYPE:
       return "system / AllocationSite";
-#define MAKE_STRUCT_CASE(NAME, Name, name) \
-    case NAME##_TYPE: return "system / "#Name;
-  STRUCT_LIST(MAKE_STRUCT_CASE)
+#define MAKE_STRUCT_CASE(TYPE, Name, name) \
+  case TYPE:                               \
+    return "system / " #Name;
+      STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
     default: return "system";
   }

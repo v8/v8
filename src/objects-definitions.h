@@ -298,54 +298,70 @@ namespace internal {
 // Note that for subtle reasons related to the ordering or numerical values of
 // type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
 // manually.
-#define STRUCT_LIST(V)                                                       \
-  V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                   \
-  V(ACCESSOR_INFO, AccessorInfo, accessor_info)                              \
-  V(ACCESSOR_PAIR, AccessorPair, accessor_pair)                              \
-  V(ALIASED_ARGUMENTS_ENTRY, AliasedArgumentsEntry, aliased_arguments_entry) \
-  V(ALLOCATION_MEMENTO, AllocationMemento, allocation_memento)               \
-  V(ASYNC_GENERATOR_REQUEST, AsyncGeneratorRequest, async_generator_request) \
-  V(DEBUG_INFO, DebugInfo, debug_info)                                       \
-  V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)    \
-  V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                     \
-  V(INTERPRETER_DATA, InterpreterData, interpreter_data)                     \
-  V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
-  V(MODULE, Module, module)                                                  \
-  V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)          \
-  V(PROMISE_CAPABILITY, PromiseCapability, promise_capability)               \
-  V(PROMISE_REACTION, PromiseReaction, promise_reaction)                     \
-  V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
-  V(SCRIPT, Script, script)                                                  \
-  V(STACK_FRAME_INFO, StackFrameInfo, stack_frame_info)                      \
-  V(TUPLE2, Tuple2, tuple2)                                                  \
-  V(TUPLE3, Tuple3, tuple3)                                                  \
-  V(ARRAY_BOILERPLATE_DESCRIPTION, ArrayBoilerplateDescription,              \
-    array_boilerplate_description)                                           \
-  V(WASM_DEBUG_INFO, WasmDebugInfo, wasm_debug_info)                         \
-  V(WASM_EXPORTED_FUNCTION_DATA, WasmExportedFunctionData,                   \
-    wasm_exported_function_data)                                             \
-  V(CALLABLE_TASK, CallableTask, callable_task)                              \
-  V(CALLBACK_TASK, CallbackTask, callback_task)                              \
-  V(PROMISE_FULFILL_REACTION_JOB_TASK, PromiseFulfillReactionJobTask,        \
-    promise_fulfill_reaction_job_task)                                       \
-  V(PROMISE_REJECT_REACTION_JOB_TASK, PromiseRejectReactionJobTask,          \
-    promise_reject_reaction_job_task)                                        \
-  V(PROMISE_RESOLVE_THENABLE_JOB_TASK, PromiseResolveThenableJobTask,        \
-    promise_resolve_thenable_job_task)                                       \
-  V(MICROTASK_QUEUE, MicrotaskQueue, microtask_queue)
+#define STRUCT_LIST_GENERATOR(V, _)                                           \
+  V(_, ACCESS_CHECK_INFO_TYPE, AccessCheckInfo, access_check_info)            \
+  V(_, ACCESSOR_INFO_TYPE, AccessorInfo, accessor_info)                       \
+  V(_, ACCESSOR_PAIR_TYPE, AccessorPair, accessor_pair)                       \
+  V(_, ALIASED_ARGUMENTS_ENTRY_TYPE, AliasedArgumentsEntry,                   \
+    aliased_arguments_entry)                                                  \
+  V(_, ALLOCATION_MEMENTO_TYPE, AllocationMemento, allocation_memento)        \
+  V(_, ASYNC_GENERATOR_REQUEST_TYPE, AsyncGeneratorRequest,                   \
+    async_generator_request)                                                  \
+  V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                \
+  V(_, FUNCTION_TEMPLATE_INFO_TYPE, FunctionTemplateInfo,                     \
+    function_template_info)                                                   \
+  V(_, INTERCEPTOR_INFO_TYPE, InterceptorInfo, interceptor_info)              \
+  V(_, INTERPRETER_DATA_TYPE, InterpreterData, interpreter_data)              \
+  V(_, MODULE_INFO_ENTRY_TYPE, ModuleInfoEntry, module_info_entry)            \
+  V(_, MODULE_TYPE, Module, module)                                           \
+  V(_, OBJECT_TEMPLATE_INFO_TYPE, ObjectTemplateInfo, object_template_info)   \
+  V(_, PROMISE_CAPABILITY_TYPE, PromiseCapability, promise_capability)        \
+  V(_, PROMISE_REACTION_TYPE, PromiseReaction, promise_reaction)              \
+  V(_, PROTOTYPE_INFO_TYPE, PrototypeInfo, prototype_info)                    \
+  V(_, SCRIPT_TYPE, Script, script)                                           \
+  V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)               \
+  V(_, TUPLE2_TYPE, Tuple2, tuple2)                                           \
+  V(_, TUPLE3_TYPE, Tuple3, tuple3)                                           \
+  V(_, ARRAY_BOILERPLATE_DESCRIPTION_TYPE, ArrayBoilerplateDescription,       \
+    array_boilerplate_description)                                            \
+  V(_, WASM_DEBUG_INFO_TYPE, WasmDebugInfo, wasm_debug_info)                  \
+  V(_, WASM_EXPORTED_FUNCTION_DATA_TYPE, WasmExportedFunctionData,            \
+    wasm_exported_function_data)                                              \
+  V(_, CALLABLE_TASK_TYPE, CallableTask, callable_task)                       \
+  V(_, CALLBACK_TASK_TYPE, CallbackTask, callback_task)                       \
+  V(_, PROMISE_FULFILL_REACTION_JOB_TASK_TYPE, PromiseFulfillReactionJobTask, \
+    promise_fulfill_reaction_job_task)                                        \
+  V(_, PROMISE_REJECT_REACTION_JOB_TASK_TYPE, PromiseRejectReactionJobTask,   \
+    promise_reject_reaction_job_task)                                         \
+  V(_, PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, PromiseResolveThenableJobTask, \
+    promise_resolve_thenable_job_task)                                        \
+  V(_, MICROTASK_QUEUE_TYPE, MicrotaskQueue, microtask_queue)
+
+// Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_LIST entry
+#define STRUCT_LIST_ADAPTER(V, NAME, Name, name) V(NAME, Name, name)
+
+// Produces (NAME, Name, name) entries.
+#define STRUCT_LIST(V) STRUCT_LIST_GENERATOR(STRUCT_LIST_ADAPTER, V)
+
+// Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_MAPS_LIST entry
+#define STRUCT_MAPS_LIST_ADAPTER(V, NAME, Name, name) \
+  V(Map, name##_map, Name##Map)
+
+// Produces (Map, struct_name_map, StructNameMap) entries
+#define STRUCT_MAPS_LIST(V) STRUCT_LIST_GENERATOR(STRUCT_MAPS_LIST_ADAPTER, V)
 
 //
 // The following macros define list of allocation size objects and list of
 // their maps.
 //
-#define ALLOCATION_SITE_LIST(V, _)                                     \
-  V(_, ALLOCATION_SITE, AllocationSite, WithWeakNext, allocation_site) \
-  V(_, ALLOCATION_SITE, AllocationSite, WithoutWeakNext,               \
+#define ALLOCATION_SITE_LIST(V, _)                                          \
+  V(_, ALLOCATION_SITE_TYPE, AllocationSite, WithWeakNext, allocation_site) \
+  V(_, ALLOCATION_SITE_TYPE, AllocationSite, WithoutWeakNext,               \
     allocation_site_without_weaknext)
 
 // Adapts one ALLOCATION_SITE_LIST entry to the ALLOCATION_SITE_MAPS_LIST entry
-#define ALLOCATION_SITE_MAPS_LIST_ADAPTER(_, NAME, Name, Size, name_size) \
-  _(Map, name_size##_map, Name##Size##Map)
+#define ALLOCATION_SITE_MAPS_LIST_ADAPTER(V, TYPE, Name, Size, name_size) \
+  V(Map, name_size##_map, Name##Size##Map)
 
 // Produces (Map, allocation_site_name_map, AllocationSiteNameMap) entries
 #define ALLOCATION_SITE_MAPS_LIST(V) \
@@ -355,18 +371,18 @@ namespace internal {
 // The following macros define list of data handler objects and list of their
 // maps.
 //
-#define DATA_HANDLER_LIST(V, _)                        \
-  V(_, LOAD_HANDLER, LoadHandler, 1, load_handler1)    \
-  V(_, LOAD_HANDLER, LoadHandler, 2, load_handler2)    \
-  V(_, LOAD_HANDLER, LoadHandler, 3, load_handler3)    \
-  V(_, STORE_HANDLER, StoreHandler, 0, store_handler0) \
-  V(_, STORE_HANDLER, StoreHandler, 1, store_handler1) \
-  V(_, STORE_HANDLER, StoreHandler, 2, store_handler2) \
-  V(_, STORE_HANDLER, StoreHandler, 3, store_handler3)
+#define DATA_HANDLER_LIST(V, _)                             \
+  V(_, LOAD_HANDLER_TYPE, LoadHandler, 1, load_handler1)    \
+  V(_, LOAD_HANDLER_TYPE, LoadHandler, 2, load_handler2)    \
+  V(_, LOAD_HANDLER_TYPE, LoadHandler, 3, load_handler3)    \
+  V(_, STORE_HANDLER_TYPE, StoreHandler, 0, store_handler0) \
+  V(_, STORE_HANDLER_TYPE, StoreHandler, 1, store_handler1) \
+  V(_, STORE_HANDLER_TYPE, StoreHandler, 2, store_handler2) \
+  V(_, STORE_HANDLER_TYPE, StoreHandler, 3, store_handler3)
 
 // Adapts one DATA_HANDLER_LIST entry to the DATA_HANDLER_MAPS_LIST entry.
-#define DATA_HANDLER_MAPS_LIST_ADAPTER(_, NAME, Name, Size, name_size) \
-  _(Map, name_size##_map, Name##Size##Map)
+#define DATA_HANDLER_MAPS_LIST_ADAPTER(V, TYPE, Name, Size, name_size) \
+  V(Map, name_size##_map, Name##Size##Map)
 
 // Produces (Map, handler_name_map, HandlerNameMap) entries
 #define DATA_HANDLER_MAPS_LIST(V) \
