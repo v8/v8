@@ -150,9 +150,6 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   // SmiMul returns a heap number in case of Smi overflow.
   TNode<Number> byte_length = SmiMul(length, element_size);
 
-  SetupTypedArray(holder, length, ChangeNonnegativeNumberToUintPtr(byte_offset),
-                  ChangeNonnegativeNumberToUintPtr(byte_length));
-
   TNode<Map> fixed_typed_map = LoadMapForType(holder);
 
   // If target and new_target for the buffer differ, allocate off-heap.
@@ -311,6 +308,8 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   }
 
   BIND(&done);
+  SetupTypedArray(holder, length, ChangeNonnegativeNumberToUintPtr(byte_offset),
+                  ChangeNonnegativeNumberToUintPtr(byte_length));
   Return(UndefinedConstant());
 }
 
