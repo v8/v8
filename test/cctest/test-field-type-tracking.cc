@@ -657,7 +657,7 @@ static void TestGeneralizeField(int detach_property_at_index,
   JSHeapBroker broker(isolate, &zone);
   CompilationDependencies dependencies(isolate, &zone);
   MapRef map_ref(&broker, map);
-  map_ref.SerializeDescriptors();
+  map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, property_index);
 
   Handle<Map> field_owner(map->FindFieldOwner(isolate, property_index),
@@ -1031,7 +1031,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeField(
   JSHeapBroker broker(isolate, &zone);
   CompilationDependencies dependencies(isolate, &zone);
   MapRef map_ref(&broker, map);
-  map_ref.SerializeDescriptors();
+  map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, kSplitProp);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
@@ -1117,7 +1117,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   JSHeapBroker broker(isolate, &zone);
   CompilationDependencies dependencies(isolate, &zone);
   MapRef map_ref(&broker, map);
-  map_ref.SerializeDescriptors();
+  map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, kSplitProp);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
@@ -1800,7 +1800,7 @@ static void TestReconfigureElementsKind_GeneralizeField(
   JSHeapBroker broker(isolate, &zone);
   CompilationDependencies dependencies(isolate, &zone);
   MapRef map_ref(&broker, map);
-  map_ref.SerializeDescriptors();
+  map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, kDiffProp);
 
   // Reconfigure elements kinds of |map2|, which should generalize
@@ -1897,7 +1897,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   JSHeapBroker broker(isolate, &zone);
   CompilationDependencies dependencies(isolate, &zone);
   MapRef map_ref(&broker, map);
-  map_ref.SerializeDescriptors();
+  map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, kDiffProp);
 
   // Reconfigure elements kinds of |map2|, which should generalize

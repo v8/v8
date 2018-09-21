@@ -405,7 +405,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               // about the contents now.
             } else if (descriptors_field_type->IsClass()) {
               MapRef map_ref(js_heap_broker(), map);
-              map_ref.SerializeDescriptors();  // TODO(neis): Remove later.
+              map_ref.SerializeOwnDescriptors();  // TODO(neis): Remove later.
               dependencies()->DependOnFieldType(map_ref, number);
               // Remember the field map, and try to infer a useful type.
               Handle<Map> map(descriptors_field_type->AsClass(), isolate());
@@ -710,7 +710,8 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       return false;
     } else if (descriptors_field_type->IsClass()) {
       MapRef transition_map_ref(js_heap_broker(), transition_map);
-      transition_map_ref.SerializeDescriptors();  // TODO(neis): Remove later.
+      transition_map_ref
+          .SerializeOwnDescriptors();  // TODO(neis): Remove later.
       dependencies()->DependOnFieldType(transition_map_ref, number);
       // Remember the field map, and try to infer a useful type.
       Handle<Map> map(descriptors_field_type->AsClass(), isolate());

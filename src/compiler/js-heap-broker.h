@@ -50,6 +50,7 @@ enum class OddballType : uint8_t {
   V(AllocationSite)                \
   V(Cell)                          \
   V(Code)                          \
+  V(DescriptorArray)               \
   V(FeedbackVector)                \
   V(FixedArrayBase)                \
   V(HeapNumber)                    \
@@ -284,6 +285,11 @@ class ScriptContextTableRef : public HeapObjectRef {
   base::Optional<LookupResult> lookup(const NameRef& name) const;
 };
 
+class DescriptorArrayRef : public HeapObjectRef {
+ public:
+  using HeapObjectRef::HeapObjectRef;
+};
+
 class FeedbackVectorRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
@@ -345,7 +351,7 @@ class MapRef : public HeapObjectRef {
   base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
 
   // Concerning the underlying instance_descriptors:
-  void SerializeDescriptors();
+  void SerializeOwnDescriptors();
   MapRef FindFieldOwner(int descriptor_index) const;
   PropertyDetails GetPropertyDetails(int descriptor_index) const;
   NameRef GetPropertyKey(int descriptor_index) const;

@@ -558,11 +558,12 @@ class MapData : public HeapObjectData {
     return elements_kind_generalizations_;
   }
 
-  // Serialize the descriptor array and, recursively, that of any field owner.
-  void SerializeDescriptors();
-  const ZoneVector<PropertyDescriptor>& descriptors() const {
-    CHECK(serialized_descriptors_);
-    return descriptors_;
+  // Serialize the own part of the descriptor array and, recursively, that of
+  // any field owner.
+  void SerializeOwnDescriptors();
+  DescriptorArrayData* instance_descriptors() const {
+    CHECK(serialized_own_descriptors_);
+    return instance_descriptors_;
   }
 
   void SerializeConstructorOrBackpointer();
@@ -591,8 +592,8 @@ class MapData : public HeapObjectData {
   bool serialized_elements_kind_generalizations_ = false;
   ZoneVector<MapData*> elements_kind_generalizations_;
 
-  bool serialized_descriptors_ = false;
-  ZoneVector<PropertyDescriptor> descriptors_;
+  bool serialized_own_descriptors_ = false;
+  DescriptorArrayData* instance_descriptors_ = nullptr;
 
   bool serialized_constructor_or_backpointer_ = false;
   ObjectData* constructor_or_backpointer_ = nullptr;
@@ -664,8 +665,7 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
                                   : 0),
       in_object_properties_(
           object->IsJSObjectMap() ? object->GetInObjectProperties() : 0),
-      elements_kind_generalizations_(broker->zone()),
-      descriptors_(broker->zone()) {}
+      elements_kind_generalizations_(broker->zone()) {}
 
 JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<JSFunction> object)
@@ -733,6 +733,18 @@ void MapData::SerializeElementsKindGeneralizations() {
     }
   }
 }
+
+class DescriptorArrayData : public HeapObjectData {
+ public:
+  DescriptorArrayData(JSHeapBroker* broker, ObjectData** storage,
+                      Handle<DescriptorArray> object)
+      : HeapObjectData(broker, storage, object), contents_(broker->zone()) {}
+
+  ZoneVector<PropertyDescriptor>& contents() { return contents_; }
+
+ private:
+  ZoneVector<PropertyDescriptor> contents_;
+};
 
 class FeedbackVectorData : public HeapObjectData {
  public:
@@ -1112,21 +1124,31 @@ void MapData::SerializePrototype() {
   prototype_ = broker()->GetOrCreateData(map->prototype());
 }
 
-void MapData::SerializeDescriptors() {
-  if (serialized_descriptors_) return;
-  serialized_descriptors_ = true;
+void MapData::SerializeOwnDescriptors() {
+  if (serialized_own_descriptors_) return;
+  serialized_own_descriptors_ = true;
 
-  TraceScope tracer(this, "MapData::SerializeDescriptors");
+  TraceScope tracer(this, "MapData::SerializeOwnDescriptors");
   Handle<Map> map = Handle<Map>::cast(object());
-  Isolate* const isolate = broker()->isolate();
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
-  // We copy all descriptors (not only the own) in order to support
-  // FindFieldOwner, which is used by the FieldType compilation dependency.
-  int const number_of_descriptors = descriptors->number_of_descriptors();
-  DCHECK(descriptors_.empty());
-  descriptors_.reserve(number_of_descriptors);
 
-  for (int i = 0; i < number_of_descriptors; ++i) {
+  DCHECK_NULL(instance_descriptors_);
+  instance_descriptors_ = broker()
+                              ->GetOrCreateData(map->instance_descriptors())
+                              ->AsDescriptorArray();
+
+  int const number_of_own = map->NumberOfOwnDescriptors();
+  ZoneVector<PropertyDescriptor>& contents = instance_descriptors_->contents();
+  int const current_size = static_cast<int>(contents.size());
+  if (number_of_own <= current_size) return;
+
+  Isolate* const isolate = broker()->isolate();
+  auto descriptors =
+      Handle<DescriptorArray>::cast(instance_descriptors_->object());
+  CHECK_EQ(*descriptors, map->instance_descriptors());
+  contents.reserve(number_of_own);
+
+  // Copy the new descriptors.
+  for (int i = current_size; i < number_of_own; ++i) {
     PropertyDescriptor d;
     d.key = broker()->GetOrCreateData(descriptors->GetKey(i))->AsName();
     d.details = descriptors->GetDetails(i);
@@ -1137,11 +1159,25 @@ void MapData::SerializeDescriptors() {
       d.field_type = broker()->GetOrCreateData(descriptors->GetFieldType(i));
       d.is_unboxed_double_field = map->IsUnboxedDoubleField(d.field_index);
       // Recurse.
-      d.field_owner->SerializeDescriptors();
     }
-    descriptors_.push_back(d);
+    contents.push_back(d);
   }
-  broker()->Trace("Copied %zu descriptors.\n", descriptors_.size());
+  CHECK_EQ(number_of_own, contents.size());
+
+  // Recurse on the new owner maps.
+  for (int i = current_size; i < number_of_own; ++i) {
+    const PropertyDescriptor& d = contents[i];
+    if (d.details.location() == kField) {
+      CHECK_LE(
+          Handle<Map>::cast(d.field_owner->object())->NumberOfOwnDescriptors(),
+          number_of_own);
+      d.field_owner->SerializeOwnDescriptors();
+    }
+  }
+
+  broker()->Trace("Copied %zu descriptors into %p (%zu total).\n",
+                  number_of_own - current_size, instance_descriptors_,
+                  number_of_own);
 }
 
 void JSObjectData::SerializeRecursive(int depth) {
@@ -1236,9 +1272,9 @@ void JSObjectData::SerializeRecursive(int depth) {
       inobject_fields_.push_back(JSObjectField{value_data});
     }
   }
-  broker()->Trace("Copied %zu fields.\n", inobject_fields_.size());
+  broker()->Trace("Copied %zu in-object fields.\n", inobject_fields_.size());
 
-  map()->SerializeDescriptors();
+  map()->SerializeOwnDescriptors();
 
   if (IsJSArray()) AsJSArray()->Serialize();
 }
@@ -1648,7 +1684,8 @@ FieldIndex MapRef::GetFieldIndexFor(int descriptor_index) const {
     AllowHandleDereference allow_handle_dereference;
     return FieldIndex::ForDescriptor(*object<Map>(), descriptor_index);
   }
-  return data()->AsMap()->descriptors().at(descriptor_index).field_index;
+  DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
+  return descriptors->contents().at(descriptor_index).field_index;
 }
 
 int MapRef::GetInObjectPropertyOffset(int i) const {
@@ -1664,7 +1701,8 @@ PropertyDetails MapRef::GetPropertyDetails(int descriptor_index) const {
     AllowHandleDereference allow_handle_dereference;
     return object<Map>()->instance_descriptors()->GetDetails(descriptor_index);
   }
-  return data()->AsMap()->descriptors().at(descriptor_index).details;
+  DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
+  return descriptors->contents().at(descriptor_index).details;
 }
 
 NameRef MapRef::GetPropertyKey(int descriptor_index) const {
@@ -1676,7 +1714,8 @@ NameRef MapRef::GetPropertyKey(int descriptor_index) const {
         handle(object<Map>()->instance_descriptors()->GetKey(descriptor_index),
                broker()->isolate()));
   }
-  return NameRef(data()->AsMap()->descriptors().at(descriptor_index).key);
+  DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
+  return NameRef(descriptors->contents().at(descriptor_index).key);
 }
 
 bool MapRef::IsFixedCowArrayMap() const {
@@ -1694,8 +1733,8 @@ MapRef MapRef::FindFieldOwner(int descriptor_index) const {
         broker()->isolate());
     return MapRef(broker(), owner);
   }
-  return MapRef(
-      data()->AsMap()->descriptors().at(descriptor_index).field_owner);
+  DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
+  return MapRef(descriptors->contents().at(descriptor_index).field_owner);
 }
 
 ObjectRef MapRef::GetFieldType(int descriptor_index) const {
@@ -1707,8 +1746,8 @@ ObjectRef MapRef::GetFieldType(int descriptor_index) const {
         broker()->isolate());
     return ObjectRef(broker(), field_type);
   }
-  return ObjectRef(
-      data()->AsMap()->descriptors().at(descriptor_index).field_type);
+  DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
+  return ObjectRef(descriptors->contents().at(descriptor_index).field_type);
 }
 
 bool MapRef::IsUnboxedDoubleField(int descriptor_index) const {
@@ -1717,11 +1756,8 @@ bool MapRef::IsUnboxedDoubleField(int descriptor_index) const {
     return object<Map>()->IsUnboxedDoubleField(
         FieldIndex::ForDescriptor(*object<Map>(), descriptor_index));
   }
-  return data()
-      ->AsMap()
-      ->descriptors()
-      .at(descriptor_index)
-      .is_unboxed_double_field;
+  DescriptorArrayData* descriptors = data()->AsMap()->instance_descriptors();
+  return descriptors->contents().at(descriptor_index).is_unboxed_double_field;
 }
 
 uint16_t StringRef::GetFirstChar() {
@@ -2184,10 +2220,10 @@ void JSObjectRef::SerializeObjectCreateMap() {
   data()->AsJSObject()->SerializeObjectCreateMap();
 }
 
-void MapRef::SerializeDescriptors() {
+void MapRef::SerializeOwnDescriptors() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsMap()->SerializeDescriptors();
+  data()->AsMap()->SerializeOwnDescriptors();
 }
 
 void ModuleRef::Serialize() {
