@@ -501,6 +501,7 @@ void Assembler::pushad() {
 
 void Assembler::popad() {
   EnsureSpace ensure_space(this);
+  AssertIsAddressable(ebx);
   EMIT(0x61);
 }
 
