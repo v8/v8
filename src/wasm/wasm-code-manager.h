@@ -27,6 +27,7 @@ namespace wasm {
 
 class NativeModule;
 class WasmCodeManager;
+class WasmMemoryTracker;
 struct WasmModule;
 
 // Convenience macro listing all wasm runtime stubs. Note that the first few
@@ -417,7 +418,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {
  public:
-  explicit WasmCodeManager(size_t max_committed);
+  explicit WasmCodeManager(WasmMemoryTracker* memory_tracker,
+                           size_t max_committed);
   // Create a new NativeModule. The caller is responsible for its
   // lifetime. The native module will be given some memory for code,
   // which will be page size aligned. The size of the initial memory
@@ -451,6 +453,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   void Free(VirtualMemory* mem);
   void AssignRanges(Address start, Address end, NativeModule*);
 
+  WasmMemoryTracker* const memory_tracker_;
   std::map<Address, std::pair<Address, NativeModule*>> lookup_map_;
   // Count of NativeModules not yet collected. Helps determine if it's
   // worth requesting a GC on memory pressure.

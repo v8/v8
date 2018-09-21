@@ -183,7 +183,7 @@ constexpr int kDoubleSizeLog2 = 3;
 // ARM64 only supports direct calls within a 128 MB range.
 constexpr size_t kMaxWasmCodeMemory = 128 * MB;
 #else
-constexpr size_t kMaxWasmCodeMemory = 512 * MB;
+constexpr size_t kMaxWasmCodeMemory = 1024 * MB;
 #endif
 
 #if V8_HOST_ARCH_64_BIT
