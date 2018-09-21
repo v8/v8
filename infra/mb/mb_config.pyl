@@ -283,7 +283,7 @@
     'default_optdebug_android_arm': [
       'debug', 'arm', 'android', 'v8_enable_slow_dchecks' ],
     'default_release_android_arm': [
-      'release', 'arm', 'android'],
+      'release', 'arm', 'android', 'android_strip_outputs'],
     'default_debug_arm64': [
       'debug', 'simulate_arm64', 'v8_enable_slow_dchecks', 'v8_full_debug'],
     'default_optdebug_arm64': [
@@ -421,9 +421,11 @@
     'release_arm': [
       'release_bot', 'arm', 'hard_float'],
     'release_android_arm': [
-      'release_bot', 'arm', 'android', 'minimal_symbols'],
+      'release_bot', 'arm', 'android', 'minimal_symbols',
+      'android_strip_outputs'],
     'release_android_arm64': [
-      'release_bot', 'arm64', 'android', 'minimal_symbols'],
+      'release_bot', 'arm64', 'android', 'minimal_symbols',
+      'android_strip_outputs'],
 
     # Release configs for x64.
     'release_x64': [
@@ -585,6 +587,10 @@
       'gn_args': 'target_os="android" v8_android_log_stdout=true',
     },
 
+    'android_strip_outputs': {
+      'gn_args': 'android_unstripped_runtime_outputs=false',
+    },
+
     'arm': {
       'gn_args': 'target_cpu="arm"',
     },
@@ -716,7 +722,7 @@
     },
 
     'release': {
-      'gn_args': 'is_debug=false android_unstripped_runtime_outputs=false',
+      'gn_args': 'is_debug=false',
     },
 
     'release_bot': {
