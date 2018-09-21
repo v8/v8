@@ -32,7 +32,7 @@ namespace {
 int CurrencyDigits(const icu::UnicodeString& currency) {
   UErrorCode status = U_ZERO_ERROR;
   uint32_t fraction_digits = ucurr_getDefaultFractionDigits(
-      (const UChar*)(currency.getBuffer()), &status);
+      reinterpret_cast<const UChar*>(currency.getBuffer()), &status);
   // For missing currency codes, default to the most common, 2
   return U_SUCCESS(status) ? fraction_digits : 2;
 }

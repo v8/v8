@@ -19,7 +19,7 @@ class V8_BASE_EXPORT LsanPageAllocator
     : public NON_EXPORTED_BASE(::v8::PageAllocator) {
  public:
   LsanPageAllocator(v8::PageAllocator* page_allocator);
-  virtual ~LsanPageAllocator() = default;
+  ~LsanPageAllocator() override = default;
 
   size_t AllocatePageSize() override { return allocate_page_size_; }
 

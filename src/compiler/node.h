@@ -582,15 +582,6 @@ class Node::Uses::const_iterator final {
   typedef Node** pointer;
   typedef Node*& reference;
 
-  const_iterator(const const_iterator& other)
-      : current_(other.current_)
-#ifdef DEBUG
-        ,
-        next_(other.next_)
-#endif
-  {
-  }
-
   Node* operator*() const { return current_->from(); }
   bool operator==(const const_iterator& other) const {
     return other.current_ == current_;

@@ -149,7 +149,7 @@ class V8_EXPORT_PRIVATE SwitchBuilder final
         case_sites_(builder->zone()) {
     case_sites_.resize(number_of_cases);
   }
-  ~SwitchBuilder() override;
+  ~SwitchBuilder() override;  // NOLINT (modernize-use-equals-default)
 
   // This method should be called by the SwitchBuilder owner when the case
   // statement with |index| is emitted to update the case jump site.

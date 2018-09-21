@@ -47,8 +47,8 @@ class Writer {
     WriteUnalignedValue(reinterpret_cast<Address>(current_location()), value);
     pos_ += sizeof(T);
     if (FLAG_trace_wasm_serialization) {
-      StdoutStream{} << "wrote: " << (size_t)value << " sized: " << sizeof(T)
-                     << std::endl;
+      StdoutStream{} << "wrote: " << static_cast<size_t>(value)
+                     << " sized: " << sizeof(T) << std::endl;
     }
   }
 
@@ -91,8 +91,8 @@ class Reader {
         ReadUnalignedValue<T>(reinterpret_cast<Address>(current_location()));
     pos_ += sizeof(T);
     if (FLAG_trace_wasm_serialization) {
-      StdoutStream{} << "read: " << (size_t)value << " sized: " << sizeof(T)
-                     << std::endl;
+      StdoutStream{} << "read: " << static_cast<size_t>(value)
+                     << " sized: " << sizeof(T) << std::endl;
     }
     return value;
   }

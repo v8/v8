@@ -364,7 +364,7 @@ class CpuFeatureScope {
 #else
   CpuFeatureScope(AssemblerBase* assembler, CpuFeature f,
                   CheckPolicy check = kCheckSupported) {}
-  ~CpuFeatureScope() {
+  ~CpuFeatureScope() {  // NOLINT (modernize-use-equals-default)
     // Define a destructor to avoid unused variable warnings.
   }
 #endif
@@ -461,7 +461,7 @@ class ConstantPoolEntry {
   int position() const { return position_; }
   bool sharing_ok() const { return merged_index_ != SHARING_PROHIBITED; }
   bool is_merged() const { return merged_index_ >= 0; }
-  int merged_index(void) const {
+  int merged_index() const {
     DCHECK(is_merged());
     return merged_index_;
   }
@@ -470,7 +470,7 @@ class ConstantPoolEntry {
     merged_index_ = index;
     DCHECK(is_merged());
   }
-  int offset(void) const {
+  int offset() const {
     DCHECK_GE(merged_index_, 0);
     return merged_index_;
   }

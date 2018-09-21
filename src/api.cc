@@ -1773,15 +1773,15 @@ static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
       isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE, i::TENURED));
   obj->set_flags(0);
 
-  if (getter != 0) SET_FIELD_WRAPPED(isolate, obj, set_getter, getter);
-  if (setter != 0) SET_FIELD_WRAPPED(isolate, obj, set_setter, setter);
-  if (query != 0) SET_FIELD_WRAPPED(isolate, obj, set_query, query);
-  if (descriptor != 0)
+  if (getter != nullptr) SET_FIELD_WRAPPED(isolate, obj, set_getter, getter);
+  if (setter != nullptr) SET_FIELD_WRAPPED(isolate, obj, set_setter, setter);
+  if (query != nullptr) SET_FIELD_WRAPPED(isolate, obj, set_query, query);
+  if (descriptor != nullptr)
     SET_FIELD_WRAPPED(isolate, obj, set_descriptor, descriptor);
-  if (remover != 0) SET_FIELD_WRAPPED(isolate, obj, set_deleter, remover);
-  if (enumerator != 0)
+  if (remover != nullptr) SET_FIELD_WRAPPED(isolate, obj, set_deleter, remover);
+  if (enumerator != nullptr)
     SET_FIELD_WRAPPED(isolate, obj, set_enumerator, enumerator);
-  if (definer != 0) SET_FIELD_WRAPPED(isolate, obj, set_definer, definer);
+  if (definer != nullptr) SET_FIELD_WRAPPED(isolate, obj, set_definer, definer);
   obj->set_can_intercept_symbols(
       !(static_cast<int>(flags) &
         static_cast<int>(PropertyHandlerFlags::kOnlyInterceptStrings)));

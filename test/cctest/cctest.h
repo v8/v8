@@ -598,7 +598,7 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
  public:
   explicit StaticOneByteResource(const char* data) : data_(data) {}
 
-  ~StaticOneByteResource() = default;
+  ~StaticOneByteResource() override = default;
 
   const char* data() const override { return data_; }
 
