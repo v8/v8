@@ -20,6 +20,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class AstRawString;
 class BackgroundCompileTask;
 class JavaScriptFrame;
 class OptimizedCompilationInfo;
@@ -64,12 +65,14 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
   CompileForLiveEdit(ParseInfo* parse_info, Isolate* isolate);
 
-  // Generate and install code from previously queued compilation job.
-  static bool FinalizeCompilationJob(UnoptimizedCompilationJob* job,
-                                     Handle<SharedFunctionInfo> shared_info,
-                                     Isolate* isolate);
-  static bool FinalizeCompilationJob(OptimizedCompilationJob* job,
-                                     Isolate* isolate);
+  // Finalize and install code from previously run background compile task.
+  static bool FinalizeBackgroundCompileTask(
+      BackgroundCompileTask* task, Handle<SharedFunctionInfo> shared_info,
+      Isolate* isolate, ClearExceptionFlag flag);
+
+  // Finalize and install optimized code from previously run job.
+  static bool FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
+                                              Isolate* isolate);
 
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
@@ -320,6 +323,16 @@ class BackgroundCompileTask {
   // Compiler::GetSharedFunctionInfoForStreamedScript.
   // Note: does not take ownership of |data|.
   BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate);
+
+  // Creates a new task that when run will parse and compile the
+  // |function_literal| and can be finalized with
+  // Compiler::FinalizeBackgroundCompileTask.
+  BackgroundCompileTask(
+      AccountingAllocator* allocator, const ParseInfo* outer_parse_info,
+      const AstRawString* function_name,
+      const FunctionLiteral* function_literal,
+      WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,
+      TimedHistogram* timer, int max_stack_size);
 
   void Run();
 

@@ -929,11 +929,6 @@ DEFINE_BOOL(compiler_dispatcher, false, "enable compiler dispatcher")
 DEFINE_BOOL(trace_compiler_dispatcher, false,
             "trace compiler dispatcher activity")
 
-// compiler-dispatcher-job.cc
-DEFINE_BOOL(
-    trace_compiler_dispatcher_jobs, false,
-    "trace progress of individual jobs managed by the compiler dispatcher")
-
 // cpu-profiler.cc
 DEFINE_INT(cpu_profiler_sampling_interval, 1000,
            "CPU profiler sampling interval in microseconds")

@@ -19,6 +19,7 @@ class AccountingAllocator;
 class AstRawString;
 class AstValueFactory;
 class AstStringConstants;
+class BackgroundCompileTask;
 class CompilerDispatcherTracer;
 class DeferredHandles;
 class FunctionLiteral;
@@ -27,10 +28,13 @@ class ParseInfo;
 class Parser;
 class SharedFunctionInfo;
 class String;
+class TimedHistogram;
 class UnicodeCache;
 class UnoptimizedCompilationJob;
 class WorkerThreadRuntimeCallStats;
 
+// TODO(rmcilroy): Remove this class entirely and just have CompilerDispatcher
+// manage BackgroundCompileTasks.
 class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
  public:
   // Creates a UnoptimizedCompileJob in the initial state.
@@ -39,7 +43,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
       const ParseInfo* outer_parse_info, const AstRawString* function_name,
       const FunctionLiteral* function_literal,
       WorkerThreadRuntimeCallStats* worker_thread_runtime_stats,
-      size_t max_stack_size);
+      TimedHistogram* timer, size_t max_stack_size);
   ~UnoptimizedCompileJob() override;
 
   // CompilerDispatcherJob implementation.
@@ -56,19 +60,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
   void ResetDataOnMainThread(Isolate* isolate);
 
   CompilerDispatcherTracer* tracer_;
-  AccountingAllocator* allocator_;
-  WorkerThreadRuntimeCallStats* worker_thread_runtime_stats_;
-  size_t max_stack_size_;
-
-  // Members required for parsing.
-  std::unique_ptr<UnicodeCache> unicode_cache_;
-  std::unique_ptr<ParseInfo> parse_info_;
-  std::unique_ptr<Parser> parser_;
-
-  // Members required for compiling.
-  std::unique_ptr<UnoptimizedCompilationJob> compilation_job_;
-
-  bool trace_compiler_dispatcher_jobs_;
+  std::unique_ptr<BackgroundCompileTask> task_;
 
   DISALLOW_COPY_AND_ASSIGN(UnoptimizedCompileJob);
 };

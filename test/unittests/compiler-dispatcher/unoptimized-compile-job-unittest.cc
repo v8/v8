@@ -47,13 +47,6 @@ class UnoptimizedCompileJobTest : public TestWithNativeContext {
     save_flags_ = nullptr;
   }
 
-  static Variable* LookupVariableByName(UnoptimizedCompileJob* job,
-                                        const char* name) {
-    const AstRawString* name_raw_string =
-        job->parse_info_->ast_value_factory()->GetOneByteString(name);
-    return job->parse_info_->literal()->scope()->Lookup(name_raw_string);
-  }
-
   UnoptimizedCompileJob* NewUnoptimizedCompileJob(
       Isolate* isolate, Handle<SharedFunctionInfo> shared,
       size_t stack_size = FLAG_stack_size) {
@@ -85,7 +78,7 @@ class UnoptimizedCompileJobTest : public TestWithNativeContext {
         tracer(), allocator(), outer_parse_info.get(), function_name,
         function_literal,
         isolate->counters()->worker_thread_runtime_call_stats(),
-        FLAG_stack_size);
+        isolate->counters()->compile_function_on_background(), FLAG_stack_size);
   }
 
  private:
@@ -255,11 +248,45 @@ TEST_F(UnoptimizedCompileJobTest, CompileOnBackgroundThread) {
   ASSERT_JOB_STATUS(CompilerDispatcherJob::Status::kInitial, job);
 }
 
+TEST_F(UnoptimizedCompileJobTest, EagerInnerFunctions) {
+  const char raw_script[] =
+      "function g() {\n"
+      "  f = function() {\n"
+      "    // Simulate an eager IIFE with brackets.\n "
+      "    var e = (function () { return 42; });\n"
+      "    return e;\n"
+      "  }\n"
+      "  return f;\n"
+      "}\n"
+      "g();";
+  test::ScriptResource* script =
+      new test::ScriptResource(raw_script, strlen(raw_script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
+  Handle<SharedFunctionInfo> shared = handle(f->shared(), isolate());
+  ASSERT_FALSE(shared->is_compiled());
+  std::unique_ptr<UnoptimizedCompileJob> job(
+      NewUnoptimizedCompileJob(isolate(), shared));
+
+  job->Compile(false);
+  ASSERT_FALSE(job->IsFailed());
+  job->FinalizeOnMainThread(isolate(), shared);
+  ASSERT_FALSE(job->IsFailed());
+  ASSERT_JOB_STATUS(CompilerDispatcherJob::Status::kDone, job);
+  ASSERT_TRUE(shared->is_compiled());
+
+  Handle<JSFunction> e = RunJS<JSFunction>("f();");
+
+  ASSERT_TRUE(e->shared()->is_compiled());
+
+  job->ResetOnMainThread(isolate());
+  ASSERT_JOB_STATUS(CompilerDispatcherJob::Status::kInitial, job);
+}
+
 TEST_F(UnoptimizedCompileJobTest, LazyInnerFunctions) {
   const char raw_script[] =
       "function g() {\n"
       "  f = function() {\n"
-      "    e = (function() { return 42; });\n"
+      "    function e() { return 42; };\n"
       "    return e;\n"
       "  }\n"
       "  return f;\n"

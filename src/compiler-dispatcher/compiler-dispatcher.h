@@ -39,6 +39,7 @@ class FunctionLiteral;
 class Isolate;
 class ParseInfo;
 class SharedFunctionInfo;
+class TimedHistogram;
 class WorkerThreadRuntimeCallStats;
 class Zone;
 
@@ -153,6 +154,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   Isolate* isolate_;
   AccountingAllocator* allocator_;
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
+  TimedHistogram* background_compile_timer_;
   Platform* platform_;
   size_t max_stack_size_;
 

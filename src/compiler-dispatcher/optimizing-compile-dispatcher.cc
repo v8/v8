@@ -220,7 +220,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
       }
       DisposeCompilationJob(job, false);
     } else {
-      Compiler::FinalizeCompilationJob(job, isolate_);
+      Compiler::FinalizeOptimizedCompilationJob(job, isolate_);
     }
   }
 }

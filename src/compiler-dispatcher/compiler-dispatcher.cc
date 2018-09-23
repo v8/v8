@@ -146,6 +146,8 @@ CompilerDispatcher::CompilerDispatcher(Isolate* isolate, Platform* platform,
       allocator_(isolate->allocator()),
       worker_thread_runtime_call_stats_(
           isolate->counters()->worker_thread_runtime_call_stats()),
+      background_compile_timer_(
+          isolate->counters()->compile_function_on_background()),
       platform_(platform),
       max_stack_size_(max_stack_size),
       trace_compiler_dispatcher_(FLAG_trace_compiler_dispatcher),
@@ -200,7 +202,8 @@ base::Optional<CompilerDispatcher::JobId> CompilerDispatcher::Enqueue(
 
   std::unique_ptr<CompilerDispatcherJob> job(new UnoptimizedCompileJob(
       tracer_.get(), allocator_, outer_parse_info, function_name,
-      function_literal, worker_thread_runtime_call_stats_, max_stack_size_));
+      function_literal, worker_thread_runtime_call_stats_,
+      background_compile_timer_, max_stack_size_));
   JobMap::const_iterator it = InsertJob(std::move(job));
   JobId id = it->first;
   if (trace_compiler_dispatcher_) {

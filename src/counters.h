@@ -870,17 +870,18 @@ class RuntimeCallTimer final {
   V(BoundFunctionNameGetter)                   \
   V(BoundFunctionLengthGetter)                 \
   V(CompileBackgroundAnalyse)                  \
+  V(CompileBackgroundCompileTask)              \
   V(CompileBackgroundEval)                     \
+  V(CompileBackgroundFunction)                 \
   V(CompileBackgroundIgnition)                 \
   V(CompileBackgroundScript)                   \
   V(CompileBackgroundRewriteReturnResult)      \
   V(CompileBackgroundScopeAnalysis)            \
-  V(CompileBackgroundUnoptimizedCompileJob)    \
   V(CompileDeserialize)                        \
   V(CompileEval)                               \
   V(CompileAnalyse)                            \
   V(CompileEnqueueOnDispatcher)                \
-  V(CompileFinalizeUnoptimizedCompileJob)      \
+  V(CompileFinalizeBackgroundCompileTask)      \
   V(CompileFinishNowOnDispatcher)              \
   V(CompileFunction)                           \
   V(CompileGetFromOptimizedCodeMap)            \
@@ -890,7 +891,6 @@ class RuntimeCallTimer final {
   V(CompileScopeAnalysis)                      \
   V(CompileScript)                             \
   V(CompileSerialize)                          \
-  V(CompileUnoptimizedCompileJob)              \
   V(CompileWaitForDispatcher)                  \
   V(DeoptimizeCode)                            \
   V(FunctionCallback)                          \
@@ -1313,6 +1313,8 @@ class RuntimeCallTimerScope {
      V8.CompileScriptMicroSeconds.NoCache.CacheTooCold, 1000000, MICROSECOND)  \
   HT(compile_script_on_background,                                             \
      V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)      \
+  HT(compile_function_on_background,                                           \
+     V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)    \
   HT(gc_parallel_task_latency, V8.GC.ParallelTaskLatencyMicroSeconds, 1000000, \
      MICROSECOND)
 
