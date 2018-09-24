@@ -35,17 +35,11 @@ namespace internal {
 // parsing inner function bodies.
 class PreParserZoneScope {
  public:
-  PreParserZoneScope(Parser* parser, bool should_preparse)
-      : parser_(parser), should_preparse_(should_preparse) {}
-  ~PreParserZoneScope() {
-    if (should_preparse_) {
-      parser_->reusable_preparser()->zone()->DeleteAll();
-    }
-  }
+  explicit PreParserZoneScope(PreParser* preparser) : preparser_(preparser) {}
+  ~PreParserZoneScope() { preparser_->zone()->DeleteAll(); }
 
  private:
-  Parser* parser_;
-  bool should_preparse_;
+  PreParser* preparser_;
 
   DISALLOW_COPY_AND_ASSIGN(PreParserZoneScope);
 };
@@ -2559,98 +2553,90 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   DeclarationScope* scope;
 
-  {
-    PreParserZoneScope zone_scope(this, should_preparse);
-
-    // This Scope lives in the main zone. We'll migrate data into that zone
-    // later.
-    scope = NewFunctionScope(kind);
-    SetLanguageMode(scope, language_mode);
+  // This Scope lives in the main zone. We'll migrate data into that zone later.
+  scope = NewFunctionScope(kind);
+  SetLanguageMode(scope, language_mode);
 #ifdef DEBUG
-    scope->SetScopeName(function_name);
-    if (should_preparse) scope->set_needs_migration();
+  scope->SetScopeName(function_name);
 #endif
 
-    if (!is_wrapped) Expect(Token::LPAREN, CHECK_OK);
-    scope->set_start_position(scanner()->location().beg_pos);
+  if (!is_wrapped) Expect(Token::LPAREN, CHECK_OK);
+  scope->set_start_position(scanner()->location().beg_pos);
 
-    // Eager or lazy parse? If is_lazy_top_level_function, we'll parse
-    // lazily. We'll call SkipFunction, which may decide to
-    // abort lazy parsing if it suspects that wasn't a good idea. If so (in
-    // which case the parser is expected to have backtracked), or if we didn't
-    // try to lazy parse in the first place, we'll have to parse eagerly.
+  // Eager or lazy parse? If is_lazy_top_level_function, we'll parse
+  // lazily. We'll call SkipFunction, which may decide to
+  // abort lazy parsing if it suspects that wasn't a good idea. If so (in
+  // which case the parser is expected to have backtracked), or if we didn't
+  // try to lazy parse in the first place, we'll have to parse eagerly.
+  if (should_preparse) {
+    DCHECK(parse_lazily());
+    DCHECK(is_lazy_top_level_function || is_lazy_inner_function);
+    DCHECK(!is_wrapped);
+    Scanner::BookmarkScope bookmark(scanner());
+    bookmark.Set();
+    LazyParsingResult result =
+        SkipFunction(function_name, kind, function_type, scope, &num_parameters,
+                     &produced_preparsed_scope_data, is_lazy_inner_function,
+                     is_lazy_top_level_function, CHECK_OK);
+
+    if (result == kLazyParsingAborted) {
+      DCHECK(is_lazy_top_level_function);
+      bookmark.Apply();
+      // This is probably an initialization function. Inform the compiler it
+      // should also eager-compile this function.
+      eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
+      scope->ResetAfterPreparsing(ast_value_factory(), true);
+      // Trigger eager (re-)parsing, just below this block.
+      should_preparse = false;
+    }
+  }
+
+  if (!should_preparse) {
+    body = ParseFunction(
+        function_name, pos, kind, function_type, scope, &num_parameters,
+        &function_length, &has_duplicate_parameters, &expected_property_count,
+        &suspend_count, arguments_for_wrapped_function, CHECK_OK);
+  }
+
+  if (V8_UNLIKELY(FLAG_log_function_events)) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    const char* event_name =
+        should_preparse
+            ? (is_top_level ? "preparse-no-resolution" : "preparse-resolution")
+            : "full-parse";
+    logger_->FunctionEvent(
+        event_name, script_id(), ms, scope->start_position(),
+        scope->end_position(),
+        reinterpret_cast<const char*>(function_name->raw_data()),
+        function_name->byte_length());
+  }
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
     if (should_preparse) {
-      DCHECK(parse_lazily());
-      DCHECK(is_lazy_top_level_function || is_lazy_inner_function);
-      DCHECK(!is_wrapped);
-      Scanner::BookmarkScope bookmark(scanner());
-      bookmark.Set();
-      LazyParsingResult result = SkipFunction(
-          function_name, kind, function_type, scope, &num_parameters,
-          &produced_preparsed_scope_data, is_lazy_inner_function,
-          is_lazy_top_level_function, CHECK_OK);
-
-      if (result == kLazyParsingAborted) {
-        DCHECK(is_lazy_top_level_function);
-        bookmark.Apply();
-        // This is probably an initialization function. Inform the compiler it
-        // should also eager-compile this function.
-        eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
-        scope->ResetAfterPreparsing(ast_value_factory(), true);
-        // Trigger eager (re-)parsing, just below this block.
-        should_preparse = false;
+      const RuntimeCallCounterId counters[2][2] = {
+          {RuntimeCallCounterId::kPreParseBackgroundNoVariableResolution,
+           RuntimeCallCounterId::kPreParseNoVariableResolution},
+          {RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
+           RuntimeCallCounterId::kPreParseWithVariableResolution}};
+      if (runtime_call_stats_) {
+        bool tracked_variables = PreParser::ShouldTrackUnresolvedVariables(
+            is_lazy_top_level_function);
+        runtime_call_stats_->CorrectCurrentCounterId(
+            counters[tracked_variables][parsing_on_main_thread_]);
       }
     }
+  }
 
-    if (should_preparse) {
-      scope->AnalyzePartially(factory());
-    } else {
-      body = ParseFunction(
-          function_name, pos, kind, function_type, scope, &num_parameters,
-          &function_length, &has_duplicate_parameters, &expected_property_count,
-          &suspend_count, arguments_for_wrapped_function, CHECK_OK);
-    }
+  // Validate function name. We can do this only after parsing the function,
+  // since the function can declare itself strict.
+  language_mode = scope->language_mode();
+  CheckFunctionName(language_mode, function_name, function_name_validity,
+                    function_name_location, CHECK_OK);
 
-    if (V8_UNLIKELY(FLAG_log_function_events)) {
-      double ms = timer.Elapsed().InMillisecondsF();
-      const char* event_name = should_preparse
-                                   ? (is_top_level ? "preparse-no-resolution"
-                                                   : "preparse-resolution")
-                                   : "full-parse";
-      logger_->FunctionEvent(
-          event_name, script_id(), ms, scope->start_position(),
-          scope->end_position(),
-          reinterpret_cast<const char*>(function_name->raw_data()),
-          function_name->byte_length());
-    }
-    if (V8_UNLIKELY(FLAG_runtime_stats)) {
-      if (should_preparse) {
-        const RuntimeCallCounterId counters[2][2] = {
-            {RuntimeCallCounterId::kPreParseBackgroundNoVariableResolution,
-             RuntimeCallCounterId::kPreParseNoVariableResolution},
-            {RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
-             RuntimeCallCounterId::kPreParseWithVariableResolution}};
-        if (runtime_call_stats_) {
-          bool tracked_variables = PreParser::ShouldTrackUnresolvedVariables(
-              is_lazy_top_level_function);
-          runtime_call_stats_->CorrectCurrentCounterId(
-              counters[tracked_variables][parsing_on_main_thread_]);
-        }
-      }
-    }
-
-    // Validate function name. We can do this only after parsing the function,
-    // since the function can declare itself strict.
-    language_mode = scope->language_mode();
-    CheckFunctionName(language_mode, function_name, function_name_validity,
-                      function_name_location, CHECK_OK);
-
-    if (is_strict(language_mode)) {
-      CheckStrictOctalLiteral(scope->start_position(), scope->end_position(),
-                              CHECK_OK);
-    }
-    CheckConflictingVarDeclarations(scope, CHECK_OK);
-  }  // PreParserZoneScope goes out of scope.
+  if (is_strict(language_mode)) {
+    CheckStrictOctalLiteral(scope->start_position(), scope->end_position(),
+                            CHECK_OK);
+  }
+  CheckConflictingVarDeclarations(scope, CHECK_OK);
 
   FunctionLiteral::ParameterFlag duplicate_parameters =
       has_duplicate_parameters ? FunctionLiteral::kHasDuplicateParameters
@@ -2707,8 +2693,12 @@ Parser::LazyParsingResult Parser::SkipFunction(
       function_scope->RecordSuperPropertyUsage();
     }
     SkipFunctionLiterals(num_inner_functions);
+    function_scope->ResetAfterPreparsing(ast_value_factory_, false);
     return kLazyParsingComplete;
   }
+
+  PreParser* preparser = reusable_preparser();
+  PreParserZoneScope zone_scope(preparser);
 
   // With no cached data, we partially parse the function, without building an
   // AST. This gathers the data needed to build a lazy function.
@@ -2718,32 +2708,32 @@ Parser::LazyParsingResult Parser::SkipFunction(
   // state; we don't parse inner functions in the abortable mode anyway.
   DCHECK(!is_inner_function || !may_abort);
 
-  PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
+  PreParser::PreParseResult result = preparser->PreParseFunction(
       function_name, kind, function_type, function_scope, is_inner_function,
       may_abort, use_counts_, produced_preparsed_scope_data, this->script_id());
 
   // Return immediately if pre-parser decided to abort parsing.
   if (result == PreParser::kPreParseAbort) return kLazyParsingAborted;
+
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.
     set_stack_overflow();
     *ok = false;
-    return kLazyParsingComplete;
-  }
-  if (pending_error_handler()->has_pending_error()) {
+  } else if (pending_error_handler()->has_pending_error()) {
     *ok = false;
-    return kLazyParsingComplete;
+  } else {
+    set_allow_eval_cache(reusable_preparser()->allow_eval_cache());
+
+    PreParserLogger* logger = reusable_preparser()->logger();
+    function_scope->set_end_position(logger->end());
+    Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
+    total_preparse_skipped_ +=
+        function_scope->end_position() - function_scope->start_position();
+    *num_parameters = logger->num_parameters();
+    SkipFunctionLiterals(logger->num_inner_functions());
+    function_scope->AnalyzePartially(factory());
   }
 
-  set_allow_eval_cache(reusable_preparser()->allow_eval_cache());
-
-  PreParserLogger* logger = reusable_preparser()->logger();
-  function_scope->set_end_position(logger->end());
-  Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
-  total_preparse_skipped_ +=
-      function_scope->end_position() - function_scope->start_position();
-  *num_parameters = logger->num_parameters();
-  SkipFunctionLiterals(logger->num_inner_functions());
   return kLazyParsingComplete;
 }
 
