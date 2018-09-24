@@ -93,6 +93,9 @@
   'test-cpu-profiler/TracingCpuProfiler': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
 
+  # BUG(v8:8209). Flaky
+  'test-cpu-profiler/Issue1398': [SKIP],
+
   # BUG(7702). Flaky data race and other test failures.
   'test-cpu-profiler/MultipleProfilers': [SKIP],
 
@@ -204,8 +207,6 @@
   'test-cpu-profiler/TickEvents': [SKIP],
   # BUG(v8:6924). The test allocates a lot of memory.
   'test-api/NewStringRangeError': [PASS, NO_VARIANTS],
-  # BUG(v8:8209). Flaky
-  'test-cpu-profiler/Issue1398': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
