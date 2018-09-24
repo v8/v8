@@ -287,24 +287,34 @@ namespace internal {
   MUTABLE_ROOT_LIST(V) \
   STRONG_READ_ONLY_ROOT_LIST(V)
 
+// Adapts one INTERNALIZED_STRING_LIST_GENERATOR entry to
+// the ROOT_LIST-compatible entry
+#define INTERNALIZED_STRING_LIST_ADAPTER(V, name, ...) V(String, name, name)
+
+// Produces (String, name, CamelCase) entries
+#define INTERNALIZED_STRING_ROOT_LIST(V) \
+  INTERNALIZED_STRING_LIST_GENERATOR(INTERNALIZED_STRING_LIST_ADAPTER, V)
+
+// Adapts one XXX_SYMBOL_LIST_GENERATOR entry to the ROOT_LIST-compatible entry
+#define SYMBOL_LIST_ADAPTER(V, name, ...) V(Symbol, name, name)
+
+// Produces (Symbol, name, CamelCase) entries
+#define PRIVATE_SYMBOL_ROOT_LIST(V) \
+  PRIVATE_SYMBOL_LIST_GENERATOR(SYMBOL_LIST_ADAPTER, V)
+#define PUBLIC_SYMBOL_ROOT_LIST(V) \
+  PUBLIC_SYMBOL_LIST_GENERATOR(SYMBOL_LIST_ADAPTER, V)
+#define WELL_KNOWN_SYMBOL_ROOT_LIST(V) \
+  WELL_KNOWN_SYMBOL_LIST_GENERATOR(SYMBOL_LIST_ADAPTER, V)
+
 // Declare all the root indices.  This defines the root list order.
 // clang-format off
 enum class RootIndex {
 #define DECL(type, name, CamelName) k##CamelName,
   STRONG_ROOT_LIST(DECL)
-#undef DECL
-
-#define DECL(name, str) k##name,
-  INTERNALIZED_STRING_LIST(DECL)
-#undef DECL
-
-#define DECL(name) k##name,
-  PRIVATE_SYMBOL_LIST(DECL)
-#undef DECL
-
-#define DECL(name, description) k##name,
-  PUBLIC_SYMBOL_LIST(DECL)
-  WELL_KNOWN_SYMBOL_LIST(DECL)
+  INTERNALIZED_STRING_ROOT_LIST(DECL)
+  PRIVATE_SYMBOL_ROOT_LIST(DECL)
+  PUBLIC_SYMBOL_ROOT_LIST(DECL)
+  WELL_KNOWN_SYMBOL_ROOT_LIST(DECL)
 #undef DECL
 
 #define DECL(accessor_name, AccessorName, ...) k##AccessorName##Accessor,
@@ -390,27 +400,12 @@ class ReadOnlyRoots {
 #define ROOT_ACCESSOR(type, name, CamelName) \
   inline class type* name();                 \
   inline Handle<type> name##_handle();
+
   STRONG_READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
-
-#define STRING_ACCESSOR(name, str) \
-  inline String* name();           \
-  inline Handle<String> name##_handle();
-  INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
-#undef STRING_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name) \
-  inline Symbol* name();      \
-  inline Handle<Symbol> name##_handle();
-  PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name, description) \
-  inline Symbol* name();                   \
-  inline Handle<Symbol> name##_handle();
-  PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
-  WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
-
+  INTERNALIZED_STRING_ROOT_LIST(ROOT_ACCESSOR)
+  PRIVATE_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
+  PUBLIC_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
+  WELL_KNOWN_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
   STRUCT_MAPS_LIST(ROOT_ACCESSOR)
   ALLOCATION_SITE_MAPS_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR

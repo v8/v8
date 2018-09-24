@@ -3533,8 +3533,8 @@ bool Heap::RootIsImmortalImmovable(RootIndex root_index) {
 #define IMMORTAL_IMMOVABLE_ROOT(name) case RootIndex::k##name:
     IMMORTAL_IMMOVABLE_ROOT_LIST(IMMORTAL_IMMOVABLE_ROOT)
 #undef IMMORTAL_IMMOVABLE_ROOT
-#define INTERNALIZED_STRING(name, value) case RootIndex::k##name:
-    INTERNALIZED_STRING_LIST(INTERNALIZED_STRING)
+#define INTERNALIZED_STRING(_, name, value) case RootIndex::k##name:
+    INTERNALIZED_STRING_LIST_GENERATOR(INTERNALIZED_STRING, /* not used */)
 #undef INTERNALIZED_STRING
 #define STRING_TYPE(NAME, size, name, Name) case RootIndex::k##Name##Map:
     STRING_TYPE_LIST(STRING_TYPE)

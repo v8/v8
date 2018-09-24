@@ -24,42 +24,12 @@ ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate) : heap_(isolate->heap()) {}
     return Handle<type>(                                            \
         bit_cast<type**>(&heap_->roots_[RootIndex::k##CamelName])); \
   }
+
 STRONG_READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
-
-#define STRING_ACCESSOR(name, str)                               \
-  String* ReadOnlyRoots::name() {                                \
-    return String::cast(heap_->roots_[RootIndex::k##name]);      \
-  }                                                              \
-  Handle<String> ReadOnlyRoots::name##_handle() {                \
-    return Handle<String>(                                       \
-        bit_cast<String**>(&heap_->roots_[RootIndex::k##name])); \
-  }
-INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
-#undef STRING_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name)                                    \
-  Symbol* ReadOnlyRoots::name() {                                \
-    return Symbol::cast(heap_->roots_[RootIndex::k##name]);      \
-  }                                                              \
-  Handle<Symbol> ReadOnlyRoots::name##_handle() {                \
-    return Handle<Symbol>(                                       \
-        bit_cast<Symbol**>(&heap_->roots_[RootIndex::k##name])); \
-  }
-PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name, description)                       \
-  Symbol* ReadOnlyRoots::name() {                                \
-    return Symbol::cast(heap_->roots_[RootIndex::k##name]);      \
-  }                                                              \
-  Handle<Symbol> ReadOnlyRoots::name##_handle() {                \
-    return Handle<Symbol>(                                       \
-        bit_cast<Symbol**>(&heap_->roots_[RootIndex::k##name])); \
-  }
-PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
-WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
-
+INTERNALIZED_STRING_ROOT_LIST(ROOT_ACCESSOR)
+PRIVATE_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
+PUBLIC_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
+WELL_KNOWN_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
 STRUCT_MAPS_LIST(ROOT_ACCESSOR)
 ALLOCATION_SITE_MAPS_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR

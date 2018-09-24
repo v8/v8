@@ -16027,9 +16027,9 @@ bool JSObject::IsDroppableApiWrapper() {
 
 const char* Symbol::PrivateSymbolToName() const {
   ReadOnlyRoots roots = GetReadOnlyRoots();
-#define SYMBOL_CHECK_AND_PRINT(name) \
+#define SYMBOL_CHECK_AND_PRINT(_, name) \
   if (this == roots.name()) return #name;
-  PRIVATE_SYMBOL_LIST(SYMBOL_CHECK_AND_PRINT)
+  PRIVATE_SYMBOL_LIST_GENERATOR(SYMBOL_CHECK_AND_PRINT, /* not used */)
 #undef SYMBOL_CHECK_AND_PRINT
   return "UNKNOWN";
 }

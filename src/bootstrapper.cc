@@ -4026,17 +4026,17 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   Handle<NativeContext> native_context = isolate->native_context();
-#define EXPORT_PRIVATE_SYMBOL(NAME)                                       \
+#define EXPORT_PRIVATE_SYMBOL(_, NAME)                                    \
   Handle<String> NAME##_name = factory->NewStringFromAsciiChecked(#NAME); \
   JSObject::AddProperty(isolate, container, NAME##_name, factory->NAME(), NONE);
-  PRIVATE_SYMBOL_LIST(EXPORT_PRIVATE_SYMBOL)
+  PRIVATE_SYMBOL_LIST_GENERATOR(EXPORT_PRIVATE_SYMBOL, /* not used */)
 #undef EXPORT_PRIVATE_SYMBOL
 
-#define EXPORT_PUBLIC_SYMBOL(NAME, DESCRIPTION)                           \
+#define EXPORT_PUBLIC_SYMBOL(_, NAME, DESCRIPTION)                        \
   Handle<String> NAME##_name = factory->NewStringFromAsciiChecked(#NAME); \
   JSObject::AddProperty(isolate, container, NAME##_name, factory->NAME(), NONE);
-  PUBLIC_SYMBOL_LIST(EXPORT_PUBLIC_SYMBOL)
-  WELL_KNOWN_SYMBOL_LIST(EXPORT_PUBLIC_SYMBOL)
+  PUBLIC_SYMBOL_LIST_GENERATOR(EXPORT_PUBLIC_SYMBOL, /* not used */)
+  WELL_KNOWN_SYMBOL_LIST_GENERATOR(EXPORT_PUBLIC_SYMBOL, /* not used */)
 #undef EXPORT_PUBLIC_SYMBOL
 
   Handle<JSObject> iterator_prototype(

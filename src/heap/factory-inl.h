@@ -25,32 +25,11 @@ ROOT_LIST(ROOT_ACCESSOR)
 STRUCT_MAPS_LIST(ROOT_ACCESSOR)
 ALLOCATION_SITE_MAPS_LIST(ROOT_ACCESSOR)
 DATA_HANDLER_MAPS_LIST(ROOT_ACCESSOR)
+INTERNALIZED_STRING_ROOT_LIST(ROOT_ACCESSOR)
+PRIVATE_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
+PUBLIC_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
+WELL_KNOWN_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
-
-#define STRING_ACCESSOR(name, str)                                           \
-  Handle<String> Factory::name() {                                           \
-    return Handle<String>(                                                   \
-        bit_cast<String**>(&isolate()->heap()->roots_[RootIndex::k##name])); \
-  }
-INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
-#undef STRING_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name)                                                \
-  Handle<Symbol> Factory::name() {                                           \
-    return Handle<Symbol>(                                                   \
-        bit_cast<Symbol**>(&isolate()->heap()->roots_[RootIndex::k##name])); \
-  }
-PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
-
-#define SYMBOL_ACCESSOR(name, description)                                   \
-  Handle<Symbol> Factory::name() {                                           \
-    return Handle<Symbol>(                                                   \
-        bit_cast<Symbol**>(&isolate()->heap()->roots_[RootIndex::k##name])); \
-  }
-PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
-WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
 
 #define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName, ...)            \
   Handle<AccessorInfo> Factory::accessor_name##_accessor() {                \

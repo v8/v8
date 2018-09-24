@@ -65,8 +65,9 @@ const Heap::StringTypeTable Heap::string_type_table[] = {
 
 const Heap::ConstantStringTable Heap::constant_string_table[] = {
     {"", RootIndex::kempty_string},
-#define CONSTANT_STRING_ELEMENT(name, contents) {contents, RootIndex::k##name},
-    INTERNALIZED_STRING_LIST(CONSTANT_STRING_ELEMENT)
+#define CONSTANT_STRING_ELEMENT(_, name, contents) \
+  {contents, RootIndex::k##name},
+    INTERNALIZED_STRING_LIST_GENERATOR(CONSTANT_STRING_ELEMENT, /* not used */)
 #undef CONSTANT_STRING_ELEMENT
 };
 
@@ -697,35 +698,35 @@ void Heap::CreateInitialObjects() {
 
   {
     HandleScope scope(isolate());
-#define SYMBOL_INIT(name)                                           \
+#define SYMBOL_INIT(_, name)                                        \
   {                                                                 \
     Handle<Symbol> symbol(                                          \
         isolate()->factory()->NewPrivateSymbol(TENURED_READ_ONLY)); \
     roots_[RootIndex::k##name] = *symbol;                           \
   }
-    PRIVATE_SYMBOL_LIST(SYMBOL_INIT)
+    PRIVATE_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
   }
 
   {
     HandleScope scope(isolate());
-#define SYMBOL_INIT(name, description)                                    \
+#define SYMBOL_INIT(_, name, description)                                 \
   Handle<Symbol> name = factory->NewSymbol(TENURED_READ_ONLY);            \
   Handle<String> name##d =                                                \
       factory->NewStringFromStaticChars(#description, TENURED_READ_ONLY); \
   name->set_name(*name##d);                                               \
   roots_[RootIndex::k##name] = *name;
-    PUBLIC_SYMBOL_LIST(SYMBOL_INIT)
+    PUBLIC_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
 
-#define SYMBOL_INIT(name, description)                                    \
+#define SYMBOL_INIT(_, name, description)                                 \
   Handle<Symbol> name = factory->NewSymbol(TENURED_READ_ONLY);            \
   Handle<String> name##d =                                                \
       factory->NewStringFromStaticChars(#description, TENURED_READ_ONLY); \
   name->set_is_well_known_symbol(true);                                   \
   name->set_name(*name##d);                                               \
   roots_[RootIndex::k##name] = *name;
-    WELL_KNOWN_SYMBOL_LIST(SYMBOL_INIT)
+    WELL_KNOWN_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
 
     // Mark "Interesting Symbols" appropriately.

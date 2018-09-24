@@ -52,6 +52,10 @@ class JSArrayBuffer;
 class ExternalString;
 using v8::MemoryPressureLevel;
 
+// Adapts PRIVATE_SYMBOL_LIST_GERNATOR entry to IMMORTAL_IMMOVABLE_ROOT_LIST
+// entry
+#define PRIVATE_SYMBOL_LIST_TO_IMMORTAL_IMMOVABLE_LIST_ADAPTER(V, name) V(name)
+
 // Heap roots that are known to be immortal immovable, for which we can safely
 // skip write barriers. This list is not complete and has omissions.
 #define IMMORTAL_IMMOVABLE_ROOT_LIST(V)     \
@@ -164,7 +168,8 @@ using v8::MemoryPressureLevel;
   V(WeakArrayListMap)                       \
   V(WithContextMap)                         \
   V(empty_string)                           \
-  PRIVATE_SYMBOL_LIST(V)
+  PRIVATE_SYMBOL_LIST_GENERATOR(            \
+      PRIVATE_SYMBOL_LIST_TO_IMMORTAL_IMMOVABLE_LIST_ADAPTER, V)
 
 class AllocationObserver;
 class ArrayBufferCollector;

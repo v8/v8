@@ -18,8 +18,8 @@ AllocationSpace GetSpaceFromObject(Object* object) {
 }
 }  // namespace
 
-#define CHECK_IN_RO_SPACE(name)    \
-  HeapObject* name = roots.name(); \
+#define CHECK_IN_RO_SPACE(type, name, CamelName) \
+  HeapObject* name = roots.name();               \
   CHECK_EQ(RO_SPACE, GetSpaceFromObject(name));
 
 // The following tests check that all the roots accessible via ReadOnlyRoots are
@@ -27,48 +27,38 @@ AllocationSpace GetSpaceFromObject(Object* object) {
 TEST(TestStrongReadOnlyRoots) {
   ReadOnlyRoots roots(CcTest::i_isolate());
 
-#define TEST_ROOT(type, name, CamelName) CHECK_IN_RO_SPACE(name)
-  STRONG_READ_ONLY_ROOT_LIST(TEST_ROOT)
-#undef TEST_ROOT
+  STRONG_READ_ONLY_ROOT_LIST(CHECK_IN_RO_SPACE)
 }
 
 TEST(TestInternalizedStrings) {
   ReadOnlyRoots roots(CcTest::i_isolate());
 
-#define TEST_ROOT(name, str) CHECK_IN_RO_SPACE(name)
-  INTERNALIZED_STRING_LIST(TEST_ROOT)
-#undef TEST_ROOT
+  INTERNALIZED_STRING_ROOT_LIST(CHECK_IN_RO_SPACE)
 }
 
 TEST(TestPrivateSymbols) {
   ReadOnlyRoots roots(CcTest::i_isolate());
 
-  PRIVATE_SYMBOL_LIST(CHECK_IN_RO_SPACE)
+  PRIVATE_SYMBOL_ROOT_LIST(CHECK_IN_RO_SPACE)
 }
 
 TEST(TestPublicSymbols) {
   ReadOnlyRoots roots(CcTest::i_isolate());
 
-#define TEST_ROOT(name, description) CHECK_IN_RO_SPACE(name)
-  PUBLIC_SYMBOL_LIST(TEST_ROOT)
-  WELL_KNOWN_SYMBOL_LIST(TEST_ROOT)
-#undef TEST_ROOT
+  PUBLIC_SYMBOL_ROOT_LIST(CHECK_IN_RO_SPACE)
+  WELL_KNOWN_SYMBOL_ROOT_LIST(CHECK_IN_RO_SPACE)
 }
 
 TEST(TestStructMaps) {
   ReadOnlyRoots roots(CcTest::i_isolate());
 
-#define TEST_ROOT(NAME, Name, name) CHECK_IN_RO_SPACE(name##_map)
-  STRUCT_LIST(TEST_ROOT)
-#undef TEST_ROOT
+  STRUCT_MAPS_LIST(CHECK_IN_RO_SPACE)
 }
 
 TEST(TestAllocationSiteMaps) {
   ReadOnlyRoots roots(CcTest::i_isolate());
 
-#define TEST_ROOT(type, name, CamelName) CHECK_IN_RO_SPACE(name)
-  ALLOCATION_SITE_MAPS_LIST(TEST_ROOT)
-#undef TEST_ROOT
+  ALLOCATION_SITE_MAPS_LIST(CHECK_IN_RO_SPACE)
 }
 
 #undef CHECK_IN_RO_SPACE
