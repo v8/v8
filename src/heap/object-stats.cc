@@ -678,8 +678,6 @@ void ObjectStatsCollectorImpl::CollectStatistics(
         RecordVirtualContext(Context::cast(obj));
       } else if (obj->IsScript()) {
         RecordVirtualScriptDetails(Script::cast(obj));
-      } else if (obj->IsExternalString()) {
-        RecordVirtualExternalStringDetails(ExternalString::cast(obj));
       } else if (obj->IsArrayBoilerplateDescription()) {
         RecordVirtualArrayBoilerplateDescription(
             ArrayBoilerplateDescription::cast(obj));
@@ -689,6 +687,11 @@ void ObjectStatsCollectorImpl::CollectStatistics(
       }
       break;
     case kPhase2:
+      if (obj->IsExternalString()) {
+        // This has to be in Phase2 to avoid conflicting with recording Script
+        // sources. We still want to run RecordObjectStats after though.
+        RecordVirtualExternalStringDetails(ExternalString::cast(obj));
+      }
       RecordObjectStats(obj, map->instance_type(), obj->Size());
       if (collect_field_stats == CollectFieldStats::kYes) {
         field_stats_collector_.RecordStats(obj);
@@ -809,7 +812,7 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script* script) {
   } else if (raw_source->IsString()) {
     String* source = String::cast(raw_source);
     RecordSimpleVirtualObjectStats(
-        script, HeapObject::cast(raw_source),
+        script, source,
         source->IsOneByteRepresentation()
             ? ObjectStats::SCRIPT_SOURCE_NON_EXTERNAL_ONE_BYTE_TYPE
             : ObjectStats::SCRIPT_SOURCE_NON_EXTERNAL_TWO_BYTE_TYPE);
