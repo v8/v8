@@ -8096,7 +8096,7 @@ class V8_EXPORT Isolate {
   /**
    * Returns a memory range that can potentially contain jitted code. Code for
    * V8's 'builtins' will not be in this range if embedded builtins is enabled.
-   * Instead, see GetBuiltinsCodeRange.
+   * Instead, see GetEmbeddedCodeRange.
    *
    * On Win64, embedders are advised to install function table callbacks for
    * these ranges, as default SEH won't be able to unwind through jitted code.
@@ -8111,13 +8111,13 @@ class V8_EXPORT Isolate {
   void GetCodeRange(void** start, size_t* length_in_bytes);
 
   /**
-   * Returns a memory range containing the code for V8's builtin functions
-   * which are shared across isolates.
+   * Returns a memory range containing the code for V8's embedded functions
+   * (e.g. builtins) which are shared across isolates.
    *
    * If embedded builtins are disabled, then the memory range will be a null
    * pointer with 0 length.
    */
-  MemoryRange GetBuiltinsCodeRange();
+  MemoryRange GetEmbeddedCodeRange();
 
   /** Set the callback to invoke in case of fatal errors. */
   void SetFatalErrorHandler(FatalErrorCallback that);

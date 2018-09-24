@@ -28812,12 +28812,12 @@ TEST(TestSetWasmThreadsEnabledCallback) {
   CHECK(i_isolate->AreWasmThreadsEnabled(i_context));
 }
 
-TEST(TestGetBuiltinsCodeRange) {
+TEST(TestGetEmbeddedCodeRange) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
-  v8::MemoryRange builtins_range = isolate->GetBuiltinsCodeRange();
+  v8::MemoryRange builtins_range = isolate->GetEmbeddedCodeRange();
 
   // Check that each off-heap builtin is within the builtins code range.
   if (i::FLAG_embedded_builtins) {

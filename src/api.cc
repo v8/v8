@@ -8718,7 +8718,7 @@ void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
   *length_in_bytes = code_range.size();
 }
 
-MemoryRange Isolate::GetBuiltinsCodeRange() {
+MemoryRange Isolate::GetEmbeddedCodeRange() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   return {reinterpret_cast<const void*>(isolate->embedded_blob()),
           isolate->embedded_blob_size()};
