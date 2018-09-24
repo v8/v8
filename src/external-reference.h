@@ -133,6 +133,7 @@ class StatsCounter;
   V(orderedhashmap_gethash_raw, "orderedhashmap_gethash_raw")                 \
   V(power_double_double_function, "power_double_double_function")             \
   V(printf_function, "printf")                                                \
+  V(refill_math_random, "MathRandom::RefillCache")                            \
   V(store_buffer_overflow_function, "StoreBuffer::StoreBufferOverflow")       \
   V(search_string_raw_one_one, "search_string_raw_one_one")                   \
   V(search_string_raw_one_two, "search_string_raw_one_two")                   \

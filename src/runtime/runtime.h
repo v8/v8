@@ -256,8 +256,6 @@ namespace internal {
   F(CreateObjectLiteralWithoutAllocationSite, 2, 1) \
   F(CreateRegExpLiteral, 4, 1)
 
-#define FOR_EACH_INTRINSIC_MATHS(F) F(GenerateRandomNumbers, 0, 1)
-
 #define FOR_EACH_INTRINSIC_MODULE(F) \
   F(DynamicImportCall, 2, 1)         \
   F(GetImportMetaObject, 0, 1)       \
@@ -581,7 +579,6 @@ namespace internal {
   FOR_EACH_INTRINSIC_INTERPRETER(F)         \
   FOR_EACH_INTRINSIC_INTL(F)                \
   FOR_EACH_INTRINSIC_LITERALS(F)            \
-  FOR_EACH_INTRINSIC_MATHS(F)               \
   FOR_EACH_INTRINSIC_MODULE(F)              \
   FOR_EACH_INTRINSIC_NUMBERS(F)             \
   FOR_EACH_INTRINSIC_OBJECT(F)              \

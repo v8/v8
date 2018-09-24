@@ -233,7 +233,8 @@ enum ContextLookupFlags {
   V(MAP_KEY_VALUE_ITERATOR_MAP_INDEX, Map, map_key_value_iterator_map)         \
   V(MAP_VALUE_ITERATOR_MAP_INDEX, Map, map_value_iterator_map)                 \
   V(MATH_RANDOM_INDEX_INDEX, Smi, math_random_index)                           \
-  V(MATH_RANDOM_CACHE_INDEX, Object, math_random_cache)                        \
+  V(MATH_RANDOM_STATE_INDEX, ByteArray, math_random_state)                     \
+  V(MATH_RANDOM_CACHE_INDEX, FixedDoubleArray, math_random_cache)              \
   V(MESSAGE_LISTENERS_INDEX, TemplateList, message_listeners)                  \
   V(NATIVES_UTILS_OBJECT_INDEX, Object, natives_utils_object)                  \
   V(NORMALIZED_MAP_CACHE_INDEX, Object, normalized_map_cache)                  \

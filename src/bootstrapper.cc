@@ -19,6 +19,7 @@
 #include "src/extensions/trigger-failure-extension.h"
 #include "src/heap/heap.h"
 #include "src/isolate-inl.h"
+#include "src/math-random.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments.h"
 #include "src/objects/hash-table-inl.h"
@@ -5769,6 +5770,7 @@ Genesis::Genesis(
     DCHECK_EQ(0u, context_snapshot_index);
     // We get here if there was no context snapshot.
     CreateRoots();
+    MathRandom::InitializeContext(isolate, native_context());
     Handle<JSFunction> empty_function = CreateEmptyFunction();
     CreateSloppyModeFunctionMaps(empty_function);
     CreateStrictModeFunctionMaps(empty_function);
