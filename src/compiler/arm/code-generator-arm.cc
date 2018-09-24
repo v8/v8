@@ -436,15 +436,15 @@ void ComputePoisonedAddressForLoad(CodeGenerator* codegen,
     __ dmb(ISH);                                                       \
   } while (0)
 
-#define ASSEMBLE_ATOMIC64_LOGIC_BINOP(foo)                             \
+#define ASSEMBLE_ATOMIC64_LOGIC_BINOP(instr)                           \
   do {                                                                 \
     Label binop;                                                       \
     __ add(i.TempRegister(0), i.InputRegister(2), i.InputRegister(3)); \
     __ dmb(ISH);                                                       \
     __ bind(&binop);                                                   \
     __ ldrexd(r2, r3, i.TempRegister(0));                              \
-    __ foo(i.TempRegister(1), r2, Operand(i.InputRegister(0)));        \
-    __ foo(i.TempRegister(2), r3, Operand(i.InputRegister(1)));        \
+    __ instr(i.TempRegister(1), r2, Operand(i.InputRegister(0)));      \
+    __ instr(i.TempRegister(2), r3, Operand(i.InputRegister(1)));      \
     __ strexd(i.TempRegister(3), i.TempRegister(1), i.TempRegister(2), \
               i.TempRegister(0));                                      \
     __ teq(i.TempRegister(3), Operand(0));                             \
