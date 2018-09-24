@@ -18,35 +18,34 @@ namespace wasm_heap_unittest {
 class DisjointAllocationPoolTest : public ::testing::Test {
  public:
   Address A(size_t n) { return static_cast<Address>(n); }
-  void CheckLooksLike(const DisjointAllocationPool& mem,
-                      std::vector<std::pair<size_t, size_t>> expectation);
-  void CheckLooksLike(AddressRange range,
-                      std::pair<size_t, size_t> expectation);
-  DisjointAllocationPool Make(std::vector<std::pair<size_t, size_t>> model);
+  void CheckPool(const DisjointAllocationPool& mem,
+                 std::initializer_list<AddressRange> expected_ranges);
+  void CheckRange(AddressRange range1, AddressRange range2);
+  DisjointAllocationPool Make(std::initializer_list<AddressRange> ranges);
 };
 
-void DisjointAllocationPoolTest::CheckLooksLike(
+void DisjointAllocationPoolTest::CheckPool(
     const DisjointAllocationPool& mem,
-    std::vector<std::pair<size_t, size_t>> expectation) {
+    std::initializer_list<AddressRange> expected_ranges) {
   const auto& ranges = mem.ranges();
-  CHECK_EQ(ranges.size(), expectation.size());
-  auto iter = expectation.begin();
+  CHECK_EQ(ranges.size(), expected_ranges.size());
+  auto iter = expected_ranges.begin();
   for (auto it = ranges.begin(), e = ranges.end(); it != e; ++it, ++iter) {
-    CheckLooksLike(*it, *iter);
+    CHECK_EQ(*it, *iter);
   }
 }
 
-void DisjointAllocationPoolTest::CheckLooksLike(
-    AddressRange range, std::pair<size_t, size_t> expectation) {
-  CHECK_EQ(range.start, A(expectation.first));
-  CHECK_EQ(range.end, A(expectation.second));
+void DisjointAllocationPoolTest::CheckRange(AddressRange range1,
+                                            AddressRange range2) {
+  CHECK_EQ(range1.start, range2.start);
+  CHECK_EQ(range1.end, range2.end);
 }
 
 DisjointAllocationPool DisjointAllocationPoolTest::Make(
-    std::vector<std::pair<size_t, size_t>> model) {
+    std::initializer_list<AddressRange> ranges) {
   DisjointAllocationPool ret;
-  for (auto& pair : model) {
-    ret.Merge({A(pair.first), A(pair.second)});
+  for (auto& range : ranges) {
+    ret.Merge(range);
   }
   return ret;
 }
@@ -54,24 +53,24 @@ DisjointAllocationPool DisjointAllocationPoolTest::Make(
 TEST_F(DisjointAllocationPoolTest, ConstructEmpty) {
   DisjointAllocationPool a;
   CHECK(a.IsEmpty());
-  CheckLooksLike(a, {});
+  CheckPool(a, {});
   a.Merge({1, 5});
-  CheckLooksLike(a, {{1, 5}});
+  CheckPool(a, {{1, 5}});
 }
 
 TEST_F(DisjointAllocationPoolTest, ConstructWithRange) {
   DisjointAllocationPool a({1, 5});
   CHECK(!a.IsEmpty());
-  CheckLooksLike(a, {{1, 5}});
+  CheckPool(a, {{1, 5}});
 }
 
 TEST_F(DisjointAllocationPoolTest, SimpleExtract) {
   DisjointAllocationPool a = Make({{1, 5}});
   AddressRange b = a.Allocate(2);
-  CheckLooksLike(a, {{3, 5}});
-  CheckLooksLike(b, {1, 3});
+  CheckPool(a, {{3, 5}});
+  CheckRange(b, {1, 3});
   a.Merge(b);
-  CheckLooksLike(a, {{1, 5}});
+  CheckPool(a, {{1, 5}});
   CHECK_EQ(a.ranges().size(), 1);
   CHECK_EQ(a.ranges().front().start, A(1));
   CHECK_EQ(a.ranges().front().end, A(5));
@@ -80,64 +79,64 @@ TEST_F(DisjointAllocationPoolTest, SimpleExtract) {
 TEST_F(DisjointAllocationPoolTest, ExtractAll) {
   DisjointAllocationPool a({A(1), A(5)});
   AddressRange b = a.Allocate(4);
-  CheckLooksLike(b, {1, 5});
+  CheckRange(b, {1, 5});
   CHECK(a.IsEmpty());
   a.Merge(b);
-  CheckLooksLike(a, {{1, 5}});
+  CheckPool(a, {{1, 5}});
 }
 
 TEST_F(DisjointAllocationPoolTest, FailToExtract) {
   DisjointAllocationPool a = Make({{1, 5}});
   AddressRange b = a.Allocate(5);
-  CheckLooksLike(a, {{1, 5}});
+  CheckPool(a, {{1, 5}});
   CHECK(b.is_empty());
 }
 
 TEST_F(DisjointAllocationPoolTest, FailToExtractExact) {
   DisjointAllocationPool a = Make({{1, 5}, {10, 14}});
   AddressRange b = a.Allocate(5);
-  CheckLooksLike(a, {{1, 5}, {10, 14}});
+  CheckPool(a, {{1, 5}, {10, 14}});
   CHECK(b.is_empty());
 }
 
 TEST_F(DisjointAllocationPoolTest, ExtractExact) {
   DisjointAllocationPool a = Make({{1, 5}, {10, 15}});
   AddressRange b = a.Allocate(5);
-  CheckLooksLike(a, {{1, 5}});
-  CheckLooksLike(b, {10, 15});
+  CheckPool(a, {{1, 5}});
+  CheckRange(b, {10, 15});
 }
 
 TEST_F(DisjointAllocationPoolTest, Merging) {
   DisjointAllocationPool a = Make({{10, 15}, {20, 25}});
   a.Merge({15, 20});
-  CheckLooksLike(a, {{10, 25}});
+  CheckPool(a, {{10, 25}});
 }
 
 TEST_F(DisjointAllocationPoolTest, MergingMore) {
   DisjointAllocationPool a = Make({{10, 15}, {20, 25}, {30, 35}});
   a.Merge({15, 20});
   a.Merge({25, 30});
-  CheckLooksLike(a, {{10, 35}});
+  CheckPool(a, {{10, 35}});
 }
 
 TEST_F(DisjointAllocationPoolTest, MergingSkip) {
   DisjointAllocationPool a = Make({{10, 15}, {20, 25}, {30, 35}});
   a.Merge({25, 30});
-  CheckLooksLike(a, {{10, 15}, {20, 35}});
+  CheckPool(a, {{10, 15}, {20, 35}});
 }
 
 TEST_F(DisjointAllocationPoolTest, MergingSkipLargerSrc) {
   DisjointAllocationPool a = Make({{10, 15}, {20, 25}, {30, 35}});
   a.Merge({25, 30});
   a.Merge({35, 40});
-  CheckLooksLike(a, {{10, 15}, {20, 40}});
+  CheckPool(a, {{10, 15}, {20, 40}});
 }
 
 TEST_F(DisjointAllocationPoolTest, MergingSkipLargerSrcWithGap) {
   DisjointAllocationPool a = Make({{10, 15}, {20, 25}, {30, 35}});
   a.Merge({25, 30});
   a.Merge({36, 40});
-  CheckLooksLike(a, {{10, 15}, {20, 35}, {36, 40}});
+  CheckPool(a, {{10, 15}, {20, 35}, {36, 40}});
 }
 
 enum ModuleStyle : int { Fixed = 0, Growable = 1 };
