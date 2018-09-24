@@ -774,9 +774,6 @@ class Heap {
 // Heap root getters.
 #define ROOT_ACCESSOR(type, name, CamelName) inline type* name();
   MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
-
-  DATA_HANDLER_MAPS_LIST(ROOT_ACCESSOR)
-  ACCESSOR_INFO_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
   Object* root(RootIndex index) { return roots_[index]; }

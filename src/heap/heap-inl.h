@@ -58,8 +58,6 @@ HeapObject* AllocationResult::ToObjectChecked() {
 #define ROOT_ACCESSOR(type, name, CamelName) \
   type* Heap::name() { return type::cast(roots_[RootIndex::k##CamelName]); }
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
-DATA_HANDLER_MAPS_LIST(ROOT_ACCESSOR)
-ACCESSOR_INFO_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
 #define ROOT_ACCESSOR(type, name, CamelName)                                   \

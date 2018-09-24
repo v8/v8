@@ -32,8 +32,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(PromiseSpeciesProtector, promise_species_protector,                    \
     PromiseSpeciesProtector)                                               \
   V(TypedArraySpeciesProtector, typed_array_species_protector,             \
-    TypedArraySpeciesProtector)                                            \
-  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)
+    TypedArraySpeciesProtector)
 
 #define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                              \
   V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                     \
@@ -70,6 +69,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(PreParsedScopeDataMap, pre_parsed_scope_data_map, PreParsedScopeDataMap) \
   V(prototype_string, prototype_string, PrototypeString)                     \
   V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)  \
+  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                  \
   V(SymbolMap, symbol_map, SymbolMap)                                        \
   V(TheHoleValue, the_hole_value, TheHole)                                   \
   V(TransitionArrayMap, transition_array_map, TransitionArrayMap)            \

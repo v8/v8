@@ -24,41 +24,10 @@ AllocationSpace GetSpaceFromObject(Object* object) {
 
 // The following tests check that all the roots accessible via ReadOnlyRoots are
 // in RO_SPACE.
-TEST(TestStrongReadOnlyRoots) {
+TEST(TestReadOnlyRoots) {
   ReadOnlyRoots roots(CcTest::i_isolate());
 
-  STRONG_READ_ONLY_ROOT_LIST(CHECK_IN_RO_SPACE)
-}
-
-TEST(TestInternalizedStrings) {
-  ReadOnlyRoots roots(CcTest::i_isolate());
-
-  INTERNALIZED_STRING_ROOT_LIST(CHECK_IN_RO_SPACE)
-}
-
-TEST(TestPrivateSymbols) {
-  ReadOnlyRoots roots(CcTest::i_isolate());
-
-  PRIVATE_SYMBOL_ROOT_LIST(CHECK_IN_RO_SPACE)
-}
-
-TEST(TestPublicSymbols) {
-  ReadOnlyRoots roots(CcTest::i_isolate());
-
-  PUBLIC_SYMBOL_ROOT_LIST(CHECK_IN_RO_SPACE)
-  WELL_KNOWN_SYMBOL_ROOT_LIST(CHECK_IN_RO_SPACE)
-}
-
-TEST(TestStructMaps) {
-  ReadOnlyRoots roots(CcTest::i_isolate());
-
-  STRUCT_MAPS_LIST(CHECK_IN_RO_SPACE)
-}
-
-TEST(TestAllocationSiteMaps) {
-  ReadOnlyRoots roots(CcTest::i_isolate());
-
-  ALLOCATION_SITE_MAPS_LIST(CHECK_IN_RO_SPACE)
+  READ_ONLY_ROOT_LIST(CHECK_IN_RO_SPACE)
 }
 
 #undef CHECK_IN_RO_SPACE
@@ -105,13 +74,6 @@ TEST(TestHeapRootsNotReadOnly) {
   Heap* heap = CcTest::i_isolate()->heap();
 
   MUTABLE_ROOT_LIST(CHECK_NOT_IN_RO_SPACE)
-}
-
-TEST(TestAccessorInfosNotReadOnly) {
-  Factory* factory = CcTest::i_isolate()->factory();
-  Heap* heap = CcTest::i_isolate()->heap();
-
-  ACCESSOR_INFO_ROOT_LIST(CHECK_NOT_IN_RO_SPACE)
 }
 
 #undef CHECK_NOT_IN_RO_SPACE

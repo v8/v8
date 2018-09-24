@@ -43,7 +43,7 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 #define RO_ROOT_LIST_CASE(type, name, CamelName) \
   if (n == NULL && o == roots.name()) n = #CamelName;
-#define ROOT_LIST_CASE(type, name, CamelName) \
+#define MUTABLE_ROOT_LIST_CASE(type, name, CamelName) \
   if (n == NULL && o == space->heap()->name()) n = #CamelName;
 static void DumpMaps(i::PagedSpace* space) {
   i::HeapObjectIterator it(space);
@@ -54,17 +54,15 @@ static void DumpMaps(i::PagedSpace* space) {
     const char* n = nullptr;
     intptr_t p = reinterpret_cast<intptr_t>(m) & 0x7FFFF;
     int t = m->instance_type();
-    STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
-    MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
-    STRUCT_MAPS_LIST(RO_ROOT_LIST_CASE)
-    ALLOCATION_SITE_MAPS_LIST(RO_ROOT_LIST_CASE)
+    READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
+    MUTABLE_ROOT_LIST(MUTABLE_ROOT_LIST_CASE)
     if (n == nullptr) continue;
     const char* sname = space->name();
     i::PrintF("  (\"%s\", 0x%05" V8PRIxPTR "): (%d, \"%s\"),\n", sname, p, t,
               n);
   }
 }
-#undef ROOT_LIST_CASE
+#undef MUTABLE_ROOT_LIST_CASE
 #undef RO_ROOT_LIST_CASE
 
 static int DumpHeapConstants(const char* argv0) {

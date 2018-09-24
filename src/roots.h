@@ -258,10 +258,6 @@ namespace internal {
   V(Code, js_construct_entry_code, JsConstructEntryCode)                     \
   V(Code, js_run_microtasks_entry_code, JsRunMicrotasksEntryCode)
 
-#define STRONG_ROOT_LIST(V)     \
-  STRONG_READ_ONLY_ROOT_LIST(V) \
-  STRONG_MUTABLE_ROOT_LIST(V)
-
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
   V(Smi, stack_limit, StackLimit)                                              \
@@ -277,15 +273,6 @@ namespace internal {
   V(Smi, construct_stub_invoke_deopt_pc_offset,                                \
     ConstructStubInvokeDeoptPCOffset)                                          \
   V(Smi, interpreter_entry_return_pc_offset, InterpreterEntryReturnPCOffset)
-
-#define MUTABLE_ROOT_LIST(V)  \
-  STRONG_MUTABLE_ROOT_LIST(V) \
-  SMI_ROOT_LIST(V)            \
-  V(StringTable, string_table, StringTable)
-
-#define ROOT_LIST(V)   \
-  MUTABLE_ROOT_LIST(V) \
-  STRONG_READ_ONLY_ROOT_LIST(V)
 
 // Adapts one INTERNALIZED_STRING_LIST_GENERATOR entry to
 // the ROOT_LIST-compatible entry
@@ -315,25 +302,31 @@ namespace internal {
 #define ACCESSOR_INFO_ROOT_LIST(V) \
   ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_ROOT_LIST_ADAPTER, V)
 
+#define READ_ONLY_ROOT_LIST(V)     \
+  STRONG_READ_ONLY_ROOT_LIST(V)    \
+  INTERNALIZED_STRING_ROOT_LIST(V) \
+  PRIVATE_SYMBOL_ROOT_LIST(V)      \
+  PUBLIC_SYMBOL_ROOT_LIST(V)       \
+  WELL_KNOWN_SYMBOL_ROOT_LIST(V)   \
+  STRUCT_MAPS_LIST(V)              \
+  ALLOCATION_SITE_MAPS_LIST(V)     \
+  DATA_HANDLER_MAPS_LIST(V)
+
+#define MUTABLE_ROOT_LIST(V)                \
+  STRONG_MUTABLE_ROOT_LIST(V)               \
+  ACCESSOR_INFO_ROOT_LIST(V)                \
+  V(StringTable, string_table, StringTable) \
+  SMI_ROOT_LIST(V)
+
+#define ROOT_LIST(V)     \
+  READ_ONLY_ROOT_LIST(V) \
+  MUTABLE_ROOT_LIST(V)
+
 // Declare all the root indices.  This defines the root list order.
 // clang-format off
 enum class RootIndex {
 #define DECL(type, name, CamelName) k##CamelName,
-  STRONG_ROOT_LIST(DECL)
-  INTERNALIZED_STRING_ROOT_LIST(DECL)
-  PRIVATE_SYMBOL_ROOT_LIST(DECL)
-  PUBLIC_SYMBOL_ROOT_LIST(DECL)
-  WELL_KNOWN_SYMBOL_ROOT_LIST(DECL)
-  ACCESSOR_INFO_ROOT_LIST(DECL)
-  STRUCT_MAPS_LIST(DECL)
-  ALLOCATION_SITE_MAPS_LIST(DECL)
-  DATA_HANDLER_MAPS_LIST(DECL)
-#undef DECL
-
-  kStringTable,
-
-#define DECL(type, name, CamelName) k##CamelName,
-  SMI_ROOT_LIST(DECL)
+  ROOT_LIST(DECL)
 #undef DECL
 
   kRootListLength,
@@ -404,13 +397,7 @@ class ReadOnlyRoots {
   inline class type* name();                 \
   inline Handle<type> name##_handle();
 
-  STRONG_READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
-  INTERNALIZED_STRING_ROOT_LIST(ROOT_ACCESSOR)
-  PRIVATE_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
-  PUBLIC_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
-  WELL_KNOWN_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
-  STRUCT_MAPS_LIST(ROOT_ACCESSOR)
-  ALLOCATION_SITE_MAPS_LIST(ROOT_ACCESSOR)
+  READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
   inline FixedTypedArrayBase* EmptyFixedTypedArrayForMap(const Map* map);
