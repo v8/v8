@@ -1361,6 +1361,8 @@ namespace internal {
   CPP(DateTimeFormatPrototypeFormat)                                   \
   /* ecma402 #sec-intl.datetimeformat.prototype.formattoparts */       \
   CPP(DateTimeFormatPrototypeFormatToParts)                            \
+  /* ecma402 #sec-intl.datetimeformat.prototype.resolvedoptions */     \
+  CPP(DateTimeFormatPrototypeResolvedOptions)                          \
   /* ecma402 #sec-intl.datetimeformat.supportedlocalesof */            \
   CPP(DateTimeFormatSupportedLocalesOf)                                \
   /* ecma402 #sec-intl-listformat-constructor */                       \

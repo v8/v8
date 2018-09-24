@@ -32,7 +32,7 @@ class JSDateTimeFormat : public JSObject {
       Handle<JSDateTimeFormat> date_time_format);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolvedOptions(
-      Isolate* isolate, Handle<JSReceiver> format_holder);
+      Isolate* isolate, Handle<JSDateTimeFormat> date_time_format);
 
   // ecma402/#sec-unwrapdatetimeformat
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSDateTimeFormat>

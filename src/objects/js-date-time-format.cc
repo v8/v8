@@ -293,14 +293,8 @@ std::string JSDateTimeFormat::CanonicalizeTimeZoneID(Isolate* isolate,
 }
 
 MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
-    Isolate* isolate, Handle<JSReceiver> format_holder) {
+    Isolate* isolate, Handle<JSDateTimeFormat> date_time_format) {
   Factory* factory = isolate->factory();
-  // 3. Let dtf be ? UnwrapDateTimeFormat(dtf).
-  Handle<JSDateTimeFormat> format;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, format,
-      JSDateTimeFormat::UnwrapDateTimeFormat(isolate, format_holder), JSObject);
-
   // 4. Let options be ! ObjectCreate(%ObjectPrototype%).
   Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
 
@@ -309,12 +303,13 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   Handle<Object> resolved_obj;
 
   // locale
-  Handle<String> locale(format->locale(), isolate);
+  Handle<String> locale(date_time_format->locale(), isolate);
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->locale_string(), locale, kDontThrow)
             .FromJust());
 
-  icu::SimpleDateFormat* icu_simple_date_format = UnpackDateFormat(format);
+  icu::SimpleDateFormat* icu_simple_date_format =
+      UnpackDateFormat(date_time_format);
   // calendar
   const icu::Calendar* calendar = icu_simple_date_format->getCalendar();
   // getType() returns legacy calendar type name instead of LDML/BCP47 calendar
@@ -338,8 +333,9 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
             .FromJust());
 
   // numberingSystem
-  if (format->numbering_system()->IsString()) {
-    Handle<String> numbering_system(format->numbering_system(), isolate);
+  if (date_time_format->numbering_system()->IsString()) {
+    Handle<String> numbering_system(date_time_format->numbering_system(),
+                                    isolate);
     CHECK(JSReceiver::CreateDataProperty(isolate, options,
                                          factory->numberingSystem_string(),
                                          numbering_system, kDontThrow)
@@ -386,7 +382,6 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   std::string pattern;
   pattern_unicode.toUTF8String(pattern);
   SetPropertyFromPattern(isolate, pattern, options);
-
   return options;
 }
 

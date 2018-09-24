@@ -186,6 +186,21 @@ BUILTIN(NumberFormatPrototypeFormatToParts) {
                                         isolate, number_format, x->Number()));
 }
 
+BUILTIN(DateTimeFormatPrototypeResolvedOptions) {
+  const char* const method = "Intl.DateTimeFormat.prototype.resolvedOptions";
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSReceiver, format_holder, method);
+
+  // 3. Let dtf be ? UnwrapDateTimeFormat(dtf).
+  Handle<JSDateTimeFormat> date_time_format;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, date_time_format,
+      JSDateTimeFormat::UnwrapDateTimeFormat(isolate, format_holder));
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSDateTimeFormat::ResolvedOptions(isolate, date_time_format));
+}
+
 BUILTIN(DateTimeFormatSupportedLocalesOf) {
   HandleScope scope(isolate);
   RETURN_RESULT_OR_FAILURE(

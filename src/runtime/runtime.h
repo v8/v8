@@ -192,7 +192,6 @@ namespace internal {
   F(AvailableLocalesOf, 1, 1)                \
   F(CanonicalizeLanguageTag, 1, 1)           \
   F(DateCacheVersion, 0, 1)                  \
-  F(DateTimeFormatResolvedOptions, 1, 1)     \
   F(FormatList, 2, 1)                        \
   F(FormatListToParts, 2, 1)                 \
   F(GetDefaultICULocale, 0, 1)               \

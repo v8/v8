@@ -110,27 +110,6 @@ RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
       Intl::DefaultLocale(isolate).c_str());
 }
 
-// ecma402/#sec-intl.datetimeformat.prototype.resolvedoptions
-RUNTIME_FUNCTION(Runtime_DateTimeFormatResolvedOptions) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  // 1. Let dtf be this value.
-  CONVERT_ARG_HANDLE_CHECKED(Object, dtf, 0);
-
-  // 2. If Type(dtf) is not Object, throw a TypeError exception.
-  if (!dtf->IsJSReceiver()) {
-    Handle<String> method_str = isolate->factory()->NewStringFromStaticChars(
-        "Intl.DateTimeFormat.prototype.resolvedOptions");
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                              method_str, dtf));
-  }
-  Handle<JSReceiver> format_holder = Handle<JSReceiver>::cast(dtf);
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSDateTimeFormat::ResolvedOptions(isolate, format_holder));
-}
-
 RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);

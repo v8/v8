@@ -384,16 +384,6 @@ DEFINE_METHOD(
   }
 );
 
-/**
- * DateTimeFormat resolvedOptions method.
- */
-DEFINE_METHOD(
-  GlobalIntlDateTimeFormat.prototype,
-  resolvedOptions() {
-    return %DateTimeFormatResolvedOptions(this);
-  }
-);
-
 // Save references to Intl objects and methods we use, for added security.
 var savedObjects = {
   __proto__: null,
