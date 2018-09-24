@@ -52,6 +52,8 @@ class CallFrequency final {
     return bit_cast<uint32_t>(f.value_);
   }
 
+  static constexpr float kNoFeedbackCallFrequency = -1;
+
  private:
   float value_;
 };
