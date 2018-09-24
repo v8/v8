@@ -9,6 +9,7 @@
 #include "src/base/optional.h"
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/objects/builtin-function-id.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

@@ -2184,6 +2184,7 @@ v8_source_set("v8_base") {
     "src/objects/arguments.h",
     "src/objects/bigint.cc",
     "src/objects/bigint.h",
+    "src/objects/builtin-function-id.h",
     "src/objects/code-inl.h",
     "src/objects/code.h",
     "src/objects/compilation-cache-inl.h",

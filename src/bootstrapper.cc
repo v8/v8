@@ -22,6 +22,7 @@
 #include "src/math-random.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments.h"
+#include "src/objects/builtin-function-id.h"
 #include "src/objects/hash-table-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"

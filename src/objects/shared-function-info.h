@@ -7,6 +7,7 @@
 
 #include "src/bailout-reason.h"
 #include "src/objects.h"
+#include "src/objects/builtin-function-id.h"
 #include "src/objects/script.h"
 
 // Has to be the last include (doesn't have include guards):

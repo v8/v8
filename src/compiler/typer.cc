@@ -19,6 +19,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
 #include "src/objects-inl.h"
+#include "src/objects/builtin-function-id.h"
 
 namespace v8 {
 namespace internal {
