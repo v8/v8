@@ -245,6 +245,8 @@ class ParserBase {
       ExpressionClassifier;
   typedef typename Types::FuncNameInferrer FuncNameInferrer;
   typedef typename Types::FuncNameInferrer::State FuncNameInferrerState;
+  typedef typename Types::SourceRange SourceRange;
+  typedef typename Types::SourceRangeScope SourceRangeScope;
 
   // All implementation-specific methods must be called through this.
   Impl* impl() { return static_cast<Impl*>(this); }
@@ -3158,10 +3160,6 @@ ParserBase<Impl>::ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
       right_range_scope.Finalize();
       ValidateExpression(CHECK_OK);
 
-      if (impl()->ShortcutNumericLiteralBinaryExpression(&x, y, op, pos)) {
-        continue;
-      }
-
       // For now we distinguish between comparisons and other binary
       // operations.  (We could combine the two and get rid of this
       // code and AST node eventually.)
@@ -3178,9 +3176,9 @@ ParserBase<Impl>::ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
           // The comparison was negated - add a NOT.
           x = factory()->NewUnaryOperation(Token::NOT, x, pos);
         }
-      } else if (impl()->CollapseNaryExpression(&x, y, op, pos, right_range)) {
-        continue;
-      } else {
+      } else if (!impl()->ShortcutNumericLiteralBinaryExpression(&x, y, op,
+                                                                 pos) &&
+                 !impl()->CollapseNaryExpression(&x, y, op, pos, right_range)) {
         // We have a "normal" binary operation.
         x = factory()->NewBinaryOperation(op, x, y, pos);
         if (op == Token::OR || op == Token::AND) {
@@ -5283,9 +5281,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseIfStatement(
 
   StatementT else_statement = impl()->NullStatement();
   if (Check(Token::ELSE)) {
-    else_range = SourceRange::ContinuationOf(then_range);
     else_statement = ParseScopedStatement(labels, CHECK_OK);
-    else_range.end = end_position();
+    else_range = SourceRange::ContinuationOf(then_range, end_position());
   } else {
     else_statement = factory()->NewEmptyStatement(kNoSourcePosition);
   }

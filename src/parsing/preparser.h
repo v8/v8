@@ -885,9 +885,9 @@ class PreParserTargetScope {
 class PreParserFuncNameInferrer {
  public:
   PreParserFuncNameInferrer(AstValueFactory* avf, Zone* zone) {}
-  void RemoveAsyncKeywordFromEnd() {}
-  void Infer() {}
-  void RemoveLastFunction() {}
+  void RemoveAsyncKeywordFromEnd() const {}
+  void Infer() const {}
+  void RemoveLastFunction() const {}
 
   class State {
    public:
@@ -899,6 +899,29 @@ class PreParserFuncNameInferrer {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(PreParserFuncNameInferrer);
+};
+
+class PreParserSourceRange {
+ public:
+  PreParserSourceRange() {}
+  PreParserSourceRange(int start, int end) {}
+  static PreParserSourceRange Empty() { return PreParserSourceRange(); }
+  static PreParserSourceRange OpenEnded(int32_t start) { return Empty(); }
+  static const PreParserSourceRange& ContinuationOf(
+      const PreParserSourceRange& that, int end) {
+    return that;
+  }
+};
+
+class PreParserSourceRangeScope {
+ public:
+  PreParserSourceRangeScope(Scanner* scanner, PreParserSourceRange* range) {}
+  const PreParserSourceRange& Finalize() const { return range_; }
+
+ private:
+  PreParserSourceRange range_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PreParserSourceRangeScope);
 };
 
 template <>
@@ -931,6 +954,8 @@ struct ParserTypes<PreParser> {
   typedef PreParserTarget Target;
   typedef PreParserTargetScope TargetScope;
   typedef PreParserFuncNameInferrer FuncNameInferrer;
+  typedef PreParserSourceRange SourceRange;
+  typedef PreParserSourceRangeScope SourceRangeScope;
 };
 
 

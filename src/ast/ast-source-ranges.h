@@ -21,8 +21,9 @@ struct SourceRange {
   static SourceRange OpenEnded(int32_t start) {
     return SourceRange(start, kNoSourcePosition);
   }
-  static SourceRange ContinuationOf(const SourceRange& that) {
-    return that.IsEmpty() ? Empty() : OpenEnded(that.end);
+  static SourceRange ContinuationOf(const SourceRange& that,
+                                    int end = kNoSourcePosition) {
+    return that.IsEmpty() ? Empty() : SourceRange(that.end, end);
   }
   int32_t start, end;
 };

@@ -136,6 +136,8 @@ struct ParserTypes<Parser> {
   typedef v8::internal::ForStatement* ForStatement;
   typedef v8::internal::IterationStatement* IterationStatement;
   typedef v8::internal::FuncNameInferrer FuncNameInferrer;
+  typedef v8::internal::SourceRange SourceRange;
+  typedef v8::internal::SourceRangeScope SourceRangeScope;
 
   // For constructing objects returned by the traversing functions.
   typedef AstNodeFactory Factory;
