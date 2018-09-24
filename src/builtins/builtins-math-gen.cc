@@ -413,16 +413,7 @@ TF_BUILTIN(MathRandom, CodeStubAssembler) {
   GotoIf(SmiAbove(smi_index.value(), SmiConstant(0)), &if_cached);
 
   // Cache exhausted, populate the cache. Return value is the new index.
-  Node* const refill_math_random =
-      ExternalConstant(ExternalReference::refill_math_random());
-  Node* const isolate_ptr =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
-  MachineType type_tagged = MachineType::AnyTagged();
-  MachineType type_ptr = MachineType::Pointer();
-
-  smi_index =
-      CAST(CallCFunction2(type_tagged, type_ptr, type_tagged,
-                          refill_math_random, isolate_ptr, native_context));
+  smi_index = CAST(CallRuntime(Runtime::kGenerateRandomNumbers, context));
   Goto(&if_cached);
 
   // Compute next index by decrement.
