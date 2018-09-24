@@ -1127,8 +1127,13 @@ class ParserBase {
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
   ExpressionT ParseYieldExpression(bool accept_IN, bool* ok);
   V8_INLINE ExpressionT ParseConditionalExpression(bool accept_IN, bool* ok);
+  ExpressionT ParseConditionalContinuation(ExpressionT expression,
+                                           bool accept_IN, int pos, bool* ok);
   ExpressionT ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
-  ExpressionT ParseUnaryExpression(bool* ok);
+  ExpressionT ParseUnaryOpExpression(bool* ok);
+  ExpressionT ParseAwaitExpression(bool* ok);
+  ExpressionT ParsePrefixExpression(bool* ok);
+  V8_INLINE ExpressionT ParseUnaryExpression(bool* ok);
   V8_INLINE ExpressionT ParsePostfixExpression(bool* ok);
   V8_INLINE ExpressionT ParseLeftHandSideExpression(bool* ok);
   ExpressionT ParseMemberWithPresentNewPrefixesExpression(bool* is_async,
@@ -3081,11 +3086,21 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
   //   LogicalOrExpression
   //   LogicalOrExpression '?' AssignmentExpression ':' AssignmentExpression
 
-  SourceRange then_range, else_range;
   int pos = peek_position();
   // We start using the binary expression parser for prec >= 4 only!
   ExpressionT expression = ParseBinaryExpression(4, accept_IN, CHECK_OK);
-  if (peek() != Token::CONDITIONAL) return expression;
+  if (peek() == Token::CONDITIONAL) {
+    return ParseConditionalContinuation(expression, accept_IN, pos, CHECK_OK);
+  }
+  return expression;
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseConditionalContinuation(ExpressionT expression,
+                                               bool accept_IN, int pos,
+                                               bool* ok) {
+  SourceRange then_range, else_range;
   ValidateExpression(CHECK_OK);
   BindingPatternUnexpectedToken();
   ArrowFormalParametersUnexpectedToken();
@@ -3176,6 +3191,87 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
 }
 
 template <typename Impl>
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryOpExpression(
+    bool* ok) {
+  BindingPatternUnexpectedToken();
+  ArrowFormalParametersUnexpectedToken();
+
+  Token::Value op = Next();
+  int pos = position();
+
+  // Assume "! function ..." indicates the function is likely to be called.
+  if (op == Token::NOT && peek() == Token::FUNCTION) {
+    function_state_->set_next_function_is_likely_called();
+  }
+
+  ExpressionT expression = ParseUnaryExpression(CHECK_OK);
+  ValidateExpression(CHECK_OK);
+
+  if (op == Token::DELETE) {
+    if (impl()->IsIdentifier(expression) && is_strict(language_mode())) {
+      // "delete identifier" is a syntax error in strict mode.
+      ReportMessage(MessageTemplate::kStrictDelete);
+      *ok = false;
+      return impl()->NullExpression();
+    }
+
+    if (impl()->IsPropertyWithPrivateFieldKey(expression)) {
+      ReportMessage(MessageTemplate::kDeletePrivateField);
+      *ok = false;
+      return impl()->NullExpression();
+    }
+  }
+
+  if (peek() == Token::EXP) {
+    ReportUnexpectedToken(Next());
+    *ok = false;
+    return impl()->NullExpression();
+  }
+
+  // Allow the parser's implementation to rewrite the expression.
+  return impl()->BuildUnaryExpression(expression, op, pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrefixExpression(
+    bool* ok) {
+  BindingPatternUnexpectedToken();
+  ArrowFormalParametersUnexpectedToken();
+  Token::Value op = Next();
+  int beg_pos = peek_position();
+  ExpressionT expression = ParseUnaryExpression(CHECK_OK);
+  expression = CheckAndRewriteReferenceExpression(
+      expression, beg_pos, end_position(),
+      MessageTemplate::kInvalidLhsInPrefixOp, CHECK_OK);
+  impl()->MarkExpressionAsAssigned(expression);
+  ValidateExpression(CHECK_OK);
+
+  return factory()->NewCountOperation(op, true /* prefix */, expression,
+                                      position());
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseAwaitExpression(
+    bool* ok) {
+  classifier()->RecordFormalParameterInitializerError(
+      scanner()->peek_location(),
+      MessageTemplate::kAwaitExpressionFormalParameter);
+  int await_pos = peek_position();
+  Consume(Token::AWAIT);
+
+  ExpressionT value = ParseUnaryExpression(CHECK_OK);
+
+  classifier()->RecordBindingPatternError(
+      Scanner::Location(await_pos, end_position()),
+      MessageTemplate::kInvalidDestructuringTarget);
+
+  ExpressionT expr = factory()->NewAwait(value, await_pos);
+  function_state_->AddSuspend();
+  impl()->RecordSuspendSourceRange(expr, PositionAfterSemicolon());
+  return expr;
+}
+
+template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
     bool* ok) {
   // UnaryExpression ::
@@ -3192,81 +3288,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
   //   [+Await] AwaitExpression[?Yield]
 
   Token::Value op = peek();
-  if (Token::IsUnaryOp(op)) {
-    BindingPatternUnexpectedToken();
-    ArrowFormalParametersUnexpectedToken();
-
-    op = Next();
-    int pos = position();
-
-    // Assume "! function ..." indicates the function is likely to be called.
-    if (op == Token::NOT && peek() == Token::FUNCTION) {
-      function_state_->set_next_function_is_likely_called();
-    }
-
-    ExpressionT expression = ParseUnaryExpression(CHECK_OK);
-    ValidateExpression(CHECK_OK);
-
-    if (op == Token::DELETE) {
-      if (impl()->IsIdentifier(expression) && is_strict(language_mode())) {
-        // "delete identifier" is a syntax error in strict mode.
-        ReportMessage(MessageTemplate::kStrictDelete);
-        *ok = false;
-        return impl()->NullExpression();
-      }
-
-      if (impl()->IsPropertyWithPrivateFieldKey(expression)) {
-        ReportMessage(MessageTemplate::kDeletePrivateField);
-        *ok = false;
-        return impl()->NullExpression();
-      }
-    }
-
-    if (peek() == Token::EXP) {
-      ReportUnexpectedToken(Next());
-      *ok = false;
-      return impl()->NullExpression();
-    }
-
-    // Allow the parser's implementation to rewrite the expression.
-    return impl()->BuildUnaryExpression(expression, op, pos);
-  } else if (Token::IsCountOp(op)) {
-    BindingPatternUnexpectedToken();
-    ArrowFormalParametersUnexpectedToken();
-    op = Next();
-    int beg_pos = peek_position();
-    ExpressionT expression = ParseUnaryExpression(CHECK_OK);
-    expression = CheckAndRewriteReferenceExpression(
-        expression, beg_pos, end_position(),
-        MessageTemplate::kInvalidLhsInPrefixOp, CHECK_OK);
-    impl()->MarkExpressionAsAssigned(expression);
-    ValidateExpression(CHECK_OK);
-
-    return factory()->NewCountOperation(op,
-                                        true /* prefix */,
-                                        expression,
-                                        position());
-
-  } else if (is_async_function() && peek() == Token::AWAIT) {
-    classifier()->RecordFormalParameterInitializerError(
-        scanner()->peek_location(),
-        MessageTemplate::kAwaitExpressionFormalParameter);
-    int await_pos = peek_position();
-    Consume(Token::AWAIT);
-
-    ExpressionT value = ParseUnaryExpression(CHECK_OK);
-
-    classifier()->RecordBindingPatternError(
-        Scanner::Location(await_pos, end_position()),
-        MessageTemplate::kInvalidDestructuringTarget);
-
-    ExpressionT expr = factory()->NewAwait(value, await_pos);
-    function_state_->AddSuspend();
-    impl()->RecordSuspendSourceRange(expr, PositionAfterSemicolon());
-    return expr;
-  } else {
-    return ParsePostfixExpression(ok);
+  if (Token::IsUnaryOp(op)) return ParseUnaryOpExpression(CHECK_OK);
+  if (Token::IsCountOp(op)) return ParsePrefixExpression(CHECK_OK);
+  if (is_async_function() && op == Token::AWAIT) {
+    return ParseAwaitExpression(CHECK_OK);
   }
+  return ParsePostfixExpression(ok);
 }
 
 template <typename Impl>
