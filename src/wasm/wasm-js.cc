@@ -956,7 +956,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
       v8::MaybeLocal<v8::Value> maybe = descriptor->Get(context, shared_key);
       v8::Local<v8::Value> value;
       if (maybe.ToLocal(&value)) {
-        if (!value->BooleanValue(context).To(&is_shared_memory)) return;
+        is_shared_memory = value->BooleanValue(isolate);
       }
     }
     // Throw TypeError if shared is true, and the descriptor has no "maximum"
@@ -1012,7 +1012,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::MaybeLocal<v8::Value> maybe = descriptor->Get(context, mutable_key);
     v8::Local<v8::Value> value;
     if (maybe.ToLocal(&value)) {
-      if (!value->BooleanValue(context).To(&is_mutable)) return;
+      is_mutable = value->BooleanValue(isolate);
     }
   }
 

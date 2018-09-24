@@ -168,7 +168,7 @@ TEST(StressJS) {
           .ToLocalChecked()
           ->Run(env)
           .ToLocalChecked();
-  CHECK_EQ(true, result->BooleanValue(env).FromJust());
+  CHECK_EQ(true, result->BooleanValue(CcTest::isolate()));
   env->Exit();
 }
 

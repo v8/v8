@@ -70,10 +70,7 @@ void ExternalizeStringExtension::Externalize(
   bool force_two_byte = false;
   if (args.Length() >= 2) {
     if (args[1]->IsBoolean()) {
-      force_two_byte =
-          args[1]
-              ->BooleanValue(args.GetIsolate()->GetCurrentContext())
-              .FromJust();
+      force_two_byte = args[1]->BooleanValue(args.GetIsolate());
     } else {
       args.GetIsolate()->ThrowException(
           v8::String::NewFromUtf8(

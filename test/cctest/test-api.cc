@@ -1288,8 +1288,7 @@ THREADED_PROFILED_TEST(FastReturnValues) {
     fast_return_value_bool = i == 0;
     value = TestFastReturnValues<bool>();
     CHECK(value->IsBoolean());
-    CHECK_EQ(fast_return_value_bool,
-             value->ToBoolean(env.local()).ToLocalChecked()->Value());
+    CHECK_EQ(fast_return_value_bool, value->BooleanValue(isolate));
   }
   // check oddballs
   ReturnValueOddball oddballs[] = {
@@ -1384,8 +1383,7 @@ static void TestExternalPointerWrapping() {
                    "  for (var i = 0; i < 13; i++) obj.func();\n"
                    "}\n"
                    "foo(), true")
-            ->BooleanValue(env.local())
-            .FromJust());
+            ->BooleanValue(isolate));
 }
 
 
@@ -1795,7 +1793,7 @@ THREADED_TEST(BigIntObject) {
   CHECK(new_unboxed_bigint->IsBigInt());
 
   // Test functionality inherited from v8::Value.
-  CHECK(unboxed_bigint->BooleanValue(context).ToChecked());
+  CHECK(unboxed_bigint->BooleanValue(isolate));
   v8::Local<v8::String> string =
       unboxed_bigint->ToString(context).ToLocalChecked();
   CHECK_EQ(0, strcmp("42", *v8::String::Utf8Value(isolate, string)));
@@ -1832,48 +1830,49 @@ THREADED_TEST(BooleanObject) {
 
 THREADED_TEST(PrimitiveAndWrappedBooleans) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
-  Local<Value> primitive_false = Boolean::New(env->GetIsolate(), false);
+  Local<Value> primitive_false = Boolean::New(isolate, false);
   CHECK(primitive_false->IsBoolean());
   CHECK(!primitive_false->IsBooleanObject());
-  CHECK(!primitive_false->BooleanValue(env.local()).FromJust());
+  CHECK(!primitive_false->BooleanValue(isolate));
   CHECK(!primitive_false->IsTrue());
   CHECK(primitive_false->IsFalse());
 
-  Local<Value> false_value = BooleanObject::New(env->GetIsolate(), false);
+  Local<Value> false_value = BooleanObject::New(isolate, false);
   CHECK(!false_value->IsBoolean());
   CHECK(false_value->IsBooleanObject());
-  CHECK(false_value->BooleanValue(env.local()).FromJust());
+  CHECK(false_value->BooleanValue(isolate));
   CHECK(!false_value->IsTrue());
   CHECK(!false_value->IsFalse());
 
   Local<BooleanObject> false_boolean_object = false_value.As<BooleanObject>();
   CHECK(!false_boolean_object->IsBoolean());
   CHECK(false_boolean_object->IsBooleanObject());
-  CHECK(false_boolean_object->BooleanValue(env.local()).FromJust());
+  CHECK(false_boolean_object->BooleanValue(isolate));
   CHECK(!false_boolean_object->ValueOf());
   CHECK(!false_boolean_object->IsTrue());
   CHECK(!false_boolean_object->IsFalse());
 
-  Local<Value> primitive_true = Boolean::New(env->GetIsolate(), true);
+  Local<Value> primitive_true = Boolean::New(isolate, true);
   CHECK(primitive_true->IsBoolean());
   CHECK(!primitive_true->IsBooleanObject());
-  CHECK(primitive_true->BooleanValue(env.local()).FromJust());
+  CHECK(primitive_true->BooleanValue(isolate));
   CHECK(primitive_true->IsTrue());
   CHECK(!primitive_true->IsFalse());
 
-  Local<Value> true_value = BooleanObject::New(env->GetIsolate(), true);
+  Local<Value> true_value = BooleanObject::New(isolate, true);
   CHECK(!true_value->IsBoolean());
   CHECK(true_value->IsBooleanObject());
-  CHECK(true_value->BooleanValue(env.local()).FromJust());
+  CHECK(true_value->BooleanValue(isolate));
   CHECK(!true_value->IsTrue());
   CHECK(!true_value->IsFalse());
 
   Local<BooleanObject> true_boolean_object = true_value.As<BooleanObject>();
   CHECK(!true_boolean_object->IsBoolean());
   CHECK(true_boolean_object->IsBooleanObject());
-  CHECK(true_boolean_object->BooleanValue(env.local()).FromJust());
+  CHECK(true_boolean_object->BooleanValue(isolate));
   CHECK(true_boolean_object->ValueOf());
   CHECK(!true_boolean_object->IsTrue());
   CHECK(!true_boolean_object->IsFalse());
@@ -1929,22 +1928,21 @@ THREADED_TEST(Boolean) {
   v8::Local<v8::Boolean> f = v8::False(isolate);
   CHECK(!f->Value());
   v8::Local<v8::Primitive> u = v8::Undefined(isolate);
-  CHECK(!u->BooleanValue(env.local()).FromJust());
+  CHECK(!u->BooleanValue(isolate));
   v8::Local<v8::Primitive> n = v8::Null(isolate);
-  CHECK(!n->BooleanValue(env.local()).FromJust());
+  CHECK(!n->BooleanValue(isolate));
   v8::Local<String> str1 = v8_str("");
-  CHECK(!str1->BooleanValue(env.local()).FromJust());
+  CHECK(!str1->BooleanValue(isolate));
   v8::Local<String> str2 = v8_str("x");
-  CHECK(str2->BooleanValue(env.local()).FromJust());
-  CHECK(!v8::Number::New(isolate, 0)->BooleanValue(env.local()).FromJust());
-  CHECK(v8::Number::New(isolate, -1)->BooleanValue(env.local()).FromJust());
-  CHECK(v8::Number::New(isolate, 1)->BooleanValue(env.local()).FromJust());
-  CHECK(v8::Number::New(isolate, 42)->BooleanValue(env.local()).FromJust());
+  CHECK(str2->BooleanValue(isolate));
+  CHECK(!v8::Number::New(isolate, 0)->BooleanValue(isolate));
+  CHECK(v8::Number::New(isolate, -1)->BooleanValue(isolate));
+  CHECK(v8::Number::New(isolate, 1)->BooleanValue(isolate));
+  CHECK(v8::Number::New(isolate, 42)->BooleanValue(isolate));
   CHECK(!v8_compile("NaN")
              ->Run(env.local())
              .ToLocalChecked()
-             ->BooleanValue(env.local())
-             .FromJust());
+             ->BooleanValue(isolate));
 }
 
 
@@ -2002,10 +2000,10 @@ THREADED_TEST(ObjectTemplate) {
       templ1->NewInstance(env.local()).ToLocalChecked();
   CHECK(class_name->StrictEquals(instance1->GetConstructorName()));
   CHECK(env->Global()->Set(env.local(), v8_str("p"), instance1).FromJust());
-  CHECK(CompileRun("(p.x == 10)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(p.y == 13)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(p.foo() == 42)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(p.foo == acc)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(p.x == 10)")->BooleanValue(isolate));
+  CHECK(CompileRun("(p.y == 13)")->BooleanValue(isolate));
+  CHECK(CompileRun("(p.foo() == 42)")->BooleanValue(isolate));
+  CHECK(CompileRun("(p.foo == acc)")->BooleanValue(isolate));
   // Ensure that foo become a data field.
   CompileRun("p.foo = function() {}");
   Local<v8::FunctionTemplate> fun2 = v8::FunctionTemplate::New(isolate);
@@ -2018,41 +2016,37 @@ THREADED_TEST(ObjectTemplate) {
   Local<v8::Object> instance2 =
       templ2->NewInstance(env.local()).ToLocalChecked();
   CHECK(env->Global()->Set(env.local(), v8_str("q"), instance2).FromJust());
-  CHECK(CompileRun("(q.nirk == 123)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q.a == 12)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q.b.x == 10)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q.b.y == 13)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q.b.foo() == 42)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q.b.foo === acc)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q.b !== p)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q.acc == 42)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q.bar() == 42)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q.bar == acc)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(q.nirk == 123)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q.a == 12)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q.b.x == 10)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q.b.y == 13)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q.b.foo() == 42)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q.b.foo === acc)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q.b !== p)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q.acc == 42)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q.bar() == 42)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q.bar == acc)")->BooleanValue(isolate));
 
   instance2 = templ2->NewInstance(env.local()).ToLocalChecked();
   CHECK(env->Global()->Set(env.local(), v8_str("q2"), instance2).FromJust());
-  CHECK(CompileRun("(q2.nirk == 123)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q2.a == 12)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q2.b.x == 10)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q2.b.y == 13)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q2.b.foo() == 42)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q2.b.foo === acc)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q2.acc == 42)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q2.bar() == 42)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(q2.bar === acc)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(q2.nirk == 123)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q2.a == 12)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q2.b.x == 10)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q2.b.y == 13)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q2.b.foo() == 42)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q2.b.foo === acc)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q2.acc == 42)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q2.bar() == 42)")->BooleanValue(isolate));
+  CHECK(CompileRun("(q2.bar === acc)")->BooleanValue(isolate));
 
-  CHECK(CompileRun("(q.b !== q2.b)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("q.b.x = 17; (q2.b.x == 10)")
-            ->BooleanValue(env.local())
-            .FromJust());
+  CHECK(CompileRun("(q.b !== q2.b)")->BooleanValue(isolate));
+  CHECK(CompileRun("q.b.x = 17; (q2.b.x == 10)")->BooleanValue(isolate));
   CHECK(CompileRun("desc1 = Object.getOwnPropertyDescriptor(q, 'acc');"
                    "(desc1.get === acc)")
-            ->BooleanValue(env.local())
-            .FromJust());
+            ->BooleanValue(isolate));
   CHECK(CompileRun("desc2 = Object.getOwnPropertyDescriptor(q2, 'acc');"
                    "(desc2.get === acc)")
-            ->BooleanValue(env.local())
-            .FromJust());
+            ->BooleanValue(isolate));
 }
 
 THREADED_TEST(IntegerValue) {
@@ -2372,27 +2366,20 @@ THREADED_TEST(DescriptorInheritance) {
 
   // Checks right __proto__ chain.
   CHECK(CompileRun("base1.prototype.__proto__ == s.prototype")
-            ->BooleanValue(env.local())
-            .FromJust());
+            ->BooleanValue(isolate));
   CHECK(CompileRun("base2.prototype.__proto__ == s.prototype")
-            ->BooleanValue(env.local())
-            .FromJust());
+            ->BooleanValue(isolate));
 
   CHECK(v8_compile("s.prototype.PI == 3.14")
             ->Run(env.local())
             .ToLocalChecked()
-            ->BooleanValue(env.local())
-            .FromJust());
+            ->BooleanValue(isolate));
 
   // Instance accessor should not be visible on function object or its prototype
+  CHECK(CompileRun("s.knurd == undefined")->BooleanValue(isolate));
+  CHECK(CompileRun("s.prototype.knurd == undefined")->BooleanValue(isolate));
   CHECK(
-      CompileRun("s.knurd == undefined")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("s.prototype.knurd == undefined")
-            ->BooleanValue(env.local())
-            .FromJust());
-  CHECK(CompileRun("base1.prototype.knurd == undefined")
-            ->BooleanValue(env.local())
-            .FromJust());
+      CompileRun("base1.prototype.knurd == undefined")->BooleanValue(isolate));
 
   CHECK(env->Global()
             ->Set(env.local(), v8_str("obj"), base1->GetFunction(env.local())
@@ -2402,9 +2389,9 @@ THREADED_TEST(DescriptorInheritance) {
             .FromJust());
   CHECK_EQ(17.2,
            CompileRun("obj.flabby()")->NumberValue(env.local()).FromJust());
-  CHECK(CompileRun("'flabby' in obj")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("'flabby' in obj")->BooleanValue(isolate));
   CHECK_EQ(15.2, CompileRun("obj.knurd")->NumberValue(env.local()).FromJust());
-  CHECK(CompileRun("'knurd' in obj")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("'knurd' in obj")->BooleanValue(isolate));
   CHECK_EQ(20.1, CompileRun("obj.v1")->NumberValue(env.local()).FromJust());
 
   CHECK(env->Global()
@@ -2415,9 +2402,9 @@ THREADED_TEST(DescriptorInheritance) {
             .FromJust());
   CHECK_EQ(17.2,
            CompileRun("obj2.flabby()")->NumberValue(env.local()).FromJust());
-  CHECK(CompileRun("'flabby' in obj2")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("'flabby' in obj2")->BooleanValue(isolate));
   CHECK_EQ(15.2, CompileRun("obj2.knurd")->NumberValue(env.local()).FromJust());
-  CHECK(CompileRun("'knurd' in obj2")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("'knurd' in obj2")->BooleanValue(isolate));
   CHECK_EQ(10.1, CompileRun("obj2.v2")->NumberValue(env.local()).FromJust());
 
   // base1 and base2 cannot cross reference to each's prototype
@@ -5778,7 +5765,7 @@ THREADED_TEST(APICatch) {
   Local<Value> thrown = context->Global()
                             ->Get(context.local(), v8_str("thrown"))
                             .ToLocalChecked();
-  CHECK(thrown->BooleanValue(context.local()).FromJust());
+  CHECK(thrown->BooleanValue(isolate));
 }
 
 
@@ -6073,8 +6060,9 @@ void CThrowCountDown(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void JSCheck(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
   CHECK_EQ(3, args.Length());
-  v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
-  bool equality = args[0]->BooleanValue(context).FromJust();
+  v8::Isolate* isolate = args.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  bool equality = args[0]->BooleanValue(isolate);
   int count = args[1]->Int32Value(context).FromJust();
   int expected = args[2]->Int32Value(context).FromJust();
   if (equality) {
@@ -6637,7 +6625,7 @@ THREADED_TEST(DefinePropertyOnAPIAccessor) {
       "obj, 'x');"
       "prop.configurable;");
   Local<Value> result = script_desc->Run(context.local()).ToLocalChecked();
-  CHECK(result->BooleanValue(context.local()).FromJust());
+  CHECK(result->BooleanValue(isolate));
 
   // Redefine get - but still configurable
   Local<Script> script_define = v8_compile(
@@ -6650,7 +6638,7 @@ THREADED_TEST(DefinePropertyOnAPIAccessor) {
 
   // Check that the accessor is still configurable
   result = script_desc->Run(context.local()).ToLocalChecked();
-  CHECK(result->BooleanValue(context.local()).FromJust());
+  CHECK(result->BooleanValue(isolate));
 
   // Redefine to a non-configurable
   script_define = v8_compile(
@@ -6661,7 +6649,7 @@ THREADED_TEST(DefinePropertyOnAPIAccessor) {
   result = script_define->Run(context.local()).ToLocalChecked();
   CHECK(result->Equals(context.local(), v8_num(43)).FromJust());
   result = script_desc->Run(context.local()).ToLocalChecked();
-  CHECK(!result->BooleanValue(context.local()).FromJust());
+  CHECK(!result->BooleanValue(isolate));
 
   // Make sure that it is not possible to redefine again
   v8::TryCatch try_catch(isolate);
@@ -6690,7 +6678,7 @@ THREADED_TEST(DefinePropertyOnDefineGetterSetter) {
       "obj, 'x');"
       "prop.configurable;");
   Local<Value> result = script_desc->Run(context.local()).ToLocalChecked();
-  CHECK(result->BooleanValue(context.local()).FromJust());
+  CHECK(result->BooleanValue(isolate));
 
   Local<Script> script_define = v8_compile(
       "var desc = {get: function(){return 42; },"
@@ -6701,7 +6689,7 @@ THREADED_TEST(DefinePropertyOnDefineGetterSetter) {
   CHECK(result->Equals(context.local(), v8_num(42)).FromJust());
 
   result = script_desc->Run(context.local()).ToLocalChecked();
-  CHECK(result->BooleanValue(context.local()).FromJust());
+  CHECK(result->BooleanValue(isolate));
 
   script_define = v8_compile(
       "var desc = {get: function(){return 43; },"
@@ -6712,7 +6700,7 @@ THREADED_TEST(DefinePropertyOnDefineGetterSetter) {
   CHECK(result->Equals(context.local(), v8_num(43)).FromJust());
 
   result = script_desc->Run(context.local()).ToLocalChecked();
-  CHECK(!result->BooleanValue(context.local()).FromJust());
+  CHECK(!result->BooleanValue(isolate));
 
   v8::TryCatch try_catch(isolate);
   CHECK(script_define->Run(context.local()).IsEmpty());
@@ -10310,12 +10298,9 @@ TEST(AccessControlES5) {
   CHECK(global1->Set(context1, v8_str("other"), global0).FromJust());
 
   // Regression test for issue 1154.
-  CHECK(CompileRun("Object.keys(other).length == 1")
-            ->BooleanValue(context1)
-            .FromJust());
+  CHECK(CompileRun("Object.keys(other).length == 1")->BooleanValue(isolate));
   CHECK(CompileRun("Object.keys(other)[0] == 'accessible_prop'")
-            ->BooleanValue(context1)
-            .FromJust());
+            ->BooleanValue(isolate));
   CHECK(CompileRun("other.blocked_prop").IsEmpty());
 
   // Regression test for issue 1027.
@@ -10405,12 +10390,12 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
   value = CompileRun(
       "var names = Object.getOwnPropertyNames(other);"
       "names.length == 1 && names[0] == 'accessible_prop';");
-  CHECK(value->BooleanValue(context1).FromJust());
+  CHECK(value->BooleanValue(isolate));
 
   value = CompileRun(
       "var names = Object.getOwnPropertyNames(object);"
       "names.length == 1 && names[0] == 'accessible_prop';");
-  CHECK(value->BooleanValue(context1).FromJust());
+  CHECK(value->BooleanValue(isolate));
 
   context1->Exit();
   context0->Exit();
@@ -10606,7 +10591,7 @@ TEST(AccessControlIC) {
 
   // Force obj into slow case.
   value = CompileRun("delete obj.prop");
-  CHECK(value->BooleanValue(context1).FromJust());
+  CHECK(value->BooleanValue(isolate));
   // Force inline caches into dictionary probing mode.
   CompileRun("var o = { x: 0 }; delete o.x; testProp(o);");
   // Test that the named access check is called.
@@ -10924,7 +10909,7 @@ THREADED_TEST(ShadowObject) {
   Local<Value> value =
       CompileRun("this.propertyIsEnumerable(0)");
   CHECK(value->IsBoolean());
-  CHECK(!value->BooleanValue(context.local()).FromJust());
+  CHECK(!value->BooleanValue(isolate));
 
   value = CompileRun("x");
   CHECK_EQ(12, value->Int32Value(context.local()).FromJust());
@@ -11386,8 +11371,7 @@ THREADED_TEST(FunctionReadOnlyPrototype) {
           "  descriptor = Object.getOwnPropertyDescriptor(func1, 'prototype');"
           "  return (descriptor['writable'] == false);"
           "})()")
-          ->BooleanValue(context.local())
-          .FromJust());
+          ->BooleanValue(isolate));
   CHECK_EQ(
       42,
       CompileRun("func1.prototype.x")->Int32Value(context.local()).FromJust());
@@ -11408,8 +11392,7 @@ THREADED_TEST(FunctionReadOnlyPrototype) {
           "  descriptor = Object.getOwnPropertyDescriptor(func2, 'prototype');"
           "  return (descriptor['writable'] == true);"
           "})()")
-          ->BooleanValue(context.local())
-          .FromJust());
+          ->BooleanValue(isolate));
   CHECK_EQ(
       42,
       CompileRun("func2.prototype.x")->Int32Value(context.local()).FromJust());
@@ -11456,9 +11439,7 @@ THREADED_TEST(FunctionRemovePrototype) {
   Local<v8::Function> fun = t1->GetFunction(context.local()).ToLocalChecked();
   CHECK(!fun->IsConstructor());
   CHECK(context->Global()->Set(context.local(), v8_str("fun"), fun).FromJust());
-  CHECK(!CompileRun("'prototype' in fun")
-             ->BooleanValue(context.local())
-             .FromJust());
+  CHECK(!CompileRun("'prototype' in fun")->BooleanValue(isolate));
 
   v8::TryCatch try_catch(isolate);
   CompileRun("new fun()");
@@ -11511,7 +11492,7 @@ THREADED_TEST(Constructor) {
   i::Handle<i::JSReceiver> obj(v8::Utils::OpenHandle(*inst));
   CHECK(obj->IsJSObject());
   Local<Value> value = CompileRun("(new Fun()).constructor === Fun");
-  CHECK(value->BooleanValue(context.local()).FromJust());
+  CHECK(value->BooleanValue(isolate));
 }
 
 
@@ -13525,9 +13506,9 @@ THREADED_TEST(IsConstructCall) {
                   templ->GetFunction(context.local()).ToLocalChecked())
             .FromJust());
   Local<Value> value = v8_compile("f()")->Run(context.local()).ToLocalChecked();
-  CHECK(!value->BooleanValue(context.local()).FromJust());
+  CHECK(!value->BooleanValue(isolate));
   value = v8_compile("new f()")->Run(context.local()).ToLocalChecked();
-  CHECK(value->BooleanValue(context.local()).FromJust());
+  CHECK(value->BooleanValue(isolate));
 }
 
 static void NewTargetHandler(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -16677,9 +16658,9 @@ static void ObjectWithExternalArrayTestHelper(Local<Context> context,
                                               i::ExternalArrayType array_type,
                                               int64_t low, int64_t high) {
   i::Handle<i::JSReceiver> jsobj = v8::Utils::OpenHandle(*obj);
-  i::Isolate* isolate = jsobj->GetIsolate();
-  obj->Set(context, v8_str("field"),
-           v8::Int32::New(reinterpret_cast<v8::Isolate*>(isolate), 1503))
+  v8::Isolate* v8_isolate = context->GetIsolate();
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  obj->Set(context, v8_str("field"), v8::Int32::New(v8_isolate, 1503))
       .FromJust();
   CHECK(context->Global()->Set(context, v8_str("ext_array"), obj).FromJust());
   v8::Local<v8::Value> result = CompileRun("ext_array.field");
@@ -16799,7 +16780,7 @@ static void ObjectWithExternalArrayTestHelper(Local<Context> context,
               "caught_exception;",
               element_count);
   result = CompileRun(test_buf.start());
-  CHECK(!result->BooleanValue(context).FromJust());
+  CHECK(!result->BooleanValue(v8_isolate));
 
   // Make sure out-of-range stores do not throw.
   i::SNPrintF(test_buf,
@@ -16812,7 +16793,7 @@ static void ObjectWithExternalArrayTestHelper(Local<Context> context,
               "caught_exception;",
               element_count);
   result = CompileRun(test_buf.start());
-  CHECK(!result->BooleanValue(context).FromJust());
+  CHECK(!result->BooleanValue(v8_isolate));
 
   // Check other boundary conditions, values and operations.
   result = CompileRun("for (var i = 0; i < 8; i++) {"
@@ -16904,7 +16885,7 @@ static void ObjectWithExternalArrayTestHelper(Local<Context> context,
                      unsigned_data :
                      (is_pixel_data ? pixel_data : signed_data)));
     result = CompileRun(test_buf.start());
-    CHECK(result->BooleanValue(context).FromJust());
+    CHECK(result->BooleanValue(v8_isolate));
   }
 
   i::Handle<ExternalArrayClass> array(
@@ -19884,7 +19865,8 @@ THREADED_TEST(FunctionGetInferredName) {
 
 THREADED_TEST(FunctionGetDebugName) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   const char* code =
       "var error = false;"
       "function a() { this.x = 1; };"
@@ -19935,7 +19917,7 @@ THREADED_TEST(FunctionGetDebugName) {
       .ToLocalChecked();
   v8::Local<v8::Value> error =
       env->Global()->Get(env.local(), v8_str("error")).ToLocalChecked();
-  CHECK(!error->BooleanValue(env.local()).FromJust());
+  CHECK(!error->BooleanValue(isolate));
   const char* functions[] = {"a", "display_a",
                              "b", "display_b",
                              "c", "c",
@@ -19952,20 +19934,20 @@ THREADED_TEST(FunctionGetDebugName) {
     v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
         env->Global()
             ->Get(env.local(),
-                  v8::String::NewFromUtf8(env->GetIsolate(), functions[i * 2],
+                  v8::String::NewFromUtf8(isolate, functions[i * 2],
                                           v8::NewStringType::kNormal)
                       .ToLocalChecked())
             .ToLocalChecked());
     CHECK_EQ(0, strcmp(functions[i * 2 + 1],
-                       *v8::String::Utf8Value(env->GetIsolate(),
-                                              f->GetDebugName())));
+                       *v8::String::Utf8Value(isolate, f->GetDebugName())));
   }
 }
 
 
 THREADED_TEST(FunctionGetDisplayName) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
   const char* code = "var error = false;"
                      "function a() { this.x = 1; };"
                      "a.displayName = 'display_a';"
@@ -20019,18 +20001,17 @@ THREADED_TEST(FunctionGetDisplayName) {
       env->Global()->Get(env.local(), v8_str("f")).ToLocalChecked());
   v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
       env->Global()->Get(env.local(), v8_str("g")).ToLocalChecked());
-  CHECK(!error->BooleanValue(env.local()).FromJust());
-  CHECK_EQ(0, strcmp("display_a", *v8::String::Utf8Value(env->GetIsolate(),
-                                                         a->GetDisplayName())));
-  CHECK_EQ(0, strcmp("display_b", *v8::String::Utf8Value(env->GetIsolate(),
-                                                         b->GetDisplayName())));
+  CHECK(!error->BooleanValue(isolate));
+  CHECK_EQ(0, strcmp("display_a",
+                     *v8::String::Utf8Value(isolate, a->GetDisplayName())));
+  CHECK_EQ(0, strcmp("display_b",
+                     *v8::String::Utf8Value(isolate, b->GetDisplayName())));
   CHECK(c->GetDisplayName()->IsUndefined());
   CHECK(d->GetDisplayName()->IsUndefined());
   CHECK(e->GetDisplayName()->IsUndefined());
   CHECK(f->GetDisplayName()->IsUndefined());
-  CHECK_EQ(
-      0, strcmp("set_in_runtime", *v8::String::Utf8Value(env->GetIsolate(),
-                                                         g->GetDisplayName())));
+  CHECK_EQ(0, strcmp("set_in_runtime",
+                     *v8::String::Utf8Value(isolate, g->GetDisplayName())));
 }
 
 
@@ -21918,7 +21899,7 @@ TEST(HasOwnProperty) {
         "var dyn_string = 'this string ';"
         "dyn_string += 'does not exist elsewhere';"
         "({}).hasOwnProperty.call(obj, dyn_string)";
-    CHECK(CompileRun(src)->BooleanValue(env.local()).FromJust());
+    CHECK(CompileRun(src)->BooleanValue(isolate));
   }
 }
 
@@ -21936,14 +21917,14 @@ TEST(IndexedInterceptorWithStringProto) {
             .FromJust());
   CompileRun("var s = new String('foobar'); obj.__proto__ = s;");
   // These should be intercepted.
-  CHECK(CompileRun("42 in obj")->BooleanValue(context.local()).FromJust());
-  CHECK(CompileRun("'42' in obj")->BooleanValue(context.local()).FromJust());
+  CHECK(CompileRun("42 in obj")->BooleanValue(isolate));
+  CHECK(CompileRun("'42' in obj")->BooleanValue(isolate));
   // These should fall through to the String prototype.
-  CHECK(CompileRun("0 in obj")->BooleanValue(context.local()).FromJust());
-  CHECK(CompileRun("'0' in obj")->BooleanValue(context.local()).FromJust());
+  CHECK(CompileRun("0 in obj")->BooleanValue(isolate));
+  CHECK(CompileRun("'0' in obj")->BooleanValue(isolate));
   // And these should both fail.
-  CHECK(!CompileRun("32 in obj")->BooleanValue(context.local()).FromJust());
-  CHECK(!CompileRun("'32' in obj")->BooleanValue(context.local()).FromJust());
+  CHECK(!CompileRun("32 in obj")->BooleanValue(isolate));
+  CHECK(!CompileRun("'32' in obj")->BooleanValue(isolate));
 }
 
 
@@ -24275,9 +24256,7 @@ class RequestInterruptTestWithMathAbs
  private:
   static void WakeUpInterruptorCallback(
       const v8::FunctionCallbackInfo<Value>& info) {
-    if (!info[0]
-             ->BooleanValue(info.GetIsolate()->GetCurrentContext())
-             .FromJust()) {
+    if (!info[0]->BooleanValue(info.GetIsolate())) {
       return;
     }
 
@@ -27204,35 +27183,32 @@ THREADED_TEST(ReceiverConversionForAccessors) {
   Local<v8::Object> instance = templ->NewInstance(env.local()).ToLocalChecked();
 
   CHECK(env->Global()->Set(env.local(), v8_str("p"), instance).FromJust());
-  CHECK(CompileRun("(p.acc == 42)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(p.acc = 7) == 7")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(p.acc == 42)")->BooleanValue(isolate));
+  CHECK(CompileRun("(p.acc = 7) == 7")->BooleanValue(isolate));
 
   CHECK(!CompileRun("Number.prototype.__proto__ = p;"
                     "var a = 1;")
              .IsEmpty());
-  CHECK(CompileRun("(a.acc == 42)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(a.acc = 7) == 7")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(a.acc == 42)")->BooleanValue(isolate));
+  CHECK(CompileRun("(a.acc = 7) == 7")->BooleanValue(isolate));
 
   CHECK(!CompileRun("Boolean.prototype.__proto__ = p;"
                     "var a = true;")
              .IsEmpty());
-  CHECK(CompileRun("(a.acc == 42)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(a.acc = 7) == 7")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(a.acc == 42)")->BooleanValue(isolate));
+  CHECK(CompileRun("(a.acc = 7) == 7")->BooleanValue(isolate));
 
   CHECK(!CompileRun("String.prototype.__proto__ = p;"
                     "var a = 'foo';")
              .IsEmpty());
-  CHECK(CompileRun("(a.acc == 42)")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("(a.acc = 7) == 7")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(a.acc == 42)")->BooleanValue(isolate));
+  CHECK(CompileRun("(a.acc = 7) == 7")->BooleanValue(isolate));
 
-  CHECK(CompileRun("acc.call(1) == 42")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("acc.call(true)==42")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("acc.call('aa')==42")->BooleanValue(env.local()).FromJust());
-  CHECK(
-      CompileRun("acc.call(null) == 42")->BooleanValue(env.local()).FromJust());
-  CHECK(CompileRun("acc.call(undefined) == 42")
-            ->BooleanValue(env.local())
-            .FromJust());
+  CHECK(CompileRun("acc.call(1) == 42")->BooleanValue(isolate));
+  CHECK(CompileRun("acc.call(true)==42")->BooleanValue(isolate));
+  CHECK(CompileRun("acc.call('aa')==42")->BooleanValue(isolate));
+  CHECK(CompileRun("acc.call(null) == 42")->BooleanValue(isolate));
+  CHECK(CompileRun("acc.call(undefined) == 42")->BooleanValue(isolate));
 }
 
 class FutexInterruptionThread : public v8::base::Thread {
@@ -27737,13 +27713,13 @@ TEST(SetIntegrityLevel) {
   CHECK(context->Global()->Set(context.local(), v8_str("o"), obj).FromJust());
 
   v8::Local<v8::Value> is_frozen = CompileRun("Object.isFrozen(o)");
-  CHECK(!is_frozen->BooleanValue(context.local()).FromJust());
+  CHECK(!is_frozen->BooleanValue(isolate));
 
   CHECK(obj->SetIntegrityLevel(context.local(), v8::IntegrityLevel::kFrozen)
             .FromJust());
 
   is_frozen = CompileRun("Object.isFrozen(o)");
-  CHECK(is_frozen->BooleanValue(context.local()).FromJust());
+  CHECK(is_frozen->BooleanValue(isolate));
 }
 
 TEST(PrivateForApiIsNumber) {

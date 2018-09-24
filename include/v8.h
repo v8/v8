@@ -2389,8 +2389,9 @@ class V8_EXPORT Value : public Data {
 
   V8_WARN_UNUSED_RESULT MaybeLocal<BigInt> ToBigInt(
       Local<Context> context) const;
-  V8_WARN_UNUSED_RESULT MaybeLocal<Boolean> ToBoolean(
-      Local<Context> context) const;
+  V8_DEPRECATE_SOON("ToBoolean can never throw. Use Local version.",
+                    V8_WARN_UNUSED_RESULT MaybeLocal<Boolean> ToBoolean(
+                        Local<Context> context) const);
   V8_WARN_UNUSED_RESULT MaybeLocal<Number> ToNumber(
       Local<Context> context) const;
   V8_WARN_UNUSED_RESULT MaybeLocal<String> ToString(
@@ -2405,8 +2406,7 @@ class V8_EXPORT Value : public Data {
       Local<Context> context) const;
   V8_WARN_UNUSED_RESULT MaybeLocal<Int32> ToInt32(Local<Context> context) const;
 
-  V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Boolean> ToBoolean(Isolate* isolate) const);
+  Local<Boolean> ToBoolean(Isolate* isolate) const;
   V8_DEPRECATE_SOON("Use maybe version",
                     Local<Number> ToNumber(Isolate* isolate) const);
   V8_DEPRECATE_SOON("Use maybe version",
@@ -2425,7 +2425,11 @@ class V8_EXPORT Value : public Data {
   V8_WARN_UNUSED_RESULT MaybeLocal<Uint32> ToArrayIndex(
       Local<Context> context) const;
 
-  V8_WARN_UNUSED_RESULT Maybe<bool> BooleanValue(Local<Context> context) const;
+  bool BooleanValue(Isolate* isolate) const;
+
+  V8_DEPRECATE_SOON("BooleanValue can never throw. Use Isolate version.",
+                    V8_WARN_UNUSED_RESULT Maybe<bool> BooleanValue(
+                        Local<Context> context) const);
   V8_WARN_UNUSED_RESULT Maybe<double> NumberValue(Local<Context> context) const;
   V8_WARN_UNUSED_RESULT Maybe<int64_t> IntegerValue(
       Local<Context> context) const;

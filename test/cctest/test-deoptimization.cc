@@ -720,8 +720,7 @@ UNINITIALIZED_TEST(DeoptimizeCompare) {
     CHECK_EQ(true, env->Global()
                        ->Get(env.local(), v8_str("result"))
                        .ToLocalChecked()
-                       ->BooleanValue(env.local())
-                       .FromJust());
+                       ->BooleanValue(isolate));
     CHECK_EQ(0, Deoptimizer::GetDeoptimizedCodeCount(i_isolate));
   }
   isolate->Exit();

@@ -3568,17 +3568,20 @@ MaybeLocal<BigInt> Value::ToBigInt(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
+bool Value::BooleanValue(Isolate* v8_isolate) const {
+  return Utils::OpenHandle(this)->BooleanValue(
+      reinterpret_cast<i::Isolate*>(v8_isolate));
+}
+
 MaybeLocal<Boolean> Value::ToBoolean(Local<Context> context) const {
-  auto obj = Utils::OpenHandle(this);
-  if (obj->IsBoolean()) return ToApiHandle<Boolean>(obj);
-  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  auto val = isolate->factory()->ToBoolean(obj->BooleanValue(isolate));
-  return ToApiHandle<Boolean>(val);
+  return ToBoolean(context->GetIsolate());
 }
 
 
 Local<Boolean> Value::ToBoolean(Isolate* v8_isolate) const {
-  return ToBoolean(v8_isolate->GetCurrentContext()).ToLocalChecked();
+  auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  return ToApiHandle<Boolean>(
+      isolate->factory()->ToBoolean(BooleanValue(v8_isolate)));
 }
 
 

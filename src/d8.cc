@@ -363,8 +363,7 @@ class TraceConfigParser {
                          Local<v8::Object> object, const char* property) {
     Local<Value> value = GetValue(isolate, context, object, property);
     if (value->IsNumber()) {
-      Local<Boolean> v8_boolean = value->ToBoolean(context).ToLocalChecked();
-      return v8_boolean->Value();
+      return value->BooleanValue(isolate);
     }
     return false;
   }

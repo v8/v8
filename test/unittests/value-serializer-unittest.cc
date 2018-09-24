@@ -228,7 +228,7 @@ class ValueSerializerTest : public TestWithIsolate {
     Local<Script> script =
         Script::Compile(deserialization_context_, source).ToLocalChecked();
     Local<Value> value = script->Run(deserialization_context_).ToLocalChecked();
-    EXPECT_TRUE(value->BooleanValue(deserialization_context_).FromJust());
+    EXPECT_TRUE(value->BooleanValue(isolate()));
   }
 
   Local<String> StringFromUtf8(const char* source) {
