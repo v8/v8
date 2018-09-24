@@ -1037,12 +1037,13 @@ class PreParser : public ParserBase<PreParser> {
     return pending_error_handler_;
   }
 
-  V8_INLINE LazyParsingResult
-  SkipFunction(const AstRawString* name, FunctionKind kind,
-               FunctionLiteral::FunctionType function_type,
-               DeclarationScope* function_scope, int* num_parameters,
-               ProducedPreParsedScopeData** produced_preparsed_scope_data,
-               bool is_inner_function, bool may_abort, bool* ok) {
+  V8_INLINE bool SkipFunction(
+      const AstRawString* name, FunctionKind kind,
+      FunctionLiteral::FunctionType function_type,
+      DeclarationScope* function_scope, int* num_parameters,
+      ProducedPreParsedScopeData** produced_preparsed_scope_data,
+      bool is_inner_function, bool may_abort,
+      FunctionLiteral::EagerCompileHint* hint, bool* ok) {
     UNREACHABLE();
   }
 

@@ -2568,30 +2568,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // abort lazy parsing if it suspects that wasn't a good idea. If so (in
   // which case the parser is expected to have backtracked), or if we didn't
   // try to lazy parse in the first place, we'll have to parse eagerly.
-  if (should_preparse) {
-    DCHECK(parse_lazily());
-    DCHECK(is_lazy_top_level_function || is_lazy_inner_function);
-    DCHECK(!is_wrapped);
-    Scanner::BookmarkScope bookmark(scanner());
-    bookmark.Set();
-    LazyParsingResult result =
-        SkipFunction(function_name, kind, function_type, scope, &num_parameters,
-                     &produced_preparsed_scope_data, is_lazy_inner_function,
-                     is_lazy_top_level_function, CHECK_OK);
-
-    if (result == kLazyParsingAborted) {
-      DCHECK(is_lazy_top_level_function);
-      bookmark.Apply();
-      // This is probably an initialization function. Inform the compiler it
-      // should also eager-compile this function.
-      eager_compile_hint = FunctionLiteral::kShouldEagerCompile;
-      scope->ResetAfterPreparsing(ast_value_factory(), true);
-      // Trigger eager (re-)parsing, just below this block.
-      should_preparse = false;
-    }
-  }
-
-  if (!should_preparse) {
+  bool did_preparse =
+      should_preparse &&
+      SkipFunction(function_name, kind, function_type, scope, &num_parameters,
+                   &produced_preparsed_scope_data, is_lazy_inner_function,
+                   is_lazy_top_level_function, &eager_compile_hint, CHECK_OK);
+  if (!did_preparse) {
     body = ParseFunction(
         function_name, pos, kind, function_type, scope, &num_parameters,
         &function_length, &has_duplicate_parameters, &expected_property_count,
@@ -2610,19 +2592,17 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         reinterpret_cast<const char*>(function_name->raw_data()),
         function_name->byte_length());
   }
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    if (should_preparse) {
-      const RuntimeCallCounterId counters[2][2] = {
-          {RuntimeCallCounterId::kPreParseBackgroundNoVariableResolution,
-           RuntimeCallCounterId::kPreParseNoVariableResolution},
-          {RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
-           RuntimeCallCounterId::kPreParseWithVariableResolution}};
-      if (runtime_call_stats_) {
-        bool tracked_variables = PreParser::ShouldTrackUnresolvedVariables(
-            is_lazy_top_level_function);
-        runtime_call_stats_->CorrectCurrentCounterId(
-            counters[tracked_variables][parsing_on_main_thread_]);
-      }
+  if (V8_UNLIKELY(FLAG_runtime_stats) && did_preparse) {
+    const RuntimeCallCounterId counters[2][2] = {
+        {RuntimeCallCounterId::kPreParseBackgroundNoVariableResolution,
+         RuntimeCallCounterId::kPreParseNoVariableResolution},
+        {RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
+         RuntimeCallCounterId::kPreParseWithVariableResolution}};
+    if (runtime_call_stats_) {
+      bool tracked_variables =
+          PreParser::ShouldTrackUnresolvedVariables(is_lazy_top_level_function);
+      runtime_call_stats_->CorrectCurrentCounterId(
+          counters[tracked_variables][parsing_on_main_thread_]);
     }
   }
 
@@ -2656,12 +2636,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   return function_literal;
 }
 
-Parser::LazyParsingResult Parser::SkipFunction(
+bool Parser::SkipFunction(
     const AstRawString* function_name, FunctionKind kind,
     FunctionLiteral::FunctionType function_type,
     DeclarationScope* function_scope, int* num_parameters,
     ProducedPreParsedScopeData** produced_preparsed_scope_data,
-    bool is_inner_function, bool may_abort, bool* ok) {
+    bool is_inner_function, bool may_abort,
+    FunctionLiteral::EagerCompileHint* hint, bool* ok) {
   FunctionState function_state(&function_state_, &scope_, function_scope);
 
   DCHECK_NE(kNoSourcePosition, function_scope->start_position());
@@ -2694,11 +2675,14 @@ Parser::LazyParsingResult Parser::SkipFunction(
     }
     SkipFunctionLiterals(num_inner_functions);
     function_scope->ResetAfterPreparsing(ast_value_factory_, false);
-    return kLazyParsingComplete;
+    return true;
   }
 
   PreParser* preparser = reusable_preparser();
   PreParserZoneScope zone_scope(preparser);
+
+  Scanner::BookmarkScope bookmark(scanner());
+  bookmark.Set();
 
   // With no cached data, we partially parse the function, without building an
   // AST. This gathers the data needed to build a lazy function.
@@ -2713,7 +2697,12 @@ Parser::LazyParsingResult Parser::SkipFunction(
       may_abort, use_counts_, produced_preparsed_scope_data, this->script_id());
 
   // Return immediately if pre-parser decided to abort parsing.
-  if (result == PreParser::kPreParseAbort) return kLazyParsingAborted;
+  if (result == PreParser::kPreParseAbort) {
+    bookmark.Apply();
+    function_scope->ResetAfterPreparsing(ast_value_factory(), true);
+    *hint = FunctionLiteral::kShouldEagerCompile;
+    return false;
+  }
 
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.
@@ -2734,7 +2723,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
     function_scope->AnalyzePartially(factory());
   }
 
-  return kLazyParsingComplete;
+  return true;
 }
 
 Statement* Parser::BuildAssertIsCoercible(Variable* var,

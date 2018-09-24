@@ -446,12 +446,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // by parsing the function with PreParser. Consumes the ending }.
   // If may_abort == true, the (pre-)parser may decide to abort skipping
   // in order to force the function to be eagerly parsed, after all.
-  LazyParsingResult SkipFunction(
-      const AstRawString* function_name, FunctionKind kind,
-      FunctionLiteral::FunctionType function_type,
-      DeclarationScope* function_scope, int* num_parameters,
-      ProducedPreParsedScopeData** produced_preparsed_scope_data,
-      bool is_inner_function, bool may_abort, bool* ok);
+  bool SkipFunction(const AstRawString* function_name, FunctionKind kind,
+                    FunctionLiteral::FunctionType function_type,
+                    DeclarationScope* function_scope, int* num_parameters,
+                    ProducedPreParsedScopeData** produced_preparsed_scope_data,
+                    bool is_inner_function, bool may_abort,
+                    FunctionLiteral::EagerCompileHint* hint, bool* ok);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);

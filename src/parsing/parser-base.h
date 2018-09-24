@@ -4401,13 +4401,14 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         // parameters.
         int dummy_num_parameters = -1;
         DCHECK_NE(kind & FunctionKind::kArrowFunction, 0);
-        LazyParsingResult result = impl()->SkipFunction(
+        FunctionLiteral::EagerCompileHint hint;
+        bool parse_result = impl()->SkipFunction(
             nullptr, kind, FunctionLiteral::kAnonymousExpression,
             formal_parameters.scope, &dummy_num_parameters,
-            &produced_preparsed_scope_data, false, false, CHECK_OK);
-        DCHECK_NE(result, kLazyParsingAborted);
+            &produced_preparsed_scope_data, false, false, &hint, CHECK_OK);
+        DCHECK(parse_result);
+        USE(parse_result);
         DCHECK_NULL(produced_preparsed_scope_data);
-        USE(result);
         formal_parameters.scope->ResetAfterPreparsing(ast_value_factory_,
                                                       false);
         // Discard any queued destructuring assignments which appeared
