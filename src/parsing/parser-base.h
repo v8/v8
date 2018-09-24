@@ -1131,7 +1131,10 @@ class ParserBase {
   ExpressionT ParseUnaryExpression(bool* ok);
   V8_INLINE ExpressionT ParsePostfixExpression(bool* ok);
   V8_INLINE ExpressionT ParseLeftHandSideExpression(bool* ok);
-  ExpressionT ParseMemberWithNewPrefixesExpression(bool* is_async, bool* ok);
+  ExpressionT ParseMemberWithPresentNewPrefixesExpression(bool* is_async,
+                                                          bool* ok);
+  V8_INLINE ExpressionT ParseMemberWithNewPrefixesExpression(bool* is_async,
+                                                             bool* ok);
   V8_INLINE ExpressionT ParseMemberExpression(bool* is_async, bool* ok);
   V8_INLINE ExpressionT ParseMemberExpressionContinuation(
       ExpressionT expression, bool* is_async, bool* ok);
@@ -3427,8 +3430,8 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseMemberWithNewPrefixesExpression(bool* is_async,
-                                                       bool* ok) {
+ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* is_async,
+                                                              bool* ok) {
   // NewExpression ::
   //   ('new')+ MemberExpression
   //
@@ -3448,49 +3451,53 @@ ParserBase<Impl>::ParseMemberWithNewPrefixesExpression(bool* is_async,
   // new new foo means new (new foo)
   // new new foo() means new (new foo())
   // new new foo().bar().baz means (new (new foo()).bar()).baz
-
-  if (peek() == Token::NEW) {
-    BindingPatternUnexpectedToken();
-    ArrowFormalParametersUnexpectedToken();
-    Consume(Token::NEW);
-    int new_pos = position();
-    ExpressionT result;
-    if (peek() == Token::SUPER) {
-      const bool is_new = true;
-      result = ParseSuperExpression(is_new, CHECK_OK);
-    } else if (allow_harmony_dynamic_import() && peek() == Token::IMPORT &&
-               (!allow_harmony_import_meta() || PeekAhead() == Token::LPAREN)) {
-      impl()->ReportMessageAt(scanner()->peek_location(),
-                              MessageTemplate::kImportCallNotNewExpression);
-      *ok = false;
-      return impl()->NullExpression();
-    } else if (peek() == Token::PERIOD) {
-      *is_async = false;
-      result = ParseNewTargetExpression(CHECK_OK);
-      return ParseMemberExpressionContinuation(result, is_async, CHECK_OK);
-    } else {
-      result = ParseMemberWithNewPrefixesExpression(is_async, CHECK_OK);
-    }
-    ValidateExpression(CHECK_OK);
-    if (peek() == Token::LPAREN) {
-      // NewExpression with arguments.
-      Scanner::Location spread_pos;
-      ExpressionListT args = ParseArguments(&spread_pos, CHECK_OK);
-
-      if (spread_pos.IsValid()) {
-        result = impl()->SpreadCallNew(result, args, new_pos);
-      } else {
-        result = factory()->NewCallNew(result, args, new_pos);
-      }
-      // The expression can still continue with . or [ after the arguments.
-      result = ParseMemberExpressionContinuation(result, is_async, CHECK_OK);
-      return result;
-    }
-    // NewExpression without arguments.
-    return factory()->NewCallNew(result, impl()->NewExpressionList(0), new_pos);
+  BindingPatternUnexpectedToken();
+  ArrowFormalParametersUnexpectedToken();
+  Consume(Token::NEW);
+  int new_pos = position();
+  ExpressionT result;
+  if (peek() == Token::SUPER) {
+    const bool is_new = true;
+    result = ParseSuperExpression(is_new, CHECK_OK);
+  } else if (allow_harmony_dynamic_import() && peek() == Token::IMPORT &&
+             (!allow_harmony_import_meta() || PeekAhead() == Token::LPAREN)) {
+    impl()->ReportMessageAt(scanner()->peek_location(),
+                            MessageTemplate::kImportCallNotNewExpression);
+    *ok = false;
+    return impl()->NullExpression();
+  } else if (peek() == Token::PERIOD) {
+    *is_async = false;
+    result = ParseNewTargetExpression(CHECK_OK);
+    return ParseMemberExpressionContinuation(result, is_async, CHECK_OK);
+  } else {
+    result = ParseMemberWithNewPrefixesExpression(is_async, CHECK_OK);
   }
-  // No 'new' or 'super' keyword.
-  return ParseMemberExpression(is_async, ok);
+  ValidateExpression(CHECK_OK);
+  if (peek() == Token::LPAREN) {
+    // NewExpression with arguments.
+    Scanner::Location spread_pos;
+    ExpressionListT args = ParseArguments(&spread_pos, CHECK_OK);
+
+    if (spread_pos.IsValid()) {
+      result = impl()->SpreadCallNew(result, args, new_pos);
+    } else {
+      result = factory()->NewCallNew(result, args, new_pos);
+    }
+    // The expression can still continue with . or [ after the arguments.
+    result = ParseMemberExpressionContinuation(result, is_async, CHECK_OK);
+    return result;
+  }
+  // NewExpression without arguments.
+  return factory()->NewCallNew(result, impl()->NewExpressionList(0), new_pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseMemberWithNewPrefixesExpression(bool* is_async,
+                                                       bool* ok) {
+  return peek() == Token::NEW
+             ? ParseMemberWithPresentNewPrefixesExpression(is_async, ok)
+             : ParseMemberExpression(is_async, ok);
 }
 
 template <typename Impl>
