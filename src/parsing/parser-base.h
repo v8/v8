@@ -1129,7 +1129,10 @@ class ParserBase {
   V8_INLINE ExpressionT ParseConditionalExpression(bool accept_IN, bool* ok);
   ExpressionT ParseConditionalContinuation(ExpressionT expression,
                                            bool accept_IN, int pos, bool* ok);
-  ExpressionT ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
+  ExpressionT ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
+                                      bool accept_IN, bool* ok);
+  V8_INLINE ExpressionT ParseBinaryExpression(int prec, bool accept_IN,
+                                              bool* ok);
   ExpressionT ParseUnaryOpExpression(bool* ok);
   ExpressionT ParseAwaitExpression(bool* ok);
   ExpressionT ParsePrefixExpression(bool* ok);
@@ -3134,12 +3137,11 @@ ParserBase<Impl>::ParseConditionalContinuation(ExpressionT expression,
 
 // Precedence >= 4
 template <typename Impl>
-typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
-    int prec, bool accept_IN, bool* ok) {
-  DCHECK_GE(prec, 4);
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseBinaryContinuation(ExpressionT x, int prec, int prec1,
+                                          bool accept_IN, bool* ok) {
   SourceRange right_range;
-  ExpressionT x = ParseUnaryExpression(CHECK_OK);
-  for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
+  do {
     // prec1 >= 4
     while (Precedence(peek(), accept_IN) == prec1) {
       ValidateExpression(CHECK_OK);
@@ -3186,6 +3188,21 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
         }
       }
     }
+    --prec1;
+  } while (prec1 >= prec);
+
+  return x;
+}
+
+// Precedence >= 4
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
+    int prec, bool accept_IN, bool* ok) {
+  DCHECK_GE(prec, 4);
+  ExpressionT x = ParseUnaryExpression(CHECK_OK);
+  int prec1 = Precedence(peek(), accept_IN);
+  if (prec1 >= prec) {
+    return ParseBinaryContinuation(x, prec, prec1, accept_IN, CHECK_OK);
   }
   return x;
 }
