@@ -746,14 +746,13 @@ ExternalReference ExternalReference::orderedhashmap_gethash_raw() {
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
-ExternalReference ExternalReference::get_or_create_hash_raw(Isolate* isolate) {
+ExternalReference ExternalReference::get_or_create_hash_raw() {
   typedef Smi* (*GetOrCreateHash)(Isolate * isolate, Object * key);
   GetOrCreateHash f = Object::GetOrCreateHash;
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));
 }
 
-ExternalReference ExternalReference::jsreceiver_create_identity_hash(
-    Isolate* isolate) {
+ExternalReference ExternalReference::jsreceiver_create_identity_hash() {
   typedef Smi* (*CreateIdentityHash)(Isolate * isolate, JSReceiver * key);
   CreateIdentityHash f = JSReceiver::CreateIdentityHash;
   return ExternalReference(Redirect(FUNCTION_ADDR(f)));

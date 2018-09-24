@@ -49,8 +49,6 @@ class StatsCounter;
   V(handle_scope_limit_address, "HandleScope::limit")                          \
   V(scheduled_exception_address, "Isolate::scheduled_exception")               \
   V(address_of_pending_message_obj, "address_of_pending_message_obj")          \
-  V(get_or_create_hash_raw, "get_or_create_hash_raw")                          \
-  V(jsreceiver_create_identity_hash, "jsreceiver_create_identity_hash")        \
   V(promise_hook_address, "Isolate::promise_hook_address()")                   \
   V(async_event_delegate_address, "Isolate::async_event_delegate_address()")   \
   V(promise_hook_or_async_event_delegate_address,                              \
@@ -96,6 +94,7 @@ class StatsCounter;
   V(f64_mod_wrapper_function, "f64_mod_wrapper")                              \
   V(fixed_typed_array_base_data_offset, "fixed_typed_array_base_data_offset") \
   V(get_date_field_function, "JSDate::GetField")                              \
+  V(get_or_create_hash_raw, "get_or_create_hash_raw")                         \
   V(ieee754_acos_function, "base::ieee754::acos")                             \
   V(ieee754_acosh_function, "base::ieee754::acosh")                           \
   V(ieee754_asin_function, "base::ieee754::asin")                             \
@@ -122,6 +121,7 @@ class StatsCounter;
     "JSObject::InvalidatePrototypeChains()")                                  \
   V(invoke_accessor_getter_callback, "InvokeAccessorGetterCallback")          \
   V(invoke_function_callback, "InvokeFunctionCallback")                       \
+  V(jsreceiver_create_identity_hash, "jsreceiver_create_identity_hash")       \
   V(libc_memchr_function, "libc_memchr")                                      \
   V(libc_memcpy_function, "libc_memcpy")                                      \
   V(libc_memmove_function, "libc_memmove")                                    \

@@ -770,7 +770,7 @@ TF_BUILTIN(SetConstructor, CollectionsBuiltinsAssembler) {
 
 Node* CollectionsBuiltinsAssembler::CallGetOrCreateHashRaw(Node* const key) {
   Node* const function_addr =
-      ExternalConstant(ExternalReference::get_or_create_hash_raw(isolate()));
+      ExternalConstant(ExternalReference::get_or_create_hash_raw());
   Node* const isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
 
@@ -2081,8 +2081,8 @@ TNode<Object> WeakCollectionsBuiltinsAssembler::AllocateTable(
 
 TNode<Smi> WeakCollectionsBuiltinsAssembler::CreateIdentityHash(
     TNode<Object> key) {
-  TNode<ExternalReference> function_addr = ExternalConstant(
-      ExternalReference::jsreceiver_create_identity_hash(isolate()));
+  TNode<ExternalReference> function_addr =
+      ExternalConstant(ExternalReference::jsreceiver_create_identity_hash());
   TNode<ExternalReference> isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
 
