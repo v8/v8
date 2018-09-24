@@ -113,7 +113,7 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static inline uint32_t Hash(Isolate* isolate, Handle<Name> key);
   static inline uint32_t HashForObject(Isolate* isolate, Object* object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
-  static inline int GetMapRootIndex();
+  static inline RootIndex GetMapRootIndex();
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const int kEntryValueIndex = 1;
@@ -216,7 +216,7 @@ class GlobalDictionaryShape : public NameDictionaryShape {
   static inline Object* Unwrap(Object* key);
   static inline bool IsKey(ReadOnlyRoots roots, Object* k);
   static inline bool IsLive(ReadOnlyRoots roots, Object* key);
-  static inline int GetMapRootIndex();
+  static inline RootIndex GetMapRootIndex();
 };
 
 class GlobalDictionary
@@ -246,7 +246,7 @@ class NumberDictionaryShape : public NumberDictionaryBaseShape {
   static const int kPrefixSize = 1;
   static const int kEntrySize = 3;
 
-  static inline int GetMapRootIndex();
+  static inline RootIndex GetMapRootIndex();
 };
 
 class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
@@ -266,7 +266,7 @@ class SimpleNumberDictionaryShape : public NumberDictionaryBaseShape {
     UNREACHABLE();
   }
 
-  static inline int GetMapRootIndex();
+  static inline RootIndex GetMapRootIndex();
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)

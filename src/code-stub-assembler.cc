@@ -3437,7 +3437,7 @@ Node* CodeStubAssembler::AllocateOrderedHashTable() {
   const ElementsKind elements_kind = HOLEY_ELEMENTS;
   TNode<IntPtrT> length_intptr = IntPtrConstant(kFixedArrayLength);
   TNode<Map> fixed_array_map =
-      CAST(LoadRoot(static_cast<RootIndex>(CollectionType::GetMapRootIndex())));
+      CAST(LoadRoot(CollectionType::GetMapRootIndex()));
   TNode<FixedArray> table =
       CAST(AllocateFixedArray(elements_kind, length_intptr,
                               kAllowLargeObjectAllocation, fixed_array_map));
@@ -3511,7 +3511,7 @@ TNode<CollectionType> CodeStubAssembler::AllocateSmallOrderedHashTable(
 
   // Allocate the table and add the proper map.
   TNode<Map> small_ordered_hash_map =
-      CAST(LoadRoot(static_cast<RootIndex>(CollectionType::GetMapRootIndex())));
+      CAST(LoadRoot(CollectionType::GetMapRootIndex()));
   TNode<Object> table_obj = CAST(AllocateInNewSpace(total_size_word_aligned));
   StoreMapNoWriteBarrier(table_obj, small_ordered_hash_map);
   TNode<CollectionType> table = UncheckedCast<CollectionType>(table_obj);

@@ -1447,8 +1447,8 @@ uint32_t StringTableShape::HashForObject(Isolate* isolate, Object* object) {
   return String::cast(object)->Hash();
 }
 
-int StringTableShape::GetMapRootIndex() {
-  return static_cast<int>(RootIndex::kStringTableMap);
+RootIndex StringTableShape::GetMapRootIndex() {
+  return RootIndex::kStringTableMap;
 }
 
 bool NumberDictionary::requires_slow_elements() {
@@ -1846,14 +1846,14 @@ Object* GlobalDictionaryShape::Unwrap(Object* object) {
   return PropertyCell::cast(object)->name();
 }
 
-int GlobalDictionaryShape::GetMapRootIndex() {
-  return static_cast<int>(RootIndex::kGlobalDictionaryMap);
+RootIndex GlobalDictionaryShape::GetMapRootIndex() {
+  return RootIndex::kGlobalDictionaryMap;
 }
 
 Name* NameDictionary::NameAt(int entry) { return Name::cast(KeyAt(entry)); }
 
-int NameDictionaryShape::GetMapRootIndex() {
-  return static_cast<int>(RootIndex::kNameDictionaryMap);
+RootIndex NameDictionaryShape::GetMapRootIndex() {
+  return RootIndex::kNameDictionaryMap;
 }
 
 PropertyCell* GlobalDictionary::CellAt(int entry) {
@@ -1905,12 +1905,12 @@ Handle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
   return isolate->factory()->NewNumberFromUint(key);
 }
 
-int NumberDictionaryShape::GetMapRootIndex() {
-  return static_cast<int>(RootIndex::kNumberDictionaryMap);
+RootIndex NumberDictionaryShape::GetMapRootIndex() {
+  return RootIndex::kNumberDictionaryMap;
 }
 
-int SimpleNumberDictionaryShape::GetMapRootIndex() {
-  return static_cast<int>(RootIndex::kSimpleNumberDictionaryMap);
+RootIndex SimpleNumberDictionaryShape::GetMapRootIndex() {
+  return RootIndex::kSimpleNumberDictionaryMap;
 }
 
 bool NameDictionaryShape::IsMatch(Handle<Name> key, Object* other) {

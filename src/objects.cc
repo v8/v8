@@ -16640,7 +16640,7 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
     Isolate* isolate, int capacity, PretenureFlag pretenure) {
   Factory* factory = isolate->factory();
   int length = EntryToIndex(capacity);
-  RootIndex map_root_index = static_cast<RootIndex>(Shape::GetMapRootIndex());
+  RootIndex map_root_index = Shape::GetMapRootIndex();
   Handle<FixedArray> array =
       factory->NewFixedArrayWithMap(map_root_index, length, pretenure);
   Handle<Derived> table = Handle<Derived>::cast(array);

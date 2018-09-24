@@ -324,7 +324,7 @@ namespace internal {
 
 // Declare all the root indices.  This defines the root list order.
 // clang-format off
-enum class RootIndex {
+enum class RootIndex : uint16_t {
 #define DECL(type, name, CamelName) k##CamelName,
   ROOT_LIST(DECL)
 #undef DECL

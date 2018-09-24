@@ -58,12 +58,12 @@ void HashTableBase::SetNumberOfDeletedElements(int nod) {
 }
 
 template <typename Key>
-int BaseShape<Key>::GetMapRootIndex() {
-  return static_cast<int>(RootIndex::kHashTableMap);
+RootIndex BaseShape<Key>::GetMapRootIndex() {
+  return RootIndex::kHashTableMap;
 }
 
-int EphemeronHashTableShape::GetMapRootIndex() {
-  return static_cast<int>(RootIndex::kEphemeronHashTableMap);
+RootIndex EphemeronHashTableShape::GetMapRootIndex() {
+  return RootIndex::kEphemeronHashTableMap;
 }
 
 template <typename Derived, typename Shape>

@@ -2062,8 +2062,7 @@ TNode<Object> WeakCollectionsBuiltinsAssembler::AllocateTable(
   TNode<FixedArray> table = CAST(
       AllocateFixedArray(HOLEY_ELEMENTS, length, kAllowLargeObjectAllocation));
 
-  RootIndex map_root_index =
-      static_cast<RootIndex>(EphemeronHashTableShape::GetMapRootIndex());
+  RootIndex map_root_index = EphemeronHashTableShape::GetMapRootIndex();
   StoreMapNoWriteBarrier(table, map_root_index);
   StoreFixedArrayElement(table, EphemeronHashTable::kNumberOfElementsIndex,
                          SmiConstant(0), SKIP_WRITE_BARRIER);
