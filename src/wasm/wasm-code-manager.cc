@@ -661,15 +661,15 @@ Address NativeModule::AllocateForCode(size_t size) {
     Address hint = owned_code_space_.empty() ? kNullAddress
                                              : owned_code_space_.back().end();
 
-    owned_code_space_.emplace_back(
-        wasm_code_manager_->TryAllocate(size, reinterpret_cast<void*>(hint)));
-    VirtualMemory& new_mem = owned_code_space_.back();
+    VirtualMemory new_mem =
+        wasm_code_manager_->TryAllocate(size, reinterpret_cast<void*>(hint));
     if (!new_mem.IsReserved()) return kNullAddress;
     wasm_code_manager_->AssignRanges(new_mem.address(), new_mem.end(), this);
 
     free_code_space_.Merge({new_mem.address(), new_mem.end()});
+    owned_code_space_.emplace_back(std::move(new_mem));
     mem = free_code_space_.Allocate(size);
-    if (mem.is_empty()) return kNullAddress;
+    DCHECK(!mem.is_empty());
   }
   Address commit_start = RoundUp(mem.start, page_allocator->AllocatePageSize());
   Address commit_end = RoundUp(mem.end, page_allocator->AllocatePageSize());
@@ -711,7 +711,7 @@ Address NativeModule::AllocateForCode(size_t size) {
 #endif
   }
   DCHECK(IsAligned(mem.start, kCodeAlignment));
-  allocated_code_space_.Merge(std::move(mem));
+  allocated_code_space_.Merge(mem);
   TRACE_HEAP("Code alloc for %p: %" PRIuPTR ",+%zu\n", this, mem.start, size);
   return mem.start;
 }
