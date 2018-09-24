@@ -586,7 +586,6 @@
   'intl402/Locale/constructor-parse-twice': [FAIL],
   'intl402/Locale/constructor-tag': [FAIL],
   'intl402/Locale/constructor-unicode-ext-invalid': [FAIL],
-  'intl402/Locale/constructor-unicode-ext-valid': [FAIL],
   'intl402/Locale/extensions-grandfathered': [FAIL],
   'intl402/Locale/extensions-private': [FAIL],
   'intl402/Locale/getters': [FAIL],
