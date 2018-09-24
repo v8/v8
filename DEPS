@@ -339,13 +339,6 @@ hooks = [
     'condition': 'checkout_win',
     'action': ['python', 'v8/build/vs_toolchain.py', 'update'],
   },
-  {
-    # Update the Mac toolchain if necessary.
-    'name': 'mac_toolchain',
-    'pattern': '.',
-    'condition': 'checkout_mac',
-    'action': ['python', 'v8/build/mac_toolchain.py'],
-  },
   # Pull binutils for linux, enabled debug fission for faster linking /
   # debugging when used with clang on Ubuntu Precise.
   # https://code.google.com/p/chromium/issues/detail?id=352046
