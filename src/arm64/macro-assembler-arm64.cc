@@ -1727,7 +1727,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {
-  Mov(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+  Ldr(kOffHeapTrampolineRegister, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
   Br(kOffHeapTrampolineRegister);
 }
 
@@ -1905,7 +1905,7 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
         Register scratch = temps.AcquireX();
         EmbeddedData d = EmbeddedData::FromBlob();
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
-        Mov(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+        Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
         Jump(scratch, cond);
         return;
       }
@@ -1963,7 +1963,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode) {
         Register scratch = temps.AcquireX();
         EmbeddedData d = EmbeddedData::FromBlob();
         Address entry = d.InstructionStartOfBuiltin(builtin_index);
-        Mov(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+        Ldr(scratch, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
         Call(scratch);
         return;
       }
