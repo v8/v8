@@ -2010,7 +2010,7 @@ Node* WasmGraphBuilder::BuildCcallConvertFloat(Node* input,
 }
 
 Node* WasmGraphBuilder::GrowMemory(Node* input) {
-  SetNeedsStackCheck();
+  needs_stack_check_ = true;
 
   WasmGrowMemoryDescriptor interface_descriptor;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -2046,7 +2046,7 @@ uint32_t WasmGraphBuilder::GetExceptionEncodedSize(
 Node* WasmGraphBuilder::Throw(uint32_t exception_index,
                               const wasm::WasmException* exception,
                               const Vector<Node*> values) {
-  SetNeedsStackCheck();
+  needs_stack_check_ = true;
   uint32_t encoded_size = GetExceptionEncodedSize(exception);
   Node* create_parameters[] = {
       LoadExceptionTagFromTable(exception_index),
@@ -2121,7 +2121,7 @@ Node* WasmGraphBuilder::BuildDecodeException32BitValue(Node* const* values,
 }
 
 Node* WasmGraphBuilder::Rethrow(Node* except_obj) {
-  SetNeedsStackCheck();
+  needs_stack_check_ = true;
   Node* result = BuildCallToRuntime(Runtime::kWasmThrow, &except_obj, 1);
   return result;
 }
@@ -2140,7 +2140,7 @@ Node* WasmGraphBuilder::LoadExceptionTagFromTable(uint32_t exception_index) {
 }
 
 Node* WasmGraphBuilder::GetExceptionTag(Node* except_obj) {
-  SetNeedsStackCheck();
+  needs_stack_check_ = true;
   return BuildCallToRuntime(Runtime::kWasmExceptionGetTag, &except_obj, 1);
 }
 
@@ -2535,7 +2535,7 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
     DCHECK_NOT_NULL(instance_node_);
     instance_node = instance_node_.get();
   }
-  SetNeedsStackCheck();
+  needs_stack_check_ = true;
   const size_t params = sig->parameter_count();
   const size_t extra = 3;  // instance_node, effect, and control.
   const size_t count = 1 + params + extra;
@@ -4794,13 +4794,11 @@ void AppendSignature(char* buffer, size_t max_name_len,
 
 }  // namespace
 
-MaybeHandle<Code> CompileJSToWasmWrapper(
-    Isolate* isolate, const wasm::NativeModule* native_module,
-    wasm::FunctionSig* sig, bool is_import) {
+MaybeHandle<Code> CompileJSToWasmWrapper(Isolate* isolate,
+                                         wasm::FunctionSig* sig,
+                                         bool is_import) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "CompileJSToWasmWrapper");
-  const wasm::WasmModule* module = native_module->module();
-
   //----------------------------------------------------------------------------
   // Create the Graph.
   //----------------------------------------------------------------------------
@@ -4816,7 +4814,7 @@ MaybeHandle<Code> CompileJSToWasmWrapper(
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  wasm::ModuleEnv env(module, wasm::kNoTrapHandler,
+  wasm::ModuleEnv env(nullptr, wasm::kNoTrapHandler,
                       wasm::kRuntimeExceptionSupport);
   WasmWrapperGraphBuilder builder(&zone, &env, &jsgraph, sig, nullptr,
                                   StubCallMode::kCallOnHeapBuiltin);

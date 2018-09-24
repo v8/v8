@@ -124,7 +124,7 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   Link();
   FunctionSig* sig = test_module_->functions[index].sig;
   MaybeHandle<Code> maybe_ret_code =
-      compiler::CompileJSToWasmWrapper(isolate_, native_module_, sig, false);
+      compiler::CompileJSToWasmWrapper(isolate_, sig, false);
   Handle<Code> ret_code = maybe_ret_code.ToHandleChecked();
   Handle<JSFunction> ret = WasmExportedFunction::New(
       isolate_, instance_object(), MaybeHandle<String>(),

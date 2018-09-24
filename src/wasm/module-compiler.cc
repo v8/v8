@@ -180,22 +180,15 @@ void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
 
 class JSToWasmWrapperCache {
  public:
-  Handle<Code> GetOrCompileJSToWasmWrapper(Isolate* isolate,
-                                           const NativeModule* native_module,
-                                           uint32_t func_index,
-                                           UseTrapHandler use_trap_handler) {
-    const WasmModule* module = native_module->module();
-    const WasmFunction* func = &module->functions[func_index];
-    bool is_import = func_index < module->num_imported_functions;
-    std::pair<bool, FunctionSig> key(is_import, *func->sig);
+  Handle<Code> GetOrCompileJSToWasmWrapper(Isolate* isolate, FunctionSig* sig,
+                                           bool is_import) {
+    std::pair<bool, FunctionSig> key(is_import, *sig);
     Handle<Code>& cached = cache_[key];
-    if (!cached.is_null()) return cached;
-
-    Handle<Code> code = compiler::CompileJSToWasmWrapper(isolate, native_module,
-                                                         func->sig, is_import)
-                            .ToHandleChecked();
-    cached = code;
-    return code;
+    if (cached.is_null()) {
+      cached = compiler::CompileJSToWasmWrapper(isolate, sig, is_import)
+                   .ToHandleChecked();
+    }
+    return cached;
   }
 
  private:
@@ -1218,14 +1211,14 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
-    FunctionSig* sig = module_->functions[start_index].sig;
+    auto& function = module_->functions[start_index];
     Handle<Code> wrapper_code = js_to_wasm_cache_.GetOrCompileJSToWasmWrapper(
-        isolate_, native_module, start_index, use_trap_handler());
+        isolate_, function.sig, function.imported);
     // TODO(clemensh): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(
         isolate_, instance, MaybeHandle<String>(), start_index,
-        static_cast<int>(sig->parameter_count()), wrapper_code);
+        static_cast<int>(function.sig->parameter_count()), wrapper_code);
   }
 
   DCHECK(!isolate_->has_pending_exception());
@@ -2134,7 +2127,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
 
           Handle<Code> wrapper_code =
               js_to_wasm_cache_.GetOrCompileJSToWasmWrapper(
-                  isolate_, native_module, func_index, use_trap_handler());
+                  isolate_, function->sig, function->imported);
           MaybeHandle<String> func_name;
           if (module_->origin == kAsmJsOrigin) {
             // For modules arising from asm.js, honor the names section.
@@ -3068,13 +3061,12 @@ void CompileJsToWasmWrappers(Isolate* isolate,
   int wrapper_index = 0;
   Handle<FixedArray> export_wrappers(module_object->export_wrappers(), isolate);
   NativeModule* native_module = module_object->native_module();
-  UseTrapHandler use_trap_handler =
-      native_module->use_trap_handler() ? kUseTrapHandler : kNoTrapHandler;
   const WasmModule* module = native_module->module();
   for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
+    auto& function = module->functions[exp.index];
     Handle<Code> wrapper_code = js_to_wasm_cache.GetOrCompileJSToWasmWrapper(
-        isolate, native_module, exp.index, use_trap_handler);
+        isolate, function.sig, function.imported);
     export_wrappers->set(wrapper_index, *wrapper_code);
     RecordStats(*wrapper_code, isolate->counters());
     ++wrapper_index;

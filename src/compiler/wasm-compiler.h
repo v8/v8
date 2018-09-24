@@ -76,8 +76,9 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate*, Handle<JSReceiver> target,
 
 // Creates a code object calling a wasm function with the given signature,
 // callable from JS.
-V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(
-    Isolate*, const wasm::NativeModule*, wasm::FunctionSig*, bool is_import);
+V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(Isolate*,
+                                                           wasm::FunctionSig*,
+                                                           bool is_import);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
@@ -453,8 +454,6 @@ class WasmGraphBuilder {
     if (buf != buffer) memcpy(buf, buffer, old_count * sizeof(Node*));
     return buf;
   }
-
-  void SetNeedsStackCheck() { needs_stack_check_ = true; }
 
   Node* BuildLoadBuiltinFromInstance(int builtin_index);
 
