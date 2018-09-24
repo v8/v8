@@ -801,6 +801,8 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
   if (!holder.is_null() && holder->IsModule()) {
+    Handle<Object> receiver = isolate->factory()->undefined_value();
+    if (receiver_return) *receiver_return = receiver;
     return Module::LoadVariable(isolate, Handle<Module>::cast(holder), index);
   }
   if (index != Context::kNotFound) {
