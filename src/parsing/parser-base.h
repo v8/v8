@@ -1120,7 +1120,8 @@ class ParserBase {
                                  bool* is_simple_parameter_list, bool* ok);
   ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
                                  bool* ok) {
-    return ParseArguments(first_spread_pos, false, nullptr, ok);
+    bool is_simple = true;
+    return ParseArguments(first_spread_pos, false, &is_simple, ok);
   }
 
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
@@ -2766,25 +2767,20 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
   Scanner::Location spread_arg = Scanner::Location::invalid();
   ExpressionListT result = impl()->NewExpressionList(4);
   Expect(Token::LPAREN, CHECK_OK_CUSTOM(NullExpressionList));
-  bool done = (peek() == Token::RPAREN);
-  while (!done) {
+  while (peek() != Token::RPAREN) {
     int start_pos = peek_position();
     bool is_spread = Check(Token::ELLIPSIS);
     int expr_pos = peek_position();
 
     ExpressionT argument =
         ParseAssignmentExpression(true, CHECK_OK_CUSTOM(NullExpressionList));
-    if (!impl()->IsIdentifier(argument) &&
-        is_simple_parameter_list != nullptr) {
-      *is_simple_parameter_list = false;
-    }
+    if (!impl()->IsIdentifier(argument)) *is_simple_parameter_list = false;
+
     if (!maybe_arrow) {
       ValidateExpression(CHECK_OK_CUSTOM(NullExpressionList));
     }
     if (is_spread) {
-      if (is_simple_parameter_list != nullptr) {
-        *is_simple_parameter_list = false;
-      }
+      *is_simple_parameter_list = false;
       if (!spread_arg.IsValid()) {
         spread_arg.beg_pos = start_pos;
         spread_arg.end_pos = peek_position();
@@ -2797,24 +2793,22 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
     }
     result->Add(argument, zone_);
 
-    if (result->length() > Code::kMaxArguments) {
-      ReportMessage(MessageTemplate::kTooManyArguments);
-      *ok = false;
-      return impl()->NullExpressionList();
-    }
-    done = (peek() != Token::COMMA);
-    if (!done) {
-      Next();
-      if (argument->IsSpread()) {
-        classifier()->RecordAsyncArrowFormalParametersError(
-            scanner()->location(), MessageTemplate::kParamAfterRest);
-      }
-      if (peek() == Token::RPAREN) {
-        // allow trailing comma
-        done = true;
-      }
+    if (peek() != Token::COMMA) break;
+
+    Next();
+
+    if (argument->IsSpread()) {
+      classifier()->RecordAsyncArrowFormalParametersError(
+          scanner()->location(), MessageTemplate::kParamAfterRest);
     }
   }
+
+  if (result->length() > Code::kMaxArguments) {
+    ReportMessage(MessageTemplate::kTooManyArguments);
+    *ok = false;
+    return impl()->NullExpressionList();
+  }
+
   Scanner::Location location = scanner_->location();
   if (Token::RPAREN != Next()) {
     impl()->ReportMessageAt(location, MessageTemplate::kUnterminatedArgList);
