@@ -9697,10 +9697,10 @@ int debug::GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
   }
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   int result = 0;
-#define IS_BUILTIN_ACESSOR(name, ...)                       \
+#define IS_BUILTIN_ACESSOR(_, name, ...)                    \
   if (*structure == *isolate->factory()->name##_accessor()) \
     result |= static_cast<int>(debug::NativeAccessorType::IsBuiltin);
-  ACCESSOR_INFO_LIST(IS_BUILTIN_ACESSOR)
+  ACCESSOR_INFO_LIST_GENERATOR(IS_BUILTIN_ACESSOR, /* not used */)
 #undef IS_BUILTIN_ACESSOR
   i::Handle<i::AccessorInfo> accessor_info =
       i::Handle<i::AccessorInfo>::cast(structure);

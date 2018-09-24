@@ -1854,11 +1854,10 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
 const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
   ReadOnlyRoots roots(heap_);
   if (strong_gc_subroot_names_.empty()) {
-#define NAME_ENTRY(name) strong_gc_subroot_names_.emplace(heap_->name(), #name);
-#define RO_NAME_ENTRY(name) \
+#define ROOT_NAME(type, name, CamelName) \
+  strong_gc_subroot_names_.emplace(heap_->name(), #name);
+#define RO_ROOT_NAME(type, name, CamelName) \
   strong_gc_subroot_names_.emplace(roots.name(), #name);
-#define ROOT_NAME(type, name, CamelName) NAME_ENTRY(name)
-#define RO_ROOT_NAME(type, name, CamelName) RO_NAME_ENTRY(name)
 
     STRONG_MUTABLE_ROOT_LIST(ROOT_NAME)
     STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_NAME)
@@ -1869,14 +1868,9 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
     PRIVATE_SYMBOL_ROOT_LIST(RO_ROOT_NAME)
     PUBLIC_SYMBOL_ROOT_LIST(RO_ROOT_NAME)
     WELL_KNOWN_SYMBOL_ROOT_LIST(RO_ROOT_NAME)
-
-#define ACCESSOR_NAME(accessor_name, ...) NAME_ENTRY(accessor_name##_accessor)
-    ACCESSOR_INFO_LIST(ACCESSOR_NAME)
-#undef ACCESSOR_NAME
+    ACCESSOR_INFO_ROOT_LIST(ROOT_NAME)
 #undef ROOT_NAME
 #undef RO_ROOT_NAME
-#undef NAME_ENTRY
-#undef RO_NAME_ENTRY
     CHECK(!strong_gc_subroot_names_.empty());
   }
   auto it = strong_gc_subroot_names_.find(object);

@@ -90,7 +90,7 @@ bool IsInitiallyMutable(Factory* factory, Address object_address) {
 // The CHECK_EQ line is there just to ensure that the root is publicly
 // accessible from Heap, but ultimately the factory is used as it provides
 // handles that have the address in the root table.
-#define CHECK_NOT_IN_RO_SPACE(name)                                        \
+#define CHECK_NOT_IN_RO_SPACE(type, name, CamelName)                       \
   Handle<Object> name = factory->name();                                   \
   CHECK_EQ(*name, heap->name());                                           \
   if (name->IsHeapObject() && IsInitiallyMutable(factory, name.address())) \
@@ -104,18 +104,14 @@ TEST(TestHeapRootsNotReadOnly) {
   Factory* factory = CcTest::i_isolate()->factory();
   Heap* heap = CcTest::i_isolate()->heap();
 
-#define TEST_ROOT(type, name, CamelName) CHECK_NOT_IN_RO_SPACE(name)
-  MUTABLE_ROOT_LIST(TEST_ROOT)
-#undef TEST_ROOT
+  MUTABLE_ROOT_LIST(CHECK_NOT_IN_RO_SPACE)
 }
 
 TEST(TestAccessorInfosNotReadOnly) {
   Factory* factory = CcTest::i_isolate()->factory();
   Heap* heap = CcTest::i_isolate()->heap();
 
-#define TEST_ROOT(name, ...) CHECK_NOT_IN_RO_SPACE(name##_accessor)
-  ACCESSOR_INFO_LIST(TEST_ROOT)
-#undef TEST_ROOT
+  ACCESSOR_INFO_ROOT_LIST(CHECK_NOT_IN_RO_SPACE)
 }
 
 #undef CHECK_NOT_IN_RO_SPACE

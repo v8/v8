@@ -29,15 +29,8 @@ INTERNALIZED_STRING_ROOT_LIST(ROOT_ACCESSOR)
 PRIVATE_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
 PUBLIC_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
 WELL_KNOWN_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
+ACCESSOR_INFO_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
-
-#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName, ...)            \
-  Handle<AccessorInfo> Factory::accessor_name##_accessor() {                \
-    return Handle<AccessorInfo>(bit_cast<AccessorInfo**>(                   \
-        &isolate()->heap()->roots_[RootIndex::k##AccessorName##Accessor])); \
-  }
-ACCESSOR_INFO_LIST(ACCESSOR_INFO_ACCESSOR)
-#undef ACCESSOR_INFO_ACCESSOR
 
 Handle<String> Factory::InternalizeString(Handle<String> string) {
   if (string->IsInternalizedString()) return string;

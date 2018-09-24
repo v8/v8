@@ -835,12 +835,8 @@ class V8_EXPORT_PRIVATE Factory {
   PRIVATE_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
   PUBLIC_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
   WELL_KNOWN_SYMBOL_ROOT_LIST(ROOT_ACCESSOR)
+  ACCESSOR_INFO_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
-
-#define ACCESSOR_INFO_ACCESSOR(accessor_name, ...) \
-  inline Handle<AccessorInfo> accessor_name##_accessor();
-  ACCESSOR_INFO_LIST(ACCESSOR_INFO_ACCESSOR)
-#undef ACCESSOR_INFO_ACCESSOR
 
   // Allocates a new SharedFunctionInfo object.
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForApiFunction(

@@ -899,19 +899,19 @@ void Heap::CreateInternalAccessorInfoObjects() {
   HandleScope scope(isolate);
   Handle<AccessorInfo> acessor_info;
 
-#define INIT_ACCESSOR_INFO(accessor_name, AccessorName, ...)   \
-  acessor_info = Accessors::Make##AccessorName##Info(isolate); \
+#define INIT_ACCESSOR_INFO(_, accessor_name, AccessorName, ...) \
+  acessor_info = Accessors::Make##AccessorName##Info(isolate);  \
   roots_[RootIndex::k##AccessorName##Accessor] = *acessor_info;
-  ACCESSOR_INFO_LIST(INIT_ACCESSOR_INFO)
+  ACCESSOR_INFO_LIST_GENERATOR(INIT_ACCESSOR_INFO, /* not used */)
 #undef INIT_ACCESSOR_INFO
 
-#define INIT_SIDE_EFFECT_FLAG(accessor_name, AccessorName, GetterType, \
-                              SetterType)                              \
-  AccessorInfo::cast(roots_[RootIndex::k##AccessorName##Accessor])     \
-      ->set_getter_side_effect_type(SideEffectType::GetterType);       \
-  AccessorInfo::cast(roots_[RootIndex::k##AccessorName##Accessor])     \
+#define INIT_SIDE_EFFECT_FLAG(_, accessor_name, AccessorName, GetterType, \
+                              SetterType)                                 \
+  AccessorInfo::cast(roots_[RootIndex::k##AccessorName##Accessor])        \
+      ->set_getter_side_effect_type(SideEffectType::GetterType);          \
+  AccessorInfo::cast(roots_[RootIndex::k##AccessorName##Accessor])        \
       ->set_setter_side_effect_type(SideEffectType::SetterType);
-  ACCESSOR_INFO_LIST(INIT_SIDE_EFFECT_FLAG)
+  ACCESSOR_INFO_LIST_GENERATOR(INIT_SIDE_EFFECT_FLAG, /* not used */)
 #undef INIT_SIDE_EFFECT_FLAG
 }
 

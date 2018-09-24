@@ -776,12 +776,8 @@ class Heap {
   MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 
   DATA_HANDLER_MAPS_LIST(ROOT_ACCESSOR)
+  ACCESSOR_INFO_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
-
-#define ACCESSOR_INFO_ACCESSOR(accessor_name, ...) \
-  inline AccessorInfo* accessor_name##_accessor();
-  ACCESSOR_INFO_LIST(ACCESSOR_INFO_ACCESSOR)
-#undef ACCESSOR_INFO_ACCESSOR
 
   Object* root(RootIndex index) { return roots_[index]; }
   Handle<Object> root_handle(RootIndex index) {

@@ -296,15 +296,24 @@ namespace internal {
   INTERNALIZED_STRING_LIST_GENERATOR(INTERNALIZED_STRING_LIST_ADAPTER, V)
 
 // Adapts one XXX_SYMBOL_LIST_GENERATOR entry to the ROOT_LIST-compatible entry
-#define SYMBOL_LIST_ADAPTER(V, name, ...) V(Symbol, name, name)
+#define SYMBOL_ROOT_LIST_ADAPTER(V, name, ...) V(Symbol, name, name)
 
 // Produces (Symbol, name, CamelCase) entries
 #define PRIVATE_SYMBOL_ROOT_LIST(V) \
-  PRIVATE_SYMBOL_LIST_GENERATOR(SYMBOL_LIST_ADAPTER, V)
+  PRIVATE_SYMBOL_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V)
 #define PUBLIC_SYMBOL_ROOT_LIST(V) \
-  PUBLIC_SYMBOL_LIST_GENERATOR(SYMBOL_LIST_ADAPTER, V)
+  PUBLIC_SYMBOL_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V)
 #define WELL_KNOWN_SYMBOL_ROOT_LIST(V) \
-  WELL_KNOWN_SYMBOL_LIST_GENERATOR(SYMBOL_LIST_ADAPTER, V)
+  WELL_KNOWN_SYMBOL_LIST_GENERATOR(SYMBOL_ROOT_LIST_ADAPTER, V)
+
+// Adapts one ACCESSOR_INFO_LIST_GENERATOR entry to the ROOT_LIST-compatible
+// entry
+#define ACCESSOR_INFO_ROOT_LIST_ADAPTER(V, name, CamelName, ...) \
+  V(AccessorInfo, name##_accessor, CamelName##Accessor)
+
+// Produces (AccessorInfo, name, CamelCase) entries
+#define ACCESSOR_INFO_ROOT_LIST(V) \
+  ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_ROOT_LIST_ADAPTER, V)
 
 // Declare all the root indices.  This defines the root list order.
 // clang-format off
@@ -315,13 +324,7 @@ enum class RootIndex {
   PRIVATE_SYMBOL_ROOT_LIST(DECL)
   PUBLIC_SYMBOL_ROOT_LIST(DECL)
   WELL_KNOWN_SYMBOL_ROOT_LIST(DECL)
-#undef DECL
-
-#define DECL(accessor_name, AccessorName, ...) k##AccessorName##Accessor,
-  ACCESSOR_INFO_LIST(DECL)
-#undef DECL
-
-#define DECL(type, name, CamelName) k##CamelName,
+  ACCESSOR_INFO_ROOT_LIST(DECL)
   STRUCT_MAPS_LIST(DECL)
   ALLOCATION_SITE_MAPS_LIST(DECL)
   DATA_HANDLER_MAPS_LIST(DECL)
