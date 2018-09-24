@@ -308,7 +308,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ArrayIndexOf)                             \
   V(ArrayIsArray)                             \
   V(ClassOf)                                  \
-  V(GenerateRandomNumbers)                    \
   V(GetFunctionName)                          \
   V(GetOwnPropertyDescriptor)                 \
   V(GlobalPrint)                              \

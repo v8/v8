@@ -16,6 +16,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
+#include "src/math-random.h"
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator-base.h"
@@ -717,6 +718,10 @@ ExternalReference ExternalReference::libc_memset_function() {
 
 ExternalReference ExternalReference::printf_function() {
   return ExternalReference(Redirect(FUNCTION_ADDR(std::printf)));
+}
+
+ExternalReference ExternalReference::refill_math_random() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(MathRandom::RefillCache)));
 }
 
 template <typename SubjectChar, typename PatternChar>

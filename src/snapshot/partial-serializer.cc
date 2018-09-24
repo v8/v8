@@ -6,6 +6,7 @@
 #include "src/snapshot/startup-serializer.h"
 
 #include "src/api-inl.h"
+#include "src/math-random.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -40,8 +41,7 @@ void PartialSerializer::Serialize(Context** o, bool include_global_proxy) {
                 ReadOnlyRoots(isolate()).undefined_value());
   DCHECK(!context_->global_object()->IsUndefined());
   // Reset math random cache to get fresh random numbers.
-  context_->set_math_random_index(Smi::kZero);
-  context_->set_math_random_cache(ReadOnlyRoots(isolate()).undefined_value());
+  MathRandom::ResetContext(context_);
 
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
                    reinterpret_cast<Object**>(o));
