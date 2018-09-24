@@ -3,28 +3,28 @@
 // found in the LICENSE file.
 
 module array {
-  macro LoadWithHoleCheck<Elements : type>(
+  macro LoadWithHoleCheck<Elements: type>(
       elements: FixedArrayBase, index: Smi): Object
-  labels IfHole;
+      labels IfHole;
 
   LoadWithHoleCheck<FixedArray>(elements: FixedArrayBase, index: Smi): Object
-  labels IfHole {
+      labels IfHole {
     const elements: FixedArray = UnsafeCast<FixedArray>(elements);
     const element: Object = elements[index];
     if (element == Hole) goto IfHole;
     return element;
   }
 
-  LoadWithHoleCheck<FixedDoubleArray>(
-      elements: FixedArrayBase, index: Smi): Object
-  labels IfHole {
+  LoadWithHoleCheck<FixedDoubleArray>(elements: FixedArrayBase, index: Smi):
+      Object
+      labels IfHole {
     const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
     const element: float64 = LoadDoubleWithHoleCheck(elements, index)
-    otherwise IfHole;
+        otherwise IfHole;
     return AllocateHeapNumberWithValue(element);
   }
 
-  macro FastArrayLastIndexOf<Elements : type>(
+  macro FastArrayLastIndexOf<Elements: type>(
       context: Context, array: JSArray, length: Smi, from: Smi,
       searchElement: Object): Smi {
     const elements: FixedArrayBase = array.elements;
@@ -32,7 +32,7 @@ module array {
     while (k >= 0) {
       try {
         const element: Object = LoadWithHoleCheck<Elements>(elements, k)
-        otherwise Hole;
+            otherwise Hole;
 
         const same: Boolean = StrictEqual(searchElement, element);
         if (same == True) {
@@ -74,7 +74,7 @@ module array {
   macro TryFastArrayLastIndexOf(
       context: Context, receiver: JSReceiver, searchElement: Object,
       from: Number): Object
-  labels Slow {
+      labels Slow {
     EnsureFastJSArray(context, receiver) otherwise Slow;
     const array: JSArray = UnsafeCast<JSArray>(receiver);
 
@@ -142,7 +142,7 @@ module array {
 
     try {
       return TryFastArrayLastIndexOf(context, object, searchElement, from)
-      otherwise Baseline;
+          otherwise Baseline;
     }
     label Baseline {
       return GenericArrayLastIndexOf(context, object, searchElement, from);

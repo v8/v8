@@ -7,7 +7,7 @@ module array {
   // FixedArrayType. Most of this behavior is outsourced to ExtractFixedArray(),
   // but the special case of wanting to have a FixedDoubleArray when given a
   // zero-length input FixedArray is handled here.
-  macro Extract<FixedArrayType : type>(
+  macro Extract<FixedArrayType: type>(
       elements: FixedArrayBase, first: Smi, count: Smi,
       capacity: Smi): FixedArrayType {
     return UnsafeCast<FixedArrayType>(
@@ -24,10 +24,11 @@ module array {
         ExtractFixedArray(elements, first, count, capacity));
   }
 
-  macro FastSplice<FixedArrayType : type, ElementType : type>(
+  macro FastSplice<FixedArrayType: type, ElementType: type>(
       args: constexpr Arguments, a: JSArray, length: Smi, newLength: Smi,
       lengthDelta: Smi, actualStart: Smi, insertCount: Smi,
-      actualDeleteCount: Smi): void labels Bailout {
+      actualDeleteCount: Smi): void
+      labels Bailout {
     const elements: FixedArrayBase = a.elements;
     const elementsMap: Map = elements.map;
 
@@ -88,7 +89,7 @@ module array {
       context: Context, args: constexpr Arguments, o: JSReceiver,
       originalLengthNumber: Number, actualStartNumber: Number, insertCount: Smi,
       actualDeleteCountNumber: Number): Object
-  labels Bailout {
+      labels Bailout {
     const originalLength: Smi =
         Cast<Smi>(originalLengthNumber) otherwise Bailout;
     const actualStart: Smi = Cast<Smi>(actualStartNumber) otherwise Bailout;

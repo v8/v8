@@ -124,7 +124,7 @@ module array {
   // copied values from the prototype chain to the receiver if they were visible
   // through a hole.
 
-  builtin Load<ElementsAccessor : type>(
+  builtin Load<ElementsAccessor: type>(
       context: Context, sortState: FixedArray, elements: HeapObject,
       index: Smi): Object {
     return GetProperty(context, elements, index);
@@ -177,7 +177,7 @@ module array {
       const intptrIndex: intptr = Convert<intptr>(index);
       const value: Object =
           BasicLoadNumberDictionaryElement(dictionary, intptrIndex)
-      otherwise Bailout, Bailout;
+          otherwise Bailout, Bailout;
       return value;
     }
     label Bailout {
@@ -193,7 +193,7 @@ module array {
     return elems[index];
   }
 
-  builtin Store<ElementsAccessor : type>(
+  builtin Store<ElementsAccessor: type>(
       context: Context, sortState: FixedArray, elements: HeapObject, index: Smi,
       value: Object): Smi {
     SetProperty(context, elements, index, value);
@@ -230,12 +230,11 @@ module array {
   Store<DictionaryElements>(
       context: Context, sortState: FixedArray, elements: HeapObject, index: Smi,
       value: Object): Smi {
-    const dictionary: NumberDictionary =
-        UnsafeCast<NumberDictionary>(elements);
+    const dictionary: NumberDictionary = UnsafeCast<NumberDictionary>(elements);
     const intptrIndex: intptr = Convert<intptr>(index);
     try {
       BasicStoreNumberDictionaryElement(dictionary, intptrIndex, value)
-      otherwise Fail, Fail, ReadOnly;
+          otherwise Fail, Fail, ReadOnly;
       return kSuccess;
     }
     label ReadOnly {
@@ -323,7 +322,7 @@ module array {
     return v;
   }
 
-  builtin CanUseSameAccessor<ElementsAccessor : type>(
+  builtin CanUseSameAccessor<ElementsAccessor: type>(
       context: Context, receiver: JSReceiver, initialReceiverMap: Object,
       initialReceiverLength: Number): Boolean {
     assert(IsJSArray(receiver));
@@ -354,7 +353,7 @@ module array {
 
   macro CallCompareFn(
       context: Context, sortState: FixedArray, x: Object, y: Object): Number
-  labels Bailout {
+      labels Bailout {
     const userCmpFn: Object = sortState[kUserCmpFnIdx];
     const sortCompare: CompareBuiltinFn =
         UnsafeCast<CompareBuiltinFn>(sortState[kSortComparePtrIdx]);
@@ -488,7 +487,8 @@ module array {
 
   macro CallLoad(
       context: Context, sortState: FixedArray, load: LoadFn,
-      elements: HeapObject, index: Smi): Object labels Bailout {
+      elements: HeapObject, index: Smi): Object
+      labels Bailout {
     const result: Object = load(context, sortState, elements, index);
     EnsureSuccess(sortState) otherwise Bailout;
     return result;
@@ -521,7 +521,7 @@ module array {
   macro CallGallopRight(
       context: Context, sortState: FixedArray, load: LoadFn, key: Object,
       base: Smi, length: Smi, hint: Smi, useTempArray: Boolean): Smi
-  labels Bailout {
+      labels Bailout {
     const result: Smi = GallopRight(
         context, sortState, load, key, base, length, hint, useTempArray);
     EnsureSuccess(sortState) otherwise Bailout;
@@ -531,7 +531,7 @@ module array {
   macro CallGallopLeft(
       context: Context, sortState: FixedArray, load: LoadFn, key: Object,
       base: Smi, length: Smi, hint: Smi, useTempArray: Boolean): Smi
-  labels Bailout {
+      labels Bailout {
     const result: Smi = GallopLeft(
         context, sortState, load, key, base, length, hint, useTempArray);
     EnsureSuccess(sortState) otherwise Bailout;
@@ -573,7 +573,7 @@ module array {
     while (srcIdx < to) {
       let element: Object =
           CallLoad(context, sortState, load, srcElements, srcIdx++)
-      otherwise Bailout;
+          otherwise Bailout;
       tempArray[dstIdx++] = element;
     }
   }
@@ -596,7 +596,7 @@ module array {
         CallStore(
             context, sortState, store, dstElements, dstIdx++,
             tempArray[srcIdx++])
-        otherwise Bailout;
+            otherwise Bailout;
       }
       return kSuccess;
     }
@@ -623,7 +623,7 @@ module array {
         while (srcIdx >= srcPos) {
           CopyElement(
               context, sortState, load, store, elements, srcIdx--, dstIdx--)
-          otherwise Bailout;
+              otherwise Bailout;
         }
       } else {
         let srcIdx: Smi = srcPos;
@@ -632,7 +632,7 @@ module array {
         while (srcIdx < to) {
           CopyElement(
               context, sortState, load, store, elements, srcIdx++, dstIdx++)
-          otherwise Bailout;
+              otherwise Bailout;
         }
       }
       return kSuccess;
@@ -672,7 +672,7 @@ module array {
 
         const pivot: Object =
             CallLoad(context, sortState, load, elements, right)
-        otherwise Bailout;
+            otherwise Bailout;
 
         // Invariants:
         //   pivot >= all in [low, left).
@@ -684,10 +684,10 @@ module array {
           const mid: Smi = left + ((right - left) >>> 1);
           const midElement: Object =
               CallLoad(context, sortState, load, elements, mid)
-          otherwise Bailout;
+              otherwise Bailout;
           const order: Number =
               CallCompareFn(context, sortState, pivot, midElement)
-          otherwise Bailout;
+              otherwise Bailout;
           elements = ReloadElements(sortState);
 
           if (order < 0) {
@@ -708,10 +708,10 @@ module array {
         // Slide over to make room.
         for (let p: Smi = start; p > left; --p) {
           CopyElement(context, sortState, load, store, elements, p - 1, p)
-          otherwise Bailout;
+              otherwise Bailout;
         }
         CallStore(context, sortState, store, elements, left, pivot)
-        otherwise Bailout;
+            otherwise Bailout;
       }
       return kSuccess;
     }
@@ -739,7 +739,7 @@ module array {
   // length is always an ascending sequence.
   macro CountAndMakeRun(
       context: Context, sortState: FixedArray, lowArg: Smi, high: Smi): Smi
-  labels Bailout {
+      labels Bailout {
     assert(lowArg < high);
 
     let elements: HeapObject = ReloadElements(sortState);
@@ -751,13 +751,13 @@ module array {
 
     let runLength: Smi = 2;
 
-    const elementLow: Object =
-        CallLoad(context, sortState, load, elements, low) otherwise Bailout;
-    const elementLowPred: Object =
-        CallLoad(context, sortState, load, elements, low - 1) otherwise Bailout;
+    const elementLow: Object = CallLoad(
+        context, sortState, load, elements, low) otherwise Bailout;
+    const elementLowPred: Object = CallLoad(
+        context, sortState, load, elements, low - 1) otherwise Bailout;
     let order: Number =
         CallCompareFn(context, sortState, elementLow, elementLowPred)
-    otherwise Bailout;
+        otherwise Bailout;
     elements = ReloadElements(sortState);
 
     // TODO(szuend): Replace with "order < 0" once Torque supports it.
@@ -767,10 +767,10 @@ module array {
 
     let previousElement: Object = elementLow;
     for (let idx: Smi = low + 1; idx < high; ++idx) {
-      const currentElement: Object =
-          CallLoad(context, sortState, load, elements, idx) otherwise Bailout;
+      const currentElement: Object = CallLoad(
+          context, sortState, load, elements, idx) otherwise Bailout;
       order = CallCompareFn(context, sortState, currentElement, previousElement)
-      otherwise Bailout;
+          otherwise Bailout;
       elements = ReloadElements(sortState);
 
       if (isDescending) {
@@ -786,7 +786,7 @@ module array {
     if (isDescending) {
       ReverseRange(
           context, sortState, load, store, elements, lowArg, lowArg + runLength)
-      otherwise Bailout;
+          otherwise Bailout;
     }
 
     return runLength;
@@ -800,14 +800,14 @@ module array {
     let high: Smi = to - 1;
 
     while (low < high) {
-      const elementLow: Object =
-          CallLoad(context, sortState, load, elements, low) otherwise Bailout;
-      const elementHigh: Object =
-          CallLoad(context, sortState, load, elements, high) otherwise Bailout;
+      const elementLow: Object = CallLoad(
+          context, sortState, load, elements, low) otherwise Bailout;
+      const elementHigh: Object = CallLoad(
+          context, sortState, load, elements, high) otherwise Bailout;
       CallStore(context, sortState, store, elements, low++, elementHigh)
-      otherwise Bailout;
+          otherwise Bailout;
       CallStore(context, sortState, store, elements, high--, elementLow)
-      otherwise Bailout;
+          otherwise Bailout;
     }
   }
 
@@ -851,10 +851,10 @@ module array {
       // because they are already in place.
       const keyRight: Object =
           CallLoad(context, sortState, load, elements, baseB)
-      otherwise Bailout;
+          otherwise Bailout;
       const k: Smi = CallGallopRight(
           context, sortState, load, keyRight, baseA, lengthA, 0, False)
-      otherwise Bailout;
+          otherwise Bailout;
       assert(k >= 0);
 
       baseA = baseA + k;
@@ -866,7 +866,7 @@ module array {
       // because they are already in place.
       let keyLeft: Object =
           CallLoad(context, sortState, load, elements, baseA + lengthA - 1)
-      otherwise Bailout;
+          otherwise Bailout;
       lengthB = CallGallopLeft(
           context, sortState, load, keyLeft, baseB, lengthB, lengthB - 1, False)
           otherwise Bailout;
@@ -877,10 +877,10 @@ module array {
       // min(lengthA, lengthB) elements.
       if (lengthA <= lengthB) {
         MergeLow(context, sortState, baseA, lengthA, baseB, lengthB)
-        otherwise Bailout;
+            otherwise Bailout;
       } else {
         MergeHigh(context, sortState, baseA, lengthA, baseB, lengthB)
-        otherwise Bailout;
+            otherwise Bailout;
       }
       return kSuccess;
     }
@@ -924,10 +924,10 @@ module array {
     try {
       const baseHintElement: Object =
           CallLoad(context, sortState, load, elements, base + hint)
-      otherwise Bailout;
+          otherwise Bailout;
       let order: Number =
           CallCompareFn(context, sortState, baseHintElement, key)
-      otherwise Bailout;
+          otherwise Bailout;
       if (useTempArray == False) {
         elements = ReloadElements(sortState);
       }
@@ -941,9 +941,9 @@ module array {
         while (offset < maxOfs) {
           const offsetElement: Object =
               CallLoad(context, sortState, load, elements, base + hint + offset)
-          otherwise Bailout;
+              otherwise Bailout;
           order = CallCompareFn(context, sortState, offsetElement, key)
-          otherwise Bailout;
+              otherwise Bailout;
           if (useTempArray == False) {
             elements = ReloadElements(sortState);
           }
@@ -973,9 +973,9 @@ module array {
         while (offset < maxOfs) {
           const offsetElement: Object =
               CallLoad(context, sortState, load, elements, base + hint - offset)
-          otherwise Bailout;
+              otherwise Bailout;
           order = CallCompareFn(context, sortState, offsetElement, key)
-          otherwise Bailout;
+              otherwise Bailout;
           if (useTempArray == False) {
             elements = ReloadElements(sortState);
           }
@@ -1009,9 +1009,9 @@ module array {
 
         const baseMElement: Object =
             CallLoad(context, sortState, load, elements, base + m)
-        otherwise Bailout;
+            otherwise Bailout;
         order = CallCompareFn(context, sortState, baseMElement, key)
-        otherwise Bailout;
+            otherwise Bailout;
         if (useTempArray == False) {
           elements = ReloadElements(sortState);
         }
@@ -1059,10 +1059,10 @@ module array {
     try {
       const baseHintElement: Object =
           CallLoad(context, sortState, load, elements, base + hint)
-      otherwise Bailout;
+          otherwise Bailout;
       let order: Number =
           CallCompareFn(context, sortState, key, baseHintElement)
-      otherwise Bailout;
+          otherwise Bailout;
       if (useTempArray == False) {
         elements = ReloadElements(sortState);
       }
@@ -1076,9 +1076,9 @@ module array {
         while (offset < maxOfs) {
           const offsetElement: Object =
               CallLoad(context, sortState, load, elements, base + hint - offset)
-          otherwise Bailout;
+              otherwise Bailout;
           order = CallCompareFn(context, sortState, key, offsetElement)
-          otherwise Bailout;
+              otherwise Bailout;
           if (useTempArray == False) {
             elements = ReloadElements(sortState);
           }
@@ -1107,9 +1107,9 @@ module array {
         while (offset < maxOfs) {
           const offsetElement: Object =
               CallLoad(context, sortState, load, elements, base + hint + offset)
-          otherwise Bailout;
+              otherwise Bailout;
           order = CallCompareFn(context, sortState, key, offsetElement)
-          otherwise Bailout;
+              otherwise Bailout;
           if (useTempArray == False) {
             elements = ReloadElements(sortState);
           }
@@ -1142,9 +1142,9 @@ module array {
 
         const baseMElement: Object =
             CallLoad(context, sortState, load, elements, base + m)
-        otherwise Bailout;
+            otherwise Bailout;
         order = CallCompareFn(context, sortState, key, baseMElement)
-        otherwise Bailout;
+            otherwise Bailout;
         if (useTempArray == False) {
           elements = ReloadElements(sortState);
         }
@@ -1171,9 +1171,9 @@ module array {
       elements: HeapObject, from: Smi, to: Smi)
   labels Bailout {
     const element: Object = CallLoad(context, sortState, load, elements, from)
-    otherwise Bailout;
+        otherwise Bailout;
     CallStore(context, sortState, store, elements, to, element)
-    otherwise Bailout;
+        otherwise Bailout;
   }
 
   // Merge the lengthA elements starting at baseA with the lengthB elements
@@ -1200,14 +1200,14 @@ module array {
     const tempArray: FixedArray = GetTempArray(sortState, lengthA);
     CopyToTempArray(
         context, sortState, load, elements, baseA, tempArray, 0, lengthA)
-    otherwise Bailout;
+        otherwise Bailout;
 
     let dest: Smi = baseA;
     let cursorTemp: Smi = 0;
     let cursorB: Smi = baseB;
 
     CopyElement(context, sortState, load, store, elements, cursorB++, dest++)
-    otherwise Bailout;
+        otherwise Bailout;
 
     try {
       if (--lengthB == 0) goto Succeed;
@@ -1229,16 +1229,16 @@ module array {
 
           let elementB: Object =
               CallLoad(context, sortState, load, elements, cursorB)
-          otherwise Bailout;
+              otherwise Bailout;
           let order: Number =
               CallCompareFn(context, sortState, elementB, tempArray[cursorTemp])
-          otherwise Bailout;
+              otherwise Bailout;
           elements = ReloadElements(sortState);
 
           if (order < 0) {
             CopyElement(
                 context, sortState, load, store, elements, cursorB, dest)
-            otherwise Bailout;
+                otherwise Bailout;
 
             ++cursorB;
             ++dest;
@@ -1252,7 +1252,7 @@ module array {
             CallStore(
                 context, sortState, store, elements, dest,
                 tempArray[cursorTemp])
-            otherwise Bailout;
+                otherwise Bailout;
 
             ++cursorTemp;
             ++dest;
@@ -1280,7 +1280,7 @@ module array {
 
           let keyRight: Object =
               CallLoad(context, sortState, load, elements, cursorB)
-          otherwise Bailout;
+              otherwise Bailout;
           nofWinsA = CallGallopRight(
               context, sortState, Load<TempArrayElements>, keyRight, cursorTemp,
               lengthA, 0, True) otherwise Bailout;
@@ -1302,18 +1302,18 @@ module array {
           }
           CopyElement(
               context, sortState, load, store, elements, cursorB++, dest++)
-          otherwise Bailout;
+              otherwise Bailout;
           if (--lengthB == 0) goto Succeed;
 
           nofWinsB = CallGallopLeft(
               context, sortState, load, tempArray[cursorTemp], cursorB, lengthB,
               0, False)
-          otherwise Bailout;
+              otherwise Bailout;
           assert(nofWinsB >= 0);
           if (nofWinsB > 0) {
             CallCopyWithinSortArray(
                 context, sortState, elements, cursorB, dest, nofWinsB)
-            otherwise Bailout;
+                otherwise Bailout;
 
             dest = dest + nofWinsB;
             cursorB = cursorB + nofWinsB;
@@ -1324,7 +1324,7 @@ module array {
           CallStore(
               context, sortState, store, elements, dest++,
               tempArray[cursorTemp++])
-          otherwise Bailout;
+              otherwise Bailout;
           if (--lengthA == 1) goto CopyB;
         }
         ++minGallop;  // Penalize it for leaving galloping mode
@@ -1343,11 +1343,11 @@ module array {
       // The last element of run A belongs at the end of the merge.
       CallCopyWithinSortArray(
           context, sortState, elements, cursorB, dest, lengthB)
-      otherwise Bailout;
+          otherwise Bailout;
       CallStore(
           context, sortState, store, elements, dest + lengthB,
           tempArray[cursorTemp])
-      otherwise Bailout;
+          otherwise Bailout;
     }
   }
 
@@ -1373,7 +1373,7 @@ module array {
     const tempArray: FixedArray = GetTempArray(sortState, lengthB);
     CopyToTempArray(
         context, sortState, load, elements, baseB, tempArray, 0, lengthB)
-    otherwise Bailout;
+        otherwise Bailout;
 
     // MergeHigh merges the two runs backwards.
     let dest: Smi = baseB + lengthB - 1;
@@ -1381,7 +1381,7 @@ module array {
     let cursorA: Smi = baseA + lengthA - 1;
 
     CopyElement(context, sortState, load, store, elements, cursorA--, dest--)
-    otherwise Bailout;
+        otherwise Bailout;
 
     try {
       if (--lengthA == 0) goto Succeed;
@@ -1403,16 +1403,16 @@ module array {
 
           let elementA: Object =
               CallLoad(context, sortState, load, elements, cursorA)
-          otherwise Bailout;
+              otherwise Bailout;
           let order: Number =
               CallCompareFn(context, sortState, tempArray[cursorTemp], elementA)
-          otherwise Bailout;
+              otherwise Bailout;
           elements = ReloadElements(sortState);
 
           if (order < 0) {
             CopyElement(
                 context, sortState, load, store, elements, cursorA, dest)
-            otherwise Bailout;
+                otherwise Bailout;
 
             --cursorA;
             --dest;
@@ -1426,7 +1426,7 @@ module array {
             CallStore(
                 context, sortState, store, elements, dest,
                 tempArray[cursorTemp])
-            otherwise Bailout;
+                otherwise Bailout;
 
             --cursorTemp;
             --dest;
@@ -1456,7 +1456,7 @@ module array {
           let k: Smi = CallGallopRight(
               context, sortState, load, tempArray[cursorTemp], baseA, lengthA,
               lengthA - 1, False)
-          otherwise Bailout;
+              otherwise Bailout;
           assert(k >= 0);
           nofWinsA = lengthA - k;
 
@@ -1465,7 +1465,7 @@ module array {
             cursorA = cursorA - nofWinsA;
             CallCopyWithinSortArray(
                 context, sortState, elements, cursorA + 1, dest + 1, nofWinsA)
-            otherwise Bailout;
+                otherwise Bailout;
 
             lengthA = lengthA - nofWinsA;
             if (lengthA == 0) goto Succeed;
@@ -1473,12 +1473,12 @@ module array {
           CallStore(
               context, sortState, store, elements, dest--,
               tempArray[cursorTemp--])
-          otherwise Bailout;
+              otherwise Bailout;
           if (--lengthB == 1) goto CopyA;
 
           let key: Object =
               CallLoad(context, sortState, load, elements, cursorA)
-          otherwise Bailout;
+              otherwise Bailout;
           k = CallGallopLeft(
               context, sortState, Load<TempArrayElements>, key, 0, lengthB,
               lengthB - 1, True) otherwise Bailout;
@@ -1501,7 +1501,7 @@ module array {
           }
           CopyElement(
               context, sortState, load, store, elements, cursorA--, dest--)
-          otherwise Bailout;
+              otherwise Bailout;
           if (--lengthA == 0) goto Succeed;
         }
         ++minGallop;
@@ -1524,10 +1524,10 @@ module array {
       cursorA = cursorA - lengthA;
       CallCopyWithinSortArray(
           context, sortState, elements, cursorA + 1, dest + 1, lengthA)
-      otherwise Bailout;
+          otherwise Bailout;
       CallStore(
           context, sortState, store, elements, dest, tempArray[cursorTemp])
-      otherwise Bailout;
+          otherwise Bailout;
     }
   }
 
@@ -1632,7 +1632,7 @@ module array {
     sortState[kPendingRunsIdx] = pendingRuns;
   }
 
-  macro InitializeSortStateAccessor<Accessor : type>(sortState: FixedArray) {
+  macro InitializeSortStateAccessor<Accessor: type>(sortState: FixedArray) {
     sortState[kAccessorIdx] = kFastElementsAccessorId;
     sortState[kLoadFnIdx] = Load<Accessor>;
     sortState[kStoreFnIdx] = Store<Accessor>;
@@ -1661,7 +1661,7 @@ module array {
     while (remaining != 0) {
       let currentRunLength: Smi =
           CountAndMakeRun(context, sortState, low, low + remaining)
-      otherwise Bailout;
+          otherwise Bailout;
 
       // If the run is short, extend it to min(minRunLength, remaining).
       if (currentRunLength < minRunLength) {
@@ -1694,7 +1694,7 @@ module array {
       context: Context, sortState: FixedArray, length: Smi): Object {
     try {
       ArrayTimSortImpl(context, sortState, length)
-      otherwise Slow;
+          otherwise Slow;
     }
     label Slow {
       if (sortState[kAccessorIdx] == kGenericElementsAccessorId) {

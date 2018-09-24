@@ -72,10 +72,10 @@ module array {
     }
   }
 
-  macro VisitAllElements<FixedArrayType : type>(
+  macro VisitAllElements<FixedArrayType: type>(
       context: Context, a: JSArray, len: Smi, callbackfn: Callable,
-      thisArg: Object): void labels
-  Bailout(Smi) {
+      thisArg: Object): void
+      labels Bailout(Smi) {
     let k: Smi = 0;
     const map: Map = a.map;
 
@@ -108,8 +108,8 @@ module array {
 
   macro FastArrayForEach(
       context: Context, o: JSReceiver, len: Number, callbackfn: Callable,
-      thisArg: Object): Object labels
-  Bailout(Smi) {
+      thisArg: Object): Object
+      labels Bailout(Smi) {
     let k: Smi = 0;
     try {
       const smiLen: Smi = Cast<Smi>(len) otherwise Slow;
@@ -123,10 +123,10 @@ module array {
       if (IsElementsKindGreaterThan(elementsKind, HOLEY_ELEMENTS)) {
         VisitAllElements<FixedDoubleArray>(
             context, a, smiLen, callbackfn, thisArg)
-        otherwise Bailout;
+            otherwise Bailout;
       } else {
         VisitAllElements<FixedArray>(context, a, smiLen, callbackfn, thisArg)
-        otherwise Bailout;
+            otherwise Bailout;
       }
     }
     label Slow deferred {
@@ -163,7 +163,7 @@ module array {
       let k: Number = 0;
       try {
         return FastArrayForEach(context, o, len, callbackfn, thisArg)
-        otherwise Bailout;
+            otherwise Bailout;
       }
       label Bailout(kValue: Smi) deferred {
         k = kValue;

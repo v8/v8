@@ -1265,7 +1265,7 @@ struct TorqueGrammar : Grammar {
   Symbol typeswitchCase = {
       Rule({Token("case"), Token("("),
             Optional<std::string>(Sequence({&identifier, Token(":")})), &type,
-            Token(")"), &block},
+            Token(")"), Token(":"), &block},
            MakeTypeswitchCase)};
 
   // Result: base::Optional<Statement*>

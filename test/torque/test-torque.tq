@@ -4,10 +4,9 @@
 
 module test {
   macro ElementsKindTestHelper1(kind: constexpr ElementsKind): bool {
-    if constexpr((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
-        return true;
-      }
-    else {
+    if constexpr ((kind == UINT8_ELEMENTS) || (kind == UINT16_ELEMENTS)) {
+      return true;
+    } else {
       return false;
     }
   }
@@ -21,17 +20,17 @@ module test {
   }
 
   macro LabelTestHelper1(): never
-  labels Label1 {
+      labels Label1 {
     goto Label1;
   }
 
   macro LabelTestHelper2(): never
-  labels Label2(Smi) {
+      labels Label2(Smi) {
     goto Label2(42);
   }
 
   macro LabelTestHelper3(): never
-  labels Label3(String, Smi) {
+      labels Label3(String, Smi) {
     goto Label3('foo', 7);
   }
 
@@ -82,7 +81,7 @@ module test {
     }
   }
 
-  builtin GenericBuiltinTest<T : type>(c: Context, param: T): Object {
+  builtin GenericBuiltinTest<T: type>(c: Context, param: T): Object {
     return Null;
   }
 
@@ -97,8 +96,9 @@ module test {
     check(GenericBuiltinTest<Object>(c, Undefined) == Undefined);
   }
 
-  macro LabelTestHelper4(flag: constexpr bool): never labels Label4, Label5 {
-    if constexpr(flag) {
+  macro LabelTestHelper4(flag: constexpr bool): never
+      labels Label4, Label5 {
+    if constexpr (flag) {
       goto Label4;
     } else {
       goto Label5;
@@ -128,7 +128,7 @@ module test {
     }
   }
 
-  macro GenericMacroTest<T : type>(param: T): Object {
+  macro GenericMacroTest<T: type>(param: T): Object {
     return Undefined;
   }
 
@@ -136,11 +136,13 @@ module test {
     return param2;
   }
 
-  macro GenericMacroTestWithLabels<T : type>(param: T): Object labels X {
+  macro GenericMacroTestWithLabels<T: type>(param: T): Object
+      labels X {
     return Undefined;
   }
 
-  GenericMacroTestWithLabels<Object>(param2: Object): Object labels Y {
+  GenericMacroTestWithLabels<Object>(param2: Object): Object
+      labels Y {
     return param2;
   }
 
@@ -244,12 +246,12 @@ module test {
   }
 
   macro TestLocalConstBindings() {
-    const x : constexpr int31 = 3;
-    const xSmi : Smi = x;
+    const x: constexpr int31 = 3;
+    const xSmi: Smi = x;
     {
-      const x : Smi = x + FromConstexpr<Smi>(1);
+      const x: Smi = x + FromConstexpr<Smi>(1);
       check(x == xSmi + 1);
-      const xSmi : Smi = x;
+      const xSmi: Smi = x;
       check(x == xSmi);
       check(x == 4);
     }
@@ -287,14 +289,15 @@ module test {
     d.x = a;
     d = TestStructB{a, 7};
     let e: TestStructA = d.x;
-    let f: Smi = TestStructA{UnsafeCast<FixedArray>(kEmptyFixedArray), 27, 31}.i;
+    let f: Smi =
+    TestStructA{UnsafeCast<FixedArray>(kEmptyFixedArray), 27, 31}.i;
     f = TestStruct2().i;
     return a;
   }
 
   struct TestStructC {
-    x : TestStructA;
-    y : TestStructA;
+    x: TestStructA;
+    y: TestStructA;
   }
 
   macro TestStruct4(): TestStructC {
@@ -387,38 +390,42 @@ module test {
     check(sum == 7);
   }
 
-  macro TestSubtyping(x : Smi) {
-    const foo : Object = x;
+  macro TestSubtyping(x: Smi) {
+    const foo: Object = x;
   }
 
-  macro IncrementIfSmi<A : type>(x : A) : A {
+  macro IncrementIfSmi<A: type>(x: A): A {
     typeswitch (x) {
-      case (x : Smi) {
+      case (x: Smi): {
         return x + 1;
-      } case (o : A) {
+      }
+      case (o: A): {
         return o;
       }
     }
   }
 
-  macro TypeswitchExample(x : Number | FixedArray) : int32 {
-    let result : int32 = 0;
-    typeswitch (IncrementIfSmi<(Number|FixedArray)>(x)) {
-      case (x : FixedArray) {
+  macro TypeswitchExample(x: Number | FixedArray): int32 {
+    let result: int32 = 0;
+    typeswitch (IncrementIfSmi<(Number | FixedArray)>(x)) {
+      case (x: FixedArray): {
         result = result + 1;
-      } case (Number) {
+      }
+      case (Number): {
         result = result + 2;
       }
     }
 
     result = result * 10;
 
-    typeswitch (IncrementIfSmi<(Number|FixedArray)>(x)) {
-      case (x : Smi) {
+    typeswitch (IncrementIfSmi<(Number | FixedArray)>(x)) {
+      case (x: Smi): {
         result = result + Convert<int32>(x);
-      } case (a : FixedArray) {
+      }
+      case (a: FixedArray): {
         result = result + Convert<int32>(a.length);
-      } case (x : HeapNumber) {
+      }
+      case (x: HeapNumber): {
         result = result + 7;
       }
     }
@@ -428,26 +435,27 @@ module test {
 
   macro TestTypeswitch() {
     check(TypeswitchExample(FromConstexpr<Smi>(5)) == 26);
-    const a : FixedArray = AllocateZeroedFixedArray(3);
+    const a: FixedArray = AllocateZeroedFixedArray(3);
     check(TypeswitchExample(a) == 13);
     check(TypeswitchExample(FromConstexpr<Number>(0.5)) == 27);
   }
 
-  macro ExampleGenericOverload<A: type>(o : Object) : A {
+  macro ExampleGenericOverload<A: type>(o: Object): A {
     return o;
   }
-  macro ExampleGenericOverload<A: type>(o : Smi) : A {
+  macro ExampleGenericOverload<A: type>(o: Smi): A {
     return o + 1;
   }
 
   macro TestGenericOverload() {
-    const xSmi : Smi = 5;
-    const xObject : Object = xSmi;
+    const xSmi: Smi = 5;
+    const xObject: Object = xSmi;
     check(ExampleGenericOverload<Smi>(xSmi) == 6);
     check(UnsafeCast<Smi>(ExampleGenericOverload<Object>(xObject)) == 5);
   }
 
-  macro BoolToBranch(x : bool) : never labels Taken, NotTaken {
+  macro BoolToBranch(x: bool): never
+      labels Taken, NotTaken {
     if (x) {
       goto Taken;
     } else {
@@ -455,27 +463,27 @@ module test {
     }
   }
 
-  macro TestOrAnd1(x : bool, y : bool, z : bool) : bool {
+  macro TestOrAnd1(x: bool, y: bool, z: bool): bool {
     return BoolToBranch(x) || y && z ? true : false;
   }
 
-  macro TestOrAnd2(x : bool, y : bool, z : bool) : bool {
+  macro TestOrAnd2(x: bool, y: bool, z: bool): bool {
     return x || BoolToBranch(y) && z ? true : false;
   }
 
-  macro TestOrAnd3(x : bool, y : bool, z : bool) : bool {
+  macro TestOrAnd3(x: bool, y: bool, z: bool): bool {
     return x || y && BoolToBranch(z) ? true : false;
   }
 
-  macro TestAndOr1(x : bool, y : bool, z : bool) : bool {
+  macro TestAndOr1(x: bool, y: bool, z: bool): bool {
     return BoolToBranch(x) && y || z ? true : false;
   }
 
-  macro TestAndOr2(x : bool, y : bool, z : bool) : bool {
+  macro TestAndOr2(x: bool, y: bool, z: bool): bool {
     return x && BoolToBranch(y) || z ? true : false;
   }
 
-  macro TestAndOr3(x : bool, y : bool, z : bool) : bool {
+  macro TestAndOr3(x: bool, y: bool, z: bool): bool {
     return x && y || BoolToBranch(z) ? true : false;
   }
 
@@ -529,5 +537,4 @@ module test {
     check(!TestOrAnd2(false, false, false));
     check(!TestOrAnd3(false, false, false));
   }
-
 }

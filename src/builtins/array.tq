@@ -35,8 +35,8 @@ module array {
     assert(IsFastSmiOrTaggedElementsKind(array.map.elements_kind));
 
     const length: Smi = array.length_fast;
-    array.elements = ExtractFixedArray(
-        elements, 0, length, length, kFixedArrays);
+    array.elements =
+        ExtractFixedArray(elements, 0, length, length, kFixedArrays);
     assert(array.elements.map != kCOWMap);
   }
 
@@ -69,7 +69,7 @@ module array {
       to: Smi): void {
     try {
       const floatValue: float64 = LoadDoubleWithHoleCheck(elements, from)
-      otherwise FoundHole;
+          otherwise FoundHole;
       newElements[to] = floatValue;
     }
     label FoundHole {
