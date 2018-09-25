@@ -1534,10 +1534,11 @@ void DeclarationScope::SavePreParsedScopeDataForDeclarationScope() {
 void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
   DCHECK(!force_eager_compilation_);
   ThreadedList<VariableProxy> new_unresolved_list;
-  if (!outer_scope_->is_script_scope() ||
-      (FLAG_preparser_scope_analysis &&
-       preparsed_scope_data_builder_ != nullptr &&
-       preparsed_scope_data_builder_->ContainsInnerFunctions())) {
+  if (!IsArrowFunction(function_kind_) &&
+      (!outer_scope_->is_script_scope() ||
+       (FLAG_preparser_scope_analysis &&
+        preparsed_scope_data_builder_ != nullptr &&
+        preparsed_scope_data_builder_->ContainsInnerFunctions()))) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
     // them in the outer Scopes here, because they are incomplete.

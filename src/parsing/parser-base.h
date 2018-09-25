@@ -4398,8 +4398,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         DCHECK(parse_result);
         USE(parse_result);
         DCHECK_NULL(produced_preparsed_scope_data);
-        formal_parameters.scope->ResetAfterPreparsing(ast_value_factory_,
-                                                      false);
         // Discard any queued destructuring assignments which appeared
         // in this function's parameter list, and which were adopted
         // into this function state, above.
