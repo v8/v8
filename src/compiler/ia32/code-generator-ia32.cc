@@ -500,7 +500,7 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
   // There are not enough temp registers left on ia32 for a call instruction
   // so we pick some scratch registers and save/restore them manually here.
   int scratch_count = 3;
-  Register scratch1 = ebx;
+  Register scratch1 = esi;
   Register scratch2 = ecx;
   Register scratch3 = edx;
   DCHECK(!AreAliased(args_reg, scratch1, scratch2, scratch3));
@@ -624,9 +624,11 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
-  __ mov(ebx, Operand(kJavaScriptCallCodeStartRegister, offset));
-  __ test(FieldOperand(ebx, CodeDataContainer::kKindSpecificFlagsOffset),
+  __ push(eax);  // Push eax so we can use it as a scratch register.
+  __ mov(eax, Operand(kJavaScriptCallCodeStartRegister, offset));
+  __ test(FieldOperand(eax, CodeDataContainer::kKindSpecificFlagsOffset),
           Immediate(1 << Code::kMarkedForDeoptimizationBit));
+  __ pop(eax);  // Restore eax.
   // Ensure we're not serializing (otherwise we'd need to use an indirection to
   // access the builtin below).
   DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
