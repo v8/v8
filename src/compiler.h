@@ -20,7 +20,6 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class BackgroundCompileTask;
 class JavaScriptFrame;
 class OptimizedCompilationInfo;
 class OptimizedCompilationJob;
@@ -28,10 +27,8 @@ class ParseInfo;
 class Parser;
 class ScriptData;
 struct ScriptStreamingData;
-class TimedHistogram;
 class UnoptimizedCompilationInfo;
 class UnoptimizedCompilationJob;
-class WorkerThreadRuntimeCallStats;
 
 typedef std::forward_list<std::unique_ptr<UnoptimizedCompilationJob>>
     UnoptimizedCompilationJobList;
@@ -63,6 +60,13 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
   CompileForLiveEdit(ParseInfo* parse_info, Isolate* isolate);
+
+  // Creates a new task that when run will parse and compile the streamed
+  // script associated with |streaming_data| and can be finalized with
+  // Compiler::GetSharedFunctionInfoForStreamedScript.
+  // Note: does not take ownership of streaming_data.
+  static ScriptCompiler::ScriptStreamingTask* NewBackgroundCompileTask(
+      ScriptStreamingData* streaming_data, Isolate* isolate);
 
   // Generate and install code from previously queued compilation job.
   static bool FinalizeCompilationJob(UnoptimizedCompilationJob* job,
@@ -313,47 +317,6 @@ class OptimizedCompilationJob : public CompilationJob {
   const char* compiler_name_;
 };
 
-class BackgroundCompileTask {
- public:
-  // Creates a new task that when run will parse and compile the streamed
-  // script associated with |data| and can be finalized with
-  // Compiler::GetSharedFunctionInfoForStreamedScript.
-  // Note: does not take ownership of |data|.
-  BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate);
-
-  void Run();
-
-  ParseInfo* info() { return info_.get(); }
-  Parser* parser() { return parser_.get(); }
-  UnoptimizedCompilationJob* outer_function_job() {
-    return outer_function_job_.get();
-  }
-  UnoptimizedCompilationJobList* inner_function_jobs() {
-    return &inner_function_jobs_;
-  }
-
- private:
-  // Data needed for parsing, and data needed to to be passed between thread
-  // between parsing and compilation. These need to be initialized before the
-  // compilation starts.
-  std::unique_ptr<ParseInfo> info_;
-  std::unique_ptr<Parser> parser_;
-  // TODO(rmcilroy): Consider having thread-local unicode-caches rather than
-  // creating a new one each time.
-  UnicodeCache unicode_cache_;
-
-  // Data needed for finalizing compilation after background compilation.
-  std::unique_ptr<UnoptimizedCompilationJob> outer_function_job_;
-  UnoptimizedCompilationJobList inner_function_jobs_;
-
-  int stack_size_;
-  WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
-  AccountingAllocator* allocator_;
-  TimedHistogram* timer_;
-
-  DISALLOW_COPY_AND_ASSIGN(BackgroundCompileTask);
-};
-
 // Contains all data which needs to be transmitted between threads for
 // background parsing and compiling and finalizing it on the main thread.
 struct ScriptStreamingData {
@@ -366,9 +329,18 @@ struct ScriptStreamingData {
   // Internal implementation of v8::ScriptCompiler::StreamedSource.
   std::unique_ptr<ScriptCompiler::ExternalSourceStream> source_stream;
   ScriptCompiler::StreamedSource::Encoding encoding;
+  std::unique_ptr<ScriptCompiler::CachedData> cached_data;
 
-  // Task that performs background parsing and compilation.
-  std::unique_ptr<BackgroundCompileTask> task;
+  // Data needed for parsing, and data needed to to be passed between thread
+  // between parsing and compilation. These need to be initialized before the
+  // compilation starts.
+  UnicodeCache unicode_cache;
+  std::unique_ptr<ParseInfo> info;
+  std::unique_ptr<Parser> parser;
+
+  // Data needed for finalizing compilation after background compilation.
+  std::unique_ptr<UnoptimizedCompilationJob> outer_function_job;
+  UnoptimizedCompilationJobList inner_function_jobs;
 
   DISALLOW_COPY_AND_ASSIGN(ScriptStreamingData);
 };

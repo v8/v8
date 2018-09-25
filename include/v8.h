@@ -1380,11 +1380,12 @@ class V8_EXPORT ScriptCompiler {
     virtual void ResetToBookmark();
   };
 
+
   /**
    * Source code which can be streamed into V8 in pieces. It will be parsed
-   * while streaming and compiled after parsing has completed. StreamedSource
-   * must be kept alive while the streaming task is run (see ScriptStreamingTask
-   * below).
+   * while streaming. It can be compiled after the streaming is complete.
+   * StreamedSource must be kept alive while the streaming task is ran (see
+   * ScriptStreamingTask below).
    */
   class V8_EXPORT StreamedSource {
    public:
@@ -1393,35 +1394,29 @@ class V8_EXPORT ScriptCompiler {
     StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
     ~StreamedSource();
 
-    V8_DEPRECATED("No longer used", const CachedData* GetCachedData() const) {
-      return nullptr;
-    }
+    // Ownership of the CachedData or its buffers is *not* transferred to the
+    // caller. The CachedData object is alive as long as the StreamedSource
+    // object is alive.
+    const CachedData* GetCachedData() const;
 
-    internal::ScriptStreamingData* impl() const { return impl_.get(); }
+    internal::ScriptStreamingData* impl() const { return impl_; }
 
     // Prevent copying.
     StreamedSource(const StreamedSource&) = delete;
     StreamedSource& operator=(const StreamedSource&) = delete;
 
    private:
-    std::unique_ptr<internal::ScriptStreamingData> impl_;
+    internal::ScriptStreamingData* impl_;
   };
 
   /**
    * A streaming task which the embedder must run on a background thread to
    * stream scripts into V8. Returned by ScriptCompiler::StartStreamingScript.
    */
-  class V8_EXPORT ScriptStreamingTask final {
+  class ScriptStreamingTask {
    public:
-    void Run();
-
-   private:
-    friend class ScriptCompiler;
-
-    explicit ScriptStreamingTask(internal::ScriptStreamingData* data)
-        : data_(data) {}
-
-    internal::ScriptStreamingData* data_;
+    virtual ~ScriptStreamingTask() = default;
+    virtual void Run() = 0;
   };
 
   enum CompileOptions {

@@ -21,13 +21,13 @@
 namespace v8 {
 namespace internal {
 
+
 class AstRawString;
 class AstValueFactory;
 class DuplicateFinder;
 class ExternalOneByteString;
 class ExternalTwoByteString;
 class ParserRecorder;
-class RuntimeCallStats;
 class UnicodeCache;
 
 // ---------------------------------------------------------------------
@@ -120,11 +120,6 @@ class Utf16CharacterStream {
   // Returns true if the stream could access the V8 heap after construction.
   virtual bool can_access_heap() const = 0;
 
-  RuntimeCallStats* runtime_call_stats() const { return runtime_call_stats_; }
-  void set_runtime_call_stats(RuntimeCallStats* runtime_call_stats) {
-    runtime_call_stats_ = runtime_call_stats;
-  }
-
  protected:
   Utf16CharacterStream(const uint16_t* buffer_start,
                        const uint16_t* buffer_cursor,
@@ -185,7 +180,6 @@ class Utf16CharacterStream {
   const uint16_t* buffer_cursor_;
   const uint16_t* buffer_end_;
   size_t buffer_pos_;
-  RuntimeCallStats* runtime_call_stats_;
 };
 
 // ----------------------------------------------------------------------------
