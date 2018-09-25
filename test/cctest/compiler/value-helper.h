@@ -345,7 +345,7 @@ template <typename type>
 struct FloatCompareWrapper {
   type value;
   explicit FloatCompareWrapper(type x) : value(x) {}
-  bool operator==(FloatCompareWrapper<type> other) const {
+  bool operator==(FloatCompareWrapper<type> const& other) const {
     return std::isnan(value)
                ? std::isnan(other.value)
                : value == other.value &&
