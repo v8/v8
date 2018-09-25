@@ -122,16 +122,6 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   return *exception;
 }
 
-RUNTIME_FUNCTION(Runtime_WasmThrow) {
-  // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  DCHECK_NULL(isolate->context());
-  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  CONVERT_ARG_CHECKED(Object, except_obj, 0);
-  return isolate->Throw(except_obj);
-}
-
 RUNTIME_FUNCTION(Runtime_WasmExceptionGetTag) {
   // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
   HandleScope scope(isolate);

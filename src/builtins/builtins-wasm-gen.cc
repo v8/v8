@@ -80,6 +80,14 @@ TF_BUILTIN(WasmStackGuard, WasmBuiltinsAssembler) {
   TailCallRuntimeWithCEntry(Runtime::kWasmStackGuard, centry, context);
 }
 
+TF_BUILTIN(WasmThrow, WasmBuiltinsAssembler) {
+  TNode<Object> exception = UncheckedParameter(Descriptor::kException);
+  TNode<Object> instance = LoadInstanceFromFrame();
+  TNode<Code> centry = LoadCEntryFromInstance(instance);
+  TNode<Object> context = LoadContextFromInstance(instance);
+  TailCallRuntimeWithCEntry(Runtime::kThrow, centry, context, exception);
+}
+
 TF_BUILTIN(WasmGrowMemory, WasmBuiltinsAssembler) {
   TNode<Int32T> num_pages =
       UncheckedCast<Int32T>(Parameter(Descriptor::kNumPages));

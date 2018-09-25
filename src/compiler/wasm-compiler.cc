@@ -2083,7 +2083,16 @@ Node* WasmGraphBuilder::Throw(uint32_t exception_index,
     }
   }
   DCHECK_EQ(encoded_size, index);
-  return BuildCallToRuntime(Runtime::kWasmThrow, &except_obj, 1);
+  WasmThrowDescriptor interface_descriptor;
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      mcgraph()->zone(), interface_descriptor,
+      interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kNoProperties, StubCallMode::kCallWasmRuntimeStub);
+  Node* call_target = mcgraph()->RelocatableIntPtrConstant(
+      wasm::WasmCode::kWasmThrow, RelocInfo::WASM_STUB_CALL);
+  return SetEffect(SetControl(
+      graph()->NewNode(mcgraph()->common()->Call(call_descriptor), call_target,
+                       except_obj, Effect(), Control())));
 }
 
 void WasmGraphBuilder::BuildEncodeException32BitValue(Node* except_obj,
@@ -2122,8 +2131,16 @@ Node* WasmGraphBuilder::BuildDecodeException32BitValue(Node* const* values,
 
 Node* WasmGraphBuilder::Rethrow(Node* except_obj) {
   needs_stack_check_ = true;
-  Node* result = BuildCallToRuntime(Runtime::kWasmThrow, &except_obj, 1);
-  return result;
+  WasmThrowDescriptor interface_descriptor;
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      mcgraph()->zone(), interface_descriptor,
+      interface_descriptor.GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kNoProperties, StubCallMode::kCallWasmRuntimeStub);
+  Node* call_target = mcgraph()->RelocatableIntPtrConstant(
+      wasm::WasmCode::kWasmThrow, RelocInfo::WASM_STUB_CALL);
+  return SetEffect(SetControl(
+      graph()->NewNode(mcgraph()->common()->Call(call_descriptor), call_target,
+                       except_obj, Effect(), Control())));
 }
 
 Node* WasmGraphBuilder::ExceptionTagEqual(Node* caught_tag,

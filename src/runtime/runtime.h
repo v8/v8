@@ -530,7 +530,6 @@ namespace internal {
   F(WasmGrowMemory, 2, 1)          \
   F(WasmRunInterpreter, 2, 1)      \
   F(WasmStackGuard, 0, 1)          \
-  F(WasmThrow, 1, 1)               \
   F(WasmThrowCreate, 2, 1)         \
   F(WasmThrowTypeError, 0, 1)      \
   F(WasmCompileLazy, 2, 1)

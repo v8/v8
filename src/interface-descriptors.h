@@ -74,6 +74,7 @@ namespace internal {
   V(FrameDropperTrampoline)           \
   V(RunMicrotasks)                    \
   V(WasmGrowMemory)                   \
+  V(WasmThrow)                        \
   V(CloneObjectWithVector)            \
   BUILTIN_LIST_TFS(V)
 
@@ -1083,6 +1084,14 @@ class WasmGrowMemoryDescriptor final : public CallInterfaceDescriptor {
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int32(),  // result 1
                                     MachineType::Int32())  // kNumPages
   DECLARE_DESCRIPTOR(WasmGrowMemoryDescriptor, CallInterfaceDescriptor)
+};
+
+class WasmThrowDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kException)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result 1
+                                    MachineType::AnyTagged())  // kException
+  DECLARE_DESCRIPTOR(WasmThrowDescriptor, CallInterfaceDescriptor)
 };
 
 class CloneObjectWithVectorDescriptor final : public CallInterfaceDescriptor {
