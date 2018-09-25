@@ -267,6 +267,24 @@ def CheckCompDB(build_folder):
   return os.path.isfile(os.path.join(build_folder, 'compile_commands.json'))
 
 
+def DetectBuildFolder():
+    """
+    Tries to auto detect the last used build folder in out/
+    """
+    outdirs_folder = 'out/'
+    last_used = None
+    last_timestamp = -1
+    for outdir in [outdirs_folder + folder_name
+                   for folder_name in os.listdir(outdirs_folder)
+                   if os.path.isdir(outdirs_folder + folder_name)]:
+        outdir_modified_timestamp = os.path.getmtime(outdir)
+        if  outdir_modified_timestamp > last_timestamp:
+            last_timestamp = outdir_modified_timestamp
+            last_used = outdir
+
+    return last_used
+
+
 def GetOptions():
   """
   Generate the option parser for this script.
@@ -277,7 +295,7 @@ def GetOptions():
     '--build-folder',
     help='Set V8 build folder',
     dest='build_folder',
-    default='out.gn/x64.release/')
+    default=None)
   result.add_option(
     '-j',
     help='Set the amount of threads that should be used',
@@ -353,18 +371,20 @@ def main():
     global THREADS
     THREADS = options.threads
 
+  if options.build_folder is None:
+    options.build_folder = DetectBuildFolder()
+
   if not CheckClangTidy():
     print 'Could not find clang-tidy'
-  elif not os.path.isdir(options.build_folder):
-    print 'Provided build folder does not exist, use -b to provide a '\
-      'build folder.'
+  elif options.build_folder is None or not os.path.isdir(options.build_folder):
+    print 'Please provide a build folder with -b'
   elif options.gen_compdb:
     GenerateCompileCommands(options.build_folder)
   elif not CheckCompDB(options.build_folder):
     print 'Could not find compilation database, ' \
       'please generate it with --gen-compdb'
   else:
-    print options.build_folder
+    print 'Using build folder:', options.build_folder
     if options.full:
       print 'Running clang-tidy - full'
       ClangTidyRunFull(options.build_folder,
