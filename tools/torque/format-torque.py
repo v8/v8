@@ -22,7 +22,7 @@ def preprocess(input):
   input = re.sub(r'(\s+)case\s*\(([^\:]+)\)(\s*)\:',
       r'\1case \2: /*_TSX*/', input)
   input = re.sub(r'\sgenerates\s+\'([^\']+)\'\s*',
-      r' _GeNeRaT_/*\1@*/', input)
+      r' _GeNeRaTeS00_/*\1@*/', input)
   input = re.sub(r'\sconstexpr\s+\'([^\']+)\'\s*',
       r' _CoNsExP_/*\1@*/', input)
   return input
@@ -37,9 +37,9 @@ def postprocess(output):
       r'case (\1):', output)
   output = re.sub(r'case ([^\:]+)\:\s*\/\*_TSV([^\:]+)\:\*\/',
       r'case (\2: \1):', output)
-  output = re.sub(r'(\n\s*)_GeNeRaT_\s*\/\*([^@]+)@\*\/',
-      r"\1    generates '\2'", output)
-  output = re.sub(r'_GeNeRaT_\s*\/\*([^@]+)@\*\/',
+  output = re.sub(r'\n_GeNeRaTeS00_\s*\/\*([^@]+)@\*\/',
+      r"\n    generates '\1'", output)
+  output = re.sub(r'_GeNeRaTeS00_\s*\/\*([^@]+)@\*\/',
       r"generates '\1'", output)
   output = re.sub(r'_CoNsExP_\s*\/\*([^@]+)@\*\/',
       r"constexpr '\1'", output)
@@ -52,20 +52,28 @@ if len(sys.argv) < 2 or len(sys.argv) > 3:
   sys.exit(-1)
 
 use_stdout = True
-if len(sys.argv) == 3 and sys.argv[1] == '-i':
-  use_stdout = False
+lint = False
+if len(sys.argv) == 3:
+  if sys.argv[1] == '-i':
+    use_stdout = False
+  if sys.argv[1] == '-l':
+    lint = True
 
 filename = sys.argv[len(sys.argv) - 1]
 
 with open(filename, 'r') as content_file:
   content = content_file.read()
+original_input = content
 p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 output, err = p.communicate(preprocess(content))
 output = postprocess(output)
 rc = p.returncode
 if (rc <> 0):
   sys.exit(rc);
-if use_stdout:
+if lint:
+  if (output != original_input):
+    print >>sys.stderr, filename + ' requires formatting'
+elif use_stdout:
   print output
 else:
   output_file = open(filename, 'w')

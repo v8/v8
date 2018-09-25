@@ -100,6 +100,27 @@ def CppLintWorker(command):
           ' in your $PATH. Lint check skipped.')
     process.kill()
 
+def TorqueLintWorker(command):
+  try:
+    process = subprocess.Popen(command, stderr=subprocess.PIPE)
+    process.wait()
+    out_lines = ""
+    error_count = 0
+    while True:
+      out_line = process.stderr.readline()
+      if out_line == '' and process.poll() != None:
+        break;
+      out_lines += out_line
+      error_count += 1
+    sys.stdout.write(out_lines)
+    if (error_count != 0):
+        sys.stdout.write("tip: use 'tools/torque/format-torque.py -i <filename>'\n");
+    return error_count
+  except KeyboardInterrupt:
+    process.kill()
+  except:
+    print('Error running format-torque.py')
+    process.kill()
 
 class FileContentsCache(object):
 
@@ -244,7 +265,7 @@ class CppLintProcessor(SourceFileProcessor):
     good_files_cache.Load()
     files = good_files_cache.FilterUnchangedFiles(files)
     if len(files) == 0:
-      print 'No changes in files detected. Skipping cpplint check.'
+      print 'No changes in C/C++ files detected. Skipping cpplint check.'
       return True
 
     filters = ",".join([n for n in LINT_RULES])
@@ -270,10 +291,65 @@ class CppLintProcessor(SourceFileProcessor):
         good_files_cache.RemoveFile(files[i])
 
     total_errors = sum(results)
-    print "Total errors found: %d" % total_errors
+    print "Total C/C++ files found that require formatting: %d" % total_errors
     good_files_cache.Save()
     return total_errors == 0
 
+class TorqueFormatProcessor(SourceFileProcessor):
+  """
+  Check .tq files to verify they follow the Torque style guide.
+  """
+
+  def IsRelevant(self, name):
+    return name.endswith('.tq')
+
+  def GetPathsToSearch(self):
+    dirs = ['third-party', 'src']
+    test_dirs = ['torque']
+    return dirs + [join('test', dir) for dir in test_dirs]
+
+  def GetTorquelintScript(self):
+    torque_tools = os.path.join(TOOLS_PATH, "torque")
+    torque_link = os.path.join(torque_tools, "format-torque.py")
+
+    if os.path.isfile(torque_link):
+      return torque_link
+
+    return None
+
+  def ProcessFiles(self, files):
+    good_files_cache = FileContentsCache('.torquelint-cache')
+    good_files_cache.Load()
+    files = good_files_cache.FilterUnchangedFiles(files)
+    if len(files) == 0:
+      print 'No changes in Torque files detected. Skipping Torque lint check.'
+      return True
+
+    torquelint = self.GetTorquelintScript()
+    if torquelint is None:
+      print('Could not find format-torque. Make sure '
+            'depot_tools is installed and in the path.')
+      sys.exit(1)
+
+    command = [sys.executable, torquelint, '-l']
+
+    commands = [command + [file] for file in files]
+    count = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(count)
+    try:
+      results = pool.map_async(TorqueLintWorker, commands).get(999999)
+    except KeyboardInterrupt:
+      print "\nCaught KeyboardInterrupt, terminating workers."
+      sys.exit(1)
+
+    for i in range(len(files)):
+      if results[i] > 0:
+        good_files_cache.RemoveFile(files[i])
+
+    total_errors = sum(results)
+    print "Total Torque files requiring formatting: %d" % total_errors
+    good_files_cache.Save()
+    return total_errors == 0
 
 COPYRIGHT_HEADER_PATTERN = re.compile(
     r'Copyright [\d-]*20[0-1][0-9] the V8 project authors. All rights reserved.')
@@ -584,6 +660,8 @@ def Main():
   if not options.no_lint:
     print "Running C++ lint check..."
     success &= CppLintProcessor().RunOnPath(workspace)
+  print "Running Torque formatting check..."
+  success &= TorqueFormatProcessor().RunOnPath(workspace)
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
   success &= SourceProcessor().RunOnPath(workspace)

@@ -78,7 +78,8 @@ const PACKED_SMI_ELEMENTS:
     constexpr ElementsKind generates 'PACKED_SMI_ELEMENTS';
 const HOLEY_SMI_ELEMENTS:
     constexpr ElementsKind generates 'HOLEY_SMI_ELEMENTS';
-const PACKED_ELEMENTS: constexpr ElementsKind generates 'PACKED_ELEMENTS';
+const PACKED_ELEMENTS:
+    constexpr ElementsKind generates 'PACKED_ELEMENTS';
 const HOLEY_ELEMENTS: constexpr ElementsKind generates 'HOLEY_ELEMENTS';
 const PACKED_DOUBLE_ELEMENTS:
     constexpr ElementsKind generates 'PACKED_DOUBLE_ELEMENTS';
@@ -89,12 +90,16 @@ const DICTIONARY_ELEMENTS:
 
 const UINT8_ELEMENTS: constexpr ElementsKind generates 'UINT8_ELEMENTS';
 const INT8_ELEMENTS: constexpr ElementsKind generates 'INT8_ELEMENTS';
-const UINT16_ELEMENTS: constexpr ElementsKind generates 'UINT16_ELEMENTS';
+const UINT16_ELEMENTS:
+    constexpr ElementsKind generates 'UINT16_ELEMENTS';
 const INT16_ELEMENTS: constexpr ElementsKind generates 'INT16_ELEMENTS';
-const UINT32_ELEMENTS: constexpr ElementsKind generates 'UINT32_ELEMENTS';
+const UINT32_ELEMENTS:
+    constexpr ElementsKind generates 'UINT32_ELEMENTS';
 const INT32_ELEMENTS: constexpr ElementsKind generates 'INT32_ELEMENTS';
-const FLOAT32_ELEMENTS: constexpr ElementsKind generates 'FLOAT32_ELEMENTS';
-const FLOAT64_ELEMENTS: constexpr ElementsKind generates 'FLOAT64_ELEMENTS';
+const FLOAT32_ELEMENTS:
+    constexpr ElementsKind generates 'FLOAT32_ELEMENTS';
+const FLOAT64_ELEMENTS:
+    constexpr ElementsKind generates 'FLOAT64_ELEMENTS';
 const UINT8_CLAMPED_ELEMENTS:
     constexpr ElementsKind generates 'UINT8_CLAMPED_ELEMENTS';
 const BIGUINT64_ELEMENTS:
@@ -138,8 +143,8 @@ const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
 const kTruncateMinusZero: constexpr ToIntegerTruncationMode
     generates 'ToIntegerTruncationMode::kTruncateMinusZero';
 
-const kNotTypedArray:
-    constexpr MessageTemplate generates 'MessageTemplate::kNotTypedArray';
+const kNotTypedArray: constexpr MessageTemplate
+    generates 'MessageTemplate::kNotTypedArray';
 const kDetachedOperation: constexpr MessageTemplate
     generates 'MessageTemplate::kDetachedOperation';
 const kBadSortComparisonFunction: constexpr MessageTemplate
