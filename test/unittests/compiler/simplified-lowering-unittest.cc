@@ -42,7 +42,7 @@ class SimplifiedLoweringTest : public GraphTest {
     {
       // Simplified lowering needs to run w/o the typer decorator so make sure
       // the object is not live at the same time.
-      Typer typer(isolate(), js_heap_broker(), Typer::kNoFlags, graph());
+      Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
       typer.Run();
     }
 

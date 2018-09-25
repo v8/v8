@@ -16,10 +16,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-OperationTyper::OperationTyper(Isolate* isolate, JSHeapBroker* js_heap_broker,
-                               Zone* zone)
+OperationTyper::OperationTyper(JSHeapBroker* js_heap_broker, Zone* zone)
     : zone_(zone), cache_(TypeCache::Get()) {
-  Factory* factory = isolate->factory();
+  Factory* factory = js_heap_broker->isolate()->factory();
   infinity_ = Type::NewConstant(V8_INFINITY, zone);
   minus_infinity_ = Type::NewConstant(-V8_INFINITY, zone);
   Type truncating_to_zero = Type::MinusZeroOrNaN();

@@ -27,7 +27,7 @@ class TypeCache;
 
 class V8_EXPORT_PRIVATE OperationTyper {
  public:
-  OperationTyper(Isolate* isolate, JSHeapBroker* js_heap_broker, Zone* zone);
+  OperationTyper(JSHeapBroker* js_heap_broker, Zone* zone);
 
   // Typing Phi.
   Type Merge(Type left, Type right);

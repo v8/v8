@@ -315,7 +315,7 @@ class PipelineData {
 
   Typer* CreateTyper() {
     DCHECK_NULL(typer_);
-    typer_ = new Typer(isolate(), js_heap_broker(), typer_flags_, graph());
+    typer_ = new Typer(js_heap_broker(), typer_flags_, graph());
     return typer_;
   }
 

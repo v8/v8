@@ -121,7 +121,7 @@ Matcher<Node*> GraphTest::IsUndefinedConstant() {
 
 TypedGraphTest::TypedGraphTest(int num_parameters)
     : GraphTest(num_parameters),
-      typer_(isolate(), js_heap_broker(), Typer::kNoFlags, graph()) {}
+      typer_(js_heap_broker(), Typer::kNoFlags, graph()) {}
 
 TypedGraphTest::~TypedGraphTest() = default;
 

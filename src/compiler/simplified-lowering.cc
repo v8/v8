@@ -306,7 +306,7 @@ class RepresentationSelector {
         source_positions_(source_positions),
         node_origins_(node_origins),
         type_cache_(TypeCache::Get()),
-        op_typer_(jsgraph->isolate(), js_heap_broker, graph_zone()) {
+        op_typer_(js_heap_broker, graph_zone()) {
   }
 
   // Forward propagation of types from type feedback.

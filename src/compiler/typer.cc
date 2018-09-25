@@ -34,14 +34,13 @@ class Typer::Decorator final : public GraphDecorator {
   Typer* const typer_;
 };
 
-Typer::Typer(Isolate* isolate, JSHeapBroker* js_heap_broker, Flags flags,
-             Graph* graph)
+Typer::Typer(JSHeapBroker* js_heap_broker, Flags flags, Graph* graph)
     : flags_(flags),
       graph_(graph),
       decorator_(nullptr),
       cache_(TypeCache::Get()),
       js_heap_broker_(js_heap_broker),
-      operation_typer_(isolate, js_heap_broker, zone()) {
+      operation_typer_(js_heap_broker, zone()) {
   singleton_false_ = operation_typer_.singleton_false();
   singleton_true_ = operation_typer_.singleton_true();
 
