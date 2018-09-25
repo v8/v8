@@ -2272,6 +2272,8 @@ v8_source_set("v8_base") {
     "src/objects/ordered-hash-table.h",
     "src/objects/promise-inl.h",
     "src/objects/promise.h",
+    "src/objects/property-array-inl.h",
+    "src/objects/property-array.h",
     "src/objects/property-descriptor-object-inl.h",
     "src/objects/property-descriptor-object.h",
     "src/objects/prototype-info-inl.h",

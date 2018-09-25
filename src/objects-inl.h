@@ -495,7 +495,6 @@ CAST_ACCESSOR(ObjectHashTable)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
-CAST_ACCESSOR(PropertyArray)
 CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
@@ -1001,21 +1000,6 @@ void Object::VerifyApiCallResultType() {
 #endif  // DEBUG
 }
 
-Object* PropertyArray::get(int index) const {
-  DCHECK_GE(index, 0);
-  DCHECK_LE(index, this->length());
-  return RELAXED_READ_FIELD(this, kHeaderSize + index * kPointerSize);
-}
-
-void PropertyArray::set(int index, Object* value) {
-  DCHECK(IsPropertyArray());
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, this->length());
-  int offset = kHeaderSize + index * kPointerSize;
-  RELAXED_WRITE_FIELD(this, offset, value);
-  WRITE_BARRIER(this, offset, value);
-}
-
 int RegExpMatchInfo::NumberOfCaptureRegisters() {
   DCHECK_GE(length(), kLastMatchOverhead);
   Object* obj = get(kNumberOfCapturesIndex);
@@ -1105,18 +1089,6 @@ bool HeapObject::NeedsRehashing() const {
 
 Address HeapObject::GetFieldAddress(int field_offset) const {
   return FIELD_ADDR(this, field_offset);
-}
-
-void PropertyArray::set(int index, Object* value, WriteBarrierMode mode) {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, this->length());
-  int offset = kHeaderSize + index * kPointerSize;
-  RELAXED_WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
-}
-
-Object** PropertyArray::data_start() {
-  return HeapObject::RawField(this, kHeaderSize);
 }
 
 ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
@@ -1480,37 +1452,6 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
-
-int PropertyArray::length() const {
-  Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
-  int value = Smi::ToInt(value_obj);
-  return LengthField::decode(value);
-}
-
-void PropertyArray::initialize_length(int len) {
-  SLOW_DCHECK(len >= 0);
-  SLOW_DCHECK(len < LengthField::kMax);
-  WRITE_FIELD(this, kLengthAndHashOffset, Smi::FromInt(len));
-}
-
-int PropertyArray::synchronized_length() const {
-  Object* value_obj = ACQUIRE_READ_FIELD(this, kLengthAndHashOffset);
-  int value = Smi::ToInt(value_obj);
-  return LengthField::decode(value);
-}
-
-int PropertyArray::Hash() const {
-  Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
-  int value = Smi::ToInt(value_obj);
-  return HashField::decode(value);
-}
-
-void PropertyArray::SetHash(int hash) {
-  Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
-  int value = Smi::ToInt(value_obj);
-  value = HashField::update(value, hash);
-  WRITE_FIELD(this, kLengthAndHashOffset, Smi::FromInt(value));
-}
 
 SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)

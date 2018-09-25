@@ -11,6 +11,7 @@
 #include "src/heap/heap-write-barrier.h"
 #include "src/keys.h"
 #include "src/lookup-inl.h"
+#include "src/objects/property-array-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/prototype.h"
 
