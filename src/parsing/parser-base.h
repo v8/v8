@@ -1871,7 +1871,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
           PeekAhead() == Token::FUNCTION) {
         BindingPatternUnexpectedToken();
         Consume(Token::ASYNC);
-        return ParseAsyncFunctionLiteral(CHECK_OK);
+        return ParseAsyncFunctionLiteral(ok);
       }
       // CoverCallExpressionAndAsyncArrowHead
       *is_async = true;
@@ -1930,7 +1930,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
         function_state_->set_next_function_is_likely_called();
       }
       ExpressionT expr = ParseExpressionCoverGrammar(true, CHECK_OK);
-      Expect(Token::RPAREN, CHECK_OK);
+      Expect(Token::RPAREN, ok);
       return expr;
     }
 
@@ -1988,7 +1988,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseExpression(
     bool accept_IN, bool* ok) {
   ExpressionClassifier classifier(this);
   ExpressionT result = ParseExpressionCoverGrammar(accept_IN, CHECK_OK);
-  ValidateExpression(CHECK_OK);
+  ValidateExpression(ok);
   return result;
 }
 
@@ -3085,10 +3085,9 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
   int pos = peek_position();
   // We start using the binary expression parser for prec >= 4 only!
   ExpressionT expression = ParseBinaryExpression(4, accept_IN, CHECK_OK);
-  if (peek() == Token::CONDITIONAL) {
-    return ParseConditionalContinuation(expression, accept_IN, pos, CHECK_OK);
-  }
-  return expression;
+  return peek() == Token::CONDITIONAL
+             ? ParseConditionalContinuation(expression, accept_IN, pos, ok)
+             : expression;
 }
 
 template <typename Impl>
@@ -3280,10 +3279,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
   //   [+Await] AwaitExpression[?Yield]
 
   Token::Value op = peek();
-  if (Token::IsUnaryOp(op)) return ParseUnaryOpExpression(CHECK_OK);
-  if (Token::IsCountOp(op)) return ParsePrefixExpression(CHECK_OK);
+  if (Token::IsUnaryOp(op)) return ParseUnaryOpExpression(ok);
+  if (Token::IsCountOp(op)) return ParsePrefixExpression(ok);
   if (is_async_function() && op == Token::AWAIT) {
-    return ParseAwaitExpression(CHECK_OK);
+    return ParseAwaitExpression(ok);
   }
   return ParsePostfixExpression(ok);
 }
@@ -3487,7 +3486,7 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* is_async,
   } else if (peek() == Token::PERIOD) {
     *is_async = false;
     result = ParseNewTargetExpression(CHECK_OK);
-    return ParseMemberExpressionContinuation(result, is_async, CHECK_OK);
+    return ParseMemberExpressionContinuation(result, is_async, ok);
   } else {
     result = ParseMemberWithNewPrefixesExpression(is_async, CHECK_OK);
   }
@@ -3503,8 +3502,7 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression(bool* is_async,
       result = factory()->NewCallNew(result, args, new_pos);
     }
     // The expression can still continue with . or [ after the arguments.
-    result = ParseMemberExpressionContinuation(result, is_async, CHECK_OK);
-    return result;
+    return ParseMemberExpressionContinuation(result, is_async, ok);
   }
   // NewExpression without arguments.
   return factory()->NewCallNew(result, impl()->NewExpressionList(0), new_pos);
@@ -3582,8 +3580,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
     result = ParsePrimaryExpression(is_async, CHECK_OK);
   }
 
-  result = ParseMemberExpressionContinuation(result, is_async, CHECK_OK);
-  return result;
+  return ParseMemberExpressionContinuation(result, is_async, ok);
 }
 
 template <typename Impl>
@@ -4632,7 +4629,7 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral(bool* ok) {
       name, scanner()->location(),
       is_strict_reserved ? kFunctionNameIsStrictReserved
                          : kFunctionNameValidityUnknown,
-      kind, pos, type, language_mode(), nullptr, CHECK_OK);
+      kind, pos, type, language_mode(), nullptr, ok);
 }
 
 template <typename Impl>
@@ -5145,7 +5142,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseVariableStatement(
   DeclarationParsingResult parsing_result;
   StatementT result =
       ParseVariableDeclarations(var_context, &parsing_result, names, CHECK_OK);
-  ExpectSemicolon(CHECK_OK);
+  ExpectSemicolon(ok);
   return result;
 }
 
