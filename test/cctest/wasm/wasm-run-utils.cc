@@ -41,8 +41,10 @@ TestingModuleBuilder::TestingModuleBuilder(
   if (maybe_import) {
     // Manually compile a wasm to JS wrapper and insert it into the instance.
     CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
-    MaybeHandle<Code> code = compiler::CompileWasmToJSWrapper(
-        isolate_, maybe_import->js_function, maybe_import->sig,
+    auto kind = compiler::GetWasmImportCallKind(maybe_import->js_function,
+                                                maybe_import->sig);
+    MaybeHandle<Code> code = compiler::CompileWasmImportCallWrapper(
+        isolate_, kind, maybe_import->js_function, maybe_import->sig,
         maybe_import_index, test_module_->origin,
         trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                              : kNoTrapHandler);

@@ -68,11 +68,27 @@ class TurbofanWasmCompilationUnit {
   DISALLOW_COPY_AND_ASSIGN(TurbofanWasmCompilationUnit);
 };
 
-// Wraps a JS function, producing a code object that can be called from wasm.
-MaybeHandle<Code> CompileWasmToJSWrapper(Isolate*, Handle<JSReceiver> target,
-                                         wasm::FunctionSig*, uint32_t index,
-                                         wasm::ModuleOrigin,
-                                         wasm::UseTrapHandler);
+// Calls to WASM imports are handled in several different ways, depending
+// on the type of the target function/callable and whether the signature
+// matches the argument arity.
+enum class WasmImportCallKind {
+  kLinkError,                      // static WASM->WASM type error
+  kRuntimeTypeError,               // runtime WASM->JS type error
+  kWasmToWasm,                     // fast WASM->WASM call
+  kJSFunctionArityMatch,           // fast WASM->JS call
+  kJSFunctionArityMatchSloppy,     // fast WASM->JS call, sloppy receiver
+  kJSFunctionArityMismatch,        // WASM->JS, needs adapter frame
+  kJSFunctionArityMismatchSloppy,  // WASM->JS, needs adapter frame, sloppy
+  kUseCallBuiltin                  // everything else
+};
+
+WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> callable,
+                                         wasm::FunctionSig* sig);
+
+// Compiles an import call wrapper, which allows WASM to call imports.
+MaybeHandle<Code> CompileWasmImportCallWrapper(
+    Isolate*, WasmImportCallKind, Handle<JSReceiver>, wasm::FunctionSig*,
+    uint32_t index, wasm::ModuleOrigin, wasm::UseTrapHandler);
 
 // Creates a code object calling a wasm function with the given signature,
 // callable from JS.
@@ -366,10 +382,10 @@ class WasmGraphBuilder {
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
                       wasm::WasmCodePosition position, Node* instance_node,
                       UseRetpoline use_retpoline);
-  Node* BuildImportWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
-                            wasm::WasmCodePosition position, int func_index);
-  Node* BuildImportWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
-                            wasm::WasmCodePosition position, Node* func_index);
+  Node* BuildImportCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
+                        wasm::WasmCodePosition position, int func_index);
+  Node* BuildImportCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
+                        wasm::WasmCodePosition position, Node* func_index);
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);

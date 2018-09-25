@@ -1494,41 +1494,41 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         }
         uint32_t func_index = import.index;
         DCHECK_EQ(num_imported_functions, func_index);
+        auto js_receiver = Handle<JSReceiver>::cast(value);
         FunctionSig* expected_sig = module_->functions[func_index].sig;
-        if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
-          // The imported function is a WASM function from another instance.
-          Handle<WasmExportedFunction> imported_function(
-              WasmExportedFunction::cast(*value), isolate_);
-          Handle<WasmInstanceObject> imported_instance(
-              imported_function->instance(), isolate_);
-          FunctionSig* imported_sig =
-              imported_instance->module()
-                  ->functions[imported_function->function_index()]
-                  .sig;
-          if (*imported_sig != *expected_sig) {
+        auto kind = compiler::GetWasmImportCallKind(js_receiver, expected_sig);
+        switch (kind) {
+          case compiler::WasmImportCallKind::kLinkError:
             ReportLinkError(
                 "imported function does not match the expected type", index,
                 module_name, import_name);
             return -1;
+          case compiler::WasmImportCallKind::kWasmToWasm: {
+            // The imported function is a WASM function from another instance.
+            auto imported_function = Handle<WasmExportedFunction>::cast(value);
+            Handle<WasmInstanceObject> imported_instance(
+                imported_function->instance(), isolate_);
+            // The import reference is the instance object itself.
+            Address imported_target = imported_function->GetWasmCallTarget();
+            ImportedFunctionEntry entry(instance, func_index);
+            entry.set_wasm_to_wasm(*imported_instance, imported_target);
+            break;
           }
-          // The import reference is the instance object itself.
-          Address imported_target = imported_function->GetWasmCallTarget();
-          ImportedFunctionEntry entry(instance, func_index);
-          entry.set_wasm_to_wasm(*imported_instance, imported_target);
-        } else {
-          // The imported function is a callable.
-          Handle<JSReceiver> js_receiver(JSReceiver::cast(*value), isolate_);
-          Handle<Code> wrapper_code =
-              compiler::CompileWasmToJSWrapper(
-                  isolate_, js_receiver, expected_sig, func_index,
-                  module_->origin, use_trap_handler())
-                  .ToHandleChecked();
-          RecordStats(*wrapper_code, isolate_->counters());
+          default: {
+            // The imported function is a callable.
+            Handle<Code> wrapper_code =
+                compiler::CompileWasmImportCallWrapper(
+                    isolate_, kind, js_receiver, expected_sig, func_index,
+                    module_->origin, use_trap_handler())
+                    .ToHandleChecked();
+            RecordStats(*wrapper_code, isolate_->counters());
 
-          WasmCode* wasm_code =
-              native_module->AddImportWrapper(wrapper_code, func_index);
-          ImportedFunctionEntry entry(instance, func_index);
-          entry.set_wasm_to_js(*js_receiver, wasm_code);
+            WasmCode* wasm_code =
+                native_module->AddImportWrapper(wrapper_code, func_index);
+            ImportedFunctionEntry entry(instance, func_index);
+            entry.set_wasm_to_js(*js_receiver, wasm_code);
+            break;
+          }
         }
         num_imported_functions++;
         break;
