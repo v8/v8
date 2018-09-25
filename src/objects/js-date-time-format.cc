@@ -836,7 +836,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   Maybe<std::string> maybe_skeleton =
       JSDateTimeFormat::OptionsToSkeleton(isolate, options);
   MAYBE_RETURN(maybe_skeleton, Handle<JSDateTimeFormat>());
-  CHECK(!maybe_skeleton.FromJust().empty());
   std::string skeleton = maybe_skeleton.FromJust();
 
   // 13. Set dateTimeFormat.[[Calendar]] to r.[[ca]].
