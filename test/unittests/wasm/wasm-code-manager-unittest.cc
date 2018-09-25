@@ -17,35 +17,34 @@ namespace wasm_heap_unittest {
 
 class DisjointAllocationPoolTest : public ::testing::Test {
  public:
-  Address A(size_t n) { return static_cast<Address>(n); }
   void CheckPool(const DisjointAllocationPool& mem,
-                 std::initializer_list<AddressRange> expected_ranges);
-  void CheckRange(AddressRange range1, AddressRange range2);
-  DisjointAllocationPool Make(std::initializer_list<AddressRange> ranges);
+                 std::initializer_list<base::AddressRegion> expected_regions);
+  void CheckRange(base::AddressRegion region1, base::AddressRegion region2);
+  DisjointAllocationPool Make(
+      std::initializer_list<base::AddressRegion> regions);
 };
 
 void DisjointAllocationPoolTest::CheckPool(
     const DisjointAllocationPool& mem,
-    std::initializer_list<AddressRange> expected_ranges) {
-  const auto& ranges = mem.ranges();
-  CHECK_EQ(ranges.size(), expected_ranges.size());
-  auto iter = expected_ranges.begin();
-  for (auto it = ranges.begin(), e = ranges.end(); it != e; ++it, ++iter) {
+    std::initializer_list<base::AddressRegion> expected_regions) {
+  const auto& regions = mem.regions();
+  CHECK_EQ(regions.size(), expected_regions.size());
+  auto iter = expected_regions.begin();
+  for (auto it = regions.begin(), e = regions.end(); it != e; ++it, ++iter) {
     CHECK_EQ(*it, *iter);
   }
 }
 
-void DisjointAllocationPoolTest::CheckRange(AddressRange range1,
-                                            AddressRange range2) {
-  CHECK_EQ(range1.start, range2.start);
-  CHECK_EQ(range1.end, range2.end);
+void DisjointAllocationPoolTest::CheckRange(base::AddressRegion region1,
+                                            base::AddressRegion region2) {
+  CHECK_EQ(region1, region2);
 }
 
 DisjointAllocationPool DisjointAllocationPoolTest::Make(
-    std::initializer_list<AddressRange> ranges) {
+    std::initializer_list<base::AddressRegion> regions) {
   DisjointAllocationPool ret;
-  for (auto& range : ranges) {
-    ret.Merge(range);
+  for (auto& region : regions) {
+    ret.Merge(region);
   }
   return ret;
 }
@@ -54,89 +53,89 @@ TEST_F(DisjointAllocationPoolTest, ConstructEmpty) {
   DisjointAllocationPool a;
   CHECK(a.IsEmpty());
   CheckPool(a, {});
-  a.Merge({1, 5});
-  CheckPool(a, {{1, 5}});
+  a.Merge({1, 4});
+  CheckPool(a, {{1, 4}});
 }
 
 TEST_F(DisjointAllocationPoolTest, ConstructWithRange) {
-  DisjointAllocationPool a({1, 5});
+  DisjointAllocationPool a({1, 4});
   CHECK(!a.IsEmpty());
-  CheckPool(a, {{1, 5}});
+  CheckPool(a, {{1, 4}});
 }
 
 TEST_F(DisjointAllocationPoolTest, SimpleExtract) {
-  DisjointAllocationPool a = Make({{1, 5}});
-  AddressRange b = a.Allocate(2);
-  CheckPool(a, {{3, 5}});
-  CheckRange(b, {1, 3});
+  DisjointAllocationPool a = Make({{1, 4}});
+  base::AddressRegion b = a.Allocate(2);
+  CheckPool(a, {{3, 2}});
+  CheckRange(b, {1, 2});
   a.Merge(b);
-  CheckPool(a, {{1, 5}});
-  CHECK_EQ(a.ranges().size(), 1);
-  CHECK_EQ(a.ranges().front().start, A(1));
-  CHECK_EQ(a.ranges().front().end, A(5));
+  CheckPool(a, {{1, 4}});
+  CHECK_EQ(a.regions().size(), 1);
+  CHECK_EQ(a.regions().front().begin(), 1);
+  CHECK_EQ(a.regions().front().end(), 5);
 }
 
 TEST_F(DisjointAllocationPoolTest, ExtractAll) {
-  DisjointAllocationPool a({A(1), A(5)});
-  AddressRange b = a.Allocate(4);
-  CheckRange(b, {1, 5});
+  DisjointAllocationPool a({1, 4});
+  base::AddressRegion b = a.Allocate(4);
+  CheckRange(b, {1, 4});
   CHECK(a.IsEmpty());
   a.Merge(b);
-  CheckPool(a, {{1, 5}});
+  CheckPool(a, {{1, 4}});
 }
 
 TEST_F(DisjointAllocationPoolTest, FailToExtract) {
-  DisjointAllocationPool a = Make({{1, 5}});
-  AddressRange b = a.Allocate(5);
-  CheckPool(a, {{1, 5}});
+  DisjointAllocationPool a = Make({{1, 4}});
+  base::AddressRegion b = a.Allocate(5);
+  CheckPool(a, {{1, 4}});
   CHECK(b.is_empty());
 }
 
 TEST_F(DisjointAllocationPoolTest, FailToExtractExact) {
-  DisjointAllocationPool a = Make({{1, 5}, {10, 14}});
-  AddressRange b = a.Allocate(5);
-  CheckPool(a, {{1, 5}, {10, 14}});
+  DisjointAllocationPool a = Make({{1, 4}, {10, 4}});
+  base::AddressRegion b = a.Allocate(5);
+  CheckPool(a, {{1, 4}, {10, 4}});
   CHECK(b.is_empty());
 }
 
 TEST_F(DisjointAllocationPoolTest, ExtractExact) {
-  DisjointAllocationPool a = Make({{1, 5}, {10, 15}});
-  AddressRange b = a.Allocate(5);
-  CheckPool(a, {{1, 5}});
-  CheckRange(b, {10, 15});
+  DisjointAllocationPool a = Make({{1, 4}, {10, 5}});
+  base::AddressRegion b = a.Allocate(5);
+  CheckPool(a, {{1, 4}});
+  CheckRange(b, {10, 5});
 }
 
 TEST_F(DisjointAllocationPoolTest, Merging) {
-  DisjointAllocationPool a = Make({{10, 15}, {20, 25}});
-  a.Merge({15, 20});
-  CheckPool(a, {{10, 25}});
+  DisjointAllocationPool a = Make({{10, 5}, {20, 5}});
+  a.Merge({15, 5});
+  CheckPool(a, {{10, 15}});
 }
 
 TEST_F(DisjointAllocationPoolTest, MergingMore) {
-  DisjointAllocationPool a = Make({{10, 15}, {20, 25}, {30, 35}});
-  a.Merge({15, 20});
-  a.Merge({25, 30});
-  CheckPool(a, {{10, 35}});
+  DisjointAllocationPool a = Make({{10, 5}, {20, 5}, {30, 5}});
+  a.Merge({15, 5});
+  a.Merge({25, 5});
+  CheckPool(a, {{10, 25}});
 }
 
 TEST_F(DisjointAllocationPoolTest, MergingSkip) {
-  DisjointAllocationPool a = Make({{10, 15}, {20, 25}, {30, 35}});
-  a.Merge({25, 30});
-  CheckPool(a, {{10, 15}, {20, 35}});
+  DisjointAllocationPool a = Make({{10, 5}, {20, 5}, {30, 5}});
+  a.Merge({25, 5});
+  CheckPool(a, {{10, 5}, {20, 15}});
 }
 
 TEST_F(DisjointAllocationPoolTest, MergingSkipLargerSrc) {
-  DisjointAllocationPool a = Make({{10, 15}, {20, 25}, {30, 35}});
-  a.Merge({25, 30});
-  a.Merge({35, 40});
-  CheckPool(a, {{10, 15}, {20, 40}});
+  DisjointAllocationPool a = Make({{10, 5}, {20, 5}, {30, 5}});
+  a.Merge({25, 5});
+  a.Merge({35, 5});
+  CheckPool(a, {{10, 5}, {20, 20}});
 }
 
 TEST_F(DisjointAllocationPoolTest, MergingSkipLargerSrcWithGap) {
-  DisjointAllocationPool a = Make({{10, 15}, {20, 25}, {30, 35}});
-  a.Merge({25, 30});
-  a.Merge({36, 40});
-  CheckPool(a, {{10, 15}, {20, 35}, {36, 40}});
+  DisjointAllocationPool a = Make({{10, 5}, {20, 5}, {30, 5}});
+  a.Merge({25, 5});
+  a.Merge({36, 4});
+  CheckPool(a, {{10, 5}, {20, 15}, {36, 4}});
 }
 
 enum ModuleStyle : int { Fixed = 0, Growable = 1 };

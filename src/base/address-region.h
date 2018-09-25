@@ -5,14 +5,14 @@
 #ifndef V8_BASE_ADDRESS_REGION_H_
 #define V8_BASE_ADDRESS_REGION_H_
 
-#include <type_traits>
+#include <iostream>
 
 #include "src/base/macros.h"
 
 namespace v8 {
 namespace base {
 
-// Helper class representing an address region of certian size.
+// Helper class representing an address region of certain size.
 class AddressRegion {
  public:
   typedef uintptr_t Address;
@@ -41,14 +41,28 @@ class AddressRegion {
     return (offset < size_) && (offset <= size_ - size);
   }
 
-  bool contains(const AddressRegion& region) const {
+  bool contains(AddressRegion region) const {
     return contains(region.address_, region.size_);
+  }
+
+  bool operator==(AddressRegion other) const {
+    return address_ == other.address_ && size_ == other.size_;
+  }
+
+  bool operator!=(AddressRegion other) const {
+    return address_ != other.address_ || size_ != other.size_;
   }
 
  private:
   Address address_ = 0;
   size_t size_ = 0;
 };
+ASSERT_TRIVIALLY_COPYABLE(AddressRegion);
+
+inline std::ostream& operator<<(std::ostream& out, AddressRegion region) {
+  return out << "[" << reinterpret_cast<void*>(region.begin()) << "+"
+             << region.size() << "]";
+}
 
 }  // namespace base
 }  // namespace v8
