@@ -25,6 +25,10 @@ def preprocess(input):
       r' _GeNeRaTeS00_/*\1@*/', input)
   input = re.sub(r'\sconstexpr\s+\'([^\']+)\'\s*',
       r' _CoNsExP_/*\1@*/', input)
+  input = re.sub(r'\notherwise',
+      r'\n otherwise', input)
+  input = re.sub(r'(\n\s*\S[^\n]*\s)otherwise',
+      r'\1_OtheSaLi', input)
   return input
 
 def postprocess(output):
@@ -43,8 +47,12 @@ def postprocess(output):
       r"generates '\1'", output)
   output = re.sub(r'_CoNsExP_\s*\/\*([^@]+)@\*\/',
       r"constexpr '\1'", output)
-  output = re.sub(r'(\n\s*)otherwise(\s+\S+\s*[\(\;])',
-      r"\1    otherwise\2", output)
+  output = re.sub(r'\n(\s+)otherwise',
+      r"\n\1    otherwise", output)
+  output = re.sub(r'\n(\s+)_OtheSaLi',
+      r"\n\1otherwise", output)
+  output = re.sub(r'_OtheSaLi',
+      r"otherwise", output)
   return output
 
 if len(sys.argv) < 2 or len(sys.argv) > 3:

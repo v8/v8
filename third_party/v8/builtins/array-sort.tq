@@ -751,10 +751,10 @@ module array {
 
     let runLength: Smi = 2;
 
-    const elementLow: Object = CallLoad(
-        context, sortState, load, elements, low) otherwise Bailout;
-    const elementLowPred: Object = CallLoad(
-        context, sortState, load, elements, low - 1) otherwise Bailout;
+    const elementLow: Object =
+        CallLoad(context, sortState, load, elements, low) otherwise Bailout;
+    const elementLowPred: Object =
+        CallLoad(context, sortState, load, elements, low - 1) otherwise Bailout;
     let order: Number =
         CallCompareFn(context, sortState, elementLow, elementLowPred)
         otherwise Bailout;
@@ -767,8 +767,8 @@ module array {
 
     let previousElement: Object = elementLow;
     for (let idx: Smi = low + 1; idx < high; ++idx) {
-      const currentElement: Object = CallLoad(
-          context, sortState, load, elements, idx) otherwise Bailout;
+      const currentElement: Object =
+          CallLoad(context, sortState, load, elements, idx) otherwise Bailout;
       order = CallCompareFn(context, sortState, currentElement, previousElement)
           otherwise Bailout;
       elements = ReloadElements(sortState);
@@ -800,10 +800,10 @@ module array {
     let high: Smi = to - 1;
 
     while (low < high) {
-      const elementLow: Object = CallLoad(
-          context, sortState, load, elements, low) otherwise Bailout;
-      const elementHigh: Object = CallLoad(
-          context, sortState, load, elements, high) otherwise Bailout;
+      const elementLow: Object =
+          CallLoad(context, sortState, load, elements, low) otherwise Bailout;
+      const elementHigh: Object =
+          CallLoad(context, sortState, load, elements, high) otherwise Bailout;
       CallStore(context, sortState, store, elements, low++, elementHigh)
           otherwise Bailout;
       CallStore(context, sortState, store, elements, high--, elementLow)

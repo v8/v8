@@ -109,11 +109,11 @@ def TorqueLintWorker(command):
     while True:
       out_line = process.stderr.readline()
       if out_line == '' and process.poll() != None:
-        break;
+        break
       out_lines += out_line
       error_count += 1
     sys.stdout.write(out_lines)
-    if (error_count != 0):
+    if error_count != 0:
         sys.stdout.write("tip: use 'tools/torque/format-torque.py -i <filename>'\n");
     return error_count
   except KeyboardInterrupt:
@@ -310,10 +310,10 @@ class TorqueFormatProcessor(SourceFileProcessor):
 
   def GetTorquelintScript(self):
     torque_tools = os.path.join(TOOLS_PATH, "torque")
-    torque_link = os.path.join(torque_tools, "format-torque.py")
+    torque_path = os.path.join(torque_tools, "format-torque.py")
 
-    if os.path.isfile(torque_link):
-      return torque_link
+    if os.path.isfile(torque_path):
+      return torque_path
 
     return None
 
@@ -327,8 +327,7 @@ class TorqueFormatProcessor(SourceFileProcessor):
 
     torquelint = self.GetTorquelintScript()
     if torquelint is None:
-      print('Could not find format-torque. Make sure '
-            'depot_tools is installed and in the path.')
+      print('Could not find format-torque.')
       sys.exit(1)
 
     command = [sys.executable, torquelint, '-l']
@@ -337,7 +336,7 @@ class TorqueFormatProcessor(SourceFileProcessor):
     count = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(count)
     try:
-      results = pool.map_async(TorqueLintWorker, commands).get(999999)
+      results = pool.map_async(TorqueLintWorker, commands).get()
     except KeyboardInterrupt:
       print "\nCaught KeyboardInterrupt, terminating workers."
       sys.exit(1)
