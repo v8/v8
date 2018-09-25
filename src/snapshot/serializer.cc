@@ -327,14 +327,14 @@ void Serializer<AllocatorT>::PutNextChunk(int space) {
 }
 
 template <class AllocatorT>
-void Serializer<AllocatorT>::Pad() {
+void Serializer<AllocatorT>::Pad(int padding_offset) {
   // The non-branching GetInt will read up to 3 bytes too far, so we need
   // to pad the snapshot to make sure we don't read over the end.
   for (unsigned i = 0; i < sizeof(int32_t) - 1; i++) {
     sink_.Put(kNop, "Padding");
   }
   // Pad up to pointer size for checksum.
-  while (!IsAligned(sink_.Position(), kPointerAlignment)) {
+  while (!IsAligned(sink_.Position() + padding_offset, kPointerAlignment)) {
     sink_.Put(kNop, "Padding");
   }
 }
