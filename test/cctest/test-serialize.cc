@@ -785,17 +785,6 @@ TEST(CustomSnapshotDataBlob1) {
   delete[] data1.data;  // We can dispose of the snapshot blob now.
 }
 
-TEST(SnapshotChecksum) {
-  DisableAlwaysOpt();
-  const char* source1 = "function f() { return 42; }";
-
-  v8::StartupData data1 = CreateSnapshotDataBlob(source1);
-  CHECK(i::Snapshot::VerifyChecksum(&data1));
-  const_cast<char*>(data1.data)[142] = data1.data[142] ^ 4;  // Flip a bit.
-  CHECK(!i::Snapshot::VerifyChecksum(&data1));
-  delete[] data1.data;  // We can dispose of the snapshot blob now.
-}
-
 struct InternalFieldData {
   uint32_t data;
 };

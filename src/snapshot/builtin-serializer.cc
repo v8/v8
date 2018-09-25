@@ -34,16 +34,13 @@ void BuiltinSerializer::SerializeBuiltinsAndHandlers() {
     SerializeBuiltin(code);
   }
 
+  // Pad with kNop since GetInt() might read too far.
+  Pad();
+
   // Append the offset table. During deserialization, the offset table is
   // extracted by BuiltinSnapshotData.
   const byte* data = reinterpret_cast<const byte*>(&code_offsets_[0]);
   int data_length = static_cast<int>(sizeof(code_offsets_));
-
-  // Pad with kNop since GetInt() might read too far.
-  Pad(data_length);
-
-  // Append the offset table. During deserialization, the offset table is
-  // extracted by BuiltinSnapshotData.
   sink_.PutRaw(data, data_length, "BuiltinOffsets");
 }
 

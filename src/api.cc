@@ -835,7 +835,6 @@ StartupData SnapshotCreator::CreateBlob(
   }
   data->created_ = true;
 
-  DCHECK(i::Snapshot::VerifyChecksum(&result));
   return result;
 }
 

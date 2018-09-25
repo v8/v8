@@ -210,8 +210,7 @@ class Serializer : public SerializerDeserializer {
   }
 
   // GetInt reads 4 bytes at once, requiring padding at the end.
-  // Use padding_offset to specify the space you want to use after padding.
-  void Pad(int padding_offset = 0);
+  void Pad();
 
   // We may not need the code address map for logging for every instance
   // of the serializer.  Initialize it on demand.
