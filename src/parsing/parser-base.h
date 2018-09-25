@@ -1725,12 +1725,6 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(bool* ok) {
               (next == Token::YIELD && !is_generator()))) {
     classifier()->RecordStrictModeFormalParameterError(
         scanner()->location(), MessageTemplate::kUnexpectedStrictReserved);
-    if (next == Token::ESCAPED_STRICT_RESERVED_WORD &&
-        is_strict(language_mode())) {
-      ReportUnexpectedToken(next);
-      *ok = false;
-      return impl()->NullIdentifier();
-    }
     if (scanner()->IsLet()) {
       classifier()->RecordLetPatternError(
           scanner()->location(), MessageTemplate::kLetInLexicalBinding);
