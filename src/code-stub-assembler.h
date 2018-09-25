@@ -1411,9 +1411,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                            INTPTR_PARAMETERS);
   }
 
-  Node* CloneFastJSArray(Node* context, Node* array,
-                         ParameterMode mode = INTPTR_PARAMETERS,
-                         Node* allocation_site = nullptr);
+  enum class HoleConversionMode { kDontConvert, kConvertToUndefined };
+  // Clone a fast JSArray |array| into a new fast JSArray.
+  // |convert_holes| tells the function to convert holes into undefined or not.
+  // If |convert_holes| is set to kConvertToUndefined, but the function did not
+  // find any hole in |array|, the resulting array will have the same elements
+  // kind as |array|. If the function did find a hole, it will convert holes in
+  // |array| to undefined in the resulting array, who will now have
+  // PACKED_ELEMENTS kind.
+  // If |convert_holes| is set kDontConvert, holes are also copied to the
+  // resulting array, who will have the same elements kind as |array|. The
+  // function generates significantly less code in this case.
+  Node* CloneFastJSArray(
+      Node* context, Node* array, ParameterMode mode = INTPTR_PARAMETERS,
+      Node* allocation_site = nullptr,
+      HoleConversionMode convert_holes = HoleConversionMode::kDontConvert);
 
   Node* ExtractFastJSArray(Node* context, Node* array, Node* begin, Node* count,
                            ParameterMode mode = INTPTR_PARAMETERS,
@@ -1511,11 +1523,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Copies |element_count| elements from |from_array| starting from element
   // |first_element| to |to_array| of |capacity| size respecting both array's
   // elements kinds.
+  // |convert_holes| tells the function whether to convert holes to undefined.
+  // |var_holes_converted| can be used to signify that the conversion happened
+  // (i.e. that there were holes). If |convert_holes_to_undefined| is
+  // HoleConversionMode::kConvertToUndefined, then it must not be the case that
+  // IsDoubleElementsKind(to_kind).
   void CopyFixedArrayElements(
       ElementsKind from_kind, Node* from_array, ElementsKind to_kind,
       Node* to_array, Node* first_element, Node* element_count, Node* capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      ParameterMode mode = INTPTR_PARAMETERS);
+      ParameterMode mode = INTPTR_PARAMETERS,
+      HoleConversionMode convert_holes = HoleConversionMode::kDontConvert,
+      TVariable<BoolT>* var_holes_converted = nullptr);
 
   void CopyFixedArrayElements(
       ElementsKind from_kind, TNode<FixedArrayBase> from_array,
@@ -1575,12 +1594,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // passed as the |source| parameter.
   // * |parameter_mode| determines the parameter mode of |first|, |count| and
   // |capacity|.
+  // * If |var_holes_converted| is given, any holes will be converted to
+  // undefined and the variable will be set according to whether or not there
+  // were any hole.
   TNode<FixedArrayBase> ExtractFixedArray(
       Node* source, Node* first, Node* count = nullptr,
       Node* capacity = nullptr,
       ExtractFixedArrayFlags extract_flags =
           ExtractFixedArrayFlag::kAllFixedArrays,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
+      ParameterMode parameter_mode = INTPTR_PARAMETERS,
+      TVariable<BoolT>* var_holes_converted = nullptr);
 
   TNode<FixedArrayBase> ExtractFixedArray(
       TNode<FixedArrayBase> source, TNode<Smi> first, TNode<Smi> count,
@@ -1606,14 +1629,49 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // non-double, so as to distinguish FixedDoubleArray vs. FixedArray. It does
   // not care about holeyness. For example, when |source| is a FixedArray,
   // PACKED/HOLEY_ELEMENTS can be used, but not PACKED_DOUBLE_ELEMENTS.
-  // * The function uses |allocation_flags| and |extract_flags| to decide how to
-  // allocate the result FixedArray.
+  // * |allocation_flags| and |extract_flags| influence how the target
+  // FixedArray is allocated.
   // * |parameter_mode| determines the parameter mode of |first|, |count| and
   // |capacity|.
+  // * |convert_holes| is used to signify that the target array should use
+  // undefined in places of holes.
+  // * If |convert_holes| is true and |var_holes_converted| not nullptr, then
+  // |var_holes_converted| is used to signal whether any holes were found and
+  // converted. The caller should use this information to decide which map is
+  // compatible with the result array. For example, if the input was of
+  // HOLEY_SMI_ELEMENTS kind, and a conversion took place, the result will be
+  // compatible only with HOLEY_ELEMENTS and PACKED_ELEMENTS.
   TNode<FixedArray> ExtractToFixedArray(
       Node* source, Node* first, Node* count, Node* capacity, Node* source_map,
       ElementsKind from_kind = PACKED_ELEMENTS,
       AllocationFlags allocation_flags = AllocationFlag::kNone,
+      ExtractFixedArrayFlags extract_flags =
+          ExtractFixedArrayFlag::kAllFixedArrays,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS,
+      HoleConversionMode convert_holes = HoleConversionMode::kDontConvert,
+      TVariable<BoolT>* var_holes_converted = nullptr);
+
+  // Attempt to copy a FixedDoubleArray to another FixedDoubleArray. In the case
+  // where the source array has a hole, produce a FixedArray instead where holes
+  // are replaced with undefined.
+  // * |source| is a FixedDoubleArray from which to copy elements.
+  // * |first| is the starting element index to copy from.
+  // * |count| is the number of elements to copy out of the source array
+  // starting from and including the element indexed by |start|.
+  // * |capacity| determines the size of the allocated result array, with
+  // |capacity| >= |count|.
+  // * |source_map| is the map of |source|. It will be used as the map of the
+  // target array if the target can stay a FixedDoubleArray. Otherwise if the
+  // target array needs to be a FixedArray, the FixedArrayMap will be used.
+  // * |var_holes_converted| is used to signal whether a FixedAray
+  // is produced or not.
+  // * |allocation_flags| and |extract_flags| influence how the target array is
+  // allocated.
+  // * |parameter_mode| determines the parameter mode of |first|, |count| and
+  // |capacity|.
+  TNode<FixedArrayBase> ExtractFixedDoubleArrayFillingHoles(
+      Node* source, Node* first, Node* count, Node* capacity, Node* source_map,
+      TVariable<BoolT>* var_holes_converted, AllocationFlags allocation_flags,
       ExtractFixedArrayFlags extract_flags =
           ExtractFixedArrayFlag::kAllFixedArrays,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);

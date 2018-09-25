@@ -1694,6 +1694,27 @@ TF_BUILTIN(CloneFastJSArray, ArrayBuiltinsAssembler) {
   Return(CloneFastJSArray(context, array, mode));
 }
 
+// This builtin copies the backing store of fast arrays, while converting any
+// holes to undefined.
+// - If there are no holes in the source, its ElementsKind will be preserved. In
+// that case, this builtin should perform as fast as CloneFastJSArray. (In fact,
+// for fast packed arrays, the behavior is equivalent to CloneFastJSArray.)
+// - If there are holes in the source, the ElementsKind of the "copy" will be
+// PACKED_ELEMENTS (such that undefined can be stored).
+TF_BUILTIN(CloneFastJSArrayFillingHoles, ArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<JSArray> array = CAST(Parameter(Descriptor::kSource));
+
+  CSA_ASSERT(this,
+             Word32Or(Word32BinaryNot(IsHoleyFastElementsKind(
+                          LoadMapElementsKind(LoadMap(array)))),
+                      Word32BinaryNot(IsNoElementsProtectorCellInvalid())));
+
+  ParameterMode mode = OptimalParameterMode();
+  Return(CloneFastJSArray(context, array, mode, nullptr,
+                          HoleConversionMode::kConvertToUndefined));
+}
+
 TF_BUILTIN(ArrayFindLoopContinuation, ArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));

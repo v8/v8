@@ -3956,27 +3956,66 @@ Node* CodeStubAssembler::ExtractFastJSArray(Node* context, Node* array,
 
 Node* CodeStubAssembler::CloneFastJSArray(Node* context, Node* array,
                                           ParameterMode mode,
-                                          Node* allocation_site) {
+                                          Node* allocation_site,
+                                          HoleConversionMode convert_holes) {
   // TODO(dhai): we should be able to assert IsFastJSArray(array) here, but this
   // function is also used to copy boilerplates even when the no-elements
   // protector is invalid. This function should be renamed to reflect its uses.
   CSA_ASSERT(this, IsJSArray(array));
-  Node* original_array_map = LoadMap(array);
-  Node* elements_kind = LoadMapElementsKind(original_array_map);
 
   Node* length = LoadJSArrayLength(array);
-  Node* new_elements = ExtractFixedArray(
+  Node* new_elements = nullptr;
+  VARIABLE(var_new_elements, MachineRepresentation::kTagged);
+  TVARIABLE(Int32T, var_elements_kind, LoadMapElementsKind(LoadMap(array)));
+
+  Label allocate_jsarray(this), holey_extract(this);
+
+  bool need_conversion =
+      convert_holes == HoleConversionMode::kConvertToUndefined;
+  if (need_conversion) {
+    // We need to take care of holes, if the array is of holey elements kind.
+    GotoIf(IsHoleyFastElementsKind(var_elements_kind.value()), &holey_extract);
+  }
+
+  // Simple extraction that preserves holes.
+  new_elements = ExtractFixedArray(
       LoadElements(array), IntPtrOrSmiConstant(0, mode),
       TaggedToParameter(length, mode), nullptr,
       ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW, mode);
+  var_new_elements.Bind(new_elements);
+  Goto(&allocate_jsarray);
 
-  // Use the cannonical map for the Array's ElementsKind
+  if (need_conversion) {
+    BIND(&holey_extract);
+    // Convert holes to undefined.
+    TVARIABLE(BoolT, var_holes_converted, Int32FalseConstant());
+    // Copy |array|'s elements store. The copy will be compatible with the
+    // original elements kind unless there are holes in the source. Any holes
+    // get converted to undefined, hence in that case the copy is compatible
+    // only with PACKED_ELEMENTS and HOLEY_ELEMENTS, and we will choose
+    // PACKED_ELEMENTS. Also, if we want to replace holes, we must not use
+    // ExtractFixedArrayFlag::kDontCopyCOW.
+    new_elements = ExtractFixedArray(
+        LoadElements(array), IntPtrOrSmiConstant(0, mode),
+        TaggedToParameter(length, mode), nullptr,
+        ExtractFixedArrayFlag::kAllFixedArrays, mode, &var_holes_converted);
+    var_new_elements.Bind(new_elements);
+    // If the array type didn't change, use the original elements kind.
+    GotoIfNot(var_holes_converted.value(), &allocate_jsarray);
+    // Otherwise use PACKED_ELEMENTS for the target's elements kind.
+    var_elements_kind = Int32Constant(PACKED_ELEMENTS);
+    Goto(&allocate_jsarray);
+  }
+
+  BIND(&allocate_jsarray);
+  // Use the cannonical map for the chosen elements kind.
   Node* native_context = LoadNativeContext(context);
-  Node* array_map = LoadJSArrayElementsMap(elements_kind, native_context);
+  Node* array_map =
+      LoadJSArrayElementsMap(var_elements_kind.value(), native_context);
 
   Node* result = AllocateUninitializedJSArrayWithoutElements(array_map, length,
                                                              allocation_site);
-  StoreObjectField(result, JSObject::kElementsOffset, new_elements);
+  StoreObjectField(result, JSObject::kElementsOffset, var_new_elements.value());
   return result;
 }
 
@@ -4019,7 +4058,8 @@ TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
 TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
     Node* source, Node* first, Node* count, Node* capacity, Node* source_map,
     ElementsKind from_kind, AllocationFlags allocation_flags,
-    ExtractFixedArrayFlags extract_flags, ParameterMode parameter_mode) {
+    ExtractFixedArrayFlags extract_flags, ParameterMode parameter_mode,
+    HoleConversionMode convert_holes, TVariable<BoolT>* var_holes_converted) {
   DCHECK_NE(first, nullptr);
   DCHECK_NE(count, nullptr);
   DCHECK_NE(capacity, nullptr);
@@ -4097,7 +4137,8 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
                            AllocationFlag::kNone, var_target_map.value());
     var_result.Bind(to_elements);
     CopyFixedArrayElements(from_kind, source, to_kind, to_elements, first,
-                           count, capacity, SKIP_WRITE_BARRIER, parameter_mode);
+                           count, capacity, SKIP_WRITE_BARRIER, parameter_mode,
+                           convert_holes, var_holes_converted);
     Goto(&done);
 
     if (handle_old_space) {
@@ -4111,7 +4152,8 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
         var_result.Bind(to_elements);
         CopyFixedArrayElements(from_kind, source, to_kind, to_elements, first,
                                count, capacity, UPDATE_WRITE_BARRIER,
-                               parameter_mode);
+                               parameter_mode, convert_holes,
+                               var_holes_converted);
         Goto(&done);
       }
     }
@@ -4121,11 +4163,105 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
   return UncheckedCast<FixedArray>(var_result.value());
 }
 
+TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedDoubleArrayFillingHoles(
+    Node* from_array, Node* first, Node* count, Node* capacity,
+    Node* fixed_array_map, TVariable<BoolT>* var_holes_converted,
+    AllocationFlags allocation_flags, ExtractFixedArrayFlags extract_flags,
+    ParameterMode mode) {
+  DCHECK_NE(first, nullptr);
+  DCHECK_NE(count, nullptr);
+  DCHECK_NE(capacity, nullptr);
+  DCHECK_NE(var_holes_converted, nullptr);
+  CSA_ASSERT(this, IsFixedDoubleArrayMap(fixed_array_map));
+
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
+  Node* to_elements = AllocateFixedArray(kind, capacity, mode, allocation_flags,
+                                         fixed_array_map);
+  var_result.Bind(to_elements);
+  // We first try to copy the FixedDoubleArray to a new FixedDoubleArray.
+  // |var_holes_converted| is set to False preliminarily.
+  *var_holes_converted = Int32FalseConstant();
+
+  // The construction of the loop and the offsets for double elements is
+  // extracted from CopyFixedArrayElements.
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(count, mode));
+  CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
+  CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(from_array, kind));
+  STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
+
+  Comment("[ ExtractFixedDoubleArrayFillingHoles");
+
+  // This copy can trigger GC, so we pre-initialize the array with holes.
+  FillFixedArrayWithValue(kind, to_elements, IntPtrOrSmiConstant(0, mode),
+                          capacity, RootIndex::kTheHoleValue, mode);
+
+  const int first_element_offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  Node* first_from_element_offset =
+      ElementOffsetFromIndex(first, kind, mode, 0);
+  Node* limit_offset = IntPtrAdd(first_from_element_offset,
+                                 IntPtrConstant(first_element_offset));
+  VARIABLE(var_from_offset, MachineType::PointerRepresentation(),
+           ElementOffsetFromIndex(IntPtrOrSmiAdd(first, count, mode), kind,
+                                  mode, first_element_offset));
+
+  Label decrement(this, {&var_from_offset}), done(this);
+  Node* to_array_adjusted =
+      IntPtrSub(BitcastTaggedToWord(to_elements), first_from_element_offset);
+
+  Branch(WordEqual(var_from_offset.value(), limit_offset), &done, &decrement);
+
+  BIND(&decrement);
+  {
+    Node* from_offset =
+        IntPtrSub(var_from_offset.value(), IntPtrConstant(kDoubleSize));
+    var_from_offset.Bind(from_offset);
+
+    Node* to_offset = from_offset;
+
+    Label if_hole(this);
+
+    Node* value = LoadElementAndPrepareForStore(
+        from_array, var_from_offset.value(), kind, kind, &if_hole);
+
+    StoreNoWriteBarrier(MachineRepresentation::kFloat64, to_array_adjusted,
+                        to_offset, value);
+
+    Node* compare = WordNotEqual(from_offset, limit_offset);
+    Branch(compare, &decrement, &done);
+
+    BIND(&if_hole);
+    // We are unlucky: there are holes! We need to restart the copy, this time
+    // we will copy the FixedDoubleArray to a new FixedArray with undefined
+    // replacing holes. We signal this to the caller through
+    // |var_holes_converted|.
+    *var_holes_converted = Int32TrueConstant();
+    to_elements =
+        ExtractToFixedArray(from_array, first, count, capacity, fixed_array_map,
+                            kind, allocation_flags, extract_flags, mode,
+                            HoleConversionMode::kConvertToUndefined);
+    var_result.Bind(to_elements);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  Comment("] ExtractFixedDoubleArrayFillingHoles");
+  return UncheckedCast<FixedArrayBase>(var_result.value());
+}
+
 TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
     Node* source, Node* first, Node* count, Node* capacity,
-    ExtractFixedArrayFlags extract_flags, ParameterMode parameter_mode) {
+    ExtractFixedArrayFlags extract_flags, ParameterMode parameter_mode,
+    TVariable<BoolT>* var_holes_converted) {
   DCHECK(extract_flags & ExtractFixedArrayFlag::kFixedArrays ||
          extract_flags & ExtractFixedArrayFlag::kFixedDoubleArrays);
+  // If we want to replace holes, ExtractFixedArrayFlag::kDontCopyCOW should not
+  // be used, because that disables the iteration which detects holes.
+  DCHECK_IMPLIES(var_holes_converted != nullptr,
+                 !(extract_flags & ExtractFixedArrayFlag::kDontCopyCOW));
+  HoleConversionMode convert_holes =
+      var_holes_converted != nullptr ? HoleConversionMode::kConvertToUndefined
+                                     : HoleConversionMode::kDontConvert;
   VARIABLE(var_result, MachineRepresentation::kTagged);
   const AllocationFlags allocation_flags =
       (extract_flags & ExtractFixedArrayFlag::kNewSpaceAllocationOnly)
@@ -4164,27 +4300,36 @@ TNode<FixedArrayBase> CodeStubAssembler::ExtractFixedArray(
   }
 
   if (extract_flags & ExtractFixedArrayFlag::kFixedArrays) {
-    // Here we can only get source as FixedArray, never FixedDoubleArray.
+    // Here we can only get |source| as FixedArray, never FixedDoubleArray.
     // PACKED_ELEMENTS is used to signify that the source is a FixedArray.
-    Node* to_elements = ExtractToFixedArray(
-        source, first, count, capacity, source_map, PACKED_ELEMENTS,
-        allocation_flags, extract_flags, parameter_mode);
+    Node* to_elements =
+        ExtractToFixedArray(source, first, count, capacity, source_map,
+                            PACKED_ELEMENTS, allocation_flags, extract_flags,
+                            parameter_mode, convert_holes, var_holes_converted);
     var_result.Bind(to_elements);
     Goto(&done);
   }
 
   if (extract_flags & ExtractFixedArrayFlag::kFixedDoubleArrays) {
     BIND(&if_fixed_double_array);
-
     Comment("Copy FixedDoubleArray");
-    // We use PACKED_DOUBLE_ELEMENTS to signify that the source is
-    // FixedDoubleArray. That it is PACKED or HOLEY does not matter.
-    ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
-    Node* to_elements = AllocateFixedArray(kind, capacity, parameter_mode,
-                                           allocation_flags, source_map);
-    var_result.Bind(to_elements);
-    CopyFixedArrayElements(kind, source, kind, to_elements, first, count,
-                           capacity, SKIP_WRITE_BARRIER, parameter_mode);
+
+    if (convert_holes == HoleConversionMode::kConvertToUndefined) {
+      Node* to_elements = ExtractFixedDoubleArrayFillingHoles(
+          source, first, count, capacity, source_map, var_holes_converted,
+          allocation_flags, extract_flags, parameter_mode);
+      var_result.Bind(to_elements);
+    } else {
+      // We use PACKED_DOUBLE_ELEMENTS to signify that both the source and
+      // the target are FixedDoubleArray. That it is PACKED or HOLEY does not
+      // matter.
+      ElementsKind kind = PACKED_DOUBLE_ELEMENTS;
+      Node* to_elements = AllocateFixedArray(kind, capacity, parameter_mode,
+                                             allocation_flags, source_map);
+      var_result.Bind(to_elements);
+      CopyFixedArrayElements(kind, source, kind, to_elements, first, count,
+                             capacity, SKIP_WRITE_BARRIER, parameter_mode);
+    }
 
     Goto(&done);
   }
@@ -4354,7 +4499,10 @@ void CodeStubAssembler::FillFixedDoubleArrayWithZero(
 void CodeStubAssembler::CopyFixedArrayElements(
     ElementsKind from_kind, Node* from_array, ElementsKind to_kind,
     Node* to_array, Node* first_element, Node* element_count, Node* capacity,
-    WriteBarrierMode barrier_mode, ParameterMode mode) {
+    WriteBarrierMode barrier_mode, ParameterMode mode,
+    HoleConversionMode convert_holes, TVariable<BoolT>* var_holes_converted) {
+  DCHECK_IMPLIES(var_holes_converted != nullptr,
+                 convert_holes == HoleConversionMode::kConvertToUndefined);
   CSA_SLOW_ASSERT(this, MatchesParameterMode(element_count, mode));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKindOrEmpty(from_array, from_kind));
@@ -4382,10 +4530,20 @@ void CodeStubAssembler::CopyFixedArrayElements(
       Is64() ? ReinterpretCast<UintPtrT>(Int64Constant(kHoleNanInt64))
              : ReinterpretCast<UintPtrT>(Int32Constant(kHoleNanLower32));
 
-  if (doubles_to_objects_conversion) {
-    // If the copy might trigger a GC, make sure that the FixedArray is
-    // pre-initialized with holes to make sure that it's always in a
-    // consistent state.
+  // If copying might trigger a GC, we pre-initialize the FixedArray such that
+  // it's always in a consistent state.
+  if (convert_holes == HoleConversionMode::kConvertToUndefined) {
+    DCHECK(IsObjectElementsKind(to_kind));
+    // Use undefined for the part that we copy and holes for the rest.
+    // Later if we run into a hole in the source we can just skip the writing
+    // to the target and are still guaranteed that we get an undefined.
+    FillFixedArrayWithValue(to_kind, to_array, IntPtrOrSmiConstant(0, mode),
+                            element_count, RootIndex::kUndefinedValue, mode);
+    FillFixedArrayWithValue(to_kind, to_array, element_count, capacity,
+                            RootIndex::kTheHoleValue, mode);
+  } else if (doubles_to_objects_conversion) {
+    // Pre-initialized the target with holes so later if we run into a hole in
+    // the source we can just skip the writing to the target.
     FillFixedArrayWithValue(to_kind, to_array, IntPtrOrSmiConstant(0, mode),
                             capacity, RootIndex::kTheHoleValue, mode);
   } else if (element_count != capacity) {
@@ -4411,8 +4569,10 @@ void CodeStubAssembler::CopyFixedArrayElements(
                                               first_element_offset));
   }
 
-  Variable* vars[] = {&var_from_offset, &var_to_offset};
-  Label decrement(this, 2, vars);
+  Variable* vars[] = {&var_from_offset, &var_to_offset, var_holes_converted};
+  int num_vars =
+      var_holes_converted != nullptr ? arraysize(vars) : arraysize(vars) - 1;
+  Label decrement(this, num_vars, vars);
 
   Node* to_array_adjusted =
       element_offset_matches
@@ -4438,9 +4598,13 @@ void CodeStubAssembler::CopyFixedArrayElements(
       var_to_offset.Bind(to_offset);
     }
 
-    Label next_iter(this), store_double_hole(this);
+    Label next_iter(this), store_double_hole(this), signal_hole(this);
     Label* if_hole;
-    if (doubles_to_objects_conversion) {
+    if (convert_holes == HoleConversionMode::kConvertToUndefined) {
+      // The target elements array is already preinitialized with undefined
+      // so we only need to signal that a hole was found and continue the loop.
+      if_hole = &signal_hole;
+    } else if (doubles_to_objects_conversion) {
       // The target elements array is already preinitialized with holes, so we
       // can just proceed with the next iteration.
       if_hole = &next_iter;
@@ -4485,6 +4649,13 @@ void CodeStubAssembler::CopyFixedArrayElements(
         StoreNoWriteBarrier(MachineRepresentation::kWord32, to_array_adjusted,
                             IntPtrAdd(to_offset, IntPtrConstant(kPointerSize)),
                             double_hole);
+      }
+      Goto(&next_iter);
+    } else if (if_hole == &signal_hole) {
+      // This case happens only when IsObjectElementsKind(to_kind).
+      BIND(&signal_hole);
+      if (var_holes_converted != nullptr) {
+        *var_holes_converted = Int32TrueConstant();
       }
       Goto(&next_iter);
     }
