@@ -371,17 +371,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* CreateEmptyJumpTable(uint32_t num_wasm_functions);
 
-  void PatchJumpTable(uint32_t func_index, Address target,
-                      WasmCode::FlushICache);
+  // Hold the {allocation_mutex_} when calling this method.
+  void InstallCode(WasmCode* code);
 
   Vector<WasmCode*> code_table() const {
     return {code_table_.get(), module_->num_declared_functions};
-  }
-  void set_code(uint32_t index, WasmCode* code) {
-    DCHECK_LT(index, num_functions());
-    DCHECK_LE(module_->num_imported_functions, index);
-    DCHECK_EQ(code->index(), index);
-    code_table_[index - module_->num_imported_functions] = code;
   }
 
   // Features enabled for this module. We keep a copy of the features that
