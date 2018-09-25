@@ -16,7 +16,7 @@ module typed_array {
   type LoadFn = builtin(Context, JSTypedArray, Smi) => Object;
   type StoreFn = builtin(Context, JSTypedArray, Smi, Object) => Object;
 
-  macro KindForArrayType<T : type>(): constexpr ElementsKind;
+  macro KindForArrayType<T: type>(): constexpr ElementsKind;
   KindForArrayType<FixedUint8Array>(): constexpr ElementsKind {
     return UINT8_ELEMENTS;
   }
@@ -51,13 +51,13 @@ module typed_array {
     return BIGINT64_ELEMENTS;
   }
 
-  builtin LoadFixedElement<T : type>(
+  builtin LoadFixedElement<T: type>(
       context: Context, array: JSTypedArray, index: Smi): Object {
     return LoadFixedTypedArrayElementAsTagged(
         array.data_ptr, index, KindForArrayType<T>(), SMI_PARAMETERS);
   }
 
-  builtin StoreFixedElement<T : type>(
+  builtin StoreFixedElement<T: type>(
       context: Context, array: JSTypedArray, index: Smi,
       value: Object): Object {
     const elements: FixedTypedArrayBase =
@@ -69,7 +69,8 @@ module typed_array {
 
   macro CallCompareWithDetachedCheck(
       context: Context, array: JSTypedArray, comparefn: Callable, a: Object,
-      b: Object): Number labels Detached {
+      b: Object): Number
+      labels Detached {
     // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
     const v: Number =
         ToNumber_Inline(context, Call(context, comparefn, Undefined, a, b));
@@ -125,7 +126,7 @@ module typed_array {
         //               benchmarks are run locally.
         TypedArrayInsertionSort(
             context, array, from, to, comparefn, load, store)
-        otherwise Detached;
+            otherwise Detached;
         break;
       }
 
@@ -205,7 +206,8 @@ module typed_array {
 
             const topElement: Object = load(context, array, highStart);
             order = CallCompareWithDetachedCheck(
-                context, array, comparefn, topElement, pivot) otherwise Detached;
+                context, array, comparefn, topElement, pivot)
+                otherwise Detached;
           }
 
           if (breakFor) {
@@ -244,7 +246,7 @@ module typed_array {
       comparefn: Callable, load: LoadFn, store: StoreFn): JSTypedArray {
     try {
       TypedArrayQuickSortImpl(context, array, from, to, comparefn, load, store)
-      otherwise Detached;
+          otherwise Detached;
     }
     label Detached {
       ThrowTypeError(
