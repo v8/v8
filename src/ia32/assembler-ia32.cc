@@ -1103,6 +1103,7 @@ void Assembler::neg(Register dst) {
 }
 
 void Assembler::neg(Operand dst) {
+  AllowExplicitEbxAccessScope register_used_for_regcode(this);
   EnsureSpace ensure_space(this);
   EMIT(0xF7);
   emit_operand(ebx, dst);
