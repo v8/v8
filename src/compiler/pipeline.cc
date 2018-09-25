@@ -313,10 +313,15 @@ class PipelineData {
                                    : wasm_engine_->GetCodeTracer();
   }
 
-  Typer* CreateTyper(Typer::Flags flags) {
-    CHECK_NULL(typer_);
-    typer_ = new Typer(isolate(), js_heap_broker(), flags, graph());
+  Typer* CreateTyper() {
+    DCHECK_NULL(typer_);
+    typer_ = new Typer(isolate(), js_heap_broker(), typer_flags_, graph());
     return typer_;
+  }
+
+  void AddTyperFlag(Typer::Flag flag) {
+    DCHECK_NULL(typer_);
+    typer_flags_ |= flag;
   }
 
   void DeleteTyper() {
@@ -448,6 +453,7 @@ class PipelineData {
   MaybeHandle<Code> code_;
   CodeGenerator* code_generator_ = nullptr;
   Typer* typer_ = nullptr;
+  Typer::Flags typer_flags_ = Typer::kNoFlags;
 
   // All objects in the following group of fields are allocated in graph_zone_.
   // They are all set to nullptr when the graph_zone_ is destroyed.
@@ -1317,6 +1323,12 @@ struct CopyMetadataForConcurrentCompilePhase {
     JSHeapCopyReducer heap_copy_reducer(data->js_heap_broker());
     AddReducer(data, &graph_reducer, &heap_copy_reducer);
     graph_reducer.ReduceGraph();
+
+    // Some nodes that are no longer in the graph might still be in the cache.
+    NodeVector cached_nodes(temp_zone);
+    data->jsgraph()->GetCachedNodes(&cached_nodes);
+    for (Node* const node : cached_nodes) graph_reducer.ReduceNode(node);
+
     data->js_heap_broker()->StopSerializing();
   }
 };
@@ -2012,30 +2024,28 @@ bool PipelineImpl::CreateGraph() {
   Run<EarlyGraphTrimmingPhase>();
   RunPrintAndVerify(EarlyGraphTrimmingPhase::phase_name(), true);
 
-  // Run the type-sensitive lowerings and optimizations on the graph.
+  // Determine the Typer operation flags.
   {
-    // Determine the Typer operation flags.
-    Typer::Flags flags = Typer::kNoFlags;
     if (is_sloppy(info()->shared_info()->language_mode()) &&
         info()->shared_info()->IsUserJavaScript()) {
       // Sloppy mode functions always have an Object for this.
-      flags |= Typer::kThisIsReceiver;
+      data->AddTyperFlag(Typer::kThisIsReceiver);
     }
     if (IsClassConstructor(info()->shared_info()->kind())) {
       // Class constructors cannot be [[Call]]ed.
-      flags |= Typer::kNewTargetIsReceiver;
+      data->AddTyperFlag(Typer::kNewTargetIsReceiver);
     }
+  }
 
-    // Type the graph and keep the Typer running on newly created nodes within
-    // this scope; the Typer is automatically unlinked from the Graph once we
-    // leave this scope below.
-
-    Run<TyperPhase>(data->CreateTyper(flags));
-    RunPrintAndVerify(TyperPhase::phase_name());
-
+  // Run the type-sensitive lowerings and optimizations on the graph.
+  {
     if (FLAG_concurrent_compiler_frontend) {
       Run<CopyMetadataForConcurrentCompilePhase>();
     } else {
+      // Type the graph and keep the Typer running such that new nodes get
+      // automatically typed when they are created.
+      Run<TyperPhase>(data->CreateTyper());
+      RunPrintAndVerify(TyperPhase::phase_name());
       Run<TypedLoweringPhase>();
       RunPrintAndVerify(TypedLoweringPhase::phase_name());
       data->DeleteTyper();
@@ -2053,6 +2063,10 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   data->BeginPhaseKind("lowering");
 
   if (FLAG_concurrent_compiler_frontend) {
+    // Type the graph and keep the Typer running such that new nodes get
+    // automatically typed when they are created.
+    Run<TyperPhase>(data->CreateTyper());
+    RunPrintAndVerify(TyperPhase::phase_name());
     Run<TypedLoweringPhase>();
     RunPrintAndVerify(TypedLoweringPhase::phase_name());
     data->DeleteTyper();

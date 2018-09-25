@@ -1358,9 +1358,10 @@ void JSHeapBroker::SerializeStandardObjects() {
   Factory* const f = isolate()->factory();
 
   // Maps, strings, oddballs
-  GetOrCreateData(f->NaN_string());
+  GetOrCreateData(f->arguments_marker_map());
   GetOrCreateData(f->bigint_string());
   GetOrCreateData(f->block_context_map());
+  GetOrCreateData(f->boolean_map());
   GetOrCreateData(f->boolean_string());
   GetOrCreateData(f->catch_context_map());
   GetOrCreateData(f->empty_fixed_array());
@@ -1379,23 +1380,32 @@ void JSHeapBroker::SerializeStandardObjects() {
   GetOrCreateData(f->minus_zero_value());
   GetOrCreateData(f->mutable_heap_number_map());
   GetOrCreateData(f->name_dictionary_map());
+  GetOrCreateData(f->NaN_string());
+  GetOrCreateData(f->null_map());
   GetOrCreateData(f->null_string());
   GetOrCreateData(f->null_value());
   GetOrCreateData(f->number_string());
   GetOrCreateData(f->object_string());
   GetOrCreateData(f->one_pointer_filler_map());
   GetOrCreateData(f->optimized_out());
+  GetOrCreateData(f->optimized_out_map());
   GetOrCreateData(f->property_array_map());
   GetOrCreateData(f->sloppy_arguments_elements_map());
   GetOrCreateData(f->stale_register());
+  GetOrCreateData(f->stale_register_map());
   GetOrCreateData(f->string_string());
   GetOrCreateData(f->symbol_string());
+  GetOrCreateData(f->termination_exception_map());
+  GetOrCreateData(f->the_hole_map());
   GetOrCreateData(f->the_hole_value());
   GetOrCreateData(f->true_string());
   GetOrCreateData(f->true_value());
+  GetOrCreateData(f->undefined_map());
   GetOrCreateData(f->undefined_string());
   GetOrCreateData(f->undefined_value());
+  GetOrCreateData(f->uninitialized_map());
   GetOrCreateData(f->with_context_map());
+  GetOrCreateData(f->zero_string());
 
   // Property cells
   GetOrCreateData(f->array_buffer_neutering_protector())

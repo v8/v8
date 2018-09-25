@@ -4,6 +4,7 @@
 
 #include "test/unittests/compiler/graph-unittest.h"
 
+#include "src/compiler/js-heap-copy-reducer.h"
 #include "src/compiler/node-properties.h"
 #include "src/heap/factory.h"
 #include "src/objects-inl.h"  // TODO(everyone): Make typer.h IWYU compliant.
@@ -69,6 +70,8 @@ Node* GraphTest::HeapConstant(const Handle<HeapObject>& value) {
   Node* node = graph()->NewNode(common()->HeapConstant(value));
   Type type = Type::NewConstant(js_heap_broker(), value, zone());
   NodeProperties::SetType(node, type);
+  JSHeapCopyReducer heap_copy_reducer(js_heap_broker());
+  heap_copy_reducer.Reduce(node);
   return node;
 }
 

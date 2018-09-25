@@ -20,10 +20,8 @@ OperationTyper::OperationTyper(Isolate* isolate, JSHeapBroker* js_heap_broker,
                                Zone* zone)
     : zone_(zone), cache_(TypeCache::Get()) {
   Factory* factory = isolate->factory();
-  infinity_ =
-      Type::NewConstant(js_heap_broker, factory->infinity_value(), zone);
-  minus_infinity_ =
-      Type::NewConstant(js_heap_broker, factory->minus_infinity_value(), zone);
+  infinity_ = Type::NewConstant(V8_INFINITY, zone);
+  minus_infinity_ = Type::NewConstant(-V8_INFINITY, zone);
   Type truncating_to_zero = Type::MinusZeroOrNaN();
   DCHECK(!truncating_to_zero.Maybe(Type::Integral32()));
 
