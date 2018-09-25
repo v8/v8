@@ -1518,8 +1518,8 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
             // The imported function is a callable.
             Handle<Code> wrapper_code =
                 compiler::CompileWasmImportCallWrapper(
-                    isolate_, kind, js_receiver, expected_sig, func_index,
-                    module_->origin, use_trap_handler())
+                    isolate_, kind, expected_sig, func_index, module_->origin,
+                    use_trap_handler())
                     .ToHandleChecked();
             RecordStats(*wrapper_code, isolate_->counters());
 

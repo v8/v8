@@ -44,8 +44,8 @@ TestingModuleBuilder::TestingModuleBuilder(
     auto kind = compiler::GetWasmImportCallKind(maybe_import->js_function,
                                                 maybe_import->sig);
     MaybeHandle<Code> code = compiler::CompileWasmImportCallWrapper(
-        isolate_, kind, maybe_import->js_function, maybe_import->sig,
-        maybe_import_index, test_module_->origin,
+        isolate_, kind, maybe_import->sig, maybe_import_index,
+        test_module_->origin,
         trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                              : kNoTrapHandler);
     auto wasm_to_js_wrapper = native_module_->AddImportWrapper(

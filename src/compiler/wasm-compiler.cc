@@ -4387,8 +4387,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* BuildLoadFunctionDataFromExportedFunction(Node* closure) {
     Node* shared = SetEffect(graph()->NewNode(
         jsgraph()->machine()->Load(MachineType::AnyTagged()), closure,
-        jsgraph()->Int32Constant(JSFunction::kSharedFunctionInfoOffset -
-                                 kHeapObjectTag),
+        jsgraph()->Int32Constant(
+            wasm::ObjectAccess::SharedFunctionInfoOffsetInTaggedJSFunction()),
         Effect(), Control()));
     return SetEffect(graph()->NewNode(
         jsgraph()->machine()->Load(MachineType::AnyTagged()), shared,
@@ -4502,8 +4502,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Return(jsval);
   }
 
-  bool BuildWasmImportCallWrapper(WasmImportCallKind kind, int func_index,
-                                  int formal_param_count) {
+  bool BuildWasmImportCallWrapper(WasmImportCallKind kind, int func_index) {
     int wasm_count = static_cast<int>(sig_->parameter_count());
 
     // Build the start and the parameter nodes.
@@ -4600,7 +4599,24 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         args[pos++] = callable_node;                         // target callable
         args[pos++] = undefined_node;                        // new target
         args[pos++] = mcgraph()->Int32Constant(wasm_count);  // argument count
-        args[pos++] = mcgraph()->Int32Constant(formal_param_count);
+
+        // Load shared function info, and then the formal parameter count.
+        Node* shared_function_info = SetEffect(graph()->NewNode(
+            mcgraph()->machine()->Load(MachineType::TaggedPointer()),
+            callable_node,
+            mcgraph()->Int32Constant(
+                wasm::ObjectAccess::
+                    SharedFunctionInfoOffsetInTaggedJSFunction()),
+            Effect(), Control()));
+        Node* formal_param_count = SetEffect(graph()->NewNode(
+            mcgraph()->machine()->Load(MachineType::Uint16()),
+            shared_function_info,
+            mcgraph()->Int32Constant(
+                wasm::ObjectAccess::
+                    FormalParameterCountOffsetInSharedFunctionInfo()),
+            Effect(), Control()));
+        args[pos++] = formal_param_count;
+
         // Receiver.
         if (sloppy_receiver) {
           Node* global_proxy = LOAD_FIXED_ARRAY_SLOT(
@@ -4936,8 +4952,8 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
 }
 
 MaybeHandle<Code> CompileWasmImportCallWrapper(
-    Isolate* isolate, WasmImportCallKind kind, Handle<JSReceiver> js_receiver,
-    wasm::FunctionSig* sig, uint32_t index, wasm::ModuleOrigin origin,
+    Isolate* isolate, WasmImportCallKind kind, wasm::FunctionSig* sig,
+    uint32_t index, wasm::ModuleOrigin origin,
     wasm::UseTrapHandler use_trap_handler) {
   DCHECK_NE(WasmImportCallKind::kLinkError, kind);
   DCHECK_NE(WasmImportCallKind::kWasmToWasm, kind);
@@ -4971,13 +4987,7 @@ MaybeHandle<Code> CompileWasmImportCallWrapper(
                                   StubCallMode::kCallWasmRuntimeStub);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  // TODO(titzer): gen code to load the formal param count from the callable.
-  int formal_param_count = js_receiver->IsJSFunction()
-                               ? JSFunction::cast(*js_receiver)
-                                     ->shared()
-                                     ->internal_formal_parameter_count()
-                               : static_cast<int>(sig->parameter_count());
-  builder.BuildWasmImportCallWrapper(kind, index, formal_param_count);
+  builder.BuildWasmImportCallWrapper(kind, index);
 
   EmbeddedVector<char, 32> func_name;
   func_name.Truncate(SNPrintF(func_name, "wasm-to-js#%d", index));

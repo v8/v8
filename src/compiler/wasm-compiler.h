@@ -86,9 +86,11 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> callable,
                                          wasm::FunctionSig* sig);
 
 // Compiles an import call wrapper, which allows WASM to call imports.
-MaybeHandle<Code> CompileWasmImportCallWrapper(
-    Isolate*, WasmImportCallKind, Handle<JSReceiver>, wasm::FunctionSig*,
-    uint32_t index, wasm::ModuleOrigin, wasm::UseTrapHandler);
+MaybeHandle<Code> CompileWasmImportCallWrapper(Isolate*, WasmImportCallKind,
+                                               wasm::FunctionSig*,
+                                               uint32_t index,
+                                               wasm::ModuleOrigin,
+                                               wasm::UseTrapHandler);
 
 // Creates a code object calling a wasm function with the given signature,
 // callable from JS.

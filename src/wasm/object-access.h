@@ -8,6 +8,7 @@
 #include "src/globals.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/shared-function-info.h"
 
 namespace v8 {
 namespace internal {
@@ -26,6 +27,17 @@ class ObjectAccess : public AllStatic {
   // Get the offset of the context stored in a {JSFunction} object.
   static constexpr int ContextOffsetInTaggedJSFunction() {
     return ToTagged(JSFunction::kContextOffset);
+  }
+
+  // Get the offset of the shared function info in a {JSFunction} object.
+  static constexpr int SharedFunctionInfoOffsetInTaggedJSFunction() {
+    return ToTagged(JSFunction::kSharedFunctionInfoOffset);
+  }
+
+  // Get the offset of the formal parameter count in a {SharedFunctionInfo}
+  // object.
+  static constexpr int FormalParameterCountOffsetInSharedFunctionInfo() {
+    return ToTagged(SharedFunctionInfo::kFormalParameterCountOffset);
   }
 };
 
