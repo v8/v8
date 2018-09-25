@@ -1045,7 +1045,6 @@ class PipelineWasmCompilationJob final : public OptimizedCompilationJob {
 PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::PrepareJobImpl(
     Isolate* isolate) {
   UNREACHABLE();  // Prepare should always be skipped for WasmCompilationJob.
-  return SUCCEEDED;
 }
 
 PipelineWasmCompilationJob::Status
@@ -1125,7 +1124,6 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
 PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
   UNREACHABLE();  // Finalize should always be skipped for WasmCompilationJob.
-  return SUCCEEDED;
 }
 
 template <typename Phase>
@@ -1260,6 +1258,11 @@ struct TyperPhase {
   void Run(PipelineData* data, Zone* temp_zone, Typer* typer) {
     NodeVector roots(temp_zone);
     data->jsgraph()->GetCachedNodes(&roots);
+
+    // Make sure we always type True and False. Needed for escape analysis.
+    roots.push_back(data->jsgraph()->TrueConstant());
+    roots.push_back(data->jsgraph()->FalseConstant());
+
     LoopVariableOptimizer induction_vars(data->jsgraph()->graph(),
                                          data->common(), temp_zone);
     if (FLAG_turbo_loop_variable) induction_vars.Run();
@@ -1406,32 +1409,6 @@ struct LoopExitEliminationPhase {
 
   void Run(PipelineData* data, Zone* temp_zone) {
     LoopPeeler::EliminateLoopExits(data->graph(), temp_zone);
-  }
-};
-
-struct ConcurrentOptimizationPrepPhase {
-  static const char* phase_name() { return "concurrency preparation"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    // Make sure we cache these code stubs.
-    data->jsgraph()->CEntryStubConstant(1);
-    data->jsgraph()->CEntryStubConstant(2);
-
-    // TODO(turbofan): Remove this line once the Array constructor code
-    // is a proper builtin and no longer a CodeStub.
-    data->jsgraph()->ArrayConstructorStubConstant();
-
-    // This is needed for escape analysis.
-    NodeProperties::SetType(
-        data->jsgraph()->FalseConstant(),
-        Type::HeapConstant(data->js_heap_broker(),
-                           data->isolate()->factory()->false_value(),
-                           data->jsgraph()->zone()));
-    NodeProperties::SetType(
-        data->jsgraph()->TrueConstant(),
-        Type::HeapConstant(data->js_heap_broker(),
-                           data->isolate()->factory()->true_value(),
-                           data->jsgraph()->zone()));
   }
 };
 
@@ -2055,10 +2032,6 @@ bool PipelineImpl::CreateGraph() {
 
     Run<TyperPhase>(data->CreateTyper(flags));
     RunPrintAndVerify(TyperPhase::phase_name());
-
-    // Do some hacky things to prepare for the optimization phase.
-    // (caching handles, etc.).
-    Run<ConcurrentOptimizationPrepPhase>();
 
     if (FLAG_concurrent_compiler_frontend) {
       Run<CopyMetadataForConcurrentCompilePhase>();
