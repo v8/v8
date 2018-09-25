@@ -418,6 +418,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kLdaLookupSlot:
     case Bytecode::kLdaGlobal:
     case Bytecode::kLdaNamedProperty:
+    case Bytecode::kLdaNamedPropertyNoFeedback:
     case Bytecode::kLdaKeyedProperty:
     case Bytecode::kLdaGlobalInsideTypeof:
     case Bytecode::kLdaLookupSlotInsideTypeof:
@@ -842,6 +843,7 @@ bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
   typedef interpreter::Bytecode Bytecode;
   switch (bytecode) {
     case Bytecode::kStaNamedProperty:
+    case Bytecode::kStaNamedPropertyNoFeedback:
     case Bytecode::kStaNamedOwnProperty:
     case Bytecode::kStaKeyedProperty:
     case Bytecode::kStaInArrayLiteral:

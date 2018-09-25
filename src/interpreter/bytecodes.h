@@ -98,6 +98,8 @@ namespace interpreter {
   /* Property loads (LoadIC) operations */                                     \
   V(LdaNamedProperty, AccumulatorUse::kWrite, OperandType::kReg,               \
     OperandType::kIdx, OperandType::kIdx)                                      \
+  V(LdaNamedPropertyNoFeedback, AccumulatorUse::kWrite, OperandType::kReg,     \
+    OperandType::kIdx)                                                         \
   V(LdaKeyedProperty, AccumulatorUse::kReadWrite, OperandType::kReg,           \
     OperandType::kIdx)                                                         \
                                                                                \
@@ -110,6 +112,8 @@ namespace interpreter {
   /* Propery stores (StoreIC) operations */                                    \
   V(StaNamedProperty, AccumulatorUse::kReadWrite, OperandType::kReg,           \
     OperandType::kIdx, OperandType::kIdx)                                      \
+  V(StaNamedPropertyNoFeedback, AccumulatorUse::kReadWrite, OperandType::kReg, \
+    OperandType::kIdx, OperandType::kFlag8)                                    \
   V(StaNamedOwnProperty, AccumulatorUse::kReadWrite, OperandType::kReg,        \
     OperandType::kIdx, OperandType::kIdx)                                      \
   V(StaKeyedProperty, AccumulatorUse::kReadWrite, OperandType::kReg,           \

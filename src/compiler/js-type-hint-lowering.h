@@ -151,9 +151,6 @@ class JSTypeHintLowering {
                                            Node* control,
                                            FeedbackSlot slot) const;
 
-  LoweringResult BuildSoftDeopt(Node* effect, Node* control,
-                                DeoptimizeReason reson) const;
-
  private:
   friend class JSSpeculativeBinopBuilder;
   Node* TryBuildSoftDeopt(FeedbackNexus& nexus, Node* effect, Node* control,

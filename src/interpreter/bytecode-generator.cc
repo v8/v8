@@ -2868,13 +2868,7 @@ void BytecodeGenerator::BuildLoadNamedProperty(Property* property,
                                                Register object,
                                                const AstRawString* name) {
   if (ShouldOptimizeAsOneShot()) {
-    RegisterList args = register_allocator()->NewRegisterList(2);
-    size_t name_index = builder()->GetConstantPoolEntry(name);
-    builder()
-        ->MoveRegister(object, args[0])
-        .LoadConstantPoolEntry(name_index)
-        .StoreAccumulatorInRegister(args[1])
-        .CallRuntime(Runtime::kInlineGetProperty, args);
+    builder()->LoadNamedPropertyNoFeedback(object, name);
   } else {
     FeedbackSlot slot = GetCachedLoadICSlot(property->obj(), name);
     builder()->LoadNamedProperty(object, name, feedback_index(slot));
@@ -2891,16 +2885,7 @@ void BytecodeGenerator::BuildStoreNamedProperty(Property* property,
   }
 
   if (ShouldOptimizeAsOneShot()) {
-    RegisterList args = register_allocator()->NewRegisterList(4);
-    size_t name_index = builder()->GetConstantPoolEntry(name);
-    builder()
-        ->MoveRegister(object, args[0])
-        .StoreAccumulatorInRegister(args[2])
-        .LoadConstantPoolEntry(name_index)
-        .StoreAccumulatorInRegister(args[1])
-        .LoadLiteral(Smi::FromEnum(language_mode()))
-        .StoreAccumulatorInRegister(args[3])
-        .CallRuntime(Runtime::kSetNamedProperty, args);
+    builder()->StoreNamedPropertyNoFeedback(object, name, language_mode());
   } else {
     FeedbackSlot slot = GetCachedStoreICSlot(property->obj(), name);
     builder()->StoreNamedProperty(object, name, feedback_index(slot),
