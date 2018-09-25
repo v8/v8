@@ -1509,10 +1509,7 @@ class Isolate : private HiddenFactory {
   }
 
   wasm::WasmEngine* wasm_engine() const { return wasm_engine_.get(); }
-  void set_wasm_engine(std::shared_ptr<wasm::WasmEngine> engine) {
-    DCHECK_NULL(wasm_engine_);  // Only call once before {Init}.
-    wasm_engine_ = std::move(engine);
-  }
+  void SetWasmEngine(std::shared_ptr<wasm::WasmEngine> engine);
 
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope() const {
     return top_backup_incumbent_scope_;

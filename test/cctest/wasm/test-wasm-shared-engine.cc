@@ -56,7 +56,7 @@ class SharedEngineIsolate {
  public:
   explicit SharedEngineIsolate(SharedEngine* engine)
       : isolate_(v8::Isolate::Allocate()) {
-    isolate()->set_wasm_engine(engine->ExportEngineForSharing());
+    isolate()->SetWasmEngine(engine->ExportEngineForSharing());
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
     v8::Isolate::Initialize(isolate_, create_params);

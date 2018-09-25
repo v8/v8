@@ -24,6 +24,8 @@ WasmEngine::WasmEngine()
 WasmEngine::~WasmEngine() {
   // All AsyncCompileJobs have been canceled.
   DCHECK(jobs_.empty());
+  // All Isolates have been deregistered.
+  DCHECK(isolates_.empty());
 }
 
 bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
@@ -251,6 +253,7 @@ std::unique_ptr<AsyncCompileJob> WasmEngine::RemoveCompileJob(
 
 bool WasmEngine::HasRunningCompileJob(Isolate* isolate) {
   base::LockGuard<base::Mutex> guard(&mutex_);
+  DCHECK_EQ(1, isolates_.count(isolate));
   for (auto& entry : jobs_) {
     if (entry.first->isolate() == isolate) return true;
   }
@@ -259,6 +262,7 @@ bool WasmEngine::HasRunningCompileJob(Isolate* isolate) {
 
 void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
   base::LockGuard<base::Mutex> guard(&mutex_);
+  DCHECK_EQ(1, isolates_.count(isolate));
   for (auto it = jobs_.begin(); it != jobs_.end();) {
     if (it->first->isolate() == isolate) {
       it = jobs_.erase(it);
@@ -266,6 +270,18 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
       ++it;
     }
   }
+}
+
+void WasmEngine::AddIsolate(Isolate* isolate) {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+  DCHECK_EQ(0, isolates_.count(isolate));
+  isolates_.insert(isolate);
+}
+
+void WasmEngine::RemoveIsolate(Isolate* isolate) {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+  DCHECK_EQ(1, isolates_.count(isolate));
+  isolates_.erase(isolate);
 }
 
 namespace {
@@ -286,16 +302,19 @@ base::LazyStaticInstance<std::shared_ptr<WasmEngine>,
 
 }  // namespace
 
+// static
 void WasmEngine::InitializeOncePerProcess() {
   if (!FLAG_wasm_shared_engine) return;
   global_wasm_engine.Pointer()->reset(new WasmEngine());
 }
 
+// static
 void WasmEngine::GlobalTearDown() {
   if (!FLAG_wasm_shared_engine) return;
   global_wasm_engine.Pointer()->reset();
 }
 
+// static
 std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
   if (FLAG_wasm_shared_engine) return global_wasm_engine.Get();
   return std::shared_ptr<WasmEngine>(new WasmEngine());

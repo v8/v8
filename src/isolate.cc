@@ -2300,6 +2300,13 @@ void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
   destructor->next_ = nullptr;
 }
 
+void Isolate::SetWasmEngine(std::shared_ptr<wasm::WasmEngine> engine) {
+  DCHECK_NULL(wasm_engine_);  // Only call once before {Init}.
+  wasm_engine_ = std::move(engine);
+  wasm_engine_->AddIsolate(this);
+  wasm::WasmCodeManager::InstallSamplingGCCallback(this);
+}
+
 // NOLINTNEXTLINE
 Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
 #if defined(USE_SIMULATOR)
@@ -2656,7 +2663,10 @@ void Isolate::Deinit() {
   heap_.TearDown();
   logger_->TearDown();
 
-  wasm_engine_.reset();
+  if (wasm_engine_) {
+    wasm_engine_->RemoveIsolate(this);
+    wasm_engine_.reset();
+  }
 
   if (FLAG_embedded_builtins) {
     if (DefaultEmbeddedBlob() == nullptr && embedded_blob() != nullptr) {
@@ -2973,9 +2983,9 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   // Setup the wasm engine.
   if (wasm_engine_ == nullptr) {
-    wasm_engine_ = wasm::WasmEngine::GetWasmEngine();
-    wasm::WasmCodeManager::InstallSamplingGCCallback(this);
+    SetWasmEngine(wasm::WasmEngine::GetWasmEngine());
   }
+  DCHECK_NOT_NULL(wasm_engine_);
 
   deoptimizer_data_ = new DeoptimizerData(heap());
 
