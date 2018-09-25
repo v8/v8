@@ -18,6 +18,7 @@
 #include "src/vector.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-features.h"
+#include "src/wasm/wasm-limits.h"
 
 namespace v8 {
 namespace internal {
@@ -113,9 +114,12 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return source_position_table_.as_vector();
   }
 
-  uint32_t index() const { return index_.ToChecked(); }
+  uint32_t index() const {
+    DCHECK(!IsAnonymous());
+    return index_;
+  }
   // Anonymous functions are functions that don't carry an index.
-  bool IsAnonymous() const { return index_.IsNothing(); }
+  bool IsAnonymous() const { return index_ == kAnonymousFuncIndex; }
   Kind kind() const { return kind_; }
   NativeModule* native_module() const { return native_module_; }
   Tier tier() const { return tier_; }
@@ -150,7 +154,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
  private:
   friend class NativeModule;
 
-  WasmCode(NativeModule* native_module, Maybe<uint32_t> index,
+  WasmCode(NativeModule* native_module, uint32_t index,
            Vector<byte> instructions, uint32_t stack_slots,
            size_t safepoint_table_offset, size_t handler_table_offset,
            size_t constant_pool_offset,
@@ -185,11 +189,14 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // trap_handler_index.
   void RegisterTrapHandlerData();
 
+  static constexpr uint32_t kAnonymousFuncIndex = 0xffffffff;
+  STATIC_ASSERT(kAnonymousFuncIndex > kV8MaxWasmFunctions);
+
   Vector<byte> instructions_;
   OwnedVector<const byte> reloc_info_;
   OwnedVector<const byte> source_position_table_;
   NativeModule* native_module_ = nullptr;
-  Maybe<uint32_t> index_;
+  uint32_t index_;
   Kind kind_;
   size_t constant_pool_offset_ = 0;
   uint32_t stack_slots_ = 0;
@@ -360,7 +367,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // module is owned by that module. Various callers get to decide on how the
   // code is obtained (CodeDesc vs, as a point in time, Code*), the kind,
   // whether it has an index or is anonymous, etc.
-  WasmCode* AddOwnedCode(Maybe<uint32_t> index, Vector<const byte> instructions,
+  WasmCode* AddOwnedCode(uint32_t index, Vector<const byte> instructions,
                          uint32_t stack_slots, size_t safepoint_table_offset,
                          size_t handler_table_offset,
                          size_t constant_pool_offset,
