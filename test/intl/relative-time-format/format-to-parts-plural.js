@@ -19,8 +19,7 @@ function verifyElement(part, expectedUnit) {
   }
 };
 
-// TODO(ftang): add "quarter" after the fix of 8151
-['year', 'month', 'week', 'day', 'hour', 'minute', 'second'].forEach(
+['year', 'quarter', 'month', 'week', 'day', 'hour', 'minute', 'second'].forEach(
     function(unit) {
       rtf.formatToParts(100, unit + 's').forEach(
           function(part) {
