@@ -730,6 +730,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kJSLoadNamed:
       // Type can be anything.
       CheckTypeIs(node, Type::Any());
+      CHECK(NamedAccessOf(node->op()).feedback().IsValid());
       break;
     case IrOpcode::kJSLoadGlobal:
       // Type can be anything.
@@ -744,6 +745,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kJSStoreNamed:
       // Type is empty.
       CheckNotTyped(node);
+      CHECK(NamedAccessOf(node->op()).feedback().IsValid());
       break;
     case IrOpcode::kJSStoreGlobal:
       // Type is empty.

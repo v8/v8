@@ -19,9 +19,9 @@ snippet: "
         })();
   
 "
-frame size: 3
+frame size: 6
 parameter count: 1
-bytecode array length: 40
+bytecode array length: 82
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
@@ -31,14 +31,32 @@ bytecodes: [
   /*   45 S> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(2),
-  /*   50 E> */ B(StaNamedPropertyNoFeedback), R(1), U8(1), U8(0),
+                B(Star), R(4),
+                B(LdaConstant), U8(1),
+                B(Star), R(3),
+                B(LdaZero),
+                B(Star), R(5),
+                B(Mov), R(1), R(2),
+  /*   50 E> */ B(CallRuntime), U16(Runtime::kSetNamedProperty), R(2), U8(4),
   /*   63 S> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(1),
   /*   70 E> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(2),
-  /*   72 E> */ B(LdaNamedPropertyNoFeedback), R(2), U8(1),
-  /*   68 E> */ B(StaNamedPropertyNoFeedback), R(1), U8(2), U8(0),
-  /*  101 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(3),
+                B(LdaConstant), U8(1),
+                B(Star), R(4),
+                B(Mov), R(2), R(3),
+  /*   72 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(3), U8(2),
+                B(Star), R(4),
+                B(LdaConstant), U8(2),
+                B(Star), R(3),
+                B(LdaZero),
+                B(Star), R(5),
+                B(Mov), R(1), R(2),
+  /*   68 E> */ B(CallRuntime), U16(Runtime::kSetNamedProperty), R(2), U8(4),
+  /*   84 S> */ B(LdaConstant), U8(3),
+                B(Star), R(3),
+                B(Mov), R(0), R(2),
+  /*  101 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
   /*  108 S> */ B(Return),
 ]
 constant pool: [
@@ -63,9 +81,9 @@ snippet: "
         })();
   
 "
-frame size: 3
+frame size: 4
 parameter count: 1
-bytecode array length: 69
+bytecode array length: 77
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
@@ -94,7 +112,10 @@ bytecodes: [
                 B(Inc), U8(15),
   /*   66 E> */ B(StaGlobal), U8(1), U8(2),
                 B(JumpLoop), U8(50), I8(0),
-  /*  149 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(4),
+  /*  132 S> */ B(LdaConstant), U8(4),
+                B(Star), R(3),
+                B(Mov), R(0), R(2),
+  /*  149 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
   /*  156 S> */ B(Return),
 ]
 constant pool: [
@@ -122,9 +143,9 @@ snippet: "
         })();
   
 "
-frame size: 3
+frame size: 4
 parameter count: 1
-bytecode array length: 70
+bytecode array length: 78
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
@@ -153,7 +174,10 @@ bytecodes: [
                 B(Dec), U8(15),
   /*  129 E> */ B(StaGlobal), U8(1), U8(2),
                 B(JumpLoop), U8(50), I8(0),
-  /*  168 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(4),
+  /*  151 S> */ B(LdaConstant), U8(4),
+                B(Star), R(3),
+                B(Mov), R(0), R(2),
+  /*  168 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
   /*  175 S> */ B(Return),
 ]
 constant pool: [
@@ -181,9 +205,9 @@ snippet: "
         })();
   
 "
-frame size: 3
+frame size: 4
 parameter count: 1
-bytecode array length: 70
+bytecode array length: 78
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
@@ -212,7 +236,10 @@ bytecodes: [
   /*  141 E> */ B(TestGreaterThan), R(1), U8(15),
                 B(JumpIfFalse), U8(5),
                 B(JumpLoop), U8(50), I8(0),
-  /*  171 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(4),
+  /*  154 S> */ B(LdaConstant), U8(4),
+                B(Star), R(3),
+                B(Mov), R(0), R(2),
+  /*  171 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
   /*  178 S> */ B(Return),
 ]
 constant pool: [
@@ -242,9 +269,9 @@ snippet: "
         })();
   
 "
-frame size: 4
+frame size: 6
 parameter count: 1
-bytecode array length: 71
+bytecode array length: 121
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
@@ -257,23 +284,44 @@ bytecodes: [
   /*   31 E> */ B(StaGlobal), U8(1), U8(0),
   /*   95 S> */ B(LdaGlobal), U8(1), U8(2),
                 B(Star), R(1),
-  /*  101 E> */ B(LdaNamedPropertyNoFeedback), R(1), U8(2),
+                B(LdaConstant), U8(2),
+                B(Star), R(3),
+                B(Mov), R(1), R(2),
+  /*  101 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(3),
   /*  104 E> */ B(TestLessThan), R(1), U8(4),
-                B(JumpIfFalse), U8(15),
+                B(JumpIfFalse), U8(28),
   /*  121 S> */ B(LdaGlobal), U8(1), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(3),
-  /*  126 E> */ B(StaNamedPropertyNoFeedback), R(1), U8(2), U8(0),
-                B(Jump), U8(19),
+                B(Star), R(4),
+                B(LdaConstant), U8(2),
+                B(Star), R(3),
+                B(LdaZero),
+                B(Star), R(5),
+                B(Mov), R(1), R(2),
+  /*  126 E> */ B(CallRuntime), U16(Runtime::kSetNamedProperty), R(2), U8(4),
+                B(Jump), U8(40),
   /*  158 S> */ B(LdaGlobal), U8(1), U8(2),
                 B(Star), R(1),
   /*  165 E> */ B(LdaGlobal), U8(1), U8(2),
                 B(Star), R(2),
-  /*  167 E> */ B(LdaNamedPropertyNoFeedback), R(2), U8(3),
-  /*  163 E> */ B(StaNamedPropertyNoFeedback), R(1), U8(2), U8(0),
-  /*  206 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(4),
+                B(LdaConstant), U8(3),
+                B(Star), R(4),
+                B(Mov), R(2), R(3),
+  /*  167 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(3), U8(2),
+                B(Star), R(4),
+                B(LdaConstant), U8(2),
+                B(Star), R(3),
+                B(LdaZero),
+                B(Star), R(5),
+                B(Mov), R(1), R(2),
+  /*  163 E> */ B(CallRuntime), U16(Runtime::kSetNamedProperty), R(2), U8(4),
+  /*  189 S> */ B(LdaConstant), U8(4),
+                B(Star), R(3),
+                B(Mov), R(0), R(2),
+  /*  206 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
   /*  213 S> */ B(Return),
 ]
 constant pool: [
@@ -297,7 +345,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 24
+bytecode array length: 32
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
@@ -308,7 +356,10 @@ bytecodes: [
                 B(Star), R(4),
                 B(CallRuntime), U16(Runtime::kCreateArrayLiteralWithoutAllocationSite), R(3), U8(2),
   /*   31 E> */ B(StaGlobal), U8(1), U8(0),
-  /*   77 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(2),
+  /*   60 S> */ B(LdaConstant), U8(2),
+                B(Star), R(3),
+                B(Mov), R(0), R(2),
+  /*   77 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
   /*   84 S> */ B(Return),
 ]
 constant pool: [
@@ -330,7 +381,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 24
+bytecode array length: 32
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
@@ -341,7 +392,10 @@ bytecodes: [
                 B(Star), R(4),
                 B(CallRuntime), U16(Runtime::kCreateArrayLiteralWithoutAllocationSite), R(3), U8(2),
   /*   31 E> */ B(StaGlobal), U8(1), U8(0),
-  /*   62 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(2),
+  /*   45 S> */ B(LdaConstant), U8(2),
+                B(Star), R(3),
+                B(Mov), R(0), R(2),
+  /*   62 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
   /*   69 S> */ B(Return),
 ]
 constant pool: [
@@ -374,21 +428,30 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 137
+bytecode array length: 193
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
   /*  237 E> */ B(StackCheck),
-  /*  255 S> */ B(LdaNamedPropertyNoFeedback), R(this), U8(0),
+  /*  250 S> */ B(LdaConstant), U8(0),
+                B(Star), R(4),
+                B(Mov), R(this), R(3),
+  /*  255 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(3), U8(2),
                 B(Star), R(1),
-  /*  255 E> */ B(CallNoFeedback), R(1), R(this), U8(1),
-  /*  274 S> */ B(LdaNamedPropertyNoFeedback), R(this), U8(1),
+  /*  255 E> */ B(CallNoFeedback), R(1), R(3), U8(1),
+  /*  269 S> */ B(LdaConstant), U8(1),
+                B(Star), R(4),
+                B(Mov), R(this), R(3),
+  /*  274 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(3), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(1),
                 B(Star), R(3),
                 B(Mov), R(this), R(2),
   /*  274 E> */ B(CallNoFeedback), R(1), R(2), U8(2),
-  /*  294 S> */ B(LdaNamedPropertyNoFeedback), R(this), U8(2),
+  /*  289 S> */ B(LdaConstant), U8(2),
+                B(Star), R(4),
+                B(Mov), R(this), R(3),
+  /*  294 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(3), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(1),
                 B(Star), R(3),
@@ -396,7 +459,10 @@ bytecodes: [
                 B(Star), R(4),
                 B(Mov), R(this), R(2),
   /*  294 E> */ B(CallNoFeedback), R(1), R(2), U8(3),
-  /*  317 S> */ B(LdaNamedPropertyNoFeedback), R(this), U8(3),
+  /*  312 S> */ B(LdaConstant), U8(3),
+                B(Star), R(4),
+                B(Mov), R(this), R(3),
+  /*  317 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(3), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(1),
                 B(Star), R(3),
@@ -406,7 +472,10 @@ bytecodes: [
                 B(Star), R(5),
                 B(Mov), R(this), R(2),
   /*  317 E> */ B(CallNoFeedback), R(1), R(2), U8(4),
-  /*  343 S> */ B(LdaNamedPropertyNoFeedback), R(this), U8(4),
+  /*  338 S> */ B(LdaConstant), U8(4),
+                B(Star), R(4),
+                B(Mov), R(this), R(3),
+  /*  343 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(3), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(1),
                 B(Star), R(3),
@@ -418,7 +487,10 @@ bytecodes: [
                 B(Star), R(6),
                 B(Mov), R(this), R(2),
   /*  343 E> */ B(CallNoFeedback), R(1), R(2), U8(5),
-  /*  372 S> */ B(LdaNamedPropertyNoFeedback), R(this), U8(5),
+  /*  367 S> */ B(LdaConstant), U8(5),
+                B(Star), R(4),
+                B(Mov), R(this), R(3),
+  /*  372 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(3), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(1),
                 B(Star), R(3),
@@ -432,7 +504,10 @@ bytecodes: [
                 B(Star), R(7),
                 B(Mov), R(this), R(2),
   /*  372 E> */ B(CallNoFeedback), R(1), R(2), U8(6),
-  /*  416 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(6),
+  /*  399 S> */ B(LdaConstant), U8(6),
+                B(Star), R(3),
+                B(Mov), R(0), R(2),
+  /*  416 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
   /*  423 S> */ B(Return),
 ]
 constant pool: [
@@ -469,7 +544,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 140
+bytecode array length: 148
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
@@ -534,7 +609,10 @@ bytecodes: [
                 B(LdaSmi), I8(5),
                 B(Star), R(7),
   /*  294 E> */ B(CallNoFeedback), R(1), R(2), U8(6),
-  /*  338 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(6),
+  /*  321 S> */ B(LdaConstant), U8(6),
+                B(Star), R(3),
+                B(Mov), R(0), R(2),
+  /*  338 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
   /*  345 S> */ B(Return),
 ]
 constant pool: [
@@ -565,9 +643,9 @@ snippet: "
         }
   
 "
-frame size: 3
+frame size: 6
 parameter count: 1
-bytecode array length: 46
+bytecode array length: 80
 bytecodes: [
                 B(CreateMappedArguments),
                 B(Star), R(0),
@@ -577,17 +655,32 @@ bytecodes: [
   /*  111 S> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(3),
-  /*  115 E> */ B(StaNamedPropertyNoFeedback), R(1), U8(1), U8(0),
+                B(Star), R(4),
+                B(LdaConstant), U8(1),
+                B(Star), R(3),
+                B(LdaZero),
+                B(Star), R(5),
+                B(Mov), R(1), R(2),
+  /*  115 E> */ B(CallRuntime), U16(Runtime::kSetNamedProperty), R(2), U8(4),
   /*  130 S> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(1),
                 B(LdaSmi), I8(4),
-  /*  134 E> */ B(StaNamedPropertyNoFeedback), R(1), U8(2), U8(0),
+                B(Star), R(4),
+                B(LdaConstant), U8(2),
+                B(Star), R(3),
+                B(LdaZero),
+                B(Star), R(5),
+                B(Mov), R(1), R(2),
+  /*  134 E> */ B(CallRuntime), U16(Runtime::kSetNamedProperty), R(2), U8(4),
   /*  149 S> */ B(LdaUndefined),
                 B(Star), R(2),
                 B(LdaGlobal), U8(3), U8(4),
                 B(Star), R(1),
   /*  149 E> */ B(CallNoFeedback), R(1), R(2), U8(1),
-  /*  182 S> */ B(LdaNamedPropertyNoFeedback), R(0), U8(4),
+  /*  165 S> */ B(LdaConstant), U8(4),
+                B(Star), R(3),
+                B(Mov), R(0), R(2),
+  /*  182 E> */ B(InvokeIntrinsic), U8(Runtime::k_GetProperty), R(2), U8(2),
   /*  189 S> */ B(Return),
 ]
 constant pool: [

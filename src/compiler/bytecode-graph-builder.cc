@@ -1339,17 +1339,6 @@ void BytecodeGraphBuilder::VisitLdaNamedProperty() {
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitLdaNamedPropertyNoFeedback() {
-  PrepareEagerCheckpoint();
-  Node* object =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Handle<Name> name(
-      Name::cast(bytecode_iterator().GetConstantForIndexOperand(1)), isolate());
-  const Operator* op = javascript()->LoadNamed(name, VectorSlotPair());
-  Node* node = NewNode(op, object);
-  environment()->BindAccumulator(node, Environment::kAttachFrameState);
-}
-
 void BytecodeGraphBuilder::VisitLdaKeyedProperty() {
   PrepareEagerCheckpoint();
   Node* key = environment()->LookupAccumulator();
@@ -1411,21 +1400,6 @@ void BytecodeGraphBuilder::BuildNamedStore(StoreMode store_mode) {
 
 void BytecodeGraphBuilder::VisitStaNamedProperty() {
   BuildNamedStore(StoreMode::kNormal);
-}
-
-void BytecodeGraphBuilder::VisitStaNamedPropertyNoFeedback() {
-  PrepareEagerCheckpoint();
-  Node* value = environment()->LookupAccumulator();
-  Node* object =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Handle<Name> name(
-      Name::cast(bytecode_iterator().GetConstantForIndexOperand(1)), isolate());
-  LanguageMode language_mode =
-      static_cast<LanguageMode>(bytecode_iterator().GetFlagOperand(2));
-  const Operator* op =
-      javascript()->StoreNamed(language_mode, name, VectorSlotPair());
-  Node* node = NewNode(op, object, value);
-  environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitStaNamedOwnProperty() {
