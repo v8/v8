@@ -624,68 +624,6 @@ Reduction JSCreateLowering::ReduceNewArray(
   return Changed(node);
 }
 
-Reduction JSCreateLowering::ReduceNewArrayToStubCall(
-    Node* node, base::Optional<AllocationSiteRef> site) {
-  CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
-  int const arity = static_cast<int>(p.arity());
-  Node* target = NodeProperties::GetValueInput(node, 0);
-  Node* new_target = NodeProperties::GetValueInput(node, 1);
-  Type new_target_type = NodeProperties::GetType(new_target);
-  Node* type_info =
-      site ? jsgraph()->Constant(*site) : jsgraph()->UndefinedConstant();
-
-  ElementsKind elements_kind =
-      site ? site->GetElementsKind() : GetInitialFastElementsKind();
-  AllocationSiteOverrideMode override_mode =
-      (!site || AllocationSite::ShouldTrack(elements_kind))
-          ? DISABLE_ALLOCATION_SITES
-          : DONT_OVERRIDE;
-
-  // The Array constructor can only trigger an observable side-effect
-  // if the new.target may be a proxy.
-  Operator::Properties const properties =
-      (new_target != target || new_target_type.Maybe(Type::Proxy()))
-          ? Operator::kNoDeopt
-          : Operator::kNoDeopt | Operator::kNoWrite;
-
-  if (arity == 0) {
-    Callable callable = CodeFactory::ArrayNoArgumentConstructor(
-        isolate(), elements_kind, override_mode);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), callable.descriptor(), arity + 1,
-        CallDescriptor::kNeedsFrameState, properties);
-    node->ReplaceInput(0, jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, type_info);
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
-    node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else if (arity == 1) {
-    // Require elements kind to "go holey".
-    Callable callable = CodeFactory::ArraySingleArgumentConstructor(
-        isolate(), GetHoleyElementsKind(elements_kind), override_mode);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), callable.descriptor(), arity + 1,
-        CallDescriptor::kNeedsFrameState, properties);
-    node->ReplaceInput(0, jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, type_info);
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
-    node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  } else {
-    DCHECK_GT(arity, 1);
-    Handle<Code> code = BUILTIN_CODE(isolate(), ArrayNArgumentsConstructor);
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), ArrayNArgumentsConstructorDescriptor{}, arity + 1,
-        CallDescriptor::kNeedsFrameState);
-    node->ReplaceInput(0, jsgraph()->HeapConstant(code));
-    node->InsertInput(graph()->zone(), 2, type_info);
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
-    node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-  }
-  return Changed(node);
-}
-
 Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
@@ -818,11 +756,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       }
     }
   }
-
-  // TODO(bmeurer): Optimize the subclassing case.
-  if (target != new_target) return NoChange();
-
-  return ReduceNewArrayToStubCall(node, site_ref);
+  return NoChange();
 }
 
 Reduction JSCreateLowering::ReduceJSCreateArrayIterator(Node* node) {

@@ -107,9 +107,6 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
   Node* AllocateLiteralRegExp(Node* effect, Node* control,
                               JSRegExpRef boilerplate);
 
-  Reduction ReduceNewArrayToStubCall(Node* node,
-                                     base::Optional<AllocationSiteRef> site);
-
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

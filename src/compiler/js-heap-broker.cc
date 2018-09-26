@@ -1451,27 +1451,9 @@ void JSHeapBroker::SerializeStandardObjects() {
     }
   }
 
-  // Stubs
+  // CEntry stub
   GetOrCreateData(
       CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs, kArgvOnStack, true));
-  {
-    ElementsKind kinds[] = {HOLEY_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS,
-                            HOLEY_ELEMENTS};
-    for (auto kind : kinds) {
-      GetOrCreateData(CodeFactory::ArrayNoArgumentConstructor(isolate(), kind,
-                                                              DONT_OVERRIDE)
-                          .code());
-      GetOrCreateData(CodeFactory::ArrayNoArgumentConstructor(
-                          isolate(), kind, DISABLE_ALLOCATION_SITES)
-                          .code());
-      GetOrCreateData(CodeFactory::ArraySingleArgumentConstructor(
-                          isolate(), kind, DONT_OVERRIDE)
-                          .code());
-      GetOrCreateData(CodeFactory::ArraySingleArgumentConstructor(
-                          isolate(), kind, DISABLE_ALLOCATION_SITES)
-                          .code());
-    }
-  }
 
   Trace("Finished serializing standard objects.\n");
 }
