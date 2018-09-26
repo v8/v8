@@ -123,3 +123,34 @@
   assertEquals(1, foo(4));
   assertOptimized(foo);
 })();
+
+// Test that NumberModulus works in the case where TurboFan
+// can infer that the output is Signed32 \/ MinusZero, and
+// there's a truncation on the result that identifies zeros
+// (via the SpeculativeNumberEqual).
+(function() {
+  // We need a separately polluted % with NumberOrOddball feedback.
+  function bar(x) { return x % 2; }
+  bar(undefined);  // The % feedback is now NumberOrOddball.
+
+  // Now we just use the gadget above on an `x` that is known
+  // to be in Signed32 range and compare it to 0, which passes
+  // a truncation that identifies zeros.
+  function foo(x) {
+    if (bar(x | 0) == 0) return 0;
+    return 1;
+  }
+
+  assertEquals(0, foo(2));
+  assertEquals(1, foo(1));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(0, foo(2));
+  assertEquals(1, foo(1));
+  assertOptimized(foo);
+
+  // Now `foo` should stay optimized even if `x % 2` would
+  // produce -0, aka when we pass a negative value for `x`.
+  assertEquals(0, foo(-2));
+  assertEquals(1, foo(-1));
+  assertOptimized(foo);
+})();

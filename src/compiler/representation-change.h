@@ -169,8 +169,10 @@ class UseInfo {
   static UseInfo Float32() {
     return UseInfo(MachineRepresentation::kFloat32, Truncation::Any());
   }
-  static UseInfo TruncatingFloat64() {
-    return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64());
+  static UseInfo TruncatingFloat64(
+      IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return UseInfo(MachineRepresentation::kFloat64,
+                   Truncation::Float64(identify_zeros));
   }
   static UseInfo AnyTagged() {
     return UseInfo(MachineRepresentation::kTagged, Truncation::Any());
@@ -188,9 +190,11 @@ class UseInfo {
                    TypeCheckKind::kHeapObject);
   }
   static UseInfo CheckedSignedSmallAsTaggedSigned(
-      const VectorSlotPair& feedback) {
-    return UseInfo(MachineRepresentation::kTaggedSigned, Truncation::Any(),
-                   TypeCheckKind::kSignedSmall, feedback);
+      const VectorSlotPair& feedback,
+      IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return UseInfo(MachineRepresentation::kTaggedSigned,
+                   Truncation::Any(identify_zeros), TypeCheckKind::kSignedSmall,
+                   feedback);
   }
   static UseInfo CheckedSignedSmallAsWord32(IdentifyZeros identify_zeros,
                                             const VectorSlotPair& feedback) {
@@ -204,17 +208,20 @@ class UseInfo {
                    Truncation::Any(identify_zeros), TypeCheckKind::kSigned32,
                    feedback);
   }
-  static UseInfo CheckedNumberAsFloat64(const VectorSlotPair& feedback) {
-    return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),
-                   TypeCheckKind::kNumber, feedback);
+  static UseInfo CheckedNumberAsFloat64(IdentifyZeros identify_zeros,
+                                        const VectorSlotPair& feedback) {
+    return UseInfo(MachineRepresentation::kFloat64,
+                   Truncation::Any(identify_zeros), TypeCheckKind::kNumber,
+                   feedback);
   }
   static UseInfo CheckedNumberAsWord32(const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32(),
                    TypeCheckKind::kNumber, feedback);
   }
   static UseInfo CheckedNumberOrOddballAsFloat64(
-      const VectorSlotPair& feedback) {
-    return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),
+      IdentifyZeros identify_zeros, const VectorSlotPair& feedback) {
+    return UseInfo(MachineRepresentation::kFloat64,
+                   Truncation::Any(identify_zeros),
                    TypeCheckKind::kNumberOrOddball, feedback);
   }
   static UseInfo CheckedNumberOrOddballAsWord32(
