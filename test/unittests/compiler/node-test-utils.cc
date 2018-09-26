@@ -1948,6 +1948,9 @@ Matcher<Node*> IsTailCall(
         effect_matcher, control_matcher));                                    \
   }
 SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DEFINE_SPECULATIVE_BINOP_MATCHER);
+DEFINE_SPECULATIVE_BINOP_MATCHER(SpeculativeNumberEqual)
+DEFINE_SPECULATIVE_BINOP_MATCHER(SpeculativeNumberLessThan)
+DEFINE_SPECULATIVE_BINOP_MATCHER(SpeculativeNumberLessThanOrEqual)
 #undef DEFINE_SPECULATIVE_BINOP_MATCHER
 
 Matcher<Node*> IsStringConcat(const Matcher<Node*>& length_matcher,

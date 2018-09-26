@@ -647,6 +647,231 @@ TEST_F(RedundancyEliminationTest, CheckedUint64ToTaggedSigned) {
 }
 
 // -----------------------------------------------------------------------------
+// SpeculativeNumberEqual
+
+TEST_F(RedundancyEliminationTest,
+       SpeculativeNumberEqualWithCheckBoundsBetterType) {
+  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      Node* lhs = Parameter(Type::Any(), 0);
+      Node* rhs = Parameter(Type::Any(), 1);
+      Node* length = Parameter(Type::Unsigned31(), 2);
+      Node* effect = graph()->start();
+      Node* control = graph()->start();
+
+      Node* check1 = effect = graph()->NewNode(
+          simplified()->CheckBounds(feedback1), lhs, length, effect, control);
+      Reduction r1 = Reduce(check1);
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_EQ(r1.replacement(), check1);
+
+      Node* check2 = effect = graph()->NewNode(
+          simplified()->CheckBounds(feedback2), rhs, length, effect, control);
+      Reduction r2 = Reduce(check2);
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_EQ(r2.replacement(), check2);
+
+      Node* cmp3 = effect =
+          graph()->NewNode(simplified()->SpeculativeNumberEqual(
+                               NumberOperationHint::kSignedSmall),
+                           lhs, rhs, effect, control);
+      Reduction r3 = Reduce(cmp3);
+      ASSERT_TRUE(r3.Changed());
+      EXPECT_THAT(r3.replacement(),
+                  IsSpeculativeNumberEqual(NumberOperationHint::kSignedSmall,
+                                           check1, check2, _, _));
+    }
+  }
+}
+
+TEST_F(RedundancyEliminationTest,
+       SpeculativeNumberEqualWithCheckBoundsSameType) {
+  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      Node* lhs = Parameter(Type::UnsignedSmall(), 0);
+      Node* rhs = Parameter(Type::UnsignedSmall(), 1);
+      Node* length = Parameter(Type::Unsigned31(), 2);
+      Node* effect = graph()->start();
+      Node* control = graph()->start();
+
+      Node* check1 = effect = graph()->NewNode(
+          simplified()->CheckBounds(feedback1), lhs, length, effect, control);
+      Reduction r1 = Reduce(check1);
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_EQ(r1.replacement(), check1);
+
+      Node* check2 = effect = graph()->NewNode(
+          simplified()->CheckBounds(feedback2), rhs, length, effect, control);
+      Reduction r2 = Reduce(check2);
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_EQ(r2.replacement(), check2);
+
+      Node* cmp3 = effect =
+          graph()->NewNode(simplified()->SpeculativeNumberEqual(
+                               NumberOperationHint::kSignedSmall),
+                           lhs, rhs, effect, control);
+      Reduction r3 = Reduce(cmp3);
+      ASSERT_TRUE(r3.Changed());
+      EXPECT_THAT(r3.replacement(),
+                  IsSpeculativeNumberEqual(NumberOperationHint::kSignedSmall,
+                                           lhs, rhs, _, _));
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// SpeculativeNumberLessThan
+
+TEST_F(RedundancyEliminationTest,
+       SpeculativeNumberLessThanWithCheckBoundsBetterType) {
+  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      Node* lhs = Parameter(Type::Any(), 0);
+      Node* rhs = Parameter(Type::Any(), 1);
+      Node* length = Parameter(Type::Unsigned31(), 2);
+      Node* effect = graph()->start();
+      Node* control = graph()->start();
+
+      Node* check1 = effect = graph()->NewNode(
+          simplified()->CheckBounds(feedback1), lhs, length, effect, control);
+      Reduction r1 = Reduce(check1);
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_EQ(r1.replacement(), check1);
+
+      Node* check2 = effect = graph()->NewNode(
+          simplified()->CheckBounds(feedback2), rhs, length, effect, control);
+      Reduction r2 = Reduce(check2);
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_EQ(r2.replacement(), check2);
+
+      Node* cmp3 = effect =
+          graph()->NewNode(simplified()->SpeculativeNumberLessThan(
+                               NumberOperationHint::kSignedSmall),
+                           lhs, rhs, effect, control);
+      Reduction r3 = Reduce(cmp3);
+      ASSERT_TRUE(r3.Changed());
+      EXPECT_THAT(r3.replacement(),
+                  IsSpeculativeNumberLessThan(NumberOperationHint::kSignedSmall,
+                                              check1, check2, _, _));
+    }
+  }
+}
+
+TEST_F(RedundancyEliminationTest,
+       SpeculativeNumberLessThanWithCheckBoundsSameType) {
+  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      Node* lhs = Parameter(Type::UnsignedSmall(), 0);
+      Node* rhs = Parameter(Type::UnsignedSmall(), 1);
+      Node* length = Parameter(Type::Unsigned31(), 2);
+      Node* effect = graph()->start();
+      Node* control = graph()->start();
+
+      Node* check1 = effect = graph()->NewNode(
+          simplified()->CheckBounds(feedback1), lhs, length, effect, control);
+      Reduction r1 = Reduce(check1);
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_EQ(r1.replacement(), check1);
+
+      Node* check2 = effect = graph()->NewNode(
+          simplified()->CheckBounds(feedback2), rhs, length, effect, control);
+      Reduction r2 = Reduce(check2);
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_EQ(r2.replacement(), check2);
+
+      Node* cmp3 = effect =
+          graph()->NewNode(simplified()->SpeculativeNumberLessThan(
+                               NumberOperationHint::kSignedSmall),
+                           lhs, rhs, effect, control);
+      Reduction r3 = Reduce(cmp3);
+      ASSERT_TRUE(r3.Changed());
+      EXPECT_THAT(r3.replacement(),
+                  IsSpeculativeNumberLessThan(NumberOperationHint::kSignedSmall,
+                                              lhs, rhs, _, _));
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// SpeculativeNumberLessThanOrEqual
+
+TEST_F(RedundancyEliminationTest,
+       SpeculativeNumberLessThanOrEqualWithCheckBoundsBetterType) {
+  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      Node* lhs = Parameter(Type::Any(), 0);
+      Node* rhs = Parameter(Type::Any(), 1);
+      Node* length = Parameter(Type::Unsigned31(), 2);
+      Node* effect = graph()->start();
+      Node* control = graph()->start();
+
+      Node* check1 = effect = graph()->NewNode(
+          simplified()->CheckBounds(feedback1), lhs, length, effect, control);
+      Reduction r1 = Reduce(check1);
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_EQ(r1.replacement(), check1);
+
+      Node* check2 = effect = graph()->NewNode(
+          simplified()->CheckBounds(feedback2), rhs, length, effect, control);
+      Reduction r2 = Reduce(check2);
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_EQ(r2.replacement(), check2);
+
+      Node* cmp3 = effect =
+          graph()->NewNode(simplified()->SpeculativeNumberLessThanOrEqual(
+                               NumberOperationHint::kSignedSmall),
+                           lhs, rhs, effect, control);
+      Reduction r3 = Reduce(cmp3);
+      ASSERT_TRUE(r3.Changed());
+      EXPECT_THAT(r3.replacement(),
+                  IsSpeculativeNumberLessThanOrEqual(
+                      NumberOperationHint::kSignedSmall, check1, check2, _, _));
+    }
+  }
+}
+
+TEST_F(RedundancyEliminationTest,
+       SpeculativeNumberLessThanOrEqualWithCheckBoundsSameType) {
+  Typer typer(js_heap_broker(), Typer::kNoFlags, graph());
+  TRACED_FOREACH(VectorSlotPair, feedback1, vector_slot_pairs()) {
+    TRACED_FOREACH(VectorSlotPair, feedback2, vector_slot_pairs()) {
+      Node* lhs = Parameter(Type::UnsignedSmall(), 0);
+      Node* rhs = Parameter(Type::UnsignedSmall(), 1);
+      Node* length = Parameter(Type::Unsigned31(), 2);
+      Node* effect = graph()->start();
+      Node* control = graph()->start();
+
+      Node* check1 = effect = graph()->NewNode(
+          simplified()->CheckBounds(feedback1), lhs, length, effect, control);
+      Reduction r1 = Reduce(check1);
+      ASSERT_TRUE(r1.Changed());
+      EXPECT_EQ(r1.replacement(), check1);
+
+      Node* check2 = effect = graph()->NewNode(
+          simplified()->CheckBounds(feedback2), rhs, length, effect, control);
+      Reduction r2 = Reduce(check2);
+      ASSERT_TRUE(r2.Changed());
+      EXPECT_EQ(r2.replacement(), check2);
+
+      Node* cmp3 = effect =
+          graph()->NewNode(simplified()->SpeculativeNumberLessThanOrEqual(
+                               NumberOperationHint::kSignedSmall),
+                           lhs, rhs, effect, control);
+      Reduction r3 = Reduce(cmp3);
+      ASSERT_TRUE(r3.Changed());
+      EXPECT_THAT(r3.replacement(),
+                  IsSpeculativeNumberLessThanOrEqual(
+                      NumberOperationHint::kSignedSmall, lhs, rhs, _, _));
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
 // SpeculativeNumberAdd
 
 TEST_F(RedundancyEliminationTest,

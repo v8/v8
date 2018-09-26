@@ -59,6 +59,7 @@ class V8_EXPORT_PRIVATE RedundancyElimination final : public AdvancedReducer {
 
   Reduction ReduceCheckNode(Node* node);
   Reduction ReduceEffectPhi(Node* node);
+  Reduction ReduceSpeculativeNumberComparison(Node* node);
   Reduction ReduceSpeculativeNumberOperation(Node* node);
   Reduction ReduceStart(Node* node);
   Reduction ReduceOtherNode(Node* node);
