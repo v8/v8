@@ -8718,6 +8718,13 @@ void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
   *length_in_bytes = code_range.size();
 }
 
+MemoryRange Isolate::GetCodeRange() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  const base::AddressRegion& code_range =
+      isolate->heap()->memory_allocator()->code_range();
+  return {reinterpret_cast<void*>(code_range.begin()), code_range.size()};
+}
+
 MemoryRange Isolate::GetEmbeddedCodeRange() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   return {reinterpret_cast<const void*>(isolate->embedded_blob()),
