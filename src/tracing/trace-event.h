@@ -50,7 +50,7 @@ enum CategoryGroupEnabledFlags {
   trace_event_internal::TraceID::WithScope(scope, id)
 
 #define INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE() \
-  *INTERNAL_TRACE_EVENT_UID(category_group_enabled) &                    \
+  TRACE_EVENT_API_LOAD_CATEGORY_GROUP_ENABLED() &                        \
       (kEnabledForRecording_CategoryGroupEnabledFlags |                  \
        kEnabledForEventCallback_CategoryGroupEnabledFlags)
 
@@ -127,6 +127,9 @@ enum CategoryGroupEnabledFlags {
 #define TRACE_EVENT_API_ATOMIC_LOAD(var) v8::base::Relaxed_Load(&(var))
 #define TRACE_EVENT_API_ATOMIC_STORE(var, value) \
   v8::base::Relaxed_Store(&(var), (value))
+#define TRACE_EVENT_API_LOAD_CATEGORY_GROUP_ENABLED()                \
+  v8::base::Relaxed_Load(reinterpret_cast<const v8::base::Atomic8*>( \
+      INTERNAL_TRACE_EVENT_UID(category_group_enabled)))
 
 ////////////////////////////////////////////////////////////////////////////////
 
