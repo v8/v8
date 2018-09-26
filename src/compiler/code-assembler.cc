@@ -1010,14 +1010,16 @@ Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
 }
 
 Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
-                                 Node* offset, Node* value) {
-  return raw_assembler()->AtomicStore(rep, base, offset, value);
+                                 Node* offset, Node* value, Node* value_high) {
+  return raw_assembler()->AtomicStore(rep, base, offset, value, value_high);
 }
 
-#define ATOMIC_FUNCTION(name)                                        \
-  Node* CodeAssembler::Atomic##name(MachineType type, Node* base,    \
-                                    Node* offset, Node* value) {     \
-    return raw_assembler()->Atomic##name(type, base, offset, value); \
+#define ATOMIC_FUNCTION(name)                                       \
+  Node* CodeAssembler::Atomic##name(MachineType type, Node* base,   \
+                                    Node* offset, Node* value,      \
+                                    Node* value_high) {             \
+    return raw_assembler()->Atomic##name(type, base, offset, value, \
+                                         value_high);               \
   }
 ATOMIC_FUNCTION(Exchange);
 ATOMIC_FUNCTION(Add);
@@ -1029,9 +1031,11 @@ ATOMIC_FUNCTION(Xor);
 
 Node* CodeAssembler::AtomicCompareExchange(MachineType type, Node* base,
                                            Node* offset, Node* old_value,
-                                           Node* new_value) {
-  return raw_assembler()->AtomicCompareExchange(type, base, offset, old_value,
-                                                new_value);
+                                           Node* new_value,
+                                           Node* old_value_high,
+                                           Node* new_value_high) {
+  return raw_assembler()->AtomicCompareExchange(
+      type, base, offset, old_value, old_value_high, new_value, new_value_high);
 }
 
 Node* CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
@@ -1048,6 +1052,7 @@ Node* CodeAssembler::Retain(Node* value) {
 }
 
 Node* CodeAssembler::Projection(int index, Node* value) {
+  DCHECK(index < value->op()->ValueOutputCount());
   return raw_assembler()->Projection(index, value);
 }
 

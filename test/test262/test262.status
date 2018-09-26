@@ -502,17 +502,8 @@
   'built-ins/TypedArray/prototype/set/typedarray-arg-set-values-same-buffer-same-type-sab': ['--harmony-sharedarraybuffer'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8100
-  'built-ins/Atomics/add/bigint/*': [SKIP],
-  'built-ins/Atomics/and/bigint/*': [SKIP],
-  'built-ins/Atomics/compareExchange/bigint/*': [SKIP],
-  'built-ins/Atomics/exchange/bigint/*': [SKIP],
-  'built-ins/Atomics/load/bigint/*': [SKIP],
   'built-ins/Atomics/notify/bigint/*': [SKIP],
-  'built-ins/Atomics/or/bigint/*': [SKIP],
-  'built-ins/Atomics/store/bigint/*': [SKIP],
-  'built-ins/Atomics/sub/bigint/*': [SKIP],
   'built-ins/Atomics/wait/bigint/*': [SKIP],
-  'built-ins/Atomics/xor/bigint/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6049
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],

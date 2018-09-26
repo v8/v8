@@ -1103,6 +1103,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadFixedBigInt64ArrayElementAsTagged(Node* data_pointer, Node* offset);
   Node* LoadFixedBigUint64ArrayElementAsTagged(Node* data_pointer,
                                                Node* offset);
+  // 64-bit platforms only:
+  TNode<BigInt> BigIntFromInt64(TNode<IntPtrT> value);
+  TNode<BigInt> BigIntFromUint64(TNode<UintPtrT> value);
+  // 32-bit platforms only:
+  TNode<BigInt> BigIntFromInt32Pair(TNode<IntPtrT> low, TNode<IntPtrT> high);
+  TNode<BigInt> BigIntFromUint32Pair(TNode<UintPtrT> low, TNode<UintPtrT> high);
 
   void StoreFixedTypedArrayElementFromTagged(
       TNode<Context> context, TNode<FixedTypedArrayBase> elements,
@@ -2647,11 +2653,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                      TNode<Object> value,
                                      TNode<Context> context,
                                      Label* opt_if_neutered);
-  // Part of the above, refactored out to reuse in another place
+  // Part of the above, refactored out to reuse in another place.
   void EmitBigTypedArrayElementStore(TNode<FixedTypedArrayBase> elements,
                                      TNode<RawPtrT> backing_store,
                                      TNode<IntPtrT> offset,
                                      TNode<BigInt> bigint_value);
+  // Implements the BigInt part of
+  // https://tc39.github.io/proposal-bigint/#sec-numbertorawbytes,
+  // including truncation to 64 bits (i.e. modulo 2^64).
+  // {var_high} is only used on 32-bit platforms.
+  void BigIntToRawBytes(TNode<BigInt> bigint, TVariable<UintPtrT>* var_low,
+                        TVariable<UintPtrT>* var_high);
 
   void EmitElementStore(Node* object, Node* key, Node* value, bool is_jsarray,
                         ElementsKind elements_kind,

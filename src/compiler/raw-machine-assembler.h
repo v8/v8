@@ -173,15 +173,51 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Atomic memory operations.
   Node* AtomicLoad(MachineType type, Node* base, Node* index) {
+    if (type.representation() == MachineRepresentation::kWord64) {
+      if (machine()->Is64()) {
+        return AddNode(machine()->Word64AtomicLoad(type), base, index);
+      } else {
+        return AddNode(machine()->Word32AtomicPairLoad(), base, index);
+      }
+    }
     return AddNode(machine()->Word32AtomicLoad(type), base, index);
   }
+
+#if defined(V8_TARGET_BIG_ENDIAN)
+#define VALUE_HALVES value_high, value
+#else
+#define VALUE_HALVES value, value_high
+#endif
+
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
-                    Node* value) {
+                    Node* value, Node* value_high) {
+    if (rep == MachineRepresentation::kWord64) {
+      if (machine()->Is64()) {
+        DCHECK_NULL(value_high);
+        return AddNode(machine()->Word64AtomicStore(rep), base, index, value);
+      } else {
+        return AddNode(machine()->Word32AtomicPairStore(), base, index,
+                       VALUE_HALVES);
+      }
+    }
+    DCHECK_NULL(value_high);
     return AddNode(machine()->Word32AtomicStore(rep), base, index, value);
   }
-#define ATOMIC_FUNCTION(name)                                                 \
-  Node* Atomic##name(MachineType rep, Node* base, Node* index, Node* value) { \
-    return AddNode(machine()->Word32Atomic##name(rep), base, index, value);   \
+#define ATOMIC_FUNCTION(name)                                               \
+  Node* Atomic##name(MachineType rep, Node* base, Node* index, Node* value, \
+                     Node* value_high) {                                    \
+    if (rep.representation() == MachineRepresentation::kWord64) {           \
+      if (machine()->Is64()) {                                              \
+        DCHECK_NULL(value_high);                                            \
+        return AddNode(machine()->Word64Atomic##name(rep), base, index,     \
+                       value);                                              \
+      } else {                                                              \
+        return AddNode(machine()->Word32AtomicPair##name(), base, index,    \
+                       VALUE_HALVES);                                       \
+      }                                                                     \
+    }                                                                       \
+    DCHECK_NULL(value_high);                                                \
+    return AddNode(machine()->Word32Atomic##name(rep), base, index, value); \
   }
   ATOMIC_FUNCTION(Exchange);
   ATOMIC_FUNCTION(Add);
@@ -190,9 +226,25 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   ATOMIC_FUNCTION(Or);
   ATOMIC_FUNCTION(Xor);
 #undef ATOMIC_FUNCTION
+#undef VALUE_HALVES
 
   Node* AtomicCompareExchange(MachineType rep, Node* base, Node* index,
-                              Node* old_value, Node* new_value) {
+                              Node* old_value, Node* old_value_high,
+                              Node* new_value, Node* new_value_high) {
+    if (rep.representation() == MachineRepresentation::kWord64) {
+      if (machine()->Is64()) {
+        DCHECK_NULL(old_value_high);
+        DCHECK_NULL(new_value_high);
+        return AddNode(machine()->Word64AtomicCompareExchange(rep), base, index,
+                       old_value, new_value);
+      } else {
+        return AddNode(machine()->Word32AtomicPairCompareExchange(), base,
+                       index, old_value, old_value_high, new_value,
+                       new_value_high);
+      }
+    }
+    DCHECK_NULL(old_value_high);
+    DCHECK_NULL(new_value_high);
     return AddNode(machine()->Word32AtomicCompareExchange(rep), base, index,
                    old_value, new_value);
   }

@@ -833,25 +833,35 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                             Node* value);
+  // {value_high} is used for 64-bit stores on 32-bit platforms, must be
+  // nullptr in other cases.
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* offset,
-                    Node* value);
+                    Node* value, Node* value_high = nullptr);
 
   // Exchange value at raw memory location
-  Node* AtomicExchange(MachineType type, Node* base, Node* offset, Node* value);
+  Node* AtomicExchange(MachineType type, Node* base, Node* offset, Node* value,
+                       Node* value_high = nullptr);
 
   // Compare and Exchange value at raw memory location
   Node* AtomicCompareExchange(MachineType type, Node* base, Node* offset,
-                              Node* old_value, Node* new_value);
+                              Node* old_value, Node* new_value,
+                              Node* old_value_high = nullptr,
+                              Node* new_value_high = nullptr);
 
-  Node* AtomicAdd(MachineType type, Node* base, Node* offset, Node* value);
+  Node* AtomicAdd(MachineType type, Node* base, Node* offset, Node* value,
+                  Node* value_high = nullptr);
 
-  Node* AtomicSub(MachineType type, Node* base, Node* offset, Node* value);
+  Node* AtomicSub(MachineType type, Node* base, Node* offset, Node* value,
+                  Node* value_high = nullptr);
 
-  Node* AtomicAnd(MachineType type, Node* base, Node* offset, Node* value);
+  Node* AtomicAnd(MachineType type, Node* base, Node* offset, Node* value,
+                  Node* value_high = nullptr);
 
-  Node* AtomicOr(MachineType type, Node* base, Node* offset, Node* value);
+  Node* AtomicOr(MachineType type, Node* base, Node* offset, Node* value,
+                 Node* value_high = nullptr);
 
-  Node* AtomicXor(MachineType type, Node* base, Node* offset, Node* value);
+  Node* AtomicXor(MachineType type, Node* base, Node* offset, Node* value,
+                  Node* value_high = nullptr);
 
   // Store a value to the root array.
   Node* StoreRoot(RootIndex root_index, Node* value);

@@ -81,8 +81,7 @@ StackSlotRepresentation const& StackSlotRepresentationOf(Operator const* op) {
 
 MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kWord32AtomicStore == op->opcode() ||
-         IrOpcode::kWord64AtomicStore == op->opcode() ||
-         IrOpcode::kWord32AtomicPairStore == op->opcode());
+         IrOpcode::kWord64AtomicStore == op->opcode());
   return OpParameter<MachineRepresentation>(op);
 }
 
