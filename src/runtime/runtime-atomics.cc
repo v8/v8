@@ -29,8 +29,10 @@ namespace {
 
 // GCC/Clang helpfully warn us that using 64-bit atomics on 32-bit platforms
 // can be slow. Good to know, but we don't have a choice.
+#ifdef V8_TARGET_ARCH_32_BIT
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Watomic-alignment"
+#endif  // V8_TARGET_ARCH_32_BIT
 
 template <typename T>
 inline T ExchangeSeqCst(T* p, T value) {
@@ -69,7 +71,9 @@ inline T XorSeqCst(T* p, T value) {
   return __atomic_fetch_xor(p, value, __ATOMIC_SEQ_CST);
 }
 
+#ifdef V8_TARGET_ARCH_32_BIT
 #pragma GCC diagnostic pop
+#endif  // V8_TARGET_ARCH_32_BIT
 
 #elif V8_CC_MSVC
 
