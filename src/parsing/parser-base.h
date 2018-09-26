@@ -649,10 +649,12 @@ class ParserBase {
   // Creates a function scope that always allocates in zone(). The function
   // scope itself is either allocated in zone() or in target_zone if one is
   // passed in.
-  DeclarationScope* NewFunctionScope(FunctionKind kind) const {
+  DeclarationScope* NewFunctionScope(FunctionKind kind,
+                                     Zone* parse_zone = nullptr) const {
     DCHECK(ast_value_factory());
-    DeclarationScope* result =
-        new (zone()) DeclarationScope(zone(), scope(), FUNCTION_SCOPE, kind);
+    if (parse_zone == nullptr) parse_zone = zone();
+    DeclarationScope* result = new (zone())
+        DeclarationScope(parse_zone, scope(), FUNCTION_SCOPE, kind);
 
     // Record presence of an inner function scope
     function_state_->RecordFunctionOrEvalCall();

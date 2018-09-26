@@ -992,16 +992,13 @@ class PreParser : public ParserBase<PreParser> {
             RuntimeCallStats* runtime_call_stats, Logger* logger,
             int script_id = -1, bool parsing_module = false,
             bool parsing_on_main_thread = true)
-      : ParserBase<PreParser>(new Zone(zone->allocator(), ZONE_NAME), scanner,
-                              stack_limit, nullptr, ast_value_factory,
-                              pending_error_handler, runtime_call_stats, logger,
-                              script_id, parsing_module,
-                              parsing_on_main_thread),
+      : ParserBase<PreParser>(zone, scanner, stack_limit, nullptr,
+                              ast_value_factory, pending_error_handler,
+                              runtime_call_stats, logger, script_id,
+                              parsing_module, parsing_on_main_thread),
         use_counts_(nullptr),
         track_unresolved_variables_(false),
         preparsed_scope_data_builder_(nullptr) {}
-
-  ~PreParser() { delete zone(); }
 
   static bool IsPreParser() { return true; }
 

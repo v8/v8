@@ -29,21 +29,6 @@
 namespace v8 {
 namespace internal {
 
-
-
-// Helper for putting parts of the parse results into a temporary zone when
-// parsing inner function bodies.
-class PreParserZoneScope {
- public:
-  explicit PreParserZoneScope(PreParser* preparser) : preparser_(preparser) {}
-  ~PreParserZoneScope() { preparser_->zone()->ReleaseMemory(); }
-
- private:
-  PreParser* preparser_;
-
-  DISALLOW_COPY_AND_ASSIGN(PreParserZoneScope);
-};
-
 FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
                                             bool call_super, int pos,
                                             int end_pos) {
@@ -379,6 +364,7 @@ Parser::Parser(ParseInfo* info)
                          info->is_module(), true),
       scanner_(info->unicode_cache(), info->character_stream(),
                info->is_module()),
+      preparser_zone_(info->zone()->allocator(), ZONE_NAME),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
       source_range_map_(info->source_range_map()),
@@ -2551,17 +2537,16 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int function_literal_id = GetNextFunctionLiteralId();
   ProducedPreParsedScopeData* produced_preparsed_scope_data = nullptr;
 
-  DeclarationScope* scope;
-
   // This Scope lives in the main zone. We'll migrate data into that zone later.
-  scope = NewFunctionScope(kind);
+  Zone* parse_zone = should_preparse ? &preparser_zone_ : zone();
+  DeclarationScope* scope = NewFunctionScope(kind, parse_zone);
   SetLanguageMode(scope, language_mode);
 #ifdef DEBUG
   scope->SetScopeName(function_name);
 #endif
 
   if (!is_wrapped) Expect(Token::LPAREN, CHECK_OK);
-  scope->set_start_position(scanner()->location().beg_pos);
+  scope->set_start_position(position());
 
   // Eager or lazy parse? If is_lazy_top_level_function, we'll parse
   // lazily. We'll call SkipFunction, which may decide to
@@ -2644,6 +2629,7 @@ bool Parser::SkipFunction(
     bool is_inner_function, bool may_abort,
     FunctionLiteral::EagerCompileHint* hint, bool* ok) {
   FunctionState function_state(&function_state_, &scope_, function_scope);
+  function_scope->set_zone(&preparser_zone_);
 
   DCHECK_NE(kNoSourcePosition, function_scope->start_position());
   DCHECK_EQ(kNoSourcePosition, parameters_end_pos_);
@@ -2678,9 +2664,6 @@ bool Parser::SkipFunction(
     return true;
   }
 
-  PreParser* preparser = reusable_preparser();
-  PreParserZoneScope zone_scope(preparser);
-
   Scanner::BookmarkScope bookmark(scanner());
   bookmark.Set();
 
@@ -2692,7 +2675,7 @@ bool Parser::SkipFunction(
   // state; we don't parse inner functions in the abortable mode anyway.
   DCHECK(!is_inner_function || !may_abort);
 
-  PreParser::PreParseResult result = preparser->PreParseFunction(
+  PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
       function_name, kind, function_type, function_scope, is_inner_function,
       may_abort, use_counts_, produced_preparsed_scope_data, this->script_id());
 

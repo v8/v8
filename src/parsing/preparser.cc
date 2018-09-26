@@ -127,7 +127,6 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 #ifdef DEBUG
   function_scope->set_is_being_lazily_parsed(true);
 #endif
-  function_scope->set_zone(zone());
 
   DCHECK(!track_unresolved_variables_);
   track_unresolved_variables_ =
