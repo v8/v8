@@ -157,12 +157,9 @@ static Optional<SourceLocation> GetLocation(const v8::HeapSnapshot* s,
                                             const v8::HeapGraphNode* node) {
   const i::HeapSnapshot* snapshot = reinterpret_cast<const i::HeapSnapshot*>(s);
   const std::vector<SourceLocation>& locations = snapshot->locations();
-  const int index =
-      const_cast<i::HeapEntry*>(reinterpret_cast<const i::HeapEntry*>(node))
-          ->index();
-
+  const i::HeapEntry* entry = reinterpret_cast<const i::HeapEntry*>(node);
   for (const auto& loc : locations) {
-    if (loc.entry_index == index) {
+    if (loc.entry_index == entry->index()) {
       return Optional<SourceLocation>(loc);
     }
   }
@@ -223,7 +220,7 @@ static bool ValidateSnapshot(const v8::HeapSnapshot* snapshot, int depth = 3) {
     entry->value = reinterpret_cast<void*>(ref_count + 1);
   }
   uint32_t unretained_entries_count = 0;
-  std::vector<i::HeapEntry>& entries = heap_snapshot->entries();
+  std::deque<i::HeapEntry>& entries = heap_snapshot->entries();
   for (i::HeapEntry& entry : entries) {
     v8::base::HashMap::Entry* map_entry = visited.Lookup(
         reinterpret_cast<void*>(&entry),
@@ -1002,21 +999,6 @@ TEST(HeapEntryIdsAndGC) {
   CHECK_NE(0u, b1->GetId());
   CHECK_EQ(b1->GetId(), b2->GetId());
 }
-
-
-TEST(HeapSnapshotRootPreservedAfterSorting) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
-  CHECK(ValidateSnapshot(snapshot));
-  const v8::HeapGraphNode* root1 = snapshot->GetRoot();
-  const_cast<i::HeapSnapshot*>(reinterpret_cast<const i::HeapSnapshot*>(
-      snapshot))->GetSortedEntriesList();
-  const v8::HeapGraphNode* root2 = snapshot->GetRoot();
-  CHECK_EQ(root1, root2);
-}
-
 
 namespace {
 
