@@ -2160,9 +2160,8 @@ bool CanLeak(Object* obj, Heap* heap) {
   if (obj->IsContext()) return true;
   if (obj->IsMap()) {
     Map* map = Map::cast(obj);
-    for (int i = 0; i < static_cast<int>(RootIndex::kStrongRootListLength);
-         i++) {
-      RootIndex root_index = static_cast<RootIndex>(i);
+    for (RootIndex root_index = RootIndex::kFirstStrongRoot;
+         root_index <= RootIndex::kLastStrongRoot; ++root_index) {
       if (map == heap->root(root_index)) return false;
     }
     return true;

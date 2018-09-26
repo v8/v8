@@ -331,10 +331,16 @@ enum class RootIndex : uint16_t {
 
   kRootListLength,
 
-  // Helper aliases.
-  kRootsStart = 0,
-  kStrongRootListLength = kStringTable,
-  kSmiRootsStart = kStringTable + 1
+  // Helper aliases for inclusive regions of root indices.
+  kFirstRoot = 0,
+  kLastRoot = kRootListLength - 1,
+
+  // kStringTable is not a strong root.
+  kFirstStrongRoot = kFirstRoot,
+  kLastStrongRoot = kStringTable - 1,
+
+  kFirstSmiRoot = kStringTable + 1,
+  kLastSmiRoot = kLastRoot
 };
 // clang-format on
 
@@ -344,18 +350,19 @@ class RootsTable {
   static constexpr size_t kEntriesCount =
       static_cast<size_t>(RootIndex::kRootListLength);
 
-  static constexpr size_t kSmiRootsStart =
-      static_cast<size_t>(RootIndex::kSmiRootsStart);
-
   RootsTable() : roots_{} {}
 
-  template <typename T>
-  bool IsRootHandle(Handle<T> handle, RootIndex* index) const {
-    Object** const handle_location = bit_cast<Object**>(handle.address());
+  bool IsRootHandleLocation(Object** handle_location, RootIndex* index) const {
     if (handle_location >= &roots_[kEntriesCount]) return false;
     if (handle_location < &roots_[0]) return false;
     *index = static_cast<RootIndex>(handle_location - &roots_[0]);
     return true;
+  }
+
+  template <typename T>
+  bool IsRootHandle(Handle<T> handle, RootIndex* index) const {
+    Object** handle_location = bit_cast<Object**>(handle.address());
+    return IsRootHandleLocation(handle_location, index);
   }
 
   Object* const& operator[](RootIndex root_index) const {
@@ -365,8 +372,19 @@ class RootsTable {
   }
 
  private:
-  Object** smi_roots_begin() { return &roots_[kSmiRootsStart]; }
-  Object** smi_roots_end() { return &roots_[kEntriesCount]; }
+  Object** strong_roots_begin() {
+    return &roots_[static_cast<size_t>(RootIndex::kFirstStrongRoot)];
+  }
+  Object** strong_roots_end() {
+    return &roots_[static_cast<size_t>(RootIndex::kLastStrongRoot) + 1];
+  }
+
+  Object** smi_roots_begin() {
+    return &roots_[static_cast<size_t>(RootIndex::kFirstSmiRoot)];
+  }
+  Object** smi_roots_end() {
+    return &roots_[static_cast<size_t>(RootIndex::kLastSmiRoot) + 1];
+  }
 
   Object*& operator[](RootIndex root_index) {
     size_t index = static_cast<size_t>(root_index);

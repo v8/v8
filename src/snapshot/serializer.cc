@@ -237,9 +237,10 @@ bool Serializer<AllocatorT>::ObjectIsBytecodeHandler(HeapObject* obj) const {
 
 template <class AllocatorT>
 void Serializer<AllocatorT>::PutRoot(
-    int root_index, HeapObject* object,
+    RootIndex root, HeapObject* object,
     SerializerDeserializer::HowToCode how_to_code,
     SerializerDeserializer::WhereToPoint where_to_point, int skip) {
+  int root_index = static_cast<int>(root);
   if (FLAG_trace_serializer) {
     PrintF(" Encoding root %d:", root_index);
     object->ShortPrint();
@@ -736,11 +737,13 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(
     HeapObjectReferenceType reference_type;
     while (current < end &&
            (*current)->GetHeapObject(&current_contents, &reference_type)) {
-      int root_index = serializer_->root_index_map()->Lookup(current_contents);
+      RootIndex root_index;
       // Repeats are not subject to the write barrier so we can only use
       // immortal immovable root members. They are never in new space.
-      if (current != start && root_index != RootIndexMap::kInvalidRootIndex &&
-          Heap::RootIsImmortalImmovable(static_cast<RootIndex>(root_index)) &&
+      if (current != start &&
+          serializer_->root_index_map()->Lookup(current_contents,
+                                                &root_index) &&
+          Heap::RootIsImmortalImmovable(root_index) &&
           *current == current[-1]) {
         DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
         DCHECK(!Heap::InNewSpace(current_contents));

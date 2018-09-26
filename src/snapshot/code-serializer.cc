@@ -124,8 +124,8 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                      WhereToPoint where_to_point, int skip) {
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
-  int root_index = root_index_map()->Lookup(obj);
-  if (root_index != RootIndexMap::kInvalidRootIndex) {
+  RootIndex root_index;
+  if (root_index_map()->Lookup(obj, &root_index)) {
     PutRoot(root_index, obj, how_to_code, where_to_point, skip);
     return;
   }

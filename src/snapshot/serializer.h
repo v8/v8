@@ -172,8 +172,8 @@ class Serializer : public SerializerDeserializer {
                          Object** end) override;
   void SerializeRootObject(Object* object);
 
-  void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
-               int skip);
+  void PutRoot(RootIndex root_index, HeapObject* object, HowToCode how,
+               WhereToPoint where, int skip);
   void PutSmi(Smi* smi);
   void PutBackReference(HeapObject* object, SerializerReference reference);
   void PutAttachedReference(SerializerReference reference,

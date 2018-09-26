@@ -117,7 +117,7 @@ static int DumpHeapConstants(const char* argv0) {
         // Skip maps in RO_SPACE since they will be reported elsewhere.
         if (o->IsMap()) continue;
         const char* n = nullptr;
-        i::RootIndex i = i::RootIndex::kStrongRootListLength;
+        i::RootIndex i = i::RootIndex::kFirstSmiRoot;
         intptr_t p = reinterpret_cast<intptr_t>(o) & 0x7FFFF;
         STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
         MUTABLE_ROOT_LIST(ROOT_LIST_CASE)

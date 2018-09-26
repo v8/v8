@@ -28,8 +28,8 @@ class StartupSerializer : public Serializer<> {
   int PartialSnapshotCacheIndex(HeapObject* o);
 
   bool can_be_rehashed() const { return can_be_rehashed_; }
-  bool root_has_been_serialized(int root_index) const {
-    return root_has_been_serialized_.test(root_index);
+  bool root_has_been_serialized(RootIndex root_index) const {
+    return root_has_been_serialized_.test(static_cast<size_t>(root_index));
   }
 
  private:
@@ -69,8 +69,7 @@ class StartupSerializer : public Serializer<> {
 
   void CheckRehashability(HeapObject* obj);
 
-  std::bitset<static_cast<size_t>(RootIndex::kStrongRootListLength)>
-      root_has_been_serialized_;
+  std::bitset<RootsTable::kEntriesCount> root_has_been_serialized_;
   PartialCacheIndexMap partial_cache_index_map_;
   std::vector<AccessorInfo*> accessor_infos_;
   std::vector<CallHandlerInfo*> call_handler_infos_;

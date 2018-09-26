@@ -781,6 +781,10 @@ class Heap {
     return Handle<Object>(&roots_[index]);
   }
 
+  bool IsRootHandleLocation(Object** handle_location, RootIndex* index) const {
+    return roots_.IsRootHandleLocation(handle_location, index);
+  }
+
   template <typename T>
   bool IsRootHandle(Handle<T> handle, RootIndex* index) const {
     return roots_.IsRootHandle(handle, index);

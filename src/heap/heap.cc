@@ -3770,9 +3770,8 @@ void Heap::IterateWeakRoots(RootVisitor* v, VisitMode mode) {
   const bool isMinorGC = mode == VISIT_ALL_IN_SCAVENGE ||
                          mode == VISIT_ALL_IN_MINOR_MC_MARK ||
                          mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
-  v->VisitRootPointer(
-      Root::kStringTable, nullptr,
-      reinterpret_cast<Object**>(&roots_[RootIndex::kStringTable]));
+  v->VisitRootPointer(Root::kStringTable, nullptr,
+                      &roots_[RootIndex::kStringTable]);
   v->Synchronize(VisitorSynchronization::kStringTable);
   if (!isMinorGC && mode != VISIT_ALL_IN_SWEEP_NEWSPACE &&
       mode != VISIT_FOR_SERIALIZATION) {
@@ -3846,8 +3845,7 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
                          mode == VISIT_ALL_IN_MINOR_MC_MARK ||
                          mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
   v->VisitRootPointers(Root::kStrongRootList, nullptr,
-                       &roots_[RootIndex::kRootsStart],
-                       &roots_[RootIndex::kStrongRootListLength]);
+                       roots_.strong_roots_begin(), roots_.strong_roots_end());
   v->Synchronize(VisitorSynchronization::kStrongRootList);
 
   isolate_->bootstrapper()->Iterate(v);

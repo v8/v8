@@ -11,8 +11,18 @@
 #include "src/objects/api-callbacks.h"
 
 namespace v8 {
-
 namespace internal {
+
+V8_INLINE bool operator<(RootIndex lhs, RootIndex rhs) {
+  typedef typename std::underlying_type<RootIndex>::type type;
+  return static_cast<type>(lhs) < static_cast<type>(rhs);
+}
+
+V8_INLINE RootIndex operator++(RootIndex& index) {
+  typedef typename std::underlying_type<RootIndex>::type type;
+  index = static_cast<RootIndex>(static_cast<type>(index) + 1);
+  return index;
+}
 
 ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate) : heap_(isolate->heap()) {}
 
@@ -35,7 +45,6 @@ FixedTypedArrayBase* ReadOnlyRoots::EmptyFixedTypedArrayForMap(const Map* map) {
 }
 
 }  // namespace internal
-
 }  // namespace v8
 
 #endif  // V8_ROOTS_INL_H_

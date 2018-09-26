@@ -70,8 +70,8 @@ void BuiltinSerializer::SerializeObject(HeapObject* o, HowToCode how_to_code,
   DCHECK(!o->IsSmi());
 
   // Roots can simply be serialized as root references.
-  int root_index = root_index_map()->Lookup(o);
-  if (root_index != RootIndexMap::kInvalidRootIndex) {
+  RootIndex root_index;
+  if (root_index_map()->Lookup(o, &root_index)) {
     DCHECK(startup_serializer_->root_has_been_serialized(root_index));
     PutRoot(root_index, o, how_to_code, where_to_point, skip);
     return;
