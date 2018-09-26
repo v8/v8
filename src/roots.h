@@ -6,13 +6,22 @@
 #define V8_ROOTS_H_
 
 #include "src/accessors.h"
+#include "src/globals.h"
 #include "src/handles.h"
 #include "src/heap-symbols.h"
 #include "src/objects-definitions.h"
 
 namespace v8 {
-
 namespace internal {
+
+// Forward declarations.
+enum ElementsKind : uint8_t;
+class FixedTypedArrayBase;
+class Heap;
+class Isolate;
+class Map;
+class String;
+class Symbol;
 
 // Defines all the read-only roots in Heap.
 #define STRONG_READ_ONLY_ROOT_LIST(V)                                          \
@@ -371,6 +380,10 @@ class RootsTable {
     return roots_[index];
   }
 
+  static RootIndex RootIndexForFixedTypedArray(ExternalArrayType array_type);
+  static RootIndex RootIndexForFixedTypedArray(ElementsKind elements_kind);
+  static RootIndex RootIndexForEmptyFixedTypedArray(ElementsKind elements_kind);
+
  private:
   Object** strong_roots_begin() {
     return &roots_[static_cast<size_t>(RootIndex::kFirstStrongRoot)];
@@ -399,29 +412,24 @@ class RootsTable {
   friend class ReadOnlyRoots;
 };
 
-class FixedTypedArrayBase;
-class Heap;
-class Isolate;
-class Map;
-class String;
-class Symbol;
-
 class ReadOnlyRoots {
  public:
-  explicit ReadOnlyRoots(Heap* heap) : heap_(heap) {}
-  inline explicit ReadOnlyRoots(Isolate* isolate);
+  V8_INLINE explicit ReadOnlyRoots(Heap* heap);
+  V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
 
 #define ROOT_ACCESSOR(type, name, CamelName) \
-  inline class type* name();                 \
-  inline Handle<type> name##_handle();
+  V8_INLINE class type* name();              \
+  V8_INLINE Handle<type> name##_handle();
 
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-  inline FixedTypedArrayBase* EmptyFixedTypedArrayForMap(const Map* map);
+  V8_INLINE Map* MapForFixedTypedArray(ExternalArrayType array_type);
+  V8_INLINE Map* MapForFixedTypedArray(ElementsKind elements_kind);
+  V8_INLINE FixedTypedArrayBase* EmptyFixedTypedArrayForMap(const Map* map);
 
  private:
-  Heap* heap_;
+  const RootsTable& roots_table_;
 };
 
 }  // namespace internal

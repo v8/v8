@@ -181,8 +181,9 @@ AllocationResult Heap::AllocateEmptyFixedTypedArray(
       array_type == kExternalFloat64Array ? kDoubleAligned : kWordAligned);
   if (!allocation.To(&object)) return allocation;
 
-  object->set_map_after_allocation(MapForFixedTypedArray(array_type),
-                                   SKIP_WRITE_BARRIER);
+  object->set_map_after_allocation(
+      ReadOnlyRoots(this).MapForFixedTypedArray(array_type),
+      SKIP_WRITE_BARRIER);
   FixedTypedArrayBase* elements = FixedTypedArrayBase::cast(object);
   elements->set_base_pointer(elements, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(

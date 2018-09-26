@@ -2426,60 +2426,6 @@ void Heap::FlushNumberStringCache() {
   }
 }
 
-namespace {
-
-RootIndex RootIndexForFixedTypedArray(ExternalArrayType array_type) {
-  switch (array_type) {
-#define ARRAY_TYPE_TO_ROOT_INDEX(Type, type, TYPE, ctype) \
-  case kExternal##Type##Array:                            \
-    return RootIndex::kFixed##Type##ArrayMap;
-
-    TYPED_ARRAYS(ARRAY_TYPE_TO_ROOT_INDEX)
-#undef ARRAY_TYPE_TO_ROOT_INDEX
-  }
-  UNREACHABLE();
-}
-
-RootIndex RootIndexForFixedTypedArray(ElementsKind elements_kind) {
-  switch (elements_kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
-  case TYPE##_ELEMENTS:                           \
-    return RootIndex::kFixed##Type##ArrayMap;
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-#undef TYPED_ARRAY_CASE
-  }
-}
-
-RootIndex RootIndexForEmptyFixedTypedArray(ElementsKind elements_kind) {
-  switch (elements_kind) {
-#define ELEMENT_KIND_TO_ROOT_INDEX(Type, type, TYPE, ctype) \
-  case TYPE##_ELEMENTS:                                     \
-    return RootIndex::kEmptyFixed##Type##Array;
-
-    TYPED_ARRAYS(ELEMENT_KIND_TO_ROOT_INDEX)
-#undef ELEMENT_KIND_TO_ROOT_INDEX
-    default:
-      UNREACHABLE();
-  }
-}
-
-}  // namespace
-
-Map* Heap::MapForFixedTypedArray(ExternalArrayType array_type) {
-  return Map::cast(roots_[RootIndexForFixedTypedArray(array_type)]);
-}
-
-Map* Heap::MapForFixedTypedArray(ElementsKind elements_kind) {
-  return Map::cast(roots_[RootIndexForFixedTypedArray(elements_kind)]);
-}
-
-FixedTypedArrayBase* Heap::EmptyFixedTypedArrayForMap(const Map* map) {
-  return FixedTypedArrayBase::cast(
-      roots_[RootIndexForEmptyFixedTypedArray(map->elements_kind())]);
-}
-
 HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
                                        ClearRecordedSlots clear_slots_mode,
                                        ClearFreedMemoryMode clear_memory_mode) {

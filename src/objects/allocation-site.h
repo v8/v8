@@ -62,9 +62,9 @@ class AllocationSite : public Struct, public NeverReadOnlySpaceObject {
   bool IsNested();
 
   // transition_info bitfields, for constructed array transition info.
-  class ElementsKindBits : public BitField<ElementsKind, 0, 15> {};
-  class UnusedBits : public BitField<int, 15, 14> {};
-  class DoNotInlineBit : public BitField<bool, 29, 1> {};
+  class ElementsKindBits : public BitField<ElementsKind, 0, 5> {};
+  class DoNotInlineBit : public BitField<bool, 5, 1> {};
+  // Unused bits 6-30.
 
   // Bitfields for pretenure_data
   class MementoFoundCountBits : public BitField<int, 0, 26> {};

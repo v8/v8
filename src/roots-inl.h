@@ -8,7 +8,6 @@
 #include "src/roots.h"
 
 #include "src/heap/heap-inl.h"
-#include "src/objects/api-callbacks.h"
 
 namespace v8 {
 namespace internal {
@@ -24,24 +23,37 @@ V8_INLINE RootIndex operator++(RootIndex& index) {
   return index;
 }
 
-ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate) : heap_(isolate->heap()) {}
+ReadOnlyRoots::ReadOnlyRoots(Heap* heap) : roots_table_(heap->roots_table()) {}
 
-#define ROOT_ACCESSOR(type, name, CamelName)                        \
-  type* ReadOnlyRoots::name() {                                     \
-    return type::cast(heap_->roots_[RootIndex::k##CamelName]);      \
-  }                                                                 \
-  Handle<type> ReadOnlyRoots::name##_handle() {                     \
-    return Handle<type>(                                            \
-        bit_cast<type**>(&heap_->roots_[RootIndex::k##CamelName])); \
+ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate)
+    : roots_table_(isolate->heap()->roots_table()) {}
+
+#define ROOT_ACCESSOR(type, name, CamelName)                       \
+  type* ReadOnlyRoots::name() {                                    \
+    return type::cast(roots_table_[RootIndex::k##CamelName]);      \
+  }                                                                \
+  Handle<type> ReadOnlyRoots::name##_handle() {                    \
+    return Handle<type>(                                           \
+        bit_cast<type**>(&roots_table_[RootIndex::k##CamelName])); \
   }
 
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
+Map* ReadOnlyRoots::MapForFixedTypedArray(ExternalArrayType array_type) {
+  RootIndex root_index = RootsTable::RootIndexForFixedTypedArray(array_type);
+  return Map::cast(roots_table_[root_index]);
+}
+
+Map* ReadOnlyRoots::MapForFixedTypedArray(ElementsKind elements_kind) {
+  RootIndex root_index = RootsTable::RootIndexForFixedTypedArray(elements_kind);
+  return Map::cast(roots_table_[root_index]);
+}
+
 FixedTypedArrayBase* ReadOnlyRoots::EmptyFixedTypedArrayForMap(const Map* map) {
-  // TODO(delphick): All of these empty fixed type arrays are in RO_SPACE so
-  // this the method below can be moved into ReadOnlyRoots.
-  return heap_->EmptyFixedTypedArrayForMap(map);
+  RootIndex root_index =
+      RootsTable::RootIndexForEmptyFixedTypedArray(map->elements_kind());
+  return FixedTypedArrayBase::cast(roots_table_[root_index]);
 }
 
 }  // namespace internal

@@ -2390,6 +2390,7 @@ v8_source_set("v8_base") {
     "src/reloc-info.cc",
     "src/reloc-info.h",
     "src/roots-inl.h",
+    "src/roots.cc",
     "src/roots.h",
     "src/runtime-profiler.cc",
     "src/runtime-profiler.h",

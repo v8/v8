@@ -771,6 +771,8 @@ class Heap {
   friend class ReadOnlyRoots;
 
  public:
+  RootsTable& roots_table() { return roots_; }
+
 // Heap root getters.
 #define ROOT_ACCESSOR(type, name, CamelName) inline type* name();
   MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
@@ -849,10 +851,6 @@ class Heap {
 
   // Generated code can treat direct references to this root as constant.
   bool RootCanBeTreatedAsConstant(RootIndex root_index);
-
-  Map* MapForFixedTypedArray(ExternalArrayType array_type);
-  Map* MapForFixedTypedArray(ElementsKind elements_kind);
-  FixedTypedArrayBase* EmptyFixedTypedArrayForMap(const Map* map);
 
   void RegisterStrongRoots(Object** start, Object** end);
   void UnregisterStrongRoots(Object** start);
