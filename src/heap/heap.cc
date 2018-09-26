@@ -1918,6 +1918,10 @@ void Heap::Scavenge() {
   new_space()->Flip();
   new_space()->ResetLinearAllocationArea();
 
+  // We also flip the young generation large object space. All large objects
+  // will be in the from space.
+  new_lo_space()->Flip();
+
   // Implements Cheney's copying algorithm
   LOG(isolate_, ResourceEvent("scavenge", "begin"));
 

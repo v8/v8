@@ -410,7 +410,8 @@
   F(SCAVENGER_SCAVENGE_PARALLEL)                     \
   F(SCAVENGER_SCAVENGE_ROOTS)                        \
   F(SCAVENGER_SCAVENGE_UPDATE_REFS)                  \
-  F(SCAVENGER_SCAVENGE_WEAK)
+  F(SCAVENGER_SCAVENGE_WEAK)                         \
+  F(SCAVENGER_SCAVENGE_FINALIZE)
 
 #define TRACER_BACKGROUND_SCOPES(F)               \
   F(BACKGROUND_ARRAY_BUFFER_FREE)                 \

@@ -166,8 +166,8 @@ void ScavengerCollector::CollectGarbage() {
   Scavenger::CopiedList copied_list(num_scavenge_tasks);
   Scavenger::PromotionList promotion_list(num_scavenge_tasks);
   for (int i = 0; i < num_scavenge_tasks; i++) {
-    scavengers[i] =
-        new Scavenger(heap_, is_logging, &copied_list, &promotion_list, i);
+    scavengers[i] = new Scavenger(this, heap_, is_logging, &copied_list,
+                                  &promotion_list, i);
     job.AddTask(new ScavengingTask(heap_, scavengers[i], &barrier));
   }
 
@@ -228,9 +228,16 @@ void ScavengerCollector::CollectGarbage() {
               &root_scavenge_visitor, &IsUnscavengedHeapObject);
     }
 
-    for (int i = 0; i < num_scavenge_tasks; i++) {
-      scavengers[i]->Finalize();
-      delete scavengers[i];
+    {
+      // Finalize parallel scavenging.
+      TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_FINALIZE);
+
+      for (int i = 0; i < num_scavenge_tasks; i++) {
+        scavengers[i]->Finalize();
+        delete scavengers[i];
+      }
+
+      HandleSurvivingNewLargeObjects();
     }
   }
 
@@ -280,6 +287,29 @@ void ScavengerCollector::CollectGarbage() {
   heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
 }
 
+void ScavengerCollector::HandleSurvivingNewLargeObjects() {
+  for (SurvivingNewLargeObjectMapEntry update_info :
+       surviving_new_large_objects_) {
+    HeapObject* object = update_info.first;
+    Map* map = update_info.second;
+    // Order is important here. We have to re-install the map to have access
+    // to meta-data like size during page promotion.
+    object->set_map_word(MapWord::FromMap(map));
+    LargePage* page = LargePage::FromHeapObject(object);
+    heap_->lo_space()->PromoteNewLargeObject(page);
+  }
+  DCHECK(heap_->new_lo_space()->IsEmpty());
+}
+
+void ScavengerCollector::MergeSurvivingNewLargeObjects(
+    const SurvivingNewLargeObjectsMap& objects) {
+  for (SurvivingNewLargeObjectMapEntry object : objects) {
+    bool success = surviving_new_large_objects_.insert(object).second;
+    USE(success);
+    DCHECK(success);
+  }
+}
+
 int ScavengerCollector::NumberOfScavengeTasks() {
   if (!FLAG_parallel_scavenge) return 1;
   const int num_scavenge_tasks =
@@ -295,9 +325,11 @@ int ScavengerCollector::NumberOfScavengeTasks() {
   return tasks;
 }
 
-Scavenger::Scavenger(Heap* heap, bool is_logging, CopiedList* copied_list,
-                     PromotionList* promotion_list, int task_id)
-    : heap_(heap),
+Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
+                     CopiedList* copied_list, PromotionList* promotion_list,
+                     int task_id)
+    : collector_(collector),
+      heap_(heap),
       promotion_list_(promotion_list, task_id),
       copied_list_(copied_list, task_id),
       local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
@@ -308,7 +340,8 @@ Scavenger::Scavenger(Heap* heap, bool is_logging, CopiedList* copied_list,
       is_incremental_marking_(heap->incremental_marking()->IsMarking()),
       is_compacting_(heap->incremental_marking()->IsCompacting()) {}
 
-void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
+void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, Map* map,
+                                                 int size) {
   // We are not collecting slots on new space objects during mutation thus we
   // have to scan for pointers to evacuation candidates when we promote
   // objects. But we should not record any slots in non-black objects. Grey
@@ -319,7 +352,7 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
       is_compacting_ &&
       heap()->incremental_marking()->atomic_marking_state()->IsBlack(target);
   IterateAndScavengePromotedObjectsVisitor visitor(heap(), this, record_slots);
-  target->IterateBodyFast(target->map(), size, &visitor);
+  target->IterateBodyFast(map, size, &visitor);
 }
 
 void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
@@ -352,9 +385,6 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
 
 void Scavenger::Process(OneshotBarrier* barrier) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "Scavenger::Process");
-  // Threshold when to switch processing the promotion list to avoid
-  // allocating too much backing store in the worklist.
-  const int kProcessPromotionListThreshold = kPromotionListSegmentSize / 2;
   ScavengeVisitor scavenge_visitor(this);
 
   const bool have_barrier = barrier != nullptr;
@@ -363,8 +393,7 @@ void Scavenger::Process(OneshotBarrier* barrier) {
   do {
     done = true;
     ObjectAndSize object_and_size;
-    while ((promotion_list_.LocalPushSegmentSize() <
-            kProcessPromotionListThreshold) &&
+    while (promotion_list_.ShouldEagerlyProcessPromotionList() &&
            copied_list_.Pop(&object_and_size)) {
       scavenge_visitor.Visit(object_and_size.first);
       done = false;
@@ -375,11 +404,11 @@ void Scavenger::Process(OneshotBarrier* barrier) {
       }
     }
 
-    while (promotion_list_.Pop(&object_and_size)) {
-      HeapObject* target = object_and_size.first;
-      int size = object_and_size.second;
+    struct PromotionListEntry entry;
+    while (promotion_list_.Pop(&entry)) {
+      HeapObject* target = entry.heap_object;
       DCHECK(!target->IsMap());
-      IterateAndScavengePromotedObject(target, size);
+      IterateAndScavengePromotedObject(target, entry.map, entry.size);
       done = false;
       if (have_barrier && ((++objects % kInterruptThreshold) == 0)) {
         if (!promotion_list_.IsGlobalPoolEmpty()) {
@@ -394,6 +423,7 @@ void Scavenger::Finalize() {
   heap()->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
   heap()->IncrementSemiSpaceCopiedObjectSize(copied_size_);
   heap()->IncrementPromotedObjectsSize(promoted_size_);
+  collector_->MergeSurvivingNewLargeObjects(surviving_new_large_objects_);
   allocator_.Finalize();
 }
 

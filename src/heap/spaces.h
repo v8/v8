@@ -902,6 +902,16 @@ class ReadOnlyPage : public Page {
 
 class LargePage : public MemoryChunk {
  public:
+  // A limit to guarantee that we do not overflow typed slot offset in
+  // the old to old remembered set.
+  // Note that this limit is higher than what assembler already imposes on
+  // x64 and ia32 architectures.
+  static const int kMaxCodePageSize = 512 * MB;
+
+  static LargePage* FromHeapObject(const HeapObject* o) {
+    return static_cast<LargePage*>(MemoryChunk::FromHeapObject(o));
+  }
+
   HeapObject* GetObject() { return HeapObject::FromAddress(area_start()); }
 
   inline LargePage* next_page() {
@@ -913,12 +923,6 @@ class LargePage : public MemoryChunk {
   Address GetAddressToShrink(Address object_address, size_t object_size);
 
   void ClearOutOfLiveRangeSlots(Address free_start);
-
-  // A limit to guarantee that we do not overflow typed slot offset in
-  // the old to old remembered set.
-  // Note that this limit is higher than what assembler already imposes on
-  // x64 and ia32 architectures.
-  static const int kMaxCodePageSize = 512 * MB;
 
  private:
   static LargePage* Initialize(Heap* heap, MemoryChunk* chunk,
@@ -3007,6 +3011,8 @@ class LargeObjectSpace : public Space {
   void RemoveChunkMapEntries(LargePage* page);
   void RemoveChunkMapEntries(LargePage* page, Address free_start);
 
+  void PromoteNewLargeObject(LargePage* page);
+
   // Checks whether a heap object is in this space; O(1).
   bool Contains(HeapObject* obj);
   // Checks whether an address is in the object area in this space. Iterates
@@ -3015,6 +3021,9 @@ class LargeObjectSpace : public Space {
 
   // Checks whether the space is empty.
   bool IsEmpty() { return first_page() == nullptr; }
+
+  void Register(LargePage* page, size_t object_size);
+  void Unregister(LargePage* page, size_t object_size);
 
   LargePage* first_page() {
     return reinterpret_cast<LargePage*>(Space::first_page());
@@ -3064,6 +3073,8 @@ class NewLargeObjectSpace : public LargeObjectSpace {
 
   // Available bytes for objects in this space.
   size_t Available() override;
+
+  void Flip();
 };
 
 class LargeObjectIterator : public ObjectIterator {
