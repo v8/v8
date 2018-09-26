@@ -29,7 +29,6 @@ class HeapEntry;
 class HeapIterator;
 class HeapProfiler;
 class HeapSnapshot;
-class HeapSnapshotGenerator;
 class JSArrayBuffer;
 class JSCollection;
 class JSGeneratorObject;
@@ -37,6 +36,7 @@ class JSGlobalObject;
 class JSGlobalProxy;
 class JSPromise;
 class JSWeakCollection;
+class SnapshotFiller;
 
 struct SourceLocation {
   SourceLocation(int entry_index, int scriptId, int line, int col)
@@ -136,13 +136,6 @@ class HeapEntry {
       HeapGraphEdge::Type type, int index, HeapEntry* entry);
   void SetNamedReference(
       HeapGraphEdge::Type type, const char* name, HeapEntry* entry);
-  void SetIndexedAutoIndexReference(HeapGraphEdge::Type type,
-                                    HeapEntry* child) {
-    SetIndexedReference(type, children_count_ + 1, child);
-  }
-  void SetNamedAutoIndexReference(HeapGraphEdge::Type type,
-                                  const char* description, HeapEntry* child,
-                                  StringsStorage* strings);
 
   void Print(
       const char* prefix, const char* edge_name, int max_depth, int indent);
@@ -317,10 +310,9 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                  SnapshottingProgressReportingInterface* progress,
                  v8::HeapProfiler::ObjectNameResolver* resolver);
   ~V8HeapExplorer() override = default;
-
   HeapEntry* AllocateEntry(HeapThing ptr) override;
   int EstimateObjectsCount();
-  bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
+  bool IterateAndExtractReferences(SnapshotFiller* filler);
   void TagGlobalObjects();
   void TagCodeObject(Code* code);
   void TagBuiltinCodeObject(Code* code, const char* name);
@@ -433,7 +425,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   StringsStorage* names_;
   HeapObjectsMap* heap_object_map_;
   SnapshottingProgressReportingInterface* progress_;
-  HeapSnapshotGenerator* generator_ = nullptr;
+  SnapshotFiller* filler_;
   std::unordered_map<JSGlobalObject*, const char*> objects_tags_;
   std::unordered_map<Object*, const char*> strong_gc_subroot_names_;
   std::unordered_set<JSGlobalObject*> user_roots_;
@@ -458,7 +450,7 @@ class NativeObjectsExplorer {
                         SnapshottingProgressReportingInterface* progress);
   virtual ~NativeObjectsExplorer();
   int EstimateObjectsCount();
-  bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
+  bool IterateAndExtractReferences(SnapshotFiller* filler);
 
  private:
   void FillRetainedObjects();
@@ -502,7 +494,7 @@ class NativeObjectsExplorer {
   std::unique_ptr<HeapEntriesAllocator> native_entries_allocator_;
   std::unique_ptr<HeapEntriesAllocator> embedder_graph_entries_allocator_;
   // Used during references extraction.
-  HeapSnapshotGenerator* generator_ = nullptr;
+  SnapshotFiller* filler_;
   v8::HeapProfiler::RetainerEdges edges_;
 
   static HeapThing const kNativesRootObject;
@@ -511,6 +503,7 @@ class NativeObjectsExplorer {
 
   DISALLOW_COPY_AND_ASSIGN(NativeObjectsExplorer);
 };
+
 
 class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
  public:
@@ -523,21 +516,6 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
                         v8::HeapProfiler::ObjectNameResolver* resolver,
                         Heap* heap);
   bool GenerateSnapshot();
-
-  HeapEntry* FindEntry(HeapThing ptr) {
-    auto it = entries_map_.find(ptr);
-    return it != entries_map_.end() ? it->second : nullptr;
-  }
-
-  HeapEntry* AddEntry(HeapThing ptr, HeapEntriesAllocator* allocator) {
-    return entries_map_.emplace(ptr, allocator->AllocateEntry(ptr))
-        .first->second;
-  }
-
-  HeapEntry* FindOrAddEntry(HeapThing ptr, HeapEntriesAllocator* allocator) {
-    HeapEntry* entry = FindEntry(ptr);
-    return entry != nullptr ? entry : AddEntry(ptr, allocator);
-  }
 
  private:
   bool FillReferences();
