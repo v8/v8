@@ -477,7 +477,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // There's no separate Uncommit.
 
   void FreeNativeModule(NativeModule*);
-  void Free(VirtualMemory* mem);
   void AssignRanges(Address start, Address end, NativeModule*);
   void AssignRangesAndAddModule(Address start, Address end, NativeModule*);
   bool ShouldForceCriticalMemoryPressureNotification();

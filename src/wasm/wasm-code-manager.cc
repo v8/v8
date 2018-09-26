@@ -999,10 +999,14 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
   DCHECK_EQ(1, native_modules_.count(native_module));
   native_modules_.erase(native_module);
   TRACE_HEAP("Freeing NativeModule %p\n", this);
-  for (auto& vmem : native_module->owned_code_space_) {
-    lookup_map_.erase(vmem.address());
-    Free(&vmem);
-    DCHECK(!vmem.IsReserved());
+  for (auto& mem : native_module->owned_code_space_) {
+    DCHECK(mem.IsReserved());
+    TRACE_HEAP("VMem Release: %" PRIxPTR ":%" PRIxPTR " (%zu)\n", mem.address(),
+               mem.end(), mem.size());
+    lookup_map_.erase(mem.address());
+    memory_tracker_->ReleaseReservation(mem.size());
+    mem.Free();
+    DCHECK(!mem.IsReserved());
   }
   native_module->owned_code_space_.clear();
 
@@ -1042,16 +1046,6 @@ NativeModule* WasmCodeManager::LookupNativeModule(Address pc) const {
 WasmCode* WasmCodeManager::LookupCode(Address pc) const {
   NativeModule* candidate = LookupNativeModule(pc);
   return candidate ? candidate->Lookup(pc) : nullptr;
-}
-
-void WasmCodeManager::Free(VirtualMemory* mem) {
-  DCHECK(mem->IsReserved());
-  void* start = reinterpret_cast<void*>(mem->address());
-  void* end = reinterpret_cast<void*>(mem->end());
-  size_t size = mem->size();
-  mem->Free();
-  memory_tracker_->ReleaseReservation(size);
-  TRACE_HEAP("VMem Release: %p:%p (%zu)\n", start, end, size);
 }
 
 size_t WasmCodeManager::remaining_uncommitted_code_space() const {
