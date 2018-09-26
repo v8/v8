@@ -1536,7 +1536,7 @@ void DeclarationScope::SavePreParsedScopeDataForDeclarationScope() {
 
 void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
   DCHECK(!force_eager_compilation_);
-  ThreadedList<VariableProxy> new_unresolved_list;
+  base::ThreadedList<VariableProxy> new_unresolved_list;
   if (!IsArrowFunction(function_kind_) &&
       (!outer_scope_->is_script_scope() ||
        (FLAG_preparser_scope_analysis &&

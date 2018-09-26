@@ -383,7 +383,7 @@ class DoExpression final : public Expression {
 
 class Declaration : public AstNode {
  public:
-  typedef ThreadedList<Declaration> List;
+  typedef base::ThreadedList<Declaration> List;
 
   VariableProxy* proxy() const { return proxy_; }
 
@@ -397,7 +397,7 @@ class Declaration : public AstNode {
   Declaration** next() { return &next_; }
   Declaration* next_;
   friend List;
-  friend ThreadedListTraits<Declaration>;
+  friend base::ThreadedListTraits<Declaration>;
 };
 
 class VariableDeclaration : public Declaration {
@@ -1627,7 +1627,7 @@ class VariableProxy final : public Expression {
   VariableProxy** pre_parser_expr_next() { return &pre_parser_expr_next_; }
   VariableProxy* pre_parser_expr_next_;
 
-  friend ThreadedListTraits<VariableProxy>;
+  friend base::ThreadedListTraits<VariableProxy>;
 };
 
 // Left-hand side can only be a property, a global or a (parameter or local)

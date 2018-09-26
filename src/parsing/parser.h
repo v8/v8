@@ -11,11 +11,11 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/threaded-list.h"
 #include "src/globals.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
-#include "src/utils.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
@@ -109,7 +109,7 @@ struct ParserFormalParameters : FormalParametersBase {
 
   explicit ParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
-  ThreadedList<Parameter> params;
+  base::ThreadedList<Parameter> params;
 };
 
 template <>
@@ -921,7 +921,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE void DeclareFormalParameters(
       DeclarationScope* scope,
-      const ThreadedList<ParserFormalParameters::Parameter>& parameters,
+      const base::ThreadedList<ParserFormalParameters::Parameter>& parameters,
       bool is_simple, bool* has_duplicate = nullptr) {
     if (!is_simple) scope->SetHasNonSimpleParameters();
     for (auto parameter : parameters) {

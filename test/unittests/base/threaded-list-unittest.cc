@@ -6,11 +6,11 @@
 
 #include "src/v8.h"
 
-#include "src/utils.h"
+#include "src/base/threaded-list.h"
 #include "testing/gtest-support.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 struct ThreadedListTestNode {
   ThreadedListTestNode() : next_(nullptr), other_next_(nullptr) {}
@@ -305,5 +305,5 @@ TEST_F(ThreadedListTest, ConstIterComp) {
   CHECK(found_first);
 }
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8

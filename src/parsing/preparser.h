@@ -865,7 +865,7 @@ struct PreParserFormalParameters : FormalParametersBase {
   explicit PreParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
 
-  ThreadedList<Parameter> params;
+  base::ThreadedList<Parameter> params;
 };
 
 
@@ -1723,7 +1723,8 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void DeclareFormalParameters(
       DeclarationScope* scope,
-      const ThreadedList<PreParserFormalParameters::Parameter>& parameters,
+      const base::ThreadedList<PreParserFormalParameters::Parameter>&
+          parameters,
       bool is_simple) {
     if (!is_simple) scope->SetHasNonSimpleParameters();
     if (track_unresolved_variables_) {

@@ -9,6 +9,7 @@
 
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
+#include "src/base/threaded-list.h"
 #include "src/globals.h"
 #include "src/splay-tree.h"
 #include "src/utils.h"
@@ -302,8 +303,8 @@ using ZonePtrList = ZoneList<T*>;
 
 // ZoneThreadedList is a special variant of the ThreadedList that can be put
 // into a Zone.
-template <typename T, typename TLTraits = ThreadedListTraits<T>>
-using ZoneThreadedList = ThreadedListBase<T, ZoneObject, TLTraits>;
+template <typename T, typename TLTraits = base::ThreadedListTraits<T>>
+using ZoneThreadedList = base::ThreadedListBase<T, ZoneObject, TLTraits>;
 
 // A zone splay tree.  The config type parameter encapsulates the
 // different configurations of a concrete splay tree (see splay-tree.h).
