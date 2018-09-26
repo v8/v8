@@ -498,7 +498,7 @@ void MemoryChunk::SetReadAndWritable() {
 MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      Address area_start, Address area_end,
                                      Executability executable, Space* owner,
-                                     VirtualMemory&& reservation) {
+                                     VirtualMemory reservation) {
   MemoryChunk* chunk = FromAddress(base);
 
   DCHECK(base == chunk->address());

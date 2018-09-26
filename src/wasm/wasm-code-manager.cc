@@ -318,7 +318,7 @@ WasmCode::~WasmCode() {
 }
 
 NativeModule::NativeModule(Isolate* isolate, const WasmFeatures& enabled,
-                           bool can_request_more, VirtualMemory&& code_space,
+                           bool can_request_more, VirtualMemory code_space,
                            WasmCodeManager* code_manager,
                            std::shared_ptr<const WasmModule> module,
                            const ModuleEnv& env)
