@@ -60,9 +60,8 @@ class HeapGraphEdge {
     kWeak = v8::HeapGraphEdge::kWeak
   };
 
-  HeapGraphEdge(Type type, const char* name, int from, int to);
-  HeapGraphEdge(Type type, int index, int from, int to);
-  void ReplaceToIndexWithEntry(HeapSnapshot* snapshot);
+  HeapGraphEdge(Type type, const char* name, HeapEntry* from, HeapEntry* to);
+  HeapGraphEdge(Type type, int index, HeapEntry* from, HeapEntry* to);
 
   Type type() const { return TypeField::decode(bit_field_); }
   int index() const {
@@ -86,12 +85,7 @@ class HeapGraphEdge {
   class TypeField : public BitField<Type, 0, 3> {};
   class FromIndexField : public BitField<int, 3, 29> {};
   uint32_t bit_field_;
-  union {
-    // During entries population |to_index_| is used for storing the index,
-    // afterwards it is replaced with a pointer to the entry.
-    int to_index_;
-    HeapEntry* to_entry_;
-  };
+  HeapEntry* to_entry_;
   union {
     int index_;
     const char* name_;
@@ -119,15 +113,9 @@ class HeapEntry {
     kSymbol = v8::HeapGraphNode::kSymbol,
     kBigInt = v8::HeapGraphNode::kBigInt
   };
-  static const int kNoEntry;
 
-  HeapEntry() = default;
-  HeapEntry(HeapSnapshot* snapshot,
-            Type type,
-            const char* name,
-            SnapshotObjectId id,
-            size_t self_size,
-            unsigned trace_node_id);
+  HeapEntry(HeapSnapshot* snapshot, int index, Type type, const char* name,
+            SnapshotObjectId id, size_t self_size, unsigned trace_node_id);
 
   HeapSnapshot* snapshot() { return snapshot_; }
   Type type() const { return static_cast<Type>(type_); }
@@ -137,8 +125,8 @@ class HeapEntry {
   SnapshotObjectId id() const { return id_; }
   size_t self_size() const { return self_size_; }
   unsigned trace_node_id() const { return trace_node_id_; }
-  V8_INLINE int index() const;
-  int children_count() const { return children_count_; }
+  int index() const { return index_; }
+  V8_INLINE int children_count() const;
   V8_INLINE int set_children_index(int index);
   V8_INLINE void add_child(HeapGraphEdge* edge);
   V8_INLINE HeapGraphEdge* child(int i);
@@ -153,13 +141,18 @@ class HeapEntry {
       const char* prefix, const char* edge_name, int max_depth, int indent);
 
  private:
-  V8_INLINE std::deque<HeapGraphEdge*>::iterator children_begin();
-  V8_INLINE std::deque<HeapGraphEdge*>::iterator children_end();
+  V8_INLINE std::vector<HeapGraphEdge*>::iterator children_begin() const;
+  V8_INLINE std::vector<HeapGraphEdge*>::iterator children_end() const;
   const char* TypeAsString();
 
   unsigned type_: 4;
-  int children_count_: 28;
-  int children_index_;
+  unsigned index_ : 28;  // Supports up to ~250M objects.
+  union {
+    // The count is used during the snapshot build phase,
+    // then it gets converted into the index by the |FillChildren| function.
+    unsigned children_count_;
+    unsigned children_end_index_;
+  };
   size_t self_size_;
   HeapSnapshot* snapshot_;
   const char* name_;
@@ -167,7 +160,6 @@ class HeapEntry {
   // id of allocation stack trace top node
   unsigned trace_node_id_;
 };
-
 
 // HeapSnapshot represents a single heap snapshot. It is stored in
 // HeapProfiler, which is also a factory for
@@ -179,22 +171,23 @@ class HeapSnapshot {
   explicit HeapSnapshot(HeapProfiler* profiler);
   void Delete();
 
-  HeapProfiler* profiler() { return profiler_; }
-  HeapEntry* root() { return &entries_[root_index_]; }
-  HeapEntry* gc_roots() { return &entries_[gc_roots_index_]; }
-  HeapEntry* gc_subroot(Root root) {
-    return &entries_[gc_subroot_indexes_[static_cast<int>(root)]];
+  HeapProfiler* profiler() const { return profiler_; }
+  HeapEntry* root() const { return root_entry_; }
+  HeapEntry* gc_roots() const { return gc_roots_entry_; }
+  HeapEntry* gc_subroot(Root root) const {
+    return gc_subroot_entries_[static_cast<int>(root)];
   }
-  std::vector<HeapEntry>& entries() { return entries_; }
+  std::deque<HeapEntry>& entries() { return entries_; }
   std::deque<HeapGraphEdge>& edges() { return edges_; }
-  std::deque<HeapGraphEdge*>& children() { return children_; }
+  std::vector<HeapGraphEdge*>& children() { return children_; }
   const std::vector<SourceLocation>& locations() const { return locations_; }
   void RememberLastJSObjectId();
   SnapshotObjectId max_snapshot_js_object_id() const {
     return max_snapshot_js_object_id_;
   }
+  bool is_complete() const { return !children_.empty(); }
 
-  void AddLocation(int entry, int scriptId, int line, int col);
+  void AddLocation(HeapEntry* entry, int scriptId, int line, int col);
   HeapEntry* AddEntry(HeapEntry::Type type,
                       const char* name,
                       SnapshotObjectId id,
@@ -202,28 +195,28 @@ class HeapSnapshot {
                       unsigned trace_node_id);
   void AddSyntheticRootEntries();
   HeapEntry* GetEntryById(SnapshotObjectId id);
-  std::vector<HeapEntry*>* GetSortedEntriesList();
   void FillChildren();
 
   void Print(int max_depth);
 
  private:
-  HeapEntry* AddRootEntry();
-  HeapEntry* AddGcRootsEntry();
-  HeapEntry* AddGcSubrootEntry(Root root, SnapshotObjectId id);
+  void AddRootEntry();
+  void AddGcRootsEntry();
+  void AddGcSubrootEntry(Root root, SnapshotObjectId id);
 
   HeapProfiler* profiler_;
-  int root_index_;
-  int gc_roots_index_;
-  int gc_subroot_indexes_[static_cast<int>(Root::kNumberOfRoots)];
-  std::vector<HeapEntry> entries_;
+  HeapEntry* root_entry_ = nullptr;
+  HeapEntry* gc_roots_entry_ = nullptr;
+  HeapEntry* gc_subroot_entries_[static_cast<int>(Root::kNumberOfRoots)];
+  // For |entries_| we rely on the deque property, that it never reallocates
+  // backing storage, thus all entry pointers remain valid for the duration
+  // of snapshotting.
+  std::deque<HeapEntry> entries_;
   std::deque<HeapGraphEdge> edges_;
-  std::deque<HeapGraphEdge*> children_;
-  std::vector<HeapEntry*> sorted_entries_;
+  std::vector<HeapGraphEdge*> children_;
+  std::unordered_map<SnapshotObjectId, HeapEntry*> entries_by_id_cache_;
   std::vector<SourceLocation> locations_;
-  SnapshotObjectId max_snapshot_js_object_id_;
-
-  friend class HeapSnapshotTester;
+  SnapshotObjectId max_snapshot_js_object_id_ = -1;
 
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshot);
 };
@@ -341,93 +334,81 @@ class V8HeapExplorer : public HeapEntriesAllocator {
 
   const char* GetSystemEntryName(HeapObject* object);
 
-  void ExtractLocation(int entry, HeapObject* object);
-  void ExtractLocationForJSFunction(int entry, JSFunction* func);
-  void ExtractReferences(int entry, HeapObject* obj);
-  void ExtractJSGlobalProxyReferences(int entry, JSGlobalProxy* proxy);
-  void ExtractJSObjectReferences(int entry, JSObject* js_obj);
-  void ExtractStringReferences(int entry, String* obj);
-  void ExtractSymbolReferences(int entry, Symbol* symbol);
-  void ExtractJSCollectionReferences(int entry, JSCollection* collection);
-  void ExtractJSWeakCollectionReferences(int entry,
+  void ExtractLocation(HeapEntry* entry, HeapObject* object);
+  void ExtractLocationForJSFunction(HeapEntry* entry, JSFunction* func);
+  void ExtractReferences(HeapEntry* entry, HeapObject* obj);
+  void ExtractJSGlobalProxyReferences(HeapEntry* entry, JSGlobalProxy* proxy);
+  void ExtractJSObjectReferences(HeapEntry* entry, JSObject* js_obj);
+  void ExtractStringReferences(HeapEntry* entry, String* obj);
+  void ExtractSymbolReferences(HeapEntry* entry, Symbol* symbol);
+  void ExtractJSCollectionReferences(HeapEntry* entry,
+                                     JSCollection* collection);
+  void ExtractJSWeakCollectionReferences(HeapEntry* entry,
                                          JSWeakCollection* collection);
-  void ExtractEphemeronHashTableReferences(int entry,
+  void ExtractEphemeronHashTableReferences(HeapEntry* entry,
                                            EphemeronHashTable* table);
-  void ExtractContextReferences(int entry, Context* context);
-  void ExtractMapReferences(int entry, Map* map);
-  void ExtractSharedFunctionInfoReferences(int entry,
+  void ExtractContextReferences(HeapEntry* entry, Context* context);
+  void ExtractMapReferences(HeapEntry* entry, Map* map);
+  void ExtractSharedFunctionInfoReferences(HeapEntry* entry,
                                            SharedFunctionInfo* shared);
-  void ExtractScriptReferences(int entry, Script* script);
-  void ExtractAccessorInfoReferences(int entry, AccessorInfo* accessor_info);
-  void ExtractAccessorPairReferences(int entry, AccessorPair* accessors);
-  void ExtractCodeReferences(int entry, Code* code);
-  void ExtractCellReferences(int entry, Cell* cell);
-  void ExtractFeedbackCellReferences(int entry, FeedbackCell* feedback_cell);
-  void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
-  void ExtractAllocationSiteReferences(int entry, AllocationSite* site);
+  void ExtractScriptReferences(HeapEntry* entry, Script* script);
+  void ExtractAccessorInfoReferences(HeapEntry* entry,
+                                     AccessorInfo* accessor_info);
+  void ExtractAccessorPairReferences(HeapEntry* entry, AccessorPair* accessors);
+  void ExtractCodeReferences(HeapEntry* entry, Code* code);
+  void ExtractCellReferences(HeapEntry* entry, Cell* cell);
+  void ExtractFeedbackCellReferences(HeapEntry* entry,
+                                     FeedbackCell* feedback_cell);
+  void ExtractPropertyCellReferences(HeapEntry* entry, PropertyCell* cell);
+  void ExtractAllocationSiteReferences(HeapEntry* entry, AllocationSite* site);
   void ExtractArrayBoilerplateDescriptionReferences(
-      int entry, ArrayBoilerplateDescription* value);
-  void ExtractJSArrayBufferReferences(int entry, JSArrayBuffer* buffer);
-  void ExtractJSPromiseReferences(int entry, JSPromise* promise);
-  void ExtractJSGeneratorObjectReferences(int entry,
+      HeapEntry* entry, ArrayBoilerplateDescription* value);
+  void ExtractJSArrayBufferReferences(HeapEntry* entry, JSArrayBuffer* buffer);
+  void ExtractJSPromiseReferences(HeapEntry* entry, JSPromise* promise);
+  void ExtractJSGeneratorObjectReferences(HeapEntry* entry,
                                           JSGeneratorObject* generator);
-  void ExtractFixedArrayReferences(int entry, FixedArray* array);
-  void ExtractFeedbackVectorReferences(int entry,
+  void ExtractFixedArrayReferences(HeapEntry* entry, FixedArray* array);
+  void ExtractFeedbackVectorReferences(HeapEntry* entry,
                                        FeedbackVector* feedback_vector);
   template <typename T>
-  void ExtractWeakArrayReferences(int header_size, int entry, T* array);
-  void ExtractPropertyReferences(JSObject* js_obj, int entry);
-  void ExtractAccessorPairProperty(JSObject* js_obj, int entry, Name* key,
-                                   Object* callback_obj, int field_offset = -1);
-  void ExtractElementReferences(JSObject* js_obj, int entry);
-  void ExtractInternalReferences(JSObject* js_obj, int entry);
+  void ExtractWeakArrayReferences(int header_size, HeapEntry* entry, T* array);
+  void ExtractPropertyReferences(JSObject* js_obj, HeapEntry* entry);
+  void ExtractAccessorPairProperty(JSObject* js_obj, HeapEntry* entry,
+                                   Name* key, Object* callback_obj,
+                                   int field_offset = -1);
+  void ExtractElementReferences(JSObject* js_obj, HeapEntry* entry);
+  void ExtractInternalReferences(JSObject* js_obj, HeapEntry* entry);
 
   bool IsEssentialObject(Object* object);
   bool IsEssentialHiddenReference(Object* parent, int field_offset);
 
-  void SetContextReference(HeapObject* parent_obj,
-                           int parent,
-                           String* reference_name,
-                           Object* child,
+  void SetContextReference(HeapObject* parent_obj, HeapEntry* parent_entry,
+                           String* reference_name, Object* child,
                            int field_offset);
-  void SetNativeBindReference(HeapObject* parent_obj,
-                              int parent,
-                              const char* reference_name,
-                              Object* child);
-  void SetElementReference(HeapObject* parent_obj,
-                           int parent,
-                           int index,
-                           Object* child);
-  void SetInternalReference(HeapObject* parent_obj,
-                            int parent,
-                            const char* reference_name,
-                            Object* child,
+  void SetNativeBindReference(HeapObject* parent_obj, HeapEntry* parent_entry,
+                              const char* reference_name, Object* child);
+  void SetElementReference(HeapObject* parent_obj, HeapEntry* parent_entry,
+                           int index, Object* child);
+  void SetInternalReference(HeapObject* parent_obj, HeapEntry* parent_entry,
+                            const char* reference_name, Object* child,
                             int field_offset = -1);
-  void SetInternalReference(HeapObject* parent_obj,
-                            int parent,
-                            int index,
-                            Object* child,
-                            int field_offset = -1);
-  void SetHiddenReference(HeapObject* parent_obj, int parent, int index,
-                          Object* child, int field_offset);
-  void SetWeakReference(HeapObject* parent_obj,
-                        int parent,
-                        const char* reference_name,
-                        Object* child_obj,
+  void SetInternalReference(HeapObject* parent_obj, HeapEntry* parent_entry,
+                            int index, Object* child, int field_offset = -1);
+  void SetHiddenReference(HeapObject* parent_obj, HeapEntry* parent_entry,
+                          int index, Object* child, int field_offset);
+  void SetWeakReference(HeapObject* parent_obj, HeapEntry* parent_entry,
+                        const char* reference_name, Object* child_obj,
                         int field_offset);
-  void SetWeakReference(HeapObject* parent_obj,
-                        int parent,
-                        int index,
-                        Object* child_obj,
-                        int field_offset);
-  void SetPropertyReference(HeapObject* parent_obj, int parent,
+  void SetWeakReference(HeapObject* parent_obj, HeapEntry* parent_entry,
+                        int index, Object* child_obj, int field_offset);
+  void SetPropertyReference(HeapObject* parent_obj, HeapEntry* parent_entry,
                             Name* reference_name, Object* child,
                             const char* name_format_string = nullptr,
                             int field_offset = -1);
   void SetDataOrAccessorPropertyReference(
-      PropertyKind kind, JSObject* parent_obj, int parent, Name* reference_name,
-      Object* child, const char* name_format_string = nullptr,
-      int field_offset = -1);
+      PropertyKind kind, JSObject* parent_obj, HeapEntry* parent_entry,
+      Name* reference_name, Object* child,
+      const char* name_format_string = nullptr, int field_offset = -1);
 
   void SetUserGlobalReference(Object* user_global);
   void SetRootGcRootsReference();
@@ -528,7 +509,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
  public:
   // The HeapEntriesMap instance is used to track a mapping between
   // real heap objects and their representations in heap snapshots.
-  using HeapEntriesMap = std::unordered_map<HeapThing, int>;
+  using HeapEntriesMap = std::unordered_map<HeapThing, HeapEntry*>;
 
   HeapSnapshotGenerator(HeapSnapshot* snapshot,
                         v8::ActivityControl* control,
