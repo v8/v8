@@ -91,6 +91,8 @@ class Declarations {
   RuntimeFunction* DeclareRuntimeFunction(const std::string& name,
                                           const Signature& signature);
 
+  Variable* CreateVariable(const std::string& var, const Type* type,
+                           bool is_const);
   Variable* DeclareVariable(const std::string& var, const Type* type,
                             bool is_const);
 

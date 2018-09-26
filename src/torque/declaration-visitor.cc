@@ -638,7 +638,8 @@ void DeclarationVisitor::DeclareSignature(const Signature& signature) {
       }
 
       std::string var_name = label.name + std::to_string(i++);
-      new_label->AddVariable(DeclareVariable(var_name, var_type, false));
+      new_label->AddVariable(
+          declarations()->CreateVariable(var_name, var_type, false));
     }
   }
 }

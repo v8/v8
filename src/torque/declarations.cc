@@ -304,6 +304,15 @@ RuntimeFunction* Declarations::DeclareRuntimeFunction(
   return result;
 }
 
+Variable* Declarations::CreateVariable(const std::string& var, const Type* type,
+                                       bool is_const) {
+  std::string name(var + "_" +
+                   std::to_string(GetNextUniqueDeclarationNumber()));
+  std::replace(name.begin(), name.end(), '.', '_');
+  return RegisterDeclarable(
+      std::unique_ptr<Variable>(new Variable(var, name, type, is_const)));
+}
+
 Variable* Declarations::DeclareVariable(const std::string& var,
                                         const Type* type, bool is_const) {
   std::string name(var + "_" +
