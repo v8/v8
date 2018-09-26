@@ -36,7 +36,7 @@ namespace internal {
 class PreParserZoneScope {
  public:
   explicit PreParserZoneScope(PreParser* preparser) : preparser_(preparser) {}
-  ~PreParserZoneScope() { preparser_->zone()->DeleteAll(); }
+  ~PreParserZoneScope() { preparser_->zone()->ReleaseMemory(); }
 
  private:
   PreParser* preparser_;

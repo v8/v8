@@ -57,8 +57,9 @@ class V8_EXPORT_PRIVATE Zone final {
   // Seals the zone to prevent any further allocation.
   void Seal() { sealed_ = true; }
 
-  // Deletes all objects and free all memory allocated in the Zone.
-  void DeleteAll();
+  // Allows the zone to be safely reused. Releases the memory and fires zone
+  // destruction and creation events for the accounting allocator.
+  void ReleaseMemory();
 
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
@@ -73,6 +74,9 @@ class V8_EXPORT_PRIVATE Zone final {
   AccountingAllocator* allocator() const { return allocator_; }
 
  private:
+  // Deletes all objects and free all memory allocated in the Zone.
+  void DeleteAll();
+
   // All pointers returned from New() are 8-byte aligned.
   static const size_t kAlignmentInBytes = 8;
 
