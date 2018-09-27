@@ -123,8 +123,19 @@ Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
   Assembler::FlushICache(code->raw_instruction_start(),
                          code->raw_instruction_size());
 
-  PROFILE(isolate(), CodeCreateEvent(CodeEventListener::BUILTIN_TAG,
-                                     AbstractCode::cast(code),
+  CodeEventListener::LogEventsAndTags code_tag;
+  switch (code->kind()) {
+    case AbstractCode::BUILTIN:
+      code_tag = CodeEventListener::BUILTIN_TAG;
+      break;
+    case AbstractCode::BYTECODE_HANDLER:
+      code_tag = CodeEventListener::BYTECODE_HANDLER_TAG;
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  PROFILE(isolate(), CodeCreateEvent(code_tag, AbstractCode::cast(code),
                                      Builtins::name(builtin_id)));
   LOG_CODE_EVENT(isolate(),
                  CodeLinePosInfoRecordEvent(
