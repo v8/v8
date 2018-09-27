@@ -16,14 +16,17 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
     builder) {
     let loadMemOpcode = kTrapUnreachable;
     switch (size) {
+        case 64:
+            loadMemOpcode = kExprI64LoadMem;
+            break;
         case 32:
-            loadMemOpcode = kExprI32LoadMem;
+            loadMemOpcode = kExprI64LoadMem32U;
             break;
         case 16:
-            loadMemOpcode = kExprI32LoadMem16U;
+            loadMemOpcode = kExprI64LoadMem16U;
             break;
         case 8:
-            loadMemOpcode = kExprI32LoadMem8U;
+            loadMemOpcode = kExprI64LoadMem8U;
             break;
         default:
             throw "!";
@@ -64,10 +67,12 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
                         loadMemOpcode, 0, 0,
                         // Mask off bits.
                         kExprGetLocal, kArgBitMask,
-                        kExprI32And,
+                        kExprI64UConvertI32,
+                        kExprI64And,
                         // Compare with worker id.
                         kExprGetLocal, kArgWorkerId,
-                        kExprI32Eq,
+                        kExprI64UConvertI32,
+                        kExprI64Eq,
                         kExprBrIf, 0,
                         // Not found, increment position.
                         kExprGetLocal, kLocalCurrentOffset,
@@ -107,7 +112,7 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
                     // Load expected value.
                     kExprGetLocal, kLocalExpectedValue,
                     // Spin if not what expected.
-                    kExprI32Ne,
+                    kExprI64Ne,
                     kExprBrIf, 0,
                     kExprEnd
                 ],
@@ -127,7 +132,7 @@ function makeWorkerCodeForOpcode(compareExchangeOpcode, size, functionName,
             kWasmI32, kWasmI32
         ], []))
         .addLocals({
-            i32_count: 3
+            i32_count: 1, i64_count: 2
         })
         .addBody(body)
         .exportAs(functionName);
@@ -175,15 +180,15 @@ function waitForWorkers(workers) {
 }
 
 function testOpcode(opcode, opcodeSize) {
-    print("Testing I32AtomicCompareExchange" + opcodeSize);
+    print("Testing I64AtomicCompareExchange" + opcodeSize);
     let builder = new WasmModuleBuilder();
-    builder.addImportedMemory("m", "imported_mem", 0, 1, "shared");
+    builder.addImportedMemory("m", "imported_mem", 0, 2, "shared");
 
     makeWorkerCodeForOpcode(opcode, opcodeSize, "worker", builder);
 
     let memory = new WebAssembly.Memory({
-        initial: 1,
-        maximum: 1,
+        initial: 2,
+        maximum: 2,
         shared: true
     });
     let memoryView = new Uint8Array(memory.buffer);
@@ -194,7 +199,7 @@ function testOpcode(opcode, opcodeSize) {
 
     // Fire the workers off
     for (let i = opcodeSize / 8 - 1; i >= 0; i--) {
-        memoryView[i] = memoryView[kSequenceStartAddress + i];
+      memoryView[i] = memoryView[kSequenceStartAddress + i];
     }
 
     waitForWorkers(workers);
@@ -202,6 +207,7 @@ function testOpcode(opcode, opcodeSize) {
     print("DONE");
 }
 
-testOpcode(kExprI32AtomicCompareExchange, 32);
-testOpcode(kExprI32AtomicCompareExchange16U, 16);
-testOpcode(kExprI32AtomicCompareExchange8U, 8);
+testOpcode(kExprI64AtomicCompareExchange, 64);
+testOpcode(kExprI64AtomicCompareExchange32U, 32);
+testOpcode(kExprI64AtomicCompareExchange16U, 16);
+testOpcode(kExprI64AtomicCompareExchange8U, 8);
