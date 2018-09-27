@@ -940,8 +940,15 @@ void Int64Lowering::LowerNode(Node* node) {
                                  machine()->Word32AtomicPairCompareExchange());
         ReplaceNodeWithProjections(node);
       } else {
-        LowerWord64AtomicNarrowOp(node,
-                                  machine()->Word32AtomicCompareExchange(type));
+        DCHECK(type == MachineType::Uint32() || type == MachineType::Uint16() ||
+               type == MachineType::Uint8());
+        Node* old_value = node->InputAt(2);
+        node->ReplaceInput(2, GetReplacementLow(old_value));
+        Node* new_value = node->InputAt(3);
+        node->ReplaceInput(3, GetReplacementLow(new_value));
+        NodeProperties::ChangeOp(node,
+                                 machine()->Word32AtomicCompareExchange(type));
+        ReplaceNode(node, node, graph()->NewNode(common()->Int32Constant(0)));
       }
       break;
     }
