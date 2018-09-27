@@ -381,18 +381,13 @@ WasmCode* NativeModule::AddOwnedCode(
     // Both allocation and insertion in owned_code_ happen in the same critical
     // section, thus ensuring owned_code_'s elements are rarely if ever moved.
     base::LockGuard<base::Mutex> lock(&allocation_mutex_);
-    Address executable_buffer = AllocateForCode(instructions.size());
-    if (executable_buffer == kNullAddress) {
-      V8::FatalProcessOutOfMemory(nullptr, "NativeModule::AddOwnedCode");
-      UNREACHABLE();
-    }
+    Vector<byte> executable_buffer = AllocateForCode(instructions.size());
     // Ownership will be transferred to {owned_code_} below.
-    code = new WasmCode(
-        this, index,
-        {reinterpret_cast<byte*>(executable_buffer), instructions.size()},
-        stack_slots, safepoint_table_offset, handler_table_offset,
-        constant_pool_offset, std::move(protected_instructions),
-        std::move(reloc_info), std::move(source_position_table), kind, tier);
+    code = new WasmCode(this, index, executable_buffer, stack_slots,
+                        safepoint_table_offset, handler_table_offset,
+                        constant_pool_offset, std::move(protected_instructions),
+                        std::move(reloc_info), std::move(source_position_table),
+                        kind, tier);
 
     if (owned_code_.empty() ||
         code->instruction_start() > owned_code_.back()->instruction_start()) {
@@ -655,21 +650,29 @@ void NativeModule::InstallCode(WasmCode* code) {
                                          WasmCode::kFlushICache);
 }
 
-Address NativeModule::AllocateForCode(size_t size) {
+Vector<byte> NativeModule::AllocateForCode(size_t size) {
   DCHECK_LT(0, size);
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   // This happens under a lock assumed by the caller.
   size = RoundUp(size, kCodeAlignment);
   base::AddressRegion mem = free_code_space_.Allocate(size);
   if (mem.is_empty()) {
-    if (!can_request_more_memory_) return kNullAddress;
+    if (!can_request_more_memory_) {
+      V8::FatalProcessOutOfMemory(nullptr,
+                                  "NativeModule::AllocateForCode reservation");
+      UNREACHABLE();
+    }
 
     Address hint = owned_code_space_.empty() ? kNullAddress
                                              : owned_code_space_.back().end();
 
     VirtualMemory new_mem =
         wasm_code_manager_->TryAllocate(size, reinterpret_cast<void*>(hint));
-    if (!new_mem.IsReserved()) return kNullAddress;
+    if (!new_mem.IsReserved()) {
+      V8::FatalProcessOutOfMemory(nullptr,
+                                  "NativeModule::AllocateForCode reservation");
+      UNREACHABLE();
+    }
     wasm_code_manager_->AssignRanges(new_mem.address(), new_mem.end(), this);
 
     free_code_space_.Merge(new_mem.region());
@@ -703,24 +706,27 @@ Address NativeModule::AllocateForCode(size_t size) {
       size_t commit_size = static_cast<size_t>(commit_end - start);
       DCHECK(IsAligned(commit_size, page_allocator->AllocatePageSize()));
       if (!wasm_code_manager_->Commit(start, commit_size)) {
-        return kNullAddress;
+        V8::FatalProcessOutOfMemory(nullptr,
+                                    "NativeModule::AllocateForCode commit");
+        UNREACHABLE();
       }
-      committed_code_space_.fetch_add(commit_size);
       commit_end = start;
     }
 #else
     size_t commit_size = static_cast<size_t>(commit_end - commit_start);
     DCHECK(IsAligned(commit_size, page_allocator->AllocatePageSize()));
     if (!wasm_code_manager_->Commit(commit_start, commit_size)) {
-      return kNullAddress;
+      V8::FatalProcessOutOfMemory(nullptr,
+                                  "NativeModule::AllocateForCode commit");
+      UNREACHABLE();
     }
-    committed_code_space_.fetch_add(commit_size);
 #endif
+    committed_code_space_.fetch_add(commit_end - commit_start);
   }
   DCHECK(IsAligned(mem.begin(), kCodeAlignment));
   allocated_code_space_.Merge(mem);
-  TRACE_HEAP("Code alloc for %p: %" PRIuPTR ",+%zu\n", this, mem.begin(), size);
-  return mem.begin();
+  TRACE_HEAP("Code alloc for %p: %" PRIxPTR ",+%zu\n", this, mem.begin(), size);
+  return {reinterpret_cast<byte*>(mem.begin()), mem.size()};
 }
 
 WasmCode* NativeModule::Lookup(Address pc) const {

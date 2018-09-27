@@ -198,7 +198,7 @@ TEST_P(WasmCodeManagerTest, EmptyCase) {
   CHECK_EQ(0, manager.remaining_uncommitted_code_space());
 
   ASSERT_DEATH_IF_SUPPORTED(AllocModule(&manager, 1 * page(), GetParam()),
-                            "OOM in NativeModule::AddOwnedCode");
+                            "OOM in NativeModule::AllocateForCode commit");
 }
 
 TEST_P(WasmCodeManagerTest, AllocateAndGoOverLimit) {
@@ -221,9 +221,12 @@ TEST_P(WasmCodeManagerTest, AllocateAndGoOverLimit) {
   CHECK_NOT_NULL(code);
   CHECK_EQ(0, manager.remaining_uncommitted_code_space());
 
+  // This fails in "reservation" if we cannot extend the code space, or in
+  // "commit" it we can (since we hit the allocation limit in the
+  // WasmCodeManager). Hence don't check for that part of the OOM message.
   ASSERT_DEATH_IF_SUPPORTED(
       AddCode(native_module.get(), index++, 1 * kCodeAlignment),
-      "OOM in NativeModule::AddOwnedCode");
+      "OOM in NativeModule::AllocateForCode");
 }
 
 TEST_P(WasmCodeManagerTest, TotalLimitIrrespectiveOfModuleCount) {
@@ -235,7 +238,7 @@ TEST_P(WasmCodeManagerTest, TotalLimitIrrespectiveOfModuleCount) {
   WasmCode* code = AddCode(nm1.get(), 0, 2 * page() - kJumpTableSize);
   CHECK_NOT_NULL(code);
   ASSERT_DEATH_IF_SUPPORTED(AddCode(nm2.get(), 0, 2 * page() - kJumpTableSize),
-                            "OOM in NativeModule::AddOwnedCode");
+                            "OOM in NativeModule::AllocateForCode commit");
 }
 
 TEST_P(WasmCodeManagerTest, DifferentHeapsApplyLimitsIndependently) {
@@ -262,7 +265,7 @@ TEST_P(WasmCodeManagerTest, GrowingVsFixedModule) {
     // grow.
     ASSERT_DEATH_IF_SUPPORTED(
         AddCode(nm.get(), 0, remaining_space_in_module + kCodeAlignment),
-        "OOM in NativeModule::AddOwnedCode");
+        "OOM in NativeModule::AllocateForCode");
   } else {
     // The module grows by one page. One page remains uncommitted.
     CHECK_NOT_NULL(

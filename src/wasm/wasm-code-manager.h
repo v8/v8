@@ -348,7 +348,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
                std::shared_ptr<const WasmModule> module, const ModuleEnv& env);
 
   WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind);
-  Address AllocateForCode(size_t size);
+  // Allocate code space. Returns a valid buffer or fails with OOM (crash).
+  Vector<byte> AllocateForCode(size_t size);
 
   // Primitive for adding code to the native module. All code added to a native
   // module is owned by that module. Various callers get to decide on how the
