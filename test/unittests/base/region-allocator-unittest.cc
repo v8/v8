@@ -322,5 +322,35 @@ TEST(RegionAllocatorTest, FindRegion) {
   }
 }
 
+TEST(RegionAllocatorTest, TrimRegion) {
+  const size_t kPageSize = 4 * KB;
+  const size_t kPageCount = 64;
+  const size_t kSize = kPageSize * kPageCount;
+  const Address kBegin = static_cast<Address>(kPageSize * 153);
+
+  RegionAllocator ra(kBegin, kSize, kPageSize);
+
+  Address address = kBegin + 13 * kPageSize;
+  size_t size = 37 * kPageSize;
+  size_t free_size = kSize - size;
+  CHECK(ra.AllocateRegionAt(address, size));
+
+  size_t trim_size = kPageSize;
+  do {
+    CHECK_EQ(ra.CheckRegion(address), size);
+    CHECK_EQ(ra.free_size(), free_size);
+
+    trim_size = std::min(size, trim_size);
+    size -= trim_size;
+    free_size += trim_size;
+    CHECK_EQ(ra.TrimRegion(address, size), trim_size);
+    trim_size *= 2;
+  } while (size != 0);
+
+  // Check that the whole region is free and can be fully allocated.
+  CHECK_EQ(ra.free_size(), kSize);
+  CHECK_EQ(ra.AllocateRegion(kSize), kBegin);
+}
+
 }  // namespace base
 }  // namespace v8

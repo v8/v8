@@ -53,17 +53,29 @@ bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
 bool BoundedPageAllocator::ReleasePages(void* raw_address, size_t size,
                                         size_t new_size) {
   Address address = reinterpret_cast<Address>(raw_address);
+  CHECK(IsAligned(address, allocate_page_size_));
+
+  DCHECK_LT(new_size, size);
+  DCHECK(IsAligned(size - new_size, commit_page_size_));
+
+  // Check if we freed any allocatable pages by this release.
+  size_t allocated_size = RoundUp(size, allocate_page_size_);
+  size_t new_allocated_size = RoundUp(new_size, allocate_page_size_);
+
 #ifdef DEBUG
   {
-    CHECK_LT(new_size, size);
-    CHECK(IsAligned(size - new_size, commit_page_size_));
     // There must be an allocated region at given |address| of a size not
     // smaller than |size|.
     LockGuard<Mutex> guard(&mutex_);
-    size_t used_region_size = region_allocator_.CheckRegion(address);
-    CHECK_LE(size, used_region_size);
+    CHECK_EQ(allocated_size, region_allocator_.CheckRegion(address));
   }
 #endif
+
+  if (new_allocated_size < allocated_size) {
+    LockGuard<Mutex> guard(&mutex_);
+    region_allocator_.TrimRegion(address, new_allocated_size);
+  }
+
   // Keep the region in "used" state just uncommit some pages.
   Address free_address = address + new_size;
   size_t free_size = size - new_size;

@@ -38,7 +38,7 @@ class AddressRegion {
   bool contains(Address address, size_t size) const {
     STATIC_ASSERT(std::is_unsigned<Address>::value);
     Address offset = address - begin();
-    return (offset < size_) && (offset <= size_ - size);
+    return (offset < size_) && (offset + size <= size_);
   }
 
   bool contains(AddressRegion region) const {

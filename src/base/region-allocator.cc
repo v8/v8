@@ -81,6 +81,7 @@ void RegionAllocator::FreeListRemoveRegion(Region* region) {
 RegionAllocator::Region* RegionAllocator::Split(Region* region,
                                                 size_t new_size) {
   DCHECK(IsAligned(new_size, page_size_));
+  DCHECK_NE(new_size, 0);
   DCHECK_GT(region->size(), new_size);
 
   // Create new region and put it to the lists after the |region|.
@@ -193,7 +194,9 @@ bool RegionAllocator::AllocateRegionAt(Address requested_address, size_t size) {
   return true;
 }
 
-size_t RegionAllocator::FreeRegion(Address address) {
+size_t RegionAllocator::TrimRegion(Address address, size_t new_size) {
+  DCHECK(IsAligned(new_size, page_size_));
+
   AllRegionsSet::iterator region_iter = FindRegion(address);
   if (region_iter == all_regions_.end()) {
     return 0;
@@ -203,10 +206,14 @@ size_t RegionAllocator::FreeRegion(Address address) {
     return 0;
   }
 
-  size_t size = region->size();
   // The region must not be in the free list.
   DCHECK_EQ(free_regions_.find(*region_iter), free_regions_.end());
 
+  if (new_size > 0) {
+    region = Split(region, new_size);
+    ++region_iter;
+  }
+  size_t size = region->size();
   region->set_is_used(false);
 
   // Merge current region with the surrounding ones if they are free.
@@ -221,7 +228,7 @@ size_t RegionAllocator::FreeRegion(Address address) {
       Merge(region_iter, next_iter);
     }
   }
-  if (region->begin() != whole_region_.begin()) {
+  if (new_size == 0 && region->begin() != whole_region_.begin()) {
     // There must be a range before the current one.
     AllRegionsSet::iterator prev_iter = std::prev(region_iter);
     DCHECK_NE(prev_iter, all_regions_.end());

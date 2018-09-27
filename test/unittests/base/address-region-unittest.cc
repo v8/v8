@@ -37,6 +37,8 @@ TEST(AddressRegionTest, Contains) {
     CHECK(region.contains(end - 1));
 
     // Test two-arguments contains().
+    CHECK(!region.contains(start - 1, size));
+    CHECK(!region.contains(start, size + 1));
     CHECK(!region.contains(start - 17, 17));
     CHECK(!region.contains(start - 17, size * 2));
     CHECK(!region.contains(end, 1));
