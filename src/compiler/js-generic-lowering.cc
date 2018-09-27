@@ -169,6 +169,12 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+  if (!p.feedback().IsValid()) {
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kGetProperty);
+    ReplaceWithStubCall(node, callable, flags);
+    return;
+  }
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     Callable callable = Builtins::CallableFor(
@@ -231,6 +237,12 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
+  if (!p.feedback().IsValid()) {
+    node->InsertInput(
+        zone(), 3, jsgraph()->SmiConstant(static_cast<int>(p.language_mode())));
+    ReplaceWithRuntimeCall(node, Runtime::kSetNamedProperty);
+    return;
+  }
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     Callable callable =

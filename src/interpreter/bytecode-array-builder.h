@@ -120,6 +120,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& LoadNamedProperty(Register object,
                                           const AstRawString* name,
                                           int feedback_slot);
+  // Named load property without feedback
+  BytecodeArrayBuilder& LoadNamedPropertyNoFeedback(Register object,
+                                                    const AstRawString* name);
+
   // Keyed load property. The key should be in the accumulator.
   BytecodeArrayBuilder& LoadKeyedProperty(Register object, int feedback_slot);
   // Named load property of the @@iterator symbol.
@@ -145,6 +149,12 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                            const AstRawString* name,
                                            int feedback_slot,
                                            LanguageMode language_mode);
+
+  // Store a property named by a property name without feedback slot. The value
+  // to be stored should be in the accumulator.
+  BytecodeArrayBuilder& StoreNamedPropertyNoFeedback(
+      Register object, const AstRawString* name, LanguageMode language_mode);
+
   // Store a property named by a constant from the constant pool. The value to
   // be stored should be in the accumulator.
   BytecodeArrayBuilder& StoreNamedProperty(Register object,

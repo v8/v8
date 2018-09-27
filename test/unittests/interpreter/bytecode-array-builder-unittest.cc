@@ -134,9 +134,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit load / store property operations.
   builder.LoadNamedProperty(reg, name, load_slot.ToInt())
+      .LoadNamedPropertyNoFeedback(reg, name)
       .LoadKeyedProperty(reg, keyed_load_slot.ToInt())
       .StoreNamedProperty(reg, name, sloppy_store_slot.ToInt(),
                           LanguageMode::kSloppy)
+      .StoreNamedPropertyNoFeedback(reg, name, LanguageMode::kStrict)
+      .StoreNamedPropertyNoFeedback(reg, name, LanguageMode::kSloppy)
       .StoreKeyedProperty(reg, reg, sloppy_keyed_store_slot.ToInt(),
                           LanguageMode::kSloppy)
       .StoreNamedProperty(reg, name, strict_store_slot.ToInt(),

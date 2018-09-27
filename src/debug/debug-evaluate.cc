@@ -374,16 +374,17 @@ bool BuiltinToIntrinsicHasNoSideEffect(Builtins::Name builtin_id,
   if (IntrinsicHasNoSideEffect(intrinsic_id)) return true;
 
 // Whitelist intrinsics called from specific builtins.
-#define BUILTIN_INTRINSIC_WHITELIST(V, W)                                      \
-  /* Arrays */                                                                 \
-  V(Builtins::kArrayFilter, W(CreateDataProperty))                             \
-  V(Builtins::kArrayMap, W(CreateDataProperty))                                \
-  V(Builtins::kArrayPrototypeSlice, W(CreateDataProperty) W(SetKeyedProperty)) \
-  /* TypedArrays */                                                            \
-  V(Builtins::kTypedArrayConstructor,                                          \
-    W(TypedArrayCopyElements) W(ThrowInvalidTypedArrayAlignment))              \
-  V(Builtins::kTypedArrayPrototypeFilter, W(TypedArrayCopyElements))           \
-  V(Builtins::kTypedArrayPrototypeMap, W(SetKeyedProperty))
+#define BUILTIN_INTRINSIC_WHITELIST(V, W)                            \
+  /* Arrays */                                                       \
+  V(Builtins::kArrayFilter, W(CreateDataProperty))                   \
+  V(Builtins::kArrayMap, W(CreateDataProperty))                      \
+  V(Builtins::kArrayPrototypeSlice,                                  \
+    W(CreateDataProperty) W(SetKeyedProperty) W(SetNamedProperty))   \
+  /* TypedArrays */                                                  \
+  V(Builtins::kTypedArrayConstructor,                                \
+    W(TypedArrayCopyElements) W(ThrowInvalidTypedArrayAlignment))    \
+  V(Builtins::kTypedArrayPrototypeFilter, W(TypedArrayCopyElements)) \
+  V(Builtins::kTypedArrayPrototypeMap, W(SetKeyedProperty) W(SetNamedProperty))
 
 #define CASE(Builtin, ...) \
   case Builtin:            \
@@ -418,6 +419,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kLdaLookupSlot:
     case Bytecode::kLdaGlobal:
     case Bytecode::kLdaNamedProperty:
+    case Bytecode::kLdaNamedPropertyNoFeedback:
     case Bytecode::kLdaKeyedProperty:
     case Bytecode::kLdaGlobalInsideTypeof:
     case Bytecode::kLdaLookupSlotInsideTypeof:
@@ -842,6 +844,7 @@ bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
   typedef interpreter::Bytecode Bytecode;
   switch (bytecode) {
     case Bytecode::kStaNamedProperty:
+    case Bytecode::kStaNamedPropertyNoFeedback:
     case Bytecode::kStaNamedOwnProperty:
     case Bytecode::kStaKeyedProperty:
     case Bytecode::kStaInArrayLiteral:
