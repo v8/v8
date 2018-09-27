@@ -415,31 +415,39 @@ class PreParserExpression {
 
   friend class PreParser;
   friend class PreParserFactory;
-  template <typename T>
-  friend class PreParserList;
+  friend class PreParserExpressionList;
 };
 
 
 // The pre-parser doesn't need to build lists of expressions, identifiers, or
 // the like. If the PreParser is used in variable tracking mode, it needs to
 // build lists of variables though.
-template <typename T>
-class PreParserList {
+class PreParserExpressionList {
   using VariableZoneThreadedListType =
       ZoneThreadedList<VariableProxy, VariableProxy::PreParserNext>;
 
  public:
   // These functions make list->Add(some_expression) work (and do nothing).
-  PreParserList() : length_(0), variables_(nullptr) {}
-  PreParserList* operator->() { return this; }
-  void Add(const T& element, Zone* zone);
+  PreParserExpressionList() : PreParserExpressionList(0) {}
+  PreParserExpressionList* operator->() { return this; }
+  void Add(const PreParserExpression& expression, Zone* zone) {
+    if (expression.variables_ != nullptr) {
+      DCHECK(FLAG_lazy_inner_functions);
+      DCHECK_NOT_NULL(zone);
+      if (variables_ == nullptr) {
+        variables_ = new (zone) VariableZoneThreadedListType();
+      }
+      variables_->Append(std::move(*expression.variables_));
+    }
+    ++length_;
+  }
   int length() const { return length_; }
-  static PreParserList Null() { return PreParserList(-1); }
+  static PreParserExpressionList Null() { return PreParserExpressionList(-1); }
   bool IsNull() const { return length_ == -1; }
-  void Set(int index, const T& element) {}
+  void Set(int index, const PreParserExpression& element) {}
 
  private:
-  explicit PreParserList(int n) : length_(n), variables_(nullptr) {}
+  explicit PreParserExpressionList(int n) : length_(n), variables_(nullptr) {}
   int length_;
 
   VariableZoneThreadedListType* variables_;
@@ -448,29 +456,20 @@ class PreParserList {
   friend class PreParserFactory;
 };
 
-template <>
-inline void PreParserList<PreParserExpression>::Add(
-    const PreParserExpression& expression, Zone* zone) {
-  if (expression.variables_ != nullptr) {
-    DCHECK(FLAG_lazy_inner_functions);
-    DCHECK_NOT_NULL(zone);
-    if (variables_ == nullptr) {
-      variables_ = new (zone) VariableZoneThreadedListType();
-    }
-    variables_->Append(std::move(*expression.variables_));
-  }
-  ++length_;
-}
-
-template <typename T>
-void PreParserList<T>::Add(const T& element, Zone* zone) {
-  ++length_;
-}
-
-typedef PreParserList<PreParserExpression> PreParserExpressionList;
-
 class PreParserStatement;
-typedef PreParserList<PreParserStatement> PreParserStatementList;
+
+class PreParserStatementList {
+ public:
+  PreParserStatementList() : PreParserStatementList(false) {}
+  PreParserStatementList* operator->() { return this; }
+  void Add(const PreParserStatement& element, Zone* zone) {}
+  static PreParserStatementList Null() { return PreParserStatementList(true); }
+  bool IsNull() const { return is_null_; }
+
+ private:
+  explicit PreParserStatementList(bool is_null) : is_null_(is_null) {}
+  bool is_null_;
+};
 
 class PreParserStatement {
  public:
@@ -533,8 +532,6 @@ class PreParserStatement {
   // and PreParser.
   PreParserStatement* operator->() { return this; }
 
-  // TODO(adamk): These should return something even lighter-weight than
-  // PreParserStatementList.
   PreParserStatementList statements() { return PreParserStatementList(); }
   PreParserStatementList cases() { return PreParserStatementList(); }
 
