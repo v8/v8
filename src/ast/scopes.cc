@@ -1547,8 +1547,13 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
     // them in the outer Scopes here, because they are incomplete.
     ResolveScopesThenForEachVariable(
         this, [=, &new_unresolved_list](VariableProxy* proxy) {
-          VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
-          new_unresolved_list.AddFront(copy);
+          // Don't copy unresolved references to the script scope, unless it's a
+          // reference to a private field. In that case keep it so we can fail
+          // later.
+          if (!outer_scope_->is_script_scope() || proxy->is_private_field()) {
+            VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
+            new_unresolved_list.AddFront(copy);
+          }
         });
 
     // Migrate function_ to the right Zone.
