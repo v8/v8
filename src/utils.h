@@ -508,11 +508,11 @@ inline uint32_t ComputeLongHash(uint64_t key) {
   hash = hash ^ (hash >> 11);
   hash = hash + (hash << 6);
   hash = hash ^ (hash >> 22);
-  return static_cast<uint32_t>(hash);
+  return static_cast<uint32_t>(hash & 0x3fffffff);
 }
 
 inline uint32_t ComputeSeededHash(uint32_t key, uint64_t seed) {
-  return ComputeUnseededHash(key ^ static_cast<uint32_t>(seed));
+  return ComputeLongHash(static_cast<uint64_t>(key) ^ seed);
 }
 
 inline uint32_t ComputePointerHash(void* ptr) {
