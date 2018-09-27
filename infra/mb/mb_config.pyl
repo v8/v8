@@ -27,24 +27,12 @@
       'mips64el.debug': 'default_debug_mips64el',
       'mips64el.optdebug': 'default_optdebug_mips64el',
       'mips64el.release': 'default_release_mips64el',
-      'ppc.debug': 'default_debug_ppc',
-      'ppc.optdebug': 'default_optdebug_ppc',
-      'ppc.release': 'default_release_ppc',
-      'ppc.debug.sim': 'default_debug_ppc_sim',
-      'ppc.optdebug.sim': 'default_optdebug_ppc_sim',
-      'ppc.release.sim': 'default_release_ppc_sim',
       'ppc64.debug': 'default_debug_ppc64',
       'ppc64.optdebug': 'default_optdebug_ppc64',
       'ppc64.release': 'default_release_ppc64',
       'ppc64.debug.sim': 'default_debug_ppc64_sim',
       'ppc64.optdebug.sim': 'default_optdebug_ppc64_sim',
       'ppc64.release.sim': 'default_release_ppc64_sim',
-      's390.debug': 'default_debug_s390',
-      's390.optdebug': 'default_optdebug_s390',
-      's390.release': 'default_release_s390',
-      's390.debug.sim': 'default_debug_s390_sim',
-      's390.optdebug.sim': 'default_optdebug_s390_sim',
-      's390.release.sim': 'default_release_s390_sim',
       's390x.debug': 'default_debug_s390x',
       's390x.optdebug': 'default_optdebug_s390x',
       's390x.release': 'default_release_s390x',
@@ -170,11 +158,8 @@
       'V8 Mips - builder': 'release_mips_no_snap_no_i18n',
       'V8 Linux - mipsel - sim - builder': 'release_simulate_mipsel',
       'V8 Linux - mips64el - sim - builder': 'release_simulate_mips64el',
-      # PPC.
-      'V8 Linux - ppc - sim': 'release_simulate_ppc',
+      # IBM.
       'V8 Linux - ppc64 - sim': 'release_simulate_ppc64',
-      # S390.
-      'V8 Linux - s390 - sim': 'release_simulate_s390',
       'V8 Linux - s390x - sim': 'release_simulate_s390x',
     },
     'client.v8.branches': {
@@ -194,12 +179,8 @@
       'V8 mips64el - sim - stable branch': 'release_simulate_mips64el',
       'V8 mipsel - sim - beta branch': 'release_simulate_mipsel',
       'V8 mipsel - sim - stable branch': 'release_simulate_mipsel',
-      'V8 ppc - sim - beta branch': 'release_simulate_ppc',
-      'V8 ppc - sim - stable branch': 'release_simulate_ppc',
       'V8 ppc64 - sim - beta branch': 'release_simulate_ppc64',
       'V8 ppc64 - sim - stable branch': 'release_simulate_ppc64',
-      'V8 s390 - sim - beta branch': 'release_simulate_s390',
-      'V8 s390 - sim - stable branch': 'release_simulate_s390',
       'V8 s390x - sim - beta branch': 'release_simulate_s390x',
       'V8 s390x - sim - stable branch': 'release_simulate_s390x',
     },
@@ -302,18 +283,6 @@
       'debug', 'simulate_mips64el', 'v8_enable_slow_dchecks'],
     'default_release_mips64el': [
       'release', 'simulate_mips64el'],
-    'default_debug_ppc': [
-      'debug', 'ppc', 'v8_enable_slow_dchecks', 'v8_full_debug'],
-    'default_optdebug_ppc': [
-      'debug', 'ppc', 'v8_enable_slow_dchecks'],
-    'default_release_ppc': [
-      'release', 'ppc'],
-    'default_debug_ppc_sim': [
-      'debug', 'simulate_ppc', 'v8_enable_slow_dchecks', 'v8_full_debug'],
-    'default_optdebug_ppc_sim': [
-      'debug', 'simulate_ppc', 'v8_enable_slow_dchecks'],
-    'default_release_ppc_sim': [
-      'release', 'simulate_ppc'],
     'default_debug_ppc64': [
       'debug', 'ppc64', 'gcc', 'v8_enable_slow_dchecks', 'v8_full_debug'],
     'default_optdebug_ppc64': [
@@ -326,18 +295,6 @@
       'debug', 'simulate_ppc64', 'v8_enable_slow_dchecks'],
     'default_release_ppc64_sim': [
       'release', 'simulate_ppc64'],
-    'default_debug_s390': [
-      'debug', 's390', 'v8_enable_slow_dchecks', 'v8_full_debug'],
-    'default_optdebug_s390': [
-      'debug', 's390', 'v8_enable_slow_dchecks'],
-    'default_release_s390': [
-      'release', 's390'],
-    'default_debug_s390_sim': [
-      'debug', 'simulate_s390', 'v8_enable_slow_dchecks', 'v8_full_debug'],
-    'default_optdebug_s390_sim': [
-      'debug', 'simulate_s390', 'v8_enable_slow_dchecks'],
-    'default_release_s390_sim': [
-      'release', 'simulate_s390'],
     'default_debug_s390x': [
       'debug', 's390x', 'v8_enable_slow_dchecks', 'v8_full_debug'],
     'default_optdebug_s390x': [
@@ -402,12 +359,8 @@
       'release_bot', 'simulate_mipsel'],
     'release_simulate_mips64el': [
       'release_bot', 'simulate_mips64el'],
-    'release_simulate_ppc': [
-      'release_bot', 'simulate_ppc'],
     'release_simulate_ppc64': [
       'release_bot', 'simulate_ppc64'],
-    'release_simulate_s390': [
-      'release_bot', 'simulate_s390'],
     'release_simulate_s390x': [
       'release_bot', 'simulate_s390x'],
 
@@ -754,16 +707,8 @@
       'gn_args': 'target_cpu="x64" v8_target_cpu="mips64el"',
     },
 
-    'simulate_ppc': {
-      'gn_args': 'target_cpu="x86" v8_target_cpu="ppc"',
-    },
-
     'simulate_ppc64': {
       'gn_args': 'target_cpu="x64" v8_target_cpu="ppc64"',
-    },
-
-    'simulate_s390': {
-      'gn_args': 'target_cpu="x86" v8_target_cpu="s390"',
     },
 
     'simulate_s390x': {
@@ -868,16 +813,8 @@
       'gn_args': 'v8_enable_verify_csa=true',
     },
 
-    's390': {
-      'gn_args': 'target_cpu="s390x" v8_target_cpu="s390"',
-    },
-
     's390x': {
       'gn_args': 'target_cpu="s390x" v8_target_cpu="s390x"',
-    },
-
-    'ppc': {
-      'gn_args': 'target_cpu="ppc"',
     },
 
     'ppc64': {
