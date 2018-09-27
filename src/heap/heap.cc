@@ -1925,8 +1925,7 @@ void Heap::Scavenge() {
   // Implements Cheney's copying algorithm
   LOG(isolate_, ResourceEvent("scavenge", "begin"));
 
-  ScavengerCollector scavenger_collector(this);
-  scavenger_collector.CollectGarbage();
+  scavenger_collector_->CollectGarbage();
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
@@ -4348,6 +4347,9 @@ void Heap::SetUp() {
   heap_controller_ = new HeapController(this);
 
   mark_compact_collector_ = new MarkCompactCollector(this);
+
+  scavenger_collector_ = new ScavengerCollector(this);
+
   incremental_marking_ =
       new IncrementalMarking(this, mark_compact_collector_->marking_worklist(),
                              mark_compact_collector_->weak_objects());
@@ -4608,6 +4610,11 @@ void Heap::TearDown() {
     minor_mark_compact_collector_ = nullptr;
   }
 #endif  // ENABLE_MINOR_MC
+
+  if (scavenger_collector_ != nullptr) {
+    delete scavenger_collector_;
+    scavenger_collector_ = nullptr;
+  }
 
   if (array_buffer_collector_ != nullptr) {
     delete array_buffer_collector_;

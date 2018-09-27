@@ -196,6 +196,7 @@ class PagedSpace;
 class RootVisitor;
 class ScavengeJob;
 class Scavenger;
+class ScavengerCollector;
 class Space;
 class StoreBuffer;
 class StressScavengeObserver;
@@ -2102,6 +2103,7 @@ class Heap {
   GCTracer* tracer_ = nullptr;
   MarkCompactCollector* mark_compact_collector_ = nullptr;
   MinorMarkCompactCollector* minor_mark_compact_collector_ = nullptr;
+  ScavengerCollector* scavenger_collector_ = nullptr;
   ArrayBufferCollector* array_buffer_collector_ = nullptr;
   MemoryAllocator* memory_allocator_ = nullptr;
   StoreBuffer* store_buffer_ = nullptr;
