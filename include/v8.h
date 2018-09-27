@@ -8113,9 +8113,7 @@ class V8_EXPORT Isolate {
    *
    * https://code.google.com/p/v8/issues/detail?id=3598
    */
-  V8_DEPRECATE_SOON("Use MemoryRange GetCodeRange()",
-                    void GetCodeRange(void** start, size_t* length_in_bytes));
-  MemoryRange GetCodeRange();
+  void GetCodeRange(void** start, size_t* length_in_bytes);
 
   /**
    * Returns a memory range containing the code for V8's embedded functions
