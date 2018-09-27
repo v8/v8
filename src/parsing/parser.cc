@@ -2955,7 +2955,7 @@ Variable* Parser::PromiseVariable() {
   Variable* promise = function_state_->scope()->promise_var();
   if (promise == nullptr) {
     promise = function_state_->scope()->DeclarePromiseVar(
-        ast_value_factory()->empty_string());
+        ast_value_factory()->dot_promise_string());
   }
   return promise;
 }
