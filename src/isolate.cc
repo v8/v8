@@ -2618,6 +2618,10 @@ void Isolate::Deinit() {
     optimizing_compile_dispatcher_ = nullptr;
   }
 
+  // We start with the heap tear down so that releasing managed objects does
+  // not cause a GC.
+  heap_.StartTearDown();
+
   heap_.mark_compact_collector()->EnsureSweepingCompleted();
   heap_.memory_allocator()->unmapper()->EnsureUnmappingCompleted();
 
@@ -2633,10 +2637,6 @@ void Isolate::Deinit() {
 
   FreeThreadResources();
   logger_->StopProfilerThread();
-
-  // We start with the heap tear down so that releasing managed objects does
-  // not cause a GC.
-  heap_.StartTearDown();
 
   ReleaseSharedPtrs();
 

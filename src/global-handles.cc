@@ -1088,7 +1088,7 @@ void GlobalHandles::Print() {
 
 #endif
 
-void GlobalHandles::TearDown() {}
+void GlobalHandles::TearDown() { DispatchPendingPhantomCallbacks(true); }
 
 EternalHandles::EternalHandles() : size_(0) {
   for (unsigned i = 0; i < arraysize(singleton_handles_); i++) {
