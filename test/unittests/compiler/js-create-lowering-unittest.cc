@@ -34,7 +34,6 @@ class JSCreateLoweringTest : public TypedGraphTest {
         javascript_(zone()),
         deps_(isolate(), zone()),
         handle_scope_(isolate()) {
-    js_heap_broker()->SerializeStandardObjects();
   }
   ~JSCreateLoweringTest() override = default;
 

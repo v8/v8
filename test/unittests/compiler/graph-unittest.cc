@@ -25,6 +25,7 @@ GraphTest::GraphTest(int num_parameters)
       node_origins_(&graph_) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
   graph()->SetEnd(graph()->NewNode(common()->End(1), graph()->start()));
+  js_heap_broker()->SetNativeContextRef();
 }
 
 
@@ -70,8 +71,6 @@ Node* GraphTest::HeapConstant(const Handle<HeapObject>& value) {
   Node* node = graph()->NewNode(common()->HeapConstant(value));
   Type type = Type::NewConstant(js_heap_broker(), value, zone());
   NodeProperties::SetType(node, type);
-  JSHeapCopyReducer heap_copy_reducer(js_heap_broker());
-  heap_copy_reducer.Reduce(node);
   return node;
 }
 

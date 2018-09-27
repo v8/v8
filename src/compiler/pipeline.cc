@@ -1328,8 +1328,6 @@ struct CopyMetadataForConcurrentCompilePhase {
     NodeVector cached_nodes(temp_zone);
     data->jsgraph()->GetCachedNodes(&cached_nodes);
     for (Node* const node : cached_nodes) graph_reducer.ReduceNode(node);
-
-    data->js_heap_broker()->StopSerializing();
   }
 };
 
@@ -2011,8 +2009,6 @@ bool PipelineImpl::CreateGraph() {
     data->node_origins()->AddDecorator();
   }
 
-  Run<SerializeStandardObjectsPhase>();
-
   Run<GraphBuilderPhase>();
   RunPrintAndVerify(GraphBuilderPhase::phase_name(), true);
 
@@ -2040,8 +2036,12 @@ bool PipelineImpl::CreateGraph() {
   // Run the type-sensitive lowerings and optimizations on the graph.
   {
     if (FLAG_concurrent_compiler_frontend) {
+      data->js_heap_broker()->StartSerializing();
+      Run<SerializeStandardObjectsPhase>();
       Run<CopyMetadataForConcurrentCompilePhase>();
+      data->js_heap_broker()->StopSerializing();
     } else {
+      data->js_heap_broker()->SetNativeContextRef();
       // Type the graph and keep the Typer running such that new nodes get
       // automatically typed when they are created.
       Run<TyperPhase>(data->CreateTyper());
@@ -2571,6 +2571,9 @@ std::ostream& operator<<(std::ostream& out, const BlockStartsAsJSON& s) {
 
 MaybeHandle<Code> PipelineImpl::FinalizeCode() {
   PipelineData* data = this->data_;
+  if (data->js_heap_broker() && FLAG_concurrent_compiler_frontend) {
+    data->js_heap_broker()->Retire();
+  }
   Run<FinalizeCodePhase>();
 
   MaybeHandle<Code> maybe_code = data->code();

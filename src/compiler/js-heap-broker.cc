@@ -25,11 +25,28 @@ HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 // TODO(neis): It would be nice to share the serialized data for read-only
 // objects.
 
+// There are three kinds of ObjectData values.
+//
+// kSmi: The underlying V8 object is a Smi and the data is an instance of the
+//   base class (ObjectData), i.e. it's basically just the handle.  Because the
+//   object is a Smi, it's safe to access the handle in order to extract the
+//   number value, and AsSmi() does exactly that.
+//
+// kSerializedHeapObject: The underlying V8 object is a HeapObject and the
+//   data is an instance of the corresponding (most-specific) subclass, e.g.
+//   JSFunctionData, which provides serialized information about the object.
+//
+// kUnserializedHeapObject: The underlying V8 object is a HeapObject and the
+//   data is an instance of the base class (ObjectData), i.e. it basically
+//   carries no information other than the handle.
+//
+enum ObjectDataKind { kSmi, kSerializedHeapObject, kUnserializedHeapObject };
+
 class ObjectData : public ZoneObject {
  public:
   ObjectData(JSHeapBroker* broker, ObjectData** storage, Handle<Object> object,
-             bool is_smi)
-      : broker_(broker), object_(object), is_smi_(is_smi) {
+             ObjectDataKind kind)
+      : broker_(broker), object_(object), kind_(kind) {
     *storage = this;
 
     broker->Trace("Creating data %p for handle %" V8PRIuPTR " (", this,
@@ -49,12 +66,13 @@ class ObjectData : public ZoneObject {
 
   JSHeapBroker* broker() const { return broker_; }
   Handle<Object> object() const { return object_; }
-  bool is_smi() const { return is_smi_; }
+  ObjectDataKind kind() const { return kind_; }
+  bool is_smi() const { return kind_ == kSmi; }
 
  private:
   JSHeapBroker* const broker_;
   Handle<Object> const object_;
-  bool const is_smi_;
+  ObjectDataKind const kind_;
 };
 
 class HeapObjectData : public ObjectData {
@@ -638,7 +656,7 @@ void AllocationSiteData::SerializeBoilerplate() {
 
 HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<HeapObject> object)
-    : ObjectData(broker, storage, object, false),
+    : ObjectData(broker, storage, object, kSerializedHeapObject),
       boolean_value_(object->BooleanValue(broker->isolate())),
       // We have to use a raw cast below instead of AsMap() because of
       // recursion. AsMap() would call IsMap(), which accesses the
@@ -1321,10 +1339,7 @@ ObjectRef ContextRef::get(int index) const {
 }
 
 JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* zone)
-    : isolate_(isolate),
-      zone_(zone),
-      refs_(zone, kInitialRefsBucketCount),
-      mode_(FLAG_concurrent_compiler_frontend ? kSerializing : kDisabled) {
+    : isolate_(isolate), zone_(zone), refs_(zone, kInitialRefsBucketCount) {
   Trace("Constructing heap broker.\n");
 }
 
@@ -1339,20 +1354,41 @@ void JSHeapBroker::Trace(const char* format, ...) const {
   }
 }
 
+void JSHeapBroker::StartSerializing() {
+  CHECK_EQ(mode_, kDisabled);
+  Trace("Starting serialization.\n");
+  mode_ = kSerializing;
+  refs_.clear();
+  SetNativeContextRef();
+}
+
+void JSHeapBroker::StopSerializing() {
+  CHECK_EQ(mode_, kSerializing);
+  Trace("Stopping serialization.\n");
+  mode_ = kSerialized;
+}
+
+void JSHeapBroker::Retire() {
+  CHECK_EQ(mode_, kSerialized);
+  Trace("Retiring.\n");
+  mode_ = kRetired;
+}
+
 bool JSHeapBroker::SerializingAllowed() const {
   return mode() == kSerializing ||
          (!FLAG_strict_heap_broker && mode() == kSerialized);
 }
 
-void JSHeapBroker::SerializeStandardObjects() {
-  if (!native_context_.has_value()) {
-    native_context_ = NativeContextRef(this, isolate()->native_context());
-    native_context_->Serialize();
-  }
+void JSHeapBroker::SetNativeContextRef() {
+  native_context_ = NativeContextRef(this, isolate()->native_context());
+}
 
+void JSHeapBroker::SerializeStandardObjects() {
   if (mode() == kDisabled) return;
 
   TraceScope tracer(this, "JSHeapBroker::SerializeStandardObjects");
+
+  native_context().Serialize();
 
   Builtins* const b = isolate()->builtins();
   Factory* const f = isolate()->factory();
@@ -1473,7 +1509,7 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
     if (object->IsSmi()) {
-      new (zone()) ObjectData(this, data_storage, object, true);
+      new (zone()) ObjectData(this, data_storage, object, kSmi);
 #define CREATE_DATA_IF_MATCH(name)                                             \
     } else if (object->Is##name()) {                                           \
       new (zone()) name##Data(this, data_storage, Handle<name>::cast(object));
@@ -2026,16 +2062,20 @@ ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object) {
     case JSHeapBroker::kSerializing:
       data_ = broker->GetOrCreateData(object);
       break;
-    case JSHeapBroker::kDisabled:
+    case JSHeapBroker::kDisabled: {
       auto insertion_result = broker->refs_.insert({object.address(), nullptr});
       ObjectData** data_storage = &(insertion_result.first->second);
       if (insertion_result.second) {
         AllowHandleDereference handle_dereference;
         new (broker->zone())
-            ObjectData(broker, data_storage, object, object->IsSmi());
+            ObjectData(broker, data_storage, object,
+                       object->IsSmi() ? kSmi : kUnserializedHeapObject);
       }
       data_ = *data_storage;
       break;
+    }
+    case JSHeapBroker::kRetired:
+      UNREACHABLE();
   }
   CHECK_NOT_NULL(data_);
 }
@@ -2161,7 +2201,19 @@ Handle<Object> ObjectRef::object() const { return data()->object(); }
 
 JSHeapBroker* ObjectRef::broker() const { return data()->broker(); }
 
-ObjectData* ObjectRef::data() const { return data_; }
+ObjectData* ObjectRef::data() const {
+  switch (data_->broker()->mode()) {
+    case JSHeapBroker::kDisabled:
+      CHECK_NE(data_->kind(), kSerializedHeapObject);
+      return data_;
+    case JSHeapBroker::kSerializing:
+    case JSHeapBroker::kSerialized:
+      CHECK_NE(data_->kind(), kUnserializedHeapObject);
+      return data_;
+    case JSHeapBroker::kRetired:
+      return data_;
+  }
+}
 
 Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
                                        const char* function, int line) {
