@@ -118,6 +118,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
       break;
     case FIXED_ARRAY_TYPE:
+    case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
     case DEBUG_EVALUATE_CONTEXT_TYPE:

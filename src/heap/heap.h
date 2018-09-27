@@ -63,6 +63,7 @@ using v8::MemoryPressureLevel;
   V(ArgumentsMarkerMap)                     \
   V(ArrayBufferNeuteringProtector)          \
   V(ArrayIteratorProtector)                 \
+  V(AwaitContextMap)                        \
   V(BigIntMap)                              \
   V(BlockContextMap)                        \
   V(ObjectBoilerplateDescriptionMap)        \

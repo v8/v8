@@ -451,7 +451,8 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
     // The extension slot is used for either the global object (in native
     // contexts), eval extension object (function contexts), subject of with
     // (with contexts), or the variable name (catch contexts), the serialized
-    // scope info (block contexts), or the module instance (module contexts).
+    // scope info (block contexts), the module instance (module contexts), or
+    // the generator object (await contexts).
     EXTENSION_INDEX,
     NATIVE_CONTEXT_INDEX,
 
@@ -538,6 +539,7 @@ class Context : public FixedArray, public NeverReadOnlySpaceObject {
   inline bool IsCatchContext() const;
   inline bool IsWithContext() const;
   inline bool IsDebugEvaluateContext() const;
+  inline bool IsAwaitContext() const;
   inline bool IsBlockContext() const;
   inline bool IsModuleContext() const;
   inline bool IsEvalContext() const;

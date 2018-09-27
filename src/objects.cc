@@ -3092,6 +3092,7 @@ VisitorId Map::GetVisitorId(Map* map) {
     case STRING_TABLE_TYPE:
     case SCOPE_INFO_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
+    case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
     case DEBUG_EVALUATE_CONTEXT_TYPE:
@@ -3401,6 +3402,15 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       }
       os << ">";
     } break;
+    case AWAIT_CONTEXT_TYPE: {
+      os << "<AwaitContext generator= ";
+      HeapStringAllocator allocator;
+      StringStream accumulator(&allocator);
+      Context::cast(this)->extension()->ShortPrint(&accumulator);
+      os << accumulator.ToCString().get();
+      os << '>';
+      break;
+    }
     case BLOCK_CONTEXT_TYPE:
       os << "<BlockContext[" << FixedArray::cast(this)->length() << "]>";
       break;

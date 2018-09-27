@@ -74,6 +74,7 @@ class Symbol;
   V(Map, module_context_map, ModuleContextMap)                                 \
   V(Map, eval_context_map, EvalContextMap)                                     \
   V(Map, script_context_map, ScriptContextMap)                                 \
+  V(Map, await_context_map, AwaitContextMap)                                   \
   V(Map, block_context_map, BlockContextMap)                                   \
   V(Map, catch_context_map, CatchContextMap)                                   \
   V(Map, with_context_map, WithContextMap)                                     \

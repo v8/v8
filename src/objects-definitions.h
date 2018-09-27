@@ -139,6 +139,7 @@ namespace internal {
   V(SCOPE_INFO_TYPE)                                               \
   V(SCRIPT_CONTEXT_TABLE_TYPE)                                     \
                                                                    \
+  V(AWAIT_CONTEXT_TYPE)                                            \
   V(BLOCK_CONTEXT_TYPE)                                            \
   V(CATCH_CONTEXT_TYPE)                                            \
   V(DEBUG_EVALUATE_CONTEXT_TYPE)                                   \
