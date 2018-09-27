@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/assembler-inl.h"
+#include "src/base/adapters.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen.h"
@@ -680,9 +681,9 @@ Vector<byte> NativeModule::AllocateForCode(size_t size) {
     mem = free_code_space_.Allocate(size);
     DCHECK(!mem.is_empty());
   }
-  Address commit_start =
-      RoundUp(mem.begin(), page_allocator->AllocatePageSize());
-  Address commit_end = RoundUp(mem.end(), page_allocator->AllocatePageSize());
+  const Address page_size = page_allocator->AllocatePageSize();
+  Address commit_start = RoundUp(mem.begin(), page_size);
+  Address commit_end = RoundUp(mem.end(), page_size);
   // {commit_start} will be either mem.start or the start of the next page.
   // {commit_end} will be the start of the page after the one in which
   // the allocation ends.
@@ -698,23 +699,24 @@ Vector<byte> NativeModule::AllocateForCode(size_t size) {
     // we need more memory, we append that memory at the end of the
     // owned_code_space_ list, we traverse that list in reverse order to find
     // the reservation(s) that guide how to chunk the region to commit.
-    for (auto it = owned_code_space_.crbegin(),
-              rend = owned_code_space_.crend();
-         it != rend && commit_start < commit_end; ++it) {
-      if (commit_end > it->end() || it->address() >= commit_end) continue;
-      Address start = std::max(commit_start, it->address());
-      size_t commit_size = static_cast<size_t>(commit_end - start);
-      DCHECK(IsAligned(commit_size, page_allocator->AllocatePageSize()));
+    for (auto& vmem : base::Reversed(owned_code_space_)) {
+      if (commit_end <= vmem.address() || vmem.end() <= commit_start) continue;
+      Address start = std::max(commit_start, vmem.address());
+      Address end = std::min(commit_end, vmem.end());
+      size_t commit_size = static_cast<size_t>(end - start);
       if (!wasm_code_manager_->Commit(start, commit_size)) {
         V8::FatalProcessOutOfMemory(nullptr,
                                     "NativeModule::AllocateForCode commit");
         UNREACHABLE();
       }
-      commit_end = start;
+      // Opportunistically reduce the commit range. This might terminate the
+      // loop early.
+      if (commit_start == start) commit_start = end;
+      if (commit_end == end) commit_end = start;
+      if (commit_start >= commit_end) break;
     }
 #else
     size_t commit_size = static_cast<size_t>(commit_end - commit_start);
-    DCHECK(IsAligned(commit_size, page_allocator->AllocatePageSize()));
     if (!wasm_code_manager_->Commit(commit_start, commit_size)) {
       V8::FatalProcessOutOfMemory(nullptr,
                                   "NativeModule::AllocateForCode commit");
