@@ -2496,6 +2496,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MaxU)             \
   V(I32x4GtU)              \
   V(I32x4GeU)              \
+  V(I16x8SConvertI32x4)    \
   V(I16x8Add)              \
   V(I16x8AddSaturateS)     \
   V(I16x8AddHoriz)         \
@@ -2514,6 +2515,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8MaxU)             \
   V(I16x8GtU)              \
   V(I16x8GeU)              \
+  V(I8x16SConvertI16x8)    \
   V(I8x16Add)              \
   V(I8x16AddSaturateS)     \
   V(I8x16Sub)              \
@@ -2534,14 +2536,23 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S128Or)                \
   V(S128Xor)
 
-#define SIMD_UNOP_LIST(V) \
-  V(F32x4Abs)             \
-  V(F32x4Neg)             \
-  V(F32x4RecipApprox)     \
-  V(F32x4RecipSqrtApprox) \
-  V(I32x4Neg)             \
-  V(I16x8Neg)             \
-  V(I8x16Neg)             \
+#define SIMD_UNOP_LIST(V)   \
+  V(F32x4SConvertI32x4)     \
+  V(F32x4Abs)               \
+  V(F32x4Neg)               \
+  V(F32x4RecipApprox)       \
+  V(F32x4RecipSqrtApprox)   \
+  V(I32x4SConvertI16x8Low)  \
+  V(I32x4SConvertI16x8High) \
+  V(I32x4Neg)               \
+  V(I32x4UConvertI16x8Low)  \
+  V(I32x4UConvertI16x8High) \
+  V(I16x8SConvertI8x16Low)  \
+  V(I16x8SConvertI8x16High) \
+  V(I16x8Neg)               \
+  V(I16x8UConvertI8x16Low)  \
+  V(I16x8UConvertI8x16High) \
+  V(I8x16Neg)               \
   V(S128Not)
 
 #define SIMD_SHIFT_OPCODES(V) \
@@ -2551,6 +2562,16 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8Shl)                 \
   V(I16x8ShrS)                \
   V(I16x8ShrU)
+
+#define SIMD_ANYTRUE_LIST(V) \
+  V(S1x4AnyTrue)             \
+  V(S1x8AnyTrue)             \
+  V(S1x16AnyTrue)
+
+#define SIMD_ALLTRUE_LIST(V) \
+  V(S1x4AllTrue)             \
+  V(S1x8AllTrue)             \
+  V(S1x16AllTrue)
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   X64OperandGenerator g(this);
@@ -2596,6 +2617,7 @@ SIMD_TYPES(VISIT_SIMD_REPLACE_LANE)
   }
 SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
 #undef VISIT_SIMD_SHIFT
+#undef SIMD_SHIFT_OPCODES
 
 #define VISIT_SIMD_UNOP(Opcode)                         \
   void InstructionSelector::Visit##Opcode(Node* node) { \
@@ -2605,6 +2627,7 @@ SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
   }
 SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 #undef VISIT_SIMD_UNOP
+#undef SIMD_UNOP_LIST
 
 #define VISIT_SIMD_BINOP(Opcode)                                            \
   void InstructionSelector::Visit##Opcode(Node* node) {                     \
@@ -2614,16 +2637,66 @@ SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
   }
 SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
 #undef VISIT_SIMD_BINOP
-#undef SIMD_TYPES
 #undef SIMD_BINOP_LIST
-#undef SIMD_UNOP_LIST
-#undef SIMD_SHIFT_OPCODES
+
+#define VISIT_SIMD_ANYTRUE(Opcode)                                        \
+  void InstructionSelector::Visit##Opcode(Node* node) {                   \
+    X64OperandGenerator g(this);                                          \
+    InstructionOperand temps[] = {g.TempRegister()};                      \
+    Emit(kX64##Opcode, g.DefineAsRegister(node),                          \
+         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps); \
+  }
+SIMD_ANYTRUE_LIST(VISIT_SIMD_ANYTRUE)
+#undef VISIT_SIMD_ANYTRUE
+#undef SIMD_ANYTRUE_LIST
+
+#define VISIT_SIMD_ALLTRUE(Opcode)                                        \
+  void InstructionSelector::Visit##Opcode(Node* node) {                   \
+    X64OperandGenerator g(this);                                          \
+    InstructionOperand temps[] = {g.TempRegister()};                      \
+    Emit(kX64##Opcode, g.DefineAsRegister(node),                          \
+         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps); \
+  }
+SIMD_ALLTRUE_LIST(VISIT_SIMD_ALLTRUE)
+#undef VISIT_SIMD_ALLTRUE
+#undef SIMD_ALLTRUE_LIST
+#undef SIMD_TYPES
 
 void InstructionSelector::VisitS128Select(Node* node) {
   X64OperandGenerator g(this);
   Emit(kX64S128Select, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
        g.UseRegister(node->InputAt(2)));
+}
+
+void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64F32x4UConvertI32x4, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64I32x4SConvertF32x4, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64I32x4UConvertF32x4, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI16x8UConvertI32x4(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64I16x8UConvertI32x4, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64I8x16UConvertI16x8, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {

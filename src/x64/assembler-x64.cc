@@ -83,7 +83,10 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
-  if (cpu.has_sse41() && FLAG_enable_sse4_1) supported_ |= 1u << SSE4_1;
+  if (cpu.has_sse41() && FLAG_enable_sse4_1) {
+    supported_ |= 1u << SSE4_1;
+    supported_ |= 1u << SSSE3;
+  }
   if (cpu.has_ssse3() && FLAG_enable_ssse3) supported_ |= 1u << SSSE3;
   if (cpu.has_sse3() && FLAG_enable_sse3) supported_ |= 1u << SSE3;
   // SAHF is not generally available in long mode.
@@ -458,6 +461,9 @@ Assembler::Assembler(const AssemblerOptions& options, void* buffer,
 
   ReserveCodeTargetSpace(100);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    EnableCpuFeature(SSSE3);
+  }
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
