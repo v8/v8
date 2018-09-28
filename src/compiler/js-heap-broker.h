@@ -75,7 +75,10 @@ HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 class ObjectRef {
  public:
   ObjectRef(JSHeapBroker* broker, Handle<Object> object);
-  explicit ObjectRef(ObjectData* data) : data_(data) { CHECK_NOT_NULL(data_); }
+  ObjectRef(JSHeapBroker* broker, ObjectData* data)
+      : broker_(broker), data_(data) {
+    CHECK_NOT_NULL(data_);
+  }
 
   bool equals(const ObjectRef& other) const;
 
@@ -108,6 +111,7 @@ class ObjectRef {
   ObjectData* data() const;
 
  private:
+  JSHeapBroker* broker_;
   ObjectData* data_;
 };
 
