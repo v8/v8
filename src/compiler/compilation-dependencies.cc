@@ -271,6 +271,7 @@ class InitialMapInstanceSizePredictionDependency final
   bool IsValid() const override {
     // The dependency is valid if the prediction is the same as the current
     // slack tracking result.
+    if (!function_.object<JSFunction>()->has_initial_map()) return false;
     int instance_size =
         function_.object<JSFunction>()->ComputeInstanceSizeWithMinSlack(
             function_.isolate());
