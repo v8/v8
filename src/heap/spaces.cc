@@ -3436,11 +3436,11 @@ void LargeObjectSpace::Unregister(LargePage* page, size_t object_size) {
   RemoveChunkMapEntries(page);
 }
 
-void LargeObjectSpace::FreeUnmarkedObjects() {
+void LargeObjectSpace::FreeDeadObjects() {
   LargePage* current = first_page();
   IncrementalMarking::NonAtomicMarkingState* marking_state =
       heap()->incremental_marking()->non_atomic_marking_state();
-  objects_size_ = 0;
+  size_t found_objects_size = 0;
   while (current) {
     LargePage* next_current = current->next_page();
     HeapObject* object = current->GetObject();
@@ -3448,7 +3448,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
     if (marking_state->IsBlack(object)) {
       Address free_start;
       size_t size = static_cast<size_t>(object->Size());
-      objects_size_ += size;
+      found_objects_size += size;
       if ((free_start = current->GetAddressToShrink(object->address(), size)) !=
           0) {
         DCHECK(!current->IsFlagSet(Page::IS_EXECUTABLE));
@@ -3463,19 +3463,13 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
         AccountUncommitted(bytes_to_free);
       }
     } else {
-      memory_chunk_list_.Remove(current);
-
-      // Free the chunk.
-      size_ -= static_cast<int>(current->size());
-      AccountUncommitted(current->size());
-      page_count_--;
-
-      RemoveChunkMapEntries(current);
+      Unregister(current, static_cast<size_t>(current->GetObject()->Size()));
       heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(
           current);
     }
     current = next_current;
   }
+  objects_size_ = found_objects_size;
 }
 
 
@@ -3611,6 +3605,9 @@ NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap)
 
 AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   // TODO(hpayer): Add heap growing strategy here.
+  if (Available() < static_cast<size_t>(object_size)) {
+    return AllocationResult::Retry(NEW_SPACE);
+  }
   LargePage* page = AllocateLargePage(object_size, NOT_EXECUTABLE);
   if (page == nullptr) return AllocationResult::Retry(identity());
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
@@ -3621,7 +3618,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
 
 size_t NewLargeObjectSpace::Available() {
   // TODO(hpayer): Update as soon as we have a growing strategy.
-  return 0;
+  return heap()->MaxSemiSpaceSize() - Size();
 }
 
 void NewLargeObjectSpace::Flip() {
@@ -3631,5 +3628,20 @@ void NewLargeObjectSpace::Flip() {
     chunk->ClearFlag(MemoryChunk::IN_TO_SPACE);
   }
 }
+
+void NewLargeObjectSpace::FreeDeadObjects() {
+  // Currently, this method frees all large objects in this space.
+  LargePage* current = first_page();
+  size_t found_objects_size = 0;
+  while (current) {
+    LargePage* next_current = current->next_page();
+    Unregister(current, static_cast<size_t>(current->GetObject()->Size()));
+    heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(
+        current);
+    current = next_current;
+  }
+  objects_size_ = found_objects_size;
+}
+
 }  // namespace internal
 }  // namespace v8

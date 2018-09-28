@@ -19238,16 +19238,19 @@ THREADED_TEST(GetHeapStatistics) {
 }
 
 TEST(GetHeapSpaceStatistics) {
+  i::FLAG_young_generation_large_objects = true;
   LocalContext c1;
   v8::Isolate* isolate = c1->GetIsolate();
   v8::HandleScope scope(isolate);
   v8::HeapStatistics heap_statistics;
-
-  // Force allocation in LO_SPACE so that every space has non-zero size.
   v8::internal::Isolate* i_isolate =
       reinterpret_cast<v8::internal::Isolate*>(isolate);
-  auto unused = i_isolate->factory()->TryNewFixedArray(512 * 1024);
-  USE(unused);
+
+  auto lo = i_isolate->factory()->TryNewFixedArray(512 * 1024);
+  USE(lo);
+
+  auto new_lo = i_isolate->factory()->TryNewFixedArray(20 * 1024);
+  USE(new_lo);
 
   isolate->GetHeapStatistics(&heap_statistics);
 
@@ -19261,9 +19264,6 @@ TEST(GetHeapSpaceStatistics) {
     v8::HeapSpaceStatistics space_statistics;
     isolate->GetHeapSpaceStatistics(&space_statistics, i);
     CHECK_NOT_NULL(space_statistics.space_name());
-    if (strcmp(space_statistics.space_name(), "new_large_object_space") == 0) {
-      continue;
-    }
     CHECK_GT(space_statistics.space_size(), 0u);
     total_size += space_statistics.space_size();
     CHECK_GT(space_statistics.space_used_size(), 0u);

@@ -2282,7 +2282,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
   // New space.
   heap()->new_space()->set_age_mark(heap()->new_space()->top());
   // Deallocate unmarked large objects.
-  heap()->lo_space()->FreeUnmarkedObjects();
+  heap()->lo_space()->FreeDeadObjects();
   // Old space. Deallocate evacuated candidate pages.
   ReleaseEvacuationCandidates();
   // Give pages that are queued to be freed back to the OS.

@@ -1181,8 +1181,11 @@ class Heap {
   // Returns the amount of memory currently committed for the heap.
   size_t CommittedMemory();
 
-  // Returns the amount of memory currently committed for the old space.
+  // Returns the amount of memory currently committed for the old generation.
   size_t CommittedOldGenerationMemory();
+
+  // Returns the amount of memory currently committed for the young generation.
+  size_t CommittedYoungGenerationMemory();
 
   // Returns the amount of executable memory currently committed for the heap.
   size_t CommittedMemoryExecutable();
