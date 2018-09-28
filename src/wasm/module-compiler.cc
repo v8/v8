@@ -3091,12 +3091,6 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
 
   const int kBufferSize = 32;
   char buffer[kBufferSize];
-  int url_chars = SNPrintF(ArrayVector(buffer), "wasm://wasm/%08x", hash);
-  DCHECK(url_chars >= 0 && url_chars < kBufferSize);
-  MaybeHandle<String> url_str = isolate->factory()->NewStringFromOneByte(
-      Vector<const uint8_t>(reinterpret_cast<uint8_t*>(buffer), url_chars),
-      TENURED);
-  script->set_source_url(*url_str.ToHandleChecked());
 
   int name_chars = SNPrintF(ArrayVector(buffer), "wasm-%08x", hash);
   DCHECK(name_chars >= 0 && name_chars < kBufferSize);
