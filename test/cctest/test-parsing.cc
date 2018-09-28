@@ -1550,8 +1550,10 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
           "However, the preparser succeeded",
           source->ToCString().get(), message_string->ToCString().get());
     }
-    // Check that preparser and parser produce the same error.
-    if (test_preparser && !ignore_error_msg) {
+    // Check that preparser and parser produce the same error, except for cases
+    // where we do not track errors in the preparser.
+    if (test_preparser && !ignore_error_msg &&
+        !pending_error_handler.ErrorUnidentifiableByPreParser()) {
       i::Handle<i::String> preparser_message =
           pending_error_handler.FormatErrorMessageForTest(CcTest::i_isolate());
       if (!i::String::Equals(isolate, message_string, preparser_message)) {
@@ -2041,7 +2043,7 @@ TEST(ErrorsFutureStrictReservedWords) {
                                           {"() => {", "}"},
                                           {nullptr, nullptr}};
   const char* invalid_statements[] = {
-      FUTURE_STRICT_RESERVED_LEX_BINDINGS("let") nullptr};
+      FUTURE_STRICT_RESERVED_LEX_BINDINGS(let) nullptr};
 
   RunParserSyncTest(non_strict_contexts, invalid_statements, kError);
 }

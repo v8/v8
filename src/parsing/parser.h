@@ -144,6 +144,8 @@ struct ParserTypes<Parser> {
 
   typedef ParserTarget Target;
   typedef ParserTargetScope TargetScope;
+
+  static constexpr bool ExpressionClassifierReportErrors = true;
 };
 
 class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
@@ -179,7 +181,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
  private:
   friend class ParserBase<Parser>;
-  friend class v8::internal::ExpressionClassifier<ParserTypes<Parser>>;
+  friend class v8::internal::ExpressionClassifierErrorTracker<
+      ParserTypes<Parser>>;
   friend bool v8::internal::parsing::ParseProgram(ParseInfo*, Isolate*);
   friend bool v8::internal::parsing::ParseFunction(
       ParseInfo*, Handle<SharedFunctionInfo> shared_info, Isolate*);
@@ -448,6 +451,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // by parsing the function with PreParser. Consumes the ending }.
   // If may_abort == true, the (pre-)parser may decide to abort skipping
   // in order to force the function to be eagerly parsed, after all.
+  // In case the preparser detects an error it cannot identify, it resets the
+  // scanner- and preparser state to the initial one, before PreParsing the
+  // function.
+  // SkipFunction returns true if it correctly parsed the function, including
+  // cases where we detect an error. It returns false, if we needed to stop
+  // parsing or could not identify an error correctly, meaning the caller needs
+  // to fully reparse. In this case it resets the scanner and preparser state.
   bool SkipFunction(const AstRawString* function_name, FunctionKind kind,
                     FunctionLiteral::FunctionType function_type,
                     DeclarationScope* function_scope, int* num_parameters,
@@ -781,6 +791,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                              source_location.end_pos, message,
                                              arg, error_type);
   }
+
+  // Dummy implementation. The parser should never have a unidentifiable
+  // error.
+  V8_INLINE void ReportUnidentifiableError() { UNREACHABLE(); }
 
   void ReportMessageAt(Scanner::Location source_location,
                        MessageTemplate::Template message,

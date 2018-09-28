@@ -2553,12 +2553,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // abort lazy parsing if it suspects that wasn't a good idea. If so (in
   // which case the parser is expected to have backtracked), or if we didn't
   // try to lazy parse in the first place, we'll have to parse eagerly.
-  bool did_preparse =
+  bool did_preparse_successfully =
       should_preparse &&
       SkipFunction(function_name, kind, function_type, scope, &num_parameters,
                    &produced_preparsed_scope_data, is_lazy_inner_function,
                    is_lazy_top_level_function, &eager_compile_hint, CHECK_OK);
-  if (!did_preparse) {
+  if (!did_preparse_successfully) {
     body = ParseFunction(
         function_name, pos, kind, function_type, scope, &num_parameters,
         &function_length, &has_duplicate_parameters, &expected_property_count,
@@ -2577,7 +2577,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         reinterpret_cast<const char*>(function_name->raw_data()),
         function_name->byte_length());
   }
-  if (V8_UNLIKELY(FLAG_runtime_stats) && did_preparse) {
+  if (V8_UNLIKELY(FLAG_runtime_stats) && did_preparse_successfully) {
     const RuntimeCallCounterId counters[2][2] = {
         {RuntimeCallCounterId::kPreParseBackgroundNoVariableResolution,
          RuntimeCallCounterId::kPreParseNoVariableResolution},
@@ -2691,6 +2691,14 @@ bool Parser::SkipFunction(
     // Propagate stack overflow.
     set_stack_overflow();
     *ok = false;
+  } else if (pending_error_handler()->ErrorUnidentifiableByPreParser()) {
+    // If we encounter an error that the preparser can not identify we reset to
+    // the state before preparsing. The caller may then fully parse the function
+    // to identify the actual error.
+    bookmark.Apply();
+    function_scope->ResetAfterPreparsing(ast_value_factory(), true);
+    pending_error_handler()->ResetUnidentifiableError();
+    return false;
   } else if (pending_error_handler()->has_pending_error()) {
     *ok = false;
   } else {

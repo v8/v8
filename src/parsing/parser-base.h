@@ -945,7 +945,11 @@ class ParserBase {
 
   void ReportClassifierError(
       const typename ExpressionClassifier::Error& error) {
-    impl()->ReportMessageAt(error.location, error.message, error.arg);
+    if (classifier()->does_error_reporting()) {
+      impl()->ReportMessageAt(error.location, error.message, error.arg);
+    } else {
+      impl()->ReportUnidentifiableError();
+    }
   }
 
   void ValidateExpression(bool* ok) {
@@ -4393,17 +4397,29 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         int dummy_num_parameters = -1;
         DCHECK_NE(kind & FunctionKind::kArrowFunction, 0);
         FunctionLiteral::EagerCompileHint hint;
-        bool parse_result = impl()->SkipFunction(
+        bool did_preparse_successfully = impl()->SkipFunction(
             nullptr, kind, FunctionLiteral::kAnonymousExpression,
             formal_parameters.scope, &dummy_num_parameters,
             &produced_preparsed_scope_data, false, false, &hint, CHECK_OK);
-        DCHECK(parse_result);
-        USE(parse_result);
+
         DCHECK_NULL(produced_preparsed_scope_data);
-        // Discard any queued destructuring assignments which appeared
-        // in this function's parameter list, and which were adopted
-        // into this function state, above.
-        function_state.RewindDestructuringAssignments(0);
+
+        if (did_preparse_successfully) {
+          // Discard any queued destructuring assignments which appeared
+          // in this function's parameter list, and which were adopted
+          // into this function state, above.
+          function_state.RewindDestructuringAssignments(0);
+        } else {
+          // In case we did not sucessfully preparse the function because of an
+          // unidentified error we do a full reparse to return the error.
+          Consume(Token::LBRACE);
+          body = impl()->NewStatementList(8);
+          ParseFunctionBody(body, impl()->NullIdentifier(), kNoSourcePosition,
+                            formal_parameters, kind,
+                            FunctionLiteral::kAnonymousExpression, ok);
+          CHECK(!*ok);
+          return impl()->NullExpression();
+        }
       } else {
         Consume(Token::LBRACE);
         body = impl()->NewStatementList(8);

@@ -953,6 +953,7 @@ struct ParserTypes<PreParser> {
   typedef PreParserFuncNameInferrer FuncNameInferrer;
   typedef PreParserSourceRange SourceRange;
   typedef PreParserSourceRangeScope SourceRangeScope;
+  static constexpr bool ExpressionClassifierReportErrors = false;
 };
 
 
@@ -980,6 +981,7 @@ class PreParser : public ParserBase<PreParser> {
   enum PreParseResult {
     kPreParseStackOverflow,
     kPreParseAbort,
+    kPreParseNotIdentifiableError,
     kPreParseSuccess
   };
 
@@ -1555,6 +1557,10 @@ class PreParser : public ParserBase<PreParser> {
     pending_error_handler()->ReportMessageAt(source_location.beg_pos,
                                              source_location.end_pos, message,
                                              arg, error_type);
+  }
+
+  V8_INLINE void ReportUnidentifiableError() {
+    pending_error_handler()->SetUnidentifiableError();
   }
 
   V8_INLINE void ReportMessageAt(Scanner::Location source_location,

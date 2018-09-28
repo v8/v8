@@ -128,7 +128,6 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   function_scope->set_is_being_lazily_parsed(true);
 #endif
 
-  DCHECK(!track_unresolved_variables_);
   track_unresolved_variables_ =
       ShouldTrackUnresolvedVariables(is_inner_function);
 
@@ -168,7 +167,11 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     formals_classifier.reset(new ExpressionClassifier(this, &duplicate_finder));
     // We return kPreParseSuccess in failure cases too - errors are retrieved
     // separately by Parser::SkipLazyFunctionBody.
-    ParseFormalParameterList(&formals, CHECK_OK_VALUE(kPreParseSuccess));
+    ParseFormalParameterList(
+        &formals,
+        CHECK_OK_VALUE(pending_error_handler()->ErrorUnidentifiableByPreParser()
+                           ? kPreParseNotIdentifiableError
+                           : kPreParseSuccess));
     Expect(Token::RPAREN, CHECK_OK_VALUE(kPreParseSuccess));
     int formals_end_position = scanner()->location().end_pos;
 
@@ -221,10 +224,15 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   track_unresolved_variables_ = false;
 
   if (result == kLazyParsingAborted) {
+    DCHECK(!pending_error_handler()->ErrorUnidentifiableByPreParser());
     return kPreParseAbort;
   } else if (stack_overflow()) {
+    DCHECK(!pending_error_handler()->ErrorUnidentifiableByPreParser());
     return kPreParseStackOverflow;
   } else if (!*ok) {
+    if (pending_error_handler()->ErrorUnidentifiableByPreParser()) {
+      return kPreParseNotIdentifiableError;
+    }
     DCHECK(pending_error_handler()->has_pending_error());
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
@@ -235,19 +243,25 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       const bool allow_duplicate_parameters =
           is_sloppy(function_scope->language_mode()) && formals.is_simple &&
           !IsConciseMethod(kind);
-      ValidateFormalParameters(function_scope->language_mode(),
-                               allow_duplicate_parameters,
-                               CHECK_OK_VALUE(kPreParseSuccess));
+      ValidateFormalParameters(
+          function_scope->language_mode(), allow_duplicate_parameters,
+          CHECK_OK_VALUE(
+              pending_error_handler()->ErrorUnidentifiableByPreParser()
+                  ? kPreParseNotIdentifiableError
+                  : kPreParseSuccess));
 
       *produced_preparsed_scope_data = ProducedPreParsedScopeData::For(
           preparsed_scope_data_builder_, main_zone());
     }
+    DCHECK(!pending_error_handler()->ErrorUnidentifiableByPreParser());
 
     if (is_strict(function_scope->language_mode())) {
       int end_pos = scanner()->location().end_pos;
       CheckStrictOctalLiteral(function_scope->start_position(), end_pos, ok);
     }
   }
+
+  DCHECK(!pending_error_handler()->ErrorUnidentifiableByPreParser());
   return kPreParseSuccess;
 }
 
