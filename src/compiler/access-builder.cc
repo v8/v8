@@ -801,10 +801,11 @@ FieldAccess AccessBuilder::ForValue() {
 
 // static
 FieldAccess AccessBuilder::ForArgumentsLength() {
-  FieldAccess access = {kTaggedBase,         JSArgumentsObject::kLengthOffset,
-                        Handle<Name>(),      MaybeHandle<Map>(),
-                        Type::NonInternal(), MachineType::AnyTagged(),
-                        kFullWriteBarrier};
+  FieldAccess access = {
+      kTaggedBase,         JSArgumentsObjectWithLength::kLengthOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::NonInternal(), MachineType::AnyTagged(),
+      kFullWriteBarrier};
   return access;
 }
 

@@ -14,16 +14,6 @@ module array {
   type FastDoubleElements;
   type DictionaryElements;
 
-  macro GetLengthProperty(context: Context, o: Object): Number {
-    if (BranchIfFastJSArray(o, context)) {
-      const a: JSArray = UnsafeCast<JSArray>(o);
-      return a.length_fast;
-    } else
-      deferred {
-        return ToLength_Inline(context, GetProperty(context, o, kLengthString));
-      }
-  }
-
   macro EnsureWriteableFastElements(array: JSArray) {
     assert(IsFastElementsKind(array.map.elements_kind));
 

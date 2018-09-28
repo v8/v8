@@ -3029,7 +3029,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
         if (access.offset == JSArray::kLengthOffset) {
           // Ignore uses for arguments#length.
           STATIC_ASSERT(JSArray::kLengthOffset ==
-                        JSArgumentsObject::kLengthOffset);
+                        JSArgumentsObjectWithLength::kLengthOffset);
           continue;
         } else if (access.offset == JSObject::kElementsOffset) {
           // Ignore safe uses for arguments#elements.

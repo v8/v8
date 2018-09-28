@@ -1378,8 +1378,8 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
   Goto(&generic_length);
 
   BIND(&load_arguments_length);
-  Node* arguments_length =
-      LoadObjectField(array_receiver, JSArgumentsObject::kLengthOffset);
+  Node* arguments_length = LoadObjectField(
+      array_receiver, JSArgumentsObjectWithLength::kLengthOffset);
   GotoIf(TaggedIsNotSmi(arguments_length), &generic_length);
   o = CAST(receiver);
   len.Bind(arguments_length);

@@ -1545,6 +1545,11 @@ TNode<Number> CodeStubAssembler::LoadJSArrayLength(SloppyTNode<JSArray> array) {
   return CAST(LoadObjectField(array, JSArray::kLengthOffset));
 }
 
+TNode<Object> CodeStubAssembler::LoadJSArgumentsObjectWithLength(
+    SloppyTNode<JSArgumentsObjectWithLength> array) {
+  return LoadObjectField(array, JSArgumentsObjectWithLength::kLengthOffset);
+}
+
 TNode<Smi> CodeStubAssembler::LoadFastJSArrayLength(
     SloppyTNode<JSArray> array) {
   TNode<Object> length = LoadJSArrayLength(array);
@@ -2525,8 +2530,16 @@ TNode<Object> CodeStubAssembler::LoadContextElement(
 TNode<Object> CodeStubAssembler::LoadContextElement(
     SloppyTNode<Context> context, SloppyTNode<IntPtrT> slot_index) {
   Node* offset =
-      IntPtrAdd(TimesPointerSize(slot_index),
-                IntPtrConstant(Context::kHeaderSize - kHeapObjectTag));
+      ElementOffsetFromIndex(slot_index, PACKED_ELEMENTS, INTPTR_PARAMETERS,
+                             Context::kHeaderSize - kHeapObjectTag);
+  return UncheckedCast<Object>(Load(MachineType::AnyTagged(), context, offset));
+}
+
+TNode<Object> CodeStubAssembler::LoadContextElement(TNode<Context> context,
+                                                    TNode<Smi> slot_index) {
+  Node* offset =
+      ElementOffsetFromIndex(slot_index, PACKED_ELEMENTS, SMI_PARAMETERS,
+                             Context::kHeaderSize - kHeapObjectTag);
   return UncheckedCast<Object>(Load(MachineType::AnyTagged(), context, offset));
 }
 
