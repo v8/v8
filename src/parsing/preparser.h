@@ -171,10 +171,9 @@ class PreParserExpression {
                                IsUseAsmField::encode(true));
   }
 
-  static PreParserExpression This(VariableZoneThreadedListType* variables) {
+  static PreParserExpression This() {
     return PreParserExpression(TypeField::encode(kExpression) |
-                                   ExpressionTypeField::encode(kThisExpression),
-                               variables);
+                               ExpressionTypeField::encode(kThisExpression));
   }
 
   static PreParserExpression ThisPropertyWithPrivateFieldKey() {
@@ -1612,17 +1611,12 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserExpression ThisExpression(int pos = kNoSourcePosition) {
-    PreParserExpression::VariableZoneThreadedListType* variables = nullptr;
     if (track_unresolved_variables_) {
-      VariableProxy* proxy = scope()->NewUnresolved(
-          factory()->ast_node_factory(), ast_value_factory()->this_string(),
-          pos, THIS_VARIABLE);
-
-      variables =
-          new (zone()) PreParserExpression::VariableZoneThreadedListType();
-      variables->Add(proxy);
+      scope()->NewUnresolved(factory()->ast_node_factory(),
+                             ast_value_factory()->this_string(), pos,
+                             THIS_VARIABLE);
     }
-    return PreParserExpression::This(variables);
+    return PreParserExpression::This();
   }
 
   V8_INLINE PreParserExpression NewSuperPropertyReference(int pos) {
