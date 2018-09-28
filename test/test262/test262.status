@@ -564,26 +564,36 @@
   'intl402/Collator/ignore-invalid-unicode-ext-values': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7684
+  'intl402/Locale/constructor-non-iana-canon': [FAIL],
+  'intl402/Locale/constructor-options-language-valid': [FAIL],
+  'intl402/Locale/constructor-parse-twice': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8246
+  'intl402/Locale/constructor-tag': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8244
   'intl402/Locale/constructor-getter-order': [FAIL],
   'intl402/Locale/constructor-locale-object': [FAIL],
-  'intl402/Locale/constructor-non-iana-canon': [FAIL],
   'intl402/Locale/constructor-options-language-grandfathered': [FAIL],
   'intl402/Locale/constructor-options-language-invalid': [FAIL],
-  'intl402/Locale/constructor-options-language-valid': [FAIL],
   'intl402/Locale/constructor-options-region-invalid': [FAIL],
   'intl402/Locale/constructor-options-region-valid': [FAIL],
   'intl402/Locale/constructor-options-script-invalid': [FAIL],
   'intl402/Locale/constructor-options-script-valid': [FAIL],
-  'intl402/Locale/constructor-parse-twice': [FAIL],
-  'intl402/Locale/constructor-tag': [FAIL],
   'intl402/Locale/constructor-unicode-ext-invalid': [FAIL],
-  'intl402/Locale/extensions-grandfathered': [FAIL],
-  'intl402/Locale/extensions-private': [FAIL],
   'intl402/Locale/getters': [FAIL],
-  'intl402/Locale/getters-grandfathered': [FAIL],
-  'intl402/Locale/getters-privateuse': [FAIL],
   'intl402/Locale/invalid-tag-throws': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8243
+  'intl402/Locale/extensions-private': [FAIL],
+  'intl402/Locale/getters-privateuse': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8236
   'intl402/Locale/likely-subtags': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8242
+  'intl402/Locale/extensions-grandfathered': [FAIL],
+  'intl402/Locale/getters-grandfathered': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6705
