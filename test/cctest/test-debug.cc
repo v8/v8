@@ -3068,8 +3068,8 @@ class ContextCheckEventListener : public v8::debug::DebugDelegate {
   }
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
                        v8::Local<v8::Value> exception,
-                       v8::Local<v8::Value> promise,
-                       bool is_uncaught) override {
+                       v8::Local<v8::Value> promise, bool is_uncaught,
+                       v8::debug::ExceptionType) override {
     CheckContext();
   }
   bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
@@ -3838,8 +3838,8 @@ class DebugEventExpectNoException : public v8::debug::DebugDelegate {
  public:
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
                        v8::Local<v8::Value> exception,
-                       v8::Local<v8::Value> promise,
-                       bool is_uncaught) override {
+                       v8::Local<v8::Value> promise, bool is_uncaught,
+                       v8::debug::ExceptionType) override {
     CHECK(false);
   }
 };

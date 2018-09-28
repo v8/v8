@@ -154,6 +154,8 @@ void GetLoadedScripts(Isolate* isolate, PersistentValueVector<Script>& scripts);
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);
 
+enum ExceptionType { kException, kPromiseRejection };
+
 class DebugDelegate {
  public:
   virtual ~DebugDelegate() = default;
@@ -166,8 +168,8 @@ class DebugDelegate {
       const std::vector<debug::BreakpointId>& inspector_break_points_hit) {}
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Value> exception,
-                               v8::Local<v8::Value> promise, bool is_uncaught) {
-  }
+                               v8::Local<v8::Value> promise, bool is_uncaught,
+                               ExceptionType exception_type) {}
   virtual bool IsFunctionBlackboxed(v8::Local<debug::Script> script,
                                     const debug::Location& start,
                                     const debug::Location& end) {

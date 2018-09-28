@@ -145,7 +145,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
   void handleProgramBreak(
       v8::Local<v8::Context> pausedContext, v8::Local<v8::Value> exception,
       const std::vector<v8::debug::BreakpointId>& hitBreakpoints,
-      bool isPromiseRejection = false, bool isUncaught = false);
+      v8::debug::ExceptionType exception_type = v8::debug::kException,
+      bool isUncaught = false);
 
   enum ScopeTargetKind {
     FUNCTION,
@@ -181,7 +182,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
       const std::vector<v8::debug::BreakpointId>& break_points_hit) override;
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
                        v8::Local<v8::Value> exception,
-                       v8::Local<v8::Value> promise, bool is_uncaught) override;
+                       v8::Local<v8::Value> promise, bool is_uncaught,
+                       v8::debug::ExceptionType exception_type) override;
   bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                             const v8::debug::Location& start,
                             const v8::debug::Location& end) override;

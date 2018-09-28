@@ -410,7 +410,8 @@ class Debug {
 
   bool IsExceptionBlackboxed(bool uncaught);
 
-  void OnException(Handle<Object> exception, Handle<Object> promise);
+  void OnException(Handle<Object> exception, Handle<Object> promise,
+                   v8::debug::ExceptionType exception_type);
 
   void ProcessCompileEvent(bool has_compile_error, Handle<Script> script);
 

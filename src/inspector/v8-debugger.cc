@@ -480,7 +480,7 @@ void V8Debugger::clearContinueToLocation() {
 void V8Debugger::handleProgramBreak(
     v8::Local<v8::Context> pausedContext, v8::Local<v8::Value> exception,
     const std::vector<v8::debug::BreakpointId>& breakpointIds,
-    bool isPromiseRejection, bool isUncaught) {
+    v8::debug::ExceptionType exceptionType, bool isUncaught) {
   // Don't allow nested breaks.
   if (isPaused()) return;
 
@@ -523,12 +523,12 @@ void V8Debugger::handleProgramBreak(
 
   m_inspector->forEachSession(
       contextGroupId, [&pausedContext, &exception, &breakpointIds,
-                       &isPromiseRejection, &isUncaught, &scheduledOOMBreak,
+                       &exceptionType, &isUncaught, &scheduledOOMBreak,
                        &scheduledAssertBreak](V8InspectorSessionImpl* session) {
         if (session->debuggerAgent()->acceptsPause(scheduledOOMBreak)) {
           session->debuggerAgent()->didPause(
               InspectedContext::contextId(pausedContext), exception,
-              breakpointIds, isPromiseRejection, isUncaught, scheduledOOMBreak,
+              breakpointIds, exceptionType, isUncaught, scheduledOOMBreak,
               scheduledAssertBreak);
         }
       });
@@ -608,12 +608,11 @@ void V8Debugger::BreakProgramRequested(
 
 void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
                                  v8::Local<v8::Value> exception,
-                                 v8::Local<v8::Value> promise,
-                                 bool isUncaught) {
-  bool isPromiseRejection = promise->IsPromise();
+                                 v8::Local<v8::Value> promise, bool isUncaught,
+                                 v8::debug::ExceptionType exceptionType) {
   std::vector<v8::debug::BreakpointId> break_points_hit;
-  handleProgramBreak(pausedContext, exception, break_points_hit,
-                     isPromiseRejection, isUncaught);
+  handleProgramBreak(pausedContext, exception, break_points_hit, exceptionType,
+                     isUncaught);
 }
 
 bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,

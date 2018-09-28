@@ -1653,7 +1653,10 @@ void Debug::OnThrow(Handle<Object> exception) {
     scheduled_exception = handle(isolate_->scheduled_exception(), isolate_);
     isolate_->clear_scheduled_exception();
   }
-  OnException(exception, isolate_->GetPromiseOnStackOnThrow());
+  Handle<Object> maybe_promise = isolate_->GetPromiseOnStackOnThrow();
+  OnException(exception, maybe_promise,
+              maybe_promise->IsJSPromise() ? v8::debug::kPromiseRejection
+                                           : v8::debug::kException);
   if (!scheduled_exception.is_null()) {
     isolate_->thread_local_top()->scheduled_exception_ = *scheduled_exception;
   }
@@ -1668,7 +1671,7 @@ void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
   if (!promise->IsJSObject() ||
       JSReceiver::GetDataProperty(Handle<JSObject>::cast(promise), key)
           ->IsUndefined(isolate_)) {
-    OnException(value, promise);
+    OnException(value, promise, v8::debug::kPromiseRejection);
   }
 }
 
@@ -1693,7 +1696,8 @@ bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
   return true;
 }
 
-void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
+void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
+                        v8::debug::ExceptionType exception_type) {
   // TODO(kozyatinskiy): regress-662674.js test fails on arm without this.
   if (!AllowJavascriptExecution::IsAllowed(isolate_)) return;
 
@@ -1739,9 +1743,9 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
   DisableBreak no_recursive_break(this);
 
   Handle<Context> native_context(isolate_->native_context());
-  debug_delegate_->ExceptionThrown(v8::Utils::ToLocal(native_context),
-                                   v8::Utils::ToLocal(exception),
-                                   v8::Utils::ToLocal(promise), uncaught);
+  debug_delegate_->ExceptionThrown(
+      v8::Utils::ToLocal(native_context), v8::Utils::ToLocal(exception),
+      v8::Utils::ToLocal(promise), uncaught, exception_type);
 }
 
 void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit) {
