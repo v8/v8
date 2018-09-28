@@ -1379,6 +1379,7 @@ void JSHeapBroker::SetNativeContextRef() {
 
 void JSHeapBroker::SerializeStandardObjects() {
   if (mode() == kDisabled) return;
+  CHECK_EQ(mode(), kSerializing);
 
   TraceScope tracer(this, "JSHeapBroker::SerializeStandardObjects");
 
@@ -1574,16 +1575,15 @@ base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
     AllowHandleDereference allow_handle_dereference;
     return MapRef(broker(), Map::AsElementsKind(broker()->isolate(),
                                                 object<Map>(), kind));
-  } else {
-    if (kind == elements_kind()) return *this;
-    const ZoneVector<MapData*>& elements_kind_generalizations =
-        data()->AsMap()->elements_kind_generalizations();
-    for (auto data : elements_kind_generalizations) {
-      MapRef map(broker(), data);
-      if (map.elements_kind() == kind) return map;
-    }
-    return base::Optional<MapRef>();
   }
+  if (kind == elements_kind()) return *this;
+  const ZoneVector<MapData*>& elements_kind_generalizations =
+      data()->AsMap()->elements_kind_generalizations();
+  for (auto data : elements_kind_generalizations) {
+    MapRef map(broker(), data);
+    if (map.elements_kind() == kind) return map;
+  }
+  return base::Optional<MapRef>();
 }
 
 int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {
@@ -2207,7 +2207,7 @@ ObjectRef JSRegExpRef::source() const {
   return ObjectRef(broker(), ObjectRef::data()->AsJSRegExp()->source());
 }
 
-Handle<Object> ObjectRef::object() const { return data()->object(); }
+Handle<Object> ObjectRef::object() const { return data_->object(); }
 
 JSHeapBroker* ObjectRef::broker() const { return broker_; }
 
@@ -2221,7 +2221,7 @@ ObjectData* ObjectRef::data() const {
       CHECK_NE(data_->kind(), kUnserializedHeapObject);
       return data_;
     case JSHeapBroker::kRetired:
-      return data_;
+      UNREACHABLE();
   }
 }
 
