@@ -2538,8 +2538,6 @@ Isolate::Isolate()
   InitializeLoggingAndCounters();
   debug_ = new Debug(this);
 
-  tracing_cpu_profiler_.reset(new TracingCpuProfilerImpl(this));
-
   init_memcopy_functions();
 
   if (FLAG_embedded_builtins) {
@@ -3010,6 +3008,10 @@ bool Isolate::Init(StartupDeserializer* des) {
   }
 
   InitializeThreadLocal();
+
+  // Profiler has to be created after ThreadLocal is initialized
+  // because it makes use of interrupts.
+  tracing_cpu_profiler_.reset(new TracingCpuProfilerImpl(this));
 
   bootstrapper_->Initialize(create_heap_objects);
 
