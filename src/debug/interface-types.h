@@ -161,6 +161,8 @@ class ConsoleDelegate {
                           const ConsoleContext& context) {}
   virtual void Time(const ConsoleCallArguments& args,
                     const ConsoleContext& context) {}
+  virtual void TimeLog(const ConsoleCallArguments& args,
+                       const ConsoleContext& context) {}
   virtual void TimeEnd(const ConsoleCallArguments& args,
                        const ConsoleContext& context) {}
   virtual void TimeStamp(const ConsoleCallArguments& args,

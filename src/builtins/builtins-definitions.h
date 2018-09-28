@@ -495,6 +495,7 @@ namespace internal {
   CPP(ConsoleProfile)                                                          \
   CPP(ConsoleProfileEnd)                                                       \
   CPP(ConsoleTime)                                                             \
+  CPP(ConsoleTimeLog)                                                          \
   CPP(ConsoleTimeEnd)                                                          \
   CPP(ConsoleTimeStamp)                                                        \
   CPP(ConsoleContext)                                                          \

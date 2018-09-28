@@ -2883,6 +2883,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kConsoleProfileEnd, 1, false, NONE);
     SimpleInstallFunction(isolate_, console, "time", Builtins::kConsoleTime, 1,
                           false, NONE);
+    SimpleInstallFunction(isolate_, console, "timeLog",
+                          Builtins::kConsoleTimeLog, 1, false, NONE);
     SimpleInstallFunction(isolate_, console, "timeEnd",
                           Builtins::kConsoleTimeEnd, 1, false, NONE);
     SimpleInstallFunction(isolate_, console, "timeStamp",

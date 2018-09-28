@@ -565,6 +565,13 @@ bool V8ConsoleMessageStorage::countReset(int contextId, const String16& id) {
   return true;
 }
 
+double V8ConsoleMessageStorage::timeLog(int contextId, const String16& id) {
+  std::map<String16, double>& time = m_data[contextId].m_time;
+  auto it = time.find(id);
+  if (it == time.end()) return 0.0;
+  return m_inspector->client()->currentTimeMS() - it->second;
+}
+
 double V8ConsoleMessageStorage::timeEnd(int contextId, const String16& id) {
   std::map<String16, double>& time = m_data[contextId].m_time;
   auto it = time.find(id);
