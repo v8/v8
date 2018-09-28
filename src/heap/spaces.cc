@@ -97,18 +97,18 @@ PauseAllocationObserversScope::~PauseAllocationObserversScope() {
 static base::LazyInstance<CodeRangeAddressHint>::type code_range_address_hint =
     LAZY_INSTANCE_INITIALIZER;
 
-void* CodeRangeAddressHint::GetAddressHint(size_t code_range_size) {
+Address CodeRangeAddressHint::GetAddressHint(size_t code_range_size) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   auto it = recently_freed_.find(code_range_size);
   if (it == recently_freed_.end() || it->second.empty()) {
-    return GetRandomMmapAddr();
+    return reinterpret_cast<Address>(GetRandomMmapAddr());
   }
-  void* result = it->second.back();
+  Address result = it->second.back();
   it->second.pop_back();
   return result;
 }
 
-void CodeRangeAddressHint::NotifyFreedCodeRange(void* code_range_start,
+void CodeRangeAddressHint::NotifyFreedCodeRange(Address code_range_start,
                                                 size_t code_range_size) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   recently_freed_[code_range_size].push_back(code_range_start);
@@ -158,9 +158,11 @@ void MemoryAllocator::InitializeCodePageAllocator(
   }
   DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
 
-  void* hint = code_range_address_hint.Pointer()->GetAddressHint(requested);
+  Address hint =
+      RoundDown(code_range_address_hint.Pointer()->GetAddressHint(requested),
+                page_allocator->AllocatePageSize());
   VirtualMemory reservation(
-      page_allocator, requested, hint,
+      page_allocator, requested, reinterpret_cast<void*>(hint),
       Max(kCodeRangeAreaAlignment, page_allocator->AllocatePageSize()));
   if (!reservation.IsReserved()) {
     V8::FatalProcessOutOfMemory(isolate_,
@@ -213,6 +215,16 @@ void MemoryAllocator::TearDown() {
   if (last_chunk_.IsReserved()) {
     last_chunk_.Free();
   }
+
+  if (code_page_allocator_instance_.get()) {
+    DCHECK(!code_range_.is_empty());
+    code_range_address_hint.Pointer()->NotifyFreedCodeRange(code_range_.begin(),
+                                                            code_range_.size());
+    code_range_ = base::AddressRegion();
+    code_page_allocator_instance_.reset();
+  }
+  code_page_allocator_ = nullptr;
+  data_page_allocator_ = nullptr;
 }
 
 class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public CancelableTask {

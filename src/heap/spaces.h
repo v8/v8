@@ -1088,9 +1088,9 @@ class CodeRangeAddressHint {
  public:
   // Returns the most recently freed code range start address for the given
   // size. If there is no such entry, then a random address is returned.
-  V8_EXPORT_PRIVATE void* GetAddressHint(size_t code_range_size);
+  V8_EXPORT_PRIVATE Address GetAddressHint(size_t code_range_size);
 
-  V8_EXPORT_PRIVATE void NotifyFreedCodeRange(void* code_range_start,
+  V8_EXPORT_PRIVATE void NotifyFreedCodeRange(Address code_range_start,
                                               size_t code_range_size);
 
  private:
@@ -1099,7 +1099,7 @@ class CodeRangeAddressHint {
   // addresses. There should be O(1) different code range sizes.
   // The length of each array is limited by the peak number of code ranges,
   // which should be also O(1).
-  std::map<size_t, std::vector<void*>> recently_freed_;
+  std::unordered_map<size_t, std::vector<Address>> recently_freed_;
 };
 
 class SkipList {
