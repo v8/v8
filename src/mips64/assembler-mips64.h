@@ -309,7 +309,6 @@ typedef FPURegister DoubleRegister;
 DOUBLE_REGISTERS(DECLARE_DOUBLE_REGISTER)
 #undef DECLARE_DOUBLE_REGISTER
 
-constexpr DoubleRegister no_freg = DoubleRegister::no_reg();
 constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 // SIMD registers.
