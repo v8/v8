@@ -919,6 +919,11 @@ Node* RepresentationChanger::GetBitRepresentationFor(
                                        jsgraph()->Int32Constant(0));
     return jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
                                        jsgraph()->Int32Constant(0));
+  } else if (output_rep == MachineRepresentation::kWord64) {
+    node = jsgraph()->graph()->NewNode(machine()->Word64Equal(), node,
+                                       jsgraph()->Int64Constant(0));
+    return jsgraph()->graph()->NewNode(machine()->Word32Equal(), node,
+                                       jsgraph()->Int32Constant(0));
   } else if (output_rep == MachineRepresentation::kFloat32) {
     node = jsgraph()->graph()->NewNode(machine()->Float32Abs(), node);
     return jsgraph()->graph()->NewNode(machine()->Float32LessThan(),
