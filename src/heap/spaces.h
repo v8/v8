@@ -3005,7 +3005,7 @@ class LargeObjectSpace : public Space {
   void ClearMarkingStateOfLiveObjects();
 
   // Frees unmarked objects.
-  virtual void FreeDeadObjects();
+  void FreeUnmarkedObjects();
 
   void InsertChunkMapEntries(LargePage* page);
   void RemoveChunkMapEntries(LargePage* page);
@@ -3049,6 +3049,8 @@ class LargeObjectSpace : public Space {
 
  protected:
   LargePage* AllocateLargePage(int object_size, Executability executable);
+
+ private:
   size_t size_;          // allocated bytes
   int page_count_;       // number of chunks
   size_t objects_size_;  // size of objects
@@ -3073,8 +3075,6 @@ class NewLargeObjectSpace : public LargeObjectSpace {
   size_t Available() override;
 
   void Flip();
-
-  void FreeDeadObjects() override;
 };
 
 class LargeObjectIterator : public ObjectIterator {

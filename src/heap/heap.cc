@@ -191,12 +191,6 @@ size_t Heap::CommittedOldGenerationMemory() {
   return total + lo_space_->Size();
 }
 
-size_t Heap::CommittedYoungGenerationMemory() {
-  if (!HasBeenSetUp()) return 0;
-
-  return new_space_->CommittedMemory() + new_lo_space_->CommittedMemory();
-}
-
 size_t Heap::CommittedMemoryOfHeapAndUnmapper() {
   if (!HasBeenSetUp()) return 0;
 
@@ -207,7 +201,7 @@ size_t Heap::CommittedMemoryOfHeapAndUnmapper() {
 size_t Heap::CommittedMemory() {
   if (!HasBeenSetUp()) return 0;
 
-  return CommittedYoungGenerationMemory() + CommittedOldGenerationMemory();
+  return new_space_->CommittedMemory() + CommittedOldGenerationMemory();
 }
 
 

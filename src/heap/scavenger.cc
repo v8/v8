@@ -279,8 +279,6 @@ void ScavengerCollector::CollectGarbage() {
     }
   });
 
-  heap_->new_lo_space()->FreeDeadObjects();
-
   // Update how much has survived scavenge.
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedNewSpaceObjectSize());
 
@@ -300,6 +298,7 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     LargePage* page = LargePage::FromHeapObject(object);
     heap_->lo_space()->PromoteNewLargeObject(page);
   }
+  DCHECK(heap_->new_lo_space()->IsEmpty());
 }
 
 void ScavengerCollector::MergeSurvivingNewLargeObjects(

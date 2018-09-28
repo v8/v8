@@ -5706,26 +5706,6 @@ TEST(YoungGenerationLargeObjectAllocation) {
   CcTest::CollectAllAvailableGarbage();
 }
 
-TEST(YoungGenerationManyDeadLargeObjectAllocations) {
-  if (FLAG_minor_mc) return;
-  FLAG_young_generation_large_objects = true;
-  FLAG_max_old_space_size = 64;
-  FLAG_max_semi_space_size = 1;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Heap* heap = CcTest::heap();
-  Isolate* isolate = heap->isolate();
-
-  const int kNumberOfLargeObjectAllocations = 200;
-
-  for (int i = 0; i < kNumberOfLargeObjectAllocations; i++) {
-    {
-      v8::HandleScope inner(CcTest::isolate());
-      isolate->factory()->NewFixedArray(20000);
-    }
-  }
-}
-
 TEST(UncommitUnusedLargeObjectMemory) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
