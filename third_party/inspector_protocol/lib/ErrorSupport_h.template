@@ -5,7 +5,7 @@
 #ifndef {{"_".join(config.protocol.namespace)}}_ErrorSupport_h
 #define {{"_".join(config.protocol.namespace)}}_ErrorSupport_h
 
-//#include "Forward.h"
+#include {{format_include(config.protocol.package, "Forward")}}
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
@@ -17,8 +17,10 @@ public:
     ~ErrorSupport();
 
     void push();
+    void setName(const char*);
     void setName(const String&);
     void pop();
+    void addError(const char*);
     void addError(const String&);
     bool hasErrors();
     String errors();

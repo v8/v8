@@ -34,6 +34,9 @@ var defineProperty = Object.defineProperty;
 var numberPrototype = Number.prototype;
 var symbolIterator = Symbol.iterator;
 
+function assertUnreachable() {
+  %AbortJS("Failure: unreachable");
+}
 
 (function() {
   // Test before clearing global (fails otherwise)
@@ -580,6 +583,15 @@ function assertAsyncDone(iteration) {
 })();
 
 (function() {
+  Promise.all({[symbolIterator](){ return null; }}).then(
+    assertUnreachable,
+    function(r) {
+      assertAsync(r instanceof TypeError, 'all/non iterable');
+    });
+  assertAsyncRan();
+})();
+
+(function() {
   var deferred = defer(Promise);
   var p = deferred.promise;
   function* f() {
@@ -982,7 +994,7 @@ function assertAsyncDone(iteration) {
   var promise = new Promise(function(res) { resolve = res; });
   resolve({ then() { thenCalled = true; throw new Error(); } });
   assertLater(function() { return thenCalled; }, "resolve-with-thenable");
-});
+})();
 
 (function() {
   var calledWith;

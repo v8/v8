@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_REGEXP_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
-#define V8_REGEXP_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
+#ifndef V8_REGEXP_MIPS64_REGEXP_MACRO_ASSEMBLER_MIPS64_H_
+#define V8_REGEXP_MIPS64_REGEXP_MACRO_ASSEMBLER_MIPS64_H_
 
 #include "src/macro-assembler.h"
 #include "src/mips64/assembler-mips64.h"
@@ -107,9 +107,8 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   // TODO(plind): This 9 - is 8 s-regs (s0..s7) plus fp.
 
   static const int kReturnAddress = kStoredRegisters + 9 * kPointerSize;
-  static const int kSecondaryReturnAddress = kReturnAddress + kPointerSize;
   // Stack frame header.
-  static const int kStackFrameHeader = kSecondaryReturnAddress;
+  static const int kStackFrameHeader = kReturnAddress;
   // Stack parameters placed by caller.
   static const int kIsolate = kStackFrameHeader + kPointerSize;
 
@@ -175,7 +174,7 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   inline int char_size() { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
-  // is NULL, in which case it is a conditional Backtrack.
+  // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Label* to,
                          Condition condition,
                          Register rs,
@@ -229,4 +228,4 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_REGEXP_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_
+#endif  // V8_REGEXP_MIPS64_REGEXP_MACRO_ASSEMBLER_MIPS64_H_

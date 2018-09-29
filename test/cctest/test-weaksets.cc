@@ -27,22 +27,18 @@
 
 #include <utility>
 
-#include "src/v8.h"
-
-#include "src/factory.h"
 #include "src/global-handles.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/factory.h -> src/objects-inl.h
 #include "src/objects-inl.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/type-feedback-vector.h ->
-// src/type-feedback-vector-inl.h
-#include "src/type-feedback-vector-inl.h"
+#include "src/objects/hash-table-inl.h"
+#include "src/objects/js-collection-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
+namespace test_weaksets {
 
 static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
@@ -53,11 +49,11 @@ static Handle<JSWeakSet> AllocateJSWeakSet(Isolate* isolate) {
   Factory* factory = isolate->factory();
   Handle<Map> map = factory->NewMap(JS_WEAK_SET_TYPE, JSWeakSet::kSize);
   Handle<JSObject> weakset_obj = factory->NewJSObjectFromMap(map);
-  Handle<JSWeakSet> weakset(JSWeakSet::cast(*weakset_obj));
+  Handle<JSWeakSet> weakset(JSWeakSet::cast(*weakset_obj), isolate);
   // Do not leak handles for the hash table, it would make entries strong.
   {
     HandleScope scope(isolate);
-    Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 1);
+    Handle<EphemeronHashTable> table = EphemeronHashTable::New(isolate, 1);
     weakset->set_table(*table);
   }
   return weakset;
@@ -97,33 +93,30 @@ TEST(WeakSet_Weakness) {
   {
     HandleScope scope(isolate);
     Handle<Smi> smi(Smi::FromInt(23), isolate);
-    int32_t hash = Object::GetOrCreateHash(isolate, key)->value();
+    int32_t hash = key->GetOrCreateHash(isolate)->value();
     JSWeakCollection::Set(weakset, key, smi, hash);
   }
-  CHECK_EQ(1, ObjectHashTable::cast(weakset->table())->NumberOfElements());
+  CHECK_EQ(1, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
 
   // Force a full GC.
-  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::PreciseCollectAllGarbage();
   CHECK_EQ(0, NumberOfWeakCalls);
-  CHECK_EQ(1, ObjectHashTable::cast(weakset->table())->NumberOfElements());
+  CHECK_EQ(1, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
-      0, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
+      0, EphemeronHashTable::cast(weakset->table())->NumberOfDeletedElements());
 
   // Make the global reference to the key weak.
-  {
-    HandleScope scope(isolate);
-    std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
-    GlobalHandles::MakeWeak(
-        key.location(), reinterpret_cast<void*>(&handle_and_id),
-        &WeakPointerCallback, v8::WeakCallbackType::kParameter);
-  }
+  std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
+  GlobalHandles::MakeWeak(
+      key.location(), reinterpret_cast<void*>(&handle_and_id),
+      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
   CHECK(global_handles->IsWeak(key.location()));
 
-  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CcTest::PreciseCollectAllGarbage();
   CHECK_EQ(1, NumberOfWeakCalls);
-  CHECK_EQ(0, ObjectHashTable::cast(weakset->table())->NumberOfElements());
+  CHECK_EQ(0, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
-      1, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
+      1, EphemeronHashTable::cast(weakset->table())->NumberOfDeletedElements());
 }
 
 
@@ -135,7 +128,7 @@ TEST(WeakSet_Shrinking) {
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
 
   // Check initial capacity.
-  CHECK_EQ(32, ObjectHashTable::cast(weakset->table())->Capacity());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakset->table())->Capacity());
 
   // Fill up weak set to trigger capacity change.
   {
@@ -144,25 +137,26 @@ TEST(WeakSet_Shrinking) {
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObjectFromMap(map);
       Handle<Smi> smi(Smi::FromInt(i), isolate);
-      int32_t hash = Object::GetOrCreateHash(isolate, object)->value();
+      int32_t hash = object->GetOrCreateHash(isolate)->value();
       JSWeakCollection::Set(weakset, object, smi, hash);
     }
   }
 
   // Check increased capacity.
-  CHECK_EQ(128, ObjectHashTable::cast(weakset->table())->Capacity());
+  CHECK_EQ(128, EphemeronHashTable::cast(weakset->table())->Capacity());
 
   // Force a full GC.
-  CHECK_EQ(32, ObjectHashTable::cast(weakset->table())->NumberOfElements());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
-      0, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
-  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  CHECK_EQ(0, ObjectHashTable::cast(weakset->table())->NumberOfElements());
+      0, EphemeronHashTable::cast(weakset->table())->NumberOfDeletedElements());
+  CcTest::PreciseCollectAllGarbage();
+  CHECK_EQ(0, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
-      32, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
+      32,
+      EphemeronHashTable::cast(weakset->table())->NumberOfDeletedElements());
 
   // Check shrunk capacity.
-  CHECK_EQ(32, ObjectHashTable::cast(weakset->table())->Capacity());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakset->table())->Capacity());
 }
 
 
@@ -176,13 +170,13 @@ TEST(WeakSet_Regress2060a) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function = factory->NewFunction(
-      factory->function_string());
+  Handle<JSFunction> function =
+      factory->NewFunctionForTest(factory->function_string());
   Handle<JSObject> key = factory->NewJSObject(function);
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
 
   // Start second old-space page so that values land on evacuation candidate.
-  Page* first_page = heap->old_space()->anchor()->next_page();
+  Page* first_page = heap->old_space()->first_page();
   heap::SimulateFullSpace(heap->old_space());
 
   // Fill up weak set with values on an evacuation candidate.
@@ -190,16 +184,16 @@ TEST(WeakSet_Regress2060a) {
     HandleScope scope(isolate);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObject(function, TENURED);
-      CHECK(!heap->InNewSpace(*object));
+      CHECK(!Heap::InNewSpace(*object));
       CHECK(!first_page->Contains(object->address()));
-      int32_t hash = Object::GetOrCreateHash(isolate, key)->value();
+      int32_t hash = key->GetOrCreateHash(isolate)->value();
       JSWeakCollection::Set(weakset, key, object, hash);
     }
   }
 
   // Force compacting garbage collection.
   CHECK(FLAG_always_compact);
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
 }
 
 
@@ -217,31 +211,35 @@ TEST(WeakSet_Regress2060b) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
-  Handle<JSFunction> function = factory->NewFunction(
-      factory->function_string());
+  Handle<JSFunction> function =
+      factory->NewFunctionForTest(factory->function_string());
 
   // Start second old-space page so that keys land on evacuation candidate.
-  Page* first_page = heap->old_space()->anchor()->next_page();
+  Page* first_page = heap->old_space()->first_page();
   heap::SimulateFullSpace(heap->old_space());
 
   // Fill up weak set with keys on an evacuation candidate.
   Handle<JSObject> keys[32];
   for (int i = 0; i < 32; i++) {
     keys[i] = factory->NewJSObject(function, TENURED);
-    CHECK(!heap->InNewSpace(*keys[i]));
+    CHECK(!Heap::InNewSpace(*keys[i]));
     CHECK(!first_page->Contains(keys[i]->address()));
   }
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
   for (int i = 0; i < 32; i++) {
     Handle<Smi> smi(Smi::FromInt(i), isolate);
-    int32_t hash = Object::GetOrCreateHash(isolate, keys[i])->value();
+    int32_t hash = keys[i]->GetOrCreateHash(isolate)->value();
     JSWeakCollection::Set(weakset, keys[i], smi, hash);
   }
 
   // Force compacting garbage collection. The subsequent collections are used
   // to verify that key references were actually updated.
   CHECK(FLAG_always_compact);
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
 }
+
+}  // namespace test_weaksets
+}  // namespace internal
+}  // namespace v8

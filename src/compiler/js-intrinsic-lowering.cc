@@ -15,14 +15,14 @@
 #include "src/compiler/operator-properties.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
+#include "src/objects/js-generator.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-JSIntrinsicLowering::JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph,
-                                         DeoptimizationMode mode)
-    : AdvancedReducer(editor), jsgraph_(jsgraph), mode_(mode) {}
+JSIntrinsicLowering::JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph)
+    : AdvancedReducer(editor), jsgraph_(jsgraph) {}
 
 Reduction JSIntrinsicLowering::Reduce(Node* node) {
   if (node->opcode() != IrOpcode::kJSCallRuntime) return NoChange();
@@ -32,48 +32,40 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   switch (f->function_id) {
     case Runtime::kInlineCreateIterResultObject:
       return ReduceCreateIterResultObject(node);
-    case Runtime::kInlineDebugIsActive:
-      return ReduceDebugIsActive(node);
     case Runtime::kInlineDeoptimizeNow:
       return ReduceDeoptimizeNow(node);
     case Runtime::kInlineGeneratorClose:
       return ReduceGeneratorClose(node);
-    case Runtime::kInlineGeneratorGetInputOrDebugPos:
-      return ReduceGeneratorGetInputOrDebugPos(node);
+    case Runtime::kInlineCreateJSGeneratorObject:
+      return ReduceCreateJSGeneratorObject(node);
+    case Runtime::kInlineAsyncGeneratorReject:
+      return ReduceAsyncGeneratorReject(node);
+    case Runtime::kInlineAsyncGeneratorResolve:
+      return ReduceAsyncGeneratorResolve(node);
+    case Runtime::kInlineAsyncGeneratorYield:
+      return ReduceAsyncGeneratorYield(node);
     case Runtime::kInlineGeneratorGetResumeMode:
       return ReduceGeneratorGetResumeMode(node);
     case Runtime::kInlineIsArray:
       return ReduceIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsTypedArray:
       return ReduceIsInstanceType(node, JS_TYPED_ARRAY_TYPE);
-    case Runtime::kInlineIsRegExp:
-      return ReduceIsInstanceType(node, JS_REGEXP_TYPE);
     case Runtime::kInlineIsJSReceiver:
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
       return ReduceIsSmi(node);
-    case Runtime::kInlineFixedArrayGet:
-      return ReduceFixedArrayGet(node);
-    case Runtime::kInlineFixedArraySet:
-      return ReduceFixedArraySet(node);
-    case Runtime::kInlineRegExpExec:
-      return ReduceRegExpExec(node);
-    case Runtime::kInlineSubString:
-      return ReduceSubString(node);
-    case Runtime::kInlineToInteger:
-      return ReduceToInteger(node);
+    case Runtime::kInlineRejectPromise:
+      return ReduceRejectPromise(node);
+    case Runtime::kInlineResolvePromise:
+      return ReduceResolvePromise(node);
     case Runtime::kInlineToLength:
       return ReduceToLength(node);
-    case Runtime::kInlineToNumber:
-      return ReduceToNumber(node);
     case Runtime::kInlineToObject:
       return ReduceToObject(node);
     case Runtime::kInlineToString:
       return ReduceToString(node);
     case Runtime::kInlineCall:
       return ReduceCall(node);
-    case Runtime::kInlineGetSuperConstructor:
-      return ReduceGetSuperConstructor(node);
     default:
       break;
   }
@@ -90,25 +82,15 @@ Reduction JSIntrinsicLowering::ReduceCreateIterResultObject(Node* node) {
                 context, effect);
 }
 
-Reduction JSIntrinsicLowering::ReduceDebugIsActive(Node* node) {
-  Node* const value = jsgraph()->ExternalConstant(
-      ExternalReference::debug_is_active_address(isolate()));
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
-  Operator const* const op =
-      simplified()->LoadField(AccessBuilder::ForExternalUint8Value());
-  return Change(node, op, value, effect, control);
-}
-
 Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
-  if (mode() != kDeoptimizationEnabled) return NoChange();
   Node* const frame_state = NodeProperties::GetFrameStateInput(node);
   Node* const effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
 
   // TODO(bmeurer): Move MergeControlToEnd() to the AdvancedReducer.
   Node* deoptimize = graph()->NewNode(
-      common()->Deoptimize(DeoptimizeKind::kEager, DeoptimizeReason::kNoReason),
+      common()->Deoptimize(DeoptimizeKind::kEager,
+                           DeoptimizeReason::kDeoptimizeNow, VectorSlotPair()),
       frame_state, effect, control);
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
   Revisit(graph()->end());
@@ -116,6 +98,19 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
   node->TrimInputCount(0);
   NodeProperties::ChangeOp(node, common()->Dead());
   return Changed(node);
+}
+
+Reduction JSIntrinsicLowering::ReduceCreateJSGeneratorObject(Node* node) {
+  Node* const closure = NodeProperties::GetValueInput(node, 0);
+  Node* const receiver = NodeProperties::GetValueInput(node, 1);
+  Node* const context = NodeProperties::GetContextInput(node);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  Operator const* const op = javascript()->CreateGeneratorObject();
+  Node* create_generator =
+      graph()->NewNode(op, closure, receiver, context, effect, control);
+  ReplaceWithValue(node, create_generator, create_generator);
+  return Changed(create_generator);
 }
 
 Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
@@ -132,14 +127,22 @@ Reduction JSIntrinsicLowering::ReduceGeneratorClose(Node* node) {
   return Change(node, op, generator, closed, effect, control);
 }
 
-Reduction JSIntrinsicLowering::ReduceGeneratorGetInputOrDebugPos(Node* node) {
-  Node* const generator = NodeProperties::GetValueInput(node, 0);
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
-  Operator const* const op = simplified()->LoadField(
-      AccessBuilder::ForJSGeneratorObjectInputOrDebugPos());
+Reduction JSIntrinsicLowering::ReduceAsyncGeneratorReject(Node* node) {
+  return Change(
+      node, Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorReject),
+      0);
+}
 
-  return Change(node, op, generator, effect, control);
+Reduction JSIntrinsicLowering::ReduceAsyncGeneratorResolve(Node* node) {
+  return Change(
+      node, Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorResolve),
+      0);
+}
+
+Reduction JSIntrinsicLowering::ReduceAsyncGeneratorYield(Node* node) {
+  return Change(
+      node, Builtins::CallableFor(isolate(), Builtins::kAsyncGeneratorYield),
+      0);
 }
 
 Reduction JSIntrinsicLowering::ReduceGeneratorGetResumeMode(Node* node) {
@@ -171,19 +174,22 @@ Reduction JSIntrinsicLowering::ReduceIsInstanceType(
   Node* vtrue = jsgraph()->FalseConstant();
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* efalse = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
+  Node* efalse = effect;
+  Node* map = efalse =
       graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()), value,
-                       effect, if_false),
-      effect, if_false);
-  Node* vfalse = graph()->NewNode(simplified()->NumberEqual(), efalse,
-                                  jsgraph()->Constant(instance_type));
+                       efalse, if_false);
+  Node* map_instance_type = efalse = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapInstanceType()), map, efalse,
+      if_false);
+  Node* vfalse =
+      graph()->NewNode(simplified()->NumberEqual(), map_instance_type,
+                       jsgraph()->Constant(instance_type));
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
 
   // Replace all effect uses of {node} with the {ephi}.
   Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
-  ReplaceWithValue(node, node, ephi);
+  ReplaceWithValue(node, node, ephi, merge);
 
   // Turn the {node} into a Phi.
   return Change(node, common()->Phi(MachineRepresentation::kTagged, 2), vtrue,
@@ -200,6 +206,17 @@ Reduction JSIntrinsicLowering::ReduceIsSmi(Node* node) {
   return Change(node, simplified()->ObjectIsSmi());
 }
 
+Reduction JSIntrinsicLowering::ReduceRejectPromise(Node* node) {
+  RelaxControls(node);
+  NodeProperties::ChangeOp(node, javascript()->RejectPromise());
+  return Changed(node);
+}
+
+Reduction JSIntrinsicLowering::ReduceResolvePromise(Node* node) {
+  RelaxControls(node);
+  NodeProperties::ChangeOp(node, javascript()->ResolvePromise());
+  return Changed(node);
+}
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {
   // Replace all effect uses of {node} with the effect dependency.
@@ -208,53 +225,6 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {
   NodeProperties::RemoveNonValueInputs(node);
   // Finally update the operator to the new one.
   NodeProperties::ChangeOp(node, op);
-  return Changed(node);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceFixedArrayGet(Node* node) {
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  return Change(
-      node, simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
-      base, index, effect, control);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceFixedArraySet(Node* node) {
-  Node* base = node->InputAt(0);
-  Node* index = node->InputAt(1);
-  Node* value = node->InputAt(2);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* store = (graph()->NewNode(
-      simplified()->StoreElement(AccessBuilder::ForFixedArrayElement()), base,
-      index, value, effect, control));
-  ReplaceWithValue(node, value, store);
-  return Changed(store);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceRegExpExec(Node* node) {
-  return Change(node, CodeFactory::RegExpExec(isolate()), 4);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceSubString(Node* node) {
-  return Change(node, CodeFactory::SubString(isolate()), 3);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceToInteger(Node* node) {
-  NodeProperties::ChangeOp(node, javascript()->ToInteger());
-  return Changed(node);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceToNumber(Node* node) {
-  NodeProperties::ChangeOp(node, javascript()->ToNumber());
   return Changed(node);
 }
 
@@ -272,6 +242,12 @@ Reduction JSIntrinsicLowering::ReduceToObject(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceToString(Node* node) {
+  // ToString is unnecessary if the input is a string.
+  HeapObjectMatcher m(NodeProperties::GetValueInput(node, 0));
+  if (m.HasValue() && m.Value()->IsString()) {
+    ReplaceWithValue(node, m.node());
+    return Replace(m.node());
+  }
   NodeProperties::ChangeOp(node, javascript()->ToString());
   return Changed(node);
 }
@@ -279,22 +255,8 @@ Reduction JSIntrinsicLowering::ReduceToString(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
   size_t const arity = CallRuntimeParametersOf(node->op()).arity();
-  NodeProperties::ChangeOp(
-      node, javascript()->CallFunction(arity, 0.0f, VectorSlotPair(),
-                                       ConvertReceiverMode::kAny,
-                                       TailCallMode::kDisallow));
+  NodeProperties::ChangeOp(node, javascript()->Call(arity));
   return Changed(node);
-}
-
-Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
-  Node* active_function = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* active_function_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       active_function, effect, control);
-  return Change(node, simplified()->LoadField(AccessBuilder::ForMapPrototype()),
-                active_function_map, effect, control);
 }
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
@@ -335,12 +297,12 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
 
 Reduction JSIntrinsicLowering::Change(Node* node, Callable const& callable,
                                       int stack_parameter_count) {
-  CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), stack_parameter_count,
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(), stack_parameter_count,
       CallDescriptor::kNeedsFrameState, node->op()->properties());
   node->InsertInput(graph()->zone(), 0,
                     jsgraph()->HeapConstant(callable.code()));
-  NodeProperties::ChangeOp(node, common()->Call(desc));
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   return Changed(node);
 }
 

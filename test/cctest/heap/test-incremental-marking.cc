@@ -16,8 +16,10 @@
 
 #include "src/v8.h"
 
-#include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
+#include "src/heap/incremental-marking.h"
+#include "src/heap/spaces.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -27,34 +29,29 @@ using v8::Isolate;
 
 namespace v8 {
 namespace internal {
+namespace heap {
 
-class MockPlatform : public v8::Platform {
+class MockPlatform : public TestPlatform {
  public:
-  explicit MockPlatform(v8::Platform* platform)
-      : platform_(platform), task_(nullptr) {}
-  virtual ~MockPlatform() { delete task_; }
-
-  void CallOnBackgroundThread(Task* task,
-                              ExpectedRuntime expected_runtime) override {
-    platform_->CallOnBackgroundThread(task, expected_runtime);
+  MockPlatform() : task_(nullptr), old_platform_(i::V8::GetCurrentPlatform()) {
+    // Now that it's completely constructed, make this the current platform.
+    i::V8::SetPlatformForTesting(this);
+  }
+  ~MockPlatform() override {
+    delete task_;
+    i::V8::SetPlatformForTesting(old_platform_);
+    for (auto& task : worker_tasks_) {
+      old_platform_->CallOnWorkerThread(std::move(task));
+    }
+    worker_tasks_.clear();
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
     task_ = task;
   }
 
-  void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
-                                     double delay_in_seconds) override {
-    platform_->CallDelayedOnForegroundThread(isolate, task, delay_in_seconds);
-  }
-
-  double MonotonicallyIncreasingTime() override {
-    return platform_->MonotonicallyIncreasingTime();
-  }
-
-  void CallIdleOnForegroundThread(v8::Isolate* isolate,
-                                  IdleTask* task) override {
-    platform_->CallIdleOnForegroundThread(isolate, task);
+  void CallOnWorkerThread(std::unique_ptr<Task> task) override {
+    worker_tasks_.push_back(std::move(task));
   }
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
@@ -68,40 +65,17 @@ class MockPlatform : public v8::Platform {
     delete task;
   }
 
-  using Platform::AddTraceEvent;
-  uint64_t AddTraceEvent(char phase, const uint8_t* categoryEnabledFlag,
-                         const char* name, const char* scope, uint64_t id,
-                         uint64_t bind_id, int numArgs, const char** argNames,
-                         const uint8_t* argTypes, const uint64_t* argValues,
-                         unsigned int flags) override {
-    return 0;
-  }
-
-  void UpdateTraceEventDuration(const uint8_t* categoryEnabledFlag,
-                                const char* name, uint64_t handle) override {}
-
-  const uint8_t* GetCategoryGroupEnabled(const char* name) override {
-    static uint8_t no = 0;
-    return &no;
-  }
-
-  const char* GetCategoryGroupName(
-      const uint8_t* categoryEnabledFlag) override {
-    static const char* dummy = "dummy";
-    return dummy;
-  }
-
  private:
-  v8::Platform* platform_;
   Task* task_;
+  std::vector<std::unique_ptr<Task>> worker_tasks_;
+  v8::Platform* old_platform_;
 };
 
 TEST(IncrementalMarkingUsingTasks) {
   if (!i::FLAG_incremental_marking) return;
+  FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockPlatform platform(old_platform);
-  i::V8::SetPlatformForTesting(&platform);
+  MockPlatform platform;
   i::heap::SimulateFullSpace(CcTest::heap()->old_space());
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
@@ -111,8 +85,8 @@ TEST(IncrementalMarkingUsingTasks) {
     platform.PerformTask();
   }
   CHECK(marking->IsStopped());
-  i::V8::SetPlatformForTesting(old_platform);
 }
 
+}  // namespace heap
 }  // namespace internal
 }  // namespace v8

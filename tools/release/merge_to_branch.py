@@ -31,6 +31,7 @@ from collections import OrderedDict
 import sys
 
 from common_includes import *
+from git_recipes import GetCommitMessageFooterMap
 
 def IsSvnNumber(rev):
   return rev.isdigit() and len(rev) < 8
@@ -134,8 +135,13 @@ class CreateCommitMessage(Step):
       msg = self.GitLog(n=1, git_hash=commit_hash)
       for bug in re.findall(r"^[ \t]*BUG[ \t]*=[ \t]*(.*?)[ \t]*$", msg, re.M):
         bugs.extend(s.strip() for s in bug.split(","))
-    bug_aggregate = ",".join(sorted(filter(lambda s: s and s != "none", bugs)))
+      gerrit_bug = GetCommitMessageFooterMap(msg).get('Bug', '')
+      bugs.extend(s.strip() for s in gerrit_bug.split(","))
+    bug_aggregate = ",".join(
+        sorted(filter(lambda s: s and s != "none", set(bugs))))
     if bug_aggregate:
+      # TODO(machenbach): Use proper gerrit footer for bug after switch to
+      # gerrit. Keep BUG= for now for backwards-compatibility.
       msg_pieces.append("BUG=%s\nLOG=N\n" % bug_aggregate)
 
     msg_pieces.append("NOTRY=true\nNOPRESUBMIT=true\nNOTREECHECKS=true\n")
@@ -165,17 +171,6 @@ class CommitLocal(Step):
                                            self["new_commit_msg"])
     TextToFile(self["new_commit_msg"], self.Config("COMMITMSG_FILE"))
     self.GitCommit(file_name=self.Config("COMMITMSG_FILE"))
-
-class AddInformationalComment(Step):
-  MESSAGE = 'Show additional information.'
-
-  def RunStep(self):
-    message = ("NOTE: This script will no longer automatically "
-     "update include/v8-version.h "
-     "and create a tag. This is done automatically by the autotag bot. "
-     "Please call the merge_to_branch.py with --help for more information.")
-
-    self.GitCLAddComment(message)
 
 class CommitRepository(Step):
   MESSAGE = "Commit to the repository."
@@ -246,11 +241,12 @@ class MergeToBranch(ScriptsBase):
   def _Config(self):
     return {
       "BRANCHNAME": "prepare-merge",
-      "PERSISTFILE_BASENAME": "/tmp/v8-merge-to-branch-tempfile",
+      "PERSISTFILE_BASENAME": RELEASE_WORKDIR + "v8-merge-to-branch-tempfile",
       "ALREADY_MERGING_SENTINEL_FILE":
-          "/tmp/v8-merge-to-branch-tempfile-already-merging",
-      "TEMPORARY_PATCH_FILE": "/tmp/v8-prepare-merge-tempfile-temporary-patch",
-      "COMMITMSG_FILE": "/tmp/v8-prepare-merge-tempfile-commitmsg",
+          RELEASE_WORKDIR + "v8-merge-to-branch-tempfile-already-merging",
+      "TEMPORARY_PATCH_FILE":
+          RELEASE_WORKDIR + "v8-prepare-merge-tempfile-temporary-patch",
+      "COMMITMSG_FILE": RELEASE_WORKDIR + "v8-prepare-merge-tempfile-commitmsg",
     }
 
   def _Steps(self):
@@ -262,7 +258,6 @@ class MergeToBranch(ScriptsBase):
       ApplyPatches,
       CommitLocal,
       UploadStep,
-      AddInformationalComment,
       CommitRepository,
       CleanUp,
     ]

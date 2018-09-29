@@ -5,32 +5,55 @@
 #include "src/ast/modules.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
+#include "src/objects-inl.h"
+#include "src/objects/module-inl.h"
+#include "src/pending-compilation-error-handler.h"
 
 namespace v8 {
 namespace internal {
 
-void ModuleDescriptor::AddImport(
-    const AstRawString* import_name, const AstRawString* local_name,
-    const AstRawString* module_request, Scanner::Location loc, Zone* zone) {
+bool ModuleDescriptor::AstRawStringComparer::operator()(
+    const AstRawString* lhs, const AstRawString* rhs) const {
+  // Fast path for equal pointers: a pointer is not strictly less than itself.
+  if (lhs == rhs) return false;
+
+  // Order by contents (ordering by hash is unstable across runs).
+  if (lhs->is_one_byte() != rhs->is_one_byte()) {
+    return lhs->is_one_byte();
+  }
+  if (lhs->byte_length() != rhs->byte_length()) {
+    return lhs->byte_length() < rhs->byte_length();
+  }
+  return memcmp(lhs->raw_data(), rhs->raw_data(), lhs->byte_length()) < 0;
+}
+
+void ModuleDescriptor::AddImport(const AstRawString* import_name,
+                                 const AstRawString* local_name,
+                                 const AstRawString* module_request,
+                                 const Scanner::Location loc,
+                                 const Scanner::Location specifier_loc,
+                                 Zone* zone) {
   Entry* entry = new (zone) Entry(loc);
   entry->local_name = local_name;
   entry->import_name = import_name;
-  entry->module_request = AddModuleRequest(module_request);
+  entry->module_request = AddModuleRequest(module_request, specifier_loc);
   AddRegularImport(entry);
 }
 
-
-void ModuleDescriptor::AddStarImport(
-    const AstRawString* local_name, const AstRawString* module_request,
-    Scanner::Location loc, Zone* zone) {
+void ModuleDescriptor::AddStarImport(const AstRawString* local_name,
+                                     const AstRawString* module_request,
+                                     const Scanner::Location loc,
+                                     const Scanner::Location specifier_loc,
+                                     Zone* zone) {
   Entry* entry = new (zone) Entry(loc);
   entry->local_name = local_name;
-  entry->module_request = AddModuleRequest(module_request);
+  entry->module_request = AddModuleRequest(module_request, specifier_loc);
   AddNamespaceImport(entry, zone);
 }
 
-void ModuleDescriptor::AddEmptyImport(const AstRawString* module_request) {
-  AddModuleRequest(module_request);
+void ModuleDescriptor::AddEmptyImport(const AstRawString* module_request,
+                                      const Scanner::Location specifier_loc) {
+  AddModuleRequest(module_request, specifier_loc);
 }
 
 
@@ -43,24 +66,27 @@ void ModuleDescriptor::AddExport(
   AddRegularExport(entry);
 }
 
-
-void ModuleDescriptor::AddExport(
-    const AstRawString* import_name, const AstRawString* export_name,
-    const AstRawString* module_request, Scanner::Location loc, Zone* zone) {
+void ModuleDescriptor::AddExport(const AstRawString* import_name,
+                                 const AstRawString* export_name,
+                                 const AstRawString* module_request,
+                                 const Scanner::Location loc,
+                                 const Scanner::Location specifier_loc,
+                                 Zone* zone) {
   DCHECK_NOT_NULL(import_name);
   DCHECK_NOT_NULL(export_name);
   Entry* entry = new (zone) Entry(loc);
   entry->export_name = export_name;
   entry->import_name = import_name;
-  entry->module_request = AddModuleRequest(module_request);
+  entry->module_request = AddModuleRequest(module_request, specifier_loc);
   AddSpecialExport(entry, zone);
 }
 
-
-void ModuleDescriptor::AddStarExport(
-    const AstRawString* module_request, Scanner::Location loc, Zone* zone) {
+void ModuleDescriptor::AddStarExport(const AstRawString* module_request,
+                                     const Scanner::Location loc,
+                                     const Scanner::Location specifier_loc,
+                                     Zone* zone) {
   Entry* entry = new (zone) Entry(loc);
-  entry->module_request = AddModuleRequest(module_request);
+  entry->module_request = AddModuleRequest(module_request, specifier_loc);
   AddSpecialExport(entry, zone);
 }
 

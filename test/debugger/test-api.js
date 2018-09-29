@@ -32,21 +32,13 @@ class DebugWrapper {
                         Exception: 2,
                         AfterCompile: 3,
                         CompileError: 4,
+                        OOM: 5,
                       };
 
     // The different types of steps.
     this.StepAction = { StepOut: 0,
                         StepNext: 1,
                         StepIn: 2,
-                        StepFrame: 3,
-                      };
-
-    // The different types of scripts matching enum ScriptType in objects.h.
-    this.ScriptType = { Native: 0,
-                        Extension: 1,
-                        Normal: 2,
-                        Wasm: 3,
-                        Inspector: 4,
                       };
 
     // A copy of the scope types from runtime-debug.cc.
@@ -66,18 +58,6 @@ class DebugWrapper {
     // Types of exceptions that can be broken upon.
     this.ExceptionBreak = { Caught : 0,
                             Uncaught: 1 };
-
-    // The different types of breakpoint position alignments.
-    // Must match BreakPositionAlignment in debug.h.
-    this.BreakPositionAlignment = {
-      Statement: 0,
-      BreakPosition: 1
-    };
-
-    // The different script break point types.
-    this.ScriptBreakPointType = { ScriptId: 0,
-                                  ScriptName: 1,
-                                  ScriptRegExp: 2 };
 
     // Store the current script id so we can skip corresponding break events.
     this.thisScriptId = %FunctionGetScriptId(receive);
@@ -146,23 +126,6 @@ class DebugWrapper {
     return this.setBreakPointAtLocation(scriptid, loc, opt_condition);
   }
 
-  setScriptBreakPoint(type, scriptid, opt_line, opt_column, opt_condition) {
-    // Only sets by script id are supported for now.
-    assertEquals(this.ScriptBreakPointType.ScriptId, type);
-    return this.setScriptBreakPointById(scriptid, opt_line, opt_column,
-                                        opt_condition);
-  }
-
-  setScriptBreakPointById(scriptid, opt_line, opt_column, opt_condition) {
-    const loc = %ScriptLocationFromLine2(scriptid, opt_line, opt_column, 0);
-    return this.setBreakPointAtLocation(scriptid, loc, opt_condition);
-  }
-
-  setBreakPointByScriptIdAndPosition(scriptid, position) {
-    const loc = %ScriptPositionInfo2(scriptid, position, false);
-    return this.setBreakPointAtLocation(scriptid, loc, undefined);
-  }
-
   clearBreakPoint(breakpoint) {
     assertTrue(this.breakpoints.has(breakpoint));
     const breakid = breakpoint.id;
@@ -180,14 +143,12 @@ class DebugWrapper {
     this.breakpoints.clear();
   }
 
-  showBreakPoints(f, opt_position_alignment) {
+  showBreakPoints(f) {
     if (!%IsFunction(f)) throw new Error("Not passed a Function");
 
     const source = %FunctionGetSourceCode(f);
     const offset = %FunctionGetScriptSourcePosition(f);
-    const position_alignment = opt_position_alignment === undefined
-        ? this.BreakPositionAlignment.Statement : opt_position_alignment;
-    const locations = %GetBreakLocations(f, position_alignment);
+    const locations = %GetBreakLocations(f);
 
     if (!locations) return source;
 
@@ -216,70 +177,11 @@ class DebugWrapper {
            };
   }
 
-  scripts() {
-    // Collect all scripts in the heap.
-    return %DebugGetLoadedScripts();
-  }
-
-  // Returns a Script object. If the parameter is a function the return value
-  // is the script in which the function is defined. If the parameter is a
-  // string the return value is the script for which the script name has that
-  // string value.  If it is a regexp and there is a unique script whose name
-  // matches we return that, otherwise undefined.
-  findScript(func_or_script_name) {
-    if (%IsFunction(func_or_script_name)) {
-      return %FunctionGetScript(func_or_script_name);
-    } else if (%IsRegExp(func_or_script_name)) {
-      var scripts = this.scripts();
-      var last_result = null;
-      var result_count = 0;
-      for (var i in scripts) {
-        var script = scripts[i];
-        if (func_or_script_name.test(script.name)) {
-          last_result = script;
-          result_count++;
-        }
-      }
-      // Return the unique script matching the regexp.  If there are more
-      // than one we don't return a value since there is no good way to
-      // decide which one to return.  Returning a "random" one, say the
-      // first, would introduce nondeterminism (or something close to it)
-      // because the order is the heap iteration order.
-      if (result_count == 1) {
-        return last_result;
-      } else {
-        return undefined;
-      }
-    } else {
-      return %GetScript(func_or_script_name);
-    }
-  }
-
-  // Returns the script source. If the parameter is a function the return value
-  // is the script source for the script in which the function is defined. If the
-  // parameter is a string the return value is the script for which the script
-  // name has that string value.
-  scriptSource(func_or_script_name) {
-    return this.findScript(func_or_script_name).source;
+  // Returns the script source. The return value is the script source for the
+  // script in which the function is defined.
+  scriptSource(func) {
+    return %FunctionGetScriptSource(func);
   };
-
-  sourcePosition(f) {
-    if (!%IsFunction(f)) throw new Error("Not passed a Function");
-    return %FunctionGetScriptSourcePosition(f);
-  };
-
-  // Returns the character position in a script based on a line number and an
-  // optional position within that line.
-  findScriptSourcePosition(script, opt_line, opt_column) {
-    var location = %ScriptLocationFromLine(script, opt_line, opt_column, 0);
-    return location ? location.position : null;
-  };
-
-  findFunctionSourceLocation(func, opt_line, opt_column) {
-    var script = %FunctionGetScript(func);
-    var script_offset = %FunctionGetScriptSourcePosition(func);
-    return %ScriptLocationFromLine(script, opt_line, opt_column, script_offset);
-  }
 
   setBreakPointsActive(enabled) {
     const {msgid, msg} = this.createMessage(
@@ -305,8 +207,8 @@ class DebugWrapper {
     }
 
     function setScopeVariableValue(name, value) {
-      const res = %SetScopeVariableValue(gen, null, null, index, name, value);
-      if (!res) throw new Error("Failed to set variable value");
+      const res = %SetGeneratorScopeVariableValue(gen, index, name, value);
+      if (!res) throw new Error("Failed to set variable '" + name + "' value");
     }
 
     const scopeObject =
@@ -330,11 +232,6 @@ class DebugWrapper {
       scopes.push(this.generatorScope(gen, i));
     }
     return scopes;
-  }
-
-  get LiveEdit() {
-    const debugContext = %GetDebugContext();
-    return debugContext.Debug.LiveEdit;
   }
 
   // --- Internal methods. -----------------------------------------------------
@@ -401,13 +298,7 @@ class DebugWrapper {
     const breakid = result.breakpointId;
     assertTrue(breakid !== undefined);
 
-    const actualLoc = %ScriptLocationFromLine2(scriptid,
-        result.actualLocation.lineNumber, result.actualLocation.columnNumber,
-        0);
-
-    const breakpoint = { id : result.breakpointId,
-                         actual_position : actualLoc.position,
-                       }
+    const breakpoint = { id : result.breakpointId }
 
     this.breakpoints.add(breakpoint);
     return breakpoint;
@@ -418,7 +309,6 @@ class DebugWrapper {
       case this.StepAction.StepOut: this.stepOut(); break;
       case this.StepAction.StepNext: this.stepOver(); break;
       case this.StepAction.StepIn: this.stepInto(); break;
-      case this.StepAction.StepFrame: %PrepareStepFrame(); break;
       default: %AbortJS("Unsupported StepAction"); break;
     }
   }
@@ -472,27 +362,6 @@ class DebugWrapper {
            };
   }
 
-  execStateScopeDetails(scope) {
-    var start_position;
-    var end_position
-    const start = scope.startLocation;
-    const end = scope.endLocation;
-    if (start) {
-      start_position = %ScriptLocationFromLine2(
-          parseInt(start.scriptId), start.lineNumber, start.columnNumber, 0)
-          .position;
-    }
-    if (end) {
-      end_position = %ScriptLocationFromLine2(
-          parseInt(end.scriptId), end.lineNumber, end.columnNumber, 0)
-          .position;
-    }
-    return { name : () => scope.name,
-             startPosition : () => start_position,
-             endPosition : () => end_position
-           };
-  }
-
   setVariableValue(frame, scope_index, name, value) {
     const frameid = frame.callFrameId;
     const {msgid, msg} = this.createMessage(
@@ -505,7 +374,7 @@ class DebugWrapper {
     this.sendMessage(msg);
     const reply = this.takeReplyChecked(msgid);
     if (reply.error) {
-      throw new Error("Failed to set variable value");
+      throw new Error("Failed to set variable '" + name + "' value");
     }
   }
 
@@ -518,7 +387,6 @@ class DebugWrapper {
              setVariableValue :
                 (name, value) => this.setVariableValue(frame, scope_index,
                                                        name, value),
-             details : () => this.execStateScopeDetails(scope)
            };
   }
 
@@ -657,8 +525,19 @@ class DebugWrapper {
         isUndefined = true;
         break;
       }
+      case "number": {
+        if (obj.description === "NaN") {
+          value = NaN;
+        }
+        break;
+      }
+      case "bigint": {
+        assertEquals("n", obj.unserializableValue.charAt(
+            obj.unserializableValue.length - 1));
+        value = eval(obj.unserializableValue);
+        break;
+      }
       case "string":
-      case "number":
       case "boolean": {
         break;
       }
@@ -674,12 +553,13 @@ class DebugWrapper {
            };
   }
 
-  evaluateOnCallFrame(frame, expr) {
+  evaluateOnCallFrame(frame, expr, throw_on_side_effect = false) {
     const frameid = frame.callFrameId;
     const {msgid, msg} = this.createMessage(
         "Debugger.evaluateOnCallFrame",
         { callFrameId : frameid,
-          expression : expr
+          expression : expr,
+          throwOnSideEffect : throw_on_side_effect,
         });
     this.sendMessage(msg);
     const reply = this.takeReplyChecked(msgid);
@@ -724,7 +604,8 @@ class DebugWrapper {
              sourceLine : () => line + 1,
              sourceLineText : () => loc.sourceText,
              sourcePosition : () => loc.position,
-             evaluate : (expr) => this.evaluateOnCallFrame(frame, expr),
+             evaluate : (expr, throw_on_side_effect) =>
+                 this.evaluateOnCallFrame(frame, expr, throw_on_side_effect),
              functionName : () => frame.functionName,
              func : () => func,
              index : () => index,
@@ -740,9 +621,9 @@ class DebugWrapper {
            };
   }
 
-  execStateEvaluateGlobal(expr) {
+  evaluateGlobal(expr, throw_on_side_effect) {
     const {msgid, msg} = this.createMessage(
-        "Runtime.evaluate", { expression : expr });
+        "Runtime.evaluate", { expression : expr, throwOnSideEffect: throw_on_side_effect });
     this.sendMessage(msg);
     const reply = this.takeReplyChecked(msgid);
 
@@ -813,10 +694,21 @@ class DebugWrapper {
       case "promiseRejection":
         debugEvent = this.DebugEvent.Exception;
         break;
-      default:
-        // TODO(jgruber): More granularity.
+      case "OOM":
+        debugEvent = this.DebugEvent.OOM;
+        break;
+      case "other":
         debugEvent = this.DebugEvent.Break;
         break;
+      case "ambiguous":
+      case "XHR":
+      case "DOM":
+      case "EventListener":
+      case "assert":
+      case "debugCommand":
+        assertUnreachable();
+      default:
+        assertUnreachable();
     }
 
     if (!params.callFrames[0]) return;
@@ -828,7 +720,7 @@ class DebugWrapper {
     let execState = { frames : params.callFrames,
                       prepareStep : this.execStatePrepareStep.bind(this),
                       evaluateGlobal :
-                        (expr) => this.execStateEvaluateGlobal(expr),
+                        (expr) => this.evaluateGlobal(expr),
                       frame : (index) => this.execStateFrame(
                           index ? params.callFrames[index]
                                 : params.callFrames[0]),

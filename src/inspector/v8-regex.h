@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8REGEX_H_
-#define V8_INSPECTOR_V8REGEX_H_
+#ifndef V8_INSPECTOR_V8_REGEX_H_
+#define V8_INSPECTOR_V8_REGEX_H_
 
 #include "src/base/macros.h"
 #include "src/inspector/string-16.h"
@@ -20,7 +20,8 @@ class V8Regex {
  public:
   V8Regex(V8InspectorImpl*, const String16&, bool caseSensitive,
           bool multiline = false);
-  int match(const String16&, int startFrom = 0, int* matchLength = 0) const;
+  int match(const String16&, int startFrom = 0,
+            int* matchLength = nullptr) const;
   bool isValid() const { return !m_regex.IsEmpty(); }
   const String16& errorMessage() const { return m_errorMessage; }
 
@@ -34,4 +35,4 @@ class V8Regex {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8REGEX_H_
+#endif  // V8_INSPECTOR_V8_REGEX_H_

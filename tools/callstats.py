@@ -33,6 +33,9 @@ import scipy.stats
 from math import sqrt
 
 
+MAX_NOF_RETRIES = 5
+
+
 # Run benchmarks.
 
 def print_command(cmd_args):
@@ -211,9 +214,13 @@ def run_site(site, domain, args, timeout=None):
               print >> f, "URL: {}".format(site)
           retries_since_good_run = 0
           break
-        if retries_since_good_run < 6:
-          timeout += 2 ** retries_since_good_run
-          retries_since_good_run += 1
+        if retries_since_good_run > MAX_NOF_RETRIES:
+          # Abort after too many retries, no point in ever increasing the
+          # timeout.
+          print("TOO MANY EMPTY RESULTS ABORTING RUN")
+          return
+        timeout += 2 ** retries_since_good_run
+        retries_since_good_run += 1
         print("EMPTY RESULT, REPEATING RUN ({})".format(
             retries_since_good_run));
       finally:
@@ -233,6 +240,8 @@ def read_sites_file(args):
           if item['timeout'] > args.timeout: item['timeout'] = args.timeout
           sites.append(item)
     except ValueError:
+      args.error("Warning: Could not read sites file as JSON, falling back to "
+                 "primitive file")
       with open(args.sites_file, "rt") as f:
         for line in f:
           line = line.strip()
@@ -342,11 +351,22 @@ def statistics(data):
            'stddev': stddev, 'min': low, 'max': high, 'ci': ci }
 
 
+def add_category_total(entries, groups, category_prefix):
+  group_data = { 'time': 0, 'count': 0 }
+  for group_name, regexp in groups:
+    if not group_name.startswith('Group-' + category_prefix): continue
+    group_data['time'] += entries[group_name]['time']
+    group_data['count'] += entries[group_name]['count']
+  entries['Group-' + category_prefix + '-Total'] = group_data
+
+
 def read_stats(path, domain, args):
   groups = [];
   if args.aggregate:
     groups = [
         ('Group-IC', re.compile(".*IC_.*")),
+        ('Group-OptimizeBackground',
+         re.compile(".*OptimizeConcurrent.*|RecompileConcurrent.*")),
         ('Group-Optimize',
          re.compile("StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*")),
         ('Group-CompileBackground', re.compile("(.*CompileBackground.*)")),
@@ -355,7 +375,9 @@ def read_stats(path, domain, args):
         ('Group-Parse', re.compile(".*Parse.*")),
         ('Group-Callback', re.compile(".*Callback.*")),
         ('Group-API', re.compile(".*API.*")),
-        ('Group-GC', re.compile("GC|AllocateInTargetSpace")),
+        ('Group-GC-Custom', re.compile("GC_Custom_.*")),
+        ('Group-GC-Background', re.compile(".*GC.*BACKGROUND.*")),
+        ('Group-GC', re.compile("GC_.*|AllocateInTargetSpace")),
         ('Group-JavaScript', re.compile("JS_Execution")),
         ('Group-Runtime', re.compile(".*"))]
   with open(path, "rt") as f:
@@ -396,20 +418,10 @@ def read_stats(path, domain, args):
       group_data['time'] += entries[group_name]['time']
       group_data['count'] += entries[group_name]['count']
     entries['Group-Total-V8'] = group_data
-    # Calculate the Parse-Total group
-    group_data = { 'time': 0, 'count': 0 }
-    for group_name, regexp in groups:
-      if not group_name.startswith('Group-Parse'): continue
-      group_data['time'] += entries[group_name]['time']
-      group_data['count'] += entries[group_name]['count']
-    entries['Group-Parse-Total'] = group_data
-    # Calculate the Compile-Total group
-    group_data = { 'time': 0, 'count': 0 }
-    for group_name, regexp in groups:
-      if not group_name.startswith('Group-Compile'): continue
-      group_data['time'] += entries[group_name]['time']
-      group_data['count'] += entries[group_name]['count']
-    entries['Group-Compile-Total'] = group_data
+    # Calculate the Parse-Total, Compile-Total and Optimize-Total groups
+    add_category_total(entries, groups, 'Parse')
+    add_category_total(entries, groups, 'Compile')
+    add_category_total(entries, groups, 'Optimize')
     # Append the sums as single entries to domain.
     for key in entries:
       if key not in domain: domain[key] = { 'time_list': [], 'count_list': [] }
@@ -508,8 +520,15 @@ def create_total_page_stats(domains, args):
         sums.extend([0] * (i - len(sums) + 1))
       if item is not None:
         sums[i] += item
-  # Sum up all the entries/metrics from all domains
+  # Exclude adwords and speedometer pages from aggrigate total, since adwords
+  # dominates execution time and speedometer is measured elsewhere.
+  excluded_domains = ['adwords.google.com', 'speedometer-angular',
+                      'speedometer-jquery', 'speedometer-backbone',
+                      'speedometer-ember', 'speedometer-vanilla'];
+  # Sum up all the entries/metrics from all non-excluded domains
   for domain, entries in domains.items():
+    if domain in excluded_domains:
+      continue;
     for key, domain_stats in entries.items():
       if key not in total:
         total[key] = {}
@@ -635,7 +654,7 @@ def main():
         "-l", "--log-stderr", type=str, metavar="<path>",
         help="specify where chrome's stderr should go (default: /dev/null)")
     subparser.add_argument(
-        "sites", type=str, metavar="<URL>", nargs="*",
+        "--sites", type=str, metavar="<URL>", nargs="*",
         help="specify benchmark website")
   add_replay_args(subparsers["run"])
 

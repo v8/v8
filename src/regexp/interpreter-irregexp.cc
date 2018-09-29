@@ -9,15 +9,16 @@
 #include "src/regexp/interpreter-irregexp.h"
 
 #include "src/ast/ast.h"
+#include "src/objects-inl.h"
 #include "src/regexp/bytecodes-irregexp.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/unicode.h"
 #include "src/utils.h"
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -113,13 +114,13 @@ static void TraceInterpreter(const byte* code_base,
 
 
 static int32_t Load32Aligned(const byte* pc) {
-  DCHECK((reinterpret_cast<intptr_t>(pc) & 3) == 0);
+  DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 3);
   return *reinterpret_cast<const int32_t *>(pc);
 }
 
 
 static int32_t Load16Aligned(const byte* pc) {
-  DCHECK((reinterpret_cast<intptr_t>(pc) & 1) == 0);
+  DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 1);
   return *reinterpret_cast<const uint16_t *>(pc);
 }
 
@@ -174,7 +175,6 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
     switch (insn & BYTECODE_MASK) {
       BYTECODE(BREAK)
         UNREACHABLE();
-        return RegExpImpl::RE_FAILURE;
       BYTECODE(PUSH_CP)
         if (--backtrack_stack_space < 0) {
           return RegExpImpl::RE_EXCEPTION;
@@ -300,7 +300,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         break;
       }
       BYTECODE(LOAD_4_CURRENT_CHARS) {
-        DCHECK(sizeof(Char) == 1);
+        DCHECK_EQ(1, sizeof(Char));
         int pos = current + (insn >> BYTECODE_SHIFT);
         if (pos + 4 > subject.length() || pos < 0) {
           pc = code_base + Load32Aligned(pc + 4);
@@ -317,7 +317,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         break;
       }
       BYTECODE(LOAD_4_CURRENT_CHARS_UNCHECKED) {
-        DCHECK(sizeof(Char) == 1);
+        DCHECK_EQ(1, sizeof(Char));
         int pos = current + (insn >> BYTECODE_SHIFT);
         Char next1 = subject[pos + 1];
         Char next2 = subject[pos + 2];
@@ -519,6 +519,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         break;
       }
       BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE)
+      V8_FALLTHROUGH;
       BYTECODE(CHECK_NOT_BACK_REF_NO_CASE) {
         bool unicode =
             (insn & BYTECODE_MASK) == BC_CHECK_NOT_BACK_REF_NO_CASE_UNICODE;
@@ -537,6 +538,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         break;
       }
       BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD)
+      V8_FALLTHROUGH;
       BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD) {
         bool unicode = (insn & BYTECODE_MASK) ==
                        BC_CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD;

@@ -32,7 +32,10 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
 
     // Strict equality cannot lazily deoptimize.
     case IrOpcode::kJSStrictEqual:
-    case IrOpcode::kJSStrictNotEqual:
+      return false;
+
+    // Generator creation cannot call back into arbitrary JavaScript.
+    case IrOpcode::kJSCreateGeneratorObject:
       return false;
 
     // Binary operations
@@ -41,6 +44,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSMultiply:
     case IrOpcode::kJSDivide:
     case IrOpcode::kJSModulus:
+    case IrOpcode::kJSExponentiate:
 
     // Bitwise operations
     case IrOpcode::kJSBitwiseOr:
@@ -54,12 +58,12 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
 
     // Compare operations
     case IrOpcode::kJSEqual:
-    case IrOpcode::kJSNotEqual:
     case IrOpcode::kJSGreaterThan:
     case IrOpcode::kJSGreaterThanOrEqual:
     case IrOpcode::kJSLessThan:
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSHasProperty:
+    case IrOpcode::kJSHasInPrototypeChain:
     case IrOpcode::kJSInstanceOf:
     case IrOpcode::kJSOrdinaryHasInstance:
 
@@ -67,9 +71,13 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSCreate:
     case IrOpcode::kJSCreateArguments:
     case IrOpcode::kJSCreateArray:
+    case IrOpcode::kJSCreateTypedArray:
     case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateArrayFromIterable:
     case IrOpcode::kJSCreateLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
+    case IrOpcode::kJSCreateObject:
+    case IrOpcode::kJSCloneObject:
 
     // Property access operations
     case IrOpcode::kJSLoadNamed:
@@ -78,31 +86,46 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSStoreProperty:
     case IrOpcode::kJSLoadGlobal:
     case IrOpcode::kJSStoreGlobal:
+    case IrOpcode::kJSStoreNamedOwn:
     case IrOpcode::kJSStoreDataPropertyInLiteral:
     case IrOpcode::kJSDeleteProperty:
 
-    // Context operations
-    case IrOpcode::kJSCreateScriptContext:
-
     // Conversions
-    case IrOpcode::kJSToInteger:
     case IrOpcode::kJSToLength:
     case IrOpcode::kJSToName:
     case IrOpcode::kJSToNumber:
+    case IrOpcode::kJSToNumberConvertBigInt:
+    case IrOpcode::kJSToNumeric:
     case IrOpcode::kJSToObject:
     case IrOpcode::kJSToString:
+    case IrOpcode::kJSParseInt:
 
     // Call operations
-    case IrOpcode::kJSCallConstruct:
-    case IrOpcode::kJSCallConstructWithSpread:
-    case IrOpcode::kJSCallFunction:
+    case IrOpcode::kJSConstructForwardVarargs:
+    case IrOpcode::kJSConstruct:
+    case IrOpcode::kJSConstructWithArrayLike:
+    case IrOpcode::kJSConstructWithSpread:
+    case IrOpcode::kJSCallForwardVarargs:
+    case IrOpcode::kJSCall:
+    case IrOpcode::kJSCallWithArrayLike:
+    case IrOpcode::kJSCallWithSpread:
 
     // Misc operations
-    case IrOpcode::kJSConvertReceiver:
+    case IrOpcode::kJSForInEnumerate:
     case IrOpcode::kJSForInNext:
-    case IrOpcode::kJSForInPrepare:
     case IrOpcode::kJSStackCheck:
+    case IrOpcode::kJSDebugger:
     case IrOpcode::kJSGetSuperConstructor:
+    case IrOpcode::kJSBitwiseNot:
+    case IrOpcode::kJSDecrement:
+    case IrOpcode::kJSIncrement:
+    case IrOpcode::kJSNegate:
+    case IrOpcode::kJSPromiseResolve:
+    case IrOpcode::kJSRejectPromise:
+    case IrOpcode::kJSResolvePromise:
+    case IrOpcode::kJSPerformPromiseThen:
+    case IrOpcode::kJSObjectIsArray:
+    case IrOpcode::kJSRegExpTest:
       return true;
 
     default:

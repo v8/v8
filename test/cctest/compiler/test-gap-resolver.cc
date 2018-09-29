@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-const auto GetRegConfig = RegisterConfiguration::Turbofan;
+const auto GetRegConfig = RegisterConfiguration::Default;
 
 // Fragments the given FP operand into an equivalent set of FP operands to
 // simplify ParallelMove equivalence testing.
@@ -312,10 +312,11 @@ class ParallelMoveCreator : public HandleAndZoneScope {
         return MachineRepresentation::kTagged;
     }
     UNREACHABLE();
-    return MachineRepresentation::kNone;
   }
 
-  const int kMaxIndex = 7;
+  // min(num_alloctable_general_registers for each arch) == 6 from
+  // assembler-ia32.h
+  const int kMaxIndex = 6;
   const int kMaxIndices = kMaxIndex + 1;
 
   // Non-FP slots shouldn't overlap FP slots.
@@ -338,7 +339,7 @@ class ParallelMoveCreator : public HandleAndZoneScope {
 
   InstructionOperand CreateRandomOperand(bool is_source,
                                          MachineRepresentation rep) {
-    auto conf = RegisterConfiguration::Turbofan();
+    auto conf = RegisterConfiguration::Default();
     auto GetValidRegisterCode = [&conf](MachineRepresentation rep, int index) {
       switch (rep) {
         case MachineRepresentation::kFloat32:
@@ -351,7 +352,6 @@ class ParallelMoveCreator : public HandleAndZoneScope {
           return conf->RegisterConfiguration::GetAllocatableGeneralCode(index);
       }
       UNREACHABLE();
-      return static_cast<int>(Register::kCode_no_reg);
     };
     int index = rng_->NextInt(kMaxIndex);
     // destination can't be Constant.
@@ -372,7 +372,6 @@ class ParallelMoveCreator : public HandleAndZoneScope {
         return ConstantOperand(index);
     }
     UNREACHABLE();
-    return InstructionOperand();
   }
 
  private:

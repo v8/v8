@@ -14,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-class CompilationInfo;
+class OptimizedCompilationInfo;
 class CompilationStatistics;
 
 struct AsPrintableStatistics {
@@ -24,7 +24,7 @@ struct AsPrintableStatistics {
 
 class CompilationStatistics final : public Malloced {
  public:
-  CompilationStatistics() {}
+  CompilationStatistics() = default;
 
   class BasicStats {
    public:
@@ -90,4 +90,4 @@ std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& s);
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_COMPILATION_STATISTICS_H_

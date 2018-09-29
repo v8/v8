@@ -1,7 +1,6 @@
 // Copyright 2014 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 #ifndef V8_COMPILER_JS_GENERIC_LOWERING_H_
 #define V8_COMPILER_JS_GENERIC_LOWERING_H_
 
@@ -26,6 +25,8 @@ class JSGenericLowering final : public Reducer {
  public:
   explicit JSGenericLowering(JSGraph* jsgraph);
   ~JSGenericLowering() final;
+
+  const char* reducer_name() const override { return "JSGenericLowering"; }
 
   Reduction Reduce(Node* node) final;
 

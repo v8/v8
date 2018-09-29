@@ -38,22 +38,59 @@ const AccumulatorUse Bytecodes::kAccumulatorUse[] = {
 #undef ENTRY
 };
 
-const int Bytecodes::kBytecodeSizes[][3] = {
-#define ENTRY(Name, ...)                            \
-  { BytecodeTraits<__VA_ARGS__>::kSingleScaleSize,  \
-    BytecodeTraits<__VA_ARGS__>::kDoubleScaleSize,  \
-    BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleSize },
+const int Bytecodes::kBytecodeSizes[3][kBytecodeCount] = {
+  {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kSingleScaleSize,
   BYTECODE_LIST(ENTRY)
 #undef ENTRY
+  }, {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kDoubleScaleSize,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...) BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleSize,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }
 };
 
-const OperandSize* const Bytecodes::kOperandSizes[][3] = {
-#define ENTRY(Name, ...)                                    \
-  { BytecodeTraits<__VA_ARGS__>::kSingleScaleOperandSizes,  \
-    BytecodeTraits<__VA_ARGS__>::kDoubleScaleOperandSizes,  \
-    BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleOperandSizes },
+const OperandSize* const Bytecodes::kOperandSizes[3][kBytecodeCount] = {
+  {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kSingleScaleOperandSizes,
   BYTECODE_LIST(ENTRY)
 #undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kDoubleScaleOperandSizes,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    BytecodeTraits<__VA_ARGS__>::kQuadrupleScaleOperandSizes,
+  BYTECODE_LIST(ENTRY)
+#undef ENTRY
+  }
+};
+
+const OperandSize
+Bytecodes::kOperandKindSizes[3][BytecodeOperands::kOperandTypeCount] = {
+  {
+#define ENTRY(Name, ...)  \
+    OperandScaler<OperandType::k##Name, OperandScale::kSingle>::kOperandSize,
+  OPERAND_TYPE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    OperandScaler<OperandType::k##Name, OperandScale::kDouble>::kOperandSize,
+  OPERAND_TYPE_LIST(ENTRY)
+#undef ENTRY
+  }, {
+#define ENTRY(Name, ...)  \
+    OperandScaler<OperandType::k##Name, OperandScale::kQuadruple>::kOperandSize,
+  OPERAND_TYPE_LIST(ENTRY)
+#undef ENTRY
+  }
 };
 // clang-format on
 
@@ -67,18 +104,16 @@ const char* Bytecodes::ToString(Bytecode bytecode) {
 #undef CASE
   }
   UNREACHABLE();
-  return "";
 }
 
 // static
-std::string Bytecodes::ToString(Bytecode bytecode, OperandScale operand_scale) {
-  static const char kSeparator = '.';
-
+std::string Bytecodes::ToString(Bytecode bytecode, OperandScale operand_scale,
+                                const char* separator) {
   std::string value(ToString(bytecode));
   if (operand_scale > OperandScale::kSingle) {
     Bytecode prefix_bytecode = OperandScaleToPrefixBytecode(operand_scale);
     std::string suffix = ToString(prefix_bytecode);
-    return value.append(1, kSeparator).append(suffix);
+    return value.append(separator).append(suffix);
   } else {
     return value;
   }
@@ -101,7 +136,6 @@ Bytecode Bytecodes::GetDebugBreak(Bytecode bytecode) {
   DEBUG_BREAK_PLAIN_BYTECODE_LIST(RETURN_IF_DEBUG_BREAK_SIZE_MATCHES)
 #undef RETURN_IF_DEBUG_BREAK_SIZE_MATCHES
   UNREACHABLE();
-  return Bytecode::kIllegal;
 }
 
 // static
@@ -133,7 +167,6 @@ Bytecode Bytecodes::GetJumpWithoutToBoolean(Bytecode bytecode) {
       break;
   }
   UNREACHABLE();
-  return Bytecode::kIllegal;
 }
 
 // static
@@ -164,6 +197,30 @@ bool Bytecodes::IsRegisterOperandType(OperandType operand_type) {
 #undef CASE
   }
   return false;
+}
+
+// static
+bool Bytecodes::IsRegisterListOperandType(OperandType operand_type) {
+  switch (operand_type) {
+    case OperandType::kRegList:
+    case OperandType::kRegOutList:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool Bytecodes::MakesCallAlongCriticalPath(Bytecode bytecode) {
+  if (IsCallOrConstruct(bytecode) || IsCallRuntime(bytecode)) return true;
+  switch (bytecode) {
+    case Bytecode::kCreateWithContext:
+    case Bytecode::kCreateBlockContext:
+    case Bytecode::kCreateCatchContext:
+    case Bytecode::kCreateRegExpLiteral:
+      return true;
+    default:
+      return false;
+  }
 }
 
 // static
@@ -225,9 +282,18 @@ bool Bytecodes::IsStarLookahead(Bytecode bytecode, OperandScale operand_scale) {
       case Bytecode::kInc:
       case Bytecode::kDec:
       case Bytecode::kTypeOf:
-      case Bytecode::kCall:
+      case Bytecode::kCallAnyReceiver:
+      case Bytecode::kCallNoFeedback:
       case Bytecode::kCallProperty:
-      case Bytecode::kNew:
+      case Bytecode::kCallProperty0:
+      case Bytecode::kCallProperty1:
+      case Bytecode::kCallProperty2:
+      case Bytecode::kCallUndefinedReceiver:
+      case Bytecode::kCallUndefinedReceiver0:
+      case Bytecode::kCallUndefinedReceiver1:
+      case Bytecode::kCallUndefinedReceiver2:
+      case Bytecode::kConstruct:
+      case Bytecode::kConstructWithSpread:
         return true;
       default:
         return false;
@@ -254,32 +320,6 @@ bool Bytecodes::IsUnsignedOperandType(OperandType operand_type) {
 #undef CASE
   }
   UNREACHABLE();
-  return false;
-}
-
-// static
-OperandSize Bytecodes::SizeOfOperand(OperandType operand_type,
-                                     OperandScale operand_scale) {
-  DCHECK_LE(operand_type, OperandType::kLast);
-  DCHECK_GE(operand_scale, OperandScale::kSingle);
-  DCHECK_LE(operand_scale, OperandScale::kLast);
-  STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
-                OperandScale::kLast == OperandScale::kQuadruple);
-  int scale_index = static_cast<int>(operand_scale) >> 1;
-  // clang-format off
-  static const OperandSize kOperandSizes[][3] = {
-#define ENTRY(Name, ...)                                \
-  { OperandScaler<OperandType::k##Name,                 \
-                 OperandScale::kSingle>::kOperandSize,  \
-    OperandScaler<OperandType::k##Name,                 \
-                 OperandScale::kDouble>::kOperandSize,  \
-    OperandScaler<OperandType::k##Name,                 \
-                 OperandScale::kQuadruple>::kOperandSize },
-    OPERAND_TYPE_LIST(ENTRY)
-#undef ENTRY
-  };
-  // clang-format on
-  return kOperandSizes[static_cast<size_t>(operand_type)][scale_index];
 }
 
 // static

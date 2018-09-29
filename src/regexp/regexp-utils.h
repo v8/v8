@@ -10,6 +10,8 @@
 namespace v8 {
 namespace internal {
 
+class RegExpMatchInfo;
+
 // Helper methods for C++ regexp builtins.
 class RegExpUtils : public AllStatic {
  public:
@@ -19,13 +21,13 @@ class RegExpUtils : public AllStatic {
                                              int capture, bool* ok = nullptr);
 
   // Last index (RegExp.lastIndex) accessors.
-  static MUST_USE_RESULT MaybeHandle<Object> SetLastIndex(
-      Isolate* isolate, Handle<JSReceiver> regexp, int value);
-  static MUST_USE_RESULT MaybeHandle<Object> GetLastIndex(
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetLastIndex(
+      Isolate* isolate, Handle<JSReceiver> regexp, uint64_t value);
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> GetLastIndex(
       Isolate* isolate, Handle<JSReceiver> recv);
 
   // ES#sec-regexpexec Runtime Semantics: RegExpExec ( R, S )
-  static MUST_USE_RESULT MaybeHandle<Object> RegExpExec(
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> RegExpExec(
       Isolate* isolate, Handle<JSReceiver> regexp, Handle<String> string,
       Handle<Object> exec);
 
@@ -39,9 +41,9 @@ class RegExpUtils : public AllStatic {
 
   // ES#sec-advancestringindex
   // AdvanceStringIndex ( S, index, unicode )
-  static int AdvanceStringIndex(Isolate* isolate, Handle<String> string,
-                                int index, bool unicode);
-  static MUST_USE_RESULT MaybeHandle<Object> SetAdvancedStringIndex(
+  static uint64_t AdvanceStringIndex(Handle<String> string, uint64_t index,
+                                     bool unicode);
+  static V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetAdvancedStringIndex(
       Isolate* isolate, Handle<JSReceiver> regexp, Handle<String> string,
       bool unicode);
 };

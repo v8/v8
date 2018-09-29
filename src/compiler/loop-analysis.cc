@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#define OFFSET(x) ((x)&0x1f)
+#define OFFSET(x) ((x)&0x1F)
 #define BIT(x) (1u << OFFSET(x))
 #define INDEX(x) ((x) >> 5)
 
@@ -26,7 +26,7 @@ struct NodeInfo {
 
 
 // Temporary loop info needed during traversal and building the loop tree.
-struct LoopInfo {
+struct TempLoopInfo {
   Node* header;
   NodeInfo* header_list;
   NodeInfo* exit_list;
@@ -93,7 +93,7 @@ class LoopFinderImpl {
     }
 
     int i = 0;
-    for (LoopInfo& li : loops_) {
+    for (TempLoopInfo& li : loops_) {
       PrintF("Loop %d headed at #%d\n", i, li.header->id());
       i++;
     }
@@ -109,7 +109,7 @@ class LoopFinderImpl {
   NodeDeque queue_;
   NodeMarker<bool> queued_;
   ZoneVector<NodeInfo> info_;
-  ZoneVector<LoopInfo> loops_;
+  ZoneVector<TempLoopInfo> loops_;
   ZoneVector<int> loop_num_;
   LoopTree* loop_tree_;
   int loops_found_;
@@ -295,7 +295,7 @@ class LoopFinderImpl {
   // Propagate marks forward from loops.
   void PropagateForward() {
     ResizeForwardMarks();
-    for (LoopInfo& li : loops_) {
+    for (TempLoopInfo& li : loops_) {
       SetForwardMark(li.header, LoopNum(li.header));
       Queue(li.header);
     }
@@ -350,7 +350,7 @@ class LoopFinderImpl {
     }
   }
 
-  void AddNodeToLoop(NodeInfo* node_info, LoopInfo* loop, int loop_num) {
+  void AddNodeToLoop(NodeInfo* node_info, TempLoopInfo* loop, int loop_num) {
     if (LoopNum(node_info->node) == loop_num) {
       if (IsLoopHeaderNode(node_info->node)) {
         node_info->next = loop->header_list;
@@ -381,17 +381,18 @@ class LoopFinderImpl {
     for (NodeInfo& ni : info_) {
       if (ni.node == nullptr) continue;
 
-      LoopInfo* innermost = nullptr;
+      TempLoopInfo* innermost = nullptr;
       int innermost_index = 0;
       int pos = ni.node->id() * width_;
       // Search the marks word by word.
       for (int i = 0; i < width_; i++) {
         uint32_t marks = backward_[pos + i] & forward_[pos + i];
+
         for (int j = 0; j < 32; j++) {
           if (marks & (1u << j)) {
             int loop_num = i * 32 + j;
             if (loop_num == 0) continue;
-            LoopInfo* loop = &loops_[loop_num - 1];
+            TempLoopInfo* loop = &loops_[loop_num - 1];
             if (innermost == nullptr ||
                 loop->loop->depth_ > innermost->loop->depth_) {
               innermost = loop;
@@ -401,6 +402,10 @@ class LoopFinderImpl {
         }
       }
       if (innermost == nullptr) continue;
+
+      // Return statements should never be found by forward or backward walk.
+      CHECK(ni.node->opcode() != IrOpcode::kReturn);
+
       AddNodeToLoop(&ni, innermost, innermost_index);
       count++;
     }
@@ -415,12 +420,16 @@ class LoopFinderImpl {
   // Handle the simpler case of a single loop (no checks for nesting necessary).
   void FinishSingleLoop() {
     // Place nodes into the loop header and body.
-    LoopInfo* li = &loops_[0];
+    TempLoopInfo* li = &loops_[0];
     li->loop = &loop_tree_->all_loops_[0];
     loop_tree_->SetParent(nullptr, li->loop);
     size_t count = 0;
     for (NodeInfo& ni : info_) {
       if (ni.node == nullptr || !IsInLoop(ni.node, 1)) continue;
+
+      // Return statements should never be found by forward or backward walk.
+      CHECK(ni.node->opcode() != IrOpcode::kReturn);
+
       AddNodeToLoop(&ni, li, 1);
       count++;
     }
@@ -434,7 +443,7 @@ class LoopFinderImpl {
   // so that nested loops occupy nested intervals.
   void SerializeLoop(LoopTree::Loop* loop) {
     int loop_num = loop_tree_->LoopNum(loop);
-    LoopInfo& li = loops_[loop_num - 1];
+    TempLoopInfo& li = loops_[loop_num - 1];
 
     // Serialize the header.
     loop->header_start_ = static_cast<int>(loop_tree_->loop_nodes_.size());
@@ -465,7 +474,7 @@ class LoopFinderImpl {
 
   // Connect the LoopTree loops to their parents recursively.
   LoopTree::Loop* ConnectLoopTree(int loop_num) {
-    LoopInfo& li = loops_[loop_num - 1];
+    TempLoopInfo& li = loops_[loop_num - 1];
     if (li.loop != nullptr) return li.loop;
 
     NodeInfo& ni = info(li.header);

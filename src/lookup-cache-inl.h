@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_LOOKUP_CACHE_INL_H_
+#define V8_LOOKUP_CACHE_INL_H_
+
 #include "src/lookup-cache.h"
 
 #include "src/objects-inl.h"
@@ -28,7 +31,7 @@ int DescriptorLookupCache::Lookup(Map* source, Name* name) {
 }
 
 void DescriptorLookupCache::Update(Map* source, Name* name, int result) {
-  DCHECK(result != kAbsent);
+  DCHECK_NE(result, kAbsent);
   int index = Hash(source, name);
   Key& key = keys_[index];
   key.source = source;
@@ -38,3 +41,5 @@ void DescriptorLookupCache::Update(Map* source, Name* name, int result) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_LOOKUP_CACHE_INL_H_

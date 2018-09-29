@@ -6,7 +6,7 @@
 #define V8_COMPILER_FRAME_H_
 
 #include "src/bit-vector.h"
-#include "src/frames.h"
+#include "src/frame-constants.h"
 
 namespace v8 {
 namespace internal {
@@ -22,7 +22,7 @@ class CallDescriptor;
 // into them. Mutable state associated with the frame is stored separately in
 // FrameAccessState.
 //
-// Frames are divided up into three regions.
+// Frames are divided up into four regions.
 // - The first is the fixed header, which always has a constant size and can be
 //   predicted before code generation begins depending on the type of code being
 //   generated.
@@ -33,11 +33,15 @@ class CallDescriptor;
 //   reserved after register allocation, since its size can only be precisely
 //   determined after register allocation once the number of used callee-saved
 //   register is certain.
+// - The fourth region is a scratch area for return values from other functions
+//   called, if multiple returns cannot all be passed in registers. This region
+//   Must be last in a stack frame, so that it is positioned immediately below
+//   the stack frame of a callee to store to.
 //
 // The frame region immediately below the fixed header contains spill slots
 // starting at slot 4 for JSFunctions.  The callee-saved frame region below that
-// starts at 4+spill_slot_count_.  Callee stack slots corresponding to
-// parameters are accessible through negative slot ids.
+// starts at 4+spill_slot_count_.  Callee stack slots correspond to
+// parameters that are accessible through negative slot ids.
 //
 // Every slot of a caller or callee frame is accessible by the register
 // allocator and gap resolver with a SpillSlotOperand containing its
@@ -73,7 +77,13 @@ class CallDescriptor;
 //       |- - - - - - - - -|   |                        |
 //       |      ...        | Callee-saved               |
 //       |- - - - - - - - -|   |                        |
-// m+r+3 |  callee-saved r |   v                        v
+// m+r+3 |  callee-saved r |   v                        |
+//       +-----------------+----                        |
+// m+r+4 |    return 0     |   ^                        |
+//       |- - - - - - - - -|   |                        |
+//       |      ...        | Return                     |
+//       |- - - - - - - - -|   |                        |
+//       |    return q-1   |   v                        v
 //  -----+-----------------+----- <-- stack ptr -------------
 //
 class Frame : public ZoneObject {
@@ -81,16 +91,17 @@ class Frame : public ZoneObject {
   explicit Frame(int fixed_frame_size_in_slots);
 
   inline int GetTotalFrameSlotCount() const { return frame_slot_count_; }
-
+  inline int GetFixedSlotCount() const { return fixed_slot_count_; }
   inline int GetSpillSlotCount() const { return spill_slot_count_; }
+  inline int GetReturnSlotCount() const { return return_slot_count_; }
 
   void SetAllocatedRegisters(BitVector* regs) {
-    DCHECK(allocated_registers_ == nullptr);
+    DCHECK_NULL(allocated_registers_);
     allocated_registers_ = regs;
   }
 
   void SetAllocatedDoubleRegisters(BitVector* regs) {
-    DCHECK(allocated_double_registers_ == nullptr);
+    DCHECK_NULL(allocated_double_registers_);
     allocated_double_registers_ = regs;
   }
 
@@ -111,11 +122,26 @@ class Frame : public ZoneObject {
     frame_slot_count_ += count;
   }
 
-  int AllocateSpillSlot(int width) {
+  int AllocateSpillSlot(int width, int alignment = 0) {
+    DCHECK_EQ(frame_slot_count_,
+              fixed_slot_count_ + spill_slot_count_ + return_slot_count_);
     int frame_slot_count_before = frame_slot_count_;
-    int slot = AllocateAlignedFrameSlot(width);
-    spill_slot_count_ += (frame_slot_count_ - frame_slot_count_before);
-    return slot;
+    if (alignment > kPointerSize) {
+      // Slots are pointer sized, so alignment greater than a pointer size
+      // requires allocating additional slots.
+      width += alignment - kPointerSize;
+    }
+    AllocateAlignedFrameSlots(width);
+    spill_slot_count_ += frame_slot_count_ - frame_slot_count_before;
+    return frame_slot_count_ - return_slot_count_ - 1;
+  }
+
+  void EnsureReturnSlots(int count) {
+    if (count > return_slot_count_) {
+      count -= return_slot_count_;
+      frame_slot_count_ += count;
+      return_slot_count_ += count;
+    }
   }
 
   int AlignFrame(int alignment = kDoubleSize);
@@ -127,32 +153,23 @@ class Frame : public ZoneObject {
     return frame_slot_count_ - 1;
   }
 
-  static const int kContextSlot = 2 + StandardFrameConstants::kCPSlotCount;
-  static const int kJSFunctionSlot = 3 + StandardFrameConstants::kCPSlotCount;
-
  private:
-  int AllocateAlignedFrameSlot(int width) {
-    DCHECK(width == 4 || width == 8 || width == 16);
-    if (kPointerSize == 4) {
-      // Skip one slot if necessary.
-      if (width > kPointerSize) {
-        frame_slot_count_++;
-        frame_slot_count_ |= 1;
-        // 2 extra slots if width == 16.
-        frame_slot_count_ += (width & 16) / 8;
-      }
-    } else {
-      // No alignment when slots are 8 bytes.
-      DCHECK_EQ(8, kPointerSize);
-      // 1 extra slot if width == 16.
-      frame_slot_count_ += (width & 16) / 16;
-    }
-    return frame_slot_count_++;
+  void AllocateAlignedFrameSlots(int width) {
+    DCHECK_LT(0, width);
+    int new_frame_slots = (width + kPointerSize - 1) / kPointerSize;
+    // Align to 8 bytes if width is a multiple of 8 bytes, and to 16 bytes if
+    // multiple of 16.
+    int align_to = (width & 15) == 0 ? 16 : (width & 7) == 0 ? 8 : kPointerSize;
+    frame_slot_count_ =
+        RoundUp(frame_slot_count_ + new_frame_slots, align_to / kPointerSize);
+    DCHECK_LT(0, frame_slot_count_);
   }
 
  private:
+  int fixed_slot_count_;
   int frame_slot_count_;
   int spill_slot_count_;
+  int return_slot_count_;
   BitVector* allocated_registers_;
   BitVector* allocated_double_registers_;
 
@@ -168,12 +185,12 @@ class FrameOffset {
   inline int offset() { return offset_ & ~1; }
 
   inline static FrameOffset FromStackPointer(int offset) {
-    DCHECK((offset & 1) == 0);
+    DCHECK_EQ(0, offset & 1);
     return FrameOffset(offset | kFromSp);
   }
 
   inline static FrameOffset FromFramePointer(int offset) {
-    DCHECK((offset & 1) == 0);
+    DCHECK_EQ(0, offset & 1);
     return FrameOffset(offset | kFromFp);
   }
 

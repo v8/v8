@@ -5,6 +5,7 @@
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
 
 #include "src/isolate.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -29,23 +30,14 @@ CompilerDispatcherTracer::Scope::Scope(CompilerDispatcherTracer* tracer,
 CompilerDispatcherTracer::Scope::~Scope() {
   double elapsed = MonotonicallyIncreasingTimeInMs() - start_time_;
   switch (scope_id_) {
-    case ScopeID::kPrepareToParse:
-      tracer_->RecordPrepareToParse(elapsed);
-      break;
-    case ScopeID::kParse:
-      tracer_->RecordParse(elapsed, num_);
-      break;
-    case ScopeID::kFinalizeParsing:
-      tracer_->RecordFinalizeParsing(elapsed);
-      break;
-    case ScopeID::kPrepareToCompile:
-      tracer_->RecordPrepareToCompile(elapsed);
+    case ScopeID::kPrepare:
+      tracer_->RecordPrepare(elapsed);
       break;
     case ScopeID::kCompile:
       tracer_->RecordCompile(elapsed, num_);
       break;
-    case ScopeID::kFinalizeCompiling:
-      tracer_->RecordFinalizeCompiling(elapsed);
+    case ScopeID::kFinalize:
+      tracer_->RecordFinalize(elapsed);
       break;
   }
 }
@@ -53,21 +45,14 @@ CompilerDispatcherTracer::Scope::~Scope() {
 // static
 const char* CompilerDispatcherTracer::Scope::Name(ScopeID scope_id) {
   switch (scope_id) {
-    case ScopeID::kPrepareToParse:
-      return "V8.BackgroundCompile_PrepareToParse";
-    case ScopeID::kParse:
-      return "V8.BackgroundCompile_Parse";
-    case ScopeID::kFinalizeParsing:
-      return "V8.BackgroundCompile_FinalizeParsing";
-    case ScopeID::kPrepareToCompile:
-      return "V8.BackgroundCompile_PrepareToCompile";
+    case ScopeID::kPrepare:
+      return "V8.BackgroundCompile_Prepare";
     case ScopeID::kCompile:
       return "V8.BackgroundCompile_Compile";
-    case ScopeID::kFinalizeCompiling:
-      return "V8.BackgroundCompile_FinalizeCompiling";
+    case ScopeID::kFinalize:
+      return "V8.BackgroundCompile_Finalize";
   }
   UNREACHABLE();
-  return nullptr;
 }
 
 CompilerDispatcherTracer::CompilerDispatcherTracer(Isolate* isolate)
@@ -78,69 +63,46 @@ CompilerDispatcherTracer::CompilerDispatcherTracer(Isolate* isolate)
   }
 }
 
-CompilerDispatcherTracer::~CompilerDispatcherTracer() {}
+CompilerDispatcherTracer::~CompilerDispatcherTracer() = default;
 
-void CompilerDispatcherTracer::RecordPrepareToParse(double duration_ms) {
+void CompilerDispatcherTracer::RecordPrepare(double duration_ms) {
   base::LockGuard<base::Mutex> lock(&mutex_);
-  prepare_parse_events_.Push(duration_ms);
-}
-
-void CompilerDispatcherTracer::RecordParse(double duration_ms,
-                                           size_t source_length) {
-  base::LockGuard<base::Mutex> lock(&mutex_);
-  parse_events_.Push(std::make_pair(source_length, duration_ms));
-}
-
-void CompilerDispatcherTracer::RecordFinalizeParsing(double duration_ms) {
-  base::LockGuard<base::Mutex> lock(&mutex_);
-  finalize_parsing_events_.Push(duration_ms);
-}
-
-void CompilerDispatcherTracer::RecordPrepareToCompile(double duration_ms) {
-  base::LockGuard<base::Mutex> lock(&mutex_);
-  prepare_compile_events_.Push(duration_ms);
+  prepare_events_.Push(duration_ms);
 }
 
 void CompilerDispatcherTracer::RecordCompile(double duration_ms,
-                                             size_t ast_size_in_bytes) {
+                                             size_t source_length) {
   base::LockGuard<base::Mutex> lock(&mutex_);
-  compile_events_.Push(std::make_pair(ast_size_in_bytes, duration_ms));
+  compile_events_.Push(std::make_pair(source_length, duration_ms));
 }
 
-void CompilerDispatcherTracer::RecordFinalizeCompiling(double duration_ms) {
+void CompilerDispatcherTracer::RecordFinalize(double duration_ms) {
   base::LockGuard<base::Mutex> lock(&mutex_);
-  finalize_compiling_events_.Push(duration_ms);
+  finalize_events_.Push(duration_ms);
 }
 
-double CompilerDispatcherTracer::EstimatePrepareToParseInMs() const {
+double CompilerDispatcherTracer::EstimatePrepareInMs() const {
   base::LockGuard<base::Mutex> lock(&mutex_);
-  return Average(prepare_parse_events_);
-}
-
-double CompilerDispatcherTracer::EstimateParseInMs(size_t source_length) const {
-  base::LockGuard<base::Mutex> lock(&mutex_);
-  return Estimate(parse_events_, source_length);
-}
-
-double CompilerDispatcherTracer::EstimateFinalizeParsingInMs() const {
-  base::LockGuard<base::Mutex> lock(&mutex_);
-  return Average(finalize_parsing_events_);
-}
-
-double CompilerDispatcherTracer::EstimatePrepareToCompileInMs() const {
-  base::LockGuard<base::Mutex> lock(&mutex_);
-  return Average(prepare_compile_events_);
+  return Average(prepare_events_);
 }
 
 double CompilerDispatcherTracer::EstimateCompileInMs(
-    size_t ast_size_in_bytes) const {
+    size_t source_length) const {
   base::LockGuard<base::Mutex> lock(&mutex_);
-  return Estimate(compile_events_, ast_size_in_bytes);
+  return Estimate(compile_events_, source_length);
 }
 
-double CompilerDispatcherTracer::EstimateFinalizeCompilingInMs() const {
+double CompilerDispatcherTracer::EstimateFinalizeInMs() const {
   base::LockGuard<base::Mutex> lock(&mutex_);
-  return Average(finalize_compiling_events_);
+  return Average(finalize_events_);
+}
+
+void CompilerDispatcherTracer::DumpStatistics() const {
+  PrintF(
+      "CompilerDispatcherTracer: "
+      "prepare=%.2lfms compiling=%.2lfms/kb finalize=%.2lfms\n",
+      EstimatePrepareInMs(), EstimateCompileInMs(1 * KB),
+      EstimateFinalizeInMs());
 }
 
 double CompilerDispatcherTracer::Average(

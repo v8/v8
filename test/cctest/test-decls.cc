@@ -33,7 +33,7 @@
 #include "src/heap/heap.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8;
+namespace v8 {
 
 namespace {
 
@@ -123,11 +123,9 @@ void DeclarationContext::InitializeIfNeeded() {
   Local<FunctionTemplate> function = FunctionTemplate::New(isolate);
   Local<Value> data = External::New(CcTest::isolate(), this);
   GetHolder(function)->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      &HandleGet, &HandleSet, &HandleQuery, 0, 0, data));
-  Local<Context> context = Context::New(isolate,
-                                        0,
-                                        function->InstanceTemplate(),
-                                        Local<Value>());
+      &HandleGet, &HandleSet, &HandleQuery, nullptr, nullptr, data));
+  Local<Context> context = Context::New(
+      isolate, nullptr, function->InstanceTemplate(), Local<Value>());
   context_.Reset(isolate, context);
   context->Enter();
   is_initialized_ = true;
@@ -256,7 +254,7 @@ TEST(Unknown) {
 
 class AbsentPropertyContext: public DeclarationContext {
  protected:
-  virtual v8::Local<Integer> Query(Local<Name> key) {
+  v8::Local<Integer> Query(Local<Name> key) override {
     return v8::Local<Integer>();
   }
 };
@@ -306,7 +304,7 @@ class AppearingPropertyContext: public DeclarationContext {
   AppearingPropertyContext() : state_(DECLARE) { }
 
  protected:
-  virtual v8::Local<Integer> Query(Local<Name> key) {
+  v8::Local<Integer> Query(Local<Name> key) override {
     switch (state_) {
       case DECLARE:
         // Force declaration by returning that the
@@ -361,13 +359,13 @@ class ExistsInPrototypeContext: public DeclarationContext {
  public:
   ExistsInPrototypeContext() { InitializeIfNeeded(); }
  protected:
-  virtual v8::Local<Integer> Query(Local<Name> key) {
+  v8::Local<Integer> Query(Local<Name> key) override {
     // Let it seem that the property exists in the prototype object.
     return Integer::New(isolate(), v8::None);
   }
 
   // Use the prototype as the holder for the interceptors.
-  virtual Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) {
+  Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) override {
     return function->PrototypeTemplate();
   }
 };
@@ -404,13 +402,13 @@ TEST(ExistsInPrototype) {
 
 class AbsentInPrototypeContext: public DeclarationContext {
  protected:
-  virtual v8::Local<Integer> Query(Local<Name> key) {
+  v8::Local<Integer> Query(Local<Name> key) override {
     // Let it seem that the property is absent in the prototype object.
     return Local<Integer>();
   }
 
   // Use the prototype as the holder for the interceptors.
-  virtual Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) {
+  Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) override {
     return function->PrototypeTemplate();
   }
 };
@@ -439,13 +437,13 @@ class ExistsInHiddenPrototypeContext: public DeclarationContext {
   }
 
  protected:
-  virtual v8::Local<Integer> Query(Local<Name> key) {
+  v8::Local<Integer> Query(Local<Name> key) override {
     // Let it seem that the property exists in the hidden prototype object.
     return Integer::New(isolate(), v8::None);
   }
 
   // Install the hidden prototype after the global object has been created.
-  virtual void PostInitializeContext(Local<Context> context) {
+  void PostInitializeContext(Local<Context> context) override {
     Local<Object> global_object = context->Global();
     Local<Object> hidden_proto = hidden_proto_->GetFunction(context)
                                      .ToLocalChecked()
@@ -457,7 +455,7 @@ class ExistsInHiddenPrototypeContext: public DeclarationContext {
   }
 
   // Use the hidden prototype as the holder for the interceptors.
-  virtual Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) {
+  Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) override {
     return hidden_proto_->InstanceTemplate();
   }
 
@@ -595,15 +593,17 @@ TEST(CrossScriptReferencesHarmony) {
   HandleScope scope(isolate);
 
   // Check that simple cross-script global scope access works.
-  const char* decs[] = {
-    "'use strict'; var x = 1; x", "x",
-    "'use strict'; function x() { return 1 }; x()", "x()",
-    "'use strict'; let x = 1; x", "x",
-    "'use strict'; const x = 1; x", "x",
-    NULL
-  };
+  const char* decs[] = {"'use strict'; var x = 1; x",
+                        "x",
+                        "'use strict'; function x() { return 1 }; x()",
+                        "x()",
+                        "'use strict'; let x = 1; x",
+                        "x",
+                        "'use strict'; const x = 1; x",
+                        "x",
+                        nullptr};
 
-  for (int i = 0; decs[i] != NULL; i += 2) {
+  for (int i = 0; decs[i] != nullptr; i += 2) {
     SimpleContext context;
     context.Check(decs[i], EXPECT_RESULT, Number::New(isolate, 1));
     context.Check(decs[i+1], EXPECT_RESULT, Number::New(isolate, 1));
@@ -779,23 +779,13 @@ TEST(CrossScriptConflicts) {
 
   HandleScope scope(CcTest::isolate());
 
-  const char* firsts[] = {
-    "var x = 1; x",
-    "function x() { return 1 }; x()",
-    "let x = 1; x",
-    "const x = 1; x",
-    NULL
-  };
-  const char* seconds[] = {
-    "var x = 2; x",
-    "function x() { return 2 }; x()",
-    "let x = 2; x",
-    "const x = 2; x",
-    NULL
-  };
+  const char* firsts[] = {"var x = 1; x", "function x() { return 1 }; x()",
+                          "let x = 1; x", "const x = 1; x", nullptr};
+  const char* seconds[] = {"var x = 2; x", "function x() { return 2 }; x()",
+                           "let x = 2; x", "const x = 2; x", nullptr};
 
-  for (int i = 0; firsts[i] != NULL; ++i) {
-    for (int j = 0; seconds[j] != NULL; ++j) {
+  for (int i = 0; firsts[i] != nullptr; ++i) {
+    for (int j = 0; seconds[j] != nullptr; ++j) {
       SimpleContext context;
       context.Check(firsts[i], EXPECT_RESULT,
                     Number::New(CcTest::isolate(), 1));
@@ -1174,3 +1164,5 @@ TEST(Regress3941_Reads) {
     context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
   }
 }
+
+}  // namespace v8

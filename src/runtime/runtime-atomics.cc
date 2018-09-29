@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/conversions-inl.h"
-#include "src/factory.h"
+#include "src/heap/factory.h"
+#include "src/objects/js-array-buffer-inl.h"
+#include "src/runtime/runtime-utils.h"
 
 // Implement Atomic accesses to SharedArrayBuffers as defined in the
 // SharedArrayBuffer draft spec, found here
@@ -17,13 +17,27 @@
 namespace v8 {
 namespace internal {
 
+// Other platforms have CSA support, see builtins-sharedarraybuffer-gen.h.
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
+    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+
+// Note: 32-bit platforms may need ldflags += [ "-latomic" ] in BUILD.gn.
+
 namespace {
 
-inline bool AtomicIsLockFree(uint32_t size) {
-  return size == 1 || size == 2 || size == 4;
-}
-
 #if V8_CC_GNU
+
+// GCC/Clang helpfully warn us that using 64-bit atomics on 32-bit platforms
+// can be slow. Good to know, but we don't have a choice.
+#ifdef V8_TARGET_ARCH_32_BIT
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Watomic-alignment"
+#endif  // V8_TARGET_ARCH_32_BIT
+
+template <typename T>
+inline T ExchangeSeqCst(T* p, T value) {
+  return __atomic_exchange_n(p, value, __ATOMIC_SEQ_CST);
+}
 
 template <typename T>
 inline T CompareExchangeSeqCst(T* p, T oldval, T newval) {
@@ -57,24 +71,33 @@ inline T XorSeqCst(T* p, T value) {
   return __atomic_fetch_xor(p, value, __ATOMIC_SEQ_CST);
 }
 
-template <typename T>
-inline T ExchangeSeqCst(T* p, T value) {
-  return __atomic_exchange_n(p, value, __ATOMIC_SEQ_CST);
-}
+#ifdef V8_TARGET_ARCH_32_BIT
+#pragma GCC diagnostic pop
+#endif  // V8_TARGET_ARCH_32_BIT
 
 #elif V8_CC_MSVC
 
-#define InterlockedCompareExchange32 _InterlockedCompareExchange
 #define InterlockedExchange32 _InterlockedExchange
+#define InterlockedCompareExchange32 _InterlockedCompareExchange
+#define InterlockedCompareExchange8 _InterlockedCompareExchange8
 #define InterlockedExchangeAdd32 _InterlockedExchangeAdd
+#define InterlockedExchangeAdd16 _InterlockedExchangeAdd16
+#define InterlockedExchangeAdd8 _InterlockedExchangeAdd8
 #define InterlockedAnd32 _InterlockedAnd
+#define InterlockedOr64 _InterlockedOr64
 #define InterlockedOr32 _InterlockedOr
 #define InterlockedXor32 _InterlockedXor
-#define InterlockedExchangeAdd16 _InterlockedExchangeAdd16
-#define InterlockedCompareExchange8 _InterlockedCompareExchange8
-#define InterlockedExchangeAdd8 _InterlockedExchangeAdd8
 
 #define ATOMIC_OPS(type, suffix, vctype)                                    \
+  inline type ExchangeSeqCst(type* p, type value) {                         \
+    return InterlockedExchange##suffix(reinterpret_cast<vctype*>(p),        \
+                                       bit_cast<vctype>(value));            \
+  }                                                                         \
+  inline type CompareExchangeSeqCst(type* p, type oldval, type newval) {    \
+    return InterlockedCompareExchange##suffix(reinterpret_cast<vctype*>(p), \
+                                              bit_cast<vctype>(newval),     \
+                                              bit_cast<vctype>(oldval));    \
+  }                                                                         \
   inline type AddSeqCst(type* p, type value) {                              \
     return InterlockedExchangeAdd##suffix(reinterpret_cast<vctype*>(p),     \
                                           bit_cast<vctype>(value));         \
@@ -94,16 +117,6 @@ inline T ExchangeSeqCst(T* p, T value) {
   inline type XorSeqCst(type* p, type value) {                              \
     return InterlockedXor##suffix(reinterpret_cast<vctype*>(p),             \
                                   bit_cast<vctype>(value));                 \
-  }                                                                         \
-  inline type ExchangeSeqCst(type* p, type value) {                         \
-    return InterlockedExchange##suffix(reinterpret_cast<vctype*>(p),        \
-                                       bit_cast<vctype>(value));            \
-  }                                                                         \
-                                                                            \
-  inline type CompareExchangeSeqCst(type* p, type oldval, type newval) {    \
-    return InterlockedCompareExchange##suffix(reinterpret_cast<vctype*>(p), \
-                                              bit_cast<vctype>(newval),     \
-                                              bit_cast<vctype>(oldval));    \
   }
 
 ATOMIC_OPS(int8_t, 8, char)
@@ -112,19 +125,21 @@ ATOMIC_OPS(int16_t, 16, short)  /* NOLINT(runtime/int) */
 ATOMIC_OPS(uint16_t, 16, short) /* NOLINT(runtime/int) */
 ATOMIC_OPS(int32_t, 32, long)   /* NOLINT(runtime/int) */
 ATOMIC_OPS(uint32_t, 32, long)  /* NOLINT(runtime/int) */
+ATOMIC_OPS(int64_t, 64, __int64)
+ATOMIC_OPS(uint64_t, 64, __int64)
 
-#undef ATOMIC_OPS_INTEGER
 #undef ATOMIC_OPS
 
-#undef InterlockedCompareExchange32
 #undef InterlockedExchange32
+#undef InterlockedCompareExchange32
+#undef InterlockedCompareExchange8
 #undef InterlockedExchangeAdd32
+#undef InterlockedExchangeAdd16
+#undef InterlockedExchangeAdd8
 #undef InterlockedAnd32
+#undef InterlockedOr64
 #undef InterlockedOr32
 #undef InterlockedXor32
-#undef InterlockedExchangeAdd16
-#undef InterlockedCompareExchange8
-#undef InterlockedExchangeAdd8
 
 #else
 
@@ -165,6 +180,15 @@ inline int32_t FromObject<int32_t>(Handle<Object> number) {
   return NumberToInt32(*number);
 }
 
+template <>
+inline uint64_t FromObject<uint64_t>(Handle<Object> bigint) {
+  return Handle<BigInt>::cast(bigint)->AsUint64();
+}
+
+template <>
+inline int64_t FromObject<int64_t>(Handle<Object> bigint) {
+  return Handle<BigInt>::cast(bigint)->AsInt64();
+}
 
 inline Object* ToObject(Isolate* isolate, int8_t t) { return Smi::FromInt(t); }
 
@@ -176,16 +200,31 @@ inline Object* ToObject(Isolate* isolate, uint16_t t) {
   return Smi::FromInt(t);
 }
 
-
 inline Object* ToObject(Isolate* isolate, int32_t t) {
   return *isolate->factory()->NewNumber(t);
 }
-
 
 inline Object* ToObject(Isolate* isolate, uint32_t t) {
   return *isolate->factory()->NewNumber(t);
 }
 
+inline Object* ToObject(Isolate* isolate, int64_t t) {
+  return *BigInt::FromInt64(isolate, t);
+}
+
+inline Object* ToObject(Isolate* isolate, uint64_t t) {
+  return *BigInt::FromUint64(isolate, t);
+}
+
+template <typename T>
+struct Exchange {
+  static inline Object* Do(Isolate* isolate, void* buffer, size_t index,
+                           Handle<Object> obj) {
+    T value = FromObject<T>(obj);
+    T result = ExchangeSeqCst(static_cast<T*>(buffer) + index, value);
+    return ToObject(isolate, result);
+  }
+};
 
 template <typename T>
 inline Object* DoCompareExchange(Isolate* isolate, void* buffer, size_t index,
@@ -197,388 +236,227 @@ inline Object* DoCompareExchange(Isolate* isolate, void* buffer, size_t index,
   return ToObject(isolate, result);
 }
 
-
 template <typename T>
-inline Object* DoAdd(Isolate* isolate, void* buffer, size_t index,
-                     Handle<Object> obj) {
-  T value = FromObject<T>(obj);
-  T result = AddSeqCst(static_cast<T*>(buffer) + index, value);
-  return ToObject(isolate, result);
-}
-
-
-template <typename T>
-inline Object* DoSub(Isolate* isolate, void* buffer, size_t index,
-                     Handle<Object> obj) {
-  T value = FromObject<T>(obj);
-  T result = SubSeqCst(static_cast<T*>(buffer) + index, value);
-  return ToObject(isolate, result);
-}
-
-
-template <typename T>
-inline Object* DoAnd(Isolate* isolate, void* buffer, size_t index,
-                     Handle<Object> obj) {
-  T value = FromObject<T>(obj);
-  T result = AndSeqCst(static_cast<T*>(buffer) + index, value);
-  return ToObject(isolate, result);
-}
-
-
-template <typename T>
-inline Object* DoOr(Isolate* isolate, void* buffer, size_t index,
-                    Handle<Object> obj) {
-  T value = FromObject<T>(obj);
-  T result = OrSeqCst(static_cast<T*>(buffer) + index, value);
-  return ToObject(isolate, result);
-}
-
-
-template <typename T>
-inline Object* DoXor(Isolate* isolate, void* buffer, size_t index,
-                     Handle<Object> obj) {
-  T value = FromObject<T>(obj);
-  T result = XorSeqCst(static_cast<T*>(buffer) + index, value);
-  return ToObject(isolate, result);
-}
-
-
-template <typename T>
-inline Object* DoExchange(Isolate* isolate, void* buffer, size_t index,
-                          Handle<Object> obj) {
-  T value = FromObject<T>(obj);
-  T result = ExchangeSeqCst(static_cast<T*>(buffer) + index, value);
-  return ToObject(isolate, result);
-}
-
-
-// Uint8Clamped functions
-
-uint8_t ClampToUint8(int32_t value) {
-  if (value < 0) return 0;
-  if (value > 255) return 255;
-  return value;
-}
-
-
-inline Object* DoCompareExchangeUint8Clamped(Isolate* isolate, void* buffer,
-                                             size_t index,
-                                             Handle<Object> oldobj,
-                                             Handle<Object> newobj) {
-  typedef int32_t convert_type;
-  uint8_t oldval = ClampToUint8(FromObject<convert_type>(oldobj));
-  uint8_t newval = ClampToUint8(FromObject<convert_type>(newobj));
-  uint8_t result = CompareExchangeSeqCst(static_cast<uint8_t*>(buffer) + index,
-                                         oldval, newval);
-  return ToObject(isolate, result);
-}
-
-
-#define DO_UINT8_CLAMPED_OP(name, op)                                        \
-  inline Object* Do##name##Uint8Clamped(Isolate* isolate, void* buffer,      \
-                                        size_t index, Handle<Object> obj) {  \
-    typedef int32_t convert_type;                                            \
-    uint8_t* p = static_cast<uint8_t*>(buffer) + index;                      \
-    convert_type operand = FromObject<convert_type>(obj);                    \
-    uint8_t expected;                                                        \
-    uint8_t result;                                                          \
-    do {                                                                     \
-      expected = *p;                                                         \
-      result = ClampToUint8(static_cast<convert_type>(expected) op operand); \
-    } while (CompareExchangeSeqCst(p, expected, result) != expected);        \
-    return ToObject(isolate, expected);                                      \
+struct Add {
+  static inline Object* Do(Isolate* isolate, void* buffer, size_t index,
+                           Handle<Object> obj) {
+    T value = FromObject<T>(obj);
+    T result = AddSeqCst(static_cast<T*>(buffer) + index, value);
+    return ToObject(isolate, result);
   }
+};
 
-DO_UINT8_CLAMPED_OP(Add, +)
-DO_UINT8_CLAMPED_OP(Sub, -)
-DO_UINT8_CLAMPED_OP(And, &)
-DO_UINT8_CLAMPED_OP(Or, | )
-DO_UINT8_CLAMPED_OP(Xor, ^)
+template <typename T>
+struct Sub {
+  static inline Object* Do(Isolate* isolate, void* buffer, size_t index,
+                           Handle<Object> obj) {
+    T value = FromObject<T>(obj);
+    T result = SubSeqCst(static_cast<T*>(buffer) + index, value);
+    return ToObject(isolate, result);
+  }
+};
 
-#undef DO_UINT8_CLAMPED_OP
+template <typename T>
+struct And {
+  static inline Object* Do(Isolate* isolate, void* buffer, size_t index,
+                           Handle<Object> obj) {
+    T value = FromObject<T>(obj);
+    T result = AndSeqCst(static_cast<T*>(buffer) + index, value);
+    return ToObject(isolate, result);
+  }
+};
 
+template <typename T>
+struct Or {
+  static inline Object* Do(Isolate* isolate, void* buffer, size_t index,
+                           Handle<Object> obj) {
+    T value = FromObject<T>(obj);
+    T result = OrSeqCst(static_cast<T*>(buffer) + index, value);
+    return ToObject(isolate, result);
+  }
+};
 
-inline Object* DoExchangeUint8Clamped(Isolate* isolate, void* buffer,
-                                      size_t index, Handle<Object> obj) {
-  typedef int32_t convert_type;
-  uint8_t* p = static_cast<uint8_t*>(buffer) + index;
-  uint8_t result = ClampToUint8(FromObject<convert_type>(obj));
-  uint8_t expected;
-  do {
-    expected = *p;
-  } while (CompareExchangeSeqCst(p, expected, result) != expected);
-  return ToObject(isolate, expected);
-}
-
+template <typename T>
+struct Xor {
+  static inline Object* Do(Isolate* isolate, void* buffer, size_t index,
+                           Handle<Object> obj) {
+    T value = FromObject<T>(obj);
+    T result = XorSeqCst(static_cast<T*>(buffer) + index, value);
+    return ToObject(isolate, result);
+  }
+};
 
 }  // anonymous namespace
 
 // Duplicated from objects.h
-// V has parameters (Type, type, TYPE, C type, element_size)
-#define INTEGER_TYPED_ARRAYS(V)          \
-  V(Uint8, uint8, UINT8, uint8_t, 1)     \
-  V(Int8, int8, INT8, int8_t, 1)         \
-  V(Uint16, uint16, UINT16, uint16_t, 2) \
-  V(Int16, int16, INT16, int16_t, 2)     \
-  V(Uint32, uint32, UINT32, uint32_t, 4) \
-  V(Int32, int32, INT32, int32_t, 4)
+// V has parameters (Type, type, TYPE, C type)
+#define INTEGER_TYPED_ARRAYS(V)       \
+  V(Uint8, uint8, UINT8, uint8_t)     \
+  V(Int8, int8, INT8, int8_t)         \
+  V(Uint16, uint16, UINT16, uint16_t) \
+  V(Int16, int16, INT16, int16_t)     \
+  V(Uint32, uint32, UINT32, uint32_t) \
+  V(Int32, int32, INT32, int32_t)
 
-RUNTIME_FUNCTION(Runtime_ThrowNotIntegerSharedTypedArrayError) {
+// This is https://tc39.github.io/ecma262/#sec-getmodifysetvalueinbuffer
+// but also includes the ToInteger/ToBigInt conversion that's part of
+// https://tc39.github.io/ecma262/#sec-atomicreadmodifywrite
+template <template <typename> class Op>
+Object* GetModifySetValueInBuffer(Arguments args, Isolate* isolate) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError(MessageTemplate::kNotIntegerSharedTypedArray, value));
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
+  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value_obj, 2);
+  CHECK(sta->GetBuffer()->is_shared());
+
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    sta->byte_offset();
+
+  if (sta->type() >= kExternalBigInt64Array) {
+    Handle<BigInt> bigint;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
+                                       BigInt::FromObject(isolate, value_obj));
+    // SharedArrayBuffers are not neuterable.
+    CHECK_LT(index, NumberToSize(sta->length()));
+    if (sta->type() == kExternalBigInt64Array) {
+      return Op<int64_t>::Do(isolate, source, index, bigint);
+    }
+    DCHECK(sta->type() == kExternalBigUint64Array);
+    return Op<uint64_t>::Do(isolate, source, index, bigint);
+  }
+
+  Handle<Object> value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                     Object::ToInteger(isolate, value_obj));
+  // SharedArrayBuffers are not neuterable.
+  CHECK_LT(index, NumberToSize(sta->length()));
+
+  switch (sta->type()) {
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype) \
+  case kExternal##Type##Array:                        \
+    return Op<ctype>::Do(isolate, source, index, value);
+
+    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+    default:
+      break;
+  }
+
+  UNREACHABLE();
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowNotInt32SharedTypedArrayError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kNotInt32SharedTypedArray, value));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowInvalidAtomicAccessIndexError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewRangeError(MessageTemplate::kInvalidAtomicAccessIndex));
+RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
+  return GetModifySetValueInBuffer<Exchange>(args, isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(oldobj, 2);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(newobj, 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, old_value_obj, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, new_value_obj, 3);
   CHECK(sta->GetBuffer()->is_shared());
   CHECK_LT(index, NumberToSize(sta->length()));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
+                    sta->byte_offset();
+
+  if (sta->type() >= kExternalBigInt64Array) {
+    Handle<BigInt> old_bigint;
+    Handle<BigInt> new_bigint;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, old_bigint, BigInt::FromObject(isolate, old_value_obj));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, new_bigint, BigInt::FromObject(isolate, new_value_obj));
+    // SharedArrayBuffers are not neuterable.
+    CHECK_LT(index, NumberToSize(sta->length()));
+    if (sta->type() == kExternalBigInt64Array) {
+      return DoCompareExchange<int64_t>(isolate, source, index, old_bigint,
+                                        new_bigint);
+    }
+    DCHECK(sta->type() == kExternalBigUint64Array);
+    return DoCompareExchange<uint64_t>(isolate, source, index, old_bigint,
+                                       new_bigint);
+  }
+
+  Handle<Object> old_value;
+  Handle<Object> new_value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, old_value,
+                                     Object::ToInteger(isolate, old_value_obj));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, new_value,
+                                     Object::ToInteger(isolate, new_value_obj));
+  // SharedArrayBuffers are not neuterable.
+  CHECK_LT(index, NumberToSize(sta->length()));
 
   switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
-    return DoCompareExchange<ctype>(isolate, source, index, oldobj, newobj);
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype)                  \
+  case kExternal##Type##Array:                                         \
+    return DoCompareExchange<ctype>(isolate, source, index, old_value, \
+                                    new_value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoCompareExchangeUint8Clamped(isolate, source, index, oldobj,
-                                           newobj);
 
     default:
       break;
   }
 
   UNREACHABLE();
-  return isolate->heap()->undefined_value();
 }
 
-
+// ES #sec-atomics.add
+// Atomics.add( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, NumberToSize(sta->length()));
-
-  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
-
-  switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
-    return DoAdd<ctype>(isolate, source, index, value);
-
-    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoAddUint8Clamped(isolate, source, index, value);
-
-    default:
-      break;
-  }
-
-  UNREACHABLE();
-  return isolate->heap()->undefined_value();
+  return GetModifySetValueInBuffer<Add>(args, isolate);
 }
 
-
+// ES #sec-atomics.sub
+// Atomics.sub( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsSub) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, NumberToSize(sta->length()));
-
-  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
-
-  switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
-    return DoSub<ctype>(isolate, source, index, value);
-
-    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoSubUint8Clamped(isolate, source, index, value);
-
-    default:
-      break;
-  }
-
-  UNREACHABLE();
-  return isolate->heap()->undefined_value();
+  return GetModifySetValueInBuffer<Sub>(args, isolate);
 }
 
-
+// ES #sec-atomics.and
+// Atomics.and( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, NumberToSize(sta->length()));
-
-  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
-
-  switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
-    return DoAnd<ctype>(isolate, source, index, value);
-
-    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoAndUint8Clamped(isolate, source, index, value);
-
-    default:
-      break;
-  }
-
-  UNREACHABLE();
-  return isolate->heap()->undefined_value();
+  return GetModifySetValueInBuffer<And>(args, isolate);
 }
 
-
+// ES #sec-atomics.or
+// Atomics.or( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsOr) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, NumberToSize(sta->length()));
-
-  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
-
-  switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
-    return DoOr<ctype>(isolate, source, index, value);
-
-    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoOrUint8Clamped(isolate, source, index, value);
-
-    default:
-      break;
-  }
-
-  UNREACHABLE();
-  return isolate->heap()->undefined_value();
+  return GetModifySetValueInBuffer<Or>(args, isolate);
 }
 
-
+// ES #sec-atomics.xor
+// Atomics.xor( typedArray, index, value )
 RUNTIME_FUNCTION(Runtime_AtomicsXor) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, NumberToSize(sta->length()));
-
-  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
-
-  switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
-    return DoXor<ctype>(isolate, source, index, value);
-
-    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoXorUint8Clamped(isolate, source, index, value);
-
-    default:
-      break;
-  }
-
-  UNREACHABLE();
-  return isolate->heap()->undefined_value();
+  return GetModifySetValueInBuffer<Xor>(args, isolate);
 }
 
+#undef INTEGER_TYPED_ARRAYS
 
-RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
-  CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
-  CHECK(sta->GetBuffer()->is_shared());
-  CHECK_LT(index, NumberToSize(sta->length()));
+#else
 
-  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
-                    NumberToSize(sta->byte_offset());
+RUNTIME_FUNCTION(Runtime_AtomicsExchange) { UNREACHABLE(); }
 
-  switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
-  case kExternal##Type##Array:                              \
-    return DoExchange<ctype>(isolate, source, index, value);
+RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) { UNREACHABLE(); }
 
-    INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
+RUNTIME_FUNCTION(Runtime_AtomicsAdd) { UNREACHABLE(); }
 
-    case kExternalUint8ClampedArray:
-      return DoExchangeUint8Clamped(isolate, source, index, value);
+RUNTIME_FUNCTION(Runtime_AtomicsSub) { UNREACHABLE(); }
 
-    default:
-      break;
-  }
+RUNTIME_FUNCTION(Runtime_AtomicsAnd) { UNREACHABLE(); }
 
-  UNREACHABLE();
-  return isolate->heap()->undefined_value();
-}
+RUNTIME_FUNCTION(Runtime_AtomicsOr) { UNREACHABLE(); }
 
+RUNTIME_FUNCTION(Runtime_AtomicsXor) { UNREACHABLE(); }
 
-RUNTIME_FUNCTION(Runtime_AtomicsIsLockFree) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(size, 0);
-  uint32_t usize = NumberToUint32(*size);
-  return isolate->heap()->ToBoolean(AtomicIsLockFree(usize));
-}
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
+        // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+
 }  // namespace internal
 }  // namespace v8

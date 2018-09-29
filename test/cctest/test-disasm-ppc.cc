@@ -33,11 +33,12 @@
 #include "src/debug/debug.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
+#include "src/frames-inl.h"
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 bool DisassembleAndCompare(byte* pc, const char* compare_string) {
   disasm::NameConverter converter;
@@ -67,9 +68,8 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
   Isolate* isolate = CcTest::i_isolate();                   \
   HandleScope scope(isolate);                               \
   byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024)); \
-  Assembler assm(isolate, buffer, 4 * 1024);                \
+  Assembler assm(AssemblerOptions{}, buffer, 4 * 1024);     \
   bool failure = false;
-
 
 // This macro assembles one instruction using the preallocated assembler and
 // disassembles the generated instruction, comparing the output to the expected
@@ -152,3 +152,6 @@ TEST(DisasmPPC) {
 
   VERIFY_RUN();
 }
+
+}  // namespace internal
+}  // namespace v8

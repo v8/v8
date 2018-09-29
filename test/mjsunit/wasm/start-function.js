@@ -29,11 +29,11 @@ function assertVerifies(sig, body) {
 
 assertVerifies(kSig_v_v, [kExprNop]);
 
-// Arguments aren't allow to start functions.
+// Arguments aren't allowed to start functions.
 assertThrows(() => {instantiate(kSig_i_i, [kExprGetLocal, 0]);});
 assertThrows(() => {instantiate(kSig_i_ii, [kExprGetLocal, 0]);});
 assertThrows(() => {instantiate(kSig_i_dd, [kExprGetLocal, 0]);});
-assertThrows(() => {instantiate(kSig_i_v, [kExprI8Const, 0]);});
+assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
 
 (function testInvalidIndex() {
   print("testInvalidIndex");
@@ -44,7 +44,10 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI8Const, 0]);});
 
   builder.addStart(func.index + 1);
 
-  assertThrows(builder.instantiate);
+  assertThrows(
+      () => builder.instantiate(), WebAssembly.CompileError,
+      'WebAssembly.Module(): Wasm decoding failed: ' +
+          'function index 1 out of bounds (1 entry) @+20');
 })();
 
 
@@ -58,7 +61,10 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI8Const, 0]);});
   builder.addExplicitSection([kStartSectionCode, 0]);
   builder.addExplicitSection([kStartSectionCode, 0]);
 
-  assertThrows(builder.instantiate);
+  assertThrows(
+      () => builder.instantiate(), WebAssembly.CompileError,
+      'WebAssembly.Module(): Wasm decoding failed: ' +
+          'unexpected section: Start @+27');
 })();
 
 
@@ -69,14 +75,14 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI8Const, 0]);});
   builder.addMemory(12, 12, true);
 
   var func = builder.addFunction("", kSig_v_v)
-    .addBody([kExprI8Const, 0, kExprI8Const, 66, kExprI32StoreMem, 0, 0]);
+    .addBody([kExprI32Const, 0, kExprI32Const, 55, kExprI32StoreMem, 0, 0]);
 
   builder.addStart(func.index);
 
   var module = builder.instantiate();
   var memory = module.exports.memory.buffer;
   var view = new Int8Array(memory);
-  assertEquals(66, view[0]);
+  assertEquals(55, view[0]);
 })();
 
 (function testRun2() {
@@ -86,7 +92,7 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI8Const, 0]);});
   builder.addMemory(12, 12, true);
 
   var func = builder.addFunction("", kSig_v_v)
-    .addBody([kExprI8Const, 0, kExprI8Const, 22, kExprI8Const, 55, kExprI32Add, kExprI32StoreMem, 0, 0]);
+    .addBody([kExprI32Const, 0, kExprI32Const, 22, kExprI32Const, 55, kExprI32Add, kExprI32StoreMem, 0, 0]);
 
   builder.addStart(func.index);
 
@@ -115,4 +121,41 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI8Const, 0]);});
 
   var module = builder.instantiate(ffi);
   assertTrue(ranned);
+})();
+
+(function testStartFunctionThrowsExplicitly() {
+  print('testStartFunctionThrowsExplicitly');
+  let error = new Error('my explicit error');
+  var ffi = {
+    foo: {
+      throw_fn: function() {
+        throw error;
+      }
+    }
+  };
+  let builder = new WasmModuleBuilder();
+  builder.addImport('foo', 'throw_fn', kSig_v_v);
+  let func = builder.addFunction('', kSig_v_v).addBody([kExprCallFunction, 0]);
+  builder.addStart(func.index);
+
+  assertThrowsEquals(() => builder.instantiate(ffi), error);
+  assertPromiseResult(builder.asyncInstantiate(ffi), assertUnreachable,
+    e => assertSame(e, error));
+  assertPromiseResult(WebAssembly.instantiate(builder.toModule(), ffi),
+    assertUnreachable, e => assertSame(e, error));
+})();
+
+(function testStartFunctionThrowsImplicitly() {
+  print("testStartFunctionThrowsImplicitly");
+  let builder = new WasmModuleBuilder();
+  let func = builder.addFunction('', kSig_v_v).addBody([kExprUnreachable]);
+  builder.addStart(func.index);
+
+  assertThrows(
+      () => builder.instantiate(), WebAssembly.RuntimeError, /unreachable/);
+  assertPromiseResult(builder.asyncInstantiate(), assertUnreachable,
+    e => assertInstanceof(e, WebAssembly.RuntimeError));
+  assertPromiseResult(WebAssembly.instantiate(builder.toModule()),
+    assertUnreachable,
+    e => assertInstanceof(e, WebAssembly.RuntimeError));
 })();

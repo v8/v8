@@ -12,12 +12,11 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace simplified_operator_unittest {
 
 // -----------------------------------------------------------------------------
+
 // Pure operators.
-
-
-namespace {
 
 struct PureOperator {
   const Operator* (SimplifiedOperatorBuilder::*constructor)();
@@ -67,11 +66,9 @@ const PureOperator kPureOperators[] = {
     PURE(TruncateTaggedToBit, Operator::kNoProperties, 1),
     PURE(ObjectIsNumber, Operator::kNoProperties, 1),
     PURE(ObjectIsReceiver, Operator::kNoProperties, 1),
-    PURE(ObjectIsSmi, Operator::kNoProperties, 1)
+    PURE(ObjectIsSmi, Operator::kNoProperties, 1),
 #undef PURE
 };
-
-}  // namespace
 
 
 class SimplifiedPureOperatorTest
@@ -123,85 +120,8 @@ INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest, SimplifiedPureOperatorTest,
 
 
 // -----------------------------------------------------------------------------
-// Buffer access operators.
 
-
-namespace {
-
-const ExternalArrayType kExternalArrayTypes[] = {
-    kExternalUint8Array,   kExternalInt8Array,   kExternalUint16Array,
-    kExternalInt16Array,   kExternalUint32Array, kExternalInt32Array,
-    kExternalFloat32Array, kExternalFloat64Array};
-
-}  // namespace
-
-
-class SimplifiedBufferAccessOperatorTest
-    : public TestWithZone,
-      public ::testing::WithParamInterface<ExternalArrayType> {};
-
-
-TEST_P(SimplifiedBufferAccessOperatorTest, InstancesAreGloballyShared) {
-  BufferAccess const access(GetParam());
-  SimplifiedOperatorBuilder simplified1(zone());
-  SimplifiedOperatorBuilder simplified2(zone());
-  EXPECT_EQ(simplified1.LoadBuffer(access), simplified2.LoadBuffer(access));
-  EXPECT_EQ(simplified1.StoreBuffer(access), simplified2.StoreBuffer(access));
-}
-
-
-TEST_P(SimplifiedBufferAccessOperatorTest, LoadBuffer) {
-  SimplifiedOperatorBuilder simplified(zone());
-  BufferAccess const access(GetParam());
-  const Operator* op = simplified.LoadBuffer(access);
-
-  EXPECT_EQ(IrOpcode::kLoadBuffer, op->opcode());
-  EXPECT_EQ(Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
-            op->properties());
-  EXPECT_EQ(access, BufferAccessOf(op));
-
-  EXPECT_EQ(3, op->ValueInputCount());
-  EXPECT_EQ(1, op->EffectInputCount());
-  EXPECT_EQ(1, op->ControlInputCount());
-  EXPECT_EQ(5, OperatorProperties::GetTotalInputCount(op));
-
-  EXPECT_EQ(1, op->ValueOutputCount());
-  EXPECT_EQ(1, op->EffectOutputCount());
-  EXPECT_EQ(0, op->ControlOutputCount());
-}
-
-
-TEST_P(SimplifiedBufferAccessOperatorTest, StoreBuffer) {
-  SimplifiedOperatorBuilder simplified(zone());
-  BufferAccess const access(GetParam());
-  const Operator* op = simplified.StoreBuffer(access);
-
-  EXPECT_EQ(IrOpcode::kStoreBuffer, op->opcode());
-  EXPECT_EQ(Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,
-            op->properties());
-  EXPECT_EQ(access, BufferAccessOf(op));
-
-  EXPECT_EQ(4, op->ValueInputCount());
-  EXPECT_EQ(1, op->EffectInputCount());
-  EXPECT_EQ(1, op->ControlInputCount());
-  EXPECT_EQ(6, OperatorProperties::GetTotalInputCount(op));
-
-  EXPECT_EQ(0, op->ValueOutputCount());
-  EXPECT_EQ(1, op->EffectOutputCount());
-  EXPECT_EQ(0, op->ControlOutputCount());
-}
-
-
-INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest,
-                        SimplifiedBufferAccessOperatorTest,
-                        ::testing::ValuesIn(kExternalArrayTypes));
-
-
-// -----------------------------------------------------------------------------
 // Element access operators.
-
-
-namespace {
 
 const ElementAccess kElementAccesses[] = {
     {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
@@ -245,8 +165,6 @@ const ElementAccess kElementAccesses[] = {
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Number(),
      MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone),
      kNoWriteBarrier}};
-
-}  // namespace
 
 
 class SimplifiedElementAccessOperatorTest
@@ -300,6 +218,7 @@ INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest,
                         SimplifiedElementAccessOperatorTest,
                         ::testing::ValuesIn(kElementAccesses));
 
+}  // namespace simplified_operator_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

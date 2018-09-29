@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 
 class Code;
-class CompilationInfo;
+class OptimizedCompilationInfo;
 class Script;
 class SharedFunctionInfo;
 struct SourcePositionInfo;
@@ -26,9 +26,8 @@ struct SourcePositionInfo;
 // - inlining_id (16 bit non-negative int or kNotInlined).
 //
 // A defined inlining_id refers to positions in
-// CompilationInfo::inlined_functions or
-// DeoptimizationInputData::InliningPositions, depending on the compilation
-// stage.
+// OptimizedCompilationInfo::inlined_functions or
+// DeoptimizationData::InliningPositions, depending on the compilation stage.
 class SourcePosition final {
  public:
   explicit SourcePosition(int script_offset, int inlining_id = kNotInlined)
@@ -45,21 +44,23 @@ class SourcePosition final {
 
   // Assumes that the code object is optimized
   std::vector<SourcePositionInfo> InliningStack(Handle<Code> code) const;
-  std::vector<SourcePositionInfo> InliningStack(CompilationInfo* cinfo) const;
+  std::vector<SourcePositionInfo> InliningStack(
+      OptimizedCompilationInfo* cinfo) const;
 
   void Print(std::ostream& out, Code* code) const;
+  void PrintJson(std::ostream& out) const;
 
   int ScriptOffset() const { return ScriptOffsetField::decode(value_) - 1; }
   int InliningId() const { return InliningIdField::decode(value_) - 1; }
 
   void SetScriptOffset(int script_offset) {
     DCHECK(script_offset <= ScriptOffsetField::kMax - 2);
-    DCHECK(script_offset >= kNoSourcePosition);
+    DCHECK_GE(script_offset, kNoSourcePosition);
     value_ = ScriptOffsetField::update(value_, script_offset + 1);
   }
   void SetInliningId(int inlining_id) {
     DCHECK(inlining_id <= InliningIdField::kMax - 2);
-    DCHECK(inlining_id >= kNotInlined);
+    DCHECK_GE(inlining_id, kNotInlined);
     value_ = InliningIdField::update(value_, inlining_id + 1);
   }
 
@@ -97,7 +98,7 @@ struct InliningPosition {
   // position of the inlined call
   SourcePosition position = SourcePosition::Unknown();
 
-  // references position in DeoptimizationInputData::literals()
+  // references position in DeoptimizationData::literals()
   int inlined_function_id;
 };
 
@@ -105,7 +106,7 @@ struct SourcePositionInfo {
   SourcePositionInfo(SourcePosition pos, Handle<SharedFunctionInfo> f);
 
   SourcePosition position;
-  Handle<SharedFunctionInfo> function;
+  Handle<Script> script;
   int line = -1;
   int column = -1;
 };

@@ -5,15 +5,23 @@
 #ifndef V8_DEBUG_DEBUG_EVALUATE_H_
 #define V8_DEBUG_DEBUG_EVALUATE_H_
 
-#include "src/frames.h"
+#include <vector>
+
+#include "src/debug/debug-frames.h"
+#include "src/debug/debug-scopes.h"
 #include "src/objects.h"
+#include "src/objects/shared-function-info.h"
+#include "src/objects/string-table.h"
 
 namespace v8 {
 namespace internal {
 
+class FrameInspector;
+
 class DebugEvaluate : public AllStatic {
  public:
-  static MaybeHandle<Object> Global(Isolate* isolate, Handle<String> source);
+  static MaybeHandle<Object> Global(Isolate* isolate, Handle<String> source,
+                                    bool throw_on_side_effect);
 
   // Evaluate a piece of JavaScript in the context of a stack frame for
   // debugging.  Things that need special attention are:
@@ -22,7 +30,18 @@ class DebugEvaluate : public AllStatic {
   // - The arguments object needs to materialized.
   static MaybeHandle<Object> Local(Isolate* isolate, StackFrame::Id frame_id,
                                    int inlined_jsframe_index,
-                                   Handle<String> source);
+                                   Handle<String> source,
+                                   bool throw_on_side_effect);
+
+  // This is used for break-at-entry for builtins and API functions.
+  // Evaluate a piece of JavaScript in the native context, but with the
+  // materialized arguments object and receiver of the current call.
+  static MaybeHandle<Object> WithTopmostArguments(Isolate* isolate,
+                                                  Handle<String> source);
+
+  static DebugInfo::SideEffectState FunctionGetSideEffectState(
+      Isolate* isolate, Handle<SharedFunctionInfo> info);
+  static void ApplySideEffectChecks(Handle<BytecodeArray> bytecode_array);
 
  private:
   // This class builds a context chain for evaluation of expressions
@@ -51,39 +70,28 @@ class DebugEvaluate : public AllStatic {
     void UpdateValues();
 
     Handle<Context> evaluation_context() const { return evaluation_context_; }
-    Handle<SharedFunctionInfo> outer_info() const { return outer_info_; }
+    Handle<SharedFunctionInfo> outer_info() const;
 
    private:
     struct ContextChainElement {
-      Handle<ScopeInfo> scope_info;
       Handle<Context> wrapped_context;
       Handle<JSObject> materialized_object;
       Handle<StringSet> whitelist;
     };
 
-    // Helper function to find or create the arguments object for
-    // Runtime_DebugEvaluate.
-    void MaterializeArgumentsObject(Handle<JSObject> target,
-                                    Handle<JSFunction> function);
-
-    void MaterializeReceiver(Handle<JSObject> target,
-                             Handle<Context> local_context,
-                             Handle<JSFunction> local_function,
-                             Handle<StringSet> non_locals);
-
-    Handle<SharedFunctionInfo> outer_info_;
     Handle<Context> evaluation_context_;
-    List<ContextChainElement> context_chain_;
+    std::vector<ContextChainElement> context_chain_;
     Isolate* isolate_;
-    JavaScriptFrame* frame_;
-    int inlined_jsframe_index_;
+    FrameInspector frame_inspector_;
+    ScopeIterator scope_iterator_;
   };
 
   static MaybeHandle<Object> Evaluate(Isolate* isolate,
                                       Handle<SharedFunctionInfo> outer_info,
                                       Handle<Context> context,
                                       Handle<Object> receiver,
-                                      Handle<String> source);
+                                      Handle<String> source,
+                                      bool throw_on_side_effect);
 };
 
 

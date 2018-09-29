@@ -6,34 +6,30 @@
 
 #include <memory>
 
+#include "src/allocation.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
-
 
 bool StringsStorage::StringsMatch(void* key1, void* key2) {
   return strcmp(reinterpret_cast<char*>(key1), reinterpret_cast<char*>(key2)) ==
          0;
 }
 
-
-StringsStorage::StringsStorage(Heap* heap)
-    : hash_seed_(heap->HashSeed()), names_(StringsMatch) {}
-
+StringsStorage::StringsStorage() : names_(StringsMatch) {}
 
 StringsStorage::~StringsStorage() {
-  for (base::HashMap::Entry* p = names_.Start(); p != NULL;
+  for (base::HashMap::Entry* p = names_.Start(); p != nullptr;
        p = names_.Next(p)) {
     DeleteArray(reinterpret_cast<const char*>(p->value));
   }
 }
 
-
 const char* StringsStorage::GetCopy(const char* src) {
   int len = static_cast<int>(strlen(src));
   base::HashMap::Entry* entry = GetEntry(src, len);
-  if (entry->value == NULL) {
+  if (entry->value == nullptr) {
     Vector<char> dst = Vector<char>::New(len + 1);
     StrNCpy(dst, src, len);
     dst[len] = '\0';
@@ -43,7 +39,6 @@ const char* StringsStorage::GetCopy(const char* src) {
   return reinterpret_cast<const char*>(entry->value);
 }
 
-
 const char* StringsStorage::GetFormatted(const char* format, ...) {
   va_list args;
   va_start(args, format);
@@ -52,10 +47,9 @@ const char* StringsStorage::GetFormatted(const char* format, ...) {
   return result;
 }
 
-
 const char* StringsStorage::AddOrDisposeString(char* str, int len) {
   base::HashMap::Entry* entry = GetEntry(str, len);
-  if (entry->value == NULL) {
+  if (entry->value == nullptr) {
     // New entry added.
     entry->key = str;
     entry->value = str;
@@ -64,7 +58,6 @@ const char* StringsStorage::AddOrDisposeString(char* str, int len) {
   }
   return reinterpret_cast<const char*>(entry->value);
 }
-
 
 const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
   Vector<char> str = Vector<char>::New(1024);
@@ -76,11 +69,10 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
   return AddOrDisposeString(str.start(), len);
 }
 
-
 const char* StringsStorage::GetName(Name* name) {
   if (name->IsString()) {
     String* str = String::cast(name);
-    int length = Min(kMaxNameSize, str->length());
+    int length = Min(FLAG_heap_snapshot_string_limit, str->length());
     int actual_length = 0;
     std::unique_ptr<char[]> data = str->ToCString(
         DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
@@ -91,35 +83,33 @@ const char* StringsStorage::GetName(Name* name) {
   return "";
 }
 
-
 const char* StringsStorage::GetName(int index) {
   return GetFormatted("%d", index);
 }
 
+const char* StringsStorage::GetConsName(const char* prefix, Name* name) {
+  if (name->IsString()) {
+    String* str = String::cast(name);
+    int length = Min(FLAG_heap_snapshot_string_limit, str->length());
+    int actual_length = 0;
+    std::unique_ptr<char[]> data = str->ToCString(
+        DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length, &actual_length);
 
-const char* StringsStorage::GetFunctionName(Name* name) {
-  return GetName(name);
-}
+    int cons_length = actual_length + static_cast<int>(strlen(prefix)) + 1;
+    char* cons_result = NewArray<char>(cons_length);
+    snprintf(cons_result, cons_length, "%s%s", prefix, data.get());
 
-
-const char* StringsStorage::GetFunctionName(const char* name) {
-  return GetCopy(name);
-}
-
-
-size_t StringsStorage::GetUsedMemorySize() const {
-  size_t size = sizeof(*this);
-  size += sizeof(base::HashMap::Entry) * names_.capacity();
-  for (base::HashMap::Entry* p = names_.Start(); p != NULL;
-       p = names_.Next(p)) {
-    size += strlen(reinterpret_cast<const char*>(p->value)) + 1;
+    return AddOrDisposeString(cons_result, cons_length);
+  } else if (name->IsSymbol()) {
+    return "<symbol>";
   }
-  return size;
+  return "";
 }
 
 base::HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {
-  uint32_t hash = StringHasher::HashSequentialString(str, len, hash_seed_);
+  uint32_t hash = StringHasher::HashSequentialString(str, len, kZeroHashSeed);
   return names_.LookupOrInsert(const_cast<char*>(str), hash);
 }
+
 }  // namespace internal
 }  // namespace v8

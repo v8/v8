@@ -26,14 +26,29 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import os
 from os.path import exists
 from os.path import isdir
 from os.path import join
+import os
 import platform
 import re
 import subprocess
 import urllib2
+
+
+### Exit codes and their meaning.
+# Normal execution.
+EXIT_CODE_PASS = 0
+# Execution with test failures.
+EXIT_CODE_FAILURES = 1
+# Execution with no tests executed.
+EXIT_CODE_NO_TESTS = 2
+# Execution aborted with SIGINT (Ctrl-C).
+EXIT_CODE_INTERRUPTED = 3
+# Execution aborted with SIGTERM.
+EXIT_CODE_TERMINATED = 4
+# Internal error.
+EXIT_CODE_INTERNAL_ERROR = 5
 
 
 def GetSuitePaths(test_root):

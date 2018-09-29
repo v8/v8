@@ -25,9 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --noalways-opt
 
 Debug = debug.Debug
-
 
 function TestCase(test_scenario, expected_output) {
   // Global variable, accessed from eval'd script.
@@ -78,8 +78,6 @@ function TestCase(test_scenario, expected_output) {
 
   var test_fun = eval(script_text_generator.get());
 
-  var script = Debug.findScript(test_fun);
-
   var scenario_pos = 0;
 
   function DebuggerStatementHandler() {
@@ -92,8 +90,7 @@ function TestCase(test_scenario, expected_output) {
       }
       script_text_generator.change(change_var);
       try {
-        Debug.LiveEdit.SetScriptSource(script, script_text_generator.get(),
-            false, []);
+        %LiveEditPatchScript(test_fun, script_text_generator.get())
       } catch (e) {
         print("LiveEdit exception: " + e);
         throw e;

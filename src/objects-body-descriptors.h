@@ -18,51 +18,50 @@ namespace internal {
 //    It is used for invalid slots filtering. If the offset points outside
 //    of the object or to the map word, the result is UNDEFINED (!!!).
 //
-//   static bool IsValidSlot(HeapObject* obj, int offset);
+//   static bool IsValidSlot(Map* map, HeapObject* obj, int offset);
 //
 //
 // 2) Iterate object's body using stateful object visitor.
 //
 //   template <typename ObjectVisitor>
-//   static inline void IterateBody(HeapObject* obj, int object_size,
+//   static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
 //                                  ObjectVisitor* v);
-//
-//
-// 3) Iterate object's body using stateless object visitor.
-//
-//   template <typename StaticVisitor>
-//   static inline void IterateBody(HeapObject* obj, int object_size);
-//
-class BodyDescriptorBase BASE_EMBEDDED {
+class BodyDescriptorBase {
  public:
   template <typename ObjectVisitor>
   static inline void IteratePointers(HeapObject* obj, int start_offset,
                                      int end_offset, ObjectVisitor* v);
 
-  template <typename StaticVisitor>
-  static inline void IteratePointers(Heap* heap, HeapObject* obj,
-                                     int start_offset, int end_offset);
-
   template <typename ObjectVisitor>
   static inline void IteratePointer(HeapObject* obj, int offset,
                                     ObjectVisitor* v);
 
-  template <typename StaticVisitor>
-  static inline void IteratePointer(Heap* heap, HeapObject* obj, int offset);
+  template <typename ObjectVisitor>
+  static inline void IterateCustomWeakPointers(HeapObject* obj,
+                                               int start_offset, int end_offset,
+                                               ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
+  static inline void IterateCustomWeakPointer(HeapObject* obj, int offset,
+                                              ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
+  static inline void IterateMaybeWeakPointers(HeapObject* obj, int start_offset,
+                                              int end_offset, ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
+  static inline void IterateMaybeWeakPointer(HeapObject* obj, int offset,
+                                             ObjectVisitor* v);
 
  protected:
-  // Returns true for all header and internal fields.
-  static inline bool IsValidSlotImpl(HeapObject* obj, int offset);
+  // Returns true for all header and embedder fields.
+  static inline bool IsValidSlotImpl(Map* map, HeapObject* obj, int offset);
 
-  // Treats all header and internal fields in the range as tagged.
+  // Treats all header and embedder fields in the range as tagged.
   template <typename ObjectVisitor>
-  static inline void IterateBodyImpl(HeapObject* obj, int start_offset,
-                                     int end_offset, ObjectVisitor* v);
-
-  // Treats all header and internal fields in the range as tagged.
-  template <typename StaticVisitor>
-  static inline void IterateBodyImpl(Heap* heap, HeapObject* obj,
-                                     int start_offset, int end_offset);
+  static inline void IterateBodyImpl(Map* map, HeapObject* obj,
+                                     int start_offset, int end_offset,
+                                     ObjectVisitor* v);
 };
 
 
@@ -76,31 +75,22 @@ class FixedBodyDescriptor final : public BodyDescriptorBase {
   static const int kEndOffset = end_offset;
   static const int kSize = size;
 
-  static bool IsValidSlot(HeapObject* obj, int offset) {
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
     return offset >= kStartOffset && offset < kEndOffset;
   }
 
   template <typename ObjectVisitor>
-  static inline void IterateBody(HeapObject* obj, ObjectVisitor* v) {
-    IterateBodyImpl(obj, start_offset, end_offset, v);
+  static inline void IterateBody(Map* map, HeapObject* obj, ObjectVisitor* v) {
+    IteratePointers(obj, start_offset, end_offset, v);
   }
 
   template <typename ObjectVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size,
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    IterateBody(obj, v);
+    IterateBody(map, obj, v);
   }
 
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj) {
-    Heap* heap = obj->GetHeap();
-    IterateBodyImpl<StaticVisitor>(heap, obj, start_offset, end_offset);
-  }
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    IterateBody(obj);
-  }
+  static inline int SizeOf(Map* map, HeapObject* object) { return kSize; }
 };
 
 
@@ -112,21 +102,14 @@ class FlexibleBodyDescriptor final : public BodyDescriptorBase {
  public:
   static const int kStartOffset = start_offset;
 
-  static bool IsValidSlot(HeapObject* obj, int offset) {
-    if (offset < kStartOffset) return false;
-    return IsValidSlotImpl(obj, offset);
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    return (offset >= kStartOffset);
   }
 
   template <typename ObjectVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size,
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    IterateBodyImpl(obj, start_offset, object_size, v);
-  }
-
-  template <typename StaticVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size) {
-    Heap* heap = obj->GetHeap();
-    IterateBodyImpl<StaticVisitor>(heap, obj, start_offset, object_size);
+    IteratePointers(obj, start_offset, object_size, v);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object);
@@ -134,6 +117,43 @@ class FlexibleBodyDescriptor final : public BodyDescriptorBase {
 
 
 typedef FlexibleBodyDescriptor<HeapObject::kHeaderSize> StructBodyDescriptor;
+
+// This class describes a body of an object which has a parent class that also
+// has a body descriptor. This represents a union of the parent's body
+// descriptor, and a new descriptor for the child -- so, both parent and child's
+// slots are iterated. The parent must be fixed size, and its slots be disjoint
+// with the child's.
+template <class ParentBodyDescriptor, class ChildBodyDescriptor>
+class SubclassBodyDescriptor final : public BodyDescriptorBase {
+ public:
+  // The parent must end be before the child's start offset, to make sure that
+  // their slots are disjoint.
+  STATIC_ASSERT(ParentBodyDescriptor::kSize <=
+                ChildBodyDescriptor::kStartOffset);
+
+  static bool IsValidSlot(Map* map, HeapObject* obj, int offset) {
+    return ParentBodyDescriptor::IsValidSlot(map, obj, offset) ||
+           ChildBodyDescriptor::IsValidSlot(map, obj, offset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, ObjectVisitor* v) {
+    ParentBodyDescriptor::IterateBody(map, obj, v);
+    ChildBodyDescriptor::IterateBody(map, obj, v);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map* map, HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    ParentBodyDescriptor::IterateBody(map, obj, object_size, v);
+    ChildBodyDescriptor::IterateBody(map, obj, object_size, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    // The child should know its full size.
+    return ChildBodyDescriptor::SizeOf(map, object);
+  }
+};
 
 }  // namespace internal
 }  // namespace v8

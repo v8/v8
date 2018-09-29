@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8INJECTEDSCRIPTHOST_H_
-#define V8_INSPECTOR_V8INJECTEDSCRIPTHOST_H_
+#ifndef V8_INSPECTOR_V8_INJECTED_SCRIPT_HOST_H_
+#define V8_INSPECTOR_V8_INJECTED_SCRIPT_HOST_H_
 
 #include "include/v8.h"
 
@@ -27,6 +27,9 @@ class V8InjectedScriptHost {
   static v8::Local<v8::Object> create(v8::Local<v8::Context>, V8InspectorImpl*);
 
  private:
+  static void nullifyPrototypeCallback(
+      const v8::FunctionCallbackInfo<v8::Value>&);
+  static void getPropertyCallback(const v8::FunctionCallbackInfo<v8::Value>&);
   static void internalConstructorNameCallback(
       const v8::FunctionCallbackInfo<v8::Value>&);
   static void formatAccessorsAsProperties(
@@ -39,8 +42,12 @@ class V8InjectedScriptHost {
   static void bindCallback(const v8::FunctionCallbackInfo<v8::Value>&);
   static void proxyTargetValueCallback(
       const v8::FunctionCallbackInfo<v8::Value>&);
+  static void nativeAccessorDescriptorCallback(
+      const v8::FunctionCallbackInfo<v8::Value>&);
+  static void typedArrayPropertiesCallback(
+      const v8::FunctionCallbackInfo<v8::Value>&);
 };
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8INJECTEDSCRIPTHOST_H_
+#endif  // V8_INSPECTOR_V8_INJECTED_SCRIPT_HOST_H_

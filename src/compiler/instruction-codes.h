@@ -23,8 +23,6 @@
 #include "src/compiler/ppc/instruction-codes-ppc.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/compiler/s390/instruction-codes-s390.h"
-#elif V8_TARGET_ARCH_X87
-#include "src/compiler/x87/instruction-codes-x87.h"
 #else
 #define TARGET_ARCH_OPCODE_LIST(V)
 #define TARGET_ADDRESSING_MODE_LIST(V)
@@ -47,15 +45,20 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(ArchTailCallCodeObjectFromJSFunction) \
   V(ArchTailCallCodeObject)               \
   V(ArchCallJSFunction)                   \
-  V(ArchTailCallJSFunctionFromJSFunction) \
   V(ArchTailCallAddress)                  \
   V(ArchPrepareCallCFunction)             \
+  V(ArchSaveCallerRegisters)              \
+  V(ArchRestoreCallerRegisters)           \
   V(ArchCallCFunction)                    \
   V(ArchPrepareTailCall)                  \
+  V(ArchCallWasmFunction)                 \
+  V(ArchTailCallWasm)                     \
   V(ArchJmp)                              \
+  V(ArchBinarySearchSwitch)               \
   V(ArchLookupSwitch)                     \
   V(ArchTableSwitch)                      \
   V(ArchNop)                              \
+  V(ArchDebugAbort)                       \
   V(ArchDebugBreak)                       \
   V(ArchComment)                          \
   V(ArchThrowTerminator)                  \
@@ -66,29 +69,51 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(ArchParentFramePointer)               \
   V(ArchTruncateDoubleToI)                \
   V(ArchStoreWithWriteBarrier)            \
-  V(CheckedLoadInt8)                      \
-  V(CheckedLoadUint8)                     \
-  V(CheckedLoadInt16)                     \
-  V(CheckedLoadUint16)                    \
-  V(CheckedLoadWord32)                    \
-  V(CheckedLoadWord64)                    \
-  V(CheckedLoadFloat32)                   \
-  V(CheckedLoadFloat64)                   \
-  V(CheckedStoreWord8)                    \
-  V(CheckedStoreWord16)                   \
-  V(CheckedStoreWord32)                   \
-  V(CheckedStoreWord64)                   \
-  V(CheckedStoreFloat32)                  \
-  V(CheckedStoreFloat64)                  \
   V(ArchStackSlot)                        \
-  V(AtomicLoadInt8)                       \
-  V(AtomicLoadUint8)                      \
-  V(AtomicLoadInt16)                      \
-  V(AtomicLoadUint16)                     \
-  V(AtomicLoadWord32)                     \
-  V(AtomicStoreWord8)                     \
-  V(AtomicStoreWord16)                    \
-  V(AtomicStoreWord32)                    \
+  V(ArchWordPoisonOnSpeculation)          \
+  V(Word32AtomicLoadInt8)                 \
+  V(Word32AtomicLoadUint8)                \
+  V(Word32AtomicLoadInt16)                \
+  V(Word32AtomicLoadUint16)               \
+  V(Word32AtomicLoadWord32)               \
+  V(Word32AtomicStoreWord8)               \
+  V(Word32AtomicStoreWord16)              \
+  V(Word32AtomicStoreWord32)              \
+  V(Word32AtomicExchangeInt8)             \
+  V(Word32AtomicExchangeUint8)            \
+  V(Word32AtomicExchangeInt16)            \
+  V(Word32AtomicExchangeUint16)           \
+  V(Word32AtomicExchangeWord32)           \
+  V(Word32AtomicCompareExchangeInt8)      \
+  V(Word32AtomicCompareExchangeUint8)     \
+  V(Word32AtomicCompareExchangeInt16)     \
+  V(Word32AtomicCompareExchangeUint16)    \
+  V(Word32AtomicCompareExchangeWord32)    \
+  V(Word32AtomicAddInt8)                  \
+  V(Word32AtomicAddUint8)                 \
+  V(Word32AtomicAddInt16)                 \
+  V(Word32AtomicAddUint16)                \
+  V(Word32AtomicAddWord32)                \
+  V(Word32AtomicSubInt8)                  \
+  V(Word32AtomicSubUint8)                 \
+  V(Word32AtomicSubInt16)                 \
+  V(Word32AtomicSubUint16)                \
+  V(Word32AtomicSubWord32)                \
+  V(Word32AtomicAndInt8)                  \
+  V(Word32AtomicAndUint8)                 \
+  V(Word32AtomicAndInt16)                 \
+  V(Word32AtomicAndUint16)                \
+  V(Word32AtomicAndWord32)                \
+  V(Word32AtomicOrInt8)                   \
+  V(Word32AtomicOrUint8)                  \
+  V(Word32AtomicOrInt16)                  \
+  V(Word32AtomicOrUint16)                 \
+  V(Word32AtomicOrWord32)                 \
+  V(Word32AtomicXorInt8)                  \
+  V(Word32AtomicXorUint8)                 \
+  V(Word32AtomicXorInt16)                 \
+  V(Word32AtomicXorUint16)                \
+  V(Word32AtomicXorWord32)                \
   V(Ieee754Float64Acos)                   \
   V(Ieee754Float64Acosh)                  \
   V(Ieee754Float64Asin)                   \
@@ -151,9 +176,11 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 enum FlagsMode {
   kFlags_none = 0,
   kFlags_branch = 1,
-  kFlags_deoptimize = 2,
-  kFlags_set = 3,
-  kFlags_trap = 4
+  kFlags_branch_and_poison = 2,
+  kFlags_deoptimize = 3,
+  kFlags_deoptimize_and_poison = 4,
+  kFlags_set = 5,
+  kFlags_trap = 6
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -196,6 +223,12 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const FlagsCondition& fc);
 
+enum MemoryAccessMode {
+  kMemoryAccessDirect = 0,
+  kMemoryAccessProtected = 1,
+  kMemoryAccessPoisoned = 2
+};
+
 // The InstructionCode is an opaque, target-specific integer that encodes
 // what code to emit for an instruction in the code generator. It is not
 // interesting to the register allocator, as the inputs and flags on the
@@ -206,11 +239,11 @@ typedef int32_t InstructionCode;
 // for code generation. We encode the instruction, addressing mode, and flags
 // continuation into a single InstructionCode which is stored as part of
 // the instruction.
-typedef BitField<ArchOpcode, 0, 8> ArchOpcodeField;
-typedef BitField<AddressingMode, 8, 5> AddressingModeField;
-typedef BitField<FlagsMode, 13, 3> FlagsModeField;
-typedef BitField<FlagsCondition, 16, 5> FlagsConditionField;
-typedef BitField<int, 21, 11> MiscField;
+typedef BitField<ArchOpcode, 0, 9> ArchOpcodeField;
+typedef BitField<AddressingMode, 9, 5> AddressingModeField;
+typedef BitField<FlagsMode, 14, 3> FlagsModeField;
+typedef BitField<FlagsCondition, 17, 5> FlagsConditionField;
+typedef BitField<int, 22, 10> MiscField;
 
 }  // namespace compiler
 }  // namespace internal

@@ -5,10 +5,12 @@
 #include "src/heap/scavenge-job.h"
 
 #include "src/base/platform/time.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"
 #include "src/v8.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -17,6 +19,8 @@ namespace internal {
 const double ScavengeJob::kMaxAllocationLimitAsFractionOfNewSpace = 0.8;
 
 void ScavengeJob::IdleTask::RunInternal(double deadline_in_seconds) {
+  VMState<GC> state(isolate());
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate(), "v8", "V8.Task");
   Heap* heap = isolate()->heap();
   double deadline_in_ms =
       deadline_in_seconds *
@@ -99,7 +103,7 @@ void ScavengeJob::ScheduleIdleTaskIfNeeded(Heap* heap, int bytes_allocated) {
 
 
 void ScavengeJob::ScheduleIdleTask(Heap* heap) {
-  if (!idle_task_pending_) {
+  if (!idle_task_pending_ && !heap->IsTearingDown()) {
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap->isolate());
     if (V8::GetCurrentPlatform()->IdleTasksEnabled(isolate)) {
       idle_task_pending_ = true;

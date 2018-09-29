@@ -7,6 +7,7 @@
 #include <iomanip>
 
 #include "src/base/platform/platform.h"
+#include "src/builtins/builtins-definitions.h"
 #include "src/isolate.h"
 #include "src/log-inl.h"
 #include "src/log.h"
@@ -14,138 +15,251 @@
 namespace v8 {
 namespace internal {
 
-StatsTable::StatsTable()
-    : lookup_function_(NULL),
-      create_histogram_function_(NULL),
-      add_histogram_sample_function_(NULL) {}
+StatsTable::StatsTable(Counters* counters)
+    : lookup_function_(nullptr),
+      create_histogram_function_(nullptr),
+      add_histogram_sample_function_(nullptr) {}
 
-
-int* StatsCounter::FindLocationInStatsTable() const {
-  return isolate_->stats_table()->FindLocation(name_);
+void StatsTable::SetCounterFunction(CounterLookupCallback f) {
+  lookup_function_ = f;
 }
 
+int* StatsCounterBase::FindLocationInStatsTable() const {
+  return counters_->FindLocation(name_);
+}
+
+StatsCounterThreadSafe::StatsCounterThreadSafe(Counters* counters,
+                                               const char* name)
+    : StatsCounterBase(counters, name) {}
+
+void StatsCounterThreadSafe::Set(int Value) {
+  if (ptr_) {
+    base::LockGuard<base::Mutex> Guard(&mutex_);
+    SetLoc(ptr_, Value);
+  }
+}
+
+void StatsCounterThreadSafe::Increment() {
+  if (ptr_) {
+    base::LockGuard<base::Mutex> Guard(&mutex_);
+    IncrementLoc(ptr_);
+  }
+}
+
+void StatsCounterThreadSafe::Increment(int value) {
+  if (ptr_) {
+    base::LockGuard<base::Mutex> Guard(&mutex_);
+    IncrementLoc(ptr_, value);
+  }
+}
+
+void StatsCounterThreadSafe::Decrement() {
+  if (ptr_) {
+    base::LockGuard<base::Mutex> Guard(&mutex_);
+    DecrementLoc(ptr_);
+  }
+}
+
+void StatsCounterThreadSafe::Decrement(int value) {
+  if (ptr_) {
+    base::LockGuard<base::Mutex> Guard(&mutex_);
+    DecrementLoc(ptr_, value);
+  }
+}
 
 void Histogram::AddSample(int sample) {
   if (Enabled()) {
-    isolate()->stats_table()->AddHistogramSample(histogram_, sample);
+    counters_->AddHistogramSample(histogram_, sample);
   }
 }
 
 void* Histogram::CreateHistogram() const {
-  return isolate()->stats_table()->
-      CreateHistogram(name_, min_, max_, num_buckets_);
+  return counters_->CreateHistogram(name_, min_, max_, num_buckets_);
 }
 
-
-// Start the timer.
-void HistogramTimer::Start() {
-  if (Enabled()) {
-    timer_.Start();
-  }
-  Logger::CallEventLogger(isolate(), name(), Logger::START, true);
+void TimedHistogram::Start(base::ElapsedTimer* timer, Isolate* isolate) {
+  if (Enabled()) timer->Start();
+  if (isolate) Logger::CallEventLogger(isolate, name(), Logger::START, true);
 }
 
-
-// Stop the timer and record the results.
-void HistogramTimer::Stop() {
+void TimedHistogram::Stop(base::ElapsedTimer* timer, Isolate* isolate) {
   if (Enabled()) {
-    int64_t sample = resolution_ == MICROSECOND
-                         ? timer_.Elapsed().InMicroseconds()
-                         : timer_.Elapsed().InMilliseconds();
-    // Compute the delta between start and stop, in microseconds.
+    int64_t sample = resolution_ == HistogramTimerResolution::MICROSECOND
+                         ? timer->Elapsed().InMicroseconds()
+                         : timer->Elapsed().InMilliseconds();
+    timer->Stop();
     AddSample(static_cast<int>(sample));
-    timer_.Stop();
   }
-  Logger::CallEventLogger(isolate(), name(), Logger::END, true);
+  if (isolate != nullptr) {
+    Logger::CallEventLogger(isolate, name(), Logger::END, true);
+  }
 }
 
+void TimedHistogram::RecordAbandon(base::ElapsedTimer* timer,
+                                   Isolate* isolate) {
+  if (Enabled()) {
+    DCHECK(timer->IsStarted());
+    timer->Stop();
+    int64_t sample = resolution_ == HistogramTimerResolution::MICROSECOND
+                         ? base::TimeDelta::Max().InMicroseconds()
+                         : base::TimeDelta::Max().InMilliseconds();
+    AddSample(static_cast<int>(sample));
+  }
+  if (isolate != nullptr) {
+    Logger::CallEventLogger(isolate, name(), Logger::END, true);
+  }
+}
 
-Counters::Counters(Isolate* isolate) {
+Counters::Counters(Isolate* isolate)
+    : isolate_(isolate),
+      stats_table_(this),
+// clang format off
+#define SC(name, caption) name##_(this, "c:" #caption),
+      STATS_COUNTER_TS_LIST(SC)
+#undef SC
+      // clang format on
+      runtime_call_stats_(),
+      worker_thread_runtime_call_stats_() {
+  static const struct {
+    Histogram Counters::*member;
+    const char* caption;
+    int min;
+    int max;
+    int num_buckets;
+  } kHistograms[] = {
 #define HR(name, caption, min, max, num_buckets) \
-  name##_ = Histogram(#caption, min, max, num_buckets, isolate);
-  HISTOGRAM_RANGE_LIST(HR)
+  {&Counters::name##_, #caption, min, max, num_buckets},
+      HISTOGRAM_RANGE_LIST(HR)
 #undef HR
+  };
+  for (const auto& histogram : kHistograms) {
+    this->*histogram.member =
+        Histogram(histogram.caption, histogram.min, histogram.max,
+                  histogram.num_buckets, this);
+  }
 
+  const int DefaultTimedHistogramNumBuckets = 50;
+
+  static const struct {
+    HistogramTimer Counters::*member;
+    const char* caption;
+    int max;
+    HistogramTimerResolution res;
+  } kHistogramTimers[] = {
 #define HT(name, caption, max, res) \
-  name##_ = HistogramTimer(#caption, 0, max, HistogramTimer::res, 50, isolate);
-    HISTOGRAM_TIMER_LIST(HT)
+  {&Counters::name##_, #caption, max, HistogramTimerResolution::res},
+      HISTOGRAM_TIMER_LIST(HT)
 #undef HT
+  };
+  for (const auto& timer : kHistogramTimers) {
+    this->*timer.member = HistogramTimer(timer.caption, 0, timer.max, timer.res,
+                                         DefaultTimedHistogramNumBuckets, this);
+  }
 
-#define AHT(name, caption) \
-  name##_ = AggregatableHistogramTimer(#caption, 0, 10000000, 50, isolate);
-    AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
+  static const struct {
+    TimedHistogram Counters::*member;
+    const char* caption;
+    int max;
+    HistogramTimerResolution res;
+  } kTimedHistograms[] = {
+#define HT(name, caption, max, res) \
+  {&Counters::name##_, #caption, max, HistogramTimerResolution::res},
+      TIMED_HISTOGRAM_LIST(HT)
+#undef HT
+  };
+  for (const auto& timer : kTimedHistograms) {
+    this->*timer.member = TimedHistogram(timer.caption, 0, timer.max, timer.res,
+                                         DefaultTimedHistogramNumBuckets, this);
+  }
+
+  static const struct {
+    AggregatableHistogramTimer Counters::*member;
+    const char* caption;
+  } kAggregatableHistogramTimers[] = {
+#define AHT(name, caption) {&Counters::name##_, #caption},
+      AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT)
 #undef AHT
+  };
+  for (const auto& aht : kAggregatableHistogramTimers) {
+    this->*aht.member = AggregatableHistogramTimer(
+        aht.caption, 0, 10000000, DefaultTimedHistogramNumBuckets, this);
+  }
 
-#define HP(name, caption) \
-    name##_ = Histogram(#caption, 0, 101, 100, isolate);
-    HISTOGRAM_PERCENTAGE_LIST(HP)
+  static const struct {
+    Histogram Counters::*member;
+    const char* caption;
+  } kHistogramPercentages[] = {
+#define HP(name, caption) {&Counters::name##_, #caption},
+      HISTOGRAM_PERCENTAGE_LIST(HP)
 #undef HP
+  };
+  for (const auto& percentage : kHistogramPercentages) {
+    this->*percentage.member = Histogram(percentage.caption, 0, 101, 100, this);
+  }
 
-
-// Exponential histogram assigns bucket limits to points
-// p[1], p[2], ... p[n] such that p[i+1] / p[i] = constant.
-// The constant factor is equal to the n-th root of (high / low),
-// where the n is the number of buckets, the low is the lower limit,
-// the high is the upper limit.
-// For n = 50, low = 1000, high = 500000: the factor = 1.13.
-#define HM(name, caption) \
-    name##_ = Histogram(#caption, 1000, 500000, 50, isolate);
-  HISTOGRAM_LEGACY_MEMORY_LIST(HM)
+  // Exponential histogram assigns bucket limits to points
+  // p[1], p[2], ... p[n] such that p[i+1] / p[i] = constant.
+  // The constant factor is equal to the n-th root of (high / low),
+  // where the n is the number of buckets, the low is the lower limit,
+  // the high is the upper limit.
+  // For n = 50, low = 1000, high = 500000: the factor = 1.13.
+  static const struct {
+    Histogram Counters::*member;
+    const char* caption;
+  } kLegacyMemoryHistograms[] = {
+#define HM(name, caption) {&Counters::name##_, #caption},
+      HISTOGRAM_LEGACY_MEMORY_LIST(HM)
 #undef HM
-// For n = 100, low = 4000, high = 2000000: the factor = 1.06.
-#define HM(name, caption) \
-  name##_ = Histogram(#caption, 4000, 2000000, 100, isolate);
-  HISTOGRAM_MEMORY_LIST(HM)
-#undef HM
+  };
+  for (const auto& histogram : kLegacyMemoryHistograms) {
+    this->*histogram.member =
+        Histogram(histogram.caption, 1000, 500000, 50, this);
+  }
 
-#define HM(name, caption) \
-  aggregated_##name##_ = AggregatedMemoryHistogram<Histogram>(&name##_);
-    HISTOGRAM_MEMORY_LIST(HM)
-#undef HM
-
-#define SC(name, caption) \
-    name##_ = StatsCounter(isolate, "c:" #caption);
-
-    STATS_COUNTER_LIST_1(SC)
-    STATS_COUNTER_LIST_2(SC)
+  // clang-format off
+  static const struct {
+    StatsCounter Counters::*member;
+    const char* caption;
+  } kStatsCounters[] = {
+#define SC(name, caption) {&Counters::name##_, "c:" #caption},
+      STATS_COUNTER_LIST_1(SC) STATS_COUNTER_LIST_2(SC)
 #undef SC
-
-#define SC(name) \
-    count_of_##name##_ = StatsCounter(isolate, "c:" "V8.CountOf_" #name); \
-    size_of_##name##_ = StatsCounter(isolate, "c:" "V8.SizeOf_" #name);
-    INSTANCE_TYPE_LIST(SC)
+#define SC(name)                                             \
+  {&Counters::count_of_##name##_, "c:" "V8.CountOf_" #name}, \
+  {&Counters::size_of_##name##_, "c:" "V8.SizeOf_" #name},
+      INSTANCE_TYPE_LIST(SC)
 #undef SC
-
-#define SC(name) \
-    count_of_CODE_TYPE_##name##_ = \
-        StatsCounter(isolate, "c:" "V8.CountOf_CODE_TYPE-" #name); \
-    size_of_CODE_TYPE_##name##_ = \
-        StatsCounter(isolate, "c:" "V8.SizeOf_CODE_TYPE-" #name);
-    CODE_KIND_LIST(SC)
+#define SC(name)                            \
+  {&Counters::count_of_CODE_TYPE_##name##_, \
+    "c:" "V8.CountOf_CODE_TYPE-" #name},     \
+  {&Counters::size_of_CODE_TYPE_##name##_,  \
+    "c:" "V8.SizeOf_CODE_TYPE-" #name},
+      CODE_KIND_LIST(SC)
 #undef SC
-
-#define SC(name) \
-    count_of_FIXED_ARRAY_##name##_ = \
-        StatsCounter(isolate, "c:" "V8.CountOf_FIXED_ARRAY-" #name); \
-    size_of_FIXED_ARRAY_##name##_ = \
-        StatsCounter(isolate, "c:" "V8.SizeOf_FIXED_ARRAY-" #name);
-    FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
+#define SC(name)                              \
+  {&Counters::count_of_FIXED_ARRAY_##name##_, \
+    "c:" "V8.CountOf_FIXED_ARRAY-" #name},     \
+  {&Counters::size_of_FIXED_ARRAY_##name##_,  \
+    "c:" "V8.SizeOf_FIXED_ARRAY-" #name},
+      FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
-
-#define SC(name) \
-    count_of_CODE_AGE_##name##_ = \
-        StatsCounter(isolate, "c:" "V8.CountOf_CODE_AGE-" #name); \
-    size_of_CODE_AGE_##name##_ = \
-        StatsCounter(isolate, "c:" "V8.SizeOf_CODE_AGE-" #name);
-    CODE_AGE_LIST_COMPLETE(SC)
-#undef SC
+  };
+  // clang-format on
+  for (const auto& counter : kStatsCounters) {
+    this->*counter.member = StatsCounter(this, counter.caption);
+  }
 }
 
+void Counters::ResetCounterFunction(CounterLookupCallback f) {
+  stats_table_.SetCounterFunction(f);
 
-void Counters::ResetCounters() {
 #define SC(name, caption) name##_.Reset();
   STATS_COUNTER_LIST_1(SC)
   STATS_COUNTER_LIST_2(SC)
+#undef SC
+
+#define SC(name, caption) name##_.Reset();
+  STATS_COUNTER_TS_LIST(SC)
 #undef SC
 
 #define SC(name)              \
@@ -165,22 +279,21 @@ void Counters::ResetCounters() {
   size_of_FIXED_ARRAY_##name##_.Reset();
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
-
-#define SC(name)                       \
-  count_of_CODE_AGE_##name##_.Reset(); \
-  size_of_CODE_AGE_##name##_.Reset();
-  CODE_AGE_LIST_COMPLETE(SC)
-#undef SC
 }
 
+void Counters::ResetCreateHistogramFunction(CreateHistogramCallback f) {
+  stats_table_.SetCreateHistogramFunction(f);
 
-void Counters::ResetHistograms() {
 #define HR(name, caption, min, max, num_buckets) name##_.Reset();
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
 #define HT(name, caption, max, res) name##_.Reset();
     HISTOGRAM_TIMER_LIST(HT)
+#undef HT
+
+#define HT(name, caption, max, res) name##_.Reset();
+    TIMED_HISTOGRAM_LIST(HT)
 #undef HT
 
 #define AHT(name, caption) name##_.Reset();
@@ -195,6 +308,9 @@ void Counters::ResetHistograms() {
     HISTOGRAM_LEGACY_MEMORY_LIST(HM)
 #undef HM
 }
+
+base::TimeTicks (*RuntimeCallTimer::Now)() =
+    &base::TimeTicks::HighResolutionNow;
 
 class RuntimeCallStatEntries {
  public:
@@ -275,19 +391,19 @@ class RuntimeCallStatEntries {
 
 void RuntimeCallCounter::Reset() {
   count_ = 0;
-  time_ = base::TimeDelta();
+  time_ = 0;
 }
 
 void RuntimeCallCounter::Dump(v8::tracing::TracedValue* value) {
   value->BeginArray(name_);
   value->AppendDouble(count_);
-  value->AppendDouble(time_.InMicroseconds());
+  value->AppendDouble(time_);
   value->EndArray();
 }
 
 void RuntimeCallCounter::Add(RuntimeCallCounter* other) {
   count_ += other->count();
-  time_ += other->time();
+  time_ += other->time().InMicroseconds();
 }
 
 void RuntimeCallTimer::Snapshot() {
@@ -303,70 +419,79 @@ void RuntimeCallTimer::Snapshot() {
   Resume(now);
 }
 
-// static
-const RuntimeCallStats::CounterId RuntimeCallStats::counters[] = {
-#define CALL_RUNTIME_COUNTER(name) &RuntimeCallStats::name,
-    FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)  //
+RuntimeCallStats::RuntimeCallStats() : in_use_(false) {
+  static const char* const kNames[] = {
+#define CALL_BUILTIN_COUNTER(name) "GC_" #name,
+      FOR_EACH_GC_COUNTER(CALL_BUILTIN_COUNTER)  //
+#undef CALL_BUILTIN_COUNTER
+#define CALL_RUNTIME_COUNTER(name) #name,
+      FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)  //
 #undef CALL_RUNTIME_COUNTER
-#define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
-  &RuntimeCallStats::Runtime_##name,          //
-    FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)  //
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize) #name,
+      FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)  //
 #undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name) &RuntimeCallStats::Builtin_##name,
-    BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)  //
+#define CALL_BUILTIN_COUNTER(name) #name,
+      BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) &RuntimeCallStats::API_##name,
-    FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)  //
+#define CALL_BUILTIN_COUNTER(name) "API_" #name,
+      FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) &RuntimeCallStats::Handler_##name,
-    FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
+#define CALL_BUILTIN_COUNTER(name) #name,
+      FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)  //
 #undef CALL_BUILTIN_COUNTER
-};
-
-// static
-const int RuntimeCallStats::counters_count =
-    arraysize(RuntimeCallStats::counters);
-
-// static
-void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
-                             CounterId counter_id) {
-  RuntimeCallCounter* counter = &(stats->*counter_id);
-  DCHECK(counter->name() != nullptr);
-  timer->Start(counter, stats->current_timer_.Value());
-  stats->current_timer_.SetValue(timer);
+  };
+  for (int i = 0; i < kNumberOfCounters; i++) {
+    this->counters_[i] = RuntimeCallCounter(kNames[i]);
+  }
 }
 
-// static
-void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
-  if (stats->current_timer_.Value() == timer) {
-    stats->current_timer_.SetValue(timer->Stop());
-  } else {
-    // Must be a Threading cctest. Walk the chain of Timers to find the
-    // buried one that's leaving. We don't care about keeping nested timings
-    // accurate, just avoid crashing by keeping the chain intact.
-    RuntimeCallTimer* next = stats->current_timer_.Value();
-    while (next && next->parent() != timer) next = next->parent();
-    if (next == nullptr) return;
-    next->set_parent(timer->Stop());
-  }
+void RuntimeCallStats::Enter(RuntimeCallTimer* timer,
+                             RuntimeCallCounterId counter_id) {
+  DCHECK(IsCalledOnTheSameThread());
+  RuntimeCallCounter* counter = GetCounter(counter_id);
+  DCHECK_NOT_NULL(counter->name());
+  timer->Start(counter, current_timer());
+  current_timer_.SetValue(timer);
+  current_counter_.SetValue(counter);
+}
+
+void RuntimeCallStats::Leave(RuntimeCallTimer* timer) {
+  DCHECK(IsCalledOnTheSameThread());
+  RuntimeCallTimer* stack_top = current_timer();
+  if (stack_top == nullptr) return;  // Missing timer is a result of Reset().
+  CHECK(stack_top == timer);
+  current_timer_.SetValue(timer->Stop());
+  RuntimeCallTimer* cur_timer = current_timer();
+  current_counter_.SetValue(cur_timer ? cur_timer->counter() : nullptr);
 }
 
 void RuntimeCallStats::Add(RuntimeCallStats* other) {
-  for (const RuntimeCallStats::CounterId counter_id :
-       RuntimeCallStats::counters) {
-    RuntimeCallCounter* counter = &(this->*counter_id);
-    RuntimeCallCounter* other_counter = &(other->*counter_id);
-    counter->Add(other_counter);
+  for (int i = 0; i < kNumberOfCounters; i++) {
+    GetCounter(i)->Add(other->GetCounter(i));
   }
 }
 
 // static
-void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
-                                               CounterId counter_id) {
-  RuntimeCallTimer* timer = stats->current_timer_.Value();
-  // When RCS are enabled dynamically there might be no current timer set up.
+void RuntimeCallStats::CorrectCurrentCounterId(
+    RuntimeCallCounterId counter_id) {
+  DCHECK(IsCalledOnTheSameThread());
+  RuntimeCallTimer* timer = current_timer();
   if (timer == nullptr) return;
-  timer->set_counter(&(stats->*counter_id));
+  RuntimeCallCounter* counter = GetCounter(counter_id);
+  timer->set_counter(counter);
+  current_counter_.SetValue(counter);
+}
+
+bool RuntimeCallStats::IsCalledOnTheSameThread() {
+  if (!thread_id_.Equals(ThreadId::Invalid()))
+    return thread_id_.Equals(ThreadId::Current());
+  thread_id_ = ThreadId::Current();
+  return true;
+}
+
+void RuntimeCallStats::Print() {
+  StdoutStream os;
+  Print(os);
 }
 
 void RuntimeCallStats::Print(std::ostream& os) {
@@ -374,10 +499,8 @@ void RuntimeCallStats::Print(std::ostream& os) {
   if (current_timer_.Value() != nullptr) {
     current_timer_.Value()->Snapshot();
   }
-  for (const RuntimeCallStats::CounterId counter_id :
-       RuntimeCallStats::counters) {
-    RuntimeCallCounter* counter = &(this->*counter_id);
-    entries.Add(counter);
+  for (int i = 0; i < kNumberOfCounters; i++) {
+    entries.Add(GetCounter(i));
   }
   entries.Print(os);
 }
@@ -393,23 +516,77 @@ void RuntimeCallStats::Reset() {
     current_timer_.SetValue(current_timer_.Value()->Stop());
   }
 
-  for (const RuntimeCallStats::CounterId counter_id :
-       RuntimeCallStats::counters) {
-    RuntimeCallCounter* counter = &(this->*counter_id);
-    counter->Reset();
+  for (int i = 0; i < kNumberOfCounters; i++) {
+    GetCounter(i)->Reset();
   }
 
   in_use_ = true;
 }
 
 void RuntimeCallStats::Dump(v8::tracing::TracedValue* value) {
-  for (const RuntimeCallStats::CounterId counter_id :
-       RuntimeCallStats::counters) {
-    RuntimeCallCounter* counter = &(this->*counter_id);
-    if (counter->count() > 0) counter->Dump(value);
+  for (int i = 0; i < kNumberOfCounters; i++) {
+    if (GetCounter(i)->count() > 0) GetCounter(i)->Dump(value);
+  }
+  in_use_ = false;
+}
+
+WorkerThreadRuntimeCallStats::WorkerThreadRuntimeCallStats()
+    : tls_key_(base::Thread::CreateThreadLocalKey()) {}
+
+WorkerThreadRuntimeCallStats::~WorkerThreadRuntimeCallStats() {
+  base::Thread::DeleteThreadLocalKey(tls_key_);
+}
+
+RuntimeCallStats* WorkerThreadRuntimeCallStats::NewTable() {
+  DCHECK(FLAG_runtime_stats);
+  std::unique_ptr<RuntimeCallStats> new_table =
+      base::make_unique<RuntimeCallStats>();
+  RuntimeCallStats* result = new_table.get();
+
+  base::LockGuard<base::Mutex> lock(&mutex_);
+  tables_.push_back(std::move(new_table));
+  return result;
+}
+
+void WorkerThreadRuntimeCallStats::AddToMainTable(
+    RuntimeCallStats* main_call_stats) {
+  base::LockGuard<base::Mutex> lock(&mutex_);
+  for (auto& worker_stats : tables_) {
+    DCHECK_NE(main_call_stats, worker_stats.get());
+    main_call_stats->Add(worker_stats.get());
+    worker_stats->Reset();
+  }
+}
+
+WorkerThreadRuntimeCallStatsScope::WorkerThreadRuntimeCallStatsScope(
+    WorkerThreadRuntimeCallStats* worker_stats)
+    : table_(nullptr) {
+  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+
+  table_ = reinterpret_cast<RuntimeCallStats*>(
+      base::Thread::GetThreadLocal(worker_stats->GetKey()));
+  if (table_ == nullptr) {
+    table_ = worker_stats->NewTable();
+    base::Thread::SetThreadLocal(worker_stats->GetKey(), table_);
   }
 
-  in_use_ = false;
+  if (FLAG_runtime_stats &
+      v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
+    table_->Reset();
+  }
+}
+
+WorkerThreadRuntimeCallStatsScope::~WorkerThreadRuntimeCallStatsScope() {
+  if (V8_LIKELY(table_ == nullptr)) return;
+
+  if ((FLAG_runtime_stats &
+       v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
+    auto value = v8::tracing::TracedValue::Create();
+    table_->Dump(value.get());
+    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"),
+                         "V8.RuntimeStats", TRACE_EVENT_SCOPE_THREAD,
+                         "runtime-call-stats", std::move(value));
+  }
 }
 
 }  // namespace internal

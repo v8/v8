@@ -32,7 +32,7 @@ V8Regex::V8Regex(V8InspectorImpl* inspector, const String16& pattern,
           .ToLocal(&regex))
     m_regex.Reset(isolate, regex);
   else if (tryCatch.HasCaught())
-    m_errorMessage = toProtocolString(tryCatch.Message()->Get());
+    m_errorMessage = toProtocolString(isolate, tryCatch.Message()->Get());
   else
     m_errorMessage = "Internal error";
 }
@@ -49,6 +49,7 @@ int V8Regex::match(const String16& string, int startFrom,
   v8::Isolate* isolate = m_inspector->isolate();
   v8::HandleScope handleScope(isolate);
   v8::Local<v8::Context> context = m_inspector->regexContext();
+  v8::Context::Scope contextScope(context);
   v8::MicrotasksScope microtasks(isolate,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);

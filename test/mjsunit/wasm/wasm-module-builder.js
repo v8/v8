@@ -74,7 +74,7 @@ class Binary extends Array {
     // Emit section length.
     this.emit_u32v(section.length);
     // Copy the temporary buffer.
-    this.push(...section);
+    for (var i = 0; i < section.length; i++) this.push(section[i]);
   }
 }
 
@@ -84,6 +84,15 @@ class WasmFunctionBuilder {
     this.name = name;
     this.type_index = type_index;
     this.body = [];
+  }
+
+  numLocalNames() {
+    if (this.local_names === undefined) return 0;
+    let num_local_names = 0;
+    for (let loc_name of this.local_names) {
+      if (loc_name !== undefined) ++num_local_names;
+    }
+    return num_local_names;
   }
 
   exportAs(name) {
@@ -97,12 +106,40 @@ class WasmFunctionBuilder {
   }
 
   addBody(body) {
+    for (let b of body) {
+      if (typeof b !== 'number' || (b & (~0xFF)) !== 0 )
+        throw new Error('invalid body (entries must be 8 bit numbers): ' + body);
+    }
+    this.body = body.slice();
+    // Automatically add the end for the function block to the body.
+    this.body.push(kExprEnd);
+    return this;
+  }
+
+  addBodyWithEnd(body) {
     this.body = body;
     return this;
   }
 
-  addLocals(locals) {
-    this.locals = locals;
+  getNumLocals() {
+    let total_locals = 0;
+    for (let l of this.locals || []) {
+      for (let type of ["i32", "i64", "f32", "f64", "s128"]) {
+        total_locals += l[type + "_count"] || 0;
+      }
+    }
+    return total_locals;
+  }
+
+  addLocals(locals, names) {
+    const old_num_locals = this.getNumLocals();
+    if (!this.locals) this.locals = []
+    this.locals.push(locals);
+    if (names) {
+      if (!this.local_names) this.local_names = [];
+      const missing_names = old_num_locals - this.local_names.length;
+      this.local_names.push(...new Array(missing_names), ...names);
+    }
     return this;
   }
 
@@ -132,14 +169,17 @@ class WasmModuleBuilder {
     this.imports = [];
     this.exports = [];
     this.globals = [];
+    this.exceptions = [];
     this.functions = [];
     this.function_table = [];
-    this.function_table_length = 0;
+    this.function_table_length_min = 0;
+    this.function_table_length_max = 0;
     this.function_table_inits = [];
     this.segments = [];
     this.explicit = [];
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
+    this.num_imported_exceptions = 0;
     return this;
   }
 
@@ -148,8 +188,8 @@ class WasmModuleBuilder {
     return this;
   }
 
-  addMemory(min, max, exp) {
-    this.memory = {min: min, max: max, exp: exp};
+  addMemory(min, max, exp, shared) {
+    this.memory = {min: min, max: max, exp: exp, shared: shared};
     return this;
   }
 
@@ -158,9 +198,26 @@ class WasmModuleBuilder {
     return this;
   }
 
+  stringToBytes(name) {
+    var result = new Binary();
+    result.emit_u32v(name.length);
+    for (var i = 0; i < name.length; i++) {
+      result.emit_u8(name.charCodeAt(i));
+    }
+    return result;
+  }
+
+  addCustomSection(name, bytes) {
+    name = this.stringToBytes(name);
+    var length = new Binary();
+    length.emit_u32v(name.length + bytes.length);
+    this.explicit.push([0, ...length, ...name, ...bytes]);
+  }
+
   addType(type) {
-    // TODO: canonicalize types?
     this.types.push(type);
+    var pl = type.params.length;  // should have params
+    var rl = type.results.length; // should have results
     return this.types.length - 1;
   }
 
@@ -169,6 +226,15 @@ class WasmModuleBuilder {
     glob.index = this.globals.length + this.num_imported_globals;
     this.globals.push(glob);
     return glob;
+  }
+
+  addException(type) {
+    if (type.results.length != 0) {
+      throw new Error('Exception signature must have void result: ' + type);
+    }
+    let except_index = this.exceptions.length + this.num_imported_exceptions;
+    this.exceptions.push(type);
+    return except_index;
   }
 
   addFunction(name, type) {
@@ -180,22 +246,28 @@ class WasmModuleBuilder {
   }
 
   addImport(module = "", name, type) {
+    if (this.functions.length != 0) {
+      throw new Error('Imported functions must be declared before local ones');
+    }
     let type_index = (typeof type) == "number" ? type : this.addType(type);
     this.imports.push({module: module, name: name, kind: kExternalFunction,
                        type: type_index});
     return this.num_imported_funcs++;
   }
 
-  addImportedGlobal(module = "", name, type) {
+  addImportedGlobal(module = "", name, type, mutable = false) {
+    if (this.globals.length != 0) {
+      throw new Error('Imported globals must be declared before local ones');
+    }
     let o = {module: module, name: name, kind: kExternalGlobal, type: type,
-             mutable: false}
+             mutable: mutable};
     this.imports.push(o);
     return this.num_imported_globals++;
   }
 
-  addImportedMemory(module = "", name, initial = 0, maximum) {
+  addImportedMemory(module = "", name, initial = 0, maximum, shared) {
     let o = {module: module, name: name, kind: kExternalMemory,
-             initial: initial, maximum: maximum};
+             initial: initial, maximum: maximum, shared: shared};
     this.imports.push(o);
     return this;
   }
@@ -204,6 +276,18 @@ class WasmModuleBuilder {
     let o = {module: module, name: name, kind: kExternalTable, initial: initial,
              maximum: maximum};
     this.imports.push(o);
+  }
+
+  addImportedException(module = "", name, type) {
+    if (type.results.length != 0) {
+      throw new Error('Exception signature must have void result: ' + type);
+    }
+    if (this.exceptions.length != 0) {
+      throw new Error('Imported exceptions must be declared before local ones');
+    }
+    let o = {module: module, name: name, kind: kExternalException, type: type};
+    this.imports.push(o);
+    return this.num_imported_exceptions++;
   }
 
   addExport(name, index) {
@@ -225,24 +309,37 @@ class WasmModuleBuilder {
     this.exports.push({name: name, kind: kExternalMemory, index: 0});
   }
 
-  addFunctionTableInit(base, is_global, array) {
+  addFunctionTableInit(base, is_global, array, is_import = false) {
     this.function_table_inits.push({base: base, is_global: is_global,
                                     array: array});
     if (!is_global) {
       var length = base + array.length;
-      if (length > this.function_table_length) {
-        this.function_table_length = length;
+      if (length > this.function_table_length_min && !is_import) {
+        this.function_table_length_min = length;
+      }
+      if (length > this.function_table_length_max && !is_import) {
+         this.function_table_length_max = length;
       }
     }
     return this;
   }
 
   appendToTable(array) {
+    for (let n of array) {
+      if (typeof n != 'number')
+        throw new Error('invalid table (entries have to be numbers): ' + array);
+    }
     return this.addFunctionTableInit(this.function_table.length, false, array);
   }
 
-  setFunctionTableLength(length) {
-    this.function_table_length = length;
+  setFunctionTableBounds(min, max) {
+    this.function_table_length_min = min;
+    this.function_table_length_max = max;
+    return this;
+  }
+
+  setName(name) {
+    this.name = name;
     return this;
   }
 
@@ -288,7 +385,12 @@ class WasmModuleBuilder {
             section.emit_u8(imp.mutable);
           } else if (imp.kind == kExternalMemory) {
             var has_max = (typeof imp.maximum) != "undefined";
-            section.emit_u8(has_max ? 1 : 0); // flags
+            var is_shared = (typeof imp.shared) != "undefined";
+            if (is_shared) {
+              section.emit_u8(has_max ? 3 : 2); // flags
+            } else {
+              section.emit_u8(has_max ? 1 : 0); // flags
+            }
             section.emit_u32v(imp.initial); // initial
             if (has_max) section.emit_u32v(imp.maximum); // maximum
           } else if (imp.kind == kExternalTable) {
@@ -297,6 +399,11 @@ class WasmModuleBuilder {
             section.emit_u8(has_max ? 1 : 0); // flags
             section.emit_u32v(imp.initial); // initial
             if (has_max) section.emit_u32v(imp.maximum); // maximum
+          } else if (imp.kind == kExternalException) {
+            section.emit_u32v(imp.type.params.length);
+            for (let param of imp.type.params) {
+              section.emit_u8(param);
+            }
           } else {
             throw new Error("unknown/unsupported import kind " + imp.kind);
           }
@@ -305,40 +412,45 @@ class WasmModuleBuilder {
     }
 
     // Add functions declarations
-    let has_names = false;
-    let names = false;
     if (wasm.functions.length > 0) {
       if (debug) print("emitting function decls @ " + binary.length);
       binary.emit_section(kFunctionSectionCode, section => {
         section.emit_u32v(wasm.functions.length);
         for (let func of wasm.functions) {
-          has_names = has_names || (func.name != undefined &&
-                                   func.name.length > 0);
           section.emit_u32v(func.type_index);
         }
       });
     }
 
     // Add function_table.
-    if (wasm.function_table_length > 0) {
+    if (wasm.function_table_length_min > 0) {
       if (debug) print("emitting table @ " + binary.length);
       binary.emit_section(kTableSectionCode, section => {
         section.emit_u8(1);  // one table entry
         section.emit_u8(kWasmAnyFunctionTypeForm);
-        section.emit_u8(1);
-        section.emit_u32v(wasm.function_table_length);
-        section.emit_u32v(wasm.function_table_length);
+        // TODO(gdeepti): Cleanup to use optional max flag,
+        // fix up tests to set correct initial/maximum values
+        section.emit_u32v(1);
+        section.emit_u32v(wasm.function_table_length_min);
+        section.emit_u32v(wasm.function_table_length_max);
       });
     }
 
     // Add memory section
-    if (wasm.memory != undefined) {
+    if (wasm.memory !== undefined) {
       if (debug) print("emitting memory @ " + binary.length);
       binary.emit_section(kMemorySectionCode, section => {
         section.emit_u8(1);  // one memory entry
-        section.emit_u32v(kResizableMaximumFlag);
+        const has_max = wasm.memory.max !== undefined;
+        const is_shared = wasm.memory.shared !== undefined;
+        // Emit flags (bit 0: reszeable max, bit 1: shared memory)
+        if (is_shared) {
+          section.emit_u8(has_max ? 3 : 2);
+        } else {
+          section.emit_u8(has_max ? 1 : 0);
+        }
         section.emit_u32v(wasm.memory.min);
-        section.emit_u32v(wasm.memory.max);
+        if (has_max) section.emit_u32v(wasm.memory.max);
       });
     }
 
@@ -359,7 +471,7 @@ class WasmModuleBuilder {
               break;
             case kWasmI64:
               section.emit_u8(kExprI64Const);
-              section.emit_u8(global.init);
+              section.emit_u32v(global.init);
               break;
             case kWasmF32:
               section.emit_u8(kExprF32Const);
@@ -392,8 +504,22 @@ class WasmModuleBuilder {
       });
     }
 
+    // Add exceptions.
+    if (wasm.exceptions.length > 0) {
+      if (debug) print("emitting exceptions @ " + binary.length);
+      binary.emit_section(kExceptionSectionCode, section => {
+        section.emit_u32v(wasm.exceptions.length);
+        for (let type of wasm.exceptions) {
+          section.emit_u32v(type.params.length);
+          for (let param of type.params) {
+            section.emit_u8(param);
+          }
+        }
+      });
+    }
+
     // Add export table.
-    var mem_export = (wasm.memory != undefined && wasm.memory.exp);
+    var mem_export = (wasm.memory !== undefined && wasm.memory.exp);
     var exports_count = wasm.exports.length + (mem_export ? 1 : 0);
     if (exports_count > 0) {
       if (debug) print("emitting exports @ " + binary.length);
@@ -413,7 +539,7 @@ class WasmModuleBuilder {
     }
 
     // Add start function section.
-    if (wasm.start_index != undefined) {
+    if (wasm.start_index !== undefined) {
       if (debug) print("emitting start function @ " + binary.length);
       binary.emit_section(kStartSectionCode, section => {
         section.emit_u32v(wasm.start_index);
@@ -426,9 +552,9 @@ class WasmModuleBuilder {
       binary.emit_section(kElementSectionCode, section => {
         var inits = wasm.function_table_inits;
         section.emit_u32v(inits.length);
-        section.emit_u8(0); // table index
 
         for (let init of inits) {
+          section.emit_u8(0); // table index
           if (init.is_global) {
             section.emit_u8(kExprGetGlobal);
           } else {
@@ -453,9 +579,7 @@ class WasmModuleBuilder {
         for (let func of wasm.functions) {
           // Function body length will be patched later.
           let local_decls = [];
-          let l = func.locals;
-          if (l != undefined) {
-            let local_decls_count = 0;
+          for (let l of func.locals || []) {
             if (l.i32_count > 0) {
               local_decls.push({count: l.i32_count, type: kWasmI32});
             }
@@ -467,6 +591,15 @@ class WasmModuleBuilder {
             }
             if (l.f64_count > 0) {
               local_decls.push({count: l.f64_count, type: kWasmF64});
+            }
+            if (l.s128_count > 0) {
+              local_decls.push({count: l.s128_count, type: kWasmS128});
+            }
+            if (l.anyref_count > 0) {
+              local_decls.push({count: l.anyref_count, type: kWasmAnyRef});
+            }
+            if (l.except_count > 0) {
+              local_decls.push({count: l.except_count, type: kWasmExceptRef});
             }
           }
 
@@ -513,21 +646,50 @@ class WasmModuleBuilder {
       binary.emit_bytes(exp);
     }
 
-    // Add function names.
-    if (has_names) {
-      if (debug) print("emitting names @ " + binary.length);
+    // Add names.
+    let num_function_names = 0;
+    let num_functions_with_local_names = 0;
+    for (let func of wasm.functions) {
+      if (func.name !== undefined) ++num_function_names;
+      if (func.numLocalNames() > 0) ++num_functions_with_local_names;
+    }
+    if (num_function_names > 0 || num_functions_with_local_names > 0 ||
+        wasm.name !== undefined) {
+      if (debug) print('emitting names @ ' + binary.length);
       binary.emit_section(kUnknownSectionCode, section => {
-        section.emit_string("name");
-        var count = wasm.functions.length + wasm.num_imported_funcs;
-        section.emit_u32v(count);
-        for (var i = 0; i < wasm.num_imported_funcs; i++) {
-          section.emit_u8(0); // empty string
-          section.emit_u8(0); // local names count == 0
+        section.emit_string('name');
+        // Emit module name.
+        if (wasm.name !== undefined) {
+          section.emit_section(kModuleNameCode, name_section => {
+            name_section.emit_string(wasm.name);
+          });
         }
-        for (let func of wasm.functions) {
-          var name = func.name == undefined ? "" : func.name;
-          section.emit_string(name);
-          section.emit_u8(0);  // local names count == 0
+        // Emit function names.
+        if (num_function_names > 0) {
+          section.emit_section(kFunctionNamesCode, name_section => {
+            name_section.emit_u32v(num_function_names);
+            for (let func of wasm.functions) {
+              if (func.name === undefined) continue;
+              name_section.emit_u32v(func.index);
+              name_section.emit_string(func.name);
+            }
+          });
+        }
+        // Emit local names.
+        if (num_functions_with_local_names > 0) {
+          section.emit_section(kLocalNamesCode, name_section => {
+            name_section.emit_u32v(num_functions_with_local_names);
+            for (let func of wasm.functions) {
+              if (func.numLocalNames() == 0) continue;
+              name_section.emit_u32v(func.index);
+              name_section.emit_u32v(func.numLocalNames());
+              for (let i = 0; i < func.local_names.length; ++i) {
+                if (func.local_names[i] === undefined) continue;
+                name_section.emit_u32v(i);
+                name_section.emit_string(func.local_names[i]);
+              }
+            }
+          });
         }
       });
     }
@@ -547,9 +709,18 @@ class WasmModuleBuilder {
     return buffer;
   }
 
-  instantiate(...args) {
+  instantiate(ffi) {
     let module = new WebAssembly.Module(this.toBuffer());
-    let instance = new WebAssembly.Instance(module, ...args);
+    let instance = new WebAssembly.Instance(module, ffi);
     return instance;
+  }
+
+  asyncInstantiate(ffi) {
+    return WebAssembly.instantiate(this.toBuffer(), ffi)
+        .then(({module, instance}) => instance);
+  }
+
+  toModule(debug = false) {
+    return new WebAssembly.Module(this.toBuffer(debug));
   }
 }

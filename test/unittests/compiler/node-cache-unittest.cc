@@ -12,6 +12,7 @@ using testing::Contains;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace node_cache_unittest {
 
 typedef GraphTest NodeCacheTest;
 
@@ -62,7 +63,7 @@ TEST_F(NodeCacheTest, Int32Constant_hits) {
   for (int i = 0; i < kSize; i++) {
     int32_t v = i * -55;
     Node** pos = cache.Find(zone(), v);
-    if (*pos != NULL) {
+    if (*pos != nullptr) {
       EXPECT_EQ(nodes[i], *pos);
       hits++;
     }
@@ -100,7 +101,7 @@ TEST_F(NodeCacheTest, Int64Constant_hits) {
   for (int i = 0; i < kSize; i++) {
     int64_t v = static_cast<int64_t>(i) * static_cast<int64_t>(5003001);
     Node** pos = cache.Find(zone(), v);
-    if (*pos != NULL) {
+    if (*pos != nullptr) {
       EXPECT_EQ(nodes[i], *pos);
       hits++;
     }
@@ -117,7 +118,7 @@ TEST_F(NodeCacheTest, GetCachedNodes_int32) {
   for (size_t i = 0; i < arraysize(constants); i++) {
     int32_t k = constants[i];
     Node** pos = cache.Find(zone(), k);
-    if (*pos != NULL) {
+    if (*pos != nullptr) {
       ZoneVector<Node*> nodes(zone());
       cache.GetCachedNodes(&nodes);
       EXPECT_THAT(nodes, Contains(*pos));
@@ -140,7 +141,7 @@ TEST_F(NodeCacheTest, GetCachedNodes_int64) {
   for (size_t i = 0; i < arraysize(constants); i++) {
     int64_t k = constants[i];
     Node** pos = cache.Find(zone(), k);
-    if (*pos != NULL) {
+    if (*pos != nullptr) {
       ZoneVector<Node*> nodes(zone());
       cache.GetCachedNodes(&nodes);
       EXPECT_THAT(nodes, Contains(*pos));
@@ -154,6 +155,7 @@ TEST_F(NodeCacheTest, GetCachedNodes_int64) {
   }
 }
 
+}  // namespace node_cache_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -4,20 +4,7 @@
 
 #include "src/base/platform/platform.h"
 
-#if V8_OS_POSIX
-#include <unistd.h>  // NOLINT
-#endif
-
-#if V8_OS_WIN
-#include "src/base/win32-headers.h"
-#endif
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if V8_OS_ANDROID
-#define DISABLE_ON_ANDROID(Name) DISABLED_##Name
-#else
-#define DISABLE_ON_ANDROID(Name) Name
-#endif
 
 namespace v8 {
 namespace base {
@@ -43,7 +30,7 @@ class ThreadLocalStorageTest : public Thread, public ::testing::Test {
       keys_[i] = Thread::CreateThreadLocalKey();
     }
   }
-  ~ThreadLocalStorageTest() {
+  ~ThreadLocalStorageTest() override {
     for (size_t i = 0; i < arraysize(keys_); ++i) {
       Thread::DeleteThreadLocalKey(keys_[i]);
     }

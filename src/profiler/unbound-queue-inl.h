@@ -12,9 +12,7 @@ namespace internal {
 
 template<typename Record>
 struct UnboundQueue<Record>::Node: public Malloced {
-  explicit Node(const Record& value)
-      : value(value), next(NULL) {
-  }
+  explicit Node(const Record& value) : value(value), next(nullptr) {}
 
   Record value;
   Node* next;
@@ -30,7 +28,7 @@ UnboundQueue<Record>::UnboundQueue() {
 
 template<typename Record>
 UnboundQueue<Record>::~UnboundQueue() {
-  while (first_ != NULL) DeleteFirst();
+  while (first_ != nullptr) DeleteFirst();
 }
 
 
@@ -66,13 +64,13 @@ void UnboundQueue<Record>::Enqueue(const Record& rec) {
 
 template<typename Record>
 bool UnboundQueue<Record>::IsEmpty() const {
-  return base::NoBarrier_Load(&divider_) == base::NoBarrier_Load(&last_);
+  return base::Relaxed_Load(&divider_) == base::Relaxed_Load(&last_);
 }
 
 
 template<typename Record>
 Record* UnboundQueue<Record>::Peek() const {
-  if (divider_ == base::Acquire_Load(&last_)) return NULL;
+  if (divider_ == base::Acquire_Load(&last_)) return nullptr;
   Node* next = reinterpret_cast<Node*>(divider_)->next;
   return &next->value;
 }

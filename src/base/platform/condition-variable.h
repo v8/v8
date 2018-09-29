@@ -57,31 +57,13 @@ class V8_BASE_EXPORT ConditionVariable final {
   // spuriously. When unblocked, regardless of the reason, the lock on the mutex
   // is reacquired and |WaitFor()| exits. Returns true if the condition variable
   // was notified prior to the timeout.
-  bool WaitFor(Mutex* mutex, const TimeDelta& rel_time) WARN_UNUSED_RESULT;
+  bool WaitFor(Mutex* mutex, const TimeDelta& rel_time) V8_WARN_UNUSED_RESULT;
 
   // The implementation-defined native handle type.
 #if V8_OS_POSIX
   typedef pthread_cond_t NativeHandle;
 #elif V8_OS_WIN
-  struct Event;
-  class NativeHandle final {
-   public:
-    NativeHandle() : waitlist_(NULL), freelist_(NULL) {}
-    ~NativeHandle();
-
-    Event* Pre() WARN_UNUSED_RESULT;
-    void Post(Event* event, bool result);
-
-    Mutex* mutex() { return &mutex_; }
-    Event* waitlist() { return waitlist_; }
-
-   private:
-    Event* waitlist_;
-    Event* freelist_;
-    Mutex mutex_;
-
-    DISALLOW_COPY_AND_ASSIGN(NativeHandle);
-  };
+  typedef CONDITION_VARIABLE NativeHandle;
 #endif
 
   NativeHandle& native_handle() {

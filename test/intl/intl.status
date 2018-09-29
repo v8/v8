@@ -29,20 +29,26 @@
 [ALWAYS, {
   # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
+
+  'date-format/constructor-order': [FAIL],
 }],  # ALWAYS
 
-['arch == arm64 and mode == debug and simulator_run == True and variant == ignition', {
-  # Ignition on ARM64 simulator in debug mode.
-  'date-format/timezone': [PASS, ['no_snap', SKIP]],
-  'number-format/check-digit-ranges': [PASS, ['no_snap', SKIP]],
-}],  # 'arch == arm64 and mode == debug and simulator_run == True and variant == ignition'
-
-['variant == asm_wasm', {
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == asm_wasm
+}],  # variant == no_wasm_traps
 
-['variant == wasm_traps', {
-  '*': [SKIP],
-}],  # variant == wasm_traps
+['system == windows', {
+  # noi18n cannot turn on ICU backend for Date
+  'relative-time-format/default-locale-fr-CA': [SKIP],
+  'relative-time-format/default-locale-pt-BR': [SKIP],
+}],  # system == windows'
 
+['system == android', {
+  # Android's ICU data file does not have the Chinese/Japanese dictionary
+  # required for the test to pass.
+  'break-iterator/zh-break': [FAIL],
+  # Unable to change locale on Android:
+  'relative-time-format/default-locale-fr-CA': [FAIL],
+  'relative-time-format/default-locale-pt-BR': [FAIL],
+}],  # 'system == android'
 ]

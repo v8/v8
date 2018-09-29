@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_MOVE_OPTIMIZER_
-#define V8_COMPILER_MOVE_OPTIMIZER_
+#ifndef V8_COMPILER_MOVE_OPTIMIZER_H_
+#define V8_COMPILER_MOVE_OPTIMIZER_H_
 
 #include "src/compiler/instruction.h"
 #include "src/globals.h"
@@ -45,7 +45,7 @@ class V8_EXPORT_PRIVATE MoveOptimizer final {
 
   const Instruction* LastInstruction(const InstructionBlock* block) const;
 
-  // Consolidate common moves appearing accross all predecessors of a block.
+  // Consolidate common moves appearing across all predecessors of a block.
   void OptimizeMerge(InstructionBlock* block);
   void FinalizeMoves(Instruction* instr);
 
@@ -65,4 +65,4 @@ class V8_EXPORT_PRIVATE MoveOptimizer final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_MOVE_OPTIMIZER_
+#endif  // V8_COMPILER_MOVE_OPTIMIZER_H_

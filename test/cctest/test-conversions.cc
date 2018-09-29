@@ -29,22 +29,15 @@
 
 #include "src/base/platform/platform.h"
 #include "src/conversions.h"
-#include "src/factory.h"
+#include "src/heap/factory-inl.h"
 #include "src/isolate.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/factory.h -> src/objects-inl.h
-#include "src/objects-inl.h"
 #include "src/objects.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/type-feedback-vector.h ->
-// src/type-feedback-vector-inl.h
-#include "src/type-feedback-vector-inl.h"
 #include "src/unicode-cache.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 TEST(Hex) {
   UnicodeCache uc;
@@ -52,8 +45,8 @@ TEST(Hex) {
   CHECK_EQ(0.0, StringToDouble(&uc, "0X0", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
   CHECK_EQ(1.0, StringToDouble(&uc, "0x1", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
   CHECK_EQ(16.0, StringToDouble(&uc, "0x10", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
-  CHECK_EQ(255.0, StringToDouble(&uc, "0xff",
-                                 ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
+  CHECK_EQ(255.0,
+           StringToDouble(&uc, "0xFF", ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
   CHECK_EQ(175.0, StringToDouble(&uc, "0xAF",
                                  ALLOW_HEX | ALLOW_IMPLICIT_OCTAL));
 
@@ -61,7 +54,7 @@ TEST(Hex) {
   CHECK_EQ(0.0, StringToDouble(&uc, "0X0", ALLOW_HEX));
   CHECK_EQ(1.0, StringToDouble(&uc, "0x1", ALLOW_HEX));
   CHECK_EQ(16.0, StringToDouble(&uc, "0x10", ALLOW_HEX));
-  CHECK_EQ(255.0, StringToDouble(&uc, "0xff", ALLOW_HEX));
+  CHECK_EQ(255.0, StringToDouble(&uc, "0xFF", ALLOW_HEX));
   CHECK_EQ(175.0, StringToDouble(&uc, "0xAF", ALLOW_HEX));
 }
 
@@ -502,3 +495,6 @@ TEST(PositiveNumberToUint32) {
   number = factory->NewHeapNumber(std::nan(""));
   CHECK_EQ(PositiveNumberToUint32(*number), 0u);
 }
+
+}  // namespace internal
+}  // namespace v8

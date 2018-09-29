@@ -21,7 +21,7 @@ class ControlFlowOptimizerTest : public GraphTest {
  public:
   explicit ControlFlowOptimizerTest(int num_parameters = 3)
       : GraphTest(num_parameters), machine_(zone()), javascript_(zone()) {}
-  ~ControlFlowOptimizerTest() override {}
+  ~ControlFlowOptimizerTest() override = default;
 
  protected:
   void Optimize() {
@@ -57,11 +57,12 @@ TEST_F(ControlFlowOptimizerTest, BuildSwitch1) {
   graph()->SetEnd(graph()->NewNode(common()->End(1), merge));
   Optimize();
   Capture<Node*> switch_capture;
-  EXPECT_THAT(end(),
-              IsEnd(IsMerge(IsIfValue(0, CaptureEq(&switch_capture)),
-                            IsIfValue(1, CaptureEq(&switch_capture)),
-                            IsIfDefault(AllOf(CaptureEq(&switch_capture),
-                                              IsSwitch(index, start()))))));
+  EXPECT_THAT(
+      end(), IsEnd(IsMerge(
+                 IsIfValue(IfValueParameters(0, 1), CaptureEq(&switch_capture)),
+                 IsIfValue(IfValueParameters(1, 2), CaptureEq(&switch_capture)),
+                 IsIfDefault(AllOf(CaptureEq(&switch_capture),
+                                   IsSwitch(index, start()))))));
 }
 
 
@@ -89,11 +90,11 @@ TEST_F(ControlFlowOptimizerTest, BuildSwitch2) {
   Optimize();
   Capture<Node*> switch_capture;
   EXPECT_THAT(
-      end(),
-      IsEnd(IsMerge(IsIfValue(0, CaptureEq(&switch_capture)),
-                    IsIfValue(1, CaptureEq(&switch_capture)),
-                    IsIfDefault(AllOf(CaptureEq(&switch_capture),
-                                      IsSwitch(index, IsIfSuccess(index)))))));
+      end(), IsEnd(IsMerge(
+                 IsIfValue(IfValueParameters(0, 1), CaptureEq(&switch_capture)),
+                 IsIfValue(IfValueParameters(1, 2), CaptureEq(&switch_capture)),
+                 IsIfDefault(AllOf(CaptureEq(&switch_capture),
+                                   IsSwitch(index, IsIfSuccess(index)))))));
 }
 
 }  // namespace compiler

@@ -11,11 +11,12 @@
             },
             {
                 "domain": "Runtime",
-                "async": ["evaluate", "awaitPromise", "callFunctionOn", "runScript"],
-                "exported": ["StackTrace", "RemoteObject"]
+                "async": ["evaluate", "awaitPromise", "callFunctionOn", "runScript", "terminateExecution"],
+                "exported": ["StackTrace", "StackTraceId", "RemoteObject", "ExecutionContextId"]
             },
             {
                 "domain": "Debugger",
+                "async": [ "scheduleStepIntoAsync" ],
                 "exported": ["SearchMatch", "paused.reason"]
             },
             {

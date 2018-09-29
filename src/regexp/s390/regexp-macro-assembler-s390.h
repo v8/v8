@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_S390_REGEXP_MACRO_ASSEMBLER_S390_H_
-#define V8_S390_REGEXP_MACRO_ASSEMBLER_S390_H_
+#ifndef V8_REGEXP_S390_REGEXP_MACRO_ASSEMBLER_S390_H_
+#define V8_REGEXP_S390_REGEXP_MACRO_ASSEMBLER_S390_H_
 
 #include "src/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/s390/assembler-s390.h"
-#include "src/s390/frames-s390.h"
 
 namespace v8 {
 namespace internal {
@@ -97,8 +96,7 @@ class RegExpMacroAssemblerS390 : public NativeRegExpMacroAssembler {
   static const int kCaptureArraySize = kCallerFrame;
   static const int kStackAreaBase = kCallerFrame + kPointerSize;
   // kDirectCall again
-  static const int kSecondaryReturnAddress = kStackAreaBase + 2 * kPointerSize;
-  static const int kIsolate = kSecondaryReturnAddress + kPointerSize;
+  static const int kIsolate = kStackAreaBase + 2 * kPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.
@@ -162,7 +160,7 @@ class RegExpMacroAssemblerS390 : public NativeRegExpMacroAssembler {
   inline int char_size() { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
-  // is NULL, in which case it is a conditional Backtrack.
+  // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to, CRegister cr = cr7);
 
   // Call and return internally in the generated code in a way that
@@ -212,4 +210,4 @@ const RegList kRegExpCalleeSaved =
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_S390_REGEXP_MACRO_ASSEMBLER_S390_H_
+#endif  // V8_REGEXP_S390_REGEXP_MACRO_ASSEMBLER_S390_H_

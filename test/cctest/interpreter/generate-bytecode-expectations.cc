@@ -42,7 +42,13 @@ class ProgramOptions final {
         wrap_(true),
         module_(false),
         top_level_(false),
+        print_callee_(false),
+        oneshot_opt_(false),
         do_expressions_(false),
+        async_iteration_(false),
+        public_fields_(false),
+        private_fields_(false),
+        static_fields_(false),
         verbose_(false) {}
 
   bool Validate() const;
@@ -60,7 +66,13 @@ class ProgramOptions final {
   bool wrap() const { return wrap_; }
   bool module() const { return module_; }
   bool top_level() const { return top_level_; }
+  bool print_callee() const { return print_callee_; }
+  bool oneshot_opt() const { return oneshot_opt_; }
   bool do_expressions() const { return do_expressions_; }
+  bool async_iteration() const { return async_iteration_; }
+  bool public_fields() const { return public_fields_; }
+  bool private_fields() const { return private_fields_; }
+  bool static_fields() const { return static_fields_; }
   bool verbose() const { return verbose_; }
   bool suppress_runtime_errors() const { return rebaseline_ && !verbose_; }
   std::vector<std::string> input_filenames() const { return input_filenames_; }
@@ -76,7 +88,13 @@ class ProgramOptions final {
   bool wrap_;
   bool module_;
   bool top_level_;
+  bool print_callee_;
+  bool oneshot_opt_;
   bool do_expressions_;
+  bool async_iteration_;
+  bool public_fields_;
+  bool private_fields_;
+  bool static_fields_;
   bool verbose_;
   std::vector<std::string> input_filenames_;
   std::string output_filename_;
@@ -106,7 +124,6 @@ bool ParseBoolean(const char* string) {
     return false;
   } else {
     UNREACHABLE();
-    return false;
   }
 }
 
@@ -163,8 +180,20 @@ ProgramOptions ProgramOptions::FromCommandLine(int argc, char** argv) {
       options.module_ = true;
     } else if (strcmp(argv[i], "--top-level") == 0) {
       options.top_level_ = true;
+    } else if (strcmp(argv[i], "--print-callee") == 0) {
+      options.print_callee_ = true;
+    } else if (strcmp(argv[i], "--disable-oneshot-opt") == 0) {
+      options.oneshot_opt_ = false;
     } else if (strcmp(argv[i], "--do-expressions") == 0) {
       options.do_expressions_ = true;
+    } else if (strcmp(argv[i], "--async-iteration") == 0) {
+      options.async_iteration_ = true;
+    } else if (strcmp(argv[i], "--public-fields") == 0) {
+      options.public_fields_ = true;
+    } else if (strcmp(argv[i], "--private-fields") == 0) {
+      options.private_fields_ = true;
+    } else if (strcmp(argv[i], "--static-fields") == 0) {
+      options.static_fields_ = true;
     } else if (strcmp(argv[i], "--verbose") == 0) {
       options.verbose_ = true;
     } else if (strncmp(argv[i], "--output=", 9) == 0) {
@@ -250,6 +279,8 @@ bool ProgramOptions::Validate() const {
 
 void ProgramOptions::UpdateFromHeader(std::istream& stream) {
   std::string line;
+  const char* kPrintCallee = "print callee: ";
+  const char* kOneshotOpt = "oneshot opt: ";
 
   // Skip to the beginning of the options header
   while (std::getline(stream, line)) {
@@ -265,8 +296,20 @@ void ProgramOptions::UpdateFromHeader(std::istream& stream) {
       test_function_name_ = line.c_str() + 20;
     } else if (line.compare(0, 11, "top level: ") == 0) {
       top_level_ = ParseBoolean(line.c_str() + 11);
+    } else if (line.compare(0, strlen(kPrintCallee), kPrintCallee) == 0) {
+      print_callee_ = ParseBoolean(line.c_str() + strlen(kPrintCallee));
+    } else if (line.compare(0, strlen(kOneshotOpt), kOneshotOpt) == 0) {
+      oneshot_opt_ = ParseBoolean(line.c_str() + strlen(kOneshotOpt));
     } else if (line.compare(0, 16, "do expressions: ") == 0) {
       do_expressions_ = ParseBoolean(line.c_str() + 16);
+    } else if (line.compare(0, 17, "async iteration: ") == 0) {
+      async_iteration_ = ParseBoolean(line.c_str() + 17);
+    } else if (line.compare(0, 15, "public fields: ") == 0) {
+      public_fields_ = ParseBoolean(line.c_str() + 15);
+    } else if (line.compare(0, 16, "private fields: ") == 0) {
+      private_fields_ = ParseBoolean(line.c_str() + 16);
+    } else if (line.compare(0, 15, "static fields: ") == 0) {
+      static_fields_ = ParseBoolean(line.c_str() + 15);
     } else if (line == "---") {
       break;
     } else if (line.empty()) {
@@ -288,14 +331,19 @@ void ProgramOptions::PrintHeader(std::ostream& stream) const {  // NOLINT
 
   if (module_) stream << "\nmodule: yes";
   if (top_level_) stream << "\ntop level: yes";
+  if (print_callee_) stream << "\nprint callee: yes";
+  if (oneshot_opt_) stream << "\noneshot opt: yes";
   if (do_expressions_) stream << "\ndo expressions: yes";
+  if (async_iteration_) stream << "\nasync iteration: yes";
+  if (public_fields_) stream << "\npublic fields: yes";
+  if (private_fields_) stream << "\nprivate fields: yes";
+  if (static_fields_) stream << "\nstatic fields: yes";
 
   stream << "\n\n";
 }
 
 V8InitializationScope::V8InitializationScope(const char* exec_path)
-    : platform_(v8::platform::CreateDefaultPlatform()) {
-  i::FLAG_ignition = true;
+    : platform_(v8::platform::NewDefaultPlatform()) {
   i::FLAG_always_opt = false;
   i::FLAG_allow_natives_syntax = true;
 
@@ -334,6 +382,10 @@ bool ReadNextSnippet(std::istream& stream, std::string* string_out) {  // NOLINT
     }
     if (!found_begin_snippet) continue;
     if (line == "\"") return true;
+    if (line.size() == 0) {
+      string_out->append("\n");  // consume empty line
+      continue;
+    }
     CHECK_GE(line.size(), 2u);  // We should have the indent
     string_out->append(line.begin() + 2, line.end());
     *string_out += '\n';
@@ -388,11 +440,16 @@ void GenerateExpectationsFile(std::ostream& stream,  // NOLINT
   printer.set_wrap(options.wrap());
   printer.set_module(options.module());
   printer.set_top_level(options.top_level());
+  printer.set_print_callee(options.print_callee());
+  printer.set_oneshot_opt(options.oneshot_opt());
   if (!options.test_function_name().empty()) {
     printer.set_test_function_name(options.test_function_name());
   }
 
   if (options.do_expressions()) i::FLAG_harmony_do_expressions = true;
+  if (options.public_fields()) i::FLAG_harmony_public_fields = true;
+  if (options.private_fields()) i::FLAG_harmony_private_fields = true;
+  if (options.static_fields()) i::FLAG_harmony_static_fields = true;
 
   stream << "#\n# Autogenerated by generate-bytecode-expectations.\n#\n\n";
   options.PrintHeader(stream);
@@ -401,6 +458,9 @@ void GenerateExpectationsFile(std::ostream& stream,  // NOLINT
   }
 
   i::FLAG_harmony_do_expressions = false;
+  i::FLAG_harmony_public_fields = false;
+  i::FLAG_harmony_private_fields = false;
+  i::FLAG_harmony_static_fields = false;
 }
 
 bool WriteExpectationsFile(const std::vector<std::string>& snippet_list,
@@ -424,7 +484,9 @@ bool WriteExpectationsFile(const std::vector<std::string>& snippet_list,
 }
 
 void PrintMessage(v8::Local<v8::Message> message, v8::Local<v8::Value>) {
-  std::cerr << "INFO: " << *v8::String::Utf8Value(message->Get()) << '\n';
+  std::cerr << "INFO: "
+            << *v8::String::Utf8Value(v8::Isolate::GetCurrent(), message->Get())
+            << '\n';
 }
 
 void DiscardMessage(v8::Local<v8::Message>, v8::Local<v8::Value>) {}
@@ -440,11 +502,17 @@ void PrintUsage(const char* exec_path) {
          "  --stdin   Read from standard input instead of file.\n"
          "  --rebaseline  Rebaseline input snippet file.\n"
          "  --no-wrap     Do not wrap the snippet in a function.\n"
+         "  --disable-oneshot-opt     Disable Oneshot Optimization.\n"
+         "  --print-callee     Print bytecode of callee, function should "
+         "return arguments.callee.\n"
          "  --module      Compile as JavaScript module.\n"
          "  --test-function-name=foo  "
          "Specify the name of the test function.\n"
          "  --top-level   Process top level code, not the top-level function.\n"
          "  --do-expressions  Enable harmony_do_expressions flag.\n"
+         "  --public-fields  Enable harmony_public_fields flag.\n"
+         "  --private-fields  Enable harmony_private_fields flag.\n"
+         "  --static-fields  Enable harmony_static_fields flag.\n"
          "  --output=file.name\n"
          "      Specify the output file. If not specified, output goes to "
          "stdout.\n"

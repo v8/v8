@@ -7,7 +7,6 @@
 
 #include "src/cancelable-task.h"
 #include "src/globals.h"
-#include "src/heap/gc-tracer.h"
 
 namespace v8 {
 namespace internal {
@@ -15,18 +14,20 @@ namespace internal {
 class Heap;
 class Isolate;
 
-
 // This class posts idle tasks and performs scavenges in the idle tasks.
 class V8_EXPORT_PRIVATE ScavengeJob {
  public:
   class IdleTask : public CancelableIdleTask {
    public:
     explicit IdleTask(Isolate* isolate, ScavengeJob* job)
-        : CancelableIdleTask(isolate), job_(job) {}
+        : CancelableIdleTask(isolate), isolate_(isolate), job_(job) {}
     // CancelableIdleTask overrides.
     void RunInternal(double deadline_in_seconds) override;
 
+    Isolate* isolate() { return isolate_; }
+
    private:
+    Isolate* isolate_;
     ScavengeJob* job_;
   };
 
@@ -63,7 +64,7 @@ class V8_EXPORT_PRIVATE ScavengeJob {
   static const int kAverageIdleTimeMs = 5;
   // The number of bytes to be allocated in new space before the next idle
   // task is posted.
-  static const size_t kBytesAllocatedBeforeNextIdleTask = 512 * KB;
+  static const size_t kBytesAllocatedBeforeNextIdleTask = 1024 * KB;
   // The minimum size of allocated new space objects to trigger a scavenge.
   static const size_t kMinAllocationLimit = 512 * KB;
   // The allocation limit cannot exceed this fraction of the new space capacity.

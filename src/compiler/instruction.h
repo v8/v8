@@ -15,16 +15,15 @@
 #include "src/compiler/frame.h"
 #include "src/compiler/instruction-codes.h"
 #include "src/compiler/opcodes.h"
+#include "src/double.h"
 #include "src/globals.h"
 #include "src/macro-assembler.h"
 #include "src/register-configuration.h"
+#include "src/source-position.h"
 #include "src/zone/zone-allocator.h"
 
 namespace v8 {
 namespace internal {
-
-class SourcePosition;
-
 namespace compiler {
 
 class Schedule;
@@ -34,8 +33,6 @@ class V8_EXPORT_PRIVATE InstructionOperand {
  public:
   static const int kInvalidVirtualRegister = -1;
 
-  // TODO(dcarney): recover bit. INVALID can be represented as UNALLOCATED with
-  // kInvalidVirtualRegister and some DCHECKS.
   enum Kind {
     INVALID,
     UNALLOCATED,
@@ -167,13 +164,14 @@ std::ostream& operator<<(std::ostream& os,
     return *static_cast<const OperandType*>(&op);                \
   }
 
-class UnallocatedOperand : public InstructionOperand {
+class UnallocatedOperand final : public InstructionOperand {
  public:
   enum BasicPolicy { FIXED_SLOT, EXTENDED_POLICY };
 
   enum ExtendedPolicy {
     NONE,
-    ANY,
+    REGISTER_OR_SLOT,
+    REGISTER_OR_SLOT_OR_CONSTANT,
     FIXED_REGISTER,
     FIXED_FP_REGISTER,
     MUST_HAVE_REGISTER,
@@ -183,15 +181,14 @@ class UnallocatedOperand : public InstructionOperand {
 
   // Lifetime of operand inside the instruction.
   enum Lifetime {
-    // USED_AT_START operand is guaranteed to be live only at
-    // instruction start. Register allocator is free to assign the same register
-    // to some other operand used inside instruction (i.e. temporary or
-    // output).
+    // USED_AT_START operand is guaranteed to be live only at instruction start.
+    // The register allocator is free to assign the same register to some other
+    // operand used inside instruction (i.e. temporary or output).
     USED_AT_START,
 
-    // USED_AT_END operand is treated as live until the end of
-    // instruction. This means that register allocator will not reuse it's
-    // register for any other operand inside instruction.
+    // USED_AT_END operand is treated as live until the end of instruction.
+    // This means that register allocator will not reuse its register for any
+    // other operand inside instruction.
     USED_AT_END
   };
 
@@ -233,9 +230,20 @@ class UnallocatedOperand : public InstructionOperand {
     value_ |= SecondaryStorageField::encode(slot_id);
   }
 
+  UnallocatedOperand(const UnallocatedOperand& other, int virtual_register) {
+    DCHECK_NE(kInvalidVirtualRegister, virtual_register);
+    value_ = VirtualRegisterField::update(
+        other.value_, static_cast<uint32_t>(virtual_register));
+  }
+
   // Predicates for the operand policy.
-  bool HasAnyPolicy() const {
-    return basic_policy() == EXTENDED_POLICY && extended_policy() == ANY;
+  bool HasRegisterOrSlotPolicy() const {
+    return basic_policy() == EXTENDED_POLICY &&
+           extended_policy() == REGISTER_OR_SLOT;
+  }
+  bool HasRegisterOrSlotOrConstantPolicy() const {
+    return basic_policy() == EXTENDED_POLICY &&
+           extended_policy() == REGISTER_OR_SLOT_OR_CONSTANT;
   }
   bool HasFixedPolicy() const {
     return basic_policy() == FIXED_SLOT ||
@@ -275,7 +283,6 @@ class UnallocatedOperand : public InstructionOperand {
 
   // [basic_policy]: Distinguish between FIXED_SLOT and all other policies.
   BasicPolicy basic_policy() const {
-    DCHECK_EQ(UNALLOCATED, kind());
     return BasicPolicyField::decode(value_);
   }
 
@@ -300,14 +307,7 @@ class UnallocatedOperand : public InstructionOperand {
 
   // [virtual_register]: The virtual register ID for this operand.
   int32_t virtual_register() const {
-    DCHECK_EQ(UNALLOCATED, kind());
     return static_cast<int32_t>(VirtualRegisterField::decode(value_));
-  }
-
-  // TODO(dcarney): remove this.
-  void set_virtual_register(int32_t id) {
-    DCHECK_EQ(UNALLOCATED, kind());
-    value_ = VirtualRegisterField::update(value_, static_cast<uint32_t>(id));
   }
 
   // [lifetime]: Only for non-FIXED_SLOT.
@@ -495,8 +495,10 @@ class LocationOperand : public InstructionOperand {
         return false;
     }
     UNREACHABLE();
-    return false;
   }
+
+  // Return true if the locations can be moved to one another.
+  bool IsCompatible(LocationOperand* op);
 
   static LocationOperand* cast(InstructionOperand* op) {
     DCHECK(op->IsAnyLocationOperand());
@@ -593,9 +595,8 @@ bool InstructionOperand::IsDoubleRegister() const {
 }
 
 bool InstructionOperand::IsSimd128Register() const {
-  return IsAnyRegister() &&
-         LocationOperand::cast(this)->representation() ==
-             MachineRepresentation::kSimd128;
+  return IsAnyRegister() && LocationOperand::cast(this)->representation() ==
+                                MachineRepresentation::kSimd128;
 }
 
 bool InstructionOperand::IsAnyStackSlot() const {
@@ -781,7 +782,7 @@ class ReferenceMap final : public ZoneObject {
   int instruction_position() const { return instruction_position_; }
 
   void set_instruction_position(int pos) {
-    DCHECK(instruction_position_ == -1);
+    DCHECK_EQ(-1, instruction_position_);
     instruction_position_ = pos;
   }
 
@@ -810,7 +811,7 @@ class V8_EXPORT_PRIVATE Instruction final {
     return &operands_[i];
   }
 
-  bool HasOutput() const { return OutputCount() == 1; }
+  bool HasOutput() const { return OutputCount() > 0; }
   const InstructionOperand* Output() const { return OutputAt(0); }
   InstructionOperand* Output() { return OutputAt(0); }
 
@@ -852,7 +853,7 @@ class V8_EXPORT_PRIVATE Instruction final {
                           size_t output_count, InstructionOperand* outputs,
                           size_t input_count, InstructionOperand* inputs,
                           size_t temp_count, InstructionOperand* temps) {
-    DCHECK(opcode >= 0);
+    DCHECK_LE(0, opcode);
     DCHECK(output_count == 0 || outputs != nullptr);
     DCHECK(input_count == 0 || inputs != nullptr);
     DCHECK(temp_count == 0 || temps != nullptr);
@@ -897,7 +898,12 @@ class V8_EXPORT_PRIVATE Instruction final {
 
   bool IsDeoptimizeCall() const {
     return arch_opcode() == ArchOpcode::kArchDeoptimize ||
-           FlagsModeField::decode(opcode()) == kFlags_deoptimize;
+           FlagsModeField::decode(opcode()) == kFlags_deoptimize ||
+           FlagsModeField::decode(opcode()) == kFlags_deoptimize_and_poison;
+  }
+
+  bool IsTrap() const {
+    return FlagsModeField::decode(opcode()) == kFlags_trap;
   }
 
   bool IsJump() const { return arch_opcode() == ArchOpcode::kArchJmp; }
@@ -905,8 +911,8 @@ class V8_EXPORT_PRIVATE Instruction final {
   bool IsTailCall() const {
     return arch_opcode() == ArchOpcode::kArchTailCallCodeObject ||
            arch_opcode() == ArchOpcode::kArchTailCallCodeObjectFromJSFunction ||
-           arch_opcode() == ArchOpcode::kArchTailCallJSFunctionFromJSFunction ||
-           arch_opcode() == ArchOpcode::kArchTailCallAddress;
+           arch_opcode() == ArchOpcode::kArchTailCallAddress ||
+           arch_opcode() == ArchOpcode::kArchTailCallWasm;
   }
   bool IsThrow() const {
     return arch_opcode() == ArchOpcode::kArchThrowTerminator;
@@ -1033,7 +1039,8 @@ class V8_EXPORT_PRIVATE Constant final {
     kFloat64,
     kExternalReference,
     kHeapObject,
-    kRpoNumber
+    kRpoNumber,
+    kDelayedStringConstant
   };
 
   explicit Constant(int32_t v);
@@ -1041,10 +1048,12 @@ class V8_EXPORT_PRIVATE Constant final {
   explicit Constant(float v) : type_(kFloat32), value_(bit_cast<int32_t>(v)) {}
   explicit Constant(double v) : type_(kFloat64), value_(bit_cast<int64_t>(v)) {}
   explicit Constant(ExternalReference ref)
-      : type_(kExternalReference), value_(bit_cast<intptr_t>(ref)) {}
+      : type_(kExternalReference), value_(bit_cast<intptr_t>(ref.address())) {}
   explicit Constant(Handle<HeapObject> obj)
       : type_(kHeapObject), value_(bit_cast<intptr_t>(obj)) {}
   explicit Constant(RpoNumber rpo) : type_(kRpoNumber), value_(rpo.ToInt()) {}
+  explicit Constant(const StringConstantBase* str)
+      : type_(kDelayedStringConstant), value_(bit_cast<intptr_t>(str)) {}
   explicit Constant(RelocatablePtrConstantInfo info);
 
   Type type() const { return type_; }
@@ -1065,19 +1074,26 @@ class V8_EXPORT_PRIVATE Constant final {
   }
 
   float ToFloat32() const {
+    // TODO(ahaas): We should remove this function. If value_ has the bit
+    // representation of a signalling NaN, then returning it as float can cause
+    // the signalling bit to flip, and value_ is returned as a quiet NaN.
     DCHECK_EQ(kFloat32, type());
     return bit_cast<float>(static_cast<int32_t>(value_));
   }
 
-  double ToFloat64() const {
-    if (type() == kInt32) return ToInt32();
+  uint32_t ToFloat32AsInt() const {
+    DCHECK_EQ(kFloat32, type());
+    return bit_cast<uint32_t>(static_cast<int32_t>(value_));
+  }
+
+  Double ToFloat64() const {
     DCHECK_EQ(kFloat64, type());
-    return bit_cast<double>(value_);
+    return Double(bit_cast<uint64_t>(value_));
   }
 
   ExternalReference ToExternalReference() const {
     DCHECK_EQ(kExternalReference, type());
-    return bit_cast<ExternalReference>(static_cast<intptr_t>(value_));
+    return ExternalReference::FromRawAddress(static_cast<Address>(value_));
   }
 
   RpoNumber ToRpoNumber() const {
@@ -1086,15 +1102,13 @@ class V8_EXPORT_PRIVATE Constant final {
   }
 
   Handle<HeapObject> ToHeapObject() const;
+  Handle<Code> ToCode() const;
+  const StringConstantBase* ToDelayedStringConstant() const;
 
  private:
   Type type_;
+  RelocInfo::Mode rmode_ = RelocInfo::NONE;
   int64_t value_;
-#if V8_TARGET_ARCH_32_BIT
-  RelocInfo::Mode rmode_ = RelocInfo::NONE32;
-#else
-  RelocInfo::Mode rmode_ = RelocInfo::NONE64;
-#endif
 };
 
 
@@ -1105,6 +1119,8 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant);
 class FrameStateDescriptor;
 
 enum class StateValueKind : uint8_t {
+  kArgumentsElements,
+  kArgumentsLength,
   kPlain,
   kOptimizedOut,
   kNested,
@@ -1114,40 +1130,72 @@ enum class StateValueKind : uint8_t {
 class StateValueDescriptor {
  public:
   StateValueDescriptor()
-      : kind_(StateValueKind::kPlain),
-        type_(MachineType::AnyTagged()),
-        id_(0) {}
+      : kind_(StateValueKind::kPlain), type_(MachineType::AnyTagged()) {}
 
+  static StateValueDescriptor ArgumentsElements(ArgumentsStateType type) {
+    StateValueDescriptor descr(StateValueKind::kArgumentsElements,
+                               MachineType::AnyTagged());
+    descr.args_type_ = type;
+    return descr;
+  }
+  static StateValueDescriptor ArgumentsLength(ArgumentsStateType type) {
+    StateValueDescriptor descr(StateValueKind::kArgumentsLength,
+                               MachineType::AnyTagged());
+    descr.args_type_ = type;
+    return descr;
+  }
   static StateValueDescriptor Plain(MachineType type) {
-    return StateValueDescriptor(StateValueKind::kPlain, type, 0);
+    return StateValueDescriptor(StateValueKind::kPlain, type);
   }
   static StateValueDescriptor OptimizedOut() {
     return StateValueDescriptor(StateValueKind::kOptimizedOut,
-                                MachineType::AnyTagged(), 0);
+                                MachineType::AnyTagged());
   }
   static StateValueDescriptor Recursive(size_t id) {
-    return StateValueDescriptor(StateValueKind::kNested,
-                                MachineType::AnyTagged(), id);
+    StateValueDescriptor descr(StateValueKind::kNested,
+                               MachineType::AnyTagged());
+    descr.id_ = id;
+    return descr;
   }
   static StateValueDescriptor Duplicate(size_t id) {
-    return StateValueDescriptor(StateValueKind::kDuplicate,
-                                MachineType::AnyTagged(), id);
+    StateValueDescriptor descr(StateValueKind::kDuplicate,
+                               MachineType::AnyTagged());
+    descr.id_ = id;
+    return descr;
   }
 
-  int IsPlain() { return kind_ == StateValueKind::kPlain; }
-  int IsOptimizedOut() { return kind_ == StateValueKind::kOptimizedOut; }
-  int IsNested() { return kind_ == StateValueKind::kNested; }
-  int IsDuplicate() { return kind_ == StateValueKind::kDuplicate; }
+  bool IsArgumentsElements() const {
+    return kind_ == StateValueKind::kArgumentsElements;
+  }
+  bool IsArgumentsLength() const {
+    return kind_ == StateValueKind::kArgumentsLength;
+  }
+  bool IsPlain() const { return kind_ == StateValueKind::kPlain; }
+  bool IsOptimizedOut() const { return kind_ == StateValueKind::kOptimizedOut; }
+  bool IsNested() const { return kind_ == StateValueKind::kNested; }
+  bool IsDuplicate() const { return kind_ == StateValueKind::kDuplicate; }
   MachineType type() const { return type_; }
-  size_t id() const { return id_; }
+  size_t id() const {
+    DCHECK(kind_ == StateValueKind::kDuplicate ||
+           kind_ == StateValueKind::kNested);
+    return id_;
+  }
+  ArgumentsStateType arguments_type() const {
+    DCHECK(kind_ == StateValueKind::kArgumentsElements ||
+           kind_ == StateValueKind::kArgumentsLength);
+    return args_type_;
+  }
 
  private:
-  StateValueDescriptor(StateValueKind kind, MachineType type, size_t id)
-      : kind_(kind), type_(type), id_(id) {}
+  StateValueDescriptor(StateValueKind kind, MachineType type)
+      : kind_(kind), type_(type) {}
 
   StateValueKind kind_;
   MachineType type_;
-  size_t id_;
+  union {
+    size_t id_;
+    ArgumentsStateType args_type_;
+  };
 };
 
 class StateValueList {
@@ -1206,6 +1254,12 @@ class StateValueList {
     nested_.push_back(nested);
     return nested;
   }
+  void PushArgumentsElements(ArgumentsStateType type) {
+    fields_.push_back(StateValueDescriptor::ArgumentsElements(type));
+  }
+  void PushArgumentsLength(ArgumentsStateType type) {
+    fields_.push_back(StateValueDescriptor::ArgumentsLength(type));
+  }
   void PushDuplicate(size_t id) {
     fields_.push_back(StateValueDescriptor::Duplicate(id));
   }
@@ -1242,11 +1296,11 @@ class FrameStateDescriptor : public ZoneObject {
   MaybeHandle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   FrameStateDescriptor* outer_state() const { return outer_state_; }
   bool HasContext() const {
-    return FrameStateFunctionInfo::IsJSFunctionType(type_);
+    return FrameStateFunctionInfo::IsJSFunctionType(type_) ||
+           type_ == FrameStateType::kBuiltinContinuation;
   }
 
-  size_t GetSize(OutputFrameStateCombine combine =
-                     OutputFrameStateCombine::Ignore()) const;
+  size_t GetSize() const;
   size_t GetTotalSize() const;
   size_t GetFrameCount() const;
   size_t GetJSFrameCount() const;
@@ -1271,16 +1325,24 @@ class FrameStateDescriptor : public ZoneObject {
 // frame state descriptor that we have to go back to.
 class DeoptimizationEntry final {
  public:
-  DeoptimizationEntry() {}
-  DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeReason reason)
-      : descriptor_(descriptor), reason_(reason) {}
+  DeoptimizationEntry() = default;
+  DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeKind kind,
+                      DeoptimizeReason reason, VectorSlotPair const& feedback)
+      : descriptor_(descriptor),
+        kind_(kind),
+        reason_(reason),
+        feedback_(feedback) {}
 
   FrameStateDescriptor* descriptor() const { return descriptor_; }
+  DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
+  VectorSlotPair const& feedback() const { return feedback_; }
 
  private:
   FrameStateDescriptor* descriptor_ = nullptr;
-  DeoptimizeReason reason_ = DeoptimizeReason::kNoReason;
+  DeoptimizeKind kind_ = DeoptimizeKind::kEager;
+  DeoptimizeReason reason_ = DeoptimizeReason::kUnknown;
+  VectorSlotPair feedback_ = VectorSlotPair();
 };
 
 typedef ZoneVector<DeoptimizationEntry> DeoptimizationVector;
@@ -1319,15 +1381,15 @@ class V8_EXPORT_PRIVATE InstructionBlock final
 
   // Instruction indexes (used by the register allocator).
   int first_instruction_index() const {
-    DCHECK(code_start_ >= 0);
-    DCHECK(code_end_ > 0);
-    DCHECK(code_end_ >= code_start_);
+    DCHECK_LE(0, code_start_);
+    DCHECK_LT(0, code_end_);
+    DCHECK_GE(code_end_, code_start_);
     return code_start_;
   }
   int last_instruction_index() const {
-    DCHECK(code_start_ >= 0);
-    DCHECK(code_end_ > 0);
-    DCHECK(code_end_ >= code_start_);
+    DCHECK_LE(0, code_start_);
+    DCHECK_LT(0, code_end_);
+    DCHECK_GE(code_end_, code_start_);
     return code_end_ - 1;
   }
 
@@ -1406,7 +1468,8 @@ std::ostream& operator<<(std::ostream& os,
 
 typedef ZoneDeque<Constant> ConstantDeque;
 typedef std::map<int, Constant, std::less<int>,
-                 zone_allocator<std::pair<const int, Constant> > > ConstantMap;
+                 ZoneAllocator<std::pair<const int, Constant> > >
+    ConstantMap;
 
 typedef ZoneDeque<Instruction*> InstructionDeque;
 typedef ZoneDeque<ReferenceMap*> ReferenceMapDeque;
@@ -1461,13 +1524,20 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   }
   MachineRepresentation GetRepresentation(int virtual_register) const;
   void MarkAsRepresentation(MachineRepresentation rep, int virtual_register);
-  int representation_mask() const { return representation_mask_; }
 
   bool IsReference(int virtual_register) const {
     return CanBeTaggedPointer(GetRepresentation(virtual_register));
   }
   bool IsFP(int virtual_register) const {
     return IsFloatingPoint(GetRepresentation(virtual_register));
+  }
+  int representation_mask() const { return representation_mask_; }
+  bool HasFPVirtualRegisters() const {
+    constexpr int kFPRepMask =
+        RepresentationBit(MachineRepresentation::kFloat32) |
+        RepresentationBit(MachineRepresentation::kFloat64) |
+        RepresentationBit(MachineRepresentation::kSimd128);
+    return (representation_mask() & kFPRepMask) != 0;
   }
 
   Instruction* GetBlockStart(RpoNumber rpo) const;
@@ -1481,8 +1551,8 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   }
 
   Instruction* InstructionAt(int index) const {
-    DCHECK(index >= 0);
-    DCHECK(index < static_cast<int>(instructions_.size()));
+    DCHECK_LE(0, index);
+    DCHECK_GT(instructions_.size(), index);
     return instructions_[index];
   }
 
@@ -1497,7 +1567,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
   int AddConstant(int virtual_register, Constant constant) {
     // TODO(titzer): allow RPO numbers as constants?
-    DCHECK(constant.type() != Constant::kRpoNumber);
+    DCHECK_NE(Constant::kRpoNumber, constant.type());
     DCHECK(virtual_register >= 0 && virtual_register < next_virtual_register_);
     DCHECK(constants_.find(virtual_register) == constants_.end());
     constants_.insert(std::make_pair(virtual_register, constant));
@@ -1529,17 +1599,17 @@ class V8_EXPORT_PRIVATE InstructionSequence final
         return Constant(op->inline_value());
       case ImmediateOperand::INDEXED: {
         int index = op->indexed_value();
-        DCHECK(index >= 0);
-        DCHECK(index < static_cast<int>(immediates_.size()));
+        DCHECK_LE(0, index);
+        DCHECK_GT(immediates_.size(), index);
         return immediates_[index];
       }
     }
     UNREACHABLE();
-    return Constant(static_cast<int32_t>(0));
   }
 
   int AddDeoptimizationEntry(FrameStateDescriptor* descriptor,
-                             DeoptimizeReason reason);
+                             DeoptimizeKind kind, DeoptimizeReason reason,
+                             VectorSlotPair const& feedback);
   DeoptimizationEntry const& GetDeoptimizationEntry(int deoptimization_id);
   int GetDeoptimizationEntryCount() const {
     return static_cast<int>(deoptimization_entries_.size());

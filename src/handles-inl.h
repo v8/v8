@@ -5,10 +5,9 @@
 #ifndef V8_HANDLES_INL_H_
 #define V8_HANDLES_INL_H_
 
-#include "src/api.h"
 #include "src/handles.h"
-#include "src/heap/heap.h"
 #include "src/isolate.h"
+#include "src/msan.h"
 
 namespace v8 {
 namespace internal {
@@ -24,6 +23,12 @@ Handle<T> Handle<T>::New(T* object, Isolate* isolate) {
       reinterpret_cast<T**>(HandleScope::CreateHandle(isolate, object)));
 }
 
+template <typename T>
+template <typename S>
+const Handle<T> Handle<T>::cast(Handle<S> that) {
+  T::cast(*reinterpret_cast<T**>(that.location()));
+  return Handle<T>(reinterpret_cast<T**>(that.location_));
+}
 
 HandleScope::HandleScope(Isolate* isolate) {
   HandleScopeData* data = isolate->handle_scope_data();
@@ -33,12 +38,18 @@ HandleScope::HandleScope(Isolate* isolate) {
   data->level++;
 }
 
+template <typename T>
+Handle<T>::Handle(T* object, Isolate* isolate) : HandleBase(object, isolate) {}
+
+template <typename T>
+V8_INLINE Handle<T> handle(T* object, Isolate* isolate) {
+  return Handle<T>(object, isolate);
+}
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
   return os << Brief(*handle);
 }
-
 
 HandleScope::~HandleScope() {
 #ifdef DEBUG
@@ -46,8 +57,8 @@ HandleScope::~HandleScope() {
     int before = NumberOfHandles(isolate_);
     CloseScope(isolate_, prev_next_, prev_limit_);
     int after = NumberOfHandles(isolate_);
-    DCHECK(after - before < kCheckHandleThreshold);
-    DCHECK(before < kCheckHandleThreshold);
+    DCHECK_LT(after - before, kCheckHandleThreshold);
+    DCHECK_LT(before, kCheckHandleThreshold);
   } else {
 #endif  // DEBUG
     CloseScope(isolate_, prev_next_, prev_limit_);
@@ -64,15 +75,17 @@ void HandleScope::CloseScope(Isolate* isolate,
 
   std::swap(current->next, prev_next);
   current->level--;
+  Object** limit = prev_next;
   if (current->limit != prev_limit) {
     current->limit = prev_limit;
+    limit = prev_limit;
     DeleteExtensions(isolate);
-#ifdef ENABLE_HANDLE_ZAPPING
-    ZapRange(current->next, prev_limit);
-  } else {
-    ZapRange(current->next, prev_next);
-#endif
   }
+#ifdef ENABLE_HANDLE_ZAPPING
+  ZapRange(current->next, limit);
+#endif
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(
+      current->next, static_cast<size_t>(limit - current->next));
 }
 
 
@@ -93,7 +106,6 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   current->level++;
   return result;
 }
-
 
 Object** HandleScope::CreateHandle(Isolate* isolate, Object* value) {
   DCHECK(AllowHandleAllocation::IsAllowed());
@@ -122,7 +134,7 @@ Object** HandleScope::GetHandle(Isolate* isolate, Object* value) {
 #ifdef DEBUG
 inline SealHandleScope::SealHandleScope(Isolate* isolate) : isolate_(isolate) {
   // Make sure the current thread is allowed to create handles to begin with.
-  CHECK(AllowHandleAllocation::IsAllowed());
+  DCHECK(AllowHandleAllocation::IsAllowed());
   HandleScopeData* current = isolate_->handle_scope_data();
   // Shrink the current handle scope to make it impossible to do
   // handle allocations without an explicit handle scope.

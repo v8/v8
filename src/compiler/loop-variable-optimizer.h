@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_LOOP_VARIABLE_OPTIMIZER_H_
 #define V8_COMPILER_LOOP_VARIABLE_OPTIMIZER_H_
 
+#include "src/compiler/functional-list.h"
+#include "src/compiler/node-aux-data.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -18,6 +20,7 @@ class Node;
 class InductionVariable : public ZoneObject {
  public:
   Node* phi() const { return phi_; }
+  Node* effect_phi() const { return effect_phi_; }
   Node* arith() const { return arith_; }
   Node* increment() const { return increment_; }
   Node* init_value() const { return init_value_; }
@@ -39,9 +42,10 @@ class InductionVariable : public ZoneObject {
  private:
   friend class LoopVariableOptimizer;
 
-  InductionVariable(Node* phi, Node* arith, Node* increment, Node* init_value,
-                    Zone* zone, ArithmeticType arithmeticType)
+  InductionVariable(Node* phi, Node* effect_phi, Node* arith, Node* increment,
+                    Node* init_value, Zone* zone, ArithmeticType arithmeticType)
       : phi_(phi),
+        effect_phi_(effect_phi),
         arith_(arith),
         increment_(increment),
         init_value_(init_value),
@@ -53,6 +57,7 @@ class InductionVariable : public ZoneObject {
   void AddLowerBound(Node* bound, ConstraintKind kind);
 
   Node* phi_;
+  Node* effect_phi_;
   Node* arith_;
   Node* increment_;
   Node* init_value_;
@@ -79,8 +84,17 @@ class LoopVariableOptimizer {
   const int kAssumedLoopEntryIndex = 0;
   const int kFirstBackedge = 1;
 
-  class Constraint;
-  class VariableLimits;
+  struct Constraint {
+    Node* left;
+    InductionVariable::ConstraintKind kind;
+    Node* right;
+
+    bool operator!=(const Constraint& other) const {
+      return left != other.left || kind != other.kind || right != other.right;
+    }
+  };
+
+  using VariableLimits = FunctionalList<Constraint>;
 
   void VisitBackedge(Node* from, Node* loop);
   void VisitNode(Node* node);
@@ -106,7 +120,9 @@ class LoopVariableOptimizer {
   Graph* graph_;
   CommonOperatorBuilder* common_;
   Zone* zone_;
-  ZoneVector<const VariableLimits*> limits_;
+  NodeAuxData<VariableLimits> limits_;
+  NodeAuxData<bool> reduced_;
+
   ZoneMap<int, InductionVariable*> induction_vars_;
 };
 

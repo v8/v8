@@ -4,6 +4,8 @@
 
 // Flags: --expose-wasm
 
+load("test/mjsunit/wasm/wasm-constants.js");
+
 // Basic tests.
 
 var outOfUint32RangeValue = 1e12;
@@ -90,4 +92,13 @@ function assertMemoryIsValid(memory) {
   assertTrue(memory.buffer instanceof ArrayBuffer);
   assertThrows(() => {'use strict'; memory.buffer = memory.buffer}, TypeError)
   assertThrows(() => ({__proto__: memory}).buffer, TypeError)
+})();
+
+(function TestMemoryGrow() {
+  let memory = new WebAssembly.Memory({initial: 1, maximum:30});
+  assertEquals(1, memory.grow(9));
+  assertTrue(memory.buffer instanceof ArrayBuffer);
+  assertTrue(10*kPageSize == memory.buffer.byteLength);
+  assertMemoryIsValid(memory);
+  assertThrows(() => memory.grow(21));
 })();

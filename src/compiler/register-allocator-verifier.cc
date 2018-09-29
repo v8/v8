@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/register-allocator-verifier.h"
+
 #include "src/bit-vector.h"
 #include "src/compiler/instruction.h"
-#include "src/compiler/register-allocator-verifier.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -16,18 +18,16 @@ size_t OperandCount(const Instruction* instr) {
   return instr->InputCount() + instr->OutputCount() + instr->TempCount();
 }
 
-
 void VerifyEmptyGaps(const Instruction* instr) {
   for (int i = Instruction::FIRST_GAP_POSITION;
        i <= Instruction::LAST_GAP_POSITION; i++) {
     Instruction::GapPosition inner_pos =
         static_cast<Instruction::GapPosition>(i);
-    CHECK(instr->GetParallelMove(inner_pos) == nullptr);
+    CHECK_NULL(instr->GetParallelMove(inner_pos));
   }
 }
 
-
-void VerifyAllocatedGaps(const Instruction* instr) {
+void VerifyAllocatedGaps(const Instruction* instr, const char* caller_info) {
   for (int i = Instruction::FIRST_GAP_POSITION;
        i <= Instruction::LAST_GAP_POSITION; i++) {
     Instruction::GapPosition inner_pos =
@@ -36,8 +36,10 @@ void VerifyAllocatedGaps(const Instruction* instr) {
     if (moves == nullptr) continue;
     for (const MoveOperands* move : *moves) {
       if (move->IsRedundant()) continue;
-      CHECK(move->source().IsAllocated() || move->source().IsConstant());
-      CHECK(move->destination().IsAllocated());
+      CHECK_WITH_MSG(
+          move->source().IsAllocated() || move->source().IsConstant(),
+          caller_info);
+      CHECK_WITH_MSG(move->destination().IsAllocated(), caller_info);
     }
   }
 }
@@ -75,7 +77,7 @@ RegisterAllocatorVerifier::RegisterAllocatorVerifier(
     for (size_t i = 0; i < instr->OutputCount(); ++i, ++count) {
       BuildConstraint(instr->OutputAt(i), &op_constraints[count]);
       if (op_constraints[count].type_ == kSameAsFirst) {
-        CHECK(instr->InputCount() > 0);
+        CHECK_LT(0, instr->InputCount());
         op_constraints[count].type_ = op_constraints[0].type_;
         op_constraints[count].value_ = op_constraints[0].value_;
       }
@@ -112,13 +114,14 @@ void RegisterAllocatorVerifier::VerifyOutput(
            constraint.virtual_register_);
 }
 
-void RegisterAllocatorVerifier::VerifyAssignment() {
+void RegisterAllocatorVerifier::VerifyAssignment(const char* caller_info) {
+  caller_info_ = caller_info;
   CHECK(sequence()->instructions().size() == constraints()->size());
   auto instr_it = sequence()->begin();
   for (const auto& instr_constraint : *constraints()) {
     const Instruction* instr = instr_constraint.instruction_;
     // All gaps should be totally allocated at this point.
-    VerifyAllocatedGaps(instr);
+    VerifyAllocatedGaps(instr, caller_info_);
     const size_t operand_count = instr_constraint.operand_constaints_size_;
     const OperandConstraint* op_constraints =
         instr_constraint.operand_constraints_;
@@ -164,13 +167,17 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
       constraint->value_ = unallocated->fixed_slot_index();
     } else {
       switch (unallocated->extended_policy()) {
-        case UnallocatedOperand::ANY:
+        case UnallocatedOperand::REGISTER_OR_SLOT:
         case UnallocatedOperand::NONE:
           if (sequence()->IsFP(vreg)) {
-            constraint->type_ = kNoneFP;
+            constraint->type_ = kRegisterOrSlotFP;
           } else {
-            constraint->type_ = kNone;
+            constraint->type_ = kRegisterOrSlot;
           }
+          break;
+        case UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
+          DCHECK(!sequence()->IsFP(vreg));
+          constraint->type_ = kRegisterOrSlotOrConstant;
           break;
         case UnallocatedOperand::FIXED_REGISTER:
           if (unallocated->HasSecondaryStorage()) {
@@ -209,12 +216,12 @@ void RegisterAllocatorVerifier::CheckConstraint(
     const InstructionOperand* op, const OperandConstraint* constraint) {
   switch (constraint->type_) {
     case kConstant:
-      CHECK(op->IsConstant());
+      CHECK_WITH_MSG(op->IsConstant(), caller_info_);
       CHECK_EQ(ConstantOperand::cast(op)->virtual_register(),
                constraint->value_);
       return;
     case kImmediate: {
-      CHECK(op->IsImmediate());
+      CHECK_WITH_MSG(op->IsImmediate(), caller_info_);
       const ImmediateOperand* imm = ImmediateOperand::cast(op);
       int value = imm->type() == ImmediateOperand::INLINE
                       ? imm->inline_value()
@@ -223,40 +230,44 @@ void RegisterAllocatorVerifier::CheckConstraint(
       return;
     }
     case kRegister:
-      CHECK(op->IsRegister());
+      CHECK_WITH_MSG(op->IsRegister(), caller_info_);
       return;
     case kFPRegister:
-      CHECK(op->IsFPRegister());
+      CHECK_WITH_MSG(op->IsFPRegister(), caller_info_);
       return;
     case kExplicit:
-      CHECK(op->IsExplicit());
+      CHECK_WITH_MSG(op->IsExplicit(), caller_info_);
       return;
     case kFixedRegister:
     case kRegisterAndSlot:
-      CHECK(op->IsRegister());
+      CHECK_WITH_MSG(op->IsRegister(), caller_info_);
       CHECK_EQ(LocationOperand::cast(op)->register_code(), constraint->value_);
       return;
     case kFixedFPRegister:
-      CHECK(op->IsFPRegister());
+      CHECK_WITH_MSG(op->IsFPRegister(), caller_info_);
       CHECK_EQ(LocationOperand::cast(op)->register_code(), constraint->value_);
       return;
     case kFixedSlot:
-      CHECK(op->IsStackSlot() || op->IsFPStackSlot());
+      CHECK_WITH_MSG(op->IsStackSlot() || op->IsFPStackSlot(), caller_info_);
       CHECK_EQ(LocationOperand::cast(op)->index(), constraint->value_);
       return;
     case kSlot:
-      CHECK(op->IsStackSlot() || op->IsFPStackSlot());
+      CHECK_WITH_MSG(op->IsStackSlot() || op->IsFPStackSlot(), caller_info_);
       CHECK_EQ(ElementSizeLog2Of(LocationOperand::cast(op)->representation()),
                constraint->value_);
       return;
-    case kNone:
-      CHECK(op->IsRegister() || op->IsStackSlot());
+    case kRegisterOrSlot:
+      CHECK_WITH_MSG(op->IsRegister() || op->IsStackSlot(), caller_info_);
       return;
-    case kNoneFP:
-      CHECK(op->IsFPRegister() || op->IsFPStackSlot());
+    case kRegisterOrSlotFP:
+      CHECK_WITH_MSG(op->IsFPRegister() || op->IsFPStackSlot(), caller_info_);
+      return;
+    case kRegisterOrSlotOrConstant:
+      CHECK_WITH_MSG(op->IsRegister() || op->IsStackSlot() || op->IsConstant(),
+                     caller_info_);
       return;
     case kSameAsFirst:
-      CHECK(false);
+      CHECK_WITH_MSG(false, caller_info_);
       return;
   }
 }
@@ -301,14 +312,14 @@ void BlockAssessments::DropRegisters() {
 }
 
 void BlockAssessments::Print() const {
-  OFStream os(stdout);
+  StdoutStream os;
   for (const auto pair : map()) {
     const InstructionOperand op = pair.first;
     const Assessment* assessment = pair.second;
     // Use operator<< so we can write the assessment on the same
     // line. Since we need a register configuration, just pick
     // Turbofan for now.
-    PrintableInstructionOperand wrapper = {RegisterConfiguration::Turbofan(),
+    PrintableInstructionOperand wrapper = {RegisterConfiguration::Default(),
                                            op};
     os << wrapper << " : ";
     if (assessment->kind() == AssessmentKind::Final) {
@@ -330,7 +341,7 @@ BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
     // TODO(mtrofin): the following check should hold, however, in certain
     // unit tests it is invalidated by the last block. Investigate and
     // normalize the CFG.
-    // CHECK(current_block_id.ToInt() == 0);
+    // CHECK_EQ(0, current_block_id.ToInt());
     // The phi size test below is because we can, technically, have phi
     // instructions with one argument. Some tests expose that, too.
   } else if (block->PredecessorCount() == 1 && block->phis().size() == 0) {
@@ -356,7 +367,7 @@ BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
         InstructionOperand operand = pair.first;
         if (ret->map().find(operand) == ret->map().end()) {
           ret->map().insert(std::make_pair(
-              operand, new (zone()) PendingAssessment(block, operand)));
+              operand, new (zone()) PendingAssessment(zone(), block, operand)));
         }
       }
     }
@@ -366,15 +377,17 @@ BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
 
 void RegisterAllocatorVerifier::ValidatePendingAssessment(
     RpoNumber block_id, InstructionOperand op,
-    BlockAssessments* current_assessments, const PendingAssessment* assessment,
-    int virtual_register) {
+    const BlockAssessments* current_assessments,
+    PendingAssessment* const assessment, int virtual_register) {
+  if (assessment->IsAliasOf(virtual_register)) return;
+
   // When validating a pending assessment, it is possible some of the
-  // assessments
-  // for the original operand (the one where the assessment was created for
-  // first) are also pending. To avoid recursion, we use a work list. To
-  // deal with cycles, we keep a set of seen nodes.
-  ZoneQueue<std::pair<const PendingAssessment*, int>> worklist(zone());
-  ZoneSet<RpoNumber> seen(zone());
+  // assessments for the original operand (the one where the assessment was
+  // created for first) are also pending. To avoid recursion, we use a work
+  // list. To deal with cycles, we keep a set of seen nodes.
+  Zone local_zone(zone()->allocator(), ZONE_NAME);
+  ZoneQueue<std::pair<const PendingAssessment*, int>> worklist(&local_zone);
+  ZoneSet<RpoNumber> seen(&local_zone);
   worklist.push(std::make_pair(assessment, virtual_register));
   seen.insert(block_id);
 
@@ -429,9 +442,8 @@ void RegisterAllocatorVerifier::ValidatePendingAssessment(
 
       switch (contribution->kind()) {
         case Final:
-          ValidateFinalAssessment(
-              block_id, current_operand, current_assessments,
-              FinalAssessment::cast(contribution), expected);
+          CHECK_EQ(FinalAssessment::cast(contribution)->virtual_register(),
+                   expected);
           break;
         case Pending: {
           // This happens if we have a diamond feeding into another one, and
@@ -444,37 +456,13 @@ void RegisterAllocatorVerifier::ValidatePendingAssessment(
           // Note that we do not want to finalize pending assessments at the
           // beginning of a block - which is the information we'd have
           // available here. This is because this operand may be reused to
-          // define
-          // duplicate phis.
+          // define duplicate phis.
           break;
         }
       }
     }
   }
-  // If everything checks out, we may make the assessment.
-  current_assessments->map()[op] =
-      new (zone()) FinalAssessment(virtual_register, assessment);
-}
-
-void RegisterAllocatorVerifier::ValidateFinalAssessment(
-    RpoNumber block_id, InstructionOperand op,
-    BlockAssessments* current_assessments, const FinalAssessment* assessment,
-    int virtual_register) {
-  if (assessment->virtual_register() == virtual_register) return;
-  // If we have 2 phis with the exact same operand list, and the first phi is
-  // used before the second one, via the operand incoming to the block,
-  // and the second one's operand is defined (via a parallel move) after the
-  // use, then the original operand will be assigned to the first phi. We
-  // then look at the original pending assessment to ascertain if op
-  // is virtual_register.
-  const PendingAssessment* old = assessment->original_pending_assessment();
-  CHECK_NOT_NULL(old);
-  RpoNumber old_block = old->origin()->rpo_number();
-  DCHECK_LE(old_block, block_id);
-  BlockAssessments* old_block_assessments =
-      old_block == block_id ? current_assessments : assessments_[old_block];
-  ValidatePendingAssessment(old_block, op, old_block_assessments, old,
-                            virtual_register);
+  assessment->AddAlias(virtual_register);
 }
 
 void RegisterAllocatorVerifier::ValidateUse(
@@ -487,12 +475,11 @@ void RegisterAllocatorVerifier::ValidateUse(
 
   switch (assessment->kind()) {
     case Final:
-      ValidateFinalAssessment(block_id, op, current_assessments,
-                              FinalAssessment::cast(assessment),
-                              virtual_register);
+      CHECK_EQ(FinalAssessment::cast(assessment)->virtual_register(),
+               virtual_register);
       break;
     case Pending: {
-      const PendingAssessment* pending = PendingAssessment::cast(assessment);
+      PendingAssessment* pending = PendingAssessment::cast(assessment);
       ValidatePendingAssessment(block_id, op, current_assessments, pending,
                                 virtual_register);
       break;
@@ -562,17 +549,13 @@ void RegisterAllocatorVerifier::VerifyGapMoves() {
       CHECK(found_op != block_assessments->map().end());
       switch (found_op->second->kind()) {
         case Final:
-          ValidateFinalAssessment(block->rpo_number(), op, block_assessments,
-                                  FinalAssessment::cast(found_op->second),
-                                  vreg);
+          CHECK_EQ(FinalAssessment::cast(found_op->second)->virtual_register(),
+                   vreg);
           break;
         case Pending:
-          const PendingAssessment* pending =
-              PendingAssessment::cast(found_op->second);
           ValidatePendingAssessment(block->rpo_number(), op, block_assessments,
-                                    pending, vreg);
-          block_assessments->map()[op] =
-              new (zone()) FinalAssessment(vreg, pending);
+                                    PendingAssessment::cast(found_op->second),
+                                    vreg);
           break;
       }
     }

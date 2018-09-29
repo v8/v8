@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 namespace interpreter {
+namespace interpreter_assembler_unittest {
 
 using ::testing::Matcher;
 
@@ -27,8 +28,8 @@ class InterpreterAssemblerTestState : public compiler::CodeAssemblerState {
 
 class InterpreterAssemblerTest : public TestWithIsolateAndZone {
  public:
-  InterpreterAssemblerTest() {}
-  ~InterpreterAssemblerTest() override {}
+  InterpreterAssemblerTest() = default;
+  ~InterpreterAssemblerTest() override = default;
 
   class InterpreterAssemblerForTest final : public InterpreterAssembler {
    public:
@@ -41,30 +42,50 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
     Matcher<compiler::Node*> IsLoad(
         const Matcher<compiler::LoadRepresentation>& rep_matcher,
         const Matcher<compiler::Node*>& base_matcher,
-        const Matcher<compiler::Node*>& index_matcher);
+        const Matcher<compiler::Node*>& index_matcher,
+        LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
     Matcher<compiler::Node*> IsStore(
         const Matcher<compiler::StoreRepresentation>& rep_matcher,
         const Matcher<compiler::Node*>& base_matcher,
         const Matcher<compiler::Node*>& index_matcher,
         const Matcher<compiler::Node*>& value_matcher);
 
-    Matcher<compiler::Node*> IsUnsignedByteOperand(int offset);
-    Matcher<compiler::Node*> IsSignedByteOperand(int offset);
-    Matcher<compiler::Node*> IsUnsignedShortOperand(int offset);
-    Matcher<compiler::Node*> IsSignedShortOperand(int offset);
-    Matcher<compiler::Node*> IsUnsignedQuadOperand(int offset);
-    Matcher<compiler::Node*> IsSignedQuadOperand(int offset);
+    Matcher<Node*> IsWordNot(const Matcher<Node*>& value_matcher);
+
+    Matcher<compiler::Node*> IsUnsignedByteOperand(
+        int offset, LoadSensitivity needs_poisoning);
+    Matcher<compiler::Node*> IsSignedByteOperand(
+        int offset, LoadSensitivity needs_poisoning);
+    Matcher<compiler::Node*> IsUnsignedShortOperand(
+        int offset, LoadSensitivity needs_poisoning);
+    Matcher<compiler::Node*> IsSignedShortOperand(
+        int offset, LoadSensitivity needs_poisoning);
+    Matcher<compiler::Node*> IsUnsignedQuadOperand(
+        int offset, LoadSensitivity needs_poisoning);
+    Matcher<compiler::Node*> IsSignedQuadOperand(
+        int offset, LoadSensitivity needs_poisoning);
+
+    Matcher<compiler::Node*> IsUnpoisonedSignedOperand(
+        int offset, OperandSize operand_size, LoadSensitivity needs_poisoning);
+    Matcher<compiler::Node*> IsUnpoisonedUnsignedOperand(
+        int offset, OperandSize operand_size, LoadSensitivity needs_poisoning);
 
     Matcher<compiler::Node*> IsSignedOperand(int offset,
-                                             OperandSize operand_size);
+                                             OperandSize operand_size,
+                                             LoadSensitivity needs_poisoning);
     Matcher<compiler::Node*> IsUnsignedOperand(int offset,
-                                               OperandSize operand_size);
+                                               OperandSize operand_size,
+                                               LoadSensitivity needs_poisoning);
+
+    Matcher<compiler::Node*> IsLoadRegisterOperand(int offset,
+                                                   OperandSize operand_size);
 
    private:
     DISALLOW_COPY_AND_ASSIGN(InterpreterAssemblerForTest);
   };
 };
 
+}  // namespace interpreter_assembler_unittest
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

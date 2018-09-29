@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Tests that Runtime.compileScript and Runtime.runScript work with awaitPromise flag.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Tests that Runtime.compileScript and Runtime.runScript work with awaitPromise flag.");
 
 InspectorTest.runTestSuite([
   function testRunAndCompileWithoutAgentEnable(next)
@@ -82,7 +82,7 @@ InspectorTest.runTestSuite([
   {
     Protocol.Runtime.enable()
       .then(() => Protocol.Runtime.compileScript({ expression: "({a:1})", sourceURL: "boo.js", persistScript: true }))
-      .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId, awaitPromise: true }))
+      .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId, awaitPromise: true, returnByValue: true }))
       .then((result) => InspectorTest.logMessage(result))
       .then(() => Protocol.Runtime.disable())
       .then(() => next());

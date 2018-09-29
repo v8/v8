@@ -103,9 +103,8 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   static const int kStoredRegisters = kFramePointer;
   // Return address (stored from link register, read into pc on return).
   static const int kReturnAddress = kStoredRegisters + 9 * kPointerSize;
-  static const int kSecondaryReturnAddress = kReturnAddress + kPointerSize;
   // Stack frame header.
-  static const int kStackFrameHeader = kReturnAddress + kPointerSize;
+  static const int kStackFrameHeader = kReturnAddress;
   // Stack parameters placed by caller.
   static const int kRegisterOutput = kStackFrameHeader + 20;
   static const int kNumOutputRegisters = kRegisterOutput + kPointerSize;
@@ -171,7 +170,7 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   inline int char_size() { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
-  // is NULL, in which case it is a conditional Backtrack.
+  // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Label* to,
                          Condition condition,
                          Register rs,

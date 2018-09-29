@@ -9,9 +9,10 @@
 
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
+#include "src/base/threaded-list.h"
 #include "src/globals.h"
-#include "src/list.h"
 #include "src/splay-tree.h"
+#include "src/utils.h"
 #include "src/zone/accounting-allocator.h"
 
 #ifndef ZONE_NAME
@@ -35,9 +36,13 @@ namespace internal {
 //
 // Note: The implementation is inherently not thread safe. Do not use
 // from multi-threaded code.
+
+enum class SegmentSize { kLarge, kDefault };
+
 class V8_EXPORT_PRIVATE Zone final {
  public:
-  Zone(AccountingAllocator* allocator, const char* name);
+  Zone(AccountingAllocator* allocator, const char* name,
+       SegmentSize segment_size = SegmentSize::kDefault);
   ~Zone();
 
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
@@ -49,6 +54,13 @@ class V8_EXPORT_PRIVATE Zone final {
     DCHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
     return static_cast<T*>(New(length * sizeof(T)));
   }
+
+  // Seals the zone to prevent any further allocation.
+  void Seal() { sealed_ = true; }
+
+  // Allows the zone to be safely reused. Releases the memory and fires zone
+  // destruction and creation events for the accounting allocator.
+  void ReleaseMemory();
 
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
@@ -63,16 +75,11 @@ class V8_EXPORT_PRIVATE Zone final {
   AccountingAllocator* allocator() const { return allocator_; }
 
  private:
-// All pointers returned from New() have this alignment.  In addition, if the
-// object being allocated has a size that is divisible by 8 then its alignment
-// will be 8. ASan requires 8-byte alignment. MIPS also requires 8-byte
-// alignment.
-#if defined(V8_USE_ADDRESS_SANITIZER) || defined(V8_TARGET_ARCH_MIPS)
-  static const size_t kAlignment = 8;
-  STATIC_ASSERT(kPointerSize <= 8);
-#else
-  static const size_t kAlignment = kPointerSize;
-#endif
+  // Deletes all objects and free all memory allocated in the Zone.
+  void DeleteAll();
+
+  // All pointers returned from New() are 8-byte aligned.
+  static const size_t kAlignmentInBytes = 8;
 
   // Never allocate segments smaller than this size in bytes.
   static const size_t kMinimumSegmentSize = 8 * KB;
@@ -82,9 +89,6 @@ class V8_EXPORT_PRIVATE Zone final {
 
   // Report zone excess when allocation exceeds this limit.
   static const size_t kExcessLimit = 256 * MB;
-
-  // Deletes all objects and free all memory allocated in the Zone.
-  void DeleteAll();
 
   // The number of bytes allocated in this zone so far.
   size_t allocation_size_;
@@ -114,6 +118,8 @@ class V8_EXPORT_PRIVATE Zone final {
 
   Segment* segment_head_;
   const char* name_;
+  bool sealed_;
+  SegmentSize segment_size_;
 };
 
 // ZoneObject is an abstraction that helps define classes of objects
@@ -148,64 +154,157 @@ class ZoneAllocationPolicy final {
   Zone* zone_;
 };
 
+template <typename T>
+class Vector;
+
 // ZoneLists are growable lists with constant-time access to the
 // elements. The list itself and all its elements are allocated in the
 // Zone. ZoneLists cannot be deleted individually; you can delete all
 // objects in the Zone by calling Zone::DeleteAll().
 template <typename T>
-class ZoneList final : public List<T, ZoneAllocationPolicy> {
+class ZoneList final {
  public:
   // Construct a new ZoneList with the given capacity; the length is
   // always zero. The capacity must be non-negative.
-  ZoneList(int capacity, Zone* zone)
-      : List<T, ZoneAllocationPolicy>(capacity, ZoneAllocationPolicy(zone)) {}
-
+  ZoneList(int capacity, Zone* zone) { Initialize(capacity, zone); }
   // Construct a new ZoneList from a std::initializer_list
-  ZoneList(std::initializer_list<T> list, Zone* zone)
-      : List<T, ZoneAllocationPolicy>(static_cast<int>(list.size()),
-                                      ZoneAllocationPolicy(zone)) {
+  ZoneList(std::initializer_list<T> list, Zone* zone) {
+    Initialize(static_cast<int>(list.size()), zone);
     for (auto& i : list) Add(i, zone);
+  }
+  // Construct a new ZoneList by copying the elements of the given ZoneList.
+  ZoneList(const ZoneList<T>& other, Zone* zone) {
+    Initialize(other.length(), zone);
+    AddAll(other, zone);
+  }
+
+  V8_INLINE ~ZoneList() { DeleteData(data_); }
+
+  // Please the MSVC compiler.  We should never have to execute this.
+  V8_INLINE void operator delete(void* p, ZoneAllocationPolicy allocator) {
+    UNREACHABLE();
   }
 
   void* operator new(size_t size, Zone* zone) { return zone->New(size); }
 
-  // Construct a new ZoneList by copying the elements of the given ZoneList.
-  ZoneList(const ZoneList<T>& other, Zone* zone)
-      : List<T, ZoneAllocationPolicy>(other.length(),
-                                      ZoneAllocationPolicy(zone)) {
-    AddAll(other, zone);
+  // Returns a reference to the element at index i. This reference is not safe
+  // to use after operations that can change the list's backing store
+  // (e.g. Add).
+  inline T& operator[](int i) const {
+    DCHECK_LE(0, i);
+    DCHECK_GT(static_cast<unsigned>(length_), static_cast<unsigned>(i));
+    return data_[i];
+  }
+  inline T& at(int i) const { return operator[](i); }
+  inline T& last() const { return at(length_ - 1); }
+  inline T& first() const { return at(0); }
+
+  typedef T* iterator;
+  inline iterator begin() const { return &data_[0]; }
+  inline iterator end() const { return &data_[length_]; }
+
+  V8_INLINE bool is_empty() const { return length_ == 0; }
+  V8_INLINE int length() const { return length_; }
+  V8_INLINE int capacity() const { return capacity_; }
+
+  Vector<T> ToVector() const { return Vector<T>(data_, length_); }
+
+  Vector<const T> ToConstVector() const {
+    return Vector<const T>(data_, length_);
   }
 
-  // We add some convenience wrappers so that we can pass in a Zone
-  // instead of a (less convenient) ZoneAllocationPolicy.
-  void Add(const T& element, Zone* zone) {
-    List<T, ZoneAllocationPolicy>::Add(element, ZoneAllocationPolicy(zone));
+  V8_INLINE void Initialize(int capacity, Zone* zone) {
+    DCHECK_GE(capacity, 0);
+    data_ = (capacity > 0) ? NewData(capacity, ZoneAllocationPolicy(zone))
+                           : nullptr;
+    capacity_ = capacity;
+    length_ = 0;
   }
-  void AddAll(const List<T, ZoneAllocationPolicy>& other, Zone* zone) {
-    List<T, ZoneAllocationPolicy>::AddAll(other, ZoneAllocationPolicy(zone));
-  }
-  void AddAll(const Vector<T>& other, Zone* zone) {
-    List<T, ZoneAllocationPolicy>::AddAll(other, ZoneAllocationPolicy(zone));
-  }
-  void InsertAt(int index, const T& element, Zone* zone) {
-    List<T, ZoneAllocationPolicy>::InsertAt(index, element,
-                                            ZoneAllocationPolicy(zone));
-  }
-  Vector<T> AddBlock(T value, int count, Zone* zone) {
-    return List<T, ZoneAllocationPolicy>::AddBlock(value, count,
-                                                   ZoneAllocationPolicy(zone));
-  }
-  void Allocate(int length, Zone* zone) {
-    List<T, ZoneAllocationPolicy>::Allocate(length, ZoneAllocationPolicy(zone));
-  }
-  void Initialize(int capacity, Zone* zone) {
-    List<T, ZoneAllocationPolicy>::Initialize(capacity,
-                                              ZoneAllocationPolicy(zone));
-  }
+
+  // Adds a copy of the given 'element' to the end of the list,
+  // expanding the list if necessary.
+  void Add(const T& element, Zone* zone);
+  // Add all the elements from the argument list to this list.
+  void AddAll(const ZoneList<T>& other, Zone* zone);
+  // Add all the elements from the vector to this list.
+  void AddAll(const Vector<T>& other, Zone* zone);
+  // Inserts the element at the specific index.
+  void InsertAt(int index, const T& element, Zone* zone);
+
+  // Added 'count' elements with the value 'value' and returns a
+  // vector that allows access to the elements. The vector is valid
+  // until the next change is made to this list.
+  Vector<T> AddBlock(T value, int count, Zone* zone);
+
+  // Overwrites the element at the specific index.
+  void Set(int index, const T& element);
+
+  // Removes the i'th element without deleting it even if T is a
+  // pointer type; moves all elements above i "down". Returns the
+  // removed element.  This function's complexity is linear in the
+  // size of the list.
+  T Remove(int i);
+
+  // Removes the last element without deleting it even if T is a
+  // pointer type. Returns the removed element.
+  V8_INLINE T RemoveLast() { return Remove(length_ - 1); }
+
+  // Clears the list by freeing the storage memory. If you want to keep the
+  // memory, use Rewind(0) instead. Be aware, that even if T is a
+  // pointer type, clearing the list doesn't delete the entries.
+  V8_INLINE void Clear();
+
+  // Drops all but the first 'pos' elements from the list.
+  V8_INLINE void Rewind(int pos);
+
+  inline bool Contains(const T& elm) const;
+
+  // Iterate through all list entries, starting at index 0.
+  template <class Visitor>
+  void Iterate(Visitor* visitor);
+
+  // Sort all list entries (using QuickSort)
+  template <typename CompareFunction>
+  void Sort(CompareFunction cmp);
+  template <typename CompareFunction>
+  void StableSort(CompareFunction cmp, size_t start, size_t length);
 
   void operator delete(void* pointer) { UNREACHABLE(); }
   void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
+
+ private:
+  T* data_;
+  int capacity_;
+  int length_;
+
+  V8_INLINE T* NewData(int n, ZoneAllocationPolicy allocator) {
+    return static_cast<T*>(allocator.New(n * sizeof(T)));
+  }
+  V8_INLINE void DeleteData(T* data) { ZoneAllocationPolicy::Delete(data); }
+
+  // Increase the capacity of a full list, and add an element.
+  // List must be full already.
+  void ResizeAdd(const T& element, ZoneAllocationPolicy allocator);
+
+  // Inlined implementation of ResizeAdd, shared by inlined and
+  // non-inlined versions of ResizeAdd.
+  void ResizeAddInternal(const T& element, ZoneAllocationPolicy allocator);
+
+  // Resize the list.
+  void Resize(int new_capacity, ZoneAllocationPolicy allocator);
+
+  DISALLOW_COPY_AND_ASSIGN(ZoneList);
 };
+
+// ZonePtrList is a ZoneList of pointers to ZoneObjects allocated in the same
+// zone as the list object.
+template <typename T>
+using ZonePtrList = ZoneList<T*>;
+
+// ZoneThreadedList is a special variant of the ThreadedList that can be put
+// into a Zone.
+template <typename T, typename TLTraits = base::ThreadedListTraits<T>>
+using ZoneThreadedList = base::ThreadedListBase<T, ZoneObject, TLTraits>;
 
 // A zone splay tree.  The config type parameter encapsulates the
 // different configurations of a concrete splay tree (see splay-tree.h).
@@ -235,5 +334,18 @@ typedef base::CustomMatcherTemplateHashMapImpl<ZoneAllocationPolicy>
 
 }  // namespace internal
 }  // namespace v8
+
+// The accidential pattern
+//    new (zone) SomeObject()
+// where SomeObject does not inherit from ZoneObject leads to nasty crashes.
+// This triggers a compile-time error instead.
+template <class T, typename = typename std::enable_if<std::is_convertible<
+                       T, const v8::internal::Zone*>::value>::type>
+void* operator new(size_t size, T zone) {
+  static_assert(false && sizeof(T),
+                "Placement new with a zone is only permitted for classes "
+                "inheriting from ZoneObject");
+  UNREACHABLE();
+}
 
 #endif  // V8_ZONE_ZONE_H_

@@ -7,17 +7,49 @@
 #include "src/char-predicates-inl.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
-#include "src/factory.h"
 #include "src/field-type.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
-#include "src/parsing/token.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/property-descriptor.h"
+#include "src/string-hasher.h"
 #include "src/transitions.h"
 #include "src/unicode-cache.h"
 
 namespace v8 {
 namespace internal {
+
+namespace {
+
+// A vector-like data structure that uses a larger vector for allocation, and
+// provides limited utility access. The original vector must not be used for the
+// duration, and it may even be reallocated. This allows vector storage to be
+// reused for the properties of sibling objects.
+template <typename Container>
+class VectorSegment {
+ public:
+  using value_type = typename Container::value_type;
+
+  explicit VectorSegment(Container* container)
+      : container_(*container), begin_(container->size()) {}
+  ~VectorSegment() { container_.resize(begin_); }
+
+  Vector<const value_type> GetVector() const {
+    return Vector<const value_type>(container_.data() + begin_,
+                                    container_.size() - begin_);
+  }
+
+  template <typename T>
+  void push_back(T&& value) {
+    container_.push_back(std::forward<T>(value));
+  }
+
+ private:
+  Container& container_;
+  const typename Container::size_type begin_;
+};
+
+}  // namespace
 
 MaybeHandle<Object> JsonParseInternalizer::Internalize(Isolate* isolate,
                                                        Handle<Object> object,
@@ -28,7 +60,7 @@ MaybeHandle<Object> JsonParseInternalizer::Internalize(Isolate* isolate,
   Handle<JSObject> holder =
       isolate->factory()->NewJSObject(isolate->object_function());
   Handle<String> name = isolate->factory()->empty_string();
-  JSObject::AddProperty(holder, name, object, NONE);
+  JSObject::AddProperty(isolate, holder, name, object, NONE);
   return internalizer.InternalizeJsonProperty(holder, name);
 }
 
@@ -37,7 +69,8 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
   HandleScope outer_scope(isolate_);
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate_, value, Object::GetPropertyOrElement(holder, name), Object);
+      isolate_, value, Object::GetPropertyOrElement(isolate_, holder, name),
+      Object);
   if (value->IsJSReceiver()) {
     Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
     Maybe<bool> is_array = Object::IsArray(object);
@@ -79,12 +112,15 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
 
 bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
                                             Handle<String> name) {
+  STACK_CHECK(isolate_, false);
+
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, result, InternalizeJsonProperty(holder, name), false);
   Maybe<bool> change_result = Nothing<bool>();
   if (result->IsUndefined(isolate_)) {
-    change_result = JSReceiver::DeletePropertyOrElement(holder, name, SLOPPY);
+    change_result = JSReceiver::DeletePropertyOrElement(holder, name,
+                                                        LanguageMode::kSloppy);
   } else {
     PropertyDescriptor desc;
     desc.set_value(result);
@@ -92,7 +128,7 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
     desc.set_enumerable(true);
     desc.set_writable(true);
     change_result = JSReceiver::DefineOwnProperty(isolate_, holder, name, &desc,
-                                                  Object::DONT_THROW);
+                                                  kDontThrow);
   }
   MAYBE_RETURN(change_result, false);
   return true;
@@ -103,12 +139,12 @@ JsonParser<seq_one_byte>::JsonParser(Isolate* isolate, Handle<String> source)
     : source_(source),
       source_length_(source->length()),
       isolate_(isolate),
-      factory_(isolate_->factory()),
       zone_(isolate_->allocator(), ZONE_NAME),
       object_constructor_(isolate_->native_context()->object_function(),
                           isolate_),
-      position_(-1) {
-  source_ = String::Flatten(source_);
+      position_(-1),
+      properties_(&zone_) {
+  source_ = String::Flatten(isolate, source_);
   pretenure_ = (source_length_ >= kPretenureTreshold) ? TENURED : NOT_TENURED;
 
   // Optimized fast case where we only have Latin1 characters.
@@ -160,6 +196,9 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
     }
 
     Handle<Script> script(factory->NewScript(source_));
+    if (isolate()->NeedsSourcePositionsForProfiling()) {
+      Script::InitLineEnds(script);
+    }
     // We should sent compile error event because we compile JSON object in
     // separated source file.
     isolate()->debug()->OnCompileError(script);
@@ -327,9 +366,9 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
   HandleScope scope(isolate());
   Handle<JSObject> json_object =
       factory()->NewJSObject(object_constructor(), pretenure_);
-  Handle<Map> map(json_object->map());
+  Handle<Map> map(json_object->map(), isolate());
   int descriptor = 0;
-  ZoneList<Handle<Object> > properties(8, zone());
+  VectorSegment<ZoneVector<Handle<Object>>> properties(&properties_);
   DCHECK_EQ(c0_, '{');
 
   bool transitioning = true;
@@ -365,21 +404,25 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
       bool follow_expected = false;
       Handle<Map> target;
       if (seq_one_byte) {
-        key = TransitionArray::ExpectedTransitionKey(map);
+        DisallowHeapAllocation no_gc;
+        TransitionsAccessor transitions(isolate(), *map, &no_gc);
+        key = transitions.ExpectedTransitionKey();
         follow_expected = !key.is_null() && ParseJsonString(key);
+        // If the expected transition hits, follow it.
+        if (follow_expected) {
+          target = transitions.ExpectedTransitionTarget();
+        }
       }
-      // If the expected transition hits, follow it.
-      if (follow_expected) {
-        target = TransitionArray::ExpectedTransitionTarget(map);
-      } else {
+      if (!follow_expected) {
         // If the expected transition failed, parse an internalized string and
         // try to find a matching transition.
-        key = ParseJsonInternalizedString();
+        key = ParseJsonString();
         if (key.is_null()) return ReportUnexpectedCharacter();
 
-        target = TransitionArray::FindTransitionToField(map, key);
         // If a transition was found, follow it and continue.
-        transitioning = !target.is_null();
+        transitioning = TransitionsAccessor(isolate(), map)
+                            .FindTransitionToField(key)
+                            .ToHandle(&target);
       }
       if (c0_ != ':') return ReportUnexpectedCharacter();
 
@@ -399,13 +442,14 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
                    ->NowContains(value)) {
             Handle<FieldType> value_type(
                 value->OptimalType(isolate(), expected_representation));
-            Map::GeneralizeFieldType(target, descriptor,
-                                     expected_representation, value_type);
+            Map::GeneralizeField(isolate(), target, descriptor,
+                                 details.constness(), expected_representation,
+                                 value_type);
           }
           DCHECK(target->instance_descriptors()
                      ->GetFieldType(descriptor)
                      ->NowContains(value));
-          properties.Add(value, zone());
+          properties.push_back(value);
           map = target;
           descriptor++;
           continue;
@@ -417,7 +461,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
       DCHECK(!transitioning);
 
       // Commit the intermediate state to the object and stop transitioning.
-      CommitStateToJsonObject(json_object, map, &properties);
+      CommitStateToJsonObject(json_object, map, properties.GetVector());
 
       JSObject::DefinePropertyOrElementIgnoreAttributes(json_object, key, value)
           .Check();
@@ -425,7 +469,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
 
     // If we transitioned until the very end, transition the map now.
     if (transitioning) {
-      CommitStateToJsonObject(json_object, map, &properties);
+      CommitStateToJsonObject(json_object, map, properties.GetVector());
     } else {
       while (MatchSkipWhiteSpace(',')) {
         HandleScope local_scope(isolate());
@@ -449,7 +493,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
         Handle<String> key;
         Handle<Object> value;
 
-        key = ParseJsonInternalizedString();
+        key = ParseJsonString();
         if (key.is_null() || c0_ != ':') return ReportUnexpectedCharacter();
 
         AdvanceSkipWhitespace();
@@ -473,46 +517,110 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
 template <bool seq_one_byte>
 void JsonParser<seq_one_byte>::CommitStateToJsonObject(
     Handle<JSObject> json_object, Handle<Map> map,
-    ZoneList<Handle<Object> >* properties) {
+    Vector<const Handle<Object>> properties) {
   JSObject::AllocateStorageForMap(json_object, map);
   DCHECK(!json_object->map()->is_dictionary_map());
 
   DisallowHeapAllocation no_gc;
-
-  int length = properties->length();
-  for (int i = 0; i < length; i++) {
-    Handle<Object> value = (*properties)[i];
-    json_object->WriteToField(i, *value);
+  DescriptorArray* descriptors = json_object->map()->instance_descriptors();
+  for (int i = 0; i < properties.length(); i++) {
+    Handle<Object> value = properties[i];
+    // Initializing store.
+    json_object->WriteToField(i, descriptors->GetDetails(i), *value);
   }
 }
+
+class ElementKindLattice {
+ private:
+  enum {
+    SMI_ELEMENTS,
+    NUMBER_ELEMENTS,
+    OBJECT_ELEMENTS,
+  };
+
+ public:
+  ElementKindLattice() : value_(SMI_ELEMENTS) {}
+
+  void Update(Handle<Object> o) {
+    if (o->IsSmi()) {
+      return;
+    } else if (o->IsHeapNumber()) {
+      if (value_ < NUMBER_ELEMENTS) value_ = NUMBER_ELEMENTS;
+    } else {
+      DCHECK(!o->IsNumber());
+      value_ = OBJECT_ELEMENTS;
+    }
+  }
+
+  ElementsKind GetElementsKind() const {
+    switch (value_) {
+      case SMI_ELEMENTS:
+        return PACKED_SMI_ELEMENTS;
+      case NUMBER_ELEMENTS:
+        return PACKED_DOUBLE_ELEMENTS;
+      case OBJECT_ELEMENTS:
+        return PACKED_ELEMENTS;
+      default:
+        UNREACHABLE();
+        return PACKED_ELEMENTS;
+    }
+  }
+
+ private:
+  int value_;
+};
 
 // Parse a JSON array. Position must be right at '['.
 template <bool seq_one_byte>
 Handle<Object> JsonParser<seq_one_byte>::ParseJsonArray() {
   HandleScope scope(isolate());
-  ZoneList<Handle<Object> > elements(4, zone());
+  ZoneVector<Handle<Object>> elements(zone());
   DCHECK_EQ(c0_, '[');
+
+  ElementKindLattice lattice;
 
   AdvanceSkipWhitespace();
   if (c0_ != ']') {
     do {
       Handle<Object> element = ParseJsonValue();
       if (element.is_null()) return ReportUnexpectedCharacter();
-      elements.Add(element, zone());
+      elements.push_back(element);
+      lattice.Update(element);
     } while (MatchSkipWhiteSpace(','));
     if (c0_ != ']') {
       return ReportUnexpectedCharacter();
     }
   }
   AdvanceSkipWhitespace();
+
   // Allocate a fixed array with all the elements.
-  Handle<FixedArray> fast_elements =
-      factory()->NewFixedArray(elements.length(), pretenure_);
-  for (int i = 0, n = elements.length(); i < n; i++) {
-    fast_elements->set(i, *elements[i]);
+
+  Handle<Object> json_array;
+  const ElementsKind kind = lattice.GetElementsKind();
+  int elements_size = static_cast<int>(elements.size());
+
+  switch (kind) {
+    case PACKED_ELEMENTS:
+    case PACKED_SMI_ELEMENTS: {
+      Handle<FixedArray> elems =
+          factory()->NewFixedArray(elements_size, pretenure_);
+      for (int i = 0; i < elements_size; i++) elems->set(i, *elements[i]);
+      json_array = factory()->NewJSArrayWithElements(elems, kind, pretenure_);
+      break;
+    }
+    case PACKED_DOUBLE_ELEMENTS: {
+      Handle<FixedDoubleArray> elems = Handle<FixedDoubleArray>::cast(
+          factory()->NewFixedDoubleArray(elements_size, pretenure_));
+      for (int i = 0; i < elements_size; i++) {
+        elems->set(i, elements[i]->Number());
+      }
+      json_array = factory()->NewJSArrayWithElements(elems, kind, pretenure_);
+      break;
+    }
+    default:
+      UNREACHABLE();
   }
-  Handle<Object> json_array = factory()->NewJSArrayWithElements(
-      fast_elements, FAST_ELEMENTS, pretenure_);
+
   return scope.CloseAndEscape(json_array);
 }
 
@@ -625,7 +733,7 @@ Handle<String> JsonParser<seq_one_byte>::SlowScanJsonString(
   String::WriteToFlat(*prefix, dest, start, end);
 
   while (c0_ != '"') {
-    // Check for control character (0x00-0x1f) or unterminated string (<0).
+    // Check for control character (0x00-0x1F) or unterminated string (<0).
     if (c0_ < 0x20) return Handle<String>::null();
     if (count >= length) {
       // We need to create a longer sequential string for the result.
@@ -656,13 +764,13 @@ Handle<String> JsonParser<seq_one_byte>::SlowScanJsonString(
           SeqStringSet(seq_string, count++, '\x08');
           break;
         case 'f':
-          SeqStringSet(seq_string, count++, '\x0c');
+          SeqStringSet(seq_string, count++, '\x0C');
           break;
         case 'n':
-          SeqStringSet(seq_string, count++, '\x0a');
+          SeqStringSet(seq_string, count++, '\x0A');
           break;
         case 'r':
-          SeqStringSet(seq_string, count++, '\x0d');
+          SeqStringSet(seq_string, count++, '\x0D');
           break;
         case 't':
           SeqStringSet(seq_string, count++, '\x09');
@@ -706,7 +814,6 @@ Handle<String> JsonParser<seq_one_byte>::SlowScanJsonString(
 }
 
 template <bool seq_one_byte>
-template <bool is_internalized>
 Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
   DCHECK_EQ('"', c0_);
   Advance();
@@ -715,13 +822,22 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
     return factory()->empty_string();
   }
 
-  if (seq_one_byte && is_internalized) {
+  if (seq_one_byte) {
     // Fast path for existing internalized strings.  If the the string being
     // parsed is not a known internalized string, contains backslashes or
     // unexpectedly reaches the end of string, return with an empty handle.
-    uint32_t running_hash = isolate()->heap()->HashSeed();
+
+    // We intentionally use local variables instead of fields, compute hash
+    // while we are iterating a string and manually inline StringTable lookup
+    // here.
+
     int position = position_;
     uc32 c0 = c0_;
+    uint32_t running_hash =
+        static_cast<uint32_t>(isolate()->heap()->HashSeed());
+    uint32_t index = 0;
+    bool is_array_index = true;
+
     do {
       if (c0 == '\\') {
         c0_ = c0;
@@ -730,17 +846,41 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
         return SlowScanJsonString<SeqOneByteString, uint8_t>(source_, beg_pos,
                                                              position_);
       }
-      if (c0 < 0x20) return Handle<String>::null();
+      if (c0 < 0x20) {
+        c0_ = c0;
+        position_ = position;
+        return Handle<String>::null();
+      }
+      if (is_array_index) {
+        // With leading zero, the string has to be "0" to be a valid index.
+        if (!IsDecimalDigit(c0) || (position > position_ && index == 0)) {
+          is_array_index = false;
+        } else {
+          int d = c0 - '0';
+          is_array_index = index <= 429496729U - ((d + 3) >> 3);
+          index = (index * 10) + d;
+        }
+      }
       running_hash = StringHasher::AddCharacterCore(running_hash,
                                                     static_cast<uint16_t>(c0));
       position++;
-      if (position >= source_length_) return Handle<String>::null();
+      if (position >= source_length_) {
+        c0_ = kEndOfString;
+        position_ = position;
+        return Handle<String>::null();
+      }
       c0 = seq_source_->SeqOneByteStringGet(position);
     } while (c0 != '"');
     int length = position - position_;
-    uint32_t hash = (length <= String::kMaxHashCalcLength)
-                        ? StringHasher::GetHashCore(running_hash)
-                        : static_cast<uint32_t>(length);
+    uint32_t hash;
+    if (is_array_index) {
+      hash =
+          StringHasher::MakeArrayIndexHash(index, length) >> String::kHashShift;
+    } else if (length <= String::kMaxHashCalcLength) {
+      hash = StringHasher::GetHashCore(running_hash);
+    } else {
+      hash = static_cast<uint32_t>(length);
+    }
     Vector<const uint8_t> string_vector(seq_source_->GetChars() + position_,
                                         length);
     StringTable* string_table = isolate()->heap()->string_table();
@@ -759,12 +899,8 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
       if (!element->IsTheHole(isolate()) &&
           String::cast(element)->IsOneByteEqualTo(string_vector)) {
         result = Handle<String>(String::cast(element), isolate());
-#ifdef DEBUG
-        uint32_t hash_field =
-            (hash << String::kHashShift) | String::kIsNotArrayIndexMask;
-        DCHECK_EQ(static_cast<int>(result->Hash()),
-                  static_cast<int>(hash_field >> String::kHashShift));
-#endif
+        DCHECK_EQ(result->Hash(),
+                  (hash << String::kHashShift) >> String::kHashShift);
         break;
       }
       entry = StringTable::NextProbe(entry, count++, capacity);
@@ -778,7 +914,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
   int beg_pos = position_;
   // Fast case for Latin1 only without escape characters.
   do {
-    // Check for control character (0x00-0x1f) or unterminated string (<0).
+    // Check for control character (0x00-0x1F) or unterminated string (<0).
     if (c0_ < 0x20) return Handle<String>::null();
     if (c0_ != '\\') {
       if (seq_one_byte || c0_ <= String::kMaxOneByteCharCode) {

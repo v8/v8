@@ -8,6 +8,16 @@ function assertUndef(x) {
 }
 
 
+// ClassDeclaration
+
+assertUndef(eval('class C {}'));
+assertUndef(eval('class C {m() {}}'));
+assertUndef(eval('class C extends null {}'));
+assertEquals(42, eval('42; class C {}'));
+assertEquals(42, eval('42; class C {m() {}}'));
+assertEquals(42, eval('42; class C extends null {}'));
+
+
 // IfStatement [13.6.7]
 
 assertUndef(eval('42; if (true) ; else 0;'));  // ES5: 42
@@ -159,3 +169,10 @@ assertUndef(eval(
 assertUndef(eval("1; try{2; throwOnReturn();} catch(e){}"));
 assertUndef(eval("1; twoFunc();"));
 assertEquals(2, eval("1; with ( { a: 0 } ) { 2; }"));
+
+// https://bugs.chromium.org/p/chromium/issues/detail?id=787698
+assertEquals(42, eval("try {42} catch (_) {} finally {}"));
+assertEquals(42, eval("try {42} catch (_) {} finally {43}"));
+assertEquals(42, eval("foo: try {42} catch (_) {} finally {}"));
+assertEquals(42, eval("foo: try {42} catch (_) {} finally {43}"));
+assertEquals(43, eval("foo: try {42} catch (_) {} finally {43; break foo}"));

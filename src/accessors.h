@@ -8,7 +8,6 @@
 #include "include/v8.h"
 #include "src/allocation.h"
 #include "src/globals.h"
-#include "src/handles.h"
 #include "src/property-details.h"
 
 namespace v8 {
@@ -16,34 +15,35 @@ namespace internal {
 
 // Forward declarations.
 class AccessorInfo;
+template <typename T>
+class Handle;
+class FieldIndex;
+class JavaScriptFrame;
 
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.
-#define ACCESSOR_INFO_LIST(V)     \
-  V(ArgumentsIterator)            \
-  V(ArrayLength)                  \
-  V(BoundFunctionLength)          \
-  V(BoundFunctionName)            \
-  V(ErrorStack)                   \
-  V(FunctionArguments)            \
-  V(FunctionCaller)               \
-  V(FunctionName)                 \
-  V(FunctionLength)               \
-  V(FunctionPrototype)            \
-  V(ScriptColumnOffset)           \
-  V(ScriptCompilationType)        \
-  V(ScriptContextData)            \
-  V(ScriptEvalFromScript)         \
-  V(ScriptEvalFromScriptPosition) \
-  V(ScriptEvalFromFunctionName)   \
-  V(ScriptId)                     \
-  V(ScriptLineOffset)             \
-  V(ScriptName)                   \
-  V(ScriptSource)                 \
-  V(ScriptType)                   \
-  V(ScriptSourceUrl)              \
-  V(ScriptSourceMappingUrl)       \
-  V(StringLength)
+// V(accessor_name, AccessorName, GetterSideEffectType, SetterSideEffectType)
+#define ACCESSOR_INFO_LIST_GENERATOR(V, _)                                    \
+  V(_, arguments_iterator, ArgumentsIterator, kHasNoSideEffect,               \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, array_length, ArrayLength, kHasNoSideEffect, kHasSideEffectToReceiver) \
+  V(_, bound_function_length, BoundFunctionLength, kHasNoSideEffect,          \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, bound_function_name, BoundFunctionName, kHasNoSideEffect,              \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, error_stack, ErrorStack, kHasSideEffectToReceiver,                     \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, function_arguments, FunctionArguments, kHasNoSideEffect,               \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, function_caller, FunctionCaller, kHasNoSideEffect,                     \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, function_name, FunctionName, kHasNoSideEffect,                         \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, function_length, FunctionLength, kHasNoSideEffect,                     \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, function_prototype, FunctionPrototype, kHasNoSideEffect,               \
+    kHasSideEffectToReceiver)                                                 \
+  V(_, string_length, StringLength, kHasNoSideEffect, kHasSideEffectToReceiver)
 
 #define ACCESSOR_SETTER_LIST(V) \
   V(ArrayLengthSetter)          \
@@ -56,47 +56,51 @@ class AccessorInfo;
 
 class Accessors : public AllStatic {
  public:
-  // Accessor descriptors.
-#define ACCESSOR_INFO_DECLARATION(name)                   \
-  static void name##Getter(                               \
-      v8::Local<v8::Name> name,                           \
-      const v8::PropertyCallbackInfo<v8::Value>& info);   \
-  static Handle<AccessorInfo> name##Info(                 \
-      Isolate* isolate,                                   \
-      PropertyAttributes attributes);
-  ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
-#undef ACCESSOR_INFO_DECLARATION
+#define ACCESSOR_GETTER_DECLARATION(_, accessor_name, AccessorName, ...) \
+  static void AccessorName##Getter(                                      \
+      v8::Local<v8::Name> name,                                          \
+      const v8::PropertyCallbackInfo<v8::Value>& info);
+  ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_GETTER_DECLARATION, /* not used */)
+#undef ACCESSOR_GETTER_DECLARATION
 
-#define ACCESSOR_SETTER_DECLARATION(name)                                \
-  static void name(v8::Local<v8::Name> name, v8::Local<v8::Value> value, \
-                   const v8::PropertyCallbackInfo<v8::Boolean>& info);
+#define ACCESSOR_SETTER_DECLARATION(accessor_name)          \
+  static void accessor_name(                                \
+      v8::Local<v8::Name> name, v8::Local<v8::Value> value, \
+      const v8::PropertyCallbackInfo<v8::Boolean>& info);
   ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
 #undef ACCESSOR_SETTER_DECLARATION
+
+  static constexpr int kAccessorInfoCount =
+#define COUNT_ACCESSOR(...) +1
+      ACCESSOR_INFO_LIST_GENERATOR(COUNT_ACCESSOR, /* not used */);
+#undef COUNT_ACCESSOR
+
+  static constexpr int kAccessorSetterCount =
+#define COUNT_ACCESSOR(...) +1
+      ACCESSOR_SETTER_LIST(COUNT_ACCESSOR);
+#undef COUNT_ACCESSOR
 
   static void ModuleNamespaceEntryGetter(
       v8::Local<v8::Name> name,
       const v8::PropertyCallbackInfo<v8::Value>& info);
-  static Handle<AccessorInfo> ModuleNamespaceEntryInfo(
-      Isolate* isolate, Handle<String> name, PropertyAttributes attributes);
+  static Handle<AccessorInfo> MakeModuleNamespaceEntryInfo(Isolate* isolate,
+                                                           Handle<String> name);
 
-  enum DescriptorId {
-#define ACCESSOR_INFO_DECLARATION(name) \
-    k##name##Getter, \
-    k##name##Setter,
-  ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
-#undef ACCESSOR_INFO_DECLARATION
-    descriptorCount
-  };
-
-  // Accessor functions called directly from the runtime system.
-  MUST_USE_RESULT static MaybeHandle<Object> FunctionSetPrototype(
-      Handle<JSFunction> object, Handle<Object> value);
-  static Handle<JSObject> FunctionGetArguments(Handle<JSFunction> object);
+  // Accessor function called directly from the runtime system. Returns the
+  // newly materialized arguments object for the given {frame}. Note that for
+  // optimized frames it is possible to specify an {inlined_jsframe_index}.
+  static Handle<JSObject> FunctionGetArguments(JavaScriptFrame* frame,
+                                               int inlined_jsframe_index);
 
   // Returns true for properties that are accessors to object fields.
-  // If true, *object_offset contains offset of object field.
-  static bool IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
-                                      int* object_offset);
+  // If true, the matching FieldIndex is returned through |field_index|.
+  static bool IsJSObjectFieldAccessor(Isolate* isolate, Handle<Map> map,
+                                      Handle<Name> name,
+                                      FieldIndex* field_index);
+
+  static MaybeHandle<Object> ReplaceAccessorWithDataProperty(
+      Handle<Object> receiver, Handle<JSObject> holder, Handle<Name> name,
+      Handle<Object> value);
 
   // Create an AccessorInfo. The setter is optional (can be nullptr).
   //
@@ -112,7 +116,15 @@ class Accessors : public AllStatic {
 
   static Handle<AccessorInfo> MakeAccessor(
       Isolate* isolate, Handle<Name> name, AccessorNameGetterCallback getter,
-      AccessorNameBooleanSetterCallback setter, PropertyAttributes attributes);
+      AccessorNameBooleanSetterCallback setter);
+
+ private:
+#define ACCESSOR_INFO_DECLARATION(_, accessor_name, AccessorName, ...) \
+  static Handle<AccessorInfo> Make##AccessorName##Info(Isolate* isolate);
+  ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_DECLARATION, /* not used */)
+#undef ACCESSOR_INFO_DECLARATION
+
+  friend class Heap;
 };
 
 }  // namespace internal

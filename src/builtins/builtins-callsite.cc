@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
-#include "src/builtins/builtins-utils.h"
-
-#include "src/string-builder.h"
-#include "src/wasm/wasm-module.h"
+#include "src/counters.h"
+#include "src/objects-inl.h"
+#include "src/objects/frame-array-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -26,7 +26,7 @@ namespace {
 
 Object* PositiveNumberOrNull(int value, Isolate* isolate) {
   if (value >= 0) return *isolate->factory()->NewNumberFromInt(value);
-  return isolate->heap()->null_value();
+  return ReadOnlyRoots(isolate).null_value();
 }
 
 Handle<FrameArray> GetFrameArray(Isolate* isolate, Handle<JSObject> object) {
@@ -38,7 +38,7 @@ Handle<FrameArray> GetFrameArray(Isolate* isolate, Handle<JSObject> object) {
 int GetFrameIndex(Isolate* isolate, Handle<JSObject> object) {
   Handle<Object> frame_index_obj = JSObject::GetDataProperty(
       object, isolate->factory()->call_site_frame_index_symbol());
-  return Smi::cast(*frame_index_obj)->value();
+  return Smi::ToInt(*frame_index_obj);
 }
 
 }  // namespace
@@ -74,7 +74,7 @@ BUILTIN(CallSitePrototypeGetFunction) {
                         GetFrameIndex(isolate, recv));
 
   StackFrameBase* frame = it.Frame();
-  if (frame->IsStrict()) return isolate->heap()->undefined_value();
+  if (frame->IsStrict()) return ReadOnlyRoots(isolate).undefined_value();
   return *frame->GetFunction();
 }
 
@@ -125,7 +125,7 @@ BUILTIN(CallSitePrototypeGetThis) {
                         GetFrameIndex(isolate, recv));
 
   StackFrameBase* frame = it.Frame();
-  if (frame->IsStrict()) return isolate->heap()->undefined_value();
+  if (frame->IsStrict()) return ReadOnlyRoots(isolate).undefined_value();
   return *frame->GetReceiver();
 }
 

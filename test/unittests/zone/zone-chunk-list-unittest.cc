@@ -4,7 +4,6 @@
 
 #include "src/zone/zone-chunk-list.h"
 
-#include "src/list-inl.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -200,6 +199,156 @@ TEST(ZoneChunkList, BigCopyToTest) {
   for (size_t i = 0; i < kItemCount; ++i) {
     EXPECT_EQ(array[i].a_, i);
     EXPECT_EQ(array[i].b_, i + 5);
+  }
+}
+
+void TestForwardIterationOfConstList(
+    const ZoneChunkList<uintptr_t>& zone_chunk_list) {
+  size_t count = 0;
+
+  for (uintptr_t item : zone_chunk_list) {
+    EXPECT_EQ(static_cast<size_t>(item), count);
+    count++;
+  }
+
+  EXPECT_EQ(count, kItemCount);
+}
+
+TEST(ZoneChunkList, ConstForwardIterationTest) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    zone_chunk_list.push_back(static_cast<uintptr_t>(i));
+  }
+
+  TestForwardIterationOfConstList(zone_chunk_list);
+}
+
+TEST(ZoneChunkList, RewindAndIterate) {
+  // Regression test for https://bugs.chromium.org/p/v8/issues/detail?id=7478
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<int> zone_chunk_list(&zone);
+
+  // Fill the list enough so that it will contain 2 chunks.
+  int chunk_size = static_cast<int>(ZoneChunkList<int>::StartMode::kSmall);
+  for (int i = 0; i < chunk_size + 1; ++i) {
+    zone_chunk_list.push_back(i);
+  }
+
+  // Rewind and fill the first chunk again.
+  zone_chunk_list.Rewind();
+  for (int i = 0; i < chunk_size; ++i) {
+    zone_chunk_list.push_back(i);
+  }
+
+  std::vector<int> expected;
+  for (int i = 0; i < chunk_size; ++i) {
+    expected.push_back(i);
+  }
+  std::vector<int> got;
+
+  // Iterate. This used to not yield the expected result, since the end iterator
+  // was in a weird state, and the running iterator didn't reach it after the
+  // first chunk.
+  auto it = zone_chunk_list.begin();
+  while (it != zone_chunk_list.end()) {
+    int value = *it;
+    got.push_back(value);
+    ++it;
+  }
+  CHECK_EQ(expected.size(), got.size());
+  for (size_t i = 0; i < expected.size(); ++i) {
+    CHECK_EQ(expected[i], got[i]);
+  }
+}
+
+TEST(ZoneChunkList, PushBackPopBackSize) {
+  // Regression test for https://bugs.chromium.org/p/v8/issues/detail?id=7489
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<int> zone_chunk_list(&zone);
+  CHECK_EQ(size_t(0), zone_chunk_list.size());
+  zone_chunk_list.push_back(1);
+  CHECK_EQ(size_t(1), zone_chunk_list.size());
+  zone_chunk_list.pop_back();
+  CHECK_EQ(size_t(0), zone_chunk_list.size());
+}
+
+TEST(ZoneChunkList, AdvanceZeroTest) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    zone_chunk_list.push_back(static_cast<uintptr_t>(i));
+  }
+
+  auto iterator_advance = zone_chunk_list.begin();
+
+  iterator_advance.Advance(0);
+
+  CHECK_EQ(iterator_advance, zone_chunk_list.begin());
+}
+
+TEST(ZoneChunkList, AdvancePartwayTest) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    zone_chunk_list.push_back(static_cast<uintptr_t>(i));
+  }
+
+  auto iterator_advance = zone_chunk_list.begin();
+  auto iterator_one_by_one = zone_chunk_list.begin();
+
+  iterator_advance.Advance(kItemCount / 2);
+  for (size_t i = 0; i < kItemCount / 2; ++i) {
+    ++iterator_one_by_one;
+  }
+
+  CHECK_EQ(iterator_advance, iterator_one_by_one);
+}
+
+TEST(ZoneChunkList, AdvanceEndTest) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+
+  for (size_t i = 0; i < kItemCount; ++i) {
+    zone_chunk_list.push_back(static_cast<uintptr_t>(i));
+  }
+
+  auto iterator_advance = zone_chunk_list.begin();
+
+  iterator_advance.Advance(kItemCount);
+
+  CHECK_EQ(iterator_advance, zone_chunk_list.end());
+}
+
+TEST(ZoneChunkList, FindOverChunkBoundary) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<int> zone_chunk_list(&zone);
+
+  // Make sure we get two chunks.
+  int chunk_size = static_cast<int>(ZoneChunkList<int>::StartMode::kSmall);
+  for (int i = 0; i < chunk_size + 1; ++i) {
+    zone_chunk_list.push_back(i);
+  }
+
+  for (int i = 0; i < chunk_size + 1; ++i) {
+    CHECK_EQ(i, *zone_chunk_list.Find(i));
   }
 }
 

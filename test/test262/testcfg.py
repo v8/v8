@@ -27,19 +27,45 @@
 
 
 import imp
+import itertools
 import os
 import re
 import sys
-import tarfile
-
 
 from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
+from testrunner.outproc import base as outproc
+from testrunner.outproc import test262
+
+
+# TODO(littledan): move the flag mapping into the status file
+FEATURE_FLAGS = {
+  'BigInt': '--harmony-bigint',
+  'class-fields-public': '--harmony-public-fields',
+  'class-static-fields-public': '--harmony-class-fields',
+  'Array.prototype.flat': '--harmony-array-flat',
+  'Array.prototype.flatMap': '--harmony-array-flat',
+  'String.prototype.matchAll': '--harmony-string-matchall',
+  'Symbol.matchAll': '--harmony-string-matchall',
+  'numeric-separator-literal': '--harmony-numeric-separator',
+  'Intl.ListFormat': '--harmony-intl-list-format',
+  'Intl.Locale': '--harmony-locale',
+  'Intl.RelativeTimeFormat': '--harmony-intl-relative-time-format',
+  'Symbol.prototype.description': '--harmony-symbol-description',
+  'globalThis': '--harmony-global',
+}
+
+SKIPPED_FEATURES = set(['Intl.Segmenter',
+                        'Object.fromEntries',
+                        'export-star-as-namespace-from-module',
+                        'class-fields-private',
+                        'class-static-fields-private',
+                        'class-methods-private',
+                        'class-static-methods-private'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-ARCHIVE = DATA + ".tar"
 
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 TEST_262_NATIVE_FILES = ["detachArrayBuffer.js"]
@@ -47,175 +73,147 @@ TEST_262_NATIVE_FILES = ["detachArrayBuffer.js"]
 TEST_262_SUITE_PATH = ["data", "test"]
 TEST_262_HARNESS_PATH = ["data", "harness"]
 TEST_262_TOOLS_PATH = ["harness", "src"]
+TEST_262_LOCAL_TESTS_PATH = ["local-tests", "test"]
+
+TEST_262_RELPATH_REGEXP = re.compile(
+    r'.*[\\/]test[\\/]test262[\\/][^\\/]+[\\/]test[\\/](.*)\.js')
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              *TEST_262_TOOLS_PATH))
 
-ALL_VARIANT_FLAGS_STRICT = dict(
-    (v, [flags + ["--use-strict"] for flags in flag_sets])
-    for v, flag_sets in testsuite.ALL_VARIANT_FLAGS.iteritems()
-)
 
-FAST_VARIANT_FLAGS_STRICT = dict(
-    (v, [flags + ["--use-strict"] for flags in flag_sets])
-    for v, flag_sets in testsuite.FAST_VARIANT_FLAGS.iteritems()
-)
-
-ALL_VARIANT_FLAGS_BOTH = dict(
-    (v, [flags for flags in testsuite.ALL_VARIANT_FLAGS[v] +
-                            ALL_VARIANT_FLAGS_STRICT[v]])
-    for v in testsuite.ALL_VARIANT_FLAGS
-)
-
-FAST_VARIANT_FLAGS_BOTH = dict(
-    (v, [flags for flags in testsuite.FAST_VARIANT_FLAGS[v] +
-                            FAST_VARIANT_FLAGS_STRICT[v]])
-    for v in testsuite.FAST_VARIANT_FLAGS
-)
-
-ALL_VARIANTS = {
-  'nostrict': testsuite.ALL_VARIANT_FLAGS,
-  'strict': ALL_VARIANT_FLAGS_STRICT,
-  'both': ALL_VARIANT_FLAGS_BOTH,
-}
-
-FAST_VARIANTS = {
-  'nostrict': testsuite.FAST_VARIANT_FLAGS,
-  'strict': FAST_VARIANT_FLAGS_STRICT,
-  'both': FAST_VARIANT_FLAGS_BOTH,
-}
-
-class Test262VariantGenerator(testsuite.VariantGenerator):
-  def GetFlagSets(self, testcase, variant):
-    if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):
-      variant_flags = FAST_VARIANTS
-    else:
-      variant_flags = ALL_VARIANTS
-
-    test_record = self.suite.GetTestRecord(testcase)
-    if "noStrict" in test_record:
-      return variant_flags["nostrict"][variant]
-    if "onlyStrict" in test_record:
-      return variant_flags["strict"][variant]
-    return variant_flags["both"][variant]
+class VariantsGenerator(testsuite.VariantsGenerator):
+  def gen(self, test):
+    flags_set = self._get_flags_set(test)
+    test_record = test.test_record
+    for n, variant in enumerate(self._get_variants(test)):
+      flags = flags_set[variant][0]
+      if 'noStrict' in test_record:
+        yield (variant, flags, str(n))
+      elif 'onlyStrict' in test_record:
+        yield (variant, flags + ['--use-strict'], 'strict-%d' % n)
+      else:
+        yield (variant, flags, str(n))
+        yield (variant, flags + ['--use-strict'], 'strict-%d' % n)
 
 
-class Test262TestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
+  # Match the (...) in '/path/to/v8/test/test262/subdir/test/(...).js'
+  # In practice, subdir is data or local-tests
 
-  def __init__(self, name, root):
-    super(Test262TestSuite, self).__init__(name, root)
+  def __init__(self, *args, **kwargs):
+    super(TestSuite, self).__init__(*args, **kwargs)
     self.testroot = os.path.join(self.root, *TEST_262_SUITE_PATH)
     self.harnesspath = os.path.join(self.root, *TEST_262_HARNESS_PATH)
     self.harness = [os.path.join(self.harnesspath, f)
                     for f in TEST_262_HARNESS_FILES]
     self.harness += [os.path.join(self.root, "harness-adapt.js")]
-    self.ParseTestRecord = None
+    self.localtestroot = os.path.join(self.root, *TEST_262_LOCAL_TESTS_PATH)
+    self.parse_test_record = self._load_parse_test_record()
 
-  def ListTests(self, context):
-    tests = []
-    for dirname, dirs, files in os.walk(self.testroot):
+  def _load_parse_test_record(self):
+    root = os.path.join(self.root, *TEST_262_TOOLS_PATH)
+    f = None
+    try:
+      (f, pathname, description) = imp.find_module("parseTestRecord", [root])
+      module = imp.load_module("parseTestRecord", f, pathname, description)
+      return module.parseTestRecord
+    except:
+      print ('Cannot load parseTestRecord; '
+             'you may need to gclient sync for test262')
+      raise
+    finally:
+      if f:
+        f.close()
+
+  def ListTests(self):
+    testnames = set()
+    for dirname, dirs, files in itertools.chain(os.walk(self.testroot),
+                                                os.walk(self.localtestroot)):
       for dotted in [x for x in dirs if x.startswith(".")]:
         dirs.remove(dotted)
-      if context.noi18n and "intl402" in dirs:
+      if self.test_config.noi18n and "intl402" in dirs:
         dirs.remove("intl402")
       dirs.sort()
       files.sort()
       for filename in files:
-        if filename.endswith(".js") and not filename.endswith("_FIXTURE.js"):
-          fullpath = os.path.join(dirname, filename)
-          relpath = fullpath[len(self.testroot) + 1 : -3]
-          testname = relpath.replace(os.path.sep, "/")
-          case = testcase.TestCase(self, testname)
-          tests.append(case)
-    return tests
+        if not filename.endswith(".js"):
+          continue
+        if filename.endswith("_FIXTURE.js"):
+          continue
+        fullpath = os.path.join(dirname, filename)
+        relpath = re.match(TEST_262_RELPATH_REGEXP, fullpath).group(1)
+        testnames.add(relpath.replace(os.path.sep, "/"))
+    cases = map(self._create_test, testnames)
+    return [case for case in cases if len(
+                SKIPPED_FEATURES.intersection(
+                    case.test_record.get("features", []))) == 0]
 
-  def GetFlagsForTestCase(self, testcase, context):
-    return (testcase.flags + context.mode_flags + self.harness +
-            self.GetIncludesForTest(testcase) + ["--harmony"] +
-            (["--module"] if "module" in self.GetTestRecord(testcase) else []) +
-            [os.path.join(self.testroot, testcase.path + ".js")] +
-            (["--throws"] if "negative" in self.GetTestRecord(testcase)
-                          else []) +
-            (["--allow-natives-syntax"]
-             if "detachArrayBuffer.js" in
-                self.GetTestRecord(testcase).get("includes", [])
-             else []))
+  def _test_class(self):
+    return TestCase
 
-  def _VariantGeneratorFactory(self):
-    return Test262VariantGenerator
+  def _variants_gen_class(self):
+    return VariantsGenerator
 
-  def LoadParseTestRecord(self):
-    if not self.ParseTestRecord:
-      root = os.path.join(self.root, *TEST_262_TOOLS_PATH)
-      f = None
-      try:
-        (f, pathname, description) = imp.find_module("parseTestRecord", [root])
-        module = imp.load_module("parseTestRecord", f, pathname, description)
-        self.ParseTestRecord = module.parseTestRecord
-      except:
-        raise ImportError("Cannot load parseTestRecord; you may need to "
-                          "gclient sync for test262")
-      finally:
-        if f:
-          f.close()
-    return self.ParseTestRecord
 
-  def GetTestRecord(self, testcase):
-    if not hasattr(testcase, "test_record"):
-      ParseTestRecord = self.LoadParseTestRecord()
-      testcase.test_record = ParseTestRecord(self.GetSourceForTest(testcase),
-                                             testcase.path)
-    return testcase.test_record
+class TestCase(testcase.D8TestCase):
+  def __init__(self, *args, **kwargs):
+    super(TestCase, self).__init__(*args, **kwargs)
 
-  def BasePath(self, filename):
-    return self.root if filename in TEST_262_NATIVE_FILES else self.harnesspath
+    source = self.get_source()
+    self.test_record = self.suite.parse_test_record(source, self.path)
+    self._expected_exception = (
+        self.test_record
+          .get('negative', {})
+          .get('type', None)
+    )
 
-  def GetIncludesForTest(self, testcase):
-    test_record = self.GetTestRecord(testcase)
-    if "includes" in test_record:
-      return [os.path.join(self.BasePath(filename), filename)
-              for filename in test_record.get("includes", [])]
+  def _get_files_params(self):
+    return (
+        list(self.suite.harness) +
+        ([os.path.join(self.suite.root, "harness-agent.js")]
+         if self.path.startswith('built-ins/Atomics') else []) +
+        self._get_includes() +
+        (["--module"] if "module" in self.test_record else []) +
+        [self._get_source_path()]
+    )
+
+  def _get_suite_flags(self):
+    return (
+        (["--throws"] if "negative" in self.test_record else []) +
+        (["--allow-natives-syntax"]
+         if "detachArrayBuffer.js" in self.test_record.get("includes", [])
+         else []) +
+        [flag for (feature, flag) in FEATURE_FLAGS.items()
+          if feature in self.test_record.get("features", [])]
+    )
+
+  def _get_includes(self):
+    return [os.path.join(self._base_path(filename), filename)
+            for filename in self.test_record.get("includes", [])]
+
+  def _base_path(self, filename):
+    if filename in TEST_262_NATIVE_FILES:
+      return self.suite.root
     else:
-      includes = []
-    return includes
+      return self.suite.harnesspath
 
-  def GetSourceForTest(self, testcase):
-    filename = os.path.join(self.testroot, testcase.path + ".js")
-    with open(filename) as f:
-      return f.read()
+  def _get_source_path(self):
+    filename = self.path + self._get_suffix()
+    path = os.path.join(self.suite.localtestroot, filename)
+    if os.path.exists(path):
+      return path
+    return os.path.join(self.suite.testroot, filename)
 
-  def _ParseException(self, str):
-    # somefile:somelinenumber: someerror[: sometext]
-    match = re.search('^[^: ]*:[0-9]+: ([^ ]+?)($|: )', str, re.MULTILINE)
-    return match.group(1)
-
-  def IsFailureOutput(self, testcase):
-    output = testcase.output
-    test_record = self.GetTestRecord(testcase)
-    if output.exit_code != 0:
-      return True
-    if "negative" in test_record and \
-       "type" in test_record["negative"] and \
-       self._ParseException(output.stdout) != test_record["negative"]["type"]:
-        return True
-    return "FAILED!" in output.stdout
-
-  def HasUnexpectedOutput(self, testcase):
-    outcome = self.GetOutcome(testcase)
-    if (statusfile.FAIL_SLOPPY in testcase.outcomes and
-        "--use-strict" not in testcase.flags):
-      return outcome != statusfile.FAIL
-    return not outcome in (testcase.outcomes or [statusfile.PASS])
-
-  def PrepareSources(self):
-    # The archive is created only on swarming. Local checkouts have the
-    # data folder.
-    if os.path.exists(ARCHIVE) and not os.path.exists(DATA):
-      print "Extracting archive..."
-      tar = tarfile.open(ARCHIVE)
-      tar.extractall(path=os.path.dirname(ARCHIVE))
-      tar.close()
+  @property
+  def output_proc(self):
+    if self._expected_exception is not None:
+      return test262.ExceptionOutProc(self.expected_outcomes,
+                                      self._expected_exception)
+    if self.expected_outcomes == outproc.OUTCOMES_PASS:
+      return test262.PASS_NO_EXCEPTION
+    return test262.NoExceptionOutProc(self.expected_outcomes)
 
 
-def GetSuite(name, root):
-  return Test262TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

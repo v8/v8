@@ -11,14 +11,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var builder = new WasmModuleBuilder();
 
   var f = builder.addFunction("nine", kSig_i_v)
-    .addBody([kExprI8Const, 9])
+    .addBody([kExprI32Const, 9])
     .exportFunc();
 
   var func = builder.instantiate().exports.nine;
 
   // Check type and existence of prototype
-  assertEquals("function", typeof func.apply);
-  assertTrue(func.prototype != undefined);
+  assertEquals('function', typeof func);
+  assertEquals('function', typeof func.apply);
+  assertEquals('prototype' in func, false);
   assertEquals(String(f.index), func.name);
   assertEquals(undefined, func.displayName);
 

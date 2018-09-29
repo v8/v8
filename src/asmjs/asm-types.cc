@@ -6,6 +6,7 @@
 
 #include <cinttypes>
 
+#include "src/utils.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -68,7 +69,6 @@ bool AsmType::IsA(AsmType* that) {
   }
 
   UNREACHABLE();
-  return that == this;
 }
 
 int32_t AsmType::ElementSizeInBytes() {
@@ -228,25 +228,10 @@ class AsmMinMaxType final : public AsmCallableType {
 }  // namespace
 
 AsmType* AsmType::MinMaxType(Zone* zone, AsmType* dest, AsmType* src) {
-  DCHECK(dest->AsValueType() != nullptr);
-  DCHECK(src->AsValueType() != nullptr);
+  DCHECK_NOT_NULL(dest->AsValueType());
+  DCHECK_NOT_NULL(src->AsValueType());
   auto* MinMax = new (zone) AsmMinMaxType(dest, src);
   return reinterpret_cast<AsmType*>(MinMax);
-}
-
-bool AsmFFIType::CanBeInvokedWith(AsmType* return_type,
-                                  const ZoneVector<AsmType*>& args) {
-  if (return_type->IsExactly(AsmType::Float())) {
-    return false;
-  }
-
-  for (size_t ii = 0; ii < args.size(); ++ii) {
-    if (!args[ii]->IsA(AsmType::Extern())) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 bool AsmFunctionType::IsA(AsmType* other) {
@@ -315,38 +300,8 @@ bool AsmOverloadedFunctionType::CanBeInvokedWith(
 }
 
 void AsmOverloadedFunctionType::AddOverload(AsmType* overload) {
-  DCHECK(overload->AsCallableType() != nullptr);
+  DCHECK_NOT_NULL(overload->AsCallableType());
   overloads_.push_back(overload);
-}
-
-AsmFunctionTableType::AsmFunctionTableType(size_t length, AsmType* signature)
-    : length_(length), signature_(signature) {
-  DCHECK(signature_ != nullptr);
-  DCHECK(signature_->AsFunctionType() != nullptr);
-}
-
-namespace {
-// ToString is used for reporting function tables' names. It converts its
-// argument to uint32_t because asm.js integers are 32-bits, thus effectively
-// limiting the max function table's length.
-std::string ToString(size_t s) {
-  auto u32 = static_cast<uint32_t>(s);
-  // 16 bytes is more than enough to represent a 32-bit integer as a base 10
-  // string.
-  char digits[16];
-  int length = base::OS::SNPrintF(digits, arraysize(digits), "%" PRIu32, u32);
-  DCHECK_NE(length, -1);
-  return std::string(digits, length);
-}
-}  // namespace
-
-std::string AsmFunctionTableType::Name() {
-  return "(" + signature_->Name() + ")[" + ToString(length_) + "]";
-}
-
-bool AsmFunctionTableType::CanBeInvokedWith(AsmType* return_type,
-                                            const ZoneVector<AsmType*>& args) {
-  return signature_->AsCallableType()->CanBeInvokedWith(return_type, args);
 }
 
 }  // namespace wasm

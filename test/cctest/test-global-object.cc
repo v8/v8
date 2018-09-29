@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/api.h"
+#include "src/objects-inl.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -49,7 +49,7 @@ TEST(StrictUndeclaredGlobalVariable) {
   global->SetPrototype(context.local(), proto).FromJust();
   CHECK(script->Run(context.local()).IsEmpty());
   CHECK(try_catch.HasCaught());
-  v8::String::Utf8Value exception(try_catch.Exception());
+  v8::String::Utf8Value exception(CcTest::isolate(), try_catch.Exception());
   CHECK_EQ(0, strcmp("ReferenceError: x is not defined", *exception));
 }
 

@@ -16,9 +16,18 @@ BOTS = {
   '--linux64_haswell': 'v8_linux64_haswell_perf_try',
   '--nexus5': 'v8_nexus5_perf_try',
   '--nexus7': 'v8_nexus7_perf_try',
-  '--nexus9': 'v8_nexus9_perf_try',
   '--nexus10': 'v8_nexus10_perf_try',
+  '--pixel2': 'v8_pixel2_perf_try',
+  '--nokia1': 'v8_nokia1_perf_try',
 }
+
+# This list will contain builder names that should be triggered on an internal
+# swarming bucket instead of internal Buildbot master.
+SWARMING_BOTS = [
+  'v8_linux64_perf_try',
+  'v8_pixel2_perf_try',
+  'v8_nokia1_perf_try',
+]
 
 DEFAULT_BOTS = [
   'v8_arm32_perf_try',
@@ -33,27 +42,34 @@ PUBLIC_BENCHMARKS = [
   'emscripten',
   'compile',
   'jetstream',
-  'jetstream-ignition',
   'jsbench',
   'jstests',
   'kraken_orig',
-  'kraken_orig-ignition',
   'massive',
   'memory',
   'octane',
   'octane-noopt',
-  'octane-ignition',
   'octane-pr',
   'octane-tf',
   'octane-tf-pr',
-  'simdjs',
   'sunspider',
-  'sunspider-ignition',
   'unity',
   'wasm',
+  'web-tooling-benchmark',
 ]
 
 V8_BASE = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+
+def _trigger_bots(bucket, bots, options):
+  cmd = ['git cl try']
+  cmd += ['-B', bucket]
+  cmd += ['-b %s' % bot for bot in bots]
+  if options.revision: cmd += ['-r %s' % options.revision]
+  benchmarks = ['"%s"' % benchmark for benchmark in options.benchmarks]
+  cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
+  if options.extra_flags:
+    cmd += ['-p \'extra_flags="%s"\'' % options.extra_flags]
+  subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
 
 def main():
   parser = argparse.ArgumentParser(description='')
@@ -92,16 +108,15 @@ def main():
 
   # Ensure depot_tools are updated.
   subprocess.check_output(
-      'gclient', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
+      'update_depot_tools', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
 
-  cmd = ['git cl try -m internal.client.v8']
-  cmd += ['-b %s' % bot for bot in options.bots]
-  if options.revision: cmd += ['-r %s' % options.revision]
-  benchmarks = ['"%s"' % benchmark for benchmark in options.benchmarks]
-  cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
-  if options.extra_flags:
-    cmd += ['-p \'extra_flags="%s"\'' % options.extra_flags]
-  subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
+  buildbot_bots = [bot for bot in options.bots if bot not in SWARMING_BOTS]
+  if buildbot_bots:
+    _trigger_bots('master.internal.client.v8', buildbot_bots, options)
+
+  swarming_bots = [bot for bot in options.bots if bot in SWARMING_BOTS]
+  if swarming_bots:
+    _trigger_bots('luci.v8-internal.try', swarming_bots, options)
 
 
 if __name__ == '__main__':  # pragma: no cover

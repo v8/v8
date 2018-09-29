@@ -58,9 +58,11 @@ consts_misc = [
     { 'name': 'APIObjectType',          'value': 'JS_API_OBJECT_TYPE' },
     { 'name': 'SpecialAPIObjectType',   'value': 'JS_SPECIAL_API_OBJECT_TYPE' },
 
+    { 'name': 'FirstContextType',     'value': 'FIRST_CONTEXT_TYPE' },
+    { 'name': 'LastContextType',     'value': 'LAST_CONTEXT_TYPE' },
+
     { 'name': 'IsNotStringMask',        'value': 'kIsNotStringMask' },
     { 'name': 'StringTag',              'value': 'kStringTag' },
-    { 'name': 'NotStringTag',           'value': 'kNotStringTag' },
 
     { 'name': 'StringEncodingMask',     'value': 'kStringEncodingMask' },
     { 'name': 'TwoByteStringTag',       'value': 'kTwoByteStringTag' },
@@ -72,6 +74,7 @@ consts_misc = [
     { 'name': 'ConsStringTag',          'value': 'kConsStringTag' },
     { 'name': 'ExternalStringTag',      'value': 'kExternalStringTag' },
     { 'name': 'SlicedStringTag',        'value': 'kSlicedStringTag' },
+    { 'name': 'ThinStringTag',          'value': 'kThinStringTag' },
 
     { 'name': 'HeapObjectTag',          'value': 'kHeapObjectTag' },
     { 'name': 'HeapObjectTagMask',      'value': 'kHeapObjectTagMask' },
@@ -93,12 +96,28 @@ consts_misc = [
 
     { 'name': 'prop_idx_first',
         'value': 'DescriptorArray::kFirstIndex' },
-    { 'name': 'prop_type_field',
-        'value': 'DATA' },
-    { 'name': 'prop_type_const_field',
-        'value': 'DATA_CONSTANT' },
-    { 'name': 'prop_type_mask',
-        'value': 'PropertyDetails::TypeField::kMask' },
+    { 'name': 'prop_kind_Data',
+        'value': 'kData' },
+    { 'name': 'prop_kind_Accessor',
+        'value': 'kAccessor' },
+    { 'name': 'prop_kind_mask',
+        'value': 'PropertyDetails::KindField::kMask' },
+    { 'name': 'prop_location_Descriptor',
+        'value': 'kDescriptor' },
+    { 'name': 'prop_location_Field',
+        'value': 'kField' },
+    { 'name': 'prop_location_mask',
+        'value': 'PropertyDetails::LocationField::kMask' },
+    { 'name': 'prop_location_shift',
+        'value': 'PropertyDetails::LocationField::kShift' },
+    { 'name': 'prop_attributes_NONE', 'value': 'NONE' },
+    { 'name': 'prop_attributes_READ_ONLY', 'value': 'READ_ONLY' },
+    { 'name': 'prop_attributes_DONT_ENUM', 'value': 'DONT_ENUM' },
+    { 'name': 'prop_attributes_DONT_DELETE', 'value': 'DONT_DELETE' },
+    { 'name': 'prop_attributes_mask',
+        'value': 'PropertyDetails::AttributesField::kMask' },
+    { 'name': 'prop_attributes_shift',
+        'value': 'PropertyDetails::AttributesField::kShift' },
     { 'name': 'prop_index_mask',
         'value': 'PropertyDetails::FieldIndexField::kMask' },
     { 'name': 'prop_index_shift',
@@ -129,18 +148,18 @@ consts_misc = [
         'value': 'Representation::Kind::kExternal' },
 
     { 'name': 'prop_desc_key',
-        'value': 'DescriptorArray::kDescriptorKey' },
+        'value': 'DescriptorArray::kEntryKeyIndex' },
     { 'name': 'prop_desc_details',
-        'value': 'DescriptorArray::kDescriptorDetails' },
+        'value': 'DescriptorArray::kEntryDetailsIndex' },
     { 'name': 'prop_desc_value',
-        'value': 'DescriptorArray::kDescriptorValue' },
+        'value': 'DescriptorArray::kEntryValueIndex' },
     { 'name': 'prop_desc_size',
-        'value': 'DescriptorArray::kDescriptorSize' },
+        'value': 'DescriptorArray::kEntrySize' },
 
     { 'name': 'elements_fast_holey_elements',
-        'value': 'FAST_HOLEY_ELEMENTS' },
+        'value': 'HOLEY_ELEMENTS' },
     { 'name': 'elements_fast_elements',
-        'value': 'FAST_ELEMENTS' },
+        'value': 'PACKED_ELEMENTS' },
     { 'name': 'elements_dictionary_elements',
         'value': 'DICTIONARY_ELEMENTS' },
 
@@ -148,13 +167,15 @@ consts_misc = [
         'value': 'Map::ElementsKindBits::kMask' },
     { 'name': 'bit_field2_elements_kind_shift',
         'value': 'Map::ElementsKindBits::kShift' },
-    { 'name': 'bit_field3_dictionary_map_shift',
-        'value': 'Map::DictionaryMap::kShift' },
+    { 'name': 'bit_field3_is_dictionary_map_shift',
+        'value': 'Map::IsDictionaryMapBit::kShift' },
     { 'name': 'bit_field3_number_of_own_descriptors_mask',
         'value': 'Map::NumberOfOwnDescriptorsBits::kMask' },
     { 'name': 'bit_field3_number_of_own_descriptors_shift',
         'value': 'Map::NumberOfOwnDescriptorsBits::kShift' },
 
+    { 'name': 'off_fp_context_or_frame_type',
+        'value': 'CommonFrameConstants::kContextOrFrameTypeOffset'},
     { 'name': 'off_fp_context',
         'value': 'StandardFrameConstants::kContextOffset' },
     { 'name': 'off_fp_constant_pool',
@@ -166,25 +187,18 @@ consts_misc = [
 
     { 'name': 'scopeinfo_idx_nparams',
         'value': 'ScopeInfo::kParameterCount' },
-    { 'name': 'scopeinfo_idx_nstacklocals',
-        'value': 'ScopeInfo::kStackLocalCount' },
     { 'name': 'scopeinfo_idx_ncontextlocals',
         'value': 'ScopeInfo::kContextLocalCount' },
     { 'name': 'scopeinfo_idx_first_vars',
         'value': 'ScopeInfo::kVariablePartIndex' },
 
-    { 'name': 'sharedfunctioninfo_start_position_mask',
-        'value': 'SharedFunctionInfo::kStartPositionMask' },
-    { 'name': 'sharedfunctioninfo_start_position_shift',
-        'value': 'SharedFunctionInfo::kStartPositionShift' },
-
     { 'name': 'jsarray_buffer_was_neutered_mask',
-        'value': 'JSArrayBuffer::WasNeutered::kMask' },
+        'value': 'JSArrayBuffer::WasNeuteredBit::kMask' },
     { 'name': 'jsarray_buffer_was_neutered_shift',
-        'value': 'JSArrayBuffer::WasNeutered::kShift' },
+        'value': 'JSArrayBuffer::WasNeuteredBit::kShift' },
 
-    { 'name': 'context_idx_closure',
-        'value': 'Context::CLOSURE_INDEX' },
+    { 'name': 'context_idx_scope_info',
+        'value': 'Context::SCOPE_INFO_INDEX' },
     { 'name': 'context_idx_native',
         'value': 'Context::NATIVE_CONTEXT_INDEX' },
     { 'name': 'context_idx_prev',
@@ -193,6 +207,9 @@ consts_misc = [
         'value': 'Context::EXTENSION_INDEX' },
     { 'name': 'context_min_slots',
         'value': 'Context::MIN_CONTEXT_SLOTS' },
+    { 'name': 'context_idx_embedder_data',
+        'value': 'Internals::kContextEmbedderDataIndex' },
+
 
     { 'name': 'namedictionaryshape_prefix_size',
         'value': 'NameDictionaryShape::kPrefixSize' },
@@ -204,15 +221,17 @@ consts_misc = [
     { 'name': 'namedictionary_prefix_start_index',
         'value': 'NameDictionary::kPrefixStartIndex' },
 
-    { 'name': 'seedednumberdictionaryshape_prefix_size',
-        'value': 'SeededNumberDictionaryShape::kPrefixSize' },
-    { 'name': 'seedednumberdictionaryshape_entry_size',
-        'value': 'SeededNumberDictionaryShape::kEntrySize' },
+    { 'name': 'numberdictionaryshape_prefix_size',
+        'value': 'NumberDictionaryShape::kPrefixSize' },
+    { 'name': 'numberdictionaryshape_entry_size',
+        'value': 'NumberDictionaryShape::kEntrySize' },
 
-    { 'name': 'unseedednumberdictionaryshape_prefix_size',
-        'value': 'UnseededNumberDictionaryShape::kPrefixSize' },
-    { 'name': 'unseedednumberdictionaryshape_entry_size',
-        'value': 'UnseededNumberDictionaryShape::kEntrySize' }
+    { 'name': 'simplenumberdictionaryshape_prefix_size',
+        'value': 'SimpleNumberDictionaryShape::kPrefixSize' },
+    { 'name': 'simplenumberdictionaryshape_entry_size',
+        'value': 'SimpleNumberDictionaryShape::kEntrySize' },
+
+    { 'name': 'type_JSError__JS_ERROR_TYPE', 'value': 'JS_ERROR_TYPE' },
 ];
 
 #
@@ -229,12 +248,13 @@ extras_accessors = [
     'JSObject, elements, Object, kElementsOffset',
     'JSObject, internal_fields, uintptr_t, kHeaderSize',
     'FixedArray, data, uintptr_t, kHeaderSize',
+    'FixedTypedArrayBase, external_pointer, Object, kExternalPointerOffset',
     'JSArrayBuffer, backing_store, Object, kBackingStoreOffset',
     'JSArrayBufferView, byte_offset, Object, kByteOffsetOffset',
     'JSTypedArray, length, Object, kLengthOffset',
-    'Map, instance_attributes, int, kInstanceAttributesOffset',
-    'Map, inobject_properties_or_constructor_function_index, int, kInObjectPropertiesOrConstructorFunctionIndexOffset',
-    'Map, instance_size, int, kInstanceSizeOffset',
+    'Map, instance_size_in_words, char, kInstanceSizeInWordsOffset',
+    'Map, inobject_properties_start_or_constructor_function_index, char, kInObjectPropertiesStartOrConstructorFunctionIndexOffset',
+    'Map, instance_type, uint16_t, kInstanceTypeOffset',
     'Map, bit_field, char, kBitFieldOffset',
     'Map, bit_field2, char, kBitField2Offset',
     'Map, bit_field3, int, kBitField3Offset',
@@ -246,8 +266,12 @@ extras_accessors = [
     'ExternalString, resource, Object, kResourceOffset',
     'SeqOneByteString, chars, char, kHeaderSize',
     'SeqTwoByteString, chars, char, kHeaderSize',
-    'SharedFunctionInfo, code, Code, kCodeOffset',
-    'SharedFunctionInfo, scope_info, ScopeInfo, kScopeInfoOffset',
+    'UncompiledData, start_position, int32_t, kStartPositionOffset',
+    'UncompiledData, end_position, int32_t, kEndPositionOffset',
+    'SharedFunctionInfo, raw_function_token_offset, int16_t, kFunctionTokenOffsetOffset',
+    'SharedFunctionInfo, internal_formal_parameter_count, uint16_t, kFormalParameterCountOffset',
+    'SharedFunctionInfo, flags, int, kFlagsOffset',
+    'SharedFunctionInfo, length, uint16_t, kLengthOffset',
     'SlicedString, parent, String, kParentOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
@@ -261,7 +285,7 @@ extras_accessors = [
 expected_classes = [
     'ConsString', 'FixedArray', 'HeapNumber', 'JSArray', 'JSFunction',
     'JSObject', 'JSRegExp', 'JSValue', 'Map', 'Oddball', 'Script',
-    'SeqOneByteString', 'SharedFunctionInfo'
+    'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo'
 ];
 
 
@@ -283,6 +307,8 @@ header = '''
 #include "src/frames.h"
 #include "src/frames-inl.h" /* for architecture-specific frame constants */
 #include "src/contexts.h"
+#include "src/objects.h"
+#include "src/objects/js-regexp-string-iterator.h"
 
 using namespace v8::internal;
 
@@ -317,15 +343,9 @@ def get_base_class(klass):
         return get_base_class(k['parent']);
 
 #
-# Loads class hierarchy and type information from "objects.h".
+# Loads class hierarchy and type information from "objects.h" etc.
 #
 def load_objects():
-        objfilename = sys.argv[2];
-        objfile = open(objfilename, 'r');
-        in_insttype = False;
-
-        typestr = '';
-
         #
         # Construct a dictionary for the classes we're sure should be present.
         #
@@ -333,14 +353,32 @@ def load_objects():
         for klass in expected_classes:
                 checktypes[klass] = True;
 
+
+        for filename in sys.argv[2:]:
+                if not filename.endswith("-inl.h"):
+                        load_objects_from_file(filename, checktypes)
+
+        if (len(checktypes) > 0):
+                for klass in checktypes:
+                        print('error: expected class \"%s\" not found' % klass);
+
+                sys.exit(1);
+
+
+def load_objects_from_file(objfilename, checktypes):
+        objfile = open(objfilename, 'r');
+        in_insttype = False;
+
+        typestr = '';
+
         #
-        # Iterate objects.h line-by-line to collect type and class information.
-        # For types, we accumulate a string representing the entire InstanceType
-        # enum definition and parse it later because it's easier to do so
-        # without the embedded newlines.
+        # Iterate the header file line-by-line to collect type and class
+        # information. For types, we accumulate a string representing the entire
+        # InstanceType enum definition and parse it later because it's easier to
+        # do so without the embedded newlines.
         #
         for line in objfile:
-                if (line.startswith('enum InstanceType {')):
+                if (line.startswith('enum InstanceType : uint16_t {')):
                         in_insttype = True;
                         continue;
 
@@ -380,14 +418,9 @@ def load_objects():
         #
         for type in types:
                 #
-                # Symbols and Strings are implemented using the same classes.
-                #
-                usetype = re.sub('SYMBOL_', 'STRING_', type);
-
-                #
                 # REGEXP behaves like REG_EXP, as in JS_REGEXP_TYPE => JSRegExp.
                 #
-                usetype = re.sub('_REGEXP_', '_REG_EXP_', usetype);
+                usetype = re.sub('_REGEXP_', '_REG_EXP_', type);
 
                 #
                 # Remove the "_TYPE" suffix and then convert to camel case,
@@ -464,13 +497,6 @@ def load_objects():
                         if (cctype in checktypes):
                                 del checktypes[cctype];
 
-        if (len(checktypes) > 0):
-                for klass in checktypes:
-                        print('error: expected class \"%s\" not found' % klass);
-
-                sys.exit(1);
-
-
 #
 # For a given macro call, pick apart the arguments and return an object
 # describing the corresponding output constant.  See load_fields().
@@ -491,7 +517,7 @@ def parse_field(call):
         if (kind == 'ACCESSORS' or kind == 'ACCESSORS_GCSAFE'):
                 klass = args[0];
                 field = args[1];
-                dtype = args[2];
+                dtype = args[2].replace('<', '_').replace('>', '_')
                 offset = args[3];
 
                 return ({
@@ -510,11 +536,19 @@ def parse_field(call):
         });
 
 #
-# Load field offset information from objects-inl.h.
+# Load field offset information from objects-inl.h etc.
 #
 def load_fields():
-        inlfilename = sys.argv[3];
-        inlfile = open(inlfilename, 'r');
+        for filename in sys.argv[2:]:
+                if filename.endswith("-inl.h"):
+                        load_fields_from_file(filename)
+
+        for body in extras_accessors:
+                fields.append(parse_field('ACCESSORS(%s)' % body));
+
+
+def load_fields_from_file(filename):
+        inlfile = open(filename, 'r');
 
         #
         # Each class's fields and the corresponding offsets are described in the
@@ -565,9 +599,6 @@ def load_fields():
         if (len(current) > 0):
                 fields.append(parse_field(current));
                 current = '';
-
-        for body in extras_accessors:
-                fields.append(parse_field('ACCESSORS(%s)' % body));
 
 #
 # Emit a block of constants.

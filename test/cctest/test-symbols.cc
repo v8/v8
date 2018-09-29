@@ -30,22 +30,15 @@
 // of ConsStrings.  These operations may not be very fast, but they
 // should be possible without getting errors due to too deep recursion.
 
-#include "src/factory.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/name-inl.h"
 #include "src/ostreams.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/factory.h -> src/objects-inl.h
-#include "src/objects-inl.h"
-// FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/type-feedback-vector.h ->
-// src/type-feedback-vector-inl.h
-#include "src/type-feedback-vector-inl.h"
-#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 TEST(Create) {
   CcTest::InitializeVM();
@@ -55,7 +48,7 @@ TEST(Create) {
   const int kNumSymbols = 30;
   Handle<Symbol> symbols[kNumSymbols];
 
-  OFStream os(stdout);
+  StdoutStream os;
   for (int i = 0; i < kNumSymbols; ++i) {
     symbols[i] = isolate->factory()->NewSymbol();
     CHECK(symbols[i]->IsName());
@@ -67,12 +60,12 @@ TEST(Create) {
     symbols[i]->Print(os);
 #endif
 #if VERIFY_HEAP
-    symbols[i]->ObjectVerify();
+    symbols[i]->ObjectVerify(isolate);
 #endif
   }
 
   CcTest::CollectGarbage(i::NEW_SPACE);
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage();
 
   // All symbols should be distinct.
   for (int i = 0; i < kNumSymbols; ++i) {
@@ -82,3 +75,6 @@ TEST(Create) {
     }
   }
 }
+
+}  // namespace internal
+}  // namespace v8

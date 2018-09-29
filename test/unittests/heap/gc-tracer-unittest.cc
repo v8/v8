@@ -5,6 +5,7 @@
 #include <cmath>
 #include <limits>
 
+#include "src/base/platform/platform.h"
 #include "src/globals.h"
 #include "src/heap/gc-tracer.h"
 #include "src/isolate.h"
@@ -292,6 +293,235 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
   EXPECT_DOUBLE_EQ((4000000.0 / 400 + 1000.0 / 2000) / 2,
                    static_cast<double>(
                        tracer->IncrementalMarkingSpeedInBytesPerMillisecond()));
+}
+
+TEST_F(GCTracerTest, MutatorUtilization) {
+  GCTracer* tracer = i_isolate()->heap()->tracer();
+  tracer->ResetForTesting();
+
+  // Mark-compact #1 ended at 200ms and took 100ms.
+  tracer->RecordMutatorUtilization(200, 100);
+  // Avarage mark-compact time = 0ms.
+  // Avarage mutator time = 0ms.
+  EXPECT_DOUBLE_EQ(1.0, tracer->CurrentMarkCompactMutatorUtilization());
+  EXPECT_DOUBLE_EQ(1.0, tracer->AverageMarkCompactMutatorUtilization());
+
+  // Mark-compact #2 ended at 400ms and took 100ms.
+  tracer->RecordMutatorUtilization(400, 100);
+  // The first mark-compactor is ignored.
+  // Avarage mark-compact time = 100ms.
+  // Avarage mutator time = 100ms.
+  EXPECT_DOUBLE_EQ(0.5, tracer->CurrentMarkCompactMutatorUtilization());
+  EXPECT_DOUBLE_EQ(0.5, tracer->AverageMarkCompactMutatorUtilization());
+
+  // Mark-compact #3 ended at 600ms and took 200ms.
+  tracer->RecordMutatorUtilization(600, 200);
+  // Avarage mark-compact time = 100ms * 0.5 + 200ms * 0.5.
+  // Avarage mutator time = 100ms * 0.5 + 0ms * 0.5.
+  EXPECT_DOUBLE_EQ(0.0, tracer->CurrentMarkCompactMutatorUtilization());
+  EXPECT_DOUBLE_EQ(50.0 / 200.0,
+                   tracer->AverageMarkCompactMutatorUtilization());
+
+  // Mark-compact #4 ended at 800ms and took 0ms.
+  tracer->RecordMutatorUtilization(800, 0);
+  // Avarage mark-compact time = 150ms * 0.5 + 0ms * 0.5.
+  // Avarage mutator time = 50ms * 0.5 + 200ms * 0.5.
+  EXPECT_DOUBLE_EQ(1.0, tracer->CurrentMarkCompactMutatorUtilization());
+  EXPECT_DOUBLE_EQ(125.0 / 200.0,
+                   tracer->AverageMarkCompactMutatorUtilization());
+}
+
+TEST_F(GCTracerTest, BackgroundScavengerScope) {
+  GCTracer* tracer = i_isolate()->heap()->tracer();
+  tracer->ResetForTesting();
+  tracer->Start(SCAVENGER, GarbageCollectionReason::kTesting,
+                "collector unittest");
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL, 10,
+      nullptr);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL, 1,
+      nullptr);
+  tracer->Stop(SCAVENGER);
+  EXPECT_DOUBLE_EQ(
+      11, tracer->current_
+              .scopes[GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL]);
+}
+
+TEST_F(GCTracerTest, BackgroundMinorMCScope) {
+  GCTracer* tracer = i_isolate()->heap()->tracer();
+  tracer->ResetForTesting();
+  tracer->Start(MINOR_MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+                "collector unittest");
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_MARKING, 10, nullptr);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_MARKING, 1, nullptr);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_EVACUATE_COPY, 20,
+      nullptr);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_EVACUATE_COPY, 2, nullptr);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS,
+      30, nullptr);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS,
+      3, nullptr);
+  tracer->Stop(MINOR_MARK_COMPACTOR);
+  EXPECT_DOUBLE_EQ(
+      11,
+      tracer->current_.scopes[GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING]);
+  EXPECT_DOUBLE_EQ(
+      22, tracer->current_
+              .scopes[GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY]);
+  EXPECT_DOUBLE_EQ(
+      33, tracer->current_.scopes
+              [GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS]);
+}
+
+TEST_F(GCTracerTest, BackgroundMajorMCScope) {
+  GCTracer* tracer = i_isolate()->heap()->tracer();
+  tracer->ResetForTesting();
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MC_BACKGROUND_MARKING, 100, nullptr);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MC_BACKGROUND_SWEEPING, 200, nullptr);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MC_BACKGROUND_MARKING, 10, nullptr);
+  // Scavenger should not affect the major mark-compact scopes.
+  tracer->Start(SCAVENGER, GarbageCollectionReason::kTesting,
+                "collector unittest");
+  tracer->Stop(SCAVENGER);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MC_BACKGROUND_SWEEPING, 20, nullptr);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MC_BACKGROUND_MARKING, 1, nullptr);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MC_BACKGROUND_SWEEPING, 2, nullptr);
+  tracer->Start(MARK_COMPACTOR, GarbageCollectionReason::kTesting,
+                "collector unittest");
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_COPY, 30, nullptr);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_COPY, 3, nullptr);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS, 40,
+      nullptr);
+  tracer->AddBackgroundScopeSample(
+      GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS, 4,
+      nullptr);
+  tracer->Stop(MARK_COMPACTOR);
+  EXPECT_DOUBLE_EQ(
+      111, tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_MARKING]);
+  EXPECT_DOUBLE_EQ(
+      222, tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_SWEEPING]);
+  EXPECT_DOUBLE_EQ(
+      33,
+      tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_EVACUATE_COPY]);
+  EXPECT_DOUBLE_EQ(
+      44, tracer->current_
+              .scopes[GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS]);
+}
+
+class ThreadWithBackgroundScope final : public base::Thread {
+ public:
+  explicit ThreadWithBackgroundScope(GCTracer* tracer)
+      : Thread(Options("ThreadWithBackgroundScope")), tracer_(tracer) {}
+  void Run() override {
+    GCTracer::BackgroundScope scope(
+        tracer_, GCTracer::BackgroundScope::MC_BACKGROUND_MARKING);
+  }
+
+ private:
+  GCTracer* tracer_;
+};
+
+TEST_F(GCTracerTest, MultithreadedBackgroundScope) {
+  GCTracer* tracer = i_isolate()->heap()->tracer();
+  ThreadWithBackgroundScope thread1(tracer);
+  ThreadWithBackgroundScope thread2(tracer);
+  tracer->ResetForTesting();
+  thread1.Start();
+  thread2.Start();
+  tracer->FetchBackgroundMarkCompactCounters();
+  thread1.Join();
+  thread2.Join();
+  tracer->FetchBackgroundMarkCompactCounters();
+  EXPECT_LE(0, tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_MARKING]);
+}
+
+class GcHistogram {
+ public:
+  static void* CreateHistogram(const char* name, int min, int max,
+                               size_t buckets) {
+    histograms_[name] = std::unique_ptr<GcHistogram>(new GcHistogram());
+    return histograms_[name].get();
+  }
+
+  static void AddHistogramSample(void* histogram, int sample) {
+    if (histograms_.empty()) return;
+    static_cast<GcHistogram*>(histogram)->samples_.push_back(sample);
+  }
+
+  static GcHistogram* Get(const char* name) { return histograms_[name].get(); }
+
+  static void CleanUp() { histograms_.clear(); }
+
+  int Total() {
+    int result = 0;
+    for (int i : samples_) {
+      result += i;
+    }
+    return result;
+  }
+
+  int Count() { return static_cast<int>(samples_.size()); }
+
+ private:
+  std::vector<int> samples_;
+  static std::map<std::string, std::unique_ptr<GcHistogram>> histograms_;
+};
+
+std::map<std::string, std::unique_ptr<GcHistogram>> GcHistogram::histograms_ =
+    std::map<std::string, std::unique_ptr<GcHistogram>>();
+
+TEST_F(GCTracerTest, RecordMarkCompactHistograms) {
+  if (FLAG_stress_incremental_marking) return;
+  isolate()->SetCreateHistogramFunction(&GcHistogram::CreateHistogram);
+  isolate()->SetAddHistogramSampleFunction(&GcHistogram::AddHistogramSample);
+  GCTracer* tracer = i_isolate()->heap()->tracer();
+  tracer->ResetForTesting();
+  tracer->current_.scopes[GCTracer::Scope::MC_CLEAR] = 1;
+  tracer->current_.scopes[GCTracer::Scope::MC_EPILOGUE] = 2;
+  tracer->current_.scopes[GCTracer::Scope::MC_EVACUATE] = 3;
+  tracer->current_.scopes[GCTracer::Scope::MC_FINISH] = 4;
+  tracer->current_.scopes[GCTracer::Scope::MC_MARK] = 5;
+  tracer->current_.scopes[GCTracer::Scope::MC_PROLOGUE] = 6;
+  tracer->current_.scopes[GCTracer::Scope::MC_SWEEP] = 7;
+  tracer->RecordGCPhasesHistograms(i_isolate()->counters()->gc_finalize());
+  EXPECT_EQ(1, GcHistogram::Get("V8.GCFinalizeMC.Clear")->Total());
+  EXPECT_EQ(2, GcHistogram::Get("V8.GCFinalizeMC.Epilogue")->Total());
+  EXPECT_EQ(3, GcHistogram::Get("V8.GCFinalizeMC.Evacuate")->Total());
+  EXPECT_EQ(4, GcHistogram::Get("V8.GCFinalizeMC.Finish")->Total());
+  EXPECT_EQ(5, GcHistogram::Get("V8.GCFinalizeMC.Mark")->Total());
+  EXPECT_EQ(6, GcHistogram::Get("V8.GCFinalizeMC.Prologue")->Total());
+  EXPECT_EQ(7, GcHistogram::Get("V8.GCFinalizeMC.Sweep")->Total());
+  GcHistogram::CleanUp();
+}
+
+TEST_F(GCTracerTest, RecordScavengerHistograms) {
+  if (FLAG_stress_incremental_marking) return;
+  isolate()->SetCreateHistogramFunction(&GcHistogram::CreateHistogram);
+  isolate()->SetAddHistogramSampleFunction(&GcHistogram::AddHistogramSample);
+  GCTracer* tracer = i_isolate()->heap()->tracer();
+  tracer->ResetForTesting();
+  tracer->current_.scopes[GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS] = 1;
+  tracer->current_.scopes[GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL] = 2;
+  tracer->RecordGCPhasesHistograms(i_isolate()->counters()->gc_scavenger());
+  EXPECT_EQ(1, GcHistogram::Get("V8.GCScavenger.ScavengeRoots")->Total());
+  EXPECT_EQ(2, GcHistogram::Get("V8.GCScavenger.ScavengeMain")->Total());
+  GcHistogram::CleanUp();
 }
 
 }  // namespace internal

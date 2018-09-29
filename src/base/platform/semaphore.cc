@@ -73,7 +73,7 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 #elif V8_OS_POSIX
 
 Semaphore::Semaphore(int count) {
-  DCHECK(count >= 0);
+  DCHECK_GE(count, 0);
   int result = sem_init(&native_handle_, 0, count);
   DCHECK_EQ(0, result);
   USE(result);
@@ -91,7 +91,9 @@ void Semaphore::Signal() {
   // This check may fail with <libc-2.21, which we use on the try bots, if the
   // semaphore is destroyed while sem_post is still executed. A work around is
   // to extend the lifetime of the semaphore.
-  CHECK_EQ(0, result);
+  if (result != 0) {
+    FATAL("Error when signaling semaphore, errno: %d", errno);
+  }
 }
 
 
@@ -135,9 +137,9 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 #elif V8_OS_WIN
 
 Semaphore::Semaphore(int count) {
-  DCHECK(count >= 0);
-  native_handle_ = ::CreateSemaphoreA(NULL, count, 0x7fffffff, NULL);
-  DCHECK(native_handle_ != NULL);
+  DCHECK_GE(count, 0);
+  native_handle_ = ::CreateSemaphoreA(nullptr, count, 0x7FFFFFFF, nullptr);
+  DCHECK_NOT_NULL(native_handle_);
 }
 
 

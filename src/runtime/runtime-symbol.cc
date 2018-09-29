@@ -2,45 +2,33 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/runtime/runtime-utils.h"
-
-#include "src/arguments.h"
+#include "src/arguments-inl.h"
 #include "src/isolate-inl.h"
 #include "src/objects-inl.h"
-#include "src/string-builder.h"
+#include "src/runtime/runtime-utils.h"
+#include "src/string-builder-inl.h"
 
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_CreateSymbol) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  CHECK(name->IsString() || name->IsUndefined(isolate));
-  Handle<Symbol> symbol = isolate->factory()->NewSymbol();
-  if (name->IsString()) symbol->set_name(*name);
-  return *symbol;
-}
-
-
 RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  CHECK(name->IsString() || name->IsUndefined(isolate));
+  DCHECK_GE(1, args.length());
   Handle<Symbol> symbol = isolate->factory()->NewPrivateSymbol();
-  if (name->IsString()) symbol->set_name(*name);
+  if (args.length() == 1) {
+    CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
+    CHECK(name->IsString() || name->IsUndefined(isolate));
+    if (name->IsString()) symbol->set_name(*name);
+  }
   return *symbol;
 }
 
-
-RUNTIME_FUNCTION(Runtime_SymbolDescription) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Symbol, symbol, 0);
-  return symbol->name();
+RUNTIME_FUNCTION(Runtime_CreatePrivateFieldSymbol) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  Handle<Symbol> symbol = isolate->factory()->NewPrivateFieldSymbol();
+  return *symbol;
 }
-
 
 RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
   HandleScope scope(isolate);
@@ -58,7 +46,7 @@ RUNTIME_FUNCTION(Runtime_SymbolDescriptiveString) {
 
 RUNTIME_FUNCTION(Runtime_SymbolIsPrivate) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Symbol, symbol, 0);
   return isolate->heap()->ToBoolean(symbol->is_private());
 }

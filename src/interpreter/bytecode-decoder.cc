@@ -6,14 +6,16 @@
 
 #include <iomanip>
 
-#include "src/utils.h"
+#include "src/contexts.h"
+#include "src/interpreter/interpreter-intrinsics.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace interpreter {
 
 // static
-Register BytecodeDecoder::DecodeRegisterOperand(const uint8_t* operand_start,
+Register BytecodeDecoder::DecodeRegisterOperand(Address operand_start,
                                                 OperandType operand_type,
                                                 OperandScale operand_scale) {
   DCHECK(Bytecodes::IsRegisterOperandType(operand_type));
@@ -24,7 +26,7 @@ Register BytecodeDecoder::DecodeRegisterOperand(const uint8_t* operand_start,
 
 // static
 RegisterList BytecodeDecoder::DecodeRegisterListOperand(
-    const uint8_t* operand_start, uint32_t count, OperandType operand_type,
+    Address operand_start, uint32_t count, OperandType operand_type,
     OperandScale operand_scale) {
   Register first_reg =
       DecodeRegisterOperand(operand_start, operand_type, operand_scale);
@@ -32,13 +34,13 @@ RegisterList BytecodeDecoder::DecodeRegisterListOperand(
 }
 
 // static
-int32_t BytecodeDecoder::DecodeSignedOperand(const uint8_t* operand_start,
+int32_t BytecodeDecoder::DecodeSignedOperand(Address operand_start,
                                              OperandType operand_type,
                                              OperandScale operand_scale) {
   DCHECK(!Bytecodes::IsUnsignedOperandType(operand_type));
   switch (Bytecodes::SizeOfOperand(operand_type, operand_scale)) {
     case OperandSize::kByte:
-      return static_cast<int8_t>(*operand_start);
+      return *reinterpret_cast<const int8_t*>(operand_start);
     case OperandSize::kShort:
       return static_cast<int16_t>(ReadUnalignedUInt16(operand_start));
     case OperandSize::kQuad:
@@ -50,13 +52,13 @@ int32_t BytecodeDecoder::DecodeSignedOperand(const uint8_t* operand_start,
 }
 
 // static
-uint32_t BytecodeDecoder::DecodeUnsignedOperand(const uint8_t* operand_start,
+uint32_t BytecodeDecoder::DecodeUnsignedOperand(Address operand_start,
                                                 OperandType operand_type,
                                                 OperandScale operand_scale) {
   DCHECK(Bytecodes::IsUnsignedOperandType(operand_type));
   switch (Bytecodes::SizeOfOperand(operand_type, operand_scale)) {
     case OperandSize::kByte:
-      return *operand_start;
+      return *reinterpret_cast<const uint8_t*>(operand_start);
     case OperandSize::kShort:
       return ReadUnalignedUInt16(operand_start);
     case OperandSize::kQuad:
@@ -66,6 +68,36 @@ uint32_t BytecodeDecoder::DecodeUnsignedOperand(const uint8_t* operand_start,
   }
   return 0;
 }
+
+namespace {
+
+const char* NameForRuntimeId(uint32_t idx) {
+  switch (idx) {
+#define CASE(name, nargs, ressize) \
+  case Runtime::k##name:           \
+    return #name;                  \
+  case Runtime::kInline##name:     \
+    return "_" #name;
+    FOR_EACH_INTRINSIC(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
+const char* NameForNativeContextIndex(uint32_t idx) {
+  switch (idx) {
+#define CASE(index_name, type, name) \
+  case Context::index_name:          \
+    return #name;
+    NATIVE_CONTEXT_FIELDS(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
+}  // anonymous namespace
 
 // static
 std::ostream& BytecodeDecoder::Decode(std::ostream& os,
@@ -107,15 +139,29 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
     OperandType op_type = Bytecodes::GetOperandType(bytecode, i);
     int operand_offset =
         Bytecodes::GetOperandOffset(bytecode, i, operand_scale);
-    const uint8_t* operand_start =
-        &bytecode_start[prefix_offset + operand_offset];
+    Address operand_start = reinterpret_cast<Address>(
+        &bytecode_start[prefix_offset + operand_offset]);
     switch (op_type) {
       case interpreter::OperandType::kIdx:
       case interpreter::OperandType::kUImm:
-      case interpreter::OperandType::kRuntimeId:
-      case interpreter::OperandType::kIntrinsicId:
         os << "["
            << DecodeUnsignedOperand(operand_start, op_type, operand_scale)
+           << "]";
+        break;
+      case interpreter::OperandType::kIntrinsicId: {
+        auto id = static_cast<IntrinsicsHelper::IntrinsicId>(
+            DecodeUnsignedOperand(operand_start, op_type, operand_scale));
+        os << "[" << NameForRuntimeId(IntrinsicsHelper::ToRuntimeId(id)) << "]";
+        break;
+      }
+      case interpreter::OperandType::kNativeContextIndex: {
+        auto id = DecodeUnsignedOperand(operand_start, op_type, operand_scale);
+        os << "[" << NameForNativeContextIndex(id) << "]";
+        break;
+      }
+      case interpreter::OperandType::kRuntimeId:
+        os << "[" << NameForRuntimeId(DecodeUnsignedOperand(
+                         operand_start, op_type, operand_scale))
            << "]";
         break;
       case interpreter::OperandType::kImm:
@@ -148,14 +194,15 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
            << reg_list.last_register().ToString(parameter_count);
         break;
       }
+      case interpreter::OperandType::kRegOutList:
       case interpreter::OperandType::kRegList: {
         DCHECK_LT(i, number_of_operands - 1);
         DCHECK_EQ(Bytecodes::GetOperandType(bytecode, i + 1),
                   OperandType::kRegCount);
         int reg_count_offset =
             Bytecodes::GetOperandOffset(bytecode, i + 1, operand_scale);
-        const uint8_t* reg_count_operand =
-            &bytecode_start[prefix_offset + reg_count_offset];
+        Address reg_count_operand = reinterpret_cast<Address>(
+            &bytecode_start[prefix_offset + reg_count_offset]);
         uint32_t count = DecodeUnsignedOperand(
             reg_count_operand, OperandType::kRegCount, operand_scale);
         RegisterList reg_list = DecodeRegisterListOperand(

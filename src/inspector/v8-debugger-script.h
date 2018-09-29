@@ -27,8 +27,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef V8_INSPECTOR_V8DEBUGGERSCRIPT_H_
-#define V8_INSPECTOR_V8DEBUGGERSCRIPT_H_
+#ifndef V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_
+#define V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_
 
 #include "src/base/macros.h"
 #include "src/inspector/string-16.h"
@@ -39,53 +39,65 @@
 
 namespace v8_inspector {
 
+// Forward declaration.
+class V8InspectorClient;
+class WasmTranslation;
+
 class V8DebuggerScript {
  public:
   static std::unique_ptr<V8DebuggerScript> Create(
       v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
-      bool isLiveEdit);
+      bool isLiveEdit, V8InspectorClient* client);
   static std::unique_ptr<V8DebuggerScript> CreateWasm(
-      v8::Isolate* isolate, v8::Local<v8::debug::WasmScript> underlyingScript,
-      String16 id, String16 url, String16 source);
+      v8::Isolate* isolate, WasmTranslation* wasmTranslation,
+      v8::Local<v8::debug::WasmScript> underlyingScript, String16 id,
+      String16 url, int functionIndex);
 
   virtual ~V8DebuggerScript();
 
   const String16& scriptId() const { return m_id; }
-  const String16& url() const { return m_url; }
-  bool hasSourceURL() const { return !m_sourceURL.isEmpty(); }
-  const String16& sourceURL() const;
+  bool hasSourceURLComment() const { return m_hasSourceURLComment; }
+  const String16& sourceURL() const { return m_url; }
+
   virtual const String16& sourceMappingURL() const = 0;
-  virtual String16 source(v8::Isolate*) const { return m_source; }
-  const String16& hash(v8::Isolate*) const;
-  int startLine() const { return m_startLine; }
-  int startColumn() const { return m_startColumn; }
-  int endLine() const { return m_endLine; }
-  int endColumn() const { return m_endColumn; }
+  virtual String16 source(size_t pos, size_t len = UINT_MAX) const = 0;
+  virtual const String16& hash() const = 0;
+  virtual int startLine() const = 0;
+  virtual int startColumn() const = 0;
+  virtual int endLine() const = 0;
+  virtual int endColumn() const = 0;
   int executionContextId() const { return m_executionContextId; }
   virtual bool isLiveEdit() const = 0;
+  virtual bool isModule() const = 0;
+  virtual bool isSourceLoadedLazily() const = 0;
+  virtual int length() const = 0;
 
   void setSourceURL(const String16&);
   virtual void setSourceMappingURL(const String16&) = 0;
-  virtual void setSource(v8::Local<v8::String> source) {
-    m_source = toProtocolString(source);
-  }
+  virtual void setSource(const String16& source, bool preview,
+                         v8::debug::LiveEditResult* result) = 0;
 
   virtual bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,
-      std::vector<v8::debug::Location>* locations) = 0;
+      bool ignoreNestedFunctions,
+      std::vector<v8::debug::BreakLocation>* locations) = 0;
+  virtual void resetBlackboxedStateCache() = 0;
+
+  static const int kNoOffset = -1;
+  virtual int offset(int lineNumber, int columnNumber) const = 0;
+  virtual v8::debug::Location location(int offset) const = 0;
+
+  virtual bool setBreakpoint(const String16& condition,
+                             v8::debug::Location* location, int* id) const = 0;
 
  protected:
   V8DebuggerScript(v8::Isolate*, String16 id, String16 url);
 
+  virtual v8::Local<v8::debug::Script> script() const = 0;
+
   String16 m_id;
   String16 m_url;
-  String16 m_sourceURL;
-  String16 m_source;
-  mutable String16 m_hash;
-  int m_startLine = 0;
-  int m_startColumn = 0;
-  int m_endLine = 0;
-  int m_endColumn = 0;
+  bool m_hasSourceURLComment = false;
   int m_executionContextId = 0;
 
   v8::Isolate* m_isolate;
@@ -96,4 +108,4 @@ class V8DebuggerScript {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8DEBUGGERSCRIPT_H_
+#endif  // V8_INSPECTOR_V8_DEBUGGER_SCRIPT_H_

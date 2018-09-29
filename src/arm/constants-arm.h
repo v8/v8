@@ -9,7 +9,9 @@
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/boxed-float.h"
 #include "src/globals.h"
+#include "src/utils.h"
 
 // ARM EABI is required.
 #if defined(__arm__) && !defined(__ARM_EABI__)
@@ -29,12 +31,9 @@ inline int EncodeConstantPoolLength(int length) {
   return ((length & 0xfff0) << 4) | (length & 0xf);
 }
 inline int DecodeConstantPoolLength(int instr) {
-  DCHECK((instr & kConstantPoolMarkerMask) == kConstantPoolMarker);
+  DCHECK_EQ(instr & kConstantPoolMarkerMask, kConstantPoolMarker);
   return ((instr >> 4) & 0xfff0) | (instr & 0xf);
 }
-
-// Used in code age prologue - ldr(pc, MemOperand(pc, -4))
-const int kCodeAgeJumpInstruction = 0xe51ff004;
 
 // Number of registers in normal ARM mode.
 const int kNumRegisters = 16;
@@ -52,6 +51,12 @@ const int kNoRegister = -1;
 // various load instructions (unsigned)
 const int kLdrMaxReachBits = 12;
 const int kVldrMaxReachBits = 10;
+
+// Actual value of root register is offset from the root array's start
+// to take advantage of negative displacement values. Loads allow a uint12
+// value with a separate sign bit (range [-4095, +4095]), so the first root
+// is still addressable with a single load instruction.
+constexpr int kRootRegisterBias = 4095;
 
 // -----------------------------------------------------------------------------
 // Conditions.
@@ -97,31 +102,6 @@ enum Condition {
 inline Condition NegateCondition(Condition cond) {
   DCHECK(cond != al);
   return static_cast<Condition>(cond ^ ne);
-}
-
-
-// Commute a condition such that {a cond b == b cond' a}.
-inline Condition CommuteCondition(Condition cond) {
-  switch (cond) {
-    case lo:
-      return hi;
-    case hi:
-      return lo;
-    case hs:
-      return ls;
-    case ls:
-      return hs;
-    case lt:
-      return gt;
-    case gt:
-      return lt;
-    case ge:
-      return le;
-    case le:
-      return ge;
-    default:
-      return cond;
-  }
 }
 
 
@@ -324,31 +304,38 @@ enum LFlag {
   Short = 0 << 22   // Short load/store coprocessor.
 };
 
+// Neon sizes.
+enum NeonSize { Neon8 = 0x0, Neon16 = 0x1, Neon32 = 0x2, Neon64 = 0x3 };
 
 // NEON data type
 enum NeonDataType {
-  NeonS8 = 0x1,             // U = 0, imm3 = 0b001
-  NeonS16 = 0x2,            // U = 0, imm3 = 0b010
-  NeonS32 = 0x4,            // U = 0, imm3 = 0b100
-  NeonU8 = 1 << 24 | 0x1,   // U = 1, imm3 = 0b001
-  NeonU16 = 1 << 24 | 0x2,  // U = 1, imm3 = 0b010
-  NeonU32 = 1 << 24 | 0x4,  // U = 1, imm3 = 0b100
-  NeonDataTypeSizeMask = 0x7,
-  NeonDataTypeUMask = 1 << 24
+  NeonS8 = 0,
+  NeonS16 = 1,
+  NeonS32 = 2,
+  // Gap to make it easier to extract U and size.
+  NeonU8 = 4,
+  NeonU16 = 5,
+  NeonU32 = 6
 };
+
+inline int NeonU(NeonDataType dt) { return static_cast<int>(dt) >> 2; }
+inline int NeonSz(NeonDataType dt) { return static_cast<int>(dt) & 0x3; }
+
+// Convert sizes to data types (U bit is clear).
+inline NeonDataType NeonSizeToDataType(NeonSize size) {
+  DCHECK_NE(Neon64, size);
+  return static_cast<NeonDataType>(size);
+}
+
+inline NeonSize NeonDataTypeToSize(NeonDataType dt) {
+  return static_cast<NeonSize>(NeonSz(dt));
+}
 
 enum NeonListType {
   nlt_1 = 0x7,
   nlt_2 = 0xA,
   nlt_3 = 0x6,
   nlt_4 = 0x2
-};
-
-enum NeonSize {
-  Neon8 = 0x0,
-  Neon16 = 0x1,
-  Neon32 = 0x2,
-  Neon64 = 0x3
 };
 
 // -----------------------------------------------------------------------------
@@ -449,23 +436,25 @@ inline Hint NegateHint(Hint ignored) { return no_hint; }
 //   return ((type == 0) || (type == 1)) && instr->HasS();
 // }
 //
+
+constexpr uint8_t kInstrSize = 4;
+constexpr uint8_t kInstrSizeLog2 = 2;
+
 class Instruction {
  public:
-  enum {
-    kInstrSize = 4,
-    kInstrSizeLog2 = 2,
-    kPCReadOffset = 8
-  };
+  // Difference between address of current opcode and value read from pc
+  // register.
+  static constexpr int kPcLoadDelta = 8;
 
-  // Helper macro to define static accessors.
-  // We use the cast to char* trick to bypass the strict anti-aliasing rules.
-  #define DECLARE_STATIC_TYPED_ACCESSOR(return_type, Name)                     \
-    static inline return_type Name(Instr instr) {                              \
-      char* temp = reinterpret_cast<char*>(&instr);                            \
-      return reinterpret_cast<Instruction*>(temp)->Name();                     \
-    }
+// Helper macro to define static accessors.
+// We use the cast to char* trick to bypass the strict anti-aliasing rules.
+#define DECLARE_STATIC_TYPED_ACCESSOR(return_type, Name) \
+  static inline return_type Name(Instr instr) {          \
+    char* temp = reinterpret_cast<char*>(&instr);        \
+    return reinterpret_cast<Instruction*>(temp)->Name(); \
+  }
 
-  #define DECLARE_STATIC_ACCESSOR(Name) DECLARE_STATIC_TYPED_ACCESSOR(int, Name)
+#define DECLARE_STATIC_ACCESSOR(Name) DECLARE_STATIC_TYPED_ACCESSOR(int, Name)
 
   // Get the raw instruction bits.
   inline Instr InstructionBits() const {
@@ -619,7 +608,25 @@ class Instruction {
 
   // Fields used in Branch instructions
   inline int LinkValue() const { return Bit(24); }
-  inline int SImmed24Value() const { return ((InstructionBits() << 8) >> 8); }
+  inline int SImmed24Value() const {
+    return signed_bitextract_32(23, 0, InstructionBits());
+  }
+
+  bool IsBranch() { return Bit(27) == 1 && Bit(25) == 1; }
+
+  int GetBranchOffset() {
+    DCHECK(IsBranch());
+    return SImmed24Value() * kInstrSize;
+  }
+
+  void SetBranchOffset(int32_t branch_offset) {
+    DCHECK(IsBranch());
+    DCHECK_EQ(branch_offset % kInstrSize, 0);
+    int32_t new_imm24 = branch_offset / kInstrSize;
+    CHECK(is_int24(new_imm24));
+    SetInstructionBits((InstructionBits() & ~(kImm24Mask)) |
+                       (new_imm24 & kImm24Mask));
+  }
 
   // Fields used in Software interrupt instructions
   inline SoftwareInterruptCodes SvcValue() const {
@@ -636,8 +643,8 @@ class Instruction {
                                            && (Bit(20) == 0)
                                            && ((Bit(7) == 0)); }
 
-  // Test for a nop instruction, which falls under type 1.
-  inline bool IsNopType1() const { return Bits(24, 0) == 0x0120F000; }
+  // Test for nop-like instructions which fall under type 1.
+  inline bool IsNopLikeType1() const { return Bits(24, 8) == 0x120F0; }
 
   // Test for a stop instruction.
   inline bool IsStop() const {
@@ -655,13 +662,13 @@ class Instruction {
   inline bool HasLink() const { return LinkValue() == 1; }
 
   // Decode the double immediate from a vmov instruction.
-  double DoubleImmedVmov() const;
+  Float64 DoubleImmedVmov() const;
 
   // Instructions are read of out a code stream. The only way to get a
   // reference to an instruction is to convert a pointer. There is no way
   // to allocate or create instances of class Instruction.
   // Use the At(pc) function to create references to Instruction.
-  static Instruction* At(byte* pc) {
+  static Instruction* At(Address pc) {
     return reinterpret_cast<Instruction*>(pc);
   }
 
@@ -724,6 +731,8 @@ class VFPRegisters {
   static const char* names_[kNumVFPRegisters];
 };
 
+// Relative jumps on ARM can address ±32 MB.
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 32;
 
 }  // namespace internal
 }  // namespace v8

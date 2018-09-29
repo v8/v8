@@ -36,13 +36,11 @@ const char* Registers::names_[kNumSimuRegisters] = {
 
 // List of alias names which can be used when referring to MIPS registers.
 const Registers::RegisterAlias Registers::aliases_[] = {
-  {0, "zero"},
-  {23, "cp"},
-  {30, "s8"},
-  {30, "s8_fp"},
-  {kInvalidRegister, NULL}
-};
-
+    {0, "zero"},
+    {23, "cp"},
+    {30, "s8"},
+    {30, "s8_fp"},
+    {kInvalidRegister, nullptr}};
 
 const char* Registers::Name(int reg) {
   const char* result;
@@ -86,9 +84,7 @@ const char* FPURegisters::names_[kNumFPURegisters] = {
 
 // List of alias names which can be used when referring to MIPS registers.
 const FPURegisters::RegisterAlias FPURegisters::aliases_[] = {
-  {kInvalidRegister, NULL}
-};
-
+    {kInvalidRegister, nullptr}};
 
 const char* FPURegisters::Name(int creg) {
   const char* result;
@@ -122,6 +118,44 @@ int FPURegisters::Number(const char* name) {
   return kInvalidFPURegister;
 }
 
+const char* MSARegisters::names_[kNumMSARegisters] = {
+    "w0",  "w1",  "w2",  "w3",  "w4",  "w5",  "w6",  "w7",  "w8",  "w9",  "w10",
+    "w11", "w12", "w13", "w14", "w15", "w16", "w17", "w18", "w19", "w20", "w21",
+    "w22", "w23", "w24", "w25", "w26", "w27", "w28", "w29", "w30", "w31"};
+
+const MSARegisters::RegisterAlias MSARegisters::aliases_[] = {
+    {kInvalidRegister, nullptr}};
+
+const char* MSARegisters::Name(int creg) {
+  const char* result;
+  if ((0 <= creg) && (creg < kNumMSARegisters)) {
+    result = names_[creg];
+  } else {
+    result = "nocreg";
+  }
+  return result;
+}
+
+int MSARegisters::Number(const char* name) {
+  // Look through the canonical names.
+  for (int i = 0; i < kNumMSARegisters; i++) {
+    if (strcmp(names_[i], name) == 0) {
+      return i;
+    }
+  }
+
+  // Look through the alias names.
+  int i = 0;
+  while (aliases_[i].creg != kInvalidRegister) {
+    if (strcmp(aliases_[i].name, name) == 0) {
+      return aliases_[i].creg;
+    }
+    i++;
+  }
+
+  // No Cregister with the reguested name found.
+  return kInvalidMSARegister;
+}
 
 }  // namespace internal
 }  // namespace v8

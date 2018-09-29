@@ -102,7 +102,7 @@ void JSONTraceWriter::AppendArgValue(uint8_t type,
     case TRACE_VALUE_TYPE_STRING:
     case TRACE_VALUE_TYPE_COPY_STRING:
       if (value.as_string == nullptr) {
-        stream_ << "\"NULL\"";
+        stream_ << "\"nullptr\"";
       } else {
         WriteJSONStringToStream(value.as_string, stream_);
       }
@@ -119,8 +119,12 @@ void JSONTraceWriter::AppendArgValue(ConvertableToTraceFormat* value) {
   stream_ << arg_stringified;
 }
 
-JSONTraceWriter::JSONTraceWriter(std::ostream& stream) : stream_(stream) {
-  stream_ << "{\"traceEvents\":[";
+JSONTraceWriter::JSONTraceWriter(std::ostream& stream)
+    : JSONTraceWriter(stream, "traceEvents") {}
+
+JSONTraceWriter::JSONTraceWriter(std::ostream& stream, const std::string& tag)
+    : stream_(stream) {
+  stream_ << "{\"" << tag << "\":[";
 }
 
 JSONTraceWriter::~JSONTraceWriter() { stream_ << "]}"; }
@@ -169,6 +173,11 @@ void JSONTraceWriter::Flush() {}
 
 TraceWriter* TraceWriter::CreateJSONTraceWriter(std::ostream& stream) {
   return new JSONTraceWriter(stream);
+}
+
+TraceWriter* TraceWriter::CreateJSONTraceWriter(std::ostream& stream,
+                                                const std::string& tag) {
+  return new JSONTraceWriter(stream, tag);
 }
 
 }  // namespace tracing

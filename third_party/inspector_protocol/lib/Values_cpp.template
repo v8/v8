@@ -17,13 +17,13 @@ const char* const falseValueString = "false";
 inline bool escapeChar(uint16_t c, StringBuilder* dst)
 {
     switch (c) {
-    case '\b': dst->append("\\b"); break;
-    case '\f': dst->append("\\f"); break;
-    case '\n': dst->append("\\n"); break;
-    case '\r': dst->append("\\r"); break;
-    case '\t': dst->append("\\t"); break;
-    case '\\': dst->append("\\\\"); break;
-    case '"': dst->append("\\\""); break;
+    case '\b': StringUtil::builderAppend(*dst, "\\b"); break;
+    case '\f': StringUtil::builderAppend(*dst, "\\f"); break;
+    case '\n': StringUtil::builderAppend(*dst, "\\n"); break;
+    case '\r': StringUtil::builderAppend(*dst, "\\r"); break;
+    case '\t': StringUtil::builderAppend(*dst, "\\t"); break;
+    case '\\': StringUtil::builderAppend(*dst, "\\\\"); break;
+    case '"': StringUtil::builderAppend(*dst, "\\\""); break;
     default:
         return false;
     }
@@ -34,36 +34,28 @@ const char hexDigits[17] = "0123456789ABCDEF";
 
 void appendUnsignedAsHex(uint16_t number, StringBuilder* dst)
 {
-    dst->append("\\u");
+    StringUtil::builderAppend(*dst, "\\u");
     for (size_t i = 0; i < 4; ++i) {
         uint16_t c = hexDigits[(number & 0xF000) >> 12];
-        dst->append(c);
+        StringUtil::builderAppend(*dst, c);
         number <<= 4;
     }
 }
 
-void escapeStringForJSON(const String& str, StringBuilder* dst)
+template <typename Char>
+void escapeStringForJSONInternal(const Char* str, unsigned len,
+                                 StringBuilder* dst)
 {
-    for (unsigned i = 0; i < str.length(); ++i) {
-        uint16_t c = str[i];
-        if (!escapeChar(c, dst)) {
-            if (c < 32 || c > 126 || c == '<' || c == '>') {
-                // 1. Escaping <, > to prevent script execution.
-                // 2. Technically, we could also pass through c > 126 as UTF8, but this
-                //    is also optional. It would also be a pain to implement here.
-                appendUnsignedAsHex(c, dst);
-            } else {
-                dst->append(c);
-            }
+    for (unsigned i = 0; i < len; ++i) {
+        Char c = str[i];
+        if (escapeChar(c, dst))
+            continue;
+        if (c < 32 || c > 126) {
+            appendUnsignedAsHex(c, dst);
+        } else {
+            StringUtil::builderAppend(*dst, c);
         }
     }
-}
-
-void doubleQuoteStringForJSON(const String& str, StringBuilder* dst)
-{
-    dst->append('"');
-    escapeStringForJSON(str, dst);
-    dst->append('"');
 }
 
 } // anonymous namespace
@@ -96,7 +88,7 @@ bool Value::asSerialized(String*) const
 void Value::writeJSON(StringBuilder* output) const
 {
     DCHECK(m_type == TypeNull);
-    output->append(nullValueString, 4);
+    StringUtil::builderAppend(*output, nullValueString, 4);
 }
 
 std::unique_ptr<Value> Value::clone() const
@@ -109,7 +101,7 @@ String Value::serialize()
     StringBuilder result;
     StringUtil::builderReserve(result, 512);
     writeJSON(&result);
-    return result.toString();
+    return StringUtil::builderToString(result);
 }
 
 bool FundamentalValue::asBoolean(bool* output) const
@@ -146,17 +138,17 @@ void FundamentalValue::writeJSON(StringBuilder* output) const
     DCHECK(type() == TypeBoolean || type() == TypeInteger || type() == TypeDouble);
     if (type() == TypeBoolean) {
         if (m_boolValue)
-            output->append(trueValueString, 4);
+            StringUtil::builderAppend(*output, trueValueString, 4);
         else
-            output->append(falseValueString, 5);
+            StringUtil::builderAppend(*output, falseValueString, 5);
     } else if (type() == TypeDouble) {
         if (!std::isfinite(m_doubleValue)) {
-            output->append(nullValueString, 4);
+            StringUtil::builderAppend(*output, nullValueString, 4);
             return;
         }
-        output->append(StringUtil::fromDouble(m_doubleValue));
+        StringUtil::builderAppend(*output, StringUtil::fromDouble(m_doubleValue));
     } else if (type() == TypeInteger) {
-        output->append(StringUtil::fromInteger(m_integerValue));
+        StringUtil::builderAppend(*output, StringUtil::fromInteger(m_integerValue));
     }
 }
 
@@ -181,7 +173,7 @@ bool StringValue::asString(String* output) const
 void StringValue::writeJSON(StringBuilder* output) const
 {
     DCHECK(type() == TypeString);
-    doubleQuoteStringForJSON(m_stringValue, output);
+    StringUtil::builderAppendQuotedString(*output, m_stringValue);
 }
 
 std::unique_ptr<Value> StringValue::clone() const
@@ -198,7 +190,7 @@ bool SerializedValue::asSerialized(String* output) const
 void SerializedValue::writeJSON(StringBuilder* output) const
 {
     DCHECK(type() == TypeSerialized);
-    output->append(m_serializedValue);
+    StringUtil::builderAppend(*output, m_serializedValue);
 }
 
 std::unique_ptr<Value> SerializedValue::clone() const
@@ -330,17 +322,17 @@ void DictionaryValue::remove(const String& name)
 
 void DictionaryValue::writeJSON(StringBuilder* output) const
 {
-    output->append('{');
+    StringUtil::builderAppend(*output, '{');
     for (size_t i = 0; i < m_order.size(); ++i) {
         Dictionary::const_iterator it = m_data.find(m_order[i]);
         CHECK(it != m_data.end());
         if (i)
-            output->append(',');
-        doubleQuoteStringForJSON(it->first, output);
-        output->append(':');
+            StringUtil::builderAppend(*output, ',');
+        StringUtil::builderAppendQuotedString(*output, it->first);
+        StringUtil::builderAppend(*output, ':');
         it->second->writeJSON(output);
     }
-    output->append('}');
+    StringUtil::builderAppend(*output, '}');
 }
 
 std::unique_ptr<Value> DictionaryValue::clone() const
@@ -366,15 +358,15 @@ ListValue::~ListValue()
 
 void ListValue::writeJSON(StringBuilder* output) const
 {
-    output->append('[');
+    StringUtil::builderAppend(*output, '[');
     bool first = true;
     for (const std::unique_ptr<protocol::Value>& value : m_data) {
         if (!first)
-            output->append(',');
+            StringUtil::builderAppend(*output, ',');
         value->writeJSON(output);
         first = false;
     }
-    output->append(']');
+    StringUtil::builderAppend(*output, ']');
 }
 
 std::unique_ptr<Value> ListValue::clone() const
@@ -400,6 +392,16 @@ protocol::Value* ListValue::at(size_t index)
 {
     DCHECK_LT(index, m_data.size());
     return m_data[index].get();
+}
+
+void escapeLatinStringForJSON(const uint8_t* str, unsigned len, StringBuilder* dst)
+{
+    escapeStringForJSONInternal<uint8_t>(str, len, dst);
+}
+
+void escapeWideStringForJSON(const uint16_t* str, unsigned len, StringBuilder* dst)
+{
+    escapeStringForJSONInternal<uint16_t>(str, len, dst);
 }
 
 {% for namespace in config.protocol.namespace %}

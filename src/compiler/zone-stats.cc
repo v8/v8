@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+
 #include "src/compiler/zone-stats.h"
 
 namespace v8 {
@@ -68,11 +70,11 @@ ZoneStats::~ZoneStats() {
   DCHECK(stats_.empty());
 }
 
-size_t ZoneStats::GetMaxAllocatedBytes() {
+size_t ZoneStats::GetMaxAllocatedBytes() const {
   return std::max(max_allocated_bytes_, GetCurrentAllocatedBytes());
 }
 
-size_t ZoneStats::GetCurrentAllocatedBytes() {
+size_t ZoneStats::GetCurrentAllocatedBytes() const {
   size_t total = 0;
   for (Zone* zone : zones_) {
     total += static_cast<size_t>(zone->allocation_size());
@@ -80,7 +82,7 @@ size_t ZoneStats::GetCurrentAllocatedBytes() {
   return total;
 }
 
-size_t ZoneStats::GetTotalAllocatedBytes() {
+size_t ZoneStats::GetTotalAllocatedBytes() const {
   return total_deleted_bytes_ + GetCurrentAllocatedBytes();
 }
 

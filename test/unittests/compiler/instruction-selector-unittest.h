@@ -163,7 +163,7 @@ class InstructionSelectorTest : public TestWithContext,
           Operator::kNoProperties,       // properties
           kCalleeSaveRegisters,          // callee-saved registers
           kCalleeSaveFPRegisters,        // callee-saved fp regs
-          CallDescriptor::kNoFlags,      // flags
+          CallDescriptor::kCanUseRoots,  // flags
           "iselect-test-call");
     }
   };
@@ -201,7 +201,7 @@ class InstructionSelectorTest : public TestWithContext,
     }
 
     double ToFloat64(const InstructionOperand* operand) const {
-      return ToConstant(operand).ToFloat64();
+      return ToConstant(operand).ToFloat64().value();
     }
 
     int32_t ToInt32(const InstructionOperand* operand) const {

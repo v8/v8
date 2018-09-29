@@ -2,12 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <vector>
+
 #include "src/assembler.h"
 #include "src/codegen.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/machine-type.h"
+#include "src/objects-inl.h"
 #include "src/register-configuration.h"
+#include "src/wasm/wasm-linkage.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
@@ -17,8 +21,9 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace test_run_native_calls {
 
-const auto GetRegConfig = RegisterConfiguration::Turbofan;
+const auto GetRegConfig = RegisterConfiguration::Default;
 
 namespace {
 typedef float float32;
@@ -82,21 +87,12 @@ class RegisterPairs : public Pairs {
               GetRegConfig()->allocatable_general_codes()) {}
 };
 
-
-// Pairs of double registers.
+// Pairs of float registers.
 class Float32RegisterPairs : public Pairs {
  public:
   Float32RegisterPairs()
-      : Pairs(
-            100,
-#if V8_TARGET_ARCH_ARM
-            // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
-            GetRegConfig()->num_allocatable_double_registers() / 2 - 2,
-#else
-            GetRegConfig()->num_allocatable_double_registers(),
-#endif
-            GetRegConfig()->allocatable_double_codes()) {
-  }
+      : Pairs(100, GetRegConfig()->num_allocatable_float_registers(),
+              GetRegConfig()->allocatable_float_codes()) {}
 };
 
 
@@ -110,48 +106,39 @@ class Float64RegisterPairs : public Pairs {
 
 
 // Helper for allocating either an GP or FP reg, or the next stack slot.
-struct Allocator {
-  Allocator(int* gp, int gpc, int* fp, int fpc)
-      : gp_count(gpc),
-        gp_offset(0),
-        gp_regs(gp),
-        fp_count(fpc),
-        fp_offset(0),
-        fp_regs(fp),
-        stack_offset(0) {}
+class Allocator {
+ public:
+  Allocator(int* gp, int gpc, int* fp, int fpc) : stack_offset_(0) {
+    for (int i = 0; i < gpc; ++i) {
+      gp_.push_back(Register::from_code(gp[i]));
+    }
+    for (int i = 0; i < fpc; ++i) {
+      fp_.push_back(DoubleRegister::from_code(fp[i]));
+    }
+    Reset();
+  }
 
-  int gp_count;
-  int gp_offset;
-  int* gp_regs;
-
-  int fp_count;
-  int fp_offset;
-  int* fp_regs;
-
-  int stack_offset;
+  int stack_offset() const { return stack_offset_; }
 
   LinkageLocation Next(MachineType type) {
     if (IsFloatingPoint(type.representation())) {
       // Allocate a floating point register/stack location.
-      if (fp_offset < fp_count) {
-        int code = fp_regs[fp_offset++];
-#if V8_TARGET_ARCH_ARM
-        // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
-        if (type.representation() == MachineRepresentation::kFloat32) code *= 2;
-#endif
+      if (reg_allocator_->CanAllocateFP(type.representation())) {
+        int code = reg_allocator_->NextFpReg(type.representation());
         return LinkageLocation::ForRegister(code, type);
       } else {
-        int offset = -1 - stack_offset;
-        stack_offset += StackWords(type);
+        int offset = -1 - stack_offset_;
+        stack_offset_ += StackWords(type);
         return LinkageLocation::ForCallerFrameSlot(offset, type);
       }
     } else {
       // Allocate a general purpose register/stack location.
-      if (gp_offset < gp_count) {
-        return LinkageLocation::ForRegister(gp_regs[gp_offset++], type);
+      if (reg_allocator_->CanAllocateGP()) {
+        int code = reg_allocator_->NextGpReg();
+        return LinkageLocation::ForRegister(code, type);
       } else {
-        int offset = -1 - stack_offset;
-        stack_offset += StackWords(type);
+        int offset = -1 - stack_offset_;
+        stack_offset_ += StackWords(type);
         return LinkageLocation::ForCallerFrameSlot(offset, type);
       }
     }
@@ -161,10 +148,17 @@ struct Allocator {
     return size <= kPointerSize ? 1 : size / kPointerSize;
   }
   void Reset() {
-    fp_offset = 0;
-    gp_offset = 0;
-    stack_offset = 0;
+    stack_offset_ = 0;
+    reg_allocator_.reset(
+        new wasm::LinkageAllocator(gp_.data(), static_cast<int>(gp_.size()),
+                                   fp_.data(), static_cast<int>(fp_.size())));
   }
+
+ private:
+  std::vector<Register> gp_;
+  std::vector<DoubleRegister> fp_;
+  std::unique_ptr<wasm::LinkageAllocator> reg_allocator_;
+  int stack_offset_;
 };
 
 
@@ -195,7 +189,7 @@ class RegisterConfig {
 
     MachineType target_type = MachineType::AnyTagged();
     LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
-    int stack_param_count = params.stack_offset;
+    int stack_param_count = params.stack_offset();
     return new (zone) CallDescriptor(       // --
         CallDescriptor::kCallCodeObject,    // kind
         target_type,                        // target MachineType
@@ -205,7 +199,7 @@ class RegisterConfig {
         compiler::Operator::kNoProperties,  // properties
         kCalleeSaveRegisters,               // callee-saved registers
         kCalleeSaveFPRegisters,             // callee-saved fp regs
-        CallDescriptor::kUseNativeStack,    // flags
+        CallDescriptor::kNoFlags,           // flags
         "c-call");
   }
 
@@ -246,32 +240,32 @@ class Int32Signature : public MachineSignature {
  public:
   explicit Int32Signature(int param_count)
       : MachineSignature(1, param_count, kIntTypes) {
-    CHECK(param_count <= kMaxParamCount);
+    CHECK_GE(kMaxParamCount, param_count);
   }
 };
 
-
-Handle<Code> CompileGraph(const char* name, CallDescriptor* desc, Graph* graph,
-                          Schedule* schedule = nullptr) {
+Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
+                          Graph* graph, Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  CompilationInfo info(ArrayVector("testing"), isolate, graph->zone(),
-                       Code::ComputeFlags(Code::STUB));
-  Handle<Code> code =
-      Pipeline::GenerateCodeForTesting(&info, desc, graph, schedule);
-  CHECK(!code.is_null());
+  OptimizedCompilationInfo info(ArrayVector("testing"), graph->zone(),
+                                Code::STUB);
+  Handle<Code> code = Pipeline::GenerateCodeForTesting(
+                          &info, isolate, call_descriptor, graph,
+                          AssemblerOptions::Default(isolate), schedule)
+                          .ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code) {
-    OFStream os(stdout);
+    StdoutStream os;
     code->Disassemble(name, os);
   }
 #endif
   return code;
 }
 
-
-Handle<Code> WrapWithCFunction(Handle<Code> inner, CallDescriptor* desc) {
+Handle<Code> WrapWithCFunction(Handle<Code> inner,
+                               CallDescriptor* call_descriptor) {
   Zone zone(inner->GetIsolate()->allocator(), ZONE_NAME);
-  int param_count = static_cast<int>(desc->ParameterCount());
+  int param_count = static_cast<int>(call_descriptor->ParameterCount());
   GraphAndBuilders caller(&zone);
   {
     GraphAndBuilders& b = caller;
@@ -291,15 +285,15 @@ Handle<Code> WrapWithCFunction(Handle<Code> inner, CallDescriptor* desc) {
     args[index++] = start;  // control.
 
     // Build the call and return nodes.
-    Node* call =
-        b.graph()->NewNode(b.common()->Call(desc), param_count + 3, args);
+    Node* call = b.graph()->NewNode(b.common()->Call(call_descriptor),
+                                    param_count + 3, args);
     Node* zero = b.graph()->NewNode(b.common()->Int32Constant(0));
     Node* ret =
         b.graph()->NewNode(b.common()->Return(), zero, call, call, start);
     b.graph()->SetEnd(ret);
   }
 
-  MachineSignature* msig = desc->GetMachineSignature(&zone);
+  MachineSignature* msig = call_descriptor->GetMachineSignature(&zone);
   CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, msig);
 
   return CompileGraph("wrapper", cdesc, caller.graph());
@@ -322,7 +316,7 @@ class ArgsBuffer {
    public:
     explicit Sig(int param_count)
         : MachineSignature(1, param_count, MachTypes()) {
-      CHECK(param_count <= kMaxParamCount);
+      CHECK_GE(kMaxParamCount, param_count);
     }
   };
 
@@ -418,9 +412,8 @@ void ArgsBuffer<float64>::Mutate() {
   seed_++;
 }
 
-
-int ParamCount(CallDescriptor* desc) {
-  return static_cast<int>(desc->ParameterCount());
+int ParamCount(CallDescriptor* call_descriptor) {
+  return static_cast<int>(call_descriptor->ParameterCount());
 }
 
 
@@ -445,7 +438,7 @@ class Computer {
       inner = CompileGraph("Compute", desc, &graph, raw.Export());
     }
 
-    CSignature0<int32_t> csig;
+    CSignatureOf<int32_t> csig;
     ArgsBuffer<CType> io(num_params, seed);
 
     {
@@ -582,7 +575,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
     inner = CompileGraph("CopyTwentyInt32", desc, &graph, raw.Export());
   }
 
-  CSignature0<int32_t> csig;
+  CSignatureOf<int32_t> csig;
   Handle<Code> wrapper = Handle<Code>::null();
   {
     // Loads parameters from the input buffer and calls the above code.
@@ -637,8 +630,7 @@ static void Test_RunInt32SubWithRet(int retreg) {
     Allocator params(parray, 2, nullptr, 0);
     Allocator rets(rarray, 1, nullptr, 0);
     RegisterConfig config(params, rets);
-    CallDescriptor* desc = config.Create(&zone, &sig);
-    TestInt32Sub(desc);
+    TestInt32Sub(config.Create(&zone, &sig));
   }
 }
 
@@ -686,8 +678,7 @@ TEST(Run_Int32Sub_all_allocatable_single) {
     Allocator params(parray, 1, nullptr, 0);
     Allocator rets(rarray, 1, nullptr, 0);
     RegisterConfig config(params, rets);
-    CallDescriptor* desc = config.Create(&zone, &sig);
-    TestInt32Sub(desc);
+    TestInt32Sub(config.Create(&zone, &sig));
   }
 }
 
@@ -704,8 +695,7 @@ TEST(Run_CopyTwentyInt32_all_allocatable_pairs) {
     Allocator params(parray, 2, nullptr, 0);
     Allocator rets(rarray, 1, nullptr, 0);
     RegisterConfig config(params, rets);
-    CallDescriptor* desc = config.Create(&zone, &sig);
-    CopyTwentyInt32(desc);
+    CopyTwentyInt32(config.Create(&zone, &sig));
   }
 }
 
@@ -870,7 +860,7 @@ TEST(Float32Select_registers) {
     return;
   }
 
-  int rarray[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
+  int rarray[] = {GetRegConfig()->GetAllocatableFloatCode(0)};
   ArgsBuffer<float32>::Sig sig(2);
 
   Float32RegisterPairs pairs;
@@ -914,7 +904,7 @@ TEST(Float64Select_registers) {
 
 
 TEST(Float32Select_stack_params_return_reg) {
-  int rarray[] = {GetRegConfig()->GetAllocatableDoubleCode(0)};
+  int rarray[] = {GetRegConfig()->GetAllocatableFloatCode(0)};
   Allocator params(nullptr, 0, nullptr, 0);
   Allocator rets(nullptr, 0, rarray, 1);
   RegisterConfig config(params, rets);
@@ -1075,7 +1065,7 @@ void MixedParamTest(int start) {
       char bytes[kDoubleSize];
       V8_ALIGNED(8) char output[kDoubleSize];
       int expected_size = 0;
-      CSignature0<int32_t> csig;
+      CSignatureOf<int32_t> csig;
       {
         // Wrap the select code with a callable function that passes constants.
         Zone zone(&allocator, ZONE_NAME);
@@ -1210,7 +1200,7 @@ TEST(RunStackSlotInt32) {
 
 #if !V8_TARGET_ARCH_32_BIT
 TEST(RunStackSlotInt64) {
-  int64_t magic = 0x123456789abcdef0;
+  int64_t magic = 0x123456789ABCDEF0;
   TestStackSlot(MachineType::Int64(), magic);
 }
 #endif
@@ -1224,6 +1214,8 @@ TEST(RunStackSlotFloat64) {
   double magic = 3456.375;
   TestStackSlot(MachineType::Float64(), magic);
 }
+
+}  // namespace test_run_native_calls
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-(function testSpreadCallsStrict() {
+// Flags: --allow-natives-syntax
+
+function testSpreadCallsStrict() {
   "use strict"
   function countArgs() { return arguments.length; }
 
@@ -49,6 +51,9 @@
     return sum;
   }
 
+  assertThrows(function() {
+    sum(...0);
+  }, TypeError);
   assertEquals(void 0, sum(...""));
   assertEquals(void 0, sum(...[]));
   assertEquals(void 0, sum(...new Set));
@@ -155,7 +160,10 @@
   // Interleaved spread/unspread args
   assertEquals(36, O.sum(0, ...[1], 2, 3, ...[4, 5], 6, 7, 8));
   assertEquals(45, O.sum(0, ...[1], 2, 3, ...[4, 5], 6, 7, 8, ...[9]));
-})();
+};
+testSpreadCallsStrict();
+%OptimizeFunctionOnNextCall(testSpreadCallsStrict);
+testSpreadCallsStrict();
 
 
 (function testSpreadCallsSloppy() {
@@ -201,6 +209,9 @@
     return sum;
   }
 
+  assertThrows(function() {
+    sum(...0);
+  }, TypeError);
   assertEquals(void 0, sum(...""));
   assertEquals(void 0, sum(...[]));
   assertEquals(void 0, sum(...new Set));
@@ -365,6 +376,11 @@
   a[3] = 4;
   var called = 0;
 
+  // .next method is only accessed during iteration prologue (see
+  // https://github.com/tc39/ecma262/pull/988)
+  let ArrayIteratorPrototype = Array.prototype[Symbol.iterator]().__proto__;
+  let ArrayIteratorPrototypeNextDescriptor =
+      Object.getOwnPropertyDescriptor(ArrayIteratorPrototype, 'next');
   Object.defineProperty(Array.prototype, 2, {
     get: function() {
       var ai = a[Symbol.iterator]();
@@ -373,7 +389,8 @@
         get: function() {
           called++;
           return original_next;
-        }
+        },
+        configurable: true
       });
       return 3;
     },
@@ -381,8 +398,10 @@
   });
 
   assertEquals(10, sum(...a));
-  assertEquals(2, called);
+  assertEquals(0, called);
 
+  Object.defineProperty(ArrayIteratorPrototype, 'next',
+                        ArrayIteratorPrototypeNextDescriptor);
   Object.defineProperty(Array.prototype, 2, {});
 })();
 
@@ -419,9 +438,9 @@
 
   countArgs(...a);
 
-  // should be called 4 times; 3 for the values, 1 for the final
-  // {value: undefined, done: true} pair
-  assertEquals(4, called);
+  // .next method is only accessed during iteration prologue (see
+  // https://github.com/tc39/ecma262/pull/988)
+  assertEquals(1, called);
 })();
 
 (function testArrayIteratorPrototypeModified() {

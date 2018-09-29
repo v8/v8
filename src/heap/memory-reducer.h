@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_memory_reducer_H
-#define V8_HEAP_memory_reducer_H
+#ifndef V8_HEAP_MEMORY_REDUCER_H_
+#define V8_HEAP_MEMORY_REDUCER_H_
 
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
@@ -110,11 +110,7 @@ class V8_EXPORT_PRIVATE MemoryReducer {
     bool can_start_incremental_gc;
   };
 
-  explicit MemoryReducer(Heap* heap)
-      : heap_(heap),
-        state_(kDone, 0, 0.0, 0.0, 0),
-        js_calls_counter_(0),
-        js_calls_sample_time_ms_(0.0) {}
+  explicit MemoryReducer(Heap* heap);
   // Callbacks.
   void NotifyMarkCompact(const Event& event);
   void NotifyPossibleGarbage(const Event& event);
@@ -123,7 +119,7 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   // the incoming event.
   static State Step(const State& state, const Event& event);
   // Posts a timer task that will call NotifyTimer after the given delay.
-  void ScheduleTimer(double time_ms, double delay_ms);
+  void ScheduleTimer(double delay_ms);
   void TearDown();
   static const int kLongDelayMs;
   static const int kShortDelayMs;
@@ -159,6 +155,7 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   static bool WatchdogGC(const State& state, const Event& event);
 
   Heap* heap_;
+  std::shared_ptr<v8::TaskRunner> taskrunner_;
   State state_;
   unsigned int js_calls_counter_;
   double js_calls_sample_time_ms_;
@@ -171,4 +168,4 @@ class V8_EXPORT_PRIVATE MemoryReducer {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HEAP_memory_reducer_H
+#endif  // V8_HEAP_MEMORY_REDUCER_H_

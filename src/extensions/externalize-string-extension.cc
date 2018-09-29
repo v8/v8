@@ -4,9 +4,10 @@
 
 #include "src/extensions/externalize-string-extension.h"
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/handles.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -19,11 +20,11 @@ class SimpleStringResource : public Base {
       : data_(data),
         length_(length) {}
 
-  virtual ~SimpleStringResource() { delete[] data_; }
+  ~SimpleStringResource() override { delete[] data_; }
 
-  virtual const Char* data() const { return data_; }
+  const Char* data() const override { return data_; }
 
-  virtual size_t length() const { return length_; }
+  size_t length() const override { return length_; }
 
  private:
   Char* const data_;
@@ -44,11 +45,12 @@ const char* const ExternalizeStringExtension::kSource =
 v8::Local<v8::FunctionTemplate>
 ExternalizeStringExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> str) {
-  if (strcmp(*v8::String::Utf8Value(str), "externalizeString") == 0) {
+  if (strcmp(*v8::String::Utf8Value(isolate, str), "externalizeString") == 0) {
     return v8::FunctionTemplate::New(isolate,
                                      ExternalizeStringExtension::Externalize);
   } else {
-    DCHECK(strcmp(*v8::String::Utf8Value(str), "isOneByteString") == 0);
+    DCHECK_EQ(strcmp(*v8::String::Utf8Value(isolate, str), "isOneByteString"),
+              0);
     return v8::FunctionTemplate::New(isolate,
                                      ExternalizeStringExtension::IsOneByte);
   }
@@ -68,10 +70,7 @@ void ExternalizeStringExtension::Externalize(
   bool force_two_byte = false;
   if (args.Length() >= 2) {
     if (args[1]->IsBoolean()) {
-      force_two_byte =
-          args[1]
-              ->BooleanValue(args.GetIsolate()->GetCurrentContext())
-              .FromJust();
+      force_two_byte = args[1]->BooleanValue(args.GetIsolate());
     } else {
       args.GetIsolate()->ThrowException(
           v8::String::NewFromUtf8(
@@ -83,11 +82,12 @@ void ExternalizeStringExtension::Externalize(
   }
   bool result = false;
   Handle<String> string = Utils::OpenHandle(*args[0].As<v8::String>());
-  if (string->IsExternalString()) {
+  if (!string->SupportsExternalization()) {
     args.GetIsolate()->ThrowException(
         v8::String::NewFromUtf8(args.GetIsolate(),
-                                "externalizeString() can't externalize twice.",
-                                NewStringType::kNormal).ToLocalChecked());
+                                "string does not support externalization.",
+                                NewStringType::kNormal)
+            .ToLocalChecked());
     return;
   }
   if (string->IsOneByteRepresentation() && !force_two_byte) {
@@ -95,22 +95,14 @@ void ExternalizeStringExtension::Externalize(
     String::WriteToFlat(*string, data, 0, string->length());
     SimpleOneByteStringResource* resource = new SimpleOneByteStringResource(
         reinterpret_cast<char*>(data), string->length());
-    result = string->MakeExternal(resource);
-    if (result) {
-      i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-      isolate->heap()->RegisterExternalString(*string);
-    }
+    result = Utils::ToLocal(string)->MakeExternal(resource);
     if (!result) delete resource;
   } else {
     uc16* data = new uc16[string->length()];
     String::WriteToFlat(*string, data, 0, string->length());
     SimpleTwoByteStringResource* resource = new SimpleTwoByteStringResource(
         data, string->length());
-    result = string->MakeExternal(resource);
-    if (result) {
-      i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-      isolate->heap()->RegisterExternalString(*string);
-    }
+    result = Utils::ToLocal(string)->MakeExternal(resource);
     if (!result) delete resource;
   }
   if (!result) {

@@ -6,6 +6,7 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 
@@ -14,8 +15,8 @@ namespace internal {
 
 class Processor final : public AstVisitor<Processor> {
  public:
-  Processor(Isolate* isolate, DeclarationScope* closure_scope, Variable* result,
-            AstValueFactory* ast_value_factory)
+  Processor(uintptr_t stack_limit, DeclarationScope* closure_scope,
+            Variable* result, AstValueFactory* ast_value_factory)
       : result_(result),
         result_assigned_(false),
         replacement_(nullptr),
@@ -23,9 +24,9 @@ class Processor final : public AstVisitor<Processor> {
         breakable_(false),
         zone_(ast_value_factory->zone()),
         closure_scope_(closure_scope),
-        factory_(ast_value_factory) {
+        factory_(ast_value_factory, ast_value_factory->zone()) {
     DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
-    InitializeAstVisitor(isolate);
+    InitializeAstVisitor(stack_limit);
   }
 
   Processor(Parser* parser, DeclarationScope* closure_scope, Variable* result,
@@ -37,12 +38,12 @@ class Processor final : public AstVisitor<Processor> {
         breakable_(false),
         zone_(ast_value_factory->zone()),
         closure_scope_(closure_scope),
-        factory_(ast_value_factory) {
+        factory_(ast_value_factory, zone_) {
     DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
     InitializeAstVisitor(parser->stack_limit());
   }
 
-  void Process(ZoneList<Statement*>* statements);
+  void Process(ZonePtrList<Statement>* statements);
   bool result_assigned() const { return result_assigned_; }
 
   Zone* zone() { return zone_; }
@@ -111,19 +112,16 @@ class Processor final : public AstVisitor<Processor> {
 
 
 Statement* Processor::AssignUndefinedBefore(Statement* s) {
-  Expression* result_proxy = factory()->NewVariableProxy(result_);
   Expression* undef = factory()->NewUndefinedLiteral(kNoSourcePosition);
-  Expression* assignment = factory()->NewAssignment(Token::ASSIGN, result_proxy,
-                                                    undef, kNoSourcePosition);
-  Block* b = factory()->NewBlock(NULL, 2, false, kNoSourcePosition);
+  Expression* assignment = SetResult(undef);
+  Block* b = factory()->NewBlock(2, false);
   b->statements()->Add(
       factory()->NewExpressionStatement(assignment, kNoSourcePosition), zone());
   b->statements()->Add(s, zone());
   return b;
 }
 
-
-void Processor::Process(ZoneList<Statement*>* statements) {
+void Processor::Process(ZonePtrList<Statement>* statements) {
   // If we're in a breakable scope (named block, iteration, or switch), we walk
   // all statements. The last value producing statement before the break needs
   // to assign to .result. If we're not in a breakable scope, only the last
@@ -264,6 +262,9 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
         0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
     node->finally_block()->statements()->Add(
         factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
+    // We can't tell whether the finally-block is guaranteed to set .result, so
+    // reset is_set_ before visiting the try-block.
+    is_set_ = false;
   }
   Visit(node->try_block());
   node->set_try_block(replacement_->AsBlock());
@@ -281,7 +282,7 @@ void Processor::VisitSwitchStatement(SwitchStatement* node) {
   DCHECK(breakable_ || !is_set_);
   BreakableScope scope(this);
   // Rewrite statements in all case clauses.
-  ZoneList<CaseClause*>* clauses = node->cases();
+  ZonePtrList<CaseClause>* clauses = node->cases();
   for (int i = clauses->length() - 1; i >= 0; --i) {
     CaseClause* clause = clauses->at(i);
     Process(clause->statements());
@@ -336,6 +337,10 @@ void Processor::VisitDebuggerStatement(DebuggerStatement* node) {
   replacement_ = node;
 }
 
+void Processor::VisitInitializeClassFieldsStatement(
+    InitializeClassFieldsStatement* node) {
+  replacement_ = node;
+}
 
 // Expressions are never visited.
 #define DEF_VISIT(type)                                         \
@@ -354,35 +359,47 @@ DECLARATION_NODE_LIST(DEF_VISIT)
 // Assumes code has been parsed.  Mutates the AST, so the AST should not
 // continue to be used in the case of failure.
 bool Rewriter::Rewrite(ParseInfo* info) {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+
+  RuntimeCallTimerScope runtimeTimer(
+      info->runtime_call_stats(),
+      info->on_background_thread()
+          ? RuntimeCallCounterId::kCompileBackgroundRewriteReturnResult
+          : RuntimeCallCounterId::kCompileRewriteReturnResult);
+
   FunctionLiteral* function = info->literal();
   DCHECK_NOT_NULL(function);
   Scope* scope = function->scope();
   DCHECK_NOT_NULL(scope);
-  if (!scope->is_script_scope() && !scope->is_eval_scope()) return true;
-  DeclarationScope* closure_scope = scope->GetClosureScope();
+  DCHECK_EQ(scope, scope->GetClosureScope());
 
-  ZoneList<Statement*>* body = function->body();
+  if (!(scope->is_script_scope() || scope->is_eval_scope() ||
+        scope->is_module_scope())) {
+    return true;
+  }
+
+  ZonePtrList<Statement>* body = function->body();
+  DCHECK_IMPLIES(scope->is_module_scope(), !body->is_empty());
   if (!body->is_empty()) {
-    Variable* result = closure_scope->NewTemporary(
+    Variable* result = scope->AsDeclarationScope()->NewTemporary(
         info->ast_value_factory()->dot_result_string());
-    // The name string must be internalized at this point.
-    info->ast_value_factory()->Internalize(info->isolate());
-    DCHECK(!result->name().is_null());
-    Processor processor(info->isolate(), closure_scope, result,
-                        info->ast_value_factory());
+    Processor processor(info->stack_limit(), scope->AsDeclarationScope(),
+                        result, info->ast_value_factory());
     processor.Process(body);
-    // Internalize any values created during rewriting.
-    info->ast_value_factory()->Internalize(info->isolate());
-    if (processor.HasStackOverflow()) return false;
 
+    DCHECK_IMPLIES(scope->is_module_scope(), processor.result_assigned());
     if (processor.result_assigned()) {
       int pos = kNoSourcePosition;
-      VariableProxy* result_proxy =
+      Expression* result_value =
           processor.factory()->NewVariableProxy(result, pos);
       Statement* result_statement =
-          processor.factory()->NewReturnStatement(result_proxy, pos);
+          processor.factory()->NewReturnStatement(result_value, pos);
       body->Add(result_statement, info->zone());
     }
+
+    if (processor.HasStackOverflow()) return false;
   }
 
   return true;
@@ -390,11 +407,15 @@ bool Rewriter::Rewrite(ParseInfo* info) {
 
 bool Rewriter::Rewrite(Parser* parser, DeclarationScope* closure_scope,
                        DoExpression* expr, AstValueFactory* factory) {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+
   Block* block = expr->block();
   DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
   DCHECK(block->scope() == nullptr ||
          block->scope()->GetClosureScope() == closure_scope);
-  ZoneList<Statement*>* body = block->statements();
+  ZonePtrList<Statement>* body = block->statements();
   VariableProxy* result = expr->result();
   Variable* result_var = result->var();
 

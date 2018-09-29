@@ -6,6 +6,7 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-register-allocator.h"
+#include "src/objects-inl.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -15,7 +16,7 @@ namespace interpreter {
 class BytecodeRegisterAllocatorTest : public TestWithIsolateAndZone {
  public:
   BytecodeRegisterAllocatorTest() : allocator_(0) {}
-  ~BytecodeRegisterAllocatorTest() override {}
+  ~BytecodeRegisterAllocatorTest() override = default;
 
   BytecodeRegisterAllocator* allocator() { return &allocator_; }
 

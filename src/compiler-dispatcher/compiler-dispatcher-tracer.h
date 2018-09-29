@@ -31,14 +31,7 @@ class RuntimeCallStats;
 
 class V8_EXPORT_PRIVATE CompilerDispatcherTracer {
  public:
-  enum class ScopeID {
-    kPrepareToParse,
-    kParse,
-    kFinalizeParsing,
-    kPrepareToCompile,
-    kCompile,
-    kFinalizeCompiling
-  };
+  enum class ScopeID { kPrepare, kCompile, kFinalize };
 
   class Scope {
    public:
@@ -59,19 +52,15 @@ class V8_EXPORT_PRIVATE CompilerDispatcherTracer {
   explicit CompilerDispatcherTracer(Isolate* isolate);
   ~CompilerDispatcherTracer();
 
-  void RecordPrepareToParse(double duration_ms);
-  void RecordParse(double duration_ms, size_t source_length);
-  void RecordFinalizeParsing(double duration_ms);
-  void RecordPrepareToCompile(double duration_ms);
-  void RecordCompile(double duration_ms, size_t ast_size_in_bytes);
-  void RecordFinalizeCompiling(double duration_ms);
+  void RecordPrepare(double duration_ms);
+  void RecordCompile(double duration_ms, size_t source_length);
+  void RecordFinalize(double duration_ms);
 
-  double EstimatePrepareToParseInMs() const;
-  double EstimateParseInMs(size_t source_length) const;
-  double EstimateFinalizeParsingInMs() const;
-  double EstimatePrepareToCompileInMs() const;
-  double EstimateCompileInMs(size_t ast_size_in_bytes) const;
-  double EstimateFinalizeCompilingInMs() const;
+  double EstimatePrepareInMs() const;
+  double EstimateCompileInMs(size_t source_length) const;
+  double EstimateFinalizeInMs() const;
+
+  void DumpStatistics() const;
 
  private:
   static double Average(const base::RingBuffer<double>& buffer);
@@ -79,12 +68,9 @@ class V8_EXPORT_PRIVATE CompilerDispatcherTracer {
       const base::RingBuffer<std::pair<size_t, double>>& buffer, size_t num);
 
   mutable base::Mutex mutex_;
-  base::RingBuffer<double> prepare_parse_events_;
-  base::RingBuffer<std::pair<size_t, double>> parse_events_;
-  base::RingBuffer<double> finalize_parsing_events_;
-  base::RingBuffer<double> prepare_compile_events_;
+  base::RingBuffer<double> prepare_events_;
   base::RingBuffer<std::pair<size_t, double>> compile_events_;
-  base::RingBuffer<double> finalize_compiling_events_;
+  base::RingBuffer<double> finalize_events_;
 
   RuntimeCallStats* runtime_call_stats_;
 

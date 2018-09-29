@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_TEST_CCTEST_INTERPRETER_INTERPRETER_TESTER_H_
+#define V8_TEST_CCTEST_INTERPRETER_INTERPRETER_TESTER_H_
+
 #include "src/v8.h"
 
+#include "src/api.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
@@ -32,31 +36,29 @@ class InterpreterCallable {
  public:
   InterpreterCallable(Isolate* isolate, Handle<JSFunction> function)
       : isolate_(isolate), function_(function) {}
-  virtual ~InterpreterCallable() {}
+  virtual ~InterpreterCallable() = default;
 
   MaybeHandle<Object> operator()(A... args) {
     return CallInterpreter(isolate_, function_, args...);
   }
+
+  FeedbackVector* vector() const { return function_->feedback_vector(); }
 
  private:
   Isolate* isolate_;
   Handle<JSFunction> function_;
 };
 
-namespace {
-const char kFunctionName[] = "f";
-}  // namespace
-
 class InterpreterTester {
  public:
   InterpreterTester(Isolate* isolate, const char* source,
                     MaybeHandle<BytecodeArray> bytecode,
-                    MaybeHandle<TypeFeedbackVector> feedback_vector,
+                    MaybeHandle<FeedbackMetadata> feedback_metadata,
                     const char* filter);
 
   InterpreterTester(Isolate* isolate, Handle<BytecodeArray> bytecode,
-                    MaybeHandle<TypeFeedbackVector> feedback_vector =
-                        MaybeHandle<TypeFeedbackVector>(),
+                    MaybeHandle<FeedbackMetadata> feedback_metadata =
+                        MaybeHandle<FeedbackMetadata>(),
                     const char* filter = kFunctionName);
 
   InterpreterTester(Isolate* isolate, const char* source,
@@ -79,11 +81,18 @@ class InterpreterTester {
 
   static std::string function_name();
 
+  static const char kFunctionName[];
+
+  // Expose raw RegisterList construction to tests.
+  static RegisterList NewRegisterList(int first_reg_index, int register_count) {
+    return RegisterList(first_reg_index, register_count);
+  }
+
  private:
   Isolate* isolate_;
   const char* source_;
   MaybeHandle<BytecodeArray> bytecode_;
-  MaybeHandle<TypeFeedbackVector> feedback_vector_;
+  MaybeHandle<FeedbackMetadata> feedback_metadata_;
 
   template <class... A>
   Handle<JSFunction> GetBytecodeFunction() {
@@ -106,16 +115,19 @@ class InterpreterTester {
       source += "){})";
       function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source.c_str()))));
-      function->ReplaceCode(
-          *isolate_->builtins()->InterpreterEntryTrampoline());
+      function->set_code(*BUILTIN_CODE(isolate_, InterpreterEntryTrampoline));
     }
 
     if (!bytecode_.is_null()) {
       function->shared()->set_function_data(*bytecode_.ToHandleChecked());
     }
-    if (!feedback_vector_.is_null()) {
-      function->literals()->set_feedback_vector(
-          *feedback_vector_.ToHandleChecked());
+    if (!feedback_metadata_.is_null()) {
+      function->set_feedback_cell(isolate_->heap()->many_closures_cell());
+      // Set the raw feedback metadata to circumvent checks that we are not
+      // overwriting existing metadata.
+      function->shared()->set_raw_outer_scope_info_or_feedback_metadata(
+          *feedback_metadata_.ToHandleChecked());
+      JSFunction::EnsureFeedbackVector(function);
     }
     return function;
   }
@@ -126,3 +138,5 @@ class InterpreterTester {
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_TEST_CCTEST_INTERPRETER_INTERPRETER_TESTER_H_

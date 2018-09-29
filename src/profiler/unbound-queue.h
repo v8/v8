@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PROFILER_UNBOUND_QUEUE_
-#define V8_PROFILER_UNBOUND_QUEUE_
+#ifndef V8_PROFILER_UNBOUND_QUEUE_H_
+#define V8_PROFILER_UNBOUND_QUEUE_H_
 
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
@@ -18,19 +18,19 @@ namespace internal {
 // elements, so producer never blocks.  Implemented after Herb
 // Sutter's article:
 // http://www.ddj.com/high-performance-computing/210604448
-template<typename Record>
-class UnboundQueue BASE_EMBEDDED {
+template <typename Record>
+class UnboundQueue {
  public:
   inline UnboundQueue();
   inline ~UnboundQueue();
 
-  INLINE(bool Dequeue(Record* rec));
-  INLINE(void Enqueue(const Record& rec));
-  INLINE(bool IsEmpty() const);
-  INLINE(Record* Peek() const);
+  V8_INLINE bool Dequeue(Record* rec);
+  V8_INLINE void Enqueue(const Record& rec);
+  V8_INLINE bool IsEmpty() const;
+  V8_INLINE Record* Peek() const;
 
  private:
-  INLINE(void DeleteFirst());
+  V8_INLINE void DeleteFirst();
 
   struct Node;
 
@@ -45,4 +45,4 @@ class UnboundQueue BASE_EMBEDDED {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_PROFILER_UNBOUND_QUEUE_
+#endif  // V8_PROFILER_UNBOUND_QUEUE_H_

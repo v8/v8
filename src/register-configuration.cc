@@ -18,13 +18,17 @@ static const int kMaxAllocatableDoubleRegisterCount =
     ALLOCATABLE_DOUBLE_REGISTERS(REGISTER_COUNT)0;
 
 static const int kAllocatableGeneralCodes[] = {
-#define REGISTER_CODE(R) Register::kCode_##R,
+#define REGISTER_CODE(R) kRegCode_##R,
     ALLOCATABLE_GENERAL_REGISTERS(REGISTER_CODE)};
 #undef REGISTER_CODE
 
+#define REGISTER_CODE(R) kDoubleCode_##R,
 static const int kAllocatableDoubleCodes[] = {
-#define REGISTER_CODE(R) DoubleRegister::kCode_##R,
     ALLOCATABLE_DOUBLE_REGISTERS(REGISTER_CODE)};
+#if V8_TARGET_ARCH_ARM
+static const int kAllocatableNoVFP32DoubleCodes[] = {
+    ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_CODE)};
+#endif  // V8_TARGET_ARCH_ARM
 #undef REGISTER_CODE
 
 static const char* const kGeneralRegisterNames[] = {
@@ -54,83 +58,239 @@ static const char* const kSimd128RegisterNames[] = {
 STATIC_ASSERT(RegisterConfiguration::kMaxGeneralRegisters >=
               Register::kNumRegisters);
 STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
-              FloatRegister::kMaxNumRegisters);
+              FloatRegister::kNumRegisters);
 STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
-              DoubleRegister::kMaxNumRegisters);
+              DoubleRegister::kNumRegisters);
 STATIC_ASSERT(RegisterConfiguration::kMaxFPRegisters >=
-              Simd128Register::kMaxNumRegisters);
+              Simd128Register::kNumRegisters);
 
-enum CompilerSelector { CRANKSHAFT, TURBOFAN };
-
-class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
- public:
-  explicit ArchDefaultRegisterConfiguration(CompilerSelector compiler)
-      : RegisterConfiguration(
-            Register::kNumRegisters, DoubleRegister::kMaxNumRegisters,
+static int get_num_allocatable_double_registers() {
+  return
 #if V8_TARGET_ARCH_IA32
-            kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-#elif V8_TARGET_ARCH_X87
-            kMaxAllocatableGeneralRegisterCount,
-            compiler == TURBOFAN ? 1 : kMaxAllocatableDoubleRegisterCount,
+      kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_X64
-            kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+      kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_ARM
-            FLAG_enable_embedded_constant_pool
-                ? (kMaxAllocatableGeneralRegisterCount - 1)
-                : kMaxAllocatableGeneralRegisterCount,
-            CpuFeatures::IsSupported(VFP32DREGS)
-                ? kMaxAllocatableDoubleRegisterCount
-                : (ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_COUNT) 0),
+      CpuFeatures::IsSupported(VFP32DREGS)
+          ? kMaxAllocatableDoubleRegisterCount
+          : (ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_COUNT) 0);
 #elif V8_TARGET_ARCH_ARM64
-            kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+      kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_MIPS
-            kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+      kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_MIPS64
-            kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+      kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_PPC
-            kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+      kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_S390
-            kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+      kMaxAllocatableDoubleRegisterCount;
 #else
 #error Unsupported target architecture.
 #endif
-            kAllocatableGeneralCodes, kAllocatableDoubleCodes,
+}
+
+static const int* get_allocatable_double_codes() {
+  return
+#if V8_TARGET_ARCH_ARM
+      CpuFeatures::IsSupported(VFP32DREGS) ? kAllocatableDoubleCodes
+                                           : kAllocatableNoVFP32DoubleCodes;
+#else
+      kAllocatableDoubleCodes;
+#endif
+}
+
+class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
+ public:
+  ArchDefaultRegisterConfiguration()
+      : RegisterConfiguration(
+            Register::kNumRegisters, DoubleRegister::kNumRegisters,
+            kMaxAllocatableGeneralRegisterCount,
+            get_num_allocatable_double_registers(), kAllocatableGeneralCodes,
+            get_allocatable_double_codes(),
             kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE,
             kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames,
-            kSimd128RegisterNames) {
-  }
+            kSimd128RegisterNames) {}
 };
 
-template <CompilerSelector compiler>
 struct RegisterConfigurationInitializer {
-  static void Construct(ArchDefaultRegisterConfiguration* config) {
-    new (config) ArchDefaultRegisterConfiguration(compiler);
+  static void Construct(void* config) {
+    new (config) ArchDefaultRegisterConfiguration();
   }
 };
 
 static base::LazyInstance<ArchDefaultRegisterConfiguration,
-                          RegisterConfigurationInitializer<CRANKSHAFT>>::type
-    kDefaultRegisterConfigurationForCrankshaft = LAZY_INSTANCE_INITIALIZER;
+                          RegisterConfigurationInitializer>::type
+    kDefaultRegisterConfiguration = LAZY_INSTANCE_INITIALIZER;
 
-static base::LazyInstance<ArchDefaultRegisterConfiguration,
-                          RegisterConfigurationInitializer<TURBOFAN>>::type
-    kDefaultRegisterConfigurationForTurboFan = LAZY_INSTANCE_INITIALIZER;
+// Allocatable registers with the masking register removed.
+class ArchDefaultPoisoningRegisterConfiguration : public RegisterConfiguration {
+ public:
+  ArchDefaultPoisoningRegisterConfiguration()
+      : RegisterConfiguration(
+            Register::kNumRegisters, DoubleRegister::kNumRegisters,
+            kMaxAllocatableGeneralRegisterCount - 1,
+            get_num_allocatable_double_registers(),
+            InitializeGeneralRegisterCodes(), get_allocatable_double_codes(),
+            kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE,
+            kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames,
+            kSimd128RegisterNames) {}
+
+ private:
+  static const int* InitializeGeneralRegisterCodes() {
+    int filtered_index = 0;
+    for (int i = 0; i < kMaxAllocatableGeneralRegisterCount; ++i) {
+      if (kAllocatableGeneralCodes[i] != kSpeculationPoisonRegister.code()) {
+        allocatable_general_codes_[filtered_index] =
+            kAllocatableGeneralCodes[i];
+        filtered_index++;
+      }
+    }
+    DCHECK_EQ(filtered_index, kMaxAllocatableGeneralRegisterCount - 1);
+    return allocatable_general_codes_;
+  }
+
+  static int
+      allocatable_general_codes_[kMaxAllocatableGeneralRegisterCount - 1];
+};
+
+int ArchDefaultPoisoningRegisterConfiguration::allocatable_general_codes_
+    [kMaxAllocatableGeneralRegisterCount - 1];
+
+struct PoisoningRegisterConfigurationInitializer {
+  static void Construct(void* config) {
+    new (config) ArchDefaultPoisoningRegisterConfiguration();
+  }
+};
+
+static base::LazyInstance<ArchDefaultPoisoningRegisterConfiguration,
+                          PoisoningRegisterConfigurationInitializer>::type
+    kDefaultPoisoningRegisterConfiguration = LAZY_INSTANCE_INITIALIZER;
+
+#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+// Allocatable registers with the root register removed.
+// TODO(v8:6666): Once all builtins have been migrated, we could remove this
+// configuration and remove kRootRegister from ALLOCATABLE_GENERAL_REGISTERS
+// instead.
+class ArchPreserveRootIA32RegisterConfiguration : public RegisterConfiguration {
+ public:
+  ArchPreserveRootIA32RegisterConfiguration()
+      : RegisterConfiguration(
+            Register::kNumRegisters, DoubleRegister::kNumRegisters,
+            kMaxAllocatableGeneralRegisterCount - 1,
+            get_num_allocatable_double_registers(),
+            InitializeGeneralRegisterCodes(), get_allocatable_double_codes(),
+            kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE,
+            kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames,
+            kSimd128RegisterNames) {}
+
+ private:
+  static const int* InitializeGeneralRegisterCodes() {
+    int filtered_index = 0;
+    for (int i = 0; i < kMaxAllocatableGeneralRegisterCount; ++i) {
+      if (kAllocatableGeneralCodes[i] != kRootRegister.code()) {
+        allocatable_general_codes_[filtered_index] =
+            kAllocatableGeneralCodes[i];
+        filtered_index++;
+      }
+    }
+    DCHECK_EQ(filtered_index, kMaxAllocatableGeneralRegisterCount - 1);
+    return allocatable_general_codes_;
+  }
+
+  static int
+      allocatable_general_codes_[kMaxAllocatableGeneralRegisterCount - 1];
+};
+
+int ArchPreserveRootIA32RegisterConfiguration::allocatable_general_codes_
+    [kMaxAllocatableGeneralRegisterCount - 1];
+
+struct PreserveRootIA32RegisterConfigurationInitializer {
+  static void Construct(void* config) {
+    new (config) ArchPreserveRootIA32RegisterConfiguration();
+  }
+};
+
+static base::LazyInstance<ArchPreserveRootIA32RegisterConfiguration,
+                          PreserveRootIA32RegisterConfigurationInitializer>::
+    type kPreserveRootIA32RegisterConfiguration = LAZY_INSTANCE_INITIALIZER;
+#endif  // defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+
+// RestrictedRegisterConfiguration uses the subset of allocatable general
+// registers the architecture support, which results into generating assembly
+// to use less registers. Currently, it's only used by RecordWrite code stub.
+class RestrictedRegisterConfiguration : public RegisterConfiguration {
+ public:
+  RestrictedRegisterConfiguration(
+      int num_allocatable_general_registers,
+      std::unique_ptr<int[]> allocatable_general_register_codes,
+      std::unique_ptr<char const* []> allocatable_general_register_names)
+      : RegisterConfiguration(
+            Register::kNumRegisters, DoubleRegister::kNumRegisters,
+            num_allocatable_general_registers,
+            get_num_allocatable_double_registers(),
+            allocatable_general_register_codes.get(),
+            get_allocatable_double_codes(),
+            kSimpleFPAliasing ? AliasingKind::OVERLAP : AliasingKind::COMBINE,
+            kGeneralRegisterNames, kFloatRegisterNames, kDoubleRegisterNames,
+            kSimd128RegisterNames),
+        allocatable_general_register_codes_(
+            std::move(allocatable_general_register_codes)),
+        allocatable_general_register_names_(
+            std::move(allocatable_general_register_names)) {
+    for (int i = 0; i < num_allocatable_general_registers; ++i) {
+      DCHECK(
+          IsAllocatableGeneralRegister(allocatable_general_register_codes_[i]));
+    }
+  }
+
+  bool IsAllocatableGeneralRegister(int code) {
+    for (int i = 0; i < kMaxAllocatableGeneralRegisterCount; ++i) {
+      if (code == kAllocatableGeneralCodes[i]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+ private:
+  std::unique_ptr<int[]> allocatable_general_register_codes_;
+  std::unique_ptr<char const* []> allocatable_general_register_names_;
+};
 
 }  // namespace
 
-const RegisterConfiguration* RegisterConfiguration::Crankshaft() {
-  return &kDefaultRegisterConfigurationForCrankshaft.Get();
+const RegisterConfiguration* RegisterConfiguration::Default() {
+  return &kDefaultRegisterConfiguration.Get();
 }
 
-const RegisterConfiguration* RegisterConfiguration::Turbofan() {
-  return &kDefaultRegisterConfigurationForTurboFan.Get();
+const RegisterConfiguration* RegisterConfiguration::Poisoning() {
+  return &kDefaultPoisoningRegisterConfiguration.Get();
+}
+
+#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+const RegisterConfiguration* RegisterConfiguration::PreserveRootIA32() {
+  return &kPreserveRootIA32RegisterConfiguration.Get();
+}
+#endif  // defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+
+const RegisterConfiguration* RegisterConfiguration::RestrictGeneralRegisters(
+    RegList registers) {
+  int num = NumRegs(registers);
+  std::unique_ptr<int[]> codes{new int[num]};
+  std::unique_ptr<char const* []> names { new char const*[num] };
+  int counter = 0;
+  for (int i = 0; i < Default()->num_allocatable_general_registers(); ++i) {
+    auto reg = Register::from_code(Default()->GetAllocatableGeneralCode(i));
+    if (reg.bit() & registers) {
+      DCHECK(counter < num);
+      codes[counter] = reg.code();
+      names[counter] = Default()->GetGeneralRegisterName(i);
+      counter++;
+    }
+  }
+
+  return new RestrictedRegisterConfiguration(num, std::move(codes),
+                                             std::move(names));
 }
 
 RegisterConfiguration::RegisterConfiguration(
@@ -160,8 +320,9 @@ RegisterConfiguration::RegisterConfiguration(
       float_register_names_(float_register_names),
       double_register_names_(double_register_names),
       simd128_register_names_(simd128_register_names) {
-  DCHECK(num_general_registers_ <= RegisterConfiguration::kMaxGeneralRegisters);
-  DCHECK(num_double_registers_ <= RegisterConfiguration::kMaxFPRegisters);
+  DCHECK_LE(num_general_registers_,
+            RegisterConfiguration::kMaxGeneralRegisters);
+  DCHECK_LE(num_double_registers_, RegisterConfiguration::kMaxFPRegisters);
   for (int i = 0; i < num_allocatable_general_registers_; ++i) {
     allocatable_general_codes_mask_ |= (1 << allocatable_general_codes_[i]);
   }
@@ -208,6 +369,12 @@ RegisterConfiguration::RegisterConfiguration(
     allocatable_float_codes_mask_ = allocatable_simd128_codes_mask_ =
         allocatable_double_codes_mask_;
   }
+}
+
+const char* RegisterConfiguration::GetGeneralOrSpecialRegisterName(
+    int code) const {
+  if (code < num_general_registers_) return GetGeneralRegisterName(code);
+  return Assembler::GetSpecialRegisterName(code);
 }
 
 // Assert that kFloat32, kFloat64, and kSimd128 are consecutive values.
@@ -259,8 +426,6 @@ bool RegisterConfiguration::AreAliases(MachineRepresentation rep, int index,
   int shift = other_rep_int - rep_int;
   return index >> shift == other_index;
 }
-
-#undef REGISTER_COUNT
 
 }  // namespace internal
 }  // namespace v8

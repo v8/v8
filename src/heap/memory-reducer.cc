@@ -20,6 +20,14 @@ const int MemoryReducer::kMaxNumberOfGCs = 3;
 const double MemoryReducer::kCommittedMemoryFactor = 1.1;
 const size_t MemoryReducer::kCommittedMemoryDelta = 10 * MB;
 
+MemoryReducer::MemoryReducer(Heap* heap)
+    : heap_(heap),
+      taskrunner_(V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+          reinterpret_cast<v8::Isolate*>(heap->isolate()))),
+      state_(kDone, 0, 0.0, 0.0, 0),
+      js_calls_counter_(0),
+      js_calls_sample_time_ms_(0.0) {}
+
 MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
     : CancelableTask(memory_reducer->heap()->isolate()),
       memory_reducer_(memory_reducer) {}
@@ -66,7 +74,8 @@ void MemoryReducer::NotifyTimer(const Event& event) {
                                             state_.started_gcs);
     }
     heap()->StartIdleIncrementalMarking(
-        GarbageCollectionReason::kMemoryReducer);
+        GarbageCollectionReason::kMemoryReducer,
+        kGCCallbackFlagCollectAllExternalMemory);
   } else if (state_.action == kWait) {
     if (!heap()->incremental_marking()->IsStopped() &&
         heap()->ShouldOptimizeForMemoryUsage()) {
@@ -78,12 +87,12 @@ void MemoryReducer::NotifyTimer(const Event& event) {
                         kIncrementalMarkingDelayMs;
       heap()->incremental_marking()->AdvanceIncrementalMarking(
           deadline, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-          IncrementalMarking::FORCE_COMPLETION, StepOrigin::kTask);
+          StepOrigin::kTask);
       heap()->FinalizeIncrementalMarkingIfComplete(
           GarbageCollectionReason::kFinalizeMarkingViaTask);
     }
     // Re-schedule the timer.
-    ScheduleTimer(event.time_ms, state_.next_gc_start_ms - event.time_ms);
+    ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
     if (FLAG_trace_gc_verbose) {
       heap()->isolate()->PrintWithTimestamp(
           "Memory reducer: waiting for %.f ms\n",
@@ -99,7 +108,7 @@ void MemoryReducer::NotifyMarkCompact(const Event& event) {
   state_ = Step(state_, event);
   if (old_action != kWait && state_.action == kWait) {
     // If we are transitioning to the WAIT state, start the timer.
-    ScheduleTimer(event.time_ms, state_.next_gc_start_ms - event.time_ms);
+    ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
   }
   if (old_action == kRun) {
     if (FLAG_trace_gc_verbose) {
@@ -116,7 +125,7 @@ void MemoryReducer::NotifyPossibleGarbage(const Event& event) {
   state_ = Step(state_, event);
   if (old_action != kWait && state_.action == kWait) {
     // If we are transitioning to the WAIT state, start the timer.
-    ScheduleTimer(event.time_ms, state_.next_gc_start_ms - event.time_ms);
+    ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
   }
 }
 
@@ -196,18 +205,16 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
       }
   }
   UNREACHABLE();
-  return State(kDone, 0, 0, 0.0, 0);  // Make the compiler happy.
 }
 
-
-void MemoryReducer::ScheduleTimer(double time_ms, double delay_ms) {
-  DCHECK(delay_ms > 0);
+void MemoryReducer::ScheduleTimer(double delay_ms) {
+  DCHECK_LT(0, delay_ms);
+  if (heap()->IsTearingDown()) return;
   // Leave some room for precision error in task scheduler.
   const double kSlackMs = 100;
-  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap()->isolate());
-  auto timer_task = new MemoryReducer::TimerTask(this);
-  V8::GetCurrentPlatform()->CallDelayedOnForegroundThread(
-      isolate, timer_task, (delay_ms + kSlackMs) / 1000.0);
+  taskrunner_->PostDelayedTask(
+      base::make_unique<MemoryReducer::TimerTask>(this),
+      (delay_ms + kSlackMs) / 1000.0);
 }
 
 void MemoryReducer::TearDown() { state_ = State(kDone, 0, 0, 0.0, 0); }

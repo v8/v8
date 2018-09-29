@@ -5,8 +5,9 @@
 #include "test/cctest/cctest.h"
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/ic/accessor-assembler-impl.h"
+#include "src/ic/accessor-assembler.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
@@ -23,7 +24,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
   CodeAssemblerTester data(isolate, kNumParams);
-  AccessorAssemblerImpl m(data.state());
+  AccessorAssembler m(data.state());
 
   {
     Node* name = m.Parameter(0);
@@ -105,9 +106,9 @@ TEST(StubCacheSecondaryOffset) {
 
 namespace {
 
-Handle<Code> CreateCodeWithFlags(Code::Flags flags) {
+Handle<Code> CreateCodeOfKind(Code::Kind kind) {
   Isolate* isolate(CcTest::InitIsolateOnce());
-  CodeAssemblerTester data(isolate, flags);
+  CodeAssemblerTester data(isolate, kind);
   CodeStubAssembler m(data.state());
   m.Return(m.UndefinedConstant());
   return data.GenerateCodeCloseAndEscape();
@@ -117,14 +118,12 @@ Handle<Code> CreateCodeWithFlags(Code::Flags flags) {
 
 TEST(TryProbeStubCache) {
   typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 3;
   CodeAssemblerTester data(isolate, kNumParams);
-  AccessorAssemblerImpl m(data.state());
+  AccessorAssembler m(data.state());
 
-  Code::Kind ic_kind = Code::LOAD_IC;
-  StubCache stub_cache(isolate, ic_kind);
+  StubCache stub_cache(isolate);
   stub_cache.Clear();
 
   {
@@ -134,23 +133,24 @@ TEST(TryProbeStubCache) {
 
     Label passed(&m), failed(&m);
 
-    Variable var_handler(&m, MachineRepresentation::kTagged);
+    CodeStubAssembler::TVariable<MaybeObject> var_handler(&m);
     Label if_handler(&m), if_miss(&m);
 
     m.TryProbeStubCache(&stub_cache, receiver, name, &if_handler, &var_handler,
                         &if_miss);
-    m.Bind(&if_handler);
-    m.Branch(m.WordEqual(expected_handler, var_handler.value()), &passed,
-             &failed);
+    m.BIND(&if_handler);
+    m.Branch(m.WordEqual(expected_handler,
+                         m.BitcastMaybeObjectToWord(var_handler.value())),
+             &passed, &failed);
 
-    m.Bind(&if_miss);
+    m.BIND(&if_miss);
     m.Branch(m.WordEqual(expected_handler, m.IntPtrConstant(0)), &passed,
              &failed);
 
-    m.Bind(&passed);
+    m.BIND(&passed);
     m.Return(m.BooleanConstant(true));
 
-    m.Bind(&failed);
+    m.BIND(&failed);
     m.Return(m.BooleanConstant(false));
   }
 
@@ -203,9 +203,7 @@ TEST(TryProbeStubCache) {
 
   // Generate some number of handlers.
   for (int i = 0; i < 30; i++) {
-    Code::Flags flags =
-        Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(ic_kind));
-    handlers.push_back(CreateCodeWithFlags(flags));
+    handlers.push_back(CreateCodeOfKind(Code::STUB));
   }
 
   // Ensure that GC does happen because from now on we are going to fill our
@@ -219,7 +217,7 @@ TEST(TryProbeStubCache) {
     Handle<Name> name = names[index % names.size()];
     Handle<JSObject> receiver = receivers[index % receivers.size()];
     Handle<Code> handler = handlers[index % handlers.size()];
-    stub_cache.Set(*name, receiver->map(), *handler);
+    stub_cache.Set(*name, receiver->map(), MaybeObject::FromObject(*handler));
   }
 
   // Perform some queries.
@@ -229,14 +227,14 @@ TEST(TryProbeStubCache) {
     int index = rand_gen.NextInt();
     Handle<Name> name = names[index % names.size()];
     Handle<JSObject> receiver = receivers[index % receivers.size()];
-    Object* handler = stub_cache.Get(*name, receiver->map());
+    MaybeObject* handler = stub_cache.Get(*name, receiver->map());
     if (handler == nullptr) {
       queried_non_existing = true;
     } else {
       queried_existing = true;
     }
 
-    Handle<Object> expected_handler(handler, isolate);
+    Handle<Object> expected_handler(handler->GetHeapObjectOrSmi(), isolate);
     ft.CheckTrue(receiver, name, expected_handler);
   }
 
@@ -245,14 +243,14 @@ TEST(TryProbeStubCache) {
     int index2 = rand_gen.NextInt();
     Handle<Name> name = names[index1 % names.size()];
     Handle<JSObject> receiver = receivers[index2 % receivers.size()];
-    Object* handler = stub_cache.Get(*name, receiver->map());
+    MaybeObject* handler = stub_cache.Get(*name, receiver->map());
     if (handler == nullptr) {
       queried_non_existing = true;
     } else {
       queried_existing = true;
     }
 
-    Handle<Object> expected_handler(handler, isolate);
+    Handle<Object> expected_handler(handler->GetHeapObjectOrSmi(), isolate);
     ft.CheckTrue(receiver, name, expected_handler);
   }
   // Ensure we performed both kind of queries.

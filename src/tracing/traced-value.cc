@@ -5,6 +5,7 @@
 #include "src/tracing/traced-value.h"
 
 #include "src/base/platform/platform.h"
+#include "src/conversions.h"
 
 namespace v8 {
 namespace tracing {
@@ -42,7 +43,7 @@ void EscapeAndAppendString(const char* value, std::string* result) {
         *result += "\\\\";
         break;
       default:
-        if (c < '\040') {
+        if (c < '\x20') {
           base::OS::SNPrintF(
               number_buffer, arraysize(number_buffer), "\\u%04X",
               static_cast<unsigned>(static_cast<unsigned char>(c)));
@@ -80,7 +81,8 @@ void TracedValue::SetInteger(const char* name, int value) {
 void TracedValue::SetDouble(const char* name, double value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
   WriteName(name);
-  data_ += std::to_string(value);
+  i::EmbeddedVector<char, 100> buffer;
+  data_ += DoubleToCString(value, buffer);
 }
 
 void TracedValue::SetBoolean(const char* name, bool value) {
@@ -120,7 +122,8 @@ void TracedValue::AppendInteger(int value) {
 void TracedValue::AppendDouble(double value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeArray);
   WriteComma();
-  data_ += std::to_string(value);
+  i::EmbeddedVector<char, 100> buffer;
+  data_ += DoubleToCString(value, buffer);
 }
 
 void TracedValue::AppendBoolean(bool value) {

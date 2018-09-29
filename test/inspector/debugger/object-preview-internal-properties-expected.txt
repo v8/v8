@@ -30,9 +30,21 @@ expression: Object(Symbol(42))
         description : Symbol
         overflow : false
         properties : [
+            [0] : {
+                name : description
+                type : string
+                value : 42
+            }
         ]
         type : object
     }
+}
+
+expression: Object(BigInt(2))
+{
+    name : [[PrimitiveValue]]
+    type : bigint
+    value : 2n
 }
 
 
@@ -145,21 +157,27 @@ expression: new WeakSet([{}])
 
 Running test: iteratorObject
 expression: (new Map([[1,2]])).entries()
-{
-    name : [[IteratorHasMore]]
-    type : boolean
-    value : true
-}
-{
-    name : [[IteratorIndex]]
-    type : number
-    value : 0
-}
-{
-    name : [[IteratorKind]]
-    type : string
-    value : entries
-}
+[[Entries]]:
+[
+    [0] : {
+        key : {
+            description : 1
+            overflow : false
+            properties : [
+            ]
+            type : number
+        }
+        value : {
+            description : 2
+            overflow : false
+            properties : [
+            ]
+            type : number
+        }
+    }
+]
+
+expression: (new Set([[1,2]])).entries()
 [[Entries]]:
 [
     [0] : {
@@ -176,48 +194,6 @@ expression: (new Map([[1,2]])).entries()
                     name : 1
                     type : number
                     value : 2
-                }
-            ]
-            subtype : array
-            type : object
-        }
-    }
-]
-
-expression: (new Set([[1,2]])).entries()
-{
-    name : [[IteratorHasMore]]
-    type : boolean
-    value : true
-}
-{
-    name : [[IteratorIndex]]
-    type : number
-    value : 0
-}
-{
-    name : [[IteratorKind]]
-    type : string
-    value : entries
-}
-[[Entries]]:
-[
-    [0] : {
-        value : {
-            description : Array(2)
-            overflow : false
-            properties : [
-                [0] : {
-                    name : 0
-                    subtype : array
-                    type : object
-                    value : Array(2)
-                }
-                [1] : {
-                    name : 1
-                    subtype : array
-                    type : object
-                    value : Array(2)
                 }
             ]
             subtype : array
@@ -243,12 +219,42 @@ Running test: noPreviewForFunctionObject
 
 Running test: otherObjects
 expression: [1,2,3]
+{
+    name : 0
+    type : number
+    value : 1
+}
+{
+    name : 1
+    type : number
+    value : 2
+}
+{
+    name : 2
+    type : number
+    value : 3
+}
 
 expression: /123/
+{
+    name : lastIndex
+    type : number
+    value : 0
+}
 
 expression: ({})
 
 
 Running test: overridenArrayGetter
 expression: Promise.resolve(42)
+{
+    name : [[PromiseStatus]]
+    type : string
+    value : resolved
+}
+{
+    name : [[PromiseValue]]
+    type : number
+    value : 42
+}
 

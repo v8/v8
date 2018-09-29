@@ -103,9 +103,8 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   static const int kStoredRegisters = kFramePointer;
   // Return address (stored from link register, read into pc on return).
   static const int kReturnAddress = kStoredRegisters + 8 * kPointerSize;
-  static const int kSecondaryReturnAddress = kReturnAddress + kPointerSize;
   // Stack parameters placed by caller.
-  static const int kRegisterOutput = kSecondaryReturnAddress + kPointerSize;
+  static const int kRegisterOutput = kReturnAddress + kPointerSize;
   static const int kNumOutputRegisters = kRegisterOutput + kPointerSize;
   static const int kStackHighEnd = kNumOutputRegisters + kPointerSize;
   static const int kDirectCall = kStackHighEnd + kPointerSize;
@@ -141,7 +140,7 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
 
 
   // Generate a call to CheckStackGuardState.
-  void CallCheckStackGuardState(Register scratch);
+  void CallCheckStackGuardState();
 
   // The ebp-relative location of a regexp register.
   MemOperand register_location(int register_index);
@@ -171,7 +170,7 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   inline int char_size() { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
-  // is NULL, in which case it is a conditional Backtrack.
+  // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to);
 
   // Call and return internally in the generated code in a way that

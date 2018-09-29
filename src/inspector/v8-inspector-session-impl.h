@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8INSPECTORSESSIONIMPL_H_
-#define V8_INSPECTOR_V8INSPECTORSESSIONIMPL_H_
+#ifndef V8_INSPECTOR_V8_INSPECTOR_SESSION_IMPL_H_
+#define V8_INSPECTOR_V8_INSPECTOR_SESSION_IMPL_H_
 
 #include <vector>
 
@@ -32,9 +32,9 @@ class V8InspectorSessionImpl : public V8InspectorSession,
                                public protocol::FrontendChannel {
  public:
   static std::unique_ptr<V8InspectorSessionImpl> create(
-      V8InspectorImpl*, int contextGroupId, V8Inspector::Channel*,
-      const StringView& state);
-  ~V8InspectorSessionImpl();
+      V8InspectorImpl*, int contextGroupId, int sessionId,
+      V8Inspector::Channel*, const StringView& state);
+  ~V8InspectorSessionImpl() override;
 
   V8InspectorImpl* inspector() const { return m_inspector; }
   V8ConsoleAgentImpl* consoleAgent() { return m_consoleAgent.get(); }
@@ -43,6 +43,7 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   V8ProfilerAgentImpl* profilerAgent() { return m_profilerAgent.get(); }
   V8RuntimeAgentImpl* runtimeAgent() { return m_runtimeAgent.get(); }
   int contextGroupId() const { return m_contextGroupId; }
+  int sessionId() const { return m_sessionId; }
 
   Response findInjectedScript(int contextId, InjectedScript*&);
   Response findInjectedScript(RemoteObjectIdBase*, InjectedScript*&);
@@ -84,14 +85,14 @@ class V8InspectorSessionImpl : public V8InspectorSession,
                     v8::Local<v8::Value>*, v8::Local<v8::Context>*,
                     std::unique_ptr<StringBuffer>* objectGroup) override;
   std::unique_ptr<protocol::Runtime::API::RemoteObject> wrapObject(
-      v8::Local<v8::Context>, v8::Local<v8::Value>,
-      const StringView& groupName) override;
+      v8::Local<v8::Context>, v8::Local<v8::Value>, const StringView& groupName,
+      bool generatePreview) override;
 
   V8InspectorSession::Inspectable* inspectedObject(unsigned num);
   static const unsigned kInspectedObjectBufferSize = 5;
 
  private:
-  V8InspectorSessionImpl(V8InspectorImpl*, int contextGroupId,
+  V8InspectorSessionImpl(V8InspectorImpl*, int contextGroupId, int sessionId,
                          V8Inspector::Channel*, const StringView& state);
   protocol::DictionaryValue* agentState(const String16& name);
 
@@ -100,9 +101,12 @@ class V8InspectorSessionImpl : public V8InspectorSession,
       int callId, std::unique_ptr<protocol::Serializable> message) override;
   void sendProtocolNotification(
       std::unique_ptr<protocol::Serializable> message) override;
+  void fallThrough(int callId, const String16& method,
+                   const String16& message) override;
   void flushProtocolNotifications() override;
 
   int m_contextGroupId;
+  int m_sessionId;
   V8InspectorImpl* m_inspector;
   V8Inspector::Channel* m_channel;
   bool m_customObjectFormatterEnabled;
@@ -124,4 +128,4 @@ class V8InspectorSessionImpl : public V8InspectorSession,
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8INSPECTORSESSIONIMPL_H_
+#endif  // V8_INSPECTOR_V8_INSPECTOR_SESSION_IMPL_H_

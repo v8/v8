@@ -3,27 +3,21 @@
 # found in the LICENSE file.
 
 [
-[ALWAYS, {
-    # BUG(5677): Real timers are flaky
-    'RuntimeCallStatsTest.*': [SKIP],
-}], # ALWAYS
+['system == macos and asan', {
+  # BUG(820416).
+  'BitsDeathTest*': [SKIP],
+  'LiveRangeUnitTest*': [SKIP],
+  'LoggingDeathTest*': [SKIP],
+  'LoggingTest.CompareClassTypes': [SKIP],
+  'LoggingTest.CompareWithDifferentSignedness': [SKIP],
+  'LoggingTest.CompareWithReferenceType': [SKIP],
+  'RandomNumberGenerator.NextSampleInvalidParam': [SKIP],
+  'RandomNumberGenerator.NextSampleSlowInvalidParam1': [SKIP],
+  'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],
+}],  # 'system == macos and asan'
 
-['arch == x87', {
-  'Ieee754.Expm1': [SKIP],
-  'Ieee754.Cos': [SKIP],
-  'Ieee754.Tan': [SKIP],
-  'Ieee754.Acosh': [SKIP],
-  'Ieee754.Asinh': [SKIP],
-  'MoveOptimizerTest.RemovesRedundantExplicit': [SKIP],
-  'RegisterAllocatorTest.CanAllocateFPRegisters': [SKIP],
-}],  # 'arch == x87'
-
-['variant == asm_wasm', {
-  '*': [SKIP],
-}],  # variant == asm_wasm
-
-['variant == wasm_traps', {
-  '*': [SKIP],
-}],  # variant == wasm_traps
-
+['(arch == arm or arch == mips) and not simulator_run', {
+  # Uses too much memory.
+  'Parameterized/WasmCodeManagerTest.GrowingVsFixedModule/Fixed': [SKIP]
+}],  # '(arch == arm or arch == mips) and not simulator_run'
 ]

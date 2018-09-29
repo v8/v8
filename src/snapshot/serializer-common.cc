@@ -5,57 +5,104 @@
 #include "src/snapshot/serializer-common.h"
 
 #include "src/external-reference-table.h"
-#include "src/ic/stub-cache.h"
-#include "src/list-inl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
 ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
-  map_ = isolate->external_reference_map();
 #ifdef DEBUG
-  table_ = ExternalReferenceTable::instance(isolate);
+  api_references_ = isolate->api_external_references();
+  if (api_references_ != nullptr) {
+    for (uint32_t i = 0; api_references_[i] != 0; ++i) count_.push_back(0);
+  }
 #endif  // DEBUG
+  map_ = isolate->external_reference_map();
   if (map_ != nullptr) return;
   map_ = new AddressToIndexHashMap();
-  ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
+  isolate->set_external_reference_map(map_);
+  // Add V8's external references.
+  ExternalReferenceTable* table = isolate->heap()->external_reference_table();
   for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
-    DCHECK(map_->Get(addr).IsNothing());
-    map_->Set(addr, i);
+    // Ignore duplicate references.
+    // This can happen due to ICF. See http://crbug.com/726896.
+    if (map_->Get(addr).IsNothing()) map_->Set(addr, Value::Encode(i, false));
     DCHECK(map_->Get(addr).IsJust());
   }
-  isolate->set_external_reference_map(map_);
+  // Add external references provided by the embedder.
+  const intptr_t* api_references = isolate->api_external_references();
+  if (api_references == nullptr) return;
+  for (uint32_t i = 0; api_references[i] != 0; ++i) {
+    Address addr = static_cast<Address>(api_references[i]);
+    // Ignore duplicate references.
+    // This can happen due to ICF. See http://crbug.com/726896.
+    if (map_->Get(addr).IsNothing()) map_->Set(addr, Value::Encode(i, true));
+    DCHECK(map_->Get(addr).IsJust());
+  }
 }
 
-uint32_t ExternalReferenceEncoder::Encode(Address address) const {
+ExternalReferenceEncoder::~ExternalReferenceEncoder() {
+#ifdef DEBUG
+  if (!i::FLAG_external_reference_stats) return;
+  if (api_references_ == nullptr) return;
+  for (uint32_t i = 0; api_references_[i] != 0; ++i) {
+    Address addr = static_cast<Address>(api_references_[i]);
+    DCHECK(map_->Get(addr).IsJust());
+    v8::base::OS::Print(
+        "index=%5d count=%5d  %-60s\n", i, count_[i],
+        ExternalReferenceTable::ResolveSymbol(reinterpret_cast<void*>(addr)));
+  }
+#endif  // DEBUG
+}
+
+Maybe<ExternalReferenceEncoder::Value> ExternalReferenceEncoder::TryEncode(
+    Address address) {
+  Maybe<uint32_t> maybe_index = map_->Get(address);
+  if (maybe_index.IsNothing()) return Nothing<Value>();
+  Value result(maybe_index.FromJust());
+#ifdef DEBUG
+  if (result.is_from_api()) count_[result.index()]++;
+#endif  // DEBUG
+  return Just<Value>(result);
+}
+
+ExternalReferenceEncoder::Value ExternalReferenceEncoder::Encode(
+    Address address) {
   Maybe<uint32_t> maybe_index = map_->Get(address);
   if (maybe_index.IsNothing()) {
-    void* addr = address;
+    void* addr = reinterpret_cast<void*>(address);
     v8::base::OS::PrintError("Unknown external reference %p.\n", addr);
     v8::base::OS::PrintError("%s", ExternalReferenceTable::ResolveSymbol(addr));
     v8::base::OS::Abort();
   }
+  Value result(maybe_index.FromJust());
 #ifdef DEBUG
-  table_->increment_count(maybe_index.FromJust());
+  if (result.is_from_api()) count_[result.index()]++;
 #endif  // DEBUG
-  return maybe_index.FromJust();
+  return result;
 }
 
 const char* ExternalReferenceEncoder::NameOfAddress(Isolate* isolate,
                                                     Address address) const {
   Maybe<uint32_t> maybe_index = map_->Get(address);
   if (maybe_index.IsNothing()) return "<unknown>";
-  return ExternalReferenceTable::instance(isolate)->name(
-      maybe_index.FromJust());
+  Value value(maybe_index.FromJust());
+  if (value.is_from_api()) return "<from api>";
+  return isolate->heap()->external_reference_table()->name(value.index());
 }
 
-void SerializedData::AllocateData(int size) {
+void SerializedData::AllocateData(uint32_t size) {
   DCHECK(!owns_data_);
   data_ = NewArray<byte>(size);
   size_ = size;
   owns_data_ = true;
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(data_), kPointerAlignment));
+}
+
+// static
+uint32_t SerializedData::ComputeMagicNumber(Isolate* isolate) {
+  return ComputeMagicNumber(isolate->heap()->external_reference_table());
 }
 
 // The partial snapshot cache is terminated by undefined. We visit the
@@ -64,28 +111,37 @@ void SerializedData::AllocateData(int size) {
 //  - during normal GC to keep its content alive.
 //  - not during serialization. The partial serializer adds to it explicitly.
 DISABLE_CFI_PERF
-void SerializerDeserializer::Iterate(Isolate* isolate, ObjectVisitor* visitor) {
-  List<Object*>* cache = isolate->partial_snapshot_cache();
-  for (int i = 0;; ++i) {
+void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
+  std::vector<Object*>* cache = isolate->partial_snapshot_cache();
+  for (size_t i = 0;; ++i) {
     // Extend the array ready to get a value when deserializing.
-    if (cache->length() <= i) cache->Add(Smi::kZero);
+    if (cache->size() <= i) cache->push_back(Smi::kZero);
     // During deserialization, the visitor populates the partial snapshot cache
     // and eventually terminates the cache with undefined.
-    visitor->VisitPointer(&cache->at(i));
+    visitor->VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
+                              &cache->at(i));
     if (cache->at(i)->IsUndefined(isolate)) break;
   }
 }
 
 bool SerializerDeserializer::CanBeDeferred(HeapObject* o) {
-  return !o->IsString() && !o->IsScript();
+  return !o->IsString() && !o->IsScript() && !o->IsJSTypedArray();
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirectors(
-    List<AccessorInfo*>* accessor_infos) {
+    const std::vector<AccessorInfo*>& accessor_infos) {
   // Restore wiped accessor infos.
-  for (AccessorInfo* info : *accessor_infos) {
+  for (AccessorInfo* info : accessor_infos) {
     Foreign::cast(info->js_getter())
         ->set_foreign_address(info->redirected_getter());
+  }
+}
+
+void SerializerDeserializer::RestoreExternalReferenceRedirectors(
+    const std::vector<CallHandlerInfo*>& call_handler_infos) {
+  for (CallHandlerInfo* info : call_handler_infos) {
+    Foreign::cast(info->js_callback())
+        ->set_foreign_address(info->redirected_callback());
   }
 }
 

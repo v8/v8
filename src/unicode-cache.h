@@ -16,7 +16,7 @@ namespace internal {
 // Caching predicates used by scanners.
 class UnicodeCache {
  public:
-  UnicodeCache() {}
+  UnicodeCache() = default;
   typedef unibrow::Utf8Decoder<512> Utf8Decoder;
 
   StaticResource<Utf8Decoder>* utf8_decoder() { return &utf8_decoder_; }
@@ -32,7 +32,6 @@ class UnicodeCache {
  private:
   unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
   unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
-  unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
   unibrow::Predicate<WhiteSpace, 128> kIsWhiteSpace;
   unibrow::Predicate<WhiteSpaceOrLineTerminator, 128>
       kIsWhiteSpaceOrLineTerminator;

@@ -9,17 +9,19 @@
 #include "src/base/flags.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/operator.h"
-#include "src/frames.h"
 #include "src/globals.h"
+#include "src/interface-descriptors.h"
 #include "src/machine-type.h"
+#include "src/reglist.h"
 #include "src/runtime/runtime.h"
+#include "src/signature.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 
 class CallInterfaceDescriptor;
-class CompilationInfo;
+class OptimizedCompilationInfo;
 
 namespace compiler {
 
@@ -46,12 +48,12 @@ class LinkageLocation {
 
   static LinkageLocation ForRegister(int32_t reg,
                                      MachineType type = MachineType::None()) {
-    DCHECK(reg >= 0);
+    DCHECK_LE(0, reg);
     return LinkageLocation(REGISTER, reg, type);
   }
 
   static LinkageLocation ForCallerFrameSlot(int32_t slot, MachineType type) {
-    DCHECK(slot < 0);
+    DCHECK_GT(0, slot);
     return LinkageLocation(STACK_SLOT, slot, type);
   }
 
@@ -100,25 +102,6 @@ class LinkageLocation {
     return caller_location;
   }
 
- private:
-  friend class CallDescriptor;
-  friend class OperandGenerator;
-
-  enum LocationType { REGISTER, STACK_SLOT };
-
-  class TypeField : public BitField<LocationType, 0, 1> {};
-  class LocationField : public BitField<int32_t, TypeField::kNext, 31> {};
-
-  static const int32_t ANY_REGISTER = -1;
-  static const int32_t MAX_STACK_SLOT = 32767;
-
-  LinkageLocation(LocationType type, int32_t location,
-                  MachineType machine_type) {
-    bit_field_ = TypeField::encode(type) |
-                 ((location << LocationField::kShift) & LocationField::kMask);
-    machine_type_ = machine_type;
-  }
-
   MachineType GetType() const { return machine_type_; }
 
   int GetSize() const {
@@ -131,6 +114,8 @@ class LinkageLocation {
   }
 
   int32_t GetLocation() const {
+    // We can't use LocationField::decode here because it doesn't work for
+    // negative values!
     return static_cast<int32_t>(bit_field_ & LocationField::kMask) >>
            LocationField::kShift;
   }
@@ -155,6 +140,22 @@ class LinkageLocation {
     return GetLocation();
   }
 
+ private:
+  enum LocationType { REGISTER, STACK_SLOT };
+
+  class TypeField : public BitField<LocationType, 0, 1> {};
+  class LocationField : public BitField<int32_t, TypeField::kNext, 31> {};
+
+  static constexpr int32_t ANY_REGISTER = -1;
+  static constexpr int32_t MAX_STACK_SLOT = 32767;
+
+  LinkageLocation(LocationType type, int32_t location,
+                  MachineType machine_type) {
+    bit_field_ = TypeField::encode(type) |
+                 ((location << LocationField::kShift) & LocationField::kMask);
+    machine_type_ = machine_type;
+  }
+
   int32_t bit_field_;
   MachineType machine_type_;
 };
@@ -168,28 +169,28 @@ class V8_EXPORT_PRIVATE CallDescriptor final
  public:
   // Describes the kind of this call, which determines the target.
   enum Kind {
-    kCallCodeObject,  // target is a Code object
-    kCallJSFunction,  // target is a JSFunction object
-    kCallAddress      // target is a machine pointer
+    kCallCodeObject,   // target is a Code object
+    kCallJSFunction,   // target is a JSFunction object
+    kCallAddress,      // target is a machine pointer
+    kCallWasmFunction  // target is a wasm function
   };
 
   enum Flag {
     kNoFlags = 0u,
     kNeedsFrameState = 1u << 0,
     kHasExceptionHandler = 1u << 1,
-    kSupportsTailCalls = 1u << 2,
-    kCanUseRoots = 1u << 3,
-    // (arm64 only) native stack should be used for arguments.
-    kUseNativeStack = 1u << 4,
-    // (arm64 only) call instruction has to restore JSSP or CSP.
-    kRestoreJSSP = 1u << 5,
-    kRestoreCSP = 1u << 6,
+    kCanUseRoots = 1u << 2,
     // Causes the code generator to initialize the root register.
-    kInitializeRootRegister = 1u << 7,
+    kInitializeRootRegister = 1u << 3,
     // Does not ever try to allocate space on our heap.
-    kNoAllocate = 1u << 8,
+    kNoAllocate = 1u << 4,
     // Push argument count as part of function prologue.
-    kPushArgumentCount = 1u << 9
+    kPushArgumentCount = 1u << 5,
+    // Use retpoline for this call if indirect.
+    kRetpoline = 1u << 6,
+    // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
+    // indirect target address when calling.
+    kFixedTargetRegister = 1u << 7
   };
   typedef base::Flags<Flag> Flags;
 
@@ -198,18 +199,21 @@ class V8_EXPORT_PRIVATE CallDescriptor final
                  Operator::Properties properties,
                  RegList callee_saved_registers,
                  RegList callee_saved_fp_registers, Flags flags,
-                 const char* debug_name = "")
+                 const char* debug_name = "",
+                 const RegList allocatable_registers = 0,
+                 size_t stack_return_count = 0)
       : kind_(kind),
         target_type_(target_type),
         target_loc_(target_loc),
         location_sig_(location_sig),
         stack_param_count_(stack_param_count),
+        stack_return_count_(stack_return_count),
         properties_(properties),
         callee_saved_registers_(callee_saved_registers),
         callee_saved_fp_registers_(callee_saved_fp_registers),
+        allocatable_registers_(allocatable_registers),
         flags_(flags),
-        debug_name_(debug_name) {
-  }
+        debug_name_(debug_name) {}
 
   // Returns the kind of this call.
   Kind kind() const { return kind_; }
@@ -220,8 +224,11 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   // Returns {true} if this descriptor is a call to a JSFunction.
   bool IsJSFunctionCall() const { return kind_ == kCallJSFunction; }
 
+  // Returns {true} if this descriptor is a call to a WebAssembly function.
+  bool IsWasmFunctionCall() const { return kind_ == kCallWasmFunction; }
+
   bool RequiresFrameAsIncoming() const {
-    return IsCFunctionCall() || IsJSFunctionCall();
+    return IsCFunctionCall() || IsJSFunctionCall() || IsWasmFunctionCall();
   }
 
   // The number of return values from this call.
@@ -232,6 +239,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   // The number of stack parameters to the call.
   size_t StackParameterCount() const { return stack_param_count_; }
+
+  // The number of stack return values from the call.
+  size_t StackReturnCount() const { return stack_return_count_; }
 
   // The number of parameters to the JS function call.
   size_t JSParameterCount() const {
@@ -249,8 +259,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   Flags flags() const { return flags_; }
 
   bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
-  bool SupportsTailCalls() const { return flags() & kSupportsTailCalls; }
-  bool UseNativeStack() const { return flags() & kUseNativeStack; }
   bool PushArgumentCount() const { return flags() & kPushArgumentCount; }
   bool InitializeRootRegister() const {
     return flags() & kInitializeRootRegister;
@@ -295,23 +303,41 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   bool HasSameReturnLocationsAs(const CallDescriptor* other) const;
 
-  int GetStackParameterDelta(const CallDescriptor* tail_caller = nullptr) const;
+  // Returns the first stack slot that is not used by the stack parameters.
+  int GetFirstUnusedStackSlot() const;
+
+  int GetStackParameterDelta(const CallDescriptor* tail_caller) const;
 
   bool CanTailCall(const Node* call) const;
 
   int CalculateFixedFrameSize() const;
 
+  RegList AllocatableRegisters() const { return allocatable_registers_; }
+
+  bool HasRestrictedAllocatableRegisters() const {
+    return allocatable_registers_ != 0;
+  }
+
+  void set_save_fp_mode(SaveFPRegsMode mode) { save_fp_mode_ = mode; }
+
+  SaveFPRegsMode get_save_fp_mode() const { return save_fp_mode_; }
+
  private:
   friend class Linkage;
+  SaveFPRegsMode save_fp_mode_ = kSaveFPRegs;
 
   const Kind kind_;
   const MachineType target_type_;
   const LinkageLocation target_loc_;
   const LocationSignature* const location_sig_;
   const size_t stack_param_count_;
+  const size_t stack_return_count_;
   const Operator::Properties properties_;
   const RegList callee_saved_registers_;
   const RegList callee_saved_fp_registers_;
+  // Non-zero value means restricting the set of allocatable registers for
+  // register allocator to use.
+  const RegList allocatable_registers_;
   const Flags flags_;
   const char* const debug_name_;
 
@@ -336,13 +362,14 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 //                        #0          #1     #2     [...]             #n
 // Call[CodeStub]         code,       arg 1, arg 2, [...],            context
 // Call[JSFunction]       function,   rcvr,  arg 1, [...], new, #arg, context
-// Call[Runtime]          CEntryStub, arg 1, arg 2, [...], fun, #arg, context
+// Call[Runtime]          CEntry,     arg 1, arg 2, [...], fun, #arg, context
 // Call[BytecodeDispatch] address,    arg 1, arg 2, [...]
 class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit Linkage(CallDescriptor* incoming) : incoming_(incoming) {}
 
-  static CallDescriptor* ComputeIncoming(Zone* zone, CompilationInfo* info);
+  static CallDescriptor* ComputeIncoming(Zone* zone,
+                                         OptimizedCompilationInfo* info);
 
   // The call descriptor for this compilation unit describes the locations
   // of incoming parameters and the outgoing return value(s).
@@ -361,15 +388,13 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
       CallDescriptor::Flags flags);
 
   static CallDescriptor* GetStubCallDescriptor(
-      Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
+      Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count, CallDescriptor::Flags flags,
       Operator::Properties properties = Operator::kNoProperties,
-      MachineType return_type = MachineType::AnyTagged(),
-      size_t return_count = 1);
+      StubCallMode stub_mode = StubCallMode::kCallOnHeapBuiltin);
 
-  static CallDescriptor* GetAllocateCallDescriptor(Zone* zone);
   static CallDescriptor* GetBytecodeDispatchCallDescriptor(
-      Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
+      Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count);
 
   // Creates a call descriptor for simplified C calls that is appropriate

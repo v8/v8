@@ -10,6 +10,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace instruction_unittest {
 
 namespace {
 
@@ -37,8 +38,8 @@ bool Contains(const ZoneVector<MoveOperands*>* moves,
 
 class InstructionTest : public TestWithZone {
  public:
-  InstructionTest() {}
-  virtual ~InstructionTest() {}
+  InstructionTest() = default;
+  ~InstructionTest() override = default;
 
   ParallelMove* CreateParallelMove(
       const std::vector<InstructionOperand>& operand_pairs) {
@@ -170,6 +171,7 @@ TEST_F(InstructionTest, PrepareInsertAfter) {
   }
 }
 
+}  // namespace instruction_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

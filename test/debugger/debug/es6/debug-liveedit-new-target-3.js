@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 // Test that live-editing a frame above one that uses new.target succeeds.
+// Flags: --allow-natives-syntax
 
-Debug = debug.Debug
+Debug = debug.Debug;
 var wrapper_calls = 0;
 var construct_calls = 0;
 var exceptions = 0;
@@ -24,14 +24,30 @@ eval(`
   }
 `);
 
+function ExecuteInDebugContext(f) {
+  var result;
+  var exception = null;
+  Debug.setListener(function(event) {
+    if (event == Debug.DebugEvent.Break) {
+      try {
+        result = f();
+      } catch (e) {
+        // Rethrow this exception later.
+        exception = e;
+      }
+    }
+  });
+  debugger;
+  Debug.setListener(null);
+  if (exception !== null) throw exception;
+  return result;
+}
+
 function Replace(fun, original, patch) {
-  %ExecuteInDebugContext(function() {
+  ExecuteInDebugContext(function() {
     var change_log = [];
     try {
-      var script = Debug.findScript(fun);
-      var patch_pos = script.source.indexOf(original);
-      Debug.LiveEdit.TestApi.ApplySingleChunkPatch(
-          script, patch_pos, original.length, patch, change_log);
+      %LiveEditPatchScript(fun, Debug.scriptSource(fun).replace(original, patch));
     } catch (e) {
       exceptions++;
     }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition-staging --turbo --validate-asm --always-opt
+// Flags: --validate-asm --always-opt
 
 function Module() {
   "use asm";

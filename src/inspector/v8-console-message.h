@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8CONSOLEMESSAGE_H_
-#define V8_INSPECTOR_V8CONSOLEMESSAGE_H_
+#ifndef V8_INSPECTOR_V8_CONSOLE_MESSAGE_H_
+#define V8_INSPECTOR_V8_CONSOLE_MESSAGE_H_
 
 #include <deque>
+#include <map>
+#include <set>
 #include "include/v8.h"
 #include "src/inspector/protocol/Console.h"
 #include "src/inspector/protocol/Forward.h"
@@ -44,9 +46,10 @@ class V8ConsoleMessage {
   ~V8ConsoleMessage();
 
   static std::unique_ptr<V8ConsoleMessage> createForConsoleAPI(
-      double timestamp, ConsoleAPIType,
+      v8::Local<v8::Context> v8Context, int contextId, int groupId,
+      V8InspectorImpl* inspector, double timestamp, ConsoleAPIType,
       const std::vector<v8::Local<v8::Value>>& arguments,
-      std::unique_ptr<V8StackTraceImpl>, InspectedContext*);
+      const String16& consoleContext, std::unique_ptr<V8StackTraceImpl>);
 
   static std::unique_ptr<V8ConsoleMessage> createForException(
       double timestamp, const String16& detailedMessage, const String16& url,
@@ -64,6 +67,10 @@ class V8ConsoleMessage {
                         bool generatePreview) const;
   ConsoleAPIType type() const;
   void contextDestroyed(int contextId);
+
+  int estimatedSize() const {
+    return m_v8Size + static_cast<int>(m_message.length() * sizeof(UChar));
+  }
 
  private:
   V8ConsoleMessage(V8MessageOrigin, double timestamp, const String16& message);
@@ -89,8 +96,10 @@ class V8ConsoleMessage {
   ConsoleAPIType m_type;
   unsigned m_exceptionId;
   unsigned m_revokedExceptionId;
+  int m_v8Size = 0;
   Arguments m_arguments;
   String16 m_detailedMessage;
+  String16 m_consoleContext;
 };
 
 class V8ConsoleMessageStorage {
@@ -99,7 +108,6 @@ class V8ConsoleMessageStorage {
   ~V8ConsoleMessageStorage();
 
   int contextGroupId() { return m_contextGroupId; }
-  int expiredCount() { return m_expiredCount; }
   const std::deque<std::unique_ptr<V8ConsoleMessage>>& messages() const {
     return m_messages;
   }
@@ -108,13 +116,30 @@ class V8ConsoleMessageStorage {
   void contextDestroyed(int contextId);
   void clear();
 
+  bool shouldReportDeprecationMessage(int contextId, const String16& method);
+  int count(int contextId, const String16& id);
+  bool countReset(int contextId, const String16& id);
+  void time(int contextId, const String16& id);
+  double timeLog(int contextId, const String16& id);
+  double timeEnd(int contextId, const String16& id);
+  bool hasTimer(int contextId, const String16& id);
+
  private:
   V8InspectorImpl* m_inspector;
   int m_contextGroupId;
-  int m_expiredCount;
+  int m_estimatedSize = 0;
   std::deque<std::unique_ptr<V8ConsoleMessage>> m_messages;
+
+  struct PerContextData {
+    std::set<String16> m_reportedDeprecationMessages;
+    // Corresponds to https://console.spec.whatwg.org/#count-map
+    std::map<String16, int> m_count;
+    // Corresponds to https://console.spec.whatwg.org/#timer-table
+    std::map<String16, double> m_time;
+  };
+  std::map<int, PerContextData> m_data;
 };
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8CONSOLEMESSAGE_H_
+#endif  // V8_INSPECTOR_V8_CONSOLE_MESSAGE_H_

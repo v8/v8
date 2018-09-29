@@ -13,7 +13,7 @@ void LocalEmbedderHeapTracer::TracePrologue() {
   if (!InUse()) return;
 
   CHECK(cached_wrappers_to_trace_.empty());
-  num_v8_marking_deque_was_empty_ = 0;
+  num_v8_marking_worklist_was_empty_ = 0;
   remote_tracer_->TracePrologue();
 }
 
@@ -24,32 +24,26 @@ void LocalEmbedderHeapTracer::TraceEpilogue() {
   remote_tracer_->TraceEpilogue();
 }
 
-void LocalEmbedderHeapTracer::AbortTracing() {
-  if (!InUse()) return;
-
-  cached_wrappers_to_trace_.clear();
-  remote_tracer_->AbortTracing();
-}
-
 void LocalEmbedderHeapTracer::EnterFinalPause() {
   if (!InUse()) return;
 
-  remote_tracer_->EnterFinalPause();
+  remote_tracer_->EnterFinalPause(embedder_stack_state_);
+  // Resetting to state unknown as there may be follow up garbage collections
+  // triggered from callbacks that have a different stack state.
+  embedder_stack_state_ = EmbedderHeapTracer::kUnknown;
 }
 
-bool LocalEmbedderHeapTracer::Trace(
-    double deadline, EmbedderHeapTracer::AdvanceTracingActions actions) {
-  if (!InUse()) return false;
+bool LocalEmbedderHeapTracer::Trace(double deadline) {
+  if (!InUse()) return true;
 
   DCHECK_EQ(0, NumberOfCachedWrappersToTrace());
-  return remote_tracer_->AdvanceTracing(deadline, actions);
+  return remote_tracer_->AdvanceTracing(deadline);
 }
 
-size_t LocalEmbedderHeapTracer::NumberOfWrappersToTrace() {
-  return (InUse())
-             ? cached_wrappers_to_trace_.size() +
-                   remote_tracer_->NumberOfWrappersToTrace()
-             : 0;
+bool LocalEmbedderHeapTracer::IsRemoteTracingDone() {
+  return (InUse()) ? cached_wrappers_to_trace_.empty() &&
+                         remote_tracer_->IsTracingDone()
+                   : true;
 }
 
 void LocalEmbedderHeapTracer::RegisterWrappersWithRemoteTracer() {
@@ -66,6 +60,13 @@ void LocalEmbedderHeapTracer::RegisterWrappersWithRemoteTracer() {
 bool LocalEmbedderHeapTracer::RequiresImmediateWrapperProcessing() {
   const size_t kTooManyWrappers = 16000;
   return cached_wrappers_to_trace_.size() > kTooManyWrappers;
+}
+
+void LocalEmbedderHeapTracer::SetEmbedderStackStateForNextFinalization(
+    EmbedderHeapTracer::EmbedderStackState stack_state) {
+  if (!InUse()) return;
+
+  embedder_stack_state_ = stack_state;
 }
 
 }  // namespace internal

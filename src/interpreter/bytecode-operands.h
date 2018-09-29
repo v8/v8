@@ -20,6 +20,7 @@ namespace interpreter {
 
 #define REGISTER_OUTPUT_OPERAND_TYPE_LIST(V)          \
   V(RegOut, OperandTypeInfo::kScalableSignedByte)     \
+  V(RegOutList, OperandTypeInfo::kScalableSignedByte) \
   V(RegOutPair, OperandTypeInfo::kScalableSignedByte) \
   V(RegOutTriple, OperandTypeInfo::kScalableSignedByte)
 
@@ -34,7 +35,8 @@ namespace interpreter {
 #define UNSIGNED_FIXED_SCALAR_OPERAND_TYPE_LIST(V)    \
   V(Flag8, OperandTypeInfo::kFixedUnsignedByte)       \
   V(IntrinsicId, OperandTypeInfo::kFixedUnsignedByte) \
-  V(RuntimeId, OperandTypeInfo::kFixedUnsignedShort)
+  V(RuntimeId, OperandTypeInfo::kFixedUnsignedShort)  \
+  V(NativeContextIndex, OperandTypeInfo::kScalableUnsignedByte)
 
 // Carefully ordered for operand type range checks below.
 #define NON_REGISTER_OPERAND_TYPE_LIST(V)       \
@@ -129,10 +131,33 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const OperandScale& operand_scale);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const OperandSize& operand_size);
-std::ostream& operator<<(std::ostream& os, const OperandType& operand_type);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const OperandType& operand_type);
 
-class BytecodeOperands {
+class BytecodeOperands : public AllStatic {
  public:
+  // The total number of bytecode operand types used.
+  static const int kOperandTypeCount = static_cast<int>(OperandType::kLast) + 1;
+
+// The total number of bytecode operand scales used.
+#define OPERAND_SCALE_COUNT(...) +1
+  static const int kOperandScaleCount =
+      0 OPERAND_SCALE_LIST(OPERAND_SCALE_COUNT);
+#undef OPERAND_SCALE_COUNT
+
+  static int OperandScaleAsIndex(OperandScale operand_scale) {
+    switch (operand_scale) {
+      case OperandScale::kSingle:
+        return 0;
+      case OperandScale::kDouble:
+        return 1;
+      case OperandScale::kQuadruple:
+        return 2;
+      default:
+        UNREACHABLE();
+    }
+  }
+
   // Returns true if |accumulator_use| reads the accumulator.
   static constexpr bool ReadsAccumulator(AccumulatorUse accumulator_use) {
     return accumulator_use == AccumulatorUse::kRead ||

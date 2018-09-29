@@ -7,7 +7,9 @@
 
 #include "src/interpreter/bytecodes.h"
 
-#include "src/frames.h"
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
+#include "src/frame-constants.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -38,10 +40,6 @@ class V8_EXPORT_PRIVATE Register final {
   static Register current_context();
   bool is_current_context() const;
 
-  // Returns the register for the incoming new target value.
-  static Register new_target();
-  bool is_new_target() const;
-
   // Returns the register for the bytecode array.
   static Register bytecode_array();
   bool is_bytecode_array() const;
@@ -63,9 +61,9 @@ class V8_EXPORT_PRIVATE Register final {
   }
 
   static bool AreContiguous(Register reg1, Register reg2,
-                            Register reg3 = Register(),
-                            Register reg4 = Register(),
-                            Register reg5 = Register());
+                            Register reg3 = invalid_value(),
+                            Register reg4 = invalid_value(),
+                            Register reg5 = invalid_value());
 
   std::string ToString(int parameter_count) const;
 
@@ -89,24 +87,21 @@ class V8_EXPORT_PRIVATE Register final {
   }
 
  private:
+  DISALLOW_NEW_AND_DELETE();
+
   static const int kInvalidIndex = kMaxInt;
   static const int kRegisterFileStartOffset =
       InterpreterFrameConstants::kRegisterFileFromFp / kPointerSize;
-
-  void* operator new(size_t size) = delete;
-  void operator delete(void* p) = delete;
 
   int index_;
 };
 
 class RegisterList {
  public:
-  RegisterList() : first_reg_index_(Register().index()), register_count_(0) {}
-  RegisterList(int first_reg_index, int register_count)
-      : first_reg_index_(first_reg_index), register_count_(register_count) {}
-
-  // Increases the size of the register list by one.
-  void IncrementRegisterCount() { register_count_++; }
+  RegisterList()
+      : first_reg_index_(Register::invalid_value().index()),
+        register_count_(0) {}
+  explicit RegisterList(Register r) : RegisterList(r.index(), 1) {}
 
   // Returns a new RegisterList which is a truncated version of this list, with
   // |count| registers.
@@ -132,6 +127,17 @@ class RegisterList {
   int register_count() const { return register_count_; }
 
  private:
+  friend class BytecodeRegisterAllocator;
+  friend class BytecodeDecoder;
+  friend class InterpreterTester;
+  friend class BytecodeUtils;
+
+  RegisterList(int first_reg_index, int register_count)
+      : first_reg_index_(first_reg_index), register_count_(register_count) {}
+
+  // Increases the size of the register list by one.
+  void IncrementRegisterCount() { register_count_++; }
+
   int first_reg_index_;
   int register_count_;
 };

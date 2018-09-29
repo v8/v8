@@ -12,22 +12,25 @@
 namespace v8 {
 namespace internal {
 
-class StartupSerializer : public Serializer {
+class StartupSerializer : public Serializer<> {
  public:
-  StartupSerializer(
-      Isolate* isolate,
-      v8::SnapshotCreator::FunctionCodeHandling function_code_handling);
+  explicit StartupSerializer(Isolate* isolate);
   ~StartupSerializer() override;
 
   // Serialize the current state of the heap.  The order is:
-  // 1) Immortal immovable roots
-  // 2) Remaining strong references.
-  // 3) Partial snapshot cache.
-  // 4) Weak references (e.g. the string table).
+  // 1) Strong roots
+  // 2) Builtins and bytecode handlers
+  // 3) Partial snapshot cache
+  // 4) Weak references (e.g. the string table)
   void SerializeStrongReferences();
   void SerializeWeakReferencesAndDeferred();
 
   int PartialSnapshotCacheIndex(HeapObject* o);
+
+  bool can_be_rehashed() const { return can_be_rehashed_; }
+  bool root_has_been_serialized(RootIndex root_index) const {
+    return root_has_been_serialized_.test(static_cast<size_t>(root_index));
+  }
 
  private:
   class PartialCacheIndexMap {
@@ -57,24 +60,39 @@ class StartupSerializer : public Serializer {
 
   // The StartupSerializer has to serialize the root array, which is slightly
   // different.
-  void VisitPointers(Object** start, Object** end) override;
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override;
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
+  bool MustBeDeferred(HeapObject* object) override;
 
-  // Some roots should not be serialized, because their actual value depends on
-  // absolute addresses and they are reset after deserialization, anyway.
-  // In the first pass over the root list, we only serialize immortal immovable
-  // roots. In the second pass, we serialize the rest.
-  bool RootShouldBeSkipped(int root_index);
+  void CheckRehashability(HeapObject* obj);
 
-  bool clear_function_code_;
-  bool serializing_builtins_;
-  bool serializing_immortal_immovables_roots_;
-  std::bitset<Heap::kStrongRootListLength> root_has_been_serialized_;
+  std::bitset<RootsTable::kEntriesCount> root_has_been_serialized_;
   PartialCacheIndexMap partial_cache_index_map_;
-  List<AccessorInfo*> accessor_infos_;
+  std::vector<AccessorInfo*> accessor_infos_;
+  std::vector<CallHandlerInfo*> call_handler_infos_;
+  // Indicates whether we only serialized hash tables that we can rehash.
+  // TODO(yangguo): generalize rehashing, and remove this flag.
+  bool can_be_rehashed_;
+
   DISALLOW_COPY_AND_ASSIGN(StartupSerializer);
+};
+
+class SerializedHandleChecker : public RootVisitor {
+ public:
+  SerializedHandleChecker(Isolate* isolate, std::vector<Context*>* contexts);
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override;
+  bool CheckGlobalAndEternalHandles();
+
+ private:
+  void AddToSet(FixedArray* serialized);
+
+  Isolate* isolate_;
+  std::unordered_set<Object*> serialized_;
+  bool ok_ = true;
 };
 
 }  // namespace internal

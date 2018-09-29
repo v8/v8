@@ -14,41 +14,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-namespace {
-
-size_t HashCode(Node* node) {
-  size_t h = base::hash_combine(node->op()->HashCode(), node->InputCount());
-  for (Node* input : node->inputs()) {
-    h = base::hash_combine(h, input->id());
-  }
-  return h;
-}
-
-
-bool Equals(Node* a, Node* b) {
-  DCHECK_NOT_NULL(a);
-  DCHECK_NOT_NULL(b);
-  DCHECK_NOT_NULL(a->op());
-  DCHECK_NOT_NULL(b->op());
-  if (!a->op()->Equals(b->op())) return false;
-  if (a->InputCount() != b->InputCount()) return false;
-  Node::Inputs aInputs = a->inputs();
-  Node::Inputs bInputs = b->inputs();
-
-  auto aIt = aInputs.begin();
-  auto bIt = bInputs.begin();
-  auto aEnd = aInputs.end();
-
-  for (; aIt != aEnd; ++aIt, ++bIt) {
-    DCHECK_NOT_NULL(*aIt);
-    DCHECK_NOT_NULL(*bIt);
-    if ((*aIt)->id() != (*bIt)->id()) return false;
-  }
-  return true;
-}
-
-}  // namespace
-
 ValueNumberingReducer::ValueNumberingReducer(Zone* temp_zone, Zone* graph_zone)
     : entries_(nullptr),
       capacity_(0),
@@ -56,16 +21,16 @@ ValueNumberingReducer::ValueNumberingReducer(Zone* temp_zone, Zone* graph_zone)
       temp_zone_(temp_zone),
       graph_zone_(graph_zone) {}
 
-ValueNumberingReducer::~ValueNumberingReducer() {}
+ValueNumberingReducer::~ValueNumberingReducer() = default;
 
 
 Reduction ValueNumberingReducer::Reduce(Node* node) {
   if (!node->op()->HasProperty(Operator::kIdempotent)) return NoChange();
 
-  const size_t hash = HashCode(node);
+  const size_t hash = NodeProperties::HashCode(node);
   if (!entries_) {
-    DCHECK(size_ == 0);
-    DCHECK(capacity_ == 0);
+    DCHECK_EQ(0, size_);
+    DCHECK_EQ(0, capacity_);
     // Allocate the initial entries and insert the first entry.
     capacity_ = kInitialCapacity;
     entries_ = temp_zone()->NewArray<Node*>(kInitialCapacity);
@@ -131,7 +96,7 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
           // Otherwise, keep searching for another collision.
           continue;
         }
-        if (Equals(entry, node)) {
+        if (NodeProperties::Equals(entry, node)) {
           Reduction reduction = ReplaceIfTypesMatch(node, entry);
           if (reduction.Changed()) {
             // Overwrite the colliding entry with the actual entry.
@@ -153,7 +118,7 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
       dead = i;
       continue;
     }
-    if (Equals(entry, node)) {
+    if (NodeProperties::Equals(entry, node)) {
       return ReplaceIfTypesMatch(node, entry);
     }
   }
@@ -163,15 +128,15 @@ Reduction ValueNumberingReducer::ReplaceIfTypesMatch(Node* node,
                                                      Node* replacement) {
   // Make sure the replacement has at least as good type as the original node.
   if (NodeProperties::IsTyped(replacement) && NodeProperties::IsTyped(node)) {
-    Type* replacement_type = NodeProperties::GetType(replacement);
-    Type* node_type = NodeProperties::GetType(node);
-    if (!replacement_type->Is(node_type)) {
+    Type replacement_type = NodeProperties::GetType(replacement);
+    Type node_type = NodeProperties::GetType(node);
+    if (!replacement_type.Is(node_type)) {
       // Ideally, we would set an intersection of {replacement_type} and
       // {node_type} here. However, typing of NumberConstants assigns different
       // types to constants with the same value (it creates a fresh heap
       // number), which would make the intersection empty. To be safe, we use
       // the smaller type if the types are comparable.
-      if (node_type->Is(replacement_type)) {
+      if (node_type.Is(replacement_type)) {
         NodeProperties::SetType(replacement, node_type);
       } else {
         // Types are not comparable => do not replace.
@@ -197,7 +162,8 @@ void ValueNumberingReducer::Grow() {
   for (size_t i = 0; i < old_capacity; ++i) {
     Node* const old_entry = old_entries[i];
     if (!old_entry || old_entry->IsDead()) continue;
-    for (size_t j = HashCode(old_entry) & mask;; j = (j + 1) & mask) {
+    for (size_t j = NodeProperties::HashCode(old_entry) & mask;;
+         j = (j + 1) & mask) {
       Node* const entry = entries_[j];
       if (entry == old_entry) {
         // Skip duplicate of the old entry.

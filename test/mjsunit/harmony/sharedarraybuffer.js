@@ -70,13 +70,6 @@ function TestByteLengthNotWritable() {
 
 TestByteLengthNotWritable();
 
-function TestArrayBufferNoSlice() {
-  var sab = new SharedArrayBuffer(10);
-  assertEquals(undefined, sab.slice);
-}
-
-TestArrayBufferNoSlice();
-
 // Typed arrays using SharedArrayBuffers
 
 // TODO(binji): how many of these tests are necessary if there are no new
@@ -96,9 +89,6 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertEquals("[object " + constr.name + "]",
       Object.prototype.toString.call(a0));
 
-  // TODO(binji): Should this return false here? It is a view, but it doesn't
-  // view a SharedArrayBuffer...
-  assertTrue(SharedArrayBuffer.isView(a0));
   assertSame(elementSize, a0.BYTES_PER_ELEMENT);
   assertSame(30, a0.length);
   assertSame(30*elementSize, a0.byteLength);
@@ -590,3 +580,13 @@ desc = Object.getOwnPropertyDescriptor(SharedArrayBuffer.prototype,
 var a = new ArrayBuffer(10);
 Object.defineProperty(a, 'byteLength', desc);
 assertThrows(function() {a.byteLength}, TypeError);
+
+// test SharedArrayBuffer species getter
+assertSame(SharedArrayBuffer[Symbol.species], SharedArrayBuffer);
+var desc = Object.getOwnPropertyDescriptor(SharedArrayBuffer, Symbol.species);
+assertEquals("function", typeof desc.get);
+assertEquals("get [Symbol.species]", desc.get.name);
+assertEquals(0, desc.get.length);
+assertEquals("undefined", typeof desc.set);
+assertTrue(desc.configurable);
+assertFalse(desc.enumerable);

@@ -131,3 +131,33 @@ F.__proto__ = null;
   assertFalse(foo(new A()));
   assertTrue(foo(new F()));
 })();
+
+(function() {
+  function foo() {
+    var a = new A();
+    return a instanceof A;
+  }
+
+  assertTrue(foo());
+  assertTrue(foo());
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(foo());
+})();
+
+(function() {
+  class B extends A {};
+
+  function makeFoo() {
+    return function foo(b) {
+      return b instanceof B;
+    }
+  }
+  makeFoo();
+  const foo = makeFoo();
+
+  assertTrue(foo(new B));
+  assertFalse(foo(new A));
+  %OptimizeFunctionOnNextCall(foo);
+  assertTrue(foo(new B));
+  assertFalse(foo(new A));
+})();

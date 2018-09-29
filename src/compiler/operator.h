@@ -65,7 +65,7 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
            size_t value_in, size_t effect_in, size_t control_in,
            size_t value_out, size_t effect_out, size_t control_out);
 
-  virtual ~Operator() {}
+  virtual ~Operator() = default;
 
   // A small integer unique to all instances of a particular kind of operator,
   // useful for quick matching for specific kinds of operators. For fast access
@@ -94,9 +94,6 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   Properties properties() const { return properties_; }
-
-  // TODO(bmeurer): Use bit fields below?
-  static const size_t kMaxControlOutputCount = (1u << 16) - 1;
 
   // TODO(titzer): convert return values here to size_t.
   int ValueInputCount() const { return value_in_; }
@@ -136,13 +133,13 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
   virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const;
 
  private:
+  const char* mnemonic_;
   Opcode opcode_;
   Properties properties_;
-  const char* mnemonic_;
   uint32_t value_in_;
-  uint16_t effect_in_;
-  uint16_t control_in_;
-  uint16_t value_out_;
+  uint32_t effect_in_;
+  uint32_t control_in_;
+  uint32_t value_out_;
   uint8_t effect_out_;
   uint32_t control_out_;
 
@@ -200,7 +197,7 @@ class Operator1 : public Operator {
     os << "[" << parameter() << "]";
   }
 
-  virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const {
+  void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const override {
     os << mnemonic();
     PrintParameter(os, verbose);
   }

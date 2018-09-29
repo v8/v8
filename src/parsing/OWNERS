@@ -1,8 +1,10 @@
 set noparent
 
 adamk@chromium.org
+gsathya@chromium.org
 littledan@chromium.org
 marja@chromium.org
-rossberg@chromium.org
+neis@chromium.org
 verwaest@chromium.org
-vogelheim@chromium.org
+
+# COMPONENT: Blink>JavaScript>Parser

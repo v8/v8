@@ -10,10 +10,12 @@
 namespace v8 {
 namespace internal {
 
+class RootVisitor;
+class ThreadLocalTop;
 
 class ThreadState {
  public:
-  // Returns NULL after the last one.
+  // Returns nullptr after the last one.
   ThreadState* Next();
 
   enum List {FREE_LIST, IN_USE_LIST};
@@ -51,32 +53,27 @@ class ThreadState {
   friend class ThreadManager;
 };
 
-
-// Defined in isolate.h.
-class ThreadLocalTop;
-
-
 class ThreadVisitor {
  public:
   // ThreadLocalTop may be only available during this call.
   virtual void VisitThread(Isolate* isolate, ThreadLocalTop* top) = 0;
 
  protected:
-  virtual ~ThreadVisitor() {}
+  virtual ~ThreadVisitor() = default;
 };
-
 
 class ThreadManager {
  public:
   void Lock();
   void Unlock();
 
+  void InitThread(const ExecutionAccess&);
   void ArchiveThread();
   bool RestoreThread();
   void FreeThreadResources();
   bool IsArchived();
 
-  void Iterate(ObjectVisitor* v);
+  void Iterate(RootVisitor* v);
   void IterateArchivedThreads(ThreadVisitor* v);
   bool IsLockedByCurrentThread() {
     return mutex_owner_.Equals(ThreadId::Current());

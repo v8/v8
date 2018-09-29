@@ -6,7 +6,7 @@
 #define V8_ARGUMENTS_H_
 
 #include "src/allocation.h"
-#include "src/objects-inl.h"
+#include "src/objects.h"
 #include "src/tracing/trace-event.h"
 
 namespace v8 {
@@ -27,7 +27,7 @@ namespace internal {
 // Note that length_ (whose value is in the integer range) is defined
 // as intptr_t to provide endian-neutrality on 64-bit archs.
 
-class Arguments BASE_EMBEDDED {
+class Arguments {
  public:
   Arguments(int length, Object** arguments)
       : length_(length), arguments_(arguments) {
@@ -42,21 +42,11 @@ class Arguments BASE_EMBEDDED {
   }
 
   template <class S = Object>
-  Handle<S> at(int index) {
-    Object** value = &((*this)[index]);
-    // This cast checks that the object we're accessing does indeed have the
-    // expected type.
-    S::cast(*value);
-    return Handle<S>(reinterpret_cast<S**>(value));
-  }
+  inline Handle<S> at(int index);
 
-  int smi_at(int index) {
-    return Smi::cast((*this)[index])->value();
-  }
+  inline int smi_at(int index);
 
-  double number_at(int index) {
-    return (*this)[index]->Number();
-  }
+  inline double number_at(int index);
 
   // Get the total number of arguments including the receiver.
   int length() const { return static_cast<int>(length_); }
@@ -72,6 +62,12 @@ class Arguments BASE_EMBEDDED {
   Object** arguments_;
 };
 
+template <>
+inline Handle<Object> Arguments::at(int index) {
+  Object** value = &((*this)[index]);
+  return Handle<Object>(value);
+}
+
 double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 
 #ifdef DEBUG
@@ -83,11 +79,11 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
 #define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                             \
-  static INLINE(Type __RT_impl_##Name(Arguments args, Isolate* isolate));     \
+  static V8_INLINE Type __RT_impl_##Name(Arguments args, Isolate* isolate);   \
                                                                               \
   V8_NOINLINE static Type Stats_##Name(int args_length, Object** args_object, \
                                        Isolate* isolate) {                    \
-    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Name);            \
+    RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::k##Name);      \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                     \
                  "V8.Runtime_" #Name);                                        \
     Arguments args(args_length, args_object);                                 \
@@ -109,8 +105,6 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 #define RUNTIME_FUNCTION(Name) RUNTIME_FUNCTION_RETURNS_TYPE(Object*, Name)
 #define RUNTIME_FUNCTION_RETURN_PAIR(Name) \
     RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, Name)
-#define RUNTIME_FUNCTION_RETURN_TRIPLE(Name) \
-    RUNTIME_FUNCTION_RETURNS_TYPE(ObjectTriple, Name)
 
 }  // namespace internal
 }  // namespace v8

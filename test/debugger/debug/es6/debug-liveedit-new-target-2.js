@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
+// Flags: --allow-natives-syntax
 // Test that live-editing a frame to introduce new.target fails.
 
 Debug = debug.Debug
@@ -19,18 +19,31 @@ eval(`
   }
 `);
 
+function ExecuteInDebugContext(f) {
+  var result;
+  var exception = null;
+  Debug.setListener(function(event) {
+    if (event == Debug.DebugEvent.Break) {
+      try {
+        result = f();
+      } catch (e) {
+        // Rethrow this exception later.
+        exception = e;
+      }
+    }
+  });
+  debugger;
+  Debug.setListener(null);
+  if (exception !== null) throw exception;
+  return result;
+}
+
 function Replace(fun, original, patch) {
-  %ExecuteInDebugContext(function() {
-    var change_log = [];
+  ExecuteInDebugContext(function() {
     try {
-      var script = Debug.findScript(fun);
-      var patch_pos = script.source.indexOf(original);
-      Debug.LiveEdit.TestApi.ApplySingleChunkPatch(
-          script, patch_pos, original.length, patch, change_log);
+      %LiveEditPatchScript(fun, Debug.scriptSource(fun).replace(original, patch));
     } catch (e) {
-      assertEquals("BLOCKED_NO_NEW_TARGET_ON_RESTART",
-                   change_log[0].functions_on_stack[0].replace_problem);
-      assertInstanceof(e, Debug.LiveEdit.Failure);
+      assertEquals(e, 'LiveEdit failed: BLOCKED_BY_NEW_TARGET_IN_RESTART_FRAME');
       exceptions++;
     }
   });

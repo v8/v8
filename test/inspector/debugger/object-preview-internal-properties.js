@@ -1,12 +1,16 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+// TODO(luoe): remove flag when it is on by default.
+// Flags: --harmony-bigint
 
-print("Check internal properties reported in object preview.");
+let {session, contextGroup, Protocol} = InspectorTest.start("Check internal properties reported in object preview.");
 
 Protocol.Debugger.enable();
 Protocol.Runtime.enable();
 Protocol.Runtime.onConsoleAPICalled(dumpInternalPropertiesAndEntries);
+
+contextGroup.setupInjectedScriptEnvironment();
 
 InspectorTest.runTestSuite([
   function boxedObjects(next)
@@ -15,6 +19,7 @@ InspectorTest.runTestSuite([
       .then(() => checkExpression("new Boolean(false)"))
       .then(() => checkExpression("new String(\"abc\")"))
       .then(() => checkExpression("Object(Symbol(42))"))
+      .then(() => checkExpression("Object(BigInt(2))"))
       .then(next);
   },
 
@@ -95,10 +100,8 @@ function dumpInternalPropertiesAndEntries(message)
     InspectorTest.logMessage(message);
     return;
   }
-  for (var property of properties) {
-    if (property.name.startsWith("[["))
-      InspectorTest.logMessage(property);
-  }
+  for (var property of properties)
+    InspectorTest.logMessage(property);
   if (entries) {
     InspectorTest.log("[[Entries]]:");
     InspectorTest.logMessage(entries);

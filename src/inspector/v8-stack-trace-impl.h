@@ -2,98 +2,161 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8STACKTRACEIMPL_H_
-#define V8_INSPECTOR_V8STACKTRACEIMPL_H_
+#ifndef V8_INSPECTOR_V8_STACK_TRACE_IMPL_H_
+#define V8_INSPECTOR_V8_STACK_TRACE_IMPL_H_
 
+#include <memory>
 #include <vector>
 
-#include "src/base/macros.h"
-#include "src/inspector/protocol/Forward.h"
-#include "src/inspector/protocol/Runtime.h"
-
 #include "include/v8-inspector.h"
+#include "include/v8.h"
+#include "src/base/macros.h"
+#include "src/inspector/protocol/Runtime.h"
+#include "src/inspector/string-16.h"
 
 namespace v8_inspector {
 
-class TracedValue;
+class AsyncStackTrace;
 class V8Debugger;
+class WasmTranslation;
+struct V8StackTraceId;
 
-// Note: async stack trace may have empty top stack with non-empty tail to
-// indicate
-// that current native-only state had some async story.
-// On the other hand, any non-top async stack is guaranteed to be non-empty.
-class V8StackTraceImpl final : public V8StackTrace {
+class StackFrame {
  public:
-  static const size_t maxCallStackSizeToCapture = 200;
+  explicit StackFrame(v8::Isolate* isolate, v8::Local<v8::StackFrame> frame);
+  ~StackFrame() = default;
 
-  class Frame {
-   public:
-    Frame();
-    Frame(const String16& functionName, const String16& scriptId,
-          const String16& scriptName, int lineNumber, int column = 0);
-    ~Frame();
+  void translate(WasmTranslation* wasmTranslation);
 
-    const String16& functionName() const { return m_functionName; }
-    const String16& scriptId() const { return m_scriptId; }
-    const String16& sourceURL() const { return m_scriptName; }
-    int lineNumber() const { return m_lineNumber; }
-    int columnNumber() const { return m_columnNumber; }
-    Frame clone() const;
+  const String16& functionName() const;
+  const String16& scriptId() const;
+  const String16& sourceURL() const;
+  int lineNumber() const;    // 0-based.
+  int columnNumber() const;  // 0-based.
+  std::unique_ptr<protocol::Runtime::CallFrame> buildInspectorObject(
+      V8InspectorClient* client) const;
+  bool isEqual(StackFrame* frame) const;
 
-   private:
-    friend class V8StackTraceImpl;
-    std::unique_ptr<protocol::Runtime::CallFrame> buildInspectorObject() const;
-    void toTracedValue(TracedValue*) const;
+ private:
+  String16 m_functionName;
+  String16 m_scriptId;
+  String16 m_sourceURL;
+  int m_lineNumber;    // 0-based.
+  int m_columnNumber;  // 0-based.
+  bool m_hasSourceURLComment;
+};
 
-    String16 m_functionName;
-    String16 m_scriptId;
-    String16 m_scriptName;
-    int m_lineNumber;
-    int m_columnNumber;
-  };
-
+class V8StackTraceImpl : public V8StackTrace {
+ public:
   static void setCaptureStackTraceForUncaughtExceptions(v8::Isolate*,
                                                         bool capture);
-  static std::unique_ptr<V8StackTraceImpl> create(
-      V8Debugger*, int contextGroupId, v8::Local<v8::StackTrace>,
-      size_t maxStackSize, const String16& description = String16());
-  static std::unique_ptr<V8StackTraceImpl> capture(
-      V8Debugger*, int contextGroupId, size_t maxStackSize,
-      const String16& description = String16());
+  static int maxCallStackSizeToCapture;
+  static std::unique_ptr<V8StackTraceImpl> create(V8Debugger*,
+                                                  int contextGroupId,
+                                                  v8::Local<v8::StackTrace>,
+                                                  int maxStackSize);
+  static std::unique_ptr<V8StackTraceImpl> capture(V8Debugger*,
+                                                   int contextGroupId,
+                                                   int maxStackSize);
 
-  // This method drops the async chain. Use cloneImpl() instead.
-  std::unique_ptr<V8StackTrace> clone() override;
-  std::unique_ptr<V8StackTraceImpl> cloneImpl();
-  std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectForTail(
-      V8Debugger*) const;
-  std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectImpl()
-      const;
   ~V8StackTraceImpl() override;
+  std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectImpl(
+      V8Debugger* debugger) const;
 
   // V8StackTrace implementation.
-  bool isEmpty() const override { return !m_frames.size(); };
+  // This method drops the async stack trace.
+  std::unique_ptr<V8StackTrace> clone() override;
+  StringView firstNonEmptySourceURL() const override;
+  bool isEmpty() const override;
   StringView topSourceURL() const override;
-  int topLineNumber() const override;
-  int topColumnNumber() const override;
+  int topLineNumber() const override;    // 1-based.
+  int topColumnNumber() const override;  // 1-based.
   StringView topScriptId() const override;
   StringView topFunctionName() const override;
   std::unique_ptr<protocol::Runtime::API::StackTrace> buildInspectorObject()
       const override;
   std::unique_ptr<StringBuffer> toString() const override;
 
- private:
-  V8StackTraceImpl(int contextGroupId, const String16& description,
-                   std::vector<Frame>& frames,
-                   std::unique_ptr<V8StackTraceImpl> parent);
+  bool isEqualIgnoringTopFrame(V8StackTraceImpl* stackTrace) const;
 
-  int m_contextGroupId;
-  String16 m_description;
-  std::vector<Frame> m_frames;
-  std::unique_ptr<V8StackTraceImpl> m_parent;
+ private:
+  V8StackTraceImpl(std::vector<std::shared_ptr<StackFrame>> frames,
+                   int maxAsyncDepth,
+                   std::shared_ptr<AsyncStackTrace> asyncParent,
+                   const V8StackTraceId& externalParent);
+
+  class StackFrameIterator {
+   public:
+    explicit StackFrameIterator(const V8StackTraceImpl* stackTrace);
+
+    void next();
+    StackFrame* frame();
+    bool done();
+
+   private:
+    std::vector<std::shared_ptr<StackFrame>>::const_iterator m_currentIt;
+    std::vector<std::shared_ptr<StackFrame>>::const_iterator m_currentEnd;
+    AsyncStackTrace* m_parent;
+  };
+
+  std::vector<std::shared_ptr<StackFrame>> m_frames;
+  int m_maxAsyncDepth;
+  std::weak_ptr<AsyncStackTrace> m_asyncParent;
+  V8StackTraceId m_externalParent;
 
   DISALLOW_COPY_AND_ASSIGN(V8StackTraceImpl);
 };
 
+class AsyncStackTrace {
+ public:
+  static std::shared_ptr<AsyncStackTrace> capture(V8Debugger*,
+                                                  int contextGroupId,
+                                                  const String16& description,
+                                                  int maxStackSize);
+  static uintptr_t store(V8Debugger* debugger,
+                         std::shared_ptr<AsyncStackTrace> stack);
+
+  std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObject(
+      V8Debugger* debugger, int maxAsyncDepth) const;
+
+  // If async stack has suspended task id, it means that at moment when we
+  // capture current stack trace we suspended corresponded asynchronous
+  // execution flow and it is possible to request pause for a momemnt when
+  // that flow is resumed.
+  // E.g. every time when we suspend async function we mark corresponded async
+  // stack as suspended and every time when this function is resumed we remove
+  // suspendedTaskId.
+  void setSuspendedTaskId(void* task);
+  void* suspendedTaskId() const;
+
+  int contextGroupId() const;
+  const String16& description() const;
+  std::weak_ptr<AsyncStackTrace> parent() const;
+  bool isEmpty() const;
+  const V8StackTraceId& externalParent() const { return m_externalParent; }
+
+  const std::vector<std::shared_ptr<StackFrame>>& frames() const {
+    return m_frames;
+  }
+
+ private:
+  AsyncStackTrace(int contextGroupId, const String16& description,
+                  std::vector<std::shared_ptr<StackFrame>> frames,
+                  std::shared_ptr<AsyncStackTrace> asyncParent,
+                  const V8StackTraceId& externalParent);
+
+  int m_contextGroupId;
+  uintptr_t m_id;
+  void* m_suspendedTaskId;
+  String16 m_description;
+
+  std::vector<std::shared_ptr<StackFrame>> m_frames;
+  std::weak_ptr<AsyncStackTrace> m_asyncParent;
+  V8StackTraceId m_externalParent;
+
+  DISALLOW_COPY_AND_ASSIGN(AsyncStackTrace);
+};
+
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8STACKTRACEIMPL_H_
+#endif  // V8_INSPECTOR_V8_STACK_TRACE_IMPL_H_

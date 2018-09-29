@@ -4,13 +4,16 @@
 
 #include "src/inspector/string-util.h"
 
+#include "src/base/platform/platform.h"
+#include "src/conversions.h"
 #include "src/inspector/protocol/Protocol.h"
+#include "src/unicode-cache.h"
 
 namespace v8_inspector {
 
 v8::Local<v8::String> toV8String(v8::Isolate* isolate, const String16& string) {
   if (string.isEmpty()) return v8::String::Empty(isolate);
-  DCHECK(string.length() < v8::String::kMaxLength);
+  DCHECK_GT(v8::String::kMaxLength, string.length());
   return v8::String::NewFromTwoByte(
              isolate, reinterpret_cast<const uint16_t*>(string.characters16()),
              v8::NewStringType::kNormal, static_cast<int>(string.length()))
@@ -20,7 +23,7 @@ v8::Local<v8::String> toV8String(v8::Isolate* isolate, const String16& string) {
 v8::Local<v8::String> toV8StringInternalized(v8::Isolate* isolate,
                                              const String16& string) {
   if (string.isEmpty()) return v8::String::Empty(isolate);
-  DCHECK(string.length() < v8::String::kMaxLength);
+  DCHECK_GT(v8::String::kMaxLength, string.length());
   return v8::String::NewFromTwoByte(
              isolate, reinterpret_cast<const uint16_t*>(string.characters16()),
              v8::NewStringType::kInternalized,
@@ -37,7 +40,7 @@ v8::Local<v8::String> toV8StringInternalized(v8::Isolate* isolate,
 v8::Local<v8::String> toV8String(v8::Isolate* isolate,
                                  const StringView& string) {
   if (!string.length()) return v8::String::Empty(isolate);
-  DCHECK(string.length() < v8::String::kMaxLength);
+  DCHECK_GT(v8::String::kMaxLength, string.length());
   if (string.is8Bit())
     return v8::String::NewFromOneByte(
                isolate, reinterpret_cast<const uint8_t*>(string.characters8()),
@@ -49,17 +52,18 @@ v8::Local<v8::String> toV8String(v8::Isolate* isolate,
       .ToLocalChecked();
 }
 
-String16 toProtocolString(v8::Local<v8::String> value) {
-  if (value.IsEmpty() || value->IsNull() || value->IsUndefined())
-    return String16();
+String16 toProtocolString(v8::Isolate* isolate, v8::Local<v8::String> value) {
+  if (value.IsEmpty() || value->IsNullOrUndefined()) return String16();
   std::unique_ptr<UChar[]> buffer(new UChar[value->Length()]);
-  value->Write(reinterpret_cast<uint16_t*>(buffer.get()), 0, value->Length());
+  value->Write(isolate, reinterpret_cast<uint16_t*>(buffer.get()), 0,
+               value->Length());
   return String16(buffer.get(), value->Length());
 }
 
-String16 toProtocolStringWithTypeCheck(v8::Local<v8::Value> value) {
+String16 toProtocolStringWithTypeCheck(v8::Isolate* isolate,
+                                       v8::Local<v8::Value> value) {
   if (value.IsEmpty() || !value->IsString()) return String16();
-  return toProtocolString(value.As<v8::String>());
+  return toProtocolString(isolate, value.As<v8::String>());
 }
 
 String16 toString16(const StringView& string) {
@@ -93,6 +97,16 @@ bool stringViewStartsWith(const StringView& string, const char* prefix) {
 
 namespace protocol {
 
+// static
+double StringUtil::toDouble(const char* s, size_t len, bool* isOk) {
+  v8::internal::UnicodeCache unicode_cache;
+  int flags = v8::internal::ALLOW_HEX | v8::internal::ALLOW_OCTAL |
+              v8::internal::ALLOW_BINARY;
+  double result = StringToDouble(&unicode_cache, s, flags);
+  *isOk = !std::isnan(result);
+  return result;
+}
+
 std::unique_ptr<protocol::Value> StringUtil::parseJSON(
     const StringView& string) {
   if (!string.length()) return nullptr;
@@ -108,6 +122,18 @@ std::unique_ptr<protocol::Value> StringUtil::parseJSON(const String16& string) {
   if (!string.length()) return nullptr;
   return parseJSONCharacters(string.characters16(),
                              static_cast<int>(string.length()));
+}
+
+// static
+void StringUtil::builderAppendQuotedString(StringBuilder& builder,
+                                           const String& str) {
+  builder.append('"');
+  if (!str.isEmpty()) {
+    escapeWideStringForJSON(
+        reinterpret_cast<const uint16_t*>(str.characters16()),
+        static_cast<int>(str.length()), &builder);
+  }
+  builder.append('"');
 }
 
 }  // namespace protocol
@@ -126,6 +152,21 @@ std::unique_ptr<StringBufferImpl> StringBufferImpl::adopt(String16& string) {
 StringBufferImpl::StringBufferImpl(String16& string) {
   m_owner.swap(string);
   m_string = toStringView(m_owner);
+}
+
+String16 debuggerIdToString(const std::pair<int64_t, int64_t>& debuggerId) {
+  const size_t kBufferSize = 35;
+
+  char buffer[kBufferSize];
+  v8::base::OS::SNPrintF(buffer, kBufferSize, "(%08" PRIX64 "%08" PRIX64 ")",
+                         debuggerId.first, debuggerId.second);
+  return String16(buffer);
+}
+
+String16 stackTraceIdToString(uintptr_t id) {
+  String16Builder builder;
+  builder.appendNumber(static_cast<size_t>(id));
+  return builder.toString();
 }
 
 }  // namespace v8_inspector

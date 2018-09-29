@@ -31,7 +31,8 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 class DateCacheMock: public DateCache {
  public:
@@ -43,23 +44,22 @@ class DateCacheMock: public DateCache {
       : local_offset_(local_offset), rules_(rules), rules_count_(rules_count) {}
 
  protected:
-  virtual int GetDaylightSavingsOffsetFromOS(int64_t time_sec) {
+  int GetDaylightSavingsOffsetFromOS(int64_t time_sec) override {
     int days = DaysFromTime(time_sec * 1000);
     int time_in_day_sec = TimeInDay(time_sec * 1000, days) / 1000;
     int year, month, day;
     YearMonthDayFromDays(days, &year, &month, &day);
     Rule* rule = FindRuleFor(year, month, day, time_in_day_sec);
-    return rule == NULL ? 0 : rule->offset_sec * 1000;
+    return rule == nullptr ? 0 : rule->offset_sec * 1000;
   }
 
-
-  virtual int GetLocalOffsetFromOS() {
-    return local_offset_;
+  int GetLocalOffsetFromOS(int64_t time_sec, bool is_utc) override {
+    return local_offset_ + GetDaylightSavingsOffsetFromOS(time_sec);
   }
 
  private:
   Rule* FindRuleFor(int year, int month, int day, int time_in_day_sec) {
-    Rule* result = NULL;
+    Rule* result = nullptr;
     for (int i = 0; i < rules_count_; i++)
       if (Match(&rules_[i], year, month, day, time_in_day_sec)) {
         result = &rules_[i];
@@ -112,8 +112,7 @@ static void CheckDST(int64_t time) {
   Isolate* isolate = CcTest::i_isolate();
   DateCache* date_cache = isolate->date_cache();
   int64_t actual = date_cache->ToLocal(time);
-  int64_t expected = time + date_cache->GetLocalOffsetFromOS() +
-                     date_cache->GetDaylightSavingsOffsetFromOS(time / 1000);
+  int64_t expected = time + date_cache->GetLocalOffsetFromOS(time, true);
   CHECK_EQ(actual, expected);
 }
 
@@ -194,7 +193,7 @@ TEST(DateParseLegacyUseCounter) {
   CHECK_EQ(1, legacy_parse_count);
 }
 
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 TEST(DateCacheVersion) {
   FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
@@ -215,4 +214,7 @@ TEST(DateCacheVersion) {
   CHECK(date_cache_version->IsNumber());
   CHECK_EQ(1.0, date_cache_version->NumberValue(context).FromMaybe(-1.0));
 }
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
+
+}  // namespace internal
+}  // namespace v8

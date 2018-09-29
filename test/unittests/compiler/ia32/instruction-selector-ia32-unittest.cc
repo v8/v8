@@ -4,6 +4,8 @@
 
 #include "test/unittests/compiler/instruction-selector-unittest.h"
 
+#include "src/objects-inl.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -13,7 +15,7 @@ namespace {
 // Immediates (random subset).
 const int32_t kImmediates[] = {kMinInt, -42, -1,   0,      1,          2,
                                3,       4,   5,    6,      7,          8,
-                               16,      42,  0xff, 0xffff, 0x0f0f0f0f, kMaxInt};
+                               16,      42,  0xFF, 0xFFFF, 0x0F0F0F0F, kMaxInt};
 
 }  // namespace
 
@@ -539,7 +541,6 @@ static unsigned InputCountForLea(AddressingMode mode) {
       return 1U;
     default:
       UNREACHABLE();
-      return 0U;
   }
 }
 
@@ -568,7 +569,6 @@ static AddressingMode AddressingModeForAddMult(int32_t imm,
       return kMode_MRI;
     default:
       UNREACHABLE();
-      return kMode_None;
   }
 }
 
@@ -649,8 +649,84 @@ TEST_F(InstructionSelectorTest, Int32MulHigh) {
 
 
 // -----------------------------------------------------------------------------
-// Floating point operations.
+// Binops with a memory operand.
 
+TEST_F(InstructionSelectorTest, LoadAnd32) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  m.Return(
+      m.Word32And(p0, m.Load(MachineType::Int32(), p1, m.Int32Constant(127))));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kIA32And, s[0]->arch_opcode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+}
+
+TEST_F(InstructionSelectorTest, LoadOr32) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  m.Return(
+      m.Word32Or(p0, m.Load(MachineType::Int32(), p1, m.Int32Constant(127))));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kIA32Or, s[0]->arch_opcode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+}
+
+TEST_F(InstructionSelectorTest, LoadXor32) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  m.Return(
+      m.Word32Xor(p0, m.Load(MachineType::Int32(), p1, m.Int32Constant(127))));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kIA32Xor, s[0]->arch_opcode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+}
+
+TEST_F(InstructionSelectorTest, LoadAdd32) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  m.Return(
+      m.Int32Add(p0, m.Load(MachineType::Int32(), p1, m.Int32Constant(127))));
+  Stream s = m.Build();
+  // Use lea instead of add, so memory operand is invalid.
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kIA32Movl, s[0]->arch_opcode());
+  EXPECT_EQ(kIA32Lea, s[1]->arch_opcode());
+}
+
+TEST_F(InstructionSelectorTest, LoadSub32) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  m.Return(
+      m.Int32Sub(p0, m.Load(MachineType::Int32(), p1, m.Int32Constant(127))));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kIA32Sub, s[0]->arch_opcode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+}
+
+// -----------------------------------------------------------------------------
+// Floating point operations.
 
 TEST_F(InstructionSelectorTest, Float32Abs) {
   {
@@ -754,26 +830,6 @@ TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
 // -----------------------------------------------------------------------------
 // Miscellaneous.
 
-
-TEST_F(InstructionSelectorTest, Uint32LessThanWithLoadAndLoadStackPointer) {
-  StreamBuilder m(this, MachineType::Bool());
-  Node* const sl = m.Load(
-      MachineType::Pointer(),
-      m.ExternalConstant(ExternalReference::address_of_stack_limit(isolate())));
-  Node* const sp = m.LoadStackPointer();
-  Node* const n = m.Uint32LessThan(sl, sp);
-  m.Return(n);
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kIA32StackCheck, s[0]->arch_opcode());
-  ASSERT_EQ(0U, s[0]->InputCount());
-  ASSERT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
-  EXPECT_EQ(kUnsignedGreaterThan, s[0]->flags_condition());
-}
-
-
 TEST_F(InstructionSelectorTest, Word32Clz) {
   StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32());
   Node* const p0 = m.Parameter(0);
@@ -786,6 +842,67 @@ TEST_F(InstructionSelectorTest, Word32Clz) {
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+TEST_F(InstructionSelectorTest, SpeculationFence) {
+  StreamBuilder m(this, MachineType::Int32());
+  m.SpeculationFence();
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kLFence, s[0]->arch_opcode());
+}
+
+TEST_F(InstructionSelectorTest, StackCheck0) {
+  ExternalReference js_stack_limit =
+      ExternalReference::Create(isolate()->stack_guard()->address_of_jslimit());
+  StreamBuilder m(this, MachineType::Int32());
+  Node* const sp = m.LoadStackPointer();
+  Node* const stack_limit =
+      m.Load(MachineType::Pointer(), m.ExternalConstant(js_stack_limit));
+  Node* const interrupt = m.UintPtrLessThan(sp, stack_limit);
+
+  RawMachineLabel if_true, if_false;
+  m.Branch(interrupt, &if_true, &if_false);
+
+  m.Bind(&if_true);
+  m.Return(m.Int32Constant(1));
+
+  m.Bind(&if_false);
+  m.Return(m.Int32Constant(0));
+
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kIA32Cmp, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(0U, s[0]->OutputCount());
+}
+
+TEST_F(InstructionSelectorTest, StackCheck1) {
+  ExternalReference js_stack_limit =
+      ExternalReference::Create(isolate()->stack_guard()->address_of_jslimit());
+  StreamBuilder m(this, MachineType::Int32());
+  Node* const sp = m.LoadStackPointer();
+  Node* const stack_limit =
+      m.Load(MachineType::Pointer(), m.ExternalConstant(js_stack_limit));
+  Node* const sp_within_limit = m.UintPtrLessThan(stack_limit, sp);
+
+  RawMachineLabel if_true, if_false;
+  m.Branch(sp_within_limit, &if_true, &if_false);
+
+  m.Bind(&if_true);
+  m.Return(m.Int32Constant(1));
+
+  m.Bind(&if_false);
+  m.Return(m.Int32Constant(0));
+
+  Stream s = m.Build();
+
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kIA32StackCheck, s[0]->arch_opcode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(0U, s[0]->OutputCount());
 }
 
 }  // namespace compiler

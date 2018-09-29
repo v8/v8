@@ -109,9 +109,8 @@ class RegExpMacroAssemblerARM64: public NativeRegExpMacroAssembler {
   // Return address.
   // It is placed above the 11 callee-saved registers.
   static const int kReturnAddress = kCalleeSavedRegisters + 11 * kPointerSize;
-  static const int kSecondaryReturnAddress = kReturnAddress + kPointerSize;
   // Stack parameter placed by caller.
-  static const int kIsolate = kSecondaryReturnAddress + kPointerSize;
+  static const int kIsolate = kReturnAddress + kPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.
@@ -200,7 +199,7 @@ class RegExpMacroAssemblerARM64: public NativeRegExpMacroAssembler {
   int char_size() { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
-  // is NULL, in which case it is a conditional Backtrack.
+  // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to);
 
   // Compares reg against immmediate before calling BranchOrBacktrack.
@@ -233,7 +232,7 @@ class RegExpMacroAssemblerARM64: public NativeRegExpMacroAssembler {
   };
 
   RegisterState GetRegisterState(int register_index) {
-    DCHECK(register_index >= 0);
+    DCHECK_LE(0, register_index);
     if (register_index >= kNumCachedRegisters) {
       return STACKED;
     } else {

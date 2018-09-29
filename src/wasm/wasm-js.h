@@ -2,35 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_JS_H_
-#define V8_WASM_JS_H_
+#ifndef V8_WASM_WASM_JS_H_
+#define V8_WASM_WASM_JS_H_
 
-#include "src/allocation.h"
-#include "src/base/hashmap.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
-// Exposes a WASM API to JavaScript through the V8 API.
+
+// Exposes a WebAssembly API to JavaScript through the V8 API.
 class WasmJs {
  public:
-  static void Install(Isolate* isolate, Handle<JSGlobalObject> global_object);
-
-  V8_EXPORT_PRIVATE static void InstallWasmModuleSymbolIfNeeded(
-      Isolate* isolate, Handle<JSGlobalObject> global, Handle<Context> context);
-
-  V8_EXPORT_PRIVATE static void InstallWasmMapsIfNeeded(
-      Isolate* isolate, Handle<Context> context);
-  static void InstallWasmConstructors(Isolate* isolate,
-                                      Handle<JSGlobalObject> global,
-                                      Handle<Context> context);
-
-  // WebAssembly.Table.
-  static bool IsWasmTableObject(Isolate* isolate, Handle<Object> value);
-
-  // WebAssembly.Memory
-  static bool IsWasmMemoryObject(Isolate* isolate, Handle<Object> value);
+  V8_EXPORT_PRIVATE static void Install(Isolate* isolate,
+                                        bool exposed_on_global_object);
 };
 
 }  // namespace internal
 }  // namespace v8
-#endif
+
+#endif  // V8_WASM_WASM_JS_H_

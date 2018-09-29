@@ -50,10 +50,12 @@ def ToCArray(byte_sequence):
   return textwrap.fill(joined, 80)
 
 
-def RemoveCommentsAndTrailingWhitespace(lines):
+def RemoveCommentsEmptyLinesAndWhitespace(lines):
+  lines = re.sub(r'\n+', '\n', lines) # empty lines
   lines = re.sub(r'//.*\n', '\n', lines) # end-of-line comments
   lines = re.sub(re.compile(r'/\*.*?\*/', re.DOTALL), '', lines) # comments.
-  lines = re.sub(r'\s+\n+', '\n', lines) # trailing whitespace
+  lines = re.sub(r'\s+\n', '\n', lines) # trailing whitespace
+  lines = re.sub(r'\n\s+', '\n', lines) # initial whitespace
   return lines
 
 
@@ -125,6 +127,9 @@ def ExpandMacroDefinition(lines, pos, name_pattern, macro, expander):
       end = end + 1
     # Remember to add the last match.
     add_arg(lines[last_match:end-1])
+    if arg_index[0] < len(macro.args) -1:
+      lineno = lines.count(os.linesep, 0, start) + 1
+      raise Error('line %s: Too few arguments for macro "%s"' % (lineno, name_pattern.pattern))
     result = macro.expand(mapping)
     # Replace the occurrence of the macro with the expansion
     lines = lines[:start] + result + lines[end:]
@@ -152,19 +157,8 @@ class TextMacro:
       return mapping[match.group(0)]
     return re.sub(any_key_pattern, replace, self.body)
 
-class PythonMacro:
-  def __init__(self, args, fun):
-    self.args = args
-    self.fun = fun
-  def expand(self, mapping):
-    args = []
-    for arg in self.args:
-      args.append(mapping[arg])
-    return str(self.fun(*args))
-
 CONST_PATTERN = re.compile(r'^define\s+([a-zA-Z0-9_]+)\s*=\s*([^;]*);$')
 MACRO_PATTERN = re.compile(r'^macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
-PYTHON_MACRO_PATTERN = re.compile(r'^python\s+macro\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*=\s*([^;]*);$')
 
 
 def ReadMacros(lines):
@@ -188,15 +182,7 @@ def ReadMacros(lines):
         body = macro_match.group(3).strip()
         macros.append((re.compile("\\b%s\\(" % name), TextMacro(args, body)))
       else:
-        python_match = PYTHON_MACRO_PATTERN.match(line)
-        if python_match:
-          name = python_match.group(1)
-          args = [match.strip() for match in python_match.group(2).split(',')]
-          body = python_match.group(3).strip()
-          fun = eval("lambda " + ",".join(args) + ': ' + body)
-          macros.append((re.compile("\\b%s\\(" % name), PythonMacro(args, fun)))
-        else:
-          raise Error("Illegal line: " + line)
+        raise Error("Illegal line: " + line)
   return (constants, macros)
 
 
@@ -236,7 +222,7 @@ def ExpandInlineMacros(lines):
     name_pattern = re.compile("\\b%s\\(" % name)
     macro = TextMacro(args, body)
 
-    # advance position to where the macro defintion was
+    # advance position to where the macro definition was
     pos = macro_match.start()
 
     def non_expander(s):
@@ -261,7 +247,7 @@ def ExpandInlineConstants(lines):
     lines = (lines[:const_match.start()] +
              re.sub(name_pattern, replacement, lines[const_match.end():]))
 
-    # advance position to where the constant defintion was
+    # advance position to where the constant definition was
     pos = const_match.start()
 
 
@@ -358,7 +344,7 @@ def BuildFilterChain(macro_filename, message_template_file):
     filter_chain.append(lambda l: ExpandConstants(l, message_templates))
 
   filter_chain.extend([
-    RemoveCommentsAndTrailingWhitespace,
+    RemoveCommentsEmptyLinesAndWhitespace,
     ExpandInlineMacros,
     ExpandInlineConstants,
     Validate,
@@ -371,7 +357,7 @@ def BuildFilterChain(macro_filename, message_template_file):
   return reduce(chain, filter_chain)
 
 def BuildExtraFilterChain():
-  return lambda x: RemoveCommentsAndTrailingWhitespace(Validate(x))
+  return lambda x: RemoveCommentsEmptyLinesAndWhitespace(Validate(x))
 
 class Sources:
   def __init__(self):
@@ -381,7 +367,7 @@ class Sources:
 
 
 def IsDebuggerFile(filename):
-  return "debug" in filename
+  return os.path.basename(os.path.dirname(filename)) == "debug"
 
 def IsMacroFile(filename):
   return filename.endswith("macros.py")

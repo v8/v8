@@ -37,7 +37,7 @@ GraphReducer::GraphReducer(Zone* zone, Graph* graph, Node* dead)
   }
 }
 
-GraphReducer::~GraphReducer() {}
+GraphReducer::~GraphReducer() = default;
 
 
 void GraphReducer::AddReducer(Reducer* reducer) {
@@ -56,7 +56,7 @@ void GraphReducer::ReduceNode(Node* node) {
       ReduceTop();
     } else if (!revisit_.empty()) {
       // If the stack becomes empty, revisit any nodes in the revisit queue.
-      Node* const node = revisit_.top();
+      Node* const node = revisit_.front();
       revisit_.pop();
       if (state_.Get(node) == State::kRevisit) {
         // state can change while in queue.
@@ -89,11 +89,20 @@ Reduction GraphReducer::Reduce(Node* const node) {
         // {replacement} == {node} represents an in-place reduction. Rerun
         // all the other reducers for this node, as now there may be more
         // opportunities for reduction.
+        if (FLAG_trace_turbo_reduction) {
+          StdoutStream{} << "- In-place update of " << *node << " by reducer "
+                         << (*i)->reducer_name() << std::endl;
+        }
         skip = i;
         i = reducers_.begin();
         continue;
       } else {
         // {node} was replaced by another node.
+        if (FLAG_trace_turbo_reduction) {
+          StdoutStream{} << "- Replacement of " << *node << " with "
+                         << *(reduction.replacement()) << " by reducer "
+                         << (*i)->reducer_name() << std::endl;
+        }
         return reduction;
       }
     }
@@ -111,29 +120,25 @@ Reduction GraphReducer::Reduce(Node* const node) {
 void GraphReducer::ReduceTop() {
   NodeState& entry = stack_.top();
   Node* node = entry.node;
-  DCHECK(state_.Get(node) == State::kOnStack);
+  DCHECK_EQ(State::kOnStack, state_.Get(node));
 
   if (node->IsDead()) return Pop();  // Node was killed while on stack.
 
-  // Recurse on an input if necessary.
-  int start = entry.input_index < node->InputCount() ? entry.input_index : 0;
-
   Node::Inputs node_inputs = node->inputs();
-  auto node_inputs_begin = node_inputs.begin();
-  auto node_inputs_end = node_inputs.end();
-  DCHECK(node_inputs_end == node_inputs_begin + node->InputCount());
 
-  for (auto it = node_inputs_begin + start; it != node_inputs_end; ++it) {
-    Node* input = *it;
+  // Recurse on an input if necessary.
+  int start = entry.input_index < node_inputs.count() ? entry.input_index : 0;
+  for (int i = start; i < node_inputs.count(); ++i) {
+    Node* input = node_inputs[i];
     if (input != node && Recurse(input)) {
-      entry.input_index = (it - node_inputs_begin) + 1;
+      entry.input_index = i + 1;
       return;
     }
   }
-  for (auto it = node_inputs_begin; it != node_inputs_begin + start; ++it) {
-    Node* input = *it;
+  for (int i = 0; i < start; ++i) {
+    Node* input = node_inputs[i];
     if (input != node && Recurse(input)) {
-      entry.input_index = (it - node_inputs_begin) + 1;
+      entry.input_index = i + 1;
       return;
     }
   }
@@ -152,12 +157,10 @@ void GraphReducer::ReduceTop() {
   if (replacement == node) {
     // In-place update of {node}, may need to recurse on an input.
     Node::Inputs node_inputs = node->inputs();
-    auto node_inputs_begin = node_inputs.begin();
-    auto node_inputs_end = node_inputs.end();
-    for (auto it = node_inputs_begin; it != node_inputs_end; ++it) {
-      Node* input = *it;
+    for (int i = 0; i < node_inputs.count(); ++i) {
+      Node* input = node_inputs[i];
       if (input != node && Recurse(input)) {
-        entry.input_index = (it - node_inputs_begin) + 1;
+        entry.input_index = i + 1;
         return;
       }
     }
@@ -185,10 +188,6 @@ void GraphReducer::Replace(Node* node, Node* replacement) {
 
 
 void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
-  if (FLAG_trace_turbo_reduction) {
-    OFStream os(stdout);
-    os << "- Replacing " << *node << " with " << *replacement << std::endl;
-  }
   if (node == graph()->start()) graph()->SetStart(replacement);
   if (node == graph()->end()) graph()->SetEnd(replacement);
   if (replacement->id() <= max_id) {
@@ -246,8 +245,6 @@ void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
         DCHECK_NOT_NULL(control);
         edge.UpdateTo(control);
         Revisit(user);
-        // TODO(jarin) Check that the node cannot throw (otherwise, it
-        // would have to be connected via IfSuccess/IfException).
       }
     } else if (NodeProperties::IsEffectEdge(edge)) {
       DCHECK_NOT_NULL(effect);
@@ -270,7 +267,7 @@ void GraphReducer::Pop() {
 
 
 void GraphReducer::Push(Node* const node) {
-  DCHECK(state_.Get(node) != State::kOnStack);
+  DCHECK_NE(State::kOnStack, state_.Get(node));
   state_.Set(node, State::kOnStack);
   stack_.push({node, 0});
 }

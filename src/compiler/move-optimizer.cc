@@ -37,7 +37,7 @@ class OperandSet {
     set_->push_back(op);
 
     if (!kSimpleFPAliasing && op.IsFPRegister())
-      fp_reps_ |= RepBit(LocationOperand::cast(op).representation());
+      fp_reps_ |= RepresentationBit(LocationOperand::cast(op).representation());
   }
 
   bool Contains(const InstructionOperand& op) const {
@@ -55,7 +55,7 @@ class OperandSet {
       const LocationOperand& loc = LocationOperand::cast(op);
       MachineRepresentation rep = loc.representation();
       // If haven't encountered mixed rep FP registers, skip the extra checks.
-      if (!HasMixedFPReps(fp_reps_ | RepBit(rep))) return false;
+      if (!HasMixedFPReps(fp_reps_ | RepresentationBit(rep))) return false;
 
       // Check register against aliasing registers of other FP representations.
       MachineRepresentation other_rep1, other_rep2;
@@ -76,7 +76,7 @@ class OperandSet {
           UNREACHABLE();
           break;
       }
-      const RegisterConfiguration* config = RegisterConfiguration::Turbofan();
+      const RegisterConfiguration* config = RegisterConfiguration::Default();
       int base = -1;
       int aliases =
           config->GetAliases(rep, loc.register_code(), other_rep1, &base);
@@ -100,12 +100,8 @@ class OperandSet {
   }
 
  private:
-  static int RepBit(MachineRepresentation rep) {
-    return 1 << static_cast<int>(rep);
-  }
-
   static bool HasMixedFPReps(int reps) {
-    return reps && !base::bits::IsPowerOfTwo32(reps);
+    return reps && !base::bits::IsPowerOfTwo(reps);
   }
 
   ZoneVector<InstructionOperand>* set_;
@@ -376,7 +372,7 @@ const Instruction* MoveOptimizer::LastInstruction(
 
 
 void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
-  DCHECK(block->PredecessorCount() > 1);
+  DCHECK_LT(1, block->PredecessorCount());
   // Ensure that the last instruction in all incoming blocks don't contain
   // things that would prevent moving gap moves across them.
   for (RpoNumber& pred_index : block->predecessors()) {

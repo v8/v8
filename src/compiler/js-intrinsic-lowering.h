@@ -21,6 +21,7 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
+struct FieldAccess;
 class JSOperatorBuilder;
 class JSGraph;
 class SimplifiedOperatorBuilder;
@@ -30,35 +31,32 @@ class SimplifiedOperatorBuilder;
 class V8_EXPORT_PRIVATE JSIntrinsicLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  enum DeoptimizationMode { kDeoptimizationEnabled, kDeoptimizationDisabled };
+  JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph);
+  ~JSIntrinsicLowering() final = default;
 
-  JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph,
-                      DeoptimizationMode mode);
-  ~JSIntrinsicLowering() final {}
+  const char* reducer_name() const override { return "JSIntrinsicLowering"; }
 
   Reduction Reduce(Node* node) final;
 
  private:
   Reduction ReduceCreateIterResultObject(Node* node);
-  Reduction ReduceDebugIsActive(Node* node);
   Reduction ReduceDeoptimizeNow(Node* node);
+  Reduction ReduceCreateJSGeneratorObject(Node* node);
   Reduction ReduceGeneratorClose(Node* node);
-  Reduction ReduceGeneratorGetInputOrDebugPos(Node* node);
+  Reduction ReduceAsyncGeneratorReject(Node* node);
+  Reduction ReduceAsyncGeneratorResolve(Node* node);
+  Reduction ReduceAsyncGeneratorYield(Node* node);
+  Reduction ReduceGeneratorSaveInputForAwait(Node* node);
   Reduction ReduceGeneratorGetResumeMode(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
   Reduction ReduceIsJSReceiver(Node* node);
   Reduction ReduceIsSmi(Node* node);
-  Reduction ReduceFixedArrayGet(Node* node);
-  Reduction ReduceFixedArraySet(Node* node);
-  Reduction ReduceRegExpExec(Node* node);
-  Reduction ReduceSubString(Node* node);
-  Reduction ReduceToInteger(Node* node);
+  Reduction ReduceRejectPromise(Node* node);
+  Reduction ReduceResolvePromise(Node* node);
   Reduction ReduceToLength(Node* node);
-  Reduction ReduceToNumber(Node* node);
   Reduction ReduceToObject(Node* node);
   Reduction ReduceToString(Node* node);
   Reduction ReduceCall(Node* node);
-  Reduction ReduceGetSuperConstructor(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);
@@ -74,10 +72,8 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
-  DeoptimizationMode mode() const { return mode_; }
 
   JSGraph* const jsgraph_;
-  DeoptimizationMode const mode_;
 };
 
 }  // namespace compiler

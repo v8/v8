@@ -5,6 +5,8 @@
 #ifndef V8_INTERPRETER_BYTECODE_LABEL_H_
 #define V8_INTERPRETER_BYTECODE_LABEL_H_
 
+#include <algorithm>
+
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -65,7 +67,7 @@ class V8_EXPORT_PRIVATE BytecodeLabels {
   void BindToLabel(BytecodeArrayBuilder* builder, const BytecodeLabel& target);
 
   bool is_bound() const {
-    bool is_bound = !labels_.empty() && labels_.at(0).is_bound();
+    bool is_bound = !labels_.empty() && labels_.front().is_bound();
     DCHECK(!is_bound ||
            std::all_of(labels_.begin(), labels_.end(),
                        [](const BytecodeLabel& l) { return l.is_bound(); }));
@@ -75,7 +77,7 @@ class V8_EXPORT_PRIVATE BytecodeLabels {
   bool empty() const { return labels_.empty(); }
 
  private:
-  ZoneVector<BytecodeLabel> labels_;
+  ZoneLinkedList<BytecodeLabel> labels_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeLabels);
 };

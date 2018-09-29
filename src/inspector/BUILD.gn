@@ -77,35 +77,8 @@ action("inspector_injected_script") {
   ]
 }
 
-action("inspector_debugger_script") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-  script = "build/xxd.py"
-  inputs = [
-    "debugger-script.js",
-  ]
-  outputs = [
-    "$target_gen_dir/debugger-script.h",
-  ]
-  args = [
-    "DebuggerScript_js",
-    rebase_path("debugger-script.js", root_build_dir),
-    rebase_path("$target_gen_dir/debugger-script.h", root_build_dir),
-  ]
-}
-
 config("inspector_config") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
-  cflags = []
-  if (is_win) {
-    cflags += [
-      "/wd4267",  # Truncation from size_t to int.
-      "/wd4305",  # Truncation from 'type1' to 'type2'.
-      "/wd4324",  # Struct padded due to declspec(align).
-      "/wd4714",  # Function marked forceinline not inlined.
-      "/wd4800",  # Value forced to bool.
-      "/wd4996",  # Deprecated function call.
-    ]
-  }
   if (is_component_build) {
     defines = [ "BUILDING_V8_SHARED" ]
   }
@@ -113,7 +86,6 @@ config("inspector_config") {
 
 v8_source_set("inspector") {
   deps = [
-    ":inspector_debugger_script",
     ":inspector_injected_script",
     ":protocol_generated_sources",
   ]
@@ -130,19 +102,13 @@ v8_source_set("inspector") {
     "../../include/v8-inspector.h",
   ]
   sources += get_target_outputs(":inspector_injected_script")
-  sources += get_target_outputs(":inspector_debugger_script")
   sources += [
-    "injected-script-native.cc",
-    "injected-script-native.h",
     "injected-script.cc",
     "injected-script.h",
     "inspected-context.cc",
     "inspected-context.h",
-    "java-script-call-frame.cc",
-    "java-script-call-frame.h",
     "remote-object-id.cc",
     "remote-object-id.h",
-    "script-breakpoint.h",
     "search-util.cc",
     "search-util.h",
     "string-16.cc",
@@ -185,8 +151,8 @@ v8_source_set("inspector") {
     "v8-schema-agent-impl.h",
     "v8-stack-trace-impl.cc",
     "v8-stack-trace-impl.h",
-    "v8-value-copier.cc",
-    "v8-value-copier.h",
+    "v8-value-utils.cc",
+    "v8-value-utils.h",
     "wasm-translation.cc",
     "wasm-translation.h",
   ]

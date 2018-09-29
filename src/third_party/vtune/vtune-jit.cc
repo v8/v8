@@ -134,7 +134,7 @@ static JITCodeLineInfo* UntagLineInfo(void* ptr) {
 
 // The parameter str is a mixed pattern which contains the
 // function name and some other info. It comes from all the
-// Logger::CodeCreateEvent(...) function. This funtion get the
+// Logger::CodeCreateEvent(...) function. This function get the
 // pure function name from the input parameter.
 static char* GetFunctionNameFromMixedName(const char* str, int length) {
   int index = 0;
@@ -182,8 +182,9 @@ void VTUNEJITInterface::event_handler(const v8::JitCodeEvent* event) {
           if ((*script->GetScriptName())->IsString()) {
             Local<String> script_name =
                 Local<String>::Cast(script->GetScriptName());
-            temp_file_name = new char[script_name->Utf8Length() + 1];
-            script_name->WriteUtf8(temp_file_name);
+            temp_file_name =
+                new char[script_name->Utf8Length(event->isolate) + 1];
+            script_name->WriteUtf8(event->isolate, temp_file_name);
             jmethod.source_file_name = temp_file_name;
           }
 

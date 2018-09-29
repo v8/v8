@@ -11,10 +11,6 @@
   # not work, but we expect it to not crash.
   'debug/debug-step-turbofan': [PASS, FAIL],
 
-  # Issue 5587: The eval'ed code is piped through Ignition and fails when being
-  # live edited. This needs investigation.
-  'debug/debug-liveedit-double-call': [SKIP],
-
   # Issue 3641: The new 'then' semantics suppress some exceptions.
   # These tests may be changed or removed when 'chain' is deprecated.
   'debug/es6/debug-promises/reject-with-throw-in-reject': [FAIL],
@@ -22,14 +18,20 @@
   'debug/es6/debug-promises/reject-with-invalid-reject': [FAIL],
 
   # Issue 5651: Context mismatch in ScopeIterator::Type() for eval default
-  # parameter value
-  'debug/es6/debug-scope-default-param-with-eval': [FAIL],
+  # parameter value (the test causes indexing a FixedArray out of bounds ->
+  # CRASH is also a reasonable outcome).
+  'debug/es6/debug-scope-default-param-with-eval': [FAIL, CRASH],
 
-  # Slow test
+  # Slow tests
   'debug/debug-scopes': [PASS, SLOW],
+  'debug/debug-stepout-scope-part*': [PASS, SLOW],
+  'debug/ignition/debug-step-prefix-bytecodes': [PASS, SLOW, ['mode == debug', SKIP]],
 
   # Too slow in debug mode and on slow platforms.
-  'regress/regress-2318': [PASS, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
+  'regress/regress-2318': [PASS, SLOW, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
+
+  # forcing weak callback in asan build change break order
+  'debug/debug-stepin-builtin-callback': [['asan == True or msan == True', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -37,7 +39,16 @@
   # TODO(jarin/mstarzinger): Functions with eval or debugger now get optimized
   # with Turbofan, which has issues with the debugger issues.
   'debug/debug-evaluate-locals': [FAIL],
-}],  # 'stress == True'
+
+  # Very slow in stress mode.
+  'regress/regress-2318': [SKIP],
+}],  # variant == stress
+
+##############################################################################
+['variant == stress_incremental_marking', {
+  # BUG(chromium:772010).
+  'debug/debug-*': [PASS, ['system == windows', SKIP]],
+}],  # variant == stress_incremental_marking
 
 ##############################################################################
 ['gc_stress == True', {
@@ -52,59 +63,65 @@
   'debug/debug-stepout-scope-part7': [SKIP],
   'debug/debug-stepout-scope-part8': [SKIP],
 
-  # BUG(chromium:664490)
-  'debug/debug-scopes': [SKIP],
-
   # Async function tests taking too long
   # https://bugs.chromium.org/p/v8/issues/detail?id=5411
-  'debug/harmony/async-debug-caught-exception-cases0': [SKIP],
-  'debug/harmony/async-debug-caught-exception-cases1': [SKIP],
-  'debug/harmony/async-debug-caught-exception-cases2': [SKIP],
-  'debug/harmony/async-debug-caught-exception-cases3': [SKIP],
-  'debug/harmony/async-function-debug-scopes': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases0': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases1': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases2': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases3': [SKIP],
+  'debug/es8/async-function-debug-scopes': [SKIP],
+
+  # https://crbug.com/v8/8141
+  'debug/debug-liveedit-1': [SKIP],
+  'debug/debug-liveedit-double-call': [SKIP],
+  'debug/es6/debug-liveedit-new-target-3': [SKIP],
+  'debug/side-effect/debug-evaluate-no-side-effect-control': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
-['variant == turbofan_opt', {
-  # TODO(mstarzinger): Debugger cannot materialize de-materialized functions.
-  'debug/regress/regress-crbug-323936': [FAIL],
-
-  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
-  'debug/debug-evaluate-closure': [FAIL],
-  'debug/debug-evaluate-locals': [FAIL],
-  'debug/debug-liveedit-double-call': [FAIL],
-  'debug/debug-set-variable-value': [FAIL],
-  'debug/es6/debug-evaluate-blockscopes': [FAIL],
-}],  # variant == turbofan_opt
+['gc_fuzzer', {
+  # Slow tests.
+  'regress/regress-2318': [SKIP],
+}],  # 'gc_fuzzer'
 
 ##############################################################################
-['variant == ignition or variant == ignition_staging', {
-  # TODO(5587): fails to liveedit evaled code.
-  'debug/debug-liveedit-double-call': [FAIL],
-}],  # variant == ignition
+['predictable == True', {
+  # https://crbug.com/v8/8147
+  'debug/debug-liveedit-*': [SKIP],
+  'debug/debug-set-variable-value': [SKIP],
+}],  # 'predictable == True'
 
 ##############################################################################
-['variant == ignition_turbofan', {
-  # TODO(5587): fails to liveedit evaled code.
-  'debug/debug-liveedit-double-call': [FAIL],
-}],  # variant == ignition_turbofan
-
-##############################################################################
-['variant == asm_wasm', {
+['variant == no_wasm_traps', {
   '*': [SKIP],
-}],  # variant == asm_wasm
+}],  # variant == no_wasm_traps
 
 ##############################################################################
-['variant == wasm_traps', {
-  '*': [SKIP],
-}],  # variant == wasm_traps
+['arch == arm and not simulator_run', {
+  # Too slow on chromebooks.
+  'debug/ignition/debug-step-prefix-bytecodes': [SKIP],
+}],  # 'arch == arm and not simulator_run'
 
+##############################################################################
+['arch == arm and mode == debug', {
+  # Tests taking too long
+  'debug/debug-stepout-scope-part1': [SKIP],
+  'debug/debug-stepout-scope-part2': [SKIP],
+  'debug/debug-stepout-scope-part3': [SKIP],
+  'debug/debug-stepout-scope-part4': [SKIP],
+  'debug/debug-stepout-scope-part5': [SKIP],
+  'debug/debug-stepout-scope-part6': [SKIP],
+  'debug/debug-stepout-scope-part7': [SKIP],
+  'debug/debug-stepout-scope-part8': [SKIP],
+}],  # 'arch == arm and mode == debug'
+
+##############################################################################
 ['arch == s390 or arch == s390x', {
 
   # Stack manipulations in LiveEdit is not implemented for this arch.
   'debug/debug-liveedit-check-stack': [SKIP],
   'debug/debug-liveedit-double-call': [SKIP],
-  'debug/debug-liveedit-stack-padding': [SKIP],
   'debug/debug-liveedit-restart-frame': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
+
 ]

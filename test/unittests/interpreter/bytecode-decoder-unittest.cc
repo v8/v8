@@ -6,13 +6,17 @@
 
 #include "src/v8.h"
 
+#include "src/contexts.h"
 #include "src/interpreter/bytecode-decoder.h"
+#include "src/runtime/runtime.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace interpreter {
+
+#define B(Name) static_cast<uint8_t>(Bytecode::k##Name)
 
 TEST(BytecodeDecoder, DecodeBytecodeAndOperands) {
   struct BytecodesAndResult {
@@ -37,18 +41,18 @@ TEST(BytecodeDecoder, DecodeBytecodeAndOperands) {
        "LdaSmi.ExtraWide [-100000]"},
       {{B(Star), R8(5)}, 2, 0, "            Star r5"},
       {{B(Wide), B(Star), R16(136)}, 4, 0, "      Star.Wide r136"},
-      {{B(Wide), B(Call), R16(134), R16(135), U16(10), U16(177)},
+      {{B(Wide), B(CallAnyReceiver), R16(134), R16(135), U16(10), U16(177)},
        10,
        0,
-       "Call.Wide r134, r135-r144, [177]"},
-      {{B(ForInPrepare), R8(10), R8(11)},
+       "CallAnyReceiver.Wide r134, r135-r144, [177]"},
+      {{B(ForInPrepare), R8(10), U8(11)},
        3,
        0,
-       "         ForInPrepare r10, r11-r13"},
-      {{B(CallRuntime), U16(134), R8(0), U8(0)},
+       "         ForInPrepare r10-r12, [11]"},
+      {{B(CallRuntime), U16(Runtime::FunctionId::kIsSmi), R8(0), U8(0)},
        5,
        0,
-       "   CallRuntime [134], r0-r0"},
+       "   CallRuntime [IsSmi], r0-r0"},
       {{B(Ldar),
         static_cast<uint8_t>(Register::FromParameterIndex(2, 3).ToOperand())},
        2,
@@ -63,7 +67,10 @@ TEST(BytecodeDecoder, DecodeBytecodeAndOperands) {
        6,
        0,
        "JumpIfNull.ExtraWide [123456789]"},
-  };
+      {{B(CallJSRuntime), U8(Context::BOOLEAN_FUNCTION_INDEX), R8(0), U8(0)},
+       4,
+       0,
+       "      CallJSRuntime [boolean_function], r0-r0"}};
 
   for (size_t i = 0; i < arraysize(cases); ++i) {
     // Generate reference string by prepending formatted bytes.
@@ -89,6 +96,8 @@ TEST(BytecodeDecoder, DecodeBytecodeAndOperands) {
     CHECK_EQ(actual_ss.str(), expected_ss.str());
   }
 }
+
+#undef B
 
 }  // namespace interpreter
 }  // namespace internal

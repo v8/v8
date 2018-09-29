@@ -71,7 +71,7 @@ class ThreadedRunner final : public base::Thread {
   explicit ThreadedRunner(TestTask* task)
       : Thread(Options("runner thread")), task_(task) {}
 
-  virtual void Run() {
+  void Run() override {
     task_->Run();
     delete task_;
   }
@@ -180,7 +180,7 @@ TEST(CancelableTask, RemoveBeforeCancelAndWait) {
   ResultType result1 = 0;
   TestTask* task1 = new TestTask(&manager, &result1, TestTask::kCheckNotRun);
   ThreadedRunner runner1(task1);
-  uint32_t id = task1->id();
+  CancelableTaskManager::Id id = task1->id();
   EXPECT_EQ(id, 1u);
   EXPECT_TRUE(manager.TryAbort(id));
   runner1.Start();
@@ -195,7 +195,7 @@ TEST(CancelableTask, RemoveAfterCancelAndWait) {
   ResultType result1 = 0;
   TestTask* task1 = new TestTask(&manager, &result1);
   ThreadedRunner runner1(task1);
-  uint32_t id = task1->id();
+  CancelableTaskManager::Id id = task1->id();
   EXPECT_EQ(id, 1u);
   runner1.Start();
   runner1.Join();

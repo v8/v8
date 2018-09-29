@@ -36,9 +36,9 @@ class ContextSlotCache {
  private:
   ContextSlotCache() {
     for (int i = 0; i < kLength; ++i) {
-      keys_[i].data = NULL;
-      keys_[i].name = NULL;
-      values_[i] = kNotFound;
+      keys_[i].data = nullptr;
+      keys_[i].name = nullptr;
+      values_[i] = static_cast<uint32_t>(kNotFound);
     }
   }
 

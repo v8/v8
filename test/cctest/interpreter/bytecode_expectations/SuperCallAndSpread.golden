@@ -17,22 +17,18 @@ snippet: "
     test = new B(1, 2, 3).constructor;
   })();
 "
-frame size: 7
+frame size: 5
 parameter count: 1
-bytecode array length: 29
+bytecode array length: 19
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
                 B(Mov), R(closure), R(1),
-                B(Mov), R(new_target), R(0),
-                B(Ldar), R(new_target),
   /*   93 E> */ B(StackCheck),
   /*   93 S> */ B(Ldar), R(1),
-                B(GetSuperConstructor), R(3),
-                B(Mov), R(3), R(4),
-                B(Mov), R(0), R(5),
-                B(Mov), R(2), R(6),
-  /*   93 E> */ B(NewWithSpread), R(4), U8(3),
+                B(GetSuperConstructor), R(4),
+                B(Ldar), R(0),
+  /*   93 E> */ B(ConstructWithSpread), R(4), R(2), U8(1), U8(0),
   /*   93 S> */ B(Return),
 ]
 constant pool: [
@@ -53,41 +49,31 @@ snippet: "
     test = new B(1, 2, 3).constructor;
   })();
 "
-frame size: 8
+frame size: 9
 parameter count: 1
-bytecode array length: 66
+bytecode array length: 40
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
                 B(Mov), R(closure), R(1),
-                B(Mov), R(new_target), R(0),
-                B(Ldar), R(new_target),
   /*  128 E> */ B(StackCheck),
-  /*  140 S> */ B(Ldar), R(1),
-                B(GetSuperConstructor), R(3),
-                B(LdaSmi), U8(1),
+                B(Mov), R(2), R(3),
+  /*  140 S> */ B(Ldar), R(closure),
+                B(GetSuperConstructor), R(5),
+                B(LdaSmi), I8(1),
                 B(Star), R(6),
-                B(Mov), R(3), R(4),
-                B(Mov), R(0), R(5),
+                B(Ldar), R(0),
                 B(Mov), R(2), R(7),
-  /*  140 E> */ B(NewWithSpread), R(4), U8(4),
-                B(Star), R(3),
+  /*  140 E> */ B(ConstructWithSpread), R(5), R(6), U8(2), U8(0),
+                B(Star), R(8),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(4),
-                B(Jump), U8(11),
-                B(LdaConstant), U8(0),
-                B(Star), R(4),
-  /*  140 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
-                B(Mov), R(3), R(this),
+                B(ThrowSuperAlreadyCalledIfNotHole),
+                B(Mov), R(8), R(this),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(0),
-                B(Star), R(3),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),
+                B(ThrowSuperNotCalledIfHole),
   /*  159 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["this"],
 ]
 handlers: [
 ]
@@ -105,54 +91,67 @@ snippet: "
     test = new B(1, 2, 3).constructor;
   })();
 "
-frame size: 9
+frame size: 13
 parameter count: 1
-bytecode array length: 96
+bytecode array length: 130
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
                 B(Mov), R(closure), R(1),
-                B(Mov), R(new_target), R(0),
-                B(Ldar), R(new_target),
   /*  128 E> */ B(StackCheck),
-  /*  140 S> */ B(LdaUndefined),
-                B(Star), R(3),
-  /*  140 E> */ B(CallRuntime), U16(Runtime::k_GetSuperConstructor), R(1), U8(1),
-                B(Star), R(4),
-                B(LdaUndefined),
-                B(Star), R(5),
-                B(CreateArrayLiteral), U8(0), U8(0), U8(9),
+                B(Mov), R(2), R(3),
+  /*  140 S> */ B(Ldar), R(closure),
+                B(GetSuperConstructor), R(5),
+                B(CreateEmptyArrayLiteral), U8(0),
+                B(Star), R(7),
+                B(LdaZero),
                 B(Star), R(6),
-                B(LdaUndefined),
-                B(Star), R(7),
-                B(Mov), R(2), R(8),
-  /*  152 E> */ B(CallJSRuntime), U8(%spread_iterable), R(7), U8(2),
-                B(Star), R(7),
-                B(CreateArrayLiteral), U8(1), U8(1), U8(9),
+                B(LdaSmi), I8(1),
+                B(StaInArrayLiteral), R(7), R(6), U8(1),
+                B(Ldar), R(6),
+                B(Inc), U8(3),
+  /*  152 S> */ B(Star), R(6),
+                B(LdaNamedProperty), R(2), U8(0), U8(4),
+                B(Star), R(12),
+                B(CallProperty0), R(12), R(2), U8(6),
+                B(Mov), R(2), R(11),
+                B(Mov), R(1), R(4),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
+                B(Star), R(10),
+                B(LdaNamedProperty), R(10), U8(1), U8(8),
+                B(Star), R(9),
+                B(CallProperty0), R(9), R(10), U8(10),
                 B(Star), R(8),
-                B(CallJSRuntime), U8(%spread_arguments), R(5), U8(4),
-                B(Star), R(5),
-                B(Mov), R(0), R(6),
-  /*  140 E> */ B(CallJSRuntime), U8(%reflect_construct), R(3), U8(4),
-                B(Star), R(3),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(8), U8(1),
+                B(LdaNamedProperty), R(8), U8(2), U8(12),
+                B(JumpIfToBooleanTrue), U8(21),
+                B(LdaNamedProperty), R(8), U8(3), U8(14),
+                B(Star), R(8),
+                B(StaInArrayLiteral), R(7), R(6), U8(1),
+                B(Ldar), R(6),
+                B(Inc), U8(3),
+                B(Star), R(6),
+                B(JumpLoop), U8(35), I8(0),
+                B(LdaSmi), I8(1),
+                B(StaInArrayLiteral), R(7), R(6), U8(1),
+                B(Mov), R(5), R(6),
+                B(Mov), R(0), R(8),
+  /*  140 E> */ B(CallJSRuntime), U8(%reflect_construct), R(6), U8(3),
+                B(Star), R(9),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(4),
-                B(Jump), U8(11),
-                B(LdaConstant), U8(2),
-                B(Star), R(4),
-  /*  140 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
-                B(Mov), R(3), R(this),
+                B(ThrowSuperAlreadyCalledIfNotHole),
+                B(Mov), R(9), R(this),
                 B(Ldar), R(this),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(2),
-                B(Star), R(3),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),
+                B(ThrowSuperNotCalledIfHole),
   /*  162 S> */ B(Return),
 ]
 constant pool: [
-  CONSTANT_ELEMENTS_PAIR_TYPE,
-  CONSTANT_ELEMENTS_PAIR_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["this"],
+  SYMBOL_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
 ]
 handlers: [
 ]

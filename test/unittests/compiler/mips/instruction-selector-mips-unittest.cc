@@ -4,6 +4,8 @@
 
 #include "test/unittests/compiler/instruction-selector-unittest.h"
 
+#include "src/objects-inl.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -354,11 +356,11 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
   // The available shift operand range is `0 <= imm < 32`, but we also test
   // that immediates outside this range are handled properly (modulo-32).
   TRACED_FORRANGE(int32_t, shift, -32, 63) {
-    int32_t lsb = shift & 0x1f;
+    int32_t lsb = shift & 0x1F;
     TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
       uint32_t jnk = rng()->NextInt();
       jnk = (lsb > 0) ? (jnk >> (32 - lsb)) : 0;
-      uint32_t msk = ((0xffffffffu >> (32 - width)) << lsb) | jnk;
+      uint32_t msk = ((0xFFFFFFFFu >> (32 - width)) << lsb) | jnk;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(m.Word32Shr(m.Word32And(m.Parameter(0), m.Int32Constant(msk)),
                            m.Int32Constant(shift)));
@@ -371,11 +373,11 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
     }
   }
   TRACED_FORRANGE(int32_t, shift, -32, 63) {
-    int32_t lsb = shift & 0x1f;
+    int32_t lsb = shift & 0x1F;
     TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
       uint32_t jnk = rng()->NextInt();
       jnk = (lsb > 0) ? (jnk >> (32 - lsb)) : 0;
-      uint32_t msk = ((0xffffffffu >> (32 - width)) << lsb) | jnk;
+      uint32_t msk = ((0xFFFFFFFFu >> (32 - width)) << lsb) | jnk;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(m.Word32Shr(m.Word32And(m.Int32Constant(msk), m.Parameter(0)),
                            m.Int32Constant(shift)));
@@ -409,33 +411,35 @@ TEST_F(InstructionSelectorTest, Word32ShlWithWord32And) {
 }
 
 TEST_F(InstructionSelectorTest, Word32SarWithWord32Shl) {
-  {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    Node* const p0 = m.Parameter(0);
-    Node* const r =
-        m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(24)), m.Int32Constant(24));
-    m.Return(r);
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMipsSeb, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
-  }
-  {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    Node* const p0 = m.Parameter(0);
-    Node* const r =
-        m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(16)), m.Int32Constant(16));
-    m.Return(r);
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kMipsSeh, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    {
+      StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+      Node* const p0 = m.Parameter(0);
+      Node* const r = m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(24)),
+                                  m.Int32Constant(24));
+      m.Return(r);
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kMipsSeb, s[0]->arch_opcode());
+      ASSERT_EQ(1U, s[0]->InputCount());
+      EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+      ASSERT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+    }
+    {
+      StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+      Node* const p0 = m.Parameter(0);
+      Node* const r = m.Word32Sar(m.Word32Shl(p0, m.Int32Constant(16)),
+                                  m.Int32Constant(16));
+      m.Return(r);
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kMipsSeh, s[0]->arch_opcode());
+      ASSERT_EQ(1U, s[0]->InputCount());
+      EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+      ASSERT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(s.ToVreg(r), s.ToVreg(s[0]->Output()));
+    }
   }
 }
 
@@ -515,7 +519,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
   // The available shift operand range is `0 <= imm < 32`, but we also test
   // that immediates outside this range are handled properly (modulo-32).
   TRACED_FORRANGE(int32_t, shift, -32, 63) {
-    int32_t lsb = shift & 0x1f;
+    int32_t lsb = shift & 0x1F;
     TRACED_FORRANGE(int32_t, width, 1, 31) {
       uint32_t msk = (1 << width) - 1;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
@@ -531,7 +535,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
     }
   }
   TRACED_FORRANGE(int32_t, shift, -32, 63) {
-    int32_t lsb = shift & 0x1f;
+    int32_t lsb = shift & 0x1F;
     TRACED_FORRANGE(int32_t, width, 1, 31) {
       uint32_t msk = (1 << width) - 1;
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
@@ -1119,8 +1123,8 @@ TEST_P(InstructionSelectorMemoryAccessUnalignedImmTest, StoreZero) {
   const MemoryAccessImm2 memacc = GetParam();
   TRACED_FOREACH(int32_t, index, memacc.immediates) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer());
-    bool unaligned_store_supported = m.machine()->UnalignedStoreSupported(
-        MachineType::TypeForRepresentation(memacc.type.representation()), 1);
+    bool unaligned_store_supported =
+        m.machine()->UnalignedStoreSupported(memacc.type.representation());
     m.UnalignedStore(memacc.type.representation(), m.Parameter(0),
                      m.Int32Constant(index), m.Int32Constant(0));
     m.Return(m.Int32Constant(0));
@@ -1452,6 +1456,18 @@ TEST_F(InstructionSelectorTest, Float64Min) {
   ASSERT_EQ(2U, s[0]->InputCount());
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+TEST_F(InstructionSelectorTest, Word32ReverseBytes) {
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    m.Return(m.Word32ReverseBytes(m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMipsByteSwap32, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
 }
 
 }  // namespace compiler

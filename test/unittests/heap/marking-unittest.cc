@@ -11,25 +11,6 @@
 namespace v8 {
 namespace internal {
 
-TEST(Marking, MarkWhiteBlackWhite) {
-  Bitmap* bitmap = reinterpret_cast<Bitmap*>(
-      calloc(Bitmap::kSize / kPointerSize, kPointerSize));
-  const int kLocationsSize = 3;
-  int position[kLocationsSize] = {
-      Bitmap::kBitsPerCell - 2, Bitmap::kBitsPerCell - 1, Bitmap::kBitsPerCell};
-  for (int i = 0; i < kLocationsSize; i++) {
-    MarkBit mark_bit = bitmap->MarkBitFromIndex(position[i]);
-    CHECK(Marking::IsWhite(mark_bit));
-    CHECK(!Marking::IsImpossible(mark_bit));
-    Marking::MarkBlack(mark_bit);
-    CHECK(Marking::IsBlack(mark_bit));
-    CHECK(!Marking::IsImpossible(mark_bit));
-    Marking::MarkWhite(mark_bit);
-    CHECK(Marking::IsWhite(mark_bit));
-    CHECK(!Marking::IsImpossible(mark_bit));
-  }
-  free(bitmap);
-}
 
 TEST(Marking, TransitionWhiteBlackWhite) {
   Bitmap* bitmap = reinterpret_cast<Bitmap*>(
@@ -41,37 +22,8 @@ TEST(Marking, TransitionWhiteBlackWhite) {
     MarkBit mark_bit = bitmap->MarkBitFromIndex(position[i]);
     CHECK(Marking::IsWhite(mark_bit));
     CHECK(!Marking::IsImpossible(mark_bit));
-    Marking::WhiteToBlack(mark_bit);
+    Marking::WhiteToBlack<AccessMode::NON_ATOMIC>(mark_bit);
     CHECK(Marking::IsBlack(mark_bit));
-    CHECK(!Marking::IsImpossible(mark_bit));
-    Marking::BlackToWhite(mark_bit);
-    CHECK(Marking::IsWhite(mark_bit));
-    CHECK(!Marking::IsImpossible(mark_bit));
-  }
-  free(bitmap);
-}
-
-TEST(Marking, TransitionAnyToGrey) {
-  Bitmap* bitmap = reinterpret_cast<Bitmap*>(
-      calloc(Bitmap::kSize / kPointerSize, kPointerSize));
-  const int kLocationsSize = 3;
-  int position[kLocationsSize] = {
-      Bitmap::kBitsPerCell - 2, Bitmap::kBitsPerCell - 1, Bitmap::kBitsPerCell};
-  for (int i = 0; i < kLocationsSize; i++) {
-    MarkBit mark_bit = bitmap->MarkBitFromIndex(position[i]);
-    CHECK(Marking::IsWhite(mark_bit));
-    CHECK(!Marking::IsImpossible(mark_bit));
-    Marking::AnyToGrey(mark_bit);
-    CHECK(Marking::IsGrey(mark_bit));
-    CHECK(Marking::IsBlackOrGrey(mark_bit));
-    CHECK(!Marking::IsImpossible(mark_bit));
-    Marking::MarkBlack(mark_bit);
-    CHECK(Marking::IsBlack(mark_bit));
-    CHECK(Marking::IsBlackOrGrey(mark_bit));
-    CHECK(!Marking::IsImpossible(mark_bit));
-    Marking::AnyToGrey(mark_bit);
-    CHECK(Marking::IsGrey(mark_bit));
-    CHECK(Marking::IsBlackOrGrey(mark_bit));
     CHECK(!Marking::IsImpossible(mark_bit));
     Marking::MarkWhite(mark_bit);
     CHECK(Marking::IsWhite(mark_bit));
@@ -80,7 +32,7 @@ TEST(Marking, TransitionAnyToGrey) {
   free(bitmap);
 }
 
-TEST(Marking, TransitionWhiteGreyBlackGrey) {
+TEST(Marking, TransitionWhiteGreyBlack) {
   Bitmap* bitmap = reinterpret_cast<Bitmap*>(
       calloc(Bitmap::kSize / kPointerSize, kPointerSize));
   const int kLocationsSize = 3;
@@ -91,16 +43,12 @@ TEST(Marking, TransitionWhiteGreyBlackGrey) {
     CHECK(Marking::IsWhite(mark_bit));
     CHECK(!Marking::IsBlackOrGrey(mark_bit));
     CHECK(!Marking::IsImpossible(mark_bit));
-    Marking::WhiteToGrey(mark_bit);
+    Marking::WhiteToGrey<AccessMode::NON_ATOMIC>(mark_bit);
     CHECK(Marking::IsGrey(mark_bit));
     CHECK(Marking::IsBlackOrGrey(mark_bit));
     CHECK(!Marking::IsImpossible(mark_bit));
-    Marking::GreyToBlack(mark_bit);
+    Marking::GreyToBlack<AccessMode::NON_ATOMIC>(mark_bit);
     CHECK(Marking::IsBlack(mark_bit));
-    CHECK(Marking::IsBlackOrGrey(mark_bit));
-    CHECK(!Marking::IsImpossible(mark_bit));
-    Marking::BlackToGrey(mark_bit);
-    CHECK(Marking::IsGrey(mark_bit));
     CHECK(Marking::IsBlackOrGrey(mark_bit));
     CHECK(!Marking::IsImpossible(mark_bit));
     Marking::MarkWhite(mark_bit);
@@ -115,7 +63,7 @@ TEST(Marking, SetAndClearRange) {
       calloc(Bitmap::kSize / kPointerSize, kPointerSize));
   for (int i = 0; i < 3; i++) {
     bitmap->SetRange(i, Bitmap::kBitsPerCell + i);
-    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xffffffffu << i);
+    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xFFFFFFFFu << i);
     CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], (1u << i) - 1);
     bitmap->ClearRange(i, Bitmap::kBitsPerCell + i);
     CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0x0u);
@@ -129,9 +77,9 @@ TEST(Marking, ClearMultipleRanges) {
       calloc(Bitmap::kSize / kPointerSize, kPointerSize));
   CHECK(bitmap->AllBitsClearInRange(0, Bitmap::kBitsPerCell * 3));
   bitmap->SetRange(0, Bitmap::kBitsPerCell * 3);
-  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xffffffffu);
-  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], 0xffffffffu);
-  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[2], 0xffffffffu);
+  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xFFFFFFFFu);
+  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], 0xFFFFFFFFu);
+  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[2], 0xFFFFFFFFu);
   CHECK(bitmap->AllBitsSetInRange(0, Bitmap::kBitsPerCell * 3));
   bitmap->ClearRange(Bitmap::kBitsPerCell / 2, Bitmap::kBitsPerCell);
   bitmap->ClearRange(Bitmap::kBitsPerCell,
@@ -139,17 +87,17 @@ TEST(Marking, ClearMultipleRanges) {
   bitmap->ClearRange(Bitmap::kBitsPerCell * 2 + 8,
                      Bitmap::kBitsPerCell * 2 + 16);
   bitmap->ClearRange(Bitmap::kBitsPerCell * 2 + 24, Bitmap::kBitsPerCell * 3);
-  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xffffu);
+  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xFFFFu);
   CHECK(bitmap->AllBitsSetInRange(0, Bitmap::kBitsPerCell / 2));
   CHECK(bitmap->AllBitsClearInRange(Bitmap::kBitsPerCell / 2,
                                     Bitmap::kBitsPerCell));
-  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], 0xffff0000u);
+  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], 0xFFFF0000u);
   CHECK(
       bitmap->AllBitsSetInRange(Bitmap::kBitsPerCell + Bitmap::kBitsPerCell / 2,
                                 2 * Bitmap::kBitsPerCell));
   CHECK(bitmap->AllBitsClearInRange(
       Bitmap::kBitsPerCell, Bitmap::kBitsPerCell + Bitmap::kBitsPerCell / 2));
-  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[2], 0xff00ffu);
+  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[2], 0xFF00FFu);
   CHECK(bitmap->AllBitsSetInRange(2 * Bitmap::kBitsPerCell,
                                   2 * Bitmap::kBitsPerCell + 8));
   CHECK(bitmap->AllBitsClearInRange(2 * Bitmap::kBitsPerCell + 24,
