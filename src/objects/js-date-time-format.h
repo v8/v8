@@ -29,9 +29,6 @@ class JSDateTimeFormat : public JSObject {
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
       Handle<Object> locales, Handle<Object> options);
 
-  static icu::SimpleDateFormat* UnpackDateFormat(
-      Handle<JSDateTimeFormat> date_time_format);
-
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format);
 

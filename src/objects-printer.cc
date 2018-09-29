@@ -1980,7 +1980,7 @@ void JSListFormat::JSListFormatPrint(std::ostream& os) {  // NOLINT
   os << "\n - locale: " << Brief(locale());
   os << "\n - style: " << StyleAsString();
   os << "\n - type: " << TypeAsString();
-  os << "\n - formatter: " << Brief(formatter());
+  os << "\n - icu formatter: " << Brief(icu_formatter());
   os << "\n";
 }
 
@@ -2026,7 +2026,7 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(
   os << "\n - locale: " << Brief(locale());
   os << "\n - style: " << StyleAsString();
   os << "\n - numeric: " << NumericAsString();
-  os << "\n - formatter: " << Brief(formatter());
+  os << "\n - icu formatter: " << Brief(icu_formatter());
   os << "\n";
 }
 #endif  // V8_INTL_SUPPORT

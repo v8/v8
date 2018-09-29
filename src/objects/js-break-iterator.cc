@@ -127,11 +127,6 @@ Handle<JSObject> JSV8BreakIterator::ResolvedOptions(
   return result;
 }
 
-icu::BreakIterator* JSV8BreakIterator::UnpackBreakIterator(
-    Handle<JSV8BreakIterator> obj) {
-  return Managed<icu::BreakIterator>::cast(obj->break_iterator())->raw();
-}
-
 void JSV8BreakIterator::AdoptText(
     Isolate* isolate, Handle<JSV8BreakIterator> break_iterator_holder,
     Handle<String> text) {

@@ -70,7 +70,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
             .FromJust());
 
   icu::NumberFormat* number_format =
-      UnpackIcuNumberFormat(isolate, number_format_holder);
+      number_format_holder->icu_number_format()->raw();
   CHECK_NOT_NULL(number_format);
   icu::DecimalFormat* decimal_format =
       static_cast<icu::DecimalFormat*>(number_format);
@@ -458,11 +458,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   return number_format;
 }
 
-icu::NumberFormat* JSNumberFormat::UnpackIcuNumberFormat(
-    Isolate* isolate, Handle<JSNumberFormat> holder) {
-  return Managed<icu::NumberFormat>::cast(holder->icu_number_format())->raw();
-}
-
 Handle<String> JSNumberFormat::StyleAsString() const {
   switch (style()) {
     case Style::DECIMAL:
@@ -493,7 +488,7 @@ MaybeHandle<String> JSNumberFormat::FormatNumber(
     Isolate* isolate, Handle<JSNumberFormat> number_format_holder,
     double number) {
   icu::NumberFormat* number_format =
-      UnpackIcuNumberFormat(isolate, number_format_holder);
+      number_format_holder->icu_number_format()->raw();
   CHECK_NOT_NULL(number_format);
 
   icu::UnicodeString result;

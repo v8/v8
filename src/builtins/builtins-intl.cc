@@ -1068,7 +1068,7 @@ BUILTIN(V8BreakIteratorInternalFirst) {
       isolate);
 
   icu::BreakIterator* break_iterator =
-      JSV8BreakIterator::UnpackBreakIterator(break_iterator_holder);
+      break_iterator_holder->break_iterator()->raw();
   CHECK_NOT_NULL(break_iterator);
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->first());
@@ -1103,7 +1103,7 @@ BUILTIN(V8BreakIteratorInternalNext) {
       isolate);
 
   icu::BreakIterator* break_iterator =
-      JSV8BreakIterator::UnpackBreakIterator(break_iterator_holder);
+      break_iterator_holder->break_iterator()->raw();
   CHECK_NOT_NULL(break_iterator);
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->next());
@@ -1138,7 +1138,7 @@ BUILTIN(V8BreakIteratorInternalCurrent) {
       isolate);
 
   icu::BreakIterator* break_iterator =
-      JSV8BreakIterator::UnpackBreakIterator(break_iterator_holder);
+      break_iterator_holder->break_iterator()->raw();
   CHECK_NOT_NULL(break_iterator);
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->current());
@@ -1174,7 +1174,7 @@ BUILTIN(V8BreakIteratorInternalBreakType) {
       isolate);
 
   icu::BreakIterator* break_iterator =
-      JSV8BreakIterator::UnpackBreakIterator(break_iterator_holder);
+      break_iterator_holder->break_iterator()->raw();
   CHECK_NOT_NULL(break_iterator);
 
   int32_t status = break_iterator->getRuleStatus();

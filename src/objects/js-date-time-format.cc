@@ -314,7 +314,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
             .FromJust());
 
   icu::SimpleDateFormat* icu_simple_date_format =
-      UnpackDateFormat(date_time_format);
+      date_time_format->icu_simple_date_format()->raw();
   // calendar
   const icu::Calendar* calendar = icu_simple_date_format->getCalendar();
   // getType() returns legacy calendar type name instead of LDML/BCP47 calendar
@@ -435,7 +435,7 @@ MaybeHandle<String> FormatDateTime(Isolate* isolate,
   }
 
   icu::SimpleDateFormat* date_format =
-      JSDateTimeFormat::UnpackDateFormat(date_time_format);
+      date_time_format->icu_simple_date_format()->raw();
   CHECK_NOT_NULL(date_format);
 
   icu::UnicodeString result;
@@ -849,11 +849,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   return date_time_format;
 }
 
-icu::SimpleDateFormat* JSDateTimeFormat::UnpackDateFormat(
-    Handle<JSDateTimeFormat> date_time_format) {
-  return date_time_format->icu_simple_date_format()->raw();
-}
-
 namespace {
 
 // The list comes from third_party/icu/source/i18n/unicode/udat.h.
@@ -913,7 +908,7 @@ MaybeHandle<Object> JSDateTimeFormat::FormatToParts(
     double date_value) {
   Factory* factory = isolate->factory();
   icu::SimpleDateFormat* format =
-      JSDateTimeFormat::UnpackDateFormat(date_time_format);
+      date_time_format->icu_simple_date_format()->raw();
   CHECK_NOT_NULL(format);
 
   icu::UnicodeString formatted;

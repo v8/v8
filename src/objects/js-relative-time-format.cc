@@ -17,7 +17,6 @@
 #include "src/objects-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-relative-time-format-inl.h"
-#include "src/objects/managed.h"
 #include "unicode/numfmt.h"
 #include "unicode/reldatefmt.h"
 #include "unicode/uvernum.h"  // for U_ICU_VERSION_MAJOR_NUM
@@ -162,7 +161,7 @@ JSRelativeTimeFormat::InitializeRelativeTimeFormat(
                                                           icu_formatter);
 
   // 30. Set relativeTimeFormat.[[InitializedRelativeTimeFormat]] to true.
-  relative_time_format_holder->set_formatter(*managed_formatter);
+  relative_time_format_holder->set_icu_formatter(*managed_formatter);
   // 31. Return relativeTimeFormat.
   return relative_time_format_holder;
 }
@@ -179,12 +178,6 @@ Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
   JSObject::AddProperty(isolate, result, factory->numeric_string(),
                         format_holder->NumericAsString(), NONE);
   return result;
-}
-
-icu::RelativeDateTimeFormatter* JSRelativeTimeFormat::UnpackFormatter(
-    Handle<JSRelativeTimeFormat> holder) {
-  return Managed<icu::RelativeDateTimeFormatter>::cast(holder->formatter())
-      ->raw();
 }
 
 Handle<String> JSRelativeTimeFormat::StyleAsString() const {
@@ -362,7 +355,7 @@ MaybeHandle<Object> JSRelativeTimeFormat::Format(
   }
 
   icu::RelativeDateTimeFormatter* formatter =
-      JSRelativeTimeFormat::UnpackFormatter(format_holder);
+      format_holder->icu_formatter()->raw();
   CHECK_NOT_NULL(formatter);
 
   URelativeDateTimeUnit unit_enum;

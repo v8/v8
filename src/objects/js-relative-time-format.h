@@ -12,6 +12,7 @@
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/managed.h"
 #include "unicode/uversion.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -37,10 +38,6 @@ class JSRelativeTimeFormat : public JSObject {
   V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSRelativeTimeFormat> format_holder);
 
-  // Unpacks formatter object from corresponding JavaScript object.
-  V8_WARN_UNUSED_RESULT static icu::RelativeDateTimeFormatter* UnpackFormatter(
-      Handle<JSRelativeTimeFormat> relative_time_format_holder);
-
   Handle<String> StyleAsString() const;
   Handle<String> NumericAsString() const;
 
@@ -56,7 +53,7 @@ class JSRelativeTimeFormat : public JSObject {
   // RelativeTimeFormat accessors.
   DECL_ACCESSORS(locale, String)
 
-  DECL_ACCESSORS(formatter, Foreign)
+  DECL_ACCESSORS(icu_formatter, Managed<icu::RelativeDateTimeFormatter>)
 
   // Style: identifying the relative time format style used.
   //
@@ -107,8 +104,8 @@ class JSRelativeTimeFormat : public JSObject {
   // Layout description.
   static const int kJSRelativeTimeFormatOffset = JSObject::kHeaderSize;
   static const int kLocaleOffset = kJSRelativeTimeFormatOffset + kPointerSize;
-  static const int kFormatterOffset = kLocaleOffset + kPointerSize;
-  static const int kFlagsOffset = kFormatterOffset + kPointerSize;
+  static const int kICUFormatterOffset = kLocaleOffset + kPointerSize;
+  static const int kFlagsOffset = kICUFormatterOffset + kPointerSize;
   static const int kSize = kFlagsOffset + kPointerSize;
 
  private:

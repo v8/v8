@@ -46,10 +46,6 @@ class JSNumberFormat : public JSObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatNumber(
       Isolate* isolate, Handle<JSNumberFormat> number_format, double number);
 
-  // Unpacks format object from corresponding JavaScript object.
-  static icu::NumberFormat* UnpackIcuNumberFormat(
-      Isolate* isolate, Handle<JSNumberFormat> number_format_holder);
-
   Handle<String> StyleAsString() const;
   Handle<String> CurrencyDisplayAsString() const;
 

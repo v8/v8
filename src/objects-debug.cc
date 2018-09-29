@@ -1913,7 +1913,7 @@ void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
 void JSListFormat::JSListFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);
-  VerifyObjectField(isolate, kFormatterOffset);
+  VerifyObjectField(isolate, kICUFormatterOffset);
   VerifyObjectField(isolate, kFlagsOffset);
 }
 
@@ -1954,7 +1954,7 @@ void JSPluralRules::JSPluralRulesVerify(Isolate* isolate) {
 void JSRelativeTimeFormat::JSRelativeTimeFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);
-  VerifyObjectField(isolate, kFormatterOffset);
+  VerifyObjectField(isolate, kICUFormatterOffset);
   VerifyObjectField(isolate, kFlagsOffset);
 }
 #endif  // V8_INTL_SUPPORT
