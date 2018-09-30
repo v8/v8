@@ -106,6 +106,14 @@ class TransitionsAccessor {
   void PutPrototypeTransition(Handle<Object> prototype, Handle<Map> target_map);
   Handle<Map> GetPrototypeTransition(Handle<Object> prototype);
 
+  // During the first-time Map::Update and Map::TryUpdate, the migration target
+  // map could be cached in the raw_transitions slot of the old map that is
+  // deprecated from the map transition tree. The next time old map is updated,
+  // we will check this cache slot as a shortcut to get the migration target
+  // map.
+  void SetMigrationTarget(Map* migration_target);
+  Map* GetMigrationTarget();
+
 #if DEBUG || OBJECT_PRINT
   void PrintTransitions(std::ostream& os);
   static void PrintOneTransition(std::ostream& os, Name* key, Map* target);
@@ -125,6 +133,7 @@ class TransitionsAccessor {
   enum Encoding {
     kPrototypeInfo,
     kUninitialized,
+    kMigrationTarget,
     kWeakRef,
     kFullTransitionArray,
   };

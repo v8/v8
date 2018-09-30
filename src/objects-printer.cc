@@ -2386,6 +2386,7 @@ void TransitionsAccessor::PrintTransitions(std::ostream& os) {  // NOLINT
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
+    case kMigrationTarget:
       return;
     case kWeakRef: {
       Map* target = Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());

@@ -21,9 +21,12 @@ void TransitionsAccessor::Initialize() {
   } else if (raw_transitions_->GetHeapObjectIfStrong(&heap_object)) {
     if (heap_object->IsTransitionArray()) {
       encoding_ = kFullTransitionArray;
-    } else {
-      DCHECK(heap_object->IsPrototypeInfo());
+    } else if (heap_object->IsPrototypeInfo()) {
       encoding_ = kPrototypeInfo;
+    } else {
+      DCHECK(map_->is_deprecated());
+      DCHECK(heap_object->IsMap());
+      encoding_ = kMigrationTarget;
     }
   } else {
     UNREACHABLE();
@@ -48,6 +51,7 @@ bool TransitionsAccessor::HasSimpleTransitionTo(Map* map) {
       return raw_transitions_->GetHeapObjectAssumeWeak() == map;
     case kPrototypeInfo:
     case kUninitialized:
+    case kMigrationTarget:
     case kFullTransitionArray:
       return false;
   }
@@ -212,6 +216,7 @@ Map* TransitionsAccessor::SearchTransition(Name* name, PropertyKind kind,
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
+    case kMigrationTarget:
       return nullptr;
     case kWeakRef: {
       Map* map = Map::cast(raw_transitions_->GetHeapObjectAssumeWeak());
@@ -264,6 +269,7 @@ Handle<String> TransitionsAccessor::ExpectedTransitionKey() {
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
+    case kMigrationTarget:
     case kFullTransitionArray:
       return Handle<String>::null();
     case kWeakRef: {
@@ -430,6 +436,7 @@ int TransitionsAccessor::NumberOfTransitions() {
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
+    case kMigrationTarget:
       return 0;
     case kWeakRef:
       return 1;
@@ -438,6 +445,18 @@ int TransitionsAccessor::NumberOfTransitions() {
   }
   UNREACHABLE();
   return 0;  // Make GCC happy.
+}
+
+void TransitionsAccessor::SetMigrationTarget(Map* migration_target) {
+  DCHECK(map_->is_deprecated());
+  ReplaceTransitions(MaybeObject::FromObject(migration_target));
+}
+
+Map* TransitionsAccessor::GetMigrationTarget() {
+  if (encoding() == kMigrationTarget) {
+    return map_->raw_transitions()->cast<Map>();
+  }
+  return nullptr;
 }
 
 void TransitionArray::Zap(Isolate* isolate) {
@@ -474,7 +493,8 @@ void TransitionsAccessor::SetPrototypeTransitions(
 
 void TransitionsAccessor::EnsureHasFullTransitionArray() {
   if (encoding() == kFullTransitionArray) return;
-  int nof = encoding() == kUninitialized ? 0 : 1;
+  int nof =
+      (encoding() == kUninitialized || encoding() == kMigrationTarget) ? 0 : 1;
   Handle<TransitionArray> result = isolate_->factory()->NewTransitionArray(nof);
   Reload();  // Reload after possible GC.
   if (nof == 1) {
@@ -497,6 +517,7 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
+    case kMigrationTarget:
       break;
     case kWeakRef: {
       Map* simple_target =
