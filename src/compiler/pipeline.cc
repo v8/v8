@@ -911,13 +911,14 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     compilation_info()->MarkAsAccessorInliningEnabled();
   }
 
-  // Compute and set poisoning level.
+  // This is the bottleneck for computing and setting poisoning level in the
+  // optimizing compiler.
   PoisoningMitigationLevel load_poisoning =
       PoisoningMitigationLevel::kDontPoison;
-  if (FLAG_branch_load_poisoning) {
+  if (FLAG_untrusted_code_mitigations) {
+    // For partial mitigations, this can be changed to
+    // PoisoningMitigationLevel::kPoisonCriticalOnly.
     load_poisoning = PoisoningMitigationLevel::kPoisonAll;
-  } else if (FLAG_untrusted_code_mitigations) {
-    load_poisoning = PoisoningMitigationLevel::kPoisonCriticalOnly;
   }
   compilation_info()->SetPoisoningMitigationLevel(load_poisoning);
 
@@ -2458,7 +2459,6 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     // it cooperates with restricted allocatable registers above.
     static_assert(kRootRegister == kSpeculationPoisonRegister,
                   "The following checks assume root equals poison register");
-    CHECK_IMPLIES(FLAG_embedded_builtins, !FLAG_branch_load_poisoning);
     CHECK_IMPLIES(FLAG_embedded_builtins, !FLAG_untrusted_code_mitigations);
     AllocateRegisters(RegisterConfiguration::PreserveRootIA32(),
                       call_descriptor, run_verifier);

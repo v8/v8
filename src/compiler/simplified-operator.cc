@@ -79,7 +79,7 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
 #endif
   os << access.type << ", " << access.machine_type << ", "
      << access.write_barrier_kind;
-  if (FLAG_untrusted_code_mitigations || FLAG_branch_load_poisoning) {
+  if (FLAG_untrusted_code_mitigations) {
     os << ", " << access.load_sensitivity;
   }
   os << "]";
@@ -118,7 +118,7 @@ std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
   os << access.base_is_tagged << ", " << access.header_size << ", "
      << access.type << ", " << access.machine_type << ", "
      << access.write_barrier_kind;
-  if (FLAG_untrusted_code_mitigations || FLAG_branch_load_poisoning) {
+  if (FLAG_untrusted_code_mitigations) {
     os << ", " << access.load_sensitivity;
   }
   return os;
