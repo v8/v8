@@ -454,15 +454,15 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
 #define COPY_BUILTIN(Name)                                                     \
   runtime_stub_table_[WasmCode::k##Name] =                                     \
       AddAnonymousCode(isolate->builtins()->builtin_handle(Builtins::k##Name), \
-                       WasmCode::kRuntimeStub);
+                       WasmCode::kRuntimeStub, #Name);
 #define COPY_BUILTIN_TRAP(Name) COPY_BUILTIN(ThrowWasm##Name)
   WASM_RUNTIME_STUB_LIST(COPY_BUILTIN, COPY_BUILTIN_TRAP);
 #undef COPY_BUILTIN_TRAP
 #undef COPY_BUILTIN
 }
 
-WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
-                                         WasmCode::Kind kind) {
+WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code, WasmCode::Kind kind,
+                                         const char* name) {
   // For off-heap builtins, we create a copy of the off-heap instruction stream
   // instead of the on-heap code object containing the trampoline. Ensure that
   // we do not apply the on-heap reloc info to the off-heap instructions.
@@ -519,7 +519,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
   // made while iterating over the RelocInfo above.
   Assembler::FlushICache(ret->instructions().start(),
                          ret->instructions().size());
-  if (FLAG_print_code || FLAG_print_wasm_code) ret->Print();
+  if (FLAG_print_code || FLAG_print_wasm_code) ret->Print(name);
   ret->Validate();
   return ret;
 }

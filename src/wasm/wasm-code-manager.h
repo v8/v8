@@ -347,7 +347,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
                WasmCodeManager* code_manager,
                std::shared_ptr<const WasmModule> module, const ModuleEnv& env);
 
-  WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind);
+  WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind,
+                             const char* name = nullptr);
   // Allocate code space. Returns a valid buffer or fails with OOM (crash).
   Vector<byte> AllocateForCode(size_t size);
 
