@@ -257,7 +257,7 @@ class ContextRef : public HeapObjectRef {
   V(Map, sloppy_arguments_map)                \
   V(Map, slow_object_with_null_prototype_map) \
   V(Map, strict_arguments_map)                \
-  V(Map, string_iterator_map)                 \
+  V(Map, initial_string_iterator_map)         \
   V(ScriptContextTable, script_context_table)
 
 class NativeContextRef : public ContextRef {

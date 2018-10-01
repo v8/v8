@@ -3562,6 +3562,15 @@ void Isolate::InvalidateArrayIteratorProtector() {
   DCHECK(!IsArrayIteratorLookupChainIntact());
 }
 
+void Isolate::InvalidateStringIteratorProtector() {
+  DCHECK(factory()->string_iterator_protector()->value()->IsSmi());
+  DCHECK(IsStringIteratorLookupChainIntact());
+  PropertyCell::SetValueWithInvalidation(
+      this, factory()->string_iterator_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
+  DCHECK(!IsStringIteratorLookupChainIntact());
+}
+
 void Isolate::InvalidateArrayBufferNeuteringProtector() {
   DCHECK(factory()->array_buffer_neutering_protector()->value()->IsSmi());
   DCHECK(IsArrayBufferNeuteringIntact());

@@ -234,6 +234,7 @@ class Symbol;
   V(PropertyCell, promise_hook_protector, PromiseHookProtector)              \
   V(Cell, promise_resolve_protector, PromiseResolveProtector)                \
   V(PropertyCell, promise_then_protector, PromiseThenProtector)              \
+  V(PropertyCell, string_iterator_protector, StringIteratorProtector)        \
   /* Caches */                                                               \
   V(FixedArray, number_string_cache, NumberStringCache)                      \
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)   \

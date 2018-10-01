@@ -1308,7 +1308,7 @@ Handle<ExternalOneByteString> Factory::NewNativeSourceString(
 }
 
 Handle<JSStringIterator> Factory::NewJSStringIterator(Handle<String> string) {
-  Handle<Map> map(isolate()->native_context()->string_iterator_map(),
+  Handle<Map> map(isolate()->native_context()->initial_string_iterator_map(),
                   isolate());
   Handle<String> flat_string = String::Flatten(isolate(), string);
   Handle<JSStringIterator> iterator =

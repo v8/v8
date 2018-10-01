@@ -977,7 +977,8 @@ Reduction JSCreateLowering::ReduceJSCreateStringIterator(Node* node) {
   Node* string = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  Node* map = jsgraph()->Constant(native_context().string_iterator_map());
+  Node* map =
+      jsgraph()->Constant(native_context().initial_string_iterator_map());
   // Allocate new iterator and attach the iterator to this string.
   AllocationBuilder a(jsgraph(), effect, graph()->start());
   a.Allocate(JSStringIterator::kSize, NOT_TENURED, Type::OtherObject());

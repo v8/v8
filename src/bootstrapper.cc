@@ -2141,8 +2141,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         JS_STRING_ITERATOR_TYPE, JSStringIterator::kSize, 0,
         string_iterator_prototype, Builtins::kIllegal);
     string_iterator_function->shared()->set_native(false);
-    native_context()->set_string_iterator_map(
+    native_context()->set_initial_string_iterator_map(
         string_iterator_function->initial_map());
+    native_context()->set_initial_string_iterator_prototype(
+        *string_iterator_prototype);
   }
 
   {  // --- S y m b o l ---

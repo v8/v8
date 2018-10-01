@@ -1227,6 +1227,18 @@ class Isolate : private HiddenFactory {
   inline bool IsStringLengthOverflowIntact();
   inline bool IsArrayIteratorLookupChainIntact();
 
+  // The StringIteratorProtector protects the original string iterating behavior
+  // for primitive strings. As long as the StringIteratorProtector is valid,
+  // iterating over a primitive string is guaranteed to be unobservable from
+  // user code and can thus be cut short. More specifically, the protector gets
+  // invalidated as soon as either String.prototype[Symbol.iterator] or
+  // String.prototype[Symbol.iterator]().next is modified. This guarantee does
+  // not apply to string objects (as opposed to primitives), since they could
+  // define their own Symbol.iterator.
+  // String.prototype itself does not need to be protected, since it is
+  // non-configurable and non-writable.
+  inline bool IsStringIteratorLookupChainIntact();
+
   // Make sure we do check for neutered array buffers.
   inline bool IsArrayBufferNeuteringIntact();
 
@@ -1267,6 +1279,7 @@ class Isolate : private HiddenFactory {
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();
+  void InvalidateStringIteratorProtector();
   void InvalidateArrayBufferNeuteringProtector();
   V8_EXPORT_PRIVATE void InvalidatePromiseHookProtector();
   void InvalidatePromiseResolveProtector();

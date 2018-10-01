@@ -935,6 +935,13 @@ RUNTIME_FUNCTION(Runtime_PromiseSpeciesProtector) {
       isolate->IsPromiseSpeciesLookupChainIntact());
 }
 
+RUNTIME_FUNCTION(Runtime_StringIteratorProtector) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(
+      isolate->IsStringIteratorLookupChainIntact());
+}
+
 // Take a compiled wasm module and serialize it into an array buffer, which is
 // then returned.
 RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {

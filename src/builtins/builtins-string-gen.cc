@@ -2359,8 +2359,8 @@ TF_BUILTIN(StringPrototypeIterator, CodeStubAssembler) {
       ToThisString(context, receiver, "String.prototype[Symbol.iterator]");
 
   Node* native_context = LoadNativeContext(context);
-  Node* map =
-      LoadContextElement(native_context, Context::STRING_ITERATOR_MAP_INDEX);
+  Node* map = LoadContextElement(native_context,
+                                 Context::INITIAL_STRING_ITERATOR_MAP_INDEX);
   Node* iterator = Allocate(JSStringIterator::kSize);
   StoreMapNoWriteBarrier(iterator, map);
   StoreObjectFieldRoot(iterator, JSValue::kPropertiesOrHashOffset,
