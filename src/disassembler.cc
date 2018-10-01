@@ -142,8 +142,8 @@ static const int kRelocInfoPosition = 57;
 
 static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
                            const ExternalReferenceEncoder* ref_encoder,
-                           std::ostream* os, RelocInfo* relocinfo,
-                           bool first_reloc_info = true) {
+                           std::ostream* os, CodeReference host,
+                           RelocInfo* relocinfo, bool first_reloc_info = true) {
   // Indent the printing of the reloc info.
   if (first_reloc_info) {
     // The first reloc info is printed after the disassembled instruction.
@@ -199,6 +199,10 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     } else {
       out->AddFormatted(" %s", Code::Kind2String(kind));
     }
+  } else if (RelocInfo::IsWasmStubCall(rmode)) {
+    wasm::WasmCode* code = host.as_wasm_code()->native_module()->Lookup(
+        relocinfo->wasm_stub_call_address());
+    out->AddFormatted("    ;; wasm stub: %s", code->GetRuntimeStubName());
   } else if (RelocInfo::IsRuntimeEntry(rmode) && isolate &&
              isolate->deoptimizer_data() != nullptr) {
     // A runtime entry relocinfo might be a deoptimization bailout.
@@ -313,7 +317,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], nullptr, constant_pool);
 
       bool first_reloc_info = (i == 0);
-      PrintRelocInfo(&out, isolate, ref_encoder, os, &relocinfo,
+      PrintRelocInfo(&out, isolate, ref_encoder, os, code, &relocinfo,
                      first_reloc_info);
     }
 
@@ -331,7 +335,8 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
           if (reloc_it.rinfo()->IsInConstantPool() &&
               (reloc_it.rinfo()->constant_pool_entry_address() ==
                constant_pool_entry_address)) {
-            PrintRelocInfo(&out, isolate, ref_encoder, os, reloc_it.rinfo());
+            PrintRelocInfo(&out, isolate, ref_encoder, os, code,
+                           reloc_it.rinfo());
             break;
           }
           reloc_it.next();

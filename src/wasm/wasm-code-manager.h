@@ -126,6 +126,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return protected_instructions_.as_vector();
   }
 
+  const char* GetRuntimeStubName() const;
+
   void Validate() const;
   void Print(const char* name = nullptr) const;
   void Disassemble(const char* name, std::ostream& os,

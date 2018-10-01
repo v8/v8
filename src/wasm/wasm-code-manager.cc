@@ -179,6 +179,19 @@ void WasmCode::LogCode(Isolate* isolate) const {
   }
 }
 
+const char* WasmCode::GetRuntimeStubName() const {
+  DCHECK_EQ(WasmCode::kRuntimeStub, kind());
+#define RETURN_NAME(Name)                                               \
+  if (native_module_->runtime_stub_table_[WasmCode::k##Name] == this) { \
+    return #Name;                                                       \
+  }
+#define RETURN_NAME_TRAP(Name) RETURN_NAME(ThrowWasm##Name)
+  WASM_RUNTIME_STUB_LIST(RETURN_NAME, RETURN_NAME_TRAP)
+#undef RETURN_NAME_TRAP
+#undef RETURN_NAME
+  return "<unknown>";
+}
+
 void WasmCode::Validate() const {
 #ifdef DEBUG
   // We expect certain relocation info modes to never appear in {WasmCode}
@@ -456,7 +469,7 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
       AddAnonymousCode(isolate->builtins()->builtin_handle(Builtins::k##Name), \
                        WasmCode::kRuntimeStub, #Name);
 #define COPY_BUILTIN_TRAP(Name) COPY_BUILTIN(ThrowWasm##Name)
-  WASM_RUNTIME_STUB_LIST(COPY_BUILTIN, COPY_BUILTIN_TRAP);
+  WASM_RUNTIME_STUB_LIST(COPY_BUILTIN, COPY_BUILTIN_TRAP)
 #undef COPY_BUILTIN_TRAP
 #undef COPY_BUILTIN
 }
