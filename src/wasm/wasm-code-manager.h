@@ -444,7 +444,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   NativeModule* LookupNativeModule(Address pc) const;
   WasmCode* LookupCode(Address pc) const;
-  WasmCode* GetCodeFromStartAddress(Address pc) const;
   size_t remaining_uncommitted_code_space() const;
 
   // Add a sample of all module sizes.

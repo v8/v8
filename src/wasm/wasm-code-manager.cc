@@ -1041,19 +1041,6 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
   remaining_uncommitted_code_space_.fetch_add(code_size);
 }
 
-// TODO(wasm): We can make this more efficient if needed. For
-// example, we can preface the first instruction with a pointer to
-// the WasmCode. In the meantime, we have a separate API so we can
-// easily identify those places where we know we have the first
-// instruction PC.
-WasmCode* WasmCodeManager::GetCodeFromStartAddress(Address pc) const {
-  WasmCode* code = LookupCode(pc);
-  // This method can only be called for valid instruction start addresses.
-  DCHECK_NOT_NULL(code);
-  DCHECK_EQ(pc, code->instruction_start());
-  return code;
-}
-
 NativeModule* WasmCodeManager::LookupNativeModule(Address pc) const {
   base::LockGuard<base::Mutex> lock(&native_modules_mutex_);
   if (lookup_map_.empty()) return nullptr;
