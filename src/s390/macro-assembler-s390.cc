@@ -2879,6 +2879,12 @@ void TurboAssembler::LoadAndSub32(Register dst, Register src,
   laa(dst, dst, opnd);
 }
 
+void TurboAssembler::LoadAndSub64(Register dst, Register src,
+                                  const MemOperand& opnd) {
+  lcgr(dst, src);
+  laag(dst, dst, opnd);
+}
+
 //----------------------------------------------------------------------------
 //  Subtract Logical Instructions
 //----------------------------------------------------------------------------
@@ -3367,6 +3373,12 @@ void TurboAssembler::CmpAndSwap(Register old_val, Register new_val,
   } else {
     csy(old_val, new_val, opnd);
   }
+}
+
+void TurboAssembler::CmpAndSwap64(Register old_val, Register new_val,
+                                  const MemOperand& opnd) {
+  DCHECK(is_int20(opnd.offset()));
+  csg(old_val, new_val, opnd);
 }
 
 //-----------------------------------------------------------------------------
