@@ -210,18 +210,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     }
   }
 
-  if (!IsArrowFunction(kind) && track_unresolved_variables_ &&
-      result == kLazyParsingComplete) {
-    // Declare arguments after parsing the function since lexical 'arguments'
-    // masks the arguments object. Declare arguments before declaring the
-    // function var since the arguments object masks 'function arguments'.
-    function_scope->DeclareArguments(ast_value_factory());
-
-    DeclareFunctionNameVar(function_name, function_type, function_scope);
-  }
-
   use_counts_ = nullptr;
-  track_unresolved_variables_ = false;
 
   if (result == kLazyParsingAborted) {
     DCHECK(!pending_error_handler()->ErrorUnidentifiableByPreParser());
@@ -229,13 +218,14 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   } else if (stack_overflow()) {
     DCHECK(!pending_error_handler()->ErrorUnidentifiableByPreParser());
     return kPreParseStackOverflow;
+  } else if (pending_error_handler()->ErrorUnidentifiableByPreParser()) {
+    DCHECK(!*ok);
+    return kPreParseNotIdentifiableError;
   } else if (!*ok) {
-    if (pending_error_handler()->ErrorUnidentifiableByPreParser()) {
-      return kPreParseNotIdentifiableError;
-    }
     DCHECK(pending_error_handler()->has_pending_error());
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
+    DCHECK(result == kLazyParsingComplete);
 
     if (!IsArrowFunction(kind)) {
       // Validate parameter names. We can do this only after parsing the
@@ -243,12 +233,25 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       const bool allow_duplicate_parameters =
           is_sloppy(function_scope->language_mode()) && formals.is_simple &&
           !IsConciseMethod(kind);
-      ValidateFormalParameters(
-          function_scope->language_mode(), allow_duplicate_parameters,
-          CHECK_OK_VALUE(
-              pending_error_handler()->ErrorUnidentifiableByPreParser()
-                  ? kPreParseNotIdentifiableError
-                  : kPreParseSuccess));
+      ValidateFormalParameters(function_scope->language_mode(),
+                               allow_duplicate_parameters, ok);
+      if (!*ok) {
+        if (pending_error_handler()->ErrorUnidentifiableByPreParser()) {
+          return kPreParseNotIdentifiableError;
+        } else {
+          return kPreParseSuccess;
+        }
+      }
+
+      if (track_unresolved_variables_) {
+        // Declare arguments after parsing the function since lexical
+        // 'arguments' masks the arguments object. Declare arguments before
+        // declaring the function var since the arguments object masks 'function
+        // arguments'.
+        function_scope->DeclareArguments(ast_value_factory());
+
+        DeclareFunctionNameVar(function_name, function_type, function_scope);
+      }
 
       *produced_preparsed_scope_data = ProducedPreParsedScopeData::For(
           preparsed_scope_data_builder_, main_zone());
