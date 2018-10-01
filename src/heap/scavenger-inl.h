@@ -281,16 +281,14 @@ SlotCallbackResult Scavenger::EvacuateThinString(Map* map, HeapObject** slot,
                                                  ThinString* object,
                                                  int object_size) {
   if (!is_incremental_marking_) {
-    // Loading actual is fine in a parallel setting since there is no write.
+    // The ThinString should die after Scavenge, so avoid writing the proper
+    // forwarding pointer and instead just signal the actual object as forwarded
+    // reference.
     String* actual = object->actual();
-    object->set_length(0);
-    *slot = actual;
-    // ThinStrings always refer to internalized strings, which are
-    // always in old space.
+    // ThinStrings always refer to internalized strings, which are always in old
+    // space.
     DCHECK(!Heap::InNewSpace(actual));
-    base::AsAtomicPointer::Release_Store(
-        reinterpret_cast<Map**>(object->address()),
-        MapWord::FromForwardingAddress(actual).ToMap());
+    *slot = actual;
     return REMOVE_SLOT;
   }
 

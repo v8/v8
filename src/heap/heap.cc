@@ -2001,12 +2001,7 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
 
   // String is still reachable.
   String* new_string = String::cast(first_word.ToForwardingAddress());
-  String* original_string = reinterpret_cast<String*>(*p);
-  // The length of the original string is used to disambiguate the scenario
-  // of a ThingString being forwarded to an ExternalString (which already exists
-  // in the OLD space), and an ExternalString being forwarded to its promoted
-  // copy. See Scavenger::EvacuateThinString.
-  if (new_string->IsThinString() || original_string->length() == 0) {
+  if (new_string->IsThinString()) {
     // Filtering Thin strings out of the external string table.
     return nullptr;
   } else if (new_string->IsExternalString()) {
