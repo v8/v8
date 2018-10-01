@@ -107,6 +107,10 @@ namespace interpreter {
 class Interpreter;
 }
 
+namespace compiler {
+class PerIsolateCompilerCache;
+}
+
 namespace wasm {
 class WasmEngine;
 }
@@ -1451,6 +1455,15 @@ class Isolate : private HiddenFactory {
 
   interpreter::Interpreter* interpreter() const { return interpreter_; }
 
+  compiler::PerIsolateCompilerCache* compiler_cache() const {
+    return compiler_cache_;
+  }
+  void set_compiler_utils(compiler::PerIsolateCompilerCache* cache,
+                          Zone* zone) {
+    compiler_cache_ = cache;
+    compiler_zone_ = zone;
+  }
+
   AccountingAllocator* allocator() { return allocator_; }
 
   CompilerDispatcher* compiler_dispatcher() const {
@@ -1741,6 +1754,9 @@ class Isolate : private HiddenFactory {
   const AstStringConstants* ast_string_constants_;
 
   interpreter::Interpreter* interpreter_;
+
+  compiler::PerIsolateCompilerCache* compiler_cache_ = nullptr;
+  Zone* compiler_zone_ = nullptr;
 
   CompilerDispatcher* compiler_dispatcher_;
 

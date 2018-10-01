@@ -7,6 +7,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/optional.h"
+#include "src/compiler/refs-map.h"
 #include "src/globals.h"
 #include "src/objects.h"
 #include "src/objects/builtin-function-id.h"
@@ -473,15 +474,18 @@ class InternalizedStringRef : public StringRef {
   using StringRef::StringRef;
 };
 
+class PerIsolateCompilerCache;
+
 class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  JSHeapBroker(Isolate* isolate, Zone* zone);
+  JSHeapBroker(Isolate* isolate, Zone* broker_zone);
   void SetNativeContextRef();
   void SerializeStandardObjects();
 
   Isolate* isolate() const { return isolate_; }
-  Zone* zone() const { return zone_; }
+  Zone* zone() const { return current_zone_; }
   NativeContextRef native_context() const { return native_context_.value(); }
+  PerIsolateCompilerCache* compiler_cache() const { return compiler_cache_; }
 
   enum BrokerMode { kDisabled, kSerializing, kSerialized, kRetired };
   BrokerMode mode() const { return mode_; }
@@ -506,15 +510,20 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   friend class ObjectRef;
   friend class ObjectData;
 
+  void SerializeShareableObjects();
+
   Isolate* const isolate_;
-  Zone* const zone_;
+  Zone* const broker_zone_;
+  Zone* current_zone_;
   base::Optional<NativeContextRef> native_context_;
-  ZoneUnorderedMap<Address, ObjectData*> refs_;
+  RefsMap* refs_;
 
   BrokerMode mode_ = kDisabled;
   unsigned tracing_indentation_ = 0;
+  PerIsolateCompilerCache* compiler_cache_;
 
-  static const size_t kInitialRefsBucketCount = 1000;
+  static const size_t kMinimalRefsBucketCount = 8;     // must be power of 2
+  static const size_t kInitialRefsBucketCount = 1024;  // must be power of 2
 };
 
 #define ASSIGN_RETURN_NO_CHANGE_IF_DATA_MISSING(something_var,          \

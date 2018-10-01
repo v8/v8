@@ -8,6 +8,7 @@
 #include "src/boxed-float.h"
 #include "src/code-factory.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/compiler/per-isolate-compiler-cache.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-regexp-inl.h"
@@ -21,9 +22,6 @@ namespace compiler {
 #define FORWARD_DECL(Name) class Name##Data;
 HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
-
-// TODO(neis): It would be nice to share the serialized data for read-only
-// objects.
 
 // There are three kinds of ObjectData values.
 //
@@ -47,6 +45,8 @@ class ObjectData : public ZoneObject {
   ObjectData(JSHeapBroker* broker, ObjectData** storage, Handle<Object> object,
              ObjectDataKind kind)
       : object_(object), kind_(kind) {
+    // This assignment ensures we don't end up inserting the same object
+    // in an endless recursion.
     *storage = this;
 
     broker->Trace("Creating data %p for handle %" V8PRIuPTR " (", this,
@@ -1332,8 +1332,17 @@ ObjectRef ContextRef::get(int index) const {
   return ObjectRef(broker(), value);
 }
 
-JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* zone)
-    : isolate_(isolate), zone_(zone), refs_(zone, kInitialRefsBucketCount) {
+JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone)
+    : isolate_(isolate),
+      broker_zone_(broker_zone),
+      current_zone_(broker_zone),
+      refs_(new (zone())
+                RefsMap(kMinimalRefsBucketCount, AddressMatcher(), zone())) {
+  // Note that this initialization of the refs_ pointer with the minimal
+  // initial capacity is redundant in the normal use case (concurrent
+  // compilation enabled, standard objects to be serialized), as the map
+  // is going to be replaced immediatelly with a larger capacity one.
+  // It doesn't seem to affect the performance in a noticeable way though.
   Trace("Constructing heap broker.\n");
 }
 
@@ -1352,8 +1361,7 @@ void JSHeapBroker::StartSerializing() {
   CHECK_EQ(mode_, kDisabled);
   Trace("Starting serialization.\n");
   mode_ = kSerializing;
-  refs_.clear();
-  SetNativeContextRef();
+  refs_->Clear();
 }
 
 void JSHeapBroker::StopSerializing() {
@@ -1377,15 +1385,87 @@ void JSHeapBroker::SetNativeContextRef() {
   native_context_ = NativeContextRef(this, isolate()->native_context());
 }
 
+bool IsShareable(Handle<Object> object, Isolate* isolate) {
+  Builtins* const b = isolate->builtins();
+
+  int index;
+  RootIndex root_index;
+  return (object->IsHeapObject() &&
+          b->IsBuiltinHandle(Handle<HeapObject>::cast(object), &index)) ||
+         isolate->heap()->IsRootHandle(object, &root_index);
+}
+
+void JSHeapBroker::SerializeShareableObjects() {
+  PerIsolateCompilerCache::Setup(isolate());
+  compiler_cache_ = isolate()->compiler_cache();
+
+  if (compiler_cache_->HasSnapshot()) {
+    RefsMap* snapshot = compiler_cache_->GetSnapshot();
+
+    refs_ = new (zone()) RefsMap(snapshot, zone());
+    return;
+  }
+
+  TraceScope tracer(
+      this, "JSHeapBroker::SerializeShareableObjects (building snapshot)");
+
+  refs_ =
+      new (zone()) RefsMap(kInitialRefsBucketCount, AddressMatcher(), zone());
+
+  current_zone_ = compiler_cache_->zone();
+
+  Builtins* const b = isolate()->builtins();
+  {
+    Builtins::Name builtins[] = {
+        Builtins::kAllocateInNewSpace,
+        Builtins::kAllocateInOldSpace,
+        Builtins::kArgumentsAdaptorTrampoline,
+        Builtins::kArrayConstructorImpl,
+        Builtins::kCallFunctionForwardVarargs,
+        Builtins::kCallFunction_ReceiverIsAny,
+        Builtins::kCallFunction_ReceiverIsNotNullOrUndefined,
+        Builtins::kCallFunction_ReceiverIsNullOrUndefined,
+        Builtins::kConstructFunctionForwardVarargs,
+        Builtins::kForInFilter,
+        Builtins::kJSBuiltinsConstructStub,
+        Builtins::kJSConstructStubGeneric,
+        Builtins::kStringAdd_CheckNone,
+        Builtins::kStringAdd_ConvertLeft,
+        Builtins::kStringAdd_ConvertRight,
+        Builtins::kToNumber,
+        Builtins::kToObject,
+    };
+    for (auto id : builtins) {
+      GetOrCreateData(b->builtin_handle(id));
+    }
+  }
+  for (int32_t id = 0; id < Builtins::builtin_count; ++id) {
+    if (Builtins::KindOf(id) == Builtins::TFJ) {
+      GetOrCreateData(b->builtin_handle(id));
+    }
+  }
+
+  for (RefsMap::Entry* p = refs_->Start(); p != nullptr; p = refs_->Next(p)) {
+    CHECK(IsShareable(p->value->object(), isolate()));
+  }
+
+  // TODO(mslekova):
+  // Serialize root objects (from factory).
+  compiler_cache()->SetSnapshot(refs_);
+  current_zone_ = broker_zone_;
+}
+
 void JSHeapBroker::SerializeStandardObjects() {
   if (mode() == kDisabled) return;
   CHECK_EQ(mode(), kSerializing);
 
+  SerializeShareableObjects();
+
   TraceScope tracer(this, "JSHeapBroker::SerializeStandardObjects");
 
+  SetNativeContextRef();
   native_context().Serialize();
 
-  Builtins* const b = isolate()->builtins();
   Factory* const f = isolate()->factory();
 
   // Maps, strings, oddballs
@@ -1461,37 +1541,6 @@ void JSHeapBroker::SerializeStandardObjects() {
       ->AsPropertyCell()
       ->Serialize(this);
 
-  // Builtins
-  {
-    Builtins::Name builtins[] = {
-        Builtins::kAllocateInNewSpace,
-        Builtins::kAllocateInOldSpace,
-        Builtins::kArgumentsAdaptorTrampoline,
-        Builtins::kArrayConstructorImpl,
-        Builtins::kCallFunctionForwardVarargs,
-        Builtins::kCallFunction_ReceiverIsAny,
-        Builtins::kCallFunction_ReceiverIsNotNullOrUndefined,
-        Builtins::kCallFunction_ReceiverIsNullOrUndefined,
-        Builtins::kConstructFunctionForwardVarargs,
-        Builtins::kForInFilter,
-        Builtins::kJSBuiltinsConstructStub,
-        Builtins::kJSConstructStubGeneric,
-        Builtins::kStringAdd_CheckNone,
-        Builtins::kStringAdd_ConvertLeft,
-        Builtins::kStringAdd_ConvertRight,
-        Builtins::kToNumber,
-        Builtins::kToObject,
-    };
-    for (auto id : builtins) {
-      GetOrCreateData(b->builtin_handle(id));
-    }
-  }
-  for (int32_t id = 0; id < Builtins::builtin_count; ++id) {
-    if (Builtins::KindOf(id) == Builtins::TFJ) {
-      GetOrCreateData(b->builtin_handle(id));
-    }
-  }
-
   // CEntry stub
   GetOrCreateData(
       CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs, kArgvOnStack, true));
@@ -1500,16 +1549,16 @@ void JSHeapBroker::SerializeStandardObjects() {
 }
 
 ObjectData* JSHeapBroker::GetData(Handle<Object> object) const {
-  auto it = refs_.find(object.address());
-  return it != refs_.end() ? it->second : nullptr;
+  RefsMap::Entry* entry = refs_->Lookup(object.address());
+  return entry ? entry->value : nullptr;
 }
 
 // clang-format off
 ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
   CHECK(SerializingAllowed());
-  auto insertion_result = refs_.insert({object.address(), nullptr});
-  ObjectData** data_storage = &(insertion_result.first->second);
-  if (insertion_result.second) {
+  RefsMap::Entry* entry = refs_->LookupOrInsert(object.address(), zone());
+  ObjectData** data_storage = &(entry->value);
+  if (*data_storage == nullptr) {
     // TODO(neis): Remove these Allow* once we serialize everything upfront.
     AllowHandleAllocation handle_allocation;
     AllowHandleDereference handle_dereference;
@@ -2072,15 +2121,16 @@ ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object)
       data_ = broker->GetOrCreateData(object);
       break;
     case JSHeapBroker::kDisabled: {
-      auto insertion_result = broker->refs_.insert({object.address(), nullptr});
-      ObjectData** data_storage = &(insertion_result.first->second);
-      if (insertion_result.second) {
+      RefsMap::Entry* entry =
+          broker->refs_->LookupOrInsert(object.address(), broker->zone());
+      ObjectData** storage = &(entry->value);
+      if (*storage == nullptr) {
         AllowHandleDereference handle_dereference;
-        new (broker->zone())
-            ObjectData(broker, data_storage, object,
+        entry->value = new (broker->zone())
+            ObjectData(broker, storage, object,
                        object->IsSmi() ? kSmi : kUnserializedHeapObject);
       }
-      data_ = *data_storage;
+      data_ = *storage;
       break;
     }
     case JSHeapBroker::kRetired:

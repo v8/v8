@@ -2688,6 +2688,10 @@ void Isolate::Deinit() {
   delete root_index_map_;
   root_index_map_ = nullptr;
 
+  delete compiler_zone_;
+  compiler_zone_ = nullptr;
+  compiler_cache_ = nullptr;
+
   ClearSerializerData();
 }
 
@@ -2963,6 +2967,7 @@ bool Isolate::Init(StartupDeserializer* des) {
   date_cache_ = new DateCache();
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
+
   compiler_dispatcher_ =
       new CompilerDispatcher(this, V8::GetCurrentPlatform(), FLAG_stack_size);
 
