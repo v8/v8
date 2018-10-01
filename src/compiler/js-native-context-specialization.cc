@@ -126,15 +126,15 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
 
 // static
 base::Optional<size_t> JSNativeContextSpecialization::GetMaxStringLength(
-    Node* node) {
+    JSHeapBroker* broker, Node* node) {
   if (node->opcode() == IrOpcode::kDelayedStringConstant) {
     return StringConstantBaseOf(node->op())->GetMaxStringConstantLength();
   }
 
   HeapObjectMatcher matcher(node);
-  if (matcher.HasValue() && matcher.Value()->IsString()) {
-    Handle<String> input = Handle<String>::cast(matcher.Value());
-    return input->length();
+  if (matcher.HasValue() && matcher.Ref(broker).IsString()) {
+    StringRef input = matcher.Ref(broker).AsString();
+    return input.length();
   }
 
   NumberMatcher number_matcher(node);
@@ -153,7 +153,7 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   Reduction reduction;
 
   HeapObjectMatcher matcher(input);
-  if (matcher.HasValue() && matcher.Value()->IsString()) {
+  if (matcher.HasValue() && matcher.Ref(js_heap_broker()).IsString()) {
     reduction = Changed(input);  // JSToString(x:string) => x
     ReplaceWithValue(node, reduction.replacement());
     return reduction;
@@ -186,9 +186,10 @@ JSNativeContextSpecialization::CreateDelayedStringConstant(Node* node) {
       return new (shared_zone()) NumberToStringConstant(number_matcher.Value());
     } else {
       HeapObjectMatcher matcher(node);
-      if (matcher.HasValue() && matcher.Value()->IsString()) {
+      if (matcher.HasValue() && matcher.Ref(js_heap_broker()).IsString()) {
+        StringRef s = matcher.Ref(js_heap_broker()).AsString();
         return new (shared_zone())
-            StringLiteral(Handle<String>::cast(matcher.Value()));
+            StringLiteral(s.object<String>(), static_cast<size_t>(s.length()));
       } else {
         UNREACHABLE();
       }
@@ -196,13 +197,15 @@ JSNativeContextSpecialization::CreateDelayedStringConstant(Node* node) {
   }
 }
 
-bool IsStringConstant(Node* node) {
+namespace {
+bool IsStringConstant(JSHeapBroker* broker, Node* node) {
   if (node->opcode() == IrOpcode::kDelayedStringConstant) {
     return true;
   }
 
   HeapObjectMatcher matcher(node);
-  return matcher.HasValue() && matcher.Value()->IsString();
+  return matcher.HasValue() && matcher.Ref(broker).IsString();
+}
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
@@ -215,8 +218,8 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
   Node* const lhs = node->InputAt(0);
   Node* const rhs = node->InputAt(1);
 
-  base::Optional<size_t> lhs_len = GetMaxStringLength(lhs);
-  base::Optional<size_t> rhs_len = GetMaxStringLength(rhs);
+  base::Optional<size_t> lhs_len = GetMaxStringLength(js_heap_broker(), lhs);
+  base::Optional<size_t> rhs_len = GetMaxStringLength(js_heap_broker(), rhs);
   if (!lhs_len || !rhs_len) {
     return NoChange();
   }
@@ -224,7 +227,8 @@ Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
   // Fold into DelayedStringConstant if at least one of the parameters is a
   // string constant and the addition won't throw due to too long result.
   if (*lhs_len + *rhs_len <= String::kMaxLength &&
-      (IsStringConstant(lhs) || IsStringConstant(rhs))) {
+      (IsStringConstant(js_heap_broker(), lhs) ||
+       IsStringConstant(js_heap_broker(), rhs))) {
     const StringConstantBase* left = CreateDelayedStringConstant(lhs);
     const StringConstantBase* right = CreateDelayedStringConstant(rhs);
     const StringConstantBase* cons =
@@ -246,15 +250,16 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   // Check if the input is a known JSFunction.
   HeapObjectMatcher m(constructor);
   if (!m.HasValue()) return NoChange();
-  Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
-  Handle<Map> function_map(function->map(), isolate());
-  Handle<Object> function_prototype(function_map->prototype(), isolate());
+  JSFunctionRef function = m.Ref(js_heap_broker()).AsJSFunction();
+  MapRef function_map = function.map();
+  ObjectRef function_prototype = function_map.prototype();
 
   // We can constant-fold the super constructor access if the
   // {function}s map is stable, i.e. we can use a code dependency
   // to guard against [[Prototype]] changes of {function}.
-  if (function_map->is_stable() && function_prototype->IsConstructor()) {
-    dependencies()->DependOnStableMap(MapRef(js_heap_broker(), function_map));
+  if (function_map.is_stable() && function_prototype.IsHeapObject() &&
+      function_prototype.AsHeapObject().map().is_constructor()) {
+    dependencies()->DependOnStableMap(function_map);
     Node* value = jsgraph()->Constant(function_prototype);
     ReplaceWithValue(node, value);
     return Replace(value);
@@ -538,9 +543,11 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
 
   // Check if the {constructor} is the %Promise% function.
   HeapObjectMatcher m(constructor);
-  if (!m.Is(handle(native_context().object<Context>()->promise_function(),
-                   isolate())))
+  if (!m.HasValue() ||
+      !m.Ref(js_heap_broker())
+           .equals(js_heap_broker()->native_context().promise_function())) {
     return NoChange();
+  }
 
   // Check if we know something about the {value}.
   ZoneHandleSet<Map> value_maps;

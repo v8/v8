@@ -39,8 +39,10 @@ size_t hash_value(StringConstantBase const& base);
 
 class StringLiteral final : public StringConstantBase {
  public:
-  explicit StringLiteral(Handle<String> str)
-      : StringConstantBase(StringConstantKind::kStringLiteral), str_(str) {}
+  explicit StringLiteral(Handle<String> str, size_t length)
+      : StringConstantBase(StringConstantKind::kStringLiteral),
+        str_(str),
+        length_(length) {}
 
   Handle<String> str() const { return str_; }
 
@@ -48,6 +50,7 @@ class StringLiteral final : public StringConstantBase {
 
  private:
   Handle<String> str_;
+  size_t length_;  // We store this separately to avoid accessing the heap.
 };
 
 bool operator==(StringLiteral const& lhs, StringLiteral const& rhs);

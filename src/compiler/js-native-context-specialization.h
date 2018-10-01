@@ -65,7 +65,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // Utility for folding string constant concatenation.
   // Supports JSAdd nodes and nodes typed as string or number.
   // Public for the sake of unit testing.
-  static base::Optional<size_t> GetMaxStringLength(Node* node);
+  static base::Optional<size_t> GetMaxStringLength(JSHeapBroker* broker,
+                                                   Node* node);
 
  private:
   Reduction ReduceJSAdd(Node* node);

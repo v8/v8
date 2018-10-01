@@ -171,9 +171,7 @@ size_t StringConstantBase::GetMaxStringConstantLength() const {
   UNREACHABLE();
 }
 
-size_t StringLiteral::GetMaxStringConstantLength() const {
-  return str()->length();
-}
+size_t StringLiteral::GetMaxStringConstantLength() const { return length_; }
 
 size_t NumberToStringConstant::GetMaxStringConstantLength() const {
   return kBase10MaximalLength + 1;

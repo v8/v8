@@ -34,11 +34,13 @@ TEST_F(JSNativeContextSpecializationTest, GetMaxStringLengthOfString) {
 
   Node* const str_node = graph()->NewNode(
       common()->HeapConstant(factory()->InternalizeUtf8String("str")));
-  EXPECT_EQ(JSNativeContextSpecialization::GetMaxStringLength(str_node),
+  EXPECT_EQ(JSNativeContextSpecialization::GetMaxStringLength(js_heap_broker(),
+                                                              str_node),
             str_len);
 
   Node* const num_node = graph()->NewNode(common()->NumberConstant(10.0 / 3));
-  EXPECT_EQ(JSNativeContextSpecialization::GetMaxStringLength(num_node),
+  EXPECT_EQ(JSNativeContextSpecialization::GetMaxStringLength(js_heap_broker(),
+                                                              num_node),
             num_len);
 }
 
