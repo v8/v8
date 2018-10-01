@@ -5093,6 +5093,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
   Expect(Token::LBRACE, CHECK_OK_CUSTOM(NullStatement));
   {
     BlockState block_state(zone(), &scope_);
+    // Scope starts before opening brace.
     scope()->set_start_position(scanner()->location().beg_pos);
     typename Types::Target target(this, body);
 
@@ -5104,9 +5105,10 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
     }
 
     Expect(Token::RBRACE, CHECK_OK_CUSTOM(NullStatement));
-    int end_pos = end_position();
-    scope()->set_end_position(end_pos);
-    impl()->RecordBlockSourceRange(body, end_pos);
+    // Scope ends after closing brace.
+    scope()->set_end_position(scanner()->location().end_pos);
+    // Coverage range uses position before closing brace.
+    impl()->RecordBlockSourceRange(body, scanner()->location().beg_pos);
     body->set_scope(scope()->FinalizeBlockScope());
   }
   return body;
