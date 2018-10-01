@@ -4325,7 +4325,8 @@ bool ParserBase<Impl>::IsTrivialExpression() {
     // peek().
     Token::Value peek_ahead = PeekAhead();
     if (peek_ahead == Token::COMMA || peek_ahead == Token::RPAREN ||
-        peek_ahead == Token::SEMICOLON || peek_ahead == Token::RBRACK) {
+        peek_ahead == Token::SEMICOLON || peek_ahead == Token::RBRACK ||
+        Token::IsAssignmentOp(peek_ahead)) {
       return true;
     }
   }
