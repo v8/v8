@@ -1878,17 +1878,25 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   SetUserGlobalReference(global);
 }
 
+// This static array is used to prevent excessive code-size in
+// GetStrongGcSubrootName below, which would happen if we called emplace() for
+// every root in a macro.
+static const char* root_names[] = {
+#define ROOT_NAME(type, name, CamelName) #name,
+    READ_ONLY_ROOT_LIST(ROOT_NAME) MUTABLE_ROOT_LIST(ROOT_NAME)
+#undef ROOT_NAME
+};
+STATIC_ASSERT(static_cast<uint16_t>(RootIndex::kRootListLength) ==
+              arraysize(root_names));
+
 const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
-  ReadOnlyRoots roots(heap_);
   if (strong_gc_subroot_names_.empty()) {
-#define MUTABLE_ROOT_NAME(type, name, CamelName) \
-  strong_gc_subroot_names_.emplace(heap_->name(), #name);
-#define RO_ROOT_NAME(type, name, CamelName) \
-  strong_gc_subroot_names_.emplace(roots.name(), #name);
-    MUTABLE_ROOT_LIST(MUTABLE_ROOT_NAME)
-    READ_ONLY_ROOT_LIST(RO_ROOT_NAME)
-#undef MUTABLE_ROOT_NAME
-#undef RO_ROOT_NAME
+    for (uint16_t i = 0; i < static_cast<uint16_t>(RootIndex::kRootListLength);
+         i++) {
+      const char* name = root_names[i];
+      RootIndex index = static_cast<RootIndex>(i);
+      strong_gc_subroot_names_.emplace(heap_->root(index), name);
+    }
     CHECK(!strong_gc_subroot_names_.empty());
   }
   auto it = strong_gc_subroot_names_.find(object);
