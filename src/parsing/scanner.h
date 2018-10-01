@@ -390,8 +390,6 @@ class Scanner {
 
   bool FoundHtmlComment() const { return found_html_comment_; }
 
-  bool allow_harmony_bigint() const { return allow_harmony_bigint_; }
-  void set_allow_harmony_bigint(bool allow) { allow_harmony_bigint_ = allow; }
   bool allow_harmony_private_fields() const {
     return allow_harmony_private_fields_;
   }
@@ -813,7 +811,6 @@ class Scanner {
   bool found_html_comment_;
 
   // Harmony flags to allow ESNext features.
-  bool allow_harmony_bigint_;
   bool allow_harmony_private_fields_;
   bool allow_harmony_numeric_separator_;
 

@@ -299,12 +299,6 @@ class ParserBase {
 
 #undef ALLOW_ACCESSORS
 
-  bool allow_harmony_bigint() const {
-    return scanner()->allow_harmony_bigint();
-  }
-  void set_allow_harmony_bigint(bool allow) {
-    scanner()->set_allow_harmony_bigint(allow);
-  }
   bool allow_harmony_numeric_separator() const {
     return scanner()->allow_harmony_numeric_separator();
   }

@@ -3318,6 +3318,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kDataViewPrototypeGetFloat64, 1, false);
     SimpleInstallFunction(isolate_, prototype, "setFloat64",
                           Builtins::kDataViewPrototypeSetFloat64, 2, false);
+    SimpleInstallFunction(isolate_, prototype, "getBigInt64",
+                          Builtins::kDataViewPrototypeGetBigInt64, 1, false);
+    SimpleInstallFunction(isolate_, prototype, "setBigInt64",
+                          Builtins::kDataViewPrototypeSetBigInt64, 2, false);
+    SimpleInstallFunction(isolate_, prototype, "getBigUint64",
+                          Builtins::kDataViewPrototypeGetBigUint64, 1, false);
+    SimpleInstallFunction(isolate_, prototype, "setBigUint64",
+                          Builtins::kDataViewPrototypeSetBigUint64, 2, false);
   }
 
   {  // -- M a p
@@ -3377,6 +3385,48 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_initial_map_prototype_map(prototype->map());
 
     InstallSpeciesGetter(isolate_, js_map_fun);
+  }
+
+  {  // -- B i g I n t
+    Handle<JSFunction> bigint_fun = InstallFunction(
+        isolate_, global, "BigInt", JS_VALUE_TYPE, JSValue::kSize, 0,
+        factory->the_hole_value(), Builtins::kBigIntConstructor);
+    bigint_fun->shared()->set_builtin_function_id(
+        BuiltinFunctionId::kBigIntConstructor);
+    bigint_fun->shared()->DontAdaptArguments();
+    bigint_fun->shared()->set_length(1);
+    InstallWithIntrinsicDefaultProto(isolate_, bigint_fun,
+                                     Context::BIGINT_FUNCTION_INDEX);
+
+    // Install the properties of the BigInt constructor.
+    // asUintN(bits, bigint)
+    SimpleInstallFunction(isolate_, bigint_fun, "asUintN",
+                          Builtins::kBigIntAsUintN, 2, false);
+    // asIntN(bits, bigint)
+    SimpleInstallFunction(isolate_, bigint_fun, "asIntN",
+                          Builtins::kBigIntAsIntN, 2, false);
+
+    // Set up the %BigIntPrototype%.
+    Handle<JSObject> prototype(JSObject::cast(bigint_fun->instance_prototype()),
+                               isolate_);
+    JSFunction::SetPrototype(bigint_fun, prototype);
+
+    // Install the properties of the BigInt.prototype.
+    // "constructor" is created implicitly by InstallFunction() above.
+    // toLocaleString([reserved1 [, reserved2]])
+    SimpleInstallFunction(isolate_, prototype, "toLocaleString",
+                          Builtins::kBigIntPrototypeToLocaleString, 0, false);
+    // toString([radix])
+    SimpleInstallFunction(isolate_, prototype, "toString",
+                          Builtins::kBigIntPrototypeToString, 0, false);
+    // valueOf()
+    SimpleInstallFunction(isolate_, prototype, "valueOf",
+                          Builtins::kBigIntPrototypeValueOf, 0, false);
+    // @@toStringTag
+    JSObject::AddProperty(
+        isolate_, prototype, factory->to_string_tag_symbol(),
+        factory->BigInt_string(),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
   {  // -- S e t
@@ -4508,75 +4558,6 @@ void Genesis::InitializeGlobal_harmony_string_matchall() {
     InstallConstant(isolate(), symbol_fun, "matchAll",
                     factory()->match_all_symbol());
   }
-}
-
-void Genesis::InitializeGlobal_harmony_bigint() {
-  Factory* factory = isolate()->factory();
-  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-  if (!FLAG_harmony_bigint) {
-    // Typed arrays are installed by default; remove them if the flag is off.
-    CHECK(JSObject::DeleteProperty(
-              global, factory->InternalizeUtf8String("BigInt64Array"))
-              .ToChecked());
-    CHECK(JSObject::DeleteProperty(
-              global, factory->InternalizeUtf8String("BigUint64Array"))
-              .ToChecked());
-    return;
-  }
-
-  Handle<JSFunction> bigint_fun = InstallFunction(
-      isolate(), global, "BigInt", JS_VALUE_TYPE, JSValue::kSize, 0,
-      factory->the_hole_value(), Builtins::kBigIntConstructor);
-  bigint_fun->shared()->set_builtin_function_id(
-      BuiltinFunctionId::kBigIntConstructor);
-  bigint_fun->shared()->DontAdaptArguments();
-  bigint_fun->shared()->set_length(1);
-  InstallWithIntrinsicDefaultProto(isolate(), bigint_fun,
-                                   Context::BIGINT_FUNCTION_INDEX);
-
-  // Install the properties of the BigInt constructor.
-  // asUintN(bits, bigint)
-  SimpleInstallFunction(isolate(), bigint_fun, "asUintN",
-                        Builtins::kBigIntAsUintN, 2, false);
-  // asIntN(bits, bigint)
-  SimpleInstallFunction(isolate(), bigint_fun, "asIntN",
-                        Builtins::kBigIntAsIntN, 2, false);
-
-  // Set up the %BigIntPrototype%.
-  Handle<JSObject> prototype(JSObject::cast(bigint_fun->instance_prototype()),
-                             isolate());
-  JSFunction::SetPrototype(bigint_fun, prototype);
-
-  // Install the properties of the BigInt.prototype.
-  // "constructor" is created implicitly by InstallFunction() above.
-  // toLocaleString([reserved1 [, reserved2]])
-  SimpleInstallFunction(isolate(), prototype, "toLocaleString",
-                        Builtins::kBigIntPrototypeToLocaleString, 0, false);
-  // toString([radix])
-  SimpleInstallFunction(isolate(), prototype, "toString",
-                        Builtins::kBigIntPrototypeToString, 0, false);
-  // valueOf()
-  SimpleInstallFunction(isolate(), prototype, "valueOf",
-                        Builtins::kBigIntPrototypeValueOf, 0, false);
-  // @@toStringTag
-  JSObject::AddProperty(isolate(), prototype, factory->to_string_tag_symbol(),
-                        factory->BigInt_string(),
-                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
-
-  // Install 64-bit DataView accessors.
-  // TODO(jkummerow): Move these to the "DataView" section when dropping the
-  // FLAG_harmony_bigint.
-  Handle<JSObject> dataview_prototype(
-      JSObject::cast(native_context()->data_view_fun()->instance_prototype()),
-      isolate());
-  SimpleInstallFunction(isolate(), dataview_prototype, "getBigInt64",
-                        Builtins::kDataViewPrototypeGetBigInt64, 1, false);
-  SimpleInstallFunction(isolate(), dataview_prototype, "setBigInt64",
-                        Builtins::kDataViewPrototypeSetBigInt64, 2, false);
-  SimpleInstallFunction(isolate(), dataview_prototype, "getBigUint64",
-                        Builtins::kDataViewPrototypeGetBigUint64, 1, false);
-  SimpleInstallFunction(isolate(), dataview_prototype, "setBigUint64",
-                        Builtins::kDataViewPrototypeSetBigUint64, 2, false);
 }
 
 void Genesis::InitializeGlobal_harmony_await_optimization() {

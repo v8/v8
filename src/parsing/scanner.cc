@@ -174,7 +174,6 @@ Scanner::Scanner(UnicodeCache* unicode_cache, Utf16CharacterStream* source,
     : unicode_cache_(unicode_cache),
       source_(source),
       found_html_comment_(false),
-      allow_harmony_bigint_(false),
       allow_harmony_numeric_separator_(false),
       is_module_(is_module),
       octal_pos_(Location::invalid()),
@@ -932,7 +931,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   }
 
   bool is_bigint = false;
-  if (allow_harmony_bigint() && c0_ == 'n' && !seen_period &&
+  if (c0_ == 'n' && !seen_period &&
       (kind == DECIMAL || kind == HEX || kind == OCTAL || kind == BINARY)) {
     // Check that the literal is within our limits for BigInt length.
     // For simplicity, use 4 bits per character to calculate the maximum

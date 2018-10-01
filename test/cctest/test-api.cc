@@ -1772,7 +1772,6 @@ THREADED_TEST(NumberObject) {
 }
 
 THREADED_TEST(BigIntObject) {
-  v8::internal::FLAG_harmony_bigint = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);

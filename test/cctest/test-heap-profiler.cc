@@ -506,9 +506,6 @@ TEST(HeapSnapshotHeapNumbers) {
 }
 
 TEST(HeapSnapshotHeapBigInts) {
-  // TODO(luoe): remove flag when it is on by default.
-  v8::internal::FLAG_harmony_bigint = true;
-
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();

@@ -42,7 +42,6 @@ from testrunner.outproc import test262
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
-  'BigInt': '--harmony-bigint',
   'class-fields-public': '--harmony-public-fields',
   'class-static-fields-public': '--harmony-class-fields',
   'Array.prototype.flat': '--harmony-array-flat',

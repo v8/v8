@@ -1273,7 +1273,6 @@ MaybeHandle<String> ValueDeserializer::ReadString() {
 }
 
 MaybeHandle<BigInt> ValueDeserializer::ReadBigInt() {
-  if (!FLAG_harmony_bigint) return MaybeHandle<BigInt>();
   uint32_t bitfield;
   if (!ReadVarint<uint32_t>().To(&bitfield)) return MaybeHandle<BigInt>();
   int bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
@@ -1716,15 +1715,6 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
   uint32_t id = next_id_++;
   ExternalArrayType external_array_type = kExternalInt8Array;
   unsigned element_size = 0;
-
-  if (!FLAG_harmony_bigint) {
-    // Refuse to construct BigInt64Arrays unless the flag is on.
-    ArrayBufferViewTag cast_tag = static_cast<ArrayBufferViewTag>(tag);
-    if (cast_tag == ArrayBufferViewTag::kBigInt64Array ||
-        cast_tag == ArrayBufferViewTag::kBigUint64Array) {
-      return MaybeHandle<JSArrayBufferView>();
-    }
-  }
 
   switch (static_cast<ArrayBufferViewTag>(tag)) {
     case ArrayBufferViewTag::kDataView: {

@@ -6728,7 +6728,6 @@ double v8::NumberObject::ValueOf() const {
 }
 
 Local<v8::Value> v8::BigIntObject::New(Isolate* isolate, int64_t value) {
-  CHECK(i::FLAG_harmony_bigint);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, BigIntObject, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -7910,7 +7909,6 @@ Local<Integer> v8::Integer::NewFromUnsigned(Isolate* isolate, uint32_t value) {
 }
 
 Local<BigInt> v8::BigInt::New(Isolate* isolate, int64_t value) {
-  CHECK(i::FLAG_harmony_bigint);
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(internal_isolate);
   i::Handle<i::BigInt> result = i::BigInt::FromInt64(internal_isolate, value);
@@ -7918,7 +7916,6 @@ Local<BigInt> v8::BigInt::New(Isolate* isolate, int64_t value) {
 }
 
 Local<BigInt> v8::BigInt::NewFromUnsigned(Isolate* isolate, uint64_t value) {
-  CHECK(i::FLAG_harmony_bigint);
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(internal_isolate);
   i::Handle<i::BigInt> result = i::BigInt::FromUint64(internal_isolate, value);
@@ -7928,7 +7925,6 @@ Local<BigInt> v8::BigInt::NewFromUnsigned(Isolate* isolate, uint64_t value) {
 MaybeLocal<BigInt> v8::BigInt::NewFromWords(Local<Context> context,
                                             int sign_bit, int word_count,
                                             const uint64_t* words) {
-  CHECK(i::FLAG_harmony_bigint);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8_NO_SCRIPT(isolate, context, BigInt, NewFromWords,
                      MaybeLocal<BigInt>(), InternalEscapableScope);
