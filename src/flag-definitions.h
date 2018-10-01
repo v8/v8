@@ -235,7 +235,6 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)                                         \
-  V(harmony_string_trimming, "harmony String.prototype.trim{Start,End}") \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")              \
   V(harmony_function_tostring, "harmony Function.prototype.toString")    \
   V(harmony_import_meta, "harmony import.meta property")                 \

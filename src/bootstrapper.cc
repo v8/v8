@@ -2089,10 +2089,23 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kStringPrototypeToString, 0, true);
     SimpleInstallFunction(isolate_, prototype, "trim",
                           Builtins::kStringPrototypeTrim, 0, false);
-    SimpleInstallFunction(isolate_, prototype, "trimLeft",
-                          Builtins::kStringPrototypeTrimStart, 0, false);
-    SimpleInstallFunction(isolate_, prototype, "trimRight",
-                          Builtins::kStringPrototypeTrimEnd, 0, false);
+
+    // Install `String.prototype.trimStart` with `trimLeft` alias.
+    Handle<JSFunction> trim_start_fun =
+        SimpleInstallFunction(isolate_, prototype, "trimStart",
+                              Builtins::kStringPrototypeTrimStart, 0, false);
+    JSObject::AddProperty(isolate_, prototype,
+                          factory->InternalizeUtf8String("trimLeft"),
+                          trim_start_fun, DONT_ENUM);
+
+    // Install `String.prototype.trimEnd` with `trimRight` alias.
+    Handle<JSFunction> trim_end_fun =
+        SimpleInstallFunction(isolate_, prototype, "trimEnd",
+                              Builtins::kStringPrototypeTrimEnd, 0, false);
+    JSObject::AddProperty(isolate_, prototype,
+                          factory->InternalizeUtf8String("trimRight"),
+                          trim_end_fun, DONT_ENUM);
+
     SimpleInstallFunction(isolate_, prototype, "toLocaleLowerCase",
                           Builtins::kStringPrototypeToLocaleLowerCase, 0,
                           false);
@@ -4415,40 +4428,6 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
     JSObject::AddProperty(
         isolate_, isolate()->atomics_object(), factory->to_string_tag_symbol(),
         name, static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
-  }
-}
-
-void Genesis::InitializeGlobal_harmony_string_trimming() {
-  if (!FLAG_harmony_string_trimming) return;
-
-  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-  Factory* factory = isolate()->factory();
-
-  Handle<JSObject> string_prototype(
-      native_context()->initial_string_prototype(), isolate());
-
-  {
-    Handle<String> trim_left_name = factory->InternalizeUtf8String("trimLeft");
-    Handle<String> trim_start_name =
-        factory->InternalizeUtf8String("trimStart");
-    Handle<JSFunction> trim_left_fun = Handle<JSFunction>::cast(
-        JSObject::GetProperty(isolate_, string_prototype, trim_left_name)
-            .ToHandleChecked());
-    JSObject::AddProperty(isolate_, string_prototype, trim_start_name,
-                          trim_left_fun, DONT_ENUM);
-    trim_left_fun->shared()->SetName(*trim_start_name);
-  }
-
-  {
-    Handle<String> trim_right_name =
-        factory->InternalizeUtf8String("trimRight");
-    Handle<String> trim_end_name = factory->InternalizeUtf8String("trimEnd");
-    Handle<JSFunction> trim_right_fun = Handle<JSFunction>::cast(
-        JSObject::GetProperty(isolate_, string_prototype, trim_right_name)
-            .ToHandleChecked());
-    JSObject::AddProperty(isolate_, string_prototype, trim_end_name,
-                          trim_right_fun, DONT_ENUM);
-    trim_right_fun->shared()->SetName(*trim_end_name);
   }
 }
 
