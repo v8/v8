@@ -3887,17 +3887,11 @@ void Assembler::dd(Label* label) {
 
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
+  if (!ShouldRecordRelocInfo(rmode)) return;
   // We do not try to reuse pool constants.
   RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
-  if (!RelocInfo::IsNone(rinfo.rmode())) {
-    if (options().disable_reloc_info_for_patching) return;
-    if (RelocInfo::IsOnlyForSerializer(rmode) &&
-        !options().record_reloc_info_for_serialization && !emit_debug_code()) {
-      return;
-    }
-    DCHECK_GE(buffer_space(), kMaxRelocSize);  // Too late to grow buffer here.
-    reloc_info_writer.Write(&rinfo);
-  }
+  DCHECK_GE(buffer_space(), kMaxRelocSize);  // Too late to grow buffer here.
+  reloc_info_writer.Write(&rinfo);
 }
 
 void Assembler::BlockTrampolinePoolFor(int instructions) {

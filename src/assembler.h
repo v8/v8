@@ -289,6 +289,16 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // by the pc offset associated with each request).
   void RequestHeapObject(HeapObjectRequest request);
 
+  bool ShouldRecordRelocInfo(RelocInfo::Mode rmode) const {
+    DCHECK(!RelocInfo::IsNone(rmode));
+    if (options().disable_reloc_info_for_patching) return false;
+    if (RelocInfo::IsOnlyForSerializer(rmode) &&
+        !options().record_reloc_info_for_serialization && !emit_debug_code()) {
+      return false;
+    }
+    return true;
+  }
+
  private:
   // Before we copy code into the code space, we sometimes cannot encode
   // call/jump code targets as we normally would, as the difference between the

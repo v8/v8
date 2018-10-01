@@ -5002,12 +5002,7 @@ void Assembler::dq(Label* label) {
 // Relocation information implementations.
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  DCHECK(!RelocInfo::IsNone(rmode));
-  if (options().disable_reloc_info_for_patching) return;
-  if (RelocInfo::IsOnlyForSerializer(rmode) &&
-      !options().record_reloc_info_for_serialization && !emit_debug_code()) {
-    return;
-  }
+  if (!ShouldRecordRelocInfo(rmode)) return;
   RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
   reloc_info_writer.Write(&rinfo);
 }

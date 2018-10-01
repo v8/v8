@@ -1433,7 +1433,7 @@ int Assembler::branch_offset(Label* L) {
 
 // Branch instructions.
 void Assembler::b(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
-  RecordRelocInfo(rmode);
+  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode);
   DCHECK_EQ(branch_offset & 3, 0);
   int imm24 = branch_offset >> 2;
   const bool b_imm_check = is_int24(imm24);
@@ -1447,7 +1447,7 @@ void Assembler::b(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
 }
 
 void Assembler::bl(int branch_offset, Condition cond, RelocInfo::Mode rmode) {
-  RecordRelocInfo(rmode);
+  if (!RelocInfo::IsNone(rmode)) RecordRelocInfo(rmode);
   DCHECK_EQ(branch_offset & 3, 0);
   int imm24 = branch_offset >> 2;
   const bool bl_imm_check = is_int24(imm24);
@@ -5118,13 +5118,7 @@ void Assembler::dq(uint64_t value) {
 }
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  if (options().disable_reloc_info_for_patching) return;
-  if (RelocInfo::IsNone(rmode) ||
-      // Don't record external references unless the heap will be serialized.
-      (RelocInfo::IsOnlyForSerializer(rmode) &&
-       !options().record_reloc_info_for_serialization && !emit_debug_code())) {
-    return;
-  }
+  if (!ShouldRecordRelocInfo(rmode)) return;
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // too late to grow buffer here
   RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, nullptr);
   reloc_info_writer.Write(&rinfo);
