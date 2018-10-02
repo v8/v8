@@ -44,6 +44,7 @@
 #include "src/objects/microtask-queue-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
+#include "src/objects/stack-frame-info-inl.h"
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 #include "src/transitions-inl.h"

@@ -57,6 +57,7 @@ class PreParsedScopeData;
 class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
+class StackFrameInfo;
 class StoreHandler;
 class TemplateObjectDescription;
 class UncompiledDataWithoutPreParsedScope;

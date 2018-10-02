@@ -2288,6 +2288,8 @@ v8_source_set("v8_base") {
     "src/objects/script.h",
     "src/objects/shared-function-info-inl.h",
     "src/objects/shared-function-info.h",
+    "src/objects/stack-frame-info-inl.h",
+    "src/objects/stack-frame-info.h",
     "src/objects/string-inl.h",
     "src/objects/string-table.h",
     "src/objects/string.h",

@@ -58,6 +58,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
+#include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/templates.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"

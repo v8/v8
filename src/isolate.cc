@@ -44,6 +44,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
+#include "src/objects/stack-frame-info-inl.h"
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/prototype.h"
 #include "src/regexp/regexp-stack.h"

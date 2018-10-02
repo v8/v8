@@ -502,7 +502,6 @@ CAST_ACCESSOR(SimpleNumberDictionary)
 CAST_ACCESSOR(SmallOrderedHashMap)
 CAST_ACCESSOR(SmallOrderedHashSet)
 CAST_ACCESSOR(Smi)
-CAST_ACCESSOR(StackFrameInfo)
 CAST_ACCESSOR(StringSet)
 CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
@@ -1589,19 +1588,6 @@ ACCESSORS(TemplateObjectDescription, cooked_strings, FixedArray,
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
-
-SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberIndex)
-SMI_ACCESSORS(StackFrameInfo, column_number, kColumnNumberIndex)
-SMI_ACCESSORS(StackFrameInfo, script_id, kScriptIdIndex)
-ACCESSORS(StackFrameInfo, script_name, Object, kScriptNameIndex)
-ACCESSORS(StackFrameInfo, script_name_or_source_url, Object,
-          kScriptNameOrSourceUrlIndex)
-ACCESSORS(StackFrameInfo, function_name, Object, kFunctionNameIndex)
-SMI_ACCESSORS(StackFrameInfo, flag, kFlagIndex)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_eval, kIsEvalBit)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_constructor, kIsConstructorBit)
-BOOL_ACCESSORS(StackFrameInfo, flag, is_wasm, kIsWasmBit)
-SMI_ACCESSORS(StackFrameInfo, id, kIdIndex)
 
 // static
 bool Foreign::IsNormalized(Object* value) {

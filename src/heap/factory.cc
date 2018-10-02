@@ -31,6 +31,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/stack-frame-info-inl.h"
 #include "src/unicode-cache.h"
 #include "src/unicode-decoder.h"
 
