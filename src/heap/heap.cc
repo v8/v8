@@ -3788,8 +3788,13 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   const bool isMinorGC = mode == VISIT_ALL_IN_SCAVENGE ||
                          mode == VISIT_ALL_IN_MINOR_MC_MARK ||
                          mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
-  v->VisitRootPointers(Root::kStrongRootList, nullptr,
-                       roots_.strong_roots_begin(), roots_.strong_roots_end());
+  // Garbage collection can skip over the read-only roots.
+  const bool isGC = mode != VISIT_ALL && mode != VISIT_FOR_SERIALIZATION &&
+                    mode != VISIT_ONLY_STRONG_FOR_SERIALIZATION;
+  Object** start =
+      isGC ? roots_.read_only_roots_end() : roots_.strong_roots_begin();
+  v->VisitRootPointers(Root::kStrongRootList, nullptr, start,
+                       roots_.strong_roots_end());
   v->Synchronize(VisitorSynchronization::kStrongRootList);
 
   isolate_->bootstrapper()->Iterate(v);
@@ -3828,17 +3833,19 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
       // global handles need to be added manually.
       break;
     case VISIT_ONLY_STRONG:
+    case VISIT_ONLY_STRONG_FOR_SERIALIZATION:
       isolate_->global_handles()->IterateStrongRoots(v);
       break;
     case VISIT_ALL_IN_SCAVENGE:
       isolate_->global_handles()->IterateNewSpaceStrongAndDependentRoots(v);
       break;
     case VISIT_ALL_IN_MINOR_MC_MARK:
-      // Global handles are processed manually be the minor MC.
+      // Global handles are processed manually by the minor MC.
       break;
     case VISIT_ALL_IN_MINOR_MC_UPDATE:
-      // Global handles are processed manually be the minor MC.
+      // Global handles are processed manually by the minor MC.
       break;
+    case VISIT_ALL_BUT_READ_ONLY:
     case VISIT_ALL_IN_SWEEP_NEWSPACE:
     case VISIT_ALL:
       isolate_->global_handles()->IterateAllRoots(v);
@@ -5062,7 +5069,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   void MarkReachableObjects() {
     MarkingVisitor visitor(this);
-    heap_->IterateRoots(&visitor, VISIT_ALL);
+    heap_->IterateRoots(&visitor, VISIT_ALL_BUT_READ_ONLY);
     visitor.TransitiveClosure();
   }
 

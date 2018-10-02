@@ -37,7 +37,8 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   {
     DisallowHeapAllocation no_gc;
     isolate->heap()->IterateSmiRoots(this);
-    isolate->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
+    isolate->heap()->IterateStrongRoots(this,
+                                        VISIT_ONLY_STRONG_FOR_SERIALIZATION);
     isolate->heap()->RepairFreeListsAfterDeserialization();
     isolate->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
     DeserializeDeferredObjects();

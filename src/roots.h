@@ -387,6 +387,11 @@ class RootsTable {
   static RootIndex RootIndexForEmptyFixedTypedArray(ElementsKind elements_kind);
 
  private:
+  Object** read_only_roots_begin() {
+    return &roots_[static_cast<size_t>(RootIndex::kFirstStrongRoot)];
+  }
+  inline Object** read_only_roots_end();
+
   Object** strong_roots_begin() {
     return &roots_[static_cast<size_t>(RootIndex::kFirstStrongRoot)];
   }

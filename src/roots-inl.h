@@ -56,6 +56,25 @@ FixedTypedArrayBase* ReadOnlyRoots::EmptyFixedTypedArrayForMap(const Map* map) {
   return FixedTypedArrayBase::cast(roots_table_[root_index]);
 }
 
+Object** RootsTable::read_only_roots_end() {
+// Enumerate the read-only roots into an expression of the form:
+// (root_1, root_2, root_3, ..., root_n)
+// This evaluates to root_n, but Clang warns that the other values in the list
+// are unused so suppress that warning.
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-value"
+#endif
+#define ROOT(type, name, CamelName) , RootIndex::k##CamelName
+  constexpr RootIndex kLastReadOnlyRoot =
+      (RootIndex::kFirstRoot READ_ONLY_ROOT_LIST(ROOT));
+#undef ROOT
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+  return &roots_[static_cast<size_t>(kLastReadOnlyRoot) + 1];
+}
+
 }  // namespace internal
 }  // namespace v8
 
