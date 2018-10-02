@@ -2332,6 +2332,15 @@ ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
   UNREACHABLE();
 }
 
+MaybeHandle<JSTypedArray> GetTypedArrayConstant(Node* receiver) {
+  HeapObjectMatcher m(receiver);
+  if (!m.HasValue()) return MaybeHandle<JSTypedArray>();
+  if (!m.Value()->IsJSTypedArray()) return MaybeHandle<JSTypedArray>();
+  Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(m.Value());
+  if (typed_array->is_on_heap()) return MaybeHandle<JSTypedArray>();
+  return typed_array;
+}
+
 }  // namespace
 
 JSNativeContextSpecialization::ValueEffectControl
@@ -2353,15 +2362,11 @@ JSNativeContextSpecialization::BuildElementAccess(
 
     // Check if we can constant-fold information about the {receiver} (i.e.
     // for asm.js-like code patterns).
-    HeapObjectMatcher m(receiver);
-    if (m.HasValue() && m.Value()->IsJSTypedArray()) {
-      Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(m.Value());
-
-      // Determine the {receiver}s (known) length.
+    Handle<JSTypedArray> typed_array;
+    if (GetTypedArrayConstant(receiver).ToHandle(&typed_array)) {
+      buffer = jsgraph()->HeapConstant(typed_array->GetBuffer());
       length =
           jsgraph()->Constant(static_cast<double>(typed_array->length_value()));
-
-      buffer = jsgraph()->HeapConstant(typed_array->GetBuffer());
 
       // Load the (known) base and external pointer for the {receiver}. The
       // {external_pointer} might be invalid if the {buffer} was neutered, so
