@@ -108,8 +108,6 @@ constexpr Vector<const ValueType> kTypes_ilfd = ArrayVector(kTypesArr_ilfd);
 
 class LiftoffCompiler {
  public:
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(LiftoffCompiler);
-
   // TODO(clemensh): Make this a template parameter.
   static constexpr Decoder::ValidateFlag validate = Decoder::kValidate;
 
@@ -1863,6 +1861,8 @@ class LiftoffCompiler {
     os << "\n";
 #endif
   }
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(LiftoffCompiler);
 };
 
 }  // namespace
