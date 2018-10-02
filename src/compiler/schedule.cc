@@ -324,10 +324,16 @@ void Schedule::EnsureCFGWellFormedness() {
     }
   }
 
-  EliminateNoopPhiNodes();
+  EliminateRedundantPhiNodes();
 }
 
-void Schedule::EliminateNoopPhiNodes() {
+void Schedule::EliminateRedundantPhiNodes() {
+  // Ensure that useless phi nodes that only have a single input, identical
+  // inputs, or are a self-referential loop phi,
+  // -- which can happen with the automatically generated code in the CSA and
+  // torque -- are pruned.
+  // Since we have strucured control flow, this is enough to minimize the number
+  // of phi nodes.
   bool reached_fixed_point = false;
   while (!reached_fixed_point) {
     reached_fixed_point = true;

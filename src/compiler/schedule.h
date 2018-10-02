@@ -277,7 +277,7 @@ class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
   // single input. The latter is necessary to ensure the property required for
   // SSA deconstruction that the target block of a control flow split has no
   // phis.
-  void EliminateNoopPhiNodes();
+  void EliminateRedundantPhiNodes();
   // Ensure split-edge form for a hand-assembled schedule.
   void EnsureSplitEdgeForm(BasicBlock* block);
   // Ensure entry into a deferred block happens from a single hot block.
