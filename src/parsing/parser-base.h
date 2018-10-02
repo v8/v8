@@ -1086,7 +1086,7 @@ class ParserBase {
 
   // Use when parsing an expression that is known to not be a pattern or part
   // of a pattern.
-  V8_INLINE ExpressionT ParseExpression(bool accept_IN, bool* ok);
+  V8_INLINE ExpressionT ParseExpression(bool* ok);
 
   // This method does not wrap the parsing of the expression inside a
   // new expression classifier; it uses the top-level classifier instead.
@@ -1985,9 +1985,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseExpression(
-    bool accept_IN, bool* ok) {
+    bool* ok) {
   ExpressionClassifier classifier(this);
-  ExpressionT result = ParseExpressionCoverGrammar(accept_IN, CHECK_OK);
+  ExpressionT result = ParseExpressionCoverGrammar(true, CHECK_OK);
   ValidateExpression(ok);
   return result;
 }
@@ -5215,7 +5215,7 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
   }
 
   bool starts_with_identifier = peek_any_identifier();
-  ExpressionT expr = ParseExpression(true, CHECK_OK);
+  ExpressionT expr = ParseExpression(CHECK_OK);
   if (peek() == Token::COLON && starts_with_identifier &&
       impl()->IsIdentifier(expr)) {
     // The whole expression was a single identifier, and not, e.g.,
@@ -5254,7 +5254,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseIfStatement(
   int pos = peek_position();
   Expect(Token::IF, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
-  ExpressionT condition = ParseExpression(true, CHECK_OK);
+  ExpressionT condition = ParseExpression(CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
   SourceRange then_range, else_range;
@@ -5384,7 +5384,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
       return_value = impl()->ThisExpression(loc.beg_pos);
     }
   } else {
-    return_value = ParseExpression(true, CHECK_OK);
+    return_value = ParseExpression(CHECK_OK);
   }
   ExpectSemicolon(CHECK_OK);
   return_value = impl()->RewriteReturn(return_value, loc.beg_pos);
@@ -5411,7 +5411,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWithStatement(
   }
 
   Expect(Token::LPAREN, CHECK_OK);
-  ExpressionT expr = ParseExpression(true, CHECK_OK);
+  ExpressionT expr = ParseExpression(CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
   Scope* with_scope = NewScope(WITH_SCOPE);
@@ -5447,7 +5447,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
 
-  ExpressionT cond = ParseExpression(true, CHECK_OK);
+  ExpressionT cond = ParseExpression(CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
   // Allow do-statements to be terminated with and without
@@ -5477,7 +5477,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWhileStatement(
 
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
-  ExpressionT cond = ParseExpression(true, CHECK_OK);
+  ExpressionT cond = ParseExpression(CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
   {
     SourceRangeScope range_scope(scanner(), &body_range);
@@ -5503,7 +5503,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseThrowStatement(
     *ok = false;
     return impl()->NullStatement();
   }
-  ExpressionT exception = ParseExpression(true, CHECK_OK);
+  ExpressionT exception = ParseExpression(CHECK_OK);
   ExpectSemicolon(CHECK_OK);
 
   StatementT stmt = impl()->NewThrowStatement(exception, pos);
@@ -5525,7 +5525,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
 
   Expect(Token::SWITCH, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
-  ExpressionT tag = ParseExpression(true, CHECK_OK);
+  ExpressionT tag = ParseExpression(CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
   auto switch_statement =
@@ -5545,7 +5545,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
       SourceRange clause_range;
       SourceRangeScope range_scope(scanner(), &clause_range);
       if (Check(Token::CASE)) {
-        label = ParseExpression(true, CHECK_OK);
+        label = ParseExpression(CHECK_OK);
       } else {
         Expect(Token::DEFAULT, CHECK_OK);
         if (default_seen) {
@@ -5833,7 +5833,7 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     enumerable = ParseAssignmentExpression(true, CHECK_OK);
     ValidateExpression(CHECK_OK);
   } else {
-    enumerable = ParseExpression(true, CHECK_OK);
+    enumerable = ParseExpression(CHECK_OK);
   }
 
   Expect(Token::RPAREN, CHECK_OK);
@@ -5911,7 +5911,7 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
     enumerable = ParseAssignmentExpression(true, CHECK_OK);
     ValidateExpression(CHECK_OK);
   } else {
-    enumerable = ParseExpression(true, CHECK_OK);
+    enumerable = ParseExpression(CHECK_OK);
   }
 
   Expect(Token::RPAREN, CHECK_OK);
@@ -5994,12 +5994,12 @@ typename ParserBase<Impl>::ForStatementT ParserBase<Impl>::ParseStandardForLoop(
   typename Types::Target target(this, loop);
 
   if (peek() != Token::SEMICOLON) {
-    *cond = ParseExpression(true, CHECK_OK);
+    *cond = ParseExpression(CHECK_OK);
   }
   Expect(Token::SEMICOLON, CHECK_OK);
 
   if (peek() != Token::RPAREN) {
-    ExpressionT exp = ParseExpression(true, CHECK_OK);
+    ExpressionT exp = ParseExpression(CHECK_OK);
     *next = factory()->NewExpressionStatement(exp, exp->position());
   }
   Expect(Token::RPAREN, CHECK_OK);
