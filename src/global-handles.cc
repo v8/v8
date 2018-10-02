@@ -913,6 +913,7 @@ int GlobalHandles::PostGarbageCollectionProcessing(
   const int initial_post_gc_processing_count = ++post_gc_processing_count_;
   int freed_nodes = 0;
   bool synchronous_second_pass =
+      isolate_->heap()->IsTearingDown() ||
       (gc_callback_flags &
        (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |
         kGCCallbackFlagSynchronousPhantomCallbackProcessing)) != 0;
