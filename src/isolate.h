@@ -998,6 +998,14 @@ class Isolate : private HiddenFactory {
   }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
+
+  // kRootRegister may be used to address any location that falls into this
+  // region. Fields outside this region are not guaranteed to live at a static
+  // offset from kRootRegister.
+  base::AddressRegion root_register_addressable_region() const {
+    return base::AddressRegion(reinterpret_cast<Address>(this),
+                               sizeof(Isolate));
+  }
   StubCache* load_stub_cache() { return load_stub_cache_; }
   StubCache* store_stub_cache() { return store_stub_cache_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }

@@ -106,10 +106,8 @@ intptr_t TurboAssemblerBase::RootRegisterOffsetForExternalReference(
 // static
 bool TurboAssemblerBase::IsAddressableThroughRootRegister(
     Isolate* isolate, const ExternalReference& reference) {
-  Address start = reinterpret_cast<Address>(isolate);
-  Address end = isolate->heap()->root_register_addressable_end();
   Address address = reference.address();
-  return start <= address && address < end;
+  return isolate->root_register_addressable_region().contains(address);
 }
 
 // static
