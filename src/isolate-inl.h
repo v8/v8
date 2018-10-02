@@ -11,6 +11,12 @@
 namespace v8 {
 namespace internal {
 
+base::AddressRegion Isolate::root_register_addressable_region() {
+  Address start = reinterpret_cast<Address>(this);
+  Address end = heap_.root_register_addressable_end();
+  return base::AddressRegion(start, end - start);
+}
+
 bool Isolate::FromWritableHeapObject(HeapObject* obj, Isolate** isolate) {
   i::MemoryChunk* chunk = i::MemoryChunk::FromHeapObject(obj);
   if (chunk->owner()->identity() == i::RO_SPACE) {
