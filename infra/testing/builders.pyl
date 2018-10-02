@@ -278,6 +278,17 @@
       {'name': 'v8testing', 'variant': 'slow_path'},
     ],
   },
+  # TODO(machenbach): Experimental builder with incomplete configs. Should be
+  # similar to v8_linux64_rel_ng_triggered after testing.
+  'v8_linux64_rel_xg': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+    },
+    'tests': [
+      {'name': 'v8initializers'},
+      {'name': 'v8testing', 'shards': 2},
+    ],
+  },
   'v8_linux64_tsan_rel': {
     'tests': [
       {'name': 'benchmarks'},
