@@ -311,6 +311,9 @@ class BaseTestRunner(object):
     parser.add_option("--junitout", help="File name of the JUnit output")
     parser.add_option("--junittestsuite", default="v8tests",
                       help="The testsuite name in the JUnit output file")
+    parser.add_option("--exit-after-n-failures", type="int", default=100,
+                      help="Exit after the first N failures instead of "
+                           "running all tests. Pass 0 to disable this feature.")
 
     # Rerun
     parser.add_option("--rerun-failures-count", default=0, type=int,
@@ -743,6 +746,9 @@ class BaseTestRunner(object):
         self.build_config.arch,
         self.mode_options.execution_mode))
     return procs
+
+  def _create_result_tracker(self, options):
+    return progress.ResultsTracker(options.exit_after_n_failures)
 
   def _create_timeout_proc(self, options):
     if not options.total_timeout_sec:
