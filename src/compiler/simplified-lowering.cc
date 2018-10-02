@@ -431,71 +431,71 @@ class RepresentationSelector {
       }
     }
 
+    // We preload these values here to avoid increasing the binary size too
+    // much, which happens if we inline the calls into the macros below.
+    Type input0_type;
+    if (node->InputCount() > 0) input0_type = FeedbackTypeOf(node->InputAt(0));
+    Type input1_type;
+    if (node->InputCount() > 1) input1_type = FeedbackTypeOf(node->InputAt(1));
+
     switch (node->opcode()) {
-#define DECLARE_CASE(Name)                                       \
-  case IrOpcode::k##Name: {                                      \
-    new_type = op_typer_.Name(FeedbackTypeOf(node->InputAt(0)),  \
-                              FeedbackTypeOf(node->InputAt(1))); \
-    break;                                                       \
+#define DECLARE_CASE(Name)                               \
+  case IrOpcode::k##Name: {                              \
+    new_type = op_typer_.Name(input0_type, input1_type); \
+    break;                                               \
   }
       SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_CASE)
       DECLARE_CASE(SameValue)
 #undef DECLARE_CASE
 
-#define DECLARE_CASE(Name)                                                \
-  case IrOpcode::k##Name: {                                               \
-    new_type =                                                            \
-        Type::Intersect(op_typer_.Name(FeedbackTypeOf(node->InputAt(0)),  \
-                                       FeedbackTypeOf(node->InputAt(1))), \
-                        info->restriction_type(), graph_zone());          \
-    break;                                                                \
+#define DECLARE_CASE(Name)                                               \
+  case IrOpcode::k##Name: {                                              \
+    new_type = Type::Intersect(op_typer_.Name(input0_type, input1_type), \
+                               info->restriction_type(), graph_zone());  \
+    break;                                                               \
   }
       SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
-#define DECLARE_CASE(Name)                                       \
-  case IrOpcode::k##Name: {                                      \
-    new_type = op_typer_.Name(FeedbackTypeOf(node->InputAt(0))); \
-    break;                                                       \
+#define DECLARE_CASE(Name)                  \
+  case IrOpcode::k##Name: {                 \
+    new_type = op_typer_.Name(input0_type); \
+    break;                                  \
   }
       SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
-#define DECLARE_CASE(Name)                                                \
-  case IrOpcode::k##Name: {                                               \
-    new_type =                                                            \
-        Type::Intersect(op_typer_.Name(FeedbackTypeOf(node->InputAt(0))), \
-                        info->restriction_type(), graph_zone());          \
-    break;                                                                \
+#define DECLARE_CASE(Name)                                              \
+  case IrOpcode::k##Name: {                                             \
+    new_type = Type::Intersect(op_typer_.Name(input0_type),             \
+                               info->restriction_type(), graph_zone()); \
+    break;                                                              \
   }
       SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
       case IrOpcode::kConvertReceiver:
-        new_type = op_typer_.ConvertReceiver(FeedbackTypeOf(node->InputAt(0)));
+        new_type = op_typer_.ConvertReceiver(input0_type);
         break;
 
       case IrOpcode::kPlainPrimitiveToNumber:
-        new_type = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
+        new_type = op_typer_.ToNumber(input0_type);
         break;
 
       case IrOpcode::kCheckBounds:
-        new_type = Type::Intersect(
-            op_typer_.CheckBounds(FeedbackTypeOf(node->InputAt(0)),
-                                  FeedbackTypeOf(node->InputAt(1))),
-            info->restriction_type(), graph_zone());
+        new_type =
+            Type::Intersect(op_typer_.CheckBounds(input0_type, input1_type),
+                            info->restriction_type(), graph_zone());
         break;
 
       case IrOpcode::kCheckFloat64Hole:
-        new_type = Type::Intersect(
-            op_typer_.CheckFloat64Hole(FeedbackTypeOf(node->InputAt(0))),
-            info->restriction_type(), graph_zone());
+        new_type = Type::Intersect(op_typer_.CheckFloat64Hole(input0_type),
+                                   info->restriction_type(), graph_zone());
         break;
 
       case IrOpcode::kCheckNumber:
-        new_type = Type::Intersect(
-            op_typer_.CheckNumber(FeedbackTypeOf(node->InputAt(0))),
-            info->restriction_type(), graph_zone());
+        new_type = Type::Intersect(op_typer_.CheckNumber(input0_type),
+                                   info->restriction_type(), graph_zone());
         break;
 
       case IrOpcode::kPhi: {
