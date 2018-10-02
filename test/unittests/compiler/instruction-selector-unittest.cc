@@ -365,7 +365,8 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
   ZoneVector<MachineType> empty_types(zone());
 
   auto call_descriptor = Linkage::GetJSCallDescriptor(
-      zone(), false, 1, CallDescriptor::kNeedsFrameState);
+      zone(), false, 1,
+      CallDescriptor::kNeedsFrameState | CallDescriptor::kCanUseRoots);
 
   // Build frame state for the state before the call.
   Node* parameters = m.AddNode(
