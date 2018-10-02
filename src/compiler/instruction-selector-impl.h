@@ -155,6 +155,12 @@ class OperandGenerator {
                          UnallocatedOperand::USED_AT_START, GetVReg(node)));
   }
 
+  InstructionOperand UseUniqueRegisterOrSlotOrConstant(Node* node) {
+    return Use(node, UnallocatedOperand(
+                         UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
+                         GetVReg(node)));
+  }
+
   InstructionOperand UseRegister(Node* node) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
                                         UnallocatedOperand::USED_AT_START,

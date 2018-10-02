@@ -430,21 +430,30 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ j(not_equal, &binop);                                    \
   } while (false)
 
-#define ASSEMBLE_I64ATOMIC_BINOP(instr1, instr2) \
-  do {                                           \
-    Label binop;                                 \
-    __ bind(&binop);                             \
-    __ mov(eax, i.MemoryOperand(2));             \
-    __ mov(edx, i.NextMemoryOperand(2));         \
-    __ push(i.InputRegister(0));                 \
-    __ push(i.InputRegister(1));                 \
-    __ instr1(i.InputRegister(0), eax);          \
-    __ instr2(i.InputRegister(1), edx);          \
-    __ lock();                                   \
-    __ cmpxchg8b(i.MemoryOperand(2));            \
-    __ pop(i.InputRegister(1));                  \
-    __ pop(i.InputRegister(0));                  \
-    __ j(not_equal, &binop);                     \
+#define ASSEMBLE_I64ATOMIC_BINOP(instr1, instr2)                        \
+  do {                                                                  \
+    Label binop;                                                        \
+    __ bind(&binop);                                                    \
+    TurboAssembler::AllowExplicitEbxAccessScope spill_register(tasm()); \
+    __ mov(eax, i.MemoryOperand(2));                                    \
+    __ mov(edx, i.NextMemoryOperand(2));                                \
+    __ push(ebx);                                                       \
+    frame_access_state()->IncreaseSPDelta(1);                           \
+    InstructionOperand* op = instr->InputAt(0);                         \
+    if (op->IsImmediate() || op->IsConstant()) {                        \
+      __ mov(ebx, i.ToImmediate(op));                                   \
+    } else {                                                            \
+      __ mov(ebx, i.ToOperand(op));                                     \
+    }                                                                   \
+    __ push(i.InputRegister(1));                                        \
+    __ instr1(ebx, eax);                                                \
+    __ instr2(i.InputRegister(1), edx);                                 \
+    __ lock();                                                          \
+    __ cmpxchg8b(i.MemoryOperand(2));                                   \
+    __ pop(i.InputRegister(1));                                         \
+    __ pop(ebx);                                                        \
+    frame_access_state()->IncreaseSPDelta(-1);                          \
+    __ j(not_equal, &binop);                                            \
   } while (false);
 
 #define ASSEMBLE_MOVX(mov_instr)                            \
@@ -3669,10 +3678,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32Word32AtomicPairStore: {
+      TurboAssembler::AllowExplicitEbxAccessScope spill_register(tasm());
       __ mov(i.TempRegister(0), i.MemoryOperand(2));
       __ mov(i.TempRegister(1), i.NextMemoryOperand(2));
+      __ push(ebx);
+      frame_access_state()->IncreaseSPDelta(1);
+      InstructionOperand* op = instr->InputAt(0);
+      if (op->IsImmediate() || op->IsConstant()) {
+        __ mov(ebx, i.ToImmediate(op));
+      } else {
+        __ mov(ebx, i.ToOperand(op));
+      }
       __ lock();
       __ cmpxchg8b(i.MemoryOperand(2));
+      __ pop(ebx);
+      frame_access_state()->IncreaseSPDelta(-1);
       break;
     }
     case kWord32AtomicExchangeInt8: {
@@ -3701,10 +3721,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32Word32AtomicPairExchange: {
       DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr));
+      TurboAssembler::AllowExplicitEbxAccessScope spill_ebx(tasm());
       __ mov(eax, i.MemoryOperand(2));
       __ mov(edx, i.NextMemoryOperand(2));
+      __ push(ebx);
+      frame_access_state()->IncreaseSPDelta(1);
+      InstructionOperand* op = instr->InputAt(0);
+      if (op->IsImmediate() || op->IsConstant()) {
+        __ mov(ebx, i.ToImmediate(op));
+      } else {
+        __ mov(ebx, i.ToOperand(op));
+      }
       __ lock();
       __ cmpxchg8b(i.MemoryOperand(2));
+      __ pop(ebx);
+      frame_access_state()->IncreaseSPDelta(-1);
       break;
     }
     case kWord32AtomicCompareExchangeInt8: {
@@ -3737,8 +3768,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32Word32AtomicPairCompareExchange: {
+      TurboAssembler::AllowExplicitEbxAccessScope spill_ebx(tasm());
+      __ push(ebx);
+      frame_access_state()->IncreaseSPDelta(1);
+      InstructionOperand* op = instr->InputAt(2);
+      if (op->IsImmediate() || op->IsConstant()) {
+        __ mov(ebx, i.ToImmediate(op));
+      } else {
+        __ mov(ebx, i.ToOperand(op));
+      }
       __ lock();
       __ cmpxchg8b(i.MemoryOperand(4));
+      __ pop(ebx);
+      frame_access_state()->IncreaseSPDelta(-1);
       break;
     }
 #define ATOMIC_BINOP_CASE(op, inst)                       \
@@ -3787,24 +3829,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr));
       Label binop;
       __ bind(&binop);
+      TurboAssembler::AllowExplicitEbxAccessScope spill_register(tasm());
       // Move memory operand into edx:eax
       __ mov(eax, i.MemoryOperand(2));
       __ mov(edx, i.NextMemoryOperand(2));
       // Save input registers temporarily on the stack.
-      __ push(i.InputRegister(0));
+      __ push(ebx);
+      frame_access_state()->IncreaseSPDelta(1);
+      InstructionOperand* op = instr->InputAt(0);
+      if (op->IsImmediate() || op->IsConstant()) {
+        __ mov(ebx, i.ToImmediate(op));
+      } else {
+        __ mov(ebx, i.ToOperand(op));
+      }
       __ push(i.InputRegister(1));
       // Negate input in place
-      __ neg(i.InputRegister(0));
+      __ neg(ebx);
       __ adc(i.InputRegister(1), 0);
       __ neg(i.InputRegister(1));
       // Add memory operand, negated input.
-      __ add(i.InputRegister(0), eax);
+      __ add(ebx, eax);
       __ adc(i.InputRegister(1), edx);
       __ lock();
       __ cmpxchg8b(i.MemoryOperand(2));
       // Restore input registers
       __ pop(i.InputRegister(1));
-      __ pop(i.InputRegister(0));
+      __ pop(ebx);
+      frame_access_state()->IncreaseSPDelta(-1);
       __ j(not_equal, &binop);
       break;
     }
