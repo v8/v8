@@ -39,6 +39,24 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
             InstructionSelector::SupportedMachineOperatorFlags(),
             InstructionSelector::AlignmentRequirements()) {}
 
+  template <typename... ParamMachTypes>
+  RawMachineAssemblerTester(Code::Kind kind, ParamMachTypes... p)
+      : HandleAndZoneScope(),
+        CallHelper<ReturnType>(
+            main_isolate(),
+            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
+        RawMachineAssembler(
+            main_isolate(), new (main_zone()) Graph(main_zone()),
+            Linkage::GetSimplifiedCDescriptor(
+                main_zone(),
+                CSignature::New(main_zone(), MachineTypeForC<ReturnType>(),
+                                p...),
+                true),
+            MachineType::PointerRepresentation(),
+            InstructionSelector::SupportedMachineOperatorFlags(),
+            InstructionSelector::AlignmentRequirements()),
+        kind_(kind) {}
+
   ~RawMachineAssemblerTester() override = default;
 
   void CheckNumber(double expected, Object* number) {
@@ -64,8 +82,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
       Schedule* schedule = this->Export();
       auto call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
-      OptimizedCompilationInfo info(ArrayVector("testing"), main_zone(),
-                                    Code::STUB);
+      OptimizedCompilationInfo info(ArrayVector("testing"), main_zone(), kind_);
       code_ = Pipeline::GenerateCodeForTesting(
           &info, main_isolate(), call_descriptor, graph,
           AssemblerOptions::Default(main_isolate()), schedule);
@@ -74,6 +91,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
   }
 
  private:
+  Code::Kind kind_ = Code::Kind::STUB;
   MaybeHandle<Code> code_;
 };
 

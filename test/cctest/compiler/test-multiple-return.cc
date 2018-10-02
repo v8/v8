@@ -193,7 +193,7 @@ void TestReturnMultipleValues(MachineType type) {
       byte* code_start =
           module->AddCodeForTesting(code)->instructions().start();
 
-      RawMachineAssemblerTester<int32_t> mt;
+      RawMachineAssemblerTester<int32_t> mt(Code::Kind::JS_TO_WASM_FUNCTION);
       const int input_count = 2 + param_count;
       Node* call_inputs[2 + kMaxParamCount];
       call_inputs[0] = mt.PointerConstant(code_start);
