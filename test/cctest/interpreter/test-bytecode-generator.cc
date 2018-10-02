@@ -690,6 +690,34 @@ TEST(IIFEWithOneshotOpt) {
         }
         f();
     )",
+      R"(
+        var f = function(l) {  l.a = 3; return l; };
+        f({});
+        f;
+    )",
+      // No one-shot opt for top-level functions enclosed in parentheses
+      R"(
+        var f = (function(l) {  l.a = 3; return l; });
+        f;
+    )",
+      R"(
+        var f = (function foo(l) {  l.a = 3; return l; });
+        f;
+    )",
+      R"(
+        var f = function foo(l) {  l.a = 3; return l; };
+        f({});
+        f;
+    )",
+      R"(
+        l = {};
+        var f = (function foo(l) {  l.a = 3; return arguments.callee; })(l);
+        f;
+    )",
+      R"(
+        var f = (function foo(l) {  l.a = 3; return arguments.callee; })({});
+        f;
+    )",
   };
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("IIFEWithOneshotOpt.golden")));
