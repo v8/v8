@@ -55,6 +55,8 @@ namespace internal {
   F(TrySliceSimpleNonFastElements, 3, 1)
 
 #define FOR_EACH_INTRINSIC_ATOMICS(F)  \
+  F(AtomicsLoad64, 2, 1)               \
+  F(AtomicsStore64, 3, 1)              \
   F(AtomicsAdd, 3, 1)                  \
   F(AtomicsAnd, 3, 1)                  \
   F(AtomicsCompareExchange, 4, 1)      \

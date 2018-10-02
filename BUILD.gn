@@ -2975,6 +2975,15 @@ v8_source_set("v8_base") {
     sources += [ "$target_gen_dir/debug-support.cc" ]
     deps += [ ":postmortem-metadata" ]
   }
+
+  # Platforms that don't have CAS support need to link atomic library
+  # to implement atomic memory access
+  if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel" ||
+      v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
+      v8_current_cpu == "ppc" || v8_current_cpu == "ppc64" ||
+      v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
+    libs = [ "atomic" ]
+  }
 }
 
 v8_source_set("torque_base") {

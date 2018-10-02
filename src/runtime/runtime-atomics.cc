@@ -21,8 +21,6 @@ namespace internal {
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
     V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
 
-// Note: 32-bit platforms may need ldflags += [ "-latomic" ] in BUILD.gn.
-
 namespace {
 
 #if V8_CC_GNU
@@ -31,8 +29,19 @@ namespace {
 // can be slow. Good to know, but we don't have a choice.
 #ifdef V8_TARGET_ARCH_32_BIT
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Watomic-alignment"
 #endif  // V8_TARGET_ARCH_32_BIT
+
+template <typename T>
+inline T LoadSeqCst(T* p) {
+  return __atomic_load_n(p, __ATOMIC_SEQ_CST);
+}
+
+template <typename T>
+inline void StoreSeqCst(T* p, T value) {
+  __atomic_store_n(p, value, __ATOMIC_SEQ_CST);
+}
 
 template <typename T>
 inline T ExchangeSeqCst(T* p, T value) {
@@ -128,6 +137,16 @@ ATOMIC_OPS(uint32_t, 32, long)  /* NOLINT(runtime/int) */
 ATOMIC_OPS(int64_t, 64, __int64)
 ATOMIC_OPS(uint64_t, 64, __int64)
 
+template <typename T>
+inline T LoadSeqCst(T* p) {
+  UNREACHABLE();
+}
+
+template <typename T>
+inline void StoreSeqCst(T* p, T value) {
+  UNREACHABLE();
+}
+
 #undef ATOMIC_OPS
 
 #undef InterlockedExchange32
@@ -215,6 +234,23 @@ inline Object* ToObject(Isolate* isolate, int64_t t) {
 inline Object* ToObject(Isolate* isolate, uint64_t t) {
   return *BigInt::FromUint64(isolate, t);
 }
+
+template <typename T>
+struct Load {
+  static inline Object* Do(Isolate* isolate, void* buffer, size_t index) {
+    T result = LoadSeqCst(static_cast<T*>(buffer) + index);
+    return ToObject(isolate, result);
+  }
+};
+
+template <typename T>
+struct Store {
+  static inline void Do(Isolate* isolate, void* buffer, size_t index,
+                        Handle<Object> obj) {
+    T value = FromObject<T>(obj);
+    StoreSeqCst(static_cast<T*>(buffer) + index, value);
+  }
+};
 
 template <typename T>
 struct Exchange {
@@ -347,6 +383,55 @@ Object* GetModifySetValueInBuffer(Arguments args, Isolate* isolate) {
   UNREACHABLE();
 }
 
+RUNTIME_FUNCTION(Runtime_AtomicsLoad64) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
+  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  CHECK(sta->GetBuffer()->is_shared());
+
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    sta->byte_offset();
+
+  DCHECK(sta->type() == kExternalBigInt64Array ||
+         sta->type() == kExternalBigUint64Array);
+  // SharedArrayBuffers are not neuterable.
+  CHECK_LT(index, NumberToSize(sta->length()));
+  if (sta->type() == kExternalBigInt64Array) {
+    return Load<int64_t>::Do(isolate, source, index);
+  }
+  DCHECK(sta->type() == kExternalBigUint64Array);
+  return Load<uint64_t>::Do(isolate, source, index);
+}
+
+RUNTIME_FUNCTION(Runtime_AtomicsStore64) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
+  CONVERT_SIZE_ARG_CHECKED(index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value_obj, 2);
+  CHECK(sta->GetBuffer()->is_shared());
+
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    sta->byte_offset();
+
+  Handle<BigInt> bigint;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
+                                     BigInt::FromObject(isolate, value_obj));
+
+  DCHECK(sta->type() == kExternalBigInt64Array ||
+         sta->type() == kExternalBigUint64Array);
+  // SharedArrayBuffers are not neuterable.
+  CHECK_LT(index, NumberToSize(sta->length()));
+  if (sta->type() == kExternalBigInt64Array) {
+    Store<int64_t>::Do(isolate, source, index, bigint);
+    return *bigint;
+  }
+  DCHECK(sta->type() == kExternalBigUint64Array);
+  Store<uint64_t>::Do(isolate, source, index, bigint);
+  return *bigint;
+}
+
 RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
   return GetModifySetValueInBuffer<Exchange>(args, isolate);
 }
@@ -440,6 +525,10 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) {
 #undef INTEGER_TYPED_ARRAYS
 
 #else
+
+RUNTIME_FUNCTION(Runtime_AtomicsLoad64) { UNREACHABLE(); }
+
+RUNTIME_FUNCTION(Runtime_AtomicsStore64) { UNREACHABLE(); }
 
 RUNTIME_FUNCTION(Runtime_AtomicsExchange) { UNREACHABLE(); }
 
