@@ -1108,6 +1108,98 @@ TEST(JSONStringifySliceMadeExternal) {
                                          CompileRun("JSON.stringify(slice)"))));
 }
 
+TEST(JSONStringifyWellFormed) {
+  FLAG_harmony_json_stringify = true;
+  CcTest::InitializeVM();
+  v8::HandleScope handle_scope(CcTest::isolate());
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+
+  // Test some leading surrogates (U+D800 to U+DBFF).
+  {  // U+D800
+    CHECK_EQ(
+        0, strcmp("\"\\ud800\"", *v8::String::Utf8Value(
+                                     CcTest::isolate(),
+                                     CompileRun("JSON.stringify('\\uD800')"))));
+    v8::Local<v8::String> json = v8_str("\"\\ud800\"");
+    v8::Local<v8::Value> parsed =
+        v8::JSON::Parse(context, json).ToLocalChecked();
+    CHECK(v8::JSON::Stringify(context, parsed)
+              .ToLocalChecked()
+              ->Equals(context, json)
+              .FromJust());
+  }
+
+  {  // U+DAAA
+    CHECK_EQ(
+        0, strcmp("\"\\udaaa\"", *v8::String::Utf8Value(
+                                     CcTest::isolate(),
+                                     CompileRun("JSON.stringify('\\uDAAA')"))));
+    v8::Local<v8::String> json = v8_str("\"\\udaaa\"");
+    v8::Local<v8::Value> parsed =
+        v8::JSON::Parse(context, json).ToLocalChecked();
+    CHECK(v8::JSON::Stringify(context, parsed)
+              .ToLocalChecked()
+              ->Equals(context, json)
+              .FromJust());
+  }
+
+  {  // U+DBFF
+    CHECK_EQ(
+        0, strcmp("\"\\udbff\"", *v8::String::Utf8Value(
+                                     CcTest::isolate(),
+                                     CompileRun("JSON.stringify('\\uDBFF')"))));
+    v8::Local<v8::String> json = v8_str("\"\\udbff\"");
+    v8::Local<v8::Value> parsed =
+        v8::JSON::Parse(context, json).ToLocalChecked();
+    CHECK(v8::JSON::Stringify(context, parsed)
+              .ToLocalChecked()
+              ->Equals(context, json)
+              .FromJust());
+  }
+
+  // Test some trailing surrogates (U+DC00 to U+DFFF).
+  {  // U+DC00
+    CHECK_EQ(
+        0, strcmp("\"\\udc00\"", *v8::String::Utf8Value(
+                                     CcTest::isolate(),
+                                     CompileRun("JSON.stringify('\\uDC00')"))));
+    v8::Local<v8::String> json = v8_str("\"\\udc00\"");
+    v8::Local<v8::Value> parsed =
+        v8::JSON::Parse(context, json).ToLocalChecked();
+    CHECK(v8::JSON::Stringify(context, parsed)
+              .ToLocalChecked()
+              ->Equals(context, json)
+              .FromJust());
+  }
+
+  {  // U+DDDD
+    CHECK_EQ(
+        0, strcmp("\"\\udddd\"", *v8::String::Utf8Value(
+                                     CcTest::isolate(),
+                                     CompileRun("JSON.stringify('\\uDDDD')"))));
+    v8::Local<v8::String> json = v8_str("\"\\udddd\"");
+    v8::Local<v8::Value> parsed =
+        v8::JSON::Parse(context, json).ToLocalChecked();
+    CHECK(v8::JSON::Stringify(context, parsed)
+              .ToLocalChecked()
+              ->Equals(context, json)
+              .FromJust());
+  }
+
+  {  // U+DFFF
+    CHECK_EQ(
+        0, strcmp("\"\\udfff\"", *v8::String::Utf8Value(
+                                     CcTest::isolate(),
+                                     CompileRun("JSON.stringify('\\uDFFF')"))));
+    v8::Local<v8::String> json = v8_str("\"\\udfff\"");
+    v8::Local<v8::Value> parsed =
+        v8::JSON::Parse(context, json).ToLocalChecked();
+    CHECK(v8::JSON::Stringify(context, parsed)
+              .ToLocalChecked()
+              ->Equals(context, json)
+              .FromJust());
+  }
+}
 
 TEST(CachedHashOverflow) {
   CcTest::InitializeVM();
