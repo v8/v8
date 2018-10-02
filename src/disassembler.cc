@@ -5,7 +5,6 @@
 #include "src/disassembler.h"
 
 #include <memory>
-#include <unordered_map>
 #include <vector>
 
 #include "src/assembler-inl.h"
@@ -39,39 +38,12 @@ class V8NameConverter: public disasm::NameConverter {
   const CodeReference& code() const { return code_; }
 
  private:
-  void InitExternalRefsCache() const;
-
   Isolate* isolate_;
   CodeReference code_;
 
   EmbeddedVector<char, 128> v8_buffer_;
-
-  // Map from root-register relative offset of the external reference value to
-  // the external reference name (stored in the external reference table).
-  // This cache is used to recognize [root_reg + offs] patterns as direct
-  // access to certain external reference's value.
-  mutable std::unordered_map<int, const char*> directly_accessed_external_refs_;
 };
 
-void V8NameConverter::InitExternalRefsCache() const {
-  ExternalReferenceTable* external_reference_table =
-      isolate_->heap()->external_reference_table();
-  if (!external_reference_table->is_initialized()) return;
-
-  base::AddressRegion addressable_region =
-      isolate_->root_register_addressable_region();
-  Address roots_start =
-      reinterpret_cast<Address>(isolate_->heap()->roots_array_start());
-
-  for (uint32_t i = 0; i < external_reference_table->size(); i++) {
-    Address address = external_reference_table->address(i);
-    if (addressable_region.contains(address)) {
-      int offset = static_cast<int>(address - roots_start);
-      const char* name = external_reference_table->name(i);
-      directly_accessed_external_refs_.insert({offset, name});
-    }
-  }
-}
 
 const char* V8NameConverter::NameOfAddress(byte* pc) const {
   if (!code_.is_null()) {
@@ -118,11 +90,8 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
 
   const int kRootsStart = 0;
   const int kRootsEnd = Heap::roots_to_external_reference_table_offset();
-  const int kExtRefsStart = kRootsEnd;
+  const int kExtRefsStart = Heap::roots_to_external_reference_table_offset();
   const int kExtRefsEnd = Heap::roots_to_builtins_offset();
-  const int kBuiltinsStart = kExtRefsEnd;
-  const int kBuiltinsEnd =
-      kBuiltinsStart + Builtins::builtin_count * kPointerSize;
 
   if (kRootsStart <= offset && offset < kRootsEnd) {
     uint32_t offset_in_roots_table = offset - kRootsStart;
@@ -140,7 +109,6 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
 
     SNPrintF(v8_buffer_, "root (%s)", obj_name.get());
     return v8_buffer_.start();
-
   } else if (kExtRefsStart <= offset && offset < kExtRefsEnd) {
     uint32_t offset_in_extref_table = offset - kExtRefsStart;
 
@@ -158,29 +126,8 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
              isolate_->heap()->external_reference_table()->NameFromOffset(
                  offset_in_extref_table));
     return v8_buffer_.start();
-
-  } else if (kBuiltinsStart <= offset && offset < kBuiltinsEnd) {
-    uint32_t offset_in_builtins_table = (offset - kBuiltinsStart);
-
-    Builtins::Name builtin_id =
-        static_cast<Builtins::Name>(offset_in_builtins_table / kPointerSize);
-
-    const char* name = Builtins::name(builtin_id);
-    SNPrintF(v8_buffer_, "builtin (%s)", name);
-    return v8_buffer_.start();
-
   } else {
-    // It must be a direct access to one of the external values.
-    if (directly_accessed_external_refs_.empty()) {
-      InitExternalRefsCache();
-    }
-
-    auto iter = directly_accessed_external_refs_.find(offset);
-    if (iter != directly_accessed_external_refs_.end()) {
-      SNPrintF(v8_buffer_, "external value (%s)", iter->second);
-      return v8_buffer_.start();
-    }
-    return "WAAT??? What are we accessing here???";
+    return nullptr;
   }
 }
 

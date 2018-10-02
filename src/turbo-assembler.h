@@ -64,7 +64,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
       Isolate* isolate, const ExternalReference& reference);
 
   // An address is addressable through kRootRegister if it is located within
-  // isolate->root_register_addressable_region().
+  // [isolate, roots_ + root_register_addressable_end_offset[.
   static bool IsAddressableThroughRootRegister(
       Isolate* isolate, const ExternalReference& reference);
 
