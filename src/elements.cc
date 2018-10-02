@@ -3178,8 +3178,8 @@ class TypedElementsAccessor
                                               size_t start, size_t end) {
     DisallowHeapAllocation no_gc;
     DCHECK_EQ(destination->GetElementsKind(), AccessorClass::kind());
-    DCHECK(!source->WasNeutered());
-    DCHECK(!destination->WasNeutered());
+    CHECK(!source->WasNeutered());
+    CHECK(!destination->WasNeutered());
     DCHECK_LE(start, end);
     DCHECK_LE(end, source->length_value());
 
@@ -3248,6 +3248,9 @@ class TypedElementsAccessor
     // The source is a typed array, so we know we don't need to do ToNumber
     // side-effects, as the source elements will always be a number.
     DisallowHeapAllocation no_gc;
+
+    CHECK(!source->WasNeutered());
+    CHECK(!destination->WasNeutered());
 
     FixedTypedArrayBase* source_elements =
         FixedTypedArrayBase::cast(source->elements());
@@ -3338,6 +3341,8 @@ class TypedElementsAccessor
     Isolate* isolate = source->GetIsolate();
     DisallowHeapAllocation no_gc;
     DisallowJavascriptExecution no_js(isolate);
+
+    CHECK(!destination->WasNeutered());
 
     size_t current_length;
     DCHECK(source->length()->IsNumber() &&
@@ -3459,6 +3464,7 @@ class TypedElementsAccessor
     Handle<JSTypedArray> destination_ta =
         Handle<JSTypedArray>::cast(destination);
     DCHECK_LE(offset + length, destination_ta->length_value());
+    CHECK(!destination_ta->WasNeutered());
 
     if (length == 0) return *isolate->factory()->undefined_value();
 
@@ -3486,7 +3492,6 @@ class TypedElementsAccessor
       // If we have to copy more elements than we have in the source, we need to
       // do special handling and conversion; that happens in the slow case.
       if (length + offset <= source_ta->length_value()) {
-        DCHECK(length == 0 || !source_ta->WasNeutered());
         CopyElementsFromTypedArray(*source_ta, *destination_ta, length, offset);
         return *isolate->factory()->undefined_value();
       }

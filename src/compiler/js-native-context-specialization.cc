@@ -2361,7 +2361,6 @@ JSNativeContextSpecialization::BuildElementAccess(
       length =
           jsgraph()->Constant(static_cast<double>(typed_array->length_value()));
 
-      // Check if the {receiver}s buffer was neutered.
       buffer = jsgraph()->HeapConstant(typed_array->GetBuffer());
 
       // Load the (known) base and external pointer for the {receiver}. The
@@ -2415,7 +2414,8 @@ JSNativeContextSpecialization::BuildElementAccess(
       dependencies()->DependOnProtector(PropertyCellRef(
           js_heap_broker(), factory()->array_buffer_neutering_protector()));
     } else {
-      // Bail out if the {buffer} was neutered.
+      // Deopt if the {buffer} was neutered.
+      // Note: A neutered buffer leads to megamorphic feedback.
       Node* buffer_bit_field = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
           buffer, effect, control);

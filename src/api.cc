@@ -7639,7 +7639,7 @@ size_t v8::ArrayBufferView::ByteLength() {
 
 size_t v8::TypedArray::Length() {
   i::Handle<i::JSTypedArray> obj = Utils::OpenHandle(this);
-  return obj->length_value();
+  return obj->WasNeutered() ? 0 : obj->length_value();
 }
 
 static_assert(v8::TypedArray::kMaxLength == i::Smi::kMaxValue,

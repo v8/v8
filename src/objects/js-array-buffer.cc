@@ -221,9 +221,9 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
                        NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
       }
       // 3b iv. Let length be O.[[ArrayLength]].
-      uint32_t length = o->length()->Number();
+      size_t length = o->length_value();
       // 3b v. If numericIndex ≥ length, return false.
-      if (index >= length) {
+      if (o->WasNeutered() || index >= length) {
         RETURN_FAILURE(isolate, should_throw,
                        NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
       }

@@ -163,6 +163,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
         Handle<JSTypedArray> values = Handle<JSTypedArray>::cast(values_obj);
         CHECK_EQ(values->type(), kExternalUint16Array);
         CONVERT_SMI_ARG_CHECKED(index, 1);
+        CHECK(!values->WasNeutered());
         CHECK_LT(index, Smi::ToInt(values->length()));
         auto* vals =
             reinterpret_cast<uint16_t*>(values->GetBuffer()->backing_store());
@@ -193,6 +194,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionSetElement) {
         Handle<JSTypedArray> values = Handle<JSTypedArray>::cast(values_obj);
         CHECK_EQ(values->type(), kExternalUint16Array);
         CONVERT_SMI_ARG_CHECKED(index, 1);
+        CHECK(!values->WasNeutered());
         CHECK_LT(index, Smi::ToInt(values->length()));
         CONVERT_SMI_ARG_CHECKED(value, 2);
         auto* vals =
