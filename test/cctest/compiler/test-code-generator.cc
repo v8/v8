@@ -361,7 +361,11 @@ class TestEnvironment : public HandleAndZoneScope {
  public:
   // These constants may be tuned to experiment with different environments.
 
+#if defined(V8_TARGET_ARCH_IA32) && defined(V8_EMBEDDED_BUILTINS)
+  static constexpr int kGeneralRegisterCount = 3;
+#else
   static constexpr int kGeneralRegisterCount = 4;
+#endif
   static constexpr int kDoubleRegisterCount = 6;
 
   static constexpr int kTaggedSlotCount = 64;
@@ -431,13 +435,10 @@ class TestEnvironment : public HandleAndZoneScope {
     // kReturnRegister0 as the first parameter, and the call will need a
     // register to hold the CodeObject address. So the maximum number of
     // registers left to test with is the number of available registers minus 2.
-    DCHECK_LE(
-        kGeneralRegisterCount,
-        RegisterConfiguration::Default()->num_allocatable_general_registers() -
-            2);
+    DCHECK_LE(kGeneralRegisterCount,
+              GetRegConfig()->num_allocatable_general_registers() - 2);
 
-    int32_t general_mask =
-        RegisterConfiguration::Default()->allocatable_general_codes_mask();
+    int32_t general_mask = GetRegConfig()->allocatable_general_codes_mask();
     // kReturnRegister0 is used to hold the "teardown" code object, do not
     // generate moves using it.
     std::unique_ptr<const RegisterConfiguration> registers(
@@ -1288,7 +1289,7 @@ TEST(FuzzAssembleMoveAndSwap) {
 }
 
 TEST(AssembleTailCallGap) {
-  const RegisterConfiguration* conf = RegisterConfiguration::Default();
+  const RegisterConfiguration* conf = GetRegConfig();
   TestEnvironment env;
 
   // This test assumes at least 4 registers are allocatable.

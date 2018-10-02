@@ -23,8 +23,6 @@ namespace internal {
 namespace compiler {
 namespace test_run_native_calls {
 
-const auto GetRegConfig = RegisterConfiguration::Default;
-
 namespace {
 typedef float float32;
 typedef double float64;
