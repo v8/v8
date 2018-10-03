@@ -2407,10 +2407,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
       ExpressionT value = impl()->ParseFunctionLiteral(
           *name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          FLAG_harmony_function_tostring ? name_token_position
-                                         : kNoSourcePosition,
-          FunctionLiteral::kAccessorOrMethod, language_mode(), nullptr,
-          CHECK_OK_CUSTOM(NullLiteralProperty));
+          name_token_position, FunctionLiteral::kAccessorOrMethod,
+          language_mode(), nullptr, CHECK_OK_CUSTOM(NullLiteralProperty));
 
       *property_kind = ClassLiteralProperty::METHOD;
       ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
@@ -2441,10 +2439,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
       FunctionLiteralT value = impl()->ParseFunctionLiteral(
           *name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          FLAG_harmony_function_tostring ? name_token_position
-                                         : kNoSourcePosition,
-          FunctionLiteral::kAccessorOrMethod, language_mode(), nullptr,
-          CHECK_OK_CUSTOM(NullLiteralProperty));
+          name_token_position, FunctionLiteral::kAccessorOrMethod,
+          language_mode(), nullptr, CHECK_OK_CUSTOM(NullLiteralProperty));
 
       *property_kind =
           is_get ? ClassLiteralProperty::GETTER : ClassLiteralProperty::SETTER;
@@ -2639,9 +2635,8 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
 
       ExpressionT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          FLAG_harmony_function_tostring ? next_beg_pos : kNoSourcePosition,
-          FunctionLiteral::kAccessorOrMethod, language_mode(), nullptr,
-          CHECK_OK_CUSTOM(NullLiteralProperty));
+          next_beg_pos, FunctionLiteral::kAccessorOrMethod, language_mode(),
+          nullptr, CHECK_OK_CUSTOM(NullLiteralProperty));
 
       ObjectLiteralPropertyT result = factory()->NewObjectLiteralProperty(
           name_expression, value, ObjectLiteralProperty::COMPUTED,
@@ -2672,9 +2667,8 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
 
       FunctionLiteralT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          FLAG_harmony_function_tostring ? next_beg_pos : kNoSourcePosition,
-          FunctionLiteral::kAccessorOrMethod, language_mode(), nullptr,
-          CHECK_OK_CUSTOM(NullLiteralProperty));
+          next_beg_pos, FunctionLiteral::kAccessorOrMethod, language_mode(),
+          nullptr, CHECK_OK_CUSTOM(NullLiteralProperty));
 
       ObjectLiteralPropertyT result = factory()->NewObjectLiteralProperty(
           name_expression, value,

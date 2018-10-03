@@ -766,11 +766,6 @@ void TestCompileFunctionInContextToStringImpl() {
 #undef CHECK_NOT_CAUGHT
 }
 
-TEST(CompileFunctionInContextHarmonyFunctionToString) {
-  v8::internal::FLAG_harmony_function_tostring = true;
-  TestCompileFunctionInContextToStringImpl();
-}
-
 TEST(CompileFunctionInContextFunctionToString) {
   TestCompileFunctionInContextToStringImpl();
 }

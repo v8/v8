@@ -364,9 +364,6 @@
   'language/global-code/script-decl-func-err-non-configurable': [FAIL],
   'language/global-code/script-decl-var-collision': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4958
-  'built-ins/Function/prototype/toString/*': ['--harmony-function-tostring'],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5116
   'built-ins/TypedArray/prototype/fill/fill-values-conversion-operations-consistent-nan': [PASS, FAIL],
 

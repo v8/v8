@@ -13338,64 +13338,16 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
     return NativeCodeFunctionSourceString(shared_info);
   }
 
-  if (FLAG_harmony_function_tostring) {
-    if (shared_info->function_token_position() == kNoSourcePosition) {
-      // If the function token position isn't valid, return [native code] to
-      // ensure calling eval on the returned source code throws rather than
-      // giving inconsistent call behaviour.
-      isolate->CountUsage(v8::Isolate::UseCounterFeature::
-                              kFunctionTokenOffsetTooLongForToString);
-      return NativeCodeFunctionSourceString(shared_info);
-    }
-    return Handle<String>::cast(
-        SharedFunctionInfo::GetSourceCodeHarmony(shared_info));
+  if (shared_info->function_token_position() == kNoSourcePosition) {
+    // If the function token position isn't valid, return [native code] to
+    // ensure calling eval on the returned source code throws rather than
+    // giving inconsistent call behaviour.
+    isolate->CountUsage(
+        v8::Isolate::UseCounterFeature::kFunctionTokenOffsetTooLongForToString);
+    return NativeCodeFunctionSourceString(shared_info);
   }
-
-  IncrementalStringBuilder builder(isolate);
-  FunctionKind kind = shared_info->kind();
-  if (!IsArrowFunction(kind)) {
-    if (IsConciseMethod(kind)) {
-      if (IsAsyncGeneratorFunction(kind)) {
-        builder.AppendCString("async *");
-      } else if (IsGeneratorFunction(kind)) {
-        builder.AppendCharacter('*');
-      } else if (IsAsyncFunction(kind)) {
-        builder.AppendCString("async ");
-      }
-    } else {
-      if (IsAsyncGeneratorFunction(kind)) {
-        builder.AppendCString("async function* ");
-      } else if (IsGeneratorFunction(kind)) {
-        builder.AppendCString("function* ");
-      } else if (IsAsyncFunction(kind)) {
-        builder.AppendCString("async function ");
-      } else {
-        builder.AppendCString("function ");
-      }
-    }
-    if (shared_info->name_should_print_as_anonymous()) {
-      builder.AppendCString("anonymous");
-    } else if (!shared_info->is_anonymous_expression()) {
-      builder.AppendString(handle(shared_info->Name(), isolate));
-    }
-  }
-  if (shared_info->is_wrapped()) {
-    builder.AppendCharacter('(');
-    Handle<FixedArray> args(
-        Script::cast(shared_info->script())->wrapped_arguments(), isolate);
-    int argc = args->length();
-    for (int i = 0; i < argc; i++) {
-      if (i > 0) builder.AppendCString(", ");
-      builder.AppendString(Handle<String>(String::cast(args->get(i)), isolate));
-    }
-    builder.AppendCString(") {\n");
-  }
-  builder.AppendString(
-      Handle<String>::cast(SharedFunctionInfo::GetSourceCode(shared_info)));
-  if (shared_info->is_wrapped()) {
-    builder.AppendCString("\n}");
-  }
-  return builder.Finish().ToHandleChecked();
+  return Handle<String>::cast(
+      SharedFunctionInfo::GetSourceCodeHarmony(shared_info));
 }
 
 void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
