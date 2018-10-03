@@ -565,6 +565,9 @@
   'intl402/Locale/constructor-options-language-valid': [FAIL],
   'intl402/Locale/constructor-parse-twice': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8259
+  'intl402/Locale/subclassing': [SKIP],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=8246
   'intl402/Locale/constructor-tag': [FAIL],
 
@@ -623,6 +626,22 @@
   'built-ins/Atomics/wait/cannot-suspend-throws': [SKIP],
   'built-ins/Atomics/wait/undefined-index-defaults-to-zero': [SKIP],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6890#c12
+  'built-ins/RegExp/prototype/Symbol.matchAll/isregexp-called-once': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.matchAll/species-constructor': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.matchAll/species-regexp-get-global-throws': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.matchAll/species-regexp-get-unicode-throws': [FAIL],
+  'built-ins/String/prototype/matchAll/regexp-prototype-has-no-matchAll': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8258
+  'intl402/DateTimeFormat/constructor-options-throwing-getters': [FAIL],
+  'intl402/Locale/constructor-options-language-valid-undefined': [FAIL],
+  'intl402/Locale/constructor-options-throwing-getters': [FAIL],
+  'intl402/Locale/constructor-tag-tostring': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-fraction-digits-precision': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-significant-digits-precision': [FAIL],
+  'intl402/NumberFormat/prototype/formatToParts/value-tonumber': [FAIL],
+
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
   # https://github.com/tc39/ecma262/pull/889
@@ -649,6 +668,10 @@
   'language/statements/class/class-name-ident-await-escaped': [FAIL],
 
   ############################ INVALID TESTS #############################
+
+  # https://github.com/tc39/test262/pull/1816#issuecomment-426799415
+  # https://github.com/tc39/test262/pull/1818
+  'language/reserved-words/unreserved-words': [PASS, FAIL],
 
   # Test makes unjustified assumptions about the number of calls to SortCompare.
   # Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=596
@@ -719,6 +742,28 @@
   'language/statements/class/fields-same-line-async-gen-static-private-methods-with-fields': [FAIL],
   'language/statements/class/fields-same-line-async-method-static-private-methods-with-fields': [FAIL],
   'language/statements/class/fields-same-line-gen-static-private-methods-with-fields': [FAIL],
+
+  # https://github.com/tc39/test262/issues/1817
+  'language/expressions/class/dstr-private-gen-meth-dflt-ary-init-iter-close': [FAIL],
+  'language/expressions/class/dstr-private-gen-meth-dflt-ary-init-iter-no-close': [FAIL],
+  'language/expressions/class/dstr-private-gen-meth-dflt-ary-ptrn-rest-id-exhausted': [FAIL],
+  'language/expressions/class/dstr-private-gen-meth-static-dflt-ary-init-iter-close': [FAIL],
+  'language/expressions/class/dstr-private-gen-meth-static-dflt-ary-init-iter-no-close': [FAIL],
+  'language/expressions/class/dstr-private-gen-meth-static-dflt-ary-ptrn-rest-id': [FAIL],
+  'language/expressions/class/dstr-private-gen-meth-static-dflt-ary-ptrn-rest-id-exhausted': [FAIL],
+  'language/expressions/class/dstr-private-gen-meth-static-dflt-obj-ptrn-rest-getter': [FAIL],
+  'language/expressions/class/dstr-private-gen-meth-static-dflt-obj-ptrn-rest-skip-non-enumerable': [FAIL],
+  'language/expressions/class/dstr-private-gen-meth-static-dflt-obj-ptrn-rest-val-obj': [FAIL],
+  'language/statements/class/dstr-private-gen-meth-dflt-ary-init-iter-close': [FAIL],
+  'language/statements/class/dstr-private-gen-meth-dflt-ary-init-iter-no-close': [FAIL],
+  'language/statements/class/dstr-private-gen-meth-dflt-ary-ptrn-rest-id-exhausted': [FAIL],
+  'language/statements/class/dstr-private-gen-meth-static-dflt-ary-init-iter-close': [FAIL],
+  'language/statements/class/dstr-private-gen-meth-static-dflt-ary-init-iter-no-close': [FAIL],
+  'language/statements/class/dstr-private-gen-meth-static-dflt-ary-ptrn-rest-id': [FAIL],
+  'language/statements/class/dstr-private-gen-meth-static-dflt-ary-ptrn-rest-id-exhausted': [FAIL],
+  'language/statements/class/dstr-private-gen-meth-static-dflt-obj-ptrn-rest-getter': [FAIL],
+  'language/statements/class/dstr-private-gen-meth-static-dflt-obj-ptrn-rest-skip-non-enumerable': [FAIL],
+  'language/statements/class/dstr-private-gen-meth-static-dflt-obj-ptrn-rest-val-obj': [FAIL],
 
   ############################ SLOW TESTS #############################
 

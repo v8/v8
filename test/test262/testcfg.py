@@ -54,6 +54,7 @@ FEATURE_FLAGS = {
   'Intl.RelativeTimeFormat': '--harmony-intl-relative-time-format',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'globalThis': '--harmony-global',
+  'well-formed-json-stringify': '--harmony-json-stringify',
 }
 
 SKIPPED_FEATURES = set(['Intl.Segmenter',
