@@ -560,9 +560,13 @@
   'intl402/Collator/prototype/compare/bound-to-collator-instance': [SKIP],
   'intl402/Collator/ignore-invalid-unicode-ext-values': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7684
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8260
   'intl402/Locale/constructor-non-iana-canon': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8261
   'intl402/Locale/constructor-options-language-valid': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8262
   'intl402/Locale/constructor-parse-twice': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8259
