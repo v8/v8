@@ -411,9 +411,9 @@ void VisitPairAtomicBinOp(InstructionSelector* selector, Node* node,
   Node* value = node->InputAt(2);
   Node* value_high = node->InputAt(3);
   AddressingMode addressing_mode = kMode_Offset_RR;
-  InstructionOperand inputs[] = {g.UseUniqueRegister(value),
-                                 g.UseUniqueRegister(value_high),
-                                 g.UseRegister(base), g.UseRegister(index)};
+  InstructionOperand inputs[] = {
+      g.UseUniqueRegister(value), g.UseUniqueRegister(value_high),
+      g.UseUniqueRegister(base), g.UseUniqueRegister(index)};
   Node* projection0 = NodeProperties::FindProjection(node, 0);
   Node* projection1 = NodeProperties::FindProjection(node, 1);
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
@@ -2265,7 +2265,8 @@ void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
   AddressingMode addressing_mode = kMode_Offset_RR;
   InstructionCode code =
       kArmWord32AtomicPairLoad | AddressingModeField::encode(addressing_mode);
-  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index)};
+  InstructionOperand inputs[] = {g.UseUniqueRegister(base),
+                                 g.UseUniqueRegister(index)};
   Node* projection0 = NodeProperties::FindProjection(node, 0);
   Node* projection1 = NodeProperties::FindProjection(node, 1);
   if (projection1) {
@@ -2330,9 +2331,9 @@ void InstructionSelector::VisitWord32AtomicPairExchange(Node* node) {
   Node* value = node->InputAt(2);
   Node* value_high = node->InputAt(3);
   AddressingMode addressing_mode = kMode_Offset_RR;
-  InstructionOperand inputs[] = {g.UseFixed(value, r0),
-                                 g.UseFixed(value_high, r1),
-                                 g.UseRegister(base), g.UseRegister(index)};
+  InstructionOperand inputs[] = {
+      g.UseFixed(value, r0), g.UseFixed(value_high, r1),
+      g.UseUniqueRegister(base), g.UseUniqueRegister(index)};
   InstructionCode code = kArmWord32AtomicPairExchange |
                          AddressingModeField::encode(addressing_mode);
   Node* projection0 = NodeProperties::FindProjection(node, 0);
@@ -2359,10 +2360,12 @@ void InstructionSelector::VisitWord32AtomicPairExchange(Node* node) {
 void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   ArmOperandGenerator g(this);
   AddressingMode addressing_mode = kMode_Offset_RR;
-  InstructionOperand inputs[] = {
-      g.UseFixed(node->InputAt(2), r4), g.UseFixed(node->InputAt(3), r5),
-      g.UseFixed(node->InputAt(4), r8), g.UseFixed(node->InputAt(5), r9),
-      g.UseRegister(node->InputAt(0)),  g.UseRegister(node->InputAt(1))};
+  InstructionOperand inputs[] = {g.UseFixed(node->InputAt(2), r4),
+                                 g.UseFixed(node->InputAt(3), r5),
+                                 g.UseFixed(node->InputAt(4), r8),
+                                 g.UseFixed(node->InputAt(5), r9),
+                                 g.UseUniqueRegister(node->InputAt(0)),
+                                 g.UseUniqueRegister(node->InputAt(1))};
   InstructionCode code = kArmWord32AtomicPairCompareExchange |
                          AddressingModeField::encode(addressing_mode);
   Node* projection0 = NodeProperties::FindProjection(node, 0);
