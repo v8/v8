@@ -310,7 +310,7 @@ static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
 
 static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
                         Type from_type, MachineRepresentation to) {
-  CheckChange(expected, from, from_type, UseInfo(to, Truncation::None()));
+  CheckChange(expected, from, from_type, UseInfo(to, Truncation::Any()));
 }
 
 static void CheckTwoChanges(IrOpcode::Value expected2,
@@ -516,6 +516,10 @@ TEST(SingleChanges) {
   // Int32,Uint32 <-> Float64 are actually machine conversions.
   CheckChange(IrOpcode::kChangeInt32ToFloat64, MachineRepresentation::kWord32,
               Type::Signed32(), MachineRepresentation::kFloat64);
+  CheckChange(IrOpcode::kChangeInt32ToFloat64, MachineRepresentation::kWord32,
+              Type::Signed32OrMinusZero(), MachineRepresentation::kFloat64,
+              UseInfo(MachineRepresentation::kFloat64,
+                      Truncation::Any(kIdentifyZeros)));
   CheckChange(IrOpcode::kChangeUint32ToFloat64, MachineRepresentation::kWord32,
               Type::Unsigned32(), MachineRepresentation::kFloat64);
   CheckChange(IrOpcode::kChangeFloat64ToInt32, MachineRepresentation::kFloat64,
@@ -570,7 +574,8 @@ TEST(SignednessInWord32) {
               Type::Signed32(), MachineRepresentation::kWord32);
   CheckChange(IrOpcode::kTruncateFloat64ToWord32,
               MachineRepresentation::kFloat64, Type::Number(),
-              MachineRepresentation::kWord32);
+              MachineRepresentation::kWord32,
+              UseInfo(MachineRepresentation::kWord32, Truncation::Word32()));
   CheckChange(IrOpcode::kCheckedTruncateTaggedToWord32,
               MachineRepresentation::kTagged, Type::NonInternal(),
               MachineRepresentation::kWord32,

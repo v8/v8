@@ -625,7 +625,9 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     return jsgraph()->graph()->NewNode(
         jsgraph()->common()->DeadValue(MachineRepresentation::kFloat64), node);
   } else if (IsWord(output_rep)) {
-    if (output_type.Is(Type::Signed32())) {
+    if (output_type.Is(Type::Signed32()) ||
+        (output_type.Is(Type::Signed32OrMinusZero()) &&
+         use_info.truncation().IdentifiesZeroAndMinusZero())) {
       op = machine()->ChangeInt32ToFloat64();
     } else if (output_type.Is(Type::Unsigned32()) ||
                use_info.truncation().IsUsedAsWord32()) {
@@ -806,6 +808,12 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
                        MachineRepresentation::kWord32);
     }
   } else if (output_rep == MachineRepresentation::kWord32) {
+    if (use_info.truncation().IdentifiesZeroAndMinusZero()) {
+      if (output_type.Is(Type::Signed32OrMinusZero()) ||
+          output_type.Is(Type::Unsigned32OrMinusZero())) {
+        return node;
+      }
+    }
     // Only the checked case should get here, the non-checked case is
     // handled in GetRepresentationFor.
     if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
