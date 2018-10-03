@@ -349,6 +349,9 @@ Object* FormatConstructor(BuiltinArguments args, Isolate* isolate,
 
 BUILTIN(NumberFormatConstructor) {
   HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kNumberFormat);
+
   return FormatConstructor<JSNumberFormat>(
       args, isolate, isolate->intl_number_format_function(),
       "Intl.NumberFormat");
@@ -438,6 +441,9 @@ BUILTIN(NumberFormatInternalFormatNumber) {
 
 BUILTIN(DateTimeFormatConstructor) {
   HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateTimeFormat);
+
   return FormatConstructor<JSDateTimeFormat>(
       args, isolate, isolate->intl_date_time_format_function(),
       "Intl.DateTimeFormat");
@@ -496,6 +502,9 @@ BUILTIN(DateTimeFormatInternalFormat) {
 
 BUILTIN(ListFormatConstructor) {
   HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kListFormat);
+
   // 1. If NewTarget is undefined, throw a TypeError exception.
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -582,6 +591,9 @@ MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
 // Intl.Locale implementation
 BUILTIN(LocaleConstructor) {
   HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kLocale);
+
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
@@ -742,6 +754,9 @@ BUILTIN(LocalePrototypeToString) {
 
 BUILTIN(RelativeTimeFormatConstructor) {
   HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kRelativeTimeFormat);
+
   // 1. If NewTarget is undefined, throw a TypeError exception.
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -783,7 +798,11 @@ BUILTIN(RelativeTimeFormatPrototypeResolvedOptions) {
 
 BUILTIN(StringPrototypeToLocaleLowerCase) {
   HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringToLocaleLowerCase);
+
   TO_THIS_STRING(string, "String.prototype.toLocaleLowerCase");
+
   RETURN_RESULT_OR_FAILURE(
       isolate, Intl::StringLocaleConvertCase(isolate, string, false,
                                              args.atOrUndefined(isolate, 1)));
@@ -791,7 +810,11 @@ BUILTIN(StringPrototypeToLocaleLowerCase) {
 
 BUILTIN(StringPrototypeToLocaleUpperCase) {
   HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringToLocaleUpperCase);
+
   TO_THIS_STRING(string, "String.prototype.toLocaleUpperCase");
+
   RETURN_RESULT_OR_FAILURE(
       isolate, Intl::StringLocaleConvertCase(isolate, string, true,
                                              args.atOrUndefined(isolate, 1)));
@@ -799,6 +822,8 @@ BUILTIN(StringPrototypeToLocaleUpperCase) {
 
 BUILTIN(PluralRulesConstructor) {
   HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kPluralRules);
 
   // 1. If NewTarget is undefined, throw a TypeError exception.
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
@@ -869,6 +894,9 @@ BUILTIN(PluralRulesSupportedLocalesOf) {
 
 BUILTIN(CollatorConstructor) {
   HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kCollator);
+
   Handle<JSReceiver> new_target;
   // 1. If NewTarget is undefined, let newTarget be the active
   // function object, else let newTarget be NewTarget.

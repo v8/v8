@@ -843,7 +843,11 @@ BUILTIN(DatePrototypeToTimeString) {
 // ecma402 #sup-date.prototype.tolocaledatestring
 BUILTIN(DatePrototypeToLocaleDateString) {
   HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleDateString);
+
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleDateString");
+
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
                    isolate,
@@ -858,7 +862,11 @@ BUILTIN(DatePrototypeToLocaleDateString) {
 // ecma402 #sup-date.prototype.tolocalestring
 BUILTIN(DatePrototypeToLocaleString) {
   HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleString);
+
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleString");
+
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
                    isolate,
@@ -873,7 +881,11 @@ BUILTIN(DatePrototypeToLocaleString) {
 // ecma402 #sup-date.prototype.tolocaletimestring
 BUILTIN(DatePrototypeToLocaleTimeString) {
   HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateToLocaleTimeString);
+
   CHECK_RECEIVER(JSDate, date, "Date.prototype.toLocaleTimeString");
+
   RETURN_RESULT_OR_FAILURE(
       isolate, JSDateTimeFormat::ToLocaleDateTime(
                    isolate,
