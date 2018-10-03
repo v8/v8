@@ -356,6 +356,41 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ sync();                                                          \
   } while (0)
 
+#define ASSEMBLE_ATOMIC64_LOGIC_BINOP(bin_instr)                               \
+  do {                                                                         \
+    if (IsMipsArchVariant(kMips32r6)) {                                        \
+      Label binop;                                                             \
+      __ sync();                                                               \
+      __ bind(&binop);                                                         \
+      __ llwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(2));       \
+      __ bin_instr(i.TempRegister(0), i.TempRegister(1), i.TempRegister(0),    \
+                   i.TempRegister(1), i.InputRegister(0), i.InputRegister(1)); \
+      __ scwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(2));       \
+      __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));        \
+      __ sync();                                                               \
+    } else {                                                                   \
+      UNREACHABLE();                                                           \
+    }                                                                          \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC64_ARITH_BINOP(bin_instr)                              \
+  do {                                                                        \
+    if (IsMipsArchVariant(kMips32r6)) {                                       \
+      Label binop;                                                            \
+      __ sync();                                                              \
+      __ bind(&binop);                                                        \
+      __ llwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(2));      \
+      __ bin_instr(i.TempRegister(0), i.TempRegister(1), i.TempRegister(0),   \
+                   i.TempRegister(1), i.InputRegister(0), i.InputRegister(1), \
+                   i.TempRegister(2), i.TempRegister(3));                     \
+      __ scwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(2));      \
+      __ BranchShort(&binop, eq, i.TempRegister(1), Operand(zero_reg));       \
+      __ sync();                                                              \
+    } else {                                                                  \
+      UNREACHABLE();                                                          \
+    }                                                                         \
+  } while (0)
+
 #define ASSEMBLE_ATOMIC_BINOP_EXT(sign_extend, size, bin_instr)                \
   do {                                                                         \
     Label binop;                                                               \
@@ -1704,6 +1739,50 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, Or)
       ATOMIC_BINOP_CASE(Xor, Xor)
 #undef ATOMIC_BINOP_CASE
+    case kMipsWord32AtomicPairLoad: {
+      if (IsMipsArchVariant(kMips32r6)) {
+        Register second_output =
+            instr->OutputCount() == 2 ? i.OutputRegister(1) : i.TempRegister(0);
+        __ llwp(i.OutputRegister(0), second_output, i.InputRegister(0));
+        __ sync();
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    }
+    case kMipsWord32AtomicPairStore: {
+      if (IsMipsArchVariant(kMips32r6)) {
+        Label store;
+        __ sync();
+        __ bind(&store);
+        __ llwp(i.TempRegister(0), i.TempRegister(1), i.InputRegister(0));
+        __ Move(i.TempRegister(0), i.InputRegister(2));
+        __ scwp(i.InputRegister(1), i.TempRegister(0), i.InputRegister(0));
+        __ BranchShort(&store, eq, i.TempRegister(0), Operand(zero_reg));
+        __ sync();
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    }
+#define ATOMIC64_BINOP_ARITH_CASE(op, instr) \
+  case kMipsWord32AtomicPair##op:            \
+    ASSEMBLE_ATOMIC64_ARITH_BINOP(instr);    \
+    break;
+      ATOMIC64_BINOP_ARITH_CASE(Add, AddPair)
+      ATOMIC64_BINOP_ARITH_CASE(Sub, SubPair)
+#undef ATOMIC64_BINOP_ARITH_CASE
+#define ATOMIC64_BINOP_LOGIC_CASE(op, instr) \
+  case kMipsWord32AtomicPair##op:            \
+    ASSEMBLE_ATOMIC64_LOGIC_BINOP(instr);    \
+    break;
+      ATOMIC64_BINOP_LOGIC_CASE(And, AndPair)
+      ATOMIC64_BINOP_LOGIC_CASE(Or, OrPair)
+      ATOMIC64_BINOP_LOGIC_CASE(Xor, XorPair)
+#undef ATOMIC64_BINOP_LOGIC_CASE
+    case kMipsWord32AtomicPairExchange:
+    case kMipsWord32AtomicPairCompareExchange:
+      break;
     case kMipsS128Zero: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ xor_v(i.OutputSimd128Register(), i.OutputSimd128Register(),

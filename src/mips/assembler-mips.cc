@@ -2335,6 +2335,16 @@ void Assembler::sc(Register rd, const MemOperand& rs) {
   }
 }
 
+void Assembler::llwp(Register rd, Register rt, Register base) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  GenInstrRegister(SPECIAL3, base, rt, rd, 1, LL_R6);
+}
+
+void Assembler::scwp(Register rd, Register rt, Register base) {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  GenInstrRegister(SPECIAL3, base, rt, rd, 1, SC_R6);
+}
+
 void Assembler::lui(Register rd, int32_t j) {
   DCHECK(is_uint16(j) || is_int16(j));
   GenInstrImmediate(LUI, zero_reg, rd, j);

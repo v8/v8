@@ -883,6 +883,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void ll(Register rd, const MemOperand& rs);
   void sc(Register rd, const MemOperand& rs);
+  void llwp(Register rd, Register rt, Register base);
+  void scwp(Register rd, Register rt, Register base);
 
   // ---------PC-Relative-instructions-----------
 

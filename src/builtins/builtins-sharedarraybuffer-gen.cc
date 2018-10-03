@@ -215,7 +215,7 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
   BIND(&u32);
   Return(ChangeUint32ToTagged(AtomicLoad(MachineType::Uint32(), backing_store,
                                          WordShl(index_word, 2))));
-#if V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_MIPS && !_MIPS_ARCH_MIPS32R6
   BIND(&i64);
   Return(CallRuntime(Runtime::kAtomicsLoad64, context, array, index_integer));
 
@@ -292,7 +292,7 @@ TF_BUILTIN(AtomicsStore, SharedArrayBufferBuiltinsAssembler) {
   Return(value_integer);
 
   BIND(&u64);
-#if V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_MIPS && !_MIPS_ARCH_MIPS32R6
   Return(CallRuntime(Runtime::kAtomicsStore64, context, array, index_integer,
                      value));
 #else

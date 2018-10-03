@@ -582,6 +582,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                Register left_high, Register right_low, Register right_high,
                Register scratch1, Register scratch2);
 
+  void AndPair(Register dst_low, Register dst_high, Register left_low,
+               Register left_high, Register right_low, Register right_high);
+
+  void OrPair(Register dst_low, Register dst_high, Register left_low,
+              Register left_high, Register right_low, Register right_high);
+
+  void XorPair(Register dst_low, Register dst_high, Register left_low,
+               Register left_high, Register right_low, Register right_high);
+
   void MulPair(Register dst_low, Register dst_high, Register left_low,
                Register left_high, Register right_low, Register right_high,
                Register scratch1, Register scratch2);
