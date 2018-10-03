@@ -297,10 +297,6 @@
 ['arch == arm and not simulator_run', {
   # crbug.com/v8/7605
   'test-heap/OutOfMemorySmallObjects': [SKIP],
-
-  # BUG(v8:8201).
-  'test-run-wasm-atomics/*': [SKIP],
-  'test-run-wasm-atomics64/*': [SKIP],
 }],  # 'arch == arm and not simulator_run'
 
 ##############################################################################
