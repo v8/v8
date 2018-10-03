@@ -18,7 +18,7 @@
 namespace v8 {
 namespace internal {
 
-class OFStreamBase : public std::streambuf {
+class V8_EXPORT_PRIVATE OFStreamBase : public std::streambuf {
  public:
   explicit OFStreamBase(FILE* f);
   ~OFStreamBase() override = default;
