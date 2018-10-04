@@ -125,7 +125,6 @@ void SamplingHeapProfiler::OnWeakCallback(
       AllocationNode::FunctionId id = AllocationNode::function_id(
           node->script_id_, node->script_position_, node->name_);
       parent->children_.erase(id);
-      delete node;
       node = parent;
     }
   }
@@ -141,11 +140,11 @@ SamplingHeapProfiler::AllocationNode::FindOrAddChildNode(const char* name,
   auto it = children_.find(id);
   if (it != children_.end()) {
     DCHECK_EQ(strcmp(it->second->name_, name), 0);
-    return it->second;
+    return it->second.get();
   }
-  auto child = new AllocationNode(this, name, script_id, start_position);
-  children_.insert(std::make_pair(id, child));
-  return child;
+  auto child =
+      base::make_unique<AllocationNode>(this, name, script_id, start_position);
+  return children_.emplace(id, std::move(child)).first->second.get();
 }
 
 SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
@@ -256,19 +255,19 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
     allocations.push_back(ScaleSample(alloc.first, alloc.second));
   }
 
-  profile->nodes().push_back(v8::AllocationProfile::Node(
-      {ToApiHandle<v8::String>(
-           isolate_->factory()->InternalizeUtf8String(node->name_)),
-       script_name, node->script_id_, node->script_position_, line, column,
-       std::vector<v8::AllocationProfile::Node*>(), allocations}));
+  profile->nodes().push_back(v8::AllocationProfile::Node{
+      ToApiHandle<v8::String>(
+          isolate_->factory()->InternalizeUtf8String(node->name_)),
+      script_name, node->script_id_, node->script_position_, line, column,
+      std::vector<v8::AllocationProfile::Node*>(), allocations});
   v8::AllocationProfile::Node* current = &profile->nodes().back();
-  // The children map may have nodes inserted into it during translation
+  // The |children_| map may have nodes inserted into it during translation
   // because the translation may allocate strings on the JS heap that have
   // the potential to be sampled. That's ok since map iterators are not
   // invalidated upon std::map insertion.
-  for (auto it : node->children_) {
+  for (const auto& it : node->children_) {
     current->children.push_back(
-        TranslateAllocationNode(profile, it.second, scripts));
+        TranslateAllocationNode(profile, it.second.get(), scripts));
   }
   node->pinned_ = false;
   return current;
@@ -292,7 +291,6 @@ v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
   TranslateAllocationNode(profile, &profile_root_, scripts);
   return profile;
 }
-
 
 }  // namespace internal
 }  // namespace v8

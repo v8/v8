@@ -77,13 +77,7 @@ class SamplingHeapProfiler {
         : parent_(parent),
           script_id_(script_id),
           script_position_(start_position),
-          name_(name),
-          pinned_(false) {}
-    ~AllocationNode() {
-      for (auto child : children_) {
-        delete child.second;
-      }
-    }
+          name_(name) {}
 
    private:
     typedef uint64_t FunctionId;
@@ -107,12 +101,12 @@ class SamplingHeapProfiler {
     // TODO(alph): make use of unordered_map's here. Pay attention to
     // iterator invalidation during TranslateAllocationNode.
     std::map<size_t, unsigned int> allocations_;
-    std::map<FunctionId, AllocationNode*> children_;
+    std::map<FunctionId, std::unique_ptr<AllocationNode>> children_;
     AllocationNode* const parent_;
     const int script_id_;
     const int script_position_;
     const char* const name_;
-    bool pinned_;
+    bool pinned_ = false;
 
     friend class SamplingHeapProfiler;
 
