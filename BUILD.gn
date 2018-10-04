@@ -868,6 +868,8 @@ action("postmortem-metadata") {
     "src/objects/js-array-buffer.h",
     "src/objects/js-objects-inl.h",
     "src/objects/js-objects.h",
+    "src/objects/js-promise-inl.h",
+    "src/objects/js-promise.h",
     "src/objects/js-regexp-inl.h",
     "src/objects/js-regexp.h",
     "src/objects/js-regexp-string-iterator-inl.h",

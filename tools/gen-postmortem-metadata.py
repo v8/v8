@@ -285,7 +285,7 @@ extras_accessors = [
 expected_classes = [
     'ConsString', 'FixedArray', 'HeapNumber', 'JSArray', 'JSFunction',
     'JSObject', 'JSRegExp', 'JSValue', 'Map', 'Oddball', 'Script',
-    'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo'
+    'SeqOneByteString', 'SharedFunctionInfo', 'ScopeInfo', 'JSPromise'
 ];
 
 
@@ -308,6 +308,7 @@ header = '''
 #include "src/frames-inl.h" /* for architecture-specific frame constants */
 #include "src/contexts.h"
 #include "src/objects.h"
+#include "src/objects/js-promise.h"
 #include "src/objects/js-regexp-string-iterator.h"
 
 using namespace v8::internal;
