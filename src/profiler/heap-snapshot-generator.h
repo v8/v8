@@ -381,42 +381,37 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   template <typename T>
   void ExtractWeakArrayReferences(int header_size, HeapEntry* entry, T* array);
   void ExtractPropertyReferences(JSObject* js_obj, HeapEntry* entry);
-  void ExtractAccessorPairProperty(JSObject* js_obj, HeapEntry* entry,
-                                   Name* key, Object* callback_obj,
-                                   int field_offset = -1);
+  void ExtractAccessorPairProperty(HeapEntry* entry, Name* key,
+                                   Object* callback_obj, int field_offset = -1);
   void ExtractElementReferences(JSObject* js_obj, HeapEntry* entry);
   void ExtractInternalReferences(JSObject* js_obj, HeapEntry* entry);
 
   bool IsEssentialObject(Object* object);
   bool IsEssentialHiddenReference(Object* parent, int field_offset);
 
-  void SetContextReference(HeapObject* parent_obj, HeapEntry* parent_entry,
-                           String* reference_name, Object* child,
-                           int field_offset);
-  void SetNativeBindReference(HeapObject* parent_obj, HeapEntry* parent_entry,
+  void SetContextReference(HeapEntry* parent_entry, String* reference_name,
+                           Object* child, int field_offset);
+  void SetNativeBindReference(HeapEntry* parent_entry,
                               const char* reference_name, Object* child);
-  void SetElementReference(HeapObject* parent_obj, HeapEntry* parent_entry,
-                           int index, Object* child);
-  void SetInternalReference(HeapObject* parent_obj, HeapEntry* parent_entry,
-                            const char* reference_name, Object* child,
+  void SetElementReference(HeapEntry* parent_entry, int index, Object* child);
+  void SetInternalReference(HeapEntry* parent_entry, const char* reference_name,
+                            Object* child, int field_offset = -1);
+  void SetInternalReference(HeapEntry* parent_entry, int index, Object* child,
                             int field_offset = -1);
-  void SetInternalReference(HeapObject* parent_obj, HeapEntry* parent_entry,
-                            int index, Object* child, int field_offset = -1);
   void SetHiddenReference(HeapObject* parent_obj, HeapEntry* parent_entry,
                           int index, Object* child, int field_offset);
-  void SetWeakReference(HeapObject* parent_obj, HeapEntry* parent_entry,
-                        const char* reference_name, Object* child_obj,
+  void SetWeakReference(HeapEntry* parent_entry, const char* reference_name,
+                        Object* child_obj, int field_offset);
+  void SetWeakReference(HeapEntry* parent_entry, int index, Object* child_obj,
                         int field_offset);
-  void SetWeakReference(HeapObject* parent_obj, HeapEntry* parent_entry,
-                        int index, Object* child_obj, int field_offset);
-  void SetPropertyReference(HeapObject* parent_obj, HeapEntry* parent_entry,
-                            Name* reference_name, Object* child,
+  void SetPropertyReference(HeapEntry* parent_entry, Name* reference_name,
+                            Object* child,
                             const char* name_format_string = nullptr,
                             int field_offset = -1);
   void SetDataOrAccessorPropertyReference(
-      PropertyKind kind, JSObject* parent_obj, HeapEntry* parent_entry,
-      Name* reference_name, Object* child,
-      const char* name_format_string = nullptr, int field_offset = -1);
+      PropertyKind kind, HeapEntry* parent_entry, Name* reference_name,
+      Object* child, const char* name_format_string = nullptr,
+      int field_offset = -1);
 
   void SetUserGlobalReference(Object* user_global);
   void SetRootGcRootsReference();
