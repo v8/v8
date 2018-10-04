@@ -2292,17 +2292,20 @@ class RepresentationSelector {
       }
       case IrOpcode::kNumberCeil:
       case IrOpcode::kNumberFloor:
+      case IrOpcode::kNumberRound:
       case IrOpcode::kNumberTrunc: {
-        // For NumberCeil, NumberFloor and NumberTrunc we propagate the
-        // zero identification part of the truncation, and we turn them
-        // into no-ops if we figure out (late) that their input is
-        // already an integer, NaN or -0.
+        // For NumberCeil, NumberFloor, NumberRound and NumberTrunc we propagate
+        // the zero identification part of the truncation, and we turn them into
+        // no-ops if we figure out (late) that their input is already an
+        // integer, NaN or -0.
         Type const input_type = TypeOf(node->InputAt(0));
         VisitUnop(node, UseInfo::TruncatingFloat64(truncation.identify_zeros()),
                   MachineRepresentation::kFloat64);
         if (lower()) {
           if (input_type.Is(type_cache_.kIntegerOrMinusZeroOrNaN)) {
             DeferReplacement(node, node->InputAt(0));
+          } else if (node->opcode() == IrOpcode::kNumberRound) {
+            DeferReplacement(node, lowering->Float64Round(node));
           } else {
             NodeProperties::ChangeOp(node, Float64Op(node));
           }
@@ -2331,12 +2334,6 @@ class RepresentationSelector {
         VisitUnop(node, UseInfo::TruncatingFloat64(),
                   MachineRepresentation::kFloat64);
         if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
-        return;
-      }
-      case IrOpcode::kNumberRound: {
-        VisitUnop(node, UseInfo::TruncatingFloat64(),
-                  MachineRepresentation::kFloat64);
-        if (lower()) DeferReplacement(node, lowering->Float64Round(node));
         return;
       }
       case IrOpcode::kNumberSign: {
