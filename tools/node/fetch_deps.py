@@ -35,8 +35,7 @@ GCLIENT_SOLUTION = [
       "v8/test/wasm-js"                       : None,
       "v8/third_party/android_ndk"            : None,
       "v8/third_party/android_tools"          : None,
-      # V8 currently depends indirectly on catapult. See crbug/887888.
-      # "v8/third_party/catapult"               : None,
+      "v8/third_party/catapult"               : None,
       "v8/third_party/colorama/src"           : None,
       "v8/third_party/fuchsia-sdk"            : None,
       "v8/third_party/instrumented_libraries" : None,

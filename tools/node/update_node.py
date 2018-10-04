@@ -34,7 +34,6 @@ import node_common
 TARGET_SUBDIR = os.path.join("deps", "v8")
 
 SUB_REPOSITORIES = [ ["base", "trace_event", "common"],
-                     ["third_party", "catapult"],
                      ["third_party", "googletest", "src"] ]
 
 DELETE_FROM_GITIGNORE = [ "/base",
