@@ -242,7 +242,6 @@ class ContextRef : public HeapObjectRef {
   V(JSFunction, promise_function)             \
   V(Map, fast_aliased_arguments_map)          \
   V(Map, initial_array_iterator_map)          \
-  V(Map, initial_string_iterator_map)         \
   V(Map, iterator_result_map)                 \
   V(Map, js_array_holey_double_elements_map)  \
   V(Map, js_array_holey_elements_map)         \
@@ -258,6 +257,7 @@ class ContextRef : public HeapObjectRef {
   V(Map, sloppy_arguments_map)                \
   V(Map, slow_object_with_null_prototype_map) \
   V(Map, strict_arguments_map)                \
+  V(Map, initial_string_iterator_map)         \
   V(ScriptContextTable, script_context_table)
 
 class NativeContextRef : public ContextRef {

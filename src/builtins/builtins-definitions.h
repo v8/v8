@@ -1127,7 +1127,6 @@ namespace internal {
   /* StringIterator */                                                         \
   /* ES6 #sec-%stringiteratorprototype%.next */                                \
   TFJ(StringIteratorPrototypeNext, 0, kReceiver)                               \
-  TFS(StringToList, kSource)                                                   \
                                                                                \
   /* Symbol */                                                                 \
   /* ES #sec-symbol-constructor */                                             \

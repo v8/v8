@@ -150,7 +150,6 @@ using v8::MemoryPressureLevel;
   V(TypedArraySpeciesProtector)             \
   V(PromiseSpeciesProtector)                \
   V(StaleRegister)                          \
-  V(StringIteratorProtector)                \
   V(StringLengthProtector)                  \
   V(StringTableMap)                         \
   V(SymbolMap)                              \

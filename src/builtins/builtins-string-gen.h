@@ -23,12 +23,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                         Node* rhs, Node* rhs_instance_type,
                         TNode<IntPtrT> length, Label* if_equal,
                         Label* if_not_equal, Label* if_indirect);
-  TNode<BoolT> IsStringPrimitiveWithNoCustomIteration(TNode<Object> object,
-                                                      TNode<Context> context);
 
  protected:
-  TNode<JSArray> StringToList(TNode<Context> context, TNode<String> string);
-
   void StringEqual_Loop(Node* lhs, Node* lhs_instance_type,
                         MachineType lhs_type, Node* rhs,
                         Node* rhs_instance_type, MachineType rhs_type,

@@ -5,7 +5,6 @@
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/growable-fixed-array-gen.h"
 
-#include "src/builtins/builtins-string-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
@@ -262,36 +261,19 @@ TF_BUILTIN(IterableToListMayPreserveHoles, IteratorBuiltinsAssembler) {
 }
 
 // This builtin loads the property Symbol.iterator as the iterator, and has a
-// fast path for fast arrays and another one for strings. These fast paths will
-// only be taken if Symbol.iterator and the Iterator prototype are not modified
-// in a way that changes the original iteration behavior.
-// * In case of fast holey arrays, holes will be converted to undefined to
-// reflect iteration semantics. Note that replacement by undefined is only
-// correct when the NoElements protector is valid.
+// fast path for fast arrays. In case of fast holey arrays, holes will be
+// converted to undefined to reflect iteration semantics. Note that replacement
+// by undefined is only correct when the NoElements protector is valid.
 TF_BUILTIN(IterableToListWithSymbolLookup, IteratorBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
 
-  Label slow_path(this), check_string(this);
+  Label slow_path(this);
 
-  GotoIfForceSlowPath(&slow_path);
-
-  GotoIfNot(IsFastJSArrayWithNoCustomIteration(iterable, context),
-            &check_string);
-
-  // Fast path for fast JSArray.
+  GotoIfNot(IsFastJSArrayWithNoCustomIteration(iterable, context), &slow_path);
+  // Here we are guaranteed that iterable is a fast JSArray with an original
+  // iterator.
   TailCallBuiltin(Builtins::kCloneFastJSArrayFillingHoles, context, iterable);
-
-  BIND(&check_string);
-  {
-    StringBuiltinsAssembler string_assembler(state());
-    GotoIfNot(string_assembler.IsStringPrimitiveWithNoCustomIteration(iterable,
-                                                                      context),
-              &slow_path);
-
-    // Fast path for strings.
-    TailCallBuiltin(Builtins::kStringToList, context, iterable);
-  }
 
   BIND(&slow_path);
   {
