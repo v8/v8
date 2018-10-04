@@ -434,11 +434,10 @@ Type ValueTypeParameterOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 // A hint for speculative number operations.
 enum class NumberOperationHint : uint8_t {
-  kSignedSmall,        // Inputs were Smi, output was in Smi.
-  kSignedSmallInputs,  // Inputs were Smi, output was Number.
-  kSigned32,           // Inputs were Signed32, output was Number.
-  kNumber,             // Inputs were Number, output was Number.
-  kNumberOrOddball,    // Inputs were Number or Oddball, output was Number.
+  kSigned32,         // Inputs were Signed32, output was Number.
+  kSigned32Inputs,   // Inputs were Signed32, output was Number.
+  kNumber,           // Inputs were Number, output was Number.
+  kNumberOrOddball,  // Inputs were Number or Oddball, output was Number.
 };
 
 size_t hash_value(NumberOperationHint);

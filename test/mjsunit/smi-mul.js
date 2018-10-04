@@ -27,41 +27,34 @@
 
 // Flags: --allow-natives-syntax --opt --noalways-opt
 
-function mul(a, b) {
-    return a * b;
-}
+(function() {
+  function mul(a, b) {
+      return a * b;
+  }
 
+  mul(-1, 2);
+  mul(-1, 2);
+  %OptimizeFunctionOnNextCall(mul);
+  assertEquals(-2, mul(-1, 2));
+  assertOptimized(mul);
 
-mul(-1, 2);
-mul(-1, 2);
-%OptimizeFunctionOnNextCall(mul);
-assertEquals(-2, mul(-1, 2));
-assertOptimized(mul);
+  // Deopt on minus zero.
+  assertEquals(-0, mul(-1, 0));
+  assertUnoptimized(mul);
+})();
 
-// Deopt on minus zero.
-assertEquals(-0, mul(-1, 0));
-assertUnoptimized(mul);
+(function() {
+  function mul2(a, b) {
+      return a * b;
+  }
 
+  mul2(-1, 2);
+  mul2(-1, 2);
+  %OptimizeFunctionOnNextCall(mul2);
+  assertEquals(-2, mul2(-1, 2));
+  assertOptimized(mul2);
 
-function mul2(a, b) {
-    return a * b;
-}
-
-mul2(-1, 2);
-mul2(-1, 2);
-%OptimizeFunctionOnNextCall(mul2);
-
-// 2^30 is a smi boundary on arm and ia32.
-var two_30 = 1 << 30;
-// 2^31 is a smi boundary on x64.
-var two_31 = 2 * two_30;
-
-if (%IsValidSmi(two_31)) {
-  // Deopt on two_31 on x64.
-  assertEquals(two_31, mul2(-two_31, -1));
+  // Deopt on 2^31.
+  assertEquals(1 << 31, mul2(-(1 << 31), -1));
   assertUnoptimized(mul2);
-} else {
-  // Deopt on two_30 on ia32.
-  assertEquals(two_30, mul2(-two_30, -1));
-  assertUnoptimized(mul2);
-}
+})();

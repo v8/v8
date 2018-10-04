@@ -37,7 +37,7 @@ class JSBinopReduction final {
     DCHECK_EQ(1, node_->op()->EffectOutputCount());
     switch (CompareOperationHintOf(node_->op())) {
       case CompareOperationHint::kSignedSmall:
-        *hint = NumberOperationHint::kSignedSmall;
+        *hint = NumberOperationHint::kSigned32;
         return true;
       case CompareOperationHint::kNumber:
         *hint = NumberOperationHint::kNumber;

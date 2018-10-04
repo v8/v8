@@ -20,14 +20,12 @@ namespace {
 bool BinaryOperationHintToNumberOperationHint(
     BinaryOperationHint binop_hint, NumberOperationHint* number_hint) {
   switch (binop_hint) {
+    case BinaryOperationHint::kSigned32:
     case BinaryOperationHint::kSignedSmall:
-      *number_hint = NumberOperationHint::kSignedSmall;
+      *number_hint = NumberOperationHint::kSigned32;
       return true;
     case BinaryOperationHint::kSignedSmallInputs:
-      *number_hint = NumberOperationHint::kSignedSmallInputs;
-      return true;
-    case BinaryOperationHint::kSigned32:
-      *number_hint = NumberOperationHint::kSigned32;
+      *number_hint = NumberOperationHint::kSigned32Inputs;
       return true;
     case BinaryOperationHint::kNumber:
       *number_hint = NumberOperationHint::kNumber;
@@ -77,7 +75,7 @@ class JSSpeculativeBinopBuilder final {
   bool GetCompareNumberOperationHint(NumberOperationHint* hint) {
     switch (GetCompareOperationHint()) {
       case CompareOperationHint::kSignedSmall:
-        *hint = NumberOperationHint::kSignedSmall;
+        *hint = NumberOperationHint::kSigned32;
         return true;
       case CompareOperationHint::kNumber:
         *hint = NumberOperationHint::kNumber;
@@ -100,15 +98,13 @@ class JSSpeculativeBinopBuilder final {
   const Operator* SpeculativeNumberOp(NumberOperationHint hint) {
     switch (op_->opcode()) {
       case IrOpcode::kJSAdd:
-        if (hint == NumberOperationHint::kSignedSmall ||
-            hint == NumberOperationHint::kSigned32) {
+        if (hint == NumberOperationHint::kSigned32) {
           return simplified()->SpeculativeSafeIntegerAdd(hint);
         } else {
           return simplified()->SpeculativeNumberAdd(hint);
         }
       case IrOpcode::kJSSubtract:
-        if (hint == NumberOperationHint::kSignedSmall ||
-            hint == NumberOperationHint::kSigned32) {
+        if (hint == NumberOperationHint::kSigned32) {
           return simplified()->SpeculativeSafeIntegerSubtract(hint);
         } else {
           return simplified()->SpeculativeNumberSubtract(hint);

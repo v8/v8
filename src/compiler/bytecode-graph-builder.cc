@@ -2828,9 +2828,9 @@ void BytecodeGraphBuilder::VisitForInContinue() {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* cache_length =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
-  Node* exit_cond = NewNode(simplified()->SpeculativeNumberLessThan(
-                                NumberOperationHint::kSignedSmall),
-                            index, cache_length);
+  Node* exit_cond = NewNode(
+      simplified()->SpeculativeNumberLessThan(NumberOperationHint::kSigned32),
+      index, cache_length);
   environment()->BindAccumulator(exit_cond);
 }
 
@@ -2868,9 +2868,9 @@ void BytecodeGraphBuilder::VisitForInStep() {
   PrepareEagerCheckpoint();
   Node* index =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  index = NewNode(simplified()->SpeculativeSafeIntegerAdd(
-                      NumberOperationHint::kSignedSmall),
-                  index, jsgraph()->OneConstant());
+  index = NewNode(
+      simplified()->SpeculativeSafeIntegerAdd(NumberOperationHint::kSigned32),
+      index, jsgraph()->OneConstant());
   environment()->BindAccumulator(index, Environment::kAttachFrameState);
 }
 
