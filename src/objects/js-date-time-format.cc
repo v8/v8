@@ -41,7 +41,7 @@ class PatternMap {
 class PatternItem {
  public:
   PatternItem(const std::string property, std::vector<PatternMap> pairs,
-              std::vector<const char*>* allowed_values)
+              std::vector<const char*> allowed_values)
       : property(std::move(property)),
         pairs(std::move(pairs)),
         allowed_values(allowed_values) {}
@@ -51,25 +51,24 @@ class PatternItem {
   // It is important for the pattern in the pairs from longer one to shorter one
   // if the longer one contains substring of an shorter one.
   std::vector<PatternMap> pairs;
-  std::vector<const char*>* allowed_values;
+  std::vector<const char*> allowed_values;
 };
 
-static const std::vector<PatternItem>& GetPatternItems() {
-  static std::vector<const char*> kLongShort = {"long", "short"};
-  static std::vector<const char*> kNarrowLongShort = {"narrow", "long",
-                                                      "short"};
-  static std::vector<const char*> k2DigitNumeric = {"2-digit", "numeric"};
-  static std::vector<const char*> kNarrowLongShort2DigitNumeric = {
+const std::vector<PatternItem> GetPatternItems() {
+  const std::vector<const char*> kLongShort = {"long", "short"};
+  const std::vector<const char*> kNarrowLongShort = {"narrow", "long", "short"};
+  const std::vector<const char*> k2DigitNumeric = {"2-digit", "numeric"};
+  const std::vector<const char*> kNarrowLongShort2DigitNumeric = {
       "narrow", "long", "short", "2-digit", "numeric"};
-  static std::vector<PatternItem> kPatternItems = {
+  const std::vector<PatternItem> kPatternItems = {
       PatternItem("weekday",
                   {{"EEEEE", "narrow"}, {"EEEE", "long"}, {"EEE", "short"}},
-                  &kNarrowLongShort),
+                  kNarrowLongShort),
       PatternItem("era",
                   {{"GGGGG", "narrow"}, {"GGGG", "long"}, {"GGG", "short"}},
-                  &kNarrowLongShort),
+                  kNarrowLongShort),
       PatternItem("year", {{"yy", "2-digit"}, {"y", "numeric"}},
-                  &k2DigitNumeric),
+                  k2DigitNumeric),
       // Sometimes we get L instead of M for month - standalone name.
       PatternItem("month",
                   {{"MMMMM", "narrow"},
@@ -82,28 +81,27 @@ static const std::vector<PatternItem>& GetPatternItems() {
                    {"LLL", "short"},
                    {"LL", "2-digit"},
                    {"L", "numeric"}},
-                  &kNarrowLongShort2DigitNumeric),
-      PatternItem("day", {{"dd", "2-digit"}, {"d", "numeric"}},
-                  &k2DigitNumeric),
+                  kNarrowLongShort2DigitNumeric),
+      PatternItem("day", {{"dd", "2-digit"}, {"d", "numeric"}}, k2DigitNumeric),
       PatternItem("hour",
                   {{"HH", "2-digit"},
                    {"H", "numeric"},
                    {"hh", "2-digit"},
                    {"h", "numeric"}},
-                  &k2DigitNumeric),
+                  k2DigitNumeric),
       PatternItem("minute", {{"mm", "2-digit"}, {"m", "numeric"}},
-                  &k2DigitNumeric),
+                  k2DigitNumeric),
       PatternItem("second", {{"ss", "2-digit"}, {"s", "numeric"}},
-                  &k2DigitNumeric),
+                  k2DigitNumeric),
       PatternItem("timeZoneName", {{"zzzz", "long"}, {"z", "short"}},
-                  &kLongShort)};
+                  kLongShort)};
   return kPatternItems;
 }
 
 class PatternData {
  public:
   PatternData(const std::string property, std::vector<PatternMap> pairs,
-              std::vector<const char*>* allowed_values)
+              std::vector<const char*> allowed_values)
       : property(std::move(property)), allowed_values(allowed_values) {
     for (const auto& pair : pairs) {
       map.insert(std::make_pair(pair.value, pair.pattern));
@@ -113,7 +111,7 @@ class PatternData {
 
   const std::string property;
   std::map<const std::string, const std::string> map;
-  std::vector<const char*>* allowed_values;
+  std::vector<const char*> allowed_values;
 };
 
 enum HourOption {
@@ -122,7 +120,7 @@ enum HourOption {
   H_24,
 };
 
-static const std::vector<PatternData> CreateCommonData() {
+const std::vector<PatternData> CreateCommonData() {
   std::vector<PatternData> build;
   for (const auto& item : GetPatternItems()) {
     if (item.property != "hour") {
@@ -133,20 +131,20 @@ static const std::vector<PatternData> CreateCommonData() {
   return build;
 }
 
-static const std::vector<PatternData> CreateData(const char* digit2,
-                                                 const char* numeric) {
-  static std::vector<const char*> k2DigitNumeric = {"2-digit", "numeric"};
-  static const std::vector<PatternData> common = CreateCommonData();
+const std::vector<PatternData> CreateData(const char* digit2,
+                                          const char* numeric) {
+  const std::vector<const char*> k2DigitNumeric = {"2-digit", "numeric"};
+  const std::vector<PatternData> common = CreateCommonData();
   std::vector<PatternData> build(common);
   build.push_back(PatternData(
-      "hour", {{digit2, "2-digit"}, {numeric, "numeric"}}, &k2DigitNumeric));
+      "hour", {{digit2, "2-digit"}, {numeric, "numeric"}}, k2DigitNumeric));
   return build;
 }
 
-static const std::vector<PatternData>& GetPatternData(HourOption option) {
-  static const std::vector<PatternData> data = CreateData("jj", "j");
-  static const std::vector<PatternData> data_h12 = CreateData("hh", "h");
-  static const std::vector<PatternData> data_h24 = CreateData("HH", "H");
+const std::vector<PatternData> GetPatternData(HourOption option) {
+  const std::vector<PatternData> data = CreateData("jj", "j");
+  const std::vector<PatternData> data_h12 = CreateData("hh", "h");
+  const std::vector<PatternData> data_h24 = CreateData("HH", "H");
   switch (option) {
     case HourOption::H_12:
       return data_h12;
@@ -160,7 +158,7 @@ static const std::vector<PatternData>& GetPatternData(HourOption option) {
 void SetPropertyFromPattern(Isolate* isolate, const std::string& pattern,
                             Handle<JSObject> options) {
   Factory* factory = isolate->factory();
-  const std::vector<PatternItem>& items = GetPatternItems();
+  const std::vector<PatternItem> items = GetPatternItems();
   for (const auto& item : items) {
     for (const auto& pair : item.pairs) {
       if (pattern.find(pair.pattern) != std::string::npos) {
@@ -410,7 +408,7 @@ Maybe<std::string> JSDateTimeFormat::OptionsToSkeleton(
   for (const auto& item : GetPatternData(hour_option)) {
     std::unique_ptr<char[]> input;
     Maybe<bool> maybe_get_option = Intl::GetStringOption(
-        isolate, options, item.property.c_str(), *(item.allowed_values),
+        isolate, options, item.property.c_str(), item.allowed_values,
         "Intl.DateTimeFormat", &input);
     MAYBE_RETURN(maybe_get_option, Nothing<std::string>());
     if (maybe_get_option.FromJust()) {
@@ -799,7 +797,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   MAYBE_RETURN(maybe_found_matcher, Handle<JSDateTimeFormat>());
 
   // 17. Let timeZone be ? Get(options, "timeZone").
-  static std::vector<const char*> empty_values = {};
+  std::vector<const char*> empty_values = {};
   std::unique_ptr<char[]> timezone = nullptr;
   Maybe<bool> maybe_timezone = Intl::GetStringOption(
       isolate, options, "timeZone", empty_values, kService, &timezone);

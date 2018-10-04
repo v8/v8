@@ -272,8 +272,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   // "percent", "currency" », "decimal").
   const char* service = "Intl.NumberFormat";
   std::unique_ptr<char[]> style_cstr;
-  static std::vector<const char*> style_values = {"decimal", "percent",
-                                                  "currency"};
+  const std::vector<const char*> style_values = {"decimal", "percent",
+                                                 "currency"};
   Maybe<bool> found_style = Intl::GetStringOption(
       isolate, options, "style", style_values, service, &style_cstr);
   MAYBE_RETURN(found_style, MaybeHandle<JSNumberFormat>());
@@ -293,7 +293,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   // 14. Let currency be ? GetOption(options, "currency", "string", undefined,
   // undefined).
   std::unique_ptr<char[]> currency_cstr;
-  static std::vector<const char*> empty_values = {};
+  const std::vector<const char*> empty_values = {};
   Maybe<bool> found_currency = Intl::GetStringOption(
       isolate, options, "currency", empty_values, service, &currency_cstr);
   MAYBE_RETURN(found_currency, MaybeHandle<JSNumberFormat>());
@@ -335,8 +335,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   // 18. Let currencyDisplay be ? GetOption(options, "currencyDisplay",
   // "string", « "code",  "symbol", "name" », "symbol").
   std::unique_ptr<char[]> currency_display_cstr;
-  static std::vector<const char*> currency_display_values = {"code", "name",
-                                                             "symbol"};
+  const std::vector<const char*> currency_display_values = {"code", "name",
+                                                            "symbol"};
   Maybe<bool> found_currency_display = Intl::GetStringOption(
       isolate, options, "currencyDisplay", currency_display_values, service,
       &currency_display_cstr);

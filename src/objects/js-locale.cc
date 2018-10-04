@@ -49,12 +49,12 @@ Maybe<bool> InsertOptionsIntoLocale(Isolate* isolate,
   CHECK(isolate);
   CHECK(icu_locale);
 
-  static std::vector<const char*> hour_cycle_values = {"h11", "h12", "h23",
-                                                       "h24"};
-  static std::vector<const char*> case_first_values = {"upper", "lower",
-                                                       "false"};
-  static std::vector<const char*> empty_values = {};
-  static const std::array<OptionData, 6> kOptionToUnicodeTagMap = {
+  const std::vector<const char*> hour_cycle_values = {"h11", "h12", "h23",
+                                                      "h24"};
+  const std::vector<const char*> case_first_values = {"upper", "lower",
+                                                      "false"};
+  const std::vector<const char*> empty_values = {};
+  const std::array<OptionData, 6> kOptionToUnicodeTagMap = {
       {{"calendar", "ca", &empty_values, false},
        {"collation", "co", &empty_values, false},
        {"hourCycle", "hc", &hour_cycle_values, false},
