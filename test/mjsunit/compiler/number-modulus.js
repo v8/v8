@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt
+// Flags: --allow-natives-syntax --opt --noalways-opt
 
 // Test that NumberModulus with Number feedback works if only in the
 // end SimplifiedLowering figures out that the inputs to this operation
@@ -153,4 +153,26 @@
   assertEquals(0, foo(-2));
   assertEquals(1, foo(-1));
   assertOptimized(foo);
+})();
+
+// Test that CheckedInt32Mod handles the slow-path (when
+// the left hand side is negative) correctly.
+(function() {
+  // We need a SpeculativeNumberModulus with SignedSmall feedback.
+  function foo(x, y) {
+    return x % y;
+  }
+
+  assertEquals(0, foo(2, 1));
+  assertEquals(0, foo(2, 2));
+  assertEquals(-1, foo(-3, 2));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(0, foo(2, 1));
+  assertEquals(0, foo(2, 2));
+  assertEquals(-1, foo(-3, 2));
+  assertOptimized(foo);
+
+  // Now `foo` should deoptimize if the result is -0.
+  assertEquals(-0, foo(-2, 2));
+  assertUnoptimized(foo);
 })();

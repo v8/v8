@@ -1862,8 +1862,11 @@ Node* EffectControlLinearizer::LowerCheckedInt32Mod(Node* node,
 
   __ Bind(&if_lhs_negative);
   {
-    // The {lhs} is a negative integer.
-    Node* res = BuildUint32Mod(__ Int32Sub(zero, lhs), rhs);
+    // The {lhs} is a negative integer. This is very unlikely and
+    // we intentionally don't use the BuildUint32Mod() here, which
+    // would try to figure out whether {rhs} is a power of two,
+    // since this is intended to be a slow-path.
+    Node* res = __ Uint32Mod(__ Int32Sub(zero, lhs), rhs);
 
     // Check if we would have to return -0.
     __ DeoptimizeIf(DeoptimizeReason::kMinusZero, VectorSlotPair(),
