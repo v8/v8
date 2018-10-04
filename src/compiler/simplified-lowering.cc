@@ -1440,17 +1440,24 @@ class RepresentationSelector {
     if (hint == NumberOperationHint::kSignedSmall ||
         hint == NumberOperationHint::kSigned32) {
       // If the result is truncated, we only need to check the inputs.
+      // For the left hand side we just propagate the identify zeros
+      // mode of the {truncation}; and for modulus the sign of the
+      // right hand side doesn't matter anyways, so in particular there's
+      // no observable difference between a 0 and a -0 then.
+      UseInfo const lhs_use = CheckedUseInfoAsWord32FromHint(
+          hint, VectorSlotPair(), truncation.identify_zeros());
+      UseInfo const rhs_use = CheckedUseInfoAsWord32FromHint(
+          hint, VectorSlotPair(), kIdentifyZeros);
       if (truncation.IsUsedAsWord32()) {
-        VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                   MachineRepresentation::kWord32);
+        VisitBinop(node, lhs_use, rhs_use, MachineRepresentation::kWord32);
         if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
       } else if (BothInputsAre(node, Type::Unsigned32OrMinusZeroOrNaN())) {
-        VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                   MachineRepresentation::kWord32, Type::Unsigned32());
+        VisitBinop(node, lhs_use, rhs_use, MachineRepresentation::kWord32,
+                   Type::Unsigned32());
         if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
       } else {
-        VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                   MachineRepresentation::kWord32, Type::Signed32());
+        VisitBinop(node, lhs_use, rhs_use, MachineRepresentation::kWord32,
+                   Type::Signed32());
         if (lower()) ChangeToInt32OverflowOp(node);
       }
       return;
@@ -1460,10 +1467,7 @@ class RepresentationSelector {
         TypeOf(node->InputAt(1)).Is(Type::Unsigned32()) &&
         (truncation.IsUsedAsWord32() ||
          NodeProperties::GetType(node).Is(Type::Unsigned32()))) {
-      // We can only promise Float64 truncation here, as the decision is
-      // based on the feedback types of the inputs.
-      VisitBinop(node,
-                 UseInfo(MachineRepresentation::kWord32, Truncation::Float64()),
+      VisitBinop(node, UseInfo::TruncatingWord32(),
                  MachineRepresentation::kWord32, Type::Number());
       if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
       return;
@@ -1472,19 +1476,23 @@ class RepresentationSelector {
         TypeOf(node->InputAt(1)).Is(Type::Signed32()) &&
         (truncation.IsUsedAsWord32() ||
          NodeProperties::GetType(node).Is(Type::Signed32()))) {
-      // We can only promise Float64 truncation here, as the decision is
-      // based on the feedback types of the inputs.
-      VisitBinop(node,
-                 UseInfo(MachineRepresentation::kWord32, Truncation::Float64()),
+      VisitBinop(node, UseInfo::TruncatingWord32(),
                  MachineRepresentation::kWord32, Type::Number());
       if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
       return;
     }
+
     // default case => Float64Mod
-    VisitBinop(node,
-               UseInfo::CheckedNumberOrOddballAsFloat64(kDistinguishZeros,
-                                                        VectorSlotPair()),
-               MachineRepresentation::kFloat64, Type::Number());
+    // For the left hand side we just propagate the identify zeros
+    // mode of the {truncation}; and for modulus the sign of the
+    // right hand side doesn't matter anyways, so in particular there's
+    // no observable difference between a 0 and a -0 then.
+    UseInfo const lhs_use = UseInfo::CheckedNumberOrOddballAsFloat64(
+        truncation.identify_zeros(), VectorSlotPair());
+    UseInfo const rhs_use = UseInfo::CheckedNumberOrOddballAsFloat64(
+        kIdentifyZeros, VectorSlotPair());
+    VisitBinop(node, lhs_use, rhs_use, MachineRepresentation::kFloat64,
+               Type::Number());
     if (lower()) ChangeToPureOp(node, Float64Op(node));
     return;
   }
@@ -2027,7 +2035,14 @@ class RepresentationSelector {
           return;
         }
         // => Float64Mod
-        VisitFloat64Binop(node);
+        // For the left hand side we just propagate the identify zeros
+        // mode of the {truncation}; and for modulus the sign of the
+        // right hand side doesn't matter anyways, so in particular there's
+        // no observable difference between a 0 and a -0 then.
+        UseInfo const lhs_use =
+            UseInfo::TruncatingFloat64(truncation.identify_zeros());
+        UseInfo const rhs_use = UseInfo::TruncatingFloat64(kIdentifyZeros);
+        VisitBinop(node, lhs_use, rhs_use, MachineRepresentation::kFloat64);
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
       }

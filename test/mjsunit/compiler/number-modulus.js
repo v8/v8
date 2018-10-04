@@ -176,3 +176,81 @@
   assertEquals(-0, foo(-2, 2));
   assertUnoptimized(foo);
 })();
+
+// Test that NumberModulus passes kIdentifiesZero to the
+// left hand side input when the result doesn't care about
+// 0 vs -0, even when the inputs are outside Signed32.
+(function() {
+  function foo(x) {
+    return (x * -2) % (2 ** 32) === 0;
+  }
+
+  assertFalse(foo(2));
+  assertFalse(foo(1));
+  %OptimizeFunctionOnNextCall(foo);
+  assertFalse(foo(2));
+  assertFalse(foo(1));
+
+  // Now `foo` should stay optimized even if `x * -2` would
+  // produce -0, aka when we pass a zero value for `x`.
+  assertTrue(foo(0));
+  assertOptimized(foo);
+})();
+
+// Test that NumberModulus passes kIdentifiesZero to the
+// right hand side input, even when the inputs are outside
+// the Signed32 range.
+(function() {
+  function foo(x) {
+    return (2 ** 32) % (x * -2);
+  }
+
+  assertEquals(0, foo(1));
+  assertEquals(0, foo(1));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(0, foo(1));
+
+  // Now `foo` should stay optimized even if `x * -2` would
+  // produce -0, aka when we pass a zero value for `x`.
+  assertEquals(NaN, foo(0));
+  assertOptimized(foo);
+})();
+
+// Test that SpeculativeNumberModulus passes kIdentifiesZero
+// to the right hand side input, even when feedback is consumed.
+(function() {
+  function foo(x, y) {
+    return (x % (y * -2)) | 0;
+  }
+
+  assertEquals(0, foo(2, 1));
+  assertEquals(-1, foo(-3, 1));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(0, foo(2, 1));
+  assertEquals(-1, foo(-3, 1));
+  assertOptimized(foo);
+
+  // Now `foo` should stay optimized even if `y * -2` would
+  // produce -0, aka when we pass a zero value for `y`.
+  assertEquals(0, foo(2, 0));
+  assertOptimized(foo);
+})();
+
+// Test that SpeculativeNumberModulus passes kIdentifiesZero
+// to the left hand side input, even when feedback is consumed.
+(function() {
+  function foo(x, y) {
+    return ((x * -2) % y) | 0;
+  }
+
+  assertEquals(-2, foo(1, 3));
+  assertEquals(-2, foo(1, 3));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(-2, foo(1, 3));
+  assertOptimized(foo);
+
+  // Now `foo` should stay optimized even if `x * -2` would
+  // produce -0, aka when we pass a zero value for `x`.
+  assertEquals(0, foo(0, 2));
+  assertOptimized(foo);
+})();
