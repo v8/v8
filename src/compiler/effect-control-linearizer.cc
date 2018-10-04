@@ -3529,10 +3529,25 @@ Node* EffectControlLinearizer::LowerCheckFloat64Hole(Node* node,
   CheckFloat64HoleParameters const& params =
       CheckFloat64HoleParametersOf(node->op());
   Node* value = node->InputAt(0);
-  Node* check = __ Word32Equal(__ Float64ExtractHighWord32(value),
-                               __ Int32Constant(kHoleNanUpper32));
-  __ DeoptimizeIf(DeoptimizeReason::kHole, params.feedback(), check,
-                  frame_state);
+
+  auto if_nan = __ MakeDeferredLabel();
+  auto done = __ MakeLabel();
+
+  // First check whether {value} is a NaN at all...
+  __ Branch(__ Float64Equal(value, value), &done, &if_nan);
+
+  __ Bind(&if_nan);
+  {
+    // ...and only if {value} is a NaN, perform the expensive bit
+    // check. See http://crbug.com/v8/8264 for details.
+    Node* check = __ Word32Equal(__ Float64ExtractHighWord32(value),
+                                 __ Int32Constant(kHoleNanUpper32));
+    __ DeoptimizeIf(DeoptimizeReason::kHole, params.feedback(), check,
+                    frame_state);
+    __ Goto(&done);
+  }
+
+  __ Bind(&done);
   return value;
 }
 
