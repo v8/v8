@@ -1078,11 +1078,8 @@ class ParserBase {
 
   ExpressionT ParseRegExpLiteral(bool* ok);
 
+  ExpressionT ParseBindingPattern(bool* ok);
   ExpressionT ParsePrimaryExpression(bool* is_async, bool* ok);
-  ExpressionT ParsePrimaryExpression(bool* ok) {
-    bool is_async;
-    return ParsePrimaryExpression(&is_async, ok);
-  }
 
   // Use when parsing an expression that is known to not be a pattern or part
   // of a pattern.
@@ -1820,6 +1817,39 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral(
 }
 
 template <typename Impl>
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBindingPattern(
+    bool* ok) {
+  // Pattern ::
+  //   Identifier
+  //   ArrayLiteral
+  //   ObjectLiteral
+
+  int beg_pos = peek_position();
+  Token::Value token = peek();
+  ExpressionT result;
+
+  if (Token::IsAnyIdentifier(token)) {
+    IdentifierT name = ParseAndClassifyIdentifier(CHECK_OK);
+    result = impl()->ExpressionFromIdentifier(name, beg_pos);
+  } else {
+    classifier()->RecordNonSimpleParameter();
+
+    if (token == Token::LBRACK) {
+      result = ParseArrayLiteral(CHECK_OK);
+    } else if (token == Token::LBRACE) {
+      result = ParseObjectLiteral(CHECK_OK);
+    } else {
+      ReportUnexpectedToken(Next());
+      *ok = false;
+      return impl()->NullExpression();
+    }
+  }
+
+  ValidateBindingPattern(CHECK_OK);
+  return result;
+}
+
+template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
     bool* is_async, bool* ok) {
   // PrimaryExpression ::
@@ -2013,13 +2043,12 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
                                           Token::String(Token::ELLIPSIS));
       int ellipsis_pos = position();
       int pattern_pos = peek_position();
-      ExpressionT pattern = ParsePrimaryExpression(CHECK_OK);
+      ExpressionT pattern = ParseBindingPattern(CHECK_OK);
       if (peek() == Token::ASSIGN) {
         ReportMessage(MessageTemplate::kRestDefaultInitializer);
         *ok = false;
         return result;
       }
-      ValidateBindingPattern(CHECK_OK);
       right = factory()->NewSpread(pattern, ellipsis_pos, pattern_pos);
     } else {
       right = ParseAssignmentExpression(accept_IN, CHECK_OK);
@@ -3747,13 +3776,10 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters,
   bool is_rest = parameters->has_rest;
 
   FuncNameInferrerState fni_state(&fni_);
-  ExpressionT pattern = ParsePrimaryExpression(CHECK_OK_CUSTOM(Void));
-  ValidateBindingPattern(CHECK_OK_CUSTOM(Void));
-
+  ExpressionT pattern = ParseBindingPattern(CHECK_OK_CUSTOM(Void));
   if (!impl()->IsIdentifier(pattern)) {
     parameters->is_simple = false;
-    ValidateFormalParameterInitializer(CHECK_OK_CUSTOM(Void));
-    classifier()->RecordNonSimpleParameter();
+    ValidateFormalParameterInitializer(ok);
   }
 
   ExpressionT initializer = impl()->NullExpression();
@@ -3880,17 +3906,15 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
     int decl_pos = peek_position();
     {
       ExpressionClassifier pattern_classifier(this);
-      pattern = ParsePrimaryExpression(CHECK_OK_CUSTOM(NullStatement));
+      pattern = ParseBindingPattern(CHECK_OK_CUSTOM(NullStatement));
 
-      ValidateBindingPattern(CHECK_OK_CUSTOM(NullStatement));
       if (IsLexicalVariableMode(parsing_result->descriptor.mode)) {
         ValidateLetPattern(CHECK_OK_CUSTOM(NullStatement));
       }
     }
-
     Scanner::Location variable_loc = scanner()->location();
-    bool single_name = impl()->IsIdentifier(pattern);
 
+    bool single_name = impl()->IsIdentifier(pattern);
     if (single_name) {
       impl()->PushVariableName(impl()->AsIdentifier(pattern));
     }
@@ -5632,8 +5656,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
                   ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
             } else {
               ExpressionClassifier pattern_classifier(this);
-              catch_info.pattern = ParsePrimaryExpression(CHECK_OK);
-              ValidateBindingPattern(CHECK_OK);
+              catch_info.pattern = ParseBindingPattern(CHECK_OK);
             }
 
             Expect(Token::RPAREN, CHECK_OK);
