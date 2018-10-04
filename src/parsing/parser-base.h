@@ -2073,13 +2073,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
   ExpressionListT values = impl()->NewExpressionList(4);
   int first_spread_index = -1;
   Consume(Token::LBRACK);
-  while (peek() != Token::RBRACK) {
+  while (!Check(Token::RBRACK)) {
     ExpressionT elem;
     if (peek() == Token::COMMA) {
       elem = factory()->NewTheHoleLiteral();
-    } else if (peek() == Token::ELLIPSIS) {
-      int start_pos = peek_position();
-      Consume(Token::ELLIPSIS);
+    } else if (Check(Token::ELLIPSIS)) {
+      int start_pos = position();
       int expr_pos = peek_position();
       ExpressionT argument = ParseAssignmentExpression(true, CHECK_OK);
       elem = factory()->NewSpread(argument, start_pos, expr_pos);
@@ -2111,7 +2110,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
       Expect(Token::COMMA, CHECK_OK);
     }
   }
-  Expect(Token::RBRACK, CHECK_OK);
 
   return factory()->NewArrayLiteral(values, first_spread_index, pos);
 }
@@ -2708,7 +2706,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
 
   Consume(Token::LBRACE);
 
-  while (peek() != Token::RBRACE) {
+  while (!Check(Token::RBRACE)) {
     FuncNameInferrerState fni_state(&fni_);
 
     bool is_computed_name = false;
@@ -2739,7 +2737,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
 
     fni_.Infer();
   }
-  Expect(Token::RBRACE, CHECK_OK);
 
   // In pattern rewriter, we rewrite rest property to call out to a
   // runtime function passing all the other properties as arguments to
