@@ -181,7 +181,16 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   DCHECK_NOT_NULL(descriptor_);
   DCHECK_NOT_NULL(ok_);
 
-  descriptor_->scope->RemoveUnresolved(pattern);
+  Scope* outer_function_scope = nullptr;
+  bool success;
+  if (DeclaresParameterContainingSloppyEval()) {
+    outer_function_scope = scope()->outer_scope();
+    success = outer_function_scope->RemoveUnresolved(pattern);
+  } else {
+    success = scope()->RemoveUnresolved(pattern);
+  }
+  USE(success);
+  DCHECK(success);
 
   // Declare variable.
   // Note that we *always* must treat the initial value via a separate init
@@ -192,15 +201,13 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // an initial value in the declaration (because they are initialized upon
   // entering the function).
   const AstRawString* name = pattern->raw_name();
-  VariableProxy* proxy =
-      factory()->NewVariableProxy(name, NORMAL_VARIABLE, pattern->position());
+  VariableProxy* proxy = pattern;
   Declaration* declaration;
   if (descriptor_->mode == VariableMode::kVar &&
-      !descriptor_->scope->is_declaration_scope()) {
-    DCHECK(descriptor_->scope->is_block_scope() ||
-           descriptor_->scope->is_with_scope());
+      !scope()->is_declaration_scope()) {
+    DCHECK(scope()->is_block_scope() || scope()->is_with_scope());
     declaration = factory()->NewNestedVariableDeclaration(
-        proxy, descriptor_->scope, descriptor_->declaration_pos);
+        proxy, scope(), descriptor_->declaration_pos);
   } else {
     declaration =
         factory()->NewVariableDeclaration(proxy, descriptor_->declaration_pos);
@@ -210,10 +217,6 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // a sloppy eval in a default parameter or function body, the parameter
   // needs to be declared in the function's scope, not in the varblock
   // scope which will be used for the initializer expression.
-  Scope* outer_function_scope = nullptr;
-  if (DeclaresParameterContainingSloppyEval()) {
-    outer_function_scope = descriptor_->scope->outer_scope();
-  }
   Variable* var = parser_->Declare(
       declaration, descriptor_->declaration_kind, descriptor_->mode,
       Variable::DefaultInitializationFlag(descriptor_->mode), ok_,
@@ -224,12 +227,11 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   DCHECK_NE(initializer_position_, kNoSourcePosition);
   var->set_initializer_position(initializer_position_);
 
-  Scope* declaration_scope =
-      outer_function_scope != nullptr
-          ? outer_function_scope
-          : (IsLexicalVariableMode(descriptor_->mode)
-                 ? descriptor_->scope
-                 : descriptor_->scope->GetDeclarationScope());
+  Scope* declaration_scope = outer_function_scope != nullptr
+                                 ? outer_function_scope
+                                 : (IsLexicalVariableMode(descriptor_->mode)
+                                        ? scope()
+                                        : scope()->GetDeclarationScope());
   if (declaration_scope->num_var() > kMaxNumFunctionLocals) {
     parser_->ReportMessage(MessageTemplate::kTooManyVariables);
     *ok_ = false;
@@ -242,7 +244,7 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // If there's no initializer, we're done.
   if (value == nullptr) return;
 
-  Scope* var_init_scope = descriptor_->scope;
+  Scope* var_init_scope = scope();
   Parser::MarkLoopVariableAsAssigned(var_init_scope, proxy->var(),
                                      descriptor_->declaration_kind);
 
