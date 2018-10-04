@@ -256,15 +256,15 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   //
   //    var v; v = x;
   //
-  // In particular, we need to re-lookup 'v' as it may be a different
-  // 'v' than the 'v' in the declaration (e.g., if we are inside a
-  // 'with' statement or 'catch' block). Global var declarations
-  // also need special treatment.
+  // In particular, we need to re-lookup 'v' if it may be a different 'v' than
+  // the 'v' in the declaration (e.g., if we are inside a 'with' statement or
+  // 'catch' block).
 
-  // For 'let' and 'const' declared variables the initialization always
-  // assigns to the declared variable.
-  // But for var declarations we need to do a new lookup.
-  if (descriptor_->mode == VariableMode::kVar) {
+  // For 'let' and 'const' declared variables the initialization always assigns
+  // to the declared variable. But for var declarations that target a different
+  // scope we need to do a new lookup.
+  if (descriptor_->mode == VariableMode::kVar &&
+      var_init_scope != declaration_scope) {
     proxy = var_init_scope->NewUnresolved(factory(), name);
   } else {
     DCHECK_NOT_NULL(proxy);
