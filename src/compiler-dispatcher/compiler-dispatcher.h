@@ -155,6 +155,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   AccountingAllocator* allocator_;
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats_;
   TimedHistogram* background_compile_timer_;
+  std::shared_ptr<v8::TaskRunner> taskrunner_;
   Platform* platform_;
   size_t max_stack_size_;
 

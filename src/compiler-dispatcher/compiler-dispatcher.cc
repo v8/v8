@@ -49,6 +49,8 @@ CompilerDispatcher::CompilerDispatcher(Isolate* isolate, Platform* platform,
           isolate->counters()->worker_thread_runtime_call_stats()),
       background_compile_timer_(
           isolate->counters()->compile_function_on_background()),
+      taskrunner_(platform->GetForegroundTaskRunner(
+          reinterpret_cast<v8::Isolate*>(isolate))),
       platform_(platform),
       max_stack_size_(max_stack_size),
       trace_compiler_dispatcher_(FLAG_trace_compiler_dispatcher),
@@ -299,11 +301,9 @@ void CompilerDispatcher::MemoryPressureNotification(
       abort_ = true;
       pending_background_jobs_.clear();
     }
-    auto abort_task = MakeCancelableLambdaTask(task_manager_.get(), [this] {
+    taskrunner_->PostTask(MakeCancelableLambdaTask(task_manager_.get(), [this] {
       AbortAll(BlockingBehavior::kDontBlock);
-    });
-    platform_->CallOnForegroundThread(reinterpret_cast<v8::Isolate*>(isolate_),
-                                      abort_task.release());
+    }));
   }
 }
 
@@ -318,17 +318,15 @@ CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::GetJobFor(
 }
 
 void CompilerDispatcher::ScheduleIdleTaskFromAnyThread() {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-  if (!platform_->IdleTasksEnabled(v8_isolate)) return;
+  if (!taskrunner_->IdleTasksEnabled()) return;
   {
     base::LockGuard<base::Mutex> lock(&mutex_);
     if (idle_task_scheduled_ || abort_) return;
     idle_task_scheduled_ = true;
   }
-  auto idle_task = MakeCancelableIdleLambdaTask(
+  taskrunner_->PostIdleTask(MakeCancelableIdleLambdaTask(
       task_manager_.get(),
-      [this](double deadline_in_seconds) { DoIdleWork(deadline_in_seconds); });
-  platform_->CallIdleOnForegroundThread(v8_isolate, idle_task.release());
+      [this](double deadline_in_seconds) { DoIdleWork(deadline_in_seconds); }));
 }
 
 void CompilerDispatcher::ScheduleIdleTaskIfNeeded() {
@@ -337,10 +335,8 @@ void CompilerDispatcher::ScheduleIdleTaskIfNeeded() {
 }
 
 void CompilerDispatcher::ScheduleAbortTask() {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-  auto abort_task = MakeCancelableLambdaTask(task_manager_.get(),
-                                             [this] { AbortInactiveJobs(); });
-  platform_->CallOnForegroundThread(v8_isolate, abort_task.release());
+  taskrunner_->PostTask(MakeCancelableLambdaTask(
+      task_manager_.get(), [this] { AbortInactiveJobs(); }));
 }
 
 void CompilerDispatcher::ConsiderJobForBackgroundProcessing(
