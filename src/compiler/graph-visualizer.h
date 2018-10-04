@@ -34,6 +34,11 @@ struct TurboJsonFile : public std::ofstream {
   ~TurboJsonFile() override;
 };
 
+struct TurboCfgFile : public std::ofstream {
+  explicit TurboCfgFile(Isolate* isolate = nullptr);
+  ~TurboCfgFile() override;
+};
+
 struct SourcePositionAsJSON {
   explicit SourcePositionAsJSON(const SourcePosition& sp) : sp(sp) {}
   const SourcePosition& sp;

@@ -3220,7 +3220,7 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   if (FLAG_trace_turbo) {
     // Create an empty file.
-    std::ofstream(GetTurboCfgFileName().c_str(), std::ios_base::trunc);
+    std::ofstream(GetTurboCfgFileName(this).c_str(), std::ios_base::trunc);
   }
 
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
@@ -4184,10 +4184,17 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
   }
 }
 
-std::string Isolate::GetTurboCfgFileName() {
+// static
+std::string Isolate::GetTurboCfgFileName(Isolate* isolate) {
   if (FLAG_trace_turbo_cfg_file == nullptr) {
     std::ostringstream os;
-    os << "turbo-" << base::OS::GetCurrentProcessId() << "-" << id() << ".cfg";
+    os << "turbo-" << base::OS::GetCurrentProcessId() << "-";
+    if (isolate != nullptr) {
+      os << isolate->id();
+    } else {
+      os << "any";
+    }
+    os << ".cfg";
     return os.str();
   } else {
     return FLAG_trace_turbo_cfg_file;

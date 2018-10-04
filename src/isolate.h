@@ -1386,7 +1386,7 @@ class Isolate : private HiddenFactory {
   void SetUseCounterCallback(v8::Isolate::UseCounterCallback callback);
   void CountUsage(v8::Isolate::UseCounterFeature feature);
 
-  std::string GetTurboCfgFileName();
+  static std::string GetTurboCfgFileName(Isolate* isolate);
 
 #if V8_SFI_HAS_UNIQUE_ID
   int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }

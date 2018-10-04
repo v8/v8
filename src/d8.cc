@@ -3428,6 +3428,12 @@ int Shell::Main(int argc, char* argv[]) {
     g_platform.reset(new PredictablePlatform(std::move(g_platform)));
   }
 
+  if (i::FLAG_trace_turbo_cfg_file == nullptr) {
+    SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
+  }
+  if (i::FLAG_redirect_code_traces_to == nullptr) {
+    SetFlagsFromString("--redirect-code-traces-to=code.asm");
+  }
   v8::V8::InitializePlatform(g_platform.get());
   v8::V8::Initialize();
   if (options.natives_blob || options.snapshot_blob) {
@@ -3435,12 +3441,6 @@ int Shell::Main(int argc, char* argv[]) {
                                           options.snapshot_blob);
   } else {
     v8::V8::InitializeExternalStartupData(argv[0]);
-  }
-  if (i::FLAG_trace_turbo_cfg_file == nullptr) {
-    SetFlagsFromString("--trace-turbo-cfg-file=turbo.cfg");
-  }
-  if (i::FLAG_redirect_code_traces_to == nullptr) {
-    SetFlagsFromString("--redirect-code-traces-to=code.asm");
   }
   int result = 0;
   Isolate::CreateParams create_params;

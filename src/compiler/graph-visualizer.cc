@@ -46,6 +46,12 @@ TurboJsonFile::TurboJsonFile(OptimizedCompilationInfo* info,
 
 TurboJsonFile::~TurboJsonFile() { flush(); }
 
+TurboCfgFile::TurboCfgFile(Isolate* isolate)
+    : std::ofstream(Isolate::GetTurboCfgFileName(isolate).c_str(),
+                    std::ios_base::app) {}
+
+TurboCfgFile::~TurboCfgFile() { flush(); }
+
 std::ostream& operator<<(std::ostream& out,
                          const SourcePositionAsJSON& asJSON) {
   asJSON.sp.PrintJson(out);
@@ -768,7 +774,12 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
       }
     }
 
-    os_ << " " << vreg;
+    // The toplevel range is always suffixed with :0. Use that as parent.
+    os_ << " " << vreg << ":0";
+
+    // TODO(herhut) Find something useful to print for the hint field
+    os_ << " unknown";
+
     for (const UseInterval* interval = range->first_interval();
          interval != nullptr; interval = interval->next()) {
       os_ << " [" << interval->start().value() << ", "

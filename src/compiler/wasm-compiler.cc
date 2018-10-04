@@ -5221,6 +5221,11 @@ void TurbofanWasmCompilationUnit::ExecuteCompilation(
       info.SetWasmRuntimeExceptionSupport();
     }
 
+    if (info.trace_turbo_json_enabled()) {
+      TurboCfgFile tcf;
+      tcf << AsC1VCompilation(&info);
+    }
+
     NodeOriginTable* node_origins = info.trace_turbo_json_enabled()
                                         ? new (&graph_zone)
                                               NodeOriginTable(mcgraph->graph())
