@@ -214,9 +214,11 @@ Node* GraphAssembler::Word32PoisonOnSpeculation(Node* value) {
 
 Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
                                    VectorSlotPair const& feedback,
-                                   Node* condition, Node* frame_state) {
+                                   Node* condition, Node* frame_state,
+                                   IsSafetyCheck is_safety_check) {
   return current_control_ = current_effect_ = graph()->NewNode(
-             common()->DeoptimizeIf(DeoptimizeKind::kEager, reason, feedback),
+             common()->DeoptimizeIf(DeoptimizeKind::kEager, reason, feedback,
+                                    is_safety_check),
              condition, frame_state, current_effect_, current_control_);
 }
 
@@ -231,7 +233,8 @@ Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
 }
 
 void GraphAssembler::Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
-                            GraphAssemblerLabel<0u>* if_false) {
+                            GraphAssemblerLabel<0u>* if_false,
+                            IsSafetyCheck is_safety_check) {
   DCHECK_NOT_NULL(current_control_);
 
   BranchHint hint = BranchHint::kNone;
@@ -239,8 +242,8 @@ void GraphAssembler::Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
     hint = if_false->IsDeferred() ? BranchHint::kTrue : BranchHint::kFalse;
   }
 
-  Node* branch =
-      graph()->NewNode(common()->Branch(hint), condition, current_control_);
+  Node* branch = graph()->NewNode(common()->Branch(hint, is_safety_check),
+                                  condition, current_control_);
 
   current_control_ = graph()->NewNode(common()->IfTrue(), branch);
   MergeState(if_true);

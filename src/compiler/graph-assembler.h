@@ -234,8 +234,10 @@ class GraphAssembler {
 
   Node* Word32PoisonOnSpeculation(Node* value);
 
-  Node* DeoptimizeIf(DeoptimizeReason reason, VectorSlotPair const& feedback,
-                     Node* condition, Node* frame_state);
+  Node* DeoptimizeIf(
+      DeoptimizeReason reason, VectorSlotPair const& feedback, Node* condition,
+      Node* frame_state,
+      IsSafetyCheck is_safety_check = IsSafetyCheck::kSafetyCheck);
   Node* DeoptimizeIfNot(
       DeoptimizeReason reason, VectorSlotPair const& feedback, Node* condition,
       Node* frame_state,
@@ -253,7 +255,8 @@ class GraphAssembler {
   void Goto(GraphAssemblerLabel<sizeof...(Vars)>* label, Vars...);
 
   void Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
-              GraphAssemblerLabel<0u>* if_false);
+              GraphAssemblerLabel<0u>* if_false,
+              IsSafetyCheck is_safety_check = IsSafetyCheck::kNoSafetyCheck);
 
   // Control helpers.
   // {GotoIf(c, l)} is equivalent to {Branch(c, l, templ);Bind(templ)}.

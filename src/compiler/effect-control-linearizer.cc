@@ -1462,10 +1462,11 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
       Node* map = __ HeapConstant(maps[i]);
       Node* check = __ WordEqual(value_map, map);
       if (i == map_count - 1) {
-        __ GotoIfNot(check, &migrate);
-        __ Goto(&done);
+        __ Branch(check, &done, &migrate, IsSafetyCheck::kCriticalSafetyCheck);
       } else {
-        __ GotoIf(check, &done);
+        auto next_map = __ MakeLabel();
+        __ Branch(check, &done, &next_map, IsSafetyCheck::kCriticalSafetyCheck);
+        __ Bind(&next_map);
       }
     }
 
@@ -1480,7 +1481,8 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
                        __ Int32Constant(Map::IsDeprecatedBit::kMask)),
           __ Int32Constant(0));
       __ DeoptimizeIf(DeoptimizeReason::kWrongMap, p.feedback(),
-                      if_not_deprecated, frame_state);
+                      if_not_deprecated, frame_state,
+                      IsSafetyCheck::kCriticalSafetyCheck);
 
       Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
       Runtime::FunctionId id = Runtime::kTryMigrateInstance;
@@ -1491,7 +1493,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
                              __ Int32Constant(1), __ NoContextConstant());
       Node* check = ObjectIsSmi(result);
       __ DeoptimizeIf(DeoptimizeReason::kInstanceMigrationFailed, p.feedback(),
-                      check, frame_state);
+                      check, frame_state, IsSafetyCheck::kCriticalSafetyCheck);
     }
 
     // Reload the current map of the {value}.
@@ -1503,9 +1505,11 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
       Node* check = __ WordEqual(value_map, map);
       if (i == map_count - 1) {
         __ DeoptimizeIfNot(DeoptimizeReason::kWrongMap, p.feedback(), check,
-                           frame_state);
+                           frame_state, IsSafetyCheck::kCriticalSafetyCheck);
       } else {
-        __ GotoIf(check, &done);
+        auto next_map = __ MakeLabel();
+        __ Branch(check, &done, &next_map, IsSafetyCheck::kCriticalSafetyCheck);
+        __ Bind(&next_map);
       }
     }
 
@@ -1522,9 +1526,11 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
       Node* check = __ WordEqual(value_map, map);
       if (i == map_count - 1) {
         __ DeoptimizeIfNot(DeoptimizeReason::kWrongMap, p.feedback(), check,
-                           frame_state);
+                           frame_state, IsSafetyCheck::kCriticalSafetyCheck);
       } else {
-        __ GotoIf(check, &done);
+        auto next_map = __ MakeLabel();
+        __ Branch(check, &done, &next_map, IsSafetyCheck::kCriticalSafetyCheck);
+        __ Bind(&next_map);
       }
     }
     __ Goto(&done);
@@ -1545,7 +1551,14 @@ Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
   for (size_t i = 0; i < map_count; ++i) {
     Node* map = __ HeapConstant(maps[i]);
     Node* check = __ WordEqual(value_map, map);
-    __ GotoIf(check, &done, __ Int32Constant(1));
+    auto next_map = __ MakeLabel();
+    auto passed = __ MakeLabel();
+    __ Branch(check, &passed, &next_map, IsSafetyCheck::kCriticalSafetyCheck);
+
+    __ Bind(&passed);
+    __ Goto(&done, __ Int32Constant(1));
+
+    __ Bind(&next_map);
   }
   __ Goto(&done, __ Int32Constant(0));
 

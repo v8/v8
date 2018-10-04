@@ -916,9 +916,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   PoisoningMitigationLevel load_poisoning =
       PoisoningMitigationLevel::kDontPoison;
   if (FLAG_untrusted_code_mitigations) {
-    // For partial mitigations, this can be changed to
-    // PoisoningMitigationLevel::kPoisonCriticalOnly.
-    load_poisoning = PoisoningMitigationLevel::kPoisonAll;
+    // For full mitigations, this can be changed to
+    // PoisoningMitigationLevel::kPoisonAll.
+    load_poisoning = PoisoningMitigationLevel::kPoisonCriticalOnly;
   }
   compilation_info()->SetPoisoningMitigationLevel(load_poisoning);
 

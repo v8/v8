@@ -246,7 +246,8 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       MaybeHandle<Map>(),
       field_type,
       MachineType::TypeForRepresentation(field_representation),
-      kFullWriteBarrier};
+      kFullWriteBarrier,
+      LoadSensitivity::kCritical};
   if (field_representation == MachineRepresentation::kFloat64) {
     if (!field_index.is_inobject() || field_index.is_hidden_field() ||
         !FLAG_unbox_double_fields) {
@@ -256,7 +257,8 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
                                           MaybeHandle<Map>(),
                                           Type::OtherInternal(),
                                           MachineType::TaggedPointer(),
-                                          kPointerWriteBarrier};
+                                          kPointerWriteBarrier,
+                                          LoadSensitivity::kCritical};
       storage = *effect = graph()->NewNode(
           simplified()->LoadField(storage_access), storage, *effect, *control);
       field_access.offset = HeapNumber::kValueOffset;
