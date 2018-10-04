@@ -231,12 +231,14 @@ class PredictablePlatform : public Platform {
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    platform_->CallOnForegroundThread(isolate, task);
+    // This is a deprecated function and should not be called anymore.
+    UNREACHABLE();
   }
 
   void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
                                      double delay_in_seconds) override {
-    platform_->CallDelayedOnForegroundThread(isolate, task, delay_in_seconds);
+    // This is a deprecated function and should not be called anymore.
+    UNREACHABLE();
   }
 
   void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override {
