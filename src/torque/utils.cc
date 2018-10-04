@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 
+#include "src/base/logging.h"
 #include "src/torque/ast.h"
 #include "src/torque/utils.h"
 
@@ -78,9 +79,9 @@ std::string CurrentPositionAsString() {
 
 DEFINE_CONTEXTUAL_VARIABLE(LintErrorStatus)
 
-[[noreturn]] void ReportError(const std::string& error) {
+[[noreturn]] void ReportErrorString(const std::string& error) {
   std::cerr << CurrentPositionAsString() << ": Torque error: " << error << "\n";
-  std::abort();
+  v8::base::OS::Abort();
 }
 
 void LintError(const std::string& error) {

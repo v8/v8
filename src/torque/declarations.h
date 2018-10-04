@@ -97,13 +97,10 @@ class Declarations {
                             bool is_const);
 
   Parameter* DeclareParameter(const std::string& name,
-                              const std::string& mangled_name,
-                              const Type* type);
-
-  Label* DeclarePrivateLabel(const std::string& name);
+                              std::string external_name, const Type* type);
 
   void DeclareExternConstant(const std::string& name, const Type* type,
-                             const std::string& value);
+                             std::string value);
   ModuleConstant* DeclareModuleConstant(const std::string& name,
                                         const Type* type);
 

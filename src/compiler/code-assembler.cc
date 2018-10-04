@@ -1754,6 +1754,43 @@ void CodeAssemblerLabel::UpdateVariablesAfterBind() {
   bound_ = true;
 }
 
+void CodeAssemblerParameterizedLabelBase::AddInputs(std::vector<Node*> inputs) {
+  if (!phi_nodes_.empty()) {
+    DCHECK_EQ(inputs.size(), phi_nodes_.size());
+    for (size_t i = 0; i < inputs.size(); ++i) {
+      state_->raw_assembler_->AppendPhiInput(phi_nodes_[i], inputs[i]);
+    }
+  } else {
+    DCHECK_EQ(inputs.size(), phi_inputs_.size());
+    for (size_t i = 0; i < inputs.size(); ++i) {
+      phi_inputs_[i].push_back(inputs[i]);
+    }
+  }
+}
+
+Node* CodeAssemblerParameterizedLabelBase::CreatePhi(
+    MachineRepresentation rep, const std::vector<Node*>& inputs) {
+  for (Node* input : inputs) {
+    // We use {nullptr} as a sentinel for an uninitialized value. We must not
+    // create phi nodes for these.
+    if (input == nullptr) return nullptr;
+  }
+  return state_->raw_assembler_->Phi(rep, static_cast<int>(inputs.size()),
+                                     &inputs.front());
+}
+
+const std::vector<Node*>& CodeAssemblerParameterizedLabelBase::CreatePhis(
+    std::vector<MachineRepresentation> representations) {
+  DCHECK(is_used());
+  DCHECK(phi_nodes_.empty());
+  phi_nodes_.reserve(phi_inputs_.size());
+  DCHECK_EQ(representations.size(), phi_inputs_.size());
+  for (size_t i = 0; i < phi_inputs_.size(); ++i) {
+    phi_nodes_.push_back(CreatePhi(representations[i], phi_inputs_[i]));
+  }
+  return phi_nodes_;
+}
+
 }  // namespace compiler
 
 Smi* CheckObjectType(Object* value, Smi* type, String* location) {

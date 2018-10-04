@@ -52,6 +52,7 @@ class PromiseFulfillReactionJobTask;
 class PromiseReaction;
 class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
+class TorqueAssembler;
 class Zone;
 
 template <typename T>
@@ -1421,6 +1422,60 @@ class CodeAssemblerLabel {
   std::map<CodeAssemblerVariable::Impl*, std::vector<Node*>> variable_merges_;
 };
 
+class CodeAssemblerParameterizedLabelBase {
+ public:
+  bool is_used() const { return plain_label_.is_used(); }
+  explicit CodeAssemblerParameterizedLabelBase(CodeAssembler* assembler,
+                                               size_t arity,
+                                               CodeAssemblerLabel::Type type)
+      : state_(assembler->state()),
+        phi_inputs_(arity),
+        plain_label_(assembler, type) {}
+
+ protected:
+  CodeAssemblerLabel* plain_label() { return &plain_label_; }
+  void AddInputs(std::vector<Node*> inputs);
+  Node* CreatePhi(MachineRepresentation rep, const std::vector<Node*>& inputs);
+  const std::vector<Node*>& CreatePhis(
+      std::vector<MachineRepresentation> representations);
+
+ private:
+  CodeAssemblerState* state_;
+  std::vector<std::vector<Node*>> phi_inputs_;
+  std::vector<Node*> phi_nodes_;
+  CodeAssemblerLabel plain_label_;
+};
+
+template <class... Types>
+class CodeAssemblerParameterizedLabel
+    : public CodeAssemblerParameterizedLabelBase {
+ public:
+  static constexpr size_t kArity = sizeof...(Types);
+  explicit CodeAssemblerParameterizedLabel(CodeAssembler* assembler,
+                                           CodeAssemblerLabel::Type type)
+      : CodeAssemblerParameterizedLabelBase(assembler, kArity, type) {}
+
+ private:
+  friend class internal::TorqueAssembler;
+
+  void AddInputs(TNode<Types>... inputs) {
+    CodeAssemblerParameterizedLabelBase::AddInputs(
+        std::vector<Node*>{inputs...});
+  }
+  void CreatePhis(TNode<Types>*... results) {
+    const std::vector<Node*>& phi_nodes =
+        CodeAssemblerParameterizedLabelBase::CreatePhis(
+            {MachineRepresentationOf<Types>::value...});
+    auto it = phi_nodes.begin();
+    USE(it);
+    ITERATE_PACK(AssignPhi(results, *(it++)));
+  }
+  template <class T>
+  static void AssignPhi(TNode<T>* result, Node* phi) {
+    if (phi != nullptr) *result = TNode<T>::UncheckedCast(phi);
+  }
+};
+
 class V8_EXPORT_PRIVATE CodeAssemblerState {
  public:
   // Create with CallStub linkage.
@@ -1454,6 +1509,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   friend class CodeAssemblerLabel;
   friend class CodeAssemblerVariable;
   friend class CodeAssemblerTester;
+  friend class CodeAssemblerParameterizedLabelBase;
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, Code::Kind kind,

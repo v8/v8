@@ -143,11 +143,12 @@ module test {
 
   GenericMacroTestWithLabels<Object>(param2: Object): Object
       labels Y {
-    return param2;
+    return Cast<Smi>(param2) otherwise Y;
   }
 
   macro TestMacroSpecialization() {
     try {
+      const smi0: Smi = 0;
       check(GenericMacroTest<Smi>(0) == Undefined);
       check(GenericMacroTest<Smi>(1) == Undefined);
       check(GenericMacroTest<Object>(Null) == Null);
@@ -155,8 +156,11 @@ module test {
       check(GenericMacroTest<Object>(True) == True);
       check(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
       check(GenericMacroTestWithLabels<Smi>(0) otherwise Fail == Undefined);
-      check(GenericMacroTestWithLabels<Object>(Null) otherwise Fail == Null);
-      check(GenericMacroTestWithLabels<Object>(False) otherwise Fail == False);
+      check(GenericMacroTestWithLabels<Object>(smi0) otherwise Fail == smi0);
+      try {
+        GenericMacroTestWithLabels<Object>(False) otherwise Expected;
+      }
+      label Expected {}
     }
     label Fail {
       unreachable;

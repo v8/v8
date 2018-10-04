@@ -345,20 +345,33 @@ inline std::ostream& operator<<(std::ostream& os, const Type& t) {
 class VisitResult {
  public:
   VisitResult() = default;
-  VisitResult(const Type* type, const std::string& value)
-      : type_(type), value_(value), declarable_{} {}
-  VisitResult(const Type* type, const Value* declarable);
+  VisitResult(const Type* type, const std::string& constexpr_value)
+      : type_(type), constexpr_value_(constexpr_value) {
+    DCHECK(type->IsConstexpr());
+  }
+  static VisitResult NeverResult();
+  VisitResult(const Type* type, StackRange stack_range)
+      : type_(type), stack_range_(stack_range) {
+    DCHECK(!type->IsConstexpr());
+  }
   const Type* type() const { return type_; }
-  base::Optional<const Value*> declarable() const { return declarable_; }
-  std::string LValue() const;
-  std::string RValue() const;
+  const std::string& constexpr_value() const { return *constexpr_value_; }
+  const StackRange& stack_range() const { return *stack_range_; }
   void SetType(const Type* new_type) { type_ = new_type; }
+  bool IsOnStack() const { return stack_range_ != base::nullopt; }
+  bool operator==(const VisitResult& other) const {
+    return type_ == other.type_ && constexpr_value_ == other.constexpr_value_ &&
+           stack_range_ == other.stack_range_;
+  }
 
  private:
   const Type* type_ = nullptr;
-  std::string value_;
-  base::Optional<const Value*> declarable_;
+  base::Optional<std::string> constexpr_value_;
+  base::Optional<StackRange> stack_range_;
 };
+
+VisitResult ProjectStructField(VisitResult structure,
+                               const std::string& fieldname);
 
 class VisitResultVector : public std::vector<VisitResult> {
  public:
@@ -419,6 +432,12 @@ std::ostream& operator<<(std::ostream& os, const Signature& sig);
 bool IsAssignableFrom(const Type* to, const Type* from);
 bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
                            const std::vector<Label*>& labels);
+
+TypeVector LowerType(const Type* type);
+size_t LoweredSlotCount(const Type* type);
+TypeVector LowerParameterTypes(const TypeVector& parameters);
+TypeVector LowerParameterTypes(const ParameterTypes& parameter_types,
+                               size_t vararg_count = 0);
 
 }  // namespace torque
 }  // namespace internal
