@@ -771,12 +771,20 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return GetRareVariable(RareVariable::kGeneratorObject);
   }
 
+  // The variable holding the promise returned from async functions.
+  // Only valid for function scopes in async functions (i.e. not
+  // for async generators).
   Variable* promise_var() const {
     DCHECK(is_function_scope());
     DCHECK(IsAsyncFunction(function_kind_));
     if (IsAsyncGeneratorFunction(function_kind_)) return nullptr;
     return GetRareVariable(RareVariable::kPromise);
   }
+
+  // For async functions, the .promise variable is always allocated
+  // to a fixed stack slot, such that the stack trace construction
+  // logic can access it.
+  static constexpr int kPromiseVarIndex = 0;
 
   // Parameters. The left-most parameter has index 0.
   // Only valid for function and module scopes.
@@ -905,6 +913,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void AllocateLocals();
   void AllocateParameterLocals();
   void AllocateReceiver();
+  void AllocatePromise();
 
   void ResetAfterPreparsing(AstValueFactory* ast_value_factory, bool aborted);
 
@@ -961,6 +970,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool force_eager_compilation_ : 1;
   // This function scope has a rest parameter.
   bool has_rest_ : 1;
+  // This function scope has a .promise variable.
+  bool has_promise_ : 1;
   // This scope has a parameter called "arguments".
   bool has_arguments_parameter_ : 1;
   // This scope uses "super" property ('super.foo').

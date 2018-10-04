@@ -265,6 +265,8 @@ bool Builtins::IsLazy(int index) {
     case kArrayReduceRightPreLoopEagerDeoptContinuation:
     case kArraySomeLoopEagerDeoptContinuation:
     case kArraySomeLoopLazyDeoptContinuation:
+    case kAsyncFunctionAwaitResolveClosure:     // https://crbug.com/v8/7522
+    case kAsyncFunctionAwaitRejectClosure:      // https://crbug.com/v8/7522
     case kAsyncGeneratorAwaitCaught:            // https://crbug.com/v8/6786.
     case kAsyncGeneratorAwaitUncaught:          // https://crbug.com/v8/6786.
     // CEntry variants must be immovable, whereas lazy deserialization allocates

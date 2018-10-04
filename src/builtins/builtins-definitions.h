@@ -468,6 +468,7 @@ namespace internal {
   CPP(CallSitePrototypeGetScriptNameOrSourceURL)                               \
   CPP(CallSitePrototypeGetThis)                                                \
   CPP(CallSitePrototypeGetTypeName)                                            \
+  CPP(CallSitePrototypeIsAsync)                                                \
   CPP(CallSitePrototypeIsConstructor)                                          \
   CPP(CallSitePrototypeIsEval)                                                 \
   CPP(CallSitePrototypeIsNative)                                               \

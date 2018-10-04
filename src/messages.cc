@@ -305,6 +305,7 @@ void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   const int flags = array->Flags(frame_ix)->value();
   is_constructor_ = (flags & FrameArray::kIsConstructor) != 0;
   is_strict_ = (flags & FrameArray::kIsStrict) != 0;
+  is_async_ = (flags & FrameArray::kIsAsync) != 0;
 }
 
 JSStackFrame::JSStackFrame(Isolate* isolate, Handle<Object> receiver,
@@ -315,6 +316,7 @@ JSStackFrame::JSStackFrame(Isolate* isolate, Handle<Object> receiver,
       function_(function),
       code_(code),
       offset_(offset),
+      is_async_(false),
       is_constructor_(false),
       is_strict_(false) {}
 
@@ -604,9 +606,13 @@ MaybeHandle<String> JSStackFrame::ToString() {
   Handle<Object> function_name = GetFunctionName();
 
   const bool is_toplevel = IsToplevel();
+  const bool is_async = IsAsync();
   const bool is_constructor = IsConstructor();
   const bool is_method_call = !(is_toplevel || is_constructor);
 
+  if (is_async) {
+    builder.AppendCString("async ");
+  }
   if (is_method_call) {
     AppendMethodCall(isolate_, this, &builder);
   } else if (is_constructor) {

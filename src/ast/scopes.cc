@@ -308,6 +308,7 @@ void DeclarationScope::SetDefaults() {
   has_arguments_parameter_ = false;
   scope_uses_super_property_ = false;
   has_rest_ = false;
+  has_promise_ = false;
   sloppy_block_function_map_ = nullptr;
   receiver_ = nullptr;
   new_target_ = nullptr;
@@ -785,6 +786,7 @@ Variable* DeclarationScope::DeclarePromiseVar(const AstRawString* name) {
   DCHECK_NULL(promise_var());
   Variable* result = EnsureRareData()->promise = NewTemporary(name);
   result->set_is_used();
+  has_promise_ = true;
   return result;
 }
 
@@ -1491,6 +1493,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   sloppy_block_function_map_ = nullptr;
   rare_data_ = nullptr;
   has_rest_ = false;
+  has_promise_ = false;
 
   DCHECK_NE(zone_, ast_value_factory->zone());
   zone_->ReleaseMemory();
@@ -2172,6 +2175,15 @@ void DeclarationScope::AllocateReceiver() {
   AllocateParameter(receiver(), -1);
 }
 
+void DeclarationScope::AllocatePromise() {
+  if (!has_promise_) return;
+  DCHECK_NOT_NULL(promise_var());
+  DCHECK_EQ(this, promise_var()->scope());
+  AllocateStackSlot(promise_var());
+  DCHECK_EQ(VariableLocation::LOCAL, promise_var()->location());
+  DCHECK_EQ(kPromiseVarIndex, promise_var()->index());
+}
+
 void Scope::AllocateNonParameterLocal(Variable* var) {
   DCHECK(var->scope() == this);
   if (var->IsUnallocated() && MustAllocate(var)) {
@@ -2239,6 +2251,11 @@ void Scope::AllocateVariablesRecursively() {
   if (is_declaration_scope() && AsDeclarationScope()->was_lazily_parsed()) {
     return;
   }
+
+  // Make sure to allocate the .promise first, so that it get's
+  // the required stack slot 0 in case it's needed. See
+  // http://bit.ly/v8-zero-cost-async-stack-traces for details.
+  if (is_function_scope()) AsDeclarationScope()->AllocatePromise();
 
   // Allocate variables for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {

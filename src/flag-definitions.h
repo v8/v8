@@ -1042,6 +1042,9 @@ DEFINE_BOOL(trace_sim_messages, false,
             "Trace simulator debug messages. Implied by --trace-sim.")
 
 // isolate.cc
+DEFINE_BOOL(async_stack_traces, false,
+            "include async stack traces in Error.stack")
+DEFINE_IMPLICATION(async_stack_traces, harmony_await_optimization)
 DEFINE_BOOL(stack_trace_on_illegal, false,
             "print stack trace when an illegal exception is thrown")
 DEFINE_BOOL(abort_on_uncaught_exception, false,
