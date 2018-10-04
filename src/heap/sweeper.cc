@@ -447,10 +447,11 @@ int Sweeper::ParallelSweepPage(Page* page, AllocationSpace identity) {
 void Sweeper::ScheduleIncrementalSweepingTask() {
   if (!incremental_sweeper_pending_) {
     incremental_sweeper_pending_ = true;
-    IncrementalSweeperTask* task =
-        new IncrementalSweeperTask(heap_->isolate(), this);
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap_->isolate());
-    V8::GetCurrentPlatform()->CallOnForegroundThread(isolate, task);
+    auto taskrunner =
+        V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
+    taskrunner->PostTask(
+        base::make_unique<IncrementalSweeperTask>(heap_->isolate(), this));
   }
 }
 
