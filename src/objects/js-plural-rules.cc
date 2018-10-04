@@ -85,7 +85,7 @@ void InitializeICUPluralRules(
 }  // namespace
 
 // static
-MaybeHandle<JSPluralRules> JSPluralRules::InitializePluralRules(
+MaybeHandle<JSPluralRules> JSPluralRules::Initialize(
     Isolate* isolate, Handle<JSPluralRules> plural_rules,
     Handle<Object> locales, Handle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).

@@ -28,7 +28,7 @@ namespace internal {
 class JSCollator : public JSObject {
  public:
   // ecma402/#sec-initializecollator
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSCollator> InitializeCollator(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSCollator> Initialize(
       Isolate* isolate, Handle<JSCollator> collator, Handle<Object> locales,
       Handle<Object> options);
 

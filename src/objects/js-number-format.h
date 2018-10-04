@@ -80,7 +80,7 @@ class JSNumberFormat : public JSObject {
 // Layout description.
 #define JS_NUMBER_FORMAT_FIELDS(V)        \
   V(kLocaleOffset, kPointerSize)          \
-  V(kIcuNumberFormatOffset, kPointerSize) \
+  V(kICUNumberFormatOffset, kPointerSize) \
   V(kBoundFormatOffset, kPointerSize)     \
   V(kFlagsOffset, kPointerSize)           \
   /* Total size. */                       \

@@ -27,7 +27,7 @@ namespace internal {
 
 class JSPluralRules : public JSObject {
  public:
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSPluralRules> InitializePluralRules(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSPluralRules> Initialize(
       Isolate* isolate, Handle<JSPluralRules> plural_rules,
       Handle<Object> locales, Handle<Object> options);
 

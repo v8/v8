@@ -24,7 +24,7 @@ JSV8BreakIterator::Type JSV8BreakIterator::getType(const char* str) {
   UNREACHABLE();
 }
 
-MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::InitializeV8BreakIterator(
+MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::Initialize(
     Isolate* isolate, Handle<JSV8BreakIterator> break_iterator_holder,
     Handle<Object> locales, Handle<Object> options_obj) {
   Factory* factory = isolate->factory();

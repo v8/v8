@@ -29,7 +29,7 @@ class JSListFormat : public JSObject {
  public:
   // Initializes relative time format object with properties derived from input
   // locales and options.
-  static MaybeHandle<JSListFormat> InitializeListFormat(
+  static MaybeHandle<JSListFormat> Initialize(
       Isolate* isolate, Handle<JSListFormat> list_format_holder,
       Handle<Object> locales, Handle<Object> options);
 

@@ -54,8 +54,7 @@ JSRelativeTimeFormat::Numeric JSRelativeTimeFormat::getNumeric(
   UNREACHABLE();
 }
 
-MaybeHandle<JSRelativeTimeFormat>
-JSRelativeTimeFormat::InitializeRelativeTimeFormat(
+MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
     Isolate* isolate, Handle<JSRelativeTimeFormat> relative_time_format_holder,
     Handle<Object> input_locales, Handle<Object> input_options) {
   Factory* factory = isolate->factory();

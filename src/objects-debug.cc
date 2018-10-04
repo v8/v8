@@ -1939,7 +1939,7 @@ void JSNumberFormat::JSNumberFormatVerify(Isolate* isolate) {
   CHECK(IsJSNumberFormat());
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kLocaleOffset);
-  VerifyObjectField(isolate, kIcuNumberFormatOffset);
+  VerifyObjectField(isolate, kICUNumberFormatOffset);
   VerifyObjectField(isolate, kBoundFormatOffset);
   VerifyObjectField(isolate, kFlagsOffset);
 }

@@ -119,7 +119,7 @@ JSListFormat::Type get_type(const char* str) {
   UNREACHABLE();
 }
 
-MaybeHandle<JSListFormat> JSListFormat::InitializeListFormat(
+MaybeHandle<JSListFormat> JSListFormat::Initialize(
     Isolate* isolate, Handle<JSListFormat> list_format_holder,
     Handle<Object> input_locales, Handle<Object> input_options) {
   Factory* factory = isolate->factory();

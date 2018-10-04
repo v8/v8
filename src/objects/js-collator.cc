@@ -217,9 +217,10 @@ void SetCaseFirstOption(icu::Collator* icu_collator, const char* value) {
 }  // anonymous namespace
 
 // static
-MaybeHandle<JSCollator> JSCollator::InitializeCollator(
-    Isolate* isolate, Handle<JSCollator> collator, Handle<Object> locales,
-    Handle<Object> options_obj) {
+MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
+                                               Handle<JSCollator> collator,
+                                               Handle<Object> locales,
+                                               Handle<Object> options_obj) {
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Handle<JSObject> requested_locales;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, requested_locales,

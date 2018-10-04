@@ -163,10 +163,10 @@ bool PopulateLocaleWithUnicodeTags(Isolate* isolate, const char* icu_locale,
 }
 }  // namespace
 
-MaybeHandle<JSLocale> JSLocale::InitializeLocale(Isolate* isolate,
-                                                 Handle<JSLocale> locale_holder,
-                                                 Handle<String> locale,
-                                                 Handle<JSReceiver> options) {
+MaybeHandle<JSLocale> JSLocale::Initialize(Isolate* isolate,
+                                           Handle<JSLocale> locale_holder,
+                                           Handle<String> locale,
+                                           Handle<JSReceiver> options) {
   static const char* const kMethod = "Intl.Locale";
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   UErrorCode status = U_ZERO_ERROR;

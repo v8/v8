@@ -529,8 +529,8 @@ BUILTIN(ListFormatConstructor) {
   Handle<Object> options = args.atOrUndefined(isolate, 2);
 
   // 3. Return InitializeListFormat(listFormat, locales, options).
-  RETURN_RESULT_OR_FAILURE(isolate, JSListFormat::InitializeListFormat(
-                                        isolate, format, locales, options));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSListFormat::Initialize(isolate, format, locales, options));
 }
 
 BUILTIN(ListFormatPrototypeResolvedOptions) {
@@ -582,8 +582,8 @@ MaybeHandle<JSLocale> CreateLocale(Isolate* isolate,
                                Object::ToObject(isolate, options), JSLocale);
   }
 
-  return JSLocale::InitializeLocale(isolate, Handle<JSLocale>::cast(result),
-                                    locale_string, options_object);
+  return JSLocale::Initialize(isolate, Handle<JSLocale>::cast(result),
+                              locale_string, options_object);
 }
 
 }  // namespace
@@ -784,9 +784,8 @@ BUILTIN(RelativeTimeFormatConstructor) {
 
   // 3. Return ? InitializeRelativeTimeFormat(relativeTimeFormat, locales,
   //                                          options).
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           JSRelativeTimeFormat::InitializeRelativeTimeFormat(
-                               isolate, format, locales, options));
+  RETURN_RESULT_OR_FAILURE(isolate, JSRelativeTimeFormat::Initialize(
+                                        isolate, format, locales, options));
 }
 
 BUILTIN(RelativeTimeFormatPrototypeResolvedOptions) {
@@ -854,8 +853,8 @@ BUILTIN(PluralRulesConstructor) {
 
   // 3. Return ? InitializePluralRules(pluralRules, locales, options).
   RETURN_RESULT_OR_FAILURE(
-      isolate, JSPluralRules::InitializePluralRules(isolate, plural_rules,
-                                                    locales, options));
+      isolate,
+      JSPluralRules::Initialize(isolate, plural_rules, locales, options));
 }
 
 BUILTIN(PluralRulesPrototypeResolvedOptions) {
@@ -921,8 +920,8 @@ BUILTIN(CollatorConstructor) {
   Handle<JSCollator> collator = Handle<JSCollator>::cast(collator_obj);
 
   // 6. Return ? InitializeCollator(collator, locales, options).
-  RETURN_RESULT_OR_FAILURE(isolate, JSCollator::InitializeCollator(
-                                        isolate, collator, locales, options));
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSCollator::Initialize(isolate, collator, locales, options));
 }
 
 BUILTIN(CollatorPrototypeResolvedOptions) {
@@ -1019,9 +1018,9 @@ BUILTIN(V8BreakIteratorConstructor) {
   Handle<JSV8BreakIterator> break_iterator =
       Handle<JSV8BreakIterator>::cast(break_iterator_obj);
 
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           JSV8BreakIterator::InitializeV8BreakIterator(
-                               isolate, break_iterator, locales, options));
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      JSV8BreakIterator::Initialize(isolate, break_iterator, locales, options));
 }
 
 BUILTIN(V8BreakIteratorPrototypeResolvedOptions) {

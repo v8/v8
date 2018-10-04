@@ -29,8 +29,7 @@ class JSRelativeTimeFormat : public JSObject {
  public:
   // Initializes relative time format object with properties derived from input
   // locales and options.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSRelativeTimeFormat>
-  InitializeRelativeTimeFormat(
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSRelativeTimeFormat> Initialize(
       Isolate* isolate,
       Handle<JSRelativeTimeFormat> relative_time_format_holder,
       Handle<Object> locales, Handle<Object> options);
