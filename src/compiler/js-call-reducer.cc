@@ -5349,9 +5349,6 @@ Reduction JSCallReducer::ReduceStringFromCodePoint(Node* node) {
     Node* control = NodeProperties::GetControlInput(node);
     Node* input = NodeProperties::GetValueInput(node, 2);
 
-    input = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
-                                      input, effect, control);
-
     input = effect =
         graph()->NewNode(simplified()->CheckBounds(p.feedback()), input,
                          jsgraph()->Constant(0x10FFFF + 1), effect, control);
