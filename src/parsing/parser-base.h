@@ -1683,15 +1683,9 @@ template <typename Impl>
 typename ParserBase<Impl>::IdentifierT
 ParserBase<Impl>::ParseAndClassifyIdentifier(bool* ok) {
   Token::Value next = Next();
-  if (next == Token::IDENTIFIER || next == Token::ASYNC ||
-      (next == Token::AWAIT && !parsing_module_ && !is_async_function())) {
+  STATIC_ASSERT(Token::IDENTIFIER + 1 == Token::ASYNC);
+  if (IsInRange(next, Token::IDENTIFIER, Token::ASYNC)) {
     IdentifierT name = impl()->GetSymbol();
-
-    if (impl()->IsArguments(name) && scope()->ShouldBanArguments()) {
-      ReportMessage(MessageTemplate::kArgumentsDisallowedInInitializer);
-      *ok = false;
-      return impl()->NullIdentifier();
-    }
 
     // When this function is used to read a formal parameter, we don't always
     // know whether the function is going to be strict or sloppy.  Indeed for
@@ -1700,15 +1694,18 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(bool* ok) {
     // must detect because we know we're in strict mode, we also record any
     // error that we might make in the future once we know the language mode.
     if (impl()->IsEvalOrArguments(name)) {
+      if (impl()->IsArguments(name) && scope()->ShouldBanArguments()) {
+        ReportMessage(MessageTemplate::kArgumentsDisallowedInInitializer);
+        *ok = false;
+        return impl()->NullIdentifier();
+      }
+
       classifier()->RecordStrictModeFormalParameterError(
           scanner()->location(), MessageTemplate::kStrictEvalArguments);
       if (is_strict(language_mode())) {
         classifier()->RecordBindingPatternError(
             scanner()->location(), MessageTemplate::kStrictEvalArguments);
       }
-    } else if (next == Token::AWAIT) {
-      classifier()->RecordAsyncArrowFormalParametersError(
-          scanner()->location(), MessageTemplate::kAwaitBindingIdentifier);
     }
 
     if (classifier()->duplicate_finder() != nullptr &&
@@ -1716,7 +1713,12 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(bool* ok) {
                                      ast_value_factory())) {
       classifier()->RecordDuplicateFormalParameterError(scanner()->location());
     }
+
     return name;
+  } else if (next == Token::AWAIT && !parsing_module_ && !is_async_function()) {
+    classifier()->RecordAsyncArrowFormalParametersError(
+        scanner()->location(), MessageTemplate::kAwaitBindingIdentifier);
+    return impl()->GetSymbol();
   } else if (is_sloppy(language_mode()) &&
              (Token::IsStrictReservedWord(next) ||
               (next == Token::YIELD && !is_generator()))) {
