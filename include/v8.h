@@ -3317,7 +3317,7 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> GetOwnPropertyDescriptor(
       Local<Context> context, Local<Name> key);
 
-  V8_DEPRECATE_SOON("Use maybe version", bool Has(Local<Value> key));
+  V8_DEPRECATED("Use maybe version", bool Has(Local<Value> key));
   /**
    * Object::Has() calls the abstract operation HasProperty(O, P) described
    * in ECMA-262, 7.3.10. Has() returns
@@ -3336,7 +3336,7 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT Maybe<bool> Has(Local<Context> context,
                                         Local<Value> key);
 
-  V8_DEPRECATE_SOON("Use maybe version", bool Delete(Local<Value> key));
+  V8_DEPRECATED("Use maybe version", bool Delete(Local<Value> key));
   V8_WARN_UNUSED_RESULT Maybe<bool> Delete(Local<Context> context,
                                            Local<Value> key);
 
