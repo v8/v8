@@ -312,7 +312,7 @@ void PatternRewriter::VisitRewritableExpression(RewritableExpression* node) {
   DCHECK_EQ(Token::ASSIGN, assign->op());
 
   int pos = assign->position();
-  Block* old_block = block_;
+  DCHECK_NULL(block_);
   block_ = factory()->NewBlock(8, true);
   Variable* temp = nullptr;
   Expression* pattern = assign->target();
@@ -328,11 +328,7 @@ void PatternRewriter::VisitRewritableExpression(RewritableExpression* node) {
   current_value_ = old_value;
   Expression* expr = factory()->NewDoExpression(block_, temp, pos);
   node->Rewrite(expr);
-  block_ = old_block;
-  if (block_) {
-    block_->statements()->Add(factory()->NewExpressionStatement(expr, pos),
-                              zone());
-  }
+  block_ = nullptr;
 }
 
 bool PatternRewriter::DeclaresParameterContainingSloppyEval() const {
