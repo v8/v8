@@ -172,3 +172,99 @@
     await test(one);
   })());
 })();
+
+// Basic test for async generators called from async
+// functions with an explicit throw.
+(function() {
+  async function one(x) {
+    for await (const y of two(x)) {}
+  }
+
+  async function* two(x) {
+    await x;
+    throw new Error();
+  }
+
+  async function test(f) {
+    try {
+      await f(1);
+      assertUnreachable();
+    } catch (e) {
+      assertInstanceof(e, Error);
+      assertMatches(/Error.+at two.+at async one.+at async test/ms, e.stack);
+    }
+  }
+
+  assertPromiseResult((async () => {
+    await test(one);
+    await test(one);
+    %OptimizeFunctionOnNextCall(two);
+    await test(one);
+    %OptimizeFunctionOnNextCall(one);
+    await test(one);
+  })());
+})();
+
+// Basic test for async functions called from async
+// generators with an explicit throw.
+(function() {
+  async function* one(x) {
+    await two(x);
+  }
+
+  async function two(x) {
+    await x;
+    throw new Error();
+  }
+
+  async function test(f) {
+    try {
+      for await (const x of f(1)) {}
+      assertUnreachable();
+    } catch (e) {
+      assertInstanceof(e, Error);
+      assertMatches(/Error.+at two.+at async one.+at async test/ms, e.stack);
+    }
+  }
+
+  assertPromiseResult((async () => {
+    await test(one);
+    await test(one);
+    %OptimizeFunctionOnNextCall(two);
+    await test(one);
+    %OptimizeFunctionOnNextCall(one);
+    await test(one);
+  })());
+})();
+
+// Basic test for async functions called from async
+// generators with an explicit throw (with yield).
+(function() {
+  async function* one(x) {
+    yield two(x);
+  }
+
+  async function two(x) {
+    await x;
+    throw new Error();
+  }
+
+  async function test(f) {
+    try {
+      for await (const x of f(1)) {}
+      assertUnreachable();
+    } catch (e) {
+      assertInstanceof(e, Error);
+      assertMatches(/Error.+at two.+at async one.+at async test/ms, e.stack);
+    }
+  }
+
+  assertPromiseResult((async () => {
+    await test(one);
+    await test(one);
+    %OptimizeFunctionOnNextCall(two);
+    await test(one);
+    %OptimizeFunctionOnNextCall(one);
+    await test(one);
+  })());
+})();

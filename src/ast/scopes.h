@@ -766,10 +766,18 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // literals, or nullptr.  Only valid for function scopes.
   Variable* function_var() const { return function_; }
 
+  // The variable holding the JSGeneratorObject for generator, async
+  // and async generator functions, and modules. Only valid for
+  // function and module scopes.
   Variable* generator_object_var() const {
     DCHECK(is_function_scope() || is_module_scope());
     return GetRareVariable(RareVariable::kGeneratorObject);
   }
+
+  // For async generators, the .generator_object variable is always
+  // allocated to a fixed stack slot, such that the stack trace
+  // construction logic can access it.
+  static constexpr int kGeneratorObjectVarIndex = 0;
 
   // The variable holding the promise returned from async functions.
   // Only valid for function scopes in async functions (i.e. not
@@ -914,6 +922,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void AllocateParameterLocals();
   void AllocateReceiver();
   void AllocatePromise();
+  void AllocateGeneratorObject();
 
   void ResetAfterPreparsing(AstValueFactory* ast_value_factory, bool aborted);
 
@@ -972,6 +981,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool has_rest_ : 1;
   // This function scope has a .promise variable.
   bool has_promise_ : 1;
+  // This function scope has a .generator_object variable.
+  bool has_generator_object_ : 1;
   // This scope has a parameter called "arguments".
   bool has_arguments_parameter_ : 1;
   // This scope uses "super" property ('super.foo').

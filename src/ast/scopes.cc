@@ -309,6 +309,7 @@ void DeclarationScope::SetDefaults() {
   scope_uses_super_property_ = false;
   has_rest_ = false;
   has_promise_ = false;
+  has_generator_object_ = false;
   sloppy_block_function_map_ = nullptr;
   receiver_ = nullptr;
   new_target_ = nullptr;
@@ -778,6 +779,7 @@ Variable* DeclarationScope::DeclareGeneratorObjectVar(
   Variable* result = EnsureRareData()->generator_object =
       NewTemporary(name, kNotAssigned);
   result->set_is_used();
+  has_generator_object_ = true;
   return result;
 }
 
@@ -1494,6 +1496,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   rare_data_ = nullptr;
   has_rest_ = false;
   has_promise_ = false;
+  has_generator_object_ = false;
 
   DCHECK_NE(zone_, ast_value_factory->zone());
   zone_->ReleaseMemory();
@@ -2184,6 +2187,15 @@ void DeclarationScope::AllocatePromise() {
   DCHECK_EQ(kPromiseVarIndex, promise_var()->index());
 }
 
+void DeclarationScope::AllocateGeneratorObject() {
+  if (!has_generator_object_) return;
+  DCHECK_NOT_NULL(generator_object_var());
+  DCHECK_EQ(this, generator_object_var()->scope());
+  AllocateStackSlot(generator_object_var());
+  DCHECK_EQ(VariableLocation::LOCAL, generator_object_var()->location());
+  DCHECK_EQ(kGeneratorObjectVarIndex, generator_object_var()->index());
+}
+
 void Scope::AllocateNonParameterLocal(Variable* var) {
   DCHECK(var->scope() == this);
   if (var->IsUnallocated() && MustAllocate(var)) {
@@ -2252,10 +2264,18 @@ void Scope::AllocateVariablesRecursively() {
     return;
   }
 
-  // Make sure to allocate the .promise first, so that it get's
-  // the required stack slot 0 in case it's needed. See
+  // Make sure to allocate the .promise (for async functions) or
+  // .generator_object (for async generators) first, so that it
+  // get's the required stack slot 0 in case it's needed. See
   // http://bit.ly/v8-zero-cost-async-stack-traces for details.
-  if (is_function_scope()) AsDeclarationScope()->AllocatePromise();
+  if (is_function_scope()) {
+    FunctionKind kind = GetClosureScope()->function_kind();
+    if (IsAsyncGeneratorFunction(kind)) {
+      AsDeclarationScope()->AllocateGeneratorObject();
+    } else if (IsAsyncFunction(kind)) {
+      AsDeclarationScope()->AllocatePromise();
+    }
+  }
 
   // Allocate variables for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {

@@ -628,12 +628,14 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
         PromiseReaction::cast(promise->reactions()), isolate);
     if (!reaction->next()->IsSmi()) return;
 
-    // Check if the {reaction} has the Await Fulfill and
-    // Await Rejected functions as its handlers.
+    // Check if the {reaction} has one of the known async function or
+    // async generator continuations as its fulfill handler.
     if (IsBuiltinFunction(isolate, reaction->fulfill_handler(),
-                          Builtins::kAsyncFunctionAwaitResolveClosure) &&
-        IsBuiltinFunction(isolate, reaction->reject_handler(),
-                          Builtins::kAsyncFunctionAwaitRejectClosure)) {
+                          Builtins::kAsyncFunctionAwaitResolveClosure) ||
+        IsBuiltinFunction(isolate, reaction->fulfill_handler(),
+                          Builtins::kAsyncGeneratorAwaitResolveClosure) ||
+        IsBuiltinFunction(isolate, reaction->fulfill_handler(),
+                          Builtins::kAsyncGeneratorYieldResolveClosure)) {
       // Now peak into the handlers' AwaitContext to get to
       // the JSGeneratorObject for the async function.
       Handle<Context> context(
@@ -648,13 +650,30 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       // Try to continue from here.
       Handle<JSFunction> function(generator_object->function(), isolate);
       Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-      Handle<Object> dot_promise(
-          generator_object->parameters_and_registers()->get(
-              DeclarationScope::kPromiseVarIndex +
-              shared->scope_info()->ParameterCount()),
-          isolate);
-      if (!dot_promise->IsJSPromise()) return;
-      promise = Handle<JSPromise>::cast(dot_promise);
+      if (IsAsyncGeneratorFunction(shared->kind())) {
+        Handle<Object> dot_generator_object(
+            generator_object->parameters_and_registers()->get(
+                DeclarationScope::kGeneratorObjectVarIndex +
+                shared->scope_info()->ParameterCount()),
+            isolate);
+        if (!dot_generator_object->IsJSAsyncGeneratorObject()) return;
+        Handle<JSAsyncGeneratorObject> async_generator_object =
+            Handle<JSAsyncGeneratorObject>::cast(dot_generator_object);
+        Handle<AsyncGeneratorRequest> async_generator_request(
+            AsyncGeneratorRequest::cast(async_generator_object->queue()),
+            isolate);
+        promise = handle(JSPromise::cast(async_generator_request->promise()),
+                         isolate);
+      } else {
+        CHECK(IsAsyncFunction(shared->kind()));
+        Handle<Object> dot_promise(
+            generator_object->parameters_and_registers()->get(
+                DeclarationScope::kPromiseVarIndex +
+                shared->scope_info()->ParameterCount()),
+            isolate);
+        if (!dot_promise->IsJSPromise()) return;
+        promise = Handle<JSPromise>::cast(dot_promise);
+      }
     } else {
       // We have some generic promise chain here, so try to
       // continue with the chained promise on the reaction
@@ -768,7 +787,27 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                              this);
     FunctionKind const kind = inspector.GetFunction()->shared()->kind();
     if (IsAsyncGeneratorFunction(kind)) {
-      // TODO(bmeurer): Handle async generators here.
+      Handle<Object> const dot_generator_object =
+          inspector.GetExpression(DeclarationScope::kGeneratorObjectVarIndex);
+      if (dot_generator_object->IsUndefined(this)) {
+        // The .generator_object was not yet initialized (i.e. we see a
+        // really early exception in the setup of the async generator).
+      } else {
+        // Check if there's a pending async request on the generator object.
+        Handle<JSAsyncGeneratorObject> async_generator_object =
+            Handle<JSAsyncGeneratorObject>::cast(dot_generator_object);
+        if (!async_generator_object->queue()->IsUndefined(this)) {
+          // Take the promise from the first async generatot request.
+          Handle<AsyncGeneratorRequest> request(
+              AsyncGeneratorRequest::cast(async_generator_object->queue()),
+              this);
+
+          // We can start collecting an async stack trace from the
+          // promise on the {request}.
+          Handle<JSPromise> promise(JSPromise::cast(request->promise()), this);
+          CaptureAsyncStackTrace(this, promise, &builder);
+        }
+      }
     } else {
       DCHECK(IsAsyncFunction(kind));
       Handle<Object> const dot_promise =
