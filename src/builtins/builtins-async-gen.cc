@@ -23,10 +23,11 @@ class ValueUnwrapContext {
 
 }  // namespace
 
-Node* AsyncBuiltinsAssembler::Await(
-    Node* context, Node* generator, Node* value, Node* outer_promise,
-    Node* on_resolve_context_index, Node* on_reject_context_index,
-    Node* is_predicted_as_caught) {
+Node* AsyncBuiltinsAssembler::AwaitOld(Node* context, Node* generator,
+                                       Node* value, Node* outer_promise,
+                                       Node* on_resolve_context_index,
+                                       Node* on_reject_context_index,
+                                       Node* is_predicted_as_caught) {
   Node* const native_context = LoadNativeContext(context);
 
   static const int kWrappedPromiseOffset =
@@ -276,6 +277,37 @@ Node* AsyncBuiltinsAssembler::AwaitOptimized(
   BIND(&do_perform_promise_then);
   return CallBuiltin(Builtins::kPerformPromiseThen, native_context, promise,
                      on_resolve, on_reject, throwaway);
+}
+
+Node* AsyncBuiltinsAssembler::Await(Node* context, Node* generator, Node* value,
+                                    Node* outer_promise,
+                                    Node* on_resolve_context_index,
+                                    Node* on_reject_context_index,
+                                    Node* is_predicted_as_caught) {
+  VARIABLE(result, MachineRepresentation::kTagged);
+  Label if_old(this), if_new(this), done(this);
+
+  TNode<Word32T> flag_value = UncheckedCast<Word32T>(Load(
+      MachineType::Int32(),
+      ExternalConstant(
+          ExternalReference::address_of_harmony_await_optimization_flag())));
+
+  Branch(Word32Equal(flag_value, Int32Constant(0)), &if_old, &if_new);
+
+  BIND(&if_old);
+  result.Bind(AwaitOld(context, generator, value, outer_promise,
+                       on_resolve_context_index, on_reject_context_index,
+                       is_predicted_as_caught));
+  Goto(&done);
+
+  BIND(&if_new);
+  result.Bind(AwaitOptimized(context, generator, value, outer_promise,
+                             on_resolve_context_index, on_reject_context_index,
+                             is_predicted_as_caught));
+  Goto(&done);
+
+  BIND(&done);
+  return result.value();
 }
 
 void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,

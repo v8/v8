@@ -24,10 +24,6 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
   Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
               Node* on_resolve_context_index, Node* on_reject_context_index,
               Node* is_predicted_as_caught);
-  Node* AwaitOptimized(Node* context, Node* generator, Node* value,
-                       Node* outer_promise, Node* on_resolve_context_index,
-                       Node* on_reject_context_index,
-                       Node* is_predicted_as_caught);
   Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
               int on_resolve_context_index, int on_reject_context_index,
               Node* is_predicted_as_caught) {
@@ -36,29 +32,12 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
                  IntPtrConstant(on_reject_context_index),
                  is_predicted_as_caught);
   }
-  Node* AwaitOptimized(Node* context, Node* generator, Node* value,
-                       Node* outer_promise, int on_resolve_context_index,
-                       int on_reject_context_index,
-                       Node* is_predicted_as_caught) {
-    return AwaitOptimized(context, generator, value, outer_promise,
-                          IntPtrConstant(on_resolve_context_index),
-                          IntPtrConstant(on_reject_context_index),
-                          is_predicted_as_caught);
-  }
   Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
               int on_resolve_context_index, int on_reject_context_index,
               bool is_predicted_as_caught) {
     return Await(context, generator, value, outer_promise,
                  on_resolve_context_index, on_reject_context_index,
                  BooleanConstant(is_predicted_as_caught));
-  }
-  Node* AwaitOptimized(Node* context, Node* generator, Node* value,
-                       Node* outer_promise, int on_resolve_context_index,
-                       int on_reject_context_index,
-                       bool is_predicted_as_caught) {
-    return AwaitOptimized(context, generator, value, outer_promise,
-                          on_resolve_context_index, on_reject_context_index,
-                          BooleanConstant(is_predicted_as_caught));
   }
 
   // Return a new built-in function object as defined in
@@ -70,6 +49,14 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
                                Node* function, Node* context_index);
   Node* AllocateAsyncIteratorValueUnwrapContext(Node* native_context,
                                                 Node* done);
+
+  Node* AwaitOld(Node* context, Node* generator, Node* value,
+                 Node* outer_promise, Node* on_resolve_context_index,
+                 Node* on_reject_context_index, Node* is_predicted_as_caught);
+  Node* AwaitOptimized(Node* context, Node* generator, Node* value,
+                       Node* outer_promise, Node* on_resolve_context_index,
+                       Node* on_reject_context_index,
+                       Node* is_predicted_as_caught);
 };
 
 }  // namespace internal

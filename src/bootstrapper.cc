@@ -4543,54 +4543,6 @@ void Genesis::InitializeGlobal_harmony_string_matchall() {
 }
 
 void Genesis::InitializeGlobal_harmony_await_optimization() {
-  if (!FLAG_harmony_await_optimization) return;
-
-  // async/await
-  Handle<JSFunction> await_caught_function = SimpleCreateFunction(
-      isolate(), factory()->empty_string(),
-      Builtins::kAsyncFunctionAwaitCaughtOptimized, 2, false);
-  native_context()->set_async_function_await_caught(*await_caught_function);
-
-  Handle<JSFunction> await_uncaught_function = SimpleCreateFunction(
-      isolate(), factory()->empty_string(),
-      Builtins::kAsyncFunctionAwaitUncaughtOptimized, 2, false);
-  native_context()->set_async_function_await_uncaught(*await_uncaught_function);
-
-  // async generators
-  Handle<JSObject> async_iterator_prototype =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
-
-  SimpleInstallFunction(
-      isolate(), async_iterator_prototype, factory()->async_iterator_symbol(),
-      "[Symbol.asyncIterator]", Builtins::kReturnReceiver, 0, true);
-
-  Handle<JSObject> async_from_sync_iterator_prototype =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
-  SimpleInstallFunction(
-      isolate(), async_from_sync_iterator_prototype, factory()->next_string(),
-      Builtins::kAsyncFromSyncIteratorPrototypeNextOptimized, 1, true);
-  SimpleInstallFunction(
-      isolate(), async_from_sync_iterator_prototype, factory()->return_string(),
-      Builtins::kAsyncFromSyncIteratorPrototypeReturnOptimized, 1, true);
-  SimpleInstallFunction(
-      isolate(), async_from_sync_iterator_prototype, factory()->throw_string(),
-      Builtins::kAsyncFromSyncIteratorPrototypeThrowOptimized, 1, true);
-
-  JSObject::AddProperty(
-      isolate(), async_from_sync_iterator_prototype,
-      factory()->to_string_tag_symbol(),
-      factory()->NewStringFromAsciiChecked("Async-from-Sync Iterator"),
-      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
-
-  JSObject::ForceSetPrototype(async_from_sync_iterator_prototype,
-                              async_iterator_prototype);
-
-  Handle<Map> async_from_sync_iterator_map = factory()->NewMap(
-      JS_ASYNC_FROM_SYNC_ITERATOR_TYPE, JSAsyncFromSyncIterator::kSize);
-  Map::SetPrototype(isolate(), async_from_sync_iterator_map,
-                    async_from_sync_iterator_prototype);
-  native_context()->set_async_from_sync_iterator_map(
-      *async_from_sync_iterator_map);
 }
 
 #ifdef V8_INTL_SUPPORT

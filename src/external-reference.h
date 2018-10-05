@@ -73,6 +73,8 @@ class StatsCounter;
   V(address_of_double_neg_constant, "double_negate_constant")                 \
   V(address_of_float_abs_constant, "float_absolute_constant")                 \
   V(address_of_float_neg_constant, "float_negate_constant")                   \
+  V(address_of_harmony_await_optimization_flag,                               \
+    "FLAG_harmony_await_optimization")                                        \
   V(address_of_min_int, "LDoubleConstant::min_int")                           \
   V(address_of_one_half, "LDoubleConstant::one_half")                         \
   V(address_of_runtime_stats_flag, "FLAG_runtime_stats")                      \
