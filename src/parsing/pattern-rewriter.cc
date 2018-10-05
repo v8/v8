@@ -294,12 +294,8 @@ Variable* PatternRewriter::CreateTempVar(Expression* value) {
 }
 
 void PatternRewriter::VisitRewritableExpression(RewritableExpression* node) {
-  if (!node->expression()->IsAssignment()) {
-    // RewritableExpressions are also used for desugaring Spread, which is
-    // orthogonal to PatternRewriter; just visit the underlying expression.
-    DCHECK_EQ(AstNode::kArrayLiteral, node->expression()->node_type());
-    return Visit(node->expression());
-  } else if (context() != ASSIGNMENT) {
+  DCHECK(node->expression()->IsAssignment());
+  if (context() != ASSIGNMENT) {
     // This is not a destructuring assignment. Mark the node as rewritten to
     // prevent redundant rewriting and visit the underlying expression.
     DCHECK(!node->is_rewritten());
