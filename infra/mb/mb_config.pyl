@@ -91,6 +91,8 @@
       'V8 Linux gcc 4.8': 'release_x86_gcc',
       'V8 Linux64 gcc 4.8 - debug': 'debug_x64_gcc',
       # FYI.
+      'V8 Linux - embedded builtins': 'release_x86_embedded_builtins',
+      'V8 Linux - embedded builtins - debug': 'debug_x86_embedded_builtins',
       'V8 Fuchsia': 'release_x64_fuchsia',
       'V8 Fuchsia - debug': 'debug_x64_fuchsia',
       'V8 Linux64 - cfi': 'release_x64_cfi',
@@ -187,6 +189,7 @@
       'v8_android_arm64_compile_dbg': 'debug_android_arm64',
       'v8_android_arm64_n5x_rel_ng': 'release_android_arm64',
       'v8_fuchsia_rel_ng': 'release_x64_fuchsia_trybot',
+      'v8_linux_embedded_builtins_rel_ng': 'release_x86_embedded_builtins_trybot',
       'v8_linux_rel_ng': 'release_x86_gcmole_trybot',
       'v8_linux_optional_rel_ng': 'release_x86_trybot',
       'v8_linux_verify_csa_rel_ng': 'release_x86_verify_csa',
@@ -476,6 +479,9 @@
     # Debug configs for x86.
     'debug_x86': [
       'debug_bot', 'x86'],
+    'debug_x86_embedded_builtins': [
+      'debug_bot', 'x86', 'v8_enable_embedded_builtins',
+      'v8_no_untrusted_code_mitigations'],
     'debug_x86_minimal_symbols': [
       'debug_bot', 'x86', 'minimal_symbols'],
     'debug_x86_no_i18n': [
@@ -495,6 +501,12 @@
     # Release configs for x86.
     'release_x86': [
       'release_bot', 'x86'],
+    'release_x86_embedded_builtins': [
+      'release_bot', 'x86', 'v8_enable_embedded_builtins',
+      'v8_no_untrusted_code_mitigations'],
+    'release_x86_embedded_builtins_trybot': [
+      'release_trybot', 'x86', 'v8_enable_embedded_builtins',
+      'v8_no_untrusted_code_mitigations'],
     'release_x86_gcc': [
       'release_bot', 'x86', 'gcc'],
     'release_x86_gcc_minimal_symbols': [
@@ -757,6 +769,10 @@
       'gn_args': 'v8_correctness_fuzzer=true v8_multi_arch_build=true',
     },
 
+    'v8_enable_embedded_builtins': {
+      'gn_args': 'v8_enable_embedded_builtins=true',
+    },
+
     'v8_enable_slow_dchecks': {
       'gn_args': 'v8_enable_slow_dchecks=true',
     },
@@ -800,6 +816,10 @@
 
     'v8_snapshot_none': {
       'gn_args': 'v8_use_snapshot=false',
+    },
+
+    'v8_no_untrusted_code_mitigations': {
+      'gn_args': 'v8_untrusted_code_mitigations=false',
     },
 
     'v8_verify_heap': {

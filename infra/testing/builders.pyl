@@ -63,6 +63,11 @@
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
   },
+  'v8_linux_embedded_builtins_rel_ng_triggered': {
+    'tests': [
+      {'name': 'v8testing', 'shards': 2},
+    ],
+  },
   'v8_linux_gc_stress_dbg': {
     'tests': [
       {'name': 'mjsunit', 'variant': 'slow_path', 'test_args': ['--gc-stress'], 'shards': 2},
