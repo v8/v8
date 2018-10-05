@@ -664,15 +664,15 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     __ bne(&exchange, cr0);                                             \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_BINOP(bin_inst, load_inst, store_inst)                 \
-  do {                                                                         \
-    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1));   \
-    Label binop;                                                               \
-    __ bind(&binop);                                                           \
-    __ load_inst(i.OutputRegister(), operand);                                 \
-    __ bin_inst(i.InputRegister(2), i.OutputRegister(), i.InputRegister(2));   \
-    __ store_inst(i.InputRegister(2), operand);                                \
-    __ bne(&binop, cr0);                                                       \
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, load_inst, store_inst)               \
+  do {                                                                       \
+    MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1)); \
+    Label binop;                                                             \
+    __ bind(&binop);                                                         \
+    __ load_inst(i.OutputRegister(), operand);                               \
+    __ bin_inst(kScratchReg, i.OutputRegister(), i.InputRegister(2));        \
+    __ store_inst(kScratchReg, operand);                                     \
+    __ bne(&binop, cr0);                                                     \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_BINOP_SIGN_EXT(bin_inst, load_inst,                    \
