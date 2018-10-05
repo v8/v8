@@ -31,25 +31,12 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
       const Parser::DeclarationParsingResult::Declaration* declaration,
       ZonePtrList<const AstRawString>* names, bool* ok);
 
-  static void RewriteDestructuringAssignment(Parser* parser,
-                                             RewritableExpression* to_rewrite,
-                                             Scope* scope);
+  static Expression* RewriteDestructuringAssignment(Parser* parser,
+                                                    Assignment* to_rewrite,
+                                                    Scope* scope);
 
  private:
-  enum PatternContext { BINDING, ASSIGNMENT, ASSIGNMENT_ELEMENT };
-
-  class AssignmentElementScope {
-   public:
-    explicit AssignmentElementScope(PatternRewriter* rewriter)
-        : rewriter_(rewriter), context_(rewriter->context()) {
-      if (context_ == ASSIGNMENT) rewriter->context_ = ASSIGNMENT_ELEMENT;
-    }
-    ~AssignmentElementScope() { rewriter_->context_ = context_; }
-
-   private:
-    PatternRewriter* const rewriter_;
-    const PatternContext context_;
-  };
+  enum PatternContext { BINDING, ASSIGNMENT };
 
   PatternRewriter(Scope* scope, Parser* parser, PatternContext context)
       : scope_(scope),
@@ -80,13 +67,32 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
     current_value_ = old_value;
   }
 
+  Expression* Rewrite(Assignment* assign) {
+    DCHECK_EQ(Token::ASSIGN, assign->op());
+
+    int pos = assign->position();
+    DCHECK_NULL(block_);
+    block_ = factory()->NewBlock(8, true);
+    Variable* temp = nullptr;
+    Expression* pattern = assign->target();
+    Expression* old_value = current_value_;
+    current_value_ = assign->value();
+    if (pattern->IsObjectLiteral()) {
+      VisitObjectLiteral(pattern->AsObjectLiteral(), &temp);
+    } else {
+      DCHECK(pattern->IsArrayLiteral());
+      VisitArrayLiteral(pattern->AsArrayLiteral(), &temp);
+    }
+    DCHECK_NOT_NULL(temp);
+    current_value_ = old_value;
+    return factory()->NewDoExpression(block_, temp, pos);
+  }
+
   void VisitObjectLiteral(ObjectLiteral* node, Variable** temp_var);
   void VisitArrayLiteral(ArrayLiteral* node, Variable** temp_var);
 
   bool IsBindingContext() const { return context_ == BINDING; }
-  bool IsAssignmentContext() const {
-    return context_ == ASSIGNMENT || context_ == ASSIGNMENT_ELEMENT;
-  }
+  bool IsAssignmentContext() const { return context_ == ASSIGNMENT; }
   bool IsSubPattern() const { return recursion_level_ > 1; }
 
   bool DeclaresParameterContainingSloppyEval() const;
@@ -125,15 +131,18 @@ void Parser::DeclareAndInitializeVariables(
 }
 
 void Parser::RewriteDestructuringAssignment(RewritableExpression* to_rewrite) {
-  PatternRewriter::RewriteDestructuringAssignment(this, to_rewrite, scope());
+  DCHECK(!to_rewrite->is_rewritten());
+  Assignment* assignment = to_rewrite->expression()->AsAssignment();
+  Expression* result = PatternRewriter::RewriteDestructuringAssignment(
+      this, assignment, scope());
+  to_rewrite->Rewrite(result);
 }
 
 Expression* Parser::RewriteDestructuringAssignment(Assignment* assignment) {
   DCHECK_NOT_NULL(assignment);
   DCHECK_EQ(Token::ASSIGN, assignment->op());
-  auto to_rewrite = factory()->NewRewritableExpression(assignment, scope());
-  RewriteDestructuringAssignment(to_rewrite);
-  return to_rewrite->expression();
+  return PatternRewriter::RewriteDestructuringAssignment(this, assignment,
+                                                         scope());
 }
 
 void PatternRewriter::DeclareAndInitializeVariables(
@@ -155,13 +164,12 @@ void PatternRewriter::DeclareAndInitializeVariables(
                                  declaration->initializer);
 }
 
-void PatternRewriter::RewriteDestructuringAssignment(
-    Parser* parser, RewritableExpression* to_rewrite, Scope* scope) {
+Expression* PatternRewriter::RewriteDestructuringAssignment(
+    Parser* parser, Assignment* to_rewrite, Scope* scope) {
   DCHECK(!scope->HasBeenRemoved());
-  DCHECK(!to_rewrite->is_rewritten());
 
   PatternRewriter rewriter(scope, parser, ASSIGNMENT);
-  rewriter.RecurseIntoSubpattern(to_rewrite, nullptr);
+  return rewriter.Rewrite(to_rewrite);
 }
 
 void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
@@ -297,38 +305,12 @@ Variable* PatternRewriter::CreateTempVar(Expression* value) {
 
 void PatternRewriter::VisitRewritableExpression(RewritableExpression* node) {
   DCHECK(node->expression()->IsAssignment());
-  if (context() != ASSIGNMENT) {
-    // This is not a destructuring assignment. Mark the node as rewritten to
-    // prevent redundant rewriting and visit the underlying expression.
-    DCHECK(!node->is_rewritten());
-    node->set_rewritten();
-    return Visit(node->expression());
-  }
-
+  // This is not a top-level destructuring assignment. Mark the node as
+  // rewritten to prevent redundant rewriting and visit the underlying
+  // expression.
   DCHECK(!node->is_rewritten());
-  DCHECK_EQ(ASSIGNMENT, context());
-  Assignment* assign = node->expression()->AsAssignment();
-  DCHECK_NOT_NULL(assign);
-  DCHECK_EQ(Token::ASSIGN, assign->op());
-
-  int pos = assign->position();
-  DCHECK_NULL(block_);
-  block_ = factory()->NewBlock(8, true);
-  Variable* temp = nullptr;
-  Expression* pattern = assign->target();
-  Expression* old_value = current_value_;
-  current_value_ = assign->value();
-  if (pattern->IsObjectLiteral()) {
-    VisitObjectLiteral(pattern->AsObjectLiteral(), &temp);
-  } else {
-    DCHECK(pattern->IsArrayLiteral());
-    VisitArrayLiteral(pattern->AsArrayLiteral(), &temp);
-  }
-  DCHECK_NOT_NULL(temp);
-  current_value_ = old_value;
-  Expression* expr = factory()->NewDoExpression(block_, temp, pos);
-  node->Rewrite(expr);
-  block_ = nullptr;
+  node->set_rewritten();
+  return Visit(node->expression());
 }
 
 bool PatternRewriter::DeclaresParameterContainingSloppyEval() const {
@@ -422,7 +404,6 @@ void PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
                                      kNoSourcePosition);
     }
 
-    AssignmentElementScope element_scope(this);
     RecurseIntoSubpattern(property->value(), value);
   }
 }
@@ -551,10 +532,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
             factory()->NewExpressionStatement(assignment, nopos), zone());
       }
 
-      {
-        AssignmentElementScope element_scope(this);
-        RecurseIntoSubpattern(value, factory()->NewVariableProxy(v));
-      }
+      RecurseIntoSubpattern(value, factory()->NewVariableProxy(v));
 
       {
         // completion = kNormalCompletion;
@@ -702,10 +680,6 @@ void PatternRewriter::VisitAssignment(Assignment* node) {
   // temp = <value>;
   // <pattern> = temp === undefined ? <init> : temp;
   DCHECK_EQ(Token::ASSIGN, node->op());
-
-  // Rewriting of Assignment nodes for destructuring assignment
-  // is handled in VisitRewritableExpression().
-  DCHECK_NE(ASSIGNMENT, context());
 
   auto initializer = node->value();
   auto value = initializer;
