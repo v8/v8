@@ -510,10 +510,9 @@ V8_NOINLINE Handle<JSFunction> SimpleInstallFunction(
     const char* function_name, Builtins::Name call, int len, bool adapt,
     PropertyAttributes attrs = DONT_ENUM,
     BuiltinFunctionId id = BuiltinFunctionId::kInvalidBuiltinFunctionId) {
-  // Function name does not have to be internalized.
   return SimpleInstallFunction(
       isolate, base, property_name,
-      isolate->factory()->NewStringFromAsciiChecked(function_name), call, len,
+      isolate->factory()->InternalizeUtf8String(function_name), call, len,
       adapt, attrs, id);
 }
 
@@ -594,8 +593,7 @@ V8_NOINLINE Handle<JSFunction> SimpleInstallGetter(
 V8_NOINLINE void InstallConstant(Isolate* isolate, Handle<JSObject> holder,
                                  const char* name, Handle<Object> value) {
   JSObject::AddProperty(
-      isolate, holder, isolate->factory()->NewStringFromAsciiChecked(name),
-      value,
+      isolate, holder, isolate->factory()->InternalizeUtf8String(name), value,
       static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
 }
 
@@ -862,11 +860,10 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   JSObject::ForceSetPrototype(generator_function_prototype, empty);
 
-  JSObject::AddProperty(
-      isolate(), generator_function_prototype,
-      factory()->to_string_tag_symbol(),
-      factory()->NewStringFromAsciiChecked("GeneratorFunction"),
-      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+  JSObject::AddProperty(isolate(), generator_function_prototype,
+                        factory()->to_string_tag_symbol(),
+                        factory()->InternalizeUtf8String("GeneratorFunction"),
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   JSObject::AddProperty(isolate(), generator_function_prototype,
                         factory()->prototype_string(),
                         generator_object_prototype,
@@ -878,7 +875,7 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   JSObject::AddProperty(isolate(), generator_object_prototype,
                         factory()->to_string_tag_symbol(),
-                        factory()->NewStringFromAsciiChecked("Generator"),
+                        factory()->InternalizeUtf8String("Generator"),
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   SimpleInstallFunction(isolate(), generator_object_prototype, "next",
                         Builtins::kGeneratorPrototypeNext, 1, false);
@@ -958,7 +955,7 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
   JSObject::AddProperty(
       isolate(), async_from_sync_iterator_prototype,
       factory()->to_string_tag_symbol(),
-      factory()->NewStringFromAsciiChecked("Async-from-Sync Iterator"),
+      factory()->InternalizeUtf8String("Async-from-Sync Iterator"),
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
   JSObject::ForceSetPrototype(async_from_sync_iterator_prototype,
@@ -1008,7 +1005,7 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
 
   JSObject::AddProperty(isolate(), async_generator_object_prototype,
                         factory()->to_string_tag_symbol(),
-                        factory()->NewStringFromAsciiChecked("AsyncGenerator"),
+                        factory()->InternalizeUtf8String("AsyncGenerator"),
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   SimpleInstallFunction(isolate(), async_generator_object_prototype, "next",
                         Builtins::kAsyncGeneratorPrototypeNext, 1, false);
@@ -1063,7 +1060,7 @@ void Genesis::CreateAsyncFunctionMaps(Handle<JSFunction> empty) {
 
   JSObject::AddProperty(isolate(), async_function_prototype,
                         factory()->to_string_tag_symbol(),
-                        factory()->NewStringFromAsciiChecked("AsyncFunction"),
+                        factory()->InternalizeUtf8String("AsyncFunction"),
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
   Handle<Map> map;
@@ -1865,14 +1862,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         SimpleInstallFunction(isolate_, number_fun, "parseFloat",
                               Builtins::kNumberParseFloat, 1, true);
     JSObject::AddProperty(isolate_, global_object,
-                          factory->NewStringFromAsciiChecked("parseFloat"),
+                          factory->InternalizeUtf8String("parseFloat"),
                           parse_float_fun, DONT_ENUM);
 
     // Install Number.parseInt and Global.parseInt.
     Handle<JSFunction> parse_int_fun = SimpleInstallFunction(
         isolate_, number_fun, "parseInt", Builtins::kNumberParseInt, 2, true);
     JSObject::AddProperty(isolate_, global_object,
-                          factory->NewStringFromAsciiChecked("parseInt"),
+                          factory->InternalizeUtf8String("parseInt"),
                           parse_int_fun, DONT_ENUM);
 
     // Install Number constants
@@ -1883,14 +1880,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<Object> infinity = factory->infinity_value();
     Handle<Object> nan = factory->nan_value();
-    Handle<String> nan_name = factory->NewStringFromAsciiChecked("NaN");
+    Handle<String> nan_name = factory->InternalizeUtf8String("NaN");
 
     JSObject::AddProperty(
-        isolate_, number_fun, factory->NewStringFromAsciiChecked("MAX_VALUE"),
+        isolate_, number_fun, factory->InternalizeUtf8String("MAX_VALUE"),
         factory->NewNumber(kMaxValue),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
-        isolate_, number_fun, factory->NewStringFromAsciiChecked("MIN_VALUE"),
+        isolate_, number_fun, factory->InternalizeUtf8String("MIN_VALUE"),
         factory->NewNumber(kMinValue),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
@@ -1898,37 +1895,36 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
         isolate_, number_fun,
-        factory->NewStringFromAsciiChecked("NEGATIVE_INFINITY"),
+        factory->InternalizeUtf8String("NEGATIVE_INFINITY"),
         factory->NewNumber(-V8_INFINITY),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
         isolate_, number_fun,
-        factory->NewStringFromAsciiChecked("POSITIVE_INFINITY"), infinity,
+        factory->InternalizeUtf8String("POSITIVE_INFINITY"), infinity,
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
         isolate_, number_fun,
-        factory->NewStringFromAsciiChecked("MAX_SAFE_INTEGER"),
+        factory->InternalizeUtf8String("MAX_SAFE_INTEGER"),
         factory->NewNumber(kMaxSafeInteger),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
         isolate_, number_fun,
-        factory->NewStringFromAsciiChecked("MIN_SAFE_INTEGER"),
+        factory->InternalizeUtf8String("MIN_SAFE_INTEGER"),
         factory->NewNumber(kMinSafeInteger),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
-        isolate_, number_fun, factory->NewStringFromAsciiChecked("EPSILON"),
+        isolate_, number_fun, factory->InternalizeUtf8String("EPSILON"),
         factory->NewNumber(kEPS),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
 
     JSObject::AddProperty(
-        isolate_, global, factory->NewStringFromAsciiChecked("Infinity"),
-        infinity,
+        isolate_, global, factory->InternalizeUtf8String("Infinity"), infinity,
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
         isolate_, global, nan_name, nan,
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
     JSObject::AddProperty(
-        isolate_, global, factory->NewStringFromAsciiChecked("undefined"),
+        isolate_, global, factory->InternalizeUtf8String("undefined"),
         factory->undefined_value(),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
   }
@@ -2143,7 +2139,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     JSObject::AddProperty(
         isolate_, string_iterator_prototype, factory->to_string_tag_symbol(),
-        factory->NewStringFromAsciiChecked("String Iterator"),
+        factory->InternalizeUtf8String("String Iterator"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
     SimpleInstallFunction(isolate_, string_iterator_prototype, "next",
@@ -2151,7 +2147,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           BuiltinFunctionId::kStringIteratorNext);
 
     Handle<JSFunction> string_iterator_function = CreateFunction(
-        isolate_, factory->NewStringFromAsciiChecked("StringIterator"),
+        isolate_, factory->InternalizeUtf8String("StringIterator"),
         JS_STRING_ITERATOR_TYPE, JSStringIterator::kSize, 0,
         string_iterator_prototype, Builtins::kIllegal);
     string_iterator_function->shared()->set_native(false);
@@ -2205,7 +2201,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Install the @@toStringTag property on the {prototype}.
     JSObject::AddProperty(
         isolate_, prototype, factory->to_string_tag_symbol(),
-        factory->NewStringFromAsciiChecked("Symbol"),
+        factory->InternalizeUtf8String("Symbol"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
     // Install the Symbol.prototype methods.
@@ -2764,7 +2760,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kJsonStringify, 3, true);
     JSObject::AddProperty(
         isolate_, json_object, factory->to_string_tag_symbol(),
-        factory->NewStringFromAsciiChecked("JSON"),
+        factory->InternalizeUtf8String("JSON"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
@@ -2845,7 +2841,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                     factory->NewNumber(std::sqrt(2.0)));
     JSObject::AddProperty(
         isolate_, math, factory->to_string_tag_symbol(),
-        factory->NewStringFromAsciiChecked("Math"),
+        factory->InternalizeUtf8String("Math"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
@@ -2909,7 +2905,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kConsoleContext, 1, true, NONE);
     JSObject::AddProperty(
         isolate_, console, factory->to_string_tag_symbol(),
-        factory->NewStringFromAsciiChecked("Object"),
+        factory->InternalizeUtf8String("Object"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
@@ -3117,7 +3113,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<JSFunction> array_buffer_noinit_fun = SimpleCreateFunction(
         isolate_,
-        factory->NewStringFromAsciiChecked(
+        factory->InternalizeUtf8String(
             "arrayBufferConstructor_DoNotInitialize"),
         Builtins::kArrayBufferConstructor_DoNotInitialize, 1, false);
     native_context()->set_array_buffer_noinit_fun(*array_buffer_noinit_fun);
@@ -3287,7 +3283,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Install the @@toStringTag property on the {prototype}.
     JSObject::AddProperty(
         isolate_, prototype, factory->to_string_tag_symbol(),
-        factory->NewStringFromAsciiChecked("DataView"),
+        factory->InternalizeUtf8String("DataView"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
     // Install the "buffer", "byteOffset" and "byteLength" getters
@@ -3570,7 +3566,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     JSObject::AddProperty(
         isolate_, prototype, factory->to_string_tag_symbol(),
-        factory->NewStringFromAsciiChecked("WeakMap"),
+        factory->InternalizeUtf8String("WeakMap"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
     native_context()->set_initial_weakmap_prototype_map(prototype->map());
@@ -3601,7 +3597,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     JSObject::AddProperty(
         isolate_, prototype, factory->to_string_tag_symbol(),
-        factory->NewStringFromAsciiChecked("WeakSet"),
+        factory->InternalizeUtf8String("WeakSet"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
     native_context()->set_initial_weakset_prototype_map(prototype->map());
@@ -3977,8 +3973,7 @@ bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
 bool Genesis::CallUtilsFunction(Isolate* isolate, const char* name) {
   Handle<JSObject> utils =
       Handle<JSObject>::cast(isolate->natives_utils_object());
-  Handle<String> name_string =
-      isolate->factory()->NewStringFromAsciiChecked(name);
+  Handle<String> name_string = isolate->factory()->InternalizeUtf8String(name);
   Handle<Object> fun = JSObject::GetDataProperty(utils, name_string);
   Handle<Object> receiver = isolate->factory()->undefined_value();
   Handle<Object> args[] = {utils};
@@ -4100,14 +4095,14 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   Handle<NativeContext> native_context = isolate->native_context();
-#define EXPORT_PRIVATE_SYMBOL(_, NAME)                                    \
-  Handle<String> NAME##_name = factory->NewStringFromAsciiChecked(#NAME); \
+#define EXPORT_PRIVATE_SYMBOL(_, NAME)                                \
+  Handle<String> NAME##_name = factory->InternalizeUtf8String(#NAME); \
   JSObject::AddProperty(isolate, container, NAME##_name, factory->NAME(), NONE);
   PRIVATE_SYMBOL_LIST_GENERATOR(EXPORT_PRIVATE_SYMBOL, /* not used */)
 #undef EXPORT_PRIVATE_SYMBOL
 
-#define EXPORT_PUBLIC_SYMBOL(_, NAME, DESCRIPTION)                        \
-  Handle<String> NAME##_name = factory->NewStringFromAsciiChecked(#NAME); \
+#define EXPORT_PUBLIC_SYMBOL(_, NAME, DESCRIPTION)                    \
+  Handle<String> NAME##_name = factory->InternalizeUtf8String(#NAME); \
   JSObject::AddProperty(isolate, container, NAME##_name, factory->NAME(), NONE);
   PUBLIC_SYMBOL_LIST_GENERATOR(EXPORT_PUBLIC_SYMBOL, /* not used */)
   WELL_KNOWN_SYMBOL_LIST_GENERATOR(EXPORT_PUBLIC_SYMBOL, /* not used */)
@@ -4396,6 +4391,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_meta)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_numeric_separator)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_json_stringify)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_sequence)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_await_optimization)
 
 #undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
 
@@ -4518,7 +4514,7 @@ void Genesis::InitializeGlobal_harmony_string_matchall() {
     JSObject::AddProperty(
         isolate(), regexp_string_iterator_prototype,
         factory()->to_string_tag_symbol(),
-        factory()->NewStringFromAsciiChecked("RegExp String Iterator"),
+        factory()->InternalizeUtf8String("RegExp String Iterator"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
     SimpleInstallFunction(isolate(), regexp_string_iterator_prototype, "next",
@@ -4526,7 +4522,7 @@ void Genesis::InitializeGlobal_harmony_string_matchall() {
                           true);
 
     Handle<JSFunction> regexp_string_iterator_function = CreateFunction(
-        isolate(), factory()->NewStringFromAsciiChecked("RegExpStringIterator"),
+        isolate(), factory()->InternalizeUtf8String("RegExpStringIterator"),
         JS_REGEXP_STRING_ITERATOR_TYPE, JSRegExpStringIterator::kSize, 0,
         regexp_string_iterator_prototype, Builtins::kIllegal);
     regexp_string_iterator_function->shared()->set_native(false);
@@ -4540,9 +4536,6 @@ void Genesis::InitializeGlobal_harmony_string_matchall() {
     InstallConstant(isolate(), symbol_fun, "matchAll",
                     factory()->match_all_symbol());
   }
-}
-
-void Genesis::InitializeGlobal_harmony_await_optimization() {
 }
 
 #ifdef V8_INTL_SUPPORT
@@ -4571,7 +4564,7 @@ void Genesis::InitializeGlobal_harmony_intl_list_format() {
 
   // Install the @@toStringTag property on the {prototype}.
   JSObject::AddProperty(isolate(), prototype, factory()->to_string_tag_symbol(),
-                        factory()->NewStringFromStaticChars("Intl.ListFormat"),
+                        factory()->InternalizeUtf8String("Intl.ListFormat"),
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
   SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
@@ -4607,7 +4600,7 @@ void Genesis::InitializeGlobal_harmony_locale() {
 
   // Install the @@toStringTag property on the {prototype}.
   JSObject::AddProperty(isolate(), prototype, factory()->to_string_tag_symbol(),
-                        factory()->NewStringFromStaticChars("Intl.Locale"),
+                        factory()->InternalizeUtf8String("Intl.Locale"),
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
   SimpleInstallFunction(isolate(), prototype, "toString",
@@ -4678,7 +4671,7 @@ void Genesis::InitializeGlobal_harmony_intl_relative_time_format() {
   // Install the @@toStringTag property on the {prototype}.
   JSObject::AddProperty(
       isolate(), prototype, factory()->to_string_tag_symbol(),
-      factory()->NewStringFromStaticChars("Intl.RelativeTimeFormat"),
+      factory()->InternalizeUtf8String("Intl.RelativeTimeFormat"),
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
   SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
@@ -4840,7 +4833,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
                            Builtins::kPromiseInternalConstructor, 1, true);
   promise_internal_constructor->shared()->set_native(false);
   InstallFunction(isolate(), extras_utils, promise_internal_constructor,
-                  factory()->NewStringFromAsciiChecked("createPromise"));
+                  factory()->InternalizeUtf8String("createPromise"));
 
   // v8.rejectPromise(promise, reason)
   Handle<JSFunction> promise_internal_reject =
@@ -4848,7 +4841,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
                            Builtins::kPromiseInternalReject, 2, true);
   promise_internal_reject->shared()->set_native(false);
   InstallFunction(isolate(), extras_utils, promise_internal_reject,
-                  factory()->NewStringFromAsciiChecked("rejectPromise"));
+                  factory()->InternalizeUtf8String("rejectPromise"));
 
   // v8.resolvePromise(promise, resolution)
   Handle<JSFunction> promise_internal_resolve =
@@ -4856,10 +4849,10 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
                            Builtins::kPromiseInternalResolve, 2, true);
   promise_internal_resolve->shared()->set_native(false);
   InstallFunction(isolate(), extras_utils, promise_internal_resolve,
-                  factory()->NewStringFromAsciiChecked("resolvePromise"));
+                  factory()->InternalizeUtf8String("resolvePromise"));
 
   InstallFunction(isolate(), extras_utils, isolate()->is_promise(),
-                  factory()->NewStringFromAsciiChecked("isPromise"));
+                  factory()->InternalizeUtf8String("isPromise"));
 
   int builtin_index = Natives::GetDebuggerCount();
   // Only run prologue.js at this point.
