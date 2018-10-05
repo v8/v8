@@ -79,6 +79,7 @@
 #include "src/objects/js-regexp-string-iterator.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-relative-time-format.h"
+#include "src/objects/js-segmenter.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/map.h"
@@ -1476,6 +1477,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSPluralRules::kSize;
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
       return JSRelativeTimeFormat::kSize;
+    case JS_INTL_SEGMENTER_TYPE:
+      return JSSegmenter::kSize;
 #endif  // V8_INTL_SUPPORT
     case WASM_GLOBAL_TYPE:
       return WasmGlobalObject::kSize;
@@ -3225,6 +3228,7 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_INTL_NUMBER_FORMAT_TYPE:
     case JS_INTL_PLURAL_RULES_TYPE:
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+    case JS_INTL_SEGMENTER_TYPE:
 #endif  // V8_INTL_SUPPORT
     case WASM_EXCEPTION_TYPE:
     case WASM_GLOBAL_TYPE:
@@ -12987,6 +12991,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_INTL_NUMBER_FORMAT_TYPE:
     case JS_INTL_PLURAL_RULES_TYPE:
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+    case JS_INTL_SEGMENTER_TYPE:
     case JS_INTL_V8_BREAK_ITERATOR_TYPE:
 #endif
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:

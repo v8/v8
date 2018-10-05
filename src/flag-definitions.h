@@ -216,10 +216,11 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V)      \
-  HARMONY_INPROGRESS_BASE(V)       \
-  V(harmony_locale, "Intl.Locale") \
-  V(harmony_intl_list_format, "Intl.ListFormat")
+#define HARMONY_INPROGRESS(V)                    \
+  HARMONY_INPROGRESS_BASE(V)                     \
+  V(harmony_locale, "Intl.Locale")               \
+  V(harmony_intl_list_format, "Intl.ListFormat") \
+  V(harmony_intl_segmenter, "Intl.Segmenter")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif

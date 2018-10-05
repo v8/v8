@@ -2249,6 +2249,9 @@ v8_source_set("v8_base") {
     "src/objects/js-relative-time-format-inl.h",
     "src/objects/js-relative-time-format.cc",
     "src/objects/js-relative-time-format.h",
+    "src/objects/js-segmenter-inl.h",
+    "src/objects/js-segmenter.cc",
+    "src/objects/js-segmenter.h",
     "src/objects/literal-objects-inl.h",
     "src/objects/literal-objects.cc",
     "src/objects/literal-objects.h",
@@ -2970,6 +2973,9 @@ v8_source_set("v8_base") {
       "src/objects/js-relative-time-format-inl.h",
       "src/objects/js-relative-time-format.cc",
       "src/objects/js-relative-time-format.h",
+      "src/objects/js-segmenter-inl.h",
+      "src/objects/js-segmenter.cc",
+      "src/objects/js-segmenter.h",
       "src/runtime/runtime-intl.cc",
     ]
   }

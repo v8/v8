@@ -38,6 +38,7 @@
 #include "src/objects/js-regexp-string-iterator-inl.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-relative-time-format-inl.h"
+#include "src/objects/js-segmenter-inl.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/microtask-inl.h"
@@ -341,6 +342,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
       JSRelativeTimeFormat::cast(this)->JSRelativeTimeFormatPrint(os);
+      break;
+    case JS_INTL_SEGMENTER_TYPE:
+      JSSegmenter::cast(this)->JSSegmenterPrint(os);
       break;
 #endif  // V8_INTL_SUPPORT
 #define MAKE_STRUCT_CASE(TYPE, Name, name) \
@@ -2029,6 +2033,15 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(
   os << "\n - style: " << StyleAsString();
   os << "\n - numeric: " << NumericAsString();
   os << "\n - icu formatter: " << Brief(icu_formatter());
+  os << "\n";
+}
+
+void JSSegmenter::JSSegmenterPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSSegmenter");
+  os << "\n - locale: " << Brief(locale());
+  os << "\n - granularity: " << GranularityAsString();
+  os << "\n - lineBreakStyle: " << LineBreakStyleAsString();
+  os << "\n - icubreak iterator: " << Brief(icu_break_iterator());
   os << "\n";
 }
 #endif  // V8_INTL_SUPPORT

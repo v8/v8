@@ -1436,6 +1436,12 @@ namespace internal {
   /* ES #sec-string.prototype.touppercase */                           \
   CPP(StringPrototypeToUpperCaseIntl)                                  \
   TFS(StringToLowerCaseIntl, kString)                                  \
+  /* ecma402 #sec-Intl.Segmenter */                                    \
+  CPP(SegmenterConstructor)                                            \
+  /* ecma402 #sec-Intl.Segmenter.prototype.resolvedOptions */          \
+  CPP(SegmenterPrototypeResolvedOptions)                               \
+  /* ecma402  #sec-Intl.Segmenter.supportedLocalesOf */                \
+  CPP(SegmenterSupportedLocalesOf)                                     \
   CPP(V8BreakIteratorConstructor)                                      \
   CPP(V8BreakIteratorInternalAdoptText)                                \
   CPP(V8BreakIteratorInternalBreakType)                                \

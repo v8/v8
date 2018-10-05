@@ -26,6 +26,7 @@
 #include "src/objects/js-number-format-inl.h"
 #include "src/objects/js-plural-rules-inl.h"
 #include "src/objects/js-relative-time-format-inl.h"
+#include "src/objects/js-segmenter-inl.h"
 #include "src/property-descriptor.h"
 
 #include "unicode/datefmt.h"
@@ -993,6 +994,51 @@ BUILTIN(CollatorInternalCompare) {
 
   // 7. Return CompareStrings(collator, X, Y).
   return *Intl::CompareStrings(isolate, collator_holder, string_x, string_y);
+}
+
+BUILTIN(SegmenterConstructor) {
+  HandleScope scope(isolate);
+
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kSegmenter);
+
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
+                              isolate->factory()->NewStringFromStaticChars(
+                                  "Intl.Segmenter")));
+  }
+  // [[Construct]]
+  Handle<JSFunction> target = args.target();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+
+  Handle<JSObject> result;
+  // 2. Let segmenter be OrdinaryCreateFromConstructor(NewTarget,
+  //    "%SegmenterPrototype%").
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::New(target, new_target, Handle<AllocationSite>::null()));
+  Handle<JSSegmenter> segmenter = Handle<JSSegmenter>::cast(result);
+  segmenter->set_flags(0);
+
+  Handle<Object> locales = args.atOrUndefined(isolate, 1);
+  Handle<Object> options = args.atOrUndefined(isolate, 2);
+
+  RETURN_RESULT_OR_FAILURE(
+      isolate, JSSegmenter::Initialize(isolate, segmenter, locales, options));
+}
+
+BUILTIN(SegmenterSupportedLocalesOf) {
+  HandleScope scope(isolate);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, SupportedLocalesOfCommon(isolate, "segmenter", args));
+}
+
+BUILTIN(SegmenterPrototypeResolvedOptions) {
+  HandleScope scope(isolate);
+  CHECK_RECEIVER(JSSegmenter, segmenter_holder,
+                 "Intl.Segmenter.prototype.resolvedOptions");
+  return *JSSegmenter::ResolvedOptions(isolate, segmenter_holder);
 }
 
 BUILTIN(V8BreakIteratorConstructor) {

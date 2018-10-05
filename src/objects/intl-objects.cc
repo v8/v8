@@ -183,6 +183,7 @@ std::set<std::string> Intl::GetAvailableLocales(const IcuService& service) {
   std::set<std::string> locales;
 
   switch (service) {
+    case IcuService::kSegmenter:
     case IcuService::kBreakIterator:
       icu_available_locales = icu::BreakIterator::getAvailableLocales(count);
       break;
@@ -291,6 +292,8 @@ IcuService Intl::StringToIcuService(Handle<String> service) {
     return IcuService::kRelativeDateTimeFormatter;
   } else if (service->IsUtf8EqualTo(CStrVector("listformat"))) {
     return IcuService::kListFormatter;
+  } else if (service->IsUtf8EqualTo(CStrVector("segmenter"))) {
+    return IcuService::kSegmenter;
   }
   UNREACHABLE();
 }

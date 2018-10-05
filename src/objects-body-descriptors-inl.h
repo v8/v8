@@ -810,6 +810,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_INTL_NUMBER_FORMAT_TYPE:
     case JS_INTL_PLURAL_RULES_TYPE:
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
+    case JS_INTL_SEGMENTER_TYPE:
 #endif  // V8_INTL_SUPPORT
     case WASM_EXCEPTION_TYPE:
     case WASM_GLOBAL_TYPE:

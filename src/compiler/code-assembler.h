@@ -42,6 +42,7 @@ class JSNumberFormat;
 class JSPluralRules;
 class JSRegExpStringIterator;
 class JSRelativeTimeFormat;
+class JSSegmenter;
 class JSV8BreakIterator;
 class JSWeakCollection;
 class JSWeakMap;

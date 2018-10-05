@@ -42,6 +42,7 @@
 #include "src/objects/js-regexp.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-relative-time-format.h"
+#include "src/objects/js-segmenter.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/templates.h"
 #include "src/snapshot/natives.h"
@@ -4736,6 +4737,37 @@ void Genesis::InitializeGlobal_harmony_intl_relative_time_format() {
   SimpleInstallFunction(isolate(), prototype, "formatToParts",
                         Builtins::kRelativeTimeFormatPrototypeFormatToParts, 2,
                         false);
+}
+
+void Genesis::InitializeGlobal_harmony_intl_segmenter() {
+  if (!FLAG_harmony_intl_segmenter) return;
+  Handle<JSObject> intl = Handle<JSObject>::cast(
+      JSReceiver::GetProperty(
+          isolate(),
+          Handle<JSReceiver>(native_context()->global_object(), isolate()),
+          factory()->InternalizeUtf8String("Intl"))
+          .ToHandleChecked());
+
+  Handle<JSFunction> segmenter_fun = InstallFunction(
+      isolate(), intl, "Segmenter", JS_INTL_SEGMENTER_TYPE, JSSegmenter::kSize,
+      0, factory()->the_hole_value(), Builtins::kSegmenterConstructor);
+  segmenter_fun->shared()->set_length(0);
+  segmenter_fun->shared()->DontAdaptArguments();
+
+  SimpleInstallFunction(isolate(), segmenter_fun, "supportedLocalesOf",
+                        Builtins::kSegmenterSupportedLocalesOf, 1, false);
+
+  // Setup %SegmenterPrototype%.
+  Handle<JSObject> prototype(
+      JSObject::cast(segmenter_fun->instance_prototype()), isolate());
+
+  // Install the @@toStringTag property on the {prototype}.
+  JSObject::AddProperty(isolate(), prototype, factory()->to_string_tag_symbol(),
+                        factory()->NewStringFromStaticChars("Intl.Segmenter"),
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+  SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
+                        Builtins::kSegmenterPrototypeResolvedOptions, 0, false);
 }
 
 #endif  // V8_INTL_SUPPORT

@@ -57,6 +57,7 @@ var AVAILABLE_LOCALES = {
   'pluralrules': UNDEFINED,
   'relativetimeformat': UNDEFINED,
   'listformat': UNDEFINED,
+  'segmenter': UNDEFINED,
 };
 
 /**

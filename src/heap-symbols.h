@@ -101,6 +101,8 @@
   V(_, getPrototypeOf_string, "getPrototypeOf")                       \
   V(_, global_string, "global")                                       \
   V(_, globalThis_string, "globalThis")                               \
+  V(_, granularity_string, "granularity")                             \
+  V(_, grapheme_string, "grapheme")                                   \
   V(_, group_string, "group")                                         \
   V(_, groups_string, "groups")                                       \
   V(_, has_string, "has")                                             \
@@ -125,11 +127,13 @@
   V(_, lastIndex_string, "lastIndex")                                 \
   V(_, length_string, "length")                                       \
   V(_, let_string, "let")                                             \
+  V(_, lineBreakStyle_string, "lineBreakStyle")                       \
   V(_, line_string, "line")                                           \
   V(_, LinkError_string, "LinkError")                                 \
   V(_, literal_string, "literal")                                     \
   V(_, locale_string, "locale")                                       \
   V(_, long_string, "long")                                           \
+  V(_, loose_string, "loose")                                         \
   V(_, Map_string, "Map")                                             \
   V(_, MapIterator_string, "Map Iterator")                            \
   V(_, maximumFractionDigits_string, "maximumFractionDigits")         \
@@ -157,6 +161,7 @@
   V(_, NFKC_string, "NFKC")                                           \
   V(_, NFKD_string, "NFKD")                                           \
   V(_, not_equal, "not-equal")                                        \
+  V(_, normal_string, "normal")                                       \
   V(_, null_string, "null")                                           \
   V(_, null_to_string, "[object Null]")                               \
   V(_, Number_string, "Number")                                       \
@@ -213,6 +218,7 @@
   V(_, stackTraceLimit_string, "stackTraceLimit")                     \
   V(_, star_default_star_string, "*default*")                         \
   V(_, sticky_string, "sticky")                                       \
+  V(_, strict_string, "strict")                                       \
   V(_, String_string, "String")                                       \
   V(_, string_string, "string")                                       \
   V(_, string_to_string, "[object String]")                           \

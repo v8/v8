@@ -84,6 +84,7 @@
 //         - JSNumberFormat        // If V8_INTL_SUPPORT enabled.
 //         - JSPluralRules         // If V8_INTL_SUPPORT enabled.
 //         - JSRelativeTimeFormat  // If V8_INTL_SUPPORT enabled.
+//         - JSSegmenter           // If V8_INTL_SUPPORT enabled.
 //         - WasmExceptionObject
 //         - WasmGlobalObject
 //         - WasmInstanceObject
@@ -532,6 +533,7 @@ enum InstanceType : uint16_t {
   JS_INTL_NUMBER_FORMAT_TYPE,
   JS_INTL_PLURAL_RULES_TYPE,
   JS_INTL_RELATIVE_TIME_FORMAT_TYPE,
+  JS_INTL_SEGMENTER_TYPE,
 #endif  // V8_INTL_SUPPORT
 
   WASM_EXCEPTION_TYPE,
@@ -854,7 +856,8 @@ class ZoneForwardList;
   V(JSLocale)                             \
   V(JSNumberFormat)                       \
   V(JSPluralRules)                        \
-  V(JSRelativeTimeFormat)
+  V(JSRelativeTimeFormat)                 \
+  V(JSSegmenter)
 #else
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)
 #endif  // V8_INTL_SUPPORT
@@ -970,16 +973,17 @@ class ZoneForwardList;
   V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)
 #ifdef V8_INTL_SUPPORT
 
-#define INSTANCE_TYPE_CHECKERS_SINGLE(V)               \
-  INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)                \
-  V(JSV8BreakIterator, JS_INTL_V8_BREAK_ITERATOR_TYPE) \
-  V(JSCollator, JS_INTL_COLLATOR_TYPE)                 \
-  V(JSDateTimeFormat, JS_INTL_DATE_TIME_FORMAT_TYPE)   \
-  V(JSListFormat, JS_INTL_LIST_FORMAT_TYPE)            \
-  V(JSLocale, JS_INTL_LOCALE_TYPE)                     \
-  V(JSNumberFormat, JS_INTL_NUMBER_FORMAT_TYPE)        \
-  V(JSPluralRules, JS_INTL_PLURAL_RULES_TYPE)          \
-  V(JSRelativeTimeFormat, JS_INTL_RELATIVE_TIME_FORMAT_TYPE)
+#define INSTANCE_TYPE_CHECKERS_SINGLE(V)                     \
+  INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)                      \
+  V(JSV8BreakIterator, JS_INTL_V8_BREAK_ITERATOR_TYPE)       \
+  V(JSCollator, JS_INTL_COLLATOR_TYPE)                       \
+  V(JSDateTimeFormat, JS_INTL_DATE_TIME_FORMAT_TYPE)         \
+  V(JSListFormat, JS_INTL_LIST_FORMAT_TYPE)                  \
+  V(JSLocale, JS_INTL_LOCALE_TYPE)                           \
+  V(JSNumberFormat, JS_INTL_NUMBER_FORMAT_TYPE)              \
+  V(JSPluralRules, JS_INTL_PLURAL_RULES_TYPE)                \
+  V(JSRelativeTimeFormat, JS_INTL_RELATIVE_TIME_FORMAT_TYPE) \
+  V(JSSegmenter, JS_INTL_SEGMENTER_TYPE)
 
 #else
 
