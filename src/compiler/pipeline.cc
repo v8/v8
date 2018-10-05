@@ -2635,6 +2635,29 @@ bool PipelineImpl::CommitDependencies(Handle<Code> code) {
          data_->dependencies()->Commit(code);
 }
 
+namespace {
+
+void TraceSequence(OptimizedCompilationInfo* info, PipelineData* data,
+                   const RegisterConfiguration* config,
+                   const char* phase_name) {
+  if (info->trace_turbo_json_enabled()) {
+    AllowHandleDereference allow_deref;
+    TurboJsonFile json_of(info, std::ios_base::app);
+    json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"sequence\",";
+    json_of << InstructionSequenceAsJSON{config, data->sequence()};
+    json_of << "},\n";
+  }
+  if (info->trace_turbo_graph_enabled()) {
+    AllowHandleDereference allow_deref;
+    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    os << "----- Instruction sequence " << phase_name << " -----\n"
+       << PrintableInstructionSequence({config, data->sequence()});
+  }
+}
+
+}  // namespace
+
 void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
                                      CallDescriptor* call_descriptor,
                                      bool run_verifier) {
@@ -2660,13 +2683,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   Run<MeetRegisterConstraintsPhase>();
   Run<ResolvePhisPhase>();
   Run<BuildLiveRangesPhase>();
-  if (info()->trace_turbo_graph_enabled()) {
-    AllowHandleDereference allow_deref;
-    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "----- Instruction sequence before register allocation -----\n"
-       << PrintableInstructionSequence({config, data->sequence()});
-  }
+  TraceSequence(info(), data, config, "before register allocation");
   if (verifier != nullptr) {
     CHECK(!data->register_allocation_data()->ExistsUseWithoutDefinition());
     CHECK(data->register_allocation_data()
@@ -2707,13 +2724,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
 
   Run<LocateSpillSlotsPhase>();
 
-  if (info()->trace_turbo_graph_enabled()) {
-    AllowHandleDereference allow_deref;
-    CodeTracer::Scope tracing_scope(data->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "----- Instruction sequence after register allocation -----\n"
-       << PrintableInstructionSequence({config, data->sequence()});
-  }
+  TraceSequence(info(), data, config, "after register allocation");
 
   if (verifier != nullptr) {
     verifier->VerifyAssignment("End of regalloc pipeline.");
