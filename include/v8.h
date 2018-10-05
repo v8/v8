@@ -1425,10 +1425,6 @@ class V8_EXPORT ScriptCompiler {
 
   enum CompileOptions {
     kNoCompileOptions = 0,
-    kProduceParserCache,
-    kConsumeParserCache,
-    kProduceCodeCache,
-    kProduceFullCodeCache,
     kConsumeCodeCache,
     kEagerCompile
   };

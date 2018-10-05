@@ -2070,7 +2070,7 @@ v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
     v8::ScriptCompiler::CompileOptions options;
     switch (cacheType) {
       case CodeCacheType::kEager:
-        options = v8::ScriptCompiler::kProduceFullCodeCache;
+        options = v8::ScriptCompiler::kEagerCompile;
         break;
       case CodeCacheType::kLazy:
       case CodeCacheType::kAfterExecute:

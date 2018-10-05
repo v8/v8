@@ -478,8 +478,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Local<Context> context(isolate->GetCurrentContext());
     ScriptOrigin origin(name);
 
-    DCHECK(options.compile_options != ScriptCompiler::kProduceParserCache);
-    DCHECK(options.compile_options != ScriptCompiler::kConsumeParserCache);
     if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
       ScriptCompiler::CachedData* cached_code =
           LookupCodeCache(isolate, source);

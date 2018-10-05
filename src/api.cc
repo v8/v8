@@ -2326,18 +2326,6 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   ENTER_V8_NO_SCRIPT(isolate, v8_isolate->GetCurrentContext(), ScriptCompiler,
                      CompileUnbound, MaybeLocal<UnboundScript>(),
                      InternalEscapableScope);
-  // ProduceParserCache, ProduceCodeCache, ProduceFullCodeCache and
-  // ConsumeParserCache are not supported. They are present only for
-  // backward compatability. All these options behave as kNoCompileOptions.
-  if (options == kConsumeParserCache) {
-    // We do not support parser caches anymore. Just set cached_data to
-    // rejected to signal an error.
-    options = kNoCompileOptions;
-    source->cached_data->rejected = true;
-  } else if (options == kProduceParserCache || options == kProduceCodeCache ||
-             options == kProduceFullCodeCache) {
-    options = kNoCompileOptions;
-  }
 
   i::ScriptData* script_data = nullptr;
   if (options == kConsumeCodeCache) {
