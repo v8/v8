@@ -711,15 +711,22 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
             //====================================================================
             // Handle a JavaScript frame.
             //====================================================================
-            if (builder.AppendJavaScriptFrame(summary.AsJavaScript())) {
-              last_frame_id = frame->id();
-              last_frame_index = static_cast<int>(i);
+            auto const& java_script = summary.AsJavaScript();
+            if (builder.AppendJavaScriptFrame(java_script)) {
+              if (IsAsyncFunction(java_script.function()->shared()->kind())) {
+                last_frame_id = frame->id();
+                last_frame_index = static_cast<int>(i);
+              } else {
+                last_frame_id = StackFrame::NO_ID;
+                last_frame_index = 0;
+              }
             }
           } else if (summary.IsWasmCompiled()) {
             //====================================================================
             // Handle a WASM compiled frame.
             //====================================================================
-            if (builder.AppendWasmCompiledFrame(summary.AsWasmCompiled())) {
+            auto const& wasm_compiled = summary.AsWasmCompiled();
+            if (builder.AppendWasmCompiledFrame(wasm_compiled)) {
               last_frame_id = StackFrame::NO_ID;
               last_frame_index = 0;
             }
@@ -727,8 +734,8 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
             //====================================================================
             // Handle a WASM interpreted frame.
             //====================================================================
-            if (builder.AppendWasmInterpretedFrame(
-                    summary.AsWasmInterpreted())) {
+            auto const& wasm_interpreted = summary.AsWasmInterpreted();
+            if (builder.AppendWasmInterpretedFrame(wasm_interpreted)) {
               last_frame_id = StackFrame::NO_ID;
               last_frame_index = 0;
             }
@@ -762,7 +769,8 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
     FunctionKind const kind = inspector.GetFunction()->shared()->kind();
     if (IsAsyncGeneratorFunction(kind)) {
       // TODO(bmeurer): Handle async generators here.
-    } else if (IsAsyncFunction(kind)) {
+    } else {
+      DCHECK(IsAsyncFunction(kind));
       Handle<Object> const dot_promise =
           inspector.GetExpression(DeclarationScope::kPromiseVarIndex);
       if (dot_promise->IsJSPromise()) {
