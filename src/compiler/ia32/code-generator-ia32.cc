@@ -4311,6 +4311,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
   if (saves != 0) {  // Save callee-saved registers.
     DCHECK(!info()->is_osr());
+    TurboAssembler::AllowExplicitEbxAccessScope spill_register(tasm());
     for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
       if (((1 << i) & saves)) __ push(Register::from_code(i));
     }
@@ -4333,6 +4334,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
       __ add(esp, Immediate(returns * kPointerSize));
     }
     for (int i = 0; i < Register::kNumRegisters; i++) {
+      TurboAssembler::AllowExplicitEbxAccessScope reload_register(tasm());
       if (!((1 << i) & saves)) continue;
       __ pop(Register::from_code(i));
     }

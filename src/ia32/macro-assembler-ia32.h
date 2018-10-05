@@ -110,6 +110,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CheckStackAlignment();
 
   void InitializeRootRegister() {
+    Assembler::AllowExplicitEbxAccessScope setup(this);
     // For now, only check sentinel value for root register.
     // TODO(jgruber,v8:6666): Implement root register.
     if (FLAG_ia32_verify_root_register && FLAG_embedded_builtins) {

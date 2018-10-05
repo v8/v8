@@ -44,6 +44,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Save callee-saved registers (C calling conventions).
   __ push(edi);
   __ push(esi);
+  Assembler::AllowExplicitEbxAccessScope spill_register(masm);
   __ push(ebx);
 
   __ InitializeRootRegister();
