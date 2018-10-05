@@ -127,14 +127,6 @@ void WriteVersion(Isolate* isolate, Writer* writer) {
   writer->Write(FlagList::Hash());
 }
 
-bool IsSupportedVersion(Isolate* isolate, const Vector<const byte> version) {
-  if (version.size() < kVersionSize) return false;
-  byte current_version[kVersionSize];
-  Writer writer({current_version, kVersionSize});
-  WriteVersion(isolate, &writer);
-  return memcmp(version.start(), current_version, kVersionSize) == 0;
-}
-
 // On Intel, call sites are encoded as a displacement. For linking and for
 // serialization/deserialization, we want to store/retrieve a tag (the function
 // index). On Intel, that means accessing the raw displacement.
@@ -535,6 +527,14 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
                          code->instructions().size());
 
   return true;
+}
+
+bool IsSupportedVersion(Isolate* isolate, Vector<const byte> version) {
+  if (version.size() < kVersionSize) return false;
+  byte current_version[kVersionSize];
+  Writer writer({current_version, kVersionSize});
+  WriteVersion(isolate, &writer);
+  return memcmp(version.start(), current_version, kVersionSize) == 0;
 }
 
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(
